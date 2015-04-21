@@ -500,15 +500,21 @@ func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), 
 		conn.Close()
 		return nil, nil, err
 	}
-	p, err := agentlib.NewAgentPrincipal(agentctx, int(conn.Fd()), v23.GetClient(agentctx))
+	// TODO: This should use the same network as the agent we're using,
+	// not whatever this process was compiled with.
+	ep, err := v23.NewEndpoint(agentlib.AgentEndpoint(int(conn.Fd())))
 	if err != nil {
 		cancel()
 		conn.Close()
 		return nil, nil, err
 	}
-	// conn will be closed when the connection to the agent is shut down, as
-	// a result of cancel shutting down the stream manager.  No need to
-	// explicitly call conn.Close() with cancel.
+	p, err := agentlib.NewAgentPrincipal(agentctx, ep, v23.GetClient(agentctx))
+	if err != nil {
+		cancel()
+		conn.Close()
+		return nil, nil, err
+	}
+	conn.Close()
 	return p, cancel, nil
 }
 
@@ -839,7 +845,8 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 		// accordingly.
 		fd := len(cmd.ExtraFiles) + vexec.FileOffset
 		cmd.ExtraFiles = append(cmd.ExtraFiles, file)
-		cfg.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(fd))
+		ep := agentlib.AgentEndpoint(fd)
+		cfg.Set(mgmt.SecurityAgentEndpointConfigKey, ep)
 	} else {
 		cmd.Env = append(cmd.Env, envvar.Credentials+"="+filepath.Join(instanceDir, "credentials"))
 	}

@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
-	"syscall"
 	"testing"
 	"time"
 
@@ -38,30 +37,30 @@ func getPrincipalAndHang(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	return nil
 }
 
-func newAgent(ctx *context.T, sock *os.File, cached bool) (security.Principal, error) {
-	fd, err := syscall.Dup(int(sock.Fd()))
+func newAgent(ctx *context.T, endpoint string, cached bool) (security.Principal, error) {
+	ep, err := v23.NewEndpoint(endpoint)
 	if err != nil {
 		return nil, err
 	}
 	if cached {
-		return agentlib.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
+		return agentlib.NewAgentPrincipal(ctx, ep, v23.GetClient(ctx))
 	} else {
-		return agentlib.NewUncachedPrincipal(ctx, fd, v23.GetClient(ctx))
+		return agentlib.NewUncachedPrincipal(ctx, ep, v23.GetClient(ctx))
 	}
 }
 
 func setupAgentPair(t *testing.T, ctx *context.T, p security.Principal) (security.Principal, security.Principal) {
-	sock, err := server.RunAnonymousAgent(ctx, p)
+	sock, ep, err := server.RunAnonymousAgent(ctx, p, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer sock.Close()
 
-	agent1, err := newAgent(ctx, sock, true)
+	agent1, err := newAgent(ctx, ep, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent2, err := newAgent(ctx, sock, true)
+	agent2, err := newAgent(ctx, ep, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,12 +69,12 @@ func setupAgentPair(t *testing.T, ctx *context.T, p security.Principal) (securit
 }
 
 func setupAgent(ctx *context.T, caching bool) security.Principal {
-	sock, err := server.RunAnonymousAgent(ctx, v23.GetPrincipal(ctx))
+	sock, ep, err := server.RunAnonymousAgent(ctx, v23.GetPrincipal(ctx), -1)
 	if err != nil {
 		panic(err)
 	}
 	defer sock.Close()
-	agent, err := newAgent(ctx, sock, caching)
+	agent, err := newAgent(ctx, ep, caching)
 	if err != nil {
 		panic(err)
 	}
@@ -162,7 +161,7 @@ func TestAgentShutdown(t *testing.T) {
 		t.Fatalf("failed to read input: %s", err)
 	}
 	fmt.Fprintf(os.Stderr, "shutting down...\n")
-	// This shouldn't not hang
+	// This should not hang
 	shutdown()
 	fmt.Fprintf(os.Stderr, "shut down\n")
 

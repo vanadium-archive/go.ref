@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
+	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/test/expect"
 )
 
@@ -166,7 +166,7 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 		config.MergeFrom(serialized)
 		if agentfd != nil {
 			childfd := len(cmd.ExtraFiles) + vexec.FileOffset
-			config.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(childfd))
+			config.Set(mgmt.SecurityAgentEndpointConfigKey, agentlib.AgentEndpoint(childfd))
 			cmd.ExtraFiles = append(cmd.ExtraFiles, agentfd)
 			defer agentfd.Close()
 		}

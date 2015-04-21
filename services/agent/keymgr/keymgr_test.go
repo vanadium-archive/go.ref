@@ -72,7 +72,11 @@ func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 		return nil, err
 	}
 
-	return agentlib.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
+	ep, err := v23.NewEndpoint(agentlib.AgentEndpoint(fd))
+	if err != nil {
+		return nil, err
+	}
+	return agentlib.NewAgentPrincipal(ctx, ep, v23.GetClient(ctx))
 }
 
 func TestSigning(t *testing.T) {

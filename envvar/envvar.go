@@ -22,6 +22,14 @@ const (
 	// See v.io/x/ref/lib/security.CreatePersistentPrincipal.
 	Credentials = "V23_CREDENTIALS"
 
+	// AgentEndpoint points to an agentd process containing all the
+	// credentials a principal (the blessing store, the blessing roots,
+	// possibly the private key etc.).
+	//
+	// Typically only one of Credentials or AgentEndpoint will be set
+	// in a process. If both are set, then Credentials takes preference.
+	AgentEndpoint = "V23_AGENT_ENDPOINT"
+
 	// NamespacePrefix is the prefix of all environment variables that define
 	// a namespace root.
 	NamespacePrefix = "V23_NAMESPACE"
@@ -67,8 +75,7 @@ func NamespaceRoots() (map[string]string, []string) {
 func ClearCredentials() error {
 	for _, v := range []string{
 		Credentials,
-		// Remove when https://github.com/veyron/release-issues/issues/1597 is closed.
-		"VEYRON_AGENT_FD",
+		AgentEndpoint,
 	} {
 		if err := os.Unsetenv(v); err != nil {
 			return err

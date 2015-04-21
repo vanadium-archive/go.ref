@@ -27,6 +27,7 @@ import (
 	"v.io/x/lib/vlog"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/internal/unixfd"
 )
 
@@ -67,16 +68,26 @@ type keymgr struct {
 // RunAnonymousAgent starts the agent server listening on an
 // anonymous unix domain socket. It will respond to requests
 // using 'principal'.
-// The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
-func RunAnonymousAgent(ctx *context.T, principal security.Principal) (client *os.File, err error) {
+//
+// The returned 'client' and 'endpoint' are typically passed via
+// cmd.ExtraFiles and envvar.AgentEndpoint to a child process.
+//
+// When passing 'endpoint' to a child, set 'remoteFd' to the fd number
+// in the child process. If 'endpoint' will be used in this process
+// (e.g. in the agent unit tests), set 'remoteFd' to -1.
+func RunAnonymousAgent(ctx *context.T, principal security.Principal, remoteFd int) (client *os.File, endpoint string, err error) {
 	local, remote, err := unixfd.Socketpair()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err = startAgent(ctx, local, newWatchers(), principal); err != nil {
-		return nil, err
+		remote.Close()
+		return nil, "", err
 	}
-	return remote, err
+	if remoteFd == -1 {
+		remoteFd = int(remote.Fd())
+	}
+	return remote, agentlib.AgentEndpoint(remoteFd), nil
 }
 
 // RunKeyManager starts the key manager server listening on an

@@ -120,8 +120,6 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 }
 
 func doExec(cmd []string, conn *os.File) error {
-	envvar.ClearCredentials()
-	os.Setenv(agentlib.FdVarName, "3")
 	if conn.Fd() != 3 {
 		if err := syscall.Dup2(int(conn.Fd()), 3); err != nil {
 			vlog.Errorf("Couldn't dup fd")
@@ -152,6 +150,11 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 
+	ep, err := v23.NewEndpoint(os.Getenv(envvar.AgentEndpoint))
+	if err != nil {
+		vlog.Errorf("Couldn't parse %v=%q: %v", envvar.AgentEndpoint, os.Getenv(envvar.AgentEndpoint), err)
+		return nil, nil, err
+	}
 	// Connect to the Principal
 	fd, err := syscall.Dup(int(conn.Fd()))
 	if err != nil {
@@ -159,10 +162,14 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 	syscall.CloseOnExec(fd)
-	principal, err := agentlib.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
+	ep, err = v23.NewEndpoint(agentlib.AgentEndpoint(fd))
+	if err != nil {
+		vlog.Errorf("Error creating endpoint: %v", err)
+		return nil, nil, err
+	}
+	principal, err := agentlib.NewAgentPrincipal(ctx, ep, v23.GetClient(ctx))
 	if err != nil {
 		vlog.Errorf("Couldn't connect to principal")
-		return nil, nil, err
 	}
 	return principal, conn, nil
 }

@@ -300,7 +300,12 @@ func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 	if err != nil {
 		return nil, err
 	}
-	p, err := agentlib.NewAgentPrincipal(sh.ctx, fd, v23.GetClient(sh.ctx))
+	ep, err := v23.NewEndpoint(agentlib.AgentEndpoint(fd))
+	if err != nil {
+		syscall.Close(fd)
+		return nil, err
+	}
+	p, err := agentlib.NewAgentPrincipal(sh.ctx, ep, v23.GetClient(sh.ctx))
 	if err != nil {
 		syscall.Close(fd)
 		return nil, err
@@ -729,7 +734,7 @@ func (sh *Shell) setupCommandEnv(env []string) ([]string, error) {
 	// want the child to directly use the directory specified
 	// by the shell's VeyronCredentials.
 	delete(m1, envvar.Credentials)
-	delete(m1, agentlib.FdVarName)
+	delete(m1, envvar.AgentEndpoint)
 
 	m2 := mergeMaps(m1, evmap)
 	r := []string{}

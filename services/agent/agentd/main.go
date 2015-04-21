@@ -25,12 +25,12 @@ import (
 	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/lib/security"
 	vsignals "v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/internal/server"
 
 	_ "v.io/x/ref/profiles"
 )
 
+const childAgentFd = 3
 const pkgPath = "v.io/x/ref/services/agent/agentd"
 
 var (
@@ -110,10 +110,6 @@ agent protocol instead of directly reading from disk.
 		vlog.Panic("failed to set principal for ctx: %v", err)
 	}
 
-	if err = os.Setenv(agentlib.FdVarName, "3"); err != nil {
-		vlog.Fatalf("setenv: %v", err)
-	}
-
 	if *keypath == "" && passphrase != nil {
 		// If we're done with the passphrase, zero it out so it doesn't stay in memory
 		for i := range passphrase {
@@ -124,9 +120,14 @@ agent protocol instead of directly reading from disk.
 
 	// Start running our server.
 	var sock, mgrSock *os.File
-	if sock, err = server.RunAnonymousAgent(ctx, p); err != nil {
+	var endpoint string
+	if sock, endpoint, err = server.RunAnonymousAgent(ctx, p, childAgentFd); err != nil {
 		vlog.Fatalf("RunAnonymousAgent: %v", err)
 	}
+	if err = os.Setenv(envvar.AgentEndpoint, endpoint); err != nil {
+		vlog.Fatalf("setenv: %v", err)
+	}
+
 	if *keypath != "" {
 		if mgrSock, err = server.RunKeyManager(ctx, *keypath, passphrase); err != nil {
 			vlog.Fatalf("RunKeyManager: %v", err)

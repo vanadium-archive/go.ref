@@ -10,21 +10,28 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
+	"syscall"
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/agent/internal/cache"
 	"v.io/x/ref/services/agent/internal/unixfd"
 )
 
-// FdVarName is the name of the environment variable containing
-// the file descriptor for talking to the agent.
-const FdVarName = "VEYRON_AGENT_FD"
+const pkgPath = "v.io/x/ref/services/agent/agentlib"
+
+// Errors
+var (
+	errInvalidProtocol = verror.Register(pkgPath+".errInvalidProtocol",
+		verror.NoRetry, "{1:}{2:} invalid agent protocol {3}")
+)
 
 type client struct {
 	caller caller
@@ -59,12 +66,12 @@ func results(inputs ...interface{}) []interface{} {
 }
 
 // NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.
-// 'fd' is the socket for connecting to the agent, typically obtained from
-// os.GetEnv(agent.FdVarName).
+// 'endpoint' is the endpoint for connecting to the agent, typically obtained from
+// os.GetEnv(envvar.AgentEndpoint).
 // 'ctx' should not have a deadline, and should never be cancelled while the
 // principal is in use.
-func NewAgentPrincipal(ctx *context.T, fd int, insecureClient rpc.Client) (security.Principal, error) {
-	p, err := newUncachedPrincipal(ctx, fd, insecureClient)
+func NewAgentPrincipal(ctx *context.T, endpoint naming.Endpoint, insecureClient rpc.Client) (security.Principal, error) {
+	p, err := newUncachedPrincipal(ctx, endpoint, insecureClient)
 	if err != nil {
 		return p, err
 	}
@@ -74,7 +81,25 @@ func NewAgentPrincipal(ctx *context.T, fd int, insecureClient rpc.Client) (secur
 	}
 	return cache.NewCachedPrincipal(p.caller.ctx, p, call)
 }
-func newUncachedPrincipal(ctx *context.T, fd int, insecureClient rpc.Client) (*client, error) {
+func newUncachedPrincipal(ctx *context.T, ep naming.Endpoint, insecureClient rpc.Client) (*client, error) {
+	// This isn't a real vanadium endpoint. It contains the vanadium version
+	// info, but the address is serving the agent protocol.
+	if ep.Addr().Network() != "" {
+		return nil, verror.New(errInvalidProtocol, ctx, ep.Addr().Network())
+	}
+	fd, err := strconv.Atoi(ep.Addr().String())
+	if err != nil {
+		return nil, err
+	}
+	syscall.ForkLock.Lock()
+	fd, err = syscall.Dup(fd)
+	if err == nil {
+		syscall.CloseOnExec(fd)
+	}
+	syscall.ForkLock.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	f := os.NewFile(uintptr(fd), "agent_client")
 	defer f.Close()
 	conn, err := net.FileConn(f)
@@ -89,7 +114,7 @@ func newUncachedPrincipal(ctx *context.T, fd int, insecureClient rpc.Client) (*c
 	}
 	caller := caller{
 		client: insecureClient,
-		name:   naming.JoinAddressName(naming.FormatEndpoint(addr.Network(), addr.String()), ""),
+		name:   naming.JoinAddressName(agentEndpoint("unixfd", addr.String()), ""),
 		ctx:    ctx,
 	}
 	agent := &client{caller: caller}
@@ -254,4 +279,15 @@ func (b *blessingRoots) DebugString() (s string) {
 		vlog.Errorf(s)
 	}
 	return
+}
+
+func agentEndpoint(proto, addr string) string {
+	// TODO: use naming.FormatEndpoint when it supports version 5.
+	return fmt.Sprintf("@5@%s@%s@@s@@@", proto, addr)
+}
+
+func AgentEndpoint(fd int) string {
+	// We use an empty protocol here because this isn't really speaking
+	// veyron rpc.
+	return agentEndpoint("", fmt.Sprintf("%d", fd))
 }

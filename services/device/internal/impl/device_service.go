@@ -47,7 +47,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -68,6 +67,7 @@ import (
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/profile"
 )
@@ -386,7 +386,10 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 
 		fd := len(cmd.ExtraFiles) + vexec.FileOffset
 		cmd.ExtraFiles = append(cmd.ExtraFiles, file)
-		cfg.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(fd))
+		// TODO: This should use the same network as the agent we're using,
+		// not whatever this process was compiled with.
+		ep := agentlib.AgentEndpoint(fd)
+		cfg.Set(mgmt.SecurityAgentEndpointConfigKey, ep)
 	}
 
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})

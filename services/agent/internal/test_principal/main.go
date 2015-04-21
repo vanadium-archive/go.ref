@@ -16,7 +16,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/security"
 	"v.io/x/ref/envvar"
-	"v.io/x/ref/services/agent/agentlib"
 
 	_ "v.io/x/ref/profiles"
 )
@@ -56,8 +55,8 @@ func main() {
 	if got := os.Getenv(envvar.Credentials); len(got) != 0 {
 		errorf("%v environment variable is unexpectedly set", envvar.Credentials)
 	}
-	if got := os.Getenv(agentlib.FdVarName); len(got) == 0 {
-		errorf("%v environment variable is not set", agentlib.FdVarName)
+	if got := os.Getenv(envvar.AgentEndpoint); len(got) == 0 {
+		errorf("%v environment variable is not set", envvar.AgentEndpoint)
 	}
 	// A pristine agent has a single blessing "agent_principal" (from agentd/main.go).
 	if blessings := p.BlessingsInfo(p.BlessingStore().Default()); len(blessings) != 1 {
