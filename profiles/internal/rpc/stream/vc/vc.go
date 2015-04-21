@@ -413,8 +413,6 @@ func (vc *VC) ReleaseCounters(fid id.Flow, bytes uint32) {
 	f.Release(int(bytes))
 }
 
-// Close closes the VC and all flows on it, allowing any pending writes in the
-// flow to drain.
 func (vc *VC) Close(reason error) error {
 	vlog.VI(1).Infof("Closing VC %v. Reason:%q", vc, reason)
 	vc.mu.Lock()

@@ -105,6 +105,10 @@ type Connector interface {
 type VC interface {
 	Connector
 	Listen() (Listener, error)
+
+	// Close closes the VC and all flows on it, allowing any pending writes in
+	// flows to drain.
+	Close(reason error) error
 }
 
 // VCOpt is the interface for all VC options.

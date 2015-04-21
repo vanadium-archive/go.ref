@@ -18,8 +18,8 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	addr, stop := internal.StartServer(ctx, v23.GetListenSpec(ctx))
-	vlog.Infof("Listening on %s", addr)
+	ep, stop := internal.StartServer(ctx, v23.GetListenSpec(ctx))
+	vlog.Infof("Listening on %s", ep.Name())
 	defer stop()
 	<-signals.ShutdownOnSignals(ctx)
 }
