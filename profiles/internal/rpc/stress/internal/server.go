@@ -18,56 +18,67 @@ import (
 )
 
 type impl struct {
-	statsMu        sync.Mutex
-	sumCount       uint64 // GUARDED_BY(statsMu)
-	sumStreamCount uint64 // GUARDED_BY(statsMu)
+	statsMu sync.Mutex
+	stats   stress.SumStats // GUARDED_BY(statsMu)
 
 	stop chan struct{}
 }
 
-func (s *impl) Sum(_ *context.T, _ rpc.ServerCall, arg stress.Arg) ([]byte, error) {
-	defer s.incSumCount()
-	return doSum(arg)
+func (s *impl) Echo(_ *context.T, _ rpc.ServerCall, payload []byte) ([]byte, error) {
+	return payload, nil
+}
+
+func (s *impl) Sum(_ *context.T, _ rpc.ServerCall, arg stress.SumArg) ([]byte, error) {
+	sum, err := doSum(&arg)
+	if err != nil {
+		return nil, err
+	}
+	s.addSumStats(false, uint64(lenSumArg(&arg)), uint64(len(sum)))
+	return sum, nil
 }
 
 func (s *impl) SumStream(_ *context.T, call stress.StressSumStreamServerCall) error {
-	defer s.incSumStreamCount()
 	rStream := call.RecvStream()
 	sStream := call.SendStream()
+	var bytesRecv, bytesSent uint64
 	for rStream.Advance() {
-		sum, err := doSum(rStream.Value())
+		arg := rStream.Value()
+		sum, err := doSum(&arg)
 		if err != nil {
 			return err
 		}
 		sStream.Send(sum)
+		bytesRecv += uint64(lenSumArg(&arg))
+		bytesSent += uint64(len(sum))
 	}
 	if err := rStream.Err(); err != nil {
 		return err
 	}
+	s.addSumStats(true, bytesRecv, bytesSent)
 	return nil
 }
 
-func (s *impl) GetStats(*context.T, rpc.ServerCall) (stress.Stats, error) {
+func (s *impl) addSumStats(stream bool, bytesRecv, bytesSent uint64) {
+	s.statsMu.Lock()
+	if stream {
+		s.stats.SumStreamCount++
+	} else {
+		s.stats.SumCount++
+	}
+	s.stats.BytesRecv += bytesRecv
+	s.stats.BytesSent += bytesSent
+	s.statsMu.Unlock()
+}
+
+func (s *impl) GetSumStats(*context.T, rpc.ServerCall) (stress.SumStats, error) {
 	s.statsMu.Lock()
 	defer s.statsMu.Unlock()
-	return stress.Stats{s.sumCount, s.sumStreamCount}, nil
+	return s.stats, nil
 }
 
 func (s *impl) Stop(*context.T, rpc.ServerCall) error {
 	s.stop <- struct{}{}
 	return nil
-}
-
-func (s *impl) incSumCount() {
-	s.statsMu.Lock()
-	defer s.statsMu.Unlock()
-	s.sumCount++
-}
-
-func (s *impl) incSumStreamCount() {
-	s.statsMu.Lock()
-	defer s.statsMu.Unlock()
-	s.sumStreamCount++
 }
 
 type allowEveryoneAuthorizer struct{}
@@ -86,11 +97,13 @@ func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (rpc.Server, naming.
 	if err != nil {
 		vlog.Fatalf("Listen failed: %v", err)
 	}
+	if len(eps) == 0 {
+		vlog.Fatal("No local address to listen on")
+	}
 
 	s := impl{stop: make(chan struct{})}
 	if err := server.Serve("", stress.StressServer(&s), allowEveryoneAuthorizer{}); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
-
 	return server, eps[0], s.stop
 }

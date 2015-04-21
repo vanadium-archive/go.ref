@@ -8,26 +8,31 @@ import (
 	"v.io/v23/security/access"
 )
 
-type Arg struct {
+type SumArg struct {
 	ABool        bool
 	AInt64       int64
 	AListOfBytes []byte
 }
 
-type Stats struct {
+type SumStats struct {
 	SumCount       uint64
 	SumStreamCount uint64
+	BytesRecv      uint64
+	BytesSent      uint64
 }
 
 type Stress interface {
+	// Echo returns the payload that it receives.
+	Echo(Payload []byte) ([]byte | error) {access.Read}
+
 	// Do returns the checksum of the payload that it receives.
-	Sum(arg Arg) ([]byte | error) {access.Read}
+	Sum(arg SumArg) ([]byte | error) {access.Read}
 
 	// DoStream returns the checksum of the payload that it receives via the stream.
-	SumStream() stream<Arg,[]byte> error {access.Read}
+	SumStream() stream<SumArg,[]byte> error {access.Read}
 
-	// GetStats returns the stats on the calls that the server received.
-	GetStats() (Stats | error) {access.Read}
+	// GetSumStats returns the stats on the Sum calls that the server received.
+	GetSumStats() (SumStats | error) {access.Read}
 
 	// Stop stops the server.
 	Stop() error {access.Admin}

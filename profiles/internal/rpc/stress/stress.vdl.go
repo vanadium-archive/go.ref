@@ -19,41 +19,45 @@ import (
 	"v.io/v23/security/access"
 )
 
-type Arg struct {
+type SumArg struct {
 	ABool        bool
 	AInt64       int64
 	AListOfBytes []byte
 }
 
-func (Arg) __VDLReflect(struct {
-	Name string "v.io/x/ref/profiles/internal/rpc/stress.Arg"
+func (SumArg) __VDLReflect(struct {
+	Name string "v.io/x/ref/profiles/internal/rpc/stress.SumArg"
 }) {
 }
 
-type Stats struct {
+type SumStats struct {
 	SumCount       uint64
 	SumStreamCount uint64
+	BytesRecv      uint64
+	BytesSent      uint64
 }
 
-func (Stats) __VDLReflect(struct {
-	Name string "v.io/x/ref/profiles/internal/rpc/stress.Stats"
+func (SumStats) __VDLReflect(struct {
+	Name string "v.io/x/ref/profiles/internal/rpc/stress.SumStats"
 }) {
 }
 
 func init() {
-	vdl.Register((*Arg)(nil))
-	vdl.Register((*Stats)(nil))
+	vdl.Register((*SumArg)(nil))
+	vdl.Register((*SumStats)(nil))
 }
 
 // StressClientMethods is the client interface
 // containing Stress methods.
 type StressClientMethods interface {
+	// Echo returns the payload that it receives.
+	Echo(ctx *context.T, Payload []byte, opts ...rpc.CallOpt) ([]byte, error)
 	// Do returns the checksum of the payload that it receives.
-	Sum(ctx *context.T, arg Arg, opts ...rpc.CallOpt) ([]byte, error)
+	Sum(ctx *context.T, arg SumArg, opts ...rpc.CallOpt) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
 	SumStream(*context.T, ...rpc.CallOpt) (StressSumStreamClientCall, error)
-	// GetStats returns the stats on the calls that the server received.
-	GetStats(*context.T, ...rpc.CallOpt) (Stats, error)
+	// GetSumStats returns the stats on the Sum calls that the server received.
+	GetSumStats(*context.T, ...rpc.CallOpt) (SumStats, error)
 	// Stop stops the server.
 	Stop(*context.T, ...rpc.CallOpt) error
 }
@@ -73,7 +77,12 @@ type implStressClientStub struct {
 	name string
 }
 
-func (c implStressClientStub) Sum(ctx *context.T, i0 Arg, opts ...rpc.CallOpt) (o0 []byte, err error) {
+func (c implStressClientStub) Echo(ctx *context.T, i0 []byte, opts ...rpc.CallOpt) (o0 []byte, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Echo", []interface{}{i0}, []interface{}{&o0}, opts...)
+	return
+}
+
+func (c implStressClientStub) Sum(ctx *context.T, i0 SumArg, opts ...rpc.CallOpt) (o0 []byte, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "Sum", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
@@ -87,8 +96,8 @@ func (c implStressClientStub) SumStream(ctx *context.T, opts ...rpc.CallOpt) (oc
 	return
 }
 
-func (c implStressClientStub) GetStats(ctx *context.T, opts ...rpc.CallOpt) (o0 Stats, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "GetStats", nil, []interface{}{&o0}, opts...)
+func (c implStressClientStub) GetSumStats(ctx *context.T, opts ...rpc.CallOpt) (o0 SumStats, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "GetSumStats", nil, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -118,7 +127,7 @@ type StressSumStreamClientStream interface {
 		// the stream has been canceled.  Blocks if there is no buffer
 		// space; will unblock when buffer space is available or after
 		// the stream has been canceled.
-		Send(item Arg) error
+		Send(item SumArg) error
 		// Close indicates to the server that no more items will be sent;
 		// server Recv calls will receive io.EOF after all sent items.
 		// This is an optional call - e.g. a client might call Close if it
@@ -178,7 +187,7 @@ func (c implStressSumStreamClientCallRecv) Err() error {
 	return c.c.errRecv
 }
 func (c *implStressSumStreamClientCall) SendStream() interface {
-	Send(item Arg) error
+	Send(item SumArg) error
 	Close() error
 } {
 	return implStressSumStreamClientCallSend{c}
@@ -188,7 +197,7 @@ type implStressSumStreamClientCallSend struct {
 	c *implStressSumStreamClientCall
 }
 
-func (c implStressSumStreamClientCallSend) Send(item Arg) error {
+func (c implStressSumStreamClientCallSend) Send(item SumArg) error {
 	return c.c.Send(item)
 }
 func (c implStressSumStreamClientCallSend) Close() error {
@@ -202,12 +211,14 @@ func (c *implStressSumStreamClientCall) Finish() (err error) {
 // StressServerMethods is the interface a server writer
 // implements for Stress.
 type StressServerMethods interface {
+	// Echo returns the payload that it receives.
+	Echo(ctx *context.T, call rpc.ServerCall, Payload []byte) ([]byte, error)
 	// Do returns the checksum of the payload that it receives.
-	Sum(ctx *context.T, call rpc.ServerCall, arg Arg) ([]byte, error)
+	Sum(ctx *context.T, call rpc.ServerCall, arg SumArg) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
 	SumStream(*context.T, StressSumStreamServerCall) error
-	// GetStats returns the stats on the calls that the server received.
-	GetStats(*context.T, rpc.ServerCall) (Stats, error)
+	// GetSumStats returns the stats on the Sum calls that the server received.
+	GetSumStats(*context.T, rpc.ServerCall) (SumStats, error)
 	// Stop stops the server.
 	Stop(*context.T, rpc.ServerCall) error
 }
@@ -217,12 +228,14 @@ type StressServerMethods interface {
 // The only difference between this interface and StressServerMethods
 // is the streaming methods.
 type StressServerStubMethods interface {
+	// Echo returns the payload that it receives.
+	Echo(ctx *context.T, call rpc.ServerCall, Payload []byte) ([]byte, error)
 	// Do returns the checksum of the payload that it receives.
-	Sum(ctx *context.T, call rpc.ServerCall, arg Arg) ([]byte, error)
+	Sum(ctx *context.T, call rpc.ServerCall, arg SumArg) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
 	SumStream(*context.T, *StressSumStreamServerCallStub) error
-	// GetStats returns the stats on the calls that the server received.
-	GetStats(*context.T, rpc.ServerCall) (Stats, error)
+	// GetSumStats returns the stats on the Sum calls that the server received.
+	GetSumStats(*context.T, rpc.ServerCall) (SumStats, error)
 	// Stop stops the server.
 	Stop(*context.T, rpc.ServerCall) error
 }
@@ -256,7 +269,11 @@ type implStressServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implStressServerStub) Sum(ctx *context.T, call rpc.ServerCall, i0 Arg) ([]byte, error) {
+func (s implStressServerStub) Echo(ctx *context.T, call rpc.ServerCall, i0 []byte) ([]byte, error) {
+	return s.impl.Echo(ctx, call, i0)
+}
+
+func (s implStressServerStub) Sum(ctx *context.T, call rpc.ServerCall, i0 SumArg) ([]byte, error) {
 	return s.impl.Sum(ctx, call, i0)
 }
 
@@ -264,8 +281,8 @@ func (s implStressServerStub) SumStream(ctx *context.T, call *StressSumStreamSer
 	return s.impl.SumStream(ctx, call)
 }
 
-func (s implStressServerStub) GetStats(ctx *context.T, call rpc.ServerCall) (Stats, error) {
-	return s.impl.GetStats(ctx, call)
+func (s implStressServerStub) GetSumStats(ctx *context.T, call rpc.ServerCall) (SumStats, error) {
+	return s.impl.GetSumStats(ctx, call)
 }
 
 func (s implStressServerStub) Stop(ctx *context.T, call rpc.ServerCall) error {
@@ -289,10 +306,21 @@ var descStress = rpc.InterfaceDesc{
 	PkgPath: "v.io/x/ref/profiles/internal/rpc/stress",
 	Methods: []rpc.MethodDesc{
 		{
+			Name: "Echo",
+			Doc:  "// Echo returns the payload that it receives.",
+			InArgs: []rpc.ArgDesc{
+				{"Payload", ``}, // []byte
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // []byte
+			},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
+		},
+		{
 			Name: "Sum",
 			Doc:  "// Do returns the checksum of the payload that it receives.",
 			InArgs: []rpc.ArgDesc{
-				{"arg", ``}, // Arg
+				{"arg", ``}, // SumArg
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []byte
@@ -305,10 +333,10 @@ var descStress = rpc.InterfaceDesc{
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
-			Name: "GetStats",
-			Doc:  "// GetStats returns the stats on the calls that the server received.",
+			Name: "GetSumStats",
+			Doc:  "// GetSumStats returns the stats on the Sum calls that the server received.",
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // Stats
+				{"", ``}, // SumStats
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
@@ -330,7 +358,7 @@ type StressSumStreamServerStream interface {
 		Advance() bool
 		// Value returns the item that was staged by Advance.  May panic if Advance
 		// returned false or was not called.  Never blocks.
-		Value() Arg
+		Value() SumArg
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
@@ -353,7 +381,7 @@ type StressSumStreamServerCall interface {
 // a typesafe stub that implements StressSumStreamServerCall.
 type StressSumStreamServerCallStub struct {
 	rpc.StreamServerCall
-	valRecv Arg
+	valRecv SumArg
 	errRecv error
 }
 
@@ -365,7 +393,7 @@ func (s *StressSumStreamServerCallStub) Init(call rpc.StreamServerCall) {
 // RecvStream returns the receiver side of the Stress.SumStream server stream.
 func (s *StressSumStreamServerCallStub) RecvStream() interface {
 	Advance() bool
-	Value() Arg
+	Value() SumArg
 	Err() error
 } {
 	return implStressSumStreamServerCallRecv{s}
@@ -376,11 +404,11 @@ type implStressSumStreamServerCallRecv struct {
 }
 
 func (s implStressSumStreamServerCallRecv) Advance() bool {
-	s.s.valRecv = Arg{}
+	s.s.valRecv = SumArg{}
 	s.s.errRecv = s.s.Recv(&s.s.valRecv)
 	return s.s.errRecv == nil
 }
-func (s implStressSumStreamServerCallRecv) Value() Arg {
+func (s implStressSumStreamServerCallRecv) Value() SumArg {
 	return s.s.valRecv
 }
 func (s implStressSumStreamServerCallRecv) Err() error {
