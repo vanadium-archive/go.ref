@@ -642,15 +642,26 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	suberrs := []verror.SubErr{}
 	topLevelError := verror.ErrNoServers
 	topLevelAction := verror.RetryRefetch
+	onlyErrNetwork := true
 	for _, r := range responses {
 		if r != nil && r.serverErr != nil && r.serverErr.Err != nil {
 			switch verror.ErrorID(r.serverErr.Err) {
 			case stream.ErrNotTrusted.ID, verror.ErrNotTrusted.ID, errServerAuthorizeFailed.ID:
 				topLevelError = verror.ErrNotTrusted
 				topLevelAction = verror.NoRetry
+				onlyErrNetwork = false
+			case stream.ErrNetwork.ID:
+				// do nothing
+			default:
+				onlyErrNetwork = false
 			}
 			suberrs = append(suberrs, *r.serverErr)
 		}
+	}
+
+	if onlyErrNetwork {
+		// If we only encountered network errors, then report ErrBadProtocol.
+		topLevelError = verror.ErrBadProtocol
 	}
 
 	// TODO(cnicolaou): we get system errors for things like dialing using

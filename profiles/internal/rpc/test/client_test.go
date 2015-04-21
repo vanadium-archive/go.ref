@@ -442,7 +442,7 @@ func TestStartCallBadProtocol(t *testing.T) {
 	}
 	ns.SetRoots(brkRoot.Name())
 
-	nctx, _ := context.WithTimeout(ctx, 100*time.Millisecond)
+	nctx, _ := context.WithTimeout(ctx, time.Minute)
 	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{}, options.SecurityNone)
 	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
 		t.Fatalf("wrong error: %s", err)
@@ -458,7 +458,7 @@ func TestStartCallBadProtocol(t *testing.T) {
 	defer fn()
 
 	call, err = client.StartCall(nctx, name, "noname", nil, options.NoRetry{})
-	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	if call != nil {

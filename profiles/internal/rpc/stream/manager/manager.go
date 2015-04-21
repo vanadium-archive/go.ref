@@ -89,11 +89,11 @@ func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 	if d, _, _ := rpc.RegisteredProtocol(network); d != nil {
 		conn, err := d(network, address, timeout)
 		if err != nil {
-			return nil, verror.New(stream.ErrNetwork, nil, err)
+			return nil, verror.New(stream.ErrDialFailed, nil, err)
 		}
 		return conn, nil
 	}
-	return nil, verror.New(stream.ErrBadArg, nil, verror.New(errUnknownNetwork, nil, network))
+	return nil, verror.New(stream.ErrDialFailed, nil, verror.New(errUnknownNetwork, nil, network))
 }
 
 // FindOrDialVIF returns the network connection (VIF) to the provided address

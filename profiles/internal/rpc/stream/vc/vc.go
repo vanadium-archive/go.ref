@@ -498,7 +498,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, vers version.RPCVe
 			select {
 			case <-remotePubKeyChan:
 			case <-vc.closeCh:
-				return verror.New(errClosedDuringHandshake, nil, vc.VCI)
+				return verror.New(stream.ErrNetwork, nil, verror.New(errClosedDuringHandshake, nil, vc.VCI))
 			}
 		}
 		return nil
@@ -530,13 +530,13 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, vers version.RPCVe
 			case theirKey := <-remotePubKeyChan:
 				return theirKey, nil
 			case <-vc.closeCh:
-				return nil, verror.New(errClosedDuringHandshake, nil, vc.VCI)
+				return nil, verror.New(stream.ErrNetwork, nil, verror.New(errClosedDuringHandshake, nil, vc.VCI))
 			}
 		}
 		var err error
 		crypter, err = crypto.NewBoxCrypter(exchange, vc.pool)
 		if err != nil {
-			return vc.appendCloseReason(verror.New(stream.ErrNetwork, nil,
+			return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil,
 				verror.New(errFailedToSetupEncryption, nil, err)))
 		}
 		// The version is set by FinishHandshakeDialedVC and exchange (called by
