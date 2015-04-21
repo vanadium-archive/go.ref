@@ -51,7 +51,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
     $('#timezoneOffset').val(d.getTimezoneOffset());
 
     // Set the datetime picker to have a default value of one day from now.
-    var m = moment().add(1, 'd').format("YYYY-MM-DDTHH:MM")
+    var m = moment().add(1, 'd').format("YYYY-MM-DDTHH:mm")
     $('#expiry').val(m);
     $('#ExpiryCaveat').val(m);
 
