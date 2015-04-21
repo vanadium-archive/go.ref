@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build wspr
+//
+// We restrict to a special build-tag since it's required by wsprlib.
+
 // Runs the servicerunner binary and checks that it outputs a JSON line to
 // stdout with the expected variables.
 package main
@@ -17,9 +21,15 @@ import (
 	"testing"
 
 	"v.io/x/ref/envvar"
+	"v.io/x/ref/test"
 )
 
-//go:generate v23 test generate
+// We provide our own TestMain, rather than allowing v23 test generate to create
+// one for us, to ensure all files require the "wspr" build tag.
+func TestMain(m *testing.M) {
+	test.Init()
+	os.Exit(m.Run())
+}
 
 func TestServiceRunner(t *testing.T) {
 	envvar.ClearCredentials()
@@ -32,7 +42,7 @@ func TestServiceRunner(t *testing.T) {
 
 	bin := path.Join(tmpdir, "servicerunner")
 	fmt.Println("Building", bin)
-	err = exec.Command("v23", "go", "build", "-o", bin, "v.io/x/ref/cmd/servicerunner").Run()
+	err = exec.Command("v23", "go", "build", "-o", bin, "-a", "-tags", "wspr", "v.io/x/ref/cmd/servicerunner").Run()
 	if err != nil {
 		t.Fatal(err)
 	}

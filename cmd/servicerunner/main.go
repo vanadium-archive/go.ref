@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build wspr
+//
+// We restrict to a special build-tag since it's required by wsprlib.
+
 // Command servicerunner runs several Vanadium services, including the
 // mounttable, proxy and wspr.  It prints a JSON map with their vars to stdout
 // (as a single line), then waits forever.

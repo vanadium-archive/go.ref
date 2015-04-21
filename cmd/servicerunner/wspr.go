@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build wspr
+//
+// We restrict to a special build-tag in order to enable
+// security.OverrideCaveatValidation, which isn't generally available.
+
 package main
 
 import (
@@ -23,6 +28,7 @@ var (
 const WSPRDCommand = "wsprd"
 
 func init() {
+	wsprlib.OverrideCaveatValidation()
 	modules.RegisterChild(WSPRDCommand, modules.Usage(flag.CommandLine), startWSPR)
 }
 

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build wspr
+//
+// We restrict wsprd to a special build-tag in order to enable
+// security.OverrideCaveatValidation, which isn't generally available.
+
 // Daemon wsprd implements the wspr web socket proxy as a stand-alone server.
 package main
 
@@ -11,7 +16,6 @@ import (
 	"net"
 
 	"v.io/v23"
-
 	"v.io/x/ref/lib/signals"
 	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugin
 	_ "v.io/x/ref/profiles/roaming"
@@ -19,6 +23,7 @@ import (
 )
 
 func main() {
+	wsprlib.OverrideCaveatValidation()
 	port := flag.Int("port", 8124, "Port to listen on.")
 	identd := flag.String("identd", "", "name of identd server.")
 

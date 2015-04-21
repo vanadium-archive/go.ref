@@ -98,6 +98,8 @@ type Server struct {
 	statusClose chan struct{}
 }
 
+type serverContextKey struct{}
+
 func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper) (*Server, error) {
 	server := &Server{
 		id:                            id,
@@ -109,7 +111,7 @@ func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper) (*Ser
 	}
 	var err error
 	ctx := helper.Context()
-	ctx = context.WithValue(ctx, "customChainValidator", server.wsprCaveatValidator)
+	ctx = context.WithValue(ctx, serverContextKey{}, server)
 	if server.server, err = v23.NewServer(ctx); err != nil {
 		return nil, err
 	}
@@ -343,9 +345,24 @@ func makeListOfErrors(numErrors int, err error) []error {
 	return errs
 }
 
-// validateCavsInJavascript validates caveats in javascript.
-// It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
-func (s *Server) validateCavsInJavascript(ctx *context.T, call security.Call, cavs [][]security.Caveat) []error {
+// caveatValidationInGo validates caveats in Go, using the default logic.
+func caveatValidationInGo(ctx *context.T, call security.Call, sets [][]security.Caveat) []error {
+	results := make([]error, len(sets))
+	for i, set := range sets {
+		for _, cav := range set {
+			if err := cav.Validate(ctx, call); err != nil {
+				results[i] = err
+				break
+			}
+		}
+	}
+	return results
+}
+
+// caveatValidationInJavascript validates caveats in javascript.  It resolves
+// each []security.Caveat in cavs to an error (or nil) and collects them in a
+// slice.
+func (s *Server) caveatValidationInJavascript(ctx *context.T, call security.Call, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
 		Call: ConvertSecurityCall(s.helper, ctx, call, false),
@@ -388,10 +405,19 @@ func (s *Server) validateCavsInJavascript(ctx *context.T, call security.Call, ca
 	}
 }
 
-// wsprCaveatValidator validates caveats for javascript.
-// Certain caveats (PublicKeyThirdPartyCaveatX) are intercepted and handled in go.
-// This call validateCavsInJavascript to process the remaining caveats in javascript.
-func (s *Server) wsprCaveatValidator(ctx *context.T, call security.Call, cavs [][]security.Caveat) []error {
+// CaveatValidation implements a function suitable for passing to
+// security.OverrideCaveatValidation.
+//
+// Certain caveats (PublicKeyThirdPartyCaveatX) are intercepted and handled in
+// go, while all other caveats are evaluated in javascript.
+func CaveatValidation(ctx *context.T, call security.Call, cavs [][]security.Caveat) []error {
+	// If the server isn't set in the context, we just perform validation in Go.
+	ctxServer := ctx.Value(serverContextKey{})
+	if ctxServer == nil {
+		return caveatValidationInGo(ctx, call, cavs)
+	}
+	// Otherwise we run our special logic.
+	server := ctxServer.(*Server)
 	type validationStatus struct {
 		err   error
 		isSet bool
@@ -406,7 +432,7 @@ nextCav:
 			// If the server is closed handle all caveats in Go, because Javascript is
 			// no longer there.
 			select {
-			case <-s.statusClose:
+			case <-server.statusClose:
 				res := cav.Validate(ctx, call)
 				if res != nil {
 					valStatus[i] = validationStatus{
@@ -441,7 +467,7 @@ nextCav:
 		}
 	}
 
-	jsRes := s.validateCavsInJavascript(ctx, call, caveatChainsToValidate)
+	jsRes := server.caveatValidationInJavascript(ctx, call, caveatChainsToValidate)
 
 	outResults := make([]error, len(cavs))
 	jsIndex := 0
