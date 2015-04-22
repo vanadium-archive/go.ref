@@ -19,16 +19,17 @@ import (
 )
 
 var (
-	mountName = flag.String("name", "", `<name>, if provided, causes the mount table to mount itself under that name. The name may be absolute for a remote mount table service (e.g., "/<remote mt address>//some/suffix") or could be relative to this process' default mount table (e.g., "some/suffix").`)
-	aclFile   = flag.String("acls", "", "AccessList file. Default is to allow all access.")
-	nhName    = flag.String("neighborhood-name", "", `<nh name>, if provided, will enable sharing with the local neighborhood with the provided name. The address of this mounttable will be published to the neighboorhood and everything in the neighborhood will be visible on this mounttable.`)
+	mountName  = flag.String("name", "", `<name>, if provided, causes the mount table to mount itself under that name. The name may be absolute for a remote mount table service (e.g., "/<remote mt address>//some/suffix") or could be relative to this process' default mount table (e.g., "some/suffix").`)
+	aclFile    = flag.String("acls", "", "AccessList file. Default is to allow all access.")
+	nhName     = flag.String("neighborhood-name", "", `<nh name>, if provided, will enable sharing with the local neighborhood with the provided name. The address of this mounttable will be published to the neighboorhood and everything in the neighborhood will be visible on this mounttable.`)
+	persistDir = flag.String("persist-dir", "", `Directory in which to persist permissions.`)
 )
 
 func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	name, stop, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), *mountName, *nhName, *aclFile, "mounttable")
+	name, stop, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), *mountName, *nhName, *aclFile, *persistDir, "mounttable")
 	if err != nil {
 		vlog.Errorf("mounttablelib.StartServers failed: %v", err)
 		os.Exit(1)

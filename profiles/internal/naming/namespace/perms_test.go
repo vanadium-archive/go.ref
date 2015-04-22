@@ -57,7 +57,7 @@ func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shu
 
 // Create a new mounttable service.
 func newMT(t *testing.T, ctx *context.T) (func(), string) {
-	estr, stopFunc, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), "", "", "", "mounttable")
+	estr, stopFunc, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), "", "", "", "", "mounttable")
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)
 	}
@@ -81,6 +81,23 @@ var closedPerms = access.Permissions{
 	},
 	"Admin": access.AccessList{
 		In: nobody,
+	},
+	"Create": access.AccessList{
+		In: nobody,
+	},
+	"Mount": access.AccessList{
+		In: nobody,
+	},
+}
+var closedPermsWithOwnerAdded = access.Permissions{
+	"Resolve": access.AccessList{
+		In: nobody,
+	},
+	"Read": access.AccessList{
+		In: nobody,
+	},
+	"Admin": access.AccessList{
+		In: []security.BlessingPattern{"", "root"},
 	},
 	"Create": access.AccessList{
 		In: nobody,
@@ -184,7 +201,7 @@ func TestPermissions(t *testing.T) {
 		t.Fatalf("want %v, got %v", perms, nacl)
 	}
 
-	// Create mount points accessible only by root's key.
+	// Create mount points accessible only by root's key and owner.
 	name = "a/b/c/d/f"
 	deadbody := "/the:8888/rain"
 	if err := ns.SetPermissions(rootCtx, name, closedPerms, version); err != nil {
@@ -194,8 +211,8 @@ func TestPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions %s: %s", name, err)
 	}
-	if !reflect.DeepEqual(closedPerms, nacl) {
-		t.Fatalf("want %v, got %v", closedPerms, nacl)
+	if !reflect.DeepEqual(closedPermsWithOwnerAdded, nacl) {
+		t.Fatalf("want %v, got %v", closedPermsWithOwnerAdded, nacl)
 	}
 	if err := ns.Mount(rootCtx, name, deadbody, 10000); err != nil {
 		t.Fatalf("Mount %s: %s", name, err)
@@ -213,7 +230,7 @@ func TestPermissions(t *testing.T) {
 		t.Fatalf("as root Resolve %s: %s", name, err)
 	}
 
-	// Create a mount point via Serve accessible only by root's key.
+	// Create a mount point via Serve accessible only by root's key and owner.
 	name = "a/b/c/d/g"
 	if err := ns.SetPermissions(rootCtx, name, closedPerms, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)

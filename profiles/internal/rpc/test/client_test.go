@@ -55,7 +55,7 @@ func runRootMT(stdin io.Reader, stdout, stderr io.Writer, seclevel options.Secur
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
-	mt, err := mounttablelib.NewMountTableDispatcher("", "mounttable")
+	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}

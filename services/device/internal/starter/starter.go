@@ -43,6 +43,7 @@ type NamespaceArgs struct {
 	Name            string         // Name to publish the mounttable service under.
 	ListenSpec      rpc.ListenSpec // ListenSpec for the server.
 	PermissionsFile string         // Path to the Permissions file used by the mounttable.
+	PersistenceDir  string         // Path to the directory holding persistent acls.
 	// Name in the local neighborhood on which to make the mounttable
 	// visible. If empty, the mounttable will not be visible in the local
 	// neighborhood.
@@ -304,7 +305,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 }
 
 func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
-	mtName, stopMT, err := mounttablelib.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.PermissionsFile, "mounttable")
+	mtName, stopMT, err := mounttablelib.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.PermissionsFile, n.PersistenceDir, "mounttable")
 	if err != nil {
 		vlog.Errorf("mounttablelib.StartServers(%#v) failed: %v", n, err)
 	} else {

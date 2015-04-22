@@ -61,10 +61,10 @@ func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldS
 	}
 }
 
-func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) (acl access.Permissions, version string) {
+func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) (perms access.Permissions, version string) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	if err := client.Call(ctx, name, "GetPermissions", nil, []interface{}{&acl, &version}, options.NoResolve{}); err != nil {
+	if err := client.Call(ctx, name, "GetPermissions", nil, []interface{}{&perms, &version}, options.NoResolve{}); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -73,10 +73,10 @@ func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSuc
 	return
 }
 
-func doSetPermissions(t *testing.T, ctx *context.T, ep, suffix string, acl access.Permissions, version string, shouldSucceed bool) {
+func doSetPermissions(t *testing.T, ctx *context.T, ep, suffix string, perms access.Permissions, version string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	if err := client.Call(ctx, name, "SetPermissions", []interface{}{acl, version}, nil, options.NoResolve{}); err != nil {
+	if err := client.Call(ctx, name, "SetPermissions", []interface{}{perms, version}, nil, options.NoResolve{}); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -177,7 +177,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 }
 
-func newMT(t *testing.T, acl string, rootCtx *context.T) (rpc.Server, string) {
+func newMT(t *testing.T, permsFile, persistDir string, rootCtx *context.T) (rpc.Server, string) {
 	reservedDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
 	ctx := v23.WithReservedNameDispatcher(rootCtx, reservedDisp)
 	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
@@ -185,7 +185,7 @@ func newMT(t *testing.T, acl string, rootCtx *context.T) (rpc.Server, string) {
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Add mount table service.
-	mt, err := NewMountTableDispatcher(acl, "mounttable")
+	mt, err := NewMountTableDispatcher(permsFile, persistDir, "mounttable")
 	if err != nil {
 		boom(t, "NewMountTableDispatcher: %v", err)
 	}
@@ -202,7 +202,7 @@ func newMT(t *testing.T, acl string, rootCtx *context.T) (rpc.Server, string) {
 	return server, estr
 }
 
-func newCollection(t *testing.T, acl string, rootCtx *context.T) (rpc.Server, string) {
+func newCollection(t *testing.T, rootCtx *context.T) (rpc.Server, string) {
 	server, err := v23.NewServer(rootCtx)
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
@@ -227,9 +227,9 @@ func TestMountTable(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	mt, mtAddr := newMT(t, "testdata/test.acl", rootCtx)
+	mt, mtAddr := newMT(t, "testdata/test.perms", "", rootCtx)
 	defer mt.Stop()
-	collection, collectionAddr := newCollection(t, "testdata/test.acl", rootCtx)
+	collection, collectionAddr := newCollection(t, rootCtx)
 	defer collection.Stop()
 
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
@@ -266,36 +266,36 @@ func TestMountTable(t *testing.T) {
 	checkContents(t, bobCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", false)
 
 	// Test getting/setting AccessLists.
-	acl, version := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
-	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, "xyzzy", false) // bad version
-	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, version, true)  // correct version
+	perms, version := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", perms, "xyzzy", false) // bad version
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", perms, version, true)  // correct version
 	_, nversion := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
 	if nversion == version {
 		boom(t, "version didn't change after SetPermissions: %s", nversion)
 	}
-	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, "", true) // no version
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", perms, "", true) // no version
 
 	// Bob should be able to create nodes under the mounttable root but not alice.
-	doSetPermissions(t, aliceCtx, mtAddr, "onlybob", acl, "", false)
-	doSetPermissions(t, bobCtx, mtAddr, "onlybob", acl, "", true)
+	doSetPermissions(t, aliceCtx, mtAddr, "onlybob", perms, "", false)
+	doSetPermissions(t, bobCtx, mtAddr, "onlybob", perms, "", true)
 
-	// Test that setting Permissions to an acl that don't include the the setter's
+	// Test that setting Permissions to permissions that don't include the the setter's
 	// blessings in Admin, automatically add their Blessings to Admin to prevent
 	// locking everyone out.
-	acl, _ = doGetPermissions(t, bobCtx, mtAddr, "onlybob", true)
-	noRootAcl := acl.Copy()
-	noRootAcl.Clear("bob", "Admin")
-	doSetPermissions(t, bobCtx, mtAddr, "onlybob", noRootAcl, "", true)
+	perms, _ = doGetPermissions(t, bobCtx, mtAddr, "onlybob", true)
+	noRootPerms := perms.Copy()
+	noRootPerms.Clear("bob", "Admin")
+	doSetPermissions(t, bobCtx, mtAddr, "onlybob", noRootPerms, "", true)
 	// This should succeed, because "bob" should automatically be added to "Admin"
 	// even though he cleared himself from "Admin".
-	doSetPermissions(t, bobCtx, mtAddr, "onlybob", acl, "", true)
-	// Test that adding a non-standard acl is normalized when retrieved.
-	admin := acl["Admin"]
+	doSetPermissions(t, bobCtx, mtAddr, "onlybob", perms, "", true)
+	// Test that adding a non-standard perms is normalized when retrieved.
+	admin := perms["Admin"]
 	admin.In = []security.BlessingPattern{"bob", "bob"}
-	acl["Admin"] = admin
-	doSetPermissions(t, bobCtx, mtAddr, "onlybob", acl, "", true)
-	acl, _ = doGetPermissions(t, bobCtx, mtAddr, "onlybob", true)
-	if got, want := acl["Admin"].In, []security.BlessingPattern{"bob"}; !reflect.DeepEqual(got, want) {
+	perms["Admin"] = admin
+	doSetPermissions(t, bobCtx, mtAddr, "onlybob", perms, "", true)
+	perms, _ = doGetPermissions(t, bobCtx, mtAddr, "onlybob", true)
+	if got, want := perms["Admin"].In, []security.BlessingPattern{"bob"}; !reflect.DeepEqual(got, want) {
 		boom(t, "got %v, want %v", got, want)
 	}
 
@@ -397,7 +397,7 @@ func TestGlob(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", rootCtx)
+	server, estr := newMT(t, "", "", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -444,7 +444,7 @@ func TestAccessListTemplate(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.acl", rootCtx)
+	server, estr := newMT(t, "testdata/test.perms", "", rootCtx)
 	defer server.Stop()
 	fakeServer := naming.JoinAddressName(estr, "quux")
 
@@ -463,7 +463,7 @@ func TestGlobAccessLists(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.acl", rootCtx)
+	server, estr := newMT(t, "testdata/test.perms", "", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -496,7 +496,7 @@ func TestCleanup(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", rootCtx)
+	server, estr := newMT(t, "", "", rootCtx)
 	defer server.Stop()
 
 	// Set up one mount.
@@ -511,8 +511,8 @@ func TestCleanup(t *testing.T) {
 	// Set up a mount, then set the AccessList.
 	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
 	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
-	acl := access.Permissions{"Read": access.AccessList{In: []security.BlessingPattern{security.AllPrincipals}}}
-	doSetPermissions(t, rootCtx, estr, "one/bright", acl, "", true)
+	perms := access.Permissions{"Read": access.AccessList{In: []security.BlessingPattern{security.AllPrincipals}}}
+	doSetPermissions(t, rootCtx, estr, "one/bright", perms, "", true)
 
 	// After the unmount we should still have everything above the AccessList.
 	doUnmount(t, rootCtx, estr, "one/bright/day", "", true)
@@ -523,7 +523,7 @@ func TestDelete(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.acl", rootCtx)
+	server, estr := newMT(t, "testdata/test.perms", "", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -550,7 +550,7 @@ func TestServerFormat(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", rootCtx)
+	server, estr := newMT(t, "", "", rootCtx)
 	defer server.Stop()
 
 	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true)
@@ -564,9 +564,9 @@ func TestExpiry(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", rootCtx)
+	server, estr := newMT(t, "", "", rootCtx)
 	defer server.Stop()
-	collection, collectionAddr := newCollection(t, "testdata/test.acl", rootCtx)
+	collection, collectionAddr := newCollection(t, rootCtx)
 	defer collection.Stop()
 
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
@@ -591,13 +591,13 @@ func TestExpiry(t *testing.T) {
 }
 
 func TestBadAccessLists(t *testing.T) {
-	_, err := NewMountTableDispatcher("testdata/invalid.acl", "mounttable")
+	_, err := NewMountTableDispatcher("testdata/invalid.perms", "", "mounttable")
 	if err == nil {
-		boom(t, "Expected json parse error in acl file")
+		boom(t, "Expected json parse error in permissions file")
 	}
-	_, err = NewMountTableDispatcher("testdata/doesntexist.acl", "mounttable")
+	_, err = NewMountTableDispatcher("testdata/doesntexist.perms", "", "mounttable")
 	if err != nil {
-		boom(t, "Missing acl file should not cause an error")
+		boom(t, "Missing permissions file should not cause an error")
 	}
 }
 
@@ -629,7 +629,7 @@ func TestStatsCounters(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", rootCtx)
+	server, estr := newMT(t, "", "", rootCtx)
 	defer server.Stop()
 
 	// Test flat tree

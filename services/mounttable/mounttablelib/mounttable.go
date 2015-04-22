@@ -6,7 +6,6 @@
 package mounttablelib
 
 import (
-	"encoding/json"
 	"os"
 	"reflect"
 	"strings"
@@ -51,10 +50,18 @@ var (
 	allTags      = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Admin, mounttable.Mount, mounttable.Create}
 )
 
+type persistence interface {
+	persistPerms(name string, perm *VersionedPermissions) error
+	persistDelete(name string) error
+	close()
+}
+
 // mountTable represents a namespace.  One exists per server instance.
 type mountTable struct {
 	root          *node
 	superUsers    access.AccessList
+	persisting    bool
+	persist       persistence
 	nodeCounter   *stats.Integer
 	serverCounter *stats.Integer
 }
@@ -83,29 +90,35 @@ type node struct {
 	parent              *node
 	mount               *mount
 	children            map[string]*node
-	acls                *TAMG
-	amTemplate          access.Permissions
-	explicitAccessLists bool
+	vPerms              *VersionedPermissions
+	permsTemplate       access.Permissions
+	explicitPermissions bool
 }
 
 const templateVar = "%%"
 
 // NewMountTableDispatcher creates a new server that uses the AccessLists specified in
-// aclfile for authorization.
+// permissions file for authorization.
 //
-// aclfile is a JSON-encoded mapping from paths in the mounttable to the
+// permsFile is a JSON-encoded mapping from paths in the mounttable to the
 // access.Permissions for that path. The tags used in the map are the typical
 // access tags (the Tag type defined in v.io/v23/security/access).
 //
+// persistDir is the directory for persisting Permissions.
+//
 // statsPrefix is the prefix for for exported statistics objects.
-func NewMountTableDispatcher(aclfile, statsPrefix string) (rpc.Dispatcher, error) {
+func NewMountTableDispatcher(permsFile, persistDir, statsPrefix string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
 		root:          new(node),
 		nodeCounter:   stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
 		serverCounter: stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
 	}
 	mt.root.parent = mt.newNode() // just for its lock
-	if err := mt.parseAccessLists(aclfile); err != nil && !os.IsNotExist(err) {
+	if persistDir != "" {
+		mt.persist = newPersistentStore(mt, persistDir)
+		mt.persisting = mt.persist != nil
+	}
+	if err := mt.parsePermFile(permsFile); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	return mt, nil
@@ -146,59 +159,6 @@ func (mt *mountTable) deleteNode(parent *node, child string) {
 	delete(parent.children, child)
 }
 
-func (mt *mountTable) parseAccessLists(path string) error {
-	vlog.VI(2).Infof("parseAccessLists(%s)", path)
-	if path == "" {
-		return nil
-	}
-	var tams map[string]access.Permissions
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if err = json.NewDecoder(f).Decode(&tams); err != nil {
-		return err
-	}
-	for name, tam := range tams {
-		var elems []string
-		isPattern := false
-		// Create name and add the AccessList map to it.
-		if len(name) == 0 {
-			// If the config file has is an Admin tag on the root AccessList, the
-			// list of Admin users is the equivalent of a super user for
-			// the whole table.  This is not updated if the AccessList is later
-			// modified.
-			if acl, exists := tam[string(mounttable.Admin)]; exists {
-				mt.superUsers = acl
-			}
-		} else {
-			// AccessList templates terminate with a %% element.  These are very
-			// constrained matches, i.e., the trailing element of the name
-			// is copied into every %% in the AccessList.
-			elems = strings.Split(name, "/")
-			if elems[len(elems)-1] == templateVar {
-				isPattern = true
-				elems = elems[:len(elems)-1]
-			}
-		}
-
-		n, err := mt.findNode(nil, nil, elems, true, nil)
-		if n != nil || err == nil {
-			vlog.VI(2).Infof("added tam %v to %s", tam, name)
-			if isPattern {
-				n.amTemplate = tam
-			} else {
-				n.acls, _ = n.acls.Set("", tam)
-				n.explicitAccessLists = true
-			}
-		}
-		n.parent.Unlock()
-		n.Unlock()
-	}
-	return nil
-}
-
 // Lookup implements rpc.Dispatcher.Lookup.
 func (mt *mountTable) Lookup(name string) (interface{}, security.Authorizer, error) {
 	vlog.VI(2).Infof("*********************Lookup %s", name)
@@ -220,10 +180,10 @@ func (m *mount) isActive() bool {
 	return m.servers.removeExpired() > 0
 }
 
-// satisfies returns no error if the ctx + n.acls satisfies the associated one of the required Tags.
+// satisfies returns no error if the ctx + n.vPerms satisfies the associated one of the required Tags.
 func (n *node) satisfies(mt *mountTable, ctx *context.T, call security.Call, tags []mounttable.Tag) error {
 	// No AccessLists means everything (for now).
-	if ctx == nil || call == nil || tags == nil || n.acls == nil {
+	if ctx == nil || call == nil || tags == nil || n.vPerms == nil {
 		return nil
 	}
 	// "Self-RPCs" are always authorized.
@@ -233,7 +193,7 @@ func (n *node) satisfies(mt *mountTable, ctx *context.T, call security.Call, tag
 	// Match client's blessings against the AccessLists.
 	blessings, invalidB := security.RemoteBlessingNames(ctx, call)
 	for _, tag := range tags {
-		if acl, exists := n.acls.GetPermissionsForTag(string(tag)); exists && acl.Includes(blessings...) {
+		if al, exists := n.vPerms.AccessListForTag(string(tag)); exists && al.Includes(blessings...) {
 			return nil
 		}
 	}
@@ -246,27 +206,27 @@ func (n *node) satisfies(mt *mountTable, ctx *context.T, call security.Call, tag
 	return verror.New(verror.ErrNoAccess, ctx, blessings)
 }
 
-func expand(acl *access.AccessList, name string) *access.AccessList {
+func expand(al *access.AccessList, name string) *access.AccessList {
 	newAccessList := new(access.AccessList)
-	for _, bp := range acl.In {
+	for _, bp := range al.In {
 		newAccessList.In = append(newAccessList.In, security.BlessingPattern(strings.Replace(string(bp), templateVar, name, -1)))
 	}
-	for _, bp := range acl.NotIn {
+	for _, bp := range al.NotIn {
 		newAccessList.NotIn = append(newAccessList.NotIn, strings.Replace(bp, templateVar, name, -1))
 	}
 	return newAccessList
 }
 
-// satisfiesTemplate returns no error if the ctx + n.amTemplate satisfies the associated one of
+// satisfiesTemplate returns no error if the ctx + n.permsTemplate satisfies the associated one of
 // the required Tags.
 func (n *node) satisfiesTemplate(ctx *context.T, call security.Call, tags []mounttable.Tag, name string) error {
-	if n.amTemplate == nil {
+	if n.permsTemplate == nil {
 		return nil
 	}
 	// Match client's blessings against the AccessLists.
 	blessings, invalidB := security.RemoteBlessingNames(ctx, call)
 	for _, tag := range tags {
-		if acl, exists := n.amTemplate[string(tag)]; exists && expand(&acl, name).Includes(blessings...) {
+		if al, exists := n.permsTemplate[string(tag)]; exists && expand(&al, name).Includes(blessings...) {
 			return nil
 		}
 	}
@@ -275,28 +235,32 @@ func (n *node) satisfiesTemplate(ctx *context.T, call security.Call, tags []moun
 
 // copyAccessLists copies one nodes AccessLists to another and adds the clients blessings as
 // patterns to the Admin tag.
-func copyAccessLists(ctx *context.T, call security.Call, cur *node) *TAMG {
+func copyAccessLists(ctx *context.T, call security.Call, cur *node) *VersionedPermissions {
 	if ctx == nil {
 		return nil
 	}
-	if cur.acls == nil {
+	if call == nil {
 		return nil
 	}
-	acls := cur.acls.Copy()
+	if cur.vPerms == nil {
+		return nil
+	}
+	vPerms := cur.vPerms.Copy()
 	blessings, _ := security.RemoteBlessingNames(ctx, call)
 	for _, b := range blessings {
-		acls.Add(security.BlessingPattern(b), string(mounttable.Admin))
+		vPerms.Add(security.BlessingPattern(b), string(mounttable.Admin))
 	}
-	return acls
+	vPerms.P.Normalize()
+	return vPerms
 }
 
-// createTAMGFromTemplate creates a new TAMG from the template subsituting name for %% everywhere.
-func createTAMGFromTemplate(tam access.Permissions, name string) *TAMG {
-	tamg := NewTAMG()
-	for tag, acl := range tam {
-		tamg.tam[tag] = *expand(&acl, name)
+// createVersionedPermissionsFromTemplate creates a new VersionedPermissions from the template subsituting name for %% everywhere.
+func createVersionedPermissionsFromTemplate(perms access.Permissions, name string) *VersionedPermissions {
+	vPerms := NewVersionedPermissions()
+	for tag, al := range perms {
+		vPerms.P[tag] = *expand(&al, name)
 	}
-	return tamg
+	return vPerms
 }
 
 // traverse returns the node for the path represented by elems.  If none exists and create is false, return nil.
@@ -350,10 +314,10 @@ func (mt *mountTable) traverse(ctx *context.T, call security.Call, elems []strin
 		// At this point cur is still locked, OK to use and change it.
 		next := mt.newNode()
 		next.parent = cur
-		if cur.amTemplate != nil {
-			next.acls = createTAMGFromTemplate(cur.amTemplate, e)
+		if cur.permsTemplate != nil {
+			next.vPerms = createVersionedPermissionsFromTemplate(cur.permsTemplate, e)
 		} else {
-			next.acls = copyAccessLists(ctx, call, cur)
+			next.vPerms = copyAccessLists(ctx, call, cur)
 		}
 		if cur.children == nil {
 			cur.children = make(map[string]*node)
@@ -415,7 +379,7 @@ func (mt *mountTable) findMountPoint(ctx *context.T, call security.Call, elems [
 		n.Unlock()
 		// If we removed the node, see if we can remove any of its
 		// ascendants.
-		if removed {
+		if removed && len(elems) > 0 {
 			mt.removeUselessRecursive(elems[:len(elems)-1])
 		}
 		return nil, nil, nil
@@ -546,7 +510,7 @@ func (n *node) fullName() string {
 //
 // We assume both n and n.parent are locked.
 func (n *node) removeUseless(mt *mountTable) bool {
-	if len(n.children) > 0 || n.mount.isActive() || n.explicitAccessLists {
+	if len(n.children) > 0 || n.mount.isActive() || n.explicitPermissions {
 		return false
 	}
 	for k, c := range n.parent.children {
@@ -631,6 +595,9 @@ func (ms *mountContext) Delete(ctx *context.T, call rpc.ServerCall, deleteSubTre
 		return verror.New(errNotEmpty, ctx, ms.name)
 	}
 	mt.deleteNode(n.parent, ms.elems[len(ms.elems)-1])
+	if mt.persisting {
+		mt.persist.persistDelete(ms.name)
+	}
 	return nil
 }
 
@@ -809,20 +776,29 @@ func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perm
 	// If the caller is trying to add a Permission that they are no longer Admin in,
 	// retain the caller's blessings that were in Admin to prevent them from locking themselves out.
 	bnames, _ := security.RemoteBlessingNames(ctx, call.Security())
-	if acl, ok := perms[string(mounttable.Admin)]; !ok || !acl.Includes(bnames...) {
-		_, oldPerms := n.acls.Get()
-		oldAcl := oldPerms[string(mounttable.Admin)]
-		for _, bname := range bnames {
-			if oldAcl.Includes(bname) {
+	if al, ok := perms[string(mounttable.Admin)]; !ok || !al.Includes(bnames...) {
+		_, oldPerms := n.vPerms.Get()
+		if oldPerms == nil {
+			for _, bname := range bnames {
 				perms.Add(security.BlessingPattern(bname), string(mounttable.Admin))
+			}
+		} else {
+			oldAl := oldPerms[string(mounttable.Admin)]
+			for _, bname := range bnames {
+				if oldAl.Includes(bname) {
+					perms.Add(security.BlessingPattern(bname), string(mounttable.Admin))
+				}
 			}
 		}
 	}
 	perms.Normalize()
 
-	n.acls, err = n.acls.Set(version, perms)
+	n.vPerms, err = n.vPerms.Set(ctx, version, perms)
 	if err == nil {
-		n.explicitAccessLists = true
+		if mt.persisting {
+			mt.persist.persistPerms(ms.name, n.vPerms)
+		}
+		n.explicitPermissions = true
 	}
 	return err
 }
@@ -841,6 +817,6 @@ func (ms *mountContext) GetPermissions(ctx *context.T, call rpc.ServerCall) (acc
 	}
 	n.parent.Unlock()
 	defer n.Unlock()
-	version, tam := n.acls.Get()
-	return tam, version, nil
+	version, perms := n.vPerms.Get()
+	return perms, version, nil
 }

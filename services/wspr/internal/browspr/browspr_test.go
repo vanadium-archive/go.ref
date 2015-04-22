@@ -31,7 +31,7 @@ import (
 //go:generate v23 test generate
 
 func startMounttable(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
-	mt, err := mounttablelib.NewMountTableDispatcher("", "mounttable")
+	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
 	if err != nil {
 		return nil, nil, err
 	}
