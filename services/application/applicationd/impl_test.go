@@ -64,8 +64,10 @@ func TestInterface(t *testing.T) {
 
 	// Create client stubs for talking to the server.
 	stub := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search"))
+	stubV0 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v0"))
 	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
 	stubV2 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v2"))
+	stubV3 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v3"))
 
 	blessings, sig := newPublisherSignature(t, ctx, []byte("binarycontents"))
 
@@ -81,6 +83,15 @@ func TestInterface(t *testing.T) {
 	}
 	envelopeV2 := application.Envelope{
 		Args: []string{"--verbose"},
+		Env:  []string{"DEBUG=0"},
+		Binary: application.SignedFile{
+			File:      "/v23/name/of/binary",
+			Signature: sig,
+		},
+		Publisher: blessings,
+	}
+	envelopeV3 := application.Envelope{
+		Args: []string{"--verbose", "--spiffynewflag"},
 		Env:  []string{"DEBUG=0"},
 		Binary: application.SignedFile{
 			File:      "/v23/name/of/binary",
@@ -121,8 +132,45 @@ func TestInterface(t *testing.T) {
 	if _, err := stubV2.Match(ctx, []string{}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
 		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
-	if _, err := stub.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != appd.ErrInvalidSuffix.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", appd.ErrInvalidSuffix, err)
+
+	// Test that Match() against a name without a version suffix returns the latest.
+	if output, err = stub.Match(ctx, []string{"base", "media"}); err != nil {
+		t.Fatalf("Match() failed: %v", err)
+	}
+	if !reflect.DeepEqual(envelopeV2, output) {
+		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV2, output)
+	}
+
+	// Test that we can add another envelope in sort order and we still get the
+	// correct (i.e. newest) version.
+	if err := stubV3.Put(ctx, []string{"base"}, envelopeV3); err != nil {
+		t.Fatalf("Put() failed: %v", err)
+	}
+	if output, err = stub.Match(ctx, []string{"base", "media"}); err != nil {
+		t.Fatalf("Match() failed: %v", err)
+	}
+	if !reflect.DeepEqual(envelopeV3, output) {
+		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV3, output)
+	}
+
+	// Test that this is not based on time but on sort order.
+	envelopeV0 := application.Envelope{
+		Args: []string{"--help", "--zeroth"},
+		Env:  []string{"DEBUG=1"},
+		Binary: application.SignedFile{
+			File:      "/v23/name/of/binary",
+			Signature: sig,
+		},
+		Publisher: blessings,
+	}
+	if err := stubV0.Put(ctx, []string{"base"}, envelopeV0); err != nil {
+		t.Fatalf("Put() failed: %v", err)
+	}
+	if output, err = stub.Match(ctx, []string{"base", "media"}); err != nil {
+		t.Fatalf("Match() failed: %v", err)
+	}
+	if !reflect.DeepEqual(envelopeV3, output) {
+		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV3, output)
 	}
 
 	// Test Glob
@@ -133,8 +181,10 @@ func TestInterface(t *testing.T) {
 	expected := []string{
 		"",
 		"search",
+		"search/v0",
 		"search/v1",
 		"search/v2",
+		"search/v3",
 	}
 	if !reflect.DeepEqual(matches, expected) {
 		t.Errorf("unexpected Glob results. Got %q, want %q", matches, expected)

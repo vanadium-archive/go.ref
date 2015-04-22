@@ -5,6 +5,7 @@
 package main
 
 import (
+	"sort"
 	"strings"
 
 	"v.io/x/ref/services/internal/fs"
@@ -66,12 +67,21 @@ func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []s
 	if err != nil {
 		return empty, err
 	}
-	if version == "" {
-		return empty, verror.New(ErrInvalidSuffix, ctx)
-	}
 
 	i.store.Lock()
 	defer i.store.Unlock()
+
+	if version == "" {
+		versions, err := i.allAppVersions(name)
+		if err != nil {
+			return empty, err
+		}
+		if len(versions) < 1 {
+			return empty, verror.New(ErrInvalidSuffix, ctx)
+		}
+		sort.Strings(versions)
+		version = versions[len(versions)-1]
+	}
 
 	for _, profile := range profiles {
 		path := naming.Join("/applications", name, profile, version)
