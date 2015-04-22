@@ -762,23 +762,34 @@ func (c *Controller) BlessSelf(_ *context.T, _ rpc.ServerCall, extension string,
 // PutToBlessingStore puts a blessing with the provided name to the blessing store
 // with the specified blessing pattern.
 func (c *Controller) PutToBlessingStore(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error) {
-	var inputBlessing security.Blessings
-	if inputBlessing = c.GetBlessings(handle); inputBlessing.IsZero() {
+	var inputBlessings security.Blessings
+	if inputBlessings = c.GetBlessings(handle); inputBlessings.IsZero() {
 		return nil, verror.New(invalidBlessingsHandle, nil, handle)
 	}
 
 	p := v23.GetPrincipal(c.ctx)
-	outBlessing, err := p.BlessingStore().Set(inputBlessing, security.BlessingPattern(pattern))
+	outBlessings, err := p.BlessingStore().Set(inputBlessings, security.BlessingPattern(pattern))
 	if err != nil {
 		return nil, err
 	}
 
-	if outBlessing.IsZero() {
+	if outBlessings.IsZero() {
 		return nil, nil
 	}
 
-	jsBlessing := principal.ConvertBlessingsToHandle(outBlessing, c.blessingsCache.GetOrAddHandle(outBlessing))
-	return jsBlessing, nil
+	jsBlessings := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsCache.GetOrAddHandle(outBlessings))
+	return jsBlessings, nil
+}
+
+// AddToRoots adds the provided blessing as a root.
+func (c *Controller) AddToRoots(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle) error {
+	var inputBlessings security.Blessings
+	if inputBlessings = c.GetBlessings(handle); inputBlessings.IsZero() {
+		return verror.New(invalidBlessingsHandle, nil, handle)
+	}
+
+	p := v23.GetPrincipal(c.ctx)
+	return p.AddToRoots(inputBlessings)
 }
 
 func (c *Controller) GetDefaultBlessings(*context.T, rpc.ServerCall) (*principal.JsBlessings, error) {

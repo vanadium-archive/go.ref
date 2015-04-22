@@ -73,7 +73,7 @@ const (
 	// A request to remove a name from server.
 	RemoveName = 19
 
-	// A request to get the remove blessings of a server.
+	// A request to get the remote blessings of a server.
 	RemoteBlessings = 20
 
 	// A response to a caveat validation request.

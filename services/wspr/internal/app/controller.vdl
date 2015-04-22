@@ -32,6 +32,8 @@ type Controller interface {
 	BlessSelf(name string, caveats []security.Caveat) (string, principal.BlessingsHandle | error)
 	// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.
 	PutToBlessingStore(blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern) (?principal.JsBlessings | error)
+	// AddToRoots adds the provided blessing as a root.
+	AddToRoots(blessingHandle principal.BlessingsHandle) error
 
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(name, method string) ([]string | error)
