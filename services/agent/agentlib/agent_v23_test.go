@@ -22,7 +22,7 @@ import (
 //go:generate v23 test generate
 
 func V23TestTestPassPhraseUse(i *v23tests.T) {
-	bin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithEnv(envvar.Credentials + "=" + i.NewTempDir())
+	bin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithEnv(envvar.Credentials + "=" + i.NewTempDir(""))
 
 	// Create the passphrase
 	agent := bin.Start("echo", "Hello")
@@ -65,7 +65,7 @@ func V23TestAllPrincipalMethods(i *v23tests.T) {
 	// (Errors are printed to STDERR)
 	testbin := i.BuildGoPkg("v.io/x/ref/services/agent/internal/test_principal").Path()
 	i.BuildGoPkg("v.io/x/ref/services/agent/agentd").
-		WithEnv(envvar.Credentials+"="+i.NewTempDir()).
+		WithEnv(envvar.Credentials+"="+i.NewTempDir("")).
 		Start(testbin).
 		WaitOrDie(nil, os.Stderr)
 }
@@ -95,7 +95,7 @@ func V23TestAgentProcesses(i *v23tests.T) {
 	// This only works with shells that propagate open file descriptors to
 	// children. POSIX-compliant shells do this as to many other commonly
 	// used ones like bash.
-	script := filepath.Join(i.NewTempDir(), "test.sh")
+	script := filepath.Join(i.NewTempDir(""), "test.sh")
 	if err := writeScript(
 		script,
 		`#!/bin/bash
@@ -126,7 +126,7 @@ func V23TestAgentRestartExitCode(i *v23tests.T) {
 		pingpong                 = i.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong").Path()
 		serverName               = serverAgent.Start(pingpong).ExpectVar("NAME")
 
-		scriptDir = i.NewTempDir()
+		scriptDir = i.NewTempDir("")
 		counter   = filepath.Join(scriptDir, "counter")
 		script    = filepath.Join(scriptDir, "test.sh")
 	)
@@ -224,8 +224,8 @@ func writeScript(dstfile, tmpl string, args interface{}) error {
 func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary) {
 	var (
 		agentd    = i.BuildGoPkg("v.io/x/ref/services/agent/agentd")
-		clientDir = i.NewTempDir()
-		serverDir = i.NewTempDir()
+		clientDir = i.NewTempDir("")
+		serverDir = i.NewTempDir("")
 	)
 	pserver, err := vsecurity.CreatePersistentPrincipal(serverDir, nil)
 	if err != nil {

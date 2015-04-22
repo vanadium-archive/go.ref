@@ -43,7 +43,7 @@ func removeCaveats(input string) string {
 
 func V23TestBlessSelf(t *v23tests.T) {
 	var (
-		outputDir         = t.NewTempDir()
+		outputDir         = t.NewTempDir("")
 		aliceDir          = filepath.Join(outputDir, "alice")
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
@@ -67,7 +67,7 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 
 func V23TestStore(t *v23tests.T) {
 	var (
-		outputDir   = t.NewTempDir()
+		outputDir   = t.NewTempDir("")
 		bin         = t.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir    = filepath.Join(outputDir, "alice")
 		aliceFriend = filepath.Join(outputDir, "alice.bless")
@@ -128,7 +128,7 @@ alice/friend
 
 func V23TestDump(t *v23tests.T) {
 	var (
-		outputDir = t.NewTempDir()
+		outputDir = t.NewTempDir("")
 		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
@@ -153,7 +153,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 
 func V23TestGetRecognizedRoots(t *v23tests.T) {
 	var (
-		outputDir = t.NewTempDir()
+		outputDir = t.NewTempDir("")
 		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
@@ -172,7 +172,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 
 func V23TestGetPeermap(t *v23tests.T) {
 	var (
-		outputDir = t.NewTempDir()
+		outputDir = t.NewTempDir("")
 		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
@@ -209,7 +209,7 @@ func blessArgsFromRecvBlessings(inv *v23tests.Invocation) []string {
 
 func V23TestRecvBlessings(t *v23tests.T) {
 	var (
-		outputDir    = t.NewTempDir()
+		outputDir    = t.NewTempDir("")
 		bin          = t.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir     = filepath.Join(outputDir, "alice")
 		bobDir       = filepath.Join(outputDir, "bob")
@@ -305,7 +305,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [carol]
 
 func V23TestFork(t *v23tests.T) {
 	var (
-		outputDir             = t.NewTempDir()
+		outputDir             = t.NewTempDir("")
 		bin                   = t.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir              = filepath.Join(outputDir, "alice")
 		alicePhoneDir         = filepath.Join(outputDir, "alice-phone")
@@ -392,7 +392,7 @@ Chain #0 (3 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 
 func V23TestCreate(t *v23tests.T) {
 	var (
-		outputDir = t.NewTempDir()
+		outputDir = t.NewTempDir("")
 		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
@@ -411,7 +411,7 @@ func V23TestCreate(t *v23tests.T) {
 
 func V23TestCaveats(t *v23tests.T) {
 	var (
-		outputDir         = t.NewTempDir()
+		outputDir         = t.NewTempDir("")
 		aliceDir          = filepath.Join(outputDir, "alice")
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
@@ -443,21 +443,21 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 
 func V23TestForkWithoutVDLPATH(t *v23tests.T) {
 	var (
-		parent = t.NewTempDir()
+		parent = t.NewTempDir("")
 		bin    = t.BuildGoPkg("v.io/x/ref/cmd/principal").WithEnv("V23_ROOT=''", "VDLPATH=''")
 	)
 	if err := bin.Start("create", parent, "parent").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Fatalf("create %q failed: %v", parent, err)
 	}
-	if err := bin.Start("--v23.credentials="+parent, "fork", "--for=1s", t.NewTempDir(), "child").Wait(os.Stdout, os.Stderr); err != nil {
+	if err := bin.Start("--v23.credentials="+parent, "fork", "--for=1s", t.NewTempDir(""), "child").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Errorf("fork failed: %v", err)
 	}
 }
 
 func V23TestForkWithoutCaveats(t *v23tests.T) {
 	var (
-		parent = t.NewTempDir()
-		child  = t.NewTempDir()
+		parent = t.NewTempDir("")
+		child  = t.NewTempDir("")
 		bin    = t.BuildGoPkg("v.io/x/ref/cmd/principal")
 		buf    bytes.Buffer
 	)
@@ -482,7 +482,7 @@ func V23TestForkWithoutCaveats(t *v23tests.T) {
 func V23TestBless(t *v23tests.T) {
 	var (
 		bin      = t.BuildGoPkg("v.io/x/ref/cmd/principal")
-		dir      = t.NewTempDir()
+		dir      = t.NewTempDir("")
 		aliceDir = filepath.Join(dir, "alice")
 		bobDir   = filepath.Join(dir, "bob")
 		tmpfile  = filepath.Join(dir, "tmpfile")
@@ -549,9 +549,9 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 func V23TestAddBlessingsToRoots(t *v23tests.T) {
 	var (
 		bin          = t.BuildGoPkg("v.io/x/ref/cmd/principal")
-		aliceDir     = t.NewTempDir()
-		bobDir       = t.NewTempDir()
-		blessingFile = filepath.Join(t.NewTempDir(), "bobfile")
+		aliceDir     = t.NewTempDir("")
+		bobDir       = t.NewTempDir("")
+		blessingFile = filepath.Join(t.NewTempDir(""), "bobfile")
 
 		// Extract the public key from the first line of output from
 		// "principal dump", which is formatted as:
@@ -585,7 +585,7 @@ func V23TestAddBlessingsToRoots(t *v23tests.T) {
 func V23TestAddKeyToRoots(t *v23tests.T) {
 	var (
 		bin      = t.BuildGoPkg("v.io/x/ref/cmd/principal")
-		aliceDir = t.NewTempDir()
+		aliceDir = t.NewTempDir("")
 	)
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 	// The second argument and the "want" line below were generated by:

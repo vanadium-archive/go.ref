@@ -9,20 +9,27 @@
 // manager so that all device manager components run as the same user and
 // no user input (such as an agent pass phrase) is needed.
 //
-// When this script is invoked with the --with_suid <user> flag, it
-// installs the device manager in its more secure multi-account
-// configuration where the device manager runs under the account of the
-// invoker and test apps will be executed as <user>. This mode will
-// require root permisisons to install and may require configuring an
-// agent passphrase.
+// This script can exercise the device manager in two different modes. It
+// can be executed like so:
 //
-// For exanple:
+// v23 go test -v . --v23.tests
 //
-//   v23 go test -v . --v23.tests --with_suid vanaguest
+// This will exercise the device manager's single user mode where all
+// processes run as the same invoking user.
 //
-// to test a device manager with multi-account support enabled for app
-// account vanaguest.
+// Alternatively, the device manager can be executed in multiple account
+// mode by providing the --deviceuser <deviceuser> and --appuser
+// <appuser> flags. In this case, the device manager will run as user
+// <devicemgr> and the test will run applications as user <appuser>. If
+// executed in this fashion, root permissions will be required to install
+// and it may require configuring an agent passphrase. For example:
 //
+//   v23 go test -v . --v23.tests --deviceuser devicemanager --appuser  vana
+//
+// NB: the accounts provided as arguments to this test must already exist.
+// Also, the --v23.tests.shell-on-fail flag is useful to enable debugging
+// output.
+
 package device_test
 
 //go:generate v23 test generate .
@@ -34,7 +41,9 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/user"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -44,13 +53,15 @@ import (
 )
 
 var (
-	suidUserFlag string
-	hostname     string
-	errTimeout   = errors.New("timeout")
+	appUserFlag    string
+	deviceUserFlag string
+	hostname       string
+	errTimeout     = errors.New("timeout")
 )
 
 func init() {
-	flag.StringVar(&suidUserFlag, "with_suid", "", "run the device manager as the specified user")
+	flag.StringVar(&appUserFlag, "appuser", "", "launch apps as the specified user")
+	flag.StringVar(&deviceUserFlag, "deviceuser", "", "run the device manager as the specified user")
 	name, err := os.Hostname()
 	if err != nil {
 		panic(fmt.Sprintf("Hostname() failed: %v", err))
@@ -62,14 +73,30 @@ func V23TestDeviceManager(i *v23tests.T) {
 	defer fmt.Fprintf(os.Stderr, "--------------- SHUTDOWN ---------------\n")
 	userFlag := "--single_user"
 	withSuid := false
-	if len(suidUserFlag) > 0 {
-		userFlag = "--with_suid=" + suidUserFlag
+	tempDir := ""
+	if len(deviceUserFlag) > 0 && len(appUserFlag) > 0 {
 		withSuid = true
+		i.Logf("device user %s, app user %s", deviceUserFlag, appUserFlag)
+		// When running --with_suid, TMPDIR must grant the
+		// invoking user rwx permissions and world x permissions for
+		// all parent directories back to /. Otherwise, the
+		// with_suid user will not be able to use absolute paths.
+		// On Darwin, TMPDIR defaults to a directory hieararchy
+		// in /var that is 0700. This is unworkable so force
+		// TMPDIR to /tmp in this case.
+		tempDir = "/tmp"
+	} else if len(deviceUserFlag) > 0 || len(appUserFlag) > 0 {
+		i.Fatalf("Running in multiuser mode requires --appuser and --deviceuser")
+	} else {
+		u, err := user.Current()
+		if err != nil {
+			i.Fatalf("couldn't get the current user: %v", err)
+		}
+		appUserFlag = u.Username
 	}
-	i.Logf("user flag: %q", userFlag)
 
 	var (
-		workDir       = i.NewTempDir()
+		workDir       = i.NewTempDir(tempDir)
 		binStagingDir = mkSubdir(i, workDir, "bin")
 		dmInstallDir  = filepath.Join(workDir, "dm")
 
@@ -103,6 +130,14 @@ func V23TestDeviceManager(i *v23tests.T) {
 		mtName = "devices/" + hostname // Name under which the device manager will publish itself.
 	)
 
+	if withSuid {
+		// In multiuser mode, deviceUserFlag needs execute access to
+		// tempDir.
+		if err := os.Chmod(workDir, 0711); err != nil {
+			i.Fatalf("os.Chmod() failed: %v", err)
+		}
+	}
+
 	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 	buildAndCopyBinaries(
 		i,
@@ -115,15 +150,25 @@ func V23TestDeviceManager(i *v23tests.T) {
 	appDName := "applicationd"
 	devicedAppName := filepath.Join(appDName, "deviced", "test")
 
-	deviceScript.Start(
+	deviceScriptArguments := []string{
 		"install",
 		binStagingDir,
-		userFlag,
-		"--origin="+devicedAppName,
+	}
+
+	if withSuid {
+		deviceScriptArguments = append(deviceScriptArguments, "--devuser="+deviceUserFlag)
+	} else {
+		deviceScriptArguments = append(deviceScriptArguments, userFlag)
+	}
+
+	deviceScriptArguments = append(deviceScriptArguments, []string{
+		"--origin=" + devicedAppName,
 		"--",
 		"--v23.tcp.address=127.0.0.1:0",
-		"--neighborhood-name="+fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), rand.Int())).
-		WaitOrDie(os.Stdout, os.Stderr)
+		"--neighborhood-name=" + fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), rand.Int()),
+	}...)
+
+	deviceScript.Start(deviceScriptArguments...).WaitOrDie(os.Stdout, os.Stderr)
 	deviceScript.Start("start").WaitOrDie(os.Stdout, os.Stderr)
 
 	resolve := func(name string) string {
@@ -168,11 +213,12 @@ func V23TestDeviceManager(i *v23tests.T) {
 	mtEP = resolveChange(mtName, mtEP)
 
 	if withSuid {
-		/*
-		   		   "${DEVICE_BIN}" associate add "${MT_NAME}/devmgr/device" "${SUID_USER}"  "alice"
-		        shell_test::assert_eq   "$("${DEVICE_BIN}" associate list "${MT_NAME}/devmgr/device")" \
-		          "alice ${SUID_USER}" "${LINENO}"
-		*/
+		deviceBin.Start("associate", "add", mtName+"/devmgr/device", appUserFlag, "root/alice")
+
+		aai := deviceBin.Start("associate", "list", mtName+"/devmgr/device")
+		if got, expected := strings.Trim(aai.Output(), "\n "), "root/alice "+appUserFlag; got != expected {
+			i.Fatalf("association test, got %v, expected %v", got, expected)
+		}
 	}
 
 	// Verify the device's default blessing is as expected.
@@ -269,7 +315,15 @@ func V23TestDeviceManager(i *v23tests.T) {
 		i.Fatalf("got %q, want %q", got, want)
 	}
 
-	// TODO(rjkroege): Verify that the app is actually running as ${SUID_USER}
+	inv = debugBin.Start("stats", "read", instanceName+"/stats/system/pid")
+	pid := inv.ExpectRE("[0-9]+$", 1)[0][0]
+	uname, err := getUserForPid(i, pid)
+	if err != nil {
+		i.Errorf("getUserForPid could not determine the user running pid %v", pid)
+	}
+	if uname != appUserFlag {
+		i.Errorf("app expected to be running as %v but is running as %v", appUserFlag, uname)
+	}
 
 	// Verify the app's default blessing.
 	inv = debugBin.Start("stats", "read", instanceName+"/stats/security/principal/*/blessingstore")
@@ -357,9 +411,16 @@ func V23TestDeviceManager(i *v23tests.T) {
 	}
 	resolveGone(mtName)
 
-	fi, err := ioutil.ReadDir(dmInstallDir)
-	if err != nil {
-		i.Fatalf("failed to readdir for %q: %v", dmInstallDir, err)
+	var fi []os.FileInfo
+
+	// This doesn't work in multiuser mode because dmInstallDir is
+	// owned by the device manager user and unreadable by the user
+	// running this test.
+	if !withSuid {
+		fi, err = ioutil.ReadDir(dmInstallDir)
+		if err != nil {
+			i.Fatalf("failed to readdir for %q: %v", dmInstallDir, err)
+		}
 	}
 
 	deviceScript.Run("uninstall")
@@ -388,4 +449,18 @@ func mkSubdir(i *v23tests.T, parent, child string) string {
 		i.Fatalf("failed to create %q: %v", dir, err)
 	}
 	return dir
+}
+
+var re = regexp.MustCompile("[ \t]+")
+
+// getUserForPid determines the username running process pid.
+func getUserForPid(i *v23tests.T, pid string) (string, error) {
+	pidString := i.BinaryFromPath("/bin/ps").Start(psFlags).Output()
+	for _, line := range strings.Split(pidString, "\n") {
+		fields := re.Split(line, -1)
+		if len(fields) > 1 && pid == fields[1] {
+			return fields[0], nil
+		}
+	}
+	return "", fmt.Errorf("Couldn't determine the user for pid %s", pid)
 }
