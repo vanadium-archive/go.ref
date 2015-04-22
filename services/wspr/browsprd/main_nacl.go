@@ -311,10 +311,18 @@ func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, origin strin
 	return nil
 }
 
-// HandleIntentionalPanic intentionally triggers a panic. This is used in tests of the extension's crash handling behavior.
-// TODO(bprosnitz) We probably should conditionally compile this in via build tags so we don't hit it in production code.
+// HandleIntentionalPanic intentionally triggers a panic. This is used in tests
+// of the extension's crash handling behavior.
+// TODO(bprosnitz) We probably should conditionally compile this in via build
+// tags so we don't hit it in production code.
 func (inst *browsprInstance) HandleIntentionalPanic(instanceId int32, origin string, message ppapi.Var) error {
-	panic("Crashing intentionally")
+	// NOTE(nlacasse): Calling panic directly (not inside a goroutine)
+	// sometimes blocks during the panic, causing the plugin to not emit a
+	// "crash" event. I'm not sure why this happens, but it breaks the
+	// test-nacl-plugin-crash test. Calling panic from within a goroutine seems
+	// to reliably panic "all the way" and emit a "crash" event.
+	go panic("Crashing intentionally")
+	return nil
 }
 
 // HandleBrowsprRpc handles two-way rpc messages of the type "browsprRpc"
