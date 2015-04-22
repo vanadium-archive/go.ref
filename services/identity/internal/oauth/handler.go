@@ -146,7 +146,7 @@ func (h *handler) listBlessings(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 		return
 	}
-	http.Redirect(w, r, h.args.OAuthProvider.AuthURL(redirectURL(h.args.Addr, listBlessingsCallbackRoute), csrf), http.StatusFound)
+	http.Redirect(w, r, h.args.OAuthProvider.AuthURL(redirectURL(h.args.Addr, listBlessingsCallbackRoute), csrf, ReuseApproval), http.StatusFound)
 }
 
 func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) {
@@ -344,7 +344,7 @@ func (h *handler) seekBlessings(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 		return
 	}
-	http.Redirect(w, r, h.args.OAuthProvider.AuthURL(redirectURL(h.args.Addr, addCaveatsRoute), outputMacaroon), http.StatusFound)
+	http.Redirect(w, r, h.args.OAuthProvider.AuthURL(redirectURL(h.args.Addr, addCaveatsRoute), outputMacaroon, ExplicitApproval), http.StatusFound)
 }
 
 type addCaveatsMacaroon struct {

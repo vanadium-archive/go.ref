@@ -41,8 +41,12 @@ func NewGoogleOAuth(configFile string) (OAuthProvider, error) {
 	}, nil
 }
 
-func (g *googleOAuth) AuthURL(redirectUrl, state string) string {
-	return g.oauthConfig(redirectUrl).AuthCodeURL(state)
+func (g *googleOAuth) AuthURL(redirectUrl, state string, approval AuthURLApproval) string {
+	var opts []oauth2.AuthCodeOption
+	if approval == ExplicitApproval {
+		opts = append(opts, oauth2.ApprovalForce)
+	}
+	return g.oauthConfig(redirectUrl).AuthCodeURL(state, opts...)
 }
 
 // ExchangeAuthCodeForEmail exchanges the authorization code (which must
