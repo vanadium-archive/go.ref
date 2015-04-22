@@ -481,6 +481,11 @@ func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string
 			return verror.New(errLeafDoesntMatch, ctx)
 		}
 	}
+	// Remove any existing children.
+	for child := range n.children {
+		mt.deleteNode(n, child)
+	}
+
 	nServersBefore := numServers(n)
 	if hasReplaceFlag(flags) {
 		n.mount = nil

@@ -713,6 +713,16 @@ func TestStatsCounters(t *testing.T) {
 			t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
 		}
 	}
+
+	// Mount on an existing intermediate node.
+	doMount(t, rootCtx, estr, "1/2/3/4/5/6/7/8/9a/10", naming.JoinAddressName(estr, ""), true)
+	doMount(t, rootCtx, estr, "1/2/3/4/5", naming.JoinAddressName(estr, ""), true)
+	if expected, got := int64(6), nodeCount(t, rootCtx, estr); got != expected {
+		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+	}
+	if expected, got := int64(1), serverCount(t, rootCtx, estr); got != expected {
+		t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+	}
 }
 
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
