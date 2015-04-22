@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"time"
 
@@ -20,6 +21,10 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 )
+
+func init() {
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+}
 
 var (
 	flagLongGlob            bool

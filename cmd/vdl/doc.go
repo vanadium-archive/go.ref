@@ -18,14 +18,12 @@ The vdl commands are:
    audit       Check if any packages are stale and need generation
    list        List package and dependency info in transitive order
    help        Display help for commands or topics
-Run "vdl help [command]" for command usage.
 
 The vdl additional help topics are:
    packages    Description of package lists
    vdlpath     Description of VDLPATH environment variable
    vdlroot     Description of VDLROOT environment variable
    vdl.config  Description of vdl.config files
-Run "vdl help [topic]" for topic details.
 
 The vdl flags are:
  -exts=.vdl
@@ -39,7 +37,7 @@ The vdl flags are:
  -vdl.config=vdl.config
    Basename of the optional per-package config file.
 
-Vdl Generate
+Vdl generate
 
 Generate compiles packages and their transitive dependencies, and generates code
 in the specified languages.
@@ -93,7 +91,7 @@ The vdl generate flags are:
  -status=true
    Show package names as they are updated
 
-Vdl Compile
+Vdl compile
 
 Compile compiles packages and their transitive dependencies, but does not
 generate code.  This is useful to sanity-check that your VDL files are valid.
@@ -108,7 +106,7 @@ The vdl compile flags are:
  -status=true
    Show package names while we compile
 
-Vdl Audit
+Vdl audit
 
 Audit runs the same logic as generate, but doesn't write out generated files.
 Returns a 0 exit code if all packages are up-to-date, otherwise returns a non-0
@@ -163,7 +161,7 @@ The vdl audit flags are:
  -status=true
    Show package names as they are updated
 
-Vdl List
+Vdl list
 
 List returns information about packages and their transitive dependencies, in
 transitive order.  This is the same order the generate and compile commands use
@@ -182,7 +180,7 @@ Usage:
 <packages> are a list of packages to process, similar to the standard go tool.
 For more information, run "vdl help packages".
 
-Vdl Help
+Vdl help
 
 Help with no args displays the usage of the parent command.
 
@@ -190,11 +188,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    vdl help [flags] [command/topic ...]
@@ -202,10 +199,14 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The vdl help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 
-Vdl Packages - help topic
+Vdl packages - help topic
 
 Most vdl commands apply to a list of packages:
 
@@ -233,7 +234,7 @@ explicitly.
  Run "vdl help vdlpath" to see docs on VDLPATH.
  Run "go help packages" to see the standard go package docs.
 
-Vdl Vdlpath - help topic
+Vdl vdlpath - help topic
 
 The VDLPATH environment variable is used to resolve import statements. It must
 be set to compile and generate vdl packages.
@@ -259,7 +260,7 @@ An example:
             baz/              (import "bar/baz" refers here)
                baz.vdl
 
-Vdl Vdlroot - help topic
+Vdl vdlroot - help topic
 
 The VDLROOT environment variable is similar to VDLPATH, but instead of pointing
 to multiple user source directories, it points at a single source directory
@@ -270,7 +271,7 @@ Setting VDLROOT is optional.
 If VDLROOT is empty, we try to construct it out of the V23_ROOT environment
 variable.  It is an error if both VDLROOT and V23_ROOT are empty.
 
-Vdl Vdl.Config - help topic
+Vdl vdl.config - help topic
 
 Each vdl source package P may contain an optional file "vdl.config" within the P
 directory.  This file specifies additional configuration for the vdl tool.

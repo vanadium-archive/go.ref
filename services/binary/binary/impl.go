@@ -12,6 +12,10 @@ import (
 	"v.io/x/ref/services/internal/binarylib"
 )
 
+func init() {
+	cmdline.HideGlobalFlagsExcept()
+}
+
 var cmdDelete = &cmdline.Command{
 	Run:      runDelete,
 	Name:     "delete",

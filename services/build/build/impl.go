@@ -25,6 +25,7 @@ var (
 )
 
 func init() {
+	cmdline.HideGlobalFlagsExcept()
 	cmdBuild.Flags.StringVar(&flagArch, "arch", runtime.GOARCH, "Target architecture.  The default is the value of runtime.GOARCH.")
 	cmdBuild.Flags.Lookup("arch").DefValue = "<runtime.GOARCH>"
 	cmdBuild.Flags.StringVar(&flagOS, "os", runtime.GOOS, "Target operating system.  The default is the value of runtime.GOOS.")

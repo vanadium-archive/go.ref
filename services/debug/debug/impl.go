@@ -42,6 +42,8 @@ var (
 )
 
 func init() {
+	cmdline.HideGlobalFlagsExcept()
+
 	// logs read flags
 	cmdLogsRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")
 	cmdLogsRead.Flags.BoolVar(&verbose, "v", false, "When true, read will be more verbose.")

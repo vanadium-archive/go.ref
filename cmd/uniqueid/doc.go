@@ -16,7 +16,6 @@ The uniqueid commands are:
    generate    Generates UniqueIds
    inject      Injects UniqueIds into existing files
    help        Display help for commands or topics
-Run "uniqueid help [command]" for command usage.
 
 The global flags are:
  -alsologtostderr=true
@@ -63,14 +62,14 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Uniqueid Generate
+Uniqueid generate
 
 Generates unique ids and outputs them to standard out.
 
 Usage:
    uniqueid generate
 
-Uniqueid Inject
+Uniqueid inject
 
 Injects UniqueIds into existing files. Strings of the form "$UNIQUEID$" will be
 replaced with generated ids.
@@ -80,7 +79,7 @@ Usage:
 
 <filenames> List of files to inject unique ids into
 
-Uniqueid Help
+Uniqueid help
 
 Help with no args displays the usage of the parent command.
 
@@ -88,11 +87,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    uniqueid help [flags] [command/topic ...]
@@ -100,7 +98,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The uniqueid help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

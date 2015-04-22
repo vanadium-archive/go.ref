@@ -25,6 +25,7 @@ import (
 )
 
 func main() {
+	cmdline.HideGlobalFlagsExcept()
 	os.Exit(cmdVom.Main())
 }
 

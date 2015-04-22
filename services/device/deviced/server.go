@@ -11,23 +11,22 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/rpc"
+	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
-
+	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/starter"
-
-	"v.io/v23"
-	"v.io/v23/context"
-	"v.io/v23/rpc"
-	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 const pkgPath = "v.io/x/ref/services/device/deviced"
@@ -46,6 +45,10 @@ var (
 	proxyPort       = flag.Int("proxy-port", 0, "the port number to assign to the proxy service. 0 means no proxy service.")
 	usePairingToken = flag.Bool("use-pairing-token", false, "generate a pairing token for the device manager that will need to be provided when a device is claimed")
 )
+
+func init() {
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^(name)|(restart-exit-code)|(neighborhood-name)|(deviced-port)|(proxy-port)|(use-pairing-token)$`))
+}
 
 func runServer(*cmdline.Command, []string) error {
 	ctx, shutdown := v23.Init()

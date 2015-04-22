@@ -7,6 +7,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"v.io/v23"
@@ -15,10 +16,13 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 )
+
+func init() {
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+}
 
 var cmdGlob = &cmdline.Command{
 	Run:      runGlob,

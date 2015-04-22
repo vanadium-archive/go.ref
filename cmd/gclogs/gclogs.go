@@ -44,6 +44,7 @@ are considered for deletion.
 )
 
 func init() {
+	cmdline.HideGlobalFlagsExcept()
 	cmdGCLogs.Flags.DurationVar(&flagCutoff, "cutoff", 24*time.Hour, "The age cut-off for a log file to be considered for garbage collection.")
 	cmdGCLogs.Flags.StringVar(&flagProgname, "program", ".*", `A regular expression to apply to the program part of the log file name, e.g ".*test".`)
 	cmdGCLogs.Flags.BoolVar(&flagVerbose, "verbose", false, "If true, each deleted file is shown on stdout.")

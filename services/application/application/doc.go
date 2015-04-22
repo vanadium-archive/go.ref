@@ -18,7 +18,6 @@ The application commands are:
    remove      removes the application envelope for the given profile.
    edit        edits the application envelope for the given profile.
    help        Display help for commands or topics
-Run "application help [command]" for command usage.
 
 The global flags are:
  -alsologtostderr=true
@@ -60,7 +59,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Application Match
+Application match
 
 Shows the first matching envelope that matches the given profiles.
 
@@ -70,7 +69,7 @@ Usage:
 <application> is the full name of the application. <profiles> is a
 comma-separated list of profiles.
 
-Application Put
+Application put
 
 Add the given envelope to the application for the given profiles.
 
@@ -82,7 +81,7 @@ comma-separated list of profiles. <envelope> is the file that contains a
 JSON-encoded envelope. If this file is not provided, the user will be prompted
 to enter the data manually.
 
-Application Remove
+Application remove
 
 removes the application envelope for the given profile.
 
@@ -91,7 +90,7 @@ Usage:
 
 <application> is the full name of the application. <profile> is a profile.
 
-Application Edit
+Application edit
 
 edits the application envelope for the given profile.
 
@@ -100,7 +99,7 @@ Usage:
 
 <application> is the full name of the application. <profile> is a profile.
 
-Application Help
+Application help
 
 Help with no args displays the usage of the parent command.
 
@@ -108,11 +107,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    application help [flags] [command/topic ...]
@@ -120,7 +118,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The application help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

@@ -25,9 +25,11 @@ The namespace commands are:
    permissions Manipulates permissions on an entry in the namespace
    delete      Deletes a name from the namespace
    help        Display help for commands or topics
-Run "namespace help [command]" for command usage.
 
 The global flags are:
+ -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
+   local namespace root; can be repeated to provided multiple roots
+
  -alsologtostderr=true
    log to standard error as well as files
  -log_backtrace_at=:0
@@ -46,8 +48,6 @@ The global flags are:
    directory to use for storing security credentials
  -v23.i18n-catalogue=
    18n catalogue files to load, comma separated
- -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
-   local namespace root; can be repeated to provided multiple roots
  -v23.proxy=
    object name of proxy service to use to export services across network
    boundaries
@@ -67,7 +67,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Namespace Glob
+Namespace glob
 
 Returns all matching entries from the namespace.
 
@@ -81,7 +81,7 @@ The namespace glob flags are:
  -l=false
    Long listing format.
 
-Namespace Mount
+Namespace mount
 
 Adds server <server> to the namespace with name <name>.
 
@@ -93,7 +93,7 @@ the server to add. <ttl> is the TTL of the new entry. It is a decimal number
 followed by a unit suffix (s, m, h). A value of 0s represents an infinite
 duration.
 
-Namespace Unmount
+Namespace unmount
 
 Removes server <server> with name <name> from the namespace.
 
@@ -103,7 +103,7 @@ Usage:
 <name> is the name to remove from the namespace. <server> is the object address
 of the server to remove.
 
-Namespace Resolve
+Namespace resolve
 
 Translates a object name to its object address(es).
 
@@ -117,7 +117,7 @@ The namespace resolve flags are:
    Insecure mode: May return results from untrusted servers and invoke Resolve
    on untrusted mounttables
 
-Namespace Resolvetomt
+Namespace resolvetomt
 
 Finds the address of the mounttable that holds an object name.
 
@@ -131,7 +131,7 @@ The namespace resolvetomt flags are:
    Insecure mode: May return results from untrusted servers and invoke Resolve
    on untrusted mounttables
 
-Namespace Permissions
+Namespace permissions
 
 Commands to get and set the permissions on a name - controlling the blessing
 names required to resolve the name.
@@ -146,7 +146,7 @@ The namespace permissions commands are:
    get         Gets permissions on a mount name
    set         Sets permissions on a mount name
 
-Namespace Permissions Get
+Namespace permissions get
 
 Get retrieves the permissions on the usage of a name.
 
@@ -158,7 +158,7 @@ Usage:
 
 <name> is a name in the namespace.
 
-Namespace Permissions Set
+Namespace permissions set
 
 Set replaces the permissions controlling usage of a mount name.
 
@@ -170,7 +170,7 @@ Usage:
 <permissions> is the path to a file containing a JSON-encoded Permissions object
 (defined in v.io/v23/security/access/types.vdl), or "-" for STDIN.
 
-Namespace Delete
+Namespace delete
 
 Deletes a name from the namespace.
 
@@ -183,7 +183,7 @@ The namespace delete flags are:
  -r=false
    Delete all children of the name in addition to the name itself.
 
-Namespace Help
+Namespace help
 
 Help with no args displays the usage of the parent command.
 
@@ -191,11 +191,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    namespace help [flags] [command/topic ...]
@@ -203,7 +202,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The namespace help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

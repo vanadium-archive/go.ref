@@ -13,13 +13,18 @@ The mtstress commands are:
    mount       Measure latency of the Mount RPC at a fixed request rate
    resolve     Measure latency of the Resolve RPC at a fixed request rate
    help        Display help for commands or topics
-Run "mtstress help [command]" for command usage.
 
 The global flags are:
- -alsologtostderr=true
-   log to standard error as well as files
  -duration=10s
    Duration for sending test traffic and measuring latency
+ -rate=1
+   Rate, in RPCs per second, to send to the test server
+ -reauthenticate=false
+   If true, establish a new authenticated connection for each RPC, simulating
+   load from a distinct process
+
+ -alsologtostderr=true
+   log to standard error as well as files
  -log_backtrace_at=:0
    when logging hits line file:N, emit a stack trace
  -log_dir=
@@ -28,11 +33,6 @@ The global flags are:
    log to standard error instead of files
  -max_stack_buf_size=4292608
    max size in bytes of the buffer to use for logging stack traces
- -rate=1
-   Rate, in RPCs per second, to send to the test server
- -reauthenticate=false
-   If true, establish a new authenticated connection for each RPC, simulating
-   load from a distinct process
  -stderrthreshold=2
    logs at or above this threshold go to stderr
  -v=0
@@ -62,7 +62,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Mtstress Mount
+Mtstress mount
 
 Repeatedly issues a Mount request (at --rate) and measures latency
 
@@ -74,7 +74,7 @@ Usage:
 <ttl> specfies the time-to-live of the mount point. For example: 5s for 5
 seconds, 1m for 1 minute etc. Valid time units are "ms", "s", "m", "h".
 
-Mtstress Resolve
+Mtstress resolve
 
 Repeatedly issues a Resolve request (at --rate) to a name and measures latency
 
@@ -83,7 +83,7 @@ Usage:
 
 <name> the object name to resolve
 
-Mtstress Help
+Mtstress help
 
 Help with no args displays the usage of the parent command.
 
@@ -91,11 +91,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    mtstress help [flags] [command/topic ...]
@@ -103,7 +102,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The mtstress help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

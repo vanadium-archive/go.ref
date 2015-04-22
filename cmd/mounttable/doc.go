@@ -17,9 +17,11 @@ The mounttable commands are:
    unmount     removes server <name> from the mount table
    resolvestep takes the next step in resolving a name.
    help        Display help for commands or topics
-Run "mounttable help [command]" for command usage.
 
 The global flags are:
+ -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
+   local namespace root; can be repeated to provided multiple roots
+
  -alsologtostderr=true
    log to standard error as well as files
  -log_backtrace_at=:0
@@ -38,8 +40,6 @@ The global flags are:
    directory to use for storing security credentials
  -v23.i18n-catalogue=
    18n catalogue files to load, comma separated
- -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
-   local namespace root; can be repeated to provided multiple roots
  -v23.proxy=
    object name of proxy service to use to export services across network
    boundaries
@@ -59,7 +59,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Mounttable Glob
+Mounttable glob
 
 returns all matching entries in the mount table
 
@@ -70,7 +70,7 @@ Usage:
 <pattern> is a glob pattern that is matched against all the entries below the
 specified mount name.
 
-Mounttable Mount
+Mounttable mount
 
 Mounts a server <name> onto a mount table
 
@@ -87,7 +87,7 @@ suffix (s, m, h). A value of 0s represents an infinite duration.
 [M|R] are mount options. M indicates that <name> is a mounttable. R indicates
 that existing entries should be removed.
 
-Mounttable Unmount
+Mounttable unmount
 
 removes server <name> from the mount table
 
@@ -97,7 +97,7 @@ Usage:
 <mount name> is a mount name on a mount table. <name> is the rooted object name
 of the server.
 
-Mounttable Resolvestep
+Mounttable resolvestep
 
 takes the next step in resolving a name.
 
@@ -106,7 +106,7 @@ Usage:
 
 <mount name> is a mount name on a mount table.
 
-Mounttable Help
+Mounttable help
 
 Help with no args displays the usage of the parent command.
 
@@ -114,11 +114,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    mounttable help [flags] [command/topic ...]
@@ -126,7 +125,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The mounttable help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

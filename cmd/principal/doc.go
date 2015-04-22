@@ -29,7 +29,6 @@ The principal commands are:
    addtoroots    Add to the set of identity providers recognized by this
                  principal
    help          Display help for commands or topics
-Run "principal help [command]" for command usage.
 
 The global flags are:
  -alsologtostderr=true
@@ -76,7 +75,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Principal Create
+Principal create
 
 Creates a new principal with a single self-blessed blessing and writes it out to
 the provided directory. The same directory can then be used to set the
@@ -96,7 +95,7 @@ The principal create flags are:
  -overwrite=false
    If true, any existing principal data in the directory will be overwritten
 
-Principal Fork
+Principal fork
 
 Creates a new principal with a blessing from the principal specified by the
 environment that this tool is running in, and writes it out to the provided
@@ -130,7 +129,7 @@ The principal fork flags are:
  -with=
    Path to file containing blessing to extend
 
-Principal Seekblessings
+Principal seekblessings
 
 Seeks blessings from a web-based Vanadium blesser which requires the caller to
 first authenticate with Google using OAuth. Simply run the command to see what
@@ -162,7 +161,7 @@ The principal seekblessings flags are:
    If true, the blessings obtained will be set as the default blessing in the
    store
 
-Principal Recvblessings
+Principal recvblessings
 
 Allow another principal (likely a remote process) to bless this one.
 
@@ -213,7 +212,7 @@ The principal recvblessings flags are:
    If true, the blessings received will be set as the default blessing in the
    store
 
-Principal Dump
+Principal dump
 
 Prints out information about the principal specified by the environment that
 this tool is running in.
@@ -225,7 +224,7 @@ The principal dump flags are:
  -s=false
    If true, show only the default blessing names
 
-Principal Dumpblessings
+Principal dumpblessings
 
 Prints out information about the blessings (typically obtained from this tool)
 encoded in the provided file.
@@ -236,7 +235,7 @@ Usage:
 <file> is the path to a file containing blessings typically obtained from this
 tool. - is used for STDIN.
 
-Principal Blessself
+Principal blessself
 
 Returns a blessing with name <name> and self-signed by the principal specified
 by the environment that this tool is running in. Optionally, the blessing can be
@@ -256,7 +255,7 @@ The principal blessself flags are:
  -for=0
    Duration of blessing validity (zero implies no expiration)
 
-Principal Bless
+Principal bless
 
 Bless another principal.
 
@@ -316,7 +315,7 @@ The principal bless flags are:
  -with=
    Path to file containing blessing to extend
 
-Principal Set
+Principal set
 
 Commands to mutate the blessings of the principal.
 
@@ -330,7 +329,7 @@ The principal set commands are:
    default     Set provided blessings as default
    forpeer     Set provided blessings for peer
 
-Principal Set Default
+Principal set default
 
 Sets the provided blessings as default in the BlessingStore specified by the
 environment that this tool is running in.
@@ -349,7 +348,7 @@ The principal set default flags are:
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
 
-Principal Set Forpeer
+Principal set forpeer
 
 Marks the provided blessings to be shared with the provided peers on the
 BlessingStore specified by the environment that this tool is running in.
@@ -377,7 +376,7 @@ The principal set forpeer flags are:
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
 
-Principal Get
+Principal get
 
 Commands to inspect the blessings of the principal.
 
@@ -394,7 +393,7 @@ The principal get commands are:
    peermap         Shows the map from peer pattern to which blessing name to
                    present.
 
-Principal Get Default
+Principal get default
 
 Returns blessings that are marked as default in the BlessingStore specified by
 the environment that this tool is running in. Providing --names will print the
@@ -413,7 +412,7 @@ The principal get default flags are:
  -rootkey=
    Shows the value of the root key of the provided certificate chain name.
 
-Principal Get Forpeer
+Principal get forpeer
 
 Returns blessings that are marked for the provided peer in the BlessingStore
 specified by the environment that this tool is running in. Providing --names
@@ -438,7 +437,7 @@ The principal get forpeer flags are:
  -rootkey=
    Shows the value of the root key of the provided certificate chain name.
 
-Principal Get Publickey
+Principal get publickey
 
 Prints out the public key of the principal specified by the environment that
 this tool is running in.
@@ -446,7 +445,7 @@ this tool is running in.
 Usage:
    principal get publickey
 
-Principal Get Recognizedroots
+Principal get recognizedroots
 
 Shows list of blessing names that the principal recognizes, and their associated
 public key. If the principal is operating as a client, contacted servers must
@@ -456,7 +455,7 @@ present blessings derived from this list.
 Usage:
    principal get recognizedroots
 
-Principal Get Peermap
+Principal get peermap
 
 Shows the map from peer pattern to which blessing name to present. If the
 principal operates as a server, it presents its default blessing to all peers.
@@ -466,7 +465,7 @@ the peer it contacts.
 Usage:
    principal get peermap
 
-Principal Addtoroots
+Principal addtoroots
 
 Adds an identity provider to the set of recognized roots public keys for this
 principal.
@@ -494,7 +493,7 @@ this tool. - is used for STDIN.
 
 <blessing pattern> is the blessing pattern for which <key> should be recognized.
 
-Principal Help
+Principal help
 
 Help with no args displays the usage of the parent command.
 
@@ -502,11 +501,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    principal help [flags] [command/topic ...]
@@ -514,7 +512,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The principal help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

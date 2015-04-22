@@ -17,7 +17,6 @@ The binary commands are:
    upload      Upload a binary or directory archive
    url         Fetch a download URL
    help        Display help for commands or topics
-Run "binary help [command]" for command usage.
 
 The global flags are:
  -alsologtostderr=true
@@ -59,7 +58,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Binary Delete
+Binary delete
 
 Delete connects to the binary repository and deletes the specified binary
 
@@ -68,7 +67,7 @@ Usage:
 
 <von> is the vanadium object name of the binary to delete
 
-Binary Download
+Binary download
 
 Download connects to the binary repository, downloads the specified binary, and
 writes it to a file.
@@ -79,7 +78,7 @@ Usage:
 <von> is the vanadium object name of the binary to download <filename> is the
 name of the file where the binary will be written
 
-Binary Upload
+Binary upload
 
 Upload connects to the binary repository and uploads the binary of the specified
 file or archive of the specified directory. When successful, it writes the name
@@ -91,7 +90,7 @@ Usage:
 <von> is the vanadium object name of the binary to upload <filename> is the name
 of the file or directory to upload
 
-Binary Url
+Binary url
 
 Connect to the binary repository and fetch the download URL for the given
 vanadium object name.
@@ -101,7 +100,7 @@ Usage:
 
 <von> is the vanadium object name of the binary repository
 
-Binary Help
+Binary help
 
 Help with no args displays the usage of the parent command.
 
@@ -109,11 +108,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    binary help [flags] [command/topic ...]
@@ -121,7 +119,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The binary help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

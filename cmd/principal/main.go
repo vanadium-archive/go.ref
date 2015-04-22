@@ -873,6 +873,7 @@ func blessArgsFromFile(fname string) (remoteKey, remoteToken, tobless string, er
 }
 
 func main() {
+	cmdline.HideGlobalFlagsExcept()
 	cmdBlessSelf.Flags.Var(&flagBlessSelfCaveats, "caveat", flagBlessSelfCaveats.usage())
 	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero implies no expiration)")
 

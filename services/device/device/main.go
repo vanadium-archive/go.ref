@@ -9,13 +9,15 @@ package main
 
 import (
 	"os"
+	"regexp"
 
 	"v.io/v23"
-
+	"v.io/x/lib/cmdline"
 	_ "v.io/x/ref/profiles/static"
 )
 
 func main() {
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^(v23\.namespace\.root)|(v23\.proxy)$`))
 	gctx, shutdown := v23.Init()
 	SetGlobalContext(gctx)
 	exitCode := Root().Main()

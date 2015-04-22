@@ -42,6 +42,7 @@ var cmdVrun = &cmdline.Command{
 }
 
 func main() {
+	cmdline.HideGlobalFlagsExcept()
 	syscall.CloseOnExec(3)
 	syscall.CloseOnExec(4)
 

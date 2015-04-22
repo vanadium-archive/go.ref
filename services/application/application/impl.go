@@ -21,6 +21,10 @@ import (
 	"v.io/x/ref/services/repository"
 )
 
+func init() {
+	cmdline.HideGlobalFlagsExcept()
+}
+
 func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()

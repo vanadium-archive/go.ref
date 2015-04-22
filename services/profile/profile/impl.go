@@ -10,11 +10,14 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/services/build"
-
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
 )
+
+func init() {
+	cmdline.HideGlobalFlagsExcept()
+}
 
 var cmdLabel = &cmdline.Command{
 	Run:      runLabel,

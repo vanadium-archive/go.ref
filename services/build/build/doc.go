@@ -14,7 +14,6 @@ Usage:
 The build commands are:
    build       Build vanadium Go packages
    help        Display help for commands or topics
-Run "build help [command]" for command usage.
 
 The global flags are:
  -alsologtostderr=true
@@ -56,7 +55,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Build Build
+Build build
 
 Build vanadium Go packages using a remote build server. The command collects all
 source code files that are not part of the Go standard library that the target
@@ -78,7 +77,7 @@ The build build flags are:
  -os=<runtime.GOOS>
    Target operating system.  The default is the value of runtime.GOOS.
 
-Build Help
+Build help
 
 Help with no args displays the usage of the parent command.
 
@@ -86,11 +85,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    build help [flags] [command/topic ...]
@@ -98,7 +96,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The build help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

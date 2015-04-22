@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Daemon deviced implements the v.io/v23/services/device interfaces.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -21,9 +23,10 @@ func main() {
 
 	rootCmd := cmdline.Command{
 		Name:  "deviced",
-		Short: "Vanadium device manager setup",
+		Short: "launch, configure and manage the deviced daemon",
 		Long: `
-deviced can be used to launch, configure, or manage the device manager.
+Command deviced is used to launch, configure and manage the deviced daemon,
+which implements the v.io/v23/services/device interfaces.
 `,
 		Children: []*cmdline.Command{cmdInstall, cmdUninstall, cmdStart, cmdStop, cmdProfile},
 		Run:      runServer,

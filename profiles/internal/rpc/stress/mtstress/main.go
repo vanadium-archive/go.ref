@@ -11,6 +11,7 @@ import (
 	"flag"
 	"net"
 	"os"
+	"regexp"
 	"time"
 
 	"v.io/v23"
@@ -18,10 +19,13 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/verror"
-
 	"v.io/x/lib/cmdline"
 	_ "v.io/x/ref/profiles"
 )
+
+func init() {
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^(rate)|(duration)|(reauthenticate)$`))
+}
 
 var (
 	gctx *context.T

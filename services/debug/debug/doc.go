@@ -18,7 +18,6 @@ The debug commands are:
    stats       Accesses stats
    pprof       Accesses profiling data
    help        Display help for commands or topics
-Run "debug help [command]" for command usage.
 
 The global flags are:
  -alsologtostderr=true
@@ -60,7 +59,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Debug Glob
+Debug glob
 
 Returns all matching entries from the namespace.
 
@@ -69,7 +68,7 @@ Usage:
 
 <pattern> is a glob pattern to match.
 
-Debug Vtrace
+Debug vtrace
 
 Returns matching vtrace traces (or all stored traces if no ids are given).
 
@@ -78,7 +77,7 @@ Usage:
 
 <name> is the name of a vtrace object. [id] is a vtrace trace id.
 
-Debug Logs
+Debug logs
 
 Accesses log files
 
@@ -89,7 +88,7 @@ The debug logs commands are:
    read        Reads the content of a log file object.
    size        Returns the size of a log file object.
 
-Debug Logs Read
+Debug logs read
 
 Reads the content of a log file object.
 
@@ -109,7 +108,7 @@ The debug logs read flags are:
  -v=false
    When true, read will be more verbose.
 
-Debug Logs Size
+Debug logs size
 
 Returns the size of a log file object.
 
@@ -118,7 +117,7 @@ Usage:
 
 <name> is the name of the log file object.
 
-Debug Stats
+Debug stats
 
 Accesses stats
 
@@ -130,7 +129,7 @@ The debug stats commands are:
    watch       Returns a stream of all matching entries and their values as they
                change.
 
-Debug Stats Read
+Debug stats read
 
 Returns the value of stats objects.
 
@@ -146,7 +145,7 @@ The debug stats read flags are:
  -type=false
    When true, the type of the values will be displayed.
 
-Debug Stats Watch
+Debug stats watch
 
 Returns a stream of all matching entries and their values as they change.
 
@@ -161,7 +160,7 @@ The debug stats watch flags are:
  -type=false
    When true, the type of the values will be displayed.
 
-Debug Pprof
+Debug pprof
 
 Accesses profiling data
 
@@ -172,7 +171,7 @@ The debug pprof commands are:
    run         Runs the pprof tool.
    proxy       Runs an http proxy to a pprof object.
 
-Debug Pprof Run
+Debug pprof run
 
 Runs the pprof tool.
 
@@ -190,7 +189,7 @@ The debug pprof run flags are:
  -pprofcmd=v23 go tool pprof
    The pprof command to use.
 
-Debug Pprof Proxy
+Debug pprof proxy
 
 Runs an http proxy to a pprof object.
 
@@ -199,7 +198,7 @@ Usage:
 
 <name> is the name of the pprof object.
 
-Debug Help
+Debug help
 
 Help with no args displays the usage of the parent command.
 
@@ -207,11 +206,10 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-The output is formatted to a target width in runes.  The target width is
-determined by checking the environment variable CMDLINE_WIDTH, falling back on
-the terminal width from the OS, falling back on 80 chars.  By setting
-CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
-if x == 0 or is unset one of the fallbacks is used.
+Output is formatted to a target width in runes, determined by checking the
+CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
+back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
+the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    debug help [flags] [command/topic ...]
@@ -219,7 +217,11 @@ Usage:
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
 The debug help flags are:
- -style=default
-   The formatting style for help output, either "default" or "godoc".
+ -style=compact
+   The formatting style for help output:
+      compact - Good for compact cmdline output.
+      full    - Good for cmdline output, shows all global flags.
+      godoc   - Good for godoc processing.
+   Override the default by setting the CMDLINE_STYLE environment variable.
 */
 package main

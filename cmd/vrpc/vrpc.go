@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -37,6 +38,7 @@ var (
 )
 
 func main() {
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
 	var shutdown v23.Shutdown
 	gctx, shutdown = v23.Init()
 	exitCode := cmdVRPC.Main()
