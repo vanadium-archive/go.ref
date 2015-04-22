@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/user"
 	"time"
 
 	"v.io/v23"
@@ -27,7 +28,11 @@ func CreateName() string {
 	if err != nil {
 		vlog.Fatalf("os.Hostname failed: %v", err)
 	}
-	return os.Getenv("USER") + "@" + hostname
+	u, err := user.Current()
+	if err != nil {
+		vlog.Fatalf("user.Current failed: %v", err)
+	}
+	return u.Username + "@" + hostname
 }
 
 // FindJudge returns a random rock-paper-scissors judge from the mount table.
