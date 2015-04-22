@@ -393,6 +393,8 @@ func (s *Server) caveatValidationInJavascript(ctx *context.T, call security.Call
 	}
 
 	select {
+	case <-s.statusClose:
+		return caveatValidationInGo(ctx, call, cavs)
 	case <-timeoutChan:
 		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(ctx))
 	case reply := <-replyChan:
