@@ -5,6 +5,7 @@
 package fs_test
 
 import (
+	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -523,4 +524,72 @@ func TestChildren(t *testing.T) {
 		}
 	}
 	memstore.Unlock()
+}
+
+func TestFormatConversion(t *testing.T) {
+	path := tempFile(t)
+	defer os.Remove(path)
+	originalMemstore, err := fs.NewMemstore(path)
+	if err != nil {
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
+	}
+
+	// Create example data.
+	envelope := application.Envelope{
+		Args:   []string{"--help"},
+		Env:    []string{"DEBUG=1"},
+		Binary: application.SignedFile{File: "/v23/name/of/binary"},
+	}
+
+	// TRANSACTION BEGIN
+	// Insert a value into the legacy Memstore at /test/a
+	originalMemstore.Lock()
+	tname, err := originalMemstore.BindTransactionRoot("ignored").CreateTransaction(nil)
+	if err != nil {
+		t.Fatalf("CreateTransaction() failed: %v", err)
+	}
+	if _, err := originalMemstore.BindObject(fs.TP("/test/a")).Put(nil, envelope); err != nil {
+		t.Fatalf("Put() failed: %v", err)
+	}
+	if err := originalMemstore.BindTransaction(tname).Commit(nil); err != nil {
+		t.Fatalf("Commit() failed: %v", err)
+	}
+	originalMemstore.Unlock()
+
+	// Write the original memstore to a GOB file.
+	if err := gobPersist(t, originalMemstore); err != nil {
+		t.Fatalf("gobPersist() failed: %v")
+	}
+
+	// Open the GOB format file.
+	memstore, err := fs.NewMemstore(path)
+	if err != nil {
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
+	}
+
+	// Verify the state.
+	if err := allPathsEqual(memstore, []PathValue{{"/test/a", envelope}}); err != nil {
+		t.Fatalf("%v", err)
+	}
+}
+
+// gobPersist writes Memstore ms to its backing file.
+func gobPersist(t *testing.T, ms *fs.Memstore) error {
+	// Convert this memstore to the legacy GOM format.
+	data := ms.GetGOBConvertedMemstore()
+
+	// Persist this file to a GOB format file.
+	fname := ms.PersistedFile()
+	file, err := os.Create(fname)
+	if err != nil {
+		t.Fatalf("os.Create(%s) failed: %v", fname, err)
+	}
+	defer file.Close()
+
+	enc := gob.NewEncoder(file)
+	err = enc.Encode(data)
+	if err := enc.Encode(data); err != nil {
+		t.Fatalf("enc.Encode() failed: %v", err)
+	}
+	return nil
 }
