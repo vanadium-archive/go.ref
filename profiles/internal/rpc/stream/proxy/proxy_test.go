@@ -354,17 +354,10 @@ func testProxyIdleTimeout(t *testing.T, testServer bool) {
 	flow.Close()
 
 	// The flow has been closed. The VC should be closed after idle timeout.
-	timeout := time.After(waitTime)
-	for done := false; !done; {
-		select {
-		case <-time.After(idleTime * 2):
-			done = proxy.NumProcesses(Proxy) == 1
-		case <-timeout:
-			done = true
+	for range time.Tick(idleTime) {
+		if proxy.NumProcesses(Proxy) == 1 {
+			break
 		}
-	}
-	if numProcs := proxy.NumProcesses(Proxy); numProcs != 1 {
-		t.Error("Want VC has been closed; still open")
 	}
 
 	client.ShutdownEndpoint(ep)

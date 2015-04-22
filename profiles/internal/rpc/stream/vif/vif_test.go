@@ -320,7 +320,7 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 
 	// Initially empty. Should not be closed.
 	vf, remote := newVIF()
-	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
@@ -329,13 +329,13 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 	if _, _, err := createVC(vf, remote, makeEP(0x10)); err != nil {
 		t.Fatal(err)
 	}
-	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	// Close the VC. Should be closed.
 	vf.ShutdownVCs(makeEP(0x10))
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 
@@ -345,11 +345,11 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 	remote.ShutdownVCs(makeEP(0x10))
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 
@@ -362,13 +362,13 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 	// Close the first VC twice. Should not be closed.
 	vf.ShutdownVCs(makeEP(0x10))
 	vf.ShutdownVCs(makeEP(0x10))
-	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	// Close the second VC. Should be closed.
 	vf.ShutdownVCs(makeEP(0x10 + 1))
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 }
@@ -410,7 +410,7 @@ func testStartTimeout(t *testing.T, testServer bool) {
 	// No VC opened. Should be closed after the start timeout.
 	vf, remote, triggerTimers := newVIF()
 	triggerTimers()
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 
@@ -420,13 +420,13 @@ func testStartTimeout(t *testing.T, testServer bool) {
 		t.Fatal(err)
 	}
 	triggerTimers()
-	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	// Close the VC. Should be closed.
 	vf.ShutdownVCs(makeEP(0x10))
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 }
@@ -481,7 +481,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	// No active flow. Should be notified.
 	vf, remote := newVIF()
 	_, _, _ = newVC(vf, remote)
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 
@@ -492,7 +492,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 		t.Fatal(err)
 	}
 	triggerTimers()
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 
@@ -500,13 +500,13 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	vf, remote = newVIF()
 	vc, _, _ := newVC(vf, remote)
 	f1 := newFlow(vc, remote)
-	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	// Close the flow. Should be notified.
 	f1.Close()
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 
@@ -519,13 +519,13 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	// Close the first flow twice. Should not be notified.
 	f1.Close()
 	f1.Close()
-	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	// Close the second flow. Should be notified now.
 	f2.Close()
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 
@@ -537,11 +537,11 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 		t.Fatal(err)
 	}
 	acceptFlowAtClient(ln)
-	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 	f1.Close()
-	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 }

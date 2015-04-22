@@ -31,14 +31,14 @@ func TestIdleTimer(t *testing.T) {
 	m := newIdleTimerMap(notifyFunc)
 
 	// An empty map. Should not be notified.
-	if err := WaitForNotifications(notify, waitTime); err != nil {
+	if err := WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	m.Insert(vc1, idleTime)
 
 	// A new empty VC. Should be notified.
-	if err := WaitForNotifications(notify, waitTime, vc1); err != nil {
+	if err := WaitForNotifications(notify, vc1); err != nil {
 		t.Error(err)
 	}
 
@@ -47,25 +47,25 @@ func TestIdleTimer(t *testing.T) {
 
 	// A VC with one flow. Should not be notified.
 	m.InsertFlow(vc1, flow1)
-	if err := WaitForNotifications(notify, waitTime); err != nil {
+	if err := WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	// Try to delete non-existent flow. Should not be notified.
 	m.DeleteFlow(vc1, flow2)
-	if err := WaitForNotifications(notify, waitTime); err != nil {
+	if err := WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	// Delete the flow. Should be notified.
 	m.DeleteFlow(vc1, flow1)
-	if err := WaitForNotifications(notify, waitTime, vc1); err != nil {
+	if err := WaitForNotifications(notify, vc1); err != nil {
 		t.Error(err)
 	}
 
 	// Try to delete the deleted flow again. Should not be notified.
 	m.DeleteFlow(vc1, flow1)
-	if err := WaitForNotifications(notify, waitTime); err != nil {
+	if err := WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
@@ -74,7 +74,7 @@ func TestIdleTimer(t *testing.T) {
 
 	// Delete an empty VC. Should not be notified.
 	m.Delete(vc1)
-	if err := WaitForNotifications(notify, waitTime); err != nil {
+	if err := WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
@@ -87,13 +87,13 @@ func TestIdleTimer(t *testing.T) {
 	// Delete the first flow twice. Should not be notified.
 	m.DeleteFlow(vc1, flow1)
 	m.DeleteFlow(vc1, flow1)
-	if err := WaitForNotifications(notify, waitTime); err != nil {
+	if err := WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 
 	// Delete the second flow. Should be notified.
 	m.DeleteFlow(vc1, flow2)
-	if err := WaitForNotifications(notify, waitTime, vc1); err != nil {
+	if err := WaitForNotifications(notify, vc1); err != nil {
 		t.Error(err)
 	}
 
@@ -102,7 +102,7 @@ func TestIdleTimer(t *testing.T) {
 
 	// Insert a reserved flow. Should be notified.
 	m.InsertFlow(vc1, flowReserved)
-	if err := WaitForNotifications(notify, waitTime, vc1); err != nil {
+	if err := WaitForNotifications(notify, vc1); err != nil {
 		t.Error(err)
 	}
 
@@ -111,7 +111,7 @@ func TestIdleTimer(t *testing.T) {
 	m.Insert(vc2, idleTime)
 
 	// Multiple VCs. Should be notified for each.
-	if err := WaitForNotifications(notify, waitTime, vc1, vc2); err != nil {
+	if err := WaitForNotifications(notify, vc1, vc2); err != nil {
 		t.Error(err)
 	}
 
@@ -124,7 +124,7 @@ func TestIdleTimer(t *testing.T) {
 	if m.Insert(vc1, idleTime) {
 		t.Fatal("timer has been stopped, but can insert a vc")
 	}
-	if err := WaitForNotifications(notify, waitTime); err != nil {
+	if err := WaitWithTimeout(notify, waitTime); err != nil {
 		t.Error(err)
 	}
 }

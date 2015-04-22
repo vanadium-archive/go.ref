@@ -386,9 +386,6 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 func TestStartTimeout(t *testing.T) {
 	const (
 		startTime = 5 * time.Millisecond
-		// We use a long wait time here since it takes some time for the underlying
-		// VIF of the other side to be closed especially in race testing.
-		waitTime = 250 * time.Millisecond
 	)
 
 	var (
@@ -422,17 +419,10 @@ func TestStartTimeout(t *testing.T) {
 	triggerTimers()
 
 	// No VC is opened. The VIF should be closed after start timeout.
-	timeout := time.After(waitTime)
-	for done := false; !done; {
-		select {
-		case <-time.After(startTime * 2):
-			done = numVIFs(server) == 0
-		case <-timeout:
-			done = true
+	for range time.Tick(startTime) {
+		if numVIFs(server) == 0 {
+			break
 		}
-	}
-	if n := numVIFs(server); n != 0 {
-		t.Errorf("Server has %d VIFs; want 0\n%v", n, debugString(server))
 	}
 }
 
@@ -499,20 +489,10 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	f.Close()
 
 	// The flow has been closed. The VIF should be closed after idle timeout.
-	timeout := time.After(waitTime)
-	for done := false; !done; {
-		select {
-		case <-time.After(idleTime * 2):
-			done = numVIFs(client) == 0 && numVIFs(server) == 0
-		case <-timeout:
-			done = true
+	for range time.Tick(idleTime) {
+		if numVIFs(client) == 0 && numVIFs(server) == 0 {
+			break
 		}
-	}
-	if n := numVIFs(client); n != 0 {
-		t.Errorf("Client has %d VIFs; want 0\n%v", n, debugString(client))
-	}
-	if n := numVIFs(server); n != 0 {
-		t.Errorf("Server has %d VIFs; want 0\n%v", n, debugString(server))
 	}
 }
 
