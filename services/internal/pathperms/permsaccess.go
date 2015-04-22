@@ -108,6 +108,14 @@ func getCore(principal security.Principal, permspath, sigpath string) (access.Pe
 // Set writes the specified Permissions to the provided directory with
 // enforcement of version synchronization mechanism and locking.
 func (store PathStore) Set(dir string, perms access.Permissions, version string) error {
+	return store.SetShareable(dir, perms, version, false)
+}
+
+// SetShareable writes the specified Permissions to the provided
+// directory with enforcement of version synchronization mechanism and
+// locking with file modes that will give the application read-only
+// access to the permissions file.
+func (store PathStore) SetShareable(dir string, perms access.Permissions, version string, shareable bool) error {
 	permspath := filepath.Join(dir, permsName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
@@ -118,14 +126,21 @@ func (store PathStore) Set(dir string, perms access.Permissions, version string)
 	if len(version) > 0 && version != oversion {
 		return verror.NewErrBadVersion(nil)
 	}
-	return write(store.principal, permspath, sigpath, dir, perms)
+	return write(store.principal, permspath, sigpath, dir, perms, shareable)
 }
 
 // write writes the specified Permissions to the permsFile with a
 // signature in sigFile.
-func write(principal security.Principal, permsFile, sigFile, dir string, perms access.Permissions) error {
+func write(principal security.Principal, permsFile, sigFile, dir string, perms access.Permissions, shareable bool) error {
+	filemode := os.FileMode(0600)
+	dirmode := os.FileMode(0700)
+	if shareable {
+		filemode = os.FileMode(0644)
+		dirmode = os.FileMode(0711)
+	}
+
 	// Create dir directory if it does not exist
-	os.MkdirAll(dir, os.FileMode(0700))
+	os.MkdirAll(dir, dirmode)
 	// Save the object to temporary data and signature files, and then move
 	// those files to the actual data and signature file.
 	data, err := ioutil.TempFile(dir, permsName)
@@ -157,8 +172,16 @@ func write(principal security.Principal, permsFile, sigFile, dir string, perms a
 		vlog.Errorf("os.Rename() failed:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
+	if err := os.Chmod(permsFile, filemode); err != nil {
+		vlog.Errorf("os.Chmod() failed:%v", err)
+		return verror.New(ErrOperationFailed, nil)
+	}
 	if err := os.Rename(sig.Name(), sigFile); err != nil {
 		vlog.Errorf("os.Rename() failed:%v", err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	if err := os.Chmod(sigFile, filemode); err != nil {
+		vlog.Errorf("os.Chmod() failed:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
