@@ -37,7 +37,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
       newSelector.find('.caveatInput').hide();
       selector.after(newSelector);
       // Change the '+' button to a 'Remove Caveat' button.
-      $(this).replaceWith('<button type="button" class="button-passive right removeCaveat">Remove Caveat</button>')
+      $(this).replaceWith('<button type="button" class="button-passive right removeCaveat">Remove Caveat</button>');
     });
 
     // Upon clicking the '-' button caveats should be removed.
@@ -58,6 +58,16 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
     // Activate the cancel button.
     $('#cancel').click(function() {
       window.close();
+    });
+
+    $('#blessing-extension').on('input', function(){
+      var ext = $(this).val();
+      // If the user has specified an extension, we want to add a leading slash
+      // and display the full blessing name to the user.
+      if (ext.length > 0) {
+        ext = '/' + ext;
+      }
+      $('.extension-display').text(ext);
     });
   });
   </script>
@@ -81,7 +91,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
 
 <main style="max-width: 80%; margin-left: 10px;">
   <form method="POST" id="caveats-form" name="input" action="{{.MacaroonURL}}" role="form">
-  <h3>{{.Extension}}</h3>
+  <h3>Seeking Blessing: {{.BlessingName}}/{{.Extension}}<span class="extension-display"></span></h3>
   <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
   <div class="grid">
     <div class="cell">

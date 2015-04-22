@@ -18,20 +18,21 @@ import (
 
 type browserCaveatSelector struct {
 	assetsPrefix string
+	blessingName string
 }
 
 // NewBrowserCaveatSelector returns a caveat selector that renders a form in the
 // to accept user caveat selections.
-func NewBrowserCaveatSelector(assetsPrefix string) CaveatSelector {
-	return &browserCaveatSelector{assetsPrefix}
+func NewBrowserCaveatSelector(assetsPrefix, blessingName string) CaveatSelector {
+	return &browserCaveatSelector{assetsPrefix, blessingName}
 }
 
 func (s *browserCaveatSelector) Render(blessingExtension, state, redirectURL string, w http.ResponseWriter, r *http.Request) error {
 	tmplargs := struct {
-		Extension                           string
-		CaveatList                          []string
-		Macaroon, MacaroonURL, AssetsPrefix string
-	}{blessingExtension, []string{"ExpiryCaveat", "MethodCaveat", "PeerBlessingsCaveat"}, state, redirectURL, s.assetsPrefix}
+		Extension                                         string
+		CaveatList                                        []string
+		Macaroon, MacaroonURL, AssetsPrefix, BlessingName string
+	}{blessingExtension, []string{"ExpiryCaveat", "MethodCaveat", "PeerBlessingsCaveat"}, state, redirectURL, s.assetsPrefix, s.blessingName}
 	w.Header().Set("Context-Type", "text/html")
 	if err := templates.SelectCaveats.Execute(w, tmplargs); err != nil {
 		return err
