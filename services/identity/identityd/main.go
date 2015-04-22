@@ -73,6 +73,11 @@ func main() {
 		vlog.Fatalf("Failed to start RevocationManager: %v", err)
 	}
 
+	bname, _, err := util.RootCertificateDetails(v23.GetPrincipal(ctx).BlessingStore().Default())
+	if err != nil {
+		vlog.Fatalf("Failed to get root Blessings name: %v", err)
+	}
+
 	listenSpec := v23.GetListenSpec(ctx)
 	s := server.NewIdentityServer(
 		googleoauth,
@@ -80,7 +85,7 @@ func main() {
 		reader,
 		revocationManager,
 		googleOAuthBlesserParams(googleoauth, revocationManager),
-		caveats.NewBrowserCaveatSelector(*assetsPrefix),
+		caveats.NewBrowserCaveatSelector(*assetsPrefix, bname),
 		&emailClassifier,
 		*assetsPrefix,
 		*mountPrefix)

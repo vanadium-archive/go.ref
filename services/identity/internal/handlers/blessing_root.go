@@ -7,11 +7,9 @@ package handlers
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"v.io/v23/security"
-	"v.io/v23/vom"
 	"v.io/x/ref/services/identity/internal/util"
 )
 
@@ -37,7 +35,7 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO(ashankar): This is making the assumption that the identity
 	// service has a single blessing, which may not be true in general.
 	// Revisit this.
-	name, der, err := rootCertificateDetails(b.P.BlessingStore().Default())
+	name, der, err := util.RootCertificateDetails(b.P.BlessingStore().Default())
 	if err != nil {
 		util.HTTPServerError(w, err)
 		return
@@ -68,19 +66,4 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func respondJson(w http.ResponseWriter, res []byte) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(res)
-}
-
-// Circuitious route to obtain the certificate chain because the use
-// of security.MarshalBlessings is discouraged.
-func rootCertificateDetails(b security.Blessings) (string, []byte, error) {
-	data, err := vom.Encode(b)
-	if err != nil {
-		return "", nil, fmt.Errorf("malformed Blessings: %v", err)
-	}
-	var wire security.WireBlessings
-	if err := vom.Decode(data, &wire); err != nil {
-		return "", nil, fmt.Errorf("malformed WireBlessings: %v", err)
-	}
-	cert := wire.CertificateChains[0][0]
-	return cert.Extension, cert.PublicKey, nil
 }
