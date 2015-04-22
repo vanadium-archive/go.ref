@@ -6,39 +6,35 @@ package vif
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 )
 
-// WaitForNotifications waits till all notifications in 'wants' have been received,
-// or the timeout expires.
-func WaitForNotifications(notify <-chan interface{}, timeout time.Duration, wants ...interface{}) error {
-	timer := make(<-chan time.Time)
-	if timeout > 0 {
-		timer = time.After(timeout)
-	}
-
-	received := make(map[interface{}]struct{})
-	want := make(map[interface{}]struct{})
+// WaitForNotifications waits till all notifications in 'wants' have been received.
+func WaitForNotifications(notify <-chan interface{}, wants ...interface{}) error {
+	expected := make(map[interface{}]struct{})
 	for _, w := range wants {
-		want[w] = struct{}{}
+		expected[w] = struct{}{}
 	}
+	for len(expected) > 0 {
+		n := <-notify
+		if _, exists := expected[n]; !exists {
+			return fmt.Errorf("unexpected notification %v", n)
+		}
+		delete(expected, n)
+	}
+	return nil
+}
+
+// WaitWithTimeout returns error if any notification has been received before
+// the timeout expires.
+func WaitWithTimeout(notify <-chan interface{}, timeout time.Duration) error {
+	timer := time.After(timeout)
 	for {
 		select {
 		case n := <-notify:
-			received[n] = struct{}{}
-			if _, exists := want[n]; !exists {
-				return fmt.Errorf("unexpected notification %v", n)
-			}
-			if reflect.DeepEqual(received, want) {
-				return nil
-			}
+			return fmt.Errorf("unexpected notification %v", n)
 		case <-timer:
-			if len(wants) == 0 {
-				// No notification wanted.
-				return nil
-			}
-			return fmt.Errorf("timeout after receiving %v", reflect.ValueOf(received).MapKeys())
+			return nil
 		}
 	}
 }

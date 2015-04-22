@@ -69,15 +69,20 @@ func (t *fakeTimer) run(release <-chan struct{}, wg *sync.WaitGroup) {
 func SetFakeTimers() func() {
 	backup := newTimer
 
+	var mu sync.Mutex
 	var wg sync.WaitGroup
 	release := make(chan struct{})
 	newTimer = func(d time.Duration, f func()) timer {
+		mu.Lock()
+		defer mu.Unlock()
 		wg.Add(1)
 		t := newFakeTimer(d, f)
 		go t.run(release, &wg)
 		return t
 	}
 	return func() {
+		mu.Lock()
+		defer mu.Unlock()
 		newTimer = backup
 		close(release)
 		wg.Wait()
