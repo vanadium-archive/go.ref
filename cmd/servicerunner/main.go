@@ -21,6 +21,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
@@ -124,7 +125,9 @@ func main() {
 	sh.SetVar(envvar.NamespacePrefix, vars["MT_NAME"])
 	v23.GetNamespace(ctx).SetRoots(vars["MT_NAME"])
 
-	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, "ws", "127.0.0.1:0", "", "test/proxy")
+	lspec := v23.GetListenSpec(ctx)
+	lspec.Addrs = rpc.ListenAddrs{{"ws", "127.0.0.1:0"}}
+	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, lspec, "test/proxy")
 	defer proxyShutdown()
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 

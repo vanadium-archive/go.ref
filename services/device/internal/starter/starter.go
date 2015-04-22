@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/x/lib/netstate"
 	"v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/device/internal/config"
@@ -281,17 +280,9 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 	protocol, addr := "tcp", net.JoinHostPort("", port)
 	// Attempt to get a publicly accessible address for the proxy to publish
 	// under.
-	var publishAddr string
 	ls := v23.GetListenSpec(ctx)
-	if addrs, err := netstate.GetAccessibleIPs(); err == nil {
-		if ac := ls.AddressChooser; ac != nil {
-			if a, err := ac(protocol, addrs); err == nil && len(a) > 0 {
-				addrs = a
-			}
-		}
-		publishAddr = net.JoinHostPort(addrs[0].Address().String(), port)
-	}
-	shutdown, ep, err := roaming.NewProxy(ctx, protocol, addr, publishAddr)
+	ls.Addrs = rpc.ListenAddrs{{protocol, addr}}
+	shutdown, ep, err := roaming.NewProxy(ctx, ls)
 	if err != nil {
 		return nil, verror.New(errCantCreateProxy, ctx, err)
 	}

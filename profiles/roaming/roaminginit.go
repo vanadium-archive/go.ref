@@ -15,14 +15,17 @@ package roaming
 
 import (
 	"flag"
+	"net"
+
+	"v.io/x/lib/netconfig"
+	"v.io/x/lib/netstate"
+	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/config"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/lib/netconfig"
-	"v.io/x/lib/netstate"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/profiles/internal"
@@ -65,8 +68,11 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	// 1:1 NAT configuration.
 	if !internal.HasPublicIP(vlog.Log) {
 		if addr := internal.GCEPublicAddress(vlog.Log); addr != nil {
-			listenSpec.AddressChooser = func(string, []rpc.Address) ([]rpc.Address, error) {
-				return []rpc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
+			listenSpec.AddressChooser = func(string, []net.Addr) ([]net.Addr, error) {
+				// TODO(cnicolaou): the protocol at least should
+				// be configurable, or maybe there's a profile specific
+				// flag to configure both the protocol and address.
+				return []net.Addr{netstate.NewNetAddr("wsh", addr.String())}, nil
 			}
 			runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {
@@ -146,6 +152,7 @@ done:
 	for {
 		select {
 		case <-watcher.Channel():
+			netstate.InvalidateCache()
 			cur, err := netstate.GetAccessibleIPs()
 			if err != nil {
 				vlog.Errorf("failed to read network state: %s", err)
@@ -163,10 +170,10 @@ done:
 			}
 			if len(removed) > 0 {
 				vlog.VI(2).Infof("Sending removed: %s", removed)
-				ch <- rpc.NewRmAddrsSetting(removed)
+				ch <- rpc.NewRmAddrsSetting(removed.AsNetAddrs())
 			}
 			// We will always send the best currently available address
-			if chosen, err := listenSpec.AddressChooser(listenSpec.Addrs[0].Protocol, cur); err == nil && chosen != nil {
+			if chosen, err := listenSpec.AddressChooser(listenSpec.Addrs[0].Protocol, cur.AsNetAddrs()); err == nil && chosen != nil {
 				vlog.VI(2).Infof("Sending added and chosen: %s", chosen)
 				ch <- rpc.NewAddAddrsSetting(chosen)
 			} else {

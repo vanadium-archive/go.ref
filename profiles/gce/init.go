@@ -58,8 +58,8 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	if ip, err := gce.ExternalIPAddress(); err != nil {
 		return nil, nil, nil, err
 	} else {
-		listenSpec.AddressChooser = func(network string, addrs []rpc.Address) ([]rpc.Address, error) {
-			return []rpc.Address{&netstate.AddrIfc{&net.IPAddr{IP: ip}, "gce-nat", nil}}, nil
+		listenSpec.AddressChooser = func(network string, addrs []net.Addr) ([]net.Addr, error) {
+			return []net.Addr{netstate.NewNetAddr("wsh", ip.String())}, nil
 		}
 	}
 

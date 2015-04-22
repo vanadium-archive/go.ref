@@ -7,12 +7,14 @@ package static
 
 import (
 	"flag"
+	"net"
+
+	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/lib/netstate"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/profiles/internal"
@@ -48,11 +50,12 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	ac := appcycle.New()
 
 	// Our address is private, so we test for running on GCE and for its 1:1 NAT
-	// configuration. GCEPublicAddress returns a non-nil addr if we are running on GCE.
+	// configuration. GCEPublicAddress returns a non-nil addr if we are
+	// running on GCE.
 	if !internal.HasPublicIP(vlog.Log) {
 		if addr := internal.GCEPublicAddress(vlog.Log); addr != nil {
-			listenSpec.AddressChooser = func(string, []rpc.Address) ([]rpc.Address, error) {
-				return []rpc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
+			listenSpec.AddressChooser = func(string, []net.Addr) ([]net.Addr, error) {
+				return []net.Addr{addr}, nil
 			}
 			runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {

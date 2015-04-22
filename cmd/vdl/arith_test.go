@@ -23,7 +23,7 @@ import (
 	"v.io/x/ref/lib/vdl/testdata/base"
 	"v.io/x/ref/test"
 
-	_ "v.io/x/ref/profiles/static"
+	_ "v.io/x/ref/profiles"
 )
 
 var generatedError = errors.New("generated error")

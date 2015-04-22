@@ -200,16 +200,16 @@ func locality(ep naming.Endpoint, ipnets []*net.IPNet) serverLocality {
 
 // ipNetworks returns the IP networks on this machine.
 func ipNetworks() []*net.IPNet {
-	ifcs, err := netstate.GetAll()
+	ifcs, err := netstate.GetAllAddresses()
 	if err != nil {
-		vlog.VI(5).Infof("netstate.GetAll failed: %v", err)
+		vlog.VI(5).Infof("netstate.GetAllAddresses failed: %v", err)
 		return nil
 	}
 	ret := make([]*net.IPNet, 0, len(ifcs))
 	for _, a := range ifcs {
-		_, ipnet, err := net.ParseCIDR(a.Address().String())
+		_, ipnet, err := net.ParseCIDR(a.String())
 		if err != nil {
-			vlog.VI(5).Infof("net.ParseCIDR(%q) failed: %v", a.Address(), err)
+			vlog.VI(5).Infof("net.ParseCIDR(%q) failed: %v", a, err)
 			continue
 		}
 		ret = append(ret, ipnet)

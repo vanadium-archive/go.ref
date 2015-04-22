@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/namespace"
@@ -52,15 +54,14 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	defer shutdown()
 
 	expected := len(args)
-	listenSpec := v23.GetListenSpec(ctx)
-	protocol := listenSpec.Addrs[0].Protocol
-	addr := listenSpec.Addrs[0].Address
-	proxyShutdown, proxyEp, err := proxy.New(ctx, protocol, addr, "")
+
+	listenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	proxyShutdown, proxyEp, err := proxy.New(ctx, listenSpec)
 	if err != nil {
+		fmt.Fprintf(stderr, "%s\n", verror.DebugString(err))
 		return err
 	}
 	defer proxyShutdown()
-
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	if expected > 0 {
 		pub := publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
@@ -128,6 +129,7 @@ func (h *proxyHandle) Start(t *testing.T, ctx *context.T, args ...string) error 
 	p.ReadLine()
 	h.name = p.ExpectVar("PROXY_NAME")
 	if len(h.name) == 0 {
+		h.proxy.Shutdown(os.Stderr, os.Stderr)
 		t.Fatalf("failed to get PROXY_NAME from proxyd")
 	}
 	return h.ns.Mount(ctx, "proxy", h.name, time.Hour)
@@ -150,14 +152,18 @@ func TestProxyOnly(t *testing.T) {
 }
 
 func TestProxy(t *testing.T) {
-	proxyListenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	proxyListenSpec.Proxy = "proxy"
+	proxyListenSpec := rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
+		Proxy: "proxy",
+	}
 	testProxy(t, proxyListenSpec)
 }
 
 func TestWSProxy(t *testing.T) {
-	proxyListenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	proxyListenSpec.Proxy = "proxy"
+	proxyListenSpec := rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
+		Proxy: "proxy",
+	}
 	// The proxy uses websockets only, but the server is using tcp.
 	testProxy(t, proxyListenSpec, "--v23.tcp.protocol=ws")
 }
@@ -165,6 +171,7 @@ func TestWSProxy(t *testing.T) {
 func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	ctx, shutdown := testContext()
 	defer shutdown()
+
 	var (
 		pserver   = testutil.NewPrincipal("server")
 		pclient   = testutil.NewPrincipal("client")
@@ -237,12 +244,18 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 		then := time.Now().Add(time.Minute)
 		for {
 			me, err := ns.Resolve(ctx, name)
+			if err != nil {
+				continue
+			}
+			for i, s := range me.Servers {
+				vlog.Infof("%d: %s", i, s)
+			}
 			if err == nil && len(me.Servers) == expect {
 				ch <- 1
 				return
 			}
 			if time.Now().After(then) {
-				t.Fatalf("timed out")
+				t.Fatalf("timed out waiting for %d servers, found %d", expect, len(me.Servers))
 			}
 			time.Sleep(100 * time.Millisecond)
 		}

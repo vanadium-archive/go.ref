@@ -6,13 +6,17 @@ package proxy
 
 import (
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 )
 
 // These are the internal functions only for use in the proxy_test package.
 
-func InternalNew(rid naming.RoutingID, p security.Principal, net, addr, pubAddr string) (*Proxy, func(), naming.Endpoint, error) {
-	proxy, err := internalNew(rid, p, net, addr, pubAddr)
+func InternalNew(rid naming.RoutingID, p security.Principal, spec rpc.ListenSpec) (*Proxy, func(), naming.Endpoint, error) {
+	proxy, err := internalNew(rid, p, spec)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	return proxy, proxy.shutdown, proxy.endpoint(), err
 }
 

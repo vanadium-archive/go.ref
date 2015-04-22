@@ -371,7 +371,7 @@ func updateHost(ep naming.Endpoint, address string) naming.Endpoint {
 	return &niep
 }
 
-func getIPAddrs(eps []naming.Endpoint) []rpc.Address {
+func getIPAddrs(eps []naming.Endpoint) []net.Addr {
 	hosts := map[string]struct{}{}
 	for _, ep := range eps {
 		iep := (ep).(*inaming.Endpoint)
@@ -380,10 +380,9 @@ func getIPAddrs(eps []naming.Endpoint) []rpc.Address {
 			hosts[h] = struct{}{}
 		}
 	}
-	addrs := []rpc.Address{}
+	addrs := []net.Addr{}
 	for h, _ := range hosts {
-		a := &netstate.AddrIfc{Addr: &net.IPAddr{IP: net.ParseIP(h)}}
-		addrs = append(addrs, a)
+		addrs = append(addrs, netstate.NewNetAddr("ip", h))
 	}
 	return addrs
 }
@@ -439,11 +438,11 @@ func TestRoaming(t *testing.T) {
 	}
 	defer func() { publisher.Shutdown(); <-stop }()
 
-	ipv4And6 := func(network string, addrs []rpc.Address) ([]rpc.Address, error) {
-		accessible := netstate.AddrList(addrs)
+	ipv4And6 := func(network string, addrs []net.Addr) ([]net.Addr, error) {
+		accessible := netstate.ConvertToAddresses(addrs)
 		ipv4 := accessible.Filter(netstate.IsUnicastIPv4)
 		ipv6 := accessible.Filter(netstate.IsUnicastIPv6)
-		return append(ipv4, ipv6...), nil
+		return append(ipv4.AsNetAddrs(), ipv6.AsNetAddrs()...), nil
 	}
 	spec := rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{
@@ -481,14 +480,14 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %d, want %d", got, want)
 	}
 
-	n1 := &netstate.AddrIfc{Addr: &net.IPAddr{IP: net.ParseIP("1.1.1.1")}}
-	n2 := &netstate.AddrIfc{Addr: &net.IPAddr{IP: net.ParseIP("2.2.2.2")}}
+	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
+	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
 
 	watcher := make(chan rpc.NetworkChange, 10)
 	server.WatchNetwork(watcher)
 	defer close(watcher)
 
-	roaming <- rpc.NewAddAddrsSetting([]rpc.Address{n1, n2})
+	roaming <- rpc.NewAddAddrsSetting([]net.Addr{n1, n2})
 
 	waitForChange := func() *rpc.NetworkChange {
 		vlog.Infof("Waiting on %p", watcher)
@@ -527,7 +526,7 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %d, want %d", got, want)
 	}
 
-	roaming <- rpc.NewRmAddrsSetting([]rpc.Address{n1})
+	roaming <- rpc.NewRmAddrsSetting([]net.Addr{n1})
 
 	// We expect 2 changes, one for each usable listen spec addr.
 	change = waitForChange()
@@ -561,7 +560,7 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %d, want %d: %v", got, want, status.Mounts)
 	}
 
-	roaming <- rpc.NewAddAddrsSetting([]rpc.Address{n1})
+	roaming <- rpc.NewAddAddrsSetting([]net.Addr{n1})
 	// We expect 2 changes, one for each usable listen spec addr.
 	change = waitForChange()
 	if got, want := len(change.Changed), 2; got != want {
@@ -618,9 +617,9 @@ func TestWatcherDeadlock(t *testing.T) {
 	roaming <- rpc.NewRmAddrsSetting(getIPAddrs(eps))
 
 	// Add in two new addresses
-	n1 := &netstate.AddrIfc{Addr: &net.IPAddr{IP: net.ParseIP("1.1.1.1")}}
-	n2 := &netstate.AddrIfc{Addr: &net.IPAddr{IP: net.ParseIP("2.2.2.2")}}
-	roaming <- rpc.NewAddAddrsSetting([]rpc.Address{n1, n2})
+	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
+	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
+	roaming <- rpc.NewAddAddrsSetting([]net.Addr{n1, n2})
 
 	neps := make([]naming.Endpoint, 0, len(eps))
 	for _, p := range getUniqPorts(eps) {
