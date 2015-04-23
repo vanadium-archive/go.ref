@@ -58,7 +58,10 @@ func compileTypeDefs(pkg *Package, pfiles []*parse.File, env *Env) {
 	if td.Define(); !env.Errors.IsEmpty() {
 		return
 	}
-	td.Build()
+	if td.Build(); !env.Errors.IsEmpty() {
+		return
+	}
+	td.AttachDoc()
 	// TODO(toddw): should we disallow inter-file cyclic type dependencies?  That
 	// might be an issue for generated C++.
 }
@@ -316,27 +319,30 @@ func (td typeDefiner) Build() {
 				base, err := b.base.Built()
 				if err != nil {
 					td.env.prefixErrorf(file, b.ptype.Pos(), err, "%s base type invalid", def.Name)
-					continue // keep going to catch more errors
+					return
 				}
 				def.BaseType = base
 			}
 			t, err := b.pending.Built()
 			if err != nil {
 				td.env.prefixErrorf(file, def.Pos, err, "%s invalid", def.Name)
-				continue // keep going to catch more errors
+				return
 			}
 			def.Type = t
 			addTypeDef(def, td.env)
 		}
 	}
-	// Make another pass to fill in doc and doc suffix slices for enums, structs
-	// and unions.  Typically these are initialized in makeTypeDefBuilder, based
-	// on the underlying parse data.  But type definitions based on other named
-	// types can't be updated until the base type is actually compiled.
-	//
-	// TODO(toddw): This doesn't actually attach comments from the base type, it
-	// just leaves everything empty.  This is fine for now, but we should revamp
-	// the vdl parsing / comment attaching strategy in the future.
+}
+
+// AttachDoc makes another pass to fill in doc and doc suffix slices for enums,
+// structs and unions.  Typically these are initialized in makeTypeDefBuilder,
+// based on the underlying parse data.  But type definitions based on other
+// named types can't be updated until the base type is actually compiled.
+//
+// TODO(toddw): This doesn't actually attach comments from the base type, it
+// just leaves everything empty.  This is fine for now, but we should revamp the
+// vdl parsing / comment attaching strategy in the future.
+func (td typeDefiner) AttachDoc() {
 	for _, file := range td.pkg.Files {
 		for _, def := range file.TypeDefs {
 			switch t := def.Type; t.Kind() {

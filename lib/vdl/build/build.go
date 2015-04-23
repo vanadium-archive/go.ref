@@ -373,7 +373,7 @@ func newDepSorter(opts Opts, errs *vdlutil.Errors) *depSorter {
 	// This special env is used when building "vdl.config" files, which have the
 	// implicit "vdltool" import.
 	if !ds.ResolvePath("vdltool", UnknownPathIsError) {
-		errs.Errorf(`Can't resolve "vdltool" package`)
+		errs.Errorf(`can't resolve "vdltool" package`)
 	}
 	for _, pkg := range ds.Sort() {
 		BuildPackage(pkg, ds.vdlenv)
@@ -409,7 +409,7 @@ func (ds *depSorter) ResolvePath(path string, mode UnknownPathMode) bool {
 	case isDirPath:
 		return ds.resolveDirPath(path, mode) != nil
 	default:
-		return ds.resolveImportPath(path, mode) != nil
+		return ds.resolveImportPath(path, mode, "") != nil
 	}
 }
 
@@ -508,7 +508,7 @@ func createMatcher(pattern string) (*regexp.Regexp, error) {
 	rePat = `^` + rePat + `$`
 	matcher, err := regexp.Compile(rePat)
 	if err != nil {
-		return nil, fmt.Errorf("Can't compile package path regexp %s: %v", rePat, err)
+		return nil, fmt.Errorf("can't compile package path regexp %s: %v", rePat, err)
 	}
 	return matcher, nil
 }
@@ -558,18 +558,18 @@ func (ds *depSorter) resolveDirPath(dir string, mode UnknownPathMode) *Package {
 
 // resolveImportPath resolves pkgPath into a Package.  Returns the package, or
 // nil if it can't be resolved.
-func (ds *depSorter) resolveImportPath(pkgPath string, mode UnknownPathMode) *Package {
+func (ds *depSorter) resolveImportPath(pkgPath string, mode UnknownPathMode, prefix string) *Package {
 	pkgPath = path.Clean(pkgPath)
 	if pkg := ds.pathMap[pkgPath]; pkg != nil {
 		return pkg
 	}
 	if !validPackagePath(pkgPath) {
-		mode.logOrErrorf(ds.errs, "Import path %q is invalid", pkgPath)
+		mode.logOrErrorf(ds.errs, "%s: import path %q is invalid", prefix, pkgPath)
 		return nil
 	}
 	// Special-case to disallow packages under the vdlroot dir.
 	if strings.HasPrefix(pkgPath, vdlrootImportPrefix) {
-		mode.logOrErrorf(ds.errs, "Import path %q is invalid (packages under vdlroot must be specified without the vdlroot prefix)", pkgPath)
+		mode.logOrErrorf(ds.errs, "%s: import path %q is invalid (packages under vdlroot must be specified without the vdlroot prefix)", prefix, pkgPath)
 		return nil
 	}
 	// Look through srcDirs in-order until we find a valid package dir.
@@ -584,7 +584,7 @@ func (ds *depSorter) resolveImportPath(pkgPath string, mode UnknownPathMode) *Pa
 	}
 	// We can't find a valid dir corresponding to this import path.
 	detail := "   " + strings.Join(dirs, "\n   ")
-	mode.logOrErrorf(ds.errs, "Can't resolve import path %q in any of:\n%s", pkgPath, detail)
+	mode.logOrErrorf(ds.errs, "%s: can't resolve %q in any of:\n%s", prefix, pkgPath, detail)
 	return nil
 }
 
@@ -601,7 +601,7 @@ func (ds *depSorter) addPackageAndDeps(path, genPath, dir string, mode UnknownPa
 	pfiles := ParsePackage(pkg, parse.Opts{ImportsOnly: true}, ds.errs)
 	pkg.Name = parse.InferPackageName(pfiles, ds.errs)
 	for _, pf := range pfiles {
-		ds.addImportDeps(pkg, pf.Imports)
+		ds.addImportDeps(pkg, pf.Imports, filepath.Join(path, pf.BaseName))
 	}
 	return pkg
 }
@@ -609,9 +609,9 @@ func (ds *depSorter) addPackageAndDeps(path, genPath, dir string, mode UnknownPa
 // addImportDeps adds transitive dependencies represented by imports to the
 // sorter.  If the pkg is non-nil, an edge is added between the pkg and its
 // dependencies; otherwise each dependency is added as an independent node.
-func (ds *depSorter) addImportDeps(pkg *Package, imports []*parse.Import) {
+func (ds *depSorter) addImportDeps(pkg *Package, imports []*parse.Import, file string) {
 	for _, imp := range imports {
-		if dep := ds.resolveImportPath(imp.Path, UnknownPathIsError); dep != nil {
+		if dep := ds.resolveImportPath(imp.Path, UnknownPathIsError, file); dep != nil {
 			if pkg != nil {
 				ds.sorter.AddEdge(pkg, dep)
 			} else {
@@ -625,7 +625,7 @@ func (ds *depSorter) addImportDeps(pkg *Package, imports []*parse.Import) {
 // and adds all transitive dependencies to the sorter.
 func (ds *depSorter) AddConfigDeps(fileName string, src io.Reader) {
 	if pconfig := parse.ParseConfig(fileName, src, parse.Opts{ImportsOnly: true}, ds.errs); pconfig != nil {
-		ds.addImportDeps(nil, pconfig.Imports)
+		ds.addImportDeps(nil, pconfig.Imports, fileName)
 	}
 }
 
@@ -657,7 +657,7 @@ func (ds *depSorter) Sort() []*Package {
 	sorted, cycles := ds.sorter.Sort()
 	if len(cycles) > 0 {
 		cycleStr := toposort.DumpCycles(cycles, printPackagePath)
-		ds.errorf("Cyclic package dependency: %v", cycleStr)
+		ds.errorf("cyclic package dependency: %v", cycleStr)
 		return nil
 	}
 	if len(sorted) == 0 {
@@ -726,7 +726,7 @@ func TransitivePackages(paths []string, mode UnknownPathMode, opts Opts, errs *v
 	ds := newDepSorter(opts, errs)
 	for _, path := range paths {
 		if !ds.ResolvePath(path, mode) {
-			mode.logOrErrorf(errs, "Can't resolve %q to any packages", path)
+			mode.logOrErrorf(errs, "can't resolve %q to any packages", path)
 		}
 	}
 	return ds.Sort()
@@ -748,7 +748,7 @@ func ParsePackage(pkg *Package, opts parse.Opts, errs *vdlutil.Errors) (pfiles [
 	vdlutil.Vlog.Printf("Parsing package %s %q, dir %s", pkg.Name, pkg.Path, pkg.Dir)
 	files, err := pkg.OpenFiles()
 	if err != nil {
-		errs.Errorf("Can't open vdl files %v, %v", pkg.BaseFileNames, err)
+		errs.Errorf("can't open vdl files %v (%v)", pkg.BaseFileNames, err)
 		return nil
 	}
 	for filename, src := range files {
@@ -818,11 +818,11 @@ func BuildConfigValue(fileName string, src io.Reader, imports []string, env *com
 	}
 	target, err := vdl.ReflectTarget(rv)
 	if err != nil {
-		env.Errors.Errorf("Can't create reflect target for %T (%v)", value, err)
+		env.Errors.Errorf("can't create reflect target for %T (%v)", value, err)
 		return
 	}
 	if err := vdl.FromValue(target, vconfig); err != nil {
-		env.Errors.Errorf("Can't convert to %T from %v (%v)", value, vconfig, err)
+		env.Errors.Errorf("can't convert to %T from %v (%v)", value, vconfig, err)
 		return
 	}
 }
