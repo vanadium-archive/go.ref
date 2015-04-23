@@ -146,17 +146,19 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 			return
 		}
 		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
-		vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, principal, blessings, nil, ln.deleteVIF, opts...)
-		if err != nil {
-			vlog.Infof("Shutting down conn from %s (local address: %s) as a VIF could not be created: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-			conn.Close()
-			continue
-		}
-		ln.vifs.Insert(vf)
-		ln.manager.vifs.Insert(vf)
+		go func() {
+			vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, principal, blessings, nil, ln.deleteVIF, opts...)
+			if err != nil {
+				vlog.Infof("Shutting down conn from %s (local address: %s) as a VIF could not be created: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
+				conn.Close()
+				return
+			}
+			ln.vifs.Insert(vf)
+			ln.manager.vifs.Insert(vf)
 
-		ln.vifLoops.Add(1)
-		go vifLoop(vf, ln.q, &ln.vifLoops)
+			ln.vifLoops.Add(1)
+			vifLoop(vf, ln.q, &ln.vifLoops)
+		}()
 	}
 }
 
