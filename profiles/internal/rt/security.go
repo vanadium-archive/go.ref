@@ -13,7 +13,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/ref/envvar"
@@ -24,23 +23,12 @@ import (
 	"v.io/x/ref/services/agent/agentlib"
 )
 
-func initSecurity(ctx *context.T, credentials string, client rpc.Client) (security.Principal, error) {
-	principal, err := setupPrincipal(ctx, credentials, client)
-	if err != nil {
-		return nil, err
-	}
-
-	return principal, nil
-}
-
-func setupPrincipal(ctx *context.T, credentials string, client rpc.Client) (security.Principal, error) {
-	var err error
-	var principal security.Principal
+func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal security.Principal, deps []interface{}, err error) {
 	if principal, _ = ctx.Value(principalKey).(security.Principal); principal != nil {
-		return principal, nil
+		return principal, nil, nil
 	}
 	if len(credentials) > 0 {
-		// We close the agentFD if that is also provided
+		// Explicitly specified credentials, ignore the agent.
 		if _, fd, _ := agentEP(); fd >= 0 {
 			syscall.Close(fd)
 		}
@@ -51,23 +39,44 @@ func setupPrincipal(ctx *context.T, credentials string, client rpc.Client) (secu
 		if principal, err = vsecurity.LoadPersistentPrincipal(credentials, nil); err != nil {
 			if os.IsNotExist(err) {
 				if principal, err = vsecurity.CreatePersistentPrincipal(credentials, nil); err != nil {
-					return principal, err
+					return principal, nil, err
 				}
-				return principal, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
+				return principal, nil, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
 			}
-			return nil, err
+			return nil, nil, err
 		}
-		return principal, nil
+		return principal, nil, nil
 	}
+	// Use credentials stored in the agent.
 	if ep, _, err := agentEP(); err != nil {
-		return nil, err
+		return nil, nil, err
 	} else if ep != nil {
-		return agentlib.NewAgentPrincipal(ctx, ep, client)
+		// Use a new stream manager and an "incomplete" client (the
+		// principal is nil) to talk to the agent.
+		//
+		// The lack of a principal works out for the rpc.Client
+		// only because the agent uses anonymous unix sockets and
+		// the SecurityNone option.
+		//
+		// Using a distinct stream manager to manage agent-related
+		// connections helps isolate these connections to the agent
+		// from management of any other connections created in the
+		// process (such as future RPCs to other services).
+		if ctx, err = r.WithNewStreamManager(ctx); err != nil {
+			return nil, nil, err
+		}
+		client := r.GetClient(ctx)
+		if principal, err = agentlib.NewAgentPrincipal(ctx, ep, client); err != nil {
+			client.Close()
+			return nil, nil, err
+		}
+		return principal, []interface{}{client}, nil
 	}
+	// No agent, no explicit credentials specified: - create a new principal and blessing in memory.
 	if principal, err = vsecurity.NewPrincipal(); err != nil {
-		return principal, err
+		return principal, nil, err
 	}
-	return principal, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
+	return principal, nil, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
 }
 
 func parseAgentFD(ep naming.Endpoint) (int, error) {

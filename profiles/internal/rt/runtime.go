@@ -136,43 +136,23 @@ func Init(
 		return nil, nil, nil, err
 	}
 
-	// Set the initial stream manager.
-	ctx, err = r.setNewStreamManager(ctx)
+	// Create and set the principal
+	principal, deps, err := r.initPrincipal(ctx, flags.Credentials)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ctx, err = r.setPrincipal(ctx, principal, deps...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	// The client we create here is incomplete (has a nil principal) and only works
-	// because the agent uses anonymous unix sockets and SecurityNone.
-	// After security is initialized we attach a real client.
-	// We do not capture the ctx here on purpose, to avoid anyone accidentally
-	// using this client anywhere.
-	_, client, err := r.WithNewClient(ctx)
+	// Setup authenticated "networking"
+	ctx, err = r.WithNewStreamManager(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	// Initialize security.
-	principal, err := initSecurity(ctx, flags.Credentials, client)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	// If the principal is an agent principal, it depends on the client created
-	// above.  If not, there's no harm in the dependency.
-	ctx, err = r.setPrincipal(ctx, principal, client)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// Set up secure client.
-	ctx, _, err = r.WithNewClient(ctx)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	ctx = r.WithBackgroundContext(ctx)
-
-	return r, ctx, r.shutdown, nil
+	return r, r.WithBackgroundContext(ctx), r.shutdown, nil
 }
 
 func (r *Runtime) addChild(ctx *context.T, me interface{}, stop func(), dependsOn ...interface{}) error {

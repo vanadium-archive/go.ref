@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
@@ -106,15 +107,29 @@ func isTemporaryError(err error) bool {
 	return false
 }
 
+func isTooManyOpenFiles(err error) bool {
+	if oErr, ok := err.(*net.OpError); ok && oErr.Err == syscall.EMFILE {
+		return true
+	}
+	return false
+}
+
 func (ln *netListener) netAcceptLoop(principal security.Principal, blessings security.Blessings, opts []stream.ListenerOpt) {
 	defer ln.netLoop.Done()
 	opts = append([]stream.ListenerOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
 	for {
 		conn, err := ln.netLn.Accept()
 		if isTemporaryError(err) {
-			// TODO(rthellend): Aggressively close other connections?
-			vlog.Errorf("net.Listener.Accept() failed on %v with %v", ln.netLn, err)
-			for isTemporaryError(err) {
+			// Use Info instead of Error to reduce the changes that
+			// the log library will cause the process to abort on
+			// failing to create a new file.
+			vlog.Infof("net.Listener.Accept() failed on %v with %v", ln.netLn, err)
+			for tokill := 1; isTemporaryError(err); tokill *= 2 {
+				if isTooManyOpenFiles(err) {
+					ln.manager.killConnections(tokill)
+				} else {
+					tokill = 1
+				}
 				time.Sleep(10 * time.Millisecond)
 				conn, err = ln.netLn.Accept()
 			}
