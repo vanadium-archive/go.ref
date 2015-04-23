@@ -157,7 +157,9 @@ to peers you share the blessing with.
   </div>
   <br>
   <div>
-  By clicking "Bless", you consent to be bound by Google's general <a href="https://www.google.com/intl/en/policies/terms/">Terms of Service</a>
+  By clicking "Bless", you consent to be bound by
+  Google's general <a href="https://www.google.com/intl/en/policies/terms/">Terms of Service</a>,
+  the <a href="https://developers.google.com/terms/">Google APIs Terms of Service</a>,
   and Google's general <a href="https://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>.
   </div>
   <div class="grid">
