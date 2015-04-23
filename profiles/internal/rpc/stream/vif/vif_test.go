@@ -650,13 +650,9 @@ func TestIncompatibleVersions(t *testing.T) {
 		{&iversion.Range{2, 3}, &iversion.Range{3, 5}, &iversion.Range{3, 5}, false, false},
 		{&iversion.Range{2, 3}, &iversion.Range{3, 5}, unknown, false, false},
 
-		// No VIF error because the client does not initiate authentication.
-		{&iversion.Range{2, 3}, &iversion.Range{4, 5}, &iversion.Range{4, 5}, true, false},
-		{&iversion.Range{2, 3}, &iversion.Range{4, 5}, unknown, true, false},
-
-		// VIF error because the client asks for authentication, but the server
-		// doesn't understand it.
-		{&iversion.Range{6, 6}, &iversion.Range{2, 5}, unknown, true, true},
+		// VIF error since there are no versions in common.
+		{&iversion.Range{2, 3}, &iversion.Range{4, 5}, &iversion.Range{4, 5}, true, true},
+		{&iversion.Range{2, 3}, &iversion.Range{4, 5}, unknown, true, true},
 	}
 
 	for _, tc := range tests {

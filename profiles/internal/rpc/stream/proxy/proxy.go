@@ -90,7 +90,6 @@ type process struct {
 	conn         net.Conn
 	pool         *iobuf.Pool
 	reader       *iobuf.Reader
-	isSetup      bool
 	ctrlCipher   crypto.ControlCipher
 	queue        *upcqueue.T
 	mu           sync.RWMutex
@@ -261,12 +260,25 @@ func (p *Proxy) listenLoop() {
 
 func (p *Proxy) acceptProcess(conn net.Conn) {
 	pool := iobuf.NewPool(0)
+	reader := iobuf.NewReader(pool, conn)
+
+	var blessings security.Blessings
+	if p.principal != nil {
+		blessings = p.principal.BlessingStore().Default()
+	}
+
+	c, err := vif.AuthenticateAsServer(conn, reader, nil, p.principal, blessings, nil)
+	if err != nil {
+		processLog().Infof("Process %v failed to authenticate: %s", p, err)
+		return
+	}
+
 	process := &process{
 		proxy:        p,
 		conn:         conn,
 		pool:         pool,
-		reader:       iobuf.NewReader(pool, conn),
-		ctrlCipher:   &crypto.NullControlCipher{},
+		reader:       reader,
+		ctrlCipher:   c,
 		queue:        upcqueue.New(),
 		routingTable: make(map[id.VC]*destination),
 		servers:      make(map[id.VC]*vc.VC),
@@ -661,26 +673,8 @@ func (p *process) readLoop() {
 			dstprocess.queue.Put(m)
 			p.proxy.routeCounters(p, counters)
 
-		case *message.Setup:
-			// Set up the hop.  This takes over the process during negotiation.
-			if p.isSetup {
-				// Already performed authentication.  We don't do it again.
-				processLog().Infof("Process %v is already setup", p)
-				return
-			}
-			var blessings security.Blessings
-			if p.proxy.principal != nil {
-				blessings = p.proxy.principal.BlessingStore().Default()
-			}
-			c, err := vif.AuthenticateAsServer(p.conn, p.reader, nil, p.proxy.principal, blessings, nil, m)
-			if err != nil {
-				processLog().Infof("Process %v failed to authenticate: %s", p, err)
-				return
-			}
-			p.ctrlCipher = c
-			p.isSetup = true
 		default:
-			processLog().Infof("Closing %v because of unrecognized message %T", p, m)
+			processLog().Infof("Closing %v because of invalid message %T", p, m)
 			return
 		}
 	}

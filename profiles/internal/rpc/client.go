@@ -650,7 +650,7 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 				topLevelError = verror.ErrNotTrusted
 				topLevelAction = verror.NoRetry
 				onlyErrNetwork = false
-			case stream.ErrNetwork.ID:
+			case stream.ErrAborted.ID, stream.ErrNetwork.ID:
 				// do nothing
 			default:
 				onlyErrNetwork = false
