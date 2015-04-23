@@ -442,8 +442,19 @@ Principal get publickey
 Prints out the public key of the principal specified by the environment that
 this tool is running in.
 
+The key is printed as a base64 encoded bytes of the DER-format representation of
+the key.
+
+If the --pretty flag is provided, then the key is printed in the XX:XX:...:XX
+format typically used in the output of other commands. This representation,
+while prettier, is lossy.
+
 Usage:
-   principal get publickey
+   principal get publickey [flags]
+
+The principal get publickey flags are:
+ -pretty=false
+   If true, print the key out in a more human-readable but lossy representation.
 
 Principal get recognizedroots
 
@@ -479,7 +490,7 @@ of the default blessing in credentials directory B:
   principal -v23.credentials=A addtoroots -
 The extension 'some_extension' has no effect in the command above.
 
-Or to make the principal in credentials director A recognize the base64-encoded
+Or to make the principal in credentials directory A recognize the base64-encoded
 public key KEY for blessing patterns P:
   principal -v23.credentials=A addtoroots KEY P
 
