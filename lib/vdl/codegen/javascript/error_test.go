@@ -50,8 +50,8 @@ func TestError(t *testing.T) {
   'en-US': 'english string',
   'fr': 'french string',
 }, [
-  vdl.Types.BOOL,
-  vdl.Types.INT32,
+  vdl.types.BOOL,
+  vdl.types.INT32,
 ]);
 `
 	if result != expected {

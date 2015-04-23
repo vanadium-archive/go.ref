@@ -142,51 +142,51 @@ func makeEnumLabelString(t *vdl.Type, jsnames typeNames) string {
 func jsKind(k vdl.Kind) string {
 	switch k {
 	case vdl.Any:
-		return "vdl.Kind.ANY"
+		return "vdl.kind.ANY"
 	case vdl.Union:
-		return "vdl.Kind.UNION"
+		return "vdl.kind.UNION"
 	case vdl.Optional:
-		return "vdl.Kind.OPTIONAL"
+		return "vdl.kind.OPTIONAL"
 	case vdl.Bool:
-		return "vdl.Kind.BOOL"
+		return "vdl.kind.BOOL"
 	case vdl.Byte:
-		return "vdl.Kind.BYTE"
+		return "vdl.kind.BYTE"
 	case vdl.Uint16:
-		return "vdl.Kind.UINT16"
+		return "vdl.kind.UINT16"
 	case vdl.Uint32:
-		return "vdl.Kind.UINT32"
+		return "vdl.kind.UINT32"
 	case vdl.Uint64:
-		return "vdl.Kind.UINT64"
+		return "vdl.kind.UINT64"
 	case vdl.Int16:
-		return "vdl.Kind.INT16"
+		return "vdl.kind.INT16"
 	case vdl.Int32:
-		return "vdl.Kind.INT32"
+		return "vdl.kind.INT32"
 	case vdl.Int64:
-		return "vdl.Kind.INT64"
+		return "vdl.kind.INT64"
 	case vdl.Float32:
-		return "vdl.Kind.FLOAT32"
+		return "vdl.kind.FLOAT32"
 	case vdl.Float64:
-		return "vdl.Kind.FLOAT64"
+		return "vdl.kind.FLOAT64"
 	case vdl.Complex64:
-		return "vdl.Kind.COMPLEX64"
+		return "vdl.kind.COMPLEX64"
 	case vdl.Complex128:
-		return "vdl.Kind.COMPLEX128"
+		return "vdl.kind.COMPLEX128"
 	case vdl.String:
-		return "vdl.Kind.STRING"
+		return "vdl.kind.STRING"
 	case vdl.Enum:
-		return "vdl.Kind.ENUM"
+		return "vdl.kind.ENUM"
 	case vdl.TypeObject:
-		return "vdl.Kind.TYPEOBJECT"
+		return "vdl.kind.TYPEOBJECT"
 	case vdl.Array:
-		return "vdl.Kind.ARRAY"
+		return "vdl.kind.ARRAY"
 	case vdl.List:
-		return "vdl.Kind.LIST"
+		return "vdl.kind.LIST"
 	case vdl.Set:
-		return "vdl.Kind.SET"
+		return "vdl.kind.SET"
 	case vdl.Map:
-		return "vdl.Kind.MAP"
+		return "vdl.kind.MAP"
 	case vdl.Struct:
-		return "vdl.Kind.STRUCT"
+		return "vdl.kind.STRUCT"
 	}
 	panic(fmt.Errorf("val: unhandled kind: %d", k))
 }
@@ -198,7 +198,7 @@ func builtinJSType(t *vdl.Type) (string, bool) {
 	_, n := vdl.SplitIdent(t.Name())
 
 	if t == vdl.ErrorType {
-		return "vdl.Types.ERROR", true
+		return "vdl.types.ERROR", true
 	}
 
 	// named types are not built-in.
@@ -209,35 +209,35 @@ func builtinJSType(t *vdl.Type) (string, bool) {
 	// switch on supported types in vdl.js
 	switch t.Kind() {
 	case vdl.Any:
-		return "vdl.Types.ANY", true
+		return "vdl.types.ANY", true
 	case vdl.Bool:
-		return "vdl.Types.BOOL", true
+		return "vdl.types.BOOL", true
 	case vdl.Byte:
-		return "vdl.Types.BYTE", true
+		return "vdl.types.BYTE", true
 	case vdl.Uint16:
-		return "vdl.Types.UINT16", true
+		return "vdl.types.UINT16", true
 	case vdl.Uint32:
-		return "vdl.Types.UINT32", true
+		return "vdl.types.UINT32", true
 	case vdl.Uint64:
-		return "vdl.Types.UINT64", true
+		return "vdl.types.UINT64", true
 	case vdl.Int16:
-		return "vdl.Types.INT16", true
+		return "vdl.types.INT16", true
 	case vdl.Int32:
-		return "vdl.Types.INT32", true
+		return "vdl.types.INT32", true
 	case vdl.Int64:
-		return "vdl.Types.INT64", true
+		return "vdl.types.INT64", true
 	case vdl.Float32:
-		return "vdl.Types.FLOAT32", true
+		return "vdl.types.FLOAT32", true
 	case vdl.Float64:
-		return "vdl.Types.FLOAT64", true
+		return "vdl.types.FLOAT64", true
 	case vdl.Complex64:
-		return "vdl.Types.COMPLEX64", true
+		return "vdl.types.COMPLEX64", true
 	case vdl.Complex128:
-		return "vdl.Types.COMPLEX128", true
+		return "vdl.types.COMPLEX128", true
 	case vdl.String:
-		return "vdl.Types.STRING", true
+		return "vdl.types.STRING", true
 	case vdl.TypeObject:
-		return "vdl.Types.TYPEOBJECT", true
+		return "vdl.types.TYPEOBJECT", true
 	}
 
 	return "", false
