@@ -459,7 +459,7 @@ module.exports.{{$iface.Name}} = {{$iface.Name}};
 
     {{/* The service signature encodes the same info as signature.Interface.
          TODO(alexfandrianto): We want to associate the signature type here, but
-         it's complicated. https://github.com/veyron/release-issues/issues/432
+         it's complicated.
          For now, we need to pass the type in manually into encode. */}}
 {{$iface.Name}}.prototype._serviceDescription = {
   name: '{{$iface.Name}}',

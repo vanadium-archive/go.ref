@@ -991,13 +991,7 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, idleTimeout 
 		vif.startTimer = nil
 	}
 	vif.muStartTimer.Unlock()
-	// There may be a data race in accessing ctrlCipher when a new VC is created
-	// before authentication finishes in an accepted VIF. We lock it to avoid it.
-	//
-	// https://github.com/veyron/release-issues/issues/1573
-	vif.writeMu.Lock()
 	macSize := vif.ctrlCipher.MACSize()
-	vif.writeMu.Unlock()
 	vc := vc.InternalNew(vc.Params{
 		VCI:          vci,
 		Dialed:       dialed,

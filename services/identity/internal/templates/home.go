@@ -83,7 +83,7 @@ var home = template.Must(template.New("main").Parse(`<!doctype html>
 
 <footer>
   <nav class="main">
-    <a href="https://github.com/veyron/release-issues/issues/new?labels=www">Site Feedback</a>
+    <a href="https://github.com/vanadium/issues/issues/new?labels=Area:%20Website">Site Feedback</a>
   </nav>
 
   <nav class="social">
