@@ -75,6 +75,9 @@ var (
 	flagBlessingsRootKey string
 	flagBlessingsCaveats string
 
+	// Flags for the get publickey command.
+	flagGetPublicKeyPretty bool
+
 	errNoCaveats = fmt.Errorf("no caveats provided: it is generally dangerous to bless another principal without any caveats as that gives them almost unrestricted access to the blesser's credentials. If you really want to do this, set --require-caveats=false")
 
 	cmdDump = &cmdline.Command{
@@ -296,12 +299,27 @@ blessing.
 		Long: `
 Prints out the public key of the principal specified by the environment
 that this tool is running in.
+
+The key is printed as a base64 encoded bytes of the DER-format representation
+of the key.
+
+If the --pretty flag is provided, then the key is printed in the XX:XX:...:XX
+format typically used in the output of other commands. This representation,
+while prettier, is lossy.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			ctx, shutdown := v23.Init()
 			defer shutdown()
-			p := v23.GetPrincipal(ctx)
-			fmt.Println(p.PublicKey())
+			key := v23.GetPrincipal(ctx).PublicKey()
+			if flagGetPublicKeyPretty {
+				fmt.Println(key)
+				return nil
+			}
+			der, err := key.MarshalBinary()
+			if err != nil {
+				return fmt.Errorf("corrupted key: %v", err)
+			}
+			fmt.Println(base64.URLEncoding.EncodeToString(der))
 			return nil
 		},
 	}
@@ -453,7 +471,7 @@ root of the default blessing in credentials directory B:
   principal -v23.credentials=A addtoroots -
 The extension 'some_extension' has no effect in the command above.
 
-Or to make the principal in credentials director A recognize the base64-encoded
+Or to make the principal in credentials directory A recognize the base64-encoded
 public key KEY for blessing patterns P:
   principal -v23.credentials=A addtoroots KEY P
 `,
@@ -920,6 +938,8 @@ func main() {
 	cmdGetDefault.Flags.BoolVar(&flagBlessingsNames, "names", false, "If true, shows the value of the blessing name to be presented to the peer")
 	cmdGetDefault.Flags.StringVar(&flagBlessingsRootKey, "rootkey", "", "Shows the value of the root key of the provided certificate chain name.")
 	cmdGetDefault.Flags.StringVar(&flagBlessingsCaveats, "caveats", "", "Shows the caveats on the provided certificate chain name.")
+
+	cmdGetPublicKey.Flags.BoolVar(&flagGetPublicKeyPretty, "pretty", false, "If true, print the key out in a more human-readable but lossy representation.")
 
 	cmdSet := &cmdline.Command{
 		Name:  "set",
