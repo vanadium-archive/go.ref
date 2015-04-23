@@ -25,6 +25,8 @@ type Controller interface {
 
 	// UnlinkBlessings removes the given blessings from the blessings store.
 	UnlinkBlessings(handle principal.BlessingsHandle) error
+	// BlessingsDebugString gets a string useful for debugging blessings.
+	BlessingsDebugString(handle principal.BlessingsHandle) (string | error)
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
 	Bless(publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle | error)
