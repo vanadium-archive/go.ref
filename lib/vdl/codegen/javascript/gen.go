@@ -205,9 +205,9 @@ func untypedConst(names typeNames, v *vdl.Value) string {
 
 func primitiveWithOptionalName(primitive, name string) string {
 	if name == "" {
-		return "Types." + primitive
+		return "types." + primitive
 	}
-	return "new vdl.Type({kind: Kind." + primitive + ", name: '" + name + "'})"
+	return "new vdl.Type({kind: vdl.kind." + primitive + ", name: '" + name + "'})"
 }
 
 // typedConst returns a javascript string representing a const that is always
@@ -386,7 +386,7 @@ func generateSystemImports(data data) string {
 		if data.PathToCoreJS != "" {
 			res += "var canonicalize = require('" + packagePrefix + "/vdl/canonicalize');\n"
 		} else {
-			res += "var canonicalize = require('vanadium').vdl.Canonicalize;\n"
+			res += "var canonicalize = require('vanadium').vdl.canonicalize;\n"
 		}
 	}
 	return res
