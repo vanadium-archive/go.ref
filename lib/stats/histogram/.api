@@ -1,0 +1,14 @@
+pkg histogram, func New(Options) *Histogram
+pkg histogram, method (*Histogram) Add(int64) error
+pkg histogram, method (*Histogram) Delta10m() stats.HistogramValue
+pkg histogram, method (*Histogram) Delta1h() stats.HistogramValue
+pkg histogram, method (*Histogram) Delta1m() stats.HistogramValue
+pkg histogram, method (*Histogram) LastUpdate() time.Time
+pkg histogram, method (*Histogram) Opts() Options
+pkg histogram, method (*Histogram) Value() stats.HistogramValue
+pkg histogram, type Histogram struct
+pkg histogram, type Options struct
+pkg histogram, type Options struct, GrowthFactor float64
+pkg histogram, type Options struct, MinValue int64
+pkg histogram, type Options struct, NumBuckets int
+pkg histogram, type Options struct, SmallestBucketSize float64

@@ -1,0 +1,17 @@
+pkg mocknet, const Close Mode
+pkg mocknet, const Drop Mode
+pkg mocknet, const Trace Mode
+pkg mocknet, const V23CloseAtMessage Mode
+pkg mocknet, func DialerWithOpts(Opts, string, string, time.Duration) (net.Conn, error)
+pkg mocknet, func ListenerWithOpts(Opts, string, string) (net.Listener, error)
+pkg mocknet, func RewriteEndpointProtocol(string, string) (naming.Endpoint, error)
+pkg mocknet, type Mode int
+pkg mocknet, type Opts struct
+pkg mocknet, type Opts struct, Mode Mode
+pkg mocknet, type Opts struct, Rx chan int
+pkg mocknet, type Opts struct, RxCloseAt int
+pkg mocknet, type Opts struct, Tx chan int
+pkg mocknet, type Opts struct, TxCloseAt int
+pkg mocknet, type Opts struct, TxDropAfter func() int
+pkg mocknet, type Opts struct, UnderlyingProtocol string
+pkg mocknet, type Opts struct, V23MessageMatcher func(bool, message.T) bool

@@ -1,0 +1,10 @@
+pkg pcqueue, func New(int) *T
+pkg pcqueue, method (*T) Close()
+pkg pcqueue, method (*T) Get(<-chan struct{}) (interface{}, error)
+pkg pcqueue, method (*T) Put(interface{}, <-chan struct{}) error
+pkg pcqueue, method (*T) Shutdown()
+pkg pcqueue, method (*T) TryPut(interface{}) error
+pkg pcqueue, type T struct
+pkg pcqueue, var ErrCancelled error
+pkg pcqueue, var ErrQueueIsClosed error
+pkg pcqueue, var ErrTryAgain error

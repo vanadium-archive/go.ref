@@ -1,0 +1,9 @@
+pkg internal, func NewDispatcher(string, string) rpc.Dispatcher
+pkg internal, type Config struct
+pkg internal, type Config struct, Audit bool
+pkg internal, type Config struct, Expiry string
+pkg internal, type Config struct, Extend bool
+pkg internal, type Config struct, ImportMembers []string
+pkg internal, type Config struct, Members []security.BlessingPattern
+pkg internal, type Config struct, Peers []security.BlessingPattern
+pkg internal, var LoggingCaveat security.CaveatDescriptor

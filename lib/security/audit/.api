@@ -1,0 +1,9 @@
+pkg audit, func NewPrincipal(security.Principal, Auditor) security.Principal
+pkg audit, method (Entry) String() string
+pkg audit, type Auditor interface { Audit }
+pkg audit, type Auditor interface, Audit(Entry) error
+pkg audit, type Entry struct
+pkg audit, type Entry struct, Arguments []interface{}
+pkg audit, type Entry struct, Method string
+pkg audit, type Entry struct, Results []interface{}
+pkg audit, type Entry struct, Timestamp time.Time

@@ -1,0 +1,10 @@
+pkg deque, method (*T) Back() interface{}
+pkg deque, method (*T) Clear()
+pkg deque, method (*T) Front() interface{}
+pkg deque, method (*T) Iter(func(interface{}) bool)
+pkg deque, method (*T) PopBack() interface{}
+pkg deque, method (*T) PopFront() interface{}
+pkg deque, method (*T) PushBack(interface{})
+pkg deque, method (*T) PushFront(interface{})
+pkg deque, method (*T) Size() int
+pkg deque, type T struct

@@ -1,0 +1,3 @@
+pkg server, const PrincipalHandleByteSize ideal-int
+pkg server, func RunAnonymousAgent(*context.T, security.Principal, int) (*os.File, string, error)
+pkg server, func RunKeyManager(*context.T, string, []byte) (*os.File, error)

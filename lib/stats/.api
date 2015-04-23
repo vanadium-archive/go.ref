@@ -1,0 +1,43 @@
+pkg stats, func Delete(string) error
+pkg stats, func GetStatsObject(string) (StatsObject, error)
+pkg stats, func Glob(string, string, time.Time, bool) *GlobIterator
+pkg stats, func NewCounter(string) *counter.Counter
+pkg stats, func NewFloat(string) *Float
+pkg stats, func NewFloatFunc(string, func() float64) StatsObject
+pkg stats, func NewHistogram(string, histogram.Options) *histogram.Histogram
+pkg stats, func NewInteger(string) *Integer
+pkg stats, func NewIntegerFunc(string, func() int64) StatsObject
+pkg stats, func NewMap(string) *Map
+pkg stats, func NewString(string) *String
+pkg stats, func NewStringFunc(string, func() string) StatsObject
+pkg stats, func Value(string) (interface{}, error)
+pkg stats, method (*Float) Incr(float64)
+pkg stats, method (*Float) LastUpdate() time.Time
+pkg stats, method (*Float) Set(float64)
+pkg stats, method (*Float) Value() interface{}
+pkg stats, method (*GlobIterator) Advance() bool
+pkg stats, method (*Integer) Incr(int64)
+pkg stats, method (*Integer) LastUpdate() time.Time
+pkg stats, method (*Integer) Set(int64)
+pkg stats, method (*Integer) Value() interface{}
+pkg stats, method (*Map) Delete([]string)
+pkg stats, method (*Map) Keys() []string
+pkg stats, method (*Map) LastUpdate() time.Time
+pkg stats, method (*Map) Set([]KeyValue)
+pkg stats, method (*Map) Value() interface{}
+pkg stats, method (*String) LastUpdate() time.Time
+pkg stats, method (*String) Set(string)
+pkg stats, method (*String) Value() interface{}
+pkg stats, method (GlobIterator) Err() error
+pkg stats, method (GlobIterator) Value() KeyValue
+pkg stats, type Float struct
+pkg stats, type GlobIterator struct
+pkg stats, type Integer struct
+pkg stats, type KeyValue struct
+pkg stats, type KeyValue struct, Key string
+pkg stats, type KeyValue struct, Value interface{}
+pkg stats, type Map struct
+pkg stats, type StatsObject interface { LastUpdate, Value }
+pkg stats, type StatsObject interface, LastUpdate() time.Time
+pkg stats, type StatsObject interface, Value() interface{}
+pkg stats, type String struct

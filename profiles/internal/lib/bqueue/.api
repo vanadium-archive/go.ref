@@ -1,0 +1,24 @@
+pkg bqueue, type FlushFunc func() error
+pkg bqueue, type ID int64
+pkg bqueue, type Priority uint
+pkg bqueue, type T interface { Close, Find, Get, NewWriter, String }
+pkg bqueue, type T interface, Close()
+pkg bqueue, type T interface, Find(ID) Writer
+pkg bqueue, type T interface, Get(FlushFunc) (Writer, []*iobuf.Slice, error)
+pkg bqueue, type T interface, NewWriter(ID, Priority, int) (Writer, error)
+pkg bqueue, type T interface, String() string
+pkg bqueue, type Writer interface { Close, ID, IsClosed, IsDrained, Put, Release, Shutdown, TryPut }
+pkg bqueue, type Writer interface, Close()
+pkg bqueue, type Writer interface, ID() ID
+pkg bqueue, type Writer interface, IsClosed() bool
+pkg bqueue, type Writer interface, IsDrained() bool
+pkg bqueue, type Writer interface, Put(*iobuf.Slice, <-chan struct{}) error
+pkg bqueue, type Writer interface, Release(int) error
+pkg bqueue, type Writer interface, Shutdown(bool)
+pkg bqueue, type Writer interface, TryPut(*iobuf.Slice) error
+pkg bqueue, var ErrBQueueIsClosed error
+pkg bqueue, var ErrCancelled error
+pkg bqueue, var ErrCantToggleFlowControl error
+pkg bqueue, var ErrTryAgain error
+pkg bqueue, var ErrWriterAlreadyExists error
+pkg bqueue, var ErrWriterIsClosed error

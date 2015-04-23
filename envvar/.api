@@ -1,0 +1,7 @@
+pkg envvar, const AgentEndpoint ideal-string
+pkg envvar, const Credentials ideal-string
+pkg envvar, const I18nCatalogueFiles ideal-string
+pkg envvar, const NamespacePrefix ideal-string
+pkg envvar, const OAuthIdentityProvider ideal-string
+pkg envvar, func ClearCredentials() error
+pkg envvar, func NamespaceRoots() (map[string]string, []string)

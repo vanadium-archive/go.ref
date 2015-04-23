@@ -1,0 +1,2 @@
+pkg agentlib, func AgentEndpoint(int) string
+pkg agentlib, func NewAgentPrincipal(*context.T, naming.Endpoint, rpc.Client) (security.Principal, error)

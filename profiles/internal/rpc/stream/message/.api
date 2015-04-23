@@ -1,0 +1,53 @@
+pkg message, const HeaderSizeBytes ideal-int
+pkg message, func EncryptMessage([]byte, crypto.ControlCipher) error
+pkg message, func MakeCounterID(id.VC, id.Flow) CounterID
+pkg message, func NewCounters() Counters
+pkg message, func ReadFrom(*iobuf.Reader, crypto.ControlCipher) (T, error)
+pkg message, func WriteTo(io.Writer, T, crypto.ControlCipher) error
+pkg message, method (*CounterID) Flow() id.Flow
+pkg message, method (*CounterID) String() string
+pkg message, method (*CounterID) VCI() id.VC
+pkg message, method (*Data) Close() bool
+pkg message, method (*Data) PayloadSize() int
+pkg message, method (*Data) Release()
+pkg message, method (*Data) SetClose()
+pkg message, method (*Data) String() string
+pkg message, method (*Setup) NaclBox() *NaclBox
+pkg message, method (Counters) Add(id.VC, id.Flow, uint32)
+pkg message, method (Counters) String() string
+pkg message, type AddReceiveBuffers struct
+pkg message, type AddReceiveBuffers struct, Counters Counters
+pkg message, type CloseVC struct
+pkg message, type CloseVC struct, Error string
+pkg message, type CloseVC struct, VCI id.VC
+pkg message, type Control interface, unexported methods
+pkg message, type CounterID uint64
+pkg message, type Counters map[CounterID]uint32
+pkg message, type Data struct
+pkg message, type Data struct, Flow id.Flow
+pkg message, type Data struct, Payload *iobuf.Slice
+pkg message, type Data struct, VCI id.VC
+pkg message, type NaclBox struct
+pkg message, type NaclBox struct, PublicKey crypto.BoxKey
+pkg message, type OpenFlow struct
+pkg message, type OpenFlow struct, Flow id.Flow
+pkg message, type OpenFlow struct, InitialCounters uint32
+pkg message, type OpenFlow struct, VCI id.VC
+pkg message, type OpenVC struct
+pkg message, type OpenVC struct, Counters Counters
+pkg message, type OpenVC struct, DstEndpoint naming.Endpoint
+pkg message, type OpenVC struct, SrcEndpoint naming.Endpoint
+pkg message, type OpenVC struct, VCI id.VC
+pkg message, type Setup struct
+pkg message, type Setup struct, Options []SetupOption
+pkg message, type Setup struct, Versions version.Range
+pkg message, type SetupOption interface, unexported methods
+pkg message, type SetupStream struct
+pkg message, type SetupStream struct, Data []byte
+pkg message, type SetupVC struct
+pkg message, type SetupVC struct, Counters Counters
+pkg message, type SetupVC struct, LocalEndpoint naming.Endpoint
+pkg message, type SetupVC struct, RemoteEndpoint naming.Endpoint
+pkg message, type SetupVC struct, Setup Setup
+pkg message, type SetupVC struct, VCI id.VC
+pkg message, type T interface {}

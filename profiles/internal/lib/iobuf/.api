@@ -1,0 +1,22 @@
+pkg iobuf, func Coalesce([]*Slice, uint) []*Slice
+pkg iobuf, func NewAllocator(*Pool, uint) *Allocator
+pkg iobuf, func NewPool(uint) *Pool
+pkg iobuf, func NewReader(*Pool, io.Reader) *Reader
+pkg iobuf, func NewSlice([]byte) *Slice
+pkg iobuf, method (*Allocator) Alloc(uint) *Slice
+pkg iobuf, method (*Allocator) Copy([]byte) *Slice
+pkg iobuf, method (*Allocator) Release()
+pkg iobuf, method (*Pool) Close()
+pkg iobuf, method (*Reader) Close()
+pkg iobuf, method (*Reader) Read(int) (*Slice, error)
+pkg iobuf, method (*Slice) ExpandFront(uint) bool
+pkg iobuf, method (*Slice) FreeEntirePrefix()
+pkg iobuf, method (*Slice) Release()
+pkg iobuf, method (*Slice) ReleasePrevious(*Slice)
+pkg iobuf, method (*Slice) Size() int
+pkg iobuf, method (*Slice) TruncateFront(uint)
+pkg iobuf, type Allocator struct
+pkg iobuf, type Pool struct
+pkg iobuf, type Reader struct
+pkg iobuf, type Slice struct
+pkg iobuf, type Slice struct, Contents []byte

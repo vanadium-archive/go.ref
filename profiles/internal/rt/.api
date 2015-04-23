@@ -1,0 +1,18 @@
+pkg rt, func Init(*context.T, v23.AppCycle, []string, *rpc.ListenSpec, flags.RuntimeFlags, rpc.Dispatcher) (*Runtime, *context.T, v23.Shutdown, error)
+pkg rt, method (*Runtime) GetAppCycle(*context.T) v23.AppCycle
+pkg rt, method (*Runtime) GetBackgroundContext(*context.T) *context.T
+pkg rt, method (*Runtime) GetClient(*context.T) rpc.Client
+pkg rt, method (*Runtime) GetListenSpec(*context.T) rpc.ListenSpec
+pkg rt, method (*Runtime) GetNamespace(*context.T) namespace.T
+pkg rt, method (*Runtime) GetPrincipal(*context.T) security.Principal
+pkg rt, method (*Runtime) GetReservedNameDispatcher(*context.T) rpc.Dispatcher
+pkg rt, method (*Runtime) Init(*context.T) error
+pkg rt, method (*Runtime) NewEndpoint(string) (naming.Endpoint, error)
+pkg rt, method (*Runtime) NewServer(*context.T, ...rpc.ServerOpt) (rpc.Server, error)
+pkg rt, method (*Runtime) WithBackgroundContext(*context.T) *context.T
+pkg rt, method (*Runtime) WithNewClient(*context.T, ...rpc.ClientOpt) (*context.T, rpc.Client, error)
+pkg rt, method (*Runtime) WithNewNamespace(*context.T, ...string) (*context.T, namespace.T, error)
+pkg rt, method (*Runtime) WithNewStreamManager(*context.T) (*context.T, error)
+pkg rt, method (*Runtime) WithPrincipal(*context.T, security.Principal) (*context.T, error)
+pkg rt, method (*Runtime) WithReservedNameDispatcher(*context.T, rpc.Dispatcher) *context.T
+pkg rt, type Runtime struct

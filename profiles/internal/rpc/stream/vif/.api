@@ -1,0 +1,24 @@
+pkg vif, func AuthenticateAsClient(io.Writer, *iobuf.Reader, *version.Range, security.CallParams, *vc.ServerAuthorizer) (crypto.ControlCipher, error)
+pkg vif, func AuthenticateAsServer(io.Writer, *iobuf.Reader, *version.Range, security.Principal, security.Blessings, vc.DischargeClient) (crypto.ControlCipher, error)
+pkg vif, func InternalNewAcceptedVIF(net.Conn, naming.RoutingID, security.Principal, security.Blessings, *iversion.Range, func(*VIF), ...stream.ListenerOpt) (*VIF, error)
+pkg vif, func InternalNewDialedVIF(net.Conn, naming.RoutingID, security.Principal, *iversion.Range, func(*VIF), ...stream.VCOpt) (*VIF, error)
+pkg vif, func NewSet() *Set
+pkg vif, func SetFakeTimers() func()
+pkg vif, method (*Set) Delete(*VIF)
+pkg vif, method (*Set) Find(string, string) *VIF
+pkg vif, method (*Set) Insert(*VIF)
+pkg vif, method (*Set) List() []*VIF
+pkg vif, method (*VIF) Accept() (ConnectorAndFlow, error)
+pkg vif, method (*VIF) Close()
+pkg vif, method (*VIF) DebugString() string
+pkg vif, method (*VIF) Dial(naming.Endpoint, security.Principal, ...stream.VCOpt) (stream.VC, error)
+pkg vif, method (*VIF) NumVCs() int
+pkg vif, method (*VIF) ShutdownVCs(naming.Endpoint) int
+pkg vif, method (*VIF) StartAccepting(...stream.ListenerOpt) error
+pkg vif, method (*VIF) StopAccepting()
+pkg vif, method (*VIF) String() string
+pkg vif, type ConnectorAndFlow struct
+pkg vif, type ConnectorAndFlow struct, Connector stream.Connector
+pkg vif, type ConnectorAndFlow struct, Flow stream.Flow
+pkg vif, type Set struct
+pkg vif, type VIF struct

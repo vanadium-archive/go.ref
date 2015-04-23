@@ -1,0 +1,21 @@
+pkg starter, func Start(*context.T, Args) (func(), error)
+pkg starter, type Args struct
+pkg starter, type Args struct, Device DeviceArgs
+pkg starter, type Args struct, MountGlobalNamespaceInLocalNamespace bool
+pkg starter, type Args struct, Namespace NamespaceArgs
+pkg starter, type Args struct, Proxy ProxyArgs
+pkg starter, type DeviceArgs struct
+pkg starter, type DeviceArgs struct, ConfigState *config.State
+pkg starter, type DeviceArgs struct, ListenSpec rpc.ListenSpec
+pkg starter, type DeviceArgs struct, Name string
+pkg starter, type DeviceArgs struct, PairingToken string
+pkg starter, type DeviceArgs struct, RestartCallback func()
+pkg starter, type DeviceArgs struct, TestMode bool
+pkg starter, type NamespaceArgs struct
+pkg starter, type NamespaceArgs struct, ListenSpec rpc.ListenSpec
+pkg starter, type NamespaceArgs struct, Name string
+pkg starter, type NamespaceArgs struct, Neighborhood string
+pkg starter, type NamespaceArgs struct, PermissionsFile string
+pkg starter, type NamespaceArgs struct, PersistenceDir string
+pkg starter, type ProxyArgs struct
+pkg starter, type ProxyArgs struct, Port int

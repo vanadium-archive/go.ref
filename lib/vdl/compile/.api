@@ -1,0 +1,99 @@
+pkg compile, func CompileConfig(*vdl.Type, *parse.Config, *Env) *vdl.Value
+pkg compile, func CompileExpr(*vdl.Type, parse.ConstExpr, *Env) *vdl.Value
+pkg compile, func CompilePackage(string, string, []*parse.File, vdltool.Config, *Env) *Package
+pkg compile, func NewEnv(int) *Env
+pkg compile, func NewEnvWithErrors(*vdlutil.Errors) *Env
+pkg compile, method (*ConstDef) String() string
+pkg compile, method (*Env) DisallowPathQualifiers() *Env
+pkg compile, method (*Env) Errorf(*File, parse.Pos, string, ...interface{})
+pkg compile, method (*Env) EvalConst(string, *File) (opconst.Const, error)
+pkg compile, method (*Env) FindConstDef(*vdl.Value) *ConstDef
+pkg compile, method (*Env) FindTypeDef(*vdl.Type) *TypeDef
+pkg compile, method (*Env) ResolveConst(string, *File) (*ConstDef, string)
+pkg compile, method (*Env) ResolveInterface(string, *File) (*Interface, string)
+pkg compile, method (*Env) ResolvePackage(string) *Package
+pkg compile, method (*Env) ResolveType(string, *File) (*TypeDef, string)
+pkg compile, method (*ErrorDef) String() string
+pkg compile, method (*Field) String() string
+pkg compile, method (*File) DeclareIdent(string, string) error
+pkg compile, method (*File) LookupImportPath(string) string
+pkg compile, method (*File) String() string
+pkg compile, method (*File) ValidateImportPackagePath(string) bool
+pkg compile, method (*Interface) AllMethods() []*Method
+pkg compile, method (*Interface) String() string
+pkg compile, method (*Interface) TransitiveEmbeds() []*Interface
+pkg compile, method (*Method) String() string
+pkg compile, method (*NamePos) String() string
+pkg compile, method (*Package) QualifiedName(string) string
+pkg compile, method (*Package) ResolveConst(string) *ConstDef
+pkg compile, method (*Package) ResolveInterface(string) *Interface
+pkg compile, method (*Package) ResolveType(string) *TypeDef
+pkg compile, method (*Package) String() string
+pkg compile, method (*TypeDef) String() string
+pkg compile, type ConstDef struct
+pkg compile, type ConstDef struct, Exported bool
+pkg compile, type ConstDef struct, File *File
+pkg compile, type ConstDef struct, Value *vdl.Value
+pkg compile, type ConstDef struct, embedded NamePos
+pkg compile, type Env struct
+pkg compile, type Env struct, Errors *vdlutil.Errors
+pkg compile, type ErrorDef struct
+pkg compile, type ErrorDef struct, English string
+pkg compile, type ErrorDef struct, Exported bool
+pkg compile, type ErrorDef struct, Formats []LangFmt
+pkg compile, type ErrorDef struct, ID string
+pkg compile, type ErrorDef struct, Params []*Field
+pkg compile, type ErrorDef struct, RetryCode vdl.WireRetryCode
+pkg compile, type ErrorDef struct, embedded NamePos
+pkg compile, type Field struct
+pkg compile, type Field struct, Type *vdl.Type
+pkg compile, type Field struct, embedded NamePos
+pkg compile, type File struct
+pkg compile, type File struct, BaseName string
+pkg compile, type File struct, ConstDefs []*ConstDef
+pkg compile, type File struct, ErrorDefs []*ErrorDef
+pkg compile, type File struct, Interfaces []*Interface
+pkg compile, type File struct, Package *Package
+pkg compile, type File struct, PackageDef NamePos
+pkg compile, type File struct, PackageDeps []*Package
+pkg compile, type File struct, TypeDefs []*TypeDef
+pkg compile, type File struct, TypeDeps map[*vdl.Type]bool
+pkg compile, type Interface struct
+pkg compile, type Interface struct, Embeds []*Interface
+pkg compile, type Interface struct, Exported bool
+pkg compile, type Interface struct, File *File
+pkg compile, type Interface struct, Methods []*Method
+pkg compile, type Interface struct, embedded NamePos
+pkg compile, type LangFmt struct
+pkg compile, type LangFmt struct, Fmt string
+pkg compile, type LangFmt struct, Lang i18n.LangID
+pkg compile, type Method struct
+pkg compile, type Method struct, InArgs []*Field
+pkg compile, type Method struct, InStream *vdl.Type
+pkg compile, type Method struct, OutArgs []*Field
+pkg compile, type Method struct, OutStream *vdl.Type
+pkg compile, type Method struct, Tags []*vdl.Value
+pkg compile, type Method struct, embedded NamePos
+pkg compile, type NamePos parse.NamePos
+pkg compile, type Package struct
+pkg compile, type Package struct, Config vdltool.Config
+pkg compile, type Package struct, FileDoc string
+pkg compile, type Package struct, Files []*File
+pkg compile, type Package struct, GenPath string
+pkg compile, type Package struct, Name string
+pkg compile, type Package struct, Path string
+pkg compile, type TypeDef struct
+pkg compile, type TypeDef struct, BaseType *vdl.Type
+pkg compile, type TypeDef struct, Exported bool
+pkg compile, type TypeDef struct, FieldDoc []string
+pkg compile, type TypeDef struct, FieldDocSuffix []string
+pkg compile, type TypeDef struct, File *File
+pkg compile, type TypeDef struct, LabelDoc []string
+pkg compile, type TypeDef struct, LabelDocSuffix []string
+pkg compile, type TypeDef struct, Type *vdl.Type
+pkg compile, type TypeDef struct, embedded NamePos
+pkg compile, var BuiltInFile *File
+pkg compile, var BuiltInPackage *Package
+pkg compile, var FalseConst unknown-type
+pkg compile, var NilConst unknown-type
+pkg compile, var TrueConst unknown-type

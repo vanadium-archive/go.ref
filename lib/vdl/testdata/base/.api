@@ -1,0 +1,272 @@
+pkg base, const CNamedBool NamedBool
+pkg base, const Cbool bool
+pkg base, const Cbyte byte
+pkg base, const Ccomplex128 complex128
+pkg base, const Ccomplex64 complex64
+pkg base, const Cenum NamedEnum
+pkg base, const Cfloat32 float32
+pkg base, const Cfloat64 float64
+pkg base, const Cint32 int32
+pkg base, const Cint64 int64
+pkg base, const Cstring ideal-string
+pkg base, const Cuint32 uint32
+pkg base, const Cuint64 uint64
+pkg base, const Five int32
+pkg base, const FiveSquared int32
+pkg base, const Foo ideal-string
+pkg base, const NamedEnumA NamedEnum
+pkg base, const NamedEnumB NamedEnum
+pkg base, const NamedEnumC NamedEnum
+pkg base, const Six uint64
+pkg base, const SixSquared uint64
+pkg base, const True bool
+pkg base, func NamedEnumFromString(string) (NamedEnum, error)
+pkg base, func NewErrNoParams1(*context.T) error
+pkg base, func NewErrNoParams2(*context.T) error
+pkg base, func NewErrWithParams1(*context.T, string, int32) error
+pkg base, func NewErrWithParams2(*context.T, string, int32) error
+pkg base, func ServiceAClient(string) ServiceAClientStub
+pkg base, func ServiceAServer(ServiceAServerMethods) ServiceAServerStub
+pkg base, func ServiceBClient(string) ServiceBClientStub
+pkg base, func ServiceBServer(ServiceBServerMethods) ServiceBServerStub
+pkg base, method (*NamedEnum) Set(string) error
+pkg base, method (*ServiceAMethodA3ServerCallStub) Init(rpc.StreamServerCall)
+pkg base, method (*ServiceAMethodA3ServerCallStub) SendStream() interface {  Send(item Scalars) error;}
+pkg base, method (*ServiceAMethodA4ServerCallStub) Init(rpc.StreamServerCall)
+pkg base, method (*ServiceAMethodA4ServerCallStub) RecvStream() interface {  Advance() bool; Value() int32; Err() error;}
+pkg base, method (*ServiceAMethodA4ServerCallStub) SendStream() interface {  Send(item string) error;}
+pkg base, method (NamedEnum) String() string
+pkg base, method (NamedUnionA) Index() int
+pkg base, method (NamedUnionA) Interface() interface{}
+pkg base, method (NamedUnionA) Name() string
+pkg base, method (NamedUnionB) Index() int
+pkg base, method (NamedUnionB) Interface() interface{}
+pkg base, method (NamedUnionB) Name() string
+pkg base, method (NamedUnionC) Index() int
+pkg base, method (NamedUnionC) Interface() interface{}
+pkg base, method (NamedUnionC) Name() string
+pkg base, type Args struct
+pkg base, type Args struct, A int32
+pkg base, type Args struct, B int32
+pkg base, type CompComp struct
+pkg base, type CompComp struct, A0 Composites
+pkg base, type CompComp struct, A1 CompositesArray
+pkg base, type CompComp struct, A2 []Composites
+pkg base, type CompComp struct, A3 map[string]Composites
+pkg base, type CompComp struct, A4 map[KeyScalars][]map[string]Composites
+pkg base, type Composites struct
+pkg base, type Composites struct, A0 Scalars
+pkg base, type Composites struct, A1 ScalarsArray
+pkg base, type Composites struct, A2 []Scalars
+pkg base, type Composites struct, A3 map[KeyScalars]struct{}
+pkg base, type Composites struct, A4 map[string]Scalars
+pkg base, type Composites struct, A5 map[KeyScalars][]map[string]complex128
+pkg base, type CompositesArray [2]Composites
+pkg base, type KeyScalars struct
+pkg base, type KeyScalars struct, A0 bool
+pkg base, type KeyScalars struct, A1 byte
+pkg base, type KeyScalars struct, A10 complex64
+pkg base, type KeyScalars struct, A11 complex128
+pkg base, type KeyScalars struct, A12 string
+pkg base, type KeyScalars struct, A2 uint16
+pkg base, type KeyScalars struct, A3 uint32
+pkg base, type KeyScalars struct, A4 uint64
+pkg base, type KeyScalars struct, A5 int16
+pkg base, type KeyScalars struct, A6 int32
+pkg base, type KeyScalars struct, A7 int64
+pkg base, type KeyScalars struct, A8 float32
+pkg base, type KeyScalars struct, A9 float64
+pkg base, type KeyScalars struct, B0 NamedBool
+pkg base, type KeyScalars struct, B1 NamedByte
+pkg base, type KeyScalars struct, B10 NamedComplex64
+pkg base, type KeyScalars struct, B11 NamedComplex128
+pkg base, type KeyScalars struct, B12 NamedString
+pkg base, type KeyScalars struct, B2 NamedUint16
+pkg base, type KeyScalars struct, B3 NamedUint32
+pkg base, type KeyScalars struct, B4 NamedUint64
+pkg base, type KeyScalars struct, B5 NamedInt16
+pkg base, type KeyScalars struct, B6 NamedInt32
+pkg base, type KeyScalars struct, B7 NamedInt64
+pkg base, type KeyScalars struct, B8 NamedFloat32
+pkg base, type KeyScalars struct, B9 NamedFloat64
+pkg base, type NamedArray [2]bool
+pkg base, type NamedBool bool
+pkg base, type NamedByte byte
+pkg base, type NamedComplex128 complex128
+pkg base, type NamedComplex64 complex64
+pkg base, type NamedEnum int
+pkg base, type NamedFloat32 float32
+pkg base, type NamedFloat64 float64
+pkg base, type NamedInt16 int16
+pkg base, type NamedInt32 int32
+pkg base, type NamedInt64 int64
+pkg base, type NamedList []uint32
+pkg base, type NamedMap map[string]float32
+pkg base, type NamedSet map[string]struct{}
+pkg base, type NamedString string
+pkg base, type NamedStruct struct
+pkg base, type NamedStruct struct, A bool
+pkg base, type NamedStruct struct, B string
+pkg base, type NamedStruct struct, C int32
+pkg base, type NamedUint16 uint16
+pkg base, type NamedUint32 uint32
+pkg base, type NamedUint64 uint64
+pkg base, type NamedUnion interface, Index() int
+pkg base, type NamedUnion interface, Interface() interface{}
+pkg base, type NamedUnion interface, Name() string
+pkg base, type NamedUnion interface, unexported methods
+pkg base, type NamedUnionA struct
+pkg base, type NamedUnionA struct, Value bool
+pkg base, type NamedUnionB struct
+pkg base, type NamedUnionB struct, Value string
+pkg base, type NamedUnionC struct
+pkg base, type NamedUnionC struct, Value int32
+pkg base, type NestedArgs struct
+pkg base, type NestedArgs struct, Args Args
+pkg base, type Scalars struct
+pkg base, type Scalars struct, A0 bool
+pkg base, type Scalars struct, A1 byte
+pkg base, type Scalars struct, A10 complex64
+pkg base, type Scalars struct, A11 complex128
+pkg base, type Scalars struct, A12 string
+pkg base, type Scalars struct, A13 error
+pkg base, type Scalars struct, A14 *vdl.Value
+pkg base, type Scalars struct, A15 *vdl.Type
+pkg base, type Scalars struct, A2 uint16
+pkg base, type Scalars struct, A3 uint32
+pkg base, type Scalars struct, A4 uint64
+pkg base, type Scalars struct, A5 int16
+pkg base, type Scalars struct, A6 int32
+pkg base, type Scalars struct, A7 int64
+pkg base, type Scalars struct, A8 float32
+pkg base, type Scalars struct, A9 float64
+pkg base, type Scalars struct, B0 NamedBool
+pkg base, type Scalars struct, B1 NamedByte
+pkg base, type Scalars struct, B10 NamedComplex64
+pkg base, type Scalars struct, B11 NamedComplex128
+pkg base, type Scalars struct, B12 NamedString
+pkg base, type Scalars struct, B13 NamedEnum
+pkg base, type Scalars struct, B14 NamedUnion
+pkg base, type Scalars struct, B2 NamedUint16
+pkg base, type Scalars struct, B3 NamedUint32
+pkg base, type Scalars struct, B4 NamedUint64
+pkg base, type Scalars struct, B5 NamedInt16
+pkg base, type Scalars struct, B6 NamedInt32
+pkg base, type Scalars struct, B7 NamedInt64
+pkg base, type Scalars struct, B8 NamedFloat32
+pkg base, type Scalars struct, B9 NamedFloat64
+pkg base, type ScalarsArray [2]Scalars
+pkg base, type ServiceAClientMethods interface { MethodA1, MethodA2, MethodA3, MethodA4 }
+pkg base, type ServiceAClientMethods interface, MethodA1(*context.T, ...rpc.CallOpt) error
+pkg base, type ServiceAClientMethods interface, MethodA2(*context.T, int32, string, ...rpc.CallOpt) (string, error)
+pkg base, type ServiceAClientMethods interface, MethodA3(*context.T, int32, ...rpc.CallOpt) (ServiceAMethodA3ClientCall, error)
+pkg base, type ServiceAClientMethods interface, MethodA4(*context.T, int32, ...rpc.CallOpt) (ServiceAMethodA4ClientCall, error)
+pkg base, type ServiceAClientStub interface, MethodA1(*context.T, ...rpc.CallOpt) error
+pkg base, type ServiceAClientStub interface, MethodA2(*context.T, int32, string, ...rpc.CallOpt) (string, error)
+pkg base, type ServiceAClientStub interface, MethodA3(*context.T, int32, ...rpc.CallOpt) (ServiceAMethodA3ClientCall, error)
+pkg base, type ServiceAClientStub interface, MethodA4(*context.T, int32, ...rpc.CallOpt) (ServiceAMethodA4ClientCall, error)
+pkg base, type ServiceAClientStub interface, unexported methods
+pkg base, type ServiceAMethodA3ClientCall interface { Finish, RecvStream }
+pkg base, type ServiceAMethodA3ClientCall interface, Finish() (string, error)
+pkg base, type ServiceAMethodA3ClientCall interface, RecvStream() interface {  Advance() bool;; Value() Scalars;; Err() error;}
+pkg base, type ServiceAMethodA3ClientStream interface { RecvStream }
+pkg base, type ServiceAMethodA3ClientStream interface, RecvStream() interface {  Advance() bool;; Value() Scalars;; Err() error;}
+pkg base, type ServiceAMethodA3ServerCall interface, SendStream() interface {  Send(item Scalars) error;}
+pkg base, type ServiceAMethodA3ServerCall interface, unexported methods
+pkg base, type ServiceAMethodA3ServerCallStub struct
+pkg base, type ServiceAMethodA3ServerCallStub struct, embedded rpc.StreamServerCall
+pkg base, type ServiceAMethodA3ServerStream interface { SendStream }
+pkg base, type ServiceAMethodA3ServerStream interface, SendStream() interface {  Send(item Scalars) error;}
+pkg base, type ServiceAMethodA4ClientCall interface { Finish, RecvStream, SendStream }
+pkg base, type ServiceAMethodA4ClientCall interface, Finish() error
+pkg base, type ServiceAMethodA4ClientCall interface, RecvStream() interface {  Advance() bool;; Value() string;; Err() error;}
+pkg base, type ServiceAMethodA4ClientCall interface, SendStream() interface {  Send(item int32) error;; Close() error;}
+pkg base, type ServiceAMethodA4ClientStream interface { RecvStream, SendStream }
+pkg base, type ServiceAMethodA4ClientStream interface, RecvStream() interface {  Advance() bool;; Value() string;; Err() error;}
+pkg base, type ServiceAMethodA4ClientStream interface, SendStream() interface {  Send(item int32) error;; Close() error;}
+pkg base, type ServiceAMethodA4ServerCall interface, RecvStream() interface {  Advance() bool;; Value() int32;; Err() error;}
+pkg base, type ServiceAMethodA4ServerCall interface, SendStream() interface {  Send(item string) error;}
+pkg base, type ServiceAMethodA4ServerCall interface, unexported methods
+pkg base, type ServiceAMethodA4ServerCallStub struct
+pkg base, type ServiceAMethodA4ServerCallStub struct, embedded rpc.StreamServerCall
+pkg base, type ServiceAMethodA4ServerStream interface { RecvStream, SendStream }
+pkg base, type ServiceAMethodA4ServerStream interface, RecvStream() interface {  Advance() bool;; Value() int32;; Err() error;}
+pkg base, type ServiceAMethodA4ServerStream interface, SendStream() interface {  Send(item string) error;}
+pkg base, type ServiceAServerMethods interface { MethodA1, MethodA2, MethodA3, MethodA4 }
+pkg base, type ServiceAServerMethods interface, MethodA1(*context.T, rpc.ServerCall) error
+pkg base, type ServiceAServerMethods interface, MethodA2(*context.T, rpc.ServerCall, int32, string) (string, error)
+pkg base, type ServiceAServerMethods interface, MethodA3(*context.T, ServiceAMethodA3ServerCall, int32) (string, error)
+pkg base, type ServiceAServerMethods interface, MethodA4(*context.T, ServiceAMethodA4ServerCall, int32) error
+pkg base, type ServiceAServerStub interface { Describe__, MethodA1, MethodA2, MethodA3, MethodA4 }
+pkg base, type ServiceAServerStub interface, Describe__() []rpc.InterfaceDesc
+pkg base, type ServiceAServerStub interface, MethodA1(*context.T, rpc.ServerCall) error
+pkg base, type ServiceAServerStub interface, MethodA2(*context.T, rpc.ServerCall, int32, string) (string, error)
+pkg base, type ServiceAServerStub interface, MethodA3(*context.T, *ServiceAMethodA3ServerCallStub, int32) (string, error)
+pkg base, type ServiceAServerStub interface, MethodA4(*context.T, *ServiceAMethodA4ServerCallStub, int32) error
+pkg base, type ServiceAServerStubMethods interface { MethodA1, MethodA2, MethodA3, MethodA4 }
+pkg base, type ServiceAServerStubMethods interface, MethodA1(*context.T, rpc.ServerCall) error
+pkg base, type ServiceAServerStubMethods interface, MethodA2(*context.T, rpc.ServerCall, int32, string) (string, error)
+pkg base, type ServiceAServerStubMethods interface, MethodA3(*context.T, *ServiceAMethodA3ServerCallStub, int32) (string, error)
+pkg base, type ServiceAServerStubMethods interface, MethodA4(*context.T, *ServiceAMethodA4ServerCallStub, int32) error
+pkg base, type ServiceBClientMethods interface { MethodA1, MethodA2, MethodA3, MethodA4, MethodB1 }
+pkg base, type ServiceBClientMethods interface, MethodA1(*context.T, ...rpc.CallOpt) error
+pkg base, type ServiceBClientMethods interface, MethodA2(*context.T, int32, string, ...rpc.CallOpt) (string, error)
+pkg base, type ServiceBClientMethods interface, MethodA3(*context.T, int32, ...rpc.CallOpt) (ServiceAMethodA3ClientCall, error)
+pkg base, type ServiceBClientMethods interface, MethodA4(*context.T, int32, ...rpc.CallOpt) (ServiceAMethodA4ClientCall, error)
+pkg base, type ServiceBClientMethods interface, MethodB1(*context.T, Scalars, Composites, ...rpc.CallOpt) (CompComp, error)
+pkg base, type ServiceBClientStub interface, MethodA1(*context.T, ...rpc.CallOpt) error
+pkg base, type ServiceBClientStub interface, MethodA2(*context.T, int32, string, ...rpc.CallOpt) (string, error)
+pkg base, type ServiceBClientStub interface, MethodA3(*context.T, int32, ...rpc.CallOpt) (ServiceAMethodA3ClientCall, error)
+pkg base, type ServiceBClientStub interface, MethodA4(*context.T, int32, ...rpc.CallOpt) (ServiceAMethodA4ClientCall, error)
+pkg base, type ServiceBClientStub interface, MethodB1(*context.T, Scalars, Composites, ...rpc.CallOpt) (CompComp, error)
+pkg base, type ServiceBClientStub interface, unexported methods
+pkg base, type ServiceBServerMethods interface { MethodA1, MethodA2, MethodA3, MethodA4, MethodB1 }
+pkg base, type ServiceBServerMethods interface, MethodA1(*context.T, rpc.ServerCall) error
+pkg base, type ServiceBServerMethods interface, MethodA2(*context.T, rpc.ServerCall, int32, string) (string, error)
+pkg base, type ServiceBServerMethods interface, MethodA3(*context.T, ServiceAMethodA3ServerCall, int32) (string, error)
+pkg base, type ServiceBServerMethods interface, MethodA4(*context.T, ServiceAMethodA4ServerCall, int32) error
+pkg base, type ServiceBServerMethods interface, MethodB1(*context.T, rpc.ServerCall, Scalars, Composites) (CompComp, error)
+pkg base, type ServiceBServerStub interface { Describe__, MethodA1, MethodA2, MethodA3, MethodA4, MethodB1 }
+pkg base, type ServiceBServerStub interface, Describe__() []rpc.InterfaceDesc
+pkg base, type ServiceBServerStub interface, MethodA1(*context.T, rpc.ServerCall) error
+pkg base, type ServiceBServerStub interface, MethodA2(*context.T, rpc.ServerCall, int32, string) (string, error)
+pkg base, type ServiceBServerStub interface, MethodA3(*context.T, *ServiceAMethodA3ServerCallStub, int32) (string, error)
+pkg base, type ServiceBServerStub interface, MethodA4(*context.T, *ServiceAMethodA4ServerCallStub, int32) error
+pkg base, type ServiceBServerStub interface, MethodB1(*context.T, rpc.ServerCall, Scalars, Composites) (CompComp, error)
+pkg base, type ServiceBServerStubMethods interface { MethodA1, MethodA2, MethodA3, MethodA4, MethodB1 }
+pkg base, type ServiceBServerStubMethods interface, MethodA1(*context.T, rpc.ServerCall) error
+pkg base, type ServiceBServerStubMethods interface, MethodA2(*context.T, rpc.ServerCall, int32, string) (string, error)
+pkg base, type ServiceBServerStubMethods interface, MethodA3(*context.T, *ServiceAMethodA3ServerCallStub, int32) (string, error)
+pkg base, type ServiceBServerStubMethods interface, MethodA4(*context.T, *ServiceAMethodA4ServerCallStub, int32) error
+pkg base, type ServiceBServerStubMethods interface, MethodB1(*context.T, rpc.ServerCall, Scalars, Composites) (CompComp, error)
+pkg base, var CNamedStruct NamedStruct
+pkg base, var CScalars Scalars
+pkg base, var CTypeObject_Any unknown-type
+pkg base, var CTypeObject_Array unknown-type
+pkg base, var CTypeObject_List unknown-type
+pkg base, var CTypeObject_Map unknown-type
+pkg base, var CTypeObject_Set unknown-type
+pkg base, var CTypeObject_Struct unknown-type
+pkg base, var CTypeObject_TypeObject unknown-type
+pkg base, var CTypeObject_Union unknown-type
+pkg base, var CTypeObject_bool unknown-type
+pkg base, var CTypeObject_byte unknown-type
+pkg base, var CTypeObject_bytes unknown-type
+pkg base, var CTypeObject_complex64 unknown-type
+pkg base, var CTypeObject_enum unknown-type
+pkg base, var CTypeObject_float32 unknown-type
+pkg base, var CTypeObject_int16 unknown-type
+pkg base, var CTypeObject_string unknown-type
+pkg base, var CTypeObject_uint16 unknown-type
+pkg base, var Cargs Args
+pkg base, var Carray NamedArray
+pkg base, var Clist []int32
+pkg base, var Cset map[int32]struct{}
+pkg base, var Cunion unknown-type
+pkg base, var ErrNoParams1 unknown-type
+pkg base, var ErrNoParams2 unknown-type
+pkg base, var ErrWithParams1 unknown-type
+pkg base, var ErrWithParams2 unknown-type
+pkg base, var NamedEnumAll [...]NamedEnum
+pkg base, var ServiceADesc rpc.InterfaceDesc
+pkg base, var ServiceBDesc rpc.InterfaceDesc

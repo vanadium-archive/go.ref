@@ -1,0 +1,13 @@
+pkg rpc, func InternalNewClient(stream.Manager, namespace.T, ...rpc.ClientOpt) (rpc.Client, error)
+pkg rpc, func InternalNewDischargeClient(*context.T, rpc.Client, time.Duration) vc.DischargeClient
+pkg rpc, func InternalNewServer(*context.T, stream.Manager, namespace.T, rpc.Client, security.Principal, ...rpc.ServerOpt) (rpc.Server, error)
+pkg rpc, method (NoDischarges) NSOpt()
+pkg rpc, method (NoDischarges) RPCCallOpt()
+pkg rpc, method (PreferredProtocols) RPCClientOpt()
+pkg rpc, method (PreferredServerResolveProtocols) RPCServerOpt()
+pkg rpc, method (ReservedNameDispatcher) RPCServerOpt()
+pkg rpc, type NoDischarges struct
+pkg rpc, type PreferredProtocols []string
+pkg rpc, type PreferredServerResolveProtocols []string
+pkg rpc, type ReservedNameDispatcher struct
+pkg rpc, type ReservedNameDispatcher struct, Dispatcher rpc.Dispatcher

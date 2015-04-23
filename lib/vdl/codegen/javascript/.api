@@ -1,0 +1,1 @@
+pkg javascript, func Generate(*compile.Package, *compile.Env, func(string) string, string) []byte

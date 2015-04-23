@@ -1,0 +1,9 @@
+pkg upcqueue, func New() *T
+pkg upcqueue, method (*T) Close()
+pkg upcqueue, method (*T) Get(<-chan struct{}) (interface{}, error)
+pkg upcqueue, method (*T) IsClosed() bool
+pkg upcqueue, method (*T) Put(interface{}) error
+pkg upcqueue, method (*T) Shutdown() []interface{}
+pkg upcqueue, method (*T) TryGet() (interface{}, error)
+pkg upcqueue, type T struct
+pkg upcqueue, var ErrQueueIsClosed error

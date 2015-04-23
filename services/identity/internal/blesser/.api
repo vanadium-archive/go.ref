@@ -1,0 +1,9 @@
+pkg blesser, func NewMacaroonBlesserServer([]byte) identity.MacaroonBlesserServerStub
+pkg blesser, func NewOAuthBlesserServer(OAuthBlesserParams) identity.OAuthBlesserServerStub
+pkg blesser, type OAuthBlesserParams struct
+pkg blesser, type OAuthBlesserParams struct, AccessTokenClients []oauth.AccessTokenClient
+pkg blesser, type OAuthBlesserParams struct, BlessingDuration time.Duration
+pkg blesser, type OAuthBlesserParams struct, DischargerLocation string
+pkg blesser, type OAuthBlesserParams struct, EmailClassifier *util.EmailClassifier
+pkg blesser, type OAuthBlesserParams struct, OAuthProvider oauth.OAuthProvider
+pkg blesser, type OAuthBlesserParams struct, RevocationManager revocation.RevocationManager

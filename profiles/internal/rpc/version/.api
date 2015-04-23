@@ -1,0 +1,17 @@
+pkg version, func IsVersionError(error) bool
+pkg version, method (*Range) CheckCompatibility(naming.Endpoint) error
+pkg version, method (*Range) CommonVersion(naming.Endpoint, naming.Endpoint) (version.RPCVersion, error)
+pkg version, method (*Range) Endpoint(string, string, naming.RoutingID) *inaming.Endpoint
+pkg version, method (*Range) Intersect(*Range) (*Range, error)
+pkg version, method (*Range) ProxiedEndpoint(naming.RoutingID, naming.Endpoint) (*inaming.Endpoint, error)
+pkg version, type Range struct
+pkg version, type Range struct, Max version.RPCVersion
+pkg version, type Range struct, Min version.RPCVersion
+pkg version, var CheckCompatibility unknown-type
+pkg version, var CommonVersion unknown-type
+pkg version, var Endpoint unknown-type
+pkg version, var ErrDeprecatedVersion verror.IDAction
+pkg version, var ErrNoCompatibleVersion verror.IDAction
+pkg version, var ErrUnknownVersion verror.IDAction
+pkg version, var ProxiedEndpoint unknown-type
+pkg version, var SupportedRange *Range

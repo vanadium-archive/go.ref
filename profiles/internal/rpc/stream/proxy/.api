@@ -1,0 +1,6 @@
+pkg proxy, func New(*context.T, string, string, string, ...string) (func(), naming.Endpoint, error)
+pkg proxy, type Proxy struct
+pkg proxy, type Request struct
+pkg proxy, type Response struct
+pkg proxy, type Response struct, Endpoint string
+pkg proxy, type Response struct, Error error

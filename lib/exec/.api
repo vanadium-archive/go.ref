@@ -1,0 +1,49 @@
+pkg exec, const ExecVersionVariable ideal-string
+pkg exec, const FileOffset ideal-int
+pkg exec, func GetChildHandle() (*ChildHandle, error)
+pkg exec, func Getenv([]string, string) (string, error)
+pkg exec, func Mergeenv([]string, []string) []string
+pkg exec, func NewConfig() Config
+pkg exec, func NewParentHandle(*exec.Cmd, ...ParentHandleOpt) *ParentHandle
+pkg exec, func Setenv([]string, string, string) []string
+pkg exec, method (*ChildHandle) NewExtraFile(uintptr, string) *os.File
+pkg exec, method (*ChildHandle) SetFailed(error) error
+pkg exec, method (*ChildHandle) SetReady() error
+pkg exec, method (*ParentHandle) ChildPid() int
+pkg exec, method (*ParentHandle) Clean() error
+pkg exec, method (*ParentHandle) Exists() bool
+pkg exec, method (*ParentHandle) Kill() error
+pkg exec, method (*ParentHandle) Pid() int
+pkg exec, method (*ParentHandle) Signal(syscall.Signal) error
+pkg exec, method (*ParentHandle) Start() error
+pkg exec, method (*ParentHandle) Wait(time.Duration) error
+pkg exec, method (*ParentHandle) WaitForReady(time.Duration) error
+pkg exec, method (ConfigOpt) ExecParentHandleOpt()
+pkg exec, method (SecretOpt) ExecParentHandleOpt()
+pkg exec, method (TimeKeeperOpt) ExecParentHandleOpt()
+pkg exec, method (UseExecProtocolOpt) ExecParentHandleOpt()
+pkg exec, type ChildHandle struct
+pkg exec, type ChildHandle struct, Config Config
+pkg exec, type ChildHandle struct, Secret string
+pkg exec, type Config interface { Clear, Dump, Get, MergeFrom, Serialize, Set }
+pkg exec, type Config interface, Clear(string)
+pkg exec, type Config interface, Dump() map[string]string
+pkg exec, type Config interface, Get(string) (string, error)
+pkg exec, type Config interface, MergeFrom(string) error
+pkg exec, type Config interface, Serialize() (string, error)
+pkg exec, type Config interface, Set(string, string)
+pkg exec, type ConfigOpt struct
+pkg exec, type ConfigOpt struct, embedded Config
+pkg exec, type ParentHandle struct
+pkg exec, type ParentHandleOpt interface { ExecParentHandleOpt }
+pkg exec, type ParentHandleOpt interface, ExecParentHandleOpt()
+pkg exec, type SecretOpt string
+pkg exec, type TimeKeeperOpt struct
+pkg exec, type TimeKeeperOpt struct, embedded timekeeper.TimeKeeper
+pkg exec, type UseExecProtocolOpt bool
+pkg exec, var ErrAuthTimeout unknown-type
+pkg exec, var ErrNoVersion unknown-type
+pkg exec, var ErrNotUsingProtocol unknown-type
+pkg exec, var ErrSecretTooLarge unknown-type
+pkg exec, var ErrTimeout unknown-type
+pkg exec, var ErrUnsupportedVersion unknown-type

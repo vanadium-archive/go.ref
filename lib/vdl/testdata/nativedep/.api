@@ -1,0 +1,6 @@
+pkg nativedep, type All struct
+pkg nativedep, type All struct, A string
+pkg nativedep, type All struct, B map[string]int
+pkg nativedep, type All struct, C time.Time
+pkg nativedep, type All struct, D nativetest.NativeSamePkg
+pkg nativedep, type All struct, E map[nativetest.NativeSamePkg]time.Time

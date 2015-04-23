@@ -1,0 +1,10 @@
+pkg glob, func Parse(string) (*Glob, error)
+pkg glob, method (*Glob) Finished() bool
+pkg glob, method (*Glob) Len() int
+pkg glob, method (*Glob) MatchInitialSegment(string) (bool, bool, *Glob)
+pkg glob, method (*Glob) PartialMatch(int, []string) (bool, bool, *Glob)
+pkg glob, method (*Glob) Restricted() bool
+pkg glob, method (*Glob) Split(int) *Glob
+pkg glob, method (*Glob) SplitFixedPrefix() ([]string, *Glob)
+pkg glob, method (*Glob) String() string
+pkg glob, type Glob struct

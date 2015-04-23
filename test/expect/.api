@@ -1,0 +1,22 @@
+pkg expect, func NewSession(Testing, io.Reader, time.Duration) *Session
+pkg expect, method (*Session) Error() error
+pkg expect, method (*Session) Expect(string)
+pkg expect, method (*Session) ExpectEOF() error
+pkg expect, method (*Session) ExpectRE(string, int) [][]string
+pkg expect, method (*Session) ExpectSetEventuallyRE(...string) [][]string
+pkg expect, method (*Session) ExpectSetRE(...string) [][]string
+pkg expect, method (*Session) ExpectVar(string) string
+pkg expect, method (*Session) Expectf(string, ...interface{})
+pkg expect, method (*Session) Failed() bool
+pkg expect, method (*Session) Finish(io.Writer) (string, error)
+pkg expect, method (*Session) OriginalError() error
+pkg expect, method (*Session) ReadAll() (string, error)
+pkg expect, method (*Session) ReadLine() string
+pkg expect, method (*Session) ReportError()
+pkg expect, method (*Session) SetVerbosity(bool)
+pkg expect, type Session struct
+pkg expect, type Testing interface { Error, Errorf, Log }
+pkg expect, type Testing interface, Error(...interface{})
+pkg expect, type Testing interface, Errorf(string, ...interface{})
+pkg expect, type Testing interface, Log(...interface{})
+pkg expect, var Timeout error

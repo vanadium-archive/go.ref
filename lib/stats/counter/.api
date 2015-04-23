@@ -1,0 +1,27 @@
+pkg counter, func New() *Counter
+pkg counter, func NewTracker() *Tracker
+pkg counter, method (*Counter) Delta10m() int64
+pkg counter, method (*Counter) Delta1h() int64
+pkg counter, method (*Counter) Delta1m() int64
+pkg counter, method (*Counter) Incr(int64)
+pkg counter, method (*Counter) LastUpdate() time.Time
+pkg counter, method (*Counter) Rate10m() float64
+pkg counter, method (*Counter) Rate1h() float64
+pkg counter, method (*Counter) Rate1m() float64
+pkg counter, method (*Counter) Reset()
+pkg counter, method (*Counter) Set(int64)
+pkg counter, method (*Counter) Value() int64
+pkg counter, method (*Tracker) LastUpdate() time.Time
+pkg counter, method (*Tracker) Max() int64
+pkg counter, method (*Tracker) Max10m() int64
+pkg counter, method (*Tracker) Max1h() int64
+pkg counter, method (*Tracker) Max1m() int64
+pkg counter, method (*Tracker) Min() int64
+pkg counter, method (*Tracker) Min10m() int64
+pkg counter, method (*Tracker) Min1h() int64
+pkg counter, method (*Tracker) Min1m() int64
+pkg counter, method (*Tracker) Push(int64)
+pkg counter, method (*Tracker) Reset()
+pkg counter, type Counter struct
+pkg counter, type Tracker struct
+pkg counter, var TimeNow func() time.Time

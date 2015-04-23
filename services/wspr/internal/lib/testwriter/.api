@@ -1,0 +1,10 @@
+pkg testwriter, func CheckResponses(*Writer, []lib.Response, error) error
+pkg testwriter, method (*Writer) Error(error)
+pkg testwriter, method (*Writer) ImmediatelyConsumeItem() (lib.Response, error)
+pkg testwriter, method (*Writer) Send(lib.ResponseType, interface{}) error
+pkg testwriter, method (*Writer) WaitForMessage(int) error
+pkg testwriter, type TestHarness interface { Errorf }
+pkg testwriter, type TestHarness interface, Errorf(string, ...interface{})
+pkg testwriter, type Writer struct
+pkg testwriter, type Writer struct, Stream []lib.Response
+pkg testwriter, type Writer struct, embedded sync.Mutex

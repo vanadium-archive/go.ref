@@ -1,0 +1,6 @@
+pkg unixfd, const Network string
+pkg unixfd, func Addr(uintptr) net.Addr
+pkg unixfd, func CloseUnixAddr(net.Addr) error
+pkg unixfd, func ReadConnection(*net.UnixConn, []byte) (net.Addr, int, func(), error)
+pkg unixfd, func SendConnection(*net.UnixConn, []byte) (net.Addr, error)
+pkg unixfd, func Socketpair() (*net.UnixConn, *os.File, error)

@@ -1,0 +1,24 @@
+pkg serialization, func NewSigningWriteCloser(io.WriteCloser, io.WriteCloser, Signer, *Options) (io.WriteCloser, error)
+pkg serialization, func NewVerifyingReader(io.Reader, io.Reader, security.PublicKey) (io.Reader, error)
+pkg serialization, method (SignedDataHash) Index() int
+pkg serialization, method (SignedDataHash) Interface() interface{}
+pkg serialization, method (SignedDataHash) Name() string
+pkg serialization, method (SignedDataSignature) Index() int
+pkg serialization, method (SignedDataSignature) Interface() interface{}
+pkg serialization, method (SignedDataSignature) Name() string
+pkg serialization, type HashCode [32]byte
+pkg serialization, type Options struct
+pkg serialization, type Options struct, ChunkSizeBytes int64
+pkg serialization, type SignedData interface, Index() int
+pkg serialization, type SignedData interface, Interface() interface{}
+pkg serialization, type SignedData interface, Name() string
+pkg serialization, type SignedData interface, unexported methods
+pkg serialization, type SignedDataHash struct
+pkg serialization, type SignedDataHash struct, Value HashCode
+pkg serialization, type SignedDataSignature struct
+pkg serialization, type SignedDataSignature struct, Value security.Signature
+pkg serialization, type SignedHeader struct
+pkg serialization, type SignedHeader struct, ChunkSizeBytes int64
+pkg serialization, type Signer interface { PublicKey, Sign }
+pkg serialization, type Signer interface, PublicKey() security.PublicKey
+pkg serialization, type Signer interface, Sign([]byte) (security.Signature, error)

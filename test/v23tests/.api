@@ -1,0 +1,59 @@
+pkg v23tests, func Caller(int) string
+pkg v23tests, func New(TB) *T
+pkg v23tests, func RunRootMT(*T, ...string) (*Binary, *Invocation)
+pkg v23tests, func RunTest(*testing.T, func(*T))
+pkg v23tests, func UseSharedBinDir() func()
+pkg v23tests, method (*Binary) Path() string
+pkg v23tests, method (*Binary) Run(...string) string
+pkg v23tests, method (*Binary) Start(...string) *Invocation
+pkg v23tests, method (*Binary) StartOpts() modules.StartOpts
+pkg v23tests, method (*Binary) WithEnv(...string) *Binary
+pkg v23tests, method (*Binary) WithStartOpts(modules.StartOpts) *Binary
+pkg v23tests, method (*Binary) WithStdin(io.Reader) *Binary
+pkg v23tests, method (*Invocation) Environment() *T
+pkg v23tests, method (*Invocation) Exists() bool
+pkg v23tests, method (*Invocation) Kill(syscall.Signal) error
+pkg v23tests, method (*Invocation) Output() string
+pkg v23tests, method (*Invocation) Path() string
+pkg v23tests, method (*Invocation) Wait(io.Writer, io.Writer) error
+pkg v23tests, method (*Invocation) WaitOrDie(io.Writer, io.Writer)
+pkg v23tests, method (*T) BinDir() string
+pkg v23tests, method (*T) BinaryFromPath(string) *Binary
+pkg v23tests, method (*T) BuildGoPkg(string, ...string) *Binary
+pkg v23tests, method (*T) BuildV23Pkg(string, ...string) *Binary
+pkg v23tests, method (*T) Caller(int) string
+pkg v23tests, method (*T) Cleanup()
+pkg v23tests, method (*T) ClearVar(string)
+pkg v23tests, method (*T) DebugSystemShell(...string)
+pkg v23tests, method (*T) GetVar(string) (string, bool)
+pkg v23tests, method (*T) NewTempDir(string) string
+pkg v23tests, method (*T) NewTempFile() *os.File
+pkg v23tests, method (*T) Popd() string
+pkg v23tests, method (*T) Principal() security.Principal
+pkg v23tests, method (*T) Pushd(string) string
+pkg v23tests, method (*T) Run(string, ...string) string
+pkg v23tests, method (*T) RunWithOpts(modules.StartOpts, string, ...string) string
+pkg v23tests, method (*T) SetVar(string, string)
+pkg v23tests, method (*T) Shell() *modules.Shell
+pkg v23tests, method (*T) WaitFor(WaitFunc, time.Duration, time.Duration) interface{}
+pkg v23tests, method (*T) WaitForAsync(WaitFunc, time.Duration, time.Duration) interface{}
+pkg v23tests, type Binary struct
+pkg v23tests, type Invocation struct
+pkg v23tests, type Invocation struct, embedded modules.Handle
+pkg v23tests, type T struct
+pkg v23tests, type T struct, embedded TB
+pkg v23tests, type TB interface { Error, Errorf, Fail, FailNow, Failed, Fatal, Fatalf, Log, Logf, Skip, SkipNow, Skipf, Skipped }
+pkg v23tests, type TB interface, Error(...interface{})
+pkg v23tests, type TB interface, Errorf(string, ...interface{})
+pkg v23tests, type TB interface, Fail()
+pkg v23tests, type TB interface, FailNow()
+pkg v23tests, type TB interface, Failed() bool
+pkg v23tests, type TB interface, Fatal(...interface{})
+pkg v23tests, type TB interface, Fatalf(string, ...interface{})
+pkg v23tests, type TB interface, Log(...interface{})
+pkg v23tests, type TB interface, Logf(string, ...interface{})
+pkg v23tests, type TB interface, Skip(...interface{})
+pkg v23tests, type TB interface, SkipNow()
+pkg v23tests, type TB interface, Skipf(string, ...interface{})
+pkg v23tests, type TB interface, Skipped() bool
+pkg v23tests, type WaitFunc func() (interface{}, error)

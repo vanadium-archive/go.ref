@@ -1,0 +1,11 @@
+pkg appcycle, func New() *AppCycle
+pkg appcycle, method (*AppCycle) AdvanceGoal(int32)
+pkg appcycle, method (*AppCycle) AdvanceProgress(int32)
+pkg appcycle, method (*AppCycle) ForceStop()
+pkg appcycle, method (*AppCycle) Remote() interface{}
+pkg appcycle, method (*AppCycle) Shutdown()
+pkg appcycle, method (*AppCycle) Stop()
+pkg appcycle, method (*AppCycle) TrackTask(chan<- v23.Task)
+pkg appcycle, method (*AppCycle) WaitForStop(chan<- string)
+pkg appcycle, type AppCycle struct
+pkg appcycle, type AppCycle struct, embedded sync.RWMutex

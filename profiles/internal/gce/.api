@@ -1,0 +1,2 @@
+pkg gce, func ExternalIPAddress() (net.IP, error)
+pkg gce, func RunningOnGCE() bool

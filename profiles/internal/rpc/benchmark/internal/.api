@@ -1,0 +1,4 @@
+pkg internal, func CallEcho(*testing.B, *context.T, string, int, int, *tbm.Stats)
+pkg internal, func CallEchoStream(*testing.B, *context.T, string, int, int, int, *tbm.Stats)
+pkg internal, func StartEchoStream(*testing.B, *context.T, string, int, int, int, *tbm.Stats) (<-chan int, func())
+pkg internal, func StartServer(*context.T, rpc.ListenSpec) (naming.Endpoint, func())

@@ -1,0 +1,2 @@
+pkg main, func NewDispatcher(string, security.Authorizer) (rpc.Dispatcher, error)
+pkg main, func NewProfileService(*fs.Memstore, string, string) repository.ProfileServerMethods

@@ -1,0 +1,5 @@
+pkg websocket, func Dial(string, string, time.Duration) (net.Conn, error)
+pkg websocket, func HybridDial(string, string, time.Duration) (net.Conn, error)
+pkg websocket, func HybridListener(string, string) (net.Listener, error)
+pkg websocket, func Listener(string, string) (net.Listener, error)
+pkg websocket, func WebsocketConn(*websocket.Conn) net.Conn

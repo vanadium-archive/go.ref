@@ -1,0 +1,11 @@
+pkg caveats, func NewBrowserCaveatSelector(string, string) CaveatSelector
+pkg caveats, func NewCaveatFactory() CaveatFactory
+pkg caveats, func NewMockCaveatSelector() CaveatSelector
+pkg caveats, type CaveatFactory interface { New }
+pkg caveats, type CaveatFactory interface, New(CaveatInfo) (security.Caveat, error)
+pkg caveats, type CaveatInfo struct
+pkg caveats, type CaveatInfo struct, Args []interface{}
+pkg caveats, type CaveatInfo struct, Type string
+pkg caveats, type CaveatSelector interface { ParseSelections, Render }
+pkg caveats, type CaveatSelector interface, ParseSelections(*http.Request) ([]CaveatInfo, string, string, error)
+pkg caveats, type CaveatSelector interface, Render(string, string, string, http.ResponseWriter, *http.Request) error

@@ -1,0 +1,11 @@
+pkg auditor, func NewMockBlessingAuditor() (audit.Auditor, BlessingLogReader)
+pkg auditor, func NewSQLBlessingAuditor(*sql.DB) (audit.Auditor, BlessingLogReader, error)
+pkg auditor, type BlessingEntry struct
+pkg auditor, type BlessingEntry struct, Blessings security.Blessings
+pkg auditor, type BlessingEntry struct, Caveats []security.Caveat
+pkg auditor, type BlessingEntry struct, DecodeError error
+pkg auditor, type BlessingEntry struct, Email string
+pkg auditor, type BlessingEntry struct, RevocationCaveatID string
+pkg auditor, type BlessingEntry struct, Timestamp time.Time
+pkg auditor, type BlessingLogReader interface { Read }
+pkg auditor, type BlessingLogReader interface, Read(string) <-chan BlessingEntry

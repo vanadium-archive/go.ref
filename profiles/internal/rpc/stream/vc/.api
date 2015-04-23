@@ -1,0 +1,80 @@
+pkg vc, const AuthFlowID ideal-int
+pkg vc, const DefaultBytesBufferedPerFlow ideal-int
+pkg vc, const DefaultServerDischargeExpiryBuffer time.Duration
+pkg vc, const HandshakeFlowID ideal-int
+pkg vc, const MaxPayloadSizeBytes ideal-int
+pkg vc, const MaxSharedBytes ideal-int
+pkg vc, const NumFlowPriorities bqueue.Priority
+pkg vc, const NumReservedFlows ideal-int
+pkg vc, const NumReservedVCs ideal-int
+pkg vc, const SharedFlowID ideal-int
+pkg vc, const TypeFlowID ideal-int
+pkg vc, func AuthenticateAsClient(io.ReadWriteCloser, crypto.Crypter, security.CallParams, *ServerAuthorizer, version.RPCVersion) (security.Blessings, security.Blessings, map[string]security.Discharge, error)
+pkg vc, func AuthenticateAsServer(io.ReadWriteCloser, security.Principal, security.Blessings, DischargeClient, crypto.Crypter, version.RPCVersion) (security.Blessings, map[string]security.Discharge, error)
+pkg vc, func InternalNew(Params) *VC
+pkg vc, method (*ServerAuthorizer) Authorize(security.CallParams) error
+pkg vc, method (*ServerAuthorizer) RPCStreamVCOpt()
+pkg vc, method (*VC) AcceptFlow(id.Flow) error
+pkg vc, method (*VC) Close(error) error
+pkg vc, method (*VC) Connect(...stream.FlowOpt) (stream.Flow, error)
+pkg vc, method (*VC) DebugString() string
+pkg vc, method (*VC) DispatchPayload(id.Flow, *iobuf.Slice) error
+pkg vc, method (*VC) Encrypt(id.Flow, *iobuf.Slice) (*iobuf.Slice, error)
+pkg vc, method (*VC) FinishHandshakeDialedVC(version.RPCVersion, *crypto.BoxKey) error
+pkg vc, method (*VC) HandshakeAcceptedVC(version.RPCVersion, security.Principal, security.Blessings, crypto.BoxKeyExchanger, ...stream.ListenerOpt) <-chan HandshakeResult
+pkg vc, method (*VC) HandshakeDialedVC(security.Principal, version.RPCVersion, func(*crypto.BoxKey) error, ...stream.VCOpt) error
+pkg vc, method (*VC) Listen() (stream.Listener, error)
+pkg vc, method (*VC) LocalBlessings() security.Blessings
+pkg vc, method (*VC) LocalDischarges() map[string]security.Discharge
+pkg vc, method (*VC) LocalEndpoint() naming.Endpoint
+pkg vc, method (*VC) LocalPrincipal() security.Principal
+pkg vc, method (*VC) ReleaseCounters(id.Flow, uint32)
+pkg vc, method (*VC) RemoteBlessings() security.Blessings
+pkg vc, method (*VC) RemoteDischarges() map[string]security.Discharge
+pkg vc, method (*VC) RemoteEndpoint() naming.Endpoint
+pkg vc, method (*VC) ShutdownFlow(id.Flow)
+pkg vc, method (*VC) String() string
+pkg vc, method (*VC) VCDataCache() stream.VCDataCache
+pkg vc, method (*VC) VCI() id.VC
+pkg vc, method (*VC) Version() version.RPCVersion
+pkg vc, method (DialContext) RPCStreamListenerOpt()
+pkg vc, method (DialContext) RPCStreamVCOpt()
+pkg vc, method (DischargeExpiryBuffer) RPCServerOpt()
+pkg vc, method (DischargeExpiryBuffer) RPCStreamListenerOpt()
+pkg vc, method (IdleTimeout) RPCStreamListenerOpt()
+pkg vc, method (IdleTimeout) RPCStreamVCOpt()
+pkg vc, method (StartTimeout) RPCStreamListenerOpt()
+pkg vc, method (StartTimeout) RPCStreamVCOpt()
+pkg vc, type DialContext struct
+pkg vc, type DialContext struct, embedded *context.T
+pkg vc, type DischargeClient interface { Invalidate, PrepareDischarges, RPCStreamListenerOpt }
+pkg vc, type DischargeClient interface, Invalidate(...security.Discharge)
+pkg vc, type DischargeClient interface, PrepareDischarges(*context.T, []security.Caveat, security.DischargeImpetus) []security.Discharge
+pkg vc, type DischargeClient interface, RPCStreamListenerOpt()
+pkg vc, type DischargeExpiryBuffer time.Duration
+pkg vc, type HandshakeResult struct
+pkg vc, type HandshakeResult struct, Error error
+pkg vc, type HandshakeResult struct, Listener stream.Listener
+pkg vc, type Helper interface { AddReceiveBuffers, NewWriter, NotifyOfNewFlow }
+pkg vc, type Helper interface, AddReceiveBuffers(id.VC, id.Flow, uint)
+pkg vc, type Helper interface, NewWriter(id.VC, id.Flow, bqueue.Priority) (bqueue.Writer, error)
+pkg vc, type Helper interface, NotifyOfNewFlow(id.VC, id.Flow, uint)
+pkg vc, type IdleTimeout struct
+pkg vc, type IdleTimeout struct, embedded time.Duration
+pkg vc, type Params struct
+pkg vc, type Params struct, Dialed bool
+pkg vc, type Params struct, Helper Helper
+pkg vc, type Params struct, LocalEP naming.Endpoint
+pkg vc, type Params struct, Pool *iobuf.Pool
+pkg vc, type Params struct, RemoteEP naming.Endpoint
+pkg vc, type Params struct, ReserveBytes uint
+pkg vc, type Params struct, VCI id.VC
+pkg vc, type ServerAuthorizer struct
+pkg vc, type ServerAuthorizer struct, Method string
+pkg vc, type ServerAuthorizer struct, Policy security.Authorizer
+pkg vc, type ServerAuthorizer struct, Suffix string
+pkg vc, type StartTimeout struct
+pkg vc, type StartTimeout struct, embedded time.Duration
+pkg vc, type TypeDecoderKey struct
+pkg vc, type TypeEncoderKey struct
+pkg vc, type VC struct

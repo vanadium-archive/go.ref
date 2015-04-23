@@ -1,0 +1,4 @@
+pkg internal, func CallEcho(*context.T, string, int, time.Duration) uint64
+pkg internal, func CallSum(*context.T, string, int, *stress.SumStats)
+pkg internal, func CallSumStream(*context.T, string, int, int, *stress.SumStats)
+pkg internal, func StartServer(*context.T, rpc.ListenSpec) (rpc.Server, naming.Endpoint, <-chan struct{})

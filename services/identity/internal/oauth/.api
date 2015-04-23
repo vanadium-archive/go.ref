@@ -1,0 +1,35 @@
+pkg oauth, const ExplicitApproval AuthURLApproval
+pkg oauth, const ListBlessingsRoute ideal-string
+pkg oauth, const MockClient ideal-string
+pkg oauth, const MockEmail ideal-string
+pkg oauth, const ReuseApproval AuthURLApproval
+pkg oauth, const SeekBlessingsRoute ideal-string
+pkg oauth, func ClientIDAndSecretFromJSON(io.Reader) (string, string, error)
+pkg oauth, func ClientIDFromJSON(io.Reader) (string, error)
+pkg oauth, func NewGoogleOAuth(string) (OAuthProvider, error)
+pkg oauth, func NewHandler(HandlerArgs) (http.Handler, error)
+pkg oauth, func NewMockOAuth() OAuthProvider
+pkg oauth, type AccessTokenClient struct
+pkg oauth, type AccessTokenClient struct, ClientID string
+pkg oauth, type AccessTokenClient struct, Name string
+pkg oauth, type AuthURLApproval bool
+pkg oauth, type BlessingMacaroon struct
+pkg oauth, type BlessingMacaroon struct, Caveats []security.Caveat
+pkg oauth, type BlessingMacaroon struct, Creation time.Time
+pkg oauth, type BlessingMacaroon struct, Name string
+pkg oauth, type HandlerArgs struct
+pkg oauth, type HandlerArgs struct, Addr string
+pkg oauth, type HandlerArgs struct, AssetsPrefix string
+pkg oauth, type HandlerArgs struct, BlessingLogReader auditor.BlessingLogReader
+pkg oauth, type HandlerArgs struct, CaveatSelector caveats.CaveatSelector
+pkg oauth, type HandlerArgs struct, DischargerLocation string
+pkg oauth, type HandlerArgs struct, EmailClassifier *util.EmailClassifier
+pkg oauth, type HandlerArgs struct, MacaroonBlessingService string
+pkg oauth, type HandlerArgs struct, MacaroonKey []byte
+pkg oauth, type HandlerArgs struct, OAuthProvider OAuthProvider
+pkg oauth, type HandlerArgs struct, Principal security.Principal
+pkg oauth, type HandlerArgs struct, RevocationManager revocation.RevocationManager
+pkg oauth, type OAuthProvider interface { AuthURL, ExchangeAuthCodeForEmail, GetEmailAndClientName }
+pkg oauth, type OAuthProvider interface, AuthURL(string, string, AuthURLApproval) string
+pkg oauth, type OAuthProvider interface, ExchangeAuthCodeForEmail(string, string) (string, error)
+pkg oauth, type OAuthProvider interface, GetEmailAndClientName(string, []AccessTokenClient) (string, string, error)

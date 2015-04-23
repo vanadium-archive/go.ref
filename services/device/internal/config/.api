@@ -1,0 +1,18 @@
+pkg config, const CurrentLinkEnv ideal-string
+pkg config, const EnvelopeEnv ideal-string
+pkg config, const HelperEnv ideal-string
+pkg config, const OriginEnv ideal-string
+pkg config, const PreviousEnv ideal-string
+pkg config, const RootEnv ideal-string
+pkg config, func Load() (*State, error)
+pkg config, func QuoteEnv([]string) []string
+pkg config, method (*State) Save(*application.Envelope) ([]string, error)
+pkg config, method (*State) Validate() error
+pkg config, type State struct
+pkg config, type State struct, CurrentLink string
+pkg config, type State struct, Envelope *application.Envelope
+pkg config, type State struct, Helper string
+pkg config, type State struct, Name string
+pkg config, type State struct, Origin string
+pkg config, type State struct, Previous string
+pkg config, type State struct, Root string

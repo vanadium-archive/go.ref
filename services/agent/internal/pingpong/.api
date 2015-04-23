@@ -1,0 +1,12 @@
+pkg main, func PingPongClient(string) PingPongClientStub
+pkg main, func PingPongServer(PingPongServerMethods) PingPongServerStub
+pkg main, type PingPongClientMethods interface { Ping }
+pkg main, type PingPongClientMethods interface, Ping(*context.T, string, ...rpc.CallOpt) (string, error)
+pkg main, type PingPongClientStub interface, Ping(*context.T, string, ...rpc.CallOpt) (string, error)
+pkg main, type PingPongClientStub interface, unexported methods
+pkg main, type PingPongServerMethods interface { Ping }
+pkg main, type PingPongServerMethods interface, Ping(*context.T, rpc.ServerCall, string) (string, error)
+pkg main, type PingPongServerStub interface, Describe__() []rpc.InterfaceDesc
+pkg main, type PingPongServerStub interface, unexported methods
+pkg main, type PingPongServerStubMethods PingPongServerMethods
+pkg main, var PingPongDesc rpc.InterfaceDesc

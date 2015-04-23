@@ -1,0 +1,4 @@
+pkg server, func NewIdentityServer(oauth.OAuthProvider, audit.Auditor, auditor.BlessingLogReader, revocation.RevocationManager, blesser.OAuthBlesserParams, caveats.CaveatSelector, *util.EmailClassifier, string, string) *IdentityServer
+pkg server, method (*IdentityServer) Listen(*context.T, *rpc.ListenSpec, string, string, string) (rpc.Server, []string, string)
+pkg server, method (*IdentityServer) Serve(*context.T, *rpc.ListenSpec, string, string, string)
+pkg server, type IdentityServer struct

@@ -1,0 +1,141 @@
+pkg app, const AddName ideal-int
+pkg app, const AuthResponseMessage ideal-int
+pkg app, const CancelMessage ideal-int
+pkg app, const CaveatValidationResponse ideal-int
+pkg app, const GranterResponseMessage ideal-int
+pkg app, const LookupResponseMessage ideal-int
+pkg app, const NamespaceRequestMessage ideal-int
+pkg app, const RemoteBlessings ideal-int
+pkg app, const RemoveName ideal-int
+pkg app, const ServeMessage ideal-int
+pkg app, const ServerResponseMessage ideal-int
+pkg app, const SignatureRequestMessage ideal-int
+pkg app, const StopServerMessage ideal-int
+pkg app, const StreamCloseMessage ideal-int
+pkg app, const StreamingValueMessage ideal-int
+pkg app, const UnlinkBlessingsMessage ideal-int
+pkg app, const VeyronRequestMessage MessageType
+pkg app, func ConstructOutgoingMessage(int32, lib.ResponseType, interface{}) (string, error)
+pkg app, func ControllerClient(string) ControllerClientStub
+pkg app, func ControllerServer(ControllerServerMethods) ControllerServerStub
+pkg app, func FormatAsVerror(error) error
+pkg app, func NewController(*context.T, func(int32) lib.ClientWriter, *rpc.ListenSpec, []string, security.Principal) (*Controller, error)
+pkg app, method (*Controller) AddName(*context.T, rpc.ServerCall, uint32, string) error
+pkg app, method (*Controller) AddToRoots(*context.T, rpc.ServerCall, principal.BlessingsHandle) error
+pkg app, method (*Controller) Bless(*context.T, rpc.ServerCall, string, principal.BlessingsHandle, string, []security.Caveat) (string, principal.BlessingsHandle, error)
+pkg app, method (*Controller) BlessSelf(*context.T, rpc.ServerCall, string, []security.Caveat) (string, principal.BlessingsHandle, error)
+pkg app, method (*Controller) Cleanup()
+pkg app, method (*Controller) CleanupFlow(int32)
+pkg app, method (*Controller) CloseStream(int32)
+pkg app, method (*Controller) Context() *context.T
+pkg app, method (*Controller) CreateNewFlow(interface{}, rpc.Stream) *server.Flow
+pkg app, method (*Controller) GetBlessings(principal.BlessingsHandle) security.Blessings
+pkg app, method (*Controller) GetDefaultBlessings(*context.T, rpc.ServerCall) (*principal.JsBlessings, error)
+pkg app, method (*Controller) GetOrAddBlessingsHandle(security.Blessings) principal.BlessingsHandle
+pkg app, method (*Controller) HandleAuthResponse(int32, string)
+pkg app, method (*Controller) HandleCaveatValidationResponse(int32, string)
+pkg app, method (*Controller) HandleGranterResponse(int32, string)
+pkg app, method (*Controller) HandleIncomingMessage(Message, lib.ClientWriter)
+pkg app, method (*Controller) HandleLookupResponse(int32, string)
+pkg app, method (*Controller) HandleServerResponse(int32, string)
+pkg app, method (*Controller) HandleVeyronCancellation(int32)
+pkg app, method (*Controller) HandleVeyronRequest(*context.T, int32, string, lib.ClientWriter)
+pkg app, method (*Controller) PutToBlessingStore(*context.T, rpc.ServerCall, principal.BlessingsHandle, security.BlessingPattern) (*principal.JsBlessings, error)
+pkg app, method (*Controller) RemoteBlessings(*context.T, rpc.ServerCall, string, string) ([]string, error)
+pkg app, method (*Controller) RemoveName(*context.T, rpc.ServerCall, uint32, string) error
+pkg app, method (*Controller) SendLogMessage(lib.LogLevel, string) error
+pkg app, method (*Controller) SendOnStream(int32, string, lib.ClientWriter)
+pkg app, method (*Controller) Serve(*context.T, rpc.ServerCall, string, uint32) error
+pkg app, method (*Controller) Signature(*context.T, rpc.ServerCall, string) ([]signature.Interface, error)
+pkg app, method (*Controller) Stop(*context.T, rpc.ServerCall, uint32) error
+pkg app, method (*Controller) UnlinkBlessings(*context.T, rpc.ServerCall, principal.BlessingsHandle) error
+pkg app, method (RpcCallOptionAllowedServersPolicy) Index() int
+pkg app, method (RpcCallOptionAllowedServersPolicy) Interface() interface{}
+pkg app, method (RpcCallOptionAllowedServersPolicy) Name() string
+pkg app, method (RpcCallOptionRetryTimeout) Index() int
+pkg app, method (RpcCallOptionRetryTimeout) Interface() interface{}
+pkg app, method (RpcCallOptionRetryTimeout) Name() string
+pkg app, method (RpcCallOptionUseGranter) Index() int
+pkg app, method (RpcCallOptionUseGranter) Interface() interface{}
+pkg app, method (RpcCallOptionUseGranter) Name() string
+pkg app, type Closer interface { CloseSend }
+pkg app, type Closer interface, CloseSend() error
+pkg app, type Controller struct
+pkg app, type Controller struct, embedded sync.Mutex
+pkg app, type ControllerClientMethods interface { AddName, AddToRoots, Bless, BlessSelf, GetDefaultBlessings, PutToBlessingStore, RemoteBlessings, RemoveName, Serve, Signature, Stop, UnlinkBlessings }
+pkg app, type ControllerClientMethods interface, AddName(*context.T, uint32, string, ...rpc.CallOpt) error
+pkg app, type ControllerClientMethods interface, AddToRoots(*context.T, principal.BlessingsHandle, ...rpc.CallOpt) error
+pkg app, type ControllerClientMethods interface, Bless(*context.T, string, principal.BlessingsHandle, string, []security.Caveat, ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
+pkg app, type ControllerClientMethods interface, BlessSelf(*context.T, string, []security.Caveat, ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
+pkg app, type ControllerClientMethods interface, GetDefaultBlessings(*context.T, ...rpc.CallOpt) (*principal.JsBlessings, error)
+pkg app, type ControllerClientMethods interface, PutToBlessingStore(*context.T, principal.BlessingsHandle, security.BlessingPattern, ...rpc.CallOpt) (*principal.JsBlessings, error)
+pkg app, type ControllerClientMethods interface, RemoteBlessings(*context.T, string, string, ...rpc.CallOpt) ([]string, error)
+pkg app, type ControllerClientMethods interface, RemoveName(*context.T, uint32, string, ...rpc.CallOpt) error
+pkg app, type ControllerClientMethods interface, Serve(*context.T, string, uint32, ...rpc.CallOpt) error
+pkg app, type ControllerClientMethods interface, Signature(*context.T, string, ...rpc.CallOpt) ([]signature.Interface, error)
+pkg app, type ControllerClientMethods interface, Stop(*context.T, uint32, ...rpc.CallOpt) error
+pkg app, type ControllerClientMethods interface, UnlinkBlessings(*context.T, principal.BlessingsHandle, ...rpc.CallOpt) error
+pkg app, type ControllerClientStub interface, AddName(*context.T, uint32, string, ...rpc.CallOpt) error
+pkg app, type ControllerClientStub interface, AddToRoots(*context.T, principal.BlessingsHandle, ...rpc.CallOpt) error
+pkg app, type ControllerClientStub interface, Bless(*context.T, string, principal.BlessingsHandle, string, []security.Caveat, ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
+pkg app, type ControllerClientStub interface, BlessSelf(*context.T, string, []security.Caveat, ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
+pkg app, type ControllerClientStub interface, GetDefaultBlessings(*context.T, ...rpc.CallOpt) (*principal.JsBlessings, error)
+pkg app, type ControllerClientStub interface, PutToBlessingStore(*context.T, principal.BlessingsHandle, security.BlessingPattern, ...rpc.CallOpt) (*principal.JsBlessings, error)
+pkg app, type ControllerClientStub interface, RemoteBlessings(*context.T, string, string, ...rpc.CallOpt) ([]string, error)
+pkg app, type ControllerClientStub interface, RemoveName(*context.T, uint32, string, ...rpc.CallOpt) error
+pkg app, type ControllerClientStub interface, Serve(*context.T, string, uint32, ...rpc.CallOpt) error
+pkg app, type ControllerClientStub interface, Signature(*context.T, string, ...rpc.CallOpt) ([]signature.Interface, error)
+pkg app, type ControllerClientStub interface, Stop(*context.T, uint32, ...rpc.CallOpt) error
+pkg app, type ControllerClientStub interface, UnlinkBlessings(*context.T, principal.BlessingsHandle, ...rpc.CallOpt) error
+pkg app, type ControllerClientStub interface, unexported methods
+pkg app, type ControllerServerMethods interface { AddName, AddToRoots, Bless, BlessSelf, GetDefaultBlessings, PutToBlessingStore, RemoteBlessings, RemoveName, Serve, Signature, Stop, UnlinkBlessings }
+pkg app, type ControllerServerMethods interface, AddName(*context.T, rpc.ServerCall, uint32, string) error
+pkg app, type ControllerServerMethods interface, AddToRoots(*context.T, rpc.ServerCall, principal.BlessingsHandle) error
+pkg app, type ControllerServerMethods interface, Bless(*context.T, rpc.ServerCall, string, principal.BlessingsHandle, string, []security.Caveat) (string, principal.BlessingsHandle, error)
+pkg app, type ControllerServerMethods interface, BlessSelf(*context.T, rpc.ServerCall, string, []security.Caveat) (string, principal.BlessingsHandle, error)
+pkg app, type ControllerServerMethods interface, GetDefaultBlessings(*context.T, rpc.ServerCall) (*principal.JsBlessings, error)
+pkg app, type ControllerServerMethods interface, PutToBlessingStore(*context.T, rpc.ServerCall, principal.BlessingsHandle, security.BlessingPattern) (*principal.JsBlessings, error)
+pkg app, type ControllerServerMethods interface, RemoteBlessings(*context.T, rpc.ServerCall, string, string) ([]string, error)
+pkg app, type ControllerServerMethods interface, RemoveName(*context.T, rpc.ServerCall, uint32, string) error
+pkg app, type ControllerServerMethods interface, Serve(*context.T, rpc.ServerCall, string, uint32) error
+pkg app, type ControllerServerMethods interface, Signature(*context.T, rpc.ServerCall, string) ([]signature.Interface, error)
+pkg app, type ControllerServerMethods interface, Stop(*context.T, rpc.ServerCall, uint32) error
+pkg app, type ControllerServerMethods interface, UnlinkBlessings(*context.T, rpc.ServerCall, principal.BlessingsHandle) error
+pkg app, type ControllerServerStub interface, Describe__() []rpc.InterfaceDesc
+pkg app, type ControllerServerStub interface, unexported methods
+pkg app, type ControllerServerStubMethods ControllerServerMethods
+pkg app, type GranterHandle int32
+pkg app, type GranterRequest struct
+pkg app, type GranterRequest struct, Call server.SecurityCall
+pkg app, type GranterRequest struct, GranterHandle GranterHandle
+pkg app, type GranterResponse struct
+pkg app, type GranterResponse struct, Blessings principal.BlessingsHandle
+pkg app, type GranterResponse struct, Err error
+pkg app, type Message struct
+pkg app, type Message struct, Data string
+pkg app, type Message struct, Id int32
+pkg app, type Message struct, Type MessageType
+pkg app, type MessageType int32
+pkg app, type RpcCallOption interface, Index() int
+pkg app, type RpcCallOption interface, Interface() interface{}
+pkg app, type RpcCallOption interface, Name() string
+pkg app, type RpcCallOption interface, unexported methods
+pkg app, type RpcCallOptionAllowedServersPolicy struct
+pkg app, type RpcCallOptionAllowedServersPolicy struct, Value []security.BlessingPattern
+pkg app, type RpcCallOptionRetryTimeout struct
+pkg app, type RpcCallOptionRetryTimeout struct, Value time.Duration
+pkg app, type RpcCallOptionUseGranter struct
+pkg app, type RpcCallOptionUseGranter struct, Value GranterHandle
+pkg app, type RpcRequest struct
+pkg app, type RpcRequest struct, CallOptions []RpcCallOption
+pkg app, type RpcRequest struct, Deadline time_2.Deadline
+pkg app, type RpcRequest struct, IsStreaming bool
+pkg app, type RpcRequest struct, Method string
+pkg app, type RpcRequest struct, Name string
+pkg app, type RpcRequest struct, NumInArgs int32
+pkg app, type RpcRequest struct, NumOutArgs int32
+pkg app, type RpcRequest struct, TraceRequest vtrace.Request
+pkg app, type RpcResponse struct
+pkg app, type RpcResponse struct, OutArgs []*vdl.Value
+pkg app, type RpcResponse struct, TraceResponse vtrace.Response
+pkg app, var ControllerDesc rpc.InterfaceDesc

@@ -1,0 +1,14 @@
+pkg account, func NewAccountManager(string, *principal.PrincipalManager) *AccountManager
+pkg account, method (*AccountManager) AssociateAccount(string, string, []Caveat) error
+pkg account, method (*AccountManager) CreateAccount(*context.T, string) (string, error)
+pkg account, method (*AccountManager) GetAccounts() []string
+pkg account, method (*AccountManager) LookupPrincipal(string) (security.Principal, error)
+pkg account, method (*AccountManager) OriginHasAccount(string) bool
+pkg account, method (*AccountManager) PrincipalManager() *principal.PrincipalManager
+pkg account, method (*AccountManager) SetMockBlesser(BlesserService)
+pkg account, type AccountManager struct
+pkg account, type BlesserService interface { BlessUsingAccessToken }
+pkg account, type BlesserService interface, BlessUsingAccessToken(*context.T, string, ...rpc.CallOpt) (security.Blessings, string, error)
+pkg account, type Caveat struct
+pkg account, type Caveat struct, Args string
+pkg account, type Caveat struct, Type string

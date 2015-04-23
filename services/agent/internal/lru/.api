@@ -1,0 +1,5 @@
+pkg lru, func New(int) *Cache
+pkg lru, method (*Cache) Get(string) (interface{}, bool)
+pkg lru, method (*Cache) Put(string, interface{}) (string, interface{}, bool)
+pkg lru, method (*Cache) Size() int
+pkg lru, type Cache struct

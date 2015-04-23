@@ -1,0 +1,14 @@
+pkg suid, const PipeToParentFD ideal-int
+pkg suid, const SavedArgs ideal-string
+pkg suid, func Run([]string) error
+pkg suid, method (*WorkParameters) Chown() error
+pkg suid, method (*WorkParameters) Exec() error
+pkg suid, method (*WorkParameters) Kill() error
+pkg suid, method (*WorkParameters) ProcessArguments(*flag.FlagSet, []string) error
+pkg suid, method (*WorkParameters) Remove() error
+pkg suid, type ArgsSavedForTest struct
+pkg suid, type ArgsSavedForTest struct, LogDir string
+pkg suid, type ArgsSavedForTest struct, Run string
+pkg suid, type ArgsSavedForTest struct, Uname string
+pkg suid, type ArgsSavedForTest struct, Workpace string
+pkg suid, type WorkParameters struct

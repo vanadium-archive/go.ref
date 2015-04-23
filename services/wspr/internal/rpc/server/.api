@@ -1,0 +1,66 @@
+pkg server, func CaveatValidation(*context.T, security.Call, [][]security.Caveat) []error
+pkg server, func ConvertSecurityCall(ServerHelper, *context.T, security.Call, bool) SecurityCall
+pkg server, func NewErrCaveatValidationTimeout(*context.T) error
+pkg server, func NewErrInvalidValidationResponseFromJavascript(*context.T) error
+pkg server, func NewErrServerStopped(*context.T) error
+pkg server, func NewServer(uint32, *rpc.ListenSpec, ServerHelper) (*Server, error)
+pkg server, method (*Server) AddName(string) error
+pkg server, method (*Server) HandleAuthResponse(int32, string)
+pkg server, method (*Server) HandleCaveatValidationResponse(int32, string)
+pkg server, method (*Server) HandleLookupResponse(int32, string)
+pkg server, method (*Server) HandleServerResponse(int32, string)
+pkg server, method (*Server) RemoveName(string)
+pkg server, method (*Server) Serve(string) error
+pkg server, method (*Server) Stop()
+pkg server, type AuthRequest struct
+pkg server, type AuthRequest struct, Call SecurityCall
+pkg server, type AuthRequest struct, Handle int32
+pkg server, type AuthRequest struct, ServerId uint32
+pkg server, type CaveatValidationRequest struct
+pkg server, type CaveatValidationRequest struct, Call SecurityCall
+pkg server, type CaveatValidationRequest struct, Cavs [][]security.Caveat
+pkg server, type CaveatValidationResponse struct
+pkg server, type CaveatValidationResponse struct, Results []error
+pkg server, type Flow struct
+pkg server, type Flow struct, ID int32
+pkg server, type Flow struct, Writer lib.ClientWriter
+pkg server, type FlowHandler interface { CleanupFlow, CreateNewFlow }
+pkg server, type FlowHandler interface, CleanupFlow(int32)
+pkg server, type FlowHandler interface, CreateNewFlow(interface{}, rpc.Stream) *Flow
+pkg server, type HandleStore interface { GetBlessings, GetOrAddBlessingsHandle }
+pkg server, type HandleStore interface, GetBlessings(principal.BlessingsHandle) security.Blessings
+pkg server, type HandleStore interface, GetOrAddBlessingsHandle(security.Blessings) principal.BlessingsHandle
+pkg server, type SecurityCall struct
+pkg server, type SecurityCall struct, LocalBlessingStrings []string
+pkg server, type SecurityCall struct, LocalBlessings principal.JsBlessings
+pkg server, type SecurityCall struct, LocalEndpoint string
+pkg server, type SecurityCall struct, Method string
+pkg server, type SecurityCall struct, MethodTags []*vdl.Value
+pkg server, type SecurityCall struct, RemoteBlessingStrings []string
+pkg server, type SecurityCall struct, RemoteBlessings principal.JsBlessings
+pkg server, type SecurityCall struct, RemoteEndpoint string
+pkg server, type SecurityCall struct, Suffix string
+pkg server, type Server struct
+pkg server, type ServerHelper interface { CleanupFlow, Context, CreateNewFlow, GetBlessings, GetOrAddBlessingsHandle, SendLogMessage }
+pkg server, type ServerHelper interface, CleanupFlow(int32)
+pkg server, type ServerHelper interface, Context() *context.T
+pkg server, type ServerHelper interface, CreateNewFlow(interface{}, rpc.Stream) *Flow
+pkg server, type ServerHelper interface, GetBlessings(principal.BlessingsHandle) security.Blessings
+pkg server, type ServerHelper interface, GetOrAddBlessingsHandle(security.Blessings) principal.BlessingsHandle
+pkg server, type ServerHelper interface, SendLogMessage(lib.LogLevel, string) error
+pkg server, type ServerRpcRequest struct
+pkg server, type ServerRpcRequest struct, Args []*vdl.Value
+pkg server, type ServerRpcRequest struct, Call ServerRpcRequestCall
+pkg server, type ServerRpcRequest struct, Handle int32
+pkg server, type ServerRpcRequest struct, Method string
+pkg server, type ServerRpcRequest struct, ServerId uint32
+pkg server, type ServerRpcRequestCall struct
+pkg server, type ServerRpcRequestCall struct, Deadline time.Deadline
+pkg server, type ServerRpcRequestCall struct, GrantedBlessings *principal.JsBlessings
+pkg server, type ServerRpcRequestCall struct, SecurityCall SecurityCall
+pkg server, type ServerRpcRequestCall struct, TraceRequest vtrace.Request
+pkg server, var ErrCaveatValidationTimeout unknown-type
+pkg server, var ErrInvalidValidationResponseFromJavascript unknown-type
+pkg server, var ErrMethodNotFoundInSignature unknown-type
+pkg server, var ErrServerStopped unknown-type
+pkg server, var ErrWrongNumberOfArgs unknown-type

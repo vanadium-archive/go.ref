@@ -1,0 +1,17 @@
+pkg util, func HTTPBadRequest(http.ResponseWriter, *http.Request, error)
+pkg util, func HTTPServerError(http.ResponseWriter, error)
+pkg util, func NewCSRFCop() (*CSRFCop, error)
+pkg util, func NewMacaroon([]byte, []byte) Macaroon
+pkg util, func RootCertificateDetails(security.Blessings) (string, []byte, error)
+pkg util, func WriteCertAndKey(string, time.Duration) (string, string, error)
+pkg util, method (*CSRFCop) MaybeSetCookie(http.ResponseWriter, *http.Request, string) ([]byte, error)
+pkg util, method (*CSRFCop) NewToken(http.ResponseWriter, *http.Request, string, interface{}) (string, error)
+pkg util, method (*CSRFCop) ValidateToken(string, *http.Request, string, interface{}) error
+pkg util, method (*EmailClassifier) Classify(string) string
+pkg util, method (*EmailClassifier) Get() interface{}
+pkg util, method (*EmailClassifier) Set(string) error
+pkg util, method (*EmailClassifier) String() string
+pkg util, method (Macaroon) Decode([]byte) ([]byte, error)
+pkg util, type CSRFCop struct
+pkg util, type EmailClassifier struct
+pkg util, type Macaroon string

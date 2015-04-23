@@ -1,0 +1,6 @@
+pkg internal, func CreateName() string
+pkg internal, func FindJudge(*context.T) (string, error)
+pkg internal, func FindPlayer(*context.T) (string, error)
+pkg internal, func FindScoreKeepers(*context.T) ([]string, error)
+pkg internal, func FormatScoreCard(rps.ScoreCard) string
+pkg internal, func NewAuthorizer(string) security.Authorizer

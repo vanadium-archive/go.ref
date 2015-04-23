@@ -1,0 +1,24 @@
+pkg fs, func NewMemstore(string) (*Memstore, error)
+pkg fs, method (*Memstore) Abort(interface{}) error
+pkg fs, method (*Memstore) BindObject(string) *boundObject
+pkg fs, method (*Memstore) BindTransaction(string) Transaction
+pkg fs, method (*Memstore) BindTransactionRoot(string) Transaction
+pkg fs, method (*Memstore) Commit(interface{}) error
+pkg fs, method (*Memstore) CreateTransaction(interface{}) (string, error)
+pkg fs, method (*Memstore) Lock()
+pkg fs, method (*Memstore) Unlock()
+pkg fs, type Memstore struct
+pkg fs, type Memstore struct, embedded sync.Mutex
+pkg fs, type MemstoreObject interface { Exists, Remove }
+pkg fs, type MemstoreObject interface, Exists(interface{}) (bool, error)
+pkg fs, type MemstoreObject interface, Remove(interface{}) error
+pkg fs, type Transaction interface { Commit, CreateTransaction }
+pkg fs, type Transaction interface, Commit(interface{}) error
+pkg fs, type Transaction interface, CreateTransaction(interface{}) (string, error)
+pkg fs, var ErrAbortWithoutTransaction unknown-type
+pkg fs, var ErrChildrenWithoutLock unknown-type
+pkg fs, var ErrDoubleCommit unknown-type
+pkg fs, var ErrNoRecursiveCreateTransaction unknown-type
+pkg fs, var ErrNotInMemStore unknown-type
+pkg fs, var ErrUnsupportedType unknown-type
+pkg fs, var ErrWithoutTransaction unknown-type

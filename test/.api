@@ -1,0 +1,7 @@
+pkg test, const IntegrationTestsDebugShellOnErrorFlag ideal-string
+pkg test, const IntegrationTestsFlag ideal-string
+pkg test, const TestBlessing ideal-string
+pkg test, func Init()
+pkg test, func InitForTest() (*context.T, v23.Shutdown)
+pkg test, var IntegrationTestsDebugShellOnError bool
+pkg test, var IntegrationTestsEnabled bool

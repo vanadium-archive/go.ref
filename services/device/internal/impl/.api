@@ -1,0 +1,41 @@
+pkg impl, func CheckCompatibility(string) error
+pkg impl, func ComputeDeviceProfile() (*profile.Specification, error)
+pkg impl, func InstallFrom(string) error
+pkg impl, func InvokeCallback(*context.T, string)
+pkg impl, func NewBlessingSystemAssociationStore(string) (BlessingSystemAssociationStore, error)
+pkg impl, func NewClaimableDispatcher(*context.T, *config.State, string) (rpc.Dispatcher, <-chan struct{})
+pkg impl, func NewDispatcher(*context.T, *config.State, string, bool, func(), *pathperms.PathStore) (rpc.Dispatcher, error)
+pkg impl, func PermsDir(*config.State) string
+pkg impl, func SaveCreatorInfo(string) error
+pkg impl, func SaveManagerInfo(string, *ManagerInfo) error
+pkg impl, func SelfInstall(string, string, string, string, string, bool, bool, bool, []string, []string, io.Writer, io.Writer) error
+pkg impl, func Shutdown(rpc.Dispatcher)
+pkg impl, func Start(string, io.Writer, io.Writer) error
+pkg impl, func Stop(*context.T, string, io.Writer, io.Writer) error
+pkg impl, func Uninstall(string, string, io.Writer, io.Writer) error
+pkg impl, func VanadiumEnvironment([]string) []string
+pkg impl, type BlessingSystemAssociationStore interface { AllBlessingSystemAssociations, AssociateSystemAccountForBlessings, DisassociateSystemAccountForBlessings, SystemAccountForBlessings }
+pkg impl, type BlessingSystemAssociationStore interface, AllBlessingSystemAssociations() ([]device.Association, error)
+pkg impl, type BlessingSystemAssociationStore interface, AssociateSystemAccountForBlessings([]string, string) error
+pkg impl, type BlessingSystemAssociationStore interface, DisassociateSystemAccountForBlessings([]string) error
+pkg impl, type BlessingSystemAssociationStore interface, SystemAccountForBlessings([]string) (string, bool)
+pkg impl, type CreatorInfo struct
+pkg impl, type CreatorInfo struct, BuildInfo string
+pkg impl, type CreatorInfo struct, Version Version
+pkg impl, type ManagerInfo struct
+pkg impl, type ManagerInfo struct, Pid int
+pkg impl, type Version struct
+pkg impl, type Version struct, Major int
+pkg impl, type Version struct, Minor int
+pkg impl, var CurrentVersion Version
+pkg impl, var Describe func() (device.Description, error)
+pkg impl, var ErrAppTitleMismatch unknown-type
+pkg impl, var ErrDeviceAlreadyClaimed unknown-type
+pkg impl, var ErrInvalidBlessing unknown-type
+pkg impl, var ErrInvalidOperation unknown-type
+pkg impl, var ErrInvalidPairingToken unknown-type
+pkg impl, var ErrInvalidSuffix unknown-type
+pkg impl, var ErrOperationFailed unknown-type
+pkg impl, var ErrOperationInProgress unknown-type
+pkg impl, var ErrUnclaimedDevice unknown-type
+pkg impl, var ErrUpdateNoOp unknown-type

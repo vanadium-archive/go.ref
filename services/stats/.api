@@ -1,0 +1,11 @@
+pkg stats, method (HistogramValue) Print(io.Writer)
+pkg stats, method (HistogramValue) String() string
+pkg stats, type HistogramBucket struct
+pkg stats, type HistogramBucket struct, Count int64
+pkg stats, type HistogramBucket struct, LowBound int64
+pkg stats, type HistogramValue struct
+pkg stats, type HistogramValue struct, Buckets []HistogramBucket
+pkg stats, type HistogramValue struct, Count int64
+pkg stats, type HistogramValue struct, Max int64
+pkg stats, type HistogramValue struct, Min int64
+pkg stats, type HistogramValue struct, Sum int64

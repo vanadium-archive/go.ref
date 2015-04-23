@@ -1,0 +1,182 @@
+pkg arith, const FloatConst float64
+pkg arith, const Hello ideal-string
+pkg arith, const Int32Const int32
+pkg arith, const Int64Const int64
+pkg arith, const Mask uint64
+pkg arith, const No bool
+pkg arith, const Yes bool
+pkg arith, func AdvancedMathClient(string) AdvancedMathClientStub
+pkg arith, func AdvancedMathServer(AdvancedMathServerMethods) AdvancedMathServerStub
+pkg arith, func ArithClient(string) ArithClientStub
+pkg arith, func ArithServer(ArithServerMethods) ArithServerStub
+pkg arith, func CalculatorClient(string) CalculatorClientStub
+pkg arith, func CalculatorServer(CalculatorServerMethods) CalculatorServerStub
+pkg arith, func TrigonometryClient(string) TrigonometryClientStub
+pkg arith, func TrigonometryServer(TrigonometryServerMethods) TrigonometryServerStub
+pkg arith, method (*ArithCountServerCallStub) Init(rpc.StreamServerCall)
+pkg arith, method (*ArithCountServerCallStub) SendStream() interface {  Send(item int32) error;}
+pkg arith, method (*ArithStreamingAddServerCallStub) Init(rpc.StreamServerCall)
+pkg arith, method (*ArithStreamingAddServerCallStub) RecvStream() interface {  Advance() bool; Value() int32; Err() error;}
+pkg arith, method (*ArithStreamingAddServerCallStub) SendStream() interface {  Send(item int32) error;}
+pkg arith, type AdvancedMathClientMethods interface, Cosine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type AdvancedMathClientMethods interface, Sine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type AdvancedMathClientMethods interface, unexported methods
+pkg arith, type AdvancedMathClientStub interface, Cosine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type AdvancedMathClientStub interface, Sine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type AdvancedMathClientStub interface, unexported methods
+pkg arith, type AdvancedMathServerMethods interface, Cosine(*context.T, rpc.ServerCall, float64) (float64, error)
+pkg arith, type AdvancedMathServerMethods interface, Sine(*context.T, rpc.ServerCall, float64) (float64, error)
+pkg arith, type AdvancedMathServerMethods interface, unexported methods
+pkg arith, type AdvancedMathServerStub interface, Describe__() []rpc.InterfaceDesc
+pkg arith, type AdvancedMathServerStub interface, unexported methods
+pkg arith, type AdvancedMathServerStubMethods AdvancedMathServerMethods
+pkg arith, type ArithClientMethods interface { Add, Count, DivMod, GenError, Mul, QuoteAny, StreamingAdd, Sub }
+pkg arith, type ArithClientMethods interface, Add(*context.T, int32, int32, ...rpc.CallOpt) (int32, error)
+pkg arith, type ArithClientMethods interface, Count(*context.T, int32, ...rpc.CallOpt) (ArithCountClientCall, error)
+pkg arith, type ArithClientMethods interface, DivMod(*context.T, int32, int32, ...rpc.CallOpt) (int32, int32, error)
+pkg arith, type ArithClientMethods interface, GenError(*context.T, ...rpc.CallOpt) error
+pkg arith, type ArithClientMethods interface, Mul(*context.T, base.NestedArgs, ...rpc.CallOpt) (int32, error)
+pkg arith, type ArithClientMethods interface, QuoteAny(*context.T, *vdl.Value, ...rpc.CallOpt) (*vdl.Value, error)
+pkg arith, type ArithClientMethods interface, StreamingAdd(*context.T, ...rpc.CallOpt) (ArithStreamingAddClientCall, error)
+pkg arith, type ArithClientMethods interface, Sub(*context.T, base.Args, ...rpc.CallOpt) (int32, error)
+pkg arith, type ArithClientStub interface, Add(*context.T, int32, int32, ...rpc.CallOpt) (int32, error)
+pkg arith, type ArithClientStub interface, Count(*context.T, int32, ...rpc.CallOpt) (ArithCountClientCall, error)
+pkg arith, type ArithClientStub interface, DivMod(*context.T, int32, int32, ...rpc.CallOpt) (int32, int32, error)
+pkg arith, type ArithClientStub interface, GenError(*context.T, ...rpc.CallOpt) error
+pkg arith, type ArithClientStub interface, Mul(*context.T, base.NestedArgs, ...rpc.CallOpt) (int32, error)
+pkg arith, type ArithClientStub interface, QuoteAny(*context.T, *vdl.Value, ...rpc.CallOpt) (*vdl.Value, error)
+pkg arith, type ArithClientStub interface, StreamingAdd(*context.T, ...rpc.CallOpt) (ArithStreamingAddClientCall, error)
+pkg arith, type ArithClientStub interface, Sub(*context.T, base.Args, ...rpc.CallOpt) (int32, error)
+pkg arith, type ArithClientStub interface, unexported methods
+pkg arith, type ArithCountClientCall interface { Finish, RecvStream }
+pkg arith, type ArithCountClientCall interface, Finish() error
+pkg arith, type ArithCountClientCall interface, RecvStream() interface {  Advance() bool;; Value() int32;; Err() error;}
+pkg arith, type ArithCountClientStream interface { RecvStream }
+pkg arith, type ArithCountClientStream interface, RecvStream() interface {  Advance() bool;; Value() int32;; Err() error;}
+pkg arith, type ArithCountServerCall interface, SendStream() interface {  Send(item int32) error;}
+pkg arith, type ArithCountServerCall interface, unexported methods
+pkg arith, type ArithCountServerCallStub struct
+pkg arith, type ArithCountServerCallStub struct, embedded rpc.StreamServerCall
+pkg arith, type ArithCountServerStream interface { SendStream }
+pkg arith, type ArithCountServerStream interface, SendStream() interface {  Send(item int32) error;}
+pkg arith, type ArithServerMethods interface { Add, Count, DivMod, GenError, Mul, QuoteAny, StreamingAdd, Sub }
+pkg arith, type ArithServerMethods interface, Add(*context.T, rpc.ServerCall, int32, int32) (int32, error)
+pkg arith, type ArithServerMethods interface, Count(*context.T, ArithCountServerCall, int32) error
+pkg arith, type ArithServerMethods interface, DivMod(*context.T, rpc.ServerCall, int32, int32) (int32, int32, error)
+pkg arith, type ArithServerMethods interface, GenError(*context.T, rpc.ServerCall) error
+pkg arith, type ArithServerMethods interface, Mul(*context.T, rpc.ServerCall, base.NestedArgs) (int32, error)
+pkg arith, type ArithServerMethods interface, QuoteAny(*context.T, rpc.ServerCall, *vdl.Value) (*vdl.Value, error)
+pkg arith, type ArithServerMethods interface, StreamingAdd(*context.T, ArithStreamingAddServerCall) (int32, error)
+pkg arith, type ArithServerMethods interface, Sub(*context.T, rpc.ServerCall, base.Args) (int32, error)
+pkg arith, type ArithServerStub interface { Add, Count, Describe__, DivMod, GenError, Mul, QuoteAny, StreamingAdd, Sub }
+pkg arith, type ArithServerStub interface, Add(*context.T, rpc.ServerCall, int32, int32) (int32, error)
+pkg arith, type ArithServerStub interface, Count(*context.T, *ArithCountServerCallStub, int32) error
+pkg arith, type ArithServerStub interface, Describe__() []rpc.InterfaceDesc
+pkg arith, type ArithServerStub interface, DivMod(*context.T, rpc.ServerCall, int32, int32) (int32, int32, error)
+pkg arith, type ArithServerStub interface, GenError(*context.T, rpc.ServerCall) error
+pkg arith, type ArithServerStub interface, Mul(*context.T, rpc.ServerCall, base.NestedArgs) (int32, error)
+pkg arith, type ArithServerStub interface, QuoteAny(*context.T, rpc.ServerCall, *vdl.Value) (*vdl.Value, error)
+pkg arith, type ArithServerStub interface, StreamingAdd(*context.T, *ArithStreamingAddServerCallStub) (int32, error)
+pkg arith, type ArithServerStub interface, Sub(*context.T, rpc.ServerCall, base.Args) (int32, error)
+pkg arith, type ArithServerStubMethods interface { Add, Count, DivMod, GenError, Mul, QuoteAny, StreamingAdd, Sub }
+pkg arith, type ArithServerStubMethods interface, Add(*context.T, rpc.ServerCall, int32, int32) (int32, error)
+pkg arith, type ArithServerStubMethods interface, Count(*context.T, *ArithCountServerCallStub, int32) error
+pkg arith, type ArithServerStubMethods interface, DivMod(*context.T, rpc.ServerCall, int32, int32) (int32, int32, error)
+pkg arith, type ArithServerStubMethods interface, GenError(*context.T, rpc.ServerCall) error
+pkg arith, type ArithServerStubMethods interface, Mul(*context.T, rpc.ServerCall, base.NestedArgs) (int32, error)
+pkg arith, type ArithServerStubMethods interface, QuoteAny(*context.T, rpc.ServerCall, *vdl.Value) (*vdl.Value, error)
+pkg arith, type ArithServerStubMethods interface, StreamingAdd(*context.T, *ArithStreamingAddServerCallStub) (int32, error)
+pkg arith, type ArithServerStubMethods interface, Sub(*context.T, rpc.ServerCall, base.Args) (int32, error)
+pkg arith, type ArithStreamingAddClientCall interface { Finish, RecvStream, SendStream }
+pkg arith, type ArithStreamingAddClientCall interface, Finish() (int32, error)
+pkg arith, type ArithStreamingAddClientCall interface, RecvStream() interface {  Advance() bool;; Value() int32;; Err() error;}
+pkg arith, type ArithStreamingAddClientCall interface, SendStream() interface {  Send(item int32) error;; Close() error;}
+pkg arith, type ArithStreamingAddClientStream interface { RecvStream, SendStream }
+pkg arith, type ArithStreamingAddClientStream interface, RecvStream() interface {  Advance() bool;; Value() int32;; Err() error;}
+pkg arith, type ArithStreamingAddClientStream interface, SendStream() interface {  Send(item int32) error;; Close() error;}
+pkg arith, type ArithStreamingAddServerCall interface, RecvStream() interface {  Advance() bool;; Value() int32;; Err() error;}
+pkg arith, type ArithStreamingAddServerCall interface, SendStream() interface {  Send(item int32) error;}
+pkg arith, type ArithStreamingAddServerCall interface, unexported methods
+pkg arith, type ArithStreamingAddServerCallStub struct
+pkg arith, type ArithStreamingAddServerCallStub struct, embedded rpc.StreamServerCall
+pkg arith, type ArithStreamingAddServerStream interface { RecvStream, SendStream }
+pkg arith, type ArithStreamingAddServerStream interface, RecvStream() interface {  Advance() bool;; Value() int32;; Err() error;}
+pkg arith, type ArithStreamingAddServerStream interface, SendStream() interface {  Send(item int32) error;}
+pkg arith, type CalculatorClientMethods interface, Add(*context.T, int32, int32, ...rpc.CallOpt) (int32, error)
+pkg arith, type CalculatorClientMethods interface, Cosine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type CalculatorClientMethods interface, Count(*context.T, int32, ...rpc.CallOpt) (ArithCountClientCall, error)
+pkg arith, type CalculatorClientMethods interface, DivMod(*context.T, int32, int32, ...rpc.CallOpt) (int32, int32, error)
+pkg arith, type CalculatorClientMethods interface, GenError(*context.T, ...rpc.CallOpt) error
+pkg arith, type CalculatorClientMethods interface, Mul(*context.T, base.NestedArgs, ...rpc.CallOpt) (int32, error)
+pkg arith, type CalculatorClientMethods interface, Off(*context.T, ...rpc.CallOpt) error
+pkg arith, type CalculatorClientMethods interface, On(*context.T, ...rpc.CallOpt) error
+pkg arith, type CalculatorClientMethods interface, QuoteAny(*context.T, *vdl.Value, ...rpc.CallOpt) (*vdl.Value, error)
+pkg arith, type CalculatorClientMethods interface, Sine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type CalculatorClientMethods interface, StreamingAdd(*context.T, ...rpc.CallOpt) (ArithStreamingAddClientCall, error)
+pkg arith, type CalculatorClientMethods interface, Sub(*context.T, base.Args, ...rpc.CallOpt) (int32, error)
+pkg arith, type CalculatorClientMethods interface, unexported methods
+pkg arith, type CalculatorClientStub interface, Add(*context.T, int32, int32, ...rpc.CallOpt) (int32, error)
+pkg arith, type CalculatorClientStub interface, Cosine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type CalculatorClientStub interface, Count(*context.T, int32, ...rpc.CallOpt) (ArithCountClientCall, error)
+pkg arith, type CalculatorClientStub interface, DivMod(*context.T, int32, int32, ...rpc.CallOpt) (int32, int32, error)
+pkg arith, type CalculatorClientStub interface, GenError(*context.T, ...rpc.CallOpt) error
+pkg arith, type CalculatorClientStub interface, Mul(*context.T, base.NestedArgs, ...rpc.CallOpt) (int32, error)
+pkg arith, type CalculatorClientStub interface, Off(*context.T, ...rpc.CallOpt) error
+pkg arith, type CalculatorClientStub interface, On(*context.T, ...rpc.CallOpt) error
+pkg arith, type CalculatorClientStub interface, QuoteAny(*context.T, *vdl.Value, ...rpc.CallOpt) (*vdl.Value, error)
+pkg arith, type CalculatorClientStub interface, Sine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type CalculatorClientStub interface, StreamingAdd(*context.T, ...rpc.CallOpt) (ArithStreamingAddClientCall, error)
+pkg arith, type CalculatorClientStub interface, Sub(*context.T, base.Args, ...rpc.CallOpt) (int32, error)
+pkg arith, type CalculatorClientStub interface, unexported methods
+pkg arith, type CalculatorServerMethods interface, Add(*context.T, rpc.ServerCall, int32, int32) (int32, error)
+pkg arith, type CalculatorServerMethods interface, Cosine(*context.T, rpc.ServerCall, float64) (float64, error)
+pkg arith, type CalculatorServerMethods interface, Count(*context.T, ArithCountServerCall, int32) error
+pkg arith, type CalculatorServerMethods interface, DivMod(*context.T, rpc.ServerCall, int32, int32) (int32, int32, error)
+pkg arith, type CalculatorServerMethods interface, GenError(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerMethods interface, Mul(*context.T, rpc.ServerCall, base.NestedArgs) (int32, error)
+pkg arith, type CalculatorServerMethods interface, Off(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerMethods interface, On(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerMethods interface, QuoteAny(*context.T, rpc.ServerCall, *vdl.Value) (*vdl.Value, error)
+pkg arith, type CalculatorServerMethods interface, Sine(*context.T, rpc.ServerCall, float64) (float64, error)
+pkg arith, type CalculatorServerMethods interface, StreamingAdd(*context.T, ArithStreamingAddServerCall) (int32, error)
+pkg arith, type CalculatorServerMethods interface, Sub(*context.T, rpc.ServerCall, base.Args) (int32, error)
+pkg arith, type CalculatorServerMethods interface, unexported methods
+pkg arith, type CalculatorServerStub interface, Add(*context.T, rpc.ServerCall, int32, int32) (int32, error)
+pkg arith, type CalculatorServerStub interface, Count(*context.T, *ArithCountServerCallStub, int32) error
+pkg arith, type CalculatorServerStub interface, Describe__() []rpc.InterfaceDesc
+pkg arith, type CalculatorServerStub interface, DivMod(*context.T, rpc.ServerCall, int32, int32) (int32, int32, error)
+pkg arith, type CalculatorServerStub interface, GenError(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerStub interface, Mul(*context.T, rpc.ServerCall, base.NestedArgs) (int32, error)
+pkg arith, type CalculatorServerStub interface, Off(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerStub interface, On(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerStub interface, QuoteAny(*context.T, rpc.ServerCall, *vdl.Value) (*vdl.Value, error)
+pkg arith, type CalculatorServerStub interface, StreamingAdd(*context.T, *ArithStreamingAddServerCallStub) (int32, error)
+pkg arith, type CalculatorServerStub interface, Sub(*context.T, rpc.ServerCall, base.Args) (int32, error)
+pkg arith, type CalculatorServerStub interface, unexported methods
+pkg arith, type CalculatorServerStubMethods interface, Add(*context.T, rpc.ServerCall, int32, int32) (int32, error)
+pkg arith, type CalculatorServerStubMethods interface, Count(*context.T, *ArithCountServerCallStub, int32) error
+pkg arith, type CalculatorServerStubMethods interface, DivMod(*context.T, rpc.ServerCall, int32, int32) (int32, int32, error)
+pkg arith, type CalculatorServerStubMethods interface, GenError(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerStubMethods interface, Mul(*context.T, rpc.ServerCall, base.NestedArgs) (int32, error)
+pkg arith, type CalculatorServerStubMethods interface, Off(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerStubMethods interface, On(*context.T, rpc.ServerCall) error
+pkg arith, type CalculatorServerStubMethods interface, QuoteAny(*context.T, rpc.ServerCall, *vdl.Value) (*vdl.Value, error)
+pkg arith, type CalculatorServerStubMethods interface, StreamingAdd(*context.T, *ArithStreamingAddServerCallStub) (int32, error)
+pkg arith, type CalculatorServerStubMethods interface, Sub(*context.T, rpc.ServerCall, base.Args) (int32, error)
+pkg arith, type CalculatorServerStubMethods interface, unexported methods
+pkg arith, type TrigonometryClientMethods interface { Cosine, Sine }
+pkg arith, type TrigonometryClientMethods interface, Cosine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type TrigonometryClientMethods interface, Sine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type TrigonometryClientStub interface, Cosine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type TrigonometryClientStub interface, Sine(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg arith, type TrigonometryClientStub interface, unexported methods
+pkg arith, type TrigonometryServerMethods interface { Cosine, Sine }
+pkg arith, type TrigonometryServerMethods interface, Cosine(*context.T, rpc.ServerCall, float64) (float64, error)
+pkg arith, type TrigonometryServerMethods interface, Sine(*context.T, rpc.ServerCall, float64) (float64, error)
+pkg arith, type TrigonometryServerStub interface, Describe__() []rpc.InterfaceDesc
+pkg arith, type TrigonometryServerStub interface, unexported methods
+pkg arith, type TrigonometryServerStubMethods TrigonometryServerMethods
+pkg arith, var AdvancedMathDesc rpc.InterfaceDesc
+pkg arith, var ArithDesc rpc.InterfaceDesc
+pkg arith, var CalculatorDesc rpc.InterfaceDesc
+pkg arith, var TrigonometryDesc rpc.InterfaceDesc

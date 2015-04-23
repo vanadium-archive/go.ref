@@ -1,0 +1,1 @@
+pkg cache, func NewCachedPrincipal(*context.T, security.Principal, rpc.ClientCall) (security.Principal, error)
