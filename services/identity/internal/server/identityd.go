@@ -253,15 +253,11 @@ func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams)
 	return d
 }
 
-type allowEveryoneAuthorizer struct{}
-
-func (allowEveryoneAuthorizer) Authorize(*context.T, security.Call) error { return nil }
-
 type dispatcher map[string]interface{}
 
 func (d dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if invoker := d[suffix]; invoker != nil {
-		return invoker, allowEveryoneAuthorizer{}, nil
+		return invoker, security.AllowEveryone(), nil
 	}
 	return nil, nil, verror.New(verror.ErrNoExist, nil, suffix)
 }

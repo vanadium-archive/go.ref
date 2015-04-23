@@ -1160,7 +1160,7 @@ func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
 // value may be modified to match the actual suffix and method to use.
 func (fs *flowServer) lookup(suffix string, method string) (rpc.Invoker, security.Authorizer, error) {
 	if naming.IsReserved(method) {
-		return reservedInvoker(fs.disp, fs.server.dispReserved), &acceptAllAuthorizer{}, nil
+		return reservedInvoker(fs.disp, fs.server.dispReserved), security.AllowEveryone(), nil
 	}
 	disp := fs.disp
 	if naming.IsReserved(suffix) {
@@ -1231,12 +1231,6 @@ func (fs *flowServer) initSecurity(req *rpc.Request) error {
 	for _, d := range req.Discharges {
 		fs.discharges[d.ID()] = d
 	}
-	return nil
-}
-
-type acceptAllAuthorizer struct{}
-
-func (acceptAllAuthorizer) Authorize(*context.T, security.Call) error {
 	return nil
 }
 

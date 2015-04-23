@@ -32,12 +32,6 @@ func (s *retryServer) TryAgain(ctx *context.T, _ rpc.ServerCall) error {
 	return verror.New(errRetryThis, ctx)
 }
 
-type allowEveryoneAuth struct{}
-
-func (allowEveryoneAuth) Authorize(*context.T, security.Call) error {
-	return nil
-}
-
 func TestRetryCall(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
@@ -52,7 +46,7 @@ func TestRetryCall(t *testing.T) {
 		t.Fatal(err)
 	}
 	rs := retryServer{}
-	if err = server.Serve("", &rs, allowEveryoneAuth{}); err != nil {
+	if err = server.Serve("", &rs, security.AllowEveryone()); err != nil {
 		t.Fatal(err)
 	}
 	name := eps[0].Name()

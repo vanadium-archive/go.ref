@@ -123,14 +123,10 @@ func (t *testServer) GlobChildren__(*context.T, rpc.ServerCall) (<-chan string, 
 	return ch, nil
 }
 
-type allowEveryoneAuthorizer struct{}
-
-func (allowEveryoneAuthorizer) Authorize(*context.T, security.Call) error { return nil }
-
 type dispatcher struct{}
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return &testServer{suffix}, allowEveryoneAuthorizer{}, nil
+	return &testServer{suffix}, security.AllowEveryone(), nil
 }
 
 func knockKnock(t *testing.T, ctx *context.T, name string) {

@@ -19,12 +19,6 @@ import (
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 )
 
-type fakeAuthorizer int
-
-func (fakeAuthorizer) Authorize(*context.T, security.Call) error {
-	return nil
-}
-
 type canceld struct {
 	sm       stream.Manager
 	ns       namespace.T
@@ -78,7 +72,7 @@ func makeCanceld(ctx *context.T, ns namespace.T, name, child string) (*canceld, 
 		stop:     s.Stop,
 	}
 
-	if err := s.Serve(name, c, fakeAuthorizer(0)); err != nil {
+	if err := s.Serve(name, c, security.AllowEveryone()); err != nil {
 		return nil, err
 	}
 

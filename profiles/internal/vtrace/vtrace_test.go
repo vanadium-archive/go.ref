@@ -154,10 +154,6 @@ func makeChainedTestServers(ctx *context.T, idp *testutil.IDProvider, force ...b
 	}, nil
 }
 
-type anyone struct{}
-
-func (anyone) Authorize(*context.T, security.Call) error { return nil }
-
 func makeTestServer(ctx *context.T, principal security.Principal, name string) (*testServer, error) {
 	// Set a new vtrace store to simulate a separate process.
 	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
@@ -180,7 +176,7 @@ func makeTestServer(ctx *context.T, principal security.Principal, name string) (
 		name: name,
 		stop: s.Stop,
 	}
-	if err := s.Serve(name, c, anyone{}); err != nil {
+	if err := s.Serve(name, c, security.AllowEveryone()); err != nil {
 		return nil, err
 	}
 	return c, nil

@@ -563,7 +563,7 @@ func (p pingServer) Ping(_ *context.T, _ rpc.ServerCall, arg pingArgs) error {
 func setupPingServer(t *testing.T, ctx *context.T) (<-chan pingArgs, func()) {
 	server, _ := servicetest.NewServer(ctx)
 	pingCh := make(chan pingArgs, 1)
-	if err := server.Serve("pingserver", pingServer(pingCh), &openAuthorizer{}); err != nil {
+	if err := server.Serve("pingserver", pingServer(pingCh), security.AllowEveryone()); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 	return pingCh, func() {
