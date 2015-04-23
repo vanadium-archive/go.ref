@@ -22,6 +22,7 @@ func init() {
 }
 
 func tcpDial(network, address string, timeout time.Duration) (net.Conn, error) {
+	vlog.Infof("tcp.Dial %v", address)
 	conn, err := net.DialTimeout(network, address, timeout)
 	if err != nil {
 		return nil, err

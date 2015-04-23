@@ -14,6 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"v.io/x/lib/netstate"
+	"v.io/x/lib/vlog"
+
 	"v.io/v23/config"
 	"v.io/v23/context"
 	"v.io/v23/namespace"
@@ -26,8 +29,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/netstate"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/lib/publisher"
 	inaming "v.io/x/ref/profiles/internal/naming"
@@ -316,46 +318,10 @@ func (s *server) resolveToEndpoint(address string) (string, error) {
 	return "", verror.New(errFailedToResolveToEndpoint, s.ctx, address)
 }
 
-// getPossbileAddrs returns an appropriate set of addresses that could be used
-// to contact the supplied protocol, host, port parameters using the supplied
-// chooser function. It returns an indication of whether the supplied address
-// was fully specified or not, returning false if the address was fully
-// specified, and true if it was not.
-func getPossibleAddrs(protocol, host, port string, chooser rpc.AddressChooser) ([]rpc.Address, bool, error) {
-
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return nil, false, verror.New(errFailedToParseIP, nil, host)
-	}
-
-	addrFromIP := func(ip net.IP) rpc.Address {
-		return &netstate.AddrIfc{
-			Addr: &net.IPAddr{IP: ip},
-		}
-	}
-
-	if ip.IsUnspecified() {
-		if chooser != nil {
-			// Need to find a usable IP address since the call to listen
-			// didn't specify one.
-			if addrs, err := netstate.GetAccessibleIPs(); err == nil {
-				a, err := chooser(protocol, addrs)
-				if err == nil && len(a) > 0 {
-					return a, true, nil
-				}
-			}
-		}
-		// We don't have a chooser, so we just return the address the
-		// underlying system has chosen.
-		return []rpc.Address{addrFromIP(ip)}, true, nil
-	}
-	return []rpc.Address{addrFromIP(ip)}, false, nil
-}
-
 // createEndpoints creates appropriate inaming.Endpoint instances for
 // all of the externally accessible network addresses that can be used
 // to reach this server.
-func (s *server) createEndpoints(lep naming.Endpoint, chooser rpc.AddressChooser) ([]*inaming.Endpoint, string, bool, error) {
+func (s *server) createEndpoints(lep naming.Endpoint, chooser netstate.AddressChooser) ([]*inaming.Endpoint, string, bool, error) {
 	iep, ok := lep.(*inaming.Endpoint)
 	if !ok {
 		return nil, "", false, verror.New(errInternalTypeConversion, nil, fmt.Sprintf("%T", lep))
@@ -365,15 +331,15 @@ func (s *server) createEndpoints(lep naming.Endpoint, chooser rpc.AddressChooser
 		// If not tcp, ws, or wsh, just return the endpoint we were given.
 		return []*inaming.Endpoint{iep}, "", false, nil
 	}
-
 	host, port, err := net.SplitHostPort(iep.Address)
 	if err != nil {
 		return nil, "", false, err
 	}
-	addrs, unspecified, err := getPossibleAddrs(iep.Protocol, host, port, chooser)
+	addrs, unspecified, err := netstate.PossibleAddresses(iep.Protocol, host, chooser)
 	if err != nil {
 		return nil, port, false, err
 	}
+
 	ieps := make([]*inaming.Endpoint, 0, len(addrs))
 	for _, addr := range addrs {
 		n, err := inaming.NewEndpoint(lep.String())
@@ -381,7 +347,7 @@ func (s *server) createEndpoints(lep naming.Endpoint, chooser rpc.AddressChooser
 			return nil, port, false, err
 		}
 		n.IsMountTable = s.servesMountTable
-		n.Address = net.JoinHostPort(addr.Address().String(), port)
+		n.Address = net.JoinHostPort(addr.String(), port)
 		ieps = append(ieps, n)
 	}
 	return ieps, port, unspecified, nil
@@ -652,7 +618,7 @@ func (s *server) dhcpLoop(ch chan config.Setting) {
 			return
 		}
 		switch v := setting.Value().(type) {
-		case []rpc.Address:
+		case []net.Addr:
 			s.Lock()
 			if s.isStopState() {
 				s.Unlock()
@@ -687,20 +653,20 @@ func (s *server) dhcpLoop(ch chan config.Setting) {
 	}
 }
 
-func getHost(address rpc.Address) string {
-	host, _, err := net.SplitHostPort(address.Address().String())
+func getHost(address net.Addr) string {
+	host, _, err := net.SplitHostPort(address.String())
 	if err == nil {
 		return host
 	}
-	return address.Address().String()
+	return address.String()
 
 }
 
 // Remove all endpoints that have the same host address as the supplied
 // address parameter.
-func (s *server) removeAddresses(addresses []rpc.Address) ([]naming.Endpoint, error) {
+func (s *server) removeAddresses(addrs []net.Addr) ([]naming.Endpoint, error) {
 	var removed []naming.Endpoint
-	for _, address := range addresses {
+	for _, address := range addrs {
 		host := getHost(address)
 		for ls, _ := range s.listenState {
 			if ls != nil && ls.roaming && len(ls.ieps) > 0 {
@@ -735,13 +701,16 @@ func (s *server) removeAddresses(addresses []rpc.Address) ([]naming.Endpoint, er
 // externally accessible.
 // This places the onus on the dhcp/roaming code that sends us addresses
 // to ensure that those addresses are externally reachable.
-func (s *server) addAddresses(addresses []rpc.Address) []naming.Endpoint {
+func (s *server) addAddresses(addrs []net.Addr) []naming.Endpoint {
 	var added []naming.Endpoint
-	for _, address := range addresses {
+	vlog.Infof("HERE WITH %v -> %v", addrs, netstate.ConvertToAddresses(addrs))
+	for _, address := range netstate.ConvertToAddresses(addrs) {
 		if !netstate.IsAccessibleIP(address) {
+			vlog.Infof("RETURN A %v", added)
 			return added
 		}
 		host := getHost(address)
+		vlog.Infof("LISTEN ST: %v", s.listenState)
 		for ls, _ := range s.listenState {
 			if ls != nil && ls.roaming {
 				niep := ls.protoIEP
@@ -755,6 +724,7 @@ func (s *server) addAddresses(addresses []rpc.Address) []naming.Endpoint {
 			}
 		}
 	}
+	vlog.Infof("RETURN B %v", added)
 	return added
 }
 

@@ -6,10 +6,10 @@ package internal
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
-	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
@@ -46,11 +46,11 @@ func ParseFlags(f *flags.Flags) error {
 // IPAddressChooser returns the preferred IP address, which is,
 // a public IPv4 address, then any non-loopback IPv4, then a public
 // IPv6 address and finally any non-loopback/link-local IPv6
-func IPAddressChooser(network string, addrs []rpc.Address) ([]rpc.Address, error) {
+func IPAddressChooser(network string, addrs []net.Addr) ([]net.Addr, error) {
 	if !netstate.IsIPProtocol(network) {
 		return nil, fmt.Errorf("can't support network protocol %q", network)
 	}
-	accessible := netstate.AddrList(addrs)
+	accessible := netstate.ConvertToAddresses(addrs)
 
 	// Try and find an address on a interface with a default route.
 	// We give preference to IPv4 over IPv6 for compatibility for now.
@@ -65,7 +65,7 @@ func IPAddressChooser(network string, addrs []rpc.Address) ([]rpc.Address, error
 		if addrs := accessible.Filter(predicate); len(addrs) > 0 {
 			onDefaultRoutes := addrs.Filter(netstate.IsOnDefaultRoute)
 			if len(onDefaultRoutes) > 0 {
-				return onDefaultRoutes, nil
+				return onDefaultRoutes.AsNetAddrs(), nil
 			}
 		}
 	}
@@ -74,11 +74,10 @@ func IPAddressChooser(network string, addrs []rpc.Address) ([]rpc.Address, error
 	// but without the default route requirement.
 	for _, predicate := range predicates {
 		if addrs := accessible.Filter(predicate); len(addrs) > 0 {
-			return addrs, nil
+			return addrs.AsNetAddrs(), nil
 		}
 	}
-
-	return nil, fmt.Errorf("failed to find any usable address for %q", network)
+	return []net.Addr{}, nil
 }
 
 // HasPublicIP returns true if the host has at least one public IP address.

@@ -32,6 +32,7 @@ var (
 // toIPPort tries to swap in the 'best' accessible IP for the host part of the
 // address, if the provided address has an unspecified IP.
 func toIPPort(ctx *context.T, addr string) string {
+	// TODO(caprita): consider using netstate.PossibleAddresses()
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		vlog.Errorf("SplitHostPort(%v) failed: %v", addr, err)
@@ -43,8 +44,8 @@ func toIPPort(ctx *context.T, addr string) string {
 		ips, err := netstate.GetAccessibleIPs()
 		if err == nil {
 			ls := v23.GetListenSpec(ctx)
-			if a, err := ls.AddressChooser("tcp", ips); err == nil && len(a) > 0 {
-				host = a[0].Address().String()
+			if a, err := ls.AddressChooser("tcp", ips.AsNetAddrs()); err == nil && len(a) > 0 {
+				host = a[0].String()
 			}
 		}
 	}

@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	pubAddress  = flag.String("published-address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
+	pubAddress  = flag.String("published-address", "", "deprecated - the proxy now uses listenspecs and the address chooser mechanism")
 	healthzAddr = flag.String("healthz-address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
 	name        = flag.String("name", "", "Name to mount the proxy as")
 )
@@ -39,7 +39,7 @@ func main() {
 	if listenSpec.Proxy != "" {
 		vlog.Fatalf("proxyd cannot listen through another proxy")
 	}
-	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec.Addrs[0].Protocol, listenSpec.Addrs[0].Address, *pubAddress, *name)
+	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec, *name)
 	if err != nil {
 		vlog.Fatal(err)
 	}
@@ -49,6 +49,8 @@ func main() {
 		// Print out a directly accessible name for the proxy table so
 		// that integration tests can reliably read it from stdout.
 		fmt.Printf("NAME=%s\n", proxyEndpoint.Name())
+	} else {
+		fmt.Printf("Proxy listening on %s\n", proxyEndpoint)
 	}
 
 	if len(*healthzAddr) != 0 {

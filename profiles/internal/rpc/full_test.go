@@ -1520,10 +1520,8 @@ func TestPreferredAddress(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	pa := func(string, []rpc.Address) ([]rpc.Address, error) {
-		a := &net.IPAddr{}
-		a.IP = net.ParseIP("1.1.1.1")
-		return []rpc.Address{&netstate.AddrIfc{Addr: a}}, nil
+	pa := func(string, []net.Addr) ([]net.Addr, error) {
+		return []net.Addr{netstate.NewNetAddr("tcp", "1.1.1.1")}, nil
 	}
 	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
 	if err != nil {
@@ -1565,7 +1563,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	paerr := func(_ string, a []rpc.Address) ([]rpc.Address, error) {
+	paerr := func(_ string, a []net.Addr) ([]net.Addr, error) {
 		return nil, fmt.Errorf("oops")
 	}
 	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
@@ -1578,17 +1576,16 @@ func TestPreferredAddressErrors(t *testing.T) {
 		AddressChooser: paerr,
 	}
 	eps, err := server.Listen(spec)
-	iep := eps[0].(*inaming.Endpoint)
-	host, _, err := net.SplitHostPort(iep.Address)
-	if err != nil {
-		t.Errorf("unexpected error: %s", err)
+
+	if got, want := len(eps), 0; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		t.Fatalf("failed to parse IP address: %q", host)
+	status := server.Status()
+	if got, want := len(status.Errors), 1; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
-	if !ip.IsUnspecified() {
-		t.Errorf("IP: %q is not unspecified", ip)
+	if got, want := status.Errors[0].Error(), "oops"; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

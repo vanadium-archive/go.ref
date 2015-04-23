@@ -8,12 +8,14 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
+
+	"v.io/x/lib/netstate"
 
 	"v.io/v23"
 	"v.io/v23/config"
 
-	"v.io/x/lib/netstate"
 	"v.io/x/ref/profiles/roaming"
 )
 
@@ -25,8 +27,26 @@ func main() {
 	fmt.Println("Profile: ", profileName)
 
 	accessible, err := netstate.GetAccessibleIPs()
-	routes := netstate.GetRoutes()
-	fmt.Printf("Routes:\n%s\n", strings.Replace(routes.String(), ")", ")\n", -1))
+	interfaces, err := netstate.GetAllInterfaces()
+
+	fmt.Printf("Addresses\n")
+	for _, addr := range accessible {
+		fmt.Printf("%s\n", addr.DebugString())
+	}
+
+	fmt.Printf("\nInterfaces\n")
+	for _, ifc := range interfaces {
+		fmt.Printf("%s\n", ifc)
+	}
+
+	fmt.Printf("\nRoutes\n")
+	for _, ifc := range interfaces {
+		if ipifc, ok := ifc.(netstate.IPNetworkInterface); ok {
+			if routes := ipifc.IPRoutes(); len(routes) > 0 {
+				fmt.Printf("%s: %s\n", ifc.Name(), routes)
+			}
+		}
+	}
 
 	listenSpec := v23.GetListenSpec(ctx)
 	chooser := listenSpec.AddressChooser
@@ -36,17 +56,17 @@ func main() {
 		}
 	}
 
-	if chosen, err := listenSpec.AddressChooser("tcp", accessible); err != nil {
+	if chosen, err := listenSpec.AddressChooser("tcp", accessible.AsNetAddrs()); err != nil {
 		fmt.Printf("Failed to chosen address %s\n", err)
 	} else {
-		al := netstate.AddrList(chosen)
+		al := netstate.ConvertToAddresses(chosen)
 		fmt.Printf("Chosen:\n%s\n", strings.Replace(al.String(), ") ", ")\n", -1))
 	}
 
 	ch := make(chan config.Setting, 10)
-	settings, err := v23.GetPublisher(ctx).ForkStream(roaming.SettingsStreamName, ch)
+	settings, err := listenSpec.StreamPublisher.ForkStream(roaming.SettingsStreamName, ch)
 	if err != nil {
-		r.Logger().Infof("failed to fork stream: %s", err)
+		fmt.Fprintf(os.Stderr, "failed to fork stream: %s\n", err)
 	}
 	for _, setting := range settings.Latest {
 		fmt.Println("Setting: ", setting)

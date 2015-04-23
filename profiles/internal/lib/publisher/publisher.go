@@ -335,7 +335,7 @@ func (ps *pubState) unmount(name, server string, status *rpc.MountStatus) {
 	if status.LastUnmountErr != nil {
 		vlog.Errorf("rpc pub: couldn't unmount(%v, %v): %v", name, server, status.LastUnmountErr)
 	} else {
-		vlog.Infof("rpc pub: unmount(%v, %v)", name, server)
+		vlog.VI(1).Infof("rpc pub: unmount(%v, %v)", name, server)
 		delete(ps.mounts, mountKey{name, server})
 	}
 }

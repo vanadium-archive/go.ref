@@ -82,7 +82,8 @@ func TestBrowspr(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, "tcp", "127.0.0.1:0", "")
+	proxySpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, proxySpec)
 	if err != nil {
 		t.Fatalf("Failed to start proxy: %v", err)
 	}

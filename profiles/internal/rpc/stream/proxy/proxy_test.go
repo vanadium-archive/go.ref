@@ -13,7 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/vlog"
+
+	"v.io/v23"
 	"v.io/v23/naming"
+	"v.io/v23/verror"
 
 	_ "v.io/x/ref/profiles"
 	inaming "v.io/x/ref/profiles/internal/naming"
@@ -22,20 +26,27 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream/proxy"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
 
 func TestProxy(t *testing.T) {
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
+
 	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer shutdown()
 	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
+
+	vlog.Infof("PROXYEP: %s", proxyEp)
 
 	// Create the stream.Manager for the server.
 	server1 := manager.InternalNew(naming.FixedRoutingID(0x1111111111111111))
@@ -44,6 +55,7 @@ func TestProxy(t *testing.T) {
 	// through the proxy.
 	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String(), principal, blessings)
 	if err != nil {
+		t.Logf(verror.DebugString(err))
 		t.Fatal(err)
 	}
 	defer ln1.Close()
@@ -91,8 +103,11 @@ func TestProxy(t *testing.T) {
 }
 
 func TestDuplicateRoutingID(t *testing.T) {
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
+
 	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,8 +137,11 @@ func TestDuplicateRoutingID(t *testing.T) {
 }
 
 func TestProxyAuthentication(t *testing.T) {
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
+
 	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,13 +168,16 @@ func TestProxyAuthentication(t *testing.T) {
 }
 
 func TestServerBlessings(t *testing.T) {
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
+
 	var (
 		pproxy  = testutil.NewPrincipal("proxy")
 		pserver = testutil.NewPrincipal("server")
 		pclient = testutil.NewPrincipal("client")
 	)
 
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,8 +221,11 @@ func TestServerBlessings(t *testing.T) {
 }
 
 func TestHostPort(t *testing.T) {
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
+
 	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,8 +244,11 @@ func TestHostPort(t *testing.T) {
 }
 
 func TestClientBecomesServer(t *testing.T) {
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
+
 	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,6 +302,9 @@ func TestClientBecomesServer(t *testing.T) {
 }
 
 func testProxyIdleTimeout(t *testing.T, testServer bool) {
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
+
 	const (
 		idleTime = 10 * time.Millisecond
 		// We use a long wait time here since it takes some time to handle VC close
@@ -299,7 +329,7 @@ func testProxyIdleTimeout(t *testing.T, testServer bool) {
 	// Pause the idle timers.
 	triggerTimers := vif.SetFakeTimers()
 
-	Proxy, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	Proxy, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatal(err)
 	}

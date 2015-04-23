@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"v.io/x/lib/netstate"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -67,6 +69,9 @@ var (
 	errFailedToFowardOpenFlow    = reg(".errFailedToFowardOpenFlow", "failed to forward open flow{:3}")
 	errServerNotBeingProxied     = reg(".errServerNotBeingProxied", "no server with routing id {3} is being proxied")
 	errServerVanished            = reg(".errServerVanished", "server with routing id {3} vanished")
+	errAccessibleAddresses       = reg(".errAccessibleAddresses", "failed to obtain a set of accessible addresses{:3}")
+	errNoAccessibleAddresses     = reg(".errNoAccessibleAddresses", "no accessible addresses were available for {3}")
+	errEmptyListenSpec           = reg(".errEmptyListenSpec", "no addresses supplied in the listen spec")
 )
 
 // Proxy routes virtual circuit (VC) traffic between multiple underlying
@@ -181,13 +186,13 @@ func (m *servermap) List() []string {
 // TODO(mattr): This should take a ListenSpec instead of network, address, and
 // pubAddress.  However using a ListenSpec requires a great deal of supporting
 // code that should be refactored out of v.io/x/ref/profiles/internal/rpc/server.go.
-func New(ctx *context.T, network, address, pubAddress string, names ...string) (shutdown func(), endpoint naming.Endpoint, err error) {
+func New(ctx *context.T, spec rpc.ListenSpec, names ...string) (shutdown func(), endpoint naming.Endpoint, err error) {
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	proxy, err := internalNew(rid, v23.GetPrincipal(ctx), network, address, pubAddress)
+	proxy, err := internalNew(rid, v23.GetPrincipal(ctx), spec)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -216,7 +221,13 @@ func New(ctx *context.T, network, address, pubAddress string, names ...string) (
 	return shutdown, proxy.endpoint(), nil
 }
 
-func internalNew(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (*Proxy, error) {
+func internalNew(rid naming.RoutingID, principal security.Principal, spec rpc.ListenSpec) (*Proxy, error) {
+	if len(spec.Addrs) == 0 {
+		return nil, verror.New(stream.ErrProxy, nil, verror.New(errEmptyListenSpec, nil))
+	}
+	laddr := spec.Addrs[0]
+	network := laddr.Protocol
+	address := laddr.Address
 	_, listenFn, _ := rpc.RegisteredProtocol(network)
 	if listenFn == nil {
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errUnknownNetwork, nil, network))
@@ -225,15 +236,23 @@ func internalNew(rid naming.RoutingID, principal security.Principal, network, ad
 	if err != nil {
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errListenFailed, nil, network, address, err))
 	}
-	if len(pubAddress) == 0 {
-		pubAddress = ln.Addr().String()
+	pub, _, err := netstate.PossibleAddresses(ln.Addr().Network(), ln.Addr().String(), spec.AddressChooser)
+	if err != nil {
+		ln.Close()
+		return nil, verror.New(stream.ErrProxy, nil, verror.New(errAccessibleAddresses, nil, err))
 	}
+	if len(pub) == 0 {
+		ln.Close()
+		return nil, verror.New(stream.ErrProxy, nil, verror.New(errNoAccessibleAddresses, nil, ln.Addr().String()))
+	}
+
 	proxy := &Proxy{
-		ln:         ln,
-		rid:        rid,
-		servers:    &servermap{m: make(map[naming.RoutingID]*server)},
-		processes:  make(map[*process]struct{}),
-		pubAddress: pubAddress,
+		ln:        ln,
+		rid:       rid,
+		servers:   &servermap{m: make(map[naming.RoutingID]*server)},
+		processes: make(map[*process]struct{}),
+		// TODO(cnicolaou): should use all of the available addresses
+		pubAddress: pub[0].String(),
 		principal:  principal,
 		statsName:  naming.Join("rpc", "proxy", "routing-id", rid.String(), "debug"),
 	}
