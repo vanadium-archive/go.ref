@@ -40,6 +40,10 @@ func initSuidHelper(helperPath string) {
 	}
 }
 
+func (s suidHelperState) getCurrentUser() string {
+	return s.dmUser
+}
+
 // terminatePid sends a SIGKILL to the target pid
 func (s suidHelperState) terminatePid(pid int, stdout, stderr io.Writer) error {
 	if err := s.internalModalOp(stdout, stderr, "--kill", strconv.Itoa(pid)); err != nil {
@@ -52,6 +56,16 @@ func (s suidHelperState) terminatePid(pid int, stdout, stderr io.Writer) error {
 func (s suidHelperState) deleteFileTree(dirOrFile string, stdout, stderr io.Writer) error {
 	if err := s.internalModalOp(stdout, stderr, "--rm", dirOrFile); err != nil {
 		return fmt.Errorf("devicemanager's invocation of suidhelper delete %v failed: %v", dirOrFile, err)
+	}
+	return nil
+}
+
+// chown files or directories
+func (s suidHelperState) chownTree(username string, dirOrFile string, stdout, stderr io.Writer) error {
+	args := []string{"--chown", "--username", username, dirOrFile}
+
+	if err := s.internalModalOp(stdout, stderr, args...); err != nil {
+		return fmt.Errorf("devicemanager's invocation of suidhelper chown %v failed: %v", dirOrFile, err)
 	}
 	return nil
 }
@@ -116,6 +130,7 @@ func (s suidHelperState) internalModalOp(stdout, stderr io.Writer, arg ...string
 
 	if err := cmd.Run(); err != nil {
 		vlog.Errorf("failed calling helper with args (%v):%v", arg, err)
+		return err
 	}
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"os/user"
 	"strconv"
@@ -38,6 +39,7 @@ type WorkParameters struct {
 	envv      []string
 	dryrun    bool
 	remove    bool
+	chown     bool
 	kill      bool
 	killPids  []int
 }
@@ -54,7 +56,7 @@ const SavedArgs = "V23_SAVED_ARGS"
 var (
 	flagUsername, flagWorkspace, flagLogDir, flagRun, flagProgName *string
 	flagMinimumUid                                                 *int64
-	flagRemove, flagKill, flagDryrun                               *bool
+	flagRemove, flagKill, flagChown, flagDryrun                    *bool
 )
 
 func init() {
@@ -71,6 +73,7 @@ func setupFlags(fs *flag.FlagSet) {
 	flagMinimumUid = fs.Int64("minuid", uidThreshold, "UIDs cannot be less than this number.")
 	flagRemove = fs.Bool("rm", false, "Remove the file trees given as command-line arguments.")
 	flagKill = fs.Bool("kill", false, "Kill process ids given as command-line arguments.")
+	flagChown = fs.Bool("chown", false, "Change owner of files and directories given as command-line arguments to the user specified by this flag")
 	flagDryrun = fs.Bool("dryrun", false, "Elides root-requiring systemcalls.")
 }
 
@@ -84,29 +87,62 @@ func cleanEnv(env []string) []string {
 	return nenv
 }
 
+// checkFlagCombinations makes sure that a valid combination of flags has been
+// specified for rm/kill/chown
+//
+// --rm and --kill are modal. Complain if any other flag is set along with one of
+// those.  --chown allows specification of --username, --dryrun, and --minuid,
+// but nothing else
+func checkFlagCombinations(fs *flag.FlagSet) error {
+	if !(*flagRemove || *flagKill || *flagChown) {
+		return nil
+	}
+
+	// Count flags that are set. The device manager test always sets --minuid=1
+	// and --test.run=TestSuidHelper so when in a test, tolerate those.
+	flagsToIgnore := map[string]string{}
+	if os.Getenv("V23_SUIDHELPER_TEST") != "" {
+		flagsToIgnore["minuid"] = "1"
+		flagsToIgnore["test.run"] = "TestSuidHelper"
+	}
+	if *flagChown {
+		// Allow all values of --username, --dryrun, and --minuid
+		flagsToIgnore["username"] = "*"
+		flagsToIgnore["dryrun"] = "*"
+		flagsToIgnore["minuid"] = "*"
+	}
+
+	counter := 0
+	fs.Visit(func(f *flag.Flag) {
+		if flagsToIgnore[f.Name] != f.Value.String() && flagsToIgnore[f.Name] != "*" {
+			counter++
+		}
+	})
+
+	if counter > 1 {
+		return verror.New(errInvalidFlags, nil, counter, "--rm and --kill cannot be used with any other flag. --chown can only be used with --username, --dryrun, and --minuid")
+	}
+	return nil
+}
+
+// warnMissingSuidPrivs makes it a little easier to debug when suid privs are required but
+// are not present. It's not a comprehensive check -- e.g. we may be running as user
+// <username> and suppress the warning, but still fail to chown a file owned by some other user.
+func warnMissingSuidPrivs(uid int) {
+	osUid, osEuid := os.Getuid(), os.Geteuid()
+	if osUid == 0 || osEuid == 0 || osUid == uid || osEuid == uid {
+		return
+	}
+
+	fmt.Fprintln(os.Stderr, "uid is ", os.Getuid(), ", effective uid is ", os.Geteuid())
+	fmt.Fprintln(os.Stderr, "WARNING: suidhelper is not root. Is your filesystem mounted with nosuid?")
+}
+
 // ParseArguments populates the WorkParameter object from the provided args
 // and env strings.
 func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error {
-	// --rm and --kill are modal. Complain if any other flag is set along with one of those.
-	if *flagRemove || *flagKill {
-		// Count flags that are set. The device manager test always sets --minuid=1
-		// and --test.run=TestSuidHelper so when in a test, tolerate those
-		flagsToIgnore := map[string]string{}
-		if os.Getenv("V23_SUIDHELPER_TEST") != "" {
-			flagsToIgnore["minuid"] = "1"
-			flagsToIgnore["test.run"] = "TestSuidHelper"
-		}
-
-		counter := 0
-		fs.Visit(func(f *flag.Flag) {
-			if flagsToIgnore[f.Name] != f.Value.String() {
-				counter++
-			}
-		})
-
-		if counter > 1 {
-			return verror.New(errInvalidFlags, nil, counter, "--rm and --kill cannot be used with any other flag")
-		}
+	if err := checkFlagCombinations(fs); err != nil {
+		return err
 	}
 
 	if *flagRemove {
@@ -146,14 +182,24 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 	if err != nil {
 		return verror.New(errInvalidGID, nil, usr.Gid)
 	}
+	warnMissingSuidPrivs(int(uid))
 
 	// Uids less than 501 can be special so we forbid running as them.
 	if uid < *flagMinimumUid {
 		return verror.New(errUIDTooLow, nil,
 			uid, *flagMinimumUid)
 	}
+	wp.uid = int(uid)
+	wp.gid = int(gid)
 
 	wp.dryrun = *flagDryrun
+
+	// At this point, all flags allowed by --chown have been processed
+	if *flagChown {
+		wp.chown = true
+		wp.argv = fs.Args()
+		return nil
+	}
 
 	// Preserve the arguments for examination by the test harness if executed
 	// in the course of a test.
@@ -171,8 +217,6 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 		wp.dryrun = true
 	}
 
-	wp.uid = int(uid)
-	wp.gid = int(gid)
 	wp.workspace = *flagWorkspace
 	wp.argv0 = *flagRun
 	wp.logDir = *flagLogDir

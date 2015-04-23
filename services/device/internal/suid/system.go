@@ -39,8 +39,15 @@ func (hw *WorkParameters) Chown() error {
 		return os.Chown(path, hw.uid, hw.gid)
 	}
 
-	for _, p := range []string{hw.workspace, hw.logDir} {
+	chownPaths := hw.argv
+	if !hw.chown {
+		// Chown was invoked as part of regular suid execution, rather than directly
+		// via --chown. In that case, we chown the workspace and log directory
 		// TODO(rjkroege): Ensure that the device manager can read log entries.
+		chownPaths = []string{hw.workspace, hw.logDir}
+	}
+
+	for _, p := range chownPaths {
 		if err := filepath.Walk(p, chown); err != nil {
 			return verror.New(errChownFailed, nil, p, hw.uid, hw.gid, err)
 		}
