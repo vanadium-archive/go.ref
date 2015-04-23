@@ -435,6 +435,12 @@ func (vif *VIF) Close() {
 	}
 }
 
+// Shutdown terminates the underlying network connection (any pending reads and
+// writes of flows/VCs over it will be discarded).
+func (vif *VIF) Shutdown() {
+	vif.conn.Close()
+}
+
 // StartAccepting begins accepting Flows (and VCs) initiated by the remote end
 // of a VIF. opts is used to setup the listener on newly established VCs.
 func (vif *VIF) StartAccepting(opts ...stream.ListenerOpt) error {

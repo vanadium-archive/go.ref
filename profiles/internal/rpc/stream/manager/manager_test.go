@@ -13,7 +13,9 @@ import (
 	"reflect"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -38,6 +40,7 @@ import (
 
 func init() {
 	modules.RegisterChild("runServer", "", runServer)
+	modules.RegisterChild("runRLimitedServer", "", runRLimitedServer)
 }
 
 // We write our own TestMain here instead of relying on v23 test generate because
@@ -669,12 +672,10 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	addr := s.ReadLine()
-
-	ep, err := inaming.NewEndpoint(naming.FormatEndpoint(protocol, addr))
+	epstr := expect.NewSession(t, h.Stdout(), time.Minute).ExpectVar("ENDPOINT")
+	ep, err := inaming.NewEndpoint(epstr)
 	if err != nil {
-		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
+		t.Fatalf("inaming.NewEndpoint(%q): %v", epstr, err)
 	}
 	if _, err := client.Dial(ep, pclient); err != nil {
 		t.Fatal(err)
@@ -686,15 +687,19 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 
-	h, err = sh.Start("runServer", nil, protocol, addr)
+	h, err = sh.Start("runServer", nil, protocol, ep.Addr().String())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	// Restarting the server, listening on the same address as before
-	if addr2 := h.ReadLine(); addr2 != addr || err != nil {
-		t.Fatalf("Got (%q, %v) want (%q, nil)", addr2, err, addr)
+	ep2, err := inaming.NewEndpoint(expect.NewSession(t, h.Stdout(), time.Minute).ExpectVar("ENDPOINT"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := client.Dial(ep, pclient); err != nil {
+	if got, want := ep.Addr().String(), ep2.Addr().String(); got != want {
+		t.Fatalf("Got %q, want %q", got, want)
+	}
+	if _, err := client.Dial(ep2, pclient); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -707,10 +712,25 @@ func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		fmt.Fprintln(stderr, err)
 		return err
 	}
-	fmt.Fprintln(stdout, ep.Addr())
+	fmt.Fprintf(stdout, "ENDPOINT=%v\n", ep)
 	// Live forever (till the process is explicitly killed)
 	modules.WaitForEOF(stdin)
 	return nil
+}
+
+func runRLimitedServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	var rlimit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
+		fmt.Fprintln(stderr, err)
+		return err
+	}
+	rlimit.Cur = 9
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
+		fmt.Fprintln(stderr, err)
+		return err
+	}
+	fmt.Fprintf(stdout, "RLIMIT_NOFILE=%d\n", rlimit.Cur)
+	return runServer(stdin, stdout, stderr, env, args...)
 }
 
 func readLine(f stream.Flow) (string, error) {
@@ -832,4 +852,72 @@ func TestBlessingNamesInEndpoint(t *testing.T) {
 			t.Errorf("test #%d: Got %v, want %v", idx, got, want)
 		}
 	}
+}
+
+func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sh.Cleanup(nil, nil)
+	h, err := sh.Start("runRLimitedServer", nil, "--logtostderr=true", "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.CloseStdin()
+	stdout := expect.NewSession(t, h.Stdout(), time.Minute)
+	nfiles, err := strconv.Atoi(stdout.ExpectVar("RLIMIT_NOFILE"))
+	if stdout.Error() != nil {
+		t.Fatal(stdout.Error())
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	epstr := stdout.ExpectVar("ENDPOINT")
+	if stdout.Error() != nil {
+		t.Fatal(stdout.Error())
+	}
+	ep, err := inaming.NewEndpoint(epstr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Different client processes (represented by different stream managers
+	// in this test) should be able to make progress, even if the server
+	// has reached its file descriptor limit.
+	nattempts := 0
+	for i := 0; i < 2*nfiles; i++ {
+		client := InternalNew(naming.FixedRoutingID(uint64(i)))
+		defer client.Shutdown()
+		principal := testutil.NewPrincipal(fmt.Sprintf("client%d", i))
+		connected := false
+		for !connected {
+			nattempts++
+			// If the client connection reached the server when it
+			// was at its limit, it might fail.  However, this
+			// failure will trigger the "kill connections" logic at
+			// the server and eventually the client should succeed.
+			vc, err := client.Dial(ep, principal)
+			if err != nil {
+				continue
+			}
+			// Establish a flow to prevent the VC (and thus the
+			// underlying VIF) from being garbage collected as an
+			// "inactive" connection.
+			flow, err := vc.Connect()
+			if err != nil {
+				continue
+			}
+			defer flow.Close()
+			connected = true
+		}
+	}
+	var stderr bytes.Buffer
+	if err := h.Shutdown(nil, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if log := expect.NewSession(t, bytes.NewReader(stderr.Bytes()), time.Minute).ExpectSetEventuallyRE("manager.go.*Killing [1-9][0-9]* VIFs"); len(log) == 0 {
+		t.Errorf("Failed to find log message talking about killing VIFs in:\n%v", stderr.String())
+	}
+	t.Logf("Server FD limit:%d", nfiles)
+	t.Logf("Client connection attempts: %d", nattempts)
 }

@@ -7,6 +7,7 @@ package manager
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/stats/counter"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
@@ -55,14 +57,16 @@ const (
 // placed inside v.io/x/ref/profiles/internal. Code outside the
 // v.io/x/ref/profiles/internal/* packages should never call this method.
 func InternalNew(rid naming.RoutingID) stream.Manager {
+	statsPrefix := naming.Join("rpc", "stream", "routing-id", rid.String())
 	m := &manager{
 		rid:          rid,
 		vifs:         vif.NewSet(),
 		sessionCache: crypto.NewTLSClientSessionCache(),
 		listeners:    make(map[listener]bool),
-		statsName:    naming.Join("rpc", "stream", "routing-id", rid.String(), "debug"),
+		statsPrefix:  statsPrefix,
+		killedConns:  stats.NewCounter(naming.Join(statsPrefix, "killed-connections")),
 	}
-	stats.NewStringFunc(m.statsName, m.DebugString)
+	stats.NewStringFunc(naming.Join(m.statsPrefix, "debug"), m.DebugString)
 	return m
 }
 
@@ -75,7 +79,8 @@ type manager struct {
 	listeners   map[listener]bool // GUARDED_BY(muListeners)
 	shutdown    bool              // GUARDED_BY(muListeners)
 
-	statsName string
+	statsPrefix string
+	killedConns *counter.Counter
 }
 
 var _ stream.Manager = (*manager)(nil)
@@ -273,7 +278,7 @@ func (m *manager) removeListener(ln listener) {
 }
 
 func (m *manager) Shutdown() {
-	stats.Delete(m.statsName)
+	stats.Delete(m.statsPrefix)
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
@@ -325,6 +330,29 @@ func (m *manager) DebugString() string {
 		}
 	}
 	return strings.Join(l, "\n")
+}
+
+func (m *manager) killConnections(n int) {
+	vifs := m.vifs.List()
+	if n > len(vifs) {
+		n = len(vifs)
+	}
+	vlog.Infof("Killing %d VIFs", n)
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		idx := rand.Intn(len(vifs))
+		vf := vifs[idx]
+		go func(vf *vif.VIF) {
+			vlog.Infof("Killing VIF %v", vf)
+			vf.Shutdown()
+			m.killedConns.Incr(1)
+			wg.Done()
+		}(vf)
+		vifs[idx], vifs[0] = vifs[0], vifs[idx]
+		vifs = vifs[1:]
+	}
+	wg.Wait()
 }
 
 func extractBlessingNames(p security.Principal, b security.Blessings) ([]string, error) {
