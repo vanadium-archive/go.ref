@@ -1,4 +1,0 @@
-pkg internal, func GCEPublicAddress(vlog.Logger) *net.IPAddr
-pkg internal, func HasPublicIP(vlog.Logger) bool
-pkg internal, func IPAddressChooser(string, []net.Addr) ([]net.Addr, error)
-pkg internal, func ParseFlags(*flags.Flags) error

@@ -1,7 +1,0 @@
-pkg vtrace, func Init(*context.T, flags.VtraceFlags) (*context.T, error)
-pkg vtrace, func NewStore(flags.VtraceFlags) (*Store, error)
-pkg vtrace, method (*Store) ForceCollect(uniqueid.Id)
-pkg vtrace, method (*Store) Merge(vtrace.Response)
-pkg vtrace, method (*Store) TraceRecord(uniqueid.Id) *vtrace.TraceRecord
-pkg vtrace, method (*Store) TraceRecords() []vtrace.TraceRecord
-pkg vtrace, type Store struct

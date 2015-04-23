@@ -1,9 +1,0 @@
-pkg sync, method (*Mutex) Lock()
-pkg sync, method (*Mutex) Unlock()
-pkg sync, method (*RWMutex) Lock()
-pkg sync, method (*RWMutex) RLock()
-pkg sync, method (*RWMutex) RLocker() sync.Locker
-pkg sync, method (*RWMutex) RUnlock()
-pkg sync, method (*RWMutex) Unlock()
-pkg sync, type Mutex struct
-pkg sync, type RWMutex struct

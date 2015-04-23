@@ -1,6 +1,0 @@
-pkg servicetest, const ExpectTimeout time.Duration
-pkg servicetest, func CreateShellAndMountTable(*testing.T, *context.T, security.Principal) (*modules.Shell, func())
-pkg servicetest, func NewServer(*context.T) (rpc.Server, string)
-pkg servicetest, func ReadPID(*testing.T, modules.ExpectSession) int
-pkg servicetest, func RunCommand(*testing.T, *modules.Shell, []string, string, ...string) modules.Handle
-pkg servicetest, func SetupRootDir(*testing.T, string) (string, func())

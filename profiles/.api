@@ -1,2 +1,0 @@
-pkg profiles, func Init(*context.T) (v23.Runtime, *context.T, v23.Shutdown, error)
-pkg profiles, func NewProxy(*context.T, rpc.ListenSpec, ...string) (func(), naming.Endpoint, error)

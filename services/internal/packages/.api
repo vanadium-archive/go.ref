@@ -1,5 +1,0 @@
-pkg packages, func CreateZip(string, string) error
-pkg packages, func Install(string, string) error
-pkg packages, func LoadMediaInfo(string) (repository.MediaInfo, error)
-pkg packages, func MediaInfoForFileName(string) repository.MediaInfo
-pkg packages, func SaveMediaInfo(string, repository.MediaInfo) error

@@ -1,1 +1,0 @@
-pkg gce, func Init(*context.T) (v23.Runtime, *context.T, v23.Shutdown, error)

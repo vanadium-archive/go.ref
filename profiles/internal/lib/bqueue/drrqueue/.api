@@ -1,7 +1,0 @@
-pkg drrqueue, func New(int) bqueue.T
-pkg drrqueue, method (*T) Close()
-pkg drrqueue, method (*T) Find(bqueue.ID) bqueue.Writer
-pkg drrqueue, method (*T) Get(bqueue.FlushFunc) (bqueue.Writer, []*iobuf.Slice, error)
-pkg drrqueue, method (*T) NewWriter(bqueue.ID, bqueue.Priority, int) (bqueue.Writer, error)
-pkg drrqueue, method (*T) String() string
-pkg drrqueue, type T struct

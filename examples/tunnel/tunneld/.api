@@ -1,3 +1,0 @@
-pkg main, method (*T) Forward(*context.T, tunnel.TunnelForwardServerCall, string, string) error
-pkg main, method (*T) Shell(*context.T, tunnel.TunnelShellServerCall, string, tunnel.ShellOpts) (int32, error)
-pkg main, type T struct

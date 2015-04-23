@@ -1,4 +1,0 @@
-pkg timekeeper, func RealTime() TimeKeeper
-pkg timekeeper, type TimeKeeper interface { After, Sleep }
-pkg timekeeper, type TimeKeeper interface, After(time.Duration) <-chan time.Time
-pkg timekeeper, type TimeKeeper interface, Sleep(time.Duration)

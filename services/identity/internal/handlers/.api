@@ -1,3 +1,0 @@
-pkg handlers, method (BlessingRoot) ServeHTTP(http.ResponseWriter, *http.Request)
-pkg handlers, type BlessingRoot struct
-pkg handlers, type BlessingRoot struct, P security.Principal

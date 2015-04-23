@@ -1,6 +1,0 @@
-pkg java, func Generate(*compile.Package, *compile.Env) []JavaFileInfo
-pkg java, func SetPkgPathXlator(func(string) string)
-pkg java, type JavaFileInfo struct
-pkg java, type JavaFileInfo struct, Data []byte
-pkg java, type JavaFileInfo struct, Dir string
-pkg java, type JavaFileInfo struct, Name string

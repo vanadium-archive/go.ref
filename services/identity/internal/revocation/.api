@@ -1,7 +1,0 @@
-pkg revocation, func NewMockRevocationManager() RevocationManager
-pkg revocation, func NewRevocationManager(*sql.DB) (RevocationManager, error)
-pkg revocation, type RevocationManager interface { GetRevocationTime, NewCaveat, Revoke }
-pkg revocation, type RevocationManager interface, GetRevocationTime(string) *time.Time
-pkg revocation, type RevocationManager interface, NewCaveat(security.PublicKey, string) (security.Caveat, error)
-pkg revocation, type RevocationManager interface, Revoke(string) error
-pkg revocation, var NotRevokedCaveat security.CaveatDescriptor

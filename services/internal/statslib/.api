@@ -1,1 +1,0 @@
-pkg statslib, func NewStatsService(string, time.Duration) interface{}

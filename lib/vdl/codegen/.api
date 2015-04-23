@@ -1,8 +1,0 @@
-pkg codegen, func ImportsForFiles(...*compile.File) Imports
-pkg codegen, func ImportsForValue(*vdl.Value, string) Imports
-pkg codegen, method (Imports) LookupLocal(string) string
-pkg codegen, type Import struct
-pkg codegen, type Import struct, Local string
-pkg codegen, type Import struct, Name string
-pkg codegen, type Import struct, Path string
-pkg codegen, type Imports []Import

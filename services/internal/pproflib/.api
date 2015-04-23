@@ -1,2 +1,0 @@
-pkg pproflib, func NewPProfService() interface{}
-pkg pproflib, func StartProxy(*context.T, string) (net.Listener, error)

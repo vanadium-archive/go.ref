@@ -1,2 +1,0 @@
-pkg securityflag, func NewAuthorizerOrDie() security.Authorizer
-pkg securityflag, func PermissionsFromFlag() (access.Permissions, error)

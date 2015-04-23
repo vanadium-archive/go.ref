@@ -1,5 +1,0 @@
-pkg keymgr, func NewAgent() (*Agent, error)
-pkg keymgr, func NewLocalAgent(*context.T, string, []byte) (*Agent, error)
-pkg keymgr, method (*Agent) NewConnection([]byte) (*os.File, error)
-pkg keymgr, method (*Agent) NewPrincipal(*context.T, bool) ([]byte, *os.File, error)
-pkg keymgr, type Agent struct

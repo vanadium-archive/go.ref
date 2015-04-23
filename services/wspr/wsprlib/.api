@@ -1,6 +1,0 @@
-pkg wsprlib, func NewWSPR(*context.T, int, *rpc.ListenSpec, string, []string) *WSPR
-pkg wsprlib, method (*WSPR) CleanUpPipe(*http.Request)
-pkg wsprlib, method (*WSPR) Listen() net.Addr
-pkg wsprlib, method (*WSPR) Serve()
-pkg wsprlib, method (*WSPR) Shutdown()
-pkg wsprlib, type WSPR struct

@@ -1,3 +1,0 @@
-pkg templates, var Home *template.Template
-pkg templates, var ListBlessings *template.Template
-pkg templates, var SelectCaveats *template.Template

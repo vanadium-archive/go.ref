@@ -1,1 +1,0 @@
-pkg logreaderlib, func NewLogFileService(string, string) interface{}

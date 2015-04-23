@@ -1,4 +1,0 @@
-pkg manager, func InternalNew(naming.RoutingID) stream.Manager
-pkg manager, method (DialTimeout) RPCClientOpt()
-pkg manager, method (DialTimeout) RPCStreamVCOpt()
-pkg manager, type DialTimeout time.Duration

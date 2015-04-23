@@ -1,1 +1,0 @@
-pkg debuglib, func NewDispatcher(func() string, security.Authorizer) rpc.Dispatcher

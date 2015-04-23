@@ -1,6 +1,0 @@
-pkg dependency, func NewGraph() *Graph
-pkg dependency, method (*Graph) CloseAndWait(interface{}) func()
-pkg dependency, method (*Graph) CloseAndWaitForAll()
-pkg dependency, method (*Graph) Depend(interface{}, ...interface{}) error
-pkg dependency, type Graph struct
-pkg dependency, var NotFoundError error

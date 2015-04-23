@@ -1,5 +1,0 @@
-pkg vdltest, func ExpectFail(*testing.T, *vdlutil.Errors, string, ...string)
-pkg vdltest, func ExpectPass(*testing.T, *vdlutil.Errors, string)
-pkg vdltest, func ExpectResult(*testing.T, *vdlutil.Errors, string, ...string)
-pkg vdltest, func FakeBuildPackage(string, string, map[string]string) *build.Package
-pkg vdltest, func FakeOpenFiles(map[string]string) func([]string) (map[string]io.ReadCloser, error)

@@ -1,1 +1,0 @@
-pkg golang, func Generate(*compile.File, *compile.Env) []byte

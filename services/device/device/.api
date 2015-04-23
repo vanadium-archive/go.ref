@@ -1,2 +1,0 @@
-pkg main, func Root() *cmdline.Command
-pkg main, func SetGlobalContext(*context.T)

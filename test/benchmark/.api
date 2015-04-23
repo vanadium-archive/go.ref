@@ -1,9 +1,0 @@
-pkg benchmark, func AddStats(*testing.B, int) *Stats
-pkg benchmark, func AddStatsWithName(*testing.B, string, int) *Stats
-pkg benchmark, func NewStats(int) *Stats
-pkg benchmark, func RunTestMain(*testing.M) int
-pkg benchmark, method (*Stats) Add(time.Duration)
-pkg benchmark, method (*Stats) Clear()
-pkg benchmark, method (*Stats) Print(io.Writer)
-pkg benchmark, method (*Stats) String() string
-pkg benchmark, type Stats struct

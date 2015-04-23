@@ -1,4 +1,0 @@
-pkg signals, const DoubleStopExitCode ideal-int
-pkg signals, const STOP stopSignal
-pkg signals, func ShutdownOnSignals(*context.T, ...os.Signal) <-chan os.Signal
-pkg signals, var SameSignalTimeWindow time.Duration

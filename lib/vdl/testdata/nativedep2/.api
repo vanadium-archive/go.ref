@@ -1,1 +1,0 @@
-pkg nativedep2, type MyTime time.Time

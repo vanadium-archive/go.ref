@@ -1,8 +1,0 @@
-pkg mgmt, const AddressConfigKey ideal-string
-pkg mgmt, const AppCycleManagerConfigKey ideal-string
-pkg mgmt, const AppOriginConfigKey ideal-string
-pkg mgmt, const ChildNameConfigKey ideal-string
-pkg mgmt, const ParentBlessingConfigKey ideal-string
-pkg mgmt, const ParentNameConfigKey ideal-string
-pkg mgmt, const ProtocolConfigKey ideal-string
-pkg mgmt, const SecurityAgentEndpointConfigKey ideal-string

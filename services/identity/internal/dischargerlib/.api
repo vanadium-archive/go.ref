@@ -1,1 +1,0 @@
-pkg dischargerlib, func NewDischarger() discharger.DischargerServerMethods
