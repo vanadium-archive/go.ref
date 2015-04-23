@@ -443,11 +443,12 @@ Prints out the public key of the principal specified by the environment that
 this tool is running in.
 
 The key is printed as a base64 encoded bytes of the DER-format representation of
-the key.
+the key (suitable to be provided as an argument to the 'addtoroots' command for
+example).
 
-If the --pretty flag is provided, then the key is printed in the XX:XX:...:XX
-format typically used in the output of other commands. This representation,
-while prettier, is lossy.
+With --pretty, a 16-byte fingerprint of the key instead. This format is easier
+for humans to read and is used in output of other commands in this program, but
+is not suitable as an argument to the 'addtoroots' command.
 
 Usage:
    principal get publickey [flags]
