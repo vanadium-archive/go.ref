@@ -818,6 +818,15 @@ func (c *Controller) HandleGranterResponse(id int32, data string) {
 	granterStr.Send(data)
 }
 
+func (c *Controller) BlessingsDebugString(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle) (string, error) {
+	var inputBlessings security.Blessings
+	if inputBlessings = c.GetBlessings(handle); inputBlessings.IsZero() {
+		return "", verror.New(invalidBlessingsHandle, nil, handle)
+	}
+
+	return inputBlessings.String(), nil
+}
+
 func (c *Controller) RemoteBlessings(ctx *context.T, _ rpc.ServerCall, name, method string) ([]string, error) {
 	vlog.VI(2).Infof("requesting remote blessings for %q", name)
 

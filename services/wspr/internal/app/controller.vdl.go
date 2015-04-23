@@ -34,6 +34,8 @@ type ControllerClientMethods interface {
 	RemoveName(ctx *context.T, serverId uint32, name string, opts ...rpc.CallOpt) error
 	// UnlinkBlessings removes the given blessings from the blessings store.
 	UnlinkBlessings(ctx *context.T, handle principal.BlessingsHandle, opts ...rpc.CallOpt) error
+	// BlessingsDebugString gets a string useful for debugging blessings.
+	BlessingsDebugString(ctx *context.T, handle principal.BlessingsHandle, opts ...rpc.CallOpt) (string, error)
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
 	Bless(ctx *context.T, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat, opts ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
@@ -91,6 +93,11 @@ func (c implControllerClientStub) UnlinkBlessings(ctx *context.T, i0 principal.B
 	return
 }
 
+func (c implControllerClientStub) BlessingsDebugString(ctx *context.T, i0 principal.BlessingsHandle, opts ...rpc.CallOpt) (o0 string, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingsDebugString", []interface{}{i0}, []interface{}{&o0}, opts...)
+	return
+}
+
 func (c implControllerClientStub) Bless(ctx *context.T, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat, opts ...rpc.CallOpt) (o0 string, o1 principal.BlessingsHandle, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3}, []interface{}{&o0, &o1}, opts...)
 	return
@@ -141,6 +148,8 @@ type ControllerServerMethods interface {
 	RemoveName(ctx *context.T, call rpc.ServerCall, serverId uint32, name string) error
 	// UnlinkBlessings removes the given blessings from the blessings store.
 	UnlinkBlessings(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle) error
+	// BlessingsDebugString gets a string useful for debugging blessings.
+	BlessingsDebugString(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle) (string, error)
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
 	Bless(ctx *context.T, call rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle, error)
@@ -211,6 +220,10 @@ func (s implControllerServerStub) RemoveName(ctx *context.T, call rpc.ServerCall
 
 func (s implControllerServerStub) UnlinkBlessings(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle) error {
 	return s.impl.UnlinkBlessings(ctx, call, i0)
+}
+
+func (s implControllerServerStub) BlessingsDebugString(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle) (string, error) {
+	return s.impl.BlessingsDebugString(ctx, call, i0)
 }
 
 func (s implControllerServerStub) Bless(ctx *context.T, call rpc.ServerCall, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat) (string, principal.BlessingsHandle, error) {
@@ -293,6 +306,16 @@ var descController = rpc.InterfaceDesc{
 			Doc:  "// UnlinkBlessings removes the given blessings from the blessings store.",
 			InArgs: []rpc.ArgDesc{
 				{"handle", ``}, // principal.BlessingsHandle
+			},
+		},
+		{
+			Name: "BlessingsDebugString",
+			Doc:  "// BlessingsDebugString gets a string useful for debugging blessings.",
+			InArgs: []rpc.ArgDesc{
+				{"handle", ``}, // principal.BlessingsHandle
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // string
 			},
 		},
 		{
