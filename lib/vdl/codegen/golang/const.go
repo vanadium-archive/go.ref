@@ -41,7 +41,7 @@ func tagValue(data goData, v *vdl.Value) string {
 // subtypes that are native types.  It's also broken for optional types that
 // can't be represented using a composite literal (e.g. optional primitives).
 //
-// https://github.com/veyron/release-issues/issues/1017
+// https://github.com/vanadium/issues/issues/213
 func typedConst(data goData, v *vdl.Value) string {
 	k, t := v.Kind(), v.Type()
 	if k == vdl.Optional {

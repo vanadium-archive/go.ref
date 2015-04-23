@@ -236,7 +236,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 	return func(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
-		// See https://github.com/veyron/release-issues/issues/1181
+		// See https://github.com/vanadium/issues/issues/175
 		securityCall := ConvertSecurityCall(s.helper, ctx, call.Security(), true)
 
 		globChan := make(chan naming.GlobReply, 1)
