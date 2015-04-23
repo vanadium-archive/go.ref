@@ -874,7 +874,7 @@ func TestMethodErrors(t *testing.T) {
 	}
 	verr := call.Finish()
 	if verror.ErrorID(verr) != verror.ErrUnknownMethod.ID {
-		t.Fatalf("wrong error: %s", verr)
+		t.Errorf("wrong error: %s", verr)
 	}
 	logErr("unknown method", verr)
 
@@ -885,25 +885,35 @@ func TestMethodErrors(t *testing.T) {
 	}
 	verr = call.Finish()
 	if verror.ErrorID(verr) != verror.ErrUnknownSuffix.ID {
-		t.Fatalf("wrong error: %s", verr)
+		t.Errorf("wrong error: %s", verr)
 	}
 	logErr("unknown suffix", verr)
 
 	// Too many args.
 	call, err = clt.StartCall(ctx, name, "Ping", []interface{}{1, 2})
 	if err != nil {
-		t.Fatal(err)
+		// We check for "failed to encode arg" here because sometimes the server detects the
+		// mismatched number of arguments, sends an error response, and closes the connection,
+		// before the client gets through encoding the args. In this case the flow is closed and
+		// encoding of args fails, preventing the client from calling call.Finish, and seeing
+		// the error in the response. In the normal case network time dominates, so this case
+		// will very rarely get hit, but since the client and server in this test are in the
+		// same process we see this race quite a bit.
+		if got, want := err.Error(), "failed to encode arg"; !strings.Contains(got, want) {
+			t.Errorf("want %q to contain %q", got, want)
+		}
+		logErr("too many args", err)
+	} else {
+		r1 := ""
+		verr = call.Finish(&r1)
+		if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
+			t.Errorf("wrong error: %s", verr)
+		}
+		if got, want := verr.Error(), "wrong number of input arguments"; !strings.Contains(got, want) {
+			t.Errorf("want %q to contain %q", got, want)
+		}
+		logErr("too many args", verr)
 	}
-
-	r1 := ""
-	verr = call.Finish(&r1)
-	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
-		t.Fatalf("wrong error: %s", verr)
-	}
-	if got, want := verr.Error(), "wrong number of input arguments"; !strings.Contains(got, want) {
-		t.Fatalf("want %q to contain %q", got, want)
-	}
-	logErr("wrong # args", verr)
 
 	// Too many results.
 	call, err = clt.StartCall(ctx, name, "Ping", nil)
@@ -911,13 +921,13 @@ func TestMethodErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r2 := ""
+	r1, r2 := "", ""
 	verr = call.Finish(&r1, &r2)
 	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
-		t.Fatalf("wrong error: %s", verr)
+		t.Errorf("wrong error: %s", verr)
 	}
 	if got, want := verr.Error(), "results, but want"; !strings.Contains(got, want) {
-		t.Fatalf("want %q to contain %q", got, want)
+		t.Errorf("want %q to contain %q", got, want)
 	}
 	logErr("wrong # results", verr)
 
@@ -929,10 +939,10 @@ func TestMethodErrors(t *testing.T) {
 
 	verr = call.Finish(&r2)
 	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
-		t.Fatalf("wrong error: %s", verr)
+		t.Errorf("wrong error: %s", verr)
 	}
 	if got, want := verr.Error(), "aren't compatible"; !strings.Contains(got, want) {
-		t.Fatalf("want %q to contain %q", got, want)
+		t.Errorf("want %q to contain %q", got, want)
 	}
 	logErr("wrong arg types", verr)
 
@@ -945,10 +955,10 @@ func TestMethodErrors(t *testing.T) {
 	r3 := 2
 	verr = call.Finish(&r3)
 	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
-		t.Fatalf("wrong error: %s", verr)
+		t.Errorf("wrong error: %s", verr)
 	}
 	if got, want := verr.Error(), "aren't compatible"; !strings.Contains(got, want) {
-		t.Fatalf("want %q to contain %q", got, want)
+		t.Errorf("want %q to contain %q", got, want)
 	}
 	logErr("wrong result types", verr)
 }
