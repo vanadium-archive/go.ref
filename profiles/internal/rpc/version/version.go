@@ -5,11 +5,6 @@
 package version
 
 import (
-	"fmt"
-
-	inaming "v.io/x/ref/profiles/internal/naming"
-
-	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 	"v.io/v23/verror"
 )
@@ -26,21 +21,7 @@ var (
 	// change that's not both forward and backward compatible.
 	// Min should be incremented whenever we want to remove
 	// support for old protocol versions.
-	SupportedRange = &Range{Min: version.RPCVersion6, Max: version.RPCVersion9}
-
-	// Export the methods on supportedRange.
-	Endpoint           = SupportedRange.Endpoint
-	ProxiedEndpoint    = SupportedRange.ProxiedEndpoint
-	CommonVersion      = SupportedRange.CommonVersion
-	CheckCompatibility = SupportedRange.CheckCompatibility
-
-	// Which version to guess servers support if it's unknown.
-	// TODO(mattr): This is a hack.  Once RPCVersion9 is released and versions
-	// are negotiated, we wont have to guess anymore and this code should
-	// be removed.  This is required until version 9 is live.
-	// In fact, once version9 is the minimum supported version, much of the
-	// code in this file can be eliminated.
-	maxVersionGuess = version.RPCVersion8
+	SupportedRange = &Range{Min: version.RPCVersion9, Max: version.RPCVersion9}
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc/version"
@@ -54,28 +35,15 @@ var (
 	// level errors and hence {1}{2} is omitted from their format
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
-	ErrNoCompatibleVersion         = reg(".errNoCompatibleVersionErr", "no compatible RPC version available{:3} not in range {4}..{5}")
-	ErrUnknownVersion              = reg(".errUnknownVersionErr", "there was not enough information to determine a version")
-	ErrDeprecatedVersion           = reg(".errDeprecatedVersionError", "some of the provided version information is deprecated")
-	errInternalTypeConversionError = reg(".errInternalTypeConversionError", "failed to convert {3} to v.io/ref/profiles/internal/naming.Endpoint {3}")
+	ErrNoCompatibleVersion = reg(".errNoCompatibleVersionErr", "no compatible RPC version available{:3} not in range {4}..{5}")
+	ErrUnknownVersion      = reg(".errUnknownVersionErr", "there was not enough information to determine a version")
+	ErrDeprecatedVersion   = reg(".errDeprecatedVersionError", "some of the provided version information is deprecated")
 )
 
 // IsVersionError returns true if err is a versioning related error.
 func IsVersionError(err error) bool {
 	id := verror.ErrorID(err)
-	return id == ErrNoCompatibleVersion.ID || id == ErrUnknownVersion.ID
-}
-
-// Endpoint returns an endpoint with the Min/MaxRPCVersion properly filled in
-// to match this implementations supported protocol versions.
-func (r *Range) Endpoint(protocol, address string, rid naming.RoutingID) *inaming.Endpoint {
-	return &inaming.Endpoint{
-		Protocol:      protocol,
-		Address:       address,
-		RID:           rid,
-		MinRPCVersion: r.Min,
-		MaxRPCVersion: r.Max,
-	}
+	return id == ErrNoCompatibleVersion.ID || id == ErrUnknownVersion.ID || id == ErrDeprecatedVersion.ID
 }
 
 // intersectRanges finds the intersection between ranges
@@ -105,12 +73,6 @@ func intersectRanges(amin, amax, bmin, bmax version.RPCVersion) (min, max versio
 	if max == u || (bmax != u && bmax < max) {
 		max = bmax
 	}
-	// TODO(mattr): This is a hack.  Once RPCVersion9 is released and versions
-	// are negotiated, we wont have to guess anymore and this code should
-	// be removed.  This is required until version 9 is live.
-	if max > maxVersionGuess && (amax == u || bmax == u) {
-		max = maxVersionGuess
-	}
 
 	if min == u || max == u {
 		err = verror.New(ErrUnknownVersion, nil)
@@ -120,10 +82,6 @@ func intersectRanges(amin, amax, bmin, bmax version.RPCVersion) (min, max versio
 	return
 }
 
-func intersectEndpoints(a, b *inaming.Endpoint) (min, max version.RPCVersion, err error) {
-	return intersectRanges(a.MinRPCVersion, a.MaxRPCVersion, b.MinRPCVersion, b.MaxRPCVersion)
-}
-
 func (r1 *Range) Intersect(r2 *Range) (*Range, error) {
 	min, max, err := intersectRanges(r1.Min, r1.Max, r2.Min, r2.Max)
 	if err != nil {
@@ -131,78 +89,4 @@ func (r1 *Range) Intersect(r2 *Range) (*Range, error) {
 	}
 	r := &Range{Min: min, Max: max}
 	return r, nil
-}
-
-// ProxiedEndpoint returns an endpoint with the Min/MaxRPCVersion properly filled in
-// to match the intersection of capabilities of this process and the proxy.
-func (r *Range) ProxiedEndpoint(rid naming.RoutingID, proxy naming.Endpoint) (*inaming.Endpoint, error) {
-	proxyEP, ok := proxy.(*inaming.Endpoint)
-	if !ok {
-		return nil, verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", proxy))
-	}
-
-	ep := &inaming.Endpoint{
-		Protocol:      proxyEP.Protocol,
-		Address:       proxyEP.Address,
-		RID:           rid,
-		MinRPCVersion: r.Min,
-		MaxRPCVersion: r.Max,
-	}
-
-	// This is the endpoint we are going to advertise.  It should only claim to support versions in
-	// the intersection of those we support and those the proxy supports.
-	var err error
-	ep.MinRPCVersion, ep.MaxRPCVersion, err = intersectEndpoints(ep, proxyEP)
-	if err != nil {
-		return nil, fmt.Errorf("attempting to register with incompatible proxy: %s", proxy)
-	}
-	return ep, nil
-}
-
-// CommonVersion determines which version of the RPC protocol should be used
-// between two endpoints.  Returns an error if the resulting version is incompatible
-// with this RPC implementation.
-func (r *Range) CommonVersion(a, b naming.Endpoint) (version.RPCVersion, error) {
-	aEP, ok := a.(*inaming.Endpoint)
-	if !ok {
-		return 0, verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", a))
-	}
-	bEP, ok := b.(*inaming.Endpoint)
-	if !ok {
-		return 0, verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", b))
-	}
-
-	_, max, err := intersectEndpoints(aEP, bEP)
-	if err != nil {
-		return 0, err
-	}
-
-	// We want to use the maximum common version of the protocol.  We just
-	// need to make sure that it is supported by this RPC implementation.
-	if max < r.Min || max > r.Max {
-		return version.UnknownRPCVersion, verror.New(ErrNoCompatibleVersion, nil, max, r.Min, r.Max)
-	}
-	return max, nil
-}
-
-// CheckCompatibility returns an error if the given endpoint is incompatible
-// with this RPC implementation.  It returns nil otherwise.
-func (r *Range) CheckCompatibility(remote naming.Endpoint) error {
-	remoteEP, ok := remote.(*inaming.Endpoint)
-	if !ok {
-		return verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", remote))
-	}
-
-	if remoteEP.MinRPCVersion == version.DeprecatedRPCVersion &&
-		remoteEP.MaxRPCVersion == version.DeprecatedRPCVersion {
-		// If the remote endpoint no longer contains version information
-		// then compatibility wont be decided here.  We simply return
-		// true and allow the version negotiation to figure it out.
-		return nil
-	}
-
-	_, _, err := intersectRanges(r.Min, r.Max,
-		remoteEP.MinRPCVersion, remoteEP.MaxRPCVersion)
-
-	return err
 }

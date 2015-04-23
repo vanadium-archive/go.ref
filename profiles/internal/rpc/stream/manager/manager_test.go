@@ -31,7 +31,6 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
-	"v.io/x/ref/profiles/internal/rpc/version"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
@@ -634,7 +633,11 @@ func TestAddressResolution(t *testing.T) {
 	// the address encoded in the endpoint (e.g. "0.0.0.0:55324") is different
 	// from the address of the connection (e.g. "127.0.0.1:55324").
 	_, port, _ := net.SplitHostPort(ep.Addr().String())
-	nep := version.Endpoint(ep.Addr().Network(), net.JoinHostPort("", port), ep.RoutingID())
+	nep := &inaming.Endpoint{
+		Protocol: ep.Addr().Network(),
+		Address:  net.JoinHostPort("", port),
+		RID:      ep.RoutingID(),
+	}
 
 	// Dial multiple VCs
 	for i := 0; i < 2; i++ {

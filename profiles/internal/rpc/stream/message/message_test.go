@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"v.io/v23/naming"
-	"v.io/v23/rpc/version"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
@@ -70,35 +69,20 @@ func TestControl(t *testing.T) {
 	counters := NewCounters()
 	counters.Add(12, 13, 10240)
 	tests := []Control{
-		&OpenVC{VCI: 2,
-			DstEndpoint: iversion.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
-			SrcEndpoint: iversion.Endpoint("tcp", "google.com:80", naming.FixedRoutingID(0xba6)),
-		},
-		&OpenVC{
-			VCI:         4,
-			DstEndpoint: iversion.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
-			SrcEndpoint: iversion.Endpoint("tcp", "google.com:80", naming.FixedRoutingID(0xba6)),
-			Counters:    counters,
-		},
-
 		&CloseVC{VCI: 1},
 		&CloseVC{VCI: 2, Error: "some error"},
 
 		&SetupVC{
 			VCI: 1,
 			LocalEndpoint: &inaming.Endpoint{
-				Protocol:      "tcp",
-				Address:       "batman.com:1990",
-				RID:           naming.FixedRoutingID(0xba7),
-				MinRPCVersion: version.DeprecatedRPCVersion,
-				MaxRPCVersion: version.DeprecatedRPCVersion,
+				Protocol: "tcp",
+				Address:  "batman.com:1990",
+				RID:      naming.FixedRoutingID(0xba7),
 			},
 			RemoteEndpoint: &inaming.Endpoint{
-				Protocol:      "tcp",
-				Address:       "bugsbunny.com:1940",
-				RID:           naming.FixedRoutingID(0xbb),
-				MinRPCVersion: version.DeprecatedRPCVersion,
-				MaxRPCVersion: version.DeprecatedRPCVersion,
+				Protocol: "tcp",
+				Address:  "bugsbunny.com:1940",
+				RID:      naming.FixedRoutingID(0xbb),
 			},
 			Counters: counters,
 			Setup: Setup{

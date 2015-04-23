@@ -16,7 +16,6 @@ import (
 
 	"v.io/x/lib/netstate"
 	inaming "v.io/x/ref/profiles/internal/naming"
-	"v.io/x/ref/profiles/internal/rpc/version"
 )
 
 var (
@@ -103,11 +102,6 @@ func filterAndOrderServers(servers []naming.MountedServer, protocols []string, i
 		ep, err := name2endpoint(name)
 		if err != nil {
 			adderr(name, verror.New(errMalformedEndpoint, nil, err))
-			continue
-		}
-		if err = version.CheckCompatibility(ep); err != nil {
-			// TODO(cnicolaou): convert rpc/version to verror.
-			adderr(name, verror.New(errIncompatibleEndpointVersions, nil, err))
 			continue
 		}
 		rank, err := protocol2rank(ep.Addr().Network(), protoRanks)
