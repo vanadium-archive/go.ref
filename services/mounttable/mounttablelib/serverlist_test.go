@@ -50,7 +50,7 @@ func TestServerList(t *testing.T) {
 
 	// Test timing out entries.
 	ft.advance(6 * time.Second)
-	if sl.removeExpired() != len(eps)-2 {
+	if numLeft, _ := sl.removeExpired(); numLeft != len(eps)-2 {
 		t.Fatalf("got %d, want %d", sl.len(), len(eps)-2)
 	}
 

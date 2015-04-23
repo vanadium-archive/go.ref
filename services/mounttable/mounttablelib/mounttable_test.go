@@ -629,6 +629,9 @@ func TestStatsCounters(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
+	ft := NewFakeTimeClock()
+	setServerListClock(ft)
+
 	server, estr := newMT(t, "", "", rootCtx)
 	defer server.Stop()
 
@@ -721,6 +724,16 @@ func TestStatsCounters(t *testing.T) {
 		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
 	}
 	if expected, got := int64(1), serverCount(t, rootCtx, estr); got != expected {
+		t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+	}
+
+	// Test expired mounts
+	// "1/2/3/4/5" is still mounted from earlier.
+	ft.advance(time.Duration(ttlSecs+4) * time.Second)
+	if _, err := resolve(rootCtx, naming.JoinAddressName(estr, "1/2/3/4/5")); err == nil {
+		t.Errorf("Expected failure. Got success")
+	}
+	if expected, got := int64(0), serverCount(t, rootCtx, estr); got != expected {
 		t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
 	}
 }

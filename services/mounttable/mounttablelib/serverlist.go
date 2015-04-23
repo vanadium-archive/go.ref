@@ -98,20 +98,22 @@ func (sl *serverList) remove(oa string) int {
 }
 
 // removeExpired removes any expired servers.
-func (sl *serverList) removeExpired() int {
+func (sl *serverList) removeExpired() (int, int) {
 	sl.Lock()
 	defer sl.Unlock()
 
 	now := slc.now()
 	var next *list.Element
+	removed := 0
 	for e := sl.l.Front(); e != nil; e = next {
 		s := e.Value.(*server)
 		next = e.Next()
 		if now.After(s.expires) {
 			sl.l.Remove(e)
+			removed++
 		}
 	}
-	return sl.l.Len()
+	return sl.l.Len(), removed
 }
 
 // copyToSlice returns the contents of the list as a slice of MountedServer.

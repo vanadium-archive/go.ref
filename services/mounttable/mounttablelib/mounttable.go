@@ -173,11 +173,15 @@ func (mt *mountTable) Lookup(name string) (interface{}, security.Authorizer, err
 }
 
 // isActive returns true if a mount has unexpired servers attached.
-func (m *mount) isActive() bool {
+func (m *mount) isActive(mt *mountTable) bool {
 	if m == nil {
 		return false
 	}
-	return m.servers.removeExpired() > 0
+	numLeft, numRemoved := m.servers.removeExpired()
+	if numRemoved > 0 {
+		mt.serverCounter.Incr(int64(-numRemoved))
+	}
+	return numLeft > 0
 }
 
 // satisfies returns no error if the ctx + n.vPerms satisfies the associated one of the required Tags.
@@ -283,7 +287,7 @@ func (mt *mountTable) traverse(ctx *context.T, call security.Call, elems []strin
 			}
 		}
 		// If we hit another mount table, we're done.
-		if cur.mount.isActive() {
+		if cur.mount.isActive(mt) {
 			return cur, elems[i:], nil
 		}
 		// Walk the children looking for a match.
@@ -373,7 +377,7 @@ func (mt *mountTable) findMountPoint(ctx *context.T, call security.Call, elems [
 		n.Unlock()
 		return nil, nil, err
 	}
-	if !n.mount.isActive() {
+	if !n.mount.isActive(mt) {
 		removed := n.removeUseless(mt)
 		n.parent.Unlock()
 		n.Unlock()
@@ -515,7 +519,7 @@ func (n *node) fullName() string {
 //
 // We assume both n and n.parent are locked.
 func (n *node) removeUseless(mt *mountTable) bool {
-	if len(n.children) > 0 || n.mount.isActive() || n.explicitPermissions {
+	if len(n.children) > 0 || n.mount.isActive(mt) || n.explicitPermissions {
 		return false
 	}
 	for k, c := range n.parent.children {
