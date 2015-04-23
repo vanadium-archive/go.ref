@@ -110,10 +110,8 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 	if err := enc.Encode(b); err != nil {
 		return verror.New(stream.ErrNetwork, nil, verror.New(errVomEncodeBlessing, nil, err))
 	}
-	if v >= version.RPCVersion5 {
-		if err := enc.Encode(discharges); err != nil {
-			return verror.New(stream.ErrNetwork, nil, verror.New(errVomEncodeBlessing, nil, err))
-		}
+	if err := enc.Encode(discharges); err != nil {
+		return verror.New(stream.ErrNetwork, nil, verror.New(errVomEncodeBlessing, nil, err))
 	}
 	msg, err := crypter.Encrypt(iobuf.NewSlice(buf.Bytes()))
 	if err != nil {
@@ -161,10 +159,8 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.RP
 		return noBlessings, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	var discharges []security.Discharge
-	if v >= version.RPCVersion5 {
-		if err := dec.Decode(&discharges); err != nil {
-			return noBlessings, nil, verror.New(stream.ErrNetwork, nil, err)
-		}
+	if err := dec.Decode(&discharges); err != nil {
+		return noBlessings, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	if !sig.Verify(blessings.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
 		return noBlessings, nil, verror.New(stream.ErrSecurity, nil, verror.New(errInvalidSignatureInMessage, nil))

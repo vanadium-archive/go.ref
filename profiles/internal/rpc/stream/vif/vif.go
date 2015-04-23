@@ -80,8 +80,6 @@ type VIF struct {
 	reader  *iobuf.Reader
 	localEP naming.Endpoint
 
-	// control channel encryption.
-	isSetup bool
 	// ctrlCipher is normally guarded by writeMu, however see the exception in
 	// readLoop.
 	ctrlCipher crypto.ControlCipher
@@ -183,7 +181,7 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 	// server and not the remote endpoint of the VIF.
 	c, err := AuthenticateAsClient(conn, reader, versions, params, nil)
 	if err != nil {
-		return nil, err
+		return nil, verror.New(stream.ErrNetwork, ctx, err)
 	}
 	var blessings security.Blessings
 
@@ -214,6 +212,14 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal security.Principal, blessings security.Blessings, versions *iversion.Range, onClose func(*VIF), lopts ...stream.ListenerOpt) (*VIF, error) {
 	pool := iobuf.NewPool(0)
 	reader := iobuf.NewReader(pool, conn)
+
+	dischargeClient := getDischargeClient(lopts)
+
+	c, err := AuthenticateAsServer(conn, reader, versions, principal, blessings, dischargeClient)
+	if err != nil {
+		return nil, err
+	}
+
 	var startTimeout time.Duration
 	for _, o := range lopts {
 		switch v := o.(type) {
@@ -221,7 +227,7 @@ func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal secur
 			startTimeout = v.Duration
 		}
 	}
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, principal, blessings, startTimeout, onClose, upcqueue.New(), lopts, &crypto.NullControlCipher{})
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, principal, blessings, startTimeout, onClose, upcqueue.New(), lopts, c)
 }
 
 func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *iversion.Range, principal security.Principal, blessings security.Blessings, startTimeout time.Duration, onClose func(*VIF), acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
@@ -520,6 +526,7 @@ func (vif *VIF) handleMessage(msg message.T) error {
 	vif.muMsgCounters.Unlock()
 
 	switch m := msg.(type) {
+
 	case *message.Data:
 		_, rq, _ := vif.vcMap.Find(m.VCI)
 		if rq == nil {
@@ -531,6 +538,7 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			vlog.VI(2).Infof("Failed to put message(%v) on VC queue on VIF %v: %v", m, vif, err)
 			m.Release()
 		}
+
 	case *message.OpenVC:
 		vif.muListen.Lock()
 		closed := vif.acceptor == nil || vif.acceptor.IsClosed()
@@ -569,6 +577,7 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			return nil
 		}
 		go vif.acceptFlowsLoop(vc, vc.HandshakeAcceptedVC(vers, vif.principal, vif.blessings, nil, lopts...))
+
 	case *message.SetupVC:
 		// First, find the public key we need out of the message.
 		var theirPK *crypto.BoxKey
@@ -669,8 +678,10 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			return nil
 		}
 		vlog.VI(2).Infof("Ignoring CloseVC(%+v) for unrecognized VCI on VIF %s", m, vif)
+
 	case *message.AddReceiveBuffers:
 		vif.distributeCounters(m.Counters)
+
 	case *message.OpenFlow:
 		if vc, _, _ := vif.vcMap.Find(m.VCI); vc != nil {
 			if err := vc.AcceptFlow(m.Flow); err != nil {
@@ -684,24 +695,10 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			return nil
 		}
 		vlog.VI(2).Infof("Ignoring OpenFlow(%+v) for unrecognized VCI on VIF %s", m, m, vif)
-	case *message.Setup:
-		// Configure the VIF.  This takes over the conn during negotiation.
-		if vif.isSetup {
-			return verror.New(stream.ErrNetwork, nil, verror.New(errVIFAlreadySetup, nil))
-		}
-		vif.muListen.Lock()
-		dischargeClient := getDischargeClient(vif.listenerOpts)
-		vif.muListen.Unlock()
 
-		vif.writeMu.Lock()
-		c, err := AuthenticateAsServer(vif.conn, vif.reader, vif.versions, vif.principal, vif.blessings, dischargeClient, m)
-		if err != nil {
-			vif.writeMu.Unlock()
-			return err
-		}
-		vif.ctrlCipher = c
-		vif.writeMu.Unlock()
-		vif.isSetup = true
+	case *message.Setup:
+		vlog.Infof("Ignoring redundant Setup message %T on VIF %s", m, vif)
+
 	default:
 		vlog.Infof("Ignoring unrecognized message %T on VIF %s", m, vif)
 	}
@@ -1093,7 +1090,7 @@ func (vif *VIF) DebugString() string {
 	l := make([]string, 0, len(vcs)+1)
 
 	vif.muNextVCI.Lock() // Needed for vif.nextVCI
-	l = append(l, fmt.Sprintf("VIF:[%s] -- #VCs:%d NextVCI:%d ControlChannelEncryption:%v IsClosed:%v", vif, len(vcs), vif.nextVCI, vif.isSetup, vif.isClosed))
+	l = append(l, fmt.Sprintf("VIF:[%s] -- #VCs:%d NextVCI:%d ControlChannelEncryption:%v IsClosed:%v", vif, len(vcs), vif.nextVCI, vif.ctrlCipher != nullCipher, vif.isClosed))
 	vif.muNextVCI.Unlock()
 
 	for _, vc := range vcs {

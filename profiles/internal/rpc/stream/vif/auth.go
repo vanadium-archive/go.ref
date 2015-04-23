@@ -44,20 +44,19 @@ type privateData struct {
 //
 // The sequence is initiated by the client.
 //
-//    - If the versions include RPCVersion6 or greater, the client sends a
-//      Setup message to the server, containing the client's supported
-//      versions, and the client's crypto options.  The Setup message
+//    - The client sends a Setup message to the server, containing the client's
+//      supported versions, and the client's crypto options.  The Setup message
 //      is sent in the clear.
 //
 //    - When the server receives the Setup message, it calls
 //      AuthenticateAsServer, which constructs a response Setup containing
 //      the server's version range, and any crypto options.
 //
-//    - For RPCVersion6 and RPCVersion7, the client and server generate fresh
-//      public/private key pairs, sending the public key to the peer as a crypto
-//      option.  The remainder of the communication is encrypted as
-//      SetupStream messages using NewControlCipherRPC6, which is based on
-//      code.google.com/p/go.crypto/nacl/box.
+//    - The client and server use the public/private key pairs
+//      generated for the Setup messages to create an encrypted stream
+//      of SetupStream messages for the remainder of the authentication
+//      setup.  The encyrption uses NewControlCipherRPC6, which is based
+//      on code.google.com/p/go.crypto/nacl/box.
 //
 //    - Once the encrypted SetupStream channel is setup, the client and
 //      server authenticate using the vc.AuthenticateAs{Client,Server} protocol.
@@ -66,36 +65,23 @@ type privateData struct {
 // modification by a man-in-the-middle, which can currently force a downgrade by
 // modifying the acceptable version ranges downward.  This can be addressed by
 // including a hash of the Setup message in the encrypted stream.  It is
-// likely that this will be addressed in subsequent protocol versions (or it may
-// not be addressed at all if RPCVersion6 becomes the only supported version).
+// likely that this will be addressed in subsequent protocol versions.
 func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *version.Range, params security.CallParams, auth *vc.ServerAuthorizer) (crypto.ControlCipher, error) {
 	if versions == nil {
 		versions = version.SupportedRange
 	}
-	if params.LocalPrincipal == nil {
-		// If there is no principal, we do not support encryption/authentication.
-		// TODO(ashankar, mattr): We should still exchange version information even
-		// if we don't do encryption.
-		var err error
-		versions, err = versions.Intersect(&version.Range{Min: 0, Max: rpcversion.RPCVersion5})
-		if err != nil {
-			return nil, verror.New(stream.ErrNetwork, nil, err)
-		}
-	}
-	if versions.Max < rpcversion.RPCVersion6 {
-		return nullCipher, nil
-	}
 
-	// The client has not yet sent its public data.  Construct it and send it.
-	pvt, pub, err := makeSetup(versions)
+	// Send the client's public data.
+	pvt, pub, err := makeSetup(versions, params.LocalPrincipal != nil)
 	if err != nil {
 		return nil, verror.New(stream.ErrSecurity, nil, err)
 	}
-	if err := message.WriteTo(writer, &pub, nullCipher); err != nil {
-		return nil, verror.New(stream.ErrNetwork, nil, err)
-	}
 
-	// Read the server's public data.
+	errch := make(chan error, 1)
+	go func() {
+		errch <- message.WriteTo(writer, pub, nullCipher)
+	}()
+
 	pmsg, err := message.ReadFrom(reader, nullCipher)
 	if err != nil {
 		return nil, verror.New(stream.ErrNetwork, nil, err)
@@ -105,25 +91,28 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
 	}
 
+	// Wait for the write to succeed.
+	if err := <-errch; err != nil {
+		return nil, verror.New(stream.ErrNetwork, nil, err)
+	}
+
 	// Choose the max version in the intersection.
 	vrange, err := pub.Versions.Intersect(&ppub.Versions)
 	if err != nil {
 		return nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	v := vrange.Max
-	if v < rpcversion.RPCVersion6 {
+
+	if params.LocalPrincipal == nil {
 		return nullCipher, nil
 	}
 
 	// Perform the authentication.
-	return authenticateAsClient(writer, reader, params, auth, &pvt, &pub, ppub, v)
+	return authenticateAsClient(writer, reader, params, auth, pvt, pub, ppub, v)
 }
 
 func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params security.CallParams, auth *vc.ServerAuthorizer,
 	pvt *privateData, pub, ppub *message.Setup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
-	if version < rpcversion.RPCVersion6 {
-		return nil, verror.New(errUnsupportedEncryptVersion, nil, version, rpcversion.RPCVersion6)
-	}
 	pbox := ppub.NaclBox()
 	if pbox == nil {
 		return nil, verror.New(errNaclBoxVersionNegotiationFailed, nil)
@@ -143,51 +132,69 @@ func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params securit
 //
 // See AuthenticateAsClient for a description of the negotiation.
 func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *version.Range, principal security.Principal, lBlessings security.Blessings,
-	dc vc.DischargeClient, ppub *message.Setup) (crypto.ControlCipher, error) {
+	dc vc.DischargeClient) (crypto.ControlCipher, error) {
 	var err error
 	if versions == nil {
 		versions = version.SupportedRange
 	}
 
-	if principal == nil {
-		// If we're not encrypting the connection we can just send them
-		// our version information.
-		pub := &message.Setup{
-			Versions: *versions,
-		}
-		if err := message.WriteTo(writer, &pub, nullCipher); err != nil {
-			return nil, err
-		}
-		_, err := versions.Intersect(&ppub.Versions)
-		return nullCipher, err
+	// Send server's public data.
+	pvt, pub, err := makeSetup(versions, principal != nil)
+	if err != nil {
+		return nil, err
 	}
 
-	// Create our public data and send it to the client.
-	pvt, pub, err := makeSetup(versions)
+	errch := make(chan error, 1)
+	readch := make(chan struct{})
+	go func() {
+		// TODO(mattr,ribrdb): In the case of the agent, which is
+		// currently the only user of insecure connections, we need to
+		// wait for the client to initiate the communication.  The agent
+		// sends an extra first byte to clients, which clients read before
+		// dialing their side of the vif.  If we send this message before
+		// the magic byte has been sent the client will use the first
+		// byte of this message instead rendering the remainder of the
+		// stream uninterpretable.
+		if principal == nil {
+			<-readch
+		}
+		err := message.WriteTo(writer, pub, nullCipher)
+		errch <- err
+	}()
+
+	// Read client's public data.
+	pmsg, err := message.ReadFrom(reader, nullCipher)
+	close(readch) // Note: we need to close this whether we get an error or not.
 	if err != nil {
+		return nil, verror.New(stream.ErrNetwork, nil, err)
+	}
+	ppub, ok := pmsg.(*message.Setup)
+	if !ok {
+		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
+	}
+
+	// Wait for the write to succeed.
+	if err := <-errch; err != nil {
 		return nil, err
 	}
-	if err := message.WriteTo(writer, &pub, nullCipher); err != nil {
-		return nil, err
-	}
+
+	// Choose the max version in the intersection.
 	vrange, err := versions.Intersect(&ppub.Versions)
 	if err != nil {
-		return nil, err
+		return nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	v := vrange.Max
-	if v < rpcversion.RPCVersion6 {
+
+	if principal == nil {
 		return nullCipher, nil
 	}
 
 	// Perform authentication.
-	return authenticateAsServerRPC6(writer, reader, principal, lBlessings, dc, &pvt, &pub, ppub, v)
+	return authenticateAsServerRPC6(writer, reader, principal, lBlessings, dc, pvt, pub, ppub, v)
 }
 
 func authenticateAsServerRPC6(writer io.Writer, reader *iobuf.Reader, principal security.Principal, lBlessings security.Blessings, dc vc.DischargeClient,
 	pvt *privateData, pub, ppub *message.Setup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
-	if version < rpcversion.RPCVersion6 {
-		return nil, verror.New(errUnsupportedEncryptVersion, nil, version, rpcversion.RPCVersion6)
-	}
 	box := ppub.NaclBox()
 	if box == nil {
 		return nil, verror.New(errNaclBoxVersionNegotiationFailed, nil)
@@ -215,14 +222,24 @@ func getDischargeClient(lopts []stream.ListenerOpt) vc.DischargeClient {
 }
 
 // makeSetup constructs the options that this process can support.
-func makeSetup(versions *version.Range) (pvt privateData, pub message.Setup, err error) {
-	pub.Versions = *versions
-	var pubKey, pvtKey *[32]byte
-	pubKey, pvtKey, err = box.GenerateKey(rand.Reader)
-	if err != nil {
-		return
+func makeSetup(versions *version.Range, secure bool) (*privateData, *message.Setup, error) {
+	var options []message.SetupOption
+	var pvt *privateData
+	if secure {
+		pubKey, pvtKey, err := box.GenerateKey(rand.Reader)
+		if err != nil {
+			return nil, nil, err
+		}
+		options = []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}}
+		pvt = &privateData{
+			naclBoxPrivateKey: *pvtKey,
+		}
 	}
-	pub.Options = append(pub.Options, &message.NaclBox{PublicKey: *pubKey})
-	pvt.naclBoxPrivateKey = *pvtKey
-	return
+
+	pub := &message.Setup{
+		Versions: *versions,
+		Options:  options,
+	}
+
+	return pvt, pub, nil
 }
