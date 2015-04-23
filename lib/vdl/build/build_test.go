@@ -419,28 +419,28 @@ func TestTransitivePackagesUnknownPathError(t *testing.T) {
 		// Non-existent as both import and dir path.
 		{
 			[]string{"noexist"},
-			`Can't resolve "noexist" to any packages`,
+			`can't resolve "noexist" to any packages`,
 		},
 		{
 			[]string{"./noexist"},
-			`Can't resolve "./noexist" to any packages`,
+			`can't resolve "./noexist" to any packages`,
 		},
 		// Invalid package path, as both import and dir path.
 		{
 			[]string{".foo"},
-			`Import path ".foo" is invalid`,
+			`import path ".foo" is invalid`,
 		},
 		{
 			[]string{"foo/.bar"},
-			`Import path "foo/.bar" is invalid`,
+			`import path "foo/.bar" is invalid`,
 		},
 		{
 			[]string{"_foo"},
-			`Import path "_foo" is invalid`,
+			`import path "_foo" is invalid`,
 		},
 		{
 			[]string{"foo/_bar"},
-			`Import path "foo/_bar" is invalid`,
+			`import path "foo/_bar" is invalid`,
 		},
 		{
 			[]string{"../../../../../../.foo"},
@@ -466,7 +466,7 @@ func TestTransitivePackagesUnknownPathError(t *testing.T) {
 		},
 		{
 			[]string{"v.io/v23/vdlroot/..."},
-			`Can't resolve "v.io/v23/vdlroot/..." to any packages`,
+			`can't resolve "v.io/v23/vdlroot/..." to any packages`,
 		},
 	}
 	for _, test := range tests {

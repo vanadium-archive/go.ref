@@ -193,4 +193,5 @@ var typeTests = []typeTest{
 		{"a", `type Res bool`, vdl.BoolType, ""},
 		{"b", `import "p.kg/a";type Res a".Res`, nil, "syntax error"}}},
 	{"ZeroLengthArray", tp{{"a", `type Res [0]int32`, nil, "negative or zero array length"}}},
+	{"InvalidOptionalFollowedByValidType", tp{{"a", `type Res struct{X ?int32};type x string`, nil, "invalid optional type"}}},
 }
