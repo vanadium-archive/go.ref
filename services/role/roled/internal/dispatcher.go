@@ -46,7 +46,7 @@ type dispatcher struct {
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if len(suffix) == 0 {
-		return discharger.DischargerServer(&dischargerImpl{d.config}), &openAuthorizer{}, nil
+		return discharger.DischargerServer(&dischargerImpl{d.config}), security.AllowEveryone(), nil
 	}
 	fileName := filepath.Join(d.config.root, filepath.FromSlash(suffix+".conf"))
 	if !strings.HasPrefix(fileName, d.config.root) {
@@ -63,12 +63,6 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	}
 	obj := &roleService{serverConfig: d.config, role: suffix, roleConfig: roleConfig}
 	return role.RoleServer(obj), &authorizer{roleConfig}, nil
-}
-
-type openAuthorizer struct{}
-
-func (openAuthorizer) Authorize(*context.T, security.Call) error {
-	return nil
 }
 
 type authorizer struct {

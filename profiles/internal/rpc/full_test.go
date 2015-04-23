@@ -389,7 +389,7 @@ func runServer(t *testing.T, ctx *context.T, ns namespace.T, principal security.
 	if _, err := server.Listen(listenSpec); err != nil {
 		t.Fatal(err)
 	}
-	if err := server.Serve(name, obj, acceptAllAuthorizer{}); err != nil {
+	if err := server.Serve(name, obj, security.AllowEveryone()); err != nil {
 		t.Fatal(err)
 	}
 	return sm
@@ -523,7 +523,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}
 	)
 	// Start the discharge server.
-	_, dischargeServer := startServer(t, ctx, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
+	_, dischargeServer := startServer(t, ctx, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, security.AllowEveryone()))
 	defer stopServer(t, ctx, dischargeServer, ns, "mountpoint/dischargeserver")
 
 	// Make the client and server principals trust root certificates from
@@ -1108,7 +1108,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 	defer stopServer(t, ctx, server, ns, serverName)
 
 	// Start the discharge server.
-	_, dischargeServer := startServer(t, ctx, pdischarger, mgr, ns, dischargeServerName, testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
+	_, dischargeServer := startServer(t, ctx, pdischarger, mgr, ns, dischargeServerName, testutil.LeafDispatcher(&dischargeServer{}, security.AllowEveryone()))
 	defer stopServer(t, ctx, dischargeServer, ns, dischargeServerName)
 
 	// The server should recognize the client principal as an authority on "client" and "random" blessings.
@@ -1256,7 +1256,7 @@ func TestServerLocalBlessings(t *testing.T) {
 	_, server := startServer(t, ctx, pserver, mgr, ns, "mountpoint/server", testServerDisp{&testServer{}})
 	defer stopServer(t, ctx, server, ns, "mountpoint/server")
 
-	_, dischargeServer := startServer(t, ctx, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
+	_, dischargeServer := startServer(t, ctx, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, security.AllowEveryone()))
 	defer stopServer(t, ctx, dischargeServer, ns, "mountpoint/dischargeserver")
 
 	// Make the client present bclient to all servers that are blessed

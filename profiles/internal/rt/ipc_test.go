@@ -92,7 +92,7 @@ func startServer(ctx *context.T, s interface{}, opts ...rpc.ServerOpt) (rpc.Serv
 		return nil, "", err
 	}
 	serverObjectName := naming.JoinAddressName(endpoints[0].String(), "")
-	if err := server.Serve("", s, allowEveryone{}); err != nil {
+	if err := server.Serve("", s, security.AllowEveryone()); err != nil {
 		return nil, "", err
 	}
 	return server, serverObjectName, nil
@@ -372,7 +372,3 @@ func TestServerDischarges(t *testing.T) {
 		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remoteBlessings)
 	}
 }
-
-type allowEveryone struct{}
-
-func (allowEveryone) Authorize(*context.T, security.Call) error { return nil }

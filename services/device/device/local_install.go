@@ -52,10 +52,6 @@ func init() {
 	cmdInstallLocal.Flags.Var(&packagesOverride, "packages", "JSON-encoded application.Packages object, of the form: '{\"pkg1\":{\"File\":\"local file path1\"},\"pkg2\":{\"File\":\"local file path 2\"}}'")
 }
 
-type openAuthorizer struct{}
-
-func (openAuthorizer) Authorize(*context.T, security.Call) error { return nil }
-
 type mapDispatcher map[string]interface{}
 
 func (d mapDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
@@ -63,8 +59,8 @@ func (d mapDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, 
 	if !ok {
 		return nil, nil, fmt.Errorf("suffix %s not found", suffix)
 	}
-	// TODO(caprita): Do not open authorizer even for a short-lived server.
-	return o, &openAuthorizer{}, nil
+	// TODO(caprita): Do not allow everyone, even for a short-lived server.
+	return o, security.AllowEveryone(), nil
 }
 
 type mapServer struct {

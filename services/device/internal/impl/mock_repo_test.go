@@ -47,7 +47,7 @@ func startApplicationRepository(ctx *context.T) (*application.Envelope, func()) 
 	server, _ := servicetest.NewServer(ctx)
 	invoker := new(arInvoker)
 	name := mockApplicationRepoName
-	if err := server.Serve(name, repository.ApplicationServer(invoker), &openAuthorizer{}); err != nil {
+	if err := server.Serve(name, repository.ApplicationServer(invoker), security.AllowEveryone()); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
 	return &invoker.envelope, func() {
@@ -56,10 +56,6 @@ func startApplicationRepository(ctx *context.T) (*application.Envelope, func()) 
 		}
 	}
 }
-
-type openAuthorizer struct{}
-
-func (openAuthorizer) Authorize(*context.T, security.Call) error { return nil }
 
 // arInvoker holds the state of an application repository invocation mock.  The
 // mock returns the value of the wrapped envelope, which can be subsequently be
@@ -94,7 +90,7 @@ type brInvoker struct{}
 func startBinaryRepository(ctx *context.T) func() {
 	server, _ := servicetest.NewServer(ctx)
 	name := mockBinaryRepoName
-	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), &openAuthorizer{}); err != nil {
+	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), security.AllowEveryone()); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)
 	}
 	return func() {

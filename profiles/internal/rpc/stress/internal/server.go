@@ -81,10 +81,6 @@ func (s *impl) Stop(*context.T, rpc.ServerCall) error {
 	return nil
 }
 
-type allowEveryoneAuthorizer struct{}
-
-func (allowEveryoneAuthorizer) Authorize(*context.T, security.Call) error { return nil }
-
 // StartServer starts a server that implements the Stress service, and returns
 // the server and its vanadium address. It also returns a channel carrying stop
 // requests. After reading from the stop channel, the application should exit.
@@ -102,7 +98,7 @@ func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (rpc.Server, naming.
 	}
 
 	s := impl{stop: make(chan struct{})}
-	if err := server.Serve("", stress.StressServer(&s), allowEveryoneAuthorizer{}); err != nil {
+	if err := server.Serve("", stress.StressServer(&s), security.AllowEveryone()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	return server, eps[0], s.stop

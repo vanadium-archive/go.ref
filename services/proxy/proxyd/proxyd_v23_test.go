@@ -75,7 +75,7 @@ func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	if _, err := server.Listen(rpc.ListenSpec{Proxy: proxyName}); err != nil {
 		return err
 	}
-	if err := server.Serve(serverName, service{}, allowEveryone{}); err != nil {
+	if err := server.Serve(serverName, service{}, security.AllowEveryone()); err != nil {
 		return err
 	}
 
@@ -106,7 +106,3 @@ func (service) Echo(ctx *context.T, call rpc.ServerCall) (string, error) {
 	server := security.LocalBlessingNames(ctx, call.Security())
 	return fmt.Sprintf("server %v saw client %v", server, client), nil
 }
-
-type allowEveryone struct{}
-
-func (allowEveryone) Authorize(*context.T, security.Call) error { return nil }

@@ -796,7 +796,7 @@ This file can be supplied to bless:
 				token:     base64.URLEncoding.EncodeToString(token[:]),
 				notify:    make(chan error),
 			}
-			if err := server.Serve("", service, allowAnyone{}); err != nil {
+			if err := server.Serve("", service, security.AllowEveryone()); err != nil {
 				return fmt.Errorf("failed to setup service: %v", err)
 			}
 			// Proposed name:
@@ -1207,10 +1207,6 @@ func (r *recvBlessingsService) Grant(_ *context.T, call rpc.ServerCall, token st
 	r.notify <- nil
 	return nil
 }
-
-type allowAnyone struct{}
-
-func (allowAnyone) Authorize(*context.T, security.Call) error { return nil }
 
 type granter struct {
 	with      security.Blessings
