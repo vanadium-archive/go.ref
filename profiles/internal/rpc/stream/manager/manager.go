@@ -26,7 +26,6 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
-	"v.io/x/ref/profiles/internal/rpc/version"
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc/stream/manager"
@@ -135,15 +134,9 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 		conn.Close()
 		return vf, nil
 	}
-	vRange := version.SupportedRange
-	if ep, ok := remote.(*inaming.Endpoint); ok {
-		epRange := &version.Range{Min: ep.MinRPCVersion, Max: ep.MaxRPCVersion}
-		if r, err := vRange.Intersect(epRange); err == nil {
-			vRange = r
-		}
-	}
+
 	opts = append([]stream.VCOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
-	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, vRange, m.deleteVIF, opts...)
+	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, nil, m.deleteVIF, opts...)
 	if err != nil {
 		conn.Close()
 		return nil, err
@@ -233,7 +226,12 @@ func (m *manager) internalListen(protocol, address string, principal security.Pr
 	ln := newNetListener(m, netln, principal, blessings, opts)
 	m.listeners[ln] = true
 	m.muListeners.Unlock()
-	return ln, version.Endpoint(protocol, netln.Addr().String(), m.rid), nil
+	ep := &inaming.Endpoint{
+		Protocol: protocol,
+		Address:  netln.Addr().String(),
+		RID:      m.rid,
+	}
+	return ln, ep, nil
 }
 
 func (m *manager) remoteListen(proxy naming.Endpoint, principal security.Principal, listenerOpts []stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {

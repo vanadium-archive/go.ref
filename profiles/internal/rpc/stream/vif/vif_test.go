@@ -23,6 +23,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 
+	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
@@ -620,7 +621,11 @@ func (tc *versionTestCase) Run(t *testing.T) {
 	}
 	defer client.Close()
 
-	ep := tc.ep.Endpoint("test", "addr", naming.FixedRoutingID(0x5))
+	ep := &inaming.Endpoint{
+		Protocol: "test",
+		Address:  "addr",
+		RID:      naming.FixedRoutingID(0x5),
+	}
 	clientVC, _, err := createVC(client, server, ep)
 	if (err != nil) != tc.expectError {
 		t.Errorf("Error mismatch.  Wanted error: %v, got %v (client:%v, server:%v ep:%v)", tc.expectError, err, tc.client, tc.server, tc.ep)
@@ -689,7 +694,11 @@ func TestNetworkFailure(t *testing.T) {
 }
 
 func makeEP(rid uint64) naming.Endpoint {
-	return iversion.Endpoint("test", "addr", naming.FixedRoutingID(rid))
+	return &inaming.Endpoint{
+		Protocol: "test",
+		Address:  "addr",
+		RID:      naming.FixedRoutingID(rid),
+	}
 }
 
 // pipeAddr provides a more descriptive String implementation than provided by net.Pipe.

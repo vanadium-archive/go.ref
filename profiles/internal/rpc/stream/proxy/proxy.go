@@ -16,7 +16,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -27,6 +26,7 @@ import (
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	"v.io/x/ref/profiles/internal/lib/publisher"
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
+	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
@@ -51,7 +51,7 @@ var (
 	// message visible to the user.
 	errNoRoutingTableEntry       = reg(".errNoRoutingTableEntry", "routing table has no entry for the VC")
 	errProcessVanished           = reg(".errProcessVanished", "remote process vanished")
-	errDuplicateOpenVC           = reg(".errDuplicateOpenVC", "duplicate OpenVC request")
+	errDuplicateSetupVC          = reg(".errDuplicateSetupVC", "duplicate SetupVC request")
 	errVomDecoder                = reg(".errVomDecoder", "failed to create vom decoder{:3}")
 	errVomEncoder                = reg(".errVomEncoder", "failed to create vom encoder{:3}")
 	errVomEncodeResponse         = reg(".errVomEncodeResponse", "failed to encode response from proxy{:3}")
@@ -345,13 +345,13 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		response.Error = verror.Convert(verror.ErrUnknown, nil, err)
 	} else {
 		defer p.servers.Remove(server)
-		ep, err := iversion.ProxiedEndpoint(server.VC.RemoteEndpoint().RoutingID(), p.endpoint())
-		if err != nil {
-			response.Error = verror.Convert(verror.ErrInternal, nil, err)
+		proxyEP := p.endpoint()
+		ep := &inaming.Endpoint{
+			Protocol: proxyEP.Protocol,
+			Address:  proxyEP.Address,
+			RID:      server.VC.RemoteEndpoint().RoutingID(),
 		}
-		if ep != nil {
-			response.Endpoint = ep.String()
-		}
+		response.Endpoint = ep.String()
 	}
 	enc, err := vom.NewEncoder(conn)
 	if err != nil {
@@ -409,8 +409,13 @@ func startRoutingVC(srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
 
 // Endpoint returns the endpoint of the proxy service.  By Dialing a VC to this
 // endpoint, processes can have their services exported through the proxy.
-func (p *Proxy) endpoint() naming.Endpoint {
-	ep := iversion.Endpoint(p.ln.Addr().Network(), p.pubAddress, p.rid)
+func (p *Proxy) endpoint() *inaming.Endpoint {
+
+	ep := &inaming.Endpoint{
+		Protocol: p.ln.Addr().Network(),
+		Address:  p.pubAddress,
+		RID:      p.rid,
+	}
 	if prncpl := p.principal; prncpl != nil {
 		for b, _ := range prncpl.BlessingsInfo(prncpl.BlessingStore().Default()) {
 			ep.Blessings = append(ep.Blessings, b)
@@ -577,7 +582,7 @@ func (p *process) readLoop() {
 			if naming.Compare(dstrid, p.proxy.rid) || naming.Compare(dstrid, naming.NullRoutingID) {
 				// VC that terminates at the proxy.
 				// See protocol.vdl for details on the protocol between the server and the proxy.
-				vcObj := p.NewServerSetupVC(m)
+				vcObj := p.NewServerVC(m)
 				// route counters after creating the VC so counters to vc are not lost.
 				p.proxy.routeCounters(p, m.Counters)
 				if vcObj != nil {
@@ -652,44 +657,6 @@ func (p *process) readLoop() {
 			// version will be compatible with all intermediate hops.
 			m.Setup.Versions = *intersection
 			d.Process.queue.Put(m)
-			p.proxy.routeCounters(p, counters)
-
-		case *message.OpenVC:
-			dstrid := m.DstEndpoint.RoutingID()
-			if naming.Compare(dstrid, p.proxy.rid) || naming.Compare(dstrid, naming.NullRoutingID) {
-				// VC that terminates at the proxy.
-				// See protocol.vdl for details on the protocol between the server and the proxy.
-				vcObj, vers := p.NewServerVC(m)
-				// route counters after creating the VC so counters to vc are not lost.
-				p.proxy.routeCounters(p, m.Counters)
-				if vcObj != nil {
-					server := &server{Process: p, VC: vcObj}
-					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(vers, p.proxy.principal, p.proxy.blessings, nil))
-				}
-				break
-			}
-			dstprocess := p.proxy.servers.Process(dstrid)
-			if dstprocess == nil {
-				p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errServerNotBeingProxied, nil, dstrid)))
-				p.proxy.routeCounters(p, m.Counters)
-				break
-			}
-			srcVCI := m.VCI
-			dstVCI := dstprocess.AllocVCI()
-			startRoutingVC(srcVCI, dstVCI, p, dstprocess)
-			// Forward the OpenVC message.
-			// Typically, an OpenVC message is accompanied with Counters for the new VC.
-			// Keep that in the forwarded message and route the remaining counters separately.
-			counters := m.Counters
-			m.Counters = message.NewCounters()
-			for cid, bytes := range counters {
-				if cid.VCI() == srcVCI {
-					m.Counters.Add(dstVCI, cid.Flow(), bytes)
-					delete(counters, cid)
-				}
-			}
-			m.VCI = dstVCI
-			dstprocess.queue.Put(m)
 			p.proxy.routeCounters(p, counters)
 
 		default:
@@ -768,36 +735,11 @@ func (p *process) ServerVC(vci id.VC) *vc.VC {
 	return p.servers[vci]
 }
 
-func (p *process) NewServerVC(m *message.OpenVC) (*vc.VC, version.RPCVersion) {
+func (p *process) NewServerVC(m *message.SetupVC) *vc.VC {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if vc := p.servers[m.VCI]; vc != nil {
-		vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errDuplicateOpenVC, nil)))
-		return nil, version.UnknownRPCVersion
-	}
-	vers, err := iversion.CommonVersion(m.DstEndpoint, m.SrcEndpoint)
-	if err != nil {
-		p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errIncompatibleVersions, nil, err)))
-		return nil, vers
-	}
-	vc := vc.InternalNew(vc.Params{
-		VCI:          m.VCI,
-		LocalEP:      m.DstEndpoint,
-		RemoteEP:     m.SrcEndpoint,
-		Pool:         p.pool,
-		ReserveBytes: message.HeaderSizeBytes,
-		Helper:       p,
-	})
-	p.servers[m.VCI] = vc
-	proxyLog().Infof("Registered VC %v from server on process %v", vc, p)
-	return vc, vers
-}
-
-func (p *process) NewServerSetupVC(m *message.SetupVC) *vc.VC {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if vc := p.servers[m.VCI]; vc != nil {
-		vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errDuplicateOpenVC, nil)))
+		vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errDuplicateSetupVC, nil)))
 		return nil
 	}
 	vc := vc.InternalNew(vc.Params{

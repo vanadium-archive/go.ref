@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"v.io/v23/naming"
-	inaming "v.io/x/ref/profiles/internal/naming"
 )
 
 func servers2names(servers []naming.MountedServer) []string {
@@ -25,23 +24,6 @@ func TestIncompatible(t *testing.T) {
 	_, err := filterAndOrderServers(servers, []string{"tcp"}, nil)
 	if err == nil || err.Error() != "failed to find any compatible servers" {
 		t.Errorf("expected a different error: %v", err)
-	}
-
-	for _, a := range []string{"127.0.0.1", "127.0.0.2"} {
-		ep := inaming.Endpoint{
-			Protocol:      "tcp",
-			Address:       a,
-			MinRPCVersion: 100,
-			MaxRPCVersion: 200,
-		}
-		addr := ep.VersionedString(4)
-		name := naming.JoinAddressName(addr, "")
-		servers = append(servers, naming.MountedServer{Server: name})
-	}
-
-	_, err = filterAndOrderServers(servers, []string{"tcp"}, nil)
-	if err == nil || (!strings.HasPrefix(err.Error(), "failed to find any compatible servers:") && !strings.Contains(err.Error(), "No compatible RPC versions available")) {
-		t.Errorf("expected a different error to: %v", err)
 	}
 
 	for _, a := range []string{"127.0.0.3", "127.0.0.4"} {

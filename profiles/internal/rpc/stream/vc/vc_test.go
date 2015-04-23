@@ -285,14 +285,6 @@ func testConnect_Small(t *testing.T, version version.RPCVersion, securityLevel o
 }
 func TestConnect_SmallNoSecurity(t *testing.T) { testConnect_Small(t, LatestVersion, SecurityNone) }
 func TestConnect_Small(t *testing.T)           { testConnect_Small(t, LatestVersion, SecurityDefault) }
-func TestConnect_Small7NoSecurity(t *testing.T) {
-	testConnect_Small(t, version.RPCVersion7, SecurityNone)
-}
-func TestConnect_Small7(t *testing.T) { testConnect_Small(t, version.RPCVersion7, SecurityDefault) }
-func TestConnect_Small8NoSecurity(t *testing.T) {
-	testConnect_Small(t, version.RPCVersion8, SecurityNone)
-}
-func TestConnect_Small8(t *testing.T) { testConnect_Small(t, version.RPCVersion8, SecurityDefault) }
 
 func testConnect(t *testing.T, securityLevel options.SecurityLevel) {
 	h, vc, err := NewSimple(LatestVersion, securityLevel)
@@ -513,20 +505,19 @@ func New(v version.RPCVersion, client, server security.Principal, dischargeClien
 
 	var clientExchanger func(*crypto.BoxKey) error
 	var serverExchanger func(*crypto.BoxKey) (*crypto.BoxKey, error)
-	if v >= version.RPCVersion9 {
-		server, client := make(chan *crypto.BoxKey, 1), make(chan *crypto.BoxKey, 1)
-		clientExchanger = func(pubKey *crypto.BoxKey) error {
-			client <- pubKey
-			return clientH.VC.FinishHandshakeDialedVC(v, <-server)
-		}
-		serverExchanger = func(pubKey *crypto.BoxKey) (*crypto.BoxKey, error) {
-			server <- pubKey
-			return <-client, nil
-		}
+
+	serverch, clientch := make(chan *crypto.BoxKey, 1), make(chan *crypto.BoxKey, 1)
+	clientExchanger = func(pubKey *crypto.BoxKey) error {
+		clientch <- pubKey
+		return clientH.VC.FinishHandshakeDialedVC(v, <-serverch)
+	}
+	serverExchanger = func(pubKey *crypto.BoxKey) (*crypto.BoxKey, error) {
+		serverch <- pubKey
+		return <-clientch, nil
 	}
 
 	c := serverH.VC.HandshakeAcceptedVC(v, server, bserver, serverExchanger, lopts...)
-	if err := clientH.VC.HandshakeDialedVC(client, v, clientExchanger, vcopts...); err != nil {
+	if err := clientH.VC.HandshakeDialedVC(client, clientExchanger, vcopts...); err != nil {
 		go func() { <-c }()
 		return nil, nil, err
 	}

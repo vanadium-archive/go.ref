@@ -31,7 +31,6 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
-	"v.io/x/ref/profiles/internal/rpc/version"
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc"
@@ -387,10 +386,6 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 	ep, err := inaming.NewEndpoint(address)
 	if err != nil {
 		status.serverErr = suberr(verror.New(errInvalidEndpoint, ctx))
-		return
-	}
-	if err = version.CheckCompatibility(ep); err != nil {
-		status.serverErr = suberr(verror.New(errIncompatibleEndpoint, ctx))
 		return
 	}
 	if status.flow, status.serverErr = c.createFlow(ctx, principal, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.serverErr != nil {

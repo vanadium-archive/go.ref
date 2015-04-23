@@ -402,7 +402,6 @@ func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 			origep.Addr().Network(),
 			origep.Addr().String(),
 			origep.RoutingID(),
-			origep.RPCVersionRange(),
 			naming.ServesMountTable(origep.ServesMountTable()))
 		roots[i] = naming.JoinAddressName(ep, suffix)
 	}

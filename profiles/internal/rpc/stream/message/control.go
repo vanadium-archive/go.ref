@@ -37,13 +37,14 @@ type Control interface {
 	writeTo(w io.Writer) error
 }
 
-// OpenVC is a Control implementation requesting the creation of a new virtual
-// circuit.
-type OpenVC struct {
-	VCI         id.VC
-	DstEndpoint naming.Endpoint
-	SrcEndpoint naming.Endpoint
-	Counters    Counters
+// SetupVC is a Control implementation containing information to setup a new
+// virtual circuit.
+type SetupVC struct {
+	VCI            id.VC
+	LocalEndpoint  naming.Endpoint // Endpoint of the sender (as seen by the sender), can be nil.
+	RemoteEndpoint naming.Endpoint // Endpoint of the receiver (as seen by the sender), can be nil.
+	Counters       Counters
+	Setup          Setup // Negotiate versioning and encryption.
 }
 
 // CloseVC is a Control implementation notifying the closure of an established
@@ -54,17 +55,6 @@ type OpenVC struct {
 type CloseVC struct {
 	VCI   id.VC
 	Error string
-}
-
-// SetupVC is a Control implementation containing information to setup a new
-// virtual circuit. This message is expected to replace OpenVC and allow for
-// the two ends of a VC to establish a protocol version.
-type SetupVC struct {
-	VCI            id.VC
-	LocalEndpoint  naming.Endpoint // Endpoint of the sender (as seen by the sender), can be nil.
-	RemoteEndpoint naming.Endpoint // Endpoint of the receiver (as seen by the sender), can be nil.
-	Counters       Counters
-	Setup          Setup // Negotiate versioning and encryption.
 }
 
 // AddReceiveBuffers is a Control implementation used by the sender of the
@@ -132,7 +122,7 @@ const (
 type command uint8
 
 const (
-	openVCCommand            command = 0
+	deprecatedOpenVCCommand  command = 0
 	closeVCCommand           command = 1
 	addReceiveBuffersCommand command = 2
 	openFlowCommand          command = 3
@@ -144,8 +134,6 @@ const (
 func writeControl(w io.Writer, m Control) error {
 	var command command
 	switch m.(type) {
-	case *OpenVC:
-		command = openVCCommand
 	case *CloseVC:
 		command = closeVCCommand
 	case *AddReceiveBuffers:
@@ -181,8 +169,6 @@ func readControl(r *bytes.Buffer) (Control, error) {
 	command := command(header)
 	var m Control
 	switch command {
-	case openVCCommand:
-		m = new(OpenVC)
 	case closeVCCommand:
 		m = new(CloseVC)
 	case addReceiveBuffersCommand:
@@ -202,47 +188,6 @@ func readControl(r *bytes.Buffer) (Control, error) {
 		return nil, verror.New(errFailedToDeserializedVCControlMessage, nil, command, fmt.Sprintf("%T", m), err)
 	}
 	return m, nil
-}
-
-func (m *OpenVC) writeTo(w io.Writer) (err error) {
-	if err = writeInt(w, m.VCI); err != nil {
-		return
-	}
-	// Note that when we send OpenVC we always use v4 endpoints because
-	// the server needs to get version information from them.
-	if err = writeString(w, m.DstEndpoint.VersionedString(4)); err != nil {
-		return
-	}
-	if err = writeString(w, m.SrcEndpoint.VersionedString(4)); err != nil {
-		return
-	}
-	if err = writeCounters(w, m.Counters); err != nil {
-		return
-	}
-	return nil
-}
-
-func (m *OpenVC) readFrom(r *bytes.Buffer) (err error) {
-	if err = readInt(r, &m.VCI); err != nil {
-		return
-	}
-	var ep string
-	if err = readString(r, &ep); err != nil {
-		return
-	}
-	if m.DstEndpoint, err = inaming.NewEndpoint(ep); err != nil {
-		return
-	}
-	if err = readString(r, &ep); err != nil {
-		return
-	}
-	if m.SrcEndpoint, err = inaming.NewEndpoint(ep); err != nil {
-		return
-	}
-	if m.Counters, err = readCounters(r); err != nil {
-		return
-	}
-	return nil
 }
 
 func (m *CloseVC) writeTo(w io.Writer) (err error) {

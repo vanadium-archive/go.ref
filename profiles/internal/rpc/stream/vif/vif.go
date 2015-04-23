@@ -20,7 +20,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
@@ -32,6 +31,7 @@ import (
 	"v.io/x/ref/profiles/internal/lib/pcqueue"
 	vsync "v.io/x/ref/profiles/internal/lib/sync"
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
+	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
@@ -316,51 +316,28 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, principal security.Principal, opt
 	counters := message.NewCounters()
 	counters.Add(vc.VCI(), sharedFlowID, defaultBytesBufferedPerFlow)
 
-	ver, err := vif.versions.CommonVersion(vif.localEP, remoteEP)
-
-	switch {
-	case verror.ErrorID(err) == iversion.ErrDeprecatedVersion.ID || ver >= version.RPCVersion9:
-		sendPublicKey := func(pubKey *crypto.BoxKey) error {
-			var options []message.SetupOption
-			if pubKey != nil {
-				options = []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}}
-			}
-			err := vif.sendOnExpressQ(&message.SetupVC{
-				VCI:            vc.VCI(),
-				RemoteEndpoint: remoteEP,
-				LocalEndpoint:  vif.localEP,
-				Counters:       counters,
-				Setup: message.Setup{
-					Versions: *vif.versions,
-					Options:  options,
-				},
-			})
-			if err != nil {
-				err = verror.New(stream.ErrNetwork, nil,
-					verror.New(errSendOnExpressQFailed, nil, err))
-			}
-			return err
+	sendPublicKey := func(pubKey *crypto.BoxKey) error {
+		var options []message.SetupOption
+		if pubKey != nil {
+			options = []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}}
 		}
-		if err = vc.HandshakeDialedVC(principal, ver, sendPublicKey, opts...); err != nil {
-			break
-		}
-	case err != nil:
-		break
-	default:
-		err = vif.sendOnExpressQ(&message.OpenVC{
-			VCI:         vc.VCI(),
-			DstEndpoint: remoteEP,
-			SrcEndpoint: vif.localEP,
-			Counters:    counters})
+		err := vif.sendOnExpressQ(&message.SetupVC{
+			VCI:            vc.VCI(),
+			RemoteEndpoint: remoteEP,
+			LocalEndpoint:  vif.localEP,
+			Counters:       counters,
+			Setup: message.Setup{
+				Versions: *vif.versions,
+				Options:  options,
+			},
+		})
 		if err != nil {
-			err = verror.New(stream.ErrNetwork, nil, verror.New(errSendOnExpressQFailed, nil, err))
-			break
+			err = verror.New(stream.ErrNetwork, nil,
+				verror.New(errSendOnExpressQFailed, nil, err))
 		}
-		if err = vc.HandshakeDialedVC(principal, ver, nil, opts...); err != nil {
-			break
-		}
+		return err
 	}
-	if err != nil {
+	if err = vc.HandshakeDialedVC(principal, sendPublicKey, opts...); err != nil {
 		vif.deleteVC(vc.VCI())
 		vc.Close(err)
 		return nil, err
@@ -544,45 +521,6 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			vlog.VI(2).Infof("Failed to put message(%v) on VC queue on VIF %v: %v", m, vif, err)
 			m.Release()
 		}
-
-	case *message.OpenVC:
-		vif.muListen.Lock()
-		closed := vif.acceptor == nil || vif.acceptor.IsClosed()
-		lopts := vif.listenerOpts
-		vif.muListen.Unlock()
-		if closed {
-			vlog.VI(2).Infof("Ignoring OpenVC message %+v as VIF %s does not accept VCs", m, vif)
-			vif.sendOnExpressQ(&message.CloseVC{
-				VCI:   m.VCI,
-				Error: "VCs not accepted",
-			})
-			return nil
-		}
-		var idleTimeout time.Duration
-		for _, o := range lopts {
-			switch v := o.(type) {
-			case vc.IdleTimeout:
-				idleTimeout = v.Duration
-			}
-		}
-		vc, err := vif.newVC(m.VCI, m.DstEndpoint, m.SrcEndpoint, idleTimeout, false)
-		vif.distributeCounters(m.Counters)
-		if err != nil {
-			vif.sendOnExpressQ(&message.CloseVC{
-				VCI:   m.VCI,
-				Error: err.Error(),
-			})
-			return nil
-		}
-		vers, err := vif.versions.CommonVersion(m.DstEndpoint, m.SrcEndpoint)
-		if err != nil {
-			vif.sendOnExpressQ(&message.CloseVC{
-				VCI:   m.VCI,
-				Error: err.Error(),
-			})
-			return nil
-		}
-		go vif.acceptFlowsLoop(vc, vc.HandshakeAcceptedVC(vers, vif.principal, vif.blessings, nil, lopts...))
 
 	case *message.SetupVC:
 		// First, find the public key we need out of the message.
@@ -1159,7 +1097,7 @@ func releaseBufs(bufs []*iobuf.Slice) {
 // localEP creates a naming.Endpoint from the provided parameters.
 //
 // It intentionally does not include any blessings (present in endpoints in the
-// v4 format). At this point it is not clear whether the endpoint is being
+// v5 format). At this point it is not clear whether the endpoint is being
 // created for a "client" or a "server". If the endpoint is used for clients
 // (i.e., for those sending an OpenVC message for example), then we do NOT want
 // to include the blessings in the endpoint to ensure client privacy.
@@ -1173,9 +1111,10 @@ func releaseBufs(bufs []*iobuf.Slice) {
 // clearer.
 func localEP(conn net.Conn, rid naming.RoutingID, versions *iversion.Range) naming.Endpoint {
 	localAddr := conn.LocalAddr()
-	ep := iversion.Endpoint(localAddr.Network(), localAddr.String(), rid)
-	if versions != nil {
-		ep = versions.Endpoint(localAddr.Network(), localAddr.String(), rid)
+	ep := &inaming.Endpoint{
+		Protocol: localAddr.Network(),
+		Address:  localAddr.String(),
+		RID:      rid,
 	}
 	return ep
 }
