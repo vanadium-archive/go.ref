@@ -21,6 +21,7 @@ pkg agent, type AgentClientMethods interface, MintDischarge(*context.T, security
 pkg agent, type AgentClientMethods interface, NotifyWhenChanged(*context.T, ...rpc.CallOpt) (AgentNotifyWhenChangedClientCall, error)
 pkg agent, type AgentClientMethods interface, PublicKey(*context.T, ...rpc.CallOpt) ([]byte, error)
 pkg agent, type AgentClientMethods interface, Sign(*context.T, []byte, ...rpc.CallOpt) (security.Signature, error)
+pkg agent, type AgentClientStub interface { AddToRoots, Bless, BlessSelf, BlessingRootsAdd, BlessingRootsDebugString, BlessingRootsRecognized, BlessingStoreDebugString, BlessingStoreDefault, BlessingStoreForPeer, BlessingStorePeerBlessings, BlessingStoreSet, BlessingStoreSetDefault, BlessingsByName, BlessingsInfo, MintDischarge, NotifyWhenChanged, PublicKey, Sign }
 pkg agent, type AgentClientStub interface, AddToRoots(*context.T, security.Blessings, ...rpc.CallOpt) error
 pkg agent, type AgentClientStub interface, Bless(*context.T, []byte, security.Blessings, string, security.Caveat, []security.Caveat, ...rpc.CallOpt) (security.Blessings, error)
 pkg agent, type AgentClientStub interface, BlessSelf(*context.T, string, []security.Caveat, ...rpc.CallOpt) (security.Blessings, error)
@@ -39,14 +40,19 @@ pkg agent, type AgentClientStub interface, MintDischarge(*context.T, security.Ca
 pkg agent, type AgentClientStub interface, NotifyWhenChanged(*context.T, ...rpc.CallOpt) (AgentNotifyWhenChangedClientCall, error)
 pkg agent, type AgentClientStub interface, PublicKey(*context.T, ...rpc.CallOpt) ([]byte, error)
 pkg agent, type AgentClientStub interface, Sign(*context.T, []byte, ...rpc.CallOpt) (security.Signature, error)
-pkg agent, type AgentClientStub interface, unexported methods
 pkg agent, type AgentNotifyWhenChangedClientCall interface { Finish, RecvStream }
 pkg agent, type AgentNotifyWhenChangedClientCall interface, Finish() error
 pkg agent, type AgentNotifyWhenChangedClientCall interface, RecvStream() interface {  Advance() bool;; Value() bool;; Err() error;}
 pkg agent, type AgentNotifyWhenChangedClientStream interface { RecvStream }
 pkg agent, type AgentNotifyWhenChangedClientStream interface, RecvStream() interface {  Advance() bool;; Value() bool;; Err() error;}
+pkg agent, type AgentNotifyWhenChangedServerCall interface { GrantedBlessings, LocalEndpoint, RemoteEndpoint, Security, SendStream, Server, Suffix }
+pkg agent, type AgentNotifyWhenChangedServerCall interface, GrantedBlessings() security.Blessings
+pkg agent, type AgentNotifyWhenChangedServerCall interface, LocalEndpoint() naming.Endpoint
+pkg agent, type AgentNotifyWhenChangedServerCall interface, RemoteEndpoint() naming.Endpoint
+pkg agent, type AgentNotifyWhenChangedServerCall interface, Security() security.Call
 pkg agent, type AgentNotifyWhenChangedServerCall interface, SendStream() interface {  Send(item bool) error;}
-pkg agent, type AgentNotifyWhenChangedServerCall interface, unexported methods
+pkg agent, type AgentNotifyWhenChangedServerCall interface, Server() Server
+pkg agent, type AgentNotifyWhenChangedServerCall interface, Suffix() string
 pkg agent, type AgentNotifyWhenChangedServerCallStub struct
 pkg agent, type AgentNotifyWhenChangedServerCallStub struct, embedded rpc.StreamServerCall
 pkg agent, type AgentNotifyWhenChangedServerStream interface { SendStream }

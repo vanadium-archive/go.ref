@@ -2,30 +2,45 @@ pkg repository, func ApplicationClient(string) ApplicationClientStub
 pkg repository, func ApplicationServer(ApplicationServerMethods) ApplicationServerStub
 pkg repository, func ProfileClient(string) ProfileClientStub
 pkg repository, func ProfileServer(ProfileServerMethods) ProfileServerStub
+pkg repository, type ApplicationClientMethods interface { GetPermissions, Match, Put, Remove, SetPermissions }
+pkg repository, type ApplicationClientMethods interface, GetPermissions(*context.T, ...rpc.CallOpt) (access.Permissions, string, error)
+pkg repository, type ApplicationClientMethods interface, Match(*context.T, []string, ...rpc.CallOpt) (application.Envelope, error)
 pkg repository, type ApplicationClientMethods interface, Put(*context.T, []string, application.Envelope, ...rpc.CallOpt) error
 pkg repository, type ApplicationClientMethods interface, Remove(*context.T, string, ...rpc.CallOpt) error
-pkg repository, type ApplicationClientMethods interface, unexported methods
+pkg repository, type ApplicationClientMethods interface, SetPermissions(*context.T, access.Permissions, string, ...rpc.CallOpt) error
+pkg repository, type ApplicationClientStub interface { GetPermissions, Match, Put, Remove, SetPermissions }
+pkg repository, type ApplicationClientStub interface, GetPermissions(*context.T, ...rpc.CallOpt) (access.Permissions, string, error)
+pkg repository, type ApplicationClientStub interface, Match(*context.T, []string, ...rpc.CallOpt) (application.Envelope, error)
 pkg repository, type ApplicationClientStub interface, Put(*context.T, []string, application.Envelope, ...rpc.CallOpt) error
 pkg repository, type ApplicationClientStub interface, Remove(*context.T, string, ...rpc.CallOpt) error
-pkg repository, type ApplicationClientStub interface, unexported methods
+pkg repository, type ApplicationClientStub interface, SetPermissions(*context.T, access.Permissions, string, ...rpc.CallOpt) error
+pkg repository, type ApplicationServerMethods interface { GetPermissions, Match, Put, Remove, SetPermissions }
+pkg repository, type ApplicationServerMethods interface, GetPermissions(*context.T, rpc.ServerCall) (access.Permissions, string, error)
+pkg repository, type ApplicationServerMethods interface, Match(*context.T, rpc.ServerCall, []string) (application.Envelope, error)
 pkg repository, type ApplicationServerMethods interface, Put(*context.T, rpc.ServerCall, []string, application.Envelope) error
 pkg repository, type ApplicationServerMethods interface, Remove(*context.T, rpc.ServerCall, string) error
-pkg repository, type ApplicationServerMethods interface, unexported methods
+pkg repository, type ApplicationServerMethods interface, SetPermissions(*context.T, rpc.ServerCall, access.Permissions, string) error
 pkg repository, type ApplicationServerStub interface, Describe__() []rpc.InterfaceDesc
 pkg repository, type ApplicationServerStub interface, unexported methods
 pkg repository, type ApplicationServerStubMethods ApplicationServerMethods
+pkg repository, type ProfileClientMethods interface { Description, Label, Put, Remove, Specification }
+pkg repository, type ProfileClientMethods interface, Description(*context.T, ...rpc.CallOpt) (string, error)
+pkg repository, type ProfileClientMethods interface, Label(*context.T, ...rpc.CallOpt) (string, error)
 pkg repository, type ProfileClientMethods interface, Put(*context.T, profile.Specification, ...rpc.CallOpt) error
 pkg repository, type ProfileClientMethods interface, Remove(*context.T, ...rpc.CallOpt) error
 pkg repository, type ProfileClientMethods interface, Specification(*context.T, ...rpc.CallOpt) (profile.Specification, error)
-pkg repository, type ProfileClientMethods interface, unexported methods
+pkg repository, type ProfileClientStub interface { Description, Label, Put, Remove, Specification }
+pkg repository, type ProfileClientStub interface, Description(*context.T, ...rpc.CallOpt) (string, error)
+pkg repository, type ProfileClientStub interface, Label(*context.T, ...rpc.CallOpt) (string, error)
 pkg repository, type ProfileClientStub interface, Put(*context.T, profile.Specification, ...rpc.CallOpt) error
 pkg repository, type ProfileClientStub interface, Remove(*context.T, ...rpc.CallOpt) error
 pkg repository, type ProfileClientStub interface, Specification(*context.T, ...rpc.CallOpt) (profile.Specification, error)
-pkg repository, type ProfileClientStub interface, unexported methods
+pkg repository, type ProfileServerMethods interface { Description, Label, Put, Remove, Specification }
+pkg repository, type ProfileServerMethods interface, Description(*context.T, rpc.ServerCall) (string, error)
+pkg repository, type ProfileServerMethods interface, Label(*context.T, rpc.ServerCall) (string, error)
 pkg repository, type ProfileServerMethods interface, Put(*context.T, rpc.ServerCall, profile.Specification) error
 pkg repository, type ProfileServerMethods interface, Remove(*context.T, rpc.ServerCall) error
 pkg repository, type ProfileServerMethods interface, Specification(*context.T, rpc.ServerCall) (profile.Specification, error)
-pkg repository, type ProfileServerMethods interface, unexported methods
 pkg repository, type ProfileServerStub interface, Describe__() []rpc.InterfaceDesc
 pkg repository, type ProfileServerStub interface, unexported methods
 pkg repository, type ProfileServerStubMethods ProfileServerMethods

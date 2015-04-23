@@ -18,4 +18,4 @@ pkg security, type PrincipalStateSerializer struct, BlessingStore SerializerRead
 pkg security, type SerializerReaderWriter interface { Readers, Writers }
 pkg security, type SerializerReaderWriter interface, Readers() (io.ReadCloser, io.ReadCloser, error)
 pkg security, type SerializerReaderWriter interface, Writers() (io.WriteCloser, io.WriteCloser, error)
-pkg security, var ErrBadPassphrase unknown-type
+pkg security, var ErrBadPassphrase verror.IDAction

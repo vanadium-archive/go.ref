@@ -1,4 +1,4 @@
-pkg proxy, func New(*context.T, string, string, string, ...string) (func(), naming.Endpoint, error)
+pkg proxy, func New(*context.T, rpc.ListenSpec, ...string) (func(), naming.Endpoint, error)
 pkg proxy, type Proxy struct
 pkg proxy, type Request struct
 pkg proxy, type Response struct

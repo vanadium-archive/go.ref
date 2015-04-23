@@ -12,9 +12,9 @@ pkg binarylib, func SetupRootDir(string) (string, error)
 pkg binarylib, func Upload(*context.T, string, []byte, repository.MediaInfo) (*security.Signature, error)
 pkg binarylib, func UploadFromDir(*context.T, string, string) (*security.Signature, error)
 pkg binarylib, func UploadFromFile(*context.T, string, string) (*security.Signature, error)
-pkg binarylib, var ErrInProgress unknown-type
-pkg binarylib, var ErrInvalidPart unknown-type
-pkg binarylib, var ErrInvalidParts unknown-type
-pkg binarylib, var ErrNotAuthorized unknown-type
-pkg binarylib, var ErrOperationFailed unknown-type
+pkg binarylib, var ErrInProgress verror.IDAction
+pkg binarylib, var ErrInvalidPart verror.IDAction
+pkg binarylib, var ErrInvalidParts verror.IDAction
+pkg binarylib, var ErrNotAuthorized verror.IDAction
+pkg binarylib, var ErrOperationFailed verror.IDAction
 pkg binarylib, var MissingPart binary.PartInfo

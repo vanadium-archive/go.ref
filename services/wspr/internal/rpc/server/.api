@@ -59,8 +59,8 @@ pkg server, type ServerRpcRequestCall struct, Deadline time.Deadline
 pkg server, type ServerRpcRequestCall struct, GrantedBlessings *principal.JsBlessings
 pkg server, type ServerRpcRequestCall struct, SecurityCall SecurityCall
 pkg server, type ServerRpcRequestCall struct, TraceRequest vtrace.Request
-pkg server, var ErrCaveatValidationTimeout unknown-type
-pkg server, var ErrInvalidValidationResponseFromJavascript unknown-type
-pkg server, var ErrMethodNotFoundInSignature unknown-type
-pkg server, var ErrServerStopped unknown-type
-pkg server, var ErrWrongNumberOfArgs unknown-type
+pkg server, var ErrCaveatValidationTimeout verror.IDAction
+pkg server, var ErrInvalidValidationResponseFromJavascript verror.IDAction
+pkg server, var ErrMethodNotFoundInSignature verror.IDAction
+pkg server, var ErrServerStopped verror.IDAction
+pkg server, var ErrWrongNumberOfArgs verror.IDAction

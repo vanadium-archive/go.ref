@@ -9,12 +9,12 @@ pkg stress, type StressClientMethods interface, GetSumStats(*context.T, ...rpc.C
 pkg stress, type StressClientMethods interface, Stop(*context.T, ...rpc.CallOpt) error
 pkg stress, type StressClientMethods interface, Sum(*context.T, SumArg, ...rpc.CallOpt) ([]byte, error)
 pkg stress, type StressClientMethods interface, SumStream(*context.T, ...rpc.CallOpt) (StressSumStreamClientCall, error)
+pkg stress, type StressClientStub interface { Echo, GetSumStats, Stop, Sum, SumStream }
 pkg stress, type StressClientStub interface, Echo(*context.T, []byte, ...rpc.CallOpt) ([]byte, error)
 pkg stress, type StressClientStub interface, GetSumStats(*context.T, ...rpc.CallOpt) (SumStats, error)
 pkg stress, type StressClientStub interface, Stop(*context.T, ...rpc.CallOpt) error
 pkg stress, type StressClientStub interface, Sum(*context.T, SumArg, ...rpc.CallOpt) ([]byte, error)
 pkg stress, type StressClientStub interface, SumStream(*context.T, ...rpc.CallOpt) (StressSumStreamClientCall, error)
-pkg stress, type StressClientStub interface, unexported methods
 pkg stress, type StressServerMethods interface { Echo, GetSumStats, Stop, Sum, SumStream }
 pkg stress, type StressServerMethods interface, Echo(*context.T, rpc.ServerCall, []byte) ([]byte, error)
 pkg stress, type StressServerMethods interface, GetSumStats(*context.T, rpc.ServerCall) (SumStats, error)
@@ -41,9 +41,15 @@ pkg stress, type StressSumStreamClientCall interface, SendStream() interface {  
 pkg stress, type StressSumStreamClientStream interface { RecvStream, SendStream }
 pkg stress, type StressSumStreamClientStream interface, RecvStream() interface {  Advance() bool;; Value() []byte;; Err() error;}
 pkg stress, type StressSumStreamClientStream interface, SendStream() interface {  Send(item SumArg) error;; Close() error;}
+pkg stress, type StressSumStreamServerCall interface { GrantedBlessings, LocalEndpoint, RecvStream, RemoteEndpoint, Security, SendStream, Server, Suffix }
+pkg stress, type StressSumStreamServerCall interface, GrantedBlessings() security.Blessings
+pkg stress, type StressSumStreamServerCall interface, LocalEndpoint() naming.Endpoint
 pkg stress, type StressSumStreamServerCall interface, RecvStream() interface {  Advance() bool;; Value() SumArg;; Err() error;}
+pkg stress, type StressSumStreamServerCall interface, RemoteEndpoint() naming.Endpoint
+pkg stress, type StressSumStreamServerCall interface, Security() security.Call
 pkg stress, type StressSumStreamServerCall interface, SendStream() interface {  Send(item []byte) error;}
-pkg stress, type StressSumStreamServerCall interface, unexported methods
+pkg stress, type StressSumStreamServerCall interface, Server() Server
+pkg stress, type StressSumStreamServerCall interface, Suffix() string
 pkg stress, type StressSumStreamServerCallStub struct
 pkg stress, type StressSumStreamServerCallStub struct, embedded rpc.StreamServerCall
 pkg stress, type StressSumStreamServerStream interface { RecvStream, SendStream }

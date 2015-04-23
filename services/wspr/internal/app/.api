@@ -75,6 +75,7 @@ pkg app, type ControllerClientMethods interface, Serve(*context.T, string, uint3
 pkg app, type ControllerClientMethods interface, Signature(*context.T, string, ...rpc.CallOpt) ([]signature.Interface, error)
 pkg app, type ControllerClientMethods interface, Stop(*context.T, uint32, ...rpc.CallOpt) error
 pkg app, type ControllerClientMethods interface, UnlinkBlessings(*context.T, principal.BlessingsHandle, ...rpc.CallOpt) error
+pkg app, type ControllerClientStub interface { AddName, AddToRoots, Bless, BlessSelf, GetDefaultBlessings, PutToBlessingStore, RemoteBlessings, RemoveName, Serve, Signature, Stop, UnlinkBlessings }
 pkg app, type ControllerClientStub interface, AddName(*context.T, uint32, string, ...rpc.CallOpt) error
 pkg app, type ControllerClientStub interface, AddToRoots(*context.T, principal.BlessingsHandle, ...rpc.CallOpt) error
 pkg app, type ControllerClientStub interface, Bless(*context.T, string, principal.BlessingsHandle, string, []security.Caveat, ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
@@ -87,7 +88,6 @@ pkg app, type ControllerClientStub interface, Serve(*context.T, string, uint32, 
 pkg app, type ControllerClientStub interface, Signature(*context.T, string, ...rpc.CallOpt) ([]signature.Interface, error)
 pkg app, type ControllerClientStub interface, Stop(*context.T, uint32, ...rpc.CallOpt) error
 pkg app, type ControllerClientStub interface, UnlinkBlessings(*context.T, principal.BlessingsHandle, ...rpc.CallOpt) error
-pkg app, type ControllerClientStub interface, unexported methods
 pkg app, type ControllerServerMethods interface { AddName, AddToRoots, Bless, BlessSelf, GetDefaultBlessings, PutToBlessingStore, RemoteBlessings, RemoveName, Serve, Signature, Stop, UnlinkBlessings }
 pkg app, type ControllerServerMethods interface, AddName(*context.T, rpc.ServerCall, uint32, string) error
 pkg app, type ControllerServerMethods interface, AddToRoots(*context.T, rpc.ServerCall, principal.BlessingsHandle) error

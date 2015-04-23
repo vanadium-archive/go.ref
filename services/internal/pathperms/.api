@@ -11,4 +11,4 @@ pkg pathperms, method (PathStore) SetShareable(string, access.Permissions, strin
 pkg pathperms, type PathStore struct
 pkg pathperms, type PermsGetter interface { PermsForPath }
 pkg pathperms, type PermsGetter interface, PermsForPath(string) (access.Permissions, bool, error)
-pkg pathperms, var ErrOperationFailed unknown-type
+pkg pathperms, var ErrOperationFailed verror.IDAction

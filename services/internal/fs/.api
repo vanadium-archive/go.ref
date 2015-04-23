@@ -15,10 +15,10 @@ pkg fs, type MemstoreObject interface, Remove(interface{}) error
 pkg fs, type Transaction interface { Commit, CreateTransaction }
 pkg fs, type Transaction interface, Commit(interface{}) error
 pkg fs, type Transaction interface, CreateTransaction(interface{}) (string, error)
-pkg fs, var ErrAbortWithoutTransaction unknown-type
-pkg fs, var ErrChildrenWithoutLock unknown-type
-pkg fs, var ErrDoubleCommit unknown-type
-pkg fs, var ErrNoRecursiveCreateTransaction unknown-type
-pkg fs, var ErrNotInMemStore unknown-type
-pkg fs, var ErrUnsupportedType unknown-type
-pkg fs, var ErrWithoutTransaction unknown-type
+pkg fs, var ErrAbortWithoutTransaction verror.IDAction
+pkg fs, var ErrChildrenWithoutLock verror.IDAction
+pkg fs, var ErrDoubleCommit verror.IDAction
+pkg fs, var ErrNoRecursiveCreateTransaction verror.IDAction
+pkg fs, var ErrNotInMemStore verror.IDAction
+pkg fs, var ErrUnsupportedType verror.IDAction
+pkg fs, var ErrWithoutTransaction verror.IDAction

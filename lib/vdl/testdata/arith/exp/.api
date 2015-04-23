@@ -2,8 +2,8 @@ pkg exp, func ExpClient(string) ExpClientStub
 pkg exp, func ExpServer(ExpServerMethods) ExpServerStub
 pkg exp, type ExpClientMethods interface { Exp }
 pkg exp, type ExpClientMethods interface, Exp(*context.T, float64, ...rpc.CallOpt) (float64, error)
+pkg exp, type ExpClientStub interface { Exp }
 pkg exp, type ExpClientStub interface, Exp(*context.T, float64, ...rpc.CallOpt) (float64, error)
-pkg exp, type ExpClientStub interface, unexported methods
 pkg exp, type ExpServerMethods interface { Exp }
 pkg exp, type ExpServerMethods interface, Exp(*context.T, rpc.ServerCall, float64) (float64, error)
 pkg exp, type ExpServerStub interface, Describe__() []rpc.InterfaceDesc

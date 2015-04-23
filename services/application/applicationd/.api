@@ -1,5 +1,5 @@
 pkg main, func NewApplicationService(*fs.Memstore, string, string) repository.ApplicationServerMethods
 pkg main, func NewDispatcher(string) (rpc.Dispatcher, error)
-pkg main, var ErrInvalidSuffix unknown-type
-pkg main, var ErrNotAuthorized unknown-type
-pkg main, var ErrOperationFailed unknown-type
+pkg main, var ErrInvalidSuffix verror.IDAction
+pkg main, var ErrNotAuthorized verror.IDAction
+pkg main, var ErrOperationFailed verror.IDAction

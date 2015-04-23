@@ -46,9 +46,9 @@ pkg tunnel, type ShellOpts struct, WinSize WindowSize
 pkg tunnel, type TunnelClientMethods interface { Forward, Shell }
 pkg tunnel, type TunnelClientMethods interface, Forward(*context.T, string, string, ...rpc.CallOpt) (TunnelForwardClientCall, error)
 pkg tunnel, type TunnelClientMethods interface, Shell(*context.T, string, ShellOpts, ...rpc.CallOpt) (TunnelShellClientCall, error)
+pkg tunnel, type TunnelClientStub interface { Forward, Shell }
 pkg tunnel, type TunnelClientStub interface, Forward(*context.T, string, string, ...rpc.CallOpt) (TunnelForwardClientCall, error)
 pkg tunnel, type TunnelClientStub interface, Shell(*context.T, string, ShellOpts, ...rpc.CallOpt) (TunnelShellClientCall, error)
-pkg tunnel, type TunnelClientStub interface, unexported methods
 pkg tunnel, type TunnelForwardClientCall interface { Finish, RecvStream, SendStream }
 pkg tunnel, type TunnelForwardClientCall interface, Finish() error
 pkg tunnel, type TunnelForwardClientCall interface, RecvStream() interface {  Advance() bool;; Value() []byte;; Err() error;}
@@ -56,9 +56,15 @@ pkg tunnel, type TunnelForwardClientCall interface, SendStream() interface {  Se
 pkg tunnel, type TunnelForwardClientStream interface { RecvStream, SendStream }
 pkg tunnel, type TunnelForwardClientStream interface, RecvStream() interface {  Advance() bool;; Value() []byte;; Err() error;}
 pkg tunnel, type TunnelForwardClientStream interface, SendStream() interface {  Send(item []byte) error;; Close() error;}
+pkg tunnel, type TunnelForwardServerCall interface { GrantedBlessings, LocalEndpoint, RecvStream, RemoteEndpoint, Security, SendStream, Server, Suffix }
+pkg tunnel, type TunnelForwardServerCall interface, GrantedBlessings() security.Blessings
+pkg tunnel, type TunnelForwardServerCall interface, LocalEndpoint() naming.Endpoint
 pkg tunnel, type TunnelForwardServerCall interface, RecvStream() interface {  Advance() bool;; Value() []byte;; Err() error;}
+pkg tunnel, type TunnelForwardServerCall interface, RemoteEndpoint() naming.Endpoint
+pkg tunnel, type TunnelForwardServerCall interface, Security() security.Call
 pkg tunnel, type TunnelForwardServerCall interface, SendStream() interface {  Send(item []byte) error;}
-pkg tunnel, type TunnelForwardServerCall interface, unexported methods
+pkg tunnel, type TunnelForwardServerCall interface, Server() Server
+pkg tunnel, type TunnelForwardServerCall interface, Suffix() string
 pkg tunnel, type TunnelForwardServerCallStub struct
 pkg tunnel, type TunnelForwardServerCallStub struct, embedded rpc.StreamServerCall
 pkg tunnel, type TunnelForwardServerStream interface { RecvStream, SendStream }
@@ -81,9 +87,15 @@ pkg tunnel, type TunnelShellClientCall interface, SendStream() interface {  Send
 pkg tunnel, type TunnelShellClientStream interface { RecvStream, SendStream }
 pkg tunnel, type TunnelShellClientStream interface, RecvStream() interface {  Advance() bool;; Value() ServerShellPacket;; Err() error;}
 pkg tunnel, type TunnelShellClientStream interface, SendStream() interface {  Send(item ClientShellPacket) error;; Close() error;}
+pkg tunnel, type TunnelShellServerCall interface { GrantedBlessings, LocalEndpoint, RecvStream, RemoteEndpoint, Security, SendStream, Server, Suffix }
+pkg tunnel, type TunnelShellServerCall interface, GrantedBlessings() security.Blessings
+pkg tunnel, type TunnelShellServerCall interface, LocalEndpoint() naming.Endpoint
 pkg tunnel, type TunnelShellServerCall interface, RecvStream() interface {  Advance() bool;; Value() ClientShellPacket;; Err() error;}
+pkg tunnel, type TunnelShellServerCall interface, RemoteEndpoint() naming.Endpoint
+pkg tunnel, type TunnelShellServerCall interface, Security() security.Call
 pkg tunnel, type TunnelShellServerCall interface, SendStream() interface {  Send(item ServerShellPacket) error;}
-pkg tunnel, type TunnelShellServerCall interface, unexported methods
+pkg tunnel, type TunnelShellServerCall interface, Server() Server
+pkg tunnel, type TunnelShellServerCall interface, Suffix() string
 pkg tunnel, type TunnelShellServerCallStub struct
 pkg tunnel, type TunnelShellServerCallStub struct, embedded rpc.StreamServerCall
 pkg tunnel, type TunnelShellServerStream interface { RecvStream, SendStream }

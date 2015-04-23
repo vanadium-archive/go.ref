@@ -43,11 +43,11 @@ pkg stream, type VCDataCache interface, Get(interface{}) interface{}
 pkg stream, type VCDataCache interface, GetOrInsert(interface{}, func() interface{}) interface{}
 pkg stream, type VCOpt interface { RPCStreamVCOpt }
 pkg stream, type VCOpt interface, RPCStreamVCOpt()
-pkg stream, var ErrAborted unknown-type
-pkg stream, var ErrBadArg unknown-type
-pkg stream, var ErrBadState unknown-type
-pkg stream, var ErrDialFailed unknown-type
-pkg stream, var ErrNetwork unknown-type
-pkg stream, var ErrNotTrusted unknown-type
-pkg stream, var ErrProxy unknown-type
-pkg stream, var ErrSecurity unknown-type
+pkg stream, var ErrAborted verror.IDAction
+pkg stream, var ErrBadArg verror.IDAction
+pkg stream, var ErrBadState verror.IDAction
+pkg stream, var ErrDialFailed verror.IDAction
+pkg stream, var ErrNetwork verror.IDAction
+pkg stream, var ErrNotTrusted verror.IDAction
+pkg stream, var ErrProxy verror.IDAction
+pkg stream, var ErrSecurity verror.IDAction

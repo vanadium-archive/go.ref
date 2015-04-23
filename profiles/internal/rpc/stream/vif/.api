@@ -13,6 +13,7 @@ pkg vif, method (*VIF) Close()
 pkg vif, method (*VIF) DebugString() string
 pkg vif, method (*VIF) Dial(naming.Endpoint, security.Principal, ...stream.VCOpt) (stream.VC, error)
 pkg vif, method (*VIF) NumVCs() int
+pkg vif, method (*VIF) Shutdown()
 pkg vif, method (*VIF) ShutdownVCs(naming.Endpoint) int
 pkg vif, method (*VIF) StartAccepting(...stream.ListenerOpt) error
 pkg vif, method (*VIF) StopAccepting()

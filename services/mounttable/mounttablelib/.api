@@ -13,9 +13,9 @@ pkg mounttablelib, method (*VersionedPermissions) Set(*context.T, string, access
 pkg mounttablelib, type CollectionClientMethods interface { Export, Lookup }
 pkg mounttablelib, type CollectionClientMethods interface, Export(*context.T, string, bool, ...rpc.CallOpt) error
 pkg mounttablelib, type CollectionClientMethods interface, Lookup(*context.T, ...rpc.CallOpt) ([]byte, error)
+pkg mounttablelib, type CollectionClientStub interface { Export, Lookup }
 pkg mounttablelib, type CollectionClientStub interface, Export(*context.T, string, bool, ...rpc.CallOpt) error
 pkg mounttablelib, type CollectionClientStub interface, Lookup(*context.T, ...rpc.CallOpt) ([]byte, error)
-pkg mounttablelib, type CollectionClientStub interface, unexported methods
 pkg mounttablelib, type CollectionServerMethods interface { Export, Lookup }
 pkg mounttablelib, type CollectionServerMethods interface, Export(*context.T, rpc.ServerCall, string, bool) error
 pkg mounttablelib, type CollectionServerMethods interface, Lookup(*context.T, rpc.ServerCall) ([]byte, error)

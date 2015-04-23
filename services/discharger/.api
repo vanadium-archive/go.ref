@@ -3,12 +3,12 @@ pkg discharger, func DischargerServer(DischargerServerMethods) DischargerServerS
 pkg discharger, func NewErrNotAThirdPartyCaveat(*context.T, security.Caveat) error
 pkg discharger, type DischargerClientMethods interface { Discharge }
 pkg discharger, type DischargerClientMethods interface, Discharge(*context.T, security.Caveat, security.DischargeImpetus, ...rpc.CallOpt) (security.Discharge, error)
+pkg discharger, type DischargerClientStub interface { Discharge }
 pkg discharger, type DischargerClientStub interface, Discharge(*context.T, security.Caveat, security.DischargeImpetus, ...rpc.CallOpt) (security.Discharge, error)
-pkg discharger, type DischargerClientStub interface, unexported methods
 pkg discharger, type DischargerServerMethods interface { Discharge }
 pkg discharger, type DischargerServerMethods interface, Discharge(*context.T, rpc.ServerCall, security.Caveat, security.DischargeImpetus) (security.Discharge, error)
 pkg discharger, type DischargerServerStub interface, Describe__() []rpc.InterfaceDesc
 pkg discharger, type DischargerServerStub interface, unexported methods
 pkg discharger, type DischargerServerStubMethods DischargerServerMethods
 pkg discharger, var DischargerDesc rpc.InterfaceDesc
-pkg discharger, var ErrNotAThirdPartyCaveat unknown-type
+pkg discharger, var ErrNotAThirdPartyCaveat verror.IDAction

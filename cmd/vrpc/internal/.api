@@ -24,6 +24,7 @@ pkg internal, type TypeTesterClientMethods interface, XEchoStruct(*context.T, St
 pkg internal, type TypeTesterClientMethods interface, YMultiArg(*context.T, int32, int32, ...rpc.CallOpt) (int32, int32, error)
 pkg internal, type TypeTesterClientMethods interface, YNoArgs(*context.T, ...rpc.CallOpt) error
 pkg internal, type TypeTesterClientMethods interface, ZStream(*context.T, int32, bool, ...rpc.CallOpt) (TypeTesterZStreamClientCall, error)
+pkg internal, type TypeTesterClientStub interface { EchoBool, EchoByte, EchoFloat32, EchoFloat64, EchoInt32, EchoInt64, EchoString, EchoUint32, EchoUint64, XEchoArray, XEchoMap, XEchoSet, XEchoSlice, XEchoStruct, YMultiArg, YNoArgs, ZStream }
 pkg internal, type TypeTesterClientStub interface, EchoBool(*context.T, bool, ...rpc.CallOpt) (bool, error)
 pkg internal, type TypeTesterClientStub interface, EchoByte(*context.T, byte, ...rpc.CallOpt) (byte, error)
 pkg internal, type TypeTesterClientStub interface, EchoFloat32(*context.T, float32, ...rpc.CallOpt) (float32, error)
@@ -41,7 +42,6 @@ pkg internal, type TypeTesterClientStub interface, XEchoStruct(*context.T, Struc
 pkg internal, type TypeTesterClientStub interface, YMultiArg(*context.T, int32, int32, ...rpc.CallOpt) (int32, int32, error)
 pkg internal, type TypeTesterClientStub interface, YNoArgs(*context.T, ...rpc.CallOpt) error
 pkg internal, type TypeTesterClientStub interface, ZStream(*context.T, int32, bool, ...rpc.CallOpt) (TypeTesterZStreamClientCall, error)
-pkg internal, type TypeTesterClientStub interface, unexported methods
 pkg internal, type TypeTesterServerMethods interface { EchoBool, EchoByte, EchoFloat32, EchoFloat64, EchoInt32, EchoInt64, EchoString, EchoUint32, EchoUint64, XEchoArray, XEchoMap, XEchoSet, XEchoSlice, XEchoStruct, YMultiArg, YNoArgs, ZStream }
 pkg internal, type TypeTesterServerMethods interface, EchoBool(*context.T, rpc.ServerCall, bool) (bool, error)
 pkg internal, type TypeTesterServerMethods interface, EchoByte(*context.T, rpc.ServerCall, byte) (byte, error)
@@ -102,8 +102,14 @@ pkg internal, type TypeTesterZStreamClientCall interface, Finish() error
 pkg internal, type TypeTesterZStreamClientCall interface, RecvStream() interface {  Advance() bool;; Value() bool;; Err() error;}
 pkg internal, type TypeTesterZStreamClientStream interface { RecvStream }
 pkg internal, type TypeTesterZStreamClientStream interface, RecvStream() interface {  Advance() bool;; Value() bool;; Err() error;}
+pkg internal, type TypeTesterZStreamServerCall interface { GrantedBlessings, LocalEndpoint, RemoteEndpoint, Security, SendStream, Server, Suffix }
+pkg internal, type TypeTesterZStreamServerCall interface, GrantedBlessings() security.Blessings
+pkg internal, type TypeTesterZStreamServerCall interface, LocalEndpoint() naming.Endpoint
+pkg internal, type TypeTesterZStreamServerCall interface, RemoteEndpoint() naming.Endpoint
+pkg internal, type TypeTesterZStreamServerCall interface, Security() security.Call
 pkg internal, type TypeTesterZStreamServerCall interface, SendStream() interface {  Send(item bool) error;}
-pkg internal, type TypeTesterZStreamServerCall interface, unexported methods
+pkg internal, type TypeTesterZStreamServerCall interface, Server() Server
+pkg internal, type TypeTesterZStreamServerCall interface, Suffix() string
 pkg internal, type TypeTesterZStreamServerCallStub struct
 pkg internal, type TypeTesterZStreamServerCallStub struct, embedded rpc.StreamServerCall
 pkg internal, type TypeTesterZStreamServerStream interface { SendStream }

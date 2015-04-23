@@ -41,9 +41,9 @@ pkg exec, type SecretOpt string
 pkg exec, type TimeKeeperOpt struct
 pkg exec, type TimeKeeperOpt struct, embedded timekeeper.TimeKeeper
 pkg exec, type UseExecProtocolOpt bool
-pkg exec, var ErrAuthTimeout unknown-type
-pkg exec, var ErrNoVersion unknown-type
-pkg exec, var ErrNotUsingProtocol unknown-type
-pkg exec, var ErrSecretTooLarge unknown-type
-pkg exec, var ErrTimeout unknown-type
-pkg exec, var ErrUnsupportedVersion unknown-type
+pkg exec, var ErrAuthTimeout verror.IDAction
+pkg exec, var ErrNoVersion verror.IDAction
+pkg exec, var ErrNotUsingProtocol verror.IDAction
+pkg exec, var ErrSecretTooLarge verror.IDAction
+pkg exec, var ErrTimeout verror.IDAction
+pkg exec, var ErrUnsupportedVersion verror.IDAction

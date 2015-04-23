@@ -28,6 +28,7 @@ pkg namespace, type NamespaceClientMethods interface, Roots(*context.T, ...rpc.C
 pkg namespace, type NamespaceClientMethods interface, SetPermissions(*context.T, string, access.Permissions, string, ...rpc.CallOpt) error
 pkg namespace, type NamespaceClientMethods interface, SetRoots(*context.T, []string, ...rpc.CallOpt) error
 pkg namespace, type NamespaceClientMethods interface, Unmount(*context.T, string, string, ...rpc.CallOpt) error
+pkg namespace, type NamespaceClientStub interface { Delete, DisableCache, FlushCacheEntry, GetPermissions, Glob, Mount, Resolve, ResolveToMountTable, Roots, SetPermissions, SetRoots, Unmount }
 pkg namespace, type NamespaceClientStub interface, Delete(*context.T, string, bool, ...rpc.CallOpt) error
 pkg namespace, type NamespaceClientStub interface, DisableCache(*context.T, bool, ...rpc.CallOpt) error
 pkg namespace, type NamespaceClientStub interface, FlushCacheEntry(*context.T, string, ...rpc.CallOpt) (bool, error)
@@ -40,14 +41,19 @@ pkg namespace, type NamespaceClientStub interface, Roots(*context.T, ...rpc.Call
 pkg namespace, type NamespaceClientStub interface, SetPermissions(*context.T, string, access.Permissions, string, ...rpc.CallOpt) error
 pkg namespace, type NamespaceClientStub interface, SetRoots(*context.T, []string, ...rpc.CallOpt) error
 pkg namespace, type NamespaceClientStub interface, Unmount(*context.T, string, string, ...rpc.CallOpt) error
-pkg namespace, type NamespaceClientStub interface, unexported methods
 pkg namespace, type NamespaceGlobClientCall interface { Finish, RecvStream }
 pkg namespace, type NamespaceGlobClientCall interface, Finish() error
 pkg namespace, type NamespaceGlobClientCall interface, RecvStream() interface {  Advance() bool;; Value() naming.GlobReply;; Err() error;}
 pkg namespace, type NamespaceGlobClientStream interface { RecvStream }
 pkg namespace, type NamespaceGlobClientStream interface, RecvStream() interface {  Advance() bool;; Value() naming.GlobReply;; Err() error;}
+pkg namespace, type NamespaceGlobServerCall interface { GrantedBlessings, LocalEndpoint, RemoteEndpoint, Security, SendStream, Server, Suffix }
+pkg namespace, type NamespaceGlobServerCall interface, GrantedBlessings() security.Blessings
+pkg namespace, type NamespaceGlobServerCall interface, LocalEndpoint() naming.Endpoint
+pkg namespace, type NamespaceGlobServerCall interface, RemoteEndpoint() naming.Endpoint
+pkg namespace, type NamespaceGlobServerCall interface, Security() security.Call
 pkg namespace, type NamespaceGlobServerCall interface, SendStream() interface {  Send(item naming.GlobReply) error;}
-pkg namespace, type NamespaceGlobServerCall interface, unexported methods
+pkg namespace, type NamespaceGlobServerCall interface, Server() Server
+pkg namespace, type NamespaceGlobServerCall interface, Suffix() string
 pkg namespace, type NamespaceGlobServerCallStub struct
 pkg namespace, type NamespaceGlobServerCallStub struct, embedded rpc.StreamServerCall
 pkg namespace, type NamespaceGlobServerStream interface { SendStream }

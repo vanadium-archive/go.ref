@@ -94,6 +94,6 @@ pkg compile, type TypeDef struct, Type *vdl.Type
 pkg compile, type TypeDef struct, embedded NamePos
 pkg compile, var BuiltInFile *File
 pkg compile, var BuiltInPackage *Package
-pkg compile, var FalseConst unknown-type
-pkg compile, var NilConst unknown-type
-pkg compile, var TrueConst unknown-type
+pkg compile, var FalseConst *vdl.Value
+pkg compile, var NilConst *vdl.Value
+pkg compile, var TrueConst *vdl.Value

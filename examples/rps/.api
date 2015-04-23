@@ -58,9 +58,9 @@ pkg rps, type JudgeActionScore struct, Value ScoreCard
 pkg rps, type JudgeClientMethods interface { CreateGame, Play }
 pkg rps, type JudgeClientMethods interface, CreateGame(*context.T, GameOptions, ...rpc.CallOpt) (GameId, error)
 pkg rps, type JudgeClientMethods interface, Play(*context.T, GameId, ...rpc.CallOpt) (JudgePlayClientCall, error)
+pkg rps, type JudgeClientStub interface { CreateGame, Play }
 pkg rps, type JudgeClientStub interface, CreateGame(*context.T, GameOptions, ...rpc.CallOpt) (GameId, error)
 pkg rps, type JudgeClientStub interface, Play(*context.T, GameId, ...rpc.CallOpt) (JudgePlayClientCall, error)
-pkg rps, type JudgeClientStub interface, unexported methods
 pkg rps, type JudgePlayClientCall interface { Finish, RecvStream, SendStream }
 pkg rps, type JudgePlayClientCall interface, Finish() (PlayResult, error)
 pkg rps, type JudgePlayClientCall interface, RecvStream() interface {  Advance() bool;; Value() JudgeAction;; Err() error;}
@@ -68,9 +68,15 @@ pkg rps, type JudgePlayClientCall interface, SendStream() interface {  Send(item
 pkg rps, type JudgePlayClientStream interface { RecvStream, SendStream }
 pkg rps, type JudgePlayClientStream interface, RecvStream() interface {  Advance() bool;; Value() JudgeAction;; Err() error;}
 pkg rps, type JudgePlayClientStream interface, SendStream() interface {  Send(item PlayerAction) error;; Close() error;}
+pkg rps, type JudgePlayServerCall interface { GrantedBlessings, LocalEndpoint, RecvStream, RemoteEndpoint, Security, SendStream, Server, Suffix }
+pkg rps, type JudgePlayServerCall interface, GrantedBlessings() security.Blessings
+pkg rps, type JudgePlayServerCall interface, LocalEndpoint() naming.Endpoint
 pkg rps, type JudgePlayServerCall interface, RecvStream() interface {  Advance() bool;; Value() PlayerAction;; Err() error;}
+pkg rps, type JudgePlayServerCall interface, RemoteEndpoint() naming.Endpoint
+pkg rps, type JudgePlayServerCall interface, Security() security.Call
 pkg rps, type JudgePlayServerCall interface, SendStream() interface {  Send(item JudgeAction) error;}
-pkg rps, type JudgePlayServerCall interface, unexported methods
+pkg rps, type JudgePlayServerCall interface, Server() Server
+pkg rps, type JudgePlayServerCall interface, Suffix() string
 pkg rps, type JudgePlayServerCallStub struct
 pkg rps, type JudgePlayServerCallStub struct, embedded rpc.StreamServerCall
 pkg rps, type JudgePlayServerStream interface { RecvStream, SendStream }
@@ -98,8 +104,8 @@ pkg rps, type PlayerActionQuit struct
 pkg rps, type PlayerActionQuit struct, Value unused
 pkg rps, type PlayerClientMethods interface { Challenge }
 pkg rps, type PlayerClientMethods interface, Challenge(*context.T, string, GameId, GameOptions, ...rpc.CallOpt) error
+pkg rps, type PlayerClientStub interface { Challenge }
 pkg rps, type PlayerClientStub interface, Challenge(*context.T, string, GameId, GameOptions, ...rpc.CallOpt) error
-pkg rps, type PlayerClientStub interface, unexported methods
 pkg rps, type PlayerServerMethods interface { Challenge }
 pkg rps, type PlayerServerMethods interface, Challenge(*context.T, rpc.ServerCall, string, GameId, GameOptions) error
 pkg rps, type PlayerServerStub interface, Describe__() []rpc.InterfaceDesc
@@ -111,11 +117,11 @@ pkg rps, type RockPaperScissorsClientMethods interface, Challenge(*context.T, st
 pkg rps, type RockPaperScissorsClientMethods interface, CreateGame(*context.T, GameOptions, ...rpc.CallOpt) (GameId, error)
 pkg rps, type RockPaperScissorsClientMethods interface, Play(*context.T, GameId, ...rpc.CallOpt) (JudgePlayClientCall, error)
 pkg rps, type RockPaperScissorsClientMethods interface, Record(*context.T, ScoreCard, ...rpc.CallOpt) error
+pkg rps, type RockPaperScissorsClientStub interface { Challenge, CreateGame, Play, Record }
 pkg rps, type RockPaperScissorsClientStub interface, Challenge(*context.T, string, GameId, GameOptions, ...rpc.CallOpt) error
 pkg rps, type RockPaperScissorsClientStub interface, CreateGame(*context.T, GameOptions, ...rpc.CallOpt) (GameId, error)
 pkg rps, type RockPaperScissorsClientStub interface, Play(*context.T, GameId, ...rpc.CallOpt) (JudgePlayClientCall, error)
 pkg rps, type RockPaperScissorsClientStub interface, Record(*context.T, ScoreCard, ...rpc.CallOpt) error
-pkg rps, type RockPaperScissorsClientStub interface, unexported methods
 pkg rps, type RockPaperScissorsServerMethods interface { Challenge, CreateGame, Play, Record }
 pkg rps, type RockPaperScissorsServerMethods interface, Challenge(*context.T, rpc.ServerCall, string, GameId, GameOptions) error
 pkg rps, type RockPaperScissorsServerMethods interface, CreateGame(*context.T, rpc.ServerCall, GameOptions) (GameId, error)
@@ -144,8 +150,8 @@ pkg rps, type ScoreCard struct, StartTime time.Time
 pkg rps, type ScoreCard struct, Winner WinnerTag
 pkg rps, type ScoreKeeperClientMethods interface { Record }
 pkg rps, type ScoreKeeperClientMethods interface, Record(*context.T, ScoreCard, ...rpc.CallOpt) error
+pkg rps, type ScoreKeeperClientStub interface { Record }
 pkg rps, type ScoreKeeperClientStub interface, Record(*context.T, ScoreCard, ...rpc.CallOpt) error
-pkg rps, type ScoreKeeperClientStub interface, unexported methods
 pkg rps, type ScoreKeeperServerMethods interface { Record }
 pkg rps, type ScoreKeeperServerMethods interface, Record(*context.T, rpc.ServerCall, ScoreCard) error
 pkg rps, type ScoreKeeperServerStub interface, Describe__() []rpc.InterfaceDesc

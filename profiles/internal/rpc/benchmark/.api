@@ -6,9 +6,9 @@ pkg benchmark, method (*BenchmarkEchoStreamServerCallStub) SendStream() interfac
 pkg benchmark, type BenchmarkClientMethods interface { Echo, EchoStream }
 pkg benchmark, type BenchmarkClientMethods interface, Echo(*context.T, []byte, ...rpc.CallOpt) ([]byte, error)
 pkg benchmark, type BenchmarkClientMethods interface, EchoStream(*context.T, ...rpc.CallOpt) (BenchmarkEchoStreamClientCall, error)
+pkg benchmark, type BenchmarkClientStub interface { Echo, EchoStream }
 pkg benchmark, type BenchmarkClientStub interface, Echo(*context.T, []byte, ...rpc.CallOpt) ([]byte, error)
 pkg benchmark, type BenchmarkClientStub interface, EchoStream(*context.T, ...rpc.CallOpt) (BenchmarkEchoStreamClientCall, error)
-pkg benchmark, type BenchmarkClientStub interface, unexported methods
 pkg benchmark, type BenchmarkEchoStreamClientCall interface { Finish, RecvStream, SendStream }
 pkg benchmark, type BenchmarkEchoStreamClientCall interface, Finish() error
 pkg benchmark, type BenchmarkEchoStreamClientCall interface, RecvStream() interface {  Advance() bool;; Value() []byte;; Err() error;}
@@ -16,9 +16,15 @@ pkg benchmark, type BenchmarkEchoStreamClientCall interface, SendStream() interf
 pkg benchmark, type BenchmarkEchoStreamClientStream interface { RecvStream, SendStream }
 pkg benchmark, type BenchmarkEchoStreamClientStream interface, RecvStream() interface {  Advance() bool;; Value() []byte;; Err() error;}
 pkg benchmark, type BenchmarkEchoStreamClientStream interface, SendStream() interface {  Send(item []byte) error;; Close() error;}
+pkg benchmark, type BenchmarkEchoStreamServerCall interface { GrantedBlessings, LocalEndpoint, RecvStream, RemoteEndpoint, Security, SendStream, Server, Suffix }
+pkg benchmark, type BenchmarkEchoStreamServerCall interface, GrantedBlessings() security.Blessings
+pkg benchmark, type BenchmarkEchoStreamServerCall interface, LocalEndpoint() naming.Endpoint
 pkg benchmark, type BenchmarkEchoStreamServerCall interface, RecvStream() interface {  Advance() bool;; Value() []byte;; Err() error;}
+pkg benchmark, type BenchmarkEchoStreamServerCall interface, RemoteEndpoint() naming.Endpoint
+pkg benchmark, type BenchmarkEchoStreamServerCall interface, Security() security.Call
 pkg benchmark, type BenchmarkEchoStreamServerCall interface, SendStream() interface {  Send(item []byte) error;}
-pkg benchmark, type BenchmarkEchoStreamServerCall interface, unexported methods
+pkg benchmark, type BenchmarkEchoStreamServerCall interface, Server() Server
+pkg benchmark, type BenchmarkEchoStreamServerCall interface, Suffix() string
 pkg benchmark, type BenchmarkEchoStreamServerCallStub struct
 pkg benchmark, type BenchmarkEchoStreamServerCallStub struct, embedded rpc.StreamServerCall
 pkg benchmark, type BenchmarkEchoStreamServerStream interface { RecvStream, SendStream }

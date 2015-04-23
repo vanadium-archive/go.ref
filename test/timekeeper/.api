@@ -1,4 +1,6 @@
 pkg timekeeper, func NewManualTime() ManualTime
+pkg timekeeper, type ManualTime interface { AdvanceTime, After, Requests, Sleep }
 pkg timekeeper, type ManualTime interface, AdvanceTime(time.Duration)
+pkg timekeeper, type ManualTime interface, After(time.Duration) <-chan time.Time
 pkg timekeeper, type ManualTime interface, Requests() <-chan time.Duration
-pkg timekeeper, type ManualTime interface, unexported methods
+pkg timekeeper, type ManualTime interface, Sleep(time.Duration)

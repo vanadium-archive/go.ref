@@ -29,13 +29,13 @@ pkg impl, type Version struct, Major int
 pkg impl, type Version struct, Minor int
 pkg impl, var CurrentVersion Version
 pkg impl, var Describe func() (device.Description, error)
-pkg impl, var ErrAppTitleMismatch unknown-type
-pkg impl, var ErrDeviceAlreadyClaimed unknown-type
-pkg impl, var ErrInvalidBlessing unknown-type
-pkg impl, var ErrInvalidOperation unknown-type
-pkg impl, var ErrInvalidPairingToken unknown-type
-pkg impl, var ErrInvalidSuffix unknown-type
-pkg impl, var ErrOperationFailed unknown-type
-pkg impl, var ErrOperationInProgress unknown-type
-pkg impl, var ErrUnclaimedDevice unknown-type
-pkg impl, var ErrUpdateNoOp unknown-type
+pkg impl, var ErrAppTitleMismatch verror.IDAction
+pkg impl, var ErrDeviceAlreadyClaimed verror.IDAction
+pkg impl, var ErrInvalidBlessing verror.IDAction
+pkg impl, var ErrInvalidOperation verror.IDAction
+pkg impl, var ErrInvalidPairingToken verror.IDAction
+pkg impl, var ErrInvalidSuffix verror.IDAction
+pkg impl, var ErrOperationFailed verror.IDAction
+pkg impl, var ErrOperationInProgress verror.IDAction
+pkg impl, var ErrUnclaimedDevice verror.IDAction
+pkg impl, var ErrUpdateNoOp verror.IDAction
