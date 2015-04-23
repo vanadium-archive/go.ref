@@ -11,8 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/pubsub"
+
 	"v.io/v23"
-	"v.io/v23/config"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -430,8 +431,8 @@ func TestRoaming(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	publisher := config.NewPublisher()
-	roaming := make(chan config.Setting)
+	publisher := pubsub.NewPublisher()
+	roaming := make(chan pubsub.Setting)
 	stop, err := publisher.CreateStream("TestRoaming", "TestRoaming", roaming)
 	if err != nil {
 		t.Fatal(err)
@@ -582,8 +583,8 @@ func TestWatcherDeadlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	publisher := config.NewPublisher()
-	roaming := make(chan config.Setting)
+	publisher := pubsub.NewPublisher()
+	roaming := make(chan pubsub.Setting)
 	stop, err := publisher.CreateStream("TestWatcherDeadlock", "TestWatcherDeadlock", roaming)
 	if err != nil {
 		t.Fatal(err)
