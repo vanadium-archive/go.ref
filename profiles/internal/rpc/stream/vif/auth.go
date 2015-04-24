@@ -67,6 +67,12 @@ type privateData struct {
 // including a hash of the Setup message in the encrypted stream.  It is
 // likely that this will be addressed in subsequent protocol versions.
 func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *version.Range, params security.CallParams, auth *vc.ServerAuthorizer) (crypto.ControlCipher, error) {
+	// TODO(mattr): Temporarily don't do version negotiation over insecure channels.
+	// This is because the current production agent is broken (see v.io/i/293).
+	if params.LocalPrincipal == nil {
+		return nullCipher, nil
+	}
+
 	if versions == nil {
 		versions = version.SupportedRange
 	}
@@ -103,10 +109,6 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 	}
 	v := vrange.Max
 
-	if params.LocalPrincipal == nil {
-		return nullCipher, nil
-	}
-
 	// Perform the authentication.
 	return authenticateAsClient(writer, reader, params, auth, pvt, pub, ppub, v)
 }
@@ -131,8 +133,13 @@ func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params securit
 // based on the max common version.
 //
 // See AuthenticateAsClient for a description of the negotiation.
+// TODO(mattr): I have temporarily added a new output parmeter message.T.
+// If this message is non-nil then it is the first message that should be handled
+// by the VIF.  This is needed because the first message we read here may
+// or may not be a Setup message, if it's not we need to handle it in the
+// message loop.  This parameter will be removed shortly.
 func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *version.Range, principal security.Principal, lBlessings security.Blessings,
-	dc vc.DischargeClient) (crypto.ControlCipher, error) {
+	dc vc.DischargeClient) (crypto.ControlCipher, message.T, error) {
 	var err error
 	if versions == nil {
 		versions = version.SupportedRange
@@ -141,11 +148,11 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *vers
 	// Send server's public data.
 	pvt, pub, err := makeSetup(versions, principal != nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	errch := make(chan error, 1)
-	readch := make(chan struct{})
+	readch := make(chan bool, 1)
 	go func() {
 		// TODO(mattr,ribrdb): In the case of the agent, which is
 		// currently the only user of insecure connections, we need to
@@ -155,42 +162,66 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *vers
 		// the magic byte has been sent the client will use the first
 		// byte of this message instead rendering the remainder of the
 		// stream uninterpretable.
-		if principal == nil {
-			<-readch
+		// TODO(mattr): As an even worse hack, we want to temporarily be
+		// compatible with really old agents.  We can't send them our setup
+		// message because they have a bug.  However we want new servers
+		// to be compatible with clients that DO send the setup message.
+		// To accomplish this we'll see if the client sends us a setup message
+		// first.  If it does, we'll send ours.  If not, we wont.
+		if principal != nil || <-readch {
+			err := message.WriteTo(writer, pub, nullCipher)
+			errch <- err
 		}
-		err := message.WriteTo(writer, pub, nullCipher)
-		errch <- err
+		close(errch)
 	}()
 
 	// Read client's public data.
 	pmsg, err := message.ReadFrom(reader, nullCipher)
-	close(readch) // Note: we need to close this whether we get an error or not.
 	if err != nil {
-		return nil, verror.New(stream.ErrNetwork, nil, err)
+		readch <- false
+		return nil, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	ppub, ok := pmsg.(*message.Setup)
 	if !ok {
-		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
+		// TODO(mattr): We got a message from the client, but it's not a Setup, so
+		// assume this is a client that doesn't negotiate.  This should
+		// be removed once we no longer have to be compatible with old agents.
+		readch <- false
+		return nullCipher, pmsg, nil
+	} else {
+		// TODO(mattr): We got a Setup message from the client, so
+		// assume this is a client that does negotiate.  This should
+		// be removed once we no longer have to be compatible with old agents.
+		readch <- true
 	}
 
 	// Wait for the write to succeed.
-	if err := <-errch; err != nil {
-		return nil, err
+	if err, ok := <-errch; !ok {
+		// We didn't write because we didn't get a Setup message from the client.
+		// Just return a nil cipher.  This basically just assumes the agent is
+		// RPC version compatible.
+		// TODO(mattr): This is part of the same hack described above, it should be
+		// removed later.
+		return nullCipher, nil, nil
+	} else if err != nil {
+		// The write failed, the VIF cannot be set up.
+		return nil, nil, err
 	}
 
 	// Choose the max version in the intersection.
 	vrange, err := versions.Intersect(&ppub.Versions)
 	if err != nil {
-		return nil, verror.New(stream.ErrNetwork, nil, err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	v := vrange.Max
 
 	if principal == nil {
-		return nullCipher, nil
+		return nullCipher, nil, nil
 	}
 
 	// Perform authentication.
-	return authenticateAsServerRPC6(writer, reader, principal, lBlessings, dc, pvt, pub, ppub, v)
+	cipher, err := authenticateAsServerRPC6(writer, reader, principal, lBlessings, dc, pvt, pub, ppub, v)
+	return cipher, nil, err
 }
 
 func authenticateAsServerRPC6(writer io.Writer, reader *iobuf.Reader, principal security.Principal, lBlessings security.Blessings, dc vc.DischargeClient,
