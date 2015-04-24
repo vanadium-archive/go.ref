@@ -7,7 +7,6 @@ package manager
 
 import (
 	"fmt"
-	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -328,29 +327,6 @@ func (m *manager) DebugString() string {
 		}
 	}
 	return strings.Join(l, "\n")
-}
-
-func (m *manager) killConnections(n int) {
-	vifs := m.vifs.List()
-	if n > len(vifs) {
-		n = len(vifs)
-	}
-	vlog.Infof("Killing %d VIFs", n)
-	var wg sync.WaitGroup
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		idx := rand.Intn(len(vifs))
-		vf := vifs[idx]
-		go func(vf *vif.VIF) {
-			vlog.Infof("Killing VIF %v", vf)
-			vf.Shutdown()
-			m.killedConns.Incr(1)
-			wg.Done()
-		}(vf)
-		vifs[idx], vifs[0] = vifs[0], vifs[idx]
-		vifs = vifs[1:]
-	}
-	wg.Wait()
 }
 
 func extractBlessingNames(p security.Principal, b security.Blessings) ([]string, error) {

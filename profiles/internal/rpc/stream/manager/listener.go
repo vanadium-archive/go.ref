@@ -6,6 +6,7 @@ package manager
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -62,6 +63,9 @@ type netListener struct {
 	manager *manager
 	vifs    *vif.Set
 
+	connsMu sync.Mutex
+	conns   map[net.Conn]bool
+
 	netLoop  sync.WaitGroup
 	vifLoops sync.WaitGroup
 }
@@ -87,6 +91,7 @@ func newNetListener(m *manager, netLn net.Listener, principal security.Principal
 		manager: m,
 		netLn:   netLn,
 		vifs:    vif.NewSet(),
+		conns:   make(map[net.Conn]bool),
 	}
 
 	// Set the default idle timeout for VC. But for "unixfd", we do not set
@@ -114,6 +119,44 @@ func isTooManyOpenFiles(err error) bool {
 	return false
 }
 
+func (ln *netListener) killConnections(n int) {
+	ln.connsMu.Lock()
+	if n > len(ln.conns) {
+		n = len(ln.conns)
+	}
+	remaining := make([]net.Conn, 0, len(ln.conns))
+	for c := range ln.conns {
+		remaining = append(remaining, c)
+	}
+	removed := remaining[:n]
+	ln.connsMu.Unlock()
+
+	vlog.Infof("Killing %d Conns", n)
+
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		idx := rand.Intn(len(remaining))
+		conn := remaining[idx]
+		go func(conn net.Conn) {
+			vlog.Infof("Killing connection (%s, %s)", conn.LocalAddr(), conn.RemoteAddr())
+			conn.Close()
+			ln.manager.killedConns.Incr(1)
+			wg.Done()
+		}(conn)
+		remaining[idx], remaining[0] = remaining[0], remaining[idx]
+		remaining = remaining[1:]
+	}
+
+	ln.connsMu.Lock()
+	for _, conn := range removed {
+		delete(ln.conns, conn)
+	}
+	ln.connsMu.Unlock()
+
+	wg.Wait()
+}
+
 func (ln *netListener) netAcceptLoop(principal security.Principal, blessings security.Blessings, opts []stream.ListenerOpt) {
 	defer ln.netLoop.Done()
 	opts = append([]stream.ListenerOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
@@ -126,7 +169,7 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 			vlog.Infof("net.Listener.Accept() failed on %v with %v", ln.netLn, err)
 			for tokill := 1; isTemporaryError(err); tokill *= 2 {
 				if isTooManyOpenFiles(err) {
-					ln.manager.killConnections(tokill)
+					ln.killConnections(tokill)
 				} else {
 					tokill = 1
 				}
@@ -145,6 +188,10 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 			vlog.VI(1).Infof("Exiting netAcceptLoop: net.Listener.Accept() failed on %v with %v", ln.netLn, err)
 			return
 		}
+		ln.connsMu.Lock()
+		ln.conns[conn] = true
+		ln.connsMu.Unlock()
+
 		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
 		go func() {
 			vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, principal, blessings, nil, ln.deleteVIF, opts...)
@@ -157,7 +204,12 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 			ln.manager.vifs.Insert(vf)
 
 			ln.vifLoops.Add(1)
-			vifLoop(vf, ln.q, &ln.vifLoops)
+			vifLoop(vf, ln.q, func() {
+				ln.connsMu.Lock()
+				delete(ln.conns, conn)
+				ln.connsMu.Unlock()
+				ln.vifLoops.Done()
+			})
 		}()
 	}
 }
@@ -226,7 +278,9 @@ func newProxyListener(m *manager, proxyEP naming.Endpoint, principal security.Pr
 	}
 	ln.vif = vf
 	ln.vifLoop.Add(1)
-	go vifLoop(ln.vif, ln.q, &ln.vifLoop)
+	go vifLoop(ln.vif, ln.q, func() {
+		ln.vifLoop.Done()
+	})
 	return ln, ep, nil
 }
 
@@ -338,8 +392,8 @@ func (ln *proxyListener) DebugString() string {
 	return fmt.Sprintf("stream.Listener: PROXY:%v RoutingID:%v", ln.proxyEP, ln.manager.rid)
 }
 
-func vifLoop(vf *vif.VIF, q *upcqueue.T, wg *sync.WaitGroup) {
-	defer wg.Done()
+func vifLoop(vf *vif.VIF, q *upcqueue.T, cleanup func()) {
+	defer cleanup()
 	for {
 		cAndf, err := vf.Accept()
 		switch {
