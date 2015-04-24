@@ -766,6 +766,7 @@ func genCmd(ctx *context.T, instanceDir, systemName string, nsRoot string) (*exe
 	saArgs.workspace = rootDir
 
 	logDir := filepath.Join(instanceDir, "logs")
+	suidHelper.chownTree(suidHelper.getCurrentUser(), instanceDir, os.Stdout, os.Stdin)
 	if err := mkdirPerm(logDir, 0755); err != nil {
 		return nil, err
 	}

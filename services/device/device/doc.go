@@ -41,6 +41,9 @@ The global flags are:
 
  -alsologtostderr=true
    log to standard error as well as files
+ -chown=false
+   Change owner of files and directories given as command-line arguments to the
+   user specified by this flag
  -dryrun=false
    Elides root-requiring systemcalls.
  -kill=false
