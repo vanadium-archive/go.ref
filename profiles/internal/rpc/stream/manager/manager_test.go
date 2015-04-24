@@ -918,8 +918,8 @@ func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
 	if err := h.Shutdown(nil, &stderr); err != nil {
 		t.Fatal(err)
 	}
-	if log := expect.NewSession(t, bytes.NewReader(stderr.Bytes()), time.Minute).ExpectSetEventuallyRE("manager.go.*Killing [1-9][0-9]* VIFs"); len(log) == 0 {
-		t.Errorf("Failed to find log message talking about killing VIFs in:\n%v", stderr.String())
+	if log := expect.NewSession(t, bytes.NewReader(stderr.Bytes()), time.Minute).ExpectSetEventuallyRE("listener.go.*Killing [1-9][0-9]* Conns"); len(log) == 0 {
+		t.Errorf("Failed to find log message talking about killing Conns in:\n%v", stderr.String())
 	}
 	t.Logf("Server FD limit:%d", nfiles)
 	t.Logf("Client connection attempts: %d", nattempts)
