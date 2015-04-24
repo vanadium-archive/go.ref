@@ -1034,7 +1034,7 @@ func prettyPrintCaveats(chain []security.Certificate) ([]string, error) {
 	}
 	var s []string
 	for _, cav := range cavs {
-		if cav.Id == security.PublicKeyThirdPartyCaveatX.Id {
+		if cav.Id == security.PublicKeyThirdPartyCaveat.Id {
 			c := cav.ThirdPartyDetails()
 			s = append(s, fmt.Sprintf("ThirdPartyCaveat: Requires discharge from %v (ID=%q)", c.Location(), c.ID()))
 			continue
@@ -1050,9 +1050,9 @@ func prettyPrintCaveats(chain []security.Certificate) ([]string, error) {
 			if !param.(bool) {
 				s = append(s, fmt.Sprintf("Never validates"))
 			}
-		case security.ExpiryCaveatX.Id:
+		case security.ExpiryCaveat.Id:
 			s = append(s, fmt.Sprintf("Expires at %v", param))
-		case security.MethodCaveatX.Id:
+		case security.MethodCaveat.Id:
 			s = append(s, fmt.Sprintf("Restricted to methods %v", param))
 		case security.PeerBlessingsCaveat.Id:
 			s = append(s, fmt.Sprintf("Restricted to peers with blessings %v", param))
@@ -1252,7 +1252,7 @@ func caveatsFromFlags(expiry time.Duration, caveatsFlag *caveatsFlag) ([]securit
 		return nil, fmt.Errorf("failed to parse caveats: %v", err)
 	}
 	if expiry > 0 {
-		ecav, err := security.ExpiryCaveat(time.Now().Add(expiry))
+		ecav, err := security.NewExpiryCaveat(time.Now().Add(expiry))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create expiration caveat: %v", err)
 		}

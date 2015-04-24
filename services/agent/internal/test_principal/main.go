@@ -83,7 +83,7 @@ func main() {
 		errorf("signature.Verify: %v", err)
 	}
 	// MintDischarge
-	cav, err := security.MethodCaveat("method")
+	cav, err := security.NewMethodCaveat("method")
 	if err != nil {
 		errorf("security.MethodCaveat: %v", err)
 	}

@@ -90,7 +90,7 @@ func caveats(ctx *context.T, config *Config) ([]security.Caveat, error) {
 		if err != nil {
 			return nil, verror.Convert(verror.ErrInternal, ctx, err)
 		}
-		expiry, err := security.ExpiryCaveat(time.Now().Add(d))
+		expiry, err := security.NewExpiryCaveat(time.Now().Add(d))
 		if err != nil {
 			return nil, verror.Convert(verror.ErrInternal, ctx, err)
 		}

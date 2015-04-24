@@ -22,7 +22,7 @@ func TestMacaroonBlesser(t *testing.T) {
 	var (
 		key            = make([]byte, 16)
 		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
-		cOnlyMethodFoo = newCaveat(security.MethodCaveat("Foo"))
+		cOnlyMethodFoo = newCaveat(security.NewMethodCaveat("Foo"))
 		ctx, call      = fakeContextAndCall(provider, user)
 	)
 	if _, err := rand.Read(key); err != nil {

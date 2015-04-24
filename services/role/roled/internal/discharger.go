@@ -41,12 +41,12 @@ func (dischargerImpl) Discharge(ctx *context.T, call rpc.ServerCall, caveat secu
 	// TODO(rthellend,ashankar): Do proper logging when the API allows it.
 	vlog.Infof("Discharge() impetus: %#v", impetus)
 
-	expiry, err := security.ExpiryCaveat(time.Now().Add(5 * time.Minute))
+	expiry, err := security.NewExpiryCaveat(time.Now().Add(5 * time.Minute))
 	if err != nil {
 		return security.Discharge{}, verror.Convert(verror.ErrInternal, ctx, err)
 	}
 	// Bind the discharge to precisely the purpose the requestor claims it will be used.
-	method, err := security.MethodCaveat(impetus.Method)
+	method, err := security.NewMethodCaveat(impetus.Method)
 	if err != nil {
 		return security.Discharge{}, verror.Convert(verror.ErrInternal, ctx, err)
 	}

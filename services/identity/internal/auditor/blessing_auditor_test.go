@@ -21,7 +21,7 @@ func TestBlessingAuditor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create principal: %v", err)
 	}
-	expiryCaveat := newCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour)))
+	expiryCaveat := newCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour)))
 	revocationCaveat := newThirdPartyCaveat(t, p)
 
 	tests := []struct {
@@ -91,7 +91,7 @@ func TestBlessingAuditor(t *testing.T) {
 }
 
 func newThirdPartyCaveat(t *testing.T, p security.Principal) security.Caveat {
-	tp, err := security.NewPublicKeyCaveat(p.PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(security.MethodCaveat("method")))
+	tp, err := security.NewPublicKeyCaveat(p.PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(security.NewMethodCaveat("method")))
 	if err != nil {
 		t.Fatal(err)
 	}

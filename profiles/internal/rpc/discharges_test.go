@@ -26,7 +26,7 @@ func TestDischargeClientCache(t *testing.T) {
 		methodCav  = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
 		serverCav  = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
 
-		dExpired = mkDischarge(discharger.MintDischarge(expiredCav, mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Minute)))))
+		dExpired = mkDischarge(discharger.MintDischarge(expiredCav, mkCaveat(security.NewExpiryCaveat(time.Now().Add(-1*time.Minute)))))
 		dArgs    = mkDischarge(discharger.MintDischarge(argsCav, security.UnconstrainedUse()))
 		dMethod  = mkDischarge(discharger.MintDischarge(methodCav, security.UnconstrainedUse()))
 		dServer  = mkDischarge(discharger.MintDischarge(serverCav, security.UnconstrainedUse()))

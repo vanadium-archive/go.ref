@@ -92,7 +92,7 @@ func vrun(cmd *cmdline.Command, args []string) error {
 }
 
 func bless(ctx *context.T, p security.Principal, name string) error {
-	caveat, err := security.ExpiryCaveat(time.Now().Add(durationFlag))
+	caveat, err := security.NewExpiryCaveat(time.Now().Add(durationFlag))
 	if err != nil {
 		vlog.Errorf("Couldn't create caveat")
 		return err

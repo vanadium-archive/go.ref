@@ -50,7 +50,7 @@ func expiryCaveat(args ...interface{}) (security.Caveat, error) {
 	if !ok {
 		return empty, fmt.Errorf("expiry caveat: received arg of type %T, expected time.Time", args[0])
 	}
-	return security.ExpiryCaveat(t)
+	return security.NewExpiryCaveat(t)
 }
 
 func methodCaveat(args ...interface{}) (security.Caveat, error) {
@@ -61,7 +61,7 @@ func methodCaveat(args ...interface{}) (security.Caveat, error) {
 	if err != nil {
 		return security.Caveat{}, fmt.Errorf("method caveat: %v", err)
 	}
-	return security.MethodCaveat(methods[0], methods[1:]...)
+	return security.NewMethodCaveat(methods[0], methods[1:]...)
 }
 
 func peerBlessingsCaveat(args ...interface{}) (security.Caveat, error) {

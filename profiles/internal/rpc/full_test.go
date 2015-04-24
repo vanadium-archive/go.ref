@@ -476,12 +476,12 @@ func TestRPCServerAuthorization(t *testing.T) {
 		noErrID                     verror.IDAction
 
 		// Third-party caveats on blessings presented by server.
-		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
-		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.ExpiryCaveat(now.Add(-1*time.Second))))
+		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.NewExpiryCaveat(now.Add(24*time.Hour))))
+		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.NewExpiryCaveat(now.Add(-1*time.Second))))
 
 		// Server blessings.
 		bServer          = bless(pprovider, pserver, "server")
-		bServerExpired   = bless(pprovider, pserver, "expiredserver", mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Second))))
+		bServerExpired   = bless(pprovider, pserver, "expiredserver", mkCaveat(security.NewExpiryCaveat(time.Now().Add(-1*time.Second))))
 		bServerTPValid   = bless(pprovider, pserver, "serverWithTPCaveats", cavTPValid)
 		bServerTPExpired = bless(pprovider, pserver, "serverWithExpiredTPCaveats", cavTPExpired)
 		bOther           = bless(pprovider, pserver, "other")
@@ -1022,11 +1022,11 @@ func TestRPCClientAuthorization(t *testing.T) {
 		dischargeServerName = "mountpoint/dischargeserver"
 
 		// Caveats on blessings to the client: First-party caveats
-		cavOnlyEcho = mkCaveat(security.MethodCaveat("Echo"))
-		cavExpired  = mkCaveat(security.ExpiryCaveat(now.Add(-1 * time.Second)))
+		cavOnlyEcho = mkCaveat(security.NewMethodCaveat("Echo"))
+		cavExpired  = mkCaveat(security.NewExpiryCaveat(now.Add(-1 * time.Second)))
 		// Caveats on blessings to the client: Third-party caveats
-		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
-		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(now.Add(-1*time.Second))))
+		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.NewExpiryCaveat(now.Add(24*time.Hour))))
+		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.NewExpiryCaveat(now.Add(-1*time.Second))))
 
 		// Client blessings that will be tested.
 		bServerClientOnlyEcho  = bless(pserver, pclient, "onlyecho", cavOnlyEcho)
@@ -1239,7 +1239,7 @@ func TestServerLocalBlessings(t *testing.T) {
 		mgr = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
 		ns  = tnaming.NewSimpleNamespace()
 
-		tpCav = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+		tpCav = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 
 		bserver = bless(pprovider, pserver, "server", tpCav)
 		bclient = bless(pprovider, pclient, "client")
@@ -1742,7 +1742,7 @@ func TestNoDischargesOpt(t *testing.T) {
 	}
 
 	// Bless the client with a ThirdPartyCaveat.
-	tpcav := mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+	tpcav := mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 	blessings, err := pserver.Bless(pclient.PublicKey(), pserver.BlessingStore().Default(), "tpcav", tpcav)
 	if err != nil {
 		t.Fatalf("failed to create Blessings: %v", err)
@@ -1801,7 +1801,7 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 	// Bless the client with a ThirdPartyCaveat from discharger1.
-	tpcav1 := mkThirdPartyCaveat(pdischarger1.PublicKey(), "mountpoint/discharger1", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+	tpcav1 := mkThirdPartyCaveat(pdischarger1.PublicKey(), "mountpoint/discharger1", mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 	blessings, err := pdischarger1.Bless(pdischargeClient.PublicKey(), pdischarger1.BlessingStore().Default(), "tpcav1", tpcav1)
 	if err != nil {
 		t.Fatalf("failed to create Blessings: %v", err)
@@ -1832,7 +1832,7 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 	dc := c.(*client).dc
-	tpcav2, err := security.NewPublicKeyCaveat(pdischarger2.PublicKey(), "mountpoint/discharger2", security.ThirdPartyRequirements{}, mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+	tpcav2, err := security.NewPublicKeyCaveat(pdischarger2.PublicKey(), "mountpoint/discharger2", security.ThirdPartyRequirements{}, mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1919,7 +1919,7 @@ func TestBlessingsCache(t *testing.T) {
 		t.Errorf("got cacheAttempts(%v), cacheHits(%v), expected cacheAttempts(3), cacheHits(1)", gotAttempts, gotHits)
 	}
 	// clientB changes its blessings, the cache should not be used.
-	blessings, err := pserver.Bless(pclient.PublicKey(), pserver.BlessingStore().Default(), "cav", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+	blessings, err := pserver.Bless(pclient.PublicKey(), pserver.BlessingStore().Default(), "cav", mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 	if err != nil {
 		t.Fatalf("failed to create Blessings: %v", err)
 	}
@@ -1987,7 +1987,7 @@ func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall,
 	if ed.called {
 		expDur = time.Second
 	}
-	expiry, err := security.ExpiryCaveat(time.Now().Add(expDur))
+	expiry, err := security.NewExpiryCaveat(time.Now().Add(expDur))
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
@@ -2004,7 +2004,7 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 	defer shutdown()
 	var (
 		pclient, pdischarger = newClientServerPrincipals()
-		tpcav                = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+		tpcav                = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 		ns                   = tnaming.NewSimpleNamespace()
 		discharger           = &expiryDischarger{}
 	)

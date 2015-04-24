@@ -283,7 +283,7 @@ func newBlessing(t *testing.T, name string) security.Blessings {
 
 func newThirdPartyCaveatAndDischarge(t *testing.T) (security.Caveat, security.Discharge) {
 	p := newPrincipal(t)
-	c, err := security.NewPublicKeyCaveat(p.PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(security.MethodCaveat("method")))
+	c, err := security.NewPublicKeyCaveat(p.PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(security.NewMethodCaveat("method")))
 	if err != nil {
 		t.Fatal(err)
 	}

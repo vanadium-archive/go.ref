@@ -83,7 +83,7 @@ func (b *oauthBlesser) bless(call security.Call, email, clientName string) (secu
 	if b.revocationManager != nil {
 		caveat, err = b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
 	} else {
-		caveat, err = security.ExpiryCaveat(time.Now().Add(b.duration))
+		caveat, err = security.NewExpiryCaveat(time.Now().Add(b.duration))
 	}
 	if err != nil {
 		return noblessings, "", err

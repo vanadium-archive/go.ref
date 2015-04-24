@@ -42,7 +42,7 @@ func (t *tester) testSetters(m *PrincipalManager) error {
 	}
 
 	// Test AddOrigin.
-	cav, err := security.MethodCaveat("Foo")
+	cav, err := security.NewMethodCaveat("Foo")
 	if err != nil {
 		return fmt.Errorf("security.MethodCaveat failed: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestOriginHasAccount(t *testing.T) {
 	// Test with no expiration caveat.
 	origin1 := "http://origin-1.com"
 
-	methodCav, err := security.MethodCaveat("Foo")
+	methodCav, err := security.NewMethodCaveat("Foo")
 	if err != nil {
 		fmt.Errorf("security.MethodCaveat failed: %v", err)
 	}
@@ -214,9 +214,9 @@ func TestOriginHasAccount(t *testing.T) {
 	origin2 := "http://origin-2.com"
 	futureTime := time.Now().Add(5 * time.Minute)
 
-	futureExpCav, err := security.ExpiryCaveat(futureTime)
+	futureExpCav, err := security.NewExpiryCaveat(futureTime)
 	if err != nil {
-		fmt.Errorf("security.ExpiryCaveat(%v) failed: %v", futureTime, err)
+		fmt.Errorf("security.NewExpiryCaveat(%v) failed: %v", futureTime, err)
 	}
 
 	if err := m.AddOrigin(origin2, googleAccount, []security.Caveat{futureExpCav}, []time.Time{futureTime}); err != nil {
@@ -231,9 +231,9 @@ func TestOriginHasAccount(t *testing.T) {
 	origin3 := "http://origin-3.com"
 	pastTime := time.Now().Add(-5 * time.Minute)
 
-	pastExpCav, err := security.ExpiryCaveat(pastTime)
+	pastExpCav, err := security.NewExpiryCaveat(pastTime)
 	if err != nil {
-		fmt.Errorf("security.ExpiryCaveat(%v) failed: %v", pastTime, err)
+		fmt.Errorf("security.NewExpiryCaveat(%v) failed: %v", pastTime, err)
 	}
 
 	if err := m.AddOrigin(origin3, googleAccount, []security.Caveat{futureExpCav, pastExpCav}, []time.Time{futureTime, pastTime}); err != nil {

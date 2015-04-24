@@ -227,7 +227,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 func prettyPrintCaveats(cavs []security.Caveat) ([]string, error) {
 	s := make([]string, len(cavs))
 	for i, cav := range cavs {
-		if cav.Id == security.PublicKeyThirdPartyCaveatX.Id {
+		if cav.Id == security.PublicKeyThirdPartyCaveat.Id {
 			c := cav.ThirdPartyDetails()
 			s[i] = fmt.Sprintf("ThirdPartyCaveat: Requires discharge from %v (ID=%q)", c.Location(), c.ID())
 			continue
@@ -238,9 +238,9 @@ func prettyPrintCaveats(cavs []security.Caveat) ([]string, error) {
 			return nil, err
 		}
 		switch cav.Id {
-		case security.ExpiryCaveatX.Id:
+		case security.ExpiryCaveat.Id:
 			s[i] = fmt.Sprintf("Expires at %v", param)
-		case security.MethodCaveatX.Id:
+		case security.MethodCaveat.Id:
 			s[i] = fmt.Sprintf("Restricted to methods %v", param)
 		case security.PeerBlessingsCaveat.Id:
 			s[i] = fmt.Sprintf("Restricted to peers with blessings %v", param)

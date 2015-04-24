@@ -410,7 +410,7 @@ func (s *Server) caveatValidationInJavascript(ctx *context.T, call security.Call
 // CaveatValidation implements a function suitable for passing to
 // security.OverrideCaveatValidation.
 //
-// Certain caveats (PublicKeyThirdPartyCaveatX) are intercepted and handled in
+// Certain caveats (PublicKeyThirdPartyCaveat) are intercepted and handled in
 // go, while all other caveats are evaluated in javascript.
 func CaveatValidation(ctx *context.T, call security.Call, cavs [][]security.Caveat) []error {
 	// If the server isn't set in the context, we just perform validation in Go.
@@ -446,7 +446,7 @@ nextCav:
 			default:
 			}
 			switch cav.Id {
-			case security.PublicKeyThirdPartyCaveatX.Id:
+			case security.PublicKeyThirdPartyCaveat.Id:
 				res := cav.Validate(ctx, call)
 				if res != nil {
 					valStatus[i] = validationStatus{

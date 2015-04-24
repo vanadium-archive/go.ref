@@ -265,7 +265,7 @@ func (ds *dischargeService) Discharge(ctx *context.T, call rpc.StreamServerCall,
 	ds.mu.Unlock()
 	caveat := security.UnconstrainedUse()
 	if called == 0 {
-		caveat = mkCaveat(security.ExpiryCaveat(time.Now().Add(-1 * time.Second)))
+		caveat = mkCaveat(security.NewExpiryCaveat(time.Now().Add(-1 * time.Second)))
 	}
 
 	return call.Security().LocalPrincipal().MintDischarge(cav, caveat)
@@ -363,7 +363,7 @@ func TestServerDischarges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rootServerInvalidTPCaveat := mkBlessings(root.NewBlessings(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Second))))))
+	rootServerInvalidTPCaveat := mkBlessings(root.NewBlessings(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.NewExpiryCaveat(time.Now().Add(-1*time.Second))))))
 	if err := pserver.BlessingStore().SetDefault(rootServerInvalidTPCaveat); err != nil {
 		t.Fatal(err)
 	}

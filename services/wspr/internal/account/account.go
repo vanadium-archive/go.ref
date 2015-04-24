@@ -146,9 +146,9 @@ func createExpiryCaveat(arg string) (security.Caveat, time.Time, error) {
 		return security.Caveat{}, zeroTime, fmt.Errorf("time.parseDuration(%v) failed: %v", arg, err)
 	}
 	expirationTime := time.Now().Add(dur)
-	cav, err := security.ExpiryCaveat(expirationTime)
+	cav, err := security.NewExpiryCaveat(expirationTime)
 	if err != nil {
-		return security.Caveat{}, zeroTime, fmt.Errorf("security.ExpiryCaveat(%v) failed: %v", expirationTime, err)
+		return security.Caveat{}, zeroTime, fmt.Errorf("security.NewExpiryCaveat(%v) failed: %v", expirationTime, err)
 	}
 	return cav, expirationTime, nil
 }
@@ -158,5 +158,5 @@ func createMethodCaveat(a string) (security.Caveat, error) {
 	if len(args) == 0 {
 		return security.Caveat{}, fmt.Errorf("must pass at least one method")
 	}
-	return security.MethodCaveat(args[0], args[1:]...)
+	return security.NewMethodCaveat(args[0], args[1:]...)
 }
