@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"v.io/x/lib/netstate"
+	"v.io/x/lib/pubsub"
 	"v.io/x/lib/vlog"
 
-	"v.io/v23/config"
 	"v.io/v23/context"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
@@ -73,9 +73,9 @@ type proxyState struct {
 
 type dhcpState struct {
 	name      string
-	publisher *config.Publisher
-	stream    *config.Stream
-	ch        chan config.Setting // channel to receive dhcp settings over
+	publisher *pubsub.Publisher
+	stream    *pubsub.Stream
+	ch        chan pubsub.Setting // channel to receive dhcp settings over
 	err       error               // error status.
 	watchers  map[chan<- rpc.NetworkChange]struct{}
 }
@@ -420,7 +420,7 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 			watchers:  make(map[chan<- rpc.NetworkChange]struct{}),
 		}
 		s.dhcpState = dhcp
-		dhcp.ch = make(chan config.Setting, 10)
+		dhcp.ch = make(chan pubsub.Setting, 10)
 		dhcp.stream, dhcp.err = dhcp.publisher.ForkStream(dhcp.name, dhcp.ch)
 		if dhcp.err == nil {
 			// We have a goroutine to listen for dhcp changes.
@@ -610,7 +610,7 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) error {
 	}
 }
 
-func (s *server) dhcpLoop(ch chan config.Setting) {
+func (s *server) dhcpLoop(ch chan pubsub.Setting) {
 	defer vlog.VI(1).Infof("rpc: Stopped listen for dhcp changes")
 	vlog.VI(2).Infof("rpc: dhcp loop")
 	for setting := range ch {
@@ -854,7 +854,7 @@ func (s *server) Stop() error {
 		}(ln)
 	}
 
-	drain := func(ch chan config.Setting) {
+	drain := func(ch chan pubsub.Setting) {
 		for {
 			select {
 			case v := <-ch:

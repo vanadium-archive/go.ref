@@ -8,7 +8,7 @@
 // configurations, including 1-1 NATs, dhcp auto-configuration, and Google
 // Compute Engine.
 //
-// The config.Publisher mechanism is used for communicating networking
+// The pubsub.Publisher mechanism is used for communicating networking
 // settings to the rpc.Server implementation of the runtime and publishes
 // the Settings it expects.
 package roaming
@@ -19,10 +19,10 @@ import (
 
 	"v.io/x/lib/netconfig"
 	"v.io/x/lib/netstate"
+	"v.io/x/lib/pubsub"
 	"v.io/x/lib/vlog"
 
 	"v.io/v23"
-	"v.io/v23/config"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 
@@ -86,11 +86,11 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		}
 	}
 
-	publisher := config.NewPublisher()
+	publisher := pubsub.NewPublisher()
 
 	// Create stream in Init function to avoid a race between any
 	// goroutines started here and consumers started after Init returns.
-	ch := make(chan config.Setting)
+	ch := make(chan pubsub.Setting)
 	stop, err := publisher.CreateStream(SettingsStreamName, SettingsStreamName, ch)
 	if err != nil {
 		ac.Shutdown()
@@ -141,7 +141,7 @@ func monitorNetworkSettingsX(
 	prev netstate.AddrList,
 	pubStop, cleanup <-chan struct{},
 	watcherLoop chan<- struct{},
-	ch chan<- config.Setting) {
+	ch chan<- pubsub.Setting) {
 	defer close(ch)
 
 	listenSpec := runtime.GetListenSpec(ctx)
