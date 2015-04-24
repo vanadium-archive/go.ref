@@ -195,7 +195,7 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 			startTimeout = v.Duration
 		}
 	}
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs), versions, principal, blessings, startTimeout, onClose, nil, nil, c, nil)
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs), versions, principal, blessings, startTimeout, onClose, nil, nil, c)
 }
 
 // InternalNewAcceptedVIF creates a new virtual interface over the provided
@@ -215,7 +215,7 @@ func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal secur
 
 	dischargeClient := getDischargeClient(lopts)
 
-	c, initialMessage, err := AuthenticateAsServer(conn, reader, versions, principal, blessings, dischargeClient)
+	c, err := AuthenticateAsServer(conn, reader, versions, principal, blessings, dischargeClient)
 	if err != nil {
 		return nil, err
 	}
@@ -227,10 +227,10 @@ func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal secur
 			startTimeout = v.Duration
 		}
 	}
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, principal, blessings, startTimeout, onClose, upcqueue.New(), lopts, c, initialMessage)
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, principal, blessings, startTimeout, onClose, upcqueue.New(), lopts, c)
 }
 
-func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *iversion.Range, principal security.Principal, blessings security.Blessings, startTimeout time.Duration, onClose func(*VIF), acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher, initialMessage message.T) (*VIF, error) {
+func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *iversion.Range, principal security.Principal, blessings security.Blessings, startTimeout time.Duration, onClose func(*VIF), acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
 	var (
 		// Choose IDs that will not conflict with any other (VC, Flow)
 		// pairs.  VCI 0 is never used by the application (it is
@@ -294,7 +294,7 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 			vif.closeVCAndSendMsg(vc, false, verror.New(errIdleTimeout, nil))
 		}
 	})
-	go vif.readLoop(initialMessage)
+	go vif.readLoop()
 	go vif.writeLoop()
 	return vif, nil
 }
@@ -475,24 +475,17 @@ func (vif *VIF) String() string {
 	return fmt.Sprintf("(%s, %s) <-> (%s, %s)", l.Network(), l, r.Network(), r)
 }
 
-func (vif *VIF) readLoop(initialMessage message.T) {
+func (vif *VIF) readLoop() {
 	defer vif.Close()
 	defer vif.stopVCDispatchLoops()
 	for {
 		// vif.ctrlCipher is guarded by vif.writeMu.  However, the only mutation
 		// to it is in handleMessage, which runs in the same goroutine, so a
 		// lock is not required here.
-		var msg message.T
-		if initialMessage != nil {
-			msg = initialMessage
-			initialMessage = nil
-		} else {
-			var err error
-			msg, err = message.ReadFrom(vif.reader, vif.ctrlCipher)
-			if err != nil {
-				vlog.VI(1).Infof("Exiting readLoop of VIF %s because of read error: %v", vif, err)
-				return
-			}
+		msg, err := message.ReadFrom(vif.reader, vif.ctrlCipher)
+		if err != nil {
+			vlog.VI(1).Infof("Exiting readLoop of VIF %s because of read error: %v", vif, err)
+			return
 		}
 		vlog.VI(3).Infof("Received %T = [%v] on VIF %s", msg, msg, vif)
 		if err := vif.handleMessage(msg); err != nil {
