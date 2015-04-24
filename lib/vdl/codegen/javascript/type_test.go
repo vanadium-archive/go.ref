@@ -25,10 +25,7 @@ func getTestTypes() (names typeNames, tyStruct, tyList, tyBool *vdl.Type, outErr
 	structType.AppendField("Bool", namedBool)
 	structType.AppendField(unnamedTypeFieldName, builder.List().AssignElem(vdl.StringType))
 	listType.AssignElem(namedStruct)
-	if builder.Build() != true {
-		outErr = fmt.Errorf("Failed to build test types")
-		return
-	}
+	builder.Build()
 
 	builtBool, err := namedBool.Built()
 	if err != nil {
