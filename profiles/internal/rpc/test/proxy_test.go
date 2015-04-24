@@ -191,7 +191,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	}
 	defer client.Close()
 	serverCtx, _ := v23.WithPrincipal(ctx, pserver)
-	server, err := irpc.InternalNewServer(serverCtx, smserver, ns, nil, pserver)
+	server, err := irpc.InternalNewServer(serverCtx, smserver, ns, nil, "", nil, pserver)
 	if err != nil {
 		t.Fatal(err)
 	}

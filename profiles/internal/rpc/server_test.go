@@ -424,12 +424,6 @@ func TestRoaming(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
-	defer server.Stop()
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	publisher := pubsub.NewPublisher()
 	roaming := make(chan pubsub.Setting)
@@ -438,6 +432,12 @@ func TestRoaming(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { publisher.Shutdown(); <-stop }()
+
+	server, err := testInternalNewServerWithPubsub(ctx, sm, ns, publisher, "TestRoaming", testutil.NewPrincipal("test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
 
 	ipv4And6 := func(network string, addrs []net.Addr) ([]net.Addr, error) {
 		accessible := netstate.ConvertToAddresses(addrs)
@@ -451,9 +451,7 @@ func TestRoaming(t *testing.T) {
 			{"tcp", ":0"},
 			{"tcp", ":0"},
 		},
-		StreamName:      "TestRoaming",
-		StreamPublisher: publisher,
-		AddressChooser:  ipv4And6,
+		AddressChooser: ipv4And6,
 	}
 
 	eps, err := server.Listen(spec)
@@ -488,7 +486,7 @@ func TestRoaming(t *testing.T) {
 	server.WatchNetwork(watcher)
 	defer close(watcher)
 
-	roaming <- rpc.NewAddAddrsSetting([]net.Addr{n1, n2})
+	roaming <- NewAddAddrsSetting([]net.Addr{n1, n2})
 
 	waitForChange := func() *rpc.NetworkChange {
 		vlog.Infof("Waiting on %p", watcher)
@@ -527,7 +525,7 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %d, want %d", got, want)
 	}
 
-	roaming <- rpc.NewRmAddrsSetting([]net.Addr{n1})
+	roaming <- NewRmAddrsSetting([]net.Addr{n1})
 
 	// We expect 2 changes, one for each usable listen spec addr.
 	change = waitForChange()
@@ -548,7 +546,7 @@ func TestRoaming(t *testing.T) {
 	}
 
 	// Remove all addresses to mimic losing all connectivity.
-	roaming <- rpc.NewRmAddrsSetting(getIPAddrs(nepsR))
+	roaming <- NewRmAddrsSetting(getIPAddrs(nepsR))
 
 	// We expect changes for all of the current endpoints
 	change = waitForChange()
@@ -561,7 +559,7 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %d, want %d: %v", got, want, status.Mounts)
 	}
 
-	roaming <- rpc.NewAddAddrsSetting([]net.Addr{n1})
+	roaming <- NewAddAddrsSetting([]net.Addr{n1})
 	// We expect 2 changes, one for each usable listen spec addr.
 	change = waitForChange()
 	if got, want := len(change.Changed), 2; got != want {
@@ -576,12 +574,6 @@ func TestWatcherDeadlock(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
-	defer server.Stop()
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	publisher := pubsub.NewPublisher()
 	roaming := make(chan pubsub.Setting)
@@ -591,12 +583,16 @@ func TestWatcherDeadlock(t *testing.T) {
 	}
 	defer func() { publisher.Shutdown(); <-stop }()
 
+	server, err := testInternalNewServerWithPubsub(ctx, sm, ns, publisher, "TestWatcherDeadlock", testutil.NewPrincipal("test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+
 	spec := rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{
 			{"tcp", ":0"},
 		},
-		StreamName:      "TestWatcherDeadlock",
-		StreamPublisher: publisher,
 	}
 	eps, err := server.Listen(spec)
 	if err != nil {
@@ -615,12 +611,12 @@ func TestWatcherDeadlock(t *testing.T) {
 	defer close(watcher)
 
 	// Remove all addresses to mimic losing all connectivity.
-	roaming <- rpc.NewRmAddrsSetting(getIPAddrs(eps))
+	roaming <- NewRmAddrsSetting(getIPAddrs(eps))
 
 	// Add in two new addresses
 	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
 	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
-	roaming <- rpc.NewAddAddrsSetting([]net.Addr{n1, n2})
+	roaming <- NewAddAddrsSetting([]net.Addr{n1, n2})
 
 	neps := make([]naming.Endpoint, 0, len(eps))
 	for _, p := range getUniqPorts(eps) {
