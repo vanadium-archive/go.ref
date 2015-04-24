@@ -18,31 +18,95 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
   <title>Blessings: Select Caveats</title>
   <script>
   $(document).ready(function() {
-    $('.caveatInput').hide(); // Hide all the inputs at start.
-
+    var numCaveats = 1;
     // When a caveat selector changes show the corresponding input box.
     $('body').on('change', '.caveats', function (){
-      // Grab the div encapsulating the select and the corresponding inputs.
-      var caveatSelector = $(this).parents(".caveatRow");
+      var caveatSelector = $(this).parents('.caveatRow');
+
       // Hide the visible inputs and show the selected one.
       caveatSelector.find('.caveatInput').hide();
-      caveatSelector.find('#'+$(this).val()).show();
+      var caveatName = $(this).val();
+      if (caveatName !== 'RevocationCaveat') {
+        caveatSelector.find('#'+caveatName).show();
+      }
     });
+
+    var updateNewSelector = function(newSelector, caveatName) {
+      // disable the option from being selected again and make the next caveat the
+      // default for the next selector.
+      var selectedOption = newSelector.find('option[name="' + caveatName + '"]');
+      selectedOption.prop('disabled', true);
+      var newCaveat = newSelector.find('option:enabled').first();
+      newCaveat.prop('selected', true);
+      newSelector.find('.caveatInput').hide();
+      newSelector.find('#'+newCaveat.attr('name')).show();
+    }
 
     // Upon clicking the 'Add Caveat' button a new caveat selector should appear.
     $('body').on('click', '.addCaveat', function() {
-      var selector = $(this).parents(".caveatRow");
+      var selector = $(this).parents('.caveatRow');
       var newSelector = selector.clone();
-      // Hide all inputs since nothing is selected in this clone.
-      newSelector.find('.caveatInput').hide();
+      var caveatName = selector.find('.caveats').val();
+
+      updateNewSelector(newSelector, caveatName);
+
+      // Change the selector's select to a fixed label and fix the inputs.
+      selector.find('.caveats').hide();
+      selector.find('.'+caveatName+'Selected').show();
+      selector.find('.caveatInput').prop('readonly', true);
+
       selector.after(newSelector);
-      // Change the '+' button to a 'Remove Caveat' button.
-      $(this).replaceWith('<button type="button" class="button-passive right removeCaveat">Remove Caveat</button>');
+      $(this).replaceWith('<button type="button" class="button-passive right removeCaveat hidden">Remove</button>');
+
+      numCaveats += 1;
+      if (numCaveats > 1) {
+        $('.removeCaveat').show();
+      }
+      if (numCaveats >= 4) {
+        $('.addCaveat').hide();
+        $('.caveats').hide();
+      }
     });
 
-    // Upon clicking the '-' button caveats should be removed.
+    // If add more is selected, remove the button and show the caveats selector.
+    $('body').on('click', '.addMore', function() {
+      var selector = $(this).parents('.caveatRow');
+      var newSelector = selector.clone();
+      var caveatName = selector.find('.caveats').val();
+
+      updateNewSelector(newSelector, caveatName);
+
+      newSelector.find('.caveats').show();
+      // Change the 'Add more' button in the copied selector to an 'Add caveats' button.
+      newSelector.find('.addMore').replaceWith('<button type="button" class="button-primary right addCaveat">Add</button>');
+      // Hide the default selected caveat for the copied selector.
+      newSelector.find('.selected').hide();
+
+      selector.after(newSelector);
+      $(this).replaceWith('<button type="button" class="button-passive right removeCaveat hidden">Remove</button>');
+    });
+
+    // Upon clicking submit, caveats that have not been added yet should be removed,
+    // before they are sent to the server.
+    $('#caveats-form').submit(function(){
+      $('.addCaveat').parents('.caveatRow').remove();
+      return true;
+    });
+
+    // Upon clicking the 'Remove Caveat' button, the caveat row should be removed.
     $('body').on('click', '.removeCaveat', function() {
-      $(this).parents('.caveatRow').remove();
+      var selector = $(this).parents('.caveatRow')
+      var caveatName = selector.find('.caveats').val();
+
+      // Enable choosing this caveat again.
+      $('option[name="' + caveatName + '"]').last().prop('disabled', false);
+
+      selector.remove();
+
+      numCaveats -= 1;
+      if (numCaveats == 1) {
+        $('.removeCaveat').hide();
+      }
     });
 
     // Get the timezoneOffset for the server to create a correct expiry caveat.
@@ -51,24 +115,10 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
     $('#timezoneOffset').val(d.getTimezoneOffset());
 
     // Set the datetime picker to have a default value of one day from now.
-    var m = moment().add(1, 'd').format("YYYY-MM-DDTHH:mm")
-    $('#expiry').val(m);
-    $('#ExpiryCaveat').val(m);
+    $('.expiry').val(moment().add(1, 'd').format('YYYY-MM-DDTHH:mm'));
 
     // Activate the cancel button.
-    $('#cancel').click(function() {
-      window.close();
-    });
-
-    $('#blessing-extension').on('input', function(){
-      var ext = $(this).val();
-      // If the user has specified an extension, we want to add a leading slash
-      // and display the full blessing name to the user.
-      if (ext.length > 0) {
-        ext = '/' + ext;
-      }
-      $('.extension-display').text(ext);
-    });
+    $('#cancel').click(window.close);
   });
   </script>
 </head>
@@ -79,11 +129,6 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
   <nav class="left">
     <a href="#" class="logo">Vanadium</a>
   </nav>
-
-  <nav class="main">
-    <a href="#">Select Caveats</a>
-  </nav>
-
   <nav class="right">
     <a href="#">{{.Extension}}</a>
   </nav>
@@ -91,82 +136,56 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
 
 <main style="max-width: 80%; margin-left: 10px;">
   <form method="POST" id="caveats-form" name="input" action="{{.MacaroonURL}}" role="form">
-  <h3>Seeking Blessing: {{.BlessingName}}/{{.Extension}}<span class="extension-display"></span></h3>
+  <h1>Add blessing</h1>
   <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
+
+  <h3>Blessing Name</h3>
   <div class="grid">
     <div class="cell">
-      <label for="blessing-extension">Extension</label>
-      <input name="blessingExtension" type="text" id="blessing-extension" placeholder="(optional) name of the device/application for which the blessing is being sought, e.g. homelaptop">
-      <input type="text" class="hidden" id="timezoneOffset" name="timezoneOffset">
+      <span>{{.BlessingName}}/{{.Extension}}/</span><input name="blessingExtension" type="text" placeholder="extension">
+    </div>
+    <input type="text" class="hidden" id="timezoneOffset" name="timezoneOffset">
+    <div>
+      The blessing name contains your email and will be visible to any peers that
+      this blessing is shared with, e.g. when you make a RPC.
     </div>
   </div>
-  <div>
-    <label for="required-caveat">Expiration</label>
-    <div name="required-caveat">
-      <div>
-        <label>
-        <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Revocation" checked>
-        When explicitly revoked
-        </label>
-      </div>
-      <div>
-        <div>
-          <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Expiry">
-          <input type="datetime-local" id="expiry" name="expiry">
-        </div>
-      </div>
-    </div>
-  </div>
-  <h4>Additional caveats</h4>
-  <span>Optional additional restrictions on the use of the blessing</span>
+
+  <h4>Caveats</h4>
   <div class="grid caveatRow">
     <div class="cell">
-      <select name="caveat" class="caveats">
-        <option value="none" selected="selected">Select a caveat.</option>
-        {{ $caveatList := .CaveatList }}
-        {{range $index, $name := $caveatList}}
-          {{if eq $name "ExpiryCaveat"}}
-          <option name="{{$name}}" value="{{$name}}">Expires</option>
-          {{else if eq $name "MethodCaveat"}}
-          <option name="{{$name}}" value="{{$name}}">Allowed Methods</option>
-          {{else if eq $name "PeerBlessingsCaveat"}}
-          <option name="{{$name}}" value="{{$name}}">Allowed Peers</option>
-          {{else}}
-          <option name="{{$name}}" value="{{$name}}">{{$name}}</option>
-          {{end}}
-        {{end}}
+      <span class="selected RevocationCaveatSelected">Active until revoked</span>
+      <span class="selected ExpiryCaveatSelected hidden">Expires on</span>
+      <span class="selected MethodCaveatSelected hidden">Allowed methods are</span>
+      <span class="selected PeerBlessingsCaveatSelected hidden">Allowed peers are</span>
+
+      <select name="caveat" class="caveats hidden">
+        <option name="RevocationCaveat" value="RevocationCaveat" class="cavOption">Active until revoked</option>
+        <option name="ExpiryCaveat" value="ExpiryCaveat" class="cavOption">Expires on</option>
+        <option name="MethodCaveat" value="MethodCaveat" class="cavOption">Allowed methods are</option>
+        <option name="PeerBlessingsCaveat" value="PeerBlessingsCaveat" class="cavOption">Allowed peers are</option>
       </select>
 
-      {{range $index, $name := $caveatList}}
-        {{if eq $name "ExpiryCaveat"}}
-        <input type="datetime-local" class="caveatInput" id="{{$name}}" name="{{$name}}">
-        {{else if eq $name "MethodCaveat"}}
-        <input type="text" id="{{$name}}" class="caveatInput" name="{{$name}}" placeholder="comma-separated method list">
-        {{else if eq $name "PeerBlessingsCaveat"}}
-        <input type="text" id="{{$name}}" class="form-control caveatInput" name="{{$name}}" placeholder="comma-separated blessing-pattern list">
-        {{end}}
-      {{end}}
-      <button type="button" class="button-passive right addCaveat">Add Caveat</button>
+      <input type="text" class="caveatInput hidden" id="RevocationCaveat" name="RevocationCaveat">
+      <input type="datetime-local" class="caveatInput expiry hidden" id="ExpiryCaveat" name="ExpiryCaveat">
+      <input type="text" id="MethodCaveat" class="caveatInput hidden" name="MethodCaveat" placeholder="comma-separated method list">
+      <input type="text" id="PeerBlessingsCaveat" class="caveatInput hidden" name="PeerBlessingsCaveat" placeholder="comma-separated blessing list">
+
+      <a href="#" class="right addMore">Add more</a>
     </div>
   </div>
-  <br/>
-  <div>
-  The blessing name will be visible to any peers that this blessing is shared
-with. Thus, if your email address is in the blessing name, it will be visible
-to peers you share the blessing with.
+  </br>
+  <div class="grid">
+    <button class="cell button-passive" id="cancel">Cancel</button>
+    <button class="cell button-primary" type="submit">Bless</button>
+    <div class="cell"></div>
+    <div class="cell"></div>
   </div>
-  <br>
   <div>
   By clicking "Bless", you consent to be bound by
   Google's general <a href="https://www.google.com/intl/en/policies/terms/">Terms of Service</a>,
   the <a href="https://developers.google.com/terms/">Google APIs Terms of Service</a>,
   and Google's general <a href="https://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>.
-  </div>
-  <div class="grid">
-    <button class="cell button-passive" type="submit">Bless</button>
-    <button class="cell button-passive" id="cancel">Cancel</button>
-    <div class="cell"></div>
-    <div class="cell"></div>
   </div>
   </form>
 </main>

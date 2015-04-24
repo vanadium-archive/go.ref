@@ -65,7 +65,7 @@ var (
 	errNoBlessingsForPeer        = reg(".errNoBlessingsForPeer", "no blessings tagged for peer {3}{:4}")
 	errBlessingGrant             = reg(".errBlessingGrant", "failed to grant blessing to server with blessings{:3}")
 	errBlessingAdd               = reg(".errBlessingAdd", "failed to add blessing granted to server{:3}")
-	errServerAuthorizeFailed     = reg(".errServerAuthorizedFailed", "failed to authorized flow with remote blessings{:3} {:4}")
+	errServerAuthorizeFailed     = reg(".errServerAuthorizedFailed", "failed to authorize flow with remote blessings{:3} {:4}")
 
 	errPrepareBlessingsAndDischarges = reg(".prepareBlessingsAndDischarges", "failed to prepare blessings and discharges: remote blessings{:3} {:4}")
 

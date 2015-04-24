@@ -32,6 +32,7 @@ var (
 	tlsConfig        = flag.String("tls-config", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
 	assetsPrefix     = flag.String("assets-prefix", "", "host serving the web assets for the identity server")
 	mountPrefix      = flag.String("mount-prefix", "identity", "mount name prefix to use. May be rooted.")
+	browser          = flag.Bool("browser", false, "whether to open a browser caveat selector")
 )
 
 func main() {
@@ -73,6 +74,15 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
+	caveatSelector := caveats.NewMockCaveatSelector()
+	if *browser {
+		bname, _, err := util.RootCertificateDetails(v23.GetPrincipal(ctx).BlessingStore().Default())
+		if err != nil {
+			vlog.Fatalf("Failed to get root Blessings name: %v", err)
+		}
+		caveatSelector = caveats.NewBrowserCaveatSelector(*assetsPrefix, bname)
+	}
+
 	listenSpec := v23.GetListenSpec(ctx)
 	s := server.NewIdentityServer(
 		oauthProvider,
@@ -80,7 +90,7 @@ func main() {
 		reader,
 		revocationManager,
 		params,
-		caveats.NewMockCaveatSelector(),
+		caveatSelector,
 		nil,
 		*assetsPrefix,
 		*mountPrefix)

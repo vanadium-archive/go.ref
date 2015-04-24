@@ -5,7 +5,6 @@
 package caveats
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -29,10 +28,8 @@ func NewBrowserCaveatSelector(assetsPrefix, blessingName string) CaveatSelector 
 
 func (s *browserCaveatSelector) Render(blessingExtension, state, redirectURL string, w http.ResponseWriter, r *http.Request) error {
 	tmplargs := struct {
-		Extension                                         string
-		CaveatList                                        []string
-		Macaroon, MacaroonURL, AssetsPrefix, BlessingName string
-	}{blessingExtension, []string{"ExpiryCaveat", "MethodCaveat", "PeerBlessingsCaveat"}, state, redirectURL, s.assetsPrefix, s.blessingName}
+		Extension, Macaroon, MacaroonURL, AssetsPrefix, BlessingName string
+	}{blessingExtension, state, redirectURL, s.assetsPrefix, s.blessingName}
 	w.Header().Set("Context-Type", "text/html")
 	if err := templates.SelectCaveats.Execute(w, tmplargs); err != nil {
 		return err
@@ -54,25 +51,6 @@ func (s *browserCaveatSelector) caveats(r *http.Request) ([]CaveatInfo, error) {
 		return nil, err
 	}
 	var caveats []CaveatInfo
-	// Fill in the required caveat.
-	switch required := r.FormValue("requiredCaveat"); required {
-	case "Expiry":
-		expiry, err := newExpiryCaveatInfo(r.FormValue("expiry"), r.FormValue("timezoneOffset"))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create ExpiryCaveat: %v", err)
-		}
-		caveats = append(caveats, expiry)
-	case "Revocation":
-		revocation := newRevocationCaveatInfo()
-		caveats = append(caveats, revocation)
-	default:
-		return nil, fmt.Errorf("%q is not a valid required caveat", required)
-	}
-	if len(caveats) != 1 {
-		return nil, fmt.Errorf("server does not allow for un-restricted blessings")
-	}
-
-	// And find any additional ones
 	for i, cavName := range r.Form["caveat"] {
 		var err error
 		var caveat CaveatInfo
@@ -83,15 +61,18 @@ func (s *browserCaveatSelector) caveats(r *http.Request) ([]CaveatInfo, error) {
 			caveat, err = newMethodCaveatInfo(r.Form[cavName][i])
 		case "PeerBlessingsCaveat":
 			caveat, err = newPeerBlessingsCaveatInfo(r.Form[cavName][i])
-		case "none":
-			continue
+		case "RevocationCaveat":
+			caveat = newRevocationCaveatInfo()
 		default:
-			err = errors.New("caveat does not exist")
+			continue
 		}
 		if err != nil {
 			return nil, fmt.Errorf("unable to create caveat %s: %v", cavName, err)
 		}
 		caveats = append(caveats, caveat)
+	}
+	if len(caveats) == 0 {
+		return nil, fmt.Errorf("server does not allow unconstrained blessings")
 	}
 	return caveats, nil
 }
