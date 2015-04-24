@@ -54,17 +54,17 @@ var (
 	errIgnoringMessageOnClosedVC      = reg(".errIgnoringMessageOnClosedVC", "ignoring message for Flow {3} on closed VC {4}")
 	errVomTypeDecoder                 = reg(".errVomDecoder", "failed to create vom type decoder{:3}")
 	errVomTypeEncoder                 = reg(".errVomEncoder", "failed to create vom type encoder{:3}")
+	errFailedToCreateFlowForAuth      = reg(".errFailedToCreateFlowForAuth", "failed to create a Flow for authentication{:3}")
+	errAuthFlowNotAccepted            = reg(".errAuthFlowNotAccepted", "authentication Flow not accepted{:3}")
 	errFailedToCreateFlowForWireType  = reg(".errFailedToCreateFlowForWireType", "fail to create a Flow for wire type{:3}")
 	errFlowForWireTypeNotAccepted     = reg(".errFlowForWireTypeNotAccepted", "Flow for wire type not accepted{:3}")
-	errFailedToCreateTLSFlow          = reg(".errFailedToCreateTLSFlow", "failed to create a Flow for setting up TLS{3:}")
+	errFailedToCreateFlowForDischarge = reg(".errFailedToCreateFlowForDischarge", "fail to create a Flow for discharge{:3}")
+	errFlowForDischargeNotAccepted    = reg(".errFlowForDischargesNotAccepted", "Flow for discharge not accepted{:3}")
 	errFailedToSetupEncryption        = reg(".errFailedToSetupEncryption", "failed to setup channel encryption{:3}")
-	errFailedToCreateFlowForAuth      = reg(".errFailedToCreateFlowForAuth", "failed to create a Flow for authentication{:3}")
 	errAuthFailed                     = reg(".errAuthFailed", "authentication failed{:3}")
 	errNoActiveListener               = reg(".errNoActiveListener", "no active listener on VCI {3}")
 	errFailedToCreateWriterForNewFlow = reg(".errFailedToCreateWriterForNewFlow", "failed to create writer for new flow({3}){:4}")
 	errFailedToEnqueueFlow            = reg(".errFailedToEnqueueFlow", "failed to enqueue flow at listener{:3}")
-	errTLSFlowNotAccepted             = reg(".errTLSFlowNotAccepted", "TLS handshake Flow not accepted{:3}")
-	errAuthFlowNotAccepted            = reg(".errAuthFlowNotAccepted", "authentication Flow not accepted{:3}")
 	errFailedToAcceptSystemFlows      = reg(".errFailedToAcceptSystemFlows", "failed to accept system flows{:3}")
 )
 
@@ -306,10 +306,9 @@ func (vc *VC) DispatchPayload(fid id.Flow, payload *iobuf.Slice) error {
 		payload.Release()
 		return verror.New(stream.ErrNetwork, nil, verror.New(errIgnoringMessageOnClosedVC, nil, fid, vc.VCI()))
 	}
-	// TLS decryption is stateful, so even if the message will be discarded
-	// because of other checks further down in this method, go through with
-	// the decryption.
-	if fid != HandshakeFlowID && fid != AuthFlowID {
+	// Authentication is done by encrypting/decrypting its payload by itself,
+	// so we do not go through with the decryption for auth flow.
+	if fid != AuthFlowID {
 		vc.waitForHandshakeLocked()
 		var err error
 		if payload, err = vc.crypter.Decrypt(payload); err != nil {
@@ -531,14 +530,6 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, sendKey func(*cryp
 	vers := vc.Version()
 
 	// Authenticate (exchange identities)
-	// Unfortunately, handshakeConn cannot be used for the authentication protocol.
-	// This is because the Crypter implementation uses crypto/tls.Conn,
-	// which can consume data beyond the handshake message boundaries (call
-	// to readFromUntil in
-	// https://code.google.com/p/go/source/browse/src/pkg/crypto/tls/conn.go?spec=svn654b2703fcc466a29692068ab56efedd09fb3d05&r=654b2703fcc466a29692068ab56efedd09fb3d05#539).
-	// This is not a problem when tls.Conn is used as intended (to wrap over a stream), but
-	// becomes a problem when shoehorning a block encrypter (Crypter interface) over this
-	// stream API.
 	authConn, err := vc.connectFID(AuthFlowID, systemFlowPriority)
 	if err != nil {
 		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForAuth, nil, err)))
@@ -555,7 +546,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, sendKey func(*cryp
 		if err != nil {
 			return vc.appendCloseReason(err)
 		}
-	} else {
+	} else if vers < version.RPCVersion10 {
 		go vc.recvDischargesLoop(authConn)
 	}
 
@@ -689,14 +680,14 @@ func (vc *VC) HandshakeAcceptedVC(
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()
 
-		if len(lBlessings.ThirdPartyCaveats()) > 0 {
+		if len(lBlessings.ThirdPartyCaveats()) > 0 && vers < version.RPCVersion10 {
 			go vc.sendDischargesLoop(authConn, dischargeClient, lBlessings.ThirdPartyCaveats(), dischargeExpiryBuffer)
 		} else {
 			authConn.Close()
 		}
 
 		// Accept system flows.
-		if err = vc.acceptSystemFlows(ln); err != nil {
+		if err = vc.acceptSystemFlows(ln, dischargeClient, dischargeExpiryBuffer); err != nil {
 			sendErr(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToAcceptSystemFlows, nil, err)))
 		}
 
@@ -808,10 +799,26 @@ func (vc *VC) connectSystemFlows() error {
 		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypeDecoder, nil, err))
 	}
 	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
+
+	if vc.Version() < version.RPCVersion10 {
+		return nil
+	}
+
+	vc.mu.Lock()
+	rBlessings := vc.remoteBlessings
+	vc.mu.Unlock()
+	if len(rBlessings.ThirdPartyCaveats()) > 0 {
+		conn, err = vc.connectFID(DischargeFlowID, systemFlowPriority)
+		if err != nil {
+			return verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForDischarge, nil, err))
+		}
+		go vc.recvDischargesLoop(conn)
+	}
+
 	return nil
 }
 
-func (vc *VC) acceptSystemFlows(ln stream.Listener) error {
+func (vc *VC) acceptSystemFlows(ln stream.Listener, dischargeClient DischargeClient, dischargeExpiryBuffer time.Duration) error {
 	conn, err := ln.Accept()
 	if err != nil {
 		return verror.New(errFlowForWireTypeNotAccepted, nil, err)
@@ -828,6 +835,23 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener) error {
 		return verror.New(errVomTypeDecoder, nil, err)
 	}
 	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
+
+	if vc.Version() < version.RPCVersion10 {
+		return nil
+	}
+
+	vc.mu.Lock()
+	lBlessings := vc.localBlessings
+	vc.mu.Unlock()
+	tpCaveats := lBlessings.ThirdPartyCaveats()
+	if len(tpCaveats) > 0 {
+		conn, err := ln.Accept()
+		if err != nil {
+			return verror.New(errFlowForDischargeNotAccepted, nil, err)
+		}
+		go vc.sendDischargesLoop(conn, dischargeClient, tpCaveats, dischargeExpiryBuffer)
+	}
+
 	return nil
 }
 
@@ -838,7 +862,7 @@ func (vc *VC) Encrypt(fid id.Flow, plaintext *iobuf.Slice) (cipherslice *iobuf.S
 		return nil, nil
 	}
 	vc.mu.Lock()
-	if fid == HandshakeFlowID || fid == AuthFlowID {
+	if fid == AuthFlowID {
 		cipherslice = plaintext
 	} else {
 		cipherslice, err = vc.crypter.Encrypt(plaintext)

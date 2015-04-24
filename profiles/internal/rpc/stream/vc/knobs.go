@@ -25,10 +25,11 @@ const (
 	// (and not any specific flow)
 	SharedFlowID = 0
 
-	// Special flow used for handshaking between VCs (e.g. setting up encryption).
-	HandshakeFlowID = 1
 	// Special flow used for authenticating between VCs.
 	AuthFlowID = 2
-	// Special Flow ID used for interchanging of VOM types between VCs.
+	// Special flow used for interchanging of VOM types between VCs.
 	TypeFlowID = 3
+	// Special flow over which discharges for third-party caveats
+	// on the server's blessings are sent.
+	DischargeFlowID = 4
 )

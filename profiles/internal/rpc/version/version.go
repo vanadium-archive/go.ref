@@ -21,7 +21,7 @@ var (
 	// change that's not both forward and backward compatible.
 	// Min should be incremented whenever we want to remove
 	// support for old protocol versions.
-	SupportedRange = &Range{Min: version.RPCVersion9, Max: version.RPCVersion9}
+	SupportedRange = &Range{Min: version.RPCVersion9, Max: version.RPCVersion10}
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc/version"
