@@ -57,7 +57,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 			listenSpec.AddressChooser = func(string, []net.Addr) ([]net.Addr, error) {
 				return []net.Addr{addr}, nil
 			}
-			runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
+			runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -70,7 +70,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser
 
-	runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
+	runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
 		return nil, nil, shutdown, err
 	}

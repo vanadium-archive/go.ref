@@ -19,6 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/netstate"
+	"v.io/x/lib/pubsub"
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/namespace"
@@ -31,8 +35,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/netstate"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/lib/publisher"
 	"v.io/x/ref/profiles/internal/lib/websocket"
@@ -75,12 +78,16 @@ func (c *fakeClock) Advance(steps uint) {
 	c.Unlock()
 }
 
-func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func testInternalNewServerWithPubsub(ctx *context.T, streamMgr stream.Manager, ns namespace.T, settingsPublisher *pubsub.Publisher, settingsStreamName string, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	client, err := InternalNewClient(streamMgr, ns)
 	if err != nil {
 		return nil, err
 	}
-	return InternalNewServer(ctx, streamMgr, ns, client, principal, opts...)
+	return InternalNewServer(ctx, streamMgr, ns, settingsPublisher, settingsStreamName, client, principal, opts...)
+}
+
+func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
+	return testInternalNewServerWithPubsub(ctx, streamMgr, ns, nil, "", principal, opts...)
 }
 
 type userType string

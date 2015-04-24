@@ -50,6 +50,8 @@ func setupRuntime() {
 		ac,
 		nil,
 		&listenSpec,
+		nil,
+		"",
 		commonFlags.RuntimeFlags(),
 		nil)
 	if err != nil {

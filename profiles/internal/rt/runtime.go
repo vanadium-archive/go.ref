@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"v.io/x/lib/pubsub"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
@@ -52,9 +54,11 @@ const (
 )
 
 type initData struct {
-	appCycle   v23.AppCycle
-	listenSpec *rpc.ListenSpec
-	protocols  []string
+	appCycle          v23.AppCycle
+	listenSpec        *rpc.ListenSpec
+	protocols         []string
+	settingsPublisher *pubsub.Publisher
+	settingsName      string
 }
 
 type vtraceDependency struct{}
@@ -71,14 +75,18 @@ func Init(
 	appCycle v23.AppCycle,
 	protocols []string,
 	listenSpec *rpc.ListenSpec,
+	settingsPublisher *pubsub.Publisher,
+	settingsName string,
 	flags flags.RuntimeFlags,
 	reservedDispatcher rpc.Dispatcher) (*Runtime, *context.T, v23.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
 
 	ctx = context.WithValue(ctx, initKey, &initData{
-		protocols:  protocols,
-		listenSpec: listenSpec,
-		appCycle:   appCycle,
+		protocols:         protocols,
+		listenSpec:        listenSpec,
+		appCycle:          appCycle,
+		settingsPublisher: settingsPublisher,
+		settingsName:      settingsName,
 	})
 
 	if reservedDispatcher != nil {
@@ -236,7 +244,7 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, 
 			Blessings: principal.BlessingStore().Default(),
 		})
 	}
-	server, err := irpc.InternalNewServer(ctx, sm, ns, r.GetClient(ctx), principal, otherOpts...)
+	server, err := irpc.InternalNewServer(ctx, sm, ns, id.settingsPublisher, id.settingsName, r.GetClient(ctx), principal, otherOpts...)
 	if err != nil {
 		return nil, err
 	}
