@@ -286,7 +286,7 @@ func (p *Proxy) acceptProcess(conn net.Conn) {
 		blessings = p.principal.BlessingStore().Default()
 	}
 
-	c, _, err := vif.AuthenticateAsServer(conn, reader, nil, p.principal, blessings, nil)
+	c, err := vif.AuthenticateAsServer(conn, reader, nil, p.principal, blessings, nil)
 	if err != nil {
 		processLog().Infof("Process %v failed to authenticate: %s", p, err)
 		return
