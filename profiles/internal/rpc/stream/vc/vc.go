@@ -816,18 +816,18 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener) error {
 	if err != nil {
 		return verror.New(errFlowForWireTypeNotAccepted, nil, err)
 	}
-	typeDec, err := vom.NewTypeDecoder(conn)
-	if err != nil {
-		conn.Close()
-		return verror.New(errVomTypeDecoder, nil, err)
-	}
-	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
 	typeEnc, err := vom.NewTypeEncoder(conn)
 	if err != nil {
 		conn.Close()
 		return verror.New(errVomTypeEncoder, nil, err)
 	}
 	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
+	typeDec, err := vom.NewTypeDecoder(conn)
+	if err != nil {
+		conn.Close()
+		return verror.New(errVomTypeDecoder, nil, err)
+	}
+	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
 	return nil
 }
 
