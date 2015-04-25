@@ -174,7 +174,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	// method that calls Stop on the app cycle manager (e.g. the Stop RPC)
 	// will precipitate an immediate process exit.
 	shutdownChan := signals.ShutdownOnSignals(ctx)
-	stop, err := starter.Start(ctx, starter.Args{
+	claimableName, stop, err := starter.Start(ctx, starter.Args{
 		Namespace: starter.NamespaceArgs{
 			ListenSpec: rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
 		},
@@ -196,6 +196,15 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 		return err
 	}
 	defer stop()
+	// Update the namespace roots to remove the server blessing from the
+	// endpoints.  This is needed to be able to publish into the 'global'
+	// mounttable before we have compatible credentials.
+	ctx, err = setNamespaceRootsForUnclaimedDevice(ctx)
+	if err != nil {
+		return err
+	}
+	// Manually mount the claimable service in the 'global' mounttable.
+	v23.GetNamespace(ctx).Mount(ctx, "claimable", claimableName, 0)
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
 	<-shutdownChan
@@ -414,9 +423,9 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}()
 
 	servicetest.ReadPID(t, dmh)
+	resolve(t, ctx, "claimable", 1)
 	// Brand new device manager must be claimed first.
-	claimDevice(t, ctx, "factoryDM", "mydevice", noPairingToken)
-
+	claimDevice(t, ctx, "claimable", "factoryDM", "mydevice", noPairingToken)
 	// Simulate an invalid envelope in the application repository.
 	*envelope = envelopeFromShell(sh, dmPauseBeforeStopEnv, deviceManagerCmd, "bogus", dmArgs...)
 
@@ -651,7 +660,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	// don't worry about its application envelope and current link.
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
@@ -980,9 +989,9 @@ func TestDeviceManagerClaim(t *testing.T) {
 	//installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
 
 	// Claim the device with an incorrect pairing token should fail.
-	claimDeviceExpectError(t, claimantCtx, "dm", "mydevice", "badtoken", impl.ErrInvalidPairingToken.ID)
+	claimDeviceExpectError(t, claimantCtx, "claimable", "mydevice", "badtoken", impl.ErrInvalidPairingToken.ID)
 	// But succeed with a valid pairing token
-	claimDevice(t, claimantCtx, "dm", "mydevice", pairingToken)
+	claimDevice(t, claimantCtx, "claimable", "dm", "mydevice", pairingToken)
 
 	// Installation should succeed since claimantRT is now the "owner" of
 	// the devicemanager.
@@ -1054,13 +1063,12 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
 
 	// On an unclaimed device manager, there will be no AccessLists.
-	deviceStub := device.DeviceClient("dm/device")
-	if _, _, err := deviceStub.GetPermissions(selfCtx); err == nil {
+	if _, _, err := device.DeviceClient("claimable").GetPermissions(selfCtx); err == nil {
 		t.Fatalf("GetPermissions should have failed but didn't.")
 	}
 
 	// Claim the devicemanager as "root/self/mydevice"
-	claimDevice(t, selfCtx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, selfCtx, "claimable", "dm", "mydevice", noPairingToken)
 	expectedAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
 		expectedAccessList[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
@@ -1073,6 +1081,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	// manager version.
 	md5hash := md5.Sum(b.Bytes())
 	expectedVersion := hex.EncodeToString(md5hash[:])
+	deviceStub := device.DeviceClient("dm/device")
 	perms, version, err := deviceStub.GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatal(err)
@@ -1151,7 +1160,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	}
 	dms := expect.NewSession(t, stdout, servicetest.ExpectTimeout)
 	servicetest.ReadPID(t, dms)
-	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 	revertDeviceExpectError(t, ctx, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
 
 	// Stop the device manager.
@@ -1208,7 +1217,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Device must be claimed before applications can be installed.
-	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 	// Install the app.
 	appID := installApp(t, ctx)
 	install1ID := path.Base(appID)
@@ -1363,7 +1372,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 		},
 	}
 	// Device must be claimed before apps can be installed.
-	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 	// Install the app.
 	appID := installApp(t, ctx, packages)
 
@@ -1452,17 +1461,17 @@ func TestAccountAssociation(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 	defer verifyNoRunningProcesses(t)
 
-	deviceStub := device.DeviceClient("dm/device")
 	// Attempt to list associations on the device manager without having
 	// claimed it.
-	if list, err := deviceStub.ListAssociations(otherCtx); err == nil {
+	if list, err := device.DeviceClient("claimable").ListAssociations(otherCtx); err == nil {
 		t.Fatalf("ListAssociations should fail on unclaimed device manager but did not: (%v, %v)", list, err)
 	}
 
 	// self claims the device manager.
-	claimDevice(t, selfCtx, "dm", "alice", noPairingToken)
+	claimDevice(t, selfCtx, "claimable", "dm", "alice", noPairingToken)
 
 	vlog.VI(2).Info("Verify that associations start out empty.")
+	deviceStub := device.DeviceClient("dm/device")
 	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association(nil))
 
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
@@ -1552,7 +1561,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 	defer verifyNoRunningProcesses(t)
 	// Claim the devicemanager with selfCtx as root/self/alice
-	claimDevice(t, selfCtx, "dm", "alice", noPairingToken)
+	claimDevice(t, selfCtx, "claimable", "dm", "alice", noPairingToken)
 
 	deviceStub := device.DeviceClient("dm/device")
 
@@ -1733,7 +1742,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
-	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	publisher, err := v23.GetPrincipal(ctx).BlessSelf("publisher")
 	if err != nil {

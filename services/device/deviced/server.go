@@ -124,7 +124,7 @@ func runServer(*cmdline.Command, []string) error {
 	// method that calls Stop on the app cycle manager (e.g. the Stop RPC)
 	// will precipitate an immediate process exit.
 	shutdownChan := signals.ShutdownOnSignals(ctx)
-	stop, err := starter.Start(ctx, starter.Args{Namespace: ns, Device: dev, MountGlobalNamespaceInLocalNamespace: true, Proxy: proxy})
+	_, stop, err := starter.Start(ctx, starter.Args{Namespace: ns, Device: dev, MountGlobalNamespaceInLocalNamespace: true, Proxy: proxy})
 	if err != nil {
 		return err
 	}

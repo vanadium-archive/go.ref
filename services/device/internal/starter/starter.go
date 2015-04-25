@@ -32,14 +32,14 @@ import (
 const pkgPath = "v.io/x/ref/services/device/internal/starter"
 
 var (
-	errCantSaveInfo       = verror.Register(pkgPath+".errCantSaveInfo", verror.NoRetry, "{1:}{2:} failed to save info{:_}")
-	errBadPort            = verror.Register(pkgPath+".errBadPort", verror.NoRetry, "{1:}{2:} invalid port{:_}")
-	errCantCreateProxy    = verror.Register(pkgPath+".errCantCreateProxy", verror.NoRetry, "{1:}{2:} Failed to create proxy{:_}")
-	errCantCreateEndpoint = verror.Register(pkgPath+".errCantCreateEndpoint", verror.NoRetry, "{1:}{2:} failed to create endpoint from namespace root {3}{:_}")
+	errCantSaveInfo      = verror.Register(pkgPath+".errCantSaveInfo", verror.NoRetry, "{1:}{2:} failed to save info{:_}")
+	errBadPort           = verror.Register(pkgPath+".errBadPort", verror.NoRetry, "{1:}{2:} invalid port{:_}")
+	errCantCreateProxy   = verror.Register(pkgPath+".errCantCreateProxy", verror.NoRetry, "{1:}{2:} Failed to create proxy{:_}")
+	errNoEndpointToClaim = verror.Register(pkgPath+".errNoEndpointToClaim", verror.NoRetry, "{1:}{2:} failed to find an endpoint for claiming{:_}")
 )
 
 type NamespaceArgs struct {
-	Name            string         // Name to publish the mounttable service under.
+	Name            string         // Name to publish the mounttable service under (after claiming).
 	ListenSpec      rpc.ListenSpec // ListenSpec for the server.
 	PermissionsFile string         // Path to the Permissions file used by the mounttable.
 	PersistenceDir  string         // Path to the directory holding persistent acls.
@@ -50,7 +50,7 @@ type NamespaceArgs struct {
 }
 
 type DeviceArgs struct {
-	Name            string         // Name to publish the device service under.
+	Name            string         // Name to publish the device service under (after claiming).
 	ListenSpec      rpc.ListenSpec // ListenSpec for the device server.
 	ConfigState     *config.State  // Configuration for the device.
 	TestMode        bool           // Whether the device is running in test mode or not.
@@ -81,12 +81,13 @@ type Args struct {
 
 // Start creates servers for the mounttable and device services and links them together.
 //
-// Returns the callback to be invoked to shutdown the services on success, or
-// an error on failure.
-func Start(ctx *context.T, args Args) (func(), error) {
+// Returns the object name for the claimable service (empty if already claimed),
+// a callback to be invoked to shutdown the services on success, or an error on
+// failure.
+func Start(ctx *context.T, args Args) (string, func(), error) {
 	// Is this binary compatible with the state on disk?
 	if err := impl.CheckCompatibility(args.Device.ConfigState.Root); err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	// In test mode, we skip writing the info file to disk, and we skip
 	// attempting to start the claimable service: the device must have been
@@ -94,7 +95,8 @@ func Start(ctx *context.T, args Args) (func(), error) {
 	// NewClaimableDispatcher needlessly prints a perms signature
 	// verification error to the logs.
 	if args.Device.TestMode {
-		return startClaimedDevice(ctx, args)
+		cleanup, err := startClaimedDevice(ctx, args)
+		return "", cleanup, err
 	}
 
 	// TODO(caprita): use some mechanism (a file lock or presence of entry
@@ -104,7 +106,7 @@ func Start(ctx *context.T, args Args) (func(), error) {
 		Pid: os.Getpid(),
 	}
 	if err := impl.SaveManagerInfo(filepath.Join(args.Device.ConfigState.Root, "device-manager"), mi); err != nil {
-		return nil, verror.New(errCantSaveInfo, ctx, err)
+		return "", nil, verror.New(errCantSaveInfo, ctx, err)
 	}
 
 	// If the device has not yet been claimed, start the mounttable and
@@ -115,26 +117,23 @@ func Start(ctx *context.T, args Args) (func(), error) {
 	if claimable == nil {
 		// Device has already been claimed, bypass claimable service
 		// stage.
-		return startClaimedDevice(ctx, args)
+		cleanup, err := startClaimedDevice(ctx, args)
+		return "", cleanup, err
 	}
-	stopClaimable, err := startClaimableDevice(ctx, claimable, args)
+	epName, stopClaimable, err := startClaimableDevice(ctx, claimable, args)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	stop := make(chan struct{})
 	stopped := make(chan struct{})
 	go waitToBeClaimedAndStartClaimedDevice(ctx, stopClaimable, claimed, stop, stopped, args)
-	return func() {
+	return epName, func() {
 		close(stop)
 		<-stopped
 	}, nil
 }
 
-func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) (func(), error) {
-	ctx, err := setNamespaceRootsForUnclaimedDevice(ctx)
-	if err != nil {
-		return nil, err
-	}
+func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) (string, func(), error) {
 	// TODO(caprita,ashankar): We create a context with a new stream manager
 	// that we can cancel once the device has been claimed. This gets around
 	// the following issue: if we publish the claimable server to the local
@@ -147,43 +146,37 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 	// gets confused trying to reuse the old connection and doesn't attempt
 	// to create a new connection).  We should get to the bottom of it.
 	ctx, cancel := context.WithCancel(ctx)
+	var err error
 	if ctx, err = v23.WithNewStreamManager(ctx); err != nil {
 		cancel()
-		return nil, err
-	}
-	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
-	if err != nil {
-		cancel()
-		return nil, err
+		return "", nil, err
 	}
 	server, err := v23.NewServer(ctx)
 	if err != nil {
-		stopMT()
 		cancel()
-		return nil, err
+		return "", nil, err
 	}
 	shutdown := func() {
 		vlog.Infof("Stopping claimable server...")
 		server.Stop()
 		vlog.Infof("Stopped claimable server.")
-		stopMT()
 		cancel()
 	}
 	endpoints, err := server.Listen(args.Device.ListenSpec)
 	if err != nil {
 		shutdown()
-		return nil, err
+		return "", nil, err
 	}
-	claimableServerName := args.Device.name(mtName)
-	if err := server.ServeDispatcher(claimableServerName, dispatcher); err != nil {
+	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		shutdown()
-		return nil, err
+		return "", nil, err
 	}
 	publicKey, err := v23.GetPrincipal(ctx).PublicKey().MarshalBinary()
 	if err != nil {
 		shutdown()
-		return nil, err
+		return "", nil, err
 	}
+	var epName string
 	if args.Device.ListenSpec.Proxy != "" {
 		for {
 			p := server.Status().Proxies
@@ -192,13 +185,19 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 				time.Sleep(time.Second)
 				continue
 			}
-			vlog.Infof("Proxied address: %s", p[0].Endpoint.Name())
+			epName = p[0].Endpoint.Name()
+			vlog.Infof("Proxied address: %s", epName)
 			break
 		}
+	} else {
+		if len(endpoints) == 0 {
+			return "", nil, verror.New(errNoEndpointToClaim, ctx, err)
+		}
+		epName = endpoints[0].Name()
 	}
-	vlog.Infof("Unclaimed device manager (%v) published as %v with public_key: %s", endpoints[0].Name(), claimableServerName, base64.URLEncoding.EncodeToString(publicKey))
+	vlog.Infof("Unclaimed device manager (%v) with public_key: %s", epName, base64.URLEncoding.EncodeToString(publicKey))
 	vlog.FlushLog()
-	return shutdown, nil
+	return epName, shutdown, nil
 }
 
 func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), claimed, stop <-chan struct{}, stopped chan<- struct{}, args Args) {
@@ -368,44 +367,4 @@ func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
 			}
 		}(root)
 	}
-}
-
-// Unclaimed devices typically have Principals that recognize no other
-// authoritative public keys than their own. As a result, they will fail to
-// authorize any other services.
-//
-// With no information to authenticate or authorize peers (including the
-// mounttable at the namespace root), this unclaimed device manager will be
-// unable to make any outgoing RPCs.
-//
-// As a workaround, reconfigure it to "authorize any root mounttable" by
-// removing references to the expected blessings of the namespace root.  This
-// will allow the unclaimed device manager to mount itself.
-//
-// TODO(ashankar,caprita): The more secure fix would be to ensure that an
-// unclaimed device is configured to recognize the blessings presented by the
-// mounttable it is configured to talk to. Of course, if the root mounttable is
-// "discovered" as opposed to "configured", then this new device will have to
-// return to either not mounting itself (and being claimed via some discovery
-// protocol like mdns or bluetooth) or ignoring the blessings of the namespace
-// root.
-func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
-	origroots := v23.GetNamespace(ctx).Roots()
-	roots := make([]string, len(origroots))
-	for i, orig := range origroots {
-		addr, suffix := naming.SplitAddressName(orig)
-		origep, err := v23.NewEndpoint(addr)
-		if err != nil {
-			return nil, verror.New(errCantCreateEndpoint, ctx, orig, err)
-		}
-		ep := naming.FormatEndpoint(
-			origep.Addr().Network(),
-			origep.Addr().String(),
-			origep.RoutingID(),
-			naming.ServesMountTable(origep.ServesMountTable()))
-		roots[i] = naming.JoinAddressName(ep, suffix)
-	}
-	vlog.Infof("Changing namespace roots from %v to %v", origroots, roots)
-	ctx, _, err := v23.WithNewNamespace(ctx, roots...)
-	return ctx, err
 }

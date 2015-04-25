@@ -170,6 +170,36 @@ func V23TestDeviceManager(i *v23tests.T) {
 
 	deviceScript.Start(deviceScriptArguments...).WaitOrDie(os.Stdout, os.Stderr)
 	deviceScript.Start("start").WaitOrDie(os.Stdout, os.Stderr)
+	// Grab the endpoint for the claimable service from the device manager's
+	// log.
+	dmLog := filepath.Join(dmInstallDir, "dmroot/device-manager/logs/deviced.INFO")
+	var claimableEP string
+	expiry := time.Now().Add(30 * time.Second)
+	for {
+		if time.Now().After(expiry) {
+			i.Fatalf("Timed out looking for claimable endpoint in %v", dmLog)
+		}
+		startLog, err := ioutil.ReadFile(dmLog)
+		if err != nil {
+			i.Logf("Couldn't read log %v: %v", dmLog, err)
+			time.Sleep(time.Second)
+			continue
+		}
+		re := regexp.MustCompile(`Unclaimed device manager \((.*)\)`)
+		matches := re.FindSubmatch(startLog)
+		if len(matches) == 0 {
+			i.Logf("Couldn't find match in %v [%v]", dmLog, startLog)
+			time.Sleep(time.Second)
+			continue
+		}
+		if len(matches) != 2 {
+			i.Fatalf("Wrong match in %v (%d) %v", dmLog, len(matches), string(matches[0]))
+		}
+		claimableEP = string(matches[1])
+		break
+	}
+	// Claim the device as "root/alice/myworkstation".
+	deviceBin.Start("claim", claimableEP, "myworkstation")
 
 	resolve := func(name string) string {
 		resolver := func() (interface{}, error) {
@@ -186,31 +216,9 @@ func V23TestDeviceManager(i *v23tests.T) {
 		}
 		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
 	}
+
+	// Wait for the device manager to publish its mount table entry.
 	mtEP := resolve(mtName)
-
-	// Verify that device manager's mounttable is published under the expected
-	// name (hostname).
-	if got := namespaceBin.Run("glob", mtName); len(got) == 0 {
-		i.Fatalf("glob failed for %q", mtName)
-	}
-
-	// Claim the device as "root/alice/myworkstation".
-	deviceBin.Start("claim", mtName+"/devmgr/device", "myworkstation")
-
-	resolveChange := func(name, old string) string {
-		resolver := func() (interface{}, error) {
-			inv := namespaceBin.Start("resolve", name)
-			defer inv.Wait(nil, os.Stderr)
-			if r := strings.TrimRight(inv.Output(), "\n"); len(r) > 0 && r != old {
-				return r, nil
-			}
-			return nil, nil
-		}
-		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
-	}
-
-	// Wait for the device manager to update its mount table entry.
-	mtEP = resolveChange(mtName, mtEP)
 
 	if withSuid {
 		deviceBin.Start("associate", "add", mtName+"/devmgr/device", appUserFlag, "root/alice")
@@ -355,6 +363,17 @@ func V23TestDeviceManager(i *v23tests.T) {
 
 	// Update the device manager.
 	deviceBin.Run("update", mtName+"/devmgr/device")
+	resolveChange := func(name, old string) string {
+		resolver := func() (interface{}, error) {
+			inv := namespaceBin.Start("resolve", name)
+			defer inv.Wait(nil, os.Stderr)
+			if r := strings.TrimRight(inv.Output(), "\n"); len(r) > 0 && r != old {
+				return r, nil
+			}
+			return nil, nil
+		}
+		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
+	}
 	mtEP = resolveChange(mtName, mtEP)
 
 	// Verify that device manager's mounttable is still published under the

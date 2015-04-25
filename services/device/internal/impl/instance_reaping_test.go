@@ -30,7 +30,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	// don't worry about its application envelope and current link.
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
@@ -110,7 +110,7 @@ func TestReapReconciliation(t *testing.T) {
 
 	dmh := servicetest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)

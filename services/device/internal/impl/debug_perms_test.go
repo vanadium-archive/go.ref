@@ -45,7 +45,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	// Set up the device manager.
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
@@ -209,7 +209,7 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	hjCtx := ctxWithNewPrincipal(t, selfCtx, idp, "hackerjoe")
 
 	// Bob claims the device manager.
-	claimDevice(t, bobCtx, "dm", "mydevice", noPairingToken)
+	claimDevice(t, bobCtx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create some globbing test vectors.
 	dmGlobtests := []globTestVector{

@@ -94,25 +94,24 @@ func deviceStub(name string) device.DeviceClientMethods {
 	return device.DeviceClient(deviceName)
 }
 
-func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken string) {
+func claimDevice(t *testing.T, ctx *context.T, claimableName, deviceName, extension, pairingToken string) {
 	// Setup blessings to be granted to the claimed device
 	g := &granter{extension: extension}
 	s := options.SkipServerEndpointAuthorization{}
 	// Call the Claim RPC: Skip server authorization because the unclaimed
 	// device presents nothing that can be used to recognize it.
-	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g, s); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "%q.Claim(%q) failed: %v [%v]", name, pairingToken, verror.ErrorID(err), err))
+	if err := device.ClaimableClient(claimableName).Claim(ctx, pairingToken, g, s); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Claim(%q) failed: %v [%v]", claimableName, pairingToken, verror.ErrorID(err), err))
 	}
 	// Wait for the device to remount itself with the device service after
 	// being claimed.
-	// (Detected by the next claim failing with an error other than
-	// AlreadyClaimed)
 	start := time.Now()
 	for {
-		if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g, s); verror.ErrorID(err) != impl.ErrDeviceAlreadyClaimed.ID {
+		_, err := v23.GetNamespace(ctx).Resolve(ctx, deviceName)
+		if err == nil {
 			return
 		}
-		vlog.VI(4).Infof("Claimable server at %q has not stopped yet", name)
+		vlog.VI(4).Infof("Resolve(%q) failed: %v", err)
 		time.Sleep(time.Millisecond)
 		if elapsed := time.Since(start); elapsed > time.Minute {
 			t.Fatalf("Device hasn't remounted itself in %v since it was claimed", elapsed)
@@ -629,4 +628,25 @@ func verifyNoRunningProcesses(t *testing.T) {
 	if impl.RunningChildrenProcesses() {
 		t.Errorf("device manager incorrectly terminating with child processes still running")
 	}
+}
+
+func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
+	origroots := v23.GetNamespace(ctx).Roots()
+	roots := make([]string, len(origroots))
+	for i, orig := range origroots {
+		addr, suffix := naming.SplitAddressName(orig)
+		origep, err := v23.NewEndpoint(addr)
+		if err != nil {
+			return nil, err
+		}
+		ep := naming.FormatEndpoint(
+			origep.Addr().Network(),
+			origep.Addr().String(),
+			origep.RoutingID(),
+			naming.ServesMountTable(origep.ServesMountTable()))
+		roots[i] = naming.JoinAddressName(ep, suffix)
+	}
+	vlog.Infof("Changing namespace roots from %v to %v", origroots, roots)
+	ctx, _, err := v23.WithNewNamespace(ctx, roots...)
+	return ctx, err
 }
