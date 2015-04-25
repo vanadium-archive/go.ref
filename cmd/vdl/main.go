@@ -348,8 +348,8 @@ var (
 		{"v.io", "io/v"},
 	}
 	optPathToJSCore string
-	// TODO(bjornick): Add javascript to the default gen langs.
-	optGenLangs = genLangs{vdltool.GenLanguageGo, vdltool.GenLanguageJava}
+	// Default to just running the go lang; other langs need special setup.
+	optGenLangs = genLangs{vdltool.GenLanguageGo}
 )
 
 // Root returns the root command for the VDL tool.

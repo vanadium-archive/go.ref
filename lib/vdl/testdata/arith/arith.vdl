@@ -2,29 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package arith is an example of an IdL definition in vanadium.  The syntax for
-// IdL files is similar to, but not identical to, Go.  Here are the main
-// concepts:
-//   * PACKAGES - Just like in Go you must define the package at the beginning
-//     of an IdL file, and everything defined in the file is part of this
-//     package.  By convention all files in the same dir should be in the same
-//     package.
-//   * IMPORTS - Just like in Go you can import other idl packages, and you may
-//     assign a local package name, or if unspecified the basename of the import
-//     path is used as the import package name.
-//   * DATA TYPES - Just like in Go you can define data types.  You get most of
-//     the primitives (int32, float64, string, etc), the "error" built-in, and a
-//     special "any" built-in described below.  In addition you can create
-//     composite types like arrays, structs, etc.
-//   * CONSTS - Just like in Go you can define constants, and numerics are
-//     "infinite precision" within expressions.  Unlike Go numerics must be
-//     typed to be used as const definitions or tags.
-//   * INTERFACES - Just like in Go you can define interface types, which are
-//     just a set of methods.  Interfaces can embed other interfaces.  Unlike
-//     Go, you cannot use an interface as a data type; interfaces are purely
-//     method sets.
-//   * ERRORS - Errors may be defined in IdL files, and unlike Go they work
-//     across separate address spaces.
+// Package arith is a vdl test package with imports.
 package arith
 
 // Test the import mechanism.

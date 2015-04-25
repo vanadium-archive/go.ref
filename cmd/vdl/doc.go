@@ -85,7 +85,7 @@ The vdl generate flags are:
    Same semantics as --go-out-dir but applies to js code generation.
  -js-relative-path-to-core=
    If set, this is the relative path from js-out-dir to the root of the JS core
- -lang=Go,Java
+ -lang=Go
    Comma-separated list of languages to generate, currently supporting
    Go,Java,Javascript
  -status=true
@@ -155,7 +155,7 @@ The vdl audit flags are:
    Same semantics as --go-out-dir but applies to js code generation.
  -js-relative-path-to-core=
    If set, this is the relative path from js-out-dir to the root of the JS core
- -lang=Go,Java
+ -lang=Go
    Comma-separated list of languages to generate, currently supporting
    Go,Java,Javascript
  -status=true
