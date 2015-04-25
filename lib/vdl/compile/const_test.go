@@ -611,41 +611,80 @@ var constTests = []struct {
 		"TypeObjectBool",
 		cp{{"a", `const Res = typeobject(bool)`, vdl.TypeObjectValue(vdl.BoolType), ""}}},
 	{
+		"TypeObjectBoolInvalid",
+		cp{{"a", `const Res = bool`, nil, "bool is a type"}}},
+	{
 		"TypeObjectString",
 		cp{{"a", `const Res = typeobject(string)`, vdl.TypeObjectValue(vdl.StringType), ""}}},
+	{
+		"TypeObjectStringInvalid",
+		cp{{"a", `const Res = string`, nil, "string is a type"}}},
 	{
 		"TypeObjectInt32",
 		cp{{"a", `const Res = typeobject(int32)`, vdl.TypeObjectValue(vdl.Int32Type), ""}}},
 	{
+		"TypeObjectInt32Invalid",
+		cp{{"a", `const Res = int32`, nil, "int32 is a type"}}},
+	{
 		"TypeObjectFloat32",
 		cp{{"a", `const Res = typeobject(float32)`, vdl.TypeObjectValue(vdl.Float32Type), ""}}},
+	{
+		"TypeObjectFloat32Invalid",
+		cp{{"a", `const Res = float32`, nil, "float32 is a type"}}},
 	{
 		"TypeObjectComplex64",
 		cp{{"a", `const Res = typeobject(complex64)`, vdl.TypeObjectValue(vdl.Complex64Type), ""}}},
 	{
+		"TypeObjectComplex64Invalid",
+		cp{{"a", `const Res = complex64`, nil, "complex64 is a type"}}},
+	{
 		"TypeObjectTypeObject",
 		cp{{"a", `const Res = typeobject(typeobject)`, vdl.TypeObjectValue(vdl.TypeObjectType), ""}}},
+	{
+		"TypeObjectTypeObjectInvalid",
+		cp{{"a", `const Res = typeobject`, nil, "syntax error"}}},
 	{
 		"TypeObjectList",
 		cp{{"a", `const Res = typeobject([]string)`, vdl.TypeObjectValue(vdl.ListType(vdl.StringType)), ""}}},
 	{
+		"TypeObjectListInvalid",
+		cp{{"a", `const Res = []string`, nil, `syntax error`}}},
+	{
 		"TypeObjectArray",
 		cp{{"a", `type T [3]int64; const Res = typeobject(T)`, vdl.TypeObjectValue(vdl.NamedType("p.kg/a.T", vdl.ArrayType(3, vdl.Int64Type))), ""}}},
+	{
+		"TypeObjectArrayInvalid",
+		cp{{"a", `const Res = [3]int64`, nil, `syntax error`}}},
 	{
 		"TypeObjectSet",
 		cp{{"a", `const Res = typeobject(set[string])`, vdl.TypeObjectValue(vdl.SetType(vdl.StringType)), ""}}},
 	{
+		"TypeObjectSetInvalid",
+		cp{{"a", `const Res = set[string]`, nil, `syntax error`}}},
+	{
 		"TypeObjectMap",
 		cp{{"a", `const Res = typeobject(map[string]int32)`, vdl.TypeObjectValue(vdl.MapType(vdl.StringType, vdl.Int32Type)), ""}}},
+	{
+		"TypeObjectMapInvalid",
+		cp{{"a", `const Res = map[string]int32`, nil, `syntax error`}}},
 	{
 		"TypeObjectStruct",
 		cp{{"a", `type A struct{X int64;Y string;Z bool}; const Res = typeobject(A)`, vdl.TypeObjectValue(makeStructType("p.kg/a.A")), ""}}},
 	{
+		"TypeObjectStructInvalid",
+		cp{{"a", `type A struct{X int64;Y string;Z bool}; const Res = A`, nil, `A is a type`}}},
+	{
 		"TypeObjectStructField",
 		cp{{"a", `type A struct{T typeobject}; const Res = A{typeobject(bool)}`, makeStructTypeObject("p.kg/a.A", vdl.BoolType), ""}}},
 	{
+		"TypeObjectStructFieldInvalid",
+		cp{{"a", `type A struct{T typeobject}; const Res = A{bool}`, nil, `bool is a type`}}},
+	{
 		"TypeObjectEnum",
 		cp{{"a", `type A enum{X;Y;Z}; const Res = typeobject(A)`, vdl.TypeObjectValue(vdl.NamedType("p.kg/a.A", vdl.EnumType("X", "Y", "Z"))), ""}}},
+	{
+		"TypeObjectEnumInvalid",
+		cp{{"a", `type A enum{X;Y;Z}; const Res = A`, nil, `A is a type`}}},
 
 	// Test named consts.
 	{
