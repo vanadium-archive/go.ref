@@ -107,6 +107,8 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
       if (numCaveats == 1) {
         $('.removeCaveat').hide();
       }
+      $('.addCaveat').show();
+      $('.caveats').last().show();
     });
 
     // Get the timezoneOffset for the server to create a correct expiry caveat.
@@ -145,10 +147,10 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
       <span>{{.BlessingName}}/{{.Extension}}/</span><input name="blessingExtension" type="text" placeholder="extension">
     </div>
     <input type="text" class="hidden" id="timezoneOffset" name="timezoneOffset">
-    <div>
+  </div>
+  <div>
       The blessing name contains your email and will be visible to any peers that
       this blessing is shared with, e.g. when you make a RPC.
-    </div>
   </div>
 
   <h4>Caveats</h4>
