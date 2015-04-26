@@ -47,6 +47,8 @@ var (
 	// agent should restart it.  Consider changing this to use the unix
 	// socket for this purpose.
 	restartExitCode = flag.String("restart-exit-code", "", "If non-empty, will restart the command when it exits, provided that the command's exit code matches the value of this flag.  The value must be an integer, or an integer preceded by '!' (in which case all exit codes except the flag will trigger a restart.")
+
+	newname = flag.String("new-principal-blessing-name", "", "If creating a new principal (--v23.credentials does not exist), then have it blessed with this name.")
 )
 
 func main() {
@@ -203,7 +205,11 @@ func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 	if err != nil {
 		return nil, pass, err
 	}
-	vsecurity.InitDefaultBlessings(p, "agent_principal")
+	name := *newname
+	if len(name) == 0 {
+		name = "agent_principal"
+	}
+	vsecurity.InitDefaultBlessings(p, name)
 	return p, pass, nil
 }
 
