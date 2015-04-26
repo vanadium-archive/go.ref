@@ -25,6 +25,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -282,7 +283,9 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 	// under.
 	ls := v23.GetListenSpec(ctx)
 	ls.Addrs = rpc.ListenAddrs{{protocol, addr}}
-	shutdown, ep, err := roaming.NewProxy(ctx, ls)
+	// TODO(ashankar): Revisit this choice of security.AllowEveryone
+	// See: https://v.io/i/387
+	shutdown, ep, err := roaming.NewProxy(ctx, ls, security.AllowEveryone())
 	if err != nil {
 		return nil, verror.New(errCantCreateProxy, ctx, err)
 	}

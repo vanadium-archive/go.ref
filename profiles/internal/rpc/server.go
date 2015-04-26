@@ -34,6 +34,7 @@ import (
 	"v.io/x/ref/profiles/internal/lib/publisher"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream"
+	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 )
 
@@ -88,6 +89,7 @@ type server struct {
 	state             serverState          // track state of the server.
 	streamMgr         stream.Manager       // stream manager to listen for new flows.
 	publisher         publisher.Publisher  // publisher to publish mounttable mounts.
+	dc                vc.DischargeClient   // fetches discharges of blessings
 	listenerOpts      []stream.ListenerOpt // listener opts for Listen.
 	settingsPublisher *pubsub.Publisher    // pubsub publisher for dhcp
 	settingsName      string               // pubwsub stream name for dhcp
@@ -234,8 +236,8 @@ func InternalNewServer(
 	}
 	// Make dischargeExpiryBuffer shorter than the VC discharge buffer to ensure we have fetched
 	// the discharges by the time the VC asks for them.`
-	dc := InternalNewDischargeClient(ctx, client, dischargeExpiryBuffer-(5*time.Second))
-	s.listenerOpts = append(s.listenerOpts, dc)
+	s.dc = InternalNewDischargeClient(ctx, client, dischargeExpiryBuffer-(5*time.Second))
+	s.listenerOpts = append(s.listenerOpts, s.dc)
 	s.listenerOpts = append(s.listenerOpts, vc.DialContext{ctx})
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
 	// TODO(caprita): revist printing the blessings with %s, and
@@ -464,7 +466,8 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	if err != nil {
 		return nil, nil, verror.New(errFailedToResolveProxy, s.ctx, proxy, err)
 	}
-	ln, ep, err := s.streamMgr.Listen(inaming.Network, resolved, s.principal, s.blessings, s.listenerOpts...)
+	opts := append([]stream.ListenerOpt{proxyAuth{s}}, s.listenerOpts...)
+	ln, ep, err := s.streamMgr.Listen(inaming.Network, resolved, s.principal, s.blessings, opts...)
 	if err != nil {
 		return nil, nil, verror.New(errFailedToListenForProxy, s.ctx, resolved, err)
 	}
@@ -1334,3 +1337,41 @@ func (fs *flowServer) RemoteEndpoint() naming.Endpoint {
 	//nologcall
 	return fs.flow.RemoteEndpoint()
 }
+
+type proxyAuth struct {
+	s *server
+}
+
+func (a proxyAuth) RPCStreamListenerOpt() {}
+
+func (a proxyAuth) Login(proxy stream.Flow) (security.Blessings, []security.Discharge, error) {
+	var (
+		principal = a.s.principal
+		dc        = a.s.dc
+		ctx       = a.s.ctx
+	)
+	if principal == nil {
+		return security.Blessings{}, nil, nil
+	}
+	proxyNames, _ := security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
+		LocalPrincipal:   principal,
+		RemoteBlessings:  proxy.RemoteBlessings(),
+		RemoteDischarges: proxy.RemoteDischarges(),
+		RemoteEndpoint:   proxy.RemoteEndpoint(),
+		LocalEndpoint:    proxy.LocalEndpoint(),
+	}))
+	blessings := principal.BlessingStore().ForPeer(proxyNames...)
+	tpc := blessings.ThirdPartyCaveats()
+	if len(tpc) == 0 {
+		return blessings, nil, nil
+	}
+	// Ugh! Have to convert from proxyNames to BlessingPatterns
+	proxyPats := make([]security.BlessingPattern, len(proxyNames))
+	for idx, n := range proxyNames {
+		proxyPats[idx] = security.BlessingPattern(n)
+	}
+	discharges := dc.PrepareDischarges(ctx, tpc, security.DischargeImpetus{Server: proxyPats})
+	return blessings, discharges, nil
+}
+
+var _ manager.ProxyAuthenticator = proxyAuth{}

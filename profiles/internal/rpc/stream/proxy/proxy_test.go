@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/v23/verror"
 
 	_ "v.io/x/ref/profiles"
@@ -33,20 +33,16 @@ import (
 //go:generate v23 test generate
 
 func TestProxy(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := v23Init()
 	defer shutdown()
 
-	pproxy := testutil.NewPrincipal("proxy")
-
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), ctx, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer shutdown()
 	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
-
-	vlog.Infof("PROXYEP: %s", proxyEp)
 
 	// Create the stream.Manager for the server.
 	server1 := manager.InternalNew(naming.FixedRoutingID(0x1111111111111111))
@@ -102,12 +98,60 @@ func TestProxy(t *testing.T) {
 	}
 }
 
-func TestDuplicateRoutingID(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+func TestProxyAuthorization(t *testing.T) {
+	ctx, shutdown := v23Init()
 	defer shutdown()
 
-	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), ctx, testAuth{"alice", "carol"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shutdown()
+
+	var (
+		alice = testutil.NewPrincipal("alice")
+		bob   = testutil.NewPrincipal("bob")
+		carol = testutil.NewPrincipal("carol")
+		dave  = testutil.NewPrincipal("dave")
+	)
+	// Make the proxy recognize "alice", "bob" and "carol", but not "dave"
+	v23.GetPrincipal(ctx).AddToRoots(alice.BlessingStore().Default())
+	v23.GetPrincipal(ctx).AddToRoots(bob.BlessingStore().Default())
+	v23.GetPrincipal(ctx).AddToRoots(carol.BlessingStore().Default())
+
+	testcases := []struct {
+		p  security.Principal
+		ok bool
+	}{
+		{alice, true}, // passes the auth policy
+		{bob, false},  // recognized, but not included in auth policy
+		{carol, true}, // passes the auth policy
+		{dave, false}, // not recognized, thus doesn't pass the auth policy
+	}
+	for idx, test := range testcases {
+		server := manager.InternalNew(naming.FixedRoutingID(uint64(idx)))
+		_, ep, err := server.Listen(proxyEp.Network(), proxyEp.String(), test.p, test.p.BlessingStore().Default(), proxyAuth{test.p})
+		if (err == nil) != test.ok {
+			t.Errorf("Got ep=%v, err=%v - wanted error:%v", ep, err, !test.ok)
+		}
+		server.Shutdown()
+	}
+}
+
+type proxyAuth struct {
+	p security.Principal
+}
+
+func (proxyAuth) RPCStreamListenerOpt() {}
+func (a proxyAuth) Login(stream.Flow) (security.Blessings, []security.Discharge, error) {
+	return a.p.BlessingStore().Default(), nil, nil
+}
+
+func TestDuplicateRoutingID(t *testing.T) {
+	ctx, shutdown := v23Init()
+	defer shutdown()
+
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), ctx, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,11 +181,11 @@ func TestDuplicateRoutingID(t *testing.T) {
 }
 
 func TestProxyAuthentication(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := v23Init()
 	defer shutdown()
 
-	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
+	pproxy := v23.GetPrincipal(ctx)
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), ctx, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,16 +212,15 @@ func TestProxyAuthentication(t *testing.T) {
 }
 
 func TestServerBlessings(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := v23Init()
 	defer shutdown()
 
 	var (
-		pproxy  = testutil.NewPrincipal("proxy")
 		pserver = testutil.NewPrincipal("server")
 		pclient = testutil.NewPrincipal("client")
 	)
 
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), ctx, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,11 +264,10 @@ func TestServerBlessings(t *testing.T) {
 }
 
 func TestHostPort(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := v23Init()
 	defer shutdown()
 
-	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), ctx, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,11 +286,10 @@ func TestHostPort(t *testing.T) {
 }
 
 func TestClientBecomesServer(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := v23Init()
 	defer shutdown()
 
-	pproxy := testutil.NewPrincipal("proxy")
-	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), ctx, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +343,7 @@ func TestClientBecomesServer(t *testing.T) {
 }
 
 func testProxyIdleTimeout(t *testing.T, testServer bool) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := v23Init()
 	defer shutdown()
 
 	const (
@@ -313,7 +354,6 @@ func testProxyIdleTimeout(t *testing.T, testServer bool) {
 	)
 
 	var (
-		pproxy  = testutil.NewPrincipal("proxy")
 		pserver = testutil.NewPrincipal("server")
 		pclient = testutil.NewPrincipal("client")
 
@@ -329,7 +369,7 @@ func testProxyIdleTimeout(t *testing.T, testServer bool) {
 	// Pause the idle timers.
 	triggerTimers := vif.SetFakeTimers()
 
-	Proxy, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, v23.GetListenSpec(ctx))
+	Proxy, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), ctx, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,4 +483,27 @@ func readFlow(t *testing.T, ln stream.Listener, read chan<- string) {
 		}
 		buf.Write(tmp[:n])
 	}
+}
+
+func v23Init() (*context.T, func()) {
+	ctx, shutdown := test.InitForTest()
+	ctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("proxy"))
+	if err != nil {
+		panic(err)
+	}
+	return ctx, shutdown
+}
+
+type testAuth []string
+
+func (l testAuth) Authorize(ctx *context.T, call security.Call) error {
+	remote, rejected := security.RemoteBlessingNames(ctx, call)
+	for _, n := range remote {
+		for _, a := range l {
+			if n == a {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("%v not in authorized set of %v (rejected: %v)", remote, l, rejected)
 }

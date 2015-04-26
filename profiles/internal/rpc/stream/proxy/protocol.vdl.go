@@ -10,12 +10,20 @@ package proxy
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+
+	// VDL user imports
+	"v.io/v23/security"
 )
 
 // Request is the message sent by a server to request that the proxy route
 // traffic intended for the server's RoutingId to the network connection
 // between the server and the proxy.
 type Request struct {
+	// Blessings of the server that wishes to be proxied.
+	// Used to authorize the use of the proxy.
+	Blessings security.Blessings
+	// Discharges required to make Blessings valid.
+	Discharges []security.Discharge
 }
 
 func (Request) __VDLReflect(struct {

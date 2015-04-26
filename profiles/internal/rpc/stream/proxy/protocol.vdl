@@ -4,6 +4,8 @@
 
 package proxy
 
+import "v.io/v23/security"
+
 // The proxy protocol is:
 // (1) Server establishes a VC to the proxy to register its routing id and authenticate.
 // (2) The server opens a flow and sends a "Request" message and waits for a "Response"
@@ -16,6 +18,11 @@ package proxy
 // traffic intended for the server's RoutingId to the network connection
 // between the server and the proxy.
 type Request struct {
+  // Blessings of the server that wishes to be proxied.
+  // Used to authorize the use of the proxy.
+  Blessings security.WireBlessings
+  // Discharges required to make Blessings valid.
+  Discharges []security.WireDischarge
 }
 
 // Response is sent by the proxy to the server after processing Request.

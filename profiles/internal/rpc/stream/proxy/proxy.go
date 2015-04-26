@@ -7,6 +7,7 @@ package proxy
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"sync"
 	"time"
 
@@ -77,10 +78,12 @@ var (
 // Proxy routes virtual circuit (VC) traffic between multiple underlying
 // network connections.
 type Proxy struct {
+	ctx        *context.T
 	ln         net.Listener
 	rid        naming.RoutingID
 	principal  security.Principal
 	blessings  security.Blessings
+	authorizer security.Authorizer
 	mu         sync.RWMutex
 	servers    *servermap
 	processes  map[*process]struct{}
@@ -182,17 +185,17 @@ func (m *servermap) List() []string {
 }
 
 // New creates a new Proxy that listens for network connections on the provided
-// (network, address) pair and routes VC traffic between accepted connections.
-// TODO(mattr): This should take a ListenSpec instead of network, address, and
-// pubAddress.  However using a ListenSpec requires a great deal of supporting
-// code that should be refactored out of v.io/x/ref/profiles/internal/rpc/server.go.
-func New(ctx *context.T, spec rpc.ListenSpec, names ...string) (shutdown func(), endpoint naming.Endpoint, err error) {
+// ListenSpec and routes VC traffic between accepted connections.
+//
+// Servers wanting to "listen through the proxy" will only be allowed to do so
+// if the blessings they present are accepted to the provided authorization
+// policy (authorizer).
+func New(ctx *context.T, spec rpc.ListenSpec, authorizer security.Authorizer, names ...string) (shutdown func(), endpoint naming.Endpoint, err error) {
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		return nil, nil, err
 	}
-
-	proxy, err := internalNew(rid, v23.GetPrincipal(ctx), spec)
+	proxy, err := internalNew(rid, ctx, spec, authorizer)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -221,7 +224,7 @@ func New(ctx *context.T, spec rpc.ListenSpec, names ...string) (shutdown func(),
 	return shutdown, proxy.endpoint(), nil
 }
 
-func internalNew(rid naming.RoutingID, principal security.Principal, spec rpc.ListenSpec) (*Proxy, error) {
+func internalNew(rid naming.RoutingID, ctx *context.T, spec rpc.ListenSpec, authorizer security.Authorizer) (*Proxy, error) {
 	if len(spec.Addrs) == 0 {
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errEmptyListenSpec, nil))
 	}
@@ -245,19 +248,23 @@ func internalNew(rid naming.RoutingID, principal security.Principal, spec rpc.Li
 		ln.Close()
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errNoAccessibleAddresses, nil, ln.Addr().String()))
 	}
-
+	if authorizer == nil {
+		authorizer = security.DefaultAuthorizer()
+	}
 	proxy := &Proxy{
-		ln:        ln,
-		rid:       rid,
-		servers:   &servermap{m: make(map[naming.RoutingID]*server)},
-		processes: make(map[*process]struct{}),
+		ctx:        ctx,
+		ln:         ln,
+		rid:        rid,
+		authorizer: authorizer,
+		servers:    &servermap{m: make(map[naming.RoutingID]*server)},
+		processes:  make(map[*process]struct{}),
 		// TODO(cnicolaou): should use all of the available addresses
 		pubAddress: pub[0].String(),
-		principal:  principal,
+		principal:  v23.GetPrincipal(ctx),
 		statsName:  naming.Join("rpc", "proxy", "routing-id", rid.String(), "debug"),
 	}
-	if principal != nil {
-		proxy.blessings = principal.BlessingStore().Default()
+	if proxy.principal != nil {
+		proxy.blessings = proxy.principal.BlessingStore().Default()
 	}
 	stats.NewStringFunc(proxy.statsName, proxy.debugString)
 
@@ -341,6 +348,8 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		response.Error = verror.New(stream.ErrProxy, nil, verror.New(errVomDecoder, nil, err))
 	} else if err := dec.Decode(&request); err != nil {
 		response.Error = verror.New(stream.ErrProxy, nil, verror.New(errNoRequest, nil, err))
+	} else if err := p.authorize(server.VC, request); err != nil {
+		response.Error = err
 	} else if err := p.servers.Add(server); err != nil {
 		response.Error = verror.Convert(verror.ErrUnknown, nil, err)
 	} else {
@@ -377,6 +386,30 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	// Wait for this flow to be closed.
 	<-conn.Closed()
 	server.Close(nil)
+}
+
+func (p *Proxy) authorize(vc *vc.VC, request Request) error {
+	var dmap map[string]security.Discharge
+	if len(request.Discharges) > 0 {
+		dmap := make(map[string]security.Discharge)
+		for _, d := range request.Discharges {
+			dmap[d.ID()] = d
+		}
+	}
+	// Blessings must be bound to the same public key as the VC.
+	// (Repeating logic in the RPC server authorization code).
+	if got, want := request.Blessings.PublicKey(), vc.RemoteBlessings().PublicKey(); !request.Blessings.IsZero() && !reflect.DeepEqual(got, want) {
+		return verror.New(verror.ErrNoAccess, nil, fmt.Errorf("malformed request: Blessings sent in proxy.Request are bound to public key %v and not %v", got, want))
+	}
+	return p.authorizer.Authorize(p.ctx, security.NewCall(&security.CallParams{
+		LocalPrincipal:   vc.LocalPrincipal(),
+		LocalBlessings:   vc.LocalBlessings(),
+		RemoteBlessings:  request.Blessings,
+		LocalEndpoint:    vc.LocalEndpoint(),
+		RemoteEndpoint:   vc.RemoteEndpoint(),
+		LocalDischarges:  vc.LocalDischarges(),
+		RemoteDischarges: dmap,
+	}))
 }
 
 func (p *Proxy) routeCounters(process *process, counters message.Counters) {

@@ -27,6 +27,16 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
+// ProxyAuthenticator is a stream.ListenerOpt that is used when listening via a
+// proxy to authenticate with the proxy.
+type ProxyAuthenticator interface {
+	stream.ListenerOpt
+	// Login returns the Blessings (and the set of Discharges to make them
+	// valid) to send to the proxy. Typically, the proxy uses these to
+	// determine whether it wants to authorize use.
+	Login(proxy stream.Flow) (security.Blessings, []security.Discharge, error)
+}
+
 func reg(id, msg string) verror.IDAction {
 	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
 }
@@ -47,6 +57,7 @@ var (
 	errAcceptFailed               = reg(".errAcceptFailed", "accept failed{:3}")
 	errFailedToEstablishVC        = reg(".errFailedToEstablishVC", "VC establishment with proxy failed{:_}")
 	errListenerAlreadyClosed      = reg(".errListenerAlreadyClosed", "listener already closed")
+	errRefusedProxyLogin          = reg(".errRefusedProxyLogin", "server did not want to listen via proxy{:_}")
 )
 
 // listener extends stream.Listener with a DebugString method.
@@ -288,12 +299,19 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
 	// Requires dialing a VC to the proxy, need to extract options from ln.opts to do so.
 	var dialOpts []stream.VCOpt
+	var auth ProxyAuthenticator
 	for _, opt := range opts {
-		if dopt, ok := opt.(stream.VCOpt); ok {
-			dialOpts = append(dialOpts, dopt)
+		switch v := opt.(type) {
+		case stream.VCOpt:
+			dialOpts = append(dialOpts, v)
+		case ProxyAuthenticator:
+			auth = v
 		}
 	}
-	// TODO(cnicolaou, ashankar): probably want to set a timeout here. (is this covered by opts?)
+	// TODO(cnicolaou, ashankar): probably want to set a timeout here. (is
+	// this covered by opts?)
+	// TODO(ashankar): Authorize the proxy server as well (similar to how
+	// clients authorize servers in RPCs).
 	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP, principal, dialOpts...)
 	if err != nil {
 		return nil, nil, err
@@ -322,6 +340,12 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 	}
 	var request proxy.Request
 	var response proxy.Response
+	if auth != nil {
+		if request.Blessings, request.Discharges, err = auth.Login(flow); err != nil {
+			vf.StopAccepting()
+			return nil, nil, verror.New(stream.ErrSecurity, nil, verror.New(errRefusedProxyLogin, nil, err))
+		}
+	}
 	enc, err := vom.NewEncoder(flow)
 	if err != nil {
 		flow.Close()

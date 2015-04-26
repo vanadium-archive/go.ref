@@ -7,15 +7,17 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
-	_ "net/http/pprof"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"
@@ -26,6 +28,7 @@ var (
 	pubAddress  = flag.String("published-address", "", "deprecated - the proxy now uses listenspecs and the address chooser mechanism")
 	healthzAddr = flag.String("healthz-address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
 	name        = flag.String("name", "", "Name to mount the proxy as")
+	acl         = flag.String("access-list", "", "Blessings that are authorized to listen via the proxy. JSON-encoded representation of access.AccessList. An empty string implies the default authorization policy.")
 )
 
 func main() {
@@ -39,7 +42,20 @@ func main() {
 	if listenSpec.Proxy != "" {
 		vlog.Fatalf("proxyd cannot listen through another proxy")
 	}
-	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec, *name)
+	var authorizer security.Authorizer
+	if len(*acl) > 0 {
+		var list access.AccessList
+		if err := json.NewDecoder(bytes.NewBufferString(*acl)).Decode(&list); err != nil {
+			vlog.Fatalf("invalid --access-list: %v", err)
+		}
+		// Always add ourselves, for the the reserved methods server
+		// started below.
+		list.In = append(list.In, security.DefaultBlessingPatterns(v23.GetPrincipal(ctx))...)
+		vlog.Infof("Using access list to control proxy use: %v", list)
+		authorizer = list
+	}
+
+	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec, authorizer, *name)
 	if err != nil {
 		vlog.Fatal(err)
 	}

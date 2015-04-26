@@ -17,6 +17,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/vdl"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
@@ -83,7 +84,7 @@ func TestBrowspr(t *testing.T) {
 	defer shutdown()
 
 	proxySpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, proxySpec)
+	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, proxySpec, security.AllowEveryone())
 	if err != nil {
 		t.Fatalf("Failed to start proxy: %v", err)
 	}

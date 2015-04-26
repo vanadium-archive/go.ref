@@ -56,7 +56,7 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	expected := len(args)
 
 	listenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	proxyShutdown, proxyEp, err := proxy.New(ctx, listenSpec)
+	proxyShutdown, proxyEp, err := proxy.New(ctx, listenSpec, security.AllowEveryone())
 	if err != nil {
 		fmt.Fprintf(stderr, "%s\n", verror.DebugString(err))
 		return err

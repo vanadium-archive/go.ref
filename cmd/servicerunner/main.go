@@ -22,6 +22,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
@@ -127,7 +128,7 @@ func main() {
 
 	lspec := v23.GetListenSpec(ctx)
 	lspec.Addrs = rpc.ListenAddrs{{"ws", "127.0.0.1:0"}}
-	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, lspec, "test/proxy")
+	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, lspec, security.AllowEveryone(), "test/proxy")
 	defer proxyShutdown()
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 

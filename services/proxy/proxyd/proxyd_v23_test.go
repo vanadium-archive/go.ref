@@ -42,7 +42,7 @@ func V23TestProxyd(t *v23tests.T) {
 	)
 	// Start proxyd
 	proxyd.WithStartOpts(proxyd.StartOpts().WithCustomCredentials(proxydCreds)).
-		Start("--v23.tcp.address=127.0.0.1:0", "--name="+proxyName)
+		Start("--v23.tcp.address=127.0.0.1:0", "--name="+proxyName, "--access-list", "{\"In\":[\"root/server\"]}")
 	// Start the server that only listens via the proxy
 	if _, err := t.Shell().StartWithOpts(
 		t.Shell().DefaultStartOpts().WithCustomCredentials(serverCreds),
