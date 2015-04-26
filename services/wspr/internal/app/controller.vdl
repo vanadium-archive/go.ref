@@ -29,13 +29,13 @@ type Controller interface {
 	BlessingsDebugString(handle principal.BlessingsHandle) (string | error)
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
-	Bless(publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle | error)
+	Bless(publicKey string, handle principal.BlessingsHandle, extension string, caveat []security.Caveat) (publicKeyOut string, handleOut principal.BlessingsHandle | error)
 	// BlessSelf creates a blessing with the provided name for this principal.
-	BlessSelf(name string, caveats []security.Caveat) (string, principal.BlessingsHandle | error)
+	BlessSelf(name string, caveats []security.Caveat) (publicKeyOut string, handleOut principal.BlessingsHandle | error)
 	// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.
-	PutToBlessingStore(blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern) (?principal.JsBlessings | error)
+	PutToBlessingStore(handle principal.BlessingsHandle, pattern security.BlessingPattern) (?principal.JsBlessings | error)
 	// AddToRoots adds the provided blessing as a root.
-	AddToRoots(blessingHandle principal.BlessingsHandle) error
+	AddToRoots(handle principal.BlessingsHandle) error
 
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(name, method string) ([]string | error)

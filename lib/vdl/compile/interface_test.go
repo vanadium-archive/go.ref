@@ -130,6 +130,16 @@ var ifaceTests = []ifaceTest{
 		},
 		"",
 	}}},
+	{"NamedOutArg", ip{{"a", `type Res interface{NamedOutArg() (s string | error)}`,
+		&compile.Interface{
+			NamePos: np("Res"),
+			Methods: []*compile.Method{{
+				NamePos: np("NamedOutArg"),
+				OutArgs: []*compile.Field{{NamePos: np("s"), Type: vdl.StringType}},
+			}},
+		},
+		"",
+	}}},
 	{"Embed", ip{{"a", `type A interface{};type Res interface{A}`,
 		&compile.Interface{
 			NamePos: np("Res"),
@@ -166,5 +176,14 @@ var ifaceTests = []ifaceTest{
 	}},
 	{"UnmatchedEmbed", ip{{"a", `type A interface{};type Res interface{A.foobar}`, nil,
 		`\(\.foobar unmatched\)`,
+	}}},
+	{"NoErrorReturn", ip{{"a", `type Res interface{NoArgs()}`, nil,
+		`syntax error`,
+	}}},
+	{"UnnamedInArg", ip{{"a", `type Res interface{UnnamedInArg(string) error}`, nil,
+		`must name all in-args`,
+	}}},
+	{"UnnamedOutArgs", ip{{"a", `type Res interface{UnnamedOutArgs() (bool, string | error)}`, nil,
+		`must name all out-args if there are more than 1`,
 	}}},
 }

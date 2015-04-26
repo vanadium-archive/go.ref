@@ -184,8 +184,12 @@ func (id ifaceDefiner) defineArgs(io inout, method NamePos, pargs []*parse.Field
 			continue // keep going to catch more errors
 		}
 		seen[parg.Name] = parg
-		if io == out && len(pargs) > 2 && parg.Name == "" {
-			id.env.Errorf(file, parg.Pos, "method %s out arg unnamed (must name all out args if there are more than 2)", method.Name)
+		switch {
+		case io == in && parg.Name == "":
+			id.env.Errorf(file, parg.Pos, "method %s in-arg unnamed (must name all in-args)", method.Name)
+			continue // keep going to catch more errors
+		case io == out && len(pargs) > 1 && parg.Name == "":
+			id.env.Errorf(file, parg.Pos, "method %s out-arg unnamed (must name all out-args if there are more than 1)", method.Name)
 			continue // keep going to catch more errors
 		}
 		if parg.Name != "" {

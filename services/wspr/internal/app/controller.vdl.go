@@ -38,13 +38,13 @@ type ControllerClientMethods interface {
 	BlessingsDebugString(ctx *context.T, handle principal.BlessingsHandle, opts ...rpc.CallOpt) (string, error)
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
-	Bless(ctx *context.T, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat, opts ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
+	Bless(ctx *context.T, publicKey string, handle principal.BlessingsHandle, extension string, caveat []security.Caveat, opts ...rpc.CallOpt) (publicKeyOut string, handleOut principal.BlessingsHandle, err error)
 	// BlessSelf creates a blessing with the provided name for this principal.
-	BlessSelf(ctx *context.T, name string, caveats []security.Caveat, opts ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
+	BlessSelf(ctx *context.T, name string, caveats []security.Caveat, opts ...rpc.CallOpt) (publicKeyOut string, handleOut principal.BlessingsHandle, err error)
 	// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.
-	PutToBlessingStore(ctx *context.T, blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern, opts ...rpc.CallOpt) (*principal.JsBlessings, error)
+	PutToBlessingStore(ctx *context.T, handle principal.BlessingsHandle, pattern security.BlessingPattern, opts ...rpc.CallOpt) (*principal.JsBlessings, error)
 	// AddToRoots adds the provided blessing as a root.
-	AddToRoots(ctx *context.T, blessingHandle principal.BlessingsHandle, opts ...rpc.CallOpt) error
+	AddToRoots(ctx *context.T, handle principal.BlessingsHandle, opts ...rpc.CallOpt) error
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(ctx *context.T, name string, method string, opts ...rpc.CallOpt) ([]string, error)
 	// Signature fetches the signature for a given name.
@@ -152,13 +152,13 @@ type ControllerServerMethods interface {
 	BlessingsDebugString(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle) (string, error)
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
-	Bless(ctx *context.T, call rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle, error)
+	Bless(ctx *context.T, call rpc.ServerCall, publicKey string, handle principal.BlessingsHandle, extension string, caveat []security.Caveat) (publicKeyOut string, handleOut principal.BlessingsHandle, err error)
 	// BlessSelf creates a blessing with the provided name for this principal.
-	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (string, principal.BlessingsHandle, error)
+	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (publicKeyOut string, handleOut principal.BlessingsHandle, err error)
 	// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.
-	PutToBlessingStore(ctx *context.T, call rpc.ServerCall, blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error)
+	PutToBlessingStore(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error)
 	// AddToRoots adds the provided blessing as a root.
-	AddToRoots(ctx *context.T, call rpc.ServerCall, blessingHandle principal.BlessingsHandle) error
+	AddToRoots(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle) error
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(ctx *context.T, call rpc.ServerCall, name string, method string) ([]string, error)
 	// Signature fetches the signature for a given name.
@@ -322,14 +322,14 @@ var descController = rpc.InterfaceDesc{
 			Name: "Bless",
 			Doc:  "// Bless binds extensions of blessings held by this principal to\n// another principal (represented by its public key).",
 			InArgs: []rpc.ArgDesc{
-				{"publicKey", ``},      // string
-				{"blessingHandle", ``}, // principal.BlessingsHandle
-				{"extension", ``},      // string
-				{"caveat", ``},         // []security.Caveat
+				{"publicKey", ``}, // string
+				{"handle", ``},    // principal.BlessingsHandle
+				{"extension", ``}, // string
+				{"caveat", ``},    // []security.Caveat
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // string
-				{"", ``}, // principal.BlessingsHandle
+				{"publicKeyOut", ``}, // string
+				{"handleOut", ``},    // principal.BlessingsHandle
 			},
 		},
 		{
@@ -340,16 +340,16 @@ var descController = rpc.InterfaceDesc{
 				{"caveats", ``}, // []security.Caveat
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // string
-				{"", ``}, // principal.BlessingsHandle
+				{"publicKeyOut", ``}, // string
+				{"handleOut", ``},    // principal.BlessingsHandle
 			},
 		},
 		{
 			Name: "PutToBlessingStore",
 			Doc:  "// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.",
 			InArgs: []rpc.ArgDesc{
-				{"blessingHandle", ``}, // principal.BlessingsHandle
-				{"pattern", ``},        // security.BlessingPattern
+				{"handle", ``},  // principal.BlessingsHandle
+				{"pattern", ``}, // security.BlessingPattern
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // *principal.JsBlessings
@@ -359,7 +359,7 @@ var descController = rpc.InterfaceDesc{
 			Name: "AddToRoots",
 			Doc:  "// AddToRoots adds the provided blessing as a root.",
 			InArgs: []rpc.ArgDesc{
-				{"blessingHandle", ``}, // principal.BlessingsHandle
+				{"handle", ``}, // principal.BlessingsHandle
 			},
 		},
 		{
