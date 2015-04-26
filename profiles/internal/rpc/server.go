@@ -1344,33 +1344,38 @@ type proxyAuth struct {
 func (a proxyAuth) RPCStreamListenerOpt() {}
 
 func (a proxyAuth) Login(proxy stream.Flow) (security.Blessings, []security.Discharge, error) {
-	var (
-		principal = a.s.principal
-		dc        = a.s.dc
-		ctx       = a.s.ctx
-	)
-	if principal == nil {
-		return security.Blessings{}, nil, nil
-	}
-	proxyNames, _ := security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
-		LocalPrincipal:   principal,
-		RemoteBlessings:  proxy.RemoteBlessings(),
-		RemoteDischarges: proxy.RemoteDischarges(),
-		RemoteEndpoint:   proxy.RemoteEndpoint(),
-		LocalEndpoint:    proxy.LocalEndpoint(),
-	}))
-	blessings := principal.BlessingStore().ForPeer(proxyNames...)
-	tpc := blessings.ThirdPartyCaveats()
-	if len(tpc) == 0 {
-		return blessings, nil, nil
-	}
-	// Ugh! Have to convert from proxyNames to BlessingPatterns
-	proxyPats := make([]security.BlessingPattern, len(proxyNames))
-	for idx, n := range proxyNames {
-		proxyPats[idx] = security.BlessingPattern(n)
-	}
-	discharges := dc.PrepareDischarges(ctx, tpc, security.DischargeImpetus{Server: proxyPats})
-	return blessings, discharges, nil
+	// TODO(ashankar): Restore this block after figuring out flakiness in javascript-browser-integration tests.
+	// https://v.io/i/33
+	return security.Blessings{}, nil, nil
+	/*
+		var (
+			principal = a.s.principal
+			dc        = a.s.dc
+			ctx       = a.s.ctx
+		)
+		if principal == nil {
+			return security.Blessings{}, nil, nil
+		}
+		proxyNames, _ := security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
+			LocalPrincipal:   principal,
+			RemoteBlessings:  proxy.RemoteBlessings(),
+			RemoteDischarges: proxy.RemoteDischarges(),
+			RemoteEndpoint:   proxy.RemoteEndpoint(),
+			LocalEndpoint:    proxy.LocalEndpoint(),
+		}))
+		blessings := principal.BlessingStore().ForPeer(proxyNames...)
+		tpc := blessings.ThirdPartyCaveats()
+		if len(tpc) == 0 {
+			return blessings, nil, nil
+		}
+		// Ugh! Have to convert from proxyNames to BlessingPatterns
+		proxyPats := make([]security.BlessingPattern, len(proxyNames))
+		for idx, n := range proxyNames {
+			proxyPats[idx] = security.BlessingPattern(n)
+		}
+		discharges := dc.PrepareDischarges(ctx, tpc, security.DischargeImpetus{Server: proxyPats})
+		return blessings, discharges, nil
+	*/
 }
 
 var _ manager.ProxyAuthenticator = proxyAuth{}

@@ -53,6 +53,9 @@ func main() {
 		list.In = append(list.In, security.DefaultBlessingPatterns(v23.GetPrincipal(ctx))...)
 		vlog.Infof("Using access list to control proxy use: %v", list)
 		authorizer = list
+		// See https://v.io/i/33
+		// Remove this line
+		authorizer = security.AllowEveryone()
 	}
 
 	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec, authorizer, *name)
