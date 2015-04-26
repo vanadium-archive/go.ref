@@ -1246,7 +1246,6 @@ func authorize(ctx *context.T, call security.Call, auth security.Authorizer) err
 		auth = security.DefaultAuthorizer()
 	}
 	if err := auth.Authorize(ctx, call); err != nil {
-		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
 		return verror.New(verror.ErrNoAccess, ctx, newErrBadAuth(ctx, call.Suffix(), call.Method(), err))
 	}
 	return nil

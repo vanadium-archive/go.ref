@@ -166,9 +166,8 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 		return nil, suberr(verror.New(errClientCloseAlreadyCalled, ctx))
 	}
 	if othervc, exists := c.vcMap[vcKey]; exists {
+		go vc.Close(nil)
 		vc = othervc.vc
-		// TODO(ashankar,toddw): Figure out how to close up the VC that
-		// is discarded. vc.Close?
 	} else {
 		c.vcMap[vcKey] = &vcInfo{vc: vc, remoteEP: ep}
 	}

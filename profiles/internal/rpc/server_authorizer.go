@@ -50,8 +50,6 @@ type serverAuthorizer struct {
 func newServerAuthorizer(pattern security.BlessingPattern, opts ...rpc.CallOpt) security.Authorizer {
 	auth := &serverAuthorizer{}
 	for _, o := range opts {
-		// TODO(ataly, ashankar): Consider creating an authorizer for each of the
-		// options below and then take the intersection of the authorizers.
 		switch v := o.(type) {
 		case options.ServerPublicKey:
 			auth.serverPublicKey = v.PublicKey
