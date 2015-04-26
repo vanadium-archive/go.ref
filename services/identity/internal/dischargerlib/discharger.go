@@ -37,8 +37,6 @@ func (dischargerd) Discharge(ctx *context.T, call rpc.ServerCall, caveat securit
 // discharges using the MintDischarge on the principal receiving the RPC.
 //
 // Discharges are valid for 15 minutes.
-// TODO(ashankar,ataly): Parameterize this? Make it easier for clients to add
-// caveats on the discharge?
 func NewDischarger() discharger.DischargerServerMethods {
 	return dischargerd{}
 }

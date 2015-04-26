@@ -22,7 +22,6 @@ import (
 	"v.io/x/ref/lib/stats/counter"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream"
-	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
 )
@@ -57,21 +56,19 @@ const (
 func InternalNew(rid naming.RoutingID) stream.Manager {
 	statsPrefix := naming.Join("rpc", "stream", "routing-id", rid.String())
 	m := &manager{
-		rid:          rid,
-		vifs:         vif.NewSet(),
-		sessionCache: crypto.NewTLSClientSessionCache(),
-		listeners:    make(map[listener]bool),
-		statsPrefix:  statsPrefix,
-		killedConns:  stats.NewCounter(naming.Join(statsPrefix, "killed-connections")),
+		rid:         rid,
+		vifs:        vif.NewSet(),
+		listeners:   make(map[listener]bool),
+		statsPrefix: statsPrefix,
+		killedConns: stats.NewCounter(naming.Join(statsPrefix, "killed-connections")),
 	}
 	stats.NewStringFunc(naming.Join(m.statsPrefix, "debug"), m.DebugString)
 	return m
 }
 
 type manager struct {
-	rid          naming.RoutingID
-	vifs         *vif.Set
-	sessionCache crypto.TLSClientSessionCache
+	rid  naming.RoutingID
+	vifs *vif.Set
 
 	muListeners sync.Mutex
 	listeners   map[listener]bool // GUARDED_BY(muListeners)
@@ -160,7 +157,7 @@ func (m *manager) Dial(remote naming.Endpoint, principal security.Principal, opt
 		if err != nil {
 			return nil, err
 		}
-		opts = append([]stream.VCOpt{m.sessionCache, vc.IdleTimeout{defaultIdleTimeout}}, opts...)
+		opts = append([]stream.VCOpt{vc.IdleTimeout{defaultIdleTimeout}}, opts...)
 		vc, err := vf.Dial(remote, principal, opts...)
 		if !retry || verror.ErrorID(err) != stream.ErrAborted.ID {
 			return vc, err

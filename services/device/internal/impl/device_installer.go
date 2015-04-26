@@ -78,8 +78,7 @@ func InstallFrom(origin string) error {
 	return nil
 }
 
-// TODO(caprita,ashankar): Remove VEYRON_.* and NAMESPACE_ROOT.*.
-var allowedVarsRE = regexp.MustCompile("V23_.*|VEYRON_.*|NAMESPACE_ROOT.*|PAUSE_BEFORE_STOP|TMPDIR")
+var allowedVarsRE = regexp.MustCompile("V23_.*|PAUSE_BEFORE_STOP|TMPDIR")
 
 var deniedVarsRE = regexp.MustCompile("V23_EXEC_VERSION")
 

@@ -36,13 +36,6 @@ type TLSClientSessionCache struct{ tls.ClientSessionCache }
 
 func (TLSClientSessionCache) RPCStreamVCOpt() {}
 
-// NewTLSClientSessionCache creates a new session cache.
-// TODO(ashankar): Remove this once go1.4 is released and tlsfork can be release, at that
-// point use crypto/tls.NewLRUClientSessionCache directly.
-func NewTLSClientSessionCache() TLSClientSessionCache {
-	return TLSClientSessionCache{tls.NewLRUClientSessionCache(-1)}
-}
-
 // NewTLSClient returns a Crypter implementation that uses TLS, assuming
 // handshaker was initiated by a client.
 func NewTLSClient(handshaker io.ReadWriteCloser, local, remote net.Addr, sessionCache TLSClientSessionCache, pool *iobuf.Pool) (Crypter, error) {
@@ -231,14 +224,10 @@ func (c *tlsCrypter) ChannelBinding() []byte {
 	return c.tls.ConnectionState().TLSUnique
 }
 
-// TODO(ashankar): Get rid of TLS certificates completely after implementing an
-// anonymous key-exchange mechanism. See F.1.1.1 in RFC 5246.
-//
 // PEM-encoded certificates and keys used in the tests.
 // One way to generate them is:
 //   go run $GOROOT/src/pkg/crypto/tls/generate_cert.go  --host=localhost --duration=87600h --ecdsa-curve=P256
 // (This generates a self-signed certificate valid for 10 years)
-// (The --ecdsa-curve flag has not yet been submitted back to the Go repository)
 // which will create cert.pem and key.pem files.
 const (
 	serverCert = `

@@ -60,11 +60,6 @@ func NamespaceRoots() (map[string]string, []string) {
 		if strings.HasPrefix(k, NamespacePrefix) && len(v) > 0 {
 			l = append(l, v)
 			m[k] = v
-		} else if strings.HasPrefix(k, "NAMESPACE_ROOT") && len(v) > 0 {
-			// TODO(ashankar): Remove this once the transition to
-			// the new enviornment variables is complete.
-			l = append(l, v)
-			m[k] = v
 		}
 	}
 	return m, l
