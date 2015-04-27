@@ -19,6 +19,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/v23/context"
+	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -1088,6 +1089,10 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	}
 	fs.method = req.Method
 	fs.suffix = strings.TrimLeft(req.Suffix, "/")
+
+	if req.Language != "" {
+		fs.ctx = i18n.WithLangID(fs.ctx, i18n.LangID(req.Language))
+	}
 
 	// TODO(mattr): Currently this allows users to trigger trace collection
 	// on the server even if they will not be allowed to collect the

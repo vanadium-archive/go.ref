@@ -858,6 +858,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		Blessings:        blessingsRequest,
 		Discharges:       fc.discharges,
 		TraceRequest:     vtrace.GetRequest(fc.ctx),
+		Language:         string(i18n.GetLangID(fc.ctx)),
 	}
 	if err := fc.enc.Encode(req); err != nil {
 		berr := verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err)

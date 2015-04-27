@@ -25,6 +25,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -108,6 +109,10 @@ func (*testServer) Echo(_ *context.T, call rpc.ServerCall, arg string) (string, 
 
 func (*testServer) EchoUser(_ *context.T, call rpc.ServerCall, arg string, u userType) (string, userType, error) {
 	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "EchoUser", call.Suffix(), arg), u, nil
+}
+
+func (*testServer) EchoLang(ctx *context.T, call rpc.ServerCall) (string, error) {
+	return string(i18n.GetLangID(ctx)), nil
 }
 
 func (*testServer) EchoBlessings(ctx *context.T, call rpc.ServerCall) (server, client string, _ error) {
@@ -714,6 +719,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 			{"mountpoint/server/suffix", "EchoBlessings", nil, nil, nil, v{"[server]", "[client]"}, nil},
 			{"mountpoint/server/suffix", "EchoAndError", v{"bugs bunny"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"bugs bunny"`}, nil},
 			{"mountpoint/server/suffix", "EchoAndError", v{"error"}, nil, nil, nil, errMethod},
+			{"mountpoint/server/suffix", "EchoLang", nil, nil, nil, v{"foolang"}, nil},
 		}
 		name = func(t testcase) string {
 			return fmt.Sprintf("%s.%s(%v)", t.name, t.method, t.args)
@@ -724,6 +730,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 	)
 	defer b.cleanup(t, ctx)
 	ctx, _ = v23.WithPrincipal(ctx, pclient)
+	ctx = i18n.WithLangID(ctx, "foolang")
 	for _, test := range tests {
 		vlog.VI(1).Infof("%s client.StartCall", name(test))
 		vname := test.name
