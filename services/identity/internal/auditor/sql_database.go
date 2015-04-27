@@ -38,7 +38,7 @@ func newSQLDatabase(db *sql.DB, table string) (database, error) {
 	if err != nil {
 		return nil, err
 	}
-	queryStmt, err := db.Prepare(fmt.Sprintf("SELECT Email, Caveats, Timestamp, Blessings FROM %s WHERE Email=?", table))
+	queryStmt, err := db.Prepare(fmt.Sprintf("SELECT Email, Caveats, Timestamp, Blessings FROM %s WHERE Email=? ORDER BY Timestamp DESC", table))
 	return sqlDatabase{insertStmt, queryStmt}, err
 }
 
