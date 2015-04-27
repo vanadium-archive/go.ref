@@ -16,6 +16,7 @@ import (
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )

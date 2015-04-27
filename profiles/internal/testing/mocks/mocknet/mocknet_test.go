@@ -258,9 +258,10 @@ func TestV23Control(t *testing.T) {
 	matcher := func(_ bool, msg message.T) bool {
 		switch msg.(type) {
 		case *message.Data:
-			return true
+			return false
 		}
-		return false
+		// drop first control message
+		return true
 	}
 
 	dropControlDialer := func(network, address string, timeout time.Duration) (net.Conn, error) {

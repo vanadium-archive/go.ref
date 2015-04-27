@@ -323,7 +323,6 @@ func TestStartCallErrors(t *testing.T) {
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
-	roots := ns.Roots()
 	if unwanted := "connection refused"; strings.Contains(err.Error(), unwanted) {
 		t.Fatalf("wrong error: %s - does contain %q", err, unwanted)
 	}
@@ -383,14 +382,11 @@ func TestStartCallErrors(t *testing.T) {
 	logErr("timeout to mount table", err)
 
 	// This, second test, will fail due a timeout contacting the server itself.
-	ns.SetRoots(roots...)
 	addr = naming.FormatEndpoint("tcp", "203.0.113.10:8101")
-	if err := ns.Mount(ctx, "new-name", addr, time.Minute); err != nil {
-		t.Fatal(err)
-	}
 
 	nctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
-	call, err = client.StartCall(nctx, "new-name", "noname", nil, options.NoRetry{})
+	new_name := naming.JoinAddressName(addr, "")
+	call, err = client.StartCall(nctx, new_name, "noname", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrTimeout.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
@@ -538,30 +534,15 @@ func initServer(t *testing.T, ctx *context.T, opts ...rpc.ServerOpt) (string, fu
 	return eps[0].Name(), deferFn
 }
 
-func testForVerror(t *testing.T, err error, verr verror.IDAction) {
-	_, file, line, _ := runtime.Caller(1)
-	loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
-	if verror.ErrorID(err) != verr.ID {
-		if _, ok := err.(verror.E); !ok {
-			t.Fatalf("%s: err %v not a verror", loc, err)
-		}
-		stack := ""
-		if err != nil {
-			stack = verror.Stack(err).String()
-		}
-		t.Fatalf("%s: expecting one of: %v, got: %v: stack: %s", loc, verr, err, stack)
-	}
-}
-
 func TestTimeoutResponse(t *testing.T) {
 	ctx, shutdown := newCtx()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
 	ctx, _ = context.WithTimeout(ctx, time.Millisecond)
-	if err := v23.GetClient(ctx).Call(ctx, name, "Sleep", nil, nil); err != nil {
-		testForVerror(t, err, verror.ErrTimeout)
-		return
+	err := v23.GetClient(ctx).Call(ctx, name, "Sleep", nil, nil)
+	if got, want := verror.ErrorID(err), verror.ErrTimeout.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
 	}
 }
 
@@ -576,7 +557,9 @@ func TestArgsAndResponses(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	err = call.Finish()
-	testForVerror(t, err, verror.ErrBadProtocol)
+	if got, want := verror.ErrorID(err), verror.ErrBadProtocol.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 
 	call, err = v23.GetClient(ctx).StartCall(ctx, name, "Ping", nil)
 	if err != nil {
@@ -585,7 +568,9 @@ func TestArgsAndResponses(t *testing.T) {
 	pong := ""
 	dummy := ""
 	err = call.Finish(&pong, &dummy)
-	testForVerror(t, err, verror.ErrBadProtocol)
+	if got, want := verror.ErrorID(err), verror.ErrBadProtocol.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
 
 func TestAccessDenied(t *testing.T) {
@@ -606,7 +591,9 @@ func TestAccessDenied(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	err = call.Finish()
-	testForVerror(t, err, verror.ErrNoAccess)
+	if got, want := verror.ErrorID(err), verror.ErrNoAccess.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
 
 func TestCanceledBeforeFinish(t *testing.T) {
@@ -623,7 +610,9 @@ func TestCanceledBeforeFinish(t *testing.T) {
 	// Cancel before we call finish.
 	cancel()
 	err = call.Finish()
-	testForVerror(t, err, verror.ErrCanceled)
+	if got, want := verror.ErrorID(err), verror.ErrCanceled.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
 
 func TestCanceledDuringFinish(t *testing.T) {
@@ -643,7 +632,9 @@ func TestCanceledDuringFinish(t *testing.T) {
 		cancel()
 	}()
 	err = call.Finish()
-	testForVerror(t, err, verror.ErrCanceled)
+	if got, want := verror.ErrorID(err), verror.ErrCanceled.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
 
 func TestRendezvous(t *testing.T) {
@@ -655,10 +646,10 @@ func TestRendezvous(t *testing.T) {
 	name := "echoServer"
 
 	// We start the client before we start the server, StartCall will reresolve
-	// the name until it finds an entry or timesout after an exponential
+	// the name until it finds an entry or times out after an exponential
 	// backoff of some minutes.
 	startServer := func() {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		srv, _ := sh.Start("echoServer", nil, "message", name)
 		s := expect.NewSession(t, srv.Stdout(), time.Minute)
 		s.ExpectVar("PID")
@@ -673,8 +664,9 @@ func TestRendezvous(t *testing.T) {
 
 	response := ""
 	if err := call.Finish(&response); err != nil {
-		testForVerror(t, err, verror.ErrCanceled)
-		return
+		if got, want := verror.ErrorID(err), verror.ErrCanceled.ID; got != want {
+			t.Fatalf("got %v, want %v", got, want)
+		}
 	}
 	if got, want := response, "message: hello\n"; got != want {
 		t.Errorf("got %q, want %q", got, want)
@@ -727,12 +719,15 @@ func TestStreamTimeout(t *testing.T) {
 			want++
 			continue
 		}
-		// TOO(cnicolaou): this should be Timeout only.
-		testForVerror(t, err, verror.ErrTimeout)
+		if got, want := verror.ErrorID(err), verror.ErrTimeout.ID; got != want {
+			t.Fatalf("got %v, want %v", got, want)
+		}
 		break
 	}
 	err = call.Finish()
-	testForVerror(t, err, verror.ErrTimeout)
+	if got, want := verror.ErrorID(err), verror.ErrTimeout.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
 
 func TestStreamAbort(t *testing.T) {
@@ -754,7 +749,9 @@ func TestStreamAbort(t *testing.T) {
 	}
 	call.CloseSend()
 	err = call.Send(100)
-	testForVerror(t, err, verror.ErrAborted)
+	if got, want := verror.ErrorID(err), verror.ErrAborted.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 
 	result := 0
 	err = call.Finish(&result)
@@ -774,11 +771,16 @@ func TestNoServersAvailable(t *testing.T) {
 	name := "noservers"
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil, options.NoRetry{})
 	if err != nil {
-		testForVerror(t, err, verror.ErrNoServers)
+		if got, want := verror.ErrorID(err), verror.ErrNoServers.ID; got != want {
+			t.Fatalf("got %v, want %v", got, want)
+		}
 		return
 	}
 	err = call.Finish()
-	testForVerror(t, err, verror.ErrNoServers)
+	if got, want := verror.ErrorID(err), verror.ErrNoServers.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
 }
 
 func TestNoMountTable(t *testing.T) {
@@ -790,7 +792,9 @@ func TestNoMountTable(t *testing.T) {
 	// If there is no mount table, then we'll get a NoServers error message.
 	ctx, _ = context.WithTimeout(ctx, 300*time.Millisecond)
 	_, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
-	testForVerror(t, err, verror.ErrNoServers)
+	if got, want := verror.ErrorID(err), verror.ErrNoServers.ID; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
 
 // TestReconnect verifies that the client transparently re-establishes the
@@ -864,7 +868,7 @@ func TestMethodErrors(t *testing.T) {
 	defer fn()
 
 	logErr := func(msg string, err error) {
-		logErrors(t, msg, true, false, false, err)
+		logErrors(t, msg, false, false, false, err)
 	}
 
 	// Unknown method
@@ -954,8 +958,8 @@ func TestMethodErrors(t *testing.T) {
 
 	r3 := 2
 	verr = call.Finish(&r3)
-	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
-		t.Errorf("wrong error: %s", verr)
+	if got, want := verror.ErrorID(verr), verror.ErrBadProtocol.ID; got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := verr.Error(), "aren't compatible"; !strings.Contains(got, want) {
 		t.Errorf("want %q to contain %q", got, want)
