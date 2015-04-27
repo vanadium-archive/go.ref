@@ -15,7 +15,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
   <script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.7.0/moment.min.js"></script>
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 
-  <title>Blessings: Select Caveats</title>
+  <title>Add Blessing</title>
   <script>
   $(document).ready(function() {
     var numCaveats = 1;
@@ -139,6 +139,11 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
 <main style="max-width: 80%; margin-left: 10px;">
   <form method="POST" id="caveats-form" name="input" action="{{.MacaroonURL}}" role="form">
   <h1>Add blessing</h1>
+  <span>
+  This is a beta product: use in production applications is discouraged. Furthermore, the
+  <a href="https://v.io/glossary.html#blessing-root">Blessing Root</a> is subject to change
+  without notice.
+  </span>
   <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
 
   <h3>Blessing Name</h3>
