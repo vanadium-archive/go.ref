@@ -28,8 +28,6 @@ The principal commands are:
    get           Read the principal's blessings.
    recognize     Add to the set of identity providers recognized by this
                  principal
-   addtoroots    Add to the set of identity providers recognized by this
-                 principal
    help          Display help for commands or topics
 
 The global flags are:
@@ -499,34 +497,6 @@ public key KEY for blessing pattern P:
 
 Usage:
    principal recognize <key|blessing> [<blessing pattern>]
-
-<blessing> is the path to a file containing a blessing typically obtained from
-this tool. - is used for STDIN.
-
-<key> is a base64-encoded, DER-encoded public key.
-
-<blessing pattern> is the blessing pattern for which <key> should be recognized.
-
-Principal addtoroots
-
-Adds an identity provider to the set of recognized roots public keys for this
-principal.
-
-It accepts either a single argument (which points to a file containing a
-blessing) or two arguments (a name and a base64-encoded DER-encoded public key).
-
-For example, to make the principal in credentials directory A recognize the root
-of the default blessing in credentials directory B:
-  principal -v23.credentials=B bless A some_extension |
-  principal -v23.credentials=A addtoroots -
-The extension 'some_extension' has no effect in the command above.
-
-Or to make the principal in credentials directory A recognize the base64-encoded
-public key KEY for blessing patterns P:
-  principal -v23.credentials=A addtoroots KEY P
-
-Usage:
-   principal addtoroots <key|blessing> [<blessing pattern>]
 
 <blessing> is the path to a file containing a blessing typically obtained from
 this tool. - is used for STDIN.
