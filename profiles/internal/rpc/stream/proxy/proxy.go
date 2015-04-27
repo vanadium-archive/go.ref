@@ -391,7 +391,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 func (p *Proxy) authorize(vc *vc.VC, request Request) error {
 	var dmap map[string]security.Discharge
 	if len(request.Discharges) > 0 {
-		dmap := make(map[string]security.Discharge)
+		dmap = make(map[string]security.Discharge)
 		for _, d := range request.Discharges {
 			dmap[d.ID()] = d
 		}

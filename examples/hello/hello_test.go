@@ -99,7 +99,7 @@ func V23TestHelloProxy(i *v23tests.T) {
 	mt := fmt.Sprintf("%s=%s", envvar.NamespacePrefix, mounttabled.ExpectVar("NAME"))
 	agentdbin.WithEnv(creds["proxyd"], mt).Start(proxydbin.Path(),
 		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
-		"--access-list", "{\"In\":[\"root/*\"]}")
+		"--access-list", "{\"In\":[\"root\"]}")
 	server := agentdbin.WithEnv(creds["helloserver"], mt).Start(serverbin.Path(),
 		"--name", name, "--v23.proxy", proxyname, "--v23.tcp.address", "")
 	// Prove that we're listening on a proxy.
