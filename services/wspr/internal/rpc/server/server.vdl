@@ -12,6 +12,10 @@ import (
   "v.io/x/ref/services/wspr/internal/principal"
 )
 
+type Context struct {
+    Language string
+}
+
 type SecurityCall struct {
     Method                string
     Suffix                string
@@ -26,6 +30,7 @@ type SecurityCall struct {
 
 type CaveatValidationRequest struct {
     Call SecurityCall
+    Context Context
     Cavs [][]security.Caveat
 }
 
@@ -42,6 +47,7 @@ error (
 type ServerRpcRequestCall struct {
 	SecurityCall SecurityCall
 	Deadline     time.WireDeadline
+        Context      Context
 	TraceRequest vtrace.Request
   GrantedBlessings ?principal.JsBlessings
 }

@@ -23,6 +23,7 @@ type RpcRequest struct {
 	IsStreaming  bool
 	Deadline     time.WireDeadline
 	TraceRequest vtrace.Request
+        Context      server.Context
 	CallOptions  []RpcCallOption
 }
 

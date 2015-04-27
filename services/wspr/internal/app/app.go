@@ -17,6 +17,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/i18n"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -510,6 +511,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 	vlog.VI(2).Infof("Rpc: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
 	spanName := fmt.Sprintf("<wspr>%q.%s", msg.Name, msg.Method)
 	ctx, span := vtrace.WithContinuedTrace(ctx, spanName, msg.TraceRequest)
+	ctx = i18n.WithLangID(ctx, i18n.LangID(msg.Context.Language))
 
 	var cctx *context.T
 	var cancel context.CancelFunc

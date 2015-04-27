@@ -21,6 +21,15 @@ import (
 	"v.io/x/ref/services/wspr/internal/principal"
 )
 
+type Context struct {
+	Language string
+}
+
+func (Context) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wspr/internal/rpc/server.Context"
+}) {
+}
+
 type SecurityCall struct {
 	Method                string
 	Suffix                string
@@ -39,8 +48,9 @@ func (SecurityCall) __VDLReflect(struct {
 }
 
 type CaveatValidationRequest struct {
-	Call SecurityCall
-	Cavs [][]security.Caveat
+	Call    SecurityCall
+	Context Context
+	Cavs    [][]security.Caveat
 }
 
 func (CaveatValidationRequest) __VDLReflect(struct {
@@ -60,6 +70,7 @@ func (CaveatValidationResponse) __VDLReflect(struct {
 type ServerRpcRequestCall struct {
 	SecurityCall     SecurityCall
 	Deadline         time.Deadline
+	Context          Context
 	TraceRequest     vtrace.Request
 	GrantedBlessings *principal.JsBlessings
 }
@@ -84,6 +95,7 @@ func (ServerRpcRequest) __VDLReflect(struct {
 }
 
 func init() {
+	vdl.Register((*Context)(nil))
 	vdl.Register((*SecurityCall)(nil))
 	vdl.Register((*CaveatValidationRequest)(nil))
 	vdl.Register((*CaveatValidationResponse)(nil))

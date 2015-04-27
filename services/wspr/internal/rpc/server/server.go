@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/i18n"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -63,6 +64,7 @@ type AuthRequest struct {
 	ServerId uint32       `json:"serverId"`
 	Handle   int32        `json:"handle"`
 	Call     SecurityCall `json:"call"`
+	Context  Context
 }
 
 type Server struct {
@@ -152,9 +154,12 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 		}
 
 		rpcCall := ServerRpcRequestCall{
-			SecurityCall:     securityCall,
-			Deadline:         timeout,
-			TraceRequest:     vtrace.GetRequest(ctx),
+			SecurityCall: securityCall,
+			Deadline:     timeout,
+			TraceRequest: vtrace.GetRequest(ctx),
+			Context: Context{
+				Language: string(i18n.GetLangID(ctx)),
+			},
 			GrantedBlessings: grantedBlessings,
 		}
 
@@ -270,6 +275,9 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			SecurityCall:     securityCall,
 			Deadline:         timeout,
 			GrantedBlessings: grantedBlessings,
+			Context: Context{
+				Language: string(i18n.GetLangID(ctx)),
+			},
 		}
 
 		// Send a invocation request to JavaScript
@@ -366,6 +374,9 @@ func (s *Server) caveatValidationInJavascript(ctx *context.T, call security.Call
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
 		Call: ConvertSecurityCall(s.helper, ctx, call, false),
+		Context: Context{
+			Language: string(i18n.GetLangID(ctx)),
+		},
 		Cavs: cavs,
 	}
 
@@ -546,6 +557,9 @@ func (s *Server) authorizeRemote(ctx *context.T, call security.Call, handle int3
 		ServerId: s.id,
 		Handle:   handle,
 		Call:     securityCall,
+		Context: Context{
+			Language: string(i18n.GetLangID(ctx)),
+		},
 	}
 	vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
