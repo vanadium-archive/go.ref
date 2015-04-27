@@ -568,7 +568,7 @@ func V23TestAddBlessingsToRoots(t *v23tests.T) {
 	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
 	// Have bob create a "bob/friend" blessing and have alice recognize that.
 	redirect(t, bin.Start("--v23.credentials="+bobDir, "bless", "--require-caveats=false", aliceDir, "friend"), blessingFile)
-	bin.Start("--v23.credentials="+aliceDir, "addtoroots", blessingFile).WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("--v23.credentials="+aliceDir, "recognize", blessingFile).WaitOrDie(os.Stdout, os.Stderr)
 
 	want := fmt.Sprintf(`Public key                                        Pattern
 %v   [alice]
@@ -594,7 +594,7 @@ func V23TestAddKeyToRoots(t *v23tests.T) {
 	// Get bob's public key and add it to roots for alice
 	bobKey := strings.TrimSpace(bin.Start("--v23.credentials="+bobDir, "get", "publickey").Output())
 	bobPrettyKey := strings.TrimSpace(bin.Start("--v23.credentials="+bobDir, "get", "publickey", "--pretty").Output())
-	bin.Start("--v23.credentials="+aliceDir, "addtoroots", bobKey, "bob").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("--v23.credentials="+aliceDir, "recognize", "bob", bobKey).WaitOrDie(os.Stdout, os.Stderr)
 
 	// Verify that it has been added
 	output := bin.Start("--v23.credentials="+aliceDir, "dump").Output()

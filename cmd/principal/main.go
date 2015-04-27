@@ -301,12 +301,12 @@ Prints out the public key of the principal specified by the environment
 that this tool is running in.
 
 The key is printed as a base64 encoded bytes of the DER-format representation
-of the key (suitable to be provided as an argument to the 'addtoroots' command
+of the key (suitable to be provided as an argument to the 'recognize' command
 for example).
 
 With --pretty, a 16-byte fingerprint of the key instead. This format is easier
 for humans to read and is used in output of other commands in this program, but
-is not suitable as an argument to the 'addtoroots' command.
+is not suitable as an argument to the 'recognize' command.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			ctx, shutdown := v23.Init()
@@ -457,6 +457,65 @@ blessing can be shared with.
 		},
 	}
 
+	cmdRecognize = &cmdline.Command{
+		Name:  "recognize",
+		Short: "Add to the set of identity providers recognized by this principal",
+		Long: `
+Adds an identity provider to the set of recognized roots public keys for this principal.
+
+It accepts either a single argument (which points to a file containing a blessing)
+or two arguments (a name and a base64-encoded DER-encoded public key).
+
+For example, to make the principal in credentials directory A recognize the
+root of the default blessing in credentials directory B:
+  principal -v23.credentials=B bless A some_extension |
+  principal -v23.credentials=A recognize -
+The extension 'some_extension' has no effect in the command above.
+
+Or to make the principal in credentials directory A recognize the base64-encoded
+public key KEY for blessing pattern P:
+  principal -v23.credentials=A recognize P KEY
+`,
+		ArgsName: "<key|blessing> [<blessing pattern>]",
+		ArgsLong: `
+<blessing> is the path to a file containing a blessing typically obtained from
+this tool. - is used for STDIN.
+
+<key> is a base64-encoded, DER-encoded public key.
+
+<blessing pattern> is the blessing pattern for which <key> should be recognized.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			if len(args) != 1 && len(args) != 2 {
+				return fmt.Errorf("requires either one argument <file>, or two arguments <key> <blessing pattern>, provided %d", len(args))
+			}
+			ctx, shutdown := v23.Init()
+			defer shutdown()
+
+			p := v23.GetPrincipal(ctx)
+			if len(args) == 1 {
+				blessings, err := decodeBlessings(args[0])
+				if err != nil {
+					return fmt.Errorf("failed to decode provided blessings: %v", err)
+				}
+				if err := p.AddToRoots(blessings); err != nil {
+					return fmt.Errorf("AddToRoots failed: %v", err)
+				}
+				return nil
+			}
+			// len(args) == 2
+			der, err := base64.URLEncoding.DecodeString(args[1])
+			if err != nil {
+				return fmt.Errorf("invalid base64 encoding of public key: %v", err)
+			}
+			key, err := security.UnmarshalPublicKey(der)
+			if err != nil {
+				return fmt.Errorf("invalid DER encoding of public key: %v", err)
+			}
+			return p.Roots().Add(key, security.BlessingPattern(args[0]))
+		},
+	}
+	// TODO(ashankar): Remove
 	cmdAddToRoots = &cmdline.Command{
 		Name:  "addtoroots",
 		Short: "Add to the set of identity providers recognized by this principal",
@@ -973,7 +1032,7 @@ Command principal creates and manages Vanadium principals and blessings.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdAddToRoots},
+		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdRecognize, cmdAddToRoots},
 	}
 	os.Exit(root.Main())
 }
