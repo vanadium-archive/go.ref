@@ -1132,7 +1132,18 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 		return nil, err
 	}
 	if called, want := req.NumPosArgs, uint64(len(argptrs)); called != want {
-		return nil, newErrBadNumInputArgs(fs.ctx, fs.suffix, fs.method, called, want)
+		err := newErrBadNumInputArgs(fs.ctx, fs.suffix, fs.method, called, want)
+		// If the client is sending the wrong number of arguments, try to drain the
+		// arguments sent by the client before returning an error to ensure the client
+		// receives the correct error in call.Finish(). Otherwise, the client may get
+		// an EOF error while encoding args since the server closes the flow upon returning.
+		var any interface{}
+		for i := 0; i < int(req.NumPosArgs); i++ {
+			if decerr := fs.dec.Decode(&any); decerr != nil {
+				return nil, err
+			}
+		}
+		return nil, err
 	}
 	for ix, argptr := range argptrs {
 		if err := fs.dec.Decode(argptr); err != nil {
