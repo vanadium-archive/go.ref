@@ -378,6 +378,12 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 	// Start the proxy as early as possible, ignore duplicate requests
 	// for the same proxy.
 	if _, inuse := s.proxies[listenSpec.Proxy]; useProxy && !inuse {
+		// Pre-emptively fetch discharges on the blessings (they will be cached
+		// within s.dc for future calls).
+		// This shouldn't be required, but is a hack to reduce flakiness in
+		// JavaScript browser integration tests.
+		// See https://v.io/i/392
+		s.dc.PrepareDischarges(s.ctx, s.blessings.ThirdPartyCaveats(), security.DischargeImpetus{})
 		// We have a goroutine for listening on proxy connections.
 		s.active.Add(1)
 		go func() {
@@ -1344,38 +1350,30 @@ type proxyAuth struct {
 func (a proxyAuth) RPCStreamListenerOpt() {}
 
 func (a proxyAuth) Login(proxy stream.Flow) (security.Blessings, []security.Discharge, error) {
-	// TODO(ashankar): Restore this block after figuring out flakiness in javascript-browser-integration tests.
-	// https://v.io/i/33
-	return security.Blessings{}, nil, nil
-	/*
-		var (
-			principal = a.s.principal
-			dc        = a.s.dc
-			ctx       = a.s.ctx
-		)
-		if principal == nil {
-			return security.Blessings{}, nil, nil
-		}
-		proxyNames, _ := security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
-			LocalPrincipal:   principal,
-			RemoteBlessings:  proxy.RemoteBlessings(),
-			RemoteDischarges: proxy.RemoteDischarges(),
-			RemoteEndpoint:   proxy.RemoteEndpoint(),
-			LocalEndpoint:    proxy.LocalEndpoint(),
-		}))
-		blessings := principal.BlessingStore().ForPeer(proxyNames...)
-		tpc := blessings.ThirdPartyCaveats()
-		if len(tpc) == 0 {
-			return blessings, nil, nil
-		}
-		// Ugh! Have to convert from proxyNames to BlessingPatterns
-		proxyPats := make([]security.BlessingPattern, len(proxyNames))
-		for idx, n := range proxyNames {
-			proxyPats[idx] = security.BlessingPattern(n)
-		}
-		discharges := dc.PrepareDischarges(ctx, tpc, security.DischargeImpetus{Server: proxyPats})
-		return blessings, discharges, nil
-	*/
+	var (
+		principal = a.s.principal
+		dc        = a.s.dc
+		ctx       = a.s.ctx
+	)
+	if principal == nil {
+		return security.Blessings{}, nil, nil
+	}
+	proxyNames, _ := security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
+		LocalPrincipal:   principal,
+		RemoteBlessings:  proxy.RemoteBlessings(),
+		RemoteDischarges: proxy.RemoteDischarges(),
+		RemoteEndpoint:   proxy.RemoteEndpoint(),
+		LocalEndpoint:    proxy.LocalEndpoint(),
+	}))
+	blessings := principal.BlessingStore().ForPeer(proxyNames...)
+	tpc := blessings.ThirdPartyCaveats()
+	if len(tpc) == 0 {
+		return blessings, nil, nil
+	}
+	// Set DischargeImpetus.Server = proxyNames.
+	// See https://v.io/i/392
+	discharges := dc.PrepareDischarges(ctx, tpc, security.DischargeImpetus{})
+	return blessings, discharges, nil
 }
 
 var _ manager.ProxyAuthenticator = proxyAuth{}
