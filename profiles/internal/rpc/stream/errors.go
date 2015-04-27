@@ -35,6 +35,12 @@ type NetError struct {
 	timeout, temp bool
 }
 
+// TODO(cnicolaou): investigate getting rid of the use of net.Error
+// entirely. The rpc code can now test for a specific verror code and it's
+// not clear that the net.Conns we implement in Vanadium will ever be used
+// directly by code that expects them to return a net.Error when they
+// timeout.
+
 // NewNetError returns a new net.Error which will return the
 // supplied error, timeout and temporary parameters when the corresponding
 // methods are invoked.
@@ -42,6 +48,7 @@ func NewNetError(err error, timeout, temporary bool) net.Error {
 	return &NetError{err, timeout, temporary}
 }
 
+func (t NetError) Err() error      { return t.err }
 func (t NetError) Error() string   { return t.err.Error() }
 func (t NetError) Timeout() bool   { return t.timeout }
 func (t NetError) Temporary() bool { return t.temp }

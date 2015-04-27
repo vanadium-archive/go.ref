@@ -627,7 +627,7 @@ func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serv
 	}
 }
 
-// failedTryCall performs asynchronous cleanup for tryCall, and returns an
+// failedTryCall performs ©asynchronous cleanup for tryCall, and returns an
 // appropriate error from the responses we've already received.  All parallel
 // calls in tryCall failed or we timed out if we get here.
 func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (rpc.ClientCall, verror.ActionCode, bool, error) {
@@ -813,14 +813,31 @@ func newFlowClient(ctx *context.T, flow stream.Flow, server []string, dc vc.Disc
 	return fc, nil
 }
 
+// close determines the appropriate error to return, in particular,
+// if a timeout or cancelation has occured then any error
+// is turned into a timeout or cancelation as appropriate.
+// Cancelation takes precedence over timeout. This is needed because
+// a timeout can lead to any other number of errors due to the underlying
+// network connection being shutdown abruptly.
 func (fc *flowClient) close(err error) error {
 	subErr := verror.SubErr{Err: err, Options: verror.Print}
 	subErr.Name = "remote=" + fc.flow.RemoteEndpoint().String()
 	if cerr := fc.flow.Close(); cerr != nil && err == nil {
 		return verror.New(verror.ErrInternal, fc.ctx, subErr)
 	}
+	if err == nil {
+		return nil
+	}
 	switch verror.ErrorID(err) {
-	case verror.ErrBadProtocol.ID, errRequestEncoding.ID, errArgEncoding.ID:
+	case verror.ErrCanceled.ID:
+		return err
+	case verror.ErrTimeout.ID:
+		// Canceled trumps timeout.
+		if fc.ctx.Err() == context.Canceled {
+			return verror.AddSubErrs(verror.New(verror.ErrCanceled, fc.ctx), fc.ctx, subErr)
+		}
+		return err
+	default:
 		switch fc.ctx.Err() {
 		case context.DeadlineExceeded:
 			timeout := verror.New(verror.ErrTimeout, fc.ctx)
@@ -831,14 +848,10 @@ func (fc *flowClient) close(err error) error {
 			err := verror.AddSubErrs(canceled, fc.ctx, subErr)
 			return err
 		}
-	case errVomEncoder.ID, errVomDecoder.ID:
-		badProtocol := verror.New(verror.ErrBadProtocol, fc.ctx)
-		err = verror.AddSubErrs(badProtocol, fc.ctx, subErr)
-	case verror.ErrTimeout.ID:
-		// Canceled trumps timeout.
-		if fc.ctx.Err() == context.Canceled {
-			return verror.AddSubErrs(verror.New(verror.ErrCanceled, fc.ctx), fc.ctx, subErr)
-		}
+	}
+	switch verror.ErrorID(err) {
+	case errVomDecoder.ID, errVomEncoder.ID, errRequestEncoding.ID, errArgEncoding.ID, errResponseDecoding.ID:
+		return verror.New(verror.ErrBadProtocol, fc.ctx, err)
 	}
 	return err
 }
@@ -881,28 +894,40 @@ func (fc *flowClient) Send(item interface{}) error {
 
 	// The empty request header indicates what follows is a streaming arg.
 	if err := fc.enc.Encode(rpc.Request{}); err != nil {
-		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, rpc.Request{}, err))
+		berr := verror.New(errRequestEncoding, fc.ctx, rpc.Request{}, err)
 		return fc.close(berr)
 	}
 	if err := fc.enc.Encode(item); err != nil {
-		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errArgEncoding, fc.ctx, -1, err))
+		berr := verror.New(errArgEncoding, fc.ctx, -1, err)
 		return fc.close(berr)
 	}
 	return nil
 }
 
-func decodeNetError(ctx *context.T, err error) verror.IDAction {
+// decodeNetError tests for a net.Error from the lower stream code and
+// translates it into an appropriate error to be returned by the higher level
+// RPC api calls. It also tests for the net.Error being a stream.NetError
+// and if so, uses the error it stores rather than the stream.NetError itself
+// as its retrun value. This allows for the stack trace of the original
+// error to be chained to that of any verror created with it as a first parameter.
+func decodeNetError(ctx *context.T, err error) (verror.IDAction, error) {
 	if neterr, ok := err.(net.Error); ok {
+		if streamNeterr, ok := err.(*stream.NetError); ok {
+			err = streamNeterr.Err() // return the error stored in the stream.NetError
+		}
 		if neterr.Timeout() || neterr.Temporary() {
 			// If a read is canceled in the lower levels we see
 			// a timeout error - see readLocked in vc/reader.go
 			if ctx.Err() == context.Canceled {
-				return verror.ErrCanceled
+				return verror.ErrCanceled, err
 			}
-			return verror.ErrTimeout
+			return verror.ErrTimeout, err
 		}
 	}
-	return verror.ErrBadProtocol
+	if id := verror.ErrorID(err); id != verror.ErrUnknown.ID {
+		return verror.IDAction{id, verror.Action(err)}, err
+	}
+	return verror.ErrBadProtocol, err
 }
 
 func (fc *flowClient) Recv(itemptr interface{}) error {
@@ -918,7 +943,8 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 
 	// Decode the response header and handle errors and EOF.
 	if err := fc.dec.Decode(&fc.response); err != nil {
-		berr := verror.New(decodeNetError(fc.ctx, err), fc.ctx, verror.New(errResponseDecoding, fc.ctx, err))
+		id, verr := decodeNetError(fc.ctx, err)
+		berr := verror.New(id, fc.ctx, verror.New(errResponseDecoding, fc.ctx, verr))
 		return fc.close(berr)
 	}
 	if fc.response.Error != nil {
@@ -934,7 +960,8 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 	}
 	// Decode the streaming result.
 	if err := fc.dec.Decode(itemptr); err != nil {
-		berr := verror.New(decodeNetError(fc.ctx, err), fc.ctx, verror.New(errResponseDecoding, fc.ctx, err))
+		id, verr := decodeNetError(fc.ctx, err)
+		berr := verror.New(id, fc.ctx, verror.New(errResponseDecoding, fc.ctx, verr))
 		// TODO(cnicolaou): should we be caching this?
 		fc.response.Error = berr
 		return fc.close(berr)
@@ -1007,12 +1034,13 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	// Decode the response header, if it hasn't already been decoded by Recv.
 	if fc.response.Error == nil && !fc.response.EndStreamResults {
 		if err := fc.dec.Decode(&fc.response); err != nil {
-			berr := verror.New(decodeNetError(fc.ctx, err), fc.ctx, verror.New(errResponseDecoding, fc.ctx, err))
+			id, verr := decodeNetError(fc.ctx, err)
+			berr := verror.New(id, fc.ctx, verror.New(errResponseDecoding, fc.ctx, verr))
 			return fc.close(berr)
 		}
 		// The response header must indicate the streaming results have ended.
 		if fc.response.Error == nil && !fc.response.EndStreamResults {
-			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRemainingStreamResults, fc.ctx))
+			berr := verror.New(errRemainingStreamResults, fc.ctx)
 			return fc.close(berr)
 		}
 	}
@@ -1042,7 +1070,8 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	}
 	for ix, r := range resultptrs {
 		if err := fc.dec.Decode(r); err != nil {
-			berr := verror.New(decodeNetError(fc.ctx, err), fc.ctx, verror.New(errResultDecoding, fc.ctx, ix, err))
+			id, verr := decodeNetError(fc.ctx, err)
+			berr := verror.New(id, fc.ctx, verror.New(errResultDecoding, fc.ctx, ix, verr))
 			return fc.close(berr)
 		}
 	}
