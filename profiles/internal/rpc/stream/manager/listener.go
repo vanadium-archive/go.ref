@@ -46,8 +46,6 @@ var (
 	// level errors and hence {1}{2} is omitted from their format
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
-	errVomEncoder                 = reg(".errVomEncoder", "failed to create vom encoder{:3}")
-	errVomDecoder                 = reg(".errVomDecoder", "failed to create vom decoder{:3}")
 	errVomEncodeRequest           = reg(".errVomEncodeRequest", "failed to encode request to proxy{:3}")
 	errVomDecodeResponse          = reg(".errVomDecodeRequest", "failed to decoded response from proxy{:3}")
 	errProxyError                 = reg(".errProxyError", "proxy error {:3}")
@@ -346,23 +344,13 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 			return nil, nil, verror.New(stream.ErrSecurity, nil, verror.New(errRefusedProxyLogin, nil, err))
 		}
 	}
-	enc, err := vom.NewEncoder(flow)
-	if err != nil {
-		flow.Close()
-		vf.StopAccepting()
-		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomDecoder, nil, err))
-	}
+	enc := vom.NewEncoder(flow)
 	if err := enc.Encode(request); err != nil {
 		flow.Close()
 		vf.StopAccepting()
 		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomEncodeRequest, nil, err))
 	}
-	dec, err := vom.NewDecoder(flow)
-	if err != nil {
-		flow.Close()
-		vf.StopAccepting()
-		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomDecoder, nil, err))
-	}
+	dec := vom.NewDecoder(flow)
 	if err := dec.Decode(&response); err != nil {
 		flow.Close()
 		vf.StopAccepting()

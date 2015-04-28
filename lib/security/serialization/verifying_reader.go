@@ -21,7 +21,6 @@ const pkgPath = "v.io/x/ref/lib/security/serialization"
 var (
 	errCantBeNilVerifier      = verror.Register(pkgPath+".errCantBeNilVerifier", verror.NoRetry, "{1:}{2:} data:{3} signature:{4} key:{5} cannot be nil{:_}")
 	errModifiedSinceWritten   = verror.Register(pkgPath+".errModifiedSinceWritten", verror.NoRetry, "{1:}{2:} data has been modified since being written{:_}")
-	errCantCreateDecoder      = verror.Register(pkgPath+".errCantCreateDecoder", verror.NoRetry, "{1:}{2:} failed to create new decoder{:_}")
 	errCantDecodeHeader       = verror.Register(pkgPath+".errCantDecodeHeader", verror.NoRetry, "{1:}{2:} failed to decode header{:_}")
 	errCantVerifySig          = verror.Register(pkgPath+".errCantVerifySig", verror.NoRetry, "{1:}{2:} signature verification failed{:_}")
 	errBadTypeFromSigReader   = verror.Register(pkgPath+".errBadTypeFromSigReader", verror.NoRetry, "{1:}{2:} invalid data of type: {3} read from signature Reader{:_}")
@@ -93,10 +92,7 @@ func (r *verifyingReader) readChunk() error {
 
 func (r *verifyingReader) verifySignature(signature io.Reader, key security.PublicKey) error {
 	signatureHash := sha256.New()
-	dec, err := vom.NewDecoder(signature)
-	if err != nil {
-		return verror.New(errCantCreateDecoder, nil, err)
-	}
+	dec := vom.NewDecoder(signature)
 	var h SignedHeader
 	if err := dec.Decode(&h); err != nil {
 		return verror.New(errCantDecodeHeader, nil, err)

@@ -201,7 +201,7 @@ type TestCase struct {
 	Value      any    // Value to test
 	TypeString string // The string representation of the Type
 	Hex        string // Hex pattern representing vom encoding
-	HexMagic   string // Hex pattern representing vom encoding of MagicByte
+	HexVersion string // Hex pattern representing vom encoding of Version
 	HexType    string // Hex pattern representing vom encoding of Type
 	HexValue   string // Hex pattern representing vom encoding of Value
 }
@@ -222,7 +222,7 @@ const Tests = []TestCase {`)
 			value = value.Elem()
 		}
 		valstr := vdlgen.TypedConst(value, testpkg, imports)
-		hexmagic, hextype, hexvalue, vomdump, err := toVomHex(value)
+		hexversion, hextype, hexvalue, vomdump, err := toVomHex(value)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +234,7 @@ const Tests = []TestCase {`)
 		%[2]q,
 		%[3]q,
 		%[4]q, %[5]q, %[6]q,
-	},`, valstr, value.Type().String(), hexmagic+hextype+hexvalue, hexmagic, hextype, hexvalue, vomdump)
+	},`, valstr, value.Type().String(), hexversion+hextype+hexvalue, hexversion, hextype, hexvalue, vomdump)
 	}
 	fmt.Fprintf(buf, `
 }
@@ -318,27 +318,22 @@ const ConvertTests = map[string][]ConvertGroup{`)
 
 func toVomHex(value *vdl.Value) (string, string, string, string, error) {
 	var buf, typebuf bytes.Buffer
-	typeenc, err := vom.NewTypeEncoder(&typebuf)
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("vom.NewTypeEncoder failed: %v", err)
-	}
-	encoder, err := vom.NewEncoderWithTypeEncoder(&buf, typeenc)
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("vom.NewEncoderWithTypeEncoder failed: %v", err)
-	}
+	encoder := vom.NewEncoderWithTypeEncoder(&buf, vom.NewTypeEncoder(&typebuf))
 	if err := encoder.Encode(value); err != nil {
 		return "", "", "", "", fmt.Errorf("vom.Encode(%v) failed: %v", value, err)
 	}
-	magic, _ := buf.ReadByte() // Read the magic byte.
-	vombytes := append(typebuf.Bytes(), buf.Bytes()...)
-	typebuf.ReadByte() // Remove the magic byte.
+	version, _ := buf.ReadByte() // Read the version byte.
+	if typebuf.Len() > 0 {
+		typebuf.ReadByte() // Remove the version byte.
+	}
+	vombytes := append(append([]byte{version}, typebuf.Bytes()...), buf.Bytes()...)
 	const pre = "\t// "
 	vomdump := pre + strings.Replace(vom.Dump(vombytes), "\n", "\n"+pre, -1)
 	if strings.HasSuffix(vomdump, "\n"+pre) {
 		vomdump = vomdump[:len(vomdump)-len("\n"+pre)]
 	}
 	// TODO(toddw): Add hex pattern bracketing for map and set.
-	return fmt.Sprintf("%x", magic), fmt.Sprintf("%x", typebuf.Bytes()), fmt.Sprintf("%x", buf.Bytes()), vomdump, nil
+	return fmt.Sprintf("%x", version), fmt.Sprintf("%x", typebuf.Bytes()), fmt.Sprintf("%x", buf.Bytes()), vomdump, nil
 }
 
 func writeFile(data []byte, outName string) error {

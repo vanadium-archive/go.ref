@@ -295,10 +295,7 @@ type runningTest struct {
 
 func makeRequest(rpc RpcRequest, args ...interface{}) (string, error) {
 	var buf bytes.Buffer
-	encoder, err := vom.NewEncoder(&buf)
-	if err != nil {
-		return "", err
-	}
+	encoder := vom.NewEncoder(&buf)
 	if err := encoder.Encode(rpc); err != nil {
 		return "", err
 	}

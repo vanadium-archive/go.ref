@@ -398,8 +398,8 @@ func TestStartCallErrors(t *testing.T) {
 
 func dropDataDialer(network, address string, timeout time.Duration) (net.Conn, error) {
 	matcher := func(read bool, msg message.T) bool {
-		switch msg.(type) {
-		case *message.Data:
+		// Drop and close the connection when reading the first data message.
+		if _, ok := msg.(*message.Data); ok && read {
 			return true
 		}
 		return false
@@ -440,7 +440,7 @@ func TestStartCallBadProtocol(t *testing.T) {
 
 	nctx, _ := context.WithTimeout(ctx, time.Minute)
 	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{}, options.SecurityNone)
-	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	if call != nil {

@@ -273,10 +273,7 @@ func (m *mockJSServer) handleValidationRequest(v interface{}) error {
 	}
 
 	var b bytes.Buffer
-	enc, err := vom.NewEncoder(&b)
-	if err != nil {
-		panic(err)
-	}
+	enc := vom.NewEncoder(&b)
 	if err := enc.Encode(resp); err != nil {
 		panic(err)
 	}

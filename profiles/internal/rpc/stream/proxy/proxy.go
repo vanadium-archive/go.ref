@@ -53,8 +53,6 @@ var (
 	errNoRoutingTableEntry       = reg(".errNoRoutingTableEntry", "routing table has no entry for the VC")
 	errProcessVanished           = reg(".errProcessVanished", "remote process vanished")
 	errDuplicateSetupVC          = reg(".errDuplicateSetupVC", "duplicate SetupVC request")
-	errVomDecoder                = reg(".errVomDecoder", "failed to create vom decoder{:3}")
-	errVomEncoder                = reg(".errVomEncoder", "failed to create vom encoder{:3}")
 	errVomEncodeResponse         = reg(".errVomEncodeResponse", "failed to encode response from proxy{:3}")
 	errNoRequest                 = reg(".errNoRequest", "unable to read Request{:3}")
 	errServerClosedByProxy       = reg(".errServerClosedByProxy", "server closed by proxy")
@@ -343,10 +341,8 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	server.Process.InitVCI(server.VC.VCI())
 	var request Request
 	var response Response
-	dec, err := vom.NewDecoder(conn)
-	if err != nil {
-		response.Error = verror.New(stream.ErrProxy, nil, verror.New(errVomDecoder, nil, err))
-	} else if err := dec.Decode(&request); err != nil {
+	dec := vom.NewDecoder(conn)
+	if err := dec.Decode(&request); err != nil {
 		response.Error = verror.New(stream.ErrProxy, nil, verror.New(errNoRequest, nil, err))
 	} else if err := p.authorize(server.VC, request); err != nil {
 		response.Error = err
@@ -362,12 +358,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		}
 		response.Endpoint = ep.String()
 	}
-	enc, err := vom.NewEncoder(conn)
-	if err != nil {
-		proxyLog().Infof("Failed to create Encoder for server %v: %v", server, err)
-		server.Close(verror.New(stream.ErrProxy, nil, verror.New(errVomEncoder, nil, err)))
-		return
-	}
+	enc := vom.NewEncoder(conn)
 	if err := enc.Encode(response); err != nil {
 		proxyLog().Infof("Failed to encode response %#v for server %v", response, server)
 		server.Close(verror.New(stream.ErrProxy, nil, verror.New(errVomEncodeResponse, nil, err)))

@@ -68,19 +68,11 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	// Validate the integrity of the bits.
 	buf := new(bytes.Buffer)
 
-	encoder, err := vom.NewEncoder(buf)
-
-	if err != nil {
-		return err
-	}
-
+	encoder := vom.NewEncoder(buf)
 	if encoder.Encode(bOrigin); err != nil {
 		return err
 	}
-	decoder, err := vom.NewDecoder(buf)
-	if err != nil {
-		return err
-	}
+	decoder := vom.NewDecoder(buf)
 	var decoded security.Blessings
 	if err := decoder.Decode(&decoded); err != nil {
 		return err

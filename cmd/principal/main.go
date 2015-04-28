@@ -1141,10 +1141,7 @@ func chainName(chain []security.Certificate) string {
 func base64VomEncode(i interface{}) (string, error) {
 	buf := &bytes.Buffer{}
 	closer := base64.NewEncoder(base64.URLEncoding, buf)
-	enc, err := vom.NewEncoder(closer)
-	if err != nil {
-		return "", err
-	}
+	enc := vom.NewEncoder(closer)
 	if err := enc.Encode(i); err != nil {
 		return "", err
 	}
@@ -1161,10 +1158,7 @@ func base64VomDecode(s string, i interface{}) error {
 	if err != nil {
 		return err
 	}
-	dec, err := vom.NewDecoder(bytes.NewBuffer(b))
-	if err != nil {
-		return err
-	}
+	dec := vom.NewDecoder(bytes.NewBuffer(b))
 	return dec.Decode(i)
 }
 
