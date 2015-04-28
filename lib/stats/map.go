@@ -23,7 +23,7 @@ func NewMap(name string) *Map {
 }
 
 // Map implements the StatsObject interface. The map keys are strings and the
-// values can be bool, int64, uint64, float64, or string.
+// values can be bool, int64, uint64, float64, string, or time.Time.
 type Map struct {
 	mu    sync.RWMutex // ACQUIRED_BEFORE(stats.lock)
 	name  string
@@ -72,6 +72,8 @@ func (m *Map) Set(kvpairs []KeyValue) {
 			v = float64(value)
 		case string:
 			v = string(value)
+		case time.Time:
+			v = value.String()
 		default:
 			panic("attempt to use an unsupported type as value")
 		}
