@@ -172,13 +172,17 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
         <option name="MethodCaveat" value="MethodCaveat" class="cavOption">Allowed methods are</option>
         <option name="PeerBlessingsCaveat" value="PeerBlessingsCaveat" class="cavOption">Allowed peers are</option>
       </select>
-
+    </div>
+    <div class="cell">
       <input type="text" class="caveatInput hidden" id="RevocationCaveat" name="RevocationCaveat">
       <input type="datetime-local" class="caveatInput expiry hidden" id="ExpiryCaveat" name="ExpiryCaveat">
       <input type="text" id="MethodCaveat" class="caveatInput hidden" name="MethodCaveat" placeholder="comma-separated method list">
       <input type="text" id="PeerBlessingsCaveat" class="caveatInput hidden" name="PeerBlessingsCaveat" placeholder="comma-separated blessing list">
+    </div>
 
+    <div class="cell">
       <a href="#" class="right addMore">Add more</a>
+    </div>
     </div>
   </div>
   </br>
