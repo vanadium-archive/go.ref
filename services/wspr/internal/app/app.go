@@ -225,7 +225,7 @@ func (c *Controller) callOpts(opts []RpcCallOption) ([]rpc.CallOpt, error) {
 			callOpts = append(callOpts, options.AllowedServersPolicy(v.Value))
 		case RpcCallOptionRetryTimeout:
 			callOpts = append(callOpts, options.RetryTimeout(v.Value))
-		case RpcCallOptionUseGranter:
+		case RpcCallOptionGranter:
 			callOpts = append(callOpts, &jsGranter{c, v.Value})
 		default:
 			return nil, fmt.Errorf("Unknown RpcCallOption type %T", v)

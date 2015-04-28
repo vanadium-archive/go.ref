@@ -42,7 +42,7 @@ type RpcRequest struct {
 type RpcCallOption union {
 	AllowedServersPolicy []security.BlessingPattern
 	RetryTimeout         time.Duration
-	UseGranter GranterHandle
+	Granter GranterHandle
 }
 
 type RpcResponse struct {

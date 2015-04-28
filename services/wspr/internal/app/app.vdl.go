@@ -55,8 +55,8 @@ type (
 	RpcCallOptionAllowedServersPolicy struct{ Value []security.BlessingPattern }
 	// RpcCallOptionRetryTimeout represents field RetryTimeout of the RpcCallOption union type.
 	RpcCallOptionRetryTimeout struct{ Value time.Duration }
-	// RpcCallOptionUseGranter represents field UseGranter of the RpcCallOption union type.
-	RpcCallOptionUseGranter struct{ Value GranterHandle }
+	// RpcCallOptionGranter represents field Granter of the RpcCallOption union type.
+	RpcCallOptionGranter struct{ Value GranterHandle }
 	// __RpcCallOptionReflect describes the RpcCallOption union type.
 	__RpcCallOptionReflect struct {
 		Name  string "v.io/x/ref/services/wspr/internal/app.RpcCallOption"
@@ -64,7 +64,7 @@ type (
 		Union struct {
 			AllowedServersPolicy RpcCallOptionAllowedServersPolicy
 			RetryTimeout         RpcCallOptionRetryTimeout
-			UseGranter           RpcCallOptionUseGranter
+			Granter              RpcCallOptionGranter
 		}
 	}
 )
@@ -79,10 +79,10 @@ func (x RpcCallOptionRetryTimeout) Interface() interface{}              { return
 func (x RpcCallOptionRetryTimeout) Name() string                        { return "RetryTimeout" }
 func (x RpcCallOptionRetryTimeout) __VDLReflect(__RpcCallOptionReflect) {}
 
-func (x RpcCallOptionUseGranter) Index() int                          { return 2 }
-func (x RpcCallOptionUseGranter) Interface() interface{}              { return x.Value }
-func (x RpcCallOptionUseGranter) Name() string                        { return "UseGranter" }
-func (x RpcCallOptionUseGranter) __VDLReflect(__RpcCallOptionReflect) {}
+func (x RpcCallOptionGranter) Index() int                          { return 2 }
+func (x RpcCallOptionGranter) Interface() interface{}              { return x.Value }
+func (x RpcCallOptionGranter) Name() string                        { return "Granter" }
+func (x RpcCallOptionGranter) __VDLReflect(__RpcCallOptionReflect) {}
 
 type RpcResponse struct {
 	OutArgs       []*vdl.Value
