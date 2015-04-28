@@ -87,6 +87,38 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
   </header>
 
   <main style="margin-left: 0px; max-width: 100%;">
+
+    <!-- Begin ID Server information -->
+    <div class="grid">
+      <div class="cell">
+        <h2>Public Key</h2>
+        <p>
+          The public key of this provider is <code>{{.Self.PublicKey}}</code>.</br>
+          The root names and public key (in DER encoded <a href="http://en.wikipedia.org/wiki/X.690#DER_encoding">format</a>)
+          are available in a <a class="btn btn-xs btn-primary" href="/auth/blessing-root">JSON</a> object.
+        </p>
+      </div>
+      {{if .GoogleServers}}
+      <div class="cell">
+        <h2>Blessings</h2>
+        <p>
+          Blessings (using Google OAuth to fetch an email address) are provided via
+          Vanadium RPCs to: <code>{{range .GoogleServers}}{{.}}{{end}}</code>
+        </p>
+      </div>
+      {{end}}
+      {{if .DischargeServers}}
+      <div class="cell">
+        <h2>Discharges</h2>
+        <p>
+          RevocationCaveat Discharges are provided via Vanadium RPCs to:
+          <code>{{range .DischargeServers}}{{.}}{{end}}</code>
+        </p>
+      </div>
+      {{end}}
+    </div>
+    <!-- End ID Server information -->
+
     <table class="blessing-table">
         <tr>
         <td>Blessed as</td>

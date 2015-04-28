@@ -85,6 +85,10 @@ type HandlerArgs struct {
 	CaveatSelector caveats.CaveatSelector
 	// AssetsPrefix is the host where web assets for rendering the list blessings template are stored.
 	AssetsPrefix string
+	// GoogleServers is the list of published Google blessings services.
+	GoogleServers []string
+	// DischargeServers is the list of published disharges services.
+	DischargeServers []string
 }
 
 // BlessingMacaroon contains the data that is encoded into the macaroon for creating blessings.
@@ -172,11 +176,16 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 	tmplargs := struct {
 		Log                              chan tmplentry
 		Email, RevokeRoute, AssetsPrefix string
+		Self                             security.Blessings
+		GoogleServers, DischargeServers  []string
 	}{
-		Log:          make(chan tmplentry),
-		Email:        email,
-		RevokeRoute:  revokeRoute,
-		AssetsPrefix: h.args.AssetsPrefix,
+		Log:              make(chan tmplentry),
+		Email:            email,
+		RevokeRoute:      revokeRoute,
+		AssetsPrefix:     h.args.AssetsPrefix,
+		Self:             h.args.Principal.BlessingStore().Default(),
+		GoogleServers:    h.args.GoogleServers,
+		DischargeServers: h.args.DischargeServers,
 	}
 	entrych := h.args.BlessingLogReader.Read(email)
 

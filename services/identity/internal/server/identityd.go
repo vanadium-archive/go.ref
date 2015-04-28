@@ -152,7 +152,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 	externalHttpAddr = httpAddress(externalHttpAddr, httpAddr)
 
 	n := "/auth/google/"
-	h, err := oauth.NewHandler(oauth.HandlerArgs{
+	args := oauth.HandlerArgs{
 		Principal:               principal,
 		MacaroonKey:             macaroonKey,
 		Addr:                    fmt.Sprintf("%s%s", externalHttpAddr, n),
@@ -164,33 +164,34 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 		CaveatSelector:          s.caveatSelector,
 		EmailClassifier:         s.emailClassifier,
 		AssetsPrefix:            s.assetsPrefix,
-	})
+	}
+	if s.revocationManager != nil {
+		args.DischargeServers = appendSuffixTo(published, dischargerService)
+	}
+	var emptyParams blesser.OAuthBlesserParams
+	if !reflect.DeepEqual(s.oauthBlesserParams, emptyParams) {
+		args.GoogleServers = appendSuffixTo(published, oauthBlesserService)
+	}
+	h, err := oauth.NewHandler(args)
 	if err != nil {
 		vlog.Fatalf("Failed to create HTTP handler for oauth authentication: %v", err)
 	}
 	http.Handle(n, h)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		args := struct {
+		tmplArgs := struct {
 			Self                            security.Blessings
 			GoogleServers, DischargeServers []string
 			ListBlessingsRoute              string
 			AssetsPrefix                    string
 		}{
-			Self:         principal.BlessingStore().Default(),
-			AssetsPrefix: s.assetsPrefix,
+			Self:               principal.BlessingStore().Default(),
+			GoogleServers:      args.GoogleServers,
+			DischargeServers:   args.DischargeServers,
+			ListBlessingsRoute: oauth.ListBlessingsRoute,
+			AssetsPrefix:       s.assetsPrefix,
 		}
-		if s.revocationManager != nil {
-			args.DischargeServers = appendSuffixTo(published, dischargerService)
-		}
-		var emptyParams blesser.OAuthBlesserParams
-		if !reflect.DeepEqual(s.oauthBlesserParams, emptyParams) {
-			args.GoogleServers = appendSuffixTo(published, oauthBlesserService)
-		}
-		if s.blessingLogReader != nil {
-			args.ListBlessingsRoute = oauth.ListBlessingsRoute
-		}
-		if err := templates.Home.Execute(w, args); err != nil {
+		if err := templates.Home.Execute(w, tmplArgs); err != nil {
 			vlog.Info("Failed to render template:", err)
 		}
 	})
