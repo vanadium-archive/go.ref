@@ -82,6 +82,10 @@ func V23TestHelloMounttabled(i *v23tests.T) {
 }
 
 func V23TestHelloProxy(i *v23tests.T) {
+	// Skipping this test for older binaries because of incompatibility in
+	// the proxyd commandline flags.
+	i.SkipInRegressionBefore("2015-04-25")
+
 	creds, err := setupCredentials(i, "helloclient", "helloserver",
 		"mounttabled", "proxyd")
 	if err != nil {
