@@ -131,7 +131,8 @@ func TestServerArgs(t *testing.T) {
 type statusServer struct{ ch chan struct{} }
 
 func (s *statusServer) Hang(*context.T, rpc.ServerCall) error {
-	<-s.ch
+	s.ch <- struct{}{} // Notify the server has received a call.
+	<-s.ch             // Wait for the server to be ready to go.
 	return nil
 }
 
@@ -178,10 +179,11 @@ func TestServerStatus(t *testing.T) {
 	}
 	go makeCall(ctx)
 
-	// Wait for RPC to start
+	// Wait for RPC to start and the server has received the call.
 	if err := <-progress; err != nil {
 		t.Fatalf(err.Error())
 	}
+	<-serverChan
 
 	// Stop server asynchronously
 	go func() {

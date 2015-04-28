@@ -124,10 +124,7 @@ func runDecode(cmd *cmdline.Command, args []string) error {
 	reader := bytes.NewBuffer(binbytes)
 	// Decode the binary bytes.
 	// TODO(toddw): Add a flag to set a specific type to decode into.
-	decoder, err := vom.NewDecoder(reader)
-	if err != nil {
-		return err
-	}
+	decoder := vom.NewDecoder(reader)
 	var result *vdl.Value
 	if err := decoder.Decode(&result); err != nil {
 		return err

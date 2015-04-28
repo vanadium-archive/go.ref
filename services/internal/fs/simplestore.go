@@ -254,10 +254,7 @@ func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 		return nil, verror.New(errFileSystemError, nil, err)
 	}
 
-	decoder, err := vom.NewDecoder(file)
-	if err != nil {
-		return nil, verror.New(errDecodeFailedBadData, nil, err)
-	}
+	decoder := vom.NewDecoder(file)
 	if err := decoder.Decode(&data); err != nil {
 		return nil, verror.New(errDecodeFailedBadData, nil, err)
 	}
@@ -563,11 +560,7 @@ func (ms *Memstore) persist() error {
 	if _, err := file.Write([]byte{byte(vomGobMagicByte)}); err != nil {
 		return err
 	}
-	enc, err := vom.NewEncoder(file)
-	if err != nil {
-		return err
-	}
-	err = enc.Encode(ms.data)
+	enc := vom.NewEncoder(file)
 	if err := enc.Encode(ms.data); err != nil {
 		return verror.New(errEncodeFailed, nil, err)
 	}

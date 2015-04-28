@@ -965,27 +965,14 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 		flow:       flow,
 		discharges: make(map[string]security.Discharge),
 	}
-	var err error
 	typeenc := flow.VCDataCache().Get(vc.TypeEncoderKey{})
 	if typeenc == nil {
-		if fs.enc, err = vom.NewEncoder(flow); err != nil {
-			flow.Close()
-			return nil, err
-		}
-		if fs.dec, err = vom.NewDecoder(flow); err != nil {
-			flow.Close()
-			return nil, err
-		}
+		fs.enc = vom.NewEncoder(flow)
+		fs.dec = vom.NewDecoder(flow)
 	} else {
-		if fs.enc, err = vom.NewEncoderWithTypeEncoder(flow, typeenc.(*vom.TypeEncoder)); err != nil {
-			flow.Close()
-			return nil, err
-		}
+		fs.enc = vom.NewEncoderWithTypeEncoder(flow, typeenc.(*vom.TypeEncoder))
 		typedec := flow.VCDataCache().Get(vc.TypeDecoderKey{})
-		if fs.dec, err = vom.NewDecoderWithTypeDecoder(flow, typedec.(*vom.TypeDecoder)); err != nil {
-			flow.Close()
-			return nil, err
-		}
+		fs.dec = vom.NewDecoderWithTypeDecoder(flow, typedec.(*vom.TypeDecoder))
 	}
 	return fs, nil
 }

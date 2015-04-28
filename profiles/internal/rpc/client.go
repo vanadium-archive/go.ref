@@ -52,8 +52,6 @@ var (
 	errNonRootedName             = reg(".errNonRootedName", "{3} does not appear to contain an address")
 	errInvalidEndpoint           = reg(".errInvalidEndpoint", "failed to parse endpoint")
 	errIncompatibleEndpoint      = reg(".errIncompatibleEndpoint", "incompatible endpoint")
-	errVomEncoder                = reg(".errVomEncoder", "failed to create vom encoder{:3}")
-	errVomDecoder                = reg(".errVomDecoder", "failed to create vom decoder{:3}")
 	errRequestEncoding           = reg(".errRequestEncoding", "failed to encode request {3}{:4}")
 	errDischargeEncoding         = reg(".errDischargeEncoding", "failed to encode discharges {:3}")
 	errBlessingEncoding          = reg(".errBlessingEncoding", "failed to encode blessing {3}{:4}")
@@ -785,30 +783,14 @@ func newFlowClient(ctx *context.T, flow stream.Flow, server []string, dc vc.Disc
 		server: server,
 		dc:     dc,
 	}
-	var err error
 	typeenc := flow.VCDataCache().Get(vc.TypeEncoderKey{})
 	if typeenc == nil {
-		if fc.enc, err = vom.NewEncoder(flow); err != nil {
-			// In practice, this will never fail because of a networking
-			// problem since the encoder writes the 'magic byte' which
-			// will be buffered and not written to the network immediately.
-			berr := verror.AddSubErrs(verror.New(errVomEncoder, fc.ctx), fc.ctx, verror.SubErr{Err: err})
-			return nil, fc.close(berr)
-		}
-		if fc.dec, err = vom.NewDecoder(flow); err != nil {
-			berr := verror.AddSubErrs(verror.New(errVomDecoder, fc.ctx), fc.ctx, verror.SubErr{Err: err})
-			return nil, fc.close(berr)
-		}
+		fc.enc = vom.NewEncoder(flow)
+		fc.dec = vom.NewDecoder(flow)
 	} else {
-		if fc.enc, err = vom.NewEncoderWithTypeEncoder(flow, typeenc.(*vom.TypeEncoder)); err != nil {
-			berr := verror.AddSubErrs(verror.New(errVomEncoder, fc.ctx), fc.ctx, verror.SubErr{Err: err})
-			return nil, fc.close(berr)
-		}
+		fc.enc = vom.NewEncoderWithTypeEncoder(flow, typeenc.(*vom.TypeEncoder))
 		typedec := flow.VCDataCache().Get(vc.TypeDecoderKey{})
-		if fc.dec, err = vom.NewDecoderWithTypeDecoder(flow, typedec.(*vom.TypeDecoder)); err != nil {
-			berr := verror.AddSubErrs(verror.New(errVomDecoder, fc.ctx), fc.ctx, verror.SubErr{Err: err})
-			return nil, fc.close(berr)
-		}
+		fc.dec = vom.NewDecoderWithTypeDecoder(flow, typedec.(*vom.TypeDecoder))
 	}
 	return fc, nil
 }
@@ -850,7 +832,7 @@ func (fc *flowClient) close(err error) error {
 		}
 	}
 	switch verror.ErrorID(err) {
-	case errVomDecoder.ID, errVomEncoder.ID, errRequestEncoding.ID, errArgEncoding.ID, errResponseDecoding.ID:
+	case errRequestEncoding.ID, errArgEncoding.ID, errResponseDecoding.ID:
 		return verror.New(verror.ErrBadProtocol, fc.ctx, err)
 	}
 	return err
@@ -874,7 +856,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		Language:         string(i18n.GetLangID(fc.ctx)),
 	}
 	if err := fc.enc.Encode(req); err != nil {
-		berr := verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err)
+		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err))
 		return fc.close(berr)
 	}
 	for ix, arg := range args {

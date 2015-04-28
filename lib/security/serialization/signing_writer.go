@@ -17,9 +17,8 @@ import (
 )
 
 var (
-	errCantBeNilSigner   = verror.Register(pkgPath+".errCantBeNilSigner", verror.NoRetry, "{1:}{2:} data:{3} signature:{4} signer:{5} cannot be nil{:_}")
-	errCantCreateEncoder = verror.Register(pkgPath+".errCantCreateEncoder", verror.NoRetry, "{1:}{2:} failed to create new encoder{:_}")
-	errCantSign          = verror.Register(pkgPath+".errCantSign", verror.NoRetry, "{1:}{2:} signing failed{:_}")
+	errCantBeNilSigner = verror.Register(pkgPath+".errCantBeNilSigner", verror.NoRetry, "{1:}{2:} data:{3} signature:{4} signer:{5} cannot be nil{:_}")
+	errCantSign        = verror.Register(pkgPath+".errCantSign", verror.NoRetry, "{1:}{2:} signing failed{:_}")
 )
 
 const defaultChunkSizeBytes = 1 << 20
@@ -98,10 +97,7 @@ func NewSigningWriteCloser(data, signature io.WriteCloser, s Signer, opts *Optio
 	if (data == nil) || (signature == nil) || (s == nil) {
 		return nil, verror.New(errCantBeNilSigner, nil, data, signature, s)
 	}
-	enc, err := vom.NewEncoder(signature)
-	if err != nil {
-		return nil, verror.New(errCantCreateEncoder, nil, err)
-	}
+	enc := vom.NewEncoder(signature)
 	w := &signingWriter{data: data, signature: signature, signer: s, signatureHash: sha256.New(), chunkSizeBytes: defaultChunkSizeBytes, sigEnc: enc}
 
 	if opts != nil {

@@ -25,11 +25,7 @@ func encodeAndStore(obj interface{}, data, signature io.WriteCloser, signer seri
 	if err != nil {
 		return err
 	}
-	enc, err := vom.NewEncoder(swc)
-	if err != nil {
-		swc.Close()
-		return err
-	}
+	enc := vom.NewEncoder(swc)
 	if err := enc.Encode(obj); err != nil {
 		swc.Close()
 		return err
@@ -47,9 +43,6 @@ func decodeFromStorage(obj interface{}, data, signature io.ReadCloser, publicKey
 	if err != nil {
 		return err
 	}
-	dec, err := vom.NewDecoder(vr)
-	if err != nil {
-		return err
-	}
+	dec := vom.NewDecoder(vr)
 	return dec.Decode(obj)
 }

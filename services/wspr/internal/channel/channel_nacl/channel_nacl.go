@@ -21,10 +21,7 @@ type Channel struct {
 
 func sendMessageToBrowser(ppapiInst ppapi.Instance, m channel.Message) {
 	var outBuf bytes.Buffer
-	enc, err := vom.NewEncoder(&outBuf)
-	if err != nil {
-		panic(fmt.Sprintf("Error beginning encoding: %v", err))
-	}
+	enc := vom.NewEncoder(&outBuf)
 	if err := enc.Encode(m); err != nil {
 		panic(fmt.Sprintf("Error encoding message %v: %v", m, err))
 	}
@@ -58,11 +55,7 @@ func (c *Channel) HandleMessage(v ppapi.Var) {
 	}
 
 	buf := bytes.NewBuffer(b)
-	dec, err := vom.NewDecoder(buf)
-	if err != nil {
-		panic(fmt.Sprintf("Error beginning decoding: %v", err))
-	}
-
+	dec := vom.NewDecoder(buf)
 	var m channel.Message
 	if err := dec.Decode(&m); err != nil {
 		panic(fmt.Sprintf("Error decoding message: %v", err))

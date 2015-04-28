@@ -28,8 +28,6 @@ var (
 	// level errors and hence {1}{2} is omitted from their format
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
-	errVomDecoder                   = reg(".errVomDecoder", "failed to create vom decoder{:3}")
-	errVomEncoder                   = reg(".errVomEncoder", "failed to create vom encoder{:3}")
 	errVomEncodeBlessing            = reg(".errVomEncodeRequest", "failed to encode blessing{:3}")
 	errHandshakeMessage             = reg(".errHandshakeMessage", "failed to read hanshake message{:3}")
 	errInvalidSignatureInMessage    = reg(".errInvalidSignatureInMessage", "signature does not verify in authentication handshake message")
@@ -100,10 +98,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	var buf bytes.Buffer
-	enc, err := vom.NewEncoder(&buf)
-	if err != nil {
-		return verror.New(stream.ErrNetwork, nil, verror.New(errVomEncoder, nil, err))
-	}
+	enc := vom.NewEncoder(&buf)
 	if err := enc.Encode(signature); err != nil {
 		return verror.New(stream.ErrNetwork, nil, verror.New(errVomEncodeBlessing, nil, err))
 	}
@@ -118,10 +113,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	defer msg.Release()
-	enc, err = vom.NewEncoder(w)
-	if err != nil {
-		return verror.New(stream.ErrNetwork, nil, verror.New(errVomEncoder, nil, err))
-	}
+	enc = vom.NewEncoder(w)
 	if err := enc.Encode(msg.Contents); err != nil {
 		return verror.New(stream.ErrNetwork, nil, verror.New(errVomEncodeBlessing, nil, err))
 	}
@@ -131,10 +123,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.RPCVersion) (security.Blessings, map[string]security.Discharge, error) {
 	var msg []byte
 	var noBlessings security.Blessings
-	dec, err := vom.NewDecoder(r)
-	if err != nil {
-		return noBlessings, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomDecoder, nil, err))
-	}
+	dec := vom.NewDecoder(r)
 	if err := dec.Decode(&msg); err != nil {
 		return noBlessings, nil, verror.New(stream.ErrNetwork, nil, verror.New(errHandshakeMessage, nil, err))
 	}
@@ -143,11 +132,7 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.RP
 		return noBlessings, nil, err
 	}
 	defer buf.Release()
-	dec, err = vom.NewDecoder(bytes.NewReader(buf.Contents))
-	if err != nil {
-		return noBlessings, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomDecoder, nil, err))
-	}
-
+	dec = vom.NewDecoder(bytes.NewReader(buf.Contents))
 	var (
 		blessings security.Blessings
 		sig       security.Signature

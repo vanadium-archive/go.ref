@@ -52,8 +52,6 @@ var (
 	errClosedDuringHandshake          = reg(".errCloseDuringHandshake", "VC closed during handshake{:3}")
 	errFailedToDecryptPayload         = reg(".errFailedToDecryptPayload", "failed to decrypt payload{:3}")
 	errIgnoringMessageOnClosedVC      = reg(".errIgnoringMessageOnClosedVC", "ignoring message for Flow {3} on closed VC {4}")
-	errVomTypeDecoder                 = reg(".errVomDecoder", "failed to create vom type decoder{:3}")
-	errVomTypeEncoder                 = reg(".errVomEncoder", "failed to create vom type encoder{:3}")
 	errFailedToCreateFlowForAuth      = reg(".errFailedToCreateFlowForAuth", "failed to create a Flow for authentication{:3}")
 	errAuthFlowNotAccepted            = reg(".errAuthFlowNotAccepted", "authentication Flow not accepted{:3}")
 	errFailedToCreateFlowForWireType  = reg(".errFailedToCreateFlowForWireType", "fail to create a Flow for wire type{:3}")
@@ -702,11 +700,7 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 	if dc == nil {
 		return
 	}
-	enc, err := vom.NewEncoder(conn)
-	if err != nil {
-		vlog.Errorf("failed to create new encoder for discharges on VC %v: %v", vc, err)
-		return
-	}
+	enc := vom.NewEncoder(conn)
 	discharges := dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
 	for expiry := minExpiryTime(discharges, tpCavs); !expiry.IsZero(); expiry = minExpiryTime(discharges, tpCavs) {
 		select {
@@ -756,12 +750,7 @@ func minExpiryTime(discharges []security.Discharge, tpCavs []security.Caveat) ti
 
 func (vc *VC) recvDischargesLoop(conn io.ReadCloser) {
 	defer conn.Close()
-	dec, err := vom.NewDecoder(conn)
-	if err != nil {
-		vlog.Errorf("failed to create new decoder for discharges on %v: %v", vc, err)
-		return
-	}
-
+	dec := vom.NewDecoder(conn)
 	for {
 		var discharges []security.Discharge
 		if err := dec.Decode(&discharges); err != nil {
@@ -787,18 +776,8 @@ func (vc *VC) connectSystemFlows() error {
 	if err != nil {
 		return verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForWireType, nil, err))
 	}
-	typeEnc, err := vom.NewTypeEncoder(conn)
-	if err != nil {
-		conn.Close()
-		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypeEncoder, nil, err))
-	}
-	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
-	typeDec, err := vom.NewTypeDecoder(conn)
-	if err != nil {
-		conn.Close()
-		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypeDecoder, nil, err))
-	}
-	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
+	vc.dataCache.Insert(TypeEncoderKey{}, vom.NewTypeEncoder(conn))
+	vc.dataCache.Insert(TypeDecoderKey{}, vom.NewTypeDecoder(conn))
 
 	if vc.Version() < version.RPCVersion10 {
 		return nil
@@ -823,18 +802,8 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener, dischargeClient DischargeCli
 	if err != nil {
 		return verror.New(errFlowForWireTypeNotAccepted, nil, err)
 	}
-	typeEnc, err := vom.NewTypeEncoder(conn)
-	if err != nil {
-		conn.Close()
-		return verror.New(errVomTypeEncoder, nil, err)
-	}
-	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
-	typeDec, err := vom.NewTypeDecoder(conn)
-	if err != nil {
-		conn.Close()
-		return verror.New(errVomTypeDecoder, nil, err)
-	}
-	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
+	vc.dataCache.Insert(TypeEncoderKey{}, vom.NewTypeEncoder(conn))
+	vc.dataCache.Insert(TypeDecoderKey{}, vom.NewTypeDecoder(conn))
 
 	if vc.Version() < version.RPCVersion10 {
 		return nil

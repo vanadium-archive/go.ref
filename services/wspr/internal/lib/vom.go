@@ -14,10 +14,7 @@ import (
 
 func VomEncode(v interface{}) (string, error) {
 	var buf bytes.Buffer
-	encoder, err := vom.NewEncoder(&buf)
-	if err != nil {
-		return "", err
-	}
+	encoder := vom.NewEncoder(&buf)
 	if err := encoder.Encode(v); err != nil {
 		return "", err
 	}
@@ -37,9 +34,6 @@ func VomDecode(data string, v interface{}) error {
 	if err != nil {
 		return fmt.Errorf("Error decoding hex string %q: %v", data, err)
 	}
-	decoder, err := vom.NewDecoder(bytes.NewReader(binbytes))
-	if err != nil {
-		return err
-	}
+	decoder := vom.NewDecoder(bytes.NewReader(binbytes))
 	return decoder.Decode(v)
 }

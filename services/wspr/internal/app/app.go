@@ -497,12 +497,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 		w.Error(verror.Convert(verror.ErrInternal, ctx, fmt.Errorf("Error decoding hex string %q: %v", data, err)))
 		return
 	}
-	decoder, err := vom.NewDecoder(bytes.NewReader(binbytes))
-	if err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
-		return
-	}
-
+	decoder := vom.NewDecoder(bytes.NewReader(binbytes))
 	var msg RpcRequest
 	if err := decoder.Decode(&msg); err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))

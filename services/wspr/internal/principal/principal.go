@@ -160,12 +160,7 @@ func NewPrincipalManager(root security.Principal, serializer vsecurity.Serialize
 		return nil, err
 	}
 
-	decoder, err := vom.NewDecoder(vr)
-
-	if err != nil {
-		return nil, err
-	}
-
+	decoder := vom.NewDecoder(vr)
 	if err := decoder.Decode(&result.state); err != nil {
 		return nil, err
 	}
@@ -182,11 +177,7 @@ func (i *PrincipalManager) save() error {
 		return err
 	}
 
-	encoder, err := vom.NewEncoder(swc)
-
-	if err != nil {
-		return err
-	}
+	encoder := vom.NewEncoder(swc)
 	if err := encoder.Encode(i.state); err != nil {
 		return err
 	}
