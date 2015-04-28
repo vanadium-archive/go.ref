@@ -84,6 +84,28 @@ func Caller(skip int) string {
 	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
 }
 
+// SkipInRegressionBefore skips the test if this is being run in a regression
+// test and some of the binaries are older than the specified date.
+// This is useful when we're breaking compatibility and we know it.
+// The parameter is a string formatted date YYYY-MM-DD.
+func (t *T) SkipInRegressionBefore(dateStr string) {
+	testStr := os.Getenv("V23_REGTEST_DATE")
+	if testStr == "" {
+		return
+	}
+	testDate, err := time.Parse("2006-01-02", testStr)
+	if err != nil {
+		t.Fatalf("%s: could not parse V23_REGTEST_DATE=%q: %v", Caller(1), testStr, err)
+	}
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		t.Fatalf("%s: could not parse date %q: %v", Caller(1), dateStr, err)
+	}
+	if testDate.Before(date) {
+		t.Skipf("Skipping regression test with binary from %s", testStr)
+	}
+}
+
 // Run constructs a Binary for path and invokes Run on it.
 func (t *T) Run(path string, args ...string) string {
 	return t.BinaryFromPath(path).run(args...)
