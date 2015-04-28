@@ -25,6 +25,22 @@ import (
 	_ "v.io/x/ref/profiles"
 )
 
+// As of April 28, 2015, the benchmarks for serving a principal with and
+// without the agent are as follows:
+//
+// BenchmarkSignNoAgent                    :  889608 ns/op
+// BenchmarkSignCachedAgent                : 6961410 ns/op
+// BenchmarkSignUncachedAgent	           : 7403763 ns/op
+// BenchmarkDefaultNoAgent	           :     139 ns/op
+// BenchmarkDefaultCachedAgent	           :      41 ns/op
+// BenchmarkDefaultUncachedAgent	   : 9732978 ns/op
+// BenchmarkRecognizedNegativeNoAgent	   :   34859 ns/op
+// BenchmarkRecognizedNegativeCachedAgent  :   31043 ns/op
+// BenchmarkRecognizedNegativeUncachedAgent: 5110308 ns/op
+// BenchmarkRecognizedNoAgent	           :   13457 ns/op
+// BenchmarkRecognizedCachedAgent	   :   12609 ns/op
+// BenchmarkRecognizedUncachedAgent	   : 4232959 ns/op
+
 //go:generate v23 test generate
 
 func getPrincipalAndHang(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

@@ -8,13 +8,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"sort"
 	"testing"
 
 	"v.io/v23/security"
 	"v.io/v23/verror"
 )
 
-type rootsTester [3]security.PublicKey
+type rootsTester [4]security.PublicKey
 
 func newRootsTester() *rootsTester {
 	var tester rootsTester
@@ -34,6 +36,7 @@ func (t *rootsTester) add(br security.BlessingRoots) error {
 	}{
 		{t[0], "vanadium"},
 		{t[1], "google/foo"},
+		{t[2], "google/foo"},
 		{t[0], "google/$"},
 	}
 	for _, d := range testdata {
@@ -62,6 +65,11 @@ func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 		},
 		{
 			root:          t[2],
+			recognized:    []string{"google/foo", "google/foo/bar"},
+			notRecognized: []string{"google", "google/bar", "vanadium", "vanadium/foo", "foo", "foo/bar"},
+		},
+		{
+			root:          t[3],
 			recognized:    []string{},
 			notRecognized: []string{"vanadium", "vanadium/foo", "vanadium/bar", "google", "google/foo", "google/bar", "foo", "foo/bar"},
 		},
@@ -74,9 +82,30 @@ func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 		}
 		for _, b := range d.notRecognized {
 			if err, want := br.Recognized(d.root, b), security.ErrUnrecognizedRoot.ID; verror.ErrorID(err) != want {
-				return fmt.Errorf("Recognized(%v, %q): Got %v(errorid=%v), want errorid=%v", d.root, b, err, verror.ErrorID(err), want)
+				return fmt.Errorf("Recognized(%v, %q): got %v(errorid=%v), want errorid=%v", d.root, b, err, verror.ErrorID(err), want)
 			}
 		}
+	}
+	return nil
+}
+
+type pubKeySorter []security.PublicKey
+
+func (s pubKeySorter) Len() int           { return len(s) }
+func (s pubKeySorter) Less(i, j int) bool { return s[i].String() < s[j].String() }
+func (s pubKeySorter) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+func (t *rootsTester) testDump(br security.BlessingRoots) error {
+	want := map[security.BlessingPattern][]security.PublicKey{
+		"google/foo": []security.PublicKey{t[1], t[2]},
+		"google/$":   []security.PublicKey{t[0]},
+		"vanadium":   []security.PublicKey{t[0]},
+	}
+	got := br.Dump()
+	sort.Sort(pubKeySorter(want["google/foo"]))
+	sort.Sort(pubKeySorter(got["google/foo"]))
+	if !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("Dump(): got %v, want %v", got, want)
 	}
 	return nil
 }
@@ -91,6 +120,9 @@ func TestBlessingRoots(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := tester.testRecognized(p.Roots()); err != nil {
+		t.Fatal(err)
+	}
+	if err := tester.testDump(p.Roots()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -112,12 +144,18 @@ func TestBlessingRootsPersistence(t *testing.T) {
 	if err := tester.testRecognized(p.Roots()); err != nil {
 		t.Error(err)
 	}
+	if err := tester.testDump(p.Roots()); err != nil {
+		t.Error(err)
+	}
 	// Recreate the principal (and thus BlessingRoots)
 	p2, err := LoadPersistentPrincipal(dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := tester.testRecognized(p2.Roots()); err != nil {
+		t.Error(err)
+	}
+	if err := tester.testDump(p2.Roots()); err != nil {
 		t.Error(err)
 	}
 }

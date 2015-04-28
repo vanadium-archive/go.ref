@@ -17,7 +17,11 @@ func createRoots() (security.PublicKey, security.BlessingRoots, *cachedRoots) {
 	var mu sync.RWMutex
 	p := testutil.NewPrincipal()
 	impl := p.Roots()
-	return p.PublicKey(), impl, newCachedRoots(impl, &mu)
+	roots, err := newCachedRoots(impl, &mu)
+	if err != nil {
+		panic(err)
+	}
+	return p.PublicKey(), impl, roots
 }
 
 func TestCreateRoots(t *testing.T) {
@@ -33,7 +37,7 @@ func TestCreateRoots(t *testing.T) {
 func expectRecognized(roots security.BlessingRoots, key security.PublicKey, blessing string) string {
 	err := roots.Recognized(key, blessing)
 	if err != nil {
-		return fmt.Sprintf("Key (%s, %b) not matched by roots:\n%s", key, blessing, roots.DebugString())
+		return fmt.Sprintf("Key (%s, %b) not matched by roots:\n%s, Recognized returns error: %v", key, blessing, roots.DebugString(), err)
 	}
 	return ""
 }
@@ -126,6 +130,29 @@ func TestRootsDebugString(t *testing.T) {
 
 	if a, b := impl.DebugString(), cache.DebugString(); a != b {
 		t.Errorf("DebugString doesn't match. Expected:\n%s\nGot:\n%s", a, b)
+	}
+}
+
+func TestRootsDump(t *testing.T) {
+	key, impl, cache := createRoots()
+
+	if err := cache.Add(key, "alice/friend"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	orig := impl.Dump()
+	if got := cache.Dump(); !reflect.DeepEqual(orig, got) {
+		t.Errorf("Dump() got %v, want %v", got, orig)
+	}
+
+	impl.Add(key, "carol")
+	if got := cache.Dump(); !reflect.DeepEqual(orig, got) {
+		t.Errorf("Dump() got %v, want %v", got, orig)
+	}
+
+	cache.flush()
+	if cur, got := impl.Dump(), cache.Dump(); !reflect.DeepEqual(cur, got) {
+		t.Errorf("Dump() got %v, want %v", got, cur)
 	}
 }
 

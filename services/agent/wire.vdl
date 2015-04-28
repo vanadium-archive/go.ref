@@ -55,6 +55,7 @@ type Agent interface {
 
 	BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error
 	BlessingRootsRecognized(root []byte, blessing string) error
+	BlessingRootsDump() (map[security.BlessingPattern][][]byte | error)
 	BlessingRootsDebugString() (string | error)
 
 	// Clients using caching should call NotifyWhenChanged upon connecting to

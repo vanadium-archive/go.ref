@@ -5,7 +5,6 @@
 package cache
 
 import (
-	"encoding/base64"
 	"fmt"
 	"sync"
 
@@ -29,26 +28,24 @@ const (
 
 // cachedRoots is a security.BlessingRoots implementation that
 // wraps over another implementation and adds caching.
-// It caches both known roots, and a blessings known to be untrusted.
-// Only the negative cache is cleared when flushing, since BlessingRoots
-// doesn't allow removal.
 type cachedRoots struct {
-	mu       *sync.RWMutex
-	impl     security.BlessingRoots
-	cache    map[string][]security.BlessingPattern
-	negative *lru.Cache // key + blessing -> error
+	mu    *sync.RWMutex
+	impl  security.BlessingRoots
+	cache map[string][]security.BlessingPattern // GUARDED_BY(mu)
+
+	// TODO(ataly): Get rid of the following fields once all agents have been
+	// updated to support the 'Dump' method.
+	dumpExists bool       // GUARDED_BY(my)
+	negative   *lru.Cache // key + blessing -> error
 }
 
-func newCachedRoots(impl security.BlessingRoots, mu *sync.RWMutex) *cachedRoots {
+func newCachedRoots(impl security.BlessingRoots, mu *sync.RWMutex) (*cachedRoots, error) {
 	roots := &cachedRoots{mu: mu, impl: impl}
 	roots.flush()
-	return roots
-}
-
-// Must be called while holding mu.
-func (r *cachedRoots) flush() {
-	r.negative = lru.New(maxNegativeCacheEntries)
-	r.cache = make(map[string][]security.BlessingPattern)
+	if err := roots.fetchAndCacheRoots(); err != nil {
+		return nil, err
+	}
+	return roots, nil
 }
 
 func (r *cachedRoots) Add(root security.PublicKey, pattern security.BlessingPattern) error {
@@ -60,19 +57,15 @@ func (r *cachedRoots) Add(root security.PublicKey, pattern security.BlessingPatt
 	defer r.mu.Unlock()
 	r.mu.Lock()
 
-	err = r.impl.Add(root, pattern)
-	if err == nil {
+	if err := r.impl.Add(root, pattern); err != nil {
+		return err
+	}
+
+	if r.cache != nil {
+
 		r.cache[cacheKey] = append(r.cache[cacheKey], pattern)
 	}
-	return err
-}
-
-func keyToString(key security.PublicKey) (string, error) {
-	bytes, err := key.MarshalBinary()
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(bytes), nil
+	return nil
 }
 
 func (r *cachedRoots) Recognized(root security.PublicKey, blessing string) (result error) {
@@ -82,39 +75,142 @@ func (r *cachedRoots) Recognized(root security.PublicKey, blessing string) (resu
 	}
 
 	r.mu.RLock()
+	var cacheExists bool
+	if r.cache != nil {
+		err = r.recognizeFromCache(key, root, blessing)
+		cacheExists = true
+	}
+	r.mu.RUnlock()
 
+	if !cacheExists {
+		r.mu.Lock()
+		if err := r.fetchAndCacheRoots(); err != nil {
+			r.mu.Unlock()
+			return err
+		}
+		err = r.recognizeFromCache(key, root, blessing)
+		r.mu.Unlock()
+	}
+
+	// TODO(ataly): Get rid of the following block once all agents have been updated
+	// to support the 'Dump' method.
+	r.mu.RLock()
+	if !r.dumpExists && err != nil {
+		negKey := key + blessing
+		negErr, ok := r.negative.Get(negKey)
+		if !ok {
+			r.mu.RUnlock()
+			return r.recognizeFromImpl(key, root, blessing)
+		}
+		r.negative.Put(negKey, err)
+		err = negErr.(error)
+	}
+	r.mu.RUnlock()
+
+	return err
+}
+
+func (r *cachedRoots) Dump() map[security.BlessingPattern][]security.PublicKey {
+	var (
+		cacheExists bool
+		dump        map[security.BlessingPattern][]security.PublicKey
+	)
+
+	r.mu.RLock()
+	if r.cache != nil {
+		cacheExists = true
+		dump = r.dumpFromCache()
+	}
+	r.mu.RUnlock()
+
+	if !cacheExists {
+		r.mu.Lock()
+		if err := r.fetchAndCacheRoots(); err != nil {
+			vlog.Errorf("failed to cache roots: %v", err)
+			r.mu.Unlock()
+			return nil
+		}
+		dump = r.dumpFromCache()
+		r.mu.Unlock()
+	}
+	return dump
+}
+
+func (r *cachedRoots) DebugString() string {
+	return r.impl.DebugString()
+}
+
+// Must be called while holding mu.
+func (r *cachedRoots) fetchAndCacheRoots() error {
+	dump := r.impl.Dump()
+	r.cache = make(map[string][]security.BlessingPattern)
+	if dump == nil {
+		r.dumpExists = false
+		return nil
+	}
+
+	for p, keys := range dump {
+		for _, key := range keys {
+			cacheKey, err := keyToString(key)
+			if err != nil {
+				return err
+			}
+			r.cache[cacheKey] = append(r.cache[cacheKey], p)
+		}
+	}
+	r.dumpExists = true
+	return nil
+}
+
+// Must be called while holding mu.
+func (r *cachedRoots) flush() {
+	r.cache = nil
+	r.negative = lru.New(maxNegativeCacheEntries)
+}
+
+// Must be called while holding mu.
+func (r *cachedRoots) dumpFromCache() map[security.BlessingPattern][]security.PublicKey {
+	if !r.dumpExists {
+		return nil
+	}
+	dump := make(map[security.BlessingPattern][]security.PublicKey)
+	for keyStr, patterns := range r.cache {
+		key, err := security.UnmarshalPublicKey([]byte(keyStr))
+		if err != nil {
+			vlog.Errorf("security.UnmarshalPublicKey(%v) returned error: %v", []byte(keyStr), err)
+			return nil
+		}
+		for _, p := range patterns {
+			dump[p] = append(dump[p], key)
+		}
+	}
+	return dump
+}
+
+// Must be called while holding mu.
+func (r *cachedRoots) recognizeFromCache(key string, root security.PublicKey, blessing string) error {
 	for _, p := range r.cache[key] {
 		if p.MatchedBy(blessing) {
-			r.mu.RUnlock()
 			return nil
 		}
 	}
-	r.mu.RUnlock()
-	r.mu.Lock()
-	negKey := key + blessing
-	if err, ok := r.negative.Get(negKey); ok {
-		r.negative.Put(negKey, err)
-		r.mu.Unlock()
-		return err.(error)
-	}
-	r.mu.Unlock()
-	return r.recognizeAndCache(key, root, blessing)
+	return security.NewErrUnrecognizedRoot(nil, root.String(), nil)
 }
 
-func (r *cachedRoots) recognizeAndCache(key string, root security.PublicKey, blessing string) error {
+// TODO(ataly): Get rid of this method once all agents have been updated
+// to support the 'Dump' method.
+func (r *cachedRoots) recognizeFromImpl(key string, root security.PublicKey, blessing string) error {
+	negKey := key + blessing
 	err := r.impl.Recognized(root, blessing)
+
 	r.mu.Lock()
 	if err == nil {
 		r.cache[key] = append(r.cache[key], security.BlessingPattern(blessing))
 	} else {
-		r.negative.Put(key+blessing, err)
+		r.negative.Put(negKey, err)
 	}
 	r.mu.Unlock()
 	return err
-}
-
-func (r cachedRoots) DebugString() string {
-	return r.impl.DebugString()
 }
 
 // cachedStore is a security.BlessingStore implementation that
@@ -216,7 +312,7 @@ func (s *cachedStore) String() string {
 	return fmt.Sprintf("cached[%s]", s.impl)
 }
 
-// Must be called while holding mu
+// Must be called while holding mu.
 func (s *cachedStore) flush() {
 	s.hasDef = false
 	s.peers = nil
@@ -264,7 +360,10 @@ func (s dummySigner) PublicKey() security.PublicKey {
 
 func NewCachedPrincipal(ctx *context.T, impl security.Principal, call rpc.ClientCall) (p security.Principal, err error) {
 	var mu sync.RWMutex
-	cachedRoots := newCachedRoots(impl.Roots(), &mu)
+	cachedRoots, err := newCachedRoots(impl.Roots(), &mu)
+	if err != nil {
+		return
+	}
 	cachedStore := &cachedStore{mu: &mu, key: impl.PublicKey(), impl: impl.BlessingStore()}
 	flush := func() {
 		defer mu.Unlock()
@@ -292,4 +391,12 @@ func NewCachedPrincipal(ctx *context.T, impl security.Principal, call rpc.Client
 	}()
 	p = &cachedPrincipal{p, impl}
 	return
+}
+
+func keyToString(key security.PublicKey) (string, error) {
+	bytes, err := key.MarshalBinary()
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
 }
