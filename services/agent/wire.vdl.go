@@ -65,6 +65,7 @@ type AgentClientMethods interface {
 	BlessingStoreDebugString(*context.T, ...rpc.CallOpt) (string, error)
 	BlessingRootsAdd(ctx *context.T, root []byte, pattern security.BlessingPattern, opts ...rpc.CallOpt) error
 	BlessingRootsRecognized(ctx *context.T, root []byte, blessing string, opts ...rpc.CallOpt) error
+	BlessingRootsDump(*context.T, ...rpc.CallOpt) (map[security.BlessingPattern][][]byte, error)
 	BlessingRootsDebugString(*context.T, ...rpc.CallOpt) (string, error)
 	// Clients using caching should call NotifyWhenChanged upon connecting to
 	// the server. The server will stream back values whenever the client should
@@ -165,6 +166,11 @@ func (c implAgentClientStub) BlessingRootsAdd(ctx *context.T, i0 []byte, i1 secu
 
 func (c implAgentClientStub) BlessingRootsRecognized(ctx *context.T, i0 []byte, i1 string, opts ...rpc.CallOpt) (err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingRootsRecognized", []interface{}{i0, i1}, nil, opts...)
+	return
+}
+
+func (c implAgentClientStub) BlessingRootsDump(ctx *context.T, opts ...rpc.CallOpt) (o0 map[security.BlessingPattern][][]byte, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingRootsDump", nil, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -269,6 +275,7 @@ type AgentServerMethods interface {
 	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
 	BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
 	BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, root []byte, blessing string) error
+	BlessingRootsDump(*context.T, rpc.ServerCall) (map[security.BlessingPattern][][]byte, error)
 	BlessingRootsDebugString(*context.T, rpc.ServerCall) (string, error)
 	// Clients using caching should call NotifyWhenChanged upon connecting to
 	// the server. The server will stream back values whenever the client should
@@ -298,6 +305,7 @@ type AgentServerStubMethods interface {
 	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
 	BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
 	BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, root []byte, blessing string) error
+	BlessingRootsDump(*context.T, rpc.ServerCall) (map[security.BlessingPattern][][]byte, error)
 	BlessingRootsDebugString(*context.T, rpc.ServerCall) (string, error)
 	// Clients using caching should call NotifyWhenChanged upon connecting to
 	// the server. The server will stream back values whenever the client should
@@ -397,6 +405,10 @@ func (s implAgentServerStub) BlessingRootsAdd(ctx *context.T, call rpc.ServerCal
 
 func (s implAgentServerStub) BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, i0 []byte, i1 string) error {
 	return s.impl.BlessingRootsRecognized(ctx, call, i0, i1)
+}
+
+func (s implAgentServerStub) BlessingRootsDump(ctx *context.T, call rpc.ServerCall) (map[security.BlessingPattern][][]byte, error) {
+	return s.impl.BlessingRootsDump(ctx, call)
 }
 
 func (s implAgentServerStub) BlessingRootsDebugString(ctx *context.T, call rpc.ServerCall) (string, error) {
@@ -551,6 +563,12 @@ var descAgent = rpc.InterfaceDesc{
 			InArgs: []rpc.ArgDesc{
 				{"root", ``},     // []byte
 				{"blessing", ``}, // string
+			},
+		},
+		{
+			Name: "BlessingRootsDump",
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // map[security.BlessingPattern][][]byte
 			},
 		},
 		{

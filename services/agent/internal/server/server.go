@@ -435,6 +435,22 @@ func (a agentd) BlessingRootsRecognized(_ *context.T, _ rpc.ServerCall, root []b
 	return a.principal.Roots().Recognized(pkey, blessing)
 }
 
+func (a agentd) BlessingRootsDump(_ *context.T, _ rpc.ServerCall) (map[security.BlessingPattern][][]byte, error) {
+	ret := make(map[security.BlessingPattern][][]byte)
+	a.w.rlock()
+	defer a.w.runlock()
+	for p, keys := range a.principal.Roots().Dump() {
+		for _, key := range keys {
+			marshaledKey, err := key.MarshalBinary()
+			if err != nil {
+				return nil, err
+			}
+			ret[p] = append(ret[p], marshaledKey)
+		}
+	}
+	return ret, nil
+}
+
 func (a agentd) BlessingRootsDebugString(_ *context.T, _ rpc.ServerCall) (string, error) {
 	a.w.rlock()
 	defer a.w.runlock()

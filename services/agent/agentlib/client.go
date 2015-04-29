@@ -272,6 +272,26 @@ func (b *blessingRoots) Recognized(root security.PublicKey, blessing string) err
 	return b.caller.call("BlessingRootsRecognized", results(), marshalledKey, blessing)
 }
 
+func (b *blessingRoots) Dump() map[security.BlessingPattern][]security.PublicKey {
+	var marshaledRoots map[security.BlessingPattern][][]byte
+	if err := b.caller.call("BlessingRootsDump", results(&marshaledRoots)); err != nil {
+		vlog.Errorf("error calling BlessingRootsDump: %v", err)
+		return nil
+	}
+	ret := make(map[security.BlessingPattern][]security.PublicKey)
+	for p, marshaledKeys := range marshaledRoots {
+		for _, marshaledKey := range marshaledKeys {
+			key, err := security.UnmarshalPublicKey(marshaledKey)
+			if err != nil {
+				vlog.Errorf("security.UnmarshalPublicKey(%v) returned error: %v", marshaledKey, err)
+				continue
+			}
+			ret[p] = append(ret[p], key)
+		}
+	}
+	return ret
+}
+
 func (b *blessingRoots) DebugString() (s string) {
 	err := b.caller.call("BlessingRootsDebugString", results(&s))
 	if err != nil {

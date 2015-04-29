@@ -12,6 +12,7 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/serialization"
 )
 
@@ -51,6 +52,7 @@ func (br *blessingRoots) Add(root security.PublicKey, pattern security.BlessingP
 		br.state[key] = patterns[:len(patterns)-1]
 		return err
 	}
+
 	return nil
 }
 
@@ -68,6 +70,23 @@ func (br *blessingRoots) Recognized(root security.PublicKey, blessing string) er
 		}
 	}
 	return security.NewErrUnrecognizedRoot(nil, root.String(), nil)
+}
+
+func (br *blessingRoots) Dump() map[security.BlessingPattern][]security.PublicKey {
+	dump := make(map[security.BlessingPattern][]security.PublicKey)
+	br.mu.RLock()
+	defer br.mu.RUnlock()
+	for keyStr, patterns := range br.state {
+		key, err := security.UnmarshalPublicKey([]byte(keyStr))
+		if err != nil {
+			vlog.Errorf("security.UnmarshalPublicKey(%v) returned error: %v", []byte(keyStr), err)
+			return nil
+		}
+		for _, p := range patterns {
+			dump[p] = append(dump[p], key)
+		}
+	}
+	return dump
 }
 
 // DebugString return a human-readable string encoding of the roots
