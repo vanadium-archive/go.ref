@@ -24,6 +24,7 @@ var headPartial = `{{define "head"}}
   <link href='//fonts.googleapis.com/css?family=Source+Code+Pro:400,500|Roboto:500,400italic,300,500italic,300italic,400'
     rel='stylesheet'
     type='text/css'>
+
   <link rel="stylesheet" href="{{.AssetsPrefix}}/identity.css">
 
   <link rel="apple-touch-icon" sizes="57x57" href="{{.AssetsPrefix}}/favicons/apple-touch-icon-57x57.png">
