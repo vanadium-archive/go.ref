@@ -173,6 +173,7 @@ var tmpl = template.Must(template.New("name").Parse(`<!doctype html>
 <div class="well">{{.ErrLong}}</div>
 {{else}}
 <h3>Received blessings: <tt>{{.Blessings}}</tt></h3>
+<h4>You may close this tab now.</h4>
 {{end}}
 </div>
 </body>
