@@ -15,7 +15,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
   <script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.7.0/moment.min.js"></script>
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 
-  <title>Add Blessing</title>
+  <title>Add Blessing - Vanadium Identity Provider</title>
   <script>
   $(document).ready(function() {
     var numCaveats = 1;
@@ -125,81 +125,108 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
   </script>
 </head>
 
-<body class="default-layout">
+<body class="identityprovider-layout">
 
-<header>
-  <nav class="left">
-    <a href="#" class="logo">Vanadium</a>
-  </nav>
-  <nav class="right">
-    <a href="#">{{.Extension}}</a>
-  </nav>
-</header>
+  <header>
+    <nav class="left">
+      <a href="#" class="logo">Vanadium</a>
+      <span class="service-name">Identity Provider</span>
+    </nav>
+    <nav class="right">
+      <a href="#">{{.Extension}}</a>
+    </nav>
+  </header>
 
-<main style="max-width: 80%; margin-left: 10px;">
-  <form method="POST" id="caveats-form" name="input" action="{{.MacaroonURL}}" role="form">
-  <h1>Add blessing</h1>
-  <span>
-  This is a beta product: use in production applications is discouraged. Furthermore, the
-  <a href="https://v.io/glossary.html#blessing-root">Blessing Root</a> is subject to change
-  without notice.
-  </span>
-  <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
+  <main class="add-blessing">
+    <form method="POST" id="caveats-form" name="input"
+    action="{{.MacaroonURL}}" role="form">
+      <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
 
-  <h3>Blessing Name</h3>
-  <div class="grid">
-    <div class="cell">
-      <span>{{.BlessingName}}/{{.Extension}}/</span><input name="blessingExtension" type="text" placeholder="extension">
-    </div>
-    <input type="text" class="hidden" id="timezoneOffset" name="timezoneOffset">
-  </div>
-  <div>
-      The blessing name contains your email and will be visible to any peers that
-      this blessing is shared with, e.g. when you make a RPC.
-  </div>
+      <h1 class="page-head">Add blessing</h1>
+      <p>
+        This blessing allows the Vanadium Identity Provider to authorize your
+        application's credentials and provides your application access to the
+        data associated with your Google Account. Blessing names contain the
+        email address associated with your Google Account, and will be visible
+        to peers you connect to.
+      </p>
 
-  <h4>Caveats</h4>
-  <div class="grid caveatRow">
-    <div class="cell">
-      <span class="selected RevocationCaveatSelected">Active until revoked</span>
-      <span class="selected ExpiryCaveatSelected hidden">Expires on</span>
-      <span class="selected MethodCaveatSelected hidden">Allowed methods are</span>
-      <span class="selected PeerBlessingsCaveatSelected hidden">Allowed peers are</span>
+      <div class="note">
+        <p>
+          <strong>
+            Using Vanadium in production applications is discouraged at this
+          time.</strong><br>
+          During this preview, the
+          <a href="https://v.io/glossary.html#blessing-root" target="_blank">
+            blessing root
+          </a>
+          may change without notice.
+        </p>
+      </div>
 
-      <select name="caveat" class="caveats hidden">
-        <option name="RevocationCaveat" value="RevocationCaveat" class="cavOption">Active until revoked</option>
-        <option name="ExpiryCaveat" value="ExpiryCaveat" class="cavOption">Expires on</option>
-        <option name="MethodCaveat" value="MethodCaveat" class="cavOption">Allowed methods are</option>
-        <option name="PeerBlessingsCaveat" value="PeerBlessingsCaveat" class="cavOption">Allowed peers are</option>
-      </select>
-    </div>
-    <div class="cell">
-      <input type="text" class="caveatInput hidden" id="RevocationCaveat" name="RevocationCaveat">
-      <input type="datetime-local" class="caveatInput expiry hidden" id="ExpiryCaveat" name="ExpiryCaveat">
-      <input type="text" id="MethodCaveat" class="caveatInput hidden" name="MethodCaveat" placeholder="comma-separated method list">
-      <input type="text" id="PeerBlessingsCaveat" class="caveatInput hidden" name="PeerBlessingsCaveat" placeholder="comma-separated blessing list">
-    </div>
+      <label for="blessingExtension">Blessing name</label>
+      <div class="value">
+        {{.BlessingName}}/{{.Extension}}/
+        <input name="blessingExtension" type="text" placeholder="extension">
+        <input type="hidden" id="timezoneOffset" name="timezoneOffset">
+      </div>
 
-    <div class="cell">
-      <a href="#" class="right addMore">Add more</a>
-    </div>
-    </div>
-  </div>
-  </br>
-  <div class="grid">
-    <button class="cell button-passive" id="cancel">Cancel</button>
-    <button class="cell button-primary" type="submit">Bless</button>
-    <div class="cell"></div>
-    <div class="cell"></div>
-  </div>
-  <div>
-  By clicking "Bless", you consent to be bound by
-  Google's general <a href="https://www.google.com/intl/en/policies/terms/">Terms of Service</a>,
-  the <a href="https://developers.google.com/terms/">Google APIs Terms of Service</a>,
-  and Google's general <a href="https://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>.
-  </div>
-  </form>
-</main>
+      <label>Caveats</label>
+      <div class="caveatRow">
+        <div class="define-caveat">
+          <span class="selected value RevocationCaveatSelected">
+            Active until revoked
+          </span>
+          <span class="selected value ExpiryCaveatSelected hidden">
+            Expires on
+          </span>
+          <span class="selected value MethodCaveatSelected hidden">
+            Allowed methods are
+          </span>
+          <span class="selected value PeerBlessingsCaveatSelected hidden">
+            Allowed peers are
+          </span>
+
+          <select name="caveat" class="caveats hidden">
+            <option name="RevocationCaveat" value="RevocationCaveat"
+            class="cavOption">Active until revoked</option>
+            <option name="ExpiryCaveat" value="ExpiryCaveat"
+            class="cavOption">Expires on</option>
+            <option name="MethodCaveat" value="MethodCaveat"
+            class="cavOption">Allowed methods are</option>
+            <option name="PeerBlessingsCaveat" value="PeerBlessingsCaveat"
+            class="cavOption">Allowed peers are</option>
+          </select>
+
+          <input type="text" class="caveatInput hidden"
+            id="RevocationCaveat" name="RevocationCaveat">
+          <input type="datetime-local" class="caveatInput expiry hidden"
+            id="ExpiryCaveat" name="ExpiryCaveat">
+          <input type="text" class="caveatInput hidden"
+           id="MethodCaveat" name="MethodCaveat"
+           placeholder="comma-separated method list">
+          <input type="text" class="caveatInput hidden"
+            id="PeerBlessingsCaveat" name="PeerBlessingsCaveat"
+            placeholder="comma-separated blessing list">
+        </div>
+        <div class="add-caveat">
+          <a href="#" class="addMore">Add more caveats</a>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="button-tertiary" id="cancel">Cancel</button>
+        <button class="button-primary" type="submit">Bless</button>
+      </div>
+
+      <p class="disclaimer-text">
+        By clicking "Bless", you agree to the Google
+        <a href="https://www.google.com/intl/en/policies/terms/">General Terms of Service</a>,
+        <a href="https://developers.google.com/terms/">APIs Terms of Service</a>,
+        and <a href="https://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>
+      </p>
+    </form>
+  </main>
 
 </body>
 </html>`))
