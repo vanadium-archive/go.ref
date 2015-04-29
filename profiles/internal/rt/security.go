@@ -66,6 +66,12 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 			return nil, nil, err
 		}
 		client := r.GetClient(ctx)
+
+		// We reparent the context we use to construct the agent.
+		// We do this because the agent needs to be able to make RPCs
+		// during runtime shutdown.
+		ctx, _ = context.WithRootCancel(ctx)
+
 		if principal, err = agentlib.NewAgentPrincipal(ctx, ep, client); err != nil {
 			client.Close()
 			return nil, nil, err
