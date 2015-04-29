@@ -151,6 +151,10 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 
 	externalHttpAddr = httpAddress(externalHttpAddr, httpAddr)
 
+	http.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	n := "/auth/google/"
 	args := oauth.HandlerArgs{
 		Principal:               principal,
