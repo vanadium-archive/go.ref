@@ -63,11 +63,7 @@ func (db *kvdb) flush() {
 // set stores (or overwrites) the given key/value pair in the DB table.
 func (t *kvtable) set(key string, value interface{}) error {
 	var val bytes.Buffer
-	enc, err := vom.NewEncoder(&val)
-	if err != nil {
-		return err
-	}
-	if enc.Encode(value); err != nil {
+	if err := vom.NewEncoder(&val).Encode(value); err != nil {
 		return err
 	}
 	t.data[key] = val.Bytes()
@@ -98,11 +94,7 @@ func (t *kvtable) get(key string, value interface{}) error {
 	if val == nil {
 		return fmt.Errorf("entry %s not found in the K/V DB table", key)
 	}
-	dec, err := vom.NewDecoder(bytes.NewBuffer(val))
-	if err != nil {
-		return err
-	}
-	return dec.Decode(value)
+	return vom.NewDecoder(bytes.NewBuffer(val)).Decode(value)
 }
 
 // del deletes the entry in the DB table given its key.
