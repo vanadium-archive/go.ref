@@ -1,7 +1,0 @@
-{
-	"dependencies": {
-		"incoming": [
-			{"allow": "...", "comment":"We allow access to the mounttable as a library"}
-		]
-	}
-}
