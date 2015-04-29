@@ -92,7 +92,7 @@ func TestEndpoint(t *testing.T) {
 		}
 		ep, err := NewEndpoint(test.String)
 		if err != nil {
-			t.Errorf("Test %d: Endpoint(%q) failed with %v", i, test.String, err)
+			t.Errorf("Test %d: NewEndpoint(%q) failed with %v", i, test.String, err)
 			continue
 		}
 		if !reflect.DeepEqual(ep, test.Endpoint) {
@@ -176,6 +176,28 @@ func TestParseHostPort(t *testing.T) {
 			if !reflect.DeepEqual(test.Endpoint, ep) {
 				t.Errorf("Got endpoint %T = %#v, want %T = %#v for string %q", ep, ep, test.Endpoint, test.Endpoint, addr)
 			}
+		}
+	}
+}
+
+func TestEscapeEndpoint(t *testing.T) {
+	defver := defaultVersion
+	defer func() {
+		defaultVersion = defver
+	}()
+	testcases := []naming.Endpoint{
+		&Endpoint{Protocol: "unix", Address: "@", RID: naming.FixedRoutingID(0xdabbad00)},
+		&Endpoint{Protocol: "unix", Address: "@/%", RID: naming.FixedRoutingID(0xdabbad00)},
+	}
+	for i, ep := range testcases {
+		epstr := ep.String()
+		got, err := NewEndpoint(epstr)
+		if err != nil {
+			t.Errorf("Test %d: NewEndpoint(%q) failed with %v", i, epstr, err)
+			continue
+		}
+		if !reflect.DeepEqual(ep, got) {
+			t.Errorf("Test %d: Got endpoint %#v, want %#v", i, got, ep)
 		}
 	}
 }
