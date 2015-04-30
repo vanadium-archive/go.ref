@@ -17,46 +17,47 @@ import (
 // connection.  Multiple goroutines can invoke methods on the Set
 // simultaneously.
 type Set struct {
-	mu  sync.RWMutex
-	set map[string][]*VIF
+	mu      sync.RWMutex
+	set     map[string][]*VIF // GUARDED_BY(mu)
+	started map[string]bool   // GUARDED_BY(mu)
+	cond    *sync.Cond
 }
 
 // NewSet returns a new Set of VIFs.
 func NewSet() *Set {
-	return &Set{set: make(map[string][]*VIF)}
+	s := &Set{
+		set:     make(map[string][]*VIF),
+		started: make(map[string]bool),
+	}
+	s.cond = sync.NewCond(&s.mu)
+	return s
+}
+
+// BlockingFind returns a VIF where the remote end of the underlying network connection
+// is identified by the provided (network, address). Returns nil if there is no
+// such VIF.
+//
+// If BlockingFind returns nil, the caller is required to call Unblock, to avoid deadlock.
+// The network and address in Unblock must be the same as used in the BlockingFind call.
+// During this time, all new BlockingFind calls for this network and address will Block until
+// the corresponding Unblock call is made.
+func (s *Set) BlockingFind(network, address string) *VIF {
+	return s.find(network, address, true)
+}
+
+// Unblock broadcasts all threads
+func (s *Set) Unblock(network, address string) {
+	s.mu.Lock()
+	delete(s.started, key(network, address))
+	s.cond.Broadcast()
+	s.mu.Unlock()
 }
 
 // Find returns a VIF where the remote end of the underlying network connection
 // is identified by the provided (network, address). Returns nil if there is no
 // such VIF.
-//
-// If there are multiple VIFs established to the same remote network address,
-// Find will randomly return one of them.
 func (s *Set) Find(network, address string) *VIF {
-	if len(address) == 0 ||
-		(network == "pipe" && address == "pipe") ||
-		(runtime.GOOS == "linux" && network == "unix" && address == "@") { // autobind
-		// Some network connections (like those created with net.Pipe or Unix sockets)
-		// do not end up with distinct net.Addrs on distinct net.Conns. For those cases,
-		// avoid the cache collisions by disabling cache lookups for them.
-		return nil
-	}
-
-	var keys []string
-	_, _, p := rpc.RegisteredProtocol(network)
-	for _, n := range p {
-		keys = append(keys, key(n, address))
-	}
-
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	for _, k := range keys {
-		vifs := s.set[k]
-		if len(vifs) > 0 {
-			return vifs[rand.Intn(len(vifs))]
-		}
-	}
-	return nil
+	return s.find(network, address, false)
 }
 
 // Insert adds a VIF to the set
@@ -106,6 +107,33 @@ func (s *Set) List() []*VIF {
 	return l
 }
 
+func (s *Set) find(network, address string, blocking bool) *VIF {
+	if isNonDistinctConn(network, address) {
+		return nil
+	}
+
+	k := key(network, address)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for blocking && s.started[k] {
+		s.cond.Wait()
+	}
+
+	_, _, p := rpc.RegisteredProtocol(network)
+	for _, n := range p {
+		if vifs := s.set[key(n, address)]; len(vifs) > 0 {
+			return vifs[rand.Intn(len(vifs))]
+		}
+	}
+
+	if blocking {
+		s.started[k] = true
+	}
+	return nil
+}
+
 func key(network, address string) string {
 	if network == "tcp" || network == "ws" {
 		host, _, _ := net.SplitHostPort(address)
@@ -120,4 +148,12 @@ func key(network, address string) string {
 		}
 	}
 	return network + ":" + address
+}
+
+// Some network connections (like those created with net.Pipe or Unix sockets)
+// do not end up with distinct net.Addrs on distinct net.Conns.
+func isNonDistinctConn(network, address string) bool {
+	return len(address) == 0 ||
+		(network == "pipe" && address == "pipe") ||
+		(runtime.GOOS == "linux" && network == "unix" && address == "@")
 }
