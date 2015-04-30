@@ -120,7 +120,9 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
     $('.expiry').val(moment().add(1, 'd').format('YYYY-MM-DDTHH:mm'));
 
     // Activate the cancel button.
-    $('#cancel').click(window.close);
+    $('#cancel').click(function(){
+      window.close();
+    });
   });
   </script>
 </head>
@@ -215,7 +217,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
       </div>
 
       <div class="action-buttons">
-        <button class="button-tertiary" id="cancel">Cancel</button>
+        <button class="button-tertiary" id="cancel" type="button">Cancel</button>
         <button class="button-primary" type="submit">Bless</button>
       </div>
 
