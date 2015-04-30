@@ -37,6 +37,8 @@ func runDelete(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
+const killDeadline = 10 * time.Second
+
 var cmdKill = &cmdline.Command{
 	Run:      runKill,
 	Name:     "kill",
@@ -53,7 +55,7 @@ func runKill(cmd *cmdline.Command, args []string) error {
 	}
 	appName := args[0]
 
-	if err := device.ApplicationClient(appName).Kill(gctx, 5*time.Second); err != nil {
+	if err := device.ApplicationClient(appName).Kill(gctx, killDeadline); err != nil {
 		return fmt.Errorf("Kill failed: %v", err)
 	}
 	fmt.Fprintf(cmd.Stdout(), "Kill succeeded\n")
