@@ -258,3 +258,9 @@ func findAllTheInstances(ctx *context.T, root string) (map[string]int, error) {
 	}
 	return pidmap, nil
 }
+
+// RunningChildrenProcesses uses the reaper to verify that a test has
+// successfully shut down all processes.
+func RunningChildrenProcesses() bool {
+	return len(stashedPidMap) > 0
+}

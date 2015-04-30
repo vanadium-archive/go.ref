@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package utiltest
 
 import (
 	"crypto/md5"
@@ -27,12 +27,12 @@ import (
 	"v.io/x/ref/services/internal/servicetest"
 )
 
-const mockBinaryRepoName = "br"
-const mockApplicationRepoName = "ar"
+const MockBinaryRepoName = "br"
+const MockApplicationRepoName = "ar"
 
-func startMockRepos(t *testing.T, ctx *context.T) (*application.Envelope, func()) {
-	envelope, appCleanup := startApplicationRepository(ctx)
-	binaryCleanup := startBinaryRepository(ctx)
+func StartMockRepos(t *testing.T, ctx *context.T) (*application.Envelope, func()) {
+	envelope, appCleanup := StartApplicationRepository(ctx)
+	binaryCleanup := StartBinaryRepository(ctx)
 
 	return envelope, func() {
 		binaryCleanup()
@@ -40,13 +40,13 @@ func startMockRepos(t *testing.T, ctx *context.T) (*application.Envelope, func()
 	}
 }
 
-// startApplicationRepository sets up a server running the application
+// StartApplicationRepository sets up a server running the application
 // repository.  It returns a pointer to the envelope that the repository returns
 // to clients (so that it can be changed).  It also returns a cleanup function.
-func startApplicationRepository(ctx *context.T) (*application.Envelope, func()) {
+func StartApplicationRepository(ctx *context.T) (*application.Envelope, func()) {
 	server, _ := servicetest.NewServer(ctx)
 	invoker := new(arInvoker)
-	name := mockApplicationRepoName
+	name := MockApplicationRepoName
 	if err := server.Serve(name, repository.ApplicationServer(invoker), security.AllowEveryone()); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
@@ -85,11 +85,11 @@ func (i *arInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.
 // serves the current running binary.
 type brInvoker struct{}
 
-// startBinaryRepository sets up a server running the binary repository and
+// StartBinaryRepository sets up a server running the binary repository and
 // returns a cleanup function.
-func startBinaryRepository(ctx *context.T) func() {
+func StartBinaryRepository(ctx *context.T) func() {
 	server, _ := servicetest.NewServer(ctx)
-	name := mockBinaryRepoName
+	name := MockBinaryRepoName
 	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), security.AllowEveryone()); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)
 	}
@@ -103,7 +103,7 @@ func startBinaryRepository(ctx *context.T) func() {
 // BINARY REPOSITORY INTERFACE IMPLEMENTATION
 
 // TODO(toddw): Move the errors from dispatcher.go into a common location.
-const pkgPath = "v.io/x/ref/services/device/internal/impl"
+const pkgPath = "v.io/x/ref/services/device/internal/impl/utiltest"
 
 var ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "")
 

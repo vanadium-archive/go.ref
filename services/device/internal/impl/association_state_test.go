@@ -12,7 +12,9 @@ import (
 	"testing"
 
 	"v.io/v23/services/device"
+
 	"v.io/x/ref/services/device/internal/impl"
+	"v.io/x/ref/services/device/internal/impl/utiltest"
 )
 
 // TestAssociationPersistance verifies correct operation of association
@@ -39,7 +41,7 @@ func TestAssociationPersistance(t *testing.T) {
 		t.Fatalf("AllBlessingSystemAssociations failed: %v", err)
 	}
 
-	compareAssociations(t, got1, []device.Association{
+	utiltest.CompareAssociations(t, got1, []device.Association{
 		{
 			"alice",
 			"alice_account",
@@ -59,7 +61,7 @@ func TestAssociationPersistance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllBlessingSystemAssociations failed: %v", err)
 	}
-	compareAssociations(t, got1, got2)
+	utiltest.CompareAssociations(t, got1, got2)
 
 	sysacc, have := nbsa2.SystemAccountForBlessings([]string{"bob"})
 	if expected := true; have != expected {
@@ -88,7 +90,7 @@ func TestAssociationPersistance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllBlessingSystemAssociations failed: %v", err)
 	}
-	compareAssociations(t, got1, []device.Association{
+	utiltest.CompareAssociations(t, got1, []device.Association{
 		{
 			"alice",
 			"alice_account",
@@ -104,7 +106,7 @@ func TestAssociationPersistance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllBlessingSystemAssociations failed: %v", err)
 	}
-	compareAssociations(t, got1, []device.Association{
+	utiltest.CompareAssociations(t, got1, []device.Association{
 		{
 			"alice",
 			"alice_other_account",

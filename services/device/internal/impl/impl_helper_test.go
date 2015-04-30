@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"v.io/x/ref/services/device/internal/impl"
+	"v.io/x/ref/services/device/internal/impl/utiltest"
 )
 
 func TestBaseCleanupDir(t *testing.T) {
@@ -35,7 +36,7 @@ func TestBaseCleanupDir(t *testing.T) {
 	}
 
 	// Setup a helper.
-	helper := generateSuidHelperScript(t, dir)
+	helper := utiltest.GenerateSuidHelperScript(t, dir)
 
 	impl.WrapBaseCleanupDir(helperTarget, helper)
 	if _, err := os.Stat(helperTarget); err == nil || os.IsExist(err) {

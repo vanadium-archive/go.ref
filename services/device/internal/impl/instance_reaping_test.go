@@ -19,34 +19,35 @@ import (
 	"v.io/v23/vdl"
 
 	"v.io/x/ref/envvar"
+	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestReaperNoticesAppDeath(t *testing.T) {
-	cleanup, ctx, sh, envelope, root, helperPath, _ := startupHelper(t)
+	cleanup, ctx, sh, envelope, root, helperPath, _ := utiltest.StartupHelper(t)
 	defer cleanup()
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
 
-	resolve(t, ctx, "pingserver", 1)
+	utiltest.Resolve(t, ctx, "pingserver", 1)
 
 	// Create an envelope for a first version of the app.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install the app.  The config-specified flag value for testFlagName
 	// should override the value specified in the envelope above.
-	appID := installApp(t, ctx)
+	appID := utiltest.InstallApp(t, ctx)
 
 	// Start an instance of the app.
-	instance1ID := launchApp(t, ctx, appID)
+	instance1ID := utiltest.LaunchApp(t, ctx, appID)
 
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
@@ -63,22 +64,22 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 		t.Fatalf("pid returned from stats interface is not an int: %v", err)
 	}
 
-	verifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
+	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 	syscall.Kill(int(pid), 9)
 
 	// Start a second instance of the app which will force polling to happen.
-	instance2ID := launchApp(t, ctx, appID)
+	instance2ID := utiltest.LaunchApp(t, ctx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
-	verifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID)
+	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID)
 
-	terminateApp(t, ctx, appID, instance2ID)
-	verifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
+	utiltest.TerminateApp(t, ctx, appID, instance2ID)
+	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
 
 	// TODO(rjkroege): Exercise the polling loop code.
 
 	// Cleanly shut down the device manager.
-	verifyNoRunningProcesses(t)
+	utiltest.VerifyNoRunningProcesses(t)
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
@@ -95,7 +96,7 @@ func getPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
 }
 
 func TestReapReconciliation(t *testing.T) {
-	cleanup, ctx, sh, envelope, root, helperPath, _ := startupHelper(t)
+	cleanup, ctx, sh, envelope, root, helperPath, _ := utiltest.StartupHelper(t)
 	defer cleanup()
 
 	// Start a device manager.
@@ -110,23 +111,23 @@ func TestReapReconciliation(t *testing.T) {
 
 	dmh := servicetest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
-	resolve(t, ctx, "pingserver", 1)
+	utiltest.Resolve(t, ctx, "pingserver", 1)
 
 	// Create an envelope for the app.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install the app.
-	appID := installApp(t, ctx)
+	appID := utiltest.InstallApp(t, ctx)
 
 	// Start three app instances.
 	instances := make([]string, 3)
 	for i, _ := range instances {
-		instances[i] = launchApp(t, ctx, appID)
+		instances[i] = utiltest.LaunchApp(t, ctx, appID)
 		verifyPingArgs(t, pingCh, userName(t), "default", "")
 	}
 
@@ -138,7 +139,7 @@ func TestReapReconciliation(t *testing.T) {
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
 	dmh.Shutdown(os.Stderr, os.Stderr)
-	resolveExpectNotFound(t, ctx, "dm") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "dm") // Ensure a clean slate.
 
 	// Kill instance[0] and wait until it exits before proceeding.
 	syscall.Kill(pid, 9)
@@ -155,18 +156,18 @@ func TestReapReconciliation(t *testing.T) {
 	// Run another device manager to replace the dead one.
 	dmh = servicetest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
+	utiltest.Resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
 
 	// By now, we've reconciled the state of the tree with which processes
 	// are actually alive. instance-0 is not alive.
 	expected := []device.InstanceState{device.InstanceStateNotRunning, device.InstanceStateRunning, device.InstanceStateRunning}
 	for i, _ := range instances {
-		verifyState(t, ctx, expected[i], appID, instances[i])
+		utiltest.VerifyState(t, ctx, expected[i], appID, instances[i])
 	}
 
 	// Start instance[0] over-again to show that an app marked not running
 	// by reconciliation can be restarted.
-	runApp(t, ctx, appID, instances[0])
+	utiltest.RunApp(t, ctx, appID, instances[0])
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
 	// Kill instance[1]
@@ -175,31 +176,31 @@ func TestReapReconciliation(t *testing.T) {
 
 	// Make a fourth instance. This forces a polling of processes so that
 	// the state is updated.
-	instances = append(instances, launchApp(t, ctx, appID))
+	instances = append(instances, utiltest.LaunchApp(t, ctx, appID))
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
 	// Stop the fourth instance to make sure that there's no way we could
 	// still be running the polling loop before doing the below.
-	terminateApp(t, ctx, appID, instances[3])
+	utiltest.TerminateApp(t, ctx, appID, instances[3])
 
 	// Verify that reaper picked up the previous instances and was watching
 	// instance[1]
 	expected = []device.InstanceState{device.InstanceStateRunning, device.InstanceStateNotRunning, device.InstanceStateRunning, device.InstanceStateDeleted}
 	for i, _ := range instances {
-		verifyState(t, ctx, expected[i], appID, instances[i])
+		utiltest.VerifyState(t, ctx, expected[i], appID, instances[i])
 	}
 
-	terminateApp(t, ctx, appID, instances[2])
+	utiltest.TerminateApp(t, ctx, appID, instances[2])
 
 	expected = []device.InstanceState{device.InstanceStateRunning, device.InstanceStateNotRunning, device.InstanceStateDeleted, device.InstanceStateDeleted}
 	for i, _ := range instances {
-		verifyState(t, ctx, expected[i], appID, instances[i])
+		utiltest.VerifyState(t, ctx, expected[i], appID, instances[i])
 	}
-	terminateApp(t, ctx, appID, instances[0])
+	utiltest.TerminateApp(t, ctx, appID, instances[0])
 
 	// TODO(rjkroege): Should be in a defer to ensure that the device
 	// manager is cleaned up even if the test fails in an exceptional way.
-	verifyNoRunningProcesses(t)
+	utiltest.VerifyNoRunningProcesses(t)
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()

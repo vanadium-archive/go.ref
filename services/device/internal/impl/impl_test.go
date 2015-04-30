@@ -47,6 +47,7 @@ import (
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"
+	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/device/internal/starter"
 	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/services/internal/binarylib"
@@ -199,7 +200,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	// Update the namespace roots to remove the server blessing from the
 	// endpoints.  This is needed to be able to publish into the 'global'
 	// mounttable before we have compatible credentials.
-	ctx, err = setNamespaceRootsForUnclaimedDevice(ctx)
+	ctx, err = utiltest.SetNamespaceRootsForUnclaimedDevice(ctx)
 	if err != nil {
 		return err
 	}
@@ -371,7 +372,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t, ctx)
+	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
@@ -397,7 +398,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 	defer os.RemoveAll(dmCreds)
 	dmEnv := []string{fmt.Sprintf("%v=%v", envvar.Credentials, dmCreds)}
-	dmArgs := []string{"factoryDM", root, "unused_helper", mockApplicationRepoName, currLink}
+	dmArgs := []string{"factoryDM", root, "unused_helper", utiltest.MockApplicationRepoName, currLink}
 	args, env := sh.CommandEnvelope(deviceManagerCmd, dmEnv, dmArgs...)
 	scriptPathFactory := generateDeviceManagerScript(t, root, args, env)
 
@@ -419,24 +420,24 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dmh := servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, deviceManagerCmd, dmArgs...)
 	defer func() {
 		syscall.Kill(dmh.Pid(), syscall.SIGINT)
-		verifyNoRunningProcesses(t)
+		utiltest.VerifyNoRunningProcesses(t)
 	}()
 
 	servicetest.ReadPID(t, dmh)
-	resolve(t, ctx, "claimable", 1)
+	utiltest.Resolve(t, ctx, "claimable", 1)
 	// Brand new device manager must be claimed first.
-	claimDevice(t, ctx, "claimable", "factoryDM", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, ctx, "claimable", "factoryDM", "mydevice", noPairingToken)
 	// Simulate an invalid envelope in the application repository.
-	*envelope = envelopeFromShell(sh, dmPauseBeforeStopEnv, deviceManagerCmd, "bogus", dmArgs...)
+	*envelope = utiltest.EnvelopeFromShell(sh, dmPauseBeforeStopEnv, deviceManagerCmd, "bogus", dmArgs...)
 
-	updateDeviceExpectError(t, ctx, "factoryDM", impl.ErrAppTitleMismatch.ID)
-	revertDeviceExpectError(t, ctx, "factoryDM", impl.ErrUpdateNoOp.ID)
+	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", impl.ErrAppTitleMismatch.ID)
+	utiltest.RevertDeviceExpectError(t, ctx, "factoryDM", impl.ErrUpdateNoOp.ID)
 
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	*envelope = envelopeFromShell(sh, dmEnv, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
-	updateDevice(t, ctx, "factoryDM")
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
+	utiltest.UpdateDevice(t, ctx, "factoryDM")
 
 	// Current link should have been updated to point to v2.
 	evalLink := func() string {
@@ -451,7 +452,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("current link didn't change")
 	}
 
-	updateDeviceExpectError(t, ctx, "factoryDM", impl.ErrOperationInProgress.ID)
+	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", impl.ErrOperationInProgress.ID)
 
 	dmh.CloseStdin()
 
@@ -461,34 +462,34 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// A successful update means the device manager has stopped itself.  We
 	// relaunch it from the current link.
-	resolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
 	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
 
 	servicetest.ReadPID(t, dmh)
-	resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
+	utiltest.Resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
 
 	// Try issuing an update without changing the envelope in the
 	// application repository: this should fail, and current link should be
 	// unchanged.
-	updateDeviceExpectError(t, ctx, "v2DM", impl.ErrUpdateNoOp.ID)
+	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", impl.ErrUpdateNoOp.ID)
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
 
 	// Try issuing an update with a binary that has a different major version
 	// number. It should fail.
-	resolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
-	*envelope = envelopeFromShell(sh, dmEnv, deviceManagerV10Cmd, application.DeviceManagerTitle, "v2.5DM")
-	updateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
+	utiltest.ResolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, deviceManagerV10Cmd, application.DeviceManagerTitle, "v2.5DM")
+	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
 
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
 
 	// Create a third version of the device manager and issue an update.
-	*envelope = envelopeFromShell(sh, dmEnv, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
-	updateDevice(t, ctx, "v2DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
+	utiltest.UpdateDevice(t, ctx, "v2DM")
 
 	scriptPathV3 := evalLink()
 	if scriptPathV3 == scriptPathV2 {
@@ -500,7 +501,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	resolveExpectNotFound(t, ctx, "v3DM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "v3DM") // Ensure a clean slate.
 
 	// Re-lanuch the device manager from current link.  We instruct the
 	// device manager to pause before stopping its server, so that we can
@@ -508,11 +509,11 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dmh = servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, execScriptCmd, currLink)
 
 	servicetest.ReadPID(t, dmh)
-	resolve(t, ctx, "v3DM", 1) // Current link should have been launching v3.
+	utiltest.Resolve(t, ctx, "v3DM", 1) // Current link should have been launching v3.
 
 	// Revert the device manager to its previous version (v2).
-	revertDevice(t, ctx, "v3DM")
-	revertDeviceExpectError(t, ctx, "v3DM", impl.ErrOperationInProgress.ID) // Revert already in progress.
+	utiltest.RevertDevice(t, ctx, "v3DM")
+	utiltest.RevertDeviceExpectError(t, ctx, "v3DM", impl.ErrOperationInProgress.ID) // Revert already in progress.
 	dmh.CloseStdin()
 	dmh.Expect("restart handler")
 	dmh.Expect("v3DM terminated")
@@ -521,14 +522,14 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	resolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
 	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
 	servicetest.ReadPID(t, dmh)
-	resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
+	utiltest.Resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
 
 	// Revert the device manager to its previous version (factory).
-	revertDevice(t, ctx, "v2DM")
+	utiltest.RevertDevice(t, ctx, "v2DM")
 	dmh.Expect("restart handler")
 	dmh.Expect("v2DM terminated")
 	if evalLink() != scriptPathFactory {
@@ -536,21 +537,21 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
 
 	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
 	servicetest.ReadPID(t, dmh)
-	resolve(t, ctx, "factoryDM", 1) // Current link should have been launching factory version.
-	shutdownDevice(t, ctx, "factoryDM")
+	utiltest.Resolve(t, ctx, "factoryDM", 1) // Current link should have been launching factory version.
+	utiltest.ShutdownDevice(t, ctx, "factoryDM")
 	dmh.Expect("factoryDM terminated")
 	dmh.ExpectEOF()
 
 	// Re-launch the device manager, to exercise the behavior of Stop.
-	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
 	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
 	servicetest.ReadPID(t, dmh)
-	resolve(t, ctx, "factoryDM", 1)
-	killDevice(t, ctx, "factoryDM")
+	utiltest.Resolve(t, ctx, "factoryDM", 1)
+	utiltest.KillDevice(t, ctx, "factoryDM")
 	dmh.Expect("restart handler")
 	dmh.Expect("factoryDM terminated")
 	dmh.ExpectEOF()
@@ -644,7 +645,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t, ctx)
+	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
@@ -654,22 +655,22 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, root)
+	helperPath := utiltest.GenerateSuidHelperScript(t, root)
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
 
-	resolve(t, ctx, "pingserver", 1)
+	utiltest.Resolve(t, ctx, "pingserver", 1)
 
 	// Create an envelope for a first version of the app.
-	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
 
 	// Install the app.  The config-specified flag value for testFlagName
 	// should override the value specified in the envelope above, and the
@@ -682,9 +683,9 @@ func TestLifeOfAnApp(t *testing.T) {
 	// This rooted name should be equivalent to the relative name "ar", but
 	// we want to test that the config override for origin works.
 	rootedAppRepoName := naming.Join(mtName, "ar")
-	appID := installApp(t, ctx, device.Config{testFlagName: "flag-val-install", mgmt.AppOriginConfigKey: rootedAppRepoName})
-	v1 := verifyState(t, ctx, device.InstallationStateActive, appID)
-	installationDebug := debug(t, ctx, appID)
+	appID := utiltest.InstallApp(t, ctx, device.Config{testFlagName: "flag-val-install", mgmt.AppOriginConfigKey: rootedAppRepoName})
+	v1 := utiltest.VerifyState(t, ctx, device.InstallationStateActive, appID)
+	installationDebug := utiltest.Debug(t, ctx, appID)
 	// We spot-check a couple pieces of information we expect in the debug
 	// output.
 	// TODO(caprita): Is there a way to verify more without adding brittle
@@ -700,17 +701,17 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	// Start requires the caller to bless the app instance.
 	expectedErr := "bless failed"
-	if _, err := launchAppImpl(t, ctx, appID, ""); err == nil || err.Error() != expectedErr {
+	if _, err := utiltest.LaunchAppImpl(t, ctx, appID, ""); err == nil || err.Error() != expectedErr {
 		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedErr, err)
 	}
 
 	// Start an instance of the app.
-	instance1ID := launchApp(t, ctx, appID)
-	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID); v != v1 {
+	instance1ID := utiltest.LaunchApp(t, ctx, appID)
+	if v := utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 
-	instanceDebug := debug(t, ctx, appID, instance1ID)
+	instanceDebug := utiltest.Debug(t, ctx, appID, instance1ID)
 	// Verify the apps default blessings.
 	if !strings.Contains(instanceDebug, fmt.Sprintf("Default Blessings                %s/forapp", test.TestBlessing)) {
 		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
@@ -719,28 +720,28 @@ func TestLifeOfAnApp(t *testing.T) {
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
 
-	v1EP1 := resolve(t, ctx, "appV1", 1)[0]
+	v1EP1 := utiltest.Resolve(t, ctx, "appV1", 1)[0]
 
 	// Stop the app instance.
-	killApp(t, ctx, appID, instance1ID)
-	verifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
-	resolveExpectNotFound(t, ctx, "appV1")
+	utiltest.KillApp(t, ctx, appID, instance1ID)
+	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
+	utiltest.ResolveExpectNotFound(t, ctx, "appV1")
 
-	runApp(t, ctx, appID, instance1ID)
-	verifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
+	utiltest.RunApp(t, ctx, appID, instance1ID)
+	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
-	if v1EP1 = resolve(t, ctx, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
+	if v1EP1 = utiltest.Resolve(t, ctx, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
 		t.Fatalf("Expected a new endpoint for the app after kill/run")
 	}
 
 	// Start a second instance.
-	instance2ID := launchApp(t, ctx, appID)
+	instance2ID := utiltest.LaunchApp(t, ctx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
 	// instance of the app.
-	endpoints := resolve(t, ctx, "appV1", 2)
+	endpoints := utiltest.Resolve(t, ctx, "appV1", 2)
 	v1EP2 := endpoints[0]
 	if endpoints[0] == v1EP1 {
 		v1EP2 = endpoints[1]
@@ -755,48 +756,48 @@ func TestLifeOfAnApp(t *testing.T) {
 	// canceled; run while still running).
 
 	// Kill the first instance.
-	killApp(t, ctx, appID, instance1ID)
+	utiltest.KillApp(t, ctx, appID, instance1ID)
 	// Only the second instance should still be running and mounted.
-	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
+	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 
 	// Updating the installation to itself is a no-op.
-	updateAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)
+	utiltest.UpdateAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)
 
 	// Updating the installation should not work with a mismatched title.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "bogus")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, appCmd, "bogus")
 
-	updateAppExpectError(t, ctx, appID, impl.ErrAppTitleMismatch.ID)
+	utiltest.UpdateAppExpectError(t, ctx, appID, impl.ErrAppTitleMismatch.ID)
 
 	// Create a second version of the app and update the app to it.
-	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", "appV2")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", "appV2")
 
-	updateApp(t, ctx, appID)
+	utiltest.UpdateApp(t, ctx, appID)
 
-	v2 := verifyState(t, ctx, device.InstallationStateActive, appID)
+	v2 := utiltest.VerifyState(t, ctx, device.InstallationStateActive, appID)
 	if v1 == v2 {
 		t.Fatalf("Version did not change for %v: %v", appID, v1)
 	}
 
 	// Second instance should still be running.
-	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
+	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
-	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID); v != v1 {
+	if v := utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 
 	// Resume first instance.
-	runApp(t, ctx, appID, instance1ID)
-	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID); v != v1 {
+	utiltest.RunApp(t, ctx, appID, instance1ID)
+	if v := utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
 	// v1EP2.
-	endpoints = resolve(t, ctx, "appV1", 2)
+	endpoints = utiltest.Resolve(t, ctx, "appV1", 2)
 	if endpoints[0] == v1EP2 {
 		if endpoints[1] == v1EP2 {
 			t.Fatalf("Both endpoints are the same")
@@ -806,91 +807,91 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	// Trying to update first instance while it's running should fail.
-	updateInstanceExpectError(t, ctx, appID, instance1ID, impl.ErrInvalidOperation.ID)
+	utiltest.UpdateInstanceExpectError(t, ctx, appID, instance1ID, impl.ErrInvalidOperation.ID)
 	// Stop first instance and try again.
-	killApp(t, ctx, appID, instance1ID)
+	utiltest.KillApp(t, ctx, appID, instance1ID)
 	// Only the second instance should still be running and mounted.
-	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
+	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 	// Update succeeds now.
-	updateInstance(t, ctx, appID, instance1ID)
-	if v := verifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID); v != v2 {
+	utiltest.UpdateInstance(t, ctx, appID, instance1ID)
+	if v := utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID); v != v2 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v2, v)
 	}
 	// Resume the first instance and verify it's running v2 now.
-	runApp(t, ctx, appID, instance1ID)
+	utiltest.RunApp(t, ctx, appID, instance1ID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
-	resolve(t, ctx, "appV1", 1)
-	resolve(t, ctx, "appV2", 1)
+	utiltest.Resolve(t, ctx, "appV1", 1)
+	utiltest.Resolve(t, ctx, "appV2", 1)
 
 	// Stop first instance.
-	terminateApp(t, ctx, appID, instance1ID)
+	utiltest.TerminateApp(t, ctx, appID, instance1ID)
 	verifyAppWorkspace(t, root, appID, instance1ID)
-	resolveExpectNotFound(t, ctx, "appV2")
+	utiltest.ResolveExpectNotFound(t, ctx, "appV2")
 
 	// Start a third instance.
-	instance3ID := launchApp(t, ctx, appID)
-	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance3ID); v != v2 {
+	instance3ID := utiltest.LaunchApp(t, ctx, appID)
+	if v := utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance3ID); v != v2 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v2, v)
 	}
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
 
-	resolve(t, ctx, "appV2", 1)
+	utiltest.Resolve(t, ctx, "appV2", 1)
 
 	// Stop second instance.
-	terminateApp(t, ctx, appID, instance2ID)
-	resolveExpectNotFound(t, ctx, "appV1")
+	utiltest.TerminateApp(t, ctx, appID, instance2ID)
+	utiltest.ResolveExpectNotFound(t, ctx, "appV1")
 
 	// Stop third instance.
-	terminateApp(t, ctx, appID, instance3ID)
-	resolveExpectNotFound(t, ctx, "appV2")
+	utiltest.TerminateApp(t, ctx, appID, instance3ID)
+	utiltest.ResolveExpectNotFound(t, ctx, "appV2")
 
 	// Revert the app.
-	revertApp(t, ctx, appID)
-	if v := verifyState(t, ctx, device.InstallationStateActive, appID); v != v1 {
+	utiltest.RevertApp(t, ctx, appID)
+	if v := utiltest.VerifyState(t, ctx, device.InstallationStateActive, appID); v != v1 {
 		t.Fatalf("Installation version expected to be %v, got %v instead", v1, v)
 	}
 
 	// Start a fourth instance.  It should be running from version 1.
-	instance4ID := launchApp(t, ctx, appID)
-	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance4ID); v != v1 {
+	instance4ID := utiltest.LaunchApp(t, ctx, appID)
+	if v := utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance4ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
-	resolve(t, ctx, "appV1", 1)
-	terminateApp(t, ctx, appID, instance4ID)
-	resolveExpectNotFound(t, ctx, "appV1")
+	utiltest.Resolve(t, ctx, "appV1", 1)
+	utiltest.TerminateApp(t, ctx, appID, instance4ID)
+	utiltest.ResolveExpectNotFound(t, ctx, "appV1")
 
 	// We are already on the first version, no further revert possible.
-	revertAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)
+	utiltest.RevertAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)
 
 	// Uninstall the app.
-	uninstallApp(t, ctx, appID)
-	verifyState(t, ctx, device.InstallationStateUninstalled, appID)
+	utiltest.UninstallApp(t, ctx, appID)
+	utiltest.VerifyState(t, ctx, device.InstallationStateUninstalled, appID)
 
 	// Updating the installation should no longer be allowed.
-	updateAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
+	utiltest.UpdateAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
 	// Reverting the installation should no longer be allowed.
-	revertAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
+	utiltest.RevertAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
 	// Starting new instances should no longer be allowed.
-	launchAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
+	utiltest.LaunchAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
 	// Make sure that Kill will actually kill an app that doesn't exit
 	// cleanly Do this by installing, instantiating, running, and killing
 	// hangingApp, which sleeps (rather than exits) after being asked to
 	// Stop()
-	*envelope = envelopeFromShell(sh, nil, hangingAppCmd, "hanging ap", "hAppV1")
-	hAppID := installApp(t, ctx)
-	hInstanceID := launchApp(t, ctx, hAppID)
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, hangingAppCmd, "hanging ap", "hAppV1")
+	hAppID := utiltest.InstallApp(t, ctx)
+	hInstanceID := utiltest.LaunchApp(t, ctx, hAppID)
 	hangingPid := receivePingArgs(t, pingCh).Pid
 	if err := syscall.Kill(hangingPid, 0); err != nil && err != syscall.EPERM {
 		t.Fatalf("Pid of hanging app (%v) is not live", hangingPid)
 	}
-	killApp(t, ctx, hAppID, hInstanceID)
+	utiltest.KillApp(t, ctx, hAppID, hInstanceID)
 	pidIsAlive := true
 	for i := 0; i < 10 && pidIsAlive; i++ {
 		if err := syscall.Kill(hangingPid, 0); err == nil || err == syscall.EPERM {
@@ -904,7 +905,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	// Cleanly shut down the device manager.
-	defer verifyNoRunningProcesses(t)
+	defer utiltest.VerifyNoRunningProcesses(t)
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
@@ -954,7 +955,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t, ctx)
+	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
@@ -964,7 +965,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	}
 
 	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, root)
+	helperPath := utiltest.GenerateSuidHelperScript(t, root)
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
@@ -973,9 +974,9 @@ func TestDeviceManagerClaim(t *testing.T) {
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
-	claimantCtx := ctxWithNewPrincipal(t, ctx, idp, "claimant")
+	claimantCtx := utiltest.CtxWithNewPrincipal(t, ctx, idp, "claimant")
 	octx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("other"))
 	if err != nil {
 		t.Fatal(err)
@@ -989,31 +990,31 @@ func TestDeviceManagerClaim(t *testing.T) {
 	//installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
 
 	// Claim the device with an incorrect pairing token should fail.
-	claimDeviceExpectError(t, claimantCtx, "claimable", "mydevice", "badtoken", impl.ErrInvalidPairingToken.ID)
+	utiltest.ClaimDeviceExpectError(t, claimantCtx, "claimable", "mydevice", "badtoken", impl.ErrInvalidPairingToken.ID)
 	// But succeed with a valid pairing token
-	claimDevice(t, claimantCtx, "claimable", "dm", "mydevice", pairingToken)
+	utiltest.ClaimDevice(t, claimantCtx, "claimable", "dm", "mydevice", pairingToken)
 
 	// Installation should succeed since claimantRT is now the "owner" of
 	// the devicemanager.
-	appID := installApp(t, claimantCtx)
+	appID := utiltest.InstallApp(t, claimantCtx)
 
 	// octx will not install the app now since it doesn't recognize the
 	// device's blessings. The error returned will be ErrNoServers as that
 	// is what the IPC stack does when there are no authorized servers.
-	installAppExpectError(t, octx, verror.ErrNoServers.ID)
+	utiltest.InstallAppExpectError(t, octx, verror.ErrNoServers.ID)
 	// Even if it does recognize the device (by virtue of recognizing the
 	// claimant), the device will not allow it to install.
 	if err := v23.GetPrincipal(octx).AddToRoots(v23.GetPrincipal(claimantCtx).BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
-	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
+	utiltest.InstallAppExpectError(t, octx, verror.ErrNoAccess.ID)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, claimantCtx)
 	defer cleanup()
 
 	// Start an instance of the app.
-	instanceID := launchApp(t, claimantCtx, appID)
+	instanceID := utiltest.LaunchApp(t, claimantCtx, appID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1021,8 +1022,8 @@ func TestDeviceManagerClaim(t *testing.T) {
 	case <-time.After(pingTimeout):
 		t.Fatalf("failed to get ping")
 	}
-	resolve(t, ctx, "trapp", 1)
-	killApp(t, claimantCtx, appID, instanceID)
+	utiltest.Resolve(t, ctx, "trapp", 1)
+	utiltest.KillApp(t, claimantCtx, appID, instanceID)
 
 	// TODO(gauthamt): Test that AccessLists persist across devicemanager restarts
 }
@@ -1034,13 +1035,13 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	// Identity provider to ensure that all processes recognize each
 	// others' blessings.
 	idp := testutil.NewIDProvider("root")
-	ctx = ctxWithNewPrincipal(t, ctx, idp, "self")
+	ctx = utiltest.CtxWithNewPrincipal(t, ctx, idp, "self")
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t, ctx)
+	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
@@ -1050,17 +1051,17 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	}
 
 	selfCtx := ctx
-	octx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
+	octx := utiltest.CtxWithNewPrincipal(t, selfCtx, idp, "other")
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
-	defer verifyNoRunningProcesses(t)
+	defer utiltest.VerifyNoRunningProcesses(t)
 
 	// Create an envelope for an app.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, appCmd, "google naps")
 
 	// On an unclaimed device manager, there will be no AccessLists.
 	if _, _, err := device.DeviceClient("claimable").GetPermissions(selfCtx); err == nil {
@@ -1068,7 +1069,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	}
 
 	// Claim the devicemanager as "root/self/mydevice"
-	claimDevice(t, selfCtx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, selfCtx, "claimable", "dm", "mydevice", noPairingToken)
 	expectedAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
 		expectedAccessList[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
@@ -1090,7 +1091,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 		t.Fatalf("getAccessList expected:%v(%v), got:%v(%v)", expectedAccessList, expectedVersion, perms, version)
 	}
 	// Install from octx should fail, since it does not match the AccessList.
-	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
+	utiltest.InstallAppExpectError(t, octx, verror.ErrNoAccess.ID)
 
 	newAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
@@ -1104,8 +1105,8 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	}
 	// Install should now fail with selfCtx, which no longer matches the
 	// AccessLists but succeed with octx, which does.
-	installAppExpectError(t, selfCtx, verror.ErrNoAccess.ID)
-	installApp(t, octx)
+	utiltest.InstallAppExpectError(t, selfCtx, verror.ErrNoAccess.ID)
+	utiltest.InstallApp(t, octx)
 }
 
 type simpleRW chan []byte
@@ -1134,9 +1135,9 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	// No need to call SaveCreatorInfo() here because that's part of SelfInstall below
 
 	// Create a script wrapping the test target that implements suidhelper.
-	suidHelperPath := generateSuidHelperScript(t, testDir)
+	suidHelperPath := utiltest.GenerateSuidHelperScript(t, testDir)
 	// Create a dummy script mascarading as the security agent.
-	agentPath := generateAgentScript(t, testDir)
+	agentPath := utiltest.GenerateAgentScript(t, testDir)
 	initHelperPath := ""
 
 	// Create an 'envelope' for the device manager that we can pass to the
@@ -1150,7 +1151,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 		t.Fatalf("SelfInstall failed: %v", err)
 	}
 
-	resolveExpectNotFound(t, ctx, "dm")
+	utiltest.ResolveExpectNotFound(t, ctx, "dm")
 	// Start the device manager.
 	stdout := make(simpleRW, 100)
 	defer os.Setenv(redirectEnv, os.Getenv(redirectEnv))
@@ -1160,8 +1161,8 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	}
 	dms := expect.NewSession(t, stdout, servicetest.ExpectTimeout)
 	servicetest.ReadPID(t, dms)
-	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
-	revertDeviceExpectError(t, ctx, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
+	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.RevertDeviceExpectError(t, ctx, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
 
 	// Stop the device manager.
 	if err := impl.Stop(ctx, dmDir, os.Stderr, os.Stdout); err != nil {
@@ -1191,7 +1192,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t, ctx)
+	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
@@ -1201,7 +1202,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, root)
+	helperPath := utiltest.GenerateSuidHelperScript(t, root)
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
@@ -1214,17 +1215,17 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Device must be claimed before applications can be installed.
-	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 	// Install the app.
-	appID := installApp(t, ctx)
+	appID := utiltest.InstallApp(t, ctx)
 	install1ID := path.Base(appID)
 
 	// Start an instance of the app.
-	instance1ID := launchApp(t, ctx, appID)
-	defer terminateApp(t, ctx, appID, instance1ID)
+	instance1ID := utiltest.LaunchApp(t, ctx, appID)
+	defer utiltest.TerminateApp(t, ctx, appID, instance1ID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1233,7 +1234,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 		t.Fatalf("failed to get ping")
 	}
 
-	app2ID := installApp(t, ctx)
+	app2ID := utiltest.InstallApp(t, ctx)
 	install2ID := path.Base(app2ID)
 
 	// Base name of argv[0] that the app should have when it executes
@@ -1242,7 +1243,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	// Someday in future we may remove that and have binary names that reflect the app name.
 	const appName = "app"
 
-	testcases := []globTestVector{
+	testcases := []utiltest.GlobTestVector{
 		{"dm", "...", []string{
 			"",
 			"apps",
@@ -1276,12 +1277,12 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 		{"dm/apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system", "start-time*", []string{"start-time-rfc1123", "start-time-unix"}},
 	}
 
-	res := newGlobTestRegexHelper(appName)
+	res := utiltest.NewGlobTestRegexHelper(appName)
 
-	verifyGlob(t, ctx, appName, testcases, res)
-	verifyLog(t, ctx, "dm", "apps/google naps", install1ID, instance1ID, "logs", "*")
-	verifyStatsValues(t, ctx, "dm", "apps/google naps", install1ID, instance1ID, "stats/system/start-time*")
-	verifyPProfCmdLine(t, ctx, appName, "dm", "apps/google naps", install1ID, instance1ID, "pprof")
+	utiltest.VerifyGlob(t, ctx, appName, testcases, res)
+	utiltest.VerifyLog(t, ctx, "dm", "apps/google naps", install1ID, instance1ID, "logs", "*")
+	utiltest.VerifyStatsValues(t, ctx, "dm", "apps/google naps", install1ID, instance1ID, "stats/system/start-time*")
+	utiltest.VerifyPProfCmdLine(t, ctx, appName, "dm", "apps/google naps", install1ID, instance1ID, "pprof")
 }
 
 // TODO(caprita): We need better test coverage for how updating/reverting apps
@@ -1294,7 +1295,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t, ctx)
+	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
 	defer cleanup()
 
 	binaryVON := "realbin"
@@ -1333,21 +1334,21 @@ func TestDeviceManagerPackages(t *testing.T) {
 	}
 
 	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, root)
+	helperPath := utiltest.GenerateSuidHelperScript(t, root)
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
-	defer verifyNoRunningProcesses(t)
+	defer utiltest.VerifyNoRunningProcesses(t)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 	envelope.Packages = map[string]application.SignedFile{
 		"test": application.SignedFile{
 			File: "realbin/testpkg",
@@ -1372,13 +1373,13 @@ func TestDeviceManagerPackages(t *testing.T) {
 		},
 	}
 	// Device must be claimed before apps can be installed.
-	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 	// Install the app.
-	appID := installApp(t, ctx, packages)
+	appID := utiltest.InstallApp(t, ctx, packages)
 
 	// Start an instance of the app.
-	instance1ID := launchApp(t, ctx, appID)
-	defer terminateApp(t, ctx, appID, instance1ID)
+	instance1ID := utiltest.LaunchApp(t, ctx, appID)
+	defer utiltest.TerminateApp(t, ctx, appID, instance1ID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1425,7 +1426,7 @@ func listAndVerifyAssociations(t *testing.T, ctx *context.T, stub device.DeviceC
 	if err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
 	}
-	compareAssociations(t, assocs, expected)
+	utiltest.CompareAssociations(t, assocs, expected)
 }
 
 // TODO(rjkroege): Verify that associations persist across restarts once
@@ -1448,8 +1449,8 @@ func TestAccountAssociation(t *testing.T) {
 	// Since these blessings will appear in AccessLists, give them
 	// recognizable names.
 	idp := testutil.NewIDProvider("root")
-	selfCtx := ctxWithNewPrincipal(t, ctx, idp, "self")
-	otherCtx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
+	selfCtx := utiltest.CtxWithNewPrincipal(t, ctx, idp, "self")
+	otherCtx := utiltest.CtxWithNewPrincipal(t, selfCtx, idp, "other")
 	// Both the "external" processes must recognize the root mounttable's
 	// blessings, otherwise they will not talk to it.
 	for _, c := range []*context.T{selfCtx, otherCtx} {
@@ -1459,7 +1460,7 @@ func TestAccountAssociation(t *testing.T) {
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
-	defer verifyNoRunningProcesses(t)
+	defer utiltest.VerifyNoRunningProcesses(t)
 
 	// Attempt to list associations on the device manager without having
 	// claimed it.
@@ -1468,7 +1469,7 @@ func TestAccountAssociation(t *testing.T) {
 	}
 
 	// self claims the device manager.
-	claimDevice(t, selfCtx, "claimable", "dm", "alice", noPairingToken)
+	utiltest.ClaimDevice(t, selfCtx, "claimable", "dm", "alice", noPairingToken)
 
 	vlog.VI(2).Info("Verify that associations start out empty.")
 	deviceStub := device.DeviceClient("dm/device")
@@ -1541,7 +1542,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t, ctx)
+	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
@@ -1551,17 +1552,17 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	selfCtx := ctx
-	otherCtx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
+	otherCtx := utiltest.CtxWithNewPrincipal(t, selfCtx, idp, "other")
 
 	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, root)
+	helperPath := utiltest.GenerateSuidHelperScript(t, root)
 
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
-	defer verifyNoRunningProcesses(t)
+	defer utiltest.VerifyNoRunningProcesses(t)
 	// Claim the devicemanager with selfCtx as root/self/alice
-	claimDevice(t, selfCtx, "claimable", "dm", "alice", noPairingToken)
+	utiltest.ClaimDevice(t, selfCtx, "claimable", "dm", "alice", noPairingToken)
 
 	deviceStub := device.DeviceClient("dm/device")
 
@@ -1571,13 +1572,13 @@ func TestAppWithSuidHelper(t *testing.T) {
 	defer cleanup()
 
 	// Create an envelope for a first version of the app.
-	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-var"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{testEnvVarName + "=env-var"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
 
 	// Install and start the app as root/self.
-	appID := installApp(t, selfCtx)
+	appID := utiltest.InstallApp(t, selfCtx)
 
 	vlog.VI(2).Infof("Validate that the created app has the right permission lists.")
-	perms, _, err := appStub(appID).GetPermissions(selfCtx)
+	perms, _, err := utiltest.AppStub(appID).GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions on appID: %v failed %v", appID, err)
 	}
@@ -1591,19 +1592,19 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Start an instance of the app but this time it should fail: we do not
 	// have an associated uname for the invoking identity.
-	launchAppExpectError(t, selfCtx, appID, verror.ErrNoAccess.ID)
+	utiltest.LaunchAppExpectError(t, selfCtx, appID, verror.ErrNoAccess.ID)
 
 	// Create an association for selfCtx
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
-	instance1ID := launchApp(t, selfCtx, appID)
+	instance1ID := utiltest.LaunchApp(t, selfCtx, appID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
-	terminateApp(t, selfCtx, appID, instance1ID)
+	utiltest.TerminateApp(t, selfCtx, appID, instance1ID)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
-	launchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
+	utiltest.LaunchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// Self will now let other also install apps.
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, testUserName); err != nil {
@@ -1624,21 +1625,21 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// other doesn't have execution permissions for the app. So this will
 	// fail.
 	vlog.VI(2).Infof("other attempting to run an app still without access. Should fail.")
-	launchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
+	utiltest.LaunchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// But self can give other permissions  to start applications.
 	vlog.VI(2).Infof("self attempting to give other permission to start %s", appID)
-	newAccessList, _, err = appStub(appID).GetPermissions(selfCtx)
+	newAccessList, _, err = utiltest.AppStub(appID).GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions on appID: %v failed %v", appID, err)
 	}
 	newAccessList.Add("root/other", string(access.Read))
-	if err = appStub(appID).SetPermissions(selfCtx, newAccessList, ""); err != nil {
+	if err = utiltest.AppStub(appID).SetPermissions(selfCtx, newAccessList, ""); err != nil {
 		t.Fatalf("SetPermissions on appID: %v failed: %v", appID, err)
 	}
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
-	instance2ID := launchApp(t, otherCtx, appID)
+	instance2ID := utiltest.LaunchApp(t, otherCtx, appID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	vlog.VI(2).Infof("Validate that created instance has the right permissions.")
@@ -1646,7 +1647,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	for _, tag := range access.AllTypicalTags() {
 		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/other/$"}}
 	}
-	perms, _, err = appStub(appID, instance2ID).GetPermissions(selfCtx)
+	perms, _, err = utiltest.AppStub(appID, instance2ID).GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions on instance %v/%v failed: %v", appID, instance2ID, err)
 	}
@@ -1655,22 +1656,22 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	// Shutdown the app.
-	killApp(t, otherCtx, appID, instance2ID)
+	utiltest.KillApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that Run with the same systemName works.")
-	runApp(t, otherCtx, appID, instance2ID)
+	utiltest.RunApp(t, otherCtx, appID, instance2ID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
-	killApp(t, otherCtx, appID, instance2ID)
+	utiltest.KillApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that other can install and run applications.")
-	otherAppID := installApp(t, otherCtx)
+	otherAppID := utiltest.InstallApp(t, otherCtx)
 
 	vlog.VI(2).Infof("other attempting to run an app that other installed. Should succeed.")
-	instance4ID := launchApp(t, otherCtx, otherAppID)
+	instance4ID := utiltest.LaunchApp(t, otherCtx, otherAppID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	// Clean up.
-	terminateApp(t, otherCtx, otherAppID, instance4ID)
+	utiltest.TerminateApp(t, otherCtx, otherAppID, instance4ID)
 
 	// Change the associated system name.
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, anotherTestUserName); err != nil {
@@ -1678,17 +1679,17 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Show that Run with a different systemName fails.")
-	runAppExpectError(t, otherCtx, appID, instance2ID, verror.ErrNoAccess.ID)
+	utiltest.RunAppExpectError(t, otherCtx, appID, instance2ID, verror.ErrNoAccess.ID)
 
 	// Clean up.
-	deleteApp(t, otherCtx, appID, instance2ID)
+	utiltest.DeleteApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Show that Start with different systemName works.")
-	instance3ID := launchApp(t, otherCtx, appID)
+	instance3ID := utiltest.LaunchApp(t, otherCtx, appID)
 	verifyPingArgs(t, pingCh, anotherTestUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	// Clean up.
-	terminateApp(t, otherCtx, appID, instance3ID)
+	utiltest.TerminateApp(t, otherCtx, appID, instance3ID)
 }
 
 func TestDownloadSignatureMatch(t *testing.T) {
@@ -1725,7 +1726,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	}
 
 	// Start the application repository
-	envelope, serverStop := startApplicationRepository(ctx)
+	envelope, serverStop := utiltest.StartApplicationRepository(ctx)
 	defer serverStop()
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
@@ -1735,14 +1736,14 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	}
 
 	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, root)
+	helperPath := utiltest.GenerateSuidHelperScript(t, root)
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
-	claimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	publisher, err := v23.GetPrincipal(ctx).BlessSelf("publisher")
 	if err != nil {
@@ -1761,7 +1762,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 			},
 		},
 	}
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); err != nil {
+	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); err != nil {
 		t.Fatalf("Failed to Install app:%v", err)
 	}
 
@@ -1773,7 +1774,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if _, err := binarylib.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
+	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
 		t.Fatalf("Failed to verify signature mismatch for binary:%v. Got errorid=%v[%v], want errorid=%v", binaryVON, verror.ErrorID(err), err, impl.ErrOperationFailed.ID)
 	}
 
@@ -1785,7 +1786,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if _, err := binarylib.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); err != nil {
+	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); err != nil {
 		t.Fatalf("Failed to Install app:%v", err)
 	}
 
@@ -1803,7 +1804,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if _, err = binarylib.UploadFromDir(ctx, pkgVON, tmpdir); err != nil {
 		t.Fatalf("binarylib.UploadFromDir failed: %v", err)
 	}
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
+	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
 		t.Fatalf("Failed to verify signature mismatch for package:%v", pkgVON)
 	}
 }

@@ -68,9 +68,3 @@ func possiblyMockIsSetuid(fileStat os.FileInfo) bool {
 func WrapBaseCleanupDir(path, helper string) {
 	baseCleanupDir(path, helper)
 }
-
-// RunningChildrenProcesses uses the reaper to verify that a test has
-// successfully shut down all processes.
-func RunningChildrenProcesses() bool {
-	return len(stashedPidMap) > 0
-}

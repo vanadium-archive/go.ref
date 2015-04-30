@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package utiltest
 
 import (
 	"errors"
@@ -45,7 +45,7 @@ const (
 	killTimeout = 20 * time.Second
 )
 
-func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args ...string) application.Envelope {
+func EnvelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args ...string) application.Envelope {
 	args, nenv := sh.CommandEnvelope(cmd, env, args...)
 	return application.Envelope{
 		Title: title,
@@ -53,12 +53,12 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 		// TODO(caprita): revisit how the environment is sanitized for arbirary
 		// apps.
 		Env:    impl.VanadiumEnvironment(nenv),
-		Binary: application.SignedFile{File: mockBinaryRepoName},
+		Binary: application.SignedFile{File: MockBinaryRepoName},
 	}
 }
 
-// resolveExpectNotFound verifies that the given name is not in the mounttable.
-func resolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
+// ResolveExpectNotFound verifies that the given name is not in the mounttable.
+func ResolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
 	if me, err := v23.GetNamespace(ctx).Resolve(ctx, name); err == nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names()))
 	} else if expectErr := naming.ErrNoSuchName.ID; verror.ErrorID(err) != expectErr {
@@ -66,8 +66,8 @@ func resolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
 	}
 }
 
-// resolve looks up the given name in the mounttable.
-func resolve(t *testing.T, ctx *context.T, name string, replicas int) []string {
+// Resolve looks up the given name in the mounttable.
+func Resolve(t *testing.T, ctx *context.T, name string, replicas int) []string {
 	me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
@@ -89,12 +89,12 @@ func resolve(t *testing.T, ctx *context.T, name string, replicas int) []string {
 // The following set of functions are convenience wrappers around Update and
 // Revert for device manager.
 
-func deviceStub(name string) device.DeviceClientMethods {
+func DeviceStub(name string) device.DeviceClientMethods {
 	deviceName := naming.Join(name, "device")
 	return device.DeviceClient(deviceName)
 }
 
-func claimDevice(t *testing.T, ctx *context.T, claimableName, deviceName, extension, pairingToken string) {
+func ClaimDevice(t *testing.T, ctx *context.T, claimableName, deviceName, extension, pairingToken string) {
 	// Setup blessings to be granted to the claimed device
 	g := &granter{extension: extension}
 	s := options.SkipServerEndpointAuthorization{}
@@ -119,7 +119,7 @@ func claimDevice(t *testing.T, ctx *context.T, claimableName, deviceName, extens
 	}
 }
 
-func claimDeviceExpectError(t *testing.T, ctx *context.T, name, extension, pairingToken string, errID verror.ID) {
+func ClaimDeviceExpectError(t *testing.T, ctx *context.T, name, extension, pairingToken string, errID verror.ID) {
 	// Setup blessings to be granted to the claimed device
 	g := &granter{extension: extension}
 	s := options.SkipServerEndpointAuthorization{}
@@ -129,38 +129,38 @@ func claimDeviceExpectError(t *testing.T, ctx *context.T, name, extension, pairi
 	}
 }
 
-func updateDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
-	if err := deviceStub(name).Update(ctx); verror.ErrorID(err) != errID {
+func UpdateDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
+	if err := DeviceStub(name).Update(ctx); verror.ErrorID(err) != errID {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Update expected to fail with %v, got %v [%v]", name, errID, verror.ErrorID(err), err))
 	}
 }
 
-func updateDevice(t *testing.T, ctx *context.T, name string) {
-	if err := deviceStub(name).Update(ctx); err != nil {
+func UpdateDevice(t *testing.T, ctx *context.T, name string) {
+	if err := DeviceStub(name).Update(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Update() failed: %v [%v]", name, verror.ErrorID(err), err))
 	}
 }
 
-func revertDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
-	if err := deviceStub(name).Revert(ctx); verror.ErrorID(err) != errID {
+func RevertDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
+	if err := DeviceStub(name).Revert(ctx); verror.ErrorID(err) != errID {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Revert() expected to fail with %v, got %v [%v]", name, errID, verror.ErrorID(err), err))
 	}
 }
 
-func revertDevice(t *testing.T, ctx *context.T, name string) {
-	if err := deviceStub(name).Revert(ctx); err != nil {
+func RevertDevice(t *testing.T, ctx *context.T, name string) {
+	if err := DeviceStub(name).Revert(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Revert() failed: %v [%v]", name, verror.ErrorID(err), err))
 	}
 }
 
-func killDevice(t *testing.T, ctx *context.T, name string) {
-	if err := deviceStub(name).Kill(ctx, killTimeout); err != nil {
+func KillDevice(t *testing.T, ctx *context.T, name string) {
+	if err := DeviceStub(name).Kill(ctx, killTimeout); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Kill(%v) failed: %v [%v]", name, killTimeout, verror.ErrorID(err), err))
 	}
 }
 
-func shutdownDevice(t *testing.T, ctx *context.T, name string) {
-	if err := deviceStub(name).Delete(ctx); err != nil {
+func ShutdownDevice(t *testing.T, ctx *context.T, name string) {
+	if err := DeviceStub(name).Delete(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Delete() failed: %v [%v]", name, verror.ErrorID(err), err))
 	}
 }
@@ -168,7 +168,7 @@ func shutdownDevice(t *testing.T, ctx *context.T, name string) {
 // The following set of functions are convenience wrappers around various app
 // management methods.
 
-func ocfg(opt []interface{}) device.Config {
+func Ocfg(opt []interface{}) device.Config {
 	for _, o := range opt {
 		if c, ok := o.(device.Config); ok {
 			return c
@@ -177,7 +177,7 @@ func ocfg(opt []interface{}) device.Config {
 	return device.Config{}
 }
 
-func opkg(opt []interface{}) application.Packages {
+func Opkg(opt []interface{}) application.Packages {
 	for _, o := range opt {
 		if c, ok := o.(application.Packages); ok {
 			return c
@@ -186,27 +186,27 @@ func opkg(opt []interface{}) application.Packages {
 	return application.Packages{}
 }
 
-func appStub(nameComponents ...string) device.ApplicationClientMethods {
+func AppStub(nameComponents ...string) device.ApplicationClientMethods {
 	appsName := "dm/apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
 	return device.ApplicationClient(appName)
 }
 
-func statsStub(nameComponents ...string) stats.StatsClientMethods {
+func StatsStub(nameComponents ...string) stats.StatsClientMethods {
 	statsName := naming.Join(nameComponents...)
 	return stats.StatsClient(statsName)
 }
 
-func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
-	appID, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), opkg(opt))
+func InstallApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
+	appID, err := AppStub().Install(ctx, MockApplicationRepoName, Ocfg(opt), Opkg(opt))
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Install failed: %v [%v]", verror.ErrorID(err), err))
 	}
 	return appID
 }
 
-func installAppExpectError(t *testing.T, ctx *context.T, expectedError verror.ID, opt ...interface{}) {
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), opkg(opt)); err == nil || verror.ErrorID(err) != expectedError {
+func InstallAppExpectError(t *testing.T, ctx *context.T, expectedError verror.ID, opt ...interface{}) {
+	if _, err := AppStub().Install(ctx, MockApplicationRepoName, Ocfg(opt), Opkg(opt)); err == nil || verror.ErrorID(err) != expectedError {
 		t.Fatalf(testutil.FormatLogLine(2, "Install expected to fail with %v, got %v [%v]", expectedError, verror.ErrorID(err), err))
 	}
 }
@@ -222,19 +222,19 @@ func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings,
 	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }
 
-func launchAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
-	instanceID, err := newInstanceImpl(t, ctx, appID, grant)
+func LaunchAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
+	instanceID, err := NewInstanceImpl(t, ctx, appID, grant)
 	if err != nil {
 		return "", err
 	}
-	return instanceID, appStub(appID, instanceID).Run(ctx)
+	return instanceID, AppStub(appID, instanceID).Run(ctx)
 }
 
-func newInstanceImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
+func NewInstanceImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
 	ctx, delete := context.WithCancel(ctx)
 	defer delete()
 
-	call, err := appStub(appID).Instantiate(ctx)
+	call, err := AppStub(appID).Instantiate(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -262,113 +262,113 @@ func newInstanceImpl(t *testing.T, ctx *context.T, appID, grant string) (string,
 	return instanceID, nil
 }
 
-func launchApp(t *testing.T, ctx *context.T, appID string) string {
-	instanceID, err := launchAppImpl(t, ctx, appID, "forapp")
+func LaunchApp(t *testing.T, ctx *context.T, appID string) string {
+	instanceID, err := LaunchAppImpl(t, ctx, appID, "forapp")
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "launching %v failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 	return instanceID
 }
 
-func launchAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
-	if _, err := launchAppImpl(t, ctx, appID, "forapp"); err == nil || verror.ErrorID(err) != expectedError {
+func LaunchAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
+	if _, err := LaunchAppImpl(t, ctx, appID, "forapp"); err == nil || verror.ErrorID(err) != expectedError {
 		t.Fatalf(testutil.FormatLogLine(2, "launching %v expected to fail with %v, got %v [%v]", appID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
-func terminateApp(t *testing.T, ctx *context.T, appID, instanceID string) {
-	if err := appStub(appID, instanceID).Kill(ctx, killTimeout); err != nil {
+func TerminateApp(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := AppStub(appID, instanceID).Kill(ctx, killTimeout); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Kill(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
-	if err := appStub(appID, instanceID).Delete(ctx); err != nil {
+	if err := AppStub(appID, instanceID).Delete(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Delete(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
-func killApp(t *testing.T, ctx *context.T, appID, instanceID string) {
-	if err := appStub(appID, instanceID).Kill(ctx, killTimeout); err != nil {
+func KillApp(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := AppStub(appID, instanceID).Kill(ctx, killTimeout); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Kill(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
-func deleteApp(t *testing.T, ctx *context.T, appID, instanceID string) {
-	if err := appStub(appID, instanceID).Delete(ctx); err != nil {
+func DeleteApp(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := AppStub(appID, instanceID).Delete(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Delete(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
-func runApp(t *testing.T, ctx *context.T, appID, instanceID string) {
-	if err := appStub(appID, instanceID).Run(ctx); err != nil {
+func RunApp(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := AppStub(appID, instanceID).Run(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Run(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
-func runAppExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
-	if err := appStub(appID, instanceID).Run(ctx); err == nil || verror.ErrorID(err) != expectedError {
+func RunAppExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
+	if err := AppStub(appID, instanceID).Run(ctx); err == nil || verror.ErrorID(err) != expectedError {
 		t.Fatalf(testutil.FormatLogLine(2, "Run(%v/%v) expected to fail with %v, got %v [%v]", appID, instanceID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
-func updateInstance(t *testing.T, ctx *context.T, appID, instanceID string) {
-	if err := appStub(appID, instanceID).Update(ctx); err != nil {
+func UpdateInstance(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := AppStub(appID, instanceID).Update(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
-func updateInstanceExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
-	if err := appStub(appID, instanceID).Update(ctx); err == nil || verror.ErrorID(err) != expectedError {
+func UpdateInstanceExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
+	if err := AppStub(appID, instanceID).Update(ctx); err == nil || verror.ErrorID(err) != expectedError {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v/%v) expected to fail with %v, got %v [%v]", appID, instanceID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
-func updateApp(t *testing.T, ctx *context.T, appID string) {
-	if err := appStub(appID).Update(ctx); err != nil {
+func UpdateApp(t *testing.T, ctx *context.T, appID string) {
+	if err := AppStub(appID).Update(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 }
 
-func updateAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Update(ctx); err == nil || verror.ErrorID(err) != expectedError {
+func UpdateAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
+	if err := AppStub(appID).Update(ctx); err == nil || verror.ErrorID(err) != expectedError {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v [%v]", appID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
-func revertApp(t *testing.T, ctx *context.T, appID string) {
-	if err := appStub(appID).Revert(ctx); err != nil {
+func RevertApp(t *testing.T, ctx *context.T, appID string) {
+	if err := AppStub(appID).Revert(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 }
 
-func revertAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Revert(ctx); err == nil || verror.ErrorID(err) != expectedError {
+func RevertAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
+	if err := AppStub(appID).Revert(ctx); err == nil || verror.ErrorID(err) != expectedError {
 		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v [%v]", appID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
-func uninstallApp(t *testing.T, ctx *context.T, appID string) {
-	if err := appStub(appID).Uninstall(ctx); err != nil {
+func UninstallApp(t *testing.T, ctx *context.T, appID string) {
+	if err := AppStub(appID).Uninstall(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Uninstall(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 }
 
-func debug(t *testing.T, ctx *context.T, nameComponents ...string) string {
-	dbg, err := appStub(nameComponents...).Debug(ctx)
+func Debug(t *testing.T, ctx *context.T, nameComponents ...string) string {
+	dbg, err := AppStub(nameComponents...).Debug(ctx)
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Debug(%v) failed: %v [%v]", nameComponents, verror.ErrorID(err), err))
 	}
 	return dbg
 }
 
-func status(t *testing.T, ctx *context.T, nameComponents ...string) device.Status {
-	s, err := appStub(nameComponents...).Status(ctx)
+func Status(t *testing.T, ctx *context.T, nameComponents ...string) device.Status {
+	s, err := AppStub(nameComponents...).Status(ctx)
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(3, "Status(%v) failed: %v [%v]", nameComponents, verror.ErrorID(err), err))
 	}
 	return s
 }
 
-func verifyState(t *testing.T, ctx *context.T, want interface{}, nameComponents ...string) string {
-	s := status(t, ctx, nameComponents...)
+func VerifyState(t *testing.T, ctx *context.T, want interface{}, nameComponents ...string) string {
+	s := Status(t, ctx, nameComponents...)
 	var (
 		state   interface{}
 		version string
@@ -396,7 +396,7 @@ func (a byIdentity) Len() int           { return len(a) }
 func (a byIdentity) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byIdentity) Less(i, j int) bool { return a[i].IdentityName < a[j].IdentityName }
 
-func compareAssociations(t *testing.T, got, expected []device.Association) {
+func CompareAssociations(t *testing.T, got, expected []device.Association) {
 	sort.Sort(byIdentity(got))
 	sort.Sort(byIdentity(expected))
 	if !reflect.DeepEqual(got, expected) {
@@ -404,9 +404,9 @@ func compareAssociations(t *testing.T, got, expected []device.Association) {
 	}
 }
 
-// generateSuidHelperScript builds a script to execute the test target as
+// GenerateSuidHelperScript builds a script to execute the test target as
 // a suidhelper instance and returns the path to the script.
-func generateSuidHelperScript(t *testing.T, root string) string {
+func GenerateSuidHelperScript(t *testing.T, root string) string {
 	output := "#!/bin/bash\n"
 	output += "V23_SUIDHELPER_TEST=1"
 	output += " "
@@ -425,9 +425,9 @@ func generateSuidHelperScript(t *testing.T, root string) string {
 	return path
 }
 
-// generateAgentScript creates a simple script that acts as the security agent
+// GenerateAgentScript creates a simple script that acts as the security agent
 // for tests.  It blackholes arguments meant for the agent.
-func generateAgentScript(t *testing.T, root string) string {
+func GenerateAgentScript(t *testing.T, root string) string {
 	output := `
 #!/bin/bash
 ARGS=$*
@@ -454,7 +454,7 @@ exec ${ARGS[@]}
 	return path
 }
 
-func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider, extension string) *context.T {
+func CtxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider, extension string) *context.T {
 	ret, err := v23.WithPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "v23.WithPrincipal failed: %v", err))
@@ -467,18 +467,18 @@ func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider,
 
 // TODO(rjkroege): This helper is generally useful. Use it to reduce
 // boiler plate across all device manager tests.
-func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *testutil.IDProvider) {
+func StartupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *testutil.IDProvider) {
 	ctx, shutdown := test.InitForTest()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Make a new identity context.
 	idp := testutil.NewIDProvider("root")
-	ctx = ctxWithNewPrincipal(t, ctx, idp, "self")
+	ctx = CtxWithNewPrincipal(t, ctx, idp, "self")
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 
 	// Set up mock application and binary repositories.
-	envelope, envCleanup := startMockRepos(t, ctx)
+	envelope, envCleanup := StartMockRepos(t, ctx)
 
 	root, rootCleanup := servicetest.SetupRootDir(t, "devicemanager")
 	if err := impl.SaveCreatorInfo(root); err != nil {
@@ -486,7 +486,7 @@ func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *applicati
 	}
 
 	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, root)
+	helperPath := GenerateSuidHelperScript(t, root)
 
 	return func() {
 		rootCleanup()
@@ -496,9 +496,9 @@ func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *applicati
 	}, ctx, sh, envelope, root, helperPath, idp
 }
 
-type globTestVector struct {
-	name, pattern string
-	expected      []string
+type GlobTestVector struct {
+	Name, Pattern string
+	Expected      []string
 }
 
 type globTestRegexHelper struct {
@@ -508,7 +508,7 @@ type globTestRegexHelper struct {
 	statsTrimRE                      *regexp.Regexp
 }
 
-func newGlobTestRegexHelper(appName string) *globTestRegexHelper {
+func NewGlobTestRegexHelper(appName string) *globTestRegexHelper {
 	return &globTestRegexHelper{
 		logFileTimeStampRE:               regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$"),
 		logFileTrimInfoRE:                regexp.MustCompile(appName + `\..*\.INFO\.[0-9.-]+$`),
@@ -517,13 +517,13 @@ func newGlobTestRegexHelper(appName string) *globTestRegexHelper {
 	}
 }
 
-// verifyGlob verifies that for each globTestVector instance that the
+// VerifyGlob verifies that for each GlobTestVector instance that the
 // pattern returns the expected matches.
-func verifyGlob(t *testing.T, ctx *context.T, appName string, testcases []globTestVector, res *globTestRegexHelper) {
+func VerifyGlob(t *testing.T, ctx *context.T, appName string, testcases []GlobTestVector, res *globTestRegexHelper) {
 	for _, tc := range testcases {
-		results, _, err := testutil.GlobName(ctx, tc.name, tc.pattern)
+		results, _, err := testutil.GlobName(ctx, tc.Name, tc.Pattern)
 		if err != nil {
-			t.Errorf(testutil.FormatLogLine(2, "unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, err))
+			t.Errorf(testutil.FormatLogLine(2, "unexpected glob error for (%q, %q): %v", tc.Name, tc.Pattern, err))
 			continue
 		}
 		filteredResults := []string{}
@@ -542,28 +542,28 @@ func verifyGlob(t *testing.T, ctx *context.T, appName string, testcases []globTe
 			filteredResults = append(filteredResults, name)
 		}
 		sort.Strings(filteredResults)
-		sort.Strings(tc.expected)
-		if !reflect.DeepEqual(filteredResults, tc.expected) {
-			t.Errorf(testutil.FormatLogLine(2, "unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, filteredResults, tc.expected))
+		sort.Strings(tc.Expected)
+		if !reflect.DeepEqual(filteredResults, tc.Expected) {
+			t.Errorf(testutil.FormatLogLine(2, "unexpected result for (%q, %q). Got %q, want %q", tc.Name, tc.Pattern, filteredResults, tc.Expected))
 		}
 	}
 }
 
-// verifyFailGlob verifies that for each globTestVector instance that the
+// VerifyFailGlob verifies that for each GlobTestVector instance that the
 // pattern returns no matches.
-func verifyFailGlob(t *testing.T, ctx *context.T, testcases []globTestVector) {
+func VerifyFailGlob(t *testing.T, ctx *context.T, testcases []GlobTestVector) {
 	for _, tc := range testcases {
-		results, _, _ := testutil.GlobName(ctx, tc.name, tc.pattern)
+		results, _, _ := testutil.GlobName(ctx, tc.Name, tc.Pattern)
 		if len(results) != 0 {
-			t.Errorf(testutil.FormatLogLine(2, "verifyFailGlob should have failed for %q, %q", tc.name, tc.pattern))
+			t.Errorf(testutil.FormatLogLine(2, "verifyFailGlob should have failed for %q, %q", tc.Name, tc.Pattern))
 		}
 	}
 }
 
-// verifyLog calls Size() on a selection of log file objects to
+// VerifyLog calls Size() on a selection of log file objects to
 // demonstrate that the log files are accessible and have been written by
 // the application.
-func verifyLog(t *testing.T, ctx *context.T, nameComponents ...string) {
+func VerifyLog(t *testing.T, ctx *context.T, nameComponents ...string) {
 	a := nameComponents
 	pattern, prefix := a[len(a)-1], a[:len(a)-1]
 	path := naming.Join(prefix...)
@@ -583,9 +583,9 @@ func verifyLog(t *testing.T, ctx *context.T, nameComponents ...string) {
 	}
 }
 
-// verifyStatsValues call Value() on some of the stats objects to prove
+// VerifyStatsValues call Value() on some of the stats objects to prove
 // that they are correctly being proxied to the device manager.
-func verifyStatsValues(t *testing.T, ctx *context.T, nameComponents ...string) {
+func VerifyStatsValues(t *testing.T, ctx *context.T, nameComponents ...string) {
 	a := nameComponents
 	pattern, prefix := a[len(a)-1], a[:len(a)-1]
 	path := naming.Join(prefix...)
@@ -606,9 +606,9 @@ func verifyStatsValues(t *testing.T, ctx *context.T, nameComponents ...string) {
 	}
 }
 
-// verifyPProfCmdLine calls CmdLine() on the pprof object to validate
+// VerifyPProfCmdLine calls CmdLine() on the pprof object to validate
 // that it the proxy correctly accessess pprof names.
-func verifyPProfCmdLine(t *testing.T, ctx *context.T, appName string, nameComponents ...string) {
+func VerifyPProfCmdLine(t *testing.T, ctx *context.T, appName string, nameComponents ...string) {
 	name := naming.Join(nameComponents...)
 	c := pprof.PProfClient(name)
 	v, err := c.CmdLine(ctx)
@@ -624,13 +624,13 @@ func verifyPProfCmdLine(t *testing.T, ctx *context.T, appName string, nameCompon
 
 }
 
-func verifyNoRunningProcesses(t *testing.T) {
+func VerifyNoRunningProcesses(t *testing.T) {
 	if impl.RunningChildrenProcesses() {
 		t.Errorf("device manager incorrectly terminating with child processes still running")
 	}
 }
 
-func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
+func SetNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 	origroots := v23.GetNamespace(ctx).Roots()
 	roots := make([]string, len(origroots))
 	for i, orig := range origroots {
