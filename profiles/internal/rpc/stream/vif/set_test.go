@@ -324,3 +324,38 @@ func TestSetInsertDelete(t *testing.T) {
 		t.Errorf("Unexpected list of VIFs: %v", l)
 	}
 }
+
+func TestBlockingFind(t *testing.T) {
+	network, address := "tcp", "127.0.0.1:1234"
+	set := vif.NewSet()
+
+	set.BlockingFind(network, address)
+
+	ch := make(chan *vif.VIF, 1)
+
+	// set.BlockingFind should block until set.Unblock is called with the corresponding VIF,
+	// since set.BlockingFind was called earlier.
+	go func(ch chan *vif.VIF) {
+		ch <- set.BlockingFind(network, address)
+	}(ch)
+
+	// set.BlockingFind for a different network and address should not block.
+	set.BlockingFind("network", "address")
+
+	// Create and insert the VIF.
+	c, s, err := newConn(network, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vf, _, err := newVIF(c, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.Insert(vf)
+	set.Unblock(network, address)
+
+	// Now the set.BlockingFind should have returned the correct vif.
+	if cachedVif := <-ch; cachedVif != vf {
+		t.Errorf("got %v, want %v", cachedVif, vf)
+	}
+}

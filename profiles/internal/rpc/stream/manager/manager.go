@@ -125,11 +125,13 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	// - Similarly, an unspecified IP address (net.IP.IsUnspecified) like "[::]:80"
 	//   might yield "[::1]:80" (loopback interface) in conn.RemoteAddr().
 	// Thus, look for VIFs with the resolved address as well.
-	if vf := m.vifs.Find(conn.RemoteAddr().Network(), conn.RemoteAddr().String()); vf != nil {
-		vlog.VI(1).Infof("(%q, %q) resolved to (%q, %q) which exists in the VIF cache. Closing newly Dialed connection", network, address, conn.RemoteAddr().Network(), conn.RemoteAddr())
+	resNetwork, resAddress := conn.RemoteAddr().Network(), conn.RemoteAddr().String()
+	if vf := m.vifs.BlockingFind(resNetwork, resAddress); vf != nil {
+		vlog.VI(1).Infof("(%q, %q) resolved to (%q, %q) which exists in the VIF cache. Closing newly Dialed connection", network, address, resNetwork, resAddress)
 		conn.Close()
 		return vf, nil
 	}
+	defer m.vifs.Unblock(resNetwork, resAddress)
 
 	opts = append([]stream.VCOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
 	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, nil, m.deleteVIF, opts...)
@@ -137,14 +139,6 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 		conn.Close()
 		return nil, err
 	}
-	// TODO(ashankar): If two goroutines are simultaneously invoking
-	// manager.Dial, it is possible that two VIFs are inserted into m.vifs
-	// for the same remote network address. This is normally not a problem,
-	// but can be troublesome if the remote endpoint corresponds to a
-	// proxy, since the proxy requires a single network connection per
-	// routing id. Figure out a way to handle this cleanly. One option is
-	// to have only a single VIF per remote network address - have to think
-	// that through.
 	m.vifs.Insert(vf)
 	return vf, nil
 }

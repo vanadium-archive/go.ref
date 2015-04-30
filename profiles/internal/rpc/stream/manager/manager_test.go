@@ -924,3 +924,53 @@ func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
 	t.Logf("Server FD limit:%d", nfiles)
 	t.Logf("Client connection attempts: %d", nattempts)
 }
+
+func TestConcurrentDials(t *testing.T) {
+	// Concurrent Dials to the same network, address should only result in one VIF.
+	server := InternalNew(naming.FixedRoutingID(0x55555555))
+	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	principal := testutil.NewPrincipal("test")
+
+	// Using "tcp4" instead of "tcp" because the latter can end up with IPv6
+	// addresses and our Google Compute Engine integration test machines cannot
+	// resolve IPv6 addresses.
+	// As of April 2014, https://developers.google.com/compute/docs/networking
+	// said that IPv6 is not yet supported.
+	ln, ep, err := server.Listen("tcp4", "127.0.0.1:0", principal, principal.BlessingStore().Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	go acceptLoop(ln)
+
+	// We'd like an endpoint that contains an address that's different than the
+	// one used for the connection. In practice this is awkward to achieve since
+	// we don't want to listen on ":0" since that will annoy firewalls. Instead we
+	// listen on 127.0.0.1 and we fabricate an endpoint that doesn't contain
+	// 127.0.0.1 by using ":0" to create it. This leads to an endpoint such that
+	// the address encoded in the endpoint (e.g. "0.0.0.0:55324") is different
+	// from the address of the connection (e.g. "127.0.0.1:55324").
+	_, port, _ := net.SplitHostPort(ep.Addr().String())
+	nep := &inaming.Endpoint{
+		Protocol: ep.Addr().Network(),
+		Address:  net.JoinHostPort("", port),
+		RID:      ep.RoutingID(),
+	}
+
+	// Dial multiple VCs
+	errCh := make(chan error, 10)
+	for i := 0; i < 10; i++ {
+		go func() {
+			_, err = client.Dial(nep, testutil.NewPrincipal("client"))
+			errCh <- err
+		}()
+	}
+	for i := 0; i < 10; i++ {
+		if err = <-errCh; err != nil {
+			t.Fatal(err)
+		}
+	}
+	// They should all be on the same VIF.
+	if n := numVIFs(client); n != 1 {
+		t.Errorf("Client has %d VIFs, want 1\n%v", n, debugString(client))
+	}
+}
