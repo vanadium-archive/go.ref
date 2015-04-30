@@ -273,5 +273,5 @@ func (w dumpWriter) WriteAtom(atom vom.DumpAtom) {
 }
 
 func (w dumpWriter) WriteStatus(status vom.DumpStatus) {
-	w.status.Write([]byte("\n" + status.String() + "\n"))
+	w.status.Write([]byte(status.String() + "\n"))
 }
