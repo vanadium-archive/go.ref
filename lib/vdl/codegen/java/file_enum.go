@@ -20,7 +20,7 @@ package {{.PackagePath}};
  * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
  **/
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
-{{ .AccessModifier }} final class {{.Name}} extends io.v.v23.vdl.VdlEnum {
+{{ .AccessModifier }} class {{.Name}} extends io.v.v23.vdl.VdlEnum {
     {{ range $index, $label := .EnumLabels }}
         @io.v.v23.vdl.GeneratedFromVdl(name = "{{$label}}", index = {{$index}})
         public static final {{$.Name}} {{$label}};

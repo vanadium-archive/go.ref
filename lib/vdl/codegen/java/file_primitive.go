@@ -21,7 +21,7 @@ package {{.PackagePath}};
  * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
  **/
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
-{{ .AccessModifier }} final class {{.Name}} extends {{.VdlType}} {
+{{ .AccessModifier }} class {{.Name}} extends {{.VdlType}} {
 	private static final long serialVersionUID = 1L;
 
     public static final io.v.v23.vdl.VdlType VDL_TYPE =
