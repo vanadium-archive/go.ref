@@ -7,7 +7,6 @@ package hello_test
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"v.io/x/ref/envvar"
@@ -22,17 +21,6 @@ import (
 
 func init() {
 	envvar.ClearCredentials()
-	// Unset all the namespace variables too.
-	for _, ev := range os.Environ() {
-		p := strings.SplitN(ev, "=", 2)
-		if len(p) != 2 {
-			continue
-		}
-		key := p[0]
-		if strings.HasPrefix(key, envvar.NamespacePrefix) {
-			os.Unsetenv(key)
-		}
-	}
 }
 
 var opts = modules.StartOpts{
@@ -75,7 +63,10 @@ func V23TestHelloDirect(i *v23tests.T) {
 	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
 	server := serverbin.WithStartOpts(opts).WithEnv(creds["helloserver"]).Start()
 	name := server.ExpectVar("SERVER_NAME")
-
+	if server.Failed() {
+		server.Wait(os.Stdout, os.Stderr)
+		i.Fatalf("Could not get SERVER_NAME: %v", server.Error())
+	}
 	clientbin.WithEnv(creds["helloclient"]).WithStartOpts(opts).Run("--name", name)
 }
 
@@ -89,6 +80,10 @@ func V23TestHelloAgentd(i *v23tests.T) {
 	clientbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloclient")
 	server := agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path())
 	name := server.ExpectVar("SERVER_NAME")
+	if server.Failed() {
+		server.Wait(os.Stdout, os.Stderr)
+		i.Fatalf("Could not get SERVER_NAME: %v", server.Error())
+	}
 	agentdbin.WithEnv(creds["helloclient"]).Run(clientbin.Path(), "--name", name)
 }
 
@@ -105,10 +100,13 @@ func V23TestHelloMounttabled(i *v23tests.T) {
 	mounttabled := agentdbin.WithEnv(creds["mounttabled"]).Start(mounttabledbin.Path(),
 		"--v23.tcp.address", "127.0.0.1:0")
 	mtname := mounttabled.ExpectVar("NAME")
-	mt := fmt.Sprintf("%s=%s", envvar.NamespacePrefix, mtname)
-	agentdbin.WithEnv(creds["helloserver"], mt).Start(serverbin.Path(), "--name", name,
+	if mounttabled.Failed() {
+		mounttabled.Wait(os.Stdout, os.Stderr)
+		i.Fatalf("Could not get NAME: %v", mounttabled.Error())
+	}
+	agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path(), "--name", name,
 		"--v23.namespace.root", mtname)
-	agentdbin.WithEnv(creds["helloclient"], mt).Run(clientbin.Path(), "--name", name,
+	agentdbin.WithEnv(creds["helloclient"]).Run(clientbin.Path(), "--name", name,
 		"--v23.namespace.root", mtname)
 }
 
@@ -132,18 +130,21 @@ func V23TestHelloProxy(i *v23tests.T) {
 	mounttabled := agentdbin.WithEnv(creds["mounttabled"]).Start(mounttabledbin.Path(),
 		"--v23.tcp.address", "127.0.0.1:0")
 	mtname := mounttabled.ExpectVar("NAME")
-	mt := fmt.Sprintf("%s=%s", envvar.NamespacePrefix, mtname)
-	agentdbin.WithEnv(creds["proxyd"], mt).Start(proxydbin.Path(),
+	if mounttabled.Failed() {
+		mounttabled.Wait(os.Stdout, os.Stderr)
+		i.Fatalf("Could not get NAME: %v", mounttabled.Error())
+	}
+	agentdbin.WithEnv(creds["proxyd"]).Start(proxydbin.Path(),
 		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
 		"--v23.namespace.root", mtname,
 		"--access-list", "{\"In\":[\"root\"]}")
-	server := agentdbin.WithEnv(creds["helloserver"], mt).Start(serverbin.Path(),
+	server := agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path(),
 		"--name", name, "--v23.proxy", proxyname, "--v23.tcp.address", "",
 		"--v23.namespace.root", mtname)
 	// Prove that we're listening on a proxy.
 	if sn := server.ExpectVar("SERVER_NAME"); sn != "proxy" {
 		i.Fatalf("helloserver not listening through proxy: %s.", sn)
 	}
-	agentdbin.WithEnv(creds["helloclient"], mt).Run(clientbin.Path(), "--name", name,
+	agentdbin.WithEnv(creds["helloclient"]).Run(clientbin.Path(), "--name", name,
 		"--v23.namespace.root", mtname)
 }
