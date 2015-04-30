@@ -6,10 +6,14 @@ package hello_test
 
 import (
 	"fmt"
+	"os"
+	"strings"
+	"time"
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/security"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23tests"
 )
@@ -18,6 +22,25 @@ import (
 
 func init() {
 	envvar.ClearCredentials()
+	// Unset all the namespace variables too.
+	for _, ev := range os.Environ() {
+		p := strings.SplitN(ev, "=", 2)
+		if len(p) != 2 {
+			continue
+		}
+		key := p[0]
+		if strings.HasPrefix(key, envvar.NamespacePrefix) {
+			os.Unsetenv(key)
+		}
+	}
+}
+
+var opts = modules.StartOpts{
+	StartTimeout:    20 * time.Second,
+	ShutdownTimeout: 20 * time.Second,
+	ExpectTimeout:   20 * time.Second,
+	ExecProtocol:    false,
+	External:        true,
 }
 
 // setupCredentials makes a bunch of credentials directories.
@@ -50,9 +73,10 @@ func V23TestHelloDirect(i *v23tests.T) {
 	}
 	clientbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloclient")
 	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
-	server := serverbin.WithEnv(creds["helloserver"]).Start()
+	server := serverbin.WithStartOpts(opts).WithEnv(creds["helloserver"]).Start()
 	name := server.ExpectVar("SERVER_NAME")
-	clientbin.WithEnv(creds["helloclient"]).Run("--name", name)
+
+	clientbin.WithEnv(creds["helloclient"]).WithStartOpts(opts).Run("--name", name)
 }
 
 func V23TestHelloAgentd(i *v23tests.T) {
@@ -60,7 +84,7 @@ func V23TestHelloAgentd(i *v23tests.T) {
 	if err != nil {
 		i.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
 	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
 	clientbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloclient")
 	server := agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path())
@@ -73,7 +97,7 @@ func V23TestHelloMounttabled(i *v23tests.T) {
 	if err != nil {
 		i.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
 	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
 	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
 	clientbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloclient")
@@ -95,7 +119,7 @@ func V23TestHelloProxy(i *v23tests.T) {
 	if err != nil {
 		i.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
 	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
 	proxydbin := i.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
 	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
