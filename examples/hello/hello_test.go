@@ -104,9 +104,12 @@ func V23TestHelloMounttabled(i *v23tests.T) {
 	name := "hello"
 	mounttabled := agentdbin.WithEnv(creds["mounttabled"]).Start(mounttabledbin.Path(),
 		"--v23.tcp.address", "127.0.0.1:0")
-	mt := fmt.Sprintf("%s=%s", envvar.NamespacePrefix, mounttabled.ExpectVar("NAME"))
-	agentdbin.WithEnv(creds["helloserver"], mt).Start(serverbin.Path(), "--name", name)
-	agentdbin.WithEnv(creds["helloclient"], mt).Run(clientbin.Path(), "--name", name)
+	mtname := mounttabled.ExpectVar("NAME")
+	mt := fmt.Sprintf("%s=%s", envvar.NamespacePrefix, mtname)
+	agentdbin.WithEnv(creds["helloserver"], mt).Start(serverbin.Path(), "--name", name,
+		"--v23.namespace.root", mtname)
+	agentdbin.WithEnv(creds["helloclient"], mt).Run(clientbin.Path(), "--name", name,
+		"--v23.namespace.root", mtname)
 }
 
 func V23TestHelloProxy(i *v23tests.T) {
@@ -128,15 +131,19 @@ func V23TestHelloProxy(i *v23tests.T) {
 	name := "hello"
 	mounttabled := agentdbin.WithEnv(creds["mounttabled"]).Start(mounttabledbin.Path(),
 		"--v23.tcp.address", "127.0.0.1:0")
-	mt := fmt.Sprintf("%s=%s", envvar.NamespacePrefix, mounttabled.ExpectVar("NAME"))
+	mtname := mounttabled.ExpectVar("NAME")
+	mt := fmt.Sprintf("%s=%s", envvar.NamespacePrefix, mtname)
 	agentdbin.WithEnv(creds["proxyd"], mt).Start(proxydbin.Path(),
 		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
+		"--v23.namespace.root", mtname,
 		"--access-list", "{\"In\":[\"root\"]}")
 	server := agentdbin.WithEnv(creds["helloserver"], mt).Start(serverbin.Path(),
-		"--name", name, "--v23.proxy", proxyname, "--v23.tcp.address", "")
+		"--name", name, "--v23.proxy", proxyname, "--v23.tcp.address", "",
+		"--v23.namespace.root", mtname)
 	// Prove that we're listening on a proxy.
 	if sn := server.ExpectVar("SERVER_NAME"); sn != "proxy" {
 		i.Fatalf("helloserver not listening through proxy: %s.", sn)
 	}
-	agentdbin.WithEnv(creds["helloclient"], mt).Run(clientbin.Path(), "--name", name)
+	agentdbin.WithEnv(creds["helloclient"], mt).Run(clientbin.Path(), "--name", name,
+		"--v23.namespace.root", mtname)
 }
