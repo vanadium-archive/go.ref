@@ -16,6 +16,10 @@ import (
 
 //go:generate v23 test generate
 
+func init() {
+	envvar.ClearCredentials()
+}
+
 // setupCredentials makes a bunch of credentials directories.
 // Note that I do this myself instead of allowing the test framework
 // to do it because I really want to use the agentd binary, not
