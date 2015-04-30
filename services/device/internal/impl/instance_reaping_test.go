@@ -34,7 +34,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, ctx)
+	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
 	utiltest.Resolve(t, ctx, "pingserver", 1)
@@ -50,7 +50,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	instance1ID := utiltest.LaunchApp(t, ctx, appID)
 
 	// Wait until the app pings us that it's ready.
-	verifyPingArgs(t, pingCh, userName(t), "default", "")
+	pingCh.VerifyPingArgs(t, userName(t), "default", "")
 
 	// Get application pid.
 	name := naming.Join("dm", "apps/"+appID+"/"+instance1ID+"/stats/system/pid")
@@ -69,7 +69,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 
 	// Start a second instance of the app which will force polling to happen.
 	instance2ID := utiltest.LaunchApp(t, ctx, appID)
-	verifyPingArgs(t, pingCh, userName(t), "default", "")
+	pingCh.VerifyPingArgs(t, userName(t), "default", "")
 
 	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID)
 
@@ -114,7 +114,7 @@ func TestReapReconciliation(t *testing.T) {
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, ctx)
+	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 	utiltest.Resolve(t, ctx, "pingserver", 1)
 
@@ -128,7 +128,7 @@ func TestReapReconciliation(t *testing.T) {
 	instances := make([]string, 3)
 	for i, _ := range instances {
 		instances[i] = utiltest.LaunchApp(t, ctx, appID)
-		verifyPingArgs(t, pingCh, userName(t), "default", "")
+		pingCh.VerifyPingArgs(t, userName(t), "default", "")
 	}
 
 	// Get pid of instance[0]
@@ -168,7 +168,7 @@ func TestReapReconciliation(t *testing.T) {
 	// Start instance[0] over-again to show that an app marked not running
 	// by reconciliation can be restarted.
 	utiltest.RunApp(t, ctx, appID, instances[0])
-	verifyPingArgs(t, pingCh, userName(t), "default", "")
+	pingCh.VerifyPingArgs(t, userName(t), "default", "")
 
 	// Kill instance[1]
 	pid = getPid(t, ctx, appID, instances[1])
@@ -177,7 +177,7 @@ func TestReapReconciliation(t *testing.T) {
 	// Make a fourth instance. This forces a polling of processes so that
 	// the state is updated.
 	instances = append(instances, utiltest.LaunchApp(t, ctx, appID))
-	verifyPingArgs(t, pingCh, userName(t), "default", "")
+	pingCh.VerifyPingArgs(t, userName(t), "default", "")
 
 	// Stop the fourth instance to make sure that there's no way we could
 	// still be running the polling loop before doing the below.

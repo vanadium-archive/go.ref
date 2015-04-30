@@ -13,13 +13,11 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	goexec "os/exec"
 	"os/user"
 	"path"
 	"path/filepath"
@@ -34,7 +32,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
@@ -44,11 +41,9 @@ import (
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/mgmt"
-	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
-	"v.io/x/ref/services/device/internal/starter"
 	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
@@ -73,8 +68,6 @@ const (
 	testFlagName = "random_test_flag"
 	// V23 prefix is necessary to pass the env filtering.
 	testEnvVarName = "V23_RANDOM_ENV_VALUE"
-
-	redirectEnv = "DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR"
 
 	noPairingToken = ""
 )
@@ -114,206 +107,23 @@ func TestSuidHelper(t *testing.T) {
 
 // execScript launches the script passed as argument.
 func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if want, got := 1, len(args); want != got {
-		vlog.Fatalf("execScript expected %d arguments, got %d instead", want, got)
-	}
-	script := args[0]
-	osenv := []string{redirectEnv + "=1"}
-	if env["PAUSE_BEFORE_STOP"] == "1" {
-		osenv = append(osenv, "PAUSE_BEFORE_STOP=1")
-	}
-
-	cmd := goexec.Cmd{
-		Path:   script,
-		Env:    osenv,
-		Stdin:  stdin,
-		Stderr: stderr,
-		Stdout: stdout,
-	}
-
-	return cmd.Run()
+	return utiltest.ExecScript(stdin, stdout, stderr, env, args...)
 }
 
 // deviceManager sets up a device manager server.  It accepts the name to
 // publish the server under as an argument.  Additional arguments can optionally
 // specify device manager config settings.
 func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := test.InitForTest()
-	if len(args) == 0 {
-		vlog.Fatalf("deviceManager expected at least an argument")
-	}
-	publishName := args[0]
-	args = args[1:]
-	defer fmt.Fprintf(stdout, "%v terminated\n", publishName)
-	defer vlog.VI(1).Infof("%v terminated", publishName)
-	defer shutdown()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-
-	// Satisfy the contract described in doc.go by passing the config state
-	// through to the device manager dispatcher constructor.
-	configState, err := config.Load()
-	if err != nil {
-		vlog.Fatalf("Failed to decode config state: %v", err)
-	}
-
-	// This exemplifies how to override or set specific config fields, if,
-	// for example, the device manager is invoked 'by hand' instead of via a
-	// script prepared by a previous version of the device manager.
-	var pairingToken string
-	if len(args) > 0 {
-		if want, got := 4, len(args); want > got {
-			vlog.Fatalf("expected atleast %d additional arguments, got %d instead: %q", want, got, args)
-		}
-		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
-		if len(args) > 4 {
-			pairingToken = args[4]
-		}
-	}
-	// We grab the shutdown channel at this point in order to ensure that we
-	// register a listener for the app cycle manager Stop before we start
-	// running the device manager service.  Otherwise, any device manager
-	// method that calls Stop on the app cycle manager (e.g. the Stop RPC)
-	// will precipitate an immediate process exit.
-	shutdownChan := signals.ShutdownOnSignals(ctx)
-	claimableName, stop, err := starter.Start(ctx, starter.Args{
-		Namespace: starter.NamespaceArgs{
-			ListenSpec: rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
-		},
-		Device: starter.DeviceArgs{
-			Name:            publishName,
-			ListenSpec:      rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
-			ConfigState:     configState,
-			TestMode:        strings.HasSuffix(fmt.Sprint(v23.GetPrincipal(ctx).BlessingStore().Default()), "/testdm"),
-			RestartCallback: func() { fmt.Println("restart handler") },
-			PairingToken:    pairingToken,
-		},
-		// TODO(rthellend): Wire up the local mounttable like the real device
-		// manager, i.e. mount the device manager and the apps on it, and mount
-		// the local mounttable in the global namespace.
-		// MountGlobalNamespaceInLocalNamespace: true,
-	})
-	if err != nil {
-		vlog.Errorf("starter.Start failed: %v", err)
-		return err
-	}
-	defer stop()
-	// Update the namespace roots to remove the server blessing from the
-	// endpoints.  This is needed to be able to publish into the 'global'
-	// mounttable before we have compatible credentials.
-	ctx, err = utiltest.SetNamespaceRootsForUnclaimedDevice(ctx)
-	if err != nil {
-		return err
-	}
-	// Manually mount the claimable service in the 'global' mounttable.
-	v23.GetNamespace(ctx).Mount(ctx, "claimable", claimableName, 0)
-	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
-
-	<-shutdownChan
-	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
-		modules.WaitForEOF(stdin)
-	}
-	// TODO(ashankar): Figure out a way to incorporate this check in the test.
-	// if impl.DispatcherLeaking(dispatcher) {
-	//	vlog.Fatalf("device manager leaking resources")
-	// }
-	return nil
+	return utiltest.DeviceManager(stdin, stdout, stderr, env, args...)
 }
 
 // This is the same as deviceManager above, except that it has a different major version number
 func deviceManagerV10(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	impl.CurrentVersion = impl.Version{10, 0} // Set the version number to 10.0
-	return deviceManager(stdin, stdout, stderr, env, args...)
-}
-
-// appService defines a test service that the test app should be running.
-// TODO(caprita): Use this to make calls to the app and verify how Kill
-// interacts with an active service.
-type appService struct{}
-
-func (appService) Echo(_ *context.T, _ rpc.ServerCall, message string) (string, error) {
-	return message, nil
-}
-
-func (appService) Cat(_ *context.T, _ rpc.ServerCall, file string) (string, error) {
-	if file == "" || file[0] == filepath.Separator || file[0] == '.' {
-		return "", fmt.Errorf("illegal file name: %q", file)
-	}
-	bytes, err := ioutil.ReadFile(file)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
-}
-
-type pingArgs struct {
-	Username, FlagValue, EnvValue string
-	Pid                           int
-}
-
-func ping(ctx *context.T) {
-	helperEnv := os.Getenv(suid.SavedArgs)
-	d := json.NewDecoder(strings.NewReader(helperEnv))
-	var savedArgs suid.ArgsSavedForTest
-	if err := d.Decode(&savedArgs); err != nil {
-		vlog.Fatalf("Failed to decode preserved argument %v: %v", helperEnv, err)
-	}
-	args := &pingArgs{
-		// TODO(rjkroege): Consider validating additional parameters
-		// from helper.
-		Username:  savedArgs.Uname,
-		FlagValue: *flagValue,
-		EnvValue:  os.Getenv(testEnvVarName),
-		Pid:       os.Getpid(),
-	}
-	client := v23.GetClient(ctx)
-	if call, err := client.StartCall(ctx, "pingserver", "Ping", []interface{}{args}); err != nil {
-		vlog.Fatalf("StartCall failed: %v", err)
-	} else if err := call.Finish(); err != nil {
-		vlog.Fatalf("Finish failed: %v", err)
-	}
-}
-
-func cat(ctx *context.T, name, file string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "Cat", []interface{}{file})
-	if err != nil {
-		return "", err
-	}
-	var content string
-	if err := call.Finish(&content); err != nil {
-		return "", err
-	}
-	return content, nil
+	return utiltest.DeviceManagerV10(stdin, stdout, stderr, env, args...)
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := test.InitForTest()
-	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-
-	if expected, got := 1, len(args); expected != got {
-		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
-	}
-	publishName := args[0]
-
-	server, _ := servicetest.NewServer(ctx)
-	defer server.Stop()
-	if err := server.Serve(publishName, new(appService), nil); err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
-	}
-	// Some of our tests look for log files, so make sure they are flushed
-	// to ensure that at least the files exist.
-	vlog.FlushLog()
-	ping(ctx)
-
-	<-signals.ShutdownOnSignals(ctx)
-	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
-		vlog.Fatalf("Failed to write testfile: %v", err)
-	}
-	return nil
+	return utiltest.App(stdin, stdout, stderr, env, flagValue, args...)
 }
 
 // Same as app, except that it does not exit properly after being stopped
@@ -557,32 +367,6 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dmh.ExpectEOF()
 }
 
-type pingServer chan<- pingArgs
-
-// TODO(caprita): Set the timeout in a more principled manner.
-const pingTimeout = 60 * time.Second
-
-func (p pingServer) Ping(_ *context.T, _ rpc.ServerCall, arg pingArgs) error {
-	p <- arg
-	return nil
-}
-
-// setupPingServer creates a server listening for a ping from a child app; it
-// returns a channel on which the app's ping message is returned, and a cleanup
-// function.
-func setupPingServer(t *testing.T, ctx *context.T) (<-chan pingArgs, func()) {
-	server, _ := servicetest.NewServer(ctx)
-	pingCh := make(chan pingArgs, 1)
-	if err := server.Serve("pingserver", pingServer(pingCh), security.AllowEveryone()); err != nil {
-		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
-	}
-	return pingCh, func() {
-		if err := server.Stop(); err != nil {
-			t.Fatalf("Stop() failed: %v", err)
-		}
-	}
-}
-
 func instanceDirForApp(root, appID, instanceID string) string {
 	applicationDirName := func(title string) string {
 		h := md5.New()
@@ -610,29 +394,6 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 		t.Fatalf("Expected to read %v, got %v instead", want, got)
 	}
 	// END HACK
-}
-
-func receivePingArgs(t *testing.T, pingCh <-chan pingArgs) pingArgs {
-	var args pingArgs
-	select {
-	case args = <-pingCh:
-	case <-time.After(pingTimeout):
-		t.Fatalf(testutil.FormatLogLine(2, "failed to get ping"))
-	}
-	return args
-}
-
-func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, envValue string) {
-	args := receivePingArgs(t, pingCh)
-	wantArgs := pingArgs{
-		Username:  username,
-		FlagValue: flagValue,
-		EnvValue:  envValue,
-		Pid:       args.Pid, // We are not checking for a value of Pid
-	}
-	if !reflect.DeepEqual(args, wantArgs) {
-		t.Fatalf(testutil.FormatLogLine(2, "got ping args %q, expected %q", args, wantArgs))
-	}
 }
 
 // TestLifeOfAnApp installs an app, instantiates, runs, kills, and deletes
@@ -664,13 +425,13 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, ctx)
+	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
 	utiltest.Resolve(t, ctx, "pingserver", 1)
 
 	// Create an envelope for a first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
 
 	// Install the app.  The config-specified flag value for testFlagName
 	// should override the value specified in the envelope above, and the
@@ -718,7 +479,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	// Wait until the app pings us that it's ready.
-	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
+	pingCh.VerifyPingArgs(t, userName(t), "flag-val-install", "env-val-envelope")
 
 	v1EP1 := utiltest.Resolve(t, ctx, "appV1", 1)[0]
 
@@ -729,7 +490,7 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	utiltest.RunApp(t, ctx, appID, instance1ID)
 	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
-	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
 	if v1EP1 = utiltest.Resolve(t, ctx, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
 		t.Fatalf("Expected a new endpoint for the app after kill/run")
@@ -737,7 +498,7 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	// Start a second instance.
 	instance2ID := utiltest.LaunchApp(t, ctx, appID)
-	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
 	// instance of the app.
@@ -771,7 +532,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.UpdateAppExpectError(t, ctx, appID, impl.ErrAppTitleMismatch.ID)
 
 	// Create a second version of the app and update the app to it.
-	*envelope = utiltest.EnvelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", "appV2")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, appCmd, "google naps", "appV2")
 
 	utiltest.UpdateApp(t, ctx, appID)
 
@@ -793,7 +554,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	if v := utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
-	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
 	// v1EP2.
@@ -821,7 +582,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 	// Resume the first instance and verify it's running v2 now.
 	utiltest.RunApp(t, ctx, appID, instance1ID)
-	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
+	pingCh.VerifyPingArgs(t, userName(t), "flag-val-install", "env-val-envelope")
 	utiltest.Resolve(t, ctx, "appV1", 1)
 	utiltest.Resolve(t, ctx, "appV2", 1)
 
@@ -836,7 +597,7 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v2, v)
 	}
 	// Wait until the app pings us that it's ready.
-	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
+	pingCh.VerifyPingArgs(t, userName(t), "flag-val-install", "env-val-envelope")
 
 	utiltest.Resolve(t, ctx, "appV2", 1)
 
@@ -859,7 +620,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	if v := utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance4ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
-	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	utiltest.Resolve(t, ctx, "appV1", 1)
 	utiltest.TerminateApp(t, ctx, appID, instance4ID)
 	utiltest.ResolveExpectNotFound(t, ctx, "appV1")
@@ -887,7 +648,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	*envelope = utiltest.EnvelopeFromShell(sh, nil, hangingAppCmd, "hanging ap", "hAppV1")
 	hAppID := utiltest.InstallApp(t, ctx)
 	hInstanceID := utiltest.LaunchApp(t, ctx, hAppID)
-	hangingPid := receivePingArgs(t, pingCh).Pid
+	hangingPid := pingCh.WaitForPingArgs(t).Pid
 	if err := syscall.Kill(hangingPid, 0); err != nil && err != syscall.EPERM {
 		t.Fatalf("Pid of hanging app (%v) is not live", hangingPid)
 	}
@@ -1010,18 +771,14 @@ func TestDeviceManagerClaim(t *testing.T) {
 	utiltest.InstallAppExpectError(t, octx, verror.ErrNoAccess.ID)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, claimantCtx)
+	pingCh, cleanup := utiltest.SetupPingServer(t, claimantCtx)
 	defer cleanup()
 
 	// Start an instance of the app.
 	instanceID := utiltest.LaunchApp(t, claimantCtx, appID)
 
 	// Wait until the app pings us that it's ready.
-	select {
-	case <-pingCh:
-	case <-time.After(pingTimeout):
-		t.Fatalf("failed to get ping")
-	}
+	pingCh.WaitForPingArgs(t)
 	utiltest.Resolve(t, ctx, "trapp", 1)
 	utiltest.KillApp(t, claimantCtx, appID, instanceID)
 
@@ -1154,8 +911,8 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	utiltest.ResolveExpectNotFound(t, ctx, "dm")
 	// Start the device manager.
 	stdout := make(simpleRW, 100)
-	defer os.Setenv(redirectEnv, os.Getenv(redirectEnv))
-	os.Setenv(redirectEnv, "1")
+	defer os.Setenv(utiltest.RedirectEnv, os.Getenv(utiltest.RedirectEnv))
+	os.Setenv(utiltest.RedirectEnv, "1")
 	if err := impl.Start(dmDir, os.Stderr, stdout); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
@@ -1211,7 +968,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, ctx)
+	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
@@ -1228,11 +985,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	defer utiltest.TerminateApp(t, ctx, appID, instance1ID)
 
 	// Wait until the app pings us that it's ready.
-	select {
-	case <-pingCh:
-	case <-time.After(pingTimeout):
-		t.Fatalf("failed to get ping")
-	}
+	pingCh.WaitForPingArgs(t)
 
 	app2ID := utiltest.InstallApp(t, ctx)
 	install2ID := path.Base(app2ID)
@@ -1344,7 +1097,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	defer utiltest.VerifyNoRunningProcesses(t)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, ctx)
+	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
@@ -1382,11 +1135,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	defer utiltest.TerminateApp(t, ctx, appID, instance1ID)
 
 	// Wait until the app pings us that it's ready.
-	select {
-	case <-pingCh:
-	case <-time.After(pingTimeout):
-		t.Fatalf("failed to get ping")
-	}
+	pingCh.WaitForPingArgs(t)
 
 	for _, c := range []struct {
 		path, content string
@@ -1411,9 +1160,9 @@ func TestDeviceManagerPackages(t *testing.T) {
 		// Ask the app to cat the file.
 		file := filepath.Join("packages", c.path)
 		name := "appV1"
-		content, err := cat(ctx, name, file)
+		content, err := utiltest.Cat(ctx, name, file)
 		if err != nil {
-			t.Errorf("cat(%q, %q) failed: %v", name, file, err)
+			t.Errorf("utiltest.Cat(%q, %q) failed: %v", name, file, err)
 		}
 		if expected := c.content; content != expected {
 			t.Errorf("unexpected content: expected %q, got %q", expected, content)
@@ -1568,11 +1317,11 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Create the local server that the app uses to tell us which system
 	// name the device manager wished to run it as.
-	pingCh, cleanup := setupPingServer(t, ctx)
+	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create an envelope for a first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, []string{testEnvVarName + "=env-var"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-var"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
 
 	// Install and start the app as root/self.
 	appID := utiltest.InstallApp(t, selfCtx)
@@ -1600,7 +1349,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	instance1ID := utiltest.LaunchApp(t, selfCtx, appID)
-	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 	utiltest.TerminateApp(t, selfCtx, appID, instance1ID)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
@@ -1640,7 +1389,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
 	instance2ID := utiltest.LaunchApp(t, otherCtx, appID)
-	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	vlog.VI(2).Infof("Validate that created instance has the right permissions.")
 	expected = make(access.Permissions)
@@ -1660,7 +1409,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("Verify that Run with the same systemName works.")
 	utiltest.RunApp(t, otherCtx, appID, instance2ID)
-	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 	utiltest.KillApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that other can install and run applications.")
@@ -1668,7 +1417,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("other attempting to run an app that other installed. Should succeed.")
 	instance4ID := utiltest.LaunchApp(t, otherCtx, otherAppID)
-	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	// Clean up.
 	utiltest.TerminateApp(t, otherCtx, otherAppID, instance4ID)
@@ -1686,7 +1435,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("Show that Start with different systemName works.")
 	instance3ID := utiltest.LaunchApp(t, otherCtx, appID)
-	verifyPingArgs(t, pingCh, anotherTestUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
+	pingCh.VerifyPingArgs(t, anotherTestUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	// Clean up.
 	utiltest.TerminateApp(t, otherCtx, appID, instance3ID)
