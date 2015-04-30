@@ -295,7 +295,7 @@ Usage:
 <object name> is the vanadium object name to update, as follows:
 
 <devicename>/apps/apptitle/installationid/instanceid: updates the given
-instance, suspending/resuming it if running
+instance, killing/restarting it if running
 
 <devicename>/apps/apptitle/installationid: updates the given installation and
 then all its instances

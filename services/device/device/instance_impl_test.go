@@ -68,7 +68,7 @@ func TestKillCommand(t *testing.T) {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
 	}
 	expected := []interface{}{
-		KillStimulus{"Kill", 5 * time.Second},
+		KillStimulus{"Kill", 10 * time.Second},
 	}
 	if got := appTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)

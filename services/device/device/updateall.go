@@ -33,7 +33,7 @@ var cmdUpdateAll = &cmdline.Command{
 	ArgsLong: `
 <object name> is the vanadium object name to update, as follows:
 
-<devicename>/apps/apptitle/installationid/instanceid: updates the given instance, suspending/resuming it if running
+<devicename>/apps/apptitle/installationid/instanceid: updates the given instance, killing/restarting it if running
 
 <devicename>/apps/apptitle/installationid: updates the given installation and then all its instances
 
@@ -83,6 +83,18 @@ func updateChildren(cmd *cmdline.Command, von string, updateChild updater) error
 	return nil
 }
 
+func instanceIsRunning(von string) (bool, error) {
+	status, err := device.ApplicationClient(von).Status(gctx)
+	if err != nil {
+		return false, fmt.Errorf("Failed to get status for instance %q: %v", von, err)
+	}
+	s, ok := status.(device.StatusInstance)
+	if !ok {
+		return false, fmt.Errorf("Status for instance %q of wrong type (%T)", von, status)
+	}
+	return s.Value.State == device.InstanceStateRunning, nil
+}
+
 func updateInstance(cmd *cmdline.Command, von string) (retErr error) {
 	defer func() {
 		if retErr == nil {
@@ -92,9 +104,27 @@ func updateInstance(cmd *cmdline.Command, von string) (retErr error) {
 			fmt.Fprintf(cmd.Stderr(), "ERROR: %v.\n", retErr)
 		}
 	}()
-	// Try killing the app in case it was running.
-	switch err := device.ApplicationClient(von).Kill(gctx, 5*time.Second); {
-	case err == nil:
+	running, err := instanceIsRunning(von)
+	if err != nil {
+		return err
+	}
+	if running {
+		// Try killing the app.
+		if err := device.ApplicationClient(von).Kill(gctx, killDeadline); err != nil {
+			// Check the app's state again in case we killed it,
+			// nevermind any errors.  The sleep is because Kill
+			// currently (4/29/15) returns asynchronously with the
+			// device manager shooting the app down.
+			time.Sleep(time.Second)
+			running, rerr := instanceIsRunning(von)
+			if rerr != nil {
+				return rerr
+			}
+			if running {
+				return fmt.Errorf("failed to kill instance %q: %v", von, err)
+			}
+			fmt.Fprintf(cmd.Stderr(), "Kill(%s) returned an error (%s) but app is now not running.\n", von, err)
+		}
 		// App was running, and we killed it.
 		defer func() {
 			// Re-start the instance.
@@ -107,21 +137,14 @@ func updateInstance(cmd *cmdline.Command, von string) (retErr error) {
 				}
 			}
 		}()
-	case verror.ErrorID(err) == deviceimpl.ErrInvalidOperation.ID:
-		// App was likely not running.
-		//
-		// TODO(caprita): change returned error to distinguish no-op
-		// app sttate transitions from failed state transitions.
-	default:
-		return fmt.Errorf("failed to suspend instance %q: %v.\n", von, err)
 	}
 	// Update the instance.
 	switch err := device.ApplicationClient(von).Update(gctx); {
 	case err == nil:
 		return nil
 	case verror.ErrorID(err) == deviceimpl.ErrUpdateNoOp.ID:
-		// TODO(caprita): Ideally, we wouldn't even attempt a suspend /
-		// resume if there's no newer version of the application.
+		// TODO(caprita): Ideally, we wouldn't even attempt a kill /
+		// restart if there's no newer version of the application.
 		fmt.Fprintf(cmd.Stdout(), "Instance %q already up to date.\n", von)
 		return nil
 	default:
