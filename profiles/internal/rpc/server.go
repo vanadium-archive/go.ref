@@ -105,9 +105,6 @@ type server struct {
 	// state of proxies keyed by the name of the proxy
 	proxies map[string]proxyState
 
-	// all endpoints generated and returned by this server
-	endpoints []naming.Endpoint
-
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       rpc.Dispatcher // dispatcher for reserved methods
 	active             sync.WaitGroup // active goroutines we've spawned.
@@ -823,7 +820,10 @@ func (s *server) RemoveName(name string) {
 }
 
 func (s *server) Stop() error {
+	serverDebug := fmt.Sprintf("Dispatcher: %T, Status:[%v]", s.disp, s.Status())
 	defer vlog.LogCall()()
+	vlog.VI(1).Infof("Stop: %s", serverDebug)
+	defer vlog.VI(1).Infof("Stop done: %s", serverDebug)
 	s.Lock()
 	if s.isStopState() {
 		s.Unlock()
@@ -904,16 +904,17 @@ func (s *server) Stop() error {
 
 	select {
 	case <-done:
-	case <-time.After(5 * time.Minute):
-		vlog.Errorf("Listener Close Error: %v", firstErr)
-		vlog.Errorf("Timedout waiting for goroutines to stop: listeners: %d (currently: %d)", nListeners, len(s.listeners))
+	case <-time.After(5 * time.Second):
+		vlog.Errorf("%s: Listener Close Error: %v", serverDebug, firstErr)
+		vlog.Errorf("%s: Timedout waiting for goroutines to stop: listeners: %d (currently: %d)", serverDebug, nListeners, len(s.listeners))
 		for ln, _ := range s.listeners {
-			vlog.Errorf("Listener: %p", ln)
+			vlog.Errorf("%s: Listener: %p", serverDebug, ln)
 		}
 		for ls, _ := range s.listenState {
-			vlog.Errorf("ListenState: %v", ls)
+			vlog.Errorf("%s: ListenState: %v", serverDebug, ls)
 		}
 		<-done
+		vlog.Infof("%s: Done waiting.", serverDebug)
 	}
 
 	s.Lock()
