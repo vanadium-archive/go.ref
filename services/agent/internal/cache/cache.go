@@ -375,15 +375,13 @@ func NewCachedPrincipal(ctx *context.T, impl security.Principal, call rpc.Client
 	if err != nil {
 		return
 	}
+
 	go func() {
 		var x bool
 		for {
 			if recvErr := call.Recv(&x); recvErr != nil {
 				if ctx.Err() != context.Canceled {
-					// TODO(mattr): For now I'm commenting this out since the context
-					// doesn't get cancelled before the client is closed.
-					// Revisit this.
-					vlog.VI(2).Infof("Error from agent: %v", recvErr)
+					vlog.Errorf("Error from agent: %v", recvErr)
 				}
 				flush()
 				call.Finish()

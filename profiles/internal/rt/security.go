@@ -23,9 +23,9 @@ import (
 	"v.io/x/ref/services/agent/agentlib"
 )
 
-func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal security.Principal, deps []interface{}, err error) {
+func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal security.Principal, deps []interface{}, shutdown func(), err error) {
 	if principal, _ = ctx.Value(principalKey).(security.Principal); principal != nil {
-		return principal, nil, nil
+		return principal, nil, func() {}, nil
 	}
 	if len(credentials) > 0 {
 		// Explicitly specified credentials, ignore the agent.
@@ -39,17 +39,17 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 		if principal, err = vsecurity.LoadPersistentPrincipal(credentials, nil); err != nil {
 			if os.IsNotExist(err) {
 				if principal, err = vsecurity.CreatePersistentPrincipal(credentials, nil); err != nil {
-					return principal, nil, err
+					return principal, nil, nil, err
 				}
-				return principal, nil, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
+				return principal, nil, func() {}, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
 			}
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		return principal, nil, nil
+		return principal, nil, func() {}, nil
 	}
 	// Use credentials stored in the agent.
 	if ep, _, err := agentEP(); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	} else if ep != nil {
 		// Use a new stream manager and an "incomplete" client (the
 		// principal is nil) to talk to the agent.
@@ -63,26 +63,27 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 		// from management of any other connections created in the
 		// process (such as future RPCs to other services).
 		if ctx, err = r.WithNewStreamManager(ctx); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		client := r.GetClient(ctx)
 
 		// We reparent the context we use to construct the agent.
 		// We do this because the agent needs to be able to make RPCs
 		// during runtime shutdown.
-		ctx, _ = context.WithRootCancel(ctx)
+		ctx, shutdown = context.WithRootCancel(ctx)
 
 		if principal, err = agentlib.NewAgentPrincipal(ctx, ep, client); err != nil {
+			shutdown()
 			client.Close()
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		return principal, []interface{}{client}, nil
+		return principal, []interface{}{client}, shutdown, nil
 	}
 	// No agent, no explicit credentials specified: - create a new principal and blessing in memory.
 	if principal, err = vsecurity.NewPrincipal(); err != nil {
-		return principal, nil, err
+		return principal, nil, nil, err
 	}
-	return principal, nil, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
+	return principal, nil, func() {}, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
 }
 
 func parseAgentFD(ep naming.Endpoint) (int, error) {

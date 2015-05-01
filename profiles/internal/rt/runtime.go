@@ -145,11 +145,11 @@ func Init(
 	}
 
 	// Create and set the principal
-	principal, deps, err := r.initPrincipal(ctx, flags.Credentials)
+	principal, deps, shutdown, err := r.initPrincipal(ctx, flags.Credentials)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx, err = r.setPrincipal(ctx, principal, deps...)
+	ctx, err = r.setPrincipal(ctx, principal, shutdown, deps...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -308,7 +308,7 @@ func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
 	return newctx, nil
 }
 
-func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, deps ...interface{}) (*context.T, error) {
+func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shutdown func(), deps ...interface{}) (*context.T, error) {
 	if principal != nil {
 		// We uniquely identify a principal with "security/principal/<publicKey>"
 		principalName := "security/principal/" + principal.PublicKey().String()
@@ -316,7 +316,7 @@ func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, dep
 		stats.NewStringFunc(principalName+"/blessingroots", principal.Roots().DebugString)
 	}
 	ctx = context.WithValue(ctx, principalKey, principal)
-	return ctx, r.addChild(ctx, principal, func() {}, deps...)
+	return ctx, r.addChild(ctx, principal, shutdown, deps...)
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
@@ -328,7 +328,7 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 	// For example if they create an agent principal with some client, we don't know
 	// about that, so servers based of this new principal will not prevent the client
 	// from terminating early.
-	if newctx, err = r.setPrincipal(ctx, principal); err != nil {
+	if newctx, err = r.setPrincipal(ctx, principal, func() {}); err != nil {
 		return ctx, err
 	}
 	if newctx, err = r.setNewStreamManager(newctx); err != nil {
