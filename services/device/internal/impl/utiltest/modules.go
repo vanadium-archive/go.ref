@@ -10,6 +10,7 @@ import (
 	"os"
 	goexec "os/exec"
 	"strings"
+	"testing"
 
 	"v.io/v23"
 	"v.io/v23/naming"
@@ -21,6 +22,7 @@ import (
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/starter"
+	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 )
@@ -28,10 +30,18 @@ import (
 const (
 	RedirectEnv    = "DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR"
 	TestEnvVarName = "V23_RANDOM_ENV_VALUE"
+	NoPairingToken = ""
+
+	// Modules names.
+	ExecScriptCmd       = "execScript"
+	DeviceManagerCmd    = "deviceManager"
+	DeviceManagerV10Cmd = "deviceManagerV10" // deviceManager with a different major version number
+	AppCmd              = "app"
+	HangingAppCmd       = "hangingApp"
 )
 
-// ExecScript launches the script passed as argument.
-func ExecScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+// execScript launches the script passed as argument.
+func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	if want, got := 1, len(args); want != got {
 		vlog.Fatalf("execScript expected %d arguments, got %d instead", want, got)
 	}
@@ -52,10 +62,10 @@ func ExecScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	return cmd.Run()
 }
 
-// DeviceManager sets up a device manager server.  It accepts the name to
+// deviceManager sets up a device manager server.  It accepts the name to
 // publish the server under as an argument.  Additional arguments can optionally
 // specify device manager config settings.
-func DeviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	if len(args) == 0 {
 		vlog.Fatalf("deviceManager expected at least an argument")
@@ -138,7 +148,42 @@ func DeviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 }
 
 // This is the same as DeviceManager above, except that it has a different major version number
-func DeviceManagerV10(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+func deviceManagerV10(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	impl.CurrentVersion = impl.Version{10, 0} // Set the version number to 10.0
-	return DeviceManager(stdin, stdout, stderr, env, args...)
+	return deviceManager(stdin, stdout, stderr, env, args...)
+}
+
+func TestMainImpl(m *testing.M) {
+	test.Init()
+	isSuidHelper := len(os.Getenv("V23_SUIDHELPER_TEST")) > 0
+	if modules.IsModulesChildProcess() && !isSuidHelper {
+		if err := modules.Dispatch(); err != nil {
+			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	os.Exit(m.Run())
+}
+
+// TestSuidHelper is testing boilerplate for suidhelper that does not
+// create a runtime because the suidhelper is not a Vanadium application.
+func TestSuidHelperImpl(t *testing.T) {
+	if os.Getenv("V23_SUIDHELPER_TEST") != "1" {
+		return
+	}
+	vlog.VI(1).Infof("TestSuidHelper starting")
+	if err := suid.Run(os.Environ()); err != nil {
+		vlog.Fatalf("Failed to Run() setuidhelper: %v", err)
+	}
+}
+
+func init() {
+	modules.RegisterChild("execScript", `execScript launches the script passed as argument.`, execScript)
+	modules.RegisterChild("deviceManager", `deviceManager sets up a device manager server.  It accepts the name to
+publish the server under as an argument.  Additional arguments can optionally
+ specify device manager config settings.`, deviceManager)
+	modules.RegisterChild("deviceManagerV10", `This is the same as deviceManager above, except that it has a different major version number`, deviceManagerV10)
+	modules.RegisterChild("app", ``, app)
+	modules.RegisterChild("hangingApp", `Same as app, except that it does not exit properly after being stopped`, hangingApp)
 }

@@ -44,9 +44,9 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	defer cleanup()
 
 	// Set up the device manager.
-	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
-	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
@@ -62,7 +62,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	// TODO(rjkroege): Set AccessLists here that conflict with the one provided by the device
 	// manager and show that the one set here is overridden.
 	// Create the envelope for the first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", "appV1")
 
 	// Install the app.
 	appID := utiltest.InstallApp(t, ctx)
@@ -72,7 +72,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 
 	// Bob starts an instance of the app.
 	bobApp := utiltest.LaunchApp(t, bobCtx, appID)
-	pingCh.VerifyPingArgs(t, userName(t), "default", "")
+	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "default", "")
 
 	// Bob permits Alice to read from his app.
 	updateAccessList(t, bobCtx, "root/alice/$", string(access.Read), "dm/apps", appID, bobApp)
@@ -200,7 +200,7 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	}
 
 	// Set up the device manager.
-	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "--log_dir="+extraLogDir, "dm", root, helperPath, "unused", "unused_curr_link")
+	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "--log_dir="+extraLogDir, "dm", root, helperPath, "unused", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
 
 	// Make some users.
@@ -210,7 +210,7 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	hjCtx := utiltest.CtxWithNewPrincipal(t, selfCtx, idp, "hackerjoe")
 
 	// Bob claims the device manager.
-	utiltest.ClaimDevice(t, bobCtx, "claimable", "dm", "mydevice", noPairingToken)
+	utiltest.ClaimDevice(t, bobCtx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
 	// Create some globbing test vectors.
 	dmGlobtests := []utiltest.GlobTestVector{

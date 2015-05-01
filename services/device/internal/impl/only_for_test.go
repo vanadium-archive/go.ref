@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 
 	"v.io/v23/rpc"
-	"v.io/v23/services/device"
 	"v.io/x/lib/vlog"
 )
 
@@ -54,10 +53,6 @@ func init() {
 		}
 	}
 	isSetuid = possiblyMockIsSetuid
-
-	Describe = func() (descr device.Description, err error) {
-		return device.Description{Profiles: map[string]struct{}{"test-profile": struct{}{}}}, nil
-	}
 }
 
 func possiblyMockIsSetuid(fileStat os.FileInfo) bool {

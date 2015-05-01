@@ -6,6 +6,7 @@ package utiltest
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -30,6 +31,18 @@ import (
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
+
+const (
+	TestFlagName = "random_test_flag"
+)
+
+var flagValue = flag.String(TestFlagName, "default", "")
+
+func init() {
+	// The installer sets this flag on the installed device manager, so we
+	// need to ensure it's defined.
+	flag.String("name", "", "")
+}
 
 // appService defines a test service that the test app should be running.
 // TODO(caprita): Use this to make calls to the app and verify how Kill
@@ -100,8 +113,8 @@ func Cat(ctx *context.T, name, file string) (string, error) {
 	return content, nil
 }
 
-// App is a test application. It pings the invoking device manager with state information.
-func App(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, flagValue *string, args ...string) error {
+// app is a test application. It pings the invoking device manager with state information.
+func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
@@ -178,4 +191,11 @@ func (p PingServer) VerifyPingArgs(t *testing.T, username, flagValue, envValue s
 	if !reflect.DeepEqual(args, wantArgs) {
 		t.Fatalf(testutil.FormatLogLine(2, "got ping args %q, expected %q", args, wantArgs))
 	}
+}
+
+// Same as app, except that it does not exit properly after being stopped
+func hangingApp(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	err := app(stdin, stdout, stderr, env, args...)
+	time.Sleep(24 * time.Hour)
+	return err
 }

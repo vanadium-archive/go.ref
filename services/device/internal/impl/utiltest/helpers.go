@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -44,6 +45,12 @@ const (
 	// TODO(caprita): Set the timeout in a more principled manner.
 	killTimeout = 20 * time.Second
 )
+
+func init() {
+	impl.Describe = func() (descr device.Description, err error) {
+		return device.Description{Profiles: map[string]struct{}{"test-profile": struct{}{}}}, nil
+	}
+}
 
 func EnvelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args ...string) application.Envelope {
 	args, nenv := sh.CommandEnvelope(cmd, env, args...)
@@ -649,4 +656,12 @@ func SetNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 	vlog.Infof("Changing namespace roots from %v to %v", origroots, roots)
 	ctx, _, err := v23.WithNewNamespace(ctx, roots...)
 	return ctx, err
+}
+
+func UserName(t *testing.T) string {
+	u, err := user.Current()
+	if err != nil {
+		t.Fatalf("user.Current() failed: %v", err)
+	}
+	return u.Username
 }
