@@ -12,8 +12,8 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
 <html>
 <head>
   {{template "head" .}}
-  <script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.7.0/moment.min.js"></script>
-  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+  <script src="{{.AssetsPrefix}}/identity/moment.js"></script>
+  <script src="{{.AssetsPrefix}}/identity/jquery.js"></script>
 
   <title>Add Blessing - Vanadium Identity Provider</title>
   <script>

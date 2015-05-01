@@ -13,10 +13,10 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
 <head>
   {{template "head" .}}
   <title>Blessings for {{.Email}}</title>
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
-  <script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.7.0/moment.min.js"></script>
-  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+  <link rel="stylesheet" href="{{.AssetsPrefix}}/identity/toastr.css">
+  <script src="{{.AssetsPrefix}}/identity/toastr.js"></script>
+  <script src="{{.AssetsPrefix}}/identity/moment.js"></script>
+  <script src="{{.AssetsPrefix}}/identity/jquery.js"></script>
 
   <script>
   function setTimeText(elem) {

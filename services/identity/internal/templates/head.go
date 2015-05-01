@@ -21,7 +21,7 @@ var headPartial = `{{define "head"}}
      content="black">
 
 
-  <link href='//fonts.googleapis.com/css?family=Source+Code+Pro:400,500|Roboto:500,400italic,300,500italic,300italic,400'
+  <link href='{{.AssetsPrefix}}/identity/fonts.css'
     rel='stylesheet'
     type='text/css'>
 
