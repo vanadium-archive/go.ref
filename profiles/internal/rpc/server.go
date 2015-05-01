@@ -51,6 +51,7 @@ var (
 	errFailedToListenForProxy    = reg(".errFailedToListenForProxy", "failed to listen on {3}{:4}")
 	errInternalTypeConversion    = reg(".errInternalTypeConversion", "failed to convert {3} to v.io/x/ref/profiles/internal/naming.Endpoint")
 	errFailedToParseIP           = reg(".errFailedToParseIP", "failed to parse {3} as an IP host")
+	errUnexpectedSuffix          = reg(".errUnexpectedSuffix", "suffix {3} was not expected because either server has the option IsLeaf set to true or it served an object and not a dispatcher")
 )
 
 // state for each requested listen address
@@ -216,6 +217,8 @@ func InternalNewServer(
 			s.blessings = opt.Blessings
 		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
+		case options.IsLeaf:
+			s.isLeaf = bool(opt)
 		case ReservedNameDispatcher:
 			s.dispReserved = opt.Dispatcher
 		case PreferredServerResolveProtocols:
@@ -1177,6 +1180,9 @@ func (fs *flowServer) lookup(suffix string, method string) (rpc.Invoker, securit
 	disp := fs.disp
 	if naming.IsReserved(suffix) {
 		disp = fs.server.dispReserved
+	} else if fs.server.isLeaf && suffix != "" {
+		innerErr := verror.New(errUnexpectedSuffix, fs.ctx, suffix)
+		return nil, nil, verror.New(verror.ErrUnknownSuffix, fs.ctx, suffix, innerErr)
 	}
 	if disp != nil {
 		obj, auth, err := disp.Lookup(suffix)

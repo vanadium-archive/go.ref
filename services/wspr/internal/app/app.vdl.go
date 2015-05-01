@@ -84,6 +84,43 @@ func (x RpcCallOptionGranter) Interface() interface{}              { return x.Va
 func (x RpcCallOptionGranter) Name() string                        { return "Granter" }
 func (x RpcCallOptionGranter) __VDLReflect(__RpcCallOptionReflect) {}
 
+type (
+	// RpcServerOption represents any single field of the RpcServerOption union type.
+	RpcServerOption interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the RpcServerOption union type.
+		__VDLReflect(__RpcServerOptionReflect)
+	}
+	// RpcServerOptionIsLeaf represents field IsLeaf of the RpcServerOption union type.
+	RpcServerOptionIsLeaf struct{ Value bool }
+	// RpcServerOptionServesMountTable represents field ServesMountTable of the RpcServerOption union type.
+	RpcServerOptionServesMountTable struct{ Value bool }
+	// __RpcServerOptionReflect describes the RpcServerOption union type.
+	__RpcServerOptionReflect struct {
+		Name  string "v.io/x/ref/services/wspr/internal/app.RpcServerOption"
+		Type  RpcServerOption
+		Union struct {
+			IsLeaf           RpcServerOptionIsLeaf
+			ServesMountTable RpcServerOptionServesMountTable
+		}
+	}
+)
+
+func (x RpcServerOptionIsLeaf) Index() int                            { return 0 }
+func (x RpcServerOptionIsLeaf) Interface() interface{}                { return x.Value }
+func (x RpcServerOptionIsLeaf) Name() string                          { return "IsLeaf" }
+func (x RpcServerOptionIsLeaf) __VDLReflect(__RpcServerOptionReflect) {}
+
+func (x RpcServerOptionServesMountTable) Index() int                            { return 1 }
+func (x RpcServerOptionServesMountTable) Interface() interface{}                { return x.Value }
+func (x RpcServerOptionServesMountTable) Name() string                          { return "ServesMountTable" }
+func (x RpcServerOptionServesMountTable) __VDLReflect(__RpcServerOptionReflect) {}
+
 type RpcResponse struct {
 	OutArgs       []*vdl.Value
 	TraceResponse vtrace.Response
@@ -124,6 +161,7 @@ func (GranterResponse) __VDLReflect(struct {
 func init() {
 	vdl.Register((*RpcRequest)(nil))
 	vdl.Register((*RpcCallOption)(nil))
+	vdl.Register((*RpcServerOption)(nil))
 	vdl.Register((*RpcResponse)(nil))
 	vdl.Register((*GranterHandle)(nil))
 	vdl.Register((*GranterRequest)(nil))

@@ -337,10 +337,10 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	req, err := makeRequest(RpcRequest{
 		Name:       "__controller",
 		Method:     "Serve",
-		NumInArgs:  2,
+		NumInArgs:  3,
 		NumOutArgs: 1,
 		Deadline:   vdltime.Deadline{},
-	}, "adder", 0)
+	}, "adder", 0, []RpcServerOption{})
 	controller.HandleVeyronRequest(ctx, 0, req, writer)
 
 	testWriter, _ := writer.(*testwriter.Writer)
