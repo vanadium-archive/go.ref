@@ -158,22 +158,21 @@ var tmpl = template.Must(template.New("name").Parse(`<!doctype html>
 <html>
 <head>
 <meta charset="UTF-8">
+<!--Excluding any third-party hosted resources like scripts and stylesheets because otherwise we run the risk of leaking the macaroon out of this page (e.g., via the referrer header) -->
 <title>Vanadium Identity: Google</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
 {{if .Blessings}}
 <!--Attempt to close the window. Though this script does not work on many browser configurations-->
 <script type="text/javascript">window.close();</script>
 {{end}}
 </head>
 <body>
-<div class="container">
+<div>
 {{if .ErrShort}}
-<h1><span class="label label-danger">error</span>{{.ErrShort}}</h1>
-<div class="well">{{.ErrLong}}</div>
+<center><h1><span style="color:#FF6E40;">Error: </span>{{.ErrShort}}</h1></center>
+<center><h2>{{.ErrLong}}</h2></center>
 {{else}}
-<h3>Received blessings: <tt>{{.Blessings}}</tt></h3>
-<h4>You may close this tab now.</h4>
+<center><h1>Received blessings: <tt>{{.Blessings}}</tt></h1></center>
+<center><h2>You may close this tab now.</h2></center>
 {{end}}
 </div>
 </body>
