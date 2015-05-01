@@ -102,7 +102,7 @@ type Server struct {
 
 type serverContextKey struct{}
 
-func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper) (*Server, error) {
+func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper, opts ...rpc.ServerOpt) (*Server, error) {
 	server := &Server{
 		id:                            id,
 		helper:                        helper,
@@ -114,7 +114,7 @@ func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper) (*Ser
 	var err error
 	ctx := helper.Context()
 	ctx = context.WithValue(ctx, serverContextKey{}, server)
-	if server.server, err = v23.NewServer(ctx); err != nil {
+	if server.server, err = v23.NewServer(ctx, opts...); err != nil {
 		return nil, err
 	}
 	return server, nil

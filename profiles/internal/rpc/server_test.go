@@ -16,6 +16,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -637,7 +638,43 @@ func TestWatcherDeadlock(t *testing.T) {
 			t.Fatalf("timed out waiting for changes to take effect")
 		}
 	}
+}
 
+func TestIsLeafServerOption(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
+	pclient, pserver := newClientServerPrincipals()
+	server, err := testInternalNewServer(ctx, sm, ns, pserver, options.IsLeaf(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+
+	disp := &testServerDisp{&testServer{}}
+
+	if _, err := server.Listen(listenSpec); err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+
+	if err := server.ServeDispatcher("leafserver", disp); err != nil {
+		t.Fatalf("ServeDispatcher failed: %v", err)
+	}
+	client, err := InternalNewClient(sm, ns)
+	if err != nil {
+		t.Fatalf("InternalNewClient failed: %v", err)
+	}
+	ctx, _ = v23.WithPrincipal(ctx, pclient)
+	ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
+	var result string
+	// we have set IsLeaf to true, sending any suffix to leafserver should result
+	// in an suffix was not expected error.
+	callErr := client.Call(ctx, "leafserver/unwantedSuffix", "Echo", []interface{}{"Mirror on the wall"}, []interface{}{&result})
+	if callErr == nil {
+		t.Fatalf("Call should have failed with suffix was not expected error")
+	}
 }
 
 func setLeafEndpoints(eps []naming.Endpoint) {

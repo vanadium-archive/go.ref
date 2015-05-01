@@ -27,8 +27,8 @@ type RpcRequest struct {
 	CallOptions  []RpcCallOption
 }
 
-// TODO(nlacasse): It would be nice if RpcCallOption were a struct with
-// optional types, like:
+// TODO(nlacasse): It would be nice if RpcCallOption and RpcServerOption
+// were a struct with optional types, like:
 //
 //   type RpcCallOptions struct {
 //     AllowedServersPolicy ?[]security.BlessingPattern
@@ -38,11 +38,17 @@ type RpcRequest struct {
 // Unfortunately, optional types are currently only supported for structs, not
 // slices or primitive types.  Once optional types are better supported, switch
 // this to a struct with optional types.
+// Waiting for v.io/i/213
 
 type RpcCallOption union {
 	AllowedServersPolicy []security.BlessingPattern
 	RetryTimeout         time.Duration
 	Granter GranterHandle
+}
+
+type RpcServerOption union {
+  IsLeaf bool
+  ServesMountTable bool
 }
 
 type RpcResponse struct {

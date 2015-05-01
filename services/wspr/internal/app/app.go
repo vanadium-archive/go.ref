@@ -235,6 +235,24 @@ func (c *Controller) callOpts(opts []RpcCallOption) ([]rpc.CallOpt, error) {
 	return callOpts, nil
 }
 
+// serverOpts turns a slice of type []RpcServerOptions object into an array of rpc.ServerOpt.
+func (c *Controller) serverOpts(opts []RpcServerOption) ([]rpc.ServerOpt, error) {
+	var serverOpts []rpc.ServerOpt
+
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case RpcServerOptionIsLeaf:
+			serverOpts = append(serverOpts, options.IsLeaf(v.Value))
+		case RpcServerOptionServesMountTable:
+			serverOpts = append(serverOpts, options.ServesMountTable(v.Value))
+		default:
+			return nil, fmt.Errorf("Unknown RpcServerOption type %T", v)
+		}
+	}
+
+	return serverOpts, nil
+}
+
 func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *RpcRequest, inArgs []interface{}) (rpc.ClientCall, error) {
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
 	callOpts, err := c.callOpts(msg.CallOptions)
@@ -574,13 +592,13 @@ func (c *Controller) CloseStream(id int32) {
 	vlog.Errorf("close called on non-existent call: %v", id)
 }
 
-func (c *Controller) maybeCreateServer(serverId uint32) (*server.Server, error) {
+func (c *Controller) maybeCreateServer(serverId uint32, opts ...rpc.ServerOpt) (*server.Server, error) {
 	c.Lock()
 	defer c.Unlock()
 	if server, ok := c.servers[serverId]; ok {
 		return server, nil
 	}
-	server, err := server.NewServer(serverId, c.listenSpec, c)
+	server, err := server.NewServer(serverId, c.listenSpec, c, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -620,8 +638,13 @@ func (c *Controller) HandleAuthResponse(id int32, data string) {
 
 // Serve instructs WSPR to start listening for calls on behalf
 // of a javascript server.
-func (c *Controller) Serve(_ *context.T, _ rpc.ServerCall, name string, serverId uint32) error {
-	server, err := c.maybeCreateServer(serverId)
+func (c *Controller) Serve(_ *context.T, _ rpc.ServerCall, name string, serverId uint32, rpcServerOpts []RpcServerOption) error {
+
+	opts, err := c.serverOpts(rpcServerOpts)
+	if err != nil {
+		return verror.Convert(verror.ErrInternal, nil, err)
+	}
+	server, err := c.maybeCreateServer(serverId, opts...)
 	if err != nil {
 		return verror.Convert(verror.ErrInternal, nil, err)
 	}
