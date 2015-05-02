@@ -21,7 +21,7 @@ var headPartial = `{{define "head"}}
      content="black">
 
 
-  <link href='{{.AssetsPrefix}}/identity/fonts.css'
+  <link href='//fonts.googleapis.com/css?family=Source+Code+Pro:400,500|Roboto:500,400italic,300,500italic,300italic,400'
     rel='stylesheet'
     type='text/css'>
 
@@ -43,4 +43,74 @@ var headPartial = `{{define "head"}}
   <link rel="icon" type="image/png" href="{{.AssetsPrefix}}/favicons/favicon-32x32.png" sizes="32x32">
   <meta name="msapplication-TileColor" content="#da532c">
   <meta name="msapplication-TileImage" content="{{.AssetsPrefix}}/favicons/mstile-144x144.png">
+{{end}}`
+
+var headerPartial = `{{define "header"}}
+  <header>
+    <nav class="left">
+      <a href="#" class="logo">Vanadium</a>
+      <span class="service-name">Identity Provider</span>
+    </nav>
+    <nav class="right">
+      {{if .Email}}
+        <a href="#">{{.Email}}</a>
+      {{end}}
+    </nav>
+  </header>
+{{end}}`
+
+var sidebarPartial = `{{define "sidebar"}}
+<section class="provider-info">
+  <div class="provider-info-section">
+    <h5>Root name</h5>
+    <span class="provider-address">
+      dev.v.io/root
+    </span>
+
+    <h5>Public key</h5>
+    <span class="provider-address">
+      {{.Self.PublicKey}}
+    </span>
+
+    <p>
+      Get this provider’s root name and public key as a <a
+      href="http://en.wikipedia.org/wiki/X.690#DER_encoding" target="_blank">
+      DER</a>-encoded <a href="/auth/blessing-root" target="_blank">
+      JSON object</a>.
+    </p>
+  </div>
+
+  {{if .GoogleServers}}
+    <div class="provider-info-section">
+      <h5>Blessings</h5>
+      <p>
+        Provided via Vanadium RPC to:
+        <span class="provider-address">
+          {{range .GoogleServers}}{{.}}{{end}}
+        </span>
+      </p>
+    </div>
+  {{end}}
+
+  {{if .DischargeServers}}
+    <div class="provider-info-section">
+      <h5>Discharges</h5>
+      <p>
+        Provided via Vanadium RPC to:
+        <span class="provider-address">
+          {{range .DischargeServers}}{{.}}{{end}}
+        </span>
+      </p>
+    </div>
+  {{end}}
+
+  <div class="provider-info-section">
+    <h5>Learn more</h5>
+    <p>
+      Vanadium Concepts: <a href="">Security</a><br>
+      Tutorial: <a href="">Principals and Blessings</a><br>
+      Tutorial: <a href="">Third Party Caveats</a><br>
+    </p>
+  </div>
+</section>
 {{end}}`

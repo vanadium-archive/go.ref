@@ -188,6 +188,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 			GoogleServers, DischargeServers []string
 			ListBlessingsRoute              string
 			AssetsPrefix                    string
+			Email                           string
 		}{
 			Self:               principal.BlessingStore().Default(),
 			GoogleServers:      args.GoogleServers,

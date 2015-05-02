@@ -6,25 +6,89 @@ package templates
 
 import "html/template"
 
-var ListBlessings = template.Must(listBlessings.Parse(headPartial))
+var ListBlessings = template.Must(listWithHeader.Parse(sidebarPartial))
+var listWithHead = template.Must(listBlessings.Parse(headPartial))
+var listWithHeader = template.Must(listWithHead.Parse(headerPartial))
 
 var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
 <html>
 <head>
+  <title>Blessings for {{.Email}} - Vanadium Identity Provider</title>
   {{template "head" .}}
-  <title>Blessings for {{.Email}}</title>
   <link rel="stylesheet" href="{{.AssetsPrefix}}/identity/toastr.css">
+</head>
+
+<body class="identityprovider-layout">
+  {{template "header" .}}
+  <main>
+    <h1 class="page-head">Authorize Vanadium apps with Google</h1>
+    <p>
+      The Vanadium Identity Provider authorizes Vanadium blessings based on your Google Account.<br>
+      <a href="http://v.io/glossary.html#identity-provider">Learn more</a>
+    </p>
+
+    {{range .Log}}
+      {{if .Error}}
+        <h1>Error</h1>
+        <p>
+          Failed to read audit log.<br>
+          {{.Error}}
+        </p>
+      {{else}}
+        <div class="blessings-list">
+          <div class="blessings-header">
+            <h1>Your blessings</h1>
+            <h5>Issued</h5>
+            <h5>Revoked</h5>
+          </div>
+
+          <div class="blessings-item">
+            <div class="blessing-details">
+              <h3>{{.Blessed}}</h3>
+              <p>
+                <b>Public Key</b><br>
+                {{.Blessed.PublicKey}}
+              </p>
+              <p class="blessing-caveats">
+                <b>Caveats</b><br>
+                {{range $index, $cav := .Caveats}}
+                  {{if ne $index 0}}
+                  {{end}}
+                  {{$cav}}<br>
+                {{end}}
+              </p>
+            </div>
+
+            <div class="blessing-issued unixtime" data-unixtime={{.Timestamp.Unix}}>{{.Timestamp.String}}</div>
+
+            <div class="blessing-revoked">
+              {{ if .Token }}
+              <button class="revoke button-passive" value="{{.Token}}">Revoke</button>
+              {{ else if not .RevocationTime.IsZero }}
+                <p class="unixtime" data-unixtime={{.RevocationTime.Unix}}>{{.RevocationTime.String}}</p>
+              {{ end }}
+            </div>
+        </div>
+      {{end}}
+    {{else}}
+      <h1>Your blessings</h1>
+      <p>
+        <a href="http://v.io/installation">Install Vanadium</a> to set up your first blessing.
+      </p>
+    {{end}}
+  {{template "sidebar" .}}
+  </main>
+
   <script src="{{.AssetsPrefix}}/identity/toastr.js"></script>
   <script src="{{.AssetsPrefix}}/identity/moment.js"></script>
   <script src="{{.AssetsPrefix}}/identity/jquery.js"></script>
-
   <script>
   function setTimeText(elem) {
     var timestamp = elem.data("unixtime");
     var m = moment(timestamp*1000.0);
     var style = elem.data("style");
     if (style === "absolute") {
-      elem.html("<a href='#'>" + m.format("dd, MMM Do YYYY, h:mm:ss a") + "</a>");
+      elem.html("<a href='#'>" + m.format("MMM DD, YYYY h:mm:ss a") + "</a>");
       elem.data("style", "fromNow");
     } else {
       elem.html("<a href='#'>" + m.fromNow() + "</a>");
@@ -53,7 +117,7 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
           failMessage(revokeButton);
           return;
         }
-        revokeButton.replaceWith("<div>Just Revoked!</div>");
+        revokeButton.replaceWith("<div>Revoked just now</div>");
       }).fail(function(xhr, textStatus){
         failMessage(revokeButton);
         console.error('Bad request: %s', status, xhr)
@@ -66,100 +130,9 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
       $(this).addClass("bg-danger");
     });
     toastr.options.closeButton = true;
-    toastr.error('Unable to revoke identity!', 'Error!')
+    toastr.error('Unable to revoke identity', 'Error')
   }
   </script>
-</head>
 
-<body class="default-layout">
-  <header>
-    <nav class="left">
-      <a href="#" class="logo">Vanadium</a>
-    </nav>
-
-    <nav class="main">
-      <a href="#">Blessing Log</a>
-    </nav>
-
-    <nav class="right">
-      <a href="#">{{.Email}}</a>
-    </nav>
-  </header>
-
-  <main style="margin-left: 0px; max-width: 100%;">
-
-    <!-- Begin ID Server information -->
-    <div class="grid">
-      <div class="cell">
-        <h2>Public Key</h2>
-        <p>
-          The public key of this provider is <code>{{.Self.PublicKey}}</code>.</br>
-          The root names and public key (in DER encoded <a href="http://en.wikipedia.org/wiki/X.690#DER_encoding">format</a>)
-          are available in a <a class="btn btn-xs btn-primary" href="/auth/blessing-root">JSON</a> object.
-        </p>
-      </div>
-      {{if .GoogleServers}}
-      <div class="cell">
-        <h2>Blessings</h2>
-        <p>
-          Blessings (using Google OAuth to fetch an email address) are provided via
-          Vanadium RPCs to: <code>{{range .GoogleServers}}{{.}}{{end}}</code>
-        </p>
-      </div>
-      {{end}}
-      {{if .DischargeServers}}
-      <div class="cell">
-        <h2>Discharges</h2>
-        <p>
-          RevocationCaveat Discharges are provided via Vanadium RPCs to:
-          <code>{{range .DischargeServers}}{{.}}{{end}}</code>
-        </p>
-      </div>
-      {{end}}
-    </div>
-    <!-- End ID Server information -->
-
-    <table class="blessing-table">
-        <tr>
-        <td>Blessed as</td>
-        <td>Public Key</td>
-        <td>Issued</td>
-        <td class="td-wide">Caveats</td>
-        <td>Revoked</td>
-        </tr>
-        {{range .Log}}
-          {{if .Error}}
-            <tr class="">
-              <td colspan="5">Failed to read audit log: Error: {{.Error}}</td>
-            </tr>
-          {{else}}
-            <tr>
-            <td>{{.Blessed}}</td>
-            <td>{{.Blessed.PublicKey}}</td>
-            <td><div class="unixtime" data-unixtime={{.Timestamp.Unix}}>{{.Timestamp.String}}</div></td>
-            <td class="td-wide">
-            {{range $index, $cav := .Caveats}}
-              {{if ne $index 0}}
-                <hr>
-              {{end}}
-              {{$cav}}</br>
-            {{end}}
-            </td>
-            <td>
-              {{ if .Token }}
-              <button class="revoke button-passive" value="{{.Token}}">Revoke</button>
-              {{ else if not .RevocationTime.IsZero }}
-                <div class="unixtime" data-unixtime={{.RevocationTime.Unix}}>{{.RevocationTime.String}}</div>
-              {{ end }}
-            </td>
-            </tr>
-          {{end}}
-        {{else}}
-        <tr>
-        <td colspan=5>No blessings issued</td>
-        </tr>
-        {{end}}
-    </table>
-  </main>
 </body>
 </html>`))

@@ -28,7 +28,7 @@ func NewBrowserCaveatSelector(assetsPrefix, blessingName string) CaveatSelector 
 
 func (s *browserCaveatSelector) Render(blessingExtension, state, redirectURL string, w http.ResponseWriter, r *http.Request) error {
 	tmplargs := struct {
-		Extension, Macaroon, MacaroonURL, AssetsPrefix, BlessingName string
+		Email, Macaroon, MacaroonURL, AssetsPrefix, BlessingName string
 	}{blessingExtension, state, redirectURL, s.assetsPrefix, s.blessingName}
 	w.Header().Set("Context-Type", "text/html")
 	if err := templates.SelectCaveats.Execute(w, tmplargs); err != nil {
