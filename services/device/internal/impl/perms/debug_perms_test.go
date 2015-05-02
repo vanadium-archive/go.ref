@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package perms_test
 
 import (
 	"io/ioutil"
@@ -226,15 +226,15 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 			[]string{
 				// STDERR and STDOUT are not handled through the log package so
 				// are not included here.
-				"impl.test.INFO",
-				"impl.test.<*>.INFO.<timestamp>",
+				"perms.test.INFO",
+				"perms.test.<*>.INFO.<timestamp>",
 			},
 		},
 	}
-	res := utiltest.NewGlobTestRegexHelper(`impl\.test`)
+	res := utiltest.NewGlobTestRegexHelper(`perms\.test`)
 
 	// Bob claimed the DM so can access it.
-	utiltest.VerifyGlob(t, bobCtx, "impl.test", dmGlobtests, res)
+	utiltest.VerifyGlob(t, bobCtx, "perms.test", dmGlobtests, res)
 	utiltest.VerifyStatsValues(t, bobCtx, "dm", "__debug", "stats/system/start-time*")
 
 	// Without permissions, hackerjoe can't access the device manager.
@@ -247,14 +247,14 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 
 	// Alice is an adminstrator and so can can access device manager __debug
 	// values.
-	utiltest.VerifyGlob(t, aliceCtx, "impl.test", dmGlobtests, res)
+	utiltest.VerifyGlob(t, aliceCtx, "perms.test", dmGlobtests, res)
 	utiltest.VerifyStatsValues(t, aliceCtx, "dm", "__debug", "stats/system/start-time*")
 
 	// Bob gives debug access to the device manager to hackerjoe
 	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), "dm", "device")
 
 	// hackerjoe can now access the device manager
-	utiltest.VerifyGlob(t, hjCtx, "impl.test", dmGlobtests, res)
+	utiltest.VerifyGlob(t, hjCtx, "perms.test", dmGlobtests, res)
 	utiltest.VerifyStatsValues(t, hjCtx, "dm", "__debug", "stats/system/start-time*")
 
 	// Cleanly shut down the device manager.

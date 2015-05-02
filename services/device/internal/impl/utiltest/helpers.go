@@ -33,6 +33,7 @@ import (
 	"v.io/v23/services/stats"
 	"v.io/v23/verror"
 
+	"v.io/x/ref/envvar"
 	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/internal/servicetest"
@@ -664,4 +665,14 @@ func UserName(t *testing.T) string {
 		t.Fatalf("user.Current() failed: %v", err)
 	}
 	return u.Username
+}
+
+func InitForTest() (*context.T, v23.Shutdown) {
+	roots, _ := envvar.NamespaceRoots()
+	for key, _ := range roots {
+		os.Unsetenv(key)
+	}
+	ctx, shutdown := test.InitForTest()
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	return ctx, shutdown
 }
