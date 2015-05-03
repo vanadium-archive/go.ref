@@ -82,33 +82,19 @@ type client struct {
 	// TODO(jhahn): Add monitoring the network interface changes.
 	ipNets []*net.IPNet
 
-	// We support concurrent calls to StartCall and Close, so we must protect the
-	// vcMap.  Everything else is initialized upon client construction, and safe
-	// to use concurrently.
-	vcMapMu sync.Mutex
-	vcMap   map[vcMapKey]*vcInfo
+	vcCache *vc.VCCache
 
 	dc vc.DischargeClient
 }
 
 var _ rpc.Client = (*client)(nil)
 
-type vcInfo struct {
-	vc       stream.VC
-	remoteEP naming.Endpoint
-}
-
-type vcMapKey struct {
-	endpoint        string
-	clientPublicKey string // clientPublicKey = "" means we are running unencrypted (i.e. SecurityNone)
-}
-
 func InternalNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
 		ipNets:    ipNetworks(),
-		vcMap:     make(map[vcMapKey]*vcInfo),
+		vcCache:   vc.NewVCCache(),
 	}
 	c.dc = InternalNewDischargeClient(nil, c, 0)
 	for _, opt := range opts {
@@ -125,54 +111,54 @@ func InternalNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.Cli
 }
 
 func (c *client) createFlow(ctx *context.T, principal security.Principal, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, *verror.SubErr) {
-	c.vcMapMu.Lock()
-	defer c.vcMapMu.Unlock()
-
 	suberr := func(err error) *verror.SubErr {
 		return &verror.SubErr{Err: err, Options: verror.Print}
 	}
 
-	if c.vcMap == nil {
+	found, err := c.vcCache.ReservedFind(ep, principal)
+	if err != nil {
 		return nil, suberr(verror.New(errClientCloseAlreadyCalled, ctx))
 	}
-
-	vcKey := vcMapKey{endpoint: ep.String()}
-	if principal != nil {
-		vcKey.clientPublicKey = principal.PublicKey().String()
-	}
-	if vcinfo := c.vcMap[vcKey]; vcinfo != nil {
-		if flow, err := vcinfo.vc.Connect(); err == nil {
+	defer c.vcCache.Unreserve(ep, principal)
+	if found != nil {
+		// We are serializing the creation of all flows per VC. This is okay
+		// because if one flow creation is to block, it is likely that all others
+		// for that VC would block as well.
+		if flow, err := found.Connect(); err == nil {
 			return flow, nil
 		}
 		// If the vc fails to establish a new flow, we assume it's
-		// broken, remove it from the map, and proceed to establishing
+		// broken, remove it from the cache, and proceed to establishing
 		// a new vc.
+		//
+		// TODO(suharshs): The decision to redial 1 time when the dialing the vc
+		// in the cache fails is a bit inconsistent with the behavior when a newly
+		// dialed vc.Connect fails. We should revisit this.
+		//
 		// TODO(caprita): Should we distinguish errors due to vc being
 		// closed from other errors?  If not, should we call vc.Close()
-		// before removing the vc from the map?
-		delete(c.vcMap, vcKey)
+		// before removing the vc from the cache?
+		if err := c.vcCache.Delete(found); err != nil {
+			return nil, suberr(verror.New(errClientCloseAlreadyCalled, ctx))
+		}
 	}
+
 	sm := c.streamMgr
-	c.vcMapMu.Unlock()
-	vc, err := sm.Dial(ep, principal, vcOpts...)
-	c.vcMapMu.Lock()
+	v, err := sm.Dial(ep, principal, vcOpts...)
 	if err != nil {
 		return nil, suberr(err)
 	}
-	if c.vcMap == nil {
+
+	flow, err := v.Connect()
+	if err != nil {
+		return nil, suberr(err)
+	}
+
+	if err := c.vcCache.Insert(v.(*vc.VC)); err != nil {
 		sm.ShutdownEndpoint(ep)
 		return nil, suberr(verror.New(errClientCloseAlreadyCalled, ctx))
 	}
-	if othervc, exists := c.vcMap[vcKey]; exists {
-		go vc.Close(nil)
-		vc = othervc.vc
-	} else {
-		c.vcMap[vcKey] = &vcInfo{vc: vc, remoteEP: ep}
-	}
-	flow, err := vc.Connect()
-	if err != nil {
-		return nil, suberr(err)
-	}
+
 	return flow, nil
 }
 
@@ -744,12 +730,9 @@ func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, call security.Call
 
 func (c *client) Close() {
 	defer vlog.LogCall()()
-	c.vcMapMu.Lock()
-	for _, v := range c.vcMap {
-		c.streamMgr.ShutdownEndpoint(v.remoteEP)
+	for _, v := range c.vcCache.Close() {
+		c.streamMgr.ShutdownEndpoint(v.RemoteEndpoint())
 	}
-	c.vcMap = nil
-	c.vcMapMu.Unlock()
 }
 
 // flowClient implements the RPC client-side protocol for a single RPC, over a

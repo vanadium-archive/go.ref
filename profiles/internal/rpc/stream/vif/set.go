@@ -45,7 +45,8 @@ func (s *Set) BlockingFind(network, address string) *VIF {
 	return s.find(network, address, true)
 }
 
-// Unblock broadcasts all threads
+// Unblock marks the status of the network, address as no longer started, and
+// broadcasts waiting threads.
 func (s *Set) Unblock(network, address string) {
 	s.mu.Lock()
 	delete(s.started, key(network, address))
@@ -60,7 +61,7 @@ func (s *Set) Find(network, address string) *VIF {
 	return s.find(network, address, false)
 }
 
-// Insert adds a VIF to the set
+// Insert adds a VIF to the set.
 func (s *Set) Insert(vif *VIF) {
 	addr := vif.conn.RemoteAddr()
 	k := key(addr.Network(), addr.String())
@@ -76,7 +77,7 @@ func (s *Set) Insert(vif *VIF) {
 	vif.addSet(s)
 }
 
-// Delete removes a VIF from the set
+// Delete removes a VIF from the set.
 func (s *Set) Delete(vif *VIF) {
 	vif.removeSet(s)
 	addr := vif.conn.RemoteAddr()
