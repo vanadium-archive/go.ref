@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
 package server
 
 import (
@@ -12,22 +10,21 @@ import (
 
 // serviceData represents the persistent state of a Service.
 type serviceData struct {
-	Universes set[string]
-	Version   uint64 // covers the fields below
-	Acl       access.Permissions
+	Version uint64 // covers the fields below
+	Perms   access.Permissions
 }
 
-// universeData represents the persistent state of a Universe.
-type universeData struct {
-	Name      string
-	Databases set[string]
-	Version   uint64 // covers the fields below
-	Acl       access.Permissions
-}
-
-// databaseData represents the persistent state of a Database.
-type databaseData struct {
+// appData represents the persistent state of an App.
+type appData struct {
 	Name    string
 	Version uint64 // covers the fields below
-	Acl     access.Permissions
+	Perms   access.Permissions
+}
+
+// dbInfo contains information about one database for an App.
+// TODO(sadovsky): Track NoSQL vs. SQL, storage engine config, etc.
+type dbInfo struct {
+	Name        string
+	Initialized bool
+	Deleted     bool
 }

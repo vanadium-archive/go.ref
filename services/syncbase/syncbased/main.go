@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
 // syncbased is a syncbase daemon.
 package main
 
@@ -18,7 +16,6 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/syncbase/x/ref/services/syncbase/server"
-	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
 )
@@ -41,9 +38,9 @@ func main() {
 	}
 
 	// TODO(sadovsky): Use a real Permissions.
-	service := server.NewService(memstore.New())
-	if err := service.Create(access.Permissions{}); err != nil {
-		vlog.Fatal("service.Create() failed: ", err)
+	service, err := server.NewService(nil, nil, access.Permissions{})
+	if err != nil {
+		vlog.Fatal("server.NewService() failed: ", err)
 	}
 	d := server.NewDispatcher(service)
 

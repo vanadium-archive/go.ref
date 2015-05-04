@@ -19,17 +19,22 @@ type StoreReader interface {
 // StoreWriter writes data to a CRUD-capable storage engine.
 type StoreWriter interface {
 	// Put writes the given value for the given key.
-	Put(key string, v []byte) error
+	Put(key string, value []byte) error
 
 	// Delete deletes the entry for the given key.
 	// Succeeds (no-op) if the given key is unknown.
 	Delete(key string) error
 }
 
-// Store is a CRUD-capable storage engine that supports transactions.
-type Store interface {
+// StoreReadWriter combines StoreReader and StoreWriter.
+type StoreReadWriter interface {
 	StoreReader
 	StoreWriter
+}
+
+// Store is a CRUD-capable storage engine that supports transactions.
+type Store interface {
+	StoreReadWriter
 
 	// NewTransaction creates a transaction.
 	// TODO(rogulenko): add transaction options.
@@ -50,8 +55,7 @@ type Store interface {
 // if writes from a newly-committed transaction conflict with reads or writes
 // from this transaction.
 type Transaction interface {
-	StoreReader
-	StoreWriter
+	StoreReadWriter
 
 	// Commit commits the transaction.
 	Commit() error
@@ -65,13 +69,14 @@ type Transaction interface {
 }
 
 // Snapshot is a handle to particular state in time of a Store.
-// All read operations are executed at a consistent snapshot of Store commit
-// history. Snapshots don't acquire locks and thus don't block transactions.
+// All read operations are executed against a consistent snapshot of Store
+// commit history. Snapshots don't acquire locks and thus don't block
+// transactions.
 type Snapshot interface {
 	StoreReader
 
-	// Close closes a previously acquired snapshot.
-	// Any subsequent method calls will return errors.
+	// Close closes the snapshot.
+	// Any subsequent method calls will fail.
 	Close() error
 }
 
@@ -104,6 +109,24 @@ type Stream interface {
 	// concurrently with a goroutine that is iterating via Advance/Value. Cancel
 	// causes Advance to subsequently return false. Cancel does not block.
 	Cancel()
+}
+
+// TODO(sadovsky): Add retry loop.
+func RunInTransaction(st Store, fn func(st StoreReadWriter) error) error {
+	tx := st.NewTransaction()
+	if err := fn(tx); err != nil {
+		tx.Abort()
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		// TODO(sadovsky): Commit() can fail for a number of reasons, e.g. RPC
+		// failure or ErrConcurrentTransaction. Depending on the cause of failure,
+		// it may be desirable to retry the Commit() and/or to call Abort(). For
+		// now, we always abort on a failed commit.
+		tx.Abort()
+		return err
+	}
+	return nil
 }
 
 type ErrConcurrentTransaction struct{}

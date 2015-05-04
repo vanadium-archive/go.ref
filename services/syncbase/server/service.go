@@ -2,145 +2,190 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
 package server
 
 import (
-	"v.io/syncbase/v23/services/syncbase"
+	"sync"
+
+	wire "v.io/syncbase/v23/services/syncbase"
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 )
 
 type service struct {
-	st store.TransactableStore
+	st store.Store // keeps track of which apps and databases exist, etc.
+	// Guards the fields below. Held during app Create, Delete, and
+	// SetPermissions.
+	mu   sync.Mutex
+	apps map[string]*app
 }
 
-var _ syncbase.ServiceServerMethods = (*service)(nil)
+var (
+	_ wire.ServiceServerMethods = (*service)(nil)
+	_ util.Layer                = (*service)(nil)
+)
 
-func NewService(st store.TransactableStore) *service {
-	return &service{st: st}
-}
-
+// NewService creates a new service instance and returns it.
 // Returns a VDL-compatible error.
-// Note, this is not an RPC method.
-func (s *service) Create(acl access.Permissions) error {
-	if acl == nil {
-		return verror.New(verror.ErrInternal, nil, "acl must be specified")
+func NewService(ctx *context.T, call rpc.ServerCall, perms access.Permissions) (*service, error) {
+	if perms == nil {
+		return nil, verror.New(verror.ErrInternal, nil, "perms must be specified")
 	}
-
-	return store.RunInTransaction(s.st, func(st store.Store) error {
-		// TODO(sadovsky): Maybe add "has" method to storage engine.
-		data := &serviceData{}
-		if err := getObject(st, s.key(), data); err == nil {
-			return verror.NewErrExist(nil)
-		}
-
-		data = &serviceData{
-			Permissions: acl,
-		}
-		if err := putObject(st, s.key(), data); err != nil {
-			return verror.New(verror.ErrInternal, nil, "put failed")
-		}
-
-		return nil
-	})
+	// TODO(sadovsky): Make storage engine pluggable.
+	s := &service{
+		st:   memstore.New(),
+		apps: map[string]*app{},
+	}
+	data := &serviceData{
+		Perms: perms,
+	}
+	if err := util.Put(ctx, call, s.st, s, data); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
-func (s *service) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
-	return store.RunInTransaction(s.st, func(st store.Store) error {
-		return s.update(call, st, true, func(data *serviceData) error {
-			if err := checkVersion(call, version, data.Version); err != nil {
+////////////////////////////////////////
+// RPC methods
+
+func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
+	return store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
+		data := &serviceData{}
+		return util.Update(ctx, call, st, s, data, func() error {
+			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
 				return err
 			}
-			data.Permissions = acl
+			data.Perms = perms
 			data.Version++
 			return nil
 		})
 	})
 }
 
-func (s *service) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
-	data, err := s.get(call, s.st, true)
-	if err != nil {
+func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
+	data := &serviceData{}
+	if err := util.Get(ctx, call, s.st, s, data); err != nil {
 		return nil, "", err
 	}
-	return data.Permissions, formatVersion(data.Version), nil
+	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
 // TODO(sadovsky): Implement Glob.
 
 ////////////////////////////////////////
-// Internal helpers
+// App management methods
 
-func (s *service) key() string {
-	return "$service"
-}
-
-// Note, the methods below use "x" as the receiver name to make find-replace
-// easier across the different levels of syncbase hierarchy.
-//
-// TODO(sadovsky): Is there any better way to share this code despite the lack
-// of generics?
-
-// Reads data from the storage engine.
-// Returns a VDL-compatible error.
-// checkAuth specifies whether to perform an authorization check.
-func (x *service) get(call rpc.ServerCall, st store.Store, checkAuth bool) (*serviceData, error) {
-	// TODO(kash): Get this to compile.
-	return nil, nil
-	// data := &serviceData{}
-	// if err := getObject(st, x.key(), data); err != nil {
-	// 	if _, ok := err.(*store.ErrUnknownKey); ok {
-	// 		// TODO(sadovsky): Return ErrNoExist if appropriate.
-	// 		return nil, verror.New(verror.ErrNoExistOrNoAccess, call.Context())
-	// 	}
-	// 	return nil, verror.New(verror.ErrInternal, call.Context(), err)
-	// }
-	// if checkAuth {
-	// 	auth, _ := access.PermissionsAuthorizer(data.Permissions, access.TypicalTagType())
-	// 	if err := auth.Authorize(call); err != nil {
-	// 		// TODO(sadovsky): Return ErrNoAccess if appropriate.
-	// 		return nil, verror.New(verror.ErrNoExistOrNoAccess, call.Context(), err)
-	// 	}
-	// }
-	// return data, nil
-}
-
-// Writes data to the storage engine.
-// Returns a VDL-compatible error.
-// If you need to perform an authorization check, use update().
-func (x *service) put(call rpc.ServerCall, st store.Store, data *serviceData) error {
-	if err := putObject(st, x.key(), data); err != nil {
-		return verror.New(verror.ErrInternal, call.Context(), err)
+func (s *service) app(ctx *context.T, call rpc.ServerCall, appName string) (*app, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	a, ok := s.apps[appName]
+	if !ok {
+		return nil, verror.New(verror.ErrNoExistOrNoAccess, ctx, appName)
 	}
+	return a, nil
+}
+
+func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string, perms access.Permissions) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.apps[appName]; ok {
+		// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
+		return verror.New(verror.ErrExist, ctx, appName)
+	}
+
+	a := &app{
+		name: appName,
+		s:    s,
+		dbs:  map[string]util.Database{},
+	}
+
+	if err := store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
+		// Check serviceData perms.
+		sData := &serviceData{}
+		if err := util.Get(ctx, call, st, s, sData); err != nil {
+			return err
+		}
+		// Check for "app already exists".
+		if err := util.GetWithoutAuth(ctx, call, st, a, &appData{}); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
+			if err != nil {
+				return err
+			}
+			// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
+			return verror.New(verror.ErrExist, ctx, appName)
+		}
+		// Write new appData.
+		if perms == nil {
+			perms = sData.Perms
+		}
+		data := &appData{
+			Name:  appName,
+			Perms: perms,
+		}
+		return util.Put(ctx, call, st, a, data)
+	}); err != nil {
+		return err
+	}
+
+	s.apps[appName] = a
 	return nil
 }
 
-// Deletes data from the storage engine.
-// Returns a VDL-compatible error.
-// If you need to perform an authorization check, call get() first.
-func (x *service) del(call rpc.ServerCall, st store.Store) error {
-	if err := st.Delete(x.key()); err != nil {
-		return verror.New(verror.ErrInternal, call.Context(), err)
+func (s *service) deleteApp(ctx *context.T, call rpc.ServerCall, appName string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	a, ok := s.apps[appName]
+	if !ok {
+		// TODO(sadovsky): Make delete idempotent, here and elsewhere.
+		return verror.New(verror.ErrNoExistOrNoAccess, ctx, appName)
 	}
+
+	if err := store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
+		// Read-check-delete appData.
+		if err := util.Get(ctx, call, st, a, &appData{}); err != nil {
+			return err
+		}
+		// TODO(sadovsky): Delete all databases in this app.
+		return util.Delete(ctx, call, st, a)
+	}); err != nil {
+		return err
+	}
+
+	delete(s.apps, appName)
 	return nil
 }
 
-// Updates data in the storage engine.
-// Returns a VDL-compatible error.
-// checkAuth specifies whether to perform an authorization check.
-// fn should perform the "modify" part of "read, modify, write", and should
-// return a VDL-compatible error.
-func (x *service) update(call rpc.ServerCall, st store.Store, checkAuth bool, fn func(data *serviceData) error) error {
-	data, err := x.get(call, st, checkAuth)
-	if err != nil {
-		return err
+func (s *service) setAppPerms(ctx *context.T, call rpc.ServerCall, appName string, perms access.Permissions, version string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	a, ok := s.apps[appName]
+	if !ok {
+		return verror.New(verror.ErrNoExistOrNoAccess, ctx, appName)
 	}
-	if err := fn(data); err != nil {
-		return err
-	}
-	return x.put(call, st, data)
+	return store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
+		data := &appData{}
+		return util.Update(ctx, call, st, a, data, func() error {
+			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
+				return err
+			}
+			data.Perms = perms
+			data.Version++
+			return nil
+		})
+	})
+}
+
+////////////////////////////////////////
+// util.Layer methods
+
+func (s *service) Name() string {
+	return "service"
+}
+
+func (s *service) StKey() string {
+	return util.ServicePrefix
 }

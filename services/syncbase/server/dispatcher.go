@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
-
 package server
 
 import (
 	"strings"
 
-	"v.io/syncbase/v23/services/syncbase"
+	wire "v.io/syncbase/v23/services/syncbase"
+	"v.io/syncbase/x/ref/services/syncbase/server/nosql"
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -26,55 +26,49 @@ func NewDispatcher(s *service) *dispatcher {
 }
 
 // TODO(sadovsky): Return a real authorizer in various places below.
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, "/")
-	parts := strings.Split(suffix, "/")
+	parts := strings.SplitN(suffix, "/", 2)
+
+	if len(suffix) == 0 {
+		return wire.ServiceServer(disp.s), nil, nil
+	}
 
 	// Validate all key atoms up front, so that we can avoid doing so in all our
 	// method implementations.
-	for _, s := range parts {
-		if !validKeyAtom(s) {
-			// TODO(sadovsky): Is it okay to pass a nil context to verror?
-			return nil, nil, syncbase.NewErrInvalidName(nil, suffix)
+	appName := parts[0]
+	if !util.ValidKeyAtom(appName) {
+		return nil, nil, wire.NewErrInvalidName(nil, suffix)
+	}
+
+	aExists := false
+	a, err := disp.s.app(nil, nil, appName)
+	if err == nil {
+		aExists = true
+	} else {
+		if verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
+			return nil, nil, err
+		} else {
+			a = &app{
+				name: appName,
+				s:    disp.s,
+			}
 		}
 	}
 
-	if len(parts) == 0 {
-		return syncbase.ServiceServer(d.s), nil, nil
-	}
-
-	universe := &universe{
-		name: parts[0],
-		s:    d.s,
-	}
 	if len(parts) == 1 {
-		return syncbase.UniverseServer(universe), nil, nil
+		return wire.AppServer(a), nil, nil
 	}
 
-	database := &database{
-		name: parts[1],
-		u:    universe,
-	}
-	if len(parts) == 2 {
-		return syncbase.DatabaseServer(database), nil, nil
+	// All database, table, and row methods require the app to exist. If it
+	// doesn't, abort early.
+	if !aExists {
+		return nil, nil, verror.New(verror.ErrNoExistOrNoAccess, nil, a.name)
 	}
 
-	table := &table{
-		name: parts[2],
-		d:    database,
-	}
-	if len(parts) == 3 {
-		return syncbase.TableServer(table), nil, nil
-	}
-
-	item := &item{
-		encodedKey: parts[3],
-		t:          table,
-	}
-	if len(parts) == 4 {
-		return syncbase.ItemServer(item), nil, nil
-	}
-
-	// TODO(sadovsky): Is it okay to pass a nil context to verror?
-	return nil, nil, verror.NewErrNoExist(nil)
+	// Note, it's possible for the app to be deleted concurrently with downstream
+	// handling of this request. Depending on the order in which things execute,
+	// the client may not get an error, but in any case ultimately the store will
+	// end up in a consistent state.
+	return nosql.NewDispatcher(a).Lookup(parts[1])
 }

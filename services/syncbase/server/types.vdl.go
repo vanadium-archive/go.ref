@@ -17,9 +17,8 @@ import (
 
 // serviceData represents the persistent state of a Service.
 type serviceData struct {
-	Universes map[string]struct{}
-	Version   uint64 // covers the fields below
-	Acl       access.Permissions
+	Version uint64 // covers the fields below
+	Perms   access.Permissions
 }
 
 func (serviceData) __VDLReflect(struct {
@@ -27,33 +26,33 @@ func (serviceData) __VDLReflect(struct {
 }) {
 }
 
-// universeData represents the persistent state of a Universe.
-type universeData struct {
-	Name      string
-	Databases map[string]struct{}
-	Version   uint64 // covers the fields below
-	Acl       access.Permissions
+// appData represents the persistent state of an App.
+type appData struct {
+	Name    string
+	Version uint64 // covers the fields below
+	Perms   access.Permissions
 }
 
-func (universeData) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/server.universeData"
+func (appData) __VDLReflect(struct {
+	Name string "v.io/syncbase/x/ref/services/syncbase/server.appData"
 }) {
 }
 
-// databaseData represents the persistent state of a Database.
-type databaseData struct {
-	Name    string
-	Version uint64 // covers the fields below
-	Acl     access.Permissions
+// dbInfo contains information about one database for an App.
+// TODO(sadovsky): Track NoSQL vs. SQL, storage engine config, etc.
+type dbInfo struct {
+	Name        string
+	Initialized bool
+	Deleted     bool
 }
 
-func (databaseData) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/server.databaseData"
+func (dbInfo) __VDLReflect(struct {
+	Name string "v.io/syncbase/x/ref/services/syncbase/server.dbInfo"
 }) {
 }
 
 func init() {
 	vdl.Register((*serviceData)(nil))
-	vdl.Register((*universeData)(nil))
-	vdl.Register((*databaseData)(nil))
+	vdl.Register((*appData)(nil))
+	vdl.Register((*dbInfo)(nil))
 }

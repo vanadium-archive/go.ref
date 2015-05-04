@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/x/lib/vlog"
 )
 
 var (
@@ -83,7 +84,8 @@ func (tx *transaction) checkError() error {
 }
 
 func (tx *transaction) Scan(start, end string) (store.Stream, error) {
-	panic("not implemented")
+	vlog.Fatal("not implemented")
+	return nil, nil
 }
 
 func (tx *transaction) Get(k string) ([]byte, error) {
@@ -162,7 +164,8 @@ func (tx *transaction) ResetForRetry() {
 // memstore methods
 
 func (st *memstore) Scan(start, end string) (store.Stream, error) {
-	panic("not implemented")
+	vlog.Fatal("not implemented")
+	return nil, nil
 }
 
 func (st *memstore) Get(k string) ([]byte, error) {
@@ -176,27 +179,15 @@ func (st *memstore) Get(k string) ([]byte, error) {
 }
 
 func (st *memstore) Put(k string, v []byte) error {
-	tx := st.NewTransaction()
-	err := tx.Put(k, v)
-	if err == nil {
-		err = tx.Commit()
-	}
-	if err != nil {
-		tx.Abort()
-	}
-	return err
+	return store.RunInTransaction(st, func(st store.StoreReadWriter) error {
+		return st.Put(k, v)
+	})
 }
 
 func (st *memstore) Delete(k string) error {
-	tx := st.NewTransaction()
-	err := tx.Delete(k)
-	if err == nil {
-		err = tx.Commit()
-	}
-	if err != nil {
-		tx.Abort()
-	}
-	return err
+	return store.RunInTransaction(st, func(st store.StoreReadWriter) error {
+		return st.Delete(k)
+	})
 }
 
 func (st *memstore) NewTransaction() store.Transaction {
@@ -207,5 +198,6 @@ func (st *memstore) NewTransaction() store.Transaction {
 }
 
 func (st *memstore) NewSnapshot() store.Snapshot {
-	panic("not implemented")
+	vlog.Fatal("not implemented")
+	return nil
 }
