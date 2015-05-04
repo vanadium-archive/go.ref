@@ -82,6 +82,39 @@ func (m *Map) Set(kvpairs []KeyValue) {
 	m.insertMissingNodes()
 }
 
+// Incr increments the value of the given key and returns the new value.
+func (m *Map) Incr(key string, delta int64) interface{} {
+	now := time.Now()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, exists := m.value[key]; !exists {
+		m.value[key] = mapValue{now, int64(0)}
+		oName := path.Join(m.name, key)
+		lock.Lock()
+		if n := findNodeLocked(oName, true); n.object == nil {
+			n.object = &mapValueWrapper{m, key}
+		}
+		lock.Unlock()
+	}
+	var result interface{}
+	switch value := m.value[key].value.(type) {
+	case int64:
+		result = value + delta
+	case uint64:
+		if delta >= 0 {
+			result = value + uint64(delta)
+		} else {
+			result = value - uint64(-delta)
+		}
+	case float64:
+		result = value + float64(delta)
+	default:
+		return nil
+	}
+	m.value[key] = mapValue{now, result}
+	return result
+}
+
 // Delete deletes the given keys from the map object.
 func (m *Map) Delete(keys []string) {
 	// The lock order is important.
