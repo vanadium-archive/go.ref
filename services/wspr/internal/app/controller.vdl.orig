@@ -56,6 +56,12 @@ type Controller interface {
 	// Signature fetches the signature for a given name.
 	Signature(name string) ([]signature.Interface | error)
 
+<<<<<<< HEAD
   // UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
+=======
+	// GetDefaultBlessings fetches the default blessings for the principal of the controller.
+	GetDefaultBlessings() (?principal.JsBlessings | error)
+	// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
+>>>>>>> master
 	UnionOfBlessings(toJoin []principal.BlessingsHandle) (?principal.JsBlessings | error)
 }

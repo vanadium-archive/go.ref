@@ -839,6 +839,7 @@ func (c *Controller) BlessingStoreDefault(*context.T, rpc.ServerCall) (*principa
 	return jsBlessing, nil
 }
 
+<<<<<<< HEAD
 // BlessingStorePublicKey fetches the public key used by the principal associated with the blessing store.
 func (c *Controller) BlessingStorePublicKey(*context.T, rpc.ServerCall) (string, error) {
 	p := v23.GetPrincipal(c.ctx)
@@ -874,6 +875,8 @@ func (c *Controller) AddToRoots(_ *context.T, _ rpc.ServerCall, handle principal
 	return p.AddToRoots(inputBlessings)
 }
 
+=======
+>>>>>>> master
 // UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
 func (c *Controller) UnionOfBlessings(_ *context.T, _ rpc.ServerCall, handles []principal.BlessingsHandle) (*principal.JsBlessings, error) {
 	inputBlessings := make([]security.Blessings, len(handles))
