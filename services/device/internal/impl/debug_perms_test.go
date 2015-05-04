@@ -49,7 +49,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, ctx)
+	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 	utiltest.Resolve(t, ctx, "pingserver", 1)
 
@@ -72,7 +72,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 
 	// Bob starts an instance of the app.
 	bobApp := utiltest.LaunchApp(t, bobCtx, appID)
-	verifyPingArgs(t, pingCh, userName(t), "default", "")
+	pingCh.VerifyPingArgs(t, userName(t), "default", "")
 
 	// Bob permits Alice to read from his app.
 	updateAccessList(t, bobCtx, "root/alice/$", string(access.Read), "dm/apps", appID, bobApp)
