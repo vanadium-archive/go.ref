@@ -44,4 +44,6 @@ type Controller interface {
 
 	// GetDefaultBlessings fetches the default blessings for the principal of the controller.
 	GetDefaultBlessings() (?principal.JsBlessings | error)
+	// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
+	UnionOfBlessings(toJoin []principal.BlessingsHandle) (?principal.JsBlessings | error)
 }
