@@ -279,7 +279,7 @@ func TestStats(t *testing.T) {
 
 func TestMap(t *testing.T) {
 	m := libstats.NewMap("testing/foo")
-	m.Set([]libstats.KeyValue{{"a", 1}, {"b", 2}})
+	m.Set([]libstats.KeyValue{{"a", uint64(1)}, {"b", 2}, {"c", float64(10.0)}})
 
 	// Test the Value of the map.
 	{
@@ -299,11 +299,36 @@ func TestMap(t *testing.T) {
 		}
 		expected := []libstats.KeyValue{
 			libstats.KeyValue{Key: "foo", Value: nil},
-			libstats.KeyValue{Key: "foo/a", Value: int64(1)},
+			libstats.KeyValue{Key: "foo/a", Value: uint64(1)},
 			libstats.KeyValue{Key: "foo/b", Value: int64(2)},
+			libstats.KeyValue{Key: "foo/c", Value: float64(10.0)},
 		}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
+		}
+	}
+	// Test Incr
+	testcases := []struct {
+		key      string
+		incr     int64
+		expected interface{}
+	}{
+		{"a", 2, uint64(3)},
+		{"a", -1, uint64(2)},
+		{"b", 5, int64(7)},
+		{"c", -2, float64(8)},
+		{"d", -2, int64(-2)},
+	}
+	for i, tc := range testcases {
+		if got := m.Incr(tc.key, tc.incr); got != tc.expected {
+			t.Errorf("unexpected result for #%d. Got %v, expected %v", got, tc.expected)
+		}
+		got, err := libstats.Value("testing/foo/" + tc.key)
+		if err != nil {
+			t.Errorf("unexpected error for #%d: %v", i, err)
+		}
+		if got != tc.expected {
+			t.Errorf("unexpected result for #%d. Got %v, want %v", i, got, tc.expected)
 		}
 	}
 
@@ -317,7 +342,9 @@ func TestMap(t *testing.T) {
 		}
 		expected := []libstats.KeyValue{
 			libstats.KeyValue{Key: "foo", Value: nil},
-			libstats.KeyValue{Key: "foo/b", Value: int64(2)},
+			libstats.KeyValue{Key: "foo/b", Value: int64(7)},
+			libstats.KeyValue{Key: "foo/c", Value: float64(8)},
+			libstats.KeyValue{Key: "foo/d", Value: int64(-2)},
 		}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
