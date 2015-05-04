@@ -824,6 +824,26 @@ func (c *Controller) GetDefaultBlessings(*context.T, rpc.ServerCall) (*principal
 	return jsBlessing, nil
 }
 
+// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
+func (c *Controller) UnionOfBlessings(_ *context.T, _ rpc.ServerCall, handles []principal.BlessingsHandle) (*principal.JsBlessings, error) {
+	inputBlessings := make([]security.Blessings, len(handles))
+	for i, handle := range handles {
+		bless := c.GetBlessings(handle)
+		if bless.IsZero() {
+			return nil, verror.New(invalidBlessingsHandle, nil, handle)
+		}
+		inputBlessings[i] = bless
+	}
+
+	outBlessings, err := security.UnionOfBlessings(inputBlessings...)
+	if err != nil {
+		return nil, err
+	}
+
+	jsBlessings := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsCache.GetOrAddHandle(outBlessings))
+	return jsBlessings, nil
+}
+
 // HandleGranterResponse handles the result of a Granter request.
 func (c *Controller) HandleGranterResponse(id int32, data string) {
 	c.Lock()

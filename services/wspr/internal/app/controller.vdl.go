@@ -51,6 +51,8 @@ type ControllerClientMethods interface {
 	Signature(ctx *context.T, name string, opts ...rpc.CallOpt) ([]signature.Interface, error)
 	// GetDefaultBlessings fetches the default blessings for the principal of the controller.
 	GetDefaultBlessings(*context.T, ...rpc.CallOpt) (*principal.JsBlessings, error)
+	// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
+	UnionOfBlessings(ctx *context.T, toJoin []principal.BlessingsHandle, opts ...rpc.CallOpt) (*principal.JsBlessings, error)
 }
 
 // ControllerClientStub adds universal methods to ControllerClientMethods.
@@ -133,6 +135,11 @@ func (c implControllerClientStub) GetDefaultBlessings(ctx *context.T, opts ...rp
 	return
 }
 
+func (c implControllerClientStub) UnionOfBlessings(ctx *context.T, i0 []principal.BlessingsHandle, opts ...rpc.CallOpt) (o0 *principal.JsBlessings, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "UnionOfBlessings", []interface{}{i0}, []interface{}{&o0}, opts...)
+	return
+}
+
 // ControllerServerMethods is the interface a server writer
 // implements for Controller.
 type ControllerServerMethods interface {
@@ -165,6 +172,8 @@ type ControllerServerMethods interface {
 	Signature(ctx *context.T, call rpc.ServerCall, name string) ([]signature.Interface, error)
 	// GetDefaultBlessings fetches the default blessings for the principal of the controller.
 	GetDefaultBlessings(*context.T, rpc.ServerCall) (*principal.JsBlessings, error)
+	// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
+	UnionOfBlessings(ctx *context.T, call rpc.ServerCall, toJoin []principal.BlessingsHandle) (*principal.JsBlessings, error)
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -252,6 +261,10 @@ func (s implControllerServerStub) Signature(ctx *context.T, call rpc.ServerCall,
 
 func (s implControllerServerStub) GetDefaultBlessings(ctx *context.T, call rpc.ServerCall) (*principal.JsBlessings, error) {
 	return s.impl.GetDefaultBlessings(ctx, call)
+}
+
+func (s implControllerServerStub) UnionOfBlessings(ctx *context.T, call rpc.ServerCall, i0 []principal.BlessingsHandle) (*principal.JsBlessings, error) {
+	return s.impl.UnionOfBlessings(ctx, call, i0)
 }
 
 func (s implControllerServerStub) Globber() *rpc.GlobState {
@@ -387,6 +400,16 @@ var descController = rpc.InterfaceDesc{
 		{
 			Name: "GetDefaultBlessings",
 			Doc:  "// GetDefaultBlessings fetches the default blessings for the principal of the controller.",
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // *principal.JsBlessings
+			},
+		},
+		{
+			Name: "UnionOfBlessings",
+			Doc:  "// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.",
+			InArgs: []rpc.ArgDesc{
+				{"toJoin", ``}, // []principal.BlessingsHandle
+			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // *principal.JsBlessings
 			},
