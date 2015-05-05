@@ -104,7 +104,7 @@ func logReplayCommands(log *iLog, syncfile string, srid ObjId) error {
 			}
 			err = log.processWatchRecord(cmd.objID, cmd.version, parent, val, srid)
 			if err != nil {
-				return fmt.Errorf("cannot replay local log records %d:%v err %v",
+				return fmt.Errorf("cannot replay local log records %v:%v err %v",
 					cmd.objID, cmd.version, err)
 			}
 		default:
