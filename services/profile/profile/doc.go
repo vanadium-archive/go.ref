@@ -38,6 +38,8 @@ The global flags are:
    directory to use for storing security credentials
  -v23.i18n-catalogue=
    18n catalogue files to load, comma separated
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
  -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
  -v23.proxy=

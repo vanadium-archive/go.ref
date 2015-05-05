@@ -61,7 +61,7 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-	"v.io/x/lib/buildinfo"
+	"v.io/x/lib/metadata"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/envvar"
 	vexec "v.io/x/ref/lib/exec"
@@ -121,14 +121,14 @@ var CurrentVersion = Version{1, 0}
 
 // CreationInfo holds data about the binary that originally created the device manager on-disk state
 type CreatorInfo struct {
-	Version   Version
-	BuildInfo string
+	Version  Version
+	MetaData string
 }
 
 func SaveCreatorInfo(dir string) error {
 	info := CreatorInfo{
-		Version:   CurrentVersion,
-		BuildInfo: buildinfo.Info().String(),
+		Version:  CurrentVersion,
+		MetaData: metadata.ToXML(),
 	}
 	jsonInfo, err := json.Marshal(info)
 	if err != nil {

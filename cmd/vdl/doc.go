@@ -37,6 +37,10 @@ The vdl flags are:
  -vdl.config=vdl.config
    Basename of the optional per-package config file.
 
+The global flags are:
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
+
 Vdl generate
 
 Generate compiles packages and their transitive dependencies, and generates code

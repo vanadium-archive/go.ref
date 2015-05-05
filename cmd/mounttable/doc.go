@@ -40,6 +40,8 @@ The global flags are:
    directory to use for storing security credentials
  -v23.i18n-catalogue=
    18n catalogue files to load, comma separated
+ -v23.metadata=<just specify -v23.metadata to activate>
+   Displays metadata for the program and exits.
  -v23.proxy=
    object name of proxy service to use to export services across network
    boundaries

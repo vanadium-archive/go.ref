@@ -25,7 +25,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/buildinfo"
+	"v.io/x/lib/metadata"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/stats"
@@ -97,17 +97,17 @@ func Init(
 	if err != nil && err != vlog.Configured {
 		return nil, nil, nil, err
 	}
-	// We want to print out buildinfo only into the log files, to avoid
+	// We want to print out metadata only into the log files, to avoid
 	// spamming stderr, see #1246.
 	//
 	// TODO(caprita): We should add it to the log file header information;
 	// since that requires changes to the llog and vlog packages, for now we
-	// condition printing of buildinfo on having specified an explicit
-	// log_dir for the program.  It's a hack, but it gets us the buildinfo
-	// fo device manager-run apps and avoids it for command-lines, which is
+	// condition printing of metadata on having specified an explicit
+	// log_dir for the program.  It's a hack, but it gets us the metadata
+	// to device manager-run apps and avoids it for command-lines, which is
 	// a good enough approximation.
 	if vlog.Log.LogDir() != os.TempDir() {
-		vlog.Infof("Binary info: %s", buildinfo.Info())
+		vlog.Infof(metadata.ToXML())
 	}
 
 	// Setup the initial trace.

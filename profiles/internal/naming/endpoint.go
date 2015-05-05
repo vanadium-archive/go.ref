@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"v.io/v23/naming"
+	"v.io/x/lib/metadata"
 )
 
 const (
@@ -146,6 +147,10 @@ func (ep *Endpoint) RoutingID() naming.RoutingID {
 func (ep *Endpoint) Network() string {
 	//nologcall
 	return Network
+}
+
+func init() {
+	metadata.Insert("v23.RPCEndpointVersion", fmt.Sprint(defaultVersion))
 }
 
 var defaultVersion = 5

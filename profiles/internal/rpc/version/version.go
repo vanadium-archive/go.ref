@@ -5,8 +5,11 @@
 package version
 
 import (
+	"fmt"
+
 	"v.io/v23/rpc/version"
 	"v.io/v23/verror"
+	"v.io/x/lib/metadata"
 )
 
 // Range represents a range of RPC versions.
@@ -14,15 +17,20 @@ type Range struct {
 	Min, Max version.RPCVersion
 }
 
-var (
-	// SupportedRange represents the range of protocol verions supported by this
-	// implementation.
-	// Max should be incremented whenever we make a protocol
-	// change that's not both forward and backward compatible.
-	// Min should be incremented whenever we want to remove
-	// support for old protocol versions.
-	SupportedRange = &Range{Min: version.RPCVersion9, Max: version.RPCVersion10}
-)
+// SupportedRange represents the range of protocol verions supported by this
+// implementation.
+//
+// Max is incremented whenever we make a protocol change that's not both forward
+// and backward compatible.
+//
+// Min is incremented whenever we want to remove support for old protocol
+// versions.
+var SupportedRange = &Range{Min: version.RPCVersion9, Max: version.RPCVersion10}
+
+func init() {
+	metadata.Insert("v23.RPCVersionMax", fmt.Sprint(SupportedRange.Max))
+	metadata.Insert("v23.RPCVersionMin", fmt.Sprint(SupportedRange.Min))
+}
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc/version"
 

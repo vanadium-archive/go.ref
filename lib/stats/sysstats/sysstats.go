@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/lib/buildinfo"
+	"v.io/x/lib/metadata"
 	"v.io/x/ref/lib/stats"
 )
 
@@ -33,7 +33,7 @@ func init() {
 	stats.NewIntegerFunc("system/GOMAXPROCS", func() int64 { return int64(runtime.GOMAXPROCS(0)) })
 	exportEnv()
 	exportMemStats()
-	exportBuildInfo()
+	exportMetaData()
 }
 
 func exportEnv() {
@@ -80,11 +80,10 @@ func exportMemStats() {
 	}()
 }
 
-func exportBuildInfo() {
-	kv := []stats.KeyValue{}
-	v := reflect.ValueOf(*buildinfo.Info())
-	for i := 0; i < v.NumField(); i++ {
-		kv = append(kv, stats.KeyValue{v.Type().Field(i).Name, v.Field(i).Interface()})
+func exportMetaData() {
+	var kv []stats.KeyValue
+	for id, value := range metadata.ToMap() {
+		kv = append(kv, stats.KeyValue{id, value})
 	}
-	stats.NewMap("system/buildinfo").Set(kv)
+	stats.NewMap("system/metadata").Set(kv)
 }
