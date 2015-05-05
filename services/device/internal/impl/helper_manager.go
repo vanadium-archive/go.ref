@@ -135,9 +135,9 @@ func (s suidHelperState) internalModalOp(stdout, stderr io.Writer, arg ...string
 	return nil
 }
 
-// isSetuid is defined like this so we can override its
+// IsSetuid is defined like this so we can override its
 // implementation for tests.
-var isSetuid = func(fileStat os.FileInfo) bool {
+var IsSetuid = func(fileStat os.FileInfo) bool {
 	vlog.VI(2).Infof("running the original isSetuid")
 	return fileStat.Mode()&os.ModeSetuid == os.ModeSetuid
 }
@@ -152,7 +152,7 @@ func (s suidHelperState) suidhelperEnabled(targetUser string) (bool, error) {
 	if err != nil {
 		return false, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Stat(%v) failed: %v. helper is required.", s.helperPath, err))
 	}
-	haveHelper := isSetuid(helperStat)
+	haveHelper := IsSetuid(helperStat)
 
 	switch {
 	case haveHelper && s.dmUser != targetUser:
