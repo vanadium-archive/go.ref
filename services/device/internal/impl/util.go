@@ -129,7 +129,7 @@ func updateLink(target, link string) error {
 	return nil
 }
 
-func baseCleanupDir(path, helper string) {
+func BaseCleanupDir(path, helper string) {
 	if helper != "" {
 		out, err := exec.Command(helper, "--rm", path).CombinedOutput()
 		if err != nil {
@@ -150,7 +150,7 @@ func PermsDir(c *config.State) string {
 	return filepath.Join(c.Root, "device-manager", "device-data", "acls")
 }
 
-// cleanupDir is defined like this so we can override its implementation for
-// tests. cleanupDir will use the helper to delete application state possibly
+// CleanupDir is defined like this so we can override its implementation for
+// tests. CleanupDir will use the helper to delete application state possibly
 // owned by different accounts if helper is provided.
-var cleanupDir = baseCleanupDir
+var CleanupDir = BaseCleanupDir

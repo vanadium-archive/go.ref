@@ -52,6 +52,22 @@ func init() {
 	impl.Describe = func() (descr device.Description, err error) {
 		return device.Description{Profiles: map[string]struct{}{"test-profile": struct{}{}}}, nil
 	}
+
+	impl.CleanupDir = func(dir, helper string) {
+		if dir == "" {
+			return
+		}
+		parentDir, base := filepath.Dir(dir), filepath.Base(dir)
+		var renamed string
+		if helper != "" {
+			renamed = filepath.Join(parentDir, "helper_deleted_"+base)
+		} else {
+			renamed = filepath.Join(parentDir, "deleted_"+base)
+		}
+		if err := os.Rename(dir, renamed); err != nil {
+			vlog.Errorf("Rename(%v, %v) failed: %v", dir, renamed, err)
+		}
+	}
 }
 
 func EnvelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args ...string) application.Envelope {

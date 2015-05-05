@@ -414,7 +414,7 @@ func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON
 	installationID := generateID()
 	installationDir := filepath.Join(i.config.Root, applicationDirName(envelope.Title), installationDirName(installationID))
 	deferrer := func() {
-		cleanupDir(installationDir, "")
+		CleanupDir(installationDir, "")
 	}
 	if err := mkdirPerm(installationDir, 0711); err != nil {
 		return "", verror.New(ErrOperationFailed, nil)
@@ -917,12 +917,12 @@ func (i *appService) Instantiate(ctx *context.T, call device.ApplicationInstanti
 	helper := i.config.Helper
 	instanceDir, instanceID, err := i.newInstance(ctx, call)
 	if err != nil {
-		cleanupDir(instanceDir, helper)
+		CleanupDir(instanceDir, helper)
 		return "", err
 	}
 	systemName := suidHelper.usernameForPrincipal(ctx, call.Security(), i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
-		cleanupDir(instanceDir, helper)
+		CleanupDir(instanceDir, helper)
 		return "", err
 	}
 	return instanceID, nil
@@ -1101,7 +1101,7 @@ func updateInstallation(ctx *context.T, installationDir string) error {
 	}
 	versionDir, err := newVersion(ctx, installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
-		cleanupDir(versionDir, "")
+		CleanupDir(versionDir, "")
 		return err
 	}
 	return nil

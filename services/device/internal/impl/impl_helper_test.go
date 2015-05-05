@@ -38,12 +38,12 @@ func TestBaseCleanupDir(t *testing.T) {
 	// Setup a helper.
 	helper := utiltest.GenerateSuidHelperScript(t, dir)
 
-	impl.WrapBaseCleanupDir(helperTarget, helper)
+	impl.BaseCleanupDir(helperTarget, helper)
 	if _, err := os.Stat(helperTarget); err == nil || os.IsExist(err) {
 		t.Fatalf("%s should be missing but isn't", helperTarget)
 	}
 
-	impl.WrapBaseCleanupDir(nohelperTarget, "")
+	impl.BaseCleanupDir(nohelperTarget, "")
 	if _, err := os.Stat(nohelperTarget); err == nil || os.IsExist(err) {
 		t.Fatalf("%s should be missing but isn't", nohelperTarget)
 	}

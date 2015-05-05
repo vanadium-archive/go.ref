@@ -504,7 +504,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	}
 
 	deferrer := func() {
-		cleanupDir(workspace, "")
+		CleanupDir(workspace, "")
 	}
 	defer func() {
 		if deferrer != nil {
