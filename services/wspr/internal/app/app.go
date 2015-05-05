@@ -7,6 +7,8 @@
 package app
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"reflect"
@@ -97,14 +99,6 @@ type Controller struct {
 	// are objects that serve requests in wspr without actually making
 	// an outgoing rpc call.
 	reservedServices map[string]rpc.Invoker
-
-	encoderLock   sync.Mutex
-	clientEncoder *vom.Encoder
-	clientWriter  *lib.ProxyWriter
-
-	decoderLock   sync.Mutex
-	clientDecoder *vom.Decoder
-	clientReader  *lib.ProxyReader
 }
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
@@ -211,14 +205,11 @@ func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vt
 		OutArgs:       results,
 		TraceResponse: vtrace.GetResponse(ctx),
 	}
-	c.encoderLock.Lock()
-	if err := c.clientEncoder.Encode(response); err != nil {
-		c.encoderLock.Unlock()
+	encoded, err := lib.VomEncode(response)
+	if err != nil {
 		w.Error(err)
 		return
 	}
-	encoded := c.clientWriter.ConsumeBuffer()
-	c.encoderLock.Unlock()
 	if err := w.Send(lib.ResponseFinal, encoded); err != nil {
 		w.Error(verror.Convert(marshallingError, ctx, err))
 	}
@@ -359,10 +350,6 @@ func (c *Controller) setup() {
 	c.outstandingRequests = make(map[int32]*outstandingRequest)
 	c.flowMap = make(map[int32]interface{})
 	c.servers = make(map[uint32]*server.Server)
-	c.clientReader = lib.NewProxyReader()
-	c.clientDecoder = vom.NewDecoder(c.clientReader)
-	c.clientWriter = lib.NewProxyWriter()
-	c.clientEncoder = vom.NewEncoder(c.clientWriter)
 }
 
 // SendOnStream writes data on id's stream.  The actual network write will be
@@ -472,42 +459,40 @@ func (l *localCall) LocalEndpoint() naming.Endpoint                  { return ni
 func (l *localCall) RemoteEndpoint() naming.Endpoint                 { return nil }
 func (l *localCall) Security() security.Call                         { return l }
 
-func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg *RpcRequest, w lib.ClientWriter, span vtrace.Span) {
+func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg *RpcRequest, decoder *vom.Decoder, w lib.ClientWriter, span vtrace.Span) {
 	argptrs, tags, err := invoker.Prepare(msg.Method, int(msg.NumInArgs))
 	if err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 	for _, argptr := range argptrs {
-		if err := c.clientDecoder.Decode(argptr); err != nil {
+		if err := decoder.Decode(argptr); err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 			return
 		}
 	}
-	go func() {
-		results, err := invoker.Invoke(ctx, &localCall{ctx, msg, tags, w}, msg.Method, argptrs)
+	results, err := invoker.Invoke(ctx, &localCall{ctx, msg, tags, w}, msg.Method, argptrs)
+	if err != nil {
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
+		return
+	}
+	if msg.IsStreaming {
+		if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
+			w.Error(verror.New(marshallingError, ctx, "ResponseStreamClose"))
+		}
+	}
+
+	// Convert results from []interface{} to []*vdl.Value.
+	vresults := make([]*vdl.Value, len(results))
+	for i, res := range results {
+		vv, err := vdl.ValueFromReflect(reflect.ValueOf(res))
 		if err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 			return
 		}
-		if msg.IsStreaming {
-			if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
-				w.Error(verror.New(marshallingError, ctx, "ResponseStreamClose"))
-			}
-		}
-
-		// Convert results from []interface{} to []*vdl.Value.
-		vresults := make([]*vdl.Value, len(results))
-		for i, res := range results {
-			vv, err := vdl.ValueFromReflect(reflect.ValueOf(res))
-			if err != nil {
-				w.Error(verror.Convert(verror.ErrInternal, ctx, err))
-				return
-			}
-			vresults[i] = vv
-		}
-		c.sendRPCResponse(ctx, w, span, vresults)
-	}()
+		vresults[i] = vv
+	}
+	c.sendRPCResponse(ctx, w, span, vresults)
 }
 
 // HandleCaveatValidationResponse handles the response to caveat validation
@@ -525,15 +510,14 @@ func (c *Controller) HandleCaveatValidationResponse(id int32, data string) {
 
 // HandleVeyronRequest starts a vanadium rpc and returns before the rpc has been completed.
 func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, w lib.ClientWriter) {
-	c.decoderLock.Lock()
-	defer c.decoderLock.Unlock()
-	err := c.clientReader.ReplaceBuffer(data)
+	binbytes, err := hex.DecodeString(data)
 	if err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, fmt.Errorf("Error decoding hex string %q: %v", data, err)))
 		return
 	}
+	decoder := vom.NewDecoder(bytes.NewReader(binbytes))
 	var msg RpcRequest
-	if err := c.clientDecoder.Decode(&msg); err != nil {
+	if err := decoder.Decode(&msg); err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
@@ -556,14 +540,14 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 
 	// If this message is for an internal service, do a short-circuit dispatch here.
 	if invoker, ok := c.reservedServices[msg.Name]; ok {
-		c.handleInternalCall(ctx, invoker, &msg, w, span)
+		go c.handleInternalCall(ctx, invoker, &msg, decoder, w, span)
 		return
 	}
 
 	inArgs := make([]interface{}, msg.NumInArgs)
 	for i := range inArgs {
 		var v *vdl.Value
-		if err := c.clientDecoder.Decode(&v); err != nil {
+		if err := decoder.Decode(&v); err != nil {
 			w.Error(err)
 			return
 		}
