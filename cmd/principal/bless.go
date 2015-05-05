@@ -59,7 +59,7 @@ func prepareBlessArgs(ctx *context.T, macaroonChan <-chan string) (service, maca
 	return service, macaroon, root, nil
 }
 
-func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, browser bool) (<-chan string, error) {
+func getMacaroonForBlessRPC(key security.PublicKey, blessServerURL string, blessedChan <-chan string, browser bool) (<-chan string, error) {
 	// Setup a HTTP server to recieve a blessing macaroon from the identity server.
 	// Steps:
 	// 1. Generate a state token to be included in the HTTP request
@@ -118,7 +118,7 @@ func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, br
 	go http.Serve(ln, nil)
 
 	// Print the link to start the flow.
-	url, err := seekBlessingsURL(blessServerURL, redirectURL, state)
+	url, err := seekBlessingsURL(key, blessServerURL, redirectURL, state)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create seekBlessingsURL: %s", err)
 	}
@@ -135,14 +135,19 @@ func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, br
 	return result, nil
 }
 
-func seekBlessingsURL(blessServerURL, redirectURL, state string) (string, error) {
+func seekBlessingsURL(key security.PublicKey, blessServerURL, redirectURL, state string) (string, error) {
 	baseURL, err := url.Parse(joinURL(blessServerURL, identity.SeekBlessingsRoute))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse url: %v", err)
 	}
+	keyBytes, err := key.MarshalBinary()
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal public key: %v", err)
+	}
 	params := url.Values{}
 	params.Add("redirect_url", redirectURL)
 	params.Add("state", state)
+	params.Add("public_key", base64.URLEncoding.EncodeToString(keyBytes))
 	baseURL.RawQuery = params.Encode()
 	return baseURL.String(), nil
 }

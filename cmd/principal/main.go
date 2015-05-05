@@ -691,9 +691,11 @@ specific peer pattern is provided using the --for-peer flag.
 			ctx, shutdown := v23.Init()
 			defer shutdown()
 
+			p := v23.GetPrincipal(ctx)
+
 			blessedChan := make(chan string)
 			defer close(blessedChan)
-			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingsFrom, blessedChan, flagSeekBlessingsBrowser)
+			macaroonChan, err := getMacaroonForBlessRPC(p.PublicKey(), flagSeekBlessingsFrom, blessedChan, flagSeekBlessingsBrowser)
 			if err != nil {
 				return fmt.Errorf("failed to get macaroon from Vanadium blesser: %v", err)
 			}
@@ -705,8 +707,6 @@ specific peer pattern is provided using the --for-peer flag.
 			blessedChan <- fmt.Sprint(blessings)
 			// Wait for getTokenForBlessRPC to clean up:
 			<-macaroonChan
-
-			p := v23.GetPrincipal(ctx)
 
 			if flagSeekBlessingsSetDefault {
 				if err := p.BlessingStore().SetDefault(blessings); err != nil {
