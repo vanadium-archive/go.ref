@@ -506,6 +506,7 @@ func TestCleanup(t *testing.T) {
 
 	// After the unmount nothing should be left
 	doUnmount(t, rootCtx, estr, "one/bright/day", "", true)
+	checkMatch(t, nil, doGlob(t, rootCtx, estr, "", "one"))
 	checkMatch(t, nil, doGlob(t, rootCtx, estr, "", "*/..."))
 
 	// Set up a mount, then set the AccessList.

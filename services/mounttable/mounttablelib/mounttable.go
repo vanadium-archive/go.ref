@@ -534,7 +534,7 @@ func (n *node) removeUseless(mt *mountTable) bool {
 // removeUselessRecursive removes any useless nodes on the tail of the path.
 func (mt *mountTable) removeUselessRecursive(elems []string) {
 	for i := len(elems); i > 0; i-- {
-		n, nelems, _ := mt.traverse(nil, nil, elems[:i-1], false)
+		n, nelems, _ := mt.traverse(nil, nil, elems[:i], false)
 		if n == nil {
 			break
 		}
