@@ -27,6 +27,12 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
       <a href="http://v.io/glossary.html#identity-provider">Learn more</a>
     </p>
 
+    <div class="blessings-list">
+      <div class="blessings-header">
+          <h1>Your blessings</h1>
+          <h5>Issued</h5>
+          <h5>Revoked</h5>
+        </div>
     {{range .Log}}
       {{if .Error}}
         <h1>Error</h1>
@@ -34,48 +40,39 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
           Failed to read audit log.<br>
           {{.Error}}
         </p>
-      {{else}}
-        <div class="blessings-list">
-          <div class="blessings-header">
-            <h1>Your blessings</h1>
-            <h5>Issued</h5>
-            <h5>Revoked</h5>
+      {{else}} {{/* if .Error */}}
+        <div class="blessings-item">
+          <div class="blessing-details">
+            <h3>{{.Blessed}}</h3>
+            <p>
+              <b>Public Key</b><br>
+              {{.Blessed.PublicKey}}
+            </p>
+            <p class="blessing-caveats">
+              <b>Caveats</b><br>
+              {{range .Caveats}}
+                {{.}}<br>
+              {{end}}
+            </p>
           </div>
 
-          <div class="blessings-item">
-            <div class="blessing-details">
-              <h3>{{.Blessed}}</h3>
-              <p>
-                <b>Public Key</b><br>
-                {{.Blessed.PublicKey}}
-              </p>
-              <p class="blessing-caveats">
-                <b>Caveats</b><br>
-                {{range $index, $cav := .Caveats}}
-                  {{if ne $index 0}}
-                  {{end}}
-                  {{$cav}}<br>
-                {{end}}
-              </p>
-            </div>
+          <div class="blessing-issued unixtime" data-unixtime={{.Timestamp.Unix}}>{{.Timestamp.String}}</div>
 
-            <div class="blessing-issued unixtime" data-unixtime={{.Timestamp.Unix}}>{{.Timestamp.String}}</div>
-
-            <div class="blessing-revoked">
-              {{ if .Token }}
+          <div class="blessing-revoked">
+            {{if .Token}}
               <button class="revoke button-passive" value="{{.Token}}">Revoke</button>
-              {{ else if not .RevocationTime.IsZero }}
-                <p class="unixtime" data-unixtime={{.RevocationTime.Unix}}>{{.RevocationTime.String}}</p>
-              {{ end }}
-            </div>
+            {{else if not .RevocationTime.IsZero}}
+              <p class="unixtime" data-unixtime={{.RevocationTime.Unix}}>{{.RevocationTime.String}}</p>
+            {{end}}
+          </div>
         </div>
-      {{end}}
-    {{else}}
-      <h1>Your blessings</h1>
+      {{end}} {{/* if .Error */}}
+    {{else}} {{/* range .Log */}}
       <p>
         <a href="http://v.io/installation">Install Vanadium</a> to set up your first blessing.
       </p>
-    {{end}}
+    {{end}} {{/* range .Log */}}
+    </div>
   {{template "sidebar" .}}
   </main>
 
