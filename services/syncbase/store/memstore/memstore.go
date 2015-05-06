@@ -201,3 +201,7 @@ func (st *memstore) NewSnapshot() store.Snapshot {
 	vlog.Fatal("not implemented")
 	return nil
 }
+
+func (st *memstore) Close() error {
+	return nil
+}

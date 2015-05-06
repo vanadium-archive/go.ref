@@ -43,6 +43,9 @@ type Store interface {
 	// NewSnapshot creates a snapshot.
 	// TODO(rogulenko): add snapshot options.
 	NewSnapshot() Snapshot
+
+	// Close closes the store.
+	Close() error
 }
 
 // Transaction provides a mechanism for atomic reads and writes.
@@ -97,10 +100,12 @@ type Stream interface {
 
 	// Value returns the element that was staged by Advance. Value may panic if
 	// Advance returned false or was not called at all. Value does not block.
+	// The data is valid until the next call to Advance or Cancel.
 	Value() KeyValue
 
 	// Err returns a non-nil error iff the stream encountered any errors. Err does
 	// not block.
+	// TODO(rogulenko): define an error type.
 	Err() error
 
 	// Cancel notifies the stream provider that it can stop producing elements.

@@ -1,0 +1,270 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// TODO(rogulenko): add more tests.
+
+package test
+
+import (
+	"bytes"
+	"fmt"
+	"math/rand"
+	"reflect"
+	"strconv"
+	"sync"
+	"testing"
+
+	"v.io/syncbase/x/ref/services/syncbase/store"
+)
+
+type operation int
+
+const (
+	Put    operation = 0
+	Delete operation = 1
+)
+
+type testStep struct {
+	op  operation
+	key int
+}
+
+func randomBytes(rnd *rand.Rand, length int) []byte {
+	var res []byte
+	for i := 0; i < length; i++ {
+		res = append(res, '0'+byte(rnd.Intn(10)))
+	}
+	return res
+}
+
+// dbState is the in-memory representation of the database state.
+type dbState struct {
+	// We assume that the database has keys from range [0..dbSize).
+	dbSize   int
+	rnd      *rand.Rand
+	memtable map[string][]byte
+}
+
+func newDBState(dbSize int) *dbState {
+	s := &dbState{
+		dbSize,
+		rand.New(rand.NewSource(239017)),
+		make(map[string][]byte),
+	}
+	return s
+}
+
+func (s *dbState) clone() *dbState {
+	other := &dbState{
+		s.dbSize,
+		s.rnd,
+		make(map[string][]byte),
+	}
+	for k, v := range s.memtable {
+		other.memtable[k] = v
+	}
+	return other
+}
+
+// nextKey returns minimal key in the database that is not less than the
+// provided key. In case of no such key, returns dbSize.
+func (s *dbState) lowerBound(key int) int {
+	for key < s.dbSize {
+		if _, ok := s.memtable[fmt.Sprintf("%05d", key)]; ok {
+			return key
+		}
+		key++
+	}
+	return key
+}
+
+// verify ensures that various read operation on store.Store and memtable
+// return the same result.
+func (s *dbState) verify(t *testing.T, st store.StoreReader) {
+	// Verify Get().
+	for i := 0; i < s.dbSize; i++ {
+		key := fmt.Sprintf("%05d", i)
+		answer, ok := s.memtable[key]
+		value, err := st.Get(key)
+		if ok {
+			if err != nil || !bytes.Equal(value, answer) {
+				t.Fatalf("unexpected get result for %v: got {%#v: %#v}, want {%#v: nil}", key, value, err, answer)
+			}
+		} else {
+			if !reflect.DeepEqual(&store.ErrUnknownKey{Key: key}, err) {
+				t.Fatalf("unexpected get error for key %v: %v", key, err)
+			}
+		}
+	}
+	// Verify 10 random Scan() calls.
+	for i := 0; i < 10; i++ {
+		start, end := s.rnd.Intn(s.dbSize), s.rnd.Intn(s.dbSize)
+		if start > end {
+			start, end = end, start
+		}
+		end++
+		stream, err := st.Scan(fmt.Sprintf("%05d", start), fmt.Sprintf("%05d", end))
+		if err != nil {
+			t.Fatalf("can't create stream: %v", err)
+		}
+		for stream.Advance() {
+			start = s.lowerBound(start)
+			key := fmt.Sprintf("%05d", start)
+			kv := stream.Value()
+			if kv.Key != key {
+				t.Fatalf("unexpected key during scan: got %s, want %s", kv.Key, key)
+			}
+			if !bytes.Equal(kv.Value, s.memtable[key]) {
+				t.Fatalf("unexpected value during scan: got %s, want %s", kv.Value, s.memtable[key])
+			}
+			start++
+		}
+		if start = s.lowerBound(start); start < end {
+			t.Fatalf("stream ended unexpectedly")
+		}
+	}
+}
+
+// runReadWriteTest verifies read/write/snapshot operations.
+func runReadWriteTest(t *testing.T, st store.Store, dbSize int, steps []testStep) {
+	s := newDBState(dbSize)
+	// We verify database state not more than ~100 times to prevent the test
+	// from being slow.
+	frequency := (len(steps) + 99) / 100
+	var states []*dbState
+	var snapshots []store.Snapshot
+	for i, step := range steps {
+		if step.key < 0 || step.key >= s.dbSize {
+			t.Fatalf("invalid test step %v", step)
+		}
+		switch step.op {
+		case Put:
+			key := fmt.Sprintf("%05d", step.key)
+			value := randomBytes(s.rnd, 100)
+			s.memtable[key] = value
+			st.Put(key, value)
+		case Delete:
+			key := fmt.Sprintf("%05d", step.key)
+			if _, ok := s.memtable[key]; ok {
+				delete(s.memtable, key)
+				st.Delete(key)
+			}
+		default:
+			t.Fatalf("invalid test step %v", step)
+		}
+		if i%frequency == 0 {
+			s.verify(t, st)
+			states = append(states, s.clone())
+			snapshots = append(snapshots, st.NewSnapshot())
+		}
+	}
+	s.verify(t, st)
+	for i := 0; i < len(states); i++ {
+		states[i].verify(t, snapshots[i])
+		snapshots[i].Close()
+	}
+}
+
+// RunReadWriteBasicTest runs a basic test that verifies reads, writes and
+// snapshots.
+func RunReadWriteBasicTest(t *testing.T, st store.Store) {
+	runReadWriteTest(t, st, 3, []testStep{
+		testStep{Put, 1},
+		testStep{Put, 2},
+		testStep{Delete, 1},
+		testStep{Put, 1},
+		testStep{Put, 2},
+	})
+}
+
+// RunReadWriteRandomTest runs a random-generated test that verifies reads,
+// writes and snapshots.
+func RunReadWriteRandomTest(t *testing.T, st store.Store) {
+	rnd := rand.New(rand.NewSource(239017))
+	var testcase []testStep
+	dbSize := 50
+	for i := 0; i < 10000; i++ {
+		testcase = append(testcase, testStep{operation(rnd.Intn(2)), rnd.Intn(dbSize)})
+	}
+	runReadWriteTest(t, st, dbSize, testcase)
+}
+
+// RunTransactionsWithGetTest tests transactions that use Put and Get
+// operations.
+// NOTE: consider setting GOMAXPROCS to something greater than 1.
+func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
+	// Invariant: value mapped to n stores sum of values of 0..n-1.
+	// Each of k transactions takes m distinct random values from 0..n-1,
+	// adds 1 to each and m to value mapped to n.
+	// The correctness of sums is checked after all transactions are
+	// commited.
+	n, m, k := 10, 3, 100
+	for i := 0; i <= n; i++ {
+		if err := st.Put(fmt.Sprintf("%05d", i), []byte{'0'}); err != nil {
+			t.Fatalf("can't write to database")
+		}
+	}
+	var wg sync.WaitGroup
+	wg.Add(k)
+	for i := 0; i < k; i++ {
+		go func() {
+			rnd := rand.New(rand.NewSource(239017 * int64(i)))
+			perm := rnd.Perm(n)
+			if err := store.RunInTransaction(st, func(st store.StoreReadWriter) error {
+				for j := 0; j <= m; j++ {
+					var key string
+					if j < m {
+						key = fmt.Sprintf("%05d", perm[j])
+					} else {
+						key = fmt.Sprintf("%05d", n)
+					}
+					val, err := st.Get(key)
+					if err != nil {
+						return fmt.Errorf("can't get key %s: %v", key, err)
+					}
+					intValue, err := strconv.ParseInt(string(val), 10, 64)
+					if err != nil {
+						return fmt.Errorf("can't parse int from %s: %v", val, err)
+					}
+					var newValue int64
+					if j < m {
+						newValue = intValue + 1
+					} else {
+						newValue = intValue + int64(m)
+					}
+					if err := st.Put(key, []byte(fmt.Sprintf("%d", newValue))); err != nil {
+						return fmt.Errorf("can't put {%#v: %#v}: %v", key, newValue, err)
+					}
+				}
+				return nil
+			}); err != nil {
+				panic(fmt.Errorf("can't commit transaction: %v", err))
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	var sum int64
+	for j := 0; j <= n; j++ {
+		key := fmt.Sprintf("%05d", j)
+		val, err := st.Get(key)
+		if err != nil {
+			t.Fatalf("can't get key %s: %v", key, err)
+		}
+		intValue, err := strconv.ParseInt(string(val), 10, 64)
+		if err != nil {
+			t.Fatalf("can't parse int from %s: %v", val, err)
+		}
+		if j < n {
+			sum += intValue
+		} else {
+			if intValue != int64(m*k) {
+				t.Fatalf("invalid sum value in the database: got %d, want %d", intValue, m*k)
+			}
+		}
+	}
+	if sum != int64(m*k) {
+		t.Fatalf("invalid sum of values in the database: got %d, want %d", sum, m*k)
+	}
+}
