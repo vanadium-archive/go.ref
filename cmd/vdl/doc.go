@@ -76,7 +76,7 @@ The vdl generate flags are:
    before the package path, and dst is the replacement for src.  Use commas to
    separate multiple rules; the first rule matching src is used.  The special
    dst SKIP indicates matching packages are skipped.
- -java-out-dir=go/src->java/src/vdl/java
+ -java-out-dir=release/go/src->roadmap/java/lib/generated-src/vdl,roadmap/go/src->roadmap/java/lib/generated-src/vdl
    Same semantics as --go-out-dir but applies to java code generation.
  -java-out-pkg=v.io->io/v
    Java output package translation rules.  Must be of the form:
@@ -146,7 +146,7 @@ The vdl audit flags are:
    before the package path, and dst is the replacement for src.  Use commas to
    separate multiple rules; the first rule matching src is used.  The special
    dst SKIP indicates matching packages are skipped.
- -java-out-dir=go/src->java/src/vdl/java
+ -java-out-dir=release/go/src->roadmap/java/lib/generated-src/vdl,roadmap/go/src->roadmap/java/lib/generated-src/vdl
    Same semantics as --go-out-dir but applies to java code generation.
  -java-out-pkg=v.io->io/v
    Java output package translation rules.  Must be of the form:
