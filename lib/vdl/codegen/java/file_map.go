@@ -9,7 +9,6 @@ import (
 	"log"
 
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const mapTmpl = header + `
@@ -39,7 +38,7 @@ package {{.Package}};
 
 // genJavaMapFile generates the Java class file for the provided named map type.
 func genJavaMapFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
-	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
+	name, access := javaTypeName(tdef, env)
 	data := struct {
 		FileDoc        string
 		AccessModifier string
@@ -53,11 +52,11 @@ func genJavaMapFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeString  string
 	}{
 		FileDoc:        tdef.File.Package.FileDoc,
-		AccessModifier: accessModifierForName(tdef.Name),
+		AccessModifier: access,
 		Doc:            javaDocInComment(tdef.Doc),
 		ElemType:       javaType(tdef.Type.Elem(), true, env),
 		KeyType:        javaType(tdef.Type.Key(), true, env),
-		Name:           javaTypeName,
+		Name:           name,
 		Package:        javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		SourceFile:     tdef.File.BaseName,
 		VdlTypeName:    tdef.Type.Name(),
@@ -69,7 +68,7 @@ func genJavaMapFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		log.Fatalf("vdl: couldn't execute map template: %v", err)
 	}
 	return JavaFileInfo{
-		Name: javaTypeName + ".java",
+		Name: name + ".java",
 		Data: buf.Bytes(),
 	}
 }

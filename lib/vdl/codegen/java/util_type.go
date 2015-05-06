@@ -20,7 +20,8 @@ func javaFullyQualifiedNamedType(def *compile.TypeDef, forceClass bool, env *com
 		name, _ := javaBuiltInType(def.Type, forceClass)
 		return name
 	}
-	return javaPath(path.Join(javaGenPkgPath(def.File.Package.GenPath), vdlutil.FirstRuneToUpper(def.Name)))
+	name, _ := javaTypeName(def, env)
+	return javaPath(path.Join(javaGenPkgPath(def.File.Package.GenPath), name))
 }
 
 // javaReflectType returns java.reflect.Type string for provided VDL type.
@@ -104,13 +105,21 @@ func javaBuiltInType(typ *vdl.Type, forceClass bool) (string, bool) {
 	}
 }
 
+func javaTypeName(def *compile.TypeDef, env *compile.Env) (string, string) {
+	if native, ok := def.File.Package.Config.Java.WireTypeRenames[def.Name]; ok {
+		return native, accessModifierForName(native)
+	}
+	return vdlutil.FirstRuneToUpper(def.Name), accessModifierForName(def.Name)
+}
+
 func javaNativeType(t *vdl.Type, env *compile.Env) (string, bool) {
 	if t == vdl.ErrorType {
 		return "io.v.v23.verror.VException", true
 	}
 	if def := env.FindTypeDef(t); def != nil {
 		pkg := def.File.Package
-		if native, ok := pkg.Config.Java.WireToNativeTypes[def.Name]; ok {
+		name, _ := javaTypeName(def, env)
+		if native, ok := pkg.Config.Java.WireToNativeTypes[name]; ok {
 			// There is a Java native type configured for this defined type.
 			return native, true
 		}

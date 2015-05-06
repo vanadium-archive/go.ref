@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const arrayTmpl = header + `
@@ -56,7 +55,7 @@ package {{.Package}};
 
 // genJavaArrayFile generates the Java class file for the provided named array type.
 func genJavaArrayFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
-	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
+	name, access := javaTypeName(tdef, env)
 	elemType := javaType(tdef.Type.Elem(), true, env)
 	elems := strings.TrimSuffix(strings.Repeat(javaZeroValue(tdef.Type.Elem(), env)+", ", tdef.Type.Len()), ", ")
 	zeroValue := fmt.Sprintf("new %s[] {%s}", elemType, elems)
@@ -76,13 +75,13 @@ func genJavaArrayFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		ZeroValue         string
 	}{
 		FileDoc:           tdef.File.Package.FileDoc,
-		AccessModifier:    accessModifierForName(tdef.Name),
+		AccessModifier:    access,
 		Doc:               javaDocInComment(tdef.Doc),
 		ElemType:          elemType,
 		ElemIsPrimitive:   !isClass(tdef.Type.Elem(), env),
 		ElemPrimitiveType: javaType(tdef.Type.Elem(), false, env),
 		Length:            tdef.Type.Len(),
-		Name:              javaTypeName,
+		Name:              name,
 		Package:           javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		SourceFile:        tdef.File.BaseName,
 		VdlTypeName:       tdef.Type.Name(),
@@ -95,7 +94,7 @@ func genJavaArrayFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		log.Fatalf("vdl: couldn't execute array template: %v", err)
 	}
 	return JavaFileInfo{
-		Name: javaTypeName + ".java",
+		Name: name + ".java",
 		Data: buf.Bytes(),
 	}
 }

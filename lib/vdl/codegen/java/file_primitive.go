@@ -10,7 +10,6 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const primitiveTmpl = header + `
@@ -71,7 +70,7 @@ func javaTypeAdapterDelegateClass(t *vdl.Type) string {
 
 // genJavaPrimitiveFile generates the Java class file for the provided user-defined type.
 func genJavaPrimitiveFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
-	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
+	name, access := javaTypeName(tdef, env)
 	data := struct {
 		FileDoc                  string
 		AccessModifier           string
@@ -86,9 +85,9 @@ func genJavaPrimitiveFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo 
 		VdlTypeString            string
 	}{
 		FileDoc:                  tdef.File.Package.FileDoc,
-		AccessModifier:           accessModifierForName(tdef.Name),
+		AccessModifier:           access,
 		Doc:                      javaDocInComment(tdef.Doc),
-		Name:                     javaTypeName,
+		Name:                     name,
 		PackagePath:              javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		Source:                   tdef.File.BaseName,
 		ConstructorType:          javaConstructorType(tdef.Type),
@@ -103,7 +102,7 @@ func genJavaPrimitiveFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo 
 		log.Fatalf("vdl: couldn't execute primitive template: %v", err)
 	}
 	return JavaFileInfo{
-		Name: javaTypeName + ".java",
+		Name: name + ".java",
 		Data: buf.Bytes(),
 	}
 }

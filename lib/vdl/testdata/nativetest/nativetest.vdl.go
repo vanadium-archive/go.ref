@@ -52,12 +52,20 @@ func (WireMultiImport) __VDLReflect(struct {
 }) {
 }
 
+type WireRenameMe int32
+
+func (WireRenameMe) __VDLReflect(struct {
+	Name string "v.io/x/ref/lib/vdl/testdata/nativetest.WireRenameMe"
+}) {
+}
+
 type WireAll struct {
 	A string
 	B map[string]int
 	C time.Time
 	D nativetest.NativeSamePkg
 	E map[nativetest.NativeSamePkg]time.Time
+	F WireRenameMe
 }
 
 func (WireAll) __VDLReflect(struct {
@@ -76,6 +84,7 @@ func init() {
 	vdl.Register((*WireTime)(nil))
 	vdl.Register((*WireSamePkg)(nil))
 	vdl.Register((*WireMultiImport)(nil))
+	vdl.Register((*WireRenameMe)(nil))
 	vdl.Register((*WireAll)(nil))
 }
 

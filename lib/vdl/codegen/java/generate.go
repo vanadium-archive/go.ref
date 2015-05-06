@@ -117,10 +117,4 @@ func validateJavaConfig(pkg *compile.Package, env *compile.Env) {
 	if len(pkg.Config.Java.WireToNativeTypes) > 0 && !nativeTypePackageWhitelist[pkg.Path] {
 		env.Errors.Errorf("%s: Java.WireToNativeTypes is restricted to whitelisted VDL packages", vdlconfig)
 	}
-	// Make sure each wire type is actually defined in the package.
-	for wire, _ := range pkg.Config.Java.WireToNativeTypes {
-		if def := pkg.ResolveType(wire); def == nil {
-			env.Errors.Errorf("%s: type %s specified in Java.WireToNativeTypes undefined", vdlconfig, wire)
-		}
-	}
 }

@@ -9,7 +9,6 @@ import (
 	"log"
 
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const unionTmpl = header + `
@@ -80,7 +79,7 @@ func genJavaUnionFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 			ZeroValue:           javaZeroValue(fld.Type, env),
 		}
 	}
-	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
+	name, access := javaTypeName(tdef, env)
 	data := struct {
 		FileDoc        string
 		AccessModifier string
@@ -93,10 +92,10 @@ func genJavaUnionFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeString  string
 	}{
 		FileDoc:        tdef.File.Package.FileDoc,
-		AccessModifier: accessModifierForName(tdef.Name),
+		AccessModifier: access,
 		Doc:            javaDocInComment(tdef.Doc),
 		Fields:         fields,
-		Name:           javaTypeName,
+		Name:           name,
 		PackagePath:    javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		Source:         tdef.File.BaseName,
 		VdlTypeName:    tdef.Type.Name(),
@@ -108,7 +107,7 @@ func genJavaUnionFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		log.Fatalf("vdl: couldn't execute union template: %v", err)
 	}
 	return JavaFileInfo{
-		Name: javaTypeName + ".java",
+		Name: name + ".java",
 		Data: buf.Bytes(),
 	}
 }

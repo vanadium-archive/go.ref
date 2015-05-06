@@ -11,7 +11,6 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const complexTmpl = header + `
@@ -53,7 +52,7 @@ func genJavaComplexFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	default:
 		panic(fmt.Errorf("val: unhandled kind: %v", kind))
 	}
-	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
+	name, access := javaTypeName(tdef, env)
 	data := struct {
 		FileDoc        string
 		AccessModifier string
@@ -67,9 +66,9 @@ func genJavaComplexFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeString  string
 	}{
 		FileDoc:        tdef.File.Package.FileDoc,
-		AccessModifier: accessModifierForName(tdef.Name),
+		AccessModifier: access,
 		Doc:            javaDocInComment(tdef.Doc),
-		Name:           javaTypeName,
+		Name:           name,
 		PackagePath:    javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		Source:         tdef.File.BaseName,
 		ValueType:      ValueType,
@@ -83,7 +82,7 @@ func genJavaComplexFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		log.Fatalf("vdl: couldn't execute VDL complex template: %v", err)
 	}
 	return JavaFileInfo{
-		Name: javaTypeName + ".java",
+		Name: name + ".java",
 		Data: buf.Bytes(),
 	}
 }

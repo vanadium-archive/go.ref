@@ -10,6 +10,7 @@ type WireMapStringInt int32
 type WireTime int32
 type WireSamePkg int32
 type WireMultiImport int32
+type WireRenameMe int32
 
 type WireAll struct {
 	A WireString
@@ -17,4 +18,5 @@ type WireAll struct {
 	C WireTime
 	D WireSamePkg
 	E WireMultiImport
+	F WireRenameMe
 }

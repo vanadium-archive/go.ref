@@ -9,7 +9,6 @@ import (
 	"log"
 
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const enumTmpl = header + `
@@ -56,7 +55,7 @@ func genJavaEnumFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	for i := 0; i < tdef.Type.NumEnumLabel(); i++ {
 		labels[i] = tdef.Type.EnumLabel(i)
 	}
-	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
+	name, access := javaTypeName(tdef, env)
 	data := struct {
 		FileDoc        string
 		AccessModifier string
@@ -69,10 +68,10 @@ func genJavaEnumFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeString  string
 	}{
 		FileDoc:        tdef.File.Package.FileDoc,
-		AccessModifier: accessModifierForName(tdef.Name),
+		AccessModifier: access,
 		EnumLabels:     labels,
 		Doc:            javaDocInComment(tdef.Doc),
-		Name:           javaTypeName,
+		Name:           name,
 		PackagePath:    javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		Source:         tdef.File.BaseName,
 		VdlTypeName:    tdef.Type.Name(),
@@ -84,7 +83,7 @@ func genJavaEnumFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		log.Fatalf("vdl: couldn't execute enum template: %v", err)
 	}
 	return JavaFileInfo{
-		Name: javaTypeName + ".java",
+		Name: name + ".java",
 		Data: buf.Bytes(),
 	}
 }
