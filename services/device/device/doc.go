@@ -379,13 +379,14 @@ The device acl set flags are:
 Device publish
 
 Publishes the given application(s) to the binary and application servers. The
-binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>]. The binary is
-published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>. The
+<title> can be optionally specified with @<title> (defaults to the binary name).
+The binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>]. The binary
+is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>. The
 application envelope is published as <appserv>/<binary name>/0. Optionally, adds
 blessing patterns to the Read and Resolve AccessLists.
 
 Usage:
-   device publish [flags] <binary name> ...
+   device publish [flags] <binary name>[@<title>] ...
 
 The device publish flags are:
  -appserv=applications

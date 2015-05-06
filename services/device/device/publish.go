@@ -34,11 +34,13 @@ var cmdPublish = &cmdline.Command{
 	Short: "Publish the given application(s).",
 	Long: `
 Publishes the given application(s) to the binary and application servers.
+The <title> can be optionally specified with @<title> (defaults to the binary
+name).
 The binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>].
 The binary is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>.
 The application envelope is published as <appserv>/<binary name>/0.
 Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
-	ArgsName: "<binary name> ...",
+	ArgsName: "<binary name>[@<title>] ...",
 }
 
 var binaryService, applicationService, readBlessings, goarchFlag, goosFlag string
@@ -78,7 +80,11 @@ func setAccessLists(cmd *cmdline.Command, von string) error {
 	return nil
 }
 
-func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
+func publishOne(cmd *cmdline.Command, binPath, binary string) error {
+	binaryName, title := binary, binary
+	if parts := strings.SplitN(binary, "@", 2); len(parts) == 2 {
+		binaryName, title = parts[0], parts[1]
+	}
 	// Step 1, upload the binary to the binary service.
 
 	// TODO(caprita): Instead of the current timestamp, use each binary's
@@ -113,7 +119,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 	envelope, err := appClient.Match(gctx, profiles)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		// There was nothing published yet, create a new envelope.
-		envelope = application.Envelope{Title: binaryName}
+		envelope = application.Envelope{Title: title}
 	} else if err != nil {
 		return err
 	}

@@ -318,11 +318,11 @@ func Upload(ctx *context.T, von string, data []byte, mediaInfo repository.MediaI
 
 func UploadFromFile(ctx *context.T, von, path string) (*security.Signature, error) {
 	file, err := os.Open(path)
-	defer file.Close()
 	if err != nil {
-		vlog.Errorf("Open(%v) failed: %v", err)
+		vlog.Errorf("Open(%v) failed: %v", path, err)
 		return nil, verror.New(errOperationFailed, ctx)
 	}
+	defer file.Close()
 	mediaInfo, err := packages.LoadMediaInfo(path)
 	if err != nil {
 		mediaInfo = packages.MediaInfoForFileName(path)
