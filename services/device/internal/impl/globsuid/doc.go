@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package globsuid
 
-const (
-	testUserName        = "_uucp"
-	anotherTestUserName = "_lp"
-)
+// Test code for the device manager's globbing, suidhelper and
+// signature matching functionality.

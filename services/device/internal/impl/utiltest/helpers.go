@@ -36,6 +36,7 @@ import (
 	"v.io/x/ref/envvar"
 	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/device/internal/impl"
+	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -675,4 +676,31 @@ func InitForTest() (*context.T, v23.Shutdown) {
 	ctx, shutdown := test.InitForTest()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
+}
+
+func StartRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() {
+	rootDir, err := binarylib.SetupRootDir("")
+	if err != nil {
+		t.Fatalf("binarylib.SetupRootDir failed: %v", err)
+	}
+	state, err := binarylib.NewState(rootDir, "", 3)
+	if err != nil {
+		t.Fatalf("binarylib.NewState failed: %v", err)
+	}
+	server, _ := servicetest.NewServer(ctx)
+	d, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
+	if err != nil {
+		t.Fatalf("server.NewDispatcher failed: %v", err)
+	}
+	if err := server.ServeDispatcher(von, d); err != nil {
+		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	}
+	return func() {
+		if err := server.Stop(); err != nil {
+			t.Fatalf("server.Stop failed: %v", err)
+		}
+		if err := os.RemoveAll(rootDir); err != nil {
+			t.Fatalf("os.RemoveAll(%q) failed: %v", rootDir, err)
+		}
+	}
 }
