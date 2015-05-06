@@ -9,10 +9,8 @@
 package impl_test
 
 import (
-	"bytes"
 	"crypto/md5"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -83,16 +81,6 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 	return path
 }
 
-func initForTest() (*context.T, v23.Shutdown) {
-	roots, _ := envvar.NamespaceRoots()
-	for key, _ := range roots {
-		os.Unsetenv(key)
-	}
-	ctx, shutdown := test.InitForTest()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-	return ctx, shutdown
-}
-
 // TestDeviceManagerUpdateAndRevert makes the device manager go through the
 // motions of updating itself to newer versions (twice), and reverting itself
 // back (twice). It also checks that update and revert fail when they're
@@ -100,7 +88,7 @@ func initForTest() (*context.T, v23.Shutdown) {
 // command. Further versions are running through the soft link that the device
 // manager itself updates.
 func TestDeviceManagerUpdateAndRevert(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := utiltest.InitForTest()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
@@ -324,7 +312,7 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 // TestLifeOfAnApp installs an app, instantiates, runs, kills, and deletes
 // several instances, and performs updates.
 func TestLifeOfAnApp(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := utiltest.InitForTest()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
@@ -624,173 +612,6 @@ func startRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 	}
 }
 
-// TestDeviceManagerClaim claims a devicemanager and tests AccessList permissions on
-// its methods.
-func TestDeviceManagerClaim(t *testing.T) {
-	ctx, shutdown := initForTest()
-	defer shutdown()
-
-	// root blessing provider so that the principals of all the contexts
-	// recognize each other.
-	idp := testutil.NewIDProvider("root")
-	if err := idp.Bless(v23.GetPrincipal(ctx), "ctx"); err != nil {
-		t.Fatal(err)
-	}
-
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
-	defer deferFn()
-
-	// Set up mock application and binary repositories.
-	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
-	defer cleanup()
-
-	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
-	defer cleanup()
-	if err := impl.SaveCreatorInfo(root); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := utiltest.GenerateSuidHelperScript(t, root)
-
-	// Set up the device manager.  Since we won't do device manager updates,
-	// don't worry about its application envelope and current link.
-	pairingToken := "abcxyz"
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link", pairingToken)
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
-
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", "trapp")
-
-	claimantCtx := utiltest.CtxWithNewPrincipal(t, ctx, idp, "claimant")
-	octx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("other"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Unclaimed devices cannot do anything but be claimed.
-	// TODO(ashankar,caprita): The line below will currently fail with
-	// ErrUnclaimedDevice != NotTrusted. NotTrusted can be avoided by
-	// passing options.SkipServerEndpointAuthorization{} to the "Install" RPC.
-	// Refactor the helper function to make this possible.
-	//installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
-
-	// Claim the device with an incorrect pairing token should fail.
-	utiltest.ClaimDeviceExpectError(t, claimantCtx, "claimable", "mydevice", "badtoken", impl.ErrInvalidPairingToken.ID)
-	// But succeed with a valid pairing token
-	utiltest.ClaimDevice(t, claimantCtx, "claimable", "dm", "mydevice", pairingToken)
-
-	// Installation should succeed since claimantRT is now the "owner" of
-	// the devicemanager.
-	appID := utiltest.InstallApp(t, claimantCtx)
-
-	// octx will not install the app now since it doesn't recognize the
-	// device's blessings. The error returned will be ErrNoServers as that
-	// is what the IPC stack does when there are no authorized servers.
-	utiltest.InstallAppExpectError(t, octx, verror.ErrNoServers.ID)
-	// Even if it does recognize the device (by virtue of recognizing the
-	// claimant), the device will not allow it to install.
-	if err := v23.GetPrincipal(octx).AddToRoots(v23.GetPrincipal(claimantCtx).BlessingStore().Default()); err != nil {
-		t.Fatal(err)
-	}
-	utiltest.InstallAppExpectError(t, octx, verror.ErrNoAccess.ID)
-
-	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := utiltest.SetupPingServer(t, claimantCtx)
-	defer cleanup()
-
-	// Start an instance of the app.
-	instanceID := utiltest.LaunchApp(t, claimantCtx, appID)
-
-	// Wait until the app pings us that it's ready.
-	pingCh.WaitForPingArgs(t)
-	utiltest.Resolve(t, ctx, "trapp", 1)
-	utiltest.KillApp(t, claimantCtx, appID, instanceID)
-
-	// TODO(gauthamt): Test that AccessLists persist across devicemanager restarts
-}
-
-func TestDeviceManagerUpdateAccessList(t *testing.T) {
-	ctx, shutdown := initForTest()
-	defer shutdown()
-
-	// Identity provider to ensure that all processes recognize each
-	// others' blessings.
-	idp := testutil.NewIDProvider("root")
-	ctx = utiltest.CtxWithNewPrincipal(t, ctx, idp, "self")
-
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
-	defer deferFn()
-
-	// Set up mock application and binary repositories.
-	envelope, cleanup := utiltest.StartMockRepos(t, ctx)
-	defer cleanup()
-
-	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
-	defer cleanup()
-	if err := impl.SaveCreatorInfo(root); err != nil {
-		t.Fatal(err)
-	}
-
-	selfCtx := ctx
-	octx := utiltest.CtxWithNewPrincipal(t, selfCtx, idp, "other")
-
-	// Set up the device manager.  Since we won't do device manager updates,
-	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
-	defer utiltest.VerifyNoRunningProcesses(t)
-
-	// Create an envelope for an app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps")
-
-	// On an unclaimed device manager, there will be no AccessLists.
-	if _, _, err := device.DeviceClient("claimable").GetPermissions(selfCtx); err == nil {
-		t.Fatalf("GetPermissions should have failed but didn't.")
-	}
-
-	// Claim the devicemanager as "root/self/mydevice"
-	utiltest.ClaimDevice(t, selfCtx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
-	expectedAccessList := make(access.Permissions)
-	for _, tag := range access.AllTypicalTags() {
-		expectedAccessList[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
-	}
-	var b bytes.Buffer
-	if err := expectedAccessList.WriteTo(&b); err != nil {
-		t.Fatalf("Failed to save AccessList:%v", err)
-	}
-	// Note, "version" below refers to the Permissions version, not the device
-	// manager version.
-	md5hash := md5.Sum(b.Bytes())
-	expectedVersion := hex.EncodeToString(md5hash[:])
-	deviceStub := device.DeviceClient("dm/device")
-	perms, version, err := deviceStub.GetPermissions(selfCtx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if version != expectedVersion {
-		t.Fatalf("getAccessList expected:%v(%v), got:%v(%v)", expectedAccessList, expectedVersion, perms, version)
-	}
-	// Install from octx should fail, since it does not match the AccessList.
-	utiltest.InstallAppExpectError(t, octx, verror.ErrNoAccess.ID)
-
-	newAccessList := make(access.Permissions)
-	for _, tag := range access.AllTypicalTags() {
-		newAccessList.Add("root/other", string(tag))
-	}
-	if err := deviceStub.SetPermissions(selfCtx, newAccessList, "invalid"); err == nil {
-		t.Fatalf("SetPermissions should have failed with invalid version")
-	}
-	if err := deviceStub.SetPermissions(selfCtx, newAccessList, version); err != nil {
-		t.Fatal(err)
-	}
-	// Install should now fail with selfCtx, which no longer matches the
-	// AccessLists but succeed with octx, which does.
-	utiltest.InstallAppExpectError(t, selfCtx, verror.ErrNoAccess.ID)
-	utiltest.InstallApp(t, octx)
-}
-
 type simpleRW chan []byte
 
 func (s simpleRW) Write(p []byte) (n int, err error) {
@@ -807,7 +628,7 @@ func (s simpleRW) Read(p []byte) (n int, err error) {
 // This should bring up a functioning device manager.  In the end it runs
 // Uninstall and verifies that the installation is gone.
 func TestDeviceManagerInstallation(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := utiltest.InitForTest()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
@@ -867,7 +688,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 }
 
 func TestDeviceManagerGlobAndDebug(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := utiltest.InitForTest()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
@@ -966,7 +787,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 // TODO(caprita): We need better test coverage for how updating/reverting apps
 // affects the package configured for the app.
 func TestDeviceManagerPackages(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := utiltest.InitForTest()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
@@ -1106,7 +927,7 @@ func listAndVerifyAssociations(t *testing.T, ctx *context.T, stub device.DeviceC
 // TODO(rjkroege): Verify that associations persist across restarts once
 // permanent storage is added.
 func TestAccountAssociation(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := utiltest.InitForTest()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
@@ -1192,7 +1013,7 @@ func TestAccountAssociation(t *testing.T) {
 }
 
 func TestAppWithSuidHelper(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := utiltest.InitForTest()
 	defer shutdown()
 
 	// Identity provider used to ensure that all processes recognize each
@@ -1357,7 +1178,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 }
 
 func TestDownloadSignatureMatch(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := utiltest.InitForTest()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
