@@ -389,14 +389,14 @@ func (d *dag) addNode(oid ObjId, version Version, remote, deleted bool,
 
 	// The new node must not exist.
 	if d.hasNode(oid, version) {
-		return fmt.Errorf("node %d:%d already exists in the DAG", oid, version)
+		return fmt.Errorf("node %v:%d already exists in the DAG", oid, version)
 	}
 
 	// A new root node (no parents) is allowed only for new objects.
 	if parents == nil {
 		_, err := d.getHead(oid)
 		if err == nil {
-			return fmt.Errorf("cannot add another root node %d:%d for this object in the DAG", oid, version)
+			return fmt.Errorf("cannot add another root node %v:%d for this object in the DAG", oid, version)
 		}
 	}
 
@@ -582,7 +582,7 @@ func (d *dag) moveHead(oid ObjId, head Version) error {
 
 	// Verify that the node exists.
 	if !d.hasNode(oid, head) {
-		return fmt.Errorf("node %d:%d does not exist in the DAG", oid, head)
+		return fmt.Errorf("node %v:%d does not exist in the DAG", oid, head)
 	}
 
 	return d.setHead(oid, head)
@@ -607,13 +607,13 @@ func (d *dag) hasConflict(oid ObjId) (isConflict bool, newHead, oldHead, ancesto
 
 	graft := d.graft[oid]
 	if graft == nil {
-		err = fmt.Errorf("node %d has no DAG graft information", oid)
+		err = fmt.Errorf("node %v has no DAG graft information", oid)
 		return
 	}
 
 	numHeads := len(graft.newHeads)
 	if numHeads < 1 || numHeads > 2 {
-		err = fmt.Errorf("node %d has invalid number of new head candidates %d: %v", oid, numHeads, graft.newHeads)
+		err = fmt.Errorf("node %v has invalid number of new head candidates %d: %v", oid, numHeads, graft.newHeads)
 		return
 	}
 
@@ -906,7 +906,7 @@ func (d *dag) getLogrec(oid ObjId, version Version) (string, error) {
 // objNodeKey returns the key used to access the object node (oid, version)
 // in the DAG DB.
 func objNodeKey(oid ObjId, version Version) string {
-	return fmt.Sprintf("%s:%d", oid, version)
+	return fmt.Sprintf("%v:%d", oid, version)
 }
 
 // setNode stores the dagNode structure for the object node (oid, version)

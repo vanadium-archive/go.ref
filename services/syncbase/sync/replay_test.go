@@ -193,30 +193,30 @@ func dagReplayCommands(dag *dag, syncfile string) error {
 		case addLocal:
 			err = dag.addNode(cmd.objID, cmd.version, false, cmd.deleted, cmd.parents, cmd.logrec, NoTxId)
 			if err != nil {
-				return fmt.Errorf("cannot add local node %d:%d to DAG: %v", cmd.objID, cmd.version, err)
+				return fmt.Errorf("cannot add local node %v:%d to DAG: %v", cmd.objID, cmd.version, err)
 			}
 			if err := dag.moveHead(cmd.objID, cmd.version); err != nil {
-				return fmt.Errorf("cannot move head to %d:%d in DAG: %v", cmd.objID, cmd.version, err)
+				return fmt.Errorf("cannot move head to %v:%d in DAG: %v", cmd.objID, cmd.version, err)
 			}
 			dag.flush()
 
 		case addRemote:
 			err = dag.addNode(cmd.objID, cmd.version, true, cmd.deleted, cmd.parents, cmd.logrec, NoTxId)
 			if err != nil {
-				return fmt.Errorf("cannot add remote node %d:%d to DAG: %v", cmd.objID, cmd.version, err)
+				return fmt.Errorf("cannot add remote node %v:%d to DAG: %v", cmd.objID, cmd.version, err)
 			}
 			dag.flush()
 
 		case linkLocal:
 			if err = dag.addParent(cmd.objID, cmd.version, cmd.parents[0], false); err != nil {
-				return fmt.Errorf("cannot add local parent %d to DAG node %d:%d: %v",
+				return fmt.Errorf("cannot add local parent %d to DAG node %v:%d: %v",
 					cmd.parents[0], cmd.objID, cmd.version, err)
 			}
 			dag.flush()
 
 		case linkRemote:
 			if err = dag.addParent(cmd.objID, cmd.version, cmd.parents[0], true); err != nil {
-				return fmt.Errorf("cannot add remote parent %d to DAG node %d:%d: %v",
+				return fmt.Errorf("cannot add remote parent %d to DAG node %v:%d: %v",
 					cmd.parents[0], cmd.objID, cmd.version, err)
 			}
 			dag.flush()

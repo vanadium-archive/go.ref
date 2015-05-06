@@ -208,39 +208,39 @@ func TestSetNode(t *testing.T) {
 
 	node, err := dag.getNode(oid, version)
 	if err == nil || node != nil {
-		t.Errorf("Found non-existent object %d:%d in DAG file %s: %v", oid, version, dagfile, node)
+		t.Errorf("Found non-existent object %v:%d in DAG file %s: %v", oid, version, dagfile, node)
 	}
 
 	if dag.hasNode(oid, version) {
-		t.Errorf("hasNode() found non-existent object %d:%d in DAG file %s", oid, version, dagfile)
+		t.Errorf("hasNode() found non-existent object %v:%d in DAG file %s", oid, version, dagfile)
 	}
 
 	if logrec, err := dag.getLogrec(oid, version); err == nil || logrec != "" {
-		t.Errorf("Non-existent object %d:%d has a logrec in DAG file %s: %v", oid, version, dagfile, logrec)
+		t.Errorf("Non-existent object %v:%d has a logrec in DAG file %s: %v", oid, version, dagfile, logrec)
 	}
 
 	node = &dagNode{Level: 15, Parents: []Version{444, 555}, Logrec: "logrec-23"}
 	if err = dag.setNode(oid, version, node); err != nil {
-		t.Fatalf("Cannot set object %d:%d (%v) in DAG file %s", oid, version, node, dagfile)
+		t.Fatalf("Cannot set object %v:%d (%v) in DAG file %s", oid, version, node, dagfile)
 	}
 
 	for i := 0; i < 2; i++ {
 		node2, err := dag.getNode(oid, version)
 		if err != nil || node2 == nil {
-			t.Errorf("Cannot find stored object %d:%d (i=%d) in DAG file %s", oid, version, i, dagfile)
+			t.Errorf("Cannot find stored object %v:%d (i=%d) in DAG file %s", oid, version, i, dagfile)
 		}
 
 		if !dag.hasNode(oid, version) {
-			t.Errorf("hasNode() did not find object %d:%d (i=%d) in DAG file %s", oid, version, i, dagfile)
+			t.Errorf("hasNode() did not find object %v:%d (i=%d) in DAG file %s", oid, version, i, dagfile)
 		}
 
 		if !reflect.DeepEqual(node, node2) {
-			t.Errorf("Object %d:%d has wrong data (i=%d) in DAG file %s: %v instead of %v",
+			t.Errorf("Object %v:%d has wrong data (i=%d) in DAG file %s: %v instead of %v",
 				oid, version, i, dagfile, node2, node)
 		}
 
 		if logrec, err := dag.getLogrec(oid, version); err != nil || logrec != "logrec-23" {
-			t.Errorf("Object %d:%d has wrong logrec (i=%d) in DAG file %s: %v",
+			t.Errorf("Object %v:%d has wrong logrec (i=%d) in DAG file %s: %v",
 				oid, version, i, dagfile, logrec)
 		}
 
@@ -275,14 +275,14 @@ func TestDelNode(t *testing.T) {
 
 	node := &dagNode{Level: 123, Parents: []Version{333}, Logrec: "logrec-789"}
 	if err = dag.setNode(oid, version, node); err != nil {
-		t.Fatalf("Cannot set object %d:%d (%v) in DAG file %s", oid, version, node, dagfile)
+		t.Fatalf("Cannot set object %v:%d (%v) in DAG file %s", oid, version, node, dagfile)
 	}
 
 	dag.flush()
 
 	err = dag.delNode(oid, version)
 	if err != nil {
-		t.Fatalf("Cannot delete object %d:%d in DAG file %s", oid, version, dagfile)
+		t.Fatalf("Cannot delete object %v:%d in DAG file %s", oid, version, dagfile)
 	}
 
 	dag.flush()
@@ -290,15 +290,15 @@ func TestDelNode(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		node2, err := dag.getNode(oid, version)
 		if err == nil || node2 != nil {
-			t.Errorf("Found deleted object %d:%d (%v) (i=%d) in DAG file %s", oid, version, node2, i, dagfile)
+			t.Errorf("Found deleted object %v:%d (%v) (i=%d) in DAG file %s", oid, version, node2, i, dagfile)
 		}
 
 		if dag.hasNode(oid, version) {
-			t.Errorf("hasNode() found deleted object %d:%d (i=%d) in DAG file %s", oid, version, i, dagfile)
+			t.Errorf("hasNode() found deleted object %v:%d (i=%d) in DAG file %s", oid, version, i, dagfile)
 		}
 
 		if logrec, err := dag.getLogrec(oid, version); err == nil || logrec != "" {
-			t.Errorf("Deleted object %d:%d (i=%d) has logrec in DAG file %s: %v", oid, version, i, dagfile, logrec)
+			t.Errorf("Deleted object %v:%d (i=%d) has logrec in DAG file %s: %v", oid, version, i, dagfile, logrec)
 		}
 
 		if i == 0 {
@@ -330,7 +330,7 @@ func TestAddParent(t *testing.T) {
 	}
 
 	if err = dag.addParent(oid, version, 1, true); err == nil {
-		t.Errorf("addParent() did not fail for an unknown object %d:%d in DAG file %s", oid, version, dagfile)
+		t.Errorf("addParent() did not fail for an unknown object %v:%d in DAG file %s", oid, version, dagfile)
 	}
 
 	if err = dagReplayCommands(dag, "local-init-00.log.sync"); err != nil {
@@ -339,28 +339,28 @@ func TestAddParent(t *testing.T) {
 
 	node := &dagNode{Level: 15, Logrec: "logrec-22"}
 	if err = dag.setNode(oid, version, node); err != nil {
-		t.Fatalf("Cannot set object %d:%d (%v) in DAG file %s", oid, version, node, dagfile)
+		t.Fatalf("Cannot set object %v:%d (%v) in DAG file %s", oid, version, node, dagfile)
 	}
 
 	if err = dag.addParent(oid, version, version, true); err == nil {
-		t.Errorf("addParent() did not fail on a self-parent for object %d:%d in DAG file %s", oid, version, dagfile)
+		t.Errorf("addParent() did not fail on a self-parent for object %v:%d in DAG file %s", oid, version, dagfile)
 	}
 
 	for _, parent := range []Version{4, 5, 6} {
 		if err = dag.addParent(oid, version, parent, true); err == nil {
-			t.Errorf("addParent() did not reject invalid parent %d for object %d:%d in DAG file %s",
+			t.Errorf("addParent() did not reject invalid parent %d for object %v:%d in DAG file %s",
 				parent, oid, version, dagfile)
 		}
 
 		pnode := &dagNode{Level: 11, Logrec: fmt.Sprintf("logrec-%d", parent), Parents: []Version{3}}
 		if err = dag.setNode(oid, parent, pnode); err != nil {
-			t.Fatalf("Cannot set parent object %d:%d (%v) in DAG file %s", oid, parent, pnode, dagfile)
+			t.Fatalf("Cannot set parent object %v:%d (%v) in DAG file %s", oid, parent, pnode, dagfile)
 		}
 
 		remote := parent%2 == 0
 		for i := 0; i < 2; i++ {
 			if err = dag.addParent(oid, version, parent, remote); err != nil {
-				t.Errorf("addParent() failed on parent %d, remote %t (i=%d) for object %d:%d in DAG file %s: %v",
+				t.Errorf("addParent() failed on parent %d, remote %t (i=%d) for object %v:%d in DAG file %s: %v",
 					parent, remote, i, oid, version, dagfile, err)
 			}
 		}
@@ -368,19 +368,19 @@ func TestAddParent(t *testing.T) {
 
 	node2, err := dag.getNode(oid, version)
 	if err != nil || node2 == nil {
-		t.Errorf("Cannot find stored object %d:%d in DAG file %s", oid, version, dagfile)
+		t.Errorf("Cannot find stored object %v:%d in DAG file %s", oid, version, dagfile)
 	}
 
 	expParents := []Version{4, 5, 6}
 	if !reflect.DeepEqual(node2.Parents, expParents) {
-		t.Errorf("invalid parents for object %d:%d in DAG file %s: %v instead of %v",
+		t.Errorf("invalid parents for object %v:%d in DAG file %s: %v instead of %v",
 			oid, version, dagfile, node2.Parents, expParents)
 	}
 
 	// Creating cycles should fail.
 	for v := Version(1); v < version; v++ {
 		if err = dag.addParent(oid, v, version, false); err == nil {
-			t.Errorf("addParent() failed to reject a cycle for object %d: from ancestor %d to node %d in DAG file %s",
+			t.Errorf("addParent() failed to reject a cycle for object %v: from ancestor %d to node %d in DAG file %s",
 				oid, v, version, dagfile)
 		}
 	}
@@ -405,12 +405,12 @@ func TestSetHead(t *testing.T) {
 
 	version, err := dag.getHead(oid)
 	if err == nil {
-		t.Errorf("Found non-existent object head %d in DAG file %s: %d", oid, dagfile, version)
+		t.Errorf("Found non-existent object head %v in DAG file %s: %d", oid, dagfile, version)
 	}
 
 	version = 555
 	if err = dag.setHead(oid, version); err != nil {
-		t.Fatalf("Cannot set object head %d (%d) in DAG file %s", oid, version, dagfile)
+		t.Fatalf("Cannot set object head %v (%d) in DAG file %s", oid, version, dagfile)
 	}
 
 	dag.flush()
@@ -418,10 +418,10 @@ func TestSetHead(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		version2, err := dag.getHead(oid)
 		if err != nil {
-			t.Errorf("Cannot find stored object head %d (i=%d) in DAG file %s", oid, i, dagfile)
+			t.Errorf("Cannot find stored object head %v (i=%d) in DAG file %s", oid, i, dagfile)
 		}
 		if version != version2 {
-			t.Errorf("Object %d has wrong head data (i=%d) in DAG file %s: %d instead of %d",
+			t.Errorf("Object %v has wrong head data (i=%d) in DAG file %s: %d instead of %d",
 				oid, i, dagfile, version2, version)
 		}
 
@@ -434,7 +434,7 @@ func TestSetHead(t *testing.T) {
 		} else if i == 1 {
 			version = 888
 			if err = dag.setHead(oid, version); err != nil {
-				t.Fatalf("Cannot set new object head %d (%d) in DAG file %s", oid, version, dagfile)
+				t.Fatalf("Cannot set new object head %v (%d) in DAG file %s", oid, version, dagfile)
 			}
 			dag.flush()
 		}
@@ -453,7 +453,7 @@ func checkEndOfSync(d *dag, oid ObjId) error {
 	// There should be no grafting or transaction info, and hasConflict() should fail.
 	newHeads, grafts := d.getGraftNodes(oid)
 	if newHeads != nil || grafts != nil {
-		return fmt.Errorf("Object %d: graft info not cleared: newHeads (%v), grafts (%v)", oid, newHeads, grafts)
+		return fmt.Errorf("Object %v: graft info not cleared: newHeads (%v), grafts (%v)", oid, newHeads, grafts)
 	}
 
 	if n := len(d.txSet); n != 0 {
@@ -462,7 +462,7 @@ func checkEndOfSync(d *dag, oid ObjId) error {
 
 	isConflict, newHead, oldHead, ancestor, errConflict := d.hasConflict(oid)
 	if errConflict == nil {
-		return fmt.Errorf("Object %d: conflict did not fail: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		return fmt.Errorf("Object %v: conflict did not fail: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -510,7 +510,7 @@ func TestLocalUpdates(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 2 {
-		t.Errorf("Invalid object %d head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Invalid object %v head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -518,7 +518,7 @@ func TestLocalUpdates(t *testing.T) {
 	exp := map[Version][]Version{0: nil, 1: {0}, 2: {1}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Make sure an existing node cannot be added again.
@@ -539,10 +539,10 @@ func TestLocalUpdates(t *testing.T) {
 	// Make sure a new root node (no parents) cannot be added once a root exists.
 	// For the parents array, check both the "nil" and the empty array as input.
 	if err = dag.addNode(oid, 6789, false, false, nil, "foobar", NoTxId); err == nil {
-		t.Errorf("Adding a 2nd root node (nil parents) for object %d in DAG file %s did not fail", oid, dagfile)
+		t.Errorf("Adding a 2nd root node (nil parents) for object %v in DAG file %s did not fail", oid, dagfile)
 	}
 	if err = dag.addNode(oid, 6789, false, false, []Version{}, "foobar", NoTxId); err == nil {
-		t.Errorf("Adding a 2nd root node (empty parents) for object %d in DAG file %s did not fail", oid, dagfile)
+		t.Errorf("Adding a 2nd root node (empty parents) for object %v in DAG file %s did not fail", oid, dagfile)
 	}
 
 	checkDAGStats(t, "local-update", 1, 3, 0, 0)
@@ -577,7 +577,7 @@ func TestRemoteUpdates(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e == nil {
-		t.Errorf("Object %d head found in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v head found in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -585,7 +585,7 @@ func TestRemoteUpdates(t *testing.T) {
 	exp := map[Version][]Version{0: nil, 1: {0}, 2: {1}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Verify the grafting of remote nodes.
@@ -593,23 +593,23 @@ func TestRemoteUpdates(t *testing.T) {
 
 	expNewHeads := map[Version]struct{}{2: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[Version]uint64{}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be no conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
 	if !(!isConflict && newHead == 2 && oldHead == 0 && ancestor == 0 && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
 	if logrec, e := dag.getLogrec(oid, newHead); e != nil || logrec != "logrec-02" {
-		t.Errorf("Invalid logrec for newhead object %d:%d in DAG file %s: %v", oid, newHead, dagfile, logrec)
+		t.Errorf("Invalid logrec for newhead object %v:%d in DAG file %s: %v", oid, newHead, dagfile, logrec)
 	}
 
 	// Make sure an unknown node cannot become the new head.
@@ -619,7 +619,7 @@ func TestRemoteUpdates(t *testing.T) {
 
 	// Then we can move the head and clear the grafting data.
 	if err = dag.moveHead(oid, newHead); err != nil {
-		t.Errorf("Object %d cannot move head to %d in DAG file %s: %v", oid, newHead, dagfile, err)
+		t.Errorf("Object %v cannot move head to %d in DAG file %s: %v", oid, newHead, dagfile, err)
 	}
 
 	checkDAGStats(t, "remote-update", 1, 3, 0, 0)
@@ -660,7 +660,7 @@ func TestRemoteNoConflict(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 2 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -668,7 +668,7 @@ func TestRemoteNoConflict(t *testing.T) {
 	exp := map[Version][]Version{0: nil, 1: {0}, 2: {1}, 3: {2}, 4: {3}, 5: {4}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Verify the grafting of remote nodes.
@@ -676,38 +676,38 @@ func TestRemoteNoConflict(t *testing.T) {
 
 	expNewHeads := map[Version]struct{}{5: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[Version]uint64{2: 2}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be no conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
 	if !(!isConflict && newHead == 5 && oldHead == 2 && ancestor == 0 && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
 	if logrec, e := dag.getLogrec(oid, oldHead); e != nil || logrec != "logrec-02" {
-		t.Errorf("Invalid logrec for oldhead object %d:%d in DAG file %s: %v", oid, oldHead, dagfile, logrec)
+		t.Errorf("Invalid logrec for oldhead object %v:%d in DAG file %s: %v", oid, oldHead, dagfile, logrec)
 	}
 	if logrec, e := dag.getLogrec(oid, newHead); e != nil || logrec != "logrec-05" {
-		t.Errorf("Invalid logrec for newhead object %d:%d in DAG file %s: %v", oid, newHead, dagfile, logrec)
+		t.Errorf("Invalid logrec for newhead object %v:%d in DAG file %s: %v", oid, newHead, dagfile, logrec)
 	}
 
 	// Then we can move the head and clear the grafting data.
 	if err = dag.moveHead(oid, newHead); err != nil {
-		t.Errorf("Object %d cannot move head to %d in DAG file %s: %v", oid, newHead, dagfile, err)
+		t.Errorf("Object %v cannot move head to %d in DAG file %s: %v", oid, newHead, dagfile, err)
 	}
 
 	// Clear the grafting data and verify that hasConflict() fails without it.
 	dag.clearGraft()
 	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
 	if errConflict == nil {
-		t.Errorf("hasConflict() on %d did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("hasConflict() on %v did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -753,7 +753,7 @@ func TestRemoteConflict(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 2 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -761,7 +761,7 @@ func TestRemoteConflict(t *testing.T) {
 	exp := map[Version][]Version{0: nil, 1: {0}, 2: {1}, 3: {1}, 4: {3}, 5: {4}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Verify the grafting of remote nodes.
@@ -769,29 +769,29 @@ func TestRemoteConflict(t *testing.T) {
 
 	expNewHeads := map[Version]struct{}{2: struct{}{}, 5: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[Version]uint64{1: 1}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be a conflict between v2 and v5 with v1 as ancestor.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
 	if !(isConflict && newHead == 5 && oldHead == 2 && ancestor == 1 && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
 	if logrec, e := dag.getLogrec(oid, oldHead); e != nil || logrec != "logrec-02" {
-		t.Errorf("Invalid logrec for oldhead object %d:%d in DAG file %s: %v", oid, oldHead, dagfile, logrec)
+		t.Errorf("Invalid logrec for oldhead object %v:%d in DAG file %s: %v", oid, oldHead, dagfile, logrec)
 	}
 	if logrec, e := dag.getLogrec(oid, newHead); e != nil || logrec != "logrec-05" {
-		t.Errorf("Invalid logrec for newhead object %d:%d in DAG file %s: %v", oid, newHead, dagfile, logrec)
+		t.Errorf("Invalid logrec for newhead object %v:%d in DAG file %s: %v", oid, newHead, dagfile, logrec)
 	}
 	if logrec, e := dag.getLogrec(oid, ancestor); e != nil || logrec != "logrec-01" {
-		t.Errorf("Invalid logrec for ancestor object %d:%d in DAG file %s: %v", oid, ancestor, dagfile, logrec)
+		t.Errorf("Invalid logrec for ancestor object %v:%d in DAG file %s: %v", oid, ancestor, dagfile, logrec)
 	}
 
 	checkDAGStats(t, "remote-conf-pre", 1, 6, 0, 0)
@@ -803,13 +803,13 @@ func TestRemoteConflict(t *testing.T) {
 
 	// Verify that the head moved to v6 and the parent map shows the resolution.
 	if head, e := dag.getHead(oid); e != nil || head != 6 {
-		t.Errorf("Object %d has wrong head after conflict resolution in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head after conflict resolution in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	exp[6] = []Version{2, 5}
 	pmap = dag.getParentMap(oid)
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map after conflict resolution in DAG file %s: (%v) instead of (%v)",
+		t.Errorf("Invalid object %v parent map after conflict resolution in DAG file %s: (%v) instead of (%v)",
 			oid, dagfile, pmap, exp)
 	}
 
@@ -859,7 +859,7 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 2 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -867,7 +867,7 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 	exp := map[Version][]Version{0: nil, 1: {0}, 2: {1}, 3: {0}, 4: {1, 3}, 5: {4}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Verify the grafting of remote nodes.
@@ -875,29 +875,29 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 
 	expNewHeads := map[Version]struct{}{2: struct{}{}, 5: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[Version]uint64{0: 0, 1: 1}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be a conflict between v2 and v5 with v1 as ancestor.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
 	if !(isConflict && newHead == 5 && oldHead == 2 && ancestor == 1 && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
 	if logrec, e := dag.getLogrec(oid, oldHead); e != nil || logrec != "logrec-02" {
-		t.Errorf("Invalid logrec for oldhead object %d:%d in DAG file %s: %v", oid, oldHead, dagfile, logrec)
+		t.Errorf("Invalid logrec for oldhead object %v:%d in DAG file %s: %v", oid, oldHead, dagfile, logrec)
 	}
 	if logrec, e := dag.getLogrec(oid, newHead); e != nil || logrec != "logrec-05" {
-		t.Errorf("Invalid logrec for newhead object %d:%d in DAG file %s: %v", oid, newHead, dagfile, logrec)
+		t.Errorf("Invalid logrec for newhead object %v:%d in DAG file %s: %v", oid, newHead, dagfile, logrec)
 	}
 	if logrec, e := dag.getLogrec(oid, ancestor); e != nil || logrec != "logrec-01" {
-		t.Errorf("Invalid logrec for ancestor object %d:%d in DAG file %s: %v", oid, ancestor, dagfile, logrec)
+		t.Errorf("Invalid logrec for ancestor object %v:%d in DAG file %s: %v", oid, ancestor, dagfile, logrec)
 	}
 
 	checkDAGStats(t, "remote-conf2-pre", 1, 6, 0, 0)
@@ -909,13 +909,13 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 
 	// Verify that the head moved to v6 and the parent map shows the resolution.
 	if head, e := dag.getHead(oid); e != nil || head != 6 {
-		t.Errorf("Object %d has wrong head after conflict resolution in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head after conflict resolution in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	exp[6] = []Version{2, 5}
 	pmap = dag.getParentMap(oid)
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map after conflict resolution in DAG file %s: (%v) instead of (%v)",
+		t.Errorf("Invalid object %v parent map after conflict resolution in DAG file %s: (%v) instead of (%v)",
 			oid, dagfile, pmap, exp)
 	}
 
@@ -966,7 +966,7 @@ func TestAncestorIterator(t *testing.T) {
 		// Check that all prior nodes are visited only once.
 		for i := Version(0); i < (start + 1); i++ {
 			if visitCount[i] != 1 {
-				t.Errorf("wrong visit count for iter on object %d node %d starting from node %d: %d instead of 1",
+				t.Errorf("wrong visit count for iter on object %v node %d starting from node %d: %d instead of 1",
 					oid, i, start, visitCount[i])
 			}
 		}
@@ -1039,13 +1039,13 @@ func TestPruning(t *testing.T) {
 		})
 
 		if i == 0 && err == nil {
-			t.Errorf("pruning non-existent object %d:%d did not fail in DAG file %s", oid, version, dagfile)
+			t.Errorf("pruning non-existent object %v:%d did not fail in DAG file %s", oid, version, dagfile)
 		} else if i > 0 && err != nil {
-			t.Errorf("pruning object %d:%d failed in DAG file %s: %v", oid, version, dagfile, err)
+			t.Errorf("pruning object %v:%d failed in DAG file %s: %v", oid, version, dagfile, err)
 		}
 
 		if del != delCounts[i] {
-			t.Errorf("pruning object %d:%d deleted %d log records instead of %d", oid, version, del, delCounts[i])
+			t.Errorf("pruning object %v:%d deleted %d log records instead of %d", oid, version, del, delCounts[i])
 		}
 
 		which += "*"
@@ -1053,7 +1053,7 @@ func TestPruning(t *testing.T) {
 		checkDAGStats(t, which, 1, int64(remain), 0, 0)
 
 		if head, err := dag.getHead(oid); err != nil || head != 8 {
-			t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+			t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 		}
 
 		err = dag.pruneDone()
@@ -1072,7 +1072,7 @@ func TestPruning(t *testing.T) {
 
 		pmap := dag.getParentMap(oid)
 		if !reflect.DeepEqual(pmap, exp) {
-			t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+			t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 		}
 	}
 
@@ -1082,7 +1082,7 @@ func TestPruning(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Errorf("pruneAll() for object %d failed in DAG file %s: %v", oid, dagfile, err)
+		t.Errorf("pruneAll() for object %v failed in DAG file %s: %v", oid, dagfile, err)
 	}
 
 	if err = checkEndOfSync(dag, oid); err != nil {
@@ -1133,10 +1133,10 @@ func TestPruningCallbackError(t *testing.T) {
 	})
 
 	if err == nil {
-		t.Errorf("pruning object %d:%d did not fail in DAG file %s", oid, version, dagfile)
+		t.Errorf("pruning object %v:%d did not fail in DAG file %s", oid, version, dagfile)
 	}
 	if del != expDel {
-		t.Errorf("pruning object %d:%d deleted %d log records instead of %d", oid, version, del, expDel)
+		t.Errorf("pruning object %v:%d deleted %d log records instead of %d", oid, version, del, expDel)
 	}
 
 	err = dag.pruneDone()
@@ -1145,12 +1145,12 @@ func TestPruningCallbackError(t *testing.T) {
 	}
 
 	if head, err := dag.getHead(oid); err != nil || head != 8 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	checkDAGStats(t, "prune-cb-end", 1, 1, 0, 0)
@@ -1194,7 +1194,7 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 3 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -1202,7 +1202,7 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	exp := map[Version][]Version{1: nil, 2: {1, 4}, 3: {2}, 4: {1}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Verify the grafting of remote nodes.
@@ -1210,18 +1210,18 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 
 	expNewHeads := map[Version]struct{}{3: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[Version]uint64{1: 0, 4: 1}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be no conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
 	if !(!isConflict && newHead == 3 && oldHead == 3 && ancestor == NoVersion && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -1229,7 +1229,7 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	dag.clearGraft()
 	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
 	if errConflict == nil {
-		t.Errorf("hasConflict() on %d did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("hasConflict() on %v did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -1271,7 +1271,7 @@ func TestRemoteLinkedConflict(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 3 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -1279,7 +1279,7 @@ func TestRemoteLinkedConflict(t *testing.T) {
 	exp := map[Version][]Version{1: nil, 2: {1}, 3: {2}, 4: {1, 2}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Verify the grafting of remote nodes.
@@ -1287,18 +1287,18 @@ func TestRemoteLinkedConflict(t *testing.T) {
 
 	expNewHeads := map[Version]struct{}{3: struct{}{}, 4: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[Version]uint64{1: 0, 2: 1}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be a conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
 	if !(isConflict && newHead == 4 && oldHead == 3 && ancestor == 2 && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -1306,7 +1306,7 @@ func TestRemoteLinkedConflict(t *testing.T) {
 	dag.clearGraft()
 	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
 	if errConflict == nil {
-		t.Errorf("hasConflict() on %d did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("hasConflict() on %v did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -1349,7 +1349,7 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 3 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -1357,7 +1357,7 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	exp := map[Version][]Version{1: nil, 2: {1}, 3: {2}, 4: {1, 3}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Verify the grafting of remote nodes.
@@ -1365,18 +1365,18 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 
 	expNewHeads := map[Version]struct{}{4: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[Version]uint64{1: 0, 3: 2}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be no conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
 	if !(!isConflict && newHead == 4 && oldHead == 3 && ancestor == NoVersion && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -1384,7 +1384,7 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	dag.clearGraft()
 	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
 	if errConflict == nil {
-		t.Errorf("hasConflict() on %d did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("hasConflict() on %v did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -1429,7 +1429,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 3 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
@@ -1437,7 +1437,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	exp := map[Version][]Version{1: nil, 2: {1}, 3: {2, 4}, 4: {1}, 5: {3}}
 
 	if !reflect.DeepEqual(pmap, exp) {
-		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+		t.Errorf("Invalid object %v parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
 	}
 
 	// Verify the grafting of remote nodes.
@@ -1445,31 +1445,31 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 
 	expNewHeads := map[Version]struct{}{5: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[Version]uint64{1: 0, 3: 2, 4: 1}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be no conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
 	if !(!isConflict && newHead == 5 && oldHead == 3 && ancestor == NoVersion && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
 	// Then we can move the head and clear the grafting data.
 	if err = dag.moveHead(oid, newHead); err != nil {
-		t.Errorf("Object %d cannot move head to %d in DAG file %s: %v", oid, newHead, dagfile, err)
+		t.Errorf("Object %v cannot move head to %d in DAG file %s: %v", oid, newHead, dagfile, err)
 	}
 
 	// Clear the grafting data and verify that hasConflict() fails without it.
 	dag.clearGraft()
 	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
 	if errConflict == nil {
-		t.Errorf("hasConflict() on %d did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("hasConflict() on %v did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -1480,22 +1480,22 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	}
 
 	if head, e := dag.getHead(oid); e != nil || head != 5 {
-		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+		t.Errorf("Object %v has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	newHeads, grafts = dag.getGraftNodes(oid)
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
-		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+		t.Errorf("Object %v has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts = map[Version]uint64{}
 	if !reflect.DeepEqual(grafts, expgrafts) {
-		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+		t.Errorf("Invalid object %v graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
 	if !(!isConflict && newHead == 5 && oldHead == 5 && ancestor == NoVersion && errConflict == nil) {
-		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+		t.Errorf("Object %v wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
@@ -1567,7 +1567,7 @@ func TestAddNodeTransactional(t *testing.T) {
 	}
 
 	if err := dag.addNode(oid_a, 3, false, false, []Version{2}, "logrec-a-03", tid_1); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
 	}
 
 	if tTmp := dag.addNodeTxStart(tid_1); tTmp != tid_1 {
@@ -1575,7 +1575,7 @@ func TestAddNodeTransactional(t *testing.T) {
 	}
 
 	if err := dag.addNode(oid_b, 3, false, false, []Version{2}, "logrec-b-03", tid_1); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_1, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_b, tid_1, dagfile, err)
 	}
 
 	// At the same time mutate the 3rd object in another transaction.
@@ -1593,7 +1593,7 @@ func TestAddNodeTransactional(t *testing.T) {
 	}
 
 	if err := dag.addNode(oid_c, 2, false, false, []Version{1}, "logrec-c-02", tid_2); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_c, tid_2, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_c, tid_2, dagfile, err)
 	}
 
 	// Verify the in-memory transaction sets constructed.
@@ -1622,7 +1622,7 @@ func TestAddNodeTransactional(t *testing.T) {
 	}
 
 	if err := dag.addNode(oid_c, 3, false, false, []Version{2}, "logrec-c-03", bad_tid); err == nil {
-		t.Errorf("addNode() did not fail on object %d for a bad Tx ID %v in DAG file %s", oid_c, bad_tid, dagfile)
+		t.Errorf("addNode() did not fail on object %v for a bad Tx ID %v in DAG file %s", oid_c, bad_tid, dagfile)
 	}
 	if err := dag.addNodeTxEnd(bad_tid, 1); err == nil {
 		t.Errorf("addNodeTxEnd() did not fail for a bad Tx ID %v in DAG file %s", bad_tid, dagfile)
@@ -1704,7 +1704,7 @@ func TestAddNodeTransactional(t *testing.T) {
 	}
 
 	if err := dag.addNode(oid_a, 4, false, false, []Version{3}, "logrec-a-04", tid_3); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_3, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_a, tid_3, dagfile, err)
 	}
 
 	if err := dag.addNodeTxEnd(tid_3, 2); err != nil {
@@ -1743,7 +1743,7 @@ func TestAddNodeTransactional(t *testing.T) {
 	}
 
 	if err := dag.addNode(oid_b, 4, false, false, []Version{3}, "logrec-b-04", tid_3); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_3, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_b, tid_3, dagfile, err)
 	}
 
 	if err := dag.addNodeTxEnd(tid_3, 3); err == nil {
@@ -1770,38 +1770,38 @@ func TestAddNodeTransactional(t *testing.T) {
 	// Get the 3 new nodes from the DAG and verify their Tx IDs.
 	node, err := dag.getNode(oid_a, 3)
 	if err != nil {
-		t.Errorf("Cannot find object %d:3 in DAG file %s: %v", oid_a, dagfile, err)
+		t.Errorf("Cannot find object %v:3 in DAG file %s: %v", oid_a, dagfile, err)
 	}
 	if node.TxId != tid_1 {
-		t.Errorf("Invalid TxId for object %d:3 in DAG file %s: %v instead of %v", oid_a, dagfile, node.TxId, tid_1)
+		t.Errorf("Invalid TxId for object %v:3 in DAG file %s: %v instead of %v", oid_a, dagfile, node.TxId, tid_1)
 	}
 	node, err = dag.getNode(oid_a, 4)
 	if err != nil {
-		t.Errorf("Cannot find object %d:4 in DAG file %s: %v", oid_a, dagfile, err)
+		t.Errorf("Cannot find object %v:4 in DAG file %s: %v", oid_a, dagfile, err)
 	}
 	if node.TxId != tid_3 {
-		t.Errorf("Invalid TxId for object %d:4 in DAG file %s: %v instead of %v", oid_a, dagfile, node.TxId, tid_3)
+		t.Errorf("Invalid TxId for object %v:4 in DAG file %s: %v instead of %v", oid_a, dagfile, node.TxId, tid_3)
 	}
 	node, err = dag.getNode(oid_b, 3)
 	if err != nil {
-		t.Errorf("Cannot find object %d:3 in DAG file %s: %v", oid_b, dagfile, err)
+		t.Errorf("Cannot find object %v:3 in DAG file %s: %v", oid_b, dagfile, err)
 	}
 	if node.TxId != tid_1 {
-		t.Errorf("Invalid TxId for object %d:3 in DAG file %s: %v instead of %v", oid_b, dagfile, node.TxId, tid_1)
+		t.Errorf("Invalid TxId for object %v:3 in DAG file %s: %v instead of %v", oid_b, dagfile, node.TxId, tid_1)
 	}
 	node, err = dag.getNode(oid_b, 4)
 	if err != nil {
-		t.Errorf("Cannot find object %d:4 in DAG file %s: %v", oid_b, dagfile, err)
+		t.Errorf("Cannot find object %v:4 in DAG file %s: %v", oid_b, dagfile, err)
 	}
 	if node.TxId != tid_3 {
-		t.Errorf("Invalid TxId for object %d:4 in DAG file %s: %v instead of %v", oid_b, dagfile, node.TxId, tid_3)
+		t.Errorf("Invalid TxId for object %v:4 in DAG file %s: %v instead of %v", oid_b, dagfile, node.TxId, tid_3)
 	}
 	node, err = dag.getNode(oid_c, 2)
 	if err != nil {
-		t.Errorf("Cannot find object %d:2 in DAG file %s: %v", oid_c, dagfile, err)
+		t.Errorf("Cannot find object %v:2 in DAG file %s: %v", oid_c, dagfile, err)
 	}
 	if node.TxId != tid_2 {
-		t.Errorf("Invalid TxId for object %d:2 in DAG file %s: %v instead of %v", oid_c, dagfile, node.TxId, tid_2)
+		t.Errorf("Invalid TxId for object %v:2 in DAG file %s: %v instead of %v", oid_c, dagfile, node.TxId, tid_2)
 	}
 
 	for _, oid := range []ObjId{oid_a, oid_b, oid_c} {
@@ -1856,10 +1856,10 @@ func TestPruningTransactions(t *testing.T) {
 		t.Fatal("Cannot start 1st DAG addNode() transaction")
 	}
 	if err := dag.addNode(oid_a, 3, false, false, []Version{2}, "logrec-a-03", tid_1); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
 	}
 	if err := dag.addNode(oid_b, 3, false, false, []Version{2}, "logrec-b-03", tid_1); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_1, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_b, tid_1, dagfile, err)
 	}
 	if err := dag.addNodeTxEnd(tid_1, 2); err != nil {
 		t.Errorf("Cannot addNodeTxEnd() for Tx ID %v in DAG file %s: %v", tid_1, dagfile, err)
@@ -1872,10 +1872,10 @@ func TestPruningTransactions(t *testing.T) {
 		t.Fatal("Cannot start 2nd DAG addNode() transaction")
 	}
 	if err := dag.addNode(oid_b, 4, false, false, []Version{3}, "logrec-b-04", tid_2); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_2, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_b, tid_2, dagfile, err)
 	}
 	if err := dag.addNode(oid_c, 2, false, false, []Version{1}, "logrec-c-02", tid_2); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_c, tid_2, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_c, tid_2, dagfile, err)
 	}
 	if err := dag.addNodeTxEnd(tid_2, 2); err != nil {
 		t.Errorf("Cannot addNodeTxEnd() for Tx ID %v in DAG file %s: %v", tid_2, dagfile, err)
@@ -1884,20 +1884,20 @@ func TestPruningTransactions(t *testing.T) {
 	checkDAGStats(t, "prune-tx-2", 3, 9, 2, 0)
 
 	if err := dag.addNode(oid_a, 4, false, false, []Version{3}, "logrec-a-04", NoTxId); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
 	}
 	if err := dag.addNode(oid_b, 5, false, false, []Version{4}, "logrec-b-05", NoTxId); err != nil {
-		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_2, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v and Tx ID %v in DAG file %s: %v", oid_b, tid_2, dagfile, err)
 	}
 
 	if err = dag.moveHead(oid_a, 4); err != nil {
-		t.Errorf("Object %d cannot move head in DAG file %s: %v", oid_a, dagfile, err)
+		t.Errorf("Object %v cannot move head in DAG file %s: %v", oid_a, dagfile, err)
 	}
 	if err = dag.moveHead(oid_b, 5); err != nil {
-		t.Errorf("Object %d cannot move head in DAG file %s: %v", oid_b, dagfile, err)
+		t.Errorf("Object %v cannot move head in DAG file %s: %v", oid_b, dagfile, err)
 	}
 	if err = dag.moveHead(oid_c, 2); err != nil {
-		t.Errorf("Object %d cannot move head in DAG file %s: %v", oid_c, dagfile, err)
+		t.Errorf("Object %v cannot move head in DAG file %s: %v", oid_c, dagfile, err)
 	}
 
 	checkDAGStats(t, "prune-tx-3", 3, 11, 2, 0)
@@ -1928,13 +1928,13 @@ func TestPruningTransactions(t *testing.T) {
 	for _, oid := range []ObjId{oid_a, oid_b, oid_c} {
 		head, err := dag.getHead(oid)
 		if err != nil {
-			t.Errorf("Cannot getHead() on object %d in DAG file %s: %v", oid, dagfile, err)
+			t.Errorf("Cannot getHead() on object %v in DAG file %s: %v", oid, dagfile, err)
 		}
 		err = dag.prune(oid, head, func(lr string) error {
 			return nil
 		})
 		if err != nil {
-			t.Errorf("Cannot prune() on object %d in DAG file %s: %v", oid, dagfile, err)
+			t.Errorf("Cannot prune() on object %v in DAG file %s: %v", oid, dagfile, err)
 		}
 	}
 
@@ -1966,10 +1966,10 @@ func TestPruningTransactions(t *testing.T) {
 
 	// Add c3 as a new head and prune at that point.  This should GC Tx-2.
 	if err := dag.addNode(oid_c, 3, false, false, []Version{2}, "logrec-c-03", NoTxId); err != nil {
-		t.Errorf("Cannot addNode() on object %d in DAG file %s: %v", oid_c, dagfile, err)
+		t.Errorf("Cannot addNode() on object %v in DAG file %s: %v", oid_c, dagfile, err)
 	}
 	if err = dag.moveHead(oid_c, 3); err != nil {
-		t.Errorf("Object %d cannot move head in DAG file %s: %v", oid_c, dagfile, err)
+		t.Errorf("Object %v cannot move head in DAG file %s: %v", oid_c, dagfile, err)
 	}
 
 	checkDAGStats(t, "prune-tx-5", 3, 4, 1, 0)
@@ -1978,7 +1978,7 @@ func TestPruningTransactions(t *testing.T) {
 		return nil
 	})
 	if err != nil {
-		t.Errorf("Cannot prune() on object %d in DAG file %s: %v", oid_c, dagfile, err)
+		t.Errorf("Cannot prune() on object %v in DAG file %s: %v", oid_c, dagfile, err)
 	}
 	if err = dag.pruneDone(); err != nil {
 		t.Errorf("pruneDone() #2 failed in DAG file %s: %v", dagfile, err)
@@ -2022,7 +2022,7 @@ func TestHasDeletedDescendant(t *testing.T) {
 
 	// Delete node v3 to create a dangling parent link from v7 (increase code coverage).
 	if err = dag.delNode(oid, 3); err != nil {
-		t.Errorf("cannot delete node %d:3 in DAG file %s: %v", oid, dagfile, err)
+		t.Errorf("cannot delete node %v:3 in DAG file %s: %v", oid, dagfile, err)
 	}
 
 	type hasDelDescTest struct {
@@ -2070,7 +2070,7 @@ func TestPrivNode(t *testing.T) {
 
 	priv, err := dag.getPrivNode(oid)
 	if err == nil || priv != nil {
-		t.Errorf("Found non-existing private object %d in DAG file %s: %v, err %v", oid, dagfile, priv, err)
+		t.Errorf("Found non-existing private object %v in DAG file %s: %v, err %v", oid, dagfile, priv, err)
 	}
 
 	priv = &privNode{
@@ -2080,17 +2080,17 @@ func TestPrivNode(t *testing.T) {
 	}
 
 	if err = dag.setPrivNode(oid, priv); err != nil {
-		t.Fatalf("Cannot set private object %d (%v) in DAG file %s: %v", oid, priv, dagfile, err)
+		t.Fatalf("Cannot set private object %v (%v) in DAG file %s: %v", oid, priv, dagfile, err)
 	}
 
 	checkDAGStats(t, "priv-1", 0, 0, 0, 1)
 
 	priv2, err := dag.getPrivNode(oid)
 	if err != nil {
-		t.Fatalf("Cannot get private object %d from DAG file %s: %v", oid, dagfile, err)
+		t.Fatalf("Cannot get private object %v from DAG file %s: %v", oid, dagfile, err)
 	}
 	if !reflect.DeepEqual(priv2, priv) {
-		t.Errorf("Private object %d has wrong data in DAG file %s: %v instead of %v", oid, dagfile, priv2, priv)
+		t.Errorf("Private object %v has wrong data in DAG file %s: %v instead of %v", oid, dagfile, priv2, priv)
 	}
 
 	//priv.Mutation.PriorVersion = priv.Mutation.Version
@@ -2099,29 +2099,29 @@ func TestPrivNode(t *testing.T) {
 	priv.TxId = 98765
 
 	if err = dag.setPrivNode(oid, priv); err != nil {
-		t.Fatalf("Cannot overwrite private object %d (%v) in DAG file %s: %v", oid, priv, dagfile, err)
+		t.Fatalf("Cannot overwrite private object %v (%v) in DAG file %s: %v", oid, priv, dagfile, err)
 	}
 
 	checkDAGStats(t, "priv-1", 0, 0, 0, 1)
 
 	priv2, err = dag.getPrivNode(oid)
 	if err != nil {
-		t.Fatalf("Cannot get updated private object %d from DAG file %s: %v", oid, dagfile, err)
+		t.Fatalf("Cannot get updated private object %v from DAG file %s: %v", oid, dagfile, err)
 	}
 	if !reflect.DeepEqual(priv2, priv) {
-		t.Errorf("Private object %d has wrong data post-update in DAG file %s: %v instead of %v", oid, dagfile, priv2, priv)
+		t.Errorf("Private object %v has wrong data post-update in DAG file %s: %v instead of %v", oid, dagfile, priv2, priv)
 	}
 
 	err = dag.delPrivNode(oid)
 	if err != nil {
-		t.Fatalf("Cannot delete private object %d in DAG file %s: %v", oid, dagfile, err)
+		t.Fatalf("Cannot delete private object %v in DAG file %s: %v", oid, dagfile, err)
 	}
 
 	checkDAGStats(t, "priv-1", 0, 0, 0, 0)
 
 	priv3, err := dag.getPrivNode(oid)
 	if err == nil || priv3 != nil {
-		t.Errorf("Found deleted private object %d in DAG file %s: %v, err %v", oid, dagfile, priv3, err)
+		t.Errorf("Found deleted private object %v in DAG file %s: %v, err %v", oid, dagfile, priv3, err)
 	}
 
 	dag.close()
