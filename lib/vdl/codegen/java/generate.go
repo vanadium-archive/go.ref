@@ -107,6 +107,7 @@ func Generate(pkg *compile.Package, env *compile.Env) (ret []JavaFileInfo) {
 var nativeTypePackageWhitelist = map[string]bool{
 	"time":                                   true,
 	"v.io/v23/security":                      true,
+	"v.io/v23/security/access":               true,
 	"v.io/x/ref/lib/vdl/testdata/nativetest": true,
 }
 
