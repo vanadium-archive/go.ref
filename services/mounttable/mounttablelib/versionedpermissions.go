@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,12 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
+
+// Blessings can't include a comma so we use them in made up user ids.  The following distinctions are
+// made so that we can account for them differently.
+const localUser = ",LOCAL,"     // a client that has our public key but no blessing from which we can extract a user name
+const blessedUser = ",BLESSED," // a client with blessings we trust but from which we can't extract a user name
+const unknownUser = ",UNKNOWN," // a client which presents no blessing we trust
 
 // VersionedPermissions associates a Version with a Permissions
 type VersionedPermissions struct {
@@ -45,8 +52,8 @@ func (b *VersionedPermissions) Set(ctx *context.T, verstr string, perm access.Pe
 		}
 	}
 	b.P = perm
+	// Increment with possible wrap.
 	b.V++
-	// Protect against wrap.
 	if b.V < 0 {
 		b.V = 0
 	}
@@ -132,6 +139,12 @@ func (mt *mountTable) parsePermFile(path string) error {
 				vlog.VI(2).Infof("added perms %v to %s", perms, name)
 				if isPattern {
 					n.permsTemplate = perms
+					// Save the pattern prefix as a prefix describing a user.
+					prefix := strings.Join(elems[:len(elems)-1], "/")
+					if prefix != "" {
+						prefix += "/"
+					}
+					mt.userPrefixes = append(mt.userPrefixes, prefix)
 				} else {
 					n.vPerms, _ = n.vPerms.Set(nil, "", perms)
 					n.explicitPermissions = true
@@ -142,4 +155,39 @@ func (mt *mountTable) parsePermFile(path string) error {
 		}
 	}
 	return nil
+}
+
+// pickCreator returns a string matching the blessing of the user performing the creation.  We do this using
+// the user prefixes found when parsing the config.  Eventually we may need a better way to define user
+// prefixes.
+//
+// TODO(p): readdress this argument after we have some experience with real users.
+func (mt *mountTable) pickCreator(ctx *context.T, call security.Call) string {
+	// For each blessing, look for one that has a matching user prefix.  The creator is the perfix
+	// plus one more element.
+	//
+	// The prefixes themselves come from the templates in the config that constrain node names to
+	// match the user.
+	blessings, _ := security.RemoteBlessingNames(ctx, call)
+	for _, b := range blessings {
+		for _, p := range mt.userPrefixes {
+			sb := string(b)
+			if !strings.HasPrefix(sb, p) {
+				continue
+			}
+			suffix := strings.TrimPrefix(sb, p)
+			elems := strings.Split(suffix, "/")
+			return p + elems[0]
+		}
+	}
+	if ctx == nil || call == nil {
+		return localUser
+	}
+	if l, r := call.LocalBlessings().PublicKey(), call.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
+		return localUser
+	}
+	if len(blessings) > 0 {
+		return blessedUser
+	}
+	return unknownUser
 }
