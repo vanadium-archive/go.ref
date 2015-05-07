@@ -185,13 +185,12 @@ func backoff(n uint, deadline time.Time) bool {
 }
 
 func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ctx=,name=%.10s...,method=%.10s...,args=,opts...=%v", name, method, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	return c.startCall(ctx, name, method, args, opts)
 }
 
 func (c *client) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, opts ...rpc.CallOpt) error {
-	defer vlog.LogCall()()
-
+	defer vlog.LogCallf("ctx=,name=%.10s...,method=%.10s...,inArgs=,outArgs=,opts...=%v", name, method, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	deadline := getDeadline(ctx, opts)
 
 	var lastErr error
@@ -729,7 +728,7 @@ func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, call security.Call
 }
 
 func (c *client) Close() {
-	defer vlog.LogCall()()
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	for _, v := range c.vcCache.Close() {
 		c.streamMgr.ShutdownEndpoint(v.RemoteEndpoint())
 	}
@@ -852,7 +851,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 }
 
 func (fc *flowClient) Send(item interface{}) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("item=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	if fc.sendClosed {
 		return verror.New(verror.ErrAborted, fc.ctx)
 	}
@@ -896,7 +895,7 @@ func decodeNetError(ctx *context.T, err error) (verror.IDAction, error) {
 }
 
 func (fc *flowClient) Recv(itemptr interface{}) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("itemptr=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	switch {
 	case fc.response.Error != nil:
 		// TODO(cnicolaou): this will become a verror.E when we convert the
@@ -935,7 +934,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 }
 
 func (fc *flowClient) CloseSend() error {
-	defer vlog.LogCall()()
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	return fc.closeSend()
 }
 
@@ -967,7 +966,7 @@ func (fc *flowClient) closeSend() error {
 }
 
 func (fc *flowClient) Finish(resultptrs ...interface{}) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("resultptrs...=%v", resultptrs)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	err := fc.finish(resultptrs...)
 	vtrace.GetSpan(fc.ctx).Finish()
 	return err
@@ -1044,6 +1043,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 }
 
 func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	return fc.server, fc.flow.RemoteBlessings()
 }
 

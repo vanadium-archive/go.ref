@@ -72,7 +72,9 @@ var (
 type DischargeExpiryBuffer time.Duration
 
 func (DischargeExpiryBuffer) RPCStreamListenerOpt() {}
-func (DischargeExpiryBuffer) RPCServerOpt()         {}
+func (DischargeExpiryBuffer) RPCServerOpt() {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+}
 
 const DefaultServerDischargeExpiryBuffer = 20 * time.Second
 

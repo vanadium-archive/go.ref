@@ -44,6 +44,7 @@ type reservedMethods struct {
 }
 
 func (r *reservedMethods) Describe__() []rpc.InterfaceDesc {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	return []rpc.InterfaceDesc{{
 		Name: "__Reserved",
 		Doc:  `Reserved methods implemented by the RPC framework.  Each method name is prefixed with a double underscore "__".`,
@@ -354,8 +355,14 @@ func callWithMethodTags(ctx *context.T, src rpc.StreamServerCall, tags []*vdl.Va
 	return &derivedServerCall{src, src.Suffix(), sec}
 }
 
-func (c *derivedServerCall) Suffix() string          { return c.suffix }
-func (c *derivedServerCall) Security() security.Call { return c.security }
+func (c *derivedServerCall) Suffix() string {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	return c.suffix
+}
+func (c *derivedServerCall) Security() security.Call {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	return c.security
+}
 
 type derivedSecurityCall struct {
 	security.Call
@@ -371,5 +378,11 @@ func securityCallWithMethodTags(src security.Call, tags []*vdl.Value) security.C
 	return &derivedSecurityCall{src, src.Suffix(), tags}
 }
 
-func (c *derivedSecurityCall) Suffix() string           { return c.suffix }
-func (c *derivedSecurityCall) MethodTags() []*vdl.Value { return c.methodTags }
+func (c *derivedSecurityCall) Suffix() string {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	return c.suffix
+}
+func (c *derivedSecurityCall) MethodTags() []*vdl.Value {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	return c.methodTags
+}

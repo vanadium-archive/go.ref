@@ -83,7 +83,9 @@ var _ stream.Manager = (*manager)(nil)
 type DialTimeout time.Duration
 
 func (DialTimeout) RPCStreamVCOpt() {}
-func (DialTimeout) RPCClientOpt()   {}
+func (DialTimeout) RPCClientOpt() {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+}
 
 func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 	if d, _, _ := rpc.RegisteredProtocol(network); d != nil {

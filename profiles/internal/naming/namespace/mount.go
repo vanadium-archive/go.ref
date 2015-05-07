@@ -26,8 +26,7 @@ func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string,
 
 // Mount implements Namespace.Mount.
 func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duration, opts ...naming.NamespaceOpt) error {
-	defer vlog.LogCall()()
-
+	defer vlog.LogCallf("ctx=,name=%.10s...,server=%.10s...,ttl=%v,opts...=%v", name, server, ttl, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	var flags naming.MountFlag
 	for _, o := range opts {
 		// NB: used a switch since we'll be adding more options.
@@ -67,7 +66,7 @@ func unmountFromMountTable(ctx *context.T, client rpc.Client, name, server strin
 
 // Unmount implements Namespace.Unmount.
 func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming.NamespaceOpt) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ctx=,name=%.10s...,server=%.10s...,opts...=%v", name, server, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Unmount the server from all the mount tables.
 	client := v23.GetClient(ctx)
 	f := func(ctx *context.T, mt, id string) status {
@@ -89,7 +88,7 @@ func deleteFromMountTable(ctx *context.T, client rpc.Client, name string, delete
 
 // RDeleteemove implements Namespace.Delete.
 func (ns *namespace) Delete(ctx *context.T, name string, deleteSubtree bool, opts ...naming.NamespaceOpt) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ctx=,name=%.10s...,deleteSubtree=%v,opts...=%v", name, deleteSubtree, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Remove from all the mount tables.
 	client := v23.GetClient(ctx)
 	f := func(ctx *context.T, mt, id string) status {

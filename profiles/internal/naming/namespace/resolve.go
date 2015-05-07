@@ -61,7 +61,7 @@ func terminal(e *naming.MountEntry) bool {
 
 // Resolve implements v.io/v23/naming.Namespace.
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ctx=,name=%.10s...,opts...=%v", name, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	e, _ := ns.rootMountEntry(name, opts...)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
@@ -105,7 +105,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Namespa
 
 // ResolveToMountTable implements v.io/v23/naming.Namespace.
 func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ctx=,name=%.10s...,opts...=%v", name, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	e, _ := ns.rootMountEntry(name, opts...)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
@@ -156,7 +156,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 // FlushCache flushes the most specific entry found for name.  It returns true if anything was
 // actually flushed.
 func (ns *namespace) FlushCacheEntry(name string) bool {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("name=%.10s...", name)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	flushed := false
 	for _, n := range ns.rootName(name) {
 		// Walk the cache as we would in a resolution.  Unlike a resolution, we have to follow

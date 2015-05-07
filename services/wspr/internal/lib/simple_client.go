@@ -14,7 +14,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
-	"v.io/x/lib/vlog"
 )
 
 type clientWithTimesCalled interface {
@@ -50,7 +49,6 @@ func (c *simpleMockClient) TimesCalled(method string) int {
 
 // StartCall Implements rpc.Client
 func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
-	defer vlog.LogCall()()
 	results, ok := c.results[method]
 	if !ok {
 		return nil, fmt.Errorf("method %s not found", method)
@@ -90,7 +88,6 @@ func (c *simpleMockClient) Call(ctx *context.T, name, method string, inArgs, out
 
 // Close implements rpc.Client
 func (*simpleMockClient) Close() {
-	defer vlog.LogCall()()
 }
 
 // mockCall implements rpc.ClientCall
@@ -101,18 +98,15 @@ type mockCall struct {
 
 // Cancel implements rpc.ClientCall
 func (*mockCall) Cancel() {
-	defer vlog.LogCall()()
 }
 
 // CloseSend implements rpc.ClientCall
 func (*mockCall) CloseSend() error {
-	defer vlog.LogCall()()
 	return nil
 }
 
 // Finish implements rpc.ClientCall
 func (mc *mockCall) Finish(resultptrs ...interface{}) error {
-	defer vlog.LogCall()()
 	if got, want := len(resultptrs), len(mc.results); got != want {
 		return errors.New(fmt.Sprintf("wrong number of output results; expected resultptrs of size %d but got %d", want, got))
 	}
@@ -136,12 +130,10 @@ type mockStream struct{}
 
 //Send implements rpc.Stream
 func (*mockStream) Send(interface{}) error {
-	defer vlog.LogCall()()
 	return nil
 }
 
 //Recv implements rpc.Stream
 func (*mockStream) Recv(interface{}) error {
-	defer vlog.LogCall()()
 	return nil
 }

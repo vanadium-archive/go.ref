@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/x/lib/metadata"
+	"v.io/x/lib/vlog"
 )
 
 const (
@@ -156,6 +157,7 @@ func init() {
 var defaultVersion = 5
 
 func (ep *Endpoint) VersionedString(version int) string {
+	defer vlog.LogCallf("version=%v", version)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	switch version {
 	default:
 		return ep.VersionedString(defaultVersion)

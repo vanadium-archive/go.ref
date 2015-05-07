@@ -23,7 +23,7 @@ func setPermsInMountTable(ctx *context.T, client rpc.Client, name string, perms 
 }
 
 func (ns *namespace) SetPermissions(ctx *context.T, name string, perms access.Permissions, version string, opts ...naming.NamespaceOpt) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ctx=,name=%.10s...,perms=,version=%.10s...,opts...=%v", name, version, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	client := v23.GetClient(ctx)
 
 	// Apply to all mount tables implementing the name.
@@ -37,7 +37,7 @@ func (ns *namespace) SetPermissions(ctx *context.T, name string, perms access.Pe
 
 // GetPermissions gets Permissions from a mount table.
 func (ns *namespace) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (perms access.Permissions, version string, err error) {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ctx=,name=%.10s...,opts...=%v", name, opts)("perms=,version=%.10s...,err=%v", &version, &err) // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	client := v23.GetClient(ctx)
 
 	// Resolve to all the mount tables implementing name.

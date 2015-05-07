@@ -8,6 +8,7 @@ import (
 	"net"
 
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc/stream"
@@ -48,7 +49,10 @@ func NewNetError(err error, timeout, temporary bool) net.Error {
 	return &NetError{err, timeout, temporary}
 }
 
-func (t NetError) Err() error      { return t.err }
-func (t NetError) Error() string   { return t.err.Error() }
+func (t NetError) Err() error { return t.err }
+func (t NetError) Error() string {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	return t.err.Error()
+}
 func (t NetError) Timeout() bool   { return t.timeout }
 func (t NetError) Temporary() bool { return t.temp }
