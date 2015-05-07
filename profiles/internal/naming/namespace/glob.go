@@ -181,7 +181,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 		// If no tasks are running, return.
 		if t.error != nil {
 			if !notAnMT(t.error) {
-				reply <- naming.GlobReplyError{naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}}
+				reply <- &naming.GlobReplyError{naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}}
 			}
 			inFlight--
 			continue
