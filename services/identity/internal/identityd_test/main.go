@@ -78,11 +78,7 @@ func main() {
 
 	caveatSelector := caveats.NewMockCaveatSelector()
 	if *browser {
-		bname, _, err := util.RootCertificateDetails(v23.GetPrincipal(ctx).BlessingStore().Default())
-		if err != nil {
-			vlog.Fatalf("Failed to get root Blessings name: %v", err)
-		}
-		caveatSelector = caveats.NewBrowserCaveatSelector(*assetsPrefix, bname)
+		caveatSelector = caveats.NewBrowserCaveatSelector(*assetsPrefix)
 	}
 
 	listenSpec := v23.GetListenSpec(ctx)
