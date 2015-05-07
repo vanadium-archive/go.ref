@@ -26,7 +26,8 @@ func WriteCertAndKey(host string, duration time.Duration) (string, string, error
 	generateCertFile := filepath.Join(strings.TrimSpace(string(output)), "generate_cert.go")
 	generateCertCmd := exec.Command("go", "run", generateCertFile, "--host", host, "--duration", duration.String())
 	generateCertCmd.Dir = tmpDir
-	if err := generateCertCmd.Run(); err != nil {
+	if output, err := generateCertCmd.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v failed:\n%s\n", generateCertCmd.Args, output)
 		return "", "", fmt.Errorf("Could not generate key and cert: %v", err)
 	}
 	return filepath.Join(tmpDir, "cert.pem"), filepath.Join(tmpDir, "key.pem"), nil
