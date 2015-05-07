@@ -32,7 +32,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
   <main class="add-blessing">
 
     <form method="POST" id="caveats-form" name="input"
-    action="{{.MacaroonURL}}" role="form">
+    action="{{.MacaroonURL}}" role="form" novalidate>
       <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
 
       <h1 class="page-head">Add blessing</h1>
@@ -226,6 +226,8 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
 
     // Set the datetime picker to have a default value of one day from now.
     $('.expiry').val(moment().add(1, 'd').format('YYYY-MM-DDTHH:mm'));
+    // Remove the clear button from the date input.
+    $('.expiry').attr('required', 'required');
 
     // Activate the cancel button.
     $('#cancel').click(function(){
