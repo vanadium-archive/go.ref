@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package reaping_test
+package impl_test
 
 import (
 	"fmt"
@@ -15,24 +15,23 @@ import (
 	"v.io/v23/services/device"
 
 	"v.io/x/ref/envvar"
-	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
 )
 
-func TestReapReconciliationViaAppCycle(t *testing.T) {
+func TestReapReconciliationViaKill(t *testing.T) {
 	cleanup, ctx, sh, envelope, root, helperPath, _ := utiltest.StartupHelper(t)
 	defer cleanup()
 
 	// Start a device manager.
 	// (Since it will be restarted, use the VeyronCredentials environment
 	// to maintain the same set of credentials across runs)
-	dmCreds, err := ioutil.TempDir("", "TestDeviceManagerUpdateAndRevert")
+	dmCreds, err := ioutil.TempDir("", "TestReapReconciliationViaKill")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dmCreds)
-	dmEnv := []string{fmt.Sprintf("%v=%v", envvar.Credentials, dmCreds), fmt.Sprintf("%v=%v", impl.AppcycleReconciliation, "1")}
+	dmEnv := []string{fmt.Sprintf("%v=%v", envvar.Credentials, dmCreds)}
 
 	dmh := servicetest.RunCommand(t, sh, dmEnv, utiltest.DeviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
