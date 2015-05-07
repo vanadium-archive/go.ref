@@ -4,16 +4,15 @@
 
 package oauth
 
-const (
-	MockEmail  = "testemail@google.com"
-	MockClient = "test-client"
-)
+const MockClient = "test-client"
 
 // mockOAuth is a mock OAuthProvider for use in tests.
-type mockOAuth struct{}
+type mockOAuth struct {
+	email string
+}
 
-func NewMockOAuth() OAuthProvider {
-	return &mockOAuth{}
+func NewMockOAuth(mockEmail string) OAuthProvider {
+	return &mockOAuth{email: mockEmail}
 }
 
 func (m *mockOAuth) AuthURL(redirectUrl string, state string, _ AuthURLApproval) string {
@@ -21,9 +20,9 @@ func (m *mockOAuth) AuthURL(redirectUrl string, state string, _ AuthURLApproval)
 }
 
 func (m *mockOAuth) ExchangeAuthCodeForEmail(string, string) (string, error) {
-	return MockEmail, nil
+	return m.email, nil
 }
 
 func (m *mockOAuth) GetEmailAndClientName(string, []AccessTokenClient) (string, string, error) {
-	return MockEmail, MockClient, nil
+	return m.email, MockClient, nil
 }

@@ -6,6 +6,7 @@ package blesser
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,13 +16,18 @@ import (
 	"v.io/v23/security"
 )
 
+func join(elements ...string) string {
+	return strings.Join(elements, security.ChainSeparator)
+}
+
 func TestOAuthBlesser(t *testing.T) {
 	var (
 		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
 		ctx, call      = fakeContextAndCall(provider, user)
 	)
+	mockEmail := "testemail@example.com"
 	blesser := NewOAuthBlesserServer(OAuthBlesserParams{
-		OAuthProvider:    oauth.NewMockOAuth(),
+		OAuthProvider:    oauth.NewMockOAuth(mockEmail),
 		BlessingDuration: time.Hour,
 	})
 
@@ -30,7 +36,7 @@ func TestOAuthBlesser(t *testing.T) {
 		t.Errorf("BlessUsingAccessToken failed: %v", err)
 	}
 
-	wantExtension := "users" + security.ChainSeparator + oauth.MockEmail + security.ChainSeparator + oauth.MockClient
+	wantExtension := join("users", mockEmail, oauth.MockClient)
 	if extension != wantExtension {
 		t.Errorf("got extension: %s, want: %s", extension, wantExtension)
 	}
@@ -45,13 +51,13 @@ func TestOAuthBlesser(t *testing.T) {
 		t.Errorf("Got blessing with info %v, want nil", got)
 	}
 	// But once it recognizes the provider, it should see exactly the name
-	// "provider/testemail@google.com/test-client".
+	// "provider/testemail@example.com/test-client".
 	user.AddToRoots(b)
 	binfo := user.BlessingsInfo(b)
 	if num := len(binfo); num != 1 {
 		t.Errorf("Got blessings with %d names, want exactly one name", num)
 	}
-	if _, ok := binfo["provider"+security.ChainSeparator+wantExtension]; !ok {
+	if _, ok := binfo[join("provider", wantExtension)]; !ok {
 		t.Errorf("BlessingsInfo %v does not have name %s", binfo, wantExtension)
 	}
 }

@@ -33,11 +33,13 @@ var (
 	assetsPrefix     = flag.String("assets-prefix", "", "host serving the web assets for the identity server")
 	mountPrefix      = flag.String("mount-prefix", "identity", "mount name prefix to use. May be rooted.")
 	browser          = flag.Bool("browser", false, "whether to open a browser caveat selector")
+	oauthEmail       = flag.String("oauth-email", "testemail@example.com", "Username for the mock oauth to put in the returned blessings")
 )
 
 func main() {
 	flag.Usage = usage
-	flag.Parse()
+	ctx, shutdown := v23.Init()
+	defer shutdown()
 
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
@@ -50,7 +52,10 @@ func main() {
 		}
 		host, _, err := net.SplitHostPort(addr)
 		if err != nil {
-			vlog.Fatalf("Failed to parse %q: %v", httpAddr, err)
+			// NOTE(caprita): The (non-test) identityd binary
+			// accepts an address with no port.  Should this test
+			// binary do the same instead?
+			vlog.Fatalf("Failed to parse %q: %v", addr, err)
 		}
 		certFile, keyFile, err := util.WriteCertAndKey(host, duration)
 		if err != nil {
@@ -63,16 +68,13 @@ func main() {
 
 	auditor, reader := auditor.NewMockBlessingAuditor()
 	revocationManager := revocation.NewMockRevocationManager()
-	oauthProvider := oauth.NewMockOAuth()
+	oauthProvider := oauth.NewMockOAuth(*oauthEmail)
 
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
 		BlessingDuration:  duration,
 		RevocationManager: revocationManager,
 	}
-
-	ctx, shutdown := v23.Init()
-	defer shutdown()
 
 	caveatSelector := caveats.NewMockCaveatSelector()
 	if *browser {

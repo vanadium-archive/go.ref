@@ -55,7 +55,7 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		}
 		host, _, err := net.SplitHostPort(addr)
 		if err != nil {
-			return fmt.Errorf("Failed to parse %q: %v", httpAddr, err)
+			return fmt.Errorf("Failed to parse %q: %v", addr, err)
 		}
 		certFile, keyFile, err := util.WriteCertAndKey(host, duration)
 		if err != nil {
@@ -79,7 +79,7 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 
 	auditor, reader := auditor.NewMockBlessingAuditor()
 	revocationManager := revocation.NewMockRevocationManager()
-	oauthProvider := oauth.NewMockOAuth()
+	oauthProvider := oauth.NewMockOAuth("testemail@example.com")
 
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
