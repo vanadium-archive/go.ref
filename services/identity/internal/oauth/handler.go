@@ -381,7 +381,19 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 		return
 	}
-	if err := h.args.CaveatSelector.Render(email, outputMacaroon, redirectURL(h.args.Addr, sendMacaroonRoute), w, r); err != nil {
+	localBlessings := security.DefaultBlessingPatterns(h.args.Principal)
+	if len(localBlessings) == 0 {
+		vlog.Infof("server principal has no blessings: %v", h.args.Principal)
+		util.HTTPServerError(w, fmt.Errorf("failed to get server blessings"))
+		return
+	}
+	parts := []string{
+		string(localBlessings[0]),
+		h.args.EmailClassifier.Classify(email),
+		email,
+	}
+	fullBlessingName := strings.Join(parts, security.ChainSeparator)
+	if err := h.args.CaveatSelector.Render(fullBlessingName, outputMacaroon, redirectURL(h.args.Addr, sendMacaroonRoute), w, r); err != nil {
 		vlog.Errorf("Unable to invoke render caveat selector: %v", err)
 		util.HTTPServerError(w, err)
 	}
