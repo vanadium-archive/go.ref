@@ -19,7 +19,7 @@ import (
 // mountIntoMountTable mounts a single server into a single mount table.
 func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
-	ctx, _ = context.WithTimeout(ctx, callTimeout)
+	ctx = withTimeout(ctx)
 	s.err = client.Call(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, nil, append(opts, options.NoResolve{})...)
 	return
 }
@@ -60,7 +60,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 // unmountFromMountTable removes a single mounted server from a single mount table.
 func unmountFromMountTable(ctx *context.T, client rpc.Client, name, server string, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
-	ctx, _ = context.WithTimeout(ctx, callTimeout)
+	ctx = withTimeout(ctx)
 	s.err = client.Call(ctx, name, "Unmount", []interface{}{server}, nil, append(opts, options.NoResolve{})...)
 	return
 }
@@ -82,7 +82,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming
 // and deleteSubtree isn't true, nothing is deleted.
 func deleteFromMountTable(ctx *context.T, client rpc.Client, name string, deleteSubtree bool, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
-	ctx, _ = context.WithTimeout(ctx, callTimeout)
+	ctx = withTimeout(ctx)
 	s.err = client.Call(ctx, name, "Delete", []interface{}{deleteSubtree}, nil, append(opts, options.NoResolve{})...)
 	return
 }

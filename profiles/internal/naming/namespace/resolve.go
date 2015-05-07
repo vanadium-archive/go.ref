@@ -33,7 +33,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 			// Only set a per-call timeout if a deadline has not already
 			// been set.
-			callCtx, _ = context.WithTimeout(ctx, callTimeout)
+			callCtx = withTimeout(ctx)
 		}
 		entry := new(naming.MountEntry)
 		if err := client.Call(callCtx, name, "ResolveStep", nil, []interface{}{entry}, opts...); err != nil {

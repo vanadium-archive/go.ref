@@ -10,6 +10,7 @@ import (
 
 	inaming "v.io/x/ref/profiles/internal/naming"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -169,9 +170,26 @@ func notAnMT(err error) bool {
 	return false
 }
 
-// all operations against the mount table service use this fixed timeout for the
-// time being.
+// All operations against the mount table service use this fixed timeout unless overridden.
 const callTimeout = 30 * time.Second
+
+// withTimeout returns a new context if the orinal has no timeout set.
+func withTimeout(ctx *context.T) *context.T {
+	if _, ok := ctx.Deadline(); !ok {
+		ctx, _ = context.WithTimeout(ctx, callTimeout)
+	}
+	return ctx
+}
+
+// withTimeoutAndCancel returns a new context with a deadline and a cancellation function.
+func withTimeoutAndCancel(ctx *context.T) (nctx *context.T, cancel context.CancelFunc) {
+	if _, ok := ctx.Deadline(); !ok {
+		nctx, cancel = context.WithTimeout(ctx, callTimeout)
+	} else {
+		nctx, cancel = context.WithCancel(ctx)
+	}
+	return
+}
 
 // CacheCtl implements naming.Namespace.CacheCtl
 func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {

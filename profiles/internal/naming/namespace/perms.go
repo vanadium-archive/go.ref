@@ -17,7 +17,7 @@ import (
 // setPermsInMountTable sets the Permissions in a single server.
 func setPermsInMountTable(ctx *context.T, client rpc.Client, name string, perms access.Permissions, version, id string, opts []rpc.CallOpt) (s status) {
 	s.id = id
-	ctx, _ = context.WithTimeout(ctx, callTimeout)
+	ctx = withTimeout(ctx)
 	s.err = client.Call(ctx, name, "SetPermissions", []interface{}{perms, version}, nil, append(opts, options.NoResolve{})...)
 	return
 }

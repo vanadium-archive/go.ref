@@ -34,7 +34,7 @@ func (ns *namespace) parallelStartCall(ctx *context.T, client rpc.Client, server
 	c := make(chan startStatus, len(servers))
 	cancelFuncs := make([]context.CancelFunc, len(servers))
 	for index, server := range servers {
-		callCtx, cancel := context.WithTimeout(ctx, callTimeout)
+		callCtx, cancel := withTimeoutAndCancel(ctx)
 		cancelFuncs[index] = cancel
 		go tryStartCall(callCtx, client, server, method, args, c, index, opts...)
 	}
