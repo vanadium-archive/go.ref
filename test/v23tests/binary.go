@@ -35,6 +35,9 @@ type Binary struct {
 	// Environment variables that will be used when creating invocations
 	// via Start.
 	envVars []string
+
+	// Optional prefix arguments are added to each invocation.
+	prefixArgs []string
 }
 
 // StartOpts returns the current the StartOpts
@@ -52,7 +55,10 @@ func (b *Binary) Start(args ...string) *Invocation {
 	return b.start(1, args...)
 }
 
-func (b *Binary) start(skip int, args ...string) *Invocation {
+func (b *Binary) start(skip int, oargs ...string) *Invocation {
+	args := make([]string, len(b.prefixArgs), len(oargs)+len(b.prefixArgs))
+	copy(args, b.prefixArgs)
+	args = append(args, oargs...)
 	vlog.Infof("%s: starting %s %s", Caller(skip+1), b.Path(), strings.Join(args, " "))
 	opts := b.opts
 	if opts.ExecProtocol && opts.Credentials == nil {
@@ -132,5 +138,16 @@ func (b *Binary) WithEnv(env ...string) *Binary {
 func (b *Binary) WithStartOpts(opts modules.StartOpts) *Binary {
 	newBin := *b
 	newBin.opts = opts
+	return &newBin
+}
+
+// WithPrefixArgs returns a copy of this binary that, when Start or Run
+// is called, will use the given additional arguments. For example: given
+// a Binary b built from "git", then b2 := WithPrefixArgs("checkout")
+// will let one run git checkout a; git checkout b with b2.Run("a"),
+// b2.Run("b").
+func (b *Binary) WithPrefixArgs(prefixArgs ...string) *Binary {
+	newBin := *b
+	newBin.prefixArgs = prefixArgs
 	return &newBin
 }
