@@ -19,8 +19,9 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
 	vdltime "v.io/v23/vdlroot/time"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
-
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )
@@ -112,11 +113,10 @@ func stopServer(t *testing.T, server rpc.Server) {
 }
 
 func TestMountTableClient(t *testing.T) {
-	var shutdown v23.Shutdown
-	gctx, shutdown = test.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, endpoint, err := startServer(t, gctx)
+	server, endpoint, err := startServer(t, ctx)
 	if err != nil {
 		return
 	}
@@ -124,15 +124,14 @@ func TestMountTableClient(t *testing.T) {
 
 	// Make sure to use our newly created mounttable rather than the
 	// default.
-	v23.GetNamespace(gctx).SetRoots(endpoint.Name())
+	v23.GetNamespace(ctx).SetRoots(endpoint.Name())
 
 	// Setup the command-line.
-	cmd := root()
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 
 	// Test the 'glob' command.
-	if err := cmd.Execute([]string{"glob", naming.JoinAddressName(endpoint.String(), ""), "*"}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"glob", naming.JoinAddressName(endpoint.String(), ""), "*"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	const deadRE = `\(Deadline ([^)]+)\)`
@@ -142,7 +141,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'mount' command.
-	if err := cmd.Execute([]string{"mount", "server", endpoint.Name(), "123s"}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"mount", "server", endpoint.Name(), "123s"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if got, want := strings.TrimSpace(stdout.String()), "Name mounted successfully."; got != want {
@@ -151,7 +150,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'unmount' command.
-	if err := cmd.Execute([]string{"unmount", "server", endpoint.Name()}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"unmount", "server", endpoint.Name()}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if got, want := strings.TrimSpace(stdout.String()), "Unmount successful or name not mounted."; got != want {
@@ -161,7 +160,7 @@ func TestMountTableClient(t *testing.T) {
 
 	// Test the 'resolvestep' command.
 	vlog.Infof("resovestep %s", naming.JoinAddressName(endpoint.String(), "name"))
-	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if got, wantRE := strings.TrimSpace(stdout.String()), regexp.MustCompile(`Servers: \[\{server1 [^}]+\}\] Suffix: "name" MT: false`); !wantRE.MatchString(got) {

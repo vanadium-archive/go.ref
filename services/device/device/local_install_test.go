@@ -19,6 +19,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
 )
@@ -30,19 +33,19 @@ func createFile(t *testing.T, path string, contents string) {
 }
 
 func TestInstallLocalCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 	const appTitle = "Appo di tutti Appi"
 	binary := os.Args[0]
@@ -73,7 +76,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		},
 	} {
 		c.args = append([]string{"install-local"}, c.args...)
-		if err := cmd.Execute(c.args); err == nil {
+		if err := v23cmd.ParseAndRun(cmd, ctx, env, c.args); err == nil {
 			t.Fatalf("test case %d: wrongly failed to receive a non-nil error.", i)
 		} else {
 			fmt.Fprintln(&stderr, "ERROR:", err)
@@ -237,7 +240,7 @@ func TestInstallLocalCommand(t *testing.T) {
 			c.args = append([]string{fmt.Sprintf("--packages=%s", string(jsonPackages))}, c.args...)
 		}
 		c.args = append([]string{"install-local"}, c.args...)
-		if err := cmd.Execute(c.args); err != nil {
+		if err := v23cmd.ParseAndRun(cmd, ctx, env, c.args); err != nil {
 			t.Fatalf("test case %d: %v", i, err)
 		}
 		if expected, got := naming.Join(deviceName, appId), strings.TrimSpace(stdout.String()); got != expected {

@@ -47,7 +47,7 @@ var (
 )
 
 func init() {
-	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^(name)|(restart-exit-code)|(neighborhood-name)|(deviced-port)|(proxy-port)|(use-pairing-token)$`))
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^((name)|(restart-exit-code)|(neighborhood-name)|(deviced-port)|(proxy-port)|(use-pairing-token))$`))
 }
 
 func runServer(*cmdline.Command, []string) error {

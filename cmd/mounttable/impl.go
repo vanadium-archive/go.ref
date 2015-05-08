@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -16,16 +19,19 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/v23cmd"
+	_ "v.io/x/ref/profiles"
 )
 
-func init() {
-	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+func main() {
+	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+	cmdline2.Main(cmdRoot)
 }
 
-var cmdGlob = &cmdline.Command{
-	Run:      runGlob,
+var cmdGlob = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runGlob),
 	Name:     "glob",
 	Short:    "returns all matching entries in the mount table",
 	Long:     "returns all matching entries in the mount table",
@@ -37,8 +43,8 @@ specified mount name.
 `,
 }
 
-func runGlob(cmd *cmdline.Command, args []string) error {
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+func runGlob(ctx *context.T, env *cmdline2.Env, args []string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	if len(args) == 1 {
@@ -49,7 +55,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		args = append([]string{roots[0]}, args...)
 	}
 	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 
 	name, pattern := args[0], args[1]
@@ -65,11 +71,11 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		}
 		switch v := gr.(type) {
 		case naming.GlobReplyEntry:
-			fmt.Fprint(cmd.Stdout(), v.Value.Name)
+			fmt.Fprint(env.Stdout, v.Value.Name)
 			for _, s := range v.Value.Servers {
-				fmt.Fprintf(cmd.Stdout(), " %s (Deadline %s)", s.Server, s.Deadline.Time)
+				fmt.Fprintf(env.Stdout, " %s (Deadline %s)", s.Server, s.Deadline.Time)
 			}
-			fmt.Fprintln(cmd.Stdout())
+			fmt.Fprintln(env.Stdout)
 		}
 	}
 	if err := call.Finish(); err != nil {
@@ -78,8 +84,8 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-var cmdMount = &cmdline.Command{
-	Run:      runMount,
+var cmdMount = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runMount),
 	Name:     "mount",
 	Short:    "Mounts a server <name> onto a mount table",
 	Long:     "Mounts a server <name> onto a mount table",
@@ -97,10 +103,10 @@ that existing entries should be removed.
 `,
 }
 
-func runMount(cmd *cmdline.Command, args []string) error {
+func runMount(ctx *context.T, env *cmdline2.Env, args []string) error {
 	got := len(args)
 	if got < 2 || got > 4 {
-		return cmd.UsageErrorf("mount: incorrect number of arguments, expected 2, 3, or 4, got %d", got)
+		return env.UsageErrorf("mount: incorrect number of arguments, expected 2, 3, or 4, got %d", got)
 	}
 	name := args[0]
 	server := args[1]
@@ -124,18 +130,18 @@ func runMount(cmd *cmdline.Command, args []string) error {
 			}
 		}
 	}
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
 	if err := client.Call(ctx, name, "Mount", []interface{}{server, seconds, flags}, nil, options.NoResolve{}); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Name mounted successfully.")
+	fmt.Fprintln(env.Stdout, "Name mounted successfully.")
 	return nil
 }
 
-var cmdUnmount = &cmdline.Command{
-	Run:      runUnmount,
+var cmdUnmount = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runUnmount),
 	Name:     "unmount",
 	Short:    "removes server <name> from the mount table",
 	Long:     "removes server <name> from the mount table",
@@ -146,22 +152,22 @@ var cmdUnmount = &cmdline.Command{
 `,
 }
 
-func runUnmount(cmd *cmdline.Command, args []string) error {
+func runUnmount(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
 	if err := client.Call(ctx, args[0], "Unmount", []interface{}{args[1]}, nil, options.NoResolve{}); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Unmount successful or name not mounted.")
+	fmt.Fprintln(env.Stdout, "Unmount successful or name not mounted.")
 	return nil
 }
 
-var cmdResolveStep = &cmdline.Command{
-	Run:      runResolveStep,
+var cmdResolveStep = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runResolveStep),
 	Name:     "resolvestep",
 	Short:    "takes the next step in resolving a name.",
 	Long:     "takes the next step in resolving a name.",
@@ -171,30 +177,28 @@ var cmdResolveStep = &cmdline.Command{
 `,
 }
 
-func runResolveStep(cmd *cmdline.Command, args []string) error {
+func runResolveStep(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
 	var entry naming.MountEntry
 	if err := client.Call(ctx, args[0], "ResolveStep", nil, []interface{}{&entry}, options.NoResolve{}); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Servers: %v Suffix: %q MT: %v\n", entry.Servers, entry.Name, entry.ServesMountTable)
+	fmt.Fprintf(env.Stdout, "Servers: %v Suffix: %q MT: %v\n", entry.Servers, entry.Name, entry.ServesMountTable)
 	return nil
 }
 
-func root() *cmdline.Command {
-	return &cmdline.Command{
-		Name:  "mounttable",
-		Short: "sends commands to Vanadium mounttable services",
-		Long: `
+var cmdRoot = &cmdline2.Command{
+	Name:  "mounttable",
+	Short: "sends commands to Vanadium mounttable services",
+	Long: `
 Command mounttable sends commands to Vanadium mounttable services.
 `,
-		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
-	}
+	Children: []*cmdline2.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
 }
 
 func blessingPatternsFromServer(ctx *context.T, server string) ([]security.BlessingPattern, error) {

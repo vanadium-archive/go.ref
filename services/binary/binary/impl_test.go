@@ -23,8 +23,9 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/binary"
 	"v.io/v23/services/repository"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
-
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )
@@ -126,23 +127,21 @@ func stopServer(t *testing.T, server rpc.Server) {
 }
 
 func TestBinaryClient(t *testing.T) {
-	var shutdown v23.Shutdown
-	gctx, shutdown = test.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, endpoint, err := startServer(t, gctx)
+	server, endpoint, err := startServer(t, ctx)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
 	var out bytes.Buffer
-	cmd.Init(nil, &out, &out)
+	env := &cmdline2.Env{Stdout: &out, Stderr: &out}
 
 	// Test the 'delete' command.
-	if err := cmd.Execute([]string{"delete", naming.JoinAddressName(endpoint.String(), "exists")}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"delete", naming.JoinAddressName(endpoint.String(), "exists")}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "delete", err, out.String())
 	}
 	if expected, got := "Binary deleted successfully", strings.TrimSpace(out.String()); got != expected {
@@ -158,7 +157,7 @@ func TestBinaryClient(t *testing.T) {
 	defer os.RemoveAll(dir)
 	file := path.Join(dir, "testfile")
 	defer os.Remove(file)
-	if err := cmd.Execute([]string{"download", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"download", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "download", err, out.String())
 	}
 	if expected, got := "Binary downloaded to file "+file, strings.TrimSpace(out.String()); got != expected {
@@ -174,13 +173,13 @@ func TestBinaryClient(t *testing.T) {
 	out.Reset()
 
 	// Test the 'upload' command.
-	if err := cmd.Execute([]string{"upload", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"upload", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "upload", err, out.String())
 	}
 	out.Reset()
 
 	// Test the 'url' command.
-	if err := cmd.Execute([]string{"url", naming.JoinAddressName(endpoint.String(), "")}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"url", naming.JoinAddressName(endpoint.String(), "")}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "url", err, out.String())
 	}
 	if expected, got := "test-download-url", strings.TrimSpace(out.String()); got != expected {

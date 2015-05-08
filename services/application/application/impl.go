@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -17,16 +20,19 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/services/application"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
+	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/repository"
 )
 
-func init() {
-	cmdline.HideGlobalFlagsExcept()
+func main() {
+	cmdline2.HideGlobalFlagsExcept()
+	cmdline2.Main(cmdRoot)
 }
 
-func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+func getEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	env, err := app.Match(ctx, strings.Split(profiles, ","))
 	if err != nil {
@@ -39,12 +45,12 @@ func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) (
 	return j, nil
 }
 
-func putEnvelopeJSON(app repository.ApplicationClientMethods, profiles string, j []byte) error {
+func putEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, profiles string, j []byte) error {
 	var env application.Envelope
 	if err := json.Unmarshal(j, &env); err != nil {
 		return fmt.Errorf("Unmarshal(%v) failed: %v", string(j), err)
 	}
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	if err := app.Put(ctx, strings.Split(profiles, ","), env); err != nil {
 		return err
@@ -52,8 +58,8 @@ func putEnvelopeJSON(app repository.ApplicationClientMethods, profiles string, j
 	return nil
 }
 
-func promptUser(cmd *cmdline.Command, msg string) string {
-	fmt.Fprint(cmd.Stdout(), msg)
+func promptUser(env *cmdline2.Env, msg string) string {
+	fmt.Fprint(env.Stdout, msg)
 	var answer string
 	if _, err := fmt.Scanf("%s", &answer); err != nil {
 		return ""
@@ -61,8 +67,8 @@ func promptUser(cmd *cmdline.Command, msg string) string {
 	return answer
 }
 
-var cmdMatch = &cmdline.Command{
-	Run:      runMatch,
+var cmdMatch = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runMatch),
 	Name:     "match",
 	Short:    "Shows the first matching envelope that matches the given profiles.",
 	Long:     "Shows the first matching envelope that matches the given profiles.",
@@ -72,22 +78,22 @@ var cmdMatch = &cmdline.Command{
 <profiles> is a comma-separated list of profiles.`,
 }
 
-func runMatch(cmd *cmdline.Command, args []string) error {
+func runMatch(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profiles := args[0], args[1]
 	app := repository.ApplicationClient(name)
-	j, err := getEnvelopeJSON(app, profiles)
+	j, err := getEnvelopeJSON(ctx, app, profiles)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), string(j))
+	fmt.Fprintln(env.Stdout, string(j))
 	return nil
 }
 
-var cmdPut = &cmdline.Command{
-	Run:      runPut,
+var cmdPut = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runPut),
 	Name:     "put",
 	Short:    "Add the given envelope to the application for the given profiles.",
 	Long:     "Add the given envelope to the application for the given profiles.",
@@ -99,9 +105,9 @@ var cmdPut = &cmdline.Command{
 not provided, the user will be prompted to enter the data manually.`,
 }
 
-func runPut(cmd *cmdline.Command, args []string) error {
+func runPut(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if got := len(args); got != 2 && got != 3 {
-		return cmd.UsageErrorf("put: incorrect number of arguments, expected 2 or 3, got %d", got)
+		return env.UsageErrorf("put: incorrect number of arguments, expected 2 or 3, got %d", got)
 	}
 	name, profiles := args[0], args[1]
 	app := repository.ApplicationClient(name)
@@ -111,25 +117,25 @@ func runPut(cmd *cmdline.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("ReadFile(%v): %v", envelope, err)
 		}
-		if err = putEnvelopeJSON(app, profiles, j); err != nil {
+		if err = putEnvelopeJSON(ctx, app, profiles, j); err != nil {
 			return err
 		}
-		fmt.Fprintln(cmd.Stdout(), "Application envelope added successfully.")
+		fmt.Fprintln(env.Stdout, "Application envelope added successfully.")
 		return nil
 	}
-	env := application.Envelope{Args: []string{}, Env: []string{}, Packages: application.Packages{}}
-	j, err := json.MarshalIndent(env, "", "  ")
+	envelope := application.Envelope{Args: []string{}, Env: []string{}, Packages: application.Packages{}}
+	j, err := json.MarshalIndent(envelope, "", "  ")
 	if err != nil {
 		return fmt.Errorf("MarshalIndent() failed: %v", err)
 	}
-	if err := editAndPutEnvelopeJSON(cmd, app, profiles, j); err != nil {
+	if err := editAndPutEnvelopeJSON(ctx, env, app, profiles, j); err != nil {
 		return err
 	}
 	return nil
 }
 
-var cmdRemove = &cmdline.Command{
-	Run:      runRemove,
+var cmdRemove = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runRemove),
 	Name:     "remove",
 	Short:    "removes the application envelope for the given profile.",
 	Long:     "removes the application envelope for the given profile.",
@@ -139,23 +145,23 @@ var cmdRemove = &cmdline.Command{
 <profile> is a profile.`,
 }
 
-func runRemove(cmd *cmdline.Command, args []string) error {
+func runRemove(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profile := args[0], args[1]
 	app := repository.ApplicationClient(name)
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	if err := app.Remove(ctx, profile); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Application envelope removed successfully.")
+	fmt.Fprintln(env.Stdout, "Application envelope removed successfully.")
 	return nil
 }
 
-var cmdEdit = &cmdline.Command{
-	Run:      runEdit,
+var cmdEdit = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runEdit),
 	Name:     "edit",
 	Short:    "edits the application envelope for the given profile.",
 	Long:     "edits the application envelope for the given profile.",
@@ -165,24 +171,24 @@ var cmdEdit = &cmdline.Command{
 <profile> is a profile.`,
 }
 
-func runEdit(cmd *cmdline.Command, args []string) error {
+func runEdit(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("edit: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("edit: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profile := args[0], args[1]
 	app := repository.ApplicationClient(name)
 
-	envData, err := getEnvelopeJSON(app, profile)
+	envData, err := getEnvelopeJSON(ctx, app, profile)
 	if err != nil {
 		return err
 	}
-	if err := editAndPutEnvelopeJSON(cmd, app, profile, envData); err != nil {
+	if err := editAndPutEnvelopeJSON(ctx, env, app, profile, envData); err != nil {
 		return err
 	}
 	return nil
 }
 
-func editAndPutEnvelopeJSON(cmd *cmdline.Command, app repository.ApplicationClientMethods, profile string, envData []byte) error {
+func editAndPutEnvelopeJSON(ctx *context.T, env *cmdline2.Env, app repository.ApplicationClientMethods, profile string, envData []byte) error {
 	f, err := ioutil.TempFile("", "application-edit-")
 	if err != nil {
 		return fmt.Errorf("TempFile() failed: %v", err)
@@ -207,36 +213,34 @@ func editAndPutEnvelopeJSON(cmd *cmdline.Command, app repository.ApplicationClie
 		}
 		newData, err := ioutil.ReadFile(fileName)
 		if err != nil {
-			fmt.Fprintf(cmd.Stdout(), "Error: %v\n", err)
-			if ans := promptUser(cmd, "Try again? [y/N] "); strings.ToUpper(ans) == "Y" {
+			fmt.Fprintf(env.Stdout, "Error: %v\n", err)
+			if ans := promptUser(env, "Try again? [y/N] "); strings.ToUpper(ans) == "Y" {
 				continue
 			}
 			return errors.New("aborted")
 		}
 		if bytes.Compare(envData, newData) == 0 {
-			fmt.Fprintln(cmd.Stdout(), "Nothing changed")
+			fmt.Fprintln(env.Stdout, "Nothing changed")
 			return nil
 		}
-		if err = putEnvelopeJSON(app, profile, newData); err != nil {
-			fmt.Fprintf(cmd.Stdout(), "Error: %v\n", err)
-			if ans := promptUser(cmd, "Try again? [y/N] "); strings.ToUpper(ans) == "Y" {
+		if err = putEnvelopeJSON(ctx, app, profile, newData); err != nil {
+			fmt.Fprintf(env.Stdout, "Error: %v\n", err)
+			if ans := promptUser(env, "Try again? [y/N] "); strings.ToUpper(ans) == "Y" {
 				continue
 			}
 			return errors.New("aborted")
 		}
 		break
 	}
-	fmt.Fprintln(cmd.Stdout(), "Application envelope updated successfully.")
+	fmt.Fprintln(env.Stdout, "Application envelope updated successfully.")
 	return nil
 }
 
-func root() *cmdline.Command {
-	return &cmdline.Command{
-		Name:  "application",
-		Short: "manages the Vanadium application repository",
-		Long: `
+var cmdRoot = &cmdline2.Command{
+	Name:  "application",
+	Short: "manages the Vanadium application repository",
+	Long: `
 Command application manages the Vanadium application repository.
 `,
-		Children: []*cmdline.Command{cmdMatch, cmdPut, cmdRemove, cmdEdit},
-	}
+	Children: []*cmdline2.Command{cmdMatch, cmdPut, cmdRemove, cmdEdit},
 }

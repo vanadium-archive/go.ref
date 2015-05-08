@@ -6,15 +6,17 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/cmd/vrpc/internal"
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )
@@ -114,16 +116,15 @@ func (*server) ZStream(_ *context.T, call internal.TypeTesterZStreamServerCall, 
 	return nil
 }
 
-func initTest(t *testing.T) (name string, shutdown v23.Shutdown) {
-	// The gctx initialized here is the global context defined in vrpc.go.
-	gctx, shutdown = test.InitForTest()
+func initTest(t *testing.T) (ctx *context.T, name string, shutdown v23.Shutdown) {
+	ctx, shutdown = test.InitForTest()
 
-	rpcServer, err := v23.NewServer(gctx)
+	rpcServer, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return
 	}
-	endpoints, err := rpcServer.Listen(v23.GetListenSpec(gctx))
+	endpoints, err := rpcServer.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return
@@ -132,22 +133,18 @@ func initTest(t *testing.T) (name string, shutdown v23.Shutdown) {
 	obj := internal.TypeTesterServer(&server{})
 	if err := rpcServer.Serve("", obj, nil); err != nil {
 		t.Fatalf("Serve failed: %v", err)
-		return name, shutdown
+		return
 	}
-	return name, shutdown
+	return
 }
 
 func testSignature(t *testing.T, showReserved bool, wantSig string) {
-	name, shutdown := initTest(t)
+	ctx, name, shutdown := initTest(t)
 	defer shutdown()
 	var stdout, stderr bytes.Buffer
-	cmdVRPC.Init(nil, &stdout, &stderr)
-
-	args := []string{"signature", name}
-	// The cmdline package won't reparse the flags sent to Execute, so
-	// instead, set the flag variable directly from here.
-	flagShowReserved = showReserved
-	if err := cmdVRPC.Execute(args); err != nil {
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	args := []string{"signature", fmt.Sprintf("-show-reserved=%v", showReserved), name}
+	if err := v23cmd.ParseAndRun(cmdVRPC, ctx, env, args); err != nil {
 		t.Fatalf("%s: %v", args, err)
 	}
 
@@ -274,7 +271,7 @@ type "v.io/x/ref/cmd/vrpc/internal".Struct struct {
 }
 
 func TestMethodSignature(t *testing.T) {
-	name, shutdown := initTest(t)
+	ctx, name, shutdown := initTest(t)
 	defer shutdown()
 
 	tests := []struct {
@@ -294,8 +291,8 @@ type "v.io/x/ref/cmd/vrpc/internal".Struct struct {
 	}
 	for _, test := range tests {
 		var stdout, stderr bytes.Buffer
-		cmdVRPC.Init(nil, &stdout, &stderr)
-		if err := cmdVRPC.Execute([]string{"signature", name, test.Method}); err != nil {
+		env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+		if err := v23cmd.ParseAndRun(cmdVRPC, ctx, env, []string{"signature", name, test.Method}); err != nil {
 			t.Errorf("%q failed: %v", test.Method, err)
 			continue
 		}
@@ -309,7 +306,7 @@ type "v.io/x/ref/cmd/vrpc/internal".Struct struct {
 }
 
 func TestCall(t *testing.T) {
-	name, shutdown := initTest(t)
+	ctx, name, shutdown := initTest(t)
 	defer shutdown()
 
 	tests := []struct {
@@ -337,8 +334,8 @@ func TestCall(t *testing.T) {
 	}
 	for _, test := range tests {
 		var stdout, stderr bytes.Buffer
-		cmdVRPC.Init(nil, &stdout, &stderr)
-		if err := cmdVRPC.Execute([]string{"call", name, test.Method, test.InArgs}); err != nil {
+		env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+		if err := v23cmd.ParseAndRun(cmdVRPC, ctx, env, []string{"call", name, test.Method, test.InArgs}); err != nil {
 			t.Errorf("%q(%s) failed: %v", test.Method, test.InArgs, err)
 			continue
 		}

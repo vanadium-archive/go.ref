@@ -18,8 +18,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
-
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
@@ -141,24 +142,22 @@ func stopServer(t *testing.T, server rpc.Server) {
 }
 
 func TestApplicationClient(t *testing.T) {
-	var shutdown v23.Shutdown
-	gctx, shutdown = test.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, endpoint, err := startServer(t, gctx)
+	server, endpoint, err := startServer(t, ctx)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := root()
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "myapp/1")
 	profile := "myprofile"
 
 	// Test the 'Match' command.
-	if err := cmd.Execute([]string{"match", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"match", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := jsonEnv, strings.TrimSpace(stdout.String()); got != expected {
@@ -179,7 +178,7 @@ func TestApplicationClient(t *testing.T) {
 	if err = f.Close(); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := cmd.Execute([]string{"put", appName, profile, fileName}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"put", appName, profile, fileName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Application envelope added successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -188,7 +187,7 @@ func TestApplicationClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'remove' command.
-	if err := cmd.Execute([]string{"remove", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"remove", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Application envelope removed successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -198,7 +197,7 @@ func TestApplicationClient(t *testing.T) {
 
 	// Test the 'edit' command. (nothing changed)
 	os.Setenv("EDITOR", "true")
-	if err := cmd.Execute([]string{"edit", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Nothing changed", strings.TrimSpace(stdout.String()); got != expected {
@@ -208,7 +207,7 @@ func TestApplicationClient(t *testing.T) {
 
 	// Test the 'edit' command.
 	os.Setenv("EDITOR", "perl -pi -e 's/arg1/arg111/'")
-	if err := cmd.Execute([]string{"edit", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Application envelope updated successfully.", strings.TrimSpace(stdout.String()); got != expected {

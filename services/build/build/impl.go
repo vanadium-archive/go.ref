@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -16,8 +19,14 @@ import (
 
 	"v.io/v23/context"
 	vbuild "v.io/v23/services/build"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
+	_ "v.io/x/ref/profiles"
 )
+
+func main() {
+	cmdline2.Main(cmdRoot)
+}
 
 var (
 	flagArch string
@@ -25,31 +34,26 @@ var (
 )
 
 func init() {
-	cmdline.HideGlobalFlagsExcept()
+	cmdline2.HideGlobalFlagsExcept()
 	cmdBuild.Flags.StringVar(&flagArch, "arch", runtime.GOARCH, "Target architecture.  The default is the value of runtime.GOARCH.")
 	cmdBuild.Flags.Lookup("arch").DefValue = "<runtime.GOARCH>"
 	cmdBuild.Flags.StringVar(&flagOS, "os", runtime.GOOS, "Target operating system.  The default is the value of runtime.GOOS.")
 	cmdBuild.Flags.Lookup("os").DefValue = "<runtime.GOOS>"
 }
 
-var cmdRoot = &cmdline.Command{
+var cmdRoot = &cmdline2.Command{
 	Name:  "build",
 	Short: "sends commands to a Vanadium build server",
 	Long: `
 Command build sends commands to a Vanadium build server.
 `,
-	Children: []*cmdline.Command{cmdBuild},
+	Children: []*cmdline2.Command{cmdBuild},
 }
 
-// root returns a command that represents the root of the vanadium tool.
-func root() *cmdline.Command {
-	return cmdRoot
-}
-
-var cmdBuild = &cmdline.Command{
-	Run:   runBuild,
-	Name:  "build",
-	Short: "Build vanadium Go packages",
+var cmdBuild = &cmdline2.Command{
+	Runner: v23cmd.RunnerFunc(runBuild),
+	Name:   "build",
+	Short:  "Build vanadium Go packages",
 	Long: `
 Build vanadium Go packages using a remote build server. The command collects all
 source code files that are not part of the Go standard library that the target
@@ -222,7 +226,7 @@ func saveBinaries(ctx *context.T, prefix string, binaries <-chan vbuild.File, er
 // concurrently 1) reads the source files, 2) sends them to the build
 // server and receives binaries from the build server, and 3) writes
 // the binaries out to the disk.
-func runBuild(command *cmdline.Command, args []string) error {
+func runBuild(ctx *context.T, env *cmdline2.Env, args []string) error {
 	name, paths := args[0], args[1:]
 	pkgMap := map[string]*build.Package{}
 	if err := importPackages(paths, pkgMap); err != nil {
@@ -231,7 +235,7 @@ func runBuild(command *cmdline.Command, args []string) error {
 	errchan := make(chan error)
 	defer close(errchan)
 
-	ctx, ctxCancel := context.WithTimeout(gctx, time.Minute)
+	ctx, ctxCancel := context.WithTimeout(ctx, time.Minute)
 	defer ctxCancel()
 
 	// Start all stages of the pipeline.

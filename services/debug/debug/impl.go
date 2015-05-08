@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -25,11 +28,17 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
+	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/internal/pproflib"
 )
+
+func main() {
+	cmdline2.Main(cmdRoot)
+}
 
 var (
 	follow     bool
@@ -42,7 +51,7 @@ var (
 )
 
 func init() {
-	cmdline.HideGlobalFlagsExcept()
+	cmdline2.HideGlobalFlagsExcept()
 
 	// logs read flags
 	cmdLogsRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")
@@ -62,8 +71,8 @@ func init() {
 	cmdPProfRun.Flags.StringVar(&pprofCmd, "pprofcmd", "v23 go tool pprof", "The pprof command to use.")
 }
 
-var cmdVtrace = &cmdline.Command{
-	Run:      runVtrace,
+var cmdVtrace = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runVtrace),
 	Name:     "vtrace",
 	Short:    "Returns vtrace traces.",
 	Long:     "Returns matching vtrace traces (or all stored traces if no ids are given).",
@@ -86,16 +95,16 @@ func doFetchTrace(ctx *context.T, wg *sync.WaitGroup, client s_vtrace.StoreClien
 	}
 }
 
-func runVtrace(cmd *cmdline.Command, args []string) error {
+func runVtrace(ctx *context.T, env *cmdline2.Env, args []string) error {
 	arglen := len(args)
 	if arglen == 0 {
-		return cmd.UsageErrorf("vtrace: incorrect number of arguments, got %d want >= 1", arglen)
+		return env.UsageErrorf("vtrace: incorrect number of arguments, got %d want >= 1", arglen)
 	}
 
 	name := args[0]
 	client := s_vtrace.StoreClient(name)
 	if arglen == 1 {
-		call, err := client.AllTraces(gctx)
+		call, err := client.AllTraces(ctx)
 		if err != nil {
 			return err
 		}
@@ -120,7 +129,7 @@ func runVtrace(cmd *cmdline.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		go doFetchTrace(gctx, &wg, client, id, traces, errors)
+		go doFetchTrace(ctx, &wg, client, id, traces, errors)
 	}
 	go func() {
 		wg.Wait()
@@ -136,8 +145,8 @@ func runVtrace(cmd *cmdline.Command, args []string) error {
 	return <-errors
 }
 
-var cmdGlob = &cmdline.Command{
-	Run:      runGlob,
+var cmdGlob = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runGlob),
 	Name:     "glob",
 	Short:    "Returns all matching entries from the namespace.",
 	Long:     "Returns all matching entries from the namespace.",
@@ -147,32 +156,32 @@ var cmdGlob = &cmdline.Command{
 `,
 }
 
-func runGlob(cmd *cmdline.Command, args []string) error {
+func runGlob(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if min, got := 1, len(args); got < min {
-		return cmd.UsageErrorf("glob: incorrect number of arguments, got %d, want >=%d", got, min)
+		return env.UsageErrorf("glob: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
 	results := make(chan naming.GlobReply)
 	errors := make(chan error)
-	doGlobs(gctx, args, results, errors)
+	doGlobs(ctx, args, results, errors)
 	var lastErr error
 	for {
 		select {
 		case err := <-errors:
 			lastErr = err
-			fmt.Fprintln(cmd.Stderr(), "Error:", err)
+			fmt.Fprintln(env.Stderr, "Error:", err)
 		case me, ok := <-results:
 			if !ok {
 				return lastErr
 			}
 			switch v := me.(type) {
 			case *naming.GlobReplyEntry:
-				fmt.Fprint(cmd.Stdout(), v.Value.Name)
+				fmt.Fprint(env.Stdout, v.Value.Name)
 				for _, s := range v.Value.Servers {
-					fmt.Fprintf(cmd.Stdout(), " %s (Deadline %s)", s.Server, s.Deadline.Time)
+					fmt.Fprintf(env.Stdout, " %s (Deadline %s)", s.Server, s.Deadline.Time)
 				}
-				fmt.Fprintln(cmd.Stdout())
+				fmt.Fprintln(env.Stdout)
 			case *naming.GlobReplyError:
-				fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", v.Value.Name, v.Value.Error)
+				fmt.Fprintf(env.Stderr, "Error: %s: %v\n", v.Value.Name, v.Value.Error)
 			}
 		}
 	}
@@ -207,8 +216,8 @@ func doGlob(ctx *context.T, pattern string, results chan<- naming.GlobReply, err
 	}
 }
 
-var cmdLogsRead = &cmdline.Command{
-	Run:      runLogsRead,
+var cmdLogsRead = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runLogsRead),
 	Name:     "read",
 	Short:    "Reads the content of a log file object.",
 	Long:     "Reads the content of a log file object.",
@@ -218,13 +227,13 @@ var cmdLogsRead = &cmdline.Command{
 `,
 }
 
-func runLogsRead(cmd *cmdline.Command, args []string) error {
+func runLogsRead(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if want, got := 1, len(args); want != got {
-		return cmd.UsageErrorf("read: incorrect number of arguments, got %d, want %d", got, want)
+		return env.UsageErrorf("read: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
 	lf := logreader.LogFileClient(name)
-	stream, err := lf.ReadLog(gctx, startPos, int32(numEntries), follow)
+	stream, err := lf.ReadLog(ctx, startPos, int32(numEntries), follow)
 	if err != nil {
 		return err
 	}
@@ -232,9 +241,9 @@ func runLogsRead(cmd *cmdline.Command, args []string) error {
 	for iterator.Advance() {
 		entry := iterator.Value()
 		if verbose {
-			fmt.Fprintf(cmd.Stdout(), "[%d] %s\n", entry.Position, entry.Line)
+			fmt.Fprintf(env.Stdout, "[%d] %s\n", entry.Position, entry.Line)
 		} else {
-			fmt.Fprintf(cmd.Stdout(), "%s\n", entry.Line)
+			fmt.Fprintf(env.Stdout, "%s\n", entry.Line)
 		}
 	}
 	if err = iterator.Err(); err != nil {
@@ -245,13 +254,13 @@ func runLogsRead(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	if verbose {
-		fmt.Fprintf(cmd.Stdout(), "Offset: %d\n", offset)
+		fmt.Fprintf(env.Stdout, "Offset: %d\n", offset)
 	}
 	return nil
 }
 
-var cmdLogsSize = &cmdline.Command{
-	Run:      runLogsSize,
+var cmdLogsSize = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runLogsSize),
 	Name:     "size",
 	Short:    "Returns the size of a log file object.",
 	Long:     "Returns the size of a log file object.",
@@ -261,22 +270,22 @@ var cmdLogsSize = &cmdline.Command{
 `,
 }
 
-func runLogsSize(cmd *cmdline.Command, args []string) error {
+func runLogsSize(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if want, got := 1, len(args); want != got {
-		return cmd.UsageErrorf("size: incorrect number of arguments, got %d, want %d", got, want)
+		return env.UsageErrorf("size: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
 	lf := logreader.LogFileClient(name)
-	size, err := lf.Size(gctx)
+	size, err := lf.Size(ctx)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), size)
+	fmt.Fprintln(env.Stdout, size)
 	return nil
 }
 
-var cmdStatsRead = &cmdline.Command{
-	Run:      runStatsRead,
+var cmdStatsRead = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runStatsRead),
 	Name:     "read",
 	Short:    "Returns the value of stats objects.",
 	Long:     "Returns the value of stats objects.",
@@ -287,13 +296,13 @@ object names.
 `,
 }
 
-func runStatsRead(cmd *cmdline.Command, args []string) error {
+func runStatsRead(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if min, got := 1, len(args); got < min {
-		return cmd.UsageErrorf("read: incorrect number of arguments, got %d, want >=%d", got, min)
+		return env.UsageErrorf("read: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
 	globResults := make(chan naming.GlobReply)
 	errors := make(chan error)
-	doGlobs(gctx, args, globResults, errors)
+	doGlobs(ctx, args, globResults, errors)
 
 	output := make(chan string)
 	go func() {
@@ -302,7 +311,7 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 			switch v := me.(type) {
 			case *naming.GlobReplyEntry:
 				wg.Add(1)
-				go doValue(gctx, v.Value.Name, output, errors, &wg)
+				go doValue(ctx, v.Value.Name, output, errors, &wg)
 			}
 		}
 		wg.Wait()
@@ -314,12 +323,12 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 		select {
 		case err := <-errors:
 			lastErr = err
-			fmt.Fprintln(cmd.Stderr(), err)
+			fmt.Fprintln(env.Stderr, err)
 		case out, ok := <-output:
 			if !ok {
 				return lastErr
 			}
-			fmt.Fprintln(cmd.Stdout(), out)
+			fmt.Fprintln(env.Stdout, out)
 		}
 	}
 }
@@ -341,8 +350,8 @@ func doValue(ctx *context.T, name string, output chan<- string, errors chan<- er
 	output <- fmt.Sprintf("%s: %v", name, fv)
 }
 
-var cmdStatsWatch = &cmdline.Command{
-	Run:      runStatsWatch,
+var cmdStatsWatch = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runStatsWatch),
 	Name:     "watch",
 	Short:    "Returns a stream of all matching entries and their values as they change.",
 	Long:     "Returns a stream of all matching entries and their values as they change.",
@@ -352,9 +361,9 @@ var cmdStatsWatch = &cmdline.Command{
 `,
 }
 
-func runStatsWatch(cmd *cmdline.Command, args []string) error {
+func runStatsWatch(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if want, got := 1, len(args); got < want {
-		return cmd.UsageErrorf("watch: incorrect number of arguments, got %d, want >=%d", got, want)
+		return env.UsageErrorf("watch: incorrect number of arguments, got %d, want >=%d", got, want)
 	}
 
 	results := make(chan string)
@@ -362,7 +371,7 @@ func runStatsWatch(cmd *cmdline.Command, args []string) error {
 	var wg sync.WaitGroup
 	wg.Add(len(args))
 	for _, arg := range args {
-		go doWatch(gctx, arg, results, errors, &wg)
+		go doWatch(ctx, arg, results, errors, &wg)
 	}
 	go func() {
 		wg.Wait()
@@ -373,12 +382,12 @@ func runStatsWatch(cmd *cmdline.Command, args []string) error {
 		select {
 		case err := <-errors:
 			lastErr = err
-			fmt.Fprintln(cmd.Stderr(), "Error:", err)
+			fmt.Fprintln(env.Stderr, "Error:", err)
 		case r, ok := <-results:
 			if !ok {
 				return lastErr
 			}
-			fmt.Fprintln(cmd.Stdout(), r)
+			fmt.Fprintln(env.Stdout, r)
 		}
 	}
 }
@@ -447,8 +456,8 @@ func formatValue(value *vdl.Value) (string, error) {
 	return ret + fmt.Sprint(pretty), err
 }
 
-var cmdPProfRun = &cmdline.Command{
-	Run:      runPProf,
+var cmdPProfRun = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runPProf),
 	Name:     "run",
 	Short:    "Runs the pprof tool.",
 	Long:     "Runs the pprof tool.",
@@ -464,16 +473,16 @@ $ debug pprof run a/b/c profile -gv
 `,
 }
 
-func runPProf(cmd *cmdline.Command, args []string) error {
+func runPProf(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if min, got := 1, len(args); got < min {
-		return cmd.UsageErrorf("pprof: incorrect number of arguments, got %d, want >=%d", got, min)
+		return env.UsageErrorf("pprof: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
 	name := args[0]
 	if len(args) == 1 {
-		return showPProfProfiles(cmd, name)
+		return showPProfProfiles(ctx, env, name)
 	}
 	profile := args[1]
-	listener, err := pproflib.StartProxy(gctx, name)
+	listener, err := pproflib.StartProxy(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -487,24 +496,24 @@ func runPProf(cmd *cmdline.Command, args []string) error {
 	}
 	pargs = append(pargs, shellEscape(fmt.Sprintf("http://%s/pprof/%s", listener.Addr(), profile)))
 	pcmd := strings.Join(pargs, " ")
-	fmt.Fprintf(cmd.Stdout(), "Running: %s\n", pcmd)
+	fmt.Fprintf(env.Stdout, "Running: %s\n", pcmd)
 	c := exec.Command("sh", "-c", pcmd)
 	c.Stdin = os.Stdin
-	c.Stdout = cmd.Stdout()
-	c.Stderr = cmd.Stderr()
+	c.Stdout = env.Stdout
+	c.Stderr = env.Stderr
 	return c.Run()
 }
 
-func showPProfProfiles(cmd *cmdline.Command, name string) error {
-	v, err := pprof.PProfClient(name).Profiles(gctx)
+func showPProfProfiles(ctx *context.T, env *cmdline2.Env, name string) error {
+	v, err := pprof.PProfClient(name).Profiles(ctx)
 	if err != nil {
 		return err
 	}
 	v = append(v, "profile")
 	sort.Strings(v)
-	fmt.Fprintln(cmd.Stdout(), "Available profiles:")
+	fmt.Fprintln(env.Stdout, "Available profiles:")
 	for _, p := range v {
-		fmt.Fprintf(cmd.Stdout(), "  %s\n", p)
+		fmt.Fprintf(env.Stdout, "  %s\n", p)
 	}
 	return nil
 }
@@ -517,8 +526,8 @@ func shellEscape(s string) string {
 	return `"` + re.ReplaceAllString(s, "\\$1") + `"`
 }
 
-var cmdPProfRunProxy = &cmdline.Command{
-	Run:      runPProfProxy,
+var cmdPProfRunProxy = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runPProfProxy),
 	Name:     "proxy",
 	Short:    "Runs an http proxy to a pprof object.",
 	Long:     "Runs an http proxy to a pprof object.",
@@ -528,54 +537,50 @@ var cmdPProfRunProxy = &cmdline.Command{
 `,
 }
 
-func runPProfProxy(cmd *cmdline.Command, args []string) error {
+func runPProfProxy(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if want, got := 1, len(args); got != want {
-		return cmd.UsageErrorf("proxy: incorrect number of arguments, got %d, want %d", got, want)
+		return env.UsageErrorf("proxy: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
-	listener, err := pproflib.StartProxy(gctx, name)
+	listener, err := pproflib.StartProxy(ctx, name)
 	if err != nil {
 		return err
 	}
 	defer listener.Close()
 
-	fmt.Fprintln(cmd.Stdout())
-	fmt.Fprintf(cmd.Stdout(), "The pprof proxy is listening at http://%s/pprof\n", listener.Addr())
-	fmt.Fprintln(cmd.Stdout())
-	fmt.Fprintln(cmd.Stdout(), "Hit CTRL-C to exit")
+	fmt.Fprintln(env.Stdout)
+	fmt.Fprintf(env.Stdout, "The pprof proxy is listening at http://%s/pprof\n", listener.Addr())
+	fmt.Fprintln(env.Stdout)
+	fmt.Fprintln(env.Stdout, "Hit CTRL-C to exit")
 
-	<-signals.ShutdownOnSignals(gctx)
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
 }
 
-var cmdRoot = cmdline.Command{
+var cmdRoot = &cmdline2.Command{
 	Name:  "debug",
 	Short: "supports debugging Vanadium servers.",
 	Long:  "Command debug supports debugging Vanadium servers.",
-	Children: []*cmdline.Command{
+	Children: []*cmdline2.Command{
 		cmdGlob,
 		cmdVtrace,
-		&cmdline.Command{
+		&cmdline2.Command{
 			Name:     "logs",
 			Short:    "Accesses log files",
 			Long:     "Accesses log files",
-			Children: []*cmdline.Command{cmdLogsRead, cmdLogsSize},
+			Children: []*cmdline2.Command{cmdLogsRead, cmdLogsSize},
 		},
-		&cmdline.Command{
+		&cmdline2.Command{
 			Name:     "stats",
 			Short:    "Accesses stats",
 			Long:     "Accesses stats",
-			Children: []*cmdline.Command{cmdStatsRead, cmdStatsWatch},
+			Children: []*cmdline2.Command{cmdStatsRead, cmdStatsWatch},
 		},
-		&cmdline.Command{
+		&cmdline2.Command{
 			Name:     "pprof",
 			Short:    "Accesses profiling data",
 			Long:     "Accesses profiling data",
-			Children: []*cmdline.Command{cmdPProfRun, cmdPProfRunProxy},
+			Children: []*cmdline2.Command{cmdPProfRun, cmdPProfRunProxy},
 		},
 	},
-}
-
-func root() *cmdline.Command {
-	return &cmdRoot
 }

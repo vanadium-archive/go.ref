@@ -12,14 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
 	"v.io/v23/services/permissions"
 	"v.io/v23/verror"
-
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/repository"
 )
@@ -28,10 +29,10 @@ import (
 
 // TODO(caprita): Extend to include env, args, packages.
 
-var cmdPublish = &cmdline.Command{
-	Run:   runPublish,
-	Name:  "publish",
-	Short: "Publish the given application(s).",
+var cmdPublish = &cmdline2.Command{
+	Runner: v23cmd.RunnerFunc(runPublish),
+	Name:   "publish",
+	Short:  "Publish the given application(s).",
 	Long: `
 Publishes the given application(s) to the binary and application servers.
 The <title> can be optionally specified with @<title> (defaults to the binary
@@ -55,11 +56,11 @@ func init() {
 	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve AccessList.")
 }
 
-func setAccessLists(cmd *cmdline.Command, von string) error {
+func setAccessLists(ctx *context.T, env *cmdline2.Env, von string) error {
 	if readBlessings == "" {
 		return nil
 	}
-	perms, version, err := permissions.ObjectClient(von).GetPermissions(gctx)
+	perms, version, err := permissions.ObjectClient(von).GetPermissions(ctx)
 	if err != nil {
 		// TODO(caprita): This is a workaround until we sort out the
 		// default AccessLists for applicationd (see issue #1317).  At that
@@ -73,14 +74,14 @@ func setAccessLists(cmd *cmdline.Command, von string) error {
 			perms.Add(security.BlessingPattern(blessing), string(tag))
 		}
 	}
-	if err := permissions.ObjectClient(von).SetPermissions(gctx, perms, version); err != nil {
+	if err := permissions.ObjectClient(von).SetPermissions(ctx, perms, version); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Added patterns %q to Read,Resolve AccessList for %q\n", readBlessings, von)
+	fmt.Fprintf(env.Stdout, "Added patterns %q to Read,Resolve AccessList for %q\n", readBlessings, von)
 	return nil
 }
 
-func publishOne(cmd *cmdline.Command, binPath, binary string) error {
+func publishOne(ctx *context.T, env *cmdline2.Env, binPath, binary string) error {
 	binaryName, title := binary, binary
 	if parts := strings.SplitN(binary, "@", 2); len(parts) == 2 {
 		binaryName, title = parts[0], parts[1]
@@ -93,14 +94,14 @@ func publishOne(cmd *cmdline.Command, binPath, binary string) error {
 	binaryVON := naming.Join(binaryService, binaryName, fmt.Sprintf("%s-%s", goosFlag, goarchFlag), timestamp)
 	binaryFile := filepath.Join(binPath, binaryName)
 	// TODO(caprita): Take signature of binary and put it in the envelope.
-	if _, err := binarylib.UploadFromFile(gctx, binaryVON, binaryFile); err != nil {
+	if _, err := binarylib.UploadFromFile(ctx, binaryVON, binaryFile); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Binary %q uploaded from file %s\n", binaryVON, binaryFile)
+	fmt.Fprintf(env.Stdout, "Binary %q uploaded from file %s\n", binaryVON, binaryFile)
 
 	// Step 2, set the perms for the uploaded binary.
 
-	if err := setAccessLists(cmd, binaryVON); err != nil {
+	if err := setAccessLists(ctx, env, binaryVON); err != nil {
 		return err
 	}
 
@@ -116,7 +117,7 @@ func publishOne(cmd *cmdline.Command, binPath, binary string) error {
 	// NOTE: If profiles contains more than one entry, this will return only
 	// the first match.  But presumably that's ok, since we're going to set
 	// the envelopes for all the profiles to the same envelope anyway below.
-	envelope, err := appClient.Match(gctx, profiles)
+	envelope, err := appClient.Match(ctx, profiles)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		// There was nothing published yet, create a new envelope.
 		envelope = application.Envelope{Title: title}
@@ -124,47 +125,47 @@ func publishOne(cmd *cmdline.Command, binPath, binary string) error {
 		return err
 	}
 	envelope.Binary.File = binaryVON
-	if err := repository.ApplicationClient(appVON).Put(gctx, profiles, envelope); err != nil {
+	if err := repository.ApplicationClient(appVON).Put(ctx, profiles, envelope); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Published %q\n", appVON)
+	fmt.Fprintf(env.Stdout, "Published %q\n", appVON)
 
 	// Step 4, set the perms for the uploaded envelope.
 
-	if err := setAccessLists(cmd, appVON); err != nil {
+	if err := setAccessLists(ctx, env, appVON); err != nil {
 		return err
 	}
 	return nil
 }
 
-func runPublish(cmd *cmdline.Command, args []string) error {
+func runPublish(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expectedMin, got := 1, len(args); got < expectedMin {
-		return cmd.UsageErrorf("publish: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
+		return env.UsageErrorf("publish: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
 	}
 	binaries := args
 	vroot := os.Getenv("V23_ROOT")
 	if vroot == "" {
-		return cmd.UsageErrorf("publish: $V23_ROOT environment variable should be set")
+		return env.UsageErrorf("publish: $V23_ROOT environment variable should be set")
 	}
 	binPath := filepath.Join(vroot, "release/go/bin")
 	if goosFlag != runtime.GOOS || goarchFlag != runtime.GOARCH {
 		binPath = filepath.Join(binPath, fmt.Sprintf("%s_%s", goosFlag, goarchFlag))
 	}
 	if fi, err := os.Stat(binPath); err != nil {
-		return cmd.UsageErrorf("publish: failed to stat %v: %v", binPath, err)
+		return env.UsageErrorf("publish: failed to stat %v: %v", binPath, err)
 	} else if !fi.IsDir() {
-		return cmd.UsageErrorf("publish: %v is not a directory", binPath)
+		return env.UsageErrorf("publish: %v is not a directory", binPath)
 	}
 	if binaryService == "" {
-		return cmd.UsageErrorf("publish: --binserv must point to a binary service name")
+		return env.UsageErrorf("publish: --binserv must point to a binary service name")
 	}
 	if applicationService == "" {
-		return cmd.UsageErrorf("publish: --appserv must point to an application service name")
+		return env.UsageErrorf("publish: --appserv must point to an application service name")
 	}
 	var lastErr error
 	for _, b := range binaries {
-		if err := publishOne(cmd, binPath, b); err != nil {
-			fmt.Fprintf(cmd.Stderr(), "Failed to publish %q: %v\n", b, err)
+		if err := publishOne(ctx, env, binPath, b); err != nil {
+			fmt.Fprintf(env.Stderr, "Failed to publish %q: %v\n", b, err)
 			lastErr = err
 		}
 	}

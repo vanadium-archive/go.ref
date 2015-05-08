@@ -24,7 +24,7 @@ import (
 )
 
 func init() {
-	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^(rate)|(duration)|(reauthenticate)$`))
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^((rate)|(duration)|(reauthenticate))$`))
 }
 
 var (

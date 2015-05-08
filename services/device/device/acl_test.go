@@ -14,6 +14,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
 )
@@ -25,20 +28,20 @@ var (
 )
 
 func TestAccessListGetCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := endpoint.Name()
 
 	// Test the 'get' command.
@@ -57,7 +60,7 @@ func TestAccessListGetCommand(t *testing.T) {
 		err:     nil,
 	}})
 
-	if err := cmd.Execute([]string{"acl", "get", deviceName}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "get", deviceName}); err != nil {
 		t.Fatalf("error: %v", err)
 	}
 	if expected, got := strings.TrimSpace(`
@@ -73,24 +76,24 @@ self/bad !Admin
 }
 
 func TestAccessListSetCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := endpoint.Name()
 
 	// Some tests to validate parse.
-	if err := cmd.Execute([]string{"acl", "set", deviceName}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 1, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -99,7 +102,7 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := cmd.Execute([]string{"acl", "set", deviceName, "foo"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "foo"}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 2, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -108,7 +111,7 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := cmd.Execute([]string{"acl", "set", deviceName, "foo", "bar", "ohno"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "foo", "bar", "ohno"}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 4, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -117,7 +120,7 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := cmd.Execute([]string{"acl", "set", deviceName, "foo", "!"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "foo", "!"}); err == nil {
 		t.Fatalf("failed to detect invalid parameter")
 	}
 	if expected, got := "ERROR: failed to parse access tags for \"foo\": empty access tag", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -163,7 +166,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	// - Adds a blacklist entry for "friend/alice"  for "Admin"
 	// - Edits existing entry for "self" (adding "Write" access)
 	// - Removes entry for "other/bob/baddevice"
-	if err := cmd.Execute([]string{
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{
 		"acl",
 		"set",
 		deviceName,
@@ -237,7 +240,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	},
 	})
 
-	if err := cmd.Execute([]string{"acl", "set", deviceName, "vana/bad", "Read"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "vana/bad", "Read"}); err == nil {
 		t.Fatalf("GetPermissions RPC inside perms set command failed but error wrongly not detected")
 	} else if expected, got := `^GetPermissions\(`+deviceName+`\) failed:.*oops!`, err.Error(); !regexp.MustCompile(expected).MatchString(got) {
 		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
@@ -269,7 +272,7 @@ func TestAccessListSetCommand(t *testing.T) {
 		verror.New(errOops, nil),
 	})
 
-	if err := cmd.Execute([]string{"acl", "set", deviceName, "friend", "Read"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "friend", "Read"}); err == nil {
 		t.Fatalf("SetPermissions should have failed: %v", err)
 	} else if expected, got := `^SetPermissions\(`+deviceName+`\) failed:.*oops!`, err.Error(); !regexp.MustCompile(expected).MatchString(got) {
 		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)

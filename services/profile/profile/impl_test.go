@@ -17,7 +17,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/build"
 
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
@@ -115,23 +117,21 @@ func stopServer(t *testing.T, server rpc.Server) {
 }
 
 func TestProfileClient(t *testing.T) {
-	var shutdown v23.Shutdown
-	gctx, shutdown = test.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, endpoint, err := startServer(t, gctx)
+	server, endpoint, err := startServer(t, ctx)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := root()
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	exists := naming.JoinAddressName(endpoint.String(), "exists")
 
 	// Test the 'label' command.
-	if err := cmd.Execute([]string{"label", exists}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"label", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := spec.Label, strings.TrimSpace(stdout.String()); got != expected {
@@ -140,7 +140,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'description' command.
-	if err := cmd.Execute([]string{"description", exists}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"description", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := spec.Description, strings.TrimSpace(stdout.String()); got != expected {
@@ -149,7 +149,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'spec' command.
-	if err := cmd.Execute([]string{"specification", exists}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"specification", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := fmt.Sprintf("%#v", spec), strings.TrimSpace(stdout.String()); got != expected {
@@ -158,7 +158,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'put' command.
-	if err := cmd.Execute([]string{"put", exists}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"put", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Profile added successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -167,7 +167,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'remove' command.
-	if err := cmd.Execute([]string{"remove", exists}); err != nil {
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"remove", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Profile removed successfully.", strings.TrimSpace(stdout.String()); got != expected {

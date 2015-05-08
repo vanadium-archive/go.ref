@@ -11,11 +11,12 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
 	deviceimpl "v.io/x/ref/services/device/internal/impl"
 )
 
@@ -24,8 +25,8 @@ import (
 
 // TODO(caprita): Add unit test.
 
-var cmdUpdateAll = &cmdline.Command{
-	Run:      runUpdateAll,
+var cmdUpdateAll = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runUpdateAll),
 	Name:     "updateall",
 	Short:    "Update all installations/instances of an application",
 	Long:     "Given a name that can refer to an app instance or app installation or app or all apps on a device, updates all installations and instances under that name",
@@ -43,12 +44,12 @@ var cmdUpdateAll = &cmdline.Command{
 `,
 }
 
-type updater func(cmd *cmdline.Command, von string) error
+type updater func(ctx *context.T, env *cmdline2.Env, von string) error
 
-func updateChildren(cmd *cmdline.Command, von string, updateChild updater) error {
-	ns := v23.GetNamespace(gctx)
+func updateChildren(ctx *context.T, env *cmdline2.Env, von string, updateChild updater) error {
+	ns := v23.GetNamespace(ctx)
 	pattern := naming.Join(von, "*")
-	c, err := ns.Glob(gctx, pattern)
+	c, err := ns.Glob(ctx, pattern)
 	if err != nil {
 		return fmt.Errorf("ns.Glob(%q) failed: %v", pattern, err)
 	}
@@ -62,7 +63,7 @@ func updateChildren(cmd *cmdline.Command, von string, updateChild updater) error
 		case *naming.GlobReplyEntry:
 			pending.Add(1)
 			go func() {
-				if err := updateChild(cmd, v.Value.Name); err != nil {
+				if err := updateChild(ctx, env, v.Value.Name); err != nil {
 					numErrorsMu.Lock()
 					numErrors++
 					numErrorsMu.Unlock()
@@ -70,7 +71,7 @@ func updateChildren(cmd *cmdline.Command, von string, updateChild updater) error
 				pending.Done()
 			}()
 		case *naming.GlobReplyError:
-			fmt.Fprintf(cmd.Stderr(), "Glob error for %q: %v\n", v.Value.Name, v.Value.Error)
+			fmt.Fprintf(env.Stderr, "Glob error for %q: %v\n", v.Value.Name, v.Value.Error)
 			numErrorsMu.Lock()
 			numErrors++
 			numErrorsMu.Unlock()
@@ -83,8 +84,8 @@ func updateChildren(cmd *cmdline.Command, von string, updateChild updater) error
 	return nil
 }
 
-func instanceIsRunning(von string) (bool, error) {
-	status, err := device.ApplicationClient(von).Status(gctx)
+func instanceIsRunning(ctx *context.T, von string) (bool, error) {
+	status, err := device.ApplicationClient(von).Status(ctx)
 	if err != nil {
 		return false, fmt.Errorf("Failed to get status for instance %q: %v", von, err)
 	}
@@ -95,79 +96,79 @@ func instanceIsRunning(von string) (bool, error) {
 	return s.Value.State == device.InstanceStateRunning, nil
 }
 
-func updateInstance(cmd *cmdline.Command, von string) (retErr error) {
+func updateInstance(ctx *context.T, env *cmdline2.Env, von string) (retErr error) {
 	defer func() {
 		if retErr == nil {
-			fmt.Fprintf(cmd.Stdout(), "Successfully updated instance %q.\n", von)
+			fmt.Fprintf(env.Stdout, "Successfully updated instance %q.\n", von)
 		} else {
 			retErr = fmt.Errorf("failed to update instance %q: %v", von, retErr)
-			fmt.Fprintf(cmd.Stderr(), "ERROR: %v.\n", retErr)
+			fmt.Fprintf(env.Stderr, "ERROR: %v.\n", retErr)
 		}
 	}()
-	running, err := instanceIsRunning(von)
+	running, err := instanceIsRunning(ctx, von)
 	if err != nil {
 		return err
 	}
 	if running {
 		// Try killing the app.
-		if err := device.ApplicationClient(von).Kill(gctx, killDeadline); err != nil {
+		if err := device.ApplicationClient(von).Kill(ctx, killDeadline); err != nil {
 			// Check the app's state again in case we killed it,
 			// nevermind any errors.  The sleep is because Kill
 			// currently (4/29/15) returns asynchronously with the
 			// device manager shooting the app down.
 			time.Sleep(time.Second)
-			running, rerr := instanceIsRunning(von)
+			running, rerr := instanceIsRunning(ctx, von)
 			if rerr != nil {
 				return rerr
 			}
 			if running {
 				return fmt.Errorf("failed to kill instance %q: %v", von, err)
 			}
-			fmt.Fprintf(cmd.Stderr(), "Kill(%s) returned an error (%s) but app is now not running.\n", von, err)
+			fmt.Fprintf(env.Stderr, "Kill(%s) returned an error (%s) but app is now not running.\n", von, err)
 		}
 		// App was running, and we killed it.
 		defer func() {
 			// Re-start the instance.
-			if err := device.ApplicationClient(von).Run(gctx); err != nil {
+			if err := device.ApplicationClient(von).Run(ctx); err != nil {
 				err = fmt.Errorf("failed to run instance %q: %v", von, err)
 				if retErr == nil {
 					retErr = err
 				} else {
-					fmt.Fprintf(cmd.Stderr(), "ERROR: %v.\n", err)
+					fmt.Fprintf(env.Stderr, "ERROR: %v.\n", err)
 				}
 			}
 		}()
 	}
 	// Update the instance.
-	switch err := device.ApplicationClient(von).Update(gctx); {
+	switch err := device.ApplicationClient(von).Update(ctx); {
 	case err == nil:
 		return nil
 	case verror.ErrorID(err) == deviceimpl.ErrUpdateNoOp.ID:
 		// TODO(caprita): Ideally, we wouldn't even attempt a kill /
 		// restart if there's no newer version of the application.
-		fmt.Fprintf(cmd.Stdout(), "Instance %q already up to date.\n", von)
+		fmt.Fprintf(env.Stdout, "Instance %q already up to date.\n", von)
 		return nil
 	default:
 		return err
 	}
 }
 
-func updateInstallation(cmd *cmdline.Command, von string) (retErr error) {
+func updateInstallation(ctx *context.T, env *cmdline2.Env, von string) (retErr error) {
 	defer func() {
 		if retErr == nil {
-			fmt.Fprintf(cmd.Stdout(), "Successfully updated installation %q.\n", von)
+			fmt.Fprintf(env.Stdout, "Successfully updated installation %q.\n", von)
 		} else {
 			retErr = fmt.Errorf("failed to update installation %q: %v", von, retErr)
-			fmt.Fprintf(cmd.Stderr(), "ERROR: %v.\n", retErr)
+			fmt.Fprintf(env.Stderr, "ERROR: %v.\n", retErr)
 		}
 	}()
 
 	// First, update the installation.
-	switch err := device.ApplicationClient(von).Update(gctx); {
+	switch err := device.ApplicationClient(von).Update(ctx); {
 	case err == nil:
-		fmt.Fprintf(cmd.Stdout(), "Successfully updated version for installation %q.\n", von)
+		fmt.Fprintf(env.Stdout, "Successfully updated version for installation %q.\n", von)
 	case verror.ErrorID(err) == deviceimpl.ErrUpdateNoOp.ID:
-		fmt.Fprintf(cmd.Stdout(), "Installation %q already up to date.\n", von)
+		fmt.Fprintf(env.Stdout, "Installation %q already up to date.\n", von)
 		// NOTE: we still proceed to update the instances in this case,
 		// since it's possible that some instances are still running
 		// from older versions.
@@ -175,32 +176,32 @@ func updateInstallation(cmd *cmdline.Command, von string) (retErr error) {
 		return err
 	}
 	// Then, update all the instances for the installation.
-	return updateChildren(cmd, von, updateInstance)
+	return updateChildren(ctx, env, von, updateInstance)
 }
 
-func updateApp(cmd *cmdline.Command, von string) error {
-	if err := updateChildren(cmd, von, updateInstallation); err != nil {
+func updateApp(ctx *context.T, env *cmdline2.Env, von string) error {
+	if err := updateChildren(ctx, env, von, updateInstallation); err != nil {
 		err = fmt.Errorf("failed to update app %q: %v", von, err)
-		fmt.Fprintf(cmd.Stderr(), "ERROR: %v.\n", err)
+		fmt.Fprintf(env.Stderr, "ERROR: %v.\n", err)
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Successfully updated app %q.\n", von)
+	fmt.Fprintf(env.Stdout, "Successfully updated app %q.\n", von)
 	return nil
 }
 
-func updateAllApps(cmd *cmdline.Command, von string) error {
-	if err := updateChildren(cmd, von, updateApp); err != nil {
+func updateAllApps(ctx *context.T, env *cmdline2.Env, von string) error {
+	if err := updateChildren(ctx, env, von, updateApp); err != nil {
 		err = fmt.Errorf("failed to update all apps %q: %v", von, err)
-		fmt.Fprintf(cmd.Stderr(), "ERROR: %v.\n", err)
+		fmt.Fprintf(env.Stderr, "ERROR: %v.\n", err)
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Successfully updated all apps %q.\n", von)
+	fmt.Fprintf(env.Stdout, "Successfully updated all apps %q.\n", von)
 	return nil
 }
 
-func runUpdateAll(cmd *cmdline.Command, args []string) error {
+func runUpdateAll(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("updateall: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("updateall: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appVON := args[0]
 	components := strings.Split(appVON, "/")
@@ -223,13 +224,13 @@ func runUpdateAll(cmd *cmdline.Command, args []string) error {
 	fmt.Printf("prefix: %q, components: %q\n", prefix, components)
 	switch len(components) {
 	case 0:
-		return updateAllApps(cmd, appVON)
+		return updateAllApps(ctx, env, appVON)
 	case 1:
-		return updateApp(cmd, appVON)
+		return updateApp(ctx, env, appVON)
 	case 2:
-		return updateInstallation(cmd, appVON)
+		return updateInstallation(ctx, env, appVON)
 	case 3:
-		return updateInstance(cmd, appVON)
+		return updateInstance(ctx, env, appVON)
 	}
-	return cmd.UsageErrorf("updateall: name %q does not refer to a supported app hierarchy object", appVON)
+	return env.UsageErrorf("updateall: name %q does not refer to a supported app hierarchy object", appVON)
 }

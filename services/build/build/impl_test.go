@@ -16,8 +16,9 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/build"
 	"v.io/v23/verror"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
-
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )
@@ -69,22 +70,19 @@ func stopServer(t *testing.T, server rpc.Server) {
 }
 
 func TestBuildClient(t *testing.T) {
-	var shutdown v23.Shutdown
-	gctx, shutdown = test.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, endpoint := startServer(gctx, t)
+	server, endpoint := startServer(ctx, t)
 	defer stopServer(t, server)
 
-	cmd := root()
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
-
-	// Test the 'Build' command.
-	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/x/ref/services/build/build"}); err != nil {
-		t.Fatalf("%v", err)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	args := []string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/x/ref/services/build/build"}
+	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, args); err != nil {
+		t.Fatalf("Run failed: %v", err)
 	}
-	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
-		t.Errorf("Unexpected output from build: got %q, expected %q", got, expected)
+	if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }

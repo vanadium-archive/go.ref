@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/services/device"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
 )
 
-var cmdDelete = &cmdline.Command{
-	Run:      runDelete,
+var cmdDelete = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runDelete),
 	Name:     "delete",
 	Short:    "Delete the given application instance.",
 	Long:     "Delete the given application instance.",
@@ -24,23 +26,23 @@ var cmdDelete = &cmdline.Command{
 <app instance> is the vanadium object name of the application instance to delete.`,
 }
 
-func runDelete(cmd *cmdline.Command, args []string) error {
+func runDelete(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appName := args[0]
 
-	if err := device.ApplicationClient(appName).Delete(gctx); err != nil {
+	if err := device.ApplicationClient(appName).Delete(ctx); err != nil {
 		return fmt.Errorf("Delete failed: %v", err)
 	}
-	fmt.Fprintf(cmd.Stdout(), "Delete succeeded\n")
+	fmt.Fprintf(env.Stdout, "Delete succeeded\n")
 	return nil
 }
 
 const killDeadline = 10 * time.Second
 
-var cmdKill = &cmdline.Command{
-	Run:      runKill,
+var cmdKill = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runKill),
 	Name:     "kill",
 	Short:    "Kill the given application instance.",
 	Long:     "Kill the given application instance.",
@@ -49,21 +51,21 @@ var cmdKill = &cmdline.Command{
 <app instance> is the vanadium object name of the application instance to kill.`,
 }
 
-func runKill(cmd *cmdline.Command, args []string) error {
+func runKill(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("kill: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("kill: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appName := args[0]
 
-	if err := device.ApplicationClient(appName).Kill(gctx, killDeadline); err != nil {
+	if err := device.ApplicationClient(appName).Kill(ctx, killDeadline); err != nil {
 		return fmt.Errorf("Kill failed: %v", err)
 	}
-	fmt.Fprintf(cmd.Stdout(), "Kill succeeded\n")
+	fmt.Fprintf(env.Stdout, "Kill succeeded\n")
 	return nil
 }
 
-var cmdRun = &cmdline.Command{
-	Run:      runRun,
+var cmdRun = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runRun),
 	Name:     "run",
 	Short:    "Run the given application instance.",
 	Long:     "Run the given application instance.",
@@ -72,15 +74,15 @@ var cmdRun = &cmdline.Command{
 <app instance> is the vanadium object name of the application instance to run.`,
 }
 
-func runRun(cmd *cmdline.Command, args []string) error {
+func runRun(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("run: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("run: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appName := args[0]
 
-	if err := device.ApplicationClient(appName).Run(gctx); err != nil {
+	if err := device.ApplicationClient(appName).Run(ctx); err != nil {
 		return fmt.Errorf("Run failed: %v,\nView log with:\n debug logs read `debug glob %s/logs/STDERR-*`", err, appName)
 	}
-	fmt.Fprintf(cmd.Stdout(), "Run succeeded\n")
+	fmt.Fprintf(env.Stdout, "Run succeeded\n")
 	return nil
 }

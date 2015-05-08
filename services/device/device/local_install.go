@@ -27,12 +27,13 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/services/internal/packages"
 )
 
-var cmdInstallLocal = &cmdline.Command{
-	Run:      runInstallLocal,
+var cmdInstallLocal = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runInstallLocal),
 	Name:     "install-local",
 	Short:    "Install the given application from the local system.",
 	Long:     "Install the given application specified using a local path, and print the name of the new installation.",
@@ -250,9 +251,9 @@ func servePackage(p string, ms *mapServer, tmpZipDir string) (string, string, er
 // TODO(caprita/ashankar): We should use bi-directional streams to get this
 // working over the same connection that the command makes to the device
 // manager.
-func runInstallLocal(cmd *cmdline.Command, args []string) error {
+func runInstallLocal(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expectedMin, got := 2, len(args); got < expectedMin {
-		return cmd.UsageErrorf("install-local: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
+		return env.UsageErrorf("install-local: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
 	}
 	deviceName, title := args[0], args[1]
 	args = args[2:]
@@ -268,7 +269,7 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	envelope.Env = args[:firstNonEnv]
 	args = args[firstNonEnv:]
 	if len(args) == 0 {
-		return cmd.UsageErrorf("install-local: missing binary")
+		return env.UsageErrorf("install-local: missing binary")
 	}
 	binary := args[0]
 	args = args[1:]
@@ -285,7 +286,7 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	if _, err := os.Stat(binary); err != nil {
 		return fmt.Errorf("binary %v not found: %v", binary, err)
 	}
-	server, cancel, err := createServer(gctx, cmd.Stderr())
+	server, cancel, err := createServer(ctx, env.Stderr)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %v", err)
 	}
@@ -330,7 +331,7 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	vlog.VI(1).Infof("application serving envelope as %v", appName)
-	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride), packagesRewritten)
+	appID, err := device.ApplicationClient(deviceName).Install(ctx, appName, device.Config(configOverride), packagesRewritten)
 	// Reset the value for any future invocations of "install" or
 	// "install-local" (we run more than one command per process in unit
 	// tests).
@@ -339,6 +340,6 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
-	fmt.Fprintf(cmd.Stdout(), "%s\n", naming.Join(deviceName, appID))
+	fmt.Fprintf(env.Stdout, "%s\n", naming.Join(deviceName, appID))
 	return nil
 }

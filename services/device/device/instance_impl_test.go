@@ -13,29 +13,32 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/verror"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
 )
 
 func TestKillCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "appname")
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := cmd.Execute([]string{"kill"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"kill"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: kill: incorrect number of arguments, expected 1, got 0", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -46,7 +49,7 @@ func TestKillCommand(t *testing.T) {
 	appTape := tapes.forSuffix("appname")
 	appTape.Rewind()
 
-	if err := cmd.Execute([]string{"kill", "nope", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"kill", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: kill: incorrect number of arguments, expected 1, got 2", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -61,7 +64,7 @@ func TestKillCommand(t *testing.T) {
 		nil,
 	})
 
-	if err := cmd.Execute([]string{"kill", appName}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"kill", appName}); err != nil {
 		t.Fatalf("kill failed when it shouldn't: %v", err)
 	}
 	if expected, got := "Kill succeeded", strings.TrimSpace(stdout.String()); got != expected {
@@ -81,7 +84,7 @@ func TestKillCommand(t *testing.T) {
 	appTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := cmd.Execute([]string{"kill", appName}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"kill", appName}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}
 	// expected the same.
@@ -91,24 +94,24 @@ func TestKillCommand(t *testing.T) {
 }
 
 func testHelper(t *testing.T, lower, upper string) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "appname")
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := cmd.Execute([]string{lower}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{lower}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: "+lower+": incorrect number of arguments, expected 1, got 0", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -119,7 +122,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	appTape := tapes.forSuffix("appname")
 	appTape.Rewind()
 
-	if err := cmd.Execute([]string{lower, "nope", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{lower, "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: "+lower+": incorrect number of arguments, expected 1, got 2", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -133,7 +136,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	appTape.SetResponses([]interface{}{
 		nil,
 	})
-	if err := cmd.Execute([]string{lower, appName}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{lower, appName}); err != nil {
 		t.Fatalf("%s failed when it shouldn't: %v", lower, err)
 	}
 	if expected, got := upper+" succeeded", strings.TrimSpace(stdout.String()); got != expected {
@@ -150,7 +153,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	appTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := cmd.Execute([]string{lower, appName}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{lower, appName}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}
 	// expected the same.

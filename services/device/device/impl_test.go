@@ -18,27 +18,31 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/test"
+
 	cmd_device "v.io/x/ref/services/device/device"
 )
 
 //go:generate v23 test generate
 
 func TestListCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	rootTape := tapes.forSuffix("")
@@ -57,7 +61,7 @@ func TestListCommand(t *testing.T) {
 		err: nil,
 	}})
 
-	if err := cmd.Execute([]string{"associate", "list", deviceName}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "list", deviceName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "root/self alice_self_account\nroot/other alice_other_account", strings.TrimSpace(stdout.String()); got != expected {
@@ -70,7 +74,7 @@ func TestListCommand(t *testing.T) {
 	stdout.Reset()
 
 	// Test list with bad parameters.
-	if err := cmd.Execute([]string{"associate", "list", deviceName, "hello"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "list", deviceName, "hello"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if got, expected := len(rootTape.Play()), 0; got != expected {
@@ -79,23 +83,23 @@ func TestListCommand(t *testing.T) {
 }
 
 func TestAddCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
-	if err := cmd.Execute([]string{"add", "one"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"add", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	rootTape := tapes.forSuffix("")
@@ -106,7 +110,7 @@ func TestAddCommand(t *testing.T) {
 	stdout.Reset()
 
 	rootTape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"associate", "add", deviceName, "alice", "root/self"}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "add", deviceName, "alice", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
@@ -119,7 +123,7 @@ func TestAddCommand(t *testing.T) {
 	stdout.Reset()
 
 	rootTape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"associate", "add", deviceName, "alice", "root/other", "root/self"}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "add", deviceName, "alice", "root/other", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected = []interface{}{
@@ -131,23 +135,23 @@ func TestAddCommand(t *testing.T) {
 }
 
 func TestRemoveCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
-	if err := cmd.Execute([]string{"remove", "one"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"remove", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	rootTape := tapes.forSuffix("")
@@ -158,7 +162,7 @@ func TestRemoveCommand(t *testing.T) {
 	stdout.Reset()
 
 	rootTape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"associate", "remove", deviceName, "root/self"}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "remove", deviceName, "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
@@ -170,20 +174,20 @@ func TestRemoveCommand(t *testing.T) {
 }
 
 func TestInstallCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 	appId := "myBestAppID"
 	cfg := device.Config{"someflag": "somevalue"}
@@ -254,7 +258,7 @@ func TestInstallCommand(t *testing.T) {
 			c.args = append([]string{fmt.Sprintf("--packages=%s", string(jsonPackages))}, c.args...)
 		}
 		c.args = append([]string{"install"}, c.args...)
-		err := cmd.Execute(c.args)
+		err := v23cmd.ParseAndRun(cmd, ctx, env, c.args)
 		if c.shouldErr {
 			if err == nil {
 				t.Fatalf("test case %d: wrongly failed to receive a non-nil error.", i)
@@ -279,28 +283,28 @@ func TestInstallCommand(t *testing.T) {
 }
 
 func TestClaimCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
-	deviceKey, err := v23.GetPrincipal(gctx).PublicKey().MarshalBinary()
+	deviceKey, err := v23.GetPrincipal(ctx).PublicKey().MarshalBinary()
 	if err != nil {
 		t.Fatalf("Failed to marshal principal public key: %v", err)
 	}
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := cmd.Execute([]string{"claim", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 4), got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -311,7 +315,7 @@ func TestClaimCommand(t *testing.T) {
 	rootTape := tapes.forSuffix("")
 	rootTape.Rewind()
 
-	if err := cmd.Execute([]string{"claim", "nope", "nope", "nope", "nope", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", "nope", "nope", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 4), got 5", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -331,7 +335,7 @@ func TestClaimCommand(t *testing.T) {
 			t.Fatalf("Failed to marshal principal public key: %v", err)
 		}
 	}
-	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKeyWrong)}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKeyWrong)}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Fatalf("wrongly failed to receive correct error on claim with incorrect device key:%v id:%v", err, verror.ErrorID(err))
 	}
 	stdout.Reset()
@@ -342,7 +346,7 @@ func TestClaimCommand(t *testing.T) {
 	rootTape.SetResponses([]interface{}{
 		nil,
 	})
-	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKey)}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKey)}); err != nil {
 		t.Fatalf("Claim(%s, %s, %s) failed: %v", deviceName, "grant", pairingToken, err)
 	}
 	if got, expected := len(rootTape.Play()), 1; got != expected {
@@ -365,7 +369,7 @@ func TestClaimCommand(t *testing.T) {
 	rootTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken}); err == nil {
 		t.Fatalf("claim() failed to detect error", err)
 	}
 	expected = []interface{}{
@@ -377,24 +381,24 @@ func TestClaimCommand(t *testing.T) {
 }
 
 func TestInstantiateCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := cmd.Execute([]string{"instantiate", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"instantiate", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: instantiate: incorrect number of arguments, expected 2, got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -405,7 +409,7 @@ func TestInstantiateCommand(t *testing.T) {
 	rootTape := tapes.forSuffix("")
 	rootTape.Rewind()
 
-	if err := cmd.Execute([]string{"instantiate", "nope", "nope", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"instantiate", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: instantiate: incorrect number of arguments, expected 2, got 3", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -421,7 +425,7 @@ func TestInstantiateCommand(t *testing.T) {
 		instanceID: "app1",
 	},
 	})
-	if err := cmd.Execute([]string{"instantiate", appName, "grant"}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"instantiate", appName, "grant"}); err != nil {
 		t.Fatalf("instantiate %s %s failed: %v", appName, "grant", err)
 	}
 
@@ -446,7 +450,7 @@ func TestInstantiateCommand(t *testing.T) {
 		"",
 	},
 	})
-	if err := cmd.Execute([]string{"instantiate", appName, "grant"}); err == nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"instantiate", appName, "grant"}); err == nil {
 		t.Fatalf("instantiate failed to detect error")
 	}
 	expected = []interface{}{
@@ -458,24 +462,24 @@ func TestInstantiateCommand(t *testing.T) {
 }
 
 func TestDebugCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	debugMessage := "the secrets of the universe, revealed"
 	rootTape := tapes.forSuffix("")
 	rootTape.SetResponses([]interface{}{debugMessage})
-	if err := cmd.Execute([]string{"debug", appName}); err != nil {
+	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"debug", appName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := debugMessage, strings.TrimSpace(stdout.String()); got != expected {
@@ -487,18 +491,18 @@ func TestDebugCommand(t *testing.T) {
 }
 
 func TestStatusCommand(t *testing.T) {
-	shutdown := initTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, gctx, tapes)
+	server, endpoint, err := startServer(t, ctx, tapes)
 	if err != nil {
 		return
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := cmd_device.Root()
+	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	rootTape := tapes.forSuffix("")
@@ -524,7 +528,7 @@ func TestStatusCommand(t *testing.T) {
 		rootTape.Rewind()
 		stdout.Reset()
 		rootTape.SetResponses([]interface{}{c.tapeResponse})
-		if err := cmd.Execute([]string{"status", appName}); err != nil {
+		if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"status", appName}); err != nil {
 			t.Errorf("%v", err)
 		}
 		if expected, got := c.expected, strings.TrimSpace(stdout.String()); got != expected {

@@ -5,24 +5,22 @@
 package main
 
 import (
-	"v.io/v23/context"
+	"regexp"
 
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
+	_ "v.io/x/ref/profiles/static"
 )
 
-var gctx *context.T
-
-func SetGlobalContext(ctx *context.T) {
-	gctx = ctx
-}
-
-func Root() *cmdline.Command {
-	return &cmdline.Command{
-		Name:  "device",
-		Short: "facilitates interaction with the Vanadium device manager",
-		Long: `
+var CmdRoot = &cmdline2.Command{
+	Name:  "device",
+	Short: "facilitates interaction with the Vanadium device manager",
+	Long: `
 Command device facilitates interaction with the Vanadium device manager.
 `,
-		Children: []*cmdline.Command{cmdInstall, cmdInstallLocal, cmdUninstall, associateRoot(), cmdDescribe, cmdClaim, cmdInstantiate, cmdDelete, cmdRun, cmdKill, cmdRevert, cmdUpdate, cmdUpdateAll, cmdStatus, cmdDebug, aclRoot(), cmdPublish},
-	}
+	Children: []*cmdline2.Command{cmdInstall, cmdInstallLocal, cmdUninstall, cmdAssociate, cmdDescribe, cmdClaim, cmdInstantiate, cmdDelete, cmdRun, cmdKill, cmdRevert, cmdUpdate, cmdUpdateAll, cmdStatus, cmdDebug, cmdACL, cmdPublish},
+}
+
+func main() {
+	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^((v23\.namespace\.root)|(v23\.proxy))$`))
+	cmdline2.Main(CmdRoot)
 }

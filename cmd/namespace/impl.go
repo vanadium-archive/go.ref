@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -18,12 +21,15 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/v23cmd"
+	_ "v.io/x/ref/profiles"
 )
 
-func init() {
-	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+func main() {
+	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+	cmdline2.Main(cmdRoot)
 }
 
 var (
@@ -33,8 +39,15 @@ var (
 	flagDeleteSubtree       bool
 )
 
-var cmdGlob = &cmdline.Command{
-	Run:      runGlob,
+func init() {
+	cmdGlob.Flags.BoolVar(&flagLongGlob, "l", false, "Long listing format.")
+	cmdResolve.Flags.BoolVar(&flagInsecureResolve, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
+	cmdResolveToMT.Flags.BoolVar(&flagInsecureResolveToMT, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
+	cmdDelete.Flags.BoolVar(&flagDeleteSubtree, "r", false, "Delete all children of the name in addition to the name itself.")
+}
+
+var cmdGlob = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runGlob),
 	Name:     "glob",
 	Short:    "Returns all matching entries from the namespace",
 	Long:     "Returns all matching entries from the namespace.",
@@ -45,13 +58,13 @@ specified mount name.
 `,
 }
 
-func runGlob(cmd *cmdline.Command, args []string) error {
+func runGlob(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	pattern := args[0]
 
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	ns := v23.GetNamespace(ctx)
@@ -66,14 +79,14 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		for res := range c {
 			switch v := res.(type) {
 			case *naming.GlobReplyEntry:
-				fmt.Fprint(cmd.Stdout(), v.Value.Name)
+				fmt.Fprint(env.Stdout, v.Value.Name)
 				for _, s := range v.Value.Servers {
 					delta := s.Deadline.Time.Sub(time.Now())
-					fmt.Fprintf(cmd.Stdout(), " %s (Expires in %d sec)", s.Server, int(delta.Seconds()))
+					fmt.Fprintf(env.Stdout, " %s (Expires in %d sec)", s.Server, int(delta.Seconds()))
 				}
-				fmt.Fprintln(cmd.Stdout())
+				fmt.Fprintln(env.Stdout)
 			case *naming.GlobReplyError:
-				fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", v.Value.Name, v.Value.Error)
+				fmt.Fprintf(env.Stderr, "Error: %s: %v\n", v.Value.Name, v.Value.Error)
 			}
 		}
 		return nil
@@ -97,16 +110,16 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	}
 	sort.Strings(results)
 	for _, result := range results {
-		fmt.Fprintln(cmd.Stdout(), result)
+		fmt.Fprintln(env.Stdout, result)
 	}
 	for _, err := range errors {
-		fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", err.Name, err.Error)
+		fmt.Fprintf(env.Stderr, "Error: %s: %v\n", err.Name, err.Error)
 	}
 	return nil
 }
 
-var cmdMount = &cmdline.Command{
-	Run:      runMount,
+var cmdMount = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runMount),
 	Name:     "mount",
 	Short:    "Adds a server to the namespace",
 	Long:     "Adds server <server> to the namespace with name <name>.",
@@ -119,9 +132,9 @@ suffix (s, m, h). A value of 0s represents an infinite duration.
 `,
 }
 
-func runMount(cmd *cmdline.Command, args []string) error {
+func runMount(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 3, len(args); expected != got {
-		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	server := args[1]
@@ -132,7 +145,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	ns := v23.GetNamespace(ctx)
@@ -140,12 +153,12 @@ func runMount(cmd *cmdline.Command, args []string) error {
 		vlog.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Server mounted successfully.")
+	fmt.Fprintln(env.Stdout, "Server mounted successfully.")
 	return nil
 }
 
-var cmdUnmount = &cmdline.Command{
-	Run:      runUnmount,
+var cmdUnmount = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runUnmount),
 	Name:     "unmount",
 	Short:    "Removes a server from the namespace",
 	Long:     "Removes server <server> with name <name> from the namespace.",
@@ -156,14 +169,14 @@ var cmdUnmount = &cmdline.Command{
 `,
 }
 
-func runUnmount(cmd *cmdline.Command, args []string) error {
+func runUnmount(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	server := args[1]
 
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	ns := v23.GetNamespace(ctx)
@@ -172,12 +185,12 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 		vlog.Infof("ns.Unmount(%q, %q) failed: %v", name, server, err)
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Server unmounted successfully.")
+	fmt.Fprintln(env.Stdout, "Server unmounted successfully.")
 	return nil
 }
 
-var cmdResolve = &cmdline.Command{
-	Run:      runResolve,
+var cmdResolve = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runResolve),
 	Name:     "resolve",
 	Short:    "Translates a object name to its object address(es)",
 	Long:     "Translates a object name to its object address(es).",
@@ -185,13 +198,13 @@ var cmdResolve = &cmdline.Command{
 	ArgsLong: "<name> is the name to resolve.",
 }
 
-func runResolve(cmd *cmdline.Command, args []string) error {
+func runResolve(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("resolve: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("resolve: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	ns := v23.GetNamespace(ctx)
@@ -206,13 +219,13 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	for _, n := range me.Names() {
-		fmt.Fprintln(cmd.Stdout(), n)
+		fmt.Fprintln(env.Stdout, n)
 	}
 	return nil
 }
 
-var cmdResolveToMT = &cmdline.Command{
-	Run:      runResolveToMT,
+var cmdResolveToMT = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runResolveToMT),
 	Name:     "resolvetomt",
 	Short:    "Finds the address of the mounttable that holds an object name",
 	Long:     "Finds the address of the mounttable that holds an object name.",
@@ -220,13 +233,13 @@ var cmdResolveToMT = &cmdline.Command{
 	ArgsLong: "<name> is the name to resolve.",
 }
 
-func runResolveToMT(cmd *cmdline.Command, args []string) error {
+func runResolveToMT(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("resolvetomt: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("resolvetomt: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	ns := v23.GetNamespace(ctx)
@@ -240,12 +253,12 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	for _, s := range e.Servers {
-		fmt.Fprintln(cmd.Stdout(), naming.JoinAddressName(s.Server, e.Name))
+		fmt.Fprintln(env.Stdout, naming.JoinAddressName(s.Server, e.Name))
 	}
 	return nil
 }
 
-var cmdPermissions = &cmdline.Command{
+var cmdPermissions = &cmdline2.Command{
 	Name:  "permissions",
 	Short: "Manipulates permissions on an entry in the namespace",
 	Long: `
@@ -255,13 +268,13 @@ names required to resolve the name.
 The permissions are provided as an JSON-encoded version of the Permissions type
 defined in v.io/v23/security/access/types.vdl.
 `,
-	Children: []*cmdline.Command{cmdPermissionsGet, cmdPermissionsSet},
+	Children: []*cmdline2.Command{cmdPermissionsGet, cmdPermissionsSet},
 }
 
-var cmdPermissionsSet = &cmdline.Command{
-	Run:   runPermissionsSet,
-	Name:  "set",
-	Short: "Sets permissions on a mount name",
+var cmdPermissionsSet = &cmdline2.Command{
+	Runner: v23cmd.RunnerFunc(runPermissionsSet),
+	Name:   "set",
+	Short:  "Sets permissions on a mount name",
 	Long: `
 Set replaces the permissions controlling usage of a mount name.
 `,
@@ -274,9 +287,9 @@ object (defined in v.io/v23/security/access/types.vdl), or "-" for STDIN.
 `,
 }
 
-func runPermissionsSet(cmd *cmdline.Command, args []string) error {
+func runPermissionsSet(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("set: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("set: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	var perms access.Permissions
@@ -291,7 +304,7 @@ func runPermissionsSet(cmd *cmdline.Command, args []string) error {
 	if err := json.NewDecoder(file).Decode(&perms); err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	ns := v23.GetNamespace(ctx)
 	for {
@@ -307,8 +320,8 @@ func runPermissionsSet(cmd *cmdline.Command, args []string) error {
 	}
 }
 
-var cmdPermissionsGet = &cmdline.Command{
-	Run:      runPermissionsGet,
+var cmdPermissionsGet = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runPermissionsGet),
 	Name:     "get",
 	Short:    "Gets permissions on a mount name",
 	ArgsName: "<name>",
@@ -323,23 +336,23 @@ v.io/v23/security/access/types.vdl).
 `,
 }
 
-func runPermissionsGet(cmd *cmdline.Command, args []string) error {
+func runPermissionsGet(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("get: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("get: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	perms, _, err := v23.GetNamespace(ctx).GetPermissions(ctx, name)
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(cmd.Stdout()).Encode(perms)
+	return json.NewEncoder(env.Stdout).Encode(perms)
 }
 
-var cmdDelete = &cmdline.Command{
-	Run:      runDelete,
+var cmdDelete = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runDelete),
 	Name:     "delete",
 	Short:    "Deletes a name from the namespace",
 	ArgsName: "<name>",
@@ -347,26 +360,21 @@ var cmdDelete = &cmdline.Command{
 	Long:     "Deletes a name from the namespace.",
 }
 
-func runDelete(cmd *cmdline.Command, args []string) error {
+func runDelete(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
+		return env.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
 	return v23.GetNamespace(ctx).Delete(ctx, name, flagDeleteSubtree)
 }
 
-func root() *cmdline.Command {
-	cmdGlob.Flags.BoolVar(&flagLongGlob, "l", false, "Long listing format.")
-	cmdResolve.Flags.BoolVar(&flagInsecureResolve, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
-	cmdResolveToMT.Flags.BoolVar(&flagInsecureResolveToMT, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
-	cmdDelete.Flags.BoolVar(&flagDeleteSubtree, "r", false, "Delete all children of the name in addition to the name itself.")
-	return &cmdline.Command{
-		Name:  "namespace",
-		Short: "resolves and manages names in the Vanadium namespace",
-		Long: `
+var cmdRoot = &cmdline2.Command{
+	Name:  "namespace",
+	Short: "resolves and manages names in the Vanadium namespace",
+	Long: `
 Command namespace resolves and manages names in the Vanadium namespace.
 
 The namespace roots are set from the command line via --v23.namespace.root
@@ -374,6 +382,5 @@ command line option or from environment variables that have a name starting
 with V23_NAMESPACE, e.g.  V23_NAMESPACE, V23_NAMESPACE_2, V23_NAMESPACE_GOOGLE,
 etc.  The command line options override the environment.
 `,
-		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdPermissions, cmdDelete},
-	}
+	Children: []*cmdline2.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdPermissions, cmdDelete},
 }
