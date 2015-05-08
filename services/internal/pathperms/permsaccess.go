@@ -49,7 +49,7 @@ func NewPathStore(principal security.Principal) *PathStore {
 }
 
 // Get returns the Permissions from the data file in dir.
-func (store PathStore) Get(dir string) (access.Permissions, string, error) {
+func (store *PathStore) Get(dir string) (access.Permissions, string, error) {
 	permspath := filepath.Join(dir, permsName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
@@ -57,7 +57,7 @@ func (store PathStore) Get(dir string) (access.Permissions, string, error) {
 }
 
 // TODO(rjkroege): Improve lock handling.
-func (store PathStore) lockPath(dir string) func() {
+func (store *PathStore) lockPath(dir string) func() {
 	store.lk.Lock()
 	lck, contains := store.pthlks[dir]
 	if !contains {
@@ -107,7 +107,7 @@ func getCore(principal security.Principal, permspath, sigpath string) (access.Pe
 
 // Set writes the specified Permissions to the provided directory with
 // enforcement of version synchronization mechanism and locking.
-func (store PathStore) Set(dir string, perms access.Permissions, version string) error {
+func (store *PathStore) Set(dir string, perms access.Permissions, version string) error {
 	return store.SetShareable(dir, perms, version, false)
 }
 
@@ -115,7 +115,7 @@ func (store PathStore) Set(dir string, perms access.Permissions, version string)
 // directory with enforcement of version synchronization mechanism and
 // locking with file modes that will give the application read-only
 // access to the permissions file.
-func (store PathStore) SetShareable(dir string, perms access.Permissions, version string, shareable bool) error {
+func (store *PathStore) SetShareable(dir string, perms access.Permissions, version string, shareable bool) error {
 	permspath := filepath.Join(dir, permsName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
@@ -187,7 +187,7 @@ func write(principal security.Principal, permsFile, sigFile, dir string, perms a
 	return nil
 }
 
-func (store PathStore) PermsForPath(path string) (access.Permissions, bool, error) {
+func (store *PathStore) PermsForPath(path string) (access.Permissions, bool, error) {
 	perms, _, err := store.Get(path)
 	if os.IsNotExist(err) {
 		return nil, true, nil
