@@ -23,8 +23,12 @@ import (
 // NoDischarges specifies that the RPC call should not fetch discharges.
 type NoDischarges struct{}
 
-func (NoDischarges) RPCCallOpt() {}
-func (NoDischarges) NSOpt()      {}
+func (NoDischarges) RPCCallOpt() {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+}
+func (NoDischarges) NSOpt() {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+}
 
 // discharger implements vc.DischargeClient.
 type dischargeClient struct {

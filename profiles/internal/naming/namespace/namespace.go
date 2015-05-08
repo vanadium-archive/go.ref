@@ -72,7 +72,7 @@ func New(roots ...string) (*namespace, error) {
 
 // SetRoots implements naming.Namespace.SetRoots
 func (ns *namespace) SetRoots(roots ...string) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("roots...=%v", roots)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Allow roots to be cleared with a call of SetRoots()
 	if len(roots) > 0 && !rooted(roots) {
 		return badRoots(roots)
@@ -193,7 +193,7 @@ func withTimeoutAndCancel(ctx *context.T) (nctx *context.T, cancel context.Cance
 
 // CacheCtl implements naming.Namespace.CacheCtl
 func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ctls...=%v", ctls)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	for _, c := range ctls {
 		switch v := c.(type) {
 		case naming.DisableCache:

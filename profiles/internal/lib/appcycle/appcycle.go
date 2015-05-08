@@ -68,20 +68,24 @@ func (m *AppCycle) stop(msg string) {
 }
 
 func (m *AppCycle) Stop() {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	m.stop(v23.LocalStop)
 }
 
 func (*AppCycle) ForceStop() {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	os.Exit(v23.ForceStopExitCode)
 }
 
 func (m *AppCycle) WaitForStop(ch chan<- string) {
+	defer vlog.LogCallf("ch=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	m.Lock()
 	defer m.Unlock()
 	m.waiters = append(m.waiters, ch)
 }
 
 func (m *AppCycle) TrackTask(ch chan<- v23.Task) {
+	defer vlog.LogCallf("ch=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	m.Lock()
 	defer m.Unlock()
 	if m.shutDown {
@@ -109,6 +113,7 @@ func (m *AppCycle) advanceTask(progress, goal int32) {
 }
 
 func (m *AppCycle) AdvanceGoal(delta int32) {
+	defer vlog.LogCallf("delta=%v", delta)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	if delta <= 0 {
 		return
 	}
@@ -116,6 +121,7 @@ func (m *AppCycle) AdvanceGoal(delta int32) {
 }
 
 func (m *AppCycle) AdvanceProgress(delta int32) {
+	defer vlog.LogCallf("delta=%v", delta)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	if delta <= 0 {
 		return
 	}
@@ -123,10 +129,12 @@ func (m *AppCycle) AdvanceProgress(delta int32) {
 }
 
 func (m *AppCycle) Remote() interface{} {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	return public.AppCycleServer(m.disp)
 }
 
 func (d *invoker) Stop(ctx *context.T, call public.AppCycleStopServerCall) error {
+	defer vlog.LogCallf("ctx=,call=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	blessings, _ := security.RemoteBlessingNames(ctx, call.Security())
 	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
@@ -150,6 +158,7 @@ func (d *invoker) Stop(ctx *context.T, call public.AppCycleStopServerCall) error
 }
 
 func (d *invoker) ForceStop(*context.T, rpc.ServerCall) error {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	d.ac.ForceStop()
 	return fmt.Errorf("ForceStop should not reply as the process should be dead")
 }

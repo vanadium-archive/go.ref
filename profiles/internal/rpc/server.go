@@ -253,6 +253,7 @@ func InternalNewServer(
 }
 
 func (s *server) Status() rpc.ServerStatus {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	status := rpc.ServerStatus{}
 	defer vlog.LogCall()()
 	s.Lock()
@@ -280,7 +281,7 @@ func (s *server) Status() rpc.ServerStatus {
 }
 
 func (s *server) WatchNetwork(ch chan<- rpc.NetworkChange) {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ch=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.Lock()
 	defer s.Unlock()
 	if s.dhcpState != nil {
@@ -289,7 +290,7 @@ func (s *server) WatchNetwork(ch chan<- rpc.NetworkChange) {
 }
 
 func (s *server) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("ch=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.Lock()
 	defer s.Unlock()
 	if s.dhcpState != nil {
@@ -363,7 +364,7 @@ func (s *server) createEndpoints(lep naming.Endpoint, chooser netstate.AddressCh
 }
 
 func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("listenSpec=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	useProxy := len(listenSpec.Proxy) > 0
 	if !useProxy && len(listenSpec.Addrs) == 0 {
 		return nil, verror.New(verror.ErrBadArg, s.ctx, "ListenSpec contains no proxy or addresses to listen on")
@@ -743,6 +744,7 @@ type leafDispatcher struct {
 }
 
 func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	defer vlog.LogCallf("suffix=%.10s...", suffix)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	if suffix != "" {
 		return nil, nil, verror.New(verror.ErrUnknownSuffix, nil, suffix)
 	}
@@ -750,7 +752,7 @@ func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 }
 
 func (s *server) Serve(name string, obj interface{}, authorizer security.Authorizer) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("name=%.10s...,obj=,authorizer=", name)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	if obj == nil {
 		return verror.New(verror.ErrBadArg, s.ctx, "nil object")
 	}
@@ -774,7 +776,7 @@ func (s *server) setLeaf(value bool) {
 }
 
 func (s *server) ServeDispatcher(name string, disp rpc.Dispatcher) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("name=%.10s...,disp=", name)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	if disp == nil {
 		return verror.New(verror.ErrBadArg, s.ctx, "nil dispatcher")
 	}
@@ -797,7 +799,7 @@ func (s *server) ServeDispatcher(name string, disp rpc.Dispatcher) error {
 }
 
 func (s *server) AddName(name string) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("name=%.10s...", name)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	if len(name) == 0 {
 		return verror.New(verror.ErrBadArg, s.ctx, "name is empty")
 	}
@@ -812,7 +814,7 @@ func (s *server) AddName(name string) error {
 }
 
 func (s *server) RemoveName(name string) {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("name=%.10s...", name)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.Lock()
 	defer s.Unlock()
 	if err := s.allowed(publishing, "RemoveName"); err != nil {
@@ -823,6 +825,7 @@ func (s *server) RemoveName(name string) {
 }
 
 func (s *server) Stop() error {
+	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	serverDebug := fmt.Sprintf("Dispatcher: %T, Status:[%v]", s.disp, s.Status())
 	defer vlog.LogCall()()
 	vlog.VI(1).Infof("Stop: %s", serverDebug)
@@ -1269,7 +1272,7 @@ func authorize(ctx *context.T, call security.Call, auth security.Authorizer) err
 
 // Send implements the rpc.Stream method.
 func (fs *flowServer) Send(item interface{}) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("item=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	// The empty response header indicates what follows is a streaming result.
 	if err := fs.enc.Encode(rpc.Response{}); err != nil {
 		return err
@@ -1279,7 +1282,7 @@ func (fs *flowServer) Send(item interface{}) error {
 
 // Recv implements the rpc.Stream method.
 func (fs *flowServer) Recv(itemptr interface{}) error {
-	defer vlog.LogCall()()
+	defer vlog.LogCallf("itemptr=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	var req rpc.Request
 	if err := fs.dec.Decode(&req); err != nil {
 		return err

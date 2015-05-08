@@ -179,6 +179,7 @@ func (r *Runtime) addChild(ctx *context.T, me interface{}, stop func(), dependsO
 }
 
 func (r *Runtime) Init(ctx *context.T) error {
+	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	return r.initMgmt(ctx)
 }
 
@@ -213,10 +214,12 @@ func (r *Runtime) initSignalHandling(ctx *context.T) {
 }
 
 func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
+	defer vlog.LogCallf("ep=%.10s...", ep)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	return inaming.NewEndpoint(ep)
 }
 
 func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, error) {
+	defer vlog.LogCallf("ctx=,opts...=%v", opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Create a new RoutingID (and StreamManager) for each server.
 	sm, err := newStreamManager()
 	if err != nil {
@@ -295,6 +298,7 @@ func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
 }
 
 func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
+	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	newctx, err := r.setNewStreamManager(ctx)
 	if err != nil {
 		return ctx, err
@@ -320,6 +324,7 @@ func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shu
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
+	defer vlog.LogCallf("ctx=,principal=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	var err error
 	newctx := ctx
 
@@ -345,11 +350,13 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 }
 
 func (*Runtime) GetPrincipal(ctx *context.T) security.Principal {
+	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	return p
 }
 
 func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.T, rpc.Client, error) {
+	defer vlog.LogCallf("ctx=,opts...=%v", opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	otherOpts := append([]rpc.ClientOpt{}, opts...)
 
 	p, _ := ctx.Value(principalKey).(security.Principal)
@@ -376,6 +383,7 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 }
 
 func (*Runtime) GetClient(ctx *context.T) rpc.Client {
+	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	cl, _ := ctx.Value(clientKey).(rpc.Client)
 	return cl
 }
@@ -397,6 +405,7 @@ func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, 
 }
 
 func (r *Runtime) WithNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
+	defer vlog.LogCallf("ctx=,roots...=%v", roots)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	newctx, ns, err := r.setNewNamespace(ctx, roots...)
 	if err != nil {
 		return ctx, nil, err
@@ -412,16 +421,19 @@ func (r *Runtime) WithNewNamespace(ctx *context.T, roots ...string) (*context.T,
 }
 
 func (*Runtime) GetNamespace(ctx *context.T) namespace.T {
+	// nologcall
 	ns, _ := ctx.Value(namespaceKey).(namespace.T)
 	return ns
 }
 
 func (*Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
+	// nologcall
 	id, _ := ctx.Value(initKey).(*initData)
 	return id.appCycle
 }
 
 func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
+	// nologcall
 	if id, _ := ctx.Value(initKey).(*initData); id.listenSpec != nil {
 		return id.listenSpec.Copy()
 	}
@@ -429,6 +441,7 @@ func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 }
 
 func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {
+	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -437,6 +450,7 @@ func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
+	// nologcall
 	bctx, _ := ctx.Value(backgroundKey).(*context.T)
 	if bctx == nil {
 		// There should always be a background context.  If we don't find
@@ -449,10 +463,12 @@ func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
+	defer vlog.LogCallf("ctx=,d=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	return context.WithValue(ctx, reservedNameKey, d)
 }
 
 func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
+	// nologcall
 	if d, ok := ctx.Value(reservedNameKey).(rpc.Dispatcher); ok {
 		return d
 	}

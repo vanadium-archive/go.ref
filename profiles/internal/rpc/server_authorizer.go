@@ -12,6 +12,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 )
 
 // TODO(ribrdb): Flip this to true once everything is updated and also update
@@ -66,6 +67,7 @@ func newServerAuthorizer(pattern security.BlessingPattern, opts ...rpc.CallOpt) 
 }
 
 func (a *serverAuthorizer) Authorize(ctx *context.T, call security.Call) error {
+	defer vlog.LogCallf("ctx=,call=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 	if call.RemoteBlessings().IsZero() {
 		return verror.New(errNoBlessingsFromServer, ctx)
 	}
