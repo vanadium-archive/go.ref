@@ -46,6 +46,10 @@ func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {
 	return WebsocketConn(address, ws), nil
 }
 
+func Resolve(protocol, address string) (string, string, error) {
+	return "ws", address, nil
+}
+
 func (c *wrappedConn) Read(b []byte) (int, error) {
 	c.readLock.Lock()
 	defer c.readLock.Unlock()

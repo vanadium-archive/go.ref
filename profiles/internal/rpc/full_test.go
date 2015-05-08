@@ -2077,7 +2077,7 @@ func newClientServerPrincipals() (client, server security.Principal) {
 }
 
 func init() {
-	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
+	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
 	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ *context.T, _ security.Call, t int64) error {
 		if now := clock.Now(); now > t {
 			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)

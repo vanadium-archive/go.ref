@@ -628,14 +628,12 @@ func TestAddressResolution(t *testing.T) {
 	// We'd like an endpoint that contains an address that's different than the
 	// one used for the connection. In practice this is awkward to achieve since
 	// we don't want to listen on ":0" since that will annoy firewalls. Instead we
-	// listen on 127.0.0.1 and we fabricate an endpoint that doesn't contain
-	// 127.0.0.1 by using ":0" to create it. This leads to an endpoint such that
-	// the address encoded in the endpoint (e.g. "0.0.0.0:55324") is different
-	// from the address of the connection (e.g. "127.0.0.1:55324").
+	// create a endpoint with "localhost", which will result in an endpoint that
+	// doesn't contain 127.0.0.1.
 	_, port, _ := net.SplitHostPort(ep.Addr().String())
 	nep := &inaming.Endpoint{
 		Protocol: ep.Addr().Network(),
-		Address:  net.JoinHostPort("", port),
+		Address:  net.JoinHostPort("localhost", port),
 		RID:      ep.RoutingID(),
 	}
 
@@ -769,10 +767,13 @@ func TestRegistration(t *testing.T) {
 	dialer := func(_, _ string, _ time.Duration) (net.Conn, error) {
 		return nil, fmt.Errorf("tn.Dial")
 	}
+	resolver := func(_, _ string) (string, string, error) {
+		return "", "", fmt.Errorf("tn.Resolve")
+	}
 	listener := func(_, _ string) (net.Listener, error) {
 		return nil, fmt.Errorf("tn.Listen")
 	}
-	rpc.RegisterProtocol("tn", dialer, listener)
+	rpc.RegisterProtocol("tn", dialer, resolver, listener)
 
 	_, _, err := server.Listen("tnx", "127.0.0.1:0", principal, blessings)
 	if err == nil || !strings.Contains(err.Error(), "unknown network: tnx") {
@@ -789,7 +790,7 @@ func TestRegistration(t *testing.T) {
 		return net.Listen("tcp", addr)
 	}
 
-	if got, want := rpc.RegisterProtocol("tn", dialer, listener), true; got != want {
+	if got, want := rpc.RegisterProtocol("tn", dialer, resolver, listener), true; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
 
@@ -799,8 +800,8 @@ func TestRegistration(t *testing.T) {
 	}
 
 	_, err = client.Dial(ep, testutil.NewPrincipal("client"))
-	if err == nil || !strings.Contains(err.Error(), "tn.Dial") {
-		t.Fatal("expected error is missing (%v)", err)
+	if err == nil || !strings.Contains(err.Error(), "tn.Resolve") {
+		t.Fatalf("expected error is missing (%v)", err)
 	}
 }
 
@@ -942,17 +943,9 @@ func TestConcurrentDials(t *testing.T) {
 	}
 	go acceptLoop(ln)
 
-	// We'd like an endpoint that contains an address that's different than the
-	// one used for the connection. In practice this is awkward to achieve since
-	// we don't want to listen on ":0" since that will annoy firewalls. Instead we
-	// listen on 127.0.0.1 and we fabricate an endpoint that doesn't contain
-	// 127.0.0.1 by using ":0" to create it. This leads to an endpoint such that
-	// the address encoded in the endpoint (e.g. "0.0.0.0:55324") is different
-	// from the address of the connection (e.g. "127.0.0.1:55324").
-	_, port, _ := net.SplitHostPort(ep.Addr().String())
 	nep := &inaming.Endpoint{
 		Protocol: ep.Addr().Network(),
-		Address:  net.JoinHostPort("", port),
+		Address:  ep.Addr().String(),
 		RID:      ep.RoutingID(),
 	}
 

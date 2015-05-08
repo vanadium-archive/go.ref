@@ -16,9 +16,9 @@ import (
 )
 
 func init() {
-	rpc.RegisterProtocol("tcp", tcpDial, tcpListen, "tcp4", "tcp6")
-	rpc.RegisterProtocol("tcp4", tcpDial, tcpListen)
-	rpc.RegisterProtocol("tcp6", tcpDial, tcpListen)
+	rpc.RegisterProtocol("tcp", tcpDial, tcpResolve, tcpListen, "tcp4", "tcp6")
+	rpc.RegisterProtocol("tcp4", tcpDial, tcpResolve, tcpListen)
+	rpc.RegisterProtocol("tcp6", tcpDial, tcpResolve, tcpListen)
 }
 
 func tcpDial(network, address string, timeout time.Duration) (net.Conn, error) {
@@ -30,6 +30,15 @@ func tcpDial(network, address string, timeout time.Duration) (net.Conn, error) {
 		return nil, err
 	}
 	return conn, nil
+}
+
+// tcpResolve performs a DNS resolution on the provided network and address.
+func tcpResolve(network, address string) (string, string, error) {
+	tcpAddr, err := net.ResolveTCPAddr(network, address)
+	if err != nil {
+		return "", "", err
+	}
+	return tcpAddr.Network(), tcpAddr.String(), nil
 }
 
 // tcpListen returns a listener that sets KeepAlive on all accepted connections.

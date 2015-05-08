@@ -72,7 +72,7 @@ type Opts struct {
 //  dialer := func(network, address string, timeout time.Duration) (net.Conn, error) {
 //	    return mocknet.DialerWithOpts(mocknet.Opts{UnderlyingProtocol:"tcp"}, network, address, timeout)
 //  }
-// rpc.RegisterProtocol("brkDial", dialer, net.Listen)
+// rpc.RegisterProtocol("brkDial", dialer, resolver, net.Listen)
 //
 func DialerWithOpts(opts Opts, network, address string, timeout time.Duration) (net.Conn, error) {
 	protocol := opts.UnderlyingProtocol

@@ -209,8 +209,8 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 				conn.Close()
 				return
 			}
-			ln.vifs.Insert(vf)
-			ln.manager.vifs.Insert(vf)
+			ln.vifs.Insert(vf, conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+			ln.manager.vifs.Insert(vf, conn.RemoteAddr().Network(), conn.RemoteAddr().String())
 
 			ln.vifLoops.Add(1)
 			vifLoop(vf, ln.q, func() {
@@ -221,6 +221,12 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 			})
 		}()
 	}
+}
+
+func (ln *netListener) deleteVIF(vf *vif.VIF) {
+	vlog.VI(2).Infof("VIF %v is closed, removing from cache", vf)
+	ln.vifs.Delete(vf)
+	ln.manager.vifs.Delete(vf)
 }
 
 func (ln *netListener) Accept() (stream.Flow, error) {
@@ -250,12 +256,6 @@ func (ln *netListener) Close() error {
 	ln.vifLoops.Wait()
 	vlog.VI(3).Infof("Closed stream.Listener %s", ln)
 	return nil
-}
-
-func (ln *netListener) deleteVIF(vf *vif.VIF) {
-	vlog.VI(2).Infof("VIF %v is closed, removing from cache", vf)
-	ln.vifs.Delete(vf)
-	ln.manager.vifs.Delete(vf)
 }
 
 func (ln *netListener) String() string {

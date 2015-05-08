@@ -272,7 +272,11 @@ func TestV23Control(t *testing.T) {
 		return mocknet.DialerWithOpts(opts, network, address, timeout)
 	}
 
-	rpc.RegisterProtocol("dropControl", dropControlDialer, net.Listen)
+	simpleResolver := func(network, address string) (string, string, error) {
+		return network, address, nil
+	}
+
+	rpc.RegisterProtocol("dropControl", dropControlDialer, simpleResolver, net.Listen)
 
 	server, fn := initServer(t, ctx)
 	defer fn()

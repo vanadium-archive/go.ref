@@ -24,7 +24,10 @@ import (
 var supportsIPv6 bool
 
 func init() {
-	rpc.RegisterProtocol("unix", net.DialTimeout, net.Listen)
+	simpleResolver := func(network, address string) (string, string, error) {
+		return network, address, nil
+	}
+	rpc.RegisterProtocol("unix", net.DialTimeout, simpleResolver, net.Listen)
 
 	// Check whether the platform supports IPv6.
 	ln, err := net.Listen("tcp6", "[::1]:0")
@@ -35,7 +38,7 @@ func init() {
 }
 
 func newConn(network, address string) (net.Conn, net.Conn, error) {
-	dfunc, lfunc, _ := rpc.RegisteredProtocol(network)
+	dfunc, _, lfunc, _ := rpc.RegisteredProtocol(network)
 	ln, err := lfunc(network, address)
 	if err != nil {
 		return nil, nil, err
@@ -94,6 +97,12 @@ func diff(a, b []string) []string {
 	return d
 }
 
+func find(set *vif.Set, n, a string) *vif.VIF {
+	found, unblock := set.BlockingFind(n, a)
+	unblock()
+	return found
+}
+
 func TestSetBasic(t *testing.T) {
 	sockdir, err := ioutil.TempDir("", "TestSetBasic")
 	if err != nil {
@@ -143,23 +152,23 @@ func TestSetBasic(t *testing.T) {
 		}
 		a := c.RemoteAddr()
 
-		set.Insert(vf)
+		set.Insert(vf, a.Network(), a.String())
 		for _, n := range test.compatibles {
-			if found := set.Find(n, a.String()); found == nil {
-				t.Fatalf("%s: Got nil, but want [%v] on Find(%q, %q))", name, vf, n, a)
+			if found := find(set, n, a.String()); found == nil {
+				t.Fatalf("%s: Got nil, but want [%v] on find(%q, %q))", name, vf, n, a)
 			}
 		}
 
 		for _, n := range diff(all, test.compatibles) {
-			if v := set.Find(n, a.String()); v != nil {
-				t.Fatalf("%s: Got [%v], but want nil on Find(%q, %q))", name, v, n, a)
+			if v := find(set, n, a.String()); v != nil {
+				t.Fatalf("%s: Got [%v], but want nil on find(%q, %q))", name, v, n, a)
 			}
 		}
 
 		set.Delete(vf)
 		for _, n := range all {
-			if v := set.Find(n, a.String()); v != nil {
-				t.Fatalf("%s: Got [%v], but want nil on Find(%q, %q))", name, v, n, a)
+			if v := find(set, n, a.String()); v != nil {
+				t.Fatalf("%s: Got [%v], but want nil on find(%q, %q))", name, v, n, a)
 			}
 		}
 	}
@@ -186,17 +195,17 @@ func TestSetWithPipes(t *testing.T) {
 	}
 
 	set := vif.NewSet()
-	set.Insert(vf1)
-	if v := set.Find(a1.Network(), a1.String()); v != nil {
-		t.Fatalf("Got [%v], but want nil on Find(%q, %q))", v, a1.Network(), a1)
+	set.Insert(vf1, a1.Network(), a1.String())
+	if v := find(set, a1.Network(), a1.String()); v != nil {
+		t.Fatalf("Got [%v], but want nil on find(%q, %q))", v, a1.Network(), a1)
 	}
 	if l := set.List(); len(l) != 1 || l[0] != vf1 {
 		t.Errorf("Unexpected list of VIFs: %v", l)
 	}
 
-	set.Insert(vf2)
-	if v := set.Find(a2.Network(), a2.String()); v != nil {
-		t.Fatalf("Got [%v], but want nil on Find(%q, %q))", v, a2.Network(), a2)
+	set.Insert(vf2, a2.Network(), a2.String())
+	if v := find(set, a2.Network(), a2.String()); v != nil {
+		t.Fatalf("Got [%v], but want nil on find(%q, %q))", v, a2.Network(), a2)
 	}
 	if l := set.List(); len(l) != 2 || l[0] != vf1 || l[1] != vf2 {
 		t.Errorf("Unexpected list of VIFs: %v", l)
@@ -247,17 +256,17 @@ func TestSetWithUnixSocket(t *testing.T) {
 	}
 
 	set := vif.NewSet()
-	set.Insert(vf1)
-	if v := set.Find(a1.Network(), a1.String()); v != nil {
-		t.Fatalf("Got [%v], but want nil on Find(%q, %q))", v, a1.Network(), a1)
+	set.Insert(vf1, a1.Network(), a1.String())
+	if v := find(set, a1.Network(), a1.String()); v != nil {
+		t.Fatalf("Got [%v], but want nil on find(%q, %q))", v, a1.Network(), a1)
 	}
 	if l := set.List(); len(l) != 1 || l[0] != vf1 {
 		t.Errorf("Unexpected list of VIFs: %v", l)
 	}
 
-	set.Insert(vf2)
-	if v := set.Find(a2.Network(), a2.String()); v != nil {
-		t.Fatalf("Got [%v], but want nil on Find(%q, %q))", v, a2.Network(), a2)
+	set.Insert(vf2, a2.Network(), a2.String())
+	if v := find(set, a2.Network(), a2.String()); v != nil {
+		t.Fatalf("Got [%v], but want nil on find(%q, %q))", v, a2.Network(), a2)
 	}
 	if l := set.List(); len(l) != 2 || l[0] != vf1 || l[1] != vf2 {
 		t.Errorf("Unexpected list of VIFs: %v", l)
@@ -275,52 +284,21 @@ func TestSetWithUnixSocket(t *testing.T) {
 
 func TestSetInsertDelete(t *testing.T) {
 	c1, s1 := net.Pipe()
-	c2, s2 := net.Pipe()
 	vf1, _, err := newVIF(c1, s1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	vf2, _, err := newVIF(c2, s2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	set1 := vif.NewSet()
-	set2 := vif.NewSet()
 
-	set1.Insert(vf1)
+	n1, a1 := c1.RemoteAddr().Network(), c1.RemoteAddr().String()
+	set1.Insert(vf1, n1, a1)
 	if l := set1.List(); len(l) != 1 || l[0] != vf1 {
 		t.Errorf("Unexpected list of VIFs: %v", l)
 	}
-	set1.Insert(vf2)
-	if l := set1.List(); len(l) != 2 || l[0] != vf1 || l[1] != vf2 {
-		t.Errorf("Unexpected list of VIFs: %v", l)
-	}
-
-	set2.Insert(vf1)
-	set2.Insert(vf2)
 
 	set1.Delete(vf1)
-	if l := set1.List(); len(l) != 1 || l[0] != vf2 {
-		t.Errorf("Unexpected list of VIFs: %v", l)
-	}
-	if l := set2.List(); len(l) != 2 || l[0] != vf1 || l[1] != vf2 {
-		t.Errorf("Unexpected list of VIFs: %v", l)
-	}
-
-	vf1.Close()
-	if l := set1.List(); len(l) != 1 || l[0] != vf2 {
-		t.Errorf("Unexpected list of VIFs: %v", l)
-	}
-	if l := set2.List(); len(l) != 1 || l[0] != vf2 {
-		t.Errorf("Unexpected list of VIFs: %v", l)
-	}
-
-	vf2.Close()
 	if l := set1.List(); len(l) != 0 {
-		t.Errorf("Unexpected list of VIFs: %v", l)
-	}
-	if l := set2.List(); len(l) != 0 {
 		t.Errorf("Unexpected list of VIFs: %v", l)
 	}
 }
@@ -329,14 +307,15 @@ func TestBlockingFind(t *testing.T) {
 	network, address := "tcp", "127.0.0.1:1234"
 	set := vif.NewSet()
 
-	set.BlockingFind(network, address)
+	_, unblock := set.BlockingFind(network, address)
 
 	ch := make(chan *vif.VIF, 1)
 
 	// set.BlockingFind should block until set.Unblock is called with the corresponding VIF,
 	// since set.BlockingFind was called earlier.
 	go func(ch chan *vif.VIF) {
-		ch <- set.BlockingFind(network, address)
+		vf, _ := set.BlockingFind(network, address)
+		ch <- vf
 	}(ch)
 
 	// set.BlockingFind for a different network and address should not block.
@@ -351,8 +330,8 @@ func TestBlockingFind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	set.Insert(vf)
-	set.Unblock(network, address)
+	set.Insert(vf, network, address)
+	unblock()
 
 	// Now the set.BlockingFind should have returned the correct vif.
 	if cachedVif := <-ch; cachedVif != vf {

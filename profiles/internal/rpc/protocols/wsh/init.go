@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	rpc.RegisterProtocol("wsh", websocket.HybridDial, websocket.HybridListener, "tcp4", "tcp6", "ws4", "ws6")
-	rpc.RegisterProtocol("wsh4", websocket.HybridDial, websocket.HybridListener, "tcp4", "ws4")
-	rpc.RegisterProtocol("wsh6", websocket.HybridDial, websocket.HybridListener, "tcp6", "ws6")
+	rpc.RegisterProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener, "tcp4", "tcp6", "ws4", "ws6")
+	rpc.RegisterProtocol("wsh4", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener, "tcp4", "ws4")
+	rpc.RegisterProtocol("wsh6", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener, "tcp6", "ws6")
 }

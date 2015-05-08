@@ -89,6 +89,10 @@ func dropDataDialer(network, address string, timeout time.Duration) (net.Conn, e
 	return mocknet.DialerWithOpts(opts, network, address, timeout)
 }
 
+func simpleResolver(network, address string) (string, string, error) {
+	return network, address, nil
+}
+
 func TestDialErrors(t *testing.T) {
 	_, shutdown := test.InitForTest()
 	defer shutdown()
@@ -100,8 +104,9 @@ func TestDialErrors(t *testing.T) {
 	// bad protocol
 	ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("x", "127.0.0.1:2"))
 	_, err := client.Dial(ep, pclient)
-	if verror.ErrorID(err) != stream.ErrDialFailed.ID {
-		t.Fatalf("wrong error: %s", err)
+	// A bad protocol should result in a Resolve Error.
+	if verror.ErrorID(err) != stream.ErrResolveFailed.ID {
+		t.Errorf("wrong error: %v", err)
 	}
 	t.Log(err)
 
@@ -109,11 +114,11 @@ func TestDialErrors(t *testing.T) {
 	ep, _ = inaming.NewEndpoint(naming.FormatEndpoint("tcp", "127.0.0.1:2"))
 	_, err = client.Dial(ep, pclient)
 	if verror.ErrorID(err) != stream.ErrDialFailed.ID {
-		t.Fatalf("wrong error: %s", err)
+		t.Errorf("wrong error: %v", err)
 	}
 	t.Log(err)
 
-	rpc.RegisterProtocol("dropData", dropDataDialer, net.Listen)
+	rpc.RegisterProtocol("dropData", dropDataDialer, simpleResolver, net.Listen)
 
 	ln, sep, err := server.Listen("tcp", "127.0.0.1:0", pserver, pserver.BlessingStore().Default())
 	if err != nil {
@@ -129,7 +134,7 @@ func TestDialErrors(t *testing.T) {
 	}
 	_, err = client.Dial(cep, pclient)
 	if verror.ErrorID(err) != stream.ErrNetwork.ID {
-		t.Fatalf("wrong error: %s", err)
+		t.Errorf("wrong error: %v", err)
 	}
 	t.Log(err)
 }
