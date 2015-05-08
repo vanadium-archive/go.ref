@@ -28,6 +28,7 @@ import (
 )
 
 const pkgPath = "v.io/x/ref/services/mounttable/mounttablelib"
+const defaultMaxNodesPerUser = 1000
 
 var (
 	errMalformedAddress = verror.Register(pkgPath+".errMalformedAddress", verror.NoRetry, "{1:}{2:} malformed address {3} for mounted server {4}{:_}")
@@ -36,6 +37,8 @@ var (
 	errCantDeleteRoot   = verror.Register(pkgPath+".errCantDeleteRoot", verror.NoRetry, "{1:}{2:} cannot delete root node{:_}")
 	errNotEmpty         = verror.Register(pkgPath+".errNotEmpty", verror.NoRetry, "{1:}{2:} cannot delete {3}: has children{:_}")
 	errNamingLoop       = verror.Register(pkgPath+".errNamingLoop", verror.NoRetry, "{1:}{2:} Loop in namespace{:_}")
+	errTooManyNodes     = verror.Register(pkgPath+".errTooManyNodes", verror.NoRetry, "{1:}{2:} User has exceeded his node limit {:_}")
+	errNoSharedRoot     = verror.Register(pkgPath+".errNoSharedRoot", verror.NoRetry, "{1:}{2:} Server and User share no blessing root {:_}")
 )
 
 var (
@@ -51,19 +54,23 @@ var (
 )
 
 type persistence interface {
-	persistPerms(name string, perm *VersionedPermissions) error
+	persistPerms(name, creator string, perm *VersionedPermissions) error
 	persistDelete(name string) error
 	close()
 }
 
 // mountTable represents a namespace.  One exists per server instance.
 type mountTable struct {
-	root          *node
-	superUsers    access.AccessList
-	persisting    bool
-	persist       persistence
-	nodeCounter   *stats.Integer
-	serverCounter *stats.Integer
+	sync.Mutex
+	root               *node
+	superUsers         access.AccessList
+	persisting         bool
+	persist            persistence
+	nodeCounter        *stats.Integer
+	serverCounter      *stats.Integer
+	perUserNodeCounter *stats.Map
+	maxNodesPerUser    int64
+	userPrefixes       []string
 }
 
 var _ rpc.Dispatcher = (*mountTable)(nil)
@@ -93,6 +100,7 @@ type node struct {
 	vPerms              *VersionedPermissions
 	permsTemplate       access.Permissions
 	explicitPermissions bool
+	creator             string
 }
 
 const templateVar = "%%"
@@ -109,9 +117,11 @@ const templateVar = "%%"
 // statsPrefix is the prefix for for exported statistics objects.
 func NewMountTableDispatcher(permsFile, persistDir, statsPrefix string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
-		root:          new(node),
-		nodeCounter:   stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
-		serverCounter: stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
+		root:               new(node),
+		nodeCounter:        stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
+		serverCounter:      stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
+		perUserNodeCounter: stats.NewMap(naming.Join(statsPrefix, "num-nodes-per-user")),
+		maxNodesPerUser:    defaultMaxNodesPerUser,
 	}
 	mt.root.parent = mt.newNode() // just for its lock
 	if persistDir != "" {
@@ -140,6 +150,7 @@ func (mt *mountTable) deleteNode(parent *node, child string) {
 	if n == nil {
 		return
 	}
+	mt.credit(n)
 	nodeCount := int64(0)
 	serverCount := int64(0)
 	queue := []*node{n}
@@ -151,6 +162,7 @@ func (mt *mountTable) deleteNode(parent *node, child string) {
 		for _, ch := range n.children {
 			ch.Lock() // Keep locked until it is deleted.
 			queue = append(queue, ch)
+			mt.credit(ch)
 		}
 	}
 
@@ -315,8 +327,14 @@ func (mt *mountTable) traverse(ctx *context.T, call security.Call, elems []strin
 				return nil, nil, err
 			}
 		}
+		// Obey account limits.
+		creator, err := mt.debit(ctx, call)
+		if err != nil {
+			return nil, nil, err
+		}
 		// At this point cur is still locked, OK to use and change it.
 		next := mt.newNode()
+		next.creator = creator
 		next.parent = cur
 		if cur.permsTemplate != nil {
 			next.vPerms = createVersionedPermissionsFromTemplate(cur.permsTemplate, e)
@@ -805,7 +823,7 @@ func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perm
 	n.vPerms, err = n.vPerms.Set(ctx, version, perms)
 	if err == nil {
 		if mt.persisting {
-			mt.persist.persistPerms(ms.name, n.vPerms)
+			mt.persist.persistPerms(ms.name, n.creator, n.vPerms)
 		}
 		n.explicitPermissions = true
 	}
@@ -828,4 +846,24 @@ func (ms *mountContext) GetPermissions(ctx *context.T, call rpc.ServerCall) (acc
 	defer n.Unlock()
 	version, perms := n.vPerms.Get()
 	return perms, version, nil
+}
+
+// credit user for node deletion.
+func (mt *mountTable) credit(n *node) {
+	mt.perUserNodeCounter.Incr(n.creator, -1)
+}
+
+// debit user for node creation.
+func (mt *mountTable) debit(ctx *context.T, call security.Call) (string, error) {
+	creator := mt.pickCreator(ctx, call)
+	count, ok := mt.perUserNodeCounter.Incr(creator, 1).(int64)
+	if !ok {
+		return "", verror.New(errTooManyNodes, ctx)
+	}
+	// If we have no prefixes defining users, don't bother with checking per user limits.
+	if len(mt.userPrefixes) != 0 && count > mt.maxNodesPerUser {
+		mt.perUserNodeCounter.Incr(creator, -1)
+		return "", verror.New(errTooManyNodes, ctx)
+	}
+	return creator, nil
 }

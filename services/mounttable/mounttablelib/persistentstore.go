@@ -26,7 +26,8 @@ type store struct {
 type storeElement struct {
 	N string // Name of affected node
 	V VersionedPermissions
-	D bool // True if the subtree at N has been deleted
+	D bool   // True if the subtree at N has been deleted
+	C string // Creator
 }
 
 // newPersistentStore will read the permissions log from the directory and apply them to the
@@ -132,6 +133,7 @@ func (s *store) parseLogFile(f *os.File) error {
 		elems := strings.Split(e.N, "/")
 		n, err := mt.findNode(nil, nil, elems, true, nil)
 		if n != nil || err == nil {
+			n.creator = e.C
 			if e.D {
 				mt.deleteNode(n.parent, elems[len(elems)-1])
 				vlog.VI(2).Infof("deleted %s", e.N)
@@ -152,7 +154,7 @@ func (s *store) parseLogFile(f *os.File) error {
 // any duplicate or deleted entries disappear.
 func (s *store) depthFirstPersist(n *node, name string) {
 	if n.explicitPermissions {
-		s.persistPerms(name, n.vPerms)
+		s.persistPerms(name, n.creator, n.vPerms)
 	}
 	for nodeName, c := range n.children {
 		s.depthFirstPersist(c, path.Join(name, nodeName))
@@ -160,10 +162,10 @@ func (s *store) depthFirstPersist(n *node, name string) {
 }
 
 // persistPerms appends a changed permission to the log.
-func (s *store) persistPerms(name string, vPerms *VersionedPermissions) error {
+func (s *store) persistPerms(name, creator string, vPerms *VersionedPermissions) error {
 	s.l.Lock()
 	defer s.l.Unlock()
-	e := storeElement{N: name, V: *vPerms}
+	e := storeElement{N: name, V: *vPerms, C: creator}
 	return s.enc.Encode(&e)
 }
 

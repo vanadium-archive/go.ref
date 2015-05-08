@@ -5,6 +5,7 @@
 package mounttablelib
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -25,6 +26,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/lib/vlog"
 
+	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -177,7 +179,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 }
 
-func newMT(t *testing.T, permsFile, persistDir string, rootCtx *context.T) (rpc.Server, string) {
+func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (rpc.Server, string) {
 	reservedDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
 	ctx := v23.WithReservedNameDispatcher(rootCtx, reservedDisp)
 	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
@@ -185,7 +187,7 @@ func newMT(t *testing.T, permsFile, persistDir string, rootCtx *context.T) (rpc.
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Add mount table service.
-	mt, err := NewMountTableDispatcher(permsFile, persistDir, "mounttable")
+	mt, err := NewMountTableDispatcher(permsFile, persistDir, statsDir)
 	if err != nil {
 		boom(t, "NewMountTableDispatcher: %v", err)
 	}
@@ -227,7 +229,7 @@ func TestMountTable(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	mt, mtAddr := newMT(t, "testdata/test.perms", "", rootCtx)
+	mt, mtAddr := newMT(t, "testdata/test.perms", "", "testMountTable", rootCtx)
 	defer mt.Stop()
 	collection, collectionAddr := newCollection(t, rootCtx)
 	defer collection.Stop()
@@ -397,7 +399,7 @@ func TestGlob(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", "", rootCtx)
+	server, estr := newMT(t, "", "", "testGlob", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -444,7 +446,7 @@ func TestAccessListTemplate(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.perms", "", rootCtx)
+	server, estr := newMT(t, "testdata/test.perms", "", "testAccessListTemplate", rootCtx)
 	defer server.Stop()
 	fakeServer := naming.JoinAddressName(estr, "quux")
 
@@ -457,13 +459,67 @@ func TestAccessListTemplate(t *testing.T) {
 	doMount(t, aliceCtx, estr, "users/alice", fakeServer, true)
 	doMount(t, bobCtx, estr, "users/bob", fakeServer, true)
 	doMount(t, rootCtx, estr, "users/root", fakeServer, true)
+
+	// Make sure the counter works.
+	doUnmount(t, aliceCtx, estr, "users/alice", "", true)
+	doUnmount(t, bobCtx, estr, "users/bob", "", true)
+	doUnmount(t, rootCtx, estr, "users/root", "", true)
+	perms := access.Permissions{"Admin": access.AccessList{In: []security.BlessingPattern{security.AllPrincipals}}}
+	doSetPermissions(t, aliceCtx, estr, "users/alice/a/b/c/d", perms, "", true)
+	doSetPermissions(t, aliceCtx, estr, "users/alice/a/b/c/d", perms, "", true)
+
+	// Do we obey limits?
+	for i := 0; i < defaultMaxNodesPerUser-5; i++ {
+		node := fmt.Sprintf("users/alice/a/b/c/d/%d", i)
+		doSetPermissions(t, aliceCtx, estr, node, perms, "", true)
+	}
+	doSetPermissions(t, aliceCtx, estr, "users/alice/a/b/c/d/straw", perms, "", false)
+
+	// See if the stats numbers are correct.
+	testcases := []struct {
+		key      string
+		expected interface{}
+	}{
+		{"alice", int64(defaultMaxNodesPerUser)},
+		{"bob", int64(0)},
+		{"root", int64(0)},
+		{localUser, int64(3)},
+	}
+	for _, tc := range testcases {
+		name := "testAccessListTemplate/num-nodes-per-user/" + tc.key
+		got, err := libstats.Value(name)
+		if err != nil {
+			t.Errorf("unexpected error getting map entry for %s: %s", name, err)
+		}
+		if got != tc.expected {
+			t.Errorf("unexpected getting map entry for %s. Got %v, want %v", name, got, tc.expected)
+		}
+	}
+}
+
+func getUserNodeCounts(t *testing.T) (counts map[string]int32) {
+	s, err := libstats.Value("mounttable/num-nodes-per-user")
+	if err != nil {
+		boom(t, "Can't get mounttable statistics")
+	}
+	// This string is a json encoded map.  Decode.
+	switch v := s.(type) {
+	default:
+		boom(t, "Wrong type for mounttable statistics")
+	case string:
+		err = json.Unmarshal([]byte(v), &counts)
+		if err != nil {
+			boom(t, "Can't unmarshal mounttable statistics")
+		}
+	}
+	return
 }
 
 func TestGlobAccessLists(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.perms", "", rootCtx)
+	server, estr := newMT(t, "testdata/test.perms", "", "testGlobAccessLists", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -496,7 +552,7 @@ func TestCleanup(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", "", rootCtx)
+	server, estr := newMT(t, "", "", "testCleanup", rootCtx)
 	defer server.Stop()
 
 	// Set up one mount.
@@ -524,7 +580,7 @@ func TestDelete(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.perms", "", rootCtx)
+	server, estr := newMT(t, "testdata/test.perms", "", "testDelete", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -551,7 +607,7 @@ func TestServerFormat(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", "", rootCtx)
+	server, estr := newMT(t, "", "", "testerverFormat", rootCtx)
 	defer server.Stop()
 
 	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true)
@@ -565,7 +621,7 @@ func TestExpiry(t *testing.T) {
 	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "", "", rootCtx)
+	server, estr := newMT(t, "", "", "testExpiry", rootCtx)
 	defer server.Stop()
 	collection, collectionAddr := newCollection(t, rootCtx)
 	defer collection.Stop()
@@ -633,7 +689,7 @@ func TestStatsCounters(t *testing.T) {
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
 
-	server, estr := newMT(t, "", "", rootCtx)
+	server, estr := newMT(t, "", "", "mounttable", rootCtx)
 	defer server.Stop()
 
 	// Test flat tree
