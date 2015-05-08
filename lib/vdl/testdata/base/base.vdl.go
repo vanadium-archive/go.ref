@@ -23,91 +23,91 @@ import (
 type NamedBool bool
 
 func (NamedBool) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedBool"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedBool"`
 }) {
 }
 
 type NamedByte byte
 
 func (NamedByte) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedByte"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedByte"`
 }) {
 }
 
 type NamedUint16 uint16
 
 func (NamedUint16) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedUint16"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedUint16"`
 }) {
 }
 
 type NamedUint32 uint32
 
 func (NamedUint32) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedUint32"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedUint32"`
 }) {
 }
 
 type NamedUint64 uint64
 
 func (NamedUint64) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedUint64"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedUint64"`
 }) {
 }
 
 type NamedInt16 int16
 
 func (NamedInt16) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedInt16"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedInt16"`
 }) {
 }
 
 type NamedInt32 int32
 
 func (NamedInt32) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedInt32"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedInt32"`
 }) {
 }
 
 type NamedInt64 int64
 
 func (NamedInt64) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedInt64"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedInt64"`
 }) {
 }
 
 type NamedFloat32 float32
 
 func (NamedFloat32) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedFloat32"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedFloat32"`
 }) {
 }
 
 type NamedFloat64 float64
 
 func (NamedFloat64) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedFloat64"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedFloat64"`
 }) {
 }
 
 type NamedComplex64 complex64
 
 func (NamedComplex64) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedComplex64"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedComplex64"`
 }) {
 }
 
 type NamedComplex128 complex128
 
 func (NamedComplex128) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedComplex128"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedComplex128"`
 }) {
 }
 
 type NamedString string
 
 func (NamedString) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedString"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedString"`
 }) {
 }
 
@@ -159,7 +159,7 @@ func (x NamedEnum) String() string {
 }
 
 func (NamedEnum) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedEnum"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedEnum"`
 	Enum struct{ A, B, C string }
 }) {
 }
@@ -167,28 +167,28 @@ func (NamedEnum) __VDLReflect(struct {
 type NamedArray [2]bool
 
 func (NamedArray) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedArray"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedArray"`
 }) {
 }
 
 type NamedList []uint32
 
 func (NamedList) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedList"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedList"`
 }) {
 }
 
 type NamedSet map[string]struct{}
 
 func (NamedSet) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedSet"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedSet"`
 }) {
 }
 
 type NamedMap map[string]float32
 
 func (NamedMap) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedMap"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedMap"`
 }) {
 }
 
@@ -199,7 +199,7 @@ type NamedStruct struct {
 }
 
 func (NamedStruct) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NamedStruct"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedStruct"`
 }) {
 }
 
@@ -223,7 +223,7 @@ type (
 	NamedUnionC struct{ Value int32 }
 	// __NamedUnionReflect describes the NamedUnion union type.
 	__NamedUnionReflect struct {
-		Name  string "v.io/x/ref/lib/vdl/testdata/base.NamedUnion"
+		Name  string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedUnion"`
 		Type  NamedUnion
 		Union struct {
 			A NamedUnionA
@@ -283,7 +283,7 @@ type Scalars struct {
 }
 
 func (Scalars) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.Scalars"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.Scalars"`
 }) {
 }
 
@@ -318,14 +318,14 @@ type KeyScalars struct {
 }
 
 func (KeyScalars) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.KeyScalars"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.KeyScalars"`
 }) {
 }
 
 type ScalarsArray [2]Scalars
 
 func (ScalarsArray) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.ScalarsArray"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.ScalarsArray"`
 }) {
 }
 
@@ -339,14 +339,14 @@ type Composites struct {
 }
 
 func (Composites) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.Composites"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.Composites"`
 }) {
 }
 
 type CompositesArray [2]Composites
 
 func (CompositesArray) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.CompositesArray"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.CompositesArray"`
 }) {
 }
 
@@ -359,7 +359,7 @@ type CompComp struct {
 }
 
 func (CompComp) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.CompComp"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.CompComp"`
 }) {
 }
 
@@ -371,7 +371,7 @@ type NestedArgs struct {
 }
 
 func (NestedArgs) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.NestedArgs"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NestedArgs"`
 }) {
 }
 
@@ -382,7 +382,7 @@ type Args struct {
 }
 
 func (Args) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/base.Args"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.Args"`
 }) {
 }
 

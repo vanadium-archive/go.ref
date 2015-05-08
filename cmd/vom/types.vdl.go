@@ -55,7 +55,7 @@ func (x dataRep) String() string {
 }
 
 func (dataRep) __VDLReflect(struct {
-	Name string "v.io/x/ref/cmd/vom.dataRep"
+	Name string `vdl:"v.io/x/ref/cmd/vom.dataRep"`
 	Enum struct{ Hex, Binary string }
 }) {
 }

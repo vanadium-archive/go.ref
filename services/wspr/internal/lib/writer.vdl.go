@@ -24,7 +24,7 @@ type ServerRpcReply struct {
 }
 
 func (ServerRpcReply) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/lib.ServerRpcReply"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/lib.ServerRpcReply"`
 }) {
 }
 
@@ -70,7 +70,7 @@ func (x LogLevel) String() string {
 }
 
 func (LogLevel) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/lib.LogLevel"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/lib.LogLevel"`
 	Enum struct{ Info, Error string }
 }) {
 }
@@ -81,7 +81,7 @@ type LogMessage struct {
 }
 
 func (LogMessage) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/lib.LogMessage"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/lib.LogMessage"`
 }) {
 }
 

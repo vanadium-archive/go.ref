@@ -26,7 +26,7 @@ type StartMessage struct {
 }
 
 func (StartMessage) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/browspr.StartMessage"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/browspr.StartMessage"`
 }) {
 }
 
@@ -37,7 +37,7 @@ type AssociateAccountMessage struct {
 }
 
 func (AssociateAccountMessage) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/browspr.AssociateAccountMessage"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/browspr.AssociateAccountMessage"`
 }) {
 }
 
@@ -46,7 +46,7 @@ type CreateAccountMessage struct {
 }
 
 func (CreateAccountMessage) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/browspr.CreateAccountMessage"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/browspr.CreateAccountMessage"`
 }) {
 }
 
@@ -55,7 +55,7 @@ type CleanupMessage struct {
 }
 
 func (CleanupMessage) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/browspr.CleanupMessage"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/browspr.CleanupMessage"`
 }) {
 }
 
@@ -64,7 +64,7 @@ type OriginHasAccountMessage struct {
 }
 
 func (OriginHasAccountMessage) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/browspr.OriginHasAccountMessage"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/browspr.OriginHasAccountMessage"`
 }) {
 }
 
@@ -72,7 +72,7 @@ type GetAccountsMessage struct {
 }
 
 func (GetAccountsMessage) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/browspr.GetAccountsMessage"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/browspr.GetAccountsMessage"`
 }) {
 }
 
@@ -84,7 +84,7 @@ type CreateInstanceMessage struct {
 }
 
 func (CreateInstanceMessage) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/browspr.CreateInstanceMessage"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/browspr.CreateInstanceMessage"`
 }) {
 }
 

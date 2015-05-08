@@ -20,7 +20,7 @@ type Caveat struct {
 }
 
 func (Caveat) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/account.Caveat"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/account.Caveat"`
 }) {
 }
 

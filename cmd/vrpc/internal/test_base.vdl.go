@@ -22,14 +22,14 @@ type Struct struct {
 }
 
 func (Struct) __VDLReflect(struct {
-	Name string "v.io/x/ref/cmd/vrpc/internal.Struct"
+	Name string `vdl:"v.io/x/ref/cmd/vrpc/internal.Struct"`
 }) {
 }
 
 type Array2Int [2]int32
 
 func (Array2Int) __VDLReflect(struct {
-	Name string "v.io/x/ref/cmd/vrpc/internal.Array2Int"
+	Name string `vdl:"v.io/x/ref/cmd/vrpc/internal.Array2Int"`
 }) {
 }
 

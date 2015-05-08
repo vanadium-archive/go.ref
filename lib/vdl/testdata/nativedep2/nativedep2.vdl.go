@@ -19,7 +19,7 @@ import (
 type MyTime time.Time
 
 func (MyTime) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/nativedep2.MyTime"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/nativedep2.MyTime"`
 }) {
 }
 

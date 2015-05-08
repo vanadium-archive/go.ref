@@ -27,7 +27,7 @@ type Library struct {
 }
 
 func (Library) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/profile.Library"
+	Name string `vdl:"v.io/x/ref/services/profile.Library"`
 }) {
 }
 
@@ -50,7 +50,7 @@ type Specification struct {
 }
 
 func (Specification) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/profile.Specification"
+	Name string `vdl:"v.io/x/ref/services/profile.Specification"`
 }) {
 }
 

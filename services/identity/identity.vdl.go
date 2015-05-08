@@ -29,7 +29,7 @@ type BlessingRootResponse struct {
 }
 
 func (BlessingRootResponse) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/identity.BlessingRootResponse"
+	Name string `vdl:"v.io/x/ref/services/identity.BlessingRootResponse"`
 }) {
 }
 
