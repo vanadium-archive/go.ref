@@ -30,6 +30,9 @@ func newRootsTester() *rootsTester {
 }
 
 func (t *rootsTester) add(br security.BlessingRoots) error {
+	if err := br.Add(t[0], security.AllPrincipals); err == nil {
+		return fmt.Errorf("Add( , %v) succeeded, expected it to fail", security.AllPrincipals)
+	}
 	testdata := []struct {
 		root    security.PublicKey
 		pattern security.BlessingPattern

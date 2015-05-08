@@ -16,6 +16,8 @@ import (
 	"v.io/x/ref/lib/security/serialization"
 )
 
+var errRootsAddPattern = verror.Register(pkgPath+".errRootsAddPattern", verror.NoRetry, "{1:}{2:} a root cannot be recognized for all blessing names (i.e., the pattern '...')")
+
 // blessingRoots implements security.BlessingRoots.
 type blessingRoots struct {
 	persistedData SerializerReaderWriter
@@ -33,6 +35,9 @@ func stateMapKey(root security.PublicKey) (string, error) {
 }
 
 func (br *blessingRoots) Add(root security.PublicKey, pattern security.BlessingPattern) error {
+	if pattern == security.AllPrincipals {
+		return verror.New(errRootsAddPattern, nil)
+	}
 	key, err := stateMapKey(root)
 	if err != nil {
 		return err
