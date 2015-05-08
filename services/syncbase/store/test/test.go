@@ -82,18 +82,21 @@ func (s *dbState) lowerBound(key int) int {
 // verify ensures that various read operation on store.Store and memtable
 // return the same result.
 func (s *dbState) verify(t *testing.T, st store.StoreReader) {
+	var key, value []byte
+	var err error
 	// Verify Get().
 	for i := 0; i < s.dbSize; i++ {
-		key := fmt.Sprintf("%05d", i)
-		answer, ok := s.memtable[key]
-		value, err := st.Get(key)
+		keystr := fmt.Sprintf("%05d", i)
+		answer, ok := s.memtable[keystr]
+		key = []byte(keystr)
+		value, err = st.Get(key, value)
 		if ok {
 			if err != nil || !bytes.Equal(value, answer) {
-				t.Fatalf("unexpected get result for %v: got {%#v: %#v}, want {%#v: nil}", key, value, err, answer)
+				t.Fatalf("unexpected get result for %q: got {%q, %v}, want {%q, nil}", keystr, value, err, answer)
 			}
 		} else {
-			if !reflect.DeepEqual(&store.ErrUnknownKey{Key: key}, err) {
-				t.Fatalf("unexpected get error for key %v: %v", key, err)
+			if !reflect.DeepEqual(&store.ErrUnknownKey{Key: keystr}, err) {
+				t.Fatalf("unexpected get error for key %q: %v", keystr, err)
 			}
 		}
 	}
@@ -104,19 +107,19 @@ func (s *dbState) verify(t *testing.T, st store.StoreReader) {
 			start, end = end, start
 		}
 		end++
-		stream, err := st.Scan(fmt.Sprintf("%05d", start), fmt.Sprintf("%05d", end))
+		stream, err := st.Scan([]byte(fmt.Sprintf("%05d", start)), []byte(fmt.Sprintf("%05d", end)))
 		if err != nil {
 			t.Fatalf("can't create stream: %v", err)
 		}
 		for stream.Advance() {
 			start = s.lowerBound(start)
-			key := fmt.Sprintf("%05d", start)
-			kv := stream.Value()
-			if kv.Key != key {
-				t.Fatalf("unexpected key during scan: got %s, want %s", kv.Key, key)
+			keystr := fmt.Sprintf("%05d", start)
+			key, value = stream.Key(key), stream.Value(value)
+			if string(key) != keystr {
+				t.Fatalf("unexpected key during scan: got %q, want %q", key, keystr)
 			}
-			if !bytes.Equal(kv.Value, s.memtable[key]) {
-				t.Fatalf("unexpected value during scan: got %s, want %s", kv.Value, s.memtable[key])
+			if !bytes.Equal(value, s.memtable[keystr]) {
+				t.Fatalf("unexpected value during scan: got %q, want %q", value, s.memtable[keystr])
 			}
 			start++
 		}
@@ -143,12 +146,12 @@ func runReadWriteTest(t *testing.T, st store.Store, dbSize int, steps []testStep
 			key := fmt.Sprintf("%05d", step.key)
 			value := randomBytes(s.rnd, 100)
 			s.memtable[key] = value
-			st.Put(key, value)
+			st.Put([]byte(key), value)
 		case Delete:
 			key := fmt.Sprintf("%05d", step.key)
 			if _, ok := s.memtable[key]; ok {
 				delete(s.memtable, key)
-				st.Delete(key)
+				st.Delete([]byte(key))
 			}
 		default:
 			t.Fatalf("invalid test step %v", step)
@@ -197,11 +200,10 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 	// Invariant: value mapped to n stores sum of values of 0..n-1.
 	// Each of k transactions takes m distinct random values from 0..n-1,
 	// adds 1 to each and m to value mapped to n.
-	// The correctness of sums is checked after all transactions are
-	// commited.
+	// The correctness of sums is checked after all transactions are committed.
 	n, m, k := 10, 3, 100
 	for i := 0; i <= n; i++ {
-		if err := st.Put(fmt.Sprintf("%05d", i), []byte{'0'}); err != nil {
+		if err := st.Put([]byte(fmt.Sprintf("%05d", i)), []byte{'0'}); err != nil {
 			t.Fatalf("can't write to database")
 		}
 	}
@@ -213,19 +215,20 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 			perm := rnd.Perm(n)
 			if err := store.RunInTransaction(st, func(st store.StoreReadWriter) error {
 				for j := 0; j <= m; j++ {
-					var key string
+					var keystr string
 					if j < m {
-						key = fmt.Sprintf("%05d", perm[j])
+						keystr = fmt.Sprintf("%05d", perm[j])
 					} else {
-						key = fmt.Sprintf("%05d", n)
+						keystr = fmt.Sprintf("%05d", n)
 					}
-					val, err := st.Get(key)
+					key := []byte(keystr)
+					val, err := st.Get(key, nil)
 					if err != nil {
-						return fmt.Errorf("can't get key %s: %v", key, err)
+						return fmt.Errorf("can't get key %q: %v", key, err)
 					}
 					intValue, err := strconv.ParseInt(string(val), 10, 64)
 					if err != nil {
-						return fmt.Errorf("can't parse int from %s: %v", val, err)
+						return fmt.Errorf("can't parse int from %q: %v", val, err)
 					}
 					var newValue int64
 					if j < m {
@@ -234,7 +237,7 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 						newValue = intValue + int64(m)
 					}
 					if err := st.Put(key, []byte(fmt.Sprintf("%d", newValue))); err != nil {
-						return fmt.Errorf("can't put {%#v: %#v}: %v", key, newValue, err)
+						return fmt.Errorf("can't put {%q: %v}: %v", key, newValue, err)
 					}
 				}
 				return nil
@@ -247,14 +250,15 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 	wg.Wait()
 	var sum int64
 	for j := 0; j <= n; j++ {
-		key := fmt.Sprintf("%05d", j)
-		val, err := st.Get(key)
+		keystr := fmt.Sprintf("%05d", j)
+		key := []byte(keystr)
+		val, err := st.Get(key, nil)
 		if err != nil {
-			t.Fatalf("can't get key %s: %v", key, err)
+			t.Fatalf("can't get key %q: %v", key, err)
 		}
 		intValue, err := strconv.ParseInt(string(val), 10, 64)
 		if err != nil {
-			t.Fatalf("can't parse int from %s: %v", val, err)
+			t.Fatalf("can't parse int from %q: %v", val, err)
 		}
 		if j < n {
 			sum += intValue

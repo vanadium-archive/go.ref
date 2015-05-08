@@ -40,11 +40,11 @@ func (s *snapshot) Close() error {
 }
 
 // Scan implements the store.StoreReader interface.
-func (s *snapshot) Scan(start, end string) (store.Stream, error) {
+func (s *snapshot) Scan(start, end []byte) (store.Stream, error) {
 	return newStream(s.db, start, end, s.cOpts), nil
 }
 
 // Get implements the store.StoreReader interface.
-func (s *snapshot) Get(key string) ([]byte, error) {
-	return s.db.getWithOpts(key, s.cOpts)
+func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
+	return s.db.getWithOpts(key, valbuf, s.cOpts)
 }

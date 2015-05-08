@@ -22,36 +22,16 @@ func goError(cError *C.char) error {
 	return err
 }
 
-// cSlice converts Go string to C string without copying the data.
+// cSlice converts Go []byte to C string without copying the data.
 //
 // This function behaves similarly to standard Go slice copying or sub-slicing;
 // the caller need not worry about ownership or garbage collection.
-func cSlice(str string) (*C.char, C.size_t) {
+func cSlice(str []byte) (*C.char, C.size_t) {
 	if len(str) == 0 {
 		return nil, 0
 	}
 	data := unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&str)).Data)
 	return (*C.char)(data), C.size_t(len(str))
-}
-
-// cSliceFromBytes converts Go []byte to C string without copying the data.
-// This function behaves similarly to cSlice.
-func cSliceFromBytes(bytes []byte) (*C.char, C.size_t) {
-	if len(bytes) == 0 {
-		return nil, 0
-	}
-	data := unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&bytes)).Data)
-	return (*C.char)(data), C.size_t(len(bytes))
-}
-
-// goString converts C string to Go string without copying the data.
-// This function behaves similarly to cSlice.
-func goString(str *C.char, size C.size_t) string {
-	ptr := unsafe.Pointer(&reflect.StringHeader{
-		Data: uintptr(unsafe.Pointer(str)),
-		Len:  int(size),
-	})
-	return *(*string)(ptr)
 }
 
 // goBytes converts C string to Go []byte without copying the data.
@@ -63,4 +43,19 @@ func goBytes(str *C.char, size C.size_t) []byte {
 		Cap:  int(size),
 	})
 	return *(*[]byte)(ptr)
+}
+
+// copyAll copies elements from a source slice into a destination slice.
+// The returned slice may be a sub-slice of dst if dst was large enough to hold
+// src. Otherwise, a newly allocated slice will be returned.
+func copyAll(dst, src []byte) []byte {
+	if cap(dst) < len(src) {
+		newlen := cap(dst)*2 + 2
+		if newlen < len(src) {
+			newlen = len(src)
+		}
+		dst = make([]byte, newlen)
+	}
+	copy(dst, src)
+	return dst[:len(src)]
 }

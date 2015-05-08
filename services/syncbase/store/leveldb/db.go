@@ -85,25 +85,25 @@ func (db *DB) NewSnapshot() store.Snapshot {
 }
 
 // Scan implements the store.StoreReader interface.
-func (db *DB) Scan(start, end string) (store.Stream, error) {
+func (db *DB) Scan(start, end []byte) (store.Stream, error) {
 	return newStream(db, start, end, db.readOptions), nil
 }
 
 // Get implements the store.StoreReader interface.
-func (db *DB) Get(key string) ([]byte, error) {
-	return db.getWithOpts(key, db.readOptions)
+func (db *DB) Get(key, valbuf []byte) ([]byte, error) {
+	return db.getWithOpts(key, valbuf, db.readOptions)
 }
 
 // Put implements the store.StoreWriter interface.
-func (db *DB) Put(key string, v []byte) error {
+func (db *DB) Put(key, value []byte) error {
 	// TODO(rogulenko): improve performance.
 	return store.RunInTransaction(db, func(st store.StoreReadWriter) error {
-		return st.Put(key, v)
+		return st.Put(key, value)
 	})
 }
 
 // Delete implements the store.StoreWriter interface.
-func (db *DB) Delete(key string) error {
+func (db *DB) Delete(key []byte) error {
 	// TODO(rogulenko): improve performance.
 	return store.RunInTransaction(db, func(st store.StoreReadWriter) error {
 		return st.Delete(key)
@@ -112,7 +112,7 @@ func (db *DB) Delete(key string) error {
 
 // getWithOpts returns the value for the given key.
 // cOpts may contain a pointer to a snapshot.
-func (db *DB) getWithOpts(key string, cOpts *C.leveldb_readoptions_t) ([]byte, error) {
+func (db *DB) getWithOpts(key, valbuf []byte, cOpts *C.leveldb_readoptions_t) ([]byte, error) {
 	var cError *C.char
 	var valLen C.size_t
 	cStr, cLen := cSlice(key)
@@ -121,8 +121,8 @@ func (db *DB) getWithOpts(key string, cOpts *C.leveldb_readoptions_t) ([]byte, e
 		return nil, err
 	}
 	if val == nil {
-		return nil, &store.ErrUnknownKey{Key: key}
+		return nil, &store.ErrUnknownKey{Key: string(key)}
 	}
 	defer C.leveldb_free(unsafe.Pointer(val))
-	return C.GoBytes(unsafe.Pointer(val), C.int(valLen)), nil
+	return copyAll(valbuf, goBytes(val, valLen)), nil
 }

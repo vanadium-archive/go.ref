@@ -83,7 +83,7 @@ func Put(ctx *context.T, _ rpc.ServerCall, st store.StoreWriter, l Layer, v inte
 // Returns a VDL-compatible error.
 // If you need to perform an authorization check, call Get() first.
 func Delete(ctx *context.T, _ rpc.ServerCall, st store.StoreWriter, l Layer) error {
-	if err := st.Delete(l.StKey()); err != nil {
+	if err := st.Delete([]byte(l.StKey())); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
@@ -109,7 +109,7 @@ func Update(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, l Lay
 // RPC-oblivious, lower-level get/put
 
 func GetObject(st store.StoreReader, k string, v interface{}) error {
-	bytes, err := st.Get(k)
+	bytes, err := st.Get([]byte(k), nil)
 	if err != nil {
 		return err
 	}
@@ -121,5 +121,5 @@ func PutObject(st store.StoreWriter, k string, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	return st.Put(k, bytes)
+	return st.Put([]byte(k), bytes)
 }

@@ -69,25 +69,25 @@ func (tx *transaction) ResetForRetry() {
 }
 
 // Scan implements the store.StoreReader interface.
-func (tx *transaction) Scan(start, end string) (store.Stream, error) {
+func (tx *transaction) Scan(start, end []byte) (store.Stream, error) {
 	return tx.snapshot.Scan(start, end)
 }
 
 // Get implements the store.StoreReader interface.
-func (tx *transaction) Get(key string) ([]byte, error) {
-	return tx.snapshot.Get(key)
+func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
+	return tx.snapshot.Get(key, valbuf)
 }
 
 // Put implements the store.StoreWriter interface.
-func (tx *transaction) Put(key string, v []byte) error {
+func (tx *transaction) Put(key, value []byte) error {
 	cKey, cKeyLen := cSlice(key)
-	cVal, cValLen := cSliceFromBytes(v)
+	cVal, cValLen := cSlice(value)
 	C.leveldb_writebatch_put(tx.batch, cKey, cKeyLen, cVal, cValLen)
 	return nil
 }
 
 // Delete implements the store.StoreWriter interface.
-func (tx *transaction) Delete(key string) error {
+func (tx *transaction) Delete(key []byte) error {
 	cKey, cKeyLen := cSlice(key)
 	C.leveldb_writebatch_delete(tx.batch, cKey, cKeyLen)
 	return nil

@@ -83,43 +83,43 @@ func (tx *transaction) checkError() error {
 	return nil
 }
 
-func (tx *transaction) Scan(start, end string) (store.Stream, error) {
+func (tx *transaction) Scan(start, end []byte) (store.Stream, error) {
 	vlog.Fatal("not implemented")
 	return nil, nil
 }
 
-func (tx *transaction) Get(k string) ([]byte, error) {
+func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	tx.st.mu.Lock()
 	defer tx.st.mu.Unlock()
 	if err := tx.checkError(); err != nil {
 		return nil, err
 	}
-	v, ok := tx.st.data[k]
+	v, ok := tx.st.data[string(key)]
 	if !ok {
-		return nil, &store.ErrUnknownKey{Key: k}
+		return nil, &store.ErrUnknownKey{Key: string(key)}
 	}
 	return v, nil
 }
 
-func (tx *transaction) Put(k string, v []byte) error {
+func (tx *transaction) Put(key, value []byte) error {
 	tx.st.mu.Lock()
 	defer tx.st.mu.Unlock()
 	if err := tx.checkError(); err != nil {
 		return err
 	}
-	delete(tx.deletes, k)
-	tx.puts[k] = v
+	delete(tx.deletes, string(key))
+	tx.puts[string(key)] = value
 	return nil
 }
 
-func (tx *transaction) Delete(k string) error {
+func (tx *transaction) Delete(key []byte) error {
 	tx.st.mu.Lock()
 	defer tx.st.mu.Unlock()
 	if err := tx.checkError(); err != nil {
 		return err
 	}
-	delete(tx.puts, k)
-	tx.deletes[k] = struct{}{}
+	delete(tx.puts, string(key))
+	tx.deletes[string(key)] = struct{}{}
 	return nil
 }
 
@@ -163,30 +163,30 @@ func (tx *transaction) ResetForRetry() {
 ////////////////////////////////////////
 // memstore methods
 
-func (st *memstore) Scan(start, end string) (store.Stream, error) {
+func (st *memstore) Scan(start, end []byte) (store.Stream, error) {
 	vlog.Fatal("not implemented")
 	return nil, nil
 }
 
-func (st *memstore) Get(k string) ([]byte, error) {
+func (st *memstore) Get(key, valbuf []byte) ([]byte, error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	v, ok := st.data[k]
+	v, ok := st.data[string(key)]
 	if !ok {
-		return nil, &store.ErrUnknownKey{Key: k}
+		return nil, &store.ErrUnknownKey{Key: string(key)}
 	}
 	return v, nil
 }
 
-func (st *memstore) Put(k string, v []byte) error {
+func (st *memstore) Put(key, value []byte) error {
 	return store.RunInTransaction(st, func(st store.StoreReadWriter) error {
-		return st.Put(k, v)
+		return st.Put(key, value)
 	})
 }
 
-func (st *memstore) Delete(k string) error {
+func (st *memstore) Delete(key []byte) error {
 	return store.RunInTransaction(st, func(st store.StoreReadWriter) error {
-		return st.Delete(k)
+		return st.Delete(key)
 	})
 }
 

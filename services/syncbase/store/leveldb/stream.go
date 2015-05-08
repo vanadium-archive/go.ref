@@ -8,6 +8,7 @@ package leveldb
 // #include "syncbase_leveldb.h"
 import "C"
 import (
+	"bytes"
 	"errors"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
@@ -19,7 +20,7 @@ import (
 // TODO(rogulenko): ensure thread safety.
 type stream struct {
 	cIter *C.syncbase_leveldb_iterator_t
-	end   string
+	end   []byte
 
 	advancedOnce bool
 	err          error
@@ -27,7 +28,7 @@ type stream struct {
 
 var _ store.Stream = (*stream)(nil)
 
-func newStream(db *DB, start, end string, cOpts *C.leveldb_readoptions_t) *stream {
+func newStream(db *DB, start, end []byte, cOpts *C.leveldb_readoptions_t) *stream {
 	cStr, size := cSlice(start)
 	cIter := C.syncbase_leveldb_create_iterator(db.cDb, cOpts, cStr, size)
 	return &stream{
@@ -53,7 +54,7 @@ func (it *stream) Advance() bool {
 	} else {
 		C.syncbase_leveldb_iter_next(it.cIter)
 	}
-	if it.cIter.is_valid != 0 && it.end > it.key() {
+	if it.cIter.is_valid != 0 && bytes.Compare(it.end, it.cKey()) > 0 {
 		return true
 	}
 
@@ -64,20 +65,26 @@ func (it *stream) Advance() bool {
 	return false
 }
 
-// Value implements the store.Stream interface.
-// The returned values point to buffers allocated on C heap.
-// The data is valid until the next call to Advance or Cancel.
-func (it *stream) Value() store.KeyValue {
+// Key implements the store.Stream interface.
+func (it *stream) Key(keybuf []byte) []byte {
 	if !it.advancedOnce {
 		vlog.Fatal("stream has never been advanced")
 	}
 	if it.cIter == nil {
 		vlog.Fatal("illegal state")
 	}
-	return store.KeyValue{
-		Key:   it.key(),
-		Value: it.val(),
+	return copyAll(keybuf, it.cKey())
+}
+
+// Value implements the store.Stream interface.
+func (it *stream) Value(valbuf []byte) []byte {
+	if !it.advancedOnce {
+		vlog.Fatal("stream has never been advanced")
 	}
+	if it.cIter == nil {
+		vlog.Fatal("illegal state")
+	}
+	return copyAll(valbuf, it.cVal())
 }
 
 // Err implements the store.Stream interface.
@@ -90,18 +97,18 @@ func (it *stream) Cancel() {
 	if it.cIter == nil {
 		return
 	}
-	it.err = errors.New("cancelled")
+	it.err = errors.New("canceled")
 	it.destroyLeveldbIter()
 }
 
-// key returns the key. The key points to buffer allocated on C heap.
+// cKey returns the key. The key points to buffer allocated on C heap.
 // The data is valid until the next call to Advance or Cancel.
-func (it *stream) key() string {
-	return goString(it.cIter.key, it.cIter.key_len)
+func (it *stream) cKey() []byte {
+	return goBytes(it.cIter.key, it.cIter.key_len)
 }
 
-// val returns the value. The value points to buffer allocated on C heap.
+// cVal returns the value. The value points to buffer allocated on C heap.
 // The data is valid until the next call to Advance or Cancel.
-func (it *stream) val() []byte {
+func (it *stream) cVal() []byte {
 	return goBytes(it.cIter.val, it.cIter.val_len)
 }
