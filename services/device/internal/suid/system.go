@@ -58,11 +58,12 @@ func (hw *WorkParameters) Chown() error {
 func (hw *WorkParameters) Exec() error {
 	attr := new(syscall.ProcAttr)
 
-	if dir, err := os.Getwd(); err != nil {
+	dir, err := os.Getwd()
+	if err != nil {
 		log.Printf("error Getwd(): %v", err)
 		return verror.New(errGetwdFailed, nil, err)
-		attr.Dir = dir
 	}
+	attr.Dir = dir
 	attr.Env = hw.envv
 	attr.Files = []uintptr{
 		uintptr(syscall.Stdin),
