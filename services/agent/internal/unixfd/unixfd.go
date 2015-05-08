@@ -35,7 +35,7 @@ var (
 const Network string = "unixfd"
 
 func init() {
-	rpc.RegisterProtocol(Network, unixFDConn, unixFDListen)
+	rpc.RegisterProtocol(Network, unixFDConn, unixFDResolve, unixFDListen)
 }
 
 // singleConnListener implements net.Listener for an already-connected socket.
@@ -134,6 +134,10 @@ func (c *fdConn) LocalAddr() net.Addr {
 
 func (c *fdConn) RemoteAddr() net.Addr {
 	return c.addr
+}
+
+func unixFDResolve(_, address string) (string, string, error) {
+	return Network, address, nil
 }
 
 func unixFDListen(protocol, address string) (net.Listener, error) {

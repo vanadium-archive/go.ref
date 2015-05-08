@@ -229,7 +229,7 @@ func internalNew(rid naming.RoutingID, ctx *context.T, spec rpc.ListenSpec, auth
 	laddr := spec.Addrs[0]
 	network := laddr.Protocol
 	address := laddr.Address
-	_, listenFn, _ := rpc.RegisteredProtocol(network)
+	_, _, listenFn, _ := rpc.RegisteredProtocol(network)
 	if listenFn == nil {
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errUnknownNetwork, nil, network))
 	}

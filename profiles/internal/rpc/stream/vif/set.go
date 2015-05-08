@@ -20,6 +20,7 @@ type Set struct {
 	mu      sync.RWMutex
 	set     map[string][]*VIF // GUARDED_BY(mu)
 	started map[string]bool   // GUARDED_BY(mu)
+	keys    map[*VIF]string   // GUARDED_BY(mu)
 	cond    *sync.Cond
 }
 
@@ -28,6 +29,7 @@ func NewSet() *Set {
 	s := &Set{
 		set:     make(map[string][]*VIF),
 		started: make(map[string]bool),
+		keys:    make(map[*VIF]string),
 	}
 	s.cond = sync.NewCond(&s.mu)
 	return s
@@ -37,36 +39,49 @@ func NewSet() *Set {
 // is identified by the provided (network, address). Returns nil if there is no
 // such VIF.
 //
-// If BlockingFind returns nil, the caller is required to call Unblock, to avoid deadlock.
-// The network and address in Unblock must be the same as used in the BlockingFind call.
-// During this time, all new BlockingFind calls for this network and address will Block until
-// the corresponding Unblock call is made.
-func (s *Set) BlockingFind(network, address string) *VIF {
-	return s.find(network, address, true)
+// The caller is required to call the returned unblock function, to avoid deadlock.
+// Until the returned function is called, all new BlockingFind calls for this
+// network and address will block.
+func (s *Set) BlockingFind(network, address string) (*VIF, func()) {
+	if isNonDistinctConn(network, address) {
+		return nil, func() {}
+	}
+
+	k := key(network, address)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for s.started[k] {
+		s.cond.Wait()
+	}
+
+	_, _, _, p := rpc.RegisteredProtocol(network)
+	for _, n := range p {
+		if vifs := s.set[key(n, address)]; len(vifs) > 0 {
+			return vifs[rand.Intn(len(vifs))], func() {}
+		}
+	}
+
+	s.started[k] = true
+	return nil, func() { s.unblock(network, address) }
 }
 
-// Unblock marks the status of the network, address as no longer started, and
+// unblock marks the status of the network, address as no longer started, and
 // broadcasts waiting threads.
-func (s *Set) Unblock(network, address string) {
+func (s *Set) unblock(network, address string) {
 	s.mu.Lock()
 	delete(s.started, key(network, address))
 	s.cond.Broadcast()
 	s.mu.Unlock()
 }
 
-// Find returns a VIF where the remote end of the underlying network connection
-// is identified by the provided (network, address). Returns nil if there is no
-// such VIF.
-func (s *Set) Find(network, address string) *VIF {
-	return s.find(network, address, false)
-}
-
 // Insert adds a VIF to the set.
-func (s *Set) Insert(vif *VIF) {
-	addr := vif.conn.RemoteAddr()
-	k := key(addr.Network(), addr.String())
+func (s *Set) Insert(vif *VIF, network, address string) {
+	k := key(network, address)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.keys[vif] = k
 	vifs := s.set[k]
 	for _, v := range vifs {
 		if v == vif {
@@ -74,16 +89,13 @@ func (s *Set) Insert(vif *VIF) {
 		}
 	}
 	s.set[k] = append(vifs, vif)
-	vif.addSet(s)
 }
 
 // Delete removes a VIF from the set.
 func (s *Set) Delete(vif *VIF) {
-	vif.removeSet(s)
-	addr := vif.conn.RemoteAddr()
-	k := key(addr.Network(), addr.String())
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	k := s.keys[vif]
 	vifs := s.set[k]
 	for i, v := range vifs {
 		if v == vif {
@@ -92,6 +104,7 @@ func (s *Set) Delete(vif *VIF) {
 			} else {
 				s.set[k] = append(vifs[:i], vifs[i+1:]...)
 			}
+			delete(s.keys, vif)
 			return
 		}
 	}
@@ -106,33 +119,6 @@ func (s *Set) List() []*VIF {
 		l = append(l, vifs...)
 	}
 	return l
-}
-
-func (s *Set) find(network, address string, blocking bool) *VIF {
-	if isNonDistinctConn(network, address) {
-		return nil
-	}
-
-	k := key(network, address)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for blocking && s.started[k] {
-		s.cond.Wait()
-	}
-
-	_, _, p := rpc.RegisteredProtocol(network)
-	for _, n := range p {
-		if vifs := s.set[key(n, address)]; len(vifs) > 0 {
-			return vifs[rand.Intn(len(vifs))]
-		}
-	}
-
-	if blocking {
-		s.started[k] = true
-	}
-	return nil
 }
 
 func key(network, address string) string {

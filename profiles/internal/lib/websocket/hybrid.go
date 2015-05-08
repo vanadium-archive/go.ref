@@ -30,6 +30,17 @@ func HybridDial(network, address string, timeout time.Duration) (net.Conn, error
 	return conn, nil
 }
 
+// HybridResolve performs a DNS resolution on the network, address and always
+// returns tcp as its Network.
+func HybridResolve(network, address string) (string, string, error) {
+	tcp := mapWebSocketToTCP[network]
+	tcpAddr, err := net.ResolveTCPAddr(tcp, address)
+	if err != nil {
+		return "", "", err
+	}
+	return tcp, tcpAddr.String(), nil
+}
+
 // HybridListener returns a net.Listener that supports both tcp and
 // websockets over the same, single, port. A listen address of
 // --v23.tcp.protocol=wsh --v23.tcp.address=127.0.0.1:8101 means

@@ -12,7 +12,7 @@ import (
 
 func init() {
 	// ws, ws4, ws6 represent websocket protocol instances.
-	rpc.RegisterProtocol("ws", websocket.Dial, websocket.Listener, "ws4", "ws6")
-	rpc.RegisterProtocol("ws4", websocket.Dial, websocket.Listener)
-	rpc.RegisterProtocol("ws6", websocket.Dial, websocket.Listener)
+	rpc.RegisterProtocol("ws", websocket.Dial, websocket.Resolve, websocket.Listener, "ws4", "ws6")
+	rpc.RegisterProtocol("ws4", websocket.Dial, websocket.Resolve, websocket.Listener)
+	rpc.RegisterProtocol("ws6", websocket.Dial, websocket.Resolve, websocket.Listener)
 }

@@ -87,8 +87,8 @@ func (DialTimeout) RPCClientOpt() {
 	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
-func dial(network, address string, timeout time.Duration) (net.Conn, error) {
-	if d, _, _ := rpc.RegisteredProtocol(network); d != nil {
+func dial(d rpc.DialerFunc, network, address string, timeout time.Duration) (net.Conn, error) {
+	if d != nil {
 		conn, err := d(network, address, timeout)
 		if err != nil {
 			return nil, verror.New(stream.ErrDialFailed, nil, err)
@@ -96,6 +96,17 @@ func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 		return conn, nil
 	}
 	return nil, verror.New(stream.ErrDialFailed, nil, verror.New(errUnknownNetwork, nil, network))
+}
+
+func resolve(r rpc.ResolverFunc, network, address string) (string, string, error) {
+	if r != nil {
+		net, addr, err := r(network, address)
+		if err != nil {
+			return "", "", verror.New(stream.ErrResolveFailed, nil, err)
+		}
+		return net, addr, nil
+	}
+	return "", "", verror.New(stream.ErrResolveFailed, nil, verror.New(errUnknownNetwork, nil, network))
 }
 
 // FindOrDialVIF returns the network connection (VIF) to the provided address
@@ -111,37 +122,38 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 		}
 	}
 	addr := remote.Addr()
-	network, address := addr.Network(), addr.String()
-	if vf := m.vifs.Find(network, address); vf != nil {
-		return vf, nil
-	}
-	vlog.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
-	conn, err := dial(network, address, timeout)
-	if err != nil {
-		return nil, err
-	}
+	d, r, _, _ := rpc.RegisteredProtocol(addr.Network())
 	// (network, address) in the endpoint might not always match up
 	// with the key used in the vifs. For example:
 	// - conn, err := net.Dial("tcp", "www.google.com:80")
 	//   fmt.Println(conn.RemoteAddr()) // Might yield the corresponding IP address
 	// - Similarly, an unspecified IP address (net.IP.IsUnspecified) like "[::]:80"
 	//   might yield "[::1]:80" (loopback interface) in conn.RemoteAddr().
-	// Thus, look for VIFs with the resolved address as well.
-	resNetwork, resAddress := conn.RemoteAddr().Network(), conn.RemoteAddr().String()
-	if vf := m.vifs.BlockingFind(resNetwork, resAddress); vf != nil {
-		vlog.VI(1).Infof("(%q, %q) resolved to (%q, %q) which exists in the VIF cache. Closing newly Dialed connection", network, address, resNetwork, resAddress)
-		conn.Close()
+	// Thus, look for VIFs with the resolved address.
+	network, address, err := resolve(r, addr.Network(), addr.String())
+	if err != nil {
+		return nil, err
+	}
+	vf, unblock := m.vifs.BlockingFind(network, address)
+	if vf != nil {
+		vlog.VI(1).Infof("(%q, %q) resolved to (%q, %q) which exists in the VIF cache.", addr.Network(), addr.String(), network, address)
 		return vf, nil
 	}
-	defer m.vifs.Unblock(resNetwork, resAddress)
+	defer unblock()
+
+	vlog.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
+	conn, err := dial(d, network, address, timeout)
+	if err != nil {
+		return nil, err
+	}
 
 	opts = append([]stream.VCOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
-	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, nil, m.deleteVIF, opts...)
+	vf, err = vif.InternalNewDialedVIF(conn, m.rid, principal, nil, m.deleteVIF, opts...)
 	if err != nil {
 		conn.Close()
 		return nil, err
 	}
-	m.vifs.Insert(vf)
+	m.vifs.Insert(vf, network, address)
 	return vf, nil
 }
 
@@ -163,8 +175,13 @@ func (m *manager) Dial(remote naming.Endpoint, principal security.Principal, opt
 	return nil, verror.NewErrInternal(nil) // Not reached
 }
 
+func (m *manager) deleteVIF(vf *vif.VIF) {
+	vlog.VI(2).Infof("%p: VIF %v is closed, removing from cache", m, vf)
+	m.vifs.Delete(vf)
+}
+
 func listen(protocol, address string) (net.Listener, error) {
-	if _, l, _ := rpc.RegisteredProtocol(protocol); l != nil {
+	if _, _, l, _ := rpc.RegisteredProtocol(protocol); l != nil {
 		ln, err := l(protocol, address)
 		if err != nil {
 			return nil, verror.New(stream.ErrNetwork, nil, err)
@@ -239,11 +256,6 @@ func (m *manager) remoteListen(proxy naming.Endpoint, principal security.Princip
 	}
 	m.listeners[ln] = true
 	return ln, ep, nil
-}
-
-func (m *manager) deleteVIF(vf *vif.VIF) {
-	vlog.VI(2).Infof("%p: VIF %v is closed, removing from cache", m, vf)
-	m.vifs.Delete(vf)
 }
 
 func (m *manager) ShutdownEndpoint(remote naming.Endpoint) {

@@ -120,10 +120,6 @@ type VIF struct {
 	isClosed   bool // GUARDED_BY(isClosedMu)
 	onClose    func(*VIF)
 
-	// All sets that this VIF is in.
-	muSets sync.Mutex
-	sets   []*Set // GUARDED_BY(muSets)
-
 	// These counters track the number of messages sent and received by
 	// this VIF.
 	muMsgCounters sync.Mutex
@@ -345,27 +341,6 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, principal security.Principal, opt
 	return vc, nil
 }
 
-// addSet adds a set to the list of sets this VIF is in. This method is called
-// by Set.Insert().
-func (vif *VIF) addSet(s *Set) {
-	vif.muSets.Lock()
-	defer vif.muSets.Unlock()
-	vif.sets = append(vif.sets, s)
-}
-
-// removeSet removes a set from the list of sets this VIF is in. This method is
-// called by Set.Delete().
-func (vif *VIF) removeSet(s *Set) {
-	vif.muSets.Lock()
-	defer vif.muSets.Unlock()
-	for ix, vs := range vif.sets {
-		if vs == s {
-			vif.sets = append(vif.sets[:ix], vif.sets[ix+1:]...)
-			return
-		}
-	}
-}
-
 // Close closes all VCs (and thereby Flows) over the VIF and then closes the
 // underlying network connection after draining all pending writes on those
 // VCs.
@@ -377,14 +352,6 @@ func (vif *VIF) Close() {
 	}
 	vif.isClosed = true
 	vif.isClosedMu.Unlock()
-
-	vif.muSets.Lock()
-	sets := vif.sets
-	vif.sets = nil
-	vif.muSets.Unlock()
-	for _, s := range sets {
-		s.Delete(vif)
-	}
 
 	vlog.VI(1).Infof("Closing VIF %s", vif)
 	// Stop accepting new VCs.

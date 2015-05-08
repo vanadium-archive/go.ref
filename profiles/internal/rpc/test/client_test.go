@@ -411,6 +411,10 @@ func dropDataDialer(network, address string, timeout time.Duration) (net.Conn, e
 	return mocknet.DialerWithOpts(opts, network, address, timeout)
 }
 
+func simpleResolver(network, address string) (string, string, error) {
+	return network, address, nil
+}
+
 func TestStartCallBadProtocol(t *testing.T) {
 	ctx, shutdown := newCtx()
 	defer shutdown()
@@ -423,7 +427,7 @@ func TestStartCallBadProtocol(t *testing.T) {
 		logErrors(t, msg, true, false, false, err)
 	}
 
-	rpc.RegisterProtocol("dropData", dropDataDialer, net.Listen)
+	rpc.RegisterProtocol("dropData", dropDataDialer, simpleResolver, net.Listen)
 
 	// The following test will fail due to a broken connection.
 	// We need to run mount table and servers with no security to use
