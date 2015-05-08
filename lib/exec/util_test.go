@@ -15,25 +15,25 @@ func TestEnv(t *testing.T) {
 		t.Fatalf("Unexpected length of environment variable slice: expected %d, got %d", expected, got)
 	}
 	if expected, got := "NAME=VALUE1", env[0]; expected != got {
-		t.Fatalf("Unexpected element in the environment variable slice: expected %d, got %d", expected, got)
+		t.Fatalf("Unexpected element in the environment variable slice: expected %q, got %q", expected, got)
 	}
 	env = Setenv(env, "NAME", "VALUE2")
 	if expected, got := 1, len(env); expected != got {
 		t.Fatalf("Unexpected length of environment variable slice: expected %d, got %d", expected, got)
 	}
 	if expected, got := "NAME=VALUE2", env[0]; expected != got {
-		t.Fatalf("Unexpected element in the environment variable slice: expected %d, got %d", expected, got)
+		t.Fatalf("Unexpected element in the environment variable slice: expected %q, got %q", expected, got)
 	}
 	value, err := Getenv(env, "NAME")
 	if err != nil {
 		t.Fatalf("Unexpected error when looking up environment variable value: %v", err)
 	}
 	if expected, got := "VALUE2", value; expected != got {
-		t.Fatalf("Unexpected value of an environment variable: expected %d, got %d", expected, got)
+		t.Fatalf("Unexpected value of an environment variable: expected %q, got %q", expected, got)
 	}
 	value, err = Getenv(env, "NONAME")
 	if err == nil {
-		t.Fatalf("Expected error when looking up environment variable value, got none", value)
+		t.Fatalf("Expected error when looking up environment variable value, got none (value: %q)", value)
 	}
 }
 

@@ -131,7 +131,7 @@ func harvestExitcode(process *os.Process, ioerr error) (int32, error) {
 		return nonShellErrorCode, err
 	}
 	if status.Signaled() {
-		return int32(status), fmt.Errorf("process killed by signal %u (%v)", status.Signal(), status.Signal())
+		return int32(status), fmt.Errorf("process killed by signal %d (%v)", status.Signal(), status.Signal())
 	}
 	if status.Exited() {
 		if status.ExitStatus() == 0 {

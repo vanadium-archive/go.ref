@@ -47,7 +47,7 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 	}
 	state, err := binarylib.NewState(rootDir, listener.Addr().String(), depth)
 	if err != nil {
-		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, listener.Addr().String(), depth, err)
+		t.Fatalf("NewState(%v, %v, %v) failed: %v", rootDir, listener.Addr().String(), depth, err)
 	}
 	go func() {
 		if err := http.Serve(listener, http.FileServer(binarylib.NewHTTPRoot(state))); err != nil {

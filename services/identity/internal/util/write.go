@@ -17,7 +17,7 @@ import (
 func HTTPBadRequest(w http.ResponseWriter, req *http.Request, err error) {
 	w.WriteHeader(http.StatusBadRequest)
 	if e := tmplBadRequest.Execute(w, badRequestData{Request: requestString(req), Error: err}); e != nil {
-		vlog.Errorf("Failed to execute Bad Request Template:", e)
+		vlog.Errorf("Failed to execute Bad Request Template: %v", e)
 	}
 }
 
@@ -26,7 +26,7 @@ func HTTPBadRequest(w http.ResponseWriter, req *http.Request, err error) {
 func HTTPServerError(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	if e := tmplServerError.Execute(w, err); e != nil {
-		vlog.Errorf("Failed to execute Server Error template:", e)
+		vlog.Errorf("Failed to execute Server Error template: %v", e)
 	}
 }
 

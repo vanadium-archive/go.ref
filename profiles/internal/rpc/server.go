@@ -914,7 +914,7 @@ func (s *server) Stop() error {
 		vlog.Errorf("%s: Listener Close Error: %v", serverDebug, firstErr)
 		vlog.Errorf("%s: Timedout waiting for goroutines to stop: listeners: %d (currently: %d)", serverDebug, nListeners, len(s.listeners))
 		for ln, _ := range s.listeners {
-			vlog.Errorf("%s: Listener: %p", serverDebug, ln)
+			vlog.Errorf("%s: Listener: %v", serverDebug, ln)
 		}
 		for ls, _ := range s.listenState {
 			vlog.Errorf("%s: ListenState: %v", serverDebug, ls)

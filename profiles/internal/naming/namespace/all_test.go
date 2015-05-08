@@ -570,7 +570,7 @@ func TestCycles(t *testing.T) {
 	// should win.
 	r := doGlob(t, c, ns, "c1/...", 1000)
 	if len(r) != 6 {
-		t.Fatal("expected 6 replies, got %v", r)
+		t.Fatalf("expected 6 replies, got %v", r)
 	}
 }
 

@@ -335,10 +335,10 @@ func TestClientBecomesServer(t *testing.T) {
 	rchan = make(chan string)
 	go readFlow(t, lnC, rchan)
 	if err := writeFlow(client2, epC, "daffy duck"); err != nil {
-		t.Fatal("client2 failed to chat with client1: %v", err)
+		t.Fatalf("client2 failed to chat with client1: %v", err)
 	}
 	if got, want := <-rchan, "daffy duck"; got != want {
-		t.Fatal("client2->client1 got %q want %q", got, want)
+		t.Fatalf("client2->client1 got %q want %q", got, want)
 	}
 }
 

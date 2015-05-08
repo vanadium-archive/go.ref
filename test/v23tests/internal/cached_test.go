@@ -38,7 +38,7 @@ func build(i *v23tests.T) {
 	nsBin := i.BuildGoPkg("v.io/x/ref/cmd/namespace")
 	fi, err := os.Stat(nsBin.Path())
 	if err != nil {
-		i.Fatal()
+		i.Fatal(err)
 	}
 	modTimes = append(modTimes, fi.ModTime())
 }

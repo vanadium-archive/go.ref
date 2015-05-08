@@ -291,7 +291,6 @@ func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 		<-c
 		return verror.New(ErrTimeout, nil)
 	}
-	panic("unreachable")
 }
 
 // wait performs the Wait on the underlying command under lock, and only once
@@ -330,7 +329,6 @@ func (p *ParentHandle) Wait(timeout time.Duration) error {
 	} else {
 		return <-c
 	}
-	panic("unreachable")
 }
 
 // Pid returns the pid of the child, 0 if the child process doesn't exist

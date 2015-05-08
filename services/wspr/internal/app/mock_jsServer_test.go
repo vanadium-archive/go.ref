@@ -158,7 +158,7 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 	}
 
 	if msg.Handle != 0 {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected handled: %f", msg.Handle)))
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected handled: %v", msg.Handle)))
 		return nil
 	}
 

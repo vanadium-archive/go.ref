@@ -164,7 +164,7 @@ func FormatAsVerror(err error) error {
 		pc := verrStack[i]
 		fnc := runtime.FuncForPC(pc)
 		file, line := fnc.FileLine(pc)
-		logErr = fmt.Sprintf("%s:%d: %s", file, line)
+		logErr = fmt.Sprintf("%s:%d: %s", file, line, logErr)
 	}
 
 	// We want to look at the stack three frames up to find where the error actually

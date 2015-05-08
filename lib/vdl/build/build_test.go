@@ -203,10 +203,10 @@ func TestIsDirImportPath(t *testing.T) {
 	}
 	for _, test := range tests {
 		if got, want := build.IsDirPath(test.Path), test.IsDir; got != want {
-			t.Errorf("IsDirPath(%q) want %v", want)
+			t.Errorf("IsDirPath(%q) want %v", test.Path, want)
 		}
 		if got, want := build.IsImportPath(test.Path), !test.IsDir; got != want {
-			t.Errorf("IsImportPath(%q) want %v", want)
+			t.Errorf("IsImportPath(%q) want %v", test.Path, want)
 		}
 	}
 }

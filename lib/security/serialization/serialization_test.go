@@ -174,10 +174,10 @@ func TestEdgeCases(t *testing.T) {
 		}
 		matchErr := "cannot be nil"
 		if _, err := serialization.NewSigningWriteCloser(d, s, signer, nil); !matchesErrorPattern(err, matchErr) {
-			t.Errorf("NewSigningWriter(%p, %p, %p, ...) returned: %v, want to match: %v", d, s, signer, err, matchErr)
+			t.Errorf("NewSigningWriter(%v, %v, %v, ...) returned: %v, want to match: %v", d, s, signer, err, matchErr)
 		}
 		if _, err := serialization.NewVerifyingReader(d, s, key); !matchesErrorPattern(err, matchErr) {
-			t.Errorf("NewVerifyingReader(%p, %p, %p) returned: %v, want to match: %v", d, s, key, err, matchErr)
+			t.Errorf("NewVerifyingReader(%v, %v, %v) returned: %v, want to match: %v", d, s, key, err, matchErr)
 		}
 	}
 }

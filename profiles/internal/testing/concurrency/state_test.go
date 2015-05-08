@@ -114,7 +114,7 @@ func TestCommon(t *testing.T) {
 	}
 	// Check a new exploration seed has been identified.
 	if seeds.Length() != 1 {
-		t.Fatal("Unexpected number of seeds: expected %v, got %v", 1, seeds.Length())
+		t.Fatalf("Unexpected number of seeds: expected %v, got %v", 1, seeds.Length())
 	}
 	if err := root.addBranch(rightBranch, seeds); err != nil {
 		t.Fatalf("addBranch() failed: %v", err)

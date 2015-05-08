@@ -117,7 +117,7 @@ func TestServerArgs(t *testing.T) {
 	}
 	status := server.Status()
 	if got, want := len(status.Errors), 1; got != want {
-		t.Fatalf("got %s, want %s", got, want)
+		t.Fatalf("got %v, want %v", got, want)
 	}
 	_, err = server.Listen(rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "*:0"}}})
 	if verror.ErrorID(err) != verror.ErrBadArg.ID {
@@ -125,7 +125,7 @@ func TestServerArgs(t *testing.T) {
 	}
 	status = server.Status()
 	if got, want := len(status.Errors), 1; got != want {
-		t.Fatalf("got %s, want %s", got, want)
+		t.Fatalf("got %v, want %v", got, want)
 	}
 }
 
@@ -475,7 +475,7 @@ func TestRoaming(t *testing.T) {
 
 	status := server.Status()
 	if got, want := status.Endpoints, eps; !cmpEndpoints(got, want) {
-		t.Fatalf("got %d, want %d", got, want)
+		t.Fatalf("got %v, want %v", got, want)
 	}
 
 	if got, want := len(status.Mounts), len(eps)*2; got != want {

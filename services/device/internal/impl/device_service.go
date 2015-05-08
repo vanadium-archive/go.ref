@@ -212,7 +212,7 @@ func loadManagerInfo(dir string) (*ManagerInfo, error) {
 func savePersistentArgs(root string, args []string) error {
 	dir := filepath.Join(root, "device-manager", "device-data")
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("MkdirAll(%q) failed: %v", dir)
+		return fmt.Errorf("MkdirAll(%q) failed: %v", dir, err)
 	}
 	data, err := json.Marshal(args)
 	if err != nil {
@@ -322,14 +322,14 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		defer os.Remove(fName)
 		*v = file
 
-		defer func() {
+		defer func(k string) {
 			if f, err := os.Open(fName); err == nil {
 				scanner := bufio.NewScanner(f)
 				for scanner.Scan() {
 					vlog.Infof("[testDeviceManager %s] %s", k, scanner.Text())
 				}
 			}
-		}()
+		}(k)
 	}
 
 	// Setup up the child process callback.

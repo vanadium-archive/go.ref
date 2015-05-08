@@ -19,7 +19,7 @@ import (
 func TestImportMembers(t *testing.T) {
 	workdir, err := ioutil.TempDir("", "test-role-server-")
 	if err != nil {
-		t.Fatal("ioutil.TempDir failed: %v", err)
+		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(workdir)
 	os.Mkdir(filepath.Join(workdir, "sub"), 0700)
@@ -69,9 +69,9 @@ func (p BlessingPatternSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func WriteConfig(t *testing.T, config Config, fileName string) {
 	mConf, err := json.Marshal(config)
 	if err != nil {
-		t.Fatal("json.MarshalIndent failed: %v", err)
+		t.Fatalf("json.MarshalIndent failed: %v", err)
 	}
 	if err := ioutil.WriteFile(fileName, mConf, 0644); err != nil {
-		t.Fatal("ioutil.WriteFile(%q, %q) failed: %v", fileName, string(mConf), err)
+		t.Fatalf("ioutil.WriteFile(%q, %q) failed: %v", fileName, string(mConf), err)
 	}
 }

@@ -31,7 +31,7 @@ func TestSeekBlessings(t *testing.T) {
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")
 	if err != nil {
-		t.Fatal("ioutil.TempDir failed: %v", err)
+		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(workdir)
 
@@ -130,7 +130,7 @@ func TestPeerBlessingCaveats(t *testing.T) {
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")
 	if err != nil {
-		t.Fatal("ioutil.TempDir failed: %v", err)
+		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(workdir)
 
@@ -170,7 +170,7 @@ func TestPeerBlessingCaveats(t *testing.T) {
 	c := role.RoleClient(naming.Join(roleAddr, "role"))
 	blessings, err := c.SeekBlessings(user)
 	if err != nil {
-		t.Errorf("unexpected erro:", err)
+		t.Error("unexpected error:", err)
 	}
 	v23.GetPrincipal(user).BlessingStore().Set(blessings, security.AllPrincipals)
 
@@ -204,7 +204,7 @@ func TestGlob(t *testing.T) {
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")
 	if err != nil {
-		t.Fatal("ioutil.TempDir failed: %v", err)
+		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(workdir)
 	os.Mkdir(filepath.Join(workdir, "sub1"), 0700)
@@ -257,18 +257,18 @@ func newPrincipalContext(t *testing.T, ctx *context.T, root *testutil.IDProvider
 	for _, n := range names {
 		blessing, err := root.NewBlessings(principal, n)
 		if err != nil {
-			t.Fatal("root.Bless failed for %q: %v", n, err)
+			t.Fatalf("root.Bless failed for %q: %v", n, err)
 		}
 		blessings = append(blessings, blessing)
 	}
 	bUnion, err := security.UnionOfBlessings(blessings...)
 	if err != nil {
-		t.Fatal("security.UnionOfBlessings failed: %v", err)
+		t.Fatalf("security.UnionOfBlessings failed: %v", err)
 	}
 	vsecurity.SetDefaultBlessings(principal, bUnion)
 	ctx, err = v23.WithPrincipal(ctx, principal)
 	if err != nil {
-		t.Fatal("v23.WithPrincipal failed: %v", err)
+		t.Fatalf("v23.WithPrincipal failed: %v", err)
 	}
 	return ctx
 }

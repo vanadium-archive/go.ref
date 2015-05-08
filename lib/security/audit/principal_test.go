@@ -115,7 +115,7 @@ func equalResults(got, want []interface{}) error {
 				return fmt.Errorf("result #%d: Got error %v, want %v", i, gerr, werr)
 			}
 		} else if !reflect.DeepEqual(got, want) {
-			return fmt.Errorf("result #%d: Got  %v, want %v", got, want)
+			return fmt.Errorf("result #%d: Got  %v, want %v", i, got, want)
 		}
 	}
 	return nil

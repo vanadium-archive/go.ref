@@ -109,7 +109,7 @@ agent protocol instead of directly reading from disk.
 	defer shutdown()
 
 	if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
-		vlog.Panic("failed to set principal for ctx: %v", err)
+		vlog.Panicf("failed to set principal for ctx: %v", err)
 	}
 
 	if *keypath == "" && passphrase != nil {

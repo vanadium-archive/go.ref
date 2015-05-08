@@ -58,8 +58,8 @@ func TestMacaroonBlesser(t *testing.T) {
 		t.Errorf("Got blessings with %d names, want exactly one name", num)
 	}
 	wantName := "provider/user"
-	if cavs := binfo[wantName]; !reflect.DeepEqual(cavs, []security.Caveat{cOnlyMethodFoo}) {
-		t.Errorf("BlessingsInfo %v does not have name %s for the caveat %v", binfo, wantName)
+	if got, want := binfo[wantName], []security.Caveat{cOnlyMethodFoo}; !reflect.DeepEqual(got, want) {
+		t.Errorf("binfo[%q]: Got %v, want %v", wantName, got, want)
 	}
 }
 

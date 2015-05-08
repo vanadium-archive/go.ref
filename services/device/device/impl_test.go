@@ -264,7 +264,7 @@ func TestInstallCommand(t *testing.T) {
 				t.Fatalf("test case %d: wrongly failed to receive a non-nil error.", i)
 			}
 			if got, expected := len(rootTape.Play()), 0; got != expected {
-				t.Errorf("test case %d: invalid call sequence. Got %v, want %v", got, expected)
+				t.Errorf("test case %d: invalid call sequence. Got %v, want %v", i, got, expected)
 			}
 		} else {
 			if err != nil {
@@ -370,7 +370,7 @@ func TestClaimCommand(t *testing.T) {
 		verror.New(errOops, nil),
 	})
 	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken}); err == nil {
-		t.Fatalf("claim() failed to detect error", err)
+		t.Fatal("claim() failed to detect error:", err)
 	}
 	expected = []interface{}{
 		"Claim",

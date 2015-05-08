@@ -47,10 +47,10 @@ func TestListener(t *testing.T) {
 		t.Error(err)
 	}
 	if f, err := ln.Accept(); f != f1 || err != nil {
-		t.Errorf("Got (%p, %v) want (%p, nil)", f, err, f1)
+		t.Errorf("Got (%v, %v) want (%v, nil)", f, err, f1)
 	}
 	if f, err := ln.Accept(); f != f2 || err != nil {
-		t.Errorf("Got (%p, %v) want (%p, nil)", f, err, f2)
+		t.Errorf("Got (%v, %v) want (%v, nil)", f, err, f2)
 	}
 	if err := ln.Close(); err != nil {
 		t.Error(err)
@@ -63,6 +63,6 @@ func TestListener(t *testing.T) {
 		t.Error(err)
 	}
 	if f, err := ln.Accept(); f != nil || verror.ErrorID(err) != stream.ErrBadState.ID || !strings.Contains(err.Error(), "closed") {
-		t.Errorf("Accept returned (%p, %v) wanted (nil, %v)", f, err, errListenerClosed)
+		t.Errorf("Accept returned (%v, %v) wanted (nil, %v)", f, err, errListenerClosed)
 	}
 }

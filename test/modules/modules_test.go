@@ -656,7 +656,7 @@ func TestSetEntryPoint(t *testing.T) {
 	}
 	sort.Strings(nenv)
 	if got, want := nenv, []string{"V23_SHELL_HELPER_PROCESS_ENTRY_POINT=eg2", "a=a", "b=b"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("got %d, want %d", got, want)
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 

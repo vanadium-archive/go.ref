@@ -1507,7 +1507,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	ctx, _ = v23.WithPrincipal(ctx, pclient)
 	_, err := b.client.StartCall(ctx, "incompatible/suffix", "Echo", []interface{}{"foo"}, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
-		t.Errorf("Expected error %s, found: %v", verror.ErrNoServers, err)
+		t.Errorf("Expected error %v, found: %v", verror.ErrNoServers, err)
 	}
 
 	// Now add a server with a compatible endpoint and try again.

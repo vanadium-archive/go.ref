@@ -147,7 +147,7 @@ func TestCloseDoesNotDiscardPendingWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	if gbw != bw {
-		t.Fatalf("Got %p want %p", gbw, bw)
+		t.Fatalf("Got %v want %v", gbw, bw)
 	}
 	if len(bufs) != 1 {
 		t.Fatalf("Got %d bufs, want 1", len(bufs))

@@ -223,7 +223,7 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	// (in case the device restarted while the instance was in one of the
 	// transitional states like launching, dying, etc).
 	if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
-		vlog.Errorf("transitionInstance(%s,%s) failed: %v", instancePath, state, device.InstanceStateRunning, err)
+		vlog.Errorf("transitionInstance(%s,%v,%s) failed: %v", instancePath, state, device.InstanceStateRunning, err)
 	}
 
 	vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)

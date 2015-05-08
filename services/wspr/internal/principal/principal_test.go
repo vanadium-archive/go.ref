@@ -101,7 +101,7 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	unknownOrigin := "http://unknown.com:80"
 	_, err = m.Principal(unknownOrigin)
 	if merr := matchesErrorID(err, verror.ErrNoExist.ID); merr != nil {
-		return fmt.Errorf("Principal(%v): %v, errorid=%v", unknownOrigin, merr)
+		return fmt.Errorf("Principal(%v): %v", unknownOrigin, merr)
 	}
 
 	// Test BlessingsForAccount.
