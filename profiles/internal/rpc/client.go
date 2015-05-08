@@ -566,7 +566,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 				go func() {
 					select {
 					case <-doneChan:
-						vtrace.GetSpan(fc.ctx).Annotate("Cancelled")
+						vtrace.GetSpan(fc.ctx).Annotate("Canceled")
 						fc.flow.Cancel()
 					case <-fc.flow.Closed():
 					}
@@ -899,8 +899,6 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 	defer vlog.LogCall()()
 	switch {
 	case fc.response.Error != nil:
-		// TODO(cnicolaou): this will become a verror.E when we convert the
-		// server.
 		return verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error)
 	case fc.response.EndStreamResults:
 		return io.EOF
@@ -913,8 +911,6 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 		return fc.close(berr)
 	}
 	if fc.response.Error != nil {
-		// TODO(cnicolaou): this will become a verror.E when we convert the
-		// server.
 		return verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error)
 	}
 	if fc.response.EndStreamResults {

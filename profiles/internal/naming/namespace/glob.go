@@ -9,14 +9,15 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/x/ref/lib/glob"
+	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/lib/glob"
 )
 
 type tracks struct {

@@ -239,6 +239,7 @@ func TestPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("v23.NewServer failed: %v", err)
 	}
+	defer server.Stop()
 	if _, err := server.Listen(v23.GetListenSpec(rootCtx)); err != nil {
 		t.Fatalf("Failed to Listen: %s", err)
 	}
