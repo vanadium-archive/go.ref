@@ -859,9 +859,9 @@ func blessOverFileSystem(p security.Principal, tobless string, with security.Ble
 }
 
 type recvBlessingsInfo struct {
-	RemoteKey   string `json:remote_key`
-	RemoteToken string `json:remote_token`
-	Name        string `json:name`
+	RemoteKey   string `json:"remote_key"`
+	RemoteToken string `json:"remote_token"`
+	Name        string `json:"name"`
 }
 
 func writeRecvBlessingsInfo(fname string, remoteKey, remoteToken, name string) error {
