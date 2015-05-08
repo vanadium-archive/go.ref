@@ -38,14 +38,18 @@ func interfaceFullyQualifiedName(iface *compile.Interface) string {
 // javaClientExtendsStr creates an extends clause for a client interface
 // e.g. "extends com.a.B, com.d.E"
 func javaClientExtendsStr(embeds []*compile.Interface) string {
+	if len(embeds) == 0 {
+		return ""
+	}
 	var buf bytes.Buffer
 	buf.WriteString("extends ")
-	for _, embed := range embeds {
+	for i, embed := range embeds {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
 		buf.WriteString(javaPath(interfaceFullyQualifiedName(embed)))
 		buf.WriteString("Client")
-		buf.WriteString(", ")
 	}
-	buf.WriteString("io.v.v23.rpc.UniversalServiceMethods")
 	return buf.String()
 }
 

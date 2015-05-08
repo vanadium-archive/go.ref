@@ -39,7 +39,7 @@ package {{ .PackagePath }};
     /**
      * Returns a description of this server.
      */
-    public io.v.v23.vdlroot.signature.Interface signature(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.ServerCall call) throws io.v.v23.verror.VException {
+    public io.v.v23.vdlroot.signature.Interface signature() {
         java.util.List<io.v.v23.vdlroot.signature.Embed> embeds = new java.util.ArrayList<io.v.v23.vdlroot.signature.Embed>();
         java.util.List<io.v.v23.vdlroot.signature.Method> methods = new java.util.ArrayList<io.v.v23.vdlroot.signature.Method>();
         {{ range $method := .Methods }}
@@ -75,7 +75,7 @@ package {{ .PackagePath }};
      * by this server.
      */
     @SuppressWarnings("unused")
-    public io.v.v23.vdl.VdlValue[] getMethodTags(final io.v.v23.rpc.StreamServerCall call, final java.lang.String method) throws io.v.v23.verror.VException {
+    public io.v.v23.vdl.VdlValue[] getMethodTags(final java.lang.String method) throws io.v.v23.verror.VException {
         {{ range $methodName, $tags := .MethodTags }}
         if ("{{ $methodName }}".equals(method)) {
             try {
@@ -89,7 +89,7 @@ package {{ .PackagePath }};
         {{ end }}
         {{ range $embed := .Embeds }}
         {
-            final io.v.v23.vdl.VdlValue[] tags = this.{{ $embed.LocalWrapperVarName }}.getMethodTags(call, method);
+            final io.v.v23.vdl.VdlValue[] tags = this.{{ $embed.LocalWrapperVarName }}.getMethodTags(method);
             if (tags != null) {
                 return tags;
             }
@@ -195,7 +195,7 @@ func processServerWrapperMethod(iface *compile.Interface, method *compile.Method
 		IsStreaming:     isStreamingMethod(method),
 		Name:            vdlutil.FirstRuneToLower(method.Name),
 		RecvType:        javaType(method.InStream, true, env),
-		RetType:         clientInterfaceOutArg(iface, method, true, env),
+		RetType:         serverInterfaceOutArg(iface, method, env),
 		RetJavaTypes:    retArgTypes,
 		Returns:         len(method.OutArgs) >= 1,
 		SendType:        javaType(method.OutStream, true, env),
@@ -211,7 +211,7 @@ func processServerWrapperEmbedMethod(iface *compile.Interface, embedMethod *comp
 		DeclarationArgs:     javaDeclarationArgStr(embedMethod.InArgs, env, true),
 		LocalWrapperVarName: vdlutil.FirstRuneToLower(iface.Name) + "Wrapper",
 		Name:                vdlutil.FirstRuneToLower(embedMethod.Name),
-		RetType:             clientInterfaceOutArg(iface, embedMethod, true, env),
+		RetType:             serverInterfaceOutArg(iface, embedMethod, env),
 		Returns:             len(embedMethod.OutArgs) >= 1,
 	}
 }
@@ -227,9 +227,6 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 		})
 	}
 	methodTags := make(map[string][]methodTag)
-	// Add generated methods to the tag map:
-	methodTags["signature"] = []methodTag{}
-	methodTags["getMethodTags"] = []methodTag{}
 	// Copy method tags off of the interface.
 	methods := make([]serverWrapperMethod, len(iface.Methods))
 	for i, method := range iface.Methods {

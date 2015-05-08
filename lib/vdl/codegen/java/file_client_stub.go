@@ -43,24 +43,6 @@ package {{ .PackagePath }};
 
     }
 
-    // Methods from interface UniversalServiceMethods.
-    @Override
-    public io.v.v23.vdlroot.signature.Interface getSignature(io.v.v23.context.VContext context) throws io.v.v23.verror.VException {
-        return getSignature(context, null);
-    }
-    @Override
-    public io.v.v23.vdlroot.signature.Interface getSignature(io.v.v23.context.VContext context, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
-        // Start the call.
-        final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.vName, "signature", new java.lang.Object[0], new java.lang.reflect.Type[0], vOpts);
-
-        // Finish the call.
-        final java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
-            new com.google.common.reflect.TypeToken<io.v.v23.vdlroot.signature.Interface>() {}.getType(),
-        };
-        final java.lang.Object[] _results = _call.finish(_resultTypes);
-        return (io.v.v23.vdlroot.signature.Interface)_results[0];
-    }
-
     // Methods from interface {{ .ServiceName }}Client.
 {{/* Iterate over methods defined directly in the body of this service */}}
 {{ range $method := .Methods }}
@@ -218,7 +200,7 @@ func processClientStubMethod(iface *compile.Interface, method *compile.Method, e
 		NotStreaming:            !isStreamingMethod(method),
 		OutArgs:                 outArgs,
 		RecvType:                javaType(method.OutStream, true, env),
-		RetType:                 clientInterfaceOutArg(iface, method, false, env),
+		RetType:                 clientInterfaceOutArg(iface, method, env),
 		Returns:                 len(method.OutArgs) >= 1 || isStreamingMethod(method),
 		SendType:                javaType(method.InStream, true, env),
 		ServiceName:             vdlutil.FirstRuneToUpper(iface.Name),
@@ -232,7 +214,7 @@ func processClientStubEmbedMethod(iface *compile.Interface, embedMethod *compile
 		DeclarationArgs:         javaDeclarationArgStr(embedMethod.InArgs, env, true),
 		LocalStubVarName:        vdlutil.FirstRuneToLower(iface.Name) + "ClientStub",
 		Name:                    vdlutil.FirstRuneToLower(embedMethod.Name),
-		RetType:                 clientInterfaceOutArg(iface, embedMethod, false, env),
+		RetType:                 clientInterfaceOutArg(iface, embedMethod, env),
 		Returns:                 len(embedMethod.OutArgs) >= 1 || isStreamingMethod(embedMethod),
 	}
 }

@@ -24,6 +24,16 @@ package {{ .PackagePath }};
 )
 {{ .AccessModifier }} interface {{ .ServiceName }}Server {{ .Extends }} {
 {{ range $method := .Methods }}
+    {{/* If this method has multiple return arguments, generate the class. */}}
+    {{ if $method.IsMultipleRet }}
+    @io.v.v23.vdl.MultiReturn
+    public static class {{ $method.UppercaseMethodName }}Out {
+        {{ range $retArg := $method.RetArgs }}
+        public {{ $retArg.Type }} {{ $retArg.Name }};
+        {{ end }}
+    }
+    {{ end }}
+
     {{/* Generate the method signature. */}}
     {{ $method.Doc }}
     {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.ServerCall call{{ $method.Args }}) throws io.v.v23.verror.VException;
@@ -31,23 +41,31 @@ package {{ .PackagePath }};
 }
 `
 
-func serverInterfaceOutArg(method *compile.Method, iface *compile.Interface, env *compile.Env) string {
+func serverInterfaceOutArg(iface *compile.Interface, method *compile.Method, env *compile.Env) string {
 	switch len(method.OutArgs) {
 	case 0:
 		return "void"
 	case 1:
 		return javaType(method.OutArgs[0].Type, false, env)
 	default:
-		return javaPath(path.Join(interfaceFullyQualifiedName(iface)+"Client", method.Name+"Out"))
+		return javaPath(path.Join(interfaceFullyQualifiedName(iface)+"Server", method.Name+"Out"))
 	}
 }
 
+type serverInterfaceArg struct {
+	Type string
+	Name string
+}
+
 type serverInterfaceMethod struct {
-	AccessModifier string
-	Args           string
-	Doc            string
-	Name           string
-	RetType        string
+	AccessModifier      string
+	Args                string
+	Doc                 string
+	Name                string
+	IsMultipleRet       bool
+	RetArgs             []serverInterfaceArg
+	RetType             string
+	UppercaseMethodName string
 }
 
 func processServerInterfaceMethod(method *compile.Method, iface *compile.Interface, env *compile.Env) serverInterfaceMethod {
@@ -55,12 +73,25 @@ func processServerInterfaceMethod(method *compile.Method, iface *compile.Interfa
 	if isStreamingMethod(method) {
 		args += fmt.Sprintf(", io.v.v23.vdl.Stream<%s, %s> stream", javaType(method.OutStream, true, env), javaType(method.InStream, true, env))
 	}
+	retArgs := make([]serverInterfaceArg, len(method.OutArgs))
+	for i := 0; i < len(method.OutArgs); i++ {
+		if method.OutArgs[i].Name != "" {
+			retArgs[i].Name = vdlutil.FirstRuneToLower(method.OutArgs[i].Name)
+		} else {
+			retArgs[i].Name = fmt.Sprintf("ret%d", i+1)
+		}
+		retArgs[i].Type = javaType(method.OutArgs[i].Type, false, env)
+	}
+
 	return serverInterfaceMethod{
-		AccessModifier: accessModifierForName(method.Name),
-		Args:           args,
-		Doc:            method.Doc,
-		Name:           vdlutil.FirstRuneToLower(method.Name),
-		RetType:        serverInterfaceOutArg(method, iface, env),
+		AccessModifier:      accessModifierForName(method.Name),
+		Args:                args,
+		Doc:                 method.Doc,
+		Name:                vdlutil.FirstRuneToLower(method.Name),
+		IsMultipleRet:       len(retArgs) > 1,
+		RetArgs:             retArgs,
+		RetType:             serverInterfaceOutArg(iface, method, env),
+		UppercaseMethodName: method.Name,
 	}
 }
 
