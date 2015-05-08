@@ -61,7 +61,7 @@ func boom(t *testing.T, f string, v ...interface{}) {
 
 // N squared but who cares, this is a little test.
 // Ignores dups.
-func contains(container, contained []string) bool {
+func contains(container, contained []string) (string, bool) {
 L:
 	for _, d := range contained {
 		for _, r := range container {
@@ -69,21 +69,31 @@ L:
 				continue L
 			}
 		}
-		return false
+		return d, false
 	}
-	return true
+	return "", true
 }
 
 func compare(t *testing.T, caller, name string, got, want []string) {
 	// Compare ignoring dups.
-	if !contains(got, want) || !contains(want, got) {
-		boom(t, "%s: %q: got %v, want %v", caller, name, got, want)
+	a, foundA := contains(got, want)
+	b, foundB := contains(want, got)
+	if !foundA {
+		vlog.Infof("%s: %q: failed to find %q: got %v, want %v", caller, name, a, got, want)
+		boom(t, "%s: %q: failed to find %q: got %v, want %v", caller, name, a, got, want)
+	}
+	if !foundB {
+		vlog.Infof("%s: %q: failed to find %q: got %v, want %v", caller, name, a, got, want)
+		boom(t, "%s: %q: failed to find %q: got %v, want %v", caller, name, b, got, want)
 	}
 }
 
 func doGlob(t *testing.T, ctx *context.T, ns namespace.T, pattern string, limit int) []string {
 	var replies []string
-	rc, err := ns.Glob(ctx, pattern)
+
+	sctx, done := context.WithTimeout(ctx, 2*time.Minute)
+	defer done()
+	rc, err := ns.Glob(sctx, pattern)
 	if err != nil {
 		boom(t, "Glob(%s): %s", pattern, err)
 	}
@@ -94,6 +104,8 @@ func doGlob(t *testing.T, ctx *context.T, ns namespace.T, pattern string, limit 
 			if limit > 0 && len(replies) > limit {
 				boom(t, "Glob returns too many results, perhaps not limiting recursion")
 			}
+		case *naming.GlobReplyError:
+			boom(t, "Glob failed at %q: %v", v.Value.Name, v.Value.Error)
 		}
 	}
 	return replies
@@ -141,11 +153,23 @@ func knockKnock(t *testing.T, ctx *context.T, name string) {
 }
 
 func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...naming.NamespaceOpt) (*naming.MountEntry, error), ctx *context.T, name string, want []string, opts ...naming.NamespaceOpt) {
-	me, err := f(ctx, name, opts...)
-	if err != nil {
-		boom(t, "Failed to %s %s: %s", fname, name, err)
+	maxretries := 5
+	var lastErr error
+	for i := 0; i < maxretries; i++ {
+		me, err := f(ctx, name, opts...)
+		if err == nil {
+			if i > 0 {
+				t.Logf("doResolveTest: retried %d times", i)
+			}
+			compare(t, fname, name, me.Names(), want)
+			return
+		}
+		if err != nil && verror.Action(err).RetryAction() != 0 {
+			boom(t, "Failed to %s %s: %s, attempt %d", fname, name, err, i)
+		}
+		lastErr = err
 	}
-	compare(t, fname, name, me.Names(), want)
+	boom(t, "Failed to %s %s: %s after %d attempts", fname, name, lastErr, maxretries)
 }
 
 func testResolveToMountTable(t *testing.T, ctx *context.T, ns namespace.T, name string, want ...string) {
@@ -197,6 +221,7 @@ func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, m
 	if err := s.ServeDispatcher(mountPoint, disp); err != nil {
 		boom(t, "Failed to serve mount table at %s: %s", mountPoint, err)
 	}
+	t.Logf("server %q -> %s", eps[0].Name(), mountPoint)
 	return &serverEntry{mountPoint: mountPoint, server: s, endpoint: eps[0], name: eps[0].Name()}
 }
 
@@ -267,7 +292,9 @@ func runNestedMountTables(t *testing.T, ctx *context.T, mts map[string]*serverEn
 	// We directly mount baz into the mt4/foo mount table.
 	globalMP := naming.JoinAddressName(mts["mt4/foo"].name, "baz")
 	mts["baz"] = runMT(t, ctx, "baz")
-	if err := ns.Mount(ctx, globalMP, mts["baz"].name, ttl); err != nil {
+	sctx, done := context.WithTimeout(ctx, 2*time.Minute)
+	defer done()
+	if err := ns.Mount(sctx, globalMP, mts["baz"].name, ttl); err != nil {
 		boom(t, "Failed to Mount %s: %s", globalMP, err)
 	}
 }
@@ -645,6 +672,9 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 
 	// Intermediate mounttables should be authenticated.
 	mt := runMT(t, mtCtx, "mt")
+	defer func() {
+		mt.server.Stop()
+	}()
 	// Mount a server on "mt".
 	if err := mount("mt/server", serverEndpoint, time.Minute, naming.ReplaceMount(true)); err != nil {
 		t.Error(err)
@@ -736,6 +766,8 @@ func TestLeaf(t *testing.T) {
 	_, ctx, cleanup := createContexts(t)
 	defer cleanup()
 	root := runMT(t, ctx, "")
+	defer func() { root.server.Stop() }()
+
 	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(root.name)
 
@@ -750,6 +782,7 @@ func TestLeaf(t *testing.T) {
 	if err := server.Serve("leaf", &leafObject{}, nil); err != nil {
 		boom(t, "server.Serve failed: %s", err)
 	}
+	defer server.Stop()
 
 	mountEntry, err := ns.Resolve(ctx, "leaf")
 	if err != nil {
