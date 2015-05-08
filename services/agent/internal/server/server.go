@@ -11,12 +11,12 @@ import (
 	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -59,10 +59,8 @@ type keyData struct {
 
 type keymgr struct {
 	path       string
-	principals map[keyHandle]keyData // GUARDED_BY(Mutex)
 	passphrase []byte
 	ctx        *context.T
-	mu         sync.Mutex
 }
 
 // RunAnonymousAgent starts the agent server listening on an
@@ -90,16 +88,16 @@ func RunAnonymousAgent(ctx *context.T, principal security.Principal, remoteFd in
 	return remote, agentlib.AgentEndpoint(remoteFd), nil
 }
 
-// RunKeyManager starts the key manager server listening on an
-// anonymous unix domain socket. It will persist principals in 'path' using 'passphrase'.
-// Typically only used by the device manager.
-// The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
+// RunKeyManager starts the key manager server listening on an anonymous unix
+// domain socket. It will persist principals in 'path' using 'passphrase'.
+// The returned 'client' is typically passed via cmd.ExtraFiles to a child
+// process.
 func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.File, err error) {
 	if path == "" {
 		return nil, verror.New(errStoragePathRequired, nil)
 	}
 
-	mgr := &keymgr{path: path, passphrase: passphrase, principals: make(map[keyHandle]keyData), ctx: ctx}
+	mgr := &keymgr{path: path, passphrase: passphrase, ctx: ctx}
 
 	if err := os.MkdirAll(filepath.Join(mgr.path, "keys"), 0700); err != nil {
 		return nil, err
@@ -113,12 +111,13 @@ func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.F
 		return nil, err
 	}
 
-	go mgr.readDMConns(local)
+	go mgr.readConns(local)
 
 	return client, nil
 }
 
-func (a keymgr) readDMConns(conn *net.UnixConn) {
+func (a *keymgr) readConns(conn *net.UnixConn) {
+	cache := make(map[keyHandle]keyData)
 	donech := a.ctx.Done()
 	if donech != nil {
 		go func() {
@@ -144,17 +143,24 @@ func (a keymgr) readDMConns(conn *net.UnixConn) {
 			}
 		}
 		ack()
-		var data *keyData
+		var data keyData
 		if n == len(buf) {
-			data = a.readKey(buf)
+			if cached, ok := cache[buf]; ok {
+				data = cached
+			} else if data, err = a.readKey(buf); err != nil {
+				vlog.Error(err)
+				continue
+			} else {
+				cache[buf] = data
+			}
 		} else if n == 1 {
-			var handle []byte
-			if handle, data, err = a.newKey(buf[0] == 1); err != nil {
+			if buf, data, err = a.newKey(buf[0] == 1); err != nil {
 				vlog.Infof("Error creating key: %v", err)
 				unixfd.CloseUnixAddr(addr)
 				continue
 			}
-			if _, err = conn.Write(handle); err != nil {
+			cache[buf] = data
+			if _, err = conn.Write(buf[:]); err != nil {
 				vlog.Infof("Error sending key handle: %v", err)
 				unixfd.CloseUnixAddr(addr)
 				continue
@@ -164,69 +170,52 @@ func (a keymgr) readDMConns(conn *net.UnixConn) {
 			unixfd.CloseUnixAddr(addr)
 			continue
 		}
-		conn := dial(addr)
-		if data != nil && conn != nil {
-			if err := startAgent(a.ctx, conn, data.w, data.p); err != nil {
-				vlog.Infof("error starting agent: %v", err)
-			}
+		conn, err := dial(addr)
+		if err != nil {
+			vlog.Info(err)
+			continue
+		}
+		if err := startAgent(a.ctx, conn, data.w, data.p); err != nil {
+			vlog.Infof("error starting agent: %v", err)
 		}
 	}
 }
 
-func (a *keymgr) readKey(handle keyHandle) *keyData {
-	a.mu.Lock()
-	cachedData, ok := a.principals[handle]
-	a.mu.Unlock()
-	if ok {
-		return &cachedData
-	}
+func (a *keymgr) readKey(handle keyHandle) (keyData, error) {
+	var nodata keyData
 	filename := base64.URLEncoding.EncodeToString(handle[:])
 	in, err := os.Open(filepath.Join(a.path, "keys", filename))
 	if err != nil {
-		vlog.Errorf("unable to open key file: %v", err)
-		return nil
+		return nodata, fmt.Errorf("unable to open key file: %v", err)
 	}
 	defer in.Close()
 	key, err := vsecurity.LoadPEMKey(in, a.passphrase)
 	if err != nil {
-		vlog.Errorf("unable to load key: %v", err)
-		return nil
+		return nodata, fmt.Errorf("unable to load key in %q: %v", in.Name(), err)
 	}
 	state, err := vsecurity.NewPrincipalStateSerializer(filepath.Join(a.path, "creds", filename))
 	if err != nil {
-		vlog.Errorf("unable to create persisted state serializer: %v", err)
-		return nil
+		return nodata, fmt.Errorf("unable to create persisted state serializer: %v", err)
 	}
 	principal, err := vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(key.(*ecdsa.PrivateKey)), state)
 	if err != nil {
-		vlog.Errorf("unable to load principal: %v", err)
-		return nil
+		return nodata, fmt.Errorf("unable to load principal: %v", err)
 	}
-	data := keyData{newWatchers(), principal}
-	a.mu.Lock()
-	cachedData, ok = a.principals[handle]
-	if !ok {
-		a.principals[handle] = data
-		cachedData = data
-	}
-	a.mu.Unlock()
-
-	return &cachedData
+	return keyData{newWatchers(), principal}, nil
 }
 
-func dial(addr net.Addr) *net.UnixConn {
+func dial(addr net.Addr) (*net.UnixConn, error) {
 	fd, err := strconv.ParseInt(addr.String(), 10, 32)
 	if err != nil {
-		vlog.Errorf("Invalid address %v", addr)
-		return nil
+		return nil, fmt.Errorf("invalid address: %v", addr)
 	}
 	file := os.NewFile(uintptr(fd), "client")
 	defer file.Close()
 	conn, err := net.FileConn(file)
 	if err != nil {
-		vlog.Infof("unable to create conn: %v", err)
+		return nil, fmt.Errorf("unable to create conn: %v", err)
 	}
-	return conn.(*net.UnixConn)
+	return conn.(*net.UnixConn), nil
 }
 
 func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal security.Principal) error {
@@ -306,47 +295,46 @@ func (a agentd) MintDischarge(_ *context.T, _ rpc.ServerCall, forCaveat, caveatO
 	return a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
 }
 
-func (a keymgr) newKey(in_memory bool) (id []byte, data *keyData, err error) {
+func (a *keymgr) newKey(in_memory bool) (keyHandle, keyData, error) {
+	var handle keyHandle
+	var nodata keyData
 	if a.path == "" {
-		return nil, nil, verror.New(errNotMultiKeyMode, nil)
+		return handle, nodata, verror.New(errNotMultiKeyMode, nil)
 	}
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	keyHandle, err := keyid(key)
 	if err != nil {
-		return nil, nil, err
+		return handle, nodata, err
+	}
+	if handle, err = keyid(key); err != nil {
+		return handle, nodata, err
 	}
 	signer := security.NewInMemoryECDSASigner(key)
 	var p security.Principal
 	if in_memory {
-		p, err = vsecurity.NewPrincipalFromSigner(signer, nil)
-		if err != nil {
-			return nil, nil, err
+		if p, err = vsecurity.NewPrincipalFromSigner(signer, nil); err != nil {
+			return handle, nodata, err
 		}
 	} else {
-		filename := base64.URLEncoding.EncodeToString(keyHandle[:])
+		filename := base64.URLEncoding.EncodeToString(handle[:])
 		out, err := os.OpenFile(filepath.Join(a.path, "keys", filename), os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
-			return nil, nil, err
+			return handle, nodata, err
 		}
 		defer out.Close()
 		err = vsecurity.SavePEMKey(out, key, a.passphrase)
 		if err != nil {
-			return nil, nil, err
+			return handle, nodata, err
 		}
 		state, err := vsecurity.NewPrincipalStateSerializer(filepath.Join(a.path, "creds", filename))
 		if err != nil {
-			return nil, nil, err
+			return handle, nodata, err
 		}
 		p, err = vsecurity.NewPrincipalFromSigner(signer, state)
 		if err != nil {
-			return nil, nil, err
+			return handle, nodata, err
 		}
 	}
-	data = &keyData{newWatchers(), p}
-	a.mu.Lock()
-	a.principals[keyHandle] = *data
-	a.mu.Unlock()
-	return keyHandle[:], data, nil
+	return handle, keyData{newWatchers(), p}, nil
 }
 
 func keyid(key *ecdsa.PrivateKey) (handle keyHandle, err error) {
