@@ -108,7 +108,7 @@ func V23TestStatsRead(i *v23tests.T) {
 
 	want := fmt.Sprintf("Count: %d", runCount)
 	if !strings.Contains(got, want) {
-		i.Fatalf("expected output to contain %s, but did not\n", want, got)
+		i.Fatalf("expected output %q to contain %q, but did not\n", got, want)
 	}
 }
 
@@ -166,11 +166,11 @@ func V23TestVTrace(i *v23tests.T) {
 	// Grab the ID of the first and only trace.
 	want, traceContent := 1, binary.Start("vtrace", "__debug/vtrace").Output()
 	if count := strings.Count(traceContent, "Trace -"); count != want {
-		i.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, traceContent)
+		i.Fatalf("unexpected trace count, want %d, got %d: %s", want, count, traceContent)
 	}
 	fields := strings.Split(traceContent, " ")
 	if len(fields) < 3 {
-		i.Fatalf("expected at least 3 space-delimited fields, got %d\n", len(fields), traceContent)
+		i.Fatalf("expected at least 3 space-delimited fields, got %d: %v", len(fields), traceContent)
 	}
 	traceId := fields[2]
 
@@ -196,7 +196,7 @@ func V23TestVTrace(i *v23tests.T) {
 	}
 	fields = strings.Split(got, " ")
 	if len(fields) < 3 {
-		i.Fatalf("expected at least 3 space-delimited fields, got %d\n", len(fields), got)
+		i.Fatalf("expected at least 3 space-delimited fields, got %d: %v", len(fields), got)
 	}
 	got = fields[2]
 	if traceId != got {

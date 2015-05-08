@@ -219,7 +219,6 @@ func WriteTo(w io.Writer, message T, c crypto.ControlCipher) error {
 	default:
 		return verror.New(errInvalidMessageType, nil, fmt.Sprintf("%T", m))
 	}
-	return nil
 }
 
 // EncryptMessage encrypts the message's control data in place.

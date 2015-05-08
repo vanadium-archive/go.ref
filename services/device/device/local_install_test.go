@@ -85,7 +85,7 @@ func TestInstallLocalCommand(t *testing.T) {
 			}
 		}
 		if got, expected := len(rootTape.Play()), 0; got != expected {
-			t.Errorf("test case %d: invalid call sequence. Got %v, want %v", got, expected)
+			t.Errorf("test case %d: invalid call sequence. Got %v, want %v", i, got, expected)
 		}
 		rootTape.Rewind()
 		stdout.Reset()

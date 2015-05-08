@@ -112,7 +112,6 @@ func expectMessage(r io.Reader, m string) bool {
 		log.Printf("expectMessage: timeout\n")
 		return false
 	}
-	panic("unreachable")
 }
 
 func TestConfigExchange(t *testing.T) {

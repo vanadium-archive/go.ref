@@ -162,8 +162,6 @@ func (s suidHelperState) suidhelperEnabled(targetUser string) (bool, error) {
 	default:
 		return false, nil
 	}
-	// Keep the compiler happy.
-	return false, nil
 }
 
 // usernameForPrincipal returns the system name that the

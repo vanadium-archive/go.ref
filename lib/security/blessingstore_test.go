@@ -252,7 +252,7 @@ func TestBlessingStoreSetReturnsOldValue(t *testing.T) {
 	)
 
 	if old, err := s.Set(alice, security.AllPrincipals); !reflect.DeepEqual(old, empty) || err != nil {
-		t.Errorf("Got (%v, %v), want (%v, nil)", old, err)
+		t.Errorf("Got (%v, %v), want (%v, nil)", old, err, empty)
 	}
 	if old, err := s.Set(alice, security.AllPrincipals); !reflect.DeepEqual(old, alice) || err != nil {
 		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, alice)

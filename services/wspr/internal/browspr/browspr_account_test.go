@@ -66,7 +66,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	nilValue := vdl.ValueOf(GetAccountsMessage{})
 	a, err := browspr.HandleAuthGetAccountsRpc(nilValue)
 	if err != nil {
-		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
+		t.Fatalf("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
 	if a.Len() > 0 {
 		t.Fatalf("Expected accounts to be empty array but got %v", a)
@@ -89,7 +89,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	// Verify that HandleAuthGetAccountsRpc returns the new account.
 	gotAccounts1, err := browspr.HandleAuthGetAccountsRpc(nilValue)
 	if err != nil {
-		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
+		t.Fatalf("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
 	if want := vdl.ValueOf([]string{account1.RawString()}); !vdl.EqualValue(want, gotAccounts1) {
 		t.Fatalf("Expected account to be %v but got empty but got %v", want, gotAccounts1)
@@ -107,7 +107,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	// Verify that HandleAuthGetAccountsRpc returns the new account.
 	gotAccounts2, err := browspr.HandleAuthGetAccountsRpc(nilValue)
 	if err != nil {
-		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
+		t.Fatalf("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
 	if want := vdl.ValueOf([]string{account1.RawString(), account2.RawString()}); !vdl.EqualValue(want, gotAccounts2) {
 		t.Fatalf("Expected account to be %v but got empty but got %v", want, gotAccounts2)
@@ -148,7 +148,7 @@ func TestHandleAssocAccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	if hasAccount.Bool() {
-		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
+		t.Fatalf("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
 	}
 
 	assocAccountMessage := vdl.ValueOf(AssociateAccountMessage{
@@ -166,7 +166,7 @@ func TestHandleAssocAccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !hasAccount.Bool() {
-		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be true but was false", hasAccountMessage)
+		t.Fatalf("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be true but was false", hasAccountMessage)
 	}
 
 	// Verify that principalManager has the correct principal for the origin
@@ -192,7 +192,7 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 	})
 
 	if _, err := browspr.HandleAuthAssociateAccountRpc(message); err == nil {
-		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) should have failed but did not.")
+		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) should have failed but did not.", message)
 	}
 
 	// Verify that principalManager creates no principal for the origin
@@ -214,6 +214,6 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	if hasAccount.Bool() {
-		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
+		t.Fatalf("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
 	}
 }

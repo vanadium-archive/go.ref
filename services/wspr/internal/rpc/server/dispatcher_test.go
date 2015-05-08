@@ -182,7 +182,7 @@ func TestFailedLookup(t *testing.T) {
 	_, _, err := d.Lookup("a/b")
 
 	if err == nil {
-		t.Errorf("expected error, but got none", err)
+		t.Error("expected error, but got none")
 	}
 
 	expectedResponses := []lib.Response{

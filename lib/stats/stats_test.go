@@ -321,7 +321,7 @@ func TestMap(t *testing.T) {
 	}
 	for i, tc := range testcases {
 		if got := m.Incr(tc.key, tc.incr); got != tc.expected {
-			t.Errorf("unexpected result for #%d. Got %v, expected %v", got, tc.expected)
+			t.Errorf("unexpected result for #%d. Got %v, expected %v", i, got, tc.expected)
 		}
 		got, err := libstats.Value("testing/foo/" + tc.key)
 		if err != nil {

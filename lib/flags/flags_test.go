@@ -54,16 +54,16 @@ func TestPermissionsFlags(t *testing.T) {
 	permsf := fl.PermissionsFlags()
 
 	if got, want := permsf.PermissionsFile("runtime"), "foo.json"; got != want {
-		t.Errorf("got %t, want %t", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 	if got, want := permsf.PermissionsFile("bar"), "bar.json"; got != want {
-		t.Errorf("got %t, want %t", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 	if got, want := permsf.PermissionsFile("wombat"), ""; got != want {
-		t.Errorf("got %t, want %t", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 	if got, want := permsf.PermissionsFile("baz"), "bar:baz.json"; got != want {
-		t.Errorf("got %t, want %t", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -75,10 +75,10 @@ func TestPermissionsLiteralFlags(t *testing.T) {
 	permsf := fl.PermissionsFlags()
 
 	if got, want := permsf.PermissionsFile("runtime"), ""; got != want {
-		t.Errorf("got %t, want %t", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 	if got, want := permsf.PermissionsLiteral(), "hedgehog"; got != want {
-		t.Errorf("got %t, want %t, ok %t", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -90,10 +90,10 @@ func TestPermissionsLiteralBoth(t *testing.T) {
 	permsf := fl.PermissionsFlags()
 
 	if got, want := permsf.PermissionsFile("runtime"), "foo.json"; got != want {
-		t.Errorf("got %t, want %t", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 	if got, want := permsf.PermissionsLiteral(), "hedgehog"; got != want {
-		t.Errorf("got %t, want %t, ok %t", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

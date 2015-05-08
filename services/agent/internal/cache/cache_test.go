@@ -37,7 +37,7 @@ func TestCreateRoots(t *testing.T) {
 func expectRecognized(roots security.BlessingRoots, key security.PublicKey, blessing string) string {
 	err := roots.Recognized(key, blessing)
 	if err != nil {
-		return fmt.Sprintf("Key (%s, %b) not matched by roots:\n%s, Recognized returns error: %v", key, blessing, roots.DebugString(), err)
+		return fmt.Sprintf("Key (%s, %v) not matched by roots:\n%s, Recognized returns error: %v", key, blessing, roots.DebugString(), err)
 	}
 	return ""
 }

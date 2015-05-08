@@ -36,10 +36,10 @@ func TestParseAndCompile(t *testing.T) {
 			continue
 		}
 		if got, want := pkg.Name, test.name; got != want {
-			t.Errorf("%s got package name %s, want %s", got, want)
+			t.Errorf("%v got package name %s, want %s", buildPkg, got, want)
 		}
 		if got, want := pkg.Path, path; got != want {
-			t.Errorf("%s got package path %s, want %s", got, want)
+			t.Errorf("%v got package path %s, want %s", buildPkg, got, want)
 		}
 		test.expect(t, test.name, pkg)
 	}

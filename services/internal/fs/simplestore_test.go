@@ -94,7 +94,7 @@ func allPathsEqual(ts *fs.Memstore, pvs []PathValue) error {
 	for _, p := range pvs {
 		v, err := ts.BindObject(p.Path).Get(nil)
 		if err != nil {
-			return fmt.Errorf("Get(%s) expected to succeed but failed", p, err)
+			return fmt.Errorf("Get(%s) expected to succeed but failed: %v", p, err)
 		}
 		if !reflect.DeepEqual(p.Expected, v.Value) {
 			return fmt.Errorf("Unexpected non-equality for %s: got %v, expected %v", p.Path, v.Value, p.Expected)
@@ -558,7 +558,7 @@ func TestFormatConversion(t *testing.T) {
 
 	// Write the original memstore to a GOB file.
 	if err := gobPersist(t, originalMemstore); err != nil {
-		t.Fatalf("gobPersist() failed: %v")
+		t.Fatalf("gobPersist() failed: %v", err)
 	}
 
 	// Open the GOB format file.

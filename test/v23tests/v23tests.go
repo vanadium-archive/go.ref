@@ -362,7 +362,7 @@ func (t *T) DebugSystemShell(env ...string) {
 	}
 	// Set up agent for Child.
 	attr.Files = append(attr.Files, agentFile)
-	attr.Env = append(attr.Env, fmt.Sprintf("%s=%d", envvar.AgentEndpoint, agentlib.AgentEndpoint(len(attr.Files)-1)))
+	attr.Env = append(attr.Env, fmt.Sprintf("%s=%v", envvar.AgentEndpoint, agentlib.AgentEndpoint(len(attr.Files)-1)))
 
 	// Set up environment for Child.
 	for _, v := range t.shell.Env() {

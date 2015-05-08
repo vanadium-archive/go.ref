@@ -170,10 +170,10 @@ found:
 	accountName := "test-account"
 	bp := v23.GetPrincipal(browspr.ctx)
 	if err := browspr.principalManager.AddAccount(accountName, bp.BlessingStore().Default()); err != nil {
-		t.Fatalf("Failed to add account: %v")
+		t.Fatalf("Failed to add account: %v", err)
 	}
 	if err := browspr.accountManager.AssociateAccount(msgOrigin, accountName, nil); err != nil {
-		t.Fatalf("Failed to associate account: %v")
+		t.Fatalf("Failed to associate account: %v", err)
 	}
 
 	rpc := app.RpcRequest{

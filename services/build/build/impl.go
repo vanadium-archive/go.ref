@@ -103,7 +103,7 @@ func importPackages(paths []string, pkgMap map[string]*build.Package) error {
 			pkg := pkgMap[path]
 			fis, err := ioutil.ReadDir(pkg.Dir)
 			if err != nil {
-				return fmt.Errorf("ReadDir(%v) failed: %v", pkg.Dir)
+				return fmt.Errorf("ReadDir(%v) failed: %v", pkg.Dir, err)
 			}
 			for _, fi := range fis {
 				if fi.IsDir() {

@@ -134,7 +134,6 @@ func runSet(ctx *context.T, env *cmdline2.Env, args []string) error {
 		}
 		fmt.Fprintln(env.Stderr, "WARNING: trying again because of asynchronous change")
 	}
-	return nil
 }
 
 var cmdACL = &cmdline2.Command{

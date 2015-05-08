@@ -71,10 +71,8 @@ func (r *Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
 	panic("unimplemented")
-	return nil
 }
 
 func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
 	panic("unimplmeneted")
-	return nil
 }

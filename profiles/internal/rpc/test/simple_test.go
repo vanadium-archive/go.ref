@@ -116,7 +116,7 @@ func TestSimpleStreaming(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if want := i + inc; got != want {
-			t.Fatalf("got %d, want %d")
+			t.Fatalf("got %d, want %d", got, want)
 		}
 	}
 	call.CloseSend()

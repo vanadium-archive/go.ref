@@ -111,7 +111,7 @@ func (i *binaryService) Create(ctx *context.T, call rpc.ServerCall, nparts int32
 	}
 	nameFile := filepath.Join(tmpDir, nameFileName)
 	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), os.FileMode(0600)); err != nil {
-		vlog.Errorf("WriteFile(%q) failed: %v", nameFile)
+		vlog.Errorf("WriteFile(%q) failed: %v", nameFile, err)
 		return verror.New(ErrOperationFailed, ctx)
 	}
 
@@ -272,7 +272,7 @@ func (i *binaryService) Stat(ctx *context.T, _ rpc.ServerCall) ([]binary.PartInf
 	infoFile := filepath.Join(i.path, mediaInfoFileName)
 	jInfo, err := ioutil.ReadFile(infoFile)
 	if err != nil {
-		vlog.Errorf("ReadFile(%q) failed: %v", infoFile)
+		vlog.Errorf("ReadFile(%q) failed: %v", infoFile, err)
 		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, ctx)
 	}
 	var mediaInfo repository.MediaInfo

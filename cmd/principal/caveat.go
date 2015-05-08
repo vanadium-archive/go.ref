@@ -121,7 +121,7 @@ func buildPackages(packages []string, env *compile.Env) error {
 	for _, p := range pkgs {
 		build.BuildPackage(p, env)
 		if !env.Errors.IsEmpty() {
-			return fmt.Errorf("failed to build package(%s): %s", p, env.Errors)
+			return fmt.Errorf("failed to build package(%v): %s", p, env.Errors)
 		}
 	}
 	return nil
