@@ -23,6 +23,7 @@ package {{ .PackagePath }};
 {{ range $method := .Methods }}
     {{/* If this method has multiple return arguments, generate the class. */}}
     {{ if $method.IsMultipleRet }}
+    @io.v.v23.vdl.MultiReturn
     public static class {{ $method.UppercaseMethodName }}Out {
         {{ range $retArg := $method.RetArgs }}
         public {{ $retArg.Type }} {{ $retArg.Name }};
@@ -47,8 +48,8 @@ type clientInterfaceMethod struct {
 	AccessModifier      string
 	Args                string
 	Doc                 string
-	IsMultipleRet       bool
 	Name                string
+	IsMultipleRet       bool
 	RetArgs             []clientInterfaceArg
 	RetType             string
 	UppercaseMethodName string
@@ -66,8 +67,8 @@ func clientInterfaceNonStreamingOutArg(iface *compile.Interface, method *compile
 	}
 }
 
-func clientInterfaceOutArg(iface *compile.Interface, method *compile.Method, isService bool, env *compile.Env) string {
-	if isStreamingMethod(method) && !isService {
+func clientInterfaceOutArg(iface *compile.Interface, method *compile.Method, env *compile.Env) string {
+	if isStreamingMethod(method) {
 		return fmt.Sprintf("io.v.v23.vdl.ClientStream<%s, %s, %s>", javaType(method.InStream, true, env), javaType(method.OutStream, true, env), clientInterfaceNonStreamingOutArg(iface, method, true, env))
 	}
 	return clientInterfaceNonStreamingOutArg(iface, method, false, env)
@@ -87,10 +88,10 @@ func processClientInterfaceMethod(iface *compile.Interface, method *compile.Meth
 		AccessModifier:      accessModifierForName(method.Name),
 		Args:                javaDeclarationArgStr(method.InArgs, env, true),
 		Doc:                 method.Doc,
-		IsMultipleRet:       len(retArgs) > 1,
 		Name:                vdlutil.FirstRuneToLower(method.Name),
+		IsMultipleRet:       len(retArgs) > 1,
 		RetArgs:             retArgs,
-		RetType:             clientInterfaceOutArg(iface, method, false, env),
+		RetType:             clientInterfaceOutArg(iface, method, env),
 		UppercaseMethodName: method.Name,
 	}
 }
