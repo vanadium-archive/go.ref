@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"testing"
 
+	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/test"
 )
 
@@ -18,38 +19,38 @@ func init() {
 }
 
 func TestReadWriteBasic(t *testing.T) {
-	db, dbPath := newDB()
-	defer destroyDB(db, dbPath)
-	test.RunReadWriteBasicTest(t, db)
+	st, path := newDB()
+	defer destroyDB(st, path)
+	test.RunReadWriteBasicTest(t, st)
 }
 
 func TestReadWriteRandom(t *testing.T) {
-	db, dbPath := newDB()
-	defer destroyDB(db, dbPath)
-	test.RunReadWriteRandomTest(t, db)
+	st, path := newDB()
+	defer destroyDB(st, path)
+	test.RunReadWriteRandomTest(t, st)
 }
 
 func TestTransactionsWithGet(t *testing.T) {
-	db, dbPath := newDB()
-	defer destroyDB(db, dbPath)
-	test.RunTransactionsWithGetTest(t, db)
+	st, path := newDB()
+	defer destroyDB(st, path)
+	test.RunTransactionsWithGetTest(t, st)
 }
 
-func newDB() (*DB, string) {
-	dbPath, err := ioutil.TempDir("", "syncbase_leveldb")
+func newDB() (store.Store, string) {
+	path, err := ioutil.TempDir("", "syncbase_leveldb")
 	if err != nil {
 		panic(fmt.Sprintf("can't create temp dir: %v", err))
 	}
-	db, err := Open(dbPath)
+	st, err := Open(path)
 	if err != nil {
-		panic(fmt.Sprintf("can't open db in %v: %v", dbPath, err))
+		panic(fmt.Sprintf("can't open db at %v: %v", path, err))
 	}
-	return db, dbPath
+	return st, path
 }
 
-func destroyDB(db *DB, dbPath string) {
-	db.Close()
-	if err := Destroy(dbPath); err != nil {
-		panic(fmt.Sprintf("can't destroy db located in %v: %v", dbPath, err))
+func destroyDB(st store.Store, path string) {
+	st.Close()
+	if err := Destroy(path); err != nil {
+		panic(fmt.Sprintf("can't destroy db at %v: %v", path, err))
 	}
 }

@@ -13,20 +13,20 @@ import (
 // snapshot is a wrapper around LevelDB snapshot that implements
 // the store.Snapshot interface.
 type snapshot struct {
-	db        *DB
+	d         *db
 	cSnapshot *C.leveldb_snapshot_t
 	cOpts     *C.leveldb_readoptions_t
 }
 
 var _ store.Snapshot = (*snapshot)(nil)
 
-func newSnapshot(db *DB) *snapshot {
-	cSnapshot := C.leveldb_create_snapshot(db.cDb)
+func newSnapshot(d *db) *snapshot {
+	cSnapshot := C.leveldb_create_snapshot(d.cDb)
 	cOpts := C.leveldb_readoptions_create()
 	C.leveldb_readoptions_set_verify_checksums(cOpts, 1)
 	C.leveldb_readoptions_set_snapshot(cOpts, cSnapshot)
 	return &snapshot{
-		db,
+		d,
 		cSnapshot,
 		cOpts,
 	}
@@ -35,16 +35,16 @@ func newSnapshot(db *DB) *snapshot {
 // Close implements the store.Snapshot interface.
 func (s *snapshot) Close() error {
 	C.leveldb_readoptions_destroy(s.cOpts)
-	C.leveldb_release_snapshot(s.db.cDb, s.cSnapshot)
+	C.leveldb_release_snapshot(s.d.cDb, s.cSnapshot)
 	return nil
-}
-
-// Scan implements the store.StoreReader interface.
-func (s *snapshot) Scan(start, end []byte) (store.Stream, error) {
-	return newStream(s.db, start, end, s.cOpts), nil
 }
 
 // Get implements the store.StoreReader interface.
 func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
-	return s.db.getWithOpts(key, valbuf, s.cOpts)
+	return s.d.getWithOpts(key, valbuf, s.cOpts)
+}
+
+// Scan implements the store.StoreReader interface.
+func (s *snapshot) Scan(start, end []byte) (store.Stream, error) {
+	return newStream(s.d, start, end, s.cOpts), nil
 }

@@ -12,7 +12,6 @@ import (
 	"errors"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/x/lib/vlog"
 )
 
 // stream is a wrapper around LevelDB iterator that implements
@@ -22,15 +21,15 @@ type stream struct {
 	cIter *C.syncbase_leveldb_iterator_t
 	end   []byte
 
-	advancedOnce bool
-	err          error
+	hasAdvanced bool
+	err         error
 }
 
 var _ store.Stream = (*stream)(nil)
 
-func newStream(db *DB, start, end []byte, cOpts *C.leveldb_readoptions_t) *stream {
+func newStream(d *db, start, end []byte, cOpts *C.leveldb_readoptions_t) *stream {
 	cStr, size := cSlice(start)
-	cIter := C.syncbase_leveldb_create_iterator(db.cDb, cOpts, cStr, size)
+	cIter := C.syncbase_leveldb_create_iterator(d.cDb, cOpts, cStr, size)
 	return &stream{
 		cIter: cIter,
 		end:   end,
@@ -47,10 +46,10 @@ func (it *stream) Advance() bool {
 	if it.cIter == nil {
 		return false
 	}
-	// C iterator is already initialized after creation; we shouldn't move
-	// it during first Advance() call.
-	if !it.advancedOnce {
-		it.advancedOnce = true
+	// The C iterator starts out initialized, pointing at the first value; we
+	// shouldn't move it during the first Advance() call.
+	if !it.hasAdvanced {
+		it.hasAdvanced = true
 	} else {
 		C.syncbase_leveldb_iter_next(it.cIter)
 	}
@@ -67,24 +66,24 @@ func (it *stream) Advance() bool {
 
 // Key implements the store.Stream interface.
 func (it *stream) Key(keybuf []byte) []byte {
-	if !it.advancedOnce {
-		vlog.Fatal("stream has never been advanced")
+	if !it.hasAdvanced {
+		panic("stream has never been advanced")
 	}
 	if it.cIter == nil {
-		vlog.Fatal("illegal state")
+		panic("illegal state")
 	}
-	return copyAll(keybuf, it.cKey())
+	return store.CopyBytes(keybuf, it.cKey())
 }
 
 // Value implements the store.Stream interface.
 func (it *stream) Value(valbuf []byte) []byte {
-	if !it.advancedOnce {
-		vlog.Fatal("stream has never been advanced")
+	if !it.hasAdvanced {
+		panic("stream has never been advanced")
 	}
 	if it.cIter == nil {
-		vlog.Fatal("illegal state")
+		panic("illegal state")
 	}
-	return copyAll(valbuf, it.cVal())
+	return store.CopyBytes(valbuf, it.cVal())
 }
 
 // Err implements the store.Stream interface.
@@ -101,14 +100,16 @@ func (it *stream) Cancel() {
 	it.destroyLeveldbIter()
 }
 
-// cKey returns the key. The key points to buffer allocated on C heap.
-// The data is valid until the next call to Advance or Cancel.
+// cKey returns the current key.
+// The returned []byte points to a buffer allocated on the C heap. This buffer
+// is valid until the next call to Advance or Cancel.
 func (it *stream) cKey() []byte {
 	return goBytes(it.cIter.key, it.cIter.key_len)
 }
 
-// cVal returns the value. The value points to buffer allocated on C heap.
-// The data is valid until the next call to Advance or Cancel.
+// cVal returns the current value.
+// The returned []byte points to a buffer allocated on the C heap. This buffer
+// is valid until the next call to Advance or Cancel.
 func (it *stream) cVal() []byte {
 	return goBytes(it.cIter.val, it.cIter.val_len)
 }

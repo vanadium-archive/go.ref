@@ -14,7 +14,7 @@ import (
 // the store.Transaction interface.
 // TODO(rogulenko): handle incorrect usage.
 type transaction struct {
-	db       *DB
+	d        *db
 	snapshot store.Snapshot
 	batch    *C.leveldb_writebatch_t
 	cOpts    *C.leveldb_writeoptions_t
@@ -22,60 +22,43 @@ type transaction struct {
 
 var _ store.Transaction = (*transaction)(nil)
 
-func newTransaction(db *DB) *transaction {
+func newTransaction(d *db) *transaction {
 	// The lock is held until the transaction is successfully
 	// committed or aborted.
-	db.mu.Lock()
+	d.mu.Lock()
 	return &transaction{
-		db,
-		db.NewSnapshot(),
+		d,
+		d.NewSnapshot(),
 		C.leveldb_writebatch_create(),
-		db.writeOptions,
+		d.writeOptions,
 	}
 }
 
 // close frees allocated C objects and releases acquired locks.
 func (tx *transaction) close() {
-	tx.db.mu.Unlock()
+	tx.d.mu.Unlock()
 	tx.snapshot.Close()
 	C.leveldb_writebatch_destroy(tx.batch)
-	if tx.cOpts != tx.db.writeOptions {
+	if tx.cOpts != tx.d.writeOptions {
 		C.leveldb_writeoptions_destroy(tx.cOpts)
 	}
-}
-
-// Abort implements the store.Transaction interface.
-func (tx *transaction) Abort() error {
-	tx.close()
-	return nil
-}
-
-// Commit implements the store.Transaction interface.
-func (tx *transaction) Commit() error {
-	var cError *C.char
-	C.leveldb_write(tx.db.cDb, tx.cOpts, tx.batch, &cError)
-	if err := goError(cError); err != nil {
-		return err
-	}
-	tx.close()
-	return nil
 }
 
 // ResetForRetry implements the store.Transaction interface.
 func (tx *transaction) ResetForRetry() {
 	tx.snapshot.Close()
-	tx.snapshot = tx.db.NewSnapshot()
+	tx.snapshot = tx.d.NewSnapshot()
 	C.leveldb_writebatch_clear(tx.batch)
-}
-
-// Scan implements the store.StoreReader interface.
-func (tx *transaction) Scan(start, end []byte) (store.Stream, error) {
-	return tx.snapshot.Scan(start, end)
 }
 
 // Get implements the store.StoreReader interface.
 func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	return tx.snapshot.Get(key, valbuf)
+}
+
+// Scan implements the store.StoreReader interface.
+func (tx *transaction) Scan(start, end []byte) (store.Stream, error) {
+	return tx.snapshot.Scan(start, end)
 }
 
 // Put implements the store.StoreWriter interface.
@@ -90,5 +73,22 @@ func (tx *transaction) Put(key, value []byte) error {
 func (tx *transaction) Delete(key []byte) error {
 	cKey, cKeyLen := cSlice(key)
 	C.leveldb_writebatch_delete(tx.batch, cKey, cKeyLen)
+	return nil
+}
+
+// Commit implements the store.Transaction interface.
+func (tx *transaction) Commit() error {
+	var cError *C.char
+	C.leveldb_write(tx.d.cDb, tx.cOpts, tx.batch, &cError)
+	if err := goError(cError); err != nil {
+		return err
+	}
+	tx.close()
+	return nil
+}
+
+// Abort implements the store.Transaction interface.
+func (tx *transaction) Abort() error {
+	tx.close()
 	return nil
 }

@@ -38,26 +38,25 @@ func randomBytes(rnd *rand.Rand, length int) []byte {
 	return res
 }
 
-// dbState is the in-memory representation of the database state.
-type dbState struct {
-	// We assume that the database has keys from range [0..dbSize).
-	dbSize   int
+// storeState is the in-memory representation of the store state.
+type storeState struct {
+	// We assume that the database has keys [0..size).
+	size     int
 	rnd      *rand.Rand
 	memtable map[string][]byte
 }
 
-func newDBState(dbSize int) *dbState {
-	s := &dbState{
-		dbSize,
+func newStoreState(size int) *storeState {
+	return &storeState{
+		size,
 		rand.New(rand.NewSource(239017)),
 		make(map[string][]byte),
 	}
-	return s
 }
 
-func (s *dbState) clone() *dbState {
-	other := &dbState{
-		s.dbSize,
+func (s *storeState) clone() *storeState {
+	other := &storeState{
+		s.size,
 		s.rnd,
 		make(map[string][]byte),
 	}
@@ -67,10 +66,10 @@ func (s *dbState) clone() *dbState {
 	return other
 }
 
-// nextKey returns minimal key in the database that is not less than the
-// provided key. In case of no such key, returns dbSize.
-func (s *dbState) lowerBound(key int) int {
-	for key < s.dbSize {
+// nextKey returns the smallest key in the store that is not less than the
+// provided key. If there is no such key, returns size.
+func (s *storeState) lowerBound(key int) int {
+	for key < s.size {
 		if _, ok := s.memtable[fmt.Sprintf("%05d", key)]; ok {
 			return key
 		}
@@ -79,13 +78,13 @@ func (s *dbState) lowerBound(key int) int {
 	return key
 }
 
-// verify ensures that various read operation on store.Store and memtable
-// return the same result.
-func (s *dbState) verify(t *testing.T, st store.StoreReader) {
+// verify checks that various read operations on store.Store and memtable return
+// the same results.
+func (s *storeState) verify(t *testing.T, st store.StoreReader) {
 	var key, value []byte
 	var err error
 	// Verify Get().
-	for i := 0; i < s.dbSize; i++ {
+	for i := 0; i < s.size; i++ {
 		keystr := fmt.Sprintf("%05d", i)
 		answer, ok := s.memtable[keystr]
 		key = []byte(keystr)
@@ -102,7 +101,7 @@ func (s *dbState) verify(t *testing.T, st store.StoreReader) {
 	}
 	// Verify 10 random Scan() calls.
 	for i := 0; i < 10; i++ {
-		start, end := s.rnd.Intn(s.dbSize), s.rnd.Intn(s.dbSize)
+		start, end := s.rnd.Intn(s.size), s.rnd.Intn(s.size)
 		if start > end {
 			start, end = end, start
 		}
@@ -130,15 +129,15 @@ func (s *dbState) verify(t *testing.T, st store.StoreReader) {
 }
 
 // runReadWriteTest verifies read/write/snapshot operations.
-func runReadWriteTest(t *testing.T, st store.Store, dbSize int, steps []testStep) {
-	s := newDBState(dbSize)
-	// We verify database state not more than ~100 times to prevent the test
-	// from being slow.
+func runReadWriteTest(t *testing.T, st store.Store, size int, steps []testStep) {
+	s := newStoreState(size)
+	// We verify database state no more than ~100 times to prevent the test from
+	// being slow.
 	frequency := (len(steps) + 99) / 100
-	var states []*dbState
+	var states []*storeState
 	var snapshots []store.Snapshot
 	for i, step := range steps {
-		if step.key < 0 || step.key >= s.dbSize {
+		if step.key < 0 || step.key >= s.size {
 			t.Fatalf("invalid test step %v", step)
 		}
 		switch step.op {
@@ -186,21 +185,22 @@ func RunReadWriteBasicTest(t *testing.T, st store.Store) {
 func RunReadWriteRandomTest(t *testing.T, st store.Store) {
 	rnd := rand.New(rand.NewSource(239017))
 	var testcase []testStep
-	dbSize := 50
+	size := 50
 	for i := 0; i < 10000; i++ {
-		testcase = append(testcase, testStep{operation(rnd.Intn(2)), rnd.Intn(dbSize)})
+		testcase = append(testcase, testStep{operation(rnd.Intn(2)), rnd.Intn(size)})
 	}
-	runReadWriteTest(t, st, dbSize, testcase)
+	runReadWriteTest(t, st, size, testcase)
 }
 
 // RunTransactionsWithGetTest tests transactions that use Put and Get
 // operations.
 // NOTE: consider setting GOMAXPROCS to something greater than 1.
 func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
-	// Invariant: value mapped to n stores sum of values of 0..n-1.
-	// Each of k transactions takes m distinct random values from 0..n-1,
-	// adds 1 to each and m to value mapped to n.
-	// The correctness of sums is checked after all transactions are committed.
+	// Invariant: value mapped to n is sum of values of 0..n-1.
+	// Each of k transactions takes m distinct random values from 0..n-1, adds 1
+	// to each and m to value mapped to n.
+	// The correctness of sums is checked after all transactions have been
+	// committed.
 	n, m, k := 10, 3, 100
 	for i := 0; i <= n; i++ {
 		if err := st.Put([]byte(fmt.Sprintf("%05d", i)), []byte{'0'}); err != nil {
@@ -209,6 +209,8 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 	}
 	var wg sync.WaitGroup
 	wg.Add(k)
+	// TODO(sadovsky): This configuration creates huge resource contention.
+	// Perhaps we should add some random sleep's to reduce the contention.
 	for i := 0; i < k; i++ {
 		go func() {
 			rnd := rand.New(rand.NewSource(239017 * int64(i)))

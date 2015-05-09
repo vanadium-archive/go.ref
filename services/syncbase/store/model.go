@@ -8,15 +8,15 @@ package store
 
 // StoreReader reads data from a CRUD-capable storage engine.
 type StoreReader interface {
-	// Scan returns all rows with keys in range [start, end).
-	Scan(start, end []byte) (Stream, error)
-
 	// Get returns the value for the given key. The returned slice may be a
 	// sub-slice of valbuf if valbuf was large enough to hold the entire value.
-	// Otherwise, a newly allocated slice will be returned. It is valid to pass
-	// a nil valbuf.
+	// Otherwise, a newly allocated slice will be returned. It is valid to pass a
+	// nil valbuf.
 	// Fails if the given key is unknown (ErrUnknownKey).
 	Get(key, valbuf []byte) ([]byte, error)
+
+	// Scan returns all rows with keys in range [start, end).
+	Scan(start, end []byte) (Stream, error)
 }
 
 // StoreWriter writes data to a CRUD-capable storage engine.
@@ -39,6 +39,9 @@ type StoreReadWriter interface {
 type Store interface {
 	StoreReadWriter
 
+	// Close closes the store.
+	Close() error
+
 	// NewTransaction creates a transaction.
 	// TODO(rogulenko): add transaction options.
 	NewTransaction() Transaction
@@ -46,24 +49,19 @@ type Store interface {
 	// NewSnapshot creates a snapshot.
 	// TODO(rogulenko): add snapshot options.
 	NewSnapshot() Snapshot
-
-	// Close closes the store.
-	Close() error
 }
 
 // Transaction provides a mechanism for atomic reads and writes.
-// Reads don't reflect writes performed inside this transaction. (This
-// limitation is imposed for API parity with Spanner.)
+//
+// Reads don't reflect writes performed within this transaction.
 // Once a transaction has been committed or aborted, subsequent method calls
 // will fail with no effect.
-//
-// Operations on a transaction may start failing with ErrConcurrentTransaction
-// if writes from a newly-committed transaction conflict with reads or writes
-// from this transaction.
 type Transaction interface {
 	StoreReadWriter
 
 	// Commit commits the transaction.
+	// Fails if writes from outside this transaction conflict with reads from
+	// within this transaction.
 	Commit() error
 
 	// Abort aborts the transaction.
@@ -75,9 +73,9 @@ type Transaction interface {
 }
 
 // Snapshot is a handle to particular state in time of a Store.
-// All read operations are executed against a consistent snapshot of Store
-// commit history. Snapshots don't acquire locks and thus don't block
-// transactions.
+//
+// All read operations are executed against a consistent view of Store commit
+// history. Snapshots don't acquire locks and thus don't block transactions.
 type Snapshot interface {
 	StoreReader
 
@@ -122,24 +120,6 @@ type Stream interface {
 	// concurrently with a goroutine that is iterating via Advance/Key/Value.
 	// Cancel causes Advance to subsequently return false. Cancel does not block.
 	Cancel()
-}
-
-// TODO(sadovsky): Add retry loop.
-func RunInTransaction(st Store, fn func(st StoreReadWriter) error) error {
-	tx := st.NewTransaction()
-	if err := fn(tx); err != nil {
-		tx.Abort()
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		// TODO(sadovsky): Commit() can fail for a number of reasons, e.g. RPC
-		// failure or ErrConcurrentTransaction. Depending on the cause of failure,
-		// it may be desirable to retry the Commit() and/or to call Abort(). For
-		// now, we always abort on a failed commit.
-		tx.Abort()
-		return err
-	}
-	return nil
 }
 
 type ErrConcurrentTransaction struct{}
