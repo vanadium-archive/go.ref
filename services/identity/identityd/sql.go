@@ -33,15 +33,15 @@ const tlsRegisteredKey = "identitydTLS"
 // needed to encrypt the information sent over the wire.
 type sqlConfig struct {
 	// DataSourceName is the connection string required by go-sql-driver: "[username[:password]@][protocol[(address)]]/dbname".
-	DataSourceName string `json:dataSourceName`
+	DataSourceName string
 	// RootCertPath is the root certificate of the sql server for ssl.
-	RootCertPath string `json:rootCertPath`
+	RootCertPath string
 	// TLSServerName is the domain name of the sql server for ssl.
-	TLSServerName string `json:tlsServerName`
+	TLSServerName string
 	// ClientCertPath is the client certificate for ssl.
-	ClientCertPath string `json:clientCertPath`
+	ClientCertPath string
 	// ClientKeyPath is the client private key for ssl.
-	ClientKeyPath string `json:clientKeyPath`
+	ClientKeyPath string
 }
 
 func dbFromConfigFile(file string) (*sql.DB, error) {
