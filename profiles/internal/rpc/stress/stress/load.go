@@ -11,9 +11,9 @@ import (
 	"runtime"
 	"time"
 
-	"v.io/v23"
-
-	"v.io/x/lib/cmdline"
+	"v.io/v23/context"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/profiles/internal/rpc/stress/internal"
 )
 
@@ -36,8 +36,8 @@ type loadStats struct {
 	QpsPerCore float64
 }
 
-var cmdLoadTest = &cmdline.Command{
-	Run:      runLoadTest,
+var cmdLoadTest = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runLoadTest),
 	Name:     "load",
 	Short:    "Run load test",
 	Long:     "Run load test",
@@ -45,12 +45,12 @@ var cmdLoadTest = &cmdline.Command{
 	ArgsLong: "<server> ... A list of servers to connect to.",
 }
 
-func runLoadTest(cmd *cmdline.Command, args []string) error {
+func runLoadTest(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if len(args) == 0 {
-		return cmd.UsageErrorf("no server specified")
+		return env.UsageErrorf("no server specified")
 	}
 	if outFormat != "text" && outFormat != "json" {
-		return cmd.UsageErrorf("invalid output format: %s\n", outFormat)
+		return env.UsageErrorf("invalid output format: %s\n", outFormat)
 	}
 
 	cores := cpus
@@ -59,11 +59,8 @@ func runLoadTest(cmd *cmdline.Command, args []string) error {
 	}
 	runtime.GOMAXPROCS(cores)
 
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
-	fmt.Fprintf(cmd.Stdout(), "starting load test against %d server(s) using %d core(s)...\n", len(args), cores)
-	fmt.Fprintf(cmd.Stdout(), "payloadSize: %d, duration: %v\n", payloadSize, duration)
+	fmt.Fprintf(env.Stdout, "starting load test against %d server(s) using %d core(s)...\n", len(args), cores)
+	fmt.Fprintf(env.Stdout, "payloadSize: %d, duration: %v\n", payloadSize, duration)
 
 	start := time.Now()
 	done := make(chan loadStats)
@@ -91,7 +88,7 @@ func runLoadTest(cmd *cmdline.Command, args []string) error {
 	merged.QpsPerCore = merged.Qps / float64(cores)
 	elapsed := time.Since(start)
 	fmt.Printf("done after %v\n", elapsed)
-	return outLoadStats(cmd.Stdout(), outFormat, "load stats:", &merged)
+	return outLoadStats(env.Stdout, outFormat, "load stats:", &merged)
 }
 
 func outLoadStats(w io.Writer, format, title string, stats *loadStats) error {

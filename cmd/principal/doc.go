@@ -90,8 +90,10 @@ new principal.
 Usage:
    principal create [flags] <directory> <blessing>
 
-	<directory> is the directory to which the new principal will be persisted.
-	<blessing> is the self-blessed blessing that the principal will be setup to use by default.
+<directory> is the directory to which the new principal will be persisted.
+
+<blessing> is the self-blessed blessing that the principal will be setup to use
+by default.
 
 The principal create flags are:
  -overwrite=false
@@ -114,8 +116,9 @@ forked principal.
 Usage:
    principal fork [flags] <directory> <extension>
 
-	<directory> is the directory to which the forked principal will be persisted.
-	<extension> is the extension under which the forked principal is blessed.
+<directory> is the directory to which the forked principal will be persisted.
+
+<extension> is the extension under which the forked principal is blessed.
 
 The principal fork flags are:
  -caveat=[]
@@ -515,11 +518,6 @@ Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
 
-Output is formatted to a target width in runes, determined by checking the
-CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
-back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
-the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
-
 Usage:
    principal help [flags] [command/topic ...]
 
@@ -532,5 +530,9 @@ The principal help flags are:
       full    - Good for cmdline output, shows all global flags.
       godoc   - Good for godoc processing.
    Override the default by setting the CMDLINE_STYLE environment variable.
+ -width=<terminal width>
+   Format output to this target width in runes, or unlimited if width < 0.
+   Defaults to the terminal width if available.  Override the default by setting
+   the CMDLINE_WIDTH environment variable.
 */
 package main

@@ -19,7 +19,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
@@ -47,13 +47,10 @@ var (
 )
 
 func init() {
-	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^((name)|(restart-exit-code)|(neighborhood-name)|(deviced-port)|(proxy-port)|(use-pairing-token))$`))
+	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^((name)|(restart-exit-code)|(neighborhood-name)|(deviced-port)|(proxy-port)|(use-pairing-token))$`))
 }
 
-func runServer(*cmdline.Command, []string) error {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
+func runServer(ctx *context.T, _ *cmdline2.Env, _ []string) error {
 	var testMode bool
 	// If this device manager was started by another device manager, it must
 	// be part of a self update to test that this binary works. In that
@@ -104,7 +101,7 @@ func runServer(*cmdline.Command, []string) error {
 	dev := starter.DeviceArgs{
 		ConfigState:     configState,
 		TestMode:        testMode,
-		RestartCallback: func() { exitErr = cmdline.ErrExitCode(*restartExitCode) },
+		RestartCallback: func() { exitErr = cmdline2.ErrExitCode(*restartExitCode) },
 		PairingToken:    pairingToken,
 	}
 	if testMode {

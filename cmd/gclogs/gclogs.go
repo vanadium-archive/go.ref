@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
@@ -13,9 +16,7 @@ import (
 	"regexp"
 	"time"
 
-	"v.io/v23"
-	"v.io/x/lib/cmdline"
-	_ "v.io/x/ref/profiles/static"
+	"v.io/x/lib/cmdline2"
 )
 
 var (
@@ -24,10 +25,10 @@ var (
 	flagVerbose  bool
 	flagDryrun   bool
 
-	cmdGCLogs = &cmdline.Command{
-		Run:   garbageCollectLogs,
-		Name:  "gclogs",
-		Short: "safely deletes old log files",
+	cmdGCLogs = &cmdline2.Command{
+		Runner: cmdline2.RunnerFunc(garbageCollectLogs),
+		Name:   "gclogs",
+		Short:  "safely deletes old log files",
 		Long: `
 Command gclogs safely deletes old log files.
 
@@ -44,19 +45,19 @@ are considered for deletion.
 )
 
 func init() {
-	cmdline.HideGlobalFlagsExcept()
 	cmdGCLogs.Flags.DurationVar(&flagCutoff, "cutoff", 24*time.Hour, "The age cut-off for a log file to be considered for garbage collection.")
 	cmdGCLogs.Flags.StringVar(&flagProgname, "program", ".*", `A regular expression to apply to the program part of the log file name, e.g ".*test".`)
 	cmdGCLogs.Flags.BoolVar(&flagVerbose, "verbose", false, "If true, each deleted file is shown on stdout.")
 	cmdGCLogs.Flags.BoolVar(&flagDryrun, "n", false, "If true, log files that would be deleted are shown on stdout, but not actually deleted.")
 }
 
-func garbageCollectLogs(cmd *cmdline.Command, args []string) error {
-	_, shutdown := v23.Init()
-	defer shutdown()
+func main() {
+	cmdline2.Main(cmdGCLogs)
+}
 
+func garbageCollectLogs(env *cmdline2.Env, args []string) error {
 	if len(args) == 0 {
-		cmd.UsageErrorf("gclogs requires at least one argument")
+		env.UsageErrorf("gclogs requires at least one argument")
 	}
 	timeCutoff := time.Now().Add(-flagCutoff)
 	currentUser, err := user.Current()
@@ -69,15 +70,15 @@ func garbageCollectLogs(cmd *cmdline.Command, args []string) error {
 	}
 	var lastErr error
 	for _, logdir := range args {
-		if err := processDirectory(cmd, logdir, timeCutoff, programRE, currentUser.Username); err != nil {
+		if err := processDirectory(env, logdir, timeCutoff, programRE, currentUser.Username); err != nil {
 			lastErr = err
 		}
 	}
 	return lastErr
 }
 
-func processDirectory(cmd *cmdline.Command, logdir string, timeCutoff time.Time, programRE *regexp.Regexp, username string) error {
-	fmt.Fprintf(cmd.Stdout(), "Processing: %q\n", logdir)
+func processDirectory(env *cmdline2.Env, logdir string, timeCutoff time.Time, programRE *regexp.Regexp, username string) error {
+	fmt.Fprintf(env.Stdout, "Processing: %q\n", logdir)
 
 	f, err := os.Open(logdir)
 	if err != nil {
@@ -101,26 +102,26 @@ func processDirectory(cmd *cmdline.Command, logdir string, timeCutoff time.Time,
 			fullname := filepath.Join(logdir, file.Name())
 			if file.IsDir() {
 				if flagVerbose {
-					fmt.Fprintf(cmd.Stdout(), "Skipped directory: %q\n", fullname)
+					fmt.Fprintf(env.Stdout, "Skipped directory: %q\n", fullname)
 				}
 				continue
 			}
 			lf, err := parseFileInfo(logdir, file)
 			if err != nil {
 				if flagVerbose {
-					fmt.Fprintf(cmd.Stdout(), "Not a log file: %q\n", fullname)
+					fmt.Fprintf(env.Stdout, "Not a log file: %q\n", fullname)
 				}
 				continue
 			}
 			if lf.user != username {
 				if flagVerbose {
-					fmt.Fprintf(cmd.Stdout(), "Skipped log file created by other user: %q\n", fullname)
+					fmt.Fprintf(env.Stdout, "Skipped log file created by other user: %q\n", fullname)
 				}
 				continue
 			}
 			if !programRE.MatchString(lf.program) {
 				if flagVerbose {
-					fmt.Fprintf(cmd.Stdout(), "Skipped log file doesn't match %q: %q\n", flagProgname, fullname)
+					fmt.Fprintf(env.Stdout, "Skipped log file doesn't match %q: %q\n", flagProgname, fullname)
 				}
 				continue
 			}
@@ -130,11 +131,11 @@ func processDirectory(cmd *cmdline.Command, logdir string, timeCutoff time.Time,
 			}
 			if file.ModTime().Before(timeCutoff) {
 				if flagDryrun {
-					fmt.Fprintf(cmd.Stdout(), "Would delete %q\n", fullname)
+					fmt.Fprintf(env.Stdout, "Would delete %q\n", fullname)
 					continue
 				}
 				if flagVerbose {
-					fmt.Fprintf(cmd.Stdout(), "Deleting %q\n", fullname)
+					fmt.Fprintf(env.Stdout, "Deleting %q\n", fullname)
 				}
 				if err := os.Remove(fullname); err != nil {
 					lastErr = err
@@ -148,11 +149,11 @@ func processDirectory(cmd *cmdline.Command, logdir string, timeCutoff time.Time,
 	for _, sl := range symlinks {
 		if _, err := os.Stat(sl); err != nil && os.IsNotExist(err) {
 			if flagDryrun {
-				fmt.Fprintf(cmd.Stdout(), "Would delete symlink %q\n", sl)
+				fmt.Fprintf(env.Stdout, "Would delete symlink %q\n", sl)
 				continue
 			}
 			if flagVerbose {
-				fmt.Fprintf(cmd.Stdout(), "Deleting symlink %q\n", sl)
+				fmt.Fprintf(env.Stdout, "Deleting symlink %q\n", sl)
 			}
 			if err := os.Remove(sl); err != nil {
 				lastErr = err
@@ -162,6 +163,6 @@ func processDirectory(cmd *cmdline.Command, logdir string, timeCutoff time.Time,
 		}
 
 	}
-	fmt.Fprintf(cmd.Stdout(), "Number of files deleted: %d\n", deleted)
+	fmt.Fprintf(env.Stdout, "Number of files deleted: %d\n", deleted)
 	return lastErr
 }

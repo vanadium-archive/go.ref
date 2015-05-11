@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 
 	"v.io/v23"
 	"v.io/x/lib/vlog"
@@ -41,8 +41,8 @@ func installationDir() string {
 	}
 }
 
-var cmdInstall = &cmdline.Command{
-	Run:      runInstall,
+var cmdInstall = &cmdline2.Command{
+	Runner:   cmdline2.RunnerFunc(runInstall),
 	Name:     "install",
 	Short:    "Install the device manager.",
 	Long:     fmt.Sprintf("Performs installation of device manager into %s (if the env var set), or into the current dir otherwise", deviceDirEnv),
@@ -63,7 +63,7 @@ func init() {
 	cmdInstall.Flags.BoolVar(&initMode, "init_mode", false, "if set, installs the device manager with the system init service manager")
 }
 
-func runInstall(cmd *cmdline.Command, args []string) error {
+func runInstall(env *cmdline2.Env, args []string) error {
 	if installFrom != "" {
 		// TODO(caprita): Also pass args into InstallFrom.
 		if err := impl.InstallFrom(installFrom); err != nil {
@@ -73,94 +73,94 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 		return nil
 	}
 	if suidHelper == "" {
-		return cmd.UsageErrorf("--suid_helper must be set")
+		return env.UsageErrorf("--suid_helper must be set")
 	}
 	if agent == "" {
-		return cmd.UsageErrorf("--agent must be set")
+		return env.UsageErrorf("--agent must be set")
 	}
 	if initMode && initHelper == "" {
-		return cmd.UsageErrorf("--init_helper must be set")
+		return env.UsageErrorf("--init_helper must be set")
 	}
-	if err := impl.SelfInstall(installationDir(), suidHelper, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), cmd.Stderr(), cmd.Stdout()); err != nil {
+	if err := impl.SelfInstall(installationDir(), suidHelper, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("SelfInstall failed: %v", err)
 		return err
 	}
 	return nil
 }
 
-var cmdUninstall = &cmdline.Command{
-	Run:   runUninstall,
-	Name:  "uninstall",
-	Short: "Uninstall the device manager.",
-	Long:  fmt.Sprintf("Removes the device manager installation from %s (if the env var set), or the current dir otherwise", deviceDirEnv),
+var cmdUninstall = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runUninstall),
+	Name:   "uninstall",
+	Short:  "Uninstall the device manager.",
+	Long:   fmt.Sprintf("Removes the device manager installation from %s (if the env var set), or the current dir otherwise", deviceDirEnv),
 }
 
 func init() {
 	cmdUninstall.Flags.StringVar(&suidHelper, "suid_helper", "", "path to suid helper")
 }
 
-func runUninstall(cmd *cmdline.Command, _ []string) error {
+func runUninstall(env *cmdline2.Env, _ []string) error {
 	if suidHelper == "" {
-		return cmd.UsageErrorf("--suid_helper must be set")
+		return env.UsageErrorf("--suid_helper must be set")
 	}
-	if err := impl.Uninstall(installationDir(), suidHelper, cmd.Stderr(), cmd.Stdout()); err != nil {
+	if err := impl.Uninstall(installationDir(), suidHelper, env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Uninstall failed: %v", err)
 		return err
 	}
 	return nil
 }
 
-var cmdStart = &cmdline.Command{
-	Run:   runStart,
-	Name:  "start",
-	Short: "Start the device manager.",
-	Long:  fmt.Sprintf("Starts the device manager installed under from %s (if the env var set), or the current dir otherwise", deviceDirEnv),
+var cmdStart = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runStart),
+	Name:   "start",
+	Short:  "Start the device manager.",
+	Long:   fmt.Sprintf("Starts the device manager installed under from %s (if the env var set), or the current dir otherwise", deviceDirEnv),
 }
 
-func runStart(cmd *cmdline.Command, _ []string) error {
-	if err := impl.Start(installationDir(), cmd.Stderr(), cmd.Stdout()); err != nil {
+func runStart(env *cmdline2.Env, _ []string) error {
+	if err := impl.Start(installationDir(), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Start failed: %v", err)
 		return err
 	}
 	return nil
 }
 
-var cmdStop = &cmdline.Command{
-	Run:   runStop,
-	Name:  "stop",
-	Short: "Stop the device manager.",
-	Long:  fmt.Sprintf("Stops the device manager installed under from %s (if the env var set), or the current dir otherwise", deviceDirEnv),
+var cmdStop = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runStop),
+	Name:   "stop",
+	Short:  "Stop the device manager.",
+	Long:   fmt.Sprintf("Stops the device manager installed under from %s (if the env var set), or the current dir otherwise", deviceDirEnv),
 }
 
-func runStop(cmd *cmdline.Command, _ []string) error {
+func runStop(env *cmdline2.Env, _ []string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	if err := impl.Stop(ctx, installationDir(), cmd.Stderr(), cmd.Stdout()); err != nil {
+	if err := impl.Stop(ctx, installationDir(), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Stop failed: %v", err)
 		return err
 	}
 	return nil
 }
 
-var cmdProfile = &cmdline.Command{
-	Run:   runProfile,
-	Name:  "profile",
-	Short: "Dumps profile for the device manager.",
-	Long:  "Prints the internal profile description for the device manager.",
+var cmdProfile = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runProfile),
+	Name:   "profile",
+	Short:  "Dumps profile for the device manager.",
+	Long:   "Prints the internal profile description for the device manager.",
 }
 
-func runProfile(cmd *cmdline.Command, _ []string) error {
+func runProfile(env *cmdline2.Env, _ []string) error {
 	spec, err := impl.ComputeDeviceProfile()
 	if err != nil {
 		vlog.Errorf("ComputeDeviceProfile failed: %v", err)
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Profile: %#v\n", spec)
+	fmt.Fprintf(env.Stdout, "Profile: %#v\n", spec)
 	desc, err := impl.Describe()
 	if err != nil {
 		vlog.Errorf("Describe failed: %v", err)
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Description: %#v\n", desc)
+	fmt.Fprintf(env.Stdout, "Description: %#v\n", desc)
 	return nil
 }

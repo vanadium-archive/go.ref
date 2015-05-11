@@ -27,9 +27,10 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vom"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/profiles/static"
 )
 
@@ -80,17 +81,14 @@ var (
 
 	errNoCaveats = fmt.Errorf("no caveats provided: it is generally dangerous to bless another principal without any caveats as that gives them almost unrestricted access to the blesser's credentials. If you really want to do this, set --require-caveats=false")
 
-	cmdDump = &cmdline.Command{
+	cmdDump = &cmdline2.Command{
 		Name:  "dump",
 		Short: "Dump out information about the principal",
 		Long: `
 Prints out information about the principal specified by the environment
 that this tool is running in.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
-			ctx, shutdown := v23.Init()
-			defer shutdown()
-
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			p := v23.GetPrincipal(ctx)
 			if flagDumpShort {
 				fmt.Printf("%v\n", p.BlessingStore().Default())
@@ -102,10 +100,10 @@ that this tool is running in.
 			fmt.Println("---------------- BlessingRoots ----------------")
 			fmt.Printf("%v", p.Roots().DebugString())
 			return nil
-		},
+		}),
 	}
 
-	cmdDumpBlessings = &cmdline.Command{
+	cmdDumpBlessings = &cmdline2.Command{
 		Name:  "dumpblessings",
 		Short: "Dump out information about the provided blessings",
 		Long: `
@@ -117,7 +115,7 @@ encoded in the provided file.
 <file> is the path to a file containing blessings typically obtained from
 this tool. - is used for STDIN.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: cmdline2.RunnerFunc(func(env *cmdline2.Env, args []string) error {
 			if len(args) != 1 {
 				return fmt.Errorf("requires exactly one argument, <file>, provided %d", len(args))
 			}
@@ -149,10 +147,10 @@ this tool. - is used for STDIN.
 				}
 			}
 			return nil
-		},
+		}),
 	}
 
-	cmdBlessSelf = &cmdline.Command{
+	cmdBlessSelf = &cmdline2.Command{
 		Name:  "blessself",
 		Short: "Generate a self-signed blessing",
 		Long: `
@@ -167,7 +165,7 @@ caveats can be added with the --caveat flag.
 specified, a name will be generated based on the hostname of the
 machine and the name of the user running this command.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			var name string
 			switch len(args) {
 			case 0:
@@ -177,13 +175,10 @@ machine and the name of the user running this command.
 			default:
 				return fmt.Errorf("requires at most one argument, provided %d", len(args))
 			}
-
 			caveats, err := caveatsFromFlags(flagBlessSelfFor, &flagBlessSelfCaveats)
 			if err != nil {
 				return err
 			}
-			ctx, shutdown := v23.Init()
-			defer shutdown()
 			principal := v23.GetPrincipal(ctx)
 			blessing, err := principal.BlessSelf(name, caveats...)
 			if err != nil {
@@ -191,10 +186,10 @@ machine and the name of the user running this command.
 			}
 
 			return dumpBlessings(blessing)
-		},
+		}),
 	}
 
-	cmdBless = &cmdline.Command{
+	cmdBless = &cmdline2.Command{
 		Name:  "bless",
 		Short: "Bless another principal",
 		Long: `
@@ -238,16 +233,12 @@ OR
 blessing.
 
 	`,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			if len(flagRemoteArgFile) > 0 && len(args) != 1 {
 				return fmt.Errorf("when --remote-arg-file is provided, only <extension> is expected, provided %d", len(args))
 			} else if len(flagRemoteArgFile) == 0 && len(args) != 2 {
 				return fmt.Errorf("require exactly two arguments when --remote-arg-file is not provided, provided %d", len(args))
 			}
-
-			ctx, shutdown := v23.Init()
-			defer shutdown()
-
 			p := v23.GetPrincipal(ctx)
 
 			var (
@@ -290,10 +281,10 @@ blessing.
 				return err
 			}
 			return dumpBlessings(blessings)
-		},
+		}),
 	}
 
-	cmdGetPublicKey = &cmdline.Command{
+	cmdGetPublicKey = &cmdline2.Command{
 		Name:  "publickey",
 		Short: "Prints the public key of the principal.",
 		Long: `
@@ -308,9 +299,7 @@ With --pretty, a 16-byte fingerprint of the key instead. This format is easier
 for humans to read and is used in output of other commands in this program, but
 is not suitable as an argument to the 'recognize' command.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
-			ctx, shutdown := v23.Init()
-			defer shutdown()
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			key := v23.GetPrincipal(ctx).PublicKey()
 			if flagGetPublicKeyPretty {
 				fmt.Println(key)
@@ -322,10 +311,10 @@ is not suitable as an argument to the 'recognize' command.
 			}
 			fmt.Println(base64.URLEncoding.EncodeToString(der))
 			return nil
-		},
+		}),
 	}
 
-	cmdGetTrustedRoots = &cmdline.Command{
+	cmdGetTrustedRoots = &cmdline2.Command{
 		Name:  "recognizedroots",
 		Short: "Return recognized blessings, and their associated public key.",
 		Long: `
@@ -334,15 +323,13 @@ public key. If the principal is operating as a client, contacted servers must
 appear on this list. If the principal is operating as a server, clients must
 present blessings derived from this list.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
-			ctx, shutdown := v23.Init()
-			defer shutdown()
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			fmt.Printf(v23.GetPrincipal(ctx).Roots().DebugString())
 			return nil
-		},
+		}),
 	}
 
-	cmdGetPeerMap = &cmdline.Command{
+	cmdGetPeerMap = &cmdline2.Command{
 		Name:  "peermap",
 		Short: "Shows the map from peer pattern to which blessing name to present.",
 		Long: `
@@ -351,15 +338,13 @@ If the principal operates as a server, it presents its default blessing to all p
 If the principal operates as a client, it presents the map value associated with
 the peer it contacts.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
-			ctx, shutdown := v23.Init()
-			defer shutdown()
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			fmt.Printf(v23.GetPrincipal(ctx).BlessingStore().DebugString())
 			return nil
-		},
+		}),
 	}
 
-	cmdGetForPeer = &cmdline.Command{
+	cmdGetForPeer = &cmdline2.Command{
 		Name:  "forpeer",
 		Short: "Return blessings marked for the provided peer",
 		Long: `
@@ -380,14 +365,12 @@ matched by at least one of these. If no arguments are specified,
 store.forpeer returns the blessings that are marked for all peers (i.e.,
 blessings set on the store with the "..." pattern).
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
-			ctx, shutdown := v23.Init()
-			defer shutdown()
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			return printBlessingsInfo(v23.GetPrincipal(ctx).BlessingStore().ForPeer(args...))
-		},
+		}),
 	}
 
-	cmdGetDefault = &cmdline.Command{
+	cmdGetDefault = &cmdline2.Command{
 		Name:  "default",
 		Short: "Return blessings marked as default",
 		Long: `
@@ -399,14 +382,12 @@ with chain_name.
 Providing --caveats <chain_name> will print the caveats on the certificate chain
 with chain_name.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
-			ctx, shutdown := v23.Init()
-			defer shutdown()
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			return printBlessingsInfo(v23.GetPrincipal(ctx).BlessingStore().Default())
-		},
+		}),
 	}
 
-	cmdSetForPeer = &cmdline.Command{
+	cmdSetForPeer = &cmdline2.Command{
 		Name:  "forpeer",
 		Short: "Set provided blessings for peer",
 		Long: `
@@ -431,7 +412,7 @@ from this tool. - is used for STDIN.
 <pattern> is the BlessingPattern used to identify peers with whom this
 blessing can be shared with.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			if len(args) != 2 {
 				return fmt.Errorf("requires exactly two arguments <file>, <pattern>, provided %d", len(args))
 			}
@@ -440,9 +421,6 @@ blessing can be shared with.
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
 			pattern := security.BlessingPattern(args[1])
-
-			ctx, shutdown := v23.Init()
-			defer shutdown()
 
 			p := v23.GetPrincipal(ctx)
 			if _, err := p.BlessingStore().Set(blessings, pattern); err != nil {
@@ -454,10 +432,10 @@ blessing can be shared with.
 				}
 			}
 			return nil
-		},
+		}),
 	}
 
-	cmdRecognize = &cmdline.Command{
+	cmdRecognize = &cmdline2.Command{
 		Name:  "recognize",
 		Short: "Add to the set of identity providers recognized by this principal",
 		Long: `
@@ -485,13 +463,10 @@ this tool. - is used for STDIN.
 
 <blessing pattern> is the blessing pattern for which <key> should be recognized.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			if len(args) != 1 && len(args) != 2 {
 				return fmt.Errorf("requires either one argument <file>, or two arguments <key> <blessing pattern>, provided %d", len(args))
 			}
-			ctx, shutdown := v23.Init()
-			defer shutdown()
-
 			p := v23.GetPrincipal(ctx)
 			if len(args) == 1 {
 				blessings, err := decodeBlessings(args[0])
@@ -513,10 +488,10 @@ this tool. - is used for STDIN.
 				return fmt.Errorf("invalid DER encoding of public key: %v", err)
 			}
 			return p.Roots().Add(key, security.BlessingPattern(args[0]))
-		},
+		}),
 	}
 
-	cmdSetDefault = &cmdline.Command{
+	cmdSetDefault = &cmdline2.Command{
 		Name:  "default",
 		Short: "Set provided blessings as default",
 		Long: `
@@ -531,7 +506,7 @@ not match the public key of the principal specified by the environment.
 <file> is the path to a file containing a blessing typically obtained from
 this tool. - is used for STDIN.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			if len(args) != 1 {
 				return fmt.Errorf("requires exactly one argument, <file>, provided %d", len(args))
 			}
@@ -539,9 +514,6 @@ this tool. - is used for STDIN.
 			if err != nil {
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
-
-			ctx, shutdown := v23.Init()
-			defer shutdown()
 
 			p := v23.GetPrincipal(ctx)
 			if err := p.BlessingStore().SetDefault(blessings); err != nil {
@@ -553,10 +525,10 @@ this tool. - is used for STDIN.
 				}
 			}
 			return nil
-		},
+		}),
 	}
 
-	cmdCreate = &cmdline.Command{
+	cmdCreate = &cmdline2.Command{
 		Name:  "create",
 		Short: "Create a new principal and persist it into a directory",
 		Long: `
@@ -570,10 +542,11 @@ new principal.
 `,
 		ArgsName: "<directory> <blessing>",
 		ArgsLong: `
-	<directory> is the directory to which the new principal will be persisted.
-	<blessing> is the self-blessed blessing that the principal will be setup to use by default.
+<directory> is the directory to which the new principal will be persisted.
+
+<blessing> is the self-blessed blessing that the principal will be setup to use by default.
 	`,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: cmdline2.RunnerFunc(func(env *cmdline2.Env, args []string) error {
 			if len(args) != 2 {
 				return fmt.Errorf("requires exactly two arguments: <directory> and <blessing>, provided %d", len(args))
 			}
@@ -595,10 +568,10 @@ new principal.
 				return fmt.Errorf("could not set blessings %v as default: %v", blessings, err)
 			}
 			return nil
-		},
+		}),
 	}
 
-	cmdFork = &cmdline.Command{
+	cmdFork = &cmdline2.Command{
 		Name:  "fork",
 		Short: "Fork a new principal from the principal that this tool is running as and persist it into a directory",
 		Long: `
@@ -616,18 +589,15 @@ forked principal.
 `,
 		ArgsName: "<directory> <extension>",
 		ArgsLong: `
-	<directory> is the directory to which the forked principal will be persisted.
-	<extension> is the extension under which the forked principal is blessed.
+<directory> is the directory to which the forked principal will be persisted.
+
+<extension> is the extension under which the forked principal is blessed.
 	`,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			if len(args) != 2 {
 				return fmt.Errorf("requires exactly two arguments: <directory> and <extension>, provided %d", len(args))
 			}
 			dir, extension := args[0], args[1]
-
-			ctx, shutdown := v23.Init()
-			defer shutdown()
-
 			caveats, err := caveatsFromFlags(flagForkFor, &flagForkCaveats)
 			if err != nil {
 				return err
@@ -667,10 +637,10 @@ forked principal.
 				return fmt.Errorf("could not set blessings %v as default: %v", blessings, err)
 			}
 			return nil
-		},
+		}),
 	}
 
-	cmdSeekBlessings = &cmdline.Command{
+	cmdSeekBlessings = &cmdline2.Command{
 		Name:  "seekblessings",
 		Short: "Seek blessings from a web-based Vanadium blessing service",
 		Long: `
@@ -685,12 +655,7 @@ The blessings obtained are set as default, unless the --set-default flag is
 set to true, and are also set for sharing with all peers, unless a more
 specific peer pattern is provided using the --for-peer flag.
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
-			// Initialize the runtime first so that any local errors are reported
-			// before the HTTP roundtrips for obtaining the macaroon begin.
-			ctx, shutdown := v23.Init()
-			defer shutdown()
-
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			p := v23.GetPrincipal(ctx)
 
 			blessedChan := make(chan string)
@@ -723,12 +688,12 @@ specific peer pattern is provided using the --for-peer flag.
 					return fmt.Errorf("AddToRoots failed: %v", err)
 				}
 			}
-			fmt.Fprintf(cmd.Stdout(), "Received blessings: %v\n", blessings)
+			fmt.Fprintf(env.Stdout, "Received blessings: %v\n", blessings)
 			return nil
-		},
+		}),
 	}
 
-	cmdRecvBlessings = &cmdline.Command{
+	cmdRecvBlessings = &cmdline2.Command{
 		Name:  "recvblessings",
 		Short: "Receive blessings sent by another principal and use them as the default",
 		Long: `
@@ -768,14 +733,10 @@ This file can be supplied to bless:
 		principal bless --remote-arg-file FILE EXTENSION
 
 `,
-		Run: func(cmd *cmdline.Command, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
 			if len(args) != 0 {
 				return fmt.Errorf("command accepts no arguments")
 			}
-
-			ctx, shutdown := v23.Init()
-			defer shutdown()
-
 			server, err := v23.NewServer(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to create server to listen for blessings: %v", err)
@@ -817,7 +778,7 @@ This file can be supplied to bless:
 			fmt.Println()
 			fmt.Println("...waiting for sender..")
 			return <-service.notify
-		},
+		}),
 	}
 )
 
@@ -892,7 +853,7 @@ func blessArgsFromFile(fname string) (remoteKey, remoteToken, tobless string, er
 }
 
 func main() {
-	cmdline.HideGlobalFlagsExcept()
+	cmdline2.HideGlobalFlagsExcept()
 	cmdBlessSelf.Flags.Var(&flagBlessSelfCaveats, "caveat", flagBlessSelfCaveats.usage())
 	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero implies no expiration)")
 
@@ -942,7 +903,7 @@ func main() {
 
 	cmdGetPublicKey.Flags.BoolVar(&flagGetPublicKeyPretty, "pretty", false, "If true, print the key out in a more human-readable but lossy representation.")
 
-	cmdSet := &cmdline.Command{
+	cmdSet := &cmdline2.Command{
 		Name:  "set",
 		Short: "Mutate the principal's blessings.",
 		Long: `
@@ -951,10 +912,10 @@ Commands to mutate the blessings of the principal.
 All input blessings are expected to be serialized using base64-VOM-encoding.
 See 'principal get'.
 `,
-		Children: []*cmdline.Command{cmdSetDefault, cmdSetForPeer},
+		Children: []*cmdline2.Command{cmdSetDefault, cmdSetForPeer},
 	}
 
-	cmdGet := &cmdline.Command{
+	cmdGet := &cmdline2.Command{
 		Name:  "get",
 		Short: "Read the principal's blessings.",
 		Long: `
@@ -962,10 +923,10 @@ Commands to inspect the blessings of the principal.
 
 All blessings are printed to stdout using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdGetDefault, cmdGetForPeer, cmdGetPublicKey, cmdGetTrustedRoots, cmdGetPeerMap},
+		Children: []*cmdline2.Command{cmdGetDefault, cmdGetForPeer, cmdGetPublicKey, cmdGetTrustedRoots, cmdGetPeerMap},
 	}
 
-	root := &cmdline.Command{
+	root := &cmdline2.Command{
 		Name:  "principal",
 		Short: "creates and manages Vanadium principals and blessings",
 		Long: `
@@ -973,9 +934,9 @@ Command principal creates and manages Vanadium principals and blessings.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdRecognize},
+		Children: []*cmdline2.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdRecognize},
 	}
-	os.Exit(root.Main())
+	cmdline2.Main(root)
 }
 
 func decodeBlessings(fname string) (security.Blessings, error) {

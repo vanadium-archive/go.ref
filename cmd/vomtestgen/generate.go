@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
@@ -13,10 +16,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/v23"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
-	"v.io/x/lib/cmdline"
+	"v.io/x/lib/cmdline2"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/codegen"
 	"v.io/x/ref/lib/vdl/codegen/vdlgen"
@@ -30,10 +32,10 @@ const (
 	vomdataConfig    = "vomdata.vdl.config"
 )
 
-var cmdGenerate = &cmdline.Command{
-	Run:   runGenerate,
-	Name:  "vomtestgen",
-	Short: "generates test data for the vom wire protocol implementation",
+var cmdGenerate = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runGenerate),
+	Name:   "vomtestgen",
+	Short:  "generates test data for the vom wire protocol implementation",
 	Long: `
 Command vomtestgen generates test data for the vom wire protocol implementation.
 It takes as input a vdl config file, and outputs a vdl package with test cases.
@@ -62,38 +64,38 @@ var (
 )
 
 func init() {
-	cmdline.HideGlobalFlagsExcept()
 	cmdGenerate.Flags.IntVar(&optGenMaxErrors, "max-errors", -1, "Stop processing after this many errors, or -1 for unlimited.")
 	cmdGenerate.Flags.StringVar(&optGenExts, "exts", ".vdl", "Comma-separated list of valid VDL file name extensions.")
 }
 
-func runGenerate(cmd *cmdline.Command, args []string) error {
-	_, shutdown := v23.Init()
-	defer shutdown()
+func main() {
+	cmdline2.Main(cmdGenerate)
+}
 
+func runGenerate(env *cmdline2.Env, args []string) error {
 	debug := new(bytes.Buffer)
-	defer dumpDebug(cmd.Stderr(), debug)
-	env := compile.NewEnv(optGenMaxErrors)
+	defer dumpDebug(env.Stderr, debug)
+	compileEnv := compile.NewEnv(optGenMaxErrors)
 	// Get the input datafile path.
 	var path string
 	switch len(args) {
 	case 0:
-		srcDirs := build.SrcDirs(env.Errors)
-		if err := env.Errors.ToError(); err != nil {
-			return cmd.UsageErrorf("%v", err)
+		srcDirs := build.SrcDirs(compileEnv.Errors)
+		if err := compileEnv.Errors.ToError(); err != nil {
+			return env.UsageErrorf("%v", err)
 		}
 		path = guessDataFilePath(debug, srcDirs)
 		if path == "" {
-			return cmd.UsageErrorf("couldn't find vomdata file in src dirs: %v", srcDirs)
+			return env.UsageErrorf("couldn't find vomdata file in src dirs: %v", srcDirs)
 		}
 	case 1:
 		path = args[0]
 	default:
-		return cmd.UsageErrorf("too many args (expecting exactly 1 vomdata file)")
+		return env.UsageErrorf("too many args (expecting exactly 1 vomdata file)")
 	}
 	inName := filepath.Clean(path)
 	if !strings.HasSuffix(inName, ".vdl.config") {
-		return cmd.UsageErrorf(`vomdata file doesn't end in ".vdl.config": %s`, inName)
+		return env.UsageErrorf(`vomdata file doesn't end in ".vdl.config": %s`, inName)
 	}
 	outName := inName[:len(inName)-len(".config")]
 	// Remove the generated file, so that it doesn't interfere with compiling the
@@ -101,7 +103,7 @@ func runGenerate(cmd *cmdline.Command, args []string) error {
 	if err := os.Remove(outName); err == nil {
 		fmt.Fprintf(debug, "Removed output file %v\n", outName)
 	}
-	config, err := compileConfig(debug, inName, env)
+	config, err := compileConfig(debug, inName, compileEnv)
 	if err != nil {
 		return err
 	}
@@ -113,7 +115,7 @@ func runGenerate(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	debug.Reset() // Don't dump debugging information on success
-	fmt.Fprintf(cmd.Stdout(), "Wrote output file %v\n", outName)
+	fmt.Fprintf(env.Stdout, "Wrote output file %v\n", outName)
 	return nil
 }
 

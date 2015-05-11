@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"v.io/x/lib/cmdline2"
 )
 
 func setup(t *testing.T, workdir, username string) (tmpdir string) {
@@ -69,10 +71,6 @@ func TestGCLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("user.Current failed: %v", err)
 	}
-
-	cmd := cmdGCLogs
-	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
 
 	testcases := []struct {
 		cutoff   time.Duration
@@ -162,7 +160,9 @@ func TestGCLogs(t *testing.T) {
 		cutoff := fmt.Sprintf("--cutoff=%s", tc.cutoff)
 		verbose := fmt.Sprintf("--verbose=%v", tc.verbose)
 		dryrun := fmt.Sprintf("--n=%v", tc.dryrun)
-		if err := cmd.Execute([]string{cutoff, verbose, dryrun, testdir}); err != nil {
+		var stdout, stderr bytes.Buffer
+		env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+		if err := cmdline2.ParseAndRun(cmdGCLogs, env, []string{cutoff, verbose, dryrun, testdir}); err != nil {
 			t.Fatalf("%v: %v", stderr.String(), err)
 		}
 		gotsl := strings.Split(stdout.String(), "\n")
@@ -176,6 +176,5 @@ func TestGCLogs(t *testing.T) {
 		if got != expected {
 			t.Errorf("Unexpected result for (%v, %v): got %q, expected %q", tc.cutoff, tc.verbose, got, expected)
 		}
-		stdout.Reset()
 	}
 }

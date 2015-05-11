@@ -11,43 +11,31 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"regexp"
 
-	"v.io/v23"
 	"v.io/v23/uniqueid"
-	"v.io/x/lib/cmdline"
-	_ "v.io/x/ref/profiles/static"
+	"v.io/x/lib/cmdline2"
 )
 
 func main() {
-	cmdline.HideGlobalFlagsExcept()
-	os.Exit(cmdUniqueId.Main())
+	cmdline2.Main(cmdUniqueId)
 }
 
-func runHelper(run cmdline.Runner) cmdline.Runner {
-	return func(cmd *cmdline.Command, args []string) error {
-		_, shutdown := v23.Init()
-		defer shutdown()
-		return run(cmd, args)
-	}
-}
-
-var cmdUniqueId = &cmdline.Command{
+var cmdUniqueId = &cmdline2.Command{
 	Name:  "uniqueid",
 	Short: "generates unique identifiers",
 	Long: `
 Command uniqueid generates unique identifiers.
 It also has an option of automatically substituting unique ids with placeholders in files.
 `,
-	Children: []*cmdline.Command{cmdGenerate, cmdInject},
-	Topics:   []cmdline.Topic{},
+	Children: []*cmdline2.Command{cmdGenerate, cmdInject},
+	Topics:   []cmdline2.Topic{},
 }
 
-var cmdGenerate = &cmdline.Command{
-	Run:   runHelper(runGenerate),
-	Name:  "generate",
-	Short: "Generates UniqueIds",
+var cmdGenerate = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runGenerate),
+	Name:   "generate",
+	Short:  "Generates UniqueIds",
 	Long: `
 Generates unique ids and outputs them to standard out.
 `,
@@ -55,10 +43,10 @@ Generates unique ids and outputs them to standard out.
 	ArgsLong: "",
 }
 
-var cmdInject = &cmdline.Command{
-	Run:   runHelper(runInject),
-	Name:  "inject",
-	Short: "Injects UniqueIds into existing files",
+var cmdInject = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runInject),
+	Name:   "inject",
+	Short:  "Injects UniqueIds into existing files",
 	Long: `
 Injects UniqueIds into existing files.
 Strings of the form "$UNIQUEID$" will be replaced with generated ids.
@@ -68,9 +56,9 @@ Strings of the form "$UNIQUEID$" will be replaced with generated ids.
 }
 
 // runGenerate implements the generate command which outputs generated ids to stdout.
-func runGenerate(command *cmdline.Command, args []string) error {
+func runGenerate(env *cmdline2.Env, args []string) error {
 	if len(args) > 0 {
-		return command.UsageErrorf("expected 0 args, got %d", len(args))
+		return env.UsageErrorf("expected 0 args, got %d", len(args))
 	}
 	id, err := uniqueid.Random()
 	if err != nil {
@@ -81,9 +69,9 @@ func runGenerate(command *cmdline.Command, args []string) error {
 }
 
 // runInject implements the inject command which replaces $UNIQUEID$ strings with generated ids.
-func runInject(command *cmdline.Command, args []string) error {
+func runInject(env *cmdline2.Env, args []string) error {
 	if len(args) == 0 {
-		return command.UsageErrorf("expected at least one file arg, got 0")
+		return env.UsageErrorf("expected at least one file arg, got 0")
 	}
 	for _, arg := range args {
 		if err := injectIntoFile(arg); err != nil {

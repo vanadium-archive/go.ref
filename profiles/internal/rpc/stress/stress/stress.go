@@ -12,9 +12,9 @@ import (
 	"runtime"
 	"time"
 
-	"v.io/v23"
-
-	"v.io/x/lib/cmdline"
+	"v.io/v23/context"
+	"v.io/x/lib/cmdline2"
+	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/profiles/internal/rpc/stress"
 	"v.io/x/ref/profiles/internal/rpc/stress/internal"
 )
@@ -39,8 +39,8 @@ func init() {
 	cmdStressStats.Flags.StringVar(&outFormat, "format", "text", "Stats output format; either text or json")
 }
 
-var cmdStressTest = &cmdline.Command{
-	Run:      runStressTest,
+var cmdStressTest = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runStressTest),
 	Name:     "stress",
 	Short:    "Run stress test",
 	Long:     "Run stress test",
@@ -48,23 +48,19 @@ var cmdStressTest = &cmdline.Command{
 	ArgsLong: "<server> ... A list of servers to connect to.",
 }
 
-func runStressTest(cmd *cmdline.Command, args []string) error {
+func runStressTest(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if len(args) == 0 {
-		return cmd.UsageErrorf("no server specified")
+		return env.UsageErrorf("no server specified")
 	}
 	if outFormat != "text" && outFormat != "json" {
-		return cmd.UsageErrorf("invalid output format: %s\n", outFormat)
+		return env.UsageErrorf("invalid output format: %s\n", outFormat)
 	}
 
 	cores := runtime.NumCPU()
 	runtime.GOMAXPROCS(cores)
-
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
 	rand.Seed(time.Now().UnixNano())
-	fmt.Fprintf(cmd.Stdout(), "starting stress test against %d server(s) using %d core(s)...\n", len(args), cores)
-	fmt.Fprintf(cmd.Stdout(), "workers: %d, maxChunkCnt: %d, maxPayloadSize: %d, duration: %v\n", workers, maxChunkCnt, maxPayloadSize, duration)
+	fmt.Fprintf(env.Stdout, "starting stress test against %d server(s) using %d core(s)...\n", len(args), cores)
+	fmt.Fprintf(env.Stdout, "workers: %d, maxChunkCnt: %d, maxPayloadSize: %d, duration: %v\n", workers, maxChunkCnt, maxPayloadSize, duration)
 
 	start := time.Now()
 	done := make(chan stress.SumStats)
@@ -100,11 +96,11 @@ func runStressTest(cmd *cmdline.Command, args []string) error {
 	}
 	elapsed := time.Since(start)
 	fmt.Printf("done after %v\n", elapsed)
-	return outSumStats(cmd.Stdout(), outFormat, "client stats:", &merged)
+	return outSumStats(env.Stdout, outFormat, "client stats:", &merged)
 }
 
-var cmdStressStats = &cmdline.Command{
-	Run:      runStressStats,
+var cmdStressStats = &cmdline2.Command{
+	Runner:   v23cmd.RunnerFunc(runStressStats),
 	Name:     "stats",
 	Short:    "Print out stress stats of servers",
 	Long:     "Print out stress stats of servers",
@@ -112,24 +108,20 @@ var cmdStressStats = &cmdline.Command{
 	ArgsLong: "<server> ... A list of servers to connect to.",
 }
 
-func runStressStats(cmd *cmdline.Command, args []string) error {
+func runStressStats(ctx *context.T, env *cmdline2.Env, args []string) error {
 	if len(args) == 0 {
-		return cmd.UsageErrorf("no server specified")
+		return env.UsageErrorf("no server specified")
 	}
 	if outFormat != "text" && outFormat != "json" {
-		return cmd.UsageErrorf("invalid output format: %s\n", outFormat)
+		return env.UsageErrorf("invalid output format: %s\n", outFormat)
 	}
-
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
 	for _, server := range args {
 		stats, err := stress.StressClient(server).GetSumStats(ctx)
 		if err != nil {
 			return err
 		}
 		title := fmt.Sprintf("server stats(%s):", server)
-		if err := outSumStats(cmd.Stdout(), outFormat, title, &stats); err != nil {
+		if err := outSumStats(env.Stdout, outFormat, title, &stats); err != nil {
 			return err
 		}
 	}

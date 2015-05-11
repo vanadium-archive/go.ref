@@ -39,8 +39,7 @@ func ParseFlags(f *flags.Flags) error {
 	if handle != nil {
 		config = handle.Config.Dump()
 	}
-	f.Parse(os.Args[1:], config)
-	return nil
+	return f.Parse(os.Args[1:], config)
 }
 
 // IPAddressChooser returns the preferred IP address, which is,

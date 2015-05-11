@@ -17,39 +17,28 @@ import (
 	"strings"
 	"unicode"
 
-	"v.io/v23"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
-	"v.io/x/lib/cmdline"
-	_ "v.io/x/ref/profiles/static"
+	"v.io/x/lib/cmdline2"
 )
 
 func main() {
-	cmdline.HideGlobalFlagsExcept()
-	os.Exit(cmdVom.Main())
+	cmdline2.Main(cmdVom)
 }
 
-func runHelper(run cmdline.Runner) cmdline.Runner {
-	return func(cmd *cmdline.Command, args []string) error {
-		_, shutdown := v23.Init()
-		defer shutdown()
-		return run(cmd, args)
-	}
-}
-
-var cmdVom = &cmdline.Command{
+var cmdVom = &cmdline2.Command{
 	Name:  "vom",
 	Short: "helps debug the Vanadium Object Marshaling wire protocol",
 	Long: `
 Command vom helps debug the Vanadium Object Marshaling wire protocol.
 `,
-	Children: []*cmdline.Command{cmdDecode, cmdDump},
+	Children: []*cmdline2.Command{cmdDecode, cmdDump},
 }
 
-var cmdDecode = &cmdline.Command{
-	Run:   runHelper(runDecode),
-	Name:  "decode",
-	Short: "Decode data encoded in the vom format",
+var cmdDecode = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runDecode),
+	Name:   "decode",
+	Short:  "Decode data encoded in the vom format",
 	Long: `
 Decode decodes data encoded in the vom format.  If no arguments are provided,
 decode reads the data from stdin, otherwise the argument is the data.
@@ -63,10 +52,10 @@ representations.
 	ArgsLong: "[data] is the data to decode; if not specified, reads from stdin",
 }
 
-var cmdDump = &cmdline.Command{
-	Run:   runHelper(runDump),
-	Name:  "dump",
-	Short: "Dump data encoded in the vom format into formatted output",
+var cmdDump = &cmdline2.Command{
+	Runner: cmdline2.RunnerFunc(runDump),
+	Name:   "dump",
+	Short:  "Dump data encoded in the vom format into formatted output",
 	Long: `
 Dump dumps data encoded in the vom format, generating formatted output
 describing each portion of the encoding.  If no arguments are provided, dump
@@ -102,12 +91,12 @@ func init() {
 		"Data representation, one of "+fmt.Sprint(dataRepAll))
 }
 
-func runDecode(cmd *cmdline.Command, args []string) error {
+func runDecode(env *cmdline2.Env, args []string) error {
 	// Convert all inputs into a reader over binary bytes.
 	var data string
 	switch {
 	case len(args) > 1:
-		return cmd.UsageErrorf("too many args")
+		return env.UsageErrorf("too many args")
 	case len(args) == 1:
 		data = args[0]
 	default:
@@ -129,29 +118,29 @@ func runDecode(cmd *cmdline.Command, args []string) error {
 	if err := decoder.Decode(&result); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), result)
+	fmt.Fprintln(env.Stdout, result)
 	if reader.Len() != 0 {
 		return fmt.Errorf("%d leftover bytes: % x", reader.Len(), reader.String())
 	}
 	return nil
 }
 
-func runDump(cmd *cmdline.Command, args []string) error {
+func runDump(env *cmdline2.Env, args []string) error {
 	// Handle non-streaming cases.
 	switch {
 	case len(args) > 1:
-		return cmd.UsageErrorf("too many args")
+		return env.UsageErrorf("too many args")
 	case len(args) == 1:
 		binbytes, err := dataToBinaryBytes(args[0])
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(cmd.Stdout(), vom.Dump(binbytes))
+		fmt.Fprintln(env.Stdout, vom.Dump(binbytes))
 		return nil
 	}
 	// Handle streaming from stdin.
 	// TODO(toddw): Add a flag to configure stdout/stderr dumping.
-	dumper := vom.NewDumper(dumpWriter{cmd.Stdout(), cmd.Stdout()})
+	dumper := vom.NewDumper(dumpWriter{env.Stdout, env.Stdout})
 	defer dumper.Close()
 	// Handle simple non-hex cases.
 	switch flagDataRep {
