@@ -536,6 +536,22 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 		}
 	}
 	{
+		// If the Blessings are expired, dumpBlessings should print so.
+		redirect(t, bin.Start("bless", "--for=-1s", bobDir, "friend"), tmpfile)
+		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
+		want := `Blessings          : alice/friend [EXPIRED]
+PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Certificate chains : 1
+Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: alice with 0 caveats
+  Certificate #1: friend with 1 caveat
+    (0) ExpiryCaveat
+`
+		if got != want {
+			t.Errorf("Got\n%vWant\n%v", got, want)
+		}
+	}
+	{
 		// But not if --for=0
 		var buf bytes.Buffer
 		if err := bin.Start("bless", "--for=0", bobDir, "friend").Wait(os.Stdout, &buf); err == nil {
