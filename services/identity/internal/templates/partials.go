@@ -64,7 +64,7 @@ var sidebarPartial = `{{define "sidebar"}}
   <div class="provider-info-section">
     <h5>Root name</h5>
     <span class="provider-address">
-      dev.v.io/root
+      {{.Self}}
     </span>
 
     <h5>Public key</h5>
