@@ -313,7 +313,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}
 	proxySpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, proxySpec, security.AllowEveryone())
+	proxyShutdown, proxyEndpoint, err := generic.NewProxy(ctx, proxySpec, security.AllowEveryone())
 	if err != nil {
 		return nil, fmt.Errorf("unable to start proxy: %v", err)
 	}

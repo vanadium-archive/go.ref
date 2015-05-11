@@ -12,7 +12,7 @@ import (
 	_ "v.io/x/ref/runtime/factories/fake"
 )
 
-// Ensure that the fake profile can be used to initialize a fake runtime.
+// Ensure that the fake RuntimeFactory can be used to initialize a fake runtime.
 func TestInit(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()

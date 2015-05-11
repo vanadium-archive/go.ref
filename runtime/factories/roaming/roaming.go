@@ -4,7 +4,7 @@
 
 // +build linux darwin
 
-// Package roaming implements a profile suitable for a variety of network
+// Package roaming implements a RuntimeFactory suitable for a variety of network
 // configurations, including 1-1 NATs, dhcp auto-configuration, and Google
 // Compute Engine.
 //
@@ -41,13 +41,13 @@ import (
 
 const (
 	SettingsStreamName = "roaming"
-	SettingsStreamDesc = "pubsub stream used by the roaming profile"
+	SettingsStreamDesc = "pubsub stream used by the roaming RuntimeFactory"
 )
 
 var commonFlags *flags.Flags
 
 func init() {
-	v23.RegisterProfile(Init)
+	v23.RegisterRuntimeFactory(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
@@ -72,7 +72,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		if addr := internal.GCEPublicAddress(vlog.Log); addr != nil {
 			listenSpec.AddressChooser = func(string, []net.Addr) ([]net.Addr, error) {
 				// TODO(cnicolaou): the protocol at least should
-				// be configurable, or maybe there's a profile specific
+				// be configurable, or maybe there's a RuntimeFactory specific
 				// flag to configure both the protocol and address.
 				return []net.Addr{netstate.NewNetAddr("wsh", addr.String())}, nil
 			}
@@ -80,11 +80,11 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 			if err != nil {
 				return nil, nil, shutdown, err
 			}
-			profileShutdown := func() {
+			runtimeFactoryShutdown := func() {
 				ac.Shutdown()
 				shutdown()
 			}
-			return runtime, ctx, profileShutdown, nil
+			return runtime, ctx, runtimeFactoryShutdown, nil
 		}
 	}
 
@@ -93,7 +93,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	// Create stream in Init function to avoid a race between any
 	// goroutines started here and consumers started after Init returns.
 	ch := make(chan pubsub.Setting)
-	// TODO(cnicolaou): use stop to shutdown this stream when the profile shutdowns.
+	// TODO(cnicolaou): use stop to shutdown this stream when the RuntimeFactory shutdowns.
 	stop, err := publisher.CreateStream(SettingsStreamName, SettingsStreamDesc, ch)
 	if err != nil {
 		ac.Shutdown()
@@ -124,13 +124,13 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	go monitorNetworkSettingsX(runtime, ctx, watcher, prev, stop, cleanupCh, watcherCh, ch)
-	profileShutdown := func() {
+	runtimeFactoryShutdown := func() {
 		close(cleanupCh)
 		ac.Shutdown()
 		shutdown()
 		<-watcherCh
 	}
-	return runtime, ctx, profileShutdown, nil
+	return runtime, ctx, runtimeFactoryShutdown, nil
 }
 
 // monitorNetworkSettings will monitor network configuration changes and
