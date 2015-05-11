@@ -23,21 +23,21 @@ import (
 type ObjId string
 
 func (ObjId) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.ObjId"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.ObjId"`
 }) {
 }
 
 type Version uint64
 
 func (Version) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.Version"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.Version"`
 }) {
 }
 
 type GroupId uint64
 
 func (GroupId) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.GroupId"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.GroupId"`
 }) {
 }
 
@@ -45,7 +45,7 @@ func (GroupId) __VDLReflect(struct {
 type DeviceId string
 
 func (DeviceId) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.DeviceId"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.DeviceId"`
 }) {
 }
 
@@ -53,7 +53,7 @@ func (DeviceId) __VDLReflect(struct {
 type GenId uint64
 
 func (GenId) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.GenId"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.GenId"`
 }) {
 }
 
@@ -61,7 +61,7 @@ func (GenId) __VDLReflect(struct {
 type SeqNum uint64
 
 func (SeqNum) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.SeqNum"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.SeqNum"`
 }) {
 }
 
@@ -69,7 +69,7 @@ func (SeqNum) __VDLReflect(struct {
 type GenVector map[DeviceId]GenId
 
 func (GenVector) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.GenVector"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.GenVector"`
 }) {
 }
 
@@ -77,7 +77,7 @@ func (GenVector) __VDLReflect(struct {
 type TxId uint64
 
 func (TxId) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.TxId"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.TxId"`
 }) {
 }
 
@@ -85,7 +85,7 @@ func (TxId) __VDLReflect(struct {
 type GroupIdSet []GroupId
 
 func (GroupIdSet) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.GroupIdSet"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.GroupIdSet"`
 }) {
 }
 
@@ -120,7 +120,7 @@ type LogRec struct {
 }
 
 func (LogRec) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.LogRec"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.LogRec"`
 }) {
 }
 
@@ -140,7 +140,7 @@ type LogValue struct {
 }
 
 func (LogValue) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.LogValue"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.LogValue"`
 }) {
 }
 
@@ -154,7 +154,7 @@ type DeviceStats struct {
 }
 
 func (DeviceStats) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.DeviceStats"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.DeviceStats"`
 }) {
 }
 
@@ -168,7 +168,7 @@ type SyncGroupStats struct {
 }
 
 func (SyncGroupStats) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.SyncGroupStats"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.SyncGroupStats"`
 }) {
 }
 
@@ -180,7 +180,7 @@ type SyncGroupMember struct {
 }
 
 func (SyncGroupMember) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.SyncGroupMember"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.SyncGroupMember"`
 }) {
 }
 
@@ -203,7 +203,7 @@ type SyncGroupInfo struct {
 }
 
 func (SyncGroupInfo) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.SyncGroupInfo"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.SyncGroupInfo"`
 }) {
 }
 
@@ -221,7 +221,7 @@ type SyncGroupConfig struct {
 }
 
 func (SyncGroupConfig) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.SyncGroupConfig"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.SyncGroupConfig"`
 }) {
 }
 
@@ -234,7 +234,7 @@ type JoinerMetaData struct {
 }
 
 func (JoinerMetaData) __VDLReflect(struct {
-	Name string "v.io/syncbase/x/ref/services/syncbase/sync.JoinerMetaData"
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/sync.JoinerMetaData"`
 }) {
 }
 

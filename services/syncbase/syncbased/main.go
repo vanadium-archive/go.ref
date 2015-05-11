@@ -17,7 +17,7 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server"
 	"v.io/x/ref/lib/signals"
-	_ "v.io/x/ref/profiles/roaming"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 // TODO(sadovsky): Perhaps this should be one of the standard Veyron flags.

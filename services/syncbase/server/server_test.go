@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	tu "v.io/syncbase/v23/syncbase/testutil"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 ////////////////////////////////////////
