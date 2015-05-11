@@ -18,7 +18,7 @@ import (
 type blessingRootsState map[string][]security.BlessingPattern
 
 func (blessingRootsState) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/security.blessingRootsState"
+	Name string `vdl:"v.io/x/ref/lib/security.blessingRootsState"`
 }) {
 }
 
@@ -35,7 +35,7 @@ type blessingStoreState struct {
 }
 
 func (blessingStoreState) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/security.blessingStoreState"
+	Name string `vdl:"v.io/x/ref/lib/security.blessingStoreState"`
 }) {
 }
 

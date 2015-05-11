@@ -15,7 +15,7 @@ import (
 type BlessingsHandle int32
 
 func (BlessingsHandle) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/principal.BlessingsHandle"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/principal.BlessingsHandle"`
 }) {
 }
 
@@ -25,7 +25,7 @@ type JsBlessings struct {
 }
 
 func (JsBlessings) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/principal.JsBlessings"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/principal.JsBlessings"`
 }) {
 }
 

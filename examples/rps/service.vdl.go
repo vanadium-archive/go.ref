@@ -43,7 +43,7 @@ type GameId struct {
 }
 
 func (GameId) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.GameId"
+	Name string `vdl:"v.io/x/ref/examples/rps.GameId"`
 }) {
 }
 
@@ -54,14 +54,14 @@ type GameOptions struct {
 }
 
 func (GameOptions) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.GameOptions"
+	Name string `vdl:"v.io/x/ref/examples/rps.GameOptions"`
 }) {
 }
 
 type GameTypeTag byte
 
 func (GameTypeTag) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.GameTypeTag"
+	Name string `vdl:"v.io/x/ref/examples/rps.GameTypeTag"`
 }) {
 }
 
@@ -83,7 +83,7 @@ type (
 	PlayerActionQuit struct{ Value unused } // Indicates that the player is quitting the game.
 	// __PlayerActionReflect describes the PlayerAction union type.
 	__PlayerActionReflect struct {
-		Name  string "v.io/x/ref/examples/rps.PlayerAction"
+		Name  string `vdl:"v.io/x/ref/examples/rps.PlayerAction"`
 		Type  PlayerAction
 		Union struct {
 			Move PlayerActionMove
@@ -106,7 +106,7 @@ type unused struct {
 }
 
 func (unused) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.unused"
+	Name string `vdl:"v.io/x/ref/examples/rps.unused"`
 }) {
 }
 
@@ -134,7 +134,7 @@ type (
 	JudgeActionScore struct{ Value ScoreCard } // The result of the game.
 	// __JudgeActionReflect describes the JudgeAction union type.
 	__JudgeActionReflect struct {
-		Name  string "v.io/x/ref/examples/rps.JudgeAction"
+		Name  string `vdl:"v.io/x/ref/examples/rps.JudgeAction"`
 		Type  JudgeAction
 		Union struct {
 			PlayerNum    JudgeActionPlayerNum
@@ -174,7 +174,7 @@ func (x JudgeActionScore) __VDLReflect(__JudgeActionReflect) {}
 type PlayersMoves [2]string
 
 func (PlayersMoves) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.PlayersMoves"
+	Name string `vdl:"v.io/x/ref/examples/rps.PlayersMoves"`
 }) {
 }
 
@@ -188,7 +188,7 @@ type Round struct {
 }
 
 func (Round) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.Round"
+	Name string `vdl:"v.io/x/ref/examples/rps.Round"`
 }) {
 }
 
@@ -197,7 +197,7 @@ func (Round) __VDLReflect(struct {
 type WinnerTag byte
 
 func (WinnerTag) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.WinnerTag"
+	Name string `vdl:"v.io/x/ref/examples/rps.WinnerTag"`
 }) {
 }
 
@@ -207,7 +207,7 @@ type PlayResult struct {
 }
 
 func (PlayResult) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.PlayResult"
+	Name string `vdl:"v.io/x/ref/examples/rps.PlayResult"`
 }) {
 }
 
@@ -222,7 +222,7 @@ type ScoreCard struct {
 }
 
 func (ScoreCard) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.ScoreCard"
+	Name string `vdl:"v.io/x/ref/examples/rps.ScoreCard"`
 }) {
 }
 

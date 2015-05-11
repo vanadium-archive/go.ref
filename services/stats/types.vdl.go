@@ -28,7 +28,7 @@ type HistogramValue struct {
 }
 
 func (HistogramValue) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/stats.HistogramValue"
+	Name string `vdl:"v.io/x/ref/services/stats.HistogramValue"`
 }) {
 }
 
@@ -41,7 +41,7 @@ type HistogramBucket struct {
 }
 
 func (HistogramBucket) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/stats.HistogramBucket"
+	Name string `vdl:"v.io/x/ref/services/stats.HistogramBucket"`
 }) {
 }
 

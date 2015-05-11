@@ -137,7 +137,7 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\n\treturn \"\""+
 			"\n}"+
 			"\n\nfunc (%[1]s) __VDLReflect(struct{"+
-			"\n\tName string %[3]q"+
+			"\n\tName string `vdl:%[3]q`"+
 			"\n\tEnum struct{ %[2]s string }"+
 			"\n}) {"+
 			"\n}",
@@ -153,7 +153,7 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 		s += "\n}" + def.DocSuffix
 		s += fmt.Sprintf("\n"+
 			"\nfunc (%[1]s) __VDLReflect(struct{"+
-			"\n\tName string %[2]q"+
+			"\n\tName string `vdl:%[2]q`"+
 			"\n}) {"+
 			"\n}",
 			def.Name, qualifiedIdent(def.File, def.Name))
@@ -180,7 +180,7 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 		}
 		s += fmt.Sprintf("\n\t// __%[1]sReflect describes the %[1]s union type."+
 			"\n\t__%[1]sReflect struct {"+
-			"\n\t\tName string %[2]q"+
+			"\n\t\tName string `vdl:%[2]q`"+
 			"\n\t\tType %[1]s"+
 			"\n\t\tUnion struct {", def.Name, qualifiedIdent(def.File, def.Name))
 		for ix := 0; ix < t.NumField(); ix++ {
@@ -199,7 +199,7 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 		s += typeGo(data, def.BaseType) + def.DocSuffix
 		s += fmt.Sprintf("\n"+
 			"\nfunc (%[1]s) __VDLReflect(struct{"+
-			"\n\tName string %[2]q"+
+			"\n\tName string `vdl:%[2]q`"+
 			"\n}) {"+
 			"\n}",
 			def.Name, qualifiedIdent(def.File, def.Name))

@@ -19,7 +19,7 @@ type Request struct {
 }
 
 func (Request) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/channel.Request"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/channel.Request"`
 }) {
 }
 
@@ -30,7 +30,7 @@ type Response struct {
 }
 
 func (Response) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/channel.Response"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/channel.Response"`
 }) {
 }
 
@@ -52,7 +52,7 @@ type (
 	MessageResponse struct{ Value Response }
 	// __MessageReflect describes the Message union type.
 	__MessageReflect struct {
-		Name  string "v.io/x/ref/services/wspr/internal/channel.Message"
+		Name  string `vdl:"v.io/x/ref/services/wspr/internal/channel.Message"`
 		Type  Message
 		Union struct {
 			Request  MessageRequest

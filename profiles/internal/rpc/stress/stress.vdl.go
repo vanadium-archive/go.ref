@@ -26,7 +26,7 @@ type SumArg struct {
 }
 
 func (SumArg) __VDLReflect(struct {
-	Name string "v.io/x/ref/profiles/internal/rpc/stress.SumArg"
+	Name string `vdl:"v.io/x/ref/profiles/internal/rpc/stress.SumArg"`
 }) {
 }
 
@@ -38,7 +38,7 @@ type SumStats struct {
 }
 
 func (SumStats) __VDLReflect(struct {
-	Name string "v.io/x/ref/profiles/internal/rpc/stress.SumStats"
+	Name string `vdl:"v.io/x/ref/profiles/internal/rpc/stress.SumStats"`
 }) {
 }
 

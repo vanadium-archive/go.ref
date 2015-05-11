@@ -28,7 +28,7 @@ type ShellOpts struct {
 }
 
 func (ShellOpts) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/tunnel.ShellOpts"
+	Name string `vdl:"v.io/x/ref/examples/tunnel.ShellOpts"`
 }) {
 }
 
@@ -38,7 +38,7 @@ type WindowSize struct {
 }
 
 func (WindowSize) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/tunnel.WindowSize"
+	Name string `vdl:"v.io/x/ref/examples/tunnel.WindowSize"`
 }) {
 }
 
@@ -69,7 +69,7 @@ type (
 	ClientShellPacketWinSize struct{ Value WindowSize }
 	// __ClientShellPacketReflect describes the ClientShellPacket union type.
 	__ClientShellPacketReflect struct {
-		Name  string "v.io/x/ref/examples/tunnel.ClientShellPacket"
+		Name  string `vdl:"v.io/x/ref/examples/tunnel.ClientShellPacket"`
 		Type  ClientShellPacket
 		Union struct {
 			Stdin     ClientShellPacketStdin
@@ -98,7 +98,7 @@ type unused struct {
 }
 
 func (unused) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/tunnel.unused"
+	Name string `vdl:"v.io/x/ref/examples/tunnel.unused"`
 }) {
 }
 
@@ -124,7 +124,7 @@ type (
 	ServerShellPacketStderr struct{ Value []byte }
 	// __ServerShellPacketReflect describes the ServerShellPacket union type.
 	__ServerShellPacketReflect struct {
-		Name  string "v.io/x/ref/examples/tunnel.ServerShellPacket"
+		Name  string `vdl:"v.io/x/ref/examples/tunnel.ServerShellPacket"`
 		Type  ServerShellPacket
 		Union struct {
 			Stdout ServerShellPacketStdout

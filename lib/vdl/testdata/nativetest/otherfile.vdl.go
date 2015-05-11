@@ -19,7 +19,7 @@ import (
 type ignoreme string
 
 func (ignoreme) __VDLReflect(struct {
-	Name string "v.io/x/ref/lib/vdl/testdata/nativetest.ignoreme"
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/nativetest.ignoreme"`
 }) {
 }
 

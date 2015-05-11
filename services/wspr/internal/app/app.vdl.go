@@ -35,7 +35,7 @@ type RpcRequest struct {
 }
 
 func (RpcRequest) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/app.RpcRequest"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/app.RpcRequest"`
 }) {
 }
 
@@ -59,7 +59,7 @@ type (
 	RpcCallOptionGranter struct{ Value GranterHandle }
 	// __RpcCallOptionReflect describes the RpcCallOption union type.
 	__RpcCallOptionReflect struct {
-		Name  string "v.io/x/ref/services/wspr/internal/app.RpcCallOption"
+		Name  string `vdl:"v.io/x/ref/services/wspr/internal/app.RpcCallOption"`
 		Type  RpcCallOption
 		Union struct {
 			AllowedServersPolicy RpcCallOptionAllowedServersPolicy
@@ -102,7 +102,7 @@ type (
 	RpcServerOptionServesMountTable struct{ Value bool }
 	// __RpcServerOptionReflect describes the RpcServerOption union type.
 	__RpcServerOptionReflect struct {
-		Name  string "v.io/x/ref/services/wspr/internal/app.RpcServerOption"
+		Name  string `vdl:"v.io/x/ref/services/wspr/internal/app.RpcServerOption"`
 		Type  RpcServerOption
 		Union struct {
 			IsLeaf           RpcServerOptionIsLeaf
@@ -127,14 +127,14 @@ type RpcResponse struct {
 }
 
 func (RpcResponse) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/app.RpcResponse"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/app.RpcResponse"`
 }) {
 }
 
 type GranterHandle int32
 
 func (GranterHandle) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/app.GranterHandle"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/app.GranterHandle"`
 }) {
 }
 
@@ -144,7 +144,7 @@ type GranterRequest struct {
 }
 
 func (GranterRequest) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/app.GranterRequest"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/app.GranterRequest"`
 }) {
 }
 
@@ -154,7 +154,7 @@ type GranterResponse struct {
 }
 
 func (GranterResponse) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/app.GranterResponse"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/app.GranterResponse"`
 }) {
 }
 

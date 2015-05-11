@@ -26,7 +26,7 @@ type Context struct {
 }
 
 func (Context) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/rpc/server.Context"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/rpc/server.Context"`
 }) {
 }
 
@@ -43,7 +43,7 @@ type SecurityCall struct {
 }
 
 func (SecurityCall) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/rpc/server.SecurityCall"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/rpc/server.SecurityCall"`
 }) {
 }
 
@@ -54,7 +54,7 @@ type CaveatValidationRequest struct {
 }
 
 func (CaveatValidationRequest) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/rpc/server.CaveatValidationRequest"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/rpc/server.CaveatValidationRequest"`
 }) {
 }
 
@@ -63,7 +63,7 @@ type CaveatValidationResponse struct {
 }
 
 func (CaveatValidationResponse) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/rpc/server.CaveatValidationResponse"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/rpc/server.CaveatValidationResponse"`
 }) {
 }
 
@@ -76,7 +76,7 @@ type ServerRpcRequestCall struct {
 }
 
 func (ServerRpcRequestCall) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequestCall"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequestCall"`
 }) {
 }
 
@@ -90,7 +90,7 @@ type ServerRpcRequest struct {
 }
 
 func (ServerRpcRequest) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequest"
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequest"`
 }) {
 }
 

@@ -101,7 +101,7 @@ func (x TestEnum) String() string {
 }
 
 func (TestEnum) __VDLReflect(struct{
-	Name string "TestEnum"
+	Name string ` + "`vdl:\"TestEnum\"`" + `
 	Enum struct{ A, B, C string }
 }) {
 }`},
@@ -111,7 +111,7 @@ func (TestEnum) __VDLReflect(struct{
 }
 
 func (TestStruct) __VDLReflect(struct{
-	Name string "TestStruct"
+	Name string ` + "`vdl:\"TestStruct\"`" + `
 }) {
 }`},
 		{tUnion, `type (
@@ -132,7 +132,7 @@ func (TestStruct) __VDLReflect(struct{
 	TestUnionB struct{ Value int64 }
 	// __TestUnionReflect describes the TestUnion union type.
 	__TestUnionReflect struct {
-		Name string "TestUnion"
+		Name string ` + "`vdl:\"TestUnion\"`" + `
 		Type TestUnion
 		Union struct {
 			A TestUnionA
