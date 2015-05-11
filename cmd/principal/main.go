@@ -127,7 +127,12 @@ this tool. - is used for STDIN.
 			if err != nil {
 				return fmt.Errorf("failed to decode certificate chains: %v", err)
 			}
-			fmt.Printf("Blessings          : %v\n", blessings)
+			// If the Blessings are expired, print a message saying so.
+			expiredMessage := ""
+			if exp := blessings.Expiry(); !exp.IsZero() && exp.Before(time.Now()) {
+				expiredMessage = " [EXPIRED]"
+			}
+			fmt.Printf("Blessings          : %v%s\n", blessings, expiredMessage)
 			fmt.Printf("PublicKey          : %v\n", blessings.PublicKey())
 			fmt.Printf("Certificate chains : %d\n", len(wire.CertificateChains))
 			for idx, chain := range wire.CertificateChains {
@@ -1206,7 +1211,7 @@ func caveatsFromFlags(expiry time.Duration, caveatsFlag *caveatsFlag) ([]securit
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse caveats: %v", err)
 	}
-	if expiry > 0 {
+	if expiry != 0 {
 		ecav, err := security.NewExpiryCaveat(time.Now().Add(expiry))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create expiration caveat: %v", err)
