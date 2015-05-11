@@ -59,8 +59,8 @@ func V23TestHelloDirect(i *v23tests.T) {
 	if err != nil {
 		i.Fatalf("Could not create credentials: %v", err)
 	}
-	clientbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloclient")
-	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
+	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
 	server := serverbin.WithStartOpts(opts).WithEnv(creds["helloserver"]).Start()
 	name := server.ExpectVar("SERVER_NAME")
 	if server.Failed() {
@@ -76,8 +76,8 @@ func V23TestHelloAgentd(i *v23tests.T) {
 		i.Fatalf("Could not create credentials: %v", err)
 	}
 	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
-	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
-	clientbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloclient")
+	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
+	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
 	server := agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path())
 	name := server.ExpectVar("SERVER_NAME")
 	if server.Failed() {
@@ -94,8 +94,8 @@ func V23TestHelloMounttabled(i *v23tests.T) {
 	}
 	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
 	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
-	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
-	clientbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloclient")
+	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
+	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
 	name := "hello"
 	mounttabled := agentdbin.WithEnv(creds["mounttabled"]).Start(mounttabledbin.Path(),
 		"--v23.tcp.address", "127.0.0.1:0")
@@ -123,8 +123,8 @@ func V23TestHelloProxy(i *v23tests.T) {
 	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
 	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
 	proxydbin := i.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
-	serverbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloserver")
-	clientbin := i.BuildGoPkg("v.io/x/ref/examples/hello/helloclient")
+	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
+	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
 	proxyname := "proxy"
 	name := "hello"
 	mounttabled := agentdbin.WithEnv(creds["mounttabled"]).Start(mounttabledbin.Path(),
