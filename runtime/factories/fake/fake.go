@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fake implements a fake profile, useful in tests for mocking out
-// certain components.
+// Package fake implements a fake RuntimeFactory, useful in tests for mocking
+// out certain components.
 package fake
 
 // TODO(mattr): Make a more complete, but still fake, implementation.
@@ -31,7 +31,7 @@ var (
 )
 
 func init() {
-	v23.RegisterProfile(Init)
+	v23.RegisterRuntimeFactory(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
 }
 

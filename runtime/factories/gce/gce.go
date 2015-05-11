@@ -4,8 +4,8 @@
 
 // +build linux
 
-// Package gce implements a profile for binaries that only run on Google Compute
-// Engine.
+// Package gce implements a RuntimeFactory for binaries that only run on Google
+// Compute Engine (GCE).
 package gce
 
 import (
@@ -33,7 +33,7 @@ import (
 var commonFlags *flags.Flags
 
 func init() {
-	v23.RegisterProfile(Init)
+	v23.RegisterRuntimeFactory(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
@@ -68,12 +68,12 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, shutdown, err
 	}
 
-	vlog.Log.VI(1).Infof("Initializing GCE profile.")
+	vlog.Log.VI(1).Infof("Initializing GCE RuntimeFactory.")
 
-	profileShutdown := func() {
+	runtimeFactoryShutdown := func() {
 		ac.Shutdown()
 		shutdown()
 	}
 
-	return runtime, ctx, profileShutdown, nil
+	return runtime, ctx, runtimeFactoryShutdown, nil
 }

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package chrome implements a profile for use within Chrome, in particular for
-// use by Chrome extensions.
+// Package chrome implements a RuntimeFactory for use within Chrome, in
+// particular for use by Chrome extensions.
 package chrome
 
 import (
@@ -25,7 +25,7 @@ import (
 var commonFlags *flags.Flags
 
 func init() {
-	v23.RegisterProfile(Init)
+	v23.RegisterRuntimeFactory(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.Dial, websocket.Resolve, websocket.Listener)
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
@@ -41,6 +41,6 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	if err != nil {
 		return nil, nil, shutdown, err
 	}
-	vlog.Log.VI(1).Infof("Initializing chrome profile.")
+	vlog.Log.VI(1).Infof("Initializing chrome RuntimeFactory.")
 	return runtime, ctx, shutdown, nil
 }

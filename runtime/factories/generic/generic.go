@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package profiles
+// Package generic implements a RuntimeFactory that is useful in tests. It
+// prefers listening on localhost addresses.
+package generic
 
 import (
 	"flag"
@@ -25,7 +27,7 @@ import (
 var commonFlags *flags.Flags
 
 func init() {
-	v23.RegisterProfile(Init)
+	v23.RegisterRuntimeFactory(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
 	flags.SetDefaultHostPort(":0")
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
@@ -56,11 +58,11 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	vlog.Log.VI(1).Infof("Initializing generic profile.")
+	vlog.Log.VI(1).Infof("Initializing generic RuntimeFactory.")
 
-	profileShutdown := func() {
+	runtimeFactoryShutdown := func() {
 		ac.Shutdown()
 		shutdown()
 	}
-	return runtime, ctx, profileShutdown, nil
+	return runtime, ctx, runtimeFactoryShutdown, nil
 }

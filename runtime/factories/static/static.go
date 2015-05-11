@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package static implements a profile for static network configurations.
+// Package static implements a RuntimeFactory for static network configurations.
 package static
 
 import (
@@ -30,7 +30,7 @@ import (
 var commonFlags *flags.Flags
 
 func init() {
-	v23.RegisterProfile(Init)
+	v23.RegisterRuntimeFactory(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
@@ -61,11 +61,11 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			profileShutdown := func() {
+			runtimeFactoryShutdown := func() {
 				ac.Shutdown()
 				shutdown()
 			}
-			return runtime, ctx, profileShutdown, nil
+			return runtime, ctx, runtimeFactoryShutdown, nil
 		}
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser
@@ -75,9 +75,9 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, shutdown, err
 	}
 
-	profileShutdown := func() {
+	runtimeFactoryShutdown := func() {
 		ac.Shutdown()
 		shutdown()
 	}
-	return runtime, ctx, profileShutdown, nil
+	return runtime, ctx, runtimeFactoryShutdown, nil
 }

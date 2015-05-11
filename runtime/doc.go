@@ -2,23 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package profiles and its subdirectories provide implementations of the
-// Vanadium runtime for different runtime environments.  Each subdirectory is a
-// package that implements the v23.Profile function.
+// Package runtime and its subdirectories provide implementations of the
+// Vanadium runtime for different runtime environments.
 //
-// Profiles register themselves by calling v.io/v23/rt.RegisterProfile in an
-// init function.  Users choose a particular profile implementation by importing
-// the appropriate package in their main package.  It is an error to import more
-// than one profile, and the registration mechanism will panic if this is
-// attempted.  Commonly used functionality and pre-canned profiles are in
-// profiles/internal.
+// Each subdirectory of the runtime/factories package is a package that
+// implements the v23.RuntimeFactory function.
 //
-// This top level directory contains a 'generic' Profile and utility routines
-// used by other Profiles. It should be imported whenever possible and
-// particularly by tests.
+// runtime/internal has common functionality use in runtime/factories.
 //
-// The 'roaming' Profile adds operating system support for varied network
+// RuntimeFactories register themselves by calling v.io/v23/rt.RegisterRuntimeFactory
+// in an init function.  Users choose a particular RuntimeFactory implementation
+// by importing the appropriate package in their main package.  It is an error
+// to import more than one RuntimeFactory, and the registration mechanism will
+// panic if this is attempted.
+//
+// The 'roaming' RuntimeFactory adds operating system support for varied network
 // configurations and in particular dhcp. It should be used by any application
-// that may 'roam' or any may be behind a 1-1 NAT. The 'static' profile
-// does not provide dhcp support, but is otherwise like the roaming profile.
-package profiles
+// that may 'roam' or be behind a 1-1 NAT.
+//
+// The 'static' RuntimeFactory does not provide dhcp support, but is otherwise
+// like the 'roaming' RuntimeFactory.
+package runtime

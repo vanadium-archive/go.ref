@@ -84,7 +84,7 @@ func TestBrowspr(t *testing.T) {
 	defer shutdown()
 
 	proxySpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, proxySpec, security.AllowEveryone())
+	proxyShutdown, proxyEndpoint, err := generic.NewProxy(ctx, proxySpec, security.AllowEveryone())
 	if err != nil {
 		t.Fatalf("Failed to start proxy: %v", err)
 	}
