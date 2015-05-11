@@ -19,13 +19,13 @@ import (
 
 	"v.io/v23/context"
 	vbuild "v.io/v23/services/build"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func main() {
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }
 
 var (
@@ -34,23 +34,23 @@ var (
 )
 
 func init() {
-	cmdline2.HideGlobalFlagsExcept()
+	cmdline.HideGlobalFlagsExcept()
 	cmdBuild.Flags.StringVar(&flagArch, "arch", runtime.GOARCH, "Target architecture.  The default is the value of runtime.GOARCH.")
 	cmdBuild.Flags.Lookup("arch").DefValue = "<runtime.GOARCH>"
 	cmdBuild.Flags.StringVar(&flagOS, "os", runtime.GOOS, "Target operating system.  The default is the value of runtime.GOOS.")
 	cmdBuild.Flags.Lookup("os").DefValue = "<runtime.GOOS>"
 }
 
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "build",
 	Short: "sends commands to a Vanadium build server",
 	Long: `
 Command build sends commands to a Vanadium build server.
 `,
-	Children: []*cmdline2.Command{cmdBuild},
+	Children: []*cmdline.Command{cmdBuild},
 }
 
-var cmdBuild = &cmdline2.Command{
+var cmdBuild = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runBuild),
 	Name:   "build",
 	Short:  "Build vanadium Go packages",
@@ -226,7 +226,7 @@ func saveBinaries(ctx *context.T, prefix string, binaries <-chan vbuild.File, er
 // concurrently 1) reads the source files, 2) sends them to the build
 // server and receives binaries from the build server, and 3) writes
 // the binaries out to the disk.
-func runBuild(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runBuild(ctx *context.T, env *cmdline.Env, args []string) error {
 	name, paths := args[0], args[1:]
 	pkgMap := map[string]*build.Package{}
 	if err := importPackages(paths, pkgMap); err != nil {

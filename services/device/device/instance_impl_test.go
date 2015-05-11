@@ -13,7 +13,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/test"
 
@@ -34,7 +34,7 @@ func TestKillCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "appname")
 
 	// Confirm that we correctly enforce the number of arguments.
@@ -107,7 +107,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "appname")
 
 	// Confirm that we correctly enforce the number of arguments.

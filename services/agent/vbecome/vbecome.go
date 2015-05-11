@@ -21,7 +21,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/lib/security"
@@ -38,7 +38,7 @@ var (
 	roleFlag     string
 )
 
-var cmdVbecome = &cmdline2.Command{
+var cmdVbecome = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(vbecome),
 	Name:     "vbecome",
 	Short:    "executes commands with a derived Vanadium principal",
@@ -50,7 +50,7 @@ const childAgentFd = 3
 const keyServerFd = 4
 
 func main() {
-	cmdline2.HideGlobalFlagsExcept()
+	cmdline.HideGlobalFlagsExcept()
 	syscall.CloseOnExec(childAgentFd)
 	syscall.CloseOnExec(keyServerFd)
 
@@ -58,10 +58,10 @@ func main() {
 	cmdVbecome.Flags.StringVar(&nameFlag, "name", "", "Name to use for the blessing.")
 	cmdVbecome.Flags.StringVar(&roleFlag, "role", "", "Role object from which to request the blessing. If set, the blessings from this role server are used and --name is ignored. If not set, the default blessings of the calling principal are extended with --name.")
 
-	cmdline2.Main(cmdVbecome)
+	cmdline.Main(cmdVbecome)
 }
 
-func vbecome(ctx *context.T, env *cmdline2.Env, args []string) error {
+func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		if shell := os.Getenv("SHELL"); shell != "" {
 			args = []string{shell}

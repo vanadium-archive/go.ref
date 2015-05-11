@@ -19,24 +19,24 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 func main() {
-	cmdline2.Main(cmdVom)
+	cmdline.Main(cmdVom)
 }
 
-var cmdVom = &cmdline2.Command{
+var cmdVom = &cmdline.Command{
 	Name:  "vom",
 	Short: "helps debug the Vanadium Object Marshaling wire protocol",
 	Long: `
 Command vom helps debug the Vanadium Object Marshaling wire protocol.
 `,
-	Children: []*cmdline2.Command{cmdDecode, cmdDump},
+	Children: []*cmdline.Command{cmdDecode, cmdDump},
 }
 
-var cmdDecode = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runDecode),
+var cmdDecode = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runDecode),
 	Name:   "decode",
 	Short:  "Decode data encoded in the vom format",
 	Long: `
@@ -52,8 +52,8 @@ representations.
 	ArgsLong: "[data] is the data to decode; if not specified, reads from stdin",
 }
 
-var cmdDump = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runDump),
+var cmdDump = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runDump),
 	Name:   "dump",
 	Short:  "Dump data encoded in the vom format into formatted output",
 	Long: `
@@ -91,7 +91,7 @@ func init() {
 		"Data representation, one of "+fmt.Sprint(dataRepAll))
 }
 
-func runDecode(env *cmdline2.Env, args []string) error {
+func runDecode(env *cmdline.Env, args []string) error {
 	// Convert all inputs into a reader over binary bytes.
 	var data string
 	switch {
@@ -125,7 +125,7 @@ func runDecode(env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-func runDump(env *cmdline2.Env, args []string) error {
+func runDump(env *cmdline.Env, args []string) error {
 	// Handle non-streaming cases.
 	switch {
 	case len(args) > 1:

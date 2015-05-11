@@ -17,7 +17,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/build"
 
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -127,7 +127,7 @@ func TestProfileClient(t *testing.T) {
 	defer stopServer(t, server)
 	// Setup the command-line.
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	exists := naming.JoinAddressName(endpoint.String(), "exists")
 
 	// Test the 'label' command.

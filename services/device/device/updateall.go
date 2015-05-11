@@ -15,7 +15,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	deviceimpl "v.io/x/ref/services/device/internal/impl"
 )
@@ -25,7 +25,7 @@ import (
 
 // TODO(caprita): Add unit test.
 
-var cmdUpdateAll = &cmdline2.Command{
+var cmdUpdateAll = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runUpdateAll),
 	Name:     "updateall",
 	Short:    "Update all installations/instances of an application",
@@ -44,9 +44,9 @@ var cmdUpdateAll = &cmdline2.Command{
 `,
 }
 
-type updater func(ctx *context.T, env *cmdline2.Env, von string) error
+type updater func(ctx *context.T, env *cmdline.Env, von string) error
 
-func updateChildren(ctx *context.T, env *cmdline2.Env, von string, updateChild updater) error {
+func updateChildren(ctx *context.T, env *cmdline.Env, von string, updateChild updater) error {
 	ns := v23.GetNamespace(ctx)
 	pattern := naming.Join(von, "*")
 	c, err := ns.Glob(ctx, pattern)
@@ -96,7 +96,7 @@ func instanceIsRunning(ctx *context.T, von string) (bool, error) {
 	return s.Value.State == device.InstanceStateRunning, nil
 }
 
-func updateInstance(ctx *context.T, env *cmdline2.Env, von string) (retErr error) {
+func updateInstance(ctx *context.T, env *cmdline.Env, von string) (retErr error) {
 	defer func() {
 		if retErr == nil {
 			fmt.Fprintf(env.Stdout, "Successfully updated instance %q.\n", von)
@@ -153,7 +153,7 @@ func updateInstance(ctx *context.T, env *cmdline2.Env, von string) (retErr error
 	}
 }
 
-func updateInstallation(ctx *context.T, env *cmdline2.Env, von string) (retErr error) {
+func updateInstallation(ctx *context.T, env *cmdline.Env, von string) (retErr error) {
 	defer func() {
 		if retErr == nil {
 			fmt.Fprintf(env.Stdout, "Successfully updated installation %q.\n", von)
@@ -179,7 +179,7 @@ func updateInstallation(ctx *context.T, env *cmdline2.Env, von string) (retErr e
 	return updateChildren(ctx, env, von, updateInstance)
 }
 
-func updateApp(ctx *context.T, env *cmdline2.Env, von string) error {
+func updateApp(ctx *context.T, env *cmdline.Env, von string) error {
 	if err := updateChildren(ctx, env, von, updateInstallation); err != nil {
 		err = fmt.Errorf("failed to update app %q: %v", von, err)
 		fmt.Fprintf(env.Stderr, "ERROR: %v.\n", err)
@@ -189,7 +189,7 @@ func updateApp(ctx *context.T, env *cmdline2.Env, von string) error {
 	return nil
 }
 
-func updateAllApps(ctx *context.T, env *cmdline2.Env, von string) error {
+func updateAllApps(ctx *context.T, env *cmdline.Env, von string) error {
 	if err := updateChildren(ctx, env, von, updateApp); err != nil {
 		err = fmt.Errorf("failed to update all apps %q: %v", von, err)
 		fmt.Fprintf(env.Stderr, "ERROR: %v.\n", err)
@@ -199,7 +199,7 @@ func updateAllApps(ctx *context.T, env *cmdline2.Env, von string) error {
 	return nil
 }
 
-func runUpdateAll(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runUpdateAll(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("updateall: incorrect number of arguments, expected %d, got %d", expected, got)
 	}

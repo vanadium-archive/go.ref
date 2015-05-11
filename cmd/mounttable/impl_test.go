@@ -19,7 +19,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
 	vdltime "v.io/v23/vdlroot/time"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -128,7 +128,7 @@ func TestMountTableClient(t *testing.T) {
 
 	// Setup the command-line.
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 
 	// Test the 'glob' command.
 	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"glob", naming.JoinAddressName(endpoint.String(), ""), "*"}); err != nil {

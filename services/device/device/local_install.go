@@ -27,12 +27,12 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/services/internal/packages"
 )
 
-var cmdInstallLocal = &cmdline2.Command{
+var cmdInstallLocal = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runInstallLocal),
 	Name:     "install-local",
 	Short:    "Install the given application from the local system.",
@@ -251,7 +251,7 @@ func servePackage(p string, ms *mapServer, tmpZipDir string) (string, string, er
 // TODO(caprita/ashankar): We should use bi-directional streams to get this
 // working over the same connection that the command makes to the device
 // manager.
-func runInstallLocal(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runInstallLocal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expectedMin, got := 2, len(args); got < expectedMin {
 		return env.UsageErrorf("install-local: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
 	}

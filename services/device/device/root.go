@@ -7,20 +7,20 @@ package main
 import (
 	"regexp"
 
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	_ "v.io/x/ref/runtime/factories/static"
 )
 
-var CmdRoot = &cmdline2.Command{
+var CmdRoot = &cmdline.Command{
 	Name:  "device",
 	Short: "facilitates interaction with the Vanadium device manager",
 	Long: `
 Command device facilitates interaction with the Vanadium device manager.
 `,
-	Children: []*cmdline2.Command{cmdInstall, cmdInstallLocal, cmdUninstall, cmdAssociate, cmdDescribe, cmdClaim, cmdInstantiate, cmdDelete, cmdRun, cmdKill, cmdRevert, cmdUpdate, cmdUpdateAll, cmdStatus, cmdDebug, cmdACL, cmdPublish},
+	Children: []*cmdline.Command{cmdInstall, cmdInstallLocal, cmdUninstall, cmdAssociate, cmdDescribe, cmdClaim, cmdInstantiate, cmdDelete, cmdRun, cmdKill, cmdRevert, cmdUpdate, cmdUpdateAll, cmdStatus, cmdDebug, cmdACL, cmdPublish},
 }
 
 func main() {
-	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^((v23\.namespace\.root)|(v23\.proxy))$`))
-	cmdline2.Main(CmdRoot)
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^((v23\.namespace\.root)|(v23\.proxy))$`))
+	cmdline.Main(CmdRoot)
 }

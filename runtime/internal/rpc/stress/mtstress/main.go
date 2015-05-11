@@ -18,13 +18,13 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func init() {
-	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^((rate)|(duration)|(reauthenticate))$`))
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^((rate)|(duration)|(reauthenticate))$`))
 }
 
 var (
@@ -32,7 +32,7 @@ var (
 	duration = flag.Duration("duration", 10*time.Second, "Duration for sending test traffic and measuring latency")
 	reauth   = flag.Bool("reauthenticate", false, "If true, establish a new authenticated connection for each RPC, simulating load from a distinct process")
 
-	cmdMount = &cmdline2.Command{
+	cmdMount = &cmdline.Command{
 		Name:  "mount",
 		Short: "Measure latency of the Mount RPC at a fixed request rate",
 		Long: `
@@ -46,7 +46,7 @@ Repeatedly issues a Mount request (at --rate) and measures latency
 seconds, 1m for 1 minute etc.
 Valid time units are "ms", "s", "m", "h".
 `,
-		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
 			if got, want := len(args), 2; got != want {
 				return env.UsageErrorf("mount: got %d arguments, want %d", got, want)
 			}
@@ -75,7 +75,7 @@ Valid time units are "ms", "s", "m", "h".
 		}),
 	}
 
-	cmdResolve = &cmdline2.Command{
+	cmdResolve = &cmdline.Command{
 		Name:  "resolve",
 		Short: "Measure latency of the Resolve RPC at a fixed request rate",
 		Long: `
@@ -85,7 +85,7 @@ Repeatedly issues a Resolve request (at --rate) to a name and measures latency
 		ArgsLong: `
 <name> the object name to resolve
 `,
-		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline2.Env, args []string) error {
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
 			if got, want := len(args), 1; got != want {
 				return env.UsageErrorf("resolve: got %d arguments, want %d", got, want)
 			}
@@ -142,10 +142,10 @@ func paramsFromFlags(ctx *context.T, objectName string) (params, error) {
 }
 
 func main() {
-	root := &cmdline2.Command{
+	root := &cmdline.Command{
 		Name:     "mtstress",
 		Short:    "Tool to stress test a mounttable service by issuing a fixed rate of requests per second and measuring latency",
-		Children: []*cmdline2.Command{cmdMount, cmdResolve},
+		Children: []*cmdline.Command{cmdMount, cmdResolve},
 	}
-	cmdline2.Main(root)
+	cmdline.Main(root)
 }

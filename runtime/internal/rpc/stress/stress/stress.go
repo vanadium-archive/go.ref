@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/runtime/internal/rpc/stress"
 	"v.io/x/ref/runtime/internal/rpc/stress/internal"
@@ -39,7 +39,7 @@ func init() {
 	cmdStressStats.Flags.StringVar(&outFormat, "format", "text", "Stats output format; either text or json")
 }
 
-var cmdStressTest = &cmdline2.Command{
+var cmdStressTest = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runStressTest),
 	Name:     "stress",
 	Short:    "Run stress test",
@@ -48,7 +48,7 @@ var cmdStressTest = &cmdline2.Command{
 	ArgsLong: "<server> ... A list of servers to connect to.",
 }
 
-func runStressTest(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runStressTest(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return env.UsageErrorf("no server specified")
 	}
@@ -99,7 +99,7 @@ func runStressTest(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return outSumStats(env.Stdout, outFormat, "client stats:", &merged)
 }
 
-var cmdStressStats = &cmdline2.Command{
+var cmdStressStats = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runStressStats),
 	Name:     "stats",
 	Short:    "Print out stress stats of servers",
@@ -108,7 +108,7 @@ var cmdStressStats = &cmdline2.Command{
 	ArgsLong: "<server> ... A list of servers to connect to.",
 }
 
-func runStressStats(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runStressStats(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return env.UsageErrorf("no server specified")
 	}

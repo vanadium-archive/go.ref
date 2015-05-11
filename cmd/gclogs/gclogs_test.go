@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 func setup(t *testing.T, workdir, username string) (tmpdir string) {
@@ -161,8 +161,8 @@ func TestGCLogs(t *testing.T) {
 		verbose := fmt.Sprintf("--verbose=%v", tc.verbose)
 		dryrun := fmt.Sprintf("--n=%v", tc.dryrun)
 		var stdout, stderr bytes.Buffer
-		env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
-		if err := cmdline2.ParseAndRun(cmdGCLogs, env, []string{cutoff, verbose, dryrun, testdir}); err != nil {
+		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
+		if err := cmdline.ParseAndRun(cmdGCLogs, env, []string{cutoff, verbose, dryrun, testdir}); err != nil {
 			t.Fatalf("%v: %v", stderr.String(), err)
 		}
 		gotsl := strings.Split(stdout.String(), "\n")

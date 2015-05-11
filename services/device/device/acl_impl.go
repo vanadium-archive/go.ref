@@ -14,11 +14,11 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 )
 
-var cmdGet = &cmdline2.Command{
+var cmdGet = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runGet),
 	Name:     "get",
 	Short:    "Get Permissions for the given target.",
@@ -29,7 +29,7 @@ var cmdGet = &cmdline2.Command{
 application installation or instance.`,
 }
 
-func runGet(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runGet(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("get: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -56,7 +56,7 @@ func runGet(ctx *context.T, env *cmdline2.Env, args []string) error {
 // TODO(caprita): Add unit test logic for 'force set'.
 var forceSet bool
 
-var cmdSet = &cmdline2.Command{
+var cmdSet = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runSet),
 	Name:     "set",
 	Short:    "Set Permissions for the given target.",
@@ -89,7 +89,7 @@ func init() {
 	cmdSet.Flags.BoolVar(&forceSet, "f", false, "Instead of making the AccessLists additive, do a complete replacement based on the specified settings.")
 }
 
-func runSet(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runSet(ctx *context.T, env *cmdline.Env, args []string) error {
 	if got := len(args); !((got%2) == 1 && got >= 3) {
 		return env.UsageErrorf("set: incorrect number of arguments %d, must be 1 + 2n", got)
 	}
@@ -136,11 +136,11 @@ func runSet(ctx *context.T, env *cmdline2.Env, args []string) error {
 	}
 }
 
-var cmdACL = &cmdline2.Command{
+var cmdACL = &cmdline.Command{
 	Name:  "acl",
 	Short: "Tool for setting device manager Permissions",
 	Long: `
 The acl tool manages Permissions on the device manger, installations and instances.
 `,
-	Children: []*cmdline2.Command{cmdGet, cmdSet},
+	Children: []*cmdline.Command{cmdGet, cmdSet},
 }

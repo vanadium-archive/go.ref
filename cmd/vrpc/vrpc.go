@@ -22,7 +22,7 @@ import (
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/codegen/vdlgen"
@@ -37,8 +37,8 @@ var (
 )
 
 func main() {
-	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
-	cmdline2.Main(cmdVRPC)
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+	cmdline.Main(cmdVRPC)
 }
 
 func init() {
@@ -53,7 +53,7 @@ func init() {
 	cmdSignature.Flags.BoolVar(&flagShowReserved, "show-reserved", false, "if true, also show the signatures of reserved methods")
 }
 
-var cmdVRPC = &cmdline2.Command{
+var cmdVRPC = &cmdline.Command{
 	Name:  "vrpc",
 	Short: "sends and receives Vanadium remote procedure calls",
 	Long: `
@@ -63,7 +63,7 @@ a generic client to interact with any Vanadium server.
 	// TODO(toddw): Add cmdServe, which will take an interface as input, and set
 	// up a server capable of handling the given methods.  When a request is
 	// received, it'll allow the user to respond via stdin.
-	Children: []*cmdline2.Command{cmdSignature, cmdCall, cmdIdentify},
+	Children: []*cmdline.Command{cmdSignature, cmdCall, cmdIdentify},
 }
 
 const serverDesc = `
@@ -71,7 +71,7 @@ const serverDesc = `
 the server, or an object name that will be resolved to an end-point.
 `
 
-var cmdSignature = &cmdline2.Command{
+var cmdSignature = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runSignature),
 	Name:   "signature",
 	Short:  "Describe the interfaces of a Vanadium server",
@@ -88,7 +88,7 @@ If a [method] is provided, returns the signature of just that method.
 `,
 }
 
-var cmdCall = &cmdline2.Command{
+var cmdCall = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runCall),
 	Name:   "call",
 	Short:  "Call a method of a Vanadium server",
@@ -119,7 +119,7 @@ each argument is implicit and doesn't need to be specified.
 `,
 }
 
-var cmdIdentify = &cmdline2.Command{
+var cmdIdentify = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runIdentify),
 	Name:   "identify",
 	Short:  "Reveal blessings presented by a Vanadium server",
@@ -132,7 +132,7 @@ considered valid by the principal running this tool) to standard output.
 	ArgsLong: serverDesc,
 }
 
-func runSignature(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runSignature(ctx *context.T, env *cmdline.Env, args []string) error {
 	// Error-check args.
 	var server, method string
 	switch len(args) {
@@ -180,7 +180,7 @@ func runSignature(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-func runCall(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runCall(ctx *context.T, env *cmdline.Env, args []string) error {
 	// Error-check args, and set up argsdata with a comma-separated list of
 	// arguments, allowing each individual arg to already be comma-separated.
 	//
@@ -272,7 +272,7 @@ func parseInArgs(argsdata string, methodSig signature.Method) ([]interface{}, er
 	return ret, nil
 }
 
-func runIdentify(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runIdentify(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) != 1 {
 		return env.UsageErrorf("wrong number of arguments")
 	}

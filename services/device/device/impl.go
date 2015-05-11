@@ -17,7 +17,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 )
 
@@ -56,7 +56,7 @@ func init() {
 	cmdInstall.Flags.Var(&packagesOverride, "packages", "JSON-encoded application.Packages object, of the form: '{\"pkg1\":{\"File\":\"object name 1\"},\"pkg2\":{\"File\":\"object name 2\"}}'")
 }
 
-var cmdInstall = &cmdline2.Command{
+var cmdInstall = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runInstall),
 	Name:     "install",
 	Short:    "Install the given application.",
@@ -69,7 +69,7 @@ var cmdInstall = &cmdline2.Command{
 `,
 }
 
-func runInstall(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runInstall(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -87,7 +87,7 @@ func runInstall(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdUninstall = &cmdline2.Command{
+var cmdUninstall = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runUninstall),
 	Name:     "uninstall",
 	Short:    "Uninstall the given application installation.",
@@ -99,7 +99,7 @@ uninstall.
 `,
 }
 
-func runUninstall(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runUninstall(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("uninstall: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -111,7 +111,7 @@ func runUninstall(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdInstantiate = &cmdline2.Command{
+var cmdInstantiate = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runInstantiate),
 	Name:     "instantiate",
 	Short:    "Create an instance of the given application.",
@@ -135,7 +135,7 @@ func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings,
 	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }
 
-func runInstantiate(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runInstantiate(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("instantiate: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -174,7 +174,7 @@ func runInstantiate(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdClaim = &cmdline2.Command{
+var cmdClaim = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runClaim),
 	Name:     "claim",
 	Short:    "Claim the device.",
@@ -193,7 +193,7 @@ during a claim operation on the device.
 are claiming.`,
 }
 
-func runClaim(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runClaim(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, max, got := 2, 4, len(args); expected > got || got > max {
 		return env.UsageErrorf("claim: incorrect number of arguments, expected atleast %d (max: %d), got %d", expected, max, got)
 	}
@@ -223,7 +223,7 @@ func runClaim(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdDescribe = &cmdline2.Command{
+var cmdDescribe = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runDescribe),
 	Name:     "describe",
 	Short:    "Describe the device.",
@@ -233,7 +233,7 @@ var cmdDescribe = &cmdline2.Command{
 <device> is the vanadium object name of the device manager's device service.`,
 }
 
-func runDescribe(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runDescribe(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("describe: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -246,7 +246,7 @@ func runDescribe(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdUpdate = &cmdline2.Command{
+var cmdUpdate = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runUpdate),
 	Name:     "update",
 	Short:    "Update the device manager or application",
@@ -257,7 +257,7 @@ var cmdUpdate = &cmdline2.Command{
 installation or instance to update.`,
 }
 
-func runUpdate(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runUpdate(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("update: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -269,7 +269,7 @@ func runUpdate(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdRevert = &cmdline2.Command{
+var cmdRevert = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runRevert),
 	Name:     "revert",
 	Short:    "Revert the device manager or application",
@@ -280,7 +280,7 @@ var cmdRevert = &cmdline2.Command{
 installation to revert.`,
 }
 
-func runRevert(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runRevert(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("revert: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -292,7 +292,7 @@ func runRevert(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdDebug = &cmdline2.Command{
+var cmdDebug = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runDebug),
 	Name:     "debug",
 	Short:    "Debug the device.",
@@ -302,7 +302,7 @@ var cmdDebug = &cmdline2.Command{
 <app name> is the vanadium object name of an app installation or instance.`,
 }
 
-func runDebug(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runDebug(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("debug: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -315,7 +315,7 @@ func runDebug(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdStatus = &cmdline2.Command{
+var cmdStatus = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runStatus),
 	Name:     "status",
 	Short:    "Get application status.",
@@ -325,7 +325,7 @@ var cmdStatus = &cmdline2.Command{
 <app name> is the vanadium object name of an app installation or instance.`,
 }
 
-func runStatus(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runStatus(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("status: incorrect number of arguments, expected %d, got %d", expected, got)
 	}

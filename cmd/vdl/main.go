@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"v.io/v23/vdlroot/vdltool"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/textutil"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/codegen/golang"
@@ -32,7 +32,7 @@ func init() {
 }
 
 func main() {
-	cmdline2.Main(cmdVDL)
+	cmdline.Main(cmdVDL)
 }
 
 func checkErrors(errs *vdlutil.Errors) error {
@@ -45,8 +45,8 @@ func checkErrors(errs *vdlutil.Errors) error {
 
 // runHelper returns a function that generates a sorted list of transitive
 // targets, and calls the supplied run function.
-func runHelper(run func(targets []*build.Package, env *compile.Env)) cmdline2.Runner {
-	return cmdline2.RunnerFunc(func(_ *cmdline2.Env, args []string) error {
+func runHelper(run func(targets []*build.Package, env *compile.Env)) cmdline.Runner {
+	return cmdline.RunnerFunc(func(_ *cmdline.Env, args []string) error {
 		if flagVerbose {
 			vdlutil.SetVerbose()
 		}
@@ -72,7 +72,7 @@ func runHelper(run func(targets []*build.Package, env *compile.Env)) cmdline2.Ru
 	})
 }
 
-var topicPackages = cmdline2.Topic{
+var topicPackages = cmdline.Topic{
 	Name:  "packages",
 	Short: "Description of package lists",
 	Long: `
@@ -105,7 +105,7 @@ explicitly.
 `,
 }
 
-var topicVdlPath = cmdline2.Topic{
+var topicVdlPath = cmdline.Topic{
 	Name:  "vdlpath",
 	Short: "Description of VDLPATH environment variable",
 	Long: `
@@ -135,7 +135,7 @@ An example:
 `,
 }
 
-var topicVdlRoot = cmdline2.Topic{
+var topicVdlRoot = cmdline.Topic{
 	Name:  "vdlroot",
 	Short: "Description of VDLROOT environment variable",
 	Long: `
@@ -150,7 +150,7 @@ variable.  It is an error if both VDLROOT and V23_ROOT are empty.
 `,
 }
 
-var topicVdlConfig = cmdline2.Topic{
+var topicVdlConfig = cmdline.Topic{
 	Name:  "vdl.config",
 	Short: "Description of vdl.config files",
 	Long: `
@@ -170,7 +170,7 @@ const pkgArgLong = `
 For more information, run "vdl help packages".
 `
 
-var cmdCompile = &cmdline2.Command{
+var cmdCompile = &cmdline.Command{
 	Runner: runHelper(runCompile),
 	Name:   "compile",
 	Short:  "Compile packages and dependencies, but don't generate code",
@@ -182,7 +182,7 @@ generate code.  This is useful to sanity-check that your VDL files are valid.
 	ArgsLong: pkgArgLong,
 }
 
-var cmdGenerate = &cmdline2.Command{
+var cmdGenerate = &cmdline.Command{
 	Runner: runHelper(runGenerate),
 	Name:   "generate",
 	Short:  "Compile packages and dependencies, and generate code",
@@ -194,7 +194,7 @@ in the specified languages.
 	ArgsLong: pkgArgLong,
 }
 
-var cmdAudit = &cmdline2.Command{
+var cmdAudit = &cmdline.Command{
 	Runner: runHelper(runAudit),
 	Name:   "audit",
 	Short:  "Check if any packages are stale and need generation",
@@ -207,7 +207,7 @@ non-0 exit code indicating some packages need generation.
 	ArgsLong: pkgArgLong,
 }
 
-var cmdList = &cmdline2.Command{
+var cmdList = &cmdline.Command{
 	Runner: runHelper(runList),
 	Name:   "list",
 	Short:  "List package and dependency info in transitive order",
@@ -243,7 +243,7 @@ func (gls genLangs) String() string {
 }
 
 func (gls *genLangs) Set(value string) error {
-	// If the flag is repeated on the cmdline2 it is overridden.  Duplicates within
+	// If the flag is repeated on the cmdline it is overridden.  Duplicates within
 	// the comma separated list are ignored, and retain their original ordering.
 	*gls = genLangs{}
 	seen := make(map[vdltool.GenLanguage]bool)
@@ -354,15 +354,15 @@ var (
 )
 
 // Root returns the root command for the VDL tool.
-var cmdVDL = &cmdline2.Command{
+var cmdVDL = &cmdline.Command{
 	Name:  "vdl",
 	Short: "manages Vanadium Definition Language source code",
 	Long: `
 Command vdl manages Vanadium Definition Language source code.  It's similar to
 the go tool used for managing Go source code.
 `,
-	Children: []*cmdline2.Command{cmdGenerate, cmdCompile, cmdAudit, cmdList},
-	Topics:   []cmdline2.Topic{topicPackages, topicVdlPath, topicVdlRoot, topicVdlConfig},
+	Children: []*cmdline.Command{cmdGenerate, cmdCompile, cmdAudit, cmdList},
+	Topics:   []cmdline.Topic{topicPackages, topicVdlPath, topicVdlRoot, topicVdlConfig},
 }
 
 func init() {

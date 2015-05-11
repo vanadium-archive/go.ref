@@ -20,15 +20,15 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/services/application"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/repository"
 )
 
 func main() {
-	cmdline2.HideGlobalFlagsExcept()
-	cmdline2.Main(cmdRoot)
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdRoot)
 }
 
 func getEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
@@ -58,7 +58,7 @@ func putEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, pr
 	return nil
 }
 
-func promptUser(env *cmdline2.Env, msg string) string {
+func promptUser(env *cmdline.Env, msg string) string {
 	fmt.Fprint(env.Stdout, msg)
 	var answer string
 	if _, err := fmt.Scanf("%s", &answer); err != nil {
@@ -67,7 +67,7 @@ func promptUser(env *cmdline2.Env, msg string) string {
 	return answer
 }
 
-var cmdMatch = &cmdline2.Command{
+var cmdMatch = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runMatch),
 	Name:     "match",
 	Short:    "Shows the first matching envelope that matches the given profiles.",
@@ -78,7 +78,7 @@ var cmdMatch = &cmdline2.Command{
 <profiles> is a comma-separated list of profiles.`,
 }
 
-func runMatch(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runMatch(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -92,7 +92,7 @@ func runMatch(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdPut = &cmdline2.Command{
+var cmdPut = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runPut),
 	Name:     "put",
 	Short:    "Add the given envelope to the application for the given profiles.",
@@ -105,7 +105,7 @@ var cmdPut = &cmdline2.Command{
 not provided, the user will be prompted to enter the data manually.`,
 }
 
-func runPut(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runPut(ctx *context.T, env *cmdline.Env, args []string) error {
 	if got := len(args); got != 2 && got != 3 {
 		return env.UsageErrorf("put: incorrect number of arguments, expected 2 or 3, got %d", got)
 	}
@@ -134,7 +134,7 @@ func runPut(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdRemove = &cmdline2.Command{
+var cmdRemove = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runRemove),
 	Name:     "remove",
 	Short:    "removes the application envelope for the given profile.",
@@ -145,7 +145,7 @@ var cmdRemove = &cmdline2.Command{
 <profile> is a profile.`,
 }
 
-func runRemove(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runRemove(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -160,7 +160,7 @@ func runRemove(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdEdit = &cmdline2.Command{
+var cmdEdit = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runEdit),
 	Name:     "edit",
 	Short:    "edits the application envelope for the given profile.",
@@ -171,7 +171,7 @@ var cmdEdit = &cmdline2.Command{
 <profile> is a profile.`,
 }
 
-func runEdit(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runEdit(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("edit: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -188,7 +188,7 @@ func runEdit(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-func editAndPutEnvelopeJSON(ctx *context.T, env *cmdline2.Env, app repository.ApplicationClientMethods, profile string, envData []byte) error {
+func editAndPutEnvelopeJSON(ctx *context.T, env *cmdline.Env, app repository.ApplicationClientMethods, profile string, envData []byte) error {
 	f, err := ioutil.TempFile("", "application-edit-")
 	if err != nil {
 		return fmt.Errorf("TempFile() failed: %v", err)
@@ -236,11 +236,11 @@ func editAndPutEnvelopeJSON(ctx *context.T, env *cmdline2.Env, app repository.Ap
 	return nil
 }
 
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "application",
 	Short: "manages the Vanadium application repository",
 	Long: `
 Command application manages the Vanadium application repository.
 `,
-	Children: []*cmdline2.Command{cmdMatch, cmdPut, cmdRemove, cmdEdit},
+	Children: []*cmdline.Command{cmdMatch, cmdPut, cmdRemove, cmdEdit},
 }

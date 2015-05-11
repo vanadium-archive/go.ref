@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 const (
@@ -33,8 +33,8 @@ func TestVDLGenerator(t *testing.T) {
 	defer os.RemoveAll(outDir)
 	// TODO(toddw): test the generated java and javascript files too.
 	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
-	env := cmdline2.NewEnv()
-	if err := cmdline2.ParseAndRun(cmdVDL, env, []string{"generate", "--lang=go", outOpt, testDir}); err != nil {
+	env := cmdline.NewEnv()
+	if err := cmdline.ParseAndRun(cmdVDL, env, []string{"generate", "--lang=go", outOpt, testDir}); err != nil {
 		t.Fatalf("Execute() failed: %v", err)
 	}
 	// Check that each *.vdl.go file in the testDir matches the generated output.

@@ -21,15 +21,15 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func main() {
-	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
-	cmdline2.Main(cmdRoot)
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+	cmdline.Main(cmdRoot)
 }
 
 var (
@@ -46,7 +46,7 @@ func init() {
 	cmdDelete.Flags.BoolVar(&flagDeleteSubtree, "r", false, "Delete all children of the name in addition to the name itself.")
 }
 
-var cmdGlob = &cmdline2.Command{
+var cmdGlob = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runGlob),
 	Name:     "glob",
 	Short:    "Returns all matching entries from the namespace",
@@ -58,7 +58,7 @@ specified mount name.
 `,
 }
 
-func runGlob(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runGlob(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -118,7 +118,7 @@ func runGlob(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdMount = &cmdline2.Command{
+var cmdMount = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runMount),
 	Name:     "mount",
 	Short:    "Adds a server to the namespace",
@@ -132,7 +132,7 @@ suffix (s, m, h). A value of 0s represents an infinite duration.
 `,
 }
 
-func runMount(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runMount(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 3, len(args); expected != got {
 		return env.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -157,7 +157,7 @@ func runMount(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdUnmount = &cmdline2.Command{
+var cmdUnmount = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runUnmount),
 	Name:     "unmount",
 	Short:    "Removes a server from the namespace",
@@ -169,7 +169,7 @@ var cmdUnmount = &cmdline2.Command{
 `,
 }
 
-func runUnmount(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runUnmount(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -189,7 +189,7 @@ func runUnmount(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdResolve = &cmdline2.Command{
+var cmdResolve = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runResolve),
 	Name:     "resolve",
 	Short:    "Translates a object name to its object address(es)",
@@ -198,7 +198,7 @@ var cmdResolve = &cmdline2.Command{
 	ArgsLong: "<name> is the name to resolve.",
 }
 
-func runResolve(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runResolve(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("resolve: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -224,7 +224,7 @@ func runResolve(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdResolveToMT = &cmdline2.Command{
+var cmdResolveToMT = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runResolveToMT),
 	Name:     "resolvetomt",
 	Short:    "Finds the address of the mounttable that holds an object name",
@@ -233,7 +233,7 @@ var cmdResolveToMT = &cmdline2.Command{
 	ArgsLong: "<name> is the name to resolve.",
 }
 
-func runResolveToMT(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runResolveToMT(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("resolvetomt: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -258,7 +258,7 @@ func runResolveToMT(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdPermissions = &cmdline2.Command{
+var cmdPermissions = &cmdline.Command{
 	Name:  "permissions",
 	Short: "Manipulates permissions on an entry in the namespace",
 	Long: `
@@ -268,10 +268,10 @@ names required to resolve the name.
 The permissions are provided as an JSON-encoded version of the Permissions type
 defined in v.io/v23/security/access/types.vdl.
 `,
-	Children: []*cmdline2.Command{cmdPermissionsGet, cmdPermissionsSet},
+	Children: []*cmdline.Command{cmdPermissionsGet, cmdPermissionsSet},
 }
 
-var cmdPermissionsSet = &cmdline2.Command{
+var cmdPermissionsSet = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runPermissionsSet),
 	Name:   "set",
 	Short:  "Sets permissions on a mount name",
@@ -287,7 +287,7 @@ object (defined in v.io/v23/security/access/types.vdl), or "-" for STDIN.
 `,
 }
 
-func runPermissionsSet(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runPermissionsSet(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("set: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -320,7 +320,7 @@ func runPermissionsSet(ctx *context.T, env *cmdline2.Env, args []string) error {
 	}
 }
 
-var cmdPermissionsGet = &cmdline2.Command{
+var cmdPermissionsGet = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runPermissionsGet),
 	Name:     "get",
 	Short:    "Gets permissions on a mount name",
@@ -336,7 +336,7 @@ v.io/v23/security/access/types.vdl).
 `,
 }
 
-func runPermissionsGet(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runPermissionsGet(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("get: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -351,7 +351,7 @@ func runPermissionsGet(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return json.NewEncoder(env.Stdout).Encode(perms)
 }
 
-var cmdDelete = &cmdline2.Command{
+var cmdDelete = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runDelete),
 	Name:     "delete",
 	Short:    "Deletes a name from the namespace",
@@ -360,7 +360,7 @@ var cmdDelete = &cmdline2.Command{
 	Long:     "Deletes a name from the namespace.",
 }
 
-func runDelete(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runDelete(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -371,7 +371,7 @@ func runDelete(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return v23.GetNamespace(ctx).Delete(ctx, name, flagDeleteSubtree)
 }
 
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "namespace",
 	Short: "resolves and manages names in the Vanadium namespace",
 	Long: `
@@ -382,5 +382,5 @@ command line option or from environment variables that have a name starting
 with V23_NAMESPACE, e.g.  V23_NAMESPACE, V23_NAMESPACE_2, V23_NAMESPACE_GOOGLE,
 etc.  The command line options override the environment.
 `,
-	Children: []*cmdline2.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdPermissions, cmdDelete},
+	Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdPermissions, cmdDelete},
 }

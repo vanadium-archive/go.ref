@@ -6,13 +6,13 @@ package main
 
 import (
 	"v.io/v23/context"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/runtime/internal/rpc/stress"
 )
 
-var cmdStopServers = &cmdline2.Command{
+var cmdStopServers = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runStopServers),
 	Name:     "stop",
 	Short:    "Stop servers",
@@ -21,7 +21,7 @@ var cmdStopServers = &cmdline2.Command{
 	ArgsLong: "<server> ... A list of servers to stop.",
 }
 
-func runStopServers(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runStopServers(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return env.UsageErrorf("no server specified")
 	}
@@ -34,16 +34,16 @@ func runStopServers(ctx *context.T, env *cmdline2.Env, args []string) error {
 }
 
 func main() {
-	cmdRoot := &cmdline2.Command{
+	cmdRoot := &cmdline.Command{
 		Name:  "stress",
 		Short: "Tool to stress/load test RPC",
 		Long:  "Tool to stress/load test RPC by issuing randomly generated requests",
-		Children: []*cmdline2.Command{
+		Children: []*cmdline.Command{
 			cmdStressTest,
 			cmdStressStats,
 			cmdLoadTest,
 			cmdStopServers,
 		},
 	}
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }

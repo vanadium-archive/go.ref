@@ -19,7 +19,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/test"
 
@@ -45,7 +45,7 @@ func TestInstallLocalCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 	const appTitle = "Appo di tutti Appi"
 	binary := os.Args[0]

@@ -10,11 +10,11 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/services/device"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 )
 
-var cmdList = &cmdline2.Command{
+var cmdList = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runList),
 	Name:     "list",
 	Short:    "Lists the account associations.",
@@ -24,7 +24,7 @@ var cmdList = &cmdline2.Command{
 <devicemanager> is the name of the device manager to connect to.`,
 }
 
-func runList(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runList(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("list: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -42,7 +42,7 @@ func runList(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdAdd = &cmdline2.Command{
+var cmdAdd = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runAdd),
 	Name:     "add",
 	Short:    "Add the listed blessings with the specified system account.",
@@ -54,7 +54,7 @@ var cmdAdd = &cmdline2.Command{
 <blessing>.. are the blessings to associate systemAccount with.`,
 }
 
-func runAdd(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runAdd(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 3, len(args); got < expected {
 		return env.UsageErrorf("add: incorrect number of arguments, expected at least %d, got %d", expected, got)
 	}
@@ -63,7 +63,7 @@ func runAdd(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return device.DeviceClient(args[0]).AssociateAccount(ctx, args[2:], args[1])
 }
 
-var cmdRemove = &cmdline2.Command{
+var cmdRemove = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runRemove),
 	Name:     "remove",
 	Short:    "Removes system accounts associated with the listed blessings.",
@@ -74,7 +74,7 @@ var cmdRemove = &cmdline2.Command{
 <blessing>... is a list of blessings.`,
 }
 
-func runRemove(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runRemove(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); got < expected {
 		return env.UsageErrorf("remove: incorrect number of arguments, expected at least %d, got %d", expected, got)
 	}
@@ -83,11 +83,11 @@ func runRemove(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return device.DeviceClient(args[0]).AssociateAccount(ctx, args[1:], "")
 }
 
-var cmdAssociate = &cmdline2.Command{
+var cmdAssociate = &cmdline.Command{
 	Name:  "associate",
 	Short: "Tool for creating associations between Vanadium blessings and a system account",
 	Long: `
 The associate tool facilitates managing blessing to system account associations.
 `,
-	Children: []*cmdline2.Command{cmdList, cmdAdd, cmdRemove},
+	Children: []*cmdline.Command{cmdList, cmdAdd, cmdRemove},
 }

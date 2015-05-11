@@ -12,18 +12,18 @@ import (
 	"os"
 
 	"v.io/v23/context"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/internal/binarylib"
 )
 
 func main() {
-	cmdline2.HideGlobalFlagsExcept()
-	cmdline2.Main(cmdRoot)
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdRoot)
 }
 
-var cmdDelete = &cmdline2.Command{
+var cmdDelete = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runDelete),
 	Name:     "delete",
 	Short:    "Delete a binary",
@@ -32,7 +32,7 @@ var cmdDelete = &cmdline2.Command{
 	ArgsLong: "<von> is the vanadium object name of the binary to delete",
 }
 
-func runDelete(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runDelete(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -44,7 +44,7 @@ func runDelete(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdDownload = &cmdline2.Command{
+var cmdDownload = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runDownload),
 	Name:   "download",
 	Short:  "Download a binary",
@@ -59,7 +59,7 @@ writes it to a file.
 `,
 }
 
-func runDownload(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runDownload(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("download: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -71,7 +71,7 @@ func runDownload(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdUpload = &cmdline2.Command{
+var cmdUpload = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runUpload),
 	Name:   "upload",
 	Short:  "Upload a binary or directory archive",
@@ -86,7 +86,7 @@ file or archive of the specified directory. When successful, it writes the name 
 `,
 }
 
-func runUpload(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runUpload(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("upload: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -111,7 +111,7 @@ func runUpload(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdURL = &cmdline2.Command{
+var cmdURL = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runURL),
 	Name:     "url",
 	Short:    "Fetch a download URL",
@@ -120,7 +120,7 @@ var cmdURL = &cmdline2.Command{
 	ArgsLong: "<von> is the vanadium object name of the binary repository",
 }
 
-func runURL(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runURL(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("rooturl: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -133,11 +133,11 @@ func runURL(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "binary",
 	Short: "manages the Vanadium binary repository",
 	Long: `
 Command binary manages the Vanadium binary repository.
 `,
-	Children: []*cmdline2.Command{cmdDelete, cmdDownload, cmdUpload, cmdURL},
+	Children: []*cmdline.Command{cmdDelete, cmdDownload, cmdUpload, cmdURL},
 }

@@ -13,7 +13,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/services/build"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/profile"
@@ -21,14 +21,14 @@ import (
 )
 
 func main() {
-	cmdline2.Main(cmdRoot)
+	cmdline.Main(cmdRoot)
 }
 
 func init() {
-	cmdline2.HideGlobalFlagsExcept()
+	cmdline.HideGlobalFlagsExcept()
 }
 
-var cmdLabel = &cmdline2.Command{
+var cmdLabel = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runLabel),
 	Name:     "label",
 	Short:    "Shows a human-readable profile key for the profile.",
@@ -37,7 +37,7 @@ var cmdLabel = &cmdline2.Command{
 	ArgsLong: "<profile> is the full name of the profile.",
 }
 
-func runLabel(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runLabel(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("label: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -53,7 +53,7 @@ func runLabel(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdDescription = &cmdline2.Command{
+var cmdDescription = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runDescription),
 	Name:     "description",
 	Short:    "Shows a human-readable profile description for the profile.",
@@ -62,7 +62,7 @@ var cmdDescription = &cmdline2.Command{
 	ArgsLong: "<profile> is the full name of the profile.",
 }
 
-func runDescription(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runDescription(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("description: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -78,7 +78,7 @@ func runDescription(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdSpecification = &cmdline2.Command{
+var cmdSpecification = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runSpecification),
 	Name:     "specification",
 	Short:    "Shows the specification of the profile.",
@@ -87,7 +87,7 @@ var cmdSpecification = &cmdline2.Command{
 	ArgsLong: "<profile> is the full name of the profile.",
 }
 
-func runSpecification(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runSpecification(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("specification: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -103,7 +103,7 @@ func runSpecification(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdPut = &cmdline2.Command{
+var cmdPut = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runPut),
 	Name:     "put",
 	Short:    "Sets a placeholder specification for the profile.",
@@ -112,7 +112,7 @@ var cmdPut = &cmdline2.Command{
 	ArgsLong: "<profile> is the full name of the profile.",
 }
 
-func runPut(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runPut(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -137,7 +137,7 @@ func runPut(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdRemove = &cmdline2.Command{
+var cmdRemove = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runRemove),
 	Name:     "remove",
 	Short:    "removes the profile specification for the profile.",
@@ -146,7 +146,7 @@ var cmdRemove = &cmdline2.Command{
 	ArgsLong: "<profile> is the full name of the profile.",
 }
 
-func runRemove(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runRemove(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -161,11 +161,11 @@ func runRemove(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "profile",
 	Short: "manages the Vanadium profile repository",
 	Long: `
 Command profile manages the Vanadium profile repository.
 `,
-	Children: []*cmdline2.Command{cmdLabel, cmdDescription, cmdSpecification, cmdPut, cmdRemove},
+	Children: []*cmdline.Command{cmdLabel, cmdDescription, cmdSpecification, cmdPut, cmdRemove},
 }

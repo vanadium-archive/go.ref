@@ -16,7 +16,7 @@ import (
 	"regexp"
 	"time"
 
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 var (
@@ -25,8 +25,8 @@ var (
 	flagVerbose  bool
 	flagDryrun   bool
 
-	cmdGCLogs = &cmdline2.Command{
-		Runner: cmdline2.RunnerFunc(garbageCollectLogs),
+	cmdGCLogs = &cmdline.Command{
+		Runner: cmdline.RunnerFunc(garbageCollectLogs),
 		Name:   "gclogs",
 		Short:  "safely deletes old log files",
 		Long: `
@@ -52,10 +52,10 @@ func init() {
 }
 
 func main() {
-	cmdline2.Main(cmdGCLogs)
+	cmdline.Main(cmdGCLogs)
 }
 
-func garbageCollectLogs(env *cmdline2.Env, args []string) error {
+func garbageCollectLogs(env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		env.UsageErrorf("gclogs requires at least one argument")
 	}
@@ -77,7 +77,7 @@ func garbageCollectLogs(env *cmdline2.Env, args []string) error {
 	return lastErr
 }
 
-func processDirectory(env *cmdline2.Env, logdir string, timeCutoff time.Time, programRE *regexp.Regexp, username string) error {
+func processDirectory(env *cmdline.Env, logdir string, timeCutoff time.Time, programRE *regexp.Regexp, username string) error {
 	fmt.Fprintf(env.Stdout, "Processing: %q\n", logdir)
 
 	f, err := os.Open(logdir)

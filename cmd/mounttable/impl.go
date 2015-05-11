@@ -19,18 +19,18 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func main() {
-	cmdline2.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
-	cmdline2.Main(cmdRoot)
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^v23\.namespace\.root$`))
+	cmdline.Main(cmdRoot)
 }
 
-var cmdGlob = &cmdline2.Command{
+var cmdGlob = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runGlob),
 	Name:     "glob",
 	Short:    "returns all matching entries in the mount table",
@@ -43,7 +43,7 @@ specified mount name.
 `,
 }
 
-func runGlob(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runGlob(ctx *context.T, env *cmdline.Env, args []string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
@@ -84,7 +84,7 @@ func runGlob(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdMount = &cmdline2.Command{
+var cmdMount = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runMount),
 	Name:     "mount",
 	Short:    "Mounts a server <name> onto a mount table",
@@ -103,7 +103,7 @@ that existing entries should be removed.
 `,
 }
 
-func runMount(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runMount(ctx *context.T, env *cmdline.Env, args []string) error {
 	got := len(args)
 	if got < 2 || got > 4 {
 		return env.UsageErrorf("mount: incorrect number of arguments, expected 2, 3, or 4, got %d", got)
@@ -140,7 +140,7 @@ func runMount(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdUnmount = &cmdline2.Command{
+var cmdUnmount = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runUnmount),
 	Name:     "unmount",
 	Short:    "removes server <name> from the mount table",
@@ -152,7 +152,7 @@ var cmdUnmount = &cmdline2.Command{
 `,
 }
 
-func runUnmount(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runUnmount(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -166,7 +166,7 @@ func runUnmount(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdResolveStep = &cmdline2.Command{
+var cmdResolveStep = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runResolveStep),
 	Name:     "resolvestep",
 	Short:    "takes the next step in resolving a name.",
@@ -177,7 +177,7 @@ var cmdResolveStep = &cmdline2.Command{
 `,
 }
 
-func runResolveStep(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runResolveStep(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -192,13 +192,13 @@ func runResolveStep(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdRoot = &cmdline2.Command{
+var cmdRoot = &cmdline.Command{
 	Name:  "mounttable",
 	Short: "sends commands to Vanadium mounttable services",
 	Long: `
 Command mounttable sends commands to Vanadium mounttable services.
 `,
-	Children: []*cmdline2.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
+	Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
 }
 
 func blessingPatternsFromServer(ctx *context.T, server string) ([]security.BlessingPattern, error) {

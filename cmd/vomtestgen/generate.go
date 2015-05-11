@@ -18,7 +18,7 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/codegen"
 	"v.io/x/ref/lib/vdl/codegen/vdlgen"
@@ -32,8 +32,8 @@ const (
 	vomdataConfig    = "vomdata.vdl.config"
 )
 
-var cmdGenerate = &cmdline2.Command{
-	Runner: cmdline2.RunnerFunc(runGenerate),
+var cmdGenerate = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runGenerate),
 	Name:   "vomtestgen",
 	Short:  "generates test data for the vom wire protocol implementation",
 	Long: `
@@ -69,10 +69,10 @@ func init() {
 }
 
 func main() {
-	cmdline2.Main(cmdGenerate)
+	cmdline.Main(cmdGenerate)
 }
 
-func runGenerate(env *cmdline2.Env, args []string) error {
+func runGenerate(env *cmdline.Env, args []string) error {
 	debug := new(bytes.Buffer)
 	defer dumpDebug(env.Stderr, debug)
 	compileEnv := compile.NewEnv(optGenMaxErrors)

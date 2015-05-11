@@ -11,7 +11,7 @@ import (
 	"os"
 	"runtime"
 
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 )
 
@@ -22,15 +22,15 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
-	rootCmd := &cmdline2.Command{
+	rootCmd := &cmdline.Command{
 		Name:  "deviced",
 		Short: "launch, configure and manage the deviced daemon",
 		Long: `
 Command deviced is used to launch, configure and manage the deviced daemon,
 which implements the v.io/v23/services/device interfaces.
 `,
-		Children: []*cmdline2.Command{cmdInstall, cmdUninstall, cmdStart, cmdStop, cmdProfile},
+		Children: []*cmdline.Command{cmdInstall, cmdUninstall, cmdStart, cmdStop, cmdProfile},
 		Runner:   v23cmd.RunnerFunc(runServer),
 	}
-	cmdline2.Main(rootCmd)
+	cmdline.Main(rootCmd)
 }

@@ -16,7 +16,7 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/build"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -77,7 +77,7 @@ func TestBuildClient(t *testing.T) {
 	defer stopServer(t, server)
 
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	args := []string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/x/ref/services/build/build"}
 	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, args); err != nil {
 		t.Fatalf("Run failed: %v", err)

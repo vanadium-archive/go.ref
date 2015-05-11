@@ -18,7 +18,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/test"
@@ -42,7 +42,7 @@ func TestListCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	rootTape := tapes.forSuffix("")
@@ -96,7 +96,7 @@ func TestAddCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"add", "one"}); err == nil {
@@ -148,7 +148,7 @@ func TestRemoveCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"remove", "one"}); err == nil {
@@ -187,7 +187,7 @@ func TestInstallCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 	appId := "myBestAppID"
 	cfg := device.Config{"someflag": "somevalue"}
@@ -296,7 +296,7 @@ func TestClaimCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 	deviceKey, err := v23.GetPrincipal(ctx).PublicKey().MarshalBinary()
 	if err != nil {
@@ -394,7 +394,7 @@ func TestInstantiateCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Confirm that we correctly enforce the number of arguments.
@@ -473,7 +473,7 @@ func TestDebugCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	debugMessage := "the secrets of the universe, revealed"
@@ -502,7 +502,7 @@ func TestStatusCommand(t *testing.T) {
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
-	env := &cmdline2.Env{Stdout: &stdout, Stderr: &stderr}
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	rootTape := tapes.forSuffix("")

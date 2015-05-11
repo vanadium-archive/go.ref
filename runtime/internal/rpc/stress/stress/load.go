@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/runtime/internal/rpc/stress/internal"
 )
@@ -36,7 +36,7 @@ type loadStats struct {
 	QpsPerCore float64
 }
 
-var cmdLoadTest = &cmdline2.Command{
+var cmdLoadTest = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runLoadTest),
 	Name:     "load",
 	Short:    "Run load test",
@@ -45,7 +45,7 @@ var cmdLoadTest = &cmdline2.Command{
 	ArgsLong: "<server> ... A list of servers to connect to.",
 }
 
-func runLoadTest(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runLoadTest(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return env.UsageErrorf("no server specified")
 	}

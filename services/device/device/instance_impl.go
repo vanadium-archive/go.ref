@@ -12,11 +12,11 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/services/device"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 )
 
-var cmdDelete = &cmdline2.Command{
+var cmdDelete = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runDelete),
 	Name:     "delete",
 	Short:    "Delete the given application instance.",
@@ -26,7 +26,7 @@ var cmdDelete = &cmdline2.Command{
 <app instance> is the vanadium object name of the application instance to delete.`,
 }
 
-func runDelete(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runDelete(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -41,7 +41,7 @@ func runDelete(ctx *context.T, env *cmdline2.Env, args []string) error {
 
 const killDeadline = 10 * time.Second
 
-var cmdKill = &cmdline2.Command{
+var cmdKill = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runKill),
 	Name:     "kill",
 	Short:    "Kill the given application instance.",
@@ -51,7 +51,7 @@ var cmdKill = &cmdline2.Command{
 <app instance> is the vanadium object name of the application instance to kill.`,
 }
 
-func runKill(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runKill(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("kill: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -64,7 +64,7 @@ func runKill(ctx *context.T, env *cmdline2.Env, args []string) error {
 	return nil
 }
 
-var cmdRun = &cmdline2.Command{
+var cmdRun = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runRun),
 	Name:     "run",
 	Short:    "Run the given application instance.",
@@ -74,7 +74,7 @@ var cmdRun = &cmdline2.Command{
 <app instance> is the vanadium object name of the application instance to run.`,
 }
 
-func runRun(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runRun(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return env.UsageErrorf("run: incorrect number of arguments, expected %d, got %d", expected, got)
 	}

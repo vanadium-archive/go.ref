@@ -19,7 +19,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/services/permissions"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/repository"
@@ -29,7 +29,7 @@ import (
 
 // TODO(caprita): Extend to include env, args, packages.
 
-var cmdPublish = &cmdline2.Command{
+var cmdPublish = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runPublish),
 	Name:   "publish",
 	Short:  "Publish the given application(s).",
@@ -56,7 +56,7 @@ func init() {
 	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve AccessList.")
 }
 
-func setAccessLists(ctx *context.T, env *cmdline2.Env, von string) error {
+func setAccessLists(ctx *context.T, env *cmdline.Env, von string) error {
 	if readBlessings == "" {
 		return nil
 	}
@@ -81,7 +81,7 @@ func setAccessLists(ctx *context.T, env *cmdline2.Env, von string) error {
 	return nil
 }
 
-func publishOne(ctx *context.T, env *cmdline2.Env, binPath, binary string) error {
+func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error {
 	binaryName, title := binary, binary
 	if parts := strings.SplitN(binary, "@", 2); len(parts) == 2 {
 		binaryName, title = parts[0], parts[1]
@@ -138,7 +138,7 @@ func publishOne(ctx *context.T, env *cmdline2.Env, binPath, binary string) error
 	return nil
 }
 
-func runPublish(ctx *context.T, env *cmdline2.Env, args []string) error {
+func runPublish(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expectedMin, got := 1, len(args); got < expectedMin {
 		return env.UsageErrorf("publish: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
 	}

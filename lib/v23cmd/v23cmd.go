@@ -20,7 +20,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/x/lib/cmdline2"
+	"v.io/x/lib/cmdline"
 )
 
 var (
@@ -30,7 +30,7 @@ var (
 	// shrinks.  Here we maintain a mapping between an index number and the
 	// originally registered function, so that we can look the function up in a
 	// typesafe manner.
-	funcs  []func(*context.T, *cmdline2.Env, []string) error
+	funcs  []func(*context.T, *cmdline.Env, []string) error
 	initFn = v23.Init
 )
 
@@ -38,7 +38,7 @@ var (
 // slice to retrieve the originally registered function.
 type indexRunner uint
 
-func (ix indexRunner) Run(env *cmdline2.Env, args []string) error {
+func (ix indexRunner) Run(env *cmdline.Env, args []string) error {
 	if int(ix) < len(funcs) {
 		ctx, shutdown := initFn()
 		err := funcs[ix](ctx, env, args)
@@ -51,7 +51,7 @@ func (ix indexRunner) Run(env *cmdline2.Env, args []string) error {
 // RunnerFunc behaves similarly to cmdline.RunnerFunc, but takes a run function
 // fn that includes a context as the first arg.  The context is created via
 // v23.Init when Run is called on the returned Runner.
-func RunnerFunc(fn func(*context.T, *cmdline2.Env, []string) error) cmdline2.Runner {
+func RunnerFunc(fn func(*context.T, *cmdline.Env, []string) error) cmdline.Runner {
 	ix := indexRunner(len(funcs))
 	funcs = append(funcs, fn)
 	return ix
@@ -59,7 +59,7 @@ func RunnerFunc(fn func(*context.T, *cmdline2.Env, []string) error) cmdline2.Run
 
 // Lookup returns the function registered via RunnerFunc corresponding to
 // runner, or nil if it doesn't exist.
-func Lookup(runner cmdline2.Runner) func(*context.T, *cmdline2.Env, []string) error {
+func Lookup(runner cmdline.Runner) func(*context.T, *cmdline.Env, []string) error {
 	if ix, ok := runner.(indexRunner); ok && int(ix) < len(funcs) {
 		return funcs[ix]
 	}
@@ -70,7 +70,7 @@ func Lookup(runner cmdline2.Runner) func(*context.T, *cmdline2.Env, []string) er
 // args.
 //
 // Doesn't call v23.Init; the context initialization is up to you.
-func Run(runner cmdline2.Runner, ctx *context.T, env *cmdline2.Env, args []string) error {
+func Run(runner cmdline.Runner, ctx *context.T, env *cmdline.Env, args []string) error {
 	if fn := Lookup(runner); fn != nil {
 		return fn(ctx, env, args)
 	}
@@ -81,8 +81,8 @@ func Run(runner cmdline2.Runner, ctx *context.T, env *cmdline2.Env, args []strin
 // the returned runner with the ctx, env and args.
 //
 // Doesn't call v23.Init; the context initialization is up to you.
-func ParseAndRun(cmd *cmdline2.Command, ctx *context.T, env *cmdline2.Env, args []string) error {
-	runner, args, err := cmdline2.Parse(cmd, env, args)
+func ParseAndRun(cmd *cmdline.Command, ctx *context.T, env *cmdline.Env, args []string) error {
+	runner, args, err := cmdline.Parse(cmd, env, args)
 	if err != nil {
 		return err
 	}
