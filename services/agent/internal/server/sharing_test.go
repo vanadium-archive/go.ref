@@ -7,7 +7,7 @@ package server
 import (
 	"testing"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func doRead(c chan struct{}) string {

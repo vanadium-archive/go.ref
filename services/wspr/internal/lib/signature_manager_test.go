@@ -13,7 +13,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
-	"v.io/x/ref/profiles/fake"
+	"v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/test"
 )
 

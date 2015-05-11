@@ -19,7 +19,7 @@ import (
 	"v.io/x/lib/cmdline2"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
 

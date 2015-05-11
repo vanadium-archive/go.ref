@@ -14,7 +14,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/verror"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 var name *string = flag.String("name", "", "Name of the hello server")

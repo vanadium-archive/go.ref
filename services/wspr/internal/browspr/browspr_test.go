@@ -22,7 +22,7 @@ import (
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
 
-	"v.io/x/ref/profiles"
+	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/lib"

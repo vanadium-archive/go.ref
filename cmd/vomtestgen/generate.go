@@ -23,7 +23,7 @@ import (
 	"v.io/x/ref/lib/vdl/codegen"
 	"v.io/x/ref/lib/vdl/codegen/vdlgen"
 	"v.io/x/ref/lib/vdl/compile"
-	_ "v.io/x/ref/profiles/static"
+	_ "v.io/x/ref/runtime/factories/static"
 )
 
 const (

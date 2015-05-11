@@ -22,7 +22,7 @@ import (
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 // As of April 28, 2015, the benchmarks for serving a principal with and

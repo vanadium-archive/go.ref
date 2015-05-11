@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/x/ref/profiles/roaming"
+	"v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"

@@ -28,7 +28,7 @@ import (
 	"v.io/v23/vtrace"
 
 	libstats "v.io/x/ref/lib/stats"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )

@@ -25,7 +25,7 @@ import (
 	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/services/role"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 var (

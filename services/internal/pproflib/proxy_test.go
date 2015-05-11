@@ -15,7 +15,7 @@ import (
 	"v.io/x/ref/services/internal/pproflib"
 	"v.io/x/ref/test"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 //go:generate v23 test generate

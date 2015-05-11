@@ -18,7 +18,7 @@ import (
 	"v.io/v23"
 	"v.io/x/ref/lib/signals"
 	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugin
-	_ "v.io/x/ref/profiles/roaming"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/wspr/wsprlib"
 )
 

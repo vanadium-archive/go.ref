@@ -25,7 +25,7 @@ import (
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 
-	_ "v.io/x/ref/profiles/roaming"
+	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var (

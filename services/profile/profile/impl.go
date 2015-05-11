@@ -15,7 +15,7 @@ import (
 	"v.io/v23/services/build"
 	"v.io/x/lib/cmdline2"
 	"v.io/x/ref/lib/v23cmd"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
 )

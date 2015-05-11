@@ -19,7 +19,7 @@ import (
 	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/test"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func createAgent(ctx *context.T, path string) (*Agent, func(), error) {

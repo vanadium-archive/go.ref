@@ -17,7 +17,7 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/cmd/vrpc/internal"
 	"v.io/x/ref/lib/v23cmd"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
 

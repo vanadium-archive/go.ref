@@ -19,7 +19,7 @@ import (
 	"v.io/v23"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/x/ref/profiles/static"
+	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/services/identity/internal/auditor"
 	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/caveats"

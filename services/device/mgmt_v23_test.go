@@ -48,7 +48,7 @@ import (
 	"time"
 
 	"v.io/x/ref/envvar"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test/v23tests"
 )
 

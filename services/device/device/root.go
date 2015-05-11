@@ -8,7 +8,7 @@ import (
 	"regexp"
 
 	"v.io/x/lib/cmdline2"
-	_ "v.io/x/ref/profiles/static"
+	_ "v.io/x/ref/runtime/factories/static"
 )
 
 var CmdRoot = &cmdline2.Command{

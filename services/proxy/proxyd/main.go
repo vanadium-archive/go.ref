@@ -21,7 +21,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/profiles/static"
+	"v.io/x/ref/runtime/factories/static"
 )
 
 var (

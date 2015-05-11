@@ -27,7 +27,7 @@ import (
 	vsignals "v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/agent/internal/server"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 const childAgentFd = 3

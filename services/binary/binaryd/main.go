@@ -17,7 +17,7 @@ import (
 
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/signals"
-	_ "v.io/x/ref/profiles/roaming"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/internal/binarylib"
 )
 

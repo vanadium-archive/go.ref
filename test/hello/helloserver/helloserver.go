@@ -16,7 +16,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/ref/lib/signals"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 var name *string = flag.String("name", "", "Name to publish under")

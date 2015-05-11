@@ -22,7 +22,7 @@ import (
 	"v.io/v23/security"
 
 	"v.io/x/ref/envvar"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"

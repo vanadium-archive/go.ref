@@ -14,7 +14,7 @@ import (
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 
-	_ "v.io/x/ref/profiles/roaming"
+	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var (

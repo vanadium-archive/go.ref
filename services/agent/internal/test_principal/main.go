@@ -17,7 +17,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref/envvar"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func newKey() security.PublicKey {

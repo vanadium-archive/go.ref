@@ -21,7 +21,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/x/ref/profiles/static"
+	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"

@@ -7,7 +7,7 @@ package revocation
 import (
 	"testing"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/discharger"
 	"v.io/x/ref/services/identity/internal/dischargerlib"
 	"v.io/x/ref/test"

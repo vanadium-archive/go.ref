@@ -11,7 +11,7 @@ import (
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/security"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23tests"

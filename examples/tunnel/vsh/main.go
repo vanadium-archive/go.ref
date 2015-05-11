@@ -22,7 +22,7 @@ import (
 	"v.io/x/ref/examples/tunnel/internal"
 	"v.io/x/ref/lib/signals"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 var (

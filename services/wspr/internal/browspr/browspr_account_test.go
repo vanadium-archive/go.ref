@@ -14,7 +14,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
 

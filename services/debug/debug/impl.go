@@ -32,7 +32,7 @@ import (
 	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/internal/pproflib"
 )
 

@@ -29,7 +29,7 @@ import (
 	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/services/role"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 var (

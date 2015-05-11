@@ -22,7 +22,7 @@ import (
 	irole "v.io/x/ref/services/role/roled/internal"
 	"v.io/x/ref/test/testutil"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func TestSeekBlessings(t *testing.T) {

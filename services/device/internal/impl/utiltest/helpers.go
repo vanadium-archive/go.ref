@@ -34,7 +34,7 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/ref/envvar"
-	_ "v.io/x/ref/profiles/roaming"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"

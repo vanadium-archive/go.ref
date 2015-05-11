@@ -31,7 +31,7 @@ import (
 	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
-	_ "v.io/x/ref/profiles/static"
+	_ "v.io/x/ref/runtime/factories/static"
 )
 
 var (

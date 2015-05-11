@@ -26,7 +26,7 @@ import (
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 
-	_ "v.io/x/ref/profiles"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 //go:generate v23 test generate

@@ -26,7 +26,7 @@ import (
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/profiles"
+	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/identity/identitylib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/expect"
