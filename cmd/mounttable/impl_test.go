@@ -131,7 +131,7 @@ func TestMountTableClient(t *testing.T) {
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 
 	// Test the 'glob' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"glob", naming.JoinAddressName(endpoint.String(), ""), "*"}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"glob", naming.JoinAddressName(endpoint.String(), ""), "*"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	const deadRE = `\(Deadline ([^)]+)\)`
@@ -141,7 +141,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'mount' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"mount", "server", endpoint.Name(), "123s"}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"mount", "server", endpoint.Name(), "123s"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if got, want := strings.TrimSpace(stdout.String()), "Name mounted successfully."; got != want {
@@ -150,7 +150,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'unmount' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"unmount", "server", endpoint.Name()}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"unmount", "server", endpoint.Name()}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if got, want := strings.TrimSpace(stdout.String()), "Unmount successful or name not mounted."; got != want {
@@ -160,7 +160,7 @@ func TestMountTableClient(t *testing.T) {
 
 	// Test the 'resolvestep' command.
 	vlog.Infof("resovestep %s", naming.JoinAddressName(endpoint.String(), "name"))
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if got, wantRE := strings.TrimSpace(stdout.String()), regexp.MustCompile(`Servers: \[\{server1 [^}]+\}\] Suffix: "name" MT: false`); !wantRE.MatchString(got) {

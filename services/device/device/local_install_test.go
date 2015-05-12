@@ -76,7 +76,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		},
 	} {
 		c.args = append([]string{"install-local"}, c.args...)
-		if err := v23cmd.ParseAndRun(cmd, ctx, env, c.args); err == nil {
+		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, c.args); err == nil {
 			t.Fatalf("test case %d: wrongly failed to receive a non-nil error.", i)
 		} else {
 			fmt.Fprintln(&stderr, "ERROR:", err)
@@ -240,7 +240,7 @@ func TestInstallLocalCommand(t *testing.T) {
 			c.args = append([]string{fmt.Sprintf("--packages=%s", string(jsonPackages))}, c.args...)
 		}
 		c.args = append([]string{"install-local"}, c.args...)
-		if err := v23cmd.ParseAndRun(cmd, ctx, env, c.args); err != nil {
+		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, c.args); err != nil {
 			t.Fatalf("test case %d: %v", i, err)
 		}
 		if expected, got := naming.Join(deviceName, appId), strings.TrimSpace(stdout.String()); got != expected {

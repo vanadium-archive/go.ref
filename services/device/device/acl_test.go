@@ -60,7 +60,7 @@ func TestAccessListGetCommand(t *testing.T) {
 		err:     nil,
 	}})
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "get", deviceName}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "get", deviceName}); err != nil {
 		t.Fatalf("error: %v", err)
 	}
 	if expected, got := strings.TrimSpace(`
@@ -93,7 +93,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	deviceName := endpoint.Name()
 
 	// Some tests to validate parse.
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "set", deviceName}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 1, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -102,7 +102,7 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "foo"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "set", deviceName, "foo"}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 2, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -111,7 +111,7 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "foo", "bar", "ohno"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "set", deviceName, "foo", "bar", "ohno"}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 4, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -120,7 +120,7 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "foo", "!"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "set", deviceName, "foo", "!"}); err == nil {
 		t.Fatalf("failed to detect invalid parameter")
 	}
 	if expected, got := "ERROR: failed to parse access tags for \"foo\": empty access tag", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -166,7 +166,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	// - Adds a blacklist entry for "friend/alice"  for "Admin"
 	// - Edits existing entry for "self" (adding "Write" access)
 	// - Removes entry for "other/bob/baddevice"
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{
 		"acl",
 		"set",
 		deviceName,
@@ -240,7 +240,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	},
 	})
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "vana/bad", "Read"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "set", deviceName, "vana/bad", "Read"}); err == nil {
 		t.Fatalf("GetPermissions RPC inside perms set command failed but error wrongly not detected")
 	} else if expected, got := `^GetPermissions\(`+deviceName+`\) failed:.*oops!`, err.Error(); !regexp.MustCompile(expected).MatchString(got) {
 		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
@@ -272,7 +272,7 @@ func TestAccessListSetCommand(t *testing.T) {
 		verror.New(errOops, nil),
 	})
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"acl", "set", deviceName, "friend", "Read"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "set", deviceName, "friend", "Read"}); err == nil {
 		t.Fatalf("SetPermissions should have failed: %v", err)
 	} else if expected, got := `^SetPermissions\(`+deviceName+`\) failed:.*oops!`, err.Error(); !regexp.MustCompile(expected).MatchString(got) {
 		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)

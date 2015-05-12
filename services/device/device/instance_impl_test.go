@@ -38,7 +38,7 @@ func TestKillCommand(t *testing.T) {
 	appName := naming.JoinAddressName(endpoint.String(), "appname")
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"kill"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"kill"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: kill: incorrect number of arguments, expected 1, got 0", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -49,7 +49,7 @@ func TestKillCommand(t *testing.T) {
 	appTape := tapes.forSuffix("appname")
 	appTape.Rewind()
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"kill", "nope", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"kill", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: kill: incorrect number of arguments, expected 1, got 2", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -64,7 +64,7 @@ func TestKillCommand(t *testing.T) {
 		nil,
 	})
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"kill", appName}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"kill", appName}); err != nil {
 		t.Fatalf("kill failed when it shouldn't: %v", err)
 	}
 	if expected, got := "Kill succeeded", strings.TrimSpace(stdout.String()); got != expected {
@@ -84,7 +84,7 @@ func TestKillCommand(t *testing.T) {
 	appTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"kill", appName}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"kill", appName}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}
 	// expected the same.
@@ -111,7 +111,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	appName := naming.JoinAddressName(endpoint.String(), "appname")
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{lower}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{lower}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: "+lower+": incorrect number of arguments, expected 1, got 0", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -122,7 +122,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	appTape := tapes.forSuffix("appname")
 	appTape.Rewind()
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{lower, "nope", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{lower, "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: "+lower+": incorrect number of arguments, expected 1, got 2", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -136,7 +136,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	appTape.SetResponses([]interface{}{
 		nil,
 	})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{lower, appName}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{lower, appName}); err != nil {
 		t.Fatalf("%s failed when it shouldn't: %v", lower, err)
 	}
 	if expected, got := upper+" succeeded", strings.TrimSpace(stdout.String()); got != expected {
@@ -153,7 +153,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	appTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{lower, appName}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{lower, appName}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}
 	// expected the same.

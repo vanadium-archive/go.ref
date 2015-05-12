@@ -144,7 +144,7 @@ func testSignature(t *testing.T, showReserved bool, wantSig string) {
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	args := []string{"signature", fmt.Sprintf("-show-reserved=%v", showReserved), name}
-	if err := v23cmd.ParseAndRun(cmdVRPC, ctx, env, args); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdVRPC, ctx, env, args); err != nil {
 		t.Fatalf("%s: %v", args, err)
 	}
 
@@ -292,7 +292,7 @@ type "v.io/x/ref/cmd/vrpc/internal".Struct struct {
 	for _, test := range tests {
 		var stdout, stderr bytes.Buffer
 		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-		if err := v23cmd.ParseAndRun(cmdVRPC, ctx, env, []string{"signature", name, test.Method}); err != nil {
+		if err := v23cmd.ParseAndRunForTest(cmdVRPC, ctx, env, []string{"signature", name, test.Method}); err != nil {
 			t.Errorf("%q failed: %v", test.Method, err)
 			continue
 		}
@@ -335,7 +335,7 @@ func TestCall(t *testing.T) {
 	for _, test := range tests {
 		var stdout, stderr bytes.Buffer
 		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-		if err := v23cmd.ParseAndRun(cmdVRPC, ctx, env, []string{"call", name, test.Method, test.InArgs}); err != nil {
+		if err := v23cmd.ParseAndRunForTest(cmdVRPC, ctx, env, []string{"call", name, test.Method, test.InArgs}); err != nil {
 			t.Errorf("%q(%s) failed: %v", test.Method, test.InArgs, err)
 			continue
 		}

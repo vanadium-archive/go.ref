@@ -61,7 +61,7 @@ func TestListCommand(t *testing.T) {
 		err: nil,
 	}})
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "list", deviceName}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "list", deviceName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "root/self alice_self_account\nroot/other alice_other_account", strings.TrimSpace(stdout.String()); got != expected {
@@ -74,7 +74,7 @@ func TestListCommand(t *testing.T) {
 	stdout.Reset()
 
 	// Test list with bad parameters.
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "list", deviceName, "hello"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "list", deviceName, "hello"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if got, expected := len(rootTape.Play()), 0; got != expected {
@@ -99,7 +99,7 @@ func TestAddCommand(t *testing.T) {
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"add", "one"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"add", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	rootTape := tapes.forSuffix("")
@@ -110,7 +110,7 @@ func TestAddCommand(t *testing.T) {
 	stdout.Reset()
 
 	rootTape.SetResponses([]interface{}{nil})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "add", deviceName, "alice", "root/self"}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "add", deviceName, "alice", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
@@ -123,7 +123,7 @@ func TestAddCommand(t *testing.T) {
 	stdout.Reset()
 
 	rootTape.SetResponses([]interface{}{nil})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "add", deviceName, "alice", "root/other", "root/self"}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "add", deviceName, "alice", "root/other", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected = []interface{}{
@@ -151,7 +151,7 @@ func TestRemoveCommand(t *testing.T) {
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"remove", "one"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"remove", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	rootTape := tapes.forSuffix("")
@@ -162,7 +162,7 @@ func TestRemoveCommand(t *testing.T) {
 	stdout.Reset()
 
 	rootTape.SetResponses([]interface{}{nil})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"associate", "remove", deviceName, "root/self"}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "remove", deviceName, "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
@@ -258,7 +258,7 @@ func TestInstallCommand(t *testing.T) {
 			c.args = append([]string{fmt.Sprintf("--packages=%s", string(jsonPackages))}, c.args...)
 		}
 		c.args = append([]string{"install"}, c.args...)
-		err := v23cmd.ParseAndRun(cmd, ctx, env, c.args)
+		err := v23cmd.ParseAndRunForTest(cmd, ctx, env, c.args)
 		if c.shouldErr {
 			if err == nil {
 				t.Fatalf("test case %d: wrongly failed to receive a non-nil error.", i)
@@ -304,7 +304,7 @@ func TestClaimCommand(t *testing.T) {
 	}
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"claim", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 4), got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -315,7 +315,7 @@ func TestClaimCommand(t *testing.T) {
 	rootTape := tapes.forSuffix("")
 	rootTape.Rewind()
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", "nope", "nope", "nope", "nope", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"claim", "nope", "nope", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 4), got 5", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -335,7 +335,7 @@ func TestClaimCommand(t *testing.T) {
 			t.Fatalf("Failed to marshal principal public key: %v", err)
 		}
 	}
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKeyWrong)}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKeyWrong)}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Fatalf("wrongly failed to receive correct error on claim with incorrect device key:%v id:%v", err, verror.ErrorID(err))
 	}
 	stdout.Reset()
@@ -346,7 +346,7 @@ func TestClaimCommand(t *testing.T) {
 	rootTape.SetResponses([]interface{}{
 		nil,
 	})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKey)}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKey)}); err != nil {
 		t.Fatalf("Claim(%s, %s, %s) failed: %v", deviceName, "grant", pairingToken, err)
 	}
 	if got, expected := len(rootTape.Play()), 1; got != expected {
@@ -369,7 +369,7 @@ func TestClaimCommand(t *testing.T) {
 	rootTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken}); err == nil {
 		t.Fatal("claim() failed to detect error:", err)
 	}
 	expected = []interface{}{
@@ -398,7 +398,7 @@ func TestInstantiateCommand(t *testing.T) {
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"instantiate", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"instantiate", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: instantiate: incorrect number of arguments, expected 2, got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -409,7 +409,7 @@ func TestInstantiateCommand(t *testing.T) {
 	rootTape := tapes.forSuffix("")
 	rootTape.Rewind()
 
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"instantiate", "nope", "nope", "nope"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"instantiate", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if expected, got := "ERROR: instantiate: incorrect number of arguments, expected 2, got 3", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -425,7 +425,7 @@ func TestInstantiateCommand(t *testing.T) {
 		instanceID: "app1",
 	},
 	})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"instantiate", appName, "grant"}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"instantiate", appName, "grant"}); err != nil {
 		t.Fatalf("instantiate %s %s failed: %v", appName, "grant", err)
 	}
 
@@ -450,7 +450,7 @@ func TestInstantiateCommand(t *testing.T) {
 		"",
 	},
 	})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"instantiate", appName, "grant"}); err == nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"instantiate", appName, "grant"}); err == nil {
 		t.Fatalf("instantiate failed to detect error")
 	}
 	expected = []interface{}{
@@ -479,7 +479,7 @@ func TestDebugCommand(t *testing.T) {
 	debugMessage := "the secrets of the universe, revealed"
 	rootTape := tapes.forSuffix("")
 	rootTape.SetResponses([]interface{}{debugMessage})
-	if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"debug", appName}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"debug", appName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := debugMessage, strings.TrimSpace(stdout.String()); got != expected {
@@ -528,7 +528,7 @@ func TestStatusCommand(t *testing.T) {
 		rootTape.Rewind()
 		stdout.Reset()
 		rootTape.SetResponses([]interface{}{c.tapeResponse})
-		if err := v23cmd.ParseAndRun(cmd, ctx, env, []string{"status", appName}); err != nil {
+		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"status", appName}); err != nil {
 			t.Errorf("%v", err)
 		}
 		if expected, got := c.expected, strings.TrimSpace(stdout.String()); got != expected {

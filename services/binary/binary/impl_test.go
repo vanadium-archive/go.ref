@@ -141,7 +141,7 @@ func TestBinaryClient(t *testing.T) {
 	env := &cmdline.Env{Stdout: &out, Stderr: &out}
 
 	// Test the 'delete' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"delete", naming.JoinAddressName(endpoint.String(), "exists")}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"delete", naming.JoinAddressName(endpoint.String(), "exists")}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "delete", err, out.String())
 	}
 	if expected, got := "Binary deleted successfully", strings.TrimSpace(out.String()); got != expected {
@@ -157,7 +157,7 @@ func TestBinaryClient(t *testing.T) {
 	defer os.RemoveAll(dir)
 	file := path.Join(dir, "testfile")
 	defer os.Remove(file)
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"download", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"download", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "download", err, out.String())
 	}
 	if expected, got := "Binary downloaded to file "+file, strings.TrimSpace(out.String()); got != expected {
@@ -173,13 +173,13 @@ func TestBinaryClient(t *testing.T) {
 	out.Reset()
 
 	// Test the 'upload' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"upload", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"upload", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "upload", err, out.String())
 	}
 	out.Reset()
 
 	// Test the 'url' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"url", naming.JoinAddressName(endpoint.String(), "")}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"url", naming.JoinAddressName(endpoint.String(), "")}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "url", err, out.String())
 	}
 	if expected, got := "test-download-url", strings.TrimSpace(out.String()); got != expected {

@@ -157,7 +157,7 @@ func TestApplicationClient(t *testing.T) {
 	profile := "myprofile"
 
 	// Test the 'Match' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"match", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"match", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := jsonEnv, strings.TrimSpace(stdout.String()); got != expected {
@@ -178,7 +178,7 @@ func TestApplicationClient(t *testing.T) {
 	if err = f.Close(); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"put", appName, profile, fileName}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"put", appName, profile, fileName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Application envelope added successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -187,7 +187,7 @@ func TestApplicationClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'remove' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"remove", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"remove", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Application envelope removed successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -197,7 +197,7 @@ func TestApplicationClient(t *testing.T) {
 
 	// Test the 'edit' command. (nothing changed)
 	os.Setenv("EDITOR", "true")
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Nothing changed", strings.TrimSpace(stdout.String()); got != expected {
@@ -207,7 +207,7 @@ func TestApplicationClient(t *testing.T) {
 
 	// Test the 'edit' command.
 	os.Setenv("EDITOR", "perl -pi -e 's/arg1/arg111/'")
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Application envelope updated successfully.", strings.TrimSpace(stdout.String()); got != expected {

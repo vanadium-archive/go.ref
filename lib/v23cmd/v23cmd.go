@@ -11,80 +11,83 @@
 //
 // The RunnerFunc package-level function allows us to write run functions of the
 // form Run(ctx, env, args), retaining static type-safety, and also getting the
-// flag.Parse ordering right.  In addition the Run and ParseAndRun functions may
-// be called in tests, to pass your own ctx into your command runners.
+// flag.Parse ordering right.
 package v23cmd
 
 import (
-	"errors"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 )
 
-var (
-	ErrUnknownRunner = errors.New("v23cmd: unknown runner")
-
-	// The strategy behind this package is this slice, which only grows and never
-	// shrinks.  Here we maintain a mapping between an index number and the
-	// originally registered function, so that we can look the function up in a
-	// typesafe manner.
-	funcs  []func(*context.T, *cmdline.Env, []string) error
-	initFn = v23.Init
-)
-
-// indexRunner implements cmdline.Runner by looking up the index in the funcs
-// slice to retrieve the originally registered function.
-type indexRunner uint
-
-func (ix indexRunner) Run(env *cmdline.Env, args []string) error {
-	if int(ix) < len(funcs) {
-		ctx, shutdown := initFn()
-		err := funcs[ix](ctx, env, args)
-		shutdown()
-		return err
-	}
-	return ErrUnknownRunner
+type runner struct {
+	run  func(*context.T, *cmdline.Env, []string) error
+	init func() (*context.T, v23.Shutdown)
 }
 
-// RunnerFunc behaves similarly to cmdline.RunnerFunc, but takes a run function
-// fn that includes a context as the first arg.  The context is created via
-// v23.Init when Run is called on the returned Runner.
-func RunnerFunc(fn func(*context.T, *cmdline.Env, []string) error) cmdline.Runner {
-	ix := indexRunner(len(funcs))
-	funcs = append(funcs, fn)
-	return ix
+func (r runner) Run(env *cmdline.Env, args []string) error {
+	ctx, shutdown := r.init()
+	defer shutdown()
+	return r.run(ctx, env, args)
 }
 
-// Lookup returns the function registered via RunnerFunc corresponding to
-// runner, or nil if it doesn't exist.
-func Lookup(runner cmdline.Runner) func(*context.T, *cmdline.Env, []string) error {
-	if ix, ok := runner.(indexRunner); ok && int(ix) < len(funcs) {
-		return funcs[ix]
-	}
-	return nil
+// RunnerFunc is like cmdline.RunnerFunc, but takes a run function that includes
+// a context as the first arg.  The context is created via v23.Init when Run is
+// called on the returned Runner.
+func RunnerFunc(run func(*context.T, *cmdline.Env, []string) error) cmdline.Runner {
+	return runner{run, v23.Init}
 }
 
-// Run performs Lookup, and then runs the function with the given ctx, env and
-// args.
+// RunnerFuncWithInit is like RunnerFunc, but allows specifying the init
+// function used to create the context.
+//
+// This is typically used to set properties on the context before it is passed
+// to the run function.  E.g. you may use this to set a deadline on the context:
+//
+//   var cmdRoot = &cmdline.Command{
+//     Runner: v23cmd.RunnerFuncWithInit(runRoot, initWithDeadline)
+//     ...
+//   }
+//
+//   func runRoot(ctx *context.T, env *cmdline.Env, args []string) error {
+//     ...
+//   }
+//
+//   func initWithDeadline() (*context.T, v23.Shutdown) {
+//     ctx, shutdown := v23.Init()
+//     ctx, cancel := context.WithTimeout(ctx, time.Minute)
+//     return ctx, func(){ cancel(); shutdown() }
+//   }
+//
+//   func main() {
+//     cmdline.Main(cmdRoot)
+//   }
+//
+// An alternative to the above example is to call context.WithTimeout within
+// runRoot.  The advantage of using RunnerFuncWithInit is that your regular code
+// can use a context with a 1 minute timeout, while your testing code can use
+// v23cmd.ParseAndRunForTest to pass a context with a 10 second timeout.
+func RunnerFuncWithInit(run func(*context.T, *cmdline.Env, []string) error, init func() (*context.T, v23.Shutdown)) cmdline.Runner {
+	return runner{run, init}
+}
+
+// ParseAndRunForTest parses the cmd with the given env and args, and calls Run
+// on the returned runner.  If the runner was created by the v23cmd package,
+// calls the run function directly with the given ctx, env and args.
 //
 // Doesn't call v23.Init; the context initialization is up to you.
-func Run(runner cmdline.Runner, ctx *context.T, env *cmdline.Env, args []string) error {
-	if fn := Lookup(runner); fn != nil {
-		return fn(ctx, env, args)
-	}
-	return ErrUnknownRunner
-}
-
-// ParseAndRun parses the cmd with the given env and args, and calls Run to run
-// the returned runner with the ctx, env and args.
 //
-// Doesn't call v23.Init; the context initialization is up to you.
-func ParseAndRun(cmd *cmdline.Command, ctx *context.T, env *cmdline.Env, args []string) error {
-	runner, args, err := cmdline.Parse(cmd, env, args)
+// Only meant to be called within tests - if used in non-test code the ordering
+// of flag.Parse calls will be wrong.  The correct ordering is for cmdline.Parse
+// to be called before v23.Init, but this function takes a ctx argument and then
+// calls cmdline.Parse.
+func ParseAndRunForTest(cmd *cmdline.Command, ctx *context.T, env *cmdline.Env, args []string) error {
+	r, args, err := cmdline.Parse(cmd, env, args)
 	if err != nil {
 		return err
 	}
-	return Run(runner, ctx, env, args)
+	if x, ok := r.(runner); ok {
+		return x.run(ctx, env, args)
+	}
+	return r.Run(env, args)
 }

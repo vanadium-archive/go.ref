@@ -131,7 +131,7 @@ func TestProfileClient(t *testing.T) {
 	exists := naming.JoinAddressName(endpoint.String(), "exists")
 
 	// Test the 'label' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"label", exists}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"label", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := spec.Label, strings.TrimSpace(stdout.String()); got != expected {
@@ -140,7 +140,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'description' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"description", exists}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"description", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := spec.Description, strings.TrimSpace(stdout.String()); got != expected {
@@ -149,7 +149,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'spec' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"specification", exists}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"specification", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := fmt.Sprintf("%#v", spec), strings.TrimSpace(stdout.String()); got != expected {
@@ -158,7 +158,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'put' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"put", exists}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"put", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Profile added successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -167,7 +167,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'remove' command.
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, []string{"remove", exists}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"remove", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Profile removed successfully.", strings.TrimSpace(stdout.String()); got != expected {

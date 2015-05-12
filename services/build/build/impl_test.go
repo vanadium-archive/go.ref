@@ -79,7 +79,7 @@ func TestBuildClient(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	args := []string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/x/ref/services/build/build"}
-	if err := v23cmd.ParseAndRun(cmdRoot, ctx, env, args); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, args); err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
 	if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
