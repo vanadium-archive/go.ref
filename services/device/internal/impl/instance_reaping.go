@@ -5,6 +5,7 @@
 package impl
 
 import (
+	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
@@ -19,9 +20,23 @@ import (
 	"v.io/x/lib/vlog"
 )
 
+const (
+	AppcycleReconciliation = "V23_APPCYCLE_RECONCILIATION"
+)
+
 var (
 	errPIDIsNotInteger = verror.Register(pkgPath+".errPIDIsNotInteger", verror.NoRetry, "{1:}{2:} __debug/stats/system/pid isn't an integer{:_}")
+
+	v23PIDMgmt = true
 )
+
+func init() {
+	// TODO(rjkroege): Environment variables do not survive device manager updates.
+	// Use an alternative mechanism.
+	if os.Getenv(AppcycleReconciliation) != "" {
+		v23PIDMgmt = false
+	}
+}
 
 type pidInstanceDirPair struct {
 	instanceDir string
@@ -57,11 +72,11 @@ func markNotRunning(idir string) {
 	}
 }
 
-// processStatusPolling polls for the continued existence of a set of tracked
-// pids.
-// TODO(rjkroege): There are nicer ways to provide this functionality.
-// For example, use the kevent facility in darwin or replace init.
-// See http://www.incenp.org/dvlpt/wait4.html for inspiration.
+// processStatusPolling polls for the continued existence of a set of
+// tracked pids. TODO(rjkroege): There are nicer ways to provide this
+// functionality. For example, use the kevent facility in darwin or
+// replace init. See http://www.incenp.org/dvlpt/wait4.html for
+// inspiration.
 func processStatusPolling(r reaper, trackedPids map[string]int) {
 	poll := func() {
 		for idir, pid := range trackedPids {
@@ -81,8 +96,9 @@ func processStatusPolling(r reaper, trackedPids map[string]int) {
 				// This implementation cannot detect if a process exited
 				// and was replaced by an arbitrary non-Vanadium process
 				// within the polling interval.
-				// TODO(rjkroege): Consider probing the appcycle service of
-				// the pid to confirm.
+				// TODO(rjkroege): Probe the appcycle service of the app
+				// to confirm that its pid is valid iff v23PIDMgmt
+				// is false.
 			default:
 				// The kill system call manpage says that this can only happen
 				// if the kernel claims that 0 is an invalid signal.
@@ -150,6 +166,79 @@ type pidErrorTuple struct {
 // In seconds.
 const appCycleTimeout = 5
 
+// processStatusViaAppCycleMgr updates the status based on getting the
+// pid from the AppCycleMgr because the data in the instance info might
+// be outdated: the app may have exited and an arbitrary non-Vanadium
+// process may have been executed with the same pid.
+func processStatusViaAppCycleMgr(ctx *context.T, c chan<- pidErrorTuple, instancePath string, info *instanceInfo, state device.InstanceState) {
+	nctx, _ := context.WithTimeout(ctx, appCycleTimeout*time.Second)
+
+	name := naming.Join(info.AppCycleMgrName, "__debug/stats/system/pid")
+	sclient := stats.StatsClient(name)
+	v, err := sclient.Value(nctx)
+	if err != nil {
+		vlog.Infof("Instance: %v error: %v", instancePath, err)
+		// No process is actually running for this instance.
+		vlog.VI(2).Infof("perinstance stats fetching failed: %v", err)
+		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
+			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
+		}
+		c <- pidErrorTuple{ipath: instancePath, err: err}
+		return
+	}
+	// Convert the stat value from *vdl.Value into an int pid.
+	var pid int
+	if err := vdl.Convert(&pid, v); err != nil {
+		err = verror.New(errPIDIsNotInteger, ctx, err)
+		vlog.Errorf(err.Error())
+		c <- pidErrorTuple{ipath: instancePath, err: err}
+		return
+	}
+
+	ptuple := pidErrorTuple{ipath: instancePath, pid: pid}
+
+	// Update the instance info.
+	if info.Pid != pid {
+		info.Pid = pid
+		ptuple.err = saveInstanceInfo(ctx, instancePath, info)
+	}
+
+	// The instance was found to be running, so update its state accordingly
+	// (in case the device restarted while the instance was in one of the
+	// transitional states like launching, dying, etc).
+	if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
+		vlog.Errorf("transitionInstance(%s,%v,%s) failed: %v", instancePath, state, device.InstanceStateRunning, err)
+	}
+
+	vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)
+	c <- ptuple
+}
+
+// processStatusViaKill updates the status based on sending a kill signal
+// to the process. This assumes that most processes on the system are
+// likely to be managed by the device manager and a live process is not
+// responsive because the agent has been restarted rather than being
+// created through a different means.
+func processStatusViaKill(c chan<- pidErrorTuple, instancePath string, info *instanceInfo, state device.InstanceState) {
+	pid := info.Pid
+
+	switch err := syscall.Kill(pid, 0); err {
+	case syscall.ESRCH:
+		// No such PID.
+		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
+			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
+		}
+		c <- pidErrorTuple{ipath: instancePath, err: err, pid: pid}
+	case nil, syscall.EPERM:
+		// The instance was found to be running, so update its state.
+		if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
+			vlog.Errorf("transitionInstance(%s,%v, %v) failed: %v", instancePath, state, device.InstanceStateRunning, err)
+		}
+		vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)
+		c <- pidErrorTuple{ipath: instancePath, err: nil, pid: pid}
+	}
+}
+
 func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg *sync.WaitGroup) {
 	defer wg.Done()
 	vlog.Infof("Instance: %v", instancePath)
@@ -169,65 +258,23 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 		return
 	}
 	vlog.VI(2).Infof("perInstance firing up on %s", instancePath)
-	nctx, _ := context.WithTimeout(ctx, appCycleTimeout*time.Second)
-
-	var ptuple pidErrorTuple
-	ptuple.ipath = instancePath
 
 	// Read the instance data.
 	info, err := loadInstanceInfo(ctx, instancePath)
 	if err != nil {
 		vlog.Errorf("loadInstanceInfo failed: %v", err)
-
 		// Something has gone badly wrong.
 		// TODO(rjkroege,caprita): Consider removing the instance or at
 		// least set its state to something indicating error?
-		ptuple.err = err
-		c <- ptuple
+		c <- pidErrorTuple{err: err, ipath: instancePath}
 		return
 	}
 
-	// Get the  pid from the AppCycleMgr because the data in the instance
-	// info might be outdated: the app may have exited and an arbitrary
-	// non-Vanadium process may have been executed with the same pid.
-	name := naming.Join(info.AppCycleMgrName, "__debug/stats/system/pid")
-	sclient := stats.StatsClient(name)
-	v, err := sclient.Value(nctx)
-	if err != nil {
-		vlog.Infof("Instance: %v error: %v", instancePath, err)
-		// No process is actually running for this instance.
-		vlog.VI(2).Infof("perinstance stats fetching failed: %v", err)
-		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
-			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
-		}
-		ptuple.err = err
-		c <- ptuple
+	if !v23PIDMgmt {
+		processStatusViaAppCycleMgr(ctx, c, instancePath, info, state)
 		return
 	}
-	// Convert the stat value from *vdl.Value into an int pid.
-	var pid int
-	if err := vdl.Convert(&pid, v); err != nil {
-		ptuple.err = verror.New(errPIDIsNotInteger, ctx, err)
-		vlog.Errorf(ptuple.err.Error())
-		c <- ptuple
-		return
-	}
-
-	ptuple.pid = pid
-	// Update the instance info.
-	if info.Pid != pid {
-		info.Pid = pid
-		ptuple.err = saveInstanceInfo(ctx, instancePath, info)
-	}
-	// The instance was found to be running, so update its state accordingly
-	// (in case the device restarted while the instance was in one of the
-	// transitional states like launching, dying, etc).
-	if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
-		vlog.Errorf("transitionInstance(%s,%v,%s) failed: %v", instancePath, state, device.InstanceStateRunning, err)
-	}
-
-	vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)
-	c <- ptuple
+	processStatusViaKill(c, instancePath, info, state)
 }
 
 // Digs through the directory hierarchy

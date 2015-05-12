@@ -720,3 +720,13 @@ func StartRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 		}
 	}
 }
+
+func GetPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
+	name := naming.Join("dm", "apps/"+appID+"/"+instanceID+"/stats/system/pid")
+	c := stats.StatsClient(name)
+	v, err := c.Value(ctx)
+	if err != nil {
+		t.Fatalf("Value() failed: %v", err)
+	}
+	return int(v.Int())
+}
