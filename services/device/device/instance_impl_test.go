@@ -60,9 +60,7 @@ func TestKillCommand(t *testing.T) {
 	appTape.Rewind()
 
 	// Test the 'kill' command.
-	appTape.SetResponses([]interface{}{
-		nil,
-	})
+	appTape.SetResponses(nil)
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"kill", appName}); err != nil {
 		t.Fatalf("kill failed when it shouldn't: %v", err)
@@ -81,9 +79,7 @@ func TestKillCommand(t *testing.T) {
 	stdout.Reset()
 
 	// Test kill with bad parameters.
-	appTape.SetResponses([]interface{}{
-		verror.New(errOops, nil),
-	})
+	appTape.SetResponses(verror.New(errOops, nil))
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"kill", appName}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}
@@ -133,9 +129,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	appTape.Rewind()
 
 	// Correct operation.
-	appTape.SetResponses([]interface{}{
-		nil,
-	})
+	appTape.SetResponses(nil)
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{lower, appName}); err != nil {
 		t.Fatalf("%s failed when it shouldn't: %v", lower, err)
 	}
@@ -150,9 +144,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	stdout.Reset()
 
 	// Test list with bad parameters.
-	appTape.SetResponses([]interface{}{
-		verror.New(errOops, nil),
-	})
+	appTape.SetResponses(verror.New(errOops, nil))
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{lower, appName}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}

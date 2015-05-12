@@ -46,7 +46,7 @@ func TestAccessListGetCommand(t *testing.T) {
 
 	// Test the 'get' command.
 	rootTape := tapes.forSuffix("")
-	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
+	rootTape.SetResponses(GetPermissionsResponse{
 		perms: access.Permissions{
 			"Admin": access.AccessList{
 				In:    []security.BlessingPattern{"self"},
@@ -58,7 +58,7 @@ func TestAccessListGetCommand(t *testing.T) {
 		},
 		version: "aVersionForToday",
 		err:     nil,
-	}})
+	})
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "get", deviceName}); err != nil {
 		t.Fatalf("error: %v", err)
@@ -131,19 +131,20 @@ func TestAccessListSetCommand(t *testing.T) {
 	stderr.Reset()
 	stdout.Reset()
 	rootTape := tapes.forSuffix("")
-	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
-		perms: access.Permissions{
-			"Admin": access.AccessList{
-				In: []security.BlessingPattern{"self"},
+	rootTape.SetResponses(
+		GetPermissionsResponse{
+			perms: access.Permissions{
+				"Admin": access.AccessList{
+					In: []security.BlessingPattern{"self"},
+				},
+				"Read": access.AccessList{
+					In:    []security.BlessingPattern{"other", "self"},
+					NotIn: []string{"other/bob"},
+				},
 			},
-			"Read": access.AccessList{
-				In:    []security.BlessingPattern{"other", "self"},
-				NotIn: []string{"other/bob"},
-			},
+			version: "aVersionForToday",
+			err:     nil,
 		},
-		version: "aVersionForToday",
-		err:     nil,
-	},
 		verror.NewErrBadVersion(nil),
 		GetPermissionsResponse{
 			perms: access.Permissions{
@@ -159,7 +160,7 @@ func TestAccessListSetCommand(t *testing.T) {
 			err:     nil,
 		},
 		nil,
-	})
+	)
 
 	// set command that:
 	// - Adds entry for "friends" to "Write" & "Admin"
@@ -233,11 +234,10 @@ func TestAccessListSetCommand(t *testing.T) {
 	stderr.Reset()
 
 	// GetPermissions fails.
-	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
+	rootTape.SetResponses(GetPermissionsResponse{
 		perms:   access.Permissions{},
 		version: "aVersionForToday",
 		err:     verror.New(errOops, nil),
-	},
 	})
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "set", deviceName, "vana/bad", "Read"}); err == nil {
@@ -260,17 +260,18 @@ func TestAccessListSetCommand(t *testing.T) {
 	stderr.Reset()
 
 	// SetPermissions fails with something other than a bad version failure.
-	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
-		perms: access.Permissions{
-			"Read": access.AccessList{
-				In: []security.BlessingPattern{"other", "self"},
+	rootTape.SetResponses(
+		GetPermissionsResponse{
+			perms: access.Permissions{
+				"Read": access.AccessList{
+					In: []security.BlessingPattern{"other", "self"},
+				},
 			},
+			version: "aVersionForToday",
+			err:     nil,
 		},
-		version: "aVersionForToday",
-		err:     nil,
-	},
 		verror.New(errOops, nil),
-	})
+	)
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"acl", "set", deviceName, "friend", "Read"}); err == nil {
 		t.Fatalf("SetPermissions should have failed: %v", err)

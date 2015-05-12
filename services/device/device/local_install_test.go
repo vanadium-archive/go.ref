@@ -224,7 +224,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		},
 	} {
 		const appId = "myBestAppID"
-		rootTape.SetResponses([]interface{}{InstallResponse{appId, nil}})
+		rootTape.SetResponses(InstallResponse{appId, nil})
 		if c.config != nil {
 			jsonConfig, err := json.Marshal(c.config)
 			if err != nil {

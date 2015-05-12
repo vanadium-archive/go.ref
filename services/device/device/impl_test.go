@@ -47,7 +47,7 @@ func TestListCommand(t *testing.T) {
 
 	rootTape := tapes.forSuffix("")
 	// Test the 'list' command.
-	rootTape.SetResponses([]interface{}{ListAssociationResponse{
+	rootTape.SetResponses(ListAssociationResponse{
 		na: []device.Association{
 			{
 				"root/self",
@@ -59,7 +59,7 @@ func TestListCommand(t *testing.T) {
 			},
 		},
 		err: nil,
-	}})
+	})
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "list", deviceName}); err != nil {
 		t.Fatalf("%v", err)
@@ -109,7 +109,7 @@ func TestAddCommand(t *testing.T) {
 	rootTape.Rewind()
 	stdout.Reset()
 
-	rootTape.SetResponses([]interface{}{nil})
+	rootTape.SetResponses(nil)
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "add", deviceName, "alice", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -122,7 +122,7 @@ func TestAddCommand(t *testing.T) {
 	rootTape.Rewind()
 	stdout.Reset()
 
-	rootTape.SetResponses([]interface{}{nil})
+	rootTape.SetResponses(nil)
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "add", deviceName, "alice", "root/other", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -161,7 +161,7 @@ func TestRemoveCommand(t *testing.T) {
 	rootTape.Rewind()
 	stdout.Reset()
 
-	rootTape.SetResponses([]interface{}{nil})
+	rootTape.SetResponses(nil)
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"associate", "remove", deviceName, "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -242,7 +242,7 @@ func TestInstallCommand(t *testing.T) {
 			InstallStimulus{"Install", appNameNoFetch, cfg, pkg, application.Envelope{}, nil},
 		},
 	} {
-		rootTape.SetResponses([]interface{}{c.tapeResponse})
+		rootTape.SetResponses(c.tapeResponse)
 		if c.config != nil {
 			jsonConfig, err := json.Marshal(c.config)
 			if err != nil {
@@ -343,9 +343,7 @@ func TestClaimCommand(t *testing.T) {
 	rootTape.Rewind()
 
 	// Correct operation.
-	rootTape.SetResponses([]interface{}{
-		nil,
-	})
+	rootTape.SetResponses(nil)
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKey)}); err != nil {
 		t.Fatalf("Claim(%s, %s, %s) failed: %v", deviceName, "grant", pairingToken, err)
 	}
@@ -366,9 +364,7 @@ func TestClaimCommand(t *testing.T) {
 	stderr.Reset()
 
 	// Error operation.
-	rootTape.SetResponses([]interface{}{
-		verror.New(errOops, nil),
-	})
+	rootTape.SetResponses(verror.New(errOops, nil))
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"claim", deviceName, "grant", pairingToken}); err == nil {
 		t.Fatal("claim() failed to detect error:", err)
 	}
@@ -420,10 +416,9 @@ func TestInstantiateCommand(t *testing.T) {
 	rootTape.Rewind()
 
 	// Correct operation.
-	rootTape.SetResponses([]interface{}{InstantiateResponse{
+	rootTape.SetResponses(InstantiateResponse{
 		err:        nil,
 		instanceID: "app1",
-	},
 	})
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"instantiate", appName, "grant"}); err != nil {
 		t.Fatalf("instantiate %s %s failed: %v", appName, "grant", err)
@@ -445,10 +440,9 @@ func TestInstantiateCommand(t *testing.T) {
 	stderr.Reset()
 
 	// Error operation.
-	rootTape.SetResponses([]interface{}{InstantiateResponse{
+	rootTape.SetResponses(InstantiateResponse{
 		verror.New(errOops, nil),
 		"",
-	},
 	})
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"instantiate", appName, "grant"}); err == nil {
 		t.Fatalf("instantiate failed to detect error")
@@ -478,7 +472,7 @@ func TestDebugCommand(t *testing.T) {
 
 	debugMessage := "the secrets of the universe, revealed"
 	rootTape := tapes.forSuffix("")
-	rootTape.SetResponses([]interface{}{debugMessage})
+	rootTape.SetResponses(debugMessage)
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"debug", appName}); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -527,7 +521,7 @@ func TestStatusCommand(t *testing.T) {
 	} {
 		rootTape.Rewind()
 		stdout.Reset()
-		rootTape.SetResponses([]interface{}{c.tapeResponse})
+		rootTape.SetResponses(c.tapeResponse)
 		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"status", appName}); err != nil {
 			t.Errorf("%v", err)
 		}
