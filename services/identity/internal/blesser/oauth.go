@@ -12,7 +12,6 @@ import (
 	"v.io/x/ref/services/identity"
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
-	"v.io/x/ref/services/identity/internal/util"
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -24,7 +23,6 @@ type oauthBlesser struct {
 	authcodeClient     struct{ ID, Secret string }
 	accessTokenClients []oauth.AccessTokenClient
 	duration           time.Duration
-	emailClassifier    *util.EmailClassifier
 	dischargerLocation string
 	revocationManager  revocation.RevocationManager
 }
@@ -35,8 +33,6 @@ type OAuthBlesserParams struct {
 	OAuthProvider oauth.OAuthProvider
 	// The OAuth client IDs and names for the clients of the BlessUsingAccessToken RPCs.
 	AccessTokenClients []oauth.AccessTokenClient
-	// Determines prefixes used for blessing extensions based on email address.
-	EmailClassifier *util.EmailClassifier
 	// The object name of the discharger service. If this is empty then revocation caveats will not be granted.
 	DischargerLocation string
 	// The revocation manager that generates caveats and manages revocation.
@@ -56,7 +52,6 @@ func NewOAuthBlesserServer(p OAuthBlesserParams) identity.OAuthBlesserServerStub
 	return identity.OAuthBlesserServer(&oauthBlesser{
 		oauthProvider:      p.OAuthProvider,
 		duration:           p.BlessingDuration,
-		emailClassifier:    p.EmailClassifier,
 		dischargerLocation: p.DischargerLocation,
 		revocationManager:  p.RevocationManager,
 		accessTokenClients: p.AccessTokenClients,
@@ -69,10 +64,10 @@ func (b *oauthBlesser) BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall
 	if err != nil {
 		return noblessings, "", err
 	}
-	return b.bless(call.Security(), email, clientName)
+	return b.bless(ctx, call.Security(), email, clientName)
 }
 
-func (b *oauthBlesser) bless(call security.Call, email, clientName string) (security.Blessings, string, error) {
+func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientName string) (security.Blessings, string, error) {
 	var noblessings security.Blessings
 	self := call.LocalPrincipal()
 	if self == nil {
@@ -88,16 +83,22 @@ func (b *oauthBlesser) bless(call security.Call, email, clientName string) (secu
 	if err != nil {
 		return noblessings, "", err
 	}
-	extension := strings.Join([]string{
-		b.emailClassifier.Classify(email),
-		email,
-		// Append clientName (e.g., "android", "chrome") to the email and then bless under that.
-		// Since blessings issued by this process do not have many caveats on them and typically
-		// have a large expiry duration, we include the clientName in the extension so that
-		// servers can explicitly distinguish these clients while specifying authorization policies
-		// (say, via AccessLists).
-		clientName,
-	}, security.ChainSeparator)
+	var parts []string
+	// TODO(ashankar): Remove this - here only for the transition from
+	// running identityd as "dev.v.io/root" to running it as "dev.v.io/u"
+	// At that point, can also remove the "ctx" argument to this method.
+	if bnames := security.LocalBlessingNames(ctx, call); len(bnames) == 1 && strings.HasSuffix(bnames[0], security.ChainSeparator+"u") {
+		parts = []string{email}
+	} else {
+		parts = []string{"users", email}
+	}
+	// Append clientName (e.g., "android", "chrome") to the email and then bless under that.
+	// Since blessings issued by this process do not have many caveats on them and typically
+	// have a large expiry duration, we include the clientName in the extension so that
+	// servers can explicitly distinguish these clients while specifying authorization policies
+	// (say, via AccessLists).
+	parts = append(parts, clientName)
+	extension := strings.Join(parts, security.ChainSeparator)
 	blessing, err := self.Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), extension, caveat)
 	if err != nil {
 		return noblessings, "", err

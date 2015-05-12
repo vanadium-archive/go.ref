@@ -89,7 +89,6 @@ func main() {
 		revocationManager,
 		params,
 		caveatSelector,
-		nil,
 		*assetsPrefix,
 		*mountPrefix)
 	s.Serve(ctx, &listenSpec, *externalHttpAddr, *httpAddr, *tlsConfig)

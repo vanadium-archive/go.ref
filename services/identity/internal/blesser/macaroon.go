@@ -6,6 +6,7 @@ package blesser
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"v.io/x/ref/services/identity"
@@ -48,6 +49,13 @@ func (b *macaroonBlesser) Bless(ctx *context.T, call rpc.ServerCall, macaroon st
 	if len(m.Caveats) == 0 {
 		m.Caveats = []security.Caveat{security.UnconstrainedUse()}
 	}
+	var extension string
+	// TODO(ashankar): Remove after the transition from running identityd as "dev.v.io/root" to "dev.v.io/u" is complete.
+	if local := security.LocalBlessingNames(ctx, secCall); len(local) == 1 && strings.HasSuffix(local[0], security.ChainSeparator+"u") {
+		extension = m.Name
+	} else {
+		extension = strings.Join([]string{"users", m.Name}, security.ChainSeparator)
+	}
 	return secCall.LocalPrincipal().Bless(secCall.RemoteBlessings().PublicKey(),
-		secCall.LocalBlessings(), m.Name, m.Caveats[0], m.Caveats[1:]...)
+		secCall.LocalBlessings(), extension, m.Caveats[0], m.Caveats[1:]...)
 }

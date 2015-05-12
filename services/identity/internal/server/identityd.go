@@ -35,7 +35,6 @@ import (
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/templates"
-	"v.io/x/ref/services/identity/internal/util"
 )
 
 const (
@@ -57,7 +56,6 @@ type IdentityServer struct {
 	revocationManager  revocation.RevocationManager
 	oauthBlesserParams blesser.OAuthBlesserParams
 	caveatSelector     caveats.CaveatSelector
-	emailClassifier    *util.EmailClassifier
 	rootedObjectAddrs  []naming.Endpoint
 	assetsPrefix       string
 	mountNamePrefix    string
@@ -68,7 +66,7 @@ type IdentityServer struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, emailClassifier *util.EmailClassifier, assetsPrefix, mountNamePrefix string) *IdentityServer {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, assetsPrefix, mountNamePrefix string) *IdentityServer {
 	return &IdentityServer{
 		oauthProvider:      oauthProvider,
 		auditor:            auditor,
@@ -76,7 +74,6 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 		revocationManager:  revocationManager,
 		oauthBlesserParams: oauthBlesserParams,
 		caveatSelector:     caveatSelector,
-		emailClassifier:    emailClassifier,
 		assetsPrefix:       assetsPrefix,
 		mountNamePrefix:    mountNamePrefix,
 	}
@@ -166,7 +163,6 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 		MacaroonBlessingService: naming.JoinAddressName(published[0], macaroonService),
 		OAuthProvider:           s.oauthProvider,
 		CaveatSelector:          s.caveatSelector,
-		EmailClassifier:         s.emailClassifier,
 		AssetsPrefix:            s.assetsPrefix,
 	}
 	if s.revocationManager != nil {

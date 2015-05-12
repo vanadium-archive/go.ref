@@ -35,7 +35,7 @@ func TestMacaroonBlesser(t *testing.T) {
 	if _, err := blesser.Bless(ctx, call, newMacaroon(t, key, m)); err == nil || err.Error() != wantErr {
 		t.Errorf("Bless(...) failed with error: %v, want: %v", err, wantErr)
 	}
-	m = oauth.BlessingMacaroon{Creation: time.Now(), Name: "user", Caveats: []security.Caveat{cOnlyMethodFoo}}
+	m = oauth.BlessingMacaroon{Creation: time.Now(), Name: "bugsbunny", Caveats: []security.Caveat{cOnlyMethodFoo}}
 	b, err := blesser.Bless(ctx, call, newMacaroon(t, key, m))
 	if err != nil {
 		t.Errorf("Bless failed: %v", err)
@@ -51,13 +51,13 @@ func TestMacaroonBlesser(t *testing.T) {
 		t.Errorf("Got blessing with info %v, want nil", got)
 	}
 	// But once it recognizes the provider, it should see exactly the name
-	// "provider/user" for the caveat cOnlyMethodFoo.
+	// "provider/users/bugsbunny" for the caveat cOnlyMethodFoo.
 	user.AddToRoots(b)
 	binfo := user.BlessingsInfo(b)
 	if num := len(binfo); num != 1 {
 		t.Errorf("Got blessings with %d names, want exactly one name", num)
 	}
-	wantName := "provider/user"
+	wantName := "provider/users/bugsbunny"
 	if got, want := binfo[wantName], []security.Caveat{cOnlyMethodFoo}; !reflect.DeepEqual(got, want) {
 		t.Errorf("binfo[%q]: Got %v, want %v", wantName, got, want)
 	}
