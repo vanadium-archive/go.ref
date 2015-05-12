@@ -385,13 +385,6 @@ func testProxyIdleTimeout(t *testing.T, testServer bool) {
 		t.Fatal(err)
 	}
 	defer ln.Close()
-	go func() {
-		for {
-			if _, err := ln.Accept(); err != nil {
-				return
-			}
-		}
-	}()
 
 	// Create the stream.Manager for a client.
 	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
@@ -406,6 +399,9 @@ func testProxyIdleTimeout(t *testing.T, testServer bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err = ln.Accept(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Trigger the idle timers.
 	triggerTimers()
@@ -418,7 +414,7 @@ func testProxyIdleTimeout(t *testing.T, testServer bool) {
 	// There is one active flow. The VC should be kept open.
 	time.Sleep(waitTime)
 	if numProcs := proxy.NumProcesses(Proxy); numProcs != 2 {
-		t.Errorf("Want VC is kept open; closed")
+		t.Errorf("Want VC is kept open, but closed: number of processes: %d", numProcs)
 	}
 
 	flow.Close()
