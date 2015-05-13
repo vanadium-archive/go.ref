@@ -99,12 +99,12 @@ var (
 	// level errors and hence {1}{2} is omitted from their format
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
-	errEmptyMessage            = reg(".errEmptyMessage", "message is empty")
-	errCorruptedMessage        = reg(".errCorruptedMessage", "corrupted message")
-	errInvalidMessageType      = reg("errInvalidMessageType", "invalid message type {3}")
-	errUnrecognizedMessageType = reg("errUrecognizedMessageType", "unrecognized message type {3}")
-	errFailedToReadVCHeader    = reg(".errFailedToReadVCHeader", "failed to read VC header{:3}")
-	errFailedToReadPayload     = reg(".errFailedToReadPayload", "failed to read payload of {3} bytes for type {4}{:5}")
+	errEmptyMessage              = reg(".errEmptyMessage", "message is empty")
+	errCorruptedMessage          = reg(".errCorruptedMessage", "corrupted message")
+	errInvalidMessageType        = reg("errInvalidMessageType", "invalid message type {3}")
+	errUnrecognizedMessageType   = reg("errUrecognizedMessageType", "unrecognized message type {3}")
+	errFailedToReadMessageHeader = reg(".errFailedToReadMessageHeader", "failed to read message header{:3}")
+	errFailedToReadPayload       = reg(".errFailedToReadPayload", "failed to read payload of {3} bytes for type {4}{:5}")
 )
 
 // T is the interface implemented by all messages communicated over a VIF.
@@ -127,7 +127,7 @@ type T interface {
 func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 	header, err := r.Read(commonHeaderSizeBytes)
 	if err != nil {
-		return nil, verror.New(errFailedToReadVCHeader, nil, err)
+		return nil, verror.New(errFailedToReadMessageHeader, nil, err)
 	}
 	c.Decrypt(header.Contents)
 	msgType := header.Contents[0]

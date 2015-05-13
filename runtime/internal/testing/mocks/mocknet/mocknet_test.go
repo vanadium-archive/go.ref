@@ -5,6 +5,7 @@
 package mocknet_test
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net"
@@ -21,6 +22,7 @@ import (
 	"v.io/v23/verror"
 
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 	"v.io/x/ref/runtime/internal/rpc/stream/message"
 	"v.io/x/ref/runtime/internal/testing/mocks/mocknet"
 	"v.io/x/ref/test"
@@ -46,11 +48,10 @@ func TestTrace(t *testing.T) {
 	defer ln.Close()
 
 	var rxconn net.Conn
-	var rxerr error
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		rxconn, rxerr = ln.Accept()
+		rxconn, _ = ln.Accept()
 		wg.Done()
 	}()
 
@@ -119,11 +120,10 @@ func TestClose(t *testing.T) {
 		defer ln.Close()
 
 		var rxconn net.Conn
-		var rxerr error
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
-			rxconn, rxerr = ln.Accept()
+			rxconn, _ = ln.Accept()
 			wg.Done()
 		}()
 
@@ -190,11 +190,10 @@ func TestDrop(t *testing.T) {
 		defer ln.Close()
 
 		var rxconn net.Conn
-		var rxerr error
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
-			rxconn, rxerr = ln.Accept()
+			rxconn, _ = ln.Accept()
 			wg.Done()
 		}()
 
@@ -218,6 +217,108 @@ func TestDrop(t *testing.T) {
 			}
 			if tx != rx {
 				t.Fatalf("%d: tx %d, rx %d", ci, tx, rx)
+			}
+		}
+	}
+}
+
+func TestV23Drop(t *testing.T) {
+	cases := []struct {
+		numMsgs, txClose, rxClose int
+	}{
+		{5, 0, 0},
+		{5, 2, 0},
+		{5, 0, 2},
+		{5, 3, 2},
+		{5, 2, 3},
+	}
+
+	for ci, c := range cases {
+		var txed, rxed int
+		matcher := func(read bool, msg message.T) bool {
+			if read {
+				rxed++
+				return rxed == c.rxClose
+			} else {
+				txed++
+				return txed == c.txClose
+			}
+		}
+		opts := mocknet.Opts{
+			Mode:              mocknet.V23CloseAtMessage,
+			V23MessageMatcher: matcher,
+		}
+
+		ln := newListener(t, opts)
+		defer ln.Close()
+
+		var rxconn net.Conn
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			rxconn, _ = ln.Accept()
+			wg.Done()
+		}()
+
+		txconn, err := mocknet.DialerWithOpts(opts, "test", ln.Addr().String(), time.Minute)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wg.Wait()
+
+		var msgBuf bytes.Buffer
+		for i := 0; i < c.numMsgs; i++ {
+			err = message.WriteTo(&msgBuf, &message.Data{}, crypto.NullControlCipher{})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		perMsgBytes := msgBuf.Len() / c.numMsgs
+
+		n, err := txconn.Write(msgBuf.Bytes())
+		txMsgs := n / perMsgBytes
+		switch {
+		case c.txClose > 0:
+			if got, want := txMsgs, c.txClose-1; got != want {
+				t.Fatalf("%d: got %v, want %v", ci, got, want)
+			}
+			if got, want := err, io.EOF; got != want {
+				t.Fatalf("%d: got %v, want %v", ci, got, want)
+			}
+		default:
+			if got, want := txMsgs, c.numMsgs; got != want {
+				t.Fatalf("%d: got %v, want %v", ci, got, want)
+			}
+			if err != nil {
+				t.Fatalf("%d: %v\n", ci, err)
+			}
+		}
+
+		var rxMsgs int
+		for ; rxMsgs < txMsgs; rxMsgs++ {
+			var n int
+			n, err = rxconn.Read(make([]byte, perMsgBytes*2))
+			if err != nil {
+				break
+			}
+			if got, want := n, perMsgBytes; got != want {
+				t.Fatalf("%d: got %v, want %v", ci, got, want)
+			}
+		}
+		switch {
+		case c.rxClose > 0 && (c.txClose == 0 || c.txClose > c.rxClose):
+			if got, want := rxMsgs, c.rxClose-1; got != want {
+				t.Fatalf("%d: got %v, want %v", ci, got, want)
+			}
+			if got, want := err, io.EOF; got != want {
+				t.Fatalf("%d: got %v, want %v", ci, got, want)
+			}
+		default:
+			if got, want := rxMsgs, txMsgs; got != want {
+				t.Fatalf("%d: got %v, want %v", ci, got, want)
+			}
+			if err != nil {
+				t.Fatalf("%d: %v\n", ci, err)
 			}
 		}
 	}
@@ -287,7 +388,7 @@ func TestV23Control(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = v23.GetClient(ctx).StartCall(ctx, dropServer.Name(), "Ping", nil, options.SecurityNone)
+	_, err = v23.GetClient(ctx).StartCall(ctx, dropServer.Name(), "Ping", nil, options.SecurityNone, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
 		t.Fatal(err)
 	}
