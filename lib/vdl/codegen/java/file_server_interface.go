@@ -22,7 +22,7 @@ package {{ .PackagePath }};
 @io.v.v23.vdl.VServer(
     serverWrapper = {{ .ServerWrapperPath }}.class
 )
-{{ .AccessModifier }} interface {{ .ServiceName }}Server {{ .Extends }} {
+public interface {{ .ServiceName }}Server {{ .Extends }} {
 {{ range $method := .Methods }}
     {{/* If this method has multiple return arguments, generate the class. */}}
     {{ if $method.IsMultipleRet }}
@@ -36,7 +36,7 @@ package {{ .PackagePath }};
 
     {{/* Generate the method signature. */}}
     {{ $method.Doc }}
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.ServerCall call{{ $method.Args }}) throws io.v.v23.verror.VException;
+    {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.ServerCall call{{ $method.Args }}) throws io.v.v23.verror.VException;
 {{ end }}
 }
 `
@@ -58,7 +58,6 @@ type serverInterfaceArg struct {
 }
 
 type serverInterfaceMethod struct {
-	AccessModifier      string
 	Args                string
 	Doc                 string
 	Name                string
@@ -84,7 +83,6 @@ func processServerInterfaceMethod(method *compile.Method, iface *compile.Interfa
 	}
 
 	return serverInterfaceMethod{
-		AccessModifier:      accessModifierForName(method.Name),
 		Args:                args,
 		Doc:                 method.Doc,
 		Name:                vdlutil.FirstRuneToLower(method.Name),
@@ -105,7 +103,6 @@ func genJavaServerInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
 		FileDoc           string
-		AccessModifier    string
 		Extends           string
 		Methods           []serverInterfaceMethod
 		PackagePath       string
@@ -116,7 +113,6 @@ func genJavaServerInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 		Source            string
 	}{
 		FileDoc:           iface.File.Package.FileDoc,
-		AccessModifier:    accessModifierForName(iface.Name),
 		Extends:           javaServerExtendsStr(iface.Embeds),
 		Methods:           methods,
 		PackagePath:       javaPath(javaGenPkgPath(iface.File.Package.GenPath)),
