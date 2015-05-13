@@ -70,13 +70,41 @@ func init() {
 }
 
 func V23TestDeviceManager(i *v23tests.T) {
+	u, err := user.Current()
+	if err != nil {
+		i.Fatalf("couldn't get the current user: %v", err)
+	}
+	testCore(i, u.Username, "", false)
+}
+
+func V23TestDeviceManagerMultiUser(i *v23tests.T) {
+	u, err := user.Current()
+	if err != nil {
+		i.Fatalf("couldn't get the current user: %v", err)
+	}
+
+	if u.Username == "veyron" && runTestOnThisPlatform {
+		// We are running on the builder so run the multiuser
+		// test with default user names. These will be created as
+		// required.
+		makeTestAccounts(i)
+		testCore(i, "vana", "devicemanager", true)
+		return
+	}
+
+	if len(deviceUserFlag) > 0 && len(appUserFlag) > 0 {
+		testCore(i, appUserFlag, deviceUserFlag, true)
+	} else {
+		i.Logf("Test skipped because running in multiuser mode requires --appuser and --deviceuser flags")
+	}
+}
+
+func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	defer fmt.Fprintf(os.Stderr, "--------------- SHUTDOWN ---------------\n")
 	userFlag := "--single_user"
-	withSuid := false
 	tempDir := ""
-	if len(deviceUserFlag) > 0 && len(appUserFlag) > 0 {
-		withSuid = true
-		i.Logf("device user %s, app user %s", deviceUserFlag, appUserFlag)
+
+	if withSuid {
 		// When running --with_suid, TMPDIR must grant the
 		// invoking user rwx permissions and world x permissions for
 		// all parent directories back to /. Otherwise, the
@@ -85,14 +113,6 @@ func V23TestDeviceManager(i *v23tests.T) {
 		// in /var that is 0700. This is unworkable so force
 		// TMPDIR to /tmp in this case.
 		tempDir = "/tmp"
-	} else if len(deviceUserFlag) > 0 || len(appUserFlag) > 0 {
-		i.Fatalf("Running in multiuser mode requires --appuser and --deviceuser")
-	} else {
-		u, err := user.Current()
-		if err != nil {
-			i.Fatalf("couldn't get the current user: %v", err)
-		}
-		appUserFlag = u.Username
 	}
 
 	var (
@@ -156,7 +176,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 	}
 
 	if withSuid {
-		deviceScriptArguments = append(deviceScriptArguments, "--devuser="+deviceUserFlag)
+		deviceScriptArguments = append(deviceScriptArguments, "--devuser="+deviceUser)
 	} else {
 		deviceScriptArguments = append(deviceScriptArguments, userFlag)
 	}
@@ -221,10 +241,10 @@ func V23TestDeviceManager(i *v23tests.T) {
 	mtEP := resolve(mtName)
 
 	if withSuid {
-		deviceBin.Start("associate", "add", mtName+"/devmgr/device", appUserFlag, "root/alice")
+		deviceBin.Start("associate", "add", mtName+"/devmgr/device", appUser, "root/alice")
 
 		aai := deviceBin.Start("associate", "list", mtName+"/devmgr/device")
-		if got, expected := strings.Trim(aai.Output(), "\n "), "root/alice "+appUserFlag; got != expected {
+		if got, expected := strings.Trim(aai.Output(), "\n "), "root/alice "+appUser; got != expected {
 			i.Fatalf("association test, got %v, expected %v", got, expected)
 		}
 	}
@@ -329,8 +349,8 @@ func V23TestDeviceManager(i *v23tests.T) {
 	if err != nil {
 		i.Errorf("getUserForPid could not determine the user running pid %v", pid)
 	}
-	if uname != appUserFlag {
-		i.Errorf("app expected to be running as %v but is running as %v", appUserFlag, uname)
+	if uname != appUser {
+		i.Errorf("app expected to be running as %v but is running as %v", appUser, uname)
 	}
 
 	// Verify the app's default blessing.

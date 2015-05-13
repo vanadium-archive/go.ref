@@ -447,7 +447,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("EvalSymlinks(%v) failed: %v", os.Args[0], err))
 	}
 
-	if err := os.MkdirAll(logs, 0700); err != nil {
+	if err := os.MkdirAll(logs, 0711); err != nil {
 		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("MkdirAll(%v) failed: %v", logs, err))
 	}
 	stderrLog, stdoutLog := filepath.Join(logs, "STDERR"), filepath.Join(logs, "STDOUT")

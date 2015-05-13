@@ -23,3 +23,7 @@ func TestMain(m *testing.M) {
 func TestV23DeviceManager(t *testing.T) {
 	v23tests.RunTest(t, V23TestDeviceManager)
 }
+
+func TestV23DeviceManagerMultiUser(t *testing.T) {
+	v23tests.RunTest(t, V23TestDeviceManagerMultiUser)
+}

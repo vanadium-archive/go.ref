@@ -4,4 +4,13 @@
 
 package device_test
 
+import (
+	"v.io/x/ref/test/v23tests"
+)
+
+const runTestOnThisPlatform = false
 const psFlags = "-ej"
+
+// TODO(rjkroege): Complete test implementation on Darwin.
+func makeTestAccounts(*v23tests.T) {
+}
