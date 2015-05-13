@@ -7,7 +7,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -52,10 +51,6 @@ type ServerHelper interface {
 	SendLogMessage(level lib.LogLevel, msg string) error
 
 	Context() *context.T
-}
-
-type authReply struct {
-	Err *verror.E
 }
 
 // AuthRequest is a request for a javascript authorizer to run
@@ -179,7 +174,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			Args:     vdlValArgs,
 			Call:     rpcCall,
 		}
-		vomMessage, err := lib.VomEncode(message)
+		vomMessage, err := lib.HexVomEncode(message)
 		if err != nil {
 			return errHandler(err)
 		}
@@ -288,7 +283,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			Args:     []*vdl.Value{vdl.ValueOf(pattern)},
 			Call:     rpcCall,
 		}
-		vomMessage, err := lib.VomEncode(message)
+		vomMessage, err := lib.HexVomEncode(message)
 		if err != nil {
 			return errHandler(err)
 		}
@@ -325,7 +320,7 @@ func proxyStream(stream rpc.Stream, w lib.ClientWriter, blessingsCache HandleSto
 			item = principal.ConvertBlessingsToHandle(blessings, blessingsCache.GetOrAddBlessingsHandle(blessings))
 
 		}
-		vomItem, err := lib.VomEncode(item)
+		vomItem, err := lib.HexVomEncode(item)
 		if err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, nil, err))
 			return
@@ -563,7 +558,7 @@ func (s *Server) authorizeRemote(ctx *context.T, call security.Call, handle int3
 	}
 	vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
-	vomMessage, err := lib.VomEncode(message)
+	vomMessage, err := lib.HexVomEncode(message)
 	if err != nil {
 		replyChan <- verror.Convert(verror.ErrInternal, nil, err)
 	} else if err := flow.Writer.Send(lib.ResponseAuthRequest, vomMessage); err != nil {
@@ -653,7 +648,7 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 
 	// Decode the result and send it through the channel
 	var reply lib.ServerRpcReply
-	if err := lib.VomDecode(data, &reply); err != nil {
+	if err := lib.HexVomDecode(data, &reply); err != nil {
 		reply.Err = err
 	}
 
@@ -694,10 +689,10 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 		return
 	}
 	// Decode the result and send it through the channel
-	var reply authReply
-	if decoderErr := json.Unmarshal([]byte(data), &reply); decoderErr != nil {
-		err := verror.Convert(verror.ErrInternal, nil, decoderErr).(verror.E)
-		reply = authReply{Err: &err}
+	var reply AuthReply
+	if err := lib.HexVomDecode(data, &reply); err != nil {
+		err = verror.Convert(verror.ErrInternal, nil, err)
+		reply = AuthReply{Err: err}
 	}
 
 	vlog.VI(0).Infof("response received from JavaScript server for "+
@@ -725,7 +720,7 @@ func (s *Server) HandleCaveatValidationResponse(id int32, data string) {
 	}
 
 	var reply CaveatValidationResponse
-	if err := lib.VomDecode(data, &reply); err != nil {
+	if err := lib.HexVomDecode(data, &reply); err != nil {
 		vlog.Errorf("failed to decode validation response %q: error %v", data, err)
 		ch <- []error{}
 		return

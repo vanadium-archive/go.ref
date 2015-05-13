@@ -5,8 +5,6 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
 	"sync"
 
 	"v.io/v23/rpc"
@@ -30,22 +28,6 @@ type authFactory interface {
 	createAuthorizer(handle int32, hasAuthorizer bool) (security.Authorizer, error)
 }
 
-type lookupIntermediateReply struct {
-	Handle        int32
-	HasAuthorizer bool
-	HasGlobber    bool
-	Signature     string
-	Err           *verror.E
-}
-
-type lookupReply struct {
-	Handle        int32
-	HasAuthorizer bool
-	HasGlobber    bool
-	Signature     []signature.Interface
-	Err           *verror.E
-}
-
 type dispatcherRequest struct {
 	ServerId uint32 `json:"serverId"`
 	Suffix   string `json:"suffix"`
@@ -58,7 +40,7 @@ type dispatcher struct {
 	flowFactory        flowFactory
 	invokerFactory     invokerFactory
 	authFactory        authFactory
-	outstandingLookups map[int32]chan lookupReply
+	outstandingLookups map[int32]chan LookupReply
 	closed             bool
 }
 
@@ -71,7 +53,7 @@ func newDispatcher(serverId uint32, flowFactory flowFactory, invokerFactory invo
 		flowFactory:        flowFactory,
 		invokerFactory:     invokerFactory,
 		authFactory:        authFactory,
-		outstandingLookups: make(map[int32]chan lookupReply),
+		outstandingLookups: make(map[int32]chan LookupReply),
 	}
 }
 
@@ -82,7 +64,7 @@ func (d *dispatcher) Cleanup() {
 
 	for _, ch := range d.outstandingLookups {
 		verr := NewErrServerStopped(nil).(verror.E)
-		ch <- lookupReply{Err: &verr}
+		ch <- LookupReply{Err: &verr}
 	}
 }
 
@@ -95,7 +77,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return nil, nil, NewErrServerStopped(nil)
 	}
 	flow := d.flowFactory.createFlow()
-	ch := make(chan lookupReply, 1)
+	ch := make(chan LookupReply, 1)
 	d.outstandingLookups[flow.ID] = ch
 	d.mu.Unlock()
 
@@ -105,7 +87,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	}
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
 		verr := verror.Convert(verror.ErrInternal, nil, err).(verror.E)
-		ch <- lookupReply{Err: &verr}
+		ch <- LookupReply{Err: &verr}
 	}
 	reply := <-ch
 
@@ -145,27 +127,14 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 		return
 	}
 
-	var intermediateReply lookupIntermediateReply
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&intermediateReply); err != nil {
-		err2 := verror.Convert(verror.ErrInternal, nil, err).(verror.E)
-		intermediateReply = lookupIntermediateReply{Err: &err2}
+	var lookupReply LookupReply
+	if err := lib.HexVomDecode(data, &lookupReply); err != nil {
+		err2 := verror.Convert(verror.ErrInternal, nil, err)
+		lookupReply = LookupReply{Err: err2}
 		vlog.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
 	}
 
-	reply := lookupReply{
-		Handle:        intermediateReply.Handle,
-		HasAuthorizer: intermediateReply.HasAuthorizer,
-		HasGlobber:    intermediateReply.HasGlobber,
-		Err:           intermediateReply.Err,
-	}
-	if reply.Err == nil && intermediateReply.Signature != "" {
-		if err := lib.VomDecode(intermediateReply.Signature, &reply.Signature); err != nil {
-			err2 := verror.Convert(verror.ErrInternal, nil, err).(verror.E)
-			reply.Err = &err2
-		}
-	}
-	ch <- reply
+	ch <- lookupReply
 }
 
 // StopServing implements dispatcher StopServing.

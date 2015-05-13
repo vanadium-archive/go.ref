@@ -81,7 +81,7 @@ func (os *outstandingStream) loop() {
 	config := <-os.initChan
 	for msg := range os.messages {
 		var item interface{}
-		if err := lib.VomDecode(msg.data, &item); err != nil {
+		if err := lib.HexVomDecode(msg.data, &item); err != nil {
 			msg.writer.Error(fmt.Errorf("failed to decode stream arg from %v: %v", msg.data, err))
 			break
 		}

@@ -7,6 +7,7 @@ package server
 import (
   "time"
 
+  "signature"
   "v.io/v23/security"
   "v.io/v23/vtrace"
   "v.io/x/ref/services/wspr/internal/principal"
@@ -59,4 +60,18 @@ type ServerRpcRequest struct {
 	Method   string
 	Args     []any
 	Call     ServerRpcRequestCall
+}
+
+// A reply from javascript to a lookup request.
+type LookupReply struct {
+	Handle        int32
+	HasAuthorizer bool
+	HasGlobber    bool
+	Signature     []signature.Interface
+	Err           error
+}
+
+// A reply from javascript to an auth request.
+type AuthReply struct {
+	Err error
 }

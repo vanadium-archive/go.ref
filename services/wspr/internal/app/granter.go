@@ -29,7 +29,7 @@ func (g *jsGranter) Grant(ctx *context.T, call security.Call) (blessings securit
 		GranterHandle: g.granterHandle,
 		Call:          server.ConvertSecurityCall(g.c, ctx, call, true),
 	}
-	encoded, err := lib.VomEncode(request)
+	encoded, err := lib.HexVomEncode(request)
 	if err != nil {
 		return security.Blessings{}, err
 	}
@@ -64,7 +64,7 @@ type granterStream struct {
 func (g *granterStream) Send(item interface{}) error {
 	dataString := item.(string)
 	var gr *GranterResponse
-	if err := lib.VomDecode(dataString, &gr); err != nil {
+	if err := lib.HexVomDecode(dataString, &gr); err != nil {
 		return fmt.Errorf("error decoding granter response: %v", err)
 	}
 	g.c <- gr

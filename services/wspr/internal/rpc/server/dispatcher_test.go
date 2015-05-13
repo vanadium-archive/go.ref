@@ -14,6 +14,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+	"v.io/v23/verror"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/lib/testwriter"
 )
@@ -88,8 +89,12 @@ func TestSuccessfulLookup(t *testing.T) {
 			t.Errorf("failed to get dispatch request %v", err)
 			t.Fail()
 		}
-		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":false,"signature":"%s"}`, lib.VomEncodeOrDie(expectedSig))
-		d.handleLookupResponse(0, jsonResponse)
+		reply := LookupReply{
+			Handle:        1,
+			HasAuthorizer: false,
+			Signature:     expectedSig,
+		}
+		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply))
 	}()
 
 	invoker, auth, err := d.Lookup("a/b")
@@ -133,8 +138,12 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 			t.Errorf("failed to get dispatch request %v", err)
 			t.Fail()
 		}
-		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":true,"signature":"%s"}`, lib.VomEncodeOrDie(expectedSig))
-		d.handleLookupResponse(0, jsonResponse)
+		reply := LookupReply{
+			Handle:        1,
+			HasAuthorizer: true,
+			Signature:     expectedSig,
+		}
+		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply))
 	}()
 
 	invoker, auth, err := d.Lookup("a/b")
@@ -175,8 +184,10 @@ func TestFailedLookup(t *testing.T) {
 			t.Errorf("failed to get dispatch request %v", err)
 			t.Fail()
 		}
-		jsonResponse := `{"err":{"id":"v23/verror.Exists","msg":"bad stuff"}}`
-		d.handleLookupResponse(0, jsonResponse)
+		reply := LookupReply{
+			Err: verror.New(verror.ErrNoExist, nil),
+		}
+		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply))
 	}()
 
 	_, _, err := d.Lookup("a/b")

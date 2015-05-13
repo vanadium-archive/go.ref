@@ -5,9 +5,6 @@
 package browspr
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/lib"
@@ -85,16 +82,7 @@ func (p *pipe) cleanup() {
 	p.controller.Cleanup()
 }
 
-func (p *pipe) handleMessage(jsonMsg string) error {
-	var msg app.Message
-	if err := json.Unmarshal([]byte(jsonMsg), &msg); err != nil {
-		fullErr := fmt.Errorf("Can't unmarshall message: %s error: %v", jsonMsg, err)
-		// Send the failed to unmarshal error to the client.
-		errWriter := &postMessageWriter{p: p}
-		errWriter.Error(fullErr)
-		return fullErr
-	}
-
+func (p *pipe) handleMessage(msg app.Message) error {
 	writer := p.createWriter(msg.Id)
 	p.controller.HandleIncomingMessage(msg, writer)
 	return nil

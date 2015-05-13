@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/ref/internal/reflectutil"
 	"v.io/x/ref/services/wspr/internal/lib"
@@ -73,13 +74,16 @@ func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) erro
 	return fmt.Errorf("Unknown message type: %d", responseType)
 }
 
-func internalErrJSON(args interface{}) string {
-	return fmt.Sprintf(`{"err": {
-			"idAction": {
-				"id": "v.io/v23/verror.Internal",
-				"action": 0
-			},
-			"paramList": ["%v"]}, "results":[null]}`, args)
+func internalErr(args interface{}) string {
+	err := verror.E{
+		ID:        verror.ID("v.io/v23/verror.Internal"),
+		Action:    verror.ActionCode(0),
+		ParamList: []interface{}{args},
+	}
+
+	return lib.HexVomEncodeOrDie(server.LookupReply{
+		Err: err,
+	})
 }
 
 func (m *mockJSServer) Error(err error) {
@@ -108,26 +112,23 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 	}()
 	m.controllerReady.RLock()
 	defer m.controllerReady.RUnlock()
+
 	msg, err := normalize(v)
 	if err != nil {
-		m.controller.HandleLookupResponse(m.flowCount, internalErrJSON(err))
+		m.controller.HandleLookupResponse(m.flowCount, internalErr(err))
 		return nil
 	}
 	expected := map[string]interface{}{"serverId": 0.0, "suffix": "adder"}
 	if !reflect.DeepEqual(msg, expected) {
-		m.controller.HandleLookupResponse(m.flowCount, internalErrJSON(fmt.Sprintf("got: %v, want: %v", msg, expected)))
+		m.controller.HandleLookupResponse(m.flowCount, internalErr(fmt.Sprintf("got: %v, want: %v", msg, expected)))
 		return nil
 	}
-	bytes, err := json.Marshal(map[string]interface{}{
-		"handle":        0,
-		"signature":     lib.VomEncodeOrDie(m.serviceSignature),
-		"hasAuthorizer": m.hasAuthorizer,
+	lookupReply := lib.HexVomEncodeOrDie(server.LookupReply{
+		Handle:        0,
+		Signature:     m.serviceSignature,
+		HasAuthorizer: m.hasAuthorizer,
 	})
-	if err != nil {
-		m.controller.HandleLookupResponse(m.flowCount, internalErrJSON(fmt.Sprintf("failed to serialize %v", err)))
-		return nil
-	}
-	m.controller.HandleLookupResponse(m.flowCount, string(bytes))
+	m.controller.HandleLookupResponse(m.flowCount, lookupReply)
 	return nil
 }
 
@@ -147,62 +148,58 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 
 	m.hasCalledAuth = true
 	if !m.hasAuthorizer {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON("unexpected auth request"))
+		m.controller.HandleAuthResponse(m.flowCount, internalErr("unexpected auth request"))
 		return nil
 	}
 
 	var msg server.AuthRequest
-	if err := lib.VomDecode(v.(string), &msg); err != nil {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("error decoding %v:", err)))
+	if err := lib.HexVomDecode(v.(string), &msg); err != nil {
+		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("error decoding %v:", err)))
 		return nil
 	}
 
 	if msg.Handle != 0 {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected handled: %v", msg.Handle)))
+		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected handled: %v", msg.Handle)))
 		return nil
 	}
 
 	call := msg.Call
 	if field, got, want := "Method", call.Method, lib.LowercaseFirstCharacter(m.method); got != want {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
 	if field, got, want := "Suffix", call.Suffix, "adder"; got != want {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
 	// We expect localBlessings and remoteBlessings to be set and the publicKey be a string
 	if !validateBlessing(call.LocalBlessings) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad localblessing:%v", call.LocalBlessings)))
+		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad localblessing:%v", call.LocalBlessings)))
 		return nil
 	}
 	if !validateBlessing(call.RemoteBlessings) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad remoteblessing:%v", call.RemoteBlessings)))
+		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad remoteblessing:%v", call.RemoteBlessings)))
 		return nil
 	}
 
 	// We expect endpoints to be set
 	if !validateEndpoint(call.LocalEndpoint) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", call.LocalEndpoint)))
+		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad endpoint:%v", call.LocalEndpoint)))
 		return nil
 	}
 
 	if !validateEndpoint(call.RemoteEndpoint) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", call.RemoteEndpoint)))
+		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad endpoint:%v", call.RemoteEndpoint)))
 		return nil
 	}
 
-	bytes, err := json.Marshal(map[string]interface{}{
-		"err": m.authError,
+	authReply := lib.HexVomEncodeOrDie(server.AuthReply{
+		Err: m.authError,
 	})
-	if err != nil {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("failed to serialize %v", err)))
-		return nil
-	}
 
-	m.controller.HandleAuthResponse(m.flowCount, string(bytes))
+	m.controller.HandleAuthResponse(m.flowCount, authReply)
 	return nil
 }
 
@@ -212,23 +209,23 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 	}()
 
 	if m.hasCalledAuth != m.hasAuthorizer {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON("authorizer hasn't been called yet"))
+		m.controller.HandleServerResponse(m.flowCount, internalErr("authorizer hasn't been called yet"))
 		return nil
 	}
 
 	var msg server.ServerRpcRequest
-	if err := lib.VomDecode(v.(string), &msg); err != nil {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(err))
+	if err := lib.HexVomDecode(v.(string), &msg); err != nil {
+		m.controller.HandleServerResponse(m.flowCount, internalErr(err))
 		return nil
 	}
 
 	if field, got, want := "Method", msg.Method, lib.LowercaseFirstCharacter(m.method); got != want {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
 	if field, got, want := "Handle", msg.Handle, int32(0); got != want {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
@@ -239,18 +236,18 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 		}
 	}
 	if field, got, want := "Args", vals, m.inArgs; !reflectutil.DeepEqual(got, want, &reflectutil.DeepEqualOpts{SliceEqNilEmpty: true}) {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
 	call := msg.Call.SecurityCall
 	if field, got, want := "Suffix", call.Suffix, "adder"; got != want {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
 	if !validateBlessing(call.RemoteBlessings) {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad Remoteblessing:%v", call.RemoteBlessings)))
+		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("bad Remoteblessing:%v", call.RemoteBlessings)))
 		return nil
 	}
 
@@ -288,7 +285,7 @@ func (m *mockJSServer) sendServerStream() {
 	defer m.sender.Done()
 	m.controllerReady.RLock()
 	for _, v := range m.serverStream {
-		m.controller.SendOnStream(m.rpcFlow, lib.VomEncodeOrDie(v), m)
+		m.controller.SendOnStream(m.rpcFlow, lib.HexVomEncodeOrDie(v), m)
 	}
 	m.controllerReady.RUnlock()
 }
@@ -314,12 +311,9 @@ func (m *mockJSServer) handleStreamClose(msg interface{}) error {
 		Results: []*vdl.Value{m.finalResponse},
 		Err:     m.finalError,
 	}
-	vomReply, err := lib.VomEncode(reply)
-	if err != nil {
-		m.t.Fatalf("Failed to serialize the reply: %v", err)
-	}
+
 	m.controllerReady.RLock()
-	m.controller.HandleServerResponse(m.rpcFlow, vomReply)
+	m.controller.HandleServerResponse(m.rpcFlow, lib.HexVomEncodeOrDie(reply))
 	m.controllerReady.RUnlock()
 	return nil
 }

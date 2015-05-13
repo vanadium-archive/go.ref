@@ -16,6 +16,7 @@ import (
 
 	// VDL user imports
 	"v.io/v23/security"
+	"v.io/v23/vdlroot/signature"
 	"v.io/v23/vdlroot/time"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/services/wspr/internal/principal"
@@ -94,6 +95,30 @@ func (ServerRpcRequest) __VDLReflect(struct {
 }) {
 }
 
+// A reply from javascript to a lookup request.
+type LookupReply struct {
+	Handle        int32
+	HasAuthorizer bool
+	HasGlobber    bool
+	Signature     []signature.Interface
+	Err           error
+}
+
+func (LookupReply) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/rpc/server.LookupReply"`
+}) {
+}
+
+// A reply from javascript to an auth request.
+type AuthReply struct {
+	Err error
+}
+
+func (AuthReply) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/wspr/internal/rpc/server.AuthReply"`
+}) {
+}
+
 func init() {
 	vdl.Register((*Context)(nil))
 	vdl.Register((*SecurityCall)(nil))
@@ -101,6 +126,8 @@ func init() {
 	vdl.Register((*CaveatValidationResponse)(nil))
 	vdl.Register((*ServerRpcRequestCall)(nil))
 	vdl.Register((*ServerRpcRequest)(nil))
+	vdl.Register((*LookupReply)(nil))
+	vdl.Register((*AuthReply)(nil))
 }
 
 var (

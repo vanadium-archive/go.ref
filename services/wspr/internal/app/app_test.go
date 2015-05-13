@@ -202,7 +202,7 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 		}
 		go func() {
 			for _, value := range testCase.streamingInputs {
-				controller.SendOnStream(0, lib.VomEncodeOrDie(value), &writer)
+				controller.SendOnStream(0, lib.HexVomEncodeOrDie(value), &writer)
 			}
 			controller.CloseStream(0)
 		}()
@@ -223,7 +223,7 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 }
 
 func makeRPCResponse(outArgs ...*vdl.Value) string {
-	return lib.VomEncodeOrDie(RpcResponse{
+	return lib.HexVomEncodeOrDie(RpcResponse{
 		OutArgs:       outArgs,
 		TraceResponse: vtrace.Response{},
 	})
@@ -259,19 +259,19 @@ func TestCallingGoWithStreaming(t *testing.T) {
 		numOutArgs:      1,
 		expectedStream: []lib.Response{
 			lib.Response{
-				Message: lib.VomEncodeOrDie(int32(1)),
+				Message: lib.HexVomEncodeOrDie(int32(1)),
 				Type:    lib.ResponseStream,
 			},
 			lib.Response{
-				Message: lib.VomEncodeOrDie(int32(3)),
+				Message: lib.HexVomEncodeOrDie(int32(3)),
 				Type:    lib.ResponseStream,
 			},
 			lib.Response{
-				Message: lib.VomEncodeOrDie(int32(6)),
+				Message: lib.HexVomEncodeOrDie(int32(6)),
 				Type:    lib.ResponseStream,
 			},
 			lib.Response{
-				Message: lib.VomEncodeOrDie(int32(10)),
+				Message: lib.HexVomEncodeOrDie(int32(10)),
 				Type:    lib.ResponseStream,
 			},
 			lib.Response{
@@ -379,7 +379,7 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 
 	vomClientStream := []string{}
 	for _, m := range testCase.clientStream {
-		vomClientStream = append(vomClientStream, lib.VomEncodeOrDie(m))
+		vomClientStream = append(vomClientStream, lib.HexVomEncodeOrDie(m))
 	}
 	mock := &mockJSServer{
 		t:                    t,

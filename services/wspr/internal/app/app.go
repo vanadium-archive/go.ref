@@ -167,7 +167,7 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 			if blessings, ok := item.(security.Blessings); ok {
 				item = principal.ConvertBlessingsToHandle(blessings, c.blessingsCache.GetOrAddHandle(blessings))
 			}
-			vomItem, err := lib.VomEncode(item)
+			vomItem, err := lib.HexVomEncode(item)
 			if err != nil {
 				w.Error(verror.New(marshallingError, ctx, item, err))
 				continue
@@ -442,7 +442,7 @@ var (
 )
 
 func (l *localCall) Send(item interface{}) error {
-	vomItem, err := lib.VomEncode(item)
+	vomItem, err := lib.HexVomEncode(item)
 	if err != nil {
 		err = verror.New(marshallingError, l.ctx, item, err)
 		l.w.Error(err)
@@ -732,7 +732,7 @@ func (c *Controller) HandleServerResponse(id int32, data string) {
 // parseVeyronRequest parses a json rpc request into a RpcRequest object.
 func (c *Controller) parseVeyronRequest(data string) (*RpcRequest, error) {
 	var msg RpcRequest
-	if err := lib.VomDecode(data, &msg); err != nil {
+	if err := lib.HexVomDecode(data, &msg); err != nil {
 		return nil, err
 	}
 	vlog.VI(2).Infof("RpcRequest: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)

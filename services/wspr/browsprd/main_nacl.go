@@ -21,6 +21,7 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/chrome"
 	"v.io/x/ref/runtime/internal/lib/websocket"
+	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/browspr"
 	"v.io/x/ref/services/wspr/internal/channel/channel_nacl"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
@@ -298,14 +299,14 @@ func (inst *browsprInstance) BrowsprOutgoingPostMessage(instanceId int32, ty str
 
 // HandleBrowsprMessage handles one-way messages of the type "browsprMsg" by
 // sending them to browspr's handler.
-func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, origin string, message ppapi.Var) error {
-	str, err := message.AsString()
+func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, origin string, varMsg ppapi.Var) error {
+	msg, err := varToMessage(varMsg)
 	if err != nil {
-		return fmt.Errorf("Error while converting message to string: %v", err)
+		return fmt.Errorf("Invalid message: %v", err)
 	}
 
-	vlog.VI(1).Infof("Calling browspr's HandleMessage: instanceId %d origin %s message %s", instanceId, origin, str)
-	if err := inst.browspr.HandleMessage(instanceId, origin, str); err != nil {
+	vlog.VI(1).Infof("Calling browspr's HandleMessage: instanceId %d origin %s message %s", instanceId, origin, msg)
+	if err := inst.browspr.HandleMessage(instanceId, origin, msg); err != nil {
 		return fmt.Errorf("Error while handling message in browspr: %v", err)
 	}
 	return nil
@@ -414,4 +415,26 @@ func (*browsprInstance) Graphics3DContextLost() {
 
 func (*browsprInstance) MouseLockLost() {
 	vlog.VI(2).Infof("Got to MouseLockLost()")
+}
+
+func varToMessage(v ppapi.Var) (app.Message, error) {
+	var msg app.Message
+	id, err := v.LookupIntValuedKey("id")
+	if err != nil {
+		return msg, err
+	}
+	ty, err := v.LookupIntValuedKey("type")
+	if err != nil {
+		return msg, err
+	}
+	data, err := v.LookupStringValuedKey("data")
+	if err != nil {
+		// OK for message to have empty data.
+		data = ""
+	}
+
+	msg.Id = int32(id)
+	msg.Data = data
+	msg.Type = app.MessageType(ty)
+	return msg, nil
 }

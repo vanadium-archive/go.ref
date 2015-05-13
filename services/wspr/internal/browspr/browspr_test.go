@@ -7,7 +7,6 @@ package browspr
 import (
 	"bytes"
 	"encoding/hex"
-	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -83,7 +82,12 @@ func TestBrowspr(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	proxySpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	proxySpec := rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{
+			Protocol: "tcp",
+			Address:  "127.0.0.1:0",
+		}},
+	}
 	proxyShutdown, proxyEndpoint, err := generic.NewProxy(ctx, proxySpec, security.AllowEveryone())
 	if err != nil {
 		t.Fatalf("Failed to start proxy: %v", err)
@@ -195,13 +199,10 @@ found:
 	}
 	vomRPC := hex.EncodeToString(buf.Bytes())
 
-	msg, err := json.Marshal(app.Message{
+	msg := app.Message{
 		Id:   1,
 		Data: vomRPC,
 		Type: app.VeyronRequestMessage,
-	})
-	if err != nil {
-		t.Fatalf("Failed to marshall app message to json: %v", err)
 	}
 
 	createInstanceMessage := CreateInstanceMessage{
@@ -212,7 +213,7 @@ found:
 	}
 	_, err = browspr.HandleCreateInstanceRpc(vdl.ValueOf(createInstanceMessage))
 
-	err = browspr.HandleMessage(msgInstanceId, msgOrigin, string(msg))
+	err = browspr.HandleMessage(msgInstanceId, msgOrigin, msg)
 	if err != nil {
 		t.Fatalf("Error while handling message: %v", err)
 	}
@@ -227,7 +228,7 @@ found:
 	}
 
 	var outMsg app.Message
-	if err := lib.VomDecode(receivedMsg, &outMsg); err != nil {
+	if err := lib.HexVomDecode(receivedMsg, &outMsg); err != nil {
 		t.Fatalf("Failed to unmarshall outgoing message: %v", err)
 	}
 	if outMsg.Id != int32(1) {
@@ -238,7 +239,7 @@ found:
 	}
 
 	var responseMsg lib.Response
-	if err := lib.VomDecode(outMsg.Data, &responseMsg); err != nil {
+	if err := lib.HexVomDecode(outMsg.Data, &responseMsg); err != nil {
 		t.Fatalf("Failed to unmarshall outgoing response: %v", err)
 	}
 	if responseMsg.Type != lib.ResponseFinal {
@@ -250,7 +251,7 @@ found:
 		t.Errorf("Got unexpected response message body of type %T, expected type string", responseMsg.Message)
 	}
 	var result app.RpcResponse
-	if err := lib.VomDecode(outArg, &result); err != nil {
+	if err := lib.HexVomDecode(outArg, &result); err != nil {
 		t.Errorf("Failed to vom decode args from %v: %v", outArg, err)
 	}
 	if got, want := result.OutArgs[0], vdl.StringValue("[InputValue]"); !vdl.EqualValue(got, want) {

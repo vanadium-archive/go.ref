@@ -12,7 +12,7 @@ import (
 	"v.io/v23/vom"
 )
 
-func VomEncode(v interface{}) (string, error) {
+func HexVomEncode(v interface{}) (string, error) {
 	var buf bytes.Buffer
 	encoder := vom.NewEncoder(&buf)
 	if err := encoder.Encode(v); err != nil {
@@ -21,15 +21,15 @@ func VomEncode(v interface{}) (string, error) {
 	return hex.EncodeToString(buf.Bytes()), nil
 }
 
-func VomEncodeOrDie(v interface{}) string {
-	s, err := VomEncode(v)
+func HexVomEncodeOrDie(v interface{}) string {
+	s, err := HexVomEncode(v)
 	if err != nil {
 		panic(err)
 	}
 	return s
 }
 
-func VomDecode(data string, v interface{}) error {
+func HexVomDecode(data string, v interface{}) error {
 	binbytes, err := hex.DecodeString(data)
 	if err != nil {
 		return fmt.Errorf("Error decoding hex string %q: %v", data, err)

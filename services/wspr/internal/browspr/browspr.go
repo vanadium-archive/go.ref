@@ -17,6 +17,7 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/account"
+	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/principal"
 )
 
@@ -92,7 +93,7 @@ func (b *Browspr) createInstance(instanceId int32, origin string, namespaceRoots
 
 // HandleMessage handles most messages from javascript and forwards them to a
 // Controller.
-func (b *Browspr) HandleMessage(instanceId int32, origin, msg string) error {
+func (b *Browspr) HandleMessage(instanceId int32, origin string, msg app.Message) error {
 	b.mu.Lock()
 	p, ok := b.activeInstances[instanceId]
 	b.mu.Unlock()
