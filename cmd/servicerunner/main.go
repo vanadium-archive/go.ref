@@ -23,14 +23,12 @@ import (
 	"time"
 
 	"v.io/v23"
-	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/identity/identitylib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -60,7 +58,7 @@ func main() {
 }
 
 var cmdServiceRunner = &cmdline.Command{
-	Runner: v23cmd.RunnerFunc(run),
+	Runner: cmdline.RunnerFunc(run),
 	Name:   "servicerunner",
 	Short:  "Runs several services, including the mounttable, proxy and wspr.",
 	Long: `
@@ -128,10 +126,18 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 	return nil
 }
 
-func run(ctx *context.T, env *cmdline.Env, args []string) error {
+func run(env *cmdline.Env, args []string) error {
+	// The dispatch to modules children must occur after the call to cmdline.Main
+	// (which calls cmdline.Parse), so that servicerunner flags are registered on
+	// the global flag.CommandLine.
 	if modules.IsModulesChildProcess() {
 		return modules.Dispatch()
 	}
+
+	// We must wait until after we've dispatched to children before calling
+	// v23.Init, otherwise we'll end up initializing twice.
+	ctx, shutdown := v23.Init()
+	defer shutdown()
 
 	vars := map[string]string{}
 	sh, err := modules.NewShell(ctx, nil, false, nil)
