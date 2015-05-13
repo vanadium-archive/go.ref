@@ -128,9 +128,10 @@ alice/friend
 
 func V23TestDump(t *v23tests.T) {
 	var (
-		outputDir = t.NewTempDir("")
-		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
-		aliceDir  = filepath.Join(outputDir, "alice")
+		outputDir       = t.NewTempDir("")
+		bin             = t.BuildGoPkg("v.io/x/ref/cmd/principal")
+		aliceDir        = filepath.Join(outputDir, "alice")
+		aliceExpiredDir = filepath.Join(outputDir, "alice-expired")
 	)
 
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
@@ -138,6 +139,7 @@ func V23TestDump(t *v23tests.T) {
 	blessEnv := credEnv(aliceDir)
 	got := removePublicKeys(bin.WithEnv(blessEnv).Start("dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Default Blessings : alice
 ---------------- BlessingStore ----------------
 Default Blessings                alice
 Peer pattern                     Blessings
@@ -146,6 +148,35 @@ Peer pattern                     Blessings
 Public key                                        Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 `
+	if want != got {
+		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
+	}
+
+	got = bin.WithEnv(blessEnv).Start("dump", "-s").Output()
+	want = "alice\n"
+	if want != got {
+		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
+	}
+
+	bin.Start("--v23.credentials="+aliceDir, "fork", "--for", "-1h", aliceExpiredDir, "expired").WaitOrDie(os.Stdout, os.Stderr)
+	blessEnv = credEnv(aliceExpiredDir)
+	got = removePublicKeys(bin.WithEnv(blessEnv).Start("dump").Output())
+	want = `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Default Blessings : alice/expired [EXPIRED]
+---------------- BlessingStore ----------------
+Default Blessings                alice/expired
+Peer pattern                     Blessings
+...                              alice/expired
+---------------- BlessingRoots ----------------
+Public key                                        Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
+`
+	if want != got {
+		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
+	}
+
+	got = bin.WithEnv(blessEnv).Start("dump", "-s").Output()
+	want = "alice/expired [EXPIRED]\n"
 	if want != got {
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 	}
@@ -286,6 +317,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	// first "bless" command. (alice/friend/carol).
 	got := removePublicKeys(bin.Start("--v23.credentials="+carolDir, "dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Default Blessings : alice/friend/carol
 ---------------- BlessingStore ----------------
 Default Blessings                alice/friend/carol
 Peer pattern                     Blessings
@@ -324,6 +356,7 @@ func V23TestFork(t *v23tests.T) {
 	{
 		got := removePublicKeys(bin.Start("--v23.credentials="+alicePhoneDir, "dump").Output())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Default Blessings : alice/phone
 ---------------- BlessingStore ----------------
 Default Blessings                alice/phone
 Peer pattern                     Blessings
@@ -359,6 +392,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 	{
 		got := removePublicKeys(bin.Start("--v23.credentials="+alicePhoneCalendarDir, "dump").Output())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Default Blessings : alice/phone/calendar
 ---------------- BlessingStore ----------------
 Default Blessings                alice/phone/calendar
 Peer pattern                     Blessings

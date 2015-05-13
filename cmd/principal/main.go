@@ -91,10 +91,19 @@ that this tool is running in.
 		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
 			p := v23.GetPrincipal(ctx)
 			if flagDumpShort {
-				fmt.Printf("%v\n", p.BlessingStore().Default())
+				fmt.Printf("%s\n", printAnnotatedBlessingsNames(p.BlessingStore().Default()))
 				return nil
 			}
 			fmt.Printf("Public key : %v\n", p.PublicKey())
+			// NOTE(caprita): We print the default blessings name
+			// twice (it's also printed as part of the blessing
+			// store below) -- the reason we print it here is to
+			// expose whether the blessings are expired.  Ideally,
+			// the blessings store would print the expiry
+			// information about each blessing in the store, but
+			// that would require deeper changes beyond the
+			// principal tool.
+			fmt.Printf("Default Blessings : %s\n", printAnnotatedBlessingsNames(p.BlessingStore().Default()))
 			fmt.Println("---------------- BlessingStore ----------------")
 			fmt.Printf("%v", p.BlessingStore().DebugString())
 			fmt.Println("---------------- BlessingRoots ----------------")
@@ -127,12 +136,7 @@ this tool. - is used for STDIN.
 			if err != nil {
 				return fmt.Errorf("failed to decode certificate chains: %v", err)
 			}
-			// If the Blessings are expired, print a message saying so.
-			expiredMessage := ""
-			if exp := blessings.Expiry(); !exp.IsZero() && exp.Before(time.Now()) {
-				expiredMessage = " [EXPIRED]"
-			}
-			fmt.Printf("Blessings          : %v%s\n", blessings, expiredMessage)
+			fmt.Printf("Blessings          : %s\n", printAnnotatedBlessingsNames(blessings))
 			fmt.Printf("PublicKey          : %v\n", blessings.PublicKey())
 			fmt.Printf("Certificate chains : %d\n", len(wire.CertificateChains))
 			for idx, chain := range wire.CertificateChains {
@@ -786,6 +790,15 @@ This file can be supplied to bless:
 		}),
 	}
 )
+
+func printAnnotatedBlessingsNames(b security.Blessings) string {
+	// If the Blessings are expired, print a message saying so.
+	expiredMessage := ""
+	if exp := b.Expiry(); !exp.IsZero() && exp.Before(time.Now()) {
+		expiredMessage = " [EXPIRED]"
+	}
+	return fmt.Sprintf("%v%s", b, expiredMessage)
+}
 
 func blessArgs(args []string) (tobless, extension, remoteKey, remoteToken string, err error) {
 	if len(flagRemoteArgFile) > 0 && (len(flagBlessRemoteKey)+len(flagBlessRemoteToken) > 0) {
