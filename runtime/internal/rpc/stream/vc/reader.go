@@ -102,8 +102,8 @@ func (r *reader) readLocked(b []byte) (int, error) {
 
 func (r *reader) SetDeadline(deadline <-chan struct{}) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.deadline = deadline
+	r.mu.Unlock()
 }
 
 func (r *reader) BytesRead() uint32 {
