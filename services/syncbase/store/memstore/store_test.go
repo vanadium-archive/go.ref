@@ -15,6 +15,12 @@ func init() {
 	runtime.GOMAXPROCS(10)
 }
 
+func TestStream(t *testing.T) {
+	st := New()
+	defer st.Close()
+	test.RunStreamTest(t, st)
+}
+
 func TestReadWriteBasic(t *testing.T) {
 	st := New()
 	defer st.Close()

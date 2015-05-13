@@ -18,6 +18,12 @@ func init() {
 	runtime.GOMAXPROCS(10)
 }
 
+func TestStream(t *testing.T) {
+	db, dbPath := newDB()
+	defer destroyDB(db, dbPath)
+	test.RunStreamTest(t, db)
+}
+
 func TestReadWriteBasic(t *testing.T) {
 	st, path := newDB()
 	defer destroyDB(st, path)

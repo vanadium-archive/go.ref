@@ -89,5 +89,5 @@ func (s *stream) Err() error {
 func (s *stream) Cancel() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.err = verror.New(verror.ErrAborted, nil)
+	s.err = verror.New(verror.ErrCanceled, nil)
 }
