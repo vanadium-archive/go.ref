@@ -2,24 +2,38 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A simple command-line tool to run the benchmark server.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
 	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 )
 
 func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdRoot)
+}
 
+var cmdRoot = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runBenchmarkD),
+	Name:   "benchmarkd",
+	Short:  "Run the benchmark server",
+	Long:   "Command benchmarkd runs the benchmark server.",
+}
+
+func runBenchmarkD(ctx *context.T, env *cmdline.Env, args []string) error {
 	ep, stop := internal.StartServer(ctx, v23.GetListenSpec(ctx))
 	vlog.Infof("Listening on %s", ep.Name())
 	defer stop()
 	<-signals.ShutdownOnSignals(ctx)
+	return nil
 }

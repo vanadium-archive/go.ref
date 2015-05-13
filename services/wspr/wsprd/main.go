@@ -6,34 +6,57 @@
 //
 // We restrict wsprd to a special build-tag in order to enable
 // security.OverrideCaveatValidation, which isn't generally available.
+//
+// Manually run the following to generate the doc.go file.  This isn't a
+// go:generate comment, since generate also needs to be run with -tags=wspr,
+// which is troublesome for presubmit tests.
+//
+// cd $V23_ROOT/release/go/src && go run v.io/x/lib/cmdline/testdata/gendoc.go -tags=wspr v.io/x/ref/services/wspr/wsprd -help
 
-// Daemon wsprd implements the wspr web socket proxy as a stand-alone server.
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net"
 
 	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
 	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugin
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/wspr/wsprlib"
 )
 
-func main() {
+var (
+	port   int
+	identd string
+)
+
+func init() {
 	wsprlib.OverrideCaveatValidation()
-	port := flag.Int("port", 8124, "Port to listen on.")
-	identd := flag.String("identd", "", "name of identd server.")
+	cmdWsprD.Flags.IntVar(&port, "port", 8124, "Port to listen on.")
+	cmdWsprD.Flags.StringVar(&identd, "identd", "", "Name of identd server.")
+}
 
-	flag.Parse()
+func main() {
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdWsprD)
+}
 
-	ctx, shutdown := v23.Init()
-	defer shutdown()
+var cmdWsprD = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runWsprD),
+	Name:   "wsprd",
+	Short:  "Runs the wspr web socket proxy daemon",
+	Long: `
+Command wsprd runs the wspr web socket proxy daemon.
+`,
+}
 
+func runWsprD(ctx *context.T, env *cmdline.Env, args []string) error {
 	listenSpec := v23.GetListenSpec(ctx)
-	proxy := wsprlib.NewWSPR(ctx, *port, &listenSpec, *identd, nil)
+	proxy := wsprlib.NewWSPR(ctx, port, &listenSpec, identd, nil)
 	defer proxy.Shutdown()
 
 	addr := proxy.Listen()
@@ -44,4 +67,5 @@ func main() {
 	nhost, nport, _ := net.SplitHostPort(addr.String())
 	fmt.Printf("Listening on host: %s port: %s\n", nhost, nport)
 	<-signals.ShutdownOnSignals(ctx)
+	return nil
 }

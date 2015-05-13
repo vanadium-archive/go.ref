@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command rpsplayer implements the Player interface, which enables a human to
-// play the game.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"sort"
 	"strings"
@@ -21,22 +21,35 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
+	"v.io/x/ref/lib/v23cmd"
 
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
-var (
-	name      = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
-	permsFile = flag.String("acl-file", "", "file containing the JSON-encoded Permissions")
-)
+var name, aclFile string
 
 func main() {
-	rootctx, shutdown := v23.Init()
-	defer shutdown()
+	cmdRoot.Flags.StringVar(&name, "name", "", "Identifier to publish as (defaults to user@hostname).")
+	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdRoot)
+}
 
+var cmdRoot = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runPlayer),
+	Name:   "rpsplayer",
+	Short:  "Implements the Player interface",
+	Long: `
+Command rpsplayer implements the Player interface, which enables a human to play
+the game.
+`,
+}
+
+func runPlayer(rootctx *context.T, env *cmdline.Env, args []string) error {
 	for {
 		ctx, _ := vtrace.WithNewTrace(rootctx)
 		if selectOne([]string{"Initiate Game", "Wait For Challenge"}) == 0 {
@@ -50,6 +63,7 @@ func main() {
 			break
 		}
 	}
+	return nil
 }
 
 type gameChallenge struct {
@@ -119,10 +133,10 @@ func recvChallenge(ctx *context.T) gameChallenge {
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
-	if *name == "" {
-		*name = internal.CreateName()
+	if name == "" {
+		name = internal.CreateName()
 	}
-	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.PlayerServer(&impl{ch: ch}), internal.NewAuthorizer(*permsFile)); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/player/%s", name), rps.PlayerServer(&impl{ch: ch}), internal.NewAuthorizer(aclFile)); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)

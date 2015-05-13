@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -37,7 +40,7 @@ func main() {
 	cmdRoot := &cmdline.Command{
 		Name:  "stress",
 		Short: "Tool to stress/load test RPC",
-		Long:  "Tool to stress/load test RPC by issuing randomly generated requests",
+		Long:  "Command stress is a tool to stress/load test RPC by issuing randomly generated requests.",
 		Children: []*cmdline.Command{
 			cmdStressTest,
 			cmdStressStats,
@@ -45,5 +48,6 @@ func main() {
 			cmdStopServers,
 		},
 	}
+	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }

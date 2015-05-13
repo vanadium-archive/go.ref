@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
@@ -14,8 +17,11 @@ import (
 	"runtime"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/envvar"
+	"v.io/x/ref/lib/v23cmd"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 )
@@ -29,25 +35,23 @@ func newKey() security.PublicKey {
 }
 
 func main() {
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdTestPrincipal)
+}
+
+var cmdTestPrincipal = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runTestPrincipal),
+	Name:   "test_principal",
+	Short:  "Runs tests against a principal",
+	Long:   "Command test_principal runs tests against a principal.",
+}
+
+func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	var errors []string
-	defer func() {
-		if len(errors) == 0 {
-			return
-		}
-		// Print out all errors and exit with failure.
-		for _, e := range errors {
-			fmt.Fprintln(os.Stderr, e)
-		}
-		os.Exit(1)
-	}()
 	errorf := func(format string, args ...interface{}) {
 		_, file, line, _ := runtime.Caller(1)
 		errors = append(errors, fmt.Sprintf("%v:%d: %v", file, line, fmt.Sprintf(format, args...)))
 	}
-
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
 	p := v23.GetPrincipal(ctx)
 	// Make sure we're running under a pristine agent to begin with.
 	// The agent aims to be transparent, so use a collection of heuristics
@@ -131,4 +135,13 @@ func main() {
 	if forpeer := p.BlessingStore().ForPeer("superman/friend"); !reflect.DeepEqual(forpeer, b) {
 		errorf("BlessingStore().ForPeer returned %v and not %v", forpeer, b)
 	}
+
+	if len(errors) > 0 {
+		// Print out all errors and exit with failure.
+		for _, e := range errors {
+			fmt.Fprintln(env.Stderr, e)
+		}
+		return cmdline.ErrExitCode(1)
+	}
+	return nil
 }

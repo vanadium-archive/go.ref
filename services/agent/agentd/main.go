@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Daemon agentd holds a private key in memory and makes it available to a
-// subprocess via the agent protocol.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
@@ -21,6 +22,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/lib/security"
@@ -37,46 +39,51 @@ var (
 	errCantReadPassphrase       = verror.Register(pkgPath+".errCantReadPassphrase", verror.NoRetry, "{1:}{2:} failed to read passphrase{:_}")
 	errNeedPassphrase           = verror.Register(pkgPath+".errNeedPassphrase", verror.NoRetry, "{1:}{2:} Passphrase required for decrypting principal{:_}")
 	errCantParseRestartExitCode = verror.Register(pkgPath+".errCantParseRestartExitCode", verror.NoRetry, "{1:}{2:} Failed to parse restart exit code{:_}")
+
+	keypath, restartExitCode, newname string
+	noPassphrase                      bool
 )
 
-var (
-	keypath      = flag.String("additional-principals", "", "If non-empty, allow for the creation of new principals and save them in this directory.")
-	noPassphrase = flag.Bool("no-passphrase", false, "If true, user will not be prompted for principal encryption passphrase.")
+func main() {
+	cmdAgentD.Flags.StringVar(&keypath, "additional-principals", "", "If non-empty, allow for the creation of new principals and save them in this directory.")
+	cmdAgentD.Flags.BoolVar(&noPassphrase, "no-passphrase", false, "If true, user will not be prompted for principal encryption passphrase.")
 
 	// TODO(caprita): We use the exit code of the child to determine if the
 	// agent should restart it.  Consider changing this to use the unix
 	// socket for this purpose.
-	restartExitCode = flag.String("restart-exit-code", "", "If non-empty, will restart the command when it exits, provided that the command's exit code matches the value of this flag.  The value must be an integer, or an integer preceded by '!' (in which case all exit codes except the flag will trigger a restart.")
+	cmdAgentD.Flags.StringVar(&restartExitCode, "restart-exit-code", "", "If non-empty, will restart the command when it exits, provided that the command's exit code matches the value of this flag.  The value must be an integer, or an integer preceded by '!' (in which case all exit codes except the flag will trigger a restart).")
 
-	newname = flag.String("new-principal-blessing-name", "", "If creating a new principal (--v23.credentials does not exist), then have it blessed with this name.")
-)
+	cmdAgentD.Flags.StringVar(&newname, "new-principal-blessing-name", "", "If creating a new principal (--v23.credentials does not exist), then have it blessed with this name.")
 
-func main() {
-	os.Exit(Main())
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdAgentD)
 }
 
-func Main() int {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: %s [agent options] command command_args...
+var cmdAgentD = &cmdline.Command{
+	Runner: cmdline.RunnerFunc(runAgentD),
+	Name:   "agentd",
+	Short:  "Holds a private key in memory and makes it available to a subprocess",
+	Long: fmt.Sprintf(`
+Command agentd runs the security agent daemon, which holds a private key in
+memory and makes it available to a subprocess.
 
 Loads the private key specified in privatekey.pem in %v into memory, then
 starts the specified command with access to the private key via the
 agent protocol instead of directly reading from disk.
+`, envvar.Credentials),
+	ArgsName: "command [command_args...]",
+	ArgsLong: `
+The command is started as a subprocess with the given [command_args...].
+`,
+}
 
-`, os.Args[0], envvar.Credentials)
-		flag.PrintDefaults()
-	}
-	flag.Parse()
-	if len(flag.Args()) < 1 {
-		fmt.Fprintln(os.Stderr, "Need at least one argument.")
-		flag.Usage()
-		return 1
+func runAgentD(env *cmdline.Env, args []string) error {
+	if len(args) < 1 {
+		return env.UsageErrorf("Need at least one argument.")
 	}
 	var restartOpts restartOptions
 	if err := restartOpts.parse(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		flag.Usage()
-		return 1
+		return env.UsageErrorf("%v", err)
 	}
 
 	// This is a bit tricky. We're trying to share the runtime's
@@ -93,26 +100,26 @@ agent protocol instead of directly reading from disk.
 		f.Set("")
 	}
 	if len(dir) == 0 {
-		vlog.Fatalf("The %v environment variable must be set to a directory: %q", envvar.Credentials, os.Getenv(envvar.Credentials))
+		return env.UsageErrorf("The %v environment variable must be set to a directory: %q", envvar.Credentials, os.Getenv(envvar.Credentials))
 	}
 
 	p, passphrase, err := newPrincipalFromDir(dir)
 	if err != nil {
-		vlog.Fatalf("failed to create new principal from dir(%s): %v", dir, err)
+		return fmt.Errorf("failed to create new principal from dir(%s): %v", dir, err)
 	}
 
 	// Clear out the environment variable before v23.Init.
 	if err = envvar.ClearCredentials(); err != nil {
-		vlog.Fatalf("envvar.ClearCredentials: %v", err)
+		return fmt.Errorf("envvar.ClearCredentials: %v", err)
 	}
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
-		vlog.Panicf("failed to set principal for ctx: %v", err)
+		return fmt.Errorf("failed to set principal for ctx: %v", err)
 	}
 
-	if *keypath == "" && passphrase != nil {
+	if keypath == "" && passphrase != nil {
 		// If we're done with the passphrase, zero it out so it doesn't stay in memory
 		for i := range passphrase {
 			passphrase[i] = 0
@@ -124,15 +131,15 @@ agent protocol instead of directly reading from disk.
 	var sock, mgrSock *os.File
 	var endpoint string
 	if sock, endpoint, err = server.RunAnonymousAgent(ctx, p, childAgentFd); err != nil {
-		vlog.Fatalf("RunAnonymousAgent: %v", err)
+		return fmt.Errorf("RunAnonymousAgent: %v", err)
 	}
 	if err = os.Setenv(envvar.AgentEndpoint, endpoint); err != nil {
-		vlog.Fatalf("setenv: %v", err)
+		return fmt.Errorf("setenv: %v", err)
 	}
 
-	if *keypath != "" {
-		if mgrSock, err = server.RunKeyManager(ctx, *keypath, passphrase); err != nil {
-			vlog.Fatalf("RunKeyManager: %v", err)
+	if keypath != "" {
+		if mgrSock, err = server.RunKeyManager(ctx, keypath, passphrase); err != nil {
+			return fmt.Errorf("RunKeyManager: %v", err)
 		}
 	}
 
@@ -140,9 +147,9 @@ agent protocol instead of directly reading from disk.
 	for {
 		// Run the client and wait for it to finish.
 		cmd := exec.Command(flag.Args()[0], flag.Args()[1:]...)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdin = env.Stdin
+		cmd.Stdout = env.Stdout
+		cmd.Stderr = env.Stderr
 		cmd.ExtraFiles = []*os.File{sock}
 
 		if mgrSock != nil {
@@ -151,7 +158,7 @@ agent protocol instead of directly reading from disk.
 
 		err = cmd.Start()
 		if err != nil {
-			vlog.Fatalf("Error starting child: %v", err)
+			return fmt.Errorf("Error starting child: %v", err)
 		}
 		shutdown := make(chan struct{})
 		go func() {
@@ -178,7 +185,10 @@ agent protocol instead of directly reading from disk.
 	// right after cmd.Start().
 	sock.Close()
 	mgrSock.Close()
-	return exitCode
+	if exitCode != 0 {
+		return cmdline.ErrExitCode(exitCode)
+	}
+	return nil
 }
 
 func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
@@ -195,7 +205,7 @@ func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
 func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 	fmt.Println("Private key file does not exist. Creating new private key...")
 	var pass []byte
-	if !*noPassphrase {
+	if !noPassphrase {
 		var err error
 		if pass, err = getPassword("Enter passphrase (entering nothing will store unencrypted): "); err != nil {
 			return nil, nil, verror.New(errCantReadPassphrase, nil, err)
@@ -205,7 +215,7 @@ func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 	if err != nil {
 		return nil, pass, err
 	}
-	name := *newname
+	name := newname
 	if len(name) == 0 {
 		name = "agent_principal"
 	}
@@ -214,7 +224,7 @@ func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 }
 
 func handlePassphrase(dir string) (security.Principal, []byte, error) {
-	if *noPassphrase {
+	if noPassphrase {
 		return nil, nil, verror.New(errNeedPassphrase, nil)
 	}
 	pass, err := getPassword("Private key file is encrypted. Please enter passphrase.\nEnter passphrase: ")
@@ -300,7 +310,7 @@ type restartOptions struct {
 }
 
 func (opts *restartOptions) parse() error {
-	code := *restartExitCode
+	code := restartExitCode
 	if code == "" {
 		return nil
 	}

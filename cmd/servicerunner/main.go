@@ -5,10 +5,13 @@
 // +build wspr
 //
 // We restrict to a special build-tag since it's required by wsprlib.
+//
+// Manually run the following to generate the doc.go file.  This isn't a
+// go:generate comment, since generate also needs to be run with -tags=wspr,
+// which is troublesome for presubmit tests.
+//
+// cd $V23_ROOT/release/go/src && go run v.io/x/lib/cmdline/testdata/gendoc.go -tags=wspr v.io/x/ref/cmd/servicerunner -help
 
-// Command servicerunner runs several Vanadium services, including the
-// mounttable, proxy and wspr.  It prints a JSON map with their vars to stdout
-// (as a single line), then waits forever.
 package main
 
 import (
@@ -20,27 +23,51 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/identity/identitylib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
+	"v.io/x/ref/services/wspr/wsprlib"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 )
 
-func panicOnError(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
+var (
+	port   int
+	identd string
+)
 
 func init() {
+	wsprlib.OverrideCaveatValidation()
+	cmdServiceRunner.Flags.IntVar(&port, "port", 8124, "Port for wspr to listen on.")
+	cmdServiceRunner.Flags.StringVar(&identd, "identd", "", "Name of wspr identd server.")
 	modules.RegisterChild("rootMT", ``, rootMT)
+	modules.RegisterChild(wsprdCommand, modules.Usage(&cmdServiceRunner.Flags), startWSPR)
+}
+
+const wsprdCommand = "wsprd"
+
+func main() {
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdServiceRunner)
+}
+
+var cmdServiceRunner = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(run),
+	Name:   "servicerunner",
+	Short:  "Runs several services, including the mounttable, proxy and wspr.",
+	Long: `
+Command servicerunner runs several Vanadium services, including the mounttable,
+proxy and wspr.  It prints a JSON map with their vars to stdout (as a single
+line), then waits forever.
+`,
 }
 
 func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -101,17 +128,12 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 	return nil
 }
 
-func main() {
+func run(ctx *context.T, env *cmdline.Env, args []string) error {
 	if modules.IsModulesChildProcess() {
-		panicOnError(modules.Dispatch())
-		return
+		return modules.Dispatch()
 	}
 
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
 	vars := map[string]string{}
-
 	sh, err := modules.NewShell(ctx, nil, false, nil)
 	if err != nil {
 		panic(fmt.Sprintf("modules.NewShell: %s", err))
@@ -119,8 +141,12 @@ func main() {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
 	h, err := sh.Start("rootMT", nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0")
-	panicOnError(err)
-	panicOnError(updateVars(h, vars, "MT_NAME"))
+	if err != nil {
+		return err
+	}
+	if err := updateVars(h, vars, "MT_NAME"); err != nil {
+		return err
+	}
 
 	// Set envvar.NamespacePrefix env var, consumed downstream.
 	sh.SetVar(envvar.NamespacePrefix, vars["MT_NAME"])
@@ -132,17 +158,46 @@ func main() {
 	defer proxyShutdown()
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 
-	h, err = sh.Start(WSPRDCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
-	panicOnError(err)
-	panicOnError(updateVars(h, vars, "WSPR_ADDR"))
+	h, err = sh.Start(wsprdCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
+	if err != nil {
+		return err
+	}
+	if err := updateVars(h, vars, "WSPR_ADDR"); err != nil {
+		return err
+	}
 
 	h, err = sh.Start(identitylib.TestIdentitydCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--http-addr=localhost:0")
-	panicOnError(err)
-	panicOnError(updateVars(h, vars, "TEST_IDENTITYD_NAME", "TEST_IDENTITYD_HTTP_ADDR"))
+	if err != nil {
+		return err
+	}
+	if err := updateVars(h, vars, "TEST_IDENTITYD_NAME", "TEST_IDENTITYD_HTTP_ADDR"); err != nil {
+		return err
+	}
 
 	bytes, err := json.Marshal(vars)
-	panicOnError(err)
+	if err != nil {
+		return err
+	}
 	fmt.Println(string(bytes))
 
 	<-signals.ShutdownOnSignals(ctx)
+	return nil
+}
+
+func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	l := v23.GetListenSpec(ctx)
+	proxy := wsprlib.NewWSPR(ctx, port, &l, identd, nil)
+	defer proxy.Shutdown()
+
+	addr := proxy.Listen()
+	go func() {
+		proxy.Serve()
+	}()
+
+	fmt.Fprintf(stdout, "WSPR_ADDR=%s\n", addr)
+	modules.WaitForEOF(stdin)
+	return nil
 }

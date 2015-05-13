@@ -2,51 +2,65 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Daemon proxyd listens for connections from Vanadium services (typically
-// behind NATs) and proxies these services to the outside world.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/runtime/factories/static"
 )
 
-var (
-	pubAddress  = flag.String("published-address", "", "deprecated - the proxy now uses listenspecs and the address chooser mechanism")
-	healthzAddr = flag.String("healthz-address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
-	name        = flag.String("name", "", "Name to mount the proxy as")
-	acl         = flag.String("access-list", "", "Blessings that are authorized to listen via the proxy. JSON-encoded representation of access.AccessList. An empty string implies the default authorization policy.")
-)
+var pubAddress, healthzAddr, name, acl string
 
 func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
+	cmdProxyD.Flags.StringVar(&pubAddress, "published-address", "", "DEPRECATED - the proxy now uses listenspecs and the address chooser mechanism.")
+	cmdProxyD.Flags.StringVar(&healthzAddr, "healthz-address", "", "Network address on which the HTTP healthz server runs.  It is intended to be used with a load balancer.  The load balancer must be able to reach this address in order to verify that the proxy server is running.")
+	cmdProxyD.Flags.StringVar(&name, "name", "", "Name to mount the proxy as.")
+	cmdProxyD.Flags.StringVar(&acl, "access-list", "", "Blessings that are authorized to listen via the proxy.  JSON-encoded representation of access.AccessList.  An empty string implies the default authorization policy.")
 
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdProxyD)
+}
+
+var cmdProxyD = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runProxyD),
+	Name:   "proxyd",
+	Short:  "Proxies services to the outside world",
+	Long: `
+Command proxyd is a daemon that listens for connections from Vanadium services
+(typically behind NATs) and proxies these services to the outside world.
+`,
+}
+
+func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 	listenSpec := v23.GetListenSpec(ctx)
 	if len(listenSpec.Addrs) != 1 {
-		vlog.Fatalf("proxyd can only listen on one address: %v", listenSpec.Addrs)
+		return env.UsageErrorf("proxyd can only listen on one address: %v", listenSpec.Addrs)
 	}
 	if listenSpec.Proxy != "" {
-		vlog.Fatalf("proxyd cannot listen through another proxy")
+		return env.UsageErrorf("proxyd cannot listen through another proxy")
 	}
 	var authorizer security.Authorizer
-	if len(*acl) > 0 {
+	if len(acl) > 0 {
 		var list access.AccessList
-		if err := json.NewDecoder(bytes.NewBufferString(*acl)).Decode(&list); err != nil {
-			vlog.Fatalf("invalid --access-list: %v", err)
+		if err := json.NewDecoder(bytes.NewBufferString(acl)).Decode(&list); err != nil {
+			return env.UsageErrorf("invalid -access-list: %v", err)
 		}
 		// Always add ourselves, for the the reserved methods server
 		// started below.
@@ -55,13 +69,13 @@ func main() {
 		authorizer = list
 	}
 
-	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec, authorizer, *name)
+	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec, authorizer, name)
 	if err != nil {
-		vlog.Fatal(err)
+		return err
 	}
 	defer proxyShutdown()
 
-	if len(*name) > 0 {
+	if len(name) > 0 {
 		// Print out a directly accessible name for the proxy table so
 		// that integration tests can reliably read it from stdout.
 		fmt.Printf("NAME=%s\n", proxyEndpoint.Name())
@@ -69,30 +83,31 @@ func main() {
 		fmt.Printf("Proxy listening on %s\n", proxyEndpoint)
 	}
 
-	if len(*healthzAddr) != 0 {
-		go startHealthzServer(*healthzAddr)
+	if len(healthzAddr) != 0 {
+		go startHealthzServer(healthzAddr)
 	}
 
 	// Start an RPC Server that listens through the proxy itself. This
 	// server will serve reserved methods only.
 	server, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Fatalf("NewServer failed: %v", err)
+		return fmt.Errorf("NewServer failed: %v", err)
 	}
 	defer server.Stop()
 	ls := rpc.ListenSpec{Proxy: proxyEndpoint.Name()}
 	if _, err := server.Listen(ls); err != nil {
-		vlog.Fatalf("Listen(%v) failed: %v", ls, err)
+		return fmt.Errorf("Listen(%v) failed: %v", ls, err)
 	}
 	var monitoringName string
-	if len(*name) > 0 {
-		monitoringName = *name + "-mon"
+	if len(name) > 0 {
+		monitoringName = name + "-mon"
 	}
 	if err := server.ServeDispatcher(monitoringName, &nilDispatcher{}); err != nil {
-		vlog.Fatalf("ServeDispatcher(%v) failed: %v", monitoringName, err)
+		return fmt.Errorf("ServeDispatcher(%v) failed: %v", monitoringName, err)
 	}
 
 	<-signals.ShutdownOnSignals(ctx)
+	return nil
 }
 
 type nilDispatcher struct{}

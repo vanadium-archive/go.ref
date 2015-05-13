@@ -2,42 +2,57 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command rpsbot repeatedly runs automated games, implementing all three roles.
-// It publishes itself as player, judge, and scorekeeper. Then, it initiates
-// games with other players, in a loop. As soon as one game is over, it starts a
-// new one.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
-	"flag"
 	"fmt"
 	"math/rand"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
 
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var (
-	name      = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
-	numGames  = flag.Int("num-games", -1, "number of games to play (-1 means unlimited)")
-	permsFile = flag.String("acl-file", "", "file containing the JSON-encoded Permissions")
+	name, aclFile string
+	numGames      int
 )
 
 func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
+	cmdRoot.Flags.StringVar(&name, "name", "", "Identifier to publish as (defaults to user@hostname).")
+	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
+	cmdRoot.Flags.IntVar(&numGames, "num-games", -1, "Number of games to play (-1 means unlimited).")
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdRoot)
+}
 
-	auth := internal.NewAuthorizer(*permsFile)
+var cmdRoot = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runBot),
+	Name:   "rpsbot",
+	Short:  "repeatedly runs automated games",
+	Long: `
+Command rpsbot repeatedly runs automated games, implementing all three roles.
+It publishes itself as player, judge, and scorekeeper. Then, it initiates games
+with other players, in a loop. As soon as one game is over, it starts a new one.
+`,
+}
+
+func runBot(ctx *context.T, env *cmdline.Env, args []string) error {
+	auth := internal.NewAuthorizer(aclFile)
 	server, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Fatalf("NewServer failed: %v", err)
+		return fmt.Errorf("NewServer failed: %v", err)
 	}
 
 	rand.Seed(time.Now().UnixNano())
@@ -46,32 +61,33 @@ func main() {
 	listenSpec := v23.GetListenSpec(ctx)
 	eps, err := server.Listen(listenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
+		return fmt.Errorf("Listen(%v) failed: %v", listenSpec, err)
 	}
-	if *name == "" {
-		*name = internal.CreateName()
+	if name == "" {
+		name = internal.CreateName()
 	}
 	names := []string{
-		fmt.Sprintf("rps/judge/%s", *name),
-		fmt.Sprintf("rps/player/%s", *name),
-		fmt.Sprintf("rps/scorekeeper/%s", *name),
+		fmt.Sprintf("rps/judge/%s", name),
+		fmt.Sprintf("rps/player/%s", name),
+		fmt.Sprintf("rps/scorekeeper/%s", name),
 	}
 	if err := server.Serve(names[0], rps.RockPaperScissorsServer(rpsService), auth); err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", names[0], err)
+		return fmt.Errorf("Serve(%v) failed: %v", names[0], err)
 	}
 	for _, n := range names[1:] {
 		if err := server.AddName(n); err != nil {
-			vlog.Fatalf("(%v) failed: %v", n, err)
+			return fmt.Errorf("(%v) failed: %v", n, err)
 		}
 	}
 	vlog.Infof("Listening on endpoint %s (published as %v)", eps, names)
 
 	go initiateGames(ctx, rpsService)
 	<-signals.ShutdownOnSignals(ctx)
+	return nil
 }
 
 func initiateGames(ctx *context.T, rpsService *RPS) {
-	for i := 0; i < *numGames || *numGames == -1; i++ {
+	for i := 0; i < numGames || numGames == -1; i++ {
 		if err := rpsService.Player().InitiateGame(ctx); err != nil {
 			vlog.Infof("Failed to initiate game: %v", err)
 		}

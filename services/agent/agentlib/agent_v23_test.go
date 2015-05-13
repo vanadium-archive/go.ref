@@ -48,15 +48,18 @@ func V23TestTestPassPhraseUse(i *v23tests.T) {
 	fmt.Fprintln(agent.Stdin(), "BADPASSWORD")
 	agent.ExpectEOF()
 	var stdout, stderr bytes.Buffer
-	if err := agent.Wait(&stdout, &stderr); err == nil {
+	err := agent.Wait(&stdout, &stderr)
+	if err == nil {
 		i.Fatalf("expected an error.STDOUT:%v\nSTDERR:%v\n", stdout.String(), stderr.String())
-	} else if got, want := err.Error(), "exit status 255"; got != want {
-		i.Fatalf("Got %q, want %q", got, want)
-	} else if got, want := stderr.String(), "passphrase incorrect for decrypting private key"; !strings.Contains(got, want) {
-		i.Fatalf("Got %q, wanted it to contain %q", got, want)
+	}
+	if got, want := err.Error(), "exit status 1"; got != want {
+		i.Errorf("Got %q, want %q", got, want)
+	}
+	if got, want := stderr.String(), "passphrase incorrect for decrypting private key"; !strings.Contains(got, want) {
+		i.Errorf("Got %q, wanted it to contain %q", got, want)
 	}
 	if err := agent.Error(); err != nil {
-		i.Fatal(err)
+		i.Error(err)
 	}
 }
 

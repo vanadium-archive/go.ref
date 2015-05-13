@@ -2,21 +2,45 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
-	"flag"
 	"fmt"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 )
+
+func main() {
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdPingPong)
+}
+
+var cmdPingPong = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runPingPong),
+	Name:   "pingpong",
+	Short:  "Runs pingpong client or server",
+	Long: `
+Command pingpong runs a pingpong client or server.  If no args are given the
+server is run, otherwise the client is run.
+`,
+	ArgsName: "[server]",
+	ArgsLong: `
+If [server] is specified, pingpong is run in client mode, and connects to the
+named server.
+`,
+}
 
 type pongd struct{}
 
@@ -26,49 +50,48 @@ func (f *pongd) Ping(ctx *context.T, call rpc.ServerCall, message string) (resul
 	return fmt.Sprintf("pong (client:%v server:%v)", client, server), nil
 }
 
-func clientMain(ctx *context.T, server string) {
+func clientMain(ctx *context.T, server string) error {
 	fmt.Println("Pinging...")
 	pong, err := PingPongClient(server).Ping(ctx, "ping")
 	if err != nil {
-		vlog.Fatal("error pinging: ", err)
+		return fmt.Errorf("error pinging: %v", err)
 	}
 	fmt.Println(pong)
+	return nil
 }
 
-func serverMain(ctx *context.T) {
+func serverMain(ctx *context.T) error {
 	s, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Fatal("failure creating server: ", err)
+		return fmt.Errorf("failure creating server: %v", err)
 	}
 	vlog.Info("Waiting for ping")
 	spec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	if endpoints, err := s.Listen(spec); err == nil {
-		fmt.Printf("NAME=%v\n", endpoints[0].Name())
-	} else {
-		vlog.Fatal("error listening to service:", err)
+	endpoints, err := s.Listen(spec)
+	if err != nil {
+		return fmt.Errorf("error listening to service: %v", err)
 	}
+	fmt.Printf("NAME=%v\n", endpoints[0].Name())
 	// Provide an empty name, no need to mount on any mounttable.
 	//
 	// Use the default authorization policy (nil authorizer), which will
 	// only authorize clients if the blessings of the client is a prefix of
 	// that of the server or vice-versa.
 	if err := s.Serve("", PingPongServer(&pongd{}), nil); err != nil {
-		vlog.Fatal("error serving service: ", err)
+		return fmt.Errorf("error serving service: %v", err)
 	}
 
 	// Wait forever.
 	<-signals.ShutdownOnSignals(ctx)
+	return nil
 }
 
-func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
-	if len(flag.Args()) == 0 {
-		serverMain(ctx)
-	} else if len(flag.Args()) == 1 {
-		clientMain(ctx, flag.Args()[0])
-	} else {
-		vlog.Fatalf("Expected at most one argument, the object name of the server. Got %v", flag.Args())
+func runPingPong(ctx *context.T, env *cmdline.Env, args []string) error {
+	switch len(args) {
+	case 0:
+		return serverMain(ctx)
+	case 1:
+		return clientMain(ctx, args[0])
 	}
+	return env.UsageErrorf("Too many arguments")
 }

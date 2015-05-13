@@ -2,37 +2,50 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Daemon mounttabled implements the v.io/v23/services/mounttable interfaces.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
-	"flag"
 	"fmt"
-	"os"
 
 	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 )
 
-var (
-	mountName  = flag.String("name", "", `<name>, if provided, causes the mount table to mount itself under that name. The name may be absolute for a remote mount table service (e.g., "/<remote mt address>//some/suffix") or could be relative to this process' default mount table (e.g., "some/suffix").`)
-	aclFile    = flag.String("acls", "", "AccessList file. Default is to allow all access.")
-	nhName     = flag.String("neighborhood-name", "", `<nh name>, if provided, will enable sharing with the local neighborhood with the provided name. The address of this mounttable will be published to the neighboorhood and everything in the neighborhood will be visible on this mounttable.`)
-	persistDir = flag.String("persist-dir", "", `Directory in which to persist permissions.`)
-)
+var mountName, aclFile, nhName, persistDir string
 
 func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
+	cmdMTD.Flags.StringVar(&mountName, "name", "", `If provided, causes the mount table to mount itself under this name.  The name may be absolute for a remote mount table service (e.g. "/<remote mt address>//some/suffix") or could be relative to this process' default mount table (e.g. "some/suffix").`)
+	cmdMTD.Flags.StringVar(&aclFile, "acls", "", "AccessList file.  Default is to allow all access.")
+	cmdMTD.Flags.StringVar(&nhName, "neighborhood-name", "", `If provided, enables sharing with the local neighborhood with the provided name.  The address of this mounttable will be published to the neighboorhood and everything in the neighborhood will be visible on this mounttable.`)
+	cmdMTD.Flags.StringVar(&persistDir, "persist-dir", "", `Directory in which to persist permissions.`)
 
-	name, stop, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), *mountName, *nhName, *aclFile, *persistDir, "mounttable")
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdMTD)
+}
+
+var cmdMTD = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runMountTableD),
+	Name:   "mounttabled",
+	Short:  "Runs the mounttable interface daemon",
+	Long: `
+Command mounttabled runs the mounttable daemon, which implements the
+v.io/v23/services/mounttable interfaces.
+`,
+}
+
+func runMountTableD(ctx *context.T, env *cmdline.Env, args []string) error {
+	name, stop, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), mountName, nhName, aclFile, persistDir, "mounttable")
 	if err != nil {
-		vlog.Errorf("mounttablelib.StartServers failed: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("mounttablelib.StartServers failed: %v", err)
 	}
 	defer stop()
 
@@ -42,4 +55,5 @@ func main() {
 
 	// Wait until signal is received.
 	vlog.Info("Received signal ", <-signals.ShutdownOnSignals(ctx))
+	return nil
 }

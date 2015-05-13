@@ -2,37 +2,53 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command helloclient is the simplest possible client.  It is mainly used in simple
-// regression tests.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
-	"flag"
+	"errors"
 	"fmt"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-var name *string = flag.String("name", "", "Name of the hello server")
+var name string
 
 func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
+	cmdHelloClient.Flags.StringVar(&name, "name", "", "Name of the hello server.")
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdHelloClient)
+}
 
+var cmdHelloClient = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runHelloClient),
+	Name:   "helloclient",
+	Short:  "Simple client mainly used in regression tests.",
+	Long: `
+Command helloclient is a simple client mainly used in regression tests.
+`,
+}
+
+func runHelloClient(ctx *context.T, env *cmdline.Env, args []string) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	var result string
-	err := v23.GetClient(ctx).Call(ctx, *name, "Hello", nil, []interface{}{&result})
+	err := v23.GetClient(ctx).Call(ctx, name, "Hello", nil, []interface{}{&result})
 	if err != nil {
-		panic(verror.DebugString(err))
+		return errors.New(verror.DebugString(err))
 	}
 
-	if result != "hello" {
-		panic(fmt.Sprintf("Unexpected result.  Wanted %q, got %q", "hello", result))
+	if got, want := result, "hello"; got != want {
+		return fmt.Errorf("Unexpected result, got %q, want %q", got, want)
 	}
+	return nil
 }

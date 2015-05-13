@@ -9,7 +9,6 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 
@@ -17,7 +16,10 @@ import (
 )
 
 // Flag controlling auditing and revocation of Blessing operations.
-var sqlConf = flag.String("sql-config", "", `Path to file containing a json object of the following form:
+var sqlConf string
+
+func init() {
+	cmdIdentityD.Flags.StringVar(&sqlConf, "sql-config", "", `Path to file containing a json object of the following form:
    {
     "dataSourceName": "[username[:password]@][protocol[(address)]]/dbname", (the connection string required by go-sql-driver)
     "tlsServerName": "serverName", (the domain name of the sql server for ssl)
@@ -25,6 +27,7 @@ var sqlConf = flag.String("sql-config", "", `Path to file containing a json obje
     "clientCertPath": "/path/client-cert.pem", (the client certificate for ssl)
     "clientKeyPath": "/path/client-key.pem" (the client private key for ssl)
    }`)
+}
 
 // The key used by both go-sql-driver and tls for ssl.
 const tlsRegisteredKey = "identitydTLS"

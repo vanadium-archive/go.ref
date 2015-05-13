@@ -2,32 +2,50 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Daemon binaryd implements the v.io/v23/services/repository.Binary interface.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
-	"flag"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/x/lib/vlog"
-
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/netstate"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/internal/binarylib"
 )
 
 const defaultDepth = 3
 
-var (
-	name        = flag.String("name", "", "name to mount the binary repository as")
-	rootDirFlag = flag.String("root-dir", "", "root directory for the binary repository")
-	httpAddr    = flag.String("http", ":0", "TCP address on which the HTTP server runs")
-)
+var name, rootDirFlag, httpAddr string
+
+func main() {
+	cmdBinaryD.Flags.StringVar(&name, "name", "", "Name to mount the binary repository as.")
+	cmdBinaryD.Flags.StringVar(&rootDirFlag, "root-dir", "", "Root directory for the binary repository.")
+	cmdBinaryD.Flags.StringVar(&httpAddr, "http", ":0", "TCP address on which the HTTP server runs.")
+
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdBinaryD)
+}
+
+var cmdBinaryD = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runBinaryD),
+	Name:   "binaryd",
+	Short:  "Runs the binary daemon.",
+	Long: `
+Command binaryd runs the binary daemon, which implements the
+v.io/v23/services/repository.Binary interface.
+`,
+}
 
 // toIPPort tries to swap in the 'best' accessible IP for the host part of the
 // address, if the provided address has an unspecified IP.
@@ -52,27 +70,21 @@ func toIPPort(ctx *context.T, addr string) string {
 	return net.JoinHostPort(host, port)
 }
 
-func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
-	rootDir, err := binarylib.SetupRootDir(*rootDirFlag)
+func runBinaryD(ctx *context.T, env *cmdline.Env, args []string) error {
+	rootDir, err := binarylib.SetupRootDir(rootDirFlag)
 	if err != nil {
-		vlog.Errorf("SetupRootDir(%q) failed: %v", *rootDirFlag, err)
-		return
+		return fmt.Errorf("SetupRootDir(%q) failed: %v", rootDirFlag, err)
 	}
 	vlog.Infof("Binary repository rooted at %v", rootDir)
 
-	listener, err := net.Listen("tcp", *httpAddr)
+	listener, err := net.Listen("tcp", httpAddr)
 	if err != nil {
-		vlog.Errorf("Listen(%s) failed: %v", *httpAddr, err)
-		os.Exit(1)
+		return fmt.Errorf("Listen(%s) failed: %v", httpAddr, err)
 	}
 	rootURL := toIPPort(ctx, listener.Addr().String())
 	state, err := binarylib.NewState(rootDir, rootURL, defaultDepth)
 	if err != nil {
-		vlog.Errorf("NewState(%v, %v, %v) failed: %v", rootDir, rootURL, defaultDepth, err)
-		return
+		return fmt.Errorf("NewState(%v, %v, %v) failed: %v", rootDir, rootURL, defaultDepth, err)
 	}
 	vlog.Infof("Binary repository HTTP server at: %q", rootURL)
 	go func() {
@@ -83,32 +95,29 @@ func main() {
 	}()
 	server, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Errorf("NewServer() failed: %v", err)
-		return
+		return fmt.Errorf("NewServer() failed: %v", err)
 	}
 	defer server.Stop()
 	ls := v23.GetListenSpec(ctx)
 	endpoints, err := server.Listen(ls)
 	if err != nil {
-		vlog.Errorf("Listen(%s) failed: %v", ls, err)
-		return
+		return fmt.Errorf("Listen(%s) failed: %v", ls, err)
 	}
 
 	dis, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
-		vlog.Errorf("NewDispatcher() failed: %v\n", err)
-		return
+		return fmt.Errorf("NewDispatcher() failed: %v\n", err)
 	}
-	if err := server.ServeDispatcher(*name, dis); err != nil {
-		vlog.Errorf("ServeDispatcher(%v) failed: %v", *name, err)
-		return
+	if err := server.ServeDispatcher(name, dis); err != nil {
+		return fmt.Errorf("ServeDispatcher(%v) failed: %v", name, err)
 	}
 	epName := endpoints[0].Name()
-	if *name != "" {
-		vlog.Infof("Binary repository serving at %q (%q)", *name, epName)
+	if name != "" {
+		vlog.Infof("Binary repository serving at %q (%q)", name, epName)
 	} else {
 		vlog.Infof("Binary repository serving at %q", epName)
 	}
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals(ctx)
+	return nil
 }

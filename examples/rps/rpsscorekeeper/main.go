@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command rpsscorekeeper implements the ScoreKeeper interface.  It publishes
-// itself as a score keeper for the rock-paper-scissors game and prints out all
-// the score cards it receives to stdout.
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
@@ -16,16 +15,33 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
+	"v.io/x/ref/lib/v23cmd"
 
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
-var (
-	permsFile = flag.String("acl-file", "", "file containing the JSON-encoded Permissions")
-)
+var aclFile string
+
+func main() {
+	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
+	cmdline.HideGlobalFlagsExcept()
+	cmdline.Main(cmdRoot)
+}
+
+var cmdRoot = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runScoreKeeper),
+	Name:   "rpsscorekeeper",
+	Short:  "Implements the ScoreKeeper interface",
+	Long: `
+Command rpsscorekeeper implements the ScoreKeeper interface.  It publishes
+itself as a score keeper for the rock-paper-scissors game and prints out all the
+score cards it receives to stdout.
+`,
+}
 
 type impl struct {
 	ch chan rps.ScoreCard
@@ -38,13 +54,10 @@ func (i *impl) Record(ctx *context.T, call rpc.ServerCall, score rps.ScoreCard) 
 	return nil
 }
 
-func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
+func runScoreKeeper(ctx *context.T, env *cmdline.Env, args []string) error {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Fatalf("NewServer failed: %v", err)
+		return fmt.Errorf("NewServer failed: %v", err)
 	}
 	defer server.Stop()
 
@@ -54,18 +67,19 @@ func main() {
 	listenSpec := v23.GetListenSpec(ctx)
 	ep, err := server.Listen(listenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
+		return fmt.Errorf("Listen(%v) failed: %v", listenSpec, err)
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
-		vlog.Fatalf("os.Hostname failed: %v", err)
+		return fmt.Errorf("os.Hostname failed: %v", err)
 	}
-	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), internal.NewAuthorizer(*permsFile)); err != nil {
-		vlog.Fatalf("Serve failed: %v", err)
+	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), internal.NewAuthorizer(aclFile)); err != nil {
+		return fmt.Errorf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)
 
 	for score := range ch {
 		fmt.Print("======================\n", internal.FormatScoreCard(score))
 	}
+	return nil
 }
