@@ -173,8 +173,8 @@ func (w *writer) Write(b []byte) (int, error) {
 
 func (w *writer) SetDeadline(deadline <-chan struct{}) {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	w.deadline = deadline
+	w.mu.Unlock()
 }
 
 // Release allows the next 'bytes' of data to be removed from the buffer queue
