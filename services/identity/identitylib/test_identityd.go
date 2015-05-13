@@ -94,7 +94,6 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		revocationManager,
 		params,
 		caveats.NewMockCaveatSelector(),
-		nil,
 		"",
 		"identity")
 

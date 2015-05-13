@@ -75,10 +75,6 @@ type HandlerArgs struct {
 	// MacaroonBlessingService is the object name to which macaroons create by this HTTP
 	// handler can be exchanged for a blessing.
 	MacaroonBlessingService string
-	// EmailClassifier is used to decide the prefix used for blessing extensions.
-	// For example, if EmailClassifier.Classify("foo@bar.com") returns "guests",
-	// then the email foo@bar.com will receive the blessing "guests/foo@bar.com".
-	EmailClassifier *util.EmailClassifier
 	// OAuthProvider is used to authenticate and get a blessee email.
 	OAuthProvider OAuthProvider
 	// CaveatSelector is used to obtain caveats from the user when seeking a blessing.
@@ -387,10 +383,13 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, fmt.Errorf("failed to get server blessings"))
 		return
 	}
-	parts := []string{
-		string(localBlessings[0]),
-		h.args.EmailClassifier.Classify(email),
-		email,
+	var parts []string
+	// TODO(ashankar): Remove after the transition from running identityd
+	// as "dev.v.io/root" to "dev.v.io/u" is complete.
+	if local := string(localBlessings[0]); strings.HasSuffix(local, security.ChainSeparator+"u") {
+		parts = []string{local, email}
+	} else {
+		parts = []string{local, "users", email}
 	}
 	fullBlessingName := strings.Join(parts, security.ChainSeparator)
 	if err := h.args.CaveatSelector.Render(fullBlessingName, outputMacaroon, redirectURL(h.args.Addr, sendMacaroonRoute), w, r); err != nil {
@@ -416,10 +415,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("failed to create caveats: %v", err))
 		return
 	}
-	parts := []string{
-		h.args.EmailClassifier.Classify(inputMacaroon.Email),
-		inputMacaroon.Email,
-	}
+	parts := []string{inputMacaroon.Email}
 	if len(blessingExtension) > 0 {
 		parts = append(parts, blessingExtension)
 	}

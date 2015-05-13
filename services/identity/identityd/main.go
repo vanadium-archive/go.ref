@@ -5,8 +5,8 @@
 // Daemon identityd is an HTTP server that uses OAuth to create
 // security.Blessings objects.
 //
-// For more information on our setup of the identity server see:
-// https://docs.google.com/document/d/1ebQ1sQn95cFu8yQM36rpJ8mQvsU29aa1o03ADhi52BM
+// For more information on its design see:
+// https://v.io/designdocs/identity-service.html
 package main
 
 import (
@@ -26,7 +26,6 @@ import (
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/server"
-	"v.io/x/ref/services/identity/internal/util"
 )
 
 var (
@@ -34,7 +33,6 @@ var (
 	googleConfigWeb     = flag.String("google-config-web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
 	googleConfigChrome  = flag.String("google-config-chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleConfigAndroid = flag.String("google-config-android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
-	emailClassifier     util.EmailClassifier
 
 	// Flags controlling the HTTP server
 	externalHttpAddr = flag.String("external-http-addr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -http-addr.")
@@ -45,7 +43,6 @@ var (
 )
 
 func main() {
-	flag.Var(&emailClassifier, "email-classifier", "A comma-separated list of <domain>=<prefix> pairs. For example 'google.com=internal,v.io=trusted'. When specified, then the blessings generated for email address of <domain> will use the extension <prefix>/<email> instead of the default extension of users/<email>.")
 	flag.Usage = usage
 	ctx, shutdown := v23.Init()
 	defer shutdown()
@@ -81,7 +78,6 @@ func main() {
 		revocationManager,
 		googleOAuthBlesserParams(googleoauth, revocationManager),
 		caveats.NewBrowserCaveatSelector(*assetsPrefix),
-		&emailClassifier,
 		*assetsPrefix,
 		*mountPrefix)
 	s.Serve(ctx, &listenSpec, *externalHttpAddr, *httpAddr, *tlsConfig)
@@ -109,7 +105,6 @@ func googleOAuthBlesserParams(oauthProvider oauth.OAuthProvider, revocationManag
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
 		BlessingDuration:  365 * 24 * time.Hour,
-		EmailClassifier:   &emailClassifier,
 		RevocationManager: revocationManager,
 	}
 	if clientID, err := getOAuthClientID(*googleConfigChrome); err != nil {
