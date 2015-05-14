@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"testing/iotest"
 	"time"
 
 	"v.io/v23"
@@ -123,7 +124,7 @@ func newMockConn(opts Opts, c net.Conn) net.Conn {
 		return &v23Conn{
 			conn:   c,
 			opts:   opts,
-			cipher: crypto.NewDisabledControlCipher(&crypto.NullControlCipher{}),
+			cipher: &crypto.NullControlCipher{},
 			pool:   iobuf.NewPool(1024),
 		}
 	}
@@ -272,24 +273,40 @@ type v23Conn struct {
 }
 
 func (c *v23Conn) Read(b []byte) (n int, err error) {
-	n, err = c.conn.Read(b)
-	buf := iobuf.NewReader(c.pool, bytes.NewBuffer(b[:n]))
-	msg, err := message.ReadFrom(buf, c.cipher)
+	rb := bytes.NewBuffer(b[:0])
+	r := iobuf.NewReader(c.pool, io.TeeReader(iotest.OneByteReader(io.LimitReader(c.conn, int64(len(b)))), rb))
+	msg, err := message.ReadFrom(r, c.cipher)
 	if err == nil && c.opts.V23MessageMatcher(true, msg) {
 		c.conn.Close()
 		return 0, io.EOF
 	}
-	return n, err
+	return rb.Len(), err
 }
 
 func (c *v23Conn) Write(b []byte) (n int, err error) {
-	buf := iobuf.NewReader(c.pool, bytes.NewBuffer(b))
-	msg, err := message.ReadFrom(buf, c.cipher)
-	if err == nil && c.opts.V23MessageMatcher(false, msg) {
-		c.conn.Close()
-		return 0, io.EOF
+	rb := bytes.NewBuffer(b)
+	r := iobuf.NewReader(c.pool, iotest.OneByteReader(rb))
+	for rb.Len() > 0 {
+		msg, err := message.ReadFrom(r, c.cipher)
+		if err != nil {
+			return n, err
+		}
+		if c.opts.V23MessageMatcher(false, msg) {
+			c.conn.Close()
+			return n, io.EOF
+		}
+		var wb bytes.Buffer
+		err = message.WriteTo(&wb, msg, c.cipher)
+		if err != nil {
+			return n, err
+		}
+		tx, err := c.conn.Write(wb.Bytes())
+		n += tx
+		if err != nil {
+			return n, err
+		}
 	}
-	return c.conn.Write(b)
+	return n, nil
 }
 
 func (c *v23Conn) Close() error {
