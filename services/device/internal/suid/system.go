@@ -119,14 +119,16 @@ func (hw *WorkParameters) Remove() error {
 
 func (hw *WorkParameters) Kill() error {
 	for _, pid := range hw.killPids {
-		proc, err := os.FindProcess(pid)
-		if err != nil {
-			return verror.New(errFindProcessFailed, nil, pid, err)
-		}
 
-		if err = proc.Kill(); err != nil {
+		switch err := syscall.Kill(pid, 9); err {
+		case syscall.ESRCH:
+			// No such PID.
+			log.Printf("process pid %d already killed", pid)
+		default:
+			// Something went wrong.
 			return verror.New(errKillFailed, nil, pid, err)
 		}
+
 	}
 	return nil
 }
