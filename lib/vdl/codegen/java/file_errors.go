@@ -49,7 +49,7 @@ public final class {{ .ClassName }} {
     public static io.v.v23.verror.VException {{ $error.MethodName }}(io.v.v23.context.VContext _ctx{{ $error.MethodArgs}}) {
         final java.lang.Object[] _params = new java.lang.Object[] { {{ $error.Params }} };
         final java.lang.reflect.Type[] _paramTypes = new java.lang.reflect.Type[]{ {{ $error.ParamTypes }} };
-        return io.v.v23.verror.VException.make({{ $error.Name }}, _ctx, _paramTypes, _params);
+        return new io.v.v23.verror.VException({{ $error.Name }}, _ctx, _paramTypes, _params);
     }
     {{ end }} {{/* range $file.Errors */}}
     {{ end }} {{/* range .Files */}}
@@ -114,7 +114,7 @@ func genJavaErrorFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 			errors[j].ActionName = vdlutil.ToConstCase(err.RetryCode.String())
 			errors[j].EnglishFmt = err.English
 			errors[j].Formats = formats
-			errors[j].MethodName = "make" + vdlutil.FirstRuneToUpper(err.Name)
+			errors[j].MethodName = "new" + vdlutil.FirstRuneToUpper(err.Name)
 			errors[j].MethodArgs = javaDeclarationArgStr(err.Params, env, true)
 			errors[j].Params = javaCallingArgStr(err.Params, false)
 			errors[j].ParamTypes = javaCallingArgTypeStr(err.Params, env)
