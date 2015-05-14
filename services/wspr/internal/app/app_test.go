@@ -312,7 +312,17 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	if err != nil {
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}
-	proxySpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	proxySpec := rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{
+			// This '0' label is required by go vet.
+			// TODO(suharshs): Remove the '0' label once []ListenAddr is used
+			// instead of ListenAdders.
+			0: {
+				Protocol: "tcp",
+				Address:  "127.0.0.1:0",
+			},
+		},
+	}
 	proxyShutdown, proxyEndpoint, err := generic.NewProxy(ctx, proxySpec, security.AllowEveryone())
 	if err != nil {
 		return nil, fmt.Errorf("unable to start proxy: %v", err)
