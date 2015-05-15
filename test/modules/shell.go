@@ -155,6 +155,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/x/lib/envvar"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/services/agent/agentlib"
@@ -510,6 +511,7 @@ var (
 //        t.Fatal(err)
 //    }
 func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args ...string) (Handle, error) {
+	var err error
 	if opts.Error != nil {
 		return nil, opts.Error
 	}
@@ -526,7 +528,6 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 	}
 
 	if sh.ctx != nil && opts.ExecProtocol && opts.Credentials == nil {
-		var err error
 		opts.Credentials, err = sh.NewChildCredentials("child")
 		if err != nil {
 			return nil, err
@@ -534,10 +535,7 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 	}
 	cmd := desc.factory()
 	expanded := append([]string{name}, sh.expand(args...)...)
-	cenv, err := sh.setupCommandEnv(env)
-	if err != nil {
-		return nil, err
-	}
+	cenv := sh.setupCommandEnv(env)
 
 	var p *os.File
 	if opts.Credentials != nil {
@@ -566,10 +564,7 @@ func (sh *Shell) CommandEnvelope(name string, env []string, args ...string) ([]s
 	if cmd == nil {
 		return []string{}, []string{}
 	}
-	menv, err := sh.setupCommandEnv(env)
-	if err != nil {
-		return []string{}, []string{}
-	}
+	menv := sh.setupCommandEnv(env)
 	return cmd.factory().envelope(sh, menv, args...)
 }
 
@@ -600,24 +595,24 @@ func (sh *Shell) expand(args ...string) []string {
 // and an indication of whether it is defined or not.
 func (sh *Shell) GetVar(key string) (string, bool) {
 	sh.mu.Lock()
-	defer sh.mu.Unlock()
 	v, present := sh.env[key]
+	sh.mu.Unlock()
 	return v, present
 }
 
 // SetVar sets the value to be associated with key.
 func (sh *Shell) SetVar(key, value string) {
 	sh.mu.Lock()
-	defer sh.mu.Unlock()
 	// TODO(cnicolaou): expand value
 	sh.env[key] = value
+	sh.mu.Unlock()
 }
 
 // ClearVar removes the speficied variable from the Shell's environment
 func (sh *Shell) ClearVar(key string) {
 	sh.mu.Lock()
-	defer sh.mu.Unlock()
 	delete(sh.env, key)
+	sh.mu.Unlock()
 }
 
 // GetConfigKey returns the value associated with the specified key in
@@ -642,12 +637,9 @@ func (sh *Shell) ClearConfigKey(key string) {
 // Env returns the entire set of environment variables associated with this
 // Shell as a string slice.
 func (sh *Shell) Env() []string {
-	vars := []string{}
 	sh.mu.Lock()
-	defer sh.mu.Unlock()
-	for k, v := range sh.env {
-		vars = append(vars, k+"="+v)
-	}
+	vars := envvar.MapToSlice(sh.env)
+	sh.mu.Unlock()
 	return vars
 }
 
@@ -723,25 +715,21 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) error {
 	return err
 }
 
-func (sh *Shell) setupCommandEnv(env []string) ([]string, error) {
-	osmap := envSliceToMap(os.Environ())
-	evmap := envSliceToMap(env)
+func (sh *Shell) setupCommandEnv(env []string) []string {
+	osmap := envvar.SliceToMap(os.Environ())
+	evmap := envvar.SliceToMap(env)
 
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
-	m1 := mergeMaps(osmap, sh.env)
+	m1 := envvar.MergeMaps(osmap, sh.env)
 	// Clear any VeyronCredentials directory in m1 as we never
 	// want the child to directly use the directory specified
 	// by the shell's VeyronCredentials.
 	delete(m1, ref.EnvCredentials)
 	delete(m1, ref.EnvAgentEndpoint)
 
-	m2 := mergeMaps(m1, evmap)
-	r := []string{}
-	for k, v := range m2 {
-		r = append(r, k+"="+v)
-	}
-	return r, nil
+	m2 := envvar.MergeMaps(m1, evmap)
+	return envvar.MapToSlice(m2)
 }
 
 // ExpectSession is a subset of v.io/x/ref/tests/expect.Session's methods

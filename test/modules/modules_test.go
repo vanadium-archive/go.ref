@@ -644,22 +644,6 @@ func TestEnvMerge(t *testing.T) {
 	}
 }
 
-func TestSetEntryPoint(t *testing.T) {
-	env := map[string]string{"a": "a", "b": "b"}
-	nenv := modules.SetEntryPoint(env, "eg1")
-	if got, want := len(nenv), 3; got != want {
-		t.Errorf("got %d, want %d", got, want)
-	}
-	nenv = modules.SetEntryPoint(env, "eg2")
-	if got, want := len(nenv), 3; got != want {
-		t.Errorf("got %d, want %d", got, want)
-	}
-	sort.Strings(nenv)
-	if got, want := nenv, []string{"V23_SHELL_HELPER_PROCESS_ENTRY_POINT=eg2", "a=a", "b=b"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("got %v, want %v", got, want)
-	}
-}
-
 func TestNoExec(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()

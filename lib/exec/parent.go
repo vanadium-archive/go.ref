@@ -18,9 +18,8 @@ import (
 	"time"
 
 	"v.io/v23/verror"
-
+	"v.io/x/lib/envvar"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/timekeeper"
 )
 
@@ -126,22 +125,16 @@ func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 // Start starts the child process, sharing a secret with it and
 // setting up a communication channel over which to read its status.
 func (p *ParentHandle) Start() error {
-	// Make sure that there are no instances of the ExecVersionVariable
-	// already in the environment (which can happen when a subprocess
-	// creates a subprocess etc)
-	nenv := make([]string, 0, len(p.c.Env)+1)
-	for _, e := range p.c.Env {
-		if strings.HasPrefix(e, ExecVersionVariable+"=") {
-			continue
-		}
-		nenv = append(nenv, e)
-	}
-
+	env := envvar.SliceToMap(p.c.Env)
 	if !p.protocol {
+		// Ensure ExecVersionVariable is not set if we're not using the protocol.
+		delete(env, ExecVersionVariable)
+		p.c.Env = envvar.MapToSlice(env)
 		return p.c.Start()
 	}
-
-	p.c.Env = append(nenv, ExecVersionVariable+"="+version1)
+	// Ensure ExecVersionVariable is always set if we are using the protocol.
+	env[ExecVersionVariable] = version1
+	p.c.Env = envvar.MapToSlice(env)
 
 	// Create anonymous pipe for communicating data between the child
 	// and the parent.

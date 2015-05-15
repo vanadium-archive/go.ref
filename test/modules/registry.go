@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"v.io/x/lib/envvar"
 	"v.io/x/lib/vlog"
 
 	vexec "v.io/x/ref/lib/exec"
@@ -94,20 +95,6 @@ const shellEntryPoint = "V23_SHELL_HELPER_PROCESS_ENTRY_POINT"
 // the modules package.
 func IsModulesChildProcess() bool {
 	return os.Getenv(shellEntryPoint) != ""
-}
-
-// SetEntryPoint returns a slice of strings that is guaranteed to contain
-// one and only instance of the entry point environment variable set to the
-// supplied name value.
-func SetEntryPoint(env map[string]string, name string) []string {
-	newEnv := make([]string, 0, len(env)+1)
-	for k, v := range env {
-		if k == shellEntryPoint {
-			continue
-		}
-		newEnv = append(newEnv, k+"="+v)
-	}
-	return append(newEnv, shellEntryPoint+"="+name)
 }
 
 // Dispatch will execute the requested subprocess command from a within a
@@ -193,7 +180,7 @@ func (r *cmdRegistry) dispatch() error {
 	}(os.Getppid())
 
 	flag.Parse()
-	return m.main(os.Stdin, os.Stdout, os.Stderr, envSliceToMap(os.Environ()), flag.Args()...)
+	return m.main(os.Stdin, os.Stdout, os.Stderr, envvar.SliceToMap(os.Environ()), flag.Args()...)
 }
 
 // WaitForEOF returns when a read on its io.Reader parameter returns io.EOF

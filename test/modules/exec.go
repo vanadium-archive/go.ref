@@ -9,11 +9,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"sync"
 	"time"
 
 	"v.io/v23/verror"
+	"v.io/x/lib/envvar"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
@@ -24,17 +24,17 @@ import (
 // execHandle implements both the command and Handle interfaces.
 type execHandle struct {
 	*expect.Session
-	mu         sync.Mutex
-	cmd        *exec.Cmd
-	name       string
-	entryPoint string
-	handle     *vexec.ParentHandle
-	sh         *Shell
-	stderr     *os.File
-	stdout     io.ReadCloser
-	stdin      io.WriteCloser
-	procErrCh  chan error
-	opts       *StartOpts
+	mu        sync.Mutex
+	cmd       *exec.Cmd
+	name      string
+	handle    *vexec.ParentHandle
+	sh        *Shell
+	stderr    *os.File
+	stdout    io.ReadCloser
+	stdin     io.WriteCloser
+	procErrCh chan error
+	opts      *StartOpts
+	external  bool
 }
 
 func testFlags() []string {
@@ -63,11 +63,11 @@ func testFlags() []string {
 }
 
 func newExecHandle(name string) command {
-	return &execHandle{name: name, entryPoint: shellEntryPoint + "=" + name, procErrCh: make(chan error, 1)}
+	return &execHandle{name: name, procErrCh: make(chan error, 1)}
 }
 
 func newExecHandleForExternalCommand(name string) command {
-	return &execHandle{name: name, procErrCh: make(chan error, 1)}
+	return &execHandle{name: name, procErrCh: make(chan error, 1), external: true}
 }
 
 func (eh *execHandle) Stdout() io.Reader {
@@ -95,19 +95,16 @@ func (eh *execHandle) CloseStdin() {
 }
 
 func (eh *execHandle) envelope(sh *Shell, env []string, args ...string) ([]string, []string) {
+	// TODO(toddw): External commands probably shouldn't run any of this logic,
+	// and should just return args, env directly.
 	newargs := []string{os.Args[0]}
 	newargs = append(newargs, testFlags()...)
 	newargs = append(newargs, args...)
-	// Be careful to remove any existing shellEntryPoint env vars. This
-	// can happen when subprocesses run other subprocesses etc.
-	cleaned := make([]string, 0, len(env)+1)
-	for _, e := range env {
-		if strings.HasPrefix(e, shellEntryPoint+"=") {
-			continue
-		}
-		cleaned = append(cleaned, e)
-	}
-	return newargs, append(cleaned, eh.entryPoint)
+	// Be careful to overwrite shellEntryPoint if it already exists - e.g. when a
+	// subprocess runs another subprocess.
+	newenv := envvar.SliceToMap(env)
+	newenv[shellEntryPoint] = eh.name
+	return newargs, envvar.MapToSlice(newenv)
 }
 
 func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []string, args ...string) (Handle, error) {
@@ -118,8 +115,8 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 	cmdPath := args[0]
 	newargs, newenv := args, env
 
-	// If an entry point is specified, use the envelope execution environment.
-	if len(eh.entryPoint) > 0 {
+	// If this isn't an external command, use the envelope execution environment.
+	if !eh.external {
 		cmdPath = os.Args[0]
 		newargs, newenv = eh.envelope(sh, env, args[1:]...)
 	}

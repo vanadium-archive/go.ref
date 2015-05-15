@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"v.io/x/lib/envvar"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/test/expect"
 )
@@ -111,7 +112,7 @@ func (fh *functionHandle) start(sh *Shell, agent *os.File, opts *StartOpts, env 
 		main := fh.main
 		fh.mu.Unlock()
 
-		cenv := envSliceToMap(env)
+		cenv := envvar.SliceToMap(env)
 		vlog.VI(1).Infof("Start: %q args: %v", fh.name, args)
 		vlog.VI(2).Infof("Start: %q env: %v", fh.name, cenv)
 		err := main(stdin, stdout, stderr, cenv, args[1:]...)
