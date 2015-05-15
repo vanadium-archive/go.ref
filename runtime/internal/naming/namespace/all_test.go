@@ -235,7 +235,7 @@ const (
 	j2MP  = "joke2"
 	j3MP  = "joke3"
 
-	ttl = 100 * time.Second
+	ttl = 5 * time.Minute
 )
 
 // runMountTables creates a root mountable with some mount tables mounted
