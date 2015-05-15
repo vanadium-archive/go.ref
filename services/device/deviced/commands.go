@@ -29,8 +29,8 @@ var (
 
 const deviceDirEnv = "V23_DEVICE_DIR"
 
-func installationDir() string {
-	if d := os.Getenv(deviceDirEnv); d != "" {
+func installationDir(env *cmdline.Env) string {
+	if d := env.Vars[deviceDirEnv]; d != "" {
 		return d
 	}
 	if d, err := os.Getwd(); err != nil {
@@ -81,7 +81,7 @@ func runInstall(env *cmdline.Env, args []string) error {
 	if initMode && initHelper == "" {
 		return env.UsageErrorf("--init_helper must be set")
 	}
-	if err := impl.SelfInstall(installationDir(), suidHelper, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), env.Stderr, env.Stdout); err != nil {
+	if err := impl.SelfInstall(installationDir(env), suidHelper, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("SelfInstall failed: %v", err)
 		return err
 	}
@@ -103,7 +103,7 @@ func runUninstall(env *cmdline.Env, _ []string) error {
 	if suidHelper == "" {
 		return env.UsageErrorf("--suid_helper must be set")
 	}
-	if err := impl.Uninstall(installationDir(), suidHelper, env.Stderr, env.Stdout); err != nil {
+	if err := impl.Uninstall(installationDir(env), suidHelper, env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Uninstall failed: %v", err)
 		return err
 	}
@@ -118,7 +118,7 @@ var cmdStart = &cmdline.Command{
 }
 
 func runStart(env *cmdline.Env, _ []string) error {
-	if err := impl.Start(installationDir(), env.Stderr, env.Stdout); err != nil {
+	if err := impl.Start(installationDir(env), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Start failed: %v", err)
 		return err
 	}
@@ -135,7 +135,7 @@ var cmdStop = &cmdline.Command{
 func runStop(env *cmdline.Env, _ []string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	if err := impl.Stop(ctx, installationDir(), env.Stderr, env.Stdout); err != nil {
+	if err := impl.Stop(ctx, installationDir(env), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Stop failed: %v", err)
 		return err
 	}

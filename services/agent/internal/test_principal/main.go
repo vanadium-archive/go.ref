@@ -12,7 +12,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
-	"os"
 	"reflect"
 	"runtime"
 
@@ -56,10 +55,10 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	// Make sure we're running under a pristine agent to begin with.
 	// The agent aims to be transparent, so use a collection of heuristics
 	// to detect this.
-	if got := os.Getenv(ref.EnvCredentials); len(got) != 0 {
+	if got := env.Vars[ref.EnvCredentials]; len(got) != 0 {
 		errorf("%v environment variable is unexpectedly set", ref.EnvCredentials)
 	}
-	if got := os.Getenv(ref.EnvAgentEndpoint); len(got) == 0 {
+	if got := env.Vars[ref.EnvAgentEndpoint]; len(got) == 0 {
 		errorf("%v environment variable is not set", ref.EnvAgentEndpoint)
 	}
 	// A pristine agent has a single blessing "agent_principal" (from agentd/main.go).

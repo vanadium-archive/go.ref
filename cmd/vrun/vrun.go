@@ -58,7 +58,7 @@ func vrun(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		args = []string{"bash", "--norc"}
 	}
-	principal, conn, err := createPrincipal(ctx)
+	principal, conn, err := createPrincipal(ctx, env)
 	if err != nil {
 		return env.UsageErrorf("%v", err)
 	}
@@ -136,7 +136,7 @@ func doExec(cmd []string, conn *os.File) error {
 	return err
 }
 
-func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
+func createPrincipal(ctx *context.T, env *cmdline.Env) (security.Principal, *os.File, error) {
 	kagent, err := keymgr.NewAgent()
 	if err != nil {
 		vlog.Errorf("Could not initialize agent")
@@ -149,9 +149,9 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 
-	ep, err := v23.NewEndpoint(os.Getenv(ref.EnvAgentEndpoint))
+	ep, err := v23.NewEndpoint(env.Vars[ref.EnvAgentEndpoint])
 	if err != nil {
-		vlog.Errorf("Couldn't parse %v=%q: %v", ref.EnvAgentEndpoint, os.Getenv(ref.EnvAgentEndpoint), err)
+		vlog.Errorf("Couldn't parse %v=%q: %v", ref.EnvAgentEndpoint, env.Vars[ref.EnvAgentEndpoint], err)
 		return nil, nil, err
 	}
 	// Connect to the Principal

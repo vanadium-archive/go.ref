@@ -196,7 +196,7 @@ func TestApplicationClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'edit' command. (nothing changed)
-	os.Setenv("EDITOR", "true")
+	env.Vars = map[string]string{"EDITOR": "true"}
 	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -206,7 +206,7 @@ func TestApplicationClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'edit' command.
-	os.Setenv("EDITOR", "perl -pi -e 's/arg1/arg111/'")
+	env.Vars = map[string]string{"EDITOR": "perl -pi -e 's/arg1/arg111/'"}
 	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}

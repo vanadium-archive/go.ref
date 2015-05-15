@@ -24,9 +24,9 @@ don't look like traditional hostnames, which rsync doesn't understand. For
 compatibility with such tools, vsh has a special feature that allows passing the
 vanadium object name via the VSH_NAME environment variable.
 
-  $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* myhost:/foo/
+  $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* v23:/foo/
 
-In this example, the "myhost" host will be substituted with $VSH_NAME by vsh and
+In this example, the "v23" host will be substituted with $VSH_NAME by vsh and
 rsync will work as expected.
 
 Usage:

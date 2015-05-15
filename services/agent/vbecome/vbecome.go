@@ -63,7 +63,7 @@ func main() {
 
 func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
-		if shell := os.Getenv("SHELL"); shell != "" {
+		if shell := env.Vars["SHELL"]; shell != "" {
 			args = []string{shell}
 		} else {
 			return fmt.Errorf("You must specify a command to run.")

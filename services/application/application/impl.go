@@ -199,7 +199,7 @@ func editAndPutEnvelopeJSON(ctx *context.T, env *cmdline.Env, app repository.App
 	if err = ioutil.WriteFile(fileName, envData, os.FileMode(0644)); err != nil {
 		return err
 	}
-	editor := os.Getenv("EDITOR")
+	editor := env.Vars["EDITOR"]
 	if len(editor) == 0 {
 		editor = "nano"
 	}

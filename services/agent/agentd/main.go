@@ -100,7 +100,7 @@ func runAgentD(env *cmdline.Env, args []string) error {
 		f.Set("")
 	}
 	if len(dir) == 0 {
-		return env.UsageErrorf("The %v environment variable must be set to a directory: %q", ref.EnvCredentials, os.Getenv(ref.EnvCredentials))
+		return env.UsageErrorf("The %v environment variable must be set to a directory: %q", ref.EnvCredentials, env.Vars[ref.EnvCredentials])
 	}
 
 	p, passphrase, err := newPrincipalFromDir(dir)
