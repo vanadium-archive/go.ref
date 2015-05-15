@@ -383,15 +383,7 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, fmt.Errorf("failed to get server blessings"))
 		return
 	}
-	var parts []string
-	// TODO(ashankar): Remove after the transition from running identityd
-	// as "dev.v.io/root" to "dev.v.io/u" is complete.
-	if local := string(localBlessings[0]); strings.HasSuffix(local, security.ChainSeparator+"u") {
-		parts = []string{local, email}
-	} else {
-		parts = []string{local, "users", email}
-	}
-	fullBlessingName := strings.Join(parts, security.ChainSeparator)
+	fullBlessingName := strings.Join([]string{string(localBlessings[0]), email}, security.ChainSeparator)
 	if err := h.args.CaveatSelector.Render(fullBlessingName, outputMacaroon, redirectURL(h.args.Addr, sendMacaroonRoute), w, r); err != nil {
 		vlog.Errorf("Unable to invoke render caveat selector: %v", err)
 		util.HTTPServerError(w, err)

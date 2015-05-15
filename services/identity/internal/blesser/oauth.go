@@ -64,10 +64,10 @@ func (b *oauthBlesser) BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall
 	if err != nil {
 		return noblessings, "", err
 	}
-	return b.bless(ctx, call.Security(), email, clientName)
+	return b.bless(call.Security(), email, clientName)
 }
 
-func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientName string) (security.Blessings, string, error) {
+func (b *oauthBlesser) bless(call security.Call, email, clientName string) (security.Blessings, string, error) {
 	var noblessings security.Blessings
 	self := call.LocalPrincipal()
 	if self == nil {
@@ -83,22 +83,12 @@ func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientNa
 	if err != nil {
 		return noblessings, "", err
 	}
-	var parts []string
-	// TODO(ashankar): Remove this - here only for the transition from
-	// running identityd as "dev.v.io/root" to running it as "dev.v.io/u"
-	// At that point, can also remove the "ctx" argument to this method.
-	if bnames := security.LocalBlessingNames(ctx, call); len(bnames) == 1 && strings.HasSuffix(bnames[0], security.ChainSeparator+"u") {
-		parts = []string{email}
-	} else {
-		parts = []string{"users", email}
-	}
 	// Append clientName (e.g., "android", "chrome") to the email and then bless under that.
 	// Since blessings issued by this process do not have many caveats on them and typically
 	// have a large expiry duration, we include the clientName in the extension so that
 	// servers can explicitly distinguish these clients while specifying authorization policies
 	// (say, via AccessLists).
-	parts = append(parts, clientName)
-	extension := strings.Join(parts, security.ChainSeparator)
+	extension := strings.Join([]string{email, clientName}, security.ChainSeparator)
 	blessing, err := self.Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), extension, caveat)
 	if err != nil {
 		return noblessings, "", err

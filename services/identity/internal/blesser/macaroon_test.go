@@ -51,13 +51,13 @@ func TestMacaroonBlesser(t *testing.T) {
 		t.Errorf("Got blessing with info %v, want nil", got)
 	}
 	// But once it recognizes the provider, it should see exactly the name
-	// "provider/users/bugsbunny" for the caveat cOnlyMethodFoo.
+	// "provider/bugsbunny" for the caveat cOnlyMethodFoo.
 	user.AddToRoots(b)
 	binfo := user.BlessingsInfo(b)
 	if num := len(binfo); num != 1 {
 		t.Errorf("Got blessings with %d names, want exactly one name", num)
 	}
-	wantName := "provider/users/bugsbunny"
+	wantName := "provider/bugsbunny"
 	if got, want := binfo[wantName], []security.Caveat{cOnlyMethodFoo}; !reflect.DeepEqual(got, want) {
 		t.Errorf("binfo[%q]: Got %v, want %v", wantName, got, want)
 	}
