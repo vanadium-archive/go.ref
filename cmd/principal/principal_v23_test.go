@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -658,5 +658,5 @@ func V23TestAddKeyToRoots(t *v23tests.T) {
 }
 
 func credEnv(dir string) string {
-	return fmt.Sprintf("%s=%s", envvar.Credentials, dir)
+	return fmt.Sprintf("%s=%s", ref.EnvCredentials, dir)
 }

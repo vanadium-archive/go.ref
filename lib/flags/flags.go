@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"v.io/v23/verror"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 )
 
 const pkgPath = "v.io/x/ref/lib/flags"
@@ -121,16 +121,16 @@ func (permsf *permsFlagVar) Set(v string) error {
 
 // RuntimeFlags contains the values of the Runtime flag group.
 type RuntimeFlags struct {
-	// NamespaceRoots may be initialized by envvar.NamespacePrefix* enivornment
+	// NamespaceRoots may be initialized by ref.EnvNamespacePrefix* enivornment
 	// variables as well as --v23.namespace.root. The command line
 	// will override the environment.
 	NamespaceRoots []string
 
-	// Credentials may be initialized by the envvar.Credentials
+	// Credentials may be initialized by the ref.EnvCredentials
 	// environment variable. The command line will override the environment.
 	Credentials string // TODO(cnicolaou): provide flag.Value impl
 
-	// I18nCatalogue may be initialized by the envvar.I18nCatalogueFiles
+	// I18nCatalogue may be initialized by the ref.EnvI18nCatalogueFiles
 	// environment variable.  The command line will override the
 	// environment.
 	I18nCatalogue string
@@ -262,9 +262,9 @@ func (ip ipHostPortFlagVar) String() string {
 func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	var (
 		f             = &RuntimeFlags{}
-		_, roots      = envvar.NamespaceRoots()
-		creds         = os.Getenv(envvar.Credentials)
-		i18nCatalogue = os.Getenv(envvar.I18nCatalogueFiles)
+		_, roots      = ref.EnvNamespaceRoots()
+		creds         = os.Getenv(ref.EnvCredentials)
+		i18nCatalogue = os.Getenv(ref.EnvI18nCatalogueFiles)
 	)
 	if len(roots) == 0 {
 		f.namespaceRootsFlag.roots = []string{defaultNamespaceRoot}

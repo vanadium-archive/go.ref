@@ -17,8 +17,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/services/device"
-
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
@@ -96,7 +95,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	// should override the value specified in the envelope above, and the
 	// config-specified value for origin should override the value in the
 	// Install rpc argument.
-	mtName, ok := sh.GetVar(envvar.NamespacePrefix)
+	mtName, ok := sh.GetVar(ref.EnvNamespacePrefix)
 	if !ok {
 		t.Fatalf("failed to get namespace root var from shell")
 	}

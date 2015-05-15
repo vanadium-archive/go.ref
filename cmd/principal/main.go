@@ -28,7 +28,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/static"
@@ -892,7 +892,7 @@ func main() {
 	cmdBless.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "File containing bless arguments written by 'principal recvblessings -remote-arg-file FILE EXTENSION' command. This can be provided to bless in place of --remote-key, --remote-token, and <principal>")
 
 	defaultFrom := "https://dev.v.io/auth/google"
-	if e := os.Getenv(envvar.OAuthIdentityProvider); e != "" {
+	if e := os.Getenv(ref.EnvOAuthIdentityProvider); e != "" {
 		defaultFrom = e
 	}
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", defaultFrom, "URL to use to begin the seek blessings process")

@@ -20,7 +20,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/v23cmd"
 
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -56,11 +56,11 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	// Make sure we're running under a pristine agent to begin with.
 	// The agent aims to be transparent, so use a collection of heuristics
 	// to detect this.
-	if got := os.Getenv(envvar.Credentials); len(got) != 0 {
-		errorf("%v environment variable is unexpectedly set", envvar.Credentials)
+	if got := os.Getenv(ref.EnvCredentials); len(got) != 0 {
+		errorf("%v environment variable is unexpectedly set", ref.EnvCredentials)
 	}
-	if got := os.Getenv(envvar.AgentEndpoint); len(got) == 0 {
-		errorf("%v environment variable is not set", envvar.AgentEndpoint)
+	if got := os.Getenv(ref.EnvAgentEndpoint); len(got) == 0 {
+		errorf("%v environment variable is not set", ref.EnvAgentEndpoint)
 	}
 	// A pristine agent has a single blessing "agent_principal" (from agentd/main.go).
 	if blessings := p.BlessingsInfo(p.BlessingStore().Default()); len(blessings) != 1 {

@@ -23,7 +23,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
@@ -165,7 +165,7 @@ func runMountTable(t *testing.T, ctx *context.T, args ...string) (*modules.Shell
 	root.ExpectVar("PID")
 	rootName := root.ExpectVar("MT_NAME")
 
-	sh.SetVar(envvar.NamespacePrefix, rootName)
+	sh.SetVar(ref.EnvNamespacePrefix, rootName)
 	if err = v23.GetNamespace(ctx).SetRoots(rootName); err != nil {
 		t.Fatalf("unexpected error setting namespace roots: %s", err)
 	}

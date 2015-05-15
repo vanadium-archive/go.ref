@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"v.io/v23/security"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test/v23tests"
 )
@@ -101,5 +101,5 @@ func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary
 	if err := pclient.BlessingStore().SetDefault(bclient); err != nil {
 		i.Fatal(err)
 	}
-	return agentd.WithEnv(envvar.Credentials + "=" + clientDir), agentd.WithEnv(envvar.Credentials + "=" + serverDir)
+	return agentd.WithEnv(ref.EnvCredentials + "=" + clientDir), agentd.WithEnv(ref.EnvCredentials + "=" + serverDir)
 }

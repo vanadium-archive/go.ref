@@ -155,7 +155,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
@@ -733,8 +733,8 @@ func (sh *Shell) setupCommandEnv(env []string) ([]string, error) {
 	// Clear any VeyronCredentials directory in m1 as we never
 	// want the child to directly use the directory specified
 	// by the shell's VeyronCredentials.
-	delete(m1, envvar.Credentials)
-	delete(m1, envvar.AgentEndpoint)
+	delete(m1, ref.EnvCredentials)
+	delete(m1, ref.EnvAgentEndpoint)
 
 	m2 := mergeMaps(m1, evmap)
 	r := []string{}

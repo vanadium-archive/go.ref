@@ -19,8 +19,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
-
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
@@ -99,7 +98,7 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 	opts.ExpectTimeout = ExpectTimeout
 	sh.SetDefaultStartOpts(opts)
 	// The shell, will, by default share credentials with its children.
-	sh.ClearVar(envvar.Credentials)
+	sh.ClearVar(ref.EnvCredentials)
 
 	mtName, _ := startRootMT(t, sh)
 	vlog.VI(1).Infof("Started shell mounttable with name %v", mtName)
@@ -119,7 +118,7 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 		setNSRoots(t, ctx, oldNamespaceRoots...)
 	}
 	setNSRoots(t, ctx, mtName)
-	sh.SetVar(envvar.NamespacePrefix, mtName)
+	sh.SetVar(ref.EnvNamespacePrefix, mtName)
 	return sh, fn
 }
 

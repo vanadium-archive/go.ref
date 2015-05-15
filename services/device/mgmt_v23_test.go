@@ -47,7 +47,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test/v23tests"
 )
@@ -422,7 +422,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	if namespaceBin.Run("resolve", n) == "" {
 		i.Fatalf("failed to resolve %s", n)
 	}
-	namespaceRoot, _ := i.GetVar(envvar.NamespacePrefix)
+	namespaceRoot, _ := i.GetVar(ref.EnvNamespacePrefix)
 	n = mtEP + "/global"
 	if got, want := namespaceBin.Run("resolve", n), namespaceRoot; got != want {
 		i.Fatalf("got %q, want %q", got, want)

@@ -19,12 +19,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/security"
-
-	"v.io/x/ref/envvar"
+	"v.io/x/lib/vlog"
+	"v.io/x/ref"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -362,7 +360,7 @@ func (t *T) DebugSystemShell(env ...string) {
 	}
 	// Set up agent for Child.
 	attr.Files = append(attr.Files, agentFile)
-	attr.Env = append(attr.Env, fmt.Sprintf("%s=%v", envvar.AgentEndpoint, agentlib.AgentEndpoint(len(attr.Files)-1)))
+	attr.Env = append(attr.Env, fmt.Sprintf("%s=%v", ref.EnvAgentEndpoint, agentlib.AgentEndpoint(len(attr.Files)-1)))
 
 	// Set up environment for Child.
 	for _, v := range t.shell.Env() {
@@ -633,13 +631,13 @@ func RunTest(t *testing.T, fn func(i *T)) {
 }
 
 // RunRootMT builds and runs a root mount table instance. It populates the
-// envvar.NamespacePrefix variable in the test environment so that all
+// ref.EnvNamespacePrefix variable in the test environment so that all
 // subsequent invocations will access this root mount table.
 func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
 	b := i.BuildV23Pkg("v.io/x/ref/services/mounttable/mounttabled")
 	inv := b.start(1, args...)
 	name := inv.ExpectVar("NAME")
-	inv.Environment().SetVar(envvar.NamespacePrefix, name)
+	inv.Environment().SetVar(ref.EnvNamespacePrefix, name)
 	vlog.Infof("Running root mount table: %q", name)
 	return b, inv
 }

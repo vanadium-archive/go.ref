@@ -27,7 +27,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/identity/identitylib"
@@ -154,8 +154,8 @@ func run(env *cmdline.Env, args []string) error {
 		return err
 	}
 
-	// Set envvar.NamespacePrefix env var, consumed downstream.
-	sh.SetVar(envvar.NamespacePrefix, vars["MT_NAME"])
+	// Set ref.EnvNamespacePrefix env var, consumed downstream.
+	sh.SetVar(ref.EnvNamespacePrefix, vars["MT_NAME"])
 	v23.GetNamespace(ctx).SetRoots(vars["MT_NAME"])
 
 	lspec := v23.GetListenSpec(ctx)

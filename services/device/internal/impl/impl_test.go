@@ -22,8 +22,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
-
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
@@ -107,7 +106,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dmCreds)
-	dmEnv := []string{fmt.Sprintf("%v=%v", envvar.Credentials, dmCreds)}
+	dmEnv := []string{fmt.Sprintf("%v=%v", ref.EnvCredentials, dmCreds)}
 	dmArgs := []string{"factoryDM", root, "unused_helper", utiltest.MockApplicationRepoName, currLink}
 	args, env := sh.CommandEnvelope(utiltest.DeviceManagerCmd, dmEnv, dmArgs...)
 	scriptPathFactory := generateDeviceManagerScript(t, root, args, env)

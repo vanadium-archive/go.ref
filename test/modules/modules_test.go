@@ -22,7 +22,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/verror"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/exec"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test"
@@ -356,7 +356,7 @@ func TestNoAgent(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stdout, os.Stderr)
-	if got, want := getBlessing(t, sh, fmt.Sprintf("%s=%s", envvar.Credentials, creds)), noagent; got != want {
+	if got, want := getBlessing(t, sh, fmt.Sprintf("%s=%s", ref.EnvCredentials, creds)), noagent; got != want {
 		t.Errorf("Bad blessing. Got %q, want %q", got, want)
 	}
 }

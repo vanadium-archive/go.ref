@@ -13,8 +13,7 @@ import (
 	"time"
 
 	"v.io/v23/services/device"
-
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
@@ -32,7 +31,7 @@ func TestReapReconciliationViaAppCycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dmCreds)
-	dmEnv := []string{fmt.Sprintf("%v=%v", envvar.Credentials, dmCreds), fmt.Sprintf("%v=%v", impl.AppcycleReconciliation, "1")}
+	dmEnv := []string{fmt.Sprintf("%v=%v", ref.EnvCredentials, dmCreds), fmt.Sprintf("%v=%v", impl.AppcycleReconciliation, "1")}
 
 	dmh := servicetest.RunCommand(t, sh, dmEnv, utiltest.DeviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)

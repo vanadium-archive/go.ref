@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package envvar
+package ref
 
 import (
 	"os"
@@ -26,9 +26,9 @@ func setenv(t *testing.T, name, value string) func() {
 	}
 }
 
-func TestNamespaceRoots(t *testing.T) {
-	defer setenv(t, NamespacePrefix, "NS1")()
-	defer setenv(t, NamespacePrefix+"_BLAH", "NS_BLAH")()
+func TestEnvNamespaceRoots(t *testing.T) {
+	defer setenv(t, EnvNamespacePrefix, "NS1")()
+	defer setenv(t, EnvNamespacePrefix+"_BLAH", "NS_BLAH")()
 
 	wantm := map[string]string{
 		"V23_NAMESPACE":      "NS1",
@@ -36,7 +36,7 @@ func TestNamespaceRoots(t *testing.T) {
 	}
 	wantl := []string{"NS1", "NS_BLAH"}
 
-	gotm, gotl := NamespaceRoots()
+	gotm, gotl := EnvNamespaceRoots()
 	if !reflect.DeepEqual(wantm, gotm) {
 		t.Errorf("Got %v want %v", gotm, wantm)
 	}
@@ -45,13 +45,13 @@ func TestNamespaceRoots(t *testing.T) {
 	}
 }
 
-func TestClearCredentials(t *testing.T) {
-	defer setenv(t, Credentials, "FOO")()
-	if got, want := os.Getenv(Credentials), "FOO"; got != want {
+func TestEnvClearCredentials(t *testing.T) {
+	defer setenv(t, EnvCredentials, "FOO")()
+	if got, want := os.Getenv(EnvCredentials), "FOO"; got != want {
 		t.Errorf("Got %q, want %q", got, want)
 	}
-	ClearCredentials()
-	if got := os.Getenv(Credentials); got != "" {
+	EnvClearCredentials()
+	if got := os.Getenv(EnvCredentials); got != "" {
 		t.Errorf("Got %q, wanted empty string", got)
 	}
 }

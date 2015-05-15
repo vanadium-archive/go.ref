@@ -11,7 +11,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -57,7 +57,7 @@ func V23TestTunneld(t *v23tests.T) {
 	}
 
 	// Verify that all published names are there.
-	root, _ := t.GetVar(envvar.NamespacePrefix)
+	root, _ := t.GetVar(ref.EnvNamespacePrefix)
 	inv := mounttableBin.Start("glob", root, "tunnel/test")
 
 	// Expect one entry: the tunnel name.

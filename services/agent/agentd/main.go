@@ -24,7 +24,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	vsignals "v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/agent/internal/server"
@@ -70,7 +70,7 @@ memory and makes it available to a subprocess.
 Loads the private key specified in privatekey.pem in %v into memory, then
 starts the specified command with access to the private key via the
 agent protocol instead of directly reading from disk.
-`, envvar.Credentials),
+`, ref.EnvCredentials),
 	ArgsName: "command [command_args...]",
 	ArgsLong: `
 The command is started as a subprocess with the given [command_args...].
@@ -90,7 +90,7 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	// v23.credentials flag.  However we need to parse it before
 	// creating the runtime.  We depend on the profile's init() function
 	// calling flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
-	// This will read the envvar.Credentials env var, then our call to
+	// This will read the ref.EnvCredentials env var, then our call to
 	// flag.Parse() will take any override passed on the command line.
 	var dir string
 	if f := flag.Lookup("v23.credentials").Value; true {
@@ -100,7 +100,7 @@ func runAgentD(env *cmdline.Env, args []string) error {
 		f.Set("")
 	}
 	if len(dir) == 0 {
-		return env.UsageErrorf("The %v environment variable must be set to a directory: %q", envvar.Credentials, os.Getenv(envvar.Credentials))
+		return env.UsageErrorf("The %v environment variable must be set to a directory: %q", ref.EnvCredentials, os.Getenv(ref.EnvCredentials))
 	}
 
 	p, passphrase, err := newPrincipalFromDir(dir)
@@ -109,8 +109,8 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	}
 
 	// Clear out the environment variable before v23.Init.
-	if err = envvar.ClearCredentials(); err != nil {
-		return fmt.Errorf("envvar.ClearCredentials: %v", err)
+	if err = ref.EnvClearCredentials(); err != nil {
+		return fmt.Errorf("ref.EnvClearCredentials: %v", err)
 	}
 	ctx, shutdown := v23.Init()
 	defer shutdown()
@@ -133,7 +133,7 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	if sock, endpoint, err = server.RunAnonymousAgent(ctx, p, childAgentFd); err != nil {
 		return fmt.Errorf("RunAnonymousAgent: %v", err)
 	}
-	if err = os.Setenv(envvar.AgentEndpoint, endpoint); err != nil {
+	if err = os.Setenv(ref.EnvAgentEndpoint, endpoint); err != nil {
 		return fmt.Errorf("setenv: %v", err)
 	}
 

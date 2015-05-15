@@ -19,7 +19,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
@@ -149,9 +149,9 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 
-	ep, err := v23.NewEndpoint(os.Getenv(envvar.AgentEndpoint))
+	ep, err := v23.NewEndpoint(os.Getenv(ref.EnvAgentEndpoint))
 	if err != nil {
-		vlog.Errorf("Couldn't parse %v=%q: %v", envvar.AgentEndpoint, os.Getenv(envvar.AgentEndpoint), err)
+		vlog.Errorf("Couldn't parse %v=%q: %v", ref.EnvAgentEndpoint, os.Getenv(ref.EnvAgentEndpoint), err)
 		return nil, nil, err
 	}
 	// Connect to the Principal

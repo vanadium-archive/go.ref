@@ -143,7 +143,7 @@ import (
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
@@ -759,7 +759,7 @@ func genCmd(ctx *context.T, instanceDir, systemName string, nsRoot string) (*exe
 	saArgs.progname = appName
 
 	// Set the app's default namespace root to the local namespace.
-	saArgs.env = []string{envvar.NamespacePrefix + "=" + nsRoot}
+	saArgs.env = []string{ref.EnvNamespacePrefix + "=" + nsRoot}
 	saArgs.env = append(saArgs.env, envelope.Env...)
 	rootDir := filepath.Join(instanceDir, "root")
 	saArgs.dir = rootDir
@@ -849,7 +849,7 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 		ep := agentlib.AgentEndpoint(fd)
 		cfg.Set(mgmt.SecurityAgentEndpointConfigKey, ep)
 	} else {
-		cmd.Env = append(cmd.Env, envvar.Credentials+"="+filepath.Join(instanceDir, "credentials"))
+		cmd.Env = append(cmd.Env, ref.EnvCredentials+"="+filepath.Join(instanceDir, "credentials"))
 	}
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	defer func() {

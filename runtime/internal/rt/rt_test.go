@@ -17,7 +17,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -27,7 +27,7 @@ import (
 //go:generate v23 test generate
 
 func TestInit(t *testing.T) {
-	envvar.ClearCredentials()
+	ref.EnvClearCredentials()
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -184,7 +184,7 @@ func TestPrincipalInheritance(t *testing.T) {
 	createCredentialsInDir(t, cdir, "test")
 
 	// directory supplied by the environment.
-	credEnv := []string{envvar.Credentials + "=" + cdir}
+	credEnv := []string{ref.EnvCredentials + "=" + cdir}
 
 	h, err := sh.Start("runner", credEnv)
 	if err != nil {
@@ -220,9 +220,9 @@ func TestPrincipalInit(t *testing.T) {
 
 	// A credentials directory may, or may, not have been already specified.
 	// Either way, we want to use our own, so we set it aside and use our own.
-	origCredentialsDir := os.Getenv(envvar.Credentials)
-	defer os.Setenv(envvar.Credentials, origCredentialsDir)
-	if err := os.Setenv(envvar.Credentials, ""); err != nil {
+	origCredentialsDir := os.Getenv(ref.EnvCredentials)
+	defer os.Setenv(ref.EnvCredentials, origCredentialsDir)
+	if err := os.Setenv(ref.EnvCredentials, ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -243,7 +243,7 @@ func TestPrincipalInit(t *testing.T) {
 	}
 	defer agentSh.Cleanup(os.Stderr, os.Stderr)
 
-	// Test that with envvar.Credentials unset the runtime's Principal
+	// Test that with ref.EnvCredentials unset the runtime's Principal
 	// is correctly initialized for both shells.
 	if len(collect(sh, nil)) == 0 {
 		t.Fatalf("Without agent: child returned an empty default blessings set")
@@ -252,12 +252,12 @@ func TestPrincipalInit(t *testing.T) {
 		t.Fatalf("With agent: got %q, want %q", got, want)
 	}
 
-	// Test that credentials specified via the envvar.Credentials
+	// Test that credentials specified via the ref.EnvCredentials
 	// environment variable take precedence over an agent.
 	cdir1 := tmpDir(t)
 	defer os.RemoveAll(cdir1)
 	createCredentialsInDir(t, cdir1, "test_env")
-	credEnv := []string{envvar.Credentials + "=" + cdir1}
+	credEnv := []string{ref.EnvCredentials + "=" + cdir1}
 
 	if got, want := collect(sh, credEnv), "test_env"; got != want {
 		t.Errorf("Without agent: got default blessings: %q, want %q", got, want)
@@ -267,7 +267,7 @@ func TestPrincipalInit(t *testing.T) {
 	}
 
 	// Test that credentials specified via the command line take precedence over the
-	// envvar.Credentials environment variable and also the agent.
+	// ref.EnvCredentials environment variable and also the agent.
 	cdir2 := tmpDir(t)
 	defer os.RemoveAll(cdir2)
 	createCredentialsInDir(t, cdir2, "test_cmd")

@@ -32,8 +32,7 @@ import (
 	"v.io/v23/services/pprof"
 	"v.io/v23/services/stats"
 	"v.io/v23/verror"
-
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/internal/binarylib"
@@ -685,7 +684,7 @@ func UserName(t *testing.T) string {
 }
 
 func InitForTest() (*context.T, v23.Shutdown) {
-	roots, _ := envvar.NamespaceRoots()
+	roots, _ := ref.EnvNamespaceRoots()
 	for key, _ := range roots {
 		os.Unsetenv(key)
 	}

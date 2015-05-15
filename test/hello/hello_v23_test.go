@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test/modules"
@@ -20,7 +20,7 @@ import (
 //go:generate v23 test generate
 
 func init() {
-	envvar.ClearCredentials()
+	ref.EnvClearCredentials()
 }
 
 var opts = modules.StartOpts{
@@ -49,7 +49,7 @@ func setupCredentials(i *v23tests.T, names ...string) (map[string]string, error)
 		if err := idp.Bless(p, name); err != nil {
 			return nil, err
 		}
-		out[name] = fmt.Sprintf("%s=%s", envvar.Credentials, dir)
+		out[name] = fmt.Sprintf("%s=%s", ref.EnvCredentials, dir)
 	}
 	return out, nil
 }

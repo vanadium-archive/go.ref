@@ -55,8 +55,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/application"
-
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/sysinit"
 )
@@ -134,8 +133,8 @@ func initCommand(root, command string, stderr, stdout io.Writer) (bool, error) {
 // SelfInstall installs the device manager and configures it using the
 // environment and the supplied command-line flags.
 func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singleUser, sessionMode, init bool, args, env []string, stderr, stdout io.Writer) error {
-	if os.Getenv(envvar.Credentials) != "" {
-		return fmt.Errorf("Attempting to install device manager under agent with the %q environment variable set.", envvar.Credentials)
+	if os.Getenv(ref.EnvCredentials) != "" {
+		return fmt.Errorf("Attempting to install device manager under agent with the %q environment variable set.", ref.EnvCredentials)
 	}
 	root := filepath.Join(installDir, dmRoot)
 	if _, err := os.Stat(root); err == nil || !os.IsNotExist(err) {
@@ -253,7 +252,7 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", dateCommand)
 	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
 	output += "fi\n"
-	output += fmt.Sprintf("%s=%q ", envvar.Credentials, principalDir)
+	output += fmt.Sprintf("%s=%q ", ref.EnvCredentials, principalDir)
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
 	// close enough to Bash that we're using it as an approximation.
 	//
@@ -301,8 +300,8 @@ func Start(installDir string, stderr, stdout io.Writer) error {
 		return nil
 	}
 
-	if os.Getenv(envvar.Credentials) != "" {
-		return fmt.Errorf("Attempting to run device manager under agent with the %q environment variable set.", envvar.Credentials)
+	if os.Getenv(ref.EnvCredentials) != "" {
+		return fmt.Errorf("Attempting to run device manager under agent with the %q environment variable set.", ref.EnvCredentials)
 	}
 	agentScript := filepath.Join(root, "agent_deviced.sh")
 	cmd := exec.Command(agentScript)

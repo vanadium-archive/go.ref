@@ -23,7 +23,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/services/agent/internal/server"
@@ -113,7 +113,7 @@ func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err = os.Setenv(envvar.AgentEndpoint, endpoint); err != nil {
+	if err = os.Setenv(ref.EnvAgentEndpoint, endpoint); err != nil {
 		vlog.Fatalf("setenv: %v", err)
 	}
 

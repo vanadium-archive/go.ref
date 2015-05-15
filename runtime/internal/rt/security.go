@@ -15,7 +15,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
@@ -34,7 +34,7 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 		}
 		// TODO(ataly, ashankar): If multiple runtimes are getting
 		// initialized at the same time from the same
-		// envvar.Credentials we will need some kind of locking for the
+		// ref.EnvCredentials we will need some kind of locking for the
 		// credential files.
 		if principal, err = vsecurity.LoadPersistentPrincipal(credentials, nil); err != nil {
 			if os.IsNotExist(err) {
@@ -108,7 +108,7 @@ func agentEP() (naming.Endpoint, int, error) {
 		// We were started by a parent (presumably, device manager).
 		endpoint, _ = handle.Config.Get(mgmt.SecurityAgentEndpointConfigKey)
 	} else {
-		endpoint = os.Getenv(envvar.AgentEndpoint)
+		endpoint = os.Getenv(ref.EnvAgentEndpoint)
 	}
 	if endpoint == "" {
 		return nil, -1, nil

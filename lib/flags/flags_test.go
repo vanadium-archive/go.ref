@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/flags"
 )
 
@@ -139,20 +139,20 @@ func TestFlagsGroups(t *testing.T) {
 }
 
 const (
-	rootEnvVar  = envvar.NamespacePrefix
-	rootEnvVar0 = envvar.NamespacePrefix + "0"
+	rootEnvVar  = ref.EnvNamespacePrefix
+	rootEnvVar0 = ref.EnvNamespacePrefix + "0"
 )
 
 func TestEnvVars(t *testing.T) {
-	oldcreds := os.Getenv(envvar.Credentials)
-	defer os.Setenv(envvar.Credentials, oldcreds)
+	oldcreds := os.Getenv(ref.EnvCredentials)
+	defer os.Setenv(ref.EnvCredentials, oldcreds)
 
 	oldroot := os.Getenv(rootEnvVar)
 	oldroot0 := os.Getenv(rootEnvVar0)
 	defer os.Setenv(rootEnvVar, oldroot)
 	defer os.Setenv(rootEnvVar0, oldroot0)
 
-	os.Setenv(envvar.Credentials, "bar")
+	os.Setenv(ref.EnvCredentials, "bar")
 	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
 	if err := fl.Parse([]string{}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)

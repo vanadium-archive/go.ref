@@ -20,7 +20,7 @@ import (
 	"path"
 	"testing"
 
-	"v.io/x/ref/envvar"
+	"v.io/x/ref"
 	"v.io/x/ref/test"
 )
 
@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestServiceRunner(t *testing.T) {
-	envvar.ClearCredentials()
+	ref.EnvClearCredentials()
 	tmpdir, err := ioutil.TempDir("", "servicerunner_test")
 	if err != nil {
 		t.Fatal(err)
