@@ -795,6 +795,26 @@ func TestStatsCounters(t *testing.T) {
 	}
 }
 
+func TestIntermediateNodesCreatedFromConfig(t *testing.T) {
+	rootCtx, _, _, shutdown := initTest()
+	defer shutdown()
+
+	server, estr := newMT(t, "testdata/intermediate.perms", "", "TestIntermediateNodesCreatedFromConfig", rootCtx)
+	defer server.Stop()
+
+	// x and x/y should have the same permissions at the root.
+	rootPerms, _ := doGetPermissions(t, rootCtx, estr, "", true)
+	if perms, _ := doGetPermissions(t, rootCtx, estr, "x", true); !reflect.DeepEqual(rootPerms, perms) {
+		boom(t, "for x got %v, want %v", perms, rootPerms)
+	}
+	if perms, _ := doGetPermissions(t, rootCtx, estr, "x/y", true); !reflect.DeepEqual(rootPerms, perms) {
+		boom(t, "for x/y got %v, want %v", perms, rootPerms)
+	}
+	if perms, _ := doGetPermissions(t, rootCtx, estr, "x/y/z", true); reflect.DeepEqual(rootPerms, perms) {
+		boom(t, "for x/y/z got %v, don't want %v", perms, rootPerms)
+	}
+}
+
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
 	test.Init()
 	ctx, shutdown := test.InitForTest()

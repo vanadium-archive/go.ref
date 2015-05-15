@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -108,7 +109,15 @@ func (mt *mountTable) parsePermFile(path string) error {
 			}
 			return err
 		}
-		for name, perms := range pm {
+		// Sort the map shortest key first.  That way configs for nodes higher up in the
+		// name tree happen first ensuring that lower nodes correctly inherit permissions.
+		var keys []string
+		for name := range pm {
+			keys = append(keys, name)
+		}
+		sort.Strings(keys)
+		for _, name := range keys {
+			perms := pm[name]
 			var elems []string
 			isPattern := false
 

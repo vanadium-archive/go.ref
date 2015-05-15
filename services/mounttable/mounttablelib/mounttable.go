@@ -249,19 +249,16 @@ func (n *node) satisfiesTemplate(ctx *context.T, call security.Call, tags []moun
 	return verror.New(verror.ErrNoAccess, ctx, blessings, invalidB)
 }
 
-// copyAccessLists copies one nodes AccessLists to another and adds the clients blessings as
+// CopyPermissions copies one node's permissions to another and adds the clients blessings as
 // patterns to the Admin tag.
-func copyAccessLists(ctx *context.T, call security.Call, cur *node) *VersionedPermissions {
-	if ctx == nil {
-		return nil
-	}
-	if call == nil {
-		return nil
-	}
+func CopyPermissions(ctx *context.T, call security.Call, cur *node) *VersionedPermissions {
 	if cur.vPerms == nil {
 		return nil
 	}
 	vPerms := cur.vPerms.Copy()
+	if ctx == nil || call == nil {
+		return vPerms
+	}
 	blessings, _ := security.RemoteBlessingNames(ctx, call)
 	for _, b := range blessings {
 		vPerms.Add(security.BlessingPattern(b), string(mounttable.Admin))
@@ -339,7 +336,7 @@ func (mt *mountTable) traverse(ctx *context.T, call security.Call, elems []strin
 		if cur.permsTemplate != nil {
 			next.vPerms = createVersionedPermissionsFromTemplate(cur.permsTemplate, e)
 		} else {
-			next.vPerms = copyAccessLists(ctx, call, cur)
+			next.vPerms = CopyPermissions(ctx, call, cur)
 		}
 		if cur.children == nil {
 			cur.children = make(map[string]*node)
