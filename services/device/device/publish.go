@@ -143,7 +143,7 @@ func runPublish(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("publish: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
 	}
 	binaries := args
-	vroot := os.Getenv("V23_ROOT")
+	vroot := env.Vars["V23_ROOT"]
 	if vroot == "" {
 		return env.UsageErrorf("publish: $V23_ROOT environment variable should be set")
 	}

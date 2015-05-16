@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"strings"
 
 	"v.io/v23/context"
@@ -64,9 +63,9 @@ don't look like traditional hostnames, which rsync doesn't understand. For
 compatibility with such tools, vsh has a special feature that allows passing the
 vanadium object name via the VSH_NAME environment variable.
 
-  $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* myhost:/foo/
+  $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* v23:/foo/
 
-In this example, the "myhost" host will be substituted with $VSH_NAME by vsh and
+In this example, the "v23" host will be substituted with $VSH_NAME by vsh and
 rsync will work as expected.
 `,
 	ArgsName: "<object name> [command]",
@@ -78,7 +77,7 @@ rsync will work as expected.
 }
 
 func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
-	oname, cmd, err := objectNameAndCommandLine(args)
+	oname, cmd, err := objectNameAndCommandLine(env, args)
 	if err != nil {
 		return env.UsageErrorf("%v", err)
 	}
@@ -94,7 +93,7 @@ func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
 		return nil
 	}
 
-	opts := shellOptions(cmd)
+	opts := shellOptions(env, cmd)
 
 	stream, err := t.Shell(ctx, cmd, opts)
 	if err != nil {
@@ -123,9 +122,9 @@ func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
 	return cmdline.ErrExitCode(exitStatus)
 }
 
-func shellOptions(cmd string) (opts tunnel.ShellOpts) {
+func shellOptions(env *cmdline.Env, cmd string) (opts tunnel.ShellOpts) {
 	opts.UsePty = (len(cmd) == 0 || forcePty) && !disablePty
-	opts.Environment = environment()
+	opts.Environment = environment(env.Vars)
 	ws, err := internal.GetWindowSize()
 	if err != nil {
 		vlog.VI(1).Infof("GetWindowSize failed: %v", err)
@@ -136,11 +135,11 @@ func shellOptions(cmd string) (opts tunnel.ShellOpts) {
 	return
 }
 
-func environment() []string {
+func environment(vars map[string]string) []string {
 	env := []string{}
 	for _, name := range []string{"TERM", "COLORTERM"} {
-		if value := os.Getenv(name); value != "" {
-			env = append(env, fmt.Sprintf("%s=%s", name, value))
+		if value := vars[name]; value != "" {
+			env = append(env, name+"="+value)
 		}
 	}
 	return env
@@ -150,7 +149,7 @@ func environment() []string {
 // send to the server. The object name is the first non-flag argument.
 // The command line is the concatenation of all non-flag arguments excluding
 // the object name.
-func objectNameAndCommandLine(args []string) (string, string, error) {
+func objectNameAndCommandLine(env *cmdline.Env, args []string) (string, string, error) {
 	if len(args) < 1 {
 		return "", "", errors.New("object name missing")
 	}
@@ -162,7 +161,7 @@ func objectNameAndCommandLine(args []string) (string, string, error) {
 	// possible:
 	//   $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* v23:/foo/
 	// The "v23" host will be substituted with <object name>.
-	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "v23" {
+	if envName := env.Vars["VSH_NAME"]; envName != "" && name == "v23" {
 		name = envName
 	}
 	cmd := strings.Join(args, " ")
