@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -20,7 +21,7 @@ import (
 )
 
 type commandDesc struct {
-	factory func() command
+	factory func() *execHandle
 	main    Main
 	help    string
 }
@@ -32,7 +33,7 @@ type cmdRegistry struct {
 
 var registry = &cmdRegistry{cmds: make(map[string]*commandDesc)}
 
-func (r *cmdRegistry) addCommand(name, help string, factory func() command, main Main) {
+func (r *cmdRegistry) addCommand(name, help string, factory func() *execHandle, main Main) {
 	r.Lock()
 	defer r.Unlock()
 	r.cmds[name] = &commandDesc{factory, main, help}
@@ -47,7 +48,7 @@ func (r *cmdRegistry) getCommand(name string) *commandDesc {
 func (r *cmdRegistry) getExternalCommand(name string) *commandDesc {
 	h := newExecHandleForExternalCommand(name)
 	return &commandDesc{
-		factory: func() command { return h },
+		factory: func() *execHandle { return h },
 	}
 }
 
@@ -55,15 +56,7 @@ func (r *cmdRegistry) getExternalCommand(name string) *commandDesc {
 // as a subprocess. It must be called before Dispatch or DispatchInTest is
 // called, typically from an init function.
 func RegisterChild(name, help string, main Main) {
-	factory := func() command { return newExecHandle(name) }
-	registry.addCommand(name, help, factory, main)
-}
-
-// RegisterFunction adds a new command to the registry that will be run
-// within the current process. It can be called at any time prior to an
-// attempt to use it.
-func RegisterFunction(name, help string, main Main) {
-	factory := func() command { return newFunctionHandle(name, main) }
+	factory := func() *execHandle { return newExecHandle(name) }
 	registry.addCommand(name, help, factory, main)
 }
 
@@ -184,11 +177,6 @@ func (r *cmdRegistry) dispatch() error {
 }
 
 // WaitForEOF returns when a read on its io.Reader parameter returns io.EOF
-func WaitForEOF(stdin io.Reader) {
-	buf := [1024]byte{}
-	for {
-		if _, err := stdin.Read(buf[:]); err == io.EOF {
-			return
-		}
-	}
+func WaitForEOF(r io.Reader) {
+	io.Copy(ioutil.Discard, r)
 }

@@ -39,13 +39,8 @@ func init() {
 	modules.RegisterChild("echos", "[args]*", Echo)
 	modules.RegisterChild("errortestChild", "", ErrorMain)
 	modules.RegisterChild("ignores_stdin", "", ignoresStdin)
-	modules.RegisterChild("pipeProc", "", pipeEcho)
+	modules.RegisterChild("pipeEcho", "", pipeEcho)
 	modules.RegisterChild("lifo", "", lifo)
-
-	modules.RegisterFunction("envtestf", "envtest: <variables to print>...", PrintFromEnv)
-	modules.RegisterFunction("echof", "[args]*", Echo)
-	modules.RegisterFunction("errortestFunc", "", ErrorMain)
-	modules.RegisterFunction("pipeFunc", "", pipeEcho)
 }
 
 // We must call Testmain ourselves because using v23 test generate
@@ -380,20 +375,6 @@ func TestChildNoRegistration(t *testing.T) {
 	}
 }
 
-func TestFunction(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
-	defer shutdown()
-
-	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(nil, nil)
-	key, val := "simpleVar", "foo & bar & baz"
-	sh.SetVar(key, val)
-	testCommand(t, sh, "envtestf", key, val)
-}
-
 func TestErrorChild(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
@@ -514,36 +495,6 @@ func TestStdoutRace(t *testing.T) {
 
 	if err := syscall.Kill(h.Pid(), syscall.SIGINT); err != nil {
 		t.Errorf("Kill failed: %v", err)
-	}
-}
-
-func TestShutdownFunction(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
-	defer shutdown()
-
-	sh, err := modules.NewShell(ctx, nil, false, t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(nil, nil)
-	testShutdown(t, sh, "echof", true)
-}
-
-func TestErrorFunc(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
-	defer shutdown()
-
-	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("errortestFunc", nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if got, want := h.Shutdown(nil, nil), "an error"; got != nil && got.Error() != want {
-		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -712,44 +663,42 @@ func TestPipe(t *testing.T) {
 	}
 	defer sh.Cleanup(nil, nil)
 
-	for _, cmd := range []string{"pipeProc", "pipeFunc"} {
-		r, w, err := os.Pipe()
-		if err != nil {
-			t.Fatal(err)
-		}
-		opts := sh.DefaultStartOpts()
-		opts.Stdin = r
-		h, err := sh.StartWithOpts(opts, nil, cmd)
-		if err != nil {
-			t.Fatal(err)
-		}
-		cookie := strconv.Itoa(rand.Int())
-		go func(w *os.File, s string) {
-			fmt.Fprintf(w, "hello world\n")
-			fmt.Fprintf(w, "%s\n", s)
-			w.Close()
-		}(w, cookie)
-
-		scanner := bufio.NewScanner(h.Stdout())
-		want := []string{
-			fmt.Sprintf("%p: hello world", pipeEcho),
-			fmt.Sprintf("%p: %s", pipeEcho, cookie),
-		}
-		i := 0
-		for scanner.Scan() {
-			if got, want := scanner.Text(), want[i]; got != want {
-				t.Fatalf("%s: got %v, want %v", cmd, got, want)
-			}
-			i++
-		}
-		if got, want := i, 2; got != want {
-			t.Fatalf("%s: got %v, want %v", cmd, got, want)
-		}
-		if err := h.Shutdown(os.Stderr, os.Stderr); err != nil {
-			t.Fatal(err)
-		}
-		r.Close()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
 	}
+	opts := sh.DefaultStartOpts()
+	opts.Stdin = r
+	h, err := sh.StartWithOpts(opts, nil, "pipeEcho")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie := strconv.Itoa(rand.Int())
+	go func(w *os.File, s string) {
+		fmt.Fprintf(w, "hello world\n")
+		fmt.Fprintf(w, "%s\n", s)
+		w.Close()
+	}(w, cookie)
+
+	scanner := bufio.NewScanner(h.Stdout())
+	want := []string{
+		fmt.Sprintf("%p: hello world", pipeEcho),
+		fmt.Sprintf("%p: %s", pipeEcho, cookie),
+	}
+	i := 0
+	for scanner.Scan() {
+		if got, want := scanner.Text(), want[i]; got != want {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+		i++
+	}
+	if got, want := i, 2; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if err := h.Shutdown(os.Stderr, os.Stderr); err != nil {
+		t.Fatal(err)
+	}
+	r.Close()
 }
 
 func TestLIFO(t *testing.T) {

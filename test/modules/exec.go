@@ -62,11 +62,11 @@ func testFlags() []string {
 	return fl
 }
 
-func newExecHandle(name string) command {
+func newExecHandle(name string) *execHandle {
 	return &execHandle{name: name, procErrCh: make(chan error, 1)}
 }
 
-func newExecHandleForExternalCommand(name string) command {
+func newExecHandleForExternalCommand(name string) *execHandle {
 	return &execHandle{name: name, procErrCh: make(chan error, 1), external: true}
 }
 
@@ -94,35 +94,28 @@ func (eh *execHandle) CloseStdin() {
 	eh.mu.Unlock()
 }
 
-func (eh *execHandle) envelope(sh *Shell, env []string, args ...string) ([]string, []string) {
-	// TODO(toddw): External commands probably shouldn't run any of this logic,
-	// and should just return args, env directly.
-	newargs := []string{os.Args[0]}
-	newargs = append(newargs, testFlags()...)
+func (eh *execHandle) envelope(sh *Shell, env []string, args []string) ([]string, []string) {
+	if eh.external {
+		newargs := append([]string{eh.name}, args...)
+		newenv := envvar.SliceToMap(env)
+		delete(newenv, shellEntryPoint)
+		return newargs, envvar.MapToSlice(newenv)
+	}
+	newargs := append([]string{os.Args[0]}, testFlags()...)
 	newargs = append(newargs, args...)
-	// Be careful to overwrite shellEntryPoint if it already exists - e.g. when a
-	// subprocess runs another subprocess.
 	newenv := envvar.SliceToMap(env)
 	newenv[shellEntryPoint] = eh.name
 	return newargs, envvar.MapToSlice(newenv)
 }
 
-func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []string, args ...string) (Handle, error) {
+func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []string, args []string) (*execHandle, error) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.sh = sh
 	eh.opts = opts
-	cmdPath := args[0]
-	newargs, newenv := args, env
-
-	// If this isn't an external command, use the envelope execution environment.
-	if !eh.external {
-		cmdPath = os.Args[0]
-		newargs, newenv = eh.envelope(sh, env, args[1:]...)
-	}
-
-	cmd := exec.Command(cmdPath, newargs[1:]...)
-	cmd.Env = newenv
+	args, env = eh.envelope(sh, env, args)
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = env
 
 	stderr, err := newLogfile("stderr", eh.name)
 	if err != nil {

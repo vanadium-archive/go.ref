@@ -9,136 +9,130 @@
 // value store of environment variables and config settings that are accessible
 // to the commands that it hosts. Simple variable expansion is supported.
 //
-// Four types of 'commands' may be invoked via a Shell.
+// Three types of 'commands' may be invoked via a Shell:
 //
-// - functions of type Shell.Main as subprocesses via fork/exec
-// - functions of type Shell.Main as functions within the current process
-// - arbitrary non-Vanadium commands available on the underlying
-//   operating system such as '/bin/cp', 'bash' etc.
-// - arbtirary Vanadium commands available on the underlying
-//   operating system such as precompiled Vanadium services.
+//   1) Functions of type Shell.Main as subprocesses via fork/exec.
+//   2) Arbitrary non-Vanadium commands available on the underlying operating
+//      system such as '/bin/cp', 'bash' etc.
+//   3) Arbitrary Vanadium commands available on the underlying operating system
+//      such as precompiled Vanadium services.
 //
-// The first two types require that the function to be executed is compiled
-// into the binary executing the calls to the Shell. These functions
-// are registered with a single, per-process, registry.
-// The signature of the function that implements the command is the
-// same for both types of command and is defined by the Main function type.
-// In particular stdin, stdout and stderr are provided as parameters, as is
-// a map representation of the shell's environment.
+// The first type requires that the function to be executed is compiled into the
+// binary executing the calls to the Shell.  These functions are registered with
+// a single, per-process, registry.
 //
 // The second two types allow for arbitrary binaries to be executed. The
-// distinction between a Vanadium and non-Vanadium command is that the
-// Vanadium command implements the protocol used by v.io/x/ref/lib/exec
-// package to synchronise between the parent and child processes and to share
-// information such as the ConfigKey key,value store supported by the Shell,
-// a shared secret, shared file descriptors etc.
+// distinction between a Vanadium and non-Vanadium command is that the Vanadium
+// command implements the protocol used by v.io/x/ref/lib/exec package to
+// synchronise between the parent and child processes and to share information
+// such as the ConfigKey key,value store supported by the Shell, a shared
+// secret, shared file descriptors etc.
 //
 // When the exec protocol is not used the only form of communication with the
 // child processes are environment variables and command line flags and any
 // shared file descriptors explicitly created by the parent process and expected
-// by the child process; the Start method will not create any additional
-// file descriptors.
+// by the child process; the Start method will not create any additional file
+// descriptors.
 //
 // The registry provides the following functions:
-// - RegisterChild: generally called from an init function to register a
-//   shell.Main to be executed in a subprocess by fork/exec'ing the calling
-//   process.
-// - Dispatch: which must be called in the child process to lookup the
-//   requested function in the registry and to invoke it. This will typically
-//   be called from a TestMain. modules.IsModulesChildProcess can be used
-//   to determine if the calling process is a child started via this package.
-// - DispatchAndExit: essentially the same as Dispatch but intended to be
-//   called as the first thing in a main function.
-// - RegisterFunction: for an in-process function that will be invoked
-//   via function call.
 //
-// The v23 tool can automate generation of TestMain and calls to RegisterChild,
-// and RegisterFunction. Adding the comment below to a test file will
-// generate the appropriate code.
+//   RegisterChild: generally called from an init function to register a
+//     shell.Main to be executed in a subprocess by fork/exec'ing the calling
+//     process.
+//   Dispatch: which must be called in the child process to lookup the requested
+//     function in the registry and to invoke it. This will typically be called
+//     from a TestMain. modules.IsModulesChildProcess can be used to determine
+//     if the calling process is a child started via this package.
 //
-// //go:generate v23 test generate .
+// The v23 tool can automate generation of TestMain and calls to RegisterChild.
+// Adding the comment below to a test file will generate the appropriate code.
+//
+//   //go:generate v23 test generate .
 //
 // Use 'v23 test generate --help' to get a complete explanation.
 //
-// In all cases commands are started by invoking the StartWithOpts method
-// on the Shell with the name of the command to run. An instance of the Handle
-// interface is returned which can be used to interact with the function
-// or subprocess, and in particular to read/write data from/to it using io
-// channels that follow the stdin, stdout, stderr convention. The StartOpts
-// struct is used to control the detailed behaviour of each such invocation.
-// Various helper functions are provided both for creating appropriate
-// instances of StartOpts and for common uses of StartWithOpts.
+// In all cases commands are started by invoking the StartWithOpts method on the
+// Shell with the name of the command to run. An instance of the Handle
+// interface is returned which can be used to interact with the function or
+// subprocess, and in particular to read/write data from/to it using io channels
+// that follow the stdin, stdout, stderr convention. The StartOpts struct is
+// used to control the detailed behaviour of each such invocation.  Various
+// helper functions are provided both for creating appropriate instances of
+// StartOpts and for common uses of StartWithOpts.
 //
-// Each successful call to StartWithOpts returns a handle representing
-// the running command. This handle can be used to gain access to that
-// command's stdin, stdout, stderr and to request or synchronize with
-// its termination via the Shutdown method. The Shutdown method can
-// optionally be used to read any remaining output from the commands stdout
-// and stderr.
-// The Shell maintains a record of all such handles and will call Shutdown
-// on them in LIFO order when the Shell's Cleanup method is called.
+// Each successful call to StartWithOpts returns a handle representing the
+// running command. This handle can be used to gain access to that command's
+// stdin, stdout, stderr and to request or synchronize with its termination via
+// the Shutdown method. The Shutdown method can optionally be used to read any
+// remaining output from the commands stdout and stderr.  The Shell maintains a
+// record of all such handles and will call Shutdown on them in LIFO order when
+// the Shell's Cleanup method is called.
 //
-// A simple protocol must be followed by all modules.Main commands,
-// in particular, they should wait for their stdin stream to be closed
-// before exiting. The caller can then coordinate with any command by writing
-// to that stdin stream and reading responses from the stdout stream, and it
-// can close stdin when it's ready for the command to exit using the
-// CloseStdin method on the command's handle. Any binary or script that
-// follows this protocol can be used as well.
+// A simple protocol must be followed by all modules.Main commands, in
+// particular, they should wait for their stdin stream to be closed before
+// exiting. The caller can then coordinate with any command by writing to that
+// stdin stream and reading responses from the stdout stream, and it can close
+// stdin when it's ready for the command to exit using the CloseStdin method on
+// the command's handle. Any binary or script that follows this protocol can be
+// used as well.
 //
-// By default, every Shell created by NewShell starts a security agent
-// to manage principals for child processes. These default credentials
-// can be overridden by passing a nil context to NewShell then specifying
-// VeyronCredentials in the environment provided as a parameter to the
-// StartWithOpts method. It is also possible to specify custom credentials
-// via StartOpts.
+// By default, every Shell created by NewShell starts a security agent to manage
+// principals for child processes. These default credentials can be overridden
+// by passing a nil context to NewShell then specifying VeyronCredentials in the
+// environment provided as a parameter to the StartWithOpts method. It is also
+// possible to specify custom credentials via StartOpts.
 //
-// Interacting with Commands:
+// Interacting with Commands
 //
 // Handle.Stdout(), Stdin(), Stderr():
-// StartWithOpts returns a Handle which can be used to interact with the
-// running command. In particular, its Stdin() and Stdout() methods give
-// access to the running process' corresponding stdin and stdout and hence
-// can be used to communicate with it. Stderr is handled differently and is
-// configured so that the child's stderr is written to a log file rather
-// than a pipe. This is in order to maximise the liklihood of capturing
-// stderr output from a crashed child process.
+//
+// StartWithOpts returns a Handle which can be used to interact with the running
+// command. In particular, its Stdin() and Stdout() methods give access to the
+// running process' corresponding stdin and stdout and hence can be used to
+// communicate with it. Stderr is handled differently and is configured so that
+// the child's stderr is written to a log file rather than a pipe. This is in
+// order to maximise the liklihood of capturing stderr output from a crashed
+// child process.
 //
 // Handle.Shutdown(stdout, stderr io.Writer):
+//
 // The Shutdown method is used to gracefully shutdown a command and to
-// synchronise with its termination. In particular, Shutdown can be used
-// to read any unread output from the command's stdout and stderr. Note that
-// since Stderr is buffered to a file, Shutdown is able to return the entire
-// contents of that file. This is useful for debugging misbehaving/crashing
-// child processes.
+// synchronise with its termination. In particular, Shutdown can be used to read
+// any unread output from the command's stdout and stderr. Note that since
+// Stderr is buffered to a file, Shutdown is able to return the entire contents
+// of that file. This is useful for debugging misbehaving/crashing child
+// processes.
 //
 // Shell.Cleanup(stdout, stderr io.Writer):
-// The Shell keeps track of all Handles that it has issued and in particular
-// if Shutdown (or Forget) have not been called, it will call Shutdown for
-// each such Handle in LIFO order. This ensures that all commands will be
-// Shutdown even if the developer does not explicitly take care to do so
-// for every invocation.
+//
+// The Shell keeps track of all Handles that it has issued and in particular if
+// Shutdown (or Forget) have not been called, it will call Shutdown for each
+// such Handle in LIFO order. This ensures that all commands will be Shutdown
+// even if the developer does not explicitly take care to do so for every
+// invocation.
 //
 // Pipes:
+//
 // StartWithOpts allows the caller to pass an io.Reader to the command
 // (StartOpts.Stdin) for it to read from, rather than creating a new pipe
-// internally. This makes it possible to connect the output of one
-// command to the input of another directly.
+// internally. This makes it possible to connect the output of one command to
+// the input of another directly.
 //
 // Command Line Arguments:
+//
 // The arguments passed in calls to Start are appended to any system required
 // ones (e.g. for propagating test timeouts, verbosity etc) and the child
-// process will call the command with the result of flag.Args(). In this way
-// the caller can provide flags used by libraries in the child process
-// as well as those specific to the command and the command will only
-// receive the args specific to it. The usual "--" convention can be
-// used to override this default behaviour.
+// process will call the command with the result of flag.Args(). In this way the
+// caller can provide flags used by libraries in the child process as well as
+// those specific to the command and the command will only receive the args
+// specific to it. The usual "--" convention can be used to override this
+// default behaviour.
 //
 // Caveats:
 //
-// Handle.Shutdown assumes that the child command/process will terminate
-// when its stdin stream is closed. This assumption is unlikely to be valid
-// for 'external' commands (e.g. /bin/cp) and in these cases Kill or some other
+// Handle.Shutdown assumes that the child command/process will terminate when
+// its stdin stream is closed. This assumption is unlikely to be valid for
+// 'external' commands (e.g. /bin/cp) and in these cases Kill or some other
 // application specific mechanism will need to be used.
 package modules
 
@@ -182,8 +176,8 @@ var defaultStartOpts = StartOpts{
 type Shell struct {
 	mu               sync.Mutex
 	env              map[string]string
-	handles          map[Handle]struct{}
-	lifoHandles      []Handle
+	handles          map[*execHandle]struct{}
+	lifoHandles      []*execHandle
 	defaultStartOpts StartOpts
 	// tmpCredDir is the temporary directory created by this
 	// shell. This must be removed when the shell is cleaned up.
@@ -214,7 +208,7 @@ type Shell struct {
 func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Testing) (*Shell, error) {
 	sh := &Shell{
 		env:              make(map[string]string),
-		handles:          make(map[Handle]struct{}),
+		handles:          make(map[*execHandle]struct{}),
 		config:           exec.NewConfig(),
 		defaultStartOpts: defaultStartOpts,
 		sessionVerbosity: verbosity,
@@ -533,9 +527,6 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 			return nil, err
 		}
 	}
-	cmd := desc.factory()
-	expanded := append([]string{name}, sh.expand(args...)...)
-	cenv := sh.setupCommandEnv(env)
 
 	var p *os.File
 	if opts.Credentials != nil {
@@ -545,7 +536,8 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 		}
 	}
 
-	h, err := cmd.start(sh, p, &opts, cenv, expanded...)
+	handle := desc.factory()
+	h, err := handle.start(sh, p, &opts, sh.setupCommandEnv(env), sh.expand(args))
 	if err != nil {
 		return h, err
 	}
@@ -556,16 +548,14 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 	return h, nil
 }
 
-// CommandEnvelope returns the command line and environment that would be
-// used for running the subprocess or function if it were started with the
-// specifed arguments.
+// CommandEnvelope returns the command line and environment that would be used
+// for running the subprocess if it were started with the specifed arguments.
 func (sh *Shell) CommandEnvelope(name string, env []string, args ...string) ([]string, []string) {
-	cmd := registry.getCommand(name)
-	if cmd == nil {
+	desc := registry.getCommand(name)
+	if desc == nil {
 		return []string{}, []string{}
 	}
-	menv := sh.setupCommandEnv(env)
-	return cmd.factory().envelope(sh, menv, args...)
+	return desc.factory().envelope(sh, sh.setupCommandEnv(env), sh.expand(args))
 }
 
 // Forget tells the Shell to stop tracking the supplied Handle. This is
@@ -573,11 +563,13 @@ func (sh *Shell) CommandEnvelope(name string, env []string, args ...string) ([]s
 // commands are shutdown in.
 func (sh *Shell) Forget(h Handle) {
 	sh.mu.Lock()
-	delete(sh.handles, h)
+	if handle, ok := h.(*execHandle); ok {
+		delete(sh.handles, handle)
+	}
 	sh.mu.Unlock()
 }
 
-func (sh *Shell) expand(args ...string) []string {
+func (sh *Shell) expand(args []string) []string {
 	exp := []string{}
 	for _, a := range args {
 		if len(a) > 0 && a[0] == '$' {
@@ -666,24 +658,19 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) error {
 	defer writeMsg("---- Shell Cleanup Complete ----\n")
 
 	sh.mu.Lock()
-	handles := make([]Handle, 0, len(sh.lifoHandles))
+	handles := make([]*execHandle, 0, len(sh.lifoHandles))
 	for _, h := range sh.lifoHandles {
 		if _, present := sh.handles[h]; present {
 			handles = append(handles, h)
 		}
 	}
-	sh.handles = make(map[Handle]struct{})
+	sh.handles = make(map[*execHandle]struct{})
 	sh.lifoHandles = nil
 	sh.mu.Unlock()
 	var err error
 	for i := len(handles); i > 0; i-- {
 		h := handles[i-1]
-		switch v := h.(type) {
-		case *functionHandle:
-			writeMsg("---- Cleanup calling Shutdown on function %q\n", v.name)
-		case *execHandle:
-			writeMsg("---- Cleanup calling Shutdown on command %q\n", v.name)
-		}
+		writeMsg("---- Cleanup calling Shutdown on command %q\n", h.name)
 		cerr := h.Shutdown(stdout, stderr)
 		if cerr != nil {
 			err = cerr
@@ -695,12 +682,7 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) error {
 				return ": error: " + err.Error()
 			}
 		}
-		switch v := h.(type) {
-		case *functionHandle:
-			writeMsg("---- Shutdown on function %q%s\n", v.name, fn())
-		case *execHandle:
-			writeMsg("---- Shutdown on command %q%s\n", v.name, fn())
-		}
+		writeMsg("---- Shutdown on command %q%s\n", h.name, fn())
 	}
 
 	if sh.cancelCtx != nil {
@@ -779,11 +761,4 @@ type Handle interface {
 
 	// Pid returns the pid of the process running the command
 	Pid() int
-}
-
-// command is used to abstract the implementations of inprocess and subprocess
-// commands.
-type command interface {
-	envelope(sh *Shell, env []string, args ...string) ([]string, []string)
-	start(sh *Shell, agent *os.File, opts *StartOpts, env []string, args ...string) (Handle, error)
 }
