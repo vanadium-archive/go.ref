@@ -82,6 +82,14 @@ func (tm *tapeMap) forSuffix(s string) *tape {
 	return t
 }
 
+func (tm *tapeMap) rewind() {
+	tm.Lock()
+	defer tm.Unlock()
+	for _, t := range tm.tapes {
+		t.Rewind()
+	}
+}
+
 func TestOneTape(t *testing.T) {
 	tm := newTapeMap()
 	if _, ok := tm.forSuffix("mytape").Record("foo").(error); !ok {
