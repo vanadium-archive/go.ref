@@ -5,7 +5,7 @@
 // Package leveldb provides a LevelDB-based implementation of store.Store.
 package leveldb
 
-// #cgo LDFLAGS: -lleveldb
+// #cgo LDFLAGS: -lleveldb -lsnappy
 // #include <stdlib.h>
 // #include "leveldb/c.h"
 // #include "syncbase_leveldb.h"
