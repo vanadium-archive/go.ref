@@ -27,25 +27,6 @@ var (
 	errDataOrSignerUnspecified = verror.Register(pkgPath+".errDataOrSignerUnspecified", verror.NoRetry, "{1:}{2:} persisted data or signer is not specified{:_}")
 )
 
-// TODO(ataly, ashankar): Get rid of this struct once we have switched all
-// credentials directories to the new serialization format.
-type blessings struct {
-	Value security.Blessings
-}
-
-// TODO(ataly, ashankar): Get rid of this struct once we have switched all
-// credentials directories to the new serialization format.
-type state struct {
-	// Store maps BlessingPatterns to the Blessings object that is to be shared
-	// with peers which present blessings of their own that match the pattern.
-	//
-	// All blessings bind to the same public key.
-	Store map[security.BlessingPattern]*blessings
-	// Default is the default Blessings to be shared with peers for which
-	// no other information is available to select blessings.
-	Default *blessings
-}
-
 // blessingStore implements security.BlessingStore.
 type blessingStore struct {
 	publicKey  security.PublicKey
@@ -193,45 +174,6 @@ func (bs *blessingStore) verifyState() error {
 	return nil
 }
 
-// TODO(ataly, ashankar): Get rid of this method once we have switched all
-// credentials directories to the new serialization format.
-func (bs *blessingStore) deserializeOld() error {
-	data, signature, err := bs.serializer.Readers()
-	if err != nil {
-		return err
-	}
-	if data == nil && signature == nil {
-		return nil
-	}
-
-	var old state
-	if err := decodeFromStorage(&old, data, signature, bs.signer.PublicKey()); err != nil {
-		return err
-	}
-
-	for p, wb := range old.Store {
-		if wb != nil {
-			bs.state.PeerBlessings[p] = wb.Value
-		}
-	}
-	if old.Default != nil {
-		bs.state.DefaultBlessings = old.Default.Value
-	}
-
-	if err := bs.verifyState(); err != nil {
-		return err
-	}
-
-	// Save the blessingstore in the new serialization format. This will ensure
-	// that all credentials directories in the old format will switch to the new
-	// format.
-	if err := bs.save(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (bs *blessingStore) deserialize() error {
 	data, signature, err := bs.serializer.Readers()
 	if err != nil {
@@ -241,7 +183,7 @@ func (bs *blessingStore) deserialize() error {
 		return nil
 	}
 	if err := decodeFromStorage(&bs.state, data, signature, bs.signer.PublicKey()); err != nil {
-		return bs.deserializeOld()
+		return err
 	}
 	return bs.verifyState()
 }
