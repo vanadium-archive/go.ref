@@ -108,8 +108,9 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
       </div>
 
       <div class="action-buttons">
+        <input type="text" class="hidden" name="cancelled" id="cancelled" value="false">
         <button class="button-tertiary" id="cancel" type="button">Cancel</button>
-        <button class="button-primary" type="submit">Bless</button>
+        <button class="button-primary" type="submit" id="bless">Bless</button>
       </div>
 
       <p class="disclaimer-text">
@@ -194,11 +195,11 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
       $(this).replaceWith('<button type="button" class="button-passive right removeCaveat hidden">Remove</button>');
     });
 
-    // Upon clicking submit, caveats that have not been added yet should be removed,
+    // Upon clicking bless, caveats that have not been added yet should be removed,
     // before they are sent to the server.
-    $('#caveats-form').submit(function(){
+    $('#bless').click(function(){
       $('.addCaveat').parents('.caveatRow').remove();
-      return true;
+      $("#caveats-form").submit();
     });
 
     // Upon clicking the 'Remove Caveat' button, the caveat row should be removed.
@@ -231,7 +232,8 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
 
     // Activate the cancel button.
     $('#cancel').click(function(){
-      window.close();
+      $("#cancelled").val("true");
+      $("#caveats-form").submit();
     });
   });
   </script>

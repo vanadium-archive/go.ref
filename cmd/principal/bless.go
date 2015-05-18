@@ -96,16 +96,25 @@ func getMacaroonForBlessRPC(key security.PublicKey, blessServerURL string, bless
 			}
 		}()
 
-		toolState := r.FormValue("state")
-		if toolState != state {
+		defer close(result)
+		if r.FormValue("state") != state {
 			tmplArgs.ErrShort = "Unexpected request"
 			tmplArgs.ErrLong = "Mismatched state parameter. Possible cross-site-request-forgery?"
+			return
+		}
+		if errEnc := r.FormValue("error"); errEnc != "" {
+			tmplArgs.ErrShort = "Failed to get blessings"
+			errBytes, err := base64.URLEncoding.DecodeString(errEnc)
+			if err != nil {
+				tmplArgs.ErrLong = err.Error()
+			} else {
+				tmplArgs.ErrLong = string(errBytes)
+			}
 			return
 		}
 		result <- r.FormValue("macaroon")
 		result <- r.FormValue("object_name")
 		result <- r.FormValue("root_key")
-		defer close(result)
 		blessed, ok := <-blessedChan
 		if !ok {
 			tmplArgs.ErrShort = "No blessings received"

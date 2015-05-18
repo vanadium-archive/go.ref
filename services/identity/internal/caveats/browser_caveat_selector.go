@@ -15,6 +15,8 @@ import (
 	"v.io/v23/security"
 )
 
+var ErrSeekblessingsCancelled = fmt.Errorf("seekblessings has been cancelled")
+
 type browserCaveatSelector struct {
 	assetsPrefix string
 }
@@ -37,11 +39,15 @@ func (s *browserCaveatSelector) Render(blessingName, state, redirectURL string, 
 }
 
 func (s *browserCaveatSelector) ParseSelections(r *http.Request) (caveats []CaveatInfo, state string, additionalExtension string, err error) {
+	state = r.FormValue("macaroon")
+	if r.FormValue("cancelled") == "true" {
+		err = ErrSeekblessingsCancelled
+		return
+	}
+	additionalExtension = r.FormValue("blessingExtension")
 	if caveats, err = s.caveats(r); err != nil {
 		return
 	}
-	state = r.FormValue("macaroon")
-	additionalExtension = r.FormValue("blessingExtension")
 	return
 }
 

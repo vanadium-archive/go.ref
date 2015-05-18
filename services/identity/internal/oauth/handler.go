@@ -393,7 +393,8 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	var inputMacaroon addCaveatsMacaroon
 	caveatInfos, macaroonString, blessingExtension, err := h.args.CaveatSelector.ParseSelections(r)
-	if err != nil {
+	cancelled := err == caveats.ErrSeekblessingsCancelled
+	if !cancelled && err != nil {
 		util.HTTPBadRequest(w, r, fmt.Errorf("failed to parse blessing information: %v", err))
 		return
 	}
@@ -401,10 +402,19 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("suspected request forgery: %v", err))
 		return
 	}
-
+	// Construct the url to send back to the tool.
+	baseURL, err := validLoopbackURL(inputMacaroon.ToolRedirectURL)
+	if err != nil {
+		util.HTTPBadRequest(w, r, fmt.Errorf("invalid ToolRedirectURL: %v", err))
+		return
+	}
+	// Now that we have a valid tool redirect url, we can send the errors to the tool.
+	if cancelled {
+		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, caveats.ErrSeekblessingsCancelled)
+	}
 	caveats, err := h.caveats(caveatInfos)
 	if err != nil {
-		util.HTTPBadRequest(w, r, fmt.Errorf("failed to create caveats: %v", err))
+		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to create caveats: %v", err))
 		return
 	}
 	parts := []string{inputMacaroon.Email}
@@ -412,7 +422,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		parts = append(parts, blessingExtension)
 	}
 	if len(caveats) == 0 {
-		util.HTTPBadRequest(w, r, fmt.Errorf("server disallows attempts to bless with no caveats"))
+		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("server disallows attempts to bless with no caveats"))
 		return
 	}
 	m := BlessingMacaroon{
@@ -422,18 +432,12 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	}
 	macBytes, err := vom.Encode(m)
 	if err != nil {
-		util.HTTPServerError(w, fmt.Errorf("failed to encode BlessingsMacaroon: %v", err))
-		return
-	}
-	// Construct the url to send back to the tool.
-	baseURL, err := validLoopbackURL(inputMacaroon.ToolRedirectURL)
-	if err != nil {
-		util.HTTPBadRequest(w, r, fmt.Errorf("invalid ToolRedirectURL: %v", err))
+		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to encode BlessingsMacaroon: %v", err))
 		return
 	}
 	marshalKey, err := h.args.Principal.PublicKey().MarshalBinary()
 	if err != nil {
-		util.HTTPServerError(w, fmt.Errorf("failed to marshal public key: %v", err))
+		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to marshal public key: %v", err))
 		return
 	}
 	encKey := base64.URLEncoding.EncodeToString(marshalKey)
@@ -442,6 +446,15 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	params.Add("state", inputMacaroon.ToolState)
 	params.Add("object_name", h.args.MacaroonBlessingService)
 	params.Add("root_key", encKey)
+	baseURL.RawQuery = params.Encode()
+	http.Redirect(w, r, baseURL.String(), http.StatusFound)
+}
+
+func (h *handler) sendErrorToTool(w http.ResponseWriter, r *http.Request, toolState string, baseURL *url.URL, err error) {
+	errEnc := base64.URLEncoding.EncodeToString([]byte(err.Error()))
+	params := url.Values{}
+	params.Add("error", errEnc)
+	params.Add("state", toolState)
 	baseURL.RawQuery = params.Encode()
 	http.Redirect(w, r, baseURL.String(), http.StatusFound)
 }
