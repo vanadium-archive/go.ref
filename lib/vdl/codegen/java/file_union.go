@@ -15,14 +15,13 @@ const unionTmpl = header + `
 // Source: {{.Source}}
 package {{.PackagePath}};
 
-/**
- * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
- **/
+{{ .Doc }}
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
 {{ .AccessModifier }} class {{.Name}} extends io.v.v23.vdl.VdlUnion {
 	private static final long serialVersionUID = 1L;
 
     {{ range $index, $field := .Fields }}
+    {{ $field.Doc }}
     @io.v.v23.vdl.GeneratedFromVdl(name = "{{$field.Name}}", index = {{$index}})
     public static class {{$field.Name}} extends {{$.Name}} {
     	private static final long serialVersionUID = 1L;
@@ -60,6 +59,7 @@ package {{.PackagePath}};
 
 type unionDefinitionField struct {
 	Class               string
+	Doc                 string
 	HashcodeComputation string
 	Name                string
 	Type                string
@@ -73,6 +73,7 @@ func genJavaUnionFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		fld := tdef.Type.Field(i)
 		fields[i] = unionDefinitionField{
 			Class:               javaType(fld.Type, true, env),
+			Doc:                 javaDoc(tdef.FieldDoc[i], tdef.FieldDocSuffix[i]),
 			HashcodeComputation: javaHashCode("elem", fld.Type, env),
 			Name:                fld.Name,
 			Type:                javaType(fld.Type, false, env),
@@ -93,7 +94,7 @@ func genJavaUnionFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	}{
 		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: access,
-		Doc:            javaDocInComment(tdef.Doc),
+		Doc:            javaDoc(tdef.Doc, tdef.DocSuffix),
 		Fields:         fields,
 		Name:           name,
 		PackagePath:    javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),

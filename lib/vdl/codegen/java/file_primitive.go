@@ -13,23 +13,32 @@ import (
 )
 
 const primitiveTmpl = header + `
-// Source: {{.Source}}
-package {{.PackagePath}};
+// Source: {{ .Source }}
+package {{ .PackagePath }};
 
-/**
- * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
- **/
+{{ .Doc }}
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
 {{ .AccessModifier }} class {{.Name}} extends {{.VdlType}} {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
+    /**
+     * Vdl type for {@link {{.Name}}}.
+     */
     public static final io.v.v23.vdl.VdlType VDL_TYPE =
             io.v.v23.vdl.Types.getVdlTypeFromReflect({{.Name}}.class);
 
+    /**
+     * Creates a new instance of {@link {{.Name}}} with the given value.
+     *
+     * @param value value
+     */
     public {{.Name}}({{.ConstructorType}} value) {
         super(VDL_TYPE, value);
     }
 
+    /**
+     * Creates a new zero-value instance of {@link {{.Name}}}.
+     */
     public {{.Name}}() {
         super(VDL_TYPE);
     }
@@ -72,25 +81,25 @@ func javaTypeAdapterDelegateClass(t *vdl.Type) string {
 func genJavaPrimitiveFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	name, access := javaTypeName(tdef, env)
 	data := struct {
-		FileDoc                  string
 		AccessModifier           string
+		ConstructorType          string
 		Doc                      string
+		FileDoc                  string
 		Name                     string
 		PackagePath              string
 		Source                   string
-		ConstructorType          string
 		TypeAdapterDelegateClass string
 		VdlType                  string
 		VdlTypeName              string
 		VdlTypeString            string
 	}{
-		FileDoc:                  tdef.File.Package.FileDoc,
-		AccessModifier:           access,
-		Doc:                      javaDocInComment(tdef.Doc),
-		Name:                     name,
-		PackagePath:              javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
-		Source:                   tdef.File.BaseName,
-		ConstructorType:          javaConstructorType(tdef.Type),
+		AccessModifier:  access,
+		Doc:             javaDoc(tdef.Doc, tdef.DocSuffix),
+		ConstructorType: javaConstructorType(tdef.Type),
+		FileDoc:         tdef.File.Package.FileDoc,
+		Name:            name,
+		PackagePath:     javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
+		Source:          tdef.File.BaseName,
 		TypeAdapterDelegateClass: javaTypeAdapterDelegateClass(tdef.Type),
 		VdlType:                  javaVdlPrimitiveType(tdef.Type.Kind()),
 		VdlTypeName:              tdef.Type.Name(),

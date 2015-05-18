@@ -17,9 +17,7 @@ const structTmpl = header + `
 // Source: {{.Source}}
 package {{.PackagePath}};
 
-/**
- * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
- **/
+{{ .Doc }}
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
 {{ .AccessModifier }} class {{.Name}} extends io.v.v23.vdl.AbstractVdlStruct {
     private static final long serialVersionUID = 1L;
@@ -30,10 +28,16 @@ package {{.PackagePath}};
       private {{$field.Type}} {{$field.LowercaseName}};
     {{ end }}
 
+    /**
+     * Vdl type for {@link {{.Name}}}.
+     */
     public static final io.v.v23.vdl.VdlType VDL_TYPE =
             io.v.v23.vdl.Types.getVdlTypeFromReflect({{.Name}}.class);
 
     {{/* Constructors */}}
+    /**
+     * Creates a new zero-value instance of {@link {{.Name}}}.
+     */
     public {{.Name}}() {
         super(VDL_TYPE);
         {{ range $field := .Fields }}
@@ -42,6 +46,9 @@ package {{.PackagePath}};
     }
 
     {{ if .FieldsAsArgs }}
+    /**
+     * Creates a new instance of {@link {{ .Name }}} with the provided field values.
+     */
     public {{.Name}}({{ .FieldsAsArgs }}) {
         super(VDL_TYPE);
         {{ range $field := .Fields }}
@@ -52,10 +59,12 @@ package {{.PackagePath}};
 
     {{/* Getters and setters */}}
     {{ range $field := .Fields }}
+    {{ $field.Doc }}
     {{ $field.AccessModifier }} {{$field.Type}} get{{$field.Name}}() {
         return this.{{$field.LowercaseName}};
     }
 
+    {{ $field.Doc }}
     {{ $field.AccessModifier }} void set{{$field.Name}}({{$field.Type}} {{$field.LowercaseName}}) {
         this.{{$field.LowercaseName}} = {{$field.LowercaseName}};
     }
@@ -122,6 +131,7 @@ package {{.PackagePath}};
 type structDefinitionField struct {
 	AccessModifier      string
 	Class               string
+	Doc                 string
 	HashcodeComputation string
 	IsClass             bool
 	IsArray             bool
@@ -154,6 +164,7 @@ func genJavaStructFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		fields[i] = structDefinitionField{
 			AccessModifier:      accessModifierForName(fld.Name),
 			Class:               javaType(fld.Type, true, env),
+			Doc:                 javaDoc(tdef.FieldDoc[i], tdef.FieldDocSuffix[i]),
 			HashcodeComputation: javaHashCode(vdlutil.FirstRuneToLower(fld.Name), fld.Type, env),
 			IsClass:             isClass(fld.Type, env),
 			IsArray:             isJavaNativeArray(fld.Type, env),
@@ -179,7 +190,7 @@ func genJavaStructFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	}{
 		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: access,
-		Doc:            javaDocInComment(tdef.Doc),
+		Doc:            javaDoc(tdef.Doc, tdef.DocSuffix),
 		Fields:         fields,
 		FieldsAsArgs:   javaFieldArgStr(tdef.Type, env),
 		Name:           name,

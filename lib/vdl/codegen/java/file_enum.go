@@ -15,22 +15,24 @@ const enumTmpl = header + `
 // Source: {{.Source}}
 package {{.PackagePath}};
 
-/**
- * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
- **/
+{{ .Doc }}
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
 {{ .AccessModifier }} class {{.Name}} extends io.v.v23.vdl.VdlEnum {
     {{ range $index, $label := .EnumLabels }}
-        @io.v.v23.vdl.GeneratedFromVdl(name = "{{$label}}", index = {{$index}})
-        public static final {{$.Name}} {{$label}};
+        @io.v.v23.vdl.GeneratedFromVdl(name = "{{$label.Name}}", index = {{$index}})
+        {{ $label.Doc }}
+        public static final {{$.Name}} {{$label.Name}};
     {{ end }}
 
+    /**
+     * Vdl type for {@link {{.Name}}}.
+     */
     public static final io.v.v23.vdl.VdlType VDL_TYPE =
             io.v.v23.vdl.Types.getVdlTypeFromReflect({{.Name}}.class);
 
     static {
         {{ range $label := .EnumLabels }}
-            {{$label}} = new {{$.Name}}("{{$label}}");
+            {{$label.Name}} = new {{$.Name}}("{{$label.Name}}");
         {{ end }}
     }
 
@@ -38,10 +40,13 @@ package {{.PackagePath}};
         super(VDL_TYPE, name);
     }
 
+    /**
+     * Returns the enum with the given name.
+     */
     public static {{.Name}} valueOf(String name) {
         {{ range $label := .EnumLabels }}
-            if ("{{$label}}".equals(name)) {
-                return {{$label}};
+            if ("{{$label.Name}}".equals(name)) {
+                return {{$label.Name}};
             }
         {{ end }}
         throw new java.lang.IllegalArgumentException();
@@ -49,28 +54,36 @@ package {{.PackagePath}};
 }
 `
 
+type enumLabel struct {
+	Doc  string
+	Name string
+}
+
 // genJavaEnumFile generates the Java class file for the provided user-defined enum type.
 func genJavaEnumFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
-	labels := make([]string, tdef.Type.NumEnumLabel())
+	labels := make([]enumLabel, tdef.Type.NumEnumLabel())
 	for i := 0; i < tdef.Type.NumEnumLabel(); i++ {
-		labels[i] = tdef.Type.EnumLabel(i)
+		labels[i] = enumLabel{
+			Doc:  javaDoc(tdef.LabelDoc[i], tdef.LabelDocSuffix[i]),
+			Name: tdef.Type.EnumLabel(i),
+		}
 	}
 	name, access := javaTypeName(tdef, env)
 	data := struct {
-		FileDoc        string
 		AccessModifier string
-		EnumLabels     []string
 		Doc            string
+		EnumLabels     []enumLabel
+		FileDoc        string
 		Name           string
 		PackagePath    string
 		Source         string
 		VdlTypeName    string
 		VdlTypeString  string
 	}{
-		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: access,
+		Doc:            javaDoc(tdef.Doc, tdef.DocSuffix),
 		EnumLabels:     labels,
-		Doc:            javaDocInComment(tdef.Doc),
+		FileDoc:        tdef.File.Package.FileDoc,
 		Name:           name,
 		PackagePath:    javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		Source:         tdef.File.BaseName,

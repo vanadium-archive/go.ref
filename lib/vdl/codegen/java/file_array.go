@@ -18,26 +18,40 @@ const arrayTmpl = header + `
 
 package {{.Package}};
 
-/**
- * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
- **/
+{{ .Doc }}
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
 @io.v.v23.vdl.ArrayLength({{.Length}})
 {{ .AccessModifier }} class {{.Name}} extends io.v.v23.vdl.VdlArray<{{.ElemType}}> {
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Vdl type for {@link {{.Name}}}.
+     */
     public static final io.v.v23.vdl.VdlType VDL_TYPE =
             io.v.v23.vdl.Types.getVdlTypeFromReflect({{.Name}}.class);
 
+    /**
+     * Creates a new instance of {@link {{.Name}}} with the given underlying array.
+     *
+     * @param arr underlying array
+     */
     public {{.Name}}({{.ElemType}}[] arr) {
         super(VDL_TYPE, arr);
     }
 
+    /**
+     * Creates a new zero-value instance of {@link {{.Name}}}.
+     */
     public {{.Name}}() {
         this({{.ZeroValue}});
     }
 
     {{ if .ElemIsPrimitive }}
+    /**
+     * Creates a new instance of {@link {{.Name}}} with the given underlying array.
+     *
+     * @param arr underlying array
+     */
     public {{.Name}}({{ .ElemPrimitiveType }}[] arr) {
         super(VDL_TYPE, convert(arr));
     }
@@ -60,12 +74,12 @@ func genJavaArrayFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	elems := strings.TrimSuffix(strings.Repeat(javaZeroValue(tdef.Type.Elem(), env)+", ", tdef.Type.Len()), ", ")
 	zeroValue := fmt.Sprintf("new %s[] {%s}", elemType, elems)
 	data := struct {
-		FileDoc           string
 		AccessModifier    string
 		Doc               string
 		ElemType          string
 		ElemIsPrimitive   bool
 		ElemPrimitiveType string
+		FileDoc           string
 		Length            int
 		Name              string
 		Package           string
@@ -74,12 +88,12 @@ func genJavaArrayFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeString     string
 		ZeroValue         string
 	}{
-		FileDoc:           tdef.File.Package.FileDoc,
 		AccessModifier:    access,
-		Doc:               javaDocInComment(tdef.Doc),
+		Doc:               javaDoc(tdef.Doc, tdef.DocSuffix),
 		ElemType:          elemType,
 		ElemIsPrimitive:   !isClass(tdef.Type.Elem(), env),
 		ElemPrimitiveType: javaType(tdef.Type.Elem(), false, env),
+		FileDoc:           tdef.File.Package.FileDoc,
 		Length:            tdef.Type.Len(),
 		Name:              name,
 		Package:           javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),

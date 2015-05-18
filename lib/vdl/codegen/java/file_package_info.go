@@ -31,15 +31,15 @@ func genJavaPackageFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 			generated = true
 
 			data := struct {
-				FileDoc     string
-				Source      string
-				PackagePath string
 				Doc         string
+				FileDoc     string
+				PackagePath string
+				Source      string
 			}{
+				Doc:         javaDoc(file.PackageDef.Doc, file.PackageDef.DocSuffix),
 				FileDoc:     pkg.FileDoc,
-				Source:      javaFileNames(pkg.Files),
 				PackagePath: javaPath(javaGenPkgPath(pkg.GenPath)),
-				Doc:         javaDoc(file.PackageDef.Doc),
+				Source:      javaFileNames(pkg.Files),
 			}
 			var buf bytes.Buffer
 			err := parseTmpl("package", packageTmpl).Execute(&buf, data)

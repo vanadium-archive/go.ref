@@ -5,40 +5,38 @@
 package java
 
 import (
+	"bufio"
 	"strings"
 )
 
-// javaRawComment extracts a raw language-independent comment from a VDL comment.
-func javaRawComment(vdlComment string) string {
-	if vdlComment == "" {
+// javaDoc transforms the provided VDL doc and a doc suffix into the JavaDoc format.
+func javaDoc(doc, suffix string) string {
+	if doc == "" && suffix == "" {
 		return ""
 	}
-	comment := strings.Replace(vdlComment, "/**", "", -1)
-	comment = strings.Replace(comment, "/*", "", -1)
-	comment = strings.Replace(comment, "*/", "", -1)
-	comment = strings.Replace(comment, "//", "", -1)
-	comment = strings.Replace(comment, "\n *", "\n", -1)
-	splitComment := strings.Split(comment, "\n")
-	for i, _ := range splitComment {
-		splitComment[i] = strings.TrimSpace(splitComment[i])
+	if doc == "" {
+		doc = suffix
+	} else if suffix != "" {
+		doc = doc + "\n" + suffix
 	}
-	return strings.TrimSpace(strings.Join(splitComment, "\n"))
-}
-
-// javaDocInComment transforms a VDL comment to javadoc style, but without starting a new comment.
-// (i.e. this assumes that the output will be within a /**  */ comment).
-func javaDocInComment(vdlComment string) string {
-	if vdlComment == "" {
-		return ""
+	ret := "/**\n"
+	reader := bufio.NewReader(strings.NewReader(doc))
+	for {
+		line, err := reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "//") {
+			ret += " *"
+			if len(line[2:]) == 0 { // empty line
+				ret += "<p>"
+			} else {
+				ret += line[2:]
+			}
+			ret += "\n"
+		}
+		if err != nil {
+			break
+		}
 	}
-	return "\n * " + strings.Replace(javaRawComment(vdlComment), "\n", "\n * ", -1)
-}
-
-// javaDoc transforms the provided VDL comment into the JavaDoc format.
-// This starts a new javadoc comment block.
-func javaDoc(vdlComment string) string {
-	if vdlComment == "" {
-		return ""
-	}
-	return "/**" + javaDocInComment(vdlComment) + "\n */\n"
+	ret += "*/"
+	return ret
 }

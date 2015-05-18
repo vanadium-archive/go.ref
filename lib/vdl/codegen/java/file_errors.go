@@ -16,7 +16,9 @@ const errorTmpl = header + `
 // Source(s): {{ .Source }}
 package {{ .PackagePath }};
 
-
+/**
+ * Errors defined in all VDL files in this package.
+ */
 public final class {{ .ClassName }} {
     {{ range $file := .Files }}
 
@@ -44,15 +46,17 @@ public final class {{ .ClassName }} {
     /* The following error creator methods originate in file: {{ $file.Name }} */
     {{ range $error := $file.Errors }}
     /**
-     * Creates an error with {@code {{ $error.Name }}} identifier.
+     * Creates an error with the {@link #{{ $error.Name }}} identifier.
      */
-    public static io.v.v23.verror.VException {{ $error.MethodName }}(io.v.v23.context.VContext _ctx{{ $error.MethodArgs}}) {
+    {{ $error.AccessModifier }} static io.v.v23.verror.VException {{ $error.MethodName }}(io.v.v23.context.VContext _ctx{{ $error.MethodArgs}}) {
         final java.lang.Object[] _params = new java.lang.Object[] { {{ $error.Params }} };
         final java.lang.reflect.Type[] _paramTypes = new java.lang.reflect.Type[]{ {{ $error.ParamTypes }} };
         return new io.v.v23.verror.VException({{ $error.Name }}, _ctx, _paramTypes, _params);
     }
     {{ end }} {{/* range $file.Errors */}}
     {{ end }} {{/* range .Files */}}
+
+    private {{ .ClassName }}() {}
 }
 `
 
@@ -108,7 +112,7 @@ func genJavaErrorFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 				formats[k].Fmt = format.Fmt
 			}
 			errors[j].AccessModifier = accessModifierForName(err.Name)
-			errors[j].Doc = javaDoc(err.Doc)
+			errors[j].Doc = javaDoc(err.Doc, err.DocSuffix)
 			errors[j].Name = vdlutil.ToConstCase(err.Name)
 			errors[j].ID = err.ID
 			errors[j].ActionName = vdlutil.ToConstCase(err.RetryCode.String())
@@ -124,14 +128,14 @@ func genJavaErrorFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 	}
 
 	data := struct {
-		FileDoc     string
 		ClassName   string
+		FileDoc     string
 		Source      string
 		PackagePath string
 		Files       []errorFile
 	}{
-		FileDoc:     pkg.FileDoc,
 		ClassName:   className,
+		FileDoc:     pkg.FileDoc,
 		Source:      javaFileNames(pkg.Files),
 		PackagePath: javaPath(javaGenPkgPath(pkg.GenPath)),
 		Files:       files,

@@ -14,28 +14,40 @@ import (
 	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
-const clientStubTmpl = header + `
+const clientImplTmpl = header + `
 // Source(s):  {{ .Source }}
 package {{ .PackagePath }};
 
-/* Client stub for interface: {{ .ServiceName }}Client. */
-{{ .AccessModifier }} final class {{ .ServiceName }}ClientStub implements {{ .FullServiceName }}Client {
+/**
+ * Implementation of the {@link {{ .ServiceName }}Client} interface.
+ */
+final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client {
     private final io.v.v23.rpc.Client client;
     private final java.lang.String vName;
 
-    {{/* Define fields to hold each of the embedded object stubs*/}}
+    {{/* Define fields to hold each of the embedded object impls*/}}
     {{ range $embed := .Embeds }}
-    {{/* e.g. private final com.somepackage.gen_impl.ArithStub stubArith; */}}
-    private final {{ $embed.StubClassName }} {{ $embed.LocalStubVarName }};
+    {{/* e.g. private final com.somepackage.ArithClient implArith; */}}
+    private final {{ $embed.FullName }}Client impl{{ $embed.Name }};
     {{ end }}
 
-    public {{ .ServiceName }}ClientStub(final io.v.v23.rpc.Client client, final java.lang.String vName) {
+    /**
+     * Creates a new instance of {@link {{ .ServiceName }}ClientImpl}.
+     *
+     * @param client Vanadium client
+     * @param vName  remote server name
+     */
+    public {{ .ServiceName }}ClientImpl(final io.v.v23.rpc.Client client, final java.lang.String vName) {
         this.client = client;
         this.vName = vName;
-        {{/* Initialize the embeded stubs */}}
+        {{/* Initialize the embeded impls */}}
         {{ range $embed := .Embeds }}
-        this.{{ $embed.LocalStubVarName }} = new {{ $embed.StubClassName }}(client, vName);
-         {{ end }}
+        {
+            io.v.v23.Options opts = new io.v.v23.Options();
+            opts.set(io.v.v23.OptionDefs.CLIENT, client);
+            this.impl{{ $embed.Name }} = {{ $embed.FullName }}ClientFactory.get{{ $embed.Name }}Client(vName, opts);
+        }
+        {{ end }}
     }
 
     private io.v.v23.rpc.Client getClient(io.v.v23.context.VContext context) {
@@ -48,12 +60,12 @@ package {{ .PackagePath }};
 {{ range $method := .Methods }}
     {{/* The optionless overload simply calls the overload with options */}}
     @Override
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{if $method.Returns }}return{{ end }} {{ $method.Name }}(context{{ $method.CallingArgsLeadingComma }}, null);
     }
-    {{/* The main client stub method body */}}
+    {{/* The main client impl method body */}}
     @Override
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
+    public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
         {{/* Start the vanadium call */}}
         // Start the call.
         final java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
@@ -124,27 +136,26 @@ package {{ .PackagePath }};
 {{/* Iterate over methods from embeded services and generate code to delegate the work */}}
 {{ range $eMethod := .EmbedMethods }}
     @Override
-    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
-        {{/* e.g. return this.stubArith.cosine(context, [args]) */}}
-        {{ if $eMethod.Returns }}return{{ end }} this.{{ $eMethod.LocalStubVarName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }});
+    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
+        {{/* e.g. return this.implArith.cosine(context, [args]) */}}
+        {{ if $eMethod.Returns }}return{{ end }} this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }});
     }
     @Override
-    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
-        {{/* e.g. return this.stubArith.cosine(context, [args], options) */}}
-        {{ if $eMethod.Returns }}return{{ end }}  this.{{ $eMethod.LocalStubVarName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }}, vOpts);
+    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
+        {{/* e.g. return this.implArith.cosine(context, [args], options) */}}
+        {{ if $eMethod.Returns }}return{{ end }}  this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }}, vOpts);
     }
 {{ end }}
 
 }
 `
 
-type clientStubMethodOutArg struct {
+type clientImplMethodOutArg struct {
 	FieldName string
 	Type      string
 }
 
-type clientStubMethod struct {
-	AccessModifier          string
+type clientImplMethod struct {
 	CallingArgs             string
 	CallingArgTypes         string
 	CallingArgsLeadingComma string
@@ -154,7 +165,7 @@ type clientStubMethod struct {
 	MultipleReturn          bool
 	Name                    string
 	NotStreaming            bool
-	OutArgs                 []clientStubMethodOutArg
+	OutArgs                 []clientImplMethodOutArg
 	RecvType                string
 	RetType                 string
 	Returns                 bool
@@ -162,23 +173,22 @@ type clientStubMethod struct {
 	ServiceName             string
 }
 
-type clientStubEmbedMethod struct {
-	AccessModifier          string
+type clientImplEmbedMethod struct {
 	CallingArgsLeadingComma string
 	DeclarationArgs         string
-	LocalStubVarName        string
+	IfaceName               string
 	Name                    string
 	RetType                 string
 	Returns                 bool
 }
 
-type clientStubEmbed struct {
-	StubClassName    string
-	LocalStubVarName string
+type clientImplEmbed struct {
+	Name     string
+	FullName string
 }
 
-func processClientStubMethod(iface *compile.Interface, method *compile.Method, env *compile.Env) clientStubMethod {
-	outArgs := make([]clientStubMethodOutArg, len(method.OutArgs))
+func processClientImplMethod(iface *compile.Interface, method *compile.Method, env *compile.Env) clientImplMethod {
+	outArgs := make([]clientImplMethodOutArg, len(method.OutArgs))
 	for i := 0; i < len(method.OutArgs); i++ {
 		if method.OutArgs[i].Name != "" {
 			outArgs[i].FieldName = vdlutil.FirstRuneToLower(method.OutArgs[i].Name)
@@ -187,8 +197,7 @@ func processClientStubMethod(iface *compile.Interface, method *compile.Method, e
 		}
 		outArgs[i].Type = javaType(method.OutArgs[i].Type, true, env)
 	}
-	return clientStubMethod{
-		AccessModifier:          accessModifierForName(method.Name),
+	return clientImplMethod{
 		CallingArgs:             javaCallingArgStr(method.InArgs, false),
 		CallingArgTypes:         javaCallingArgTypeStr(method.InArgs, env),
 		CallingArgsLeadingComma: javaCallingArgStr(method.InArgs, true),
@@ -207,66 +216,61 @@ func processClientStubMethod(iface *compile.Interface, method *compile.Method, e
 	}
 }
 
-func processClientStubEmbedMethod(iface *compile.Interface, embedMethod *compile.Method, env *compile.Env) clientStubEmbedMethod {
-	return clientStubEmbedMethod{
-		AccessModifier:          accessModifierForName(embedMethod.Name),
+func processClientImplEmbedMethod(iface *compile.Interface, embedMethod *compile.Method, env *compile.Env) clientImplEmbedMethod {
+	return clientImplEmbedMethod{
 		CallingArgsLeadingComma: javaCallingArgStr(embedMethod.InArgs, true),
 		DeclarationArgs:         javaDeclarationArgStr(embedMethod.InArgs, env, true),
-		LocalStubVarName:        vdlutil.FirstRuneToLower(iface.Name) + "ClientStub",
+		IfaceName:               vdlutil.FirstRuneToUpper(iface.Name),
 		Name:                    vdlutil.FirstRuneToLower(embedMethod.Name),
 		RetType:                 clientInterfaceOutArg(iface, embedMethod, env),
 		Returns:                 len(embedMethod.OutArgs) >= 1 || isStreamingMethod(embedMethod),
 	}
 }
 
-// genJavaClientStubFile generates a client stub for the specified interface.
-func genJavaClientStubFile(iface *compile.Interface, env *compile.Env) JavaFileInfo {
-	embeds := []clientStubEmbed{}
+// genJavaClientImplFile generates a client impl for the specified interface.
+func genJavaClientImplFile(iface *compile.Interface, env *compile.Env) JavaFileInfo {
+	embeds := []clientImplEmbed{}
 	for _, embed := range allEmbeddedIfaces(iface) {
-		embeds = append(embeds, clientStubEmbed{
-			LocalStubVarName: vdlutil.FirstRuneToLower(embed.Name) + "ClientStub",
-			StubClassName:    javaPath(javaGenPkgPath(path.Join(embed.File.Package.GenPath, vdlutil.FirstRuneToUpper(embed.Name)+"ClientStub"))),
+		embeds = append(embeds, clientImplEmbed{
+			Name:     vdlutil.FirstRuneToUpper(embed.Name),
+			FullName: javaPath(javaGenPkgPath(path.Join(embed.File.Package.GenPath, vdlutil.FirstRuneToUpper(embed.Name)))),
 		})
 	}
-	embedMethods := []clientStubEmbedMethod{}
+	embedMethods := []clientImplEmbedMethod{}
 	for _, embedMao := range dedupedEmbeddedMethodAndOrigins(iface) {
-		embedMethods = append(embedMethods, processClientStubEmbedMethod(embedMao.Origin, embedMao.Method, env))
+		embedMethods = append(embedMethods, processClientImplEmbedMethod(embedMao.Origin, embedMao.Method, env))
 	}
-	methods := make([]clientStubMethod, len(iface.Methods))
+	methods := make([]clientImplMethod, len(iface.Methods))
 	for i, method := range iface.Methods {
-		methods[i] = processClientStubMethod(iface, method, env)
+		methods[i] = processClientImplMethod(iface, method, env)
 	}
 	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
-		FileDoc          string
-		AccessModifier   string
-		EmbedMethods     []clientStubEmbedMethod
-		Embeds           []clientStubEmbed
-		FullServiceName  string
-		Methods          []clientStubMethod
-		PackagePath      string
-		ServiceName      string
-		Source           string
-		VDLIfacePathName string
+		FileDoc         string
+		EmbedMethods    []clientImplEmbedMethod
+		Embeds          []clientImplEmbed
+		FullServiceName string
+		Methods         []clientImplMethod
+		PackagePath     string
+		ServiceName     string
+		Source          string
 	}{
-		FileDoc:          iface.File.Package.FileDoc,
-		AccessModifier:   accessModifierForName(iface.Name),
-		EmbedMethods:     embedMethods,
-		Embeds:           embeds,
-		FullServiceName:  javaPath(interfaceFullyQualifiedName(iface)),
-		Methods:          methods,
-		PackagePath:      javaPath(javaGenPkgPath(iface.File.Package.GenPath)),
-		ServiceName:      javaServiceName,
-		Source:           iface.File.BaseName,
-		VDLIfacePathName: path.Join(iface.File.Package.GenPath, iface.Name+"ClientMethods"),
+		FileDoc:         iface.File.Package.FileDoc,
+		EmbedMethods:    embedMethods,
+		Embeds:          embeds,
+		FullServiceName: javaPath(interfaceFullyQualifiedName(iface)),
+		Methods:         methods,
+		PackagePath:     javaPath(javaGenPkgPath(iface.File.Package.GenPath)),
+		ServiceName:     javaServiceName,
+		Source:          iface.File.BaseName,
 	}
 	var buf bytes.Buffer
-	err := parseTmpl("client stub", clientStubTmpl).Execute(&buf, data)
+	err := parseTmpl("client impl", clientImplTmpl).Execute(&buf, data)
 	if err != nil {
-		log.Fatalf("vdl: couldn't execute client stub template: %v", err)
+		log.Fatalf("vdl: couldn't execute client impl template: %v", err)
 	}
 	return JavaFileInfo{
-		Name: javaServiceName + "ClientStub.java",
+		Name: javaServiceName + "ClientImpl.java",
 		Data: buf.Bytes(),
 	}
 }

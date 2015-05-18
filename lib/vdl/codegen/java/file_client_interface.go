@@ -23,6 +23,9 @@ public interface {{ .ServiceName }}Client {{ .Extends }} {
 {{ range $method := .Methods }}
     {{/* If this method has multiple return arguments, generate the class. */}}
     {{ if $method.IsMultipleRet }}
+    /**
+     * Multi-return value for method {@link #{{$method.Name}}}.
+     */
     @io.v.v23.vdl.MultiReturn
     public static class {{ $method.UppercaseMethodName }}Out {
         {{ range $retArg := $method.RetArgs }}
@@ -85,7 +88,7 @@ func processClientInterfaceMethod(iface *compile.Interface, method *compile.Meth
 	}
 	return clientInterfaceMethod{
 		Args:                javaDeclarationArgStr(method.InArgs, env, true),
-		Doc:                 method.Doc,
+		Doc:                 javaDoc(method.Doc, method.DocSuffix),
 		Name:                vdlutil.FirstRuneToLower(method.Name),
 		IsMultipleRet:       len(retArgs) > 1,
 		RetArgs:             retArgs,
@@ -115,7 +118,7 @@ func genJavaClientInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 		Extends:     javaClientExtendsStr(iface.Embeds),
 		Methods:     methods,
 		PackagePath: javaPath(javaGenPkgPath(iface.File.Package.GenPath)),
-		ServiceDoc:  javaDoc(iface.Doc),
+		ServiceDoc:  javaDoc(iface.Doc, iface.DocSuffix),
 		ServiceName: javaServiceName,
 		Source:      iface.File.BaseName,
 	}

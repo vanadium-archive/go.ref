@@ -15,20 +15,29 @@ const listTmpl = header + `
 // Source: {{.SourceFile}}
 package {{.Package}};
 
-/**
- * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
- **/
+{{ .Doc }}
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
 {{ .AccessModifier }} class {{.Name}} extends io.v.v23.vdl.VdlList<{{.ElemType}}> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
+    /**
+     * Vdl type for {@link {{.Name}}}.
+     */
     public static final io.v.v23.vdl.VdlType VDL_TYPE =
             io.v.v23.vdl.Types.getVdlTypeFromReflect({{.Name}}.class);
 
+    /**
+     * Creates a new instance of {@link {{.Name}}} with the given underlying value.
+     *
+     * @param impl underlying value
+     */
     public {{.Name}}(java.util.List<{{.ElemType}}> impl) {
         super(VDL_TYPE, impl);
     }
 
+    /**
+     * Creates a new empty instance of {@link {{.Name}}}.
+     */
     public {{.Name}}() {
         this(new java.util.ArrayList<{{.ElemType}}>());
     }
@@ -39,20 +48,20 @@ package {{.Package}};
 func genJavaListFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	name, access := javaTypeName(tdef, env)
 	data := struct {
-		FileDoc        string
 		AccessModifier string
 		Doc            string
 		ElemType       string
+		FileDoc        string
 		Name           string
 		Package        string
 		SourceFile     string
 		VdlTypeName    string
 		VdlTypeString  string
 	}{
-		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: access,
-		Doc:            javaDocInComment(tdef.Doc),
+		Doc:            javaDoc(tdef.Doc, tdef.DocSuffix),
 		ElemType:       javaType(tdef.Type.Elem(), true, env),
+		FileDoc:        tdef.File.Package.FileDoc,
 		Name:           name,
 		Package:        javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		SourceFile:     tdef.File.BaseName,

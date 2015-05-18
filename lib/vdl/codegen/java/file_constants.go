@@ -16,17 +16,20 @@ const constTmpl = header + `
 // Source(s): {{ .Source }}
 package {{ .PackagePath }};
 
-
+/**
+ * Constants defined in all VDL files in this package.
+ */
 public final class {{ .ClassName }} {
     {{ range $file := .Files }}
 
     /* The following constants originate in file: {{ $file.Name }} */
-    {{/*Constants*/}}
     {{ range $const := $file.Consts }}
     {{ $const.Doc }}
     {{ $const.AccessModifier }} static final {{ $const.Type }} {{ $const.Name }} = {{ $const.Value }};
     {{ end }} {{/* end range $file.Consts */}}
     {{ end }} {{/* range .Files */}}
+
+    private {{ .ClassName }}() {}
 }
 `
 
@@ -66,7 +69,7 @@ func genJavaConstFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 		consts := make([]constConst, len(file.ConstDefs))
 		for j, cnst := range file.ConstDefs {
 			consts[j].AccessModifier = accessModifierForName(cnst.Name)
-			consts[j].Doc = javaDoc(cnst.Doc)
+			consts[j].Doc = javaDoc(cnst.Doc, cnst.DocSuffix)
 			consts[j].Type = javaType(cnst.Value.Type(), false, env)
 			consts[j].Name = vdlutil.ToConstCase(cnst.Name)
 			consts[j].Value = javaConstVal(cnst.Value, env)
@@ -76,17 +79,17 @@ func genJavaConstFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 	}
 
 	data := struct {
-		FileDoc     string
 		ClassName   string
-		Source      string
-		PackagePath string
+		FileDoc     string
 		Files       []constFile
+		PackagePath string
+		Source      string
 	}{
-		FileDoc:     pkg.FileDoc,
 		ClassName:   className,
-		Source:      javaFileNames(pkg.Files),
-		PackagePath: javaPath(javaGenPkgPath(pkg.GenPath)),
+		FileDoc:     pkg.FileDoc,
 		Files:       files,
+		PackagePath: javaPath(javaGenPkgPath(pkg.GenPath)),
+		Source:      javaFileNames(pkg.Files),
 	}
 	var buf bytes.Buffer
 	err := parseTmpl("const", constTmpl).Execute(&buf, data)

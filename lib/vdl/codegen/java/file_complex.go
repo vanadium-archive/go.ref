@@ -17,24 +17,40 @@ const complexTmpl = header + `
 // Source: {{.Source}}
 package {{.PackagePath}};
 
-/**
- * type {{.Name}} {{.VdlTypeString}} {{.Doc}}
- **/
+{{ .Doc }}
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
 {{ .AccessModifier }} class {{.Name}} extends {{.VdlComplex}} {
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Vdl type for {@link {{.Name}}}.
+     */
     public static final io.v.v23.vdl.VdlType VDL_TYPE =
             io.v.v23.vdl.Types.getVdlTypeFromReflect({{.Name}}.class);
 
+    /**
+     * Creates a new instance of {@link {{.Name}}} with the given real and imaginary parts.
+     *
+     * @param real real part
+     * @param imag imaginary part
+     */
     public {{.Name}}({{.ValueType}} real, {{.ValueType}} imag) {
         super(VDL_TYPE, real, imag);
     }
 
+    /**
+     * Creates a new instance of {@link {{.Name}}} with the given real part and a zero imaginary
+     * part.
+     *
+     * @param real real part
+     */
     public {{.Name}}({{.ValueType}} real) {
         this(real, 0);
     }
 
+    /**
+     * Creates a new zero-value instance of {@link {{.Name}}}.
+     */
     public {{.Name}}() {
         this(0, 0);
     }
@@ -54,9 +70,9 @@ func genJavaComplexFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	}
 	name, access := javaTypeName(tdef, env)
 	data := struct {
-		FileDoc        string
 		AccessModifier string
 		Doc            string
+		FileDoc        string
 		Name           string
 		PackagePath    string
 		Source         string
@@ -65,9 +81,9 @@ func genJavaComplexFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeName    string
 		VdlTypeString  string
 	}{
-		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: access,
-		Doc:            javaDocInComment(tdef.Doc),
+		Doc:            javaDoc(tdef.Doc, tdef.DocSuffix),
+		FileDoc:        tdef.File.Package.FileDoc,
 		Name:           name,
 		PackagePath:    javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
 		Source:         tdef.File.BaseName,

@@ -18,21 +18,30 @@ const serverWrapperTmpl = header + `
 // Source(s):  {{ .Source }}
 package {{ .PackagePath }};
 
-{{ .AccessModifier }} final class {{ .ServiceName }}ServerWrapper {
-
+/**
+ * Wrapper for {@link {{ .ServiceName }}Server}.  This wrapper is used by
+ * {@link io.v.v23.rpc.ReflectInvoker} to indirectly invoke server methods.
+ */
+public final class {{ .ServiceName }}ServerWrapper {
     private final {{ .FullServiceName }}Server server;
 
 {{/* Define fields to hold each of the embedded server wrappers*/}}
 {{ range $embed := .Embeds }}
     {{/* e.g. private final com.somepackage.gen_impl.ArithStub stubArith; */}}
-    private final {{ $embed.WrapperClassName }} {{ $embed.LocalWrapperVarName }};
+    private final {{ $embed.FullName }}ServerWrapper wrapper{{ $embed.Name }};
     {{ end }}
 
+    /**
+     * Creates a new {@link {{ .ServiceName }}ServerWrapper} to invoke the methods of the
+     * provided server.
+     *
+     * @param server server whose methods are to be invoked
+     */
     public {{ .ServiceName }}ServerWrapper(final {{ .FullServiceName }}Server server) {
         this.server = server;
         {{/* Initialize the embeded server wrappers */}}
         {{ range $embed := .Embeds }}
-        this.{{ $embed.LocalWrapperVarName }} = new {{ $embed.WrapperClassName }}(server);
+        this.wrapper{{ $embed.Name }} = new {{ $embed.FullName }}ServerWrapper(server);
         {{ end }}
     }
 
@@ -71,8 +80,10 @@ package {{ .PackagePath }};
     }
 
     /**
-     * Returns all tags associated with the provided method or null if the method isn't implemented
-     * by this server.
+     * Returns all tags associated with the provided method or {@code null} if the method isn't
+     * implemented by this server.
+     *
+     * @param method method whose tags are to be returned
      */
     @SuppressWarnings("unused")
     public io.v.v23.vdl.VdlValue[] getMethodTags(final java.lang.String method) throws io.v.v23.verror.VException {
@@ -89,7 +100,7 @@ package {{ .PackagePath }};
         {{ end }}
         {{ range $embed := .Embeds }}
         {
-            final io.v.v23.vdl.VdlValue[] tags = this.{{ $embed.LocalWrapperVarName }}.getMethodTags(method);
+            final io.v.v23.vdl.VdlValue[] tags = this.wrapper{{ $embed.Name }}.getMethodTags(method);
             if (tags != null) {
                 return tags;
             }
@@ -100,7 +111,8 @@ package {{ .PackagePath }};
 
      {{/* Iterate over methods defined directly in the body of this server */}}
     {{ range $method := .Methods }}
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    {{ $method.JavaDoc }}
+    public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{ if $method.IsStreaming }}
         final io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
             @Override
@@ -126,9 +138,10 @@ package {{ .PackagePath }};
 
 {{/* Iterate over methods from embeded servers and generate code to delegate the work */}}
 {{ range $eMethod := .EmbedMethods }}
-    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    {{ $eMethod.JavaDoc }}
+    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{/* e.g. return this.stubArith.cosine(ctx, call, [args], options) */}}
-        {{ if $eMethod.Returns }}return{{ end }}  this.{{ $eMethod.LocalWrapperVarName }}.{{ $eMethod.Name }}(ctx, call{{ $eMethod.CallingArgs }});
+        {{ if $eMethod.Returns }}return{{ end }}  this.wrapper{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(ctx, call{{ $eMethod.CallingArgs }});
     }
 {{ end }} {{/* end range .EmbedMethods */}}
 
@@ -136,34 +149,35 @@ package {{ .PackagePath }};
 `
 
 type serverWrapperMethod struct {
-	AccessModifier  string
 	CallingArgs     string
 	CallingArgTypes []string
 	DeclarationArgs string
+	Doc             string
 	IsStreaming     bool
+	JavaDoc         string
 	Name            string
 	RecvType        string
 	RetType         string
 	RetJavaTypes    []string
 	Returns         bool
 	SendType        string
-	Doc             string
 	Tags            []methodTag
 }
 
 type serverWrapperEmbedMethod struct {
-	AccessModifier      string
-	CallingArgs         string
-	DeclarationArgs     string
-	LocalWrapperVarName string
-	Name                string
-	RetType             string
-	Returns             bool
+	CallingArgs     string
+	DeclarationArgs string
+	Doc             string
+	IfaceName       string
+	JavaDoc         string
+	Name            string
+	RetType         string
+	Returns         bool
 }
 
 type serverWrapperEmbed struct {
-	LocalWrapperVarName string
-	WrapperClassName    string
+	Name     string
+	FullName string
 }
 
 type methodTag struct {
@@ -188,31 +202,31 @@ func processServerWrapperMethod(iface *compile.Interface, method *compile.Method
 		retArgTypes[i] = javaReflectType(arg.Type, env)
 	}
 	return serverWrapperMethod{
-		AccessModifier:  accessModifierForName(method.Name),
 		CallingArgs:     javaCallingArgStr(method.InArgs, true),
 		CallingArgTypes: callArgTypes,
 		DeclarationArgs: javaDeclarationArgStr(method.InArgs, env, true),
+		Doc:             toJavaString(method.Doc),
 		IsStreaming:     isStreamingMethod(method),
+		JavaDoc:         javaDoc(method.Doc, method.DocSuffix),
 		Name:            vdlutil.FirstRuneToLower(method.Name),
 		RecvType:        javaType(method.InStream, true, env),
 		RetType:         serverInterfaceOutArg(iface, method, env),
 		RetJavaTypes:    retArgTypes,
 		Returns:         len(method.OutArgs) >= 1,
 		SendType:        javaType(method.OutStream, true, env),
-		Doc:             toJavaString(method.NamePos.Doc),
 		Tags:            tags,
 	}
 }
 
 func processServerWrapperEmbedMethod(iface *compile.Interface, embedMethod *compile.Method, env *compile.Env) serverWrapperEmbedMethod {
 	return serverWrapperEmbedMethod{
-		AccessModifier:      accessModifierForName(embedMethod.Name),
-		CallingArgs:         javaCallingArgStr(embedMethod.InArgs, true),
-		DeclarationArgs:     javaDeclarationArgStr(embedMethod.InArgs, env, true),
-		LocalWrapperVarName: vdlutil.FirstRuneToLower(iface.Name) + "Wrapper",
-		Name:                vdlutil.FirstRuneToLower(embedMethod.Name),
-		RetType:             serverInterfaceOutArg(iface, embedMethod, env),
-		Returns:             len(embedMethod.OutArgs) >= 1,
+		CallingArgs:     javaCallingArgStr(embedMethod.InArgs, true),
+		DeclarationArgs: javaDeclarationArgStr(embedMethod.InArgs, env, true),
+		IfaceName:       vdlutil.FirstRuneToUpper(iface.Name),
+		JavaDoc:         javaDoc(embedMethod.Doc, embedMethod.DocSuffix),
+		Name:            vdlutil.FirstRuneToLower(embedMethod.Name),
+		RetType:         serverInterfaceOutArg(iface, embedMethod, env),
+		Returns:         len(embedMethod.OutArgs) >= 1,
 	}
 }
 
@@ -222,8 +236,8 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 	embeds := []serverWrapperEmbed{}
 	for _, embed := range allEmbeddedIfaces(iface) {
 		embeds = append(embeds, serverWrapperEmbed{
-			WrapperClassName:    javaPath(javaGenPkgPath(path.Join(embed.File.Package.GenPath, vdlutil.FirstRuneToUpper(embed.Name+"ServerWrapper")))),
-			LocalWrapperVarName: vdlutil.FirstRuneToLower(embed.Name) + "Wrapper",
+			Name:     vdlutil.FirstRuneToUpper(embed.Name),
+			FullName: javaPath(javaGenPkgPath(path.Join(embed.File.Package.GenPath, vdlutil.FirstRuneToUpper(embed.Name)))),
 		})
 	}
 	methodTags := make(map[string][]methodTag)
@@ -245,7 +259,6 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
 		FileDoc         string
-		AccessModifier  string
 		EmbedMethods    []serverWrapperEmbedMethod
 		Embeds          []serverWrapperEmbed
 		FullServiceName string
@@ -257,7 +270,6 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 		Doc             string
 	}{
 		FileDoc:         iface.File.Package.FileDoc,
-		AccessModifier:  accessModifierForName(iface.Name),
 		EmbedMethods:    embedMethods,
 		Embeds:          embeds,
 		FullServiceName: javaPath(interfaceFullyQualifiedName(iface)),

@@ -91,7 +91,7 @@ func Generate(pkg *compile.Package, env *compile.Env) (ret []JavaFileInfo) {
 		for _, iface := range file.Interfaces {
 			ret = append(ret, genJavaClientFactoryFile(iface, env))
 			ret = append(ret, genJavaClientInterfaceFile(iface, env)) // client interface
-			ret = append(ret, genJavaClientStubFile(iface, env))
+			ret = append(ret, genJavaClientImplFile(iface, env))
 			ret = append(ret, genJavaServerInterfaceFile(iface, env)) // server interface
 			ret = append(ret, genJavaServerWrapperFile(iface, env))
 		}

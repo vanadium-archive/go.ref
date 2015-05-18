@@ -26,6 +26,9 @@ public interface {{ .ServiceName }}Server {{ .Extends }} {
 {{ range $method := .Methods }}
     {{/* If this method has multiple return arguments, generate the class. */}}
     {{ if $method.IsMultipleRet }}
+    /**
+     * Multi-return value for method {@link #{{$method.Name}}}.
+     */
     @io.v.v23.vdl.MultiReturn
     public static class {{ $method.UppercaseMethodName }}Out {
         {{ range $retArg := $method.RetArgs }}
@@ -84,7 +87,7 @@ func processServerInterfaceMethod(method *compile.Method, iface *compile.Interfa
 
 	return serverInterfaceMethod{
 		Args:                args,
-		Doc:                 method.Doc,
+		Doc:                 javaDoc(method.Doc, method.DocSuffix),
 		Name:                vdlutil.FirstRuneToLower(method.Name),
 		IsMultipleRet:       len(retArgs) > 1,
 		RetArgs:             retArgs,
@@ -116,7 +119,7 @@ func genJavaServerInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 		Extends:           javaServerExtendsStr(iface.Embeds),
 		Methods:           methods,
 		PackagePath:       javaPath(javaGenPkgPath(iface.File.Package.GenPath)),
-		ServerDoc:         javaDoc(iface.Doc),
+		ServerDoc:         javaDoc(iface.Doc, iface.DocSuffix),
 		ServiceName:       javaServiceName,
 		ServerVDLPath:     path.Join(iface.File.Package.GenPath, iface.Name+"ServerMethods"),
 		ServerWrapperPath: javaPath(javaGenPkgPath(path.Join(iface.File.Package.GenPath, javaServiceName+"ServerWrapper"))),

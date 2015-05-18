@@ -16,20 +16,29 @@ const setTmpl = header + `
 
 package {{.Package}};
 
-/**
- * {{.Name}} {{.VdlTypeString}} {{.Doc}}
- **/
+{{ .Doc }}
 @io.v.v23.vdl.GeneratedFromVdl(name = "{{.VdlTypeName}}")
 {{ .AccessModifier }} class {{.Name}} extends io.v.v23.vdl.VdlSet<{{.KeyType}}> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
+    /**
+     * Vdl type for {@link {{.Name}}}.
+     */
     public static final io.v.v23.vdl.VdlType VDL_TYPE =
             io.v.v23.vdl.Types.getVdlTypeFromReflect({{.Name}}.class);
 
+    /**
+     * Creates a new instance of {@link {{.Name}}} with the given underlying value.
+     *
+     * @param impl underlying value
+     */
     public {{.Name}}(java.util.Set<{{.KeyType}}> impl) {
         super(VDL_TYPE, impl);
     }
 
+    /**
+     * Creates a new zero-value instance of {@link {{.Name}}}.
+     */
     public {{.Name}}() {
         this(new java.util.HashSet<{{.KeyType}}>());
     }
@@ -40,9 +49,9 @@ package {{.Package}};
 func genJavaSetFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	name, access := javaTypeName(tdef, env)
 	data := struct {
-		FileDoc        string
 		AccessModifier string
 		Doc            string
+		FileDoc        string
 		KeyType        string
 		Name           string
 		Package        string
@@ -50,9 +59,9 @@ func genJavaSetFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeName    string
 		VdlTypeString  string
 	}{
-		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: access,
-		Doc:            javaDocInComment(tdef.Doc),
+		Doc:            javaDoc(tdef.Doc, tdef.DocSuffix),
+		FileDoc:        tdef.File.Package.FileDoc,
 		KeyType:        javaType(tdef.Type.Key(), true, env),
 		Name:           name,
 		Package:        javaPath(javaGenPkgPath(tdef.File.Package.GenPath)),
