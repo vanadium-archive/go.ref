@@ -49,13 +49,13 @@ Benchmark___10B     1000           8587341 ns/op           0.00 MB/s
 
 `RESULTS.txt` has the full benchmark results.
 
-## `main/main.go`
+## `simple/main.go`
 
-main/main.go is a simple command-line tool to run the main benchmarks to measure
+`simple/main.go` is a simple command-line tool to run the main benchmarks to measure
 RPC setup time, latency, and throughput.
 
 ```
-$ v23 go run main/main.go
+$ v23 go run simple/main.go
 RPC Connection  33.48 ms/rpc
 RPC (echo 1000B)  1.31 ms/rpc (763.05 qps)
 RPC Streaming (echo 1000B)  0.11 ms/rpc
@@ -65,7 +65,7 @@ RPC Streaming Throughput (echo 1MB) 313.91 MB/s
 # Client/Server
 ## `{benchmark,benchmarkd}/main.go`
 
-benchmarkd/main.go and benchmark/main.go are simple command-line tools to run the
+`benchmarkd/main.go` and `benchmark/main.go` are simple command-line tools to run the
 benchmark server and client as separate processes. Unlike the benchmarks above,
 this test includes the startup cost of name resolution, creating the VC, etc. in
 the first RPC.
