@@ -272,6 +272,25 @@ func (mdi *mockDeviceInvoker) Status(*context.T, rpc.ServerCall) (device.Status,
 	return r, nil
 }
 
+type GlobStimulus struct {
+	pattern string
+}
+
+type GlobResponse struct {
+	results []string
+}
+
+func (mdi *mockDeviceInvoker) Glob__(_ *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+	gs := GlobStimulus{pattern}
+	gr := mdi.tape.Record(gs).(GlobResponse)
+	ch := make(chan naming.GlobReply, len(gr.results))
+	defer close(ch)
+	for _, r := range gr.results {
+		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: r}}
+	}
+	return ch, nil
+}
+
 type dispatcher struct {
 	tapes *tapeMap
 	t     *testing.T

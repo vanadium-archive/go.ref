@@ -109,6 +109,7 @@ func linkSelf(workspace, fileName string) error {
 }
 
 func generateVersionDirName() string {
+	// TODO(caprita): Use generateID instead.
 	return time.Now().Format(time.RFC3339Nano)
 }
 

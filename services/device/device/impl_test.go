@@ -484,6 +484,29 @@ func TestDebugCommand(t *testing.T) {
 	}
 }
 
+var (
+	installationUninstalled = device.StatusInstallation{device.InstallationStatus{
+		State:   device.InstallationStateUninstalled,
+		Version: "director's cut",
+	}}
+	installationActive = device.StatusInstallation{device.InstallationStatus{
+		State:   device.InstallationStateActive,
+		Version: "extended cut",
+	}}
+	instanceUpdating = device.StatusInstance{device.InstanceStatus{
+		State:   device.InstanceStateUpdating,
+		Version: "theatrical version",
+	}}
+	instanceRunning = device.StatusInstance{device.InstanceStatus{
+		State:   device.InstanceStateRunning,
+		Version: "special edition",
+	}}
+	instanceNotRunning = device.StatusInstance{device.InstanceStatus{
+		State:   device.InstanceStateNotRunning,
+		Version: "special edition",
+	}}
+)
+
 func TestStatusCommand(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
@@ -493,42 +516,40 @@ func TestStatusCommand(t *testing.T) {
 		return
 	}
 	defer stopServer(t, server)
-	// Setup the command-line.
-	cmd := cmd_device.CmdRoot
-	var stdout, stderr bytes.Buffer
-	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-	appName := naming.JoinAddressName(endpoint.String(), "")
 
-	rootTape := tapes.forSuffix("")
+	cmd := cmd_device.CmdRoot
+	globName := naming.JoinAddressName(endpoint.String(), "glob")
+	appName := naming.JoinAddressName(endpoint.String(), "app")
+
+	rootTape, appTape := tapes.forSuffix(""), tapes.forSuffix("app")
 	for _, c := range []struct {
-		tapeResponse interface{}
+		tapeResponse device.Status
 		expected     string
 	}{
 		{
-			device.StatusInstallation{device.InstallationStatus{
-				State:   device.InstallationStateUninstalled,
-				Version: "director's cut",
-			}},
-			"Installation [State:Uninstalled,Version:director's cut]",
+			installationUninstalled,
+			fmt.Sprintf("Installation %v [State:Uninstalled,Version:director's cut]", appName),
 		},
 		{
-			device.StatusInstance{device.InstanceStatus{
-				State:   device.InstanceStateUpdating,
-				Version: "theatrical version",
-			}},
-			"Instance [State:Updating,Version:theatrical version]",
+			instanceUpdating,
+			fmt.Sprintf("Instance %v [State:Updating,Version:theatrical version]", appName),
 		},
 	} {
-		rootTape.Rewind()
-		stdout.Reset()
-		rootTape.SetResponses(c.tapeResponse)
-		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"status", appName}); err != nil {
+		var stdout, stderr bytes.Buffer
+		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
+		tapes.rewind()
+		rootTape.SetResponses(GlobResponse{[]string{"app"}})
+		appTape.SetResponses(c.tapeResponse)
+		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"status", globName}); err != nil {
 			t.Errorf("%v", err)
 		}
 		if expected, got := c.expected, strings.TrimSpace(stdout.String()); got != expected {
 			t.Errorf("Unexpected output from status. Got %q, expected %q", got, expected)
 		}
-		if got, expected := rootTape.Play(), []interface{}{"Status"}; !reflect.DeepEqual(expected, got) {
+		if got, expected := rootTape.Play(), []interface{}{GlobStimulus{"glob"}}; !reflect.DeepEqual(expected, got) {
+			t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+		}
+		if got, expected := appTape.Play(), []interface{}{"Status"}; !reflect.DeepEqual(expected, got) {
 			t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 		}
 	}

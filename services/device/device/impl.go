@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -316,29 +317,21 @@ func runDebug(ctx *context.T, env *cmdline.Env, args []string) error {
 }
 
 var cmdStatus = &cmdline.Command{
-	Runner:   v23cmd.RunnerFunc(runStatus),
+	Runner:   globRunner(runStatus),
 	Name:     "status",
 	Short:    "Get application status.",
 	Long:     "Get the status of an application installation or instance.",
-	ArgsName: "<app name>",
+	ArgsName: "<app name patterns...>",
 	ArgsLong: `
-<app name> is the vanadium object name of an app installation or instance.`,
+<app name patterns...> are vanadium object names or glob name patterns corresponding to app installations and instances.`,
 }
 
-func runStatus(ctx *context.T, env *cmdline.Env, args []string) error {
-	if expected, got := 1, len(args); expected != got {
-		return env.UsageErrorf("status: incorrect number of arguments, expected %d, got %d", expected, got)
-	}
-	appName := args[0]
-	status, err := device.DeviceClient(appName).Status(ctx)
-	if err != nil {
-		return fmt.Errorf("Status failed: %v", err)
-	}
-	switch s := status.(type) {
+func runStatus(entry globResult, stdout, stderr io.Writer) error {
+	switch s := entry.status.(type) {
 	case device.StatusInstance:
-		fmt.Fprintf(env.Stdout, "Instance [State:%v,Version:%v]\n", s.Value.State, s.Value.Version)
+		fmt.Fprintf(stdout, "Instance %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
 	case device.StatusInstallation:
-		fmt.Fprintf(env.Stdout, "Installation [State:%v,Version:%v]\n", s.Value.State, s.Value.Version)
+		fmt.Fprintf(stdout, "Installation %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
 	default:
 		return fmt.Errorf("Status returned unknown type: %T", s)
 	}

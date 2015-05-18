@@ -30,6 +30,7 @@ The device commands are:
    debug         Debug the device.
    acl           Tool for setting device manager Permissions
    publish       Publish the given application(s).
+   ls            List applications.
    help          Display help for commands or topics
 
 The global flags are:
@@ -46,6 +47,14 @@ The global flags are:
    user specified by this flag
  -dryrun=false
    Elides root-requiring systemcalls.
+ -installation-state=
+   If non-empty, specifies allowed installation states (all others installations
+   get filtered out). The value of the flag is a comma-separated list of values
+   from among: [Active Uninstalled].
+ -instance-state=
+   If non-empty, specifies allowed instance states (all other instances get
+   filtered out). The value of the flag is a comma-separated list of values from
+   among: [Launching Running Dying NotRunning Updating Deleted].
  -kill=false
    Kill process ids given as command-line arguments.
  -log_backtrace_at=:0
@@ -60,6 +69,10 @@ The global flags are:
    max size in bytes of the buffer to use for logging stack traces
  -minuid=501
    UIDs cannot be less than this number.
+ -only-installations=false
+   If set, only consider installations.
+ -only-instances=false
+   If set, only consider instances.
  -progname=unnamed_app
    Visible name of the application, used in argv[0]
  -rm=false
@@ -311,9 +324,10 @@ Device status
 Get the status of an application installation or instance.
 
 Usage:
-   device status <app name>
+   device status <app name patterns...>
 
-<app name> is the vanadium object name of an app installation or instance.
+<app name patterns...> are vanadium object names or glob name patterns
+corresponding to app installations and instances.
 
 Device debug
 
@@ -401,6 +415,16 @@ The device publish flags are:
    If non-empty, comma-separated blessing patterns to add to Read and Resolve
    AccessList.
 
+Device ls
+
+List application installations or instances.
+
+Usage:
+   device ls <app name patterns...>
+
+<app name patterns...> are vanadium object names or glob name patterns
+corresponding to app installations and instances.
+
 Device help
 
 Help with no args displays the usage of the parent command.
@@ -408,11 +432,6 @@ Help with no args displays the usage of the parent command.
 Help with args displays the usage of the specified sub-command or help topic.
 
 "help ..." recursively displays help for all commands and topics.
-
-Output is formatted to a target width in runes, determined by checking the
-CMDLINE_WIDTH environment variable, falling back on the terminal width, falling
-back on 80 chars.  By setting CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0
-the width is unlimited, and if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
    device help [flags] [command/topic ...]
@@ -426,5 +445,9 @@ The device help flags are:
       full    - Good for cmdline output, shows all global flags.
       godoc   - Good for godoc processing.
    Override the default by setting the CMDLINE_STYLE environment variable.
+ -width=<terminal width>
+   Format output to this target width in runes, or unlimited if width < 0.
+   Defaults to the terminal width if available.  Override the default by setting
+   the CMDLINE_WIDTH environment variable.
 */
 package main
