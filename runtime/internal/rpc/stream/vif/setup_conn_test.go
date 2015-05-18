@@ -74,6 +74,8 @@ func (c *testControlCipher) Seal(data []byte) error {
 	return nil
 }
 
+func (c *testControlCipher) ChannelBinding() []byte { return nil }
+
 // shortConn performs at most 3 bytes of IO at a time.
 type shortConn struct {
 	io.ReadWriteCloser

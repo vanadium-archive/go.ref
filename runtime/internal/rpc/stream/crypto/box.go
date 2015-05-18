@@ -43,9 +43,14 @@ type boxcrypter struct {
 
 type BoxKey [32]byte
 
-// BoxKeyExchanger is used to communicate public keys between the two ends of
-// communication.
+// BoxKeyExchanger is used to communicate public keys between peers.
 type BoxKeyExchanger func(myPublicKey *BoxKey) (theirPublicKey *BoxKey, err error)
+
+// GenerateBoxKey generates a new public/private key pair for BoxCrypter.
+func GenerateBoxKey() (publicKey, privateKey *BoxKey, err error) {
+	pk, sk, err := box.GenerateKey(rand.Reader)
+	return (*BoxKey)(pk), (*BoxKey)(sk), err
+}
 
 // NewBoxCrypter uses Curve25519, XSalsa20 and Poly1305 to encrypt and
 // authenticate messages (as defined in http://nacl.cr.yp.to/box.html).
@@ -54,34 +59,36 @@ type BoxKeyExchanger func(myPublicKey *BoxKey) (theirPublicKey *BoxKey, err erro
 // granularity. One round-trip is required before any data can be sent.
 // BoxCrypter does NOT do anything to verify the identity of the peer.
 func NewBoxCrypter(exchange BoxKeyExchanger, pool *iobuf.Pool) (Crypter, error) {
-	pk, sk, err := box.GenerateKey(rand.Reader)
+	pk, sk, err := GenerateBoxKey()
 	if err != nil {
 		return nil, err
 	}
-
-	theirPK, err := exchange((*BoxKey)(pk))
+	theirPK, err := exchange(pk)
 	if err != nil {
 		return nil, err
 	}
 	if theirPK == nil {
 		return nil, verror.New(errRemotePublicKey, nil)
 	}
+	return NewBoxCrypterWithKey(pk, sk, theirPK, pool), nil
+}
 
-	ret := &boxcrypter{alloc: iobuf.NewAllocator(pool, 0)}
-
-	box.Precompute(&ret.sharedKey, (*[32]byte)(theirPK), sk)
+// NewBoxCrypterWithKey is used when public keys have been already exchanged between peers.
+func NewBoxCrypterWithKey(myPublicKey, myPrivateKey, theirPublicKey *BoxKey, pool *iobuf.Pool) Crypter {
+	c := boxcrypter{alloc: iobuf.NewAllocator(pool, 0)}
+	box.Precompute(&c.sharedKey, (*[32]byte)(theirPublicKey), (*[32]byte)(myPrivateKey))
 	// Distinct messages between the same {sender, receiver} set are required
 	// to have distinct nonces. The server with the lexicographically smaller
 	// public key will be sending messages with 0, 2, 4... and the other will
 	// be using 1, 3, 5...
-	if bytes.Compare(pk[:], theirPK[:]) < 0 {
-		ret.writeNonce, ret.readNonce = 0, 1
-		ret.sortedPubkeys = append(pk[:], theirPK[:]...)
+	if bytes.Compare(myPublicKey[:], theirPublicKey[:]) < 0 {
+		c.writeNonce, c.readNonce = 0, 1
+		c.sortedPubkeys = append(myPublicKey[:], theirPublicKey[:]...)
 	} else {
-		ret.writeNonce, ret.readNonce = 1, 0
-		ret.sortedPubkeys = append(theirPK[:], pk[:]...)
+		c.writeNonce, c.readNonce = 1, 0
+		c.sortedPubkeys = append(theirPublicKey[:], myPublicKey[:]...)
 	}
-	return ret, nil
+	return &c
 }
 
 func (c *boxcrypter) Encrypt(src *iobuf.Slice) (*iobuf.Slice, error) {

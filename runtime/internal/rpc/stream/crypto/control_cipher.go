@@ -24,4 +24,11 @@ type ControlCipher interface {
 
 	// Decrypt decrypts the data in place.  No MAC is verified.
 	Decrypt(data []byte)
+
+	// ChannelBinding Returns a byte slice that is unique for the the
+	// particular cipher (and the parties between which it is operating).
+	// Having both parties assert out of the band that they are indeed
+	// participating in a connection with that channel binding value is
+	// sufficient to authenticate the data received through the cipher.
+	ChannelBinding() []byte
 }

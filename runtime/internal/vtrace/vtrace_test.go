@@ -309,6 +309,7 @@ func traceWithAuth(t *testing.T, ctx *context.T, principal security.Principal) b
 	vtrace.ForceCollect(ctx)
 
 	ctx, client, err := v23.WithNewClient(ctx)
+	defer client.Close()
 	if err != nil {
 		t.Fatalf("Couldn't create client %v", err)
 	}

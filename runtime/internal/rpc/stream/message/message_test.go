@@ -65,6 +65,10 @@ func (c *testControlCipher) Seal(data []byte) error {
 	return nil
 }
 
+func (c *testControlCipher) ChannelBinding() []byte {
+	return nil
+}
+
 func TestControl(t *testing.T) {
 	counters := NewCounters()
 	counters.Add(12, 13, 10240)
@@ -101,7 +105,28 @@ func TestControl(t *testing.T) {
 				Versions: iversion.Range{Min: 34, Max: 56},
 				Options: []SetupOption{
 					&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
-					&NaclBox{PublicKey: crypto.BoxKey{7, 67, 31}},
+				},
+			},
+		},
+		// SetupVC with use-vif-authentication.
+		&SetupVC{
+			VCI: 1,
+			LocalEndpoint: &inaming.Endpoint{
+				Protocol: "tcp",
+				Address:  "batman.com:1990",
+				RID:      naming.FixedRoutingID(0xba7),
+			},
+			RemoteEndpoint: &inaming.Endpoint{
+				Protocol: "tcp",
+				Address:  "bugsbunny.com:1940",
+				RID:      naming.FixedRoutingID(0xbb),
+			},
+			Counters: counters,
+			Setup: Setup{
+				Versions: iversion.Range{Min: 34, Max: 56},
+				Options: []SetupOption{
+					&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
+					&UseVIFAuthentication{Signature: []byte{'s', 'i', 'g', 'n', 'a', 't', 'u', 'r', 'e'}},
 				},
 			},
 		},
@@ -115,7 +140,27 @@ func TestControl(t *testing.T) {
 			Versions: iversion.Range{Min: 21, Max: 71},
 			Options: []SetupOption{
 				&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
-				&NaclBox{PublicKey: crypto.BoxKey{7, 67, 31}},
+			},
+		},
+		// Setup with peer endpoint.
+		&Setup{
+			Versions: iversion.Range{Min: 21, Max: 71},
+			Options: []SetupOption{
+				&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
+				&PeerEndpoint{
+					LocalEndpoint: &inaming.Endpoint{
+						Protocol: "tcp",
+						Address:  "batman.com:1990",
+						RID:      naming.FixedRoutingID(0xba7),
+					},
+				},
+				&PeerEndpoint{
+					LocalEndpoint: &inaming.Endpoint{
+						Protocol: "tcp",
+						Address:  "bugsbunny.com:1940",
+						RID:      naming.FixedRoutingID(0xbb),
+					},
+				},
 			},
 		},
 

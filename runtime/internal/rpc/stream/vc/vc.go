@@ -313,6 +313,7 @@ func (vc *VC) DispatchPayload(fid id.Flow, payload *iobuf.Slice) error {
 		var err error
 		if payload, err = vc.crypter.Decrypt(payload); err != nil {
 			vc.mu.Unlock()
+			vlog.Errorf("failed to decrypt payload on VC %v failed: %v", vc, err)
 			return verror.New(stream.ErrSecurity, nil, verror.New(errFailedToDecryptPayload, nil, err))
 		}
 	}
@@ -452,9 +453,9 @@ func (vc *VC) appendCloseReason(err error) error {
 	return err
 }
 
-// FinishHandshakeDialedVC should be called from another goroutine
-// after HandshakeDialedVC is called, when version/encryption
-// negotiation is complete.
+// FinishHandshakeDialedVC should be called from another goroutine after
+// HandshakeDialedVCWithAuthentication or HandshakeDialedVCNoAuthentication
+// is called, when version/encryption negotiation is complete.
 func (vc *VC) FinishHandshakeDialedVC(vers version.RPCVersion, remotePubKey *crypto.BoxKey) error {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
@@ -467,87 +468,50 @@ func (vc *VC) FinishHandshakeDialedVC(vers version.RPCVersion, remotePubKey *cry
 	return nil
 }
 
-// HandshakeDialedVC completes initialization of the VC (setting up encryption,
-// authentication etc.) under the assumption that the VC was initiated by the
-// local process (i.e., the local process "Dial"ed to create the VC).
-// HandshakeDialedVC will not return until FinishHandshakeDialedVC is called
-// from another goroutine.
-// TODO(mattr): vers can be removed as a parameter when we get rid of TLS and
-// the version is always obtained via the Setup call.
-func (vc *VC) HandshakeDialedVC(principal security.Principal, sendKey func(*crypto.BoxKey) error, opts ...stream.VCOpt) error {
+// HandshakeDialedVCWithAuthentication completes initialization of the VC (setting
+// up encryption, authentication etc.) under the assumption that the VC was initiated
+// by the local process (i.e., the local process "Dial"ed to create the VC).
+// HandshakeDialedVCWithAuthentication will not return until FinishHandshakeDialedVC
+// is called from another goroutine.
+func (vc *VC) HandshakeDialedVCWithAuthentication(principal security.Principal, sendSetupVC func(*crypto.BoxKey) error, opts ...stream.VCOpt) error {
 	remotePubKeyChan := make(chan *crypto.BoxKey, 1)
 	vc.mu.Lock()
 	vc.remotePubKeyChan = remotePubKeyChan
 	vc.mu.Unlock()
-
-	// principal = nil means that we are running in SecurityNone and we don't need
-	// to authenticate the VC.  We still need to negotiate versioning information,
-	// so we still set remotePubKeyChan and call sendKey, though we don't care about
-	// the resulting key.
-	if principal == nil {
-		if err := sendKey(nil); err != nil {
-			return err
-		}
-		// TODO(mattr): Error on some timeout so a non-responding server doesn't
-		// cause this to hang forever.
-		select {
-		case <-remotePubKeyChan:
-		case <-vc.closeCh:
-			return verror.New(stream.ErrNetwork, nil, verror.New(errClosedDuringHandshake, nil, vc.VCI))
-		}
-		return nil
-	}
-
-	var auth *ServerAuthorizer
-	for _, o := range opts {
-		switch v := o.(type) {
-		case *ServerAuthorizer:
-			auth = v
-		}
-	}
-
 	exchange := func(pubKey *crypto.BoxKey) (*crypto.BoxKey, error) {
-		if err := sendKey(pubKey); err != nil {
+		if err := sendSetupVC(pubKey); err != nil {
 			return nil, err
 		}
 		// TODO(mattr): Error on some timeout so a non-responding server doesn't
 		// cause this to hang forever.
 		select {
-		case theirKey := <-remotePubKeyChan:
-			return theirKey, nil
+		case remotePublicKey := <-remotePubKeyChan:
+			return remotePublicKey, nil
 		case <-vc.closeCh:
 			return nil, verror.New(stream.ErrNetwork, nil, verror.New(errClosedDuringHandshake, nil, vc.VCI))
 		}
 	}
 	crypter, err := crypto.NewBoxCrypter(exchange, vc.pool)
 	if err != nil {
-		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil,
-			verror.New(errFailedToSetupEncryption, nil, err)))
+		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupEncryption, nil, err)))
 	}
+
 	// The version is set by FinishHandshakeDialedVC and exchange (called by
 	// NewBoxCrypter) will block until FinishHandshakeDialedVC is called, so we
 	// should look up the version now.
-	vers := vc.Version()
+	ver := vc.Version()
 
-	// Authenticate (exchange identities)
+	// Authenticate (exchange blessings).
 	authConn, err := vc.connectFID(AuthFlowID, systemFlowPriority)
 	if err != nil {
 		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForAuth, nil, err)))
 	}
-	params := security.CallParams{
-		LocalPrincipal: principal,
-		LocalEndpoint:  vc.localEP,
-		RemoteEndpoint: vc.remoteEP,
-	}
-
-	rBlessings, lBlessings, rDischarges, err := AuthenticateAsClient(authConn, crypter, params, auth, vers)
-	if err != nil || len(rBlessings.ThirdPartyCaveats()) == 0 {
-		authConn.Close()
-		if err != nil {
-			return vc.appendCloseReason(err)
-		}
-	} else if vers < version.RPCVersion10 {
-		go vc.recvDischargesLoop(authConn)
+	auth := serverAuthorizer(opts)
+	params := security.CallParams{LocalPrincipal: principal, LocalEndpoint: vc.localEP, RemoteEndpoint: vc.remoteEP}
+	lBlessings, rBlessings, rDischarges, err := AuthenticateAsClient(authConn, crypter, ver, params, auth)
+	authConn.Close()
+	if err != nil {
+		return vc.appendCloseReason(err)
 	}
 
 	vc.mu.Lock()
@@ -562,9 +526,87 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, sendKey func(*cryp
 	if err = vc.connectSystemFlows(); err != nil {
 		return vc.appendCloseReason(err)
 	}
+	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
+	return nil
+}
 
-	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v",
-		vc, rBlessings, lBlessings)
+// HandshakeDialedVCPreAuthenticated completes initialization of the VC
+// under the assumption that authentication happened out of band.
+// Authentication results are provided via params. Unlike
+// HandshakeDialedVCWithAuthentication or HandshakeDialedVCNoAuthentication,
+// this doesn't wait for FinishHandshakeDialedVC.
+func (vc *VC) HandshakeDialedVCPreAuthenticated(ver version.RPCVersion, params security.CallParams, remotePublicKeyPreauth *crypto.BoxKey, sendSetupVC func(*crypto.BoxKey, []byte) error, opts ...stream.VCOpt) error {
+	pk, sk, err := crypto.GenerateBoxKey()
+	if err != nil {
+		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupEncryption, nil, err)))
+	}
+	crypter := crypto.NewBoxCrypterWithKey(pk, sk, remotePublicKeyPreauth, vc.pool)
+	sigPreauth, err := bindClientPrincipalToChannel(crypter, params.LocalPrincipal)
+	if err != nil {
+		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, err))
+	}
+
+	if err := sendSetupVC(pk, sigPreauth); err != nil {
+		return vc.appendCloseReason(err)
+	}
+
+	// Authorize the server.
+	if auth := serverAuthorizer(opts); auth != nil {
+		if err := auth.Authorize(params); err != nil {
+			// Note this error type should match with the one in AuthenticateAsClient().
+			return vc.appendCloseReason(verror.New(stream.ErrNotTrusted, nil, err))
+		}
+	}
+
+	vc.mu.Lock()
+	vc.version = ver
+	vc.crypter = crypter
+	vc.localPrincipal = params.LocalPrincipal
+	vc.localBlessings = params.LocalBlessings
+	vc.remoteBlessings = params.RemoteBlessings
+	vc.remoteDischarges = params.RemoteDischarges
+	vc.mu.Unlock()
+
+	// Open system flows.
+	if err := vc.connectSystemFlows(); err != nil {
+		return vc.appendCloseReason(err)
+	}
+	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, params.RemoteBlessings, params.LocalBlessings)
+	return nil
+}
+
+// HandshakeDialedVCNoAuthentication completes initialization of the VC
+// without authentication. Blocks until FinishHandshakeVC is called.
+func (vc *VC) HandshakeDialedVCNoAuthentication(sendSetupVC func() error, opts ...stream.VCOpt) error {
+	remotePubKeyChan := make(chan *crypto.BoxKey, 1)
+	vc.mu.Lock()
+	vc.remotePubKeyChan = remotePubKeyChan
+	vc.mu.Unlock()
+	// We are running in SecurityNone and we don't need to authenticate the VC. But
+	// we still need to negotiate versioning information, so we call sendSetupVC.
+	if err := sendSetupVC(); err != nil {
+		return err
+	}
+	// TODO(mattr): Error on some timeout so a non-responding server doesn't
+	// cause this to hang forever.
+	select {
+	case <-remotePubKeyChan:
+	case <-vc.closeCh:
+		return verror.New(stream.ErrNetwork, nil, verror.New(errClosedDuringHandshake, nil, vc.VCI))
+	}
+
+	ver := vc.Version()
+
+	// Open system flows.
+	//
+	// For backward compatibility, we do not establish any system flow in old RPC versions.
+	// TODO(jhahn): Clean up this once we deprecate RPCVersion10.
+	if ver >= version.RPCVersion11 {
+		if err := vc.connectSystemFlows(); err != nil {
+			return vc.appendCloseReason(err)
+		}
+	}
+	vlog.VI(1).Infof("Client VC %v handshaked with no authentication.", vc)
 	return nil
 }
 
@@ -574,103 +616,55 @@ type HandshakeResult struct {
 	Error    error           // Error, if any, during the handshake.
 }
 
-// HandshakeAcceptedVC completes initialization of the VC (setting up
-// encryption, authentication etc.) under the assumption that the VC was
-// initiated by a remote process (and the local process wishes to "accept" it).
+// HandshakeAcceptedVCWithAuthentication completes initialization of the VC
+// (setting up encryption, authentication etc.) under the assumption that the VC
+// was initiated by a remote process (and the local process wishes to "accept" it).
 //
 // Since the handshaking process might involve several round trips, a bulk of the work
 // is done asynchronously and the result of the handshake is written to the
 // channel returned by this method.
 //
 // 'principal' is the principal used by the server used during authentication.
-// If principal is nil, then the VC expects to be used for unauthenticated, unencrypted communication.
-// 'lBlessings' is presented to the client during authentication.
-func (vc *VC) HandshakeAcceptedVC(
-	vers version.RPCVersion,
-	principal security.Principal,
-	lBlessings security.Blessings,
-	exchange crypto.BoxKeyExchanger,
-	opts ...stream.ListenerOpt) <-chan HandshakeResult {
+// If principal is nil, then the VC expects to be used for unauthenticated,
+// unencrypted communication. 'lBlessings' is presented to the client during
+// authentication.
+func (vc *VC) HandshakeAcceptedVCWithAuthentication(ver version.RPCVersion, principal security.Principal, lBlessings security.Blessings, exchange crypto.BoxKeyExchanger, opts ...stream.ListenerOpt) <-chan HandshakeResult {
 	result := make(chan HandshakeResult, 1)
-	finish := func(ln stream.Listener, err error) chan HandshakeResult {
-		result <- HandshakeResult{ln, err}
-		return result
-	}
-	var (
-		dischargeClient       DischargeClient
-		dischargeExpiryBuffer = DefaultServerDischargeExpiryBuffer
-	)
-	for _, o := range opts {
-		switch v := o.(type) {
-		case DischargeClient:
-			dischargeClient = v
-		case DischargeExpiryBuffer:
-			dischargeExpiryBuffer = time.Duration(v)
-		}
-	}
-	// If the listener was setup asynchronously, there is a race between
-	// the listener being setup and the caller of this method trying to
-	// dispatch messages, thus it is setup synchronously.
-	ln, err := vc.Listen()
+	ln, err := vc.initHandshakeAcceptedVC()
 	if err != nil {
-		return finish(nil, err)
-	}
-	// TODO(mattr): We could instead send counters in the return SetupVC message
-	// and avoid this extra message.  It probably doesn't make much difference
-	// so for now I'll leave it.  May be a nice cleanup after we are always
-	// using SetupVC.
-	vc.helper.AddReceiveBuffers(vc.VCI(), SharedFlowID, DefaultBytesBufferedPerFlow)
-
-	// principal == nil means that we are running in SecurityNone and we don't need
-	// to authenticate the VC.
-	if principal == nil {
-		go func() {
-			_, err = exchange(nil)
-			result <- HandshakeResult{ln, err}
-		}()
+		result <- HandshakeResult{nil, err}
 		return result
 	}
-
-	var crypter crypto.Crypter
 
 	go func() {
-		sendErr := func(err error) {
-			ln.Close()
-			result <- HandshakeResult{nil, vc.appendCloseReason(err)}
-		}
-
-		vc.mu.Lock()
-		vc.acceptHandshakeDone = make(chan struct{})
-		vc.mu.Unlock()
-
-		crypter, err = crypto.NewBoxCrypter(exchange, vc.pool)
+		crypter, err := crypto.NewBoxCrypter(exchange, vc.pool)
 		if err != nil {
-			sendErr(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupEncryption, nil, err)))
+			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupEncryption, nil, err)), ln, result)
 			return
 		}
 
-		// Authenticate (exchange identities)
+		// Authenticate (exchange blessings).
 		authConn, err := ln.Accept()
 		if err != nil {
-			sendErr(verror.New(stream.ErrNetwork, nil, verror.New(errAuthFlowNotAccepted, nil, err)))
+			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrNetwork, nil, verror.New(errAuthFlowNotAccepted, nil, err)), ln, result)
 			return
 		}
 		if vc.findFlow(authConn) != AuthFlowID {
-			// This should have been an auth flow.  We can't establish security so send
-			// an error.
-			sendErr(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForAuth, nil, err)))
+			// This should have been an auth flow. We can't establish security so send an error.
+			authConn.Close()
+			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForAuth, nil, err)), ln, result)
 			return
 		}
-
-		rBlessings, lDischarges, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vers)
+		dischargeClient, dischargeExpiryBuffer := dischargeOptions(opts)
+		rBlessings, lDischarges, err := AuthenticateAsServer(authConn, crypter, ver, principal, lBlessings, dischargeClient)
+		authConn.Close()
 		if err != nil {
-			authConn.Close()
-			sendErr(verror.New(stream.ErrSecurity, nil, verror.New(errAuthFailed, nil, err)))
+			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrSecurity, nil, verror.New(errAuthFailed, nil, err)), ln, result)
 			return
 		}
 
 		vc.mu.Lock()
-		vc.version = vers
+		vc.version = ver
 		vc.crypter = crypter
 		vc.localPrincipal = principal
 		vc.localBlessings = lBlessings
@@ -680,21 +674,133 @@ func (vc *VC) HandshakeAcceptedVC(
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()
 
-		if len(lBlessings.ThirdPartyCaveats()) > 0 && vers < version.RPCVersion10 {
-			go vc.sendDischargesLoop(authConn, dischargeClient, lBlessings.ThirdPartyCaveats(), dischargeExpiryBuffer)
-		} else {
-			authConn.Close()
-		}
-
 		// Accept system flows.
 		if err = vc.acceptSystemFlows(ln, dischargeClient, dischargeExpiryBuffer); err != nil {
-			sendErr(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToAcceptSystemFlows, nil, err)))
+			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToAcceptSystemFlows, nil, err)), ln, result)
+			return
 		}
-
 		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
 		result <- HandshakeResult{ln, nil}
 	}()
 	return result
+}
+
+// HandshakeAcceptedVCPreAuthenticated completes initialization of the VC
+// under the assumption that authentication happened out of band. Unlike
+// HandshakeAcceptedVCWithAuthentication or HandshakeAcceptedVCNoAuthentication,
+// this doesn't send a SetupVC response.
+func (vc *VC) HandshakeAcceptedVCPreAuthenticated(ver version.RPCVersion, params security.CallParams, sigPreauth []byte, lPublicKeyPreauth, lPrivateKeyPreauth, rPublicKey *crypto.BoxKey, opts ...stream.ListenerOpt) <-chan HandshakeResult {
+	result := make(chan HandshakeResult, 1)
+	ln, err := vc.initHandshakeAcceptedVC()
+	if err != nil {
+		result <- HandshakeResult{nil, err}
+		return result
+	}
+
+	go func() {
+		crypter := crypto.NewBoxCrypterWithKey(lPublicKeyPreauth, lPrivateKeyPreauth, rPublicKey, vc.pool)
+		if err := verifyClientPrincipalBoundToChannel(sigPreauth, crypter, params.RemoteBlessings.PublicKey()); err != nil {
+			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrSecurity, nil, verror.New(errAuthFailed, nil, err)), ln, result)
+			return
+		}
+
+		vc.mu.Lock()
+		vc.version = ver
+		vc.crypter = crypter
+		vc.localPrincipal = params.LocalPrincipal
+		vc.localBlessings = params.LocalBlessings
+		vc.remoteBlessings = params.RemoteBlessings
+		vc.localDischarges = params.LocalDischarges
+		close(vc.acceptHandshakeDone)
+		vc.acceptHandshakeDone = nil
+		vc.mu.Unlock()
+
+		// Accept system flows.
+		dischargeClient, dischargeExpiryBuffer := dischargeOptions(opts)
+		if err = vc.acceptSystemFlows(ln, dischargeClient, dischargeExpiryBuffer); err != nil {
+			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToAcceptSystemFlows, nil, err)), ln, result)
+			return
+		}
+		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, params.RemoteBlessings, params.LocalBlessings)
+		result <- HandshakeResult{ln, nil}
+	}()
+	return result
+}
+
+// HandshakeAcceptedVCNoAuthentication completes initialization of the VC
+// without authentication.
+func (vc *VC) HandshakeAcceptedVCNoAuthentication(ver version.RPCVersion, sendSetupVC func() error, opts ...stream.ListenerOpt) <-chan HandshakeResult {
+	result := make(chan HandshakeResult, 1)
+	ln, err := vc.initHandshakeAcceptedVC()
+	if err != nil {
+		result <- HandshakeResult{nil, err}
+		return result
+	}
+
+	go func() {
+		// We don't need to authenticate the VC, but we still need to negotiate
+		// versioning information. So we call sendSetupVC.
+		if err := sendSetupVC(); err != nil {
+			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrNetwork, nil, err), ln, result)
+			return
+		}
+
+		vc.mu.Lock()
+		vc.version = ver
+		close(vc.acceptHandshakeDone)
+		vc.acceptHandshakeDone = nil
+		vc.mu.Unlock()
+
+		// Accept system flows.
+		//
+		// For backward compatibility, we do not establish any system flow in old RPC versions.
+		// TODO(jhahn): Clean up this once we deprecate RPCVersion10.
+		if ver >= version.RPCVersion11 {
+			if err = vc.acceptSystemFlows(ln, nil, 0); err != nil {
+				vc.abortHandshakeAcceptedVC(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToAcceptSystemFlows, nil, err)), ln, result)
+				return
+			}
+		}
+		vlog.VI(1).Infof("Server VC %v handshaked with no authentication.", vc)
+		result <- HandshakeResult{ln, err}
+	}()
+	return result
+}
+
+// initHandshakeAcceptedVC setups a listener and a notification channel
+// synchronously to avoid races.
+//
+// If the listener was setup asynchronously, there is a race between
+// the listener being setup and the caller of this method trying to
+// dispatch messages.
+//
+// If the channel was setup after starting the handshake, there is a race
+// where DispatchPayload() may handle messages before the handshake has been
+// completed.
+func (vc *VC) initHandshakeAcceptedVC() (stream.Listener, error) {
+	ln, err := vc.Listen()
+	if err != nil {
+		return nil, err
+	}
+	// TODO(mattr): We could instead send counters in the return SetupVC message
+	// and avoid this extra message.  It probably doesn't make much difference
+	// so for now I'll leave it.  May be a nice cleanup after we are always
+	// using SetupVC.
+	vc.helper.AddReceiveBuffers(vc.VCI(), SharedFlowID, DefaultBytesBufferedPerFlow)
+
+	vc.mu.Lock()
+	vc.acceptHandshakeDone = make(chan struct{})
+	vc.mu.Unlock()
+	return ln, nil
+}
+
+func (vc *VC) abortHandshakeAcceptedVC(reason error, ln stream.Listener, result chan<- HandshakeResult) {
+	ln.Close()
+	if vc.acceptHandshakeDone != nil {
+		close(vc.acceptHandshakeDone)
+		vc.acceptHandshakeDone = nil
+	}
+	result <- HandshakeResult{nil, vc.appendCloseReason(reason)}
 }
 
 func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs []security.Caveat, dischargeExpiryBuffer time.Duration) {
@@ -781,10 +887,6 @@ func (vc *VC) connectSystemFlows() error {
 	vc.dataCache.Insert(TypeEncoderKey{}, vom.NewTypeEncoder(conn))
 	vc.dataCache.Insert(TypeDecoderKey{}, vom.NewTypeDecoder(conn))
 
-	if vc.Version() < version.RPCVersion10 {
-		return nil
-	}
-
 	vc.mu.Lock()
 	rBlessings := vc.remoteBlessings
 	vc.mu.Unlock()
@@ -804,12 +906,12 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener, dischargeClient DischargeCli
 	if err != nil {
 		return verror.New(errFlowForWireTypeNotAccepted, nil, err)
 	}
+	if vc.findFlow(conn) != TypeFlowID {
+		// This should have been a type flow.
+		return verror.New(errFailedToCreateFlowForWireType, nil, err)
+	}
 	vc.dataCache.Insert(TypeEncoderKey{}, vom.NewTypeEncoder(conn))
 	vc.dataCache.Insert(TypeDecoderKey{}, vom.NewTypeDecoder(conn))
-
-	if vc.Version() < version.RPCVersion10 {
-		return nil
-	}
 
 	vc.mu.Lock()
 	lBlessings := vc.localBlessings
@@ -822,7 +924,6 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener, dischargeClient DischargeCli
 		}
 		go vc.sendDischargesLoop(conn, dischargeClient, tpCaveats, dischargeExpiryBuffer)
 	}
-
 	return nil
 }
 
@@ -1002,5 +1103,30 @@ func copyDischargeMap(m map[string]security.Discharge) map[string]security.Disch
 		ret[id] = d
 	}
 	return ret
+}
 
+func serverAuthorizer(opts []stream.VCOpt) *ServerAuthorizer {
+	for _, o := range opts {
+		switch auth := o.(type) {
+		case *ServerAuthorizer:
+			return auth
+		}
+	}
+	return nil
+}
+
+func dischargeOptions(opts []stream.ListenerOpt) (DischargeClient, time.Duration) {
+	var (
+		dischargeClient       DischargeClient
+		dischargeExpiryBuffer = DefaultServerDischargeExpiryBuffer
+	)
+	for _, o := range opts {
+		switch v := o.(type) {
+		case DischargeClient:
+			dischargeClient = v
+		case DischargeExpiryBuffer:
+			dischargeExpiryBuffer = time.Duration(v)
+		}
+	}
+	return dischargeClient, dischargeExpiryBuffer
 }

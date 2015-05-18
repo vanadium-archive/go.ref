@@ -12,6 +12,7 @@ func (NullControlCipher) Seal(data []byte) error { return nil }
 func (NullControlCipher) Open(data []byte) bool  { return true }
 func (NullControlCipher) Encrypt(data []byte)    {}
 func (NullControlCipher) Decrypt(data []byte)    {}
+func (NullControlCipher) ChannelBinding() []byte { return nil }
 
 type disabledControlCipher struct {
 	NullControlCipher

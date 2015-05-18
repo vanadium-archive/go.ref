@@ -26,7 +26,15 @@ var (
 	// message visible to the user.
 	errLargerThan3ByteUint = reg(".errLargerThan3ByteUnit", "integer too large to represent in 3 bytes")
 	errReadWrongNumBytes   = reg(".errReadWrongNumBytes", "read {3} bytes, wanted to read {4}")
+
+	sizeOfSizeT int // How many bytes are used to encode the type sizeT.
 )
+
+type sizeT uint32
+
+func init() {
+	sizeOfSizeT = binary.Size(sizeT(0))
+}
 
 func write3ByteUint(dst []byte, n int) error {
 	if n >= (1<<24) || n < 0 {
@@ -53,37 +61,45 @@ func read4ByteUint(src []byte) uint32 {
 	return uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
 }
 
-func readInt(r io.Reader, ptr interface{}) error {
-	return binary.Read(r, binary.BigEndian, ptr)
+func readInt(r io.Reader, i interface{}) error {
+	return binary.Read(r, binary.BigEndian, i)
 }
 
-func writeInt(w io.Writer, ptr interface{}) error {
-	return binary.Write(w, binary.BigEndian, ptr)
+func writeInt(w io.Writer, i interface{}) error {
+	return binary.Write(w, binary.BigEndian, i)
 }
 
-func readString(r io.Reader, s *string) error {
-	var size uint32
-	if err := readInt(r, &size); err != nil {
-		return err
-	}
-	bytes := make([]byte, size)
-	n, err := r.Read(bytes)
-	if err != nil {
-		return err
-	}
-	if n != int(size) {
-		return verror.New(errReadWrongNumBytes, nil, n, int(size))
-	}
-	*s = string(bytes)
-	return nil
+func readString(r io.Reader) (string, error) {
+	b, err := readBytes(r)
+	return string(b), err
 }
 
 func writeString(w io.Writer, s string) error {
-	size := uint32(len(s))
+	return writeBytes(w, []byte(s))
+}
+
+func readBytes(r io.Reader) ([]byte, error) {
+	var size sizeT
+	if err := readInt(r, &size); err != nil {
+		return nil, err
+	}
+	b := make([]byte, size)
+	n, err := r.Read(b)
+	if err != nil {
+		return nil, err
+	}
+	if n != int(size) {
+		return nil, verror.New(errReadWrongNumBytes, nil, n, int(size))
+	}
+	return b, nil
+}
+
+func writeBytes(w io.Writer, b []byte) error {
+	size := sizeT(len(b))
 	if err := writeInt(w, size); err != nil {
 		return err
 	}
-	n, err := w.Write([]byte(s))
+	n, err := w.Write(b)
 	if err != nil {
 		return err
 	}
@@ -176,8 +192,20 @@ func readSetupOptions(r io.Reader) ([]SetupOption, error) {
 		}
 		l := &io.LimitedReader{R: r, N: int64(size)}
 		switch code {
-		case naclBoxPublicKey:
+		case naclBoxOptionCode:
 			var opt NaclBox
+			if err := opt.read(l); err != nil {
+				return nil, err
+			}
+			opts = append(opts, &opt)
+		case peerEndpointOptionCode:
+			var opt PeerEndpoint
+			if err := opt.read(l); err != nil {
+				return nil, err
+			}
+			opts = append(opts, &opt)
+		case useVIFAuthenticationOptionCode:
+			var opt UseVIFAuthentication
 			if err := opt.read(l); err != nil {
 				return nil, err
 			}

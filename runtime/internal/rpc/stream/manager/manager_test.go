@@ -65,6 +65,7 @@ func testSimpleFlow(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 	pclient := testutil.NewPrincipal("client")
+	pclient2 := testutil.NewPrincipal("client2")
 	pserver := testutil.NewPrincipal("server")
 
 	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", pserver, pserver.BlessingStore().Default())
@@ -141,8 +142,10 @@ func testSimpleFlow(t *testing.T, protocol string) {
 	if err := writeLine(clientF2, lotsOfData); err == nil {
 		t.Errorf("Should not be able to Dial or Write after the Listener is closed")
 	}
-	// Opening a new VC should fail fast.
-	if _, err := client.Dial(ep, pclient); err == nil {
+	// Opening a new VC should fail fast. Note that we need to use a different
+	// principal since the client doesn't expect a response from a server
+	// when re-using VIF authentication.
+	if _, err := client.Dial(ep, pclient2); err == nil {
 		t.Errorf("Should not be able to Dial after listener is closed")
 	}
 }
@@ -458,12 +461,11 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	errch := make(chan error)
 	go func() {
 		for {
 			_, err := ln.Accept()
-			if err != nil {
-				return
-			}
+			errch <- err
 		}
 	}()
 
@@ -474,6 +476,10 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	f, err := vc.Connect()
 	if f == nil || err != nil {
 		t.Fatalf("vc.Connect failed: (%v, %v)", f, err)
+	}
+	// Wait until the server accepts the flow or fails.
+	if err = <-errch; err != nil {
+		t.Fatalf("ln.Accept failed: %v", err)
 	}
 
 	// Trigger the idle timers.
@@ -664,6 +670,7 @@ func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
 func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 	pclient := testutil.NewPrincipal("client")
+	pclient2 := testutil.NewPrincipal("client2")
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -683,8 +690,10 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	}
 	h.Shutdown(nil, os.Stderr)
 
-	// A new VC cannot be created since the server is dead
-	if _, err := client.Dial(ep, pclient); err == nil {
+	// A new VC cannot be created since the server is dead. Note that we need to
+	// use a different principal since the client doesn't expect a response from
+	// a server when re-using VIF authentication.
+	if _, err := client.Dial(ep, pclient2); err == nil {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 
@@ -953,12 +962,12 @@ func TestConcurrentDials(t *testing.T) {
 	errCh := make(chan error, 10)
 	for i := 0; i < 10; i++ {
 		go func() {
-			_, err = client.Dial(nep, testutil.NewPrincipal("client"))
+			_, err := client.Dial(nep, testutil.NewPrincipal("client"))
 			errCh <- err
 		}()
 	}
 	for i := 0; i < 10; i++ {
-		if err = <-errCh; err != nil {
+		if err := <-errCh; err != nil {
 			t.Fatal(err)
 		}
 	}

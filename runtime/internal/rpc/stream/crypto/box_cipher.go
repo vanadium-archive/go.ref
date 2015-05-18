@@ -5,6 +5,7 @@
 package crypto
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"golang.org/x/crypto/nacl/box"
@@ -17,9 +18,10 @@ import (
 
 // cbox implements a ControlCipher using go.crypto/nacl/box.
 type cbox struct {
-	sharedKey [32]byte
-	enc       cboxStream
-	dec       cboxStream
+	sharedKey      [32]byte
+	channelBinding []byte
+	enc            cboxStream
+	dec            cboxStream
 }
 
 // cboxStream implements one stream of encryption or decryption.
@@ -73,10 +75,10 @@ func setupXSalsa20(subKey *[32]byte, counter *[16]byte, nonce *[24]byte, key *[3
 	copy(counter[:], nonce[16:])
 }
 
-// NewControlCipher returns a ControlCipher for RPC versions greater than 6.
-func NewControlCipherRPC6(peersPublicKey, privateKey *BoxKey, isServer bool) ControlCipher {
+// NewControlCipher returns a ControlCipher for RPC versions from 6 to 10.
+func NewControlCipherRPC6(myPrivateKey, theirPublicKey *BoxKey, isServer bool) ControlCipher {
 	var c cbox
-	box.Precompute(&c.sharedKey, (*[32]byte)(peersPublicKey), (*[32]byte)(privateKey))
+	box.Precompute(&c.sharedKey, (*[32]byte)(theirPublicKey), (*[32]byte)(myPrivateKey))
 	// The stream is full-duplex, and we want the directions to use different
 	// nonces, so we set bit (1 << 64) in the server-to-client stream, and leave
 	// it cleared in the client-to-server stream.  advanceNone touches only the
@@ -86,6 +88,24 @@ func NewControlCipherRPC6(peersPublicKey, privateKey *BoxKey, isServer bool) Con
 		c.enc.nonce[8] = 1
 	} else {
 		c.dec.nonce[8] = 1
+	}
+	return &c
+}
+
+// NewControlCipher returns a ControlCipher for RPC versions greater than or equal to 11.
+func NewControlCipherRPC11(myPublicKey, myPrivateKey, theirPublicKey *BoxKey) ControlCipher {
+	var c cbox
+	box.Precompute(&c.sharedKey, (*[32]byte)(theirPublicKey), (*[32]byte)(myPrivateKey))
+	// The stream is full-duplex, and we want the directions to use different
+	// nonces, so we set bit (1 << 64) in one stream, and leave it cleared in
+	// the other server stream. advanceNone touches only the first 8 bytes,
+	// so this change is permanent for the duration of the stream.
+	if bytes.Compare(myPublicKey[:], theirPublicKey[:]) < 0 {
+		c.enc.nonce[8] = 1
+		c.channelBinding = append(myPublicKey[:], theirPublicKey[:]...)
+	} else {
+		c.dec.nonce[8] = 1
+		c.channelBinding = append(theirPublicKey[:], myPublicKey[:]...)
 	}
 	return &c
 }
@@ -144,4 +164,8 @@ func (c *cbox) Decrypt(data []byte) {
 	setupXSalsa20(&subKey, &counter, nonce, &c.sharedKey)
 	c.dec.advanceNonce()
 	salsa.XORKeyStream(data, data, &counter, &subKey)
+}
+
+func (c *cbox) ChannelBinding() []byte {
+	return c.channelBinding
 }

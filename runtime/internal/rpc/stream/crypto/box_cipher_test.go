@@ -7,6 +7,7 @@ package crypto_test
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"testing"
 
 	"golang.org/x/crypto/nacl/box"
@@ -21,17 +22,38 @@ func newMessage(s string) []byte {
 	return b
 }
 
-func TestOpenSeal(t *testing.T) {
-	pub1, pvt1, err := box.GenerateKey(rand.Reader)
+type testCipherVersion int
+
+const (
+	cipherRPC6 testCipherVersion = iota
+	cipherRPC11
+)
+
+func newCipher(ver testCipherVersion) (c1, c2 crypto.ControlCipher, err error) {
+	pk1, sk1, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("can't generate key")
+		return nil, nil, errors.New("can't generate key")
 	}
-	pub2, pvt2, err := box.GenerateKey(rand.Reader)
+	pk2, sk2, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("can't generate key")
+		return nil, nil, errors.New("can't generate key")
 	}
-	c1 := crypto.NewControlCipherRPC6((*crypto.BoxKey)(pub2), (*crypto.BoxKey)(pvt1), true)
-	c2 := crypto.NewControlCipherRPC6((*crypto.BoxKey)(pub1), (*crypto.BoxKey)(pvt2), false)
+	switch ver {
+	case cipherRPC6:
+		c1 = crypto.NewControlCipherRPC6((*crypto.BoxKey)(sk1), (*crypto.BoxKey)(pk2), true)
+		c2 = crypto.NewControlCipherRPC6((*crypto.BoxKey)(sk2), (*crypto.BoxKey)(pk1), false)
+	case cipherRPC11:
+		c1 = crypto.NewControlCipherRPC11((*crypto.BoxKey)(pk1), (*crypto.BoxKey)(sk1), (*crypto.BoxKey)(pk2))
+		c2 = crypto.NewControlCipherRPC11((*crypto.BoxKey)(pk2), (*crypto.BoxKey)(sk2), (*crypto.BoxKey)(pk1))
+	}
+	return
+}
+
+func testCipherOpenSeal(t *testing.T, ver testCipherVersion) {
+	c1, c2, err := newCipher(ver)
+	if err != nil {
+		t.Fatalf("can't create cipher: %v", err)
+	}
 
 	msg1 := newMessage("hello")
 	if err := c1.Seal(msg1); err != nil {
@@ -92,18 +114,14 @@ func TestOpenSeal(t *testing.T) {
 		t.Errorf("got %q, expected %q", msg3[:5], "hello")
 	}
 }
+func TestCipherOpenSealRPC6(t *testing.T)  { testCipherOpenSeal(t, cipherRPC6) }
+func TestCipherOpenSealRPC11(t *testing.T) { testCipherOpenSeal(t, cipherRPC11) }
 
-func TestXORKeyStream(t *testing.T) {
-	pub1, pvt1, err := box.GenerateKey(rand.Reader)
+func testCipherXORKeyStream(t *testing.T, ver testCipherVersion) {
+	c1, c2, err := newCipher(ver)
 	if err != nil {
-		t.Fatalf("can't generate key")
+		t.Fatalf("can't create cipher: %v", err)
 	}
-	pub2, pvt2, err := box.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatalf("can't generate key")
-	}
-	c1 := crypto.NewControlCipherRPC6((*crypto.BoxKey)(pub2), (*crypto.BoxKey)(pvt1), true)
-	c2 := crypto.NewControlCipherRPC6((*crypto.BoxKey)(pub1), (*crypto.BoxKey)(pvt2), false)
 
 	msg1 := []byte("hello")
 	msg2 := []byte("world")
@@ -129,5 +147,28 @@ func TestXORKeyStream(t *testing.T) {
 	}
 	if s3 != "hello" {
 		t.Errorf("got %q, expected 'hello'", s3)
+	}
+}
+func TestCipherXORKeyStreamRPC6(t *testing.T)  { testCipherXORKeyStream(t, cipherRPC6) }
+func TestCipherXORKeyStreamRPC11(t *testing.T) { testCipherXORKeyStream(t, cipherRPC11) }
+
+func TestCipherChannelBinding(t *testing.T) {
+	values := make([][]byte, 100)
+	for i := 0; i < len(values); i++ {
+		c1, c2, err := newCipher(cipherRPC11)
+		if err != nil {
+			t.Fatalf("can't create cipher: %v", err)
+		}
+		if !bytes.Equal(c1.ChannelBinding(), c2.ChannelBinding()) {
+			t.Fatalf("Two ends of the crypter ended up with different channel bindings (iteration #%d)", i)
+		}
+		values[i] = c1.ChannelBinding()
+	}
+	for i := 0; i < len(values); i++ {
+		for j := i + 1; j < len(values); j++ {
+			if bytes.Equal(values[i], values[j]) {
+				t.Fatalf("Same ChannelBinding seen on multiple channels (%d and %d)", i, j)
+			}
+		}
 	}
 }

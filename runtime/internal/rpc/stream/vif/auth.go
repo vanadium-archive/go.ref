@@ -5,12 +5,10 @@
 package vif
 
 import (
-	"crypto/rand"
 	"io"
 
-	"golang.org/x/crypto/nacl/box"
-
-	rpcversion "v.io/v23/rpc/version"
+	"v.io/v23/naming"
+	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
@@ -19,7 +17,7 @@ import (
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 	"v.io/x/ref/runtime/internal/rpc/stream/message"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
-	"v.io/x/ref/runtime/internal/rpc/version"
+	iversion "v.io/x/ref/runtime/internal/rpc/version"
 )
 
 var (
@@ -34,18 +32,31 @@ var (
 	nullCipher                         crypto.NullControlCipher
 )
 
-// privateData includes secret data we need for encryption.
-type privateData struct {
-	naclBoxPrivateKey crypto.BoxKey
+// AuthenticationResult includes the result of the VIF authentication.
+type AuthenticationResult struct {
+	Dialed           bool
+	Version          version.RPCVersion
+	RemoteEndpoint   naming.Endpoint
+	SessionKeys      SessionKeys
+	LocalBlessings   security.Blessings
+	RemoteBlessings  security.Blessings
+	LocalDischarges  map[string]security.Discharge
+	RemoteDischarges map[string]security.Discharge
 }
 
-// AuthenticateAsClient sends a Setup message if possible.  If so, it chooses
+// Public/private keys used to establish an encrypted communication channel
+// (and not the keys corresponding to the principal used in authentication).
+type SessionKeys struct {
+	LocalPublic, LocalPrivate, RemotePublic crypto.BoxKey
+}
+
+// AuthenticateAsClient sends a Setup message if possible. If so, it chooses
 // encryption based on the max supported version.
 //
 // The sequence is initiated by the client.
 //
 //    - The client sends a Setup message to the server, containing the client's
-//      supported versions, and the client's crypto options.  The Setup message
+//      supported versions, and the client's crypto options. The Setup message
 //      is sent in the clear.
 //
 //    - When the server receives the Setup message, it calls
@@ -55,7 +66,7 @@ type privateData struct {
 //    - The client and server use the public/private key pairs
 //      generated for the Setup messages to create an encrypted stream
 //      of SetupStream messages for the remainder of the authentication
-//      setup.  The encyrption uses NewControlCipherRPC6, which is based
+//      setup. The encryption uses NewControlCipherRPC11, which is based
 //      on code.google.com/p/go.crypto/nacl/box.
 //
 //    - Once the encrypted SetupStream channel is setup, the client and
@@ -66,82 +77,101 @@ type privateData struct {
 // modifying the acceptable version ranges downward.  This can be addressed by
 // including a hash of the Setup message in the encrypted stream.  It is
 // likely that this will be addressed in subsequent protocol versions.
-func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *version.Range, params security.CallParams, auth *vc.ServerAuthorizer) (crypto.ControlCipher, error) {
+func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, localEP naming.Endpoint, versions *iversion.Range, principal security.Principal, auth *vc.ServerAuthorizer) (crypto.ControlCipher, *AuthenticationResult, error) {
 	if versions == nil {
-		versions = version.SupportedRange
+		versions = iversion.SupportedRange
 	}
 
 	// Send the client's public data.
-	pvt, pub, err := makeSetup(versions, params.LocalPrincipal != nil)
+	setup, pk, sk, err := makeSetup(versions, localEP)
 	if err != nil {
-		return nil, verror.New(stream.ErrSecurity, nil, err)
+		return nil, nil, verror.New(stream.ErrSecurity, nil, err)
 	}
 
 	errch := make(chan error, 1)
 	go func() {
-		errch <- message.WriteTo(writer, pub, nullCipher)
+		errch <- message.WriteTo(writer, setup, nullCipher)
 	}()
 
-	pmsg, err := message.ReadFrom(reader, nullCipher)
+	remoteMsg, err := message.ReadFrom(reader, nullCipher)
 	if err != nil {
-		return nil, verror.New(stream.ErrNetwork, nil, err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
-	ppub, ok := pmsg.(*message.Setup)
+	remoteSetup, ok := remoteMsg.(*message.Setup)
 	if !ok {
-		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
+		return nil, nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
 	}
 
 	// Wait for the write to succeed.
 	if err := <-errch; err != nil {
-		return nil, verror.New(stream.ErrNetwork, nil, err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 
 	// Choose the max version in the intersection.
-	vrange, err := pub.Versions.Intersect(&ppub.Versions)
+	vrange, err := setup.Versions.Intersect(&remoteSetup.Versions)
 	if err != nil {
-		return nil, verror.New(stream.ErrNetwork, nil, err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
-	v := vrange.Max
 
-	if params.LocalPrincipal == nil {
-		return nullCipher, nil
+	if principal == nil {
+		return nullCipher, nil, nil
 	}
 
 	// Perform the authentication.
-	return authenticateAsClient(writer, reader, params, auth, pvt, pub, ppub, v)
-}
+	ver := vrange.Max
+	remoteBox := remoteSetup.NaclBox()
+	if remoteBox == nil {
+		return nil, nil, verror.New(errNaclBoxVersionNegotiationFailed, nil)
+	}
+	remoteEP := remoteSetup.PeerEndpoint()
 
-func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params security.CallParams, auth *vc.ServerAuthorizer,
-	pvt *privateData, pub, ppub *message.Setup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
-	pbox := ppub.NaclBox()
-	if pbox == nil {
-		return nil, verror.New(errNaclBoxVersionNegotiationFailed, nil)
+	var cipher crypto.ControlCipher
+	switch {
+	case ver < version.RPCVersion11:
+		cipher = crypto.NewControlCipherRPC6(sk, &remoteBox.PublicKey, false)
+	default:
+		cipher = crypto.NewControlCipherRPC11(pk, sk, &remoteBox.PublicKey)
 	}
-	c := crypto.NewControlCipherRPC6(&pbox.PublicKey, &pvt.naclBoxPrivateKey, false)
-	sconn := newSetupConn(writer, reader, c)
+	sconn := newSetupConn(writer, reader, cipher)
+	crypter := crypto.NewNullCrypterWithChannelBinding(cipher.ChannelBinding())
+	params := security.CallParams{LocalPrincipal: principal, LocalEndpoint: localEP}
 	// TODO(jyh): act upon the authentication results.
-	_, _, _, err := vc.AuthenticateAsClient(sconn, crypto.NewNullCrypter(), params, auth, version)
+	lBlessings, rBlessings, rDischarges, err := vc.AuthenticateAsClient(sconn, crypter, ver, params, auth)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return c, nil
+	if ver < version.RPCVersion11 || remoteEP == nil {
+		// We do not return AuthenticationResult for old versions due to a channel binding bug.
+		return cipher, nil, nil
+	}
+
+	authr := AuthenticationResult{
+		Dialed:         true,
+		Version:        ver,
+		RemoteEndpoint: remoteEP,
+		SessionKeys: SessionKeys{
+			RemotePublic: remoteBox.PublicKey,
+		},
+		LocalBlessings:   lBlessings,
+		RemoteBlessings:  rBlessings,
+		RemoteDischarges: rDischarges,
+	}
+	return cipher, &authr, nil
 }
 
 // AuthenticateAsServer handles a Setup message, choosing authentication
 // based on the max common version.
 //
 // See AuthenticateAsClient for a description of the negotiation.
-func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *version.Range, principal security.Principal, lBlessings security.Blessings,
-	dc vc.DischargeClient) (crypto.ControlCipher, error) {
-	var err error
+func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, localEP naming.Endpoint, versions *iversion.Range, principal security.Principal, lBlessings security.Blessings, dc vc.DischargeClient) (crypto.ControlCipher, *AuthenticationResult, error) {
 	if versions == nil {
-		versions = version.SupportedRange
+		versions = iversion.SupportedRange
 	}
 
 	// Send server's public data.
-	pvt, pub, err := makeSetup(versions, principal != nil)
+	setup, pk, sk, err := makeSetup(versions, localEP)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	errch := make(chan error, 1)
@@ -158,55 +188,88 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *vers
 		if principal == nil {
 			<-readch
 		}
-		err := message.WriteTo(writer, pub, nullCipher)
-		errch <- err
+		errch <- message.WriteTo(writer, setup, nullCipher)
 	}()
 
 	// Read client's public data.
-	pmsg, err := message.ReadFrom(reader, nullCipher)
+	remoteMsg, err := message.ReadFrom(reader, nullCipher)
 	close(readch) // Note: we need to close this whether we get an error or not.
 	if err != nil {
-		return nil, verror.New(stream.ErrNetwork, nil, err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
-	ppub, ok := pmsg.(*message.Setup)
+	remoteSetup, ok := remoteMsg.(*message.Setup)
 	if !ok {
-		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
+		return nil, nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
 	}
 
 	// Wait for the write to succeed.
 	if err := <-errch; err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Choose the max version in the intersection.
-	vrange, err := versions.Intersect(&ppub.Versions)
+	vrange, err := versions.Intersect(&remoteSetup.Versions)
 	if err != nil {
-		return nil, verror.New(stream.ErrNetwork, nil, err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
-	v := vrange.Max
 
 	if principal == nil {
-		return nullCipher, nil
+		return nullCipher, nil, nil
 	}
 
 	// Perform authentication.
-	return authenticateAsServerRPC6(writer, reader, principal, lBlessings, dc, pvt, pub, ppub, v)
+	ver := vrange.Max
+	remoteBox := remoteSetup.NaclBox()
+	if remoteBox == nil {
+		return nil, nil, verror.New(errNaclBoxVersionNegotiationFailed, nil)
+	}
+	remoteEP := remoteSetup.PeerEndpoint()
+
+	var cipher crypto.ControlCipher
+	switch {
+	case ver < version.RPCVersion11:
+		cipher = crypto.NewControlCipherRPC6(sk, &remoteBox.PublicKey, true)
+	default:
+		cipher = crypto.NewControlCipherRPC11(pk, sk, &remoteBox.PublicKey)
+	}
+	sconn := newSetupConn(writer, reader, cipher)
+	crypter := crypto.NewNullCrypterWithChannelBinding(cipher.ChannelBinding())
+	// TODO(jyh): act upon authentication results.
+	rBlessings, lDischarges, err := vc.AuthenticateAsServer(sconn, crypter, ver, principal, lBlessings, dc)
+	if err != nil {
+		return nil, nil, verror.New(errAuthFailed, nil, err)
+	}
+	if ver < version.RPCVersion11 || remoteEP == nil {
+		// We do not return AuthenticationResult for old versions due to a channel binding bug.
+		return cipher, nil, nil
+	}
+
+	authr := AuthenticationResult{
+		Version:        ver,
+		RemoteEndpoint: remoteEP,
+		SessionKeys: SessionKeys{
+			LocalPublic:  *pk,
+			LocalPrivate: *sk,
+		},
+		LocalBlessings:  lBlessings,
+		RemoteBlessings: rBlessings,
+		LocalDischarges: lDischarges,
+	}
+	return cipher, &authr, nil
 }
 
-func authenticateAsServerRPC6(writer io.Writer, reader *iobuf.Reader, principal security.Principal, lBlessings security.Blessings, dc vc.DischargeClient,
-	pvt *privateData, pub, ppub *message.Setup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
-	box := ppub.NaclBox()
-	if box == nil {
-		return nil, verror.New(errNaclBoxVersionNegotiationFailed, nil)
-	}
-	c := crypto.NewControlCipherRPC6(&box.PublicKey, &pvt.naclBoxPrivateKey, true)
-	sconn := newSetupConn(writer, reader, c)
-	// TODO(jyh): act upon authentication results.
-	_, _, err := vc.AuthenticateAsServer(sconn, principal, lBlessings, dc, crypto.NewNullCrypter(), version)
+// makeSetup constructs the options that this process can support.
+func makeSetup(versions *iversion.Range, localEP naming.Endpoint) (setup *message.Setup, publicKey, privateKey *crypto.BoxKey, err error) {
+	publicKey, privateKey, err = crypto.GenerateBoxKey()
 	if err != nil {
-		return nil, verror.New(errAuthFailed, nil, err)
+		return nil, nil, nil, err
 	}
-	return c, nil
+	options := []message.SetupOption{&message.NaclBox{PublicKey: *publicKey}}
+	if localEP != nil {
+		options = append(options, &message.PeerEndpoint{LocalEndpoint: localEP})
+	}
+	setup = &message.Setup{Versions: *versions, Options: options}
+	return
 }
 
 // getDischargeClient returns the dischargeClient needed to fetch server discharges for this call.
@@ -219,27 +282,4 @@ func getDischargeClient(lopts []stream.ListenerOpt) vc.DischargeClient {
 		}
 	}
 	return nil
-}
-
-// makeSetup constructs the options that this process can support.
-func makeSetup(versions *version.Range, secure bool) (*privateData, *message.Setup, error) {
-	var options []message.SetupOption
-	var pvt *privateData
-	if secure {
-		pubKey, pvtKey, err := box.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, nil, err
-		}
-		options = []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}}
-		pvt = &privateData{
-			naclBoxPrivateKey: *pvtKey,
-		}
-	}
-
-	pub := &message.Setup{
-		Versions: *versions,
-		Options:  options,
-	}
-
-	return pvt, pub, nil
 }

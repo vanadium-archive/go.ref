@@ -79,6 +79,29 @@ type Setup struct {
 	Options  []SetupOption
 }
 
+// SetupStream is a byte stream used to negotiate VIF setup. During VIF setup,
+// each party sends a Setup message to the other party containing their version
+// and options. If the version requires further negotiation (such as for
+// authentication), the SetupStream is used for the negotiation.
+//
+// The protocol used on the stream is version-specific, it is not specified here.
+// See vif/auth.go for an example.
+type SetupStream struct {
+	Data []byte
+}
+
+// Command enum.
+type command uint8
+
+const (
+	closeVCCommand           command = 1
+	addReceiveBuffersCommand command = 2
+	openFlowCommand          command = 3
+	setupCommand             command = 4
+	setupStreamCommand       command = 5
+	setupVCCommand           command = 6
+)
+
 // SetupOption is the base interface for optional Setup options.
 type SetupOption interface {
 	// code is the identifier for the option.
@@ -94,42 +117,33 @@ type SetupOption interface {
 	read(r io.Reader) error
 }
 
+// Setup option codes.
+type setupOptionCode uint16
+
+const (
+	naclBoxOptionCode              setupOptionCode = 0
+	peerEndpointOptionCode         setupOptionCode = 1
+	useVIFAuthenticationOptionCode setupOptionCode = 2
+)
+
 // NaclBox is a SetupOption that specifies the public key for the NaclBox
 // encryption protocol.
 type NaclBox struct {
 	PublicKey crypto.BoxKey
 }
 
-// SetupStream is a byte stream used to negotiate VIF setup.  During VIF setup,
-// each party sends a Setup message to the other party containing their version
-// and options.  If the version requires further negotiation (such as for authentication),
-// the SetupStream is used for the negotiation.
-//
-// The protocol used on the stream is version-specific, it is not specified here.  See
-// vif/auth.go for an example.
-type SetupStream struct {
-	Data []byte
+// PeerEndpoint is a SetupOption that exchanges the endpoints between peers.
+type PeerEndpoint struct {
+	LocalEndpoint naming.Endpoint // Endpoint of the sender (as seen by the sender).
 }
 
-// Setup option codes.
-type setupOptionCode uint16
-
-const (
-	naclBoxPublicKey setupOptionCode = 0
-)
-
-// Command enum.
-type command uint8
-
-const (
-	deprecatedOpenVCCommand  command = 0
-	closeVCCommand           command = 1
-	addReceiveBuffersCommand command = 2
-	openFlowCommand          command = 3
-	hopSetupCommand          command = 4
-	hopSetupStreamCommand    command = 5
-	setupVCCommand           command = 6
-)
+// UseVIFAuthentication is a SetupOption that notifies the server to use
+// the VIF authentication for the new virtual circuit.
+type UseVIFAuthentication struct {
+	// Signature for binding a principal to a channel to make sure that the peer
+	// who requests to use VIF authentication is the same peer of the VIF.
+	Signature []byte
+}
 
 func writeControl(w io.Writer, m Control) error {
 	var command command
@@ -141,9 +155,9 @@ func writeControl(w io.Writer, m Control) error {
 	case *OpenFlow:
 		command = openFlowCommand
 	case *Setup:
-		command = hopSetupCommand
+		command = setupCommand
 	case *SetupStream:
-		command = hopSetupStreamCommand
+		command = setupStreamCommand
 	case *SetupVC:
 		command = setupVCCommand
 	default:
@@ -175,9 +189,9 @@ func readControl(r *bytes.Buffer) (Control, error) {
 		m = new(AddReceiveBuffers)
 	case openFlowCommand:
 		m = new(OpenFlow)
-	case hopSetupCommand:
+	case setupCommand:
 		m = new(Setup)
-	case hopSetupStreamCommand:
+	case setupStreamCommand:
 		m = new(SetupStream)
 	case setupVCCommand:
 		m = new(SetupVC)
@@ -194,9 +208,7 @@ func (m *CloseVC) writeTo(w io.Writer) (err error) {
 	if err = writeInt(w, m.VCI); err != nil {
 		return
 	}
-	if err = writeString(w, m.Error); err != nil {
-		return
-	}
+	err = writeString(w, m.Error)
 	return
 }
 
@@ -204,9 +216,7 @@ func (m *CloseVC) readFrom(r *bytes.Buffer) (err error) {
 	if err = readInt(r, &m.VCI); err != nil {
 		return
 	}
-	if err = readString(r, &m.Error); err != nil {
-		return
-	}
+	m.Error, err = readString(r)
 	return
 }
 
@@ -214,26 +224,23 @@ func (m *SetupVC) writeTo(w io.Writer) (err error) {
 	if err = writeInt(w, m.VCI); err != nil {
 		return
 	}
-	var localep string
+	var ep string
 	if m.LocalEndpoint != nil {
-		localep = m.LocalEndpoint.String()
+		ep = m.LocalEndpoint.String()
 	}
-	if err = writeString(w, localep); err != nil {
+	if err = writeString(w, ep); err != nil {
 		return
 	}
-	var remoteep string
 	if m.RemoteEndpoint != nil {
-		remoteep = m.RemoteEndpoint.String()
+		ep = m.RemoteEndpoint.String()
 	}
-	if err = writeString(w, remoteep); err != nil {
+	if err = writeString(w, ep); err != nil {
 		return
 	}
 	if err = writeCounters(w, m.Counters); err != nil {
 		return
 	}
-	if err = m.Setup.writeTo(w); err != nil {
-		return
-	}
+	err = m.Setup.writeTo(w)
 	return
 }
 
@@ -242,18 +249,18 @@ func (m *SetupVC) readFrom(r *bytes.Buffer) (err error) {
 		return
 	}
 	var ep string
-	if err = readString(r, &ep); err != nil {
+	if ep, err = readString(r); err != nil {
 		return
 	}
-	if ep != "" {
+	if len(ep) > 0 {
 		if m.LocalEndpoint, err = inaming.NewEndpoint(ep); err != nil {
 			return
 		}
 	}
-	if err = readString(r, &ep); err != nil {
+	if ep, err = readString(r); err != nil {
 		return
 	}
-	if ep != "" {
+	if len(ep) > 0 {
 		if m.RemoteEndpoint, err = inaming.NewEndpoint(ep); err != nil {
 			return
 		}
@@ -261,9 +268,7 @@ func (m *SetupVC) readFrom(r *bytes.Buffer) (err error) {
 	if m.Counters, err = readCounters(r); err != nil {
 		return
 	}
-	if err = m.Setup.readFrom(r); err != nil {
-		return
-	}
+	err = m.Setup.readFrom(r)
 	return
 }
 
@@ -283,9 +288,7 @@ func (m *OpenFlow) writeTo(w io.Writer) (err error) {
 	if err = writeInt(w, m.Flow); err != nil {
 		return
 	}
-	if err = writeInt(w, m.InitialCounters); err != nil {
-		return
-	}
+	err = writeInt(w, m.InitialCounters)
 	return
 }
 
@@ -296,9 +299,7 @@ func (m *OpenFlow) readFrom(r *bytes.Buffer) (err error) {
 	if err = readInt(r, &m.Flow); err != nil {
 		return
 	}
-	if err = readInt(r, &m.InitialCounters); err != nil {
-		return
-	}
+	err = readInt(r, &m.InitialCounters)
 	return
 }
 
@@ -309,9 +310,7 @@ func (m *Setup) writeTo(w io.Writer) (err error) {
 	if err = writeInt(w, m.Versions.Max); err != nil {
 		return
 	}
-	if err = writeSetupOptions(w, m.Options); err != nil {
-		return
-	}
+	err = writeSetupOptions(w, m.Options)
 	return
 }
 
@@ -322,24 +321,32 @@ func (m *Setup) readFrom(r *bytes.Buffer) (err error) {
 	if err = readInt(r, &m.Versions.Max); err != nil {
 		return
 	}
-	if m.Options, err = readSetupOptions(r); err != nil {
-		return
-	}
+	m.Options, err = readSetupOptions(r)
 	return
+}
+
+func (m *SetupStream) writeTo(w io.Writer) error {
+	_, err := w.Write(m.Data)
+	return err
+}
+
+func (m *SetupStream) readFrom(r *bytes.Buffer) error {
+	m.Data = r.Bytes()
+	return nil
 }
 
 // NaclBox returns the first NaclBox option, or nil if there is none.
 func (m *Setup) NaclBox() *NaclBox {
 	for _, opt := range m.Options {
-		if b, ok := opt.(*NaclBox); ok {
-			return b
+		if o, ok := opt.(*NaclBox); ok {
+			return o
 		}
 	}
 	return nil
 }
 
 func (*NaclBox) code() setupOptionCode {
-	return naclBoxPublicKey
+	return naclBoxOptionCode
 }
 
 func (m *NaclBox) size() uint16 {
@@ -356,12 +363,72 @@ func (m *NaclBox) read(r io.Reader) error {
 	return err
 }
 
-func (m *SetupStream) writeTo(w io.Writer) error {
-	_, err := w.Write(m.Data)
-	return err
+// PeerEndpoint returns the naming.Endpoint in the first PeerEndpoint
+// option, or nil if there is none.
+func (m *Setup) PeerEndpoint() naming.Endpoint {
+	for _, opt := range m.Options {
+		if o, ok := opt.(*PeerEndpoint); ok {
+			return o.LocalEndpoint
+		}
+	}
+	return nil
 }
 
-func (m *SetupStream) readFrom(r *bytes.Buffer) error {
-	m.Data = r.Bytes()
+func (*PeerEndpoint) code() setupOptionCode {
+	return peerEndpointOptionCode
+}
+
+func (m *PeerEndpoint) size() uint16 {
+	var ep string
+	if m.LocalEndpoint != nil {
+		ep = m.LocalEndpoint.String()
+	}
+	return uint16(sizeOfSizeT + len(ep))
+}
+
+func (m *PeerEndpoint) write(w io.Writer) error {
+	var ep string
+	if m.LocalEndpoint != nil {
+		ep = m.LocalEndpoint.String()
+	}
+	return writeString(w, ep)
+}
+
+func (m *PeerEndpoint) read(r io.Reader) (err error) {
+	var ep string
+	if ep, err = readString(r); err != nil {
+		return
+	}
+	if len(ep) > 0 {
+		m.LocalEndpoint, err = inaming.NewEndpoint(ep)
+	}
+	return
+}
+
+// UseVIFAuthentication returns the signature of the first UseVIFAuthentication
+// option, or nil if there is none.
+func (m *Setup) UseVIFAuthentication() []byte {
+	for _, opt := range m.Options {
+		if o, ok := opt.(*UseVIFAuthentication); ok {
+			return o.Signature
+		}
+	}
 	return nil
+}
+
+func (*UseVIFAuthentication) code() setupOptionCode {
+	return useVIFAuthenticationOptionCode
+}
+
+func (m *UseVIFAuthentication) size() uint16 {
+	return uint16(sizeOfSizeT + len(m.Signature))
+}
+
+func (m *UseVIFAuthentication) write(w io.Writer) error {
+	return writeBytes(w, m.Signature)
+}
+
+func (m *UseVIFAuthentication) read(r io.Reader) (err error) {
+	m.Signature, err = readBytes(r)
+	return
 }

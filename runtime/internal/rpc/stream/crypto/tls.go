@@ -194,6 +194,10 @@ func (c *tlsCrypter) Decrypt(ciphertext *iobuf.Slice) (*iobuf.Slice, error) {
 	return plaintext, nil
 }
 
+func (c *tlsCrypter) ChannelBinding() []byte {
+	return c.tls.ConnectionState().TLSUnique
+}
+
 func (c *tlsCrypter) String() string {
 	state := c.tls.ConnectionState()
 	return fmt.Sprintf("TLS CipherSuite:0x%04x Resumed:%v", state.CipherSuite, state.DidResume)
@@ -218,10 +222,6 @@ func ServerTLSConfig() *tls.Config {
 		// have a speedy Go implementation of it.
 		CipherSuites: []uint16{tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA},
 	}
-}
-
-func (c *tlsCrypter) ChannelBinding() []byte {
-	return c.tls.ConnectionState().TLSUnique
 }
 
 // PEM-encoded certificates and keys used in the tests.

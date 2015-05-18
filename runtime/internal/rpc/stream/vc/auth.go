@@ -35,10 +35,14 @@ var (
 	errNoBlessingsToPresentToServer = reg(".errerrNoBlessingsToPresentToServer ", "no blessings to present as a server")
 )
 
+// TODO(jhahn): Add len(ChannelBinding) > 0 check in writeBlessing/readBlessings
+// to make sure that the auth protocol only works when len(ChannelBinding) > 0
+// once we deprecate RPCv10.
+
 // AuthenticateAsServer executes the authentication protocol at the server.
 // It returns the blessings shared by the client, and the discharges shared
 // by the server.
-func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.RPCVersion) (security.Blessings, map[string]security.Discharge, error) {
+func AuthenticateAsServer(conn io.ReadWriteCloser, crypter crypto.Crypter, v version.RPCVersion, principal security.Principal, server security.Blessings, dc DischargeClient) (security.Blessings, map[string]security.Discharge, error) {
 	if server.IsZero() {
 		return security.Blessings{}, nil, verror.New(stream.ErrSecurity, nil, verror.New(errNoBlessingsToPresentToServer, nil))
 	}
@@ -59,12 +63,12 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 }
 
 // AuthenticateAsClient executes the authentication protocol at the client.
-// It returns the blessing shared by the server, the blessings shared by the
-// client, and any discharges shared by the server.
+// It returns the blessing shared by the client, and the blessings and any
+// discharges shared by the server.
 //
 // The client will only share its blessings if the server (who shares its
 // blessings first) is authorized as per the authorizer for this RPC.
-func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, params security.CallParams, auth *ServerAuthorizer, v version.RPCVersion) (security.Blessings, security.Blessings, map[string]security.Discharge, error) {
+func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, v version.RPCVersion, params security.CallParams, auth *ServerAuthorizer) (security.Blessings, security.Blessings, map[string]security.Discharge, error) {
 	server, serverDischarges, err := readBlessings(conn, authServerContextTag, crypter, v)
 	if err != nil {
 		return security.Blessings{}, security.Blessings{}, nil, err
@@ -74,6 +78,7 @@ func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, param
 		params.RemoteBlessings = server
 		params.RemoteDischarges = serverDischarges
 		if err := auth.Authorize(params); err != nil {
+			// Note this error type should match with the one in HandshakeDialedVCPreAuthenticated().
 			return security.Blessings{}, security.Blessings{}, nil, verror.New(stream.ErrNotTrusted, nil, err)
 		}
 	}
@@ -89,7 +94,7 @@ func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, param
 	if err := writeBlessings(conn, authClientContextTag, crypter, principal, client, nil, v); err != nil {
 		return security.Blessings{}, security.Blessings{}, nil, err
 	}
-	return server, client, serverDischarges, nil
+	return client, server, serverDischarges, nil
 }
 
 func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.Principal, b security.Blessings, discharges []security.Discharge, v version.RPCVersion) error {
@@ -162,4 +167,41 @@ func mkDischargeMap(discharges []security.Discharge) map[string]security.Dischar
 		m[d.ID()] = d
 	}
 	return m
+}
+
+func bindClientPrincipalToChannel(crypter crypto.Crypter, p security.Principal) ([]byte, error) {
+	sig, err := p.Sign(append(authClientContextTag, crypter.ChannelBinding()...))
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	enc := vom.NewEncoder(&buf)
+	if err := enc.Encode(sig); err != nil {
+		return nil, verror.New(errVomEncodeBlessing, nil, err)
+	}
+	msg, err := crypter.Encrypt(iobuf.NewSlice(buf.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+	defer msg.Release()
+	signature := make([]byte, len(msg.Contents))
+	copy(signature, msg.Contents)
+	return signature, nil
+}
+
+func verifyClientPrincipalBoundToChannel(signature []byte, crypter crypto.Crypter, publicKey security.PublicKey) error {
+	msg, err := crypter.Decrypt(iobuf.NewSlice(signature))
+	if err != nil {
+		return err
+	}
+	defer msg.Release()
+	dec := vom.NewDecoder(bytes.NewReader(msg.Contents))
+	var sig security.Signature
+	if err = dec.Decode(&sig); err != nil {
+		return verror.New(errHandshakeMessage, nil, err)
+	}
+	if !sig.Verify(publicKey, append(authClientContextTag, crypter.ChannelBinding()...)) {
+		return verror.New(errInvalidSignatureInMessage, nil)
+	}
+	return nil
 }

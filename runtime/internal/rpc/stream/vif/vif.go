@@ -11,8 +11,10 @@ package vif
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -20,6 +22,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
@@ -96,7 +99,10 @@ type VIF struct {
 	acceptor     *upcqueue.T          // GUARDED_BY(muListen)
 	listenerOpts []stream.ListenerOpt // GUARDED_BY(muListen)
 	principal    security.Principal
-	blessings    security.Blessings
+	// TODO(jhahn): Merge this blessing with the one in authResult once
+	// we fixed to pass blessings to StartAccepting().
+	blessings  security.Blessings
+	authResult *AuthenticationResult
 
 	muNextVCI sync.Mutex
 	nextVCI   id.VC
@@ -120,10 +126,8 @@ type VIF struct {
 	isClosed   bool // GUARDED_BY(isClosedMu)
 	onClose    func(*VIF)
 
-	// These counters track the number of messages sent and received by
-	// this VIF.
-	muMsgCounters sync.Mutex
-	msgCounters   map[string]int64
+	muStats sync.Mutex
+	stats   Stats
 }
 
 // ConnectorAndFlow represents a Flow and the Connector that can be used to
@@ -131,6 +135,16 @@ type VIF struct {
 type ConnectorAndFlow struct {
 	Connector stream.Connector
 	Flow      stream.Flow
+}
+
+// Stats holds stats for a VIF.
+type Stats struct {
+	SendMsgCounter map[reflect.Type]uint64
+	RecvMsgCounter map[reflect.Type]uint64
+
+	NumDialedVCs        uint
+	NumAcceptedVCs      uint
+	NumPreAuthenticated uint
 }
 
 // Separate out constants that are not exported so that godoc looks nicer for
@@ -151,6 +165,13 @@ const (
 	sharedFlowID                = vc.SharedFlowID
 )
 
+type vifSide bool
+
+const (
+	dialedVIF   vifSide = true
+	acceptedVIF vifSide = false
+)
+
 // InternalNewDialedVIF creates a new virtual interface over the provided
 // network connection, under the assumption that the conn object was created
 // using net.Dial. If onClose is given, it is run in its own goroutine when
@@ -169,18 +190,17 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 	}
 	pool := iobuf.NewPool(0)
 	reader := iobuf.NewReader(pool, conn)
-	params := security.CallParams{LocalPrincipal: principal, LocalEndpoint: localEP(conn, rid, versions)}
+	localEP := localEndpoint(conn, rid, versions)
 
 	// TODO(ataly, ashankar, suharshs): Figure out what authorization policy to use
 	// for authenticating the server during VIF establishment. Note that we cannot
 	// use the VC.ServerAuthorizer available in 'opts' as that applies to the end
 	// server and not the remote endpoint of the VIF.
-	c, err := AuthenticateAsClient(conn, reader, versions, params, nil)
+	c, authr, err := AuthenticateAsClient(conn, reader, localEP, versions, principal, nil)
 	if err != nil {
 		return nil, verror.New(stream.ErrNetwork, ctx, err)
 	}
 	var blessings security.Blessings
-
 	if principal != nil {
 		blessings = principal.BlessingStore().Default()
 	}
@@ -191,7 +211,7 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 			startTimeout = v.Duration
 		}
 	}
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs), versions, principal, blessings, startTimeout, onClose, nil, nil, c)
+	return internalNew(conn, pool, reader, localEP, id.VC(vc.NumReservedVCs), versions, principal, blessings, startTimeout, onClose, nil, nil, c, authr)
 }
 
 // InternalNewAcceptedVIF creates a new virtual interface over the provided
@@ -208,10 +228,10 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal security.Principal, blessings security.Blessings, versions *iversion.Range, onClose func(*VIF), lopts ...stream.ListenerOpt) (*VIF, error) {
 	pool := iobuf.NewPool(0)
 	reader := iobuf.NewReader(pool, conn)
-
+	localEP := localEndpoint(conn, rid, versions)
 	dischargeClient := getDischargeClient(lopts)
 
-	c, err := AuthenticateAsServer(conn, reader, versions, principal, blessings, dischargeClient)
+	c, authr, err := AuthenticateAsServer(conn, reader, localEP, versions, principal, blessings, dischargeClient)
 	if err != nil {
 		return nil, err
 	}
@@ -223,10 +243,10 @@ func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal secur
 			startTimeout = v.Duration
 		}
 	}
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, principal, blessings, startTimeout, onClose, upcqueue.New(), lopts, c)
+	return internalNew(conn, pool, reader, localEP, id.VC(vc.NumReservedVCs)+1, versions, principal, blessings, startTimeout, onClose, upcqueue.New(), lopts, c, authr)
 }
 
-func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *iversion.Range, principal security.Principal, blessings security.Blessings, startTimeout time.Duration, onClose func(*VIF), acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
+func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, localEP naming.Endpoint, initialVCI id.VC, versions *iversion.Range, principal security.Principal, blessings security.Blessings, startTimeout time.Duration, onClose func(*VIF), acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher, authr *AuthenticationResult) (*VIF, error) {
 	var (
 		// Choose IDs that will not conflict with any other (VC, Flow)
 		// pairs.  VCI 0 is never used by the application (it is
@@ -264,12 +284,14 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 		conn:         conn,
 		pool:         pool,
 		reader:       reader,
+		localEP:      localEP,
 		ctrlCipher:   c,
 		vcMap:        newVCMap(),
 		acceptor:     acceptor,
 		listenerOpts: listenerOpts,
 		principal:    principal,
-		localEP:      localEP(conn, rid, versions),
+		blessings:    blessings,
+		authResult:   authr,
 		nextVCI:      initialVCI,
 		outgoing:     outgoing,
 		expressQ:     expressQ,
@@ -278,8 +300,7 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 		stopQ:        stopQ,
 		versions:     versions,
 		onClose:      onClose,
-		msgCounters:  make(map[string]int64),
-		blessings:    blessings,
+		stats:        Stats{SendMsgCounter: make(map[reflect.Type]uint64), RecvMsgCounter: make(map[reflect.Type]uint64)},
 	}
 	if startTimeout > 0 {
 		vif.startTimer = newTimer(startTimeout, vif.Close)
@@ -312,33 +333,194 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, principal security.Principal, opt
 	counters := message.NewCounters()
 	counters.Add(vc.VCI(), sharedFlowID, defaultBytesBufferedPerFlow)
 
-	sendPublicKey := func(pubKey *crypto.BoxKey) error {
-		var options []message.SetupOption
-		if pubKey != nil {
-			options = []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}}
+	usePreauth := vif.useVIFAuthForVC(vif.versions.Max, vif.localEP, remoteEP, dialedVIF) &&
+		reflect.DeepEqual(principal.PublicKey(), vif.principal.PublicKey())
+	switch {
+	case usePreauth:
+		preauth := vif.authResult
+		params := security.CallParams{
+			LocalPrincipal:   principal,
+			LocalEndpoint:    vif.localEP,
+			RemoteEndpoint:   preauth.RemoteEndpoint,
+			LocalBlessings:   preauth.LocalBlessings,
+			RemoteBlessings:  preauth.RemoteBlessings,
+			RemoteDischarges: preauth.RemoteDischarges,
 		}
-		err := vif.sendOnExpressQ(&message.SetupVC{
-			VCI:            vc.VCI(),
-			RemoteEndpoint: remoteEP,
-			LocalEndpoint:  vif.localEP,
-			Counters:       counters,
-			Setup: message.Setup{
-				Versions: *vif.versions,
-				Options:  options,
-			},
-		})
-		if err != nil {
-			err = verror.New(stream.ErrNetwork, nil,
-				verror.New(errSendOnExpressQFailed, nil, err))
+		sendSetupVC := func(pubKey *crypto.BoxKey, sigPreauth []byte) error {
+			err := vif.sendOnExpressQ(&message.SetupVC{
+				VCI:            vc.VCI(),
+				RemoteEndpoint: remoteEP,
+				LocalEndpoint:  vif.localEP,
+				Counters:       counters,
+				Setup: message.Setup{
+					Versions: iversion.Range{Min: preauth.Version, Max: preauth.Version},
+					Options: []message.SetupOption{
+						&message.NaclBox{PublicKey: *pubKey},
+						&message.UseVIFAuthentication{sigPreauth},
+					},
+				},
+			})
+			if err != nil {
+				return verror.New(stream.ErrNetwork, nil, verror.New(errSendOnExpressQFailed, nil, err))
+			}
+			return nil
 		}
-		return err
+		err = vc.HandshakeDialedVCPreAuthenticated(preauth.Version, params, &preauth.SessionKeys.RemotePublic, sendSetupVC, opts...)
+	case principal == nil:
+		sendSetupVC := func() error {
+			err := vif.sendOnExpressQ(&message.SetupVC{
+				VCI:            vc.VCI(),
+				RemoteEndpoint: remoteEP,
+				LocalEndpoint:  vif.localEP,
+				Counters:       counters,
+				Setup:          message.Setup{Versions: *vif.versions},
+			})
+			if err != nil {
+				return verror.New(stream.ErrNetwork, nil, verror.New(errSendOnExpressQFailed, nil, err))
+			}
+			return nil
+		}
+		err = vc.HandshakeDialedVCNoAuthentication(sendSetupVC, opts...)
+	default:
+		sendSetupVC := func(pubKey *crypto.BoxKey) error {
+			err := vif.sendOnExpressQ(&message.SetupVC{
+				VCI:            vc.VCI(),
+				RemoteEndpoint: remoteEP,
+				LocalEndpoint:  vif.localEP,
+				Counters:       counters,
+				Setup: message.Setup{
+					Versions: *vif.versions,
+					Options:  []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}},
+				},
+			})
+			if err != nil {
+				return verror.New(stream.ErrNetwork, nil, verror.New(errSendOnExpressQFailed, nil, err))
+			}
+			return nil
+		}
+		err = vc.HandshakeDialedVCWithAuthentication(principal, sendSetupVC, opts...)
 	}
-	if err = vc.HandshakeDialedVC(principal, sendPublicKey, opts...); err != nil {
+	if err != nil {
 		vif.deleteVC(vc.VCI())
 		vc.Close(err)
 		return nil, err
 	}
+
+	vif.muStats.Lock()
+	vif.stats.NumDialedVCs++
+	if usePreauth {
+		vif.stats.NumPreAuthenticated++
+	}
+	vif.muStats.Unlock()
 	return vc, nil
+}
+
+func (vif *VIF) acceptVC(m *message.SetupVC) error {
+	vrange, err := vif.versions.Intersect(&m.Setup.Versions)
+	if err != nil {
+		vlog.VI(2).Infof("SetupVC message %+v to VIF %s did not present compatible versions: %v", m, vif, err)
+		return err
+	}
+	vif.muListen.Lock()
+	closed := vif.acceptor == nil || vif.acceptor.IsClosed()
+	lopts := vif.listenerOpts
+	vif.muListen.Unlock()
+	if closed {
+		vlog.VI(2).Infof("Ignoring SetupVC message %+v as VIF %s does not accept VCs", m, vif)
+		return errors.New("VCs not accepted")
+	}
+	var idleTimeout time.Duration
+	for _, o := range lopts {
+		switch v := o.(type) {
+		case vc.IdleTimeout:
+			idleTimeout = v.Duration
+		}
+	}
+	vcobj, err := vif.newVC(m.VCI, m.RemoteEndpoint, m.LocalEndpoint, idleTimeout, false)
+	if err != nil {
+		return err
+	}
+	vif.distributeCounters(m.Counters)
+
+	var remotePK *crypto.BoxKey
+	if box := m.Setup.NaclBox(); box != nil {
+		remotePK = &box.PublicKey
+	}
+	sigPreauth := m.Setup.UseVIFAuthentication()
+	var hrCH <-chan vc.HandshakeResult
+	switch {
+	case len(sigPreauth) > 0:
+		if !vif.useVIFAuthForVC(vrange.Max, m.RemoteEndpoint, m.LocalEndpoint, acceptedVIF) {
+			vlog.VI(2).Infof("Ignoring SetupVC message %+v as VIF %s does not allow re-using VIF authentication for this VC", m, vif)
+			return errors.New("VCs not accepted: cannot re-use VIF authentication for this VC")
+		}
+		preauth := vif.authResult
+		params := security.CallParams{
+			LocalPrincipal:  vif.principal,
+			LocalBlessings:  vif.blessings,
+			RemoteBlessings: preauth.RemoteBlessings,
+			LocalDischarges: preauth.LocalDischarges,
+		}
+		hrCH = vcobj.HandshakeAcceptedVCPreAuthenticated(preauth.Version, params, sigPreauth, &preauth.SessionKeys.LocalPublic, &preauth.SessionKeys.LocalPrivate, remotePK, lopts...)
+	case vif.principal == nil:
+		sendSetupVC := func() error {
+			err = vif.sendOnExpressQ(&message.SetupVC{
+				VCI:            m.VCI,
+				Setup:          message.Setup{Versions: *vrange},
+				RemoteEndpoint: m.LocalEndpoint,
+				LocalEndpoint:  vif.localEP,
+			})
+			return err
+		}
+		hrCH = vcobj.HandshakeAcceptedVCNoAuthentication(vrange.Max, sendSetupVC, lopts...)
+	default:
+		exchanger := func(pubKey *crypto.BoxKey) (*crypto.BoxKey, error) {
+			err = vif.sendOnExpressQ(&message.SetupVC{
+				VCI: m.VCI,
+				Setup: message.Setup{
+					// Note that servers send clients not their actual supported versions,
+					// but the intersected range of the server and client ranges. This
+					// is important because proxies may have adjusted the version ranges
+					// along the way, and we should negotiate a version that is compatible
+					// with all intermediate hops.
+					Versions: *vrange,
+					Options:  []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}},
+				},
+				RemoteEndpoint: m.LocalEndpoint,
+				LocalEndpoint:  vif.localEP,
+				// TODO(mattr): Consider adding counters. See associated comment in
+				// vc.initHandshakeAcceptedVC for more details. Note that we need to send
+				// AddReceiveBuffers message when reusing VIF authentication since servers
+				// doesn't send a reply for SetupVC.
+			})
+			return remotePK, err
+		}
+		hrCH = vcobj.HandshakeAcceptedVCWithAuthentication(vrange.Max, vif.principal, vif.blessings, exchanger, lopts...)
+	}
+	go vif.acceptFlowsLoop(vcobj, hrCH)
+
+	vif.muStats.Lock()
+	vif.stats.NumAcceptedVCs++
+	if len(sigPreauth) > 0 {
+		vif.stats.NumPreAuthenticated++
+	}
+	vif.muStats.Unlock()
+	return nil
+}
+
+func (vif *VIF) useVIFAuthForVC(ver version.RPCVersion, localEP, remoteEP naming.Endpoint, side vifSide) bool {
+	dialed := side == dialedVIF
+	if vif.authResult == nil || vif.authResult.Dialed != dialed || vif.authResult.Version != ver {
+		return false
+	}
+	// We allow to use the VIF authentication when the routing ID is null, since it
+	// means that this VIF is connected to the peer directly with a hostname and port.
+	if dialed {
+		return naming.Compare(vif.authResult.RemoteEndpoint.RoutingID(), remoteEP.RoutingID()) ||
+			naming.Compare(remoteEP.RoutingID(), naming.NullRoutingID)
+	}
+	return naming.Compare(vif.authResult.RemoteEndpoint.RoutingID(), remoteEP.RoutingID()) &&
+		(naming.Compare(vif.localEP.RoutingID(), localEP.RoutingID()) || naming.Compare(localEP.RoutingID(), naming.NullRoutingID))
 }
 
 // Close closes all VCs (and thereby Flows) over the VIF and then closes the
@@ -465,9 +647,10 @@ func (vif *VIF) readLoop() {
 // handleMessage handles a single incoming message.  Any error returned is
 // fatal, causing the VIF to close.
 func (vif *VIF) handleMessage(msg message.T) error {
-	vif.muMsgCounters.Lock()
-	vif.msgCounters[fmt.Sprintf("Recv(%T)", msg)]++
-	vif.muMsgCounters.Unlock()
+	mtype := reflect.TypeOf(msg)
+	vif.muStats.Lock()
+	vif.stats.RecvMsgCounter[mtype]++
+	vif.muStats.Unlock()
 
 	switch m := msg.(type) {
 
@@ -482,107 +665,6 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			vlog.VI(2).Infof("Failed to put message(%v) on VC queue on VIF %v: %v", m, vif, err)
 			m.Release()
 		}
-
-	case *message.SetupVC:
-		// First, find the public key we need out of the message.
-		var theirPK *crypto.BoxKey
-		box := m.Setup.NaclBox()
-		if box != nil {
-			theirPK = &box.PublicKey
-		}
-
-		// If we dialed this VC, then this is a response and we should finish
-		// the vc handshake.  Otherwise, this message is opening a new VC.
-		if vif.dialedVCI(m.VCI) {
-			vif.distributeCounters(m.Counters)
-			if vc, _, _ := vif.vcMap.Find(m.VCI); vc != nil {
-				intersection, err := vif.versions.Intersect(&m.Setup.Versions)
-				if err != nil {
-					vif.closeVCAndSendMsg(vc, false, err)
-				} else if err := vc.FinishHandshakeDialedVC(intersection.Max, theirPK); err != nil {
-					vif.closeVCAndSendMsg(vc, false, err)
-				}
-				return nil
-			}
-			vlog.VI(2).Infof("Ignoring SetupVC message %+v for unknown dialed VC", m)
-			return nil
-		}
-
-		// This is an accepted VC.
-		intersection, err := vif.versions.Intersect(&m.Setup.Versions)
-		if err != nil {
-			vlog.VI(2).Infof("SetupVC message %+v to VIF %s did not present compatible versions: %v", m, vif, err)
-			vif.sendOnExpressQ(&message.CloseVC{
-				VCI:   m.VCI,
-				Error: err.Error(),
-			})
-			return nil
-		}
-		vif.muListen.Lock()
-		closed := vif.acceptor == nil || vif.acceptor.IsClosed()
-		lopts := vif.listenerOpts
-		vif.muListen.Unlock()
-		if closed {
-			vlog.VI(2).Infof("Ignoring SetupVC message %+v as VIF %s does not accept VCs", m, vif)
-			vif.sendOnExpressQ(&message.CloseVC{
-				VCI:   m.VCI,
-				Error: "VCs not accepted",
-			})
-			return nil
-		}
-		var idleTimeout time.Duration
-		for _, o := range lopts {
-			switch v := o.(type) {
-			case vc.IdleTimeout:
-				idleTimeout = v.Duration
-			}
-		}
-		vc, err := vif.newVC(m.VCI, m.RemoteEndpoint, m.LocalEndpoint, idleTimeout, false)
-		if err != nil {
-			vif.sendOnExpressQ(&message.CloseVC{
-				VCI:   m.VCI,
-				Error: err.Error(),
-			})
-			return nil
-		}
-		vif.distributeCounters(m.Counters)
-		keyExchanger := func(pubKey *crypto.BoxKey) (*crypto.BoxKey, error) {
-			var options []message.SetupOption
-			if pubKey != nil {
-				options = []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}}
-			}
-			err = vif.sendOnExpressQ(&message.SetupVC{
-				VCI: m.VCI,
-				Setup: message.Setup{
-					// Note that servers send clients not their actual supported versions,
-					// but the intersected range of the server and client ranges.  This
-					// is important because proxies may have adjusted the version ranges
-					// along the way, and we should negotiate a version that is compatible
-					// with all intermediate hops.
-					Versions: *intersection,
-					Options:  options,
-				},
-				RemoteEndpoint: m.LocalEndpoint,
-				LocalEndpoint:  vif.localEP,
-				// TODO(mattr): Consider adding counters.  See associated comment
-				// in vc.go:VC.HandshakeAcceptedVC for more details.
-			})
-			return theirPK, err
-		}
-		go vif.acceptFlowsLoop(vc, vc.HandshakeAcceptedVC(intersection.Max, vif.principal, vif.blessings, keyExchanger, lopts...))
-
-	case *message.CloseVC:
-		if vc, _, _ := vif.vcMap.Find(m.VCI); vc != nil {
-			vif.deleteVC(vc.VCI())
-			vlog.VI(2).Infof("CloseVC(%+v) on VIF %s", m, vif)
-			// TODO(cnicolaou): it would be nice to have a method on VC
-			// to indicate a 'remote close' rather than a 'local one'. This helps
-			// with error reporting since we expect reads/writes to occur
-			// after a remote close, but not after a local close.
-			vc.Close(verror.New(stream.ErrNetwork, nil, verror.New(errRemoteEndClosedVC, nil, m.Error)))
-			return nil
-		}
-		vlog.VI(2).Infof("Ignoring CloseVC(%+v) for unrecognized VCI on VIF %s", m, vif)
 
 	case *message.AddReceiveBuffers:
 		vif.distributeCounters(m.Counters)
@@ -600,6 +682,49 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			return nil
 		}
 		vlog.VI(2).Infof("Ignoring OpenFlow(%+v) for unrecognized VCI on VIF %s", m, m, vif)
+
+	case *message.SetupVC:
+		// If we dialed this VC, then this is a response and we should finish
+		// the vc handshake. Otherwise, this message is opening a new VC.
+		if vif.dialedVCI(m.VCI) {
+			vif.distributeCounters(m.Counters)
+			vc, _, _ := vif.vcMap.Find(m.VCI)
+			if vc == nil {
+				vlog.VI(2).Infof("Ignoring SetupVC message %+v for unknown dialed VC", m)
+				return nil
+			}
+			vrange, err := vif.versions.Intersect(&m.Setup.Versions)
+			if err != nil {
+				vif.closeVCAndSendMsg(vc, false, err)
+				return nil
+			}
+			var remotePK *crypto.BoxKey
+			if box := m.Setup.NaclBox(); box != nil {
+				remotePK = &box.PublicKey
+			}
+			if err := vc.FinishHandshakeDialedVC(vrange.Max, remotePK); err != nil {
+				vif.closeVCAndSendMsg(vc, false, err)
+			}
+			return nil
+		}
+		// This is an accepted VC.
+		if err := vif.acceptVC(m); err != nil {
+			vif.sendOnExpressQ(&message.CloseVC{VCI: m.VCI, Error: err.Error()})
+		}
+		return nil
+
+	case *message.CloseVC:
+		if vc, _, _ := vif.vcMap.Find(m.VCI); vc != nil {
+			vif.deleteVC(vc.VCI())
+			vlog.VI(2).Infof("CloseVC(%+v) on VIF %s", m, vif)
+			// TODO(cnicolaou): it would be nice to have a method on VC
+			// to indicate a 'remote close' rather than a 'local one'. This helps
+			// with error reporting since we expect reads/writes to occur
+			// after a remote close, but not after a local close.
+			vc.Close(verror.New(stream.ErrNetwork, nil, verror.New(errRemoteEndClosedVC, nil, m.Error)))
+			return nil
+		}
+		vlog.VI(2).Infof("Ignoring CloseVC(%+v) for unrecognized VCI on VIF %s", m, vif)
 
 	case *message.Setup:
 		vlog.Infof("Ignoring redundant Setup message %T on VIF %s", m, vif)
@@ -698,9 +823,10 @@ func (vif *VIF) writeLoop() {
 			vlog.VI(1).Infof("Exiting writeLoop of VIF %s because of bqueue.Get error: %v", vif, err)
 			return
 		}
-		vif.muMsgCounters.Lock()
-		vif.msgCounters[fmt.Sprintf("Send(%T)", writer)]++
-		vif.muMsgCounters.Unlock()
+		wtype := reflect.TypeOf(writer)
+		vif.muStats.Lock()
+		vif.stats.SendMsgCounter[wtype]++
+		vif.muStats.Unlock()
 		switch writer {
 		case vif.expressQ:
 			for _, b := range bufs {
@@ -872,7 +998,10 @@ func (vif *VIF) writeDataMessages(writer bqueue.Writer, bufs []*iobuf.Slice) {
 }
 
 func (vif *VIF) dialedVCI(VCI id.VC) bool {
-	return vif.nextVCI%2 == VCI%2
+	vif.muNextVCI.Lock()
+	dialed := vif.nextVCI%2 == VCI%2
+	vif.muNextVCI.Unlock()
+	return dialed
 }
 
 func (vif *VIF) allocVCI() id.VC {
@@ -883,21 +1012,20 @@ func (vif *VIF) allocVCI() id.VC {
 	return ret
 }
 
-func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, idleTimeout time.Duration, dialed bool) (*vc.VC, error) {
+func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, idleTimeout time.Duration, side vifSide) (*vc.VC, error) {
 	vif.muStartTimer.Lock()
 	if vif.startTimer != nil {
 		vif.startTimer.Stop()
 		vif.startTimer = nil
 	}
 	vif.muStartTimer.Unlock()
-	macSize := vif.ctrlCipher.MACSize()
 	vc := vc.InternalNew(vc.Params{
 		VCI:          vci,
-		Dialed:       dialed,
+		Dialed:       side == dialedVIF,
 		LocalEP:      localEP,
 		RemoteEP:     remoteEP,
 		Pool:         vif.pool,
-		ReserveBytes: uint(message.HeaderSizeBytes + macSize),
+		ReserveBytes: uint(message.HeaderSizeBytes + vif.ctrlCipher.MACSize()),
 		Helper:       vcHelper{vif},
 	})
 	added, rq, wq := vif.vcMap.Insert(vc)
@@ -980,30 +1108,55 @@ func (vif *VIF) ShutdownVCs(remote naming.Endpoint) int {
 // NumVCs returns the number of VCs established over this VIF.
 func (vif *VIF) NumVCs() int { return vif.vcMap.Size() }
 
+// Stats returns the current stats of this VIF.
+func (vif *VIF) Stats() Stats {
+	stats := Stats{SendMsgCounter: make(map[reflect.Type]uint64), RecvMsgCounter: make(map[reflect.Type]uint64)}
+	vif.muStats.Lock()
+	for k, v := range vif.stats.SendMsgCounter {
+		stats.SendMsgCounter[k] = v
+	}
+	for k, v := range vif.stats.RecvMsgCounter {
+		stats.RecvMsgCounter[k] = v
+	}
+	stats.NumDialedVCs = vif.stats.NumDialedVCs
+	stats.NumAcceptedVCs = vif.stats.NumAcceptedVCs
+	stats.NumPreAuthenticated = vif.stats.NumPreAuthenticated
+	vif.muStats.Unlock()
+	return stats
+}
+
 // DebugString returns a descriptive state of the VIF.
 //
 // The returned string is meant for consumptions by humans. The specific format
 // should not be relied upon by any automated processing.
 func (vif *VIF) DebugString() string {
-	vcs := vif.vcMap.List()
-	l := make([]string, 0, len(vcs)+1)
-
-	vif.muNextVCI.Lock() // Needed for vif.nextVCI
-	l = append(l, fmt.Sprintf("VIF:[%s] -- #VCs:%d NextVCI:%d ControlChannelEncryption:%v IsClosed:%v", vif, len(vcs), vif.nextVCI, vif.ctrlCipher != nullCipher, vif.isClosed))
+	vif.muNextVCI.Lock()
+	nextVCI := vif.nextVCI
 	vif.muNextVCI.Unlock()
+	vif.isClosedMu.Lock()
+	isClosed := vif.isClosed
+	vif.isClosedMu.Unlock()
+	vcs := vif.vcMap.List()
+	stats := vif.Stats()
+
+	l := make([]string, 0, 2+len(vcs)+len(stats.SendMsgCounter)+len(stats.RecvMsgCounter))
+	l = append(l, fmt.Sprintf("VIF:[%s] -- #VCs:%d NextVCI:%d ControlChannelEncryption:%t IsClosed:%t #Dialed:%d #Accepted:%d #PreAuthenticated:%d",
+		vif, len(vcs), nextVCI, vif.ctrlCipher != nullCipher, isClosed, stats.NumDialedVCs, stats.NumAcceptedVCs, stats.NumPreAuthenticated))
+
+	l = append(l, "Message Counters:")
+	msgStats := make([]string, 0, len(stats.SendMsgCounter)+len(stats.RecvMsgCounter))
+	for k, v := range stats.SendMsgCounter {
+		msgStats = append(msgStats, fmt.Sprintf(" %-32s %10d", "Send("+k.String()+")", v))
+	}
+	for k, v := range stats.RecvMsgCounter {
+		msgStats = append(msgStats, fmt.Sprintf(" %-32s %10d", "Recv("+k.String()+")", v))
+	}
+	sort.Strings(msgStats)
+	l = append(l, msgStats...)
 
 	for _, vc := range vcs {
 		l = append(l, vc.DebugString())
 	}
-
-	l = append(l, "Message Counters:")
-	ctrs := len(l)
-	vif.muMsgCounters.Lock()
-	for k, v := range vif.msgCounters {
-		l = append(l, fmt.Sprintf(" %-32s %10d", k, v))
-	}
-	vif.muMsgCounters.Unlock()
-	sort.Strings(l[ctrs:])
 	return strings.Join(l, "\n")
 }
 
@@ -1055,7 +1208,7 @@ func releaseBufs(bufs []*iobuf.Slice) {
 	}
 }
 
-// localEP creates a naming.Endpoint from the provided parameters.
+// localEndpoint creates a naming.Endpoint from the provided parameters.
 //
 // It intentionally does not include any blessings (present in endpoints in the
 // v5 format). At this point it is not clear whether the endpoint is being
@@ -1070,7 +1223,7 @@ func releaseBufs(bufs []*iobuf.Slice) {
 // The addition of the endpoints is left as an excercise to higher layers of
 // the stack, where the desire to share or hide blessings from the endpoint is
 // clearer.
-func localEP(conn net.Conn, rid naming.RoutingID, versions *iversion.Range) naming.Endpoint {
+func localEndpoint(conn net.Conn, rid naming.RoutingID, versions *iversion.Range) naming.Endpoint {
 	localAddr := conn.LocalAddr()
 	ep := &inaming.Endpoint{
 		Protocol: localAddr.Network(),

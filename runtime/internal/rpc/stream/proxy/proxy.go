@@ -291,7 +291,7 @@ func (p *Proxy) acceptProcess(conn net.Conn) {
 		blessings = p.principal.BlessingStore().Default()
 	}
 
-	c, err := vif.AuthenticateAsServer(conn, reader, nil, p.principal, blessings, nil)
+	cipher, _, err := vif.AuthenticateAsServer(conn, reader, nil, nil, p.principal, blessings, nil)
 	if err != nil {
 		processLog().Infof("Process %v failed to authenticate: %s", p, err)
 		return
@@ -302,7 +302,7 @@ func (p *Proxy) acceptProcess(conn net.Conn) {
 		conn:         conn,
 		pool:         pool,
 		reader:       reader,
-		ctrlCipher:   c,
+		ctrlCipher:   cipher,
 		queue:        upcqueue.New(),
 		routingTable: make(map[id.VC]*destination),
 		servers:      make(map[id.VC]*vc.VC),
@@ -310,6 +310,11 @@ func (p *Proxy) acceptProcess(conn net.Conn) {
 	}
 
 	p.mu.Lock()
+	if p.processes == nil {
+		// The proxy has been shutdowned.
+		p.mu.Unlock()
+		return
+	}
 	p.processes[process] = struct{}{}
 	p.mu.Unlock()
 
@@ -635,7 +640,7 @@ func (p *process) readLoop() {
 						}
 						return theirPK, nil
 					}
-					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(intersection.Max, p.proxy.principal, p.proxy.blessings, keyExchanger))
+					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVCWithAuthentication(intersection.Max, p.proxy.principal, p.proxy.blessings, keyExchanger))
 				}
 				break
 			}
