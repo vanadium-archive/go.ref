@@ -322,14 +322,16 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			}
 		}
 		receiver := device.ApplicationServer(&appService{
-			callback:      d.internal.callback,
-			config:        d.config,
-			suffix:        components[1:],
-			uat:           d.uat,
-			permsStore:    d.permsStore,
-			securityAgent: d.internal.securityAgent,
-			mtAddress:     d.mtAddress,
-			reap:          d.reap,
+			config:     d.config,
+			suffix:     components[1:],
+			uat:        d.uat,
+			permsStore: d.permsStore,
+			reap:       d.reap,
+			appStart: &appStartState{
+				callback:      d.internal.callback,
+				securityAgent: d.internal.securityAgent,
+				mtAddress:     d.mtAddress,
+			},
 		})
 		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.permsStore)
 		if err != nil {
