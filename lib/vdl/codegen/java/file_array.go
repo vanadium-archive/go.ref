@@ -57,7 +57,7 @@ package {{.Package}};
     }
 
     private static {{ .ElemType }}[] convert({{ .ElemPrimitiveType }}[] arr) {
-        final {{ .ElemType }}[] ret = new {{ .ElemType }}[arr.length];
+        {{ .ElemType }}[] ret = new {{ .ElemType }}[arr.length];
         for (int i = 0; i < arr.length; ++i) {
             ret[i] = arr[i];
         }
