@@ -146,29 +146,35 @@ func (mt *mountTable) deleteNode(parent *node, child string) {
 	// Assumes that parent and parent[child] are locked.
 
 	// Walk the tree and count the number of nodes deleted.
-	n := parent.children[child]
-	if n == nil {
+	first := parent.children[child]
+	if first == nil {
 		return
 	}
-	mt.credit(n)
+	delete(parent.children, child)
+	mt.credit(first)
 	nodeCount := int64(0)
 	serverCount := int64(0)
-	queue := []*node{n}
+	queue := []*node{first}
 	for len(queue) > 0 {
 		n := queue[0]
 		queue = queue[1:]
 		nodeCount++
 		serverCount += numServers(n)
-		for _, ch := range n.children {
-			ch.Lock() // Keep locked until it is deleted.
+		if n != first {
+			n.Lock()
+		}
+		for k, ch := range n.children {
 			queue = append(queue, ch)
+			delete(n.children, k)
 			mt.credit(ch)
+		}
+		if n != first {
+			n.Unlock()
 		}
 	}
 
 	mt.nodeCounter.Incr(-nodeCount)
 	mt.serverCounter.Incr(-serverCount)
-	delete(parent.children, child)
 }
 
 // Lookup implements rpc.Dispatcher.Lookup.
@@ -327,6 +333,7 @@ func (mt *mountTable) traverse(ctx *context.T, call security.Call, elems []strin
 		// Obey account limits.
 		creator, err := mt.debit(ctx, call)
 		if err != nil {
+			cur.Unlock()
 			return nil, nil, err
 		}
 		// At this point cur is still locked, OK to use and change it.
@@ -656,7 +663,7 @@ func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name
 		} else {
 			me.Servers = []naming.MountedServer{}
 		}
-		// Unlock while we are sending on the channel to avoid livelock.
+		// Hold no locks while we are sending on the channel to avoid livelock.
 		n.Unlock()
 		ch <- naming.GlobReplyEntry{me}
 		return
@@ -699,7 +706,7 @@ func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name
 				n.Lock()
 			}
 		}
-		// Relock the node and its parent in the correct order.
+		// Relock the node and its parent in the correct order to avoid deadlock.
 		// Safe to access n.parent when its unlocked because it never changes.
 		n.Unlock()
 		n.parent.Lock()
@@ -720,7 +727,7 @@ out:
 		n.Unlock()
 		return
 	}
-	// Unlock while we are sending on the channel to avoid livelock.
+	// Hold no locks while we are sending on the channel to avoid livelock.
 	n.Unlock()
 	// Intermediate nodes are marked as serving a mounttable since they answer the mounttable methods.
 	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: name, ServesMountTable: true}}
