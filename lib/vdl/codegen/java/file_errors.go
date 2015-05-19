@@ -49,8 +49,8 @@ public final class {{ .ClassName }} {
      * Creates an error with the {@link #{{ $error.Name }}} identifier.
      */
     {{ $error.AccessModifier }} static io.v.v23.verror.VException {{ $error.MethodName }}(io.v.v23.context.VContext _ctx{{ $error.MethodArgs}}) {
-        final java.lang.Object[] _params = new java.lang.Object[] { {{ $error.Params }} };
-        final java.lang.reflect.Type[] _paramTypes = new java.lang.reflect.Type[]{ {{ $error.ParamTypes }} };
+        java.lang.Object[] _params = new java.lang.Object[] { {{ $error.Params }} };
+        java.lang.reflect.Type[] _paramTypes = new java.lang.reflect.Type[]{ {{ $error.ParamTypes }} };
         return new io.v.v23.verror.VException({{ $error.Name }}, _ctx, _paramTypes, _params);
     }
     {{ end }} {{/* range $file.Errors */}}

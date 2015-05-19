@@ -75,7 +75,7 @@ package {{.PackagePath}};
         if (this == obj) return true;
         if (obj == null) return false;
         if (this.getClass() != obj.getClass()) return false;
-	{{ if gt (len .Fields) 0 }} final {{.Name}} other = ({{.Name}})obj; {{ end }}
+	{{ if gt (len .Fields) 0 }} {{.Name}} other = ({{.Name}})obj; {{ end }}
 
         {{ range $field := .Fields }}
         {{ if .IsArray }}
@@ -104,7 +104,7 @@ package {{.PackagePath}};
     @Override
     public int hashCode() {
         int result = 1;
-        final int prime = 31;
+        int prime = 31;
         {{ range $field := .Fields }}
         result = prime * result + {{$field.HashcodeComputation}};
         {{ end }}
@@ -148,7 +148,6 @@ func javaFieldArgStr(structType *vdl.Type, env *compile.Env) string {
 			buf.WriteString(", ")
 		}
 		fld := structType.Field(i)
-		buf.WriteString("final ")
 		buf.WriteString(javaType(fld.Type, false, env))
 		buf.WriteString(" ")
 		buf.WriteString(vdlutil.FirstRuneToLower(fld.Name))

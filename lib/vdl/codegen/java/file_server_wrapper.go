@@ -37,7 +37,7 @@ public final class {{ .ServiceName }}ServerWrapper {
      *
      * @param server server whose methods are to be invoked
      */
-    public {{ .ServiceName }}ServerWrapper(final {{ .FullServiceName }}Server server) {
+    public {{ .ServiceName }}ServerWrapper({{ .FullServiceName }}Server server) {
         this.server = server;
         {{/* Initialize the embeded server wrappers */}}
         {{ range $embed := .Embeds }}
@@ -86,7 +86,7 @@ public final class {{ .ServiceName }}ServerWrapper {
      * @param method method whose tags are to be returned
      */
     @SuppressWarnings("unused")
-    public io.v.v23.vdl.VdlValue[] getMethodTags(final java.lang.String method) throws io.v.v23.verror.VException {
+    public io.v.v23.vdl.VdlValue[] getMethodTags(java.lang.String method) throws io.v.v23.verror.VException {
         {{ range $methodName, $tags := .MethodTags }}
         if ("{{ $methodName }}".equals(method)) {
             try {
@@ -100,7 +100,7 @@ public final class {{ .ServiceName }}ServerWrapper {
         {{ end }}
         {{ range $embed := .Embeds }}
         {
-            final io.v.v23.vdl.VdlValue[] tags = this.wrapper{{ $embed.Name }}.getMethodTags(method);
+            io.v.v23.vdl.VdlValue[] tags = this.wrapper{{ $embed.Name }}.getMethodTags(method);
             if (tags != null) {
                 return tags;
             }
@@ -112,18 +112,18 @@ public final class {{ .ServiceName }}ServerWrapper {
      {{/* Iterate over methods defined directly in the body of this server */}}
     {{ range $method := .Methods }}
     {{ $method.JavaDoc }}
-    public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{ if $method.IsStreaming }}
-        final io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
+        io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
             @Override
             public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
-                final java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.SendType }} >() {}.getType();
+                java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.SendType }} >() {}.getType();
                 call.send(item, type);
             }
             @Override
             public {{ $method.RecvType }} recv() throws java.io.EOFException, io.v.v23.verror.VException {
-                final java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.RecvType }} >() {}.getType();
-                final java.lang.Object result = call.recv(type);
+                java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.RecvType }} >() {}.getType();
+                java.lang.Object result = call.recv(type);
                 try {
                     return ({{ $method.RecvType }})result;
                 } catch (java.lang.ClassCastException e) {
@@ -139,7 +139,7 @@ public final class {{ .ServiceName }}ServerWrapper {
 {{/* Iterate over methods from embeded servers and generate code to delegate the work */}}
 {{ range $eMethod := .EmbedMethods }}
     {{ $eMethod.JavaDoc }}
-    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(io.v.v23.context.VContext ctx, io.v.v23.rpc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{/* e.g. return this.stubArith.cosine(ctx, call, [args], options) */}}
         {{ if $eMethod.Returns }}return{{ end }}  this.wrapper{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(ctx, call{{ $eMethod.CallingArgs }});
     }

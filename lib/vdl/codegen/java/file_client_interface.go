@@ -36,8 +36,8 @@ public interface {{ .ServiceName }}Client {{ .Extends }} {
 
     {{/* Generate the method signature. */}}
     {{ $method.Doc }}
-    {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.Args }}) throws io.v.v23.verror.VException;
-    {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.Args }}, final io.v.v23.Options vOpts) throws io.v.v23.verror.VException;
+    {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}) throws io.v.v23.verror.VException;
+    {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException;
 {{ end }}
 }
 `

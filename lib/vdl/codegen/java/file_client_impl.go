@@ -37,7 +37,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
      * @param client Vanadium client
      * @param vName  remote server name
      */
-    public {{ .ServiceName }}ClientImpl(final io.v.v23.rpc.Client client, final java.lang.String vName) {
+    public {{ .ServiceName }}ClientImpl(io.v.v23.rpc.Client client, java.lang.String vName) {
         this.client = client;
         this.vName = vName;
         {{/* Initialize the embeded impls */}}
@@ -60,16 +60,16 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
 {{ range $method := .Methods }}
     {{/* The optionless overload simply calls the overload with options */}}
     @Override
-    public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{if $method.Returns }}return{{ end }} {{ $method.Name }}(context{{ $method.CallingArgsLeadingComma }}, null);
     }
     {{/* The main client impl method body */}}
     @Override
-    public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
+    public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
         {{/* Start the vanadium call */}}
         // Start the call.
-        final java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
-        final java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
+        java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
+        java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
         final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts);
 
         // Finish the call.
@@ -77,17 +77,17 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         {{ if $method.NotStreaming }}
 
         {{ if $method.IsVoid }}
-        final java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{};
+        java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{};
         _call.finish(_resultTypes);
         {{ else }} {{/* else $method.IsVoid */}}
-        final java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
+        java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
             {{ range $outArg := $method.OutArgs }}
             new com.google.common.reflect.TypeToken<{{ $outArg.Type }}>() {}.getType(),
             {{ end }}
         };
-        final java.lang.Object[] _results = _call.finish(_resultTypes);
+        java.lang.Object[] _results = _call.finish(_resultTypes);
         {{ if $method.MultipleReturn }}
-        final {{ $method.DeclaredObjectRetType }} _ret = new {{ $method.DeclaredObjectRetType }}();
+        {{ $method.DeclaredObjectRetType }} _ret = new {{ $method.DeclaredObjectRetType }}();
             {{ range $i, $outArg := $method.OutArgs }}
         _ret.{{ $outArg.FieldName }} = ({{ $outArg.Type }})_results[{{ $i }}];
             {{ end }} {{/* end range over outargs */}}
@@ -101,14 +101,14 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         {{else }} {{/* else $method.NotStreaming */}}
         return new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
             @Override
-            public void send(final {{ $method.SendType }} item) throws io.v.v23.verror.VException {
-                final java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.SendType }}>() {}.getType();
+            public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
+                java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.SendType }}>() {}.getType();
                 _call.send(item, type);
             }
             @Override
             public {{ $method.RecvType }} recv() throws java.io.EOFException, io.v.v23.verror.VException {
-                final java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType();
-                final java.lang.Object result = _call.recv(type);
+                java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType();
+                java.lang.Object result = _call.recv(type);
                 try {
                     return ({{ $method.RecvType }})result;
                 } catch (java.lang.ClassCastException e) {
@@ -118,11 +118,11 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
             @Override
             public {{ $method.DeclaredObjectRetType }} finish() throws io.v.v23.verror.VException {
                 {{ if $method.IsVoid }}
-                final java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{};
+                java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{};
                 _call.finish(resultTypes);
                 return null;
                 {{ else }} {{/* else $method.IsVoid */}}
-                final java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{
+                java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{
                     new com.google.common.reflect.TypeToken<{{ $method.DeclaredObjectRetType }}>() {}.getType()
                 };
                 return ({{ $method.DeclaredObjectRetType }})_call.finish(resultTypes)[0];
@@ -136,12 +136,12 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
 {{/* Iterate over methods from embeded services and generate code to delegate the work */}}
 {{ range $eMethod := .EmbedMethods }}
     @Override
-    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{/* e.g. return this.implArith.cosine(context, [args]) */}}
         {{ if $eMethod.Returns }}return{{ end }} this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }});
     }
     @Override
-    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
+    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
         {{/* e.g. return this.implArith.cosine(context, [args], options) */}}
         {{ if $eMethod.Returns }}return{{ end }}  this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }}, vOpts);
     }

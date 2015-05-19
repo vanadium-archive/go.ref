@@ -39,7 +39,7 @@ public interface {{ .ServiceName }}Server {{ .Extends }} {
 
     {{/* Generate the method signature. */}}
     {{ $method.Doc }}
-    {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.ServerCall call{{ $method.Args }}) throws io.v.v23.verror.VException;
+    {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext ctx, io.v.v23.rpc.ServerCall call{{ $method.Args }}) throws io.v.v23.verror.VException;
 {{ end }}
 }
 `

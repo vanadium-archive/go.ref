@@ -25,7 +25,7 @@ public final class {{ .ServiceName }}ClientFactory {
      *
      * @param name name to bind to
      */
-    public static {{ .ServiceName }}Client get{{ .ServiceName }}Client(final java.lang.String name) {
+    public static {{ .ServiceName }}Client get{{ .ServiceName }}Client(java.lang.String name) {
         return get{{ .ServiceName }}Client(name, null);
     }
 
@@ -35,11 +35,11 @@ public final class {{ .ServiceName }}ClientFactory {
      * <p><ul>
      * <li>{@link io.v.v23.OptionDefs#CLIENT}, which specifies a {@link io.v.v23.rpc.Client} to use for all rpc calls.</li>
      * </ul>
-     * 
+     *
      * @param name name to bind to
      * @param opts creation options
      */
-    public static {{ .ServiceName }}Client get{{ .ServiceName }}Client(final java.lang.String name, final io.v.v23.Options opts) {
+    public static {{ .ServiceName }}Client get{{ .ServiceName }}Client(java.lang.String name, io.v.v23.Options opts) {
         io.v.v23.rpc.Client client = null;
         if (opts != null && opts.get(io.v.v23.OptionDefs.CLIENT) != null) {
             client = opts.get(io.v.v23.OptionDefs.CLIENT, io.v.v23.rpc.Client.class);
