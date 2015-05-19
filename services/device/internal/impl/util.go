@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -74,8 +75,11 @@ func downloadPackages(ctx *context.T, publisher security.Blessings, packages app
 		if err != nil {
 			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadPackage(%v) failed: %v", path, err))
 		}
-		if err := verifySignature(data, publisher, pkgName.Signature); err != nil {
-			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Publisher package(%v:%v) signature verification failed", localPkg, pkgName))
+		// If a nonempty signature is present, verify it. (i.e., we accept unsigned packages.)
+		if !reflect.DeepEqual(pkgName.Signature, security.Signature{}) {
+			if err := verifySignature(data, publisher, pkgName.Signature); err != nil {
+				return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Publisher package(%v:%v) signature verification failed", localPkg, pkgName))
+			}
 		}
 	}
 	return nil

@@ -550,7 +550,7 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 	if err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("PublicKey().MarshalBinary() failed: %v", err))
 	}
-	if err := call.SendStream().Send(device.BlessServerMessageInstancePublicKey{mPubKey}); err != nil {
+	if err := call.SendStream().Send(device.BlessServerMessageInstancePublicKey{Value: mPubKey}); err != nil {
 		return err
 	}
 	if !call.RecvStream().Advance() {
@@ -851,7 +851,7 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 	} else {
 		cmd.Env = append(cmd.Env, ref.EnvCredentials+"="+filepath.Join(instanceDir, "credentials"))
 	}
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
+	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: cfg})
 	defer func() {
 		if handle != nil {
 			if err := handle.Clean(); err != nil {
@@ -1473,10 +1473,10 @@ func (i *appService) Status(ctx *context.T, _ rpc.ServerCall) (device.Status, er
 	switch len(i.suffix) {
 	case 2:
 		status, err := i.installationStatus(ctx)
-		return device.StatusInstallation{status}, err
+		return device.StatusInstallation{Value: status}, err
 	case 3:
 		status, err := i.instanceStatus(ctx)
-		return device.StatusInstance{status}, err
+		return device.StatusInstance{Value: status}, err
 	default:
 		return nil, verror.New(ErrInvalidSuffix, ctx)
 	}
