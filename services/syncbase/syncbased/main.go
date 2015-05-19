@@ -12,10 +12,12 @@ import (
 	"flag"
 
 	"v.io/v23"
+	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/x/lib/vlog"
 
 	"v.io/syncbase/x/ref/services/syncbase/server"
+	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
@@ -24,6 +26,18 @@ import (
 var (
 	name = flag.String("name", "", "Name to mount at.")
 )
+
+// defaultPerms returns a permissions object that grants all permissions to the
+// provided blessing patterns.
+func defaultPerms(blessingPatterns []security.BlessingPattern) access.Permissions {
+	perms := access.Permissions{}
+	for _, tag := range access.AllTypicalTags() {
+		for _, bp := range blessingPatterns {
+			perms.Add(bp, string(tag))
+		}
+	}
+	return perms
+}
 
 func main() {
 	ctx, shutdown := v23.Init()
@@ -37,8 +51,19 @@ func main() {
 		vlog.Fatal("s.Listen() failed: ", err)
 	}
 
-	// TODO(sadovsky): Use a real Permissions.
-	service, err := server.NewService(nil, nil, access.Permissions{})
+	perms, err := securityflag.PermissionsFromFlag()
+	if err != nil {
+		vlog.Fatal("securityflag.PermissionsFromFlag() failed: ", err)
+	}
+
+	if perms != nil {
+		vlog.Info("Using permissions from command line flag.")
+	} else {
+		vlog.Info("No permissions flag provided. Giving local principal all permissions.")
+		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
+	}
+
+	service, err := server.NewService(nil, nil, perms)
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)
 	}
