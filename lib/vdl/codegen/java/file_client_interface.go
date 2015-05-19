@@ -71,7 +71,7 @@ func clientInterfaceNonStreamingOutArg(iface *compile.Interface, method *compile
 
 func clientInterfaceOutArg(iface *compile.Interface, method *compile.Method, env *compile.Env) string {
 	if isStreamingMethod(method) {
-		return fmt.Sprintf("io.v.v23.vdl.ClientStream<%s, %s, %s>", javaType(method.InStream, true, env), javaType(method.OutStream, true, env), clientInterfaceNonStreamingOutArg(iface, method, true, env))
+		return fmt.Sprintf("io.v.v23.vdl.TypedClientStream<%s, %s, %s>", javaType(method.InStream, true, env), javaType(method.OutStream, true, env), clientInterfaceNonStreamingOutArg(iface, method, true, env))
 	}
 	return clientInterfaceNonStreamingOutArg(iface, method, false, env)
 }

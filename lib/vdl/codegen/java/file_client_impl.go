@@ -70,7 +70,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         // Start the call.
         java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
         java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
-        final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts);
+        final io.v.v23.rpc.ClientCall _call = getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts);
 
         // Finish the call.
         {{/* Now handle returning from the function. */}}
@@ -99,7 +99,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         {{ end }} {{/* end if $method.IsVoid */}}
 
         {{else }} {{/* else $method.NotStreaming */}}
-        return new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
+        return new io.v.v23.vdl.TypedClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
             @Override
             public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
                 java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.SendType }}>() {}.getType();

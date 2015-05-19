@@ -114,7 +114,7 @@ public final class {{ .ServiceName }}ServerWrapper {
     {{ $method.JavaDoc }}
     public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{ if $method.IsStreaming }}
-        io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
+        io.v.v23.vdl.TypedStream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.TypedStream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
             @Override
             public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
                 java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.SendType }} >() {}.getType();

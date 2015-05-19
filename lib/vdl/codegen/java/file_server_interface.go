@@ -73,7 +73,7 @@ type serverInterfaceMethod struct {
 func processServerInterfaceMethod(method *compile.Method, iface *compile.Interface, env *compile.Env) serverInterfaceMethod {
 	args := javaDeclarationArgStr(method.InArgs, env, true)
 	if isStreamingMethod(method) {
-		args += fmt.Sprintf(", io.v.v23.vdl.Stream<%s, %s> stream", javaType(method.OutStream, true, env), javaType(method.InStream, true, env))
+		args += fmt.Sprintf(", io.v.v23.vdl.TypedStream<%s, %s> stream", javaType(method.OutStream, true, env), javaType(method.InStream, true, env))
 	}
 	retArgs := make([]serverInterfaceArg, len(method.OutArgs))
 	for i := 0; i < len(method.OutArgs); i++ {
