@@ -25,6 +25,7 @@ func RunInTransaction(st Store, fn func(st StoreReadWriter) error) error {
 // CopyBytes copies elements from a source slice into a destination slice.
 // The returned slice may be a sub-slice of dst if dst was large enough to hold
 // src. Otherwise, a newly allocated slice will be returned.
+// TODO(rogulenko): add some tests.
 func CopyBytes(dst, src []byte) []byte {
 	if cap(dst) < len(src) {
 		newlen := cap(dst)*2 + 2
@@ -33,6 +34,7 @@ func CopyBytes(dst, src []byte) []byte {
 		}
 		dst = make([]byte, newlen)
 	}
+	dst = dst[:len(src)]
 	copy(dst, src)
-	return dst[:len(src)]
+	return dst
 }

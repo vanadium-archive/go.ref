@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 
+	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/test"
 )
 
@@ -16,27 +17,39 @@ func init() {
 }
 
 func TestStream(t *testing.T) {
-	st := New()
-	defer st.Close()
-	test.RunStreamTest(t, st)
+	runTest(t, test.RunStreamTest)
+}
+
+func TestSnapshot(t *testing.T) {
+	runTest(t, test.RunSnapshotTest)
+}
+
+func TestStoreState(t *testing.T) {
+	// TODO(rogulenko): Enable this test once memstore.Close causes memstore to
+	// disallow subsequent operations.
+	// runTest(t, test.RunStoreStateTest)
 }
 
 func TestReadWriteBasic(t *testing.T) {
-	st := New()
-	defer st.Close()
-	test.RunReadWriteBasicTest(t, st)
+	runTest(t, test.RunReadWriteBasicTest)
 }
 
 func TestReadWriteRandom(t *testing.T) {
-	st := New()
-	defer st.Close()
-	test.RunReadWriteRandomTest(t, st)
+	runTest(t, test.RunReadWriteRandomTest)
+}
+
+func TestTransactionState(t *testing.T) {
+	runTest(t, test.RunTransactionStateTest)
 }
 
 func TestTransactionsWithGet(t *testing.T) {
-	st := New()
-	defer st.Close()
 	// TODO(sadovsky): Enable this test once we've added a retry loop to
 	// RunInTransaction. Without that, concurrency makes the test fail.
-	//test.RunTransactionsWithGetTest(t, st)
+	// runTest(t, test.RunTransactionsWithGetTest)
+}
+
+func runTest(t *testing.T, f func(t *testing.T, st store.Store)) {
+	st := New()
+	defer st.Close()
+	f(t, st)
 }

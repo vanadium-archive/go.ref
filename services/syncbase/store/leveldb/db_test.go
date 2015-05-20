@@ -19,27 +19,37 @@ func init() {
 }
 
 func TestStream(t *testing.T) {
-	db, dbPath := newDB()
-	defer destroyDB(db, dbPath)
-	test.RunStreamTest(t, db)
+	runTest(t, test.RunStreamTest)
+}
+
+func TestSnapshot(t *testing.T) {
+	runTest(t, test.RunSnapshotTest)
+}
+
+func TestStoreState(t *testing.T) {
+	runTest(t, test.RunStoreStateTest)
 }
 
 func TestReadWriteBasic(t *testing.T) {
-	st, path := newDB()
-	defer destroyDB(st, path)
-	test.RunReadWriteBasicTest(t, st)
+	runTest(t, test.RunReadWriteBasicTest)
 }
 
 func TestReadWriteRandom(t *testing.T) {
-	st, path := newDB()
-	defer destroyDB(st, path)
-	test.RunReadWriteRandomTest(t, st)
+	runTest(t, test.RunReadWriteRandomTest)
+}
+
+func TestTransactionState(t *testing.T) {
+	runTest(t, test.RunTransactionStateTest)
 }
 
 func TestTransactionsWithGet(t *testing.T) {
-	st, path := newDB()
-	defer destroyDB(st, path)
-	test.RunTransactionsWithGetTest(t, st)
+	runTest(t, test.RunTransactionsWithGetTest)
+}
+
+func runTest(t *testing.T, f func(t *testing.T, st store.Store)) {
+	st, dbPath := newDB()
+	defer destroyDB(st, dbPath)
+	f(t, st)
 }
 
 func newDB() (store.Store, string) {

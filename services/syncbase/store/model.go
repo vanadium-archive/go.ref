@@ -12,11 +12,12 @@ type StoreReader interface {
 	// sub-slice of valbuf if valbuf was large enough to hold the entire value.
 	// Otherwise, a newly allocated slice will be returned. It is valid to pass a
 	// nil valbuf.
-	// Fails if the given key is unknown (ErrUnknownKey).
+	// If the given key is unknown, valbuf is returned unchanged and the function
+	// fails with ErrUnknownKey.
 	Get(key, valbuf []byte) ([]byte, error)
 
 	// Scan returns all rows with keys in range [start, end).
-	Scan(start, end []byte) (Stream, error)
+	Scan(start, end []byte) Stream
 }
 
 // StoreWriter writes data to a CRUD-capable storage engine.

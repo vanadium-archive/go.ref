@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rogulenko): add more tests.
-
+// TODO(rogulenko): rename this file test.go -> store.go.
 package test
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
-	"reflect"
-	"strconv"
-	"sync"
+	"strings"
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
@@ -81,22 +77,14 @@ func (s *storeState) lowerBound(key int) int {
 // verify checks that various read operations on store.Store and memtable return
 // the same results.
 func (s *storeState) verify(t *testing.T, st store.StoreReader) {
-	var key, value []byte
-	var err error
 	// Verify Get().
 	for i := 0; i < s.size; i++ {
 		keystr := fmt.Sprintf("%05d", i)
 		answer, ok := s.memtable[keystr]
-		key = []byte(keystr)
-		value, err = st.Get(key, value)
 		if ok {
-			if err != nil || !bytes.Equal(value, answer) {
-				t.Fatalf("unexpected get result for %q: got {%q, %v}, want {%q, nil}", keystr, value, err, answer)
-			}
+			verifyGet(t, st, []byte(keystr), answer)
 		} else {
-			if !reflect.DeepEqual(&store.ErrUnknownKey{Key: keystr}, err) {
-				t.Fatalf("unexpected get error for key %q: %v", keystr, err)
-			}
+			verifyGet(t, st, []byte(keystr), nil)
 		}
 	}
 	// Verify 10 random Scan() calls.
@@ -106,25 +94,12 @@ func (s *storeState) verify(t *testing.T, st store.StoreReader) {
 			start, end = end, start
 		}
 		end++
-		stream, err := st.Scan([]byte(fmt.Sprintf("%05d", start)), []byte(fmt.Sprintf("%05d", end)))
-		if err != nil {
-			t.Fatalf("can't create stream: %v", err)
-		}
-		for stream.Advance() {
-			start = s.lowerBound(start)
+		stream := st.Scan([]byte(fmt.Sprintf("%05d", start)), []byte(fmt.Sprintf("%05d", end)))
+		for start = s.lowerBound(start); start < end; start = s.lowerBound(start + 1) {
 			keystr := fmt.Sprintf("%05d", start)
-			key, value = stream.Key(key), stream.Value(value)
-			if string(key) != keystr {
-				t.Fatalf("unexpected key during scan: got %q, want %q", key, keystr)
-			}
-			if !bytes.Equal(value, s.memtable[keystr]) {
-				t.Fatalf("unexpected value during scan: got %q, want %q", value, s.memtable[keystr])
-			}
-			start++
+			verifyAdvance(t, stream, []byte(keystr), s.memtable[keystr])
 		}
-		if start = s.lowerBound(start); start < end {
-			t.Fatalf("stream ended unexpectedly")
-		}
+		verifyAdvance(t, stream, nil, nil)
 	}
 }
 
@@ -192,85 +167,47 @@ func RunReadWriteRandomTest(t *testing.T, st store.Store) {
 	runReadWriteTest(t, st, size, testcase)
 }
 
-// RunTransactionsWithGetTest tests transactions that use Put and Get
-// operations.
-// NOTE: consider setting GOMAXPROCS to something greater than 1.
-func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
-	// Invariant: value mapped to n is sum of values of 0..n-1.
-	// Each of k transactions takes m distinct random values from 0..n-1, adds 1
-	// to each and m to value mapped to n.
-	// The correctness of sums is checked after all transactions have been
-	// committed.
-	n, m, k := 10, 3, 100
-	for i := 0; i <= n; i++ {
-		if err := st.Put([]byte(fmt.Sprintf("%05d", i)), []byte{'0'}); err != nil {
-			t.Fatalf("can't write to database")
-		}
+// RunStoreStateTest verifies operations that modify the state of a store.Store.
+func RunStoreStateTest(t *testing.T, st store.Store) {
+	key1, value1 := []byte("key1"), []byte("value1")
+	st.Put(key1, value1)
+	key2 := []byte("key2")
+
+	// Test Get and Scan.
+	verifyGet(t, st, key1, value1)
+	verifyGet(t, st, key2, nil)
+	s := st.Scan([]byte("a"), []byte("z"))
+	verifyAdvance(t, s, key1, value1)
+	verifyAdvance(t, s, nil, nil)
+
+	// Test functions after Close.
+	if err := st.Close(); err != nil {
+		t.Fatalf("can't close the store: %v", err)
 	}
-	var wg sync.WaitGroup
-	wg.Add(k)
-	// TODO(sadovsky): This configuration creates huge resource contention.
-	// Perhaps we should add some random sleep's to reduce the contention.
-	for i := 0; i < k; i++ {
-		go func() {
-			rnd := rand.New(rand.NewSource(239017 * int64(i)))
-			perm := rnd.Perm(n)
-			if err := store.RunInTransaction(st, func(st store.StoreReadWriter) error {
-				for j := 0; j <= m; j++ {
-					var keystr string
-					if j < m {
-						keystr = fmt.Sprintf("%05d", perm[j])
-					} else {
-						keystr = fmt.Sprintf("%05d", n)
-					}
-					key := []byte(keystr)
-					val, err := st.Get(key, nil)
-					if err != nil {
-						return fmt.Errorf("can't get key %q: %v", key, err)
-					}
-					intValue, err := strconv.ParseInt(string(val), 10, 64)
-					if err != nil {
-						return fmt.Errorf("can't parse int from %q: %v", val, err)
-					}
-					var newValue int64
-					if j < m {
-						newValue = intValue + 1
-					} else {
-						newValue = intValue + int64(m)
-					}
-					if err := st.Put(key, []byte(fmt.Sprintf("%d", newValue))); err != nil {
-						return fmt.Errorf("can't put {%q: %v}: %v", key, newValue, err)
-					}
-				}
-				return nil
-			}); err != nil {
-				panic(fmt.Errorf("can't commit transaction: %v", err))
-			}
-			wg.Done()
-		}()
+	expectedErr := "closed store"
+	if err := st.Close(); !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
 	}
-	wg.Wait()
-	var sum int64
-	for j := 0; j <= n; j++ {
-		keystr := fmt.Sprintf("%05d", j)
-		key := []byte(keystr)
-		val, err := st.Get(key, nil)
-		if err != nil {
-			t.Fatalf("can't get key %q: %v", key, err)
-		}
-		intValue, err := strconv.ParseInt(string(val), 10, 64)
-		if err != nil {
-			t.Fatalf("can't parse int from %q: %v", val, err)
-		}
-		if j < n {
-			sum += intValue
-		} else {
-			if intValue != int64(m*k) {
-				t.Fatalf("invalid sum value in the database: got %d, want %d", intValue, m*k)
-			}
-		}
+	s = st.Scan([]byte("a"), []byte("z"))
+	verifyAdvance(t, s, nil, nil)
+	if err := s.Err(); !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
 	}
-	if sum != int64(m*k) {
-		t.Fatalf("invalid sum of values in the database: got %d, want %d", sum, m*k)
+	snapshot := st.NewSnapshot()
+	if _, err := snapshot.Get(key1, nil); !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
+	}
+	tx := st.NewTransaction()
+	if _, err := tx.Get(key1, nil); !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
+	}
+	if _, err := st.Get(key1, nil); !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
+	}
+	if err := st.Put(key1, value1); !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
+	}
+	if err := st.Delete(key1); !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
 	}
 }

@@ -9,10 +9,10 @@ package leveldb
 import "C"
 import (
 	"bytes"
+	"errors"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/v23/verror"
 )
 
 // stream is a wrapper around LevelDB iterator that implements
@@ -39,7 +39,6 @@ var _ store.Stream = (*stream)(nil)
 
 func newStream(d *db, start, end []byte, cOpts *C.leveldb_readoptions_t) *stream {
 	cStr, size := cSlice(start)
-	// TODO(rogulenko): check if (db.cDb != nil) under a db-scoped mutex.
 	cIter := C.syncbase_leveldb_create_iterator(d.cDb, cOpts, cStr, size)
 	return &stream{
 		cIter: cIter,
@@ -57,7 +56,7 @@ func (s *stream) Advance() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hasValue = false
-	if s.cIter == nil {
+	if s.err != nil {
 		return false
 	}
 	// The C iterator starts out initialized, pointing at the first value; we
@@ -113,10 +112,9 @@ func (s *stream) Err() error {
 func (s *stream) Cancel() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.cIter == nil {
+	if s.err != nil {
 		return
 	}
-	s.err = verror.New(verror.ErrCanceled, nil)
 	// s.hasValue might be false if Advance was never called.
 	if s.hasValue {
 		// We copy the key and the value from the C heap to the Go heap before
@@ -124,6 +122,7 @@ func (s *stream) Cancel() {
 		s.key = store.CopyBytes(nil, s.cKey())
 		s.value = store.CopyBytes(nil, s.cVal())
 	}
+	s.err = errors.New("canceled stream")
 	s.destroyLeveldbIter()
 }
 

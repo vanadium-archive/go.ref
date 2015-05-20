@@ -110,7 +110,7 @@ func doWrite(b *testing.B, config *Config, seq bool) {
 func ReadSequential(b *testing.B, config *Config) {
 	WriteSequential(b, config)
 	b.ResetTimer()
-	s, _ := config.St.Scan([]byte("0"), []byte("z"))
+	s := config.St.Scan([]byte("0"), []byte("z"))
 	var key, value []byte
 	for i := 0; i < b.N; i++ {
 		if !s.Advance() {

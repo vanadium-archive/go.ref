@@ -52,21 +52,21 @@ func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.error(); err != nil {
-		return nil, err
+		return valbuf, err
 	}
 	value, ok := s.data[string(key)]
 	if !ok {
-		return nil, &store.ErrUnknownKey{Key: string(key)}
+		return valbuf, &store.ErrUnknownKey{Key: string(key)}
 	}
 	return store.CopyBytes(valbuf, value), nil
 }
 
 // Scan implements the store.StoreReader interface.
-func (s *snapshot) Scan(start, end []byte) (store.Stream, error) {
+func (s *snapshot) Scan(start, end []byte) store.Stream {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.error(); err != nil {
-		return nil, err
+		return &store.InvalidStream{err}
 	}
-	return newStream(s, start, end), nil
+	return newStream(s, start, end)
 }

@@ -5,11 +5,11 @@
 package memstore
 
 import (
+	"errors"
 	"sort"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/v23/verror"
 )
 
 type stream struct {
@@ -89,5 +89,5 @@ func (s *stream) Err() error {
 func (s *stream) Cancel() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.err = verror.New(verror.ErrCanceled, nil)
+	s.err = errors.New("canceled stream")
 }

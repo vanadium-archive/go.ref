@@ -40,16 +40,16 @@ func (st *memstore) Get(key, valbuf []byte) ([]byte, error) {
 	defer st.mu.Unlock()
 	value, ok := st.data[string(key)]
 	if !ok {
-		return nil, &store.ErrUnknownKey{Key: string(key)}
+		return valbuf, &store.ErrUnknownKey{Key: string(key)}
 	}
 	return store.CopyBytes(valbuf, value), nil
 }
 
 // Scan implements the store.StoreReader interface.
-func (st *memstore) Scan(start, end []byte) (store.Stream, error) {
+func (st *memstore) Scan(start, end []byte) store.Stream {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	return newStream(newSnapshot(st), start, end), nil
+	return newStream(newSnapshot(st), start, end)
 }
 
 // Put implements the store.StoreWriter interface.

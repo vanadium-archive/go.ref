@@ -55,12 +55,7 @@ func Glob(ctx *context.T, call rpc.ServerCall, pattern string, sn store.Snapshot
 			return nil, verror.New(verror.ErrInternal, ctx, err)
 		}
 	}
-	// TODO(sadovsky): Does Scan really need to return an error?
-	it, err := sn.Scan(ScanPrefixArgs(stKeyPrefix, prefix))
-	if err != nil {
-		sn.Close()
-		return nil, verror.New(verror.ErrInternal, ctx, err)
-	}
+	it := sn.Scan(ScanPrefixArgs(stKeyPrefix, prefix))
 	ch := make(chan naming.GlobReply)
 	go func() {
 		defer sn.Close()

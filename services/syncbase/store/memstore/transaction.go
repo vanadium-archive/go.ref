@@ -80,19 +80,19 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if err := tx.error(); err != nil {
-		return nil, err
+		return valbuf, err
 	}
 	return tx.sn.Get(key, valbuf)
 }
 
 // Scan implements the store.StoreReader interface.
-func (tx *transaction) Scan(start, end []byte) (store.Stream, error) {
+func (tx *transaction) Scan(start, end []byte) store.Stream {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if err := tx.error(); err != nil {
-		return nil, err
+		return &store.InvalidStream{err}
 	}
-	return newStream(tx.sn, start, end), nil
+	return newStream(tx.sn, start, end)
 }
 
 // Put implements the store.StoreWriter interface.
