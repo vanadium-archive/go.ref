@@ -43,7 +43,7 @@ func TestReapReconciliationViaAppCycle(t *testing.T) {
 	utiltest.Resolve(t, ctx, "pingserver", 1)
 
 	// Create an envelope for the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0, "appV1")
 
 	// Install the app.
 	appID := utiltest.InstallApp(t, ctx)

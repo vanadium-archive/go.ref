@@ -59,7 +59,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", "trapp")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0, "trapp")
 
 	claimantCtx := utiltest.CtxWithNewPrincipal(t, ctx, idp, "claimant")
 	octx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("other"))
@@ -142,7 +142,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	defer utiltest.VerifyNoRunningProcesses(t)
 
 	// Create an envelope for an app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0)
 
 	// On an unclaimed device manager, there will be no AccessLists.
 	if _, _, err := device.DeviceClient("claimable").GetPermissions(selfCtx); err == nil {

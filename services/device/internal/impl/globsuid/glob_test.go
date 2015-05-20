@@ -45,7 +45,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0, "appV1")
 
 	// Device must be claimed before applications can be installed.
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)

@@ -37,6 +37,8 @@ var (
 				File: "/path/to/package1",
 			},
 		},
+		Restarts:          0,
+		RestartTimeWindow: 0,
 	}
 	jsonEnv = `{
   "Title": "fifa world cup",
@@ -70,7 +72,9 @@ var (
         "S": null
       }
     }
-  }
+  },
+  "Restarts": 0,
+  "RestartTimeWindow": 0
 }`
 )
 

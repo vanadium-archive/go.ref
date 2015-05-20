@@ -137,7 +137,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Brand new device manager must be claimed first.
 	utiltest.ClaimDevice(t, ctx, "claimable", "factoryDM", "mydevice", utiltest.NoPairingToken)
 	// Simulate an invalid envelope in the application repository.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmPauseBeforeStopEnv, utiltest.DeviceManagerCmd, "bogus", dmArgs...)
+	*envelope = utiltest.EnvelopeFromShell(sh, dmPauseBeforeStopEnv, utiltest.DeviceManagerCmd, "bogus", 0, 0, dmArgs...)
 
 	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", impl.ErrAppTitleMismatch.ID)
 	utiltest.RevertDeviceExpectError(t, ctx, "factoryDM", impl.ErrUpdateNoOp.ID)
@@ -145,7 +145,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerCmd, application.DeviceManagerTitle, "v2DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerCmd, application.DeviceManagerTitle, 0, 0, "v2DM")
 	utiltest.UpdateDevice(t, ctx, "factoryDM")
 
 	// Current link should have been updated to point to v2.
@@ -189,7 +189,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Try issuing an update with a binary that has a different major version
 	// number. It should fail.
 	utiltest.ResolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerV10Cmd, application.DeviceManagerTitle, "v2.5DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerV10Cmd, application.DeviceManagerTitle, 0, 0, "v2.5DM")
 	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
 
 	if evalLink() != scriptPathV2 {
@@ -197,7 +197,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the device manager and issue an update.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerCmd, application.DeviceManagerTitle, "v3DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerCmd, application.DeviceManagerTitle, 0, 0, "v3DM")
 	utiltest.UpdateDevice(t, ctx, "v2DM")
 
 	scriptPathV3 := evalLink()
@@ -404,7 +404,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0, "appV1")
 	envelope.Packages = map[string]application.SignedFile{
 		"test": application.SignedFile{
 			File: "realbin/testpkg",

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package applife_test
+package daemonreap_test
 
 import (
 	"syscall"
 	"testing"
+	"time"
 
 	"v.io/v23/naming"
 	"v.io/v23/services/device"
@@ -17,7 +18,7 @@ import (
 	"v.io/x/ref/services/internal/servicetest"
 )
 
-func TestReaperNoticesAppDeath(t *testing.T) {
+func TestDaemonRestart(t *testing.T) {
 	cleanup, ctx, sh, envelope, root, helperPath, _ := utiltest.StartupHelper(t)
 	defer cleanup()
 
@@ -33,11 +34,8 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 
 	utiltest.Resolve(t, ctx, "pingserver", 1)
 
-	// Create an envelope for a first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0, "appV1")
-
-	// Install the app.  The config-specified flag value for testFlagName
-	// should override the value specified in the envelope above.
+	// Create an envelope for a first version of the app that will be restarted once.
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 1, 10*time.Second, "appV1")
 	appID := utiltest.InstallApp(t, ctx)
 
 	// Start an instance of the app.
@@ -65,12 +63,21 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	instance2ID := utiltest.LaunchApp(t, ctx, appID)
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "default", "")
 
-	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID)
-
-	utiltest.TerminateApp(t, ctx, appID, instance2ID)
+	// TODO(rjkroege): Because there is no daemon mode, instance1ID is not running even
+	// though it should be.
 	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
 
-	// TODO(rjkroege): Exercise the polling loop code.
+	// TODO(rjkroege): Demonstrate that the device manager will only restart the app the
+	// configured number of times (1)
+
+	// instance2ID is still running though.
+	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID)
+
+	// Cleanup.
+	utiltest.TerminateApp(t, ctx, appID, instance2ID)
+
+	// TODO(rjkroege): instance1ID isn't running but should be.
+	// utiltest.TerminateApp(t, ctx, appID, instance1ID)
 
 	// Cleanly shut down the device manager.
 	utiltest.VerifyNoRunningProcesses(t)

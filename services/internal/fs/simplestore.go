@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"v.io/x/ref/services/profile"
 
@@ -86,12 +87,14 @@ var keyExists = struct{}{}
 // implementation by removing support for loading files in the
 // now legacy GOB format.
 type applicationEnvelope struct {
-	Title     string
-	Args      []string
-	Binary    application.SignedFile
-	Publisher security.WireBlessings
-	Env       []string
-	Packages  application.Packages
+	Title             string
+	Args              []string
+	Binary            application.SignedFile
+	Publisher         security.WireBlessings
+	Env               []string
+	Packages          application.Packages
+	Restarts          int32
+	RestartTimeWindow time.Duration
 }
 
 // This function is needed only to support existing serialized data and
@@ -114,12 +117,14 @@ func translateFromGobEncodeable(in interface{}) (interface{}, error) {
 		return nil, err
 	}
 	return application.Envelope{
-		Title:     env.Title,
-		Args:      env.Args,
-		Binary:    env.Binary,
-		Publisher: publisher,
-		Env:       env.Env,
-		Packages:  env.Packages,
+		Title:             env.Title,
+		Args:              env.Args,
+		Binary:            env.Binary,
+		Publisher:         publisher,
+		Env:               env.Env,
+		Packages:          env.Packages,
+		Restarts:          env.Restarts,
+		RestartTimeWindow: env.RestartTimeWindow,
 	}, nil
 }
 
@@ -131,7 +136,7 @@ func init() {
 	// Ensure that no fields have been added to application.Envelope,
 	// because if so, then applicationEnvelope defined in this package
 	// needs to change
-	if n := reflect.TypeOf(application.Envelope{}).NumField(); n != 6 {
+	if n := reflect.TypeOf(application.Envelope{}).NumField(); n != 8 {
 		panic(fmt.Sprintf("It appears that fields have been added to or removed from application.Envelope before the hack in this file around gob-encodeability was removed. Please also update applicationEnvelope, translateToGobEncodeable and translateToGobDecodeable in this file"))
 	}
 }

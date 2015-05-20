@@ -82,7 +82,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	defer cleanup()
 
 	// Create an envelope for a first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-var"}, utiltest.AppCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-var"}, utiltest.AppCmd, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
 
 	// Install and start the app as root/self.
 	appID := utiltest.InstallApp(t, selfCtx)

@@ -69,15 +69,17 @@ func init() {
 	}
 }
 
-func EnvelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args ...string) application.Envelope {
+func EnvelopeFromShell(sh *modules.Shell, env []string, cmd, title string, retries int, window time.Duration, args ...string) application.Envelope {
 	args, nenv := sh.CommandEnvelope(cmd, env, args...)
 	return application.Envelope{
 		Title: title,
 		Args:  args[1:],
 		// TODO(caprita): revisit how the environment is sanitized for arbirary
 		// apps.
-		Env:    impl.VanadiumEnvironment(nenv),
-		Binary: application.SignedFile{File: MockBinaryRepoName},
+		Env:               impl.VanadiumEnvironment(nenv),
+		Binary:            application.SignedFile{File: MockBinaryRepoName},
+		Restarts:          int32(retries),
+		RestartTimeWindow: window,
 	}
 }
 
