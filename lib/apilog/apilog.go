@@ -2,16 +2,25 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package apilog provides a function to be used in conjunction with vtrace
-// and logcop automatically injected logging calls. These are called on
-// entry/exit for methods that implements a v23 API call.
+// Package apilog provides functions to be used in conjunction with logcop.
+// In particular, logcop will inject calls to these functions as the first
+// statement in methods that implement the v23 API. The output can
+// be controlled by vlog verbosity or vtrace.
+// The log lines generated have a header that refers to this file
+// and the message includes the file and line # of the caller. This is
+// currently the best we can do given the functionality of the underlying
+// vlog package. It has the advantage the api logging can be selectively
+// enabled/disabled globally using --vmodule=apilog=<level>, but the
+// disadvantage that it can't be controlled at the per file level.
 package apilog
 
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 
 	"v.io/x/lib/vlog"
@@ -22,17 +31,23 @@ import (
 // logCallLogLevel is the log level beyond which calls are logged.
 const logCallLogLevel = 1
 
-func callerFuncName() string {
+var logger vlog.Logger
+
+func init() {
+	logger = vlog.Log
+}
+
+func callerLocation() string {
 	var funcName string
 	const stackSkip = 1
-	pc, _, _, ok := runtime.Caller(stackSkip + 1)
+	pc, file, line, ok := runtime.Caller(stackSkip + 1)
 	if ok {
 		function := runtime.FuncForPC(pc)
 		if function != nil {
 			funcName = path.Base(function.Name())
 		}
 	}
-	return funcName
+	return filepath.Base(file) + ":" + strconv.Itoa(line) + " " + funcName
 }
 
 // TODO(cnicolaou): remove LogCall from vlog.
@@ -89,27 +104,28 @@ func callerFuncName() string {
 //     }
 //
 func LogCall(ctx *context.T, v ...interface{}) func(*context.T, ...interface{}) {
-	if !vlog.V(logCallLogLevel) { // TODO(mattr): add call to vtrace.
+	if !logger.V(logCallLogLevel) { // TODO(mattr): add call to vtrace.
 		return func(*context.T, ...interface{}) {}
 	}
-	callerFuncName := callerFuncName()
+	callerLocation := callerLocation()
 	invocationId := newInvocationIdentifier()
 	var output string
 	if len(v) > 0 {
-		output = fmt.Sprintf("call[%s %s]: args:%v", callerFuncName, invocationId, v)
+		output = fmt.Sprintf("call[%s %s]: args:%v", callerLocation, invocationId, v)
 	} else {
-		output = fmt.Sprintf("call[%s %s]", callerFuncName, invocationId)
+		output = fmt.Sprintf("call[%s %s]", callerLocation, invocationId)
 	}
-	vlog.Info(output)
+	logger.Info(output)
+
 	// TODO(mattr): annotate vtrace span.
 	return func(ctx *context.T, v ...interface{}) {
 		var output string
 		if len(v) > 0 {
-			output = fmt.Sprintf("return[%s %s]: %v", callerFuncName, invocationId, derefSlice(v))
+			output = fmt.Sprintf("return[%s %s]: %v", callerLocation, invocationId, derefSlice(v))
 		} else {
-			output = fmt.Sprintf("return[%s %s]", callerFuncName, invocationId)
+			output = fmt.Sprintf("return[%s %s]", callerLocation, invocationId)
 		}
-		vlog.Info(output)
+		logger.Info(output)
 		// TODO(mattr): annotate vtrace span.
 	}
 }
@@ -124,17 +140,17 @@ func LogCall(ctx *context.T, v ...interface{}) func(*context.T, ...interface{}) 
 //     }
 //
 func LogCallf(ctx *context.T, format string, v ...interface{}) func(*context.T, string, ...interface{}) {
-	if !vlog.V(logCallLogLevel) { // TODO(mattr): add call to vtrace.
+	if !logger.V(logCallLogLevel) { // TODO(mattr): add call to vtrace.
 		return func(*context.T, string, ...interface{}) {}
 	}
-	callerFuncName := callerFuncName()
+	callerLocation := callerLocation()
 	invocationId := newInvocationIdentifier()
-	output := fmt.Sprintf("call[%s %s]: %s", callerFuncName, invocationId, fmt.Sprintf(format, v...))
-	vlog.Info(output)
+	output := fmt.Sprintf("call[%s %s]: %s", callerLocation, invocationId, fmt.Sprintf(format, v...))
+	logger.Info(output)
 	// TODO(mattr): annotate vtrace span.
 	return func(ctx *context.T, format string, v ...interface{}) {
-		output := fmt.Sprintf("return[%s %s]: %v", callerFuncName, invocationId, fmt.Sprintf(format, derefSlice(v)...))
-		vlog.Info(output)
+		output := fmt.Sprintf("return[%s %s]: %v", callerLocation, invocationId, fmt.Sprintf(format, derefSlice(v)...))
+		logger.Info(output)
 		// TODO(mattr): annotate vtrace span.
 	}
 }
