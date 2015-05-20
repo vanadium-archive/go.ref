@@ -16,8 +16,8 @@ type StoreReader interface {
 	// fails with ErrUnknownKey.
 	Get(key, valbuf []byte) ([]byte, error)
 
-	// Scan returns all rows with keys in range [start, end).
-	Scan(start, end []byte) Stream
+	// Scan returns all rows with keys in range [start, limit).
+	Scan(start, limit []byte) Stream
 }
 
 // StoreWriter writes data to a CRUD-capable storage engine.

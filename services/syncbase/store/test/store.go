@@ -88,13 +88,13 @@ func (s *storeState) verify(t *testing.T, st store.StoreReader) {
 	}
 	// Verify 10 random Scan() calls.
 	for i := 0; i < 10; i++ {
-		start, end := s.rnd.Intn(s.size), s.rnd.Intn(s.size)
-		if start > end {
-			start, end = end, start
+		start, limit := s.rnd.Intn(s.size), s.rnd.Intn(s.size)
+		if start > limit {
+			start, limit = limit, start
 		}
-		end++
-		stream := st.Scan([]byte(fmt.Sprintf("%05d", start)), []byte(fmt.Sprintf("%05d", end)))
-		for start = s.lowerBound(start); start < end; start = s.lowerBound(start + 1) {
+		limit++
+		stream := st.Scan([]byte(fmt.Sprintf("%05d", start)), []byte(fmt.Sprintf("%05d", limit)))
+		for start = s.lowerBound(start); start < limit; start = s.lowerBound(start + 1) {
 			keystr := fmt.Sprintf("%05d", start)
 			verifyAdvance(t, stream, []byte(keystr), s.memtable[keystr])
 		}

@@ -68,20 +68,20 @@ func (t *table) Delete(ctx *context.T, call rpc.ServerCall) error {
 	})
 }
 
-func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, end string) error {
+func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit string) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (t *table) Scan(ctx *context.T, call wire.TableScanServerCall, start, end string) error {
+func (t *table) Scan(ctx *context.T, call wire.TableScanServerCall, start, limit string) error {
 	sn := t.d.st.NewSnapshot()
 	defer sn.Close()
-	it := sn.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), start, end))
+	it := sn.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), start, limit))
 	sender := call.SendStream()
 	key, value := []byte{}, []byte{}
 	for it.Advance() {
-		key = it.Key(key)
+		key, value = it.Key(key), it.Value(value)
 		parts := util.SplitKeyParts(string(key))
-		sender.Send(wire.KeyValue{Key: parts[len(parts)-1], Value: it.Value(value)})
+		sender.Send(wire.KeyValue{Key: parts[len(parts)-1], Value: value})
 	}
 	if err := it.Err(); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)

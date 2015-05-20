@@ -21,7 +21,7 @@ type stream struct {
 	// mu protects the state of the stream.
 	mu    sync.Mutex
 	cIter *C.syncbase_leveldb_iterator_t
-	end   []byte
+	limit []byte
 
 	hasAdvanced bool
 	err         error
@@ -37,12 +37,12 @@ type stream struct {
 
 var _ store.Stream = (*stream)(nil)
 
-func newStream(d *db, start, end []byte, cOpts *C.leveldb_readoptions_t) *stream {
+func newStream(d *db, start, limit []byte, cOpts *C.leveldb_readoptions_t) *stream {
 	cStr, size := cSlice(start)
 	cIter := C.syncbase_leveldb_create_iterator(d.cDb, cOpts, cStr, size)
 	return &stream{
 		cIter: cIter,
-		end:   end,
+		limit: limit,
 	}
 }
 
@@ -66,7 +66,7 @@ func (s *stream) Advance() bool {
 	} else {
 		C.syncbase_leveldb_iter_next(s.cIter)
 	}
-	if s.cIter.is_valid != 0 && (len(s.end) == 0 || bytes.Compare(s.cKey(), s.end) < 0) {
+	if s.cIter.is_valid != 0 && (len(s.limit) == 0 || bytes.Compare(s.cKey(), s.limit) < 0) {
 		s.hasValue = true
 		s.key = s.cKey()
 		s.value = s.cVal()

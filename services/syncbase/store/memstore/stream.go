@@ -23,10 +23,10 @@ type stream struct {
 
 var _ store.Stream = (*stream)(nil)
 
-func newStream(sn *snapshot, start, end []byte) *stream {
+func newStream(sn *snapshot, start, limit []byte) *stream {
 	keys := []string{}
 	for k := range sn.data {
-		if k >= string(start) && (len(end) == 0 || k < string(end)) {
+		if k >= string(start) && (len(limit) == 0 || k < string(limit)) {
 			keys = append(keys, k)
 		}
 	}

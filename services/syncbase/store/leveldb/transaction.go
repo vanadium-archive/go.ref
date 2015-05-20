@@ -70,13 +70,13 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 }
 
 // Scan implements the store.StoreReader interface.
-func (tx *transaction) Scan(start, end []byte) store.Stream {
+func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
 		return &store.InvalidStream{tx.err}
 	}
-	return tx.snapshot.Scan(start, end)
+	return tx.snapshot.Scan(start, limit)
 }
 
 // Put implements the store.StoreWriter interface.

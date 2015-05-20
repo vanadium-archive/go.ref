@@ -97,13 +97,13 @@ func (d *db) Get(key, valbuf []byte) ([]byte, error) {
 }
 
 // Scan implements the store.StoreReader interface.
-func (d *db) Scan(start, end []byte) store.Stream {
+func (d *db) Scan(start, limit []byte) store.Stream {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.err != nil {
 		return &store.InvalidStream{d.err}
 	}
-	return newStream(d, start, end, d.readOptions)
+	return newStream(d, start, limit, d.readOptions)
 }
 
 // Put implements the store.StoreWriter interface.

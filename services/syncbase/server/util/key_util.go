@@ -23,15 +23,15 @@ func SplitKeyParts(key string) []string {
 
 // ScanPrefixArgs returns args for sn.Scan() for the specified prefix.
 func ScanPrefixArgs(stKeyPrefix, prefix string) ([]byte, []byte) {
-	return ScanRangeArgs(stKeyPrefix, util.PrefixRangeStart(prefix), util.PrefixRangeEnd(prefix))
+	return ScanRangeArgs(stKeyPrefix, util.PrefixRangeStart(prefix), util.PrefixRangeLimit(prefix))
 }
 
 // ScanRangeArgs returns args for sn.Scan() for the specified range.
-// If end is "", all rows with keys >= start are included.
-func ScanRangeArgs(stKeyPrefix, start, end string) ([]byte, []byte) {
-	fullStart, fullEnd := JoinKeyParts(stKeyPrefix, start), JoinKeyParts(stKeyPrefix, end)
-	if end == "" {
-		fullEnd = util.PrefixRangeEnd(fullEnd)
+// If limit is "", all rows with keys >= start are included.
+func ScanRangeArgs(stKeyPrefix, start, limit string) ([]byte, []byte) {
+	fullStart, fullLimit := JoinKeyParts(stKeyPrefix, start), JoinKeyParts(stKeyPrefix, limit)
+	if limit == "" {
+		fullLimit = util.PrefixRangeLimit(fullLimit)
 	}
-	return []byte(fullStart), []byte(fullEnd)
+	return []byte(fullStart), []byte(fullLimit)
 }

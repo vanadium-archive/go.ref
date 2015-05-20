@@ -42,42 +42,42 @@ func TestSplitKeyParts(t *testing.T) {
 
 func TestScanPrefixArgs(t *testing.T) {
 	tests := []struct {
-		stKeyPrefix, prefix, wantStart, wantEnd string
+		stKeyPrefix, prefix, wantStart, wantLimit string
 	}{
 		{"x", "", "x:", "x;"},
 		{"x", "a", "x:a", "x:b"},
 		{"x", "a\xff", "x:a\xff", "x:b"},
 	}
 	for _, test := range tests {
-		start, end := util.ScanPrefixArgs(test.stKeyPrefix, test.prefix)
-		gotStart, gotEnd := string(start), string(end)
+		start, limit := util.ScanPrefixArgs(test.stKeyPrefix, test.prefix)
+		gotStart, gotLimit := string(start), string(limit)
 		if gotStart != test.wantStart {
 			t.Errorf("{%q, %q} start: got %q, want %q", test.stKeyPrefix, test.prefix, gotStart, test.wantStart)
 		}
-		if gotEnd != test.wantEnd {
-			t.Errorf("{%q, %q} end: got %q, want %q", test.stKeyPrefix, test.prefix, gotEnd, test.wantEnd)
+		if gotLimit != test.wantLimit {
+			t.Errorf("{%q, %q} limit: got %q, want %q", test.stKeyPrefix, test.prefix, gotLimit, test.wantLimit)
 		}
 	}
 }
 
 func TestScanRangeArgs(t *testing.T) {
 	tests := []struct {
-		stKeyPrefix, start, end, wantStart, wantEnd string
+		stKeyPrefix, start, limit, wantStart, wantLimit string
 	}{
-		{"x", "", "", "x:", "x;"},   // end "" means "no limit"
-		{"x", "a", "", "x:a", "x;"}, // end "" means "no limit"
+		{"x", "", "", "x:", "x;"},   // limit "" means "no limit"
+		{"x", "a", "", "x:a", "x;"}, // limit "" means "no limit"
 		{"x", "a", "b", "x:a", "x:b"},
 		{"x", "a", "a", "x:a", "x:a"}, // empty range
 		{"x", "b", "a", "x:b", "x:a"}, // empty range
 	}
 	for _, test := range tests {
-		start, end := util.ScanRangeArgs(test.stKeyPrefix, test.start, test.end)
-		gotStart, gotEnd := string(start), string(end)
+		start, limit := util.ScanRangeArgs(test.stKeyPrefix, test.start, test.limit)
+		gotStart, gotLimit := string(start), string(limit)
 		if gotStart != test.wantStart {
-			t.Errorf("{%q, %q, %q} start: got %q, want %q", test.stKeyPrefix, test.start, test.end, gotStart, test.wantStart)
+			t.Errorf("{%q, %q, %q} start: got %q, want %q", test.stKeyPrefix, test.start, test.limit, gotStart, test.wantStart)
 		}
-		if gotEnd != test.wantEnd {
-			t.Errorf("{%q, %q, %q} end: got %q, want %q", test.stKeyPrefix, test.start, test.end, gotEnd, test.wantEnd)
+		if gotLimit != test.wantLimit {
+			t.Errorf("{%q, %q, %q} limit: got %q, want %q", test.stKeyPrefix, test.start, test.limit, gotLimit, test.wantLimit)
 		}
 	}
 }
