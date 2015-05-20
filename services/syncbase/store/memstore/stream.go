@@ -26,7 +26,7 @@ var _ store.Stream = (*stream)(nil)
 func newStream(sn *snapshot, start, end []byte) *stream {
 	keys := []string{}
 	for k := range sn.data {
-		if k >= string(start) && k < string(end) {
+		if k >= string(start) && (len(end) == 0 || k < string(end)) {
 			keys = append(keys, k)
 		}
 	}

@@ -67,7 +67,7 @@ func (s *stream) Advance() bool {
 	} else {
 		C.syncbase_leveldb_iter_next(s.cIter)
 	}
-	if s.cIter.is_valid != 0 && bytes.Compare(s.end, s.cKey()) > 0 {
+	if s.cIter.is_valid != 0 && (len(s.end) == 0 || bytes.Compare(s.cKey(), s.end) < 0) {
 		s.hasValue = true
 		s.key = s.cKey()
 		s.value = s.cVal()

@@ -10,6 +10,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
@@ -34,7 +35,7 @@ var (
 // Designed for use from within App.CreateNoSQLDatabase.
 func NewDatabase(ctx *context.T, call rpc.ServerCall, a util.App, name string, perms access.Permissions) (*database, error) {
 	if perms == nil {
-		return nil, verror.New(verror.ErrInternal, nil, "perms must be specified")
+		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
 	// TODO(sadovsky): Make storage engine pluggable.
 	d := &database{
@@ -90,7 +91,15 @@ func (d *database) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms ac
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-// TODO(sadovsky): Implement Glob.
+func (d *database) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+	// Check perms.
+	sn := d.st.NewSnapshot()
+	if err := util.Get(ctx, call, sn, d, &databaseData{}); err != nil {
+		sn.Close()
+		return nil, err
+	}
+	return util.Glob(ctx, call, pattern, sn, util.TablePrefix)
+}
 
 ////////////////////////////////////////
 // util.Database methods

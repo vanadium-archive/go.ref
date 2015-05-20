@@ -9,6 +9,7 @@ import (
 
 	wire "v.io/syncbase/v23/services/syncbase"
 	nosqlWire "v.io/syncbase/v23/services/syncbase/nosql"
+	pubutil "v.io/syncbase/v23/syncbase/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -37,7 +38,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 	// Validate all key atoms up front, so that we can avoid doing so in all our
 	// method implementations.
 	for _, s := range parts {
-		if !util.ValidKeyAtom(s) {
+		if !pubutil.ValidName(s) {
 			return nil, nil, wire.NewErrInvalidName(nil, suffix)
 		}
 	}

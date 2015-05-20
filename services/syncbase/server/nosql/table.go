@@ -9,6 +9,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
@@ -67,23 +68,67 @@ func (t *table) Delete(ctx *context.T, call rpc.ServerCall) error {
 	})
 }
 
-func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit string) error {
+func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, end string) error {
 	return verror.NewErrNotImplemented(ctx)
+}
+
+func (t *table) Scan(ctx *context.T, call wire.TableScanServerCall, start, end string) error {
+	sn := t.d.st.NewSnapshot()
+	defer sn.Close()
+	it, err := sn.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), start, end))
+	if err == nil {
+		sender := call.SendStream()
+		key, value := []byte{}, []byte{}
+		for it.Advance() {
+			key = it.Key(key)
+			parts := util.SplitKeyParts(string(key))
+			sender.Send(wire.KeyValue{Key: parts[len(parts)-1], Value: it.Value(value)})
+		}
+		err = it.Err()
+	}
+	if err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
 }
 
 func (t *table) SetPermissions(ctx *context.T, call rpc.ServerCall, prefix string, perms access.Permissions) error {
-	return verror.NewErrNotImplemented(ctx)
+	if prefix != "" {
+		return verror.NewErrNotImplemented(ctx)
+	}
+	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
+		data := &tableData{}
+		return util.Update(ctx, call, st, t, data, func() error {
+			data.Perms = perms
+			return nil
+		})
+	})
 }
 
 func (t *table) GetPermissions(ctx *context.T, call rpc.ServerCall, key string) ([]wire.PrefixPermissions, error) {
-	return nil, verror.NewErrNotImplemented(ctx)
+	if key != "" {
+		return nil, verror.NewErrNotImplemented(ctx)
+	}
+	data := &tableData{}
+	if err := util.Get(ctx, call, t.d.st, t, data); err != nil {
+		return nil, err
+	}
+	return []wire.PrefixPermissions{{Prefix: "", Perms: data.Perms}}, nil
 }
 
 func (t *table) DeletePermissions(ctx *context.T, call rpc.ServerCall, prefix string) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
-// TODO(sadovsky): Implement Glob.
+func (t *table) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+	// Check perms.
+	sn := t.d.st.NewSnapshot()
+	if err := util.Get(ctx, call, sn, t, &tableData{}); err != nil {
+		sn.Close()
+		return nil, err
+	}
+	return util.Glob(ctx, call, pattern, sn, util.JoinKeyParts(util.RowPrefix, t.name))
+}
 
 ////////////////////////////////////////
 // util.Layer methods

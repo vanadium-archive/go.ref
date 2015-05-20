@@ -12,6 +12,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
@@ -34,7 +35,7 @@ var (
 // Returns a VDL-compatible error.
 func NewService(ctx *context.T, call rpc.ServerCall, perms access.Permissions) (*service, error) {
 	if perms == nil {
-		return nil, verror.New(verror.ErrInternal, nil, "perms must be specified")
+		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
 	// TODO(sadovsky): Make storage engine pluggable.
 	s := &service{
@@ -75,7 +76,15 @@ func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms acc
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-// TODO(sadovsky): Implement Glob.
+func (s *service) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+	// Check perms.
+	sn := s.st.NewSnapshot()
+	if err := util.Get(ctx, call, sn, s, &serviceData{}); err != nil {
+		sn.Close()
+		return nil, err
+	}
+	return util.Glob(ctx, call, pattern, sn, util.AppPrefix)
+}
 
 ////////////////////////////////////////
 // App management methods

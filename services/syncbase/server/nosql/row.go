@@ -10,7 +10,6 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/v23/vdl"
 	"v.io/v23/verror"
 )
 
@@ -32,11 +31,11 @@ var (
 ////////////////////////////////////////
 // RPC methods
 
-func (r *row) Get(ctx *context.T, call rpc.ServerCall) (*vdl.Value, error) {
+func (r *row) Get(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
 	return r.get(ctx, call, r.t.d.st)
 }
 
-func (r *row) Put(ctx *context.T, call rpc.ServerCall, value *vdl.Value) error {
+func (r *row) Put(ctx *context.T, call rpc.ServerCall, value []byte) error {
 	return r.put(ctx, call, r.t.d.st, value)
 }
 
@@ -68,18 +67,18 @@ func (r *row) stKeyPart() string {
 // an authorization check (currently against the table perms).
 // Returns a VDL-compatible error.
 func (r *row) checkAccess(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
-	return util.Get(ctx, call, st, r.t.d, &databaseData{})
+	return util.Get(ctx, call, st, r.t, &tableData{})
 }
 
 // get reads data from the storage engine.
 // Performs authorization check.
 // Returns a VDL-compatible error.
-func (r *row) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) (*vdl.Value, error) {
+func (r *row) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) ([]byte, error) {
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return nil, err
 	}
-	value := &vdl.Value{}
-	if err := util.GetObject(st, r.StKey(), value); err != nil {
+	value, err := st.Get([]byte(r.StKey()), nil)
+	if err != nil {
 		if _, ok := err.(*store.ErrUnknownKey); ok {
 			// We've already done an auth check, so here we can safely return NoExist
 			// rather than NoExistOrNoAccess.
@@ -93,11 +92,14 @@ func (r *row) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) (*v
 // put writes data to the storage engine.
 // Performs authorization check.
 // Returns a VDL-compatible error.
-func (r *row) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, value *vdl.Value) error {
+func (r *row) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, value []byte) error {
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return err
 	}
-	return util.Put(ctx, call, st, r, value)
+	if err := st.Put([]byte(r.StKey()), value); err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
 }
 
 // del deletes data from the storage engine.
@@ -107,5 +109,8 @@ func (r *row) del(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter)
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return err
 	}
-	return util.Delete(ctx, call, st, r)
+	if err := st.Delete([]byte(r.StKey())); err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
 }
