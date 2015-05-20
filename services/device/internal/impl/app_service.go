@@ -190,15 +190,15 @@ type securityAgentState struct {
 	keyMgrAgent *keymgr.Agent
 }
 
-// appStart is the subset of the appService object needed to
+// appRunner is the subset of the appService object needed to
 // (re)start an application.
-type appStartState struct {
-	systemName  string
-	instanceDir string
-	callback    *callbackState
+type appRunner struct {
+	callback *callbackState
 	// securityAgent holds state related to the security agent (nil if not
 	// using the agent).
 	securityAgent *securityAgentState
+	// reap is the app process monitoring subsystem.
+	reap *reaper
 	// mtAddress is the address of the local mounttable.
 	mtAddress string
 }
@@ -214,9 +214,8 @@ type appService struct {
 	permsStore *pathperms.PathStore
 	// Reference to the devicemanager top-level AccessList list.
 	deviceAccessList access.Permissions
-	// reap is the app process monitoring subsystem.
-	reap     reaper
-	appStart *appStartState
+	// State needed to (re)start an application.
+	runner *appRunner
 }
 
 func saveEnvelope(ctx *context.T, dir string, envelope *application.Envelope) error {
@@ -240,6 +239,15 @@ func loadEnvelope(ctx *context.T, dir string) (*application.Envelope, error) {
 		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", envelopeBytes, err))
 	}
 	return envelope, nil
+}
+
+func loadEnvelopeForInstance(ctx *context.T, instanceDir string) (*application.Envelope, error) {
+	versionLink := filepath.Join(instanceDir, "version")
+	versionDir, err := filepath.EvalSymlinks(versionLink)
+	if err != nil {
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+	}
+	return loadEnvelope(ctx, versionDir)
 }
 
 func saveConfig(ctx *context.T, dir string, config device.Config) error {
@@ -712,7 +720,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
 	}
 	instanceInfo := new(instanceInfo)
-	if err := setupPrincipal(ctx, instanceDir, call, i.appStart.securityAgent, instanceInfo); err != nil {
+	if err := setupPrincipal(ctx, instanceDir, call, i.runner.securityAgent, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := saveInstanceInfo(ctx, instanceDir, instanceInfo); err != nil {
@@ -735,10 +743,11 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 	return instanceDir, instanceID, nil
 }
 
-func (i appStartState) genCmd(ctx *context.T) (*exec.Cmd, error) {
-	instanceDir := i.instanceDir
-	systemName := i.systemName
-	nsRoot := i.mtAddress
+func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error) {
+	systemName, err := readSystemNameForInstance(instanceDir)
+	if err != nil {
+		return nil, err
+	}
 
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
@@ -802,8 +811,7 @@ func (i appStartState) genCmd(ctx *context.T) (*exec.Cmd, error) {
 	return suidHelper.getAppCmd(&saArgs)
 }
 
-func (i appStartState) startCmd(ctx *context.T, cmd *exec.Cmd) (int, error) {
-	instanceDir := i.instanceDir
+func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) (int, error) {
 	info, err := loadInstanceInfo(ctx, instanceDir)
 	if err != nil {
 		return 0, err
@@ -905,25 +913,49 @@ func (i appStartState) startCmd(ctx *context.T, cmd *exec.Cmd) (int, error) {
 	return pid, nil
 }
 
-func (i appStartState) run(ctx *context.T, reap reaper) error {
-	if err := transitionInstance(i.instanceDir, device.InstanceStateNotRunning, device.InstanceStateLaunching); err != nil {
+func (i *appRunner) run(ctx *context.T, instanceDir string) error {
+	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateLaunching); err != nil {
 		return err
 	}
 	var pid int
 
-	cmd, err := i.genCmd(ctx)
+	cmd, err := genCmd(ctx, instanceDir, i.mtAddress)
 	if err == nil {
-		pid, err = i.startCmd(ctx, cmd)
+		pid, err = i.startCmd(ctx, instanceDir, cmd)
 	}
 	if err != nil {
-		transitionInstance(i.instanceDir, device.InstanceStateLaunching, device.InstanceStateNotRunning)
+		transitionInstance(instanceDir, device.InstanceStateLaunching, device.InstanceStateNotRunning)
 		return err
 	}
-	if err := transitionInstance(i.instanceDir, device.InstanceStateLaunching, device.InstanceStateRunning); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateLaunching, device.InstanceStateRunning); err != nil {
 		return err
 	}
-	reap.startWatching(i.instanceDir, pid)
+	i.reap.startWatching(instanceDir, pid)
 	return nil
+}
+
+func (i *appRunner) restartAppIfNecessary(instanceDir string) {
+	info, err := loadInstanceInfo(nil, instanceDir)
+	if err != nil {
+		vlog.Error(err)
+		return
+	}
+
+	envelope, err := loadEnvelopeForInstance(nil, instanceDir)
+	if err != nil {
+		vlog.Error(err)
+		return
+	}
+
+	// Determine if we should restart.
+	if !neverStart().decide(envelope, info) {
+		return
+	}
+
+	// TODO(rjkroege): Implement useful restart policy.
+	if err := i.run(nil, instanceDir); err != nil {
+		vlog.Error(err)
+	}
 }
 
 func (i *appService) Instantiate(ctx *context.T, call device.ApplicationInstantiateServerCall) (string, error) {
@@ -976,10 +1008,7 @@ func (i *appService) Run(ctx *context.T, call rpc.ServerCall) error {
 	if startSystemName != systemName {
 		return verror.New(verror.ErrNoAccess, ctx, "Not allowed to resume an application under a different system name.")
 	}
-
-	i.appStart.instanceDir = instanceDir
-	i.appStart.systemName = systemName
-	return i.appStart.run(ctx, i.reap)
+	return i.runner.run(ctx, instanceDir)
 }
 
 func stopAppRemotely(ctx *context.T, appVON string, deadline time.Duration) error {
@@ -1003,7 +1032,7 @@ func stopAppRemotely(ctx *context.T, appVON string, deadline time.Duration) erro
 	return nil
 }
 
-func stop(ctx *context.T, instanceDir string, reap reaper, deadline time.Duration) error {
+func stop(ctx *context.T, instanceDir string, reap *reaper, deadline time.Duration) error {
 	info, err := loadInstanceInfo(ctx, instanceDir)
 	if err != nil {
 		return err
@@ -1032,7 +1061,7 @@ func (i *appService) Kill(ctx *context.T, _ rpc.ServerCall, deadline time.Durati
 	if err := transitionInstance(instanceDir, device.InstanceStateRunning, device.InstanceStateDying); err != nil {
 		return err
 	}
-	if err := stop(ctx, instanceDir, i.reap, deadline); err != nil {
+	if err := stop(ctx, instanceDir, i.runner.reap, deadline); err != nil {
 		transitionInstance(instanceDir, device.InstanceStateDying, device.InstanceStateRunning)
 		return err
 	}
@@ -1484,21 +1513,19 @@ Roots: {{.Principal.Roots.DebugString}}
 	} else {
 		debugInfo.StartSystemName = startSystemName
 	}
-	as := *i.appStart
-	as.instanceDir = instanceDir
-	as.systemName = debugInfo.SystemName
-	if cmd, err := as.genCmd(ctx); err != nil {
-		return "", err
-	} else {
-		debugInfo.Cmd = cmd
-	}
+
 	if info, err := loadInstanceInfo(ctx, instanceDir); err != nil {
 		return "", err
 	} else {
 		debugInfo.Info = info
 	}
+	if cmd, err := genCmd(ctx, instanceDir, i.runner.mtAddress); err != nil {
+		return "", err
+	} else {
+		debugInfo.Cmd = cmd
+	}
 
-	if sa := i.appStart.securityAgent; sa != nil {
+	if sa := i.runner.securityAgent; sa != nil {
 		file, err := sa.keyMgrAgent.NewConnection(debugInfo.Info.SecurityAgentHandle)
 		if err != nil {
 			vlog.Errorf("NewConnection(%v) failed: %v", debugInfo.Info.SecurityAgentHandle, err)

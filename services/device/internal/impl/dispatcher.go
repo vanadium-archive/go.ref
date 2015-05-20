@@ -41,6 +41,8 @@ type internalState struct {
 	securityAgent  *securityAgentState
 	restartHandler func()
 	testMode       bool
+	// reap is the app process monitoring subsystem.
+	reap *reaper
 }
 
 // dispatcher holds the state of the device manager dispatcher.
@@ -57,8 +59,6 @@ type dispatcher struct {
 	permsStore *pathperms.PathStore
 	// Namespace
 	mtAddress string // The address of the local mounttable.
-	// reap is the app process monitoring subsystem.
-	reap reaper
 }
 
 var _ rpc.Dispatcher = (*dispatcher)(nil)
@@ -118,10 +118,6 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	if err != nil {
 		return nil, verror.New(errCantCreateAccountStore, ctx, err)
 	}
-	reap, err := newReaper(ctx, config.Root)
-	if err != nil {
-		return nil, verror.New(errCantCreateAppWatcher, ctx, err)
-	}
 	initSuidHelper(config.Helper)
 	d := &dispatcher{
 		internal: &internalState{
@@ -134,7 +130,6 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		uat:        uat,
 		permsStore: permStore,
 		mtAddress:  mtAddress,
-		reap:       reap,
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -147,6 +142,15 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 			}
 		}
 	}
+	reap, err := newReaper(ctx, config.Root, &appRunner{
+		callback:      d.internal.callback,
+		securityAgent: d.internal.securityAgent,
+	})
+	if err != nil {
+		return nil, verror.New(errCantCreateAppWatcher, ctx, err)
+	}
+	d.internal.reap = reap
+
 	if testMode {
 		return &testModeDispatcher{d}, nil
 	}
@@ -157,7 +161,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 func Shutdown(rpcd rpc.Dispatcher) {
 	switch d := rpcd.(type) {
 	case *dispatcher:
-		d.reap.shutdown()
+		d.internal.reap.shutdown()
 	case *testModeDispatcher:
 		Shutdown(d.realDispatcher)
 	default:
@@ -326,8 +330,8 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			suffix:     components[1:],
 			uat:        d.uat,
 			permsStore: d.permsStore,
-			reap:       d.reap,
-			appStart: &appStartState{
+			runner: &appRunner{
+				reap:          d.internal.reap,
 				callback:      d.internal.callback,
 				securityAgent: d.internal.securityAgent,
 				mtAddress:     d.mtAddress,
