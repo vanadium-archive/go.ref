@@ -10,6 +10,7 @@ import (
 	wire "v.io/syncbase/v23/services/syncbase"
 	pubutil "v.io/syncbase/v23/syncbase/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/nosql"
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -32,6 +33,10 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 
 	if len(suffix) == 0 {
 		return wire.ServiceServer(disp.s), nil, nil
+	}
+
+	if parts[0] == util.SyncbaseSuffix {
+		return disp.s.sync, nil, nil
 	}
 
 	// Validate all key atoms up front, so that we can avoid doing so in all our

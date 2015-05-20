@@ -12,4 +12,10 @@ const (
 	DatabasePrefix = "$database"
 	TablePrefix    = "$table"
 	RowPrefix      = "$row"
+	SyncPrefix     = "$sync"
+)
+
+const (
+	// Service object name suffix for Syncbase internal communication.
+	SyncbaseSuffix = "$internal"
 )

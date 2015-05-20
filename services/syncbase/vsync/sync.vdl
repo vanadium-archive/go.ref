@@ -1,0 +1,29 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package vsync
+
+// Sync defines methods for data exchange between Syncbases.
+// TODO(hpucha): Flesh this out further.
+type Sync interface {
+	// GetDeltas returns the responder's current generation vector
+	// and all the missing log records when compared to the
+	// initiator's generation vector.
+	GetDeltas() error
+
+	// SyncGroup-related methods.
+	// TODO(hpucha): Think of better names for these methods.
+
+	// CreateSyncGroup is typically invoked on a "central" peer to
+	// request the creation of a SyncGroup.
+	CreateSyncGroup() error
+
+	// JoinSyncGroup is invoked on a SyncGroup Admin and checks if
+	// the requestor can join the SyncGroup.
+	JoinSyncGroup() error
+
+	// BlobSync methods.
+	// FetchBlob returns the requested blob.
+	FetchBlob() error
+}

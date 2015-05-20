@@ -11,6 +11,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
+	"v.io/syncbase/x/ref/services/syncbase/vsync"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -19,7 +20,8 @@ import (
 )
 
 type service struct {
-	st store.Store // keeps track of which apps and databases exist, etc.
+	st   store.Store // keeps track of which apps and databases exist, etc.
+	sync vsync.SyncServerMethods
 	// Guards the fields below. Held during app Create, Delete, and
 	// SetPermissions.
 	mu   sync.Mutex
@@ -42,6 +44,12 @@ func NewService(ctx *context.T, call rpc.ServerCall, perms access.Permissions) (
 		st:   memstore.New(),
 		apps: map[string]*app{},
 	}
+
+	var err error
+	if s.sync, err = vsync.New(ctx, call, s.st); err != nil {
+		return nil, err
+	}
+
 	data := &serviceData{
 		Perms: perms,
 	}
