@@ -5,7 +5,9 @@
 package blesser
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	"v.io/x/ref/services/identity"
@@ -44,6 +46,13 @@ func (b *macaroonBlesser) Bless(ctx *context.T, call rpc.ServerCall, macaroon st
 	}
 	if secCall.LocalPrincipal() == nil {
 		return empty, fmt.Errorf("server misconfiguration: no authentication happened")
+	}
+	macaroonPublicKey, err := security.UnmarshalPublicKey(m.PublicKey)
+	if err != nil {
+		return empty, fmt.Errorf("failed to unmarshal public key in macaroon: %v", err)
+	}
+	if !reflect.DeepEqual(secCall.RemoteBlessings().PublicKey(), macaroonPublicKey) {
+		return empty, errors.New("remote end's public key does not match public key in macaroon")
 	}
 	if len(m.Caveats) == 0 {
 		m.Caveats = []security.Caveat{security.UnconstrainedUse()}

@@ -22,6 +22,7 @@ func TestMacaroonBlesser(t *testing.T) {
 	var (
 		key            = make([]byte, 16)
 		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
+		userKey, _     = user.PublicKey().MarshalBinary()
 		cOnlyMethodFoo = newCaveat(security.NewMethodCaveat("Foo"))
 		ctx, call      = fakeContextAndCall(provider, user)
 	)
@@ -30,12 +31,20 @@ func TestMacaroonBlesser(t *testing.T) {
 	}
 	blesser := NewMacaroonBlesserServer(key)
 
-	m := oauth.BlessingMacaroon{Creation: time.Now().Add(-1 * time.Hour), Name: "foo"}
+	m := oauth.BlessingMacaroon{Creation: time.Now().Add(-1 * time.Hour), Name: "foo", PublicKey: userKey}
 	wantErr := "macaroon has expired"
 	if _, err := blesser.Bless(ctx, call, newMacaroon(t, key, m)); err == nil || err.Error() != wantErr {
 		t.Errorf("Bless(...) failed with error: %v, want: %v", err, wantErr)
 	}
-	m = oauth.BlessingMacaroon{Creation: time.Now(), Name: "bugsbunny", Caveats: []security.Caveat{cOnlyMethodFoo}}
+
+	otherKey, _ := testutil.NewPrincipal().PublicKey().MarshalBinary()
+	m = oauth.BlessingMacaroon{Creation: time.Now(), Name: "foo", PublicKey: otherKey}
+	wantErr = "remote end's public key does not match public key in macaroon"
+	if _, err := blesser.Bless(ctx, call, newMacaroon(t, key, m)); err == nil || err.Error() != wantErr {
+		t.Errorf("Bless(...) failed with error: %v, want: %v", err, wantErr)
+	}
+
+	m = oauth.BlessingMacaroon{Creation: time.Now(), PublicKey: userKey, Name: "bugsbunny", Caveats: []security.Caveat{cOnlyMethodFoo}}
 	b, err := blesser.Bless(ctx, call, newMacaroon(t, key, m))
 	if err != nil {
 		t.Errorf("Bless failed: %v", err)

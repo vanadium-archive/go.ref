@@ -89,9 +89,10 @@ type HandlerArgs struct {
 
 // BlessingMacaroon contains the data that is encoded into the macaroon for creating blessings.
 type BlessingMacaroon struct {
-	Creation time.Time
-	Caveats  []security.Caveat
-	Name     string
+	Creation  time.Time
+	Caveats   []security.Caveat
+	Name      string
+	PublicKey []byte // Marshaled public key of the principal tool.
 }
 
 func redirectURL(baseURL, suffix string) string {
@@ -313,6 +314,7 @@ func (h *handler) validateRevocationToken(Token string, r *http.Request) (string
 
 type seekBlessingsMacaroon struct {
 	RedirectURL, State string
+	PublicKey          []byte // Marshaled public key of the principal tool.
 }
 
 func validLoopbackURL(u string) (*url.URL, error) {
@@ -340,9 +342,16 @@ func (h *handler) seekBlessings(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("invalid redirect_url: %v", err))
 		return
 	}
+	pubKeyBytes, err := base64.URLEncoding.DecodeString(r.FormValue("public_key"))
+	if err != nil {
+		vlog.Infof("seekBlessings failed: invalid public_key: %v", err)
+		util.HTTPBadRequest(w, r, fmt.Errorf("invalid public_key: %v", err))
+		return
+	}
 	outputMacaroon, err := h.csrfCop.NewToken(w, r, clientIDCookie, seekBlessingsMacaroon{
 		RedirectURL: redirect,
 		State:       r.FormValue("state"),
+		PublicKey:   pubKeyBytes,
 	})
 	if err != nil {
 		vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
@@ -354,6 +363,7 @@ func (h *handler) seekBlessings(w http.ResponseWriter, r *http.Request) {
 
 type addCaveatsMacaroon struct {
 	ToolRedirectURL, ToolState, Email string
+	ToolPublicKey                     []byte // Marshaled public key of the principal tool.
 }
 
 func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
@@ -370,6 +380,7 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 	outputMacaroon, err := h.csrfCop.NewToken(w, r, clientIDCookie, addCaveatsMacaroon{
 		ToolRedirectURL: inputMacaroon.RedirectURL,
 		ToolState:       inputMacaroon.State,
+		ToolPublicKey:   inputMacaroon.PublicKey,
 		Email:           email,
 	})
 	if err != nil {
@@ -426,9 +437,10 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	m := BlessingMacaroon{
-		Creation: time.Now(),
-		Caveats:  caveats,
-		Name:     strings.Join(parts, security.ChainSeparator),
+		Creation:  time.Now(),
+		Caveats:   caveats,
+		Name:      strings.Join(parts, security.ChainSeparator),
+		PublicKey: inputMacaroon.ToolPublicKey,
 	}
 	macBytes, err := vom.Encode(m)
 	if err != nil {
