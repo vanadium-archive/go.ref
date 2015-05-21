@@ -62,11 +62,11 @@ func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 }
 
 // Scan implements the store.StoreReader interface.
-func (s *snapshot) Scan(start, end []byte) store.Stream {
+func (s *snapshot) Scan(start, limit []byte) store.Stream {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.error(); err != nil {
 		return &store.InvalidStream{err}
 	}
-	return newStream(s, start, end)
+	return newStream(s, start, limit)
 }

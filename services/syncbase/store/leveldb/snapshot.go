@@ -18,6 +18,7 @@ import (
 type snapshot struct {
 	// mu protects the state of the snapshot.
 	mu        sync.RWMutex
+	node      *resourceNode
 	d         *db
 	cSnapshot *C.leveldb_snapshot_t
 	cOpts     *C.leveldb_readoptions_t
@@ -26,16 +27,21 @@ type snapshot struct {
 
 var _ store.Snapshot = (*snapshot)(nil)
 
-func newSnapshot(d *db) *snapshot {
+func newSnapshot(d *db, parent *resourceNode) *snapshot {
 	cSnapshot := C.leveldb_create_snapshot(d.cDb)
 	cOpts := C.leveldb_readoptions_create()
 	C.leveldb_readoptions_set_verify_checksums(cOpts, 1)
 	C.leveldb_readoptions_set_snapshot(cOpts, cSnapshot)
-	return &snapshot{
+	s := &snapshot{
+		node:      newResourceNode(),
 		d:         d,
 		cSnapshot: cSnapshot,
 		cOpts:     cOpts,
 	}
+	parent.addChild(s.node, func() {
+		s.Close()
+	})
+	return s
 }
 
 // Close implements the store.Snapshot interface.
@@ -45,6 +51,7 @@ func (s *snapshot) Close() error {
 	if s.err != nil {
 		return s.err
 	}
+	s.node.close()
 	C.leveldb_readoptions_destroy(s.cOpts)
 	s.cOpts = nil
 	C.leveldb_release_snapshot(s.d.cDb, s.cSnapshot)
@@ -70,5 +77,5 @@ func (s *snapshot) Scan(start, limit []byte) store.Stream {
 	if s.err != nil {
 		return &store.InvalidStream{s.err}
 	}
-	return newStream(s.d, start, limit, s.cOpts)
+	return newStream(s.d, s.node, start, limit, s.cOpts)
 }

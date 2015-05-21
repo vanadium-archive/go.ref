@@ -24,9 +24,10 @@ var (
 
 // db is a wrapper around LevelDB that implements the store.Store interface.
 type db struct {
-	// mu protects cDb.
-	mu  sync.RWMutex
-	cDb *C.leveldb_t
+	// mu protects the state of the db.
+	mu   sync.RWMutex
+	node *resourceNode
+	cDb  *C.leveldb_t
 	// Default read/write options.
 	readOptions  *C.leveldb_readoptions_t
 	writeOptions *C.leveldb_writeoptions_t
@@ -57,6 +58,7 @@ func Open(path string) (store.Store, error) {
 	readOptions := C.leveldb_readoptions_create()
 	C.leveldb_readoptions_set_verify_checksums(readOptions, 1)
 	return &db{
+		node:         newResourceNode(),
 		cDb:          cDb,
 		readOptions:  readOptions,
 		writeOptions: C.leveldb_writeoptions_create(),
@@ -70,6 +72,7 @@ func (d *db) Close() error {
 	if d.err != nil {
 		return d.err
 	}
+	d.node.close()
 	C.leveldb_close(d.cDb)
 	d.cDb = nil
 	C.leveldb_readoptions_destroy(d.readOptions)
@@ -103,7 +106,7 @@ func (d *db) Scan(start, limit []byte) store.Stream {
 	if d.err != nil {
 		return &store.InvalidStream{d.err}
 	}
-	return newStream(d, start, limit, d.readOptions)
+	return newStream(d, d.node, start, limit, d.readOptions)
 }
 
 // Put implements the store.StoreWriter interface.
@@ -132,7 +135,7 @@ func (d *db) NewTransaction() store.Transaction {
 		d.txmu.Unlock()
 		return &store.InvalidTransaction{d.err}
 	}
-	return newTransaction(d)
+	return newTransaction(d, d.node)
 }
 
 // NewSnapshot implements the store.Store interface.
@@ -142,7 +145,7 @@ func (d *db) NewSnapshot() store.Snapshot {
 	if d.err != nil {
 		return &store.InvalidSnapshot{d.err}
 	}
-	return newSnapshot(d)
+	return newSnapshot(d, d.node)
 }
 
 // getWithOpts returns the value for the given key.

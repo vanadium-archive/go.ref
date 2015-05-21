@@ -61,20 +61,6 @@ func (tx *transaction) error() error {
 	return nil
 }
 
-// ResetForRetry implements the store.Transaction interface.
-func (tx *transaction) ResetForRetry() {
-	tx.mu.Lock()
-	defer tx.mu.Unlock()
-	tx.puts = make(map[string][]byte)
-	tx.deletes = make(map[string]struct{})
-	tx.err = nil
-	tx.st.mu.Lock()
-	defer tx.st.mu.Unlock() // note, defer is last-in-first-out
-	tx.st.lastSeq++
-	tx.seq = tx.st.lastSeq
-	tx.sn = newSnapshot(tx.st)
-}
-
 // Get implements the store.StoreReader interface.
 func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	tx.mu.Lock()
@@ -86,13 +72,13 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 }
 
 // Scan implements the store.StoreReader interface.
-func (tx *transaction) Scan(start, end []byte) store.Stream {
+func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if err := tx.error(); err != nil {
 		return &store.InvalidStream{err}
 	}
-	return newStream(tx.sn, start, end)
+	return newStream(tx.sn, start, limit)
 }
 
 // Put implements the store.StoreWriter interface.

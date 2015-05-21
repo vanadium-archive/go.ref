@@ -67,10 +67,6 @@ type Transaction interface {
 
 	// Abort aborts the transaction.
 	Abort() error
-
-	// ResetForRetry resets the transaction. It's equivalent to aborting the
-	// transaction and creating a new one, but more efficient.
-	ResetForRetry()
 }
 
 // Snapshot is a handle to particular state in time of a Store.

@@ -21,7 +21,7 @@ func (s *InvalidSnapshot) Get(key, valbuf []byte) ([]byte, error) {
 }
 
 // Scan implements the store.StoreReader interface.
-func (s *InvalidSnapshot) Scan(start, end []byte) Stream {
+func (s *InvalidSnapshot) Scan(start, limit []byte) Stream {
 	return &InvalidStream{s.Error}
 }
 
@@ -72,7 +72,7 @@ func (tx *InvalidTransaction) Get(key, valbuf []byte) ([]byte, error) {
 }
 
 // Scan implements the store.StoreReader interface.
-func (tx *InvalidTransaction) Scan(start, end []byte) Stream {
+func (tx *InvalidTransaction) Scan(start, limit []byte) Stream {
 	return &InvalidStream{tx.Error}
 }
 

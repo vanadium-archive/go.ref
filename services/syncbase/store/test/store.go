@@ -210,3 +210,45 @@ func RunStoreStateTest(t *testing.T, st store.Store) {
 		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
 	}
 }
+
+// RunCloseTest verifies that child objects are closed when the parent object is
+// closed.
+func RunCloseTest(t *testing.T, st store.Store) {
+	key1, value1 := []byte("key1"), []byte("value1")
+	st.Put(key1, value1)
+
+	var streams []store.Stream
+	var snapshots []store.Snapshot
+	var transactions []store.Transaction
+	// TODO(rogulenko): make multiple transactions.
+	tx := st.NewTransaction()
+	for i := 0; i < 10; i++ {
+		streams = append(streams, st.Scan([]byte("a"), []byte("z")))
+		snapshot := st.NewSnapshot()
+		for j := 0; j < 10; j++ {
+			streams = append(streams, snapshot.Scan([]byte("a"), []byte("z")))
+			streams = append(streams, tx.Scan([]byte("a"), []byte("z")))
+		}
+		snapshots = append(snapshots, snapshot)
+		transactions = append(transactions, tx)
+	}
+	st.Close()
+
+	for _, stream := range streams {
+		if got, want := stream.Err().Error(), "canceled stream"; !strings.Contains(got, want) {
+			t.Fatalf("unexpected error: got %v, want %v", got, want)
+		}
+	}
+	for _, snapshot := range snapshots {
+		_, err := snapshot.Get(key1, nil)
+		if got, want := err.Error(), "closed snapshot"; !strings.Contains(got, want) {
+			t.Fatalf("unexpected error: got %v, want %v", got, want)
+		}
+	}
+	for _, tx := range transactions {
+		_, err := tx.Get(key1, nil)
+		if got, want := err.Error(), "aborted transaction"; !strings.Contains(got, want) {
+			t.Fatalf("unexpected error: got %v, want %v", got, want)
+		}
+	}
+}

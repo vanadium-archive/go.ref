@@ -16,6 +16,7 @@ import (
 // transaction is a wrapper around LevelDB WriteBatch that implements
 // the store.Transaction interface.
 type transaction struct {
+	node     *resourceNode
 	mu       sync.Mutex
 	d        *db
 	snapshot store.Snapshot
@@ -26,37 +27,32 @@ type transaction struct {
 
 var _ store.Transaction = (*transaction)(nil)
 
-func newTransaction(d *db) *transaction {
-	return &transaction{
+func newTransaction(d *db, parent *resourceNode) *transaction {
+	tx := &transaction{
+		node:     newResourceNode(),
 		d:        d,
 		snapshot: d.NewSnapshot(),
 		batch:    C.leveldb_writebatch_create(),
 		cOpts:    d.writeOptions,
 	}
+	parent.addChild(tx.node, func() {
+		tx.Abort()
+	})
+	return tx
 }
 
 // close frees allocated C objects and releases acquired locks.
+// Assumes mu is held.
 func (tx *transaction) close() {
 	tx.d.txmu.Unlock()
+	tx.node.close()
+	tx.snapshot.Close()
 	C.leveldb_writebatch_destroy(tx.batch)
 	tx.batch = nil
 	if tx.cOpts != tx.d.writeOptions {
 		C.leveldb_writeoptions_destroy(tx.cOpts)
 	}
 	tx.cOpts = nil
-}
-
-// ResetForRetry implements the store.Transaction interface.
-func (tx *transaction) ResetForRetry() {
-	tx.mu.Lock()
-	defer tx.mu.Unlock()
-	if tx.batch == nil {
-		panic(tx.err)
-	}
-	tx.snapshot.Close()
-	tx.snapshot = tx.d.NewSnapshot()
-	tx.err = nil
-	C.leveldb_writebatch_clear(tx.batch)
 }
 
 // Get implements the store.StoreReader interface.

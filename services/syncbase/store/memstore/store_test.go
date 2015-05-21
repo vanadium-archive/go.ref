@@ -24,11 +24,17 @@ func TestSnapshot(t *testing.T) {
 	runTest(t, test.RunSnapshotTest)
 }
 
+// TODO(rogulenko): Enable this test once memstore.Close causes memstore to
+// disallow subsequent operations.
+/*
 func TestStoreState(t *testing.T) {
-	// TODO(rogulenko): Enable this test once memstore.Close causes memstore to
-	// disallow subsequent operations.
-	// runTest(t, test.RunStoreStateTest)
+	runTest(t, test.RunStoreStateTest)
 }
+
+func TestClose(t *testing.T) {
+	runTest(t, test.RunCloseTest)
+}
+*/
 
 func TestReadWriteBasic(t *testing.T) {
 	runTest(t, test.RunReadWriteBasicTest)

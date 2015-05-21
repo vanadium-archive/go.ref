@@ -30,6 +30,10 @@ func TestStoreState(t *testing.T) {
 	runTest(t, test.RunStoreStateTest)
 }
 
+func TestClose(t *testing.T) {
+	runTest(t, test.RunCloseTest)
+}
+
 func TestReadWriteBasic(t *testing.T) {
 	runTest(t, test.RunReadWriteBasicTest)
 }

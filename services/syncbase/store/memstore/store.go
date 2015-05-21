@@ -46,10 +46,10 @@ func (st *memstore) Get(key, valbuf []byte) ([]byte, error) {
 }
 
 // Scan implements the store.StoreReader interface.
-func (st *memstore) Scan(start, end []byte) store.Stream {
+func (st *memstore) Scan(start, limit []byte) store.Stream {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	return newStream(newSnapshot(st), start, end)
+	return newStream(newSnapshot(st), start, limit)
 }
 
 // Put implements the store.StoreWriter interface.
