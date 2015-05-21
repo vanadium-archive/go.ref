@@ -491,7 +491,7 @@ func (vc *VC) HandshakeDialedVCWithAuthentication(principal security.Principal, 
 			return nil, verror.New(stream.ErrNetwork, nil, verror.New(errClosedDuringHandshake, nil, vc.VCI))
 		}
 	}
-	crypter, err := crypto.NewBoxCrypter(exchange, vc.pool)
+	crypter, err := crypto.NewBoxCrypter(exchange, iobuf.NewAllocator(vc.pool, vc.reserveBytes))
 	if err != nil {
 		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupEncryption, nil, err)))
 	}
@@ -540,7 +540,7 @@ func (vc *VC) HandshakeDialedVCPreAuthenticated(ver version.RPCVersion, params s
 	if err != nil {
 		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupEncryption, nil, err)))
 	}
-	crypter := crypto.NewBoxCrypterWithKey(pk, sk, remotePublicKeyPreauth, vc.pool)
+	crypter := crypto.NewBoxCrypterWithKey(pk, sk, remotePublicKeyPreauth, iobuf.NewAllocator(vc.pool, vc.reserveBytes))
 	sigPreauth, err := bindClientPrincipalToChannel(crypter, params.LocalPrincipal)
 	if err != nil {
 		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, err))
@@ -637,7 +637,7 @@ func (vc *VC) HandshakeAcceptedVCWithAuthentication(ver version.RPCVersion, prin
 	}
 
 	go func() {
-		crypter, err := crypto.NewBoxCrypter(exchange, vc.pool)
+		crypter, err := crypto.NewBoxCrypter(exchange, iobuf.NewAllocator(vc.pool, vc.reserveBytes))
 		if err != nil {
 			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupEncryption, nil, err)), ln, result)
 			return
@@ -698,7 +698,7 @@ func (vc *VC) HandshakeAcceptedVCPreAuthenticated(ver version.RPCVersion, params
 	}
 
 	go func() {
-		crypter := crypto.NewBoxCrypterWithKey(lPublicKeyPreauth, lPrivateKeyPreauth, rPublicKey, vc.pool)
+		crypter := crypto.NewBoxCrypterWithKey(lPublicKeyPreauth, lPrivateKeyPreauth, rPublicKey, iobuf.NewAllocator(vc.pool, vc.reserveBytes))
 		if err := verifyClientPrincipalBoundToChannel(sigPreauth, crypter, params.RemoteBlessings.PublicKey()); err != nil {
 			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrSecurity, nil, verror.New(errAuthFailed, nil, err)), ln, result)
 			return
@@ -1082,7 +1082,7 @@ func (vc *VC) newWriter(fid id.Flow, priority bqueue.Priority) (*writer, error) 
 	if err != nil {
 		return nil, err
 	}
-	alloc := iobuf.NewAllocator(vc.pool, vc.reserveBytes)
+	alloc := iobuf.NewAllocator(vc.pool, 0)
 	return newWriter(MaxPayloadSizeBytes, bq, alloc, vc.sharedCounters), nil
 }
 

@@ -24,6 +24,8 @@ func expectEq(t *testing.T, x, y interface{}) {
 // Test basic reference counting.
 func TestFreelist(t *testing.T) {
 	pool := NewPool(iobufSize)
+	defer pool.Close()
+
 	iobuf := pool.alloc(0)
 	expectEq(t, iobufSize, len(iobuf.Contents))
 	expectEq(t, uint64(1), pool.allocated)
@@ -41,6 +43,8 @@ func TestFreelist(t *testing.T) {
 // Test slice reference counting.
 func TestRefcount(t *testing.T) {
 	pool := NewPool(iobufSize)
+	defer pool.Close()
+
 	iobuf := pool.alloc(0)
 	slice1 := iobuf.slice(0, 0, 10)
 	slice2 := iobuf.slice(10, 10, 20)
@@ -55,6 +59,7 @@ func TestRefcount(t *testing.T) {
 // Check that the Pool is unusable after it is closed.
 func TestPoolClose(t *testing.T) {
 	pool := NewPool(iobufSize)
+
 	iobuf := pool.alloc(1024)
 	if iobuf == nil {
 		t.Fatalf("iobuf should not be nil")
@@ -68,8 +73,10 @@ func TestPoolClose(t *testing.T) {
 }
 
 func TestIOBUFConcurrency(t *testing.T) {
-	const threadCount = 100
 	pool := NewPool(iobufSize)
+	defer pool.Close()
+
+	const threadCount = 100
 
 	var pending sync.WaitGroup
 	pending.Add(threadCount)

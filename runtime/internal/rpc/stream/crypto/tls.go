@@ -38,19 +38,19 @@ func (TLSClientSessionCache) RPCStreamVCOpt() {}
 
 // NewTLSClient returns a Crypter implementation that uses TLS, assuming
 // handshaker was initiated by a client.
-func NewTLSClient(handshaker io.ReadWriteCloser, local, remote net.Addr, sessionCache TLSClientSessionCache, pool *iobuf.Pool) (Crypter, error) {
+func NewTLSClient(handshaker io.ReadWriteCloser, local, remote net.Addr, sessionCache TLSClientSessionCache, alloc *iobuf.Allocator) (Crypter, error) {
 	var config tls.Config
 	// TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
 	config.SessionTicketsDisabled = true
 	config.InsecureSkipVerify = true
 	config.ClientSessionCache = sessionCache.ClientSessionCache
-	return newTLSCrypter(handshaker, local, remote, &config, pool, false)
+	return newTLSCrypter(handshaker, local, remote, &config, alloc, false)
 }
 
 // NewTLSServer returns a Crypter implementation that uses TLS, assuming
 // handshaker was accepted by a server.
-func NewTLSServer(handshaker io.ReadWriteCloser, local, remote net.Addr, pool *iobuf.Pool) (Crypter, error) {
-	return newTLSCrypter(handshaker, local, remote, ServerTLSConfig(), pool, true)
+func NewTLSServer(handshaker io.ReadWriteCloser, local, remote net.Addr, alloc *iobuf.Allocator) (Crypter, error) {
+	return newTLSCrypter(handshaker, local, remote, ServerTLSConfig(), alloc, true)
 }
 
 type fakeConn struct {
@@ -114,7 +114,7 @@ type tlsCrypter struct {
 	fc    *fakeConn
 }
 
-func newTLSCrypter(handshaker io.ReadWriteCloser, local, remote net.Addr, config *tls.Config, pool *iobuf.Pool, server bool) (Crypter, error) {
+func newTLSCrypter(handshaker io.ReadWriteCloser, local, remote net.Addr, config *tls.Config, alloc *iobuf.Allocator, server bool) (Crypter, error) {
 	fc := &fakeConn{handshakeConn: handshaker, laddr: local, raddr: remote}
 	var t *tls.Conn
 	if server {
@@ -149,7 +149,7 @@ func newTLSCrypter(handshaker io.ReadWriteCloser, local, remote net.Addr, config
 	}
 	fc.handshakeConn = nil
 	return &tlsCrypter{
-		alloc: iobuf.NewAllocator(pool, 0),
+		alloc: alloc,
 		tls:   t,
 		fc:    fc,
 	}, nil

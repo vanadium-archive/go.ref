@@ -10,8 +10,11 @@ import (
 
 func TestExpandFront(t *testing.T) {
 	pool := NewPool(iobufSize)
-	calloc := NewAllocator(pool, 8)
-	slice := calloc.Alloc(10)
+	defer pool.Close()
+	alloc := NewAllocator(pool, 8)
+	defer alloc.Release()
+
+	slice := alloc.Alloc(10)
 	if slice.Size() != 10 {
 		t.Errorf("Expected length 10, got %d", slice.Size())
 	}
@@ -42,8 +45,11 @@ func TestExpandFront(t *testing.T) {
 
 func TestCoalesce(t *testing.T) {
 	pool := NewPool(iobufSize)
-	salloc := NewAllocator(pool, 0)
-	const count = 100
+	defer pool.Close()
+	alloc := NewAllocator(pool, 0)
+	defer alloc.Release()
+
+	const count = 1000
 	const blocksize = 1024
 	var slices [count]*Slice
 	for i := 0; i != count; i++ {
@@ -51,7 +57,7 @@ func TestCoalesce(t *testing.T) {
 		for j := 0; j != blocksize; j++ {
 			block[j] = charAt(i*blocksize + j)
 		}
-		slices[i] = salloc.Copy(block[:])
+		slices[i] = alloc.Copy(block[:])
 	}
 	coalesced := Coalesce(slices[:], blocksize*4)
 	expectEq(t, count/4, len(coalesced))
@@ -62,8 +68,6 @@ func TestCoalesce(t *testing.T) {
 		off += len(buf.Contents)
 		buf.Release()
 	}
-
-	salloc.Release()
 }
 
 func charAt(i int) byte {

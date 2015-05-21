@@ -58,7 +58,7 @@ func GenerateBoxKey() (publicKey, privateKey *BoxKey, err error) {
 // of NewBoxCrypter; the data sent has forward security with connection
 // granularity. One round-trip is required before any data can be sent.
 // BoxCrypter does NOT do anything to verify the identity of the peer.
-func NewBoxCrypter(exchange BoxKeyExchanger, pool *iobuf.Pool) (Crypter, error) {
+func NewBoxCrypter(exchange BoxKeyExchanger, alloc *iobuf.Allocator) (Crypter, error) {
 	pk, sk, err := GenerateBoxKey()
 	if err != nil {
 		return nil, err
@@ -70,12 +70,12 @@ func NewBoxCrypter(exchange BoxKeyExchanger, pool *iobuf.Pool) (Crypter, error) 
 	if theirPK == nil {
 		return nil, verror.New(errRemotePublicKey, nil)
 	}
-	return NewBoxCrypterWithKey(pk, sk, theirPK, pool), nil
+	return NewBoxCrypterWithKey(pk, sk, theirPK, alloc), nil
 }
 
 // NewBoxCrypterWithKey is used when public keys have been already exchanged between peers.
-func NewBoxCrypterWithKey(myPublicKey, myPrivateKey, theirPublicKey *BoxKey, pool *iobuf.Pool) Crypter {
-	c := boxcrypter{alloc: iobuf.NewAllocator(pool, 0)}
+func NewBoxCrypterWithKey(myPublicKey, myPrivateKey, theirPublicKey *BoxKey, alloc *iobuf.Allocator) Crypter {
+	c := boxcrypter{alloc: alloc}
 	box.Precompute(&c.sharedKey, (*[32]byte)(theirPublicKey), (*[32]byte)(myPrivateKey))
 	// Distinct messages between the same {sender, receiver} set are required
 	// to have distinct nonces. The server with the lexicographically smaller
@@ -92,30 +92,33 @@ func NewBoxCrypterWithKey(myPublicKey, myPrivateKey, theirPublicKey *BoxKey, poo
 }
 
 func (c *boxcrypter) Encrypt(src *iobuf.Slice) (*iobuf.Slice, error) {
-	defer src.Release()
 	var nonce [24]byte
 	binary.LittleEndian.PutUint64(nonce[:], c.writeNonce)
 	c.writeNonce += 2
 	ret := c.alloc.Alloc(uint(len(src.Contents) + box.Overhead))
 	ret.Contents = box.SealAfterPrecomputation(ret.Contents[:0], src.Contents, &nonce, &c.sharedKey)
+	src.Release()
 	return ret, nil
 }
 
 func (c *boxcrypter) Decrypt(src *iobuf.Slice) (*iobuf.Slice, error) {
-	defer src.Release()
 	var nonce [24]byte
 	binary.LittleEndian.PutUint64(nonce[:], c.readNonce)
 	c.readNonce += 2
 	retLen := len(src.Contents) - box.Overhead
 	if retLen < 0 {
+		src.Release()
 		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errCipherTextTooShort, nil))
 	}
 	ret := c.alloc.Alloc(uint(retLen))
 	var ok bool
 	ret.Contents, ok = box.OpenAfterPrecomputation(ret.Contents[:0], src.Contents, &nonce, &c.sharedKey)
 	if !ok {
+		src.Release()
+		ret.Release()
 		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errMessageAuthFailed, nil))
 	}
+	src.Release()
 	return ret, nil
 }
 

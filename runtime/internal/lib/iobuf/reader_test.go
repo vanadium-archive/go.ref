@@ -32,8 +32,11 @@ func (r *testReader) Read(buf []byte) (int, error) {
 
 func TestReader(t *testing.T) {
 	pool := NewPool(iobufSize)
+	defer pool.Close()
+
 	var tr testReader
 	r := NewReader(pool, &tr)
+	defer r.Close()
 
 	const amount = 4
 	const loopCount = 1000
@@ -60,7 +63,4 @@ func TestReader(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error")
 	}
-
-	r.Close()
-	pool.Close()
 }

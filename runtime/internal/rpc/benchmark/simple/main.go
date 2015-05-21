@@ -26,7 +26,7 @@ import (
 
 const (
 	payloadSize = 1000
-	chunkCnt    = 1000
+	chunkCnt    = 10000
 
 	bulkPayloadSize = 1000000
 
