@@ -35,9 +35,9 @@ type SecurityCall struct {
 	Method                string
 	Suffix                string
 	MethodTags            []*vdl.Value
-	LocalBlessings        principal.JsBlessings
+	LocalBlessings        principal.BlessingsId
 	LocalBlessingStrings  []string
-	RemoteBlessings       principal.JsBlessings
+	RemoteBlessings       principal.BlessingsId
 	RemoteBlessingStrings []string
 	LocalEndpoint         string
 	RemoteEndpoint        string
@@ -73,7 +73,7 @@ type ServerRpcRequestCall struct {
 	Deadline         time.Deadline
 	Context          Context
 	TraceRequest     vtrace.Request
-	GrantedBlessings *principal.JsBlessings
+	GrantedBlessings principal.BlessingsId
 }
 
 func (ServerRpcRequestCall) __VDLReflect(struct {

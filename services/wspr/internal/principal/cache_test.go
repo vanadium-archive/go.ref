@@ -1,0 +1,236 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package principal
+
+import (
+	"reflect"
+	"sync"
+	"testing"
+	"time"
+)
+
+// manualTrigger provides a gc trigger that can be signaled manually
+type manualTrigger struct {
+	gcShouldBeNext bool
+	lock           sync.Mutex
+	cond           *sync.Cond
+	gcHasRun       bool
+}
+
+func newManualTrigger() *manualTrigger {
+	mt := &manualTrigger{
+		gcShouldBeNext: true,
+	}
+	mt.cond = sync.NewCond(&mt.lock)
+	return mt
+}
+
+// policyTrigger is the trigger that should be provided in GC policy config.
+// It waits until it receives a signal and then returns a chan time.Time
+// that resolves immediately.
+func (mt *manualTrigger) waitForNextGc() <-chan time.Time {
+	mt.lock.Lock()
+	if !mt.gcHasRun {
+		mt.gcHasRun = true
+	} else {
+		mt.gcShouldBeNext = false // hand off control
+		mt.cond.Broadcast()
+		for !mt.gcShouldBeNext {
+			mt.cond.Wait()
+		}
+	}
+	mt.lock.Unlock()
+
+	trigger := make(chan time.Time, 1)
+	trigger <- time.Time{}
+	return trigger
+}
+
+// next should be called to trigger the next policy trigger event.
+func (mt *manualTrigger) next() {
+	mt.lock.Lock()
+	mt.gcShouldBeNext = true // hand off control
+	mt.cond.Broadcast()
+	for mt.gcShouldBeNext {
+		mt.cond.Wait()
+	}
+	mt.lock.Unlock()
+}
+
+// Test just to confirm it signals in order as expected.
+func TestManualTrigger(t *testing.T) {
+	mt := newManualTrigger()
+
+	countTriggers := 0
+	go func() {
+		for i := 1; i <= 100; i++ {
+			<-mt.waitForNextGc()
+			countTriggers++
+		}
+	}()
+
+	for i := 1; i <= 99; i++ {
+		mt.next()
+		if countTriggers != i {
+			t.Errorf("Expected %d triggers, got %d", i, countTriggers)
+		}
+	}
+}
+
+func TestBlessingsCache(t *testing.T) {
+	notificationCh := make(chan []BlessingsCacheMessage, 1)
+	notifier := func(msg []BlessingsCacheMessage) {
+		notificationCh <- msg
+	}
+
+	mt := newManualTrigger()
+
+	// Create a BlessingsCache with a GC policy that we can trigger on demand.
+	onDemandGCPolicy := &BlessingsCacheGCPolicy{
+		nextTrigger: mt.waitForNextGc,
+	}
+	bc := NewBlessingsCache(notifier, onDemandGCPolicy)
+
+	// Blessings for the tests.
+	jsBlessA := &JsBlessings{
+		Handle:    1,
+		PublicKey: "A",
+	}
+	jsBlessB := &JsBlessings{
+		Handle:    2,
+		PublicKey: "B",
+	}
+	jsBlessC := &JsBlessings{
+		Handle:    4,
+		PublicKey: "C",
+	}
+
+	// First do puts and make sure the ids are reasonable.
+	idA := bc.Put(jsBlessA)
+	expectAddMessage(t, notificationCh, 1, jsBlessA)
+	idB := bc.Put(jsBlessB)
+	expectAddMessage(t, notificationCh, 2, jsBlessB)
+	if idA == idB {
+		t.Errorf("A and B unexpectedly had same id: %v", idA)
+	}
+
+	idA2 := bc.Put(jsBlessA)
+	expectNoMessage(t, notificationCh)
+	if idA2 != idA {
+		t.Errorf("A and A2 expected to have same id, but they were %v and %v",
+			idA, idA2)
+	}
+
+	// Now perform GC. Check that the values are still in the cache.
+	mt.next()
+	expectNoMessage(t, notificationCh)
+
+	idGc1A := bc.Put(jsBlessA)
+	idGc1B := bc.Put(jsBlessB)
+	expectNoMessage(t, notificationCh)
+	if idA != idGc1A {
+		t.Errorf("Expected to get same id after one gc of A, but got %v and %v",
+			idA, idGc1A)
+	}
+	if idB != idGc1B {
+		t.Errorf("Expected to get same id after one gc of B, but got %v and %v",
+			idB, idGc1B)
+	}
+
+	// Now perform GC to clear the dirty bits.
+	mt.next()
+	expectNoMessage(t, notificationCh)
+
+	// Update B and add C.
+	idGc2B := bc.Put(jsBlessB)
+	expectNoMessage(t, notificationCh)
+	if idB != idGc2B {
+		t.Errorf("Expected to get same id after two gcs of B, but got %v and %v",
+			idB, idGc2B)
+	}
+	idC := bc.Put(jsBlessC)
+	expectAddMessage(t, notificationCh, 3, jsBlessC)
+	if idC == idA || idC == idB {
+		t.Error("C was unexpectedly the same as A or B")
+	}
+
+	// Perform GC. A should be removed but B and C should stay.
+	mt.next()
+	expectDeleteMessage(t, notificationCh, BlessingsCacheDeleteMessage{CacheId: 1, DeleteAfter: 3})
+	if idB != bc.Put(jsBlessB) {
+		t.Errorf("B seems to have been cleaned up as it was given a new id")
+	}
+	if idC != bc.Put(jsBlessC) {
+		t.Errorf("C seems to have been cleaned up as it was given a new id")
+	}
+	expectNoMessage(t, notificationCh)
+
+	// Perform GC twice to remove the other items.
+	mt.next()
+	expectNoMessage(t, notificationCh)
+	mt.next()
+	expectDeleteMessage(t, notificationCh,
+		BlessingsCacheDeleteMessage{CacheId: 2, DeleteAfter: 4},
+		BlessingsCacheDeleteMessage{CacheId: 3, DeleteAfter: 2})
+
+	// No notifications should occur on further GCs.
+	mt.next()
+	mt.next()
+	mt.next()
+	// Note that this should only be reached after the second GC is done because
+	// the GC trigger channel has size 1.
+	expectNoMessage(t, notificationCh)
+
+	bc.Stop()
+}
+
+func expectNoMessage(t *testing.T, notificationCh chan []BlessingsCacheMessage) {
+	select {
+	case <-notificationCh:
+		t.Errorf("Got message when none expected")
+	default:
+	}
+}
+
+func expectAddMessage(t *testing.T, notificationCh chan []BlessingsCacheMessage, id BlessingsId, bless *JsBlessings) {
+	select {
+	case notifications := <-notificationCh:
+		if len(notifications) != 1 {
+			t.Fatalf("Got invalid add message with %d messages", len(notifications))
+		}
+		addMsg := notifications[0].(BlessingsCacheMessageAdd).Value
+		if got, want := addMsg.CacheId, id; got != want {
+			t.Errorf("Unexpected id in add message: %v. Wanted: %v", got, want)
+		}
+		if got, want := addMsg.Blessings, *bless; !reflect.DeepEqual(got, want) {
+			t.Errorf("Blessings unexpectedly not equal. Got %v, want %v", got, want)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatalf("Timed out waiting for notification")
+	}
+}
+
+func expectDeleteMessage(t *testing.T, notificationCh chan []BlessingsCacheMessage, expected ...BlessingsCacheDeleteMessage) {
+	select {
+	case notifications := <-notificationCh:
+		if len(notifications) != len(expected) {
+			t.Fatalf("Got %d notifications but expected %d delete notifications", len(notifications), len(expected))
+		}
+		for _, notification := range notifications {
+			delNotif := notification.(BlessingsCacheMessageDelete).Value
+			var foundMatch bool
+			for _, expectedNotif := range expected {
+				if reflect.DeepEqual(delNotif, expectedNotif) {
+					foundMatch = true
+				}
+			}
+			if !foundMatch {
+				t.Errorf("Unexpected delete notification: %v", delNotif)
+			}
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatalf("Timed out waiting for notification")
+	}
+}
