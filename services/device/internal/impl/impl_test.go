@@ -136,6 +136,11 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	utiltest.Resolve(t, ctx, "claimable", 1)
 	// Brand new device manager must be claimed first.
 	utiltest.ClaimDevice(t, ctx, "claimable", "factoryDM", "mydevice", utiltest.NoPairingToken)
+
+	if v := utiltest.VerifyDeviceState(t, ctx, device.InstanceStateRunning, "factoryDM"); v != "factory" {
+		t.Errorf("Expected factory version, got %v instead", v)
+	}
+
 	// Simulate an invalid envelope in the application repository.
 	*envelope = utiltest.EnvelopeFromShell(sh, dmPauseBeforeStopEnv, utiltest.DeviceManagerCmd, "bogus", 0, 0, dmArgs...)
 
@@ -160,6 +165,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	if scriptPathFactory == scriptPathV2 {
 		t.Fatalf("current link didn't change")
 	}
+	v2 := utiltest.VerifyDeviceState(t, ctx, device.InstanceStateUpdating, "factoryDM")
 
 	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", impl.ErrOperationInProgress.ID)
 
@@ -219,6 +225,10 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "v3DM", 1) // Current link should have been launching v3.
+	v3 := utiltest.VerifyDeviceState(t, ctx, device.InstanceStateRunning, "v3DM")
+	if v2 == v3 {
+		t.Fatalf("version didn't change")
+	}
 
 	// Revert the device manager to its previous version (v2).
 	utiltest.RevertDevice(t, ctx, "v3DM")

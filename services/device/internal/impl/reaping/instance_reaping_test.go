@@ -26,7 +26,7 @@ func TestReapReconciliationViaAppCycle(t *testing.T) {
 	// Start a device manager.
 	// (Since it will be restarted, use the VeyronCredentials environment
 	// to maintain the same set of credentials across runs)
-	dmCreds, err := ioutil.TempDir("", "TestDeviceManagerUpdateAndRevert")
+	dmCreds, err := ioutil.TempDir("", "TestReapReconciliationViaAppCycle")
 	if err != nil {
 		t.Fatal(err)
 	}

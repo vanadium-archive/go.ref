@@ -343,6 +343,8 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pa
 	}
 
 	shutdown = func() {
+		// TODO(caprita): Capture the Dying state by feeding it back to
+		// the dispatcher and exposing it in Status.
 		vlog.Infof("Stopping device server...")
 		server.Stop()
 		impl.Shutdown(dispatcher)

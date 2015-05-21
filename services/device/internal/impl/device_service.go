@@ -654,6 +654,25 @@ func (*deviceService) Debug(*context.T, rpc.ServerCall) (string, error) {
 	return "Not implemented", nil
 }
 
-func (*deviceService) Status(*context.T, rpc.ServerCall) (device.Status, error) {
-	return nil, nil
+func (s *deviceService) Status(*context.T, rpc.ServerCall) (device.Status, error) {
+	state := device.InstanceStateRunning
+	if s.updating.updating {
+		state = device.InstanceStateUpdating
+	}
+	// Extract the version from the current link path.
+	//
+	// TODO(caprita): make the version available in the device's directory.
+	scriptPath, err := filepath.EvalSymlinks(s.config.CurrentLink)
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Dir(scriptPath)
+	versionDir := filepath.Base(dir)
+	if versionDir == "." {
+		versionDir = "base"
+	}
+	return device.StatusInstance{Value: device.InstanceStatus{
+		State:   state,
+		Version: versionDir,
+	}}, nil
 }

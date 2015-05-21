@@ -385,6 +385,21 @@ func Debug(t *testing.T, ctx *context.T, nameComponents ...string) string {
 	return dbg
 }
 
+func VerifyDeviceState(t *testing.T, ctx *context.T, want device.InstanceState, name string) string {
+	s, err := DeviceStub(name).Status(ctx)
+	if err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) failed: %v [%v]", name, verror.ErrorID(err), err))
+	}
+	status, ok := s.(device.StatusInstance)
+	if !ok {
+		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) returned unknown type: %T", name, s))
+	}
+	if status.Value.State != want {
+		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) state: wanted %v, got %v", name, want, status.Value.State))
+	}
+	return status.Value.Version
+}
+
 func Status(t *testing.T, ctx *context.T, nameComponents ...string) device.Status {
 	s, err := AppStub(nameComponents...).Status(ctx)
 	if err != nil {
