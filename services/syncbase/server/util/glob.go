@@ -16,13 +16,10 @@ import (
 	"v.io/x/ref/lib/glob"
 )
 
-// globPatternToPrefix takes "foo*" and returns "foo". It returns ErrBadArg for
-// inputs that are not valid glob patterns as well as for inputs that are valid
-// glob patterns but not valid prefixes.
+// globPatternToPrefix takes "foo*" and returns "foo".
+// It assumes the input pattern is a valid glob pattern, and returns
+// verror.ErrBadArg if the input is not a valid prefix.
 func globPatternToPrefix(pattern string) (string, error) {
-	if _, err := glob.Parse(pattern); err != nil {
-		return "", verror.NewErrBadArg(nil)
-	}
 	if pattern == "" {
 		return "", verror.NewErrBadArg(nil)
 	}
@@ -41,19 +38,23 @@ func globPatternToPrefix(pattern string) (string, error) {
 	return res, nil
 }
 
+// Takes ownership of sn.
 // TODO(sadovsky): It sucks that Glob must be implemented differently from other
 // streaming RPC handlers. I don't have much confidence that I've implemented
 // both types of streaming correctly.
 func Glob(ctx *context.T, call rpc.ServerCall, pattern string, sn store.Snapshot, stKeyPrefix string) (<-chan naming.GlobReply, error) {
 	// TODO(sadovsky): Support glob with non-prefix pattern.
+	if _, err := glob.Parse(pattern); err != nil {
+		sn.Close()
+		return nil, verror.New(verror.ErrBadArg, ctx, err)
+	}
 	prefix, err := globPatternToPrefix(pattern)
 	if err != nil {
 		sn.Close()
 		if verror.ErrorID(err) == verror.ErrBadArg.ID {
 			return nil, verror.NewErrNotImplemented(ctx)
-		} else {
-			return nil, verror.New(verror.ErrInternal, ctx, err)
 		}
+		return nil, verror.New(verror.ErrInternal, ctx, err)
 	}
 	it := sn.Scan(ScanPrefixArgs(stKeyPrefix, prefix))
 	ch := make(chan naming.GlobReply)
