@@ -24,8 +24,7 @@ The device commands are:
    run           Run the given application instance.
    kill          Kill the given application instance.
    revert        Revert the device manager or application
-   update        Update the device manager or application
-   updateall     Update all installations/instances of an application
+   update        Update device manager or applications.
    status        Get application status.
    debug         Debug the device.
    acl           Tool for setting device manager Permissions
@@ -73,6 +72,8 @@ The global flags are:
    If set, only consider installations.
  -only-instances=false
    If set, only consider instances.
+ -parallelism=FULL
+   Specifies the level of parallelism for the handler execution.
  -progname=unnamed_app
    Visible name of the application, used in argv[0]
  -rm=false
@@ -291,43 +292,24 @@ installation to revert.
 
 Device update
 
-Update the device manager or application
+Update the device manager or application instances and installations
 
 Usage:
-   device update <object>
+   device update <app name patterns...>
 
-<object> is the vanadium object name of the device manager or application
-installation or instance to update.
-
-Device updateall
-
-Given a name that can refer to an app instance or app installation or app or all
-apps on a device, updates all installations and instances under that name
-
-Usage:
-   device updateall <object name>
-
-<object name> is the vanadium object name to update, as follows:
-
-<devicename>/apps/apptitle/installationid/instanceid: updates the given
-instance, killing/restarting it if running
-
-<devicename>/apps/apptitle/installationid: updates the given installation and
-then all its instances
-
-<devicename>/apps/apptitle: updates all installations for the given app
-
-<devicename>/apps: updates all apps on the device
+<app name patterns...> are vanadium object names or glob name patterns
+corresponding to the device manager service, or to application installations and
+instances.
 
 Device status
 
-Get the status of an application installation or instance.
+Get the status of application installations and instances.
 
 Usage:
    device status <app name patterns...>
 
 <app name patterns...> are vanadium object names or glob name patterns
-corresponding to app installations and instances.
+corresponding to application installations and instances.
 
 Device debug
 
@@ -423,7 +405,7 @@ Usage:
    device ls <app name patterns...>
 
 <app name patterns...> are vanadium object names or glob name patterns
-corresponding to app installations and instances.
+corresponding to application installations and instances.
 
 Device help
 

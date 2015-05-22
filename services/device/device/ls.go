@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 
+	"v.io/v23/context"
+
 	"v.io/x/lib/cmdline"
 )
 
@@ -18,10 +20,10 @@ var cmdLs = &cmdline.Command{
 	Long:     "List application installations or instances.",
 	ArgsName: "<app name patterns...>",
 	ArgsLong: `
-<app name patterns...> are vanadium object names or glob name patterns corresponding to app installations and instances.`,
+<app name patterns...> are vanadium object names or glob name patterns corresponding to application installations and instances.`,
 }
 
-func runLs(entry globResult, stdout, stderr io.Writer) error {
+func runLs(entry globResult, _ *context.T, stdout, _ io.Writer) error {
 	fmt.Fprintf(stdout, "%v\n", entry.name)
 	return nil
 }

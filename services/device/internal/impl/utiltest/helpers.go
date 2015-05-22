@@ -390,7 +390,7 @@ func VerifyDeviceState(t *testing.T, ctx *context.T, want device.InstanceState, 
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) failed: %v [%v]", name, verror.ErrorID(err), err))
 	}
-	status, ok := s.(device.StatusInstance)
+	status, ok := s.(device.StatusDevice)
 	if !ok {
 		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) returned unknown type: %T", name, s))
 	}

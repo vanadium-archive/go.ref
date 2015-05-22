@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"v.io/x/lib/cmdline"
@@ -34,7 +35,7 @@ import (
 //
 // Typical usage:
 //
-// func myCmdHandler(entry globResult, stdout, stderr io.Writer) error {
+// func myCmdHandler(entry globResult, ctx *context.T, stdout, stderr io.Writer) error {
 //   output := myCmdProcessing(entry)
 //   fmt.Fprintf(stdout, output)
 //   ...
@@ -58,7 +59,7 @@ import (
 //   Runner: globRunner(myCmdHandler)
 //   ...
 // }
-type globHandler func(entry globResult, stdout, stderr io.Writer) error
+type globHandler func(entry globResult, ctx *context.T, stdout, stderr io.Writer) error
 
 func globRunner(handler globHandler) cmdline.Runner {
 	return v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
@@ -66,10 +67,20 @@ func globRunner(handler globHandler) cmdline.Runner {
 	})
 }
 
+type objectKind int
+
+const (
+	applicationInstallationObject objectKind = iota
+	applicationInstanceObject
+	deviceServiceObject
+)
+
+var objectKinds = []objectKind{applicationInstallationObject, applicationInstanceObject, deviceServiceObject}
+
 type globResult struct {
-	name       string
-	isInstance bool
-	status     device.Status
+	name   string
+	status device.Status
+	kind   objectKind
 }
 
 type byTypeAndName []globResult
@@ -79,12 +90,8 @@ func (a byTypeAndName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
 func (a byTypeAndName) Less(i, j int) bool {
 	r1, r2 := a[i], a[j]
-	if r1.isInstance {
-		if !r2.isInstance {
-			return false
-		}
-	} else if r2.isInstance {
-		return true
+	if r1.kind != r2.kind {
+		return r1.kind < r2.kind
 	}
 	return r1.name < r2.name
 }
@@ -101,13 +108,65 @@ func (a byTypeAndName) Less(i, j int) bool {
 func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler) error {
 	results := glob(ctx, env, args)
 	sort.Sort(byTypeAndName(results))
+	results = filterResults(results)
 	stdouts, stderrs := make([]bytes.Buffer, len(results)), make([]bytes.Buffer, len(results))
-	var wg sync.WaitGroup
-	errors := make(chan struct {
-		name string
-		err  error
-	}, len(results))
-	for i, r := range results {
+	var errorCounter uint32 = 0
+	perResult := func(r globResult, index int) {
+		if err := handler(r, ctx, &stdouts[index], &stderrs[index]); err != nil {
+			fmt.Fprintf(&stderrs[index], "ERROR for \"%s\": %v.\n", r.name, err)
+			atomic.AddUint32(&errorCounter, 1)
+		}
+	}
+	// TODO(caprita): Add unit test logic to cover all parallelism options.
+	switch handlerParallelism {
+	case fullParallelism:
+		var wg sync.WaitGroup
+		for i, r := range results {
+			wg.Add(1)
+			go func(r globResult, i int) {
+				perResult(r, i)
+				wg.Done()
+			}(r, i)
+		}
+		wg.Wait()
+	case noParallelism:
+		for i, r := range results {
+			perResult(r, i)
+		}
+	case kindParallelism:
+		processed := 0
+		for _, k := range objectKinds {
+			var wg sync.WaitGroup
+			for i, r := range results {
+				if r.kind != k {
+					continue
+				}
+				wg.Add(1)
+				processed++
+				go func(r globResult, i int) {
+					perResult(r, i)
+					wg.Done()
+				}(r, i)
+			}
+			wg.Wait()
+		}
+		if processed != len(results) {
+			return fmt.Errorf("broken invariant: unhandled object kind")
+		}
+	}
+	for i := range results {
+		io.Copy(env.Stdout, &stdouts[i])
+		io.Copy(env.Stderr, &stderrs[i])
+	}
+	if errorCounter > 0 {
+		return fmt.Errorf("encountered a total of %d error(s)", errorCounter)
+	}
+	return nil
+}
+
+func filterResults(results []globResult) []globResult {
+	var ret []globResult
+	for _, r := range results {
 		switch s := r.status.(type) {
 		case device.StatusInstance:
 			if onlyInstallations || !instanceStateFilter.apply(s.Value.State) {
@@ -118,32 +177,9 @@ func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler) e
 				continue
 			}
 		}
-		wg.Add(1)
-		go func(r globResult, index int) {
-			errors <- struct {
-				name string
-				err  error
-			}{r.name, handler(r, &stdouts[index], &stderrs[index])}
-			wg.Done()
-		}(r, i)
+		ret = append(ret, r)
 	}
-	wg.Wait()
-	for i := range results {
-		io.Copy(env.Stdout, &stdouts[i])
-		io.Copy(env.Stderr, &stderrs[i])
-	}
-	close(errors)
-	nErrors := 0
-	for e := range errors {
-		if e.err != nil {
-			fmt.Fprintf(env.Stderr, "ERROR for %q: %v", e.name, e.err)
-			nErrors++
-		}
-	}
-	if nErrors > 0 {
-		return fmt.Errorf("encountered a total of %d errors", nErrors)
-	}
-	return nil
+	return ret
 }
 
 // TODO(caprita): We need to filter out debug objects under the app instances'
@@ -162,8 +198,19 @@ func getStatus(ctx *context.T, env *cmdline.Env, name string, resultsCh chan<- g
 		fmt.Fprintf(env.Stderr, "Status(%v) failed: %v\n", name, err)
 		return
 	}
-	_, isInstance := status.(device.StatusInstance)
-	resultsCh <- globResult{name, isInstance, status}
+	var kind objectKind
+	switch status.(type) {
+	case device.StatusInstallation:
+		kind = applicationInstallationObject
+	case device.StatusInstance:
+		kind = applicationInstanceObject
+	case device.StatusDevice:
+		kind = deviceServiceObject
+	default:
+		fmt.Fprintf(env.Stderr, "Status(%v) returned unrecognized status type %T\n", name, status)
+		return
+	}
+	resultsCh <- globResult{name, status, kind}
 }
 
 func globOne(ctx *context.T, env *cmdline.Env, pattern string, resultsCh chan<- globResult) {
@@ -291,11 +338,47 @@ func (f *installationStateFlag) Set(s string) error {
 	return nil
 }
 
+type parallelismFlag int
+
+const (
+	fullParallelism parallelismFlag = iota
+	noParallelism
+	kindParallelism
+)
+
+func (p *parallelismFlag) String() string {
+	switch *p {
+	case fullParallelism:
+		return "FULL"
+	case noParallelism:
+		return "NONE"
+	case kindParallelism:
+		return "BYKIND"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+func (p *parallelismFlag) Set(s string) error {
+	switch s {
+	case "FULL":
+		*p = fullParallelism
+	case "NONE":
+		*p = noParallelism
+	case "BYKIND":
+		*p = kindParallelism
+	default:
+		return fmt.Errorf("unrecognized parallelism type: %v", s)
+	}
+	return nil
+}
+
 var (
 	instanceStateFilter     instanceStateFlag
 	installationStateFilter installationStateFlag
 	onlyInstances           bool
 	onlyInstallations       bool
+	handlerParallelism      parallelismFlag
 )
 
 func init() {
@@ -305,6 +388,9 @@ func init() {
 	flag.Var(&installationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstallationStateAll))
 	flag.BoolVar(&onlyInstances, "only-instances", false, "If set, only consider instances.")
 	flag.BoolVar(&onlyInstallations, "only-installations", false, "If set, only consider installations.")
+	// TODO(caprita): Expose the possible values for this flag in the help
+	// message.
+	flag.Var(&handlerParallelism, "parallelism", "Specifies the level of parallelism for the handler execution.")
 }
 
 // ResetGlobFlags is meant for tests to restore the values of flag-configured
@@ -314,4 +400,5 @@ func ResetGlobFlags() {
 	installationStateFilter = make(installationStateFlag)
 	onlyInstances = false
 	onlyInstallations = false
+	handlerParallelism = fullParallelism
 }
