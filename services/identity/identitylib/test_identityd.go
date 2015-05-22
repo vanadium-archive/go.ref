@@ -9,7 +9,6 @@ package identitylib
 import (
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"time"
@@ -32,15 +31,7 @@ var (
 	tlsConfig        = flag.CommandLine.String("tls-config", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
-const (
-	TestIdentitydCommand = "test_identityd"
-)
-
-func init() {
-	modules.RegisterChild(TestIdentitydCommand, modules.Usage(flag.CommandLine), startTestIdentityd)
-}
-
-func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var TestIdentityd = modules.Register(func(env *modules.Env, args ...string) error {
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
 
@@ -101,12 +92,12 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 
 	_, eps, externalHttpAddress := s.Listen(ctx, &l, *externalHttpAddr, *httpAddr, *tlsConfig)
 
-	fmt.Fprintf(stdout, "TEST_IDENTITYD_NAME=%s\n", eps[0])
-	fmt.Fprintf(stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpAddress)
+	fmt.Fprintf(env.Stdout, "TEST_IDENTITYD_NAME=%s\n", eps[0])
+	fmt.Fprintf(env.Stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpAddress)
 
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
-}
+}, "TestIdentityd")
 
 func freePort() string {
 	l, _ := net.Listen("tcp", ":0")

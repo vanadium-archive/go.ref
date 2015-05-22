@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"syscall"
@@ -19,22 +18,18 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/signals"
 	appd "v.io/x/ref/services/application/applicationd"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
 
-const (
-	repoCmd = "appRepository"
-)
-
-func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var appRepository = modules.Register(func(env *modules.Env, args ...string) error {
 	if len(args) < 2 {
 		vlog.Fatalf("repository expected at least name and store arguments and optionally Permissions flags per PermissionsFromFlag")
 	}
@@ -46,7 +41,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
+	defer fmt.Fprintf(env.Stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
 	server, endpoint := servicetest.NewServer(ctx)
 	defer server.Stop()
@@ -62,11 +57,11 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
 
-	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
 	<-signals.ShutdownOnSignals(ctx)
 
 	return nil
-}
+}, "appRepository")
 
 func TestApplicationUpdatePermissions(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
@@ -88,7 +83,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	storedir, cleanup := servicetest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	nmh := servicetest.RunCommand(t, sh, nil, repoCmd, "repo", storedir)
+	nmh := servicetest.RunCommand(t, sh, nil, appRepository, "repo", storedir)
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -241,7 +236,7 @@ func TestPerAppPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nmh := servicetest.RunCommand(t, sh, nil, repoCmd, "repo", storedir)
+	nmh := servicetest.RunCommand(t, sh, nil, appRepository, "repo", storedir)
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 

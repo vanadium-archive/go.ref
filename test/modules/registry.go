@@ -10,125 +10,109 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
-	"sync"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"time"
 
-	"v.io/x/lib/envvar"
 	"v.io/x/lib/vlog"
-
 	vexec "v.io/x/ref/lib/exec"
 )
 
-type commandDesc struct {
-	factory func() *execHandle
+// Program is a symbolic representation of a registered Main function.
+type Program string
+
+type programInfo struct {
 	main    Main
-	help    string
+	factory func() *execHandle
 }
 
-type cmdRegistry struct {
-	sync.Mutex
-	cmds map[string]*commandDesc
+type programRegistry struct {
+	programs []*programInfo
 }
 
-var registry = &cmdRegistry{cmds: make(map[string]*commandDesc)}
+var registry = new(programRegistry)
 
-func (r *cmdRegistry) addCommand(name, help string, factory func() *execHandle, main Main) {
-	r.Lock()
-	defer r.Unlock()
-	r.cmds[name] = &commandDesc{factory, main, help}
+func (r *programRegistry) addProgram(main Main, description string) Program {
+	prog := strconv.Itoa(len(r.programs))
+	factory := func() *execHandle { return newExecHandle(prog, description) }
+	r.programs = append(r.programs, &programInfo{main, factory})
+	return Program(prog)
 }
 
-func (r *cmdRegistry) getCommand(name string) *commandDesc {
-	r.Lock()
-	defer r.Unlock()
-	return r.cmds[name]
+func (r *programRegistry) getProgram(prog Program) *programInfo {
+	index, err := strconv.Atoi(string(prog))
+	if err != nil || index < 0 || index >= len(r.programs) {
+		return nil
+	}
+	return r.programs[index]
 }
 
-func (r *cmdRegistry) getExternalCommand(name string) *commandDesc {
-	h := newExecHandleForExternalCommand(name)
-	return &commandDesc{
+func (r *programRegistry) getExternalProgram(prog Program) *programInfo {
+	h := newExecHandleExternal(string(prog))
+	return &programInfo{
 		factory: func() *execHandle { return h },
 	}
 }
 
-// RegisterChild adds a new command to the registry that will be run
-// as a subprocess. It must be called before Dispatch or DispatchInTest is
-// called, typically from an init function.
-func RegisterChild(name, help string, main Main) {
-	factory := func() *execHandle { return newExecHandle(name) }
-	registry.addCommand(name, help, factory, main)
+func (r *programRegistry) String() string {
+	var s string
+	for _, info := range r.programs {
+		h := info.factory()
+		s += fmt.Sprintf("%s: %s\n", h.entryPoint, h.desc)
+	}
+	return s
 }
 
-// Help returns the help message for the specified command, or a list
-// of all commands if the command parameter is an empty string.
-func Help(command string) string {
-	return registry.help(command)
+// Register adds a new program to the registry that will be run as a subprocess.
+// It must be called before Dispatch is called, typically from an init function.
+func Register(main Main, description string) Program {
+	if _, file, line, ok := runtime.Caller(1); ok {
+		description = fmt.Sprintf("%s:%d %s", shortFile(file), line, description)
+	}
+	return registry.addProgram(main, description)
 }
 
-func (r *cmdRegistry) help(command string) string {
-	r.Lock()
-	defer r.Unlock()
-	if len(command) == 0 {
-		h := ""
-		for c, _ := range r.cmds {
-			h += c + ", "
-		}
-		return strings.TrimRight(h, ", ")
+// shortFile returns the last 3 components of the given file name.
+func shortFile(file string) string {
+	var short string
+	for i := 0; i < 3; i++ {
+		short = filepath.Join(filepath.Base(file), short)
+		file = filepath.Dir(file)
 	}
-	if c := r.cmds[command]; c != nil {
-		return command + ": " + c.help
-	}
-	return ""
+	return short
 }
 
 const shellEntryPoint = "V23_SHELL_HELPER_PROCESS_ENTRY_POINT"
 
-// IsModulesChildProcess returns true if this process was started by
-// the modules package.
-func IsModulesChildProcess() bool {
+// IsChildProcess returns true if this process was started by the modules
+// package.
+func IsChildProcess() bool {
 	return os.Getenv(shellEntryPoint) != ""
 }
 
-// Dispatch will execute the requested subprocess command from a within a
-// a subprocess. It will return without an error if it is executed by a
-// process that does not specify an entry point in its environment.
-//
-// func main() {
-//     if modules.IsModulesChildProcess() {
-//         if err := modules.Dispatch(); err != nil {
-//             panic("error")
-//         }
-//         eturn
-//     }
-//     parent code...
-//
+// Dispatch executes the requested subprocess program from within a subprocess.
+// Returns an error if it is executed by a process that does not specify an
+// entry point in its environment.
 func Dispatch() error {
-	if !IsModulesChildProcess() {
-		return nil
-	}
 	return registry.dispatch()
 }
 
-// DispatchAndExit is like Dispatch except that it will call os.Exit(0)
-// when executed within a child process and the command succeeds, or panic
-// on encountering an error.
-//
-// func main() {
-//     modules.DispatchAndExit()
-//     parent code...
-//
-func DispatchAndExit() {
-	if !IsModulesChildProcess() {
-		return
+// DispatchAndExitIfChild is a convenience function with three possible results:
+//   * os.Exit(0) if called within a child process, and the dispatch succeeds.
+//   * os.Exit(1) if called within a child process, and the dispatch fails.
+//   * return with no side-effects, if not called within a child process.
+func DispatchAndExitIfChild() {
+	if IsChildProcess() {
+		if err := Dispatch(); err != nil {
+			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
-	if err := registry.dispatch(); err != nil {
-		panic(fmt.Sprintf("unexpected error: %s", err))
-	}
-	os.Exit(0)
 }
 
-func (r *cmdRegistry) dispatch() error {
+func (r *programRegistry) dispatch() error {
 	ch, err := vexec.GetChildHandle()
 	if err != nil {
 		// This is for debugging only. It's perfectly reasonable for this
@@ -140,18 +124,18 @@ func (r *cmdRegistry) dispatch() error {
 	// Only signal that the child is ready or failed if we successfully get
 	// a child handle. We most likely failed to get a child handle
 	// because the subprocess was run directly from the command line.
-	command := os.Getenv(shellEntryPoint)
-	if len(command) == 0 {
-		err := fmt.Errorf("Failed to find entrypoint %q", command)
+	prog := os.Getenv(shellEntryPoint)
+	if prog == "" {
+		err := fmt.Errorf("Failed to find entrypoint %q", prog)
 		if ch != nil {
 			ch.SetFailed(err)
 		}
 		return err
 	}
 
-	m := registry.getCommand(command)
+	m := registry.getProgram(Program(prog))
 	if m == nil {
-		err := fmt.Errorf("%s: not registered", command)
+		err := fmt.Errorf("%s: not registered\n%s", prog, registry.String())
 		if ch != nil {
 			ch.SetFailed(err)
 		}
@@ -173,7 +157,7 @@ func (r *cmdRegistry) dispatch() error {
 	}(os.Getppid())
 
 	flag.Parse()
-	return m.main(os.Stdin, os.Stdout, os.Stderr, envvar.SliceToMap(os.Environ()), flag.Args()...)
+	return m.main(EnvFromOS(), flag.Args()...)
 }
 
 // WaitForEOF returns when a read on its io.Reader parameter returns io.EOF

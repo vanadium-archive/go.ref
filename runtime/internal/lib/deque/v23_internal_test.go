@@ -4,12 +4,15 @@
 
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
+
 package deque
 
-import "testing"
-import "os"
+import (
+	"os"
+	"testing"
 
-import "v.io/x/ref/test"
+	"v.io/x/ref/test"
+)
 
 func TestMain(m *testing.M) {
 	test.Init()

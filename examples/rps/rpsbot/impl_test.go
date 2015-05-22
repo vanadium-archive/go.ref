@@ -29,7 +29,7 @@ import (
 
 //go:generate v23 test generate
 
-func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -49,13 +49,13 @@ func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	if err := server.ServeDispatcher("", mt); err != nil {
 		return fmt.Errorf("root failed: %s", err)
 	}
-	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
 	for _, ep := range eps {
-		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
-}
+}, "rootMT")
 
 var spec = rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 
@@ -96,7 +96,7 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 		t.Fatalf("Could not create shell: %v", err)
 	}
 	defer sh.Cleanup(os.Stdout, os.Stderr)
-	h, err := sh.Start("rootMT", nil, "--v23.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(nil, rootMT, "--v23.tcp.address=127.0.0.1:0")
 	if err != nil {
 		if h != nil {
 			h.Shutdown(nil, os.Stderr)

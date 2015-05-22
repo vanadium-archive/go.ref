@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/test/modules"
 )
 
@@ -65,7 +64,7 @@ func (b *Binary) start(skip int, oargs ...string) *Invocation {
 		opts.Credentials, opts.Error = b.env.shell.NewChildCredentials("child")
 	}
 	opts.ExpectTesting = b.env.TB
-	handle, err := b.env.shell.StartWithOpts(opts, b.envVars, b.Path(), args...)
+	handle, err := b.env.shell.StartWithOpts(opts, b.envVars, modules.Program(b.Path()), args...)
 	if err != nil {
 		if handle != nil {
 			vlog.Infof("%s: start failed", Caller(skip+1))

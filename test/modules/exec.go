@@ -21,20 +21,21 @@ import (
 	"v.io/x/ref/test/expect"
 )
 
-// execHandle implements both the command and Handle interfaces.
+// execHandle implements both the Handle interface.
 type execHandle struct {
 	*expect.Session
-	mu        sync.Mutex
-	cmd       *exec.Cmd
-	name      string
-	handle    *vexec.ParentHandle
-	sh        *Shell
-	stderr    *os.File
-	stdout    io.ReadCloser
-	stdin     io.WriteCloser
-	procErrCh chan error
-	opts      *StartOpts
-	external  bool
+	mu         sync.Mutex
+	cmd        *exec.Cmd
+	entryPoint string
+	desc       string
+	handle     *vexec.ParentHandle
+	sh         *Shell
+	stderr     *os.File
+	stdout     io.ReadCloser
+	stdin      io.WriteCloser
+	procErrCh  chan error
+	opts       *StartOpts
+	external   bool
 }
 
 func testFlags() []string {
@@ -51,7 +52,7 @@ func testFlags() []string {
 	// must be a go test binary
 	val := timeout.Value.(flag.Getter).Get().(time.Duration)
 	if val.String() != timeout.DefValue {
-		// use supplied command value for subprocesses
+		// use supplied value for subprocesses
 		fl = append(fl, "--test.timeout="+timeout.Value.String())
 	} else {
 		// translate default value into 3m for subproccesses.  The
@@ -62,12 +63,12 @@ func testFlags() []string {
 	return fl
 }
 
-func newExecHandle(name string) *execHandle {
-	return &execHandle{name: name, procErrCh: make(chan error, 1)}
+func newExecHandle(entry, desc string) *execHandle {
+	return &execHandle{entryPoint: entry, desc: desc, procErrCh: make(chan error, 1)}
 }
 
-func newExecHandleForExternalCommand(name string) *execHandle {
-	return &execHandle{name: name, procErrCh: make(chan error, 1), external: true}
+func newExecHandleExternal(prog string) *execHandle {
+	return &execHandle{entryPoint: prog, desc: prog, procErrCh: make(chan error, 1), external: true}
 }
 
 func (eh *execHandle) Stdout() io.Reader {
@@ -96,7 +97,7 @@ func (eh *execHandle) CloseStdin() {
 
 func (eh *execHandle) envelope(sh *Shell, env []string, args []string) ([]string, []string) {
 	if eh.external {
-		newargs := append([]string{eh.name}, args...)
+		newargs := append([]string{eh.entryPoint}, args...)
 		newenv := envvar.SliceToMap(env)
 		delete(newenv, shellEntryPoint)
 		return newargs, envvar.MapToSlice(newenv)
@@ -104,7 +105,7 @@ func (eh *execHandle) envelope(sh *Shell, env []string, args []string) ([]string
 	newargs := append([]string{os.Args[0]}, testFlags()...)
 	newargs = append(newargs, args...)
 	newenv := envvar.SliceToMap(env)
-	newenv[shellEntryPoint] = eh.name
+	newenv[shellEntryPoint] = eh.entryPoint
 	return newargs, envvar.MapToSlice(newenv)
 }
 
@@ -117,7 +118,7 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
 
-	stderr, err := newLogfile("stderr", eh.name)
+	stderr, err := newLogfile("stderr", eh.entryPoint)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +164,7 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 		execOpts = append(execOpts, vexec.ConfigOpt{Config: config})
 	}
 
-	// TODO(cnicolaou): for external commands, vexec should either not be
+	// TODO(cnicolaou): for external programs, vexec should either not be
 	// used or it should taken an option to not use its protocol, and in
 	// particular to share secrets with children.
 	handle := vexec.NewParentHandle(cmd, execOpts...)
@@ -171,9 +172,9 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 	eh.stderr = stderr
 	eh.handle = handle
 	eh.cmd = cmd
-	vlog.VI(1).Infof("Start: %q stderr: %s", eh.name, stderr.Name())
-	vlog.VI(1).Infof("Start: %q args: %v", eh.name, cmd.Args)
-	vlog.VI(2).Infof("Start: %q env: %v", eh.name, cmd.Env)
+	vlog.VI(1).Infof("Start: %q stderr: %s", eh.desc, stderr.Name())
+	vlog.VI(1).Infof("Start: %q args: %v", eh.desc, cmd.Args)
+	vlog.VI(2).Infof("Start: %q env: %v", eh.desc, cmd.Env)
 	if err := handle.Start(); err != nil {
 		// The child process failed to start, either because of some setup
 		// error (e.g. creating pipes for it to use), or a bad binary etc.
@@ -194,7 +195,7 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 			return eh, err
 		}
 	}
-	vlog.VI(1).Infof("Started: %q, pid %d", eh.name, cmd.Process.Pid)
+	vlog.VI(1).Infof("Started: %q, pid %d", eh.desc, cmd.Process.Pid)
 	go func() {
 		eh.procErrCh <- eh.handle.Wait(0)
 		// It's now safe to close eh.stdout, since Wait only returns
@@ -215,8 +216,8 @@ func (eh *execHandle) Pid() int {
 func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
-	vlog.VI(1).Infof("Shutdown: %q", eh.name)
-	defer vlog.VI(1).Infof("Shutdown: %q [DONE]", eh.name)
+	vlog.VI(1).Infof("Shutdown: %q", eh.desc)
+	defer vlog.VI(1).Infof("Shutdown: %q [DONE]", eh.desc)
 	if eh.stdin != nil {
 		eh.stdin.Close()
 	}

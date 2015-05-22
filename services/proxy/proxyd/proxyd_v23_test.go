@@ -6,13 +6,11 @@ package main_test
 
 import (
 	"fmt"
-	"io"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
 )
@@ -20,17 +18,10 @@ import (
 //go:generate v23 test generate
 
 const (
-	serverCmd   = "server"
-	clientCmd   = "client"
 	proxyName   = "proxy"    // Name which the proxy mounts itself at
 	serverName  = "server"   // Name which the server mounts itself at
 	responseVar = "RESPONSE" // Name of the variable used by client program to output the response
 )
-
-func init() {
-	modules.RegisterChild(serverCmd, "server", runServer)
-	modules.RegisterChild(clientCmd, "client", runClient)
-}
 
 func V23TestProxyd(t *v23tests.T) {
 	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
@@ -47,14 +38,14 @@ func V23TestProxyd(t *v23tests.T) {
 	if _, err := t.Shell().StartWithOpts(
 		t.Shell().DefaultStartOpts().WithCustomCredentials(serverCreds),
 		nil,
-		serverCmd); err != nil {
+		runServer); err != nil {
 		t.Fatal(err)
 	}
 	// Run the client.
 	client, err := t.Shell().StartWithOpts(
 		t.Shell().DefaultStartOpts().WithCustomCredentials(clientCreds),
 		nil,
-		clientCmd)
+		runClient)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +54,7 @@ func V23TestProxyd(t *v23tests.T) {
 	}
 }
 
-func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var runServer = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -79,11 +70,11 @@ func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		return err
 	}
 
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
-}
+}, "runServer")
 
-func runClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var runClient = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -95,9 +86,9 @@ func runClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	if err := call.Finish(&response); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "%v=%v\n", responseVar, response)
+	fmt.Fprintf(env.Stdout, "%v=%v\n", responseVar, response)
 	return nil
-}
+}, "runClient")
 
 type service struct{}
 

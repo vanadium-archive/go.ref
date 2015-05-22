@@ -39,7 +39,7 @@ func newShell(t *testing.T) *modules.Shell {
 func TestSimpleServerSignal(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("simpleServerProgram", nil)
+	h, _ := sh.Start(nil, simpleServerProgram)
 	h.Expect("Ready")
 	syscall.Kill(h.Pid(), syscall.SIGINT)
 	h.Expect("Received signal interrupt")
@@ -54,7 +54,7 @@ func TestSimpleServerSignal(t *testing.T) {
 func TestSimpleServerLocalStop(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("simpleServerProgram", nil)
+	h, _ := sh.Start(nil, simpleServerProgram)
 	h.Expect("Ready")
 	fmt.Fprintln(h.Stdin(), "stop")
 	h.Expect(fmt.Sprintf("Received signal %s", v23.LocalStop))
@@ -70,7 +70,7 @@ func TestSimpleServerLocalStop(t *testing.T) {
 func TestSimpleServerDoubleSignal(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("simpleServerProgram", nil)
+	h, _ := sh.Start(nil, simpleServerProgram)
 	h.Expect("Ready")
 	syscall.Kill(h.Pid(), syscall.SIGINT)
 	h.Expect("Received signal interrupt")
@@ -89,7 +89,7 @@ func TestSimpleServerDoubleSignal(t *testing.T) {
 func TestSimpleServerLocalForceStop(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("simpleServerProgram", nil)
+	h, _ := sh.Start(nil, simpleServerProgram)
 	h.Expect("Ready")
 	fmt.Fprintln(h.Stdin(), "forcestop")
 	h.Expect("straight exit")
@@ -107,7 +107,7 @@ func TestSimpleServerLocalForceStop(t *testing.T) {
 func TestSimpleServerKill(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("simpleServerProgram", nil)
+	h, _ := sh.Start(nil, simpleServerProgram)
 	h.Expect("Ready")
 	syscall.Kill(h.Pid(), syscall.SIGKILL)
 	err := h.Shutdown(os.Stdout, cstderr)
@@ -126,7 +126,7 @@ func TestSimpleServerKill(t *testing.T) {
 func TestComplexServerSignal(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("complexServerProgram", nil)
+	h, _ := sh.Start(nil, complexServerProgram)
 	h.Expect("Ready")
 	syscall.Kill(h.Pid(), syscall.SIGINT)
 	h.Expect("Received signal interrupt")
@@ -147,7 +147,7 @@ func TestComplexServerSignal(t *testing.T) {
 func TestComplexServerLocalStop(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("complexServerProgram", nil)
+	h, _ := sh.Start(nil, complexServerProgram)
 	h.Expect("Ready")
 
 	fmt.Fprintln(h.Stdin(), "stop")
@@ -173,7 +173,7 @@ func TestComplexServerLocalStop(t *testing.T) {
 func TestComplexServerDoubleSignal(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("complexServerProgram", nil)
+	h, _ := sh.Start(nil, complexServerProgram)
 	h.Expect("Ready")
 	syscall.Kill(h.Pid(), syscall.SIGINT)
 	h.Expect("Received signal interrupt")
@@ -196,7 +196,7 @@ func TestComplexServerDoubleSignal(t *testing.T) {
 func TestComplexServerLocalForceStop(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("complexServerProgram", nil)
+	h, _ := sh.Start(nil, complexServerProgram)
 	h.Expect("Ready")
 	fmt.Fprintln(h.Stdin(), "forcestop")
 	h.Expect("straight exit")
@@ -214,7 +214,7 @@ func TestComplexServerLocalForceStop(t *testing.T) {
 func TestComplexServerKill(t *testing.T) {
 	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start("complexServerProgram", nil)
+	h, _ := sh.Start(nil, complexServerProgram)
 	h.Expect("Ready")
 	syscall.Kill(h.Pid(), syscall.SIGKILL)
 	err := h.Shutdown(os.Stdout, cstderr)

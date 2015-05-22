@@ -44,7 +44,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	defer cleanup()
 
 	// Set up the device manager.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
@@ -62,7 +62,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	// TODO(rjkroege): Set AccessLists here that conflict with the one provided by the device
 	// manager and show that the one set here is overridden.
 	// Create the envelope for the first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")
 
 	// Install the app.
 	appID := utiltest.InstallApp(t, ctx)
@@ -200,7 +200,7 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	}
 
 	// Set up the device manager.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "--log_dir="+extraLogDir, "dm", root, helperPath, "unused", "unused_curr_link")
+	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "--log_dir="+extraLogDir, "dm", root, helperPath, "unused", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
 
 	// Make some users.

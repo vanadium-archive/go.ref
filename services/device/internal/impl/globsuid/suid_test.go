@@ -67,7 +67,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := utiltest.GenerateSuidHelperScript(t, root)
 
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 	defer utiltest.VerifyNoRunningProcesses(t)
@@ -82,7 +82,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	defer cleanup()
 
 	// Create an envelope for a first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-var"}, utiltest.AppCmd, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-var"}, utiltest.App, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
 
 	// Install and start the app as root/self.
 	appID := utiltest.InstallApp(t, selfCtx)

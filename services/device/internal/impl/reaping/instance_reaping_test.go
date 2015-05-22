@@ -33,7 +33,7 @@ func TestReapReconciliationViaAppCycle(t *testing.T) {
 	defer os.RemoveAll(dmCreds)
 	dmEnv := []string{fmt.Sprintf("%v=%v", ref.EnvCredentials, dmCreds), fmt.Sprintf("%v=%v", impl.AppcycleReconciliation, "1")}
 
-	dmh := servicetest.RunCommand(t, sh, dmEnv, utiltest.DeviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dmh := servicetest.RunCommand(t, sh, dmEnv, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
@@ -43,7 +43,7 @@ func TestReapReconciliationViaAppCycle(t *testing.T) {
 	utiltest.Resolve(t, ctx, "pingserver", 1)
 
 	// Create an envelope for the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")
 
 	// Install the app.
 	appID := utiltest.InstallApp(t, ctx)
@@ -78,7 +78,7 @@ func TestReapReconciliationViaAppCycle(t *testing.T) {
 	}
 
 	// Run another device manager to replace the dead one.
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.DeviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
 

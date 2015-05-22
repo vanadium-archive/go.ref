@@ -69,8 +69,8 @@ func init() {
 	}
 }
 
-func EnvelopeFromShell(sh *modules.Shell, env []string, cmd, title string, retries int, window time.Duration, args ...string) application.Envelope {
-	args, nenv := sh.CommandEnvelope(cmd, env, args...)
+func EnvelopeFromShell(sh *modules.Shell, env []string, prog modules.Program, title string, retries int, window time.Duration, args ...string) application.Envelope {
+	args, nenv := sh.ProgramEnvelope(env, prog, args...)
 	return application.Envelope{
 		Title: title,
 		Args:  args[1:],

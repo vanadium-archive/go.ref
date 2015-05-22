@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
-	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -101,23 +100,26 @@ func IntegrationTestInChild(i *v23tests.T) {
 var globalT *testing.T
 
 func TestHelperProcess(t *testing.T) {
-	globalT = t
-	modules.Dispatch()
+	if modules.IsChildProcess() {
+		globalT = t
+		if err := modules.Dispatch(); err != nil {
+			t.Errorf("modules.Dispatch failed: %v", err)
+		}
+	}
 }
 
-func RunIntegrationTestInChild(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var RunIntegrationTestInChild = modules.Register(func(env *modules.Env, args ...string) error {
 	v23tests.RunTest(globalT, IntegrationTestInChild)
 	return nil
-}
+}, "RunIntegrationTestInChild")
 
 func init() {
 	test.Init()
-	modules.RegisterChild("RunIntegrationTestInChild", "", RunIntegrationTestInChild)
 }
 
 func TestDeferHandling(t *testing.T) {
 	sh, _ := modules.NewShell(nil, nil, testing.Verbose(), t)
-	child, err := sh.Start("RunIntegrationTestInChild", nil, "--test.run=TestHelperProcess", "--v23.tests")
+	child, err := sh.Start(nil, RunIntegrationTestInChild, "--test.run=TestHelperProcess", "--v23.tests")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +296,7 @@ func TestRunFailFromPath(t *testing.T) {
 		msg := recover().(string)
 		// this, and the tests below are intended to ensure that line #s
 		// are captured and reported correctly.
-		if got, want := msg, "v23tests_test.go:304"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:306"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "fork/exec /bin/echox: no such file or directory"; !strings.Contains(got, want) {
@@ -316,7 +318,7 @@ func TestRunFail(t *testing.T) {
 	sh.SetDefaultStartOpts(opts)
 	defer func() {
 		msg := recover().(string)
-		if got, want := msg, "v23tests_test.go:326"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:328"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "StartWithOpts"; !strings.Contains(got, want) {
@@ -340,7 +342,7 @@ func TestWaitTimeout(t *testing.T) {
 		if iterations == 0 {
 			t.Fatalf("our sleeper didn't get to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:347: timed out"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:349: timed out"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
@@ -362,7 +364,7 @@ func TestWaitAsyncTimeout(t *testing.T) {
 		if iterations != 0 {
 			t.Fatalf("our sleeper got to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:369: timed out"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:371: timed out"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()

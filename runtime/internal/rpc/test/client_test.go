@@ -6,7 +6,6 @@ package test
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -38,15 +37,15 @@ import (
 
 //go:generate v23 test generate .
 
-func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	seclevel := options.SecurityConfidential
 	if len(args) == 1 && args[0] == "nosec" {
 		seclevel = options.SecurityNone
 	}
-	return runRootMT(stdin, stdout, stderr, seclevel, env, args...)
-}
+	return runRootMT(seclevel, env, args...)
+}, "rootMT")
 
-func runRootMT(stdin io.Reader, stdout, stderr io.Writer, seclevel options.SecurityLevel, env map[string]string, args ...string) error {
+func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -66,11 +65,11 @@ func runRootMT(stdin io.Reader, stdout, stderr io.Writer, seclevel options.Secur
 	if err := server.ServeDispatcher("", mt); err != nil {
 		return fmt.Errorf("root failed: %s", err)
 	}
-	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
 	for _, ep := range eps {
-		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
 }
 
@@ -100,7 +99,7 @@ func (es *echoServerObject) Sleep(_ *context.T, _ rpc.ServerCall, d string) erro
 	return nil
 }
 
-func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var echoServer = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -118,15 +117,15 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	if err := server.ServeDispatcher(mp, disp); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
 	for _, ep := range eps {
-		fmt.Fprintf(stdout, "NAME=%s\n", ep.Name())
+		fmt.Fprintf(env.Stdout, "NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
-}
+}, "echoServer")
 
-func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var echoClient = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -138,10 +137,10 @@ func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 		if err := client.Call(ctx, name, "Echo", []interface{}{a}, []interface{}{&r}); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, r)
+		fmt.Fprintf(env.Stdout, r)
 	}
 	return nil
-}
+}, "echoClient")
 
 func newCtx() (*context.T, v23.Shutdown) {
 	ctx, shutdown := test.InitForTest()
@@ -154,7 +153,7 @@ func runMountTable(t *testing.T, ctx *context.T, args ...string) (*modules.Shell
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	root, err := sh.Start("rootMT", nil, args...)
+	root, err := sh.Start(nil, rootMT, args...)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
@@ -174,7 +173,7 @@ func runMountTable(t *testing.T, ctx *context.T, args ...string) (*modules.Shell
 }
 
 func runClient(t *testing.T, sh *modules.Shell) error {
-	clt, err := sh.Start("echoClient", nil, "echoServer", "a message")
+	clt, err := sh.Start(nil, echoClient, "echoServer", "a message")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -202,7 +201,7 @@ func TestMultipleEndpoints(t *testing.T) {
 
 	sh, fn := runMountTable(t, ctx)
 	defer fn()
-	srv, err := sh.Start("echoServer", nil, "echoServer", "echoServer")
+	srv, err := sh.Start(nil, echoServer, "echoServer", "echoServer")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -508,7 +507,7 @@ func TestStartCallSecurity(t *testing.T) {
 	logErr("client does not trust server", err)
 }
 
-func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var childPing = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -518,9 +517,9 @@ func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	if err := v23.GetClient(ctx).Call(ctx, name, "Ping", nil, []interface{}{&got}); err != nil {
 		fmt.Errorf("unexpected error: %s", err)
 	}
-	fmt.Fprintf(stdout, "RESULT=%s\n", got)
+	fmt.Fprintf(env.Stdout, "RESULT=%s\n", got)
 	return nil
-}
+}, "childPing")
 
 func initServer(t *testing.T, ctx *context.T, opts ...rpc.ServerOpt) (string, func()) {
 	server, err := v23.NewServer(ctx, opts...)
@@ -654,7 +653,7 @@ func TestRendezvous(t *testing.T) {
 	// backoff of some minutes.
 	startServer := func() {
 		time.Sleep(100 * time.Millisecond)
-		srv, _ := sh.Start("echoServer", nil, "message", name)
+		srv, _ := sh.Start(nil, echoServer, "message", name)
 		s := expect.NewSession(t, srv.Stdout(), time.Minute)
 		s.ExpectVar("PID")
 		s.ExpectVar("NAME")
@@ -686,7 +685,7 @@ func TestCallback(t *testing.T) {
 	name, fn := initServer(t, ctx)
 	defer fn()
 
-	srv, err := sh.Start("childPing", nil, name)
+	srv, err := sh.Start(nil, childPing, name)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -814,7 +813,7 @@ func TestReconnect(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	server, err := sh.Start("echoServer", nil, "--v23.tcp.address=127.0.0.1:0", "mymessage", "")
+	server, err := sh.Start(nil, echoServer, "--v23.tcp.address=127.0.0.1:0", "mymessage", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -852,7 +851,7 @@ func TestReconnect(t *testing.T) {
 	// Resurrect the server with the same address, verify client
 	// re-establishes the connection. This is racy if another
 	// process grabs the port.
-	server, err = sh.Start("echoServer", nil, "--v23.tcp.address="+ep.Address, "mymessage again", "")
+	server, err = sh.Start(nil, echoServer, "--v23.tcp.address="+ep.Address, "mymessage again", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

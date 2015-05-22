@@ -6,52 +6,48 @@ package modules_test
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 )
 
-func init() {
-	modules.RegisterChild("echo", "<args>...", echo)
-}
-
-func echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var Echo = modules.Register(func(env *modules.Env, args ...string) error {
 	for i, a := range args {
-		fmt.Fprintf(stdout, "%d: %s\n", i, a)
+		fmt.Fprintf(env.Stdout, "%d: %s\n", i, a)
 	}
 	return nil
-}
+}, "echo")
 
 func ExampleDispatch() {
-	ctx, shutdown := test.InitForTest()
-	defer shutdown()
-	if modules.IsModulesChildProcess() {
-		// Child process. Dispatch will invoke the 'echo' command
+	if modules.IsChildProcess() {
+		// Child process dispatches to the echo program.
 		if err := modules.Dispatch(); err != nil {
-			panic(fmt.Sprintf("unexpected error: %s", err))
+			panic(err)
 		}
 		return
 	}
-	// Parent process.
+	// Parent process spawns the echo program.
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
 	sh, _ := modules.NewShell(ctx, nil, false, nil)
 	defer sh.Cleanup(nil, nil)
-	h, _ := sh.Start("echo", nil, "a", "b")
+	h, _ := sh.Start(nil, Echo, "a", "b")
 	h.Shutdown(os.Stdout, os.Stderr)
 	// Output:
 	// 0: a
 	// 1: b
 }
 
-func ExampleDispatchAndExit() {
+func ExampleDispatchAndExitIfChild() {
+	// Child process dispatches to the echo program.
+	modules.DispatchAndExitIfChild()
+	// Parent process spawns the echo program.
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
-	// DispatchAndExit will call os.Exit(0) when executed within the child.
-	modules.DispatchAndExit()
 	sh, _ := modules.NewShell(ctx, nil, false, nil)
 	defer sh.Cleanup(nil, nil)
-	h, _ := sh.Start("echo", nil, "c", "d")
+	h, _ := sh.Start(nil, Echo, "c", "d")
 	h.Shutdown(os.Stdout, os.Stderr)
 	// Output:
 	// 0: c

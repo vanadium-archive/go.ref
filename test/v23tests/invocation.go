@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/test/modules"
 )
 

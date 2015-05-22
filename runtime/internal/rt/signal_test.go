@@ -18,11 +18,6 @@ import (
 	"v.io/x/ref/test/modules"
 )
 
-func init() {
-	modules.RegisterChild("withRuntime", "", withRuntime)
-	modules.RegisterChild("withoutRuntime", "", withoutRuntime)
-}
-
 func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
 	fmt.Fprintf(stdout, "ready\n")
 	scanner := bufio.NewScanner(stdin)
@@ -32,18 +27,18 @@ func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
 	modules.WaitForEOF(stdin)
 }
 
-func withRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var withRuntime = modules.Register(func(env *modules.Env, args ...string) error {
 	_, shutdown := test.InitForTest()
 	defer shutdown()
 
-	simpleEchoProgram(stdin, stdout)
+	simpleEchoProgram(env.Stdin, env.Stdout)
 	return nil
-}
+}, "withRuntime")
 
-func withoutRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	simpleEchoProgram(stdin, stdout)
+var withoutRuntime = modules.Register(func(env *modules.Env, args ...string) error {
+	simpleEchoProgram(env.Stdin, env.Stdout)
 	return nil
-}
+}, "withoutRuntime")
 
 func TestWithRuntime(t *testing.T) {
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
@@ -51,7 +46,7 @@ func TestWithRuntime(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start("withRuntime", nil)
+	h, err := sh.Start(nil, withRuntime)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -72,7 +67,7 @@ func TestWithoutRuntime(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	opts := sh.DefaultStartOpts()
 	opts.ShutdownTimeout = 5 * time.Second
-	h, err := sh.StartWithOpts(opts, nil, "withoutRuntime")
+	h, err := sh.StartWithOpts(opts, nil, withoutRuntime)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

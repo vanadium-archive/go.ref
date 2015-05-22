@@ -6,7 +6,6 @@ package rt_test
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -29,12 +28,6 @@ import (
 )
 
 //go:generate v23 test generate
-
-const (
-	noWaitersCmd = "noWaiters"
-	forceStopCmd = "forceStop"
-	appCmd       = "app"
-)
 
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
@@ -103,17 +96,17 @@ func TestMultipleStops(t *testing.T) {
 	}
 }
 
-func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var noWaiters = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
-	fmt.Fprintf(stdout, "ready\n")
-	modules.WaitForEOF(stdin)
+	fmt.Fprintf(env.Stdout, "ready\n")
+	modules.WaitForEOF(env.Stdin)
 	m.Stop()
 	os.Exit(42) // This should not be reached.
 	return nil
-}
+}, "noWaiters")
 
 // TestNoWaiters verifies that the child process exits in the absence of any
 // wait channel being registered with its runtime.
@@ -123,7 +116,7 @@ func TestNoWaiters(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start(noWaitersCmd, nil)
+	h, err := sh.Start(nil, noWaiters)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -134,18 +127,18 @@ func TestNoWaiters(t *testing.T) {
 	}
 }
 
-func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var forceStop = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
-	fmt.Fprintf(stdout, "ready\n")
-	modules.WaitForEOF(stdin)
+	fmt.Fprintf(env.Stdout, "ready\n")
+	modules.WaitForEOF(env.Stdin)
 	m.WaitForStop(make(chan string, 1))
 	m.ForceStop()
 	os.Exit(42) // This should not be reached.
 	return nil
-}
+}, "forceStop")
 
 // TestForceStop verifies that ForceStop causes the child process to exit
 // immediately.
@@ -155,7 +148,7 @@ func TestForceStop(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start(forceStopCmd, nil)
+	h, err := sh.Start(nil, forceStop)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -250,21 +243,21 @@ func TestProgressMultipleTrackers(t *testing.T) {
 	}
 }
 
-func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var app = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
-	fmt.Fprintf(stdout, "Got %s\n", <-ch)
+	fmt.Fprintf(env.Stdout, "Got %s\n", <-ch)
 	m.AdvanceGoal(10)
-	fmt.Fprintf(stdout, "Doing some work\n")
+	fmt.Fprintf(env.Stdout, "Doing some work\n")
 	m.AdvanceProgress(2)
-	fmt.Fprintf(stdout, "Doing some more work\n")
+	fmt.Fprintf(env.Stdout, "Doing some more work\n")
 	m.AdvanceProgress(5)
 	return nil
-}
+}, "app")
 
 type configServer struct {
 	ch chan<- string
@@ -306,7 +299,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
 	sh.SetConfigKey(mgmt.ProtocolConfigKey, "tcp")
 	sh.SetConfigKey(mgmt.AddressConfigKey, "127.0.0.1:0")
-	h, err := sh.Start("app", nil)
+	h, err := sh.Start(nil, app)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

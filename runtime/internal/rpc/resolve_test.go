@@ -7,7 +7,6 @@ package rpc_test
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"testing"
 	"time"
@@ -66,7 +65,7 @@ func setupRuntime() {
 	fake.InjectRuntime(runtime, ctx, shutdown)
 }
 
-func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	setupRuntime()
 	ctx, shutdown := v23.Init()
 	defer shutdown()
@@ -88,16 +87,16 @@ func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 	if err := server.ServeDispatcher(mp, mt); err != nil {
 		return fmt.Errorf("root failed: %s", err)
 	}
-	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
 	for _, ep := range eps {
-		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
-}
+}, "rootMT")
 
 func startMT(t *testing.T, sh *modules.Shell) string {
-	h, err := sh.Start("rootMountTable", nil)
+	h, err := sh.Start(nil, rootMT)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}

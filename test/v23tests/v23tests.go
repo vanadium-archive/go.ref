@@ -419,7 +419,7 @@ func (t *T) BinaryFromPath(path string) *Binary {
 		env:     t,
 		envVars: nil,
 		path:    path,
-		opts:    t.shell.DefaultStartOpts().NoExecCommand(),
+		opts:    t.shell.DefaultStartOpts().NoExecProgram(),
 	}
 }
 
@@ -449,7 +449,7 @@ func (t *T) BuildGoPkg(pkg string, flags ...string) *Binary {
 // be used via BuildV23Pkg.
 func (t *T) BuildV23Pkg(pkg string, flags ...string) *Binary {
 	b := t.buildPkg(pkg, flags...)
-	b.opts = t.shell.DefaultStartOpts().ExternalCommand()
+	b.opts = t.shell.DefaultStartOpts().ExternalProgram()
 	return b
 }
 
@@ -474,7 +474,7 @@ func (t *T) buildPkg(pkg string, flags ...string) *Binary {
 		env:     t,
 		envVars: nil,
 		path:    built_path,
-		opts:    t.shell.DefaultStartOpts().NoExecCommand(),
+		opts:    t.shell.DefaultStartOpts().NoExecProgram(),
 	}
 	t.builtBinaries[pkg] = binary
 	return binary

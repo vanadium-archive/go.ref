@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -22,13 +21,12 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -113,8 +111,10 @@ func Cat(ctx *context.T, name, file string) (string, error) {
 	return content, nil
 }
 
-// app is a test application. It pings the invoking device manager with state information.
-func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+// App is a test application. It pings the invoking device manager with state information.
+var App = modules.Register(appFunc, "App")
+
+func appFunc(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
@@ -193,9 +193,10 @@ func (p PingServer) VerifyPingArgs(t *testing.T, username, flagValue, envValue s
 	}
 }
 
-// Same as app, except that it does not exit properly after being stopped
-func hangingApp(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	err := app(stdin, stdout, stderr, env, args...)
+// HangingApp is the same as App, except that it does not exit properly after
+// being stopped.
+var HangingApp = modules.Register(func(env *modules.Env, args ...string) error {
+	err := appFunc(env, args...)
 	time.Sleep(24 * time.Hour)
 	return err
-}
+}, "HangingApp")

@@ -108,7 +108,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	defer os.RemoveAll(dmCreds)
 	dmEnv := []string{fmt.Sprintf("%v=%v", ref.EnvCredentials, dmCreds)}
 	dmArgs := []string{"factoryDM", root, "unused_helper", utiltest.MockApplicationRepoName, currLink}
-	args, env := sh.CommandEnvelope(utiltest.DeviceManagerCmd, dmEnv, dmArgs...)
+	args, env := sh.ProgramEnvelope(dmEnv, utiltest.DeviceManager, dmArgs...)
 	scriptPathFactory := generateDeviceManagerScript(t, root, args, env)
 
 	if err := os.Symlink(scriptPathFactory, currLink); err != nil {
@@ -126,7 +126,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// demonstrates that the initial device manager could be running by hand
 	// as long as the right initial configuration is passed into the device
 	// manager implementation.
-	dmh := servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, utiltest.DeviceManagerCmd, dmArgs...)
+	dmh := servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, utiltest.DeviceManager, dmArgs...)
 	defer func() {
 		syscall.Kill(dmh.Pid(), syscall.SIGINT)
 		utiltest.VerifyNoRunningProcesses(t)
@@ -142,7 +142,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Simulate an invalid envelope in the application repository.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmPauseBeforeStopEnv, utiltest.DeviceManagerCmd, "bogus", 0, 0, dmArgs...)
+	*envelope = utiltest.EnvelopeFromShell(sh, dmPauseBeforeStopEnv, utiltest.DeviceManager, "bogus", 0, 0, dmArgs...)
 
 	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", impl.ErrAppTitleMismatch.ID)
 	utiltest.RevertDeviceExpectError(t, ctx, "factoryDM", impl.ErrUpdateNoOp.ID)
@@ -150,7 +150,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerCmd, application.DeviceManagerTitle, 0, 0, "v2DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManager, application.DeviceManagerTitle, 0, 0, "v2DM")
 	utiltest.UpdateDevice(t, ctx, "factoryDM")
 
 	// Current link should have been updated to point to v2.
@@ -179,7 +179,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// relaunch it from the current link.
 	utiltest.ResolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScriptCmd, currLink)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
 
 	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
@@ -195,7 +195,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Try issuing an update with a binary that has a different major version
 	// number. It should fail.
 	utiltest.ResolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerV10Cmd, application.DeviceManagerTitle, 0, 0, "v2.5DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerV10, application.DeviceManagerTitle, 0, 0, "v2.5DM")
 	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
 
 	if evalLink() != scriptPathV2 {
@@ -203,7 +203,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the device manager and issue an update.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerCmd, application.DeviceManagerTitle, 0, 0, "v3DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManager, application.DeviceManagerTitle, 0, 0, "v3DM")
 	utiltest.UpdateDevice(t, ctx, "v2DM")
 
 	scriptPathV3 := evalLink()
@@ -221,7 +221,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Re-lanuch the device manager from current link.  We instruct the
 	// device manager to pause before stopping its server, so that we can
 	// verify that a second revert fails while a revert is in progress.
-	dmh = servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, utiltest.ExecScriptCmd, currLink)
+	dmh = servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, utiltest.ExecScript, currLink)
 
 	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "v3DM", 1) // Current link should have been launching v3.
@@ -243,7 +243,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	utiltest.ResolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScriptCmd, currLink)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
 	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
 
@@ -258,7 +258,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
 
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScriptCmd, currLink)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
 	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "factoryDM", 1) // Current link should have been launching factory version.
 	utiltest.ShutdownDevice(t, ctx, "factoryDM")
@@ -267,7 +267,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// Re-launch the device manager, to exercise the behavior of Stop.
 	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScriptCmd, currLink)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
 	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "factoryDM", 1)
 	utiltest.KillDevice(t, ctx, "factoryDM")
@@ -310,7 +310,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	// Create an 'envelope' for the device manager that we can pass to the
 	// installer, to ensure that the device manager that the installer
 	// configures can run.
-	dmargs, dmenv := sh.CommandEnvelope(utiltest.DeviceManagerCmd, nil, "dm")
+	dmargs, dmenv := sh.ProgramEnvelope(nil, utiltest.DeviceManager, "dm")
 	dmDir := filepath.Join(testDir, "dm")
 	// TODO(caprita): Add test logic when initMode = true.
 	singleUser, sessionMode, initMode := true, true, false
@@ -404,7 +404,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 	defer utiltest.VerifyNoRunningProcesses(t)
@@ -414,7 +414,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.AppCmd, "google naps", 0, 0, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")
 	envelope.Packages = map[string]application.SignedFile{
 		"test": application.SignedFile{
 			File: "realbin/testpkg",
@@ -519,7 +519,7 @@ func TestAccountAssociation(t *testing.T) {
 		v23.GetPrincipal(c).AddToRoots(v23.GetPrincipal(ctx).BlessingStore().Default())
 	}
 
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 	defer utiltest.VerifyNoRunningProcesses(t)

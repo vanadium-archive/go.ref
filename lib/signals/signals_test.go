@@ -55,32 +55,32 @@ func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
 	<-closeStopLoop
 }
 
-func handleDefaults(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	program(stdin, stdout)
+var handleDefaults = modules.Register(func(env *modules.Env, args ...string) error {
+	program(env.Stdin, env.Stdout)
 	return nil
-}
+}, "handleDefaults")
 
-func handleCustom(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	program(stdin, stdout, syscall.SIGABRT)
+var handleCustom = modules.Register(func(env *modules.Env, args ...string) error {
+	program(env.Stdin, env.Stdout, syscall.SIGABRT)
 	return nil
-}
+}, "handleCustom")
 
-func handleCustomWithStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	program(stdin, stdout, STOP, syscall.SIGABRT, syscall.SIGHUP)
+var handleCustomWithStop = modules.Register(func(env *modules.Env, args ...string) error {
+	program(env.Stdin, env.Stdout, STOP, syscall.SIGABRT, syscall.SIGHUP)
 	return nil
-}
+}, "handleCustomWithStop")
 
-func handleDefaultsIgnoreChan(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var handleDefaultsIgnoreChan = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	closeStopLoop := make(chan struct{})
-	go stopLoop(v23.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
+	go stopLoop(v23.GetAppCycle(ctx).Stop, env.Stdin, closeStopLoop)
 	ShutdownOnSignals(ctx)
-	fmt.Fprintf(stdout, "ready\n")
+	fmt.Fprintf(env.Stdout, "ready\n")
 	<-closeStopLoop
 	return nil
-}
+}, "handleDefaultsIgnoreChan")
 
 func isSignalInSet(sig os.Signal, set []os.Signal) bool {
 	for _, s := range set {
@@ -103,12 +103,12 @@ func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
 	}
 }
 
-func newShell(t *testing.T, ctx *context.T, command string) (*modules.Shell, modules.Handle) {
+func newShell(t *testing.T, ctx *context.T, prog modules.Program) (*modules.Shell, modules.Handle) {
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	handle, err := sh.Start(command, nil)
+	handle, err := sh.Start(nil, prog)
 	if err != nil {
 		sh.Cleanup(os.Stderr, os.Stderr)
 		t.Fatalf("unexpected error: %s", err)
@@ -123,7 +123,7 @@ func TestCleanShutdownSignal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, handleDefaults)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGINT)
@@ -139,7 +139,7 @@ func TestCleanShutdownStop(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, handleDefaults)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
@@ -156,7 +156,7 @@ func TestCleanShutdownStopCustom(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleCustomWithStop")
+	sh, h := newShell(t, ctx, handleCustomWithStop)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
@@ -180,7 +180,7 @@ func TestStopNoHandler(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleCustom")
+	sh, h := newShell(t, ctx, handleCustom)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
@@ -194,7 +194,7 @@ func TestDoubleSignal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, handleDefaults)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGTERM)
@@ -212,7 +212,7 @@ func TestSignalAndStop(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, handleDefaults)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGTERM)
@@ -229,7 +229,7 @@ func TestDoubleStop(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, handleDefaults)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
@@ -244,7 +244,7 @@ func TestSendUnhandledSignal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, handleDefaults)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
@@ -260,7 +260,7 @@ func TestDoubleSignalIgnoreChan(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleDefaultsIgnoreChan")
+	sh, h := newShell(t, ctx, handleDefaultsIgnoreChan)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	// Even if we ignore the channel that ShutdownOnSignals returns,
@@ -278,7 +278,7 @@ func TestHandlerCustomSignal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h := newShell(t, ctx, "handleCustom")
+	sh, h := newShell(t, ctx, handleCustom)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
@@ -297,7 +297,7 @@ func TestHandlerCustomSignalWithStop(t *testing.T) {
 
 	for _, signal := range []syscall.Signal{syscall.SIGABRT, syscall.SIGHUP} {
 		ctx, _ := vtrace.WithNewTrace(rootCtx)
-		sh, h := newShell(t, ctx, "handleCustomWithStop")
+		sh, h := newShell(t, ctx, handleCustomWithStop)
 		h.Expect("ready")
 		checkSignalIsNotDefault(t, signal)
 		syscall.Kill(h.Pid(), signal)
@@ -367,7 +367,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
 	sh.SetConfigKey(mgmt.ProtocolConfigKey, "tcp")
 	sh.SetConfigKey(mgmt.AddressConfigKey, "127.0.0.1:0")
-	h, err := sh.Start("handleDefaults", nil)
+	h, err := sh.Start(nil, handleDefaults)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

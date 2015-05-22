@@ -6,7 +6,6 @@ package agentlib_test
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -43,15 +42,15 @@ import (
 
 //go:generate v23 test generate
 
-func getPrincipalAndHang(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var getPrincipalAndHang = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	p := v23.GetPrincipal(ctx)
-	fmt.Fprintf(stdout, "DEFAULT_BLESSING=%s\n", p.BlessingStore().Default())
-	ioutil.ReadAll(stdin)
+	fmt.Fprintf(env.Stdout, "DEFAULT_BLESSING=%s\n", p.BlessingStore().Default())
+	ioutil.ReadAll(env.Stdin)
 	return nil
-}
+}, "getPrincipalAndHang")
 
 func newAgent(ctx *context.T, endpoint string, cached bool) (security.Principal, error) {
 	ep, err := v23.NewEndpoint(endpoint)
@@ -165,7 +164,7 @@ func TestAgentShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The child process will connect to the agent
-	h, err := sh.Start("getPrincipalAndHang", nil)
+	h, err := sh.Start(nil, getPrincipalAndHang)
 	if err != nil {
 		t.Fatal(err)
 	}

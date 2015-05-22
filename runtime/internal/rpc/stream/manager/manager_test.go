@@ -37,11 +37,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func init() {
-	modules.RegisterChild("runServer", "", runServer)
-	modules.RegisterChild("runRLimitedServer", "", runRLimitedServer)
-}
-
 // We write our own TestMain here instead of relying on v23 test generate because
 // we need to set runtime.GOMAXPROCS.
 func TestMain(m *testing.M) {
@@ -51,13 +46,7 @@ func TestMain(m *testing.M) {
 	// condition that occurs when closing the server; also, using 1 cpu
 	// introduces less variance in the behavior of the test.
 	runtime.GOMAXPROCS(1)
-	if modules.IsModulesChildProcess() {
-		if err := modules.Dispatch(); err != nil {
-			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
+	modules.DispatchAndExitIfChild()
 	os.Exit(m.Run())
 }
 
@@ -676,7 +665,7 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("runServer", nil, protocol, "127.0.0.1:0")
+	h, err := sh.Start(nil, runServer, protocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -697,7 +686,7 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 
-	h, err = sh.Start("runServer", nil, protocol, ep.Addr().String())
+	h, err = sh.Start(nil, runServer, protocol, ep.Addr().String())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -714,34 +703,36 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	}
 }
 
-func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var runServer = modules.Register(runServerFunc, "runServer")
+
+func runServerFunc(env *modules.Env, args ...string) error {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	principal := testutil.NewPrincipal("test")
 	_, ep, err := server.Listen(args[0], args[1], principal, principal.BlessingStore().Default())
 	if err != nil {
-		fmt.Fprintln(stderr, err)
+		fmt.Fprintln(env.Stderr, err)
 		return err
 	}
-	fmt.Fprintf(stdout, "ENDPOINT=%v\n", ep)
+	fmt.Fprintf(env.Stdout, "ENDPOINT=%v\n", ep)
 	// Live forever (till the process is explicitly killed)
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
 }
 
-func runRLimitedServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var runRLimitedServer = modules.Register(func(env *modules.Env, args ...string) error {
 	var rlimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
-		fmt.Fprintln(stderr, err)
+		fmt.Fprintln(env.Stderr, err)
 		return err
 	}
 	rlimit.Cur = 9
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
-		fmt.Fprintln(stderr, err)
+		fmt.Fprintln(env.Stderr, err)
 		return err
 	}
-	fmt.Fprintf(stdout, "RLIMIT_NOFILE=%d\n", rlimit.Cur)
-	return runServer(stdin, stdout, stderr, env, args...)
-}
+	fmt.Fprintf(env.Stdout, "RLIMIT_NOFILE=%d\n", rlimit.Cur)
+	return runServerFunc(env, args...)
+}, "runRLimitedServer")
 
 func readLine(f stream.Flow) (string, error) {
 	var result bytes.Buffer
@@ -873,7 +864,7 @@ func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("runRLimitedServer", nil, "--logtostderr=true", "tcp", "127.0.0.1:0")
+	h, err := sh.Start(nil, runRLimitedServer, "--logtostderr=true", "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

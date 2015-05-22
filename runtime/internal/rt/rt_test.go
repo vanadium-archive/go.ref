@@ -6,7 +6,6 @@ package rt_test
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -53,17 +52,17 @@ func TestInit(t *testing.T) {
 	}
 }
 
-func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var child = modules.Register(func(env *modules.Env, args ...string) error {
 	_, shutdown := test.InitForTest()
 	defer shutdown()
 
 	logger := vlog.Log
 	vlog.Infof("%s\n", logger)
-	fmt.Fprintf(stdout, "%s\n", logger)
-	modules.WaitForEOF(stdin)
-	fmt.Fprintf(stdout, "done\n")
+	fmt.Fprintf(env.Stdout, "%s\n", logger)
+	modules.WaitForEOF(env.Stdin)
+	fmt.Fprintf(env.Stdout, "done\n")
 	return nil
-}
+}, "child")
 
 func TestInitArgs(t *testing.T) {
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
@@ -71,7 +70,7 @@ func TestInitArgs(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start("child", nil, "--logtostderr=true", "--vmodule=*=3", "--", "foobar")
+	h, err := sh.Start(nil, child, "--logtostderr=true", "--vmodule=*=3", "--", "foobar")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -121,7 +120,7 @@ func tmpDir(t *testing.T) string {
 	return dir
 }
 
-func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var principal = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
@@ -129,13 +128,13 @@ func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	if err := validatePrincipal(p); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "DEFAULT_BLESSING=%s\n", defaultBlessing(p))
+	fmt.Fprintf(env.Stdout, "DEFAULT_BLESSING=%s\n", defaultBlessing(p))
 	return nil
-}
+}, "principal")
 
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
-func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var runner = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
@@ -143,18 +142,18 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	if err := validatePrincipal(p); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(p))
+	fmt.Fprintf(env.Stdout, "RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(p))
 	sh, err := modules.NewShell(ctx, p, false, nil)
 	if err != nil {
 		return err
 	}
-	if _, err := sh.Start("principal", nil, args...); err != nil {
+	if _, err := sh.Start(nil, principal, args...); err != nil {
 		return err
 	}
 	// Cleanup copies the output of sh to these Writers.
-	sh.Cleanup(stdout, stderr)
+	sh.Cleanup(env.Stdout, env.Stderr)
 	return nil
-}
+}, "runner")
 
 func createCredentialsInDir(t *testing.T, dir string, blessing string) {
 	principal, err := vsecurity.CreatePersistentPrincipal(dir, nil)
@@ -186,7 +185,7 @@ func TestPrincipalInheritance(t *testing.T) {
 	// directory supplied by the environment.
 	credEnv := []string{ref.EnvCredentials + "=" + cdir}
 
-	h, err := sh.Start("runner", credEnv)
+	h, err := sh.Start(credEnv, runner)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -209,7 +208,7 @@ func TestPrincipalInheritance(t *testing.T) {
 func TestPrincipalInit(t *testing.T) {
 	// Collect the process' public key and error status
 	collect := func(sh *modules.Shell, env []string, args ...string) string {
-		h, err := sh.Start("principal", env, args...)
+		h, err := sh.Start(env, principal, args...)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

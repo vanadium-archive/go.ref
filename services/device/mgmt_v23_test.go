@@ -126,7 +126,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		// Create those credentials and options to use to setup the
 		// binaries with them.
 		aliceCreds, _ = i.Shell().NewChildCredentials("alice")
-		aliceOpts     = i.Shell().DefaultStartOpts().ExternalCommand().WithCustomCredentials(aliceCreds)
+		aliceOpts     = i.Shell().DefaultStartOpts().ExternalProgram().WithCustomCredentials(aliceCreds)
 
 		// Build all the command-line tools and set them up to run as alice.
 		// applicationd/binaryd servers will be run by alice too.

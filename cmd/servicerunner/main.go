@@ -17,7 +17,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -46,11 +45,7 @@ func init() {
 	wsprlib.OverrideCaveatValidation()
 	cmdServiceRunner.Flags.IntVar(&port, "port", 8124, "Port for wspr to listen on.")
 	cmdServiceRunner.Flags.StringVar(&identd, "identd", "", "Name of wspr identd server.")
-	modules.RegisterChild("rootMT", ``, rootMT)
-	modules.RegisterChild(wsprdCommand, modules.Usage(&cmdServiceRunner.Flags), startWSPR)
 }
-
-const wsprdCommand = "wsprd"
 
 func main() {
 	cmdline.HideGlobalFlagsExcept()
@@ -68,7 +63,7 @@ line), then waits forever.
 `,
 }
 
-func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -88,13 +83,13 @@ func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	if err := server.ServeDispatcher("", mt); err != nil {
 		return fmt.Errorf("root failed: %s", err)
 	}
-	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
 	for _, ep := range eps {
-		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
-}
+}, "rootMT")
 
 // updateVars captures the vars from the given Handle's stdout and adds them to
 // the given vars map, overwriting existing entries.
@@ -130,7 +125,7 @@ func run(env *cmdline.Env, args []string) error {
 	// The dispatch to modules children must occur after the call to cmdline.Main
 	// (which calls cmdline.Parse), so that servicerunner flags are registered on
 	// the global flag.CommandLine.
-	if modules.IsModulesChildProcess() {
+	if modules.IsChildProcess() {
 		return modules.Dispatch()
 	}
 
@@ -146,7 +141,7 @@ func run(env *cmdline.Env, args []string) error {
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
-	h, err := sh.Start("rootMT", nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(nil, rootMT, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0")
 	if err != nil {
 		return err
 	}
@@ -164,7 +159,7 @@ func run(env *cmdline.Env, args []string) error {
 	defer proxyShutdown()
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 
-	h, err = sh.Start(wsprdCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
+	h, err = sh.Start(nil, wsprd, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
 	if err != nil {
 		return err
 	}
@@ -172,7 +167,7 @@ func run(env *cmdline.Env, args []string) error {
 		return err
 	}
 
-	h, err = sh.Start(identitylib.TestIdentitydCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--http-addr=localhost:0")
+	h, err = sh.Start(nil, identitylib.TestIdentityd, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--http-addr=localhost:0")
 	if err != nil {
 		return err
 	}
@@ -190,7 +185,7 @@ func run(env *cmdline.Env, args []string) error {
 	return nil
 }
 
-func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var wsprd = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -203,7 +198,7 @@ func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		proxy.Serve()
 	}()
 
-	fmt.Fprintf(stdout, "WSPR_ADDR=%s\n", addr)
-	modules.WaitForEOF(stdin)
+	fmt.Fprintf(env.Stdout, "WSPR_ADDR=%s\n", addr)
+	modules.WaitForEOF(env.Stdin)
 	return nil
-}
+}, "wsprd")

@@ -6,7 +6,6 @@ package binarylib_test
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"syscall"
@@ -25,16 +24,13 @@ import (
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
 
-const (
-	binaryCmd = "binaryd"
-)
-
-func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var binaryd = modules.Register(func(env *modules.Env, args ...string) error {
 	if len(args) < 2 {
 		vlog.Fatalf("binaryd expected at least name and store arguments and optionally AccessList flags per PermissionsFromFlag")
 	}
@@ -43,7 +39,7 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 
 	ctx, shutdown := test.InitForTest()
 
-	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
+	defer fmt.Fprintf(env.Stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
 	defer shutdown()
 
@@ -64,11 +60,11 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
 
-	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
 	<-signals.ShutdownOnSignals(ctx)
 
 	return nil
-}
+}, "binaryd")
 
 func b(name string) repository.BinaryClientStub {
 	return repository.BinaryClient(name)
@@ -112,7 +108,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	defer cleanup()
 	prepDirectory(t, storedir)
 
-	nmh := servicetest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	nmh := servicetest.RunCommand(t, sh, nil, binaryd, "bini", storedir)
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -169,7 +165,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("WithPrincipal() failed: %v", err)
 	}
 
-	nmh := servicetest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	nmh := servicetest.RunCommand(t, sh, nil, binaryd, "bini", storedir)
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -449,7 +445,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}
 
-	nmh := servicetest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	nmh := servicetest.RunCommand(t, sh, nil, binaryd, "bini", storedir)
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 

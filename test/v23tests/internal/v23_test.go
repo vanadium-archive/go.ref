@@ -4,11 +4,14 @@
 
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
+
 package internal_test
 
-import "testing"
+import (
+	"testing"
 
-import "v.io/x/ref/test/v23tests"
+	"v.io/x/ref/test/v23tests"
+)
 
 func TestV23One(t *testing.T) {
 	v23tests.RunTest(t, V23TestOne)

@@ -6,7 +6,6 @@ package utiltest
 
 import (
 	"fmt"
-	"io"
 	"os"
 	goexec "os/exec"
 	"strings"
@@ -31,48 +30,42 @@ const (
 	RedirectEnv    = "DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR"
 	TestEnvVarName = "V23_RANDOM_ENV_VALUE"
 	NoPairingToken = ""
-
-	// Modules names.
-	ExecScriptCmd       = "execScript"
-	DeviceManagerCmd    = "deviceManager"
-	DeviceManagerV10Cmd = "deviceManagerV10" // deviceManager with a different major version number
-	AppCmd              = "app"
-	HangingAppCmd       = "hangingApp"
 )
 
-// execScript launches the script passed as argument.
-func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+// ExecScript launches the script passed as argument.
+var ExecScript = modules.Register(func(env *modules.Env, args ...string) error {
 	if want, got := 1, len(args); want != got {
-		vlog.Fatalf("execScript expected %d arguments, got %d instead", want, got)
+		vlog.Fatalf("ExecScript expected %d arguments, got %d instead", want, got)
 	}
 	script := args[0]
 	osenv := []string{RedirectEnv + "=1"}
-	if env["PAUSE_BEFORE_STOP"] == "1" {
+	if env.Vars["PAUSE_BEFORE_STOP"] == "1" {
 		osenv = append(osenv, "PAUSE_BEFORE_STOP=1")
 	}
 
 	cmd := goexec.Cmd{
 		Path:   script,
 		Env:    osenv,
-		Stdin:  stdin,
-		Stderr: stderr,
-		Stdout: stdout,
+		Stdin:  env.Stdin,
+		Stderr: env.Stderr,
+		Stdout: env.Stdout,
 	}
-
 	return cmd.Run()
-}
+}, "ExecScript")
 
-// deviceManager sets up a device manager server.  It accepts the name to
+// DeviceManager sets up a device manager server.  It accepts the name to
 // publish the server under as an argument.  Additional arguments can optionally
 // specify device manager config settings.
-func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var DeviceManager = modules.Register(deviceManagerFunc, "DeviceManager")
+
+func deviceManagerFunc(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	if len(args) == 0 {
 		vlog.Fatalf("deviceManager expected at least an argument")
 	}
 	publishName := args[0]
 	args = args[1:]
-	defer fmt.Fprintf(stdout, "%v terminated\n", publishName)
+	defer fmt.Fprintf(env.Stdout, "%v terminated\n", publishName)
 	defer vlog.VI(1).Infof("%v terminated", publishName)
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -134,11 +127,11 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	}
 	// Manually mount the claimable service in the 'global' mounttable.
 	v23.GetNamespace(ctx).Mount(ctx, "claimable", claimableName, 0)
-	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
 
 	<-shutdownChan
-	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
-		modules.WaitForEOF(stdin)
+	if val, present := env.Vars["PAUSE_BEFORE_STOP"]; present && val == "1" {
+		modules.WaitForEOF(env.Stdin)
 	}
 	// TODO(ashankar): Figure out a way to incorporate this check in the test.
 	// if impl.DispatcherLeaking(dispatcher) {
@@ -148,15 +141,15 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 }
 
 // This is the same as DeviceManager above, except that it has a different major version number
-func deviceManagerV10(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var DeviceManagerV10 = modules.Register(func(env *modules.Env, args ...string) error {
 	impl.CurrentVersion = impl.Version{10, 0} // Set the version number to 10.0
-	return deviceManager(stdin, stdout, stderr, env, args...)
-}
+	return deviceManagerFunc(env, args...)
+}, "DeviceManagerV10")
 
 func TestMainImpl(m *testing.M) {
 	test.Init()
 	isSuidHelper := len(os.Getenv("V23_SUIDHELPER_TEST")) > 0
-	if modules.IsModulesChildProcess() && !isSuidHelper {
+	if modules.IsChildProcess() && !isSuidHelper {
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
 			os.Exit(1)
@@ -176,14 +169,4 @@ func TestSuidHelperImpl(t *testing.T) {
 	if err := suid.Run(os.Environ()); err != nil {
 		vlog.Fatalf("Failed to Run() setuidhelper: %v", err)
 	}
-}
-
-func init() {
-	modules.RegisterChild("execScript", `execScript launches the script passed as argument.`, execScript)
-	modules.RegisterChild("deviceManager", `deviceManager sets up a device manager server.  It accepts the name to
-publish the server under as an argument.  Additional arguments can optionally
- specify device manager config settings.`, deviceManager)
-	modules.RegisterChild("deviceManagerV10", `This is the same as deviceManager above, except that it has a different major version number`, deviceManagerV10)
-	modules.RegisterChild("app", ``, app)
-	modules.RegisterChild("hangingApp", `Same as app, except that it does not exit properly after being stopped`, hangingApp)
 }

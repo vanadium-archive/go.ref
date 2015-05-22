@@ -6,7 +6,6 @@ package test
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"sort"
@@ -49,7 +48,7 @@ func testContext() (*context.T, func()) {
 	return ctx, shutdown
 }
 
-func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var proxyServer = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -58,11 +57,11 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	listenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	proxyShutdown, proxyEp, err := proxy.New(ctx, listenSpec, security.AllowEveryone())
 	if err != nil {
-		fmt.Fprintf(stderr, "%s\n", verror.DebugString(err))
+		fmt.Fprintf(env.Stderr, "%s\n", verror.DebugString(err))
 		return err
 	}
 	defer proxyShutdown()
-	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
 	if expected > 0 {
 		pub := publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
 		defer pub.WaitForStop()
@@ -84,11 +83,11 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 			time.Sleep(delay)
 		}
 	}
-	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", proxyEp.Name())
-	modules.WaitForEOF(stdin)
-	fmt.Fprintf(stdout, "DONE\n")
+	fmt.Fprintf(env.Stdout, "PROXY_NAME=%s\n", proxyEp.Name())
+	modules.WaitForEOF(env.Stdin)
+	fmt.Fprintf(env.Stdout, "DONE\n")
 	return nil
-}
+}, "")
 
 type testServer struct{}
 
@@ -121,7 +120,7 @@ func (h *proxyHandle) Start(t *testing.T, ctx *context.T, args ...string) error 
 		t.Fatalf("unexpected error: %s", err)
 	}
 	h.sh = sh
-	p, err := sh.Start("proxyServer", nil, args...)
+	p, err := sh.Start(nil, proxyServer, args...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

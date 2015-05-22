@@ -32,98 +32,85 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-func init() {
-	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintFromEnv)
-	modules.RegisterChild("printenv", "printenv", PrintEnv)
-	modules.RegisterChild("printblessing", "printblessing", PrintBlessing)
-	modules.RegisterChild("echos", "[args]*", Echo)
-	modules.RegisterChild("errortestChild", "", ErrorMain)
-	modules.RegisterChild("ignores_stdin", "", ignoresStdin)
-	modules.RegisterChild("pipeEcho", "", pipeEcho)
-	modules.RegisterChild("lifo", "", lifo)
-}
-
-// We must call Testmain ourselves because using v23 test generate
+// We must call TestMain ourselves because using v23 test generate
 // creates an import cycle for this package.
 func TestMain(m *testing.M) {
 	test.Init()
-	if modules.IsModulesChildProcess() {
-		if err := modules.Dispatch(); err != nil {
-			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
-			os.Exit(1)
-		}
-		return
-	}
+	modules.DispatchAndExitIfChild()
 	os.Exit(m.Run())
 }
 
-func ignoresStdin(io.Reader, io.Writer, io.Writer, map[string]string, ...string) error {
+var ignoreStdin = modules.Register(func(*modules.Env, ...string) error {
 	<-time.After(time.Minute)
 	return nil
-}
+}, "ignoreStdin")
 
-func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var echo = modules.Register(func(env *modules.Env, args ...string) error {
 	for _, a := range args {
-		fmt.Fprintf(stdout, "stdout: %s\n", a)
-		fmt.Fprintf(stderr, "stderr: %s\n", a)
+		fmt.Fprintf(env.Stdout, "stdout: %s\n", a)
+		fmt.Fprintf(env.Stderr, "stderr: %s\n", a)
 	}
 	return nil
-}
+}, "Echo")
 
-func pipeEcho(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	scanner := bufio.NewScanner(stdin)
+var pipeEcho = modules.Register(pipeEchoFunc, "pipeEcho")
+
+func pipeEchoFunc(env *modules.Env, args ...string) error {
+	scanner := bufio.NewScanner(env.Stdin)
 	for scanner.Scan() {
-		fmt.Fprintf(stdout, "%p: %s\n", pipeEcho, scanner.Text())
+		fmt.Fprintf(env.Stdout, "%p: %s\n", pipeEchoFunc, scanner.Text())
 	}
 	return nil
 }
 
-func lifo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	scanner := bufio.NewScanner(stdin)
+var lifo = modules.Register(lifoFunc, "lifo")
+
+func lifoFunc(env *modules.Env, args ...string) error {
+	scanner := bufio.NewScanner(env.Stdin)
 	scanner.Scan()
 	msg := scanner.Text()
-	modules.WaitForEOF(stdin)
-	fmt.Fprintf(stdout, "%p: %s\n", lifo, msg)
+	modules.WaitForEOF(env.Stdin)
+	fmt.Fprintf(env.Stdout, "%p: %s\n", lifoFunc, msg)
 	return nil
 }
 
-func PrintBlessing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var printBlessing = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	blessing := v23.GetPrincipal(ctx).BlessingStore().Default()
-	fmt.Fprintf(stdout, "%s", blessing)
+	fmt.Fprintf(env.Stdout, "%s", blessing)
 	return nil
-}
+}, "printBlessing")
 
-func PrintFromEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var envTest = modules.Register(func(env *modules.Env, args ...string) error {
 	for _, a := range args {
-		if v := env[a]; len(v) > 0 {
-			fmt.Fprintf(stdout, "%s\n", a+"="+v)
+		if v := env.Vars[a]; len(v) > 0 {
+			fmt.Fprintf(env.Stdout, "%s\n", a+"="+v)
 		} else {
-			fmt.Fprintf(stderr, "missing %s\n", a)
+			fmt.Fprintf(env.Stderr, "missing %s\n", a)
 		}
 	}
-	modules.WaitForEOF(stdin)
-	fmt.Fprintf(stdout, "done\n")
+	modules.WaitForEOF(env.Stdin)
+	fmt.Fprintf(env.Stdout, "done\n")
 	return nil
-}
+}, "envTest")
 
 const printEnvArgPrefix = "PRINTENV_ARG="
 
-func PrintEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var printEnv = modules.Register(func(env *modules.Env, args ...string) error {
 	for _, a := range args {
-		fmt.Fprintf(stdout, "%s%s\n", printEnvArgPrefix, a)
+		fmt.Fprintf(env.Stdout, "%s%s\n", printEnvArgPrefix, a)
 	}
-	for k, v := range env {
-		fmt.Fprintf(stdout, "%q\n", k+"="+v)
+	for k, v := range env.Vars {
+		fmt.Fprintf(env.Stdout, "%q\n", k+"="+v)
 	}
 	return nil
-}
+}, "printEnv")
 
-func ErrorMain(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var errorMain = modules.Register(func(env *modules.Env, args ...string) error {
 	return fmt.Errorf("an error")
-}
+}, "errorMain")
 
 func waitForInput(scanner *bufio.Scanner) bool {
 	ch := make(chan struct{})
@@ -139,8 +126,8 @@ func waitForInput(scanner *bufio.Scanner) bool {
 	}
 }
 
-func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
-	h, err := sh.Start(name, nil, key)
+func testProgram(t *testing.T, sh *modules.Shell, prog modules.Program, key, val string) {
+	h, err := sh.Start(nil, prog, key)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -180,7 +167,7 @@ func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
 }
 
 func getBlessing(t *testing.T, sh *modules.Shell, env ...string) string {
-	h, err := sh.Start("printblessing", env)
+	h, err := sh.Start(env, printBlessing)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -193,7 +180,7 @@ func getBlessing(t *testing.T, sh *modules.Shell, env ...string) string {
 }
 
 func getCustomBlessing(t *testing.T, sh *modules.Shell, creds *modules.CustomCredentials) string {
-	h, err := sh.StartWithOpts(sh.DefaultStartOpts().WithCustomCredentials(creds), nil, "printblessing")
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts().WithCustomCredentials(creds), nil, printBlessing)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -216,7 +203,7 @@ func TestChild(t *testing.T) {
 	defer sh.Cleanup(nil, nil)
 	key, val := "simpleVar", "foo & bar"
 	sh.SetVar(key, val)
-	testCommand(t, sh, "envtest", key, val)
+	testProgram(t, sh, envTest, key, val)
 }
 
 func TestAgent(t *testing.T) {
@@ -367,8 +354,8 @@ func TestChildNoRegistration(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	key, val := "simpleVar", "foo & bar"
 	sh.SetVar(key, val)
-	testCommand(t, sh, "envtest", key, val)
-	_, err = sh.Start("non-existent-command", nil, "random", "args")
+	testProgram(t, sh, envTest, key, val)
+	_, err = sh.Start(nil, modules.Program("non-existent-program"), "random", "args")
 	if err == nil {
 		fmt.Fprintf(os.Stderr, "Failed: %v\n", err)
 		t.Fatalf("expected error")
@@ -384,7 +371,7 @@ func TestErrorChild(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("errortestChild", nil)
+	h, err := sh.Start(nil, errorMain)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -393,10 +380,10 @@ func TestErrorChild(t *testing.T) {
 	}
 }
 
-func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) {
+func testShutdown(t *testing.T, sh *modules.Shell, prog modules.Program) {
 	result := ""
 	args := []string{"a", "b c", "ddd"}
-	if _, err := sh.Start(command, nil, args...); err != nil {
+	if _, err := sh.Start(nil, prog, args...); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	var stdoutBuf bytes.Buffer
@@ -410,9 +397,7 @@ func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) 
 	if got, want := stdoutBuf.String(), stdoutOutput+result; got != want {
 		t.Errorf("got %q want %q", got, want)
 	}
-	if !isfunc {
-		stderrBuf.ReadString('\n') // Skip past the random # generator output
-	}
+	stderrBuf.ReadString('\n') // Skip past the random # generator output
 	if got, want := stderrBuf.String(), stderrOutput; got != want {
 		t.Errorf("got %q want %q", got, want)
 	}
@@ -427,13 +412,13 @@ func TestShutdownSubprocess(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(nil, nil)
-	testShutdown(t, sh, "echos", false)
+	testShutdown(t, sh, echo)
 }
 
-// TestShutdownSubprocessIgnoresStdin verifies that Shutdown doesn't wait
+// TestShutdownSubprocessIgnoreStdin verifies that Shutdown doesn't wait
 // forever if a child does not die upon closing stdin; but instead times out and
 // returns an appropriate error.
-func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
+func TestShutdownSubprocessIgnoreStdin(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
@@ -443,7 +428,7 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 	}
 	opts := sh.DefaultStartOpts()
 	opts.ShutdownTimeout = time.Second
-	h, err := sh.StartWithOpts(opts, nil, "ignores_stdin")
+	h, err := sh.StartWithOpts(opts, nil, ignoreStdin)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -472,7 +457,7 @@ func TestStdoutRace(t *testing.T) {
 	}
 	opts := sh.DefaultStartOpts()
 	opts.ShutdownTimeout = time.Second
-	h, err := sh.StartWithOpts(opts, nil, "ignores_stdin")
+	h, err := sh.StartWithOpts(opts, nil, ignoreStdin)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -519,7 +504,7 @@ func TestEnvelope(t *testing.T) {
 	sh.SetVar("a", "1")
 	sh.SetVar("b", "2")
 	args := []string{"oh", "ah"}
-	h, err := sh.Start("printenv", nil, args...)
+	h, err := sh.Start(nil, printEnv, args...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -533,7 +518,7 @@ func TestEnvelope(t *testing.T) {
 			childEnv = append(childEnv, o)
 		}
 	}
-	shArgs, shEnv := sh.CommandEnvelope("printenv", nil, args...)
+	shArgs, shEnv := sh.ProgramEnvelope(nil, printEnv, args...)
 	for i, ev := range shEnv {
 		shEnv[i] = fmt.Sprintf("%q", ev)
 	}
@@ -575,7 +560,7 @@ func TestEnvMerge(t *testing.T) {
 	os.Setenv("a", "wrong, should be 1")
 	sh.SetVar("b", "2 also wrong")
 	os.Setenv("b", "wrong, should be 2")
-	h, err := sh.Start("printenv", []string{"b=2"})
+	h, err := sh.Start([]string{"b=2"}, printEnv)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -604,7 +589,7 @@ func TestNoExec(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.StartWithOpts(sh.DefaultStartOpts().NoExecCommand(), nil, "/bin/echo", "hello", "world")
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts().NoExecProgram(), nil, modules.Program("/bin/echo"), "hello", "world")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -626,7 +611,7 @@ func TestExternal(t *testing.T) {
 	defer sh.Cleanup(nil, nil)
 	cookie := strconv.Itoa(rand.Int())
 	sh.SetConfigKey("cookie", cookie)
-	h, err := sh.StartWithOpts(sh.DefaultStartOpts().ExternalCommand(), nil, os.Args[0], "--test.run=TestExternalTestHelper")
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts().ExternalProgram(), nil, modules.Program(os.Args[0]), "--test.run=TestExternalTestHelper")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -669,7 +654,7 @@ func TestPipe(t *testing.T) {
 	}
 	opts := sh.DefaultStartOpts()
 	opts.Stdin = r
-	h, err := sh.StartWithOpts(opts, nil, "pipeEcho")
+	h, err := sh.StartWithOpts(opts, nil, pipeEcho)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -682,8 +667,8 @@ func TestPipe(t *testing.T) {
 
 	scanner := bufio.NewScanner(h.Stdout())
 	want := []string{
-		fmt.Sprintf("%p: hello world", pipeEcho),
-		fmt.Sprintf("%p: %s", pipeEcho, cookie),
+		fmt.Sprintf("%p: hello world", pipeEchoFunc),
+		fmt.Sprintf("%p: %s", pipeEchoFunc, cookie),
 	}
 	i := 0
 	for scanner.Scan() {
@@ -712,7 +697,7 @@ func TestLIFO(t *testing.T) {
 
 	cases := []string{"a", "b", "c"}
 	for _, msg := range cases {
-		h, err := sh.Start("lifo", nil)
+		h, err := sh.Start(nil, lifo)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -728,7 +713,7 @@ func TestLIFO(t *testing.T) {
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(cases)))
 	for i, msg := range cases {
-		if got, want := lines[i], fmt.Sprintf("%p: %s", lifo, msg); got != want {
+		if got, want := lines[i], fmt.Sprintf("%p: %s", lifoFunc, msg); got != want {
 			t.Fatalf("got %v, want %v", got, want)
 		}
 	}
@@ -789,13 +774,13 @@ func TestCredentialsAndNoExec(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	opts := sh.DefaultStartOpts()
-	opts = opts.NoExecCommand()
+	opts = opts.NoExecProgram()
 	creds, err := sh.NewCustomCredentials()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	opts = opts.WithCustomCredentials(creds)
-	h, err := sh.StartWithOpts(opts, nil, "echos", "a")
+	h, err := sh.StartWithOpts(opts, nil, echo, "a")
 
 	if got, want := err, modules.ErrNoExecAndCustomCreds; got != want {
 		t.Fatalf("got %v, want %v", got, want)

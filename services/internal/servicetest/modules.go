@@ -6,7 +6,6 @@ package servicetest
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -33,11 +32,7 @@ const (
 	preserveWorkspaceEnv = "V23_TEST_PRESERVE_WORKSPACE"
 )
 
-func init() {
-	modules.RegisterChild("rootMT", ``, rootMT)
-}
-
-func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -57,17 +52,17 @@ func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	if err := server.ServeDispatcher("", mt); err != nil {
 		return fmt.Errorf("root failed: %s", err)
 	}
-	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
 	for _, ep := range eps {
-		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(stdin)
+	modules.WaitForEOF(env.Stdin)
 	return nil
-}
+}, "rootMT")
 
 // startRootMT sets up a root mount table for tests.
 func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
-	h, err := sh.Start("rootMT", nil, "--v23.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(nil, rootMT, "--v23.tcp.address=127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start root mount table: %s", err)
 	}
@@ -123,10 +118,10 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 }
 
 // RunCommand runs a modules command.
-func RunCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args ...string) modules.Handle {
-	h, err := sh.StartWithOpts(sh.DefaultStartOpts(), env, cmd, args...)
+func RunCommand(t *testing.T, sh *modules.Shell, env []string, prog modules.Program, args ...string) modules.Handle {
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts(), env, prog, args...)
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "failed to start %q: %s", cmd, err))
+		t.Fatalf(testutil.FormatLogLine(2, "failed to start %q: %s", prog, err))
 		return nil
 	}
 	h.SetVerbosity(testing.Verbose())

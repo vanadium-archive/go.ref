@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -45,21 +44,21 @@ func auth(a security.Authorizer, err error) security.Authorizer {
 	return a
 }
 
-func tamFromFlag(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+var permFromFlag = modules.Register(func(env *modules.Env, args ...string) error {
 	nfargs := flag.CommandLine.Args()
 	tam, err := PermissionsFromFlag()
 	if err != nil {
-		fmt.Fprintf(stdout, "PermissionsFromFlag() failed: %v", err)
+		fmt.Fprintf(env.Stdout, "PermissionsFromFlag() failed: %v", err)
 		return nil
 	}
 	got := auth(access.PermissionsAuthorizer(tam, access.TypicalTagType()))
 	want := expectedAuthorizer[nfargs[0]]
 	if !reflect.DeepEqual(got, want) {
-		fmt.Fprintf(stdout, "args %#v\n", args)
-		fmt.Fprintf(stdout, "AuthorizerFromFlags() got Authorizer: %v, want: %v", got, want)
+		fmt.Fprintf(env.Stdout, "args %#v\n", args)
+		fmt.Fprintf(env.Stdout, "AuthorizerFromFlags() got Authorizer: %v, want: %v", got, want)
 	}
 	return nil
-}
+}, "permFromFlag")
 
 func writePermissionsToFile(perms access.Permissions) (string, error) {
 	f, err := ioutil.TempFile("", "permissions")
@@ -88,30 +87,29 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 	defer os.Remove(filename)
 
 	testdata := []struct {
-		cmd   string
+		prog  modules.Program
 		flags []string
 		auth  string
 	}{
 		{
-			cmd:   "tamFromFlag",
+			prog:  permFromFlag,
 			flags: []string{"--v23.permissions.file", "runtime:" + filename},
 			auth:  "perms2",
 		},
 		{
-			cmd:   "tamFromFlag",
+			prog:  permFromFlag,
 			flags: []string{"--v23.permissions.literal", "{}"},
 			auth:  "empty",
 		},
 		{
-			cmd:   "tamFromFlag",
+			prog:  permFromFlag,
 			flags: []string{"--v23.permissions.literal", `{"Read": {"In":["v23/alice/$", "v23/bob"]}, "Write": {"In":["v23/alice/$"]}}`},
 			auth:  "perms2",
 		},
 	}
-
 	for _, td := range testdata {
 		fp := append(td.flags, td.auth)
-		h, err := sh.Start(td.cmd, nil, fp...)
+		h, err := sh.Start(nil, td.prog, fp...)
 		if err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
