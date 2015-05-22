@@ -46,7 +46,7 @@ type Permser interface {
 // Returns a VDL-compatible error.
 func GetWithoutAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, l Layer, v interface{}) error {
 	if err := GetObject(st, l.StKey(), v); err != nil {
-		if _, ok := err.(*store.ErrUnknownKey); ok {
+		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
 			// TODO(sadovsky): Return ErrNoExist if appropriate.
 			return verror.New(verror.ErrNoExistOrNoAccess, ctx, l.Name())
 		}

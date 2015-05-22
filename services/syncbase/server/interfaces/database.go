@@ -2,18 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package util
+package interfaces
 
 import (
+	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 )
 
-// Database is an internal interface that enables server.app to invoke methods
-// on nosql.database while avoiding an import cycle.
+// Database is an internal interface to the database layer.
 // All methods return VDL-compatible errors.
 type Database interface {
+	// St returns the storage engine instance for this database.
+	St() store.Store
+
 	// CheckPermsInternal checks whether the given RPC (ctx, call) is allowed per
 	// the database perms.
 	// Designed for use from within App.DeleteNoSQLDatabase.

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	wire "v.io/syncbase/v23/services/syncbase"
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
@@ -30,6 +31,7 @@ type service struct {
 
 var (
 	_ wire.ServiceServerMethods = (*service)(nil)
+	_ interfaces.Service        = (*service)(nil)
 	_ util.Layer                = (*service)(nil)
 )
 
@@ -45,17 +47,18 @@ func NewService(ctx *context.T, call rpc.ServerCall, perms access.Permissions) (
 		apps: map[string]*app{},
 	}
 
-	var err error
-	if s.sync, err = vsync.New(ctx, call, s.st); err != nil {
-		return nil, err
-	}
-
 	data := &serviceData{
 		Perms: perms,
 	}
 	if err := util.Put(ctx, call, s.st, s, data); err != nil {
 		return nil, err
 	}
+
+	var err error
+	if s.sync, err = vsync.New(ctx, call, s); err != nil {
+		return nil, err
+	}
+
 	return s, nil
 }
 
@@ -95,9 +98,13 @@ func (s *service) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<
 }
 
 ////////////////////////////////////////
-// App management methods
+// interfaces.Service methods
 
-func (s *service) app(ctx *context.T, call rpc.ServerCall, appName string) (*app, error) {
+func (s *service) St() store.Store {
+	return s.st
+}
+
+func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	a, ok := s.apps[appName]
@@ -106,6 +113,9 @@ func (s *service) app(ctx *context.T, call rpc.ServerCall, appName string) (*app
 	}
 	return a, nil
 }
+
+////////////////////////////////////////
+// App management methods
 
 func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string, perms access.Permissions) error {
 	s.mu.Lock()
@@ -118,7 +128,7 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 	a := &app{
 		name: appName,
 		s:    s,
-		dbs:  map[string]util.Database{},
+		dbs:  map[string]interfaces.Database{},
 	}
 
 	if err := store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {

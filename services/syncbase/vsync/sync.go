@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 
@@ -26,13 +27,9 @@ import (
 
 // syncService contains the metadata for the sync module.
 type syncService struct {
-	// Globally unique Syncbase id.
-	id int64
-
-	// Store for persisting Sync metadata.
-	st store.Store
-
-	// State to coordinate shutting down all spawned goroutines.
+	id int64 // globally unique id for this instance of Syncbase
+	sv interfaces.Service
+	// State to coordinate shutdown of spawned goroutines.
 	pending sync.WaitGroup
 	closed  chan struct{}
 }
@@ -48,39 +45,39 @@ func init() {
 
 // New creates a new sync module.
 //
-// Sync concurrency: sync initializes two goroutines at startup. The
-// "watcher" thread is responsible for watching the store for changes
-// to its objects. The "initiator" thread is responsible for
-// periodically contacting a peer to obtain changes from that peer. In
-// addition, the sync module responds to incoming RPCs from remote
-// sync modules.
-func New(ctx *context.T, call rpc.ServerCall, st store.Store) (*syncService, error) {
-	// TODO(hpucha): Add restartability.
+// Concurrency: sync initializes two goroutines at startup: a "watcher" and an
+// "initiator". The "watcher" thread is responsible for watching the store for
+// changes to its objects. The "initiator" thread is responsible for
+// periodically contacting peers to fetch changes from them. In addition, the
+// sync module responds to incoming RPCs from remote sync modules.
+func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncService, error) {
+	s := &syncService{sv: sv}
 
-	// First invocation of sync.
-	s := &syncService{
-		id: rng.Int63(),
-		st: st,
+	data := &syncData{}
+	if err := util.GetObject(sv.St(), s.StKey(), data); err != nil {
+		if verror.ErrorID(err) != store.ErrUnknownKey.ID {
+			return nil, verror.New(verror.ErrInternal, ctx, err)
+		}
+		// First invocation of vsync.New().
+		// TODO(sadovsky): Maybe move guid generation and storage to serviceData.
+		data.Id = rng.Int63()
+		if err := util.PutObject(sv.St(), s.StKey(), data); err != nil {
+			return nil, verror.New(verror.ErrInternal, ctx, err)
+		}
 	}
 
-	// Persist sync metadata.
-	data := &syncData{
-		Id: s.id,
-	}
-
-	if err := util.Put(ctx, call, s.st, s, data); err != nil {
-		return nil, err
-	}
+	// data.Id is now guaranteed to be initialized.
+	s.id = data.Id
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})
 	s.pending.Add(2)
 
-	// Get deltas every so often.
-	go s.contactPeers()
-
-	// Start a watcher thread that will get updates from local store.
+	// Start watcher thread to watch for updates to local store.
 	go s.watchStore()
+
+	// Start initiator thread to periodically get deltas from peers.
+	go s.contactPeers()
 
 	return s, nil
 }

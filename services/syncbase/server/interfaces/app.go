@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package util
+package interfaces
 
 import (
 	"v.io/v23/context"
@@ -10,8 +10,7 @@ import (
 	"v.io/v23/security/access"
 )
 
-// App is an internal interface that enables nosql.database to invoke methods on
-// server.app while avoiding an import cycle.
+// App is an internal interface to the app layer.
 // All methods return VDL-compatible errors.
 type App interface {
 	// NoSQLDatabase returns the Database for the specified NoSQL database.

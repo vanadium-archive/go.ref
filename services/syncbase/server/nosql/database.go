@@ -6,6 +6,7 @@ package nosql
 
 import (
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
@@ -19,21 +20,21 @@ import (
 
 type database struct {
 	name string
-	a    util.App
+	a    interfaces.App
 	// The fields below are initialized iff this database exists.
 	st store.Store // stores all data for a single database
 }
 
 var (
 	_ wire.DatabaseServerMethods = (*database)(nil)
-	_ util.Database              = (*database)(nil)
+	_ interfaces.Database        = (*database)(nil)
 	_ util.Layer                 = (*database)(nil)
 )
 
 // NewDatabase creates a new database instance and returns it.
 // Returns a VDL-compatible error.
 // Designed for use from within App.CreateNoSQLDatabase.
-func NewDatabase(ctx *context.T, call rpc.ServerCall, a util.App, name string, perms access.Permissions) (*database, error) {
+func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name string, perms access.Permissions) (*database, error) {
 	if perms == nil {
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
@@ -102,7 +103,14 @@ func (d *database) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (
 }
 
 ////////////////////////////////////////
-// util.Database methods
+// interfaces.Database methods
+
+func (d *database) St() store.Store {
+	if d.st == nil {
+		vlog.Fatalf("database %q does not exist", d.name)
+	}
+	return d.st
+}
 
 func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall) error {
 	if d.st == nil {

@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	// ConcurrentTransaction means that the current transaction was not committed
+	// ConcurrentTransaction means that the current transaction failed to commit
 	// because its read set was invalidated by some other transaction.
 	ErrConcurrentTransaction = verror.Register("v.io/syncbase/x/ref/services/syncbase/store.ConcurrentTransaction", verror.NoRetry, "{1:}{2:} Concurrent transaction{:_}")
 	// UnknownKey means the given key does not exist in the store.

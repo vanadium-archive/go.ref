@@ -79,7 +79,7 @@ func (r *row) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) ([]
 	}
 	value, err := st.Get([]byte(r.StKey()), nil)
 	if err != nil {
-		if _, ok := err.(*store.ErrUnknownKey); ok {
+		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
 			// We've already done an auth check, so here we can safely return NoExist
 			// rather than NoExistOrNoAccess.
 			return nil, verror.New(verror.ErrNoExist, ctx, r.Name())

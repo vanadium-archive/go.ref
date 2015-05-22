@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	wire "v.io/syncbase/v23/services/syncbase"
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
@@ -25,12 +26,12 @@ type app struct {
 	// Guards the fields below. Held during database Create, Delete, and
 	// SetPermissions.
 	mu  sync.Mutex
-	dbs map[string]util.Database
+	dbs map[string]interfaces.Database
 }
 
 var (
 	_ wire.AppServerMethods = (*app)(nil)
-	_ util.App              = (*app)(nil)
+	_ interfaces.App        = (*app)(nil)
 	_ util.Layer            = (*app)(nil)
 )
 
@@ -73,9 +74,9 @@ func (a *app) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-cha
 }
 
 ////////////////////////////////////////
-// util.App methods
+// interfaces.App methods
 
-func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (util.Database, error) {
+func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
 	// TODO(sadovsky): Record storage engine config (e.g. LevelDB directory) in
 	// dbInfo, and add API for opening and closing storage engines.
 	a.mu.Lock()

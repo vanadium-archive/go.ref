@@ -10,7 +10,7 @@ import (
 	wire "v.io/syncbase/v23/services/syncbase"
 	nosqlWire "v.io/syncbase/v23/services/syncbase/nosql"
 	pubutil "v.io/syncbase/v23/syncbase/util"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -18,12 +18,12 @@ import (
 )
 
 type dispatcher struct {
-	a util.App
+	a interfaces.App
 }
 
 var _ rpc.Dispatcher = (*dispatcher)(nil)
 
-func NewDispatcher(a util.App) *dispatcher {
+func NewDispatcher(a interfaces.App) *dispatcher {
 	return &dispatcher{a: a}
 }
 

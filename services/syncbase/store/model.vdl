@@ -5,7 +5,7 @@
 package store
 
 error (
-	// ConcurrentTransaction means that the current transaction was not committed
+	// ConcurrentTransaction means that the current transaction failed to commit
 	// because its read set was invalidated by some other transaction.
 	ConcurrentTransaction() {"en":"Concurrent transaction{:_}"}
 
