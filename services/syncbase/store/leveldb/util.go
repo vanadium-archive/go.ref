@@ -7,9 +7,10 @@ package leveldb
 // #include "leveldb/c.h"
 import "C"
 import (
-	"errors"
 	"reflect"
 	"unsafe"
+
+	"v.io/v23/verror"
 )
 
 // goError copies C error into Go heap and frees C buffer.
@@ -17,7 +18,7 @@ func goError(cError *C.char) error {
 	if cError == nil {
 		return nil
 	}
-	err := errors.New(C.GoString(cError))
+	err := verror.New(verror.ErrInternal, nil, C.GoString(cError))
 	C.leveldb_free(unsafe.Pointer(cError))
 	return err
 }

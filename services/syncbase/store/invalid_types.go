@@ -12,12 +12,12 @@ type InvalidSnapshot struct {
 
 // Close implements the store.Snapshot interface.
 func (s *InvalidSnapshot) Close() error {
-	return s.Error
+	return WrapError(s.Error)
 }
 
 // Get implements the store.StoreReader interface.
 func (s *InvalidSnapshot) Get(key, valbuf []byte) ([]byte, error) {
-	return valbuf, s.Error
+	return valbuf, WrapError(s.Error)
 }
 
 // Scan implements the store.StoreReader interface.
@@ -48,7 +48,7 @@ func (s *InvalidStream) Value(valbuf []byte) []byte {
 
 // Err implements the store.Stream interface.
 func (s *InvalidStream) Err() error {
-	return s.Error
+	return WrapError(s.Error)
 }
 
 // Cancel implements the store.Stream interface.
@@ -68,7 +68,7 @@ func (tx *InvalidTransaction) ResetForRetry() {
 
 // Get implements the store.StoreReader interface.
 func (tx *InvalidTransaction) Get(key, valbuf []byte) ([]byte, error) {
-	return valbuf, tx.Error
+	return valbuf, WrapError(tx.Error)
 }
 
 // Scan implements the store.StoreReader interface.
@@ -78,20 +78,20 @@ func (tx *InvalidTransaction) Scan(start, limit []byte) Stream {
 
 // Put implements the store.StoreWriter interface.
 func (tx *InvalidTransaction) Put(key, value []byte) error {
-	return tx.Error
+	return WrapError(tx.Error)
 }
 
 // Delete implements the store.StoreWriter interface.
 func (tx *InvalidTransaction) Delete(key []byte) error {
-	return tx.Error
+	return WrapError(tx.Error)
 }
 
 // Commit implements the store.Transaction interface.
 func (tx *InvalidTransaction) Commit() error {
-	return tx.Error
+	return WrapError(tx.Error)
 }
 
 // Abort implements the store.Transaction interface.
 func (tx *InvalidTransaction) Abort() error {
-	return tx.Error
+	return WrapError(tx.Error)
 }

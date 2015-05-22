@@ -5,14 +5,10 @@
 package memstore
 
 import (
-	"errors"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
-)
-
-var (
-	errClosedSnapshot = errors.New("closed snapshot")
+	"v.io/v23/verror"
 )
 
 type snapshot struct {
@@ -32,18 +28,14 @@ func newSnapshot(st *memstore) *snapshot {
 	return &snapshot{data: dataCopy}
 }
 
-func (s *snapshot) error() error {
-	return s.err
-}
-
 // Close implements the store.Snapshot interface.
 func (s *snapshot) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.error(); err != nil {
-		return err
+	if s.err != nil {
+		return store.WrapError(s.err)
 	}
-	s.err = errClosedSnapshot
+	s.err = verror.New(verror.ErrCanceled, nil, "closed snapshot")
 	return nil
 }
 
@@ -51,12 +43,12 @@ func (s *snapshot) Close() error {
 func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.error(); err != nil {
-		return valbuf, err
+	if s.err != nil {
+		return valbuf, store.WrapError(s.err)
 	}
 	value, ok := s.data[string(key)]
 	if !ok {
-		return valbuf, &store.ErrUnknownKey{Key: string(key)}
+		return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
 	}
 	return store.CopyBytes(valbuf, value), nil
 }
@@ -65,8 +57,8 @@ func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 func (s *snapshot) Scan(start, limit []byte) store.Stream {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.error(); err != nil {
-		return &store.InvalidStream{err}
+	if s.err != nil {
+		return &store.InvalidStream{s.err}
 	}
 	return newStream(s, start, limit)
 }

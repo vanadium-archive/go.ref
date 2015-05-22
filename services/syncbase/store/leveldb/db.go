@@ -11,15 +11,11 @@ package leveldb
 // #include "syncbase_leveldb.h"
 import "C"
 import (
-	"errors"
 	"sync"
 	"unsafe"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
-)
-
-var (
-	errClosedStore = errors.New("closed store")
+	"v.io/v23/verror"
 )
 
 // db is a wrapper around LevelDB that implements the store.Store interface.
@@ -70,7 +66,7 @@ func (d *db) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.err != nil {
-		return d.err
+		return store.WrapError(d.err)
 	}
 	d.node.close()
 	C.leveldb_close(d.cDb)
@@ -79,7 +75,7 @@ func (d *db) Close() error {
 	d.readOptions = nil
 	C.leveldb_writeoptions_destroy(d.writeOptions)
 	d.writeOptions = nil
-	d.err = errors.New("closed store")
+	d.err = verror.New(verror.ErrCanceled, nil, "closed store")
 	return nil
 }
 
@@ -154,7 +150,7 @@ func (d *db) getWithOpts(key, valbuf []byte, cOpts *C.leveldb_readoptions_t) ([]
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.err != nil {
-		return valbuf, d.err
+		return valbuf, store.WrapError(d.err)
 	}
 	var cError *C.char
 	var valLen C.size_t
@@ -164,7 +160,7 @@ func (d *db) getWithOpts(key, valbuf []byte, cOpts *C.leveldb_readoptions_t) ([]
 		return valbuf, err
 	}
 	if val == nil {
-		return valbuf, &store.ErrUnknownKey{Key: string(key)}
+		return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
 	}
 	defer C.leveldb_free(unsafe.Pointer(val))
 	return store.CopyBytes(valbuf, goBytes(val, valLen)), nil

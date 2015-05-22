@@ -5,10 +5,10 @@
 package test
 
 import (
-	"strings"
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 // RunSnapshotTest verifies store.Snapshot operations.
@@ -31,15 +31,12 @@ func RunSnapshotTest(t *testing.T, st store.Store) {
 		t.Fatalf("can't close the snapshot: %v", err)
 	}
 	expectedErr := "closed snapshot"
-	if err := snapshot.Close(); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
-	if _, err := snapshot.Get(key1, nil); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
+	verifyError(t, snapshot.Close(), expectedErr, verror.ErrCanceled.ID)
+
+	_, err := snapshot.Get(key1, nil)
+	verifyError(t, err, expectedErr, verror.ErrCanceled.ID)
+
 	s = snapshot.Scan([]byte("a"), []byte("z"))
 	verifyAdvance(t, s, nil, nil)
-	if err := s.Err(); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
+	verifyError(t, s.Err(), expectedErr, verror.ErrCanceled.ID)
 }

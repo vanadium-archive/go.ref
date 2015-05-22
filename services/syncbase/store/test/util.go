@@ -6,11 +6,12 @@ package test
 
 import (
 	"bytes"
-	"reflect"
 	"runtime/debug"
+	"strings"
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 // verifyGet verifies that st.Get(key) == value. If value is nil, verifies that
@@ -27,9 +28,7 @@ func verifyGet(t *testing.T, st store.StoreReader, key, value []byte) {
 		}
 	} else {
 		valbuf, err = st.Get(key, valbuf)
-		if !reflect.DeepEqual(&store.ErrUnknownKey{Key: string(key)}, err) {
-			Fatalf(t, "unexpected get error for key %q: %v", key, err)
-		}
+		verifyError(t, err, string(key), store.ErrUnknownKey.ID)
 		valcopy := []byte("tmp")
 		// Verify that valbuf is not modified if the key is not found.
 		if !bytes.Equal(valbuf, valcopy) {
@@ -59,6 +58,15 @@ func verifyAdvance(t *testing.T, s store.Stream, key, value []byte) {
 		if v = s.Value(v); !bytes.Equal(v, value) {
 			Fatalf(t, "unexpected value: got %q, want %q", v, value)
 		}
+	}
+}
+
+func verifyError(t *testing.T, err error, substr string, errorID verror.ID) {
+	if got := verror.ErrorID(err); got != errorID {
+		Fatalf(t, "unexpected error ID: got %v, want %v", got, errorID)
+	}
+	if !strings.Contains(err.Error(), substr) {
+		Fatalf(t, "unexpected error: got %v, want %v", err, substr)
 	}
 }
 

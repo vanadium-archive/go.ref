@@ -8,28 +8,28 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 // RunTransactionTest verifies operations that modify the state of a
 // store.Transaction.
 func RunTransactionStateTest(t *testing.T, st store.Store) {
-	abortFunctions := []func(t *testing.T, tx store.Transaction) string{
-		func(t *testing.T, tx store.Transaction) string {
+	abortFunctions := []func(t *testing.T, tx store.Transaction) (string, verror.ID){
+		func(t *testing.T, tx store.Transaction) (string, verror.ID) {
 			if err := tx.Abort(); err != nil {
-				t.Fatalf("can't abort the transaction: %v", err)
+				Fatalf(t, "can't abort the transaction: %v", err)
 			}
-			return "aborted transaction"
+			return "aborted transaction", verror.ErrCanceled.ID
 		},
-		func(t *testing.T, tx store.Transaction) string {
+		func(t *testing.T, tx store.Transaction) (string, verror.ID) {
 			if err := tx.Commit(); err != nil {
-				t.Fatalf("can't commit the transaction: %v", err)
+				Fatalf(t, "can't commit the transaction: %v", err)
 			}
-			return "committed transaction"
+			return "committed transaction", verror.ErrBadState.ID
 		},
 	}
 	for _, fn := range abortFunctions {
@@ -46,27 +46,18 @@ func RunTransactionStateTest(t *testing.T, st store.Store) {
 		verifyAdvance(t, s, nil, nil)
 
 		// Test functions after Abort.
-		expectedErr := fn(t, tx)
-		if err := tx.Abort(); !strings.Contains(err.Error(), expectedErr) {
-			t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-		}
-		if err := tx.Commit(); !strings.Contains(err.Error(), expectedErr) {
-			t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-		}
+		expectedErr, expectedID := fn(t, tx)
+		verifyError(t, tx.Abort(), expectedErr, expectedID)
+		verifyError(t, tx.Commit(), expectedErr, expectedID)
+
 		s = tx.Scan([]byte("a"), []byte("z"))
 		verifyAdvance(t, s, nil, nil)
-		if err := s.Err(); !strings.Contains(err.Error(), expectedErr) {
-			t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-		}
-		if _, err := tx.Get(key1, nil); !strings.Contains(err.Error(), expectedErr) {
-			t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-		}
-		if err := tx.Put(key1, value1); !strings.Contains(err.Error(), expectedErr) {
-			t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-		}
-		if err := tx.Delete(key1); !strings.Contains(err.Error(), expectedErr) {
-			t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-		}
+		verifyError(t, s.Err(), expectedErr, expectedID)
+
+		_, err := tx.Get(key1, nil)
+		verifyError(t, err, expectedErr, expectedID)
+		verifyError(t, tx.Put(key1, value1), expectedErr, expectedID)
+		verifyError(t, tx.Delete(key1), expectedErr, expectedID)
 	}
 }
 

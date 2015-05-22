@@ -5,11 +5,11 @@
 package memstore
 
 import (
-	"errors"
 	"sort"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 type stream struct {
@@ -82,12 +82,15 @@ func (s *stream) Value(valbuf []byte) []byte {
 func (s *stream) Err() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.err
+	return store.WrapError(s.err)
 }
 
 // Cancel implements the store.Stream interface.
 func (s *stream) Cancel() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.err = errors.New("canceled stream")
+	if s.err != nil {
+		return
+	}
+	s.err = verror.New(verror.ErrCanceled, nil, "canceled stream")
 }

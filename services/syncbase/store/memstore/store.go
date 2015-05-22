@@ -10,11 +10,13 @@ import (
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 type memstore struct {
 	mu   sync.Mutex
 	data map[string][]byte
+	err  error
 	// Most recent sequence number handed out.
 	lastSeq uint64
 	// Value of lastSeq at the time of the most recent commit.
@@ -30,7 +32,12 @@ func New() store.Store {
 
 // Close implements the store.Store interface.
 func (st *memstore) Close() error {
-	// TODO(sadovsky): Make all subsequent method calls and stream advances fail.
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.err != nil {
+		return store.WrapError(st.err)
+	}
+	st.err = verror.New(verror.ErrCanceled, nil, "closed store")
 	return nil
 }
 
@@ -38,9 +45,12 @@ func (st *memstore) Close() error {
 func (st *memstore) Get(key, valbuf []byte) ([]byte, error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
+	if st.err != nil {
+		return valbuf, store.WrapError(st.err)
+	}
 	value, ok := st.data[string(key)]
 	if !ok {
-		return valbuf, &store.ErrUnknownKey{Key: string(key)}
+		return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
 	}
 	return store.CopyBytes(valbuf, value), nil
 }
@@ -49,6 +59,9 @@ func (st *memstore) Get(key, valbuf []byte) ([]byte, error) {
 func (st *memstore) Scan(start, limit []byte) store.Stream {
 	st.mu.Lock()
 	defer st.mu.Unlock()
+	if st.err != nil {
+		return &store.InvalidStream{st.err}
+	}
 	return newStream(newSnapshot(st), start, limit)
 }
 
@@ -70,6 +83,9 @@ func (st *memstore) Delete(key []byte) error {
 func (st *memstore) NewTransaction() store.Transaction {
 	st.mu.Lock()
 	defer st.mu.Unlock()
+	if st.err != nil {
+		return &store.InvalidTransaction{st.err}
+	}
 	st.lastSeq++
 	return newTransaction(st, st.lastSeq)
 }
@@ -78,5 +94,8 @@ func (st *memstore) NewTransaction() store.Transaction {
 func (st *memstore) NewSnapshot() store.Snapshot {
 	st.mu.Lock()
 	defer st.mu.Unlock()
+	if st.err != nil {
+		return &store.InvalidSnapshot{st.err}
+	}
 	return newSnapshot(st)
 }

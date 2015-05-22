@@ -108,7 +108,6 @@ type Stream interface {
 
 	// Err returns a non-nil error iff the stream encountered any errors. Err does
 	// not block.
-	// TODO(rogulenko): define an error type.
 	Err() error
 
 	// Cancel notifies the stream provider that it can stop producing elements.
@@ -117,18 +116,4 @@ type Stream interface {
 	// concurrently with a goroutine that is iterating via Advance/Key/Value.
 	// Cancel causes Advance to subsequently return false. Cancel does not block.
 	Cancel()
-}
-
-type ErrConcurrentTransaction struct{}
-
-func (e *ErrConcurrentTransaction) Error() string {
-	return "concurrent transaction"
-}
-
-type ErrUnknownKey struct {
-	Key string
-}
-
-func (err *ErrUnknownKey) Error() string {
-	return "unknown key: " + err.Key
 }

@@ -4,6 +4,10 @@
 
 package store
 
+import (
+	"v.io/v23/verror"
+)
+
 // TODO(sadovsky): Add retry loop.
 func RunInTransaction(st Store, fn func(st StoreReadWriter) error) error {
 	tx := st.NewTransaction()
@@ -37,4 +41,18 @@ func CopyBytes(dst, src []byte) []byte {
 	dst = dst[:len(src)]
 	copy(dst, src)
 	return dst
+}
+
+// WrapError wraps the given err with a verror. It is a no-op if the err is nil.
+// The returned error contains the current stack trace, but retains the input
+// error's IDAction pair. If the given error is not a verror, the IDAction pair
+// of the returned error will be (ErrUnknown.ID, NoRetry).
+func WrapError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return verror.New(verror.IDAction{
+		verror.ErrorID(err),
+		verror.Action(err),
+	}, nil, err)
 }

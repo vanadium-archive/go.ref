@@ -7,10 +7,10 @@ package test
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 type operation int
@@ -184,31 +184,24 @@ func RunStoreStateTest(t *testing.T, st store.Store) {
 		t.Fatalf("can't close the store: %v", err)
 	}
 	expectedErr := "closed store"
-	if err := st.Close(); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
+	verifyError(t, st.Close(), expectedErr, verror.ErrCanceled.ID)
+
 	s = st.Scan([]byte("a"), []byte("z"))
 	verifyAdvance(t, s, nil, nil)
-	if err := s.Err(); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
+	verifyError(t, s.Err(), expectedErr, verror.ErrCanceled.ID)
+
 	snapshot := st.NewSnapshot()
-	if _, err := snapshot.Get(key1, nil); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
+	_, err := snapshot.Get(key1, nil)
+	verifyError(t, err, expectedErr, verror.ErrCanceled.ID)
+
 	tx := st.NewTransaction()
-	if _, err := tx.Get(key1, nil); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
-	if _, err := st.Get(key1, nil); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
-	if err := st.Put(key1, value1); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
-	if err := st.Delete(key1); !strings.Contains(err.Error(), expectedErr) {
-		t.Fatalf("unexpected error: got %v, want %v", err, expectedErr)
-	}
+	_, err = tx.Get(key1, nil)
+	verifyError(t, err, expectedErr, verror.ErrCanceled.ID)
+
+	_, err = st.Get(key1, nil)
+	verifyError(t, err, expectedErr, verror.ErrCanceled.ID)
+	verifyError(t, st.Put(key1, value1), expectedErr, verror.ErrCanceled.ID)
+	verifyError(t, st.Delete(key1), expectedErr, verror.ErrCanceled.ID)
 }
 
 // RunCloseTest verifies that child objects are closed when the parent object is
@@ -235,20 +228,14 @@ func RunCloseTest(t *testing.T, st store.Store) {
 	st.Close()
 
 	for _, stream := range streams {
-		if got, want := stream.Err().Error(), "canceled stream"; !strings.Contains(got, want) {
-			t.Fatalf("unexpected error: got %v, want %v", got, want)
-		}
+		verifyError(t, stream.Err(), "canceled stream", verror.ErrCanceled.ID)
 	}
 	for _, snapshot := range snapshots {
 		_, err := snapshot.Get(key1, nil)
-		if got, want := err.Error(), "closed snapshot"; !strings.Contains(got, want) {
-			t.Fatalf("unexpected error: got %v, want %v", got, want)
-		}
+		verifyError(t, err, "closed snapshot", verror.ErrCanceled.ID)
 	}
 	for _, tx := range transactions {
 		_, err := tx.Get(key1, nil)
-		if got, want := err.Error(), "aborted transaction"; !strings.Contains(got, want) {
-			t.Fatalf("unexpected error: got %v, want %v", got, want)
-		}
+		verifyError(t, err, "aborted transaction", verror.ErrCanceled.ID)
 	}
 }

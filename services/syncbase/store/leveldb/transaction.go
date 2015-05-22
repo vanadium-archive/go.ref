@@ -7,17 +7,18 @@ package leveldb
 // #include "leveldb/c.h"
 import "C"
 import (
-	"errors"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 // transaction is a wrapper around LevelDB WriteBatch that implements
 // the store.Transaction interface.
 type transaction struct {
-	node     *resourceNode
+	// mu protects the state of the transaction.
 	mu       sync.Mutex
+	node     *resourceNode
 	d        *db
 	snapshot store.Snapshot
 	batch    *C.leveldb_writebatch_t
@@ -60,7 +61,7 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return valbuf, tx.err
+		return valbuf, store.WrapError(tx.err)
 	}
 	return tx.snapshot.Get(key, valbuf)
 }
@@ -80,7 +81,7 @@ func (tx *transaction) Put(key, value []byte) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return tx.err
+		return store.WrapError(tx.err)
 	}
 	cKey, cKeyLen := cSlice(key)
 	cVal, cValLen := cSlice(value)
@@ -93,7 +94,7 @@ func (tx *transaction) Delete(key []byte) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return tx.err
+		return store.WrapError(tx.err)
 	}
 	cKey, cKeyLen := cSlice(key)
 	C.leveldb_writebatch_delete(tx.batch, cKey, cKeyLen)
@@ -105,17 +106,20 @@ func (tx *transaction) Commit() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return tx.err
+		return store.WrapError(tx.err)
 	}
 	tx.d.mu.Lock()
 	defer tx.d.mu.Unlock()
 	var cError *C.char
 	C.leveldb_write(tx.d.cDb, tx.cOpts, tx.batch, &cError)
 	if err := goError(cError); err != nil {
-		tx.err = errors.New("already attempted to commit transaction")
+		// Once Commit() has failed with store.ErrConcurrentTransaction, subsequent
+		// ops on the transaction will fail with the following error.
+		tx.err = verror.New(verror.ErrBadState, nil, "already attempted to commit transaction")
+		tx.close()
 		return err
 	}
-	tx.err = errors.New("committed transaction")
+	tx.err = verror.New(verror.ErrBadState, nil, "committed transaction")
 	tx.close()
 	return nil
 }
@@ -124,10 +128,10 @@ func (tx *transaction) Commit() error {
 func (tx *transaction) Abort() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
-	if tx.batch == nil {
-		return tx.err
+	if tx.err != nil {
+		return store.WrapError(tx.err)
 	}
-	tx.err = errors.New("aborted transaction")
+	tx.err = verror.New(verror.ErrCanceled, nil, "aborted transaction")
 	tx.close()
 	return nil
 }

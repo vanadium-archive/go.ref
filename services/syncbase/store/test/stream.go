@@ -6,10 +6,10 @@ package test
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 // RunStreamTest verifies store.Stream operations.
@@ -37,7 +37,5 @@ func RunStreamTest(t *testing.T, st store.Store) {
 		}
 	}
 	verifyAdvance(t, s, nil, nil)
-	if !strings.Contains(s.Err().Error(), "canceled stream") {
-		t.Fatalf("unexpected steam error: %v", s.Err())
-	}
+	verifyError(t, s.Err(), "canceled stream", verror.ErrCanceled.ID)
 }

@@ -7,10 +7,10 @@ package leveldb
 // #include "leveldb/c.h"
 import "C"
 import (
-	"errors"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 // snapshot is a wrapper around LevelDB snapshot that implements
@@ -49,14 +49,14 @@ func (s *snapshot) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
-		return s.err
+		return store.WrapError(s.err)
 	}
 	s.node.close()
 	C.leveldb_readoptions_destroy(s.cOpts)
 	s.cOpts = nil
 	C.leveldb_release_snapshot(s.d.cDb, s.cSnapshot)
 	s.cSnapshot = nil
-	s.err = errors.New("closed snapshot")
+	s.err = verror.New(verror.ErrCanceled, nil, "closed snapshot")
 	return nil
 }
 
@@ -65,7 +65,7 @@ func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.err != nil {
-		return valbuf, s.err
+		return valbuf, store.WrapError(s.err)
 	}
 	return s.d.getWithOpts(key, valbuf, s.cOpts)
 }

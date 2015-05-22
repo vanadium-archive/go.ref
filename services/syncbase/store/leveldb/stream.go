@@ -9,10 +9,10 @@ package leveldb
 import "C"
 import (
 	"bytes"
-	"errors"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 // stream is a wrapper around LevelDB iterator that implements
@@ -113,7 +113,7 @@ func (s *stream) Value(valbuf []byte) []byte {
 func (s *stream) Err() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.err
+	return store.WrapError(s.err)
 }
 
 // Cancel implements the store.Stream interface.
@@ -131,7 +131,7 @@ func (s *stream) Cancel() {
 		s.key = store.CopyBytes(nil, s.cKey())
 		s.value = store.CopyBytes(nil, s.cVal())
 	}
-	s.err = errors.New("canceled stream")
+	s.err = verror.New(verror.ErrCanceled, nil, "canceled stream")
 	s.destroyLeveldbIter()
 }
 

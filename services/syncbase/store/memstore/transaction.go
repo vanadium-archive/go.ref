@@ -5,19 +5,15 @@
 package memstore
 
 import (
-	"errors"
 	"sync"
 	"time"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
-var (
-	txnTimeout         = time.Duration(5) * time.Second
-	errExpiredTxn      = errors.New("expired transaction")
-	errCommittedTxn    = errors.New("committed transaction")
-	errAbortedTxn      = errors.New("aborted transaction")
-	errAttemptedCommit = errors.New("already attempted to commit transaction")
+const (
+	txnTimeout = time.Duration(5) * time.Second
 )
 
 type transaction struct {
@@ -53,10 +49,10 @@ func (tx *transaction) expired() bool {
 
 func (tx *transaction) error() error {
 	if tx.err != nil {
-		return tx.err
+		return store.WrapError(tx.err)
 	}
 	if tx.expired() {
-		return errExpiredTxn
+		return verror.New(verror.ErrBadState, nil, "expired transaction")
 	}
 	return nil
 }
@@ -117,11 +113,11 @@ func (tx *transaction) Commit() error {
 	defer tx.st.mu.Unlock() // note, defer is last-in-first-out
 	if tx.seq <= tx.st.lastCommitSeq {
 		// Once Commit() has failed with store.ErrConcurrentTransaction, subsequent
-		// ops on the transaction will fail with errAttemptedCommit.
-		tx.err = errAttemptedCommit
-		return &store.ErrConcurrentTransaction{}
+		// ops on the transaction will fail with the following error.
+		tx.err = verror.New(verror.ErrBadState, nil, "already attempted to commit transaction")
+		return store.NewErrConcurrentTransaction(nil)
 	}
-	tx.err = errCommittedTxn
+	tx.err = verror.New(verror.ErrBadState, nil, "committed transaction")
 	for k, v := range tx.puts {
 		tx.st.data[k] = v
 	}
@@ -140,6 +136,6 @@ func (tx *transaction) Abort() error {
 		return err
 	}
 	tx.sn.Close()
-	tx.err = errAbortedTxn
+	tx.err = verror.New(verror.ErrCanceled, nil, "aborted transaction")
 	return nil
 }
