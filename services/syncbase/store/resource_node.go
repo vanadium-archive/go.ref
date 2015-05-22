@@ -2,32 +2,33 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package leveldb
+package store
 
 import (
 	"sync"
 )
 
-// resourceNode is a node in a dependency graph. This graph is used to ensure
+// ResourceNode is a node in a dependency graph. This graph is used to ensure
 // that when a resource is freed, downstream resources are also freed. For
 // example, closing a store closes all downstream transactions, snapshots and
 // streams.
-type resourceNode struct {
+type ResourceNode struct {
 	mu       sync.Mutex
-	parent   *resourceNode
-	children map[*resourceNode]func()
+	parent   *ResourceNode
+	children map[*ResourceNode]func()
 }
 
-func newResourceNode() *resourceNode {
-	return &resourceNode{
-		children: make(map[*resourceNode]func()),
+// NewResourceNode creates a new isolated node in the dependency graph.
+func NewResourceNode() *ResourceNode {
+	return &ResourceNode{
+		children: make(map[*ResourceNode]func()),
 	}
 }
 
-// addChild adds a parent-child relation between this node and the provided
+// AddChild adds a parent-child relation between this node and the provided
 // node. The provided function is called to close the child when this node is
 // closed.
-func (r *resourceNode) addChild(node *resourceNode, closefn func()) {
+func (r *ResourceNode) AddChild(node *ResourceNode, closefn func()) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.children == nil {
@@ -39,8 +40,8 @@ func (r *resourceNode) addChild(node *resourceNode, closefn func()) {
 
 // removeChild removes the parent-child relation between this node and the
 // provided node, enabling Go's garbage collector to free the resources
-// associated with the node if there are no more references to it.
-func (r *resourceNode) removeChild(node *resourceNode) {
+// associated with the child node if there are no more references to it.
+func (r *ResourceNode) removeChild(node *ResourceNode) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.children == nil {
@@ -50,9 +51,9 @@ func (r *resourceNode) removeChild(node *resourceNode) {
 	delete(r.children, node)
 }
 
-// close closes this node and detaches it from its parent. All child nodes
-// are closed using close functions provided to addChild.
-func (r *resourceNode) close() {
+// Close closes this node and detaches it from its parent. All of this node's
+// children are closed using close functions provided to AddChild.
+func (r *ResourceNode) Close() {
 	r.mu.Lock()
 	if r.parent != nil {
 		// If there is a node V with parent P and we decide to explicitly close V,

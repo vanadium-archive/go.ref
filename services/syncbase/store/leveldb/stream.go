@@ -20,7 +20,7 @@ import (
 type stream struct {
 	// mu protects the state of the stream.
 	mu    sync.Mutex
-	node  *resourceNode
+	node  *store.ResourceNode
 	cIter *C.syncbase_leveldb_iterator_t
 	limit []byte
 
@@ -38,15 +38,15 @@ type stream struct {
 
 var _ store.Stream = (*stream)(nil)
 
-func newStream(d *db, parent *resourceNode, start, limit []byte, cOpts *C.leveldb_readoptions_t) *stream {
+func newStream(d *db, parent *store.ResourceNode, start, limit []byte, cOpts *C.leveldb_readoptions_t) *stream {
 	cStr, size := cSlice(start)
 	cIter := C.syncbase_leveldb_create_iterator(d.cDb, cOpts, cStr, size)
 	s := &stream{
-		node:  newResourceNode(),
+		node:  store.NewResourceNode(),
 		cIter: cIter,
 		limit: limit,
 	}
-	parent.addChild(s.node, func() {
+	parent.AddChild(s.node, func() {
 		s.Cancel()
 	})
 	return s
@@ -55,7 +55,7 @@ func newStream(d *db, parent *resourceNode, start, limit []byte, cOpts *C.leveld
 // destroyLeveldbIter destroys the underlying C iterator.
 // Assumes mu is held.
 func (s *stream) destroyLeveldbIter() {
-	s.node.close()
+	s.node.Close()
 	C.syncbase_leveldb_iter_destroy(s.cIter)
 	s.cIter = nil
 }

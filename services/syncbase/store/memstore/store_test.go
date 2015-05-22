@@ -28,13 +28,9 @@ func TestStoreState(t *testing.T) {
 	runTest(t, test.RunStoreStateTest)
 }
 
-// TODO(rogulenko): Enable this test once memstore.Close closes all downstream
-// resources.
-/*
 func TestClose(t *testing.T) {
 	runTest(t, test.RunCloseTest)
 }
-*/
 
 func TestReadWriteBasic(t *testing.T) {
 	runTest(t, test.RunReadWriteBasicTest)

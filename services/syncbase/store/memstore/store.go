@@ -15,6 +15,7 @@ import (
 
 type memstore struct {
 	mu   sync.Mutex
+	node *store.ResourceNode
 	data map[string][]byte
 	err  error
 	// Most recent sequence number handed out.
@@ -27,7 +28,10 @@ var _ store.Store = (*memstore)(nil)
 
 // New creates a new memstore.
 func New() store.Store {
-	return &memstore{data: map[string][]byte{}}
+	return &memstore{
+		data: map[string][]byte{},
+		node: store.NewResourceNode(),
+	}
 }
 
 // Close implements the store.Store interface.
@@ -37,6 +41,7 @@ func (st *memstore) Close() error {
 	if st.err != nil {
 		return store.WrapError(st.err)
 	}
+	st.node.Close()
 	st.err = verror.New(verror.ErrCanceled, nil, "closed store")
 	return nil
 }
@@ -62,7 +67,7 @@ func (st *memstore) Scan(start, limit []byte) store.Stream {
 	if st.err != nil {
 		return &store.InvalidStream{st.err}
 	}
-	return newStream(newSnapshot(st), start, limit)
+	return newSnapshot(st, st.node).Scan(start, limit)
 }
 
 // Put implements the store.StoreWriter interface.
@@ -87,7 +92,7 @@ func (st *memstore) NewTransaction() store.Transaction {
 		return &store.InvalidTransaction{st.err}
 	}
 	st.lastSeq++
-	return newTransaction(st, st.lastSeq)
+	return newTransaction(st, st.node, st.lastSeq)
 }
 
 // NewSnapshot implements the store.Store interface.
@@ -97,5 +102,5 @@ func (st *memstore) NewSnapshot() store.Snapshot {
 	if st.err != nil {
 		return &store.InvalidSnapshot{st.err}
 	}
-	return newSnapshot(st)
+	return newSnapshot(st, st.node)
 }

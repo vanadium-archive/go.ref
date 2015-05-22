@@ -14,6 +14,7 @@ import (
 
 type stream struct {
 	mu        sync.Mutex
+	node      *store.ResourceNode
 	sn        *snapshot
 	keys      []string
 	currIndex int
@@ -23,7 +24,7 @@ type stream struct {
 
 var _ store.Stream = (*stream)(nil)
 
-func newStream(sn *snapshot, start, limit []byte) *stream {
+func newStream(sn *snapshot, parent *store.ResourceNode, start, limit []byte) *stream {
 	keys := []string{}
 	for k := range sn.data {
 		if k >= string(start) && (len(limit) == 0 || k < string(limit)) {
@@ -31,11 +32,16 @@ func newStream(sn *snapshot, start, limit []byte) *stream {
 		}
 	}
 	sort.Strings(keys)
-	return &stream{
+	s := &stream{
+		node:      store.NewResourceNode(),
 		sn:        sn,
 		keys:      keys,
 		currIndex: -1,
 	}
+	parent.AddChild(s.node, func() {
+		s.Cancel()
+	})
+	return s
 }
 
 // Advance implements the store.Stream interface.
@@ -92,5 +98,6 @@ func (s *stream) Cancel() {
 	if s.err != nil {
 		return
 	}
+	s.node.Close()
 	s.err = verror.New(verror.ErrCanceled, nil, "canceled stream")
 }

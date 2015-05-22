@@ -18,7 +18,7 @@ import (
 type transaction struct {
 	// mu protects the state of the transaction.
 	mu       sync.Mutex
-	node     *resourceNode
+	node     *store.ResourceNode
 	d        *db
 	snapshot store.Snapshot
 	batch    *C.leveldb_writebatch_t
@@ -28,15 +28,17 @@ type transaction struct {
 
 var _ store.Transaction = (*transaction)(nil)
 
-func newTransaction(d *db, parent *resourceNode) *transaction {
+func newTransaction(d *db, parent *store.ResourceNode) *transaction {
+	node := store.NewResourceNode()
+	snapshot := newSnapshot(d, node)
 	tx := &transaction{
-		node:     newResourceNode(),
+		node:     node,
 		d:        d,
-		snapshot: d.NewSnapshot(),
+		snapshot: snapshot,
 		batch:    C.leveldb_writebatch_create(),
 		cOpts:    d.writeOptions,
 	}
-	parent.addChild(tx.node, func() {
+	parent.AddChild(tx.node, func() {
 		tx.Abort()
 	})
 	return tx
@@ -46,8 +48,7 @@ func newTransaction(d *db, parent *resourceNode) *transaction {
 // Assumes mu is held.
 func (tx *transaction) close() {
 	tx.d.txmu.Unlock()
-	tx.node.close()
-	tx.snapshot.Close()
+	tx.node.Close()
 	C.leveldb_writebatch_destroy(tx.batch)
 	tx.batch = nil
 	if tx.cOpts != tx.d.writeOptions {

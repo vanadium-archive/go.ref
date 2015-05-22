@@ -22,7 +22,7 @@ import (
 type db struct {
 	// mu protects the state of the db.
 	mu   sync.RWMutex
-	node *resourceNode
+	node *store.ResourceNode
 	cDb  *C.leveldb_t
 	// Default read/write options.
 	readOptions  *C.leveldb_readoptions_t
@@ -54,7 +54,7 @@ func Open(path string) (store.Store, error) {
 	readOptions := C.leveldb_readoptions_create()
 	C.leveldb_readoptions_set_verify_checksums(readOptions, 1)
 	return &db{
-		node:         newResourceNode(),
+		node:         store.NewResourceNode(),
 		cDb:          cDb,
 		readOptions:  readOptions,
 		writeOptions: C.leveldb_writeoptions_create(),
@@ -68,7 +68,7 @@ func (d *db) Close() error {
 	if d.err != nil {
 		return store.WrapError(d.err)
 	}
-	d.node.close()
+	d.node.Close()
 	C.leveldb_close(d.cDb)
 	d.cDb = nil
 	C.leveldb_readoptions_destroy(d.readOptions)

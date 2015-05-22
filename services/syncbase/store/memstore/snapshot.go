@@ -13,6 +13,7 @@ import (
 
 type snapshot struct {
 	mu   sync.Mutex
+	node *store.ResourceNode
 	data map[string][]byte
 	err  error
 }
@@ -20,12 +21,19 @@ type snapshot struct {
 var _ store.Snapshot = (*snapshot)(nil)
 
 // Assumes st lock is held.
-func newSnapshot(st *memstore) *snapshot {
+func newSnapshot(st *memstore, parent *store.ResourceNode) *snapshot {
 	dataCopy := map[string][]byte{}
 	for k, v := range st.data {
 		dataCopy[k] = v
 	}
-	return &snapshot{data: dataCopy}
+	s := &snapshot{
+		node: store.NewResourceNode(),
+		data: dataCopy,
+	}
+	parent.AddChild(s.node, func() {
+		s.Close()
+	})
+	return s
 }
 
 // Close implements the store.Snapshot interface.
@@ -35,6 +43,7 @@ func (s *snapshot) Close() error {
 	if s.err != nil {
 		return store.WrapError(s.err)
 	}
+	s.node.Close()
 	s.err = verror.New(verror.ErrCanceled, nil, "closed snapshot")
 	return nil
 }
@@ -60,5 +69,5 @@ func (s *snapshot) Scan(start, limit []byte) store.Stream {
 	if s.err != nil {
 		return &store.InvalidStream{s.err}
 	}
-	return newStream(s, start, limit)
+	return newStream(s, s.node, start, limit)
 }

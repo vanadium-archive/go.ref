@@ -17,9 +17,10 @@ const (
 )
 
 type transaction struct {
-	mu sync.Mutex
-	st *memstore
-	sn *snapshot
+	mu   sync.Mutex
+	node *store.ResourceNode
+	st   *memstore
+	sn   *snapshot
 	// The following fields are used to determine whether method calls should
 	// error out.
 	err         error
@@ -32,15 +33,22 @@ type transaction struct {
 
 var _ store.Transaction = (*transaction)(nil)
 
-func newTransaction(st *memstore, seq uint64) *transaction {
-	return &transaction{
+func newTransaction(st *memstore, parent *store.ResourceNode, seq uint64) *transaction {
+	node := store.NewResourceNode()
+	sn := newSnapshot(st, node)
+	tx := &transaction{
+		node:        node,
 		st:          st,
-		sn:          newSnapshot(st),
+		sn:          sn,
 		seq:         seq,
 		createdTime: time.Now(),
 		puts:        map[string][]byte{},
 		deletes:     map[string]struct{}{},
 	}
+	parent.AddChild(tx.node, func() {
+		tx.Abort()
+	})
+	return tx
 }
 
 func (tx *transaction) expired() bool {
@@ -74,7 +82,7 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	if err := tx.error(); err != nil {
 		return &store.InvalidStream{err}
 	}
-	return newStream(tx.sn, start, limit)
+	return tx.sn.Scan(start, limit)
 }
 
 // Put implements the store.StoreWriter interface.
@@ -108,7 +116,7 @@ func (tx *transaction) Commit() error {
 	if err := tx.error(); err != nil {
 		return err
 	}
-	tx.sn.Close()
+	tx.node.Close()
 	tx.st.mu.Lock()
 	defer tx.st.mu.Unlock() // note, defer is last-in-first-out
 	if tx.seq <= tx.st.lastCommitSeq {
@@ -135,7 +143,7 @@ func (tx *transaction) Abort() error {
 	if err := tx.error(); err != nil {
 		return err
 	}
-	tx.sn.Close()
+	tx.node.Close()
 	tx.err = verror.New(verror.ErrCanceled, nil, "aborted transaction")
 	return nil
 }
