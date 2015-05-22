@@ -18,7 +18,6 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/ref/internal/reflectutil"
 	"v.io/x/ref/services/wspr/internal/lib"
-	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
 
@@ -132,11 +131,6 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 	return nil
 }
 
-// Returns false if the blessing is malformed
-func validateBlessing(blessings principal.JsBlessings) bool {
-	return blessings.Handle != 0 && blessings.PublicKey != ""
-}
-
 func validateEndpoint(ep string) bool {
 	return ep != ""
 }
@@ -175,11 +169,11 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 	}
 
 	// We expect localBlessings and remoteBlessings to be set and the publicKey be a string
-	if !validateBlessing(call.LocalBlessings) {
+	if call.LocalBlessings != 0 {
 		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad localblessing:%v", call.LocalBlessings)))
 		return nil
 	}
-	if !validateBlessing(call.RemoteBlessings) {
+	if call.RemoteBlessings != 0 {
 		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad remoteblessing:%v", call.RemoteBlessings)))
 		return nil
 	}
@@ -246,7 +240,7 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 		return nil
 	}
 
-	if !validateBlessing(call.RemoteBlessings) {
+	if call.RemoteBlessings != 0 {
 		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("bad Remoteblessing:%v", call.RemoteBlessings)))
 		return nil
 	}

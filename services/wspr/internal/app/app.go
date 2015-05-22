@@ -90,8 +90,11 @@ type Controller struct {
 	// the default implementation.
 	writerCreator func(id int32) lib.ClientWriter
 
-	// Cache for all the Blessings that javascript has a handle to.
-	blessingsCache *principal.JSBlessingsHandles
+	// Handles for all the Blessings that javascript has a handle to.
+	blessingsHandles *principal.JSBlessingsHandles
+
+	// Cache of Blessings that were sent to Javascript.
+	blessingsCache *principal.BlessingsCache
 
 	// reservedServices contains a map of reserved service names.  These
 	// are objects that serve requests in wspr without actually making
@@ -106,6 +109,8 @@ type Controller struct {
 	clientDecoder *vom.Decoder
 	clientReader  *lib.ProxyReader
 }
+
+var _ ControllerServerMethods = (*Controller)(nil)
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
 // javascript server.
@@ -128,12 +133,14 @@ func NewController(ctx *context.T, writerCreator func(id int32) lib.ClientWriter
 	}
 
 	controller := &Controller{
-		ctx:            ctx,
-		cancel:         cancel,
-		writerCreator:  writerCreator,
-		listenSpec:     listenSpec,
-		blessingsCache: principal.NewJSBlessingsHandles(),
+		ctx:              ctx,
+		cancel:           cancel,
+		writerCreator:    writerCreator,
+		listenSpec:       listenSpec,
+		blessingsHandles: principal.NewJSBlessingsHandles(),
 	}
+
+	controller.blessingsCache = principal.NewBlessingsCache(controller.SendBlessingsCacheMessages, principal.PeriodicGcPolicy(1*time.Minute))
 
 	controllerInvoker, err := rpc.ReflectInvoker(ControllerServer(controller))
 	if err != nil {
@@ -165,7 +172,7 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 				return
 			}
 			if blessings, ok := item.(security.Blessings); ok {
-				item = principal.ConvertBlessingsToHandle(blessings, c.blessingsCache.GetOrAddHandle(blessings))
+				item = principal.ConvertBlessingsToHandle(blessings, c.blessingsHandles.GetOrAddHandle(blessings))
 			}
 			vomItem, err := lib.HexVomEncode(item)
 			if err != nil {
@@ -199,7 +206,8 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 				w.Error(err)
 				return
 			}
-			results[i] = vdl.ValueOf(principal.ConvertBlessingsToHandle(blessings, c.blessingsCache.GetOrAddHandle(blessings)))
+			jsBless := principal.ConvertBlessingsToHandle(blessings, c.blessingsHandles.GetOrAddHandle(blessings))
+			results[i] = vdl.ValueOf(c.blessingsCache.Put(jsBless))
 		}
 	}
 	c.sendRPCResponse(ctx, w, span, results)
@@ -285,7 +293,7 @@ func (c *Controller) CreateNewFlow(s interface{}, stream rpc.Stream) *server.Flo
 	id := c.lastGeneratedId
 	c.lastGeneratedId += 2
 	c.flowMap[id] = s
-	os := newStream(c.blessingsCache)
+	os := newStream(c.blessingsHandles)
 	os.init(stream)
 	c.outstandingRequests[id] = &outstandingRequest{
 		stream: os,
@@ -306,6 +314,11 @@ func (c *Controller) CleanupFlow(id int32) {
 	}
 }
 
+// BlessingsCache gets the blessings cache used by the controller.
+func (c *Controller) BlessingsCache() *principal.BlessingsCache {
+	return c.blessingsCache
+}
+
 // RT returns the runtime of the app.
 func (c *Controller) Context() *context.T {
 	return c.ctx
@@ -316,12 +329,12 @@ func (c *Controller) Context() *context.T {
 // because JS only has a handle to the blessings to avoid shipping the
 // certificate forest to JS and back.
 func (c *Controller) GetOrAddBlessingsHandle(blessings security.Blessings) principal.BlessingsHandle {
-	return c.blessingsCache.GetOrAddHandle(blessings)
+	return c.blessingsHandles.GetOrAddHandle(blessings)
 }
 
 // GetBlessings gets blessings for a given blessings handle.
 func (c *Controller) GetBlessings(handle principal.BlessingsHandle) security.Blessings {
-	return c.blessingsCache.GetBlessings(handle)
+	return c.blessingsHandles.GetBlessings(handle)
 }
 
 // Cleanup cleans up any outstanding rpcs.
@@ -400,7 +413,7 @@ func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *RpcRequest
 
 	for i, arg := range inArgs {
 		if jsBlessings, ok := arg.(principal.JsBlessings); ok {
-			inArgs[i] = c.blessingsCache.GetBlessings(jsBlessings.Handle)
+			inArgs[i] = c.blessingsHandles.GetBlessings(jsBlessings.Handle)
 		}
 	}
 	// We have to make the start call synchronous so we can make sure that we populate
@@ -578,7 +591,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 		// to put the outstanding stream in the map before we make the async call so that
 		// the future send know which queue to write to, even if the client call isn't
 		// actually ready yet.
-		request.stream = newStream(c.blessingsCache)
+		request.stream = newStream(c.blessingsHandles)
 	}
 	c.Lock()
 	c.outstandingRequests[id] = request
@@ -751,20 +764,20 @@ func (c *Controller) Signature(ctx *context.T, _ rpc.ServerCall, name string) ([
 
 // UnlinkBlessings removes the given blessings from the blessings store.
 func (c *Controller) UnlinkBlessings(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle) error {
-	return c.blessingsCache.RemoveReference(handle)
+	return c.blessingsHandles.RemoveReference(handle)
 }
 
 // Bless binds extensions of blessings held by this principal to
 // another principal (represented by its public key).
-func (c *Controller) Bless(_ *context.T, _ rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
+func (c *Controller) Bless(_ *context.T, _ rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveats []security.Caveat) (principal.BlessingsId, error) {
 	var inputBlessing security.Blessings
 	if inputBlessing = c.GetBlessings(blessingHandle); inputBlessing.IsZero() {
-		return "", principal.ZeroHandle, verror.New(invalidBlessingsHandle, nil, blessingHandle)
+		return 0, verror.New(invalidBlessingsHandle, nil, blessingHandle)
 	}
 
 	key, err := principal.DecodePublicKey(publicKey)
 	if err != nil {
-		return "", principal.ZeroHandle, err
+		return 0, err
 	}
 
 	if len(caveats) == 0 {
@@ -774,60 +787,58 @@ func (c *Controller) Bless(_ *context.T, _ rpc.ServerCall, publicKey string, ble
 	p := v23.GetPrincipal(c.ctx)
 	blessings, err := p.Bless(key, inputBlessing, extension, caveats[0], caveats[1:]...)
 	if err != nil {
-		return "", principal.ZeroHandle, err
+		return 0, err
 	}
-	handle := c.blessingsCache.GetOrAddHandle(blessings)
-	return publicKey, handle, nil
+	jsBlessings := principal.ConvertBlessingsToHandle(blessings, c.blessingsHandles.GetOrAddHandle(blessings))
+	return c.blessingsCache.Put(jsBlessings), nil
 }
 
 // BlessSelf creates a blessing with the provided name for this principal.
-func (c *Controller) BlessSelf(_ *context.T, _ rpc.ServerCall, extension string, caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
+func (c *Controller) BlessSelf(_ *context.T, _ rpc.ServerCall, extension string, caveats []security.Caveat) (principal.BlessingsId, error) {
 	p := v23.GetPrincipal(c.ctx)
 	blessings, err := p.BlessSelf(extension)
 	if err != nil {
-		return "", principal.ZeroHandle, verror.Convert(verror.ErrInternal, nil, err)
+		return 0, verror.Convert(verror.ErrInternal, nil, err)
 	}
 
-	handle := c.blessingsCache.GetOrAddHandle(blessings)
-
-	encKey, err := principal.EncodePublicKey(p.PublicKey())
-	return encKey, handle, err
+	jsBlessings := principal.ConvertBlessingsToHandle(blessings, c.blessingsHandles.GetOrAddHandle(blessings))
+	return c.blessingsCache.Put(jsBlessings), err
 }
 
 // BlessingStoreSet puts the specified blessing in the blessing store under the
 // provided pattern.
-func (c *Controller) BlessingStoreSet(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error) {
+func (c *Controller) BlessingStoreSet(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle, pattern security.BlessingPattern) (principal.BlessingsId, error) {
 	var inputBlessings security.Blessings
 	if inputBlessings = c.GetBlessings(handle); inputBlessings.IsZero() {
-		return nil, verror.New(invalidBlessingsHandle, nil, handle)
+		return 0, verror.New(invalidBlessingsHandle, nil, handle)
 	}
 
 	p := v23.GetPrincipal(c.ctx)
 	outBlessings, err := p.BlessingStore().Set(inputBlessings, security.BlessingPattern(pattern))
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	if outBlessings.IsZero() {
-		return nil, nil
+		return 0, nil
 	}
 
-	jsBlessings := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsCache.GetOrAddHandle(outBlessings))
-	return jsBlessings, nil
+	jsBlessings := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsHandles.GetOrAddHandle(outBlessings))
+	return c.blessingsCache.Put(jsBlessings), nil
 }
 
 // BlessingStoreForPeer puts the specified blessing in the blessing store under the
 // provided pattern.
-func (c *Controller) BlessingStoreForPeer(_ *context.T, _ rpc.ServerCall, peerBlessings []string) (*principal.JsBlessings, error) {
+func (c *Controller) BlessingStoreForPeer(_ *context.T, _ rpc.ServerCall, peerBlessings []string) (principal.BlessingsId, error) {
 	p := v23.GetPrincipal(c.ctx)
 	outBlessings := p.BlessingStore().ForPeer(peerBlessings...)
 
 	if outBlessings.IsZero() {
-		return nil, nil
+		return 0, nil
 	}
 
-	jsBlessings := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsCache.GetOrAddHandle(outBlessings))
-	return jsBlessings, nil
+	jsBlessings := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsHandles.GetOrAddHandle(outBlessings))
+	return c.blessingsCache.Put(jsBlessings), nil
 }
 
 // BlessingStoreSetDefault sets the default blessings in the blessing store.
@@ -842,16 +853,16 @@ func (c *Controller) BlessingStoreSetDefault(_ *context.T, _ rpc.ServerCall, han
 }
 
 // BlessingStoreDefault fetches the default blessings for the principal of the controller.
-func (c *Controller) BlessingStoreDefault(*context.T, rpc.ServerCall) (*principal.JsBlessings, error) {
+func (c *Controller) BlessingStoreDefault(*context.T, rpc.ServerCall) (principal.BlessingsId, error) {
 	p := v23.GetPrincipal(c.ctx)
 	outBlessings := p.BlessingStore().Default()
 
 	if outBlessings.IsZero() {
-		return nil, nil
+		return 0, nil
 	}
 
-	jsBlessing := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsCache.GetOrAddHandle(outBlessings))
-	return jsBlessing, nil
+	jsBlessing := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsHandles.GetOrAddHandle(outBlessings))
+	return c.blessingsCache.Put(jsBlessing), nil
 }
 
 // BlessingStorePublicKey fetches the public key used by the principal associated with the blessing store.
@@ -862,11 +873,12 @@ func (c *Controller) BlessingStorePublicKey(*context.T, rpc.ServerCall) (string,
 }
 
 // BlessingStorePeerBlessings returns all the blessings that the BlessingStore holds.
-func (c *Controller) BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]*principal.JsBlessings, error) {
+func (c *Controller) BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]principal.BlessingsId, error) {
 	p := v23.GetPrincipal(c.ctx)
-	outBlessingsMap := map[security.BlessingPattern]*principal.JsBlessings{}
+	outBlessingsMap := map[security.BlessingPattern]principal.BlessingsId{}
 	for pattern, blessings := range p.BlessingStore().PeerBlessings() {
-		outBlessingsMap[pattern] = principal.ConvertBlessingsToHandle(blessings, c.blessingsCache.GetOrAddHandle(blessings))
+		jsBless := principal.ConvertBlessingsToHandle(blessings, c.blessingsHandles.GetOrAddHandle(blessings))
+		outBlessingsMap[pattern] = c.blessingsCache.Put(jsBless)
 	}
 	return outBlessingsMap, nil
 }
@@ -890,23 +902,23 @@ func (c *Controller) AddToRoots(_ *context.T, _ rpc.ServerCall, handle principal
 }
 
 // UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
-func (c *Controller) UnionOfBlessings(_ *context.T, _ rpc.ServerCall, handles []principal.BlessingsHandle) (*principal.JsBlessings, error) {
+func (c *Controller) UnionOfBlessings(_ *context.T, _ rpc.ServerCall, handles []principal.BlessingsHandle) (principal.BlessingsId, error) {
 	inputBlessings := make([]security.Blessings, len(handles))
 	for i, handle := range handles {
 		bless := c.GetBlessings(handle)
 		if bless.IsZero() {
-			return nil, verror.New(invalidBlessingsHandle, nil, handle)
+			return 0, verror.New(invalidBlessingsHandle, nil, handle)
 		}
 		inputBlessings[i] = bless
 	}
 
 	outBlessings, err := security.UnionOfBlessings(inputBlessings...)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	jsBlessings := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsCache.GetOrAddHandle(outBlessings))
-	return jsBlessings, nil
+	jsBlessings := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsHandles.GetOrAddHandle(outBlessings))
+	return c.blessingsCache.Put(jsBlessings), nil
 }
 
 // HandleGranterResponse handles the result of a Granter request.
@@ -956,4 +968,14 @@ func (c *Controller) SendLogMessage(level lib.LogLevel, msg string) error {
 		Level:   level,
 		Message: msg,
 	})
+}
+
+func (c *Controller) SendBlessingsCacheMessages(messages []principal.BlessingsCacheMessage) {
+	c.Lock()
+	defer c.Unlock()
+	id := c.lastGeneratedId
+	c.lastGeneratedId += 2
+	if err := c.writerCreator(id).Send(lib.ResponseBlessingsCacheMessage, messages); err != nil {
+		vlog.Errorf("unexpected error sending blessings cache message: %v", err)
+	}
 }
