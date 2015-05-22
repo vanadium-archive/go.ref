@@ -32,7 +32,7 @@ import (
 //go:generate v23 test generate
 
 func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	var (
 		err error
 		psc = testutil.NewPrincipal("sc")

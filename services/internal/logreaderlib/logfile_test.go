@@ -67,7 +67,7 @@ func writeAndSync(t *testing.T, w *os.File, s string) {
 }
 
 func TestReadLogImplNoFollow(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
@@ -154,7 +154,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 }
 
 func TestReadLogImplWithFollow(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")

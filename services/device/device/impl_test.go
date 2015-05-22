@@ -29,7 +29,7 @@ import (
 //go:generate v23 test generate
 
 func TestListCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()
@@ -83,7 +83,7 @@ func TestListCommand(t *testing.T) {
 }
 
 func TestAddCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()
@@ -135,7 +135,7 @@ func TestAddCommand(t *testing.T) {
 }
 
 func TestRemoveCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()
@@ -174,7 +174,7 @@ func TestRemoveCommand(t *testing.T) {
 }
 
 func TestInstallCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()
@@ -283,7 +283,7 @@ func TestInstallCommand(t *testing.T) {
 }
 
 func TestClaimCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()
@@ -377,7 +377,7 @@ func TestClaimCommand(t *testing.T) {
 }
 
 func TestInstantiateCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()
@@ -456,7 +456,7 @@ func TestInstantiateCommand(t *testing.T) {
 }
 
 func TestDebugCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	tapes := newTapeMap()
 	server, endpoint, err := startServer(t, ctx, tapes)
@@ -508,7 +508,7 @@ var (
 )
 
 func TestStatusCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	tapes := newTapeMap()
 	server, endpoint, err := startServer(t, ctx, tapes)

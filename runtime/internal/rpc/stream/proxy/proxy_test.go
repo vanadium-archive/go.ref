@@ -482,7 +482,7 @@ func readFlow(t *testing.T, ln stream.Listener, read chan<- string) {
 }
 
 func v23Init() (*context.T, func()) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	ctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("proxy"))
 	if err != nil {
 		panic(err)

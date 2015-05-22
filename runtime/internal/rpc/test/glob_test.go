@@ -42,7 +42,7 @@ func startGlobServer(ctx *context.T, tree *node) (string, func(), error) {
 }
 
 func TestGlob(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	namespace := []string{
@@ -203,7 +203,7 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobDeny(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tree := newNode()

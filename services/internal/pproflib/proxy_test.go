@@ -29,7 +29,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 }
 
 func TestPProfProxy(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	s, err := v23.NewServer(ctx)
@@ -56,10 +56,11 @@ func TestPProfProxy(t *testing.T) {
 		"/pprof/profile?seconds=1",
 		"/pprof/heap",
 		"/pprof/goroutine",
-		fmt.Sprintf("/pprof/symbol?%#x", TestPProfProxy),
+		fmt.Sprintf("/pprof/symbol?%p", TestPProfProxy),
 	}
 	for _, c := range testcases {
 		url := "http://" + l.Addr().String() + c
+		t.Log(url)
 		resp, err := http.Get(url)
 		if err != nil {
 			t.Fatalf("http.Get failed: %v", err)

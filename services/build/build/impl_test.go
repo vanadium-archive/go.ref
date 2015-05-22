@@ -70,7 +70,7 @@ func stopServer(t *testing.T, server rpc.Server) {
 }
 
 func TestBuildClient(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	server, endpoint := startServer(ctx, t)

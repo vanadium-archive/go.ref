@@ -130,7 +130,7 @@ func startMountTableServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) 
 }
 
 func TestGetGoServerSignature(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	s, endpoint, err := startAdderServer(ctx)
@@ -173,7 +173,7 @@ type goServerTestCase struct {
 }
 
 func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	s, endpoint, err := startAdderServer(ctx)
@@ -384,7 +384,7 @@ type jsServerTestCase struct {
 }
 
 func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	vomClientStream := []string{}

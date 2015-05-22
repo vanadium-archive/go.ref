@@ -110,7 +110,7 @@ func TestMain(m *testing.M) {
 	// We do not use defer here since this program will exit at the end of
 	// this function through os.Exit().
 	var shutdown v23.Shutdown
-	ctx, shutdown = test.InitForTest()
+	ctx, shutdown = test.V23Init()
 
 	var serverStop func()
 	serverEP, serverStop := internal.StartServer(ctx, v23.GetListenSpec(ctx))

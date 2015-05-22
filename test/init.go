@@ -63,11 +63,11 @@ func Init() {
 	once.Do(init)
 }
 
-// InitForTest initializes a new context.T and sets a freshly created principal
+// V23Init initializes a new context.T and sets a freshly created principal
 // (with a single self-signed blessing) on it. The principal setting step is
 // skipped if this function is invoked from a process run using the modules
 // package.
-func InitForTest() (*context.T, v23.Shutdown) {
+func V23Init() (*context.T, v23.Shutdown) {
 	ctx, shutdown := v23.Init()
 	if len(os.Getenv("V23_SHELL_HELPER_PROCESS_ENTRY_POINT")) != 0 {
 		return ctx, shutdown

@@ -28,7 +28,7 @@ var (
 )
 
 func TestAccessListGetCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()
@@ -76,7 +76,7 @@ self/bad !Admin
 }
 
 func TestAccessListSetCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()

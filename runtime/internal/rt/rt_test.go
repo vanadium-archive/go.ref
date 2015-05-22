@@ -53,7 +53,7 @@ func TestInit(t *testing.T) {
 }
 
 var child = modules.Register(func(env *modules.Env, args ...string) error {
-	_, shutdown := test.InitForTest()
+	_, shutdown := test.V23Init()
 	defer shutdown()
 
 	logger := vlog.Log
@@ -121,7 +121,7 @@ func tmpDir(t *testing.T) string {
 }
 
 var principal = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	p := v23.GetPrincipal(ctx)
@@ -135,7 +135,7 @@ var principal = modules.Register(func(env *modules.Env, args ...string) error {
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
 var runner = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	p := v23.GetPrincipal(ctx)
@@ -233,7 +233,7 @@ func TestPrincipalInit(t *testing.T) {
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	agentSh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)

@@ -32,7 +32,7 @@ import (
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -54,7 +54,7 @@ func TestBasic(t *testing.T) {
 // TestMultipleWaiters verifies that the plumbing works with more than one
 // registered wait channel.
 func TestMultipleWaiters(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -77,7 +77,7 @@ func TestMultipleWaiters(t *testing.T) {
 // channel is not being drained: once the channel's buffer fills up, future
 // Stops become no-ops.
 func TestMultipleStops(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -97,7 +97,7 @@ func TestMultipleStops(t *testing.T) {
 }
 
 var noWaiters = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -128,7 +128,7 @@ func TestNoWaiters(t *testing.T) {
 }
 
 var forceStop = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -177,7 +177,7 @@ func checkNoProgress(t *testing.T, ch <-chan v23.Task) {
 // TestProgress verifies that the ticker update/track logic works for a single
 // tracker.
 func TestProgress(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 
 	m := v23.GetAppCycle(ctx)
 	m.AdvanceGoal(50)
@@ -209,7 +209,7 @@ func TestProgress(t *testing.T) {
 // works for more than one tracker.  It also ensures that the runtime doesn't
 // block when the tracker channels are full.
 func TestProgressMultipleTrackers(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 
 	m := v23.GetAppCycle(ctx)
 	// ch1 is 1-buffered, ch2 is 2-buffered.
@@ -244,7 +244,7 @@ func TestProgressMultipleTrackers(t *testing.T) {
 }
 
 var app = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -289,7 +289,7 @@ func createConfigServer(t *testing.T, ctx *context.T) (rpc.Server, string, <-cha
 }
 
 func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 
 	configServer, configServiceName, ch := createConfigServer(t, ctx)
 	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)

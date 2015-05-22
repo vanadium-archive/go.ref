@@ -31,7 +31,7 @@ func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 }
 
 func TestNeighborhood(t *testing.T) {
-	rootCtx, shutdown := test.InitForTest()
+	rootCtx, shutdown := test.V23Init()
 	defer shutdown()
 
 	vlog.Infof("TestNeighborhood")

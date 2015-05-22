@@ -44,7 +44,7 @@ func createAgent(ctx *context.T, path string) (*Agent, func(), error) {
 }
 
 func TestNoDeviceManager(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	agent, cleanup, err := createAgent(ctx, "")
@@ -80,7 +80,7 @@ func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 }
 
 func TestSigning(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	path, err := ioutil.TempDir("", "agent")
@@ -147,7 +147,7 @@ func TestSigning(t *testing.T) {
 }
 
 func TestInMemorySigning(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	path, err := ioutil.TempDir("", "agent")

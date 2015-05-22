@@ -117,7 +117,7 @@ func (*server) ZStream(_ *context.T, call internal.TypeTesterZStreamServerCall, 
 }
 
 func initTest(t *testing.T) (ctx *context.T, name string, shutdown v23.Shutdown) {
-	ctx, shutdown = test.InitForTest()
+	ctx, shutdown = test.V23Init()
 
 	rpcServer, err := v23.NewServer(ctx)
 	if err != nil {

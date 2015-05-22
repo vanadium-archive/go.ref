@@ -22,7 +22,7 @@ import (
 // glob functionality, by trying out various combinations of
 // instances/installations in glob results.
 func TestLsCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	tapes := newTapeMap()
 	server, endpoint, err := startServer(t, ctx, tapes)

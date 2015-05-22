@@ -28,7 +28,7 @@ func ExampleDispatch() {
 		return
 	}
 	// Parent process spawns the echo program.
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	sh, _ := modules.NewShell(ctx, nil, false, nil)
 	defer sh.Cleanup(nil, nil)
@@ -43,7 +43,7 @@ func ExampleDispatchAndExitIfChild() {
 	// Child process dispatches to the echo program.
 	modules.DispatchAndExitIfChild()
 	// Parent process spawns the echo program.
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	sh, _ := modules.NewShell(ctx, nil, false, nil)
 	defer sh.Cleanup(nil, nil)

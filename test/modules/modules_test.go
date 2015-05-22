@@ -75,7 +75,7 @@ func lifoFunc(env *modules.Env, args ...string) error {
 }
 
 var printBlessing = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	blessing := v23.GetPrincipal(ctx).BlessingStore().Default()
@@ -193,7 +193,7 @@ func getCustomBlessing(t *testing.T, sh *modules.Shell, creds *modules.CustomCre
 }
 
 func TestChild(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -207,7 +207,7 @@ func TestChild(t *testing.T) {
 }
 
 func TestAgent(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -223,7 +223,7 @@ func TestAgent(t *testing.T) {
 }
 
 func TestCustomPrincipal(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	p, err := vsecurity.NewPrincipal()
@@ -253,7 +253,7 @@ func TestCustomPrincipal(t *testing.T) {
 }
 
 func TestCustomCredentials(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	root := testutil.NewIDProvider("myshell")
@@ -344,7 +344,7 @@ func TestNoAgent(t *testing.T) {
 }
 
 func TestChildNoRegistration(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -363,7 +363,7 @@ func TestChildNoRegistration(t *testing.T) {
 }
 
 func TestErrorChild(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -404,7 +404,7 @@ func testShutdown(t *testing.T, sh *modules.Shell, prog modules.Program) {
 }
 
 func TestShutdownSubprocess(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, false, t)
@@ -419,7 +419,7 @@ func TestShutdownSubprocess(t *testing.T) {
 // forever if a child does not die upon closing stdin; but instead times out and
 // returns an appropriate error.
 func TestShutdownSubprocessIgnoreStdin(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, false, t)
@@ -448,7 +448,7 @@ func TestShutdownSubprocessIgnoreStdin(t *testing.T) {
 // implementation inappropriately sets stdout to the file that is to be closed
 // in Wait.
 func TestStdoutRace(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -493,7 +493,7 @@ func find(want string, in []string) bool {
 }
 
 func TestEnvelope(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -548,7 +548,7 @@ func TestEnvelope(t *testing.T) {
 }
 
 func TestEnvMerge(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -581,7 +581,7 @@ func TestEnvMerge(t *testing.T) {
 }
 
 func TestNoExec(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -601,7 +601,7 @@ func TestNoExec(t *testing.T) {
 }
 
 func TestExternal(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -639,7 +639,7 @@ func TestExternalTestHelper(t *testing.T) {
 }
 
 func TestPipe(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -687,7 +687,7 @@ func TestPipe(t *testing.T) {
 }
 
 func TestLIFO(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
@@ -767,7 +767,7 @@ func TestEmbeddedSession(t *testing.T) {
 }
 
 func TestCredentialsAndNoExec(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {

@@ -113,7 +113,7 @@ func stopServer(t *testing.T, server rpc.Server) {
 }
 
 func TestMountTableClient(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	server, endpoint, err := startServer(t, ctx)

@@ -79,7 +79,7 @@ func startMockServer(ctx *context.T, desiredName string) (rpc.Server, naming.End
 }
 
 func TestBrowspr(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	proxySpec := rpc.ListenSpec{

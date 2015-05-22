@@ -26,7 +26,7 @@ import (
 )
 
 func TestDownloadSignatureMatch(t *testing.T) {
-	ctx, shutdown := utiltest.InitForTest()
+	ctx, shutdown := utiltest.V23Init()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)

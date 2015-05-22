@@ -36,7 +36,7 @@ var appRepository = modules.Register(func(env *modules.Env, args ...string) erro
 	publishName := args[0]
 	storedir := args[1]
 
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -64,7 +64,7 @@ var appRepository = modules.Register(func(env *modules.Env, args ...string) erro
 }, "appRepository")
 
 func TestApplicationUpdatePermissions(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -210,7 +210,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 }
 
 func TestPerAppPermissions(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	// By default, all principals in this test will have blessings generated based

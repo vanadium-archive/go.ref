@@ -70,7 +70,7 @@ func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 // For a more typical server, see simpleServerProgram.
 var complexServerProgram = modules.Register(func(env *modules.Env, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	// shutdown is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	defer shutdown()
@@ -212,7 +212,7 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 // complexServerProgram.
 var simpleServerProgram = modules.Register(func(env *modules.Env, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	// Calling shutdown is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	//

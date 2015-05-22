@@ -20,7 +20,7 @@ import (
 //go:generate v23 test generate
 
 func TestVtraceServer(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	server, err := v23.NewServer(ctx)

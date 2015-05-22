@@ -509,7 +509,7 @@ func CtxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider,
 // TODO(rjkroege): This helper is generally useful. Use it to reduce
 // boiler plate across all device manager tests.
 func StartupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *testutil.IDProvider) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Make a new identity context.
@@ -700,12 +700,12 @@ func UserName(t *testing.T) string {
 	return u.Username
 }
 
-func InitForTest() (*context.T, v23.Shutdown) {
+func V23Init() (*context.T, v23.Shutdown) {
 	roots, _ := ref.EnvNamespaceRoots()
 	for key, _ := range roots {
 		os.Unsetenv(key)
 	}
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
 }
