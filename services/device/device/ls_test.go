@@ -157,7 +157,7 @@ func TestLsCommand(t *testing.T) {
 		}
 
 		if expected, got := c.expected, strings.TrimSpace(stdout.String()); got != expected {
-			t.Errorf("Unexpected output from status. Got %q, expected %q", got, expected)
+			t.Errorf("Unexpected output from ls. Got %q, expected %q", got, expected)
 		}
 		cmd_device.ResetGlobFlags()
 	}

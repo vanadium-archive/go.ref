@@ -20,7 +20,7 @@ var CmdRoot = &cmdline.Command{
 	Long: `
 Command device facilitates interaction with the Vanadium device manager.
 `,
-	Children: []*cmdline.Command{cmdInstall, cmdInstallLocal, cmdUninstall, cmdAssociate, cmdDescribe, cmdClaim, cmdInstantiate, cmdDelete, cmdRun, cmdKill, cmdRevert, cmdUpdate, cmdUpdateAll, cmdStatus, cmdDebug, cmdACL, cmdPublish, cmdLs},
+	Children: []*cmdline.Command{cmdInstall, cmdInstallLocal, cmdUninstall, cmdAssociate, cmdDescribe, cmdClaim, cmdInstantiate, cmdDelete, cmdRun, cmdKill, cmdRevert, cmdUpdate, cmdStatus, cmdDebug, cmdACL, cmdPublish, cmdLs},
 }
 
 func main() {

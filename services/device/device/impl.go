@@ -247,29 +247,6 @@ func runDescribe(ctx *context.T, env *cmdline.Env, args []string) error {
 	return nil
 }
 
-var cmdUpdate = &cmdline.Command{
-	Runner:   v23cmd.RunnerFunc(runUpdate),
-	Name:     "update",
-	Short:    "Update the device manager or application",
-	Long:     "Update the device manager or application",
-	ArgsName: "<object>",
-	ArgsLong: `
-<object> is the vanadium object name of the device manager or application
-installation or instance to update.`,
-}
-
-func runUpdate(ctx *context.T, env *cmdline.Env, args []string) error {
-	if expected, got := 1, len(args); expected != got {
-		return env.UsageErrorf("update: incorrect number of arguments, expected %d, got %d", expected, got)
-	}
-	name := args[0]
-	if err := device.ApplicationClient(name).Update(ctx); err != nil {
-		return err
-	}
-	fmt.Fprintln(env.Stdout, "Update successful.")
-	return nil
-}
-
 var cmdRevert = &cmdline.Command{
 	Runner:   v23cmd.RunnerFunc(runRevert),
 	Name:     "revert",
@@ -320,13 +297,13 @@ var cmdStatus = &cmdline.Command{
 	Runner:   globRunner(runStatus),
 	Name:     "status",
 	Short:    "Get application status.",
-	Long:     "Get the status of an application installation or instance.",
+	Long:     "Get the status of application installations and instances.",
 	ArgsName: "<app name patterns...>",
 	ArgsLong: `
-<app name patterns...> are vanadium object names or glob name patterns corresponding to app installations and instances.`,
+<app name patterns...> are vanadium object names or glob name patterns corresponding to application installations and instances.`,
 }
 
-func runStatus(entry globResult, stdout, stderr io.Writer) error {
+func runStatus(entry globResult, _ *context.T, stdout, _ io.Writer) error {
 	switch s := entry.status.(type) {
 	case device.StatusInstance:
 		fmt.Fprintf(stdout, "Instance %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)

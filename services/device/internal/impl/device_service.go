@@ -671,7 +671,7 @@ func (s *deviceService) Status(*context.T, rpc.ServerCall) (device.Status, error
 	if versionDir == "." {
 		versionDir = "base"
 	}
-	return device.StatusInstance{Value: device.InstanceStatus{
+	return device.StatusDevice{Value: device.DeviceStatus{
 		State:   state,
 		Version: versionDir,
 	}}, nil

@@ -233,7 +233,9 @@ func (mdi *mockDeviceInvoker) Delete(*context.T, rpc.ServerCall) error {
 
 func (*mockDeviceInvoker) Uninstall(*context.T, rpc.ServerCall) error { return nil }
 
-func (i *mockDeviceInvoker) Update(*context.T, rpc.ServerCall) error { return nil }
+func (mdi *mockDeviceInvoker) Update(*context.T, rpc.ServerCall) error {
+	return mdi.simpleCore("Update", "Update")
+}
 
 func (*mockDeviceInvoker) UpdateTo(*context.T, rpc.ServerCall, string) error { return nil }
 

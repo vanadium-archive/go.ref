@@ -24,7 +24,12 @@ func (t *tape) Record(call interface{}) interface{} {
 	t.stimuli = append(t.stimuli, call)
 
 	if len(t.responses) < 1 {
-		return fmt.Errorf("Record(%#v) had no response", call)
+		// Returning an error at this point will likely cause the mock
+		// device manager to panic trying to cast the response to what
+		// it expects.  Panic'ing here at least makes the issue more
+		// apparent.
+		// TODO(caprita): Don't panic.
+		panic(fmt.Errorf("Record(%#v) had no response", call))
 	}
 	resp := t.responses[0]
 	t.responses = t.responses[1:]
@@ -92,9 +97,6 @@ func (tm *tapeMap) rewind() {
 
 func TestOneTape(t *testing.T) {
 	tm := newTapeMap()
-	if _, ok := tm.forSuffix("mytape").Record("foo").(error); !ok {
-		t.Errorf("Expected error")
-	}
 	tm.forSuffix("mytape").SetResponses("b", "c")
 	if want, got := "b", tm.forSuffix("mytape").Record("bar"); want != got {
 		t.Errorf("Expected %v, got %v", want, got)
@@ -102,7 +104,7 @@ func TestOneTape(t *testing.T) {
 	if want, got := "c", tm.forSuffix("mytape").Record("baz"); want != got {
 		t.Errorf("Expected %v, got %v", want, got)
 	}
-	if want, got := []interface{}{"foo", "bar", "baz"}, tm.forSuffix("mytape").Play(); !reflect.DeepEqual(want, got) {
+	if want, got := []interface{}{"bar", "baz"}, tm.forSuffix("mytape").Play(); !reflect.DeepEqual(want, got) {
 		t.Errorf("Expected %v, got %v", want, got)
 	}
 	tm.forSuffix("mytape").Rewind()
