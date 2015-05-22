@@ -8,6 +8,12 @@ import (
 	"fmt"
 )
 
+// TypeDef represents a user-defined named type.
+type TypeDef struct {
+	NamePos      // name assigned by the user, pos and doc
+	Type    Type // the underlying type of the type definition.
+}
+
 // Type is an interface representing symbolic occurrences of types in VDL files.
 type Type interface {
 	// String returns a human-readable description of the type.
@@ -73,12 +79,6 @@ type TypeUnion struct {
 type TypeOptional struct {
 	Base Type
 	P    Pos
-}
-
-// TypeDef represents a user-defined named type.
-type TypeDef struct {
-	NamePos      // name assigned by the user, pos and doc
-	Type    Type // the underlying type of the type definition.
 }
 
 func (t *TypeNamed) Pos() Pos    { return t.P }

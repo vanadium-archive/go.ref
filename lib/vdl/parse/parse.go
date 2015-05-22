@@ -114,6 +114,81 @@ func ParseExprs(data string, errs *vdlutil.Errors) []ConstExpr {
 	return lex.exprs
 }
 
+// ExtractExprPackagePaths returns any package paths that appear in named constants
+// in expr. i.e. "a/b/c".Foo => "a/b/c".
+func ExtractExprPackagePaths(expr ConstExpr) []string {
+	var paths []string
+	switch e := expr.(type) {
+	case *ConstNamed:
+		if path := packageFromName(e.Name); len(path) > 0 {
+			paths = append(paths, path)
+		}
+	case *ConstCompositeLit:
+		for _, kv := range e.KVList {
+			paths = append(paths, ExtractExprPackagePaths(kv.Key)...)
+			paths = append(paths, ExtractExprPackagePaths(kv.Value)...)
+		}
+		paths = append(paths, ExtractTypePackagePaths(e.Type)...)
+	case *ConstIndexed:
+		paths = append(paths, ExtractExprPackagePaths(e.Expr)...)
+		paths = append(paths, ExtractExprPackagePaths(e.IndexExpr)...)
+	case *ConstTypeConv:
+		paths = append(paths, ExtractTypePackagePaths(e.Type)...)
+		paths = append(paths, ExtractExprPackagePaths(e.Expr)...)
+	case *ConstTypeObject:
+		paths = append(paths, ExtractTypePackagePaths(e.Type)...)
+	case *ConstBinaryOp:
+		paths = append(paths, ExtractExprPackagePaths(e.Lexpr)...)
+		paths = append(paths, ExtractExprPackagePaths(e.Rexpr)...)
+	case *ConstUnaryOp:
+		paths = append(paths, ExtractExprPackagePaths(e.Expr)...)
+	default:
+		// leaf expression with no embedded expressions or types.
+	}
+	return paths
+}
+
+func ExtractTypePackagePaths(typ Type) []string {
+	var paths []string
+	switch t := typ.(type) {
+	case *TypeNamed:
+		if path := packageFromName(t.Name); len(path) > 0 {
+			paths = append(paths, path)
+		}
+	case *TypeArray:
+		paths = append(paths, ExtractTypePackagePaths(t.Elem)...)
+	case *TypeList:
+		paths = append(paths, ExtractTypePackagePaths(t.Elem)...)
+	case *TypeSet:
+		paths = append(paths, ExtractTypePackagePaths(t.Key)...)
+	case *TypeMap:
+		paths = append(paths, ExtractTypePackagePaths(t.Key)...)
+		paths = append(paths, ExtractTypePackagePaths(t.Elem)...)
+	case *TypeStruct:
+		for _, f := range t.Fields {
+			paths = append(paths, ExtractTypePackagePaths(f.Type)...)
+		}
+	case *TypeUnion:
+		for _, f := range t.Fields {
+			paths = append(paths, ExtractTypePackagePaths(f.Type)...)
+		}
+	case *TypeOptional:
+		paths = append(paths, ExtractTypePackagePaths(t.Base)...)
+	default:
+		// leaf type with no embedded types.
+	}
+	return paths
+}
+
+func packageFromName(name string) string {
+	if strings.HasPrefix(name, `"`) {
+		if parts := strings.SplitN(name[1:], `".`, 2); len(parts) == 2 {
+			return parts[0]
+		}
+	}
+	return ""
+}
+
 // lexer implements the yyLexer interface for the yacc-generated parser.
 //
 // An oddity: lexer also holds the result of the parse.  Most yacc examples hold

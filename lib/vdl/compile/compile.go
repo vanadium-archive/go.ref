@@ -92,10 +92,16 @@ func CompileConfig(t *vdl.Type, pconfig *parse.Config, env *Env) *vdl.Value {
 // that expr depends on must already have been compiled and populated into env.
 // If t is non-nil, the returned value will be of that type.
 func CompileExpr(t *vdl.Type, expr parse.ConstExpr, env *Env) *vdl.Value {
-	// Set up a dummy file and compile expr into a value.
 	file := &File{
 		BaseName: "_expr.vdl",
 		Package:  newPackage("_expr", "_expr", "_expr", vdltool.Config{}),
+		imports:  make(map[string]*importPath),
+	}
+	// Add imports to the "File" if the are in env and used in the Expression.
+	for _, pkg := range parse.ExtractExprPackagePaths(expr) {
+		if env.pkgs[pkg] != nil {
+			file.imports[pkg] = &importPath{path: pkg}
+		}
 	}
 	return compileConst("expression", t, expr, file, env)
 }

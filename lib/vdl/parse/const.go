@@ -10,6 +10,12 @@ import (
 	"strconv"
 )
 
+// ConstDef represents a user-defined named const.
+type ConstDef struct {
+	NamePos
+	Expr ConstExpr
+}
+
 // ConstExpr is the interface for all nodes in an expression.
 type ConstExpr interface {
 	String() string
@@ -82,12 +88,6 @@ type ConstBinaryOp struct {
 	Lexpr ConstExpr
 	Rexpr ConstExpr
 	P     Pos
-}
-
-// ConstDef represents a user-defined named const.
-type ConstDef struct {
-	NamePos
-	Expr ConstExpr
 }
 
 // cvString returns a human-readable string representing the const value.

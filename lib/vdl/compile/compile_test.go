@@ -9,6 +9,7 @@ import (
 	"path"
 	"testing"
 
+	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
 	"v.io/x/ref/lib/vdl/internal/vdltest"
@@ -42,6 +43,32 @@ func TestParseAndCompile(t *testing.T) {
 			t.Errorf("%v got package path %s, want %s", buildPkg, got, want)
 		}
 		test.expect(t, test.name, pkg)
+	}
+}
+
+func TestParseAndCompileExprs(t *testing.T) {
+	env := compile.NewEnv(-1)
+	path := path.Join("a/b/test1")
+	buildPkg := vdltest.FakeBuildPackage("test1", path, f{"1.vdl": pkg1file1, "2.vdl": pkg1file2})
+	pkg := build.BuildPackage(buildPkg, env)
+	if pkg == nil {
+		t.Fatal("failed to build package")
+	}
+	// Test that expressions from the built packages compile correctly.
+	scalarsType := env.ResolvePackage("a/b/test1").ResolveType("Scalars").Type
+	exprTests := []struct {
+		data  string
+		vtype *vdl.Type
+	}{
+		{`"a/b/test1".Cint64`, vdl.Int64Type},
+		{`"a/b/test1".FiveSquared + "a/b/test1".Cint32`, vdl.Int32Type},
+		{`"a/b/test1".Scalars{A:true,C:"a/b/test1".FiveSquared+"a/b/test1".Cint32}`, scalarsType},
+	}
+	for _, test := range exprTests {
+		vals := build.BuildExprs(test.data, []*vdl.Type{test.vtype}, env)
+		if !env.Errors.IsEmpty() || len(vals) != 1 {
+			t.Errorf("failed to build %v: %v", test.data, env.Errors)
+		}
 	}
 }
 

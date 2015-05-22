@@ -1375,6 +1375,7 @@ func TestParseExprs(t *testing.T) {
 		{`true`, []parse.ConstExpr{cn("true", 1, 1)}, ""},
 		{`false`, []parse.ConstExpr{cn("false", 1, 1)}, ""},
 		{`abc`, []parse.ConstExpr{cn("abc", 1, 1)}, ""},
+		{`"a/b/c".abc`, []parse.ConstExpr{cn(`"a/b/c".abc`, 1, 1)}, ""},
 		{`"abc"`, []parse.ConstExpr{cl("abc", 1, 1)}, ""},
 		{`1`, []parse.ConstExpr{cl(big.NewInt(1), 1, 1)}, ""},
 		{`123`, []parse.ConstExpr{cl(big.NewInt(123), 1, 1)}, ""},
