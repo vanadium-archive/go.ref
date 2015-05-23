@@ -94,8 +94,8 @@ func Delete(ctx *context.T, _ rpc.ServerCall, st store.StoreWriter, l Layer) err
 // return a VDL-compatible error.
 // Performs an auth check as part of the "read" step.
 // Returns a VDL-compatible error.
-// TODO(sadovsky): Enforce that st is in a transaction.
 func Update(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, l Layer, v Permser, fn func() error) error {
+	_ = st.(store.Transaction) // panics on failure, as desired
 	if err := Get(ctx, call, st, l, v); err != nil {
 		return err
 	}

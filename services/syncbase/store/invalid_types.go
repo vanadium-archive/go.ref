@@ -6,9 +6,28 @@ package store
 
 // InvalidSnapshot is a store.Snapshot for which all methods return errors.
 type InvalidSnapshot struct {
-	// Error is the error returned by every method call.
-	Error error
+	Error error // returned by all methods
 }
+
+// InvalidStream is a store.Stream for which all methods return errors.
+type InvalidStream struct {
+	Error error // returned by all methods
+}
+
+// InvalidTransaction is a store.Transaction for which all methods return
+// errors.
+type InvalidTransaction struct {
+	Error error // returned by all methods
+}
+
+var (
+	_ Snapshot    = (*InvalidSnapshot)(nil)
+	_ Stream      = (*InvalidStream)(nil)
+	_ Transaction = (*InvalidTransaction)(nil)
+)
+
+////////////////////////////////////////////////////////////
+// InvalidSnapshot
 
 // Close implements the store.Snapshot interface.
 func (s *InvalidSnapshot) Close() error {
@@ -25,11 +44,8 @@ func (s *InvalidSnapshot) Scan(start, limit []byte) Stream {
 	return &InvalidStream{s.Error}
 }
 
-// InvalidStream is a store.Stream for which all methods return errors.
-type InvalidStream struct {
-	// Error is the error returned by every method call.
-	Error error
-}
+////////////////////////////////////////////////////////////
+// InvalidStream
 
 // Advance implements the store.Stream interface.
 func (s *InvalidStream) Advance() bool {
@@ -55,11 +71,8 @@ func (s *InvalidStream) Err() error {
 func (s *InvalidStream) Cancel() {
 }
 
-// InvalidTransaction is a store.Transaction for which all methods return errors.
-type InvalidTransaction struct {
-	// Error is the error returned by every method call.
-	Error error
-}
+////////////////////////////////////////////////////////////
+// InvalidTransaction
 
 // ResetForRetry implements the store.Transaction interface.
 func (tx *InvalidTransaction) ResetForRetry() {

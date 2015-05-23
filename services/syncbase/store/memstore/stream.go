@@ -46,9 +46,6 @@ func newStream(sn *snapshot, parent *store.ResourceNode, start, limit []byte) *s
 
 // Advance implements the store.Stream interface.
 func (s *stream) Advance() bool {
-	// TODO(sadovsky): Advance should return false and Err should return a non-nil
-	// error if the Store was closed, or if the Snapshot was closed, or if the
-	// Transaction was committed or aborted (or timed out).
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {

@@ -72,8 +72,8 @@ func (a *app) delDbInfo(ctx *context.T, call rpc.ServerCall, st store.StoreWrite
 // updateDbInfo performs a read-modify-write.
 // fn should "modify" v, and should return a VDL-compatible error.
 // Returns a VDL-compatible error.
-// TODO(sadovsky): Enforce that st is in a transaction.
 func (a *app) updateDbInfo(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, dbName string, fn func(info *dbInfo) error) error {
+	_ = st.(store.Transaction) // panics on failure, as desired
 	info, err := a.getDbInfo(ctx, call, st, dbName)
 	if err != nil {
 		return err
