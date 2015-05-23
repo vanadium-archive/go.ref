@@ -33,7 +33,7 @@ func TestVDLGenerator(t *testing.T) {
 	defer os.RemoveAll(outDir)
 	// TODO(toddw): test the generated java and javascript files too.
 	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
-	env := cmdline.NewEnv()
+	env := cmdline.EnvFromOS()
 	if err := cmdline.ParseAndRun(cmdVDL, env, []string{"generate", "--lang=go", outOpt, testDir}); err != nil {
 		t.Fatalf("Execute() failed: %v", err)
 	}
