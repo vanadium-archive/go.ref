@@ -32,6 +32,9 @@ type syncService struct {
 	// State to coordinate shutdown of spawned goroutines.
 	pending sync.WaitGroup
 	closed  chan struct{}
+
+	// In-memory sync membership info aggregated across databases.
+	allMembers *memberView
 }
 
 var (
