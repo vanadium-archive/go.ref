@@ -41,7 +41,7 @@ func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.B
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
 func TestInterface(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	dir, prefix := "", ""
@@ -230,7 +230,7 @@ func TestInterface(t *testing.T) {
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	dir, prefix := "", ""

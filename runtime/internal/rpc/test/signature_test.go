@@ -60,7 +60,7 @@ func (*streamStringBool) SendStream() interface {
 }
 
 func TestMethodSignature(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ep, stop, err := startSigServer(ctx, sigImpl{})
 	if err != nil {
@@ -106,7 +106,7 @@ func TestMethodSignature(t *testing.T) {
 }
 
 func TestSignature(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ep, stop, err := startSigServer(ctx, sigImpl{})
 	if err != nil {

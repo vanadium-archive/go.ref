@@ -23,7 +23,7 @@ import (
 
 // TestHTTP checks that HTTP download works.
 func TestHTTP(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))

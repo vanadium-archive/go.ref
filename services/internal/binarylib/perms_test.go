@@ -37,7 +37,7 @@ var binaryd = modules.Register(func(env *modules.Env, args ...string) error {
 	publishName := args[0]
 	storedir := args[1]
 
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 
 	defer fmt.Fprintf(env.Stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
@@ -84,7 +84,7 @@ func ctxWithBlessedPrincipal(ctx *context.T, childExtension string) (*context.T,
 }
 
 func TestBinaryCreateAccessList(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -139,7 +139,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 }
 
 func TestBinaryRootAccessList(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -423,7 +423,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 }
 
 func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 

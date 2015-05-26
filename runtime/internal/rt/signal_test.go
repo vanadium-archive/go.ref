@@ -28,7 +28,7 @@ func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
 }
 
 var withRuntime = modules.Register(func(env *modules.Env, args ...string) error {
-	_, shutdown := test.InitForTest()
+	_, shutdown := test.V23Init()
 	defer shutdown()
 
 	simpleEchoProgram(env.Stdin, env.Stdout)

@@ -38,7 +38,7 @@ func init() {
 }
 
 func TestAppWithSuidHelper(t *testing.T) {
-	ctx, shutdown := utiltest.InitForTest()
+	ctx, shutdown := utiltest.V23Init()
 	defer shutdown()
 
 	// Identity provider used to ensure that all processes recognize each

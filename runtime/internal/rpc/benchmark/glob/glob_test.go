@@ -159,7 +159,7 @@ func globClient(b *testing.B, ctx *context.T, name string) (int, error) {
 }
 
 func RunBenchmarkGlob(b *testing.B, obj interface{}) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	addr, stop, err := startServer(b, ctx, obj)

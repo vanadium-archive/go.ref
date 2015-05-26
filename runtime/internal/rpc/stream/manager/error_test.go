@@ -94,7 +94,7 @@ func simpleResolver(network, address string) (string, string, error) {
 }
 
 func TestDialErrors(t *testing.T) {
-	_, shutdown := test.InitForTest()
+	_, shutdown := test.V23Init()
 	defer shutdown()
 	server := manager.InternalNew(naming.FixedRoutingID(0x55555555))
 	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccc))

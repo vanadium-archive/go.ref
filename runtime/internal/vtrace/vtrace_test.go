@@ -35,7 +35,7 @@ func init() {
 // initForTest initializes the vtrace runtime and starts a mounttable.
 func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) {
 	idp := testutil.NewIDProvider("base")
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	if err := idp.Bless(v23.GetPrincipal(ctx), "alice"); err != nil {
 		t.Fatalf("Could not bless initial principal %v", err)
 	}

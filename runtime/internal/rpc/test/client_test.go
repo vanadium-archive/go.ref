@@ -143,7 +143,7 @@ var echoClient = modules.Register(func(env *modules.Env, args ...string) error {
 }, "echoClient")
 
 func newCtx() (*context.T, v23.Shutdown) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
 }
@@ -508,7 +508,7 @@ func TestStartCallSecurity(t *testing.T) {
 }
 
 var childPing = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -577,7 +577,7 @@ func TestArgsAndResponses(t *testing.T) {
 }
 
 func TestAccessDenied(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	name, fn := initServer(t, ctx)
@@ -805,7 +805,7 @@ func TestNoMountTable(t *testing.T) {
 // endpoint).
 func TestReconnect(t *testing.T) {
 	t.Skip()
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)

@@ -115,7 +115,7 @@ func Cat(ctx *context.T, name, file string) (string, error) {
 var App = modules.Register(appFunc, "App")
 
 func appFunc(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))

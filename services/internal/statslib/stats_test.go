@@ -57,7 +57,7 @@ func startServer(t *testing.T, ctx *context.T) (string, func()) {
 }
 
 func TestStatsImpl(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	endpoint, stop := startServer(t, ctx)

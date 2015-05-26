@@ -27,7 +27,7 @@ func init() {
 }
 
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	var err error
 	if rootCtx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal("root")); err != nil {
 		panic("failed to set root principal")

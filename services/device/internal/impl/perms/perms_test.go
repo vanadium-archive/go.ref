@@ -26,7 +26,7 @@ import (
 // TestDeviceManagerClaim claims a devicemanager and tests AccessList permissions on
 // its methods.
 func TestDeviceManagerClaim(t *testing.T) {
-	ctx, shutdown := utiltest.InitForTest()
+	ctx, shutdown := utiltest.V23Init()
 	defer shutdown()
 
 	// root blessing provider so that the principals of all the contexts
@@ -110,7 +110,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 }
 
 func TestDeviceManagerUpdateAccessList(t *testing.T) {
-	ctx, shutdown := utiltest.InitForTest()
+	ctx, shutdown := utiltest.V23Init()
 	defer shutdown()
 
 	// Identity provider to ensure that all processes recognize each

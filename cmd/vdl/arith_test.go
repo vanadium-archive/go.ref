@@ -108,7 +108,7 @@ func (*serverCalculator) Off(_ *context.T, _ rpc.ServerCall) error {
 }
 
 func TestCalculator(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	server := newServer(ctx)
@@ -281,7 +281,7 @@ func TestCalculator(t *testing.T) {
 }
 
 func TestArith(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	// TODO(bprosnitz) Split this test up -- it is quite long and hard to debug.

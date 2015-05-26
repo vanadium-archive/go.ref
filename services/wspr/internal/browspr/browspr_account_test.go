@@ -43,7 +43,7 @@ func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken str
 }
 
 func setup(t *testing.T) (*Browspr, func()) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 
 	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "/mock/proxy"

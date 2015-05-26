@@ -121,7 +121,7 @@ func main() {
 	test.Init()
 
 	var shutdown v23.Shutdown
-	ctx, shutdown = test.InitForTest()
+	ctx, shutdown = test.V23Init()
 	defer shutdown()
 
 	var serverStop func()

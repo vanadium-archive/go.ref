@@ -142,7 +142,7 @@ func containsPkg(pkgs, target string) bool {
 // TestSuccess checks that the build server successfully builds a
 // package that depends on the standard Go library.
 func TestSuccess(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	client := startServer(t, ctx)
@@ -177,7 +177,7 @@ func foo() {
 // TestEmpty checks that the build server successfully builds a
 // package that does not produce a binary.
 func TestEmpty(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	client := startServer(t, ctx)
@@ -212,7 +212,7 @@ func main() {
 // TestFailure checks that the build server fails to build a package
 // consisting of an empty file.
 func TestFailure(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	client := startServer(t, ctx)

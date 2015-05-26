@@ -83,7 +83,7 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 // TestBufferAPI tests the binary repository client-side library
 // interface using buffers.
 func TestBufferAPI(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -127,7 +127,7 @@ func TestBufferAPI(t *testing.T) {
 // TestFileAPI tests the binary repository client-side library
 // interface using files.
 func TestFileAPI(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -184,7 +184,7 @@ func TestFileAPI(t *testing.T) {
 // TestDownloadUrl tests the binary repository client-side library
 // DownloadUrl method.
 func TestDownloadUrl(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))

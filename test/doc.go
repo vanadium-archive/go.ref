@@ -14,11 +14,10 @@
 //     os.Exit(m.Run())
 // }
 //
-// InitForTest can be used within test functions as a safe alternative
-// to v23.Init.
+// V23Init can be used within test functions as a safe alternative to v23.Init.
 //
 // func TestFoo(t *testing.T) {
-//    ctx, shutdown := test.InitForTest()
+//    ctx, shutdown := test.V23Init()
 //    defer shutdown()
 //    ...
 // }

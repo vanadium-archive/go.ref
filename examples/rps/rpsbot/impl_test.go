@@ -88,7 +88,7 @@ func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RP
 // TestRockPaperScissorsImpl runs one rock-paper-scissors game and verifies
 // that all the counters are consistent.
 func TestRockPaperScissorsImpl(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)

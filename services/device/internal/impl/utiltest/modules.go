@@ -59,7 +59,7 @@ var ExecScript = modules.Register(func(env *modules.Env, args ...string) error {
 var DeviceManager = modules.Register(deviceManagerFunc, "DeviceManager")
 
 func deviceManagerFunc(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	if len(args) == 0 {
 		vlog.Fatalf("deviceManager expected at least an argument")
 	}

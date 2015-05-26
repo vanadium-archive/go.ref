@@ -57,7 +57,7 @@ func startDebugServer(ctx *context.T, listenSpec rpc.ListenSpec, logsDir string)
 }
 
 func TestDebugServer(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tracedContext := func(ctx *context.T) *context.T {

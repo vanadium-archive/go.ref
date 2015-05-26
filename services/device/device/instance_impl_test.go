@@ -21,7 +21,7 @@ import (
 )
 
 func TestKillCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()
@@ -90,7 +90,7 @@ func TestKillCommand(t *testing.T) {
 }
 
 func testHelper(t *testing.T, lower, upper string) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()

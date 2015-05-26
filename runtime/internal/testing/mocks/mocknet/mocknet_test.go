@@ -325,7 +325,7 @@ func TestV23Drop(t *testing.T) {
 }
 
 func newCtx() (*context.T, v23.Shutdown) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
 }

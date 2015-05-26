@@ -43,7 +43,7 @@ import (
 //go:generate v23 test generate
 
 var getPrincipalAndHang = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	p := v23.GetPrincipal(ctx)
@@ -97,7 +97,7 @@ func setupAgent(ctx *context.T, caching bool) security.Principal {
 }
 
 func TestAgent(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	var (
@@ -156,7 +156,7 @@ func TestAgent(t *testing.T) {
 }
 
 func TestAgentShutdown(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 
 	// This starts an agent
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
@@ -234,73 +234,73 @@ func runRecognizedBenchmark(b *testing.B, p security.Principal) {
 }
 
 func BenchmarkSignNoAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runSignBenchmark(b, v23.GetPrincipal(ctx))
 }
 
 func BenchmarkSignCachedAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runSignBenchmark(b, setupAgent(ctx, true))
 }
 
 func BenchmarkSignUncachedAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runSignBenchmark(b, setupAgent(ctx, false))
 }
 
 func BenchmarkDefaultNoAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runDefaultBenchmark(b, v23.GetPrincipal(ctx))
 }
 
 func BenchmarkDefaultCachedAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runDefaultBenchmark(b, setupAgent(ctx, true))
 }
 
 func BenchmarkDefaultUncachedAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runDefaultBenchmark(b, setupAgent(ctx, false))
 }
 
 func BenchmarkRecognizedNegativeNoAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runRecognizedNegativeBenchmark(b, v23.GetPrincipal(ctx))
 }
 
 func BenchmarkRecognizedNegativeCachedAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runRecognizedNegativeBenchmark(b, setupAgent(ctx, true))
 }
 
 func BenchmarkRecognizedNegativeUncachedAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runRecognizedNegativeBenchmark(b, setupAgent(ctx, false))
 }
 
 func BenchmarkRecognizedNoAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runRecognizedBenchmark(b, v23.GetPrincipal(ctx))
 }
 
 func BenchmarkRecognizedCachedAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runRecognizedBenchmark(b, setupAgent(ctx, true))
 }
 
 func BenchmarkRecognizedUncachedAgent(b *testing.B) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	runRecognizedBenchmark(b, setupAgent(ctx, false))
 }

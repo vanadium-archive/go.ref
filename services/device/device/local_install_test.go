@@ -33,7 +33,7 @@ func createFile(t *testing.T, path string, contents string) {
 }
 
 func TestInstallLocalCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	tapes := newTapeMap()

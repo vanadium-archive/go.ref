@@ -99,7 +99,7 @@ func startServer(ctx *context.T, s interface{}, opts ...rpc.ServerOpt) (rpc.Serv
 }
 
 func TestClientServerBlessings(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	var (
@@ -179,7 +179,7 @@ func TestClientServerBlessings(t *testing.T) {
 }
 
 func TestServerEndpointBlessingNames(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("default"))
 
@@ -272,7 +272,7 @@ func (ds *dischargeService) Discharge(ctx *context.T, call rpc.StreamServerCall,
 }
 
 func TestServerDischarges(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	var (

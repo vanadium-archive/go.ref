@@ -23,7 +23,7 @@ import (
 // TODO(toddw): Add tests of Signature and MethodSignature.
 
 func TestProxyInvoker(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
