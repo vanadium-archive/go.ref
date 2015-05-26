@@ -94,7 +94,7 @@ func Init(
 	}
 
 	err := vlog.ConfigureLibraryLoggerFromFlags()
-	if err != nil && err != vlog.Configured {
+	if err != nil && err != vlog.ErrConfigured {
 		return nil, nil, nil, err
 	}
 	// We want to print out metadata only into the log files, to avoid

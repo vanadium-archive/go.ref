@@ -68,7 +68,7 @@ func TestLogCall(t *testing.T) {
 	if want, got := 2, len(contents); want != got {
 		t.Errorf("Expected %d info lines, got %d instead", want, got)
 	}
-	logCallLineRE := regexp.MustCompile(`\S+ \S+ \S+ ([^:]*):.*(call|return)\[(\S*) (\S*)`)
+	logCallLineRE := regexp.MustCompile(`\S+ \S+\s+\S+ ([^:]*):.*(call|return)\[(\S*) (\S*)`)
 	for _, line := range contents {
 		match := logCallLineRE.FindStringSubmatch(line)
 		if len(match) != 5 {
@@ -76,7 +76,7 @@ func TestLogCall(t *testing.T) {
 			continue
 		}
 		fileName, callType, location, funcName := match[1], match[2], match[3], match[4]
-		if fileName != "apilog.go" {
+		if fileName != "apilog_test.go" {
 			t.Errorf("unexpected file name: %s", fileName)
 			continue
 		}

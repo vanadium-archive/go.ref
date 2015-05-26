@@ -6,12 +6,9 @@
 // In particular, logcop will inject calls to these functions as the first
 // statement in methods that implement the v23 API. The output can
 // be controlled by vlog verbosity or vtrace.
-// The log lines generated have a header that refers to this file
-// and the message includes the file and line # of the caller. This is
-// currently the best we can do given the functionality of the underlying
-// vlog package. It has the advantage the api logging can be selectively
-// enabled/disabled globally using --vmodule=apilog=<level>, but the
-// disadvantage that it can't be controlled at the per file level.
+// --vmodule=apilog=<level> can be used to globally control logging,
+// and --vmodule=module=<level> can also be used to control logging
+// on a per-file basis.
 package apilog
 
 import (
@@ -115,7 +112,7 @@ func LogCall(ctx *context.T, v ...interface{}) func(*context.T, ...interface{}) 
 	} else {
 		output = fmt.Sprintf("call[%s %s]", callerLocation, invocationId)
 	}
-	logger.Info(output)
+	logger.InfoDepth(1, output)
 
 	// TODO(mattr): annotate vtrace span.
 	return func(ctx *context.T, v ...interface{}) {
@@ -125,7 +122,7 @@ func LogCall(ctx *context.T, v ...interface{}) func(*context.T, ...interface{}) 
 		} else {
 			output = fmt.Sprintf("return[%s %s]", callerLocation, invocationId)
 		}
-		logger.Info(output)
+		logger.InfoDepth(1, output)
 		// TODO(mattr): annotate vtrace span.
 	}
 }
@@ -146,11 +143,11 @@ func LogCallf(ctx *context.T, format string, v ...interface{}) func(*context.T, 
 	callerLocation := callerLocation()
 	invocationId := newInvocationIdentifier()
 	output := fmt.Sprintf("call[%s %s]: %s", callerLocation, invocationId, fmt.Sprintf(format, v...))
-	logger.Info(output)
+	logger.InfoDepth(1, output)
 	// TODO(mattr): annotate vtrace span.
 	return func(ctx *context.T, format string, v ...interface{}) {
 		output := fmt.Sprintf("return[%s %s]: %v", callerLocation, invocationId, fmt.Sprintf(format, derefSlice(v)...))
-		logger.Info(output)
+		logger.InfoDepth(1, output)
 		// TODO(mattr): annotate vtrace span.
 	}
 }
