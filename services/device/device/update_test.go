@@ -22,7 +22,7 @@ import (
 
 // TestUpdateCommand verifies the device update command.
 func TestUpdateCommand(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	tapes := newTapeMap()
 	server, endpoint, err := startServer(t, ctx, tapes)
