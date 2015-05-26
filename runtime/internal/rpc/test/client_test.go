@@ -185,12 +185,14 @@ func runClient(t *testing.T, sh *modules.Shell) error {
 	return nil
 }
 
-func numServers(t *testing.T, ctx *context.T, name string) int {
-	me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
-	if err != nil {
-		return 0
+func numServers(t *testing.T, ctx *context.T, name string, expected int) int {
+	for {
+		me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
+		if err == nil && len(me.Servers) == expected {
+			return expected
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	return len(me.Servers)
 }
 
 // TODO(cnicolaou): figure out how to test and see what the internals
@@ -210,7 +212,7 @@ func TestMultipleEndpoints(t *testing.T) {
 	s.ExpectVar("NAME")
 
 	// Verify that there are 1 entries for echoServer in the mount table.
-	if got, want := numServers(t, ctx, "echoServer"), 1; got != want {
+	if got, want := numServers(t, ctx, "echoServer", 1), 1; got != want {
 		t.Fatalf("got: %d, want: %d", got, want)
 	}
 
@@ -227,7 +229,7 @@ func TestMultipleEndpoints(t *testing.T) {
 	}
 
 	// Verify that there are 101 entries for echoServer in the mount table.
-	if got, want := numServers(t, ctx, "echoServer"), 101; got != want {
+	if got, want := numServers(t, ctx, "echoServer", 101), 101; got != want {
 		t.Fatalf("got: %q, want: %q", got, want)
 	}
 
@@ -242,7 +244,7 @@ func TestMultipleEndpoints(t *testing.T) {
 	srv.Shutdown(nil, nil)
 
 	// Verify that there are 100 entries for echoServer in the mount table.
-	if got, want := numServers(t, ctx, "echoServer"), 100; got != want {
+	if got, want := numServers(t, ctx, "echoServer", 100), 100; got != want {
 		t.Fatalf("got: %d, want: %d", got, want)
 	}
 }

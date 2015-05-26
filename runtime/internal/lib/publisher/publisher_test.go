@@ -34,41 +34,63 @@ func testContext() *context.T {
 	return ctx
 }
 
-func resolve(t *testing.T, ns namespace.T, name string) []string {
-	me, err := ns.Resolve(testContext(), name)
-	if err != nil {
-		t.Fatalf("failed to resolve %q", name)
+func resolveWithRetry(t *testing.T, ns namespace.T, ctx *context.T, name string, expected int) []string {
+	deadline := time.Now().Add(time.Minute)
+	for {
+		me, err := ns.Resolve(ctx, name)
+		if err == nil && len(me.Names()) == expected {
+			return me.Names()
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("failed to resolve %q", name)
+		} else {
+			continue
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
-	return me.Names()
+}
+
+func verifyMissing(t *testing.T, ns namespace.T, ctx *context.T, name string) {
+	deadline := time.Now().Add(time.Minute)
+	for {
+		if _, err := ns.Resolve(ctx, "foo"); err == nil {
+			if time.Now().After(deadline) {
+				t.Errorf("%q is still mounted", name)
+			}
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			break
+		}
+	}
 }
 
 func TestAddAndRemove(t *testing.T) {
+	tctx := testContext()
 	ns := tnaming.NewSimpleNamespace()
 	pub := publisher.New(testContext(), ns, time.Second)
 	pub.AddName("foo", false, false)
 	pub.AddServer("foo-addr")
-	if got, want := resolve(t, ns, "foo"), []string{"/foo-addr"}; !reflect.DeepEqual(got, want) {
+	if got, want := resolveWithRetry(t, ns, tctx, "foo", 1), []string{"/foo-addr"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	pub.AddServer("bar-addr")
-	got, want := resolve(t, ns, "foo"), []string{"/bar-addr", "/foo-addr"}
+	got, want := resolveWithRetry(t, ns, tctx, "foo", 2), []string{"/bar-addr", "/foo-addr"}
 	sort.Strings(got)
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	pub.AddName("baz", false, false)
-	got = resolve(t, ns, "baz")
+	got = resolveWithRetry(t, ns, tctx, "baz", 2)
 	sort.Strings(got)
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	pub.RemoveName("foo")
-	if _, err := ns.Resolve(testContext(), "foo"); err == nil {
-		t.Errorf("expected an error")
-	}
+	verifyMissing(t, ns, tctx, "foo")
 }
 
 func TestStatus(t *testing.T) {
+	tctx := testContext()
 	ns := tnaming.NewSimpleNamespace()
 	pub := publisher.New(testContext(), ns, time.Second)
 	pub.AddName("foo", false, false)
@@ -78,15 +100,15 @@ func TestStatus(t *testing.T) {
 	}
 	pub.AddServer("foo-addr")
 
-	// Wait for the publisher to asynchronously publish server the
+	// Wait for the publisher to asynchronously publish the
 	// requisite number of servers.
 	ch := make(chan error, 1)
 	waitFor := func(n int) {
-		then := time.Now()
+		deadline := time.Now().Add(time.Minute)
 		for {
 			status = pub.Status()
 			if got, want := len(status), n; got != want {
-				if time.Now().Sub(then) > time.Minute {
+				if time.Now().After(deadline) {
 					ch <- fmt.Errorf("got %d, want %d", got, want)
 					return
 				}
@@ -105,6 +127,12 @@ func TestStatus(t *testing.T) {
 
 	pub.AddServer("bar-addr")
 	pub.AddName("baz", false, false)
+
+	go waitFor(4)
+	if err := <-ch; err != nil {
+		t.Fatalf("%s", err)
+	}
+
 	status = pub.Status()
 	names := status.Names()
 	if got, want := names, []string{"baz", "foo"}; !reflect.DeepEqual(got, want) {
@@ -115,11 +143,9 @@ func TestStatus(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	pub.RemoveName("foo")
-	if _, err := ns.Resolve(testContext(), "foo"); err == nil {
-		t.Errorf("expected an error")
-	}
-	status = pub.Status()
+	verifyMissing(t, ns, tctx, "foo")
 
+	status = pub.Status()
 	go waitFor(2)
 	if err := <-ch; err != nil {
 		t.Fatalf("%s", err)

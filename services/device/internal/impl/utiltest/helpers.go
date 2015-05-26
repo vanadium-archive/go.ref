@@ -84,32 +84,51 @@ func EnvelopeFromShell(sh *modules.Shell, env []string, prog modules.Program, ti
 }
 
 // ResolveExpectNotFound verifies that the given name is not in the mounttable.
-func ResolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
-	if me, err := v23.GetNamespace(ctx).Resolve(ctx, name); err == nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names()))
-	} else if expectErr := naming.ErrNoSuchName.ID; verror.ErrorID(err) != expectErr {
-		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
+func ResolveExpectNotFound(t *testing.T, ctx *context.T, name string, retry bool) {
+	expectErr := naming.ErrNoSuchName.ID
+	for {
+		me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
+		if err == nil || verror.ErrorID(err) != expectErr {
+			if retry {
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
+			if err == nil {
+				t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names()))
+			} else {
+				t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
+			}
+		} else {
+			return
+		}
 	}
 }
 
 // Resolve looks up the given name in the mounttable.
-func Resolve(t *testing.T, ctx *context.T, name string, replicas int) []string {
-	me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
-	if err != nil {
-		t.Fatalf("Resolve(%v) failed: %v", name, err)
-	}
-
-	filteredResults := []string{}
-	for _, r := range me.Names() {
-		if strings.Index(r, "@tcp") != -1 {
-			filteredResults = append(filteredResults, r)
+func Resolve(t *testing.T, ctx *context.T, name string, replicas int, retry bool) []string {
+	for {
+		me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
+		if err != nil {
+			if retry {
+				time.Sleep(10 * time.Millisecond)
+				continue
+			} else {
+				t.Fatalf("Resolve(%v) failed: %v", name, err)
+			}
 		}
+
+		filteredResults := []string{}
+		for _, r := range me.Names() {
+			if strings.Index(r, "@tcp") != -1 {
+				filteredResults = append(filteredResults, r)
+			}
+		}
+		// We are going to get a websocket and a tcp endpoint for each replica.
+		if want, got := replicas, len(filteredResults); want != got {
+			t.Fatalf("Resolve(%v) expected %d result(s), got %d instead", name, want, got)
+		}
+		return filteredResults
 	}
-	// We are going to get a websocket and a tcp endpoint for each replica.
-	if want, got := replicas, len(filteredResults); want != got {
-		t.Fatalf("Resolve(%v) expected %d result(s), got %d instead", name, want, got)
-	}
-	return filteredResults
 }
 
 // The following set of functions are convenience wrappers around Update and

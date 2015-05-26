@@ -31,6 +31,17 @@ import (
 
 //go:generate v23 test generate
 
+func resolveWithRetry(ctx *context.T, name string, opts ...naming.NamespaceOpt) *naming.MountEntry {
+	ns := v23.GetNamespace(ctx)
+	for {
+		mp, err := ns.Resolve(ctx, name, opts...)
+		if err == nil {
+			return mp
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
 	ctx, shutdown := test.InitForTest()
 	var (
@@ -222,6 +233,8 @@ func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, m
 		boom(t, "Failed to serve mount table at %s: %s", mountPoint, err)
 	}
 	t.Logf("server %q -> %s", eps[0].Name(), mountPoint)
+	// Wait until the mount point appears in the mount table.
+	resolveWithRetry(ctx, mountPoint)
 	return &serverEntry{mountPoint: mountPoint, server: s, endpoint: eps[0], name: eps[0].Name()}
 }
 
@@ -644,17 +657,12 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 		mtCtx, _       = v23.WithPrincipal(ctx, testutil.NewPrincipal()) // intermediate mounttable
 		serverCtx, _   = v23.WithPrincipal(ctx, testutil.NewPrincipal()) // end server
 		clientCtx, _   = v23.WithPrincipal(ctx, testutil.NewPrincipal()) // client process (doing Resolves).
-		idp            = testutil.NewIDProvider("idp")                   // identity provider
+		clientNs       = v23.GetNamespace(clientCtx)
+		serverNs       = v23.GetNamespace(serverCtx)
+		idp            = testutil.NewIDProvider("idp") // identity provider
 		serverEndpoint = naming.FormatEndpoint("tcp", "127.0.0.1:14141")
-
-		resolve = func(name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
-			return v23.GetNamespace(clientCtx).Resolve(clientCtx, name, opts...)
-		}
-
-		mount = func(name, server string, ttl time.Duration, opts ...naming.NamespaceOpt) error {
-			return v23.GetNamespace(serverCtx).Mount(serverCtx, name, server, ttl, opts...)
-		}
 	)
+
 	// Setup default blessings for the processes.
 	idp.Bless(v23.GetPrincipal(rootMtCtx), "rootmt")
 	idp.Bless(v23.GetPrincipal(serverCtx), "server")
@@ -668,45 +676,46 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	}
 	// Disable caching in the client so that any Mount calls by the server
 	// are noticed immediately.
-	v23.GetNamespace(clientCtx).CacheCtl(naming.DisableCache(true))
+	clientNs.CacheCtl(naming.DisableCache(true))
 
 	// Intermediate mounttables should be authenticated.
 	mt := runMT(t, mtCtx, "mt")
 	defer func() {
 		mt.server.Stop()
 	}()
+
 	// Mount a server on "mt".
-	if err := mount("mt/server", serverEndpoint, time.Minute, naming.ReplaceMount(true)); err != nil {
+	if err := serverNs.Mount(serverCtx, "mt/server", serverEndpoint, time.Minute, naming.ReplaceMount(true)); err != nil {
 		t.Error(err)
 	}
+
 	// The namespace root should be authenticated too
-	if e, err := resolve("mt/server"); err != nil {
-		t.Errorf("Got (%v, %v)", e, err)
-	} else {
-		// Host:Port and Endpoint versions of the other namespace root
-		// (which has different blessings)
-		hproot := fmt.Sprintf("(otherroot)@%v", rootmt.endpoint.Addr())
-		eproot := naming.FormatEndpoint(rootmt.endpoint.Addr().Network(), rootmt.endpoint.Addr().String(), rootmt.endpoint.RoutingID(), naming.BlessingOpt("otherroot"), naming.ServesMountTable(rootmt.endpoint.ServesMountTable()))
-		for _, root := range []string{hproot, eproot} {
-			name := naming.JoinAddressName(root, "mt")
-			// Rooted name resolutions should fail authorization because of the "otherrot"
-			if e, err := resolve(name); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
-				t.Errorf("resolve(%q) returned (%v, errorid=%v %v), wanted errorid=%v", name, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
-			}
-			// But not fail if the skip-authorization option is provided
-			if e, err := resolve(name, options.SkipServerEndpointAuthorization{}); err != nil {
-				t.Errorf("resolve(%q): Got (%v, %v), expected resolution to succeed", name, e, err)
-			}
-			// The namespace root from the context should be authorized as well.
-			ctx, ns, _ := v23.WithNewNamespace(clientCtx, naming.JoinAddressName(root, ""))
-			if e, err := ns.Resolve(ctx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
-				t.Errorf("resolve with root=%q returned (%v, errorid=%v %v), wanted errorid=%v: %s", root, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID, verror.DebugString(err))
-			}
-			if _, err := ns.Resolve(ctx, "mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
-				t.Errorf("resolve with root=%q should have succeeded when authorization checks are skipped. Got %v: %s", root, err, verror.DebugString(err))
-			}
+	resolveWithRetry(clientCtx, "mt/server")
+	// Host:Port and Endpoint versions of the other namespace root
+	// (which has different blessings)
+	hproot := fmt.Sprintf("(otherroot)@%v", rootmt.endpoint.Addr())
+	eproot := naming.FormatEndpoint(rootmt.endpoint.Addr().Network(), rootmt.endpoint.Addr().String(), rootmt.endpoint.RoutingID(), naming.BlessingOpt("otherroot"), naming.ServesMountTable(rootmt.endpoint.ServesMountTable()))
+	for _, root := range []string{hproot, eproot} {
+		name := naming.JoinAddressName(root, "mt")
+		// Rooted name resolutions should fail authorization because of the "otherrot"
+		if e, err := clientNs.Resolve(clientCtx, name); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+			t.Errorf("resolve(%q) returned (%v, errorid=%v %v), wanted errorid=%v", name, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
+		}
+		// But not fail if the skip-authorization option is provided
+		if e, err := clientNs.Resolve(clientCtx, name, options.SkipServerEndpointAuthorization{}); err != nil {
+			t.Errorf("resolve(%q): Got (%v, %v), expected resolution to succeed", name, e, err)
+		}
+
+		// The namespace root from the context should be authorized as well.
+		ctx, ns, _ := v23.WithNewNamespace(clientCtx, naming.JoinAddressName(root, ""))
+		if e, err := ns.Resolve(ctx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+			t.Errorf("resolve with root=%q returned (%v, errorid=%v %v), wanted errorid=%v: %s", root, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID, verror.DebugString(err))
+		}
+		if _, err := ns.Resolve(ctx, "mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
+			t.Errorf("resolve with root=%q should have succeeded when authorization checks are skipped. Got %v: %s", root, err, verror.DebugString(err))
 		}
 	}
+
 	// Imagine that the network address of "mt" has been taken over by an
 	// attacker. However, this attacker cannot mess with the mount entry
 	// for "mt". This would result in "mt" and its mount entry (in the
@@ -717,9 +726,9 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 		t.Error(err)
 	}
 
-	if e, err := resolve("mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
+	if e, err := clientNs.Resolve(serverCtx, "mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
 		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v) %s", e, err, verror.DebugString(err))
-	} else if e, err := resolve("mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+	} else if e, err := clientNs.Resolve(serverCtx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)
 	}
 }
@@ -784,10 +793,7 @@ func TestLeaf(t *testing.T) {
 	}
 	defer server.Stop()
 
-	mountEntry, err := ns.Resolve(ctx, "leaf")
-	if err != nil {
-		boom(t, "ns.Resolve failed: %v", err)
-	}
+	mountEntry := resolveWithRetry(ctx, "leaf")
 	if expected := true; mountEntry.IsLeaf != expected {
 		boom(t, "unexpected mountEntry.IsLeaf value. Got %v, expected %v", mountEntry.IsLeaf, expected)
 	}

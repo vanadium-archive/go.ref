@@ -282,18 +282,23 @@ func loc(d int) string {
 }
 
 func verifyMount(t *testing.T, ctx *context.T, ns namespace.T, name string) []string {
-	me, err := ns.Resolve(ctx, name)
-	if err != nil {
-		t.Errorf("%s: %s not found in mounttable", loc(1), name)
-		return nil
+	for {
+		me, err := ns.Resolve(ctx, name)
+		if err == nil {
+			return me.Names()
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	return me.Names()
 }
 
 func verifyMountMissing(t *testing.T, ctx *context.T, ns namespace.T, name string) {
-	if me, err := ns.Resolve(ctx, name); err == nil {
-		names := me.Names()
-		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead: %v (%+v)", loc(1), name, len(names), names, me)
+	for {
+		if _, err := ns.Resolve(ctx, name); err != nil {
+			// Assume that any error (since we're using a mock namespace) means
+			// that the name is no longer present.
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

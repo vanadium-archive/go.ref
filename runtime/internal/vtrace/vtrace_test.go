@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -105,6 +106,16 @@ func (c *testServer) Run(ctx *context.T, call rpc.ServerCall) error {
 	return nil
 }
 
+func verifyMount(ctx *context.T, name string) error {
+	ns := v23.GetNamespace(ctx)
+	for {
+		if _, err := ns.Resolve(ctx, name); err == nil {
+			return nil
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func runCallChain(t *testing.T, ctx *context.T, idp *testutil.IDProvider, force1, force2 bool) *vtrace.TraceRecord {
 	ctx, span := vtrace.WithNewSpan(ctx, "")
 	span.Annotate("c0-begin")
@@ -146,6 +157,9 @@ func makeChainedTestServers(ctx *context.T, idp *testutil.IDProvider, force ...b
 		}
 		c.forceCollect = f
 		out = append(out, c)
+		// Make sure the server is mounted to avoid any retries in when StartCall
+		// is invoked in runCallChain which complicate the span comparisons.
+		verifyMount(ctx, name)
 	}
 	return out, func() {
 		for _, s := range out {

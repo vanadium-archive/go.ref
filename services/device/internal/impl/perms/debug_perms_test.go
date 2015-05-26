@@ -51,7 +51,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
-	utiltest.Resolve(t, ctx, "pingserver", 1)
+	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Make some users.
 	selfCtx := ctx
