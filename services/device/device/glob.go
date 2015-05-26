@@ -378,7 +378,7 @@ var (
 	installationStateFilter installationStateFlag
 	onlyInstances           bool
 	onlyInstallations       bool
-	handlerParallelism      parallelismFlag
+	handlerParallelism      parallelismFlag = kindParallelism
 )
 
 func init() {
