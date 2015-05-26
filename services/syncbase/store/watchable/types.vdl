@@ -1,0 +1,48 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package watchable
+
+// GetOp represents a store get operation.
+type GetOp struct {
+	Key []byte
+}
+
+// ScanOp represents a store scan operation.
+type ScanOp struct {
+	Start []byte
+	Limit []byte
+}
+
+// PutOp represents a store put operation.
+type PutOp struct {
+	Key   []byte
+	Value []byte
+}
+
+// DeleteOp represents a store delete operation.
+type DeleteOp struct {
+	Key []byte
+}
+
+// Op represents a store operation.
+type Op union {
+	Get    GetOp
+	Scan   ScanOp
+	Put    PutOp
+	Delete DeleteOp
+}
+
+// LogEntry represents a single store operation. This operation may have been
+// part of a transaction, as signified by the Continued boolean. Read-only
+// operations (and read-only transactions) are not logged.
+// TODO(sadovsky): Log commit time and maybe some other things.
+type LogEntry struct {
+	// The store operation that was performed.
+	Op Op
+
+	// If true, this entry is followed by more entries that belong to the same
+	// commit as this entry.
+	Continued bool
+}

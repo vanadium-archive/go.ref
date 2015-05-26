@@ -10,6 +10,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
+	"v.io/syncbase/x/ref/services/syncbase/store/watchable"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -39,10 +40,14 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
 	// TODO(sadovsky): Make storage engine pluggable.
+	st, err := watchable.Wrap(memstore.New())
+	if err != nil {
+		return nil, err
+	}
 	d := &database{
 		name: name,
 		a:    a,
-		st:   memstore.New(),
+		st:   st,
 	}
 	data := &databaseData{
 		Name:  d.name,
