@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	_ "net/http/pprof"
 	"time"
 
 	"v.io/v23"

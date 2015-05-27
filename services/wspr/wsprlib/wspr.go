@@ -14,7 +14,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
 	"sync"
 	"time"
 
@@ -89,7 +88,6 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 // Starts serving http requests. This method is blocking.
 func (wspr *WSPR) Serve() {
 	// Configure HTTP routes.
-	http.HandleFunc("/debug", wspr.handleDebug)
 	http.HandleFunc("/ws", wspr.handleWS)
 	// Everything else is a 404.
 	// Note: the pattern "/" matches all paths not matched by other registered
@@ -145,24 +143,6 @@ func (wspr *WSPR) logAndSendBadReqErr(w http.ResponseWriter, msg string) {
 }
 
 // HTTP Handlers
-
-func (wspr *WSPR) handleDebug(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprintf(w, "")
-		return
-	}
-	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(`<html>
-<head>
-<title>/debug</title>
-</head>
-<body>
-<ul>
-<li><a href="/debug/pprof">/debug/pprof</a></li>
-</li></ul></body></html>
-`))
-}
 
 func (wspr *WSPR) handleWS(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
