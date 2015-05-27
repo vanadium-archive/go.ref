@@ -73,9 +73,21 @@ const (
 	applicationInstallationObject objectKind = iota
 	applicationInstanceObject
 	deviceServiceObject
+	sentinel
 )
 
-var objectKinds = []objectKind{applicationInstallationObject, applicationInstanceObject, deviceServiceObject}
+var objectKinds = []objectKind{
+	applicationInstallationObject,
+	applicationInstanceObject,
+	deviceServiceObject,
+}
+
+func init() {
+	// TODO(caprita): Move to glob_test.go once that exists.
+	if len(objectKinds) != int(sentinel) {
+		panic(fmt.Sprintf("broken invariant: mismatching number of object kinds"))
+	}
+}
 
 type globResult struct {
 	name   string
