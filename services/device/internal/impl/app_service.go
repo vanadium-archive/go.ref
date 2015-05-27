@@ -1047,7 +1047,7 @@ func (i *appService) Uninstall(*context.T, rpc.ServerCall) error {
 	return transitionInstallation(installationDir, device.InstallationStateActive, device.InstallationStateUninstalled)
 }
 
-func updateInstance(instanceDir string, ctx *context.T) (err error) {
+func updateInstance(ctx *context.T, instanceDir string) (err error) {
 	// Only not-running instances can be updated.
 	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateUpdating); err != nil {
 		return err
@@ -1128,7 +1128,7 @@ func (i *appService) Update(ctx *context.T, _ rpc.ServerCall) error {
 		return updateInstallation(ctx, installationDir)
 	}
 	if instanceDir, err := i.instanceDir(); err == nil {
-		return updateInstance(instanceDir, ctx)
+		return updateInstance(ctx, instanceDir)
 	}
 	return verror.New(ErrInvalidSuffix, nil)
 }
@@ -1138,11 +1138,38 @@ func (*appService) UpdateTo(_ *context.T, _ rpc.ServerCall, von string) error {
 	return nil
 }
 
-func (i *appService) Revert(ctx *context.T, _ rpc.ServerCall) error {
-	installationDir, err := i.installationDir()
-	if err != nil {
+func revertInstance(ctx *context.T, instanceDir string) (err error) {
+	// Only not-running instances can be reverted.
+	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateUpdating); err != nil {
 		return err
 	}
+	defer func() {
+		terr := transitionInstance(instanceDir, device.InstanceStateUpdating, device.InstanceStateNotRunning)
+		if err == nil {
+			err = terr
+		}
+	}()
+	versionLink := filepath.Join(instanceDir, "version")
+	versionDir, err := filepath.EvalSymlinks(versionLink)
+	if err != nil {
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+	}
+	previousLink := filepath.Join(versionDir, "previous")
+	if _, err := os.Lstat(previousLink); err != nil {
+		if os.IsNotExist(err) {
+			// No 'previous' link -- must be the first version.
+			return verror.New(ErrUpdateNoOp, ctx)
+		}
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Lstat(%v) failed: %v", previousLink, err))
+	}
+	prevVersionDir, err := filepath.EvalSymlinks(previousLink)
+	if err != nil {
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
+	}
+	return updateLink(prevVersionDir, versionLink)
+}
+
+func revertInstallation(ctx *context.T, installationDir string) error {
 	if !installationStateIs(installationDir, device.InstallationStateActive) {
 		return verror.New(ErrInvalidOperation, ctx)
 	}
@@ -1169,6 +1196,16 @@ func (i *appService) Revert(ctx *context.T, _ rpc.ServerCall) error {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
 	}
 	return updateLink(prevVersionDir, currLink)
+}
+
+func (i *appService) Revert(ctx *context.T, _ rpc.ServerCall) error {
+	if installationDir, err := i.installationDir(); err == nil {
+		return revertInstallation(ctx, installationDir)
+	}
+	if instanceDir, err := i.instanceDir(); err == nil {
+		return revertInstance(ctx, instanceDir)
+	}
+	return verror.New(ErrInvalidSuffix, nil)
 }
 
 type treeNode struct {
