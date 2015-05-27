@@ -314,12 +314,13 @@ corresponding to application installations and instances.
 
 Device debug
 
-Debug the device.
+Get internal debug information about application installations and instances.
 
 Usage:
-   device debug <app name>
+   device debug <app name patterns...>
 
-<app name> is the vanadium object name of an app installation or instance.
+<app name patterns...> are vanadium object names or glob name patterns
+corresponding to application installations and instances.
 
 Device acl
 
