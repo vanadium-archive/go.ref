@@ -85,8 +85,13 @@ func getMacaroonForBlessRPC(key security.PublicKey, blessServerURL string, bless
 	http.HandleFunc("/macaroon", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		tmplArgs := struct {
-			Blessings, ErrShort, ErrLong string
-		}{}
+			Blessings string
+			ErrShort  string
+			ErrLong   string
+			Browser   bool
+		}{
+			Browser: browser,
+		}
 		defer func() {
 			if len(tmplArgs.ErrShort) > 0 {
 				w.WriteHeader(http.StatusBadRequest)
@@ -174,7 +179,7 @@ var tmpl = template.Must(template.New("name").Parse(`<!doctype html>
 <meta charset="UTF-8">
 <!--Excluding any third-party hosted resources like scripts and stylesheets because otherwise we run the risk of leaking the macaroon out of this page (e.g., via the referrer header) -->
 <title>Vanadium Identity: Google</title>
-{{if .Blessings}}
+{{if and .Browser .Blessings}}
 <!--Attempt to close the window. Though this script does not work on many browser configurations-->
 <script type="text/javascript">window.close();</script>
 {{end}}
