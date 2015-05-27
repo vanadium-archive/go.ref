@@ -245,10 +245,19 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.Resolve(t, ctx, "appV1", 1, false)
 	utiltest.Resolve(t, ctx, "appV2", 1, false)
 
-	// Stop first instance.
-	utiltest.TerminateApp(t, ctx, appID, instance1ID)
+	// Reverting first instance fails since it's still running.
+	utiltest.RevertAppExpectError(t, ctx, appID+"/"+instance1ID, impl.ErrInvalidOperation.ID)
+	// Stop first instance and try again.
+	utiltest.KillApp(t, ctx, appID, instance1ID)
 	verifyAppWorkspace(t, root, appID, instance1ID)
 	utiltest.ResolveExpectNotFound(t, ctx, "appV2", true)
+	utiltest.RevertApp(t, ctx, appID+"/"+instance1ID)
+	// Resume the first instance and verify it's running v1 now.
+	utiltest.RunApp(t, ctx, appID, instance1ID)
+	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
+	utiltest.Resolve(t, ctx, "appV1", 2, false)
+	utiltest.TerminateApp(t, ctx, appID, instance1ID)
+	utiltest.Resolve(t, ctx, "appV1", 1, false)
 
 	// Start a third instance.
 	instance3ID := utiltest.LaunchApp(t, ctx, appID)
@@ -260,9 +269,12 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	utiltest.Resolve(t, ctx, "appV2", 1, true)
 
-	// Stop second instance.
-	utiltest.TerminateApp(t, ctx, appID, instance2ID)
+	// Suspend second instance.
+	utiltest.KillApp(t, ctx, appID, instance2ID)
 	utiltest.ResolveExpectNotFound(t, ctx, "appV1", true)
+
+	// Reverting second instance is a no-op since it's already running v1.
+	utiltest.RevertAppExpectError(t, ctx, appID+"/"+instance2ID, impl.ErrUpdateNoOp.ID)
 
 	// Stop third instance.
 	utiltest.TerminateApp(t, ctx, appID, instance3ID)
