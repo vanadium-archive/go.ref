@@ -45,9 +45,9 @@ func NewAuthorizerOrDie() security.Authorizer {
 	if literal == "" {
 		a, err = access.PermissionsAuthorizerFromFile(fname, access.TypicalTagType())
 	} else {
-		var tam access.Permissions
-		if tam, err = access.ReadPermissions(bytes.NewBufferString(literal)); err == nil {
-			a, err = access.PermissionsAuthorizer(tam, access.TypicalTagType())
+		var perms access.Permissions
+		if perms, err = access.ReadPermissions(bytes.NewBufferString(literal)); err == nil {
+			a, err = access.PermissionsAuthorizer(perms, access.TypicalTagType())
 		}
 	}
 	if err != nil {
