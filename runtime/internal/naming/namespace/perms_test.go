@@ -254,8 +254,5 @@ func TestPermissions(t *testing.T) {
 	}
 
 	// Root should be able to resolve it.
-	_, err = ns.Resolve(rootCtx, name)
-	if err != nil {
-		t.Fatalf("as root Resolve %s: %s", name, err)
-	}
+	resolveWithRetry(rootCtx, name)
 }

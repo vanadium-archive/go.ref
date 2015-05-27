@@ -86,7 +86,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
-	utiltest.Resolve(t, ctx, "pingserver", 1)
+	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Create an envelope for a first version of the app.
 	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, utiltest.App, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
@@ -139,18 +139,18 @@ func TestLifeOfAnApp(t *testing.T) {
 	// Wait until the app pings us that it's ready.
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
 
-	v1EP1 := utiltest.Resolve(t, ctx, "appV1", 1)[0]
+	v1EP1 := utiltest.Resolve(t, ctx, "appV1", 1, true)[0]
 
 	// Stop the app instance.
 	utiltest.KillApp(t, ctx, appID, instance1ID)
 	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
-	utiltest.ResolveExpectNotFound(t, ctx, "appV1")
+	utiltest.ResolveExpectNotFound(t, ctx, "appV1", true)
 
 	utiltest.RunApp(t, ctx, appID, instance1ID)
 	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
-	if v1EP1 = utiltest.Resolve(t, ctx, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
+	if v1EP1 = utiltest.Resolve(t, ctx, "appV1", 1, true)[0]; v1EP1 == oldV1EP1 {
 		t.Fatalf("Expected a new endpoint for the app after kill/run")
 	}
 
@@ -160,7 +160,7 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	// There should be two endpoints mounted as "appV1", one for each
 	// instance of the app.
-	endpoints := utiltest.Resolve(t, ctx, "appV1", 2)
+	endpoints := utiltest.Resolve(t, ctx, "appV1", 2, true)
 	v1EP2 := endpoints[0]
 	if endpoints[0] == v1EP1 {
 		v1EP2 = endpoints[1]
@@ -177,7 +177,8 @@ func TestLifeOfAnApp(t *testing.T) {
 	// Kill the first instance.
 	utiltest.KillApp(t, ctx, appID, instance1ID)
 	// Only the second instance should still be running and mounted.
-	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1)[0]; want != got {
+	// In this case, we don't want to retry since we shouldn't need to.
+	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1, false)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 
@@ -199,8 +200,8 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Version did not change for %v: %v", appID, v1)
 	}
 
-	// Second instance should still be running.
-	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1)[0]; want != got {
+	// Second instance should still be running, don't retry.
+	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1, false)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 	if v := utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID); v != v1 {
@@ -216,7 +217,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
 	// v1EP2.
-	endpoints = utiltest.Resolve(t, ctx, "appV1", 2)
+	endpoints = utiltest.Resolve(t, ctx, "appV1", 2, true)
 	if endpoints[0] == v1EP2 {
 		if endpoints[1] == v1EP2 {
 			t.Fatalf("Both endpoints are the same")
@@ -229,8 +230,8 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.UpdateInstanceExpectError(t, ctx, appID, instance1ID, impl.ErrInvalidOperation.ID)
 	// Stop first instance and try again.
 	utiltest.KillApp(t, ctx, appID, instance1ID)
-	// Only the second instance should still be running and mounted.
-	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1)[0]; want != got {
+	// Only the second instance should still be running and mounted, don't retry.
+	if want, got := v1EP2, utiltest.Resolve(t, ctx, "appV1", 1, false)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 	// Update succeeds now.
@@ -241,13 +242,13 @@ func TestLifeOfAnApp(t *testing.T) {
 	// Resume the first instance and verify it's running v2 now.
 	utiltest.RunApp(t, ctx, appID, instance1ID)
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
-	utiltest.Resolve(t, ctx, "appV1", 1)
-	utiltest.Resolve(t, ctx, "appV2", 1)
+	utiltest.Resolve(t, ctx, "appV1", 1, false)
+	utiltest.Resolve(t, ctx, "appV2", 1, false)
 
 	// Stop first instance.
 	utiltest.TerminateApp(t, ctx, appID, instance1ID)
 	verifyAppWorkspace(t, root, appID, instance1ID)
-	utiltest.ResolveExpectNotFound(t, ctx, "appV2")
+	utiltest.ResolveExpectNotFound(t, ctx, "appV2", true)
 
 	// Start a third instance.
 	instance3ID := utiltest.LaunchApp(t, ctx, appID)
@@ -257,15 +258,15 @@ func TestLifeOfAnApp(t *testing.T) {
 	// Wait until the app pings us that it's ready.
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
 
-	utiltest.Resolve(t, ctx, "appV2", 1)
+	utiltest.Resolve(t, ctx, "appV2", 1, true)
 
 	// Stop second instance.
 	utiltest.TerminateApp(t, ctx, appID, instance2ID)
-	utiltest.ResolveExpectNotFound(t, ctx, "appV1")
+	utiltest.ResolveExpectNotFound(t, ctx, "appV1", true)
 
 	// Stop third instance.
 	utiltest.TerminateApp(t, ctx, appID, instance3ID)
-	utiltest.ResolveExpectNotFound(t, ctx, "appV2")
+	utiltest.ResolveExpectNotFound(t, ctx, "appV2", true)
 
 	// Revert the app.
 	utiltest.RevertApp(t, ctx, appID)
@@ -279,9 +280,9 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
-	utiltest.Resolve(t, ctx, "appV1", 1)
+	utiltest.Resolve(t, ctx, "appV1", 1, true)
 	utiltest.TerminateApp(t, ctx, appID, instance4ID)
-	utiltest.ResolveExpectNotFound(t, ctx, "appV1")
+	utiltest.ResolveExpectNotFound(t, ctx, "appV1", true)
 
 	// We are already on the first version, no further revert possible.
 	utiltest.RevertAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)

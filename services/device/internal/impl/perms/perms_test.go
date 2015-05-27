@@ -103,7 +103,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	// Wait until the app pings us that it's ready.
 	pingCh.WaitForPingArgs(t)
-	utiltest.Resolve(t, ctx, "trapp", 1)
+	utiltest.Resolve(t, ctx, "trapp", 1, false)
 	utiltest.KillApp(t, claimantCtx, appID, instanceID)
 
 	// TODO(gauthamt): Test that AccessLists persist across devicemanager restarts

@@ -31,7 +31,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
-	utiltest.Resolve(t, ctx, "pingserver", 1)
+	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Create an envelope for a first version of the app.
 	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")

@@ -10,24 +10,6 @@ import (
 	"runtime"
 )
 
-// DepthToExternalCaller determines the number of stack frames to the first
-// enclosing caller that is external to the package that this function is
-// called from. Drectory name is used as a proxy for package name,
-// that is, the directory component of the file return runtime.Caller is
-// compared to that of the lowest level caller until a different one is
-// encountered as the stack is walked upwards.
-func DepthToExternalCaller() int {
-	_, file, _, _ := runtime.Caller(1)
-	cwd := filepath.Dir(file)
-	for d := 2; d < 10; d++ {
-		_, file, _, _ := runtime.Caller(d)
-		if cwd != filepath.Dir(file) {
-			return d
-		}
-	}
-	return 1
-}
-
 // FormatLogLine will prepend the file and line number of the caller
 // at the specificied depth (as per runtime.Caller) to the supplied
 // format and args and return a formatted string. It is useful when

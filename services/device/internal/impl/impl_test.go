@@ -133,7 +133,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}()
 
 	servicetest.ReadPID(t, dmh)
-	utiltest.Resolve(t, ctx, "claimable", 1)
+	utiltest.Resolve(t, ctx, "claimable", 1, true)
 	// Brand new device manager must be claimed first.
 	utiltest.ClaimDevice(t, ctx, "claimable", "factoryDM", "mydevice", utiltest.NoPairingToken)
 
@@ -177,12 +177,12 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// A successful update means the device manager has stopped itself.  We
 	// relaunch it from the current link.
-	utiltest.ResolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "v2DM", false) // Ensure a clean slate.
 
 	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
 
 	servicetest.ReadPID(t, dmh)
-	utiltest.Resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
+	utiltest.Resolve(t, ctx, "v2DM", 1, true) // Current link should have been launching v2.
 
 	// Try issuing an update without changing the envelope in the
 	// application repository: this should fail, and current link should be
@@ -194,7 +194,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// Try issuing an update with a binary that has a different major version
 	// number. It should fail.
-	utiltest.ResolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "v2.5DM", false) // Ensure a clean slate.
 	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerV10, application.DeviceManagerTitle, 0, 0, "v2.5DM")
 	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
 
@@ -216,7 +216,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	utiltest.ResolveExpectNotFound(t, ctx, "v3DM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "v3DM", false) // Ensure a clean slate.
 
 	// Re-lanuch the device manager from current link.  We instruct the
 	// device manager to pause before stopping its server, so that we can
@@ -224,7 +224,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dmh = servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, utiltest.ExecScript, currLink)
 
 	servicetest.ReadPID(t, dmh)
-	utiltest.Resolve(t, ctx, "v3DM", 1) // Current link should have been launching v3.
+	utiltest.Resolve(t, ctx, "v3DM", 1, true) // Current link should have been launching v3.
 	v3 := utiltest.VerifyDeviceState(t, ctx, device.InstanceStateRunning, "v3DM")
 	if v2 == v3 {
 		t.Fatalf("version didn't change")
@@ -241,11 +241,11 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	utiltest.ResolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "v2DM", false) // Ensure a clean slate.
 
 	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
 	servicetest.ReadPID(t, dmh)
-	utiltest.Resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
+	utiltest.Resolve(t, ctx, "v2DM", 1, true) // Current link should have been launching v2.
 
 	// Revert the device manager to its previous version (factory).
 	utiltest.RevertDevice(t, ctx, "v2DM")
@@ -256,20 +256,20 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM", false) // Ensure a clean slate.
 
 	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
 	servicetest.ReadPID(t, dmh)
-	utiltest.Resolve(t, ctx, "factoryDM", 1) // Current link should have been launching factory version.
+	utiltest.Resolve(t, ctx, "factoryDM", 1, true) // Current link should have been launching factory version.
 	utiltest.ShutdownDevice(t, ctx, "factoryDM")
 	dmh.Expect("factoryDM terminated")
 	dmh.ExpectEOF()
 
 	// Re-launch the device manager, to exercise the behavior of Stop.
-	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
+	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM", false) // Ensure a clean slate.
 	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
 	servicetest.ReadPID(t, dmh)
-	utiltest.Resolve(t, ctx, "factoryDM", 1)
+	utiltest.Resolve(t, ctx, "factoryDM", 1, true)
 	utiltest.KillDevice(t, ctx, "factoryDM")
 	dmh.Expect("restart handler")
 	dmh.Expect("factoryDM terminated")
@@ -318,7 +318,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 		t.Fatalf("SelfInstall failed: %v", err)
 	}
 
-	utiltest.ResolveExpectNotFound(t, ctx, "dm")
+	utiltest.ResolveExpectNotFound(t, ctx, "dm", false)
 	// Start the device manager.
 	stdout := make(simpleRW, 100)
 	defer os.Setenv(utiltest.RedirectEnv, os.Getenv(utiltest.RedirectEnv))

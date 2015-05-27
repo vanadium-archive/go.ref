@@ -54,29 +54,26 @@ const mountTTLSlack = 20 * time.Second
 // appropriate channels.
 type publisher struct {
 	cmdchan  chan interface{} // value is one of {server,name,debug}Cmd
+	stopchan chan struct{}    // closed when no longer accepting commands.
 	donechan chan struct{}    // closed when the publisher is done
 }
 
 type addServerCmd struct {
-	server string        // server to add
-	done   chan struct{} // closed when the cmd is done
+	server string // server to add
 }
 
 type removeServerCmd struct {
-	server string        // server to remove
-	done   chan struct{} // closed when the cmd is done
+	server string // server to remove
 }
 
 type addNameCmd struct {
-	name string        // name to add
-	mt   bool          // true if server serves a mount table
-	leaf bool          // true if server is a leaf
-	done chan struct{} // closed when the cmd is done
+	name string // name to add
+	mt   bool   // true if server serves a mount table
+	leaf bool   // true if server is a leaf
 }
 
 type removeNameCmd struct {
-	name string        // name to remove
-	done chan struct{} // closed when the cmd is done
+	name string // name to remove
 }
 
 type debugCmd chan string // debug string is sent when the cmd is done
@@ -89,6 +86,7 @@ type stopCmd struct{} // sent to the runloop when we want it to exit.
 func New(ctx *context.T, ns namespace.T, period time.Duration) Publisher {
 	p := &publisher{
 		cmdchan:  make(chan interface{}),
+		stopchan: make(chan struct{}),
 		donechan: make(chan struct{}),
 	}
 	go runLoop(ctx, p.cmdchan, p.donechan, ns, period)
@@ -99,37 +97,27 @@ func (p *publisher) sendCmd(cmd interface{}) bool {
 	select {
 	case p.cmdchan <- cmd:
 		return true
+	case <-p.stopchan:
+		return false
 	case <-p.donechan:
 		return false
 	}
 }
 
 func (p *publisher) AddServer(server string) {
-	done := make(chan struct{})
-	if p.sendCmd(addServerCmd{server, done}) {
-		<-done
-	}
+	p.sendCmd(addServerCmd{server})
 }
 
 func (p *publisher) RemoveServer(server string) {
-	done := make(chan struct{})
-	if p.sendCmd(removeServerCmd{server, done}) {
-		<-done
-	}
+	p.sendCmd(removeServerCmd{server})
 }
 
 func (p *publisher) AddName(name string, mt bool, leaf bool) {
-	done := make(chan struct{})
-	if p.sendCmd(addNameCmd{name, mt, leaf, done}) {
-		<-done
-	}
+	p.sendCmd(addNameCmd{name, mt, leaf})
 }
 
 func (p *publisher) RemoveName(name string) {
-	done := make(chan struct{})
-	if p.sendCmd(removeNameCmd{name, done}) {
-		<-done
-	}
+	p.sendCmd(removeNameCmd{name})
 }
 
 func (p *publisher) Status() rpc.MountState {
@@ -161,6 +149,7 @@ func (p *publisher) DebugString() (dbg string) {
 // (including Stop) are no-ops.
 func (p *publisher) Stop() {
 	p.sendCmd(stopCmd{})
+	close(p.stopchan) // stop accepting new commands now.
 }
 
 func (p *publisher) WaitForStop() {
@@ -170,7 +159,6 @@ func (p *publisher) WaitForStop() {
 func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, ns namespace.T, period time.Duration) {
 	vlog.VI(2).Info("rpc pub: start runLoop")
 	state := newPubState(ctx, ns, period)
-
 	for {
 		select {
 		case cmd := <-cmdchan:
@@ -182,16 +170,12 @@ func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, n
 				return
 			case addServerCmd:
 				state.addServer(tcmd.server)
-				close(tcmd.done)
 			case removeServerCmd:
 				state.removeServer(tcmd.server)
-				close(tcmd.done)
 			case addNameCmd:
 				state.addName(tcmd.name, tcmd.mt, tcmd.leaf)
-				close(tcmd.done)
 			case removeNameCmd:
 				state.removeName(tcmd.name)
-				close(tcmd.done)
 			case statusCmd:
 				tcmd <- state.getStatus()
 				close(tcmd)

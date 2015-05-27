@@ -53,7 +53,18 @@ func (ns *namespaceMock) Mount(ctx *context.T, name, server string, _ time.Durat
 		e = &naming.MountEntry{}
 		ns.mounts[name] = e
 	}
-	e.Servers = append(e.Servers, naming.MountedServer{Server: server})
+
+	isdup := func(n string) bool {
+		for _, s := range e.Servers {
+			if n == s.Server {
+				return true
+			}
+		}
+		return false
+	}
+	if !isdup(server) {
+		e.Servers = append(e.Servers, naming.MountedServer{Server: server})
+	}
 	return nil
 }
 
