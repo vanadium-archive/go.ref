@@ -73,7 +73,7 @@ const (
 	applicationInstallationObject objectKind = iota
 	applicationInstanceObject
 	deviceServiceObject
-	sentinel
+	sentinelObjectKind
 )
 
 var objectKinds = []objectKind{
@@ -84,7 +84,7 @@ var objectKinds = []objectKind{
 
 func init() {
 	// TODO(caprita): Move to glob_test.go once that exists.
-	if len(objectKinds) != int(sentinel) {
+	if len(objectKinds) != int(sentinelObjectKind) {
 		panic(fmt.Sprintf("broken invariant: mismatching number of object kinds"))
 	}
 }
@@ -107,10 +107,6 @@ func (a byTypeAndName) Less(i, j int) bool {
 	}
 	return r1.name < r2.name
 }
-
-// TODO(caprita): Allow clients to control the parallelism.  For example, for
-// updateall, we need to first update the installations before we update the
-// instances.
 
 // run runs the given handler in parallel against each of the results obtained
 // by globbing args, after performing filtering based on type
@@ -356,33 +352,39 @@ const (
 	fullParallelism parallelismFlag = iota
 	noParallelism
 	kindParallelism
+	sentinelParallelismFlag
 )
 
-func (p *parallelismFlag) String() string {
-	switch *p {
-	case fullParallelism:
-		return "FULL"
-	case noParallelism:
-		return "NONE"
-	case kindParallelism:
-		return "BYKIND"
-	default:
-		return "UNKNOWN"
+var parallelismStrings = map[parallelismFlag]string{
+	fullParallelism: "FULL",
+	noParallelism:   "NONE",
+	kindParallelism: "BYKIND",
+}
+
+const defaultParallelism = kindParallelism
+
+func init() {
+	if len(parallelismStrings) != int(sentinelParallelismFlag) {
+		panic(fmt.Sprintf("broken invariant: mismatching number of parallelism types"))
 	}
 }
 
-func (p *parallelismFlag) Set(s string) error {
-	switch s {
-	case "FULL":
-		*p = fullParallelism
-	case "NONE":
-		*p = noParallelism
-	case "BYKIND":
-		*p = kindParallelism
-	default:
-		return fmt.Errorf("unrecognized parallelism type: %v", s)
+func (p *parallelismFlag) String() string {
+	s, ok := parallelismStrings[*p]
+	if !ok {
+		return "UNKNOWN"
 	}
-	return nil
+	return s
+}
+
+func (p *parallelismFlag) Set(s string) error {
+	for k, v := range parallelismStrings {
+		if s == v {
+			*p = k
+			return nil
+		}
+	}
+	return fmt.Errorf("unrecognized parallelism type: %v", s)
 }
 
 var (
@@ -390,7 +392,7 @@ var (
 	installationStateFilter installationStateFlag
 	onlyInstances           bool
 	onlyInstallations       bool
-	handlerParallelism      parallelismFlag = kindParallelism
+	handlerParallelism      parallelismFlag = defaultParallelism
 )
 
 func init() {
@@ -400,9 +402,12 @@ func init() {
 	flag.Var(&installationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstallationStateAll))
 	flag.BoolVar(&onlyInstances, "only-instances", false, "If set, only consider instances.")
 	flag.BoolVar(&onlyInstallations, "only-installations", false, "If set, only consider installations.")
-	// TODO(caprita): Expose the possible values for this flag in the help
-	// message.
-	flag.Var(&handlerParallelism, "parallelism", "Specifies the level of parallelism for the handler execution.")
+	var parallelismValues []string
+	for _, v := range parallelismStrings {
+		parallelismValues = append(parallelismValues, v)
+	}
+	sort.Strings(parallelismValues)
+	flag.Var(&handlerParallelism, "parallelism", "Specifies the level of parallelism for the handler execution. One of: "+strings.Join(parallelismValues, ","))
 }
 
 // ResetGlobFlags is meant for tests to restore the values of flag-configured
@@ -412,5 +417,5 @@ func ResetGlobFlags() {
 	installationStateFilter = make(installationStateFlag)
 	onlyInstances = false
 	onlyInstallations = false
-	handlerParallelism = fullParallelism
+	handlerParallelism = defaultParallelism
 }

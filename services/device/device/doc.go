@@ -73,7 +73,8 @@ The global flags are:
  -only-instances=false
    If set, only consider instances.
  -parallelism=BYKIND
-   Specifies the level of parallelism for the handler execution.
+   Specifies the level of parallelism for the handler execution. One of:
+   BYKIND,FULL,NONE
  -progname=unnamed_app
    Visible name of the application, used in argv[0]
  -rm=false
