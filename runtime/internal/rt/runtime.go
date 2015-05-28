@@ -27,6 +27,7 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/metadata"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/lib/stats/sysstats"
@@ -179,7 +180,7 @@ func (r *Runtime) addChild(ctx *context.T, me interface{}, stop func(), dependsO
 }
 
 func (r *Runtime) Init(ctx *context.T) error {
-	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return r.initMgmt(ctx)
 }
 
@@ -214,12 +215,12 @@ func (r *Runtime) initSignalHandling(ctx *context.T) {
 }
 
 func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
-	defer vlog.LogCallf("ep=%.10s...", ep)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "ep=%.10s...", ep)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return inaming.NewEndpoint(ep)
 }
 
 func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, error) {
-	defer vlog.LogCallf("ctx=,opts...=%v", opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "opts...=%v", opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Create a new RoutingID (and StreamManager) for each server.
 	sm, err := newStreamManager()
 	if err != nil {
@@ -298,7 +299,7 @@ func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
 }
 
 func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
-	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	newctx, err := r.setNewStreamManager(ctx)
 	if err != nil {
 		return ctx, err
@@ -324,7 +325,7 @@ func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shu
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
-	defer vlog.LogCallf("ctx=,principal=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "principal=")(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	var err error
 	newctx := ctx
 
@@ -350,13 +351,13 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 }
 
 func (*Runtime) GetPrincipal(ctx *context.T) security.Principal {
-	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	return p
 }
 
 func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.T, rpc.Client, error) {
-	defer vlog.LogCallf("ctx=,opts...=%v", opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "opts...=%v", opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	otherOpts := append([]rpc.ClientOpt{}, opts...)
 
 	p, _ := ctx.Value(principalKey).(security.Principal)
@@ -383,7 +384,7 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 }
 
 func (*Runtime) GetClient(ctx *context.T) rpc.Client {
-	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	cl, _ := ctx.Value(clientKey).(rpc.Client)
 	return cl
 }
@@ -405,7 +406,7 @@ func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, 
 }
 
 func (r *Runtime) WithNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
-	defer vlog.LogCallf("ctx=,roots...=%v", roots)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "roots...=%v", roots)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	newctx, ns, err := r.setNewNamespace(ctx, roots...)
 	if err != nil {
 		return ctx, nil, err
@@ -441,7 +442,7 @@ func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 }
 
 func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {
-	defer vlog.LogCallf("ctx=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -463,7 +464,7 @@ func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
-	defer vlog.LogCallf("ctx=,d=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "d=")(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return context.WithValue(ctx, reservedNameKey, d)
 }
 

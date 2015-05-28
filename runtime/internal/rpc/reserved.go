@@ -18,6 +18,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/glob"
 )
 
@@ -44,7 +45,7 @@ type reservedMethods struct {
 }
 
 func (r *reservedMethods) Describe__() []rpc.InterfaceDesc {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return []rpc.InterfaceDesc{{
 		Name: "__Reserved",
 		Doc:  `Reserved methods implemented by the RPC framework.  Each method name is prefixed with a double underscore "__".`,
@@ -356,11 +357,11 @@ func callWithMethodTags(ctx *context.T, src rpc.StreamServerCall, tags []*vdl.Va
 }
 
 func (c *derivedServerCall) Suffix() string {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return c.suffix
 }
 func (c *derivedServerCall) Security() security.Call {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return c.security
 }
 
@@ -379,10 +380,10 @@ func securityCallWithMethodTags(src security.Call, tags []*vdl.Value) security.C
 }
 
 func (c *derivedSecurityCall) Suffix() string {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return c.suffix
 }
 func (c *derivedSecurityCall) MethodTags() []*vdl.Value {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return c.methodTags
 }

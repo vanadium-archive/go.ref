@@ -8,15 +8,15 @@ import (
 	"sync"
 	"time"
 
-	inaming "v.io/x/ref/runtime/internal/naming"
-
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/lib/apilog"
+	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 const defaultMaxResolveDepth = 32
@@ -72,7 +72,7 @@ func New(roots ...string) (*namespace, error) {
 
 // SetRoots implements naming.Namespace.SetRoots
 func (ns *namespace) SetRoots(roots ...string) error {
-	defer vlog.LogCallf("roots...=%v", roots)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "roots...=%v", roots)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Allow roots to be cleared with a call of SetRoots()
 	if len(roots) > 0 && !rooted(roots) {
 		return badRoots(roots)
@@ -193,7 +193,7 @@ func withTimeoutAndCancel(ctx *context.T) (nctx *context.T, cancel context.Cance
 
 // CacheCtl implements naming.Namespace.CacheCtl
 func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
-	defer vlog.LogCallf("ctls...=%v", ctls)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "ctls...=%v", ctls)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	for _, c := range ctls {
 		switch v := c.(type) {
 		case naming.DisableCache:

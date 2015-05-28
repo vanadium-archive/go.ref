@@ -8,7 +8,8 @@ import (
 	"net"
 
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/lib/apilog"
 )
 
 const pkgPath = "v.io/x/ref/runtime/internal/rpc/stream"
@@ -52,7 +53,7 @@ func NewNetError(err error, timeout, temporary bool) net.Error {
 
 func (t NetError) Err() error { return t.err }
 func (t NetError) Error() string {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return t.err.Error()
 }
 func (t NetError) Timeout() bool   { return t.timeout }

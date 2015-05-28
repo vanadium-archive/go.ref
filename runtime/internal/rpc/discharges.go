@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 
 	"v.io/v23/context"
@@ -24,10 +25,10 @@ import (
 type NoDischarges struct{}
 
 func (NoDischarges) RPCCallOpt() {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 func (NoDischarges) NSOpt() {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
 // discharger implements vc.DischargeClient.
