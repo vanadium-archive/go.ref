@@ -16,8 +16,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/apilog"
 	inamespace "v.io/x/ref/runtime/internal/naming/namespace"
 )
 
@@ -40,7 +40,7 @@ type namespaceMock struct {
 }
 
 func (ns *namespaceMock) Mount(ctx *context.T, name, server string, _ time.Duration, opts ...naming.NamespaceOpt) error {
-	defer vlog.LogCallf("ctx=,name=%.10s...,server=%.10s...,opts...=%v", name, server, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,server=%.10s...,opts...=%v", name, server, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	ns.Lock()
 	defer ns.Unlock()
 	for n, _ := range ns.mounts {
@@ -69,7 +69,7 @@ func (ns *namespaceMock) Mount(ctx *context.T, name, server string, _ time.Durat
 }
 
 func (ns *namespaceMock) Unmount(ctx *context.T, name, server string, opts ...naming.NamespaceOpt) error {
-	defer vlog.LogCallf("ctx=,name=%.10s...,server=%.10s...,opts...=%v", name, server, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,server=%.10s...,opts...=%v", name, server, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	ns.Lock()
 	defer ns.Unlock()
 	e := ns.mounts[name]
@@ -95,7 +95,7 @@ func (ns *namespaceMock) Unmount(ctx *context.T, name, server string, opts ...na
 }
 
 func (ns *namespaceMock) Delete(ctx *context.T, name string, removeSubtree bool, opts ...naming.NamespaceOpt) error {
-	defer vlog.LogCallf("ctx=,name=%.10s...,removeSubtree=%v,opts...=%v", name, removeSubtree, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,removeSubtree=%v,opts...=%v", name, removeSubtree, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	ns.Lock()
 	defer ns.Unlock()
 	e := ns.mounts[name]
@@ -115,7 +115,7 @@ func (ns *namespaceMock) Delete(ctx *context.T, name string, removeSubtree bool,
 }
 
 func (ns *namespaceMock) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
-	defer vlog.LogCallf("ctx=,name=%.10s...,opts...=%v", name, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	_, name = security.SplitPatternName(name)
 	if address, suffix := naming.SplitAddressName(name); len(address) > 0 {
 		return &naming.MountEntry{
@@ -136,43 +136,43 @@ func (ns *namespaceMock) Resolve(ctx *context.T, name string, opts ...naming.Nam
 }
 
 func (ns *namespaceMock) ResolveToMountTable(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
-	defer vlog.LogCallf("ctx=,name=%.10s...,opts...=%v", name, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("ResolveToMountTable not implemented")
 }
 
 func (ns *namespaceMock) FlushCacheEntry(name string) bool {
-	defer vlog.LogCallf("name=%.10s...", name)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "name=%.10s...", name)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return false
 }
 
 func (ns *namespaceMock) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
-	defer vlog.LogCallf("ctls...=%v", ctls)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "ctls...=%v", ctls)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return nil
 }
 
 func (ns *namespaceMock) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan naming.GlobReply, error) {
-	defer vlog.LogCallf("ctx=,pattern=%.10s...,opts...=%v", pattern, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "pattern=%.10s...,opts...=%v", pattern, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("Glob not implemented")
 }
 
 func (ns *namespaceMock) SetRoots(...string) error {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	panic("Calling SetRoots on a mock namespace.  This is not supported.")
 }
 
 func (ns *namespaceMock) Roots() []string {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	panic("Calling Roots on a mock namespace.  This is not supported.")
 }
 
 func (ns *namespaceMock) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (perms access.Permissions, version string, err error) {
-	defer vlog.LogCallf("ctx=,name=%.10s...,opts...=%v", name, opts)("perms=,version=%.10s...,err=%v", &version, &err) // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "perms=,version=%.10s...,err=%v", &version, &err) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	panic("Calling GetPermissions on a mock namespace.  This is not supported.")
 }
 
 func (ns *namespaceMock) SetPermissions(ctx *context.T, name string, perms access.Permissions, version string, opts ...naming.NamespaceOpt) error {
-	defer vlog.LogCallf("ctx=,name=%.10s...,perms=,version=%.10s...,opts...=%v", name, version, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,perms=,version=%.10s...,opts...=%v", name, version, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	panic("Calling SetPermissions on a mock namespace.  This is not supported.")
 }

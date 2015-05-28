@@ -24,6 +24,7 @@ import (
 	"v.io/v23/vom"
 
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/runtime/internal/lib/bqueue"
 	"v.io/x/ref/runtime/internal/lib/iobuf"
 	vsync "v.io/x/ref/runtime/internal/lib/sync"
@@ -73,7 +74,7 @@ type DischargeExpiryBuffer time.Duration
 
 func (DischargeExpiryBuffer) RPCStreamListenerOpt() {}
 func (DischargeExpiryBuffer) RPCServerOpt() {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
 const DefaultServerDischargeExpiryBuffer = 20 * time.Second

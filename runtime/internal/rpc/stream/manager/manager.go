@@ -18,6 +18,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/counter"
 	inaming "v.io/x/ref/runtime/internal/naming"
@@ -84,7 +85,7 @@ type DialTimeout time.Duration
 
 func (DialTimeout) RPCStreamVCOpt() {}
 func (DialTimeout) RPCClientOpt() {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
 func dial(d rpc.DialerFunc, network, address string, timeout time.Duration) (net.Conn, error) {

@@ -13,7 +13,7 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/v23/vtrace"
 
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/flags"
 )
 
@@ -61,7 +61,7 @@ func NewStore(opts flags.VtraceFlags) (*Store, error) {
 }
 
 func (s *Store) ForceCollect(id uniqueid.Id) {
-	defer vlog.LogCallf("id=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "id=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.mu.Lock()
 	s.forceCollectLocked(id)
 	s.mu.Unlock()
@@ -85,7 +85,7 @@ func (s *Store) forceCollectLocked(id uniqueid.Id) *traceStore {
 
 // Merge merges a vtrace.Response into the current store.
 func (s *Store) Merge(t vtrace.Response) {
-	defer vlog.LogCallf("t=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "t=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -161,7 +161,7 @@ func (s *Store) flags(id uniqueid.Id) vtrace.TraceFlags {
 
 // TraceRecords returns TraceRecords for all traces saved in the store.
 func (s *Store) TraceRecords() []vtrace.TraceRecord {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -177,7 +177,7 @@ func (s *Store) TraceRecords() []vtrace.TraceRecord {
 // TraceRecord returns a TraceRecord for a given Id.  Returns
 // nil if the given id is not present.
 func (s *Store) TraceRecord(id uniqueid.Id) *vtrace.TraceRecord {
-	defer vlog.LogCallf("id=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "id=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := &vtrace.TraceRecord{}

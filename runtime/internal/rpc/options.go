@@ -11,7 +11,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/runtime/internal/rpc/stream"
 )
 
@@ -21,7 +21,7 @@ import (
 type PreferredProtocols []string
 
 func (PreferredProtocols) RPCClientOpt() {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
 // This option is used to sort and filter the endpoints when resolving the
@@ -29,7 +29,7 @@ func (PreferredProtocols) RPCClientOpt() {
 type PreferredServerResolveProtocols []string
 
 func (PreferredServerResolveProtocols) RPCServerOpt() {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
 // ReservedNameDispatcher specifies the dispatcher that controls access
@@ -39,7 +39,7 @@ type ReservedNameDispatcher struct {
 }
 
 func (ReservedNameDispatcher) RPCServerOpt() {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
 func getRetryTimeoutOpt(opts []rpc.CallOpt) (time.Duration, bool) {

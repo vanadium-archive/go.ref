@@ -28,6 +28,7 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 
+	"v.io/x/ref/lib/apilog"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
@@ -185,12 +186,12 @@ func backoff(n uint, deadline time.Time) bool {
 }
 
 func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
-	defer vlog.LogCallf("ctx=,name=%.10s...,method=%.10s...,args=,opts...=%v", name, method, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,method=%.10s...,args=,opts...=%v", name, method, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return c.startCall(ctx, name, method, args, opts)
 }
 
 func (c *client) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, opts ...rpc.CallOpt) error {
-	defer vlog.LogCallf("ctx=,name=%.10s...,method=%.10s...,inArgs=,outArgs=,opts...=%v", name, method, opts)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "name=%.10s...,method=%.10s...,inArgs=,outArgs=,opts...=%v", name, method, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	deadline := getDeadline(ctx, opts)
 
 	var lastErr error
@@ -728,7 +729,7 @@ func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, call security.Call
 }
 
 func (c *client) Close() {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	for _, v := range c.vcCache.Close() {
 		c.streamMgr.ShutdownEndpoint(v.RemoteEndpoint())
 	}
@@ -851,7 +852,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 }
 
 func (fc *flowClient) Send(item interface{}) error {
-	defer vlog.LogCallf("item=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "item=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if fc.sendClosed {
 		return verror.New(verror.ErrAborted, fc.ctx)
 	}
@@ -895,7 +896,7 @@ func decodeNetError(ctx *context.T, err error) (verror.IDAction, error) {
 }
 
 func (fc *flowClient) Recv(itemptr interface{}) error {
-	defer vlog.LogCallf("itemptr=")("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "itemptr=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	switch {
 	case fc.response.Error != nil:
 		return verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error)
@@ -930,7 +931,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 }
 
 func (fc *flowClient) CloseSend() error {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return fc.closeSend()
 }
 
@@ -962,7 +963,7 @@ func (fc *flowClient) closeSend() error {
 }
 
 func (fc *flowClient) Finish(resultptrs ...interface{}) error {
-	defer vlog.LogCallf("resultptrs...=%v", resultptrs)("") // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(nil, "resultptrs...=%v", resultptrs)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	err := fc.finish(resultptrs...)
 	vtrace.GetSpan(fc.ctx).Finish()
 	return err
@@ -1039,7 +1040,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 }
 
 func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
-	defer vlog.LogCall()() // AUTO-GENERATED, DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return fc.server, fc.flow.RemoteBlessings()
 }
 
