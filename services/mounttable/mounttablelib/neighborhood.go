@@ -34,15 +34,21 @@ var (
 	errDoesntImplementUnmount        = verror.Register(pkgPath+".errDoesntImplementUnmount", verror.NoRetry, "{1:}{2:} this server does not implement Unmount{:_}")
 	errDoesntImplementDelete         = verror.Register(pkgPath+".errDoesntImplementDelete", verror.NoRetry, "{1:}{2:} this server does not implement Delete{:_}")
 	errDoesntImplementSetPermissions = verror.Register(pkgPath+".errDoesntImplementSetPermissions", verror.NoRetry, "{1:}{2:} this server does not implement SetPermissions{:_}")
+	errSlashInHostName               = verror.Register(pkgPath+".errSlashInHostName", verror.NoRetry, "{1:}{2:} hostname may not contain '/'{:_}")
 )
 
 const addressPrefix = "address:"
 
+// AnonymousNeighbor is the neighborhood host name to use if you want to be a client of the neighborhood namespace
+// without appearing in it.
+const AnonymousNeighbor = "_"
+
 // neighborhood defines a set of machines on the same multicast media.
 type neighborhood struct {
-	mdns   *mdns.MDNS
-	nelems int
-	nw     netconfig.NetConfigWatcher
+	mdns             *mdns.MDNS
+	nelems           int
+	nw               netconfig.NetConfigWatcher
+	lastSubscription time.Time
 }
 
 var _ rpc.Dispatcher = (*neighborhood)(nil)
@@ -81,6 +87,10 @@ func getPort(address string) uint16 {
 }
 
 func newNeighborhood(host string, addresses []string, loopback bool) (*neighborhood, error) {
+	if strings.Contains(host, "/") {
+		return nil, verror.New(errSlashInHostName, nil)
+	}
+
 	// Create the TXT contents with addresses to announce. Also pick up a port number.
 	var txt []string
 	var port uint16
@@ -105,7 +115,10 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 	}
 	vlog.VI(2).Infof("listening for service vanadium on port %d", port)
 	mdns.SubscribeToService("vanadium")
-	mdns.AddService("vanadium", "", port, txt...)
+	if host != AnonymousNeighbor {
+		mdns.AddService("vanadium", "", port, txt...)
+	}
+	time.Sleep(50 * time.Millisecond)
 
 	nh := &neighborhood{
 		mdns: mdns,
@@ -199,6 +212,12 @@ func (nh *neighborhood) neighbor(instance string) []naming.MountedServer {
 
 // neighbors returns all neighbors and their MountedServer structs.
 func (nh *neighborhood) neighbors() map[string][]naming.MountedServer {
+	// If we haven't refreshed in a while, do it now.
+	if time.Now().Sub(nh.lastSubscription) > time.Duration(30)*time.Second {
+		nh.mdns.SubscribeToService("vanadium")
+		time.Sleep(50 * time.Millisecond)
+		nh.lastSubscription = time.Now()
+	}
 	neighbors := make(map[string][]naming.MountedServer, 0)
 	members := nh.mdns.ServiceDiscovery("vanadium")
 	for _, m := range members {
