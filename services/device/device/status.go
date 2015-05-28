@@ -16,11 +16,11 @@ import (
 var cmdStatus = &cmdline.Command{
 	Runner:   globRunner(runStatus),
 	Name:     "status",
-	Short:    "Get application status.",
-	Long:     "Get the status of application installations and instances.",
-	ArgsName: "<app name patterns...>",
+	Short:    "Get device manager or application status.",
+	Long:     "Get the status of the device manager or application instances and installations.",
+	ArgsName: "<name patterns...>",
 	ArgsLong: `
-<app name patterns...> are vanadium object names or glob name patterns corresponding to application installations and instances.`,
+<name patterns...> are vanadium object names or glob name patterns corresponding to the device manager service, or to application installations and instances.`,
 }
 
 func runStatus(entry globResult, _ *context.T, stdout, _ io.Writer) error {
@@ -29,6 +29,8 @@ func runStatus(entry globResult, _ *context.T, stdout, _ io.Writer) error {
 		fmt.Fprintf(stdout, "Instance %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
 	case device.StatusInstallation:
 		fmt.Fprintf(stdout, "Installation %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
+	case device.StatusDevice:
+		fmt.Fprintf(stdout, "Device Service %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
 	default:
 		return fmt.Errorf("Status returned unknown type: %T", s)
 	}
