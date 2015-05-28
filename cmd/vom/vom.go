@@ -139,8 +139,7 @@ func runDump(env *cmdline.Env, args []string) error {
 		return nil
 	}
 	// Handle streaming from stdin.
-	// TODO(toddw): Add a flag to configure stdout/stderr dumping.
-	dumper := vom.NewDumper(dumpWriter{env.Stdout, env.Stdout})
+	dumper := vom.NewDumper(vom.NewDumpWriter(env.Stdout))
 	defer dumper.Close()
 	// Handle simple non-hex cases.
 	switch flagDataRep {
@@ -249,18 +248,4 @@ func dropWhitespace(r rune) rune {
 		return -1
 	}
 	return r
-}
-
-type dumpWriter struct {
-	atom, status io.Writer
-}
-
-var _ vom.DumpWriter = dumpWriter{}
-
-func (w dumpWriter) WriteAtom(atom vom.DumpAtom) {
-	w.atom.Write([]byte(atom.String() + "\n"))
-}
-
-func (w dumpWriter) WriteStatus(status vom.DumpStatus) {
-	w.status.Write([]byte(status.String() + "\n"))
 }
