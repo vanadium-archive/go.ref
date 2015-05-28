@@ -6,6 +6,7 @@ package main_test
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -27,22 +28,27 @@ func TestDebugCommand(t *testing.T) {
 		return
 	}
 	defer stopServer(t, server)
-	// Setup the command-line.
+
 	cmd := cmd_device.CmdRoot
+	globName := naming.JoinAddressName(endpoint.String(), "glob")
+	appName := naming.JoinAddressName(endpoint.String(), "app")
+	rootTape, appTape := tapes.forSuffix(""), tapes.forSuffix("app")
+	rootTape.SetResponses(GlobResponse{[]string{"app"}})
+
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	debugMessage := "the secrets of the universe, revealed"
-	rootTape := tapes.forSuffix("")
-	rootTape.SetResponses(debugMessage)
-	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"debug", appName}); err != nil {
+	appTape.SetResponses(instanceRunning, debugMessage)
+	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"debug", globName}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := debugMessage, strings.TrimSpace(stdout.String()); got != expected {
-		t.Fatalf("Unexpected output from debug. Got %q, expected %q", got, expected)
+	line := strings.Repeat("*", len(appName)+4)
+	expected := fmt.Sprintf("%s\n* %s *\n%s\n%s", line, appName, line, debugMessage)
+	if got := strings.TrimSpace(stdout.String()); got != expected {
+		t.Fatalf("Unexpected output from debug. Got:\n%v\nExpected:\n%v", got, expected)
 	}
-	if got, expected := rootTape.Play(), []interface{}{"Debug"}; !reflect.DeepEqual(expected, got) {
+	if got, expected := appTape.Play(), []interface{}{"Status", "Debug"}; !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
 }
