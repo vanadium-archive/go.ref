@@ -114,6 +114,17 @@ func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (inte
 	return a, nil
 }
 
+func (s *service) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	// In the future this API should be replaced by one that streams the app names.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	appNames := make([]string, 0, len(s.apps))
+	for n := range s.apps {
+		appNames = append(appNames, n)
+	}
+	return appNames, nil
+}
+
 ////////////////////////////////////////
 // App management methods
 

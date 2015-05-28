@@ -16,6 +16,9 @@ type App interface {
 	// NoSQLDatabase returns the Database for the specified NoSQL database.
 	NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (Database, error)
 
+	// NoSQLDatabaseNames returns the names of the NoSQL databases within the App.
+	NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error)
+
 	// CreateNoSQLDatabase creates the specified NoSQL database.
 	CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions) error
 

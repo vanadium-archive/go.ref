@@ -88,6 +88,17 @@ func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) 
 	return d, nil
 }
 
+func (a *app) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	// In the future this API should be replaced by one that streams the database names.
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	dbNames := make([]string, 0, len(a.dbs))
+	for n := range a.dbs {
+		dbNames = append(dbNames, n)
+	}
+	return dbNames, nil
+}
+
 func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions) error {
 	// TODO(sadovsky): Crash if any step fails, and use WAL to ensure that if we
 	// crash, upon restart we execute any remaining steps before we start handling

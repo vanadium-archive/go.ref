@@ -18,4 +18,7 @@ type Service interface {
 
 	// App returns the App with the specified name.
 	App(ctx *context.T, call rpc.ServerCall, appName string) (App, error)
+
+	// AppNames returns the names of the Apps within the service.
+	AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error)
 }
