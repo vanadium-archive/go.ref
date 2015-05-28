@@ -25,7 +25,7 @@ The device commands are:
    kill          Kill the given application instance.
    revert        Revert the device manager or application
    update        Update device manager or applications.
-   status        Get application status.
+   status        Get device manager or application status.
    debug         Debug the device.
    acl           Tool for setting device manager Permissions
    publish       Publish the given application(s).
@@ -304,13 +304,13 @@ instances.
 
 Device status
 
-Get the status of application installations and instances.
+Get the status of the device manager or application instances and installations.
 
 Usage:
-   device status <app name patterns...>
+   device status <name patterns...>
 
-<app name patterns...> are vanadium object names or glob name patterns
-corresponding to application installations and instances.
+<name patterns...> are vanadium object names or glob name patterns corresponding
+to the device manager service, or to application installations and instances.
 
 Device debug
 

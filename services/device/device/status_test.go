@@ -47,6 +47,10 @@ func TestStatusCommand(t *testing.T) {
 			instanceUpdating,
 			fmt.Sprintf("Instance %v [State:Updating,Version:theatrical version]", appName),
 		},
+		{
+			deviceService,
+			fmt.Sprintf("Device Service %v [State:Running,Version:han shot first]", appName),
+		},
 	} {
 		var stdout, stderr bytes.Buffer
 		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}

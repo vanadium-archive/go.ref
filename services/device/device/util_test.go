@@ -43,6 +43,10 @@ var (
 		State:   device.InstanceStateNotRunning,
 		Version: "special edition",
 	}}
+	deviceService = device.StatusDevice{device.DeviceStatus{
+		State:   device.InstanceStateRunning,
+		Version: "han shot first",
+	}}
 )
 
 func testHelper(t *testing.T, lower, upper string) {
