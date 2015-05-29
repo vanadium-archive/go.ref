@@ -6,6 +6,7 @@ package blesser
 
 import (
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 )
@@ -15,7 +16,9 @@ type rpcCall struct {
 	secCall security.Call
 }
 
-func (c rpcCall) Security() security.Call { return c.secCall }
+func (c rpcCall) Security() security.Call         { return c.secCall }
+func (c rpcCall) LocalEndpoint() naming.Endpoint  { return nil }
+func (c rpcCall) RemoteEndpoint() naming.Endpoint { return nil }
 
 func fakeContextAndCall(provider, user security.Principal) (*context.T, rpc.ServerCall) {
 	ctx, _ := context.RootContext()

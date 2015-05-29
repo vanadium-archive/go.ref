@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/services/identity"
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
@@ -59,6 +61,10 @@ func NewOAuthBlesserServer(p OAuthBlesserParams) identity.OAuthBlesserServerStub
 }
 
 func (b *oauthBlesser) BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall, accessToken string) (security.Blessings, string, error) {
+	// Temporary logging to help debug https://github.com/vanadium/browser/issues/84
+	// TODO(ashankar): Remove before release!
+	vlog.Infof("START: BlessUsingAccessToken(PublicKey:%v, Endpoint:%v)", call.Security().RemoteBlessings().PublicKey(), call.RemoteEndpoint())
+	defer vlog.Infof("END   : BlessUsingAccessToken(PublicKey:%v, Endpoint:%v)", call.Security().RemoteBlessings().PublicKey(), call.RemoteEndpoint())
 	var noblessings security.Blessings
 	email, clientName, err := b.oauthProvider.GetEmailAndClientName(accessToken, b.accessTokenClients)
 	if err != nil {
