@@ -9,7 +9,6 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
@@ -117,13 +116,14 @@ func (t *table) DeletePermissions(ctx *context.T, call rpc.ServerCall, prefix st
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (t *table) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (t *table) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
 	// Check perms.
 	sn := t.d.st.NewSnapshot()
 	if err := util.Get(ctx, call, sn, t, &tableData{}); err != nil {
 		sn.Close()
 		return nil, err
 	}
+	pattern := "*"
 	return util.Glob(ctx, call, pattern, sn, util.JoinKeyParts(util.RowPrefix, t.name))
 }
 

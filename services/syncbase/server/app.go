@@ -13,7 +13,6 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
@@ -63,13 +62,14 @@ func (a *app) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (a *app) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (a *app) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
 	// Check perms.
 	sn := a.s.st.NewSnapshot()
 	if err := util.Get(ctx, call, sn, a, &appData{}); err != nil {
 		sn.Close()
 		return nil, err
 	}
+	pattern := "*"
 	return util.Glob(ctx, call, pattern, sn, util.JoinKeyParts(util.DbInfoPrefix, a.name))
 }
 

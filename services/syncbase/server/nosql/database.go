@@ -12,7 +12,6 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/syncbase/x/ref/services/syncbase/store/watchable"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
@@ -97,13 +96,14 @@ func (d *database) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms ac
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (d *database) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (d *database) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
 	// Check perms.
 	sn := d.st.NewSnapshot()
 	if err := util.Get(ctx, call, sn, d, &databaseData{}); err != nil {
 		sn.Close()
 		return nil, err
 	}
+	pattern := "*"
 	return util.Glob(ctx, call, pattern, sn, util.TablePrefix)
 }
 
