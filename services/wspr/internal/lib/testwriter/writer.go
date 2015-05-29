@@ -22,8 +22,9 @@ type TestHarness interface {
 
 type Writer struct {
 	sync.Mutex
-	Stream []lib.Response // TODO Why not use channel?
-	err    error
+	TypeStream []lib.Response
+	Stream     []lib.Response // TODO Why not use channel?
+	err        error
 	// If this channel is set then a message will be sent
 	// to this channel after recieving a call to FinishMessage()
 	notifier chan bool
@@ -45,7 +46,11 @@ func (w *Writer) Send(responseType lib.ResponseType, msg interface{}) error {
 
 	w.Lock()
 	defer w.Unlock()
-	w.Stream = append(w.Stream, r)
+	if responseType == lib.ResponseTypeMessage {
+		w.TypeStream = append(w.TypeStream, r)
+	} else {
+		w.Stream = append(w.Stream, r)
+	}
 	if w.notifier != nil {
 		w.notifier <- true
 	}
@@ -101,8 +106,11 @@ func (w *Writer) WaitForMessage(n int) error {
 	return nil
 }
 
-func CheckResponses(w *Writer, wantStream []lib.Response, wantErr error) error {
+func CheckResponses(w *Writer, wantStream []lib.Response, wantTypes []lib.Response, wantErr error) error {
 	if got, want := w.Stream, wantStream; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("streams don't match: got %#v, want %#v", got, want)
+	}
+	if got, want := w.TypeStream, wantTypes; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("streams don't match: got %#v, want %#v", got, want)
 	}
 	if got, want := w.err, wantErr; verror.ErrorID(got) != verror.ErrorID(want) {

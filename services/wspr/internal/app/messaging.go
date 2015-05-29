@@ -81,6 +81,8 @@ const (
 
 	// A response to a granter request.
 	GranterResponseMessage = 22
+
+	TypeMessage = 23
 )
 
 type Message struct {
@@ -123,28 +125,29 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 		go c.HandleCaveatValidationResponse(msg.Id, msg.Data)
 	case GranterResponseMessage:
 		go c.HandleGranterResponse(msg.Id, msg.Data)
-
+	case TypeMessage:
+		// These messages need to be handled in order so they are done in line.
+		c.HandleTypeMessage(msg.Data)
 	default:
 		w.Error(verror.New(errUnknownMessageType, ctx, msg.Type))
 	}
 }
 
 // ConstructOutgoingMessage constructs a message to send to javascript in a consistent format.
-// TODO(bprosnitz) Don't double-encode
 func ConstructOutgoingMessage(messageId int32, messageType lib.ResponseType, data interface{}) (string, error) {
 	var buf bytes.Buffer
+	if _, err := buf.Write(lib.BinaryEncodeUint(uint64(messageId))); err != nil {
+		return "", err
+	}
+	if _, err := buf.Write(lib.BinaryEncodeUint(uint64(messageType))); err != nil {
+		return "", err
+	}
 	enc := vom.NewEncoder(&buf)
-	if err := enc.Encode(lib.Response{Type: messageType, Message: data}); err != nil {
+	if err := enc.Encode(data); err != nil {
 		return "", err
 	}
 
-	var buf2 bytes.Buffer
-	enc2 := vom.NewEncoder(&buf2)
-	if err := enc2.Encode(Message{Id: messageId, Data: fmt.Sprintf("%x", buf.Bytes())}); err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%x", buf2.Bytes()), nil
+	return fmt.Sprintf("%x", buf.Bytes()), nil
 }
 
 // FormatAsVerror formats an error as a verror.

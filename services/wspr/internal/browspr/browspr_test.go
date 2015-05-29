@@ -78,6 +78,26 @@ func startMockServer(ctx *context.T, desiredName string) (rpc.Server, naming.End
 	return s, endpoints[0], nil
 }
 
+func parseBrowsperResponse(data string, t *testing.T) (uint64, uint64, []byte) {
+	receivedBytes, err := hex.DecodeString(data)
+	if err != nil {
+		t.Fatalf("Failed to hex decode outgoing message: %v", err)
+	}
+
+	id, bytesRead, err := lib.BinaryDecodeUint(receivedBytes)
+	if err != nil {
+		t.Fatalf("Failed to read mesage id: %v", err)
+	}
+
+	receivedBytes = receivedBytes[bytesRead:]
+	messageType, bytesRead, err := lib.BinaryDecodeUint(receivedBytes)
+	if err != nil {
+		t.Fatalf("Failed to read message type: %v", err)
+	}
+	receivedBytes = receivedBytes[bytesRead:]
+	return id, messageType, receivedBytes
+}
+
 func TestBrowspr(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
@@ -154,12 +174,26 @@ found:
 	receivedResponse := make(chan bool, 1)
 	var receivedInstanceId int32
 	var receivedType string
-	var receivedMsg string
+	var messageId uint64
+	var messageType uint64
+	var receivedBytes []byte
+	typeReader := lib.NewTypeReader()
 
 	var postMessageHandler = func(instanceId int32, ty, msg string) {
+		id, mType, bin := parseBrowsperResponse(msg, t)
+		if mType == lib.ResponseTypeMessage {
+			var decodedBytes []byte
+			if err := vom.Decode(bin, &decodedBytes); err != nil {
+				t.Fatalf("Failed to decode type bytes: %v", err)
+			}
+			typeReader.Add(hex.EncodeToString(decodedBytes))
+			return
+		}
 		receivedInstanceId = instanceId
 		receivedType = ty
-		receivedMsg = msg
+		messageType = mType
+		messageId = id
+		receivedBytes = bin
 		receivedResponse <- true
 	}
 
@@ -194,14 +228,17 @@ found:
 		Deadline:    vdltime.Deadline{},
 	}
 
+	var typeBuf bytes.Buffer
+	typeEncoder := vom.NewTypeEncoder(&typeBuf)
 	var buf bytes.Buffer
-	encoder := vom.NewEncoder(&buf)
+	encoder := vom.NewEncoderWithTypeEncoder(&buf, typeEncoder)
 	if err := encoder.Encode(rpc); err != nil {
 		t.Fatalf("Failed to vom encode rpc message: %v", err)
 	}
 	if err := encoder.Encode("InputValue"); err != nil {
 		t.Fatalf("Failed to vom encode rpc message: %v", err)
 	}
+
 	vomRPC := hex.EncodeToString(buf.Bytes())
 
 	msg := app.Message{
@@ -210,6 +247,11 @@ found:
 		Type: app.VeyronRequestMessage,
 	}
 
+	typeMessage := app.Message{
+		Id:   0,
+		Data: hex.EncodeToString(typeBuf.Bytes()),
+		Type: app.TypeMessage,
+	}
 	createInstanceMessage := CreateInstanceMessage{
 		InstanceId:     msgInstanceId,
 		Origin:         msgOrigin,
@@ -217,6 +259,11 @@ found:
 		Proxy:          "",
 	}
 	_, err = browspr.HandleCreateInstanceRpc(vdl.ValueOf(createInstanceMessage))
+
+	err = browspr.HandleMessage(msgInstanceId, msgOrigin, typeMessage)
+	if err != nil {
+		t.Fatalf("Error while handling type message: %v", err)
+	}
 
 	err = browspr.HandleMessage(msgInstanceId, msgOrigin, msg)
 	if err != nil {
@@ -232,32 +279,28 @@ found:
 		t.Errorf("Received unexpected response type. Expected: %q, but got %q", "browsprMsg", receivedType)
 	}
 
-	var outMsg app.Message
-	if err := lib.HexVomDecode(receivedMsg, &outMsg); err != nil {
-		t.Fatalf("Failed to unmarshall outgoing message: %v", err)
-	}
-	if outMsg.Id != int32(1) {
-		t.Errorf("Id was %v, expected %v", outMsg.Id, int32(1))
-	}
-	if outMsg.Type != app.VeyronRequestMessage {
-		t.Errorf("Message type was %v, expected %v", outMsg.Type, app.MessageType(0))
+	if messageId != 1 {
+		t.Errorf("Id was %v, expected %v", messageId, int32(1))
 	}
 
-	var responseMsg lib.Response
-	if err := lib.HexVomDecode(outMsg.Data, &responseMsg); err != nil {
+	if lib.ResponseType(messageType) != lib.ResponseFinal {
+		t.Errorf("Message type was %v, expected %v", messageType, lib.ResponseFinal)
+	}
+
+	var data string
+	if err := vom.NewDecoder(bytes.NewBuffer(receivedBytes)).Decode(&data); err != nil {
 		t.Fatalf("Failed to unmarshall outgoing response: %v", err)
 	}
-	if responseMsg.Type != lib.ResponseFinal {
-		t.Errorf("Data was %q, expected %q", outMsg.Data, `["[InputValue]"]`)
-	}
-	var outArg string
-	var ok bool
-	if outArg, ok = responseMsg.Message.(string); !ok {
-		t.Errorf("Got unexpected response message body of type %T, expected type string", responseMsg.Message)
-	}
+
 	var result app.RpcResponse
-	if err := lib.HexVomDecode(outArg, &result); err != nil {
-		t.Errorf("Failed to vom decode args from %v: %v", outArg, err)
+	dataBytes, err := hex.DecodeString(data)
+	if err != nil {
+		t.Errorf("Failed to hex decode from %v: %v", data, err)
+	}
+
+	decoder := vom.NewDecoderWithTypeDecoder(bytes.NewBuffer(dataBytes), vom.NewTypeDecoder(typeReader))
+	if err := decoder.Decode(&result); err != nil {
+		t.Errorf("Failed to vom decode args from %v: %v", data, err)
 	}
 	if got, want := result.OutArgs[0], vdl.StringValue("[InputValue]"); !vdl.EqualValue(got, want) {
 		t.Errorf("Result got %v, want %v", got, want)

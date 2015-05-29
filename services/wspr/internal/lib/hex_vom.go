@@ -37,39 +37,3 @@ func HexVomDecode(data string, v interface{}) error {
 	decoder := vom.NewDecoder(bytes.NewReader(binbytes))
 	return decoder.Decode(v)
 }
-
-// ProxyReader implements io.Reader but allows changing the underlying buffer.
-// This is useful for merging discrete messages that are part of the same flow.
-type ProxyReader struct {
-	bytes.Buffer
-}
-
-func NewProxyReader() *ProxyReader {
-	return &ProxyReader{}
-}
-
-func (p *ProxyReader) ReplaceBuffer(data string) error {
-	binbytes, err := hex.DecodeString(data)
-	if err != nil {
-		return err
-	}
-	p.Reset()
-	p.Write(binbytes)
-	return nil
-}
-
-// ProxyWriter implements io.Writer but allows changing the underlying buffer.
-// This is useful for merging discrete messages that are part of the same flow.
-type ProxyWriter struct {
-	bytes.Buffer
-}
-
-func NewProxyWriter() *ProxyWriter {
-	return &ProxyWriter{}
-}
-
-func (p *ProxyWriter) ConsumeBuffer() string {
-	s := hex.EncodeToString(p.Buffer.Bytes())
-	p.Reset()
-	return s
-}

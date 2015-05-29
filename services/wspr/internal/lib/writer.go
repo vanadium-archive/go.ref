@@ -19,6 +19,7 @@ const (
 	ResponseLog                                = 9 // Sends a message to be logged.
 	ResponseGranterRequest                     = 10
 	ResponseBlessingsCacheMessage              = 11 // Update the blessings cache
+	ResponseTypeMessage                        = 12
 )
 
 type Response struct {

@@ -6,6 +6,7 @@ package app
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"reflect"
@@ -129,6 +130,11 @@ func startMountTableServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) 
 	return startAnyServer(ctx, true, mt)
 }
 
+func createWriterCreator(w lib.ClientWriter) func(id int32) lib.ClientWriter {
+	return func(int32) lib.ClientWriter {
+		return w
+	}
+}
 func TestGetGoServerSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
@@ -143,7 +149,8 @@ func TestGetGoServerSignature(t *testing.T) {
 
 	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(ctx, nil, &spec, nil, newBlessedPrincipal(ctx))
+	writer := &testwriter.Writer{}
+	controller, err := NewController(ctx, createWriterCreator(writer), &spec, nil, newBlessedPrincipal(ctx))
 
 	if err != nil {
 		t.Fatalf("Failed to create controller: %v", err)
@@ -164,12 +171,13 @@ func TestGetGoServerSignature(t *testing.T) {
 }
 
 type goServerTestCase struct {
-	method          string
-	inArgs          []interface{}
-	numOutArgs      int32
-	streamingInputs []interface{}
-	expectedStream  []lib.Response
-	expectedError   error
+	expectedTypeStream []lib.Response
+	method             string
+	inArgs             []interface{}
+	numOutArgs         int32
+	streamingInputs    []interface{}
+	expectedStream     []lib.Response
+	expectedError      error
 }
 
 func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
@@ -186,14 +194,14 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 
 	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(ctx, nil, &spec, nil, newBlessedPrincipal(ctx))
+	writer := testwriter.Writer{}
+	controller, err := NewController(ctx, createWriterCreator(&writer), &spec, nil, newBlessedPrincipal(ctx))
 
 	if err != nil {
 		t.Errorf("unable to create controller: %v", err)
 		t.Fail()
 		return
 	}
-	writer := testwriter.Writer{}
 	var stream *outstandingStream
 	if len(testCase.streamingInputs) > 0 {
 		stream = newStream(nil)
@@ -217,26 +225,48 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 	}
 	controller.sendVeyronRequest(ctx, 0, &request, testCase.inArgs, &writer, stream, vtrace.GetSpan(ctx))
 
-	if err := testwriter.CheckResponses(&writer, testCase.expectedStream, testCase.expectedError); err != nil {
+	if err := testwriter.CheckResponses(&writer, testCase.expectedStream, testCase.expectedTypeStream, testCase.expectedError); err != nil {
 		t.Error(err)
 	}
 }
 
-func makeRPCResponse(outArgs ...*vdl.Value) string {
-	return lib.HexVomEncodeOrDie(RpcResponse{
+type typeWriter struct {
+	resps []lib.Response
+}
+
+func (t *typeWriter) Write(p []byte) (int, error) {
+	t.resps = append(t.resps, lib.Response{
+		Type:    lib.ResponseTypeMessage,
+		Message: base64.StdEncoding.EncodeToString(p),
+	})
+	return len(p), nil
+}
+
+func makeRPCResponse(outArgs ...*vdl.Value) (string, []lib.Response) {
+	writer := typeWriter{}
+	typeEncoder := vom.NewTypeEncoder(&writer)
+	var buf bytes.Buffer
+	encoder := vom.NewEncoderWithTypeEncoder(&buf, typeEncoder)
+	var output = RpcResponse{
 		OutArgs:       outArgs,
 		TraceResponse: vtrace.Response{},
-	})
+	}
+	if err := encoder.Encode(output); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(buf.Bytes()), writer.resps
 }
 
 func TestCallingGoServer(t *testing.T) {
+	resp, typeMessages := makeRPCResponse(vdl.Int32Value(5))
 	runGoServerTestCase(t, goServerTestCase{
-		method:     "Add",
-		inArgs:     []interface{}{2, 3},
-		numOutArgs: 1,
+		expectedTypeStream: typeMessages,
+		method:             "Add",
+		inArgs:             []interface{}{2, 3},
+		numOutArgs:         1,
 		expectedStream: []lib.Response{
 			lib.Response{
-				Message: makeRPCResponse(vdl.Int32Value(5)),
+				Message: resp,
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -253,10 +283,12 @@ func TestCallingGoServerWithError(t *testing.T) {
 }
 
 func TestCallingGoWithStreaming(t *testing.T) {
+	resp, typeMessages := makeRPCResponse(vdl.Int32Value(10))
 	runGoServerTestCase(t, goServerTestCase{
-		method:          "StreamingAdd",
-		streamingInputs: []interface{}{1, 2, 3, 4},
-		numOutArgs:      1,
+		expectedTypeStream: typeMessages,
+		method:             "StreamingAdd",
+		streamingInputs:    []interface{}{1, 2, 3, 4},
+		numOutArgs:         1,
 		expectedStream: []lib.Response{
 			lib.Response{
 				Message: lib.HexVomEncodeOrDie(int32(1)),
@@ -279,7 +311,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 				Type:    lib.ResponseStreamClose,
 			},
 			lib.Response{
-				Message: makeRPCResponse(vdl.Int32Value(10)),
+				Message: resp,
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -291,11 +323,13 @@ type runningTest struct {
 	writer           *testwriter.Writer
 	mounttableServer rpc.Server
 	proxyShutdown    func()
+	typeStream       *typeWriter
+	typeEncoder      *vom.TypeEncoder
 }
 
-func makeRequest(rpc RpcRequest, args ...interface{}) (string, error) {
+func makeRequest(typeEncoder *vom.TypeEncoder, rpc RpcRequest, args ...interface{}) (string, error) {
 	var buf bytes.Buffer
-	encoder := vom.NewEncoder(&buf)
+	encoder := vom.NewEncoderWithTypeEncoder(&buf, typeEncoder)
 	if err := encoder.Encode(rpc); err != nil {
 		return "", err
 	}
@@ -343,19 +377,31 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	}
 
 	v23.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
-
-	req, err := makeRequest(RpcRequest{
+	typeStream := &typeWriter{}
+	typeEncoder := vom.NewTypeEncoder(typeStream)
+	req, err := makeRequest(typeEncoder, RpcRequest{
 		Name:       "__controller",
 		Method:     "Serve",
 		NumInArgs:  3,
 		NumOutArgs: 1,
 		Deadline:   vdltime.Deadline{},
 	}, "adder", 0, []RpcServerOption{})
+
+	for _, r := range typeStream.resps {
+		b, err := base64.StdEncoding.DecodeString(r.Message.(string))
+		if err != nil {
+			panic(err)
+		}
+
+		controller.HandleTypeMessage(hex.EncodeToString(b))
+	}
+	typeStream.resps = []lib.Response{}
 	controller.HandleVeyronRequest(ctx, 0, req, writer)
 
 	testWriter, _ := writer.(*testwriter.Writer)
 	return &runningTest{
 		controller, testWriter, mounttableServer, proxyShutdown,
+		typeStream, typeEncoder,
 	}, nil
 }
 
@@ -402,7 +448,10 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 		finalResponse:        testCase.finalResponse,
 		finalError:           testCase.err,
 		controllerReady:      sync.RWMutex{},
+		flowCount:            2,
+		typeReader:           lib.NewTypeReader(),
 	}
+	mock.typeDecoder = vom.NewTypeDecoder(mock.typeReader)
 	rt, err := serveServer(ctx, mock, func(controller *Controller) {
 		mock.controller = controller
 	})

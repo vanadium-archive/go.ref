@@ -6,6 +6,7 @@ package app
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -44,6 +45,9 @@ type mockJSServer struct {
 	// at the same time.
 	flowCount int32
 	rpcFlow   int32
+
+	typeReader  *lib.TypeReader
+	typeDecoder *vom.TypeDecoder
 }
 
 func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) error {
@@ -68,6 +72,9 @@ func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) erro
 		return nil
 	case lib.ResponseLog, lib.ResponseBlessingsCacheMessage:
 		m.flowCount += 2
+		return nil
+	case lib.ResponseTypeMessage:
+		m.handleTypeMessage(msg)
 		return nil
 	}
 	return fmt.Errorf("Unknown message type: %d", responseType)
@@ -105,6 +112,9 @@ func normalize(msg interface{}) (map[string]interface{}, error) {
 	return r.(map[string]interface{}), nil
 }
 
+func (m *mockJSServer) handleTypeMessage(v interface{}) {
+	m.typeReader.Add(hex.EncodeToString(v.([]byte)))
+}
 func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 	defer func() {
 		m.flowCount += 2

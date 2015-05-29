@@ -7,6 +7,8 @@
 package app
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"reflect"
@@ -35,6 +37,8 @@ import (
 const (
 	// pkgPath is the prefix os errors in this package.
 	pkgPath = "v.io/x/ref/services/wspr/internal/app"
+
+	typeFlow = 0
 )
 
 // Errors
@@ -101,13 +105,10 @@ type Controller struct {
 	// an outgoing rpc call.
 	reservedServices map[string]rpc.Invoker
 
-	encoderLock   sync.Mutex
-	clientEncoder *vom.Encoder
-	clientWriter  *lib.ProxyWriter
+	typeEncoder *vom.TypeEncoder
 
-	decoderLock   sync.Mutex
-	clientDecoder *vom.Decoder
-	clientReader  *lib.ProxyReader
+	typeDecoder *vom.TypeDecoder
+	typeReader  *lib.TypeReader
 }
 
 var _ ControllerServerMethods = (*Controller)(nil)
@@ -219,13 +220,13 @@ func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vt
 		OutArgs:       results,
 		TraceResponse: vtrace.GetResponse(ctx),
 	}
-	c.encoderLock.Lock()
-	defer c.encoderLock.Unlock()
-	if err := c.clientEncoder.Encode(response); err != nil {
+	var buf bytes.Buffer
+	encoder := vom.NewEncoderWithTypeEncoder(&buf, c.typeEncoder)
+	if err := encoder.Encode(response); err != nil {
 		w.Error(err)
 		return
 	}
-	encoded := c.clientWriter.ConsumeBuffer()
+	encoded := hex.EncodeToString(buf.Bytes())
 	if err := w.Send(lib.ResponseFinal, encoded); err != nil {
 		w.Error(verror.Convert(marshallingError, ctx, err))
 	}
@@ -363,6 +364,7 @@ func (c *Controller) Cleanup() {
 		server.Stop()
 	}
 
+	c.typeReader.Close()
 	c.cancel()
 }
 
@@ -371,10 +373,10 @@ func (c *Controller) setup() {
 	c.outstandingRequests = make(map[int32]*outstandingRequest)
 	c.flowMap = make(map[int32]interface{})
 	c.servers = make(map[uint32]*server.Server)
-	c.clientReader = lib.NewProxyReader()
-	c.clientDecoder = vom.NewDecoder(c.clientReader)
-	c.clientWriter = lib.NewProxyWriter()
-	c.clientEncoder = vom.NewEncoder(c.clientWriter)
+	c.typeReader = lib.NewTypeReader()
+	c.typeDecoder = vom.NewTypeDecoder(c.typeReader)
+	c.typeEncoder = vom.NewTypeEncoder(lib.NewTypeWriter(c.writerCreator(typeFlow)))
+	c.lastGeneratedId += 2
 }
 
 // SendOnStream writes data on id's stream.  The actual network write will be
@@ -484,42 +486,40 @@ func (l *localCall) LocalEndpoint() naming.Endpoint                  { return ni
 func (l *localCall) RemoteEndpoint() naming.Endpoint                 { return nil }
 func (l *localCall) Security() security.Call                         { return l }
 
-func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg *RpcRequest, w lib.ClientWriter, span vtrace.Span) {
+func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg *RpcRequest, w lib.ClientWriter, span vtrace.Span, decoder *vom.Decoder) {
 	argptrs, tags, err := invoker.Prepare(msg.Method, int(msg.NumInArgs))
 	if err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 	for _, argptr := range argptrs {
-		if err := c.clientDecoder.Decode(argptr); err != nil {
+		if err := decoder.Decode(argptr); err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 			return
 		}
 	}
-	go func() {
-		results, err := invoker.Invoke(ctx, &localCall{ctx, msg, tags, w}, msg.Method, argptrs)
+	results, err := invoker.Invoke(ctx, &localCall{ctx, msg, tags, w}, msg.Method, argptrs)
+	if err != nil {
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
+		return
+	}
+	if msg.IsStreaming {
+		if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
+			w.Error(verror.New(marshallingError, ctx, "ResponseStreamClose"))
+		}
+	}
+
+	// Convert results from []interface{} to []*vdl.Value.
+	vresults := make([]*vdl.Value, len(results))
+	for i, res := range results {
+		vv, err := vdl.ValueFromReflect(reflect.ValueOf(res))
 		if err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 			return
 		}
-		if msg.IsStreaming {
-			if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
-				w.Error(verror.New(marshallingError, ctx, "ResponseStreamClose"))
-			}
-		}
-
-		// Convert results from []interface{} to []*vdl.Value.
-		vresults := make([]*vdl.Value, len(results))
-		for i, res := range results {
-			vv, err := vdl.ValueFromReflect(reflect.ValueOf(res))
-			if err != nil {
-				w.Error(verror.Convert(verror.ErrInternal, ctx, err))
-				return
-			}
-			vresults[i] = vv
-		}
-		c.sendRPCResponse(ctx, w, span, vresults)
-	}()
+		vresults[i] = vv
+	}
+	c.sendRPCResponse(ctx, w, span, vresults)
 }
 
 // HandleCaveatValidationResponse handles the response to caveat validation
@@ -537,15 +537,18 @@ func (c *Controller) HandleCaveatValidationResponse(id int32, data string) {
 
 // HandleVeyronRequest starts a vanadium rpc and returns before the rpc has been completed.
 func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, w lib.ClientWriter) {
-	c.decoderLock.Lock()
-	defer c.decoderLock.Unlock()
-	err := c.clientReader.ReplaceBuffer(data)
+	binBytes, err := hex.DecodeString(data)
+	if err != nil {
+		w.Error(verror.Convert(verror.ErrInternal, ctx, fmt.Errorf("Error decoding hex string %q: %v", data, err)))
+		return
+	}
+	decoder := vom.NewDecoderWithTypeDecoder(bytes.NewReader(binBytes), c.typeDecoder)
 	if err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, fmt.Errorf("Error decoding hex string %q: %v", data, err)))
 		return
 	}
 	var msg RpcRequest
-	if err := c.clientDecoder.Decode(&msg); err != nil {
+	if err := decoder.Decode(&msg); err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
@@ -568,14 +571,14 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 
 	// If this message is for an internal service, do a short-circuit dispatch here.
 	if invoker, ok := c.reservedServices[msg.Name]; ok {
-		c.handleInternalCall(ctx, invoker, &msg, w, span)
+		go c.handleInternalCall(ctx, invoker, &msg, w, span, decoder)
 		return
 	}
 
 	inArgs := make([]interface{}, msg.NumInArgs)
 	for i := range inArgs {
 		var v *vdl.Value
-		if err := c.clientDecoder.Decode(&v); err != nil {
+		if err := decoder.Decode(&v); err != nil {
 			w.Error(err)
 			return
 		}
@@ -933,6 +936,10 @@ func (c *Controller) HandleGranterResponse(id int32, data string) {
 		return
 	}
 	granterStr.Send(data)
+}
+
+func (c *Controller) HandleTypeMessage(data string) {
+	c.typeReader.Add(data)
 }
 
 func (c *Controller) BlessingsDebugString(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle) (string, error) {
