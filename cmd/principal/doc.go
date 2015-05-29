@@ -283,7 +283,7 @@ When --remote-arg-file is specified, only the blessing extension is required, as
 all other arguments will be extracted from the specified file.
 
 Usage:
-   principal bless [flags] [<principal to bless>] <extension>
+   principal bless [flags] [<principal to bless>] [<extension>]
 
 <principal to bless> represents the principal to be blessed (i.e., whose public
 key will be provided with a name).  This can be either: (a) The directory
