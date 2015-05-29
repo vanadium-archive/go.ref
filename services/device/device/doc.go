@@ -23,8 +23,8 @@ The device commands are:
    delete        Delete the given application instance.
    run           Run the given application instance.
    kill          Kill the given application instance.
-   revert        Revert the device manager or application
-   update        Update device manager or applications.
+   revert        Revert the device manager or applications.
+   update        Update the device manager or applications.
    status        Get device manager or application status.
    debug         Debug the device.
    acl           Tool for setting device manager Permissions
@@ -283,24 +283,24 @@ Usage:
 
 Device revert
 
-Revert the device manager or application to its previous version
+Revert the device manager or application instances and installations to a
+previous version of their current version
 
 Usage:
-   device revert <object>
+   device revert <name patterns...>
 
-<object> is the vanadium object name of the device manager or application
-installation to revert.
+<name patterns...> are vanadium object names or glob name patterns corresponding
+to the device manager service, or to application installations and instances.
 
 Device update
 
 Update the device manager or application instances and installations
 
 Usage:
-   device update <app name patterns...>
+   device update <name patterns...>
 
-<app name patterns...> are vanadium object names or glob name patterns
-corresponding to the device manager service, or to application installations and
-instances.
+<name patterns...> are vanadium object names or glob name patterns corresponding
+to the device manager service, or to application installations and instances.
 
 Device status
 

@@ -205,7 +205,9 @@ func (mdi *mockDeviceInvoker) Run(*context.T, rpc.ServerCall) error {
 	return mdi.simpleCore("Run", "Run")
 }
 
-func (i *mockDeviceInvoker) Revert(*context.T, rpc.ServerCall) error { return nil }
+func (mdi *mockDeviceInvoker) Revert(*context.T, rpc.ServerCall) error {
+	return mdi.simpleCore("Revert", "Revert")
+}
 
 type InstantiateResponse struct {
 	err        error
