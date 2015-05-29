@@ -204,13 +204,13 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 	}
 	var stream *outstandingStream
 	if len(testCase.streamingInputs) > 0 {
-		stream = newStream(nil)
+		stream = newStream(nil, nil)
 		controller.outstandingRequests[0] = &outstandingRequest{
 			stream: stream,
 		}
 		go func() {
 			for _, value := range testCase.streamingInputs {
-				controller.SendOnStream(0, lib.HexVomEncodeOrDie(value), &writer)
+				controller.SendOnStream(0, lib.HexVomEncodeOrDie(value, nil), &writer)
 			}
 			controller.CloseStream(0)
 		}()
@@ -291,19 +291,19 @@ func TestCallingGoWithStreaming(t *testing.T) {
 		numOutArgs:         1,
 		expectedStream: []lib.Response{
 			lib.Response{
-				Message: lib.HexVomEncodeOrDie(int32(1)),
+				Message: lib.HexVomEncodeOrDie(int32(1), nil),
 				Type:    lib.ResponseStream,
 			},
 			lib.Response{
-				Message: lib.HexVomEncodeOrDie(int32(3)),
+				Message: lib.HexVomEncodeOrDie(int32(3), nil),
 				Type:    lib.ResponseStream,
 			},
 			lib.Response{
-				Message: lib.HexVomEncodeOrDie(int32(6)),
+				Message: lib.HexVomEncodeOrDie(int32(6), nil),
 				Type:    lib.ResponseStream,
 			},
 			lib.Response{
-				Message: lib.HexVomEncodeOrDie(int32(10)),
+				Message: lib.HexVomEncodeOrDie(int32(10), nil),
 				Type:    lib.ResponseStream,
 			},
 			lib.Response{
@@ -435,7 +435,7 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 
 	vomClientStream := []string{}
 	for _, m := range testCase.clientStream {
-		vomClientStream = append(vomClientStream, lib.HexVomEncodeOrDie(m))
+		vomClientStream = append(vomClientStream, lib.HexVomEncodeOrDie(m, nil))
 	}
 	mock := &mockJSServer{
 		t:                    t,

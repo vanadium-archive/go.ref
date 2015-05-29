@@ -89,7 +89,7 @@ func internalErr(args interface{}) string {
 
 	return lib.HexVomEncodeOrDie(server.LookupReply{
 		Err: err,
-	})
+	}, nil)
 }
 
 func (m *mockJSServer) Error(err error) {
@@ -136,7 +136,7 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 		Handle:        0,
 		Signature:     m.serviceSignature,
 		HasAuthorizer: m.hasAuthorizer,
-	})
+	}, nil)
 	m.controller.HandleLookupResponse(m.flowCount, lookupReply)
 	return nil
 }
@@ -157,7 +157,7 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 	}
 
 	var msg server.AuthRequest
-	if err := lib.HexVomDecode(v.(string), &msg); err != nil {
+	if err := lib.HexVomDecode(v.(string), &msg, nil); err != nil {
 		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("error decoding %v:", err)))
 		return nil
 	}
@@ -201,7 +201,7 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 
 	authReply := lib.HexVomEncodeOrDie(server.AuthReply{
 		Err: m.authError,
-	})
+	}, nil)
 
 	m.controller.HandleAuthResponse(m.flowCount, authReply)
 	return nil
@@ -218,7 +218,7 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 	}
 
 	var msg server.ServerRpcRequest
-	if err := lib.HexVomDecode(v.(string), &msg); err != nil {
+	if err := lib.HexVomDecode(v.(string), &msg, nil); err != nil {
 		m.controller.HandleServerResponse(m.flowCount, internalErr(err))
 		return nil
 	}
@@ -294,7 +294,7 @@ func (m *mockJSServer) sendServerStream() {
 	defer m.sender.Done()
 	m.controllerReady.RLock()
 	for _, v := range m.serverStream {
-		m.controller.SendOnStream(m.rpcFlow, lib.HexVomEncodeOrDie(v), m)
+		m.controller.SendOnStream(m.rpcFlow, lib.HexVomEncodeOrDie(v, nil), m)
 	}
 	m.controllerReady.RUnlock()
 }
@@ -322,7 +322,7 @@ func (m *mockJSServer) handleStreamClose(msg interface{}) error {
 	}
 
 	m.controllerReady.RLock()
-	m.controller.HandleServerResponse(m.rpcFlow, lib.HexVomEncodeOrDie(reply))
+	m.controller.HandleServerResponse(m.rpcFlow, lib.HexVomEncodeOrDie(reply, nil))
 	m.controllerReady.RUnlock()
 	return nil
 }

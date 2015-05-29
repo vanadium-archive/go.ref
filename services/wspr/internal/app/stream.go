@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"v.io/v23/rpc"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/principal"
 )
@@ -41,11 +42,12 @@ type outstandingStream struct {
 	// true if the stream has been closed.
 	closed bool
 
+	typeDecoder *vom.TypeDecoder
 	// Used to translate from JsBlesssings to Blessings
 	blessingsCache *principal.JSBlessingsHandles
 }
 
-func newStream(cache *principal.JSBlessingsHandles) *outstandingStream {
+func newStream(cache *principal.JSBlessingsHandles, typeDecoder *vom.TypeDecoder) *outstandingStream {
 	os := &outstandingStream{
 		initChan: make(chan *initConfig, 1),
 		// We allow queueing up to 100 messages before init is called.
@@ -53,6 +55,7 @@ func newStream(cache *principal.JSBlessingsHandles) *outstandingStream {
 		messages:       make(chan *message, 100),
 		done:           make(chan bool),
 		blessingsCache: cache,
+		typeDecoder:    typeDecoder,
 	}
 	go os.loop()
 	return os
@@ -81,7 +84,7 @@ func (os *outstandingStream) loop() {
 	config := <-os.initChan
 	for msg := range os.messages {
 		var item interface{}
-		if err := lib.HexVomDecode(msg.data, &item); err != nil {
+		if err := lib.HexVomDecode(msg.data, &item, os.typeDecoder); err != nil {
 			msg.writer.Error(fmt.Errorf("failed to decode stream arg from %v: %v", msg.data, err))
 			break
 		}

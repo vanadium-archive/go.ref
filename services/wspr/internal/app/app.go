@@ -175,7 +175,7 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 			if blessings, ok := item.(security.Blessings); ok {
 				item = principal.ConvertBlessingsToHandle(blessings, c.blessingsHandles.GetOrAddHandle(blessings))
 			}
-			vomItem, err := lib.HexVomEncode(item)
+			vomItem, err := lib.HexVomEncode(item, c.typeEncoder)
 			if err != nil {
 				w.Error(verror.New(marshallingError, ctx, item, err))
 				continue
@@ -294,7 +294,7 @@ func (c *Controller) CreateNewFlow(s interface{}, stream rpc.Stream) *server.Flo
 	id := c.lastGeneratedId
 	c.lastGeneratedId += 2
 	c.flowMap[id] = s
-	os := newStream(c.blessingsHandles)
+	os := newStream(c.blessingsHandles, c.typeDecoder)
 	os.init(stream)
 	c.outstandingRequests[id] = &outstandingRequest{
 		stream: os,
@@ -445,10 +445,11 @@ func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *RpcRequest
 // but currently none of the methods the controller exports require
 // any of this context information.
 type localCall struct {
-	ctx  *context.T
-	vrpc *RpcRequest
-	tags []*vdl.Value
-	w    lib.ClientWriter
+	ctx         *context.T
+	vrpc        *RpcRequest
+	tags        []*vdl.Value
+	w           lib.ClientWriter
+	typeEncoder *vom.TypeEncoder
 }
 
 var (
@@ -457,7 +458,7 @@ var (
 )
 
 func (l *localCall) Send(item interface{}) error {
-	vomItem, err := lib.HexVomEncode(item)
+	vomItem, err := lib.HexVomEncode(item, l.typeEncoder)
 	if err != nil {
 		err = verror.New(marshallingError, l.ctx, item, err)
 		l.w.Error(err)
@@ -498,7 +499,7 @@ func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg
 			return
 		}
 	}
-	results, err := invoker.Invoke(ctx, &localCall{ctx, msg, tags, w}, msg.Method, argptrs)
+	results, err := invoker.Invoke(ctx, &localCall{ctx, msg, tags, w, c.typeEncoder}, msg.Method, argptrs)
 	if err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
@@ -594,7 +595,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 		// to put the outstanding stream in the map before we make the async call so that
 		// the future send know which queue to write to, even if the client call isn't
 		// actually ready yet.
-		request.stream = newStream(c.blessingsHandles)
+		request.stream = newStream(c.blessingsHandles, c.typeDecoder)
 	}
 	c.Lock()
 	c.outstandingRequests[id] = request
@@ -743,16 +744,6 @@ func (c *Controller) HandleServerResponse(id int32, data string) {
 		return
 	}
 	server.HandleServerResponse(id, data)
-}
-
-// parseVeyronRequest parses a json rpc request into a RpcRequest object.
-func (c *Controller) parseVeyronRequest(data string) (*RpcRequest, error) {
-	var msg RpcRequest
-	if err := lib.HexVomDecode(data, &msg); err != nil {
-		return nil, err
-	}
-	vlog.VI(2).Infof("RpcRequest: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
-	return &msg, nil
 }
 
 // getSignature uses the signature manager to get and cache the signature of a remote server.
@@ -985,4 +976,8 @@ func (c *Controller) SendBlessingsCacheMessages(messages []principal.BlessingsCa
 	if err := c.writerCreator(id).Send(lib.ResponseBlessingsCacheMessage, messages); err != nil {
 		vlog.Errorf("unexpected error sending blessings cache message: %v", err)
 	}
+}
+
+func (c *Controller) TypeEncoder() *vom.TypeEncoder {
+	return c.typeEncoder
 }

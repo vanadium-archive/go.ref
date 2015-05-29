@@ -94,7 +94,7 @@ func TestSuccessfulLookup(t *testing.T) {
 			HasAuthorizer: false,
 			Signature:     expectedSig,
 		}
-		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply))
+		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
 	invoker, auth, err := d.Lookup("a/b")
@@ -143,7 +143,7 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 			HasAuthorizer: true,
 			Signature:     expectedSig,
 		}
-		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply))
+		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
 	invoker, auth, err := d.Lookup("a/b")
@@ -187,7 +187,7 @@ func TestFailedLookup(t *testing.T) {
 		reply := LookupReply{
 			Err: verror.New(verror.ErrNoExist, nil),
 		}
-		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply))
+		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
 	_, _, err := d.Lookup("a/b")

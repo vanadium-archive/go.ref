@@ -128,7 +128,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	}
 
 	var lookupReply LookupReply
-	if err := lib.HexVomDecode(data, &lookupReply); err != nil {
+	if err := lib.HexVomDecode(data, &lookupReply, nil); err != nil {
 		err2 := verror.Convert(verror.ErrInternal, nil, err)
 		lookupReply = LookupReply{Err: err2}
 		vlog.Errorf("unmarshaling invoke request failed: %v, %s", err, data)

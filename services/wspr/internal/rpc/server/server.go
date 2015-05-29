@@ -21,6 +21,7 @@ import (
 	"v.io/v23/vdlroot/signature"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/lib"
@@ -50,6 +51,8 @@ type ServerHelper interface {
 
 	SendLogMessage(level lib.LogLevel, msg string) error
 	BlessingsCache() *principal.BlessingsCache
+
+	TypeEncoder() *vom.TypeEncoder
 
 	Context() *context.T
 }
@@ -177,7 +180,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			Args:     vdlValArgs,
 			Call:     rpcCall,
 		}
-		vomMessage, err := lib.HexVomEncode(message)
+		vomMessage, err := lib.HexVomEncode(message, nil)
 		if err != nil {
 			return errHandler(err)
 		}
@@ -203,7 +206,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			ch <- &lib.ServerRpcReply{nil, &err, vtrace.Response{}}
 		}()
 
-		go proxyStream(call, flow.Writer, s.helper)
+		go proxyStream(call, flow.Writer, s.helper, s.helper.TypeEncoder())
 
 		return replyChan
 	}
@@ -286,7 +289,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			Args:     []*vdl.Value{vdl.ValueOf(pattern)},
 			Call:     rpcCall,
 		}
-		vomMessage, err := lib.HexVomEncode(message)
+		vomMessage, err := lib.HexVomEncode(message, nil)
 		if err != nil {
 			return errHandler(err)
 		}
@@ -316,7 +319,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 	}
 }
 
-func proxyStream(stream rpc.Stream, w lib.ClientWriter, blessingsCache HandleStore) {
+func proxyStream(stream rpc.Stream, w lib.ClientWriter, blessingsCache HandleStore, typeEncoder *vom.TypeEncoder) {
 	var item interface{}
 	var err error
 	for err = stream.Recv(&item); err == nil; err = stream.Recv(&item) {
@@ -324,7 +327,7 @@ func proxyStream(stream rpc.Stream, w lib.ClientWriter, blessingsCache HandleSto
 			item = principal.ConvertBlessingsToHandle(blessings, blessingsCache.GetOrAddBlessingsHandle(blessings))
 
 		}
-		vomItem, err := lib.HexVomEncode(item)
+		vomItem, err := lib.HexVomEncode(item, typeEncoder)
 		if err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, nil, err))
 			return
@@ -565,7 +568,7 @@ func (s *Server) authorizeRemote(ctx *context.T, call security.Call, handle int3
 	}
 	vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
-	vomMessage, err := lib.HexVomEncode(message)
+	vomMessage, err := lib.HexVomEncode(message, nil)
 	if err != nil {
 		replyChan <- verror.Convert(verror.ErrInternal, nil, err)
 	} else if err := flow.Writer.Send(lib.ResponseAuthRequest, vomMessage); err != nil {
@@ -655,7 +658,7 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 
 	// Decode the result and send it through the channel
 	var reply lib.ServerRpcReply
-	if err := lib.HexVomDecode(data, &reply); err != nil {
+	if err := lib.HexVomDecode(data, &reply, nil); err != nil {
 		reply.Err = err
 	}
 
@@ -697,7 +700,7 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 	}
 	// Decode the result and send it through the channel
 	var reply AuthReply
-	if err := lib.HexVomDecode(data, &reply); err != nil {
+	if err := lib.HexVomDecode(data, &reply, nil); err != nil {
 		err = verror.Convert(verror.ErrInternal, nil, err)
 		reply = AuthReply{Err: err}
 	}
@@ -727,7 +730,7 @@ func (s *Server) HandleCaveatValidationResponse(id int32, data string) {
 	}
 
 	var reply CaveatValidationResponse
-	if err := lib.HexVomDecode(data, &reply); err != nil {
+	if err := lib.HexVomDecode(data, &reply, nil); err != nil {
 		vlog.Errorf("failed to decode validation response %q: error %v", data, err)
 		ch <- []error{}
 		return
