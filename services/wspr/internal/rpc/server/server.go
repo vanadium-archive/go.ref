@@ -206,7 +206,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			ch <- &lib.ServerRpcReply{nil, &err, vtrace.Response{}}
 		}()
 
-		go proxyStream(call, flow.Writer, s.helper, s.helper.TypeEncoder())
+		go s.proxyStream(call, flow, s.helper, s.helper.TypeEncoder())
 
 		return replyChan
 	}
@@ -319,9 +319,10 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 	}
 }
 
-func proxyStream(stream rpc.Stream, w lib.ClientWriter, blessingsCache HandleStore, typeEncoder *vom.TypeEncoder) {
+func (s *Server) proxyStream(stream rpc.Stream, flow *Flow, blessingsCache HandleStore, typeEncoder *vom.TypeEncoder) {
 	var item interface{}
 	var err error
+	w := flow.Writer
 	for err = stream.Recv(&item); err == nil; err = stream.Recv(&item) {
 		if blessings, ok := item.(security.Blessings); ok {
 			item = principal.ConvertBlessingsToHandle(blessings, blessingsCache.GetOrAddBlessingsHandle(blessings))
@@ -337,7 +338,16 @@ func proxyStream(stream rpc.Stream, w lib.ClientWriter, blessingsCache HandleSto
 			return
 		}
 	}
-	vlog.Log.Errorf("Error reading from stream: %v\n", err)
+	vlog.VI(1).Infof("Error reading from stream: %v\n", err)
+	s.outstandingRequestLock.Lock()
+	_, found := s.outstandingServerRequests[flow.ID]
+	s.outstandingRequestLock.Unlock()
+
+	if !found {
+		// The flow has already been closed.  This is usually because we got a response
+		// from the javascript server.
+		return
+	}
 
 	if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, nil, err))
