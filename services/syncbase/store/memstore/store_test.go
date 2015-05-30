@@ -45,9 +45,7 @@ func TestTransactionState(t *testing.T) {
 }
 
 func TestTransactionsWithGet(t *testing.T) {
-	// TODO(sadovsky): Enable this test once we've added a retry loop to
-	// RunInTransaction. Without that, concurrency makes the test fail.
-	// runTest(t, test.RunTransactionsWithGetTest)
+	runTest(t, test.RunTransactionsWithGetTest)
 }
 
 func runTest(t *testing.T, f func(t *testing.T, st store.Store)) {

@@ -11,6 +11,8 @@ package leveldb
 // #include "syncbase_leveldb.h"
 import "C"
 import (
+	"container/list"
+	"fmt"
 	"sync"
 	"unsafe"
 
@@ -28,9 +30,20 @@ type db struct {
 	readOptions  *C.leveldb_readoptions_t
 	writeOptions *C.leveldb_writeoptions_t
 	err          error
-	// Used to prevent concurrent transactions.
-	// TODO(rogulenko): improve concurrency.
+
+	// TODO(rogulenko): decide whether we need to make a defensive copy of
+	// keys/values used by transactions.
+	// txmu protects transaction-related variables below. It is also held during
+	// commit.
+	// txmu must always be acquired before mu.
 	txmu sync.Mutex
+	// txEvents is a queue of create/commit transaction events.
+	txEvents         *list.List
+	txSequenceNumber uint64
+	// txTable is a set of keys written by recent transactions. This set
+	// includes all write sets of transactions committed after the oldest living
+	// transaction.
+	txTable *trie
 }
 
 var _ store.Store = (*db)(nil)
@@ -58,6 +71,8 @@ func Open(path string) (store.Store, error) {
 		cDb:          cDb,
 		readOptions:  readOptions,
 		writeOptions: C.leveldb_writeoptions_create(),
+		txEvents:     list.New(),
+		txTable:      newTrie(),
 	}, nil
 }
 
@@ -107,28 +122,30 @@ func (d *db) Scan(start, limit []byte) store.Stream {
 
 // Put implements the store.StoreWriter interface.
 func (d *db) Put(key, value []byte) error {
-	// TODO(rogulenko): improve performance.
-	return store.RunInTransaction(d, func(st store.StoreReadWriter) error {
-		return st.Put(key, value)
-	})
+	write := writeOp{
+		t:     putOp,
+		key:   key,
+		value: value,
+	}
+	return d.write([]writeOp{write}, d.writeOptions)
 }
 
 // Delete implements the store.StoreWriter interface.
 func (d *db) Delete(key []byte) error {
-	// TODO(rogulenko): improve performance.
-	return store.RunInTransaction(d, func(st store.StoreReadWriter) error {
-		return st.Delete(key)
-	})
+	write := writeOp{
+		t:   deleteOp,
+		key: key,
+	}
+	return d.write([]writeOp{write}, d.writeOptions)
 }
 
 // NewTransaction implements the store.Store interface.
 func (d *db) NewTransaction() store.Transaction {
-	// txmu is held until the transaction is successfully committed or aborted.
 	d.txmu.Lock()
+	defer d.txmu.Unlock()
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.err != nil {
-		d.txmu.Unlock()
 		return &store.InvalidTransaction{d.err}
 	}
 	return newTransaction(d, d.node)
@@ -142,6 +159,65 @@ func (d *db) NewSnapshot() store.Snapshot {
 		return &store.InvalidSnapshot{d.err}
 	}
 	return newSnapshot(d, d.node)
+}
+
+// write writes a batch and adds all written keys to  txTable.
+// TODO(rogulenko): remove this method.
+func (d *db) write(batch []writeOp, cOpts *C.leveldb_writeoptions_t) error {
+	d.txmu.Lock()
+	defer d.txmu.Unlock()
+	return d.writeLocked(batch, cOpts)
+}
+
+// writeLocked is like write(), but it assumes txmu is held.
+func (d *db) writeLocked(batch []writeOp, cOpts *C.leveldb_writeoptions_t) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.err != nil {
+		return d.err
+	}
+	cBatch := C.leveldb_writebatch_create()
+	defer C.leveldb_writebatch_destroy(cBatch)
+	for _, write := range batch {
+		switch write.t {
+		case putOp:
+			cKey, cKeyLen := cSlice(write.key)
+			cVal, cValLen := cSlice(write.value)
+			C.leveldb_writebatch_put(cBatch, cKey, cKeyLen, cVal, cValLen)
+		case deleteOp:
+			cKey, cKeyLen := cSlice(write.key)
+			C.leveldb_writebatch_delete(cBatch, cKey, cKeyLen)
+		default:
+			panic(fmt.Sprintf("unknown write operation type: %v", write.t))
+		}
+	}
+	var cError *C.char
+	C.leveldb_write(d.cDb, cOpts, cBatch, &cError)
+	if err := goError(cError); err != nil {
+		return err
+	}
+	if d.txEvents.Len() == 0 {
+		return nil
+	}
+	d.trackBatch(batch)
+	return nil
+}
+
+// trackBatch writes the batch to txTable, adds a commit event to txEvents.
+func (d *db) trackBatch(batch []writeOp) {
+	// TODO(rogulenko): do GC.
+	d.txSequenceNumber++
+	seq := d.txSequenceNumber
+	var keys [][]byte
+	for _, write := range batch {
+		d.txTable.add(write.key, seq)
+		keys = append(keys, write.key)
+	}
+	tx := &commitedTransaction{
+		seq:   seq,
+		batch: keys,
+	}
+	d.txEvents.PushBack(tx)
 }
 
 // getWithOpts returns the value for the given key.

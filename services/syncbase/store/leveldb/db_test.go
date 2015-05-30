@@ -42,6 +42,10 @@ func TestReadWriteRandom(t *testing.T) {
 	runTest(t, test.RunReadWriteRandomTest)
 }
 
+func TestConcurrentTransactions(t *testing.T) {
+	runTest(t, test.RunConcurrentTransactionsTest)
+}
+
 func TestTransactionState(t *testing.T) {
 	runTest(t, test.RunTransactionStateTest)
 }

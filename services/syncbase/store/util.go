@@ -8,22 +8,25 @@ import (
 	"v.io/v23/verror"
 )
 
-// TODO(sadovsky): Add retry loop.
 func RunInTransaction(st Store, fn func(st StoreReadWriter) error) error {
-	tx := st.NewTransaction()
-	if err := fn(tx); err != nil {
-		tx.Abort()
+	// TODO(rogulenko): We should eventually give up with
+	// ErrConcurrentTransaction.
+	// TODO(rogulenko): Fail on RPC errors.
+	for {
+		tx := st.NewTransaction()
+		if err := fn(tx); err != nil {
+			tx.Abort()
+			return err
+		}
+		err := tx.Commit()
+		if err == nil {
+			return nil
+		}
+		if verror.ErrorID(err) == ErrConcurrentTransaction.ID {
+			continue
+		}
 		return err
 	}
-	if err := tx.Commit(); err != nil {
-		// TODO(sadovsky): Commit() can fail for a number of reasons, e.g. RPC
-		// failure or ErrConcurrentTransaction. Depending on the cause of failure,
-		// it may be desirable to retry the Commit() and/or to call Abort(). For
-		// now, we always abort on a failed commit.
-		tx.Abort()
-		return err
-	}
-	return nil
 }
 
 // CopyBytes copies elements from a source slice into a destination slice.

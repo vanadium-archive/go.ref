@@ -213,11 +213,10 @@ func RunCloseTest(t *testing.T, st store.Store) {
 	var streams []store.Stream
 	var snapshots []store.Snapshot
 	var transactions []store.Transaction
-	// TODO(rogulenko): make multiple transactions.
-	tx := st.NewTransaction()
 	for i := 0; i < 10; i++ {
 		streams = append(streams, st.Scan([]byte("a"), []byte("z")))
 		snapshot := st.NewSnapshot()
+		tx := st.NewTransaction()
 		for j := 0; j < 10; j++ {
 			streams = append(streams, snapshot.Scan([]byte("a"), []byte("z")))
 			streams = append(streams, tx.Scan([]byte("a"), []byte("z")))

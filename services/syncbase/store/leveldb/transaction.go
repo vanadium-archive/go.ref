@@ -7,11 +7,40 @@ package leveldb
 // #include "leveldb/c.h"
 import "C"
 import (
+	"container/list"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
 )
+
+type scanRange struct {
+	start, limit []byte
+}
+
+type readSet struct {
+	keys   [][]byte
+	ranges []scanRange
+}
+
+type writeType int
+
+const (
+	putOp writeType = iota
+	deleteOp
+)
+
+type writeOp struct {
+	t     writeType
+	key   []byte
+	value []byte
+}
+
+// commitedTransaction is only used as an element of db.txEvents.
+type commitedTransaction struct {
+	seq   uint64
+	batch [][]byte
+}
 
 // transaction is a wrapper around LevelDB WriteBatch that implements
 // the store.Transaction interface.
@@ -20,8 +49,11 @@ type transaction struct {
 	mu       sync.Mutex
 	node     *store.ResourceNode
 	d        *db
+	seq      uint64
+	event    *list.Element // pointer to element of db.txEvents
 	snapshot store.Snapshot
-	batch    *C.leveldb_writebatch_t
+	reads    readSet
+	writes   []writeOp
 	cOpts    *C.leveldb_writeoptions_t
 	err      error
 }
@@ -35,9 +67,10 @@ func newTransaction(d *db, parent *store.ResourceNode) *transaction {
 		node:     node,
 		d:        d,
 		snapshot: snapshot,
-		batch:    C.leveldb_writebatch_create(),
+		seq:      d.txSequenceNumber,
 		cOpts:    d.writeOptions,
 	}
+	tx.event = d.txEvents.PushFront(tx)
 	parent.AddChild(tx.node, func() {
 		tx.Abort()
 	})
@@ -47,14 +80,26 @@ func newTransaction(d *db, parent *store.ResourceNode) *transaction {
 // close frees allocated C objects and releases acquired locks.
 // Assumes mu is held.
 func (tx *transaction) close() {
-	tx.d.txmu.Unlock()
+	tx.removeEvent()
 	tx.node.Close()
-	C.leveldb_writebatch_destroy(tx.batch)
-	tx.batch = nil
 	if tx.cOpts != tx.d.writeOptions {
 		C.leveldb_writeoptions_destroy(tx.cOpts)
 	}
 	tx.cOpts = nil
+}
+
+// removeEvent removes this transaction from the db.txEvents queue.
+// Assumes mu is held.
+func (tx *transaction) removeEvent() {
+	// This can happen if the transaction was committed, since Commit()
+	// explicitly calls removeEvent().
+	if tx.event == nil {
+		return
+	}
+	tx.d.txmu.Lock()
+	tx.d.txEvents.Remove(tx.event)
+	tx.d.txmu.Unlock()
+	tx.event = nil
 }
 
 // Get implements the store.StoreReader interface.
@@ -64,6 +109,7 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	if tx.err != nil {
 		return valbuf, store.WrapError(tx.err)
 	}
+	tx.reads.keys = append(tx.reads.keys, key)
 	return tx.snapshot.Get(key, valbuf)
 }
 
@@ -74,6 +120,10 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	if tx.err != nil {
 		return &store.InvalidStream{tx.err}
 	}
+	tx.reads.ranges = append(tx.reads.ranges, scanRange{
+		start: start,
+		limit: limit,
+	})
 	return tx.snapshot.Scan(start, limit)
 }
 
@@ -84,9 +134,11 @@ func (tx *transaction) Put(key, value []byte) error {
 	if tx.err != nil {
 		return store.WrapError(tx.err)
 	}
-	cKey, cKeyLen := cSlice(key)
-	cVal, cValLen := cSlice(value)
-	C.leveldb_writebatch_put(tx.batch, cKey, cKeyLen, cVal, cValLen)
+	tx.writes = append(tx.writes, writeOp{
+		t:     putOp,
+		key:   key,
+		value: value,
+	})
 	return nil
 }
 
@@ -97,9 +149,29 @@ func (tx *transaction) Delete(key []byte) error {
 	if tx.err != nil {
 		return store.WrapError(tx.err)
 	}
-	cKey, cKeyLen := cSlice(key)
-	C.leveldb_writebatch_delete(tx.batch, cKey, cKeyLen)
+	tx.writes = append(tx.writes, writeOp{
+		t:   deleteOp,
+		key: key,
+	})
 	return nil
+}
+
+// validateReadSet returns true iff the read set of this transaction has not
+// been invalidated by other transactions.
+// Assumes tx.d.txmu is held.
+func (tx *transaction) validateReadSet() bool {
+	for _, key := range tx.reads.keys {
+		if tx.d.txTable.get(key) > tx.seq {
+			return false
+		}
+	}
+	for _, r := range tx.reads.ranges {
+		if tx.d.txTable.rangeMax(r.start, r.limit) > tx.seq {
+			return false
+		}
+
+	}
+	return true
 }
 
 // Commit implements the store.Transaction interface.
@@ -109,19 +181,23 @@ func (tx *transaction) Commit() error {
 	if tx.err != nil {
 		return store.WrapError(tx.err)
 	}
-	tx.d.mu.Lock()
-	defer tx.d.mu.Unlock()
-	var cError *C.char
-	C.leveldb_write(tx.d.cDb, tx.cOpts, tx.batch, &cError)
-	if err := goError(cError); err != nil {
-		// Once Commit() has failed with store.ErrConcurrentTransaction, subsequent
-		// ops on the transaction will fail with the following error.
+	// Explicitly remove this transaction from the event queue. If this was the
+	// only active transaction, the event queue becomes empty and writeLocked will
+	// not add the write set of this transaction to the txTable.
+	tx.removeEvent()
+	defer tx.close()
+	tx.d.txmu.Lock()
+	defer tx.d.txmu.Unlock()
+	if !tx.validateReadSet() {
+		return store.NewErrConcurrentTransaction(nil)
+	}
+	if err := tx.d.writeLocked(tx.writes, tx.cOpts); err != nil {
+		// Once Commit() has failed, subsequent ops on the transaction will fail
+		// with the following error.
 		tx.err = verror.New(verror.ErrBadState, nil, "already attempted to commit transaction")
-		tx.close()
 		return err
 	}
 	tx.err = verror.New(verror.ErrBadState, nil, "committed transaction")
-	tx.close()
 	return nil
 }
 

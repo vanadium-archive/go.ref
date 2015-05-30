@@ -5,6 +5,7 @@
 package test
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -61,6 +62,61 @@ func RunTransactionStateTest(t *testing.T, st store.Store) {
 	}
 }
 
+// RunConcurrentTransactionsTest verifies that concurrent transactions
+// invalidate each other as expected.
+func RunConcurrentTransactionsTest(t *testing.T, st store.Store) {
+	st.Put([]byte("a"), []byte("0"))
+	st.Put([]byte("b"), []byte("0"))
+	st.Put([]byte("c"), []byte("0"))
+	// Test Get fails.
+	txA := st.NewTransaction()
+	txB := st.NewTransaction()
+	txA.Get([]byte("a"), nil)
+	txB.Get([]byte("a"), nil)
+	txA.Put([]byte("a"), []byte("a"))
+	txB.Put([]byte("a"), []byte("b"))
+	if err := txA.Commit(); err != nil {
+		t.Fatalf("can't commit the transaction: %v", err)
+	}
+	if err := txB.Commit(); verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
+		t.Fatalf("unexpected commit error: %v", err)
+	}
+	if value, _ := st.Get([]byte("a"), nil); !bytes.Equal(value, []byte("a")) {
+		t.Fatalf("unexpected value: got %q, want %q", value, "a")
+	}
+	// Test Scan fails.
+	txA = st.NewTransaction()
+	txB = st.NewTransaction()
+	txA.Scan([]byte("a"), []byte("z"))
+	txB.Scan([]byte("a"), []byte("z"))
+	txA.Put([]byte("aa"), []byte("a"))
+	txB.Put([]byte("bb"), []byte("b"))
+	if err := txA.Commit(); err != nil {
+		t.Fatalf("can't commit the transaction: %v", err)
+	}
+	if err := txB.Commit(); verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
+		t.Fatalf("unexpected commit error: %v", err)
+	}
+	if value, _ := st.Get([]byte("aa"), nil); !bytes.Equal(value, []byte("a")) {
+		t.Fatalf("unexpected value: got %q, want %q", value, "a")
+	}
+	// Test Get and Scan OK.
+	txA = st.NewTransaction()
+	txB = st.NewTransaction()
+	txA.Scan([]byte("a"), []byte("b"))
+	txB.Scan([]byte("b"), []byte("c"))
+	txA.Get([]byte("c"), nil)
+	txB.Get([]byte("c"), nil)
+	txA.Put([]byte("a"), []byte("a"))
+	txB.Put([]byte("b"), []byte("b"))
+	if err := txA.Commit(); err != nil {
+		t.Fatalf("can't commit the transaction: %v", err)
+	}
+	if err := txB.Commit(); err != nil {
+		t.Fatalf("can't commit the transaction: %v", err)
+	}
+}
+
 // RunTransactionsWithGetTest tests transactions that use Put and Get
 // operations.
 // NOTE: consider setting GOMAXPROCS to something greater than 1.
@@ -78,8 +134,6 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 	}
 	var wg sync.WaitGroup
 	wg.Add(k)
-	// TODO(sadovsky): This configuration creates huge resource contention.
-	// Perhaps we should add some random sleep's to reduce the contention.
 	for i := 0; i < k; i++ {
 		go func() {
 			rnd := rand.New(rand.NewSource(239017 * int64(i)))
