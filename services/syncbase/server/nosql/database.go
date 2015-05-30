@@ -40,7 +40,7 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 	}
 	// TODO(sadovsky): Make storage engine pluggable.
 	st, err := watchable.Wrap(memstore.New(), &watchable.Options{
-		ManagedPrefixes: []string{},
+		ManagedPrefixes: []string{util.RowPrefix},
 	})
 	if err != nil {
 		return nil, err

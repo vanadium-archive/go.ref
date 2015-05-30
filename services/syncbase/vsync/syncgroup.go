@@ -32,19 +32,20 @@ var (
 ////////////////////////////////////////////////////////////
 // SyncGroup management internal to Syncbase.
 
-// memberView holds an aggregated view of all SyncGroup members across databases.
-// The view is not coherent, it gets refreshed according to a configured TTL and
-// not (coherently) when SyncGroup membership is updated in the various databases.
-// It is needed by the sync Initiator, which must select a peer to contact from a
-// global view of all SyncGroup members gathered from all databases.  This is why
-// a slightly stale view is acceptable.
+// memberView holds an aggregated view of all SyncGroup members across
+// databases. The view is not coherent, it gets refreshed according to a
+// configured TTL and not (coherently) when SyncGroup membership is updated in
+// the various databases. It is needed by the sync Initiator, which must select
+// a peer to contact from a global view of all SyncGroup members gathered from
+// all databases. This is why a slightly stale view is acceptable.
 // The members are identified by their Vanadium names (map keys).
 type memberView struct {
 	expiration time.Time
 	members    map[string]*memberInfo
 }
 
-// memberInfo holds the member metadata for each SyncGroup this member belongs to.
+// memberInfo holds the member metadata for each SyncGroup this member belongs
+// to.
 type memberInfo struct {
 	gid2info map[GroupId]nosql.SyncGroupMemberInfo
 }
@@ -148,14 +149,15 @@ func delSyncGroupByName(ctx *context.T, tx store.StoreReadWriter, name string) e
 	return delSyncGroupById(ctx, tx, gid)
 }
 
-// refreshMembersIfExpired updates the aggregate view of SyncGroup members across
-// databases if the view has expired.
+// refreshMembersIfExpired updates the aggregate view of SyncGroup members
+// across databases if the view has expired.
 // TODO(rdaoud): track dirty apps/dbs since the last refresh and incrementally
 // update the membership view for them instead of always scanning all of them.
 func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 	view := s.allMembers
 	if view == nil {
-		// The empty expiration time in Go is before "now" and treated as expired below.
+		// The empty expiration time in Go is before "now" and treated as expired
+		// below.
 		view = &memberView{expiration: time.Time{}, members: make(map[string]*memberInfo)}
 		s.allMembers = view
 	}
@@ -200,7 +202,8 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 	view.expiration = time.Now().Add(memberViewTTL)
 }
 
-// getMembers returns all SyncGroup members and the count of SyncGroups each one joined.
+// getMembers returns all SyncGroup members and the count of SyncGroups each one
+// joined.
 func (s *syncService) getMembers(ctx *context.T) map[string]uint32 {
 	s.refreshMembersIfExpired(ctx)
 
@@ -212,7 +215,8 @@ func (s *syncService) getMembers(ctx *context.T) map[string]uint32 {
 	return members
 }
 
-// Low-level utility functions to access DB entries without tracking their relationships.
+// Low-level utility functions to access DB entries without tracking their
+// relationships.
 // Use the functions above to manipulate SyncGroups.
 
 // sgDataKeyScanPrefix returns the prefix used to scan SyncGroup data entries.

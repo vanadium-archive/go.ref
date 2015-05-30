@@ -6,6 +6,7 @@ package watchable
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
@@ -109,17 +110,18 @@ func (tx *transaction) Commit() error {
 	tx.st.mu.Lock()
 	defer tx.st.mu.Unlock()
 	// Check sequence numbers.
-	if uint64(len(tx.ops)) > MaxUint16 {
+	if uint64(len(tx.ops)) > math.MaxUint16 {
 		return verror.New(verror.ErrInternal, nil, "too many ops")
 	}
-	if tx.st.seq == MaxUint64 {
+	if tx.st.seq == math.MaxUint64 {
 		return verror.New(verror.ErrInternal, nil, "seq maxed out")
 	}
 	// Write LogEntry records.
+	// Note, MaxUint16 is 0xffff and MaxUint64 is 0xffffffffffffffff.
 	// TODO(sadovsky): Use a more space-efficient lexicographic number encoding.
-	keyPrefix := join(util.LogPrefix, fmt.Sprintf("%016x", MaxUint64-tx.st.seq))
+	keyPrefix := join(util.LogPrefix, fmt.Sprintf("%016x", tx.st.seq))
 	for txSeq, op := range tx.ops {
-		key := join(keyPrefix, fmt.Sprintf("%04x", MaxUint16-uint64(txSeq)))
+		key := join(keyPrefix, fmt.Sprintf("%04x", txSeq))
 		value := &LogEntry{
 			Op: op,
 			// TODO(sadovsky): This information is also captured in LogEntry keys.

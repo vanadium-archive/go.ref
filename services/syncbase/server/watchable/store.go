@@ -8,15 +8,11 @@
 // for the implementation of client-facing watch as well as the sync module's
 // internal watching of store updates.
 //
-// Log entries are keyed in reverse chronological order. More specifically, the
-// LogEntry key format is "$log:<seq>:<txSeq>", where <seq> is (MaxUint64-seq)
-// and <txSeq> is (MaxUint16-txSeq). All numbers are zero-padded to ensure that
-// the lexicographic order matches the numeric order. Thus, clients implementing
-// ResumeMarkers (i.e. implementing the watch API) should use
-// fmt.Sprintf("%016x", MaxUint64-marker) to convert external markers to
-// internal LogEntry key prefixes.
+// LogEntry records are stored chronologically, using keys of the form
+// "$log:<seq>:<txSeq>". Sequence numbers are zero-padded to ensure that the
+// lexicographic order matches the numeric order.
 //
-// Version number records are stored with keys of the form "$version:<key>",
+// Version number records are stored using keys of the form "$version:<key>",
 // where <key> is the client-specified key.
 package watchable
 
@@ -35,12 +31,6 @@ import (
 	pubutil "v.io/syncbase/v23/syncbase/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/v23/verror"
-)
-
-const (
-	MaxUint16 uint64 = 1<<16 - 1 // 0xffff
-	MaxUint64 uint64 = 1<<64 - 1 // 0xffffffffffffffff
 )
 
 // Store is a store.Store that provides versioned storage and a watchable oplog.
@@ -59,22 +49,31 @@ type Options struct {
 func Wrap(st store.Store, opts *Options) (Store, error) {
 	// Determine initial value for seq.
 	var seq uint64 = 0
-	it := st.Scan([]byte(util.LogPrefix), []byte(""))
+	// TODO(sadovsky): Perform a binary search to determine seq, or persist the
+	// current sequence number on every nth write so that at startup time we can
+	// start our scan from there instead scanning over all log entries just to
+	// find the latest one.
+	it := st.Scan(util.ScanPrefixArgs(util.LogPrefix, ""))
+	advanced := false
+	keybuf := []byte{}
 	for it.Advance() {
-		key := string(it.Key(nil))
+		advanced = true
+		keybuf = it.Key(keybuf)
+	}
+	if err := it.Err(); err != nil {
+		return nil, err
+	}
+	if advanced {
+		key := string(keybuf)
 		parts := split(key)
 		if len(parts) != 3 {
 			panic("wrong number of parts: " + key)
 		}
-		invSeq, err := strconv.ParseUint(parts[1], 10, 64)
+		var err error
+		seq, err = strconv.ParseUint(parts[1], 10, 64)
 		if err != nil {
-			panic("failed to parse invSeq: " + key)
+			panic("failed to parse seq: " + key)
 		}
-		seq = MaxUint64 - invSeq
-		it.Cancel()
-	}
-	if err := it.Err(); err != nil && verror.ErrorID(err) != verror.ErrCanceled.ID {
-		return nil, err
 	}
 	return &wstore{ist: st, opts: opts, seq: seq}, nil
 }

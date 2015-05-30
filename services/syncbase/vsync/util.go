@@ -12,12 +12,14 @@ import (
 )
 
 // forEachDatabaseStore iterates over all Databases in all Apps within the
-// service and invokes the callback function provided on each database.
-// The callback returns a "done" flag to make storeIter() stop the iteration
-// earlier, otherwise the function loops across all databases of all apps.
+// service and invokes the provided callback function on each database. The
+// callback returns a "done" flag to make forEachDatabaseStore() stop the
+// iteration earlier; otherwise the function loops across all databases of all
+// apps.
 func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(store.Store) bool) {
 	// Get the apps and iterate over them.
-	// TODO(rdaoud): use a "privileged call" parameter instead of nil.
+	// TODO(rdaoud): use a "privileged call" parameter instead of nil (here and
+	// elsewhere).
 	appNames, err := s.sv.AppNames(ctx, nil)
 	if err != nil {
 		return
@@ -25,12 +27,10 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(store.S
 
 	for _, a := range appNames {
 		// For each app, get its databases and iterate over them.
-		// TODO(rdaoud): use a "privileged call" parameter instead of nil.
 		app, err := s.sv.App(ctx, nil, a)
 		if err != nil {
 			continue
 		}
-		// TODO(rdaoud): use a "privileged call" parameter instead of nil.
 		dbNames, err := app.NoSQLDatabaseNames(ctx, nil)
 		if err != nil {
 			continue
@@ -38,7 +38,6 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(store.S
 
 		for _, d := range dbNames {
 			// For each database, get its Store and invoke the callback.
-			// TODO(rdaoud): use a "privileged call" parameter instead of nil.
 			db, err := app.NoSQLDatabase(ctx, nil, d)
 			if err != nil {
 				continue
