@@ -32,26 +32,19 @@ var (
 	}
 
 	expectedAuthorizer = map[string]security.Authorizer{
-		"empty":  auth(access.PermissionsAuthorizer(perms1, access.TypicalTagType())),
-		"perms2": auth(access.PermissionsAuthorizer(perms2, access.TypicalTagType())),
+		"empty":  access.TypicalTagTypePermissionsAuthorizer(perms1),
+		"perms2": access.TypicalTagTypePermissionsAuthorizer(perms2),
 	}
 )
 
-func auth(a security.Authorizer, err error) security.Authorizer {
-	if err != nil {
-		panic(err)
-	}
-	return a
-}
-
 var permFromFlag = modules.Register(func(env *modules.Env, args ...string) error {
 	nfargs := flag.CommandLine.Args()
-	tam, err := PermissionsFromFlag()
+	perms, err := PermissionsFromFlag()
 	if err != nil {
 		fmt.Fprintf(env.Stdout, "PermissionsFromFlag() failed: %v", err)
 		return nil
 	}
-	got := auth(access.PermissionsAuthorizer(tam, access.TypicalTagType()))
+	got := access.TypicalTagTypePermissionsAuthorizer(perms)
 	want := expectedAuthorizer[nfargs[0]]
 	if !reflect.DeepEqual(got, want) {
 		fmt.Fprintf(env.Stdout, "args %#v\n", args)

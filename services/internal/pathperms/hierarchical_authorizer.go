@@ -29,15 +29,6 @@ type PermsGetter interface {
 	PermsForPath(path string) (access.Permissions, bool, error)
 }
 
-func mkRootAuth(rootPerms access.Permissions) (security.Authorizer, error) {
-	rootAuth, err := access.PermissionsAuthorizer(rootPerms, access.TypicalTagType())
-	if err != nil {
-		vlog.Errorf("Successfully obtained Permissions from the filesystem but PermissionsAuthorizer couldn't use it: %v", err)
-		return nil, err
-	}
-	return rootAuth, nil
-}
-
 // NewHierarchicalAuthorizer creates a new hierarchicalAuthorizer: one
 // that implements a "root" like concept: admin rights at the root of
 // a server can invoke RPCs regardless of permissions set on child objects.
@@ -60,11 +51,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T, call security.Call) 
 
 	// We are at the root so exit early.
 	if ha.rootDir == ha.childDir {
-		a, err := mkRootAuth(rootPerms)
-		if err != nil {
-			return err
-		}
-		return adminCheckAuth(ctx, call, a, rootPerms)
+		return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(rootPerms), rootPerms)
 	}
 
 	// This is not fatal: the childDir may not exist if we are invoking
@@ -73,19 +60,10 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T, call security.Call) 
 	if err != nil {
 		return err
 	} else if intentionallyEmpty {
-		a, err := mkRootAuth(rootPerms)
-		if err != nil {
-			return err
-		}
-		return adminCheckAuth(ctx, call, a, rootPerms)
+		return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(rootPerms), rootPerms)
 	}
 
-	childAuth, err := access.PermissionsAuthorizer(childPerms, access.TypicalTagType())
-	if err != nil {
-		vlog.Errorf("Successfully obtained a Permissions from the filesystem but PermissionsAuthorizer couldn't use it: %v", err)
-		return err
-	}
-	return adminCheckAuth(ctx, call, childAuth, rootPerms)
+	return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(childPerms), rootPerms)
 }
 
 func adminCheckAuth(ctx *context.T, call security.Call, auth security.Authorizer, perms access.Permissions) error {

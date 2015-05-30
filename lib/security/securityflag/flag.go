@@ -47,7 +47,7 @@ func NewAuthorizerOrDie() security.Authorizer {
 	} else {
 		var perms access.Permissions
 		if perms, err = access.ReadPermissions(bytes.NewBufferString(literal)); err == nil {
-			a, err = access.PermissionsAuthorizer(perms, access.TypicalTagType())
+			a = access.TypicalTagTypePermissionsAuthorizer(perms)
 		}
 	}
 	if err != nil {

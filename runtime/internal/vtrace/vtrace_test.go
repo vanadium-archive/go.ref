@@ -350,10 +350,7 @@ func (permsDisp debugDispatcher) Lookup(string) (interface{}, security.Authorize
 	if err != nil {
 		return nil, nil, err
 	}
-	auth, err := access.PermissionsAuthorizer(perms, access.TypicalTagType())
-	if err != nil {
-		return nil, nil, err
-	}
+	auth := access.TypicalTagTypePermissionsAuthorizer(perms)
 	return nil, auth, nil
 }
 
