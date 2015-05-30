@@ -64,7 +64,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Mtstress mount
+Mtstress mount - Measure latency of the Mount RPC at a fixed request rate
 
 Repeatedly issues a Mount request (at --rate) and measures latency
 
@@ -76,7 +76,7 @@ Usage:
 <ttl> specfies the time-to-live of the mount point. For example: 5s for 5
 seconds, 1m for 1 minute etc. Valid time units are "ms", "s", "m", "h".
 
-Mtstress resolve
+Mtstress resolve - Measure latency of the Resolve RPC at a fixed request rate
 
 Repeatedly issues a Resolve request (at --rate) to a name and measures latency
 
@@ -85,7 +85,7 @@ Usage:
 
 <name> the object name to resolve
 
-Mtstress help
+Mtstress help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

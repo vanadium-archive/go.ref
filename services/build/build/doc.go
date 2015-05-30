@@ -57,7 +57,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Build build
+Build build - Build vanadium Go packages
 
 Build vanadium Go packages using a remote build server. The command collects all
 source code files that are not part of the Go standard library that the target
@@ -79,7 +79,7 @@ The build build flags are:
  -os=<runtime.GOOS>
    Target operating system.  The default is the value of runtime.GOOS.
 
-Build help
+Build help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

@@ -60,7 +60,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Binary delete
+Binary delete - Delete a binary
 
 Delete connects to the binary repository and deletes the specified binary
 
@@ -69,7 +69,7 @@ Usage:
 
 <von> is the vanadium object name of the binary to delete
 
-Binary download
+Binary download - Download a binary
 
 Download connects to the binary repository, downloads the specified binary, and
 writes it to a file.
@@ -80,7 +80,7 @@ Usage:
 <von> is the vanadium object name of the binary to download <filename> is the
 name of the file where the binary will be written
 
-Binary upload
+Binary upload - Upload a binary or directory archive
 
 Upload connects to the binary repository and uploads the binary of the specified
 file or archive of the specified directory. When successful, it writes the name
@@ -92,7 +92,7 @@ Usage:
 <von> is the vanadium object name of the binary to upload <filename> is the name
 of the file or directory to upload
 
-Binary url
+Binary url - Fetch a download URL
 
 Connect to the binary repository and fetch the download URL for the given
 vanadium object name.
@@ -102,7 +102,7 @@ Usage:
 
 <von> is the vanadium object name of the binary repository
 
-Binary help
+Binary help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

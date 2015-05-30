@@ -79,7 +79,7 @@ Usage:
 
 <name> is the name of a vtrace object. [id] is a vtrace trace id.
 
-Debug logs
+Debug logs - Accesses log files
 
 Accesses log files
 
@@ -119,7 +119,7 @@ Usage:
 
 <name> is the name of the log file object.
 
-Debug stats
+Debug stats - Accesses stats
 
 Accesses stats
 
@@ -162,7 +162,7 @@ The debug stats watch flags are:
  -type=false
    When true, the type of the values will be displayed.
 
-Debug pprof
+Debug pprof - Accesses profiling data
 
 Accesses profiling data
 
@@ -200,7 +200,7 @@ Usage:
 
 <name> is the name of the pprof object.
 
-Debug help
+Debug help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

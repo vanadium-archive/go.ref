@@ -21,14 +21,14 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Uniqueid generate
+Uniqueid generate - Generates UniqueIds
 
 Generates unique ids and outputs them to standard out.
 
 Usage:
    uniqueid generate
 
-Uniqueid inject
+Uniqueid inject - Injects UniqueIds into existing files
 
 Injects UniqueIds into existing files. Strings of the form "$UNIQUEID$" will be
 replaced with generated ids.
@@ -38,7 +38,7 @@ Usage:
 
 <filenames> List of files to inject unique ids into
 
-Uniqueid help
+Uniqueid help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

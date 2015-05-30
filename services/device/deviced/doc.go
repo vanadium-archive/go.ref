@@ -176,7 +176,7 @@ Prints the internal profile description for the device manager.
 Usage:
    deviced profile
 
-Deviced help
+Deviced help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

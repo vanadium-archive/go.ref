@@ -110,7 +110,7 @@ The vdl compile flags are:
  -status=true
    Show package names while we compile
 
-Vdl audit
+Vdl audit - Check if any packages are stale and need generation
 
 Audit runs the same logic as generate, but doesn't write out generated files.
 Returns a 0 exit code if all packages are up-to-date, otherwise returns a non-0
@@ -165,7 +165,7 @@ The vdl audit flags are:
  -status=true
    Show package names as they are updated
 
-Vdl list
+Vdl list - List package and dependency info in transitive order
 
 List returns information about packages and their transitive dependencies, in
 transitive order.  This is the same order the generate and compile commands use
@@ -184,7 +184,7 @@ Usage:
 <packages> are a list of packages to process, similar to the standard go tool.
 For more information, run "vdl help packages".
 
-Vdl help
+Vdl help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
@@ -209,7 +209,7 @@ The vdl help flags are:
    Defaults to the terminal width if available.  Override the default by setting
    the CMDLINE_WIDTH environment variable.
 
-Vdl packages - help topic
+Vdl packages - Description of package lists
 
 Most vdl commands apply to a list of packages:
 
@@ -237,7 +237,7 @@ explicitly.
  Run "vdl help vdlpath" to see docs on VDLPATH.
  Run "go help packages" to see the standard go package docs.
 
-Vdl vdlpath - help topic
+Vdl vdlpath - Description of VDLPATH environment variable
 
 The VDLPATH environment variable is used to resolve import statements. It must
 be set to compile and generate vdl packages.
@@ -263,7 +263,7 @@ An example:
             baz/              (import "bar/baz" refers here)
                baz.vdl
 
-Vdl vdlroot - help topic
+Vdl vdlroot - Description of VDLROOT environment variable
 
 The VDLROOT environment variable is similar to VDLPATH, but instead of pointing
 to multiple user source directories, it points at a single source directory
@@ -274,7 +274,7 @@ Setting VDLROOT is optional.
 If VDLROOT is empty, we try to construct it out of the V23_ROOT environment
 variable.  It is an error if both VDLROOT and V23_ROOT are empty.
 
-Vdl vdl.config - help topic
+Vdl vdl.config
 
 Each vdl source package P may contain an optional file "vdl.config" within the P
 directory.  This file specifies additional configuration for the vdl tool.

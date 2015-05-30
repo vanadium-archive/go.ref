@@ -61,7 +61,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Vrpc signature
+Vrpc signature - Describe the interfaces of a Vanadium server
 
 Signature connects to the Vanadium server identified by <server>.
 
@@ -84,7 +84,7 @@ The vrpc signature flags are:
  -show-reserved=false
    if true, also show the signatures of reserved methods
 
-Vrpc call
+Vrpc call - Call a method of a Vanadium server
 
 Call connects to the Vanadium server identified by <server> and calls the
 <method> with the given positional [args...], returning results on stdout.
@@ -114,7 +114,7 @@ the server, or an object name that will be resolved to an end-point.
 
 [args...] are the positional input arguments, specified as VDL expressions.
 
-Vrpc identify
+Vrpc identify - Reveal blessings presented by a Vanadium server
 
 Identify connects to the Vanadium server identified by <server> and dumps out
 the blessings presented by that server (and the subset of those that are
@@ -131,7 +131,7 @@ The vrpc identify flags are:
    If true, skip server authentication. This means that the client will reveal
    its blessings to servers that it may not recognize.
 
-Vrpc help
+Vrpc help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
