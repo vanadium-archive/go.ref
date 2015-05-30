@@ -222,7 +222,7 @@ recvblessings' for more details on that.
 When --remote-arg-file is specified, only the blessing extension is required, as all other
 arguments will be extracted from the specified file.
 `,
-		ArgsName: "[<principal to bless>] <extension>",
+		ArgsName: "[<principal to bless>] [<extension>]",
 		ArgsLong: `
 <principal to bless> represents the principal to be blessed (i.e., whose public
 key will be provided with a name).  This can be either:
@@ -243,10 +243,17 @@ blessing.
 
 	`,
 		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
-			if len(flagRemoteArgFile) > 0 && len(args) != 1 {
-				return fmt.Errorf("when --remote-arg-file is provided, only <extension> is expected, provided %d", len(args))
-			} else if len(flagRemoteArgFile) == 0 && len(args) != 2 {
-				return fmt.Errorf("require exactly two arguments when --remote-arg-file is not provided, provided %d", len(args))
+			if len(flagRemoteArgFile) > 0 {
+				if len(args) > 1 {
+					return fmt.Errorf("when --remote-arg-file is provided, only <extension> is expected, provided %d", len(args))
+				}
+				if (len(flagBlessRemoteKey) + len(flagBlessRemoteToken)) > 0 {
+					return fmt.Errorf("--remote-key and --remote-token should not be specified when --remote-arg-file is")
+				}
+			} else if len(args) > 2 {
+				return fmt.Errorf("got %d arguments, require at most 2", len(args))
+			} else if (len(flagBlessRemoteKey) == 0) != (len(flagBlessRemoteToken) == 0) {
+				return fmt.Errorf("either both --remote-key and --remote-token should be set, or neither should")
 			}
 			p := v23.GetPrincipal(ctx)
 
@@ -265,14 +272,19 @@ blessing.
 			if err != nil {
 				return err
 			}
-			if !flagBlessRequireCaveats && len(caveats) == 0 {
+			if len(caveats) == 0 {
+				if flagBlessRequireCaveats {
+					if err := confirmNoCaveats(env); err != nil {
+						return err
+					}
+				}
 				caveats = []security.Caveat{security.UnconstrainedUse()}
 			}
 			if len(caveats) == 0 {
 				return errNoCaveats
 			}
 
-			tobless, extension, remoteKey, remoteToken, err := blessArgs(args)
+			tobless, extension, remoteKey, remoteToken, err := blessArgs(env, args)
 			if err != nil {
 				return err
 			}
@@ -769,20 +781,18 @@ This file can be supplied to bless:
 			if err := server.Serve("", service, security.AllowEveryone()); err != nil {
 				return fmt.Errorf("failed to setup service: %v", err)
 			}
-			// Proposed name:
-			extension := fmt.Sprintf("extension%d", int(token[0])<<16|int(token[1])<<8|int(token[2]))
 			fmt.Println("Run the following command on behalf of the principal that will send blessings:")
 			fmt.Println("You may want to adjust flags affecting the caveats on this blessing, for example using")
-			fmt.Println("the --for flag, or change the extension to something more meaningful")
+			fmt.Println("the --for flag")
 			fmt.Println()
 			if len(flagRemoteArgFile) > 0 {
 				if err := writeRecvBlessingsInfo(flagRemoteArgFile, p.PublicKey().String(), service.token, eps[0].Name()); err != nil {
 					return fmt.Errorf("failed to write recvblessings info to %v: %v", flagRemoteArgFile, err)
 				}
 				fmt.Printf("make %q accessible to the blesser, possibly by copying the file over and then run:\n", flagRemoteArgFile)
-				fmt.Printf("principal bless --remote-arg-file=%v %v", flagRemoteArgFile, extension)
+				fmt.Printf("principal bless --remote-arg-file=%v", flagRemoteArgFile)
 			} else {
-				fmt.Printf("principal bless --remote-key=%v --remote-token=%v %v %v\n", p.PublicKey(), service.token, eps[0].Name(), extension)
+				fmt.Printf("principal bless --remote-key=%v --remote-token=%v %v\n", p.PublicKey(), service.token, eps[0].Name())
 			}
 			fmt.Println()
 			fmt.Println("...waiting for sender..")
@@ -800,23 +810,63 @@ func printAnnotatedBlessingsNames(b security.Blessings) string {
 	return fmt.Sprintf("%v%s", b, expiredMessage)
 }
 
-func blessArgs(args []string) (tobless, extension, remoteKey, remoteToken string, err error) {
-	if len(flagRemoteArgFile) > 0 && (len(flagBlessRemoteKey)+len(flagBlessRemoteToken) > 0) {
-		return "", "", "", "", fmt.Errorf("--remote-key and --remote-token cannot be provided with --remote-arg-file")
-	}
-	if (len(flagBlessRemoteKey) == 0) != (len(flagBlessRemoteToken) == 0) {
-		return "", "", "", "", fmt.Errorf("either both --remote-key and --remote-token should be set, or neither should")
-	}
-
+func blessArgs(env *cmdline.Env, args []string) (tobless, extension, remoteKey, remoteToken string, err error) {
+	extensionInArgs := false
 	if len(flagRemoteArgFile) == 0 {
-		tobless, extension = args[0], args[1]
+		tobless = args[0]
 		remoteKey = flagBlessRemoteKey
 		remoteToken = flagBlessRemoteToken
+		extensionInArgs = len(args) > 1
 	} else if len(flagRemoteArgFile) > 0 {
-		extension = args[0]
 		remoteKey, remoteToken, tobless, err = blessArgsFromFile(flagRemoteArgFile)
+		extensionInArgs = len(args) > 0
+	}
+	if extensionInArgs {
+		extension = args[len(args)-1]
+	} else {
+		extension, err = readFromStdin(env, "Extension to use for blessing:")
 	}
 	return
+}
+
+func confirmNoCaveats(env *cmdline.Env) error {
+	text, err := readFromStdin(env, `WARNING: No caveats provided
+It is generally dangerous to bless another principal without any caveats as
+that gives them unrestricted access to the blesser's credentials.
+
+Caveats can be specified with the --for or --caveat flags.
+
+Do you really wish to bless without caveats? (YES to confirm)`)
+	if err != nil || strings.ToUpper(text) != "YES" {
+		return errNoCaveats
+	}
+	return nil
+}
+
+func readFromStdin(env *cmdline.Env, prompt string) (string, error) {
+	fmt.Fprintf(env.Stdout, "%v ", prompt)
+	os.Stdout.Sync()
+	// Cannot use bufio because that may "lose" data beyond the line (the
+	// remainder in the buffer).
+	// Do the inefficient byte-by-byte scan for now - shouldn't be a problem
+	// given the common use case. If that becomes a problem, switch to bufio
+	// and share the bufio.Reader between multiple calls to readFromStdin.
+	buf := make([]byte, 0, 100)
+	r := make([]byte, 1)
+	for {
+		n, err := env.Stdin.Read(r)
+		if n == 1 && r[0] == '\n' {
+			break
+		}
+		if n == 1 {
+			buf = append(buf, r[0])
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	return strings.TrimSpace(string(buf)), nil
 }
 
 func blessOverFileSystem(p security.Principal, tobless string, with security.Blessings, extension string, caveats []security.Caveat) (security.Blessings, error) {

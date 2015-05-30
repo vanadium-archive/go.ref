@@ -49,6 +49,10 @@ func TestV23RecvBlessings(t *testing.T) {
 	v23tests.RunTest(t, V23TestRecvBlessings)
 }
 
+func TestV23RecvBlessingsInteractive(t *testing.T) {
+	v23tests.RunTest(t, V23TestRecvBlessingsInteractive)
+}
+
 func TestV23Fork(t *testing.T) {
 	v23tests.RunTest(t, V23TestFork)
 }

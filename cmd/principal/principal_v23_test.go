@@ -248,7 +248,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		bobBlessFile = filepath.Join(outputDir, "bobBlessInfo")
 	)
 
-	// Generate principals for alice and carol.
+	// Generate principals
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
 	bin.Start("create", carolDir, "carol").WaitOrDie(os.Stdout, os.Stderr)
@@ -259,8 +259,8 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	{
 		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings")
 		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
-		// Replace the random extension suggested by recvblessings with "friend/carol"
-		args[len(args)-1] = "friend/carol"
+		// Use the "friend/carol" extension
+		args = append(args, "friend/carol")
 	}
 	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
@@ -270,7 +270,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice", "--set-default=false")
 		// recvblessings suggests a random extension, find the extension and replace it with friend/carol/foralice.
 		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
-		args[len(args)-1] = "friend/carol/foralice"
+		args = append(args, "friend/carol/foralice")
 	}
 	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
@@ -279,13 +279,14 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=bob", "--set-default=false", "--remote-arg-file="+bobBlessFile)
 		// recvblessings suggests a random extension, use friend/carol/forbob instead.
 		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
-		args[len(args)-1] = "friend/carol/forbob"
+		args = append(args, "friend/carol/forbob")
 	}
 	bin.WithEnv(credEnv(bobDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
 	listenerInv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice/...", "--set-default=false", "--vmodule=*=2", "--logtostderr")
 
 	args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(listenerInv)...)
+	args = append(args, "willfail")
 
 	{
 		// Mucking around with remote-key should fail.
@@ -329,6 +330,70 @@ Public key                                        Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [bob]
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [carol]
+`
+	if want != got {
+		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
+	}
+}
+
+func V23TestRecvBlessingsInteractive(t *v23tests.T) {
+	var (
+		outputDir = t.NewTempDir("")
+		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
+		aliceDir  = filepath.Join(outputDir, "alice")
+		bobDir    = filepath.Join(outputDir, "bob")
+		aliceBin  = bin.WithEnv(credEnv(aliceDir))
+	)
+
+	// Generate principals
+	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
+
+	// Run recvblessings on bob
+	recv := bin.Start("--v23.credentials="+bobDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings")
+	args := blessArgsFromRecvBlessings(recv)
+
+	// When running the exact command, must be prompted about caveats.
+	{
+		inv := aliceBin.Start(append([]string{"bless"}, args...)...)
+		inv.Expect("WARNING: No caveats provided")
+		// Saying something other than "yes" or "YES"
+		// should fail.
+		fmt.Fprintln(inv.Stdin(), "yeah")
+		if err := inv.Wait(os.Stdout, os.Stderr); err == nil {
+			t.Fatalf("Expected principal bless to fail because the wrong input was provided")
+		}
+	}
+	// When agreeing to have no caveats, must specify an extension
+	{
+		inv := aliceBin.Start(append([]string{"bless"}, args...)...)
+		inv.Expect("WARNING: No caveats provided")
+		fmt.Fprintln(inv.Stdin(), "yes")
+		inv.CloseStdin()
+		if err := inv.Wait(os.Stdout, os.Stderr); err == nil {
+			t.Fatalf("Expected principal bless to fail because no extension was provided")
+		}
+	}
+	// When providing both, the bless command should succeed.
+	{
+		inv := aliceBin.Start(append([]string{"bless"}, args...)...)
+		fmt.Fprintln(inv.Stdin(), "YES")
+		fmt.Fprintln(inv.Stdin(), "friend/bobby")
+		if err := inv.Wait(os.Stdout, os.Stderr); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := removePublicKeys(bin.Start("--v23.credentials="+bobDir, "dump").Output())
+	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Default Blessings : alice/friend/bobby
+---------------- BlessingStore ----------------
+Default Blessings                alice/friend/bobby
+Peer pattern                     Blessings
+...                              alice/friend/bobby
+---------------- BlessingRoots ----------------
+Public key                                        Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [bob]
 `
 	if want != got {
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
