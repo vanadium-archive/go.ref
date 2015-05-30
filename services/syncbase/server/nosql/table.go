@@ -67,14 +67,14 @@ func (t *table) Delete(ctx *context.T, call rpc.ServerCall) error {
 	})
 }
 
-func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit string) error {
+func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit []byte) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (t *table) Scan(ctx *context.T, call wire.TableScanServerCall, start, limit string) error {
+func (t *table) Scan(ctx *context.T, call wire.TableScanServerCall, start, limit []byte) error {
 	sn := t.d.st.NewSnapshot()
 	defer sn.Close()
-	it := sn.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), start, limit))
+	it := sn.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
 	sender := call.SendStream()
 	key, value := []byte{}, []byte{}
 	for it.Advance() {
