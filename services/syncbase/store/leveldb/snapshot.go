@@ -56,7 +56,7 @@ func (s *snapshot) Close() error {
 	s.cOpts = nil
 	C.leveldb_release_snapshot(s.d.cDb, s.cSnapshot)
 	s.cSnapshot = nil
-	s.err = verror.New(verror.ErrCanceled, nil, "closed snapshot")
+	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedSnapshot)
 	return nil
 }
 

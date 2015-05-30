@@ -35,11 +35,10 @@ var _ store.Transaction = (*transaction)(nil)
 
 func newTransaction(st *memstore, parent *store.ResourceNode, seq uint64) *transaction {
 	node := store.NewResourceNode()
-	sn := newSnapshot(st, node)
 	tx := &transaction{
 		node:        node,
 		st:          st,
-		sn:          sn,
+		sn:          newSnapshot(st, node),
 		seq:         seq,
 		createdTime: time.Now(),
 		puts:        map[string][]byte{},
@@ -60,7 +59,7 @@ func (tx *transaction) error() error {
 		return store.WrapError(tx.err)
 	}
 	if tx.expired() {
-		return verror.New(verror.ErrBadState, nil, "expired transaction")
+		return verror.New(verror.ErrBadState, nil, store.ErrMsgExpiredTxn)
 	}
 	return nil
 }
@@ -116,16 +115,13 @@ func (tx *transaction) Commit() error {
 	if err := tx.error(); err != nil {
 		return err
 	}
+	tx.err = verror.New(verror.ErrBadState, nil, store.ErrMsgCommittedTxn)
 	tx.node.Close()
 	tx.st.mu.Lock()
-	defer tx.st.mu.Unlock() // note, defer is last-in-first-out
+	defer tx.st.mu.Unlock()
 	if tx.seq <= tx.st.lastCommitSeq {
-		// Once Commit() has failed with store.ErrConcurrentTransaction, subsequent
-		// ops on the transaction will fail with the following error.
-		tx.err = verror.New(verror.ErrBadState, nil, "already attempted to commit transaction")
 		return store.NewErrConcurrentTransaction(nil)
 	}
-	tx.err = verror.New(verror.ErrBadState, nil, "committed transaction")
 	for k, v := range tx.puts {
 		tx.st.data[k] = v
 	}
@@ -144,6 +140,6 @@ func (tx *transaction) Abort() error {
 		return err
 	}
 	tx.node.Close()
-	tx.err = verror.New(verror.ErrCanceled, nil, "aborted transaction")
+	tx.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedTxn)
 	return nil
 }

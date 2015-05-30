@@ -46,10 +46,10 @@ func CopyBytes(dst, src []byte) []byte {
 	return dst
 }
 
-// WrapError wraps the given err with a verror. It is a no-op if the err is nil.
-// The returned error contains the current stack trace, but retains the input
-// error's IDAction pair. If the given error is not a verror, the IDAction pair
-// of the returned error will be (ErrUnknown.ID, NoRetry).
+// WrapError wraps the given error with a verror. It is a no-op if the given
+// error is nil. The returned error contains the current stack trace, but
+// retains the input error's IDAction pair. If the given error is not a verror,
+// the IDAction pair of the returned error will be (ErrUnknown.ID, NoRetry).
 func WrapError(err error) error {
 	if err == nil {
 		return nil

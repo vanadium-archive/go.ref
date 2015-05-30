@@ -37,5 +37,5 @@ func RunStreamTest(t *testing.T, st store.Store) {
 		}
 	}
 	verifyAdvance(t, s, nil, nil)
-	verifyError(t, s.Err(), "canceled stream", verror.ErrCanceled.ID)
+	verifyError(t, s.Err(), verror.ErrCanceled.ID, store.ErrMsgCanceledStream)
 }

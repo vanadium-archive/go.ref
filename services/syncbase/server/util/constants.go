@@ -5,17 +5,22 @@
 package util
 
 // TODO(sadovsky): Consider using shorter strings.
+
+// Constants related to storage engine keys.
 const (
-	ServicePrefix  = "$service"
 	AppPrefix      = "$app"
-	DbInfoPrefix   = "$dbInfo"
 	DatabasePrefix = "$database"
-	TablePrefix    = "$table"
+	DbInfoPrefix   = "$dbInfo"
+	LogPrefix      = "$log"
 	RowPrefix      = "$row"
+	ServicePrefix  = "$service"
 	SyncPrefix     = "$sync"
+	TablePrefix    = "$table"
+	VersionPrefix  = "$version"
 )
 
+// Constants related to object names.
 const (
-	// Service object name suffix for Syncbase internal communication.
+	// Service object name suffix for Syncbase-to-Syncbase RPCs.
 	SyncbaseSuffix = "$internal"
 )

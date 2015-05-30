@@ -42,7 +42,7 @@ func (st *memstore) Close() error {
 		return store.WrapError(st.err)
 	}
 	st.node.Close()
-	st.err = verror.New(verror.ErrCanceled, nil, "closed store")
+	st.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedStore)
 	return nil
 }
 
@@ -67,6 +67,7 @@ func (st *memstore) Scan(start, limit []byte) store.Stream {
 	if st.err != nil {
 		return &store.InvalidStream{st.err}
 	}
+	// TODO(sadovsky): Close snapshot once stream is closed or canceled.
 	return newSnapshot(st, st.node).Scan(start, limit)
 }
 

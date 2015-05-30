@@ -115,7 +115,8 @@ func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (inte
 }
 
 func (s *service) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
-	// In the future this API should be replaced by one that streams the app names.
+	// In the future this API will likely be replaced by one that streams the app
+	// names.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	appNames := make([]string, 0, len(s.apps))

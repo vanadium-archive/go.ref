@@ -124,14 +124,14 @@ func (s *stream) Cancel() {
 	if s.err != nil {
 		return
 	}
-	// s.hasValue might be false if Advance was never called.
+	// s.hasValue will be false if Advance has never been called.
 	if s.hasValue {
 		// We copy the key and the value from the C heap to the Go heap before
 		// deallocating the C iterator.
 		s.key = store.CopyBytes(nil, s.cKey())
 		s.value = store.CopyBytes(nil, s.cVal())
 	}
-	s.err = verror.New(verror.ErrCanceled, nil, "canceled stream")
+	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgCanceledStream)
 	s.destroyLeveldbIter()
 }
 

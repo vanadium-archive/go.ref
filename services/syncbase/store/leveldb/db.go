@@ -90,7 +90,7 @@ func (d *db) Close() error {
 	d.readOptions = nil
 	C.leveldb_writeoptions_destroy(d.writeOptions)
 	d.writeOptions = nil
-	d.err = verror.New(verror.ErrCanceled, nil, "closed store")
+	d.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedStore)
 	return nil
 }
 
@@ -161,7 +161,7 @@ func (d *db) NewSnapshot() store.Snapshot {
 	return newSnapshot(d, d.node)
 }
 
-// write writes a batch and adds all written keys to  txTable.
+// write writes a batch and adds all written keys to txTable.
 // TODO(rogulenko): remove this method.
 func (d *db) write(batch []writeOp, cOpts *C.leveldb_writeoptions_t) error {
 	d.txmu.Lock()
@@ -203,7 +203,7 @@ func (d *db) writeLocked(batch []writeOp, cOpts *C.leveldb_writeoptions_t) error
 	return nil
 }
 
-// trackBatch writes the batch to txTable, adds a commit event to txEvents.
+// trackBatch writes the batch to txTable and adds a commit event to txEvents.
 func (d *db) trackBatch(batch []writeOp) {
 	// TODO(rogulenko): do GC.
 	d.txSequenceNumber++

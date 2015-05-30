@@ -22,7 +22,7 @@ var _ store.Snapshot = (*snapshot)(nil)
 
 // Assumes st lock is held.
 func newSnapshot(st *memstore, parent *store.ResourceNode) *snapshot {
-	dataCopy := map[string][]byte{}
+	dataCopy := make(map[string][]byte, len(st.data))
 	for k, v := range st.data {
 		dataCopy[k] = v
 	}
@@ -44,7 +44,7 @@ func (s *snapshot) Close() error {
 		return store.WrapError(s.err)
 	}
 	s.node.Close()
-	s.err = verror.New(verror.ErrCanceled, nil, "closed snapshot")
+	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedSnapshot)
 	return nil
 }
 

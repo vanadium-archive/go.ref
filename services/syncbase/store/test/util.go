@@ -28,7 +28,7 @@ func verifyGet(t *testing.T, st store.StoreReader, key, value []byte) {
 		}
 	} else {
 		valbuf, err = st.Get(key, valbuf)
-		verifyError(t, err, string(key), store.ErrUnknownKey.ID)
+		verifyError(t, err, store.ErrUnknownKey.ID, string(key))
 		valcopy := []byte("tmp")
 		// Verify that valbuf is not modified if the key is not found.
 		if !bytes.Equal(valbuf, valcopy) {
@@ -61,12 +61,15 @@ func verifyAdvance(t *testing.T, s store.Stream, key, value []byte) {
 	}
 }
 
-func verifyError(t *testing.T, err error, substr string, errorID verror.ID) {
+// verifyError verifies that the given error has the given errorID and that the
+// error string contains the given substr. Pass an empty substr to skip the
+// substr check.
+func verifyError(t *testing.T, err error, errorID verror.ID, substr string) {
 	if got := verror.ErrorID(err); got != errorID {
 		Fatalf(t, "unexpected error ID: got %v, want %v", got, errorID)
 	}
 	if !strings.Contains(err.Error(), substr) {
-		Fatalf(t, "unexpected error: got %v, want %v", err, substr)
+		Fatalf(t, "unexpected error: %q not found in %q", substr, err)
 	}
 }
 

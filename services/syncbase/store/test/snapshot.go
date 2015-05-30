@@ -30,13 +30,13 @@ func RunSnapshotTest(t *testing.T, st store.Store) {
 	if err := snapshot.Close(); err != nil {
 		t.Fatalf("can't close the snapshot: %v", err)
 	}
-	expectedErr := "closed snapshot"
-	verifyError(t, snapshot.Close(), expectedErr, verror.ErrCanceled.ID)
+	expectedErrMsg := store.ErrMsgClosedSnapshot
+	verifyError(t, snapshot.Close(), verror.ErrCanceled.ID, expectedErrMsg)
 
 	_, err := snapshot.Get(key1, nil)
-	verifyError(t, err, expectedErr, verror.ErrCanceled.ID)
+	verifyError(t, err, verror.ErrCanceled.ID, expectedErrMsg)
 
 	s = snapshot.Scan([]byte("a"), []byte("z"))
 	verifyAdvance(t, s, nil, nil)
-	verifyError(t, s.Err(), expectedErr, verror.ErrCanceled.ID)
+	verifyError(t, s.Err(), verror.ErrCanceled.ID, expectedErrMsg)
 }

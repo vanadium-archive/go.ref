@@ -96,5 +96,5 @@ func (s *stream) Cancel() {
 		return
 	}
 	s.node.Close()
-	s.err = verror.New(verror.ErrCanceled, nil, "canceled stream")
+	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgCanceledStream)
 }

@@ -8,9 +8,9 @@ import (
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
-	"v.io/syncbase/x/ref/services/syncbase/store/watchable"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
@@ -39,7 +39,9 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
 	// TODO(sadovsky): Make storage engine pluggable.
-	st, err := watchable.Wrap(memstore.New())
+	st, err := watchable.Wrap(memstore.New(), &watchable.Options{
+		ManagedPrefixes: []string{},
+	})
 	if err != nil {
 		return nil, err
 	}

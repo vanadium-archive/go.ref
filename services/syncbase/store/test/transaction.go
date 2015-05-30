@@ -16,24 +16,24 @@ import (
 	"v.io/v23/verror"
 )
 
-// RunTransactionTest verifies operations that modify the state of a
+// RunTransactionStateTest verifies operations that modify the state of a
 // store.Transaction.
 func RunTransactionStateTest(t *testing.T, st store.Store) {
-	abortFunctions := []func(t *testing.T, tx store.Transaction) (string, verror.ID){
-		func(t *testing.T, tx store.Transaction) (string, verror.ID) {
+	finalizeFns := []func(t *testing.T, tx store.Transaction) (verror.ID, string){
+		func(t *testing.T, tx store.Transaction) (verror.ID, string) {
 			if err := tx.Abort(); err != nil {
 				Fatalf(t, "can't abort the transaction: %v", err)
 			}
-			return "aborted transaction", verror.ErrCanceled.ID
+			return verror.ErrCanceled.ID, store.ErrMsgAbortedTxn
 		},
-		func(t *testing.T, tx store.Transaction) (string, verror.ID) {
+		func(t *testing.T, tx store.Transaction) (verror.ID, string) {
 			if err := tx.Commit(); err != nil {
 				Fatalf(t, "can't commit the transaction: %v", err)
 			}
-			return "committed transaction", verror.ErrBadState.ID
+			return verror.ErrBadState.ID, store.ErrMsgCommittedTxn
 		},
 	}
-	for _, fn := range abortFunctions {
+	for _, fn := range finalizeFns {
 		key1, value1 := []byte("key1"), []byte("value1")
 		st.Put(key1, value1)
 		key2 := []byte("key2")
@@ -46,19 +46,19 @@ func RunTransactionStateTest(t *testing.T, st store.Store) {
 		verifyAdvance(t, s, key1, value1)
 		verifyAdvance(t, s, nil, nil)
 
-		// Test functions after Abort.
-		expectedErr, expectedID := fn(t, tx)
-		verifyError(t, tx.Abort(), expectedErr, expectedID)
-		verifyError(t, tx.Commit(), expectedErr, expectedID)
+		// Test functions after finalize.
+		expectedID, expectedErrMsg := fn(t, tx)
+		verifyError(t, tx.Abort(), expectedID, expectedErrMsg)
+		verifyError(t, tx.Commit(), expectedID, expectedErrMsg)
 
 		s = tx.Scan([]byte("a"), []byte("z"))
 		verifyAdvance(t, s, nil, nil)
-		verifyError(t, s.Err(), expectedErr, expectedID)
+		verifyError(t, s.Err(), expectedID, expectedErrMsg)
 
 		_, err := tx.Get(key1, nil)
-		verifyError(t, err, expectedErr, expectedID)
-		verifyError(t, tx.Put(key1, value1), expectedErr, expectedID)
-		verifyError(t, tx.Delete(key1), expectedErr, expectedID)
+		verifyError(t, err, expectedID, expectedErrMsg)
+		verifyError(t, tx.Put(key1, value1), expectedID, expectedErrMsg)
+		verifyError(t, tx.Delete(key1), expectedID, expectedErrMsg)
 	}
 }
 

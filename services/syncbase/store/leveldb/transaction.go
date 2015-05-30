@@ -181,9 +181,10 @@ func (tx *transaction) Commit() error {
 	if tx.err != nil {
 		return store.WrapError(tx.err)
 	}
+	tx.err = verror.New(verror.ErrBadState, nil, store.ErrMsgCommittedTxn)
 	// Explicitly remove this transaction from the event queue. If this was the
 	// only active transaction, the event queue becomes empty and writeLocked will
-	// not add the write set of this transaction to the txTable.
+	// not add this transaction's write set to txTable.
 	tx.removeEvent()
 	defer tx.close()
 	tx.d.txmu.Lock()
@@ -191,14 +192,7 @@ func (tx *transaction) Commit() error {
 	if !tx.validateReadSet() {
 		return store.NewErrConcurrentTransaction(nil)
 	}
-	if err := tx.d.writeLocked(tx.writes, tx.cOpts); err != nil {
-		// Once Commit() has failed, subsequent ops on the transaction will fail
-		// with the following error.
-		tx.err = verror.New(verror.ErrBadState, nil, "already attempted to commit transaction")
-		return err
-	}
-	tx.err = verror.New(verror.ErrBadState, nil, "committed transaction")
-	return nil
+	return tx.d.writeLocked(tx.writes, tx.cOpts)
 }
 
 // Abort implements the store.Transaction interface.
@@ -208,7 +202,7 @@ func (tx *transaction) Abort() error {
 	if tx.err != nil {
 		return store.WrapError(tx.err)
 	}
-	tx.err = verror.New(verror.ErrCanceled, nil, "aborted transaction")
+	tx.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedTxn)
 	tx.close()
 	return nil
 }

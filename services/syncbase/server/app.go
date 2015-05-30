@@ -89,7 +89,8 @@ func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) 
 }
 
 func (a *app) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
-	// In the future this API should be replaced by one that streams the database names.
+	// In the future this API will likely be replaced by one that streams the
+	// database names.
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	dbNames := make([]string, 0, len(a.dbs))

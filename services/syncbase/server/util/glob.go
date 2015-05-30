@@ -54,9 +54,10 @@ func globPatternToPrefix(pattern string) (string, error) {
 }
 
 // Takes ownership of sn.
-// TODO(sadovsky): It sucks that Glob must be implemented differently from other
-// streaming RPC handlers. I don't have much confidence that I've implemented
-// both types of streaming correctly.
+// TODO(sadovsky): Why do we make developers implement Glob differently from
+// other streaming RPCs? It's confusing that Glob must return immediately and
+// write its results to a channel, while other streaming RPC handlers must block
+// and write their results to the output stream. See nlacasse's TODO below, too.
 func Glob(ctx *context.T, call rpc.ServerCall, pattern string, sn store.Snapshot, stKeyPrefix string) (<-chan string, error) {
 	// TODO(sadovsky): Support glob with non-prefix pattern.
 	if _, err := glob.Parse(pattern); err != nil {

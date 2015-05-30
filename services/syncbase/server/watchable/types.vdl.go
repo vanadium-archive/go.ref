@@ -18,7 +18,7 @@ type GetOp struct {
 }
 
 func (GetOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/store/watchable.GetOp"`
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.GetOp"`
 }) {
 }
 
@@ -29,7 +29,7 @@ type ScanOp struct {
 }
 
 func (ScanOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/store/watchable.ScanOp"`
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.ScanOp"`
 }) {
 }
 
@@ -40,7 +40,7 @@ type PutOp struct {
 }
 
 func (PutOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/store/watchable.PutOp"`
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.PutOp"`
 }) {
 }
 
@@ -50,7 +50,7 @@ type DeleteOp struct {
 }
 
 func (DeleteOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/store/watchable.DeleteOp"`
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.DeleteOp"`
 }) {
 }
 
@@ -78,7 +78,7 @@ type (
 	OpDelete struct{ Value DeleteOp }
 	// __OpReflect describes the Op union type.
 	__OpReflect struct {
-		Name  string `vdl:"v.io/syncbase/x/ref/services/syncbase/store/watchable.Op"`
+		Name  string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.Op"`
 		Type  Op
 		Union struct {
 			Get    OpGet
@@ -122,7 +122,7 @@ type LogEntry struct {
 }
 
 func (LogEntry) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/store/watchable.LogEntry"`
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.LogEntry"`
 }) {
 }
 

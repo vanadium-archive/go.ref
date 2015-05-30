@@ -114,14 +114,13 @@ func runReadWriteTest(t *testing.T, st store.Store, size int, steps []testStep) 
 		if step.key < 0 || step.key >= s.size {
 			t.Fatalf("invalid test step %v", step)
 		}
+		key := fmt.Sprintf("%05d", step.key)
 		switch step.op {
 		case Put:
-			key := fmt.Sprintf("%05d", step.key)
 			value := randomBytes(s.rnd, 100)
 			s.memtable[key] = value
 			st.Put([]byte(key), value)
 		case Delete:
-			key := fmt.Sprintf("%05d", step.key)
 			if _, ok := s.memtable[key]; ok {
 				delete(s.memtable, key)
 				st.Delete([]byte(key))
@@ -158,12 +157,12 @@ func RunReadWriteBasicTest(t *testing.T, st store.Store) {
 // writes and snapshots.
 func RunReadWriteRandomTest(t *testing.T, st store.Store) {
 	rnd := rand.New(rand.NewSource(239017))
-	var testcase []testStep
+	var steps []testStep
 	size := 50
 	for i := 0; i < 10000; i++ {
-		testcase = append(testcase, testStep{operation(rnd.Intn(2)), rnd.Intn(size)})
+		steps = append(steps, testStep{operation(rnd.Intn(2)), rnd.Intn(size)})
 	}
-	runReadWriteTest(t, st, size, testcase)
+	runReadWriteTest(t, st, size, steps)
 }
 
 // RunStoreStateTest verifies operations that modify the state of a store.Store.
@@ -183,25 +182,25 @@ func RunStoreStateTest(t *testing.T, st store.Store) {
 	if err := st.Close(); err != nil {
 		t.Fatalf("can't close the store: %v", err)
 	}
-	expectedErr := "closed store"
-	verifyError(t, st.Close(), expectedErr, verror.ErrCanceled.ID)
+	expectedErrMsg := store.ErrMsgClosedStore
+	verifyError(t, st.Close(), verror.ErrCanceled.ID, expectedErrMsg)
 
 	s = st.Scan([]byte("a"), []byte("z"))
 	verifyAdvance(t, s, nil, nil)
-	verifyError(t, s.Err(), expectedErr, verror.ErrCanceled.ID)
+	verifyError(t, s.Err(), verror.ErrCanceled.ID, expectedErrMsg)
 
 	snapshot := st.NewSnapshot()
 	_, err := snapshot.Get(key1, nil)
-	verifyError(t, err, expectedErr, verror.ErrCanceled.ID)
+	verifyError(t, err, verror.ErrCanceled.ID, expectedErrMsg)
 
 	tx := st.NewTransaction()
 	_, err = tx.Get(key1, nil)
-	verifyError(t, err, expectedErr, verror.ErrCanceled.ID)
+	verifyError(t, err, verror.ErrCanceled.ID, expectedErrMsg)
 
 	_, err = st.Get(key1, nil)
-	verifyError(t, err, expectedErr, verror.ErrCanceled.ID)
-	verifyError(t, st.Put(key1, value1), expectedErr, verror.ErrCanceled.ID)
-	verifyError(t, st.Delete(key1), expectedErr, verror.ErrCanceled.ID)
+	verifyError(t, err, verror.ErrCanceled.ID, expectedErrMsg)
+	verifyError(t, st.Put(key1, value1), verror.ErrCanceled.ID, expectedErrMsg)
+	verifyError(t, st.Delete(key1), verror.ErrCanceled.ID, expectedErrMsg)
 }
 
 // RunCloseTest verifies that child objects are closed when the parent object is
@@ -227,14 +226,14 @@ func RunCloseTest(t *testing.T, st store.Store) {
 	st.Close()
 
 	for _, stream := range streams {
-		verifyError(t, stream.Err(), "canceled stream", verror.ErrCanceled.ID)
+		verifyError(t, stream.Err(), verror.ErrCanceled.ID, store.ErrMsgCanceledStream)
 	}
 	for _, snapshot := range snapshots {
 		_, err := snapshot.Get(key1, nil)
-		verifyError(t, err, "closed snapshot", verror.ErrCanceled.ID)
+		verifyError(t, err, verror.ErrCanceled.ID, store.ErrMsgClosedSnapshot)
 	}
 	for _, tx := range transactions {
 		_, err := tx.Get(key1, nil)
-		verifyError(t, err, "aborted transaction", verror.ErrCanceled.ID)
+		verifyError(t, err, verror.ErrCanceled.ID, store.ErrMsgAbortedTxn)
 	}
 }

@@ -22,7 +22,6 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-// TODO(sadovsky): Perhaps this should be one of the standard Veyron flags.
 var (
 	name = flag.String("name", "", "Name to mount at.")
 )
