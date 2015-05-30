@@ -66,7 +66,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Stress stress
+Stress stress - Run stress test
 
 Run stress test
 
@@ -87,7 +87,7 @@ The stress stress flags are:
  -workers=1
    number of test workers to run
 
-Stress stats
+Stress stats - Print out stress stats of servers
 
 Print out stress stats of servers
 
@@ -100,7 +100,7 @@ The stress stats flags are:
  -format=text
    Stats output format; either text or json
 
-Stress load
+Stress load - Run load test
 
 Run load test
 
@@ -119,7 +119,7 @@ The stress load flags are:
  -payload-size=1000
    size of payload in bytes
 
-Stress stop
+Stress stop - Stop servers
 
 Stop servers
 
@@ -128,7 +128,7 @@ Usage:
 
 <server> ... A list of servers to stop.
 
-Stress help
+Stress help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

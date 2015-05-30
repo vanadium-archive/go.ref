@@ -20,7 +20,7 @@ The global flags are:
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
 
-Vom decode
+Vom decode - Decode data encoded in the vom format
 
 Decode decodes data encoded in the vom format.  If no arguments are provided,
 decode reads the data from stdin, otherwise the argument is the data.
@@ -38,7 +38,7 @@ The vom decode flags are:
  -data=Hex
    Data representation, one of [Hex Binary]
 
-Vom dump
+Vom dump - Dump data encoded in the vom format into formatted output
 
 Dump dumps data encoded in the vom format, generating formatted output
 describing each portion of the encoding.  If no arguments are provided, dump
@@ -68,7 +68,7 @@ The vom dump flags are:
  -data=Hex
    Data representation, one of [Hex Binary]
 
-Vom help
+Vom help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

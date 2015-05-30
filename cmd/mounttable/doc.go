@@ -61,7 +61,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Mounttable glob
+Mounttable glob - returns all matching entries in the mount table
 
 returns all matching entries in the mount table
 
@@ -108,7 +108,7 @@ Usage:
 
 <mount name> is a mount name on a mount table.
 
-Mounttable help
+Mounttable help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

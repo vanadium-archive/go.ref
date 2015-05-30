@@ -101,7 +101,7 @@ Usage:
 
 <application> is the full name of the application. <profile> is a profile.
 
-Application help
+Application help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

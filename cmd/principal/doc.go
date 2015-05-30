@@ -77,7 +77,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Principal create
+Principal create - Create a new principal and persist it into a directory
 
 Creates a new principal with a single self-blessed blessing and writes it out to
 the provided directory. The same directory can then be used to set the
@@ -99,7 +99,7 @@ The principal create flags are:
  -overwrite=false
    If true, any existing principal data in the directory will be overwritten
 
-Principal fork
+Principal fork - Fork a new principal from the principal that this tool is running as and persist it into a directory
 
 Creates a new principal with a blessing from the principal specified by the
 environment that this tool is running in, and writes it out to the provided
@@ -134,7 +134,7 @@ The principal fork flags are:
  -with=
    Path to file containing blessing to extend
 
-Principal seekblessings
+Principal seekblessings - Seek blessings from a web-based Vanadium blessing service
 
 Seeks blessings from a web-based Vanadium blesser which requires the caller to
 first authenticate with Google using OAuth. Simply run the command to see what
@@ -166,7 +166,7 @@ The principal seekblessings flags are:
    If true, the blessings obtained will be set as the default blessing in the
    store
 
-Principal recvblessings
+Principal recvblessings - Receive blessings sent by another principal and use them as the default
 
 Allow another principal (likely a remote process) to bless this one.
 
@@ -217,7 +217,7 @@ The principal recvblessings flags are:
    If true, the blessings received will be set as the default blessing in the
    store
 
-Principal dump
+Principal dump - Dump out information about the principal
 
 Prints out information about the principal specified by the environment that
 this tool is running in.
@@ -229,7 +229,7 @@ The principal dump flags are:
  -s=false
    If true, show only the default blessing names
 
-Principal dumpblessings
+Principal dumpblessings - Dump out information about the provided blessings
 
 Prints out information about the blessings (typically obtained from this tool)
 encoded in the provided file.
@@ -240,7 +240,7 @@ Usage:
 <file> is the path to a file containing blessings typically obtained from this
 tool. - is used for STDIN.
 
-Principal blessself
+Principal blessself - Generate a self-signed blessing
 
 Returns a blessing with name <name> and self-signed by the principal specified
 by the environment that this tool is running in. Optionally, the blessing can be
@@ -260,7 +260,7 @@ The principal blessself flags are:
  -for=0
    Duration of blessing validity (zero implies no expiration)
 
-Principal bless
+Principal bless - Bless another principal
 
 Bless another principal.
 
@@ -334,7 +334,7 @@ The principal set commands are:
    default     Set provided blessings as default
    forpeer     Set provided blessings for peer
 
-Principal set default
+Principal set default - Set provided blessings as default
 
 Sets the provided blessings as default in the BlessingStore specified by the
 environment that this tool is running in.
@@ -353,7 +353,7 @@ The principal set default flags are:
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
 
-Principal set forpeer
+Principal set forpeer - Set provided blessings for peer
 
 Marks the provided blessings to be shared with the provided peers on the
 BlessingStore specified by the environment that this tool is running in.
@@ -398,7 +398,7 @@ The principal get commands are:
    peermap         Shows the map from peer pattern to which blessing name to
                    present.
 
-Principal get default
+Principal get default - Return blessings marked as default
 
 Returns blessings that are marked as default in the BlessingStore specified by
 the environment that this tool is running in. Providing --names will print the
@@ -417,7 +417,7 @@ The principal get default flags are:
  -rootkey=
    Shows the value of the root key of the provided certificate chain name.
 
-Principal get forpeer
+Principal get forpeer - Return blessings marked for the provided peer
 
 Returns blessings that are marked for the provided peer in the BlessingStore
 specified by the environment that this tool is running in. Providing --names
@@ -482,7 +482,7 @@ the peer it contacts.
 Usage:
    principal get peermap
 
-Principal recognize
+Principal recognize - Add to the set of identity providers recognized by this principal
 
 Adds an identity provider to the set of recognized roots public keys for this
 principal.
@@ -510,7 +510,7 @@ this tool. - is used for STDIN.
 
 <blessing pattern> is the blessing pattern for which <key> should be recognized.
 
-Principal help
+Principal help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

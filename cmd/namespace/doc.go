@@ -69,7 +69,7 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Namespace glob
+Namespace glob - Returns all matching entries from the namespace
 
 Returns all matching entries from the namespace.
 
@@ -83,7 +83,7 @@ The namespace glob flags are:
  -l=false
    Long listing format.
 
-Namespace mount
+Namespace mount - Adds a server to the namespace
 
 Adds server <server> to the namespace with name <name>.
 
@@ -95,7 +95,7 @@ the server to add. <ttl> is the TTL of the new entry. It is a decimal number
 followed by a unit suffix (s, m, h). A value of 0s represents an infinite
 duration.
 
-Namespace unmount
+Namespace unmount - Removes a server from the namespace
 
 Removes server <server> with name <name> from the namespace.
 
@@ -119,7 +119,7 @@ The namespace resolve flags are:
    Insecure mode: May return results from untrusted servers and invoke Resolve
    on untrusted mounttables
 
-Namespace resolvetomt
+Namespace resolvetomt - Finds the address of the mounttable that holds an object name
 
 Finds the address of the mounttable that holds an object name.
 
@@ -133,7 +133,7 @@ The namespace resolvetomt flags are:
    Insecure mode: May return results from untrusted servers and invoke Resolve
    on untrusted mounttables
 
-Namespace permissions
+Namespace permissions - Manipulates permissions on an entry in the namespace
 
 Commands to get and set the permissions on a name - controlling the blessing
 names required to resolve the name.
@@ -148,7 +148,7 @@ The namespace permissions commands are:
    get         Gets permissions on a mount name
    set         Sets permissions on a mount name
 
-Namespace permissions get
+Namespace permissions get - Gets permissions on a mount name
 
 Get retrieves the permissions on the usage of a name.
 
@@ -160,7 +160,7 @@ Usage:
 
 <name> is a name in the namespace.
 
-Namespace permissions set
+Namespace permissions set - Sets permissions on a mount name
 
 Set replaces the permissions controlling usage of a mount name.
 
@@ -172,7 +172,7 @@ Usage:
 <permissions> is the path to a file containing a JSON-encoded Permissions object
 (defined in v.io/v23/security/access/types.vdl), or "-" for STDIN.
 
-Namespace delete
+Namespace delete - Deletes a name from the namespace
 
 Deletes a name from the namespace.
 
@@ -185,7 +185,7 @@ The namespace delete flags are:
  -r=false
    Delete all children of the name in addition to the name itself.
 
-Namespace help
+Namespace help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

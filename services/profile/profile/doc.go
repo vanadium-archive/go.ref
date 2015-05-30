@@ -106,7 +106,7 @@ Usage:
 
 <profile> is the full name of the profile.
 
-Profile help
+Profile help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 

@@ -170,7 +170,7 @@ Usage:
 <installation> is the vanadium object name of the application installation to
 uninstall.
 
-Device associate
+Device associate - Tool for creating associations between Vanadium blessings and a system account
 
 The associate tool facilitates managing blessing to system account associations.
 
@@ -322,7 +322,7 @@ Usage:
 <app name patterns...> are vanadium object names or glob name patterns
 corresponding to application installations and instances.
 
-Device acl
+Device acl - Tool for setting device manager Permissions
 
 The acl tool manages Permissions on the device manger, installations and
 instances.
@@ -409,7 +409,7 @@ Usage:
 <app name patterns...> are vanadium object names or glob name patterns
 corresponding to application installations and instances.
 
-Device help
+Device help - Display help for commands or topics
 
 Help with no args displays the usage of the parent command.
 
