@@ -63,10 +63,18 @@ func NewOAuthBlesserServer(p OAuthBlesserParams) identity.OAuthBlesserServerStub
 func (b *oauthBlesser) BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall, accessToken string) (security.Blessings, string, error) {
 	// Temporary logging to help debug https://github.com/vanadium/browser/issues/84
 	// TODO(ashankar): Remove before release!
-	vlog.Infof("START: BlessUsingAccessToken(PublicKey:%v, Endpoint:%v)", call.Security().RemoteBlessings().PublicKey(), call.RemoteEndpoint())
-	defer vlog.Infof("END   : BlessUsingAccessToken(PublicKey:%v, Endpoint:%v)", call.Security().RemoteBlessings().PublicKey(), call.RemoteEndpoint())
+	startBless := time.Now()
+	defer func() {
+		if elapsed := time.Since(startBless); elapsed > 10*time.Second {
+			vlog.Infof("BlessUsingAccessToken took %v for endpoints (%v, %v), PublicKey: %v", elapsed, call.RemoteEndpoint(), call.LocalEndpoint(), call.Security().RemoteBlessings().PublicKey())
+		}
+	}()
 	var noblessings security.Blessings
+	start := time.Now()
 	email, clientName, err := b.oauthProvider.GetEmailAndClientName(accessToken, b.accessTokenClients)
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		vlog.Infof("b.oauthProvider took %v and returned %v for endpoints (%v, %v) PublicKey: %v", elapsed, err, call.RemoteEndpoint(), call.LocalEndpoint(), call.Security().RemoteBlessings().PublicKey())
+	}
 	if err != nil {
 		return noblessings, "", err
 	}
@@ -82,7 +90,11 @@ func (b *oauthBlesser) bless(call security.Call, email, clientName string) (secu
 	var caveat security.Caveat
 	var err error
 	if b.revocationManager != nil {
+		start := time.Now()
 		caveat, err = b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
+		if elapsed := time.Since(start); elapsed > 10*time.Second {
+			vlog.Infof("revocationMgr.NewCaveat took %v and returned %v for endpoints (%v, %v) PublicKey: %v", elapsed, err, call.RemoteEndpoint(), call.LocalEndpoint(), call.RemoteBlessings().PublicKey())
+		}
 	} else {
 		caveat, err = security.NewExpiryCaveat(time.Now().Add(b.duration))
 	}
