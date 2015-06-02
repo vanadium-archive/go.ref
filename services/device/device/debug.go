@@ -15,13 +15,16 @@ import (
 )
 
 var cmdDebug = &cmdline.Command{
-	Runner:   globRunner(runDebug),
 	Name:     "debug",
 	Short:    "Debug the device.",
 	Long:     "Get internal debug information about application installations and instances.",
 	ArgsName: "<app name patterns...>",
 	ArgsLong: `
 <app name patterns...> are vanadium object names or glob name patterns corresponding to application installations and instances.`,
+}
+
+func init() {
+	globify(cmdDebug, runDebug, new(globSettings))
 }
 
 func runDebug(entry globResult, ctx *context.T, stdout, _ io.Writer) error {

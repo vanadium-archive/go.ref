@@ -145,7 +145,7 @@ func TestUpdateAndRevertCommands(t *testing.T) {
 					t.Errorf("Unexpected stimuli for %v. Want: %v, got %v.", n, want, got)
 				}
 			}
-			cmd_device.ResetGlobFlags()
+			cmd_device.ResetGlobSettings()
 		}
 	}
 }

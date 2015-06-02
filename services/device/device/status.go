@@ -14,13 +14,16 @@ import (
 )
 
 var cmdStatus = &cmdline.Command{
-	Runner:   globRunner(runStatus),
 	Name:     "status",
 	Short:    "Get device manager or application status.",
 	Long:     "Get the status of the device manager or application instances and installations.",
 	ArgsName: "<name patterns...>",
 	ArgsLong: `
 <name patterns...> are vanadium object names or glob name patterns corresponding to the device manager service, or to application installations and instances.`,
+}
+
+func init() {
+	globify(cmdStatus, runStatus, new(globSettings))
 }
 
 func runStatus(entry globResult, _ *context.T, stdout, _ io.Writer) error {

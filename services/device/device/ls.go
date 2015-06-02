@@ -14,13 +14,16 @@ import (
 )
 
 var cmdLs = &cmdline.Command{
-	Runner:   globRunner(runLs),
 	Name:     "ls",
 	Short:    "List applications.",
 	Long:     "List application installations or instances.",
 	ArgsName: "<app name patterns...>",
 	ArgsLong: `
 <app name patterns...> are vanadium object names or glob name patterns corresponding to application installations and instances.`,
+}
+
+func init() {
+	globify(cmdLs, runLs, new(globSettings))
 }
 
 func runLs(entry globResult, _ *context.T, stdout, _ io.Writer) error {
