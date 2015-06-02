@@ -100,6 +100,8 @@ The global flags are:
  -v23.vtrace.sample-rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
  -vmodule=
-   comma-separated list of pattern=N settings for file-filtered logging
+   comma-separated list of pattern=N settings for filename-filtered logging
+ -vpath=
+   comma-separated list of pattern=N settings for file pathname-filtered logging
 */
 package main
