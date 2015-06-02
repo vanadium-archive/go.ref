@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"v.io/syncbase/v23/services/syncbase/nosql"
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 )
 
@@ -24,7 +25,7 @@ func checkSGStats(t *testing.T, svc *mockService, which string, numSG, numMember
 		t.Errorf("num-members (%s): got %v instead of %v", which, num, numMembers)
 	}
 
-	sgids := make(map[GroupId]struct{})
+	sgids := make(map[interfaces.GroupId]struct{})
 	for _, info := range view.members {
 		for gid := range info.gid2info {
 			sgids[gid] = struct{}{}
@@ -46,12 +47,15 @@ func TestAddSyncGroup(t *testing.T) {
 	// Add a SyncGroup.
 
 	sgName := "foobar"
-	sgId := GroupId(1234)
+	sgId := interfaces.GroupId(1234)
 
-	sg := &SyncGroup{
-		Name:    sgName,
-		Id:      sgId,
-		Version: "etag-0",
+	sg := &interfaces.SyncGroup{
+		Name:        sgName,
+		Id:          sgId,
+		AppName:     "mockApp",
+		DbName:      "mockDB",
+		Creator:     "mockCreator",
+		SpecVersion: "etag-0",
 		Spec: nosql.SyncGroupSpec{
 			Prefixes: []string{"foo", "bar"},
 		},
@@ -135,7 +139,7 @@ func TestAddSyncGroup(t *testing.T) {
 	tx.Abort()
 
 	sg.Name = sgName
-	sg.Id = GroupId(5555)
+	sg.Id = interfaces.GroupId(5555)
 
 	tx = st.NewTransaction()
 	if err = addSyncGroup(nil, tx, sg); err == nil {
@@ -148,7 +152,7 @@ func TestAddSyncGroup(t *testing.T) {
 	// Fetch a non-existing SyncGroup by ID or name should fail.
 
 	badName := "not-available"
-	badId := GroupId(999)
+	badId := interfaces.GroupId(999)
 	if id, err := getSyncGroupId(nil, st, badName); err == nil {
 		t.Errorf("found non-existing SyncGroup %s: got ID %d", badName, id)
 	}
@@ -168,7 +172,7 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 	svc := createService(t)
 	st := svc.St()
 
-	checkBadAddSyncGroup := func(t *testing.T, st store.Store, sg *SyncGroup, msg string) {
+	checkBadAddSyncGroup := func(t *testing.T, st store.Store, sg *interfaces.SyncGroup, msg string) {
 		tx := st.NewTransaction()
 		if err := addSyncGroup(nil, tx, sg); err == nil {
 			t.Errorf("checkBadAddSyncGroup: adding bad SyncGroup (%s) did not fail", msg)
@@ -178,16 +182,16 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 
 	checkBadAddSyncGroup(t, st, nil, "nil SG")
 
-	sg := &SyncGroup{Id: 1234}
+	sg := &interfaces.SyncGroup{Id: 1234}
 	checkBadAddSyncGroup(t, st, sg, "SG w/o name")
 
-	sg = &SyncGroup{Name: "foobar"}
+	sg = &interfaces.SyncGroup{Name: "foobar"}
 	checkBadAddSyncGroup(t, st, sg, "SG w/o Id")
 
 	sg.Id = 1234
 	checkBadAddSyncGroup(t, st, sg, "SG w/o Version")
 
-	sg.Version = "v1"
+	sg.SpecVersion = "v1"
 	checkBadAddSyncGroup(t, st, sg, "SG w/o Joiners")
 
 	sg.Joiners = map[string]nosql.SyncGroupMemberInfo{
@@ -202,7 +206,7 @@ func TestDeleteSyncGroup(t *testing.T) {
 	st := svc.St()
 
 	sgName := "foobar"
-	sgId := GroupId(1234)
+	sgId := interfaces.GroupId(1234)
 
 	// Delete non-existing SyncGroups.
 
@@ -219,10 +223,13 @@ func TestDeleteSyncGroup(t *testing.T) {
 
 	// Create the SyncGroup to delete later.
 
-	sg := &SyncGroup{
-		Name:    sgName,
-		Id:      sgId,
-		Version: "etag-0",
+	sg := &interfaces.SyncGroup{
+		Name:        sgName,
+		Id:          sgId,
+		AppName:     "mockApp",
+		DbName:      "mockDB",
+		Creator:     "mockCreator",
+		SpecVersion: "etag-0",
 		Spec: nosql.SyncGroupSpec{
 			Prefixes: []string{"foo", "bar"},
 		},
@@ -284,14 +291,17 @@ func TestMultiSyncGroups(t *testing.T) {
 	st := svc.St()
 
 	sgName1, sgName2 := "foo", "bar"
-	sgId1, sgId2 := GroupId(1234), GroupId(8888)
+	sgId1, sgId2 := interfaces.GroupId(1234), interfaces.GroupId(8888)
 
 	// Add two SyncGroups.
 
-	sg1 := &SyncGroup{
-		Name:    sgName1,
-		Id:      sgId1,
-		Version: "etag-1",
+	sg1 := &interfaces.SyncGroup{
+		Name:        sgName1,
+		Id:          sgId1,
+		AppName:     "mockApp",
+		DbName:      "mockDB",
+		Creator:     "mockCreator",
+		SpecVersion: "etag-1",
 		Spec: nosql.SyncGroupSpec{
 			Prefixes: []string{"foo"},
 		},
@@ -301,10 +311,13 @@ func TestMultiSyncGroups(t *testing.T) {
 			"cloud":  nosql.SyncGroupMemberInfo{SyncPriority: 1},
 		},
 	}
-	sg2 := &SyncGroup{
-		Name:    sgName2,
-		Id:      sgId2,
-		Version: "etag-2",
+	sg2 := &interfaces.SyncGroup{
+		Name:        sgName2,
+		Id:          sgId2,
+		AppName:     "mockApp",
+		DbName:      "mockDB",
+		Creator:     "mockCreator",
+		SpecVersion: "etag-2",
 		Spec: nosql.SyncGroupSpec{
 			Prefixes: []string{"bar"},
 		},
@@ -346,28 +359,28 @@ func TestMultiSyncGroups(t *testing.T) {
 
 	expMemberInfo := map[string]*memberInfo{
 		"phone": &memberInfo{
-			gid2info: map[GroupId]nosql.SyncGroupMemberInfo{
+			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
 				sgId1: sg1.Joiners["phone"],
 			},
 		},
 		"tablet": &memberInfo{
-			gid2info: map[GroupId]nosql.SyncGroupMemberInfo{
+			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
 				sgId1: sg1.Joiners["tablet"],
 				sgId2: sg2.Joiners["tablet"],
 			},
 		},
 		"cloud": &memberInfo{
-			gid2info: map[GroupId]nosql.SyncGroupMemberInfo{
+			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
 				sgId1: sg1.Joiners["cloud"],
 			},
 		},
 		"door": &memberInfo{
-			gid2info: map[GroupId]nosql.SyncGroupMemberInfo{
+			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
 				sgId2: sg2.Joiners["door"],
 			},
 		},
 		"lamp": &memberInfo{
-			gid2info: map[GroupId]nosql.SyncGroupMemberInfo{
+			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
 				sgId2: sg2.Joiners["lamp"],
 			},
 		},
@@ -408,17 +421,17 @@ func TestMultiSyncGroups(t *testing.T) {
 
 	expMemberInfo = map[string]*memberInfo{
 		"tablet": &memberInfo{
-			gid2info: map[GroupId]nosql.SyncGroupMemberInfo{
+			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
 				sgId2: sg2.Joiners["tablet"],
 			},
 		},
 		"door": &memberInfo{
-			gid2info: map[GroupId]nosql.SyncGroupMemberInfo{
+			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
 				sgId2: sg2.Joiners["door"],
 			},
 		},
 		"lamp": &memberInfo{
-			gid2info: map[GroupId]nosql.SyncGroupMemberInfo{
+			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
 				sgId2: sg2.Joiners["lamp"],
 			},
 		},

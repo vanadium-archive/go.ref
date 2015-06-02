@@ -5,6 +5,8 @@
 package nosql
 
 import (
+	"v.io/syncbase/x/ref/services/syncbase/vsync"
+
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -19,7 +21,8 @@ func (d *database) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) ([]str
 }
 
 func (d *database) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, myInfo wire.SyncGroupMemberInfo) error {
-	return verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.CreateSyncGroup(ctx, call, sgName, spec, myInfo)
 }
 
 func (d *database) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncGroupMemberInfo) (wire.SyncGroupSpec, error) {

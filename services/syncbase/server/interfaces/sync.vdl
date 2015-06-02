@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package vsync
+package interfaces
 
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
@@ -13,11 +13,10 @@ type Sync interface {
 	GetDeltas() error
 
 	// SyncGroup-related methods.
-	// TODO(hpucha): Think of better names for these methods.
 
-	// CreateSyncGroup is typically invoked on a "central" peer to
-	// request the creation of a SyncGroup.
-	CreateSyncGroup() error
+	// PublishSyncGroup is typically invoked on a "central" peer
+	// to publish the SyncGroup.
+	PublishSyncGroup(sg SyncGroup) error
 
 	// JoinSyncGroup is invoked on a SyncGroup Admin and checks if
 	// the requestor can join the SyncGroup.

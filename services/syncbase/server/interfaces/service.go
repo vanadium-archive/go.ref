@@ -16,6 +16,9 @@ type Service interface {
 	// St returns the storage engine instance for this service.
 	St() store.Store
 
+	// Sync returns the sync instance for this service.
+	Sync() SyncServerMethods
+
 	// App returns the App with the specified name.
 	App(ctx *context.T, call rpc.ServerCall, appName string) (App, error)
 

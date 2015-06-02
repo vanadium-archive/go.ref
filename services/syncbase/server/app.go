@@ -76,6 +76,10 @@ func (a *app) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string
 ////////////////////////////////////////
 // interfaces.App methods
 
+func (a *app) Service() interfaces.Service {
+	return a.s
+}
+
 func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
 	// TODO(sadovsky): Record storage engine config (e.g. LevelDB directory) in
 	// dbInfo, and add API for opening and closing storage engines.
@@ -181,7 +185,7 @@ func (a *app) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	}
 
 	// 1. Check databaseData perms.
-	if err := d.CheckPermsInternal(ctx, call); err != nil {
+	if err := d.CheckPermsInternal(ctx, call, d.St()); err != nil {
 		return err
 	}
 

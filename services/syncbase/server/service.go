@@ -21,7 +21,7 @@ import (
 
 type service struct {
 	st   store.Store // keeps track of which apps and databases exist, etc.
-	sync vsync.SyncServerMethods
+	sync interfaces.SyncServerMethods
 	// Guards the fields below. Held during app Create, Delete, and
 	// SetPermissions.
 	mu   sync.Mutex
@@ -102,6 +102,10 @@ func (s *service) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan st
 
 func (s *service) St() store.Store {
 	return s.st
+}
+
+func (s *service) Sync() interfaces.SyncServerMethods {
+	return s.sync
 }
 
 func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {

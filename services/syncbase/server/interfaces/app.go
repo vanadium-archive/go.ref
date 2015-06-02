@@ -5,6 +5,8 @@
 package interfaces
 
 import (
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
+
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
@@ -13,6 +15,9 @@ import (
 // App is an internal interface to the app layer.
 // All methods return VDL-compatible errors.
 type App interface {
+	// Service returns the service handle for this app.
+	Service() Service
+
 	// NoSQLDatabase returns the Database for the specified NoSQL database.
 	NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (Database, error)
 
@@ -27,4 +32,6 @@ type App interface {
 
 	// SetDatabasePerms sets the perms for the specified database.
 	SetDatabasePerms(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, version string) error
+
+	util.Layer
 }

@@ -29,6 +29,10 @@ func (s *mockService) St() store.Store {
 	return s.st
 }
 
+func (s *mockService) Sync() interfaces.SyncServerMethods {
+	return s.sync
+}
+
 func (s *mockService) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
 	return &mockApp{st: s.st}, nil
 }
@@ -62,6 +66,18 @@ func (a *mockApp) SetDatabasePerms(ctx *context.T, call rpc.ServerCall, dbName s
 	return verror.NewErrNotImplemented(ctx)
 }
 
+func (a *mockApp) Service() interfaces.Service {
+	return nil
+}
+
+func (a *mockApp) Name() string {
+	return "mockapp"
+}
+
+func (a *mockApp) StKey() string {
+	return ""
+}
+
 // mockDatabase emulates a Syncbase Database.  It is used to test sync functionality.
 type mockDatabase struct {
 	st store.Store
@@ -71,12 +87,24 @@ func (d *mockDatabase) St() store.Store {
 	return d.st
 }
 
-func (d *mockDatabase) CheckPermsInternal(ctx *context.T, call rpc.ServerCall) error {
+func (d *mockDatabase) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
 func (d *mockDatabase) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	return verror.NewErrNotImplemented(ctx)
+}
+
+func (d *mockDatabase) Name() string {
+	return "mockdb"
+}
+
+func (d *mockDatabase) StKey() string {
+	return ""
+}
+
+func (d *mockDatabase) App() interfaces.App {
+	return nil
 }
 
 // createService creates a mock Syncbase service used for testing sync functionality.

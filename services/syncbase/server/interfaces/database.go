@@ -5,6 +5,7 @@
 package interfaces
 
 import (
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -17,12 +18,17 @@ type Database interface {
 	// St returns the storage engine instance for this database.
 	St() store.Store
 
+	// App returns the app handle for this database.
+	App() App
+
 	// CheckPermsInternal checks whether the given RPC (ctx, call) is allowed per
 	// the database perms.
 	// Designed for use from within App.DeleteNoSQLDatabase.
-	CheckPermsInternal(ctx *context.T, call rpc.ServerCall) error
+	CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error
 
 	// SetPermsInternal updates the database perms.
 	// Designed for use from within App.SetDatabasePerms.
 	SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error
+
+	util.Layer
 }

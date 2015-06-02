@@ -119,11 +119,12 @@ func (d *database) St() store.Store {
 	return d.st
 }
 
-func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall) error {
-	if d.st == nil {
-		vlog.Fatalf("database %q does not exist", d.name)
-	}
-	return util.Get(ctx, call, d.st, d, &databaseData{})
+func (d *database) App() interfaces.App {
+	return d.a
+}
+
+func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
+	return util.Get(ctx, call, st, d, &databaseData{})
 }
 
 func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {

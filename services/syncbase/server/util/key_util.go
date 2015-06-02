@@ -12,7 +12,7 @@ import (
 
 // JoinKeyParts builds keys for accessing data in the storage engine.
 func JoinKeyParts(parts ...string) string {
-	// TODO(sadovsky): Figure out which delimeter makes the most sense.
+	// TODO(sadovsky): Figure out which delimiter makes the most sense.
 	return strings.Join(parts, ":")
 }
 

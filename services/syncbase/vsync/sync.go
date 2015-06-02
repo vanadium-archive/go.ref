@@ -27,24 +27,38 @@ import (
 
 // syncService contains the metadata for the sync module.
 type syncService struct {
+	// TODO(hpucha): see if uniqueid is a better fit. It is 128 bits.
 	id int64 // globally unique id for this instance of Syncbase
 	sv interfaces.Service
+
 	// State to coordinate shutdown of spawned goroutines.
 	pending sync.WaitGroup
 	closed  chan struct{}
+
+	// TODO(hpucha): Other global names to advertise to enable Syncbase
+	// discovery. For example, every Syncbase must be reachable under
+	// <mttable>/<syncbaseid> for p2p sync. This is the name advertised
+	// during SyncGroup join. In addition, a Syncbase might also be
+	// accepting "publish SyncGroup requests", and might use a more
+	// human-readable name such as <mttable>/<idp>/<sgserver>. All these
+	// names must be advertised in the appropriate mount tables.
 
 	// In-memory sync membership info aggregated across databases.
 	allMembers *memberView
 }
 
-var (
-	rng *rand.Rand
-	_   util.Layer = (*syncService)(nil)
-)
-
-func init() {
-	rng = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+// syncDatabase contains the metadata for syncing a database. This struct is
+// used as a receiver to hand off the app-initiated SyncGroup calls that arrive
+// against a nosql.Database to the sync module.
+type syncDatabase struct {
+	db interfaces.Database
 }
+
+var (
+	rng                              = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	_   interfaces.SyncServerMethods = (*syncService)(nil)
+	_   util.Layer                   = (*syncService)(nil)
+)
 
 // New creates a new sync module.
 //
@@ -83,6 +97,10 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncServi
 	go s.contactPeers()
 
 	return s, nil
+}
+
+func NewSyncDatabase(db interfaces.Database) *syncDatabase {
+	return &syncDatabase{db: db}
 }
 
 ////////////////////////////////////////
