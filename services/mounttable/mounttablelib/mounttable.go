@@ -70,7 +70,6 @@ type mountTable struct {
 	serverCounter      *stats.Integer
 	perUserNodeCounter *stats.Map
 	maxNodesPerUser    int64
-	userPrefixes       []string
 }
 
 var _ rpc.Dispatcher = (*mountTable)(nil)
@@ -864,8 +863,7 @@ func (mt *mountTable) debit(ctx *context.T, call security.Call) (string, error) 
 	if !ok {
 		return "", verror.New(errTooManyNodes, ctx)
 	}
-	// If we have no prefixes defining users, don't bother with checking per user limits.
-	if len(mt.userPrefixes) != 0 && count > mt.maxNodesPerUser {
+	if count > mt.maxNodesPerUser {
 		mt.perUserNodeCounter.Incr(creator, -1)
 		return "", verror.New(errTooManyNodes, ctx)
 	}

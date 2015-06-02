@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 
 	"v.io/v23/context"
+	"v.io/v23/conventions"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
@@ -148,12 +148,6 @@ func (mt *mountTable) parsePermFile(path string) error {
 				vlog.VI(2).Infof("added perms %v to %s", perms, name)
 				if isPattern {
 					n.permsTemplate = perms
-					// Save the pattern prefix as a prefix describing a user.
-					prefix := strings.Join(elems[:len(elems)-1], "/")
-					if prefix != "" {
-						prefix += "/"
-					}
-					mt.userPrefixes = append(mt.userPrefixes, prefix)
 				} else {
 					n.vPerms, _ = n.vPerms.Set(nil, "", perms)
 					n.explicitPermissions = true
@@ -166,37 +160,9 @@ func (mt *mountTable) parsePermFile(path string) error {
 	return nil
 }
 
-// pickCreator returns a string matching the blessing of the user performing the creation.  We do this using
-// the user prefixes found when parsing the config.  Eventually we may need a better way to define user
-// prefixes.
-//
-// TODO(p): readdress this argument after we have some experience with real users.
+// pickCreator returns a string matching the blessing of the user performing the creation.
 func (mt *mountTable) pickCreator(ctx *context.T, call security.Call) string {
-	// For each blessing, look for one that has a matching user prefix.  The creator is the perfix
-	// plus one more element.
-	//
-	// The prefixes themselves come from the templates in the config that constrain node names to
-	// match the user.
-	blessings, _ := security.RemoteBlessingNames(ctx, call)
-	for _, b := range blessings {
-		for _, p := range mt.userPrefixes {
-			sb := string(b)
-			if !strings.HasPrefix(sb, p) {
-				continue
-			}
-			suffix := strings.TrimPrefix(sb, p)
-			elems := strings.Split(suffix, "/")
-			return p + elems[0]
-		}
-	}
-	if ctx == nil || call == nil {
-		return localUser
-	}
-	if l, r := call.LocalBlessings().PublicKey(), call.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
-		return localUser
-	}
-	if len(blessings) > 0 {
-		return blessedUser
-	}
-	return unknownUser
+	ids := conventions.GetClientUserIds(ctx, call)
+	// Replace the slashes with something else or we'll confuse the stats package.
+	return strings.Replace(ids[0], "/", "\\", 0)
 }

@@ -17,6 +17,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/conventions"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -483,7 +484,7 @@ func TestAccessListTemplate(t *testing.T) {
 		{"alice", int64(defaultMaxNodesPerUser)},
 		{"bob", int64(0)},
 		{"root", int64(0)},
-		{localUser, int64(3)},
+		{conventions.ServerUser, int64(3)},
 	}
 	for _, tc := range testcases {
 		name := "testAccessListTemplate/num-nodes-per-user/" + tc.key
