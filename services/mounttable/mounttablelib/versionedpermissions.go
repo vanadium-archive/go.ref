@@ -143,7 +143,7 @@ func (mt *mountTable) parsePermFile(path string) error {
 			}
 
 			// Create name and add the Permissions map to it.
-			n, err := mt.findNode(nil, nil, elems, true, nil)
+			n, err := mt.findNode(nil, nil, elems, true, nil, nil)
 			if n != nil || err == nil {
 				vlog.VI(2).Infof("added perms %v to %s", perms, name)
 				if isPattern {

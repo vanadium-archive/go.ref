@@ -131,7 +131,7 @@ func (s *store) parseLogFile(f *os.File) error {
 		}
 
 		elems := strings.Split(e.N, "/")
-		n, err := mt.findNode(nil, nil, elems, true, nil)
+		n, err := mt.findNode(nil, nil, elems, true, nil, nil)
 		if n != nil || err == nil {
 			n.creator = e.C
 			if e.D {

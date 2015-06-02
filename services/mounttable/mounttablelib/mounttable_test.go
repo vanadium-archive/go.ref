@@ -601,6 +601,12 @@ func TestDelete(t *testing.T) {
 	checkExists(t, rootCtx, estr, "one/bright/day", false)
 	doDeleteNode(t, bobCtx, estr, "one/bright", true)
 	checkExists(t, rootCtx, estr, "one/bright", false)
+
+	// Make sure directory admin can delete directory children.
+	perms := access.Permissions{"Admin": access.AccessList{In: []security.BlessingPattern{"bob"}}}
+	doSetPermissions(t, bobCtx, estr, "hoohaa", perms, "", false)
+	doDeleteNode(t, rootCtx, estr, "hoohaa", true)
+	checkExists(t, rootCtx, estr, "hoohaa", false)
 }
 
 func TestServerFormat(t *testing.T) {

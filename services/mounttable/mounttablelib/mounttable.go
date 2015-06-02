@@ -360,7 +360,7 @@ func (mt *mountTable) traverse(ctx *context.T, call security.Call, elems []strin
 // findNode finds a node in the table and optionally creates a path to it.
 //
 // If a node is found, on return it and its parent are locked.
-func (mt *mountTable) findNode(ctx *context.T, call security.Call, elems []string, create bool, tags []mounttable.Tag) (*node, error) {
+func (mt *mountTable) findNode(ctx *context.T, call security.Call, elems []string, create bool, tags, ptags []mounttable.Tag) (*node, error) {
 	n, nelems, err := mt.traverse(ctx, call, elems, create)
 	if err != nil {
 		return nil, err
@@ -373,10 +373,18 @@ func (mt *mountTable) findNode(ctx *context.T, call security.Call, elems []strin
 		n.Unlock()
 		return nil, nil
 	}
+	// Either the node has to satisfy tags or the parent has to satisfy ptags.
 	if err := n.satisfies(mt, ctx, call, tags); err != nil {
-		n.parent.Unlock()
-		n.Unlock()
-		return nil, err
+		if ptags == nil {
+			n.parent.Unlock()
+			n.Unlock()
+			return nil, err
+		}
+		if err := n.parent.satisfies(mt, ctx, call, ptags); err != nil {
+			n.parent.Unlock()
+			n.Unlock()
+			return nil, err
+		}
 	}
 	return n, nil
 }
@@ -486,7 +494,7 @@ func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string
 	}
 
 	// Find/create node in namespace and add the mount.
-	n, werr := mt.findNode(ctx, call.Security(), ms.elems, true, mountTags)
+	n, werr := mt.findNode(ctx, call.Security(), ms.elems, true, mountTags, nil)
 	if werr != nil {
 		return werr
 	}
@@ -579,7 +587,7 @@ func (mt *mountTable) removeUselessRecursive(elems []string) {
 func (ms *mountContext) Unmount(ctx *context.T, call rpc.ServerCall, server string) error {
 	vlog.VI(2).Infof("*********************Unmount %q, %s", ms.name, server)
 	mt := ms.mt
-	n, err := mt.findNode(ctx, call.Security(), ms.elems, false, mountTags)
+	n, err := mt.findNode(ctx, call.Security(), ms.elems, false, mountTags, nil)
 	if err != nil {
 		return err
 	}
@@ -612,8 +620,9 @@ func (ms *mountContext) Delete(ctx *context.T, call rpc.ServerCall, deleteSubTre
 		return verror.New(errCantDeleteRoot, ctx)
 	}
 	mt := ms.mt
-	// Find and lock the parent node.
-	n, err := mt.findNode(ctx, call.Security(), ms.elems, false, removeTags)
+	// Find and lock the parent node and parent node.  Either the node or its parent has
+	// to satisfy removeTags.
+	n, err := mt.findNode(ctx, call.Security(), ms.elems, false, removeTags, removeTags)
 	if err != nil {
 		return err
 	}
@@ -758,7 +767,7 @@ func (ms *mountContext) Glob__(ctx *context.T, call rpc.ServerCall, pattern stri
 	go func() {
 		defer close(ch)
 		// If there was an access error, just ignore the entry, i.e., make it invisible.
-		n, err := mt.findNode(ctx, scall, ms.elems, false, nil)
+		n, err := mt.findNode(ctx, scall, ms.elems, false, nil, nil)
 		if err != nil {
 			return
 		}
@@ -793,7 +802,7 @@ func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perm
 	mt := ms.mt
 
 	// Find/create node in namespace and add the mount.
-	n, err := mt.findNode(ctx, call.Security(), ms.elems, true, setTags)
+	n, err := mt.findNode(ctx, call.Security(), ms.elems, true, setTags, nil)
 	if err != nil {
 		return err
 	}
@@ -839,7 +848,7 @@ func (ms *mountContext) GetPermissions(ctx *context.T, call rpc.ServerCall) (acc
 	mt := ms.mt
 
 	// Find node in namespace and add the mount.
-	n, err := mt.findNode(ctx, call.Security(), ms.elems, false, getTags)
+	n, err := mt.findNode(ctx, call.Security(), ms.elems, false, getTags, nil)
 	if err != nil {
 		return nil, "", err
 	}
