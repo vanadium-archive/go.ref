@@ -4,6 +4,10 @@
 
 package server
 
+// TODO(sadovsky): Check Resolve access on parent where applicable. Relatedly,
+// convert ErrNoExist and ErrNoAccess to ErrNoExistOrNoAccess where needed to
+// preserve privacy.
+
 import (
 	"sync"
 
@@ -113,7 +117,7 @@ func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (inte
 	defer s.mu.Unlock()
 	a, ok := s.apps[appName]
 	if !ok {
-		return nil, verror.New(verror.ErrNoExistOrNoAccess, ctx, appName)
+		return nil, verror.New(verror.ErrNoExist, ctx, appName)
 	}
 	return a, nil
 }
@@ -137,7 +141,6 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.apps[appName]; ok {
-		// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
 		return verror.New(verror.ErrExist, ctx, appName)
 	}
 
@@ -154,11 +157,10 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 			return err
 		}
 		// Check for "app already exists".
-		if err := util.GetWithoutAuth(ctx, call, st, a, &appData{}); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
+		if err := util.GetWithoutAuth(ctx, call, st, a, &appData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
-			// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
 			return verror.New(verror.ErrExist, ctx, appName)
 		}
 		// Write new appData.
@@ -183,13 +185,15 @@ func (s *service) deleteApp(ctx *context.T, call rpc.ServerCall, appName string)
 	defer s.mu.Unlock()
 	a, ok := s.apps[appName]
 	if !ok {
-		// TODO(sadovsky): Make delete idempotent, here and elsewhere.
-		return verror.New(verror.ErrNoExistOrNoAccess, ctx, appName)
+		return nil // delete is idempotent
 	}
 
 	if err := store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
 		// Read-check-delete appData.
 		if err := util.Get(ctx, call, st, a, &appData{}); err != nil {
+			if verror.ErrorID(err) == verror.ErrNoExist.ID {
+				return nil // delete is idempotent
+			}
 			return err
 		}
 		// TODO(sadovsky): Delete all databases in this app.
@@ -207,7 +211,7 @@ func (s *service) setAppPerms(ctx *context.T, call rpc.ServerCall, appName strin
 	defer s.mu.Unlock()
 	a, ok := s.apps[appName]
 	if !ok {
-		return verror.New(verror.ErrNoExistOrNoAccess, ctx, appName)
+		return verror.New(verror.ErrNoExist, ctx, appName)
 	}
 	return store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
 		data := &appData{}

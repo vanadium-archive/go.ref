@@ -37,7 +37,7 @@ func (t *table) Create(ctx *context.T, call rpc.ServerCall, perms access.Permiss
 			return err
 		}
 		// Check for "table already exists".
-		if err := util.GetWithoutAuth(ctx, call, st, t, &tableData{}); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
+		if err := util.GetWithoutAuth(ctx, call, st, t, &tableData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -60,6 +60,9 @@ func (t *table) Delete(ctx *context.T, call rpc.ServerCall) error {
 	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
 		// Read-check-delete tableData.
 		if err := util.Get(ctx, call, st, t, &tableData{}); err != nil {
+			if verror.ErrorID(err) == verror.ErrNoExist.ID {
+				return nil // delete is idempotent
+			}
 			return err
 		}
 		// TODO(sadovsky): Delete all rows in this table.
@@ -68,12 +71,33 @@ func (t *table) Delete(ctx *context.T, call rpc.ServerCall) error {
 }
 
 func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit []byte) error {
-	return verror.NewErrNotImplemented(ctx)
+	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
+		// Check perms.
+		if err := util.Get(ctx, call, st, t, &tableData{}); err != nil {
+			return err
+		}
+		it := st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
+		key := []byte{}
+		for it.Advance() {
+			key = it.Key(key)
+			if err := st.Delete(key); err != nil {
+				return verror.New(verror.ErrInternal, ctx, err)
+			}
+		}
+		if err := it.Err(); err != nil {
+			return verror.New(verror.ErrInternal, ctx, err)
+		}
+		return nil
+	})
 }
 
 func (t *table) Scan(ctx *context.T, call wire.TableScanServerCall, start, limit []byte) error {
 	sn := t.d.st.NewSnapshot()
 	defer sn.Close()
+	// Check perms.
+	if err := util.Get(ctx, call, sn, t, &tableData{}); err != nil {
+		return err
+	}
 	it := sn.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
 	sender := call.SendStream()
 	key, value := []byte{}, []byte{}
@@ -117,8 +141,8 @@ func (t *table) DeletePermissions(ctx *context.T, call rpc.ServerCall, prefix st
 }
 
 func (t *table) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
-	// Check perms.
 	sn := t.d.st.NewSnapshot()
+	// Check perms.
 	if err := util.Get(ctx, call, sn, t, &tableData{}); err != nil {
 		sn.Close()
 		return nil, err

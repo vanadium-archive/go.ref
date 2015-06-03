@@ -87,10 +87,6 @@ type wstore struct {
 
 var _ Store = (*wstore)(nil)
 
-// TODO(sadovsky): Decide whether to copy []byte's vs. requiring clients not to
-// modify passed-in []byte's. (In fact, this should be spelled out in the
-// store.Store API contract.)
-
 // Close implements the store.Store interface.
 func (st *wstore) Close() error {
 	return st.ist.Close()

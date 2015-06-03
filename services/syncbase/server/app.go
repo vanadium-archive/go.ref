@@ -87,7 +87,7 @@ func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) 
 	defer a.mu.Unlock()
 	d, ok := a.dbs[dbName]
 	if !ok {
-		return nil, verror.New(verror.ErrNoExistOrNoAccess, ctx, dbName)
+		return nil, verror.New(verror.ErrNoExist, ctx, dbName)
 	}
 	return d, nil
 }
@@ -128,7 +128,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 			return err
 		}
 		// Check for "database already exists".
-		if _, err := a.getDbInfo(ctx, call, st, dbName); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
+		if _, err := a.getDbInfo(ctx, call, st, dbName); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -181,11 +181,14 @@ func (a *app) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	defer a.mu.Unlock()
 	d, ok := a.dbs[dbName]
 	if !ok {
-		return verror.New(verror.ErrNoExistOrNoAccess, ctx, dbName)
+		return nil // delete is idempotent
 	}
 
 	// 1. Check databaseData perms.
 	if err := d.CheckPermsInternal(ctx, call, d.St()); err != nil {
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			return nil // delete is idempotent
+		}
 		return err
 	}
 
@@ -216,7 +219,7 @@ func (a *app) SetDatabasePerms(ctx *context.T, call rpc.ServerCall, dbName strin
 	defer a.mu.Unlock()
 	d, ok := a.dbs[dbName]
 	if !ok {
-		return verror.New(verror.ErrNoExistOrNoAccess, ctx, dbName)
+		return verror.New(verror.ErrNoExist, ctx, dbName)
 	}
 	return d.SetPermsInternal(ctx, call, perms, version)
 }

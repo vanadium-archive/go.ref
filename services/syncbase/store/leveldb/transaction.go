@@ -107,7 +107,7 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return valbuf, store.WrapError(tx.err)
+		return valbuf, convertError(tx.err)
 	}
 	tx.reads.keys = append(tx.reads.keys, key)
 	return tx.snapshot.Get(key, valbuf)
@@ -132,7 +132,7 @@ func (tx *transaction) Put(key, value []byte) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	tx.writes = append(tx.writes, writeOp{
 		t:     putOp,
@@ -147,7 +147,7 @@ func (tx *transaction) Delete(key []byte) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	tx.writes = append(tx.writes, writeOp{
 		t:   deleteOp,
@@ -179,7 +179,7 @@ func (tx *transaction) Commit() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	tx.err = verror.New(verror.ErrBadState, nil, store.ErrMsgCommittedTxn)
 	// Explicitly remove this transaction from the event queue. If this was the
@@ -200,7 +200,7 @@ func (tx *transaction) Abort() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	tx.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedTxn)
 	tx.close()

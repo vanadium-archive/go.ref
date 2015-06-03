@@ -36,7 +36,7 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return valbuf, store.WrapError(tx.err)
+		return valbuf, convertError(tx.err)
 	}
 	var err error
 	if !tx.st.managesKey(key) {
@@ -70,7 +70,7 @@ func (tx *transaction) Put(key, value []byte) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	var err error
 	if !tx.st.managesKey(key) {
@@ -87,7 +87,7 @@ func (tx *transaction) Delete(key []byte) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	var err error
 	if !tx.st.managesKey(key) {
@@ -104,7 +104,7 @@ func (tx *transaction) Commit() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	tx.err = verror.New(verror.ErrBadState, nil, store.ErrMsgCommittedTxn)
 	tx.st.mu.Lock()
@@ -144,7 +144,7 @@ func (tx *transaction) Abort() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	tx.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedTxn)
 	return tx.itx.Abort()

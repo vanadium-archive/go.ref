@@ -49,7 +49,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 		d = dint.(*database) // panics on failure, as desired
 		dExists = true
 	} else {
-		if verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
 			return nil, nil, err
 		} else {
 			d = &database{
@@ -66,7 +66,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 	// All table and row methods require the database to exist. If it doesn't,
 	// abort early.
 	if !dExists {
-		return nil, nil, verror.New(verror.ErrNoExistOrNoAccess, nil, d.name)
+		return nil, nil, verror.New(verror.ErrNoExist, nil, d.name)
 	}
 
 	// Note, it's possible for the database to be deleted concurrently with

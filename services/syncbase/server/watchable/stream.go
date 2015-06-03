@@ -79,7 +79,7 @@ func (s *stream) Err() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
-		return store.WrapError(s.err)
+		return convertError(s.err)
 	}
 	return s.iit.Err()
 }

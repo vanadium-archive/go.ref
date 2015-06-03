@@ -41,7 +41,7 @@ func (s *snapshot) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
-		return store.WrapError(s.err)
+		return convertError(s.err)
 	}
 	s.node.Close()
 	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedSnapshot)
@@ -53,7 +53,7 @@ func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
-		return valbuf, store.WrapError(s.err)
+		return valbuf, convertError(s.err)
 	}
 	value, ok := s.data[string(key)]
 	if !ok {

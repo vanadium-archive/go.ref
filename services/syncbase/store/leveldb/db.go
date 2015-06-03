@@ -31,18 +31,15 @@ type db struct {
 	writeOptions *C.leveldb_writeoptions_t
 	err          error
 
-	// TODO(rogulenko): decide whether we need to make a defensive copy of
-	// keys/values used by transactions.
-	// txmu protects transaction-related variables below. It is also held during
-	// commit.
-	// txmu must always be acquired before mu.
+	// txmu protects the transaction-related variables below, and is also held
+	// during transaction commits. It must always be acquired before mu.
 	txmu sync.Mutex
 	// txEvents is a queue of create/commit transaction events.
 	txEvents         *list.List
 	txSequenceNumber uint64
 	// txTable is a set of keys written by recent transactions. This set
 	// includes all write sets of transactions committed after the oldest living
-	// transaction.
+	// (in-flight) transaction.
 	txTable *trie
 }
 
@@ -81,7 +78,7 @@ func (d *db) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.err != nil {
-		return store.WrapError(d.err)
+		return convertError(d.err)
 	}
 	d.node.Close()
 	C.leveldb_close(d.cDb)
@@ -226,7 +223,7 @@ func (d *db) getWithOpts(key, valbuf []byte, cOpts *C.leveldb_readoptions_t) ([]
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.err != nil {
-		return valbuf, store.WrapError(d.err)
+		return valbuf, convertError(d.err)
 	}
 	var cError *C.char
 	var valLen C.size_t

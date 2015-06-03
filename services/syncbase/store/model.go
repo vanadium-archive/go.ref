@@ -6,6 +6,9 @@
 // Currently, this API and its implementations are meant to be internal.
 package store
 
+// TODO(sadovsky): Decide whether to defensively copy passed-in []byte's vs.
+// requiring clients not to modify passed-in []byte's.
+
 // StoreReader reads data from a CRUD-capable storage engine.
 type StoreReader interface {
 	// Get returns the value for the given key. The returned slice may be a
@@ -17,6 +20,7 @@ type StoreReader interface {
 	Get(key, valbuf []byte) ([]byte, error)
 
 	// Scan returns all rows with keys in range [start, limit).
+	// TODO(sadovsky): Describe the behavior of Scan with concurrent writes.
 	Scan(start, limit []byte) Stream
 }
 

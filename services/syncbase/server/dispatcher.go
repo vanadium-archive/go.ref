@@ -52,7 +52,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 		a = aint.(*app) // panics on failure, as desired
 		aExists = true
 	} else {
-		if verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
 			return nil, nil, err
 		} else {
 			a = &app{
@@ -69,7 +69,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 	// All database, table, and row methods require the app to exist. If it
 	// doesn't, abort early.
 	if !aExists {
-		return nil, nil, verror.New(verror.ErrNoExistOrNoAccess, nil, a.name)
+		return nil, nil, verror.New(verror.ErrNoExist, nil, a.name)
 	}
 
 	// Note, it's possible for the app to be deleted concurrently with downstream

@@ -47,8 +47,7 @@ type Permser interface {
 func GetWithoutAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, l Layer, v interface{}) error {
 	if err := GetObject(st, l.StKey(), v); err != nil {
 		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
-			// TODO(sadovsky): Return ErrNoExist if appropriate.
-			return verror.New(verror.ErrNoExistOrNoAccess, ctx, l.Name())
+			return verror.New(verror.ErrNoExist, ctx, l.Name())
 		}
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
@@ -63,8 +62,7 @@ func Get(ctx *context.T, call rpc.ServerCall, st store.StoreReader, l Layer, v P
 	}
 	auth, _ := access.PermissionsAuthorizer(v.GetPerms(), access.TypicalTagType())
 	if err := auth.Authorize(ctx, call.Security()); err != nil {
-		// TODO(sadovsky): Return ErrNoAccess if appropriate.
-		return verror.New(verror.ErrNoExistOrNoAccess, ctx, l.Name())
+		return verror.New(verror.ErrNoAccess, ctx, l.Name())
 	}
 	return nil
 }

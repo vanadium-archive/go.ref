@@ -15,6 +15,7 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/verror"
 )
 
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
@@ -70,4 +71,8 @@ func join(parts ...string) string {
 
 func split(key string) []string {
 	return util.SplitKeyParts(key)
+}
+
+func convertError(err error) error {
+	return verror.Convert(verror.IDAction{}, nil, err)
 }

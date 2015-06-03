@@ -49,7 +49,7 @@ func (s *snapshot) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
-		return store.WrapError(s.err)
+		return convertError(s.err)
 	}
 	s.node.Close()
 	C.leveldb_readoptions_destroy(s.cOpts)
@@ -65,7 +65,7 @@ func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.err != nil {
-		return valbuf, store.WrapError(s.err)
+		return valbuf, convertError(s.err)
 	}
 	return s.d.getWithOpts(key, valbuf, s.cOpts)
 }

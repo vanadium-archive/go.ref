@@ -56,7 +56,7 @@ func (tx *transaction) expired() bool {
 
 func (tx *transaction) error() error {
 	if tx.err != nil {
-		return store.WrapError(tx.err)
+		return convertError(tx.err)
 	}
 	if tx.expired() {
 		return verror.New(verror.ErrBadState, nil, store.ErrMsgExpiredTxn)

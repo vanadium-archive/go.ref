@@ -39,7 +39,7 @@ func (st *memstore) Close() error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.err != nil {
-		return store.WrapError(st.err)
+		return convertError(st.err)
 	}
 	st.node.Close()
 	st.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedStore)
@@ -51,7 +51,7 @@ func (st *memstore) Get(key, valbuf []byte) ([]byte, error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.err != nil {
-		return valbuf, store.WrapError(st.err)
+		return valbuf, convertError(st.err)
 	}
 	value, ok := st.data[string(key)]
 	if !ok {
