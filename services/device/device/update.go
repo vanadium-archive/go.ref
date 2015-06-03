@@ -20,7 +20,6 @@ import (
 )
 
 var cmdUpdate = &cmdline.Command{
-	Runner:   globRunner(runUpdate),
 	Name:     "update",
 	Short:    "Update the device manager or applications.",
 	Long:     "Update the device manager or application instances and installations",
@@ -29,14 +28,21 @@ var cmdUpdate = &cmdline.Command{
 <name patterns...> are vanadium object names or glob name patterns corresponding to the device manager service, or to application installations and instances.`,
 }
 
+func init() {
+	globify(cmdUpdate, runUpdate, &globSettings{handlerParallelism: kindParallelism})
+}
+
 var cmdRevert = &cmdline.Command{
-	Runner:   globRunner(runRevert),
 	Name:     "revert",
 	Short:    "Revert the device manager or applications.",
 	Long:     "Revert the device manager or application instances and installations to a previous version of their current version",
 	ArgsName: "<name patterns...>",
 	ArgsLong: `
 <name patterns...> are vanadium object names or glob name patterns corresponding to the device manager service, or to application installations and instances.`,
+}
+
+func init() {
+	globify(cmdRevert, runRevert, &globSettings{handlerParallelism: kindParallelism})
 }
 
 func instanceIsRunning(ctx *context.T, von string) (bool, error) {

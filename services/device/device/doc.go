@@ -46,14 +46,6 @@ The global flags are:
    user specified by this flag
  -dryrun=false
    Elides root-requiring systemcalls.
- -installation-state=
-   If non-empty, specifies allowed installation states (all others installations
-   get filtered out). The value of the flag is a comma-separated list of values
-   from among: [Active Uninstalled].
- -instance-state=
-   If non-empty, specifies allowed instance states (all other instances get
-   filtered out). The value of the flag is a comma-separated list of values from
-   among: [Launching Running Dying NotRunning Updating Deleted].
  -kill=false
    Kill process ids given as command-line arguments.
  -log_backtrace_at=:0
@@ -68,13 +60,6 @@ The global flags are:
    max size in bytes of the buffer to use for logging stack traces
  -minuid=501
    UIDs cannot be less than this number.
- -only-installations=false
-   If set, only consider installations.
- -only-instances=false
-   If set, only consider instances.
- -parallelism=BYKIND
-   Specifies the level of parallelism for the handler execution. One of:
-   BYKIND,FULL,NONE
  -progname=unnamed_app
    Visible name of the application, used in argv[0]
  -rm=false
@@ -287,40 +272,108 @@ Revert the device manager or application instances and installations to a
 previous version of their current version
 
 Usage:
-   device revert <name patterns...>
+   device revert [flags] <name patterns...>
 
 <name patterns...> are vanadium object names or glob name patterns corresponding
 to the device manager service, or to application installations and instances.
+
+The device revert flags are:
+ -installation-state=
+   If non-empty, specifies allowed installation states (all others installations
+   get filtered out). The value of the flag is a comma-separated list of values
+   from among: [Active Uninstalled].
+ -instance-state=
+   If non-empty, specifies allowed instance states (all other instances get
+   filtered out). The value of the flag is a comma-separated list of values from
+   among: [Launching Running Dying NotRunning Updating Deleted].
+ -only-installations=false
+   If set, only consider installations.
+ -only-instances=false
+   If set, only consider instances.
+ -parallelism=BYKIND
+   Specifies the level of parallelism for the handler execution. One of: [BYKIND
+   FULL NONE].
 
 Device update
 
 Update the device manager or application instances and installations
 
 Usage:
-   device update <name patterns...>
+   device update [flags] <name patterns...>
 
 <name patterns...> are vanadium object names or glob name patterns corresponding
 to the device manager service, or to application installations and instances.
+
+The device update flags are:
+ -installation-state=
+   If non-empty, specifies allowed installation states (all others installations
+   get filtered out). The value of the flag is a comma-separated list of values
+   from among: [Active Uninstalled].
+ -instance-state=
+   If non-empty, specifies allowed instance states (all other instances get
+   filtered out). The value of the flag is a comma-separated list of values from
+   among: [Launching Running Dying NotRunning Updating Deleted].
+ -only-installations=false
+   If set, only consider installations.
+ -only-instances=false
+   If set, only consider instances.
+ -parallelism=BYKIND
+   Specifies the level of parallelism for the handler execution. One of: [BYKIND
+   FULL NONE].
 
 Device status
 
 Get the status of the device manager or application instances and installations.
 
 Usage:
-   device status <name patterns...>
+   device status [flags] <name patterns...>
 
 <name patterns...> are vanadium object names or glob name patterns corresponding
 to the device manager service, or to application installations and instances.
+
+The device status flags are:
+ -installation-state=
+   If non-empty, specifies allowed installation states (all others installations
+   get filtered out). The value of the flag is a comma-separated list of values
+   from among: [Active Uninstalled].
+ -instance-state=
+   If non-empty, specifies allowed instance states (all other instances get
+   filtered out). The value of the flag is a comma-separated list of values from
+   among: [Launching Running Dying NotRunning Updating Deleted].
+ -only-installations=false
+   If set, only consider installations.
+ -only-instances=false
+   If set, only consider instances.
+ -parallelism=FULL
+   Specifies the level of parallelism for the handler execution. One of: [BYKIND
+   FULL NONE].
 
 Device debug
 
 Get internal debug information about application installations and instances.
 
 Usage:
-   device debug <app name patterns...>
+   device debug [flags] <app name patterns...>
 
 <app name patterns...> are vanadium object names or glob name patterns
 corresponding to application installations and instances.
+
+The device debug flags are:
+ -installation-state=
+   If non-empty, specifies allowed installation states (all others installations
+   get filtered out). The value of the flag is a comma-separated list of values
+   from among: [Active Uninstalled].
+ -instance-state=
+   If non-empty, specifies allowed instance states (all other instances get
+   filtered out). The value of the flag is a comma-separated list of values from
+   among: [Launching Running Dying NotRunning Updating Deleted].
+ -only-installations=false
+   If set, only consider installations.
+ -only-instances=false
+   If set, only consider instances.
+ -parallelism=FULL
+   Specifies the level of parallelism for the handler execution. One of: [BYKIND
+   FULL NONE].
 
 Device acl - Tool for setting device manager Permissions
 
@@ -404,10 +457,27 @@ Device ls
 List application installations or instances.
 
 Usage:
-   device ls <app name patterns...>
+   device ls [flags] <app name patterns...>
 
 <app name patterns...> are vanadium object names or glob name patterns
 corresponding to application installations and instances.
+
+The device ls flags are:
+ -installation-state=
+   If non-empty, specifies allowed installation states (all others installations
+   get filtered out). The value of the flag is a comma-separated list of values
+   from among: [Active Uninstalled].
+ -instance-state=
+   If non-empty, specifies allowed instance states (all other instances get
+   filtered out). The value of the flag is a comma-separated list of values from
+   among: [Launching Running Dying NotRunning Updating Deleted].
+ -only-installations=false
+   If set, only consider installations.
+ -only-instances=false
+   If set, only consider instances.
+ -parallelism=FULL
+   Specifies the level of parallelism for the handler execution. One of: [BYKIND
+   FULL NONE].
 
 Device help - Display help for commands or topics
 

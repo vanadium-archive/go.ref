@@ -33,7 +33,10 @@ import (
 // and can be run concurrently. The handler should direct its output to the
 // given stdout and stderr writers.
 //
-// Typical usage:
+// There are three usage patterns, depending on the desired level of control
+// over the execution flow and settings manipulation.
+//
+// (1) Most control
 //
 // func myCmdHandler(entry globResult, ctx *context.T, stdout, stderr io.Writer) error {
 //   output := myCmdProcessing(entry)
@@ -43,7 +46,7 @@ import (
 //
 // func runMyCmd(ctx *context.T, env *cmdline.Env, args []string) error {
 //   ...
-//   err := run(ctx, env, args, myCmdHandler)
+//   err := run(ctx, env, args, myCmdHandler, globSettings{})
 //   ...
 // }
 //
@@ -52,18 +55,35 @@ import (
 //   ...
 // }
 //
-// Alternatively, if all runMyCmd does is to call run, you can use globRunner to
-// avoid having to define runMyCmd:
+// (2) Pre-packaged runner
+//
+// If all runMyCmd does is to call run, you can use globRunner to avoid having
+// to define runMyCmd:
 //
 // var cmdMyCmd = &cmdline.Command {
-//   Runner: globRunner(myCmdHandler)
+//   Runner: globRunner(myCmdHandler, &globSettings{}),
+//   Name: "mycmd",
 //   ...
+// }
+//
+// (3) Pre-packaged runner and glob settings flag configuration
+//
+// If, additionally, you want the globSettings to be configurable with
+// command-line flags, you can use globify instead:
+//
+// var cmdMyCmd = &cmdline.Command {
+//   Name: "mycmd",
+//   ...
+// }
+//
+// func init() {
+//   globify(cmdMyCmd, myCmdHandler, &globSettings{}),
 // }
 type globHandler func(entry globResult, ctx *context.T, stdout, stderr io.Writer) error
 
-func globRunner(handler globHandler) cmdline.Runner {
+func globRunner(handler globHandler, s *globSettings) cmdline.Runner {
 	return v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
-		return run(ctx, env, args, handler)
+		return run(ctx, env, args, handler, *s)
 	})
 }
 
@@ -113,10 +133,10 @@ func (a byTypeAndName) Less(i, j int) bool {
 // (instance/installation) and state.  No de-duping of results is performed.
 // The outputs from each of the handlers are sorted: installations first, then
 // instances (and alphabetically by object name for each group).
-func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler) error {
+func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler, s globSettings) error {
 	results := glob(ctx, env, args)
 	sort.Sort(byTypeAndName(results))
-	results = filterResults(results)
+	results = filterResults(results, s)
 	stdouts, stderrs := make([]bytes.Buffer, len(results)), make([]bytes.Buffer, len(results))
 	var errorCounter uint32 = 0
 	perResult := func(r globResult, index int) {
@@ -126,7 +146,7 @@ func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler) e
 		}
 	}
 	// TODO(caprita): Add unit test logic to cover all parallelism options.
-	switch handlerParallelism {
+	switch s.handlerParallelism {
 	case fullParallelism:
 		var wg sync.WaitGroup
 		for i, r := range results {
@@ -172,16 +192,16 @@ func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler) e
 	return nil
 }
 
-func filterResults(results []globResult) []globResult {
+func filterResults(results []globResult, s globSettings) []globResult {
 	var ret []globResult
 	for _, r := range results {
-		switch s := r.status.(type) {
+		switch status := r.status.(type) {
 		case device.StatusInstance:
-			if onlyInstallations || !instanceStateFilter.apply(s.Value.State) {
+			if s.onlyInstallations || !s.instanceStateFilter.apply(status.Value.State) {
 				continue
 			}
 		case device.StatusInstallation:
-			if onlyInstances || !installationStateFilter.apply(s.Value.State) {
+			if s.onlyInstances || !s.installationStateFilter.apply(status.Value.State) {
 				continue
 			}
 		}
@@ -361,8 +381,6 @@ var parallelismStrings = map[parallelismFlag]string{
 	kindParallelism: "BYKIND",
 }
 
-const defaultParallelism = kindParallelism
-
 func init() {
 	if len(parallelismStrings) != int(sentinelParallelismFlag) {
 		panic(fmt.Sprintf("broken invariant: mismatching number of parallelism types"))
@@ -387,35 +405,52 @@ func (p *parallelismFlag) Set(s string) error {
 	return fmt.Errorf("unrecognized parallelism type: %v", s)
 }
 
-var (
+type globSettings struct {
 	instanceStateFilter     instanceStateFlag
 	installationStateFilter installationStateFlag
 	onlyInstances           bool
 	onlyInstallations       bool
-	handlerParallelism      parallelismFlag = defaultParallelism
-)
+	handlerParallelism      parallelismFlag
+	defaults                *globSettings
+}
 
-func init() {
-	// NOTE: When addind new flags or changing default values, remember to
-	// also update ResetGlobFlags below.
-	flag.Var(&instanceStateFilter, "instance-state", fmt.Sprintf("If non-empty, specifies allowed instance states (all other instances get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstanceStateAll))
-	flag.Var(&installationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstallationStateAll))
-	flag.BoolVar(&onlyInstances, "only-instances", false, "If set, only consider instances.")
-	flag.BoolVar(&onlyInstallations, "only-installations", false, "If set, only consider installations.")
+func (s *globSettings) reset() {
+	d := s.defaults
+	*s = *d
+	s.defaults = d
+}
+
+func (s *globSettings) setDefaults(d globSettings) {
+	s.defaults = new(globSettings)
+	*s.defaults = d
+}
+
+var allGlobSettings []*globSettings
+
+// ResetGlobSettings is meant for tests to restore the values of flag-configured
+// variables when running multiple commands in the same process.
+func ResetGlobSettings() {
+	for _, s := range allGlobSettings {
+		s.reset()
+	}
+}
+
+func defineGlobFlags(fs *flag.FlagSet, s *globSettings) {
+	fs.Var(&s.instanceStateFilter, "instance-state", fmt.Sprintf("If non-empty, specifies allowed instance states (all other instances get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstanceStateAll))
+	fs.Var(&s.installationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstallationStateAll))
+	fs.BoolVar(&s.onlyInstances, "only-instances", false, "If set, only consider instances.")
+	fs.BoolVar(&s.onlyInstallations, "only-installations", false, "If set, only consider installations.")
 	var parallelismValues []string
 	for _, v := range parallelismStrings {
 		parallelismValues = append(parallelismValues, v)
 	}
 	sort.Strings(parallelismValues)
-	flag.Var(&handlerParallelism, "parallelism", "Specifies the level of parallelism for the handler execution. One of: "+strings.Join(parallelismValues, ","))
+	fs.Var(&s.handlerParallelism, "parallelism", fmt.Sprintf("Specifies the level of parallelism for the handler execution. One of: %v.", parallelismValues))
 }
 
-// ResetGlobFlags is meant for tests to restore the values of flag-configured
-// variables when running multiple commands in the same process.
-func ResetGlobFlags() {
-	instanceStateFilter = make(instanceStateFlag)
-	installationStateFilter = make(installationStateFlag)
-	onlyInstances = false
-	onlyInstallations = false
-	handlerParallelism = defaultParallelism
+func globify(c *cmdline.Command, handler globHandler, s *globSettings) {
+	s.setDefaults(*s)
+	defineGlobFlags(&c.Flags, s)
+	c.Runner = globRunner(handler, s)
+	allGlobSettings = append(allGlobSettings, s)
 }

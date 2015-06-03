@@ -69,5 +69,6 @@ func TestStatusCommand(t *testing.T) {
 		if got, expected := appTape.Play(), []interface{}{"Status"}; !reflect.DeepEqual(expected, got) {
 			t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 		}
+		cmd_device.ResetGlobSettings()
 	}
 }
