@@ -24,10 +24,10 @@ var cmdDebug = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdDebug, runDebug, new(globSettings))
+	globify(cmdDebug, runDebug, new(GlobSettings))
 }
 
-func runDebug(entry globResult, ctx *context.T, stdout, _ io.Writer) error {
+func runDebug(entry GlobResult, ctx *context.T, stdout, _ io.Writer) error {
 	if description, err := device.DeviceClient(entry.name).Debug(ctx); err != nil {
 		return fmt.Errorf("Debug failed: %v", err)
 	} else {

@@ -37,7 +37,7 @@ var (
 	}}
 	instanceRunning = device.StatusInstance{device.InstanceStatus{
 		State:   device.InstanceStateRunning,
-		Version: "special edition",
+		Version: "tv version",
 	}}
 	instanceNotRunning = device.StatusInstance{device.InstanceStatus{
 		State:   device.InstanceStateNotRunning,
@@ -46,6 +46,10 @@ var (
 	deviceService = device.StatusDevice{device.DeviceStatus{
 		State:   device.InstanceStateRunning,
 		Version: "han shot first",
+	}}
+	deviceUpdating = device.StatusDevice{device.DeviceStatus{
+		State:   device.InstanceStateUpdating,
+		Version: "international release",
 	}}
 )
 
@@ -112,4 +116,8 @@ func testHelper(t *testing.T, lower, upper string) {
 	if expected, got := []interface{}{upper}, appTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
+}
+
+func joinLines(args ...string) string {
+	return strings.Join(args, "\n")
 }

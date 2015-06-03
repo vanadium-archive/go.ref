@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -45,9 +44,6 @@ func TestLsCommand(t *testing.T) {
 		"app/4": []interface{}{installationActive},
 		"app/5": []interface{}{instanceNotRunning},
 		"app/6": []interface{}{installationActive},
-	}
-	joinLines := func(args ...string) string {
-		return strings.Join(args, "\n")
 	}
 	for _, c := range []struct {
 		globResponses   [][]string
@@ -152,7 +148,6 @@ func TestLsCommand(t *testing.T) {
 			args = append(args, naming.JoinAddressName(endpoint.String(), p))
 		}
 		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, args); err != nil {
-			fmt.Println("run test case error", err)
 			t.Errorf("%v", err)
 		}
 

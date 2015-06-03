@@ -28,7 +28,7 @@ import (
 	"v.io/x/ref/lib/v23cmd"
 )
 
-// globHandler is implemented by each command that wants to execute against name
+// GlobHandler is implemented by each command that wants to execute against name
 // patterns.  The handler is expected to be invoked against each glob result,
 // and can be run concurrently. The handler should direct its output to the
 // given stdout and stderr writers.
@@ -38,7 +38,7 @@ import (
 //
 // (1) Most control
 //
-// func myCmdHandler(entry globResult, ctx *context.T, stdout, stderr io.Writer) error {
+// func myCmdHandler(entry GlobResult, ctx *context.T, stdout, stderr io.Writer) error {
 //   output := myCmdProcessing(entry)
 //   fmt.Fprintf(stdout, output)
 //   ...
@@ -46,7 +46,7 @@ import (
 //
 // func runMyCmd(ctx *context.T, env *cmdline.Env, args []string) error {
 //   ...
-//   err := run(ctx, env, args, myCmdHandler, globSettings{})
+//   err := Run(ctx, env, args, myCmdHandler, GlobSettings{})
 //   ...
 // }
 //
@@ -57,18 +57,18 @@ import (
 //
 // (2) Pre-packaged runner
 //
-// If all runMyCmd does is to call run, you can use globRunner to avoid having
+// If all runMyCmd does is to call Run, you can use globRunner to avoid having
 // to define runMyCmd:
 //
 // var cmdMyCmd = &cmdline.Command {
-//   Runner: globRunner(myCmdHandler, &globSettings{}),
+//   Runner: globRunner(myCmdHandler, &GlobSettings{}),
 //   Name: "mycmd",
 //   ...
 // }
 //
 // (3) Pre-packaged runner and glob settings flag configuration
 //
-// If, additionally, you want the globSettings to be configurable with
+// If, additionally, you want the GlobSettings to be configurable with
 // command-line flags, you can use globify instead:
 //
 // var cmdMyCmd = &cmdline.Command {
@@ -77,13 +77,15 @@ import (
 // }
 //
 // func init() {
-//   globify(cmdMyCmd, myCmdHandler, &globSettings{}),
+//   globify(cmdMyCmd, myCmdHandler, &GlobSettings{}),
 // }
-type globHandler func(entry globResult, ctx *context.T, stdout, stderr io.Writer) error
+//
+// The GlobHandler identifier is exported for use in unit tests.
+type GlobHandler func(entry GlobResult, ctx *context.T, stdout, stderr io.Writer) error
 
-func globRunner(handler globHandler, s *globSettings) cmdline.Runner {
+func globRunner(handler GlobHandler, s *GlobSettings) cmdline.Runner {
 	return v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
-		return run(ctx, env, args, handler, *s)
+		return Run(ctx, env, args, handler, *s)
 	})
 }
 
@@ -109,13 +111,34 @@ func init() {
 	}
 }
 
-type globResult struct {
+// GlobResult defines the input to a GlobHandler.
+// The identifier is exported for use in unit tests.
+type GlobResult struct {
 	name   string
 	status device.Status
 	kind   objectKind
 }
 
-type byTypeAndName []globResult
+func NewGlobResult(name string, status device.Status) (*GlobResult, error) {
+	var kind objectKind
+	switch status.(type) {
+	case device.StatusInstallation:
+		kind = applicationInstallationObject
+	case device.StatusInstance:
+		kind = applicationInstanceObject
+	case device.StatusDevice:
+		kind = deviceServiceObject
+	default:
+		return nil, fmt.Errorf("Status(%v) returned unrecognized status type %T\n", name, status)
+	}
+	return &GlobResult{
+		name:   name,
+		status: status,
+		kind:   kind,
+	}, nil
+}
+
+type byTypeAndName []*GlobResult
 
 func (a byTypeAndName) Len() int      { return len(a) }
 func (a byTypeAndName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
@@ -128,19 +151,20 @@ func (a byTypeAndName) Less(i, j int) bool {
 	return r1.name < r2.name
 }
 
-// run runs the given handler in parallel against each of the results obtained
+// Run runs the given handler in parallel against each of the results obtained
 // by globbing args, after performing filtering based on type
 // (instance/installation) and state.  No de-duping of results is performed.
 // The outputs from each of the handlers are sorted: installations first, then
 // instances (and alphabetically by object name for each group).
-func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler, s globSettings) error {
+// The identifier is exported for use in unit tests.
+func Run(ctx *context.T, env *cmdline.Env, args []string, handler GlobHandler, s GlobSettings) error {
 	results := glob(ctx, env, args)
 	sort.Sort(byTypeAndName(results))
 	results = filterResults(results, s)
 	stdouts, stderrs := make([]bytes.Buffer, len(results)), make([]bytes.Buffer, len(results))
 	var errorCounter uint32 = 0
-	perResult := func(r globResult, index int) {
-		if err := handler(r, ctx, &stdouts[index], &stderrs[index]); err != nil {
+	perResult := func(r *GlobResult, index int) {
+		if err := handler(*r, ctx, &stdouts[index], &stderrs[index]); err != nil {
 			fmt.Fprintf(&stderrs[index], "ERROR for \"%s\": %v.\n", r.name, err)
 			atomic.AddUint32(&errorCounter, 1)
 		}
@@ -151,7 +175,7 @@ func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler, s
 		var wg sync.WaitGroup
 		for i, r := range results {
 			wg.Add(1)
-			go func(r globResult, i int) {
+			go func(r *GlobResult, i int) {
 				perResult(r, i)
 				wg.Done()
 			}(r, i)
@@ -171,7 +195,7 @@ func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler, s
 				}
 				wg.Add(1)
 				processed++
-				go func(r globResult, i int) {
+				go func(r *GlobResult, i int) {
 					perResult(r, i)
 					wg.Done()
 				}(r, i)
@@ -192,8 +216,8 @@ func run(ctx *context.T, env *cmdline.Env, args []string, handler globHandler, s
 	return nil
 }
 
-func filterResults(results []globResult, s globSettings) []globResult {
-	var ret []globResult
+func filterResults(results []*GlobResult, s GlobSettings) []*GlobResult {
+	var ret []*GlobResult
 	for _, r := range results {
 		switch status := r.status.(type) {
 		case device.StatusInstance:
@@ -216,7 +240,7 @@ func filterResults(results []globResult, s globSettings) []globResult {
 // put them under a __debug suffix (like it works for services).
 var debugNameRE = regexp.MustCompile("/apps/[^/]+/[^/]+/[^/]+/(logs|stats|pprof)(/|$)")
 
-func getStatus(ctx *context.T, env *cmdline.Env, name string, resultsCh chan<- globResult) {
+func getStatus(ctx *context.T, env *cmdline.Env, name string, resultsCh chan<- *GlobResult) {
 	status, err := device.DeviceClient(name).Status(ctx)
 	// Skip non-instances/installations.
 	if verror.ErrorID(err) == deviceimpl.ErrInvalidSuffix.ID {
@@ -226,22 +250,14 @@ func getStatus(ctx *context.T, env *cmdline.Env, name string, resultsCh chan<- g
 		fmt.Fprintf(env.Stderr, "Status(%v) failed: %v\n", name, err)
 		return
 	}
-	var kind objectKind
-	switch status.(type) {
-	case device.StatusInstallation:
-		kind = applicationInstallationObject
-	case device.StatusInstance:
-		kind = applicationInstanceObject
-	case device.StatusDevice:
-		kind = deviceServiceObject
-	default:
-		fmt.Fprintf(env.Stderr, "Status(%v) returned unrecognized status type %T\n", name, status)
-		return
+	if r, err := NewGlobResult(name, status); err != nil {
+		fmt.Fprintf(env.Stderr, "%v\n", err)
+	} else {
+		resultsCh <- r
 	}
-	resultsCh <- globResult{name, status, kind}
 }
 
-func globOne(ctx *context.T, env *cmdline.Env, pattern string, resultsCh chan<- globResult) {
+func globOne(ctx *context.T, env *cmdline.Env, pattern string, resultsCh chan<- *GlobResult) {
 	globCh, err := v23.GetNamespace(ctx).Glob(ctx, pattern)
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "Glob(%v) failed: %v\n", pattern, err)
@@ -270,11 +286,11 @@ func globOne(ctx *context.T, env *cmdline.Env, pattern string, resultsCh chan<- 
 }
 
 // glob globs the given arguments and returns the results in arbitrary order.
-func glob(ctx *context.T, env *cmdline.Env, args []string) []globResult {
+func glob(ctx *context.T, env *cmdline.Env, args []string) []*GlobResult {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	var wg sync.WaitGroup
-	resultsCh := make(chan globResult, 100)
+	resultsCh := make(chan *GlobResult, 100)
 	// For each pattern.
 	for _, a := range args {
 		wg.Add(1)
@@ -284,7 +300,7 @@ func glob(ctx *context.T, env *cmdline.Env, args []string) []globResult {
 		}(a)
 	}
 	// Collect the glob results into a slice.
-	var results []globResult
+	var results []*GlobResult
 	done := make(chan struct{})
 	go func() {
 		for r := range resultsCh {
@@ -405,27 +421,29 @@ func (p *parallelismFlag) Set(s string) error {
 	return fmt.Errorf("unrecognized parallelism type: %v", s)
 }
 
-type globSettings struct {
+// GlobSettings specifies flag-settable options and filters for globbing.
+// The identifier is exported for use in unit tests.
+type GlobSettings struct {
 	instanceStateFilter     instanceStateFlag
 	installationStateFilter installationStateFlag
 	onlyInstances           bool
 	onlyInstallations       bool
 	handlerParallelism      parallelismFlag
-	defaults                *globSettings
+	defaults                *GlobSettings
 }
 
-func (s *globSettings) reset() {
+func (s *GlobSettings) reset() {
 	d := s.defaults
 	*s = *d
 	s.defaults = d
 }
 
-func (s *globSettings) setDefaults(d globSettings) {
-	s.defaults = new(globSettings)
+func (s *GlobSettings) setDefaults(d GlobSettings) {
+	s.defaults = new(GlobSettings)
 	*s.defaults = d
 }
 
-var allGlobSettings []*globSettings
+var allGlobSettings []*GlobSettings
 
 // ResetGlobSettings is meant for tests to restore the values of flag-configured
 // variables when running multiple commands in the same process.
@@ -435,7 +453,7 @@ func ResetGlobSettings() {
 	}
 }
 
-func defineGlobFlags(fs *flag.FlagSet, s *globSettings) {
+func defineGlobFlags(fs *flag.FlagSet, s *GlobSettings) {
 	fs.Var(&s.instanceStateFilter, "instance-state", fmt.Sprintf("If non-empty, specifies allowed instance states (all other instances get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstanceStateAll))
 	fs.Var(&s.installationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstallationStateAll))
 	fs.BoolVar(&s.onlyInstances, "only-instances", false, "If set, only consider instances.")
@@ -448,7 +466,7 @@ func defineGlobFlags(fs *flag.FlagSet, s *globSettings) {
 	fs.Var(&s.handlerParallelism, "parallelism", fmt.Sprintf("Specifies the level of parallelism for the handler execution. One of: %v.", parallelismValues))
 }
 
-func globify(c *cmdline.Command, handler globHandler, s *globSettings) {
+func globify(c *cmdline.Command, handler GlobHandler, s *GlobSettings) {
 	s.setDefaults(*s)
 	defineGlobFlags(&c.Flags, s)
 	c.Runner = globRunner(handler, s)

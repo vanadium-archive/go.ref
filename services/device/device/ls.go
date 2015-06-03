@@ -23,10 +23,10 @@ var cmdLs = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdLs, runLs, new(globSettings))
+	globify(cmdLs, runLs, new(GlobSettings))
 }
 
-func runLs(entry globResult, _ *context.T, stdout, _ io.Writer) error {
+func runLs(entry GlobResult, _ *context.T, stdout, _ io.Writer) error {
 	fmt.Fprintf(stdout, "%v\n", entry.name)
 	return nil
 }

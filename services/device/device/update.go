@@ -29,7 +29,7 @@ var cmdUpdate = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdUpdate, runUpdate, &globSettings{handlerParallelism: kindParallelism})
+	globify(cmdUpdate, runUpdate, &GlobSettings{handlerParallelism: kindParallelism})
 }
 
 var cmdRevert = &cmdline.Command{
@@ -42,7 +42,7 @@ var cmdRevert = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdRevert, runRevert, &globSettings{handlerParallelism: kindParallelism})
+	globify(cmdRevert, runRevert, &GlobSettings{handlerParallelism: kindParallelism})
 }
 
 func instanceIsRunning(ctx *context.T, von string) (bool, error) {
@@ -131,7 +131,7 @@ func changeVersionOne(ctx *context.T, what string, stdout, stderr io.Writer, nam
 	}
 }
 
-func changeVersion(entry globResult, ctx *context.T, stdout, stderr io.Writer, revert bool) error {
+func changeVersion(entry GlobResult, ctx *context.T, stdout, stderr io.Writer, revert bool) error {
 	switch entry.kind {
 	case applicationInstanceObject:
 		return changeVersionInstance(ctx, stdout, stderr, entry.name, entry.status.(device.StatusInstance), revert)
@@ -144,10 +144,10 @@ func changeVersion(entry globResult, ctx *context.T, stdout, stderr io.Writer, r
 	}
 }
 
-func runUpdate(entry globResult, ctx *context.T, stdout, stderr io.Writer) error {
+func runUpdate(entry GlobResult, ctx *context.T, stdout, stderr io.Writer) error {
 	return changeVersion(entry, ctx, stdout, stderr, false)
 }
 
-func runRevert(entry globResult, ctx *context.T, stdout, stderr io.Writer) error {
+func runRevert(entry GlobResult, ctx *context.T, stdout, stderr io.Writer) error {
 	return changeVersion(entry, ctx, stdout, stderr, true)
 }

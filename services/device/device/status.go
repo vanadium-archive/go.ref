@@ -23,10 +23,10 @@ var cmdStatus = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdStatus, runStatus, new(globSettings))
+	globify(cmdStatus, runStatus, new(GlobSettings))
 }
 
-func runStatus(entry globResult, _ *context.T, stdout, _ io.Writer) error {
+func runStatus(entry GlobResult, _ *context.T, stdout, _ io.Writer) error {
 	switch s := entry.status.(type) {
 	case device.StatusInstance:
 		fmt.Fprintf(stdout, "Instance %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
