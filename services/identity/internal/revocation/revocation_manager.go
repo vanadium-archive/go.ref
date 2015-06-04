@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/x/lib/vlog"
 )
 
 // RevocationManager persists information for revocation caveats to provided discharges and allow for future revocations.
@@ -62,7 +63,10 @@ func (r *revocationManager) NewCaveat(discharger security.PublicKey, dischargerL
 	if err != nil {
 		return empty, err
 	}
+	vlog.Infof("revocationDB.InsertCaveat(%s,%v) called", cav.ThirdPartyDetails().ID(), revocation)
 	if err = revocationDB.InsertCaveat(cav.ThirdPartyDetails().ID(), revocation[:]); err != nil {
+		// TODO(suharshs): Remove this log.
+		vlog.Infof("revocationDB.InsertCaveat(%s,%v) failed with %v", cav.ThirdPartyDetails().ID(), revocation, err)
 		return empty, err
 	}
 	return cav, nil
