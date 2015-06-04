@@ -41,19 +41,21 @@ type dispatcher struct {
 	invokerFactory     invokerFactory
 	authFactory        authFactory
 	outstandingLookups map[int32]chan LookupReply
+	vomHelper          VomHelper
 	closed             bool
 }
 
 var _ rpc.Dispatcher = (*dispatcher)(nil)
 
 // newDispatcher is a dispatcher factory.
-func newDispatcher(serverId uint32, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory) *dispatcher {
+func newDispatcher(serverId uint32, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory, vomHelper VomHelper) *dispatcher {
 	return &dispatcher{
 		serverId:           serverId,
 		flowFactory:        flowFactory,
 		invokerFactory:     invokerFactory,
 		authFactory:        authFactory,
 		outstandingLookups: make(map[int32]chan LookupReply),
+		vomHelper:          vomHelper,
 	}
 }
 
@@ -128,7 +130,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	}
 
 	var lookupReply LookupReply
-	if err := lib.HexVomDecode(data, &lookupReply, nil); err != nil {
+	if err := lib.HexVomDecode(data, &lookupReply, d.vomHelper.TypeDecoder()); err != nil {
 		err2 := verror.Convert(verror.ErrInternal, nil, err)
 		lookupReply = LookupReply{Err: err2}
 		vlog.Errorf("unmarshaling invoke request failed: %v, %s", err, data)

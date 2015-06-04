@@ -981,3 +981,7 @@ func (c *Controller) SendBlessingsCacheMessages(messages []principal.BlessingsCa
 func (c *Controller) TypeEncoder() *vom.TypeEncoder {
 	return c.typeEncoder
 }
+
+func (c *Controller) TypeDecoder() *vom.TypeDecoder {
+	return c.typeDecoder
+}
