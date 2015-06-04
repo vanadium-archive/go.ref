@@ -29,7 +29,7 @@ var cmdUpdate = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdUpdate, runUpdate, &GlobSettings{handlerParallelism: kindParallelism})
+	globify(cmdUpdate, runUpdate, &GlobSettings{HandlerParallelism: KindParallelism})
 }
 
 var cmdRevert = &cmdline.Command{
@@ -42,7 +42,7 @@ var cmdRevert = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdRevert, runRevert, &GlobSettings{handlerParallelism: kindParallelism})
+	globify(cmdRevert, runRevert, &GlobSettings{HandlerParallelism: KindParallelism})
 }
 
 func instanceIsRunning(ctx *context.T, von string) (bool, error) {
@@ -132,15 +132,15 @@ func changeVersionOne(ctx *context.T, what string, stdout, stderr io.Writer, nam
 }
 
 func changeVersion(entry GlobResult, ctx *context.T, stdout, stderr io.Writer, revert bool) error {
-	switch entry.kind {
-	case applicationInstanceObject:
-		return changeVersionInstance(ctx, stdout, stderr, entry.name, entry.status.(device.StatusInstance), revert)
-	case applicationInstallationObject:
-		return changeVersionOne(ctx, "installation", stdout, stderr, entry.name, revert)
-	case deviceServiceObject:
-		return changeVersionOne(ctx, "device service", stdout, stderr, entry.name, revert)
+	switch entry.Kind {
+	case ApplicationInstanceObject:
+		return changeVersionInstance(ctx, stdout, stderr, entry.Name, entry.Status.(device.StatusInstance), revert)
+	case ApplicationInstallationObject:
+		return changeVersionOne(ctx, "installation", stdout, stderr, entry.Name, revert)
+	case DeviceServiceObject:
+		return changeVersionOne(ctx, "device service", stdout, stderr, entry.Name, revert)
 	default:
-		return fmt.Errorf("unhandled object kind %v", entry.kind)
+		return fmt.Errorf("unhandled object kind %v", entry.Kind)
 	}
 }
 

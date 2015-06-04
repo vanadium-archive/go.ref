@@ -27,13 +27,13 @@ func init() {
 }
 
 func runStatus(entry GlobResult, _ *context.T, stdout, _ io.Writer) error {
-	switch s := entry.status.(type) {
+	switch s := entry.Status.(type) {
 	case device.StatusInstance:
-		fmt.Fprintf(stdout, "Instance %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
+		fmt.Fprintf(stdout, "Instance %v [State:%v,Version:%v]\n", entry.Name, s.Value.State, s.Value.Version)
 	case device.StatusInstallation:
-		fmt.Fprintf(stdout, "Installation %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
+		fmt.Fprintf(stdout, "Installation %v [State:%v,Version:%v]\n", entry.Name, s.Value.State, s.Value.Version)
 	case device.StatusDevice:
-		fmt.Fprintf(stdout, "Device Service %v [State:%v,Version:%v]\n", entry.name, s.Value.State, s.Value.Version)
+		fmt.Fprintf(stdout, "Device Service %v [State:%v,Version:%v]\n", entry.Name, s.Value.State, s.Value.Version)
 	default:
 		return fmt.Errorf("Status returned unknown type: %T", s)
 	}

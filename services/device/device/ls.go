@@ -27,6 +27,6 @@ func init() {
 }
 
 func runLs(entry GlobResult, _ *context.T, stdout, _ io.Writer) error {
-	fmt.Fprintf(stdout, "%v\n", entry.name)
+	fmt.Fprintf(stdout, "%v\n", entry.Name)
 	return nil
 }
