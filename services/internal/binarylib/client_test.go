@@ -103,6 +103,15 @@ func TestBufferAPI(t *testing.T) {
 		if !sig.Verify(p.PublicKey(), h[:]) {
 			t.Fatalf("Failed to verify upload signature(%v)", sig)
 		}
+		// verify that Sign called directly also produces a working signature
+		reader := bytes.NewReader(data)
+		sig2, err := Sign(ctx, reader)
+		if err != nil {
+			t.Fatalf("Sign failed: %v", err)
+		}
+		if !sig2.Verify(p.PublicKey(), h[:]) {
+			t.Fatalf("Failed to verify signature from Sign(%v, %v)", sig, sig2)
+		}
 	} else {
 		t.Fatalf("Upload(%v) failed to generate principal(%v) signature", von, p)
 	}

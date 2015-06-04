@@ -302,10 +302,14 @@ func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von
 			return nil, err
 		}
 	}
-	uploadHash := h.Sum(nil)
-	sig, err := v23.GetPrincipal(ctx).Sign(uploadHash[:])
+	return signHash(ctx, h)
+}
+
+func signHash(ctx *context.T, h hash.Hash) (*security.Signature, error) {
+	hash := h.Sum(nil)
+	sig, err := v23.GetPrincipal(ctx).Sign(hash[:])
 	if err != nil {
-		vlog.Errorf("Sign() of upload hash failed:%v", err)
+		vlog.Errorf("Sign() of hash failed:%v", err)
 		return nil, err
 	}
 	return &sig, nil
@@ -314,6 +318,14 @@ func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von
 func Upload(ctx *context.T, von string, data []byte, mediaInfo repository.MediaInfo) (*security.Signature, error) {
 	buffer := bytes.NewReader(data)
 	return upload(ctx, buffer, mediaInfo, von)
+}
+
+func Sign(ctx *context.T, in io.Reader) (*security.Signature, error) {
+	out := sha256.New()
+	if _, err := io.Copy(out, in); err != nil {
+		return nil, err
+	}
+	return signHash(ctx, out)
 }
 
 func UploadFromFile(ctx *context.T, von, path string) (*security.Signature, error) {

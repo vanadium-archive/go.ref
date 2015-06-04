@@ -13,6 +13,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
 	"v.io/v23/services/repository"
@@ -78,7 +79,8 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
-	publisher, err := v23.GetPrincipal(ctx).BlessSelf("publisher")
+	p := v23.GetPrincipal(ctx)
+	publisher, err := p.BlessSelf("publisher")
 	if err != nil {
 		t.Fatalf("Failed to generate publisher blessings:%v", err)
 	}
@@ -95,6 +97,20 @@ func TestDownloadSignatureMatch(t *testing.T) {
 			},
 		},
 	}
+
+	// Using the publisher should fail, because blessing "publisher" is not covered by the
+	// trusted roots of the device manager's principal
+	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
+		t.Fatalf("Unexpected error installing app:%v (expected ErrOperationFailed)", err)
+	}
+
+	// Changing the publisher blessing to one that is covered by the DM roots, should
+	// allow the app installation to succeed.
+	envelope.Publisher, err = p.Bless(p.PublicKey(), p.BlessingStore().Default(), "publisher", security.UnconstrainedUse())
+	if err != nil {
+		t.Fatalf("Failed to generate trusted publisher blessings: %v", err)
+	}
+
 	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); err != nil {
 		t.Fatalf("Failed to Install app:%v", err)
 	}

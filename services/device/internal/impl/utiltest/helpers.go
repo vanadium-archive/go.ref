@@ -83,6 +83,26 @@ func EnvelopeFromShell(sh *modules.Shell, env []string, prog modules.Program, ti
 	}
 }
 
+func SignedEnvelopeFromShell(ctx *context.T, sh *modules.Shell, env []string, prog modules.Program, title string, retries int, window time.Duration, args ...string) (application.Envelope, error) {
+	envelope := EnvelopeFromShell(sh, env, prog, title, retries, window, args...)
+	reader, cleanup, err := mockBinaryBytesReader()
+	defer cleanup()
+	sig, err := binarylib.Sign(ctx, reader)
+	if err != nil {
+		return application.Envelope{}, err
+	}
+	envelope.Binary.Signature = *sig
+
+	// Add a publisher blessing
+	p := v23.GetPrincipal(ctx)
+	publisher, err := p.Bless(p.PublicKey(), p.BlessingStore().Default(), "angryapp.v10", security.UnconstrainedUse())
+	if err != nil {
+		return application.Envelope{}, err
+	}
+	envelope.Publisher = publisher
+	return envelope, nil
+}
+
 // ResolveExpectNotFound verifies that the given name is not in the mounttable.
 func ResolveExpectNotFound(t *testing.T, ctx *context.T, name string, retry bool) {
 	expectErr := naming.ErrNoSuchName.ID

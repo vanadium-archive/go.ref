@@ -117,14 +117,25 @@ func (i *brInvoker) Delete(*context.T, rpc.ServerCall) error {
 	return nil
 }
 
+func mockBinaryBytesReader() (io.Reader, func(), error) {
+	file, err := os.Open(os.Args[0])
+	if err != nil {
+		return nil, nil, err
+	}
+	cleanup := func() {
+		file.Close()
+	}
+	return file, cleanup, nil
+}
+
 func (i *brInvoker) Download(ctx *context.T, call repository.BinaryDownloadServerCall, _ int32) error {
 	vlog.VI(1).Infof("Download()")
-	file, err := os.Open(os.Args[0])
+	file, cleanup, err := mockBinaryBytesReader()
 	if err != nil {
 		vlog.Errorf("Open() failed: %v", err)
 		return verror.New(ErrOperationFailed, ctx)
 	}
-	defer file.Close()
+	defer cleanup()
 	bufferLength := 4096
 	buffer := make([]byte, bufferLength)
 	sender := call.SendStream()

@@ -18,6 +18,7 @@ import (
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/internal/binarylib"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/services/application"
@@ -99,7 +100,29 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 	if err != nil {
 		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Match(%v) failed: %v", profiles, err))
 	}
+	// If a publisher blessing is present, it must be from a publisher we recognize. If not,
+	// reject the envelope. Note that unsigned envelopes are accepted by this check.
+	// TODO: Implment a real ACL check based on publisher
+	names, rejected := publisherBlessingNames(ctx, envelope)
+	if len(names) == 0 && len(rejected) > 0 {
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("publisher %v in envelope %v was not recognized", rejected, envelope.Title))
+	}
 	return &envelope, nil
+}
+
+func publisherBlessingNames(ctx *context.T, env application.Envelope) ([]string, []security.RejectedBlessing) {
+	call := security.NewCall(&security.CallParams{
+		RemoteBlessings: env.Publisher,
+		LocalBlessings:  v23.GetPrincipal(ctx).BlessingStore().Default(),
+		LocalPrincipal:  v23.GetPrincipal(ctx),
+		Timestamp:       time.Now(),
+	})
+	names, rejected := security.RemoteBlessingNames(ctx, call)
+	if len(rejected) > 0 {
+		vlog.Infof("For envelope %v, rejected publisher blessings: %v", env.Title, rejected)
+	}
+	vlog.VI(2).Infof("accepted publisher blessings: %v", names)
+	return names, rejected
 }
 
 // linkSelf creates a link to the current binary.

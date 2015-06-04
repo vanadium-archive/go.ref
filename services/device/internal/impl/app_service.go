@@ -573,20 +573,25 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 		return verror.New(ErrInvalidBlessing, ctx, fmt.Sprintf("no blessings on stream: %v", call.RecvStream().Err()))
 	}
 	msg := call.RecvStream().Value()
-	appBlessings, ok := msg.(device.BlessClientMessageAppBlessings)
+	appBlessingsFromInstantiator, ok := msg.(device.BlessClientMessageAppBlessings)
 	if !ok {
 		return verror.New(ErrInvalidBlessing, ctx, fmt.Sprintf("wrong message type: %#v", msg))
 	}
-	if appBlessings.Value.IsZero() {
+	// Should we move this after the addition of publisher blessings, and thus allow
+	// apps to run with only publisher blessings?
+	if appBlessingsFromInstantiator.Value.IsZero() {
 		return verror.New(ErrInvalidBlessing, ctx)
 	}
-	if err := p.BlessingStore().SetDefault(appBlessings.Value); err != nil {
+	if err := p.BlessingStore().SetDefault(appBlessingsFromInstantiator.Value); err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.SetDefault() failed: %v", err))
 	}
-	if _, err := p.BlessingStore().Set(appBlessings.Value, security.AllPrincipals); err != nil {
+	// If there were any publisher blessings in the envelope, add those to the set of blessings
+	// sent to servers by default
+	appBlessings, err := addPublisherBlessings(ctx, instanceDir, p, appBlessingsFromInstantiator.Value)
+	if _, err := p.BlessingStore().Set(appBlessings, security.AllPrincipals); err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
-	if err := p.AddToRoots(appBlessings.Value); err != nil {
+	if err := p.AddToRoots(appBlessings); err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	// In addition, we give the app separate blessings for the purpose of
@@ -598,10 +603,6 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 	// communication between device manager and app (which could be more
 	// narrowly accomplished by using a custom-purpose self-signed blessing
 	// that the device manger produces solely to talk to the app).
-	//
-	// TODO(caprita): Figure out if there is any feature value in providing
-	// the app with a device manager-derived blessing (e.g., may the app
-	// need to prove it's running on the device?).
 	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
 	// Put the names of the device manager's default blessings as patterns
@@ -628,6 +629,28 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	return nil
+}
+
+func addPublisherBlessings(ctx *context.T, instanceDir string, p security.Principal, b security.Blessings) (security.Blessings, error) {
+	// Load the envelope for the instance, and get the publisher blessings in it
+	envelope, err := loadEnvelopeForInstance(ctx, instanceDir)
+	if err != nil {
+		return security.Blessings{}, err
+	}
+
+	// Extend the device manager blessing with each publisher blessing provided
+	dmPrincipal := v23.GetPrincipal(ctx)
+
+	blessings, _ := publisherBlessingNames(ctx, *envelope)
+	for _, s := range blessings {
+		vlog.VI(2).Infof("adding publisher blessing %v for app %v", s, envelope.Title)
+		tmpBlessing, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), s, security.UnconstrainedUse())
+		if b, err = security.UnionOfBlessings(b, tmpBlessing); err != nil {
+			return b, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("UnionOfBlessings failed: %v %v", b, tmpBlessing))
+		}
+	}
+
+	return b, nil
 }
 
 // installationDir returns the path to the directory containing the app

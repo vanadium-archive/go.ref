@@ -10,19 +10,25 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/application"
 	"v.io/v23/services/device"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/mgmt"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
-	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 func instanceDirForApp(root, appID, instanceID string) string {
@@ -60,6 +66,13 @@ func TestLifeOfAnApp(t *testing.T) {
 	ctx, shutdown := utiltest.V23Init()
 	defer shutdown()
 
+	// Get app publisher context (used later to publish apps)
+	var pubCtx *context.T
+	var err error
+	if pubCtx, err = setupPublishingCredentials(ctx); err != nil {
+		t.Fatal(err)
+	}
+
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
@@ -89,7 +102,11 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Create an envelope for a first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, utiltest.App, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
+	e, err := utiltest.SignedEnvelopeFromShell(pubCtx, sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, utiltest.App, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
+	if err != nil {
+		t.Fatalf("Unable to get signed envelope: %v", err)
+	}
+	*envelope = e
 
 	// Install the app.  The config-specified flag value for testFlagName
 	// should override the value specified in the envelope above, and the
@@ -131,10 +148,14 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	instanceDebug := utiltest.Debug(t, ctx, appID, instance1ID)
-	// Verify the apps default blessings.
-	if !strings.Contains(instanceDebug, fmt.Sprintf("Default Blessings                %s/forapp", test.TestBlessing)) {
+
+	// Verify the app's default blessings.
+	if !strings.Contains(instanceDebug, fmt.Sprintf("Default Blessings                %s/forapp", v23.GetPrincipal(ctx).BlessingStore().Default().String())) {
 		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
 	}
+
+	// Verify the "..." blessing, which will include the publisher blessings
+	verifyAppPeerBlessings(t, ctx, pubCtx, instanceDebug, envelope)
 
 	// Wait until the app pings us that it's ready.
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
@@ -341,4 +362,91 @@ func TestLifeOfAnApp(t *testing.T) {
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
+}
+
+// setupPublishingCredentials creates two principals, which, in addition to the one passed in
+// (which is "the user") allow us to have an "identity provider", and a "publisher". The
+// user and the publisher are both blessed by the identity provider. The return value is
+// a context that can be used to publish an envelope with a signed binary.
+func setupPublishingCredentials(ctx *context.T) (*context.T, error) {
+	IDPPrincipal := testutil.NewPrincipal("identitypro")
+	IDPBlessing := IDPPrincipal.BlessingStore().Default()
+
+	PubPrincipal := testutil.NewPrincipal()
+	UserPrincipal := v23.GetPrincipal(ctx)
+
+	var b security.Blessings
+	var c security.Caveat
+	var err error
+	if c, err = security.NewExpiryCaveat(time.Now().Add(time.Hour * 24 * 30)); err != nil {
+		return nil, err
+	}
+	if b, err = IDPPrincipal.Bless(UserPrincipal.PublicKey(), IDPBlessing, "u/alice", c); err != nil {
+		return nil, err
+	}
+	if err := vsecurity.SetDefaultBlessings(UserPrincipal, b); err != nil {
+		return nil, err
+	}
+
+	if b, err = IDPPrincipal.Bless(PubPrincipal.PublicKey(), IDPBlessing, "m/publisher", security.UnconstrainedUse()); err != nil {
+		return nil, err
+	}
+	if err := vsecurity.SetDefaultBlessings(PubPrincipal, b); err != nil {
+		return nil, err
+	}
+
+	var pubCtx *context.T
+	if pubCtx, err = v23.WithPrincipal(ctx, PubPrincipal); err != nil {
+		return nil, err
+	}
+
+	return pubCtx, nil
+}
+
+// verifyAppPeerBlessings checks the instanceDebug string to ensure that the app is running with
+// the expected blessings for peer "..." (i.e. security.AllPrincipals) .
+//
+// The app should have one blessing that came from the user, of the form
+// <base_blessing>/forapp. It should also have one or more publisher blessings, that are the
+// cross product of the device manager blessings and the publisher blessings in the app
+// envelope.
+func verifyAppPeerBlessings(t *testing.T, ctx, pubCtx *context.T, instanceDebug string, e *application.Envelope) {
+	// Extract the blessings from the debug output
+	blessingRE := regexp.MustCompile(`Blessings\s?\n\s?\.\.\.\s*([^\n]+)`)
+	blessingMatches := blessingRE.FindStringSubmatch(instanceDebug)
+	if len(blessingMatches) < 2 {
+		t.Fatalf("Failed to match blessing regex: [%v] [%v]", blessingMatches, instanceDebug)
+	}
+	blessingList := strings.Split(blessingMatches[1], ",")
+
+	// Compute a map of the blessings we expect to find
+	expBlessings := make(map[string]bool)
+	baseBlessing := v23.GetPrincipal(ctx).BlessingStore().Default().String()
+	expBlessings[baseBlessing+"/forapp"] = false
+
+	// App blessings should be the cross product of device manager and publisher blessings
+
+	// dmBlessings below is a slice even though we have just one entry because we'll likely
+	// want it to have more than one in future. (Today, a device manager typically has a
+	// blessing from its claimer, but in many cases there might be other blessings too, such
+	// as one from the manufacturer, or one from the organization that owns the device.)
+	dmBlessings := []string{baseBlessing + "/mydevice"}
+	pubBlessings := strings.Split(e.Publisher.String(), ",")
+	for _, dmb := range dmBlessings {
+		for _, pb := range pubBlessings {
+			expBlessings[dmb+"/"+pb] = false
+		}
+	}
+
+	// Check the list of blessings against the map of expected blessings
+	matched := 0
+	for _, b := range blessingList {
+		if seen, ok := expBlessings[b]; ok && !seen {
+			expBlessings[b] = true
+			matched++
+		}
+	}
+	if matched != len(expBlessings) {
+		t.Fatalf("Missing some blessings in set %v. App blessings were: %v", expBlessings, blessingList)
+	}
 }
