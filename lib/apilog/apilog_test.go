@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 
 	"v.io/x/lib/vlog"
@@ -68,23 +67,20 @@ func TestLogCall(t *testing.T) {
 	if want, got := 2, len(contents); want != got {
 		t.Errorf("Expected %d info lines, got %d instead", want, got)
 	}
-	logCallLineRE := regexp.MustCompile(`\S+ \S+\s+\S+ ([^:]*):.*(call|return)\[(\S*) (\S*)`)
+	logCallLineRE := regexp.MustCompile(`\S+ \S+\s+\S+ ([^:]*):.*(call|return)\[(\S*)`)
 	for _, line := range contents {
 		match := logCallLineRE.FindStringSubmatch(line)
-		if len(match) != 5 {
+		if len(match) != 4 {
 			t.Errorf("failed to match %s", line)
 			continue
 		}
-		fileName, callType, location, funcName := match[1], match[2], match[3], match[4]
+		fileName, callType, funcName := match[1], match[2], match[3]
 		if fileName != "apilog_test.go" {
 			t.Errorf("unexpected file name: %s", fileName)
 			continue
 		}
 		if callType != "call" && callType != "return" {
 			t.Errorf("unexpected call type: %s", callType)
-		}
-		if !strings.HasPrefix(location, "apilog_test.go:") {
-			t.Errorf("unexpected location: %s", location)
 		}
 		if funcName != "apilog_test.myLoggedFunc" {
 			t.Errorf("unexpected func name: %s", funcName)

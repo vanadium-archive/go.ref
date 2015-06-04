@@ -14,10 +14,8 @@ package apilog
 import (
 	"fmt"
 	"path"
-	"path/filepath"
 	"reflect"
 	"runtime"
-	"strconv"
 	"sync/atomic"
 
 	"v.io/x/lib/vlog"
@@ -37,14 +35,14 @@ func init() {
 func callerLocation() string {
 	var funcName string
 	const stackSkip = 1
-	pc, file, line, ok := runtime.Caller(stackSkip + 1)
+	pc, _, _, ok := runtime.Caller(stackSkip + 1)
 	if ok {
 		function := runtime.FuncForPC(pc)
 		if function != nil {
 			funcName = path.Base(function.Name())
 		}
 	}
-	return filepath.Base(file) + ":" + strconv.Itoa(line) + " " + funcName
+	return funcName
 }
 
 // TODO(cnicolaou): remove LogCall from vlog.
