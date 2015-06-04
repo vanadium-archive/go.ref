@@ -43,11 +43,14 @@ type pidInstanceDirPair struct {
 	pid         int
 }
 
-type reaper chan pidInstanceDirPair
+type reaper struct {
+	c          chan pidInstanceDirPair
+	startState *appRunner
+}
 
 var stashedPidMap map[string]int
 
-func newReaper(ctx *context.T, root string) (reaper, error) {
+func newReaper(ctx *context.T, root string, startState *appRunner) (*reaper, error) {
 	pidMap, err := findAllTheInstances(ctx, root)
 
 	// Used only by the testing code that verifies that all processes
@@ -57,9 +60,13 @@ func newReaper(ctx *context.T, root string) (reaper, error) {
 		return nil, err
 	}
 
-	c := make(reaper)
-	go processStatusPolling(c, pidMap)
-	return c, nil
+	r := &reaper{
+		c:          make(chan pidInstanceDirPair),
+		startState: startState,
+	}
+	r.startState.reap = r
+	go r.processStatusPolling(pidMap)
+	return r, nil
 }
 
 func markNotRunning(idir string) {
@@ -77,7 +84,7 @@ func markNotRunning(idir string) {
 // functionality. For example, use the kevent facility in darwin or
 // replace init. See http://www.incenp.org/dvlpt/wait4.html for
 // inspiration.
-func processStatusPolling(r reaper, trackedPids map[string]int) {
+func (r *reaper) processStatusPolling(trackedPids map[string]int) {
 	poll := func() {
 		for idir, pid := range trackedPids {
 			switch err := syscall.Kill(pid, 0); err {
@@ -85,6 +92,7 @@ func processStatusPolling(r reaper, trackedPids map[string]int) {
 				// No such PID.
 				vlog.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
 				markNotRunning(idir)
+				r.startState.restartAppIfNecessary(idir)
 				delete(trackedPids, idir)
 			case nil, syscall.EPERM:
 				vlog.VI(2).Infof("processStatusPolling saw live pid: %d", pid)
@@ -99,6 +107,11 @@ func processStatusPolling(r reaper, trackedPids map[string]int) {
 				// TODO(rjkroege): Probe the appcycle service of the app
 				// to confirm that its pid is valid iff v23PIDMgmt
 				// is false.
+
+				// TODO(rjkroege): if we can't connect to the app here via
+				// the appcycle manager, the app was probably started under
+				// a different agent and cannot be managed. Perhaps we should
+				// then kill the app and restart it?
 			default:
 				// The kill system call manpage says that this can only happen
 				// if the kernel claims that 0 is an invalid signal.
@@ -111,7 +124,7 @@ func processStatusPolling(r reaper, trackedPids map[string]int) {
 
 	for {
 		select {
-		case p, ok := <-r:
+		case p, ok := <-r.c:
 			switch {
 			case !ok:
 				return
@@ -139,22 +152,22 @@ func processStatusPolling(r reaper, trackedPids map[string]int) {
 // startWatching begins watching process pid's state. This routine
 // assumes that pid already exists. Since pid is delivered to the device
 // manager by RPC callback, this seems reasonable.
-func (r reaper) startWatching(idir string, pid int) {
-	r <- pidInstanceDirPair{instanceDir: idir, pid: pid}
+func (r *reaper) startWatching(idir string, pid int) {
+	r.c <- pidInstanceDirPair{instanceDir: idir, pid: pid}
 }
 
 // stopWatching stops watching process pid's state.
-func (r reaper) stopWatching(idir string) {
-	r <- pidInstanceDirPair{instanceDir: idir, pid: -1}
+func (r *reaper) stopWatching(idir string) {
+	r.c <- pidInstanceDirPair{instanceDir: idir, pid: -1}
 }
 
 // forciblySuspend terminates the process pid
-func (r reaper) forciblySuspend(idir string) {
-	r <- pidInstanceDirPair{instanceDir: idir, pid: -2}
+func (r *reaper) forciblySuspend(idir string) {
+	r.c <- pidInstanceDirPair{instanceDir: idir, pid: -2}
 }
 
-func (r reaper) shutdown() {
-	close(r)
+func (r *reaper) shutdown() {
+	close(r.c)
 }
 
 type pidErrorTuple struct {
