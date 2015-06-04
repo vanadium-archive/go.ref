@@ -5,12 +5,13 @@
 package nosql
 
 import (
+	"path"
+
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
@@ -31,15 +32,27 @@ var (
 	_ util.Layer                 = (*database)(nil)
 )
 
+type DatabaseOptions struct {
+	// Database-level permissions.
+	Perms access.Permissions
+	// Root dir for data storage.
+	RootDir string
+	// Storage engine to use.
+	Engine string
+}
+
 // NewDatabase creates a new database instance and returns it.
 // Returns a VDL-compatible error.
 // Designed for use from within App.CreateNoSQLDatabase.
-func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name string, perms access.Permissions) (*database, error) {
-	if perms == nil {
+func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name string, opts DatabaseOptions) (*database, error) {
+	if opts.Perms == nil {
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
-	// TODO(sadovsky): Make storage engine pluggable.
-	st, err := watchable.Wrap(memstore.New(), &watchable.Options{
+	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine))
+	if err != nil {
+		return nil, err
+	}
+	st, err = watchable.Wrap(st, &watchable.Options{
 		ManagedPrefixes: []string{util.RowPrefix},
 	})
 	if err != nil {
@@ -52,7 +65,7 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 	}
 	data := &databaseData{
 		Name:  d.name,
-		Perms: perms,
+		Perms: opts.Perms,
 	}
 	if err := util.Put(ctx, call, d.st, d, data); err != nil {
 		return nil, err

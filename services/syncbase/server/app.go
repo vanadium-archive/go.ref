@@ -5,6 +5,7 @@
 package server
 
 import (
+	"path"
 	"sync"
 
 	wire "v.io/syncbase/v23/services/syncbase"
@@ -148,7 +149,11 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	if perms == nil {
 		perms = aData.Perms
 	}
-	d, err := nosql.NewDatabase(ctx, call, a, dbName, perms)
+	d, err := nosql.NewDatabase(ctx, call, a, dbName, nosql.DatabaseOptions{
+		Perms:   perms,
+		RootDir: path.Join(a.s.opts.RootDir, "apps", a.name, dbName),
+		Engine:  a.s.opts.Engine,
+	})
 	if err != nil {
 		return err
 	}

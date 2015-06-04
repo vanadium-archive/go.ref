@@ -5,9 +5,12 @@
 package util
 
 import (
+	"os"
 	"strconv"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/syncbase/x/ref/services/syncbase/store/leveldb"
+	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
@@ -104,7 +107,7 @@ func Update(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, l Lay
 }
 
 ////////////////////////////////////////////////////////////
-// RPC-oblivious, lower-level get/put
+// RPC-oblivious, lower-level helpers
 
 func GetObject(st store.StoreReader, k string, v interface{}) error {
 	bytes, err := st.Get([]byte(k), nil)
@@ -120,4 +123,18 @@ func PutObject(st store.StoreWriter, k string, v interface{}) error {
 		return err
 	}
 	return st.Put([]byte(k), bytes)
+}
+
+func OpenStore(engine, path string) (store.Store, error) {
+	switch engine {
+	case "memstore":
+		return memstore.New(), nil
+	case "leveldb":
+		if err := os.MkdirAll(path, 0700); err != nil {
+			return nil, verror.New(verror.ErrInternal, nil, err)
+		}
+		return leveldb.Open(path)
+	default:
+		return nil, verror.New(verror.ErrBadArg, nil, engine)
+	}
 }

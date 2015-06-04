@@ -9,13 +9,13 @@ package server
 // preserve privacy.
 
 import (
+	"path"
 	"sync"
 
 	wire "v.io/syncbase/v23/services/syncbase"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/syncbase/x/ref/services/syncbase/vsync"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -23,9 +23,19 @@ import (
 	"v.io/v23/verror"
 )
 
+type ServiceOptions struct {
+	// Service-level permissions.
+	Perms access.Permissions
+	// Root dir for data storage.
+	RootDir string
+	// Storage engine to use (for service and per-database engines).
+	Engine string
+}
+
 type service struct {
 	st   store.Store // keeps track of which apps and databases exist, etc.
 	sync interfaces.SyncServerMethods
+	opts ServiceOptions
 	// Guards the fields below. Held during app Create, Delete, and
 	// SetPermissions.
 	mu   sync.Mutex
@@ -40,28 +50,28 @@ var (
 
 // NewService creates a new service instance and returns it.
 // Returns a VDL-compatible error.
-func NewService(ctx *context.T, call rpc.ServerCall, perms access.Permissions) (*service, error) {
-	if perms == nil {
+func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*service, error) {
+	if opts.Perms == nil {
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
-	// TODO(sadovsky): Make storage engine pluggable.
+	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine))
+	if err != nil {
+		return nil, err
+	}
 	s := &service{
-		st:   memstore.New(),
+		st:   st,
+		opts: opts,
 		apps: map[string]*app{},
 	}
-
 	data := &serviceData{
-		Perms: perms,
+		Perms: opts.Perms,
 	}
 	if err := util.Put(ctx, call, s.st, s, data); err != nil {
 		return nil, err
 	}
-
-	var err error
 	if s.sync, err = vsync.New(ctx, call, s); err != nil {
 		return nil, err
 	}
-
 	return s, nil
 }
 

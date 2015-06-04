@@ -23,7 +23,9 @@ import (
 )
 
 var (
-	name = flag.String("name", "", "Name to mount at.")
+	name    = flag.String("name", "", "Name to mount at.")
+	rootDir = flag.String("root-dir", "/var/lib/syncbase", "Root dir for storage engines and other data")
+	engine  = flag.String("engine", "memstore", "Storage engine to use. Currently supported: memstore and leveldb.")
 )
 
 // defaultPerms returns a permissions object that grants all permissions to the
@@ -62,7 +64,11 @@ func main() {
 		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 	}
 
-	service, err := server.NewService(nil, nil, perms)
+	service, err := server.NewService(nil, nil, server.ServiceOptions{
+		Perms:   perms,
+		RootDir: *rootDir,
+		Engine:  *engine,
+	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)
 	}
