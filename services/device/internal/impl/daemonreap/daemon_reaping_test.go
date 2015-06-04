@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/device"
 	"v.io/v23/services/stats"
@@ -35,7 +36,7 @@ func TestDaemonRestart(t *testing.T) {
 	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Create an envelope for a first version of the app that will be restarted once.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 1, 10*time.Second, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 1, 10*time.Minute, "appV1")
 	appID := utiltest.InstallApp(t, ctx)
 
 	// Start an instance of the app.
@@ -45,7 +46,58 @@ func TestDaemonRestart(t *testing.T) {
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "default", "")
 
 	// Get application pid.
-	name := naming.Join("dm", "apps/"+appID+"/"+instance1ID+"/stats/system/pid")
+	pid := getPid(t, ctx, appID, instance1ID)
+
+	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
+	syscall.Kill(int(pid), 9)
+	pollingWait(t, int(pid))
+
+	// Start a second instance of the app which will force polling to happen.
+	// During this polling, the reaper will restart app instance1
+	instance2ID := utiltest.LaunchApp(t, ctx, appID)
+	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "default", "")
+	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID)
+
+	// Stop the second instance of the app which will also force polling. By this point,
+	// instance1 should be live.
+	utiltest.KillApp(t, ctx, appID, instance2ID)
+
+	// instance2ID is not running.
+	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance2ID)
+
+	// instance1ID was restarted automatically.
+	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
+
+	// Get application pid.
+	pid = getPid(t, ctx, appID, instance1ID)
+	// Be sure to get the ping from the restarted application so that we block in
+	// RunApp below.
+	pingCh.WaitForPingArgs(t)
+	// Kill the application again.
+	syscall.Kill(int(pid), 9)
+	pollingWait(t, int(pid))
+
+	// Start and stop instance 2 again to force two polling cycles.
+	utiltest.RunApp(t, ctx, appID, instance2ID)
+	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "default", "")
+	utiltest.KillApp(t, ctx, appID, instance2ID)
+
+	// instance1ID is not running because it exceeded its restart limit.
+	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
+
+	// instance2ID is not running.
+	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance2ID)
+
+	// Cleanly shut down the device manager.
+	utiltest.VerifyNoRunningProcesses(t)
+	syscall.Kill(dmh.Pid(), syscall.SIGINT)
+	dmh.Expect("dm terminated")
+	dmh.ExpectEOF()
+}
+
+// getPid returns the application pid
+func getPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
+	name := naming.Join("dm", "apps/"+appID+"/"+instanceID+"/stats/system/pid")
 	c := stats.StatsClient(name)
 	v, err := c.Value(ctx)
 	if err != nil {
@@ -55,33 +107,19 @@ func TestDaemonRestart(t *testing.T) {
 	if err := vdl.Convert(&pid, v); err != nil {
 		t.Fatalf("pid returned from stats interface is not an int: %v", err)
 	}
+	return pid
+}
 
-	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
-	syscall.Kill(int(pid), 9)
-
-	// Start a second instance of the app which will force polling to happen.
-	instance2ID := utiltest.LaunchApp(t, ctx, appID)
-	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "default", "")
-
-	// TODO(rjkroege): Because there is no daemon mode, instance1ID is not running even
-	// though it should be.
-	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
-
-	// TODO(rjkroege): Demonstrate that the device manager will only restart the app the
-	// configured number of times (1)
-
-	// instance2ID is still running though.
-	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID)
-
-	// Cleanup.
-	utiltest.TerminateApp(t, ctx, appID, instance2ID)
-
-	// TODO(rjkroege): instance1ID isn't running but should be.
-	// utiltest.TerminateApp(t, ctx, appID, instance1ID)
-
-	// Cleanly shut down the device manager.
-	utiltest.VerifyNoRunningProcesses(t)
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dmh.Expect("dm terminated")
-	dmh.ExpectEOF()
+// pollingWait waits until the specificed process is actually dead so that
+// that the test can be certain that the process is actually dead before
+// continuing.
+func pollingWait(t *testing.T, pid int) {
+	for {
+		switch err := syscall.Kill(pid, 0); {
+		case err == syscall.ESRCH:
+			return
+		case err != nil:
+			t.Fatalf("syscall.Kill not working as expected: %v", err)
+		}
+	}
 }

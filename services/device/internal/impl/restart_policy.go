@@ -5,6 +5,8 @@
 package impl
 
 import (
+	"time"
+
 	"v.io/v23/services/application"
 )
 
@@ -16,21 +18,37 @@ type restartPolicy interface {
 	decide(envelope *application.Envelope, instance *instanceInfo) bool
 }
 
-// startStub implements a stub RestartPolicy.
-type startStub struct {
-	start bool
+type basicDecisionPolicy struct {
 }
 
-// alwaysStart returns a RestartPolicy that always (re)starts the application.
-func alwaysStart() restartPolicy {
-	return startStub{true}
+func newBasicRestartPolicy() restartPolicy {
+	return new(basicDecisionPolicy)
 }
 
-// neverStart returns a RestartPolicy that never (re)starts the application.
-func neverStart() restartPolicy {
-	return startStub{false}
-}
+func (rp *basicDecisionPolicy) decide(envelope *application.Envelope, instance *instanceInfo) bool {
+	if envelope.Restarts == 0 {
+		return false
+	}
+	if envelope.Restarts < 0 {
+		return true
+	}
 
-func (s startStub) decide(envelope *application.Envelope, instance *instanceInfo) bool {
-	return s.start
+	if instance.Restarts == 0 {
+		instance.RestartWindowBegan = time.Now()
+	}
+
+	endOfWindow := instance.RestartWindowBegan.Add(envelope.RestartTimeWindow)
+	if time.Now().After(endOfWindow) {
+		instance.Restarts = 1
+		instance.RestartWindowBegan = time.Now()
+		return true
+	}
+
+	if instance.Restarts < envelope.Restarts {
+		instance.Restarts++
+		return true
+	}
+
+	return false
+
 }

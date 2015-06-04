@@ -92,7 +92,7 @@ func (r *reaper) processStatusPolling(trackedPids map[string]int) {
 				// No such PID.
 				vlog.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
 				markNotRunning(idir)
-				r.startState.restartAppIfNecessary(idir)
+				go r.startState.restartAppIfNecessary(idir)
 				delete(trackedPids, idir)
 			case nil, syscall.EPERM:
 				vlog.VI(2).Infof("processStatusPolling saw live pid: %d", pid)
@@ -130,6 +130,7 @@ func (r *reaper) processStatusPolling(trackedPids map[string]int) {
 				return
 			case p.pid == -1: // stop watching this instance
 				delete(trackedPids, p.instanceDir)
+				poll()
 			case p.pid == -2: // kill the process
 				if pid, ok := trackedPids[p.instanceDir]; ok {
 					if err := suidHelper.terminatePid(pid, nil, nil); err != nil {

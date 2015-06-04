@@ -160,6 +160,8 @@ type instanceInfo struct {
 	Pid                      int
 	DeviceManagerPeerPattern string
 	SecurityAgentHandle      []byte
+	Restarts                 int32
+	RestartWindowBegan       time.Time
 }
 
 func saveInstanceInfo(ctx *context.T, dir string, info *instanceInfo) error {
@@ -957,25 +959,45 @@ func (i *appRunner) run(ctx *context.T, instanceDir string) error {
 	return nil
 }
 
-func (i *appRunner) restartAppIfNecessary(instanceDir string) {
+func synchronizedShouldRestart(instanceDir string) bool {
 	info, err := loadInstanceInfo(nil, instanceDir)
 	if err != nil {
 		vlog.Error(err)
-		return
+		return false
 	}
 
 	envelope, err := loadEnvelopeForInstance(nil, instanceDir)
 	if err != nil {
 		vlog.Error(err)
+		return false
+	}
+
+	shouldRestart := newBasicRestartPolicy().decide(envelope, info)
+
+	if err := saveInstanceInfo(nil, instanceDir, info); err != nil {
+		vlog.Error(err)
+		return false
+	}
+	return shouldRestart
+}
+
+func (i *appRunner) restartAppIfNecessary(instanceDir string) {
+	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateLaunching); err != nil {
+		vlog.Error(err)
 		return
 	}
 
-	// Determine if we should restart.
-	if !neverStart().decide(envelope, info) {
+	shouldRestart := synchronizedShouldRestart(instanceDir)
+
+	if err := transitionInstance(instanceDir, device.InstanceStateLaunching, device.InstanceStateNotRunning); err != nil {
+		vlog.Error(err)
 		return
 	}
 
-	// TODO(rjkroege): Implement useful restart policy.
+	if !shouldRestart {
+		return
+	}
+
 	if err := i.run(nil, instanceDir); err != nil {
 		vlog.Error(err)
 	}
