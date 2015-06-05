@@ -136,16 +136,17 @@ func TestClear(t *testing.T) {
 }
 
 func TestRandom(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	var q T
 	var contents []int
 	for i := 0; i != 1000; i++ {
-		switch testutil.Intn(4) {
+		switch testutil.RandomIntn(4) {
 		case 0:
-			i := testutil.Int()
+			i := testutil.RandomInt()
 			contents = append([]int{i}, contents...)
 			q.PushFront(i)
 		case 1:
-			i := testutil.Int()
+			i := testutil.RandomInt()
 			contents = append(contents, i)
 			q.PushBack(i)
 		case 2:

@@ -185,6 +185,7 @@ func TestMultiPart(t *testing.T) {
 // resumption ranging the number of parts the uploaded binary consists
 // of.
 func TestResumption(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -216,7 +217,7 @@ func TestResumption(t *testing.T) {
 				break
 			}
 			for i := 0; i < length; i++ {
-				fail := testutil.Intn(2)
+				fail := testutil.RandomIntn(2)
 				if parts[i] == binarylib.MissingPart && fail != 0 {
 					if streamErr, err := invokeUpload(t, ctx, binary, data[i], int32(i)); streamErr != nil || err != nil {
 						t.FailNow()
@@ -232,6 +233,7 @@ func TestResumption(t *testing.T) {
 
 // TestErrors checks that the binary interface correctly reports errors.
 func TestErrors(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -244,7 +246,7 @@ func TestErrors(t *testing.T) {
 	for i := 0; i < length; i++ {
 		data[i] = testData()
 		for j := 0; j < len(data[i]); j++ {
-			data[i][j] = byte(testutil.Int())
+			data[i][j] = byte(testutil.RandomInt())
 		}
 	}
 	if err := binary.Create(ctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {

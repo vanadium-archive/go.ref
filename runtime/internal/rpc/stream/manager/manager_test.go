@@ -917,6 +917,7 @@ func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
 	}
 	var stderr bytes.Buffer
 	if err := h.Shutdown(nil, &stderr); err != nil {
+		t.Logf("%s", stderr.String())
 		t.Fatal(err)
 	}
 	if log := expect.NewSession(t, bytes.NewReader(stderr.Bytes()), time.Minute).ExpectSetEventuallyRE("listener.go.*Killing [1-9][0-9]* Conns"); len(log) == 0 {

@@ -89,7 +89,7 @@ func prepDirectory(t *testing.T, rootDir string) {
 
 // testData creates up to 4MB of random bytes.
 func testData() []byte {
-	size := testutil.Intn(1000 * binarylib.BufferLength)
+	size := testutil.RandomIntn(1000 * binarylib.BufferLength)
 	data := testutil.RandomBytes(size)
 	return data
 }

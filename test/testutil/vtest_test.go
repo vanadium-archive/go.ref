@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package testutil
+package testutil_test
 
 import (
 	"testing"
+
+	"v.io/x/ref/test/testutil"
 )
 
 func TestCallAndRecover(t *testing.T) {
@@ -19,7 +21,7 @@ func TestCallAndRecover(t *testing.T) {
 		{func() { panic("abc") }, "abc"},
 	}
 	for _, test := range tests {
-		got := CallAndRecover(test.f)
+		got := testutil.CallAndRecover(test.f)
 		if got != test.expect {
 			t.Errorf(`CallAndRecover got "%v", want "%v"`, got, test.expect)
 		}

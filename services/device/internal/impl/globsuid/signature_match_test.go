@@ -27,6 +27,7 @@ import (
 )
 
 func TestDownloadSignatureMatch(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := utiltest.V23Init()
 	defer shutdown()
 
@@ -37,7 +38,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	pkgVON := naming.Join(binaryVON, "testpkg")
 	defer utiltest.StartRealBinaryRepository(t, ctx, binaryVON)()
 
-	up := testutil.RandomBytes(testutil.Intn(5 << 20))
+	up := testutil.RandomBytes(testutil.RandomIntn(5 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
 	sig, err := binarylib.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo)
 	if err != nil {
@@ -50,7 +51,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(tmpdir)
-	pkgContents := testutil.RandomBytes(testutil.Intn(5 << 20))
+	pkgContents := testutil.RandomBytes(testutil.RandomIntn(5 << 20))
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, "pkg.txt"), pkgContents, 0600); err != nil {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}

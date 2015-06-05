@@ -397,7 +397,6 @@ func testShutdown(t *testing.T, sh *modules.Shell, prog modules.Program) {
 	if got, want := stdoutBuf.String(), stdoutOutput+result; got != want {
 		t.Errorf("got %q want %q", got, want)
 	}
-	stderrBuf.ReadString('\n') // Skip past the random # generator output
 	if got, want := stderrBuf.String(), stderrOutput; got != want {
 		t.Errorf("got %q want %q", got, want)
 	}

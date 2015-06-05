@@ -85,6 +85,7 @@ func TestSingleFlowCreatedAtServer(t *testing.T) {
 }
 
 func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	// This test dials multiple VCs from the client to the server.
 	// On each VC, it creates multiple flows, writes to them and verifies
 	// that the other process received what was written.
@@ -143,7 +144,7 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 		buf := []byte(data)
 		// Split into a random number of Write calls.
 		for len(buf) > 0 {
-			size := 1 + testutil.Intn(len(buf)) // Random number in [1, len(buf)]
+			size := 1 + testutil.RandomIntn(len(buf)) // Random number in [1, len(buf)]
 			n, err := flow.Write(buf[:size])
 			if err != nil {
 				t.Errorf("Write failed: (%d, %v)", n, err)
@@ -159,7 +160,7 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 		var buf bytes.Buffer
 		var tmp [1024]byte
 		for {
-			n, err := flow.Read(tmp[:testutil.Intn(len(tmp))])
+			n, err := flow.Read(tmp[:testutil.RandomIntn(len(tmp))])
 			buf.Write(tmp[:n])
 			if err == io.EOF {
 				break

@@ -62,12 +62,13 @@ const (
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
 // ensures that the same string is read back.
 func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	defer flow.Close()
 	wrote := testutil.RandomBytes(size)
 	go func() {
 		buf := wrote
 		for len(buf) > 0 {
-			limit := 1 + testutil.Intn(len(buf)) // Random number in [1, n]
+			limit := 1 + testutil.RandomIntn(len(buf)) // Random number in [1, n]
 			n, err := flow.Write(buf[:limit])
 			if n != limit || err != nil {
 				t.Errorf("Write returned (%d, %v) want (%d, nil)", n, err, limit)

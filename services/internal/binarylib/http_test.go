@@ -23,6 +23,7 @@ import (
 
 // TestHTTP checks that HTTP download works.
 func TestHTTP(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -37,7 +38,7 @@ func TestHTTP(t *testing.T) {
 		data := make([][]byte, length)
 		for i := 0; i < length; i++ {
 			// Random size, but at least 1 (avoid empty parts).
-			size := testutil.Intn(1000*binarylib.BufferLength) + 1
+			size := testutil.RandomIntn(1000*binarylib.BufferLength) + 1
 			data[i] = testutil.RandomBytes(size)
 		}
 		mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}

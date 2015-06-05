@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package testutil
+package testutil_test
 
 import (
 	"reflect"
 	"testing"
+
+	"v.io/x/ref/test/testutil"
 )
 
 func TestIDProvider(t *testing.T) {
-	idp := NewIDProvider("foo")
-	p := NewPrincipal()
+	idp := testutil.NewIDProvider("foo")
+	p := testutil.NewPrincipal()
 	if err := idp.Bless(p, "bar"); err != nil {
 		t.Fatal(err)
 	}

@@ -13,10 +13,10 @@ import (
 )
 
 func randomKeys() []uint64 {
-	n := (testutil.Intn(256*10) / 10) + 256
+	n := (testutil.RandomIntn(256*10) / 10) + 256
 	k := make([]uint64, n)
 	for i := 0; i < n; i++ {
-		k[i] = uint64(testutil.Int63())
+		k[i] = uint64(testutil.RandomInt63())
 	}
 	return k
 }
@@ -29,6 +29,7 @@ func (p keySlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p keySlice) Sort()              { sort.Sort(p) }
 
 func TestStoreRandom(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	store := newStore()
 	keys := randomKeys()
 
@@ -50,6 +51,7 @@ func TestStoreRandom(t *testing.T) {
 }
 
 func TestStoreOrdered(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	store := newStore()
 	keys := randomKeys()
 
@@ -94,6 +96,7 @@ func TestStoreWaitForEntry(t *testing.T) {
 }
 
 func TestStoreWaitForEntryRandom(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	store := newStore()
 	keys := randomKeys()
 	var wg sync.WaitGroup
@@ -115,6 +118,7 @@ func TestStoreWaitForEntryRandom(t *testing.T) {
 }
 
 func TestStoreWaitForRemovedEntry(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	store := newStore()
 	keys := randomKeys()
 	var wg sync.WaitGroup

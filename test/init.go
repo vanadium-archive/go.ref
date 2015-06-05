@@ -10,10 +10,10 @@ import (
 	"runtime"
 	"sync"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
-
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/test/testutil"
@@ -58,7 +58,6 @@ func Init() {
 		// function of a _test.go file.
 		flag.Parse()
 		vlog.ConfigureLibraryLoggerFromFlags()
-		testutil.InitRandGenerator()
 	}
 	once.Do(init)
 }

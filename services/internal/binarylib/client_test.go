@@ -83,6 +83,7 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 // TestBufferAPI tests the binary repository client-side library
 // interface using buffers.
 func TestBufferAPI(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -90,7 +91,7 @@ func TestBufferAPI(t *testing.T) {
 
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
-	data := testutil.RandomBytes(testutil.Intn(10 << 20))
+	data := testutil.RandomBytes(testutil.RandomIntn(10 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
 	sig, err := Upload(ctx, von, data, mediaInfo)
 	if err != nil {
@@ -136,6 +137,7 @@ func TestBufferAPI(t *testing.T) {
 // TestFileAPI tests the binary repository client-side library
 // interface using files.
 func TestFileAPI(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -144,7 +146,7 @@ func TestFileAPI(t *testing.T) {
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
 	// Create up to 10MB of random bytes.
-	data := testutil.RandomBytes(testutil.Intn(10 << 20))
+	data := testutil.RandomBytes(testutil.RandomIntn(10 << 20))
 	dir, prefix := "", ""
 	src, err := ioutil.TempFile(dir, prefix)
 	if err != nil {

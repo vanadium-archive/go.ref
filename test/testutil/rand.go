@@ -5,13 +5,12 @@
 package testutil
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
 	"strconv"
 	"sync"
 	"time"
-
-	"v.io/x/lib/vlog"
 )
 
 const (
@@ -27,25 +26,26 @@ var (
 // Random is a concurrent-access friendly source of randomness.
 type Random struct {
 	mu   sync.Mutex
+	seed int64
 	rand *rand.Rand
 }
 
-// Int returns a non-negative pseudo-random int.
-func (r *Random) Int() int {
+// RandomInt returns a non-negative pseudo-random int.
+func (r *Random) RandomInt() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.rand.Int()
 }
 
-// Intn returns a non-negative pseudo-random int in the range [0, n).
-func (r *Random) Intn(n int) int {
+// RandomIntn returns a non-negative pseudo-random int in the range [0, n).
+func (r *Random) RandomIntn(n int) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.rand.Intn(n)
 }
 
-// Int63 returns a non-negative 63-bit pseudo-random integer as an int64.
-func (r *Random) Int63() int64 {
+// RandomInt63 returns a non-negative 63-bit pseudo-random integer as an int64.
+func (r *Random) RandomInt63() int64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.rand.Int63()
@@ -65,7 +65,7 @@ func (rand *Random) RandomBytes(size int) []byte {
 		extra := generateRandomBytes(rand, size-len(random))
 		random = append(random, extra...)
 	}
-	start := rand.Intn(len(random) - size + 1)
+	start := rand.RandomIntn(len(random) - size + 1)
 	copy(buffer, random[start:start+size])
 	return buffer
 }
@@ -80,18 +80,25 @@ func NewRandGenerator() *Random {
 		base, bitSize := 0, 64
 		seed, err = strconv.ParseInt(seedString, base, bitSize)
 		if err != nil {
-			vlog.Fatalf("ParseInt(%v, %v, %v) failed: %v", seedString, base, bitSize, err)
+			panic(fmt.Sprintf("ParseInt(%v, %v, %v) failed: %v", seedString, base, bitSize, err))
 		}
 	}
-	vlog.Infof("Seeding pseudo-random number generator with %v", seed)
-	return &Random{rand: rand.New(rand.NewSource(seed))}
+	return &Random{seed: seed, rand: rand.New(rand.NewSource(seed))}
 }
 
-// InitRandGenerator creates an instance of Random in the public variable Rand.
-func InitRandGenerator() {
+// InitRandGenerator creates an instance of Random in the public variable Rand
+// and returns a function intended to be defer'ed that prints out the
+// seed use when creating the number number generator using the supplied
+// logging function.
+func InitRandGenerator(loggingFunc func(format string, args ...interface{})) func() {
 	once.Do(func() {
 		Rand = NewRandGenerator()
 	})
+	return func() {
+		if loggingFunc != nil {
+			loggingFunc("Seeded pseudo-random number generator with %v", Rand.seed)
+		}
+	}
 }
 
 var (
@@ -103,7 +110,7 @@ func generateRandomBytes(rand *Random, size int) []byte {
 	buffer := make([]byte, size)
 	offset := 0
 	for {
-		bits := int64(rand.Int63())
+		bits := int64(rand.RandomInt63())
 		for i := 0; i < 8; i++ {
 			buffer[offset] = byte(bits & 0xff)
 			size--
@@ -116,21 +123,21 @@ func generateRandomBytes(rand *Random, size int) []byte {
 	}
 }
 
-// Int returns a non-negative pseudo-random int using the public variable Rand.
-func Int() int {
-	return Rand.Int()
+// RandomInt returns a non-negative pseudo-random int using the public variable Rand.
+func RandomInt() int {
+	return Rand.RandomInt()
 }
 
-// Intn returns a non-negative pseudo-random int in the range [0, n) using
+// RandomIntn returns a non-negative pseudo-random int in the range [0, n) using
 // the public variable Rand.
-func Intn(n int) int {
-	return Rand.Intn(n)
+func RandomIntn(n int) int {
+	return Rand.RandomIntn(n)
 }
 
-// Int63 returns a non-negative 63-bit pseudo-random integer as an int64
+// RandomInt63 returns a non-negative 63-bit pseudo-random integer as an int64
 // using the public variable Rand.
-func Int63() int64 {
-	return Rand.Int63()
+func RandomInt63() int64 {
+	return Rand.RandomInt63()
 }
 
 // RandomBytes generates the given number of random bytes using

@@ -83,6 +83,7 @@ func matchesErrorPattern(err error, pattern string) bool {
 }
 
 func TestRoundTrip(t *testing.T) {
+	defer testutil.InitRandGenerator(t.Logf)()
 	signer := newSigner()
 	d, s := &bufferCloser{}, &bufferCloser{}
 
