@@ -323,7 +323,6 @@ type runningTest struct {
 	writer           *testwriter.Writer
 	mounttableServer rpc.Server
 	proxyShutdown    func()
-	typeStream       *typeWriter
 	typeEncoder      *vom.TypeEncoder
 }
 
@@ -339,6 +338,15 @@ func makeRequest(typeEncoder *vom.TypeEncoder, rpc RpcRequest, args ...interface
 		}
 	}
 	return hex.EncodeToString(buf.Bytes()), nil
+}
+
+type typeEncoderWriter struct {
+	c *Controller
+}
+
+func (t *typeEncoderWriter) Write(p []byte) (int, error) {
+	t.c.HandleTypeMessage(hex.EncodeToString(p))
+	return len(p), nil
 }
 
 func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Controller)) (*runningTest, error) {
@@ -377,7 +385,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	}
 
 	v23.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
-	typeStream := &typeWriter{}
+	typeStream := &typeEncoderWriter{c: controller}
 	typeEncoder := vom.NewTypeEncoder(typeStream)
 	req, err := makeRequest(typeEncoder, RpcRequest{
 		Name:       "__controller",
@@ -387,21 +395,12 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 		Deadline:   vdltime.Deadline{},
 	}, "adder", 0, []RpcServerOption{})
 
-	for _, r := range typeStream.resps {
-		b, err := base64.StdEncoding.DecodeString(r.Message.(string))
-		if err != nil {
-			panic(err)
-		}
-
-		controller.HandleTypeMessage(hex.EncodeToString(b))
-	}
-	typeStream.resps = []lib.Response{}
 	controller.HandleVeyronRequest(ctx, 0, req, writer)
 
 	testWriter, _ := writer.(*testwriter.Writer)
 	return &runningTest{
 		controller, testWriter, mounttableServer, proxyShutdown,
-		typeStream, typeEncoder,
+		typeEncoder,
 	}, nil
 }
 
@@ -455,6 +454,8 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 	rt, err := serveServer(ctx, mock, func(controller *Controller) {
 		mock.controller = controller
 	})
+
+	mock.typeEncoder = rt.typeEncoder
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyShutdown()
 	defer rt.controller.Cleanup()

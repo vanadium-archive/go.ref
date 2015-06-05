@@ -15,9 +15,20 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/lib/testwriter"
 )
+
+type mockVomHelper struct{}
+
+func (mockVomHelper) TypeEncoder() *vom.TypeEncoder {
+	return nil
+}
+
+func (mockVomHelper) TypeDecoder() *vom.TypeDecoder {
+	return nil
+}
 
 type mockFlowFactory struct {
 	writer testwriter.Writer
@@ -80,7 +91,7 @@ func (mockAuthorizerFactory) createAuthorizer(handle int32, hasAuthorizer bool) 
 
 func TestSuccessfulLookup(t *testing.T) {
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{})
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, mockVomHelper{})
 	expectedSig := []signature.Interface{
 		{Name: "AName"},
 	}
@@ -129,7 +140,7 @@ func TestSuccessfulLookup(t *testing.T) {
 
 func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{})
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, mockVomHelper{})
 	expectedSig := []signature.Interface{
 		{Name: "AName"},
 	}
@@ -178,7 +189,7 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 
 func TestFailedLookup(t *testing.T) {
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{})
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, mockVomHelper{})
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)
