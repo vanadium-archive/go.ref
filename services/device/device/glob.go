@@ -92,16 +92,16 @@ func globRunner(handler GlobHandler, s *GlobSettings) cmdline.Runner {
 type objectKind int
 
 const (
-	applicationInstallationObject objectKind = iota
-	applicationInstanceObject
-	deviceServiceObject
+	ApplicationInstallationObject objectKind = iota
+	ApplicationInstanceObject
+	DeviceServiceObject
 	sentinelObjectKind
 )
 
 var objectKinds = []objectKind{
-	applicationInstallationObject,
-	applicationInstanceObject,
-	deviceServiceObject,
+	ApplicationInstallationObject,
+	ApplicationInstanceObject,
+	DeviceServiceObject,
 }
 
 func init() {
@@ -114,27 +114,27 @@ func init() {
 // GlobResult defines the input to a GlobHandler.
 // The identifier is exported for use in unit tests.
 type GlobResult struct {
-	name   string
-	status device.Status
-	kind   objectKind
+	Name   string
+	Status device.Status
+	Kind   objectKind
 }
 
 func NewGlobResult(name string, status device.Status) (*GlobResult, error) {
 	var kind objectKind
 	switch status.(type) {
 	case device.StatusInstallation:
-		kind = applicationInstallationObject
+		kind = ApplicationInstallationObject
 	case device.StatusInstance:
-		kind = applicationInstanceObject
+		kind = ApplicationInstanceObject
 	case device.StatusDevice:
-		kind = deviceServiceObject
+		kind = DeviceServiceObject
 	default:
 		return nil, fmt.Errorf("Status(%v) returned unrecognized status type %T\n", name, status)
 	}
 	return &GlobResult{
-		name:   name,
-		status: status,
-		kind:   kind,
+		Name:   name,
+		Status: status,
+		Kind:   kind,
 	}, nil
 }
 
@@ -145,10 +145,10 @@ func (a byTypeAndName) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
 func (a byTypeAndName) Less(i, j int) bool {
 	r1, r2 := a[i], a[j]
-	if r1.kind != r2.kind {
-		return r1.kind < r2.kind
+	if r1.Kind != r2.Kind {
+		return r1.Kind < r2.Kind
 	}
-	return r1.name < r2.name
+	return r1.Name < r2.Name
 }
 
 // Run runs the given handler in parallel against each of the results obtained
@@ -165,13 +165,13 @@ func Run(ctx *context.T, env *cmdline.Env, args []string, handler GlobHandler, s
 	var errorCounter uint32 = 0
 	perResult := func(r *GlobResult, index int) {
 		if err := handler(*r, ctx, &stdouts[index], &stderrs[index]); err != nil {
-			fmt.Fprintf(&stderrs[index], "ERROR for \"%s\": %v.\n", r.name, err)
+			fmt.Fprintf(&stderrs[index], "ERROR for \"%s\": %v.\n", r.Name, err)
 			atomic.AddUint32(&errorCounter, 1)
 		}
 	}
 	// TODO(caprita): Add unit test logic to cover all parallelism options.
-	switch s.handlerParallelism {
-	case fullParallelism:
+	switch s.HandlerParallelism {
+	case FullParallelism:
 		var wg sync.WaitGroup
 		for i, r := range results {
 			wg.Add(1)
@@ -181,16 +181,16 @@ func Run(ctx *context.T, env *cmdline.Env, args []string, handler GlobHandler, s
 			}(r, i)
 		}
 		wg.Wait()
-	case noParallelism:
+	case NoParallelism:
 		for i, r := range results {
 			perResult(r, i)
 		}
-	case kindParallelism:
+	case KindParallelism:
 		processed := 0
 		for _, k := range objectKinds {
 			var wg sync.WaitGroup
 			for i, r := range results {
-				if r.kind != k {
+				if r.Kind != k {
 					continue
 				}
 				wg.Add(1)
@@ -219,7 +219,7 @@ func Run(ctx *context.T, env *cmdline.Env, args []string, handler GlobHandler, s
 func filterResults(results []*GlobResult, s GlobSettings) []*GlobResult {
 	var ret []*GlobResult
 	for _, r := range results {
-		switch status := r.status.(type) {
+		switch status := r.Status.(type) {
 		case device.StatusInstance:
 			if s.onlyInstallations || !s.instanceStateFilter.apply(status.Value.State) {
 				continue
@@ -385,16 +385,16 @@ func (f *installationStateFlag) Set(s string) error {
 type parallelismFlag int
 
 const (
-	fullParallelism parallelismFlag = iota
-	noParallelism
-	kindParallelism
+	FullParallelism parallelismFlag = iota
+	NoParallelism
+	KindParallelism
 	sentinelParallelismFlag
 )
 
 var parallelismStrings = map[parallelismFlag]string{
-	fullParallelism: "FULL",
-	noParallelism:   "NONE",
-	kindParallelism: "BYKIND",
+	FullParallelism: "FULL",
+	NoParallelism:   "NONE",
+	KindParallelism: "BYKIND",
 }
 
 func init() {
@@ -428,7 +428,7 @@ type GlobSettings struct {
 	installationStateFilter installationStateFlag
 	onlyInstances           bool
 	onlyInstallations       bool
-	handlerParallelism      parallelismFlag
+	HandlerParallelism      parallelismFlag
 	defaults                *GlobSettings
 }
 
@@ -463,7 +463,7 @@ func defineGlobFlags(fs *flag.FlagSet, s *GlobSettings) {
 		parallelismValues = append(parallelismValues, v)
 	}
 	sort.Strings(parallelismValues)
-	fs.Var(&s.handlerParallelism, "parallelism", fmt.Sprintf("Specifies the level of parallelism for the handler execution. One of: %v.", parallelismValues))
+	fs.Var(&s.HandlerParallelism, "parallelism", fmt.Sprintf("Specifies the level of parallelism for the handler execution. One of: %v.", parallelismValues))
 }
 
 func globify(c *cmdline.Command, handler GlobHandler, s *GlobSettings) {
