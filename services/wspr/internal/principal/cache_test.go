@@ -5,10 +5,15 @@
 package principal
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
+
+	"v.io/v23/security"
 )
 
 // manualTrigger provides a gc trigger that can be signaled manually
@@ -79,6 +84,14 @@ func TestManualTrigger(t *testing.T) {
 	}
 }
 
+func newSigner() security.Signer {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	return security.NewInMemoryECDSASigner(key)
+}
+
 func TestBlessingsCache(t *testing.T) {
 	notificationCh := make(chan []BlessingsCacheMessage, 1)
 	notifier := func(msg []BlessingsCacheMessage) {
@@ -94,29 +107,33 @@ func TestBlessingsCache(t *testing.T) {
 	bc := NewBlessingsCache(notifier, onDemandGCPolicy)
 
 	// Blessings for the tests.
-	jsBlessA := &JsBlessings{
-		Handle:    1,
-		PublicKey: "A",
+	p, err := security.CreatePrincipal(newSigner(), nil, nil)
+	if err != nil {
+		t.Fatal("Failed to create principal: ", err)
 	}
-	jsBlessB := &JsBlessings{
-		Handle:    2,
-		PublicKey: "B",
+	blessA, err := p.BlessSelf("A")
+	if err != nil {
+		t.Fatal("Failed to bless A: ", err)
 	}
-	jsBlessC := &JsBlessings{
-		Handle:    4,
-		PublicKey: "C",
+	blessB, err := p.BlessSelf("B")
+	if err != nil {
+		t.Fatal("Failed to bless B: ", err)
+	}
+	blessC, err := p.BlessSelf("C")
+	if err != nil {
+		t.Fatal("Failed to bless C: ", err)
 	}
 
 	// First do puts and make sure the ids are reasonable.
-	idA := bc.Put(jsBlessA)
-	expectAddMessage(t, notificationCh, 1, jsBlessA)
-	idB := bc.Put(jsBlessB)
-	expectAddMessage(t, notificationCh, 2, jsBlessB)
+	idA := bc.Put(blessA)
+	expectAddMessage(t, notificationCh, 1, blessA)
+	idB := bc.Put(blessB)
+	expectAddMessage(t, notificationCh, 2, blessB)
 	if idA == idB {
 		t.Errorf("A and B unexpectedly had same id: %v", idA)
 	}
 
-	idA2 := bc.Put(jsBlessA)
+	idA2 := bc.Put(blessA)
 	expectNoMessage(t, notificationCh)
 	if idA2 != idA {
 		t.Errorf("A and A2 expected to have same id, but they were %v and %v",
@@ -127,8 +144,8 @@ func TestBlessingsCache(t *testing.T) {
 	mt.next()
 	expectNoMessage(t, notificationCh)
 
-	idGc1A := bc.Put(jsBlessA)
-	idGc1B := bc.Put(jsBlessB)
+	idGc1A := bc.Put(blessA)
+	idGc1B := bc.Put(blessB)
 	expectNoMessage(t, notificationCh)
 	if idA != idGc1A {
 		t.Errorf("Expected to get same id after one gc of A, but got %v and %v",
@@ -144,14 +161,14 @@ func TestBlessingsCache(t *testing.T) {
 	expectNoMessage(t, notificationCh)
 
 	// Update B and add C.
-	idGc2B := bc.Put(jsBlessB)
+	idGc2B := bc.Put(blessB)
 	expectNoMessage(t, notificationCh)
 	if idB != idGc2B {
 		t.Errorf("Expected to get same id after two gcs of B, but got %v and %v",
 			idB, idGc2B)
 	}
-	idC := bc.Put(jsBlessC)
-	expectAddMessage(t, notificationCh, 3, jsBlessC)
+	idC := bc.Put(blessC)
+	expectAddMessage(t, notificationCh, 3, blessC)
 	if idC == idA || idC == idB {
 		t.Error("C was unexpectedly the same as A or B")
 	}
@@ -159,10 +176,10 @@ func TestBlessingsCache(t *testing.T) {
 	// Perform GC. A should be removed but B and C should stay.
 	mt.next()
 	expectDeleteMessage(t, notificationCh, BlessingsCacheDeleteMessage{CacheId: 1, DeleteAfter: 3})
-	if idB != bc.Put(jsBlessB) {
+	if idB != bc.Put(blessB) {
 		t.Errorf("B seems to have been cleaned up as it was given a new id")
 	}
-	if idC != bc.Put(jsBlessC) {
+	if idC != bc.Put(blessC) {
 		t.Errorf("C seems to have been cleaned up as it was given a new id")
 	}
 	expectNoMessage(t, notificationCh)
@@ -194,7 +211,7 @@ func expectNoMessage(t *testing.T, notificationCh chan []BlessingsCacheMessage) 
 	}
 }
 
-func expectAddMessage(t *testing.T, notificationCh chan []BlessingsCacheMessage, id BlessingsId, bless *JsBlessings) {
+func expectAddMessage(t *testing.T, notificationCh chan []BlessingsCacheMessage, id BlessingsId, bless security.Blessings) {
 	select {
 	case notifications := <-notificationCh:
 		if len(notifications) != 1 {
@@ -204,7 +221,7 @@ func expectAddMessage(t *testing.T, notificationCh chan []BlessingsCacheMessage,
 		if got, want := addMsg.CacheId, id; got != want {
 			t.Errorf("Unexpected id in add message: %v. Wanted: %v", got, want)
 		}
-		if got, want := addMsg.Blessings, *bless; !reflect.DeepEqual(got, want) {
+		if got, want := addMsg.Blessings, bless; !reflect.DeepEqual(got, want) {
 			t.Errorf("Blessings unexpectedly not equal. Got %v, want %v", got, want)
 		}
 	case <-time.After(10 * time.Second):

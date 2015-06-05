@@ -8,13 +8,15 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
+	"v.io/v23/security"
 )
 
 // BlessingsCacheEntry is an entry in the blessing cache.
 type BlessingsCacheEntry struct {
-	refCount  uint32       // Keep track of uses so JS knows when to clean up.
-	blessings *JsBlessings // For now. Switch to security.Blessings
-	dirty     bool         // True iff modified since last GC.
+	refCount  uint32 // Keep track of uses so JS knows when to clean up.
+	blessings security.Blessings
+	dirty     bool // True iff modified since last GC.
 }
 
 // BlessingsCache is a cache for blessings.
@@ -46,8 +48,8 @@ func NewBlessingsCache(notifier func([]BlessingsCacheMessage), gcPolicy *Blessin
 // be understood by the Javascript cache.
 // If the blessings object is already in the cache, a new entry won't be created
 // and the id for the blessings from a previous put will be returned.
-func (bc *BlessingsCache) Put(blessings *JsBlessings) BlessingsId {
-	if blessings == nil {
+func (bc *BlessingsCache) Put(blessings security.Blessings) BlessingsId {
+	if blessings.IsZero() {
 		return 0
 	}
 
@@ -71,7 +73,7 @@ func (bc *BlessingsCache) Put(blessings *JsBlessings) BlessingsId {
 	}
 	addMessage := BlessingsCacheAddMessage{
 		CacheId:   id,
-		Blessings: *blessings,
+		Blessings: blessings,
 	}
 	bc.notifier([]BlessingsCacheMessage{
 		BlessingsCacheMessageAdd{

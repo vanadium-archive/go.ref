@@ -11,7 +11,6 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
-	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
 
@@ -64,6 +63,6 @@ type GranterRequest struct {
 }
 
 type GranterResponse struct {
-       Blessings principal.BlessingsHandle
+       Blessings security.WireBlessings
        Err error
 }

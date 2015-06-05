@@ -44,11 +44,7 @@ func (g *jsGranter) Grant(ctx *context.T, call security.Call) (blessings securit
 		if response.Err != nil {
 			return security.Blessings{}, response.Err
 		}
-		if inputBlessing := g.c.GetBlessings(response.Blessings); inputBlessing.IsZero() {
-			return security.Blessings{}, fmt.Errorf("Unknown blessing handle received from javascript")
-		} else {
-			return inputBlessing, nil
-		}
+		return response.Blessings, nil
 	}
 }
 

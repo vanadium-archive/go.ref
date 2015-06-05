@@ -10,7 +10,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/wspr/internal/lib"
-	"v.io/x/ref/services/wspr/internal/principal"
 )
 
 type initConfig struct {
@@ -43,19 +42,16 @@ type outstandingStream struct {
 	closed bool
 
 	typeDecoder *vom.TypeDecoder
-	// Used to translate from JsBlesssings to Blessings
-	blessingsCache *principal.JSBlessingsHandles
 }
 
-func newStream(cache *principal.JSBlessingsHandles, typeDecoder *vom.TypeDecoder) *outstandingStream {
+func newStream(typeDecoder *vom.TypeDecoder) *outstandingStream {
 	os := &outstandingStream{
 		initChan: make(chan *initConfig, 1),
 		// We allow queueing up to 100 messages before init is called.
 		// TODO(bjornick): Deal with the case that the queue is full.
-		messages:       make(chan *message, 100),
-		done:           make(chan bool),
-		blessingsCache: cache,
-		typeDecoder:    typeDecoder,
+		messages:    make(chan *message, 100),
+		done:        make(chan bool),
+		typeDecoder: typeDecoder,
 	}
 	go os.loop()
 	return os
@@ -89,9 +85,6 @@ func (os *outstandingStream) loop() {
 			break
 		}
 
-		if jsBlessings, ok := item.(principal.JsBlessings); ok {
-			item = os.blessingsCache.GetBlessings(jsBlessings.Handle)
-		}
 		if err := config.stream.Send(item); err != nil {
 			msg.writer.Error(fmt.Errorf("failed to send on stream: %v", err))
 		}

@@ -32,27 +32,23 @@ type ControllerClientMethods interface {
 	AddName(ctx *context.T, serverId uint32, name string, opts ...rpc.CallOpt) error
 	// RemoveName removes a published name from an existing server.
 	RemoveName(ctx *context.T, serverId uint32, name string, opts ...rpc.CallOpt) error
-	// UnlinkBlessings removes the given blessings from the blessings store.
-	UnlinkBlessings(ctx *context.T, handle principal.BlessingsHandle, opts ...rpc.CallOpt) error
-	// BlessingsDebugString gets a string useful for debugging blessings.
-	BlessingsDebugString(ctx *context.T, handle principal.BlessingsHandle, opts ...rpc.CallOpt) (string, error)
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
-	Bless(ctx *context.T, publicKey string, handle principal.BlessingsHandle, extension string, caveat []security.Caveat, opts ...rpc.CallOpt) (principal.BlessingsId, error)
+	Bless(ctx *context.T, publicKey []byte, blessings security.Blessings, extension string, caveat []security.Caveat, opts ...rpc.CallOpt) (principal.BlessingsId, error)
 	// BlessSelf creates a blessing with the provided name for this principal.
 	BlessSelf(ctx *context.T, name string, caveats []security.Caveat, opts ...rpc.CallOpt) (principal.BlessingsId, error)
 	// AddToRoots adds the provided blessing as a root.
-	AddToRoots(ctx *context.T, handle principal.BlessingsHandle, opts ...rpc.CallOpt) error
+	AddToRoots(ctx *context.T, blessings security.Blessings, opts ...rpc.CallOpt) error
 	// BlessingStoreSet puts the specified blessing in the blessing store under the provided pattern.
-	BlessingStoreSet(ctx *context.T, blessingsHandle principal.BlessingsHandle, pattern security.BlessingPattern, opts ...rpc.CallOpt) (principal.BlessingsId, error)
+	BlessingStoreSet(ctx *context.T, blessingsblessings security.Blessings, pattern security.BlessingPattern, opts ...rpc.CallOpt) (principal.BlessingsId, error)
 	// BlessingStoreForPeer retrieves the blessings marked for the given peers.
 	BlessingStoreForPeer(ctx *context.T, peerBlessings []string, opts ...rpc.CallOpt) (principal.BlessingsId, error)
 	// BlessingStoreSetDefault sets the default blessings.
-	BlessingStoreSetDefault(ctx *context.T, blessingsHandle principal.BlessingsHandle, opts ...rpc.CallOpt) error
+	BlessingStoreSetDefault(ctx *context.T, blessingsblessings security.Blessings, opts ...rpc.CallOpt) error
 	// BlessingStoreDefault fetches the default blessings for the principal of the controller.
 	BlessingStoreDefault(*context.T, ...rpc.CallOpt) (principal.BlessingsId, error)
 	// BlessingStorePublicKey fetches the public key of the principal for which this store hosts blessings.
-	BlessingStorePublicKey(*context.T, ...rpc.CallOpt) (string, error)
+	BlessingStorePublicKey(*context.T, ...rpc.CallOpt) ([]byte, error)
 	// BlessingStorePeerBlessings returns all the blessings that the BlessingStore holds.
 	BlessingStorePeerBlessings(*context.T, ...rpc.CallOpt) (map[security.BlessingPattern]principal.BlessingsId, error)
 	// BlessingStoreDebugString retrieves a debug string describing the state of the blessing store
@@ -62,7 +58,7 @@ type ControllerClientMethods interface {
 	// Signature fetches the signature for a given name.
 	Signature(ctx *context.T, name string, opts ...rpc.CallOpt) ([]signature.Interface, error)
 	// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
-	UnionOfBlessings(ctx *context.T, toJoin []principal.BlessingsHandle, opts ...rpc.CallOpt) (principal.BlessingsId, error)
+	UnionOfBlessings(ctx *context.T, toJoin []security.Blessings, opts ...rpc.CallOpt) (principal.BlessingsId, error)
 }
 
 // ControllerClientStub adds universal methods to ControllerClientMethods.
@@ -100,17 +96,7 @@ func (c implControllerClientStub) RemoveName(ctx *context.T, i0 uint32, i1 strin
 	return
 }
 
-func (c implControllerClientStub) UnlinkBlessings(ctx *context.T, i0 principal.BlessingsHandle, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "UnlinkBlessings", []interface{}{i0}, nil, opts...)
-	return
-}
-
-func (c implControllerClientStub) BlessingsDebugString(ctx *context.T, i0 principal.BlessingsHandle, opts ...rpc.CallOpt) (o0 string, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingsDebugString", []interface{}{i0}, []interface{}{&o0}, opts...)
-	return
-}
-
-func (c implControllerClientStub) Bless(ctx *context.T, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat, opts ...rpc.CallOpt) (o0 principal.BlessingsId, err error) {
+func (c implControllerClientStub) Bless(ctx *context.T, i0 []byte, i1 security.Blessings, i2 string, i3 []security.Caveat, opts ...rpc.CallOpt) (o0 principal.BlessingsId, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3}, []interface{}{&o0}, opts...)
 	return
 }
@@ -120,12 +106,12 @@ func (c implControllerClientStub) BlessSelf(ctx *context.T, i0 string, i1 []secu
 	return
 }
 
-func (c implControllerClientStub) AddToRoots(ctx *context.T, i0 principal.BlessingsHandle, opts ...rpc.CallOpt) (err error) {
+func (c implControllerClientStub) AddToRoots(ctx *context.T, i0 security.Blessings, opts ...rpc.CallOpt) (err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "AddToRoots", []interface{}{i0}, nil, opts...)
 	return
 }
 
-func (c implControllerClientStub) BlessingStoreSet(ctx *context.T, i0 principal.BlessingsHandle, i1 security.BlessingPattern, opts ...rpc.CallOpt) (o0 principal.BlessingsId, err error) {
+func (c implControllerClientStub) BlessingStoreSet(ctx *context.T, i0 security.Blessings, i1 security.BlessingPattern, opts ...rpc.CallOpt) (o0 principal.BlessingsId, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingStoreSet", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
 	return
 }
@@ -135,7 +121,7 @@ func (c implControllerClientStub) BlessingStoreForPeer(ctx *context.T, i0 []stri
 	return
 }
 
-func (c implControllerClientStub) BlessingStoreSetDefault(ctx *context.T, i0 principal.BlessingsHandle, opts ...rpc.CallOpt) (err error) {
+func (c implControllerClientStub) BlessingStoreSetDefault(ctx *context.T, i0 security.Blessings, opts ...rpc.CallOpt) (err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingStoreSetDefault", []interface{}{i0}, nil, opts...)
 	return
 }
@@ -145,7 +131,7 @@ func (c implControllerClientStub) BlessingStoreDefault(ctx *context.T, opts ...r
 	return
 }
 
-func (c implControllerClientStub) BlessingStorePublicKey(ctx *context.T, opts ...rpc.CallOpt) (o0 string, err error) {
+func (c implControllerClientStub) BlessingStorePublicKey(ctx *context.T, opts ...rpc.CallOpt) (o0 []byte, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingStorePublicKey", nil, []interface{}{&o0}, opts...)
 	return
 }
@@ -170,7 +156,7 @@ func (c implControllerClientStub) Signature(ctx *context.T, i0 string, opts ...r
 	return
 }
 
-func (c implControllerClientStub) UnionOfBlessings(ctx *context.T, i0 []principal.BlessingsHandle, opts ...rpc.CallOpt) (o0 principal.BlessingsId, err error) {
+func (c implControllerClientStub) UnionOfBlessings(ctx *context.T, i0 []security.Blessings, opts ...rpc.CallOpt) (o0 principal.BlessingsId, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "UnionOfBlessings", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
@@ -188,27 +174,23 @@ type ControllerServerMethods interface {
 	AddName(ctx *context.T, call rpc.ServerCall, serverId uint32, name string) error
 	// RemoveName removes a published name from an existing server.
 	RemoveName(ctx *context.T, call rpc.ServerCall, serverId uint32, name string) error
-	// UnlinkBlessings removes the given blessings from the blessings store.
-	UnlinkBlessings(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle) error
-	// BlessingsDebugString gets a string useful for debugging blessings.
-	BlessingsDebugString(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle) (string, error)
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
-	Bless(ctx *context.T, call rpc.ServerCall, publicKey string, handle principal.BlessingsHandle, extension string, caveat []security.Caveat) (principal.BlessingsId, error)
+	Bless(ctx *context.T, call rpc.ServerCall, publicKey []byte, blessings security.Blessings, extension string, caveat []security.Caveat) (principal.BlessingsId, error)
 	// BlessSelf creates a blessing with the provided name for this principal.
 	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (principal.BlessingsId, error)
 	// AddToRoots adds the provided blessing as a root.
-	AddToRoots(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle) error
+	AddToRoots(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
 	// BlessingStoreSet puts the specified blessing in the blessing store under the provided pattern.
-	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessingsHandle principal.BlessingsHandle, pattern security.BlessingPattern) (principal.BlessingsId, error)
+	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessingsblessings security.Blessings, pattern security.BlessingPattern) (principal.BlessingsId, error)
 	// BlessingStoreForPeer retrieves the blessings marked for the given peers.
 	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (principal.BlessingsId, error)
 	// BlessingStoreSetDefault sets the default blessings.
-	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessingsHandle principal.BlessingsHandle) error
+	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessingsblessings security.Blessings) error
 	// BlessingStoreDefault fetches the default blessings for the principal of the controller.
 	BlessingStoreDefault(*context.T, rpc.ServerCall) (principal.BlessingsId, error)
 	// BlessingStorePublicKey fetches the public key of the principal for which this store hosts blessings.
-	BlessingStorePublicKey(*context.T, rpc.ServerCall) (string, error)
+	BlessingStorePublicKey(*context.T, rpc.ServerCall) ([]byte, error)
 	// BlessingStorePeerBlessings returns all the blessings that the BlessingStore holds.
 	BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]principal.BlessingsId, error)
 	// BlessingStoreDebugString retrieves a debug string describing the state of the blessing store
@@ -218,7 +200,7 @@ type ControllerServerMethods interface {
 	// Signature fetches the signature for a given name.
 	Signature(ctx *context.T, call rpc.ServerCall, name string) ([]signature.Interface, error)
 	// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
-	UnionOfBlessings(ctx *context.T, call rpc.ServerCall, toJoin []principal.BlessingsHandle) (principal.BlessingsId, error)
+	UnionOfBlessings(ctx *context.T, call rpc.ServerCall, toJoin []security.Blessings) (principal.BlessingsId, error)
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -272,15 +254,7 @@ func (s implControllerServerStub) RemoveName(ctx *context.T, call rpc.ServerCall
 	return s.impl.RemoveName(ctx, call, i0, i1)
 }
 
-func (s implControllerServerStub) UnlinkBlessings(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle) error {
-	return s.impl.UnlinkBlessings(ctx, call, i0)
-}
-
-func (s implControllerServerStub) BlessingsDebugString(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle) (string, error) {
-	return s.impl.BlessingsDebugString(ctx, call, i0)
-}
-
-func (s implControllerServerStub) Bless(ctx *context.T, call rpc.ServerCall, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat) (principal.BlessingsId, error) {
+func (s implControllerServerStub) Bless(ctx *context.T, call rpc.ServerCall, i0 []byte, i1 security.Blessings, i2 string, i3 []security.Caveat) (principal.BlessingsId, error) {
 	return s.impl.Bless(ctx, call, i0, i1, i2, i3)
 }
 
@@ -288,11 +262,11 @@ func (s implControllerServerStub) BlessSelf(ctx *context.T, call rpc.ServerCall,
 	return s.impl.BlessSelf(ctx, call, i0, i1)
 }
 
-func (s implControllerServerStub) AddToRoots(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle) error {
+func (s implControllerServerStub) AddToRoots(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) error {
 	return s.impl.AddToRoots(ctx, call, i0)
 }
 
-func (s implControllerServerStub) BlessingStoreSet(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle, i1 security.BlessingPattern) (principal.BlessingsId, error) {
+func (s implControllerServerStub) BlessingStoreSet(ctx *context.T, call rpc.ServerCall, i0 security.Blessings, i1 security.BlessingPattern) (principal.BlessingsId, error) {
 	return s.impl.BlessingStoreSet(ctx, call, i0, i1)
 }
 
@@ -300,7 +274,7 @@ func (s implControllerServerStub) BlessingStoreForPeer(ctx *context.T, call rpc.
 	return s.impl.BlessingStoreForPeer(ctx, call, i0)
 }
 
-func (s implControllerServerStub) BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle) error {
+func (s implControllerServerStub) BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) error {
 	return s.impl.BlessingStoreSetDefault(ctx, call, i0)
 }
 
@@ -308,7 +282,7 @@ func (s implControllerServerStub) BlessingStoreDefault(ctx *context.T, call rpc.
 	return s.impl.BlessingStoreDefault(ctx, call)
 }
 
-func (s implControllerServerStub) BlessingStorePublicKey(ctx *context.T, call rpc.ServerCall) (string, error) {
+func (s implControllerServerStub) BlessingStorePublicKey(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
 	return s.impl.BlessingStorePublicKey(ctx, call)
 }
 
@@ -328,7 +302,7 @@ func (s implControllerServerStub) Signature(ctx *context.T, call rpc.ServerCall,
 	return s.impl.Signature(ctx, call, i0)
 }
 
-func (s implControllerServerStub) UnionOfBlessings(ctx *context.T, call rpc.ServerCall, i0 []principal.BlessingsHandle) (principal.BlessingsId, error) {
+func (s implControllerServerStub) UnionOfBlessings(ctx *context.T, call rpc.ServerCall, i0 []security.Blessings) (principal.BlessingsId, error) {
 	return s.impl.UnionOfBlessings(ctx, call, i0)
 }
 
@@ -381,28 +355,11 @@ var descController = rpc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "UnlinkBlessings",
-			Doc:  "// UnlinkBlessings removes the given blessings from the blessings store.",
-			InArgs: []rpc.ArgDesc{
-				{"handle", ``}, // principal.BlessingsHandle
-			},
-		},
-		{
-			Name: "BlessingsDebugString",
-			Doc:  "// BlessingsDebugString gets a string useful for debugging blessings.",
-			InArgs: []rpc.ArgDesc{
-				{"handle", ``}, // principal.BlessingsHandle
-			},
-			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // string
-			},
-		},
-		{
 			Name: "Bless",
 			Doc:  "// Bless binds extensions of blessings held by this principal to\n// another principal (represented by its public key).",
 			InArgs: []rpc.ArgDesc{
-				{"publicKey", ``}, // string
-				{"handle", ``},    // principal.BlessingsHandle
+				{"publicKey", ``}, // []byte
+				{"blessings", ``}, // security.Blessings
 				{"extension", ``}, // string
 				{"caveat", ``},    // []security.Caveat
 			},
@@ -425,15 +382,15 @@ var descController = rpc.InterfaceDesc{
 			Name: "AddToRoots",
 			Doc:  "// AddToRoots adds the provided blessing as a root.",
 			InArgs: []rpc.ArgDesc{
-				{"handle", ``}, // principal.BlessingsHandle
+				{"blessings", ``}, // security.Blessings
 			},
 		},
 		{
 			Name: "BlessingStoreSet",
 			Doc:  "// BlessingStoreSet puts the specified blessing in the blessing store under the provided pattern.",
 			InArgs: []rpc.ArgDesc{
-				{"blessingsHandle", ``}, // principal.BlessingsHandle
-				{"pattern", ``},         // security.BlessingPattern
+				{"blessingsblessings", ``}, // security.Blessings
+				{"pattern", ``},            // security.BlessingPattern
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // principal.BlessingsId
@@ -453,7 +410,7 @@ var descController = rpc.InterfaceDesc{
 			Name: "BlessingStoreSetDefault",
 			Doc:  "// BlessingStoreSetDefault sets the default blessings.",
 			InArgs: []rpc.ArgDesc{
-				{"blessingsHandle", ``}, // principal.BlessingsHandle
+				{"blessingsblessings", ``}, // security.Blessings
 			},
 		},
 		{
@@ -467,7 +424,7 @@ var descController = rpc.InterfaceDesc{
 			Name: "BlessingStorePublicKey",
 			Doc:  "// BlessingStorePublicKey fetches the public key of the principal for which this store hosts blessings.",
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // string
+				{"", ``}, // []byte
 			},
 		},
 		{
@@ -509,7 +466,7 @@ var descController = rpc.InterfaceDesc{
 			Name: "UnionOfBlessings",
 			Doc:  "// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.",
 			InArgs: []rpc.ArgDesc{
-				{"toJoin", ``}, // []principal.BlessingsHandle
+				{"toJoin", ``}, // []security.Blessings
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // principal.BlessingsId

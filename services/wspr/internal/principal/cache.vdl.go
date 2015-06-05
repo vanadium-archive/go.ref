@@ -10,6 +10,9 @@ package principal
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+
+	// VDL user imports
+	"v.io/v23/security"
 )
 
 // Identifier of a blessings cache entry.
@@ -22,7 +25,7 @@ func (BlessingsId) __VDLReflect(struct {
 
 type BlessingsCacheAddMessage struct {
 	CacheId   BlessingsId
-	Blessings JsBlessings
+	Blessings security.Blessings
 }
 
 func (BlessingsCacheAddMessage) __VDLReflect(struct {

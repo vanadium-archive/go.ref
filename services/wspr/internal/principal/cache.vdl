@@ -4,12 +4,14 @@
 
 package principal
 
+import "v.io/v23/security"
+
 // Identifier of a blessings cache entry.
 type BlessingsId uint32
 
 type BlessingsCacheAddMessage struct {
   CacheId BlessingsId
-  Blessings JsBlessings
+  Blessings security.WireBlessings
 }
 
 // Message from Blessings Cache GC to delete a cache entry in Javascript.

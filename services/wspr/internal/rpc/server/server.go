@@ -39,20 +39,14 @@ type FlowHandler interface {
 	CleanupFlow(id int32)
 }
 
-type HandleStore interface {
-	GetBlessings(handle principal.BlessingsHandle) security.Blessings
-	// Gets or adds blessings to the store and returns handle to the blessings
-	GetOrAddBlessingsHandle(blessings security.Blessings) principal.BlessingsHandle
-}
-
 type VomHelper interface {
 	TypeEncoder() *vom.TypeEncoder
 
 	TypeDecoder() *vom.TypeDecoder
 }
+
 type ServerHelper interface {
 	FlowHandler
-	HandleStore
 	VomHelper
 
 	SendLogMessage(level lib.LogLevel, msg string) error
@@ -153,8 +147,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 
 		var grantedBlessings principal.BlessingsId
 		if !call.GrantedBlessings().IsZero() {
-			grantedBlessings = s.helper.BlessingsCache().Put(
-				convertBlessingsToHandle(s.helper, call.GrantedBlessings()))
+			grantedBlessings = s.helper.BlessingsCache().Put(call.GrantedBlessings())
 		}
 
 		rpcCall := ServerRpcRequestCall{
@@ -169,10 +162,6 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 
 		var vdlValArgs []*vdl.Value = make([]*vdl.Value, len(args))
 		for i, arg := range args {
-			if blessings, ok := arg.(security.Blessings); ok {
-				jsBless := principal.ConvertBlessingsToHandle(blessings, s.helper.GetOrAddBlessingsHandle(blessings))
-				arg = s.helper.BlessingsCache().Put(jsBless)
-			}
 			vdlValArgs[i] = vdl.ValueOf(arg)
 		}
 
@@ -210,7 +199,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			ch <- &lib.ServerRpcReply{nil, &err, vtrace.Response{}}
 		}()
 
-		go s.proxyStream(call, flow, s.helper, s.helper.TypeEncoder())
+		go s.proxyStream(call, flow, s.helper.TypeEncoder())
 
 		return replyChan
 	}
@@ -271,15 +260,10 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			return nil, verror.Convert(verror.ErrInternal, ctx, err).(verror.E)
 		}
 
-		var grantedBlessings *principal.JsBlessings
-		if !call.GrantedBlessings().IsZero() {
-			grantedBlessings = convertBlessingsToHandle(s.helper, call.GrantedBlessings())
-		}
-
 		rpcCall := ServerRpcRequestCall{
 			SecurityCall:     securityCall,
 			Deadline:         timeout,
-			GrantedBlessings: s.helper.BlessingsCache().Put(grantedBlessings),
+			GrantedBlessings: s.helper.BlessingsCache().Put(call.GrantedBlessings()),
 			Context: Context{
 				Language: string(i18n.GetLangID(ctx)),
 			},
@@ -323,15 +307,11 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 	}
 }
 
-func (s *Server) proxyStream(stream rpc.Stream, flow *Flow, blessingsCache HandleStore, typeEncoder *vom.TypeEncoder) {
+func (s *Server) proxyStream(stream rpc.Stream, flow *Flow, typeEncoder *vom.TypeEncoder) {
 	var item interface{}
 	var err error
 	w := flow.Writer
 	for err = stream.Recv(&item); err == nil; err = stream.Recv(&item) {
-		if blessings, ok := item.(security.Blessings); ok {
-			item = principal.ConvertBlessingsToHandle(blessings, blessingsCache.GetOrAddBlessingsHandle(blessings))
-
-		}
 		vomItem, err := lib.HexVomEncode(item, typeEncoder)
 		if err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, nil, err))
@@ -357,10 +337,6 @@ func (s *Server) proxyStream(stream rpc.Stream, flow *Flow, blessingsCache Handl
 		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
-}
-
-func convertBlessingsToHandle(helper ServerHelper, blessings security.Blessings) *principal.JsBlessings {
-	return principal.ConvertBlessingsToHandle(blessings, helper.GetOrAddBlessingsHandle(blessings))
 }
 
 func makeListOfErrors(numErrors int, err error) []error {
@@ -523,23 +499,18 @@ func ConvertSecurityCall(helper ServerHelper, ctx *context.T, call security.Call
 	if call.RemoteEndpoint() != nil {
 		remoteEndpoint = call.RemoteEndpoint().String()
 	}
-	var localBlessings principal.JsBlessings
-	if !call.LocalBlessings().IsZero() {
-		localBlessings = *convertBlessingsToHandle(helper, call.LocalBlessings())
-	}
 	anymtags := make([]*vdl.Value, len(call.MethodTags()))
 	for i, mtag := range call.MethodTags() {
 		anymtags[i] = mtag
 	}
-	remoteBlessings := *convertBlessingsToHandle(helper, call.RemoteBlessings())
 	secCall := SecurityCall{
 		Method:          lib.LowercaseFirstCharacter(call.Method()),
 		Suffix:          call.Suffix(),
 		MethodTags:      anymtags,
 		LocalEndpoint:   localEndpoint,
 		RemoteEndpoint:  remoteEndpoint,
-		LocalBlessings:  helper.BlessingsCache().Put(&localBlessings),
-		RemoteBlessings: helper.BlessingsCache().Put(&remoteBlessings),
+		LocalBlessings:  helper.BlessingsCache().Put(call.LocalBlessings()),
+		RemoteBlessings: helper.BlessingsCache().Put(call.RemoteBlessings()),
 	}
 	if includeBlessingStrings {
 		secCall.LocalBlessingStrings = security.LocalBlessingNames(ctx, call)
@@ -682,18 +653,6 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 	if reply.Err != nil {
 		ch <- &reply
 		return
-	}
-	jsBlessingsType := vdl.TypeOf(principal.JsBlessings{})
-	for i, val := range reply.Results {
-		if val.Type() == jsBlessingsType {
-			var jsBlessings principal.JsBlessings
-			if err := vdl.Convert(&jsBlessings, val); err != nil {
-				reply.Err = err
-				break
-			}
-			reply.Results[i] = vdl.ValueOf(
-				s.helper.GetBlessings(jsBlessings.Handle))
-		}
 	}
 	ch <- &reply
 }

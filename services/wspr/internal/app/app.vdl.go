@@ -18,7 +18,6 @@ import (
 	"v.io/v23/security"
 	time_2 "v.io/v23/vdlroot/time"
 	"v.io/v23/vtrace"
-	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
 
@@ -149,7 +148,7 @@ func (GranterRequest) __VDLReflect(struct {
 }
 
 type GranterResponse struct {
-	Blessings principal.BlessingsHandle
+	Blessings security.Blessings
 	Err       error
 }
 
