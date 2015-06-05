@@ -234,8 +234,91 @@ func TestGlob(t *testing.T) {
 			allGlobArgs,
 			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
 		},
+		// Verifies "only instances" filter.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{OnlyInstances: true},
+			allGlobArgs,
+			joinLines(app1Out, app3Out, app5Out, app9Out),
+		},
+		// Verifies "only installations" filter.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{OnlyInstallations: true},
+			allGlobArgs,
+			joinLines(app2Out, app4Out, app7Out),
+		},
+		// Verifies "instance state" filter.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{InstanceStateFilter: map[device.InstanceState]bool{device.InstanceStateUpdating: true}},
+			allGlobArgs,
+			joinLines(app2Out, app4Out, app7Out, app3Out, app9Out, app6Out, app8Out),
+		},
+		// Verifies "installation state" filter.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{InstallationStateFilter: map[device.InstallationState]bool{device.InstallationStateActive: true}},
+			allGlobArgs,
+			joinLines(app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+		},
+		// Verifies "installation state" filter + "only installations" filter.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{
+				InstallationStateFilter: map[device.InstallationState]bool{device.InstallationStateActive: true},
+				OnlyInstallations:       true,
+			},
+			allGlobArgs,
+			joinLines(app4Out, app7Out),
+		},
+		// Verifies "installation state" filter + "only instances" filter.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{
+				InstallationStateFilter: map[device.InstallationState]bool{device.InstallationStateActive: true},
+				OnlyInstances:           true,
+			},
+			allGlobArgs,
+			joinLines(app1Out, app3Out, app5Out, app9Out),
+		},
+		// Verifies "installation state" filter + "instance state" filter.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{
+				InstanceStateFilter:     map[device.InstanceState]bool{device.InstanceStateRunning: true},
+				InstallationStateFilter: map[device.InstallationState]bool{device.InstallationStateUninstalled: true},
+			},
+			allGlobArgs,
+			joinLines(app2Out, app1Out, app6Out, app8Out),
+		},
+		// Verifies "only instances" filter + "only installations" filter -- no results.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{
+				OnlyInstallations: true,
+				OnlyInstances:     true,
+			},
+			allGlobArgs,
+			"",
+		},
 		// TODO(caprita): Test the following cases:
-		// Various filters.
 		// No glob arguments.
 		// No glob results.
 		// Error in glob.

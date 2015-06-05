@@ -221,11 +221,15 @@ func filterResults(results []*GlobResult, s GlobSettings) []*GlobResult {
 	for _, r := range results {
 		switch status := r.Status.(type) {
 		case device.StatusInstance:
-			if s.onlyInstallations || !s.instanceStateFilter.apply(status.Value.State) {
+			if s.OnlyInstallations || !s.InstanceStateFilter.apply(status.Value.State) {
 				continue
 			}
 		case device.StatusInstallation:
-			if s.onlyInstances || !s.installationStateFilter.apply(status.Value.State) {
+			if s.OnlyInstances || !s.InstallationStateFilter.apply(status.Value.State) {
+				continue
+			}
+		case device.StatusDevice:
+			if s.OnlyInstances || s.OnlyInstallations {
 				continue
 			}
 		}
@@ -314,14 +318,13 @@ func glob(ctx *context.T, env *cmdline.Env, args []string) []*GlobResult {
 	return results
 }
 
-type instanceStateFlag map[device.InstanceState]struct{}
+type instanceStateFlag map[device.InstanceState]bool
 
 func (f *instanceStateFlag) apply(state device.InstanceState) bool {
 	if len(*f) == 0 {
 		return true
 	}
-	_, ok := (*f)[state]
-	return ok
+	return (*f)[state]
 }
 
 func (f *instanceStateFlag) String() string {
@@ -343,19 +346,18 @@ func (f *instanceStateFlag) Set(s string) error {
 		if err != nil {
 			return err
 		}
-		(*f)[state] = struct{}{}
+		(*f)[state] = true
 	}
 	return nil
 }
 
-type installationStateFlag map[device.InstallationState]struct{}
+type installationStateFlag map[device.InstallationState]bool
 
 func (f *installationStateFlag) apply(state device.InstallationState) bool {
 	if len(*f) == 0 {
 		return true
 	}
-	_, ok := (*f)[state]
-	return ok
+	return (*f)[state]
 }
 
 func (f *installationStateFlag) String() string {
@@ -377,7 +379,7 @@ func (f *installationStateFlag) Set(s string) error {
 		if err != nil {
 			return err
 		}
-		(*f)[state] = struct{}{}
+		(*f)[state] = true
 	}
 	return nil
 }
@@ -424,10 +426,10 @@ func (p *parallelismFlag) Set(s string) error {
 // GlobSettings specifies flag-settable options and filters for globbing.
 // The identifier is exported for use in unit tests.
 type GlobSettings struct {
-	instanceStateFilter     instanceStateFlag
-	installationStateFilter installationStateFlag
-	onlyInstances           bool
-	onlyInstallations       bool
+	InstanceStateFilter     instanceStateFlag
+	InstallationStateFilter installationStateFlag
+	OnlyInstances           bool
+	OnlyInstallations       bool
 	HandlerParallelism      parallelismFlag
 	defaults                *GlobSettings
 }
@@ -454,10 +456,10 @@ func ResetGlobSettings() {
 }
 
 func defineGlobFlags(fs *flag.FlagSet, s *GlobSettings) {
-	fs.Var(&s.instanceStateFilter, "instance-state", fmt.Sprintf("If non-empty, specifies allowed instance states (all other instances get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstanceStateAll))
-	fs.Var(&s.installationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstallationStateAll))
-	fs.BoolVar(&s.onlyInstances, "only-instances", false, "If set, only consider instances.")
-	fs.BoolVar(&s.onlyInstallations, "only-installations", false, "If set, only consider installations.")
+	fs.Var(&s.InstanceStateFilter, "instance-state", fmt.Sprintf("If non-empty, specifies allowed instance states (all other instances get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstanceStateAll))
+	fs.Var(&s.InstallationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstallationStateAll))
+	fs.BoolVar(&s.OnlyInstances, "only-instances", false, "If set, only consider instances.")
+	fs.BoolVar(&s.OnlyInstallations, "only-installations", false, "If set, only consider installations.")
 	var parallelismValues []string
 	for _, v := range parallelismStrings {
 		parallelismValues = append(parallelismValues, v)
