@@ -13,67 +13,95 @@ import (
 	"v.io/v23/verror"
 )
 
-// TODO(sadovsky): Extend data layout to support version tracking for sync.
-// See go/vanadium-local-structured-store.
-
-// TODO(sadovsky): Handle the case where we're in a batch.
-
-type row struct {
+// rowReq is a per-request object that handles Row RPCs.
+type rowReq struct {
 	key string
-	t   *table
+	t   *tableReq
 }
 
 var (
-	_ wire.RowServerMethods = (*row)(nil)
-	_ util.Layer            = (*row)(nil)
+	_ wire.RowServerMethods = (*rowReq)(nil)
+	_ util.Layer            = (*rowReq)(nil)
 )
 
 ////////////////////////////////////////
 // RPC methods
 
-func (r *row) Get(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
-	return r.get(ctx, call, r.t.d.st)
+func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
+	impl := func(st store.StoreReader) ([]byte, error) {
+		return r.get(ctx, call, st)
+	}
+	var st store.StoreReader
+	if r.t.d.batchId != nil {
+		st = r.t.d.batchReader()
+	} else {
+		sn := r.t.d.st.NewSnapshot()
+		st = sn
+		defer sn.Close()
+	}
+	return impl(st)
 }
 
-func (r *row) Put(ctx *context.T, call rpc.ServerCall, value []byte) error {
-	return r.put(ctx, call, r.t.d.st, value)
+func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, value []byte) error {
+	impl := func(st store.StoreReadWriter) error {
+		return r.put(ctx, call, st, value)
+	}
+	if r.t.d.batchId != nil {
+		if st, err := r.t.d.batchReadWriter(); err != nil {
+			return err
+		} else {
+			return impl(st)
+		}
+	} else {
+		return store.RunInTransaction(r.t.d.st, impl)
+	}
 }
 
-func (r *row) Delete(ctx *context.T, call rpc.ServerCall) error {
-	return r.del(ctx, call, r.t.d.st)
+func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall) error {
+	impl := func(st store.StoreReadWriter) error {
+		return r.delete(ctx, call, st)
+	}
+	if r.t.d.batchId != nil {
+		if st, err := r.t.d.batchReadWriter(); err != nil {
+			return err
+		} else {
+			return impl(st)
+		}
+	} else {
+		return store.RunInTransaction(r.t.d.st, impl)
+	}
 }
 
 ////////////////////////////////////////
 // util.Layer methods
 
-func (r *row) Name() string {
+func (r *rowReq) Name() string {
 	return r.key
 }
 
-func (r *row) StKey() string {
+func (r *rowReq) StKey() string {
 	return util.JoinKeyParts(util.RowPrefix, r.stKeyPart())
 }
 
 ////////////////////////////////////////
 // Internal helpers
 
-func (r *row) stKeyPart() string {
+func (r *rowReq) stKeyPart() string {
 	return util.JoinKeyParts(r.t.stKeyPart(), r.key)
 }
 
-// TODO(sadovsky): Update access checks to use prefix permissions.
-
-// checkAccess checks that this row's table exists in the database and performs
+// checkAccess checks that this row's table exists in the database, and performs
 // an authorization check (currently against the table perms).
 // Returns a VDL-compatible error.
-func (r *row) checkAccess(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
+// TODO(sadovsky): Use prefix permissions.
+func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
 	return util.Get(ctx, call, st, r.t, &tableData{})
 }
 
 // get reads data from the storage engine.
 // Performs authorization check.
 // Returns a VDL-compatible error.
-func (r *row) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) ([]byte, error) {
+func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) ([]byte, error) {
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return nil, err
 	}
@@ -90,7 +118,7 @@ func (r *row) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) ([]
 // put writes data to the storage engine.
 // Performs authorization check.
 // Returns a VDL-compatible error.
-func (r *row) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, value []byte) error {
+func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, value []byte) error {
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return err
 	}
@@ -100,10 +128,10 @@ func (r *row) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter,
 	return nil
 }
 
-// del deletes data from the storage engine.
+// delete deletes data from the storage engine.
 // Performs authorization check.
 // Returns a VDL-compatible error.
-func (r *row) del(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
+func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return err
 	}

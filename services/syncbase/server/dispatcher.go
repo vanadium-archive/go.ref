@@ -48,8 +48,8 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 
 	aExists := false
 	var a *app
-	if aint, err := disp.s.App(nil, nil, appName); err == nil {
-		a = aint.(*app) // panics on failure, as desired
+	if aInt, err := disp.s.App(nil, nil, appName); err == nil {
+		a = aInt.(*app) // panics on failure, as desired
 		aExists = true
 	} else {
 		if verror.ErrorID(err) != verror.ErrNoExist.ID {

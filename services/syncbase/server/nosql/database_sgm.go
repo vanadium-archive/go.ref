@@ -16,39 +16,66 @@ import (
 ////////////////////////////////////////
 // SyncGroup RPC methods
 
-func (d *database) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (d *databaseReq) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	if d.batchId != nil {
+		return nil, wire.NewErrBoundToBatch(ctx)
+	}
 	return nil, verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, myInfo wire.SyncGroupMemberInfo) error {
+func (d *databaseReq) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, myInfo wire.SyncGroupMemberInfo) error {
+	if d.batchId != nil {
+		return wire.NewErrBoundToBatch(ctx)
+	}
 	sd := vsync.NewSyncDatabase(d)
 	return sd.CreateSyncGroup(ctx, call, sgName, spec, myInfo)
 }
 
-func (d *database) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncGroupMemberInfo) (wire.SyncGroupSpec, error) {
+func (d *databaseReq) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncGroupMemberInfo) (wire.SyncGroupSpec, error) {
+	if d.batchId != nil {
+		return wire.SyncGroupSpec{}, wire.NewErrBoundToBatch(ctx)
+	}
 	return wire.SyncGroupSpec{}, verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) LeaveSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (d *databaseReq) LeaveSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+	if d.batchId != nil {
+		return wire.NewErrBoundToBatch(ctx)
+	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) DestroySyncGroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (d *databaseReq) DestroySyncGroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+	if d.batchId != nil {
+		return wire.NewErrBoundToBatch(ctx)
+	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) EjectFromSyncGroup(ctx *context.T, call rpc.ServerCall, sgName, member string) error {
+func (d *databaseReq) EjectFromSyncGroup(ctx *context.T, call rpc.ServerCall, sgName, member string) error {
+	if d.batchId != nil {
+		return wire.NewErrBoundToBatch(ctx)
+	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) GetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncGroupSpec, string, error) {
+func (d *databaseReq) GetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncGroupSpec, string, error) {
+	if d.batchId != nil {
+		return wire.SyncGroupSpec{}, "", wire.NewErrBoundToBatch(ctx)
+	}
 	return wire.SyncGroupSpec{}, "", verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, version string) error {
+func (d *databaseReq) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, version string) error {
+	if d.batchId != nil {
+		return wire.NewErrBoundToBatch(ctx)
+	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) GetSyncGroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncGroupMemberInfo, error) {
+func (d *databaseReq) GetSyncGroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncGroupMemberInfo, error) {
+	if d.batchId != nil {
+		return nil, wire.NewErrBoundToBatch(ctx)
+	}
 	return nil, verror.NewErrNotImplemented(ctx)
 }

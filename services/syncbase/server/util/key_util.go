@@ -13,12 +13,12 @@ import (
 // JoinKeyParts builds keys for accessing data in the storage engine.
 func JoinKeyParts(parts ...string) string {
 	// TODO(sadovsky): Figure out which delimiter makes the most sense.
-	return strings.Join(parts, ":")
+	return strings.Join(parts, KeyPartSep)
 }
 
 // SplitKeyParts is the inverse of JoinKeyParts.
 func SplitKeyParts(key string) []string {
-	return strings.Split(key, ":")
+	return strings.Split(key, KeyPartSep)
 }
 
 // ScanPrefixArgs returns args for sn.Scan() for the specified prefix.

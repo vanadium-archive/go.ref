@@ -23,4 +23,8 @@ const (
 const (
 	// Service object name suffix for Syncbase-to-Syncbase RPCs.
 	SyncbaseSuffix = "$internal"
+	// Separator for batch info in database names.
+	BatchSep = ":"
+	// Separator for parts of storage engine keys.
+	KeyPartSep = ":"
 )

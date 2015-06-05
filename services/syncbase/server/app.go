@@ -19,6 +19,7 @@ import (
 	"v.io/v23/verror"
 )
 
+// app is a per-app singleton (i.e. not per-request) that handles App RPCs.
 type app struct {
 	name string
 	s    *service
@@ -66,12 +67,14 @@ func (a *app) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.
 func (a *app) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
 	// Check perms.
 	sn := a.s.st.NewSnapshot()
+	closeSnapshot := func() error {
+		return sn.Close()
+	}
 	if err := util.Get(ctx, call, sn, a, &appData{}); err != nil {
-		sn.Close()
+		closeSnapshot()
 		return nil, err
 	}
-	pattern := "*"
-	return util.Glob(ctx, call, pattern, sn, util.JoinKeyParts(util.DbInfoPrefix, a.name))
+	return util.Glob(ctx, call, "*", sn, closeSnapshot, util.JoinKeyParts(util.DbInfoPrefix, a.name))
 }
 
 ////////////////////////////////////////

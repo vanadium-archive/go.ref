@@ -23,15 +23,7 @@ import (
 	"v.io/v23/verror"
 )
 
-type ServiceOptions struct {
-	// Service-level permissions.
-	Perms access.Permissions
-	// Root dir for data storage.
-	RootDir string
-	// Storage engine to use (for service and per-database engines).
-	Engine string
-}
-
+// service is a singleton (i.e. not per-request) that handles Service RPCs.
 type service struct {
 	st   store.Store // keeps track of which apps and databases exist, etc.
 	sync interfaces.SyncServerMethods
@@ -47,6 +39,16 @@ var (
 	_ interfaces.Service        = (*service)(nil)
 	_ util.Layer                = (*service)(nil)
 )
+
+// ServiceOptions configures a service.
+type ServiceOptions struct {
+	// Service-level permissions.
+	Perms access.Permissions
+	// Root dir for data storage.
+	RootDir string
+	// Storage engine to use (for service and per-database engines).
+	Engine string
+}
 
 // NewService creates a new service instance and returns it.
 // Returns a VDL-compatible error.
@@ -103,12 +105,14 @@ func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms acc
 func (s *service) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
 	// Check perms.
 	sn := s.st.NewSnapshot()
+	closeSnapshot := func() error {
+		return sn.Close()
+	}
 	if err := util.Get(ctx, call, sn, s, &serviceData{}); err != nil {
-		sn.Close()
+		closeSnapshot()
 		return nil, err
 	}
-	pattern := "*"
-	return util.Glob(ctx, call, pattern, sn, util.AppPrefix)
+	return util.Glob(ctx, call, "*", sn, closeSnapshot, util.AppPrefix)
 }
 
 ////////////////////////////////////////

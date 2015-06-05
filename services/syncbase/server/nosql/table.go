@@ -14,22 +14,24 @@ import (
 	"v.io/v23/verror"
 )
 
-// TODO(sadovsky): Handle the case where we're in a batch.
-
-type table struct {
+// tableReq is a per-request object that handles Table RPCs.
+type tableReq struct {
 	name string
-	d    *database
+	d    *databaseReq
 }
 
 var (
-	_ wire.TableServerMethods = (*table)(nil)
-	_ util.Layer              = (*table)(nil)
+	_ wire.TableServerMethods = (*tableReq)(nil)
+	_ util.Layer              = (*tableReq)(nil)
 )
 
 ////////////////////////////////////////
 // RPC methods
 
-func (t *table) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions) error {
+func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions) error {
+	if t.d.batchId != nil {
+		return wire.NewErrBoundToBatch(ctx)
+	}
 	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
 		// Check databaseData perms.
 		dData := &databaseData{}
@@ -56,7 +58,10 @@ func (t *table) Create(ctx *context.T, call rpc.ServerCall, perms access.Permiss
 	})
 }
 
-func (t *table) Delete(ctx *context.T, call rpc.ServerCall) error {
+func (t *tableReq) Delete(ctx *context.T, call rpc.ServerCall) error {
+	if t.d.batchId != nil {
+		return wire.NewErrBoundToBatch(ctx)
+	}
 	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
 		// Read-check-delete tableData.
 		if err := util.Get(ctx, call, st, t, &tableData{}); err != nil {
@@ -70,8 +75,8 @@ func (t *table) Delete(ctx *context.T, call rpc.ServerCall) error {
 	})
 }
 
-func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit []byte) error {
-	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
+func (t *tableReq) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit []byte) error {
+	impl := func(st store.StoreReadWriter) error {
 		// Check perms.
 		if err := util.Get(ctx, call, st, t, &tableData{}); err != nil {
 			return err
@@ -88,83 +93,136 @@ func (t *table) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
 		return nil
-	})
+	}
+	if t.d.batchId != nil {
+		if st, err := t.d.batchReadWriter(); err != nil {
+			return err
+		} else {
+			return impl(st)
+		}
+	} else {
+		return store.RunInTransaction(t.d.st, impl)
+	}
 }
 
-func (t *table) Scan(ctx *context.T, call wire.TableScanServerCall, start, limit []byte) error {
-	sn := t.d.st.NewSnapshot()
-	defer sn.Close()
-	// Check perms.
-	if err := util.Get(ctx, call, sn, t, &tableData{}); err != nil {
-		return err
+func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, start, limit []byte) error {
+	impl := func(st store.StoreReader) error {
+		// Check perms.
+		if err := util.Get(ctx, call, st, t, &tableData{}); err != nil {
+			return err
+		}
+		it := st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
+		sender := call.SendStream()
+		key, value := []byte{}, []byte{}
+		for it.Advance() {
+			key, value = it.Key(key), it.Value(value)
+			parts := util.SplitKeyParts(string(key))
+			sender.Send(wire.KeyValue{Key: parts[len(parts)-1], Value: value})
+		}
+		if err := it.Err(); err != nil {
+			return verror.New(verror.ErrInternal, ctx, err)
+		}
+		return nil
 	}
-	it := sn.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
-	sender := call.SendStream()
-	key, value := []byte{}, []byte{}
-	for it.Advance() {
-		key, value = it.Key(key), it.Value(value)
-		parts := util.SplitKeyParts(string(key))
-		sender.Send(wire.KeyValue{Key: parts[len(parts)-1], Value: value})
+	var st store.StoreReader
+	if t.d.batchId != nil {
+		st = t.d.batchReader()
+	} else {
+		sn := t.d.st.NewSnapshot()
+		st = sn
+		defer sn.Close()
 	}
-	if err := it.Err(); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return impl(st)
 }
 
-func (t *table) SetPermissions(ctx *context.T, call rpc.ServerCall, prefix string, perms access.Permissions) error {
+func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, prefix string, perms access.Permissions) error {
 	if prefix != "" {
 		return verror.NewErrNotImplemented(ctx)
 	}
-	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
+	impl := func(st store.StoreReadWriter) error {
 		data := &tableData{}
 		return util.Update(ctx, call, st, t, data, func() error {
 			data.Perms = perms
 			return nil
 		})
-	})
+	}
+	if t.d.batchId != nil {
+		if st, err := t.d.batchReadWriter(); err != nil {
+			return err
+		} else {
+			return impl(st)
+		}
+	} else {
+		return store.RunInTransaction(t.d.st, impl)
+	}
 }
 
-func (t *table) GetPermissions(ctx *context.T, call rpc.ServerCall, key string) ([]wire.PrefixPermissions, error) {
+func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, key string) ([]wire.PrefixPermissions, error) {
 	if key != "" {
 		return nil, verror.NewErrNotImplemented(ctx)
 	}
-	data := &tableData{}
-	if err := util.Get(ctx, call, t.d.st, t, data); err != nil {
-		return nil, err
+	impl := func(st store.StoreReader) ([]wire.PrefixPermissions, error) {
+		data := &tableData{}
+		if err := util.Get(ctx, call, t.d.st, t, data); err != nil {
+			return nil, err
+		}
+		return []wire.PrefixPermissions{{Prefix: "", Perms: data.Perms}}, nil
 	}
-	return []wire.PrefixPermissions{{Prefix: "", Perms: data.Perms}}, nil
+	var st store.StoreReader
+	if t.d.batchId != nil {
+		st = t.d.batchReader()
+	} else {
+		sn := t.d.st.NewSnapshot()
+		st = sn
+		defer sn.Close()
+	}
+	return impl(st)
 }
 
-func (t *table) DeletePermissions(ctx *context.T, call rpc.ServerCall, prefix string) error {
+func (t *tableReq) DeletePermissions(ctx *context.T, call rpc.ServerCall, prefix string) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (t *table) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
-	sn := t.d.st.NewSnapshot()
-	// Check perms.
-	if err := util.Get(ctx, call, sn, t, &tableData{}); err != nil {
-		sn.Close()
-		return nil, err
+func (t *tableReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
+	impl := func(st store.StoreReader, closeStoreReader func() error) (<-chan string, error) {
+		// Check perms.
+		if err := util.Get(ctx, call, st, t, &tableData{}); err != nil {
+			closeStoreReader()
+			return nil, err
+		}
+		return util.Glob(ctx, call, "*", st, closeStoreReader, util.JoinKeyParts(util.RowPrefix, t.name))
 	}
-	pattern := "*"
-	return util.Glob(ctx, call, pattern, sn, util.JoinKeyParts(util.RowPrefix, t.name))
+	var st store.StoreReader
+	var closeStoreReader func() error
+	if t.d.batchId != nil {
+		st = t.d.batchReader()
+		closeStoreReader = func() error {
+			return nil
+		}
+	} else {
+		sn := t.d.st.NewSnapshot()
+		st = sn
+		closeStoreReader = func() error {
+			return sn.Close()
+		}
+	}
+	return impl(st, closeStoreReader)
 }
 
 ////////////////////////////////////////
 // util.Layer methods
 
-func (t *table) Name() string {
+func (t *tableReq) Name() string {
 	return t.name
 }
 
-func (t *table) StKey() string {
+func (t *tableReq) StKey() string {
 	return util.JoinKeyParts(util.TablePrefix, t.stKeyPart())
 }
 
 ////////////////////////////////////////
 // Internal helpers
 
-func (t *table) stKeyPart() string {
+func (t *tableReq) stKeyPart() string {
 	return t.name
 }
