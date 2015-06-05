@@ -752,7 +752,7 @@ func (c *Controller) Bless(_ *context.T, _ rpc.ServerCall, publicKey []byte, inp
 // BlessSelf creates a blessing with the provided name for this principal.
 func (c *Controller) BlessSelf(_ *context.T, _ rpc.ServerCall, extension string, caveats []security.Caveat) (principal.BlessingsId, error) {
 	p := v23.GetPrincipal(c.ctx)
-	blessings, err := p.BlessSelf(extension)
+	blessings, err := p.BlessSelf(extension, caveats...)
 	if err != nil {
 		return 0, verror.Convert(verror.ErrInternal, nil, err)
 	}
