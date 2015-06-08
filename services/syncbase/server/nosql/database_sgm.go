@@ -35,7 +35,8 @@ func (d *databaseReq) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgName 
 	if d.batchId != nil {
 		return wire.SyncGroupSpec{}, wire.NewErrBoundToBatch(ctx)
 	}
-	return wire.SyncGroupSpec{}, verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.JoinSyncGroup(ctx, call, sgName, myInfo)
 }
 
 func (d *databaseReq) LeaveSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string) error {

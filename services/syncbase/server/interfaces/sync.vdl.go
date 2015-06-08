@@ -12,6 +12,9 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+
+	// VDL user imports
+	"v.io/syncbase/v23/services/syncbase/nosql"
 )
 
 // SyncClientMethods is the client interface
@@ -27,9 +30,11 @@ type SyncClientMethods interface {
 	// PublishSyncGroup is typically invoked on a "central" peer
 	// to publish the SyncGroup.
 	PublishSyncGroup(ctx *context.T, sg SyncGroup, opts ...rpc.CallOpt) error
-	// JoinSyncGroup is invoked on a SyncGroup Admin and checks if
-	// the requestor can join the SyncGroup.
-	JoinSyncGroup(*context.T, ...rpc.CallOpt) error
+	// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's
+	// Syncbase on a SyncGroup admin. It checks whether the requestor is
+	// allowed to join the named SyncGroup, and if so, adds the requestor to
+	// the SyncGroup.
+	JoinSyncGroupAtAdmin(ctx *context.T, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo, opts ...rpc.CallOpt) (SyncGroup, error)
 	// BlobSync methods.
 	// FetchBlob returns the requested blob.
 	FetchBlob(*context.T, ...rpc.CallOpt) error
@@ -60,8 +65,8 @@ func (c implSyncClientStub) PublishSyncGroup(ctx *context.T, i0 SyncGroup, opts 
 	return
 }
 
-func (c implSyncClientStub) JoinSyncGroup(ctx *context.T, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "JoinSyncGroup", nil, nil, opts...)
+func (c implSyncClientStub) JoinSyncGroupAtAdmin(ctx *context.T, i0 string, i1 string, i2 nosql.SyncGroupMemberInfo, opts ...rpc.CallOpt) (o0 SyncGroup, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "JoinSyncGroupAtAdmin", []interface{}{i0, i1, i2}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -83,9 +88,11 @@ type SyncServerMethods interface {
 	// PublishSyncGroup is typically invoked on a "central" peer
 	// to publish the SyncGroup.
 	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg SyncGroup) error
-	// JoinSyncGroup is invoked on a SyncGroup Admin and checks if
-	// the requestor can join the SyncGroup.
-	JoinSyncGroup(*context.T, rpc.ServerCall) error
+	// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's
+	// Syncbase on a SyncGroup admin. It checks whether the requestor is
+	// allowed to join the named SyncGroup, and if so, adds the requestor to
+	// the SyncGroup.
+	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (SyncGroup, error)
 	// BlobSync methods.
 	// FetchBlob returns the requested blob.
 	FetchBlob(*context.T, rpc.ServerCall) error
@@ -134,8 +141,8 @@ func (s implSyncServerStub) PublishSyncGroup(ctx *context.T, call rpc.ServerCall
 	return s.impl.PublishSyncGroup(ctx, call, i0)
 }
 
-func (s implSyncServerStub) JoinSyncGroup(ctx *context.T, call rpc.ServerCall) error {
-	return s.impl.JoinSyncGroup(ctx, call)
+func (s implSyncServerStub) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, i0 string, i1 string, i2 nosql.SyncGroupMemberInfo) (SyncGroup, error) {
+	return s.impl.JoinSyncGroupAtAdmin(ctx, call, i0, i1, i2)
 }
 
 func (s implSyncServerStub) FetchBlob(ctx *context.T, call rpc.ServerCall) error {
@@ -171,8 +178,16 @@ var descSync = rpc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "JoinSyncGroup",
-			Doc:  "// JoinSyncGroup is invoked on a SyncGroup Admin and checks if\n// the requestor can join the SyncGroup.",
+			Name: "JoinSyncGroupAtAdmin",
+			Doc:  "// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's\n// Syncbase on a SyncGroup admin. It checks whether the requestor is\n// allowed to join the named SyncGroup, and if so, adds the requestor to\n// the SyncGroup.",
+			InArgs: []rpc.ArgDesc{
+				{"sgName", ``},     // string
+				{"joinerName", ``}, // string
+				{"myInfo", ``},     // nosql.SyncGroupMemberInfo
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // SyncGroup
+			},
 		},
 		{
 			Name: "FetchBlob",

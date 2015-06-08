@@ -12,6 +12,7 @@ package vsync
 // records in response to a GetDeltas request, it replays those log
 // records to get in sync with the sender.
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -27,9 +28,10 @@ import (
 
 // syncService contains the metadata for the sync module.
 type syncService struct {
-	// TODO(hpucha): see if uniqueid is a better fit. It is 128 bits.
-	id int64 // globally unique id for this instance of Syncbase
-	sv interfaces.Service
+	// TODO(hpucha): see if "v.io/v23/uniqueid" is a better fit. It is 128 bits.
+	id   int64  // globally unique id for this instance of Syncbase
+	name string // name derived from the global id.
+	sv   interfaces.Service
 
 	// State to coordinate shutdown of spawned goroutines.
 	pending sync.WaitGroup
@@ -85,6 +87,7 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncServi
 
 	// data.Id is now guaranteed to be initialized.
 	s.id = data.Id
+	s.name = fmt.Sprintf("%x", s.id)
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})

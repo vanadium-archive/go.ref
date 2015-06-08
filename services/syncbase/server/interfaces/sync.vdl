@@ -4,6 +4,10 @@
 
 package interfaces
 
+import (
+	wire "v.io/syncbase/v23/services/syncbase/nosql"
+)
+
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type Sync interface {
@@ -18,9 +22,11 @@ type Sync interface {
 	// to publish the SyncGroup.
 	PublishSyncGroup(sg SyncGroup) error
 
-	// JoinSyncGroup is invoked on a SyncGroup Admin and checks if
-	// the requestor can join the SyncGroup.
-	JoinSyncGroup() error
+	// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's
+	// Syncbase on a SyncGroup admin. It checks whether the requestor is
+	// allowed to join the named SyncGroup, and if so, adds the requestor to
+	// the SyncGroup.
+	JoinSyncGroupAtAdmin(sgName, joinerName string, myInfo wire.SyncGroupMemberInfo) (SyncGroup | error)
 
 	// BlobSync methods.
 	// FetchBlob returns the requested blob.
