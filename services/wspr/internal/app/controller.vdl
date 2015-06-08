@@ -51,7 +51,4 @@ type Controller interface {
 	RemoteBlessings(name, method string) ([]string | error)
 	// Signature fetches the signature for a given name.
 	Signature(name string) ([]signature.Interface | error)
-
-  // UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
-	UnionOfBlessings(toJoin []security.WireBlessings) (principal.BlessingsId | error)
 }

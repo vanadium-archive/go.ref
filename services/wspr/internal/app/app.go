@@ -836,17 +836,6 @@ func (c *Controller) AddToRoots(_ *context.T, _ rpc.ServerCall, inputBlessings s
 	return p.AddToRoots(inputBlessings)
 }
 
-// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
-// TODO(bprosnitz) Rewrite in Javascript
-func (c *Controller) UnionOfBlessings(_ *context.T, _ rpc.ServerCall, inputBlessings []security.Blessings) (principal.BlessingsId, error) {
-	outBlessings, err := security.UnionOfBlessings(inputBlessings...)
-	if err != nil {
-		return 0, err
-	}
-
-	return c.blessingsCache.Put(outBlessings), nil
-}
-
 // HandleGranterResponse handles the result of a Granter request.
 func (c *Controller) HandleGranterResponse(id int32, data string) {
 	c.Lock()

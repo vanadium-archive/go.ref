@@ -57,8 +57,6 @@ type ControllerClientMethods interface {
 	RemoteBlessings(ctx *context.T, name string, method string, opts ...rpc.CallOpt) ([]string, error)
 	// Signature fetches the signature for a given name.
 	Signature(ctx *context.T, name string, opts ...rpc.CallOpt) ([]signature.Interface, error)
-	// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
-	UnionOfBlessings(ctx *context.T, toJoin []security.Blessings, opts ...rpc.CallOpt) (principal.BlessingsId, error)
 }
 
 // ControllerClientStub adds universal methods to ControllerClientMethods.
@@ -156,11 +154,6 @@ func (c implControllerClientStub) Signature(ctx *context.T, i0 string, opts ...r
 	return
 }
 
-func (c implControllerClientStub) UnionOfBlessings(ctx *context.T, i0 []security.Blessings, opts ...rpc.CallOpt) (o0 principal.BlessingsId, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "UnionOfBlessings", []interface{}{i0}, []interface{}{&o0}, opts...)
-	return
-}
-
 // ControllerServerMethods is the interface a server writer
 // implements for Controller.
 type ControllerServerMethods interface {
@@ -199,8 +192,6 @@ type ControllerServerMethods interface {
 	RemoteBlessings(ctx *context.T, call rpc.ServerCall, name string, method string) ([]string, error)
 	// Signature fetches the signature for a given name.
 	Signature(ctx *context.T, call rpc.ServerCall, name string) ([]signature.Interface, error)
-	// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.
-	UnionOfBlessings(ctx *context.T, call rpc.ServerCall, toJoin []security.Blessings) (principal.BlessingsId, error)
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -300,10 +291,6 @@ func (s implControllerServerStub) RemoteBlessings(ctx *context.T, call rpc.Serve
 
 func (s implControllerServerStub) Signature(ctx *context.T, call rpc.ServerCall, i0 string) ([]signature.Interface, error) {
 	return s.impl.Signature(ctx, call, i0)
-}
-
-func (s implControllerServerStub) UnionOfBlessings(ctx *context.T, call rpc.ServerCall, i0 []security.Blessings) (principal.BlessingsId, error) {
-	return s.impl.UnionOfBlessings(ctx, call, i0)
 }
 
 func (s implControllerServerStub) Globber() *rpc.GlobState {
@@ -460,16 +447,6 @@ var descController = rpc.InterfaceDesc{
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []signature.Interface
-			},
-		},
-		{
-			Name: "UnionOfBlessings",
-			Doc:  "// UnionOfBlessings returns a Blessings object that carries the union of the provided blessings.",
-			InArgs: []rpc.ArgDesc{
-				{"toJoin", ``}, // []security.Blessings
-			},
-			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // principal.BlessingsId
 			},
 		},
 	},
