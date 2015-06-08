@@ -23,6 +23,8 @@ var (
 	once sync.Once
 )
 
+const randPanicMsg = "It looks like the singleton random number generator has not been initialized, please call InitRandGenerator."
+
 // Random is a concurrent-access friendly source of randomness.
 type Random struct {
 	mu   sync.Mutex
@@ -125,23 +127,35 @@ func generateRandomBytes(rand *Random, size int) []byte {
 
 // RandomInt returns a non-negative pseudo-random int using the public variable Rand.
 func RandomInt() int {
+	if Rand == nil {
+		panic(randPanicMsg)
+	}
 	return Rand.RandomInt()
 }
 
 // RandomIntn returns a non-negative pseudo-random int in the range [0, n) using
 // the public variable Rand.
 func RandomIntn(n int) int {
+	if Rand == nil {
+		panic(randPanicMsg)
+	}
 	return Rand.RandomIntn(n)
 }
 
 // RandomInt63 returns a non-negative 63-bit pseudo-random integer as an int64
 // using the public variable Rand.
 func RandomInt63() int64 {
+	if Rand == nil {
+		panic(randPanicMsg)
+	}
 	return Rand.RandomInt63()
 }
 
 // RandomBytes generates the given number of random bytes using
 // the public variable Rand.
 func RandomBytes(size int) []byte {
+	if Rand == nil {
+		panic(randPanicMsg)
+	}
 	return Rand.RandomBytes(size)
 }

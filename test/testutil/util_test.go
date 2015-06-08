@@ -20,6 +20,25 @@ func TestFormatLogline(t *testing.T) {
 	}
 }
 
+func panicHelper(ch chan string) {
+	defer func() {
+		if r := recover(); r != nil {
+			ch <- r.(string)
+		}
+	}()
+	testutil.RandomInt()
+}
+
+func TestPanic(t *testing.T) {
+	testutil.Rand = nil
+	ch := make(chan string)
+	go panicHelper(ch)
+	str := <-ch
+	if got, want := str, "It looks like the singleton random number generator has not been initialized, please call InitRandGenerator."; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
 //go:generate v23 test generate .
 
 func V23TestRandSeed(i *v23tests.T) {
