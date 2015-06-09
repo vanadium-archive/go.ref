@@ -431,3 +431,21 @@ func TestUncachedBuild(t *testing.T) {
 		t.Fatalf("failed, paths are the same: %q != %q", path1, path2)
 	}
 }
+
+func TestShutdownAndCleanupTogetherDontHang(t *testing.T) {
+	env := v23tests.New(t)
+	defer env.Cleanup()
+
+	bash := env.BinaryFromPath("/bin/bash")
+	if want, got := "hello world\n", bash.Start("-c", "echo hello world").Output(); want != got {
+		t.Fatalf("unexpected output, want %s, got %s", want, got)
+	}
+
+	inv := bash.Start("-c", "echo hello world")
+	var buf bytes.Buffer
+	inv.Shutdown(&buf, nil)
+	if want, got := "hello world\n", buf.String(); want != got {
+		t.Fatalf("unexpected output, want %s, got %s", want, got)
+	}
+	// Make sure that we can call Shutdown and Cleanup without hanging.
+}

@@ -93,6 +93,13 @@ func (i *Invocation) Wait(stdout, stderr io.Writer) error {
 	return err
 }
 
+// Shutdown is the same as Wait, but hides the Shutdown method on
+// the embedded modules.Handle.
+func (i *Invocation) Shutdown(stdout, stderr io.Writer) error {
+	return i.Wait(stdout, stderr)
+
+}
+
 // WaitOrDie waits for this invocation to finish. If either stdout or stderr
 // is non-nil, any remaining unread output from those sources will be
 // written to the corresponding writer. If the underlying command
