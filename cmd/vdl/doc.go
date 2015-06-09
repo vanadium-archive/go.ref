@@ -60,18 +60,18 @@ The vdl generate flags are:
       "src->dst[,s2->d2...]" : Generate output using translation rules
    Assume your source tree is organized as follows:
       VDLPATH=/home/vdl
-         /home/vdl/src/test_base/base1.vdl
-         /home/vdl/src/test_base/base2.vdl
+         /home/vdl/test_base/base1.vdl
+         /home/vdl/test_base/base2.vdl
    Here's example output under the different modes:
       --go-out-dir=""
-         /home/vdl/src/test_base/base1.vdl.go
-         /home/vdl/src/test_base/base2.vdl.go
+         /home/vdl/test_base/base1.vdl.go
+         /home/vdl/test_base/base2.vdl.go
       --go-out-dir="/tmp/foo"
          /tmp/foo/test_base/base1.vdl.go
          /tmp/foo/test_base/base2.vdl.go
-      --go-out-dir="vdl/src->foo/bar/src"
-         /home/foo/bar/src/test_base/base1.vdl.go
-         /home/foo/bar/src/test_base/base2.vdl.go
+      --go-out-dir="vdl->foo/bar"
+         /home/foo/bar/test_base/base1.vdl.go
+         /home/foo/bar/test_base/base2.vdl.go
    When the src->dst form is used, src must match the suffix of the path just
    before the package path, and dst is the replacement for src.  Use commas to
    separate multiple rules; the first rule matching src is used.  The special
@@ -130,18 +130,18 @@ The vdl audit flags are:
       "src->dst[,s2->d2...]" : Generate output using translation rules
    Assume your source tree is organized as follows:
       VDLPATH=/home/vdl
-         /home/vdl/src/test_base/base1.vdl
-         /home/vdl/src/test_base/base2.vdl
+         /home/vdl/test_base/base1.vdl
+         /home/vdl/test_base/base2.vdl
    Here's example output under the different modes:
       --go-out-dir=""
-         /home/vdl/src/test_base/base1.vdl.go
-         /home/vdl/src/test_base/base2.vdl.go
+         /home/vdl/test_base/base1.vdl.go
+         /home/vdl/test_base/base2.vdl.go
       --go-out-dir="/tmp/foo"
          /tmp/foo/test_base/base1.vdl.go
          /tmp/foo/test_base/base2.vdl.go
-      --go-out-dir="vdl/src->foo/bar/src"
-         /home/foo/bar/src/test_base/base1.vdl.go
-         /home/foo/bar/src/test_base/base2.vdl.go
+      --go-out-dir="vdl->foo/bar"
+         /home/foo/bar/test_base/base1.vdl.go
+         /home/foo/bar/test_base/base2.vdl.go
    When the src->dst form is used, src must match the suffix of the path just
    before the package path, and dst is the replacement for src.  Use commas to
    separate multiple rules; the first rule matching src is used.  The special
@@ -234,6 +234,10 @@ Import path elements and file names are not allowed to begin with "." or "_";
 such paths are ignored in wildcard matches, and return errors if specified
 explicitly.
 
+Note that whereas GOPATH requires *.go source files and packages to appear under
+a "src" directory, VDLPATH requires *.vdl source files and packages to appear
+directly under the VDLPATH directories.
+
  Run "vdl help vdlpath" to see docs on VDLPATH.
  Run "go help packages" to see the standard go package docs.
 
@@ -242,26 +246,25 @@ Vdl vdlpath - Description of VDLPATH environment variable
 The VDLPATH environment variable is used to resolve import statements. It must
 be set to compile and generate vdl packages.
 
-The format is a colon-separated list of directories, where each directory must
-have a "src/" directory that holds vdl source code.  The path below 'src'
-determines the import path.  If VDLPATH specifies multiple directories, imports
-are resolved by picking the first directory with a matching import name.
+The format is a colon-separated list of directories containing vdl source code.
+These directories are searched recursively for VDL source files.  The path below
+the directory determines the import path.  If VDLPATH specifies multiple
+directories, imports are resolved by picking the first directory with a matching
+import name.
 
 An example:
 
    VDPATH=/home/user/vdlA:/home/user/vdlB
 
-   /home/user/vdlA/
-      src/
-         foo/                 (import "foo" refers here)
-            foo1.vdl
-   /home/user/vdlB/
-      src/
-         foo/                 (this package is ignored)
-            foo2.vdl
-         bar/
-            baz/              (import "bar/baz" refers here)
-               baz.vdl
+   /home/user/vdlA
+       foo/                 (import "foo" refers here)
+           foo1.vdl
+   /home/user/vdlB
+       foo/                 (this package is ignored)
+          foo2.vdl
+       bar/
+          baz/              (import "bar/baz" refers here)
+             baz.vdl
 
 Vdl vdlroot - Description of VDLROOT environment variable
 

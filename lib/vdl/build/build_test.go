@@ -37,7 +37,7 @@ func init() {
 // TODO(toddw): Put a full VDLPATH tree under ../testdata and only use that.
 const (
 	defaultVDLRoot = "../../../../../v23/vdlroot"
-	defaultVDLPath = "../../../../../../.."
+	defaultVDLPath = "../../../../../.."
 )
 
 func setEnvironment(t *testing.T, vdlroot, vdlpath string) bool {
@@ -93,8 +93,8 @@ func TestSrcDirsVdlRoot(t *testing.T) {
 		got := build.SrcDirs(errs)
 		vdltest.ExpectResult(t, errs, name, test.ErrRE)
 		// Every result will have our valid VDLPATH srcdir.
-		vdlpathsrc := filepath.Join(abs(defaultVDLPath), "src")
-		want := append(test.Want, vdlpathsrc)
+		vdlpath := abs(defaultVDLPath)
+		want := append(test.Want, vdlpath)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("SrcDirs(%s) got %v, want %v", name, got, want)
 		}
@@ -116,24 +116,24 @@ func TestSrcDirsVdlPath(t *testing.T) {
 	}{
 		{"", nil},
 		// Test absolute paths.
-		{"/a", []string{"/a/src"}},
-		{"/a/b", []string{"/a/b/src"}},
-		{"/a:/b", []string{"/a/src", "/b/src"}},
-		{"/a/1:/b/2", []string{"/a/1/src", "/b/2/src"}},
-		{"/a/1:/b/2:/c/3", []string{"/a/1/src", "/b/2/src", "/c/3/src"}},
-		{":::/a/1::::/b/2::::/c/3:::", []string{"/a/1/src", "/b/2/src", "/c/3/src"}},
+		{"/a", []string{"/a"}},
+		{"/a/b", []string{"/a/b"}},
+		{"/a:/b", []string{"/a", "/b"}},
+		{"/a/1:/b/2", []string{"/a/1", "/b/2"}},
+		{"/a/1:/b/2:/c/3", []string{"/a/1", "/b/2", "/c/3"}},
+		{":::/a/1::::/b/2::::/c/3:::", []string{"/a/1", "/b/2", "/c/3"}},
 		// Test relative paths.
-		{"a", []string{abs("a/src")}},
-		{"a/b", []string{abs("a/b/src")}},
-		{"a:b", []string{abs("a/src"), abs("b/src")}},
-		{"a/1:b/2", []string{abs("a/1/src"), abs("b/2/src")}},
-		{"a/1:b/2:c/3", []string{abs("a/1/src"), abs("b/2/src"), abs("c/3/src")}},
-		{":::a/1::::b/2::::c/3:::", []string{abs("a/1/src"), abs("b/2/src"), abs("c/3/src")}},
+		{"a", []string{abs("a")}},
+		{"a/b", []string{abs("a/b")}},
+		{"a:b", []string{abs("a"), abs("b")}},
+		{"a/1:b/2", []string{abs("a/1"), abs("b/2")}},
+		{"a/1:b/2:c/3", []string{abs("a/1"), abs("b/2"), abs("c/3")}},
+		{":::a/1::::b/2::::c/3:::", []string{abs("a/1"), abs("b/2"), abs("c/3")}},
 		// Test mixed absolute / relative paths.
-		{"a:/b", []string{abs("a/src"), "/b/src"}},
-		{"/a/1:b/2", []string{"/a/1/src", abs("b/2/src")}},
-		{"/a/1:b/2:/c/3", []string{"/a/1/src", abs("b/2/src"), "/c/3/src"}},
-		{":::/a/1::::b/2::::/c/3:::", []string{"/a/1/src", abs("b/2/src"), "/c/3/src"}},
+		{"a:/b", []string{abs("a"), "/b"}},
+		{"/a/1:b/2", []string{"/a/1", abs("b/2")}},
+		{"/a/1:b/2:/c/3", []string{"/a/1", abs("b/2"), "/c/3"}},
+		{":::/a/1::::b/2::::/c/3:::", []string{"/a/1", abs("b/2"), "/c/3"}},
 	}
 	for _, test := range tests {
 		if !setEnvironment(t, defaultVDLRoot, test.VDLPath) {

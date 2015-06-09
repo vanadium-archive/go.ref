@@ -298,10 +298,9 @@ func vdlPathSrcDirs(errs *vdlutil.Errors) []string {
 	var srcDirs []string
 	for _, dir := range filepath.SplitList(os.Getenv("VDLPATH")) {
 		if dir != "" {
-			src := filepath.Join(dir, "src")
-			abs, err := filepath.Abs(src)
+			abs, err := filepath.Abs(dir)
 			if err != nil {
-				errs.Errorf("VDLPATH src dir %q can't be made absolute (%v)", src, err)
+				errs.Errorf("VDLPATH src dir %q can't be made absolute (%v)", dir, err)
 				continue // keep going to collect all errors
 			}
 			srcDirs = append(srcDirs, abs)
