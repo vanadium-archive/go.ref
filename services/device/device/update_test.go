@@ -119,7 +119,7 @@ func TestUpdateAndRevertCommands(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 			tapes.rewind()
-			rootTape.SetResponses(GlobResponse{c.globResponses})
+			rootTape.SetResponses(GlobResponse{results: c.globResponses})
 			for n, r := range c.statusResponses {
 				tapes.forSuffix(n).SetResponses(r...)
 			}

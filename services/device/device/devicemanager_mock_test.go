@@ -272,8 +272,15 @@ func (mdi *mockDeviceInvoker) Debug(*context.T, rpc.ServerCall) (string, error) 
 
 func (mdi *mockDeviceInvoker) Status(*context.T, rpc.ServerCall) (device.Status, error) {
 	ir := mdi.tape.Record("Status")
-	r := ir.(device.Status)
-	return r, nil
+	switch r := ir.(type) {
+	case device.Status:
+		return r, nil
+	case error:
+		return nil, r
+	default:
+		log.Fatalf("Status (mock) response %v is of bad type", ir)
+		return nil, nil
+	}
 }
 
 type GlobStimulus struct {
@@ -282,6 +289,7 @@ type GlobStimulus struct {
 
 type GlobResponse struct {
 	results []string
+	err     error
 }
 
 func (mdi *mockDeviceInvoker) Glob__(_ *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
@@ -292,7 +300,7 @@ func (mdi *mockDeviceInvoker) Glob__(_ *context.T, _ rpc.ServerCall, pattern str
 	for _, r := range gr.results {
 		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: r}}
 	}
-	return ch, nil
+	return ch, gr.err
 }
 
 type dispatcher struct {
