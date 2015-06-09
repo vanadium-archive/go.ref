@@ -30,6 +30,14 @@ func simplePrintHandler(entry cmd_device.GlobResult, _ *context.T, stdout, _ io.
 	return nil
 }
 
+func errOnInstallationsHandler(entry cmd_device.GlobResult, _ *context.T, stdout, _ io.Writer) error {
+	if entry.Kind == cmd_device.ApplicationInstallationObject {
+		return fmt.Errorf("handler complete failure")
+	}
+	fmt.Fprintf(stdout, "%v\n", entry)
+	return nil
+}
+
 // newEnforceFullParallelismHandler returns a handler that should be invoked in
 // parallel n times.
 func newEnforceFullParallelismHandler(t *testing.T, n int) cmd_device.GlobHandler {
@@ -148,9 +156,9 @@ func TestGlob(t *testing.T) {
 	defer stopServer(t, server)
 
 	allGlobArgs := []string{"glob1", "glob2"}
-	allGlobResponses := [][]string{
-		[]string{"app/3", "app/4", "app/6", "app/5", "app/9", "app/7"},
-		[]string{"app/2", "app/1", "app/8"},
+	allGlobResponses := []GlobResponse{
+		{results: []string{"app/3", "app/4", "app/6", "app/5", "app/9", "app/7"}},
+		{results: []string{"app/2", "app/1", "app/8"}},
 	}
 	allStatusResponses := map[string][]interface{}{
 		"app/1": []interface{}{instanceRunning},
@@ -187,11 +195,13 @@ func TestGlob(t *testing.T) {
 
 	for _, c := range []struct {
 		handler         cmd_device.GlobHandler
-		globResponses   [][]string
+		globResponses   []GlobResponse
 		statusResponses map[string][]interface{}
 		gs              cmd_device.GlobSettings
 		globPatterns    []string
-		expected        string
+		expectedStdout  string
+		expectedStderr  string
+		expectedError   string
 	}{
 		// Verifies output is correct and in the expected order (first
 		// installations, then instances, then device services).
@@ -202,6 +212,8 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{},
 			allGlobArgs,
 			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			"",
+			"",
 		},
 		// Verifies that full parallelism runs all the handlers
 		// simultaneously.
@@ -212,6 +224,8 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{HandlerParallelism: cmd_device.FullParallelism},
 			allGlobArgs,
 			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			"",
+			"",
 		},
 		// Verifies that "by kind" parallelism runs all installation
 		// handlers in parallel, then all instance handlers in parallel,
@@ -223,6 +237,8 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{HandlerParallelism: cmd_device.KindParallelism},
 			allGlobArgs,
 			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			"",
+			"",
 		},
 		// Verifies that the no parallelism option runs all handlers
 		// sequentially.
@@ -233,6 +249,8 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{HandlerParallelism: cmd_device.NoParallelism},
 			allGlobArgs,
 			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			"",
+			"",
 		},
 		// Verifies "only instances" filter.
 		{
@@ -242,6 +260,8 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{OnlyInstances: true},
 			allGlobArgs,
 			joinLines(app1Out, app3Out, app5Out, app9Out),
+			"",
+			"",
 		},
 		// Verifies "only installations" filter.
 		{
@@ -251,6 +271,8 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{OnlyInstallations: true},
 			allGlobArgs,
 			joinLines(app2Out, app4Out, app7Out),
+			"",
+			"",
 		},
 		// Verifies "instance state" filter.
 		{
@@ -260,6 +282,8 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{InstanceStateFilter: map[device.InstanceState]bool{device.InstanceStateUpdating: true}},
 			allGlobArgs,
 			joinLines(app2Out, app4Out, app7Out, app3Out, app9Out, app6Out, app8Out),
+			"",
+			"",
 		},
 		// Verifies "installation state" filter.
 		{
@@ -269,6 +293,8 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{InstallationStateFilter: map[device.InstallationState]bool{device.InstallationStateActive: true}},
 			allGlobArgs,
 			joinLines(app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			"",
+			"",
 		},
 		// Verifies "installation state" filter + "only installations" filter.
 		{
@@ -281,6 +307,8 @@ func TestGlob(t *testing.T) {
 			},
 			allGlobArgs,
 			joinLines(app4Out, app7Out),
+			"",
+			"",
 		},
 		// Verifies "installation state" filter + "only instances" filter.
 		{
@@ -293,6 +321,8 @@ func TestGlob(t *testing.T) {
 			},
 			allGlobArgs,
 			joinLines(app1Out, app3Out, app5Out, app9Out),
+			"",
+			"",
 		},
 		// Verifies "installation state" filter + "instance state" filter.
 		{
@@ -305,6 +335,8 @@ func TestGlob(t *testing.T) {
 			},
 			allGlobArgs,
 			joinLines(app2Out, app1Out, app6Out, app8Out),
+			"",
+			"",
 		},
 		// Verifies "only instances" filter + "only installations" filter -- no results.
 		{
@@ -317,18 +349,81 @@ func TestGlob(t *testing.T) {
 			},
 			allGlobArgs,
 			"",
+			"",
+			"",
 		},
-		// TODO(caprita): Test the following cases:
 		// No glob arguments.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{},
+			[]string{},
+			"",
+			"",
+			"",
+		},
 		// No glob results.
+		{
+			simplePrintHandler,
+			make([]GlobResponse, 2),
+			allStatusResponses,
+			cmd_device.GlobSettings{},
+			allGlobArgs,
+			"",
+			"",
+			"",
+		},
 		// Error in glob.
+		{
+			simplePrintHandler,
+			[]GlobResponse{{results: []string{"app/3", "app/4"}}, {err: fmt.Errorf("glob utter failure")}},
+			allStatusResponses,
+			cmd_device.GlobSettings{},
+			[]string{"glob", "glob"},
+			joinLines(app4Out, app3Out),
+			fmt.Sprintf("Glob(%v) returned an error for %v: device.test:\"\".__Glob: Internal error: glob utter failure", naming.JoinAddressName(endpoint.String(), "glob"), naming.JoinAddressName(endpoint.String(), "")),
+			"",
+		},
 		// Error in status.
+		{
+			simplePrintHandler,
+			[]GlobResponse{{results: []string{"app/4", "app/3"}}, {results: []string{"app/1", "app/2"}}},
+			map[string][]interface{}{
+				"app/1": []interface{}{instanceRunning},
+				"app/2": []interface{}{fmt.Errorf("status miserable failure")},
+				"app/3": []interface{}{instanceUpdating},
+				"app/4": []interface{}{installationActive},
+			},
+			cmd_device.GlobSettings{},
+			allGlobArgs,
+			joinLines(app4Out, app1Out, app3Out),
+			fmt.Sprintf("Status(%v) failed: device.test:<rpc.Client>\"%v\".Status: Error: status miserable failure", appName+"/2", appName+"/2"),
+			"",
+		},
 		// Error in handler.
+		{
+			errOnInstallationsHandler,
+			[]GlobResponse{{results: []string{"app/4", "app/3"}}, {results: []string{"app/1", "app/2"}}},
+			map[string][]interface{}{
+				"app/1": []interface{}{instanceRunning},
+				"app/2": []interface{}{installationUninstalled},
+				"app/3": []interface{}{instanceUpdating},
+				"app/4": []interface{}{installationActive},
+			},
+			cmd_device.GlobSettings{},
+			allGlobArgs,
+			joinLines(app1Out, app3Out),
+			joinLines(
+				fmt.Sprintf("ERROR for \"%v\": handler complete failure.", appName+"/2"),
+				fmt.Sprintf("ERROR for \"%v\": handler complete failure.", appName+"/4")),
+			"encountered a total of 2 error(s)",
+		},
 	} {
 		tapes.rewind()
 		var rootTapeResponses []interface{}
 		for _, r := range c.globResponses {
-			rootTapeResponses = append(rootTapeResponses, GlobResponse{r})
+			rootTapeResponses = append(rootTapeResponses, r)
 		}
 		rootTape.SetResponses(rootTapeResponses...)
 		for n, r := range c.statusResponses {
@@ -342,10 +437,17 @@ func TestGlob(t *testing.T) {
 		}
 		err := cmd_device.Run(ctx, env, args, c.handler, c.gs)
 		if err != nil {
-			t.Errorf("%v", err)
+			if expected, got := c.expectedError, err.Error(); expected != got {
+				t.Errorf("Unexpected error. Got: %v. Expected: %v.", got, expected)
+			}
+		} else if c.expectedError != "" {
+			t.Errorf("Expected an error (%v) but got none.", c.expectedError)
 		}
-		if expected, got := c.expected, strings.TrimSpace(stdout.String()); got != expected {
-			t.Errorf("Unexpected output. Got:\n%v\nExpected:\n%v\n", got, expected)
+		if expected, got := c.expectedStdout, strings.TrimSpace(stdout.String()); got != expected {
+			t.Errorf("Unexpected stdout. Got:\n%v\nExpected:\n%v\n", got, expected)
+		}
+		if expected, got := c.expectedStderr, strings.TrimSpace(stderr.String()); got != expected {
+			t.Errorf("Unexpected stderr. Got:\n%v\nExpected:\n%v\n", got, expected)
 		}
 	}
 }

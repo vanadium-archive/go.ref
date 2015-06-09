@@ -55,7 +55,7 @@ func TestStatusCommand(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 		tapes.rewind()
-		rootTape.SetResponses(GlobResponse{[]string{"app"}})
+		rootTape.SetResponses(GlobResponse{results: []string{"app"}})
 		appTape.SetResponses(c.tapeResponse)
 		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"status", globName}); err != nil {
 			t.Errorf("%v", err)

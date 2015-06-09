@@ -137,7 +137,7 @@ func TestLsCommand(t *testing.T) {
 		tapes.rewind()
 		var rootTapeResponses []interface{}
 		for _, r := range c.globResponses {
-			rootTapeResponses = append(rootTapeResponses, GlobResponse{r})
+			rootTapeResponses = append(rootTapeResponses, GlobResponse{results: r})
 		}
 		rootTape.SetResponses(rootTapeResponses...)
 		for n, r := range c.statusResponses {

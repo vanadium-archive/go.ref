@@ -33,7 +33,7 @@ func TestDebugCommand(t *testing.T) {
 	globName := naming.JoinAddressName(endpoint.String(), "glob")
 	appName := naming.JoinAddressName(endpoint.String(), "app")
 	rootTape, appTape := tapes.forSuffix(""), tapes.forSuffix("app")
-	rootTape.SetResponses(GlobResponse{[]string{"app"}})
+	rootTape.SetResponses(GlobResponse{results: []string{"app"}})
 
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
