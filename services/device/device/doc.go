@@ -442,6 +442,8 @@ Usage:
    device publish [flags] <binary name>[@<title>] ...
 
 The device publish flags are:
+ -add-publisher=true
+   If true, add a publisher blessing to the application envelope
  -appserv=applications
    Name of application service.
  -binserv=binaries
@@ -450,6 +452,9 @@ The device publish flags are:
    GOARCH for application.  The default is the value of runtime.GOARCH.
  -goos=<runtime.GOOS>
    GOOS for application.  The default is the value of runtime.GOOS.
+ -publisher-min-validity=30h0m0s
+   Publisher blessings that are valid for less than this amount of time are
+   considered invalid
  -readers=dev.v.io
    If non-empty, comma-separated blessing patterns to add to Read and Resolve
    AccessList.

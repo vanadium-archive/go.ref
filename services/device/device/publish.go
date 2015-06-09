@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
@@ -45,6 +46,8 @@ Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
 }
 
 var binaryService, applicationService, readBlessings, goarchFlag, goosFlag string
+var addPublisher bool
+var minValidPublisherDuration time.Duration
 
 func init() {
 	cmdPublish.Flags.StringVar(&binaryService, "binserv", "binaries", "Name of binary service.")
@@ -54,6 +57,8 @@ func init() {
 	cmdPublish.Flags.StringVar(&goarchFlag, "goarch", runtime.GOARCH, "GOARCH for application.  The default is the value of runtime.GOARCH.")
 	cmdPublish.Flags.Lookup("goarch").DefValue = "<runtime.GOARCH>"
 	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve AccessList.")
+	cmdPublish.Flags.BoolVar(&addPublisher, "add-publisher", true, "If true, add a publisher blessing to the application envelope")
+	cmdPublish.Flags.DurationVar(&minValidPublisherDuration, "publisher-min-validity", 30*time.Hour, "Publisher blessings that are valid for less than this amount of time are considered invalid")
 }
 
 func setAccessLists(ctx *context.T, env *cmdline.Env, von string) error {
@@ -93,8 +98,8 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 	binaryVON := naming.Join(binaryService, binaryName, fmt.Sprintf("%s-%s", goosFlag, goarchFlag), timestamp)
 	binaryFile := filepath.Join(binPath, binaryName)
-	// TODO(caprita): Take signature of binary and put it in the envelope.
-	if _, err := binarylib.UploadFromFile(ctx, binaryVON, binaryFile); err != nil {
+	binarySig, err := binarylib.UploadFromFile(ctx, binaryVON, binaryFile)
+	if err != nil {
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "Binary %q uploaded from file %s\n", binaryVON, binaryFile)
@@ -125,6 +130,20 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 		return err
 	}
 	envelope.Binary.File = binaryVON
+	if addPublisher {
+		publisher, err := getPublisherBlessing(ctx, "apps/published/"+title)
+		if err != nil {
+			return err
+		}
+		envelope.Publisher = publisher
+		envelope.Binary.Signature = *binarySig
+	} else {
+		// We must explicitly clear these fields because we might be trying to update
+		// an envelope that previously pointed at a signed binary.
+		envelope.Binary.Signature = security.Signature{}
+		envelope.Publisher = security.Blessings{}
+	}
+
 	if err := repository.ApplicationClient(appVON).Put(ctx, profiles, envelope); err != nil {
 		return err
 	}
@@ -170,4 +189,32 @@ func runPublish(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 	return lastErr
+}
+
+func getPublisherBlessing(ctx *context.T, extension string) (security.Blessings, error) {
+	p := v23.GetPrincipal(ctx)
+	b, err := p.Bless(p.PublicKey(), p.BlessingStore().Default(), extension, security.UnconstrainedUse())
+
+	if err != nil {
+		return security.Blessings{}, err
+	}
+
+	// We need to make sure that the blessing is usable as a publisher blessing -- in
+	// practice this current means that it has no caveats other than expiration. We
+	// test this by putting it into a call object and verifying that the blessing will
+	// not be rejected
+	call := security.NewCall(&security.CallParams{
+		RemoteBlessings: b,
+		LocalBlessings:  p.BlessingStore().Default(),
+		LocalPrincipal:  p,
+		Timestamp:       time.Now().Add(minValidPublisherDuration),
+	})
+	accepted, rejected := security.RemoteBlessingNames(ctx, call)
+	if len(accepted) == 0 {
+		return security.Blessings{}, fmt.Errorf("All blessings are invalid: %v", rejected)
+	}
+	if len(rejected) > 0 {
+		fmt.Fprintf(os.Stderr, "Warning: Some invalid blessings are present: %v", rejected)
+	}
+	return b, nil
 }

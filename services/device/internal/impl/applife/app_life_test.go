@@ -434,7 +434,7 @@ func verifyAppPeerBlessings(t *testing.T, ctx, pubCtx *context.T, instanceDebug 
 	pubBlessings := strings.Split(e.Publisher.String(), ",")
 	for _, dmb := range dmBlessings {
 		for _, pb := range pubBlessings {
-			expBlessings[dmb+"/"+pb] = false
+			expBlessings[dmb+"/a/"+pb] = false
 		}
 	}
 
