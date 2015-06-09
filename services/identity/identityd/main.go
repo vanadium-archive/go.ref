@@ -17,6 +17,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/services/identity/internal/auditor"
@@ -30,6 +31,7 @@ import (
 var (
 	googleConfigWeb, googleConfigChrome, googleConfigAndroid         string
 	externalHttpAddr, httpAddr, tlsConfig, assetsPrefix, mountPrefix string
+	remoteSignerBlessings                                            string
 )
 
 func init() {
@@ -37,6 +39,9 @@ func init() {
 	cmdIdentityD.Flags.StringVar(&googleConfigWeb, "google-config-web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
 	cmdIdentityD.Flags.StringVar(&googleConfigChrome, "google-config-chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	cmdIdentityD.Flags.StringVar(&googleConfigAndroid, "google-config-android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
+
+	// Configuration using the remote signer
+	cmdIdentityD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
 
 	// Flags controlling the HTTP server
 	cmdIdentityD.Flags.StringVar(&externalHttpAddr, "external-http-addr", "", "External address on which the HTTP server listens on.  If none is provided the server will only listen on -http-addr.")
@@ -82,6 +87,24 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if sqlConf != "" {
 		if sqlDB, err = dbFromConfigFile(sqlConf); err != nil {
 			return env.UsageErrorf("Failed to create sqlDB: %v", err)
+		}
+	}
+
+	if remoteSignerBlessings != "" {
+		signer, err := server.NewRestSigner()
+		if err != nil {
+			return fmt.Errorf("Failed to create remote signer: %v", err)
+		}
+		state, err := security.NewPrincipalStateSerializer(remoteSignerBlessings)
+		if err != nil {
+			return fmt.Errorf("Failed to create blessing serializer: %v", err)
+		}
+		p, err := security.NewPrincipalFromSigner(signer, state)
+		if err != nil {
+			return fmt.Errorf("Failed to create principal: %v", err)
+		}
+		if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
+			return fmt.Errorf("Failed to set principal: %v", err)
 		}
 	}
 
