@@ -9,7 +9,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/ref/lib/apilog"
+
 	vsecurity "v.io/x/ref/lib/security"
 )
 
@@ -34,28 +34,28 @@ func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
 }
 
 func (r *Runtime) Init(ctx *context.T) error {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	return nil
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
-	defer apilog.LogCallf(ctx, "principal=")(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	return context.WithValue(ctx, principalKey, principal), nil
 }
 
 func (r *Runtime) GetPrincipal(ctx *context.T) security.Principal {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	return p
 }
 
 func (r *Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	panic("unimplemented")
 }
 
 func (r *Runtime) WithBackgroundContext(ctx *context.T) *context.T {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -64,7 +64,7 @@ func (r *Runtime) WithBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (r *Runtime) GetBackgroundContext(ctx *context.T) *context.T {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	bctx, _ := ctx.Value(backgroundKey).(*context.T)
 	if bctx == nil {
 		// There should always be a background context.  If we don't find
@@ -77,11 +77,11 @@ func (r *Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
-	defer apilog.LogCallf(ctx, "d=")(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	panic("unimplemented")
 }
 
 func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	panic("unimplmeneted")
 }

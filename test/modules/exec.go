@@ -12,9 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"v.io/v23/verror"
 	"v.io/x/lib/envvar"
 	"v.io/x/lib/vlog"
+
+	"v.io/v23/verror"
+
+	"v.io/x/ref/internal/logger"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/services/agent/agentlib"
@@ -41,7 +44,8 @@ type execHandle struct {
 func testFlags() []string {
 	var fl []string
 	// pass logging flags to any subprocesses
-	for fname, fval := range vlog.Log.ExplicitlySetFlags() {
+	flags := logger.Manager(logger.Global()).ExplicitlySetFlags()
+	for fname, fval := range flags {
 		fl = append(fl, "--"+fname+"="+fval)
 	}
 	timeout := flag.Lookup("test.timeout")

@@ -21,12 +21,13 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/v23/context"
+	"v.io/v23/logging"
 )
 
 // logCallLogLevel is the log level beyond which calls are logged.
 const logCallLogLevel = 1
 
-var logger vlog.Logger
+var logger logging.Logger
 
 func init() {
 	logger = vlog.Log
@@ -44,8 +45,6 @@ func callerLocation() string {
 	}
 	return funcName
 }
-
-// TODO(cnicolaou): remove LogCall from vlog.
 
 // LogCall logs that its caller has been called given the arguments
 // passed to it. It returns a function that is supposed to be called

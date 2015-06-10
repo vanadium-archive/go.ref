@@ -12,10 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test"
@@ -33,9 +35,9 @@ func TestInit(t *testing.T) {
 	l := vlog.Log
 	fmt.Println(l)
 	args := fmt.Sprintf("%s", l)
-	expected := regexp.MustCompile("name=vanadium logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
+	expected := regexp.MustCompile("name=vlog logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
 	if !expected.MatchString(args) {
-		t.Errorf("unexpected default args: %s", args)
+		t.Errorf("unexpected default args: %s, want %s", args, expected)
 	}
 	p := v23.GetPrincipal(ctx)
 	if p == nil {
@@ -74,7 +76,7 @@ func TestInitArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	h.Expect(fmt.Sprintf("name=vanadium "+
+	h.Expect(fmt.Sprintf("name=vlog "+
 		"logdirs=[%s] "+
 		"logtostderr=true "+
 		"alsologtostderr=true "+

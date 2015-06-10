@@ -10,10 +10,11 @@ import (
 	"os"
 	"strings"
 
-	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
-
 	"v.io/x/lib/netstate"
+
+	"v.io/v23/logging"
+	"v.io/v23/verror"
+
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/flags"
 )
@@ -80,7 +81,7 @@ func IPAddressChooser(network string, addrs []net.Addr) ([]net.Addr, error) {
 }
 
 // HasPublicIP returns true if the host has at least one public IP address.
-func HasPublicIP(log vlog.Logger) bool {
+func HasPublicIP(log logging.Logger) bool {
 	state, err := netstate.GetAccessibleIPs()
 	if err != nil {
 		log.Infof("failed to determine network state: %s", err)
