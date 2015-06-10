@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -36,13 +37,14 @@ var cmdPublish = &cmdline.Command{
 	Short:  "Publish the given application(s).",
 	Long: `
 Publishes the given application(s) to the binary and application servers.
-The <title> can be optionally specified with @<title> (defaults to the binary
-name).
+By default the binary name is used as the name of the application envelope, and as the
+title in the envelope. However, <envelope-name> and <title> can be specified explicitly
+using :<envelope-name> and @<title>.
 The binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>].
 The binary is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>.
-The application envelope is published as <appserv>/<binary name>/0.
+The application envelope is published as <appserv>/<envelope-name>/0.
 Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
-	ArgsName: "<binary name>[@<title>] ...",
+	ArgsName: "<binary name>[:<envelope-name>][@<title>] ...",
 }
 
 var binaryService, applicationService, readBlessings, goarchFlag, goosFlag string
@@ -87,10 +89,21 @@ func setAccessLists(ctx *context.T, env *cmdline.Env, von string) error {
 }
 
 func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error {
-	binaryName, title := binary, binary
-	if parts := strings.SplitN(binary, "@", 2); len(parts) == 2 {
-		binaryName, title = parts[0], parts[1]
+	binaryName, envelopeName, title := binary, binary, binary
+	binaryRE := regexp.MustCompile(`^([^:@]+)(:[^@]+)?(@.+)?$`)
+	if parts := binaryRE.FindStringSubmatch(binary); len(parts) == 4 {
+		binaryName = parts[1]
+		envelopeName, title = binaryName, binaryName
+		if len(parts[2]) > 1 {
+			envelopeName = parts[2][1:]
+		}
+		if len(parts[3]) > 1 {
+			title = parts[3][1:]
+		}
+	} else {
+		return fmt.Errorf("invalid binary spec (%v)", binary)
 	}
+
 	// Step 1, upload the binary to the binary service.
 
 	// TODO(caprita): Instead of the current timestamp, use each binary's
@@ -117,7 +130,7 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 	// specify profiles by hand.
 	profiles := []string{fmt.Sprintf("%s-%s", goosFlag, goarchFlag)}
 	// TODO(caprita): use a label e.g. "prod" instead of "0".
-	appVON := naming.Join(applicationService, binaryName, "0")
+	appVON := naming.Join(applicationService, envelopeName, "0")
 	appClient := repository.ApplicationClient(appVON)
 	// NOTE: If profiles contains more than one entry, this will return only
 	// the first match.  But presumably that's ok, since we're going to set
@@ -128,7 +141,16 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 		envelope = application.Envelope{Title: title}
 	} else if err != nil {
 		return err
+	} else {
+		// We are going to be updating an existing envelope
+
+		// Complain if a title was specified explicitly and does not match the one in the
+		// envelope, because we are not going to update the one in the envelope
+		if title != binaryName && title != envelope.Title {
+			return fmt.Errorf("Specified title (%v) does not match title in existing envelope (%v)", title, envelope.Title)
+		}
 	}
+
 	envelope.Binary.File = binaryVON
 	if addPublisher {
 		publisher, err := getPublisherBlessing(ctx, "apps/published/"+title)
