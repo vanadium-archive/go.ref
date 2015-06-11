@@ -46,7 +46,7 @@ func TestDaemonRestart(t *testing.T) {
 
 	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 	syscall.Kill(int(pid), 9)
-	pollingWait(t, int(pid))
+	utiltest.PollingWait(t, int(pid))
 
 	// Start a second instance of the app which will force polling to happen.
 	// During this polling, the reaper will restart app instance1
@@ -71,7 +71,7 @@ func TestDaemonRestart(t *testing.T) {
 	pingCh.WaitForPingArgs(t)
 	// Kill the application again.
 	syscall.Kill(int(pid), 9)
-	pollingWait(t, int(pid))
+	utiltest.PollingWait(t, int(pid))
 
 	// Start and stop instance 2 again to force two polling cycles.
 	utiltest.RunApp(t, ctx, appID, instance2ID)
@@ -89,18 +89,4 @@ func TestDaemonRestart(t *testing.T) {
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
-}
-
-// pollingWait waits until the specificed process is actually dead so that
-// that the test can be certain that the process is actually dead before
-// continuing.
-func pollingWait(t *testing.T, pid int) {
-	for {
-		switch err := syscall.Kill(pid, 0); {
-		case err == syscall.ESRCH:
-			return
-		case err != nil:
-			t.Fatalf("syscall.Kill not working as expected: %v", err)
-		}
-	}
 }
