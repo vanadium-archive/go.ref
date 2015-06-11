@@ -51,7 +51,7 @@ type reaper struct {
 var stashedPidMap map[string]int
 
 func newReaper(ctx *context.T, root string, startState *appRunner) (*reaper, error) {
-	pidMap, err := findAllTheInstances(ctx, root)
+	pidMap, restartCandidates, err := findAllTheInstances(ctx, root)
 
 	// Used only by the testing code that verifies that all processes
 	// have been shutdown.
@@ -66,6 +66,11 @@ func newReaper(ctx *context.T, root string, startState *appRunner) (*reaper, err
 	}
 	r.startState.reap = r
 	go r.processStatusPolling(pidMap)
+
+	// Restart daemon jobs if they're not running (say because the machine crashed.)
+	for _, idir := range restartCandidates {
+		go r.startState.restartAppIfNecessary(idir)
+	}
 	return r, nil
 }
 
@@ -75,6 +80,8 @@ func markNotRunning(idir string) {
 		// 1. The app has crashed between where startCmd invokes
 		// startWatching and where the invoker sets the state to running.
 		// 2. Remove experiences a failure (e.g. filesystem becoming R/O)
+		// 3. The app is in the process of being Kill'ed when the reaper poll
+		// finds the process dead and attempts a restart.
 		vlog.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v\n", idir, device.InstanceStateRunning, device.InstanceStateNotRunning, err)
 	}
 }
@@ -172,9 +179,10 @@ func (r *reaper) shutdown() {
 }
 
 type pidErrorTuple struct {
-	ipath string
-	pid   int
-	err   error
+	ipath        string
+	pid          int
+	err          error
+	mightRestart bool
 }
 
 // In seconds.
@@ -197,7 +205,12 @@ func processStatusViaAppCycleMgr(ctx *context.T, c chan<- pidErrorTuple, instanc
 		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
 			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
 		}
-		c <- pidErrorTuple{ipath: instancePath, err: err}
+		// We only want to restart apps that were Running or Launching.
+		if state == device.InstanceStateLaunching || state == device.InstanceStateRunning {
+			c <- pidErrorTuple{ipath: instancePath, err: err, mightRestart: true}
+		} else {
+			c <- pidErrorTuple{ipath: instancePath, err: err}
+		}
 		return
 	}
 	// Convert the stat value from *vdl.Value into an int pid.
@@ -242,14 +255,19 @@ func processStatusViaKill(c chan<- pidErrorTuple, instancePath string, info *ins
 		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
 			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
 		}
-		c <- pidErrorTuple{ipath: instancePath, err: err, pid: pid}
+		// We only want to restart apps that were Running or Launching.
+		if state == device.InstanceStateLaunching || state == device.InstanceStateRunning {
+			c <- pidErrorTuple{ipath: instancePath, err: err, pid: pid, mightRestart: true}
+		} else {
+			c <- pidErrorTuple{ipath: instancePath, err: err, pid: pid}
+		}
 	case nil, syscall.EPERM:
 		// The instance was found to be running, so update its state.
 		if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
 			vlog.Errorf("transitionInstance(%s,%v, %v) failed: %v", instancePath, state, device.InstanceStateRunning, err)
 		}
 		vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)
-		c <- pidErrorTuple{ipath: instancePath, err: nil, pid: pid}
+		c <- pidErrorTuple{ipath: instancePath, pid: pid}
 	}
 }
 
@@ -260,6 +278,7 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	switch state {
 	// Ignore apps already in deleted and not running states.
 	case device.InstanceStateNotRunning:
+		c <- pidErrorTuple{ipath: instancePath}
 		return
 	case device.InstanceStateDeleted:
 		return
@@ -284,6 +303,9 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 		return
 	}
 
+	// Remaining states: Launching, Running, Dying. Of these,
+	// daemon mode will restart Launching and Running if the process
+	// is not alive.
 	if !v23PIDMgmt {
 		processStatusViaAppCycleMgr(ctx, c, instancePath, info, state)
 		return
@@ -292,10 +314,10 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 }
 
 // Digs through the directory hierarchy
-func findAllTheInstances(ctx *context.T, root string) (map[string]int, error) {
+func findAllTheInstances(ctx *context.T, root string) (map[string]int, []string, error) {
 	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	pidmap := make(map[string]int)
@@ -309,6 +331,7 @@ func findAllTheInstances(ctx *context.T, root string) (map[string]int, error) {
 	wg.Wait()
 	close(pidchan)
 
+	restartCandidates := make([]string, len(paths))
 	for p := range pidchan {
 		if p.err != nil {
 			vlog.Errorf("instance at %s had an error: %v", p.ipath, p.err)
@@ -316,8 +339,11 @@ func findAllTheInstances(ctx *context.T, root string) (map[string]int, error) {
 		if p.pid > 0 {
 			pidmap[p.ipath] = p.pid
 		}
+		if p.mightRestart {
+			restartCandidates = append(restartCandidates, p.ipath)
+		}
 	}
-	return pidmap, nil
+	return pidmap, restartCandidates, nil
 }
 
 // RunningChildrenProcesses uses the reaper to verify that a test has

@@ -981,6 +981,14 @@ func synchronizedShouldRestart(instanceDir string) bool {
 	return shouldRestart
 }
 
+// restartAppIfNecessary restarts an application if its daemon
+// configuration indicates that it should be running but the reaping
+// functionality has previously determined that it is not.
+// TODO(rjkroege): This routine has a low-likelyhood race condition in
+// which it fails to restart an application when the app crashes and the
+// device manager then crashes between the reaper marking the app not
+// running and the go routine invoking this function having a chance to
+// complete.
 func (i *appRunner) restartAppIfNecessary(instanceDir string) {
 	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateLaunching); err != nil {
 		vlog.Error(err)
