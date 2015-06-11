@@ -61,12 +61,16 @@ type memberInfo struct {
 
 // newSyncGroupVersion generates a random SyncGroup version ("etag").
 func newSyncGroupVersion() string {
-	return fmt.Sprintf("%x", rng.Int63())
+	return fmt.Sprintf("%x", rand64())
 }
 
 // newSyncGroupId generates a random SyncGroup ID.
 func newSyncGroupId() interfaces.GroupId {
-	return interfaces.GroupId(rng.Int63())
+	id := interfaces.NoGroupId
+	for id == interfaces.NoGroupId {
+		id = interfaces.GroupId(rand64())
+	}
+	return id
 }
 
 // verifySyncGroup verifies if a SyncGroup struct is well-formed.

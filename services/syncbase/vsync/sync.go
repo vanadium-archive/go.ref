@@ -47,6 +47,13 @@ type syncService struct {
 
 	// In-memory sync membership info aggregated across databases.
 	allMembers *memberView
+
+	// In-memory tracking of batches during their construction.
+	// The sync Initiator and Watcher build batches incrementally here
+	// and then persist them in DAG batch entries.  The mutex guards
+	// access to the batch set.
+	batchesLock sync.Mutex
+	batches     batchSet
 }
 
 // syncDatabase contains the metadata for syncing a database. This struct is
@@ -62,6 +69,11 @@ var (
 	_   util.Layer                   = (*syncService)(nil)
 )
 
+// rand64 generates an unsigned 64-bit pseudo-random number.
+func rand64() uint64 {
+	return (uint64(rng.Int63()) << 1) | uint64(rng.Int63n(2))
+}
+
 // New creates a new sync module.
 //
 // Concurrency: sync initializes two goroutines at startup: a "watcher" and an
@@ -70,7 +82,10 @@ var (
 // periodically contacting peers to fetch changes from them. In addition, the
 // sync module responds to incoming RPCs from remote sync modules.
 func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncService, error) {
-	s := &syncService{sv: sv}
+	s := &syncService{
+		sv:      sv,
+		batches: make(batchSet),
+	}
 
 	data := &syncData{}
 	if err := util.GetObject(sv.St(), s.StKey(), data); err != nil {

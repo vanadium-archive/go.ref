@@ -9,19 +9,20 @@ package vsync
 import (
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
+	"v.io/x/lib/vlog"
 )
 
 // forEachDatabaseStore iterates over all Databases in all Apps within the
-// service and invokes the provided callback function on each database. The
-// callback returns a "done" flag to make forEachDatabaseStore() stop the
-// iteration earlier; otherwise the function loops across all databases of all
-// apps.
+// service and invokes the callback function on each database. The callback
+// returns a "done" flag to make forEachDatabaseStore() stop the iteration
+// earlier; otherwise the function loops across all databases of all apps.
 func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(store.Store) bool) {
 	// Get the apps and iterate over them.
 	// TODO(rdaoud): use a "privileged call" parameter instead of nil (here and
 	// elsewhere).
 	appNames, err := s.sv.AppNames(ctx, nil)
 	if err != nil {
+		vlog.Errorf("forEachDatabaseStore: cannot get all app names: %v", err)
 		return
 	}
 
@@ -29,10 +30,12 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(store.S
 		// For each app, get its databases and iterate over them.
 		app, err := s.sv.App(ctx, nil, a)
 		if err != nil {
+			vlog.Errorf("forEachDatabaseStore: cannot get app %s: %v", a, err)
 			continue
 		}
 		dbNames, err := app.NoSQLDatabaseNames(ctx, nil)
 		if err != nil {
+			vlog.Errorf("forEachDatabaseStore: cannot get all db names for app %s: %v", a, err)
 			continue
 		}
 
@@ -40,6 +43,7 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(store.S
 			// For each database, get its Store and invoke the callback.
 			db, err := app.NoSQLDatabase(ctx, nil, d)
 			if err != nil {
+				vlog.Errorf("forEachDatabaseStore: cannot get db %s for app %s: %v", d, a, err)
 				continue
 			}
 
