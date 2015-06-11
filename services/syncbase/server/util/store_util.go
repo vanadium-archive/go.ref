@@ -138,3 +138,18 @@ func OpenStore(engine, path string) (store.Store, error) {
 		return nil, verror.New(verror.ErrBadArg, nil, engine)
 	}
 }
+
+func DestroyStore(engine, path string) error {
+	switch engine {
+	case "memstore":
+		// memstore doesn't persist any data on the disc, do nothing.
+		return nil
+	case "leveldb":
+		if err := os.RemoveAll(path); err != nil {
+			return verror.New(verror.ErrInternal, nil, err)
+		}
+		return nil
+	default:
+		return verror.New(verror.ErrBadArg, nil, engine)
+	}
+}
