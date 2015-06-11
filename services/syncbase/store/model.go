@@ -58,7 +58,7 @@ type Store interface {
 
 // Transaction provides a mechanism for atomic reads and writes.
 //
-// Reads don't reflect writes performed within this transaction.
+// Reads do reflect writes and deletes performed within this transaction.
 // Once a transaction has been committed or aborted, subsequent method calls
 // will fail with no effect.
 type Transaction interface {

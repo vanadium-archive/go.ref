@@ -71,6 +71,17 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	if err := tx.error(); err != nil {
 		return valbuf, err
 	}
+
+	// Reflect the state of the transaction: the "puts" and "deletes"
+	// override the values in the transaction snapshot.
+	keyStr := string(key)
+	if val, ok := tx.puts[keyStr]; ok {
+		return val, nil
+	}
+	if _, ok := tx.deletes[keyStr]; ok {
+		return valbuf, verror.New(store.ErrUnknownKey, nil, keyStr)
+	}
+
 	return tx.sn.Get(key, valbuf)
 }
 
@@ -81,6 +92,9 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	if err := tx.error(); err != nil {
 		return &store.InvalidStream{err}
 	}
+	// TODO(rdaoud): create an in-memory copy of the current transaction
+	// state (the puts and deletes so far) for the scan stream's Advance()
+	// to merge that data while traversing the store snapshot.
 	return tx.sn.Scan(start, limit)
 }
 

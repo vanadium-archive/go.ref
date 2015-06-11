@@ -7,6 +7,7 @@ package leveldb
 // #include "leveldb/c.h"
 import "C"
 import (
+	"bytes"
 	"container/list"
 	"sync"
 
@@ -110,6 +111,22 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 		return valbuf, convertError(tx.err)
 	}
 	tx.reads.keys = append(tx.reads.keys, key)
+
+	// Reflect the state of the transaction: the "writes" (puts and
+	// deletes) override the values in the transaction snapshot.
+	// Find the last "writes" entry for this key, if one exists.
+	// Note: this step could be optimized by using maps (puts and
+	// deletes) instead of an array.
+	for i := len(tx.writes) - 1; i >= 0; i-- {
+		op := &tx.writes[i]
+		if bytes.Equal(op.key, key) {
+			if op.t == putOp {
+				return op.value, nil
+			}
+			return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
+		}
+	}
+
 	return tx.snapshot.Get(key, valbuf)
 }
 
@@ -120,6 +137,9 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	if tx.err != nil {
 		return &store.InvalidStream{tx.err}
 	}
+	// TODO(rdaoud): create an in-memory copy of the current transaction
+	// state (the puts and deletes so far) for the scan stream's Advance()
+	// to merge that data while traversing the store snapshot.
 	tx.reads.ranges = append(tx.reads.ranges, scanRange{
 		start: start,
 		limit: limit,
