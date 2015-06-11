@@ -32,12 +32,16 @@ var (
 	ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
+type pathEntry struct {
+	lk sync.Mutex
+	c  int
+}
+
 // PathStore manages storage of a set of Permissions in the filesystem where each
 // path identifies a specific Permissions in the set. PathStore synchronizes
 // access to its member Permissions.
 type PathStore struct {
-	// TODO(rjkroege): Garbage collect the locks map.
-	pthlks    map[string]*sync.Mutex
+	pthlks    map[string]*pathEntry
 	lk        sync.Mutex
 	principal security.Principal
 }
@@ -45,7 +49,7 @@ type PathStore struct {
 // NewPathStore creates a new instance of the lock map that uses
 // principal to sign stored Permissions files.
 func NewPathStore(principal security.Principal) *PathStore {
-	return &PathStore{pthlks: make(map[string]*sync.Mutex), principal: principal}
+	return &PathStore{pthlks: make(map[string]*pathEntry), principal: principal}
 }
 
 // Get returns the Permissions from the data file in dir.
@@ -59,14 +63,24 @@ func (store *PathStore) Get(dir string) (access.Permissions, string, error) {
 // TODO(rjkroege): Improve lock handling.
 func (store *PathStore) lockPath(dir string) func() {
 	store.lk.Lock()
-	lck, contains := store.pthlks[dir]
+	pe, contains := store.pthlks[dir]
 	if !contains {
-		lck = new(sync.Mutex)
-		store.pthlks[dir] = lck
+		pe = &pathEntry{}
+		store.pthlks[dir] = pe
 	}
+	pe.c++
 	store.lk.Unlock()
-	lck.Lock()
-	return lck.Unlock
+	pe.lk.Lock()
+
+	return func() {
+		pe.lk.Unlock()
+		store.lk.Lock()
+		pe.c--
+		if pe.c == 0 {
+			delete(store.pthlks, dir)
+		}
+		store.lk.Unlock()
+	}
 }
 
 func getCore(principal security.Principal, permspath, sigpath string) (access.Permissions, string, error) {
