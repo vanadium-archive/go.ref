@@ -9,11 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/services/device"
-	"v.io/v23/services/stats"
-	"v.io/v23/vdl"
 
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
@@ -46,7 +42,7 @@ func TestDaemonRestart(t *testing.T) {
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "default", "")
 
 	// Get application pid.
-	pid := getPid(t, ctx, appID, instance1ID)
+	pid := utiltest.GetPid(t, ctx, appID, instance1ID)
 
 	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 	syscall.Kill(int(pid), 9)
@@ -69,7 +65,7 @@ func TestDaemonRestart(t *testing.T) {
 	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 
 	// Get application pid.
-	pid = getPid(t, ctx, appID, instance1ID)
+	pid = utiltest.GetPid(t, ctx, appID, instance1ID)
 	// Be sure to get the ping from the restarted application so that we block in
 	// RunApp below.
 	pingCh.WaitForPingArgs(t)
@@ -93,21 +89,6 @@ func TestDaemonRestart(t *testing.T) {
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
-}
-
-// getPid returns the application pid
-func getPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
-	name := naming.Join("dm", "apps/"+appID+"/"+instanceID+"/stats/system/pid")
-	c := stats.StatsClient(name)
-	v, err := c.Value(ctx)
-	if err != nil {
-		t.Fatalf("Value() failed: %v\n", err)
-	}
-	var pid int
-	if err := vdl.Convert(&pid, v); err != nil {
-		t.Fatalf("pid returned from stats interface is not an int: %v", err)
-	}
-	return pid
 }
 
 // pollingWait waits until the specificed process is actually dead so that
