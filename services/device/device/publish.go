@@ -37,17 +37,17 @@ var cmdPublish = &cmdline.Command{
 	Short:  "Publish the given application(s).",
 	Long: `
 Publishes the given application(s) to the binary and application servers.
+The binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>] by default (can be overrriden with --from).
 By default the binary name is used as the name of the application envelope, and as the
 title in the envelope. However, <envelope-name> and <title> can be specified explicitly
 using :<envelope-name> and @<title>.
-The binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>].
 The binary is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>.
 The application envelope is published as <appserv>/<envelope-name>/0.
 Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
 	ArgsName: "<binary name>[:<envelope-name>][@<title>] ...",
 }
 
-var binaryService, applicationService, readBlessings, goarchFlag, goosFlag string
+var binaryService, applicationService, readBlessings, goarchFlag, goosFlag, fromFlag string
 var addPublisher bool
 var minValidPublisherDuration time.Duration
 
@@ -61,6 +61,7 @@ func init() {
 	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve AccessList.")
 	cmdPublish.Flags.BoolVar(&addPublisher, "add-publisher", true, "If true, add a publisher blessing to the application envelope")
 	cmdPublish.Flags.DurationVar(&minValidPublisherDuration, "publisher-min-validity", 30*time.Hour, "Publisher blessings that are valid for less than this amount of time are considered invalid")
+	cmdPublish.Flags.StringVar(&fromFlag, "from", "", "Location of binaries to be published.  Defaults to $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>]")
 }
 
 func setAccessLists(ctx *context.T, env *cmdline.Env, von string) error {
@@ -184,13 +185,16 @@ func runPublish(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("publish: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
 	}
 	binaries := args
-	vroot := env.Vars["V23_ROOT"]
-	if vroot == "" {
-		return env.UsageErrorf("publish: $V23_ROOT environment variable should be set")
-	}
-	binPath := filepath.Join(vroot, "release/go/bin")
-	if goosFlag != runtime.GOOS || goarchFlag != runtime.GOARCH {
-		binPath = filepath.Join(binPath, fmt.Sprintf("%s_%s", goosFlag, goarchFlag))
+	binPath := fromFlag
+	if binPath == "" {
+		vroot := env.Vars["V23_ROOT"]
+		if vroot == "" {
+			return env.UsageErrorf("publish: $V23_ROOT environment variable should be set")
+		}
+		binPath = filepath.Join(vroot, "release/go/bin")
+		if goosFlag != runtime.GOOS || goarchFlag != runtime.GOARCH {
+			binPath = filepath.Join(binPath, fmt.Sprintf("%s_%s", goosFlag, goarchFlag))
+		}
 	}
 	if fi, err := os.Stat(binPath); err != nil {
 		return env.UsageErrorf("publish: failed to stat %v: %v", binPath, err)
