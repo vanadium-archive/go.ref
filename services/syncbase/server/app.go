@@ -154,7 +154,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	}
 	d, err := nosql.NewDatabase(ctx, call, a, dbName, nosql.DatabaseOptions{
 		Perms:   perms,
-		RootDir: path.Join(a.s.opts.RootDir, "apps", a.name, dbName),
+		RootDir: a.rootDirForDB(dbName),
 		Engine:  a.s.opts.Engine,
 	})
 	if err != nil {
@@ -211,7 +211,12 @@ func (a *app) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	}
 
 	// 3. Delete database.
-	// TODO(sadovsky): Actually delete the database.
+	if err := d.St().Close(); err != nil {
+		return err
+	}
+	if err := util.DestroyStore(a.s.opts.Engine, a.rootDirForDB(dbName)); err != nil {
+		return err
+	}
 
 	// 4. Delete dbInfo record.
 	if err := a.delDbInfo(ctx, call, a.s.st, dbName); err != nil {
@@ -248,4 +253,8 @@ func (a *app) StKey() string {
 
 func (a *app) stKeyPart() string {
 	return a.name
+}
+
+func (a *app) rootDirForDB(dbName string) string {
+	return path.Join(a.s.opts.RootDir, "apps", a.name, dbName)
 }
