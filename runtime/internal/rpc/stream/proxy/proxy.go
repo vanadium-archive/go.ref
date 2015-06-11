@@ -12,15 +12,16 @@ import (
 	"time"
 
 	"v.io/x/lib/netstate"
+	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/logging"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/runtime/internal/lib/bqueue"
 	"v.io/x/ref/runtime/internal/lib/bqueue/drrqueue"
@@ -819,10 +820,10 @@ func (p *process) NewWriter(vci id.VC, fid id.Flow, priority bqueue.Priority) (b
 }
 
 // Convenience functions to assist with the logging convention.
-func proxyLog() vlog.InfoLog   { return vlog.VI(1) }
-func processLog() vlog.InfoLog { return vlog.VI(2) }
-func vcLog() vlog.InfoLog      { return vlog.VI(3) }
-func msgLog() vlog.InfoLog     { return vlog.VI(4) }
+func proxyLog() logging.InfoLog   { return vlog.VI(1) }
+func processLog() logging.InfoLog { return vlog.VI(2) }
+func vcLog() logging.InfoLog      { return vlog.VI(3) }
+func msgLog() logging.InfoLog     { return vlog.VI(4) }
 func packIDs(vci id.VC, fid id.Flow) bqueue.ID {
 	return bqueue.ID(message.MakeCounterID(vci, fid))
 }

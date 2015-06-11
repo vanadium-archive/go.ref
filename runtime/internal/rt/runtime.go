@@ -13,7 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"v.io/x/lib/metadata"
 	"v.io/x/lib/pubsub"
+	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -25,8 +27,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/metadata"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/stats"
@@ -94,10 +96,14 @@ func Init(
 		ctx = context.WithValue(ctx, reservedNameKey, reservedDispatcher)
 	}
 
-	err := vlog.ConfigureLibraryLoggerFromFlags()
+	err := logger.Manager(logger.Global()).ConfigureFromFlags()
 	if err != nil && err != vlog.ErrConfigured {
 		return nil, nil, nil, err
 	}
+
+	// Configure the context to use the global logger.
+	ctx = context.WithLogger(ctx, logger.Global())
+
 	// We want to print out metadata only into the log files, to avoid
 	// spamming stderr, see #1246.
 	//
@@ -107,8 +113,8 @@ func Init(
 	// log_dir for the program.  It's a hack, but it gets us the metadata
 	// to device manager-run apps and avoids it for command-lines, which is
 	// a good enough approximation.
-	if vlog.Log.LogDir() != os.TempDir() {
-		vlog.Infof(metadata.ToXML())
+	if logger.Manager(ctx).LogDir() != os.TempDir() {
+		ctx.Infof(metadata.ToXML())
 	}
 
 	// Setup the initial trace.
@@ -215,7 +221,7 @@ func (r *Runtime) initSignalHandling(ctx *context.T) {
 }
 
 func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
-	defer apilog.LogCallf(nil, "ep=%.10s...", ep)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	return inaming.NewEndpoint(ep)
 }
 
@@ -351,7 +357,7 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 }
 
 func (*Runtime) GetPrincipal(ctx *context.T) security.Principal {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	return p
 }
@@ -384,7 +390,7 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 }
 
 func (*Runtime) GetClient(ctx *context.T) rpc.Client {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	cl, _ := ctx.Value(clientKey).(rpc.Client)
 	return cl
 }
@@ -442,7 +448,7 @@ func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 }
 
 func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -464,7 +470,7 @@ func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
-	defer apilog.LogCallf(ctx, "d=")(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	// nologcall
 	return context.WithValue(ctx, reservedNameKey, d)
 }
 

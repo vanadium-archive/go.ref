@@ -9,12 +9,11 @@ import (
 	"flag"
 	"net"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/runtime/internal"
@@ -45,15 +44,15 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		Addrs: rpc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
-	reservedDispatcher := debuglib.NewDispatcher(vlog.Log.LogDir, securityflag.NewAuthorizerOrDie())
+	reservedDispatcher := debuglib.NewDispatcher(logger.Manager(logger.Global()).LogDir, securityflag.NewAuthorizerOrDie())
 
 	ac := appcycle.New()
 
 	// Our address is private, so we test for running on GCE and for its 1:1 NAT
 	// configuration. GCEPublicAddress returns a non-nil addr if we are
 	// running on GCE.
-	if !internal.HasPublicIP(vlog.Log) {
-		if addr := internal.GCEPublicAddress(vlog.Log); addr != nil {
+	if !internal.HasPublicIP(logger.Global()) {
+		if addr := internal.GCEPublicAddress(logger.Global()); addr != nil {
 			listenSpec.AddressChooser = func(string, []net.Addr) ([]net.Addr, error) {
 				return []net.Addr{addr}, nil
 			}

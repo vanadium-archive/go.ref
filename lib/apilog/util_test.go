@@ -4,12 +4,13 @@
 
 package apilog
 
-import "v.io/x/lib/vlog"
+import "v.io/v23/logging"
 
-func SetLog(l vlog.Logger) {
+// TODO(cnicolaou): remove these when we are using the context for logging.
+func SetLog(l logging.Logger) {
 	logger = l
 }
 
-func Log() vlog.Logger {
+func Log() logging.Logger {
 	return logger
 }
