@@ -37,7 +37,7 @@ func (d *dbInfoLayer) Name() string {
 }
 
 func (d *dbInfoLayer) StKey() string {
-	return util.JoinKeyParts(util.DbInfoPrefix, d.a.name, d.stKeyPart())
+	return util.JoinKeyParts(util.DbInfoPrefix, d.stKeyPart())
 }
 
 ////////////////////////////////////////
