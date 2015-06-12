@@ -676,3 +676,7 @@ func (s *deviceService) Status(*context.T, rpc.ServerCall) (device.Status, error
 		Version: versionDir,
 	}}, nil
 }
+
+func (s *deviceService) TidyNow(ctx *context.T, call rpc.ServerCall) error {
+	return verror.New(ErrOperationFailed, ctx, "Not Implemented")
+}
