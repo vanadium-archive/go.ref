@@ -13,8 +13,75 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
+	"time"
 	"v.io/syncbase/v23/services/syncbase/nosql"
+	_ "v.io/v23/vdlroot/time"
 )
+
+// PrefixGenVector is the generation vector for a data prefix, which maps each
+// device id to its last locally known generation in the scope of that prefix.
+type PrefixGenVector map[uint64]uint64
+
+func (PrefixGenVector) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.PrefixGenVector"`
+}) {
+}
+
+// GenVector is the generation vector for a Database, and maps prefixes to their
+// generation vectors. Note that the prefixes in a GenVector are global prefixes
+// that include the appropriate Application and Database name.
+type GenVector map[string]PrefixGenVector
+
+func (GenVector) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.GenVector"`
+}) {
+}
+
+// LogRecMetadata represents the metadata of a single log record that is
+// exchanged between two peers. Each log record represents a change made to an
+// object in the store. The log record metadata consists of Id, the device id
+// that created the log record, Gen, the generation number for that log record,
+// and RecType, the type of log record. It also contains information relevant to
+// the update to the object in the store: ObjId is the id of the object that was
+// updated. CurVers is the current version number of the object. Parents can
+// contain 0, 1 or 2 parent versions that the current version is derived from.
+// SyncTime is the timestamp when the update is committed to the Store.
+// Delete indicates whether the update resulted in the object being
+// deleted from the store. BatchId is the unique id of the Batch this update
+// belongs to. BatchCount is the number of objects in the Batch.
+//
+// TODO(hpucha): Add readset/scanset.
+type LogRecMetadata struct {
+	// Log related information.
+	Id      uint64
+	Gen     uint64
+	RecType byte
+	// Object related information.
+	ObjId      string
+	CurVers    string
+	Parents    []string
+	SyncTime   time.Time
+	Delete     bool
+	BatchId    uint64
+	BatchCount uint64
+}
+
+func (LogRecMetadata) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.LogRecMetadata"`
+}) {
+}
+
+// LogRec represents the on-wire representation of an entire log record: its
+// metadata and data. Value is the actual value of a store object.
+type LogRec struct {
+	Metadata LogRecMetadata
+	Value    []byte
+}
+
+func (LogRec) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.LogRec"`
+}) {
+}
 
 // GroupId is a globally unique SyncGroup ID.
 type GroupId uint64
@@ -97,9 +164,19 @@ func (SyncGroup) __VDLReflect(struct {
 }
 
 func init() {
+	vdl.Register((*PrefixGenVector)(nil))
+	vdl.Register((*GenVector)(nil))
+	vdl.Register((*LogRecMetadata)(nil))
+	vdl.Register((*LogRec)(nil))
 	vdl.Register((*GroupId)(nil))
 	vdl.Register((*SyncGroupStatus)(nil))
 	vdl.Register((*SyncGroup)(nil))
 }
 
 const NoGroupId = GroupId(0)
+
+// NodeRec type log record adds a new node in the dag.
+const NodeRec = byte(0)
+
+// LinkRec type log record adds a new link in the dag.
+const LinkRec = byte(1)

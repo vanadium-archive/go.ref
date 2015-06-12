@@ -4,7 +4,23 @@
 
 package vsync
 
+import (
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
+)
+
 // syncData represents the persistent state of the sync module.
 type syncData struct {
-	Id int64
+	Id uint64
+}
+
+// dbSyncState represents the persistent sync state of a Database.
+type dbSyncState struct {
+	Gen    uint64               // local generation number
+	GenVec interfaces.GenVector // generation vector
+}
+
+// localLogRec represents the persistent local state of a log record.
+type localLogRec struct {
+	Metadata interfaces.LogRecMetadata
+	Pos      uint64 // position in the Database log.
 }

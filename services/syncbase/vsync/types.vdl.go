@@ -10,11 +10,14 @@ package vsync
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+
+	// VDL user imports
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 )
 
 // syncData represents the persistent state of the sync module.
 type syncData struct {
-	Id int64
+	Id uint64
 }
 
 func (syncData) __VDLReflect(struct {
@@ -22,6 +25,30 @@ func (syncData) __VDLReflect(struct {
 }) {
 }
 
+// dbSyncState represents the persistent sync state of a Database.
+type dbSyncState struct {
+	Gen    uint64               // local generation number
+	GenVec interfaces.GenVector // generation vector
+}
+
+func (dbSyncState) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/vsync.dbSyncState"`
+}) {
+}
+
+// localLogRec represents the persistent local state of a log record.
+type localLogRec struct {
+	Metadata interfaces.LogRecMetadata
+	Pos      uint64 // position in the Database log.
+}
+
+func (localLogRec) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/vsync.localLogRec"`
+}) {
+}
+
 func init() {
 	vdl.Register((*syncData)(nil))
+	vdl.Register((*dbSyncState)(nil))
+	vdl.Register((*localLogRec)(nil))
 }

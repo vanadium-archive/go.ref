@@ -5,12 +5,69 @@
 package interfaces
 
 import (
+	"time"
+
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 )
 
 const (
 	NoGroupId = GroupId(0)
 )
+
+// TODO(hpucha): These are not final yet. This is an intermediate step.
+
+const (
+        // NodeRec type log record adds a new node in the dag.
+        NodeRec = byte(0)
+        // LinkRec type log record adds a new link in the dag.
+        LinkRec = byte(1)
+)
+
+// PrefixGenVector is the generation vector for a data prefix, which maps each
+// device id to its last locally known generation in the scope of that prefix.
+type PrefixGenVector map[uint64]uint64
+
+// GenVector is the generation vector for a Database, and maps prefixes to their
+// generation vectors. Note that the prefixes in a GenVector are global prefixes
+// that include the appropriate Application and Database name.
+type GenVector map[string]PrefixGenVector
+
+// LogRecMetadata represents the metadata of a single log record that is
+// exchanged between two peers. Each log record represents a change made to an
+// object in the store. The log record metadata consists of Id, the device id
+// that created the log record, Gen, the generation number for that log record,
+// and RecType, the type of log record. It also contains information relevant to
+// the update to the object in the store: ObjId is the id of the object that was
+// updated. CurVers is the current version number of the object. Parents can
+// contain 0, 1 or 2 parent versions that the current version is derived from.
+// SyncTime is the timestamp when the update is committed to the Store.
+// Delete indicates whether the update resulted in the object being
+// deleted from the store. BatchId is the unique id of the Batch this update
+// belongs to. BatchCount is the number of objects in the Batch.
+//
+// TODO(hpucha): Add readset/scanset.
+type LogRecMetadata struct {
+        // Log related information.
+        Id        uint64
+	Gen       uint64
+	RecType   byte
+
+        // Object related information.
+        ObjId       string
+        CurVers     string
+        Parents     []string
+	SyncTime    time.Time
+	Delete      bool
+	BatchId     uint64
+	BatchCount  uint64
+}
+
+// LogRec represents the on-wire representation of an entire log record: its
+// metadata and data. Value is the actual value of a store object.
+type LogRec struct {
+	Metadata LogRecMetadata
+	Value    []byte
+}
 
 // GroupId is a globally unique SyncGroup ID.
 type GroupId uint64

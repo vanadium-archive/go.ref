@@ -29,7 +29,7 @@ import (
 // syncService contains the metadata for the sync module.
 type syncService struct {
 	// TODO(hpucha): see if "v.io/v23/uniqueid" is a better fit. It is 128 bits.
-	id   int64  // globally unique id for this instance of Syncbase
+	id   uint64 // globally unique id for this instance of Syncbase
 	name string // name derived from the global id.
 	sv   interfaces.Service
 
@@ -47,6 +47,11 @@ type syncService struct {
 
 	// In-memory sync membership info aggregated across databases.
 	allMembers *memberView
+
+	// In-memory sync state per Database. This state is populated at
+	// startup, and periodically persisted by the initiator.
+	syncState     map[string]*dbSyncStateInMem
+	syncStateLock sync.Mutex // lock to protect access to the sync state.
 
 	// In-memory tracking of batches during their construction.
 	// The sync Initiator and Watcher build batches incrementally here
@@ -94,7 +99,7 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncServi
 		}
 		// First invocation of vsync.New().
 		// TODO(sadovsky): Maybe move guid generation and storage to serviceData.
-		data.Id = rng.Int63()
+		data.Id = rand64()
 		if err := util.PutObject(sv.St(), s.StKey(), data); err != nil {
 			return nil, verror.New(verror.ErrInternal, ctx, err)
 		}
@@ -103,6 +108,11 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncServi
 	// data.Id is now guaranteed to be initialized.
 	s.id = data.Id
 	s.name = fmt.Sprintf("%x", s.id)
+
+	// Initialize in-memory state for the sync module before starting any threads.
+	if err := s.initSync(ctx); err != nil {
+		return nil, verror.New(verror.ErrInternal, ctx, err)
+	}
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})
