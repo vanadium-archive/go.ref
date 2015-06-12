@@ -11,6 +11,7 @@ package watchable
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
@@ -18,7 +19,10 @@ import (
 	"v.io/v23/verror"
 )
 
-var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+var (
+	rng     *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	rngLock sync.Mutex
+)
 
 func makeVersionKey(key []byte) []byte {
 	return []byte(join(util.VersionPrefix, string(key)))
@@ -46,7 +50,11 @@ func getVersioned(st store.StoreReader, key, valbuf []byte) ([]byte, error) {
 }
 
 func putVersioned(tx store.Transaction, key, value []byte) error {
-	version := []byte(fmt.Sprintf("%x", rng.Int63()))
+	rngLock.Lock()
+	num := rng.Int63()
+	rngLock.Unlock()
+
+	version := []byte(fmt.Sprintf("%x", num))
 	if err := tx.Put(makeVersionKey(key), version); err != nil {
 		return err
 	}

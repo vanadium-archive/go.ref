@@ -148,8 +148,8 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 	var wg sync.WaitGroup
 	wg.Add(k)
 	for i := 0; i < k; i++ {
-		go func() {
-			rnd := rand.New(rand.NewSource(239017 * int64(i)))
+		go func(idx int) {
+			rnd := rand.New(rand.NewSource(239017 * int64(idx)))
 			perm := rnd.Perm(n)
 			if err := store.RunInTransaction(st, func(st store.StoreReadWriter) error {
 				for j := 0; j <= m; j++ {
@@ -183,7 +183,7 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 				panic(fmt.Errorf("can't commit transaction: %v", err))
 			}
 			wg.Done()
-		}()
+		}(i)
 	}
 	wg.Wait()
 	var sum int64
