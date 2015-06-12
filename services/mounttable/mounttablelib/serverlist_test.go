@@ -13,22 +13,6 @@ import (
 	vdltime "v.io/v23/vdlroot/time"
 )
 
-var now = time.Now()
-
-type fakeTime struct {
-	theTime time.Time
-}
-
-func (ft *fakeTime) now() time.Time {
-	return ft.theTime
-}
-func (ft *fakeTime) advance(d time.Duration) {
-	ft.theTime = ft.theTime.Add(d)
-}
-func NewFakeTimeClock() *fakeTime {
-	return &fakeTime{theTime: now}
-}
-
 func TestServerList(t *testing.T) {
 	eps := []string{
 		"endpoint:adfasdf@@who",
@@ -39,7 +23,7 @@ func TestServerList(t *testing.T) {
 
 	// Test adding entries.
 	ft := NewFakeTimeClock()
-	setServerListClock(ft)
+	SetServerListClock(ft)
 	sl := newServerList()
 	for i, ep := range eps {
 		sl.add(ep, time.Duration(5*i)*time.Second)
@@ -49,7 +33,7 @@ func TestServerList(t *testing.T) {
 	}
 
 	// Test timing out entries.
-	ft.advance(6 * time.Second)
+	ft.Advance(6 * time.Second)
 	if numLeft, _ := sl.removeExpired(); numLeft != len(eps)-2 {
 		t.Fatalf("got %d, want %d", sl.len(), len(eps)-2)
 	}

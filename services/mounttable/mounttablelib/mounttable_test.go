@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package mounttablelib
+package mounttablelib_test
 
 import (
 	"encoding/json"
@@ -29,9 +29,14 @@ import (
 
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/services/debug/debuglib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
+
+func init() {
+	test.Init()
+}
 
 // Simulate different processes with different runtimes.
 // rootCtx is the one running the mounttable service.
@@ -188,9 +193,9 @@ func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *contex
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Add mount table service.
-	mt, err := NewMountTableDispatcher(permsFile, persistDir, statsDir)
+	mt, err := mounttablelib.NewMountTableDispatcher(permsFile, persistDir, statsDir)
 	if err != nil {
-		boom(t, "NewMountTableDispatcher: %v", err)
+		boom(t, "mounttablelib.NewMountTableDispatcher: %v", err)
 	}
 	// Start serving on a loopback address.
 	eps, err := server.Listen(v23.GetListenSpec(ctx))
@@ -315,11 +320,11 @@ func TestMountTable(t *testing.T) {
 
 	// Try timing out a mount.
 	vlog.Info("Try timing out a mount.")
-	ft := NewFakeTimeClock()
-	setServerListClock(ft)
+	ft := mounttablelib.NewFakeTimeClock()
+	mounttablelib.SetServerListClock(ft)
 	doMount(t, rootCtx, mtAddr, "stuffWithTTL", collectionName, true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", true)
-	ft.advance(time.Duration(ttlSecs+4) * time.Second)
+	ft.Advance(time.Duration(ttlSecs+4) * time.Second)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", false)
 
 	// Test unauthorized mount.
@@ -470,7 +475,7 @@ func TestAccessListTemplate(t *testing.T) {
 	doSetPermissions(t, aliceCtx, estr, "users/alice/a/b/c/d", perms, "", true)
 
 	// Do we obey limits?
-	for i := 0; i < defaultMaxNodesPerUser-5; i++ {
+	for i := 0; i < mounttablelib.DefaultMaxNodesPerUser()-5; i++ {
 		node := fmt.Sprintf("users/alice/a/b/c/d/%d", i)
 		doSetPermissions(t, aliceCtx, estr, node, perms, "", true)
 	}
@@ -481,7 +486,7 @@ func TestAccessListTemplate(t *testing.T) {
 		key      string
 		expected interface{}
 	}{
-		{"alice", int64(defaultMaxNodesPerUser)},
+		{"alice", int64(mounttablelib.DefaultMaxNodesPerUser())},
 		{"bob", int64(0)},
 		{"root", int64(0)},
 		{conventions.ServerUser, int64(3)},
@@ -635,31 +640,31 @@ func TestExpiry(t *testing.T) {
 
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
 
-	ft := NewFakeTimeClock()
-	setServerListClock(ft)
+	ft := mounttablelib.NewFakeTimeClock()
+	mounttablelib.SetServerListClock(ft)
 	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
 	doMount(t, rootCtx, estr, "a1/b2", collectionName, true)
 	doMount(t, rootCtx, estr, "a2/b1", collectionName, true)
 	doMount(t, rootCtx, estr, "a2/b2/c", collectionName, true)
 
 	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
-	ft.advance(time.Duration(ttlSecs/2) * time.Second)
+	ft.Advance(time.Duration(ttlSecs/2) * time.Second)
 	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
 	checkMatch(t, []string{"c"}, doGlob(t, rootCtx, estr, "a2/b2", "*"))
 	// Refresh only a1/b1.  All the other mounts will expire upon the next
 	// ft advance.
 	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
-	ft.advance(time.Duration(ttlSecs/2+4) * time.Second)
+	ft.Advance(time.Duration(ttlSecs/2+4) * time.Second)
 	checkMatch(t, []string{"a1", "a1/b1"}, doGlob(t, rootCtx, estr, "", "*/..."))
 	checkMatch(t, []string{"a1/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
 }
 
 func TestBadAccessLists(t *testing.T) {
-	_, err := NewMountTableDispatcher("testdata/invalid.perms", "", "mounttable")
+	_, err := mounttablelib.NewMountTableDispatcher("testdata/invalid.perms", "", "mounttable")
 	if err == nil {
 		boom(t, "Expected json parse error in permissions file")
 	}
-	_, err = NewMountTableDispatcher("testdata/doesntexist.perms", "", "mounttable")
+	_, err = mounttablelib.NewMountTableDispatcher("testdata/doesntexist.perms", "", "mounttable")
 	if err != nil {
 		boom(t, "Missing permissions file should not cause an error")
 	}
@@ -693,8 +698,8 @@ func TestStatsCounters(t *testing.T) {
 	rootCtx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ft := NewFakeTimeClock()
-	setServerListClock(ft)
+	ft := mounttablelib.NewFakeTimeClock()
+	mounttablelib.SetServerListClock(ft)
 
 	server, estr := newMT(t, "", "", "mounttable", rootCtx)
 	defer server.Stop()
@@ -793,7 +798,7 @@ func TestStatsCounters(t *testing.T) {
 
 	// Test expired mounts
 	// "1/2/3/4/5" is still mounted from earlier.
-	ft.advance(time.Duration(ttlSecs+4) * time.Second)
+	ft.Advance(time.Duration(ttlSecs+4) * time.Second)
 	if _, err := resolve(rootCtx, naming.JoinAddressName(estr, "1/2/3/4/5")); err == nil {
 		t.Errorf("Expected failure. Got success")
 	}

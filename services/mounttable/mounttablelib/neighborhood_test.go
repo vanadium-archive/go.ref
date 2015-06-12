@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package mounttablelib
+package mounttablelib_test
 
 import (
 	"fmt"
@@ -17,10 +17,9 @@ import (
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 )
-
-//go:generate v23 test generate
 
 func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 	addr := e.Addr()
@@ -28,6 +27,10 @@ func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 		return "", "", fmt.Errorf("failed to get address")
 	}
 	return addr.Network(), addr.String(), nil
+}
+
+type stopper interface {
+	Stop()
 }
 
 func TestNeighborhood(t *testing.T) {
@@ -57,11 +60,11 @@ func TestNeighborhood(t *testing.T) {
 	serverName := fmt.Sprintf("nhtest%d", os.Getpid())
 
 	// Add neighborhood server.
-	nhd, err := NewLoopbackNeighborhoodDispatcher(serverName, addresses...)
+	nhd, err := mounttablelib.NewLoopbackNeighborhoodDispatcher(serverName, addresses...)
 	if err != nil {
 		boom(t, "Failed to create neighborhood server: %s\n", err)
 	}
-	defer nhd.(*neighborhood).Stop()
+	defer nhd.(stopper).Stop()
 	if err := server.ServeDispatcher("", nhd); err != nil {
 		boom(t, "Failed to register neighborhood server: %s", err)
 	}

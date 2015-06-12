@@ -14,12 +14,12 @@ import (
 )
 
 type serverListClock interface {
-	now() time.Time
+	Now() time.Time
 }
 
 type realTime bool
 
-func (t realTime) now() time.Time {
+func (t realTime) Now() time.Time {
 	return time.Now()
 }
 
@@ -44,11 +44,6 @@ func newServerList() *serverList {
 	return &serverList{l: list.New()}
 }
 
-// set up an alternate clock.
-func setServerListClock(x serverListClock) {
-	slc = x
-}
-
 func (sl *serverList) len() int {
 	sl.Lock()
 	defer sl.Unlock()
@@ -65,7 +60,7 @@ func (sl *serverList) Front() *server {
 // update the expiration time and move to the front of the list.  That
 // way the most recently refreshed is always first.
 func (sl *serverList) add(oa string, ttl time.Duration) {
-	expires := slc.now().Add(ttl)
+	expires := slc.Now().Add(ttl)
 	sl.Lock()
 	defer sl.Unlock()
 	for e := sl.l.Front(); e != nil; e = e.Next() {
@@ -102,7 +97,7 @@ func (sl *serverList) removeExpired() (int, int) {
 	sl.Lock()
 	defer sl.Unlock()
 
-	now := slc.now()
+	now := slc.Now()
 	var next *list.Element
 	removed := 0
 	for e := sl.l.Front(); e != nil; e = next {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package xrpc
+package xrpc_test
 
 import (
 	"testing"
@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -29,7 +30,7 @@ func TestXServer(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := NewServer(ctx, "", &service{}, nil)
+	server, err := xrpc.NewServer(ctx, "", &service{}, nil)
 	if err != nil {
 		t.Fatalf("Error creating server: %v", err)
 	}
@@ -54,7 +55,7 @@ func TestXDispatchingServer(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := NewDispatchingServer(ctx, "", &dispatcher{})
+	server, err := xrpc.NewDispatchingServer(ctx, "", &dispatcher{})
 	if err != nil {
 		t.Fatalf("Error creating server: %v", err)
 	}
