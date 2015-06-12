@@ -61,14 +61,15 @@ func TestDaemonRestart(t *testing.T) {
 	// instance2ID is not running.
 	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance2ID)
 
+	// Be sure to get the ping from the restarted application so that the app is running
+	// again before we ask for its status.
+	pingCh.WaitForPingArgs(t)
+
 	// instance1ID was restarted automatically.
 	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 
 	// Get application pid.
 	pid = utiltest.GetPid(t, ctx, appID, instance1ID)
-	// Be sure to get the ping from the restarted application so that we block in
-	// RunApp below.
-	pingCh.WaitForPingArgs(t)
 	// Kill the application again.
 	syscall.Kill(int(pid), 9)
 	utiltest.PollingWait(t, int(pid))
