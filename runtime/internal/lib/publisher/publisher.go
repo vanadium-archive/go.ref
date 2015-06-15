@@ -16,6 +16,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -249,7 +250,7 @@ func (ps *pubState) removeName(name string) {
 	}
 	for server, _ := range ps.servers {
 		if status, exists := ps.mounts[mountKey{name, server}]; exists {
-			ps.unmount(name, server, status)
+			ps.unmount(name, server, status, true)
 		}
 	}
 	delete(ps.names, name)
@@ -275,7 +276,7 @@ func (ps *pubState) removeServer(server string) {
 	delete(ps.servers, server)
 	for name, _ := range ps.names {
 		if status, exists := ps.mounts[mountKey{name, server}]; exists {
-			ps.unmount(name, server, status)
+			ps.unmount(name, server, status, true)
 		}
 	}
 }
@@ -306,16 +307,20 @@ func (ps *pubState) sync() {
 	for key, status := range ps.mounts {
 		if status.LastUnmountErr != nil {
 			// Desired state is "unmounted", failed at previous attempt. Retry.
-			ps.unmount(key.name, key.server, status)
+			ps.unmount(key.name, key.server, status, true)
 		} else {
 			ps.mount(key.name, key.server, status, ps.names[key.name])
 		}
 	}
 }
 
-func (ps *pubState) unmount(name, server string, status *rpc.MountStatus) {
+func (ps *pubState) unmount(name, server string, status *rpc.MountStatus, retry bool) {
 	status.LastUnmount = time.Now()
-	status.LastUnmountErr = ps.ns.Unmount(ps.ctx, name, server)
+	var opts []naming.NamespaceOpt
+	if !retry {
+		opts = []naming.NamespaceOpt{options.NoRetry{}}
+	}
+	status.LastUnmountErr = ps.ns.Unmount(ps.ctx, name, server, opts...)
 	if status.LastUnmountErr != nil {
 		vlog.Errorf("rpc pub: couldn't unmount(%v, %v): %v", name, server, status.LastUnmountErr)
 	} else {
@@ -326,7 +331,7 @@ func (ps *pubState) unmount(name, server string, status *rpc.MountStatus) {
 
 func (ps *pubState) unmountAll() {
 	for key, status := range ps.mounts {
-		ps.unmount(key.name, key.server, status)
+		ps.unmount(key.name, key.server, status, false)
 	}
 }
 
