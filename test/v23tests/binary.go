@@ -78,11 +78,11 @@ func (b *Binary) start(skip int, oargs ...string) *Invocation {
 	}
 	vlog.Infof("started PID %d\n", handle.Pid())
 	inv := &Invocation{
-		env:         b.env,
-		path:        b.path,
-		args:        args,
-		shutdownErr: errNotShutdown,
-		Handle:      handle,
+		env:           b.env,
+		path:          b.path,
+		args:          args,
+		shutdownErr:   errNotShutdown,
+		privateHandle: handle,
 	}
 	b.env.appendInvocation(inv)
 	return inv
