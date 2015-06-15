@@ -677,6 +677,11 @@ func (s *deviceService) Status(*context.T, rpc.ServerCall) (device.Status, error
 	}}, nil
 }
 
+// tidyHarness runs device manager cleanup operations
+func (s *deviceService) tidyHarness(ctx *context.T) error {
+	return pruneDeletedInstances(ctx, s.config.Root)
+}
+
 func (s *deviceService) TidyNow(ctx *context.T, call rpc.ServerCall) error {
-	return verror.New(ErrOperationFailed, ctx, "Not Implemented")
+	return s.tidyHarness(ctx)
 }
