@@ -911,7 +911,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 		return fc.close(berr)
 	}
 	if fc.response.Error != nil {
-		return verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error)
+		return fc.response.Error
 	}
 	if fc.response.EndStreamResults {
 		// Return EOF to indicate to the caller that there are no more stream
