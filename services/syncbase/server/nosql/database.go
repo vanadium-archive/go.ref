@@ -33,7 +33,8 @@ type database struct {
 	name string
 	a    interfaces.App
 	// The fields below are initialized iff this database exists.
-	st store.Store // stores all data for a single database
+	exists bool
+	st     store.Store // stores all data for a single database
 
 	// Active snapshots and transactions corresponding to client batches.
 	// TODO(sadovsky): Add timeouts and GC.
@@ -86,11 +87,12 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 		return nil, err
 	}
 	d := &database{
-		name: name,
-		a:    a,
-		st:   st,
-		sns:  make(map[uint64]store.Snapshot),
-		txs:  make(map[uint64]store.Transaction),
+		name:   name,
+		a:      a,
+		exists: true,
+		st:     st,
+		sns:    make(map[uint64]store.Snapshot),
+		txs:    make(map[uint64]store.Transaction),
 	}
 	data := &databaseData{
 		Name:  d.name,
@@ -106,6 +108,9 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 // RPC methods
 
 func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions) error {
+	if d.exists {
+		return verror.New(verror.ErrExist, ctx, d.name)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -125,6 +130,9 @@ func (d *databaseReq) Delete(ctx *context.T, call rpc.ServerCall) error {
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.BatchOptions) (string, error) {
+	if !d.exists {
+		return "", verror.New(verror.ErrNoExist, ctx, d.name)
+	}
 	if d.batchId != nil {
 		return "", wire.NewErrBoundToBatch(ctx)
 	}
@@ -152,6 +160,9 @@ func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.Ba
 }
 
 func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.name)
+	}
 	if d.batchId == nil {
 		return wire.NewErrNotBoundToBatch(ctx)
 	}
@@ -168,6 +179,9 @@ func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
 }
 
 func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.name)
+	}
 	if d.batchId == nil {
 		return wire.NewErrNotBoundToBatch(ctx)
 	}
@@ -189,6 +203,9 @@ func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall) error {
 }
 
 func (d *databaseReq) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.name)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -196,6 +213,9 @@ func (d *databaseReq) SetPermissions(ctx *context.T, call rpc.ServerCall, perms 
 }
 
 func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
+	if !d.exists {
+		return nil, "", verror.New(verror.ErrNoExist, ctx, d.name)
+	}
 	if d.batchId != nil {
 		return nil, "", wire.NewErrBoundToBatch(ctx)
 	}
@@ -207,6 +227,9 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 }
 
 func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
+	if !d.exists {
+		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
+	}
 	if d.batchId != nil {
 		return nil, wire.NewErrBoundToBatch(ctx)
 	}
@@ -226,7 +249,7 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-cha
 // interfaces.Database methods
 
 func (d *database) St() store.Store {
-	if d.st == nil {
+	if !d.exists {
 		vlog.Fatalf("database %q does not exist", d.name)
 	}
 	return d.st
@@ -237,11 +260,14 @@ func (d *database) App() interfaces.App {
 }
 
 func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
+	if !d.exists {
+		vlog.Fatalf("database %q does not exist", d.name)
+	}
 	return util.Get(ctx, call, st, d, &databaseData{})
 }
 
 func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
-	if d.st == nil {
+	if !d.exists {
 		vlog.Fatalf("database %q does not exist", d.name)
 	}
 	return store.RunInTransaction(d.st, func(st store.StoreReadWriter) error {

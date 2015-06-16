@@ -126,6 +126,12 @@ func (s *service) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
+// TODO(sadovsky): Currently, we return an error (here and elsewhere) if the
+// specified app does not exist in s.apps. But note, this will always be the
+// case after a Syncbase service restart. The implementation should be updated
+// so that s.apps acts as an in-memory cache of app handles. If an app exists
+// but is not present in s.apps, s.App() should open the app and add its handle
+// to s.apps.
 func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -159,9 +165,10 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 	}
 
 	a := &app{
-		name: appName,
-		s:    s,
-		dbs:  map[string]interfaces.Database{},
+		name:   appName,
+		s:      s,
+		exists: true,
+		dbs:    map[string]interfaces.Database{},
 	}
 
 	if err := store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
