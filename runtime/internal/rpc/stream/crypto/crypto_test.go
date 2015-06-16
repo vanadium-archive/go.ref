@@ -76,12 +76,6 @@ func testSimple(t *testing.T, c1, c2 Crypter) {
 	t.Logf("Byte overhead of encryption: %v", overhead)
 }
 
-func TestTLS(t *testing.T) {
-	server, client := net.Pipe()
-	c1, c2 := tlsCrypters(t, server, client)
-	testSimple(t, c1, c2)
-}
-
 func TestBox(t *testing.T) {
 	c1, c2 := boxCrypters(t, nil, nil)
 	testSimple(t, c1, c2)
@@ -111,71 +105,9 @@ func testChannelBinding(t *testing.T, factory func(testing.TB, net.Conn, net.Con
 	}
 }
 
-func TestChannelBindingTLS(t *testing.T) { testChannelBinding(t, tlsCrypters) }
 func TestChannelBindingBox(t *testing.T) { testChannelBinding(t, boxCrypters) }
 
-func TestTLSNil(t *testing.T) {
-	conn1, conn2 := net.Pipe()
-	c1, c2 := tlsCrypters(t, conn1, conn2)
-	if t.Failed() {
-		return
-	}
-	cipher, err := c1.Encrypt(iobuf.NewSlice(nil))
-	if err != nil {
-		t.Fatal(err)
-	}
-	plain, err := c2.Decrypt(cipher)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if plain.Size() != 0 {
-		t.Fatalf("Decryption produced non-empty data (%d)", plain.Size())
-	}
-}
-
-func TestTLSFragmentedPlaintext(t *testing.T) {
-	// Form RFC 5246, Section 6.2.1, the maximum length of a TLS record is
-	// 16K (it is represented by a uint16).
-	// http://tools.ietf.org/html/rfc5246#section-6.2.1
-	const dataLen = 16384 + 1
-	conn1, conn2 := net.Pipe()
-	enc, dec := tlsCrypters(t, conn1, conn2)
-	cipher, err := enc.Encrypt(iobuf.NewSlice(make([]byte, dataLen)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	plain, err := dec.Decrypt(cipher)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(plain.Contents, make([]byte, dataLen)) {
-		t.Errorf("Got %d bytes, want %d bytes of zeroes", plain.Size(), dataLen)
-	}
-}
-
 type factory func(t testing.TB, server, client net.Conn) (Crypter, Crypter)
-
-func tlsCrypters(t testing.TB, serverConn, clientConn net.Conn) (Crypter, Crypter) {
-	crypters := make(chan Crypter)
-	go func() {
-		server, err := NewTLSServer(serverConn, serverConn.LocalAddr(), serverConn.RemoteAddr(), iobuf.NewAllocator(iobuf.NewPool(0), 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		crypters <- server
-	}()
-
-	go func() {
-		client, err := NewTLSClient(clientConn, clientConn.LocalAddr(), clientConn.RemoteAddr(), TLSClientSessionCache{}, iobuf.NewAllocator(iobuf.NewPool(0), 0))
-		if err != nil {
-			t.Fatal(err)
-		}
-		crypters <- client
-	}()
-	c1 := <-crypters
-	c2 := <-crypters
-	return c1, c2
-}
 
 func boxCrypters(t testing.TB, _, _ net.Conn) (Crypter, Crypter) {
 	server, client := make(chan *BoxKey, 1), make(chan *BoxKey, 1)
@@ -220,12 +152,6 @@ func benchmarkEncrypt(b *testing.B, crypters factory, size int) {
 	}
 }
 
-func BenchmarkTLSEncrypt_1B(b *testing.B)  { benchmarkEncrypt(b, tlsCrypters, 1) }
-func BenchmarkTLSEncrypt_1K(b *testing.B)  { benchmarkEncrypt(b, tlsCrypters, 1<<10) }
-func BenchmarkTLSEncrypt_10K(b *testing.B) { benchmarkEncrypt(b, tlsCrypters, 10<<10) }
-func BenchmarkTLSEncrypt_1M(b *testing.B)  { benchmarkEncrypt(b, tlsCrypters, 1<<20) }
-func BenchmarkTLSEncrypt_5M(b *testing.B)  { benchmarkEncrypt(b, tlsCrypters, 5<<20) }
-
 func BenchmarkBoxEncrypt_1B(b *testing.B)  { benchmarkEncrypt(b, boxCrypters, 1) }
 func BenchmarkBoxEncrypt_1K(b *testing.B)  { benchmarkEncrypt(b, boxCrypters, 1<<10) }
 func BenchmarkBoxEncrypt_10K(b *testing.B) { benchmarkEncrypt(b, boxCrypters, 10<<10) }
@@ -255,11 +181,6 @@ func benchmarkRoundTrip(b *testing.B, crypters factory, size int) {
 		plainslice.Release()
 	}
 }
-func BenchmarkTLSRoundTrip_1B(b *testing.B)  { benchmarkRoundTrip(b, tlsCrypters, 1) }
-func BenchmarkTLSRoundTrip_1K(b *testing.B)  { benchmarkRoundTrip(b, tlsCrypters, 1<<10) }
-func BenchmarkTLSRoundTrip_10K(b *testing.B) { benchmarkRoundTrip(b, tlsCrypters, 10<<10) }
-func BenchmarkTLSRoundTrip_1M(b *testing.B)  { benchmarkRoundTrip(b, tlsCrypters, 1<<20) }
-func BenchmarkTLSRoundTrip_5M(b *testing.B)  { benchmarkRoundTrip(b, tlsCrypters, 5<<20) }
 
 func BenchmarkBoxRoundTrip_1B(b *testing.B)  { benchmarkRoundTrip(b, boxCrypters, 1) }
 func BenchmarkBoxRoundTrip_1K(b *testing.B)  { benchmarkRoundTrip(b, boxCrypters, 1<<10) }
@@ -276,5 +197,4 @@ func benchmarkSetup(b *testing.B, crypters factory) {
 	}
 }
 
-func BenchmarkTLSSetup(b *testing.B) { benchmarkSetup(b, tlsCrypters) }
 func BenchmarkBoxSetup(b *testing.B) { benchmarkSetup(b, boxCrypters) }
