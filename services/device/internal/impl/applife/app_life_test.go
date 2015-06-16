@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -357,11 +358,71 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Pid of hanging app (%d) has not exited after Stop() call", hangingPid)
 	}
 
+	// Record all instances.
+	shouldKeep := determineShouldKeep(t, root)
+	if err := utiltest.DeviceStub("dm").TidyNow(ctx); err != nil {
+		t.Fatalf("TidyNow failed: %v", err)
+	}
+	validateTidying(t, root, shouldKeep)
+
 	// Cleanly shut down the device manager.
 	defer utiltest.VerifyNoRunningProcesses(t)
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
+}
+
+func determineShouldKeep(t *testing.T, root string) map[string]bool {
+	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
+	if err != nil {
+		t.Errorf("determineShouldKeep %v", err)
+	}
+
+	shouldKeep := make(map[string]bool)
+	for _, idir := range paths {
+		p := filepath.Join(idir, "Deleted")
+		_, err := os.Stat(p)
+		if os.IsNotExist(err) {
+			shouldKeep[idir] = true
+		} else if err == nil {
+			shouldKeep[idir] = false
+		} else {
+			t.Errorf("determineShouldKeep Stat(%s) failed: %v", p, err)
+		}
+	}
+	return shouldKeep
+}
+
+func validateTidying(t *testing.T, root string, shouldKeep map[string]bool) {
+	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
+	if err != nil {
+		t.Errorf("validateTidying %v", err)
+	}
+
+	// TidyUp adds nothing: pth should be a subset of shouldKeep.
+	for _, pth := range paths {
+		if _, ok := shouldKeep[pth]; !ok {
+			t.Errorf("TidyUp wrongly added path: %s", pth)
+			return
+		}
+	}
+
+	// Tidy should not leave unkept instances: shouldKeep ^ pth should be entirely true.
+	for _, pth := range paths {
+		if !shouldKeep[pth] {
+			t.Errorf("TidyUp failed to delete: %s", pth)
+			return
+		}
+	}
+
+	// Tidy must not delete any kept instances.
+	for k, v := range shouldKeep {
+		if v {
+			if _, err := os.Stat(k); os.IsNotExist(err) {
+				t.Errorf("TidyUp deleted an instance it shouldn't have: %s", k)
+			}
+		}
+	}
 }
 
 // setupPublishingCredentials creates two principals, which, in addition to the one passed in

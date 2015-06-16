@@ -68,6 +68,9 @@ func init() {
 			vlog.Errorf("Rename(%v, %v) failed: %v", dir, renamed, err)
 		}
 	}
+
+	// So that TidyUp runs eagerly in tests.
+	impl.TidyOlderThan = -time.Hour
 }
 
 func EnvelopeFromShell(sh *modules.Shell, env []string, prog modules.Program, title string, retries int, window time.Duration, args ...string) application.Envelope {
