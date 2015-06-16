@@ -358,12 +358,13 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Pid of hanging app (%d) has not exited after Stop() call", hangingPid)
 	}
 
-	// Record all instances.
-	shouldKeep := determineShouldKeep(t, root)
+	shouldKeepInstances := determineShouldKeep(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*"), "Deleted")
+	shouldKeepInstallations := addBackLinks(t, root, determineShouldKeep(t, root, filepath.Join(root, "app*", "installation*"), "Uninstalled"))
 	if err := utiltest.DeviceStub("dm").TidyNow(ctx); err != nil {
 		t.Fatalf("TidyNow failed: %v", err)
 	}
-	validateTidying(t, root, shouldKeep)
+	validateTidying(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*"), shouldKeepInstances)
+	validateTidying(t, root, filepath.Join(root, "app*", "installation*"), shouldKeepInstallations)
 
 	// Cleanly shut down the device manager.
 	defer utiltest.VerifyNoRunningProcesses(t)
@@ -372,15 +373,15 @@ func TestLifeOfAnApp(t *testing.T) {
 	dmh.ExpectEOF()
 }
 
-func determineShouldKeep(t *testing.T, root string) map[string]bool {
-	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
+func determineShouldKeep(t *testing.T, root, globpath, state string) map[string]bool {
+	paths, err := filepath.Glob(globpath)
 	if err != nil {
 		t.Errorf("determineShouldKeep %v", err)
 	}
 
 	shouldKeep := make(map[string]bool)
 	for _, idir := range paths {
-		p := filepath.Join(idir, "Deleted")
+		p := filepath.Join(idir, state)
 		_, err := os.Stat(p)
 		if os.IsNotExist(err) {
 			shouldKeep[idir] = true
@@ -391,10 +392,31 @@ func determineShouldKeep(t *testing.T, root string) map[string]bool {
 		}
 	}
 	return shouldKeep
+
 }
 
-func validateTidying(t *testing.T, root string, shouldKeep map[string]bool) {
-	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
+func addBackLinks(t *testing.T, root string, installationShouldKeep map[string]bool) map[string]bool {
+	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*", "installation"))
+	if err != nil {
+		t.Errorf("addBackLinks %v", err)
+	}
+
+	for _, idir := range paths {
+		pth, err := os.Readlink(idir)
+		if err != nil {
+			t.Errorf("addBackLinks %v", err)
+			continue
+		}
+		if _, ok := installationShouldKeep[pth]; ok {
+			// An instance symlinks to this pth so must be kept.
+			installationShouldKeep[pth] = true
+		}
+	}
+	return installationShouldKeep
+}
+
+func validateTidying(t *testing.T, root, globpath string, shouldKeep map[string]bool) {
+	paths, err := filepath.Glob(globpath)
 	if err != nil {
 		t.Errorf("validateTidying %v", err)
 	}
@@ -402,7 +424,7 @@ func validateTidying(t *testing.T, root string, shouldKeep map[string]bool) {
 	// TidyUp adds nothing: pth should be a subset of shouldKeep.
 	for _, pth := range paths {
 		if _, ok := shouldKeep[pth]; !ok {
-			t.Errorf("TidyUp wrongly added path: %s", pth)
+			t.Errorf("TidyUp (%s) wrongly added path: %s", globpath, pth)
 			return
 		}
 	}
@@ -410,7 +432,7 @@ func validateTidying(t *testing.T, root string, shouldKeep map[string]bool) {
 	// Tidy should not leave unkept instances: shouldKeep ^ pth should be entirely true.
 	for _, pth := range paths {
 		if !shouldKeep[pth] {
-			t.Errorf("TidyUp failed to delete: %s", pth)
+			t.Errorf("TidyUp (%s) failed to delete: %s", globpath, pth)
 			return
 		}
 	}
@@ -419,7 +441,7 @@ func validateTidying(t *testing.T, root string, shouldKeep map[string]bool) {
 	for k, v := range shouldKeep {
 		if v {
 			if _, err := os.Stat(k); os.IsNotExist(err) {
-				t.Errorf("TidyUp deleted an instance it shouldn't have: %s", k)
+				t.Errorf("TidyUp (%s) deleted an instance it shouldn't have: %s", globpath, k)
 			}
 		}
 	}
