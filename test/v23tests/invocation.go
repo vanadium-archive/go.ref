@@ -14,6 +14,8 @@ import (
 	"v.io/x/ref/test/modules"
 )
 
+type privateHandle modules.Handle
+
 // Invocation represents a single invocation of a Binary.
 //
 // Any bytes written by the invocation to its standard error may be recovered
@@ -27,7 +29,7 @@ import (
 //   // stderr.Bytes() now contains 'hello world\n'
 type Invocation struct {
 	// The handle to the process that was run when this invocation was started.
-	modules.Handle
+	privateHandle
 
 	// The environment to which this invocation belongs.
 	env *T
@@ -59,14 +61,14 @@ func (i *Invocation) Path() string {
 
 // Exists returns true if the invocation still exists.
 func (i *Invocation) Exists() bool {
-	return syscall.Kill(i.Handle.Pid(), 0) == nil
+	return syscall.Kill(i.privateHandle.Pid(), 0) == nil
 }
 
 // Kill sends the given signal to this invocation. It is up to the test
 // author to decide whether failure to deliver the signal is fatal to
 // the test.
 func (i *Invocation) Kill(sig syscall.Signal) error {
-	pid := i.Handle.Pid()
+	pid := i.privateHandle.Pid()
 	vlog.VI(1).Infof("sending signal %v to PID %d", sig, pid)
 	return syscall.Kill(pid, sig)
 }
@@ -87,7 +89,7 @@ func (i *Invocation) Output() string {
 // written to the corresponding writer. The returned error represents
 // the exit status of the underlying command.
 func (i *Invocation) Wait(stdout, stderr io.Writer) error {
-	err := i.Handle.Shutdown(stdout, stderr)
+	err := i.privateHandle.Shutdown(stdout, stderr)
 	i.hasShutdown = true
 	i.shutdownErr = err
 	return err
@@ -107,7 +109,7 @@ func (i *Invocation) Shutdown(stdout, stderr io.Writer) error {
 // cause the current test to fail.
 func (i *Invocation) WaitOrDie(stdout, stderr io.Writer) {
 	if err := i.Wait(stdout, stderr); err != nil {
-		i.env.Fatalf("%s: FATAL: Wait() for pid %d failed: %v", Caller(1), i.Handle.Pid(), err)
+		i.env.Fatalf("%s: FATAL: Wait() for pid %d failed: %v", Caller(1), i.privateHandle.Pid(), err)
 	}
 }
 

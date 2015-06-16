@@ -239,6 +239,7 @@ func internalNew(rid naming.RoutingID, ctx *context.T, spec rpc.ListenSpec, auth
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errListenFailed, nil, network, address, err))
 	}
 	pub, _, err := netstate.PossibleAddresses(ln.Addr().Network(), ln.Addr().String(), spec.AddressChooser)
+	vlog.Infof("PUB: %s", pub)
 	if err != nil {
 		ln.Close()
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errAccessibleAddresses, nil, err))
