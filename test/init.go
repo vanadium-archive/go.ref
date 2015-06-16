@@ -71,7 +71,7 @@ func Init() {
 // Both steps are skipped if this function is invoked from a process run
 // using the modules package.
 func V23Init() (*context.T, v23.Shutdown) {
-	moduleProcess := len(os.Getenv("V23_SHELL_HELPER_PROCESS_ENTRY_POINT")) != 0
+	moduleProcess := os.Getenv("V23_SHELL_HELPER_PROCESS_ENTRY_POINT") != ""
 	return V23InitWithParams(InitParams{
 		CreatePrincipal:  !moduleProcess,
 		CreateMounttable: !moduleProcess,
