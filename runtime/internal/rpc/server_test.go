@@ -442,12 +442,12 @@ func TestRoaming(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ipv4And6 := func(network string, addrs []net.Addr) ([]net.Addr, error) {
+	ipv4And6 := netstate.AddressChooserFunc(func(network string, addrs []net.Addr) ([]net.Addr, error) {
 		accessible := netstate.ConvertToAddresses(addrs)
 		ipv4 := accessible.Filter(netstate.IsUnicastIPv4)
 		ipv6 := accessible.Filter(netstate.IsUnicastIPv6)
 		return append(ipv4.AsNetAddrs(), ipv6.AsNetAddrs()...), nil
-	}
+	})
 	spec := rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{
 			{"tcp", "*:0"},

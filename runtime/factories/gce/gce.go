@@ -58,9 +58,9 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	if ip, err := gce.ExternalIPAddress(); err != nil {
 		return nil, nil, nil, err
 	} else {
-		listenSpec.AddressChooser = func(network string, addrs []net.Addr) ([]net.Addr, error) {
+		listenSpec.AddressChooser = netstate.AddressChooserFunc(func(network string, addrs []net.Addr) ([]net.Addr, error) {
 			return []net.Addr{netstate.NewNetAddr("wsh", ip.String())}, nil
-		}
+		})
 	}
 
 	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), nil)

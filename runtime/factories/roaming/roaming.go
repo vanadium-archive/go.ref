@@ -71,12 +71,12 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	// 1:1 NAT configuration.
 	if !internal.HasPublicIP(logger.Global()) {
 		if addr := internal.GCEPublicAddress(logger.Global()); addr != nil {
-			listenSpec.AddressChooser = func(string, []net.Addr) ([]net.Addr, error) {
+			listenSpec.AddressChooser = netstate.AddressChooserFunc(func(string, []net.Addr) ([]net.Addr, error) {
 				// TODO(cnicolaou): the protocol at least should
 				// be configurable, or maybe there's a RuntimeFactory specific
 				// flag to configure both the protocol and address.
 				return []net.Addr{netstate.NewNetAddr("wsh", addr.String())}, nil
-			}
+			})
 			runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {
 				return nil, nil, shutdown, err
@@ -117,7 +117,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	cleanupCh := make(chan struct{})
 	watcherCh := make(chan struct{})
 
-	listenSpec.AddressChooser = internal.IPAddressChooser
+	listenSpec.AddressChooser = internal.IPAddressChooser{}
 
 	runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, publisher, SettingsStreamName, commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
@@ -175,7 +175,7 @@ done:
 				ch <- irpc.NewRmAddrsSetting(removed.AsNetAddrs())
 			}
 			// We will always send the best currently available address
-			if chosen, err := listenSpec.AddressChooser(listenSpec.Addrs[0].Protocol, cur.AsNetAddrs()); err == nil && chosen != nil {
+			if chosen, err := listenSpec.AddressChooser.ChooseAddress(listenSpec.Addrs[0].Protocol, cur.AsNetAddrs()); err == nil && chosen != nil {
 				vlog.VI(2).Infof("Sending added and chosen: %s", chosen)
 				ch <- irpc.NewAddAddrsSetting(chosen)
 			} else {

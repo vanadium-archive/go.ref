@@ -46,7 +46,9 @@ func ParseFlags(f *flags.Flags) error {
 // IPAddressChooser returns the preferred IP address, which is,
 // a public IPv4 address, then any non-loopback IPv4, then a public
 // IPv6 address and finally any non-loopback/link-local IPv6
-func IPAddressChooser(network string, addrs []net.Addr) ([]net.Addr, error) {
+type IPAddressChooser struct{}
+
+func (IPAddressChooser) ChooseAddress(network string, addrs []net.Addr) ([]net.Addr, error) {
 	if !netstate.IsIPProtocol(network) {
 		return nil, fmt.Errorf("can't support network protocol %q", network)
 	}

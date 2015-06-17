@@ -1539,9 +1539,9 @@ func TestPreferredAddress(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	pa := func(string, []net.Addr) ([]net.Addr, error) {
+	pa := netstate.AddressChooserFunc(func(string, []net.Addr) ([]net.Addr, error) {
 		return []net.Addr{netstate.NewNetAddr("tcp", "1.1.1.1")}, nil
-	}
+	})
 	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
@@ -1582,9 +1582,9 @@ func TestPreferredAddressErrors(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	paerr := func(_ string, a []net.Addr) ([]net.Addr, error) {
+	paerr := netstate.AddressChooserFunc(func(_ string, a []net.Addr) ([]net.Addr, error) {
 		return nil, fmt.Errorf("oops")
-	}
+	})
 	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)

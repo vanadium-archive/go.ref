@@ -62,7 +62,7 @@ func toIPPort(ctx *context.T, addr string) string {
 		ips, err := netstate.GetAccessibleIPs()
 		if err == nil {
 			ls := v23.GetListenSpec(ctx)
-			if a, err := ls.AddressChooser("tcp", ips.AsNetAddrs()); err == nil && len(a) > 0 {
+			if a, err := ls.AddressChooser.ChooseAddress("tcp", ips.AsNetAddrs()); err == nil && len(a) > 0 {
 				host = a[0].String()
 			}
 		}

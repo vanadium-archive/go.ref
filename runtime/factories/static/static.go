@@ -53,9 +53,9 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	// running on GCE.
 	if !internal.HasPublicIP(logger.Global()) {
 		if addr := internal.GCEPublicAddress(logger.Global()); addr != nil {
-			listenSpec.AddressChooser = func(string, []net.Addr) ([]net.Addr, error) {
+			listenSpec.AddressChooser = rpc.AddressChooserFunc(func(string, []net.Addr) ([]net.Addr, error) {
 				return []net.Addr{addr}, nil
-			}
+			})
 			runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {
 				return nil, nil, nil, err
@@ -67,7 +67,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 			return runtime, ctx, runtimeFactoryShutdown, nil
 		}
 	}
-	listenSpec.AddressChooser = internal.IPAddressChooser
+	listenSpec.AddressChooser = internal.IPAddressChooser{}
 
 	runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
