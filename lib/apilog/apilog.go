@@ -18,20 +18,14 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23/context"
 	"v.io/v23/logging"
+
+	"v.io/x/ref/internal/logger"
 )
 
 // logCallLogLevel is the log level beyond which calls are logged.
 const logCallLogLevel = 1
-
-var logger logging.Logger
-
-func init() {
-	logger = vlog.Log
-}
 
 func callerLocation() string {
 	var funcName string
@@ -44,6 +38,13 @@ func callerLocation() string {
 		}
 	}
 	return funcName
+}
+
+func getLogger(ctx *context.T) logging.Logger {
+	if ctx == nil {
+		return logger.Global()
+	}
+	return ctx
 }
 
 // LogCall logs that its caller has been called given the arguments
@@ -98,7 +99,8 @@ func callerLocation() string {
 //     }
 //
 func LogCall(ctx *context.T, v ...interface{}) func(*context.T, ...interface{}) {
-	if !logger.V(logCallLogLevel) { // TODO(mattr): add call to vtrace.
+	l := getLogger(ctx)
+	if !l.V(logCallLogLevel) { // TODO(mattr): add call to vtrace.
 		return func(*context.T, ...interface{}) {}
 	}
 	callerLocation := callerLocation()
@@ -109,7 +111,7 @@ func LogCall(ctx *context.T, v ...interface{}) func(*context.T, ...interface{}) 
 	} else {
 		output = fmt.Sprintf("call[%s %s]", callerLocation, invocationId)
 	}
-	logger.InfoDepth(1, output)
+	l.InfoDepth(1, output)
 
 	// TODO(mattr): annotate vtrace span.
 	return func(ctx *context.T, v ...interface{}) {
@@ -119,7 +121,7 @@ func LogCall(ctx *context.T, v ...interface{}) func(*context.T, ...interface{}) 
 		} else {
 			output = fmt.Sprintf("return[%s %s]", callerLocation, invocationId)
 		}
-		logger.InfoDepth(1, output)
+		getLogger(ctx).InfoDepth(1, output)
 		// TODO(mattr): annotate vtrace span.
 	}
 }
@@ -134,17 +136,18 @@ func LogCall(ctx *context.T, v ...interface{}) func(*context.T, ...interface{}) 
 //     }
 //
 func LogCallf(ctx *context.T, format string, v ...interface{}) func(*context.T, string, ...interface{}) {
-	if !logger.V(logCallLogLevel) { // TODO(mattr): add call to vtrace.
+	l := getLogger(ctx)
+	if !l.V(logCallLogLevel) { // TODO(mattr): add call to vtrace.
 		return func(*context.T, string, ...interface{}) {}
 	}
 	callerLocation := callerLocation()
 	invocationId := newInvocationIdentifier()
 	output := fmt.Sprintf("call[%s %s]: %s", callerLocation, invocationId, fmt.Sprintf(format, v...))
-	logger.InfoDepth(1, output)
+	l.InfoDepth(1, output)
 	// TODO(mattr): annotate vtrace span.
 	return func(ctx *context.T, format string, v ...interface{}) {
 		output := fmt.Sprintf("return[%s %s]: %v", callerLocation, invocationId, fmt.Sprintf(format, derefSlice(v)...))
-		logger.InfoDepth(1, output)
+		getLogger(ctx).InfoDepth(1, output)
 		// TODO(mattr): annotate vtrace span.
 	}
 }

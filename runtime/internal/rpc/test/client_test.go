@@ -22,7 +22,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
+
 	"v.io/x/ref"
+	"v.io/x/ref/internal/logger"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
@@ -289,6 +291,7 @@ func TestStartCallErrors(t *testing.T) {
 	}
 
 	emptyCtx := &context.T{}
+	emptyCtx = context.WithLogger(emptyCtx, logger.Global())
 	_, err := client.StartCall(emptyCtx, "noname", "nomethod", nil)
 	if verror.ErrorID(err) != verror.ErrBadArg.ID {
 		t.Fatalf("wrong error: %s", err)

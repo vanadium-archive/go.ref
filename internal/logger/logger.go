@@ -10,6 +10,7 @@ package logger
 import (
 	"v.io/x/lib/vlog"
 
+	"v.io/v23/context"
 	"v.io/v23/logging"
 )
 
@@ -53,13 +54,21 @@ func (*dummy) Stats() (Info, Error struct{ Lines, Bytes int64 }) {
 func (*dummy) ConfigureFromFlags() error             { return nil }
 func (*dummy) ExplicitlySetFlags() map[string]string { return nil }
 
-// Manager determines if the supplied logger implements ManageLog and if so
+// Manager determines if the supplied logging.Logger implements ManageLog and if so
 // returns an instance of it. If it doesn't implement ManageLog then Manager
 // will return a dummy implementation that is essentially a no-op. It is
 // always safe to use it as: logger.Manager(logger.Global()).LogDir() for example.
 func Manager(logger logging.Logger) ManageLog {
 	if vl, ok := logger.(ManageLog); ok {
 		return vl
+	}
+	// If the logger is a context.T then ask it for its implementation
+	// of logging.Logger and look for ManageLog being implemented by it,
+	// since context.T can never implement ManageLog itself.
+	if ctx, ok := logger.(*context.T); ok {
+		if l, ok := ctx.LoggerImplementation().(logging.Logger); ok {
+			return Manager(l)
+		}
 	}
 	return &dummy{}
 }

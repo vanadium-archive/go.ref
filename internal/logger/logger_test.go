@@ -9,6 +9,7 @@ import (
 
 	"v.io/x/lib/vlog"
 
+	"v.io/v23/context"
 	"v.io/v23/logging"
 
 	"v.io/x/ref/internal/logger"
@@ -28,4 +29,17 @@ func TestManager(t *testing.T) {
 	// Make sure vlog.Log satisfies the logging interfaces
 	var _ logger.ManageLog = vlog.Log
 	var _ logging.Logger = vlog.Log
+
+	// Make sure context.T implements logging.T
+	ctx, _ := context.RootContext()
+	var _ logging.Logger = ctx
+
+	// Make sure that logger.Manager can extract the appropriate management
+	// interface from a context.
+	nl := vlog.NewLogger("test")
+	ctx = context.WithLogger(ctx, nl)
+	manager = logger.Manager(ctx)
+	if _, ok := manager.(*vlog.Logger); !ok {
+		t.Errorf("failed to extract correct manager type")
+	}
 }
