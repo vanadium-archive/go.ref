@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"v.io/x/lib/metadata"
 	"v.io/x/lib/pubsub"
 	"v.io/x/lib/vlog"
 
@@ -112,14 +113,9 @@ func Init(
 	// log_dir for the program.  It's a hack, but it gets us the metadata
 	// to device manager-run apps and avoids it for command-lines, which is
 	// a good enough approximation.
-
-	// TODO(caprita): Disabled on 6/11/2015 because changes in the logging
-	// system caused this to be always printed.  Re-enable in a different
-	// way.
-
-	// if logger.Manager(ctx).LogDir() != os.TempDir() {
-	// 	ctx.Infof(metadata.ToXML())
-	// }
+	if logger.Manager(ctx).LogDir() != os.TempDir() {
+		ctx.Infof(metadata.ToXML())
+	}
 
 	// Setup the initial trace.
 	ctx, err = ivtrace.Init(ctx, flags.Vtrace)

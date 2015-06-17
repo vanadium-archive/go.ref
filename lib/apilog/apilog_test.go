@@ -14,6 +14,8 @@ import (
 
 	"v.io/x/lib/vlog"
 
+	"v.io/v23/context"
+
 	"v.io/x/ref/lib/apilog"
 )
 
@@ -42,9 +44,9 @@ func readLogFiles(dir string) ([]string, error) {
 	return contents, nil
 }
 
-func myLoggedFunc() {
-	f := apilog.LogCall(nil, "entry")
-	f(nil, "exit")
+func myLoggedFunc(ctx *context.T) {
+	f := apilog.LogCall(ctx, "entry")
+	f(ctx, "exit")
 }
 
 func TestLogCall(t *testing.T) {
@@ -53,16 +55,35 @@ func TestLogCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	logger := vlog.NewLogger("testHeader")
-	logger.Configure(vlog.LogDir(dir), vlog.Level(2))
-	saveLog := apilog.Log()
-	defer func() { apilog.SetLog(saveLog) }()
-	apilog.SetLog(logger)
-	myLoggedFunc()
-	logger.FlushLog()
-	contents, err := readLogFiles(dir)
+	l := vlog.NewLogger("testHeader")
+	l.Configure(vlog.LogDir(dir), vlog.Level(2))
+	ctx, _ := context.RootContext()
+	ctx = context.WithLogger(ctx, l)
+	myLoggedFunc(ctx)
+	ctx.FlushLog()
+	testLogOutput(t, dir)
+}
+
+func TestLogCallNoContext(t *testing.T) {
+	dir, err := ioutil.TempDir("", "logtest")
+	defer os.RemoveAll(dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
+	}
+	l := vlog.NewLogger("testHeader")
+	l.Configure(vlog.LogDir(dir), vlog.Level(2))
+	saved := vlog.Log
+	vlog.Log = l
+	defer func() { vlog.Log = saved }()
+	myLoggedFunc(nil)
+	vlog.FlushLog()
+	testLogOutput(t, dir)
+}
+
+func testLogOutput(t *testing.T, dir string) {
+	contents, err := readLogFiles(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %q %s", dir, err)
 	}
 	if want, got := 2, len(contents); want != got {
 		t.Errorf("Expected %d info lines, got %d instead", want, got)
