@@ -8,6 +8,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -17,7 +18,14 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/set"
 	"v.io/x/ref/lib/v23cmd"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
+
+type relateResult struct {
+	Remainder      map[string]struct{}
+	Approximations []groups.Approximation
+	Version        string
+}
 
 var (
 	flagPermFile      string
@@ -128,7 +136,8 @@ var (
 		Name:  "relate",
 		Short: "Relate a set of blessing to a group",
 		Long: `
-Relate a set of blessing to a group.
+Relate a set of blessing to a group. The result is returned as a
+JSON-encoded output.
 
 NOTE: This command exists primarily for debugging purposes. In
 particular, invocations of the Relate RPC are expected to be mainly
@@ -161,7 +170,16 @@ issued by the authorization logic.
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(env.Stdout, "remainder = %v, approximations = %v, version = %v\n", remainder, approximations, version)
+			result := relateResult{
+				Remainder:      remainder,
+				Approximations: approximations,
+				Version:        version,
+			}
+			bytes, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				return fmt.Errorf("MarshalIndent(%v) failed: %v", result, err)
+			}
+			fmt.Fprintf(env.Stdout, "%v\n", string(bytes))
 			return nil
 		}),
 	}

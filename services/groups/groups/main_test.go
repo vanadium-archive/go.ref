@@ -6,7 +6,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"unicode"
@@ -20,7 +22,6 @@ import (
 	"v.io/v23/services/groups"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
 
@@ -120,11 +121,11 @@ func TestGroupClient(t *testing.T) {
 		if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, args); err != nil {
 			t.Fatalf("run failed: %v\n%v", err, stderr.String())
 		}
-		if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
-			t.Errorf("got %q, want %q", got, want)
-		}
 		if got, want := buffer.String(), fmt.Sprintf("Create(%v, %v) was called", access.Permissions{}, patterns); got != want {
 			t.Errorf("got %v, want %v", got, want)
+		}
+		if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
+			t.Errorf("got %q, want %q", got, want)
 		}
 		if got, want := len(group), 2; got != want {
 			t.Errorf("got %v, want %v", got, want)
@@ -141,11 +142,11 @@ func TestGroupClient(t *testing.T) {
 		if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, args); err != nil {
 			t.Fatalf("run failed: %v\n%v", err, stderr.String())
 		}
-		if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
-			t.Errorf("got %q, want %q", got, want)
-		}
 		if got, want := buffer.String(), fmt.Sprintf("Add(%v, %v) was called", pattern, version); got != want {
 			t.Errorf("got %v, want %v", got, want)
+		}
+		if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
+			t.Errorf("got %q, want %q", got, want)
 		}
 		if got, want := len(group), 3; got != want {
 			t.Errorf("got %v, want %v", got, want)
@@ -162,11 +163,11 @@ func TestGroupClient(t *testing.T) {
 		if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, args); err != nil {
 			t.Fatalf("run failed: %v\n%v", err, stderr.String())
 		}
-		if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
-			t.Errorf("got %q, want %q", got, want)
-		}
 		if got, want := buffer.String(), fmt.Sprintf("Remove(%v, %v) was called", pattern, version); got != want {
 			t.Errorf("got %v, want %v", got, want)
+		}
+		if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
+			t.Errorf("got %q, want %q", got, want)
 		}
 		if got, want := len(group), 2; got != want {
 			t.Errorf("got %v, want %v", got, want)
@@ -183,11 +184,11 @@ func TestGroupClient(t *testing.T) {
 		if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, args); err != nil {
 			t.Fatalf("run failed: %v\n%v", err, stderr.String())
 		}
-		if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
-			t.Errorf("got %q, want %q", got, want)
-		}
 		if got, want := buffer.String(), fmt.Sprintf("Delete(%v) was called", version); got != want {
 			t.Errorf("got %v, want %v", got, want)
+		}
+		if got, want := strings.TrimSpace(stdout.String()), ""; got != want {
+			t.Errorf("got %q, want %q", got, want)
 		}
 		if got, want := len(group), 0; got != want {
 			t.Errorf("got %v, want %v", got, want)
@@ -204,12 +205,21 @@ func TestGroupClient(t *testing.T) {
 		if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, args); err != nil {
 			t.Fatalf("run failed: %v\n%v", err, stderr.String())
 		}
-		if got, want := strings.TrimSpace(stdout.String()), "remainder = map[], approximations = [], version = 123"; got != want {
-			t.Errorf("got %q, want %q", got, want)
-		}
 		empty := map[string]struct{}{}
 		if got, want := buffer.String(), fmt.Sprintf("Relate(%v, %v, %v, %v) was called", empty, capitalize(hint), version, empty); got != want {
 			t.Errorf("got %v, want %v", got, want)
+		}
+		var got relateResult
+		if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+			t.Fatalf("Unmarshal(%v) failed: %v", stdout.Bytes(), err)
+		}
+		want := relateResult{
+			Remainder:      nil,
+			Approximations: nil,
+			Version:        "123",
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %#v, want %#v", got, want)
 		}
 		buffer.Reset()
 	}
