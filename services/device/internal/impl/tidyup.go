@@ -19,32 +19,34 @@ import (
 // This file contains the various routines that the device manager uses
 // to tidy up its persisted but no longer necessary state.
 
-// TidyAge defaults to 1 day. Settable for tests.
-var TidyOlderThan = time.Hour * 24
+const aboutOneDay = time.Hour * 24
 
-func shouldDelete(idir, suffix string) (bool, error) {
+func oldEnoughToTidy(fi os.FileInfo, now time.Time) bool {
+	return fi.ModTime().Add(aboutOneDay).Before(now)
+}
+
+func shouldDelete(idir, suffix string, now time.Time) (bool, error) {
 	fi, err := os.Stat(filepath.Join(idir, suffix))
 	if err != nil {
 		return false, err
 	}
 
-	if fi.ModTime().Add(TidyOlderThan).Before(time.Now()) {
-		return true, nil
-	}
-
-	return false, nil
+	return oldEnoughToTidy(fi, now), nil
 }
+
+// Exposed for replacability in tests.
+var MockableNow = time.Now
 
 // shouldDeleteInstallation returns true if the tidying policy holds
 // for this installation.
-func shouldDeleteInstallation(idir string) (bool, error) {
-	return shouldDelete(idir, device.InstallationStateUninstalled.String())
+func shouldDeleteInstallation(idir string, now time.Time) (bool, error) {
+	return shouldDelete(idir, device.InstallationStateUninstalled.String(), now)
 }
 
 // shouldDeleteInstance returns true if the tidying policy holds
 // that the instance should be deleted.
-func shouldDeleteInstance(idir string) (bool, error) {
-	return shouldDelete(idir, device.InstanceStateDeleted.String())
+func shouldDeleteInstance(idir string, now time.Time) (bool, error) {
+	return shouldDelete(idir, device.InstanceStateDeleted.String(), now)
 }
 
 type pthError struct {
@@ -52,7 +54,7 @@ type pthError struct {
 	err error
 }
 
-func pruneDeletedInstances(ctx *context.T, root string) error {
+func pruneDeletedInstances(ctx *context.T, root string, now time.Time) error {
 	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
 	if err != nil {
 		return err
@@ -70,7 +72,7 @@ func pruneDeletedInstances(ctx *context.T, root string) error {
 			continue
 		}
 
-		shouldDelete, err := shouldDeleteInstance(pth)
+		shouldDelete, err := shouldDeleteInstance(pth, now)
 		if err != nil {
 			allerrors = append(allerrors, pthError{pth, err})
 			continue
@@ -96,7 +98,7 @@ func processErrors(ctx *context.T, allerrors []pthError) error {
 	return nil
 }
 
-func pruneUninstalledInstallations(ctx *context.T, root string) error {
+func pruneUninstalledInstallations(ctx *context.T, root string, now time.Time) error {
 	// Read all the Uninstalled installations into a map.
 	installationPaths, err := filepath.Glob(filepath.Join(root, "app*", "installation*"))
 	if err != nil {
@@ -142,7 +144,7 @@ func pruneUninstalledInstallations(ctx *context.T, root string) error {
 	// All remaining entries in pruneCandidates are not referenced by
 	// any instance.
 	for pth, _ := range pruneCandidates {
-		shouldDelete, err := shouldDeleteInstallation(pth)
+		shouldDelete, err := shouldDeleteInstallation(pth, now)
 		if err != nil {
 			allerrors = append(allerrors, pthError{pth, err})
 			continue
@@ -152,6 +154,53 @@ func pruneUninstalledInstallations(ctx *context.T, root string) error {
 			if err := suidHelper.deleteFileTree(pth, nil, nil); err != nil {
 				allerrors = append(allerrors, pthError{pth, err})
 			}
+		}
+	}
+	return processErrors(ctx, allerrors)
+}
+
+// pruneOldLogs removes logs more than a day old. Symlinks (the
+// cannonical log file name) the (newest) log files that they point to
+// are preserved.
+func pruneOldLogs(ctx *context.T, root string, now time.Time) error {
+	logPaths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*", "logs", "*"))
+	if err != nil {
+		return err
+	}
+
+	pruneCandidates := make(map[string]struct{}, len(logPaths))
+	for _, p := range logPaths {
+		pruneCandidates[p] = struct{}{}
+	}
+
+	allerrors := make([]pthError, 0)
+	for p, _ := range pruneCandidates {
+		fi, err := os.Stat(p)
+		if err != nil {
+			allerrors = append(allerrors, pthError{p, err})
+			delete(pruneCandidates, p)
+			continue
+		}
+
+		if fi.Mode()&os.ModeSymlink != 0 {
+			delete(pruneCandidates, p)
+			target, err := os.Readlink(p)
+			if err != nil {
+				allerrors = append(allerrors, pthError{p, err})
+				continue
+			}
+			delete(pruneCandidates, target)
+			continue
+		}
+
+		if !oldEnoughToTidy(fi, now) {
+			delete(pruneCandidates, p)
+		}
+	}
+
+	for pth, _ := range pruneCandidates {
+		if err := suidHelper.deleteFileTree(pth, nil, nil); err != nil {
+			allerrors = append(allerrors, pthError{pth, err})
 		}
 	}
 	return processErrors(ctx, allerrors)

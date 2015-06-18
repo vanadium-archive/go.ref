@@ -679,11 +679,17 @@ func (s *deviceService) Status(*context.T, rpc.ServerCall) (device.Status, error
 
 // tidyHarness runs device manager cleanup operations
 func (s *deviceService) tidyHarness(ctx *context.T) error {
-	if err := pruneDeletedInstances(ctx, s.config.Root); err != nil {
+	now := MockableNow()
+
+	if err := pruneDeletedInstances(ctx, s.config.Root, now); err != nil {
 		return err
 	}
 
-	return pruneUninstalledInstallations(ctx, s.config.Root)
+	if err := pruneUninstalledInstallations(ctx, s.config.Root, now); err != nil {
+		return err
+	}
+
+	return pruneOldLogs(ctx, s.config.Root, now)
 }
 
 func (s *deviceService) TidyNow(ctx *context.T, call rpc.ServerCall) error {
