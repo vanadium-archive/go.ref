@@ -37,10 +37,12 @@ type Op union {
 // LogEntry represents a single store operation. This operation may have been
 // part of a transaction, as signified by the Continued boolean. Read-only
 // operations (and read-only transactions) are not logged.
-// TODO(sadovsky): Log commit time and maybe some other things.
 type LogEntry struct {
 	// The store operation that was performed.
 	Op Op
+
+	// Time when the operation was committed.
+	CommitTimestamp int64
 
 	// If true, this entry is followed by more entries that belong to the same
 	// commit as this entry.

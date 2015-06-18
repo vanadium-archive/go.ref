@@ -5,13 +5,10 @@
 package watchable
 
 import (
-	"fmt"
-	"io/ioutil"
 	"runtime"
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/leveldb"
 	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/syncbase/x/ref/services/syncbase/store/test"
 )
@@ -76,8 +73,8 @@ func runTest(t *testing.T, mp []string, f func(t *testing.T, st store.Store)) {
 	if useMemstore {
 		st = memstore.New()
 	} else {
-		var dbPath string
-		st, dbPath = newLevelDB()
+		var dbPath string = getPath()
+		st = createLevelDB(dbPath)
 		defer destroyLevelDB(st, dbPath)
 	}
 	st, err := Wrap(st, &Options{ManagedPrefixes: mp})
@@ -86,23 +83,4 @@ func runTest(t *testing.T, mp []string, f func(t *testing.T, st store.Store)) {
 	}
 	defer st.Close()
 	f(t, st)
-}
-
-func newLevelDB() (store.Store, string) {
-	path, err := ioutil.TempDir("", "syncbase_leveldb")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temp dir: %v", err))
-	}
-	st, err := leveldb.Open(path)
-	if err != nil {
-		panic(fmt.Sprintf("can't open db at %v: %v", path, err))
-	}
-	return st, path
-}
-
-func destroyLevelDB(st store.Store, path string) {
-	st.Close()
-	if err := leveldb.Destroy(path); err != nil {
-		panic(fmt.Sprintf("can't destroy db at %v: %v", path, err))
-	}
 }

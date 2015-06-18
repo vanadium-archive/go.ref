@@ -29,6 +29,7 @@ import (
 	"sync"
 
 	pubutil "v.io/syncbase/v23/syncbase/util"
+	"v.io/syncbase/x/ref/services/syncbase/clock"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 )
@@ -71,18 +72,23 @@ func Wrap(st store.Store, opts *Options) (Store, error) {
 		}
 		var err error
 		seq, err = strconv.ParseUint(parts[1], 10, 64)
+		// Current value of seq points to the last transaction committed
+		// increment the value by 1.
+		seq++
 		if err != nil {
 			panic("failed to parse seq: " + key)
 		}
 	}
-	return &wstore{ist: st, opts: opts, seq: seq}, nil
+	vclock := clock.NewVClock()
+	return &wstore{ist: st, opts: opts, seq: seq, clock: vclock}, nil
 }
 
 type wstore struct {
-	ist  store.Store
-	opts *Options
-	mu   sync.Mutex // held during transaction commits; protects seq
-	seq  uint64     // sequence number, for commits
+	ist   store.Store
+	opts  *Options
+	mu    sync.Mutex    // held during transaction commits; protects seq
+	seq   uint64        // sequence number, for commits
+	clock *clock.VClock // used to provide write timestamps
 }
 
 var _ Store = (*wstore)(nil)
