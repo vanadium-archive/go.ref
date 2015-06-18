@@ -30,7 +30,7 @@ func TestReserveGenAndPos(t *testing.T) {
 		wantGen += 5
 		wantPos += 10
 
-		name := globalDbName("mockapp", "mockdb")
+		name := appDbName("mockapp", "mockdb")
 		if s.syncState[name].gen != wantGen || s.syncState[name].pos != wantPos {
 			t.Fatalf("reserveGenAndPosInternal failed, gotGen %v wantGen %v, gotPos %v wantPos %v", s.syncState[name].gen, wantGen, s.syncState[name].pos, wantPos)
 		}

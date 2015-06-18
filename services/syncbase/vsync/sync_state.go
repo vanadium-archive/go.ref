@@ -116,7 +116,7 @@ func (s *syncService) reserveGenAndPosInternal(appName, dbName string, genCount,
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
-	name := globalDbName(appName, dbName)
+	name := appDbName(appName, dbName)
 	ds, ok := s.syncState[name]
 	if !ok {
 		ds = &dbSyncStateInMem{gen: 1}
@@ -132,8 +132,10 @@ func (s *syncService) reserveGenAndPosInternal(appName, dbName string, genCount,
 	return gen, pos
 }
 
-// globalDbName returns the global name of a Database by combining the app and db names.
-func globalDbName(appName, dbName string) string {
+// appDbName combines the app and db names to return a globally unique name for
+// a Database.  This relies on the fact that the app name is globally unique and
+// the db name is unique within the scope of the app.
+func appDbName(appName, dbName string) string {
 	return util.JoinKeyParts(appName, dbName)
 }
 

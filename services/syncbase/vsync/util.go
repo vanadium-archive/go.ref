@@ -16,7 +16,7 @@ import (
 // service and invokes the callback function on each database. The callback
 // returns a "done" flag to make forEachDatabaseStore() stop the iteration
 // earlier; otherwise the function loops across all databases of all apps.
-func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(store.Store) bool) {
+func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string, string, store.Store) bool) {
 	// Get the apps and iterate over them.
 	// TODO(rdaoud): use a "privileged call" parameter instead of nil (here and
 	// elsewhere).
@@ -47,7 +47,7 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(store.S
 				continue
 			}
 
-			if callback(db.St()) {
+			if callback(a, d, db.St()) {
 				return // done, early exit
 			}
 		}

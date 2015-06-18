@@ -54,10 +54,14 @@ type memberView struct {
 }
 
 // memberInfo holds the member metadata for each SyncGroup this member belongs
-// to.
+// to within each App/Database (i.e. global database name).  It's a mapping of
+// global DB names to sets of SyncGroup member information.
 type memberInfo struct {
-	gid2info map[interfaces.GroupId]wire.SyncGroupMemberInfo
+	db2sg map[string]sgMemberInfo
 }
+
+// sgMemberInfo maps SyncGroups to their member metadata.
+type sgMemberInfo map[interfaces.GroupId]wire.SyncGroupMemberInfo
 
 // newSyncGroupVersion generates a random SyncGroup version ("etag").
 func newSyncGroupVersion() string {
@@ -195,7 +199,7 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 	if view == nil {
 		// The empty expiration time in Go is before "now" and treated as expired
 		// below.
-		view = &memberView{expiration: time.Time{}, members: make(map[string]*memberInfo)}
+		view = &memberView{expiration: time.Time{}, members: nil}
 		s.allMembers = view
 	}
 
@@ -207,11 +211,12 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 	newMembers := make(map[string]*memberInfo)
 	scanStart, scanLimit := util.ScanPrefixArgs(sgDataKeyScanPrefix(), "")
 
-	s.forEachDatabaseStore(ctx, func(st store.Store) bool {
+	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
 		// For each database, fetch its SyncGroup data entries by scanning their
 		// prefix range.  Use a database snapshot for the scan.
 		sn := st.NewSnapshot()
 		defer sn.Close()
+		name := appDbName(appName, dbName)
 
 		stream := sn.Scan(scanStart, scanLimit)
 		for stream.Advance() {
@@ -225,11 +230,12 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 			// A member's info is different across SyncGroups, so gather all of them.
 			for member, info := range sg.Joiners {
 				if _, ok := newMembers[member]; !ok {
-					newMembers[member] = &memberInfo{
-						gid2info: make(map[interfaces.GroupId]wire.SyncGroupMemberInfo),
-					}
+					newMembers[member] = &memberInfo{db2sg: make(map[string]sgMemberInfo)}
 				}
-				newMembers[member].gid2info[sg.Id] = info
+				if _, ok := newMembers[member].db2sg[name]; !ok {
+					newMembers[member].db2sg[name] = make(sgMemberInfo)
+				}
+				newMembers[member].db2sg[name][sg.Id] = info
 			}
 		}
 		return false
@@ -246,7 +252,11 @@ func (s *syncService) getMembers(ctx *context.T) map[string]uint32 {
 
 	members := make(map[string]uint32)
 	for member, info := range s.allMembers.members {
-		members[member] = uint32(len(info.gid2info))
+		count := 0
+		for _, sgmi := range info.db2sg {
+			count += len(sgmi)
+		}
+		members[member] = uint32(count)
 	}
 
 	return members
@@ -669,7 +679,7 @@ func (s *syncService) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	// feedback from app developers (see discussion in SyncGroup API
 	// doc). If we decide to keep the SG name as stand-alone, this scan can
 	// be optimized by a lazy cache of sgname to <app, db> info.
-	s.forEachDatabaseStore(ctx, func(st store.Store) bool {
+	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
 		if gid, err = getSyncGroupId(ctx, st, sgName); err == nil {
 			// Found the SyncGroup being looked for.
 			dbSt = st

@@ -25,10 +25,12 @@ func checkSGStats(t *testing.T, svc *mockService, which string, numSG, numMember
 		t.Errorf("num-members (%s): got %v instead of %v", which, num, numMembers)
 	}
 
-	sgids := make(map[interfaces.GroupId]struct{})
+	sgids := make(map[interfaces.GroupId]bool)
 	for _, info := range view.members {
-		for gid := range info.gid2info {
-			sgids[gid] = struct{}{}
+		for _, sgmi := range info.db2sg {
+			for gid := range sgmi {
+				sgids[gid] = true
+			}
 		}
 	}
 
@@ -116,11 +118,19 @@ func TestAddSyncGroup(t *testing.T) {
 		if mi == nil {
 			t.Errorf("cannot get info for SyncGroup member %s", mm)
 		}
-		if len(mi.gid2info) != 1 {
+		if len(mi.db2sg) != 1 {
 			t.Errorf("invalid info for SyncGroup member %s: %v", mm, mi)
 		}
+		var sgmi sgMemberInfo
+		for _, v := range mi.db2sg {
+			sgmi = v
+			break
+		}
+		if len(sgmi) != 1 {
+			t.Errorf("invalid member info for SyncGroup member %s: %v", mm, sgmi)
+		}
 		expJoinerInfo := sg.Joiners[mm]
-		joinerInfo := mi.gid2info[sgId]
+		joinerInfo := sgmi[sgId]
 		if !reflect.DeepEqual(joinerInfo, expJoinerInfo) {
 			t.Errorf("invalid Info for SyncGroup member %s in group ID %d: got %v instead of %v",
 				mm, sgId, joinerInfo, expJoinerInfo)
@@ -363,29 +373,39 @@ func TestMultiSyncGroups(t *testing.T) {
 
 	expMemberInfo := map[string]*memberInfo{
 		"phone": &memberInfo{
-			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
-				sgId1: sg1.Joiners["phone"],
+			db2sg: map[string]sgMemberInfo{
+				"mockapp:mockdb": sgMemberInfo{
+					sgId1: sg1.Joiners["phone"],
+				},
 			},
 		},
 		"tablet": &memberInfo{
-			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
-				sgId1: sg1.Joiners["tablet"],
-				sgId2: sg2.Joiners["tablet"],
+			db2sg: map[string]sgMemberInfo{
+				"mockapp:mockdb": sgMemberInfo{
+					sgId1: sg1.Joiners["tablet"],
+					sgId2: sg2.Joiners["tablet"],
+				},
 			},
 		},
 		"cloud": &memberInfo{
-			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
-				sgId1: sg1.Joiners["cloud"],
+			db2sg: map[string]sgMemberInfo{
+				"mockapp:mockdb": sgMemberInfo{
+					sgId1: sg1.Joiners["cloud"],
+				},
 			},
 		},
 		"door": &memberInfo{
-			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
-				sgId2: sg2.Joiners["door"],
+			db2sg: map[string]sgMemberInfo{
+				"mockapp:mockdb": sgMemberInfo{
+					sgId2: sg2.Joiners["door"],
+				},
 			},
 		},
 		"lamp": &memberInfo{
-			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
-				sgId2: sg2.Joiners["lamp"],
+			db2sg: map[string]sgMemberInfo{
+				"mockapp:mockdb": sgMemberInfo{
+					sgId2: sg2.Joiners["lamp"],
+				},
 			},
 		},
 	}
@@ -425,18 +445,24 @@ func TestMultiSyncGroups(t *testing.T) {
 
 	expMemberInfo = map[string]*memberInfo{
 		"tablet": &memberInfo{
-			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
-				sgId2: sg2.Joiners["tablet"],
+			db2sg: map[string]sgMemberInfo{
+				"mockapp:mockdb": sgMemberInfo{
+					sgId2: sg2.Joiners["tablet"],
+				},
 			},
 		},
 		"door": &memberInfo{
-			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
-				sgId2: sg2.Joiners["door"],
+			db2sg: map[string]sgMemberInfo{
+				"mockapp:mockdb": sgMemberInfo{
+					sgId2: sg2.Joiners["door"],
+				},
 			},
 		},
 		"lamp": &memberInfo{
-			gid2info: map[interfaces.GroupId]nosql.SyncGroupMemberInfo{
-				sgId2: sg2.Joiners["lamp"],
+			db2sg: map[string]sgMemberInfo{
+				"mockapp:mockdb": sgMemberInfo{
+					sgId2: sg2.Joiners["lamp"],
+				},
 			},
 		},
 	}
