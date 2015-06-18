@@ -54,6 +54,7 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/vdltool"
+	"v.io/x/lib/set"
 	"v.io/x/lib/toposort"
 	"v.io/x/ref/lib/vdl/compile"
 	"v.io/x/ref/lib/vdl/parse"
@@ -685,12 +686,9 @@ type Opts struct {
 }
 
 func (o Opts) exts() map[string]bool {
-	ret := make(map[string]bool)
-	for _, e := range o.Extensions {
-		ret[e] = true
-	}
+	ret := set.StringBool.FromSlice(o.Extensions)
 	if len(ret) == 0 {
-		ret[".vdl"] = true
+		ret = map[string]bool{".vdl": true}
 	}
 	return ret
 }

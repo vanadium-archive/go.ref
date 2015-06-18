@@ -15,7 +15,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-
+	"v.io/x/lib/set"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/vif"
 	"v.io/x/ref/test/testutil"
@@ -84,17 +84,9 @@ func newVIF(c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
 }
 
 func diff(a, b []string) []string {
-	m := make(map[string]struct{})
-	for _, x := range b {
-		m[x] = struct{}{}
-	}
-	d := make([]string, 0, len(a))
-	for _, x := range a {
-		if _, ok := m[x]; !ok {
-			d = append(d, x)
-		}
-	}
-	return d
+	s1, s2 := set.String.FromSlice(a), set.String.FromSlice(b)
+	set.String.Difference(s1, s2)
+	return set.String.ToSlice(s1)
 }
 
 func find(set *vif.Set, n, a string) *vif.VIF {

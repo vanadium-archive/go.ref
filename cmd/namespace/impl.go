@@ -22,6 +22,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/set"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -104,10 +105,7 @@ func runGlob(ctx *context.T, env *cmdline.Env, args []string) error {
 			errors = append(errors, &v.Value)
 		}
 	}
-	results := []string{}
-	for r := range resultSet {
-		results = append(results, r)
-	}
+	results := set.String.ToSlice(resultSet)
 	sort.Strings(results)
 	for _, result := range results {
 		fmt.Fprintln(env.Stdout, result)

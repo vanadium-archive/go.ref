@@ -8,10 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/x/ref/services/internal/fs"
-	"v.io/x/ref/services/internal/pathperms"
-	"v.io/x/ref/services/repository"
-
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -19,7 +15,11 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
+	"v.io/x/lib/set"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/internal/fs"
+	"v.io/x/ref/services/internal/pathperms"
+	"v.io/x/ref/services/repository"
 )
 
 // appRepoService implements the Application repository interface.
@@ -198,17 +198,9 @@ func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, v := range versions {
-			uniqueVersions[v] = struct{}{}
-		}
+		set.String.Union(uniqueVersions, set.String.FromSlice(versions))
 	}
-	versions := make([]string, len(uniqueVersions))
-	index := 0
-	for v, _ := range uniqueVersions {
-		versions[index] = v
-		index++
-	}
-	return versions, nil
+	return set.String.ToSlice(uniqueVersions), nil
 }
 
 func (i *appRepoService) GlobChildren__(*context.T, rpc.ServerCall) (<-chan string, error) {

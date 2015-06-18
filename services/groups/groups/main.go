@@ -15,6 +15,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/groups"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/set"
 	"v.io/x/ref/lib/v23cmd"
 )
 
@@ -145,10 +146,7 @@ issued by the authorization logic.
 				return env.UsageErrorf("relate: unexpected number of arguments, want at least %d, got %d", want, got)
 			}
 			von := args[0]
-			blessings := make(map[string]struct{}, len(args[1:]))
-			for _, blessing := range args[1:] {
-				blessings[blessing] = struct{}{}
-			}
+			blessings := set.String.FromSlice(args[1:])
 			// Process command-line flags.
 			var hint groups.ApproximationType
 			switch flagApproximation {

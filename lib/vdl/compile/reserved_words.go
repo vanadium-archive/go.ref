@@ -30,8 +30,7 @@ func reservedWordJava(ident string, mode reservedMode) bool {
 	if mode == reservedFirstRuneLower {
 		ident = vdlutil.FirstRuneToLower(ident)
 	}
-	_, isReserved := javaReservedWords[ident]
-	return isReserved
+	return javaReservedWords[ident]
 }
 
 var javaReservedWords = map[string]bool{
@@ -88,8 +87,7 @@ var javaReservedWords = map[string]bool{
 }
 
 func reservedWordGo(ident string) bool {
-	_, isReserved := goReservedWords[ident]
-	return isReserved
+	return goReservedWords[ident]
 }
 
 var goReservedWords = map[string]bool{
@@ -124,8 +122,7 @@ func reservedWordJavascript(ident string, mode reservedMode) bool {
 	if mode == reservedFirstRuneLower {
 		ident = vdlutil.FirstRuneToLower(ident)
 	}
-	_, isReserved := javascriptReservedWords[ident]
-	return isReserved
+	return javascriptReservedWords[ident]
 }
 
 var javascriptReservedWords = map[string]bool{

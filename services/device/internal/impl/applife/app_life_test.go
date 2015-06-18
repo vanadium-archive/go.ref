@@ -423,7 +423,7 @@ func validateTidying(t *testing.T, root, globpath string, shouldKeep map[string]
 
 	// TidyUp adds nothing: pth should be a subset of shouldKeep.
 	for _, pth := range paths {
-		if _, ok := shouldKeep[pth]; !ok {
+		if !shouldKeep[pth] {
 			t.Errorf("TidyUp (%s) wrongly added path: %s", globpath, pth)
 			return
 		}

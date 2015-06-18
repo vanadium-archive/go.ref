@@ -17,13 +17,13 @@ import (
 	"sync"
 	"time"
 
-	"v.io/x/ref/services/profile"
-
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/lib/set"
+	"v.io/x/ref/services/profile"
 )
 
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014
@@ -518,7 +518,7 @@ func (o *boundObject) Children() ([]string, error) {
 		return nil, verror.New(ErrChildrenWithoutLock, nil)
 	}
 	found := false
-	set := make(map[string]struct{})
+	childrenSet := make(map[string]struct{})
 	for k, _ := range o.ms.data {
 		if strings.HasPrefix(k, o.path) || o.path == "" {
 			name := strings.TrimPrefix(k, o.path)
@@ -536,18 +536,13 @@ func (o *boundObject) Children() ([]string, error) {
 			if idx := strings.Index(name, "/"); idx != -1 {
 				name = name[:idx]
 			}
-			set[name] = keyExists
+			childrenSet[name] = keyExists
 		}
 	}
 	if !found {
 		return nil, verror.New(verror.ErrNoExist, nil, o.path)
 	}
-	children := make([]string, len(set))
-	i := 0
-	for k, _ := range set {
-		children[i] = k
-		i++
-	}
+	children := set.String.ToSlice(childrenSet)
 	sort.Strings(children)
 	return children, nil
 }

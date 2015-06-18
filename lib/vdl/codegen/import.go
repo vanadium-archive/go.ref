@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"v.io/v23/vdl"
+	"v.io/x/lib/set"
 	"v.io/x/ref/lib/vdl/compile"
 )
 
@@ -143,10 +144,7 @@ func (deps pkgDeps) MergeValue(v *vdl.Value) {
 
 // SortedPkgPaths deps as a sorted slice.
 func (deps pkgDeps) SortedPkgPaths() []string {
-	var ret []string
-	for pkgPath, _ := range deps {
-		ret = append(ret, pkgPath)
-	}
+	ret := set.StringBool.ToSlice(deps)
 	sort.Strings(ret)
 	return ret
 }

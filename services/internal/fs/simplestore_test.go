@@ -504,8 +504,8 @@ func TestChildren(t *testing.T) {
 		{"/test/a", []string{"x", "y"}},
 		{"/test/b", []string{"fooooo"}},
 		{"/test/b/fooooo", []string{"bar"}},
-		{"/test/a/x", []string{}},
-		{"/test/a/y", []string{}},
+		{"/test/a/x", nil},
+		{"/test/a/y", nil},
 	}
 	for _, tc := range testcases {
 		children, err := memstore.BindObject(tc.name).Children()

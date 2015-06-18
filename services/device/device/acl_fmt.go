@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"v.io/v23/security"
+	"v.io/x/lib/set"
 )
 
 // permsEntries maps blessing patterns to the kind of access they should have.
@@ -29,10 +30,7 @@ type accessTags map[string]bool
 // of "get" and be copied/pasted into "set".
 func (tags accessTags) String() string {
 	// Sort tags and then apply "!".
-	var list []string
-	for tag, _ := range tags {
-		list = append(list, tag)
-	}
+	list := set.StringBool.ToSlice(tags)
 	sort.Strings(list)
 	for ix, tag := range list {
 		if tags[tag] {

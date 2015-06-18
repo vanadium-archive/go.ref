@@ -19,7 +19,7 @@ func allEmbeddedIfaces(iface *compile.Interface) (ret []*compile.Interface) {
 	for _, eIface := range iface.Embeds {
 		for _, eIface = range append(allEmbeddedIfaces(eIface), eIface) {
 			path := path.Join(eIface.File.Package.GenPath, vdlutil.FirstRuneToUpper(eIface.Name))
-			if _, ok := added[path]; ok { // already added iface
+			if added[path] { // already added iface
 				continue
 			}
 			ret = append(ret, eIface)

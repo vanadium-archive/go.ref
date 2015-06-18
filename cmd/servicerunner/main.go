@@ -26,6 +26,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/set"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/runtime/factories/generic"
@@ -94,10 +95,7 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 // updateVars captures the vars from the given Handle's stdout and adds them to
 // the given vars map, overwriting existing entries.
 func updateVars(h modules.Handle, vars map[string]string, varNames ...string) error {
-	varsToAdd := map[string]bool{}
-	for _, v := range varNames {
-		varsToAdd[v] = true
-	}
+	varsToAdd := set.StringBool.FromSlice(varNames)
 	numLeft := len(varsToAdd)
 
 	s := expect.NewSession(nil, h.Stdout(), 30*time.Second)
@@ -110,7 +108,7 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 		if len(parts) != 2 {
 			return fmt.Errorf("Unexpected line: %s", l)
 		}
-		if _, ok := varsToAdd[parts[0]]; ok {
+		if varsToAdd[parts[0]] {
 			numLeft--
 			vars[parts[0]] = parts[1]
 			if numLeft == 0 {

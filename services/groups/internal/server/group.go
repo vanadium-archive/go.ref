@@ -15,6 +15,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/groups"
 	"v.io/v23/verror"
+	"v.io/x/lib/set"
 	"v.io/x/ref/services/groups/internal/store"
 )
 
@@ -122,7 +123,7 @@ func (g *group) Relate(ctx *context.T, call rpc.ServerCall, blessings map[string
 	var approximations []groups.Approximation
 	for p := range gd.Entries {
 		rem, apprxs := groups.Match(ctx, security.BlessingPattern(p), hint, visitedGroups, blessings)
-		remainder = union(remainder, rem)
+		set.String.Union(remainder, rem)
 		approximations = append(approximations, apprxs...)
 	}
 
@@ -208,12 +209,4 @@ func (g *group) readModifyWrite(ctx *context.T, call security.Call, version stri
 		}
 	}
 	return groups.NewErrExcessiveContention(ctx)
-}
-
-// union merges set s2 into s1 and returns s1.
-func union(s1, s2 map[string]struct{}) map[string]struct{} {
-	for k := range s2 {
-		s1[k] = struct{}{}
-	}
-	return s1
 }

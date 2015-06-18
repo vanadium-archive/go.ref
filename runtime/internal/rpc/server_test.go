@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/pubsub"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -20,9 +18,10 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
-
 	"v.io/x/lib/netstate"
+	"v.io/x/lib/pubsub"
+	"v.io/x/lib/set"
+	"v.io/x/lib/vlog"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	imanager "v.io/x/ref/runtime/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
@@ -414,11 +413,7 @@ func getUniqPorts(eps []naming.Endpoint) []string {
 		_, p, _ := net.SplitHostPort(iep.Address)
 		ports[p] = struct{}{}
 	}
-	r := []string{}
-	for p, _ := range ports {
-		r = append(r, p)
-	}
-	return r
+	return set.String.ToSlice(ports)
 }
 
 func TestRoaming(t *testing.T) {
