@@ -283,15 +283,6 @@ func (s *syncService) addNode(ctx *context.T, tx store.StoreReadWriter, oid, ver
 		return verror.New(verror.ErrInternal, ctx, "DAG node already exists", oid, version)
 	}
 
-	// A new root node (no parents) is allowed only for new objects.
-	// TODO(rdaoud): remove that limitation, we now can have key-collision.
-	if parents == nil {
-		if _, err := getHead(ctx, tx, oid); err == nil {
-			return verror.New(verror.ErrInternal, ctx,
-				"cannot add another root node for this object", oid, version)
-		}
-	}
-
 	// Verify the parents, determine the node level.  Also save the levels
 	// of the parent nodes for later in this function in graft updates.
 	parentLevels := make(map[string]uint64)
@@ -338,9 +329,9 @@ func (s *syncService) addNode(ctx *context.T, tx store.StoreReadWriter, oid, ver
 	// During a sync operation, each mutated object gets new nodes added in
 	// its DAG.  These new nodes are either derived from nodes that were
 	// previously known on this device (i.e. their parent nodes are pre-
-	// existing), or they are derived from other new DAG nodes being
-	// discovered during this sync (i.e. their parent nodes were also just
-	// added to the DAG).
+	// existing, or they have no parents (new root nodes)), or they are
+	// derived from other new DAG nodes being discovered during this sync
+	// (i.e. their parent nodes were also just added to the DAG).
 	//
 	// To detect a conflict and find the most recent common ancestor to
 	// pass to the conflict resolver, the DAG graft info keeps track of the
@@ -462,8 +453,9 @@ func moveHead(ctx *context.T, tx store.StoreReadWriter, oid, head string) error 
 
 // hasConflict determines if an object has a conflict between its new and old
 // head nodes.
-// - Yes: return (true, newHead, oldHead, ancestor)
-// - No:  return (false, newHead, oldHead, NoVersion)
+// - Yes: return (true, newHead, oldHead, ancestor)   -- from a common past
+// - Yes: return (true, newHead, oldHead, NoVersion)  -- from disjoint pasts
+// - No:  return (false, newHead, oldHead, NoVersion) -- no conflict
 // A conflict exists when there are two new-head nodes in the graft structure.
 // It means the newly added object versions are not derived in part from this
 // device's current knowledge.  If there is a single new-head, the object
@@ -474,6 +466,11 @@ func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft graftMa
 	newHead = NoVersion
 	ancestor = NoVersion
 	err = nil
+
+	if graft == nil {
+		err = verror.New(verror.ErrInternal, ctx, "no DAG graft map given")
+		return
+	}
 
 	info := graft[oid]
 	if info == nil {
@@ -519,6 +516,10 @@ func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft graftMa
 	// conflict resolver function is assumed to be convergent.  However it
 	// is nicer to make that selection deterministic so all devices see the
 	// same choice: the version number is used as a tie-breaker.
+	// Note: for the case of a conflict from disjoint pasts, there are no
+	// graft nodes (empty set) and thus no common ancestor because the two
+	// DAG fragments were created from distinct root nodes.  The "NoVersion"
+	// value is returned as the ancestor.
 	isConflict = true
 	var maxLevel uint64
 	for node, level := range info.graftNodes {

@@ -40,6 +40,7 @@ func checkSGStats(t *testing.T, svc *mockService, which string, numSG, numMember
 // TestAddSyncGroup tests adding SyncGroups.
 func TestAddSyncGroup(t *testing.T) {
 	svc := createService(t)
+	defer destroyService(t, svc)
 	st := svc.St()
 
 	checkSGStats(t, svc, "add-1", 0, 0)
@@ -170,6 +171,7 @@ func TestAddSyncGroup(t *testing.T) {
 // TestInvalidAddSyncGroup tests adding SyncGroups.
 func TestInvalidAddSyncGroup(t *testing.T) {
 	svc := createService(t)
+	defer destroyService(t, svc)
 	st := svc.St()
 
 	checkBadAddSyncGroup := func(t *testing.T, st store.Store, sg *interfaces.SyncGroup, msg string) {
@@ -203,6 +205,7 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 // TestDeleteSyncGroup tests deleting a SyncGroup.
 func TestDeleteSyncGroup(t *testing.T) {
 	svc := createService(t)
+	defer destroyService(t, svc)
 	st := svc.St()
 
 	sgName := "foobar"
@@ -288,6 +291,7 @@ func TestDeleteSyncGroup(t *testing.T) {
 // TestMultiSyncGroups tests creating multiple SyncGroups.
 func TestMultiSyncGroups(t *testing.T) {
 	svc := createService(t)
+	defer destroyService(t, svc)
 	st := svc.St()
 
 	sgName1, sgName2 := "foo", "bar"

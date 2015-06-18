@@ -69,13 +69,16 @@ type syncDatabase struct {
 }
 
 var (
-	rng                              = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	_   interfaces.SyncServerMethods = (*syncService)(nil)
-	_   util.Layer                   = (*syncService)(nil)
+	rng     = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	rngLock sync.Mutex
+	_       interfaces.SyncServerMethods = (*syncService)(nil)
+	_       util.Layer                   = (*syncService)(nil)
 )
 
 // rand64 generates an unsigned 64-bit pseudo-random number.
 func rand64() uint64 {
+	rngLock.Lock()
+	defer rngLock.Unlock()
 	return (uint64(rng.Int63()) << 1) | uint64(rng.Int63n(2))
 }
 

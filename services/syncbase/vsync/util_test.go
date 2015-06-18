@@ -7,11 +7,14 @@ package vsync
 // Utilities for testing sync.
 
 import (
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
@@ -21,8 +24,10 @@ import (
 // mockService emulates a Syncbase service that includes store and sync.
 // It is used to access a mock application.
 type mockService struct {
-	st   store.Store
-	sync *syncService
+	engine string
+	path   string
+	st     store.Store
+	sync   *syncService
 }
 
 func (s *mockService) St() store.Store {
@@ -108,14 +113,30 @@ func (d *mockDatabase) App() interfaces.App {
 }
 
 // createService creates a mock Syncbase service used for testing sync functionality.
-// At present it relies on the underlying Memstore engine.
 func createService(t *testing.T) *mockService {
-	var err error
+	engine := "leveldb"
+	path := fmt.Sprintf("%s/vsync_test_%d_%d", os.TempDir(), os.Getpid(), time.Now().UnixNano())
+
+	st, err := util.OpenStore(engine, path)
+	if err != nil {
+		t.Fatalf("cannot create store %s (%s): %v", engine, path, err)
+	}
+
 	s := &mockService{
-		st: memstore.New(),
+		st:     st,
+		engine: engine,
+		path:   path,
 	}
 	if s.sync, err = New(nil, nil, s); err != nil {
+		util.DestroyStore(engine, path)
 		t.Fatalf("cannot create sync service: %v", err)
 	}
 	return s
+}
+
+// destroyService cleans up the mock Syncbase service.
+func destroyService(t *testing.T, s *mockService) {
+	if err := util.DestroyStore(s.engine, s.path); err != nil {
+		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.path, err)
+	}
 }

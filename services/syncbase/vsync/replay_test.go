@@ -147,9 +147,7 @@ func (s *syncService) dagReplayCommands(ctx *context.T, syncfile string) (graftM
 				return nil, fmt.Errorf("cannot add local node %s:%s: %v",
 					cmd.oid, cmd.version, err)
 			}
-			tx.Commit()
 
-			tx = st.NewTransaction()
 			if err = moveHead(ctx, tx, cmd.oid, cmd.version); err != nil {
 				return nil, fmt.Errorf("cannot move head to %s:%s: %v",
 					cmd.oid, cmd.version, err)
