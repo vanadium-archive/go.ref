@@ -10,7 +10,6 @@ import (
 	"io"
 	"syscall"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/test/modules"
 )
 
@@ -69,7 +68,7 @@ func (i *Invocation) Exists() bool {
 // the test.
 func (i *Invocation) Kill(sig syscall.Signal) error {
 	pid := i.privateHandle.Pid()
-	vlog.VI(1).Infof("sending signal %v to PID %d", sig, pid)
+	i.env.ctx.VI(1).Infof("sending signal %v to PID %d", sig, pid)
 	return syscall.Kill(pid, sig)
 }
 

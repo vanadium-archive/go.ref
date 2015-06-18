@@ -12,7 +12,8 @@ import (
 	"os"
 
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
 )
 
@@ -34,7 +35,7 @@ func outputFromFile(f *os.File, out io.Writer) {
 	}
 	var err error
 	if f, err = os.Open(fName); err != nil {
-		vlog.VI(1).Infof("failed to open %q: %s\n", fName, err)
+		logger.Global().VI(1).Infof("failed to open %q: %s\n", fName, err)
 		return
 	}
 	io.Copy(out, f)

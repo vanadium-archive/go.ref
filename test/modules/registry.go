@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/internal/logger"
 	vexec "v.io/x/ref/lib/exec"
 )
 
@@ -118,7 +118,7 @@ func (r *programRegistry) dispatch() error {
 		// This is for debugging only. It's perfectly reasonable for this
 		// error to occur if the process is started by a means other
 		// than the exec library.
-		vlog.VI(1).Infof("failed to get child handle: %s", err)
+		logger.Global().VI(1).Infof("failed to get child handle: %s", err)
 	}
 
 	// Only signal that the child is ready or failed if we successfully get
@@ -150,7 +150,7 @@ func (r *programRegistry) dispatch() error {
 		for {
 			_, err := os.FindProcess(pid)
 			if err != nil {
-				vlog.Fatalf("Looks like our parent exited: %v", err)
+				logger.Global().Fatalf("Looks like our parent exited: %v", err)
 			}
 			time.Sleep(time.Second)
 		}

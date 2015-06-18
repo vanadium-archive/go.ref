@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"v.io/x/lib/envvar"
-	"v.io/x/lib/vlog"
 
+	"v.io/v23/logging"
 	"v.io/v23/verror"
 
 	"v.io/x/ref/internal/logger"
@@ -41,10 +41,11 @@ type execHandle struct {
 	external   bool
 }
 
-func testFlags() []string {
+func testFlags(l logging.Logger) []string {
 	var fl []string
 	// pass logging flags to any subprocesses
-	flags := logger.Manager(logger.Global()).ExplicitlySetFlags()
+
+	flags := logger.Manager(l).ExplicitlySetFlags()
 	for fname, fval := range flags {
 		fl = append(fl, "--"+fname+"="+fval)
 	}
@@ -106,7 +107,7 @@ func (eh *execHandle) envelope(sh *Shell, env []string, args []string) ([]string
 		delete(newenv, shellEntryPoint)
 		return newargs, envvar.MapToSlice(newenv)
 	}
-	newargs := append([]string{os.Args[0]}, testFlags()...)
+	newargs := append([]string{os.Args[0]}, testFlags(sh.logger)...)
 	newargs = append(newargs, args...)
 	newenv := envvar.SliceToMap(env)
 	newenv[shellEntryPoint] = eh.entryPoint
@@ -176,9 +177,9 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 	eh.stderr = stderr
 	eh.handle = handle
 	eh.cmd = cmd
-	vlog.VI(1).Infof("Start: %q stderr: %s", eh.desc, stderr.Name())
-	vlog.VI(1).Infof("Start: %q args: %v", eh.desc, cmd.Args)
-	vlog.VI(2).Infof("Start: %q env: %v", eh.desc, cmd.Env)
+	eh.sh.logger.VI(1).Infof("Start: %q stderr: %s", eh.desc, stderr.Name())
+	eh.sh.logger.VI(1).Infof("Start: %q args: %v", eh.desc, cmd.Args)
+	eh.sh.logger.VI(2).Infof("Start: %q env: %v", eh.desc, cmd.Env)
 	if err := handle.Start(); err != nil {
 		// The child process failed to start, either because of some setup
 		// error (e.g. creating pipes for it to use), or a bad binary etc.
@@ -199,7 +200,7 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 			return eh, err
 		}
 	}
-	vlog.VI(1).Infof("Started: %q, pid %d", eh.desc, cmd.Process.Pid)
+	eh.sh.logger.VI(1).Infof("Started: %q, pid %d", eh.desc, cmd.Process.Pid)
 	go func() {
 		eh.procErrCh <- eh.handle.Wait(0)
 		// It's now safe to close eh.stdout, since Wait only returns
@@ -220,8 +221,8 @@ func (eh *execHandle) Pid() int {
 func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
-	vlog.VI(1).Infof("Shutdown: %q", eh.desc)
-	defer vlog.VI(1).Infof("Shutdown: %q [DONE]", eh.desc)
+	eh.sh.logger.VI(1).Infof("Shutdown: %q", eh.desc)
+	defer eh.sh.logger.VI(1).Infof("Shutdown: %q [DONE]", eh.desc)
 	if eh.stdin != nil {
 		eh.stdin.Close()
 	}

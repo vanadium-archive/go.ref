@@ -45,14 +45,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/internal/logger"
 )
 
 var (
@@ -72,6 +71,7 @@ type Testing interface {
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
 	Log(args ...interface{})
+	Logf(format string, args ...interface{})
 }
 
 // NewSession creates a new Session. The parameter t may be safely be nil.
@@ -115,11 +115,11 @@ func (s *Session) log(err error, format string, args ...interface{}) {
 	}
 	loc := fmt.Sprintf("%s:%d", filepath.Base(path), line)
 	o := strings.TrimRight(fmt.Sprintf(format, args...), "\n\t ")
-	vlog.VI(2).Infof("%s: %s%s", loc, errstr, o)
 	if s.t == nil {
-		fmt.Fprintf(os.Stderr, "%s: %s%s\n", loc, errstr, o)
+		logger.Global().Infof("%s: %s%s\n", loc, errstr, o)
 		return
 	}
+	s.t.Logf("%s: %s%s", loc, errstr, o)
 	s.t.Log(loc, o)
 }
 

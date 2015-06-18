@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/test/modules"
 )
 
@@ -58,7 +57,7 @@ func (b *Binary) start(skip int, oargs ...string) *Invocation {
 	args := make([]string, len(b.prefixArgs), len(oargs)+len(b.prefixArgs))
 	copy(args, b.prefixArgs)
 	args = append(args, oargs...)
-	vlog.Infof("%s: starting %s %s", Caller(skip+1), b.Path(), strings.Join(args, " "))
+	b.env.ctx.Infof("%s: starting %s %s", Caller(skip+1), b.Path(), strings.Join(args, " "))
 	opts := b.opts
 	if opts.ExecProtocol && opts.Credentials == nil {
 		opts.Credentials, opts.Error = b.env.shell.NewChildCredentials("child")
@@ -67,7 +66,7 @@ func (b *Binary) start(skip int, oargs ...string) *Invocation {
 	handle, err := b.env.shell.StartWithOpts(opts, b.envVars, modules.Program(b.Path()), args...)
 	if err != nil {
 		if handle != nil {
-			vlog.Infof("%s: start failed", Caller(skip+1))
+			b.env.ctx.Infof("%s: start failed", Caller(skip+1))
 			handle.Shutdown(nil, os.Stderr)
 		}
 		// TODO(cnicolaou): calling Fatalf etc from a goroutine often leads
@@ -76,7 +75,7 @@ func (b *Binary) start(skip int, oargs ...string) *Invocation {
 		// call for use from goroutines.
 		b.env.Fatalf("%s: StartWithOpts(%v, %v) failed: %v", Caller(skip+1), b.Path(), strings.Join(args, ", "), err)
 	}
-	vlog.Infof("started PID %d\n", handle.Pid())
+	b.env.ctx.Infof("started PID %d\n", handle.Pid())
 	inv := &Invocation{
 		env:           b.env,
 		path:          b.path,

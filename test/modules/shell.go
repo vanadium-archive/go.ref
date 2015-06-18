@@ -142,11 +142,15 @@ import (
 	"syscall"
 	"time"
 
+	"v.io/x/lib/envvar"
+
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/logging"
 	"v.io/v23/security"
-	"v.io/x/lib/envvar"
+
 	"v.io/x/ref"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
@@ -182,6 +186,7 @@ type Shell struct {
 	principal        security.Principal
 	agent            *keymgr.Agent
 	ctx              *context.T
+	logger           logging.Logger
 	sessionVerbosity bool
 	cancelCtx        func()
 }
@@ -211,6 +216,7 @@ func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Tes
 	}
 	sh.defaultStartOpts = sh.defaultStartOpts.WithSessions(t, time.Minute)
 	if ctx == nil {
+		sh.logger = logger.Global()
 		return sh, nil
 	}
 	var err error
@@ -219,6 +225,7 @@ func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Tes
 		return nil, err
 	}
 	sh.ctx = ctx
+	sh.logger = ctx
 
 	if sh.tempCredDir, err = ioutil.TempDir("", "shell_credentials-"); err != nil {
 		return nil, err

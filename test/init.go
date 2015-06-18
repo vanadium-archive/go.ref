@@ -42,7 +42,7 @@ func init() {
 // configuring the vlog logging library, setting up the random number generator
 // etc.
 //
-// Doing so requires flags to be parse, so this function explicitly parses
+// Doing so requires flags to be parsed, so this function explicitly parses
 // flags. Thus, it is NOT a good idea to call this from the init() function
 // of any module except "main" or _test.go files.
 func Init() {

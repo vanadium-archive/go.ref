@@ -20,8 +20,9 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/test"
@@ -52,6 +53,8 @@ type TB interface {
 type T struct {
 	// The embedded TB
 	TB
+
+	ctx *context.T
 
 	// The function to shutdown the context used to create the environment.
 	shutdown v23.Shutdown
@@ -192,7 +195,7 @@ func (t *T) Pushd(dir string) string {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("%s: Chdir failed: %s", Caller(1), err)
 	}
-	vlog.VI(1).Infof("Pushd: %s -> %s", cwd, dir)
+	t.ctx.VI(1).Infof("Pushd: %s -> %s", cwd, dir)
 	t.dirStack = append(t.dirStack, cwd)
 	return cwd
 }
@@ -209,7 +212,7 @@ func (t *T) Popd() string {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("%s: Chdir failed: %s", Caller(1), err)
 	}
-	vlog.VI(1).Infof("Popd: -> %s", dir)
+	t.ctx.VI(1).Infof("Popd: -> %s", dir)
 	return dir
 }
 
@@ -240,57 +243,57 @@ func (t *T) Cleanup() {
 			if inv.hasShutdown && inv.Exists() {
 				m := fmt.Sprintf("%d: %s has been shutdown but still exists: %v", i, inv.path, inv.shutdownErr)
 				t.Log(m)
-				vlog.VI(1).Info(m)
-				vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
+				t.ctx.VI(1).Info(m)
+				t.ctx.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
 				continue
 			}
 			if inv.shutdownErr != nil {
 				m := fmt.Sprintf("%d: %s: shutdown status: %v", i, inv.path, inv.shutdownErr)
 				t.Log(m)
-				vlog.VI(1).Info(m)
-				vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
+				t.ctx.VI(1).Info(m)
+				t.ctx.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
 			}
 		}
 	}
 
-	vlog.VI(1).Infof("V23Test.Cleanup")
+	t.ctx.VI(1).Infof("V23Test.Cleanup")
 	// Shut down all processes in LIFO order before attempting to delete any
 	// files/directories to avoid potential 'file system busy' problems
 	// on non-unix systems.
 	for i := len(t.invocations); i > 0; i-- {
 		inv := t.invocations[i-1]
 		if inv.hasShutdown {
-			vlog.VI(1).Infof("V23Test.Cleanup: %q has been shutdown", inv.Path())
+			t.ctx.VI(1).Infof("V23Test.Cleanup: %q has been shutdown", inv.Path())
 			continue
 		}
-		vlog.VI(1).Infof("V23Test.Cleanup: Kill: %q", inv.Path())
+		t.ctx.VI(1).Infof("V23Test.Cleanup: Kill: %q", inv.Path())
 		err := inv.Kill(syscall.SIGTERM)
 		inv.Wait(os.Stdout, os.Stderr)
-		vlog.VI(1).Infof("V23Test.Cleanup: Killed: %q: %v", inv.Path(), err)
+		t.ctx.VI(1).Infof("V23Test.Cleanup: Killed: %q: %v", inv.Path(), err)
 	}
-	vlog.VI(1).Infof("V23Test.Cleanup: all invocations taken care of.")
+	t.ctx.VI(1).Infof("V23Test.Cleanup: all invocations taken care of.")
 
 	if err := t.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
 		t.Fatalf("WARNING: could not clean up shell (%v)", err)
 	}
 
-	vlog.VI(1).Infof("V23Test.Cleanup: cleaning up binaries & files")
+	t.ctx.VI(1).Infof("V23Test.Cleanup: cleaning up binaries & files")
 
 	for _, tempFile := range t.tempFiles {
-		vlog.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempFile.Name())
+		t.ctx.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempFile.Name())
 		if err := tempFile.Close(); err != nil {
-			vlog.Errorf("WARNING: Close(%q) failed: %v", tempFile.Name(), err)
+			t.ctx.Errorf("WARNING: Close(%q) failed: %v", tempFile.Name(), err)
 		}
 		if err := os.RemoveAll(tempFile.Name()); err != nil {
-			vlog.Errorf("WARNING: RemoveAll(%q) failed: %v", tempFile.Name(), err)
+			t.ctx.Errorf("WARNING: RemoveAll(%q) failed: %v", tempFile.Name(), err)
 		}
 	}
 
 	for _, tempDir := range t.tempDirs {
-		vlog.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempDir)
-		vlog.Infof("V23Test.Cleanup: cleaning up %s", tempDir)
+		t.ctx.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempDir)
+		t.ctx.Infof("V23Test.Cleanup: cleaning up %s", tempDir)
 		if err := os.RemoveAll(tempDir); err != nil {
-			vlog.Errorf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
+			t.ctx.Errorf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
 		}
 	}
 
@@ -340,17 +343,17 @@ func (t *T) DebugSystemShell(env ...string) {
 	dev := "/dev/tty"
 	fd, err := syscall.Open(dev, syscall.O_RDWR, 0)
 	if err != nil {
-		vlog.Errorf("WARNING: Open(%v) failed, was asked to create a debug shell but cannot: %v", dev, err)
+		t.ctx.Errorf("WARNING: Open(%v) failed, was asked to create a debug shell but cannot: %v", dev, err)
 		return
 	}
 
 	var agentFile *os.File
 	if creds, err := t.shell.NewChildCredentials("debug"); err == nil {
 		if agentFile, err = creds.File(); err != nil {
-			vlog.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
+			t.ctx.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
 		}
 	} else {
-		vlog.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
+		t.ctx.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
 	}
 
 	file := os.NewFile(uintptr(fd), dev)
@@ -466,9 +469,9 @@ func (t *T) buildPkg(pkg string, flags ...string) *Binary {
 	}
 	taken := time.Now().Sub(then)
 	if cached {
-		vlog.Infof("%s: using %s, from %s in %s.", loc, pkg, built_path, taken)
+		t.ctx.Infof("%s: using %s, from %s in %s.", loc, pkg, built_path, taken)
 	} else {
-		vlog.Infof("%s: built %s, written to %s in %s.", loc, pkg, built_path, taken)
+		t.ctx.Infof("%s: built %s, written to %s in %s.", loc, pkg, built_path, taken)
 	}
 	binary := &Binary{
 		env:     t,
@@ -488,7 +491,7 @@ func (t *T) NewTempFile() *os.File {
 	if err != nil {
 		t.Fatalf("%s: TempFile() failed: %v", loc, err)
 	}
-	vlog.Infof("%s: created temporary file at %s", loc, f.Name())
+	t.ctx.Infof("%s: created temporary file at %s", loc, f.Name())
 	t.tempFiles = append(t.tempFiles, f)
 	return f
 }
@@ -501,7 +504,7 @@ func (t *T) NewTempDir(dir string) string {
 	if err != nil {
 		t.Fatalf("%s: TempDir() failed: %v", loc, err)
 	}
-	vlog.Infof("%s: created temporary directory at %s", loc, f)
+	t.ctx.Infof("%s: created temporary directory at %s", loc, f)
 	t.tempDirs = append(t.tempDirs, f)
 	return f
 }
@@ -525,12 +528,13 @@ func (t *T) appendInvocation(inv *Invocation) {
 func New(t TB) *T {
 	ctx, shutdown := v23.Init()
 
-	vlog.Infof("creating root principal")
 	principal := testutil.NewPrincipal("root")
 	ctx, err := v23.WithPrincipal(ctx, principal)
 	if err != nil {
 		t.Fatalf("failed to set principal: %v", err)
 	}
+
+	ctx.Infof("created root principal: %v", principal)
 
 	shell, err := modules.NewShell(ctx, principal, testing.Verbose(), t)
 	if err != nil {
@@ -549,6 +553,7 @@ func New(t TB) *T {
 	cachedBinDir := os.Getenv("V23_BIN_DIR")
 	e := &T{
 		TB:            t,
+		ctx:           ctx,
 		principal:     principal,
 		builtBinaries: make(map[string]*Binary),
 		shell:         shell,
@@ -583,7 +588,7 @@ func (t *T) BinDir() string {
 // function.
 func buildPkg(t *T, binDir, pkg string, flags []string) (bool, string, error) {
 	binFile := filepath.Join(binDir, path.Base(pkg))
-	vlog.Infof("buildPkg: %v .. %v %v", binDir, pkg, flags)
+	t.ctx.Infof("buildPkg: %v .. %v %v", binDir, pkg, flags)
 	if _, err := os.Stat(binFile); err != nil {
 		if !os.IsNotExist(err) {
 			return false, "", err
@@ -601,7 +606,7 @@ func buildPkg(t *T, binDir, pkg string, flags []string) (bool, string, error) {
 		buildArgs = append(buildArgs, pkg)
 		cmd := exec.Command("v23", buildArgs...)
 		if output, err := cmd.CombinedOutput(); err != nil {
-			vlog.VI(1).Infof("\n%v:\n%v\n", strings.Join(cmd.Args, " "), string(output))
+			t.ctx.VI(1).Infof("\n%v:\n%v\n", strings.Join(cmd.Args, " "), string(output))
 			return false, "", err
 		}
 		if err := os.Rename(uniqueBinFile, binFile); err != nil {
@@ -638,7 +643,7 @@ func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
 	inv := b.start(1, args...)
 	name := inv.ExpectVar("NAME")
 	inv.Environment().SetVar(ref.EnvNamespacePrefix, name)
-	vlog.Infof("Running root mount table: %q", name)
+	i.ctx.Infof("Running root mount table: %q", name)
 	return b, inv
 }
 
@@ -652,12 +657,9 @@ func UseSharedBinDir() func() {
 	if v23BinDir := os.Getenv("V23_BIN_DIR"); len(v23BinDir) == 0 {
 		v23BinDir, err := ioutil.TempDir("", "bin-")
 		if err == nil {
-			vlog.Infof("Setting V23_BIN_DIR to %q", v23BinDir)
 			os.Setenv("V23_BIN_DIR", v23BinDir)
 			return func() { os.RemoveAll(v23BinDir) }
 		}
-	} else {
-		vlog.Infof("Using V23_BIN_DIR %q", v23BinDir)
 	}
 	return func() {}
 }
