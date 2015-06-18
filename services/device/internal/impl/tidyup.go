@@ -14,6 +14,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
+
+	"v.io/x/lib/vlog"
 )
 
 // This file contains the various routines that the device manager uses
@@ -24,6 +26,10 @@ const aboutOneDay = time.Hour * 24
 func oldEnoughToTidy(fi os.FileInfo, now time.Time) bool {
 	return fi.ModTime().Add(aboutOneDay).Before(now)
 }
+
+// AutomaticTidyingInterval defaults to 1 day.
+// Settable for tests.
+var AutomaticTidyingInterval = time.Hour * 24
 
 func shouldDelete(idir, suffix string, now time.Time) (bool, error) {
 	fi, err := os.Stat(filepath.Join(idir, suffix))
@@ -204,4 +210,49 @@ func pruneOldLogs(ctx *context.T, root string, now time.Time) error {
 		}
 	}
 	return processErrors(ctx, allerrors)
+}
+
+// tidyHarness runs device manager cleanup operations
+func tidyHarness(ctx *context.T, root string) error {
+	now := MockableNow()
+
+	if err := pruneDeletedInstances(ctx, root, now); err != nil {
+		return err
+	}
+
+	if err := pruneUninstalledInstallations(ctx, root, now); err != nil {
+		return err
+	}
+
+	return pruneOldLogs(ctx, root, now)
+}
+
+// tidyDaemon runs in a Go routine, processing requests to tidy
+// or tidying on a schedule.
+func tidyDaemon(c <-chan tidyRequests, root string) {
+	for {
+		select {
+		case req, ok := <-c:
+			if !ok {
+				return
+			}
+			req.bc <- tidyHarness(req.ctx, root)
+		case <-time.After(AutomaticTidyingInterval):
+			if err := tidyHarness(nil, root); err != nil {
+				vlog.Errorf("tidyDaemon failed to tidy: %v", err)
+			}
+		}
+
+	}
+}
+
+type tidyRequests struct {
+	ctx *context.T
+	bc  chan<- error
+}
+
+func newTidyingDaemon(root string) chan<- tidyRequests {
+	c := make(chan tidyRequests)
+	go tidyDaemon(c, root)
+	return c
 }

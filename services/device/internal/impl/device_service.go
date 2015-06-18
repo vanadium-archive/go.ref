@@ -110,6 +110,7 @@ type deviceService struct {
 	disp           *dispatcher
 	uat            BlessingSystemAssociationStore
 	securityAgent  *securityAgentState
+	tidying        chan<- tidyRequests
 }
 
 // Version info for this device manager binary. Increment as appropriate when the binary changes.
@@ -677,21 +678,8 @@ func (s *deviceService) Status(*context.T, rpc.ServerCall) (device.Status, error
 	}}, nil
 }
 
-// tidyHarness runs device manager cleanup operations
-func (s *deviceService) tidyHarness(ctx *context.T) error {
-	now := MockableNow()
-
-	if err := pruneDeletedInstances(ctx, s.config.Root, now); err != nil {
-		return err
-	}
-
-	if err := pruneUninstalledInstallations(ctx, s.config.Root, now); err != nil {
-		return err
-	}
-
-	return pruneOldLogs(ctx, s.config.Root, now)
-}
-
-func (s *deviceService) TidyNow(ctx *context.T, call rpc.ServerCall) error {
-	return s.tidyHarness(ctx)
+func (s *deviceService) TidyNow(ctx *context.T, _ rpc.ServerCall) error {
+	ec := make(chan error)
+	s.tidying <- tidyRequests{ctx: ctx, bc: ec}
+	return <-ec
 }

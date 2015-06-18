@@ -43,6 +43,8 @@ type internalState struct {
 	testMode       bool
 	// reap is the app process monitoring subsystem.
 	reap *reaper
+	// tidying is the automatic state tidying subsystem.
+	tidying chan<- tidyRequests
 }
 
 // dispatcher holds the state of the device manager dispatcher.
@@ -125,6 +127,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 			updating:       newUpdatingState(),
 			restartHandler: restartHandler,
 			testMode:       testMode,
+			tidying:        newTidyingDaemon(config.Root),
 		},
 		config:     config,
 		uat:        uat,
@@ -278,6 +281,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			disp:           d,
 			uat:            d.uat,
 			securityAgent:  d.internal.securityAgent,
+			tidying:        d.internal.tidying,
 		})
 		return receiver, auth, nil
 	case appsSuffix:
