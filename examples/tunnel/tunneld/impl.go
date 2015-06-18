@@ -17,8 +17,9 @@ import (
 	"syscall"
 
 	"v.io/v23/context"
+	"v.io/v23/logging"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/internal"
 )
@@ -36,15 +37,15 @@ func (t *T) Forward(ctx *context.T, call tunnel.TunnelForwardServerCall, network
 	}
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	name := fmt.Sprintf("RemoteBlessings:%v LocalAddr:%v RemoteAddr:%v", b, conn.LocalAddr(), conn.RemoteAddr())
-	vlog.Infof("TUNNEL START: %v", name)
+	ctx.Infof("TUNNEL START: %v", name)
 	err = internal.Forward(conn, call.SendStream(), call.RecvStream())
-	vlog.Infof("TUNNEL END  : %v (%v)", name, err)
+	ctx.Infof("TUNNEL END  : %v (%v)", name, err)
 	return err
 }
 
 func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command string, shellOpts tunnel.ShellOpts) (int32, error) {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
-	vlog.Infof("SHELL START for %v: %q", b, command)
+	ctx.Infof("SHELL START for %v: %q", b, command)
 	shell, err := findShell()
 	if err != nil {
 		return nonShellErrorCode, err
@@ -53,7 +54,7 @@ func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command str
 	// An empty command means that we need an interactive shell.
 	if len(command) == 0 {
 		c = exec.Command(shell, "-i")
-		sendMotd(call)
+		sendMotd(ctx, call)
 	} else {
 		c = exec.Command(shell, "-c", command)
 	}
@@ -63,10 +64,10 @@ func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command str
 		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 	}
 	c.Env = append(c.Env, shellOpts.Environment...)
-	vlog.Infof("Shell environment: %v", c.Env)
+	ctx.Infof("Shell environment: %v", c.Env)
 
 	c.Dir = os.Getenv("HOME")
-	vlog.Infof("Shell CWD: %v", c.Dir)
+	ctx.Infof("Shell CWD: %v", c.Dir)
 
 	var (
 		stdin          io.WriteCloser // We write to stdin.
@@ -86,7 +87,7 @@ func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command str
 
 		defer f.Close()
 
-		setWindowSize(ptyFd, shellOpts.WinSize.Rows, shellOpts.WinSize.Cols)
+		setWindowSize(ctx, ptyFd, shellOpts.WinSize.Rows, shellOpts.WinSize.Cols)
 	} else {
 		var err error
 		if stdin, err = c.StdinPipe(); err != nil {
@@ -105,7 +106,7 @@ func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command str
 		defer stderr.Close()
 
 		if err = c.Start(); err != nil {
-			vlog.Infof("Cmd.Start failed: %v", err)
+			ctx.Infof("Cmd.Start failed: %v", err)
 			return nonShellErrorCode, err
 		}
 	}
@@ -115,7 +116,7 @@ func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command str
 	select {
 	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, call):
 		b, _ := security.RemoteBlessingNames(ctx, call.Security())
-		vlog.Infof("SHELL END for %v: %q (%v)", b, command, runErr)
+		ctx.Infof("SHELL END for %v: %q (%v)", b, command, runErr)
 		return harvestExitcode(c.Process, runErr)
 	case <-ctx.Done():
 		return nonShellErrorCode, fmt.Errorf("remote end exited")
@@ -155,7 +156,7 @@ func findShell() (string, error) {
 }
 
 // sendMotd sends the content of the MOTD file to the stream, if it exists.
-func sendMotd(s tunnel.TunnelShellServerStream) {
+func sendMotd(logger logging.Logger, s tunnel.TunnelShellServerStream) {
 	data, err := ioutil.ReadFile("/etc/motd")
 	if err != nil {
 		// No MOTD. That's OK.
@@ -163,13 +164,13 @@ func sendMotd(s tunnel.TunnelShellServerStream) {
 	}
 	packet := tunnel.ServerShellPacketStdout{[]byte(data)}
 	if err = s.SendStream().Send(packet); err != nil {
-		vlog.Infof("Send failed: %v", err)
+		logger.Infof("Send failed: %v", err)
 	}
 }
 
-func setWindowSize(fd uintptr, row, col uint16) {
+func setWindowSize(logger logging.Logger, fd uintptr, row, col uint16) {
 	ws := internal.Winsize{Row: row, Col: col}
 	if err := internal.SetWindowSize(fd, ws); err != nil {
-		vlog.Infof("Failed to set window size: %v", err)
+		logger.Infof("Failed to set window size: %v", err)
 	}
 }

@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/internal/logger"
 )
 
 // Winsize defines the window size used by ioctl TIOCGWINSZ and TIOCSWINSZ.
@@ -21,12 +21,11 @@ type Winsize struct {
 	Row    uint16
 	Col    uint16
 	Xpixel uint16
-	Ypixel uint16
 }
 
 // SetWindowSize sets the terminal's window size.
 func SetWindowSize(fd uintptr, ws Winsize) error {
-	vlog.Infof("Setting window size: %v", ws)
+	logger.Global().Infof("Setting window size: %v", ws)
 	ret, _, _ := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		fd,
@@ -60,7 +59,7 @@ func EnterRawTerminalMode() string {
 	var savedBytes []byte
 	var err error
 	if savedBytes, err = exec.Command("stty", "-F", "/dev/tty", "-g").Output(); err != nil {
-		vlog.Infof("Failed to save terminal settings: %q (%v)", savedBytes, err)
+		logger.Global().Infof("Failed to save terminal settings: %q (%v)", savedBytes, err)
 	}
 	saved := strings.TrimSpace(string(savedBytes))
 
@@ -86,7 +85,7 @@ func EnterRawTerminalMode() string {
 		"-iexten",
 	}
 	if out, err := exec.Command("stty", args...).CombinedOutput(); err != nil {
-		vlog.Infof("stty failed (%v) (%q)", err, out)
+		logger.Global().Infof("stty failed (%v) (%q)", err, out)
 	}
 
 	return string(saved)
@@ -100,6 +99,6 @@ func RestoreTerminalSettings(saved string) {
 		saved,
 	}
 	if out, err := exec.Command("stty", args...).CombinedOutput(); err != nil {
-		vlog.Infof("stty failed (%v) (%q)", err, out)
+		logger.Global().Infof("stty failed (%v) (%q)", err, out)
 	}
 }

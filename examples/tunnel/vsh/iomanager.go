@@ -12,9 +12,9 @@ import (
 	"sync"
 	"syscall"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/internal"
+	"v.io/x/ref/internal/logger"
 )
 
 func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellClientCall) error {
@@ -81,14 +81,14 @@ func (m *ioManager) run() error {
 		// When we receive an error from the stream, wait for any
 		// remaining stream output to be sent to the user before
 		// exiting.
-		vlog.VI(2).Infof("run stream error: %v", err)
+		logger.Global().VI(2).Infof("run stream error: %v", err)
 		pendingStreamOutput.Wait()
 		return err
 	case err := <-m.stdioError:
 		// When we receive an error from the user, wait for any
 		// remaining input from the user to be sent to the stream
 		// before exiting.
-		vlog.VI(2).Infof("run stdio error: %v", err)
+		logger.Global().VI(2).Infof("run stdio error: %v", err)
 		pendingUserInput.Wait()
 		return err
 	}
@@ -113,9 +113,9 @@ func (m *ioManager) chan2stream(outchan <-chan tunnel.ClientShellPacket, wg *syn
 	defer wg.Done()
 	sender := m.stream.SendStream()
 	for packet := range outchan {
-		vlog.VI(3).Infof("chan2stream packet: %+v", packet)
+		logger.Global().VI(3).Infof("chan2stream packet: %+v", packet)
 		if err := sender.Send(packet); err != nil {
-			vlog.VI(2).Infof("chan2stream: %v", err)
+			logger.Global().VI(2).Infof("chan2stream: %v", err)
 			m.sendStreamError(err)
 		}
 	}
@@ -127,7 +127,7 @@ func (m *ioManager) handleWindowResize(winch <-chan os.Signal, outchan chan<- tu
 	for _ = range winch {
 		ws, err := internal.GetWindowSize()
 		if err != nil {
-			vlog.Infof("GetWindowSize failed: %v", err)
+			logger.Global().Infof("GetWindowSize failed: %v", err)
 			continue
 		}
 		outchan <- tunnel.ClientShellPacketWinSize{tunnel.WindowSize{ws.Row, ws.Col}}
@@ -141,12 +141,12 @@ func (m *ioManager) user2outchan(outchan chan<- tunnel.ClientShellPacket, wg *sy
 		buf := make([]byte, 2048)
 		n, err := m.stdin.Read(buf[:])
 		if err == io.EOF {
-			vlog.VI(2).Infof("user2outchan: EOF, closing stdin")
+			logger.Global().VI(2).Infof("user2outchan: EOF, closing stdin")
 			outchan <- tunnel.ClientShellPacketEndOfFile{}
 			return
 		}
 		if err != nil {
-			vlog.VI(2).Infof("user2outchan: %v", err)
+			logger.Global().VI(2).Infof("user2outchan: %v", err)
 			m.sendStdioError(err)
 			return
 		}
@@ -160,7 +160,7 @@ func (m *ioManager) stream2user(wg *sync.WaitGroup) {
 	rStream := m.stream.RecvStream()
 	for rStream.Advance() {
 		packet := rStream.Value()
-		vlog.VI(3).Infof("stream2user packet: %+v", packet)
+		logger.Global().VI(3).Infof("stream2user packet: %+v", packet)
 
 		switch v := packet.(type) {
 		case tunnel.ServerShellPacketStdout:
@@ -174,13 +174,13 @@ func (m *ioManager) stream2user(wg *sync.WaitGroup) {
 				return
 			}
 		default:
-			vlog.Infof("unexpected message type: %T", packet)
+			logger.Global().Infof("unexpected message type: %T", packet)
 		}
 	}
 	err := rStream.Err()
 	if err == nil {
 		err = io.EOF
 	}
-	vlog.VI(2).Infof("stream2user: %v", err)
+	logger.Global().VI(2).Infof("stream2user: %v", err)
 	m.sendStreamError(err)
 }

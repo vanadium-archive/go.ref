@@ -8,7 +8,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/stats"
@@ -31,8 +30,8 @@ func (k *ScoreKeeper) Stats() int64 {
 
 func (k *ScoreKeeper) Record(ctx *context.T, call rpc.ServerCall, score rps.ScoreCard) error {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
-	vlog.VI(1).Infof("Received ScoreCard from %v:", b)
-	vlog.VI(1).Info(internal.FormatScoreCard(score))
+	ctx.VI(1).Infof("Received ScoreCard from %v:", b)
+	ctx.VI(1).Info(internal.FormatScoreCard(score))
 	k.numRecords.Incr(1)
 	return nil
 }

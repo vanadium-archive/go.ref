@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/stats"
@@ -46,37 +46,37 @@ func (p *Player) WaitUntilIdle() {
 func (p *Player) InitiateGame(ctx *context.T) error {
 	judge, err := internal.FindJudge(ctx)
 	if err != nil {
-		vlog.Infof("FindJudge: %v", err)
+		ctx.Infof("FindJudge: %v", err)
 		return err
 	}
 	gameID, gameOpts, err := p.createGame(ctx, judge)
 	if err != nil {
-		vlog.Infof("createGame: %v", err)
+		ctx.Infof("createGame: %v", err)
 		return err
 	}
-	vlog.VI(1).Infof("Created gameID %q on %q", gameID, judge)
+	ctx.VI(1).Infof("Created gameID %q on %q", gameID, judge)
 
 	for {
 		opponent, err := internal.FindPlayer(ctx)
 		if err != nil {
-			vlog.Infof("FindPlayer: %v", err)
+			ctx.Infof("FindPlayer: %v", err)
 			return err
 		}
-		vlog.VI(1).Infof("chosen opponent is %q", opponent)
+		ctx.VI(1).Infof("chosen opponent is %q", opponent)
 		if err = p.sendChallenge(ctx, opponent, judge, gameID, gameOpts); err == nil {
 			break
 		}
-		vlog.Infof("sendChallenge: %v", err)
+		ctx.Infof("sendChallenge: %v", err)
 	}
 	result, err := p.playGame(ctx, judge, gameID)
 	if err != nil {
-		vlog.Infof("playGame: %v", err)
+		ctx.Infof("playGame: %v", err)
 		return err
 	}
 	if result.YouWon {
-		vlog.VI(1).Info("Game result: I won! :)")
+		ctx.VI(1).Info("Game result: I won! :)")
 	} else {
-		vlog.VI(1).Info("Game result: I lost :(")
+		ctx.VI(1).Info("Game result: I lost :(")
 	}
 	return nil
 }
@@ -101,7 +101,7 @@ func (p *Player) sendChallenge(ctx *context.T, opponent, judge string, gameID rp
 // challenge receives an incoming challenge and starts to play a new game.
 // Note that the new game will occur in a new context.
 func (p *Player) challenge(ctx *context.T, judge string, gameID rps.GameId, _ rps.GameOptions) error {
-	vlog.VI(1).Infof("challenge received: %s %v", judge, gameID)
+	ctx.VI(1).Infof("challenge received: %s %v", judge, gameID)
 	go p.playGame(ctx, judge, gameID)
 	return nil
 }
@@ -124,31 +124,31 @@ func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameId) (rp
 		in := rStream.Value()
 		switch v := in.(type) {
 		case rps.JudgeActionPlayerNum:
-			vlog.VI(1).Infof("I'm player %d", v.Value)
+			outer.VI(1).Infof("I'm player %d", v.Value)
 		case rps.JudgeActionOpponentName:
-			vlog.VI(1).Infof("My opponent is %q", v.Value)
+			outer.VI(1).Infof("My opponent is %q", v.Value)
 		case rps.JudgeActionMoveOptions:
 			opts := v.Value
 			n := rand.Intn(len(opts))
-			vlog.VI(1).Infof("My turn to play. Picked %q from %v", opts[n], opts)
+			outer.VI(1).Infof("My turn to play. Picked %q from %v", opts[n], opts)
 			if err := sender.Send(rps.PlayerActionMove{opts[n]}); err != nil {
 				return rps.PlayResult{}, err
 			}
 		case rps.JudgeActionRoundResult:
 			rr := v.Value
-			vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %v %s",
+			outer.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %v %s",
 				rr.Moves[0], rr.Moves[1], rr.Winner, rr.Comment)
 		case rps.JudgeActionScore:
-			vlog.VI(1).Infof("Score card: %s", internal.FormatScoreCard(v.Value))
+			outer.VI(1).Infof("Score card: %s", internal.FormatScoreCard(v.Value))
 		default:
-			vlog.Infof("unexpected message type: %T", in)
+			outer.Infof("unexpected message type: %T", in)
 		}
 	}
 
 	if err := rStream.Err(); err != nil {
-		vlog.Infof("stream error: %v", err)
+		outer.Infof("stream error: %v", err)
 	} else {
-		vlog.VI(1).Infof("Game Ended")
+		outer.VI(1).Infof("Game Ended")
 	}
 	result, err := game.Finish()
 	p.gamesPlayed.Incr(1)

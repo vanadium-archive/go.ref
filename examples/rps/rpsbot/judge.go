@@ -12,9 +12,10 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/counter"
 )
@@ -85,7 +86,7 @@ func (j *Judge) Stats() int64 {
 
 // createGame handles a request to create a new game.
 func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameId, error) {
-	vlog.VI(1).Infof("createGame called")
+	logger.Global().VI(1).Infof("createGame called")
 	score := rps.ScoreCard{Opts: opts, Judge: ownName}
 	now := time.Now()
 	id := rps.GameId{Id: strconv.FormatInt(now.UnixNano(), 16)}
@@ -94,7 +95,7 @@ func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameId, er
 	defer j.lock.Unlock()
 	for k, v := range j.games {
 		if now.Sub(v.startTime) > 1*time.Hour {
-			vlog.Infof("Removing stale game ID %v", k)
+			logger.Global().Infof("Removing stale game ID %v", k)
 			delete(j.games, k)
 		}
 	}
@@ -114,7 +115,7 @@ func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameId, er
 
 // play interacts with a player for the duration of a game.
 func (j *Judge) play(ctx *context.T, call rps.JudgePlayServerCall, name string, id rps.GameId) (rps.PlayResult, error) {
-	vlog.VI(1).Infof("play from %q for %v", name, id)
+	ctx.VI(1).Infof("play from %q for %v", name, id)
 	nilResult := rps.PlayResult{}
 
 	pIn, pOut, s, err := j.gameChannels(id)
@@ -125,7 +126,7 @@ func (j *Judge) play(ctx *context.T, call rps.JudgePlayServerCall, name string, 
 	if err != nil {
 		return nilResult, err
 	}
-	vlog.VI(1).Infof("This is player %d", playerNum)
+	ctx.VI(1).Infof("This is player %d", playerNum)
 
 	// Send all user input to the player input channel.
 	stopRead := make(chan struct{})
@@ -151,7 +152,7 @@ func (j *Judge) play(ctx *context.T, call rps.JudgePlayServerCall, name string, 
 		defer close(writeDone)
 		for packet := range pOut[playerNum-1] {
 			if err := call.SendStream().Send(packet); err != nil {
-				vlog.Infof("error sending to player stream: %v", err)
+				ctx.Infof("error sending to player stream: %v", err)
 			}
 		}
 	}()
@@ -231,7 +232,7 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameId) {
 	defer cancel()
 	keepers, err := internal.FindScoreKeepers(scoreCtx)
 	if err != nil || len(keepers) == 0 {
-		vlog.Infof("No score keepers: %v", err)
+		ctx.Infof("No score keepers: %v", err)
 		return
 	}
 	var wg sync.WaitGroup
@@ -267,11 +268,11 @@ func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 			}
 			round.Moves[in.player-1] = move
 		default:
-			vlog.Infof("unexpected message type: %T", in.action)
+			logger.Global().Infof("unexpected message type: %T", in.action)
 		}
 	}
 	round.Winner, round.Comment = j.compareMoves(round.Moves[0], round.Moves[1])
-	vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %d %s", round.Moves[0], round.Moves[1], round.Winner, round.Comment)
+	logger.Global().VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %d %s", round.Moves[0], round.Moves[1], round.Winner, round.Comment)
 
 	action = rps.JudgeActionRoundResult{round}
 	for _, p := range info.playerOut {
@@ -311,7 +312,7 @@ func (j *Judge) sendScore(ctx *context.T, address string, score rps.ScoreCard, w
 	defer wg.Done()
 	k := rps.RockPaperScissorsClient(address)
 	if err := k.Record(ctx, score); err != nil {
-		vlog.Infof("Record: %v", err)
+		logger.Global().Infof("Record: %v", err)
 		return err
 	}
 	return nil

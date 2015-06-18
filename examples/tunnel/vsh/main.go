@@ -13,14 +13,15 @@ import (
 	"net"
 	"strings"
 
-	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
+	"v.io/v23/context"
+
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/internal"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
@@ -110,7 +111,7 @@ func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		exitMsg += fmt.Sprintf(" (%v)", err)
 	}
-	vlog.VI(1).Info(exitMsg)
+	ctx.VI(1).Info(exitMsg)
 	// Only show the exit message on stdout for interactive shells.
 	// Otherwise, the exit message might get confused with the output
 	// of the command that was run.
@@ -127,7 +128,7 @@ func shellOptions(env *cmdline.Env, cmd string) (opts tunnel.ShellOpts) {
 	opts.Environment = environment(env.Vars)
 	ws, err := internal.GetWindowSize()
 	if err != nil {
-		vlog.VI(1).Infof("GetWindowSize failed: %v", err)
+		logger.Global().VI(1).Infof("GetWindowSize failed: %v", err)
 	} else {
 		opts.WinSize.Rows = ws.Row
 		opts.WinSize.Cols = ws.Col
@@ -173,35 +174,35 @@ func runPortForwarding(ctx *context.T, t tunnel.TunnelClientMethods, oname strin
 	parts := strings.Split(portforward, ",")
 	var laddr, raddr string
 	if len(parts) != 2 {
-		vlog.Fatalf("-L flag expects 2 values separated by a comma")
+		ctx.Fatalf("-L flag expects 2 values separated by a comma")
 	}
 	laddr = parts[0]
 	raddr = parts[1]
 
 	ln, err := net.Listen(lprotocol, laddr)
 	if err != nil {
-		vlog.Fatalf("net.Listen(%q, %q) failed: %v", lprotocol, laddr, err)
+		ctx.Fatalf("net.Listen(%q, %q) failed: %v", lprotocol, laddr, err)
 	}
 	defer ln.Close()
-	vlog.VI(1).Infof("Listening on %q", ln.Addr())
+	ctx.VI(1).Infof("Listening on %q", ln.Addr())
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			vlog.Infof("Accept failed: %v", err)
+			ctx.Infof("Accept failed: %v", err)
 			continue
 		}
 		stream, err := t.Forward(ctx, rprotocol, raddr)
 		if err != nil {
-			vlog.Infof("Tunnel(%q, %q) failed: %v", rprotocol, raddr, err)
+			ctx.Infof("Tunnel(%q, %q) failed: %v", rprotocol, raddr, err)
 			conn.Close()
 			continue
 		}
 		name := fmt.Sprintf("%v-->%v-->(%v)-->%v", conn.RemoteAddr(), conn.LocalAddr(), oname, raddr)
 		go func() {
-			vlog.VI(1).Infof("TUNNEL START: %v", name)
+			ctx.VI(1).Infof("TUNNEL START: %v", name)
 			errf := internal.Forward(conn, stream.SendStream(), stream.RecvStream())
 			err := stream.Finish()
-			vlog.VI(1).Infof("TUNNEL END  : %v (%v, %v)", name, errf, err)
+			ctx.VI(1).Infof("TUNNEL END  : %v (%v, %v)", name, errf, err)
 		}()
 	}
 }

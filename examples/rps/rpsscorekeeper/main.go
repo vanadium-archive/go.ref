@@ -11,16 +11,16 @@ import (
 	"fmt"
 	"os"
 
+	"v.io/x/lib/cmdline"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/v23cmd"
-
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -49,7 +49,7 @@ type impl struct {
 
 func (i *impl) Record(ctx *context.T, call rpc.ServerCall, score rps.ScoreCard) error {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
-	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
+	ctx.VI(1).Infof("Record (%+v) from %v", score, b)
 	i.ch <- score
 	return nil
 }
@@ -76,7 +76,7 @@ func runScoreKeeper(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), internal.NewAuthorizer(aclFile)); err != nil {
 		return fmt.Errorf("Serve failed: %v", err)
 	}
-	vlog.Infof("Listening on endpoint /%s", ep)
+	ctx.Infof("Listening on endpoint /%s", ep)
 
 	for score := range ch {
 		fmt.Print("======================\n", internal.FormatScoreCard(score))

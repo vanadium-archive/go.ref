@@ -18,19 +18,20 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/examples/rps"
+	"v.io/x/ref/internal/logger"
 )
 
 // CreateName creates a name using the username and hostname.
 func CreateName() string {
 	hostname, err := os.Hostname()
 	if err != nil {
-		vlog.Fatalf("os.Hostname failed: %v", err)
+		logger.Global().Fatalf("os.Hostname failed: %v", err)
 	}
 	u, err := user.Current()
 	if err != nil {
-		vlog.Fatalf("user.Current failed: %v", err)
+		logger.Global().Fatalf("user.Current failed: %v", err)
 	}
 	return u.Username + "@" + hostname
 }
@@ -74,19 +75,19 @@ func findAll(ctx *context.T, t string) ([]string, error) {
 	ns := v23.GetNamespace(ctx)
 	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {
-		vlog.Infof("mt.Glob failed: %v", err)
+		ctx.Infof("mt.Glob failed: %v", err)
 		return nil, err
 	}
 	var servers []string
 	for e := range c {
 		switch v := e.(type) {
 		case *naming.GlobReplyError:
-			vlog.VI(1).Infof("findAll(%q) error for %q: %v", t, v.Value.Name, v.Value.Error)
+			ctx.VI(1).Infof("findAll(%q) error for %q: %v", t, v.Value.Name, v.Value.Error)
 		case *naming.GlobReplyEntry:
 			servers = append(servers, v.Value.Name)
 		}
 	}
-	vlog.VI(1).Infof("findAll(%q) elapsed: %s", t, time.Now().Sub(start))
+	ctx.VI(1).Infof("findAll(%q) elapsed: %s", t, time.Now().Sub(start))
 	return servers, nil
 }
 
