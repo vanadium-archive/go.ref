@@ -476,9 +476,8 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 		}
 		return
 	}
-	newVC := func(vf, remote *vif.VIF) (VC stream.VC, ln stream.Listener, remoteVC stream.Connector) {
-		triggerTimers := vif.SetFakeTimers()
-		defer triggerTimers()
+	newVC := func(vf, remote *vif.VIF) (VC stream.VC, ln stream.Listener, remoteVC stream.Connector, triggerTimers func()) {
+		triggerTimers = vif.SetFakeTimers()
 		var err error
 		VC, remoteVC, err = createVC(vf, remote, pclient, makeEP(0x10), vc.IdleTimeout{idleTime})
 		if err != nil {
@@ -500,14 +499,15 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 
 	// No active flow. Should be notified.
 	vf, remote := newVIF()
-	_, _, _ = newVC(vf, remote)
+	_, _, _, triggerTimers := newVC(vf, remote)
+	triggerTimers()
 	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
 		t.Error(err)
 	}
 
 	// Same as above, but with multiple VCs.
 	vf, remote = newVIF()
-	triggerTimers := vif.SetFakeTimers()
+	triggerTimers = vif.SetFakeTimers()
 	if _, _, err := createNVCs(vf, remote, pclient, 0x10, 5, vc.IdleTimeout{idleTime}); err != nil {
 		t.Fatal(err)
 	}
@@ -518,10 +518,11 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 
 	// Open one flow. Should not be notified.
 	vf, remote = newVIF()
-	vc, _, _ := newVC(vf, remote)
+	vc, _, _, triggerTimers := newVC(vf, remote)
 	f1 := newFlow(vc, remote)
+	triggerTimers()
 	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	// Close the flow. Should be notified.
@@ -532,17 +533,17 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 
 	// Open two flows.
 	vf, remote = newVIF()
-	vc, _, _ = newVC(vf, remote)
+	vc, _, _, triggerTimers = newVC(vf, remote)
 	f1 = newFlow(vc, remote)
 	f2 := newFlow(vc, remote)
+	triggerTimers()
 
 	// Close the first flow twice. Should not be notified.
 	f1.Close()
 	f1.Close()
 	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-
 	// Close the second flow. Should be notified now.
 	f2.Close()
 	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {
@@ -551,14 +552,15 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 
 	// Same as above, but open a flow from the remote side.
 	vf, remote = newVIF()
-	_, ln, remoteVC := newVC(vf, remote)
+	_, ln, remoteVC, triggerTimers := newVC(vf, remote)
 	f1, err := remoteVC.Connect()
 	if err != nil {
 		t.Fatal(err)
 	}
 	acceptFlowAtClient(ln)
+	triggerTimers()
 	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	f1.Close()
 	if err := vif.WaitForNotifications(notify, vf, remote); err != nil {

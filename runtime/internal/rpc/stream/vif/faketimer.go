@@ -37,9 +37,15 @@ func (t *fakeTimer) Stop() bool {
 func (t *fakeTimer) Reset(d time.Duration) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	active := t.timer.Stop()
 	t.timeout = d
 	t.stopped = false
-	return t.timer.Reset(t.timeout)
+	if t.timeout > 0 {
+		t.timer = newTimer(t.timeout, t.timeoutFunc)
+	} else {
+		t.timer = noopTimer{}
+	}
+	return active
 }
 
 func (t *fakeTimer) run(release <-chan struct{}, wg *sync.WaitGroup) {
@@ -47,11 +53,8 @@ func (t *fakeTimer) run(release <-chan struct{}, wg *sync.WaitGroup) {
 	<-release // Wait until notified to run.
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.timeout > 0 {
+	if t.timeout > 0 && !t.stopped {
 		t.timer = newTimer(t.timeout, t.timeoutFunc)
-	}
-	if t.stopped {
-		t.timer.Stop()
 	}
 }
 
