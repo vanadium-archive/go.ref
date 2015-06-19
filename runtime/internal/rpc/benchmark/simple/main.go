@@ -15,7 +15,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 
-	"v.io/x/lib/vlog"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
@@ -48,6 +47,7 @@ func benchmarkRPCConnection(b *testing.B) {
 	defer runtime.GOMAXPROCS(mp)
 
 	principal := testutil.NewPrincipal("test")
+	nctx, _ := v23.WithPrincipal(ctx, principal)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -55,9 +55,9 @@ func benchmarkRPCConnection(b *testing.B) {
 
 		b.StartTimer()
 
-		_, err := client.Dial(serverEP, principal)
+		_, err := client.Dial(serverEP, v23.GetPrincipal(nctx))
 		if err != nil {
-			vlog.Fatalf("Dial failed: %v", err)
+			ctx.Fatalf("Dial failed: %v", err)
 		}
 
 		b.StopTimer()

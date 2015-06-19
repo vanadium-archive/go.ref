@@ -12,7 +12,6 @@ import (
 
 	"v.io/v23/context"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/runtime/internal/rpc/benchmark"
 	tbm "v.io/x/ref/test/benchmark"
 )
@@ -38,10 +37,10 @@ func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadS
 		b.StopTimer()
 
 		if err != nil {
-			vlog.Fatalf("Echo failed: %v", err)
+			ctx.Fatalf("Echo failed: %v", err)
 		}
 		if !bytes.Equal(r, payload) {
-			vlog.Fatalf("Echo returned %v, but expected %v", r, payload)
+			ctx.Fatalf("Echo returned %v, but expected %v", r, payload)
 		}
 
 		stats.Add(elapsed)
@@ -95,7 +94,7 @@ func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, c
 
 			stream, err := stub.EchoStream(ctx)
 			if err != nil {
-				vlog.Fatalf("EchoStream failed: %v", err)
+				ctx.Fatalf("EchoStream failed: %v", err)
 			}
 
 			rDone := make(chan error, 1)
@@ -121,19 +120,19 @@ func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, c
 			sStream := stream.SendStream()
 			for i := 0; i < chunkCnt; i++ {
 				if err = sStream.Send(payload); err != nil {
-					vlog.Fatalf("EchoStream Send failed: %v", err)
+					ctx.Fatalf("EchoStream Send failed: %v", err)
 				}
 			}
 			if err = sStream.Close(); err != nil {
-				vlog.Fatalf("EchoStream Close failed: %v", err)
+				ctx.Fatalf("EchoStream Close failed: %v", err)
 			}
 
 			if err = <-rDone; err != nil {
-				vlog.Fatalf("%v", err)
+				ctx.Fatalf("%v", err)
 			}
 
 			if err = stream.Finish(); err != nil {
-				vlog.Fatalf("Finish failed: %v", err)
+				ctx.Fatalf("Finish failed: %v", err)
 			}
 
 			elapsed := time.Since(start)

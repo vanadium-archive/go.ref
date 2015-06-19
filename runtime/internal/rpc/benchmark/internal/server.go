@@ -10,7 +10,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/runtime/internal/rpc/benchmark"
 )
@@ -40,22 +39,22 @@ func (i *impl) EchoStream(_ *context.T, call benchmark.BenchmarkEchoStreamServer
 func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (naming.Endpoint, func()) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Fatalf("NewServer failed: %v", err)
+		ctx.Fatalf("NewServer failed: %v", err)
 	}
 	eps, err := server.Listen(listenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen failed: %v", err)
+		ctx.Fatalf("Listen failed: %v", err)
 	}
 	if len(eps) == 0 {
-		vlog.Fatal("No local address to listen on")
+		ctx.Fatal("No local address to listen on")
 	}
 
 	if err := server.Serve("", benchmark.BenchmarkServer(&impl{}), securityflag.NewAuthorizerOrDie()); err != nil {
-		vlog.Fatalf("Serve failed: %v", err)
+		ctx.Fatalf("Serve failed: %v", err)
 	}
 	return eps[0], func() {
 		if err := server.Stop(); err != nil {
-			vlog.Fatalf("Stop() failed: %v", err)
+			ctx.Fatalf("Stop() failed: %v", err)
 		}
 	}
 }

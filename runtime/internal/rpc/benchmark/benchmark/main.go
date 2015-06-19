@@ -12,9 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
+	"v.io/v23/context"
+
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
@@ -50,7 +51,7 @@ func runBenchmark(ctx *context.T, env *cmdline.Env, args []string) error {
 		dummyB := testing.B{}
 		_, stop := internal.StartEchoStream(&dummyB, ctx, server, 0, chunkCntMux, payloadSizeMux, nil)
 		defer stop()
-		vlog.Infof("Started background streaming (chunk_size=%d, payload_size=%d)", chunkCntMux, payloadSizeMux)
+		ctx.Infof("Started background streaming (chunk_size=%d, payload_size=%d)", chunkCntMux, payloadSizeMux)
 	}
 
 	dummyB := testing.B{}

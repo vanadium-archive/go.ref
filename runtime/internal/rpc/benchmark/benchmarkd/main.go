@@ -8,10 +8,11 @@
 package main
 
 import (
+	"v.io/x/lib/cmdline"
+
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
@@ -32,7 +33,7 @@ var cmdRoot = &cmdline.Command{
 
 func runBenchmarkD(ctx *context.T, env *cmdline.Env, args []string) error {
 	ep, stop := internal.StartServer(ctx, v23.GetListenSpec(ctx))
-	vlog.Infof("Listening on %s", ep.Name())
+	ctx.Infof("Listening on %s", ep.Name())
 	defer stop()
 	<-signals.ShutdownOnSignals(ctx)
 	return nil
