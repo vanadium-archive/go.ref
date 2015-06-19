@@ -15,7 +15,6 @@ import (
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/v23/syncbase/nosql/query_db"
 	"v.io/syncbase/v23/syncbase/nosql/query_exec"
-	prefixutil "v.io/syncbase/v23/syncbase/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
@@ -404,20 +403,20 @@ type tableDb struct {
 	req *tableReq
 }
 
-func (t *tableDb) Scan(prefixes []string) (query_db.KeyValueStream, error) {
+func (t *tableDb) Scan(keyRanges query_db.KeyRanges) (query_db.KeyValueStream, error) {
 	return &kvs{
-		t:        t,
-		prefixes: prefixes,
-		curr:     -1,
-		validRow: false,
-		it:       nil,
-		err:      nil,
+		t:         t,
+		keyRanges: keyRanges,
+		curr:      -1,
+		validRow:  false,
+		it:        nil,
+		err:       nil,
 	}, nil
 }
 
 type kvs struct {
 	t         *tableDb
-	prefixes  []string
+	keyRanges query_db.KeyRanges
 	curr      int // current index into prefixes, -1 at start
 	validRow  bool
 	currKey   string
@@ -433,11 +432,16 @@ func (s *kvs) Advance() bool {
 	if s.curr == -1 {
 		s.curr++
 	}
-	for s.curr < len(s.prefixes) {
+	for s.curr < len(s.keyRanges) {
 		if s.it == nil {
-			start := prefixutil.PrefixRangeStart(s.prefixes[s.curr])
-			limit := prefixutil.PrefixRangeLimit(s.prefixes[s.curr])
-			s.it = s.t.qdb.st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, s.t.req.name), string(start), string(limit)))
+			start := s.keyRanges[s.curr].Start
+			limit := s.keyRanges[s.curr].Limit
+			// 0-255 means examine all rows
+			if start == string([]byte{0}) && limit == string([]byte{255}) {
+				start = ""
+				limit = ""
+			}
+			s.it = s.t.qdb.st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, s.t.req.name), start, limit))
 		}
 		if s.it.Advance() {
 			// key
@@ -490,8 +494,8 @@ func (s *kvs) Cancel() {
 		s.it.Cancel()
 		s.it = nil
 	}
-	// set curr to end of prefixes so Advance will return false
-	s.curr = len(s.prefixes)
+	// set curr to end of keyRanges so Advance will return false
+	s.curr = len(s.keyRanges)
 }
 
 ////////////////////////////////////////
