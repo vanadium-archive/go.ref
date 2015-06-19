@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -19,6 +18,7 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -46,35 +46,20 @@ func (mock) Describe(_ *context.T, _ rpc.ServerCall, name string) (binary.Descri
 
 type dispatcher struct{}
 
-func startServer(ctx *context.T, t *testing.T) (rpc.Server, naming.Endpoint) {
-	server, err := v23.NewServer(ctx)
+func startServer(ctx *context.T, t *testing.T) naming.Endpoint {
+	unpublished := ""
+	server, err := xrpc.NewServer(ctx, unpublished, build.BuilderServer(&mock{}), nil)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
-	l := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(l)
-	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", l, err)
-	}
-	unpublished := ""
-	if err := server.Serve(unpublished, build.BuilderServer(&mock{}), nil); err != nil {
-		t.Fatalf("Serve(%v) failed: %v", unpublished, err)
-	}
-	return server, endpoints[0]
-}
-
-func stopServer(t *testing.T, server rpc.Server) {
-	if err := server.Stop(); err != nil {
-		t.Errorf("Stop() failed: %v", err)
-	}
+	return server.Status().Endpoints[0]
 }
 
 func TestBuildClient(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, endpoint := startServer(ctx, t)
-	defer stopServer(t, server)
+	endpoint := startServer(ctx, t)
 
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}

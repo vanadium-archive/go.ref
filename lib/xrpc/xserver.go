@@ -41,9 +41,11 @@ func NewServer(ctx *context.T, name string, object interface{}, auth security.Au
 		return nil, err
 	}
 	if _, err = s.Listen(v23.GetListenSpec(ctx)); err != nil {
+		s.Stop()
 		return nil, err
 	}
 	if err = s.Serve(name, object, auth); err != nil {
+		s.Stop()
 		return nil, err
 	}
 	return &Server{s: s}, nil

@@ -22,6 +22,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inamespace "v.io/x/ref/runtime/internal/naming/namespace"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -201,7 +202,7 @@ func testResolveWithPattern(t *testing.T, ctx *context.T, ns namespace.T, name s
 
 type serverEntry struct {
 	mountPoint string
-	server     rpc.Server
+	stop       func() error
 	endpoint   naming.Endpoint
 	name       string
 }
@@ -219,23 +220,15 @@ func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
 }
 
 func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, mt bool) *serverEntry {
-	s, err := v23.NewServer(ctx, options.ServesMountTable(mt))
+	s, err := xrpc.NewDispatchingServer(ctx, mountPoint, disp, options.ServesMountTable(mt))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
-	// Add a mount table server.
-	// Start serving on a loopback address.
-	eps, err := s.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		boom(t, "Failed to Listen: %s", err)
-	}
-	if err := s.ServeDispatcher(mountPoint, disp); err != nil {
-		boom(t, "Failed to serve mount table at %s: %s", mountPoint, err)
-	}
+	eps := s.Status().Endpoints
 	t.Logf("server %q -> %s", eps[0].Name(), mountPoint)
 	// Wait until the mount point appears in the mount table.
 	resolveWithRetry(ctx, mountPoint)
-	return &serverEntry{mountPoint: mountPoint, server: s, endpoint: eps[0], name: eps[0].Name()}
+	return &serverEntry{mountPoint: mountPoint, stop: s.Stop, endpoint: eps[0], name: eps[0].Name()}
 }
 
 const (
@@ -282,12 +275,12 @@ func createNamespace(t *testing.T, ctx *context.T) (*serverEntry, map[string]*se
 	}
 	return root, mts, jokes, func() {
 		for _, s := range jokes {
-			s.server.Stop()
+			s.stop()
 		}
 		for _, s := range mts {
-			s.server.Stop()
+			s.stop()
 		}
-		root.server.Stop()
+		root.stop()
 	}
 }
 
@@ -532,7 +525,7 @@ func TestGlobEarlyStop(t *testing.T) {
 	globServer := &GlobbableServer{}
 	name := naming.JoinAddressName(mts["mt4/foo/bar"].name, "glob")
 	runningGlobServer := runServer(t, c, testutil.LeafDispatcher(globServer, nil), name)
-	defer runningGlobServer.server.Stop()
+	defer runningGlobServer.stop()
 
 	ns := v23.GetNamespace(c)
 	ns.SetRoots(root.name)
@@ -573,9 +566,9 @@ func TestCycles(t *testing.T) {
 	c1 := runMT(t, c, "c1")
 	c2 := runMT(t, c, "c2")
 	c3 := runMT(t, c, "c3")
-	defer c1.server.Stop()
-	defer c2.server.Stop()
-	defer c3.server.Stop()
+	defer c1.stop()
+	defer c2.stop()
+	defer c3.stop()
 
 	m := "c1/c2"
 	if err := ns.Mount(c, m, c1.name, ttl, naming.ServesMountTable(true)); err != nil {
@@ -681,7 +674,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	// Intermediate mounttables should be authenticated.
 	mt := runMT(t, mtCtx, "mt")
 	defer func() {
-		mt.server.Stop()
+		mt.stop()
 	}()
 
 	// Mount a server on "mt".
@@ -775,21 +768,14 @@ func TestLeaf(t *testing.T) {
 	_, ctx, cleanup := createContexts(t)
 	defer cleanup()
 	root := runMT(t, ctx, "")
-	defer func() { root.server.Stop() }()
+	defer func() { root.stop() }()
 
 	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(root.name)
 
-	server, err := v23.NewServer(ctx)
+	server, err := xrpc.NewServer(ctx, "leaf", &leafObject{}, nil)
 	if err != nil {
-		boom(t, "v23.NewServer: %s", err)
-	}
-	ls := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	if _, err := server.Listen(ls); err != nil {
-		boom(t, "Failed to Listen: %s", err)
-	}
-	if err := server.Serve("leaf", &leafObject{}, nil); err != nil {
-		boom(t, "server.Serve failed: %s", err)
+		boom(t, "xrpc.NewServer: %s", err)
 	}
 	defer server.Stop()
 

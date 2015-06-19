@@ -13,7 +13,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -21,6 +20,7 @@ import (
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
 
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/app"
@@ -30,52 +30,10 @@ import (
 
 //go:generate v23 test generate
 
-func startMounttable(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
-	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	s, err := v23.NewServer(ctx, options.ServesMountTable(true))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	endpoints, err := s.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := s.ServeDispatcher("", mt); err != nil {
-		return nil, nil, err
-	}
-
-	return s, endpoints[0], nil
-}
-
 type mockServer struct{}
 
 func (s mockServer) BasicCall(_ *context.T, _ rpc.StreamServerCall, txt string) (string, error) {
 	return "[" + txt + "]", nil
-}
-
-func startMockServer(ctx *context.T, desiredName string) (rpc.Server, naming.Endpoint, error) {
-	// Create a new server instance.
-	s, err := v23.NewServer(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	endpoints, err := s.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := s.Serve(desiredName, mockServer{}, nil); err != nil {
-		return nil, nil, err
-	}
-
-	return s, endpoints[0], nil
 }
 
 func parseBrowsperResponse(data string, t *testing.T) (uint64, uint64, []byte) {
@@ -119,22 +77,27 @@ func TestBrowspr(t *testing.T) {
 	}
 	defer proxyShutdown()
 
-	mtServer, mtEndpoint, err := startMounttable(ctx)
+	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
+	if err != nil {
+		t.Fatalf("Failed to create mounttable: %v", err)
+	}
+	s, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		t.Fatalf("Failed to start mounttable server: %v", err)
 	}
-	defer mtServer.Stop()
+	mtEndpoint := s.Status().Endpoints[0]
 	root := mtEndpoint.Name()
+
 	if err := v23.GetNamespace(ctx).SetRoots(root); err != nil {
 		t.Fatalf("Failed to set namespace roots: %v", err)
 	}
 
 	mockServerName := "mock/server"
-	mockServer, mockServerEndpoint, err := startMockServer(ctx, mockServerName)
+	mockServer, err := xrpc.NewServer(ctx, mockServerName, mockServer{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
-	defer mockServer.Stop()
+	mockServerEndpoint := mockServer.Status().Endpoints[0]
 
 	then := time.Now()
 found:

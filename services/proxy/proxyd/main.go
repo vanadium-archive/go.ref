@@ -23,6 +23,7 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/static"
 )
 
@@ -89,23 +90,16 @@ func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 
 	// Start an RPC Server that listens through the proxy itself. This
 	// server will serve reserved methods only.
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return fmt.Errorf("NewServer failed: %v", err)
-	}
-	defer server.Stop()
-	ls := rpc.ListenSpec{Proxy: proxyEndpoint.Name()}
-	if _, err := server.Listen(ls); err != nil {
-		return fmt.Errorf("Listen(%v) failed: %v", ls, err)
-	}
 	var monitoringName string
 	if len(name) > 0 {
 		monitoringName = name + "-mon"
 	}
-	if err := server.ServeDispatcher(monitoringName, &nilDispatcher{}); err != nil {
-		return fmt.Errorf("ServeDispatcher(%v) failed: %v", monitoringName, err)
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: proxyEndpoint.Name()})
+	server, err := xrpc.NewDispatchingServer(ctx, monitoringName, &nilDispatcher{})
+	if err != nil {
+		return fmt.Errorf("NewServer failed: %v", err)
 	}
-
+	defer server.Stop()
 	<-signals.ShutdownOnSignals(ctx)
 	return nil
 }

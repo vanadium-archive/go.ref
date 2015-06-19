@@ -10,10 +10,10 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/services/build"
 
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
@@ -39,13 +39,6 @@ func TestInterface(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	// Setup and start the profile repository server.
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
-	defer server.Stop()
-
 	dir, prefix := "", ""
 	store, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
@@ -56,20 +49,14 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	l := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(l)
+	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", l, err)
+		t.Fatalf("NewServer() failed: %v", err)
 	}
-	endpoint := endpoints[0]
-	if err := server.ServeDispatcher("", dispatcher); err != nil {
-		t.Fatalf("Serve failed: %v", err)
-	}
-	t.Logf("Profile repository at %v", endpoint)
+	endpoint := server.Status().Endpoints[0].String()
 
 	// Create client stubs for talking to the server.
-	stub := repository.ProfileClient(naming.JoinAddressName(endpoint.String(), "linux/base"))
-
+	stub := repository.ProfileClient(naming.JoinAddressName(endpoint, "linux/base"))
 	// Put
 	if err := stub.Put(ctx, spec); err != nil {
 		t.Fatalf("Put() failed: %v", err)
@@ -106,48 +93,30 @@ func TestInterface(t *testing.T) {
 	if err := stub.Remove(ctx); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
-
-	// Shutdown the content manager server.
-	if err := server.Stop(); err != nil {
-		t.Fatalf("Stop() failed: %v", err)
-	}
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	// Setup and start the profile repository server.
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
-	defer server.Stop()
-
 	dir, prefix := "", ""
-	storedir, err := ioutil.TempDir(dir, prefix)
+	store, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
 		t.Fatalf("TempDir(%q, %q) failed: %v", dir, prefix, err)
 	}
-	defer os.RemoveAll(storedir)
-
-	dispatcher, err := NewDispatcher(storedir, nil)
+	defer os.RemoveAll(store)
+	dispatcher, err := NewDispatcher(store, nil)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	l := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(l)
+	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", l, err)
+		t.Fatalf("NewServer() failed: %v", err)
 	}
-	endpoint := endpoints[0]
-	if err := server.ServeDispatcher("", dispatcher); err != nil {
-		t.Fatalf("Serve failed: %v", err)
-	}
-	t.Logf("Profile repository at %v", endpoint)
+	endpoint := server.Status().Endpoints[0].String()
 
 	// Create client stubs for talking to the server.
-	stub := repository.ProfileClient(naming.JoinAddressName(endpoint.String(), "linux/base"))
+	stub := repository.ProfileClient(naming.JoinAddressName(endpoint, "linux/base"))
 
 	if err := stub.Put(ctx, spec); err != nil {
 		t.Fatalf("Put() failed: %v", err)
@@ -165,26 +134,18 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	server.Stop()
 
 	// Setup and start a second server.
-	server, err = v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
-	defer server.Stop()
-
-	dispatcher, err = NewDispatcher(storedir, nil)
+	dispatcher, err = NewDispatcher(store, nil)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoints, err = server.Listen(l)
+	server, err = xrpc.NewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", l, err)
+		t.Fatalf("NewServer() failed: %v", err)
 	}
-	if err = server.ServeDispatcher("", dispatcher); err != nil {
-		t.Fatalf("Serve failed: %v", err)
-	}
+	endpoint = server.Status().Endpoints[0].String()
 
 	// Create client stubs for talking to the server.
-	stub = repository.ProfileClient(naming.JoinAddressName(endpoints[0].String(), "linux/base"))
+	stub = repository.ProfileClient(naming.JoinAddressName(endpoint, "linux/base"))
 
 	// Label
 	label, err = stub.Label(ctx)

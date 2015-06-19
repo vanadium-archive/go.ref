@@ -25,6 +25,7 @@ import (
 
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
@@ -51,24 +52,16 @@ func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string)
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	lspec := v23.GetListenSpec(ctx)
-	server, err := v23.NewServer(ctx, options.ServesMountTable(true), seclevel)
-	if err != nil {
-		return fmt.Errorf("root failed: %v", err)
-	}
 	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
-	eps, err := server.Listen(lspec)
+	server, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true), seclevel)
 	if err != nil {
-		return fmt.Errorf("server.Listen failed: %s", err)
-	}
-	if err := server.ServeDispatcher("", mt); err != nil {
-		return fmt.Errorf("root failed: %s", err)
+		return fmt.Errorf("root failed: %v", err)
 	}
 	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
-	for _, ep := range eps {
+	for _, ep := range server.Status().Endpoints {
 		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
 	}
 	modules.WaitForEOF(env.Stdin)
@@ -107,20 +100,12 @@ var echoServer = modules.Register(func(env *modules.Env, args ...string) error {
 
 	id, mp := args[0], args[1]
 	disp := &treeDispatcher{id: id}
-	server, err := v23.NewServer(ctx)
+	server, err := xrpc.NewDispatchingServer(ctx, mp, disp)
 	if err != nil {
-		return err
-	}
-	defer server.Stop()
-	eps, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		return err
-	}
-	if err := server.ServeDispatcher(mp, disp); err != nil {
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
-	for _, ep := range eps {
+	for _, ep := range server.Status().Endpoints {
 		fmt.Fprintf(env.Stdout, "NAME=%s\n", ep.Name())
 	}
 	modules.WaitForEOF(env.Stdin)
@@ -527,19 +512,12 @@ var childPing = modules.Register(func(env *modules.Env, args ...string) error {
 }, "childPing")
 
 func initServer(t *testing.T, ctx *context.T, opts ...rpc.ServerOpt) (string, func()) {
-	server, err := v23.NewServer(ctx, opts...)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
 	done := make(chan struct{})
-	deferFn := func() { close(done); server.Stop() }
-
-	eps, err := server.Listen(v23.GetListenSpec(ctx))
+	server, err := xrpc.NewServer(ctx, "", &simple{done}, nil, opts...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	server.Serve("", &simple{done}, nil)
-	return eps[0].Name(), deferFn
+	return server.Status().Endpoints[0].Name(), func() { close(done) }
 }
 
 func TestTimeoutResponse(t *testing.T) {
@@ -547,6 +525,7 @@ func TestTimeoutResponse(t *testing.T) {
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
+
 	ctx, _ = context.WithTimeout(ctx, time.Millisecond)
 	err := v23.GetClient(ctx).Call(ctx, name, "Sleep", nil, nil)
 	if got, want := verror.ErrorID(err), verror.ErrTimeout.ID; got != want {

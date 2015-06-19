@@ -10,12 +10,11 @@ package main
 import (
 	"fmt"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
 	irole "v.io/x/ref/services/role/roled/internal"
 )
@@ -44,25 +43,11 @@ func runRoleD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(name) == 0 {
 		return env.UsageErrorf("-name must be specified")
 	}
-	server, err := v23.NewServer(ctx)
+	_, err := xrpc.NewDispatchingServer(ctx, name, irole.NewDispatcher(configDir, name))
 	if err != nil {
 		return fmt.Errorf("NewServer failed: %v", err)
 	}
-
-	listenSpec := v23.GetListenSpec(ctx)
-	eps, err := server.Listen(listenSpec)
-	if err != nil {
-		return fmt.Errorf("Listen(%v) failed: %v", listenSpec, err)
-	}
-	vlog.Infof("Listening on: %q", eps)
-	if err := server.ServeDispatcher(name, irole.NewDispatcher(configDir, name)); err != nil {
-		return fmt.Errorf("ServeDispatcher(%q) failed: %v", name, err)
-	}
-	if len(name) > 0 {
-		fmt.Printf("NAME=%s\n", name)
-	} else if len(eps) > 0 {
-		fmt.Printf("NAME=%s\n", eps[0].Name())
-	}
+	fmt.Printf("NAME=%s\n", name)
 	<-signals.ShutdownOnSignals(ctx)
 	return nil
 }

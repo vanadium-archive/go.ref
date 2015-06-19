@@ -18,6 +18,7 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/groups/internal/server"
 	"v.io/x/ref/services/groups/internal/store/memstore"
@@ -44,14 +45,6 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	s, err := v23.NewServer(ctx)
-	if err != nil {
-		vlog.Fatal("v23.NewServer() failed: ", err)
-	}
-	if _, err := s.Listen(v23.GetListenSpec(ctx)); err != nil {
-		vlog.Fatal("s.Listen() failed: ", err)
-	}
-
 	perms, err := securityflag.PermissionsFromFlag()
 	if err != nil {
 		vlog.Fatal("securityflag.PermissionsFromFlag() failed: ", err)
@@ -65,10 +58,8 @@ func main() {
 	}
 
 	m := server.NewManager(memstore.New(), perms)
-
-	// Publish the service in the mount table.
-	if err := s.ServeDispatcher(*name, m); err != nil {
-		vlog.Fatal("s.ServeDispatcher() failed: ", err)
+	if _, err = xrpc.NewDispatchingServer(ctx, *name, m); err != nil {
+		vlog.Fatal("NewDispatchingServer() failed: ", err)
 	}
 	vlog.Info("Mounted at: ", *name)
 

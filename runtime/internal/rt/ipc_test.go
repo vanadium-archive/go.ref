@@ -14,11 +14,11 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
@@ -82,22 +82,6 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, caveats 
 	return tpc
 }
 
-func startServer(ctx *context.T, s interface{}, opts ...rpc.ServerOpt) (rpc.Server, string, error) {
-	server, err := v23.NewServer(ctx, opts...)
-	if err != nil {
-		return nil, "", err
-	}
-	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		return nil, "", err
-	}
-	serverObjectName := naming.JoinAddressName(endpoints[0].String(), "")
-	if err := server.Serve("", s, security.AllowEveryone()); err != nil {
-		return nil, "", err
-	}
-	return server, serverObjectName, nil
-}
-
 func TestClientServerBlessings(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
@@ -153,10 +137,11 @@ func TestClientServerBlessings(t *testing.T) {
 			t.Errorf("pserver.SetDefault(%v) failed: %v", test.server, err)
 			continue
 		}
-		server, serverObjectName, err := startServer(serverCtx, testService{})
+		server, err := xrpc.NewServer(serverCtx, "", testService{}, security.AllowEveryone())
 		if err != nil {
 			t.Fatal(err)
 		}
+		serverObjectName := server.Status().Endpoints[0].Name()
 		ctx, client, err := v23.WithNewClient(clientCtx)
 		if err != nil {
 			panic(err)
@@ -201,34 +186,14 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 		t.Fatal(err)
 	}
 	for idx, test := range tests {
-		server, err := v23.NewServer(ctx, test.opts...)
+		server, err := xrpc.NewServer(ctx, "", testService{}, nil, test.opts...)
 		if err != nil {
 			t.Errorf("test #%d: %v", idx, err)
 			continue
 		}
-		endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-		if err != nil {
-			t.Errorf("test #%d: Listen(%#v) failed with %v", idx, v23.GetListenSpec(ctx), err)
-			continue
-		}
-		if len(endpoints) == 0 {
-			t.Errorf("test #%d: No endpoints?", idx)
-		}
+		status := server.Status()
 		want := test.blessings
 		sort.Strings(want)
-		for _, ep := range endpoints {
-			got := ep.BlessingNames()
-			sort.Strings(got)
-			if !reflect.DeepEqual(got, want) {
-				t.Errorf("test #%d: endpoint=%q: Got blessings %v, want %v", idx, ep, got, want)
-			}
-		}
-		status := server.Status()
-		// The tests below are dubious: status.Endpoints might be empty and
-		// more likely at this point status.Proxies[i].Endpoints is
-		// empoty for all i because at the time this test was written,
-		// no proxies were started. Anyway, just to express the
-		// intent...
 		for _, ep := range status.Endpoints {
 			got := ep.BlessingNames()
 			sort.Strings(got)
@@ -236,6 +201,10 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 				t.Errorf("test #%d: endpoint=%q: Got blessings %v, want %v", idx, ep, got, want)
 			}
 		}
+		// The tests below are dubious: status.Proxies[i].Endpoints is
+		// empty for all i because at the time this test was written,
+		// no proxies were started. Anyway, just to express the
+		// intent...
 		for _, proxy := range status.Proxies {
 			ep := proxy.Endpoint
 			if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
@@ -289,19 +258,20 @@ func TestServerDischarges(t *testing.T) {
 		t.Fatal(err)
 	}
 	ds := &dischargeService{}
-	dischargeServer, dischargeServerName, err := startServer(dischargerCtx, ds)
+	server, err := xrpc.NewServer(dischargerCtx, "", ds, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dischargeServer.Stop()
+	dischargeServerName := server.Status().Endpoints[0].Name()
+
 	if err := root.Bless(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName)); err != nil {
 		t.Fatal(err)
 	}
-	server, serverName, err := startServer(serverCtx, &testService{}, vc.DischargeExpiryBuffer(10*time.Millisecond))
+	server, err = xrpc.NewServer(serverCtx, "", testService{}, security.AllowEveryone(), vc.DischargeExpiryBuffer(10*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer server.Stop()
+	serverName := server.Status().Endpoints[0].Name()
 
 	// Setup up the client's blessing store so that it can talk to the server.
 	rootClient := mkBlessings(root.NewBlessings(pclient, "client"))

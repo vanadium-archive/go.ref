@@ -15,26 +15,18 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/testdata/arith"
 	"v.io/x/ref/lib/vdl/testdata/base"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 var generatedError = errors.New("generated error")
-
-func newServer(ctx *context.T) rpc.Server {
-	s, err := v23.NewServer(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
 
 // serverArith implements the arith.Arith interface.
 type serverArith struct{}
@@ -111,12 +103,11 @@ func TestCalculator(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server := newServer(ctx)
-	eps, err := server.Listen(v23.GetListenSpec(ctx))
-	if err := server.Serve("", arith.CalculatorServer(&serverCalculator{}), nil); err != nil {
+	server, err := xrpc.NewServer(ctx, "", arith.CalculatorServer(&serverCalculator{}), nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	root := eps[0].Name()
+	root := server.Status().Endpoints[0].Name()
 	// Synchronous calls
 	calculator := arith.CalculatorClient(root)
 	sine, err := calculator.Sine(ctx, 0)
@@ -296,16 +287,12 @@ func TestArith(t *testing.T) {
 	}
 
 	for i, obj := range objects {
-		server := newServer(ctx)
-		defer server.Stop()
-		eps, err := server.Listen(v23.GetListenSpec(ctx))
+		server, err := xrpc.NewServer(ctx, "", obj, nil)
 		if err != nil {
-			t.Fatal(err)
-		}
-		root := eps[0].Name()
-		if err := server.Serve("", obj, nil); err != nil {
 			t.Fatalf("%d: %v", i, err)
 		}
+		root := server.Status().Endpoints[0].Name()
+
 		// Synchronous calls
 		ar := arith.ArithClient(root)
 		sum, err := ar.Add(ctx, 7, 8)

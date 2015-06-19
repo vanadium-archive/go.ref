@@ -20,6 +20,7 @@ import (
 	"v.io/v23/services/device"
 
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
@@ -148,12 +149,12 @@ func TestGlob(t *testing.T) {
 	defer shutdown()
 	tapes := newTapeMap()
 	rootTape := tapes.forSuffix("")
-	server, endpoint, err := startServer(t, ctx, tapes)
+	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
-		return
+		t.Fatalf("NewServer failed: %v", err)
 	}
+	endpoint := server.Status().Endpoints[0]
 	appName := naming.JoinAddressName(endpoint.String(), "app")
-	defer stopServer(t, server)
 
 	allGlobArgs := []string{"glob1", "glob2"}
 	allGlobResponses := []GlobResponse{

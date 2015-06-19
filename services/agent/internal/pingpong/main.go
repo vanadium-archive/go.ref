@@ -10,14 +10,15 @@ package main
 import (
 	"fmt"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 )
@@ -25,6 +26,7 @@ import (
 func main() {
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdPingPong)
+	flags.SetDefaultHostPort("127.0.0.1:0")
 }
 
 var cmdPingPong = &cmdline.Command{
@@ -61,26 +63,17 @@ func clientMain(ctx *context.T, server string) error {
 }
 
 func serverMain(ctx *context.T) error {
-	s, err := v23.NewServer(ctx)
-	if err != nil {
-		return fmt.Errorf("failure creating server: %v", err)
-	}
-	vlog.Info("Waiting for ping")
-	spec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	endpoints, err := s.Listen(spec)
-	if err != nil {
-		return fmt.Errorf("error listening to service: %v", err)
-	}
-	fmt.Printf("NAME=%v\n", endpoints[0].Name())
 	// Provide an empty name, no need to mount on any mounttable.
 	//
 	// Use the default authorization policy (nil authorizer), which will
 	// only authorize clients if the blessings of the client is a prefix of
 	// that of the server or vice-versa.
-	if err := s.Serve("", PingPongServer(&pongd{}), nil); err != nil {
-		return fmt.Errorf("error serving service: %v", err)
+	s, err := xrpc.NewServer(ctx, "", PingPongServer(&pongd{}), nil)
+	if err != nil {
+		return fmt.Errorf("failure creating server: %v", err)
 	}
-
+	vlog.Info("Waiting for ping")
+	fmt.Printf("NAME=%v\n", s.Status().Endpoints[0].Name())
 	// Wait forever.
 	<-signals.ShutdownOnSignals(ctx)
 	return nil

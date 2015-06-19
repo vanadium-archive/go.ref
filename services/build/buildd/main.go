@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/services/build"
 	"v.io/x/lib/cmdline"
@@ -19,6 +18,7 @@ import (
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -45,19 +45,11 @@ v.io/v23/services/build.Builder interface.
 }
 
 func runBuildD(ctx *context.T, env *cmdline.Env, args []string) error {
-	server, err := v23.NewServer(ctx)
+	server, err := xrpc.NewServer(ctx, name, build.BuilderServer(NewBuilderService(gobin, goroot)), securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		return fmt.Errorf("NewServer() failed: %v", err)
 	}
-	ls := v23.GetListenSpec(ctx)
-	endpoint, err := server.Listen(ls)
-	if err != nil {
-		return fmt.Errorf("Listen(%s) failed: %v", ls, err)
-	}
-	if err := server.Serve(name, build.BuilderServer(NewBuilderService(gobin, goroot)), securityflag.NewAuthorizerOrDie()); err != nil {
-		return fmt.Errorf("Serve(%v) failed: %v", name, err)
-	}
-	vlog.Infof("Build server running at endpoint=%q", endpoint)
+	vlog.Infof("Build server running at endpoint=%q", server.Status().Endpoints[0].Name())
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals(ctx)

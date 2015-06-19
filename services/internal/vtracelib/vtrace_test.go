@@ -8,9 +8,9 @@ import (
 	"io"
 	"testing"
 
-	"v.io/v23"
 	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/vtrace"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/vtracelib"
 	"v.io/x/ref/test"
 
@@ -23,17 +23,11 @@ func TestVtraceServer(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := v23.NewServer(ctx)
+	server, err := xrpc.NewServer(ctx, "", vtracelib.NewVtraceService(), nil)
 	if err != nil {
 		t.Fatalf("Could not create server: %s", err)
 	}
-	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Fatalf("Listen failed: %s", err)
-	}
-	if err := server.Serve("", vtracelib.NewVtraceService(), nil); err != nil {
-		t.Fatalf("Serve failed: %s", err)
-	}
+	endpoints := server.Status().Endpoints
 
 	sctx, span := vtrace.WithNewSpan(ctx, "The Span")
 	vtrace.ForceCollect(sctx)

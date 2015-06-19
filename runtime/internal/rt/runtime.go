@@ -51,6 +51,7 @@ const (
 	principalKey
 	backgroundKey
 	reservedNameKey
+	listenKey
 
 	// initKey is used to store values that are only set at init time.
 	initKey
@@ -58,7 +59,6 @@ const (
 
 type initData struct {
 	appCycle          v23.AppCycle
-	listenSpec        *rpc.ListenSpec
 	protocols         []string
 	settingsPublisher *pubsub.Publisher
 	settingsName      string
@@ -86,11 +86,14 @@ func Init(
 
 	ctx = context.WithValue(ctx, initKey, &initData{
 		protocols:         protocols,
-		listenSpec:        listenSpec,
 		appCycle:          appCycle,
 		settingsPublisher: settingsPublisher,
 		settingsName:      settingsName,
 	})
+
+	if listenSpec != nil {
+		ctx = context.WithValue(ctx, listenKey, listenSpec.Copy())
+	}
 
 	if reservedDispatcher != nil {
 		ctx = context.WithValue(ctx, reservedNameKey, reservedDispatcher)
@@ -441,10 +444,13 @@ func (*Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
 
 func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 	// nologcall
-	if id, _ := ctx.Value(initKey).(*initData); id.listenSpec != nil {
-		return id.listenSpec.Copy()
-	}
-	return rpc.ListenSpec{}
+	ls, _ := ctx.Value(listenKey).(rpc.ListenSpec)
+	return ls
+}
+
+func (*Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
+	// nologcall
+	return context.WithValue(ctx, listenKey, ls.Copy())
 }
 
 func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {

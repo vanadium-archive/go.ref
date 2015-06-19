@@ -21,6 +21,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
@@ -38,9 +39,6 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 	rootDir, cleanup := servicetest.SetupRootDir(t, "bindir")
 	prepDirectory(t, rootDir)
 
-	// Setup and start the binary repository server.
-	server, endpoint := servicetest.NewServer(ctx)
-
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -54,14 +52,18 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 			vlog.Fatalf("Serve() failed: %v", err)
 		}
 	}()
+
+	// Setup and start the binary repository server.
 	dispatcher, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("NewDispatcher failed: %v", err)
 	}
 	dontPublishName := ""
-	if err := server.ServeDispatcher(dontPublishName, dispatcher); err != nil {
-		t.Fatalf("Serve(%q) failed: %v", dontPublishName, err)
+	server, err := xrpc.NewDispatchingServer(ctx, dontPublishName, dispatcher)
+	if err != nil {
+		t.Fatalf("NewServer(%q) failed: %v", dontPublishName, err)
 	}
+	endpoint := server.Status().Endpoints[0].String()
 	name := naming.JoinAddressName(endpoint, "test")
 	binary := repository.BinaryClient(name)
 	return binary, endpoint, fmt.Sprintf("http://%s/test", listener.Addr()), func() {

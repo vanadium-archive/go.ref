@@ -22,6 +22,7 @@ import (
 
 	"v.io/x/ref/lib/flags"
 	_ "v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	ivtrace "v.io/x/ref/runtime/internal/vtrace"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -37,27 +38,20 @@ func init() {
 func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) {
 	idp := testutil.NewIDProvider("base")
 	ctx, shutdown := test.V23Init()
+
 	if err := idp.Bless(v23.GetPrincipal(ctx), "alice"); err != nil {
 		t.Fatalf("Could not bless initial principal %v", err)
 	}
-
 	// Start a local mounttable.
-	s, err := v23.NewServer(ctx, options.ServesMountTable(true))
-	if err != nil {
-		t.Fatalf("Could not create mt server %v", err)
-	}
-	eps, err := s.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Fatalf("Could not listen for mt %v", err)
-	}
 	disp, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
 	if err != nil {
 		t.Fatalf("Could not create mt dispatcher %v", err)
 	}
-	if err := s.ServeDispatcher("", disp); err != nil {
-		t.Fatalf("Could not serve mt dispatcher %v", err)
+	s, err := xrpc.NewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
+	if err != nil {
+		t.Fatalf("Could not create mt server %v", err)
 	}
-	v23.GetNamespace(ctx).SetRoots(eps[0].Name())
+	v23.GetNamespace(ctx).SetRoots(s.Status().Endpoints[0].Name())
 	return ctx, shutdown, idp
 }
 
@@ -179,20 +173,14 @@ func makeTestServer(ctx *context.T, principal security.Principal, name string) (
 	if err != nil {
 		return nil, err
 	}
-	s, err := v23.NewServer(ctx)
+	c := &testServer{
+		name: name,
+	}
+	s, err := xrpc.NewServer(ctx, name, c, security.AllowEveryone())
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.Listen(v23.GetListenSpec(ctx)); err != nil {
-		return nil, err
-	}
-	c := &testServer{
-		name: name,
-		stop: s.Stop,
-	}
-	if err := s.Serve(name, c, security.AllowEveryone()); err != nil {
-		return nil, err
-	}
+	c.stop = s.Stop
 	return c, nil
 }
 

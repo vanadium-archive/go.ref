@@ -19,6 +19,7 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -40,30 +41,20 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, Version, perm, err)
 	}
 	// Setup and start the binary repository server.
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
 	depth := 2
 	state, err := NewState(rootDir, "http://test-root-url", depth)
 	if err != nil {
 		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, depth, err)
 	}
-
 	dispatcher, err := NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v\n", err)
 	}
-	l := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(l)
+	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", l, err)
+		t.Fatalf("NewServer() failed: %v", err)
 	}
-	suffix := ""
-	if err := server.ServeDispatcher(suffix, dispatcher); err != nil {
-		t.Fatalf("Serve(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
-	von := naming.JoinAddressName(endpoints[0].String(), "test")
+	von := naming.JoinAddressName(server.Status().Endpoints[0].String(), "test")
 	return von, func() {
 		if err := os.Remove(path); err != nil {
 			t.Fatalf("Remove(%v) failed: %v", path, err)

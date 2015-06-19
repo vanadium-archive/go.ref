@@ -13,6 +13,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/ref/lib/xrpc"
 )
 
 var errRetryThis = verror.Register("retry_test.retryThis", verror.RetryBackoff, "retryable error")
@@ -37,19 +38,12 @@ func TestRetryCall(t *testing.T) {
 	defer shutdown()
 
 	// Start the server.
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	eps, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Fatal(err)
-	}
 	rs := retryServer{}
-	if err = server.Serve("", &rs, security.AllowEveryone()); err != nil {
+	server, err := xrpc.NewServer(ctx, "", &rs, security.AllowEveryone())
+	if err != nil {
 		t.Fatal(err)
 	}
-	name := eps[0].Name()
+	name := server.Status().Endpoints[0].Name()
 
 	client := v23.GetClient(ctx)
 	// A traditional client.StartCall/call.Finish sequence should fail at

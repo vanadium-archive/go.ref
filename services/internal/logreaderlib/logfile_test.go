@@ -10,13 +10,11 @@ import (
 	"path"
 	"testing"
 
-	"v.io/v23"
-	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
 	"v.io/v23/verror"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/logreaderlib"
 	"v.io/x/ref/test"
 
@@ -24,30 +22,6 @@ import (
 )
 
 //go:generate v23 test generate
-
-func startServer(t *testing.T, ctx *context.T, disp rpc.Dispatcher) (rpc.Server, string, error) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-		return nil, "", err
-	}
-	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-		return nil, "", err
-	}
-	if err := server.ServeDispatcher("", disp); err != nil {
-		t.Fatalf("Serve failed: %v", err)
-		return nil, "", err
-	}
-	return server, endpoints[0].String(), nil
-}
-
-func stopServer(t *testing.T, server rpc.Server) {
-	if err := server.Stop(); err != nil {
-		t.Errorf("server.Stop failed: %v", err)
-	}
-}
 
 type logFileDispatcher struct {
 	root string
@@ -75,12 +49,11 @@ func TestReadLogImplNoFollow(t *testing.T) {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, endpoint, err := startServer(t, ctx, &logFileDispatcher{workdir})
+	server, err := xrpc.NewDispatchingServer(ctx, "", &logFileDispatcher{workdir})
 	if err != nil {
-		t.Fatalf("startServer failed: %v", err)
+		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
-	defer stopServer(t, server)
-
+	endpoint := server.Status().Endpoints[0].String()
 	const testFile = "mylogfile.INFO"
 	writer, err := os.Create(path.Join(workdir, testFile))
 	if err != nil {
@@ -162,11 +135,11 @@ func TestReadLogImplWithFollow(t *testing.T) {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, endpoint, err := startServer(t, ctx, &logFileDispatcher{workdir})
+	server, err := xrpc.NewDispatchingServer(ctx, "", &logFileDispatcher{workdir})
 	if err != nil {
-		t.Fatalf("startServer failed: %v", err)
+		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
-	defer stopServer(t, server)
+	endpoint := server.Status().Endpoints[0].String()
 
 	const testFile = "mylogfile.INFO"
 	writer, err := os.Create(path.Join(workdir, testFile))

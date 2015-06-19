@@ -19,6 +19,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
@@ -37,16 +38,15 @@ func TestUpdateAndRevertCommands(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, ctx, tapes)
+	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
-		return
+		t.Fatalf("NewServer failed: %v", err)
 	}
-	defer stopServer(t, server)
-
+	addr := server.Status().Endpoints[0].String()
 	root := cmd_device.CmdRoot
-	appName := naming.JoinAddressName(endpoint.String(), "app")
+	appName := naming.JoinAddressName(addr, "app")
 	rootTape := tapes.forSuffix("")
-	globName := naming.JoinAddressName(endpoint.String(), "glob")
+	globName := naming.JoinAddressName(addr, "glob")
 	// TODO(caprita): Move joinLines to a common place.
 	joinLines := func(args ...string) string {
 		return strings.Join(args, "\n")

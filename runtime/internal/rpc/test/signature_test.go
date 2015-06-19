@@ -5,36 +5,19 @@
 package test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
-
-func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to start sig server: %v", err)
-	}
-	eps, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to listen: %v", err)
-	}
-	if err := server.Serve("", sig, nil); err != nil {
-		return "", nil, err
-	}
-	return eps[0].String(), func() { server.Stop() }, nil
-}
 
 type sigImpl struct{}
 
@@ -62,12 +45,11 @@ func (*streamStringBool) SendStream() interface {
 func TestMethodSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	ep, stop, err := startSigServer(ctx, sigImpl{})
+	server, err := xrpc.NewServer(ctx, "", sigImpl{}, nil)
 	if err != nil {
-		t.Fatalf("startSigServer: %v", err)
+		t.Fatalf("failed to start sig server: %v", err)
 	}
-	defer stop()
-	name := naming.JoinAddressName(ep, "")
+	name := server.Status().Endpoints[0].Name()
 
 	tests := []struct {
 		Method string
@@ -108,12 +90,11 @@ func TestMethodSignature(t *testing.T) {
 func TestSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	ep, stop, err := startSigServer(ctx, sigImpl{})
+	server, err := xrpc.NewServer(ctx, "", sigImpl{}, nil)
 	if err != nil {
-		t.Fatalf("startSigServer: %v", err)
+		t.Fatalf("failed to start sig server: %v", err)
 	}
-	defer stop()
-	name := naming.JoinAddressName(ep, "")
+	name := server.Status().Endpoints[0].Name()
 	sig, err := reserved.Signature(ctx, name)
 	if err != nil {
 		t.Errorf("call failed: %v", err)

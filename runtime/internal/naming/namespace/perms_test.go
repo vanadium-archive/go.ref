@@ -16,6 +16,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
@@ -235,18 +236,9 @@ func TestPermissions(t *testing.T) {
 	if err := ns.SetPermissions(rootCtx, name, closedPerms, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)
 	}
-	server, err := v23.NewServer(rootCtx)
-	if err != nil {
+	if _, err := xrpc.NewServer(rootCtx, name, &nopServer{1}, nil); err != nil {
 		t.Fatalf("v23.NewServer failed: %v", err)
 	}
-	defer server.Stop()
-	if _, err := server.Listen(v23.GetListenSpec(rootCtx)); err != nil {
-		t.Fatalf("Failed to Listen: %s", err)
-	}
-	if err := server.Serve(name, &nopServer{1}, nil); err != nil {
-		t.Fatalf("Failed to Serve: %s", err)
-	}
-
 	// Alice shouldn't be able to resolve it.
 	_, err = v23.GetNamespace(aliceCtx).Resolve(aliceCtx, name)
 	if err == nil {

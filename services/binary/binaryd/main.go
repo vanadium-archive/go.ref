@@ -20,6 +20,7 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/internal/binarylib"
 )
@@ -93,25 +94,17 @@ func runBinaryD(ctx *context.T, env *cmdline.Env, args []string) error {
 			os.Exit(1)
 		}
 	}()
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return fmt.Errorf("NewServer() failed: %v", err)
-	}
-	defer server.Stop()
-	ls := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(ls)
-	if err != nil {
-		return fmt.Errorf("Listen(%s) failed: %v", ls, err)
-	}
 
 	dis, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		return fmt.Errorf("NewDispatcher() failed: %v\n", err)
 	}
-	if err := server.ServeDispatcher(name, dis); err != nil {
-		return fmt.Errorf("ServeDispatcher(%v) failed: %v", name, err)
+	server, err := xrpc.NewDispatchingServer(ctx, name, dis)
+	if err != nil {
+		return fmt.Errorf("NewServer() failed: %v", err)
 	}
-	epName := endpoints[0].Name()
+	defer server.Stop()
+	epName := server.Status().Endpoints[0].Name()
 	if name != "" {
 		vlog.Infof("Binary repository serving at %q (%q)", name, epName)
 	} else {

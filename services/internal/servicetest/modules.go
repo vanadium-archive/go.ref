@@ -15,10 +15,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/options"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
@@ -36,24 +36,16 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	lspec := v23.GetListenSpec(ctx)
-	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
-	if err != nil {
-		return fmt.Errorf("root failed: %v", err)
-	}
 	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
-	eps, err := server.Listen(lspec)
+	server, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
-		return fmt.Errorf("server.Listen failed: %s", err)
-	}
-	if err := server.ServeDispatcher("", mt); err != nil {
-		return fmt.Errorf("root failed: %s", err)
+		return fmt.Errorf("root failed: %v", err)
 	}
 	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
-	for _, ep := range eps {
+	for _, ep := range server.Status().Endpoints {
 		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
 	}
 	modules.WaitForEOF(env.Stdin)
@@ -126,20 +118,6 @@ func RunCommand(t *testing.T, sh *modules.Shell, env []string, prog modules.Prog
 	}
 	h.SetVerbosity(testing.Verbose())
 	return h
-}
-
-// NewServer creates a new server.
-func NewServer(ctx *context.T) (rpc.Server, string) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		vlog.Fatalf("NewServer() failed: %v", err)
-	}
-	spec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	endpoints, err := server.Listen(spec)
-	if err != nil {
-		vlog.Fatalf("Listen(%s) failed: %v", spec, err)
-	}
-	return server, endpoints[0].String()
 }
 
 // ReadPID waits for the "ready:<PID>" line from the child and parses out the

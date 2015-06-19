@@ -19,6 +19,7 @@ import (
 	"v.io/v23/services/groups"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/groups/internal/server"
 	"v.io/x/ref/services/groups/internal/store"
@@ -93,19 +94,11 @@ func entriesEqual(a, b map[groups.BlessingPatternChunk]struct{}) bool {
 const useMemstore = false
 
 func newServer(ctx *context.T) (string, func()) {
-	s, err := v23.NewServer(ctx)
-	if err != nil {
-		vlog.Fatal("v23.NewServer() failed: ", err)
-	}
-	eps, err := s.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		vlog.Fatal("s.Listen() failed: ", err)
-	}
-
 	// TODO(sadovsky): Pass in perms and test perms-checking in Group.Create().
 	perms := access.Permissions{}
 	var st store.Store
 	var file *os.File
+	var err error
 
 	if useMemstore {
 		st = memstore.New()
@@ -122,13 +115,14 @@ func newServer(ctx *context.T) (string, func()) {
 
 	m := server.NewManager(st, perms)
 
-	if err := s.ServeDispatcher("", m); err != nil {
-		vlog.Fatal("s.ServeDispatcher() failed: ", err)
+	server, err := xrpc.NewDispatchingServer(ctx, "", m)
+	if err != nil {
+		vlog.Fatal("NewDispatchingServer() failed: ", err)
 	}
 
-	name := naming.JoinAddressName(eps[0].String(), "")
+	name := server.Status().Endpoints[0].Name()
 	return name, func() {
-		s.Stop()
+		server.Stop()
 		if file != nil {
 			os.Remove(file.Name())
 		}

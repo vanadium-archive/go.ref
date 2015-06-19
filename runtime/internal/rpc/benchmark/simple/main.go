@@ -15,6 +15,10 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 
+	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/xrpc"
+
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
@@ -124,9 +128,11 @@ func main() {
 	ctx, shutdown = test.V23Init()
 	defer shutdown()
 
-	var serverStop func()
-	serverEP, serverStop = internal.StartServer(ctx, v23.GetListenSpec(ctx))
-	defer serverStop()
+	server, err := xrpc.NewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	if err != nil {
+		vlog.Fatalf("NewServer failed: %v", err)
+	}
+	serverEP = server.Status().Endpoints[0]
 
 	runBenchmarks()
 }

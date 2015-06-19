@@ -10,13 +10,13 @@ package main
 import (
 	"fmt"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -45,25 +45,16 @@ func runProfileD(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("Specify a directory for storing profiles using --store=<name>")
 	}
 
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return fmt.Errorf("NewServer() failed: %v", err)
-	}
-
 	dispatcher, err := NewDispatcher(store, securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		return fmt.Errorf("NewDispatcher() failed: %v", err)
 	}
 
-	ls := v23.GetListenSpec(ctx)
-	endpoint, err := server.Listen(ls)
+	server, err := xrpc.NewDispatchingServer(ctx, name, dispatcher)
 	if err != nil {
-		return fmt.Errorf("Listen(%s) failed: %v", ls, err)
+		return fmt.Errorf("NewServer() failed: %v", err)
 	}
-	if err := server.ServeDispatcher(name, dispatcher); err != nil {
-		return fmt.Errorf("ServeDispatcher(%v) failed: %v", name, err)
-	}
-	vlog.Infof("Profile repository running at endpoint=%q", endpoint)
+	vlog.Infof("Profile repository running at endpoint=%v", server.Status().Endpoints[0])
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals(ctx)
