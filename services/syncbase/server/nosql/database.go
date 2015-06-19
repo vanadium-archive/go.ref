@@ -103,7 +103,7 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 		Name:  d.name,
 		Perms: opts.Perms,
 	}
-	if err := util.Put(ctx, call, d.st, d, data); err != nil {
+	if err := util.Put(ctx, d.st, d, data); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -443,6 +443,7 @@ func (s *kvs) Advance() bool {
 			// key
 			keyBytes := s.it.Key(nil)
 			parts := util.SplitKeyParts(string(keyBytes))
+			// TODO(rogulenko): Check access for the key.
 			s.currKey = parts[len(parts)-1]
 			// value
 			valueBytes := s.it.Value(nil)

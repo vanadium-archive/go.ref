@@ -161,7 +161,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 			return err
 		}
 		// Check for "database already exists".
-		if _, err := a.getDbInfo(ctx, call, st, dbName); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if _, err := a.getDbInfo(ctx, st, dbName); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -172,7 +172,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 		info := &dbInfo{
 			Name: dbName,
 		}
-		return a.putDbInfo(ctx, call, st, dbName, info)
+		return a.putDbInfo(ctx, st, dbName, info)
 	}); err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 
 	// 3. Flip dbInfo.Initialized to true.
 	if err := store.RunInTransaction(a.s.st, func(st store.StoreReadWriter) error {
-		return a.updateDbInfo(ctx, call, st, dbName, func(info *dbInfo) error {
+		return a.updateDbInfo(ctx, st, dbName, func(info *dbInfo) error {
 			info.Initialized = true
 			return nil
 		})
@@ -234,7 +234,7 @@ func (a *app) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 
 	// 2. Flip dbInfo.Deleted to true.
 	if err := store.RunInTransaction(a.s.st, func(st store.StoreReadWriter) error {
-		return a.updateDbInfo(ctx, call, st, dbName, func(info *dbInfo) error {
+		return a.updateDbInfo(ctx, st, dbName, func(info *dbInfo) error {
 			info.Deleted = true
 			return nil
 		})
@@ -251,7 +251,7 @@ func (a *app) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	}
 
 	// 4. Delete dbInfo record.
-	if err := a.delDbInfo(ctx, call, a.s.st, dbName); err != nil {
+	if err := a.delDbInfo(ctx, a.s.st, dbName); err != nil {
 		return err
 	}
 

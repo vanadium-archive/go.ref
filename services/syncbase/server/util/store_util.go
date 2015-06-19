@@ -47,7 +47,7 @@ type Permser interface {
 
 // GetWithoutAuth does st.Get(l.StKey(), v), populating v.
 // Returns a VDL-compatible error.
-func GetWithoutAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, l Layer, v interface{}) error {
+func GetWithoutAuth(ctx *context.T, st store.StoreReader, l Layer, v interface{}) error {
 	if err := GetObject(st, l.StKey(), v); err != nil {
 		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
 			return verror.New(verror.ErrNoExist, ctx, l.Name())
@@ -60,7 +60,7 @@ func GetWithoutAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, l
 // Get does GetWithoutAuth followed by an auth check.
 // Returns a VDL-compatible error.
 func Get(ctx *context.T, call rpc.ServerCall, st store.StoreReader, l Layer, v Permser) error {
-	if err := GetWithoutAuth(ctx, call, st, l, v); err != nil {
+	if err := GetWithoutAuth(ctx, st, l, v); err != nil {
 		return err
 	}
 	auth, _ := access.PermissionsAuthorizer(v.GetPerms(), access.TypicalTagType())
@@ -73,7 +73,7 @@ func Get(ctx *context.T, call rpc.ServerCall, st store.StoreReader, l Layer, v P
 // Put does st.Put(l.StKey(), v).
 // Returns a VDL-compatible error.
 // If you need to perform an authorization check, use Update().
-func Put(ctx *context.T, _ rpc.ServerCall, st store.StoreWriter, l Layer, v interface{}) error {
+func Put(ctx *context.T, st store.StoreWriter, l Layer, v interface{}) error {
 	if err := PutObject(st, l.StKey(), v); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
@@ -83,7 +83,7 @@ func Put(ctx *context.T, _ rpc.ServerCall, st store.StoreWriter, l Layer, v inte
 // Delete does st.Delete(l.StKey()).
 // Returns a VDL-compatible error.
 // If you need to perform an authorization check, call Get() first.
-func Delete(ctx *context.T, _ rpc.ServerCall, st store.StoreWriter, l Layer) error {
+func Delete(ctx *context.T, st store.StoreWriter, l Layer) error {
 	if err := st.Delete([]byte(l.StKey())); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
@@ -103,7 +103,7 @@ func Update(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, l Lay
 	if err := fn(); err != nil {
 		return err
 	}
-	return Put(ctx, call, st, l, v)
+	return Put(ctx, st, l, v)
 }
 
 ////////////////////////////////////////////////////////////

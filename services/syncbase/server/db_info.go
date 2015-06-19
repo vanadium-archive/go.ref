@@ -17,7 +17,6 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
-	"v.io/v23/rpc"
 )
 
 type dbInfoLayer struct {
@@ -49,9 +48,9 @@ func (d *dbInfoLayer) stKeyPart() string {
 
 // getDbInfo reads data from the storage engine.
 // Returns a VDL-compatible error.
-func (a *app) getDbInfo(ctx *context.T, call rpc.ServerCall, st store.StoreReader, dbName string) (*dbInfo, error) {
+func (a *app) getDbInfo(ctx *context.T, st store.StoreReader, dbName string) (*dbInfo, error) {
 	info := &dbInfo{}
-	if err := util.GetWithoutAuth(ctx, call, st, &dbInfoLayer{dbName, a}, info); err != nil {
+	if err := util.GetWithoutAuth(ctx, st, &dbInfoLayer{dbName, a}, info); err != nil {
 		return nil, err
 	}
 	return info, nil
@@ -59,27 +58,27 @@ func (a *app) getDbInfo(ctx *context.T, call rpc.ServerCall, st store.StoreReade
 
 // putDbInfo writes data to the storage engine.
 // Returns a VDL-compatible error.
-func (a *app) putDbInfo(ctx *context.T, call rpc.ServerCall, st store.StoreWriter, dbName string, info *dbInfo) error {
-	return util.Put(ctx, call, st, &dbInfoLayer{dbName, a}, info)
+func (a *app) putDbInfo(ctx *context.T, st store.StoreWriter, dbName string, info *dbInfo) error {
+	return util.Put(ctx, st, &dbInfoLayer{dbName, a}, info)
 }
 
 // delDbInfo deletes data from the storage engine.
 // Returns a VDL-compatible error.
-func (a *app) delDbInfo(ctx *context.T, call rpc.ServerCall, st store.StoreWriter, dbName string) error {
-	return util.Delete(ctx, call, st, &dbInfoLayer{dbName, a})
+func (a *app) delDbInfo(ctx *context.T, st store.StoreWriter, dbName string) error {
+	return util.Delete(ctx, st, &dbInfoLayer{dbName, a})
 }
 
 // updateDbInfo performs a read-modify-write.
 // fn should "modify" v, and should return a VDL-compatible error.
 // Returns a VDL-compatible error.
-func (a *app) updateDbInfo(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, dbName string, fn func(info *dbInfo) error) error {
+func (a *app) updateDbInfo(ctx *context.T, st store.StoreReadWriter, dbName string, fn func(info *dbInfo) error) error {
 	_ = st.(store.Transaction) // panics on failure, as desired
-	info, err := a.getDbInfo(ctx, call, st, dbName)
+	info, err := a.getDbInfo(ctx, st, dbName)
 	if err != nil {
 		return err
 	}
 	if err := fn(info); err != nil {
 		return err
 	}
-	return a.putDbInfo(ctx, call, st, dbName, info)
+	return a.putDbInfo(ctx, st, dbName, info)
 }

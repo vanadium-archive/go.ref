@@ -91,11 +91,10 @@ func (r *rowReq) stKeyPart() string {
 }
 
 // checkAccess checks that this row's table exists in the database, and performs
-// an authorization check (currently against the table perms).
+// an authorization check.
 // Returns a VDL-compatible error.
-// TODO(sadovsky): Use prefix permissions.
 func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
-	return util.Get(ctx, call, st, r.t, &tableData{})
+	return r.t.checkAccess(ctx, call, st, r.key)
 }
 
 // get reads data from the storage engine.

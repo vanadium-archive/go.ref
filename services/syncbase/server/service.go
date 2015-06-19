@@ -68,7 +68,7 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 	data := &serviceData{
 		Perms: opts.Perms,
 	}
-	if err := util.Put(ctx, call, s.st, s, data); err != nil {
+	if err := util.Put(ctx, s.st, s, data); err != nil {
 		return nil, err
 	}
 	if s.sync, err = vsync.New(ctx, call, s); err != nil {
@@ -178,7 +178,7 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 			return err
 		}
 		// Check for "app already exists".
-		if err := util.GetWithoutAuth(ctx, call, st, a, &appData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err := util.GetWithoutAuth(ctx, st, a, &appData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -192,7 +192,7 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 			Name:  appName,
 			Perms: perms,
 		}
-		return util.Put(ctx, call, st, a, data)
+		return util.Put(ctx, st, a, data)
 	}); err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func (s *service) deleteApp(ctx *context.T, call rpc.ServerCall, appName string)
 			return err
 		}
 		// TODO(sadovsky): Delete all databases in this app.
-		return util.Delete(ctx, call, st, a)
+		return util.Delete(ctx, st, a)
 	}); err != nil {
 		return err
 	}
