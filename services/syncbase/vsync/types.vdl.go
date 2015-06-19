@@ -27,8 +27,8 @@ func (syncData) __VDLReflect(struct {
 
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
-	Gen    uint64               // local generation number
-	GenVec interfaces.GenVector // generation vector
+	Gen    uint64               // local generation number incremented on every local update.
+	GenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers.
 }
 
 func (dbSyncState) __VDLReflect(struct {
@@ -36,7 +36,8 @@ func (dbSyncState) __VDLReflect(struct {
 }) {
 }
 
-// localLogRec represents the persistent local state of a log record.
+// localLogRec represents the persistent local state of a log record. Metadata
+// is synced across peers, while pos is local-only.
 type localLogRec struct {
 	Metadata interfaces.LogRecMetadata
 	Pos      uint64 // position in the Database log.

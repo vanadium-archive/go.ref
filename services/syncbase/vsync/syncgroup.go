@@ -616,18 +616,12 @@ func authorize(ctx *context.T, call security.Call, sg *interfaces.SyncGroup) err
 // Methods for SyncGroup create/join between Syncbases.
 
 func (s *syncService) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg interfaces.SyncGroup) error {
-
-	// Find the database store for this SyncGroup.
-	app, err := s.sv.App(ctx, call, sg.AppName)
-	if err != nil {
-		return err
-	}
-	db, err := app.NoSQLDatabase(ctx, call, sg.DbName)
+	st, err := s.getDbStore(ctx, call, sg.AppName, sg.DbName)
 	if err != nil {
 		return err
 	}
 
-	err = store.RunInTransaction(db.St(), func(tx store.StoreReadWriter) error {
+	err = store.RunInTransaction(st, func(tx store.StoreReadWriter) error {
 		localSG, err := getSyncGroupByName(ctx, tx, sg.Name)
 
 		if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {

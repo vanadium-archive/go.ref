@@ -29,7 +29,7 @@ import (
 // syncService contains the metadata for the sync module.
 type syncService struct {
 	// TODO(hpucha): see if "v.io/v23/uniqueid" is a better fit. It is 128 bits.
-	id   uint64 // globally unique id for this instance of Syncbase
+	id   uint64 // globally unique id for this instance of Syncbase.
 	name string // name derived from the global id.
 	sv   interfaces.Service
 
