@@ -10,10 +10,11 @@ package main
 import (
 	"fmt"
 
+	"v.io/x/lib/cmdline"
+
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
@@ -55,11 +56,11 @@ func runTunnelD(ctx *context.T, env *cmdline.Env, args []string) error {
 		return fmt.Errorf("Serve(%v) failed: %v", name, err)
 	}
 	status := server.Status()
-	vlog.Infof("Listening on: %v", status.Endpoints)
+	ctx.Infof("Listening on: %v", status.Endpoints)
 	if len(status.Endpoints) > 0 {
 		fmt.Printf("NAME=%s\n", status.Endpoints[0].Name())
 	}
-	vlog.Infof("Published as %q", name)
+	ctx.Infof("Published as %q", name)
 
 	<-signals.ShutdownOnSignals(ctx)
 	return nil

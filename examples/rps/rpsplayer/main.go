@@ -15,17 +15,19 @@ import (
 	"sync"
 	"time"
 
+	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/v23cmd"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
-	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/internal/logger"
 
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
@@ -91,7 +93,7 @@ func (i *impl) setDecline(v bool) bool {
 
 func (i *impl) Challenge(ctx *context.T, call rpc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
 	remote, _ := security.RemoteBlessingNames(ctx, call.Security())
-	vlog.VI(1).Infof("Challenge (%q, %+v) from %v", address, id, remote)
+	ctx.VI(1).Infof("Challenge (%q, %+v) from %v", address, id, remote)
 	// When setDecline(true) returns, future challenges will be declined.
 	// Whether the current challenge should be considered depends on the
 	// previous state. If 'decline' was already true, we need to decline
@@ -124,22 +126,22 @@ func (i *impl) Challenge(ctx *context.T, call rpc.ServerCall, address string, id
 func recvChallenge(ctx *context.T) gameChallenge {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Fatalf("NewServer failed: %v", err)
+		ctx.Fatalf("NewServer failed: %v", err)
 	}
 	ch := make(chan gameChallenge)
 
 	listenSpec := v23.GetListenSpec(ctx)
 	ep, err := server.Listen(listenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
+		ctx.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
 	if name == "" {
 		name = internal.CreateName()
 	}
 	if err := server.Serve(fmt.Sprintf("rps/player/%s", name), rps.PlayerServer(&impl{ch: ch}), internal.NewAuthorizer(aclFile)); err != nil {
-		vlog.Fatalf("Serve failed: %v", err)
+		ctx.Fatalf("Serve failed: %v", err)
 	}
-	vlog.Infof("Listening on endpoint /%s", ep)
+	ctx.Infof("Listening on endpoint /%s", ep)
 	result := <-ch
 	server.Stop()
 	return result
@@ -174,7 +176,7 @@ func initiateGame(ctx *context.T) error {
 
 	gameID, err := createGame(ctx, judges[j], gameOpts)
 	if err != nil {
-		vlog.Infof("createGame: %v", err)
+		ctx.Infof("createGame: %v", err)
 		return err
 	}
 	for {
@@ -189,7 +191,7 @@ func initiateGame(ctx *context.T) error {
 	fmt.Println("Joining the game...")
 
 	if _, err = playGame(ctx, judges[j], gameID); err != nil {
-		vlog.Infof("playGame: %v", err)
+		ctx.Infof("playGame: %v", err)
 		return err
 	}
 	return nil
@@ -227,7 +229,7 @@ func playGame(outer *context.T, judge string, gameID rps.GameId) (rps.PlayResult
 		case rps.JudgeActionRoundResult:
 			rr := v.Value
 			if playerNum != 1 && playerNum != 2 {
-				vlog.Fatalf("invalid playerNum: %d", playerNum)
+				ctx.Fatalf("invalid playerNum: %d", playerNum)
 			}
 			fmt.Printf("You played %q\n", rr.Moves[playerNum-1])
 			fmt.Printf("Your opponent played %q\n", rr.Moves[2-playerNum])
@@ -261,13 +263,13 @@ func playGame(outer *context.T, judge string, gameID rps.GameId) (rps.PlayResult
 				fmt.Println("You lost! :(")
 			}
 		default:
-			vlog.Infof("unexpected message type: %T", in)
+			outer.Infof("unexpected message type: %T", in)
 		}
 	}
 	if err := rStream.Err(); err == nil {
 		fmt.Println("Game Ended")
 	} else {
-		vlog.Infof("stream error: %v", err)
+		outer.Infof("stream error: %v", err)
 	}
 
 	return game.Finish()
@@ -275,7 +277,7 @@ func playGame(outer *context.T, judge string, gameID rps.GameId) (rps.PlayResult
 
 func selectOne(choices []string) (choice int) {
 	if len(choices) == 0 {
-		vlog.Fatal("No options to choose from!")
+		logger.Global().Fatal("No options to choose from!")
 	}
 	fmt.Println()
 	for i, x := range choices {
@@ -303,7 +305,7 @@ func findAll(ctx *context.T, t string, out chan []string) {
 	var result []string
 	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {
-		vlog.Infof("ns.Glob failed: %v", err)
+		ctx.Infof("ns.Glob failed: %v", err)
 		out <- result
 		return
 	}
@@ -317,7 +319,7 @@ func findAll(ctx *context.T, t string, out chan []string) {
 		}
 	}
 	if len(result) == 0 {
-		vlog.Infof("found no %ss", t)
+		ctx.Infof("found no %ss", t)
 		out <- result
 		return
 	}

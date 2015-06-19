@@ -9,8 +9,8 @@ import (
 	"io"
 	"sync"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/tunnel"
+	"v.io/x/ref/internal/logger"
 )
 
 func runIOManager(stdin io.WriteCloser, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelShellServerStream) <-chan error {
@@ -82,12 +82,12 @@ func (m *ioManager) run() error {
 	select {
 	case err := <-m.streamError:
 		// Process remaining input from the stream before exiting.
-		vlog.VI(2).Infof("run stream error: %v", err)
+		logger.Global().VI(2).Infof("run stream error: %v", err)
 		pendingStreamInput.Wait()
 		return err
 	case err := <-m.stdioError:
 		// Process remaining output from the shell before exiting.
-		vlog.VI(2).Infof("run stdio error: %v", err)
+		logger.Global().VI(2).Infof("run stdio error: %v", err)
 		pendingShellOutput.Wait()
 		return err
 	}
@@ -112,9 +112,9 @@ func (m *ioManager) chan2stream(outchan <-chan tunnel.ServerShellPacket, wg *syn
 	defer wg.Done()
 	sender := m.stream.SendStream()
 	for packet := range outchan {
-		vlog.VI(3).Infof("chan2stream packet: %+v", packet)
+		logger.Global().VI(3).Infof("chan2stream packet: %+v", packet)
 		if err := sender.Send(packet); err != nil {
-			vlog.VI(2).Infof("chan2stream: %v", err)
+			logger.Global().VI(2).Infof("chan2stream: %v", err)
 			m.sendStreamError(err)
 		}
 	}
@@ -127,7 +127,7 @@ func (m *ioManager) stdout2outchan(outchan chan<- tunnel.ServerShellPacket, wg *
 		buf := make([]byte, 2048)
 		n, err := m.stdout.Read(buf[:])
 		if err != nil {
-			vlog.VI(2).Infof("stdout2outchan: %v", err)
+			logger.Global().VI(2).Infof("stdout2outchan: %v", err)
 			m.sendStdioError(err)
 			return
 		}
@@ -142,7 +142,7 @@ func (m *ioManager) stderr2outchan(outchan chan<- tunnel.ServerShellPacket, wg *
 		buf := make([]byte, 2048)
 		n, err := m.stderr.Read(buf[:])
 		if err != nil {
-			vlog.VI(2).Infof("stderr2outchan: %v", err)
+			logger.Global().VI(2).Infof("stderr2outchan: %v", err)
 			m.sendStdioError(err)
 			return
 		}
@@ -156,7 +156,7 @@ func (m *ioManager) stream2stdin(wg *sync.WaitGroup) {
 	rStream := m.stream.RecvStream()
 	for rStream.Advance() {
 		packet := rStream.Value()
-		vlog.VI(3).Infof("stream2stdin packet: %+v", packet)
+		logger.Global().VI(3).Infof("stream2stdin packet: %+v", packet)
 		switch v := packet.(type) {
 		case tunnel.ClientShellPacketStdin:
 			if n, err := m.stdin.Write(v.Value); n != len(v.Value) || err != nil {
@@ -171,10 +171,10 @@ func (m *ioManager) stream2stdin(wg *sync.WaitGroup) {
 		case tunnel.ClientShellPacketWinSize:
 			size := v.Value
 			if size.Rows > 0 && size.Cols > 0 && m.ptyFd != 0 {
-				setWindowSize(m.ptyFd, size.Rows, size.Cols)
+				setWindowSize(logger.Global(), m.ptyFd, size.Rows, size.Cols)
 			}
 		default:
-			vlog.Infof("unexpected message type: %T", packet)
+			logger.Global().Infof("unexpected message type: %T", packet)
 		}
 	}
 
@@ -183,7 +183,7 @@ func (m *ioManager) stream2stdin(wg *sync.WaitGroup) {
 		err = io.EOF
 	}
 
-	vlog.VI(2).Infof("stream2stdin: %v", err)
+	logger.Global().VI(2).Infof("stream2stdin: %v", err)
 	m.sendStreamError(err)
 	if err := m.stdin.Close(); err != nil {
 		m.sendStdioError(fmt.Errorf("stdin.Close: %v", err))

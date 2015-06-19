@@ -12,10 +12,11 @@ import (
 	"math/rand"
 	"time"
 
+	"v.io/x/lib/cmdline"
+
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/signals"
@@ -79,7 +80,7 @@ func runBot(ctx *context.T, env *cmdline.Env, args []string) error {
 			return fmt.Errorf("(%v) failed: %v", n, err)
 		}
 	}
-	vlog.Infof("Listening on endpoint %s (published as %v)", eps, names)
+	ctx.Infof("Listening on endpoint %s (published as %v)", eps, names)
 
 	go initiateGames(ctx, rpsService)
 	<-signals.ShutdownOnSignals(ctx)
@@ -89,7 +90,7 @@ func runBot(ctx *context.T, env *cmdline.Env, args []string) error {
 func initiateGames(ctx *context.T, rpsService *RPS) {
 	for i := 0; i < numGames || numGames == -1; i++ {
 		if err := rpsService.Player().InitiateGame(ctx); err != nil {
-			vlog.Infof("Failed to initiate game: %v", err)
+			ctx.Infof("Failed to initiate game: %v", err)
 		}
 		time.Sleep(5 * time.Second)
 	}
