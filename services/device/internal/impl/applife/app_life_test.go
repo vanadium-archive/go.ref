@@ -358,19 +358,53 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Pid of hanging app (%d) has not exited after Stop() call", hangingPid)
 	}
 
-	shouldKeepInstances := determineShouldKeep(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*"), "Deleted")
-	shouldKeepInstallations := addBackLinks(t, root, determineShouldKeep(t, root, filepath.Join(root, "app*", "installation*"), "Uninstalled"))
+	// In the first pass, TidyNow (below), finds that everything should be too
+	// young to be tidied becasue TidyNow's first call to MockableNow()
+	// provides the current time.
+	shouldKeepInstances := keepAll(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*"))
+	shouldKeepInstallations := keepAll(t, root, filepath.Join(root, "app*", "installation*"))
+	shouldKeepLogFiles := keepAll(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*", "logs", "*"))
+
 	if err := utiltest.DeviceStub("dm").TidyNow(ctx); err != nil {
 		t.Fatalf("TidyNow failed: %v", err)
 	}
-	validateTidying(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*"), shouldKeepInstances)
-	validateTidying(t, root, filepath.Join(root, "app*", "installation*"), shouldKeepInstallations)
+
+	verifyTidying(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*"), shouldKeepInstances)
+	verifyTidying(t, root, filepath.Join(root, "app*", "installation*"), shouldKeepInstallations)
+	verifyTidying(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*", "logs", "*"), shouldKeepLogFiles)
+
+	// In the second pass, TidyNow() (below) calls MockableNow() again
+	// which has advanced to tomorrow so it should find that all items have
+	// become old enough to tidy.
+	shouldKeepInstances = determineShouldKeep(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*"), "Deleted")
+	shouldKeepInstallations = addBackLinks(t, root, determineShouldKeep(t, root, filepath.Join(root, "app*", "installation*"), "Uninstalled"))
+	shouldKeepLogFiles = determineLogFilesToKeep(t, shouldKeepInstances)
+
+	if err := utiltest.DeviceStub("dm").TidyNow(ctx); err != nil {
+		t.Fatalf("TidyNow failed: %v", err)
+	}
+
+	verifyTidying(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*"), shouldKeepInstances)
+	verifyTidying(t, root, filepath.Join(root, "app*", "installation*"), shouldKeepInstallations)
+	verifyTidying(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*", "logs", "*"), shouldKeepLogFiles)
 
 	// Cleanly shut down the device manager.
 	defer utiltest.VerifyNoRunningProcesses(t)
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
+}
+
+func keepAll(t *testing.T, root, globpath string) map[string]bool {
+	paths, err := filepath.Glob(globpath)
+	if err != nil {
+		t.Errorf("keepAll %v", err)
+	}
+	shouldKeep := make(map[string]bool)
+	for _, idir := range paths {
+		shouldKeep[idir] = true
+	}
+	return shouldKeep
 }
 
 func determineShouldKeep(t *testing.T, root, globpath, state string) map[string]bool {
@@ -415,10 +449,49 @@ func addBackLinks(t *testing.T, root string, installationShouldKeep map[string]b
 	return installationShouldKeep
 }
 
-func validateTidying(t *testing.T, root, globpath string, shouldKeep map[string]bool) {
+// determineLogFilesToKeep produces a map of the log files that
+// should remain after tidying. It returns a map to be compatible
+// with the verifyTidying.
+func determineLogFilesToKeep(t *testing.T, instances map[string]bool) map[string]bool {
+	shouldKeep := make(map[string]bool)
+	for idir, keep := range instances {
+		if !keep {
+			continue
+		}
+
+		paths, err := filepath.Glob(filepath.Join(idir, "logs", "*"))
+		if err != nil {
+			t.Errorf("determineLogFilesToKeep filepath.Glob(%s) failed: %v", idir, err)
+			return shouldKeep
+		}
+
+		for _, p := range paths {
+			fi, err := os.Stat(p)
+			if err != nil {
+				t.Errorf("determineLogFilesToKeep os.Stat(%s): %v", p, err)
+				return shouldKeep
+			}
+
+			if fi.Mode()&os.ModeSymlink == 0 {
+				continue
+			}
+
+			shouldKeep[p] = true
+			target, err := os.Readlink(p)
+			if err != nil {
+				t.Errorf("determineLogFilesToKeep os.Readlink(%s): %v", p, err)
+				return shouldKeep
+			}
+			shouldKeep[target] = true
+		}
+	}
+	return shouldKeep
+}
+
+func verifyTidying(t *testing.T, root, globpath string, shouldKeep map[string]bool) {
 	paths, err := filepath.Glob(globpath)
 	if err != nil {
-		t.Errorf("validateTidying %v", err)
+		t.Errorf("verifyTidying %v", err)
 	}
 
 	// TidyUp adds nothing: pth should be a subset of shouldKeep.

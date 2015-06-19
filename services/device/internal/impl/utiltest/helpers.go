@@ -70,8 +70,16 @@ func init() {
 		}
 	}
 
-	// So that TidyUp runs eagerly in tests.
-	impl.TidyOlderThan = -time.Hour
+	// Return a sequence of times separated by 25 hours.
+	impl.MockableNow = func() time.Time {
+		now := time.Now()
+		impl.MockableNow = func() time.Time {
+			now = now.Add(time.Hour * 25)
+			return now
+		}
+		return now
+	}
+
 }
 
 func EnvelopeFromShell(sh *modules.Shell, env []string, prog modules.Program, title string, retries int, window time.Duration, args ...string) application.Envelope {
