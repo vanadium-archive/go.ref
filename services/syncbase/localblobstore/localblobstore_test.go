@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A test for fs_cablobstore
-package fs_cablobstore_test
+// A test for localblobstore
+package localblobstore_test
 
 import "io/ioutil"
 import "os"

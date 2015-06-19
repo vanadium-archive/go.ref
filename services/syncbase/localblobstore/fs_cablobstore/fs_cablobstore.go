@@ -41,6 +41,7 @@ import "strings"
 import "sync"
 import "time"
 
+import "v.io/syncbase/x/ref/services/syncbase/localblobstore"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
@@ -247,22 +248,13 @@ func (f *file) closeAndRename(ctx *context.T, newName string, err error) error {
 
 // -----------------------------------------------------------
 
-// A BlockOrFile represents a vector of bytes, and contains either a data block
-// (as a []byte), or a (file name, size, offset) triple.
-type BlockOrFile struct {
-	Block    []byte // If FileName is empty, the bytes represented.
-	FileName string // If non-empty, the name of the file containing the bytes.
-	Size     int64  // If FileName is non-empty, the number of bytes (or -1 for "all")
-	Offset   int64  // If FileName is non-empty, the offset of the relevant bytes within the file.
-}
-
 // addFragment() ensures that the store *fscabs contains a fragment comprising
 // the catenation of the byte vectors named by item[..].block and the contents
 // of the files named by item[..].filename.  The block field is ignored if
 // fileName!="".  The fragment is not physically added if already present.
 // The fragment is added to the fragment list of the descriptor *desc.
 func (fscabs *FsCaBlobStore) addFragment(ctx *context.T, extHasher hash.Hash,
-	desc *blobDesc, item ...BlockOrFile) (fileName string, size int64, err error) {
+	desc *blobDesc, item ...localblobstore.BlockOrFile) (fileName string, size int64, err error) {
 
 	hasher := md5.New()
 	var buf []byte
@@ -543,12 +535,12 @@ type BlobWriter struct {
 // should not be used concurrently by multiple threads.  The returned handle
 // should be closed with either the Close() or CloseWithoutFinalize() method to
 // avoid leaking file handles.
-func (fscabs *FsCaBlobStore) NewBlobWriter(ctx *context.T) (bw *BlobWriter, err error) {
+func (fscabs *FsCaBlobStore) NewBlobWriter(ctx *context.T) (localblobstore.BlobWriter, error) {
+	var bw *BlobWriter
 	newName := newBlobName()
-	var f *file
 	fileName := filepath.Join(fscabs.rootName, newName)
 	os.MkdirAll(filepath.Dir(fileName), dirPermissions)
-	f, err = newFile(os.Create(fileName))
+	f, err := newFile(os.Create(fileName))
 	if err == nil {
 		bw = new(BlobWriter)
 		bw.fscabs = fscabs
@@ -568,8 +560,9 @@ func (fscabs *FsCaBlobStore) NewBlobWriter(ctx *context.T) (bw *BlobWriter, err 
 
 // ResumeBlobWriter() returns a pointer to a newly allocated BlobWriter on an
 // old, but unfinalized blob name.
-func (fscabs *FsCaBlobStore) ResumeBlobWriter(ctx *context.T, blobName string) (bw *BlobWriter, err error) {
-	bw = new(BlobWriter)
+func (fscabs *FsCaBlobStore) ResumeBlobWriter(ctx *context.T, blobName string) (localblobstore.BlobWriter, error) {
+	var err error
+	bw := new(BlobWriter)
 	bw.fscabs = fscabs
 	bw.ctx = ctx
 	bw.desc, err = bw.fscabs.getBlob(ctx, blobName)
@@ -639,7 +632,7 @@ func (bw *BlobWriter) CloseWithoutFinalize() (err error) {
 // AppendFragment() appends a fragment to the blob being written by *bw, where
 // the fragment is composed of the byte vectors described by the elements of
 // item[].  The fragment is copied into the blob store.
-func (bw *BlobWriter) AppendFragment(item ...BlockOrFile) (err error) {
+func (bw *BlobWriter) AppendFragment(item ...localblobstore.BlockOrFile) (err error) {
 	if bw.f == nil {
 		panic("fs_cablobstore.BlobWriter programming error: AppendFragment() after Close()")
 	}
@@ -782,7 +775,7 @@ func (fscabs *FsCaBlobStore) blobReaderFromDesc(ctx *context.T, desc *blobDesc) 
 // NewBlobReader() returns a pointer to a newly allocated BlobReader on the
 // specified blobName.  BlobReaders should not be used concurrently by multiple
 // threads.  Returned handles should be closed with Close().
-func (fscabs *FsCaBlobStore) NewBlobReader(ctx *context.T, blobName string) (br *BlobReader, err error) {
+func (fscabs *FsCaBlobStore) NewBlobReader(ctx *context.T, blobName string) (br localblobstore.BlobReader, err error) {
 	var desc *blobDesc
 	desc, err = fscabs.getBlob(ctx, blobName)
 	if err == nil {
@@ -954,7 +947,7 @@ type FsCasIter struct {
 //    if fscabsi.Err() != nil {
 //      // The loop terminated early due to an error.
 //    }
-func (fscabs *FsCaBlobStore) ListBlobIds(ctx *context.T) (fscabsi *FsCasIter) {
+func (fscabs *FsCaBlobStore) ListBlobIds(ctx *context.T) localblobstore.Iter {
 	stack := make([]dirListing, 1)
 	stack[0] = dirListing{pos: -1, nameList: []string{blobDir}}
 	return &FsCasIter{fscabs: fscabs, stack: stack}
@@ -970,7 +963,7 @@ func (fscabs *FsCaBlobStore) ListBlobIds(ctx *context.T) (fscabsi *FsCasIter) {
 //    if fscabsi.Err() != nil {
 //      // The loop terminated early due to an error.
 //    }
-func (fscabs *FsCaBlobStore) ListCAIds(ctx *context.T) (fscabsi *FsCasIter) {
+func (fscabs *FsCaBlobStore) ListCAIds(ctx *context.T) localblobstore.Iter {
 	stack := make([]dirListing, 1)
 	stack[0] = dirListing{pos: -1, nameList: []string{casDir}}
 	return &FsCasIter{fscabs: fscabs, stack: stack}
