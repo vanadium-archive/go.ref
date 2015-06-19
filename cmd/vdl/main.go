@@ -334,8 +334,8 @@ var (
 	optGenGoOutDir   = genOutDir{}
 	optGenJavaOutDir = genOutDir{
 		rules: xlateRules{
-			{"release/go/src", "roadmap/java/lib/generated-src/vdl"},
-			{"roadmap/go/src", "roadmap/java/lib/generated-src/vdl"},
+			{"release/go/src", "release/java/lib/generated-src/vdl"},
+			{"roadmap/go/src", "release/java/lib/generated-src/vdl"},
 		},
 	}
 	optGenJavascriptOutDir = genOutDir{
