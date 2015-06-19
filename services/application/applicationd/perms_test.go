@@ -19,6 +19,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/xrpc"
 	appd "v.io/x/ref/services/application/applicationd"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/services/repository"
@@ -43,19 +44,16 @@ var appRepository = modules.Register(func(env *modules.Env, args ...string) erro
 
 	defer fmt.Fprintf(env.Stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
-	server, endpoint := servicetest.NewServer(ctx)
-	defer server.Stop()
-
-	name := naming.JoinAddressName(endpoint, "")
-	vlog.VI(1).Infof("applicationd name: %v", name)
 
 	dispatcher, err := appd.NewDispatcher(storedir)
 	if err != nil {
 		vlog.Fatalf("Failed to create repository dispatcher: %v", err)
 	}
-	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
+	server, err := xrpc.NewDispatchingServer(ctx, publishName, dispatcher)
+	if err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
+	vlog.VI(1).Infof("applicationd name: %v", server.Status().Endpoints[0].Name())
 
 	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
 	<-signals.ShutdownOnSignals(ctx)

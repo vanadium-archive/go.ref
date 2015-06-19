@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/ref/examples/fortune"
+	"v.io/x/ref/lib/xrpc"
 )
 
 func TestGet(t *testing.T) {
@@ -50,28 +51,17 @@ func TestAdd(t *testing.T) {
 func setup(t *testing.T) (*context.T, fortune.FortuneClientStub, v23.Shutdown) {
 	ctx, shutdown := v23.Init()
 
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Errorf("Failure creating server")
-	}
-
-	spec := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(spec)
-	if err != nil {
-		t.Errorf("Error listening")
-	}
-
 	authorizer := security.DefaultAuthorizer()
 	impl := newImpl()
 	service := fortune.FortuneServer(impl)
 	name := ""
 
-	err = server.Serve(name, service, authorizer)
+	server, err := xrpc.NewServer(ctx, name, service, authorizer)
 	if err != nil {
-		t.Errorf("Error Serving")
+		t.Errorf("Failure creating server: %v", err)
 	}
 
-	endpoint := endpoints[0].Name()
+	endpoint := server.Status().Endpoints[0].Name()
 	client := fortune.FortuneClient(endpoint)
 
 	return ctx, client, shutdown

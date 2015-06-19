@@ -7,6 +7,7 @@ package revocation
 import (
 	"testing"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/discharger"
 	"v.io/x/ref/services/identity/internal/dischargerlib"
@@ -19,34 +20,21 @@ import (
 
 //go:generate v23 test generate
 
-func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func()) {
-	revokerService := NewMockRevocationManager()
-	dischargerServer, err := v23.NewServer(ctx)
+func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager) {
+	dischargerServiceStub := discharger.DischargerServer(dischargerlib.NewDischarger())
+	dischargerServer, err := xrpc.NewServer(ctx, "", dischargerServiceStub, nil)
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)
 	}
-	dischargerEPs, err := dischargerServer.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Fatalf("dischargerServer.Listen failed: %v", err)
-	}
-	dischargerServiceStub := discharger.DischargerServer(dischargerlib.NewDischarger())
-	if err := dischargerServer.Serve("", dischargerServiceStub, nil); err != nil {
-		t.Fatalf("dischargerServer.Serve revoker: %s", err)
-	}
-	return v23.GetPrincipal(ctx).PublicKey(),
-		dischargerEPs[0].Name(),
-		revokerService,
-		func() {
-			dischargerServer.Stop()
-		}
+	name := dischargerServer.Status().Endpoints[0].Name()
+	return v23.GetPrincipal(ctx).PublicKey(), name, NewMockRevocationManager()
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	dcKey, dc, revoker, closeFunc := revokerSetup(t, ctx)
-	defer closeFunc()
+	dcKey, dc, revoker := revokerSetup(t, ctx)
 
 	discharger := discharger.DischargerClient(dc)
 	caveat, err := revoker.NewCaveat(dcKey, dc)

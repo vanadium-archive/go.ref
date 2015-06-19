@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -20,6 +19,7 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
@@ -84,51 +84,23 @@ func (s *server) Remove(*context.T, rpc.ServerCall) error {
 type dispatcher struct {
 }
 
-func NewDispatcher() rpc.Dispatcher {
-	return &dispatcher{}
-}
-
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return repository.ProfileServer(&server{suffix: suffix}), nil, nil
-}
-
-func startServer(t *testing.T, ctx *context.T) (rpc.Server, naming.Endpoint, error) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Errorf("NewServer failed: %v", err)
-		return nil, nil, err
-	}
-	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Errorf("Listen failed: %v", err)
-		return nil, nil, err
-	}
-	if err := server.ServeDispatcher("", NewDispatcher()); err != nil {
-		t.Errorf("ServeDispatcher failed: %v", err)
-		return nil, nil, err
-	}
-	return server, endpoints[0], nil
-}
-
-func stopServer(t *testing.T, server rpc.Server) {
-	if err := server.Stop(); err != nil {
-		t.Errorf("server.Stop failed: %v", err)
-	}
 }
 
 func TestProfileClient(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, endpoint, err := startServer(t, ctx)
+	server, err := xrpc.NewDispatchingServer(ctx, "", &dispatcher{})
 	if err != nil {
 		return
 	}
-	defer stopServer(t, server)
+
 	// Setup the command-line.
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-	exists := naming.JoinAddressName(endpoint.String(), "exists")
+	exists := naming.JoinAddressName(server.Status().Endpoints[0].String(), "exists")
 
 	// Test the 'label' command.
 	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"label", exists}); err != nil {

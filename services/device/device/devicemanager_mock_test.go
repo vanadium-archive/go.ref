@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -314,31 +313,4 @@ func newDispatcher(t *testing.T, tapes *tapeMap) rpc.Dispatcher {
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return &mockDeviceInvoker{tape: d.tapes.forSuffix(suffix), t: d.t}, nil, nil
-}
-
-func startServer(t *testing.T, ctx *context.T, tapes *tapeMap) (rpc.Server, naming.Endpoint, error) {
-	dispatcher := newDispatcher(t, tapes)
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Errorf("NewServer failed: %v", err)
-		return nil, nil, err
-	}
-	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Errorf("Listen failed: %v", err)
-		stopServer(t, server)
-		return nil, nil, err
-	}
-	if err := server.ServeDispatcher("", dispatcher); err != nil {
-		t.Errorf("ServeDispatcher failed: %v", err)
-		stopServer(t, server)
-		return nil, nil, err
-	}
-	return server, endpoints[0], nil
-}
-
-func stopServer(t *testing.T, server rpc.Server) {
-	if err := server.Stop(); err != nil {
-		t.Errorf("server.Stop failed: %v", err)
-	}
 }

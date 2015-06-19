@@ -28,6 +28,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/xrpc"
 )
 
 const pkgPath = "v.io/x/ref/services/device/internal/starter"
@@ -152,7 +153,7 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		cancel()
 		return "", nil, err
 	}
-	server, err := v23.NewServer(ctx)
+	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		cancel()
 		return "", nil, err
@@ -163,15 +164,7 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		vlog.Infof("Stopped claimable server.")
 		cancel()
 	}
-	endpoints, err := server.Listen(args.Device.ListenSpec)
-	if err != nil {
-		shutdown()
-		return "", nil, err
-	}
-	if err := server.ServeDispatcher("", dispatcher); err != nil {
-		shutdown()
-		return "", nil, err
-	}
+	endpoints := server.Status().Endpoints
 	publicKey, err := v23.GetPrincipal(ctx).PublicKey().MarshalBinary()
 	if err != nil {
 		shutdown()

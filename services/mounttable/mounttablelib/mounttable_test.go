@@ -28,6 +28,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	libstats "v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
@@ -185,60 +186,47 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 }
 
-func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (rpc.Server, string) {
+func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (func() error, string) {
 	reservedDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
 	ctx := v23.WithReservedNameDispatcher(rootCtx, reservedDisp)
-	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
-	if err != nil {
-		boom(t, "r.NewServer: %s", err)
-	}
+
 	// Add mount table service.
 	mt, err := mounttablelib.NewMountTableDispatcher(permsFile, persistDir, statsDir)
 	if err != nil {
 		boom(t, "mounttablelib.NewMountTableDispatcher: %v", err)
 	}
-	// Start serving on a loopback address.
-	eps, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		boom(t, "Failed to Listen mount table: %s", err)
-	}
-	if err := server.ServeDispatcher("", mt); err != nil {
-		boom(t, "Failed to register mock collection: %s", err)
-	}
-	estr := eps[0].String()
-	t.Logf("endpoint %s", estr)
-	return server, estr
-}
 
-func newCollection(t *testing.T, rootCtx *context.T) (rpc.Server, string) {
-	server, err := v23.NewServer(rootCtx)
+	// Start serving on a loopback address.
+	server, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
-	// Start serving on a loopback address.
-	eps, err := server.Listen(v23.GetListenSpec(rootCtx))
-	if err != nil {
-		boom(t, "Failed to Listen mount table: %s", err)
-	}
-	// Add a collection service.  This is just a service we can mount
-	// and test against.
-	cPrefix := "collection"
-	if err := server.ServeDispatcher(cPrefix, newCollectionServer()); err != nil {
-		boom(t, "Failed to register mock collection: %s", err)
-	}
-	estr := eps[0].String()
+
+	estr := server.Status().Endpoints[0].String()
 	t.Logf("endpoint %s", estr)
-	return server, estr
+	return server.Stop, estr
+}
+
+func newCollection(t *testing.T, rootCtx *context.T) (func() error, string) {
+	// Start serving a collection service on a loopback address.  This
+	// is just a service we can mount and test against.
+	server, err := xrpc.NewDispatchingServer(rootCtx, "collection", newCollectionServer())
+	if err != nil {
+		boom(t, "r.NewServer: %s", err)
+	}
+	estr := server.Status().Endpoints[0].String()
+	t.Logf("endpoint %s", estr)
+	return server.Stop, estr
 }
 
 func TestMountTable(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	mt, mtAddr := newMT(t, "testdata/test.perms", "", "testMountTable", rootCtx)
-	defer mt.Stop()
-	collection, collectionAddr := newCollection(t, rootCtx)
-	defer collection.Stop()
+	stop, mtAddr := newMT(t, "testdata/test.perms", "", "testMountTable", rootCtx)
+	defer stop()
+	stop, collectionAddr := newCollection(t, rootCtx)
+	defer stop()
 
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
 
@@ -405,8 +393,8 @@ func TestGlob(t *testing.T) {
 	rootCtx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, estr := newMT(t, "", "", "testGlob", rootCtx)
-	defer server.Stop()
+	stop, estr := newMT(t, "", "", "testGlob", rootCtx)
+	defer stop()
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
@@ -452,8 +440,8 @@ func TestAccessListTemplate(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.perms", "", "testAccessListTemplate", rootCtx)
-	defer server.Stop()
+	stop, estr := newMT(t, "testdata/test.perms", "", "testAccessListTemplate", rootCtx)
+	defer stop()
 	fakeServer := naming.JoinAddressName(estr, "quux")
 
 	// Noone should be able to mount on someone else's names.
@@ -525,8 +513,8 @@ func TestGlobAccessLists(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.perms", "", "testGlobAccessLists", rootCtx)
-	defer server.Stop()
+	stop, estr := newMT(t, "testdata/test.perms", "", "testGlobAccessLists", rootCtx)
+	defer stop()
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
@@ -558,8 +546,8 @@ func TestCleanup(t *testing.T) {
 	rootCtx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, estr := newMT(t, "", "", "testCleanup", rootCtx)
-	defer server.Stop()
+	stop, estr := newMT(t, "", "", "testCleanup", rootCtx)
+	defer stop()
 
 	// Set up one mount.
 	fakeServer := naming.JoinAddressName(estr, "quux")
@@ -586,8 +574,8 @@ func TestDelete(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/test.perms", "", "testDelete", rootCtx)
-	defer server.Stop()
+	stop, estr := newMT(t, "testdata/test.perms", "", "testDelete", rootCtx)
+	defer stop()
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
@@ -619,8 +607,8 @@ func TestServerFormat(t *testing.T) {
 	rootCtx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, estr := newMT(t, "", "", "testerverFormat", rootCtx)
-	defer server.Stop()
+	stop, estr := newMT(t, "", "", "testerverFormat", rootCtx)
+	defer stop()
 
 	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true)
 	doMount(t, rootCtx, estr, "hostport", "/atrampabroad:8000", true)
@@ -633,10 +621,10 @@ func TestExpiry(t *testing.T) {
 	rootCtx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, estr := newMT(t, "", "", "testExpiry", rootCtx)
-	defer server.Stop()
-	collection, collectionAddr := newCollection(t, rootCtx)
-	defer collection.Stop()
+	stop, estr := newMT(t, "", "", "testExpiry", rootCtx)
+	defer stop()
+	stop, collectionAddr := newCollection(t, rootCtx)
+	defer stop()
 
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
 
@@ -701,8 +689,8 @@ func TestStatsCounters(t *testing.T) {
 	ft := mounttablelib.NewFakeTimeClock()
 	mounttablelib.SetServerListClock(ft)
 
-	server, estr := newMT(t, "", "", "mounttable", rootCtx)
-	defer server.Stop()
+	stop, estr := newMT(t, "", "", "mounttable", rootCtx)
+	defer stop()
 
 	// Test flat tree
 	for i := 1; i <= 10; i++ {
@@ -811,8 +799,8 @@ func TestIntermediateNodesCreatedFromConfig(t *testing.T) {
 	rootCtx, _, _, shutdown := initTest()
 	defer shutdown()
 
-	server, estr := newMT(t, "testdata/intermediate.perms", "", "TestIntermediateNodesCreatedFromConfig", rootCtx)
-	defer server.Stop()
+	stop, estr := newMT(t, "testdata/intermediate.perms", "", "TestIntermediateNodesCreatedFromConfig", rootCtx)
+	defer stop()
 
 	// x and x/y should have the same permissions at the root.
 	rootPerms, _ := doGetPermissions(t, rootCtx, estr, "", true)

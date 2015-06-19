@@ -14,6 +14,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -21,21 +22,9 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	server, err := v23.NewServer(ctx)
+	server, err := xrpc.NewServer(ctx, "roamer", &dummy{}, nil)
 	if err != nil {
 		vlog.Fatalf("unexpected error: %q", err)
-	}
-
-	listenSpec := v23.GetListenSpec(ctx)
-	fmt.Printf("listen spec: %v\n", listenSpec)
-
-	_, err = server.Listen(listenSpec)
-	if err != nil {
-		vlog.Fatalf("unexpected error: %q", err)
-	}
-	err = server.Serve("roamer", &dummy{}, nil)
-	if err != nil {
-		log.Fatalf("unexpected error: %q", err)
 	}
 	watcher := make(chan rpc.NetworkChange, 1)
 	server.WatchNetwork(watcher)

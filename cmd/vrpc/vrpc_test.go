@@ -17,6 +17,7 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/cmd/vrpc/internal"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -118,23 +119,13 @@ func (*server) ZStream(_ *context.T, call internal.TypeTesterZStreamServerCall, 
 
 func initTest(t *testing.T) (ctx *context.T, name string, shutdown v23.Shutdown) {
 	ctx, shutdown = test.V23Init()
-
-	rpcServer, err := v23.NewServer(ctx)
+	obj := internal.TypeTesterServer(&server{})
+	server, err := xrpc.NewServer(ctx, "", obj, nil)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return
 	}
-	endpoints, err := rpcServer.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-		return
-	}
-	name = endpoints[0].Name()
-	obj := internal.TypeTesterServer(&server{})
-	if err := rpcServer.Serve("", obj, nil); err != nil {
-		t.Fatalf("Serve failed: %v", err)
-		return
-	}
+	name = server.Status().Endpoints[0].Name()
 	return
 }
 

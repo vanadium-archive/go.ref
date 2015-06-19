@@ -15,7 +15,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -26,6 +25,7 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/lib"
@@ -100,36 +100,6 @@ var simpleAddrSig = signature.Interface{
 	},
 }
 
-func startAnyServer(ctx *context.T, servesMT bool, dispatcher rpc.Dispatcher) (rpc.Server, naming.Endpoint, error) {
-	// Create a new server instance.
-	s, err := v23.NewServer(ctx, options.ServesMountTable(servesMT))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	endpoints, err := s.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := s.ServeDispatcher("", dispatcher); err != nil {
-		return nil, nil, err
-	}
-	return s, endpoints[0], nil
-}
-
-func startAdderServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
-	return startAnyServer(ctx, false, testutil.LeafDispatcher(simpleAdder{}, nil))
-}
-
-func startMountTableServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
-	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
-	if err != nil {
-		return nil, nil, err
-	}
-	return startAnyServer(ctx, true, mt)
-}
-
 func createWriterCreator(w lib.ClientWriter) func(id int32) lib.ClientWriter {
 	return func(int32) lib.ClientWriter {
 		return w
@@ -139,13 +109,11 @@ func TestGetGoServerSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	s, endpoint, err := startAdderServer(ctx)
+	s, err := xrpc.NewServer(ctx, "", simpleAdder{}, nil)
 	if err != nil {
-		t.Errorf("unable to start server: %v", err)
-		t.Fail()
-		return
+		t.Fatalf("unable to start server: %v", err)
 	}
-	defer s.Stop()
+	name := s.Status().Endpoints[0].Name()
 
 	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "mockVeyronProxyEP"
@@ -155,7 +123,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create controller: %v", err)
 	}
-	sig, err := controller.getSignature(ctx, "/"+endpoint.String())
+	sig, err := controller.getSignature(ctx, name)
 	if err != nil {
 		t.Fatalf("Failed to get signature: %v", err)
 	}
@@ -184,13 +152,11 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	s, endpoint, err := startAdderServer(ctx)
+	s, err := xrpc.NewServer(ctx, "", simpleAdder{}, nil)
 	if err != nil {
-		t.Errorf("unable to start server: %v", err)
-		t.Fail()
-		return
+		t.Fatalf("unable to start server: %v", err)
 	}
-	defer s.Stop()
+	name := s.Status().Endpoints[0].Name()
 
 	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "mockVeyronProxyEP"
@@ -217,7 +183,7 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 	}
 
 	request := RpcRequest{
-		Name:        "/" + endpoint.String(),
+		Name:        name,
 		Method:      testCase.method,
 		NumInArgs:   int32(len(testCase.inArgs)),
 		NumOutArgs:  testCase.numOutArgs,
@@ -319,11 +285,10 @@ func TestCallingGoWithStreaming(t *testing.T) {
 }
 
 type runningTest struct {
-	controller       *Controller
-	writer           *testwriter.Writer
-	mounttableServer rpc.Server
-	proxyShutdown    func()
-	typeEncoder      *vom.TypeEncoder
+	controller    *Controller
+	writer        *testwriter.Writer
+	proxyShutdown func()
+	typeEncoder   *vom.TypeEncoder
 }
 
 func makeRequest(typeEncoder *vom.TypeEncoder, rpc RpcRequest, args ...interface{}) (string, error) {
@@ -350,10 +315,16 @@ func (t *typeEncoderWriter) Write(p []byte) (int, error) {
 }
 
 func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Controller)) (*runningTest, error) {
-	mounttableServer, endpoint, err := startMountTableServer(ctx)
+	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
 	if err != nil {
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}
+	s, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
+	if err != nil {
+		return nil, fmt.Errorf("unable to start mounttable: %v", err)
+	}
+	mtName := s.Status().Endpoints[0].Name()
+
 	proxySpec := rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{
 			// This '0' label is required by go vet.
@@ -384,7 +355,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 		setController(controller)
 	}
 
-	v23.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
+	v23.GetNamespace(controller.Context()).SetRoots(mtName)
 	typeStream := &typeEncoderWriter{c: controller}
 	typeEncoder := vom.NewTypeEncoder(typeStream)
 	req, err := makeRequest(typeEncoder, RpcRequest{
@@ -399,7 +370,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 
 	testWriter, _ := writer.(*testwriter.Writer)
 	return &runningTest{
-		controller, testWriter, mounttableServer, proxyShutdown,
+		controller, testWriter, proxyShutdown,
 		typeEncoder,
 	}, nil
 }
@@ -456,7 +427,6 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 	})
 
 	mock.typeEncoder = rt.typeEncoder
-	defer rt.mounttableServer.Stop()
 	defer rt.proxyShutdown()
 	defer rt.controller.Cleanup()
 

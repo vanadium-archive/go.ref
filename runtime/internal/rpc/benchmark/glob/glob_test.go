@@ -14,6 +14,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -82,21 +83,6 @@ func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return d.obj, nil, nil
 }
 
-func startServer(b *testing.B, ctx *context.T, obj interface{}) (string, func(), error) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to start server: %v", err)
-	}
-	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to listen: %v", err)
-	}
-	if err := server.ServeDispatcher("", &disp{obj}); err != nil {
-		return "", nil, err
-	}
-	return endpoints[0].Name(), func() { server.Stop() }, nil
-}
-
 type globObject struct {
 	b          *testing.B
 	bufferSize int
@@ -162,11 +148,11 @@ func RunBenchmarkGlob(b *testing.B, obj interface{}) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	addr, stop, err := startServer(b, ctx, obj)
+	server, err := xrpc.NewDispatchingServer(ctx, "", &disp{obj})
 	if err != nil {
-		b.Fatalf("startServer failed: %v", err)
+		b.Fatalf("failed to start server: %v", err)
 	}
-	defer stop()
+	addr := server.Status().Endpoints[0].Name()
 
 	count, err := globClient(b, ctx, addr)
 	if err != nil {

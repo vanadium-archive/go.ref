@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
 )
@@ -57,19 +58,9 @@ func V23TestProxyd(t *v23tests.T) {
 var runServer = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-
-	server, err := v23.NewServer(ctx)
-	if err != nil {
+	if _, err := xrpc.NewServer(ctx, serverName, service{}, security.AllowEveryone()); err != nil {
 		return err
 	}
-	defer server.Stop()
-	if _, err := server.Listen(rpc.ListenSpec{Proxy: proxyName}); err != nil {
-		return err
-	}
-	if err := server.Serve(serverName, service{}, security.AllowEveryone()); err != nil {
-		return err
-	}
-
 	modules.WaitForEOF(env.Stdin)
 	return nil
 }, "runServer")
@@ -77,13 +68,8 @@ var runServer = modules.Register(func(env *modules.Env, args ...string) error {
 var runClient = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-
-	call, err := v23.GetClient(ctx).StartCall(ctx, serverName, "Echo", nil)
-	if err != nil {
-		return err
-	}
 	var response string
-	if err := call.Finish(&response); err != nil {
+	if err := v23.GetClient(ctx).Call(ctx, serverName, "Echo", nil, []interface{}{&response}); err != nil {
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "%v=%v\n", responseVar, response)

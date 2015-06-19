@@ -20,8 +20,8 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/options"
-	"v.io/v23/rpc"
 	"v.io/x/ref/examples/rps"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -30,50 +30,33 @@ import (
 //go:generate v23 test generate
 
 var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	lspec := v23.GetListenSpec(ctx)
-	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
-	if err != nil {
-		return fmt.Errorf("root failed: %v", err)
-	}
 	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
-	eps, err := server.Listen(lspec)
+	server, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
-		return fmt.Errorf("server.Listen failed: %s", err)
-	}
-	if err := server.ServeDispatcher("", mt); err != nil {
-		return fmt.Errorf("root failed: %s", err)
+		return fmt.Errorf("root failed: %v", err)
 	}
 	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
-	for _, ep := range eps {
+	for _, ep := range server.Status().Endpoints {
 		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
 	}
 	modules.WaitForEOF(env.Stdin)
 	return nil
 }, "rootMT")
 
-var spec = rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-
 func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RPS, func()) {
 	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(mtAddress)
-	server, err := v23.NewServer(ctx)
+	rpsService := NewRPS(ctx)
+	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
+	server, err := xrpc.NewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), nil)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
-	}
-	rpsService := NewRPS(ctx)
-
-	if _, err = server.Listen(spec); err != nil {
-		t.Fatalf("Listen failed: %v", err)
-	}
-	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
-	if err := server.Serve(names[0], rps.RockPaperScissorsServer(rpsService), nil); err != nil {
-		t.Fatalf("Serve(%v) failed: %v", names[0], err)
 	}
 	for _, n := range names[1:] {
 		server.AddName(n)

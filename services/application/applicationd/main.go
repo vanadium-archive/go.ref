@@ -10,12 +10,12 @@ package main
 import (
 	"fmt"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -44,26 +44,17 @@ func runAppD(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("Specify a directory for storing application envelopes using --store=<name>")
 	}
 
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return fmt.Errorf("NewServer() failed: %v", err)
-	}
-	defer server.Stop()
-
 	dispatcher, err := NewDispatcher(store)
 	if err != nil {
 		return fmt.Errorf("NewDispatcher() failed: %v", err)
 	}
 
-	ls := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(ls)
+	server, err := xrpc.NewDispatchingServer(ctx, name, dispatcher)
 	if err != nil {
-		return fmt.Errorf("Listen(%s) failed: %v", ls, err)
+		return fmt.Errorf("NewServer() failed: %v", err)
 	}
-	if err := server.ServeDispatcher(name, dispatcher); err != nil {
-		return fmt.Errorf("Serve(%v) failed: %v", name, err)
-	}
-	epName := endpoints[0].Name()
+	defer server.Stop()
+	epName := server.Status().Endpoints[0].Name()
 	if name != "" {
 		vlog.Infof("Application repository serving at %q (%q)", name, epName)
 	} else {

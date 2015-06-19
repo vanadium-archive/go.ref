@@ -17,8 +17,8 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
 
+	"v.io/x/ref/lib/xrpc"
 	appd "v.io/x/ref/services/application/applicationd"
-	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -55,12 +55,11 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, endpoint := servicetest.NewServer(ctx)
-	defer server.Stop()
-
-	if err := server.ServeDispatcher("", dispatcher); err != nil {
-		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
+	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	if err != nil {
+		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}
+	endpoint := server.Status().Endpoints[0].String()
 
 	// Create client stubs for talking to the server.
 	stub := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search"))
@@ -245,11 +244,11 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, endpoint := servicetest.NewServer(ctx)
-
-	if err := server.ServeDispatcher("", dispatcher); err != nil {
+	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	if err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
+	endpoint := server.Status().Endpoints[0].String()
 
 	// Create client stubs for talking to the server.
 	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
@@ -288,12 +287,11 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, endpoint = servicetest.NewServer(ctx)
-	defer server.Stop()
-
-	if err := server.ServeDispatcher("", dispatcher); err != nil {
-		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
+	server, err = xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	if err != nil {
+		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}
+	endpoint = server.Status().Endpoints[0].String()
 
 	stubV1 = repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
 

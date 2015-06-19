@@ -14,11 +14,11 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/services/appcycle"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -272,26 +272,18 @@ func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) er
 
 }
 
-func createConfigServer(t *testing.T, ctx *context.T) (rpc.Server, string, <-chan string) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
-	ch := make(chan string)
-	var eps []naming.Endpoint
-	if eps, err = server.Listen(v23.GetListenSpec(ctx)); err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
-	if err := server.Serve("", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie()); err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
-	return server, eps[0].Name(), ch
-}
-
 func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
 	ctx, shutdown := test.V23Init()
 
-	configServer, configServiceName, ch := createConfigServer(t, ctx)
+	ch := make(chan string)
+	service := device.ConfigServer(&configServer{ch})
+	authorizer := securityflag.NewAuthorizerOrDie()
+	configServer, err := xrpc.NewServer(ctx, "", service, authorizer)
+	if err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	configServiceName := configServer.Status().Endpoints[0].Name()
+
 	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)

@@ -21,6 +21,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 	"v.io/x/ref/runtime/internal/rpc/stream/message"
@@ -332,24 +333,18 @@ func newCtx() (*context.T, v23.Shutdown) {
 
 type simple struct{}
 
-func (s *simple) Ping(call rpc.ServerCall) (string, error) {
+func (s *simple) Ping(ctx *context.T, call rpc.ServerCall) (string, error) {
 	return "pong", nil
 }
 
 func initServer(t *testing.T, ctx *context.T) (string, func()) {
-	server, err := v23.NewServer(ctx, options.SecurityNone)
+	server, err := xrpc.NewServer(ctx, "", &simple{}, nil, options.SecurityNone)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	done := make(chan struct{})
 	deferFn := func() { close(done); server.Stop() }
-
-	eps, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	server.Serve("", &simple{}, nil)
-	return eps[0].Name(), deferFn
+	return server.Status().Endpoints[0].Name(), deferFn
 }
 
 func TestV23Control(t *testing.T) {

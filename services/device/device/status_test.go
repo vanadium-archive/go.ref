@@ -15,6 +15,7 @@ import (
 	"v.io/v23/services/device"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
@@ -24,15 +25,15 @@ func TestStatusCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, ctx, tapes)
+	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
-		return
+		t.Fatalf("NewServer failed: %v", err)
 	}
-	defer stopServer(t, server)
 
 	cmd := cmd_device.CmdRoot
-	globName := naming.JoinAddressName(endpoint.String(), "glob")
-	appName := naming.JoinAddressName(endpoint.String(), "app")
+	addr := server.Status().Endpoints[0].String()
+	globName := naming.JoinAddressName(addr, "glob")
+	appName := naming.JoinAddressName(addr, "app")
 
 	rootTape, appTape := tapes.forSuffix(""), tapes.forSuffix("app")
 	for _, c := range []struct {

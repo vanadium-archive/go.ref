@@ -5,7 +5,6 @@
 package debuglib
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,7 +18,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/rpc"
 	"v.io/v23/services/logreader"
 	"v.io/v23/services/stats"
 	s_vtrace "v.io/v23/services/vtrace"
@@ -28,33 +26,13 @@ import (
 	"v.io/v23/vtrace"
 
 	libstats "v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
-
-// startDebugServer starts a debug server.
-func startDebugServer(ctx *context.T, listenSpec rpc.ListenSpec, logsDir string) (string, func(), error) {
-	if len(logsDir) == 0 {
-		return "", nil, fmt.Errorf("logs directory missing")
-	}
-	disp := NewDispatcher(func() string { return logsDir }, nil)
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
-	}
-	endpoints, err := server.Listen(listenSpec)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to listen on %s: %v", listenSpec, err)
-	}
-	if err := server.ServeDispatcher("", disp); err != nil {
-		return "", nil, err
-	}
-	ep := endpoints[0].String()
-	return ep, func() { server.Stop() }, nil
-}
 
 func TestDebugServer(t *testing.T) {
 	ctx, shutdown := test.V23Init()
@@ -76,11 +54,12 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 
-	endpoint, stop, err := startDebugServer(ctx, v23.GetListenSpec(ctx), workdir)
+	disp := NewDispatcher(func() string { return workdir }, nil)
+	server, err := xrpc.NewDispatchingServer(ctx, "", disp)
 	if err != nil {
-		t.Fatalf("StartDebugServer failed: %v", err)
+		t.Fatalf("failed to start debug server: %v", err)
 	}
-	defer stop()
+	endpoint := server.Status().Endpoints[0].String()
 
 	// Access a logs directory that exists.
 	{

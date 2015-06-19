@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/v23/naming"
 	"v.io/v23/services/device"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
@@ -24,17 +24,16 @@ func TestListCommand(t *testing.T) {
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, ctx, tapes)
+	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
-		return
+		t.Fatalf("NewServer failed: %v", err)
 	}
-	defer stopServer(t, server)
 
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-	deviceName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := server.Status().Endpoints[0].Name()
 
 	rootTape := tapes.forSuffix("")
 	// Test the 'list' command.
@@ -78,17 +77,16 @@ func TestAddCommand(t *testing.T) {
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, ctx, tapes)
+	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
-		return
+		t.Fatalf("NewServer failed: %v", err)
 	}
-	defer stopServer(t, server)
 
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-	deviceName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := server.Status().Endpoints[0].Name()
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"add", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -130,17 +128,16 @@ func TestRemoveCommand(t *testing.T) {
 	defer shutdown()
 
 	tapes := newTapeMap()
-	server, endpoint, err := startServer(t, ctx, tapes)
+	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
-		return
+		t.Fatalf("NewServer failed: %v", err)
 	}
-	defer stopServer(t, server)
 
 	// Setup the command-line.
 	cmd := cmd_device.CmdRoot
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-	deviceName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := server.Status().Endpoints[0].Name()
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"remove", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")

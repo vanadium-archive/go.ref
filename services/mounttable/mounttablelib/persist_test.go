@@ -25,7 +25,7 @@ func TestPersistence(t *testing.T) {
 	}
 	defer os.RemoveAll(td)
 	fmt.Printf("temp persist dir %s\n", td)
-	mt, mtAddr := newMT(t, "", td, "testPersistence", rootCtx)
+	stop, mtAddr := newMT(t, "", td, "testPersistence", rootCtx)
 
 	perms1 := access.Permissions{
 		"Read":    access.AccessList{In: []security.BlessingPattern{security.AllPrincipals}},
@@ -50,10 +50,10 @@ func TestPersistence(t *testing.T) {
 	doSetPermissions(t, rootCtx, mtAddr, "a/b/c/d/e", perms2, "", true)
 	doDeleteSubtree(t, rootCtx, mtAddr, "a/b/c", true)
 	doSetPermissions(t, rootCtx, mtAddr, "a/c/d", perms3, "", true)
-	mt.Stop()
+	stop()
 
 	// Restart with the persisted data.
-	mt, mtAddr = newMT(t, "", td, "testPersistence", rootCtx)
+	stop, mtAddr = newMT(t, "", td, "testPersistence", rootCtx)
 
 	// Add root as Admin to each of the perms since the mounttable itself will.
 	perms1["Admin"] = access.AccessList{In: []security.BlessingPattern{"root"}}
@@ -74,5 +74,5 @@ func TestPersistence(t *testing.T) {
 	if perm, _ := doGetPermissions(t, rootCtx, mtAddr, "a/c/d", true); !reflect.DeepEqual(perm, perms3) {
 		t.Fatalf("a/c/d: got %v, want %v", perm, perms3)
 	}
-	mt.Stop()
+	stop()
 }

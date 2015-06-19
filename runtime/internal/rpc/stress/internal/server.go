@@ -7,13 +7,8 @@ package internal
 import (
 	"sync"
 
-	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/security"
-	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/runtime/internal/rpc/stress"
 )
 
@@ -22,6 +17,11 @@ type impl struct {
 	stats   stress.SumStats // GUARDED_BY(statsMu)
 
 	stop chan struct{}
+}
+
+func NewService() (stress.StressServerStub, <-chan struct{}) {
+	s := &impl{stop: make(chan struct{})}
+	return stress.StressServer(s), s.stop
 }
 
 func (s *impl) Echo(_ *context.T, _ rpc.ServerCall, payload []byte) ([]byte, error) {
@@ -79,27 +79,4 @@ func (s *impl) GetSumStats(*context.T, rpc.ServerCall) (stress.SumStats, error) 
 func (s *impl) Stop(*context.T, rpc.ServerCall) error {
 	s.stop <- struct{}{}
 	return nil
-}
-
-// StartServer starts a server that implements the Stress service, and returns
-// the server and its vanadium address. It also returns a channel carrying stop
-// requests. After reading from the stop channel, the application should exit.
-func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (rpc.Server, naming.Endpoint, <-chan struct{}) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		vlog.Fatalf("NewServer failed: %v", err)
-	}
-	eps, err := server.Listen(listenSpec)
-	if err != nil {
-		vlog.Fatalf("Listen failed: %v", err)
-	}
-	if len(eps) == 0 {
-		vlog.Fatal("No local address to listen on")
-	}
-
-	s := impl{stop: make(chan struct{})}
-	if err := server.Serve("", stress.StressServer(&s), security.AllowEveryone()); err != nil {
-		vlog.Fatalf("Serve failed: %v", err)
-	}
-	return server, eps[0], s.stop
 }

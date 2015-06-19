@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
@@ -20,6 +19,7 @@ import (
 
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/histogram"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/statslib"
 	s_stats "v.io/x/ref/services/stats"
 	"v.io/x/ref/test"
@@ -37,31 +37,16 @@ func (d *statsDispatcher) Lookup(suffix string) (interface{}, security.Authorize
 	return statslib.NewStatsService(suffix, 100*time.Millisecond), nil, nil
 }
 
-func startServer(t *testing.T, ctx *context.T) (string, func()) {
-	disp := &statsDispatcher{}
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-		return "", nil
-	}
-	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-		return "", nil
-	}
-	if err := server.ServeDispatcher("", disp); err != nil {
-		t.Fatalf("Serve failed: %v", err)
-		return "", nil
-	}
-	return endpoints[0].String(), func() { server.Stop() }
-}
-
 func TestStatsImpl(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	endpoint, stop := startServer(t, ctx)
-	defer stop()
+	server, err := xrpc.NewDispatchingServer(ctx, "", &statsDispatcher{})
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+		return
+	}
+	endpoint := server.Status().Endpoints[0].String()
 
 	counter := libstats.NewCounter("testing/foo/bar")
 	counter.Incr(10)

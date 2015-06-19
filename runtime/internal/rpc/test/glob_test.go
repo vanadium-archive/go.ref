@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/naming"
@@ -20,26 +19,11 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/glob"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
-
-func startGlobServer(ctx *context.T, tree *node) (string, func(), error) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
-	}
-	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to listen: %v", err)
-	}
-	if err := server.ServeDispatcher("", &disp{tree}); err != nil {
-		return "", nil, err
-	}
-	ep := endpoints[0].String()
-	return ep, func() { server.Stop() }, nil
-}
 
 func TestGlob(t *testing.T) {
 	ctx, shutdown := test.V23Init()
@@ -58,11 +42,11 @@ func TestGlob(t *testing.T) {
 		tree.find(strings.Split(p, "/"), true)
 	}
 
-	ep, stop, err := startGlobServer(ctx, tree)
+	server, err := xrpc.NewDispatchingServer(ctx, "", &disp{tree})
 	if err != nil {
-		t.Fatalf("startGlobServer: %v", err)
+		t.Fatalf("failed to start debug server: %v", err)
 	}
-	defer stop()
+	ep := server.Status().Endpoints[0].String()
 
 	var (
 		noExist        = verror.New(verror.ErrNoExist, ctx, "")
@@ -209,11 +193,12 @@ func TestGlobDeny(t *testing.T) {
 	tree := newNode()
 	tree.find([]string{"a", "b"}, true)
 	tree.find([]string{"a", "deny", "x"}, true)
-	ep, stop, err := startGlobServer(ctx, tree)
+
+	server, err := xrpc.NewDispatchingServer(ctx, "", &disp{tree})
 	if err != nil {
-		t.Fatalf("startGlobServer: %v", err)
+		t.Fatalf("failed to start debug server: %v", err)
 	}
-	defer stop()
+	ep := server.Status().Endpoints[0].String()
 
 	testcases := []struct {
 		name, pattern string

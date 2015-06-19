@@ -8,16 +8,16 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/runtime/internal/rpc/stress/internal"
 )
@@ -40,8 +40,12 @@ var cmdRoot = &cmdline.Command{
 func runStressD(ctx *context.T, env *cmdline.Env, args []string) error {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	server, ep, stop := internal.StartServer(ctx, v23.GetListenSpec(ctx))
-	vlog.Infof("listening on %s", ep.Name())
+	service, stop := internal.NewService()
+	server, err := xrpc.NewServer(ctx, "", service, security.AllowEveryone())
+	if err != nil {
+		vlog.Fatalf("NewServer failed: %v", err)
+	}
+	vlog.Infof("listening on %s", server.Status().Endpoints[0].Name())
 
 	var timeout <-chan time.Time
 	if duration > 0 {
@@ -52,10 +56,5 @@ func runStressD(ctx *context.T, env *cmdline.Env, args []string) error {
 	case <-stop:
 	case <-signals.ShutdownOnSignals(ctx):
 	}
-
-	if err := server.Stop(); err != nil {
-		return fmt.Errorf("Stop() failed: %v", err)
-	}
-	vlog.Info("stopped.")
 	return nil
 }

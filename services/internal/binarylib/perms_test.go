@@ -21,6 +21,7 @@ import (
 	"v.io/x/lib/vlog"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
@@ -43,10 +44,6 @@ var binaryd = modules.Register(func(env *modules.Env, args ...string) error {
 	defer vlog.VI(1).Infof("%v terminating", publishName)
 	defer shutdown()
 
-	server, endpoint := servicetest.NewServer(ctx)
-	name := naming.JoinAddressName(endpoint, "")
-	vlog.VI(1).Infof("binaryd name: %v", name)
-
 	depth := 2
 	state, err := binarylib.NewState(storedir, "", depth)
 	if err != nil {
@@ -56,9 +53,11 @@ var binaryd = modules.Register(func(env *modules.Env, args ...string) error {
 	if err != nil {
 		vlog.Fatalf("Failed to create binaryd dispatcher: %v", err)
 	}
-	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
+	server, err := xrpc.NewDispatchingServer(ctx, publishName, dispatcher)
+	if err != nil {
+		vlog.Fatalf("NewDispatchingServer(%v) failed: %v", publishName, err)
 	}
+	vlog.VI(1).Infof("binaryd name: %v", server.Status().Endpoints[0].Name())
 
 	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
 	<-signals.ShutdownOnSignals(ctx)

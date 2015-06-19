@@ -14,13 +14,13 @@ import (
 
 	"v.io/x/lib/cmdline"
 
-	"v.io/v23"
 	"v.io/v23/context"
 
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
@@ -51,19 +51,8 @@ with other players, in a loop. As soon as one game is over, it starts a new one.
 
 func runBot(ctx *context.T, env *cmdline.Env, args []string) error {
 	auth := internal.NewAuthorizer(aclFile)
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return fmt.Errorf("NewServer failed: %v", err)
-	}
-
 	rand.Seed(time.Now().UnixNano())
 	rpsService := NewRPS(ctx)
-
-	listenSpec := v23.GetListenSpec(ctx)
-	eps, err := server.Listen(listenSpec)
-	if err != nil {
-		return fmt.Errorf("Listen(%v) failed: %v", listenSpec, err)
-	}
 	if name == "" {
 		name = internal.CreateName()
 	}
@@ -72,15 +61,16 @@ func runBot(ctx *context.T, env *cmdline.Env, args []string) error {
 		fmt.Sprintf("rps/player/%s", name),
 		fmt.Sprintf("rps/scorekeeper/%s", name),
 	}
-	if err := server.Serve(names[0], rps.RockPaperScissorsServer(rpsService), auth); err != nil {
-		return fmt.Errorf("Serve(%v) failed: %v", names[0], err)
+	server, err := xrpc.NewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), auth)
+	if err != nil {
+		return fmt.Errorf("NewServer failed: %v", err)
 	}
 	for _, n := range names[1:] {
 		if err := server.AddName(n); err != nil {
 			return fmt.Errorf("(%v) failed: %v", n, err)
 		}
 	}
-	ctx.Infof("Listening on endpoint %s (published as %v)", eps, names)
+	ctx.Infof("Listening on endpoint %s (published as %v)", server.Status().Endpoints[0], names)
 
 	go initiateGames(ctx, rpsService)
 	<-signals.ShutdownOnSignals(ctx)

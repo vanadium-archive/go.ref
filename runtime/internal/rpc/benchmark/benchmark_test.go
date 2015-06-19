@@ -10,7 +10,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-
+	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/test"
@@ -112,17 +114,16 @@ func TestMain(m *testing.M) {
 	var shutdown v23.Shutdown
 	ctx, shutdown = test.V23Init()
 
-	var serverStop func()
-	serverEP, serverStop := internal.StartServer(ctx, v23.GetListenSpec(ctx))
-	serverAddr = serverEP.Name()
+	server, err := xrpc.NewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	if err != nil {
+		vlog.Fatalf("NewServer failed: %v", err)
+	}
+	serverAddr = server.Status().Endpoints[0].Name()
 
 	// Create a VC to exclude the VC setup time from the benchmark.
 	internal.CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))
 
 	r := benchmark.RunTestMain(m)
-
-	serverStop()
 	shutdown()
-
 	os.Exit(r)
 }

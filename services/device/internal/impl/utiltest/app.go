@@ -23,8 +23,8 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/device/internal/suid"
-	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
@@ -125,10 +125,9 @@ func appFunc(env *modules.Env, args ...string) error {
 	}
 	publishName := args[0]
 
-	server, _ := servicetest.NewServer(ctx)
-	defer server.Stop()
-	if err := server.Serve(publishName, new(appService), nil); err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
+	_, err := xrpc.NewServer(ctx, publishName, new(appService), nil)
+	if err != nil {
+		vlog.Fatalf("NewServer(%v) failed: %v", publishName, err)
 	}
 	// Some of our tests look for log files, so make sure they are flushed
 	// to ensure that at least the files exist.
@@ -158,10 +157,10 @@ func (p PingServer) Ping(_ *context.T, _ rpc.ServerCall, arg PingArgs) error {
 // returns a channel on which the app's ping message is returned, and a cleanup
 // function.
 func SetupPingServer(t *testing.T, ctx *context.T) (PingServer, func()) {
-	server, _ := servicetest.NewServer(ctx)
 	pingCh := make(chan PingArgs, 1)
-	if err := server.Serve("pingserver", PingServer{pingCh}, security.AllowEveryone()); err != nil {
-		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
+	server, err := xrpc.NewServer(ctx, "pingserver", PingServer{pingCh}, security.AllowEveryone())
+	if err != nil {
+		t.Fatalf("NewServer(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 	return PingServer{pingCh}, func() {
 		if err := server.Stop(); err != nil {

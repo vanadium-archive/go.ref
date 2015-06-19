@@ -16,12 +16,12 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/services/appcycle"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -334,23 +334,6 @@ func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) er
 
 }
 
-func createConfigServer(t *testing.T, ctx *context.T) (rpc.Server, string, <-chan string) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
-	ch := make(chan string)
-	var ep []naming.Endpoint
-	if ep, err = server.Listen(v23.GetListenSpec(ctx)); err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
-	if err := server.Serve("", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie()); err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
-	return server, ep[0].Name(), ch
-
-}
-
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
 func TestCleanRemoteShutdown(t *testing.T) {
 	ctx, shutdown := test.V23Init()
@@ -362,8 +345,13 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
-	configServer, configServiceName, ch := createConfigServer(t, ctx)
-	defer configServer.Stop()
+	ch := make(chan string)
+	server, err := xrpc.NewServer(ctx, "", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie())
+	if err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	configServiceName := server.Status().Endpoints[0].Name()
+
 	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
 	sh.SetConfigKey(mgmt.ProtocolConfigKey, "tcp")
 	sh.SetConfigKey(mgmt.AddressConfigKey, "127.0.0.1:0")

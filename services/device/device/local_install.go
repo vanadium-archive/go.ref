@@ -29,6 +29,7 @@ import (
 
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/packages"
 )
 
@@ -78,13 +79,10 @@ func (ms *mapServer) serve(name string, object interface{}) (string, error) {
 }
 
 func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	spec := v23.GetListenSpec(ctx)
+	dispatcher := make(mapDispatcher)
+
 	var name string
-	if spec.Proxy != "" {
+	if spec := v23.GetListenSpec(ctx); spec.Proxy != "" {
 		id, err := uniqueid.Random()
 		if err != nil {
 			return nil, nil, err
@@ -94,15 +92,13 @@ func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) 
 		// local endpoints to the mount table.  The only thing published
 		// should be the proxied endpoint.
 		spec.Addrs = nil
+		ctx = v23.WithListenSpec(ctx, spec)
 	}
-	endpoints, err := server.Listen(spec)
+	server, err := xrpc.NewDispatchingServer(ctx, name, dispatcher)
 	if err != nil {
 		return nil, nil, err
 	}
-	dispatcher := make(mapDispatcher)
-	if err := server.ServeDispatcher(name, dispatcher); err != nil {
-		return nil, nil, err
-	}
+	endpoints := server.Status().Endpoints
 	vlog.VI(1).Infof("Server listening on %v (%v)", endpoints, name)
 	cleanup := func() {
 		if err := server.Stop(); err != nil {

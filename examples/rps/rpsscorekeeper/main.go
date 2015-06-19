@@ -13,7 +13,6 @@ import (
 
 	"v.io/x/lib/cmdline"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -21,6 +20,8 @@ import (
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
+
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -55,28 +56,21 @@ func (i *impl) Record(ctx *context.T, call rpc.ServerCall, score rps.ScoreCard) 
 }
 
 func runScoreKeeper(ctx *context.T, env *cmdline.Env, args []string) error {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return fmt.Errorf("NewServer failed: %v", err)
-	}
-	defer server.Stop()
-
 	ch := make(chan rps.ScoreCard)
 	rpsService := &impl{ch}
-
-	listenSpec := v23.GetListenSpec(ctx)
-	ep, err := server.Listen(listenSpec)
-	if err != nil {
-		return fmt.Errorf("Listen(%v) failed: %v", listenSpec, err)
-	}
 	hostname, err := os.Hostname()
 	if err != nil {
 		return fmt.Errorf("os.Hostname failed: %v", err)
 	}
-	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), internal.NewAuthorizer(aclFile)); err != nil {
-		return fmt.Errorf("Serve failed: %v", err)
+	name := fmt.Sprintf("rps/scorekeeper/%s", hostname)
+	service := rps.ScoreKeeperServer(rpsService)
+	authorizer := internal.NewAuthorizer(aclFile)
+	server, err := xrpc.NewServer(ctx, name, service, authorizer)
+	if err != nil {
+		return fmt.Errorf("NewServer failed: %v", err)
 	}
-	ctx.Infof("Listening on endpoint /%s", ep)
+
+	ctx.Infof("Listening on endpoint /%s", server.Status().Endpoints[0])
 
 	for score := range ch {
 		fmt.Print("======================\n", internal.FormatScoreCard(score))

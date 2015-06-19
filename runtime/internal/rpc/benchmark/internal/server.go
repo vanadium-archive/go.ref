@@ -5,16 +5,17 @@
 package internal
 
 import (
-	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 
-	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/runtime/internal/rpc/benchmark"
 )
 
 type impl struct {
+}
+
+func NewService() benchmark.BenchmarkServerStub {
+	return benchmark.BenchmarkServer(&impl{})
 }
 
 func (i *impl) Echo(_ *context.T, _ rpc.ServerCall, payload []byte) ([]byte, error) {
@@ -31,30 +32,4 @@ func (i *impl) EchoStream(_ *context.T, call benchmark.BenchmarkEchoStreamServer
 		return err
 	}
 	return nil
-}
-
-// StartServer starts a server that implements the Benchmark service. The
-// server listens to the given protocol and address, and returns the vanadium
-// address of the server and a callback function to stop the server.
-func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (naming.Endpoint, func()) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		ctx.Fatalf("NewServer failed: %v", err)
-	}
-	eps, err := server.Listen(listenSpec)
-	if err != nil {
-		ctx.Fatalf("Listen failed: %v", err)
-	}
-	if len(eps) == 0 {
-		ctx.Fatal("No local address to listen on")
-	}
-
-	if err := server.Serve("", benchmark.BenchmarkServer(&impl{}), securityflag.NewAuthorizerOrDie()); err != nil {
-		ctx.Fatalf("Serve failed: %v", err)
-	}
-	return eps[0], func() {
-		if err := server.Stop(); err != nil {
-			ctx.Fatalf("Stop() failed: %v", err)
-		}
-	}
 }

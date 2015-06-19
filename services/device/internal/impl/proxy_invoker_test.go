@@ -16,6 +16,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/stats"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -29,46 +30,31 @@ func TestProxyInvoker(t *testing.T) {
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// server1 is a normal server
-	server1, err := v23.NewServer(ctx)
+	server1, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
-	}
-	localSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	eps1, err := server1.Listen(localSpec)
-	if err != nil {
-		t.Fatalf("Listen: %v", err)
-	}
-	if err := server1.Serve("", &dummy{}, nil); err != nil {
-		t.Fatalf("server1.Serve: %v", err)
 	}
 
 	// server2 proxies requests to <suffix> to server1/__debug/stats/<suffix>
-	server2, err := v23.NewServer(ctx)
+	disp := &proxyDispatcher{
+		naming.JoinAddressName(server1.Status().Endpoints[0].String(), "__debug/stats"),
+		stats.StatsServer(nil).Describe__(),
+	}
+	server2, err := xrpc.NewDispatchingServer(ctx, "", disp)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
-	defer server2.Stop()
-	eps2, err := server2.Listen(localSpec)
-	if err != nil {
-		t.Fatalf("Listen: %v", err)
-	}
-	disp := &proxyDispatcher{
-		naming.JoinAddressName(eps1[0].String(), "__debug/stats"),
-		stats.StatsServer(nil).Describe__(),
-	}
-	if err := server2.ServeDispatcher("", disp); err != nil {
-		t.Fatalf("server2.Serve: %v", err)
-	}
+	addr2 := server2.Status().Endpoints[0].String()
 
 	// Call Value()
-	name := naming.JoinAddressName(eps2[0].String(), "system/start-time-rfc1123")
+	name := naming.JoinAddressName(addr2, "system/start-time-rfc1123")
 	c := stats.StatsClient(name)
 	if _, err := c.Value(ctx); err != nil {
 		t.Fatalf("%q.Value() error: %v", name, err)
 	}
 
 	// Call Glob()
-	results, _, err := testutil.GlobName(ctx, naming.JoinAddressName(eps2[0].String(), "system"), "start-time-*")
+	results, _, err := testutil.GlobName(ctx, naming.JoinAddressName(addr2, "system"), "start-time-*")
 	if err != nil {
 		t.Fatalf("Glob failed: %v", err)
 	}

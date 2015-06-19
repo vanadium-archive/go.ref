@@ -13,6 +13,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/xrpc"
 )
 
 func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, permsFile, persistDir, debugPrefix string) (string, func(), error) {
@@ -23,74 +24,48 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 		}
 	}
 
-	mtServer, err := v23.NewServer(ctx, options.ServesMountTable(true))
+	mt, err := NewMountTableDispatcher(permsFile, persistDir, debugPrefix)
+	if err != nil {
+		vlog.Errorf("NewMountTable failed: %v", err)
+		return "", nil, err
+	}
+	mtServer, err := xrpc.NewDispatchingServer(ctx, mountName, mt, options.ServesMountTable(true))
 	if err != nil {
 		vlog.Errorf("v23.NewServer failed: %v", err)
 		return "", nil, err
 	}
 	stopFuncs = append(stopFuncs, mtServer.Stop)
-	mt, err := NewMountTableDispatcher(permsFile, persistDir, debugPrefix)
-	if err != nil {
-		vlog.Errorf("NewMountTable failed: %v", err)
-		stop()
-		return "", nil, err
-	}
-	mtEndpoints, err := mtServer.Listen(listenSpec)
-	if err != nil {
-		vlog.Errorf("mtServer.Listen failed: %v", err)
-		stop()
-		return "", nil, err
-	}
-	mtEndpoint := mtEndpoints[0]
-	if err := mtServer.ServeDispatcher(mountName, mt); err != nil {
-		vlog.Errorf("ServeDispatcher() failed: %v", err)
-		stop()
-		return "", nil, err
-	}
-
-	mtName := mtEndpoint.Name()
+	mtEndpoints := mtServer.Status().Endpoints
+	mtName := mtEndpoints[0].Name()
 	vlog.Infof("Mount table service at: %q endpoint: %s", mountName, mtName)
 
 	if len(nhName) > 0 {
-		neighborhoodListenSpec := listenSpec.Copy()
 		// The ListenSpec code ensures that we have a valid address here.
 		host, port, _ := net.SplitHostPort(listenSpec.Addrs[0].Address)
 		if port != "" {
+			neighborhoodListenSpec := listenSpec.Copy()
 			neighborhoodListenSpec.Addrs[0].Address = net.JoinHostPort(host, "0")
+			ctx = v23.WithListenSpec(ctx, neighborhoodListenSpec)
 		}
-		nhServer, err := v23.NewServer(ctx, options.ServesMountTable(true))
+
+		names := []string{}
+		for _, ep := range mtEndpoints {
+			names = append(names, ep.Name())
+		}
+		var nh rpc.Dispatcher
+		if host == "127.0.0.1" || host == "localhost" {
+			nh, err = NewLoopbackNeighborhoodDispatcher(nhName, names...)
+		} else {
+			nh, err = NewNeighborhoodDispatcher(nhName, names...)
+		}
+
+		nhServer, err := xrpc.NewDispatchingServer(ctx, naming.Join(mtName, "nh"), nh, options.ServesMountTable(true))
 		if err != nil {
 			vlog.Errorf("v23.NewServer failed: %v", err)
 			stop()
 			return "", nil, err
 		}
 		stopFuncs = append(stopFuncs, nhServer.Stop)
-		if _, err := nhServer.Listen(neighborhoodListenSpec); err != nil {
-			vlog.Errorf("nhServer.Listen failed: %v", err)
-			stop()
-			return "", nil, err
-		}
-
-		addresses := []string{}
-		for _, ep := range mtEndpoints {
-			addresses = append(addresses, ep.Name())
-		}
-		var nh rpc.Dispatcher
-		if host == "127.0.0.1" || host == "localhost" {
-			nh, err = NewLoopbackNeighborhoodDispatcher(nhName, addresses...)
-		} else {
-			nh, err = NewNeighborhoodDispatcher(nhName, addresses...)
-		}
-		if err != nil {
-			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
-			stop()
-			return "", nil, err
-		}
-		if err := nhServer.ServeDispatcher(naming.JoinAddressName(mtName, "nh"), nh); err != nil {
-			vlog.Errorf("nhServer.ServeDispatcher failed to register neighborhood: %v", err)
-			stop()
-			return "", nil, err
-		}
 	}
 	return mtName, stop, nil
 }

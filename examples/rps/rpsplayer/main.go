@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/lib/v23cmd"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -28,6 +27,8 @@ import (
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/internal/logger"
+	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
@@ -124,24 +125,18 @@ func (i *impl) Challenge(ctx *context.T, call rpc.ServerCall, address string, id
 // recvChallenge runs a server until a game challenge is accepted by the user.
 // The server is stopped afterwards.
 func recvChallenge(ctx *context.T) gameChallenge {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		ctx.Fatalf("NewServer failed: %v", err)
-	}
 	ch := make(chan gameChallenge)
-
-	listenSpec := v23.GetListenSpec(ctx)
-	ep, err := server.Listen(listenSpec)
-	if err != nil {
-		ctx.Fatalf("Listen(%v) failed: %v", listenSpec, err)
-	}
 	if name == "" {
 		name = internal.CreateName()
 	}
-	if err := server.Serve(fmt.Sprintf("rps/player/%s", name), rps.PlayerServer(&impl{ch: ch}), internal.NewAuthorizer(aclFile)); err != nil {
-		ctx.Fatalf("Serve failed: %v", err)
+	fullname := fmt.Sprintf("rps/player/%s", name)
+	service := rps.PlayerServer(&impl{ch: ch})
+	auth := internal.NewAuthorizer(aclFile)
+	server, err := xrpc.NewServer(ctx, fullname, service, auth)
+	if err != nil {
+		ctx.Fatalf("NewServer failed: %v", err)
 	}
-	ctx.Infof("Listening on endpoint /%s", ep)
+	ctx.Infof("Listening on endpoint /%s", server.Status().Endpoints[0])
 	result := <-ch
 	server.Stop()
 	return result

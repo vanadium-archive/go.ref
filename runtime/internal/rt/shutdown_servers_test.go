@@ -18,6 +18,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -26,21 +27,6 @@ import (
 type dummy struct{}
 
 func (*dummy) Echo(*context.T, rpc.ServerCall) error { return nil }
-
-// makeServer sets up a simple dummy server.
-func makeServer(ctx *context.T) rpc.Server {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		vlog.Fatalf("r.NewServer error: %s", err)
-	}
-	if _, err := server.Listen(v23.GetListenSpec(ctx)); err != nil {
-		vlog.Fatalf("server.Listen error: %s", err)
-	}
-	if err := server.Serve("", &dummy{}, nil); err != nil {
-		vlog.Fatalf("server.Serve error: %s", err)
-	}
-	return server
-}
 
 // remoteCmdLoop listens on stdin and interprets commands sent over stdin (from
 // the parent process).
@@ -82,8 +68,14 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 	defer remoteCmdLoop(ctx, env.Stdin)()
 
 	// Create a couple servers, and start serving.
-	server1 := makeServer(ctx)
-	server2 := makeServer(ctx)
+	server1, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
+	if err != nil {
+		vlog.Fatalf("r.NewServer error: %s", err)
+	}
+	server2, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
+	if err != nil {
+		vlog.Fatalf("r.NewServer error: %s", err)
+	}
 
 	// This is how to wait for a shutdown.  In this example, a shutdown
 	// comes from a signal or a stop command.
@@ -228,7 +220,10 @@ var simpleServerProgram = modules.Register(func(env *modules.Env, args ...string
 	defer remoteCmdLoop(ctx, env.Stdin)()
 
 	// Create a server, and start serving.
-	server := makeServer(ctx)
+	server, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
+	if err != nil {
+		vlog.Fatalf("r.NewServer error: %s", err)
+	}
 
 	// This is how to wait for a shutdown.  In this example, a shutdown
 	// comes from a signal or a stop command.

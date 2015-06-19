@@ -31,6 +31,7 @@ import (
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
 )
 
@@ -758,41 +759,33 @@ This file can be supplied to bless:
 			if len(args) != 0 {
 				return fmt.Errorf("command accepts no arguments")
 			}
-			server, err := v23.NewServer(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to create server to listen for blessings: %v", err)
-			}
-			defer server.Stop()
-			eps, err := server.Listen(v23.GetListenSpec(ctx))
-			if err != nil {
-				return fmt.Errorf("failed to setup listening: %v", err)
-			}
 			var token [24]byte
 			if _, err := rand.Read(token[:]); err != nil {
 				return fmt.Errorf("unable to generate token: %v", err)
 			}
-
 			p := v23.GetPrincipal(ctx)
 			service := &recvBlessingsService{
 				principal: p,
 				token:     base64.URLEncoding.EncodeToString(token[:]),
 				notify:    make(chan error),
 			}
-			if err := server.Serve("", service, security.AllowEveryone()); err != nil {
-				return fmt.Errorf("failed to setup service: %v", err)
+			server, err := xrpc.NewServer(ctx, "", service, security.AllowEveryone())
+			if err != nil {
+				return fmt.Errorf("failed to create server to listen for blessings: %v", err)
 			}
+			name := server.Status().Endpoints[0].Name()
 			fmt.Println("Run the following command on behalf of the principal that will send blessings:")
 			fmt.Println("You may want to adjust flags affecting the caveats on this blessing, for example using")
 			fmt.Println("the --for flag")
 			fmt.Println()
 			if len(flagRemoteArgFile) > 0 {
-				if err := writeRecvBlessingsInfo(flagRemoteArgFile, p.PublicKey().String(), service.token, eps[0].Name()); err != nil {
+				if err := writeRecvBlessingsInfo(flagRemoteArgFile, p.PublicKey().String(), service.token, name); err != nil {
 					return fmt.Errorf("failed to write recvblessings info to %v: %v", flagRemoteArgFile, err)
 				}
 				fmt.Printf("make %q accessible to the blesser, possibly by copying the file over and then run:\n", flagRemoteArgFile)
 				fmt.Printf("principal bless --remote-arg-file=%v", flagRemoteArgFile)
 			} else {
-				fmt.Printf("principal bless --remote-key=%v --remote-token=%v %v\n", p.PublicKey(), service.token, eps[0].Name())
+				fmt.Printf("principal bless --remote-key=%v --remote-token=%v %v\n", p.PublicKey(), service.token, name)
 			}
 			fmt.Println()
 			fmt.Println("...waiting for sender..")

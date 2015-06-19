@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/services/build"
 
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 )
 
@@ -66,21 +66,13 @@ func getOS(t *testing.T) (os build.OperatingSystem) {
 // startServer starts the build server.
 func startServer(t *testing.T, ctx *context.T) build.BuilderClientMethods {
 	gobin, goroot := findGoBinary(t, "go")
-	server, err := v23.NewServer(ctx)
+	service := build.BuilderServer(NewBuilderService(gobin, goroot))
+	unpublished := ""
+	server, err := xrpc.NewServer(ctx, unpublished, service, nil)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	l := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(l)
-	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", l, err)
-	}
-	unpublished := ""
-	if err := server.Serve(unpublished, build.BuilderServer(NewBuilderService(gobin, goroot)), nil); err != nil {
-		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
-	}
-	name := "/" + endpoints[0].String()
-	return build.BuilderClient(name)
+	return build.BuilderClient(server.Status().Endpoints[0].Name())
 }
 
 func invokeBuild(t *testing.T, ctx *context.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
