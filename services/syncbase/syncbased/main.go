@@ -19,6 +19,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
@@ -44,26 +45,16 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	s, err := v23.NewServer(ctx)
-	if err != nil {
-		vlog.Fatal("v23.NewServer() failed: ", err)
-	}
-	if _, err := s.Listen(v23.GetListenSpec(ctx)); err != nil {
-		vlog.Fatal("s.Listen() failed: ", err)
-	}
-
 	perms, err := securityflag.PermissionsFromFlag()
 	if err != nil {
 		vlog.Fatal("securityflag.PermissionsFromFlag() failed: ", err)
 	}
-
 	if perms != nil {
 		vlog.Info("Using permissions from command line flag.")
 	} else {
 		vlog.Info("No permissions flag provided. Giving local principal all permissions.")
 		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 	}
-
 	service, err := server.NewService(nil, nil, server.ServiceOptions{
 		Perms:   perms,
 		RootDir: *rootDir,
@@ -74,9 +65,8 @@ func main() {
 	}
 	d := server.NewDispatcher(service)
 
-	// Publish the service in the mount table.
-	if err := s.ServeDispatcher(*name, d); err != nil {
-		vlog.Fatal("s.ServeDispatcher() failed: ", err)
+	if _, err = xrpc.NewDispatchingServer(ctx, *name, d); err != nil {
+		vlog.Fatal("xrpc.NewDispatchingServer() failed: ", err)
 	}
 	vlog.Info("Mounted at: ", *name)
 
