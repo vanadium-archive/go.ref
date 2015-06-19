@@ -446,7 +446,7 @@ func VerifyDeviceState(t *testing.T, ctx *context.T, want device.InstanceState, 
 func Status(t *testing.T, ctx *context.T, nameComponents ...string) device.Status {
 	s, err := AppStub(nameComponents...).Status(ctx)
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(3, "Status(%v) failed: %v [%v]", nameComponents, verror.ErrorID(err), err))
+		t.Errorf(testutil.FormatLogLine(3, "Status(%v) failed: %v [%v]", nameComponents, verror.ErrorID(err), err))
 	}
 	return s
 }
@@ -465,10 +465,10 @@ func VerifyState(t *testing.T, ctx *context.T, want interface{}, nameComponents 
 		state = s.Value.State
 		version = s.Value.Version
 	default:
-		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) returned unknown type: %T", nameComponents, s))
+		t.Errorf(testutil.FormatLogLine(2, "Status(%v) returned unknown type: %T", nameComponents, s))
 	}
 	if state != want {
-		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) state: wanted %v (%T), got %v (%T)", nameComponents, want, want, state, state))
+		t.Errorf(testutil.FormatLogLine(2, "Status(%v) state: wanted %v (%T), got %v (%T)", nameComponents, want, want, state, state))
 	}
 	return version
 }
@@ -484,7 +484,7 @@ func CompareAssociations(t *testing.T, got, expected []device.Association) {
 	sort.Sort(byIdentity(got))
 	sort.Sort(byIdentity(expected))
 	if !reflect.DeepEqual(got, expected) {
-		t.Fatalf("ListAssociations() got %v, expected %v", got, expected)
+		t.Errorf("ListAssociations() got %v, expected %v", got, expected)
 	}
 }
 
@@ -700,7 +700,7 @@ func VerifyPProfCmdLine(t *testing.T, ctx *context.T, appName string, nameCompon
 		t.Errorf(testutil.FormatLogLine(2, "CmdLine(%q) failed: %v", name, err))
 	}
 	if len(v) == 0 {
-		t.Fatalf("Unexpected empty cmdline: %v", v)
+		t.Errorf("Unexpected empty cmdline: %v", v)
 	}
 	if got, want := filepath.Base(v[0]), appName; got != want {
 		t.Errorf(testutil.FormatLogLine(2, "Unexpected value for argv[0]. Got %v, want %v", got, want))
@@ -797,6 +797,7 @@ func PollingWait(t *testing.T, pid int) {
 	for syscall.Kill(pid, 0) == nil {
 		select {
 		case <-timeOut:
+			syscall.Kill(pid, 9)
 			t.Fatalf("Timed out waiting for PID %v to terminate", pid)
 		case <-time.After(time.Millisecond):
 			// Try again.
