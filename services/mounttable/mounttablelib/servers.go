@@ -12,6 +12,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/xrpc"
 )
@@ -24,20 +25,21 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 		}
 	}
 
-	mt, err := NewMountTableDispatcher(permsFile, persistDir, debugPrefix)
+	mt, err := NewMountTableDispatcher(ctx, permsFile, persistDir, debugPrefix)
 	if err != nil {
 		vlog.Errorf("NewMountTable failed: %v", err)
 		return "", nil, err
 	}
 	mtServer, err := xrpc.NewDispatchingServer(ctx, mountName, mt, options.ServesMountTable(true))
 	if err != nil {
-		vlog.Errorf("v23.NewServer failed: %v", err)
+
+		ctx.Errorf("v23.NewServer failed: %v", err)
 		return "", nil, err
 	}
 	stopFuncs = append(stopFuncs, mtServer.Stop)
 	mtEndpoints := mtServer.Status().Endpoints
 	mtName := mtEndpoints[0].Name()
-	vlog.Infof("Mount table service at: %q endpoint: %s", mountName, mtName)
+	ctx.Infof("Mount table service at: %q endpoint: %s", mountName, mtName)
 
 	if len(nhName) > 0 {
 		// The ListenSpec code ensures that we have a valid address here.
@@ -61,7 +63,7 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 
 		nhServer, err := xrpc.NewDispatchingServer(ctx, naming.Join(mtName, "nh"), nh, options.ServesMountTable(true))
 		if err != nil {
-			vlog.Errorf("v23.NewServer failed: %v", err)
+			ctx.Errorf("v23.NewServer failed: %v", err)
 			stop()
 			return "", nil, err
 		}

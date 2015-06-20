@@ -18,7 +18,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 // Blessings can't include a comma so we use them in made up user ids.  The following distinctions are
@@ -89,8 +88,8 @@ func (b *VersionedPermissions) Add(pattern security.BlessingPattern, tag string)
 }
 
 // parsePermFile reads a file and parses the contained permissions.
-func (mt *mountTable) parsePermFile(path string) error {
-	vlog.VI(2).Infof("parsePermFile(%s)", path)
+func (mt *mountTable) parsePermFile(ctx *context.T, path string) error {
+	ctx.VI(2).Infof("parsePermFile(%s)", path)
 	if path == "" {
 		return nil
 	}
@@ -143,9 +142,9 @@ func (mt *mountTable) parsePermFile(path string) error {
 			}
 
 			// Create name and add the Permissions map to it.
-			n, err := mt.findNode(nil, nil, elems, true, nil, nil)
+			n, err := mt.findNode(ctx, nil, elems, true, nil, nil)
 			if n != nil || err == nil {
-				vlog.VI(2).Infof("added perms %v to %s", perms, name)
+				ctx.VI(2).Infof("added perms %v to %s", perms, name)
 				if isPattern {
 					n.permsTemplate = perms
 				} else {

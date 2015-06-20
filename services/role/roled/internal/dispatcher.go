@@ -16,10 +16,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/services/discharger"
 	"v.io/x/ref/services/role"
-
-	"v.io/x/lib/vlog"
 )
 
 const requiredSuffix = security.ChainSeparator + role.RoleSuffix
@@ -58,7 +57,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	if err != nil && !os.IsNotExist(err) {
 		// The config file exists, but we failed to read it for some
 		// reason. This is likely a server configuration error.
-		vlog.Errorf("loadConfig(%q, %q): %v", d.config.root, suffix, err)
+		logger.Global().Errorf("loadConfig(%q, %q): %v", d.config.root, suffix, err)
 		return nil, nil, verror.Convert(verror.ErrInternal, nil, err)
 	}
 	obj := &roleService{serverConfig: d.config, role: suffix, roleConfig: roleConfig}
@@ -112,7 +111,6 @@ func loadExpandedConfig(fileName string, seenFiles map[string]struct{}) (*Config
 		f := filepath.Join(parentDir, filepath.FromSlash(imp+".conf"))
 		ic, err := loadExpandedConfig(f, seenFiles)
 		if err != nil {
-			vlog.Errorf("loadExpandedConfig(%q) failed: %v", f, err)
 			continue
 		}
 		if ic == nil {

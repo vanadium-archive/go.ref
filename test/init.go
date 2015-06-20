@@ -39,7 +39,7 @@ func init() {
 }
 
 // Init sets up state for running tests: Adjusting GOMAXPROCS,
-// configuring the vlog logging library, setting up the random number generator
+// configuring the logging library, setting up the random number generator
 // etc.
 //
 // Doing so requires flags to be parsed, so this function explicitly parses
@@ -96,7 +96,7 @@ func V23InitWithParams(params InitParams) (*context.T, v23.Shutdown) {
 		}
 	}
 	if params.CreateMounttable {
-		disp, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
+		disp, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 		if err != nil {
 			panic(err)
 		}

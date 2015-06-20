@@ -13,7 +13,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
@@ -54,6 +53,6 @@ func runMountTableD(ctx *context.T, env *cmdline.Env, args []string) error {
 	fmt.Printf("NAME=%s\n", name)
 
 	// Wait until signal is received.
-	vlog.Info("Received signal ", <-signals.ShutdownOnSignals(ctx))
+	ctx.Info("Received signal ", <-signals.ShutdownOnSignals(ctx))
 	return nil
 }

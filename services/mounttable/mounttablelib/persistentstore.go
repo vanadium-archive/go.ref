@@ -12,7 +12,9 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/x/lib/vlog"
+	"v.io/v23/context"
+
+	"v.io/x/ref/internal/logger"
 )
 
 type store struct {
@@ -43,7 +45,7 @@ type storeElement struct {
 //      it will be renamed persistent.perms becoming the new log.
 //   old.permslog - the previous version of persistent.perms.  This is left around primarily for debugging
 //      and as an emergency backup.
-func newPersistentStore(mt *mountTable, dir string) persistence {
+func newPersistentStore(ctx *context.T, mt *mountTable, dir string) persistence {
 	s := &store{mt: mt, dir: dir}
 	file := path.Join(dir, "persistent.permslog")
 	tmp := path.Join(dir, "tmp.permslog")
@@ -53,11 +55,11 @@ func newPersistentStore(mt *mountTable, dir string) persistence {
 	f, err := os.Open(file)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			vlog.Fatalf("cannot open %s: %s", file, err)
+			logger.Global().Fatalf("cannot open %s: %s", file, err)
 		}
 		os.Rename(tmp, file)
 		if f, err = os.Open(file); err != nil && !os.IsNotExist(err) {
-			vlog.Fatalf("cannot open %s: %s", file, err)
+			logger.Global().Fatalf("cannot open %s: %s", file, err)
 		}
 	} else {
 		os.Remove(tmp)
@@ -65,10 +67,10 @@ func newPersistentStore(mt *mountTable, dir string) persistence {
 
 	// Parse the permissions file and apply it to the in memory tree.
 	if f != nil {
-		if err := s.parseLogFile(f); err != nil {
+		if err := s.parseLogFile(ctx, f); err != nil {
 			f.Close()
 			// Log the error but keep going.  There's not much else we can do.
-			vlog.Infof("parsing old persistent permissions file %s: %s", file, err)
+			logger.Global().Infof("parsing old persistent permissions file %s: %s", file, err)
 		}
 		f.Close()
 	}
@@ -78,9 +80,9 @@ func newPersistentStore(mt *mountTable, dir string) persistence {
 	f, err = os.OpenFile(tmp, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		// Log the error but keep going, don't compress, just append to the current file.
-		vlog.Infof("can't rewrite persistent permissions file %s: %s", file, err)
+		logger.Global().Infof("can't rewrite persistent permissions file %s: %s", file, err)
 		if f, err = os.OpenFile(file, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600); err != nil {
-			vlog.Fatalf("can't append to log %s: %s", file, err)
+			logger.Global().Fatalf("can't append to log %s: %s", file, err)
 		}
 		f.Seek(0, 2)
 		s.enc = json.NewEncoder(f)
@@ -92,13 +94,13 @@ func newPersistentStore(mt *mountTable, dir string) persistence {
 
 	// Switch names and remove the old file.
 	if err := os.Remove(old); err != nil {
-		vlog.Infof("removing %s: %s", old, err)
+		ctx.Infof("removing %s: %s", old, err)
 	}
 	if err := os.Rename(file, old); err != nil {
-		vlog.Infof("renaming %s to %s: %s", file, old, err)
+		ctx.Infof("renaming %s to %s: %s", file, old, err)
 	}
 	if err := os.Rename(tmp, file); err != nil {
-		vlog.Fatalf("renaming %s to %s: %s", tmp, file, err)
+		ctx.Fatalf("renaming %s to %s: %s", tmp, file, err)
 	}
 
 	// Reopen the new log file.  We could have just kept around the encoder used
@@ -106,7 +108,7 @@ func newPersistentStore(mt *mountTable, dir string) persistence {
 	// points to the same file.  Only true on Unix like file systems.
 	f, err = os.OpenFile(file, os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
-		vlog.Fatalf("can't open %s: %s", file, err)
+		ctx.Fatalf("can't open %s: %s", file, err)
 	}
 	f.Seek(0, 2)
 	s.enc = json.NewEncoder(f)
@@ -114,11 +116,11 @@ func newPersistentStore(mt *mountTable, dir string) persistence {
 }
 
 // parseLogFile reads a file and parses the contained VersionedPermissions .
-func (s *store) parseLogFile(f *os.File) error {
+func (s *store) parseLogFile(ctx *context.T, f *os.File) error {
 	if f == nil {
 		return nil
 	}
-	vlog.VI(2).Infof("parseLogFile(%s)", f.Name())
+	ctx.VI(2).Infof("parseLogFile(%s)", f.Name())
 	mt := s.mt
 	decoder := json.NewDecoder(f)
 	for {
@@ -131,16 +133,16 @@ func (s *store) parseLogFile(f *os.File) error {
 		}
 
 		elems := strings.Split(e.N, "/")
-		n, err := mt.findNode(nil, nil, elems, true, nil, nil)
+		n, err := mt.findNode(ctx, nil, elems, true, nil, nil)
 		if n != nil || err == nil {
 			n.creator = e.C
 			if e.D {
 				mt.deleteNode(n.parent, elems[len(elems)-1])
-				vlog.VI(2).Infof("deleted %s", e.N)
+				ctx.VI(2).Infof("deleted %s", e.N)
 			} else {
 				n.vPerms = &e.V
 				n.explicitPermissions = true
-				vlog.VI(2).Infof("added versions permissions %v to %s", e.V, e.N)
+				ctx.VI(2).Infof("added versions permissions %v to %s", e.V, e.N)
 			}
 		}
 		n.parent.Unlock()
