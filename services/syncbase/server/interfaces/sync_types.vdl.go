@@ -39,31 +39,23 @@ func (GenVector) __VDLReflect(struct {
 
 // LogRecMetadata represents the metadata of a single log record that is
 // exchanged between two peers. Each log record represents a change made to an
-// object in the store. The log record metadata consists of Id, the device id
-// that created the log record, Gen, the generation number for that log record,
-// and RecType, the type of log record. It also contains information relevant to
-// the update to the object in the store: ObjId is the id of the object that was
-// updated. CurVers is the current version number of the object. Parents can
-// contain 0, 1 or 2 parent versions that the current version is derived from.
-// SyncTime is the timestamp when the update is committed to the Store.
-// Delete indicates whether the update resulted in the object being
-// deleted from the store. BatchId is the unique id of the Batch this update
-// belongs to. BatchCount is the number of objects in the Batch.
+// object in the store.
 //
-// TODO(hpucha): Add readset/scanset.
+// TODO(hpucha): Add readset/scanset. Look into sending tx metadata only once
+// per transaction.
 type LogRecMetadata struct {
 	// Log related information.
-	Id      uint64
-	Gen     uint64
-	RecType byte
+	Id      uint64 // device id that created the log record.
+	Gen     uint64 // generation number for the log record.
+	RecType byte   // type of log record.
 	// Object related information.
-	ObjId      string
-	CurVers    string
-	Parents    []string
-	SyncTime   time.Time
-	Delete     bool
-	BatchId    uint64
-	BatchCount uint64
+	ObjId      string    // id of the object that was updated.
+	CurVers    string    // current version number of the object.
+	Parents    []string  // 0, 1 or 2 parent versions that the current version is derived from.
+	UpdTime    time.Time // timestamp when the update is generated.
+	Delete     bool      // indicates whether the update resulted in object being deleted from the store.
+	BatchId    uint64    // unique id of the Batch this update belongs to.
+	BatchCount uint64    // number of objects in the Batch.
 }
 
 func (LogRecMetadata) __VDLReflect(struct {
@@ -178,5 +170,8 @@ const NoGroupId = GroupId(0)
 // NodeRec type log record adds a new node in the dag.
 const NodeRec = byte(0)
 
-// LinkRec type log record adds a new link in the dag.
+// LinkRec type log record adds a new link in the dag. Link records are
+// added when a conflict is resolved by picking the local or the remote
+// version as the resolution of a conflict, instead of creating a new
+// version.
 const LinkRec = byte(1)

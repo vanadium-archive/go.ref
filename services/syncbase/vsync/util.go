@@ -9,6 +9,8 @@ package vsync
 import (
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
+	"v.io/v23/rpc"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
 
@@ -52,4 +54,25 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string,
 			}
 		}
 	}
+}
+
+// getDbStore gets the store handle to the database.
+func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, appName, dbName string) (store.Store, error) {
+	app, err := s.sv.App(ctx, call, appName)
+	if err != nil {
+		return nil, err
+	}
+	db, err := app.NoSQLDatabase(ctx, call, dbName)
+	if err != nil {
+		return nil, err
+	}
+	return db.St(), nil
+}
+
+// translateError translates store errors.
+func translateError(ctx *context.T, err error, key string) error {
+	if verror.ErrorID(err) == store.ErrUnknownKey.ID {
+		return verror.New(verror.ErrNoExist, ctx, key)
+	}
+	return verror.New(verror.ErrInternal, ctx, key, err)
 }
