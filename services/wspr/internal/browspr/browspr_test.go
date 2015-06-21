@@ -77,7 +77,7 @@ func TestBrowspr(t *testing.T) {
 	}
 	defer proxyShutdown()
 
-	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
+	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
 		t.Fatalf("Failed to create mounttable: %v", err)
 	}

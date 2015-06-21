@@ -19,7 +19,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/services/logreader"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 const pkgPath = "v.io/x/ref/services/internal/logreaderlib"
@@ -58,7 +57,7 @@ type logfileService struct {
 
 // Size returns the size of the log file, in bytes.
 func (i *logfileService) Size(ctx *context.T, _ rpc.ServerCall) (int64, error) {
-	vlog.VI(1).Infof("%v.Size()", i.suffix)
+	ctx.VI(1).Infof("%v.Size()", i.suffix)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
 		return 0, err
@@ -68,7 +67,7 @@ func (i *logfileService) Size(ctx *context.T, _ rpc.ServerCall) (int64, error) {
 		if os.IsNotExist(err) {
 			return 0, verror.New(verror.ErrNoExist, ctx, fname)
 		}
-		vlog.Errorf("Stat(%v) failed: %v", fname, err)
+		ctx.Errorf("Stat(%v) failed: %v", fname, err)
 		return 0, verror.New(errOperationFailed, ctx, fname)
 	}
 	if fi.IsDir() {
@@ -79,7 +78,7 @@ func (i *logfileService) Size(ctx *context.T, _ rpc.ServerCall) (int64, error) {
 
 // ReadLog returns log entries from the log file.
 func (i *logfileService) ReadLog(ctx *context.T, call logreader.LogFileReadLogServerCall, startpos int64, numEntries int32, follow bool) (int64, error) {
-	vlog.VI(1).Infof("%v.ReadLog(%v, %v, %v)", i.suffix, startpos, numEntries, follow)
+	ctx.VI(1).Infof("%v.ReadLog(%v, %v, %v)", i.suffix, startpos, numEntries, follow)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
 		return 0, err
@@ -116,7 +115,7 @@ func (i *logfileService) ReadLog(ctx *context.T, call logreader.LogFileReadLogSe
 // GlobChildren__ returns the list of files in a directory streamed on a
 // channel. The list is empty if the object is a file.
 func (i *logfileService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
-	vlog.VI(1).Infof("%v.GlobChildren__()", i.suffix)
+	ctx.VI(1).Infof("%v.GlobChildren__()", i.suffix)
 	dirName, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
 		return nil, err

@@ -14,8 +14,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/services/role"
 )
 
@@ -31,7 +29,7 @@ type roleService struct {
 
 func (i *roleService) SeekBlessings(ctx *context.T, call rpc.ServerCall) (security.Blessings, error) {
 	remoteBlessingNames, _ := security.RemoteBlessingNames(ctx, call.Security())
-	vlog.Infof("%q.SeekBlessings() called by %q", i.role, remoteBlessingNames)
+	ctx.Infof("%q.SeekBlessings() called by %q", i.role, remoteBlessingNames)
 
 	members := i.filterNonMembers(remoteBlessingNames)
 	if len(members) == 0 {

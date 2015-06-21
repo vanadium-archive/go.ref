@@ -212,7 +212,7 @@ func runServer(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint str
 }
 
 func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
-	mtd, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
+	mtd, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
 		boom(t, "NewMountTableDispatcher returned error: %v", err)
 	}

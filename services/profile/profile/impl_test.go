@@ -17,7 +17,6 @@ import (
 	"v.io/v23/services/build"
 
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -44,37 +43,37 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Label(*context.T, rpc.ServerCall) (string, error) {
-	vlog.VI(2).Infof("%v.Label() was called", s.suffix)
+func (s *server) Label(ctx *context.T, _ rpc.ServerCall) (string, error) {
+	ctx.VI(2).Infof("%v.Label() was called", s.suffix)
 	if s.suffix != "exists" {
 		return "", fmt.Errorf("profile doesn't exist: %v", s.suffix)
 	}
 	return spec.Label, nil
 }
 
-func (s *server) Description(*context.T, rpc.ServerCall) (string, error) {
-	vlog.VI(2).Infof("%v.Description() was called", s.suffix)
+func (s *server) Description(ctx *context.T, _ rpc.ServerCall) (string, error) {
+	ctx.VI(2).Infof("%v.Description() was called", s.suffix)
 	if s.suffix != "exists" {
 		return "", fmt.Errorf("profile doesn't exist: %v", s.suffix)
 	}
 	return spec.Description, nil
 }
 
-func (s *server) Specification(*context.T, rpc.ServerCall) (profile.Specification, error) {
-	vlog.VI(2).Infof("%v.Specification() was called", s.suffix)
+func (s *server) Specification(ctx *context.T, _ rpc.ServerCall) (profile.Specification, error) {
+	ctx.VI(2).Infof("%v.Specification() was called", s.suffix)
 	if s.suffix != "exists" {
 		return profile.Specification{}, fmt.Errorf("profile doesn't exist: %v", s.suffix)
 	}
 	return spec, nil
 }
 
-func (s *server) Put(_ *context.T, _ rpc.ServerCall, _ profile.Specification) error {
-	vlog.VI(2).Infof("%v.Put() was called", s.suffix)
+func (s *server) Put(ctx *context.T, _ rpc.ServerCall, _ profile.Specification) error {
+	ctx.VI(2).Infof("%v.Put() was called", s.suffix)
 	return nil
 }
 
-func (s *server) Remove(*context.T, rpc.ServerCall) error {
-	vlog.VI(2).Infof("%v.Remove() was called", s.suffix)
+func (s *server) Remove(ctx *context.T, _ rpc.ServerCall) error {
+	ctx.VI(2).Infof("%v.Remove() was called", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("profile doesn't exist: %v", s.suffix)
 	}

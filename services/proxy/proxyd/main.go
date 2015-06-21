@@ -14,13 +14,15 @@ import (
 	"net/http"
 	"time"
 
+	"v.io/x/lib/cmdline"
+
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/logging"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/xrpc"
@@ -66,7 +68,7 @@ func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 		// Always add ourselves, for the the reserved methods server
 		// started below.
 		list.In = append(list.In, security.DefaultBlessingPatterns(v23.GetPrincipal(ctx))...)
-		vlog.Infof("Using access list to control proxy use: %v", list)
+		ctx.Infof("Using access list to control proxy use: %v", list)
 		authorizer = list
 	}
 
@@ -85,7 +87,7 @@ func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 
 	if len(healthzAddr) != 0 {
-		go startHealthzServer(healthzAddr)
+		go startHealthzServer(ctx, healthzAddr)
 	}
 
 	// Start an RPC Server that listens through the proxy itself. This
@@ -120,7 +122,7 @@ func (healthzHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // startHealthzServer starts a HTTP server that simply returns "ok" to every
 // request. This is needed to let the load balancer know that the proxy server
 // is running.
-func startHealthzServer(addr string) {
+func startHealthzServer(logger logging.Logger, addr string) {
 	s := http.Server{
 		Addr:         addr,
 		Handler:      healthzHandler{},
@@ -128,6 +130,6 @@ func startHealthzServer(addr string) {
 		WriteTimeout: 10 * time.Second,
 	}
 	if err := s.ListenAndServe(); err != nil {
-		vlog.Fatal(err)
+		logger.Fatal(err)
 	}
 }

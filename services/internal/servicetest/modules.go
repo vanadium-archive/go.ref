@@ -16,8 +16,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/modules"
@@ -36,7 +36,7 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
+	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
@@ -88,20 +88,20 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 	sh.ClearVar(ref.EnvCredentials)
 
 	mtName, _ := startRootMT(t, sh)
-	vlog.VI(1).Infof("Started shell mounttable with name %v", mtName)
+	ctx.VI(1).Infof("Started shell mounttable with name %v", mtName)
 
 	// TODO(caprita): Define a GetNamespaceRootsCommand in modules/core and
 	// use that?
 
 	oldNamespaceRoots := v23.GetNamespace(ctx).Roots()
 	fn := func() {
-		vlog.VI(1).Info("------------ CLEANUP ------------")
-		vlog.VI(1).Info("---------------------------------")
-		vlog.VI(1).Info("--(cleaning up shell)------------")
+		ctx.VI(1).Info("------------ CLEANUP ------------")
+		ctx.VI(1).Info("---------------------------------")
+		ctx.VI(1).Info("--(cleaning up shell)------------")
 		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
 			t.Errorf(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
 		}
-		vlog.VI(1).Info("--(done cleaning up shell)-------")
+		ctx.VI(1).Info("--(done cleaning up shell)-------")
 		setNSRoots(t, ctx, oldNamespaceRoots...)
 	}
 	setNSRoots(t, ctx, mtName)
@@ -147,7 +147,7 @@ func SetupRootDir(t *testing.T, prefix string) (string, func()) {
 	// evaluate the symlink.
 	rootDir, err = filepath.EvalSymlinks(rootDir)
 	if err != nil {
-		vlog.Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
+		logger.Global().Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
 	}
 
 	return rootDir, func() {

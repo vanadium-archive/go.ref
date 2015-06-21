@@ -22,7 +22,8 @@ import (
 	"v.io/v23/services/mounttable"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/internal/logger"
 
 	mdns "github.com/presotto/go-mdns-sd"
 )
@@ -110,10 +111,10 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 	// Start up MDNS, subscribe to the vanadium service, and add us as a vanadium service provider.
 	mdns, err := mdns.NewMDNS(host, "", "", loopback, false)
 	if err != nil {
-		vlog.Errorf("mdns startup failed: %s", err)
+		logger.Global().Errorf("mdns startup failed: %s", err)
 		return nil, err
 	}
-	vlog.VI(2).Infof("listening for service vanadium on port %d", port)
+	logger.Global().VI(2).Infof("listening for service vanadium on port %d", port)
 	mdns.SubscribeToService("vanadium")
 	if host != AnonymousNeighbor {
 		mdns.AddService("vanadium", "", port, txt...)
@@ -128,7 +129,7 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 	// interfaces when the network changes.
 	nh.nw, err = netconfig.NewNetConfigWatcher()
 	if err != nil {
-		vlog.Errorf("nighborhood can't watch network: %s", err)
+		logger.Global().Errorf("nighborhood can't watch network: %s", err)
 		return nh, nil
 	}
 	go func() {
@@ -136,7 +137,7 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 			return
 		}
 		if _, err := nh.mdns.ScanInterfaces(); err != nil {
-			vlog.Errorf("nighborhood can't scan interfaces: %s", err)
+			logger.Global().Errorf("nighborhood can't scan interfaces: %s", err)
 		}
 	}()
 
@@ -157,7 +158,7 @@ func NewNeighborhoodDispatcher(host string, addresses ...string) (rpc.Dispatcher
 
 // Lookup implements rpc.Dispatcher.Lookup.
 func (nh *neighborhood) Lookup(name string) (interface{}, security.Authorizer, error) {
-	vlog.VI(1).Infof("*********************LookupServer '%s'\n", name)
+	logger.Global().VI(1).Infof("*********************LookupServer '%s'\n", name)
 	elems := strings.Split(name, "/")[nh.nelems:]
 	if name == "" {
 		elems = nil
@@ -225,14 +226,14 @@ func (nh *neighborhood) neighbors() map[string][]naming.MountedServer {
 			neighbors[m.Name] = neighbor
 		}
 	}
-	vlog.VI(2).Infof("members %v neighbors %v", members, neighbors)
+	logger.Global().VI(2).Infof("members %v neighbors %v", members, neighbors)
 	return neighbors
 }
 
 // ResolveStep implements ResolveStep
 func (ns *neighborhoodService) ResolveStep(ctx *context.T, _ rpc.ServerCall) (entry naming.MountEntry, err error) {
 	nh := ns.nh
-	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
+	ctx.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
 		//nothing can be mounted at the root
 		err = verror.New(naming.ErrNoSuchNameRoot, ctx, ns.elems)

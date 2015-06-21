@@ -14,13 +14,11 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/ref/services/discharger"
-
-	"v.io/x/lib/vlog"
 )
 
 func init() {
-	security.RegisterCaveatValidator(LoggingCaveat, func(_ *context.T, _ security.Call, params []string) error {
-		vlog.Infof("Params: %#v", params)
+	security.RegisterCaveatValidator(LoggingCaveat, func(ctx *context.T, _ security.Call, params []string) error {
+		ctx.Infof("Params: %#v", params)
 		return nil
 	})
 
@@ -39,7 +37,7 @@ func (dischargerImpl) Discharge(ctx *context.T, call rpc.ServerCall, caveat secu
 		return security.Discharge{}, err
 	}
 	// TODO(rthellend,ashankar): Do proper logging when the API allows it.
-	vlog.Infof("Discharge() impetus: %#v", impetus)
+	ctx.Infof("Discharge() impetus: %#v", impetus)
 
 	expiry, err := security.NewExpiryCaveat(time.Now().Add(5 * time.Minute))
 	if err != nil {

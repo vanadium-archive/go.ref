@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -97,7 +96,7 @@ var (
 func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (rpc.Dispatcher, <-chan struct{}) {
 	var (
 		permsDir   = PermsDir(config)
-		permsStore = pathperms.NewPathStore(v23.GetPrincipal(ctx))
+		permsStore = pathperms.NewPathStore(ctx)
 	)
 	if _, _, err := permsStore.Get(permsDir); !os.IsNotExist(err) {
 		return nil, nil

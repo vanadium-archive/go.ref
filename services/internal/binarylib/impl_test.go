@@ -19,7 +19,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
@@ -48,13 +47,13 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 		t.Fatalf("NewState(%v, %v, %v) failed: %v", rootDir, listener.Addr().String(), depth, err)
 	}
 	go func() {
-		if err := http.Serve(listener, http.FileServer(binarylib.NewHTTPRoot(state))); err != nil {
-			vlog.Fatalf("Serve() failed: %v", err)
+		if err := http.Serve(listener, http.FileServer(binarylib.NewHTTPRoot(ctx, state))); err != nil {
+			ctx.Fatalf("Serve() failed: %v", err)
 		}
 	}()
 
 	// Setup and start the binary repository server.
-	dispatcher, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
+	dispatcher, err := binarylib.NewDispatcher(ctx, state)
 	if err != nil {
 		t.Fatalf("NewDispatcher failed: %v", err)
 	}

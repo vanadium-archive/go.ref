@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	"v.io/v23/context"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 const (
@@ -29,12 +29,12 @@ const (
 // the path dir to determine whether the part is valid, and the
 // existence of checksum to determine whether the binary part
 // exists.
-func checksumExists(path string) error {
+func checksumExists(ctx *context.T, path string) error {
 	switch _, err := os.Stat(path); {
 	case os.IsNotExist(err):
 		return verror.New(ErrInvalidPart, nil, path)
 	case err != nil:
-		vlog.Errorf("Stat(%v) failed: %v", path, err)
+		ctx.Errorf("Stat(%v) failed: %v", path, err)
 		return verror.New(ErrOperationFailed, nil, path)
 	}
 	checksumFile := filepath.Join(path, checksumFileName)
@@ -43,7 +43,7 @@ func checksumExists(path string) error {
 	case os.IsNotExist(err):
 		return verror.New(verror.ErrNoExist, nil, path)
 	case err != nil:
-		vlog.Errorf("Stat(%v) failed: %v", checksumFile, err)
+		ctx.Errorf("Stat(%v) failed: %v", checksumFile, err)
 		return verror.New(ErrOperationFailed, nil, path)
 	default:
 		return nil
@@ -60,10 +60,10 @@ func generatePartPath(dir string, part int) string {
 }
 
 // getParts returns a collection of paths to the parts of the binary.
-func getParts(path string) ([]string, error) {
+func getParts(ctx *context.T, path string) ([]string, error) {
 	infos, err := ioutil.ReadDir(path)
 	if err != nil {
-		vlog.Errorf("ReadDir(%v) failed: %v", path, err)
+		ctx.Errorf("ReadDir(%v) failed: %v", path, err)
 		return []string{}, verror.New(ErrOperationFailed, nil, path)
 	}
 	nDirs := 0
@@ -78,7 +78,7 @@ func getParts(path string) ([]string, error) {
 			partName := info.Name()
 			idx, err := strconv.Atoi(partName)
 			if err != nil {
-				vlog.Errorf("Atoi(%v) failed: %v", partName, err)
+				ctx.Errorf("Atoi(%v) failed: %v", partName, err)
 				return []string{}, verror.New(ErrOperationFailed, nil, path)
 			}
 			if idx < 0 || idx >= len(infos) || result[idx] != "" {

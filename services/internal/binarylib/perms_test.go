@@ -18,7 +18,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/xrpc"
@@ -32,32 +31,31 @@ import (
 //go:generate v23 test generate
 
 var binaryd = modules.Register(func(env *modules.Env, args ...string) error {
+	ctx, shutdown := test.V23Init()
 	if len(args) < 2 {
-		vlog.Fatalf("binaryd expected at least name and store arguments and optionally AccessList flags per PermissionsFromFlag")
+		ctx.Fatalf("binaryd expected at least name and store arguments and optionally AccessList flags per PermissionsFromFlag")
 	}
 	publishName := args[0]
 	storedir := args[1]
 
-	ctx, shutdown := test.V23Init()
-
 	defer fmt.Fprintf(env.Stdout, "%v terminating\n", publishName)
-	defer vlog.VI(1).Infof("%v terminating", publishName)
+	defer ctx.VI(1).Infof("%v terminating", publishName)
 	defer shutdown()
 
 	depth := 2
 	state, err := binarylib.NewState(storedir, "", depth)
 	if err != nil {
-		vlog.Fatalf("NewState(%v, %v, %v) failed: %v", storedir, "", depth, err)
+		ctx.Fatalf("NewState(%v, %v, %v) failed: %v", storedir, "", depth, err)
 	}
-	dispatcher, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
+	dispatcher, err := binarylib.NewDispatcher(ctx, state)
 	if err != nil {
-		vlog.Fatalf("Failed to create binaryd dispatcher: %v", err)
+		ctx.Fatalf("Failed to create binaryd dispatcher: %v", err)
 	}
 	server, err := xrpc.NewDispatchingServer(ctx, publishName, dispatcher)
 	if err != nil {
-		vlog.Fatalf("NewDispatchingServer(%v) failed: %v", publishName, err)
+		ctx.Fatalf("NewDispatchingServer(%v) failed: %v", publishName, err)
 	}
-	vlog.VI(1).Infof("binaryd name: %v", server.Status().Endpoints[0].Name())
+	ctx.VI(1).Infof("binaryd name: %v", server.Status().Endpoints[0].Name())
 
 	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
 	<-signals.ShutdownOnSignals(ctx)
@@ -111,7 +109,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	vlog.VI(2).Infof("Self uploads a shared and private binary.")
+	ctx.VI(2).Infof("Self uploads a shared and private binary.")
 	if err := b("bini/private").Create(childCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
@@ -120,7 +118,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
 
-	vlog.VI(2).Infof("Validate that the AccessList also allows Self")
+	ctx.VI(2).Infof("Validate that the AccessList also allows Self")
 	perms, _, err := b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
@@ -168,7 +166,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	vlog.VI(2).Infof("Self uploads a shared and private binary.")
+	ctx.VI(2).Infof("Self uploads a shared and private binary.")
 	if err := b("bini/private").Create(selfCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
@@ -185,7 +183,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
 
-	vlog.VI(2).Infof("Verify that in the beginning other can't access bini/private or bini/shared")
+	ctx.VI(2).Infof("Verify that in the beginning other can't access bini/private or bini/shared")
 	if _, _, err := b("bini/private").Stat(otherCtx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
@@ -193,7 +191,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
-	vlog.VI(2).Infof("Validate the AccessList file on bini/private.")
+	ctx.VI(2).Infof("Validate the AccessList file on bini/private.")
 	perms, _, err := b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
@@ -209,7 +207,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
-	vlog.VI(2).Infof("Validate the AccessList file on bini/private.")
+	ctx.VI(2).Infof("Validate the AccessList file on bini/private.")
 	perms, version, err := b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
@@ -218,7 +216,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
-	vlog.VI(2).Infof("self blesses other as self/other and locks the bini/private binary to itself.")
+	ctx.VI(2).Infof("self blesses other as self/other and locks the bini/private binary to itself.")
 	selfBlessing := selfPrincipal.BlessingStore().Default()
 	otherBlessing, err := selfPrincipal.Bless(otherPrincipal.PublicKey(), selfBlessing, "other", security.UnconstrainedUse())
 	if err != nil {
@@ -228,7 +226,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("otherPrincipal.BlessingStore() failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("Self modifies the AccessList file on bini/private.")
+	ctx.VI(2).Infof("Self modifies the AccessList file on bini/private.")
 	for _, tag := range access.AllTypicalTags() {
 		perms.Clear("self", string(tag))
 		perms.Add("self/$", string(tag))
@@ -237,7 +235,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
-	vlog.VI(2).Infof(" Verify that bini/private's perms are updated.")
+	ctx.VI(2).Infof(" Verify that bini/private's perms are updated.")
 	updated := access.Permissions{
 		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$"}},
 		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$"}},
@@ -256,12 +254,12 @@ func TestBinaryRootAccessList(t *testing.T) {
 	// Other still can't access bini/shared because there's no AccessList file at the
 	// root level. Self has to set one explicitly to enable sharing. This way, self
 	// can't accidentally expose the server without setting a root AccessList.
-	vlog.VI(2).Infof(" Verify that other still can't access bini/shared.")
+	ctx.VI(2).Infof(" Verify that other still can't access bini/shared.")
 	if _, _, err := b("bini/shared").Stat(otherCtx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
-	vlog.VI(2).Infof("Self sets a root AccessList.")
+	ctx.VI(2).Infof("Self sets a root AccessList.")
 	newRootAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
 		newRootAccessList.Add("self/$", string(tag))
@@ -270,7 +268,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("Verify that other can access bini/shared now but not access bini/private.")
+	ctx.VI(2).Infof("Verify that other can access bini/shared now but not access bini/private.")
 	if _, _, err := b("bini/shared").Stat(otherCtx); err != nil {
 		t.Fatalf("Stat() shouldn't have failed: %v", err)
 	}
@@ -278,7 +276,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
-	vlog.VI(2).Infof("Other still can't create so Self gives Other right to Create.")
+	ctx.VI(2).Infof("Other still can't create so Self gives Other right to Create.")
 	perms, tag, err := b("bini").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
@@ -303,7 +301,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("Other creates bini/otherbinary")
+	ctx.VI(2).Infof("Other creates bini/otherbinary")
 	if err := b("bini/otherbinary").Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
@@ -312,7 +310,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.FailNow()
 	}
 
-	vlog.VI(2).Infof("Other can read perms for bini/otherbinary.")
+	ctx.VI(2).Infof("Other can read perms for bini/otherbinary.")
 	updated = access.Permissions{
 		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
 		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
@@ -328,7 +326,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
-	vlog.VI(2).Infof("Other tries to exclude self by removing self from the AccessList set")
+	ctx.VI(2).Infof("Other tries to exclude self by removing self from the AccessList set")
 	perms, tag, err = b("bini/otherbinary").GetPermissions(otherCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
@@ -339,7 +337,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("Verify that other can make this change.")
+	ctx.VI(2).Infof("Verify that other can make this change.")
 	updated = access.Permissions{
 		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/other"}},
 		"Read":    access.AccessList{In: []security.BlessingPattern{"self/other"}},
@@ -355,12 +353,12 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
-	vlog.VI(2).Infof("But self's rights are inherited from root so self can still access despite this.")
+	ctx.VI(2).Infof("But self's rights are inherited from root so self can still access despite this.")
 	if _, _, err := b("bini/otherbinary").Stat(selfCtx); err != nil {
 		t.Fatalf("Stat() shouldn't have failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("Self petulantly blacklists other back.")
+	ctx.VI(2).Infof("Self petulantly blacklists other back.")
 	perms, tag, err = b("bini").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
@@ -373,17 +371,17 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("And now other can do nothing at affecting the root. Other should be penitent.")
+	ctx.VI(2).Infof("And now other can do nothing at affecting the root. Other should be penitent.")
 	if err := b("bini/nototherbinary").Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Create() should have failed %v", err)
 	}
 
-	vlog.VI(2).Infof("But other can still access shared.")
+	ctx.VI(2).Infof("But other can still access shared.")
 	if _, _, err := b("bini/shared").Stat(otherCtx); err != nil {
 		t.Fatalf("Stat() should not have failed but did: %v", err)
 	}
 
-	vlog.VI(2).Infof("Self petulantly blacklists other's binary too.")
+	ctx.VI(2).Infof("Self petulantly blacklists other's binary too.")
 	perms, tag, err = b("bini/shared").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
@@ -395,14 +393,14 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
-	vlog.VI(2).Infof("And now other can't access shared either.")
+	ctx.VI(2).Infof("And now other can't access shared either.")
 	if _, _, err := b("bini/shared").Stat(otherCtx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 	// TODO(rjkroege): Extend the test with a third principal and verify that
 	// new principals can be given Admin perimission at the root.
 
-	vlog.VI(2).Infof("Self feels guilty for petulance and disempowers itself")
+	ctx.VI(2).Infof("Self feels guilty for petulance and disempowers itself")
 	// TODO(rjkroege,caprita): This is a one-way transition for self. Perhaps it
 	// should not be. Consider adding a factory-reset facility.
 	perms, tag, err = b("bini").GetPermissions(selfCtx)
@@ -415,7 +413,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
 
-	vlog.VI(2).Info("Self can't access other's binary now")
+	ctx.VI(2).Info("Self can't access other's binary now")
 	if _, _, err := b("bini/otherbinary").Stat(selfCtx); err == nil {
 		t.Fatalf("Stat() should have failed but didn't")
 	}

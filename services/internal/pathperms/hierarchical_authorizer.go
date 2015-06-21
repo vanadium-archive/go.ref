@@ -8,7 +8,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/x/lib/vlog"
 )
 
 // hierarchicalAuthorizer contains the state needed to implement
@@ -45,7 +44,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T, call security.Call) 
 	if err != nil {
 		return err
 	} else if intentionallyEmpty {
-		vlog.VI(2).Infof("PermsForPath(%s) is intentionally empty", ha.rootDir)
+		ctx.VI(2).Infof("PermsForPath(%s) is intentionally empty", ha.rootDir)
 		return security.DefaultAuthorizer().Authorize(ctx, call)
 	}
 

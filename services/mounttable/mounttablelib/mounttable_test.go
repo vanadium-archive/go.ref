@@ -25,8 +25,8 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/stats"
 	"v.io/v23/vdl"
-	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/internal/logger"
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/debug/debuglib"
@@ -187,11 +187,11 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 }
 
 func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (func() error, string) {
-	reservedDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
+	reservedDisp := debuglib.NewDispatcher(logger.Manager(logger.Global()).LogDir, nil)
 	ctx := v23.WithReservedNameDispatcher(rootCtx, reservedDisp)
 
 	// Add mount table service.
-	mt, err := mounttablelib.NewMountTableDispatcher(permsFile, persistDir, statsDir)
+	mt, err := mounttablelib.NewMountTableDispatcher(ctx, permsFile, persistDir, statsDir)
 	if err != nil {
 		boom(t, "mounttablelib.NewMountTableDispatcher: %v", err)
 	}
@@ -231,15 +231,15 @@ func TestMountTable(t *testing.T) {
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
 
 	// Mount the collection server into the mount table.
-	vlog.Infof("Mount the collection server into the mount table.")
+	rootCtx.Infof("Mount the collection server into the mount table.")
 	doMount(t, rootCtx, mtAddr, "stuff", collectionName, true)
 
 	// Create a few objects and make sure we can read them.
-	vlog.Infof("Create a few objects.")
+	rootCtx.Infof("Create a few objects.")
 	export(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/the/rain"), "the rain")
 	export(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/in/spain"), "in spain")
 	export(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/falls"), "falls mainly on the plain")
-	vlog.Infof("Make sure we can read them.")
+	rootCtx.Infof("Make sure we can read them.")
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/the/rain"), "the rain", true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/in/spain"), "in spain", true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/falls"), "falls mainly on the plain", true)
@@ -249,11 +249,11 @@ func TestMountTable(t *testing.T) {
 	checkContents(t, aliceCtx, naming.JoinAddressName(mtAddr, "stuff/the/rain"), "the rain", false)
 
 	// Test multiple mounts.
-	vlog.Infof("Multiple mounts.")
+	rootCtx.Infof("Multiple mounts.")
 	doMount(t, rootCtx, mtAddr, "a/b", collectionName, true)
 	doMount(t, rootCtx, mtAddr, "x/y", collectionName, true)
 	doMount(t, rootCtx, mtAddr, "alpha//beta", collectionName, true)
-	vlog.Infof("Make sure we can read them.")
+	rootCtx.Infof("Make sure we can read them.")
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/falls"), "falls mainly on the plain", true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "x/y/falls"), "falls mainly on the plain", true)
@@ -296,18 +296,18 @@ func TestMountTable(t *testing.T) {
 	}
 
 	// Test generic unmount.
-	vlog.Info("Test generic unmount.")
+	rootCtx.Info("Test generic unmount.")
 	doUnmount(t, rootCtx, mtAddr, "a/b", "", true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", false)
 
 	// Test specific unmount.
-	vlog.Info("Test specific unmount.")
+	rootCtx.Info("Test specific unmount.")
 	doMount(t, rootCtx, mtAddr, "a/b", collectionName, true)
 	doUnmount(t, rootCtx, mtAddr, "a/b", collectionName, true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", false)
 
 	// Try timing out a mount.
-	vlog.Info("Try timing out a mount.")
+	rootCtx.Info("Try timing out a mount.")
 	ft := mounttablelib.NewFakeTimeClock()
 	mounttablelib.SetServerListClock(ft)
 	doMount(t, rootCtx, mtAddr, "stuffWithTTL", collectionName, true)
@@ -316,7 +316,7 @@ func TestMountTable(t *testing.T) {
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", false)
 
 	// Test unauthorized mount.
-	vlog.Info("Test unauthorized mount.")
+	rootCtx.Info("Test unauthorized mount.")
 	doMount(t, bobCtx, mtAddr, "/a/b", collectionName, false)
 	doMount(t, aliceCtx, mtAddr, "/a/b", collectionName, false)
 
@@ -648,11 +648,13 @@ func TestExpiry(t *testing.T) {
 }
 
 func TestBadAccessLists(t *testing.T) {
-	_, err := mounttablelib.NewMountTableDispatcher("testdata/invalid.perms", "", "mounttable")
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
+	_, err := mounttablelib.NewMountTableDispatcher(ctx, "testdata/invalid.perms", "", "mounttable")
 	if err == nil {
 		boom(t, "Expected json parse error in permissions file")
 	}
-	_, err = mounttablelib.NewMountTableDispatcher("testdata/doesntexist.perms", "", "mounttable")
+	_, err = mounttablelib.NewMountTableDispatcher(ctx, "testdata/doesntexist.perms", "", "mounttable")
 	if err != nil {
 		boom(t, "Missing permissions file should not cause an error")
 	}

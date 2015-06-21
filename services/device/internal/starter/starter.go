@@ -215,7 +215,7 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 }
 
 func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
-	permStore := pathperms.NewPathStore(v23.GetPrincipal(ctx))
+	permStore := pathperms.NewPathStore(ctx)
 	permsdir := impl.PermsDir(args.Device.ConfigState)
 	debugAuth, err := pathperms.NewHierarchicalAuthorizer(permsdir, permsdir, permStore)
 	if err != nil {
