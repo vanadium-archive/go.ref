@@ -199,7 +199,7 @@ type DischargeClient interface {
 	PrepareDischarges(ctx *context.T, forcaveats []security.Caveat, impetus security.DischargeImpetus) []security.Discharge
 	// Invalidate marks the provided discharges as invalid, and therefore unfit
 	// for being returned by a subsequent PrepareDischarges call.
-	Invalidate(discharges ...security.Discharge)
+	Invalidate(ctx *context.T, discharges ...security.Discharge)
 	RPCStreamListenerOpt()
 }
 

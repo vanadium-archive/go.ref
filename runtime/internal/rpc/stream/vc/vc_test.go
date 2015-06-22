@@ -170,9 +170,9 @@ type mockDischargeClient []security.Discharge
 func (m mockDischargeClient) PrepareDischarges(_ *context.T, forcaveats []security.Caveat, impetus security.DischargeImpetus) []security.Discharge {
 	return m
 }
-func (mockDischargeClient) Invalidate(...security.Discharge) {}
-func (mockDischargeClient) RPCStreamListenerOpt()            {}
-func (mockDischargeClient) RPCStreamVCOpt()                  {}
+func (mockDischargeClient) Invalidate(*context.T, ...security.Discharge) {}
+func (mockDischargeClient) RPCStreamListenerOpt()                        {}
+func (mockDischargeClient) RPCStreamVCOpt()                              {}
 
 // Test that mockDischargeClient implements vc.DischargeClient.
 var _ vc.DischargeClient = (mockDischargeClient)(nil)

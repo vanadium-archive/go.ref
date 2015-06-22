@@ -1018,7 +1018,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 			// to detect it, we conservatively flush all discharges we used from the cache.
 			// TODO(ataly,andreser): add verror.BadDischarge and handle it explicitly?
 			vlog.VI(3).Infof("Discarding %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
-			fc.dc.Invalidate(fc.discharges...)
+			fc.dc.Invalidate(fc.ctx, fc.discharges...)
 		}
 		if id == errBadNumInputArgs.ID || id == errBadInputArg.ID {
 			return fc.close(verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error))

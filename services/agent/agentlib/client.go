@@ -252,6 +252,28 @@ func (b *blessingStore) DebugString() (s string) {
 	return
 }
 
+func (b *blessingStore) CacheDischarge(d security.Discharge, c security.Caveat, i security.DischargeImpetus) {
+	err := b.caller.call("BlessingStoreCacheDischarge", results(), d, c, i)
+	if err != nil {
+		vlog.Errorf("error calling BlessingStoreCacheDischarge: %v", err)
+	}
+}
+
+func (b *blessingStore) ClearDischarges(discharges ...security.Discharge) {
+	err := b.caller.call("BlessingStoreClearDischarges", results(), discharges)
+	if err != nil {
+		vlog.Errorf("error calling BlessingStoreClearDischarges: %v", err)
+	}
+}
+
+func (b *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (out security.Discharge) {
+	err := b.caller.call("BlessingStoreDischarge", results(&out), caveat, impetus)
+	if err != nil {
+		vlog.Errorf("error calling BlessingStoreDischarge: %v", err)
+	}
+	return
+}
+
 type blessingRoots struct {
 	caller caller
 }

@@ -94,7 +94,8 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		errorf("security.NewPublicKeyCaveat: %v", err)
 	}
-	if _, err := p.MintDischarge(tpcav, cav); err != nil {
+	dis, err := p.MintDischarge(tpcav, cav)
+	if err != nil {
 		errorf("MintDischarge: %v", err)
 	}
 	// BlessingRoots
@@ -133,6 +134,14 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	if forpeer := p.BlessingStore().ForPeer("superman/friend"); !reflect.DeepEqual(forpeer, b) {
 		errorf("BlessingStore().ForPeer returned %v and not %v", forpeer, b)
+	}
+	p.BlessingStore().CacheDischarge(dis, tpcav, security.DischargeImpetus{})
+	if got := p.BlessingStore().Discharge(tpcav, security.DischargeImpetus{}); !dis.Equivalent(got) {
+		errorf("BlessingStore().Discharges returned %#v want %#v", got, dis)
+	}
+	p.BlessingStore().ClearDischarges(dis)
+	if got := p.BlessingStore().Discharge(tpcav, security.DischargeImpetus{}); got.ID() != "" {
+		errorf("BlessingStore().Discharges returned %#v want empty", got)
 	}
 
 	if len(errors) > 0 {

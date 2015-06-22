@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rpc
+package security
 
 import (
 	"testing"
@@ -10,22 +10,17 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-	"v.io/x/ref/test/testutil"
 )
 
-func TestDischargeClientCache(t *testing.T) {
-	dcc := &dischargeCache{
-		cache:    make(map[dischargeCacheKey]security.Discharge),
-		idToKeys: make(map[string][]dischargeCacheKey),
-	}
-
+func testDischargeCache(t *testing.T, s security.BlessingStore) {
 	var (
-		discharger = testutil.NewPrincipal("discharger")
+		discharger = mkPrincipal()
 		expiredCav = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
-		argsCav    = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
-		methodCav  = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
-		serverCav  = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
+		argsCav    = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "peoria", security.ThirdPartyRequirements{ReportArguments: true}, security.UnconstrainedUse()))
+		methodCav  = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{ReportMethod: true}, security.UnconstrainedUse()))
+		serverCav  = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "peoria", security.ThirdPartyRequirements{ReportServer: true}, security.UnconstrainedUse()))
 
+		dEmpty   = security.Discharge{}
 		dExpired = mkDischarge(discharger.MintDischarge(expiredCav, mkCaveat(security.NewExpiryCaveat(time.Now().Add(-1*time.Minute)))))
 		dArgs    = mkDischarge(discharger.MintDischarge(argsCav, security.UnconstrainedUse()))
 		dMethod  = mkDischarge(discharger.MintDischarge(methodCav, security.UnconstrainedUse()))
@@ -41,52 +36,42 @@ func TestDischargeClientCache(t *testing.T) {
 
 	// Discharges for different cavs should not be cached.
 	d := mkDischarge(discharger.MintDischarge(argsCav, security.UnconstrainedUse()))
-	dcc.Add(d, emptyImp)
-	outdis := make([]*security.Discharge, 1)
-	if remaining := dcc.Discharges([]security.Caveat{methodCav}, []security.DischargeImpetus{emptyImp}, outdis); remaining == 0 {
+	s.CacheDischarge(d, argsCav, emptyImp)
+	if d := s.Discharge(methodCav, emptyImp); d.ID() != "" {
 		t.Errorf("Discharge for different caveat should not have been in cache")
 	}
-	dcc.invalidate(d)
+	s.ClearDischarges(d)
 
 	// Add some discharges into the cache.
-	dcc.Add(dArgs, argsImp)
-	dcc.Add(dMethod, methodImp)
-	dcc.Add(dServer, serverImp)
-	dcc.Add(dExpired, emptyImp)
+	s.CacheDischarge(dArgs, argsCav, argsImp)
+	s.CacheDischarge(dMethod, methodCav, methodImp)
+	s.CacheDischarge(dServer, serverCav, serverImp)
+	s.CacheDischarge(dExpired, expiredCav, emptyImp)
 
 	testCases := []struct {
 		caveat          security.Caveat           // caveat that we are fetching discharges for.
 		queryImpetus    security.DischargeImpetus // Impetus used to  query the cache.
-		cachedDischarge *security.Discharge       // Discharge that we expect to be returned from the cache, nil if the discharge should not be cached.
+		cachedDischarge security.Discharge        // Discharge that we expect to be returned from the cache, nil if the discharge should not be cached.
 	}{
 		// Expired discharges should not be returned by the cache.
-		{expiredCav, emptyImp, nil},
+		{expiredCav, emptyImp, dEmpty},
 
 		// Discharges with Impetuses that have Arguments should not be cached.
-		{argsCav, argsImp, nil},
+		{argsCav, argsImp, dEmpty},
 
-		{methodCav, methodImp, &dMethod},
-		{methodCav, otherMethodImp, nil},
-		{methodCav, emptyImp, nil},
+		{methodCav, methodImp, dMethod},
+		{methodCav, otherMethodImp, dEmpty},
+		{methodCav, emptyImp, dEmpty},
 
-		{serverCav, serverImp, &dServer},
-		{serverCav, otherServerImp, nil},
-		{serverCav, emptyImp, nil},
+		{serverCav, serverImp, dServer},
+		{serverCav, otherServerImp, dEmpty},
+		{serverCav, emptyImp, dEmpty},
 	}
 
 	for i, test := range testCases {
-		out := make([]*security.Discharge, 1)
-		remaining := dcc.Discharges([]security.Caveat{test.caveat}, []security.DischargeImpetus{test.queryImpetus}, out)
-		if test.cachedDischarge != nil {
-			got := "nil"
-			if remaining == 0 {
-				got = out[0].ID()
-			}
-			if got != test.cachedDischarge.ID() {
-				t.Errorf("#%d: got discharge %v, want %v, queried with %v", i, got, test.cachedDischarge.ID(), test.queryImpetus)
-			}
-		} else if remaining == 0 {
-			t.Errorf("#%d: discharge %v should not have been in cache, queried with %v", i, out[0].ID(), test.queryImpetus)
+		out := s.Discharge(test.caveat, test.queryImpetus)
+		if got := out.ID(); got != test.cachedDischarge.ID() {
+			t.Errorf("#%d: got discharge %v, want %v, queried with %v", i, got, test.cachedDischarge.ID(), test.queryImpetus)
 		}
 	}
 	if t.Failed() {
@@ -97,9 +82,24 @@ func TestDischargeClientCache(t *testing.T) {
 	}
 }
 
+func mkPrincipal() security.Principal {
+	p, err := NewPrincipal()
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
 func mkDischarge(d security.Discharge, err error) security.Discharge {
 	if err != nil {
 		panic(err)
 	}
 	return d
+}
+
+func mkCaveat(c security.Caveat, err error) security.Caveat {
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
