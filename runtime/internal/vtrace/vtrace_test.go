@@ -43,7 +43,7 @@ func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) 
 		t.Fatalf("Could not bless initial principal %v", err)
 	}
 	// Start a local mounttable.
-	disp, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
+	disp, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
 		t.Fatalf("Could not create mt dispatcher %v", err)
 	}

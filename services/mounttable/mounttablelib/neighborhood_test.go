@@ -14,7 +14,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -37,7 +36,7 @@ func TestNeighborhood(t *testing.T) {
 	rootCtx, shutdown := test.V23Init()
 	defer shutdown()
 
-	vlog.Infof("TestNeighborhood")
+	rootCtx.Infof("TestNeighborhood")
 	server, err := v23.NewServer(rootCtx)
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)

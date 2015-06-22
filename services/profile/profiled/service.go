@@ -14,7 +14,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/x/lib/vlog"
 )
 
 // profileService implements the Profile server interface.
@@ -40,7 +39,7 @@ func NewProfileService(store *fs.Memstore, storeRoot, suffix string) repository.
 // STORE MANAGEMENT INTERFACE IMPLEMENTATION
 
 func (i *profileService) Put(ctx *context.T, call rpc.ServerCall, profile profile.Specification) error {
-	vlog.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
+	ctx.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
 	// Transaction is rooted at "", so tname == tid.
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -60,7 +59,7 @@ func (i *profileService) Put(ctx *context.T, call rpc.ServerCall, profile profil
 }
 
 func (i *profileService) Remove(ctx *context.T, call rpc.ServerCall) error {
-	vlog.VI(0).Infof("%v.Remove()", i.suffix)
+	ctx.VI(0).Infof("%v.Remove()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
 	// Transaction is rooted at "", so tname == tid.
@@ -107,7 +106,7 @@ func (i *profileService) lookup(call rpc.ServerCall) (profile.Specification, err
 }
 
 func (i *profileService) Label(ctx *context.T, call rpc.ServerCall) (string, error) {
-	vlog.VI(0).Infof("%v.Label()", i.suffix)
+	ctx.VI(0).Infof("%v.Label()", i.suffix)
 	s, err := i.lookup(call)
 	if err != nil {
 		return "", err
@@ -116,7 +115,7 @@ func (i *profileService) Label(ctx *context.T, call rpc.ServerCall) (string, err
 }
 
 func (i *profileService) Description(ctx *context.T, call rpc.ServerCall) (string, error) {
-	vlog.VI(0).Infof("%v.Description()", i.suffix)
+	ctx.VI(0).Infof("%v.Description()", i.suffix)
 	s, err := i.lookup(call)
 	if err != nil {
 		return "", err
@@ -125,6 +124,6 @@ func (i *profileService) Description(ctx *context.T, call rpc.ServerCall) (strin
 }
 
 func (i *profileService) Specification(ctx *context.T, call rpc.ServerCall) (profile.Specification, error) {
-	vlog.VI(0).Infof("%v.Specification()", i.suffix)
+	ctx.VI(0).Infof("%v.Specification()", i.suffix)
 	return i.lookup(call)
 }

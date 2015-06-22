@@ -12,7 +12,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
@@ -54,7 +53,7 @@ func runProfileD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return fmt.Errorf("NewServer() failed: %v", err)
 	}
-	vlog.Infof("Profile repository running at endpoint=%v", server.Status().Endpoints[0])
+	ctx.Infof("Profile repository running at endpoint=%v", server.Status().Endpoints[0])
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals(ctx)

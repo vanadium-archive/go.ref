@@ -21,8 +21,6 @@ import (
 	"v.io/v23/services/mounttable"
 	"v.io/v23/verror"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/stats"
 )
@@ -62,6 +60,7 @@ type persistence interface {
 // mountTable represents a namespace.  One exists per server instance.
 type mountTable struct {
 	sync.Mutex
+	ctx                *context.T
 	root               *node
 	superUsers         access.AccessList
 	persisting         bool
@@ -114,8 +113,9 @@ const templateVar = "%%"
 // persistDir is the directory for persisting Permissions.
 //
 // statsPrefix is the prefix for for exported statistics objects.
-func NewMountTableDispatcher(permsFile, persistDir, statsPrefix string) (rpc.Dispatcher, error) {
+func NewMountTableDispatcher(ctx *context.T, permsFile, persistDir, statsPrefix string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
+		ctx:                ctx,
 		root:               new(node),
 		nodeCounter:        stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
 		serverCounter:      stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
@@ -124,10 +124,10 @@ func NewMountTableDispatcher(permsFile, persistDir, statsPrefix string) (rpc.Dis
 	}
 	mt.root.parent = mt.newNode() // just for its lock
 	if persistDir != "" {
-		mt.persist = newPersistentStore(mt, persistDir)
+		mt.persist = newPersistentStore(ctx, mt, persistDir)
 		mt.persisting = mt.persist != nil
 	}
-	if err := mt.parsePermFile(permsFile); err != nil && !os.IsNotExist(err) {
+	if err := mt.parsePermFile(ctx, permsFile); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	return mt, nil
@@ -178,7 +178,7 @@ func (mt *mountTable) deleteNode(parent *node, child string) {
 
 // Lookup implements rpc.Dispatcher.Lookup.
 func (mt *mountTable) Lookup(name string) (interface{}, security.Authorizer, error) {
-	vlog.VI(2).Infof("*********************Lookup %s", name)
+	mt.ctx.VI(2).Infof("*********************Lookup %s", name)
 	ms := &mountContext{
 		name: name,
 		mt:   mt,
@@ -292,7 +292,7 @@ func (mt *mountTable) traverse(ctx *context.T, call security.Call, elems []strin
 	cur.parent.Lock()
 	cur.Lock()
 	for i, e := range elems {
-		vlog.VI(2).Infof("satisfying %v %v", elems[0:i], *cur)
+		ctx.VI(2).Infof("satisfying %v %v", elems[0:i], *cur)
 		if call != nil {
 			if err := cur.satisfies(mt, ctx, call, traverseTags); err != nil {
 				cur.parent.Unlock()
@@ -413,7 +413,7 @@ func (mt *mountTable) findMountPoint(ctx *context.T, call security.Call, elems [
 		// If we removed the node, see if we can remove any of its
 		// ascendants.
 		if removed && len(elems) > 0 {
-			mt.removeUselessRecursive(elems[:len(elems)-1])
+			mt.removeUselessRecursive(ctx, elems[:len(elems)-1])
 		}
 		return nil, nil, nil
 	}
@@ -429,7 +429,7 @@ func (ms *mountContext) Authorize(*context.T, security.Call) error {
 // ResolveStep returns the next server in a resolution in the form of a MountEntry.  The name
 // in the mount entry is the name relative to the server's root.
 func (ms *mountContext) ResolveStep(ctx *context.T, call rpc.ServerCall) (entry naming.MountEntry, err error) {
-	vlog.VI(2).Infof("ResolveStep %q", ms.name)
+	ctx.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// Find the next mount point for the name.
 	n, elems, werr := mt.findMountPoint(ctx, call.Security(), ms.elems)
@@ -480,7 +480,7 @@ func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
 	}
-	vlog.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)
+	ctx.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)
 
 	// Make sure the server address is reasonable.
 	epString := server
@@ -561,9 +561,9 @@ func (n *node) removeUseless(mt *mountTable) bool {
 }
 
 // removeUselessRecursive removes any useless nodes on the tail of the path.
-func (mt *mountTable) removeUselessRecursive(elems []string) {
+func (mt *mountTable) removeUselessRecursive(ctx *context.T, elems []string) {
 	for i := len(elems); i > 0; i-- {
-		n, nelems, _ := mt.traverse(nil, nil, elems[:i], false)
+		n, nelems, _ := mt.traverse(ctx, nil, elems[:i], false)
 		if n == nil {
 			break
 		}
@@ -584,7 +584,7 @@ func (mt *mountTable) removeUselessRecursive(elems []string) {
 // Unmount removes servers from the name in the receiver. If server is specified, only that
 // server is removed.
 func (ms *mountContext) Unmount(ctx *context.T, call rpc.ServerCall, server string) error {
-	vlog.VI(2).Infof("*********************Unmount %q, %s", ms.name, server)
+	ctx.VI(2).Infof("*********************Unmount %q, %s", ms.name, server)
 	mt := ms.mt
 	n, err := mt.findNode(ctx, call.Security(), ms.elems, false, mountTags, nil)
 	if err != nil {
@@ -606,14 +606,14 @@ func (ms *mountContext) Unmount(ctx *context.T, call rpc.ServerCall, server stri
 	if removed {
 		// If we removed the node, see if we can also remove
 		// any of its ascendants.
-		mt.removeUselessRecursive(ms.elems[:len(ms.elems)-1])
+		mt.removeUselessRecursive(ctx, ms.elems[:len(ms.elems)-1])
 	}
 	return nil
 }
 
 // Delete removes the receiver.  If all is true, any subtree is also removed.
 func (ms *mountContext) Delete(ctx *context.T, call rpc.ServerCall, deleteSubTree bool) error {
-	vlog.VI(2).Infof("*********************Delete %q, %v", ms.name, deleteSubTree)
+	ctx.VI(2).Infof("*********************Delete %q, %v", ms.name, deleteSubTree)
 	if len(ms.elems) == 0 {
 		// We can't delete the root.
 		return verror.New(errCantDeleteRoot, ctx)
@@ -648,7 +648,7 @@ type globEntry struct {
 
 // globStep is called with n and n.parent locked.  Returns with both unlocked.
 func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name string, pattern *glob.Glob, ch chan<- naming.GlobReply) {
-	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
+	ctx.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	// If this is a mount point, we're done.
 	if m := n.mount; m != nil {
@@ -753,7 +753,7 @@ out:
 // adds a/b while a Glob is in progress, the Glob may return a set of nodes that includes both
 // c/d and a/b.
 func (ms *mountContext) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
+	ctx.VI(2).Infof("mt.Glob %v", ms.elems)
 	scall := call.Security()
 
 	g, err := glob.Parse(pattern)
@@ -797,7 +797,7 @@ func (ms *mountContext) linkToLeaf(ctx *context.T, call security.Call, ch chan<-
 }
 
 func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
-	vlog.VI(2).Infof("SetPermissions %q", ms.name)
+	ctx.VI(2).Infof("SetPermissions %q", ms.name)
 	mt := ms.mt
 
 	// Find/create node in namespace and add the mount.
@@ -843,7 +843,7 @@ func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perm
 }
 
 func (ms *mountContext) GetPermissions(ctx *context.T, call rpc.ServerCall) (access.Permissions, string, error) {
-	vlog.VI(2).Infof("GetPermissions %q", ms.name)
+	ctx.VI(2).Infof("GetPermissions %q", ms.name)
 	mt := ms.mt
 
 	// Find node in namespace and add the mount.

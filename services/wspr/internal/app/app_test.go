@@ -315,7 +315,7 @@ func (t *typeEncoderWriter) Write(p []byte) (int, error) {
 }
 
 func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Controller)) (*runningTest, error) {
-	mt, err := mounttablelib.NewMountTableDispatcher("", "", "mounttable")
+	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}
