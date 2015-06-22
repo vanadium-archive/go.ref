@@ -29,6 +29,7 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 		vlog.Errorf("NewMountTable failed: %v", err)
 		return "", nil, err
 	}
+	ctx = v23.WithListenSpec(ctx, listenSpec)
 	mtServer, err := xrpc.NewDispatchingServer(ctx, mountName, mt, options.ServesMountTable(true))
 	if err != nil {
 		vlog.Errorf("v23.NewServer failed: %v", err)

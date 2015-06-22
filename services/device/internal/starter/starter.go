@@ -153,6 +153,7 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		cancel()
 		return "", nil, err
 	}
+	ctx = v23.WithListenSpec(ctx, args.Device.ListenSpec)
 	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		cancel()
