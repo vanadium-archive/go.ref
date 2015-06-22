@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
+	"time"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
 )
@@ -36,10 +37,12 @@ var data2 testData = testData{
 	updateVal: "val-b2",
 }
 
-func TestLogEntityTimestamps(t *testing.T) {
+func TestLogEntryTimestamps(t *testing.T) {
 	stImpl, destroy := createStore(useMemstoreForTest)
 	defer destroy()
-	var mockClock *MockSystemClock = NewMockSystemClock(3, 1)
+	t1 := time.Now()
+	inc := time.Duration(1) * time.Second
+	var mockClock *MockSystemClock = NewMockSystemClock(t1, inc)
 
 	wst1, err := Wrap(stImpl, &Options{ManagedPrefixes: nil})
 	if err != nil {
@@ -65,10 +68,10 @@ func TestLogEntityTimestamps(t *testing.T) {
 		panic(fmt.Errorf("can't commit transaction: %v", err))
 	}
 
-	// read and verify LogEntities written as part of above transaction
-	// We expect 2 entires in the log for the two puts.
-	// Timestamp from mockclock for the commit shoud be 3
-	verifyCommitLog(t, stImpl, seqForCreate, 2, 3)
+	// read and verify LogEntries written as part of above transaction
+	// We expect 2 entries in the log for the two puts.
+	// Timestamp from mockclock for the commit should be t1
+	verifyCommitLog(t, stImpl, seqForCreate, 2, t1)
 
 	// Update data already present in store with a new watchable store
 	wst2, err := Wrap(stImpl, &Options{ManagedPrefixes: nil})
@@ -93,10 +96,11 @@ func TestLogEntityTimestamps(t *testing.T) {
 		panic(fmt.Errorf("can't commit transaction: %v", err))
 	}
 
-	// read and verify LogEntities written as part of above transaction
-	// We expect 4 entires in the log for the two gets and two puts.
-	// Timestamp from mockclock for the commit shoud be 4
-	verifyCommitLog(t, stImpl, seqForUpdate, 4, 4)
+	// read and verify LogEntries written as part of above transaction
+	// We expect 4 entries in the log for the two gets and two puts.
+	// Timestamp from mockclock for the commit should be t1 + 1 sec
+	t2 := t1.Add(inc)
+	verifyCommitLog(t, stImpl, seqForUpdate, 4, t2)
 }
 
 func checkAndUpdate(st store.StoreReadWriter, data testData) error {
@@ -116,16 +120,16 @@ func checkAndUpdate(st store.StoreReadWriter, data testData) error {
 	return nil
 }
 
-func verifyCommitLog(t *testing.T, st store.Store, seq uint64, expectedEntries int, expectedTimestamp int64) {
+func verifyCommitLog(t *testing.T, st store.Store, seq uint64, expectedEntries int, expectedTimestamp time.Time) {
 	var ler *LogEntryReader = NewLogEntryReader(st, seq)
 	var entryCount int = 0
 	for ler.Advance() {
 		_, entry := ler.GetEntry()
 		entryCount++
-		if entry.CommitTimestamp != expectedTimestamp {
-			errStr := "Unexpected timestamp found for entity." +
+		if entry.CommitTimestamp != expectedTimestamp.UnixNano() {
+			errStr := "Unexpected timestamp found for entry." +
 				" Expected: %d, found: %d"
-			t.Errorf(errStr, expectedTimestamp, entry.CommitTimestamp)
+			t.Errorf(errStr, expectedTimestamp.UnixNano(), entry.CommitTimestamp)
 		}
 	}
 	if entryCount != expectedEntries {

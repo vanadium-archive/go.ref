@@ -72,8 +72,8 @@ func Wrap(st store.Store, opts *Options) (Store, error) {
 		}
 		var err error
 		seq, err = strconv.ParseUint(parts[1], 10, 64)
-		// Current value of seq points to the last transaction committed
-		// increment the value by 1.
+		// Current value of seq points to the last transaction committed.
+		// Increment this value by 1.
 		seq++
 		if err != nil {
 			panic("failed to parse seq: " + key)
@@ -87,7 +87,7 @@ type wstore struct {
 	ist   store.Store
 	opts  *Options
 	mu    sync.Mutex    // held during transaction commits; protects seq
-	seq   uint64        // sequence number, for commits
+	seq   uint64        // the next sequence number to be used for a new commit
 	clock *clock.VClock // used to provide write timestamps
 }
 

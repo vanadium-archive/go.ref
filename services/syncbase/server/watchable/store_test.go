@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/syncbase/x/ref/services/syncbase/store/test"
 )
 
@@ -69,18 +68,11 @@ func TestTransactionsWithGet(t *testing.T) {
 const useMemstore = false
 
 func runTest(t *testing.T, mp []string, f func(t *testing.T, st store.Store)) {
-	var st store.Store
-	if useMemstore {
-		st = memstore.New()
-	} else {
-		var dbPath string = getPath()
-		st = createLevelDB(dbPath)
-		defer destroyLevelDB(st, dbPath)
-	}
+	st, destroy := createStore(useMemstore)
+	defer destroy()
 	st, err := Wrap(st, &Options{ManagedPrefixes: mp})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
 	f(t, st)
 }

@@ -6,17 +6,18 @@ package clock
 
 import (
 	"testing"
+	"time"
 )
 
 type systemClockMockImpl struct {
-	now int64
+	now time.Time
 }
 
-func (sc *systemClockMockImpl) Now() int64 {
+func (sc *systemClockMockImpl) Now() time.Time {
 	return sc.now
 }
 
-func (sc *systemClockMockImpl) setNow(now int64) {
+func (sc *systemClockMockImpl) setNow(now time.Time) {
 	sc.now = now
 }
 
@@ -27,7 +28,7 @@ var (
 func TestVClock(t *testing.T) {
 	clock := NewVClock()
 	sysClock := &systemClockMockImpl{}
-	writeTs := int64(4)
+	writeTs := time.Now()
 	sysClock.setNow(writeTs)
 	clock.SetSystemClock(sysClock)
 

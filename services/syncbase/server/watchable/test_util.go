@@ -7,6 +7,7 @@ package watchable
 import (
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	"v.io/syncbase/x/ref/services/syncbase/clock"
 	"v.io/syncbase/x/ref/services/syncbase/store"
@@ -17,8 +18,10 @@ import (
 
 // This file provides utility methods for tests related to watchable store.
 
-//****  Functions related to creation/cleanup of store instances  **//
+///////  Functions related to creation/cleanup of store instances  ///////
 
+// createStore returns a store along with a function to destroy the store
+// once it is no longer needed.
 func createStore(useMemstore bool) (store.Store, func()) {
 	var st store.Store
 	if useMemstore {
@@ -57,7 +60,7 @@ func destroyLevelDB(st store.Store, path string) {
 	}
 }
 
-//****  Functions related to watchable store  **//
+///////  Functions related to watchable store  ///////
 
 func getSeq(st Store) uint64 {
 	wst := st.(*wstore)
@@ -91,24 +94,24 @@ func (ler *LogEntryReader) GetEntry() (string, LogEntry) {
 	return key, entry
 }
 
-//***  Clock related utility code ********//
+///////  Clock related utility code  ///////
 
 // Mock Implementation for SystemClock
 type MockSystemClock struct {
-	time      int64 // current time returned by call to Now()
-	increment int64 // how much to increment the clock by for subsequent calls to Now()
+	time      time.Time     // current time returned by call to Now()
+	increment time.Duration // how much to increment the clock by for subsequent calls to Now()
 }
 
-func NewMockSystemClock(firstTimestamp, increment int64) *MockSystemClock {
+func NewMockSystemClock(firstTimestamp time.Time, increment time.Duration) *MockSystemClock {
 	return &MockSystemClock{
 		time:      firstTimestamp,
 		increment: increment,
 	}
 }
 
-func (sc *MockSystemClock) Now() int64 {
+func (sc *MockSystemClock) Now() time.Time {
 	now := sc.time
-	sc.time += sc.increment
+	sc.time = sc.time.Add(sc.increment)
 	return now
 }
 

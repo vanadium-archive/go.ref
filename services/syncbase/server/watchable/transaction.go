@@ -117,7 +117,7 @@ func (tx *transaction) Commit() error {
 		return verror.New(verror.ErrInternal, nil, "seq maxed out")
 	}
 	// Write LogEntry records.
-	timestamp := tx.st.clock.Now()
+	timestamp := tx.st.clock.Now().UnixNano()
 	keyPrefix := getLogEntryKeyPrefix(tx.st.seq)
 	for txSeq, op := range tx.ops {
 		key := join(keyPrefix, fmt.Sprintf("%04x", txSeq))
@@ -150,7 +150,7 @@ func (tx *transaction) Abort() error {
 	return tx.itx.Abort()
 }
 
-// Used for testing
+// Exported as a helper function for testing purposes
 func getLogEntryKeyPrefix(seq uint64) string {
 	// Note, MaxUint16 is 0xffff and MaxUint64 is 0xffffffffffffffff.
 	// TODO(sadovsky): Use a more space-efficient lexicographic number encoding.
