@@ -89,13 +89,13 @@ func runBinaryD(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	vlog.Infof("Binary repository HTTP server at: %q", rootURL)
 	go func() {
-		if err := http.Serve(listener, http.FileServer(binarylib.NewHTTPRoot(state))); err != nil {
+		if err := http.Serve(listener, http.FileServer(binarylib.NewHTTPRoot(ctx, state))); err != nil {
 			vlog.Errorf("Serve() failed: %v", err)
 			os.Exit(1)
 		}
 	}()
 
-	dis, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
+	dis, err := binarylib.NewDispatcher(ctx, state)
 	if err != nil {
 		return fmt.Errorf("NewDispatcher() failed: %v\n", err)
 	}

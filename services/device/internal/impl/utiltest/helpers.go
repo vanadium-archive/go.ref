@@ -771,7 +771,7 @@ func StartRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 	if err != nil {
 		t.Fatalf("binarylib.NewState failed: %v", err)
 	}
-	d, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
+	d, err := binarylib.NewDispatcher(ctx, state)
 	if err != nil {
 		t.Fatalf("server.NewDispatcher failed: %v", err)
 	}

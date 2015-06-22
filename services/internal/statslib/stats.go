@@ -17,7 +17,6 @@ import (
 	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	libstats "v.io/x/ref/lib/stats"
 )
 
@@ -40,7 +39,7 @@ func NewStatsService(suffix string, watchFreq time.Duration) interface{} {
 
 // Glob__ returns the name of all objects that match pattern.
 func (i *statsService) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	vlog.VI(1).Infof("%v.Glob__(%q)", i.suffix, pattern)
+	ctx.VI(1).Infof("%v.Glob__(%q)", i.suffix, pattern)
 
 	ch := make(chan naming.GlobReply)
 	go func() {
@@ -50,7 +49,7 @@ func (i *statsService) Glob__(ctx *context.T, call rpc.ServerCall, pattern strin
 			ch <- naming.GlobReplyEntry{naming.MountEntry{Name: it.Value().Key}}
 		}
 		if err := it.Err(); err != nil {
-			vlog.VI(1).Infof("libstats.Glob(%q, %q) failed: %v", i.suffix, pattern, err)
+			ctx.VI(1).Infof("libstats.Glob(%q, %q) failed: %v", i.suffix, pattern, err)
 		}
 	}()
 	return ch, nil
@@ -59,7 +58,7 @@ func (i *statsService) Glob__(ctx *context.T, call rpc.ServerCall, pattern strin
 // WatchGlob returns the name and value of the objects that match the request,
 // followed by periodic updates when values change.
 func (i *statsService) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
-	vlog.VI(1).Infof("%v.WatchGlob(%+v)", i.suffix, req)
+	ctx.VI(1).Infof("%v.WatchGlob(%+v)", i.suffix, req)
 
 	var t time.Time
 Loop:
@@ -99,7 +98,7 @@ Loop:
 
 // Value returns the value of the receiver object.
 func (i *statsService) Value(ctx *context.T, _ rpc.ServerCall) (*vdl.Value, error) {
-	vlog.VI(1).Infof("%v.Value()", i.suffix)
+	ctx.VI(1).Infof("%v.Value()", i.suffix)
 
 	rv, err := libstats.Value(i.suffix)
 	switch {

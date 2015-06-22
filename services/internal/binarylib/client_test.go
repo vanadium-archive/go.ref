@@ -17,7 +17,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/repository"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
@@ -38,7 +37,7 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	}
 	path, perm := filepath.Join(rootDir, VersionFile), os.FileMode(0600)
 	if err := ioutil.WriteFile(path, []byte(Version), perm); err != nil {
-		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, Version, perm, err)
+		ctx.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, Version, perm, err)
 	}
 	// Setup and start the binary repository server.
 	depth := 2
@@ -46,7 +45,7 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, depth, err)
 	}
-	dispatcher, err := NewDispatcher(v23.GetPrincipal(ctx), state)
+	dispatcher, err := NewDispatcher(ctx, state)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v\n", err)
 	}

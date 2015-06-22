@@ -14,11 +14,12 @@ import (
 	"path/filepath"
 	"sync"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/security/serialization"
 )
 
@@ -43,13 +44,14 @@ type pathEntry struct {
 type PathStore struct {
 	pthlks    map[string]*pathEntry
 	lk        sync.Mutex
+	ctx       *context.T
 	principal security.Principal
 }
 
 // NewPathStore creates a new instance of the lock map that uses
 // principal to sign stored Permissions files.
-func NewPathStore(principal security.Principal) *PathStore {
-	return &PathStore{pthlks: make(map[string]*pathEntry), principal: principal}
+func NewPathStore(ctx *context.T) *PathStore {
+	return &PathStore{pthlks: make(map[string]*pathEntry), ctx: ctx, principal: v23.GetPrincipal(ctx)}
 }
 
 // Get returns the Permissions from the data file in dir.
@@ -57,7 +59,7 @@ func (store *PathStore) Get(dir string) (access.Permissions, string, error) {
 	permspath := filepath.Join(dir, permsName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
-	return getCore(store.principal, permspath, sigpath)
+	return getCore(store.ctx, permspath, sigpath)
 }
 
 // TODO(rjkroege): Improve lock handling.
@@ -83,18 +85,19 @@ func (store *PathStore) lockPath(dir string) func() {
 	}
 }
 
-func getCore(principal security.Principal, permspath, sigpath string) (access.Permissions, string, error) {
+func getCore(ctx *context.T, permspath, sigpath string) (access.Permissions, string, error) {
+	principal := v23.GetPrincipal(ctx)
 	f, err := os.Open(permspath)
 	if err != nil {
 		// This path is rarely a fatal error so log informationally only.
-		vlog.VI(2).Infof("os.Open(%s) failed: %v", permspath, err)
+		ctx.VI(2).Infof("os.Open(%s) failed: %v", permspath, err)
 		return nil, "", err
 	}
 	defer f.Close()
 
 	s, err := os.Open(sigpath)
 	if err != nil {
-		vlog.Errorf("Signatures for Permissions are required: %s unavailable: %v", permspath, err)
+		ctx.Errorf("Signatures for Permissions are required: %s unavailable: %v", permspath, err)
 		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 	defer s.Close()
@@ -102,18 +105,18 @@ func getCore(principal security.Principal, permspath, sigpath string) (access.Pe
 	// read and verify the signature of the perms file
 	vf, err := serialization.NewVerifyingReader(f, s, principal.PublicKey())
 	if err != nil {
-		vlog.Errorf("NewVerifyingReader() failed: %v (perms=%s, sig=%s)", err, permspath, sigpath)
+		ctx.Errorf("NewVerifyingReader() failed: %v (perms=%s, sig=%s)", err, permspath, sigpath)
 		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 
 	perms, err := access.ReadPermissions(vf)
 	if err != nil {
-		vlog.Errorf("ReadPermissions(%s) failed: %v", permspath, err)
+		ctx.Errorf("ReadPermissions(%s) failed: %v", permspath, err)
 		return nil, "", err
 	}
 	version, err := ComputeVersion(perms)
 	if err != nil {
-		vlog.Errorf("pathperms.ComputeVersion failed: %v", err)
+		ctx.Errorf("pathperms.ComputeVersion failed: %v", err)
 		return nil, "", err
 	}
 	return perms, version, nil
@@ -133,19 +136,20 @@ func (store *PathStore) SetShareable(dir string, perms access.Permissions, versi
 	permspath := filepath.Join(dir, permsName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
-	_, oversion, err := getCore(store.principal, permspath, sigpath)
+	_, oversion, err := getCore(store.ctx, permspath, sigpath)
 	if err != nil && !os.IsNotExist(err) {
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if len(version) > 0 && version != oversion {
 		return verror.NewErrBadVersion(nil)
 	}
-	return write(store.principal, permspath, sigpath, dir, perms, shareable)
+	return write(store.ctx, permspath, sigpath, dir, perms, shareable)
 }
 
 // write writes the specified Permissions to the permsFile with a
 // signature in sigFile.
-func write(principal security.Principal, permsFile, sigFile, dir string, perms access.Permissions, shareable bool) error {
+func write(ctx *context.T, permsFile, sigFile, dir string, perms access.Permissions, shareable bool) error {
+	principal := v23.GetPrincipal(ctx)
 	filemode := os.FileMode(0600)
 	dirmode := os.FileMode(0700)
 	if shareable {
@@ -159,43 +163,43 @@ func write(principal security.Principal, permsFile, sigFile, dir string, perms a
 	// those files to the actual data and signature file.
 	data, err := ioutil.TempFile(dir, permsName)
 	if err != nil {
-		vlog.Errorf("Failed to open tmpfile data:%v", err)
+		ctx.Errorf("Failed to open tmpfile data:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	defer os.Remove(data.Name())
 	sig, err := ioutil.TempFile(dir, sigName)
 	if err != nil {
-		vlog.Errorf("Failed to open tmpfile sig:%v", err)
+		ctx.Errorf("Failed to open tmpfile sig:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	defer os.Remove(sig.Name())
 	writer, err := serialization.NewSigningWriteCloser(data, sig, principal, nil)
 	if err != nil {
-		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
+		ctx.Errorf("Failed to create NewSigningWriteCloser:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err = perms.WriteTo(writer); err != nil {
-		vlog.Errorf("Failed to SavePermissions:%v", err)
+		ctx.Errorf("Failed to SavePermissions:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err = writer.Close(); err != nil {
-		vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
+		ctx.Errorf("Failed to Close() SigningWriteCloser:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err := os.Rename(data.Name(), permsFile); err != nil {
-		vlog.Errorf("os.Rename() failed:%v", err)
+		ctx.Errorf("os.Rename() failed:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err := os.Chmod(permsFile, filemode); err != nil {
-		vlog.Errorf("os.Chmod() failed:%v", err)
+		ctx.Errorf("os.Chmod() failed:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err := os.Rename(sig.Name(), sigFile); err != nil {
-		vlog.Errorf("os.Rename() failed:%v", err)
+		ctx.Errorf("os.Rename() failed:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err := os.Chmod(sigFile, filemode); err != nil {
-		vlog.Errorf("os.Chmod() failed:%v", err)
+		ctx.Errorf("os.Chmod() failed:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil

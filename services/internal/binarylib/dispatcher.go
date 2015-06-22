@@ -7,6 +7,7 @@ package binarylib
 import (
 	"path/filepath"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/repository"
@@ -25,10 +26,10 @@ type dispatcher struct {
 }
 
 // NewDispatcher is the dispatcher factory.
-func NewDispatcher(principal security.Principal, state *state) (rpc.Dispatcher, error) {
+func NewDispatcher(ctx *context.T, state *state) (rpc.Dispatcher, error) {
 	return &dispatcher{
 		state:      state,
-		permsStore: pathperms.NewPathStore(principal),
+		permsStore: pathperms.NewPathStore(ctx),
 	}, nil
 }
 
