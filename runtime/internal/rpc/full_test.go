@@ -1193,6 +1193,15 @@ func (*singleBlessingStore) DebugString() string {
 func (*singleBlessingStore) PeerBlessings() map[security.BlessingPattern]security.Blessings {
 	return nil
 }
+func (*singleBlessingStore) CacheDischarge(security.Discharge, security.Caveat, security.DischargeImpetus) {
+	return
+}
+func (*singleBlessingStore) ClearDischarges(...security.Discharge) {
+	return
+}
+func (*singleBlessingStore) Discharge(security.Caveat, security.DischargeImpetus) security.Discharge {
+	return security.Discharge{}
+}
 
 // singleBlessingPrincipal implements security.Principal. It is a wrapper over
 // a security.Principal that intercepts  all invocations on the

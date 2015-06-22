@@ -312,6 +312,24 @@ func (s *cachedStore) String() string {
 	return fmt.Sprintf("cached[%s]", s.impl)
 }
 
+func (s *cachedStore) CacheDischarge(d security.Discharge, c security.Caveat, i security.DischargeImpetus) {
+	s.mu.Lock()
+	s.impl.CacheDischarge(d, c, i)
+	s.mu.Unlock()
+}
+
+func (s *cachedStore) ClearDischarges(discharges ...security.Discharge) {
+	s.mu.Lock()
+	s.impl.ClearDischarges(discharges...)
+	s.mu.Unlock()
+}
+
+func (s *cachedStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+	return s.impl.Discharge(caveat, impetus)
+}
+
 // Must be called while holding mu.
 func (s *cachedStore) flush() {
 	s.hasDef = false

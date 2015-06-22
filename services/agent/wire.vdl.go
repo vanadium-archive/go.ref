@@ -63,6 +63,9 @@ type AgentClientMethods interface {
 	BlessingStoreDefault(*context.T, ...rpc.CallOpt) (security.Blessings, error)
 	BlessingStorePeerBlessings(*context.T, ...rpc.CallOpt) (map[security.BlessingPattern]security.Blessings, error)
 	BlessingStoreDebugString(*context.T, ...rpc.CallOpt) (string, error)
+	BlessingStoreCacheDischarge(ctx *context.T, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus, opts ...rpc.CallOpt) error
+	BlessingStoreClearDischarges(ctx *context.T, discharges []security.Discharge, opts ...rpc.CallOpt) error
+	BlessingStoreDischarge(ctx *context.T, caveat security.Caveat, impetus security.DischargeImpetus, opts ...rpc.CallOpt) (wd security.Discharge, err error)
 	BlessingRootsAdd(ctx *context.T, root []byte, pattern security.BlessingPattern, opts ...rpc.CallOpt) error
 	BlessingRootsRecognized(ctx *context.T, root []byte, blessing string, opts ...rpc.CallOpt) error
 	BlessingRootsDump(*context.T, ...rpc.CallOpt) (map[security.BlessingPattern][][]byte, error)
@@ -156,6 +159,21 @@ func (c implAgentClientStub) BlessingStorePeerBlessings(ctx *context.T, opts ...
 
 func (c implAgentClientStub) BlessingStoreDebugString(ctx *context.T, opts ...rpc.CallOpt) (o0 string, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingStoreDebugString", nil, []interface{}{&o0}, opts...)
+	return
+}
+
+func (c implAgentClientStub) BlessingStoreCacheDischarge(ctx *context.T, i0 security.Discharge, i1 security.Caveat, i2 security.DischargeImpetus, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingStoreCacheDischarge", []interface{}{i0, i1, i2}, nil, opts...)
+	return
+}
+
+func (c implAgentClientStub) BlessingStoreClearDischarges(ctx *context.T, i0 []security.Discharge, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingStoreClearDischarges", []interface{}{i0}, nil, opts...)
+	return
+}
+
+func (c implAgentClientStub) BlessingStoreDischarge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...rpc.CallOpt) (o0 security.Discharge, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingStoreDischarge", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -273,6 +291,9 @@ type AgentServerMethods interface {
 	BlessingStoreDefault(*context.T, rpc.ServerCall) (security.Blessings, error)
 	BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error)
 	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
+	BlessingStoreCacheDischarge(ctx *context.T, call rpc.ServerCall, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error
+	BlessingStoreClearDischarges(ctx *context.T, call rpc.ServerCall, discharges []security.Discharge) error
+	BlessingStoreDischarge(ctx *context.T, call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (wd security.Discharge, err error)
 	BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
 	BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, root []byte, blessing string) error
 	BlessingRootsDump(*context.T, rpc.ServerCall) (map[security.BlessingPattern][][]byte, error)
@@ -303,6 +324,9 @@ type AgentServerStubMethods interface {
 	BlessingStoreDefault(*context.T, rpc.ServerCall) (security.Blessings, error)
 	BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error)
 	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
+	BlessingStoreCacheDischarge(ctx *context.T, call rpc.ServerCall, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error
+	BlessingStoreClearDischarges(ctx *context.T, call rpc.ServerCall, discharges []security.Discharge) error
+	BlessingStoreDischarge(ctx *context.T, call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (wd security.Discharge, err error)
 	BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
 	BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, root []byte, blessing string) error
 	BlessingRootsDump(*context.T, rpc.ServerCall) (map[security.BlessingPattern][][]byte, error)
@@ -397,6 +421,18 @@ func (s implAgentServerStub) BlessingStorePeerBlessings(ctx *context.T, call rpc
 
 func (s implAgentServerStub) BlessingStoreDebugString(ctx *context.T, call rpc.ServerCall) (string, error) {
 	return s.impl.BlessingStoreDebugString(ctx, call)
+}
+
+func (s implAgentServerStub) BlessingStoreCacheDischarge(ctx *context.T, call rpc.ServerCall, i0 security.Discharge, i1 security.Caveat, i2 security.DischargeImpetus) error {
+	return s.impl.BlessingStoreCacheDischarge(ctx, call, i0, i1, i2)
+}
+
+func (s implAgentServerStub) BlessingStoreClearDischarges(ctx *context.T, call rpc.ServerCall, i0 []security.Discharge) error {
+	return s.impl.BlessingStoreClearDischarges(ctx, call, i0)
+}
+
+func (s implAgentServerStub) BlessingStoreDischarge(ctx *context.T, call rpc.ServerCall, i0 security.Caveat, i1 security.DischargeImpetus) (security.Discharge, error) {
+	return s.impl.BlessingStoreDischarge(ctx, call, i0, i1)
 }
 
 func (s implAgentServerStub) BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, i0 []byte, i1 security.BlessingPattern) error {
@@ -549,6 +585,30 @@ var descAgent = rpc.InterfaceDesc{
 			Name: "BlessingStoreDebugString",
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // string
+			},
+		},
+		{
+			Name: "BlessingStoreCacheDischarge",
+			InArgs: []rpc.ArgDesc{
+				{"discharge", ``}, // security.Discharge
+				{"caveat", ``},    // security.Caveat
+				{"impetus", ``},   // security.DischargeImpetus
+			},
+		},
+		{
+			Name: "BlessingStoreClearDischarges",
+			InArgs: []rpc.ArgDesc{
+				{"discharges", ``}, // []security.Discharge
+			},
+		},
+		{
+			Name: "BlessingStoreDischarge",
+			InArgs: []rpc.ArgDesc{
+				{"caveat", ``},  // security.Caveat
+				{"impetus", ``}, // security.DischargeImpetus
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"wd", ``}, // security.Discharge
 			},
 		},
 		{

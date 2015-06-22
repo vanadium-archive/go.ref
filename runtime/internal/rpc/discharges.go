@@ -5,14 +5,13 @@
 package rpc
 
 import (
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -35,7 +34,6 @@ func (NoDischarges) NSOpt() {
 type dischargeClient struct {
 	c                     rpc.Client
 	defaultCtx            *context.T
-	cache                 dischargeCache
 	dischargeExpiryBuffer time.Duration
 }
 
@@ -51,12 +49,8 @@ type dischargeClient struct {
 // Attempts will be made to refresh a discharge DischargeExpiryBuffer before they expire.
 func InternalNewDischargeClient(defaultCtx *context.T, client rpc.Client, dischargeExpiryBuffer time.Duration) vc.DischargeClient {
 	return &dischargeClient{
-		c:          client,
-		defaultCtx: defaultCtx,
-		cache: dischargeCache{
-			cache:    make(map[dischargeCacheKey]security.Discharge),
-			idToKeys: make(map[string][]dischargeCacheKey),
-		},
+		c:                     client,
+		defaultCtx:            defaultCtx,
 		dischargeExpiryBuffer: dischargeExpiryBuffer,
 	}
 }
@@ -85,15 +79,15 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 		}
 	}
 
+	if ctx == nil {
+		ctx = d.defaultCtx
+	}
+	bstore := v23.GetPrincipal(ctx).BlessingStore()
 	// Gather discharges from cache.
-	// (Collect a set of pointers, where nil implies a missing discharge)
-	discharges := make([]*security.Discharge, len(caveats))
-	if d.cache.Discharges(caveats, filteredImpetuses, discharges) > 0 {
+	discharges, rem := discharges(bstore, caveats, impetus)
+	if rem > 0 {
 		// Fetch discharges for caveats for which no discharges were
 		// found in the cache.
-		if ctx == nil {
-			ctx = d.defaultCtx
-		}
 		if ctx != nil {
 			var span vtrace.Span
 			ctx, span = vtrace.WithNewSpan(ctx, "Fetching Discharges")
@@ -102,14 +96,30 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 		d.fetchDischarges(ctx, caveats, filteredImpetuses, discharges)
 	}
 	for _, d := range discharges {
-		if d != nil {
-			ret = append(ret, *d)
+		if d.ID() != "" {
+			ret = append(ret, d)
 		}
 	}
 	return
 }
-func (d *dischargeClient) Invalidate(discharges ...security.Discharge) {
-	d.cache.invalidate(discharges...)
+
+func discharges(bs security.BlessingStore, caveats []security.Caveat, imp security.DischargeImpetus) (out []security.Discharge, rem int) {
+	out = make([]security.Discharge, len(caveats))
+	for i := range caveats {
+		out[i] = bs.Discharge(caveats[i], imp)
+		if out[i].ID() == "" {
+			rem++
+		}
+	}
+	return
+}
+
+func (d *dischargeClient) Invalidate(ctx *context.T, discharges ...security.Discharge) {
+	if ctx == nil {
+		ctx = d.defaultCtx
+	}
+	bstore := v23.GetPrincipal(ctx).BlessingStore()
+	bstore.ClearDischarges(discharges...)
 }
 
 // fetchDischarges fills out by fetching discharges for caveats from the
@@ -118,12 +128,14 @@ func (d *dischargeClient) Invalidate(discharges ...security.Discharge) {
 // fetched or no new discharges are fetched.
 // REQUIRES: len(caveats) == len(out)
 // REQUIRES: caveats[i].ThirdPartyDetails() != nil for 0 <= i < len(caveats)
-func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Caveat, impetuses []security.DischargeImpetus, out []*security.Discharge) {
+func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Caveat, impetuses []security.DischargeImpetus, out []security.Discharge) {
+	bstore := v23.GetPrincipal(ctx).BlessingStore()
 	var wg sync.WaitGroup
 	for {
 		type fetched struct {
 			idx       int
-			discharge *security.Discharge
+			discharge security.Discharge
+			caveat    security.Caveat
 			impetus   security.DischargeImpetus
 		}
 		discharges := make(chan fetched, len(caveats))
@@ -143,14 +155,14 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
 					return
 				}
-				discharges <- fetched{i, &dis, impetuses[i]}
+				discharges <- fetched{i, dis, caveats[i], impetuses[i]}
 			}(i, ctx, caveats[i])
 		}
 		wg.Wait()
 		close(discharges)
 		var got int
 		for fetched := range discharges {
-			d.cache.Add(*fetched.discharge, fetched.impetus)
+			bstore.CacheDischarge(fetched.discharge, fetched.caveat, fetched.impetus)
 			out[fetched.idx] = fetched.discharge
 			got++
 		}
@@ -161,117 +173,6 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 			return
 		}
 	}
-}
-
-func (d *dischargeClient) shouldFetchDischarge(dis *security.Discharge) bool {
-	if dis == nil {
-		return true
-	}
-	expiry := dis.Expiry()
-	if expiry.IsZero() {
-		return false
-	}
-	return expiry.Before(time.Now().Add(d.dischargeExpiryBuffer))
-}
-
-// dischargeCache is a concurrency-safe cache for third party caveat discharges.
-type dischargeCache struct {
-	mu       sync.RWMutex
-	cache    map[dischargeCacheKey]security.Discharge // GUARDED_BY(mu)
-	idToKeys map[string][]dischargeCacheKey           // GUARDED_BY(mu)
-}
-
-type dischargeCacheKey struct {
-	id, method, serverPatterns string
-}
-
-func (dcc *dischargeCache) cacheKey(id string, impetus security.DischargeImpetus) dischargeCacheKey {
-	// We currently do not cache on impetus.Arguments because there it seems there is no
-	// universal way to generate a key from them.
-	// Add sorted BlessingPatterns to the key.
-	var bps []string
-	for _, bp := range impetus.Server {
-		bps = append(bps, string(bp))
-	}
-	sort.Strings(bps)
-	return dischargeCacheKey{
-		id:             id,
-		method:         impetus.Method,
-		serverPatterns: strings.Join(bps, ","), // "," is restricted in blessingPatterns.
-	}
-}
-
-// Add inserts the argument to the cache, the previous discharge for the same caveat.
-func (dcc *dischargeCache) Add(d security.Discharge, filteredImpetus security.DischargeImpetus) {
-	// Only add to the cache if the caveat did not require arguments.
-	if len(filteredImpetus.Arguments) > 0 {
-		return
-	}
-	id := d.ID()
-	dcc.mu.Lock()
-	dcc.cache[dcc.cacheKey(id, filteredImpetus)] = d
-	if _, ok := dcc.idToKeys[id]; !ok {
-		dcc.idToKeys[id] = []dischargeCacheKey{}
-	}
-	dcc.idToKeys[id] = append(dcc.idToKeys[id], dcc.cacheKey(id, filteredImpetus))
-	dcc.mu.Unlock()
-}
-
-// Discharges takes a slice of caveats, a slice of filtered Discharge impetuses
-// corresponding to the caveats, and a slice of discharges of the same length and
-// fills in nil entries in the discharges slice with pointers to cached discharges
-// (if there are any).
-//
-// REQUIRES: len(caveats) == len(impetuses) == len(out)
-// REQUIRES: caveats[i].ThirdPartyDetails() != nil, for all 0 <= i < len(caveats)
-func (dcc *dischargeCache) Discharges(caveats []security.Caveat, impetuses []security.DischargeImpetus, out []*security.Discharge) (remaining int) {
-	dcc.mu.Lock()
-	for i, d := range out {
-		if d != nil {
-			continue
-		}
-		id := caveats[i].ThirdPartyDetails().ID()
-		key := dcc.cacheKey(id, impetuses[i])
-		if cached, exists := dcc.cache[key]; exists {
-			out[i] = &cached
-			// If the discharge has expired, purge it from the cache.
-			if hasDischargeExpired(out[i]) {
-				out[i] = nil
-				delete(dcc.cache, key)
-				remaining++
-			}
-		} else {
-			remaining++
-		}
-	}
-	dcc.mu.Unlock()
-	return
-}
-
-func hasDischargeExpired(dis *security.Discharge) bool {
-	expiry := dis.Expiry()
-	if expiry.IsZero() {
-		return false
-	}
-	return expiry.Before(time.Now())
-}
-
-func (dcc *dischargeCache) invalidate(discharges ...security.Discharge) {
-	dcc.mu.Lock()
-	for _, d := range discharges {
-		if keys, ok := dcc.idToKeys[d.ID()]; ok {
-			var newKeys []dischargeCacheKey
-			for _, k := range keys {
-				if cached := dcc.cache[k]; cached.Equivalent(d) {
-					delete(dcc.cache, k)
-				} else {
-					newKeys = append(newKeys, k)
-				}
-			}
-			dcc.idToKeys[d.ID()] = newKeys
-		}
-	}
-	dcc.mu.Unlock()
 }
 
 // filteredImpetus returns a copy of 'before' after removing any values that are not required as per 'r'.
@@ -292,4 +193,15 @@ func filteredImpetus(r security.ThirdPartyRequirements, before security.Discharg
 		}
 	}
 	return
+}
+
+func (d *dischargeClient) shouldFetchDischarge(dis security.Discharge) bool {
+	if dis.ID() == "" {
+		return true
+	}
+	expiry := dis.Expiry()
+	if expiry.IsZero() {
+		return false
+	}
+	return expiry.Before(time.Now().Add(d.dischargeExpiryBuffer))
 }

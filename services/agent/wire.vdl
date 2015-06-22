@@ -52,6 +52,9 @@ type Agent interface {
 	BlessingStoreDefault() (security.WireBlessings | error)
 	BlessingStorePeerBlessings() (map[security.BlessingPattern]security.WireBlessings | error)
 	BlessingStoreDebugString() (string | error)
+	BlessingStoreCacheDischarge(discharge security.WireDischarge, caveat security.Caveat, impetus security.DischargeImpetus) error
+	BlessingStoreClearDischarges(discharges []security.WireDischarge) error
+	BlessingStoreDischarge(caveat security.Caveat, impetus security.DischargeImpetus) (wd security.WireDischarge | error)
 
 	BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error
 	BlessingRootsRecognized(root []byte, blessing string) error

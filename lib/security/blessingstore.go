@@ -9,10 +9,13 @@ package security
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
+	"time"
 
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -26,6 +29,8 @@ var (
 	errBlessingsNotForKey      = verror.Register(pkgPath+".errBlessingsNotForKey", verror.NoRetry, "{1:}{2:} read Blessings: {3} that are not for provided PublicKey{:_}")
 	errDataOrSignerUnspecified = verror.Register(pkgPath+".errDataOrSignerUnspecified", verror.NoRetry, "{1:}{2:} persisted data or signer is not specified{:_}")
 )
+
+const cacheKeyFormat = uint32(1)
 
 // blessingStore implements security.BlessingStore.
 type blessingStore struct {
@@ -116,6 +121,105 @@ func (bs *blessingStore) PeerBlessings() map[security.BlessingPattern]security.B
 	return m
 }
 
+func (bs *blessingStore) CacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) {
+	id := discharge.ID()
+	tp := caveat.ThirdPartyDetails()
+	// Only add to the cache if the caveat did not require arguments.
+	if id == "" || tp == nil || tp.Requirements().ReportArguments {
+		return
+	}
+	key := dcacheKey(tp, impetus)
+	bs.mu.Lock()
+	defer bs.mu.Unlock()
+	old, hadold := bs.state.DischargeCache[key]
+	bs.state.DischargeCache[key] = discharge
+	if err := bs.save(); err != nil {
+		if hadold {
+			bs.state.DischargeCache[key] = old
+		} else {
+			delete(bs.state.DischargeCache, key)
+		}
+	}
+	return
+}
+
+func (bs *blessingStore) ClearDischarges(discharges ...security.Discharge) {
+	bs.mu.Lock()
+	bs.clearDischargesLocked(discharges...)
+	bs.mu.Unlock()
+	return
+}
+
+func (bs *blessingStore) clearDischargesLocked(discharges ...security.Discharge) {
+	for _, d := range discharges {
+		for k, cached := range bs.state.DischargeCache {
+			if cached.Equivalent(d) {
+				delete(bs.state.DischargeCache, k)
+			}
+		}
+	}
+}
+
+func (bs *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (out security.Discharge) {
+	defer bs.mu.Unlock()
+	bs.mu.Lock()
+	tp := caveat.ThirdPartyDetails()
+	if tp == nil || tp.Requirements().ReportArguments {
+		return
+	}
+	key := dcacheKey(tp, impetus)
+	if cached, exists := bs.state.DischargeCache[key]; exists {
+		out = cached
+		// If the discharge has expired, purge it from the cache.
+		if hasDischargeExpired(out) {
+			out = security.Discharge{}
+			bs.clearDischargesLocked(cached)
+		}
+	}
+	return
+}
+
+func hasDischargeExpired(dis security.Discharge) bool {
+	expiry := dis.Expiry()
+	if expiry.IsZero() {
+		return false
+	}
+	return expiry.Before(time.Now())
+}
+
+func dcacheKey(tp security.ThirdPartyCaveat, impetus security.DischargeImpetus) dischargeCacheKey {
+	// If the algorithm for computing dcacheKey changes, cacheKeyFormat must be changed as well.
+	id := tp.ID()
+	r := tp.Requirements()
+	var method, servers string
+	// We currently do not cache on impetus.Arguments because there it seems there is no
+	// general way to generate a key from them.
+	if r.ReportMethod {
+		method = impetus.Method
+	}
+	if r.ReportServer && len(impetus.Server) > 0 {
+		// Sort the server blessing patterns to increase cache usage.
+		var bps []string
+		for _, bp := range impetus.Server {
+			bps = append(bps, string(bp))
+		}
+		sort.Strings(bps)
+		servers = strings.Join(bps, ",")
+	}
+	h := sha256.New()
+	h.Write(hashString(id))
+	h.Write(hashString(method))
+	h.Write(hashString(servers))
+	var key [sha256.Size]byte
+	copy(key[:], h.Sum(nil))
+	return key
+}
+
+func hashString(d string) []byte {
+	h := sha256.Sum256([]byte(d))
+	return h[:]
+}
+
 // DebugString return a human-readable string encoding of the store
 // in the following format
 // Default Blessings <blessings>
@@ -158,7 +262,10 @@ func (bs *blessingStore) save() error {
 func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingStore {
 	return &blessingStore{
 		publicKey: publicKey,
-		state:     blessingStoreState{PeerBlessings: make(map[security.BlessingPattern]security.Blessings)},
+		state: blessingStoreState{
+			PeerBlessings:  make(map[security.BlessingPattern]security.Blessings),
+			DischargeCache: make(map[dischargeCacheKey]security.Discharge),
+		},
 	}
 }
 
@@ -185,6 +292,10 @@ func (bs *blessingStore) deserialize() error {
 	if err := decodeFromStorage(&bs.state, data, signature, bs.signer.PublicKey()); err != nil {
 		return err
 	}
+	if bs.state.CacheKeyFormat != cacheKeyFormat {
+		bs.state.CacheKeyFormat = cacheKeyFormat
+		bs.state.DischargeCache = make(map[dischargeCacheKey]security.Discharge)
+	}
 	return bs.verifyState()
 }
 
@@ -197,12 +308,17 @@ func newPersistingBlessingStore(serializer SerializerReaderWriter, signer serial
 	}
 	bs := &blessingStore{
 		publicKey:  signer.PublicKey(),
-		state:      blessingStoreState{PeerBlessings: make(map[security.BlessingPattern]security.Blessings)},
 		serializer: serializer,
 		signer:     signer,
 	}
 	if err := bs.deserialize(); err != nil {
 		return nil, err
+	}
+	if bs.state.PeerBlessings == nil {
+		bs.state.PeerBlessings = make(map[security.BlessingPattern]security.Blessings)
+	}
+	if bs.state.DischargeCache == nil {
+		bs.state.DischargeCache = make(map[dischargeCacheKey]security.Discharge)
 	}
 	return bs, nil
 }

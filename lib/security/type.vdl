@@ -18,4 +18,11 @@ type blessingStoreState struct {
 	// DefaultBlessings is the default Blessings to be shared with peers for which
 	// no other information is available to select blessings.
 	DefaultBlessings security.WireBlessings
+	// DischargeCache is the cache of discharges.
+	DischargeCache map[dischargeCacheKey]security.WireDischarge
+	// CacheKeyFormat is the dischargeCacheKey format version. It should incremented
+	// any time the format of the dischargeCacheKey is changed.
+	CacheKeyFormat uint32
 }
+
+type dischargeCacheKey [32]byte

@@ -32,6 +32,11 @@ type blessingStoreState struct {
 	// DefaultBlessings is the default Blessings to be shared with peers for which
 	// no other information is available to select blessings.
 	DefaultBlessings security.Blessings
+	// DischargeCache is the cache of discharges.
+	DischargeCache map[dischargeCacheKey]security.Discharge
+	// CacheKeyFormat is the dischargeCacheKey format version. It should incremented
+	// any time the format of the dischargeCacheKey is changed.
+	CacheKeyFormat uint32
 }
 
 func (blessingStoreState) __VDLReflect(struct {
@@ -39,7 +44,15 @@ func (blessingStoreState) __VDLReflect(struct {
 }) {
 }
 
+type dischargeCacheKey [32]byte
+
+func (dischargeCacheKey) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/security.dischargeCacheKey"`
+}) {
+}
+
 func init() {
 	vdl.Register((*blessingRootsState)(nil))
 	vdl.Register((*blessingStoreState)(nil))
+	vdl.Register((*dischargeCacheKey)(nil))
 }

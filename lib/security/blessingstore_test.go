@@ -140,6 +140,7 @@ func TestBlessingStore(t *testing.T) {
 	if err := tester.testSetDefault(s); err != nil {
 		t.Error(err)
 	}
+	testDischargeCache(t, s)
 }
 
 func TestBlessingStorePersistence(t *testing.T) {
@@ -164,6 +165,7 @@ func TestBlessingStorePersistence(t *testing.T) {
 	if err := tester.testSetDefault(s); err != nil {
 		t.Error(err)
 	}
+	testDischargeCache(t, s)
 
 	// Recreate the BlessingStore from the directory.
 	p2, err := LoadPersistentPrincipal(dir, nil)

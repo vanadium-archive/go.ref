@@ -403,6 +403,26 @@ func (a agentd) BlessingStoreDefault(_ *context.T, _ rpc.ServerCall) (security.B
 	return a.principal.BlessingStore().Default(), nil
 }
 
+func (a agentd) BlessingStoreCacheDischarge(_ *context.T, _ rpc.ServerCall, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error {
+	a.w.lock()
+	a.principal.BlessingStore().CacheDischarge(discharge, caveat, impetus)
+	a.w.unlock(a.id)
+	return nil
+}
+
+func (a agentd) BlessingStoreClearDischarges(_ *context.T, _ rpc.ServerCall, discharges []security.Discharge) error {
+	a.w.lock()
+	a.principal.BlessingStore().ClearDischarges(discharges...)
+	a.w.unlock(a.id)
+	return nil
+}
+
+func (a agentd) BlessingStoreDischarge(_ *context.T, _ rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
+	a.w.lock()
+	defer a.w.unlock(a.id)
+	return a.principal.BlessingStore().Discharge(caveat, impetus), nil
+}
+
 func (a agentd) BlessingRootsAdd(_ *context.T, _ rpc.ServerCall, root []byte, pattern security.BlessingPattern) error {
 	pkey, err := security.UnmarshalPublicKey(root)
 	if err != nil {
