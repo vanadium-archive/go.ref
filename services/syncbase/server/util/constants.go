@@ -23,7 +23,7 @@ const (
 // Constants related to object names.
 const (
 	// Service object name suffix for Syncbase-to-Syncbase RPCs.
-	SyncbaseSuffix = "$internal"
+	SyncbaseSuffix = "$sync"
 	// Separator for batch info in database names.
 	BatchSep = ":"
 	// Separator for parts of storage engine keys.
