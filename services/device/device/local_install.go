@@ -215,6 +215,10 @@ func (envelopeInvoker) SetPermissions(*context.T, rpc.ServerCall, access.Permiss
 	return errNotImplemented
 }
 
+func (envelopeInvoker) TidyNow(*context.T, rpc.ServerCall) error {
+	return errNotImplemented
+}
+
 func servePackage(p string, ms *mapServer, tmpZipDir string) (string, string, error) {
 	info, err := os.Stat(p)
 	if os.IsNotExist(err) {

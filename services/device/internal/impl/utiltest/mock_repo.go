@@ -80,6 +80,10 @@ func (i *arInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.
 	return nil
 }
 
+func (i *arInvoker) TidyNow(_ *context.T, _ rpc.ServerCall) error {
+	return nil
+}
+
 // brInvoker holds the state of a binary repository invocation mock.  It always
 // serves the current running binary.
 type brInvoker struct{}
