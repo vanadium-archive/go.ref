@@ -334,7 +334,7 @@ func getSGDataEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId
 func getSGNameEntry(ctx *context.T, st store.StoreReader, name string) (interfaces.GroupId, error) {
 	var gid interfaces.GroupId
 	if err := util.GetObject(st, sgNameKey(name), &gid); err != nil {
-		return gid, verror.New(verror.ErrInternal, ctx, err)
+		return gid, verror.New(verror.ErrNoExist, ctx, err)
 	}
 	return gid, nil
 }
@@ -474,6 +474,7 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 	ss := sd.db.App().Service().Sync().(*syncService)
 
 	// Contact a SyncGroup Admin to join the SyncGroup.
+	sg = &interfaces.SyncGroup{}
 	*sg, err = sd.joinSyncGroupAtAdmin(ctx, call, sgName, ss.name, myInfo)
 	if err != nil {
 		return nullSpec, err

@@ -6,6 +6,7 @@ package interfaces
 
 import (
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
+	"v.io/v23/security/access"
 )
 
 // Sync defines methods for data exchange between Syncbases.
@@ -14,21 +15,21 @@ type Sync interface {
 	// GetDeltas returns the responder's current generation vector
 	// and all the missing log records when compared to the
 	// initiator's generation vector.
-	GetDeltas() error
+	GetDeltas() error {access.Read}
 
 	// SyncGroup-related methods.
 
 	// PublishSyncGroup is typically invoked on a "central" peer
 	// to publish the SyncGroup.
-	PublishSyncGroup(sg SyncGroup) error
+	PublishSyncGroup(sg SyncGroup) error {access.Write}
 
 	// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's
 	// Syncbase on a SyncGroup admin. It checks whether the requestor is
 	// allowed to join the named SyncGroup, and if so, adds the requestor to
 	// the SyncGroup.
-	JoinSyncGroupAtAdmin(sgName, joinerName string, myInfo wire.SyncGroupMemberInfo) (SyncGroup | error)
+	JoinSyncGroupAtAdmin(sgName, joinerName string, myInfo wire.SyncGroupMemberInfo) (SyncGroup | error) {access.Read}
 
 	// BlobSync methods.
 	// FetchBlob returns the requested blob.
-	FetchBlob() error
+	FetchBlob() error {access.Read}
 }

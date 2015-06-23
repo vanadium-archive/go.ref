@@ -12,9 +12,11 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/vdl"
 
 	// VDL user imports
 	"v.io/syncbase/v23/services/syncbase/nosql"
+	"v.io/v23/security/access"
 )
 
 // SyncClientMethods is the client interface
@@ -169,6 +171,7 @@ var descSync = rpc.InterfaceDesc{
 		{
 			Name: "GetDeltas",
 			Doc:  "// GetDeltas returns the responder's current generation vector\n// and all the missing log records when compared to the\n// initiator's generation vector.",
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
 			Name: "PublishSyncGroup",
@@ -176,6 +179,7 @@ var descSync = rpc.InterfaceDesc{
 			InArgs: []rpc.ArgDesc{
 				{"sg", ``}, // SyncGroup
 			},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 		{
 			Name: "JoinSyncGroupAtAdmin",
@@ -188,10 +192,12 @@ var descSync = rpc.InterfaceDesc{
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // SyncGroup
 			},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
 			Name: "FetchBlob",
 			Doc:  "// BlobSync methods.\n// FetchBlob returns the requested blob.",
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 	},
 }
