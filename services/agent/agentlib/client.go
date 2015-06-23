@@ -169,7 +169,7 @@ func (c *client) PublicKey() security.PublicKey {
 func (c *client) BlessingsByName(pattern security.BlessingPattern) []security.Blessings {
 	var blessings []security.Blessings
 	if err := c.caller.call("BlessingsByName", results(&blessings), pattern); err != nil {
-		vlog.Errorf("error calling BlessingsByName: %v", err)
+		vlog.Infof("error calling BlessingsByName: %v", err)
 		return nil
 	}
 	return blessings
@@ -179,7 +179,7 @@ func (c *client) BlessingsInfo(blessings security.Blessings) map[string][]securi
 	var bInfo map[string][]security.Caveat
 	err := c.caller.call("BlessingsInfo", results(&bInfo), blessings)
 	if err != nil {
-		vlog.Errorf("error calling BlessingsInfo: %v", err)
+		vlog.Infof("error calling BlessingsInfo: %v", err)
 		return nil
 	}
 	return bInfo
@@ -210,7 +210,7 @@ func (b *blessingStore) Set(blessings security.Blessings, forPeers security.Bles
 func (b *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 	var blessings security.Blessings
 	if err := b.caller.call("BlessingStoreForPeer", results(&blessings), peerBlessings); err != nil {
-		vlog.Errorf("error calling BlessingStorePeerBlessings: %v", err)
+		vlog.Infof("error calling BlessingStorePeerBlessings: %v", err)
 	}
 	return blessings
 }
@@ -223,7 +223,7 @@ func (b *blessingStore) Default() security.Blessings {
 	var blessings security.Blessings
 	err := b.caller.call("BlessingStoreDefault", results(&blessings))
 	if err != nil {
-		vlog.Errorf("error calling BlessingStoreDefault: %v", err)
+		vlog.Infof("error calling BlessingStoreDefault: %v", err)
 		return security.Blessings{}
 	}
 	return blessings
@@ -237,7 +237,7 @@ func (b *blessingStore) PeerBlessings() map[security.BlessingPattern]security.Bl
 	var bmap map[security.BlessingPattern]security.Blessings
 	err := b.caller.call("BlessingStorePeerBlessings", results(&bmap))
 	if err != nil {
-		vlog.Errorf("error calling BlessingStorePeerBlessings: %v", err)
+		vlog.Infof("error calling BlessingStorePeerBlessings: %v", err)
 		return nil
 	}
 	return bmap
@@ -247,7 +247,7 @@ func (b *blessingStore) DebugString() (s string) {
 	err := b.caller.call("BlessingStoreDebugString", results(&s))
 	if err != nil {
 		s = fmt.Sprintf("error calling BlessingStoreDebugString: %v", err)
-		vlog.Errorf(s)
+		vlog.Infof(s)
 	}
 	return
 }
@@ -255,21 +255,21 @@ func (b *blessingStore) DebugString() (s string) {
 func (b *blessingStore) CacheDischarge(d security.Discharge, c security.Caveat, i security.DischargeImpetus) {
 	err := b.caller.call("BlessingStoreCacheDischarge", results(), d, c, i)
 	if err != nil {
-		vlog.Errorf("error calling BlessingStoreCacheDischarge: %v", err)
+		vlog.Infof("error calling BlessingStoreCacheDischarge: %v", err)
 	}
 }
 
 func (b *blessingStore) ClearDischarges(discharges ...security.Discharge) {
 	err := b.caller.call("BlessingStoreClearDischarges", results(), discharges)
 	if err != nil {
-		vlog.Errorf("error calling BlessingStoreClearDischarges: %v", err)
+		vlog.Infof("error calling BlessingStoreClearDischarges: %v", err)
 	}
 }
 
 func (b *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (out security.Discharge) {
 	err := b.caller.call("BlessingStoreDischarge", results(&out), caveat, impetus)
 	if err != nil {
-		vlog.Errorf("error calling BlessingStoreDischarge: %v", err)
+		vlog.Infof("error calling BlessingStoreDischarge: %v", err)
 	}
 	return
 }
@@ -297,7 +297,7 @@ func (b *blessingRoots) Recognized(root security.PublicKey, blessing string) err
 func (b *blessingRoots) Dump() map[security.BlessingPattern][]security.PublicKey {
 	var marshaledRoots map[security.BlessingPattern][][]byte
 	if err := b.caller.call("BlessingRootsDump", results(&marshaledRoots)); err != nil {
-		vlog.Errorf("error calling BlessingRootsDump: %v", err)
+		vlog.Infof("error calling BlessingRootsDump: %v", err)
 		return nil
 	}
 	ret := make(map[security.BlessingPattern][]security.PublicKey)
@@ -305,7 +305,7 @@ func (b *blessingRoots) Dump() map[security.BlessingPattern][]security.PublicKey
 		for _, marshaledKey := range marshaledKeys {
 			key, err := security.UnmarshalPublicKey(marshaledKey)
 			if err != nil {
-				vlog.Errorf("security.UnmarshalPublicKey(%v) returned error: %v", marshaledKey, err)
+				vlog.Infof("security.UnmarshalPublicKey(%v) returned error: %v", marshaledKey, err)
 				continue
 			}
 			ret[p] = append(ret[p], key)
@@ -318,7 +318,7 @@ func (b *blessingRoots) DebugString() (s string) {
 	err := b.caller.call("BlessingRootsDebugString", results(&s))
 	if err != nil {
 		s = fmt.Sprintf("error calling BlessingRootsDebugString: %v", err)
-		vlog.Errorf(s)
+		vlog.Infof(s)
 	}
 	return
 }
