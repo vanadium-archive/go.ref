@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -125,8 +126,8 @@ func publisherBlessingNames(ctx *context.T, env application.Envelope) ([]string,
 	return names, rejected
 }
 
-// linkSelf creates a link to the current binary.
-func linkSelf(workspace, fileName string) error {
+// LinkSelf creates a link to the current binary.
+func LinkSelf(workspace, fileName string) error {
 	path := filepath.Join(workspace, fileName)
 	self := os.Args[0]
 	if err := os.Link(self, path); err != nil {
@@ -140,7 +141,7 @@ func generateVersionDirName() string {
 	return time.Now().Format(time.RFC3339Nano)
 }
 
-func updateLink(target, link string) error {
+func UpdateLink(target, link string) error {
 	newLink := link + ".new"
 	fi, err := os.Lstat(newLink)
 	if err == nil {
@@ -182,3 +183,31 @@ func PermsDir(c *config.State) string {
 // tests. CleanupDir will use the helper to delete application state possibly
 // owned by different accounts if helper is provided.
 var CleanupDir = BaseCleanupDir
+
+// VanadiumEnvironment returns only the environment variables that are specific
+// to the Vanadium system.
+func VanadiumEnvironment(env []string) []string {
+	return filterEnvironment(env, allowedVarsRE, deniedVarsRE)
+}
+
+var allowedVarsRE = regexp.MustCompile("V23_.*|PAUSE_BEFORE_STOP|TMPDIR")
+
+var deniedVarsRE = regexp.MustCompile("V23_EXEC_VERSION")
+
+// filterEnvironment returns only the environment variables, specified by
+// the env parameter, whose names match the supplied regexp.
+func filterEnvironment(env []string, allow, deny *regexp.Regexp) []string {
+	var ret []string
+	for _, e := range env {
+		if eqIdx := strings.Index(e, "="); eqIdx > 0 {
+			key := e[:eqIdx]
+			if deny.MatchString(key) {
+				continue
+			}
+			if allow.MatchString(key) {
+				ret = append(ret, e)
+			}
+		}
+	}
+	return ret
+}

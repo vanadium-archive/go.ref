@@ -5,5 +5,5 @@
 package impl
 
 const (
-	dateCommand = "/bin/date +%s.$RANDOM"
+	DateCommand = "/bin/date +%s.$RANDOM"
 )

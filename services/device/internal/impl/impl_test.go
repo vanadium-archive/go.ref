@@ -26,6 +26,7 @@ import (
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
+	"v.io/x/ref/services/device/internal/installer"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test/expect"
@@ -314,7 +315,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	dmDir := filepath.Join(testDir, "dm")
 	// TODO(caprita): Add test logic when initMode = true.
 	singleUser, sessionMode, initMode := true, true, false
-	if err := impl.SelfInstall(dmDir, suidHelperPath, agentPath, initHelperPath, "", singleUser, sessionMode, initMode, dmargs[1:], dmenv, os.Stderr, os.Stdout); err != nil {
+	if err := installer.SelfInstall(dmDir, suidHelperPath, agentPath, initHelperPath, "", singleUser, sessionMode, initMode, dmargs[1:], dmenv, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("SelfInstall failed: %v", err)
 	}
 
@@ -323,7 +324,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	stdout := make(simpleRW, 100)
 	defer os.Setenv(utiltest.RedirectEnv, os.Getenv(utiltest.RedirectEnv))
 	os.Setenv(utiltest.RedirectEnv, "1")
-	if err := impl.Start(dmDir, os.Stderr, stdout); err != nil {
+	if err := installer.Start(dmDir, os.Stderr, stdout); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
 	dms := expect.NewSession(t, stdout, servicetest.ExpectTimeout)
@@ -332,13 +333,13 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	utiltest.RevertDeviceExpectError(t, ctx, "dm", errors.ErrUpdateNoOp.ID) // No previous version available.
 
 	// Stop the device manager.
-	if err := impl.Stop(ctx, dmDir, os.Stderr, os.Stdout); err != nil {
+	if err := installer.Stop(ctx, dmDir, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("Stop failed: %v", err)
 	}
 	dms.Expect("dm terminated")
 
 	// Uninstall.
-	if err := impl.Uninstall(dmDir, suidHelperPath, os.Stderr, os.Stdout); err != nil {
+	if err := installer.Uninstall(dmDir, suidHelperPath, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("Uninstall failed: %v", err)
 	}
 	// Ensure that the installation is gone.

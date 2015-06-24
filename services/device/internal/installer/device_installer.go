@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl
-
-// The device installer logic is responsible for managing the device manager
+// Package installer contains logic responsible for managing the device manager
 // server, including setting it up / tearing it down, and starting / stopping
 // it.
-//
+package installer
+
 // When setting up the device manager installation, the installer creates a
 // directory structure from which the device manager can be run.  It sets up:
 //
@@ -47,8 +46,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"syscall"
 	"time"
 
@@ -57,6 +54,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/x/ref"
 	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/sysinit"
 )
 
@@ -75,34 +73,6 @@ const dmRoot = "dmroot"
 func InstallFrom(origin string) error {
 	// TODO(caprita): Implement.
 	return nil
-}
-
-var allowedVarsRE = regexp.MustCompile("V23_.*|PAUSE_BEFORE_STOP|TMPDIR")
-
-var deniedVarsRE = regexp.MustCompile("V23_EXEC_VERSION")
-
-// filterEnvironment returns only the environment variables, specified by
-// the env parameter, whose names match the supplied regexp.
-func filterEnvironment(env []string, allow, deny *regexp.Regexp) []string {
-	var ret []string
-	for _, e := range env {
-		if eqIdx := strings.Index(e, "="); eqIdx > 0 {
-			key := e[:eqIdx]
-			if deny.MatchString(key) {
-				continue
-			}
-			if allow.MatchString(key) {
-				ret = append(ret, e)
-			}
-		}
-	}
-	return ret
-}
-
-// VanadiumEnvironment returns only the environment variables that are specific
-// to the Vanadium system.
-func VanadiumEnvironment(env []string) []string {
-	return filterEnvironment(env, allowedVarsRE, deniedVarsRE)
 }
 
 // initCommand verifies if init mode is enabled, and if so executes the
@@ -147,7 +117,7 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 	}
 
 	// save info about the binary creating this tree
-	if err := SaveCreatorInfo(root); err != nil {
+	if err := impl.SaveCreatorInfo(root); err != nil {
 		return err
 	}
 
@@ -175,12 +145,12 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 		// the garbage from the user's env.
 		// Alternatively, pass the env vars meant specifically for the
 		// device manager in a different way.
-		Env: VanadiumEnvironment(env),
+		Env: impl.VanadiumEnvironment(env),
 	}
-	if err := savePersistentArgs(root, envelope.Args); err != nil {
+	if err := impl.SavePersistentArgs(root, envelope.Args); err != nil {
 		return err
 	}
-	if err := linkSelf(deviceDir, "deviced"); err != nil {
+	if err := impl.LinkSelf(deviceDir, "deviced"); err != nil {
 		return err
 	}
 	configSettings, err := configState.Save(nil)
@@ -188,12 +158,12 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 		return fmt.Errorf("failed to serialize config %v: %v", configState, err)
 	}
 	logs := filepath.Join(root, "device-manager", "logs")
-	if err := generateScript(deviceDir, configSettings, envelope, logs); err != nil {
+	if err := impl.GenerateScript(deviceDir, configSettings, envelope, logs); err != nil {
 		return err
 	}
 
 	// TODO(caprita): Test the device manager we just installed.
-	if err := updateLink(filepath.Join(deviceDir, "deviced.sh"), currLink); err != nil {
+	if err := impl.UpdateLink(filepath.Join(deviceDir, "deviced.sh"), currLink); err != nil {
 		return err
 	}
 
@@ -249,7 +219,7 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	// TODO(caprita): Switch all our generated bash scripts to use templates.
 	output := "#!/bin/bash\n"
 	output += "if [ -z \"$DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR\" ]; then\n"
-	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", dateCommand)
+	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", impl.DateCommand)
 	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
 	output += "fi\n"
 	output += fmt.Sprintf("%s=%q ", ref.EnvCredentials, principalDir)
@@ -284,8 +254,8 @@ func Uninstall(installDir, helperPath string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	initSuidHelper(helperPath)
-	return suidHelper.deleteFileTree(root, stdout, stderr)
+	impl.InitSuidHelper(helperPath)
+	return impl.DeleteFileTree(root, stdout, stderr)
 }
 
 // Start starts the device manager.
@@ -320,10 +290,10 @@ func Start(installDir string, stderr, stdout io.Writer) error {
 		fmt.Fprintf(stderr, "Unable to get a pid for successfully-started agent!")
 		return nil // We tolerate the error, at the expense of being able to stop later
 	}
-	mi := &ManagerInfo{
+	mi := &impl.ManagerInfo{
 		Pid: cmd.Process.Pid,
 	}
-	if err := SaveManagerInfo(filepath.Join(root, "agent-deviced"), mi); err != nil {
+	if err := impl.SaveManagerInfo(filepath.Join(root, "agent-deviced"), mi); err != nil {
 		return fmt.Errorf("failed to save info for agent-deviced: %v", err)
 	}
 
@@ -342,7 +312,7 @@ func Stop(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 	agentPid, devmgrPid := 0, 0
 
 	// Load the agent pid
-	info, err := loadManagerInfo(filepath.Join(root, "agent-deviced"))
+	info, err := impl.LoadManagerInfo(filepath.Join(root, "agent-deviced"))
 	if err != nil {
 		return fmt.Errorf("loadManagerInfo failed for agent-deviced: %v", err)
 	}
@@ -351,7 +321,7 @@ func Stop(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 	}
 
 	// Load the device manager pid
-	info, err = loadManagerInfo(filepath.Join(root, "device-manager"))
+	info, err = impl.LoadManagerInfo(filepath.Join(root, "device-manager"))
 	if err != nil {
 		return fmt.Errorf("loadManagerInfo failed for device-manager: %v", err)
 	}

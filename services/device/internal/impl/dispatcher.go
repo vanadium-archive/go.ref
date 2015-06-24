@@ -109,7 +109,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	if err != nil {
 		return nil, verror.New(errCantCreateAccountStore, ctx, err)
 	}
-	initSuidHelper(config.Helper)
+	InitSuidHelper(config.Helper)
 	d := &dispatcher{
 		internal: &internalState{
 			callback:       newCallbackState(config.Name),
