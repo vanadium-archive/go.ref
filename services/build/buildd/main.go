@@ -14,7 +14,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/build"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
@@ -49,7 +48,7 @@ func runBuildD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return fmt.Errorf("NewServer() failed: %v", err)
 	}
-	vlog.Infof("Build server running at endpoint=%q", server.Status().Endpoints[0].Name())
+	ctx.Infof("Build server running at endpoint=%q", server.Status().Endpoints[0].Name())
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals(ctx)

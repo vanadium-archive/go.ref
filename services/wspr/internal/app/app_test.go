@@ -176,9 +176,9 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 		}
 		go func() {
 			for _, value := range testCase.streamingInputs {
-				controller.SendOnStream(0, lib.HexVomEncodeOrDie(value, nil), &writer)
+				controller.SendOnStream(ctx, 0, lib.HexVomEncodeOrDie(value, nil), &writer)
 			}
-			controller.CloseStream(0)
+			controller.CloseStream(ctx, 0)
 		}()
 	}
 
@@ -306,11 +306,12 @@ func makeRequest(typeEncoder *vom.TypeEncoder, rpc RpcRequest, args ...interface
 }
 
 type typeEncoderWriter struct {
-	c *Controller
+	c   *Controller
+	ctx *context.T
 }
 
 func (t *typeEncoderWriter) Write(p []byte) (int, error) {
-	t.c.HandleTypeMessage(hex.EncodeToString(p))
+	t.c.HandleTypeMessage(t.ctx, hex.EncodeToString(p))
 	return len(p), nil
 }
 
@@ -356,7 +357,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	}
 
 	v23.GetNamespace(controller.Context()).SetRoots(mtName)
-	typeStream := &typeEncoderWriter{c: controller}
+	typeStream := &typeEncoderWriter{c: controller, ctx: controller.Context()}
 	typeEncoder := vom.NewTypeEncoder(typeStream)
 	req, err := makeRequest(typeEncoder, RpcRequest{
 		Name:       "__controller",
@@ -420,6 +421,7 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 		controllerReady:      sync.RWMutex{},
 		flowCount:            2,
 		typeReader:           lib.NewTypeReader(),
+		ctx:                  ctx,
 	}
 	mock.typeDecoder = vom.NewTypeDecoder(mock.typeReader)
 	rt, err := serveServer(ctx, mock, func(controller *Controller) {
@@ -428,7 +430,7 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 
 	mock.typeEncoder = rt.typeEncoder
 	defer rt.proxyShutdown()
-	defer rt.controller.Cleanup()
+	defer rt.controller.Cleanup(ctx)
 
 	if err != nil {
 		t.Fatalf("could not serve server %v", err)

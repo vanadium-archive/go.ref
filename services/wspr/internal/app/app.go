@@ -27,7 +27,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/namespace"
 	"v.io/x/ref/services/wspr/internal/principal"
@@ -317,8 +316,8 @@ func (c *Controller) Context() *context.T {
 }
 
 // Cleanup cleans up any outstanding rpcs.
-func (c *Controller) Cleanup() {
-	vlog.VI(0).Info("Cleaning up controller")
+func (c *Controller) Cleanup(ctx *context.T) {
+	ctx.VI(0).Info("Cleaning up controller")
 	c.Lock()
 
 	for _, request := range c.outstandingRequests {
@@ -359,11 +358,11 @@ func (c *Controller) setup() {
 
 // SendOnStream writes data on id's stream.  The actual network write will be
 // done asynchronously.  If there is an error, it will be sent to w.
-func (c *Controller) SendOnStream(id int32, data string, w lib.ClientWriter) {
+func (c *Controller) SendOnStream(ctx *context.T, id int32, data string, w lib.ClientWriter) {
 	c.Lock()
 	request := c.outstandingRequests[id]
 	if request == nil || request.stream == nil {
-		vlog.Errorf("unknown stream: %d", id)
+		ctx.Errorf("unknown stream: %d", id)
 		c.Unlock()
 		return
 	}
@@ -498,15 +497,15 @@ func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg
 
 // HandleCaveatValidationResponse handles the response to caveat validation
 // requests.
-func (c *Controller) HandleCaveatValidationResponse(id int32, data string) {
+func (c *Controller) HandleCaveatValidationResponse(ctx *context.T, id int32, data string) {
 	c.Lock()
 	server, ok := c.flowMap[id].(*server.Server)
 	c.Unlock()
 	if !ok {
-		vlog.Errorf("unexpected result from JavaScript. No server found matching id %d.", id)
+		ctx.Errorf("unexpected result from JavaScript. No server found matching id %d.", id)
 		return // ignore unknown server
 	}
-	server.HandleCaveatValidationResponse(id, data)
+	server.HandleCaveatValidationResponse(ctx, id, data)
 }
 
 // HandleVeyronRequest starts a vanadium rpc and returns before the rpc has been completed.
@@ -526,7 +525,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
-	vlog.VI(2).Infof("Rpc: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
+	ctx.VI(2).Infof("Rpc: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
 	spanName := fmt.Sprintf("<wspr>%q.%s", msg.Name, msg.Method)
 	ctx, span := vtrace.WithContinuedTrace(ctx, spanName, msg.TraceRequest)
 	ctx = i18n.WithLangID(ctx, i18n.LangID(msg.Context.Language))
@@ -578,7 +577,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 
 // HandleVeyronCancellation cancels the request corresponding to the
 // given id if it is still outstanding.
-func (c *Controller) HandleVeyronCancellation(id int32) {
+func (c *Controller) HandleVeyronCancellation(ctx *context.T, id int32) {
 	c.Lock()
 	defer c.Unlock()
 	if request, ok := c.outstandingRequests[id]; ok && request.cancel != nil {
@@ -587,14 +586,14 @@ func (c *Controller) HandleVeyronCancellation(id int32) {
 }
 
 // CloseStream closes the stream for a given id.
-func (c *Controller) CloseStream(id int32) {
+func (c *Controller) CloseStream(ctx *context.T, id int32) {
 	c.Lock()
 	defer c.Unlock()
 	if request, ok := c.outstandingRequests[id]; ok && request.stream != nil {
 		request.stream.end()
 		return
 	}
-	vlog.Errorf("close called on non-existent call: %v", id)
+	ctx.Errorf("close called on non-existent call: %v", id)
 }
 
 func (c *Controller) maybeCreateServer(serverId uint32, opts ...rpc.ServerOpt) (*server.Server, error) {
@@ -613,37 +612,37 @@ func (c *Controller) maybeCreateServer(serverId uint32, opts ...rpc.ServerOpt) (
 
 // HandleLookupResponse handles the result of a Dispatcher.Lookup call that was
 // run by the Javascript server.
-func (c *Controller) HandleLookupResponse(id int32, data string) {
+func (c *Controller) HandleLookupResponse(ctx *context.T, id int32, data string) {
 	c.Lock()
 	server, ok := c.flowMap[id].(*server.Server)
 	c.Unlock()
 	if !ok {
-		vlog.Errorf("unexpected result from JavaScript. No channel "+
+		ctx.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
 	}
-	server.HandleLookupResponse(id, data)
+	server.HandleLookupResponse(ctx, id, data)
 }
 
 // HandleAuthResponse handles the result of a Authorizer.Authorize call that was
 // run by the Javascript server.
-func (c *Controller) HandleAuthResponse(id int32, data string) {
+func (c *Controller) HandleAuthResponse(ctx *context.T, id int32, data string) {
 	c.Lock()
 	server, ok := c.flowMap[id].(*server.Server)
 	c.Unlock()
 	if !ok {
-		vlog.Errorf("unexpected result from JavaScript. No channel "+
+		ctx.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
 	}
-	server.HandleAuthResponse(id, data)
+	server.HandleAuthResponse(ctx, id, data)
 }
 
 // Serve instructs WSPR to start listening for calls on behalf
 // of a javascript server.
-func (c *Controller) Serve(_ *context.T, _ rpc.ServerCall, name string, serverId uint32, rpcServerOpts []RpcServerOption) error {
+func (c *Controller) Serve(ctx *context.T, _ rpc.ServerCall, name string, serverId uint32, rpcServerOpts []RpcServerOption) error {
 
 	opts, err := c.serverOpts(rpcServerOpts)
 	if err != nil {
@@ -653,7 +652,7 @@ func (c *Controller) Serve(_ *context.T, _ rpc.ServerCall, name string, serverId
 	if err != nil {
 		return verror.Convert(verror.ErrInternal, nil, err)
 	}
-	vlog.VI(2).Infof("serving under name: %q", name)
+	ctx.VI(2).Infof("serving under name: %q", name)
 	if err := server.Serve(name); err != nil {
 		return verror.Convert(verror.ErrInternal, nil, err)
 	}
@@ -706,17 +705,17 @@ func (c *Controller) RemoveName(_ *context.T, _ rpc.ServerCall, serverId uint32,
 
 // HandleServerResponse handles the completion of outstanding calls to JavaScript services
 // by filling the corresponding channel with the result from JavaScript.
-func (c *Controller) HandleServerResponse(id int32, data string) {
+func (c *Controller) HandleServerResponse(ctx *context.T, id int32, data string) {
 	c.Lock()
 	server, ok := c.flowMap[id].(*server.Server)
 	c.Unlock()
 	if !ok {
-		vlog.Errorf("unexpected result from JavaScript. No channel "+
+		ctx.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
 	}
-	server.HandleServerResponse(id, data)
+	server.HandleServerResponse(ctx, id, data)
 }
 
 // getSignature uses the signature manager to get and cache the signature of a remote server.
@@ -837,12 +836,12 @@ func (c *Controller) AddToRoots(_ *context.T, _ rpc.ServerCall, inputBlessings s
 }
 
 // HandleGranterResponse handles the result of a Granter request.
-func (c *Controller) HandleGranterResponse(id int32, data string) {
+func (c *Controller) HandleGranterResponse(ctx *context.T, id int32, data string) {
 	c.Lock()
 	granterStr, ok := c.flowMap[id].(*granterStream)
 	c.Unlock()
 	if !ok {
-		vlog.Errorf("unexpected result from JavaScript. Flow was not a granter "+
+		ctx.Errorf("unexpected result from JavaScript. Flow was not a granter "+
 			"stream for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -850,12 +849,12 @@ func (c *Controller) HandleGranterResponse(id int32, data string) {
 	granterStr.Send(data)
 }
 
-func (c *Controller) HandleTypeMessage(data string) {
+func (c *Controller) HandleTypeMessage(ctx *context.T, data string) {
 	c.typeReader.Add(data)
 }
 
 func (c *Controller) RemoteBlessings(ctx *context.T, _ rpc.ServerCall, name, method string) ([]string, error) {
-	vlog.VI(2).Infof("requesting remote blessings for %q", name)
+	ctx.VI(2).Infof("requesting remote blessings for %q", name)
 
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -886,7 +885,7 @@ func (c *Controller) SendBlessingsCacheMessages(messages []principal.BlessingsCa
 	id := c.lastGeneratedId
 	c.lastGeneratedId += 2
 	if err := c.writerCreator(id).Send(lib.ResponseBlessingsCacheMessage, messages); err != nil {
-		vlog.Errorf("unexpected error sending blessings cache message: %v", err)
+		c.ctx.Errorf("unexpected error sending blessings cache message: %v", err)
 	}
 }
 

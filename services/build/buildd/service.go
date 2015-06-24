@@ -20,7 +20,6 @@ import (
 	"v.io/v23/services/build"
 	"v.io/v23/verror"
 	"v.io/x/lib/host"
-	"v.io/x/lib/vlog"
 )
 
 const pkgPath = "v.io/x/ref/services/build/buildd"
@@ -50,18 +49,18 @@ func NewBuilderService(gobin, goroot string) build.BuilderServerMethods {
 // TODO(jsimsa): Analyze the binary files for shared library
 // dependencies and ship these back.
 func (i *builderService) Build(ctx *context.T, call build.BuilderBuildServerCall, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
-	vlog.VI(1).Infof("Build(%v, %v) called.", arch, opsys)
+	ctx.VI(1).Infof("Build(%v, %v) called.", arch, opsys)
 	dir, prefix := "", ""
 	dirPerm, filePerm := os.FileMode(0700), os.FileMode(0600)
 	root, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
-		vlog.Errorf("TempDir(%v, %v) failed: %v", dir, prefix, err)
+		ctx.Errorf("TempDir(%v, %v) failed: %v", dir, prefix, err)
 		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	defer os.RemoveAll(root)
 	srcDir := filepath.Join(root, "go", "src")
 	if err := os.MkdirAll(srcDir, dirPerm); err != nil {
-		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
+		ctx.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
 		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	iterator := call.RecvStream()
@@ -70,16 +69,16 @@ func (i *builderService) Build(ctx *context.T, call build.BuilderBuildServerCall
 		filePath := filepath.Join(srcDir, filepath.FromSlash(srcFile.Name))
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, dirPerm); err != nil {
-			vlog.Errorf("MkdirAll(%v, %v) failed: %v", dir, dirPerm, err)
+			ctx.Errorf("MkdirAll(%v, %v) failed: %v", dir, dirPerm, err)
 			return nil, verror.New(verror.ErrInternal, ctx)
 		}
 		if err := ioutil.WriteFile(filePath, srcFile.Contents, filePerm); err != nil {
-			vlog.Errorf("WriteFile(%v, %v) failed: %v", filePath, filePerm, err)
+			ctx.Errorf("WriteFile(%v, %v) failed: %v", filePath, filePerm, err)
 			return nil, verror.New(verror.ErrInternal, ctx)
 		}
 	}
 	if err := iterator.Err(); err != nil {
-		vlog.Errorf("Advance() failed: %v", err)
+		ctx.Errorf("Advance() failed: %v", err)
 		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	// NOTE: we actually want run "go install -v {srcDir}/..." here, but
@@ -98,16 +97,16 @@ func (i *builderService) Build(ctx *context.T, call build.BuilderBuildServerCall
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 	if err := cmd.Run(); err != nil {
-		vlog.Errorf("Run(%q) failed: %v", strings.Join(cmd.Args, " "), err)
+		ctx.Errorf("Run(%q) failed: %v", strings.Join(cmd.Args, " "), err)
 		if output.Len() != 0 {
-			vlog.Errorf("%v", output.String())
+			ctx.Errorf("%v", output.String())
 		}
 		return output.Bytes(), verror.New(errBuildFailed, ctx)
 	}
 	binDir := filepath.Join(root, "go", "bin")
 	machineArch, err := host.Arch()
 	if err != nil {
-		vlog.Errorf("Arch() failed: %v", err)
+		ctx.Errorf("Arch() failed: %v", err)
 		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	if machineArch != arch.ToGoArch() || runtime.GOOS != opsys.ToGoOS() {
@@ -115,14 +114,14 @@ func (i *builderService) Build(ctx *context.T, call build.BuilderBuildServerCall
 	}
 	files, err := ioutil.ReadDir(binDir)
 	if err != nil && !os.IsNotExist(err) {
-		vlog.Errorf("ReadDir(%v) failed: %v", binDir, err)
+		ctx.Errorf("ReadDir(%v) failed: %v", binDir, err)
 		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	for _, file := range files {
 		binPath := filepath.Join(binDir, file.Name())
 		bytes, err := ioutil.ReadFile(binPath)
 		if err != nil {
-			vlog.Errorf("ReadFile(%v) failed: %v", binPath, err)
+			ctx.Errorf("ReadFile(%v) failed: %v", binPath, err)
 			return nil, verror.New(verror.ErrInternal, ctx)
 		}
 		result := build.File{
@@ -130,7 +129,7 @@ func (i *builderService) Build(ctx *context.T, call build.BuilderBuildServerCall
 			Contents: bytes,
 		}
 		if err := call.SendStream().Send(result); err != nil {
-			vlog.Errorf("Send() failed: %v", err)
+			ctx.Errorf("Send() failed: %v", err)
 			return nil, verror.New(verror.ErrInternal, ctx)
 		}
 	}

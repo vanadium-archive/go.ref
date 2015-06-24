@@ -7,11 +7,12 @@ package oauth
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/oauth2"
 	"net/http"
 	"os"
 
-	"v.io/x/lib/vlog"
+	"golang.org/x/oauth2"
+
+	"v.io/v23/context"
 )
 
 // googleOAuth implements the OAuthProvider interface with google oauth 2.0.
@@ -24,9 +25,11 @@ type googleOAuth struct {
 	// (From https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
 	// and https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken)
 	verifyURL string
+
+	ctx *context.T
 }
 
-func NewGoogleOAuth(configFile string) (OAuthProvider, error) {
+func NewGoogleOAuth(ctx *context.T, configFile string) (OAuthProvider, error) {
 	clientID, clientSecret, err := getOAuthClientIDAndSecret(configFile)
 	if err != nil {
 		return nil, err
@@ -38,6 +41,7 @@ func NewGoogleOAuth(configFile string) (OAuthProvider, error) {
 		authURL:      "https://accounts.google.com/o/oauth2/auth",
 		tokenURL:     "https://accounts.google.com/o/oauth2/token",
 		verifyURL:    "https://www.googleapis.com/oauth2/v1/tokeninfo?",
+		ctx:          ctx,
 	}, nil
 }
 
@@ -142,7 +146,7 @@ func (g *googleOAuth) GetEmailAndClientName(accessToken string, accessTokenClien
 		}
 	}
 	if !audienceMatch {
-		vlog.Infof("Got access token [%+v], wanted one of client ids %v", token, accessTokenClients)
+		g.ctx.Infof("Got access token [%+v], wanted one of client ids %v", token, accessTokenClients)
 		return "", "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
 	}
 	// We check both "verified_email" and "email_verified" here because the token response sometimes

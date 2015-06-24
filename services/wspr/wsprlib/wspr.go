@@ -20,7 +20,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/services/wspr/internal/account"
 	"v.io/x/ref/services/wspr/internal/principal"
@@ -60,10 +59,10 @@ func (wspr *WSPR) Listen() net.Addr {
 	addr := fmt.Sprintf("127.0.0.1:%d", wspr.httpPort)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		vlog.Fatalf("Listen failed: %s", err)
+		wspr.ctx.Fatalf("Listen failed: %s", err)
 	}
 	wspr.ln = ln.(*net.TCPListener)
-	vlog.VI(1).Infof("Listening at %s", ln.Addr().String())
+	wspr.ctx.VI(1).Infof("Listening at %s", ln.Addr().String())
 	return ln.Addr()
 }
 
@@ -96,7 +95,7 @@ func (wspr *WSPR) Serve() {
 	http.Handle("/", http.NotFoundHandler())
 
 	if err := http.Serve(tcpKeepAliveListener{wspr.ln}, nil); err != nil {
-		vlog.Fatalf("Serve failed: %s", err)
+		wspr.ctx.Fatalf("Serve failed: %s", err)
 	}
 }
 
@@ -113,7 +112,7 @@ func (wspr *WSPR) CleanUpPipe(req *http.Request) {
 // Creates a new WebSocket Proxy object.
 func NewWSPR(ctx *context.T, httpPort int, listenSpec *rpc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
 	if listenSpec.Proxy == "" {
-		vlog.Fatalf("a vanadium proxy must be set")
+		ctx.Fatalf("a vanadium proxy must be set")
 	}
 
 	wspr := &WSPR{
@@ -128,7 +127,7 @@ func NewWSPR(ctx *context.T, httpPort int, listenSpec *rpc.ListenSpec, identdEP 
 	p := v23.GetPrincipal(ctx)
 	var err error
 	if wspr.principalManager, err = principal.NewPrincipalManager(p, &principal.InMemorySerializer{}); err != nil {
-		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
+		ctx.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
 	wspr.accountManager = account.NewAccountManager(identdEP, wspr.principalManager)
@@ -137,7 +136,7 @@ func NewWSPR(ctx *context.T, httpPort int, listenSpec *rpc.ListenSpec, identdEP 
 }
 
 func (wspr *WSPR) logAndSendBadReqErr(w http.ResponseWriter, msg string) {
-	vlog.Error(msg)
+	wspr.ctx.Error(msg)
 	http.Error(w, msg, http.StatusBadRequest)
 	return
 }
@@ -149,7 +148,7 @@ func (wspr *WSPR) handleWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
-	vlog.VI(0).Info("Creating a new websocket")
+	wspr.ctx.VI(0).Info("Creating a new websocket")
 	p := newPipe(w, r, wspr, nil)
 
 	if p == nil {

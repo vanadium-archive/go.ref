@@ -6,11 +6,13 @@ package revocation
 
 import (
 	"time"
+
+	"v.io/v23/context"
 )
 
-func NewMockRevocationManager() RevocationManager {
+func NewMockRevocationManager(ctx *context.T) RevocationManager {
 	revocationDB = &mockDatabase{make(map[string][]byte), make(map[string]*time.Time)}
-	return &revocationManager{}
+	return &revocationManager{ctx}
 }
 
 type mockDatabase struct {

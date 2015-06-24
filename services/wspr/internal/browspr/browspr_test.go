@@ -178,7 +178,7 @@ found:
 	if err := browspr.principalManager.AddAccount(accountName, bp.BlessingStore().Default()); err != nil {
 		t.Fatalf("Failed to add account: %v", err)
 	}
-	if err := browspr.accountManager.AssociateAccount(msgOrigin, accountName, nil); err != nil {
+	if err := browspr.accountManager.AssociateAccount(ctx, msgOrigin, accountName, nil); err != nil {
 		t.Fatalf("Failed to associate account: %v", err)
 	}
 

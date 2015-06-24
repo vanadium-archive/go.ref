@@ -15,20 +15,27 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/security/audit"
+	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/test"
 )
 
 func TestAuditingPrincipal(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	var (
 		thirdPartyCaveat, discharge = newThirdPartyCaveatAndDischarge(t)
 		wantErr                     = errors.New("call failed") // The error returned by call calls to mockID operations
 
 		mockP   = new(mockPrincipal)
 		auditor = new(mockAuditor)
-		p       = audit.NewPrincipal(mockP, auditor)
 	)
+	ctx, _ = v23.WithPrincipal(ctx, mockP)
+	p := audit.NewPrincipal(ctx, auditor)
 	tests := []struct {
 		Method      string
 		Args        V
@@ -122,11 +129,14 @@ func equalResults(got, want []interface{}) error {
 }
 
 func TestUnauditedMethodsOnPrincipal(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	var (
-		auditor  = new(mockAuditor)
-		p        = newPrincipal(t)
-		auditedP = audit.NewPrincipal(p, auditor)
+		auditor = new(mockAuditor)
+		p       = newPrincipal(t)
 	)
+	ctx, _ = v23.WithPrincipal(ctx, p)
+	auditedP := audit.NewPrincipal(ctx, auditor)
 	blessing, err := p.BlessSelf("self")
 	if err != nil {
 		t.Fatal(err)
@@ -212,7 +222,7 @@ type mockAuditor struct {
 	NextError error
 }
 
-func (a *mockAuditor) Audit(entry audit.Entry) error {
+func (a *mockAuditor) Audit(ctx *context.T, entry audit.Entry) error {
 	if a.NextError != nil {
 		err := a.NextError
 		a.NextError = nil

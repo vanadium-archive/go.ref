@@ -23,7 +23,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/audit"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/discharger"
@@ -105,16 +104,15 @@ func findUnusedPort() (int, error) {
 }
 
 func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpAddr, tlsConfig string) {
-	ctx, err := v23.WithPrincipal(ctx, audit.NewPrincipal(
-		v23.GetPrincipal(ctx), s.auditor))
+	ctx, err := v23.WithPrincipal(ctx, audit.NewPrincipal(ctx, s.auditor))
 	if err != nil {
-		vlog.Panic(err)
+		ctx.Panic(err)
 	}
 	httphost, httpport, err := net.SplitHostPort(httpAddr)
 	if err != nil || httpport == "0" {
 		httpportNum, err := findUnusedPort()
 		if err != nil {
-			vlog.Panic(err)
+			ctx.Panic(err)
 		}
 		httpAddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
 	}
@@ -125,7 +123,7 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, exter
 	}
 	<-signals.ShutdownOnSignals(ctx)
 	if err := rpcServer.Stop(); err != nil {
-		vlog.Errorf("Failed to stop rpc server: %v", err)
+		ctx.Errorf("Failed to stop rpc server: %v", err)
 	}
 }
 
@@ -138,12 +136,12 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 
 	macaroonKey := make([]byte, 32)
 	if _, err := rand.Read(macaroonKey); err != nil {
-		vlog.Fatalf("macaroonKey generation failed: %v", err)
+		ctx.Fatalf("macaroonKey generation failed: %v", err)
 	}
 
 	rpcServer, published, err := s.setupServices(ctx, listenSpec, macaroonKey)
 	if err != nil {
-		vlog.Fatalf("Failed to setup vanadium services for blessing: %v", err)
+		ctx.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
 
 	externalHttpAddr = httpAddress(externalHttpAddr, httpAddr)
@@ -172,9 +170,9 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 	if !reflect.DeepEqual(s.oauthBlesserParams, emptyParams) {
 		args.GoogleServers = appendSuffixTo(published, oauthBlesserService)
 	}
-	h, err := oauth.NewHandler(args)
+	h, err := oauth.NewHandler(ctx, args)
 	if err != nil {
-		vlog.Fatalf("Failed to create HTTP handler for oauth authentication: %v", err)
+		ctx.Fatalf("Failed to create HTTP handler for oauth authentication: %v", err)
 	}
 	http.Handle(n, h)
 
@@ -193,11 +191,11 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 			AssetsPrefix:       s.assetsPrefix,
 		}
 		if err := templates.Home.Execute(w, tmplArgs); err != nil {
-			vlog.Info("Failed to render template:", err)
+			ctx.Info("Failed to render template:", err)
 		}
 	})
-	vlog.Infof("Running HTTP server at: %v", externalHttpAddr)
-	go runHTTPSServer(httpAddr, tlsConfig)
+	ctx.Infof("Running HTTP server at: %v", externalHttpAddr)
+	go runHTTPSServer(ctx, httpAddr, tlsConfig)
 	return rpcServer, published, externalHttpAddr
 }
 
@@ -234,7 +232,7 @@ func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *rpc.ListenSpe
 	if err := server.ServeDispatcher(objectAddr, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Vanadium services: %v", err)
 	}
-	vlog.Infof("Blessing and discharger services will be published at %v", rootedObjectAddr)
+	ctx.Infof("Blessing and discharger services will be published at %v", rootedObjectAddr)
 	return server, []string{rootedObjectAddr}, nil
 }
 
@@ -269,17 +267,17 @@ func oauthBlesserParams(inputParams blesser.OAuthBlesserParams, servername strin
 	return inputParams
 }
 
-func runHTTPSServer(addr, tlsConfig string) {
+func runHTTPSServer(ctx *context.T, addr, tlsConfig string) {
 	if len(tlsConfig) == 0 {
-		vlog.Fatal("Please set the --tls-config flag")
+		ctx.Fatal("Please set the --tls-config flag")
 	}
 	paths := strings.Split(tlsConfig, ",")
 	if len(paths) != 2 {
-		vlog.Fatalf("Could not parse --tls-config. Must have exactly two components, separated by a comma")
+		ctx.Fatalf("Could not parse --tls-config. Must have exactly two components, separated by a comma")
 	}
-	vlog.Infof("Starting HTTP server with TLS using certificate [%s] and private key [%s] at https://%s", paths[0], paths[1], addr)
+	ctx.Infof("Starting HTTP server with TLS using certificate [%s] and private key [%s] at https://%s", paths[0], paths[1], addr)
 	if err := http.ListenAndServeTLS(addr, paths[0], paths[1], nil); err != nil {
-		vlog.Fatalf("http.ListenAndServeTLS failed: %v", err)
+		ctx.Fatalf("http.ListenAndServeTLS failed: %v", err)
 	}
 }
 

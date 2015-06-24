@@ -34,9 +34,9 @@ import (
 	"strings"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/vom"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/identity/internal/auditor"
 	"v.io/x/ref/services/identity/internal/caveats"
 	"v.io/x/ref/services/identity/internal/revocation"
@@ -105,54 +105,56 @@ func redirectURL(baseURL, suffix string) string {
 // NewHandler returns an http.Handler that expects to be rooted at args.Addr
 // and can be used to authenticate with args.OAuthProvider, mint a new
 // identity and bless it with the OAuthProvider email address.
-func NewHandler(args HandlerArgs) (http.Handler, error) {
-	csrfCop, err := util.NewCSRFCop()
+func NewHandler(ctx *context.T, args HandlerArgs) (http.Handler, error) {
+	csrfCop, err := util.NewCSRFCop(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("NewHandler failed to create csrfCop: %v", err)
 	}
 	return &handler{
 		args:    args,
 		csrfCop: csrfCop,
+		ctx:     ctx,
 	}, nil
 }
 
 type handler struct {
 	args    HandlerArgs
 	csrfCop *util.CSRFCop
+	ctx     *context.T
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch path.Base(r.URL.Path) {
 	case ListBlessingsRoute:
-		h.listBlessings(w, r)
+		h.listBlessings(h.ctx, w, r)
 	case listBlessingsCallbackRoute:
-		h.listBlessingsCallback(w, r)
+		h.listBlessingsCallback(h.ctx, w, r)
 	case revokeRoute:
-		h.revoke(w, r)
+		h.revoke(h.ctx, w, r)
 	case SeekBlessingsRoute:
-		h.seekBlessings(w, r)
+		h.seekBlessings(h.ctx, w, r)
 	case addCaveatsRoute:
-		h.addCaveats(w, r)
+		h.addCaveats(h.ctx, w, r)
 	case sendMacaroonRoute:
-		h.sendMacaroon(w, r)
+		h.sendMacaroon(h.ctx, w, r)
 	default:
 		util.HTTPBadRequest(w, r, nil)
 	}
 }
 
-func (h *handler) listBlessings(w http.ResponseWriter, r *http.Request) {
+func (h *handler) listBlessings(ctx *context.T, w http.ResponseWriter, r *http.Request) {
 	csrf, err := h.csrfCop.NewToken(w, r, clientIDCookie, nil)
 	if err != nil {
-		vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
+		ctx.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
 		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 		return
 	}
 	http.Redirect(w, r, h.args.OAuthProvider.AuthURL(redirectURL(h.args.Addr, listBlessingsCallbackRoute), csrf, ReuseApproval), http.StatusFound)
 }
 
-func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) {
+func (h *handler) listBlessingsCallback(ctx *context.T, w http.ResponseWriter, r *http.Request) {
 	if err := h.csrfCop.ValidateToken(r.FormValue("state"), r, clientIDCookie, nil); err != nil {
-		vlog.Infof("Invalid CSRF token: %v in request: %#v", err, r)
+		ctx.Infof("Invalid CSRF token: %v in request: %#v", err, r)
 		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
 		return
 	}
@@ -184,13 +186,13 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		GoogleServers:    h.args.GoogleServers,
 		DischargeServers: h.args.DischargeServers,
 	}
-	entrych := h.args.BlessingLogReader.Read(email)
+	entrych := h.args.BlessingLogReader.Read(ctx, email)
 
 	w.Header().Set("Context-Type", "text/html")
 	// This MaybeSetCookie call is needed to ensure that a cookie is created. Since the
 	// header cannot be changed once the body is written to, this needs to be called first.
 	if _, err = h.csrfCop.MaybeSetCookie(w, r, clientIDCookie); err != nil {
-		vlog.Infof("Failed to set CSRF cookie[%v] for request %#v", err, r)
+		ctx.Infof("Failed to set CSRF cookie[%v] for request %#v", err, r)
 		util.HTTPServerError(w, err)
 		return
 	}
@@ -204,7 +206,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 			}
 			if len(entry.Caveats) > 0 {
 				if tmplEntry.Caveats, err = prettyPrintCaveats(entry.Caveats); err != nil {
-					vlog.Errorf("Failed to pretty print caveats: %v", err)
+					ctx.Errorf("Failed to pretty print caveats: %v", err)
 					tmplEntry.Error = fmt.Errorf("failed to pretty print caveats: %v", err)
 				}
 			}
@@ -214,7 +216,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 				} else {
 					caveatID := base64.URLEncoding.EncodeToString([]byte(entry.RevocationCaveatID))
 					if tmplEntry.Token, err = h.csrfCop.NewToken(w, r, clientIDCookie, caveatID); err != nil {
-						vlog.Errorf("Failed to create CSRF token[%v] for request %#v", err, r)
+						ctx.Errorf("Failed to create CSRF token[%v] for request %#v", err, r)
 						tmplEntry.Error = fmt.Errorf("server error: unable to create revocation token")
 					}
 				}
@@ -223,7 +225,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		}
 	}(tmplargs.Log)
 	if err := templates.ListBlessings.Execute(w, tmplargs); err != nil {
-		vlog.Errorf("Unable to execute audit page template: %v", err)
+		ctx.Errorf("Unable to execute audit page template: %v", err)
 		util.HTTPServerError(w, err)
 	}
 }
@@ -257,21 +259,21 @@ func prettyPrintCaveats(cavs []security.Caveat) ([]string, error) {
 	return s, nil
 }
 
-func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
+func (h *handler) revoke(ctx *context.T, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	const (
 		success = `{"success": "true"}`
 		failure = `{"success": "false"}`
 	)
 	if h.args.RevocationManager == nil {
-		vlog.Infof("no provided revocation manager")
+		ctx.Infof("no provided revocation manager")
 		w.Write([]byte(failure))
 		return
 	}
 
 	content, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		vlog.Infof("Failed to parse request: %s", err)
+		ctx.Infof("Failed to parse request: %s", err)
 		w.Write([]byte(failure))
 		return
 	}
@@ -279,19 +281,19 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 		Token string
 	}
 	if err := json.Unmarshal(content, &requestParams); err != nil {
-		vlog.Infof("json.Unmarshal failed : %s", err)
+		ctx.Infof("json.Unmarshal failed : %s", err)
 		w.Write([]byte(failure))
 		return
 	}
 
 	var caveatID string
-	if caveatID, err = h.validateRevocationToken(requestParams.Token, r); err != nil {
-		vlog.Infof("failed to validate token for caveat: %s", err)
+	if caveatID, err = h.validateRevocationToken(ctx, requestParams.Token, r); err != nil {
+		ctx.Infof("failed to validate token for caveat: %s", err)
 		w.Write([]byte(failure))
 		return
 	}
 	if err := h.args.RevocationManager.Revoke(caveatID); err != nil {
-		vlog.Infof("Revocation failed: %s", err)
+		ctx.Infof("Revocation failed: %s", err)
 		w.Write([]byte(failure))
 		return
 	}
@@ -300,7 +302,7 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (h *handler) validateRevocationToken(Token string, r *http.Request) (string, error) {
+func (h *handler) validateRevocationToken(ctx *context.T, Token string, r *http.Request) (string, error) {
 	var encCaveatID string
 	if err := h.csrfCop.ValidateToken(Token, r, clientIDCookie, &encCaveatID); err != nil {
 		return "", fmt.Errorf("invalid CSRF token: %v in request: %#v", err, r)
@@ -335,16 +337,16 @@ func validLoopbackURL(u string) (*url.URL, error) {
 	return nil, fmt.Errorf("invalid loopback url")
 }
 
-func (h *handler) seekBlessings(w http.ResponseWriter, r *http.Request) {
+func (h *handler) seekBlessings(ctx *context.T, w http.ResponseWriter, r *http.Request) {
 	redirect := r.FormValue("redirect_url")
 	if _, err := validLoopbackURL(redirect); err != nil {
-		vlog.Infof("seekBlessings failed: invalid redirect_url: %v", err)
+		ctx.Infof("seekBlessings failed: invalid redirect_url: %v", err)
 		util.HTTPBadRequest(w, r, fmt.Errorf("invalid redirect_url: %v", err))
 		return
 	}
 	pubKeyBytes, err := base64.URLEncoding.DecodeString(r.FormValue("public_key"))
 	if err != nil {
-		vlog.Infof("seekBlessings failed: invalid public_key: %v", err)
+		ctx.Infof("seekBlessings failed: invalid public_key: %v", err)
 		util.HTTPBadRequest(w, r, fmt.Errorf("invalid public_key: %v", err))
 		return
 	}
@@ -354,7 +356,7 @@ func (h *handler) seekBlessings(w http.ResponseWriter, r *http.Request) {
 		PublicKey:   pubKeyBytes,
 	})
 	if err != nil {
-		vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
+		ctx.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
 		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 		return
 	}
@@ -366,7 +368,7 @@ type addCaveatsMacaroon struct {
 	ToolPublicKey                     []byte // Marshaled public key of the principal tool.
 }
 
-func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
+func (h *handler) addCaveats(ctx *context.T, w http.ResponseWriter, r *http.Request) {
 	var inputMacaroon seekBlessingsMacaroon
 	if err := h.csrfCop.ValidateToken(r.FormValue("state"), r, clientIDCookie, &inputMacaroon); err != nil {
 		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
@@ -384,24 +386,24 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 		Email:           email,
 	})
 	if err != nil {
-		vlog.Infof("Failed to create caveatForm token[%v] for request %#v", err, r)
+		ctx.Infof("Failed to create caveatForm token[%v] for request %#v", err, r)
 		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 		return
 	}
 	localBlessings := security.DefaultBlessingPatterns(h.args.Principal)
 	if len(localBlessings) == 0 {
-		vlog.Infof("server principal has no blessings: %v", h.args.Principal)
+		ctx.Infof("server principal has no blessings: %v", h.args.Principal)
 		util.HTTPServerError(w, fmt.Errorf("failed to get server blessings"))
 		return
 	}
 	fullBlessingName := strings.Join([]string{string(localBlessings[0]), email}, security.ChainSeparator)
 	if err := h.args.CaveatSelector.Render(fullBlessingName, outputMacaroon, redirectURL(h.args.Addr, sendMacaroonRoute), w, r); err != nil {
-		vlog.Errorf("Unable to invoke render caveat selector: %v", err)
+		ctx.Errorf("Unable to invoke render caveat selector: %v", err)
 		util.HTTPServerError(w, err)
 	}
 }
 
-func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
+func (h *handler) sendMacaroon(ctx *context.T, w http.ResponseWriter, r *http.Request) {
 	var inputMacaroon addCaveatsMacaroon
 	caveatInfos, macaroonString, blessingExtension, err := h.args.CaveatSelector.ParseSelections(r)
 	cancelled := err == caveats.ErrSeekblessingsCancelled
@@ -421,11 +423,11 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	}
 	// Now that we have a valid tool redirect url, we can send the errors to the tool.
 	if cancelled {
-		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, caveats.ErrSeekblessingsCancelled)
+		h.sendErrorToTool(ctx, w, r, inputMacaroon.ToolState, baseURL, caveats.ErrSeekblessingsCancelled)
 	}
-	caveats, err := h.caveats(caveatInfos)
+	caveats, err := h.caveats(ctx, caveatInfos)
 	if err != nil {
-		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to create caveats: %v", err))
+		h.sendErrorToTool(ctx, w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to create caveats: %v", err))
 		return
 	}
 	parts := []string{inputMacaroon.Email}
@@ -433,7 +435,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		parts = append(parts, blessingExtension)
 	}
 	if len(caveats) == 0 {
-		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("server disallows attempts to bless with no caveats"))
+		h.sendErrorToTool(ctx, w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("server disallows attempts to bless with no caveats"))
 		return
 	}
 	m := BlessingMacaroon{
@@ -444,12 +446,12 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	}
 	macBytes, err := vom.Encode(m)
 	if err != nil {
-		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to encode BlessingsMacaroon: %v", err))
+		h.sendErrorToTool(ctx, w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to encode BlessingsMacaroon: %v", err))
 		return
 	}
 	marshalKey, err := h.args.Principal.PublicKey().MarshalBinary()
 	if err != nil {
-		h.sendErrorToTool(w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to marshal public key: %v", err))
+		h.sendErrorToTool(ctx, w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to marshal public key: %v", err))
 		return
 	}
 	encKey := base64.URLEncoding.EncodeToString(marshalKey)
@@ -462,7 +464,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, baseURL.String(), http.StatusFound)
 }
 
-func (h *handler) sendErrorToTool(w http.ResponseWriter, r *http.Request, toolState string, baseURL *url.URL, err error) {
+func (h *handler) sendErrorToTool(ctx *context.T, w http.ResponseWriter, r *http.Request, toolState string, baseURL *url.URL, err error) {
 	errEnc := base64.URLEncoding.EncodeToString([]byte(err.Error()))
 	params := url.Values{}
 	params.Add("error", errEnc)
@@ -471,7 +473,7 @@ func (h *handler) sendErrorToTool(w http.ResponseWriter, r *http.Request, toolSt
 	http.Redirect(w, r, baseURL.String(), http.StatusFound)
 }
 
-func (h *handler) caveats(caveatInfos []caveats.CaveatInfo) (cavs []security.Caveat, err error) {
+func (h *handler) caveats(ctx *context.T, caveatInfos []caveats.CaveatInfo) (cavs []security.Caveat, err error) {
 	caveatFactories := caveats.NewCaveatFactory()
 	for _, caveatInfo := range caveatInfos {
 		if caveatInfo.Type == "Revocation" {

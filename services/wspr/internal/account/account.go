@@ -14,7 +14,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/principal"
 )
 
@@ -82,7 +81,7 @@ func (am *AccountManager) GetAccounts() []string {
 	return am.accounts
 }
 
-func (am *AccountManager) AssociateAccount(origin, account string, cavs []Caveat) error {
+func (am *AccountManager) AssociateAccount(ctx *context.T, origin, account string, cavs []Caveat) error {
 	caveats, expirations, err := constructCaveats(cavs)
 	if err != nil {
 		return fmt.Errorf("failed to construct caveats: %v", err)
@@ -91,7 +90,7 @@ func (am *AccountManager) AssociateAccount(origin, account string, cavs []Caveat
 	if err := am.principalManager.AddOrigin(origin, account, caveats, expirations); err != nil {
 		return fmt.Errorf("failed to associate account: %v", err)
 	}
-	vlog.VI(1).Infof("Associated origin %v with account %v and cavs %v", origin, account, caveats)
+	ctx.VI(1).Infof("Associated origin %v with account %v and cavs %v", origin, account, caveats)
 	return nil
 }
 

@@ -5,13 +5,19 @@
 package auditor
 
 import (
-	"github.com/DATA-DOG/go-sqlmock"
 	"reflect"
 	"testing"
 	"time"
+
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
+
+	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/test"
 )
 
 func TestSQLDatabaseQuery(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	db, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create new mock database stub: %v", err)
@@ -33,7 +39,7 @@ func TestSQLDatabaseQuery(t *testing.T) {
 	sqlmock.ExpectExec("INSERT INTO tableName (.+) VALUES (.+)").
 		WithArgs(entry.email, entry.caveats, entry.timestamp, entry.blessings).
 		WillReturnResult(sqlmock.NewResult(0, 1)) // no insert id, 1 affected row
-	if err := d.Insert(entry); err != nil {
+	if err := d.Insert(ctx, entry); err != nil {
 		t.Errorf("failed to insert into SQLDatabase: %v", err)
 	}
 
@@ -41,7 +47,7 @@ func TestSQLDatabaseQuery(t *testing.T) {
 	sqlmock.ExpectQuery("SELECT Email, Caveats, Timestamp, Blessings FROM tableName").
 		WithArgs(entry.email).
 		WillReturnRows(sqlmock.NewRows(columns).AddRow(entry.email, entry.caveats, entry.timestamp, entry.blessings))
-	ch := d.Query(entry.email)
+	ch := d.Query(ctx, entry.email)
 	if res := <-ch; !reflect.DeepEqual(res, entry) {
 		t.Errorf("got %#v, expected %#v", res, entry)
 	}

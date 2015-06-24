@@ -10,6 +10,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"v.io/v23/context"
+	"v.io/x/ref/internal/logger"
 )
 
 const (
@@ -18,8 +21,10 @@ const (
 )
 
 func TestCSRFTokenWithoutCookie(t *testing.T) {
+	ctx, _ := context.RootContext()
+	ctx = context.WithLogger(ctx, logger.Global())
 	r := newRequest()
-	c, err := NewCSRFCop()
+	c, err := NewCSRFCop(ctx)
 	if err != nil {
 		t.Fatalf("NewCSRFCop failed: %v", err)
 	}
@@ -59,8 +64,10 @@ func TestCSRFTokenWithoutCookie(t *testing.T) {
 }
 
 func TestCSRFTokenWithCookie(t *testing.T) {
+	ctx, _ := context.RootContext()
+	ctx = context.WithLogger(ctx, logger.Global())
 	r := newRequest()
-	c, err := NewCSRFCop()
+	c, err := NewCSRFCop(ctx)
 	if err != nil {
 		t.Fatalf("NewCSRFCop failed: %v", err)
 	}
@@ -88,8 +95,10 @@ func TestCSRFTokenWithCookie(t *testing.T) {
 }
 
 func TestCSRFTokenWithData(t *testing.T) {
+	ctx, _ := context.RootContext()
+	ctx = context.WithLogger(ctx, logger.Global())
 	r := newRequest()
-	c, err := NewCSRFCop()
+	c, err := NewCSRFCop(ctx)
 	if err != nil {
 		t.Fatalf("NewCSRFCop failed: %v", err)
 	}

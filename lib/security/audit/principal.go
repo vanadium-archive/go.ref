@@ -7,6 +7,8 @@ package audit
 import (
 	"time"
 
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 )
@@ -20,13 +22,15 @@ var (
 // NewPrincipal returns a security.Principal implementation that logs
 // all private key operations of 'wrapped' to 'auditor' (i.e., all calls to
 // BlessSelf, Bless, MintDischarge and Sign).
-func NewPrincipal(wrapped security.Principal, auditor Auditor) security.Principal {
-	return &auditingPrincipal{wrapped, auditor}
+func NewPrincipal(ctx *context.T, auditor Auditor) security.Principal {
+	wrapped := v23.GetPrincipal(ctx)
+	return &auditingPrincipal{principal: wrapped, auditor: auditor, ctx: ctx}
 }
 
 type auditingPrincipal struct {
 	principal security.Principal
 	auditor   Auditor
+	ctx       *context.T
 }
 
 type args []interface{}
@@ -91,7 +95,7 @@ func (p *auditingPrincipal) audit(err error, method string, args args, result in
 	if result != nil {
 		entry.Results = []interface{}{result}
 	}
-	if err := p.auditor.Audit(entry); err != nil {
+	if err := p.auditor.Audit(p.ctx, entry); err != nil {
 		return verror.New(errCantAuditCall, nil, method, err)
 	}
 	return nil

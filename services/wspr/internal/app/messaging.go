@@ -10,10 +10,10 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"v.io/v23/context"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/lib"
 )
 
@@ -106,28 +106,28 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 	case VeyronRequestMessage:
 		c.HandleVeyronRequest(ctx, msg.Id, msg.Data, w)
 	case CancelMessage:
-		go c.HandleVeyronCancellation(msg.Id)
+		go c.HandleVeyronCancellation(ctx, msg.Id)
 	case StreamingValueMessage:
 		// SendOnStream queues up the message to be sent, but doesn't do the send
 		// on this goroutine.  We need to queue the messages synchronously so that
 		// the order is preserved.
-		c.SendOnStream(msg.Id, msg.Data, w)
+		c.SendOnStream(ctx, msg.Id, msg.Data, w)
 	case StreamCloseMessage:
-		c.CloseStream(msg.Id)
+		c.CloseStream(ctx, msg.Id)
 
 	case ServerResponseMessage:
-		go c.HandleServerResponse(msg.Id, msg.Data)
+		go c.HandleServerResponse(ctx, msg.Id, msg.Data)
 	case LookupResponseMessage:
-		go c.HandleLookupResponse(msg.Id, msg.Data)
+		go c.HandleLookupResponse(ctx, msg.Id, msg.Data)
 	case AuthResponseMessage:
-		go c.HandleAuthResponse(msg.Id, msg.Data)
+		go c.HandleAuthResponse(ctx, msg.Id, msg.Data)
 	case CaveatValidationResponse:
-		go c.HandleCaveatValidationResponse(msg.Id, msg.Data)
+		go c.HandleCaveatValidationResponse(ctx, msg.Id, msg.Data)
 	case GranterResponseMessage:
-		go c.HandleGranterResponse(msg.Id, msg.Data)
+		go c.HandleGranterResponse(ctx, msg.Id, msg.Data)
 	case TypeMessage:
 		// These messages need to be handled in order so they are done in line.
-		c.HandleTypeMessage(msg.Data)
+		c.HandleTypeMessage(ctx, msg.Data)
 	default:
 		w.Error(verror.New(errUnknownMessageType, ctx, msg.Type))
 	}
@@ -152,11 +152,11 @@ func ConstructOutgoingMessage(messageId int32, messageType lib.ResponseType, dat
 
 // FormatAsVerror formats an error as a verror.
 // This also logs the error.
-func FormatAsVerror(err error) error {
+func FormatAsVerror(ctx *context.T, err error) error {
 	verr := verror.Convert(verror.ErrUnknown, nil, err)
 
 	// Also log the error but write internal errors at a more severe log level
-	var logLevel vlog.Level = 2
+	logLevel := 2
 	logErr := fmt.Sprintf("%v", verr)
 
 	// Prefix the message with the code locations associated with verr,
@@ -178,7 +178,7 @@ func FormatAsVerror(err error) error {
 	if verror.ErrorID(verr) == verror.ErrInternal.ID {
 		logLevel = 2
 	}
-	vlog.VI(logLevel).Info(logErr)
+	ctx.VI(logLevel).Info(logErr)
 
 	return verr
 }
