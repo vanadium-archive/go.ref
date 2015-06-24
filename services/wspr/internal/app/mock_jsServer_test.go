@@ -13,6 +13,7 @@ import (
 	"sync"
 	"testing"
 
+	"v.io/v23/context"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
@@ -50,22 +51,24 @@ type mockJSServer struct {
 	typeDecoder *vom.TypeDecoder
 
 	typeEncoder *vom.TypeEncoder
+
+	ctx *context.T
 }
 
 func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) error {
 	switch responseType {
 	case lib.ResponseDispatcherLookup:
-		return m.handleDispatcherLookup(msg)
+		return m.handleDispatcherLookup(m.ctx, msg)
 	case lib.ResponseAuthRequest:
-		return m.handleAuthRequest(msg)
+		return m.handleAuthRequest(m.ctx, msg)
 	case lib.ResponseServerRequest:
-		return m.handleServerRequest(msg)
+		return m.handleServerRequest(m.ctx, msg)
 	case lib.ResponseValidate:
-		return m.handleValidationRequest(msg)
+		return m.handleValidationRequest(m.ctx, msg)
 	case lib.ResponseStream:
-		return m.handleStream(msg)
+		return m.handleStream(m.ctx, msg)
 	case lib.ResponseStreamClose:
-		return m.handleStreamClose(msg)
+		return m.handleStreamClose(m.ctx, msg)
 	case lib.ResponseFinal:
 		if m.receivedResponse != nil {
 			return fmt.Errorf("Two responses received. First was: %#v. Second was: %#v", m.receivedResponse, msg)
@@ -117,7 +120,7 @@ func normalize(msg interface{}) (map[string]interface{}, error) {
 func (m *mockJSServer) handleTypeMessage(v interface{}) {
 	m.typeReader.Add(hex.EncodeToString(v.([]byte)))
 }
-func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
+func (m *mockJSServer) handleDispatcherLookup(ctx *context.T, v interface{}) error {
 	defer func() {
 		m.flowCount += 2
 	}()
@@ -126,12 +129,12 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 
 	msg, err := normalize(v)
 	if err != nil {
-		m.controller.HandleLookupResponse(m.flowCount, internalErr(err, m.typeEncoder))
+		m.controller.HandleLookupResponse(ctx, m.flowCount, internalErr(err, m.typeEncoder))
 		return nil
 	}
 	expected := map[string]interface{}{"serverId": 0.0, "suffix": "adder"}
 	if !reflect.DeepEqual(msg, expected) {
-		m.controller.HandleLookupResponse(m.flowCount, internalErr(fmt.Sprintf("got: %v, want: %v", msg, expected), m.typeEncoder))
+		m.controller.HandleLookupResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("got: %v, want: %v", msg, expected), m.typeEncoder))
 		return nil
 	}
 	lookupReply := lib.HexVomEncodeOrDie(server.LookupReply{
@@ -139,7 +142,7 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 		Signature:     m.serviceSignature,
 		HasAuthorizer: m.hasAuthorizer,
 	}, m.typeEncoder)
-	m.controller.HandleLookupResponse(m.flowCount, lookupReply)
+	m.controller.HandleLookupResponse(ctx, m.flowCount, lookupReply)
 	return nil
 }
 
@@ -147,57 +150,57 @@ func validateEndpoint(ep string) bool {
 	return ep != ""
 }
 
-func (m *mockJSServer) handleAuthRequest(v interface{}) error {
+func (m *mockJSServer) handleAuthRequest(ctx *context.T, v interface{}) error {
 	defer func() {
 		m.flowCount += 2
 	}()
 
 	m.hasCalledAuth = true
 	if !m.hasAuthorizer {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr("unexpected auth request", m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr("unexpected auth request", m.typeEncoder))
 		return nil
 	}
 
 	var msg server.AuthRequest
 	if err := lib.HexVomDecode(v.(string), &msg, m.typeDecoder); err != nil {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("error decoding %v:", err), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("error decoding %v:", err), m.typeEncoder))
 		return nil
 	}
 
 	if msg.Handle != 0 {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected handled: %v", msg.Handle), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("unexpected handled: %v", msg.Handle), m.typeEncoder))
 		return nil
 	}
 
 	call := msg.Call
 	if field, got, want := "Method", call.Method, lib.LowercaseFirstCharacter(m.method); got != want {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
 		return nil
 	}
 
 	if field, got, want := "Suffix", call.Suffix, "adder"; got != want {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
 		return nil
 	}
 
 	// We expect localBlessings and remoteBlessings to be a non-zero id
 	if call.LocalBlessings == 0 {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad local blessing: %v", call.LocalBlessings), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("bad local blessing: %v", call.LocalBlessings), m.typeEncoder))
 		return nil
 	}
 	if call.RemoteBlessings == 0 {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad remote blessing: %v", call.RemoteBlessings), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("bad remote blessing: %v", call.RemoteBlessings), m.typeEncoder))
 		return nil
 	}
 
 	// We expect endpoints to be set
 	if !validateEndpoint(call.LocalEndpoint) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad endpoint:%v", call.LocalEndpoint), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("bad endpoint:%v", call.LocalEndpoint), m.typeEncoder))
 		return nil
 	}
 
 	if !validateEndpoint(call.RemoteEndpoint) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad endpoint:%v", call.RemoteEndpoint), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("bad endpoint:%v", call.RemoteEndpoint), m.typeEncoder))
 		return nil
 	}
 
@@ -205,33 +208,33 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 		Err: m.authError,
 	}, m.typeEncoder)
 
-	m.controller.HandleAuthResponse(m.flowCount, authReply)
+	m.controller.HandleAuthResponse(ctx, m.flowCount, authReply)
 	return nil
 }
 
-func (m *mockJSServer) handleServerRequest(v interface{}) error {
+func (m *mockJSServer) handleServerRequest(ctx *context.T, v interface{}) error {
 	defer func() {
 		m.flowCount += 2
 	}()
 
 	if m.hasCalledAuth != m.hasAuthorizer {
-		m.controller.HandleServerResponse(m.flowCount, internalErr("authorizer hasn't been called yet", m.typeEncoder))
+		m.controller.HandleServerResponse(ctx, m.flowCount, internalErr("authorizer hasn't been called yet", m.typeEncoder))
 		return nil
 	}
 
 	var msg server.ServerRpcRequest
 	if err := lib.HexVomDecode(v.(string), &msg, m.typeDecoder); err != nil {
-		m.controller.HandleServerResponse(m.flowCount, internalErr(err, m.typeEncoder))
+		m.controller.HandleServerResponse(ctx, m.flowCount, internalErr(err, m.typeEncoder))
 		return nil
 	}
 
 	if field, got, want := "Method", msg.Method, lib.LowercaseFirstCharacter(m.method); got != want {
-		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
+		m.controller.HandleServerResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
 		return nil
 	}
 
 	if field, got, want := "Handle", msg.Handle, int32(0); got != want {
-		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
+		m.controller.HandleServerResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
 		return nil
 	}
 
@@ -242,23 +245,23 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 		}
 	}
 	if field, got, want := "Args", vals, m.inArgs; !reflectutil.DeepEqual(got, want, &reflectutil.DeepEqualOpts{SliceEqNilEmpty: true}) {
-		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
+		m.controller.HandleServerResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
 		return nil
 	}
 
 	call := msg.Call.SecurityCall
 	if field, got, want := "Suffix", call.Suffix, "adder"; got != want {
-		m.controller.HandleServerResponse(m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
+		m.controller.HandleServerResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want), m.typeEncoder))
 		return nil
 	}
 
 	// We expect localBlessings and remoteBlessings to be a non-zero id
 	if call.LocalBlessings == 0 {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad local blessing: %v", call.LocalBlessings), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("bad local blessing: %v", call.LocalBlessings), m.typeEncoder))
 		return nil
 	}
 	if call.RemoteBlessings == 0 {
-		m.controller.HandleAuthResponse(m.flowCount, internalErr(fmt.Sprintf("bad remote blessing: %v", call.RemoteBlessings), m.typeEncoder))
+		m.controller.HandleAuthResponse(ctx, m.flowCount, internalErr(fmt.Sprintf("bad remote blessing: %v", call.RemoteBlessings), m.typeEncoder))
 		return nil
 	}
 
@@ -266,11 +269,11 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 
 	// We don't return the final response until the stream is closed.
 	m.sender.Add(1)
-	go m.sendServerStream()
+	go m.sendServerStream(ctx)
 	return nil
 }
 
-func (m *mockJSServer) handleValidationRequest(v interface{}) error {
+func (m *mockJSServer) handleValidationRequest(ctx *context.T, v interface{}) error {
 	defer func() {
 		m.flowCount += 2
 	}()
@@ -283,21 +286,21 @@ func (m *mockJSServer) handleValidationRequest(v interface{}) error {
 	res := lib.HexVomEncodeOrDie(resp, m.typeEncoder)
 
 	m.controllerReady.RLock()
-	m.controller.HandleCaveatValidationResponse(m.flowCount, res)
+	m.controller.HandleCaveatValidationResponse(ctx, m.flowCount, res)
 	m.controllerReady.RUnlock()
 	return nil
 }
 
-func (m *mockJSServer) sendServerStream() {
+func (m *mockJSServer) sendServerStream(ctx *context.T) {
 	defer m.sender.Done()
 	m.controllerReady.RLock()
 	for _, v := range m.serverStream {
-		m.controller.SendOnStream(m.rpcFlow, lib.HexVomEncodeOrDie(v, m.typeEncoder), m)
+		m.controller.SendOnStream(ctx, m.rpcFlow, lib.HexVomEncodeOrDie(v, m.typeEncoder), m)
 	}
 	m.controllerReady.RUnlock()
 }
 
-func (m *mockJSServer) handleStream(msg interface{}) error {
+func (m *mockJSServer) handleStream(ctx *context.T, msg interface{}) error {
 	smsg, ok := msg.(string)
 	if !ok || len(m.expectedClientStream) == 0 {
 		m.t.Errorf("unexpected stream message: %v", msg)
@@ -312,7 +315,7 @@ func (m *mockJSServer) handleStream(msg interface{}) error {
 	return nil
 }
 
-func (m *mockJSServer) handleStreamClose(msg interface{}) error {
+func (m *mockJSServer) handleStreamClose(ctx *context.T, msg interface{}) error {
 	m.sender.Wait()
 	reply := lib.ServerRpcReply{
 		Results: []*vdl.Value{m.finalResponse},
@@ -320,7 +323,7 @@ func (m *mockJSServer) handleStreamClose(msg interface{}) error {
 	}
 
 	m.controllerReady.RLock()
-	m.controller.HandleServerResponse(m.rpcFlow, lib.HexVomEncodeOrDie(reply, m.typeEncoder))
+	m.controller.HandleServerResponse(ctx, m.rpcFlow, lib.HexVomEncodeOrDie(reply, m.typeEncoder))
 	m.controllerReady.RUnlock()
 	return nil
 }

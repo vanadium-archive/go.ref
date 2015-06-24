@@ -13,11 +13,13 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"v.io/v23/context"
 )
 
 // Auditor is the interface for writing auditable events.
 type Auditor interface {
-	Audit(entry Entry) error
+	Audit(ctx *context.T, entry Entry) error
 }
 
 // Entry is the information logged on each auditable event.

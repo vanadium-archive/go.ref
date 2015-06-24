@@ -18,7 +18,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/groups"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/groups/internal/server"
@@ -105,11 +104,11 @@ func newServer(ctx *context.T) (string, func()) {
 	} else {
 		file, err = ioutil.TempFile("", "")
 		if err != nil {
-			vlog.Fatal("ioutil.TempFile() failed: ", err)
+			ctx.Fatal("ioutil.TempFile() failed: ", err)
 		}
 		st, err = gkv.New(file.Name())
 		if err != nil {
-			vlog.Fatal("gkv.New() failed: ", err)
+			ctx.Fatal("gkv.New() failed: ", err)
 		}
 	}
 
@@ -117,7 +116,7 @@ func newServer(ctx *context.T) (string, func()) {
 
 	server, err := xrpc.NewDispatchingServer(ctx, "", m)
 	if err != nil {
-		vlog.Fatal("NewDispatchingServer() failed: ", err)
+		ctx.Fatal("NewDispatchingServer() failed: ", err)
 	}
 
 	name := server.Status().Endpoints[0].Name()
@@ -136,25 +135,25 @@ func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
 	// Have the server principal bless the client principal as "client".
 	blessings, err := sp.Bless(cp.PublicKey(), sp.BlessingStore().Default(), "client", security.UnconstrainedUse())
 	if err != nil {
-		vlog.Fatal("sp.Bless() failed: ", err)
+		clientCtx.Fatal("sp.Bless() failed: ", err)
 	}
 	// Have the client present its "client" blessing when talking to the server.
 	if _, err := cp.BlessingStore().Set(blessings, "server"); err != nil {
-		vlog.Fatal("cp.BlessingStore().Set() failed: ", err)
+		clientCtx.Fatal("cp.BlessingStore().Set() failed: ", err)
 	}
 	// Have the client treat the server's public key as an authority on all
 	// blessings that match the pattern "server".
 	if err := cp.AddToRoots(blessings); err != nil {
-		vlog.Fatal("cp.AddToRoots() failed: ", err)
+		clientCtx.Fatal("cp.AddToRoots() failed: ", err)
 	}
 
 	clientCtx, err = v23.WithPrincipal(ctx, cp)
 	if err != nil {
-		vlog.Fatal("v23.WithPrincipal() failed: ", err)
+		clientCtx.Fatal("v23.WithPrincipal() failed: ", err)
 	}
 	serverCtx, err := v23.WithPrincipal(ctx, sp)
 	if err != nil {
-		vlog.Fatal("v23.WithPrincipal() failed: ", err)
+		clientCtx.Fatal("v23.WithPrincipal() failed: ", err)
 	}
 
 	serverName, stopServer := newServer(serverCtx)

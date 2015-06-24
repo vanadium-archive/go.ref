@@ -23,7 +23,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/principal"
 )
@@ -95,6 +94,8 @@ type Server struct {
 	// statusClose will be closed when the server is shutting down, this will
 	// cause the status poller to exit.
 	statusClose chan struct{}
+
+	ctx *context.T
 }
 
 type serverContextKey struct{}
@@ -114,6 +115,7 @@ func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper, opts 
 	if server.server, err = v23.NewServer(ctx, opts...); err != nil {
 		return nil, err
 	}
+	server.ctx = ctx
 	return server, nil
 }
 
@@ -181,7 +183,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			return errHandler(err)
 		}
 
-		vlog.VI(3).Infof("calling method %q with args %v, MessageID %d assigned\n", methodName, args, flow.ID)
+		ctx.VI(3).Infof("calling method %q with args %v, MessageID %d assigned\n", methodName, args, flow.ID)
 
 		// Watch for cancellation.
 		go func() {
@@ -285,7 +287,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			return errHandler(err)
 		}
 
-		vlog.VI(3).Infof("calling method 'Glob__' with args %v, MessageID %d assigned\n", []interface{}{pattern}, flow.ID)
+		ctx.VI(3).Infof("calling method 'Glob__' with args %v, MessageID %d assigned\n", []interface{}{pattern}, flow.ID)
 
 		// Watch for cancellation.
 		go func() {
@@ -322,7 +324,7 @@ func (s *Server) proxyStream(stream rpc.Stream, flow *Flow, typeEncoder *vom.Typ
 			return
 		}
 	}
-	vlog.VI(1).Infof("Error reading from stream: %v\n", err)
+	s.ctx.VI(1).Infof("Error reading from stream: %v\n", err)
 	s.outstandingRequestLock.Lock()
 	_, found := s.outstandingServerRequests[flow.ID]
 	s.outstandingRequestLock.Unlock()
@@ -387,7 +389,7 @@ func (s *Server) caveatValidationInJavascript(ctx *context.T, call security.Call
 	}()
 
 	if err := flow.Writer.Send(lib.ResponseValidate, req); err != nil {
-		vlog.VI(2).Infof("Failed to send validate response: %v", err)
+		ctx.VI(2).Infof("Failed to send validate response: %v", err)
 		replyChan <- makeListOfErrors(len(cavs), err)
 	}
 
@@ -404,7 +406,7 @@ func (s *Server) caveatValidationInJavascript(ctx *context.T, call security.Call
 		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(ctx))
 	case reply := <-replyChan:
 		if len(reply) != len(cavs) {
-			vlog.VI(2).Infof("Wspr caveat validator received %d results from javascript but expected %d", len(reply), len(cavs))
+			ctx.VI(2).Infof("Wspr caveat validator received %d results from javascript but expected %d", len(reply), len(cavs))
 			return makeListOfErrors(len(cavs), NewErrInvalidValidationResponseFromJavascript(ctx))
 		}
 
@@ -551,7 +553,7 @@ func (s *Server) authorizeRemote(ctx *context.T, call security.Call, handle int3
 			Language: string(i18n.GetLangID(ctx)),
 		},
 	}
-	vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
+	ctx.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
 	vomMessage, err := lib.HexVomEncode(message, s.helper.TypeEncoder())
 	if err != nil {
@@ -561,7 +563,7 @@ func (s *Server) authorizeRemote(ctx *context.T, call security.Call, handle int3
 	}
 
 	err = <-replyChan
-	vlog.VI(0).Infof("going to respond with %v", err)
+	ctx.VI(0).Infof("going to respond with %v", err)
 	s.outstandingRequestLock.Lock()
 	delete(s.outstandingAuthRequests, flow.ID)
 	s.outstandingRequestLock.Unlock()
@@ -632,10 +634,10 @@ func (s *Server) popServerRequest(id int32) chan *lib.ServerRpcReply {
 	return ch
 }
 
-func (s *Server) HandleServerResponse(id int32, data string) {
+func (s *Server) HandleServerResponse(ctx *context.T, id int32, data string) {
 	ch := s.popServerRequest(id)
 	if ch == nil {
-		vlog.Errorf("unexpected result from JavaScript. No channel "+
+		ctx.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		// Ignore unknown responses that don't belong to any channel
 		return
@@ -647,7 +649,7 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 		reply.Err = err
 	}
 
-	vlog.VI(0).Infof("response received from JavaScript server for "+
+	ctx.VI(0).Infof("response received from JavaScript server for "+
 		"MessageId %d with result %v", id, reply)
 	s.helper.CleanupFlow(id)
 	if reply.Err != nil {
@@ -657,16 +659,16 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 	ch <- &reply
 }
 
-func (s *Server) HandleLookupResponse(id int32, data string) {
-	s.dispatcher.handleLookupResponse(id, data)
+func (s *Server) HandleLookupResponse(ctx *context.T, id int32, data string) {
+	s.dispatcher.handleLookupResponse(ctx, id, data)
 }
 
-func (s *Server) HandleAuthResponse(id int32, data string) {
+func (s *Server) HandleAuthResponse(ctx *context.T, id int32, data string) {
 	s.outstandingRequestLock.Lock()
 	ch := s.outstandingAuthRequests[id]
 	s.outstandingRequestLock.Unlock()
 	if ch == nil {
-		vlog.Errorf("unexpected result from JavaScript. No channel "+
+		ctx.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results(%s)", id, data)
 		// Ignore unknown responses that don't belong to any channel
 		return
@@ -678,7 +680,7 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 		reply = AuthReply{Err: err}
 	}
 
-	vlog.VI(0).Infof("response received from JavaScript server for "+
+	ctx.VI(0).Infof("response received from JavaScript server for "+
 		"MessageId %d with result %v", id, reply)
 	s.helper.CleanupFlow(id)
 	// A nil verror.E does not result in an nil error.  Instead, we have create
@@ -691,12 +693,12 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 	ch <- err
 }
 
-func (s *Server) HandleCaveatValidationResponse(id int32, data string) {
+func (s *Server) HandleCaveatValidationResponse(ctx *context.T, id int32, data string) {
 	s.outstandingRequestLock.Lock()
 	ch := s.outstandingValidationRequests[id]
 	s.outstandingRequestLock.Unlock()
 	if ch == nil {
-		vlog.Errorf("unexpected result from JavaScript. No channel "+
+		ctx.Errorf("unexpected result from JavaScript. No channel "+
 			"for validation response with MessageId: %d exists. Ignoring the results(%s)", id, data)
 		// Ignore unknown responses that don't belong to any channel
 		return
@@ -704,7 +706,7 @@ func (s *Server) HandleCaveatValidationResponse(id int32, data string) {
 
 	var reply CaveatValidationResponse
 	if err := lib.HexVomDecode(data, &reply, s.helper.TypeDecoder()); err != nil {
-		vlog.Errorf("failed to decode validation response %q: error %v", data, err)
+		ctx.Errorf("failed to decode validation response %q: error %v", data, err)
 		ch <- []error{}
 		return
 	}

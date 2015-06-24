@@ -91,7 +91,7 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 
 	auditor, reader := auditor.NewMockBlessingAuditor()
-	revocationManager := revocation.NewMockRevocationManager()
+	revocationManager := revocation.NewMockRevocationManager(ctx)
 	oauthProvider := oauth.NewMockOAuth(oauthEmail)
 
 	params := blesser.OAuthBlesserParams{

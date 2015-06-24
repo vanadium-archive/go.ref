@@ -5,7 +5,7 @@
 package browspr
 
 import (
-	"v.io/x/lib/vlog"
+	"v.io/v23/context"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/lib"
 )
@@ -31,16 +31,16 @@ func newPipe(b *Browspr, instanceId int32, origin string, namespaceRoots []strin
 		// TODO(nlacasse, bjornick): This code should go away once we
 		// start requiring authentication.  At that point, we should
 		// just return an error to the client.
-		vlog.Errorf("No principal associated with origin %v, creating a new principal with self-signed blessing from browspr: %v", origin, err)
+		b.ctx.Errorf("No principal associated with origin %v, creating a new principal with self-signed blessing from browspr: %v", origin, err)
 
 		dummyAccount, err := b.principalManager.DummyAccount()
 		if err != nil {
-			vlog.Errorf("principalManager.DummyAccount() failed: %v", err)
+			b.ctx.Errorf("principalManager.DummyAccount() failed: %v", err)
 			return nil
 		}
 
-		if err := b.accountManager.AssociateAccount(origin, dummyAccount, nil); err != nil {
-			vlog.Errorf("accountManager.AssociateAccount(%v, %v, %v) failed: %v", origin, dummyAccount, nil, err)
+		if err := b.accountManager.AssociateAccount(b.ctx, origin, dummyAccount, nil); err != nil {
+			b.ctx.Errorf("accountManager.AssociateAccount(%v, %v, %v) failed: %v", origin, dummyAccount, nil, err)
 			return nil
 		}
 		p, err = b.accountManager.LookupPrincipal(origin)
@@ -63,7 +63,7 @@ func newPipe(b *Browspr, instanceId int32, origin string, namespaceRoots []strin
 
 	pipe.controller, err = app.NewController(b.ctx, pipe.createWriter, &listenSpec, namespaceRoots, p)
 	if err != nil {
-		vlog.Errorf("Could not create controller: %v", err)
+		b.ctx.Errorf("Could not create controller: %v", err)
 		return nil
 	}
 
@@ -77,9 +77,9 @@ func (p *pipe) createWriter(messageId int32) lib.ClientWriter {
 	}
 }
 
-func (p *pipe) cleanup() {
-	vlog.VI(0).Info("Cleaning up pipe")
-	p.controller.Cleanup()
+func (p *pipe) cleanup(ctx *context.T) {
+	ctx.VI(0).Info("Cleaning up pipe")
+	p.controller.Cleanup(ctx)
 }
 
 func (p *pipe) handleMessage(msg app.Message) error {

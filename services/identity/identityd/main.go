@@ -16,7 +16,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/static"
@@ -108,7 +107,7 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
-	googleoauth, err := oauth.NewGoogleOAuth(googleConfigWeb)
+	googleoauth, err := oauth.NewGoogleOAuth(ctx, googleConfigWeb)
 	if err != nil {
 		return env.UsageErrorf("Failed to setup GoogleOAuth: %v", err)
 	}
@@ -118,7 +117,7 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		return fmt.Errorf("Failed to create sql auditor from config: %v", err)
 	}
 
-	revocationManager, err := revocation.NewRevocationManager(sqlDB)
+	revocationManager, err := revocation.NewRevocationManager(ctx, sqlDB)
 	if err != nil {
 		return fmt.Errorf("Failed to start RevocationManager: %v", err)
 	}
@@ -129,7 +128,7 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		auditor,
 		reader,
 		revocationManager,
-		googleOAuthBlesserParams(googleoauth, revocationManager),
+		googleOAuthBlesserParams(ctx, googleoauth, revocationManager),
 		caveats.NewBrowserCaveatSelector(assetsPrefix),
 		assetsPrefix,
 		mountPrefix)
@@ -137,19 +136,19 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 	return nil
 }
 
-func googleOAuthBlesserParams(oauthProvider oauth.OAuthProvider, revocationManager revocation.RevocationManager) blesser.OAuthBlesserParams {
+func googleOAuthBlesserParams(ctx *context.T, oauthProvider oauth.OAuthProvider, revocationManager revocation.RevocationManager) blesser.OAuthBlesserParams {
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
 		BlessingDuration:  365 * 24 * time.Hour,
 		RevocationManager: revocationManager,
 	}
 	if clientID, err := getOAuthClientID(googleConfigChrome); err != nil {
-		vlog.Info(err)
+		ctx.Info(err)
 	} else {
 		params.AccessTokenClients = append(params.AccessTokenClients, oauth.AccessTokenClient{Name: "chrome", ClientID: clientID})
 	}
 	if clientID, err := getOAuthClientID(googleConfigAndroid); err != nil {
-		vlog.Info(err)
+		ctx.Info(err)
 	} else {
 		params.AccessTokenClients = append(params.AccessTokenClients, oauth.AccessTokenClient{Name: "android", ClientID: clientID})
 	}

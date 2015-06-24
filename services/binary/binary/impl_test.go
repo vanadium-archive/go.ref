@@ -23,7 +23,6 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/repository"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -36,37 +35,37 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Create(*context.T, rpc.ServerCall, int32, repository.MediaInfo) error {
-	vlog.Infof("Create() was called. suffix=%v", s.suffix)
+func (s *server) Create(ctx *context.T, _ rpc.ServerCall, _ int32, _ repository.MediaInfo) error {
+	ctx.Infof("Create() was called. suffix=%v", s.suffix)
 	return nil
 }
 
-func (s *server) Delete(*context.T, rpc.ServerCall) error {
-	vlog.Infof("Delete() was called. suffix=%v", s.suffix)
+func (s *server) Delete(ctx *context.T, _ rpc.ServerCall) error {
+	ctx.Infof("Delete() was called. suffix=%v", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("binary doesn't exist: %v", s.suffix)
 	}
 	return nil
 }
 
-func (s *server) Download(_ *context.T, call repository.BinaryDownloadServerCall, _ int32) error {
-	vlog.Infof("Download() was called. suffix=%v", s.suffix)
+func (s *server) Download(ctx *context.T, call repository.BinaryDownloadServerCall, _ int32) error {
+	ctx.Infof("Download() was called. suffix=%v", s.suffix)
 	sender := call.SendStream()
 	sender.Send([]byte("Hello"))
 	sender.Send([]byte("World"))
 	return nil
 }
 
-func (s *server) DownloadUrl(*context.T, rpc.ServerCall) (string, int64, error) {
-	vlog.Infof("DownloadUrl() was called. suffix=%v", s.suffix)
+func (s *server) DownloadUrl(ctx *context.T, _ rpc.ServerCall) (string, int64, error) {
+	ctx.Infof("DownloadUrl() was called. suffix=%v", s.suffix)
 	if s.suffix != "" {
 		return "", 0, fmt.Errorf("non-empty suffix: %v", s.suffix)
 	}
 	return "test-download-url", 0, nil
 }
 
-func (s *server) Stat(*context.T, rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
-	vlog.Infof("Stat() was called. suffix=%v", s.suffix)
+func (s *server) Stat(ctx *context.T, _ rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+	ctx.Infof("Stat() was called. suffix=%v", s.suffix)
 	h := md5.New()
 	text := "HelloWorld"
 	h.Write([]byte(text))
@@ -74,19 +73,19 @@ func (s *server) Stat(*context.T, rpc.ServerCall) ([]binary.PartInfo, repository
 	return []binary.PartInfo{part}, repository.MediaInfo{Type: "text/plain"}, nil
 }
 
-func (s *server) Upload(_ *context.T, call repository.BinaryUploadServerCall, _ int32) error {
-	vlog.Infof("Upload() was called. suffix=%v", s.suffix)
+func (s *server) Upload(ctx *context.T, call repository.BinaryUploadServerCall, _ int32) error {
+	ctx.Infof("Upload() was called. suffix=%v", s.suffix)
 	rStream := call.RecvStream()
 	for rStream.Advance() {
 	}
 	return nil
 }
 
-func (s *server) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
+func (s *server) GetPermissions(ctx *context.T, _ rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	return nil, "", nil
 }
 
-func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
+func (s *server) SetPermissions(ctx *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
 	return nil
 }
 

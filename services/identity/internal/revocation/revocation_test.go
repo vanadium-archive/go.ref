@@ -27,7 +27,7 @@ func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKe
 		t.Fatalf("r.NewServer: %s", err)
 	}
 	name := dischargerServer.Status().Endpoints[0].Name()
-	return v23.GetPrincipal(ctx).PublicKey(), name, NewMockRevocationManager()
+	return v23.GetPrincipal(ctx).PublicKey(), name, NewMockRevocationManager(ctx)
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {

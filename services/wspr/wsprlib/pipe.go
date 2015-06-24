@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"v.io/v23"
-	"v.io/x/lib/vlog"
+	"v.io/v23/context"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/lib"
 
@@ -51,13 +51,13 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 
 	if creator == nil {
 		creator = func(id int32) lib.ClientWriter {
-			return &websocketWriter{p: pipe, id: id}
+			return &websocketWriter{p: pipe, id: id, ctx: wspr.ctx}
 		}
 	}
 	pipe.writerCreator = creator
 	origin := req.Header.Get("Origin")
 	if origin == "" {
-		vlog.Errorf("Could not read origin from the request")
+		wspr.ctx.Errorf("Could not read origin from the request")
 		http.Error(w, "Could not read origin from the request", http.StatusBadRequest)
 		return nil
 	}
@@ -65,13 +65,13 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 	p, err := wspr.principalManager.Principal(origin)
 	if err != nil {
 		p = v23.GetPrincipal(wspr.ctx)
-		vlog.Errorf("no principal associated with origin %s: %v", origin, err)
+		wspr.ctx.Errorf("no principal associated with origin %s: %v", origin, err)
 		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
 	}
 
 	pipe.controller, err = app.NewController(wspr.ctx, creator, wspr.listenSpec, wspr.namespaceRoots, p)
 	if err != nil {
-		vlog.Errorf("Could not create controller: %v", err)
+		wspr.ctx.Errorf("Could not create controller: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
 		return nil
 	}
@@ -81,9 +81,9 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 }
 
 // cleans up any outstanding rpcs.
-func (p *pipe) cleanup() {
-	vlog.VI(0).Info("Cleaning up websocket")
-	p.controller.Cleanup()
+func (p *pipe) cleanup(ctx *context.T) {
+	ctx.VI(0).Info("Cleaning up websocket")
+	p.controller.Cleanup(ctx)
 	p.ws.Close()
 	p.wspr.CleanUpPipe(p.req)
 }
@@ -97,15 +97,15 @@ func (p *pipe) writeLoop() {
 	for {
 		msg, ok := <-p.writeQueue
 		if !ok {
-			vlog.Errorf("write queue was closed")
+			p.wspr.ctx.Errorf("write queue was closed")
 			return
 		}
 
 		if msg.messageType == websocket.PingMessage {
-			vlog.Infof("sending ping")
+			p.wspr.ctx.Infof("sending ping")
 		}
 		if err := p.ws.WriteMessage(msg.messageType, msg.buf); err != nil {
-			vlog.Errorf("failed to write bytes: %s", err)
+			p.wspr.ctx.Errorf("failed to write bytes: %s", err)
 		}
 	}
 }
@@ -117,7 +117,7 @@ func (p *pipe) start(w http.ResponseWriter, req *http.Request) {
 		return
 	} else if err != nil {
 		http.Error(w, "Internal Error", 500)
-		vlog.Errorf("websocket upgrade failed: %s", err)
+		p.wspr.ctx.Errorf("websocket upgrade failed: %s", err)
 		return
 	}
 
@@ -132,13 +132,13 @@ func (p *pipe) start(w http.ResponseWriter, req *http.Request) {
 func (p *pipe) pingLoop() {
 	for {
 		time.Sleep(pingInterval)
-		vlog.VI(2).Info("ws: ping")
+		p.wspr.ctx.VI(2).Info("ws: ping")
 		p.writeQueue <- wsMessage{messageType: websocket.PingMessage, buf: []byte{}}
 	}
 }
 
 func (p *pipe) pongHandler(msg string) error {
-	vlog.VI(2).Infof("ws: pong")
+	p.wspr.ctx.VI(2).Infof("ws: pong")
 	p.ws.SetReadDeadline(time.Now().Add(pongTimeout))
 	return nil
 }
@@ -151,19 +151,19 @@ func (p *pipe) readLoop() {
 			break
 		}
 		if err != nil {
-			vlog.VI(1).Infof("websocket receive: %s", err)
+			p.wspr.ctx.VI(1).Infof("websocket receive: %s", err)
 			break
 		}
 
 		if op != websocket.TextMessage {
-			vlog.Errorf("unexpected websocket op: %v", op)
+			p.wspr.ctx.Errorf("unexpected websocket op: %v", op)
 		}
 
 		var msg app.Message
 		decoder := json.NewDecoder(r)
 		if err := decoder.Decode(&msg); err != nil {
 			errMsg := fmt.Sprintf("can't unmarshall JSONMessage: %v", err)
-			vlog.Error(errMsg)
+			p.wspr.ctx.Error(errMsg)
 			p.writeQueue <- wsMessage{messageType: websocket.TextMessage, buf: []byte(errMsg)}
 			continue
 		}
@@ -171,5 +171,5 @@ func (p *pipe) readLoop() {
 		ww := p.writerCreator(msg.Id)
 		p.controller.HandleIncomingMessage(msg, ww)
 	}
-	p.cleanup()
+	p.cleanup(p.wspr.ctx)
 }

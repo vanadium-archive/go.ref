@@ -15,7 +15,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/account"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/principal"
@@ -42,10 +41,10 @@ func NewBrowspr(ctx *context.T,
 	identd string,
 	wsNamespaceRoots []string) *Browspr {
 	if listenSpec.Proxy == "" {
-		vlog.Fatalf("a vanadium proxy must be set")
+		ctx.Fatalf("a vanadium proxy must be set")
 	}
 	if identd == "" {
-		vlog.Fatalf("an identd server must be set")
+		ctx.Fatalf("an identd server must be set")
 	}
 
 	browspr := &Browspr{
@@ -60,7 +59,7 @@ func NewBrowspr(ctx *context.T,
 	var err error
 	p := v23.GetPrincipal(ctx)
 	if browspr.principalManager, err = principal.NewPrincipalManager(p, &principal.InMemorySerializer{}); err != nil {
-		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
+		ctx.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
 	browspr.accountManager = account.NewAccountManager(identd, browspr.principalManager)
@@ -122,7 +121,7 @@ func (b *Browspr) HandleCleanupRpc(val *vdl.Value) (*vdl.Value, error) {
 		// We must unlock the mutex before calling cleanunp, otherwise
 		// browspr deadlocks.
 		b.mu.Unlock()
-		pipe.cleanup()
+		pipe.cleanup(b.ctx)
 
 		b.mu.Lock()
 		delete(b.activeInstances, msg.InstanceId)
@@ -159,8 +158,8 @@ func (b *Browspr) HandleAuthAssociateAccountRpc(val *vdl.Value) (*vdl.Value, err
 	if err := vdl.Convert(&msg, val); err != nil {
 		return nil, fmt.Errorf("HandleAuthAssociateAccountRpc did not receive AssociateAccountMessage, received: %v, %v", val, err)
 	}
-
-	if err := b.accountManager.AssociateAccount(msg.Origin, msg.Account, msg.Caveats); err != nil {
+	ctx, _ := vtrace.WithNewTrace(b.ctx)
+	if err := b.accountManager.AssociateAccount(ctx, msg.Origin, msg.Account, msg.Caveats); err != nil {
 		return nil, err
 	}
 	return nil, nil

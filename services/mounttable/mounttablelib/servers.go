@@ -12,8 +12,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
-
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/xrpc"
 )
 
@@ -27,7 +25,7 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 
 	mt, err := NewMountTableDispatcher(ctx, permsFile, persistDir, debugPrefix)
 	if err != nil {
-		vlog.Errorf("NewMountTable failed: %v", err)
+		ctx.Errorf("NewMountTable failed: %v", err)
 		return "", nil, err
 	}
 	ctx = v23.WithListenSpec(ctx, listenSpec)

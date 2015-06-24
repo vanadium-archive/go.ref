@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/ref/lib/security/audit"
@@ -18,7 +19,7 @@ import (
 // BlessingLogReader provides the Read method to read audit logs.
 // Read returns a channel of BlessingEntrys whose extension matches the provided email.
 type BlessingLogReader interface {
-	Read(email string) <-chan BlessingEntry
+	Read(ctx *context.T, email string) <-chan BlessingEntry
 }
 
 // BlessingEntry contains important logged information about a blessed principal.
@@ -47,7 +48,7 @@ type blessingAuditor struct {
 	db database
 }
 
-func (a *blessingAuditor) Audit(entry audit.Entry) error {
+func (a *blessingAuditor) Audit(ctx *context.T, entry audit.Entry) error {
 	if entry.Method != "Bless" {
 		return nil
 	}
@@ -55,22 +56,22 @@ func (a *blessingAuditor) Audit(entry audit.Entry) error {
 	if err != nil {
 		return err
 	}
-	return a.db.Insert(dbentry)
+	return a.db.Insert(ctx, dbentry)
 }
 
 type blessingLogReader struct {
 	db database
 }
 
-func (r *blessingLogReader) Read(email string) <-chan BlessingEntry {
+func (r *blessingLogReader) Read(ctx *context.T, email string) <-chan BlessingEntry {
 	c := make(chan BlessingEntry)
-	go r.sendAuditEvents(c, email)
+	go r.sendAuditEvents(ctx, c, email)
 	return c
 }
 
-func (r *blessingLogReader) sendAuditEvents(dst chan<- BlessingEntry, email string) {
+func (r *blessingLogReader) sendAuditEvents(ctx *context.T, dst chan<- BlessingEntry, email string) {
 	defer close(dst)
-	dbch := r.db.Query(email)
+	dbch := r.db.Query(ctx, email)
 	for dbentry := range dbch {
 		dst <- newBlessingEntry(dbentry)
 	}

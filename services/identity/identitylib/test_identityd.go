@@ -69,7 +69,7 @@ var TestIdentityd = modules.Register(func(env *modules.Env, args ...string) erro
 	}
 
 	auditor, reader := auditor.NewMockBlessingAuditor()
-	revocationManager := revocation.NewMockRevocationManager()
+	revocationManager := revocation.NewMockRevocationManager(ctx)
 	oauthProvider := oauth.NewMockOAuth("testemail@example.com")
 
 	params := blesser.OAuthBlesserParams{

@@ -16,7 +16,6 @@ import (
 	"v.io/v23/services/build"
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -28,19 +27,19 @@ import (
 type mock struct{}
 
 func (mock) Build(ctx *context.T, call build.BuilderBuildServerCall, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
-	vlog.VI(2).Infof("Build(%v, %v) was called", arch, opsys)
+	ctx.VI(2).Infof("Build(%v, %v) was called", arch, opsys)
 	iterator := call.RecvStream()
 	for iterator.Advance() {
 	}
 	if err := iterator.Err(); err != nil {
-		vlog.Errorf("Advance() failed: %v", err)
+		ctx.Errorf("Advance() failed: %v", err)
 		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	return nil, nil
 }
 
-func (mock) Describe(_ *context.T, _ rpc.ServerCall, name string) (binary.Description, error) {
-	vlog.VI(2).Infof("Describe(%v) was called", name)
+func (mock) Describe(ctx *context.T, _ rpc.ServerCall, name string) (binary.Description, error) {
+	ctx.VI(2).Infof("Describe(%v) was called", name)
 	return binary.Description{}, nil
 }
 

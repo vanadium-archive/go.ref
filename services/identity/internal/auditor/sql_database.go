@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/x/lib/vlog"
+	"v.io/v23/context"
 )
 
 type database interface {
-	Insert(entry databaseEntry) error
-	Query(email string) <-chan databaseEntry
+	Insert(ctx *context.T, entry databaseEntry) error
+	Query(ctx *context.T, email string) <-chan databaseEntry
 }
 
 type databaseEntry struct {
@@ -39,7 +39,10 @@ func newSQLDatabase(db *sql.DB, table string) (database, error) {
 		return nil, err
 	}
 	queryStmt, err := db.Prepare(fmt.Sprintf("SELECT Email, Caveats, Timestamp, Blessings FROM %s WHERE Email=? ORDER BY Timestamp DESC", table))
-	return sqlDatabase{insertStmt, queryStmt}, err
+	return sqlDatabase{
+		insertStmt: insertStmt,
+		queryStmt:  queryStmt,
+	}, err
 }
 
 // Table with 4 columns:
@@ -51,29 +54,29 @@ type sqlDatabase struct {
 	insertStmt, queryStmt *sql.Stmt
 }
 
-func (s sqlDatabase) Insert(entry databaseEntry) error {
+func (s sqlDatabase) Insert(ctx *context.T, entry databaseEntry) error {
 	_, err := s.insertStmt.Exec(entry.email, entry.caveats, entry.timestamp, entry.blessings)
 	return err
 }
 
-func (s sqlDatabase) Query(email string) <-chan databaseEntry {
+func (s sqlDatabase) Query(ctx *context.T, email string) <-chan databaseEntry {
 	c := make(chan databaseEntry)
-	go s.sendDatabaseEntries(email, c)
+	go s.sendDatabaseEntries(ctx, email, c)
 	return c
 }
 
-func (s sqlDatabase) sendDatabaseEntries(email string, dst chan<- databaseEntry) {
+func (s sqlDatabase) sendDatabaseEntries(ctx *context.T, email string, dst chan<- databaseEntry) {
 	defer close(dst)
 	rows, err := s.queryStmt.Query(email)
 	if err != nil {
-		vlog.Errorf("query failed %v", err)
+		ctx.Errorf("query failed %v", err)
 		dst <- databaseEntry{decodeErr: fmt.Errorf("Failed to query for all audits: %v", err)}
 		return
 	}
 	for rows.Next() {
 		var dbentry databaseEntry
 		if err = rows.Scan(&dbentry.email, &dbentry.caveats, &dbentry.timestamp, &dbentry.blessings); err != nil {
-			vlog.Errorf("scan of row failed %v", err)
+			ctx.Errorf("scan of row failed %v", err)
 			dbentry.decodeErr = fmt.Errorf("failed to read sql row, %s", err)
 		}
 		dst <- dbentry

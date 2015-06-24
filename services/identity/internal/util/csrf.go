@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/vom"
-	"v.io/x/lib/vlog"
 )
 
 const (
@@ -26,6 +26,7 @@ const (
 // cross-site-request-forgery prevention (also called XSRF).
 type CSRFCop struct {
 	key []byte
+	ctx *context.T
 }
 
 func (c *CSRFCop) keyForCookie(cookie []byte) []byte {
@@ -34,12 +35,12 @@ func (c *CSRFCop) keyForCookie(cookie []byte) []byte {
 	return hm.Sum(nil)
 }
 
-func NewCSRFCop() (*CSRFCop, error) {
+func NewCSRFCop(ctx *context.T) (*CSRFCop, error) {
 	key := make([]byte, keyLength)
 	if _, err := rand.Read(key); err != nil {
 		return nil, fmt.Errorf("newCSRFCop failed: %v", err)
 	}
-	return &CSRFCop{key}, nil
+	return &CSRFCop{key: key, ctx: ctx}, nil
 }
 
 // NewToken creates an anti-cross-site-request-forgery, aka CSRF aka XSRF token
@@ -84,20 +85,20 @@ func (c *CSRFCop) ValidateToken(token string, req *http.Request, cookieName stri
 	return nil
 }
 
-func (*CSRFCop) MaybeSetCookie(w http.ResponseWriter, req *http.Request, cookieName string) ([]byte, error) {
+func (c *CSRFCop) MaybeSetCookie(w http.ResponseWriter, req *http.Request, cookieName string) ([]byte, error) {
 	cookie, err := req.Cookie(cookieName)
 	switch err {
 	case nil:
 		if v, err := decodeCookieValue(cookie.Value); err == nil {
 			return v, nil
 		}
-		vlog.Infof("Invalid cookie: %#v, err: %v. Regenerating one.", cookie, err)
+		c.ctx.Infof("Invalid cookie: %#v, err: %v. Regenerating one.", cookie, err)
 	case http.ErrNoCookie:
 		// Intentionally blank: Cookie will be generated below.
 	default:
-		vlog.Infof("Error decoding cookie %q in request: %v. Regenerating one.", cookieName, err)
+		c.ctx.Infof("Error decoding cookie %q in request: %v. Regenerating one.", cookieName, err)
 	}
-	cookie, v := newCookie(cookieName)
+	cookie, v := newCookie(c.ctx, cookieName)
 	if cookie == nil || v == nil {
 		return nil, fmt.Errorf("failed to create cookie")
 	}
@@ -108,10 +109,10 @@ func (*CSRFCop) MaybeSetCookie(w http.ResponseWriter, req *http.Request, cookieN
 	return v, nil
 }
 
-func newCookie(cookieName string) (*http.Cookie, []byte) {
+func newCookie(ctx *context.T, cookieName string) (*http.Cookie, []byte) {
 	b := make([]byte, cookieLen)
 	if _, err := rand.Read(b); err != nil {
-		vlog.Errorf("newCookie failed: %v", err)
+		ctx.Errorf("newCookie failed: %v", err)
 		return nil, nil
 	}
 	return &http.Cookie{

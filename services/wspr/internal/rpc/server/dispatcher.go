@@ -7,11 +7,11 @@ package server
 import (
 	"sync"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/lib"
 )
 
@@ -118,14 +118,14 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return invoker, auth, nil
 }
 
-func (d *dispatcher) handleLookupResponse(id int32, data string) {
+func (d *dispatcher) handleLookupResponse(ctx *context.T, id int32, data string) {
 	d.mu.Lock()
 	ch := d.outstandingLookups[id]
 	d.mu.Unlock()
 
 	if ch == nil {
 		d.flowFactory.cleanupFlow(id)
-		vlog.Errorf("unknown invoke request for flow: %d", id)
+		ctx.Errorf("unknown invoke request for flow: %d", id)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	if err := lib.HexVomDecode(data, &lookupReply, d.vomHelper.TypeDecoder()); err != nil {
 		err2 := verror.Convert(verror.ErrInternal, nil, err)
 		lookupReply = LookupReply{Err: err2}
-		vlog.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
+		ctx.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
 	}
 
 	ch <- lookupReply

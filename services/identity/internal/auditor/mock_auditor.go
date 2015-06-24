@@ -7,6 +7,7 @@ package auditor
 import (
 	"reflect"
 
+	"v.io/v23/context"
 	"v.io/x/ref/lib/security/audit"
 )
 
@@ -19,12 +20,12 @@ type mockDatabase struct {
 	NextEntry databaseEntry
 }
 
-func (db *mockDatabase) Insert(entry databaseEntry) error {
+func (db *mockDatabase) Insert(ctx *context.T, entry databaseEntry) error {
 	db.NextEntry = entry
 	return nil
 }
 
-func (db *mockDatabase) Query(email string) <-chan databaseEntry {
+func (db *mockDatabase) Query(ctx *context.T, email string) <-chan databaseEntry {
 	c := make(chan databaseEntry)
 	go func() {
 		var empty databaseEntry

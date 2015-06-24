@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"v.io/v23/context"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/lib"
 
@@ -25,8 +25,9 @@ type response struct {
 
 // Implements clientWriter interface for sending messages over websockets.
 type websocketWriter struct {
-	p  *pipe
-	id int32
+	p   *pipe
+	id  int32
+	ctx *context.T
 }
 
 func (w *websocketWriter) Send(messageType lib.ResponseType, data interface{}) error {
@@ -44,7 +45,7 @@ func (w *websocketWriter) Error(err error) {
 	verr := verror.Convert(verror.ErrUnknown, nil, err)
 
 	// Also log the error but write internal errors at a more severe log level
-	var logLevel vlog.Level = 2
+	logLevel := 2
 	logErr := fmt.Sprintf("%v", verr)
 
 	// Prefix the message with the code locations associated with verr,
@@ -66,7 +67,7 @@ func (w *websocketWriter) Error(err error) {
 	if verror.ErrorID(verr) == verror.ErrInternal.ID {
 		logLevel = 2
 	}
-	vlog.VI(logLevel).Info(logErr)
+	w.ctx.VI(logLevel).Info(logErr)
 
 	w.Send(lib.ResponseError, verr)
 }

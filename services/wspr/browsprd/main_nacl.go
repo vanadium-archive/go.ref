@@ -15,9 +15,11 @@ import (
 	"runtime/ppapi"
 
 	"v.io/v23"
+	"v.io/v23/logging"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/chrome"
 	"v.io/x/ref/runtime/internal/lib/websocket"
@@ -39,13 +41,14 @@ type browsprInstance struct {
 	fs      ppapi.FileSystem
 	browspr *browspr.Browspr
 	channel *channel_nacl.Channel
+	logger  logging.Logger
 }
 
 var _ ppapi.InstanceHandlers = (*browsprInstance)(nil)
 
 func newBrowsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
 	runtime.GOMAXPROCS(4)
-	browsprInst := &browsprInstance{Instance: inst}
+	browsprInst := &browsprInstance{Instance: inst, logger: logger.Global()}
 	browsprInst.initFileSystem()
 
 	// Give the websocket interface the ppapi instance.
@@ -80,15 +83,15 @@ func (inst *browsprInstance) initFileSystem() {
 const browsprDir = "/browspr/data"
 
 func (inst *browsprInstance) loadKeyFromStorage(browsprKeyFile string) (*ecdsa.PrivateKey, error) {
-	vlog.VI(1).Infof("Attempting to read key from file %v", browsprKeyFile)
+	inst.logger.VI(1).Infof("Attempting to read key from file %v", browsprKeyFile)
 
 	rFile, err := inst.fs.Open(browsprKeyFile)
 	if err != nil {
-		vlog.VI(1).Infof("Key not found in file %v", browsprKeyFile)
+		inst.logger.VI(1).Infof("Key not found in file %v", browsprKeyFile)
 		return nil, err
 	}
 
-	vlog.VI(1).Infof("Attempting to load cached browspr ecdsaPrivateKey in file %v", browsprKeyFile)
+	inst.logger.VI(1).Infof("Attempting to load cached browspr ecdsaPrivateKey in file %v", browsprKeyFile)
 	defer rFile.Release()
 	key, err := vsecurity.LoadPEMKey(rFile, nil)
 	if err != nil {
@@ -107,10 +110,10 @@ func (inst *browsprInstance) initKey() (*ecdsa.PrivateKey, error) {
 	if ecdsaKey, err := inst.loadKeyFromStorage(browsprKeyFile); err == nil {
 		return ecdsaKey, nil
 	} else {
-		vlog.VI(1).Infof("inst.loadKeyFromStorage(%v) failed: %v", browsprKeyFile, err)
+		inst.logger.VI(1).Infof("inst.loadKeyFromStorage(%v) failed: %v", browsprKeyFile, err)
 	}
 
-	vlog.VI(1).Infof("Generating new browspr ecdsaPrivateKey")
+	inst.logger.VI(1).Infof("Generating new browspr ecdsaPrivateKey")
 
 	// Generate new keys and store them.
 	var ecdsaKey *ecdsa.PrivateKey
@@ -163,7 +166,7 @@ func (inst *browsprInstance) newPersistantPrincipal(peerNames []string) (securit
 
 	principal, err := inst.newPrincipal(ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
 	if err != nil {
-		vlog.VI(1).Infof("inst.newPrincipal(%v, %v, %v, %v, %v) failed: %v", ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
+		inst.logger.VI(1).Infof("inst.newPrincipal(%v, %v, %v, %v, %v) failed: %v", ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
 
 		// Delete the files and try again.
 		for _, file := range []string{blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig} {
@@ -184,7 +187,7 @@ func decodeAndUnmarshalPublicKey(k string) (security.PublicKey, error) {
 }
 
 func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, error) {
-	vlog.VI(1).Info("Starting Browspr")
+	inst.logger.VI(1).Info("Starting Browspr")
 	var msg browspr.StartMessage
 	if err := vdl.Convert(&msg, val); err != nil {
 		return nil, fmt.Errorf("HandleStartMessage did not receive StartMessage, received: %v, %v", val, err)
@@ -209,10 +212,10 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 			return nil, fmt.Errorf("invalid IdentitydBlessingRoot: Names is empty")
 		}
 
-		vlog.VI(1).Infof("Using blessing roots for identity with key %v and names %v", msg.IdentitydBlessingRoot.PublicKey, msg.IdentitydBlessingRoot.Names)
+		inst.logger.VI(1).Infof("Using blessing roots for identity with key %v and names %v", msg.IdentitydBlessingRoot.PublicKey, msg.IdentitydBlessingRoot.Names)
 		key, err := decodeAndUnmarshalPublicKey(msg.IdentitydBlessingRoot.PublicKey)
 		if err != nil {
-			vlog.Fatalf("decodeAndUnmarshalPublicKey(%v) failed: %v", msg.IdentitydBlessingRoot.PublicKey, err)
+			inst.logger.Fatalf("decodeAndUnmarshalPublicKey(%v) failed: %v", msg.IdentitydBlessingRoot.PublicKey, err)
 		}
 
 		for _, name := range msg.IdentitydBlessingRoot.Names {
@@ -227,7 +230,7 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 			}
 		}
 	} else {
-		vlog.VI(1).Infof("IdentitydBlessingRoot.PublicKey is empty.  Will allow browspr blessing to be shareable with all principals.")
+		inst.logger.VI(1).Infof("IdentitydBlessingRoot.PublicKey is empty.  Will allow browspr blessing to be shareable with all principals.")
 		// Set our blessing as shareable with all peers.
 		if _, err := principal.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
 			return nil, fmt.Errorf("principal.BlessingStore().Set(%v, %v) failed: %v", blessing, security.AllPrincipals, err)
@@ -243,8 +246,11 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 		return nil, err
 	}
 
+	// TODO(cnicolaou): provide a means of configuring logging that
+	// doesn't depend on vlog - e.g. ConfigureFromArgs(args []string) to
+	// pair with ConfigureFromFlags(). See v.io/i/556
 	// Configure logger with level and module from start message.
-	vlog.VI(1).Infof("Configuring vlog with v=%v, modulesSpec=%v", msg.LogLevel, msg.LogModule)
+	inst.logger.VI(1).Infof("Configuring vlog with v=%v, modulesSpec=%v", msg.LogLevel, msg.LogModule)
 	moduleSpec := vlog.ModuleSpec{}
 	moduleSpec.Set(msg.LogModule)
 	if err := vlog.Log.Configure(vlog.OverridePriorConfiguration(true), vlog.Level(msg.LogLevel), moduleSpec); err != nil {
@@ -259,7 +265,7 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 	listenSpec := v23.GetListenSpec(ctx)
 	listenSpec.Proxy = msg.Proxy
 
-	vlog.VI(1).Infof("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
+	inst.logger.VI(1).Infof("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
 	inst.browspr = browspr.NewBrowspr(ctx,
 		inst.BrowsprOutgoingPostMessage,
 		&listenSpec,
@@ -305,7 +311,7 @@ func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, origin strin
 		return fmt.Errorf("Invalid message: %v", err)
 	}
 
-	vlog.VI(1).Infof("Calling browspr's HandleMessage: instanceId %d origin %s message %s", instanceId, origin, msg)
+	inst.logger.VI(1).Infof("Calling browspr's HandleMessage: instanceId %d origin %s message %s", instanceId, origin, msg)
 	if err := inst.browspr.HandleMessage(instanceId, origin, msg); err != nil {
 		return fmt.Errorf("Error while handling message in browspr: %v", err)
 	}
@@ -329,23 +335,23 @@ func (inst *browsprInstance) HandleIntentionalPanic(instanceId int32, origin str
 // HandleBrowsprRpc handles two-way rpc messages of the type "browsprRpc"
 // sending them to the channel's handler.
 func (inst *browsprInstance) HandleBrowsprRpc(instanceId int32, origin string, message ppapi.Var) error {
-	vlog.VI(1).Infof("Got to HandleBrowsprRpc: instanceId: %d origin %s", instanceId, origin)
+	inst.logger.VI(1).Infof("Got to HandleBrowsprRpc: instanceId: %d origin %s", instanceId, origin)
 	inst.channel.HandleMessage(message)
 	return nil
 }
 
 // handleGoError handles error returned by go code.
 func (inst *browsprInstance) handleGoError(err error) {
-	vlog.VI(2).Info(err)
+	inst.logger.VI(2).Info(err)
 	inst.LogString(ppapi.PP_LOGLEVEL_ERROR, fmt.Sprintf("Error in go code: %v", err.Error()))
-	vlog.Error(err)
+	inst.logger.Error(err)
 }
 
 // HandleMessage receives messages from Javascript and uses them to perform actions.
 // A message is of the form {"type": "typeName", "body": { stuff here }},
 // where the body is passed to the message handler.
 func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
-	vlog.VI(2).Infof("Got to HandleMessage")
+	inst.logger.VI(2).Infof("Got to HandleMessage")
 	instanceId, err := message.LookupIntValuedKey("instanceId")
 	if err != nil {
 		inst.handleGoError(err)
@@ -383,38 +389,38 @@ func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
 }
 
 func (inst browsprInstance) DidCreate(args map[string]string) bool {
-	vlog.VI(2).Infof("Got to DidCreate")
+	inst.logger.VI(2).Infof("Got to DidCreate")
 	return true
 }
 
-func (*browsprInstance) DidDestroy() {
-	vlog.VI(2).Infof("Got to DidDestroy()")
+func (inst *browsprInstance) DidDestroy() {
+	inst.logger.VI(2).Infof("Got to DidDestroy()")
 }
 
-func (*browsprInstance) DidChangeView(view ppapi.View) {
-	vlog.VI(2).Infof("Got to DidChangeView(%v)", view)
+func (inst *browsprInstance) DidChangeView(view ppapi.View) {
+	inst.logger.VI(2).Infof("Got to DidChangeView(%v)", view)
 }
 
-func (*browsprInstance) DidChangeFocus(has_focus bool) {
-	vlog.VI(2).Infof("Got to DidChangeFocus(%v)", has_focus)
+func (inst *browsprInstance) DidChangeFocus(has_focus bool) {
+	inst.logger.VI(2).Infof("Got to DidChangeFocus(%v)", has_focus)
 }
 
-func (*browsprInstance) HandleDocumentLoad(url_loader ppapi.Resource) bool {
-	vlog.VI(2).Infof("Got to HandleDocumentLoad(%v)", url_loader)
+func (inst *browsprInstance) HandleDocumentLoad(url_loader ppapi.Resource) bool {
+	inst.logger.VI(2).Infof("Got to HandleDocumentLoad(%v)", url_loader)
 	return true
 }
 
-func (*browsprInstance) HandleInputEvent(event ppapi.InputEvent) bool {
-	vlog.VI(2).Infof("Got to HandleInputEvent(%v)", event)
+func (inst *browsprInstance) HandleInputEvent(event ppapi.InputEvent) bool {
+	inst.logger.VI(2).Infof("Got to HandleInputEvent(%v)", event)
 	return true
 }
 
-func (*browsprInstance) Graphics3DContextLost() {
-	vlog.VI(2).Infof("Got to Graphics3DContextLost()")
+func (inst *browsprInstance) Graphics3DContextLost() {
+	inst.logger.VI(2).Infof("Got to Graphics3DContextLost()")
 }
 
-func (*browsprInstance) MouseLockLost() {
-	vlog.VI(2).Infof("Got to MouseLockLost()")
+func (inst *browsprInstance) MouseLockLost() {
+	inst.logger.VI(2).Infof("Got to MouseLockLost()")
 }
 
 func varToMessage(v ppapi.Var) (app.Message, error) {

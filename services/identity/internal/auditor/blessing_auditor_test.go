@@ -12,9 +12,12 @@ import (
 	"v.io/v23/security"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/audit"
+	"v.io/x/ref/test"
 )
 
 func TestBlessingAuditor(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	auditor, reader := NewMockBlessingAuditor()
 
 	p, err := vsecurity.NewPrincipal()
@@ -58,14 +61,14 @@ func TestBlessingAuditor(t *testing.T) {
 		for _, cav := range test.Caveats {
 			args = append(args, cav)
 		}
-		if err := auditor.Audit(audit.Entry{
+		if err := auditor.Audit(ctx, audit.Entry{
 			Method:    "Bless",
 			Arguments: args,
 			Results:   []interface{}{test.Blessings},
 		}); err != nil {
 			t.Errorf("Failed to audit Blessing %v: %v", test.Blessings, err)
 		}
-		ch := reader.Read("query")
+		ch := reader.Read(ctx, "query")
 		got := <-ch
 		if got.Email != test.Email {
 			t.Errorf("got %v, want %v", got.Email, test.Email)

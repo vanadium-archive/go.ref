@@ -16,6 +16,7 @@ import (
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/lib/testwriter"
 )
@@ -90,6 +91,9 @@ func (mockAuthorizerFactory) createAuthorizer(handle int32, hasAuthorizer bool) 
 }
 
 func TestSuccessfulLookup(t *testing.T) {
+	ctx, cancel := context.RootContext()
+	defer cancel()
+	ctx = context.WithLogger(ctx, logger.Global())
 	flowFactory := &mockFlowFactory{}
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, mockVomHelper{})
 	expectedSig := []signature.Interface{
@@ -105,7 +109,7 @@ func TestSuccessfulLookup(t *testing.T) {
 			HasAuthorizer: false,
 			Signature:     expectedSig,
 		}
-		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply, nil))
+		d.handleLookupResponse(ctx, 0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
 	invoker, auth, err := d.Lookup("a/b")
@@ -139,6 +143,9 @@ func TestSuccessfulLookup(t *testing.T) {
 }
 
 func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
+	ctx, cancel := context.RootContext()
+	defer cancel()
+	ctx = context.WithLogger(ctx, logger.Global())
 	flowFactory := &mockFlowFactory{}
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, mockVomHelper{})
 	expectedSig := []signature.Interface{
@@ -154,7 +161,7 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 			HasAuthorizer: true,
 			Signature:     expectedSig,
 		}
-		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply, nil))
+		d.handleLookupResponse(ctx, 0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
 	invoker, auth, err := d.Lookup("a/b")
@@ -188,6 +195,9 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 }
 
 func TestFailedLookup(t *testing.T) {
+	ctx, cancel := context.RootContext()
+	defer cancel()
+	ctx = context.WithLogger(ctx, logger.Global())
 	flowFactory := &mockFlowFactory{}
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, mockVomHelper{})
 	go func() {
@@ -198,7 +208,7 @@ func TestFailedLookup(t *testing.T) {
 		reply := LookupReply{
 			Err: verror.New(verror.ErrNoExist, nil),
 		}
-		d.handleLookupResponse(0, lib.HexVomEncodeOrDie(reply, nil))
+		d.handleLookupResponse(ctx, 0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
 	_, _, err := d.Lookup("a/b")

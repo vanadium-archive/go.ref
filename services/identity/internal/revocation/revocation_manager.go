@@ -14,7 +14,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
 )
 
 // RevocationManager persists information for revocation caveats to provided discharges and allow for future revocations.
@@ -25,12 +24,12 @@ type RevocationManager interface {
 }
 
 // revocationManager persists information for revocation caveats to provided discharges and allow for future revocations.
-type revocationManager struct{}
+type revocationManager struct{ ctx *context.T }
 
 // NewRevocationManager returns a RevocationManager that persists information about
 // revocationCaveats in a SQL database and allows for revocation and caveat creation.
 // This function can only be called once because of the use of global variables.
-func NewRevocationManager(sqlDB *sql.DB) (RevocationManager, error) {
+func NewRevocationManager(ctx *context.T, sqlDB *sql.DB) (RevocationManager, error) {
 	revocationLock.Lock()
 	defer revocationLock.Unlock()
 	if revocationDB != nil {
@@ -41,7 +40,7 @@ func NewRevocationManager(sqlDB *sql.DB) (RevocationManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &revocationManager{}, nil
+	return &revocationManager{ctx: ctx}, nil
 }
 
 var revocationDB database
@@ -63,10 +62,10 @@ func (r *revocationManager) NewCaveat(discharger security.PublicKey, dischargerL
 	if err != nil {
 		return empty, err
 	}
-	vlog.Infof("revocationDB.InsertCaveat(%s,%v) called", cav.ThirdPartyDetails().ID(), revocation)
+	r.ctx.Infof("revocationDB.InsertCaveat(%s,%v) called", cav.ThirdPartyDetails().ID(), revocation)
 	if err = revocationDB.InsertCaveat(cav.ThirdPartyDetails().ID(), revocation[:]); err != nil {
 		// TODO(suharshs): Remove this log.
-		vlog.Infof("revocationDB.InsertCaveat(%s,%v) failed with %v", cav.ThirdPartyDetails().ID(), revocation, err)
+		r.ctx.Infof("revocationDB.InsertCaveat(%s,%v) failed with %v", cav.ThirdPartyDetails().ID(), revocation, err)
 		return empty, err
 	}
 	return cav, nil

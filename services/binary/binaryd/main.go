@@ -17,7 +17,6 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/netstate"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/xrpc"
@@ -54,7 +53,7 @@ func toIPPort(ctx *context.T, addr string) string {
 	// TODO(caprita): consider using netstate.PossibleAddresses()
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		vlog.Errorf("SplitHostPort(%v) failed: %v", addr, err)
+		ctx.Errorf("SplitHostPort(%v) failed: %v", addr, err)
 		os.Exit(1)
 	}
 	ip := net.ParseIP(host)
@@ -76,7 +75,7 @@ func runBinaryD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return fmt.Errorf("SetupRootDir(%q) failed: %v", rootDirFlag, err)
 	}
-	vlog.Infof("Binary repository rooted at %v", rootDir)
+	ctx.Infof("Binary repository rooted at %v", rootDir)
 
 	listener, err := net.Listen("tcp", httpAddr)
 	if err != nil {
@@ -87,10 +86,10 @@ func runBinaryD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return fmt.Errorf("NewState(%v, %v, %v) failed: %v", rootDir, rootURL, defaultDepth, err)
 	}
-	vlog.Infof("Binary repository HTTP server at: %q", rootURL)
+	ctx.Infof("Binary repository HTTP server at: %q", rootURL)
 	go func() {
 		if err := http.Serve(listener, http.FileServer(binarylib.NewHTTPRoot(ctx, state))); err != nil {
-			vlog.Errorf("Serve() failed: %v", err)
+			ctx.Errorf("Serve() failed: %v", err)
 			os.Exit(1)
 		}
 	}()
@@ -106,9 +105,9 @@ func runBinaryD(ctx *context.T, env *cmdline.Env, args []string) error {
 	defer server.Stop()
 	epName := server.Status().Endpoints[0].Name()
 	if name != "" {
-		vlog.Infof("Binary repository serving at %q (%q)", name, epName)
+		ctx.Infof("Binary repository serving at %q (%q)", name, epName)
 	} else {
-		vlog.Infof("Binary repository serving at %q", epName)
+		ctx.Infof("Binary repository serving at %q", epName)
 	}
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals(ctx)
