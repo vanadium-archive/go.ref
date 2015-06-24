@@ -8,6 +8,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -27,8 +29,33 @@ type sqlDatabase struct {
 }
 
 func (s *sqlDatabase) InsertCaveat(thirdPartyCaveatID string, revocationCaveatID []byte) error {
-	_, err := s.insertCaveatStmt.Exec(thirdPartyCaveatID, hex.EncodeToString(revocationCaveatID))
+	return dumpStackTraceIfTakingTooLong(fmt.Sprintf("InsertCaveat(%v, %v)", thirdPartyCaveatID, revocationCaveatID), func() error {
+		_, err := s.insertCaveatStmt.Exec(thirdPartyCaveatID, hex.EncodeToString(revocationCaveatID))
+		return err
+	})
+}
+
+func dumpStackTraceIfTakingTooLong(tag string, f func() error) error {
+	ch := make(chan error)
+	go dumpStack(ch, tag, time.Now())
+	err := f()
+	ch <- err
+	close(ch)
 	return err
+}
+
+func dumpStack(ch chan error, tag string, start time.Time) {
+	timeout := 5 * time.Minute
+	select {
+	case <-time.After(timeout):
+		fmt.Fprintf(os.Stderr, "%v hasn't completed for %v\n", tag, time.Since(start))
+		fmt.Fprintf(os.Stderr, "Stack trace:\n")
+		pprof.Lookup("goroutine").WriteTo(os.Stderr, 2)
+		fmt.Fprintln(os.Stderr)
+		dumpStack(ch, tag, start)
+	case err := <-ch:
+		fmt.Fprintf(os.Stderr, "%v completed with %v\n", tag, err)
+	}
 }
 
 func (s *sqlDatabase) Revoke(thirdPartyCaveatID string) error {
@@ -37,12 +64,18 @@ func (s *sqlDatabase) Revoke(thirdPartyCaveatID string) error {
 }
 
 func (s *sqlDatabase) IsRevoked(revocationCaveatID []byte) (bool, error) {
-	rows, err := s.isRevokedStmt.Query(hex.EncodeToString(revocationCaveatID))
-	defer rows.Close()
-	if err != nil {
-		return false, err
-	}
-	return rows.Next(), nil
+	var revoked bool
+	err := dumpStackTraceIfTakingTooLong(fmt.Sprintf("IsRevoked(%v)", revocationCaveatID), func() error {
+		rows, err := s.isRevokedStmt.Query(hex.EncodeToString(revocationCaveatID))
+		defer rows.Close()
+		if err != nil {
+			revoked = false
+			return err
+		}
+		revoked = rows.Next()
+		return nil
+	})
+	return revoked, err
 }
 
 func (s *sqlDatabase) RevocationTime(thirdPartyCaveatID string) (*time.Time, error) {
