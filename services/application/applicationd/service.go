@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -72,7 +71,7 @@ func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []s
 	defer i.store.Unlock()
 
 	if version == "" {
-		versions, err := i.allAppVersions(name)
+		versions, err := i.allAppVersionsForProfiles(name, profiles)
 		if err != nil {
 			return empty, err
 		}
@@ -187,20 +186,26 @@ func (i *appRepoService) allApplications() ([]string, error) {
 	return apps, nil
 }
 
-func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
-	profiles, err := i.store.BindObject(naming.Join("/applications", appName)).Children()
-	if err != nil {
-		return nil, err
-	}
+func (i *appRepoService) allAppVersionsForProfiles(appName string, profiles []string) ([]string, error) {
 	uniqueVersions := make(map[string]struct{})
 	for _, profile := range profiles {
 		versions, err := i.store.BindObject(naming.Join("/applications", appName, profile)).Children()
-		if err != nil {
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			continue
+		} else if err != nil {
 			return nil, err
 		}
 		set.String.Union(uniqueVersions, set.String.FromSlice(versions))
 	}
 	return set.String.ToSlice(uniqueVersions), nil
+}
+
+func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
+	profiles, err := i.store.BindObject(naming.Join("/applications", appName)).Children()
+	if err != nil {
+		return nil, err
+	}
+	return i.allAppVersionsForProfiles(appName, profiles)
 }
 
 func (i *appRepoService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
@@ -334,6 +339,64 @@ func setPermissions(ctx *context.T, store *fs.Memstore, path string, perms acces
 	return nil
 }
 
+func (i *appRepoService) tidyRemoveVersions(call rpc.ServerCall, tname, appName, profile string, versions []string) error {
+	for _, v := range versions {
+		path := naming.Join(tname, "/applications", appName, profile, v)
+		object := i.store.BindObject(path)
+		if err := object.Remove(call); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// numberOfVersionsToKeep can be set for tests.
+var numberOfVersionsToKeep = 5
+
 func (i *appRepoService) TidyNow(ctx *context.T, call rpc.ServerCall) error {
-	return fmt.Errorf("method not implemented")
+	ctx.VI(2).Infof("%v.TidyNow()", i.suffix)
+	i.store.Lock()
+	defer i.store.Unlock()
+
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(call)
+	if err != nil {
+		return err
+	}
+
+	apps, err := i.allApplications()
+	if err != nil {
+		return err
+	}
+
+	for _, app := range apps {
+		profiles, err := i.store.BindObject(naming.Join("/applications", app)).Children()
+		if err != nil {
+			return err
+		}
+
+		for _, profile := range profiles {
+			versions, err := i.store.BindObject(naming.Join("/applications", app, profile)).Children()
+			if err != nil {
+				return err
+			}
+
+			lv := len(versions)
+			if lv <= numberOfVersionsToKeep {
+				continue
+			}
+
+			// Per assumption in Match, version names should ascend.
+			sort.Strings(versions)
+			versionsToRemove := versions[0 : lv-numberOfVersionsToKeep]
+			if err := i.tidyRemoveVersions(call, tname, app, profile, versionsToRemove); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := i.store.BindTransaction(tname).Commit(call); err != nil {
+		return verror.New(ErrOperationFailed, ctx)
+	}
+	return nil
+
 }
