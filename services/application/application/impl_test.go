@@ -18,7 +18,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -84,33 +83,33 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Match(_ *context.T, _ rpc.ServerCall, profiles []string) (application.Envelope, error) {
-	vlog.VI(2).Infof("%v.Match(%v) was called", s.suffix, profiles)
+func (s *server) Match(ctx *context.T, _ rpc.ServerCall, profiles []string) (application.Envelope, error) {
+	ctx.VI(2).Infof("%v.Match(%v) was called", s.suffix, profiles)
 	return envelope, nil
 }
 
-func (s *server) Put(_ *context.T, _ rpc.ServerCall, profiles []string, env application.Envelope) error {
-	vlog.VI(2).Infof("%v.Put(%v, %v) was called", s.suffix, profiles, env)
+func (s *server) Put(ctx *context.T, _ rpc.ServerCall, profiles []string, env application.Envelope) error {
+	ctx.VI(2).Infof("%v.Put(%v, %v) was called", s.suffix, profiles, env)
 	return nil
 }
 
-func (s *server) Remove(_ *context.T, _ rpc.ServerCall, profile string) error {
-	vlog.VI(2).Infof("%v.Remove(%v) was called", s.suffix, profile)
+func (s *server) Remove(ctx *context.T, _ rpc.ServerCall, profile string) error {
+	ctx.VI(2).Infof("%v.Remove(%v) was called", s.suffix, profile)
 	return nil
 }
 
-func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
-	vlog.VI(2).Infof("%v.SetPermissions(%v, %v) was called", s, perms, version)
+func (s *server) SetPermissions(ctx *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
+	ctx.VI(2).Infof("%v.SetPermissions(%v, %v) was called", perms, version)
 	return nil
 }
 
-func (s *server) GetPermissions(*context.T, rpc.ServerCall) (access.Permissions, string, error) {
-	vlog.VI(2).Infof("%v.GetPermissions() was called", s)
+func (s *server) GetPermissions(ctx *context.T, _ rpc.ServerCall) (access.Permissions, string, error) {
+	ctx.VI(2).Infof("%v.GetPermissions() was called")
 	return nil, "", nil
 }
 
-func (s *server) TidyNow(*context.T, rpc.ServerCall) error {
-	vlog.VI(2).Infof("%v.TidyNow() was called", s)
+func (s *server) TidyNow(ctx *context.T, _ rpc.ServerCall) error {
+	ctx.VI(2).Infof("%v.TidyNow() was called", s)
 	return nil
 }
 

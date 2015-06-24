@@ -25,7 +25,7 @@ type PermsGetter interface {
 	// Permissions object or a boolean status true indicating that the
 	// Permissions object is intentionally not present. Finally, it returns an
 	// error if anything has gone wrong.
-	PermsForPath(path string) (access.Permissions, bool, error)
+	PermsForPath(ctx *context.T, path string) (access.Permissions, bool, error)
 }
 
 // NewHierarchicalAuthorizer creates a new hierarchicalAuthorizer: one
@@ -40,7 +40,7 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get PermsGetter) (secur
 }
 
 func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T, call security.Call) error {
-	rootPerms, intentionallyEmpty, err := ha.get.PermsForPath(ha.rootDir)
+	rootPerms, intentionallyEmpty, err := ha.get.PermsForPath(ctx, ha.rootDir)
 	if err != nil {
 		return err
 	} else if intentionallyEmpty {
@@ -55,7 +55,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T, call security.Call) 
 
 	// This is not fatal: the childDir may not exist if we are invoking
 	// a Create() method so we only use the root Permissions.
-	childPerms, intentionallyEmpty, err := ha.get.PermsForPath(ha.childDir)
+	childPerms, intentionallyEmpty, err := ha.get.PermsForPath(ctx, ha.childDir)
 	if err != nil {
 		return err
 	} else if intentionallyEmpty {

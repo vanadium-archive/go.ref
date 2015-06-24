@@ -74,6 +74,7 @@ func (p *pipe) createWriter(messageId int32) lib.ClientWriter {
 	return &postMessageWriter{
 		messageId: messageId,
 		p:         p,
+		ctx:       p.browspr.ctx,
 	}
 }
 

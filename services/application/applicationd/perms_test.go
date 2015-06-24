@@ -17,7 +17,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/xrpc"
 	appd "v.io/x/ref/services/application/applicationd"
@@ -31,29 +30,29 @@ import (
 //go:generate v23 test generate
 
 var appRepository = modules.Register(func(env *modules.Env, args ...string) error {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	if len(args) < 2 {
-		vlog.Fatalf("repository expected at least name and store arguments and optionally Permissions flags per PermissionsFromFlag")
+		ctx.Fatalf("repository expected at least name and store arguments and optionally Permissions flags per PermissionsFromFlag")
 	}
 	publishName := args[0]
 	storedir := args[1]
 
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	defer fmt.Fprintf(env.Stdout, "%v terminating\n", publishName)
-	defer vlog.VI(1).Infof("%v terminating", publishName)
+	defer ctx.VI(1).Infof("%v terminating", publishName)
 
 	dispatcher, err := appd.NewDispatcher(storedir)
 	if err != nil {
-		vlog.Fatalf("Failed to create repository dispatcher: %v", err)
+		ctx.Fatalf("Failed to create repository dispatcher: %v", err)
 	}
 	server, err := xrpc.NewDispatchingServer(ctx, publishName, dispatcher)
 	if err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
+		ctx.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
-	vlog.VI(1).Infof("applicationd name: %v", server.Status().Endpoints[0].Name())
+	ctx.VI(1).Infof("applicationd name: %v", server.Status().Endpoints[0].Name())
 
 	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
 	<-signals.ShutdownOnSignals(ctx)
@@ -113,7 +112,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("Accessing the Permission Lists of the root returns a (simulated) list providing default authorization.")
+	ctx.VI(2).Infof("Accessing the Permission Lists of the root returns a (simulated) list providing default authorization.")
 	perms, version, err := repostub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
@@ -141,7 +140,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 		t.Errorf("got %#v, exected %#v ", got, expected)
 	}
 
-	vlog.VI(2).Infof("self attempting to give other permission to update application")
+	ctx.VI(2).Infof("self attempting to give other permission to update application")
 	newPerms := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
 		newPerms.Add("root/self", string(tag))
@@ -245,7 +244,7 @@ func TestPerAppPermissions(t *testing.T) {
 		Binary: application.SignedFile{File: "/v23/name/of/binary"},
 	}
 
-	vlog.VI(2).Info("Upload an envelope")
+	ctx.VI(2).Info("Upload an envelope")
 	v1stub := repository.ApplicationClient("repo/search/v1")
 	if err := v1stub.Put(ctx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
@@ -259,7 +258,7 @@ func TestPerAppPermissions(t *testing.T) {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
-	vlog.VI(2).Info("Self can access Permissions but other can't.")
+	ctx.VI(2).Info("Self can access Permissions but other can't.")
 	expectedSelfPermissions := access.Permissions{
 		"Admin": access.AccessList{
 			In:    []security.BlessingPattern{"root/$", "root/self"},
@@ -290,7 +289,7 @@ func TestPerAppPermissions(t *testing.T) {
 		}
 	}
 
-	vlog.VI(2).Infof("Self sets root Permissions.")
+	ctx.VI(2).Infof("Self sets root Permissions.")
 	repostub := repository.ApplicationClient("repo")
 	newPerms := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
@@ -300,12 +299,12 @@ func TestPerAppPermissions(t *testing.T) {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("Other still can't access anything.")
+	ctx.VI(2).Infof("Other still can't access anything.")
 	if _, _, err = repostub.GetPermissions(otherCtx); err == nil {
 		t.Fatalf("GetPermissions should have failed")
 	}
 
-	vlog.VI(2).Infof("Self gives other full access to repo/search/...")
+	ctx.VI(2).Infof("Self gives other full access to repo/search/...")
 	newPerms, version, err := v1stub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
@@ -346,7 +345,7 @@ func TestPerAppPermissions(t *testing.T) {
 
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
 		stub := repository.ApplicationClient(path)
-		vlog.VI(2).Infof("Other can now access this app independent of version.")
+		ctx.VI(2).Infof("Other can now access this app independent of version.")
 		perms, _, err := stub.GetPermissions(otherCtx)
 		if err != nil {
 			t.Fatalf("GetPermissions should not have failed: %v", err)
@@ -355,13 +354,13 @@ func TestPerAppPermissions(t *testing.T) {
 		if got := perms; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
 			t.Errorf("got %#v, expected %#v ", got, expected)
 		}
-		vlog.VI(2).Infof("Self can also access thanks to hierarchical auth.")
+		ctx.VI(2).Infof("Self can also access thanks to hierarchical auth.")
 		if _, _, err = stub.GetPermissions(ctx); err != nil {
 			t.Fatalf("GetPermissions should not have failed: %v", err)
 		}
 	}
 
-	vlog.VI(2).Infof("But other locations are unaffected and other cannot access.")
+	ctx.VI(2).Infof("But other locations are unaffected and other cannot access.")
 	for _, path := range []string{"repo/naps", "repo/naps/v1"} {
 		stub := repository.ApplicationClient(path)
 		if _, _, err := stub.GetPermissions(otherCtx); err == nil {

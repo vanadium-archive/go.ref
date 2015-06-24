@@ -12,7 +12,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/agent/internal/lru"
 )
 
@@ -31,6 +30,7 @@ const (
 type cachedRoots struct {
 	mu    *sync.RWMutex
 	impl  security.BlessingRoots
+	ctx   *context.T
 	cache map[string][]security.BlessingPattern // GUARDED_BY(mu)
 
 	// TODO(ataly): Get rid of the following fields once all agents have been
@@ -39,8 +39,8 @@ type cachedRoots struct {
 	negative   *lru.Cache // key + blessing -> error
 }
 
-func newCachedRoots(impl security.BlessingRoots, mu *sync.RWMutex) (*cachedRoots, error) {
-	roots := &cachedRoots{mu: mu, impl: impl}
+func newCachedRoots(ctx *context.T, impl security.BlessingRoots, mu *sync.RWMutex) (*cachedRoots, error) {
+	roots := &cachedRoots{mu: mu, impl: impl, ctx: ctx}
 	roots.flush()
 	if err := roots.fetchAndCacheRoots(); err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (r *cachedRoots) Dump() map[security.BlessingPattern][]security.PublicKey {
 	if !cacheExists {
 		r.mu.Lock()
 		if err := r.fetchAndCacheRoots(); err != nil {
-			vlog.Errorf("failed to cache roots: %v", err)
+			r.ctx.Errorf("failed to cache roots: %v", err)
 			r.mu.Unlock()
 			return nil
 		}
@@ -177,7 +177,7 @@ func (r *cachedRoots) dumpFromCache() map[security.BlessingPattern][]security.Pu
 	for keyStr, patterns := range r.cache {
 		key, err := security.UnmarshalPublicKey([]byte(keyStr))
 		if err != nil {
-			vlog.Errorf("security.UnmarshalPublicKey(%v) returned error: %v", []byte(keyStr), err)
+			r.ctx.Errorf("security.UnmarshalPublicKey(%v) returned error: %v", []byte(keyStr), err)
 			return nil
 		}
 		for _, p := range patterns {
@@ -219,6 +219,7 @@ type cachedStore struct {
 	mu     *sync.RWMutex
 	key    security.PublicKey
 	def    security.Blessings
+	ctx    *context.T
 	hasDef bool
 	peers  map[security.BlessingPattern]security.Blessings
 	impl   security.BlessingStore
@@ -265,7 +266,7 @@ func (s *cachedStore) ForPeer(peerBlessings ...string) security.Blessings {
 			if union, err := security.UnionOfBlessings(ret, b); err == nil {
 				ret = union
 			} else {
-				vlog.Errorf("UnionOfBlessings(%v, %v) failed: %v, dropping the latter from BlessingStore.ForPeers(%v)", ret, b, err, peerBlessings)
+				s.ctx.Errorf("UnionOfBlessings(%v, %v) failed: %v, dropping the latter from BlessingStore.ForPeers(%v)", ret, b, err, peerBlessings)
 			}
 		}
 	}
@@ -378,11 +379,16 @@ func (s dummySigner) PublicKey() security.PublicKey {
 
 func NewCachedPrincipal(ctx *context.T, impl security.Principal, call rpc.ClientCall) (p security.Principal, err error) {
 	var mu sync.RWMutex
-	cachedRoots, err := newCachedRoots(impl.Roots(), &mu)
+	cachedRoots, err := newCachedRoots(ctx, impl.Roots(), &mu)
 	if err != nil {
 		return
 	}
-	cachedStore := &cachedStore{mu: &mu, key: impl.PublicKey(), impl: impl.BlessingStore()}
+	cachedStore := &cachedStore{
+		mu:   &mu,
+		key:  impl.PublicKey(),
+		impl: impl.BlessingStore(),
+		ctx:  ctx,
+	}
 	flush := func() {
 		defer mu.Unlock()
 		mu.Lock()
@@ -399,7 +405,7 @@ func NewCachedPrincipal(ctx *context.T, impl security.Principal, call rpc.Client
 		for {
 			if recvErr := call.Recv(&x); recvErr != nil {
 				if ctx.Err() != context.Canceled {
-					vlog.Errorf("Error from agent: %v", recvErr)
+					ctx.Errorf("Error from agent: %v", recvErr)
 				}
 				flush()
 				call.Finish()

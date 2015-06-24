@@ -9,15 +9,20 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+
+	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/test/testutil"
 )
 
 func createRoots() (security.PublicKey, security.BlessingRoots, *cachedRoots) {
 	var mu sync.RWMutex
+	ctx, _ := context.RootContext()
+	ctx = context.WithLogger(ctx, logger.Global())
 	p := testutil.NewPrincipal()
 	impl := p.Roots()
-	roots, err := newCachedRoots(impl, &mu)
+	roots, err := newCachedRoots(ctx, impl, &mu)
 	if err != nil {
 		panic(err)
 	}

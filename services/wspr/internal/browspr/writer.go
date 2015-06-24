@@ -5,6 +5,7 @@
 package browspr
 
 import (
+	"v.io/v23/context"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/lib"
 )
@@ -13,6 +14,7 @@ import (
 type postMessageWriter struct {
 	messageId int32
 	p         *pipe
+	ctx       *context.T
 }
 
 func (w *postMessageWriter) Send(messageType lib.ResponseType, data interface{}) error {

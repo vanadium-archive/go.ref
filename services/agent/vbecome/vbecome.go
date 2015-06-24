@@ -22,7 +22,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
@@ -114,7 +113,7 @@ func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 		return err
 	}
 	if err = os.Setenv(ref.EnvAgentEndpoint, endpoint); err != nil {
-		vlog.Fatalf("setenv: %v", err)
+		ctx.Fatalf("setenv: %v", err)
 	}
 
 	return doExec(args, sock)
@@ -123,27 +122,27 @@ func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 func bless(ctx *context.T, p security.Principal, name string) error {
 	caveat, err := security.NewExpiryCaveat(time.Now().Add(durationFlag))
 	if err != nil {
-		vlog.Errorf("Couldn't create caveat")
+		ctx.Errorf("Couldn't create caveat")
 		return err
 	}
 
 	rp := v23.GetPrincipal(ctx)
 	blessing, err := rp.Bless(p.PublicKey(), rp.BlessingStore().Default(), name, caveat)
 	if err != nil {
-		vlog.Errorf("Couldn't bless")
+		ctx.Errorf("Couldn't bless")
 		return err
 	}
 
 	if err = p.BlessingStore().SetDefault(blessing); err != nil {
-		vlog.Errorf("Couldn't set default blessing")
+		ctx.Errorf("Couldn't set default blessing")
 		return err
 	}
 	if _, err = p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
-		vlog.Errorf("Couldn't set default client blessing")
+		ctx.Errorf("Couldn't set default client blessing")
 		return err
 	}
 	if err = p.AddToRoots(blessing); err != nil {
-		vlog.Errorf("Couldn't set trusted roots")
+		ctx.Errorf("Couldn't set trusted roots")
 		return err
 	}
 	return nil

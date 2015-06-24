@@ -35,8 +35,8 @@ type BlessingEntry struct {
 // NewSQLBlessingAuditor returns an auditor for wrapping a principal with, and a BlessingLogReader
 // for reading the audits made by that auditor. The config is used to construct the connection
 // to the SQL database that the auditor and BlessingLogReader use.
-func NewSQLBlessingAuditor(sqlDB *sql.DB) (audit.Auditor, BlessingLogReader, error) {
-	db, err := newSQLDatabase(sqlDB, "BlessingAudit")
+func NewSQLBlessingAuditor(ctx *context.T, sqlDB *sql.DB) (audit.Auditor, BlessingLogReader, error) {
+	db, err := newSQLDatabase(ctx, sqlDB, "BlessingAudit")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create sql db: %v", err)
 	}

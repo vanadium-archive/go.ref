@@ -112,7 +112,7 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("Failed to setup GoogleOAuth: %v", err)
 	}
 
-	auditor, reader, err := auditor.NewSQLBlessingAuditor(sqlDB)
+	auditor, reader, err := auditor.NewSQLBlessingAuditor(ctx, sqlDB)
 	if err != nil {
 		return fmt.Errorf("Failed to create sql auditor from config: %v", err)
 	}

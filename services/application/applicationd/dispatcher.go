@@ -7,12 +7,12 @@ package main
 import (
 	"path/filepath"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/services/internal/fs"
 	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/repository"
@@ -54,8 +54,8 @@ type applicationPermsStore fs.Memstore
 
 // PermsForPath implements PermsGetter so that applicationd can use the
 // hierarchicalAuthorizer.
-func (store *applicationPermsStore) PermsForPath(path string) (access.Permissions, bool, error) {
-	perms, _, err := getPermissions((*fs.Memstore)(store), path)
+func (store *applicationPermsStore) PermsForPath(ctx *context.T, path string) (access.Permissions, bool, error) {
+	perms, _, err := getPermissions(ctx, (*fs.Memstore)(store), path)
 
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		return nil, true, nil

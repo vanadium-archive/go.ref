@@ -12,7 +12,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/xrpc"
@@ -56,9 +55,9 @@ func runAppD(ctx *context.T, env *cmdline.Env, args []string) error {
 	defer server.Stop()
 	epName := server.Status().Endpoints[0].Name()
 	if name != "" {
-		vlog.Infof("Application repository serving at %q (%q)", name, epName)
+		ctx.Infof("Application repository serving at %q (%q)", name, epName)
 	} else {
-		vlog.Infof("Application repository serving at %q", epName)
+		ctx.Infof("Application repository serving at %q", epName)
 	}
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals(ctx)

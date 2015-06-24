@@ -17,7 +17,6 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
 	"v.io/x/lib/set"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/internal/fs"
 	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/repository"
@@ -62,7 +61,7 @@ func parse(ctx *context.T, suffix string) (string, string, error) {
 }
 
 func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []string) (application.Envelope, error) {
-	vlog.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
+	ctx.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
 	name, version, err := parse(ctx, i.suffix)
 	if err != nil {
@@ -100,7 +99,7 @@ func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []s
 }
 
 func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profiles []string, envelope application.Envelope) error {
-	vlog.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
+	ctx.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
 	name, version, err := parse(ctx, i.suffix)
 	if err != nil {
 		return err
@@ -147,7 +146,7 @@ func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profiles []str
 }
 
 func (i *appRepoService) Remove(ctx *context.T, call rpc.ServerCall, profile string) error {
-	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
+	ctx.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
 	name, version, err := parse(ctx, i.suffix)
 	if err != nil {
 		return err
@@ -204,8 +203,8 @@ func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
 	return set.String.ToSlice(uniqueVersions), nil
 }
 
-func (i *appRepoService) GlobChildren__(*context.T, rpc.ServerCall) (<-chan string, error) {
-	vlog.VI(0).Infof("%v.GlobChildren__()", i.suffix)
+func (i *appRepoService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
+	ctx.VI(0).Infof("%v.GlobChildren__()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
 
@@ -259,7 +258,7 @@ func (i *appRepoService) GetPermissions(ctx *context.T, call rpc.ServerCall) (pe
 	defer i.store.Unlock()
 	path := naming.Join("/acls", name, "data")
 
-	perms, version, err = getPermissions(i.store, path)
+	perms, version, err = getPermissions(ctx, i.store, path)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		return pathperms.NilAuthPermissions(ctx, call.Security()), "", nil
 	}
@@ -275,19 +274,19 @@ func (i *appRepoService) SetPermissions(ctx *context.T, _ rpc.ServerCall, perms 
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", name, "data")
-	return setPermissions(i.store, path, perms, version)
+	return setPermissions(ctx, i.store, path, perms, version)
 }
 
 // getPermissions fetches a Permissions out of the Memstore at the provided path.
 // path is expected to already have been cleaned by naming.Join or its ilk.
-func getPermissions(store *fs.Memstore, path string) (access.Permissions, string, error) {
+func getPermissions(ctx *context.T, store *fs.Memstore, path string) (access.Permissions, string, error) {
 	entry, err := store.BindObject(path).Get(nil)
 
 	if verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
 		// No Permissions exists
 		return nil, "", verror.New(verror.ErrNoExist, nil)
 	} else if err != nil {
-		vlog.Errorf("getPermissions: internal failure in fs.Memstore")
+		ctx.Errorf("getPermissions: internal failure in fs.Memstore")
 		return nil, "", err
 	}
 
@@ -305,9 +304,9 @@ func getPermissions(store *fs.Memstore, path string) (access.Permissions, string
 
 // setPermissions writes a Permissions into the Memstore at the provided path.
 // where path is expected to have already been cleaned by naming.Join.
-func setPermissions(store *fs.Memstore, path string, perms access.Permissions, version string) error {
+func setPermissions(ctx *context.T, store *fs.Memstore, path string, perms access.Permissions, version string) error {
 	if version != "" {
-		_, oversion, err := getPermissions(store, path)
+		_, oversion, err := getPermissions(ctx, store, path)
 		if verror.ErrorID(err) == verror.ErrNoExist.ID {
 			oversion = version
 		} else if err != nil {

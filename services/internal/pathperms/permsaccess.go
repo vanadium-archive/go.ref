@@ -19,7 +19,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/lib/security/serialization"
 )
 
@@ -205,7 +204,7 @@ func write(ctx *context.T, permsFile, sigFile, dir string, perms access.Permissi
 	return nil
 }
 
-func (store *PathStore) PermsForPath(path string) (access.Permissions, bool, error) {
+func (store *PathStore) PermsForPath(ctx *context.T, path string) (access.Permissions, bool, error) {
 	perms, _, err := store.Get(path)
 	if os.IsNotExist(err) {
 		return nil, true, nil

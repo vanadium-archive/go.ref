@@ -23,13 +23,12 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref"
+	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
 	vsignals "v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/agent/internal/server"
-
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/agent/internal/server"
 )
 
 const childAgentFd = 3
@@ -296,7 +295,7 @@ func catchTerminationSignals(stop <-chan bool, state *terminal.State) {
 		// Start on new line in terminal.
 		fmt.Printf("\n")
 		if err := terminal.Restore(int(os.Stdin.Fd()), state); err != successErrno {
-			vlog.Errorf("Failed to restore terminal state (%v), you words may not show up when you type, enter 'stty echo' to fix this.", err)
+			logger.Global().Errorf("Failed to restore terminal state (%v), you words may not show up when you type, enter 'stty echo' to fix this.", err)
 		}
 		os.Exit(-1)
 	case <-stop:

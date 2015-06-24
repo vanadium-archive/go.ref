@@ -24,7 +24,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
@@ -111,12 +110,12 @@ func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.F
 		return nil, err
 	}
 
-	go mgr.readConns(local)
+	go mgr.readConns(ctx, local)
 
 	return client, nil
 }
 
-func (a *keymgr) readConns(conn *net.UnixConn) {
+func (a *keymgr) readConns(ctx *context.T, conn *net.UnixConn) {
 	cache := make(map[keyHandle]keyData)
 	donech := a.ctx.Done()
 	if donech != nil {
@@ -138,7 +137,7 @@ func (a *keymgr) readConns(conn *net.UnixConn) {
 			case <-donech:
 				return
 			default:
-				vlog.Infof("Error accepting connection: %v", err)
+				ctx.Infof("Error accepting connection: %v", err)
 				continue
 			}
 		}
@@ -148,35 +147,35 @@ func (a *keymgr) readConns(conn *net.UnixConn) {
 			if cached, ok := cache[buf]; ok {
 				data = cached
 			} else if data, err = a.readKey(buf); err != nil {
-				vlog.Error(err)
+				ctx.Error(err)
 				continue
 			} else {
 				cache[buf] = data
 			}
 		} else if n == 1 {
 			if buf, data, err = a.newKey(buf[0] == 1); err != nil {
-				vlog.Infof("Error creating key: %v", err)
+				ctx.Infof("Error creating key: %v", err)
 				unixfd.CloseUnixAddr(addr)
 				continue
 			}
 			cache[buf] = data
 			if _, err = conn.Write(buf[:]); err != nil {
-				vlog.Infof("Error sending key handle: %v", err)
+				ctx.Infof("Error sending key handle: %v", err)
 				unixfd.CloseUnixAddr(addr)
 				continue
 			}
 		} else {
-			vlog.Infof("invalid key: %d bytes, expected %d or 1", n, len(buf))
+			ctx.Infof("invalid key: %d bytes, expected %d or 1", n, len(buf))
 			unixfd.CloseUnixAddr(addr)
 			continue
 		}
 		conn, err := dial(addr)
 		if err != nil {
-			vlog.Info(err)
+			ctx.Info(err)
 			continue
 		}
 		if err := startAgent(a.ctx, conn, data.w, data.p); err != nil {
-			vlog.Infof("error starting agent: %v", err)
+			ctx.Infof("error starting agent: %v", err)
 		}
 	}
 }
@@ -240,7 +239,7 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 				case <-donech:
 					return
 				default:
-					vlog.Infof("Error accepting connection: %v", err)
+					ctx.Infof("Error accepting connection: %v", err)
 					continue
 				}
 			}
@@ -253,7 +252,7 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 				// TODO(ribrdb): Shutdown these servers when the connection is closed.
 				s, err := v23.NewServer(ctx, options.SecurityNone)
 				if err != nil {
-					vlog.Infof("Error creating server: %v", err)
+					ctx.Infof("Error creating server: %v", err)
 					ack()
 					continue
 				}
@@ -268,7 +267,7 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 				ack()
 			}
 			if err != nil {
-				vlog.Infof("Error accepting connection: %v", err)
+				ctx.Infof("Error accepting connection: %v", err)
 			}
 		}
 	}()

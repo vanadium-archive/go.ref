@@ -25,7 +25,7 @@ func TestSQLDatabaseQuery(t *testing.T) {
 	columns := []string{"Email", "Caveat", "Timestamp", "Blessings"}
 	sqlmock.ExpectExec("CREATE TABLE IF NOT EXISTS tableName (.+)").
 		WillReturnResult(sqlmock.NewResult(0, 1))
-	d, err := newSQLDatabase(db, "tableName")
+	d, err := newSQLDatabase(ctx, db, "tableName")
 	if err != nil {
 		t.Fatalf("failed to create SQLDatabase: %v", err)
 	}

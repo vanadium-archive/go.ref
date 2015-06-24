@@ -14,7 +14,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
@@ -72,7 +71,7 @@ func serverMain(ctx *context.T) error {
 	if err != nil {
 		return fmt.Errorf("failure creating server: %v", err)
 	}
-	vlog.Info("Waiting for ping")
+	ctx.Info("Waiting for ping")
 	fmt.Printf("NAME=%v\n", s.Status().Endpoints[0].Name())
 	// Wait forever.
 	<-signals.ShutdownOnSignals(ctx)
