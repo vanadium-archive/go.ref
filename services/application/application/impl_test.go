@@ -100,13 +100,18 @@ func (s *server) Remove(_ *context.T, _ rpc.ServerCall, profile string) error {
 }
 
 func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
-	vlog.VI(2).Infof("%v.SetPermissions(%v, %v) was called", perms, version)
+	vlog.VI(2).Infof("%v.SetPermissions(%v, %v) was called", s, perms, version)
 	return nil
 }
 
 func (s *server) GetPermissions(*context.T, rpc.ServerCall) (access.Permissions, string, error) {
-	vlog.VI(2).Infof("%v.GetPermissions() was called")
+	vlog.VI(2).Infof("%v.GetPermissions() was called", s)
 	return nil, "", nil
+}
+
+func (s *server) TidyNow(*context.T, rpc.ServerCall) error {
+	vlog.VI(2).Infof("%v.TidyNow() was called", s)
+	return nil
 }
 
 type dispatcher struct{}

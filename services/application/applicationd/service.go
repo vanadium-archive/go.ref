@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -332,4 +333,8 @@ func setPermissions(store *fs.Memstore, path string, perms access.Permissions, v
 		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
+}
+
+func (i *appRepoService) TidyNow(ctx *context.T, call rpc.ServerCall) error {
+	return fmt.Errorf("method not implemented")
 }
