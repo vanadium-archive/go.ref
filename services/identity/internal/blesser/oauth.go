@@ -64,10 +64,10 @@ func (b *oauthBlesser) BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall
 	if err != nil {
 		return noblessings, "", err
 	}
-	return b.bless(call.Security(), email, clientName)
+	return b.bless(ctx, call.Security(), email, clientName)
 }
 
-func (b *oauthBlesser) bless(call security.Call, email, clientName string) (security.Blessings, string, error) {
+func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientName string) (security.Blessings, string, error) {
 	var noblessings security.Blessings
 	self := call.LocalPrincipal()
 	if self == nil {
@@ -76,7 +76,16 @@ func (b *oauthBlesser) bless(call security.Call, email, clientName string) (secu
 	var caveat security.Caveat
 	var err error
 	if b.revocationManager != nil {
+		// TODO(ashankar,suharshs): Remove: Added for debugging
+		start := time.Now()
 		caveat, err = b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
+		var id string
+		if caveat.ThirdPartyDetails() != nil {
+			id = caveat.ThirdPartyDetails().ID()
+		}
+		if d := time.Since(start); d > time.Second || err != nil {
+			ctx.Infof("NewCaveat took %v and returned error %v (caveat id: %v): (%v <-> %v)", d, err, id, call.RemoteEndpoint(), call.LocalEndpoint())
+		}
 	} else {
 		caveat, err = security.NewExpiryCaveat(time.Now().Add(b.duration))
 	}

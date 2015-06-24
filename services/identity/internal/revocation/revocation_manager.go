@@ -87,7 +87,8 @@ func (r *revocationManager) GetRevocationTime(caveatID string) *time.Time {
 	return timestamp
 }
 
-func isRevoked(_ *context.T, _ security.Call, key []byte) error {
+func isRevoked(ctx *context.T, call security.Call, key []byte) error {
+	start := time.Now()
 	revocationLock.RLock()
 	if revocationDB == nil {
 		revocationLock.RUnlock()
@@ -95,6 +96,13 @@ func isRevoked(_ *context.T, _ security.Call, key []byte) error {
 	}
 	revocationLock.RUnlock()
 	revoked, err := revocationDB.IsRevoked(key)
+	if err != nil {
+		// TODO(ashankar): Remove. Added for debugging.
+		ctx.Infof("IsRevoked(%v) returned %v (%v <-> %v)", key, err, call.RemoteEndpoint(), call.LocalEndpoint())
+	}
+	if d := time.Since(start); d > time.Second {
+		ctx.Infof("IsRevoked(%v) took %v (%v <-> %v)", key, d, call.RemoteEndpoint(), call.LocalEndpoint())
+	}
 	if revoked {
 		return fmt.Errorf("revoked")
 	}
