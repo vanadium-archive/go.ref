@@ -16,16 +16,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"v.io/x/lib/cmdline"
-	deviceimpl "v.io/x/ref/services/device/internal/impl"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/services/device/internal/errors"
 )
 
 // GlobHandler is implemented by each command that wants to execute against name
@@ -247,7 +245,7 @@ var debugNameRE = regexp.MustCompile("/apps/[^/]+/[^/]+/[^/]+/(logs|stats|pprof)
 func getStatus(ctx *context.T, env *cmdline.Env, name string, resultsCh chan<- *GlobResult) {
 	status, err := device.DeviceClient(name).Status(ctx)
 	// Skip non-instances/installations.
-	if verror.ErrorID(err) == deviceimpl.ErrInvalidSuffix.ID {
+	if verror.ErrorID(err) == errors.ErrInvalidSuffix.ID {
 		return
 	}
 	if err != nil {

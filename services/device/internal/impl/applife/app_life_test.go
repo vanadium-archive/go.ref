@@ -26,6 +26,7 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
@@ -205,12 +206,12 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	// Updating the installation to itself is a no-op.
-	utiltest.UpdateAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)
+	utiltest.UpdateAppExpectError(t, ctx, appID, errors.ErrUpdateNoOp.ID)
 
 	// Updating the installation should not work with a mismatched title.
 	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "bogus", 0, 0)
 
-	utiltest.UpdateAppExpectError(t, ctx, appID, impl.ErrAppTitleMismatch.ID)
+	utiltest.UpdateAppExpectError(t, ctx, appID, errors.ErrAppTitleMismatch.ID)
 
 	// Create a second version of the app and update the app to it.
 	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, utiltest.App, "google naps", 0, 0, "appV2")
@@ -249,7 +250,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	// Trying to update first instance while it's running should fail.
-	utiltest.UpdateInstanceExpectError(t, ctx, appID, instance1ID, impl.ErrInvalidOperation.ID)
+	utiltest.UpdateInstanceExpectError(t, ctx, appID, instance1ID, errors.ErrInvalidOperation.ID)
 	// Stop first instance and try again.
 	utiltest.KillApp(t, ctx, appID, instance1ID)
 	// Only the second instance should still be running and mounted, don't retry.
@@ -268,7 +269,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.Resolve(t, ctx, "appV2", 1, false)
 
 	// Reverting first instance fails since it's still running.
-	utiltest.RevertAppExpectError(t, ctx, appID+"/"+instance1ID, impl.ErrInvalidOperation.ID)
+	utiltest.RevertAppExpectError(t, ctx, appID+"/"+instance1ID, errors.ErrInvalidOperation.ID)
 	// Stop first instance and try again.
 	utiltest.KillApp(t, ctx, appID, instance1ID)
 	verifyAppWorkspace(t, root, appID, instance1ID)
@@ -296,7 +297,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.ResolveExpectNotFound(t, ctx, "appV1", true)
 
 	// Reverting second instance is a no-op since it's already running v1.
-	utiltest.RevertAppExpectError(t, ctx, appID+"/"+instance2ID, impl.ErrUpdateNoOp.ID)
+	utiltest.RevertAppExpectError(t, ctx, appID+"/"+instance2ID, errors.ErrUpdateNoOp.ID)
 
 	// Stop third instance.
 	utiltest.TerminateApp(t, ctx, appID, instance3ID)
@@ -319,20 +320,20 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.ResolveExpectNotFound(t, ctx, "appV1", true)
 
 	// We are already on the first version, no further revert possible.
-	utiltest.RevertAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)
+	utiltest.RevertAppExpectError(t, ctx, appID, errors.ErrUpdateNoOp.ID)
 
 	// Uninstall the app.
 	utiltest.UninstallApp(t, ctx, appID)
 	utiltest.VerifyState(t, ctx, device.InstallationStateUninstalled, appID)
 
 	// Updating the installation should no longer be allowed.
-	utiltest.UpdateAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
+	utiltest.UpdateAppExpectError(t, ctx, appID, errors.ErrInvalidOperation.ID)
 
 	// Reverting the installation should no longer be allowed.
-	utiltest.RevertAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
+	utiltest.RevertAppExpectError(t, ctx, appID, errors.ErrInvalidOperation.ID)
 
 	// Starting new instances should no longer be allowed.
-	utiltest.LaunchAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
+	utiltest.LaunchAppExpectError(t, ctx, appID, errors.ErrInvalidOperation.ID)
 
 	// Make sure that Kill will actually kill an app that doesn't exit
 	// cleanly Do this by installing, instantiating, running, and killing

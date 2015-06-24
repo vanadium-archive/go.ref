@@ -16,7 +16,7 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/lib/cmdline"
-	deviceimpl "v.io/x/ref/services/device/internal/impl"
+	"v.io/x/ref/services/device/internal/errors"
 )
 
 var cmdUpdate = &cmdline.Command{
@@ -102,7 +102,7 @@ func changeVersionInstance(ctx *context.T, stdout, stderr io.Writer, name string
 	case err == nil:
 		fmt.Fprintf(stdout, "Successful %s of version for instance \"%s\".\n", revertOrUpdate[revert], name)
 		return nil
-	case verror.ErrorID(err) == deviceimpl.ErrUpdateNoOp.ID:
+	case verror.ErrorID(err) == errors.ErrUpdateNoOp.ID:
 		// TODO(caprita): Ideally, we wouldn't even attempt a kill /
 		// restart if the update/revert is a no-op.
 		fmt.Fprintf(stdout, "Instance \"%s\": %s.\n", name, revertOrUpdateNoOp[revert])
@@ -123,7 +123,7 @@ func changeVersionOne(ctx *context.T, what string, stdout, stderr io.Writer, nam
 	case err == nil:
 		fmt.Fprintf(stdout, "Successful %s of version for %s \"%s\".\n", revertOrUpdate[revert], what, name)
 		return nil
-	case verror.ErrorID(err) == deviceimpl.ErrUpdateNoOp.ID:
+	case verror.ErrorID(err) == errors.ErrUpdateNoOp.ID:
 		fmt.Fprintf(stdout, "%s \"%s\": %s.\n", what, name, revertOrUpdateNoOp[revert])
 		return nil
 	default:

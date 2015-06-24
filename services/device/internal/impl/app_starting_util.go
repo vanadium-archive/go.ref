@@ -22,6 +22,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/device/internal/suid"
 )
 
@@ -93,7 +94,7 @@ func (a *appHandshaker) cleanup() {
 // the app is started so that the app will inherit the file descriptor
 func (a *appHandshaker) prepareToStart(ctx *context.T, cmd *exec.Cmd) error {
 	if suid.PipeToParentFD != (len(cmd.ExtraFiles) + vexec.FileOffset) {
-		return verror.New(ErrOperationFailed, ctx,
+		return verror.New(errors.ErrOperationFailed, ctx,
 			fmt.Sprintf("FD expected by helper (%v) was not available (%v) (%v)",
 				suid.PipeToParentFD, len(cmd.ExtraFiles), vexec.FileOffset))
 	}
@@ -124,7 +125,7 @@ func (a *appHandshaker) doHandshake(handle *vexec.ParentHandle, listener callbac
 	var pid32 int32
 	if err := binary.Read(a.helperRead, binary.LittleEndian, &pid32); err != nil {
 		vlog.Errorf("Error reading app pid from child: %v", err)
-		return 0, "", verror.New(ErrOperationFailed, a.ctx, fmt.Sprintf("failed to read pid from helper: %v", err))
+		return 0, "", verror.New(errors.ErrOperationFailed, a.ctx, fmt.Sprintf("failed to read pid from helper: %v", err))
 	}
 	pidFromHelper := int(pid32)
 	vlog.VI(1).Infof("read app pid %v from child", pidFromHelper)
@@ -142,7 +143,7 @@ func (a *appHandshaker) doHandshake(handle *vexec.ParentHandle, listener callbac
 	childReadyErrChan := make(chan error, 1)
 	go func() {
 		if err := handle.WaitForReady(childReadyTimeout); err != nil {
-			childReadyErrChan <- verror.New(ErrOperationFailed, a.ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
+			childReadyErrChan <- verror.New(errors.ErrOperationFailed, a.ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
 		}
 		childReadyErrChan <- nil
 	}()
@@ -153,7 +154,7 @@ func (a *appHandshaker) doHandshake(handle *vexec.ParentHandle, listener callbac
 
 	select {
 	case <-pidExitedChan:
-		return 0, "", verror.New(ErrOperationFailed, a.ctx,
+		return 0, "", verror.New(errors.ErrOperationFailed, a.ctx,
 			fmt.Sprintf("App exited (pid %d)", pidFromHelper))
 
 	case err := <-childReadyErrChan:
@@ -169,7 +170,7 @@ func (a *appHandshaker) doHandshake(handle *vexec.ParentHandle, listener callbac
 	if pidFromHelper != pidFromChild {
 		// Something nasty is going on (the child may be lying).
 		suidHelper.terminatePid(pidFromHelper, nil, nil)
-		return 0, "", verror.New(ErrOperationFailed, a.ctx,
+		return 0, "", verror.New(errors.ErrOperationFailed, a.ctx,
 			fmt.Sprintf("Child pids do not match! (%d != %d)", pidFromHelper, pidFromChild))
 	}
 
@@ -177,7 +178,7 @@ func (a *appHandshaker) doHandshake(handle *vexec.ParentHandle, listener callbac
 	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
 		suidHelper.terminatePid(pidFromHelper, nil, nil)
-		return 0, "", verror.New(ErrOperationFailed, a.ctx,
+		return 0, "", verror.New(errors.ErrOperationFailed, a.ctx,
 			fmt.Sprintf("Waiting for child name: %v", err))
 	}
 

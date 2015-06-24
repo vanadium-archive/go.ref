@@ -19,6 +19,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/device/internal/errors"
 )
 
 type callbackState struct {
@@ -72,9 +73,9 @@ func (l *listener) waitForValue(timeout time.Duration) (string, error) {
 	case value := <-l.ch:
 		return value, nil
 	case <-time.After(timeout):
-		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("Waiting for callback timed out after %v", timeout))
+		return "", verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Waiting for callback timed out after %v", timeout))
 	case <-l.stopper:
-		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("Stopped while waiting for callack"))
+		return "", verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Stopped while waiting for callack"))
 	}
 }
 
@@ -143,7 +144,7 @@ func (i *configService) Set(_ *context.T, _ rpc.ServerCall, key, value string) e
 	i.callback.Lock()
 	if _, ok := i.callback.channels[id]; !ok {
 		i.callback.Unlock()
-		return verror.New(ErrInvalidSuffix, nil)
+		return verror.New(errors.ErrInvalidSuffix, nil)
 	}
 	channel, ok := i.callback.channels[id][key]
 	i.callback.Unlock()

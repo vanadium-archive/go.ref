@@ -16,7 +16,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-
+	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
@@ -75,7 +75,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	//installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
 
 	// Claim the device with an incorrect pairing token should fail.
-	utiltest.ClaimDeviceExpectError(t, claimantCtx, "claimable", "mydevice", "badtoken", impl.ErrInvalidPairingToken.ID)
+	utiltest.ClaimDeviceExpectError(t, claimantCtx, "claimable", "mydevice", "badtoken", errors.ErrInvalidPairingToken.ID)
 	// But succeed with a valid pairing token
 	utiltest.ClaimDevice(t, claimantCtx, "claimable", "dm", "mydevice", pairingToken)
 

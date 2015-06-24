@@ -15,15 +15,15 @@ import (
 	"syscall"
 	"testing"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref"
 	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/binarylib"
@@ -144,8 +144,8 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Simulate an invalid envelope in the application repository.
 	*envelope = utiltest.EnvelopeFromShell(sh, dmPauseBeforeStopEnv, utiltest.DeviceManager, "bogus", 0, 0, dmArgs...)
 
-	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", impl.ErrAppTitleMismatch.ID)
-	utiltest.RevertDeviceExpectError(t, ctx, "factoryDM", impl.ErrUpdateNoOp.ID)
+	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", errors.ErrAppTitleMismatch.ID)
+	utiltest.RevertDeviceExpectError(t, ctx, "factoryDM", errors.ErrUpdateNoOp.ID)
 
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
@@ -167,7 +167,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 	v2 := utiltest.VerifyDeviceState(t, ctx, device.InstanceStateUpdating, "factoryDM")
 
-	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", impl.ErrOperationInProgress.ID)
+	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", errors.ErrOperationInProgress.ID)
 
 	dmh.CloseStdin()
 
@@ -187,7 +187,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Try issuing an update without changing the envelope in the
 	// application repository: this should fail, and current link should be
 	// unchanged.
-	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", impl.ErrUpdateNoOp.ID)
+	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", errors.ErrUpdateNoOp.ID)
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
@@ -196,7 +196,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// number. It should fail.
 	utiltest.ResolveExpectNotFound(t, ctx, "v2.5DM", false) // Ensure a clean slate.
 	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerV10, application.DeviceManagerTitle, 0, 0, "v2.5DM")
-	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
+	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", errors.ErrOperationFailed.ID)
 
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
@@ -232,7 +232,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// Revert the device manager to its previous version (v2).
 	utiltest.RevertDevice(t, ctx, "v3DM")
-	utiltest.RevertDeviceExpectError(t, ctx, "v3DM", impl.ErrOperationInProgress.ID) // Revert already in progress.
+	utiltest.RevertDeviceExpectError(t, ctx, "v3DM", errors.ErrOperationInProgress.ID) // Revert already in progress.
 	dmh.CloseStdin()
 	dmh.Expect("restart handler")
 	dmh.Expect("v3DM terminated")
@@ -329,7 +329,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	dms := expect.NewSession(t, stdout, servicetest.ExpectTimeout)
 	servicetest.ReadPID(t, dms)
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
-	utiltest.RevertDeviceExpectError(t, ctx, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
+	utiltest.RevertDeviceExpectError(t, ctx, "dm", errors.ErrUpdateNoOp.ID) // No previous version available.
 
 	// Stop the device manager.
 	if err := impl.Stop(ctx, dmDir, os.Stderr, os.Stdout); err != nil {

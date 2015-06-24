@@ -150,6 +150,7 @@ import (
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/packages"
 	"v.io/x/ref/services/internal/pathperms"
 )
@@ -167,11 +168,11 @@ type instanceInfo struct {
 func saveInstanceInfo(ctx *context.T, dir string, info *instanceInfo) error {
 	jsonInfo, err := json.Marshal(info)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", info, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", info, err))
 	}
 	infoPath := filepath.Join(dir, "info")
 	if err := ioutil.WriteFile(infoPath, jsonInfo, 0600); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", infoPath, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", infoPath, err))
 	}
 	return nil
 }
@@ -180,9 +181,9 @@ func loadInstanceInfo(ctx *context.T, dir string) (*instanceInfo, error) {
 	infoPath := filepath.Join(dir, "info")
 	info := new(instanceInfo)
 	if infoBytes, err := ioutil.ReadFile(infoPath); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", infoPath, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", infoPath, err))
 	} else if err := json.Unmarshal(infoBytes, info); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", infoBytes, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", infoBytes, err))
 	}
 	return info, nil
 }
@@ -223,11 +224,11 @@ type appService struct {
 func saveEnvelope(ctx *context.T, dir string, envelope *application.Envelope) error {
 	jsonEnvelope, err := json.Marshal(envelope)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", envelope, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", envelope, err))
 	}
 	path := filepath.Join(dir, "envelope")
 	if err := ioutil.WriteFile(path, jsonEnvelope, 0600); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
@@ -236,9 +237,9 @@ func loadEnvelope(ctx *context.T, dir string) (*application.Envelope, error) {
 	path := filepath.Join(dir, "envelope")
 	envelope := new(application.Envelope)
 	if envelopeBytes, err := ioutil.ReadFile(path); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	} else if err := json.Unmarshal(envelopeBytes, envelope); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", envelopeBytes, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", envelopeBytes, err))
 	}
 	return envelope, nil
 }
@@ -247,7 +248,7 @@ func loadEnvelopeForInstance(ctx *context.T, instanceDir string) (*application.E
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	return loadEnvelope(ctx, versionDir)
 }
@@ -255,11 +256,11 @@ func loadEnvelopeForInstance(ctx *context.T, instanceDir string) (*application.E
 func saveConfig(ctx *context.T, dir string, config device.Config) error {
 	jsonConfig, err := json.Marshal(config)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", config, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", config, err))
 	}
 	path := filepath.Join(dir, "config")
 	if err := ioutil.WriteFile(path, jsonConfig, 0600); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
@@ -268,9 +269,9 @@ func loadConfig(ctx *context.T, dir string) (device.Config, error) {
 	path := filepath.Join(dir, "config")
 	var config device.Config
 	if configBytes, err := ioutil.ReadFile(path); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	} else if err := json.Unmarshal(configBytes, &config); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", configBytes, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", configBytes, err))
 	}
 	return config, nil
 }
@@ -278,11 +279,11 @@ func loadConfig(ctx *context.T, dir string) (device.Config, error) {
 func savePackages(ctx *context.T, dir string, packages application.Packages) error {
 	jsonPackages, err := json.Marshal(packages)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", packages, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", packages, err))
 	}
 	path := filepath.Join(dir, "packages")
 	if err := ioutil.WriteFile(path, jsonPackages, 0600); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
@@ -291,9 +292,9 @@ func loadPackages(ctx *context.T, dir string) (application.Packages, error) {
 	path := filepath.Join(dir, "packages")
 	var packages application.Packages
 	if packagesBytes, err := ioutil.ReadFile(path); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	} else if err := json.Unmarshal(packagesBytes, &packages); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", packagesBytes, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", packagesBytes, err))
 	}
 	return packages, nil
 }
@@ -301,7 +302,7 @@ func loadPackages(ctx *context.T, dir string) (application.Packages, error) {
 func saveOrigin(ctx *context.T, dir, originVON string) error {
 	path := filepath.Join(dir, "origin")
 	if err := ioutil.WriteFile(path, []byte(originVON), 0600); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
@@ -309,7 +310,7 @@ func saveOrigin(ctx *context.T, dir, originVON string) error {
 func loadOrigin(ctx *context.T, dir string) (string, error) {
 	path := filepath.Join(dir, "origin")
 	if originBytes, err := ioutil.ReadFile(path); err != nil {
-		return "", verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
+		return "", verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	} else {
 		return string(originBytes), nil
 	}
@@ -375,7 +376,7 @@ func fetchAppEnvelope(ctx *context.T, origin string) (*application.Envelope, err
 	if envelope.Title == application.DeviceManagerTitle {
 		// Disallow device manager apps from being installed like a
 		// regular app.
-		return nil, verror.New(ErrInvalidOperation, ctx, "DeviceManager apps cannot be installed")
+		return nil, verror.New(errors.ErrInvalidOperation, ctx, "DeviceManager apps cannot be installed")
 	}
 	return envelope, nil
 }
@@ -384,14 +385,14 @@ func fetchAppEnvelope(ctx *context.T, origin string) (*application.Envelope, err
 func newVersion(ctx *context.T, installationDir string, envelope *application.Envelope, oldVersionDir string) (string, error) {
 	versionDir := filepath.Join(installationDir, generateVersionDirName())
 	if err := mkdirPerm(versionDir, 0711); err != nil {
-		return "", verror.New(ErrOperationFailed, ctx, err)
+		return "", verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	if err := saveEnvelope(ctx, versionDir, envelope); err != nil {
 		return versionDir, err
 	}
 	pkgDir := filepath.Join(versionDir, "pkg")
 	if err := mkdir(pkgDir); err != nil {
-		return "", verror.New(ErrOperationFailed, ctx, err)
+		return "", verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	publisher := envelope.Publisher
 	// TODO(caprita): Share binaries if already existing locally.
@@ -402,15 +403,15 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 		return versionDir, err
 	}
 	if err := installPackages(ctx, installationDir, versionDir); err != nil {
-		return versionDir, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("installPackages(%v, %v) failed: %v", installationDir, versionDir, err))
+		return versionDir, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("installPackages(%v, %v) failed: %v", installationDir, versionDir, err))
 	}
 	if err := os.RemoveAll(pkgDir); err != nil {
-		return versionDir, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("RemoveAll(%v) failed: %v", pkgDir, err))
+		return versionDir, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("RemoveAll(%v) failed: %v", pkgDir, err))
 	}
 	if oldVersionDir != "" {
 		previousLink := filepath.Join(versionDir, "previous")
 		if err := os.Symlink(oldVersionDir, previousLink); err != nil {
-			return versionDir, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", oldVersionDir, previousLink, err))
+			return versionDir, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", oldVersionDir, previousLink, err))
 		}
 	}
 	// updateLink should be the last thing we do, after we've ensured the
@@ -421,7 +422,7 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 
 func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
 	if len(i.suffix) > 0 {
-		return "", verror.New(ErrInvalidSuffix, ctx)
+		return "", verror.New(errors.ErrInvalidSuffix, ctx)
 	}
 	ctx, cancel := context.WithTimeout(ctx, rpcContextLongTimeout)
 	defer cancel()
@@ -435,7 +436,7 @@ func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON
 		CleanupDir(installationDir, "")
 	}
 	if err := mkdirPerm(installationDir, 0711); err != nil {
-		return "", verror.New(ErrOperationFailed, nil)
+		return "", verror.New(errors.ErrOperationFailed, nil)
 	}
 	defer func() {
 		if deferrer != nil {
@@ -457,7 +458,7 @@ func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON
 	}
 	pkgDir := filepath.Join(installationDir, "pkg")
 	if err := mkdir(pkgDir); err != nil {
-		return "", verror.New(ErrOperationFailed, ctx, err)
+		return "", verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	// We use a zero value publisher, meaning that any signatures present in the
 	// package files are not verified.
@@ -494,7 +495,7 @@ func openWriteFile(path string) (*os.File, error) {
 // TODO(gauthamt): Make sure we pass the context to installationDirCore.
 func installationDirCore(components []string, root string) (string, error) {
 	if nComponents := len(components); nComponents != 2 {
-		return "", verror.New(ErrInvalidSuffix, nil)
+		return "", verror.New(errors.ErrInvalidSuffix, nil)
 	}
 	app, installation := components[0], components[1]
 	installationDir := filepath.Join(root, applicationDirName(app), installationDirName(installation))
@@ -502,7 +503,7 @@ func installationDirCore(components []string, root string) (string, error) {
 		if os.IsNotExist(err) {
 			return "", verror.New(verror.ErrNoExist, nil, naming.Join(components...))
 		}
-		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("Stat(%v) failed: %v", installationDir, err))
+		return "", verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Stat(%v) failed: %v", installationDir, err))
 	}
 	return installationDir, nil
 }
@@ -544,11 +545,11 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 		// instance, we should tell the agent to drop the principal.
 		handle, conn, err := securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
 		if err != nil {
-			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("NewPrincipal() failed %v", err))
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("NewPrincipal() failed %v", err))
 		}
 		var cancel func()
 		if p, cancel, err = agentPrincipal(ctx, conn); err != nil {
-			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("agentPrincipal failed: %v", err))
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("agentPrincipal failed: %v", err))
 		}
 		defer cancel()
 		info.SecurityAgentHandle = handle
@@ -561,40 +562,40 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 		// Use the suidhelper to chown it.
 		var err error
 		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
-			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
 		}
 	}
 	mPubKey, err := p.PublicKey().MarshalBinary()
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("PublicKey().MarshalBinary() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("PublicKey().MarshalBinary() failed: %v", err))
 	}
 	if err := call.SendStream().Send(device.BlessServerMessageInstancePublicKey{Value: mPubKey}); err != nil {
 		return err
 	}
 	if !call.RecvStream().Advance() {
-		return verror.New(ErrInvalidBlessing, ctx, fmt.Sprintf("no blessings on stream: %v", call.RecvStream().Err()))
+		return verror.New(errors.ErrInvalidBlessing, ctx, fmt.Sprintf("no blessings on stream: %v", call.RecvStream().Err()))
 	}
 	msg := call.RecvStream().Value()
 	appBlessingsFromInstantiator, ok := msg.(device.BlessClientMessageAppBlessings)
 	if !ok {
-		return verror.New(ErrInvalidBlessing, ctx, fmt.Sprintf("wrong message type: %#v", msg))
+		return verror.New(errors.ErrInvalidBlessing, ctx, fmt.Sprintf("wrong message type: %#v", msg))
 	}
 	// Should we move this after the addition of publisher blessings, and thus allow
 	// apps to run with only publisher blessings?
 	if appBlessingsFromInstantiator.Value.IsZero() {
-		return verror.New(ErrInvalidBlessing, ctx)
+		return verror.New(errors.ErrInvalidBlessing, ctx)
 	}
 	if err := p.BlessingStore().SetDefault(appBlessingsFromInstantiator.Value); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.SetDefault() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.SetDefault() failed: %v", err))
 	}
 	// If there were any publisher blessings in the envelope, add those to the set of blessings
 	// sent to servers by default
 	appBlessings, err := addPublisherBlessings(ctx, instanceDir, p, appBlessingsFromInstantiator.Value)
 	if _, err := p.BlessingStore().Set(appBlessings, security.AllPrincipals); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
 	if err := p.AddToRoots(appBlessings); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	// In addition, we give the app separate blessings for the purpose of
 	// communicating with the device manager.
@@ -612,7 +613,7 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 	// back to the device manager.
 	for n, _ := range dmPrincipal.BlessingsInfo(dmPrincipal.BlessingStore().Default()) {
 		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(n)); err != nil {
-			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 		}
 	}
 	// We also want to override the app cycle manager's server blessing in
@@ -621,14 +622,14 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 	// to extract the right blessing to use from its store for this purpose.
 	randomPattern, err := generateRandomString()
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("generateRandomString() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("generateRandomString() failed: %v", err))
 	}
 	if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(randomPattern)); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
 	info.DeviceManagerPeerPattern = randomPattern
 	if err := p.AddToRoots(dmBlessings); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	return nil
 }
@@ -648,7 +649,7 @@ func addPublisherBlessings(ctx *context.T, instanceDir string, p security.Princi
 		vlog.VI(2).Infof("adding publisher blessing %v for app %v", s, envelope.Title)
 		tmpBlessing, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "a/"+s, security.UnconstrainedUse())
 		if b, err = security.UnionOfBlessings(b, tmpBlessing); err != nil {
-			return b, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("UnionOfBlessings failed: %v %v", b, tmpBlessing))
+			return b, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("UnionOfBlessings failed: %v %v", b, tmpBlessing))
 		}
 	}
 
@@ -715,34 +716,34 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 		return "", "", err
 	}
 	if !installationStateIs(installationDir, device.InstallationStateActive) {
-		return "", "", verror.New(ErrInvalidOperation, ctx)
+		return "", "", verror.New(errors.ErrInvalidOperation, ctx)
 	}
 	instanceID := generateID()
 	instanceDir := filepath.Join(installationDir, "instances", instanceDirName(instanceID))
 	// Set permissions for app to have access.
 	if mkdirPerm(instanceDir, 0711) != nil {
-		return "", "", verror.New(ErrOperationFailed, ctx)
+		return "", "", verror.New(errors.ErrOperationFailed, ctx)
 	}
 	rootDir := filepath.Join(instanceDir, "root")
 	if err := mkdir(rootDir); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, err)
+		return instanceDir, instanceID, verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	installationLink := filepath.Join(instanceDir, "installation")
 	if err := os.Symlink(installationDir, installationLink); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", installationDir, installationLink, err))
+		return instanceDir, instanceID, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", installationDir, installationLink, err))
 	}
 	currLink := filepath.Join(installationDir, "current")
 	versionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
+		return instanceDir, instanceID, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
 	}
 	versionLink := filepath.Join(instanceDir, "version")
 	if err := os.Symlink(versionDir, versionLink); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err))
+		return instanceDir, instanceID, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err))
 	}
 	packagesDir, packagesLink := filepath.Join(versionLink, "packages"), filepath.Join(rootDir, "packages")
 	if err := os.Symlink(packagesDir, packagesLink); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
+		return instanceDir, instanceID, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
 	}
 	instanceInfo := new(instanceInfo)
 	if err := setupPrincipal(ctx, instanceDir, call, i.runner.securityAgent, instanceInfo); err != nil {
@@ -777,7 +778,7 @@ func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	envelope, err := loadEnvelope(ctx, versionDir)
 	if err != nil {
@@ -785,7 +786,7 @@ func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error
 	}
 	binPath := filepath.Join(versionDir, "bin")
 	if _, err := os.Stat(binPath); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Stat(%v) failed: %v", binPath, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Stat(%v) failed: %v", binPath, err))
 	}
 
 	saArgs := suidAppCmdArgs{targetUser: systemName, binpath: binPath}
@@ -821,11 +822,11 @@ func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error
 
 	stdoutLog := filepath.Join(logDir, fmt.Sprintf("STDOUT-%d", timestamp))
 	if saArgs.stdout, err = openWriteFile(stdoutLog); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("OpenFile(%v) failed: %v", stdoutLog, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("OpenFile(%v) failed: %v", stdoutLog, err))
 	}
 	stderrLog := filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp))
 	if saArgs.stderr, err = openWriteFile(stderrLog); err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("OpenFile(%v) failed: %v", stderrLog, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("OpenFile(%v) failed: %v", stderrLog, err))
 	}
 
 	// Args to be passed by helper to the app.
@@ -849,7 +850,7 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	installationLink := filepath.Join(instanceDir, "installation")
 	installationDir, err := filepath.EvalSymlinks(installationLink)
 	if err != nil {
-		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", installationLink, err))
+		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", installationLink, err))
 	}
 	config, err := loadConfig(ctx, installationDir)
 	if err != nil {
@@ -915,13 +916,13 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	}
 	// Now react to any error in handle.Start()
 	if startErr != nil {
-		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
+		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
 	}
 
 	// Wait for the suidhelper to exit. This is blocking as we assume the
 	// helper won't get stuck.
 	if err := handle.Wait(0); err != nil {
-		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Wait() on suidhelper failed: %v", err))
+		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Wait() on suidhelper failed: %v", err))
 	}
 
 	pid, childName, err := handshaker.doHandshake(handle, listener)
@@ -1031,7 +1032,7 @@ func (i *appService) Instantiate(ctx *context.T, call device.ApplicationInstanti
 // TODO(gauthamt): Make sure we pass the context to instanceDir.
 func instanceDir(root string, suffix []string) (string, error) {
 	if nComponents := len(suffix); nComponents != 3 {
-		return "", verror.New(ErrInvalidSuffix, nil)
+		return "", verror.New(errors.ErrInvalidSuffix, nil)
 	}
 	app, installation, instance := suffix[0], suffix[1], suffix[2]
 	instancesDir := filepath.Join(root, applicationDirName(app), installationDirName(installation), "instances")
@@ -1070,17 +1071,17 @@ func stopAppRemotely(ctx *context.T, appVON string, deadline time.Duration) erro
 	defer cancel()
 	stream, err := appStub.Stop(ctx)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("%v.Stop() failed: %v", appVON, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("%v.Stop() failed: %v", appVON, err))
 	}
 	rstream := stream.RecvStream()
 	for rstream.Advance() {
 		vlog.VI(2).Infof("%v.Stop() task update: %v", appVON, rstream.Value())
 	}
 	if err := rstream.Err(); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Advance() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Advance() failed: %v", err))
 	}
 	if err := stream.Finish(); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Finish() failed: %v", err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Finish() failed: %v", err))
 	}
 	return nil
 }
@@ -1144,15 +1145,15 @@ func updateInstance(ctx *context.T, instanceDir string) (err error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	latestVersionLink := filepath.Join(instanceDir, "installation", "current")
 	latestVersionDir, err := filepath.EvalSymlinks(latestVersionLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", latestVersionLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", latestVersionLink, err))
 	}
 	if versionDir == latestVersionDir {
-		return verror.New(ErrUpdateNoOp, ctx)
+		return verror.New(errors.ErrUpdateNoOp, ctx)
 	}
 	// Update to the newer version.  Note, this is the only mutation
 	// performed to the instance, and, since it's atomic, the state of the
@@ -1162,7 +1163,7 @@ func updateInstance(ctx *context.T, instanceDir string) (err error) {
 
 func updateInstallation(ctx *context.T, installationDir string) error {
 	if !installationStateIs(installationDir, device.InstallationStateActive) {
-		return verror.New(ErrInvalidOperation, ctx)
+		return verror.New(errors.ErrInvalidOperation, ctx)
 	}
 	originVON, err := loadOrigin(ctx, installationDir)
 	if err != nil {
@@ -1177,7 +1178,7 @@ func updateInstallation(ctx *context.T, installationDir string) error {
 	currLink := filepath.Join(installationDir, "current")
 	oldVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
 	}
 	// NOTE(caprita): A race can occur between two competing updates, where
 	// both use the old version as their baseline.  This can result in both
@@ -1192,10 +1193,10 @@ func updateInstallation(ctx *context.T, installationDir string) error {
 		return err
 	}
 	if oldEnvelope.Title != newEnvelope.Title {
-		return verror.New(ErrAppTitleMismatch, ctx)
+		return verror.New(errors.ErrAppTitleMismatch, ctx)
 	}
 	if reflect.DeepEqual(oldEnvelope, newEnvelope) {
-		return verror.New(ErrUpdateNoOp, ctx)
+		return verror.New(errors.ErrUpdateNoOp, ctx)
 	}
 	versionDir, err := newVersion(ctx, installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
@@ -1212,7 +1213,7 @@ func (i *appService) Update(ctx *context.T, _ rpc.ServerCall) error {
 	if instanceDir, err := i.instanceDir(); err == nil {
 		return updateInstance(ctx, instanceDir)
 	}
-	return verror.New(ErrInvalidSuffix, nil)
+	return verror.New(errors.ErrInvalidSuffix, nil)
 }
 
 func (*appService) UpdateTo(_ *context.T, _ rpc.ServerCall, von string) error {
@@ -1234,26 +1235,26 @@ func revertInstance(ctx *context.T, instanceDir string) (err error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	previousLink := filepath.Join(versionDir, "previous")
 	if _, err := os.Lstat(previousLink); err != nil {
 		if os.IsNotExist(err) {
 			// No 'previous' link -- must be the first version.
-			return verror.New(ErrUpdateNoOp, ctx)
+			return verror.New(errors.ErrUpdateNoOp, ctx)
 		}
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Lstat(%v) failed: %v", previousLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Lstat(%v) failed: %v", previousLink, err))
 	}
 	prevVersionDir, err := filepath.EvalSymlinks(previousLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
 	}
 	return updateLink(prevVersionDir, versionLink)
 }
 
 func revertInstallation(ctx *context.T, installationDir string) error {
 	if !installationStateIs(installationDir, device.InstallationStateActive) {
-		return verror.New(ErrInvalidOperation, ctx)
+		return verror.New(errors.ErrInvalidOperation, ctx)
 	}
 	// NOTE(caprita): A race can occur between an update and a revert, where
 	// both use the same current version as their starting point.  This will
@@ -1263,19 +1264,19 @@ func revertInstallation(ctx *context.T, installationDir string) error {
 	currLink := filepath.Join(installationDir, "current")
 	currVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
 	}
 	previousLink := filepath.Join(currVersionDir, "previous")
 	if _, err := os.Lstat(previousLink); err != nil {
 		if os.IsNotExist(err) {
 			// No 'previous' link -- must be the first version.
-			return verror.New(ErrUpdateNoOp, ctx)
+			return verror.New(errors.ErrUpdateNoOp, ctx)
 		}
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Lstat(%v) failed: %v", previousLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Lstat(%v) failed: %v", previousLink, err))
 	}
 	prevVersionDir, err := filepath.EvalSymlinks(previousLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
 	}
 	return updateLink(prevVersionDir, currLink)
 }
@@ -1287,7 +1288,7 @@ func (i *appService) Revert(ctx *context.T, _ rpc.ServerCall) error {
 	if instanceDir, err := i.instanceDir(); err == nil {
 		return revertInstance(ctx, instanceDir)
 	}
-	return verror.New(ErrInvalidSuffix, nil)
+	return verror.New(errors.ErrInvalidSuffix, nil)
 }
 
 type treeNode struct {
@@ -1410,7 +1411,7 @@ func (i *appService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan st
 	}
 	n := tree.find(i.suffix, false)
 	if n == nil {
-		return nil, verror.New(ErrInvalidSuffix, nil)
+		return nil, verror.New(errors.ErrInvalidSuffix, nil)
 	}
 	ch := make(chan string)
 	go func() {
@@ -1439,7 +1440,7 @@ func dirFromSuffix(suffix []string, root string) (string, bool, error) {
 		}
 		return p, true, nil
 	}
-	return "", false, verror.New(ErrInvalidSuffix, nil)
+	return "", false, verror.New(errors.ErrInvalidSuffix, nil)
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory Permissions cache.
@@ -1472,7 +1473,7 @@ func (i *appService) Debug(ctx *context.T, call rpc.ServerCall) (string, error) 
 	case 3:
 		return i.instanceDebug(ctx, call.Security())
 	default:
-		return "", verror.New(ErrInvalidSuffix, nil)
+		return "", verror.New(errors.ErrInvalidSuffix, nil)
 	}
 }
 
@@ -1614,7 +1615,7 @@ func (i *appService) Status(ctx *context.T, _ rpc.ServerCall) (device.Status, er
 		status, err := i.instanceStatus(ctx)
 		return device.StatusInstance{Value: status}, err
 	default:
-		return nil, verror.New(ErrInvalidSuffix, ctx)
+		return nil, verror.New(errors.ErrInvalidSuffix, ctx)
 	}
 }
 
@@ -1630,7 +1631,7 @@ func (i *appService) installationStatus(ctx *context.T) (device.InstallationStat
 	versionLink := filepath.Join(installationDir, "current")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		return device.InstallationStatus{}, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+		return device.InstallationStatus{}, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	return device.InstallationStatus{
 		State:   state,
@@ -1650,7 +1651,7 @@ func (i *appService) instanceStatus(ctx *context.T) (device.InstanceStatus, erro
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		return device.InstanceStatus{}, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+		return device.InstanceStatus{}, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	return device.InstanceStatus{
 		State:   state,

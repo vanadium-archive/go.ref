@@ -12,6 +12,7 @@ import (
 
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/device/internal/errors"
 )
 
 func getInstallationState(installationDir string) (device.InstallationState, error) {
@@ -27,7 +28,7 @@ func getInstallationState(installationDir string) (device.InstallationState, err
 			}
 		}
 	}
-	return device.InstallationStateActive, verror.New(ErrOperationFailed, nil, fmt.Sprintf("failed to determine state for installation in dir %v", installationDir))
+	return device.InstallationStateActive, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("failed to determine state for installation in dir %v", installationDir))
 }
 
 func installationStateIs(installationDir string, state device.InstallationState) bool {
@@ -51,7 +52,7 @@ func getInstanceState(instanceDir string) (device.InstanceState, error) {
 			return s, nil
 		}
 	}
-	return device.InstanceStateLaunching, verror.New(ErrOperationFailed, nil, fmt.Sprintf("failed to determine state for instance in dir %v", instanceDir))
+	return device.InstanceStateLaunching, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("failed to determine state for instance in dir %v", instanceDir))
 }
 
 func instanceStateIs(instanceDir string, state device.InstanceState) bool {
@@ -74,9 +75,9 @@ func transitionState(dir string, initial, target fmt.Stringer) error {
 	targetState := filepath.Join(dir, target.String())
 	if err := os.Rename(initialState, targetState); err != nil {
 		if os.IsNotExist(err) {
-			return verror.New(ErrInvalidOperation, nil, err)
+			return verror.New(errors.ErrInvalidOperation, nil, err)
 		}
-		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Rename(%v, %v) failed: %v", initialState, targetState, err))
+		return verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Rename(%v, %v) failed: %v", initialState, targetState, err))
 	}
 	return nil
 }
@@ -84,7 +85,7 @@ func transitionState(dir string, initial, target fmt.Stringer) error {
 func initializeState(dir string, initial fmt.Stringer) error {
 	initialStatus := filepath.Join(dir, initial.String())
 	if err := ioutil.WriteFile(initialStatus, []byte("status"), 0600); err != nil {
-		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("WriteFile(%v) failed: %v", initialStatus, err))
+		return verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("WriteFile(%v) failed: %v", initialStatus, err))
 	}
 	return nil
 }

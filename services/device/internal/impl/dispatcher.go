@@ -28,6 +28,7 @@ import (
 	"v.io/x/ref/services/agent/keymgr"
 	s_device "v.io/x/ref/services/device"
 	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/logreaderlib"
 	"v.io/x/ref/services/internal/pathperms"
 )
@@ -73,17 +74,6 @@ const (
 )
 
 var (
-	ErrInvalidSuffix        = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
-	ErrOperationFailed      = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
-	ErrOperationInProgress  = verror.Register(pkgPath+".OperationInProgress", verror.NoRetry, "{1:}{2:} operation in progress{:_}")
-	ErrAppTitleMismatch     = verror.Register(pkgPath+".AppTitleMismatch", verror.NoRetry, "{1:}{2:} app title mismatch{:_}")
-	ErrUpdateNoOp           = verror.Register(pkgPath+".UpdateNoOp", verror.NoRetry, "{1:}{2:} update is no op{:_}")
-	ErrInvalidOperation     = verror.Register(pkgPath+".InvalidOperation", verror.NoRetry, "{1:}{2:} invalid operation{:_}")
-	ErrInvalidBlessing      = verror.Register(pkgPath+".InvalidBlessing", verror.NoRetry, "{1:}{2:} invalid blessing{:_}")
-	ErrInvalidPairingToken  = verror.Register(pkgPath+".InvalidPairingToken", verror.NoRetry, "{1:}{2:} pairing token mismatch{:_}")
-	ErrUnclaimedDevice      = verror.Register(pkgPath+".UnclaimedDevice", verror.NoRetry, "{1:}{2:} device needs to be claimed first")
-	ErrDeviceAlreadyClaimed = verror.Register(pkgPath+".AlreadyClaimed", verror.NoRetry, "{1:}{2:} device has already been claimed")
-
 	errInvalidConfig          = verror.Register(pkgPath+".errInvalidConfig", verror.NoRetry, "{1:}{2:} invalid config {3}{:_}")
 	errCantCreateAccountStore = verror.Register(pkgPath+".errCantCreateAccountStore", verror.NoRetry, "{1:}{2:} cannot create persistent store for identity to system account associations{:_}")
 	errCantCreateAppWatcher   = verror.Register(pkgPath+".errCantCreateAppWatcher", verror.NoRetry, "{1:}{2:} cannot create app status watcher{:_}")
@@ -308,7 +298,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 					return nil, nil, err
 				}
 				if !instanceStateIs(appInstanceDir, device.InstanceStateRunning) {
-					return nil, nil, verror.New(ErrInvalidSuffix, nil)
+					return nil, nil, verror.New(errors.ErrInvalidSuffix, nil)
 				}
 				var desc []rpc.InterfaceDesc
 				switch kind {
@@ -347,7 +337,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 		return receiver, appSpecificAuthorizer, nil
 	case configSuffix:
 		if len(components) != 2 {
-			return nil, nil, verror.New(ErrInvalidSuffix, nil)
+			return nil, nil, verror.New(errors.ErrInvalidSuffix, nil)
 		}
 		receiver := s_device.ConfigServer(&configService{
 			callback: d.internal.callback,
@@ -362,7 +352,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 		// (and not other apps).
 		return receiver, nil, nil
 	default:
-		return nil, nil, verror.New(ErrInvalidSuffix, nil)
+		return nil, nil, verror.New(errors.ErrInvalidSuffix, nil)
 	}
 }
 
@@ -384,7 +374,7 @@ func (testModeDispatcher) Authorize(ctx *context.T, call security.Call) error {
 		return nil
 	}
 	vlog.Infof("testModeDispatcher.Authorize: Reject %q.%s()", call.Suffix(), call.Method())
-	return verror.New(ErrInvalidSuffix, nil)
+	return verror.New(errors.ErrInvalidSuffix, nil)
 }
 
 func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string, getter pathperms.PermsGetter) (security.Authorizer, error) {
@@ -400,7 +390,7 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 	if len(suffix) == 2 {
 		p, err := installationDirCore(suffix, config.Root)
 		if err != nil {
-			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
+			return nil, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
 		return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "acls"), getter)
 	}
@@ -408,14 +398,14 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 	if len(suffix) > 3 && (suffix[3] == "logs" || suffix[3] == "pprof" || suffix[3] == "stats") {
 		p, err := instanceDir(config.Root, suffix[0:3])
 		if err != nil {
-			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
+			return nil, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
 		return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "debugacls"), getter)
 	}
 
 	p, err := instanceDir(config.Root, suffix[0:3])
 	if err != nil {
-		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
+		return nil, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 	}
 	return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "acls"), getter)
 }

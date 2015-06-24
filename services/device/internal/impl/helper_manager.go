@@ -16,6 +16,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/device/internal/errors"
 )
 
 type suidHelperState struct {
@@ -150,7 +151,7 @@ var IsSetuid = func(fileStat os.FileInfo) bool {
 func (s suidHelperState) suidhelperEnabled(targetUser string) (bool, error) {
 	helperStat, err := os.Stat(s.helperPath)
 	if err != nil {
-		return false, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Stat(%v) failed: %v. helper is required.", s.helperPath, err))
+		return false, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Stat(%v) failed: %v. helper is required.", s.helperPath, err))
 	}
 	haveHelper := IsSetuid(helperStat)
 

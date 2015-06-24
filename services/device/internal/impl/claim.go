@@ -15,6 +15,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/pathperms"
 )
 
@@ -37,7 +38,7 @@ type claimable struct {
 func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken string) error {
 	// Verify that the claimer pairing tokens match that of the device manager.
 	if subtle.ConstantTimeCompare([]byte(pairingToken), []byte(c.token)) != 1 {
-		return verror.New(ErrInvalidPairingToken, ctx)
+		return verror.New(errors.ErrInvalidPairingToken, ctx)
 	}
 	var (
 		granted   = call.GrantedBlessings() // blessings granted by the claimant
@@ -45,32 +46,32 @@ func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken stri
 		store     = principal.BlessingStore()
 	)
 	if granted.IsZero() {
-		return verror.New(ErrInvalidBlessing, ctx)
+		return verror.New(errors.ErrInvalidBlessing, ctx)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.notify == nil {
 		// Device has already been claimed (by a concurrent
 		// RPC perhaps), it cannot be reclaimed
-		return verror.New(ErrDeviceAlreadyClaimed, ctx)
+		return verror.New(errors.ErrDeviceAlreadyClaimed, ctx)
 	}
 	// TODO(ashankar): If the claim fails, would make sense
 	// to remove from roots as well.
 	if err := principal.AddToRoots(granted); err != nil {
-		return verror.New(ErrInvalidBlessing, ctx)
+		return verror.New(errors.ErrInvalidBlessing, ctx)
 	}
 	if _, err := store.Set(granted, security.AllPrincipals); err != nil {
-		return verror.New(ErrInvalidBlessing, ctx, err)
+		return verror.New(errors.ErrInvalidBlessing, ctx, err)
 	}
 	if err := store.SetDefault(granted); err != nil {
-		return verror.New(ErrInvalidBlessing, ctx, err)
+		return verror.New(errors.ErrInvalidBlessing, ctx, err)
 	}
 
 	// Create Permissions with all the granted blessings (which are now the default blessings)
 	// (irrespective of caveats).
 	patterns := security.DefaultBlessingPatterns(principal)
 	if len(patterns) == 0 {
-		return verror.New(ErrInvalidBlessing, ctx)
+		return verror.New(errors.ErrInvalidBlessing, ctx)
 	}
 
 	// Create Permissions that allow principals with the caller's blessings to
@@ -87,7 +88,7 @@ func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken stri
 		}
 	}
 	if err := c.permsStore.Set(c.permsDir, perms, ""); err != nil {
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(errors.ErrOperationFailed, ctx)
 	}
 	vlog.Infof("Device claimed and Permissions set to: %v", perms)
 	close(c.notify)
@@ -99,7 +100,7 @@ func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken stri
 // the Claiming service. Shouldn't need the "device" suffix.
 func (c *claimable) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if suffix != "" && suffix != "device" {
-		return nil, nil, verror.New(ErrUnclaimedDevice, nil)
+		return nil, nil, verror.New(errors.ErrUnclaimedDevice, nil)
 	}
 	return c, c, nil
 }

@@ -18,7 +18,7 @@ import (
 	"v.io/v23/services/device"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
-
+	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/binarylib"
@@ -101,7 +101,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	// Using the publisher should fail, because blessing "publisher" is not covered by the
 	// trusted roots of the device manager's principal
-	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
+	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != errors.ErrOperationFailed.ID {
 		t.Fatalf("Unexpected error installing app:%v (expected ErrOperationFailed)", err)
 	}
 
@@ -124,8 +124,8 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if _, err := binarylib.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
-	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
-		t.Fatalf("Failed to verify signature mismatch for binary:%v. Got errorid=%v[%v], want errorid=%v", binaryVON, verror.ErrorID(err), err, impl.ErrOperationFailed.ID)
+	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != errors.ErrOperationFailed.ID {
+		t.Fatalf("Failed to verify signature mismatch for binary:%v. Got errorid=%v[%v], want errorid=%v", binaryVON, verror.ErrorID(err), err, errors.ErrOperationFailed.ID)
 	}
 
 	// Restore the binary and verify that installation succeeds.
@@ -154,7 +154,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if _, err = binarylib.UploadFromDir(ctx, pkgVON, tmpdir); err != nil {
 		t.Fatalf("binarylib.UploadFromDir failed: %v", err)
 	}
-	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
+	if _, err := utiltest.AppStub().Install(ctx, utiltest.MockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != errors.ErrOperationFailed.ID {
 		t.Fatalf("Failed to verify signature mismatch for package:%v", pkgVON)
 	}
 }

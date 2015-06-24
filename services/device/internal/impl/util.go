@@ -15,9 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/ref/services/device/internal/config"
-	"v.io/x/ref/services/internal/binarylib"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
@@ -25,6 +22,9 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/device/internal/errors"
+	"v.io/x/ref/services/internal/binarylib"
 )
 
 // TODO(caprita): Set these timeout in a more principled manner.
@@ -39,7 +39,7 @@ func verifySignature(data []byte, publisher security.Blessings, sig security.Sig
 	if !publisher.IsZero() {
 		h := sha256.Sum256(data)
 		if !sig.Verify(publisher.PublicKey(), h[:]) {
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(errors.ErrOperationFailed, nil)
 		}
 	}
 	return nil
@@ -50,14 +50,14 @@ func downloadBinary(ctx *context.T, publisher security.Blessings, bin *applicati
 	// data to verify its checksum and signature.
 	data, _, err := binarylib.Download(ctx, bin.File)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Download(%v) failed: %v", bin.File, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Download(%v) failed: %v", bin.File, err))
 	}
 	if err := verifySignature(data, publisher, bin.Signature); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Publisher binary(%v) signature verification failed", bin.File))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Publisher binary(%v) signature verification failed", bin.File))
 	}
 	path, perm := filepath.Join(workspace, fileName), os.FileMode(0755)
 	if err := ioutil.WriteFile(path, data, perm); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v, %v) failed: %v", path, perm, err))
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v, %v) failed: %v", path, perm, err))
 	}
 	return nil
 }
@@ -66,20 +66,20 @@ func downloadBinary(ctx *context.T, publisher security.Blessings, bin *applicati
 func downloadPackages(ctx *context.T, publisher security.Blessings, packages application.Packages, pkgDir string) error {
 	for localPkg, pkgName := range packages {
 		if localPkg == "" || localPkg[0] == '.' || strings.Contains(localPkg, string(filepath.Separator)) {
-			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("invalid local package name: %q", localPkg))
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("invalid local package name: %q", localPkg))
 		}
 		path := filepath.Join(pkgDir, localPkg)
 		if err := binarylib.DownloadToFile(ctx, pkgName.File, path); err != nil {
-			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("DownloadToFile(%q, %q) failed: %v", pkgName, path, err))
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("DownloadToFile(%q, %q) failed: %v", pkgName, path, err))
 		}
 		data, err := ioutil.ReadFile(path)
 		if err != nil {
-			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadPackage(%v) failed: %v", path, err))
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ReadPackage(%v) failed: %v", path, err))
 		}
 		// If a nonempty signature is present, verify it. (i.e., we accept unsigned packages.)
 		if !reflect.DeepEqual(pkgName.Signature, security.Signature{}) {
 			if err := verifySignature(data, publisher, pkgName.Signature); err != nil {
-				return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Publisher package(%v:%v) signature verification failed", localPkg, pkgName))
+				return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Publisher package(%v:%v) signature verification failed", localPkg, pkgName))
 			}
 		}
 	}
@@ -90,7 +90,7 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 	stub := repository.ApplicationClient(origin)
 	profilesSet, err := Describe()
 	if err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Failed to obtain profile labels: %v", err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Failed to obtain profile labels: %v", err))
 	}
 	var profiles []string
 	for label := range profilesSet.Profiles {
@@ -98,14 +98,14 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 	}
 	envelope, err := stub.Match(ctx, profiles)
 	if err != nil {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Match(%v) failed: %v", profiles, err))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Match(%v) failed: %v", profiles, err))
 	}
 	// If a publisher blessing is present, it must be from a publisher we recognize. If not,
 	// reject the envelope. Note that unsigned envelopes are accepted by this check.
 	// TODO: Implment a real ACL check based on publisher
 	names, rejected := publisherBlessingNames(ctx, envelope)
 	if len(names) == 0 && len(rejected) > 0 {
-		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("publisher %v in envelope %v was not recognized", rejected, envelope.Title))
+		return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("publisher %v in envelope %v was not recognized", rejected, envelope.Title))
 	}
 	return &envelope, nil
 }
@@ -130,7 +130,7 @@ func linkSelf(workspace, fileName string) error {
 	path := filepath.Join(workspace, fileName)
 	self := os.Args[0]
 	if err := os.Link(self, path); err != nil {
-		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Link(%v, %v) failed: %v", self, path, err))
+		return verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Link(%v, %v) failed: %v", self, path, err))
 	}
 	return nil
 }
@@ -145,14 +145,14 @@ func updateLink(target, link string) error {
 	fi, err := os.Lstat(newLink)
 	if err == nil {
 		if err := os.Remove(fi.Name()); err != nil {
-			return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Remove(%v) failed: %v", fi.Name(), err))
+			return verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Remove(%v) failed: %v", fi.Name(), err))
 		}
 	}
 	if err := os.Symlink(target, newLink); err != nil {
-		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Symlink(%v, %v) failed: %v", target, newLink, err))
+		return verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Symlink(%v, %v) failed: %v", target, newLink, err))
 	}
 	if err := os.Rename(newLink, link); err != nil {
-		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Rename(%v, %v) failed: %v", newLink, link, err))
+		return verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Rename(%v, %v) failed: %v", newLink, link, err))
 	}
 	return nil
 }

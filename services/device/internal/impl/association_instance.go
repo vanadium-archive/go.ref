@@ -13,12 +13,13 @@ import (
 	"path/filepath"
 
 	"v.io/v23/verror"
+	"v.io/x/ref/services/device/internal/errors"
 )
 
 func saveSystemNameForInstance(dir, systemName string) error {
 	snp := filepath.Join(dir, "systemname")
 	if err := ioutil.WriteFile(snp, []byte(systemName), 0600); err != nil {
-		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("WriteFile(%v, %v) failed: %v", snp, systemName, err))
+		return verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("WriteFile(%v, %v) failed: %v", snp, systemName, err))
 	}
 	return nil
 }
@@ -27,7 +28,7 @@ func readSystemNameForInstance(dir string) (string, error) {
 	snp := filepath.Join(dir, "systemname")
 	name, err := ioutil.ReadFile(snp)
 	if err != nil {
-		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("ReadFile(%v) failed: %v", snp, err))
+		return "", verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("ReadFile(%v) failed: %v", snp, err))
 	}
 	return string(name), nil
 }

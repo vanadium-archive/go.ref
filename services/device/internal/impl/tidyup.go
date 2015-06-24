@@ -14,8 +14,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/device/internal/errors"
 )
 
 // This file contains the various routines that the device manager uses
@@ -99,7 +99,7 @@ func processErrors(ctx *context.T, allerrors []pthError) error {
 		for _, ep := range allerrors {
 			errormessages = append(errormessages, fmt.Sprintf("path: %s failed: %v", ep.pth, ep.err))
 		}
-		return verror.New(ErrOperationFailed, ctx, "Some older instances could not be deleted: %s", strings.Join(errormessages, ", "))
+		return verror.New(errors.ErrOperationFailed, ctx, "Some older instances could not be deleted: %s", strings.Join(errormessages, ", "))
 	}
 	return nil
 }
