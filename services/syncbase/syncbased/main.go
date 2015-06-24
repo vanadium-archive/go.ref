@@ -50,11 +50,12 @@ func main() {
 		vlog.Fatal("securityflag.PermissionsFromFlag() failed: ", err)
 	}
 	if perms != nil {
-		vlog.Info("Using permissions from command line flag.")
+		vlog.Info("Using perms from command line flag.")
 	} else {
-		vlog.Info("No permissions flag provided. Giving local principal all permissions.")
+		vlog.Info("Perms flag not set. Giving local principal all perms.")
 		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 	}
+	vlog.Infof("Perms: %v", perms)
 	service, err := server.NewService(nil, nil, server.ServiceOptions{
 		Perms:   perms,
 		RootDir: *rootDir,

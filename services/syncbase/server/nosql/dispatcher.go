@@ -29,6 +29,10 @@ func NewDispatcher(a interfaces.App) *dispatcher {
 	return &dispatcher{a: a}
 }
 
+// We always return an AllowEveryone authorizer from Lookup(), and rely on our
+// RPC method implementations to perform proper authorization.
+var auth security.Authorizer = security.AllowEveryone()
+
 func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, "/")
 	parts := strings.Split(suffix, "/")
@@ -74,7 +78,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 		return nil, nil, wire.NewErrInvalidName(nil, suffix)
 	}
 	if len(parts) == 1 {
-		return nosqlWire.DatabaseServer(dReq), nil, nil
+		return nosqlWire.DatabaseServer(dReq), auth, nil
 	}
 
 	// All table and row methods require the database to exist. If it doesn't,
@@ -92,7 +96,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 		d:    dReq,
 	}
 	if len(parts) == 2 {
-		return nosqlWire.TableServer(tReq), nil, nil
+		return nosqlWire.TableServer(tReq), auth, nil
 	}
 
 	rReq := &rowReq{
@@ -100,7 +104,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 		t:   tReq,
 	}
 	if len(parts) == 3 {
-		return nosqlWire.RowServer(rReq), nil, nil
+		return nosqlWire.RowServer(rReq), auth, nil
 	}
 
 	return nil, nil, verror.NewErrNoExist(nil)

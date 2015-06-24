@@ -27,17 +27,20 @@ func NewDispatcher(s *service) *dispatcher {
 	return &dispatcher{s: s}
 }
 
-// TODO(sadovsky): Return a real authorizer in various places below.
+// We always return an AllowEveryone authorizer from Lookup(), and rely on our
+// RPC method implementations to perform proper authorization.
+var auth security.Authorizer = security.AllowEveryone()
+
 func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, "/")
 	parts := strings.SplitN(suffix, "/", 2)
 
 	if len(suffix) == 0 {
-		return wire.ServiceServer(disp.s), nil, nil
+		return wire.ServiceServer(disp.s), auth, nil
 	}
 
 	if parts[0] == util.SyncbaseSuffix {
-		return interfaces.SyncServer(disp.s.sync), nil, nil
+		return interfaces.SyncServer(disp.s.sync), auth, nil
 	}
 
 	// Validate all key atoms up front, so that we can avoid doing so in all our
@@ -64,7 +67,7 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 	}
 
 	if len(parts) == 1 {
-		return wire.AppServer(a), nil, nil
+		return wire.AppServer(a), auth, nil
 	}
 
 	// All database, table, and row methods require the app to exist. If it
