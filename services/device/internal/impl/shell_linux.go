@@ -5,5 +5,5 @@
 package impl
 
 const (
-	dateCommand = "/bin/date +%s%N"
+	DateCommand = "/bin/date +%s%N"
 )

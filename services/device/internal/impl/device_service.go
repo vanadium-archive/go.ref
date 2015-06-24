@@ -200,7 +200,7 @@ func SaveManagerInfo(dir string, info *ManagerInfo) error {
 	return nil
 }
 
-func loadManagerInfo(dir string) (*ManagerInfo, error) {
+func LoadManagerInfo(dir string) (*ManagerInfo, error) {
 	infoPath := filepath.Join(dir, "info")
 	info := new(ManagerInfo)
 	if infoBytes, err := ioutil.ReadFile(infoPath); err != nil {
@@ -211,7 +211,7 @@ func loadManagerInfo(dir string) (*ManagerInfo, error) {
 	return info, nil
 }
 
-func savePersistentArgs(root string, args []string) error {
+func SavePersistentArgs(root string, args []string) error {
 	dir := filepath.Join(root, "device-manager", "device-data")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("MkdirAll(%q) failed: %v", dir, err)
@@ -279,8 +279,8 @@ func (s *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
 }
 
 func (s *deviceService) revertDeviceManager(ctx *context.T) error {
-	if err := updateLink(s.config.Previous, s.config.CurrentLink); err != nil {
-		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("updateLink failed: %v", err))
+	if err := UpdateLink(s.config.Previous, s.config.CurrentLink); err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("UpdateLink failed: %v", err))
 	}
 	if s.restartHandler != nil {
 		s.restartHandler()
@@ -441,7 +441,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 
 // TODO(caprita): Move this to util.go since device_installer is also using it now.
 
-func generateScript(workspace string, configSettings []string, envelope *application.Envelope, logs string) error {
+func GenerateScript(workspace string, configSettings []string, envelope *application.Envelope, logs string) error {
 	// TODO(caprita): Remove this snippet of code, it doesn't seem to serve
 	// any purpose.
 	path, err := filepath.EvalSymlinks(os.Args[0])
@@ -456,7 +456,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 
 	output := "#!/bin/bash\n"
 	output += "if [ -z \"$DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR\" ]; then\n"
-	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", dateCommand)
+	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", DateCommand)
 	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
 	output += "  LOG_TO_STDERR=false\n"
 	output += "else\n"
@@ -519,7 +519,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	// rather than binary object name.
 	sameBinary := s.config.Envelope != nil && envelope.Binary.File == s.config.Envelope.Binary.File
 	if sameBinary {
-		if err := linkSelf(workspace, "deviced"); err != nil {
+		if err := LinkSelf(workspace, "deviced"); err != nil {
 			return err
 		}
 	} else {
@@ -535,7 +535,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	}
 
 	logs := filepath.Join(s.config.Root, "device-manager", "logs")
-	if err := generateScript(workspace, configSettings, envelope, logs); err != nil {
+	if err := GenerateScript(workspace, configSettings, envelope, logs); err != nil {
 		return err
 	}
 
@@ -543,7 +543,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("testDeviceManager failed: %v", err))
 	}
 
-	if err := updateLink(filepath.Join(workspace, "deviced.sh"), s.config.CurrentLink); err != nil {
+	if err := UpdateLink(filepath.Join(workspace, "deviced.sh"), s.config.CurrentLink); err != nil {
 		return err
 	}
 

@@ -414,10 +414,10 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 			return versionDir, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", oldVersionDir, previousLink, err))
 		}
 	}
-	// updateLink should be the last thing we do, after we've ensured the
+	// UpdateLink should be the last thing we do, after we've ensured the
 	// new version is viable (currently, that just means it installs
 	// properly).
-	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
+	return versionDir, UpdateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
 func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
@@ -1158,7 +1158,7 @@ func updateInstance(ctx *context.T, instanceDir string) (err error) {
 	// Update to the newer version.  Note, this is the only mutation
 	// performed to the instance, and, since it's atomic, the state of the
 	// instance is consistent at all times.
-	return updateLink(latestVersionDir, versionLink)
+	return UpdateLink(latestVersionDir, versionLink)
 }
 
 func updateInstallation(ctx *context.T, installationDir string) error {
@@ -1249,7 +1249,7 @@ func revertInstance(ctx *context.T, instanceDir string) (err error) {
 	if err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
 	}
-	return updateLink(prevVersionDir, versionLink)
+	return UpdateLink(prevVersionDir, versionLink)
 }
 
 func revertInstallation(ctx *context.T, installationDir string) error {
@@ -1278,7 +1278,7 @@ func revertInstallation(ctx *context.T, installationDir string) error {
 	if err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
 	}
-	return updateLink(prevVersionDir, currLink)
+	return UpdateLink(prevVersionDir, currLink)
 }
 
 func (i *appService) Revert(ctx *context.T, _ rpc.ServerCall) error {

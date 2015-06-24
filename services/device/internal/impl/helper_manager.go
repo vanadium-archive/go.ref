@@ -26,7 +26,7 @@ type suidHelperState struct {
 
 var suidHelper *suidHelperState
 
-func initSuidHelper(helperPath string) {
+func InitSuidHelper(helperPath string) {
 	if suidHelper != nil || helperPath == "" {
 		return
 	}
@@ -51,6 +51,10 @@ func (s suidHelperState) terminatePid(pid int, stdout, stderr io.Writer) error {
 		return fmt.Errorf("devicemanager's invocation of suidhelper to kill pid %v failed: %v", pid, err)
 	}
 	return nil
+}
+
+func DeleteFileTree(dirOrFile string, stdout, stderr io.Writer) error {
+	return suidHelper.deleteFileTree(dirOrFile, stdout, stderr)
 }
 
 // deleteFileTree deletes a file or directory

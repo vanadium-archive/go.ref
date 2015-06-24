@@ -13,6 +13,7 @@ import (
 	"v.io/v23"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/device/internal/impl"
+	"v.io/x/ref/services/device/internal/installer"
 )
 
 var (
@@ -66,7 +67,7 @@ func init() {
 func runInstall(env *cmdline.Env, args []string) error {
 	if installFrom != "" {
 		// TODO(caprita): Also pass args into InstallFrom.
-		if err := impl.InstallFrom(installFrom); err != nil {
+		if err := installer.InstallFrom(installFrom); err != nil {
 			vlog.Errorf("InstallFrom(%v) failed: %v", installFrom, err)
 			return err
 		}
@@ -81,7 +82,7 @@ func runInstall(env *cmdline.Env, args []string) error {
 	if initMode && initHelper == "" {
 		return env.UsageErrorf("--init_helper must be set")
 	}
-	if err := impl.SelfInstall(installationDir(env), suidHelper, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), env.Stderr, env.Stdout); err != nil {
+	if err := installer.SelfInstall(installationDir(env), suidHelper, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("SelfInstall failed: %v", err)
 		return err
 	}
@@ -103,7 +104,7 @@ func runUninstall(env *cmdline.Env, _ []string) error {
 	if suidHelper == "" {
 		return env.UsageErrorf("--suid_helper must be set")
 	}
-	if err := impl.Uninstall(installationDir(env), suidHelper, env.Stderr, env.Stdout); err != nil {
+	if err := installer.Uninstall(installationDir(env), suidHelper, env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Uninstall failed: %v", err)
 		return err
 	}
@@ -118,7 +119,7 @@ var cmdStart = &cmdline.Command{
 }
 
 func runStart(env *cmdline.Env, _ []string) error {
-	if err := impl.Start(installationDir(env), env.Stderr, env.Stdout); err != nil {
+	if err := installer.Start(installationDir(env), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Start failed: %v", err)
 		return err
 	}
@@ -135,7 +136,7 @@ var cmdStop = &cmdline.Command{
 func runStop(env *cmdline.Env, _ []string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	if err := impl.Stop(ctx, installationDir(env), env.Stderr, env.Stdout); err != nil {
+	if err := installer.Stop(ctx, installationDir(env), env.Stderr, env.Stdout); err != nil {
 		vlog.Errorf("Stop failed: %v", err)
 		return err
 	}
