@@ -23,12 +23,13 @@ import (
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
 func TestDownloadSignatureMatch(t *testing.T) {
 	defer testutil.InitRandGenerator(t.Logf)()
-	ctx, shutdown := utiltest.V23Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)

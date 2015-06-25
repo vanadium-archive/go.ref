@@ -23,6 +23,7 @@ import (
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -38,7 +39,7 @@ func init() {
 }
 
 func TestAppWithSuidHelper(t *testing.T) {
-	ctx, shutdown := utiltest.V23Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	// Identity provider used to ensure that all processes recognize each

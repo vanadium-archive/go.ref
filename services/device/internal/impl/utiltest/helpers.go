@@ -33,7 +33,6 @@ import (
 	"v.io/v23/services/pprof"
 	"v.io/v23/services/stats"
 	"v.io/v23/verror"
-	"v.io/x/ref"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/internal/impl"
@@ -750,16 +749,6 @@ func UserName(t *testing.T) string {
 		t.Fatalf("user.Current() failed: %v", err)
 	}
 	return u.Username
-}
-
-func V23Init() (*context.T, v23.Shutdown) {
-	roots, _ := ref.EnvNamespaceRoots()
-	for key, _ := range roots {
-		os.Unsetenv(key)
-	}
-	ctx, shutdown := test.V23Init()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-	return ctx, shutdown
 }
 
 func StartRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() {

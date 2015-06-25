@@ -29,6 +29,7 @@ import (
 	"v.io/x/ref/services/device/internal/installer"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/testutil"
 )
@@ -75,7 +76,7 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 // command. Further versions are running through the soft link that the device
 // manager itself updates.
 func TestDeviceManagerUpdateAndRevert(t *testing.T) {
-	ctx, shutdown := utiltest.V23Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
@@ -293,7 +294,7 @@ func (s simpleRW) Read(p []byte) (n int, err error) {
 // This should bring up a functioning device manager.  In the end it runs
 // Uninstall and verifies that the installation is gone.
 func TestDeviceManagerInstallation(t *testing.T) {
-	ctx, shutdown := utiltest.V23Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
@@ -355,7 +356,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 // TODO(caprita): We need better test coverage for how updating/reverting apps
 // affects the package configured for the app.
 func TestDeviceManagerPackages(t *testing.T) {
-	ctx, shutdown := utiltest.V23Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
@@ -495,7 +496,7 @@ func listAndVerifyAssociations(t *testing.T, ctx *context.T, stub device.DeviceC
 // TODO(rjkroege): Verify that associations persist across restarts once
 // permanent storage is added.
 func TestAccountAssociation(t *testing.T) {
-	ctx, shutdown := utiltest.V23Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
