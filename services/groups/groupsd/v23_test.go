@@ -28,3 +28,7 @@ func TestMain(m *testing.M) {
 func TestV23GroupServerIntegration(t *testing.T) {
 	v23tests.RunTest(t, V23TestGroupServerIntegration)
 }
+
+func TestV23GroupServerAuthorization(t *testing.T) {
+	v23tests.RunTest(t, V23TestGroupServerAuthorization)
+}
