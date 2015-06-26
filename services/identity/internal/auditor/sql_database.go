@@ -74,6 +74,7 @@ func (s sqlDatabase) sendDatabaseEntries(ctx *context.T, email string, dst chan<
 		dst <- databaseEntry{decodeErr: fmt.Errorf("Failed to query for all audits: %v", err)}
 		return
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var dbentry databaseEntry
 		if err = rows.Scan(&dbentry.email, &dbentry.caveats, &dbentry.timestamp, &dbentry.blessings); err != nil {
