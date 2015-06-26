@@ -76,16 +76,7 @@ func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientNa
 	var caveat security.Caveat
 	var err error
 	if b.revocationManager != nil {
-		// TODO(ashankar,suharshs): Remove: Added for debugging
-		start := time.Now()
 		caveat, err = b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
-		var id string
-		if caveat.ThirdPartyDetails() != nil {
-			id = caveat.ThirdPartyDetails().ID()
-		}
-		if d := time.Since(start); d > time.Second || err != nil {
-			ctx.Infof("NewCaveat took %v and returned error %v (caveat id: %v): (%v <-> %v)", d, err, id, call.RemoteEndpoint(), call.LocalEndpoint())
-		}
 	} else {
 		caveat, err = security.NewExpiryCaveat(time.Now().Add(b.duration))
 	}

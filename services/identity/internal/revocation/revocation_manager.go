@@ -62,10 +62,7 @@ func (r *revocationManager) NewCaveat(discharger security.PublicKey, dischargerL
 	if err != nil {
 		return empty, err
 	}
-	r.ctx.Infof("revocationDB.InsertCaveat(%s,%v) called", cav.ThirdPartyDetails().ID(), revocation)
 	if err = revocationDB.InsertCaveat(cav.ThirdPartyDetails().ID(), revocation[:]); err != nil {
-		// TODO(suharshs): Remove this log.
-		r.ctx.Infof("revocationDB.InsertCaveat(%s,%v) failed with %v", cav.ThirdPartyDetails().ID(), revocation, err)
 		return empty, err
 	}
 	return cav, nil
@@ -87,7 +84,6 @@ func (r *revocationManager) GetRevocationTime(caveatID string) *time.Time {
 }
 
 func isRevoked(ctx *context.T, call security.Call, key []byte) error {
-	start := time.Now()
 	revocationLock.RLock()
 	if revocationDB == nil {
 		revocationLock.RUnlock()
@@ -96,11 +92,6 @@ func isRevoked(ctx *context.T, call security.Call, key []byte) error {
 	revocationLock.RUnlock()
 	revoked, err := revocationDB.IsRevoked(key)
 	if err != nil {
-		// TODO(ashankar): Remove. Added for debugging.
-		ctx.Infof("IsRevoked(%v) returned %v (%v <-> %v)", key, err, call.RemoteEndpoint(), call.LocalEndpoint())
-	}
-	if d := time.Since(start); d > time.Second {
-		ctx.Infof("IsRevoked(%v) took %v (%v <-> %v)", key, d, call.RemoteEndpoint(), call.LocalEndpoint())
 	}
 	if revoked {
 		return fmt.Errorf("revoked")
