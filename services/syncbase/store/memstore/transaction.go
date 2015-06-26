@@ -92,10 +92,19 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	if err := tx.error(); err != nil {
 		return &store.InvalidStream{err}
 	}
-	// TODO(rdaoud): create an in-memory copy of the current transaction
-	// state (the puts and deletes so far) for the scan stream's Advance()
-	// to merge that data while traversing the store snapshot.
-	return tx.sn.Scan(start, limit)
+
+	// Create an array of store.WriteOps as it is needed to merge
+	// the snaphot stream with the uncommitted changes.
+	var writes []store.WriteOp
+	for k, v := range tx.puts {
+		writes = append(writes, store.WriteOp{T: store.PutOp, Key: []byte(k), Value: v})
+	}
+	for k, _ := range tx.deletes {
+		writes = append(writes, store.WriteOp{T: store.DeleteOp, Key: []byte(k), Value: []byte{}})
+	}
+
+	// Return a stream which merges the snaphot stream with the uncommitted changes.
+	return store.MergeWritesWithStream(tx.sn, writes, start, limit)
 }
 
 // Put implements the store.StoreWriter interface.

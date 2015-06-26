@@ -15,28 +15,6 @@ import (
 	"v.io/v23/verror"
 )
 
-type scanRange struct {
-	start, limit []byte
-}
-
-type readSet struct {
-	keys   [][]byte
-	ranges []scanRange
-}
-
-type writeType int
-
-const (
-	putOp writeType = iota
-	deleteOp
-)
-
-type writeOp struct {
-	t     writeType
-	key   []byte
-	value []byte
-}
-
 // commitedTransaction is only used as an element of db.txEvents.
 type commitedTransaction struct {
 	seq   uint64
@@ -53,8 +31,8 @@ type transaction struct {
 	seq      uint64
 	event    *list.Element // pointer to element of db.txEvents
 	snapshot store.Snapshot
-	reads    readSet
-	writes   []writeOp
+	reads    store.ReadSet
+	writes   []store.WriteOp
 	cOpts    *C.leveldb_writeoptions_t
 	err      error
 }
@@ -110,7 +88,7 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	if tx.err != nil {
 		return valbuf, convertError(tx.err)
 	}
-	tx.reads.keys = append(tx.reads.keys, key)
+	tx.reads.Keys = append(tx.reads.Keys, key)
 
 	// Reflect the state of the transaction: the "writes" (puts and
 	// deletes) override the values in the transaction snapshot.
@@ -119,9 +97,9 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	// deletes) instead of an array.
 	for i := len(tx.writes) - 1; i >= 0; i-- {
 		op := &tx.writes[i]
-		if bytes.Equal(op.key, key) {
-			if op.t == putOp {
-				return op.value, nil
+		if bytes.Equal(op.Key, key) {
+			if op.T == store.PutOp {
+				return op.Value, nil
 			}
 			return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
 		}
@@ -137,14 +115,14 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	if tx.err != nil {
 		return &store.InvalidStream{tx.err}
 	}
-	// TODO(rdaoud): create an in-memory copy of the current transaction
-	// state (the puts and deletes so far) for the scan stream's Advance()
-	// to merge that data while traversing the store snapshot.
-	tx.reads.ranges = append(tx.reads.ranges, scanRange{
-		start: start,
-		limit: limit,
+
+	tx.reads.Ranges = append(tx.reads.Ranges, store.ScanRange{
+		Start: start,
+		Limit: limit,
 	})
-	return tx.snapshot.Scan(start, limit)
+
+	// Return a stream which merges the snaphot stream with the uncommitted changes.
+	return store.MergeWritesWithStream(tx.snapshot, tx.writes, start, limit)
 }
 
 // Put implements the store.StoreWriter interface.
@@ -154,10 +132,10 @@ func (tx *transaction) Put(key, value []byte) error {
 	if tx.err != nil {
 		return convertError(tx.err)
 	}
-	tx.writes = append(tx.writes, writeOp{
-		t:     putOp,
-		key:   key,
-		value: value,
+	tx.writes = append(tx.writes, store.WriteOp{
+		T:     store.PutOp,
+		Key:   key,
+		Value: value,
 	})
 	return nil
 }
@@ -169,9 +147,9 @@ func (tx *transaction) Delete(key []byte) error {
 	if tx.err != nil {
 		return convertError(tx.err)
 	}
-	tx.writes = append(tx.writes, writeOp{
-		t:   deleteOp,
-		key: key,
+	tx.writes = append(tx.writes, store.WriteOp{
+		T:   store.DeleteOp,
+		Key: key,
 	})
 	return nil
 }
@@ -180,13 +158,13 @@ func (tx *transaction) Delete(key []byte) error {
 // been invalidated by other transactions.
 // Assumes tx.d.txmu is held.
 func (tx *transaction) validateReadSet() bool {
-	for _, key := range tx.reads.keys {
+	for _, key := range tx.reads.Keys {
 		if tx.d.txTable.get(key) > tx.seq {
 			return false
 		}
 	}
-	for _, r := range tx.reads.ranges {
-		if tx.d.txTable.rangeMax(r.start, r.limit) > tx.seq {
+	for _, r := range tx.reads.Ranges {
+		if tx.d.txTable.rangeMax(r.Start, r.Limit) > tx.seq {
 			return false
 		}
 

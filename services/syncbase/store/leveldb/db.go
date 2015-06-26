@@ -119,21 +119,21 @@ func (d *db) Scan(start, limit []byte) store.Stream {
 
 // Put implements the store.StoreWriter interface.
 func (d *db) Put(key, value []byte) error {
-	write := writeOp{
-		t:     putOp,
-		key:   key,
-		value: value,
+	write := store.WriteOp{
+		T:     store.PutOp,
+		Key:   key,
+		Value: value,
 	}
-	return d.write([]writeOp{write}, d.writeOptions)
+	return d.write([]store.WriteOp{write}, d.writeOptions)
 }
 
 // Delete implements the store.StoreWriter interface.
 func (d *db) Delete(key []byte) error {
-	write := writeOp{
-		t:   deleteOp,
-		key: key,
+	write := store.WriteOp{
+		T:   store.DeleteOp,
+		Key: key,
 	}
-	return d.write([]writeOp{write}, d.writeOptions)
+	return d.write([]store.WriteOp{write}, d.writeOptions)
 }
 
 // NewTransaction implements the store.Store interface.
@@ -160,14 +160,14 @@ func (d *db) NewSnapshot() store.Snapshot {
 
 // write writes a batch and adds all written keys to txTable.
 // TODO(rogulenko): remove this method.
-func (d *db) write(batch []writeOp, cOpts *C.leveldb_writeoptions_t) error {
+func (d *db) write(batch []store.WriteOp, cOpts *C.leveldb_writeoptions_t) error {
 	d.txmu.Lock()
 	defer d.txmu.Unlock()
 	return d.writeLocked(batch, cOpts)
 }
 
 // writeLocked is like write(), but it assumes txmu is held.
-func (d *db) writeLocked(batch []writeOp, cOpts *C.leveldb_writeoptions_t) error {
+func (d *db) writeLocked(batch []store.WriteOp, cOpts *C.leveldb_writeoptions_t) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.err != nil {
@@ -176,16 +176,16 @@ func (d *db) writeLocked(batch []writeOp, cOpts *C.leveldb_writeoptions_t) error
 	cBatch := C.leveldb_writebatch_create()
 	defer C.leveldb_writebatch_destroy(cBatch)
 	for _, write := range batch {
-		switch write.t {
-		case putOp:
-			cKey, cKeyLen := cSlice(write.key)
-			cVal, cValLen := cSlice(write.value)
+		switch write.T {
+		case store.PutOp:
+			cKey, cKeyLen := cSlice(write.Key)
+			cVal, cValLen := cSlice(write.Value)
 			C.leveldb_writebatch_put(cBatch, cKey, cKeyLen, cVal, cValLen)
-		case deleteOp:
-			cKey, cKeyLen := cSlice(write.key)
+		case store.DeleteOp:
+			cKey, cKeyLen := cSlice(write.Key)
 			C.leveldb_writebatch_delete(cBatch, cKey, cKeyLen)
 		default:
-			panic(fmt.Sprintf("unknown write operation type: %v", write.t))
+			panic(fmt.Sprintf("unknown write operation type: %v", write.T))
 		}
 	}
 	var cError *C.char
@@ -201,14 +201,14 @@ func (d *db) writeLocked(batch []writeOp, cOpts *C.leveldb_writeoptions_t) error
 }
 
 // trackBatch writes the batch to txTable and adds a commit event to txEvents.
-func (d *db) trackBatch(batch []writeOp) {
+func (d *db) trackBatch(batch []store.WriteOp) {
 	// TODO(rogulenko): do GC.
 	d.txSequenceNumber++
 	seq := d.txSequenceNumber
 	var keys [][]byte
 	for _, write := range batch {
-		d.txTable.add(write.key, seq)
-		keys = append(keys, write.key)
+		d.txTable.add(write.Key, seq)
+		keys = append(keys, write.Key)
 	}
 	tx := &commitedTransaction{
 		seq:   seq,

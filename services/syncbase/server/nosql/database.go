@@ -404,12 +404,25 @@ type tableDb struct {
 }
 
 func (t *tableDb) Scan(keyRanges query_db.KeyRanges) (query_db.KeyValueStream, error) {
+	streams := []store.Stream{}
+	for _, keyRange := range keyRanges {
+		start := keyRange.Start
+		limit := keyRange.Limit
+		// 0-255 means examine all rows
+		if start == string([]byte{0}) && limit == string([]byte{255}) {
+			start = ""
+			limit = ""
+		}
+		// TODO(jkline): For now, acquire all of the streams at once to minimize the race condition.
+		//               Need a way to Scan multiple ranges at the same state of uncommitted changes.
+		streams = append(streams, t.qdb.st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.req.name), start, limit)))
+	}
 	return &kvs{
 		t:         t,
 		keyRanges: keyRanges,
-		curr:      -1,
+		curr:      0,
 		validRow:  false,
-		it:        nil,
+		it:        streams,
 		err:       nil,
 	}, nil
 }
@@ -417,11 +430,11 @@ func (t *tableDb) Scan(keyRanges query_db.KeyRanges) (query_db.KeyValueStream, e
 type kvs struct {
 	t         *tableDb
 	keyRanges query_db.KeyRanges
-	curr      int // current index into prefixes, -1 at start
+	curr      int
 	validRow  bool
 	currKey   string
 	currValue *vdl.Value
-	it        store.Stream // current prefix key value stream
+	it        []store.Stream // array of store.Streams
 	err       error
 }
 
@@ -429,28 +442,15 @@ func (s *kvs) Advance() bool {
 	if s.err != nil {
 		return false
 	}
-	if s.curr == -1 {
-		s.curr++
-	}
 	for s.curr < len(s.keyRanges) {
-		if s.it == nil {
-			start := s.keyRanges[s.curr].Start
-			limit := s.keyRanges[s.curr].Limit
-			// 0-255 means examine all rows
-			if start == string([]byte{0}) && limit == string([]byte{255}) {
-				start = ""
-				limit = ""
-			}
-			s.it = s.t.qdb.st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, s.t.req.name), start, limit))
-		}
-		if s.it.Advance() {
+		if s.it[s.curr].Advance() {
 			// key
-			keyBytes := s.it.Key(nil)
+			keyBytes := s.it[s.curr].Key(nil)
 			parts := util.SplitKeyParts(string(keyBytes))
 			// TODO(rogulenko): Check access for the key.
 			s.currKey = parts[len(parts)-1]
 			// value
-			valueBytes := s.it.Value(nil)
+			valueBytes := s.it[s.curr].Value(nil)
 			var currValue *vdl.Value
 			if err := vom.Decode(valueBytes, &currValue); err != nil {
 				s.validRow = false
@@ -463,12 +463,12 @@ func (s *kvs) Advance() bool {
 		}
 		// Advance returned false.  It could be an err, or it could
 		// be we've reached the end.
-		if err := s.it.Err(); err != nil {
+		if err := s.it[s.curr].Err(); err != nil {
 			s.validRow = false
 			s.err = err
 			return false
 		}
-		// We've reached the end of the iterator for this prefix.
+		// We've reached the end of the iterator for this keyRange.
 		// Jump to the next one.
 		s.curr++
 		s.it = nil
@@ -491,7 +491,9 @@ func (s *kvs) Err() error {
 
 func (s *kvs) Cancel() {
 	if s.it != nil {
-		s.it.Cancel()
+		for i := s.curr; i < len(s.it); i++ {
+			s.it[i].Cancel()
+		}
 		s.it = nil
 	}
 	// set curr to end of keyRanges so Advance will return false

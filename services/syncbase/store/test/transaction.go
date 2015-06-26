@@ -46,10 +46,14 @@ func RunTransactionStateTest(t *testing.T, st store.Store) {
 		verifyAdvance(t, s, key1, value1)
 		verifyAdvance(t, s, nil, nil)
 
-		// Test Put then Get inside the transaction.
+		// Test Put then Get & Scan inside the transaction.
 		key3, value3 := []byte("key3"), []byte("value3")
 		tx.Put(key3, value3)
 		verifyGet(t, tx, key3, value3)
+		s = tx.Scan([]byte("a"), []byte("z"))
+		verifyAdvance(t, s, key1, value1)
+		verifyAdvance(t, s, key3, value3)
+		verifyAdvance(t, s, nil, nil)
 
 		// Test Delete of old key then Get inside the transaction.
 		tx.Delete(key1)
