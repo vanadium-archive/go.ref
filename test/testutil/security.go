@@ -78,6 +78,12 @@ func NewIDProvider(name string) *IDProvider {
 	return &IDProvider{p, b}
 }
 
+// IDProviderFromPrincipal creates and IDProvider for the given principal.  It
+// will bless other principals with extensions of its default blessing.
+func IDProviderFromPrincipal(p security.Principal) *IDProvider {
+	return &IDProvider{p, p.BlessingStore().Default()}
+}
+
 // Bless sets up the provided principal to use blessings from idp as its
 // default. It is shorthand for:
 //    b, _ := idp.NewBlessings(who, extension, caveats...)
@@ -89,16 +95,7 @@ func (idp *IDProvider) Bless(who security.Principal, extension string, caveats .
 	if err != nil {
 		return err
 	}
-	if err := who.BlessingStore().SetDefault(b); err != nil {
-		return err
-	}
-	if _, err := who.BlessingStore().Set(b, security.AllPrincipals); err != nil {
-		return err
-	}
-	if err := who.AddToRoots(b); err != nil {
-		return err
-	}
-	return nil
+	return vsecurity.SetDefaultBlessings(who, b)
 }
 
 // NewBlessings returns Blessings that extend the identity provider's blessing

@@ -109,6 +109,35 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 	return sh, fn
 }
 
+// CreateShell builds a new modules shell.
+func CreateShell(t *testing.T, ctx *context.T, p security.Principal) (*modules.Shell, func()) {
+	sh, err := modules.NewShell(ctx, p, testing.Verbose(), t)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	opts := sh.DefaultStartOpts()
+	opts.ExpectTimeout = ExpectTimeout
+	sh.SetDefaultStartOpts(opts)
+	// The shell, will, by default share credentials with its children.
+	sh.ClearVar(ref.EnvCredentials)
+
+	fn := func() {
+		ctx.VI(1).Info("------------ CLEANUP ------------")
+		ctx.VI(1).Info("---------------------------------")
+		ctx.VI(1).Info("--(cleaning up shell)------------")
+		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
+			t.Errorf(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
+		}
+		ctx.VI(1).Info("--(done cleaning up shell)-------")
+	}
+	nsRoots := v23.GetNamespace(ctx).Roots()
+	if len(nsRoots) == 0 {
+		t.Fatalf("shell context has no namespace roots")
+	}
+	sh.SetVar(ref.EnvNamespacePrefix, nsRoots[0])
+	return sh, fn
+}
+
 // RunCommand runs a modules command.
 func RunCommand(t *testing.T, sh *modules.Shell, env []string, prog modules.Program, args ...string) modules.Handle {
 	h, err := sh.StartWithOpts(sh.DefaultStartOpts(), env, prog, args...)
