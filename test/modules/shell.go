@@ -323,11 +323,15 @@ func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 // Since the Shell type is intended for tests, it is not required to provide
 // caveats.  In production scenarios though, one must think long and hard
 // before blessing anothing principal without any caveats.
-func (sh *Shell) NewChildCredentials(extension string, caveats ...security.Caveat) (c *CustomCredentials, err error) {
+func (sh *Shell) NewChildCredentials(extension string, caveats ...security.Caveat) (*CustomCredentials, error) {
 	creds, err := sh.NewCustomCredentials()
 	if creds == nil {
 		return nil, err
 	}
+	return sh.AddToChildCredentials(creds, extension, caveats...)
+}
+
+func (sh *Shell) AddToChildCredentials(creds *CustomCredentials, extension string, caveats ...security.Caveat) (*CustomCredentials, error) {
 	parent := sh.principal
 	child := creds.p
 	if len(caveats) == 0 {
@@ -340,10 +344,16 @@ func (sh *Shell) NewChildCredentials(extension string, caveats ...security.Cavea
 	if err != nil {
 		return nil, err
 	}
-	if err := child.BlessingStore().SetDefault(blessings); err != nil {
+
+	union, err := security.UnionOfBlessings(child.BlessingStore().Default(), blessings)
+	if err != nil {
 		return nil, err
 	}
-	if _, err := child.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
+
+	if err := child.BlessingStore().SetDefault(union); err != nil {
+		return nil, err
+	}
+	if _, err := child.BlessingStore().Set(union, security.AllPrincipals); err != nil {
 		return nil, err
 	}
 	if err := child.AddToRoots(blessings); err != nil {
