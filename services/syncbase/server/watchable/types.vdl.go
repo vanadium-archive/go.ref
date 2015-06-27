@@ -33,10 +33,12 @@ func (ScanOp) __VDLReflect(struct {
 }) {
 }
 
-// PutOp represents a store put operation.
+// PutOp represents a store put operation.  The new version is written instead
+// of the value to avoid duplicating the user data in the store.  The version
+// is used to access the user data of that specific mutation.
 type PutOp struct {
-	Key   []byte
-	Value []byte
+	Key     []byte
+	Version []byte
 }
 
 func (PutOp) __VDLReflect(struct {
@@ -51,6 +53,19 @@ type DeleteOp struct {
 
 func (DeleteOp) __VDLReflect(struct {
 	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.DeleteOp"`
+}) {
+}
+
+// SyncGroupOp represents a change in SyncGroup tracking, adding or removing
+// key prefixes to sync.  SyncGroup prefixes cannot be changed, this is used
+// to track changes due to SyncGroup create/join/leave/destroy.
+type SyncGroupOp struct {
+	Prefixes []string
+	Remove   bool
+}
+
+func (SyncGroupOp) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.SyncGroupOp"`
 }) {
 }
 
@@ -76,15 +91,18 @@ type (
 	OpPut struct{ Value PutOp }
 	// OpDelete represents field Delete of the Op union type.
 	OpDelete struct{ Value DeleteOp }
+	// OpSyncGroup represents field SyncGroup of the Op union type.
+	OpSyncGroup struct{ Value SyncGroupOp }
 	// __OpReflect describes the Op union type.
 	__OpReflect struct {
 		Name  string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.Op"`
 		Type  Op
 		Union struct {
-			Get    OpGet
-			Scan   OpScan
-			Put    OpPut
-			Delete OpDelete
+			Get       OpGet
+			Scan      OpScan
+			Put       OpPut
+			Delete    OpDelete
+			SyncGroup OpSyncGroup
 		}
 	}
 )
@@ -109,6 +127,11 @@ func (x OpDelete) Interface() interface{}   { return x.Value }
 func (x OpDelete) Name() string             { return "Delete" }
 func (x OpDelete) __VDLReflect(__OpReflect) {}
 
+func (x OpSyncGroup) Index() int               { return 4 }
+func (x OpSyncGroup) Interface() interface{}   { return x.Value }
+func (x OpSyncGroup) Name() string             { return "SyncGroup" }
+func (x OpSyncGroup) __VDLReflect(__OpReflect) {}
+
 // LogEntry represents a single store operation. This operation may have been
 // part of a transaction, as signified by the Continued boolean. Read-only
 // operations (and read-only transactions) are not logged.
@@ -132,6 +155,7 @@ func init() {
 	vdl.Register((*ScanOp)(nil))
 	vdl.Register((*PutOp)(nil))
 	vdl.Register((*DeleteOp)(nil))
+	vdl.Register((*SyncGroupOp)(nil))
 	vdl.Register((*Op)(nil))
 	vdl.Register((*LogEntry)(nil))
 }

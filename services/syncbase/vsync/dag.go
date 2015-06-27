@@ -726,8 +726,9 @@ func getNode(ctx *context.T, st store.StoreReader, oid, version string) (*dagNod
 	}
 
 	var node dagNode
-	if err := util.GetObject(st, nodeKey(oid, version), &node); err != nil {
-		return nil, verror.New(verror.ErrInternal, ctx, err)
+	key := nodeKey(oid, version)
+	if err := util.GetObject(st, key, &node); err != nil {
+		return nil, translateError(ctx, err, key)
 	}
 	return &node, nil
 }
@@ -777,8 +778,9 @@ func setHead(ctx *context.T, tx store.StoreReadWriter, oid, version string) erro
 // getHead retrieves the DAG object head.
 func getHead(ctx *context.T, st store.StoreReader, oid string) (string, error) {
 	var version string
-	if err := util.GetObject(st, headKey(oid), &version); err != nil {
-		return NoVersion, verror.New(verror.ErrInternal, ctx, err)
+	key := headKey(oid)
+	if err := util.GetObject(st, key, &version); err != nil {
+		return NoVersion, translateError(ctx, err, key)
 	}
 	return version, nil
 }
@@ -819,8 +821,9 @@ func getBatch(ctx *context.T, st store.StoreReader, btid uint64) (*batchInfo, er
 	}
 
 	var info batchInfo
-	if err := util.GetObject(st, batchKey(btid), &info); err != nil {
-		return nil, verror.New(verror.ErrInternal, ctx, err)
+	key := batchKey(btid)
+	if err := util.GetObject(st, key, &info); err != nil {
+		return nil, translateError(ctx, err, key)
 	}
 	return &info, nil
 }

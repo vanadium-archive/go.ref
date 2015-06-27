@@ -72,14 +72,16 @@ func (tx *transaction) Put(key, value []byte) error {
 	if tx.err != nil {
 		return convertError(tx.err)
 	}
-	var err error
 	if !tx.st.managesKey(key) {
-		err = tx.itx.Put(key, value)
-	} else {
-		err = putVersioned(tx.itx, key, value)
-		tx.ops = append(tx.ops, &OpPut{PutOp{Key: key, Value: value}})
+		return tx.itx.Put(key, value)
 	}
-	return err
+
+	version, err := putVersioned(tx.itx, key, value)
+	if err != nil {
+		return err
+	}
+	tx.ops = append(tx.ops, &OpPut{PutOp{Key: key, Version: version}})
+	return nil
 }
 
 // Delete implements the store.StoreWriter interface.
@@ -118,15 +120,15 @@ func (tx *transaction) Commit() error {
 	}
 	// Write LogEntry records.
 	timestamp := tx.st.clock.Now().UnixNano()
+	// TODO(rdaoud): switch to using a single counter for log entries
+	// instead of a (sequence, index) combo.
 	keyPrefix := getLogEntryKeyPrefix(tx.st.seq)
 	for txSeq, op := range tx.ops {
 		key := join(keyPrefix, fmt.Sprintf("%04x", txSeq))
 		value := &LogEntry{
 			Op:              op,
 			CommitTimestamp: timestamp,
-			// TODO(sadovsky): This information is also captured in LogEntry keys.
-			// Optimize to avoid redundancy.
-			Continued: txSeq < len(tx.ops)-1,
+			Continued:       txSeq < len(tx.ops)-1,
 		}
 		if err := util.PutObject(tx.itx, key, value); err != nil {
 			return err
@@ -148,6 +150,22 @@ func (tx *transaction) Abort() error {
 	}
 	tx.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedTxn)
 	return tx.itx.Abort()
+}
+
+// AddSyncGroupOp injects a SyncGroup operation notification in the log entries
+// that the transaction writes when it is committed.  It allows the SyncGroup
+// operations (create, join, leave, destroy) to notify the sync watcher of the
+// change at its proper position in the timeline (the transaction commit).
+// Note: this is an internal function used by sync, not part of the interface.
+func AddSyncGroupOp(tx store.Transaction, prefixes []string, remove bool) error {
+	wtx := tx.(*transaction)
+	wtx.mu.Lock()
+	defer wtx.mu.Unlock()
+	if wtx.err != nil {
+		return convertError(wtx.err)
+	}
+	wtx.ops = append(wtx.ops, &OpSyncGroup{SyncGroupOp{Prefixes: prefixes, Remove: remove}})
+	return nil
 }
 
 // Exported as a helper function for testing purposes

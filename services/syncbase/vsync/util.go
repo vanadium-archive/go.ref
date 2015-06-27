@@ -7,11 +7,17 @@ package vsync
 // Sync utility functions
 
 import (
+	"time"
+
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+)
+
+const (
+	nanoPerSec = int64(1000000000)
 )
 
 // forEachDatabaseStore iterates over all Databases in all Apps within the
@@ -75,4 +81,12 @@ func translateError(ctx *context.T, err error, key string) error {
 		return verror.New(verror.ErrNoExist, ctx, key)
 	}
 	return verror.New(verror.ErrInternal, ctx, key, err)
+}
+
+// unixNanoToTime converts a Unix timestamp in nanoseconds to a Time object.
+func unixNanoToTime(timestamp int64) time.Time {
+	if timestamp < 0 {
+		vlog.Fatalf("unixNanoToTime: invalid timestamp %d", timestamp)
+	}
+	return time.Unix(timestamp/nanoPerSec, timestamp%nanoPerSec)
 }

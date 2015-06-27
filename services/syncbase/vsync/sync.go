@@ -129,7 +129,7 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncServi
 	s.pending.Add(2)
 
 	// Start watcher thread to watch for updates to local store.
-	go s.watchStore()
+	go s.watchStore(ctx)
 
 	// Start initiator thread to periodically get deltas from peers.
 	go s.syncer(ctx)

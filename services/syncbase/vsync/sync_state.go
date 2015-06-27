@@ -55,10 +55,10 @@ type dbSyncStateInMem struct {
 }
 
 // initSync initializes the sync module during startup. It scans all the
-// databases across all apps to a) initialize the in-memory sync state of a
-// Database consisting of the current generation number, log position and
-// generation vector; b) initialize the prefixes that are currently being
-// synced.
+// databases across all apps to initialize the following:
+// a) in-memory sync state of a Database consisting of the current generation
+//    number, log position and generation vector.
+// b) watcher map of prefixes currently being synced.
 //
 // TODO(hpucha): This is incomplete. Flesh this out further.
 func (s *syncService) initSync(ctx *context.T) error {
@@ -68,40 +68,49 @@ func (s *syncService) initSync(ctx *context.T) error {
 	var errFinal error
 	s.syncState = make(map[string]*dbSyncStateInMem)
 
-	// TODO(hpucha): Temporary hack.
-	return errFinal
-
-	/*s.forEachDatabaseStore(ctx, func(st store.Store) bool {
-		sn := st.NewSnapshot()
-		defer sn.Close()
-
-		ds, err := getDbSyncState(ctx, sn)
-		if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
-			errFinal = err
+	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
+		// Scan the SyncGroups, skipping those not yet being watched.
+		forEachSyncGroup(st, func(sg *interfaces.SyncGroup) bool {
+			// TODO(rdaoud): only use SyncGroups that have been
+			// marked as "watchable" by the sync watcher thread.
+			// This is to handle the case of a SyncGroup being
+			// created but Syncbase restarting before the watcher
+			// processed the SyncGroupOp entry in the watch queue.
+			// It should not be syncing that SyncGroup's data after
+			// restart, but wait until the watcher processes the
+			// entry as would have happened without a restart.
+			for _, prefix := range sg.Spec.Prefixes {
+				incrWatchPrefix(appName, dbName, prefix)
+			}
 			return false
+		})
+
+		if false {
+			// Fetch the sync state.
+			ds, err := getDbSyncState(ctx, st)
+			if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
+				errFinal = err
+				return false
+			}
+			var scanStart, scanLimit []byte
+			// Figure out what to scan among local log records.
+			if verror.ErrorID(err) == verror.ErrNoExist.ID {
+				scanStart, scanLimit = util.ScanPrefixArgs(logRecsPerDeviceScanPrefix(s.id), "")
+			} else {
+				scanStart, scanLimit = util.ScanPrefixArgs(logRecKey(s.id, ds.Gen), "")
+			}
+			var maxpos uint64
+			var dbName string
+			// Scan local log records to find the most recent one.
+			st.Scan(scanStart, scanLimit)
+			// Scan remote log records using the persisted GenVector.
+			s.syncState[dbName] = &dbSyncStateInMem{pos: maxpos + 1}
 		}
-
-		var scanStart, scanLimit []byte
-		// Figure out what to scan among local log records.
-		if verror.ErrorID(err) == verror.ErrNoExist.ID {
-			scanStart, scanLimit = util.ScanPrefixArgs(logRecsPerDeviceScanPrefix(s.id), "")
-		} else {
-			scanStart, scanLimit = util.ScanPrefixArgs(logRecKey(s.id, ds.Gen), "")
-		}
-
-		var maxpos uint64
-		var dbName string
-		// Scan local log records to find the most recent one.
-		sn.Scan(scanStart, scanLimit)
-
-		// Scan remote log records using the persisted GenVector.
-
-		s.syncState[dbName] = &dbSyncStateInMem{pos: maxpos + 1}
 
 		return false
 	})
 
-	return errFinal*/
+	return errFinal
 }
 
 // reserveGenAndPosInDbLog reserves a chunk of generation numbers and log

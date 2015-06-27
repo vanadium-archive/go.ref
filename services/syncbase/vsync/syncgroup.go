@@ -209,7 +209,6 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 
 	// Create a new aggregate view of SyncGroup members across all app databases.
 	newMembers := make(map[string]*memberInfo)
-	scanStart, scanLimit := util.ScanPrefixArgs(sgDataKeyScanPrefix(), "")
 
 	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
 		// For each database, fetch its SyncGroup data entries by scanning their
@@ -218,14 +217,7 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 		defer sn.Close()
 		name := appDbName(appName, dbName)
 
-		stream := sn.Scan(scanStart, scanLimit)
-		for stream.Advance() {
-			var sg interfaces.SyncGroup
-			if vom.Decode(stream.Value(nil), &sg) != nil {
-				vlog.Errorf("invalid SyncGroup value for key %s", string(stream.Key(nil)))
-				continue
-			}
-
+		forEachSyncGroup(sn, func(sg *interfaces.SyncGroup) bool {
 			// Add all members of this SyncGroup to the membership view.
 			// A member's info is different across SyncGroups, so gather all of them.
 			for member, info := range sg.Joiners {
@@ -237,12 +229,37 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 				}
 				newMembers[member].db2sg[name][sg.Id] = info
 			}
-		}
+			return false
+		})
 		return false
 	})
 
 	view.members = newMembers
 	view.expiration = time.Now().Add(memberViewTTL)
+}
+
+// forEachSyncGroup iterates over all SyncGroups in the Database and invokes
+// the callback function on each one.  The callback returns a "done" flag to
+// make forEachSyncGroup() stop the iteration earlier; otherwise the function
+// loops across all SyncGroups in the Database.
+func forEachSyncGroup(st store.StoreReader, callback func(*interfaces.SyncGroup) bool) {
+	scanStart, scanLimit := util.ScanPrefixArgs(sgDataKeyScanPrefix(), "")
+	stream := st.Scan(scanStart, scanLimit)
+	for stream.Advance() {
+		var sg interfaces.SyncGroup
+		if vom.Decode(stream.Value(nil), &sg) != nil {
+			vlog.Errorf("invalid SyncGroup value for key %s", string(stream.Key(nil)))
+			continue
+		}
+
+		if callback(&sg) {
+			break // done, early exit
+		}
+	}
+
+	if err := stream.Err(); err != nil {
+		vlog.Errorf("forEachSyncGroup: scan stream error: %v", err)
+	}
 }
 
 // getMembers returns all SyncGroup members and the count of SyncGroups each one

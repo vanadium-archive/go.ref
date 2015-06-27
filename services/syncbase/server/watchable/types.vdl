@@ -15,10 +15,12 @@ type ScanOp struct {
 	Limit []byte
 }
 
-// PutOp represents a store put operation.
+// PutOp represents a store put operation.  The new version is written instead
+// of the value to avoid duplicating the user data in the store.  The version
+// is used to access the user data of that specific mutation.
 type PutOp struct {
-	Key   []byte
-	Value []byte
+	Key     []byte
+	Version []byte
 }
 
 // DeleteOp represents a store delete operation.
@@ -26,12 +28,21 @@ type DeleteOp struct {
 	Key []byte
 }
 
+// SyncGroupOp represents a change in SyncGroup tracking, adding or removing
+// key prefixes to sync.  SyncGroup prefixes cannot be changed, this is used
+// to track changes due to SyncGroup create/join/leave/destroy.
+type SyncGroupOp struct {
+	Prefixes []string
+	Remove   bool
+}
+
 // Op represents a store operation.
 type Op union {
-	Get    GetOp
-	Scan   ScanOp
-	Put    PutOp
-	Delete DeleteOp
+	Get       GetOp
+	Scan      ScanOp
+	Put       PutOp
+	Delete    DeleteOp
+	SyncGroup SyncGroupOp
 }
 
 // LogEntry represents a single store operation. This operation may have been
