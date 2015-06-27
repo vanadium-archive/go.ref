@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +21,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/device/internal/suid"
@@ -63,8 +64,9 @@ func (appService) Cat(_ *context.T, _ rpc.ServerCall, file string) (string, erro
 }
 
 type PingArgs struct {
-	Username, FlagValue, EnvValue string
-	Pid                           int
+	Username, FlagValue, EnvValue,
+	DefaultPeerBlessings, PubBlessingPrefixes, InstanceName string
+	Pid int
 }
 
 // ping makes a RPC from the App back to the invoking device manager
@@ -82,11 +84,20 @@ func ping(ctx *context.T, flagValue string) {
 	args := &PingArgs{
 		// TODO(rjkroege): Consider validating additional parameters
 		// from helper.
-		Username:  savedArgs.Uname,
-		FlagValue: flagValue,
-		EnvValue:  os.Getenv(TestEnvVarName),
-		Pid:       os.Getpid(),
+		Username:             savedArgs.Uname,
+		FlagValue:            flagValue,
+		EnvValue:             os.Getenv(TestEnvVarName),
+		Pid:                  os.Getpid(),
+		DefaultPeerBlessings: v23.GetPrincipal(ctx).BlessingStore().ForPeer("nonexistent").String(),
 	}
+
+	if handle, err := exec.GetChildHandle(); err != nil {
+		vlog.Fatalf("Couldn't get Child Handle: %v", err)
+	} else {
+		args.PubBlessingPrefixes, _ = handle.Config.Get(mgmt.PublisherBlessingPrefixesKey)
+		args.InstanceName, _ = handle.Config.Get(mgmt.InstanceNameKey)
+	}
+
 	client := v23.GetClient(ctx)
 	if call, err := client.StartCall(ctx, "pingserver", "Ping", []interface{}{args}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
@@ -179,17 +190,12 @@ func (p PingServer) WaitForPingArgs(t *testing.T) PingArgs {
 	return args
 }
 
-func (p PingServer) VerifyPingArgs(t *testing.T, username, flagValue, envValue string) {
+func (p PingServer) VerifyPingArgs(t *testing.T, username, flagValue, envValue string) PingArgs {
 	args := p.WaitForPingArgs(t)
-	wantArgs := PingArgs{
-		Username:  username,
-		FlagValue: flagValue,
-		EnvValue:  envValue,
-		Pid:       args.Pid, // We are not checking for a value of Pid
+	if args.Username != username || args.FlagValue != flagValue || args.EnvValue != envValue {
+		t.Fatalf(testutil.FormatLogLine(2, "got ping args %q, expected [username = %v, flag value = %v, env value = %v]", args, username, flagValue, envValue))
 	}
-	if !reflect.DeepEqual(args, wantArgs) {
-		t.Fatalf(testutil.FormatLogLine(2, "got ping args %q, expected %q", args, wantArgs))
-	}
+	return args // Useful for tests that want to check other values in the PingArgs result
 }
 
 // HangingApp is the same as App, except that it does not exit properly after

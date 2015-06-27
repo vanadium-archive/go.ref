@@ -161,9 +161,31 @@ func TestLifeOfAnApp(t *testing.T) {
 	verifyAppPeerBlessings(t, ctx, pubCtx, instanceDebug, envelope)
 
 	// Wait until the app pings us that it's ready.
-	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
-
+	pingResult := pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
 	v1EP1 := utiltest.Resolve(t, ctx, "appV1", 1, true)[0]
+
+	// Check that the instance name handed to the app looks plausible
+	nameRE := regexp.MustCompile(".*/apps/google naps/[^/]+/[^/]+$")
+	if nameRE.FindString(pingResult.InstanceName) == "" {
+		t.Fatalf("Unexpected instance name: %v", pingResult.InstanceName)
+	}
+
+	// There should be at least one publisher blessing prefix, and all prefixes should
+	// end in "/mydevice" because they are just the device manager's blessings
+	prefixes := strings.Split(pingResult.PubBlessingPrefixes, ",")
+	if len(prefixes) == 0 {
+		t.Fatalf("No publisher blessing prefixes found: %v", pingResult)
+	}
+	for _, p := range prefixes {
+		if !strings.HasSuffix(p, "/mydevice") {
+			t.Fatalf("publisher Blessing prefixes don't look right: %v", pingResult.PubBlessingPrefixes)
+		}
+	}
+
+	// We used a signed envelope, so there should have been some publisher blessings
+	if !hasPrefixMatches(pingResult.PubBlessingPrefixes, pingResult.DefaultPeerBlessings) {
+		t.Fatalf("Publisher Blessing Prefixes are not as expected: %v vs %v", pingResult.PubBlessingPrefixes, pingResult.DefaultPeerBlessings)
+	}
 
 	// Stop the app instance.
 	utiltest.KillApp(t, ctx, appID, instance1ID)
@@ -265,9 +287,20 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 	// Resume the first instance and verify it's running v2 now.
 	utiltest.RunApp(t, ctx, appID, instance1ID)
-	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
+	pingResult = pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
 	utiltest.Resolve(t, ctx, "appV1", 1, false)
 	utiltest.Resolve(t, ctx, "appV2", 1, false)
+
+	// Although v2 does not have a signed envelope, this was an update of v1, which did.
+	// This app's config still includes publisher blessing prefixes, and it should still
+	// have the publisher blessing it acquired earlier.
+	//
+	// TODO: This behavior is non-ideal. A reasonable requirement in future would be that
+	// the publisher blessing string remain unchanged on updates to an installation, just as the
+	// title is not allowed to change.
+	if !hasPrefixMatches(pingResult.PubBlessingPrefixes, pingResult.DefaultPeerBlessings) {
+		t.Fatalf("Publisher Blessing Prefixes are not as expected: %v vs %v", pingResult.PubBlessingPrefixes, pingResult.DefaultPeerBlessings)
+	}
 
 	// Reverting first instance fails since it's still running.
 	utiltest.RevertAppExpectError(t, ctx, appID+"/"+instance1ID, errors.ErrInvalidOperation.ID)
@@ -289,7 +322,12 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v2, v)
 	}
 	// Wait until the app pings us that it's ready.
-	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
+	pingResult = pingCh.VerifyPingArgs(t, utiltest.UserName(t), "flag-val-install", "env-val-envelope")
+	// This app should not have publisher blessings. It was started from an installation
+	// that did not have a signed envelope.
+	if hasPrefixMatches(pingResult.PubBlessingPrefixes, pingResult.DefaultPeerBlessings) {
+		t.Fatalf("Publisher Blessing Prefixes are not as expected: %v vs %v", pingResult.PubBlessingPrefixes, pingResult.DefaultPeerBlessings)
+	}
 
 	utiltest.Resolve(t, ctx, "appV2", 1, true)
 
@@ -559,6 +597,22 @@ func setupPublishingCredentials(ctx *context.T) (*context.T, error) {
 	}
 
 	return pubCtx, nil
+}
+
+// findPrefixMatches takes a set of comma-separated prefixes, and a set of comma-separated
+// strings, and checks if any of the strings match any of the prefixes
+func hasPrefixMatches(prefixList, stringList string) bool {
+	prefixes := strings.Split(prefixList, ",")
+	inStrings := strings.Split(stringList, ",")
+
+	for _, s := range inStrings {
+		for _, p := range prefixes {
+			if strings.HasPrefix(s, p) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // verifyAppPeerBlessings checks the instanceDebug string to ensure that the app is running with

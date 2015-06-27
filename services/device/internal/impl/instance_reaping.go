@@ -46,6 +46,7 @@ type pidInstanceDirPair struct {
 type reaper struct {
 	c          chan pidInstanceDirPair
 	startState *appRunner
+	ctx        *context.T
 }
 
 var stashedPidMap map[string]int
@@ -63,13 +64,14 @@ func newReaper(ctx *context.T, root string, startState *appRunner) (*reaper, err
 	r := &reaper{
 		c:          make(chan pidInstanceDirPair),
 		startState: startState,
+		ctx:        ctx,
 	}
 	r.startState.reap = r
 	go r.processStatusPolling(pidMap)
 
 	// Restart daemon jobs if they're not running (say because the machine crashed.)
 	for _, idir := range restartCandidates {
-		go r.startState.restartAppIfNecessary(idir)
+		go r.startState.restartAppIfNecessary(ctx, idir)
 	}
 	return r, nil
 }
@@ -99,7 +101,7 @@ func (r *reaper) processStatusPolling(trackedPids map[string]int) {
 				// No such PID.
 				vlog.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
 				markNotRunning(idir)
-				go r.startState.restartAppIfNecessary(idir)
+				go r.startState.restartAppIfNecessary(r.ctx, idir)
 				delete(trackedPids, idir)
 			case nil, syscall.EPERM:
 				vlog.VI(2).Infof("processStatusPolling saw live pid: %d", pid)

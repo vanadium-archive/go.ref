@@ -127,6 +127,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -204,6 +205,8 @@ type appRunner struct {
 	reap *reaper
 	// mtAddress is the address of the local mounttable.
 	mtAddress string
+	// appServiceName is a name by which the appService can be reached
+	appServiceName string
 }
 
 // appService implements the Device manager's Application interface.
@@ -337,6 +340,12 @@ func generateRandomString() (string, error) {
 // title, and thereby being installed in the same app dir.  Do we want to
 // prevent that for the same user or across users?
 
+const (
+	appDirPrefix       = "app-"
+	installationPrefix = "installation-"
+	instancePrefix     = "instance-"
+)
+
 // applicationDirName generates a cryptographic hash of the application title,
 // to be used as a directory name for installations of the application with the
 // given title.
@@ -344,15 +353,15 @@ func applicationDirName(title string) string {
 	h := md5.New()
 	h.Write([]byte(title))
 	hash := strings.TrimRight(base64.URLEncoding.EncodeToString(h.Sum(nil)), "=")
-	return "app-" + hash
+	return appDirPrefix + hash
 }
 
 func installationDirName(installationID string) string {
-	return "installation-" + installationID
+	return installationPrefix + installationID
 }
 
 func instanceDirName(instanceID string) string {
-	return "instance-" + instanceID
+	return instancePrefix + instanceID
 }
 
 func mkdir(dir string) error {
@@ -837,6 +846,20 @@ func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error
 	return suidHelper.getAppCmd(&saArgs)
 }
 
+// instanceNameFromDir returns the instance name, given the instanceDir.
+func instanceNameFromDir(ctx *context.T, instanceDir string) (string, error) {
+	_, _, installation, instance := parseInstanceDir(instanceDir)
+	if installation == "" || instance == "" {
+		return "", fmt.Errorf("Unable to parse instanceDir %v", instanceDir)
+	}
+
+	env, err := loadEnvelopeForInstance(ctx, instanceDir)
+	if err != nil {
+		return "", err
+	}
+	return env.Title + "/" + installation + "/" + instance, nil
+}
+
 func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) (int, error) {
 	info, err := loadInstanceInfo(ctx, instanceDir)
 	if err != nil {
@@ -863,6 +886,14 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 	cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
+	cfg.Set(mgmt.PublisherBlessingPrefixesKey,
+		v23.GetPrincipal(ctx).BlessingStore().Default().String())
+
+	if instanceName, err := instanceNameFromDir(ctx, instanceDir); err != nil {
+		return 0, err
+	} else {
+		cfg.Set(mgmt.InstanceNameKey, naming.Join(i.appServiceName, instanceName))
+	}
 
 	appPermsDir := filepath.Join(instanceDir, "debugacls", "data")
 	cfg.Set("v23.permissions.file", "runtime:"+appPermsDir)
@@ -990,7 +1021,7 @@ func synchronizedShouldRestart(instanceDir string) bool {
 // device manager then crashes between the reaper marking the app not
 // running and the go routine invoking this function having a chance to
 // complete.
-func (i *appRunner) restartAppIfNecessary(instanceDir string) {
+func (i *appRunner) restartAppIfNecessary(ctx *context.T, instanceDir string) {
 	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateLaunching); err != nil {
 		vlog.Error(err)
 		return
@@ -1007,7 +1038,7 @@ func (i *appRunner) restartAppIfNecessary(instanceDir string) {
 		return
 	}
 
-	if err := i.run(nil, instanceDir); err != nil {
+	if err := i.run(ctx, instanceDir); err != nil {
 		vlog.Error(err)
 	}
 }
@@ -1038,6 +1069,17 @@ func instanceDir(root string, suffix []string) (string, error) {
 	instancesDir := filepath.Join(root, applicationDirName(app), installationDirName(installation), "instances")
 	instanceDir := filepath.Join(instancesDir, instanceDirName(instance))
 	return instanceDir, nil
+}
+
+// parseInstanceDir is a partial inverse of instanceDir. It cannot retrieve the app name,
+// as that has been hashed so it returns an appDir instead.
+func parseInstanceDir(dir string) (prefix, appDir, installation, instance string) {
+	dirRE := regexp.MustCompile("(/.*)(/" + appDirPrefix + "[^/]+)/" + installationPrefix + "([^/]+)/" + "instances/" + instancePrefix + "([^/]+)$")
+	matches := dirRE.FindStringSubmatch(dir)
+	if len(matches) < 5 {
+		return "", "", "", ""
+	}
+	return matches[1], matches[2], matches[3], matches[4]
 }
 
 // instanceDir returns the path to the directory containing the app instance
@@ -1322,7 +1364,7 @@ func (n *treeNode) find(names []string, create bool) *treeNode {
 
 func (i *appService) scanEnvelopes(ctx *context.T, tree *treeNode, appDir string) {
 	// Find all envelopes, extract installID.
-	envGlob := []string{i.config.Root, appDir, "installation-*", "*", "envelope"}
+	envGlob := []string{i.config.Root, appDir, installationPrefix + "*", "*", "envelope"}
 	envelopes, err := filepath.Glob(filepath.Join(envGlob...))
 	if err != nil {
 		vlog.Errorf("unexpected error: %v", err)
@@ -1339,7 +1381,7 @@ func (i *appService) scanEnvelopes(ctx *context.T, tree *treeNode, appDir string
 			vlog.Errorf("unexpected number of path components: %q (%q)", elems, path)
 			continue
 		}
-		installID := strings.TrimPrefix(elems[1], "installation-")
+		installID := strings.TrimPrefix(elems[1], installationPrefix)
 		tree.find([]string{env.Title, installID}, true)
 	}
 	return
@@ -1357,7 +1399,7 @@ func (i *appService) scanInstances(ctx *context.T, tree *treeNode) {
 	// Add the node corresponding to the installation itself.
 	tree.find(i.suffix[:2], true)
 	// Find all instances.
-	infoGlob := []string{installDir, "instances", "instance-*", "info"}
+	infoGlob := []string{installDir, "instances", instancePrefix + "*", "info"}
 	instances, err := filepath.Glob(filepath.Join(infoGlob...))
 	if err != nil {
 		vlog.Errorf("unexpected error: %v", err)
@@ -1374,14 +1416,12 @@ func (i *appService) scanInstance(ctx *context.T, tree *treeNode, title, instanc
 	if _, err := loadInstanceInfo(ctx, instanceDir); err != nil {
 		return
 	}
-	relpath, _ := filepath.Rel(i.config.Root, instanceDir)
-	elems := strings.Split(relpath, string(filepath.Separator))
-	if len(elems) < 4 {
-		vlog.Errorf("unexpected number of path components: %q (%q)", elems, instanceDir)
+	rootDir, _, installID, instanceID := parseInstanceDir(instanceDir)
+	if installID == "" || instanceID == "" || filepath.Clean(i.config.Root) != filepath.Clean(rootDir) {
+		vlog.Errorf("failed to parse instanceDir %v (got: %v %v %v)", instanceDir, rootDir, installID, instanceID)
 		return
 	}
-	installID := strings.TrimPrefix(elems[1], "installation-")
-	instanceID := strings.TrimPrefix(elems[3], "instance-")
+
 	tree.find([]string{title, installID, instanceID, "logs"}, true)
 	if instanceStateIs(instanceDir, device.InstanceStateRunning) {
 		for _, obj := range []string{"pprof", "stats"} {
@@ -1394,7 +1434,7 @@ func (i *appService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan st
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:
-		i.scanEnvelopes(ctx, tree, "app-*")
+		i.scanEnvelopes(ctx, tree, appDirPrefix+"*")
 	case 1:
 		appDir := applicationDirName(i.suffix[0])
 		i.scanEnvelopes(ctx, tree, appDir)

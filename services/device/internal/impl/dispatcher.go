@@ -135,8 +135,9 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		}
 	}
 	reap, err := newReaper(ctx, config.Root, &appRunner{
-		callback:      d.internal.callback,
-		securityAgent: d.internal.securityAgent,
+		callback:       d.internal.callback,
+		securityAgent:  d.internal.securityAgent,
+		appServiceName: naming.Join(d.config.Name, appsSuffix),
 	})
 	if err != nil {
 		return nil, verror.New(errCantCreateAppWatcher, ctx, err)
@@ -324,10 +325,11 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			uat:        d.uat,
 			permsStore: d.permsStore,
 			runner: &appRunner{
-				reap:          d.internal.reap,
-				callback:      d.internal.callback,
-				securityAgent: d.internal.securityAgent,
-				mtAddress:     d.mtAddress,
+				reap:           d.internal.reap,
+				callback:       d.internal.callback,
+				securityAgent:  d.internal.securityAgent,
+				mtAddress:      d.mtAddress,
+				appServiceName: naming.Join(d.config.Name, appsSuffix),
 			},
 		})
 		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.permsStore)
