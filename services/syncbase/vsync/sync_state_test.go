@@ -21,6 +21,7 @@ import (
 // Database log.
 func TestReserveGenAndPos(t *testing.T) {
 	svc := createService(t)
+	defer destroyService(t, svc)
 	s := svc.sync
 
 	var wantGen, wantPos uint64 = 1, 0
@@ -42,6 +43,7 @@ func TestReserveGenAndPos(t *testing.T) {
 // TestPutGetDbSyncState tests setting and getting sync metadata.
 func TestPutGetDbSyncState(t *testing.T) {
 	svc := createService(t)
+	defer destroyService(t, svc)
 	st := svc.St()
 
 	checkDbSyncState(t, st, false, nil)
@@ -67,6 +69,7 @@ func TestPutGetDbSyncState(t *testing.T) {
 // TestPutGetDelLogRec tests setting, getting, and deleting a log record.
 func TestPutGetDelLogRec(t *testing.T) {
 	svc := createService(t)
+	defer destroyService(t, svc)
 	st := svc.St()
 
 	var id uint64 = 10
@@ -113,6 +116,7 @@ func TestPutGetDelLogRec(t *testing.T) {
 // TestDiffPrefixGenVectors tests diffing prefix gen vectors.
 func TestDiffPrefixGenVectors(t *testing.T) {
 	svc := createService(t)
+	defer destroyService(t, svc)
 	s := svc.sync
 	s.id = 10 //responder. Initiator is id 11.
 
@@ -437,7 +441,7 @@ func TestSendDeltas(t *testing.T) {
 		s.id = 10 //responder.
 
 		wantDiff, wantVec := test.genDiff, test.outVec
-		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{gen: test.respGen, genvec: test.respVec}
+		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{gen: test.respGen, ckPtGen: test.respGen, genvec: test.respVec}
 
 		gotDiff, gotVec, err := s.computeDeltaBound(nil, appName, dbName, test.initVec)
 		if err != nil || !reflect.DeepEqual(gotVec, wantVec) {
@@ -487,6 +491,8 @@ func TestSendDeltas(t *testing.T) {
 			t.Fatalf("sendDeltasPerDatabase failed (I: %v), (R: %v, %v), got %v, want %v err %v", test.initVec, test.respGen, test.respVec, gotVec, wantVec, err)
 		}
 		ts.diffLogRecs(t, wantRecs)
+
+		destroyService(t, svc)
 	}
 }
 

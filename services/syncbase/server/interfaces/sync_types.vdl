@@ -32,8 +32,8 @@ const (
 type PrefixGenVector map[uint64]uint64
 
 // GenVector is the generation vector for a Database, and maps prefixes to their
-// generation vectors. Note that the prefixes in a GenVector are global prefixes
-// that include the appropriate Application and Database name.
+// generation vectors. Note that the prefixes in a GenVector are relative to the
+// the Application and Database name.
 type GenVector map[string]PrefixGenVector
 
 // LogRecMetadata represents the metadata of a single log record that is
@@ -49,7 +49,7 @@ type LogRecMetadata struct {
 	RecType   byte   // type of log record.
 
         // Object related information.
-        ObjId       string      // id of the object that was updated.
+        ObjId       string      // id of the object that was updated. This id is relative to Application and Database names.
         CurVers     string      // current version number of the object.
         Parents     []string    // 0, 1 or 2 parent versions that the current version is derived from.
 	UpdTime     time.Time   // timestamp when the update is generated.
@@ -93,4 +93,20 @@ type SyncGroup struct {
 	DbName      string                              // Database name within the App
 	Status      SyncGroupStatus                     // Status of the SyncGroup
 	Joiners     map[string]wire.SyncGroupMemberInfo // map of joiners to their metadata
+}
+
+// DeltaReq contains the initiator's genvector and the set of SyncGroups it is
+// interested with in a Database when requesting deltas for that Database.
+type DeltaReq struct {
+	SgIds   set[GroupId]
+	InitVec GenVector
+}
+
+// DeltaResp contains the responder's genvector or the missing log records
+// returned in response to an initiator's request for deltas for a Database.
+type DeltaResp union {
+	Start   bool
+	Finish  bool
+	Rec     LogRec
+	RespVec GenVector
 }

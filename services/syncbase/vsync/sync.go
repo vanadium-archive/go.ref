@@ -82,6 +82,13 @@ func rand64() uint64 {
 	return (uint64(rng.Int63()) << 1) | uint64(rng.Int63n(2))
 }
 
+// randIntn generates as an int, a non-negative pseudo-random number in [0,n).
+func randIntn(n int) int {
+	rngLock.Lock()
+	defer rngLock.Unlock()
+	return rng.Intn(n)
+}
+
 // New creates a new sync module.
 //
 // Concurrency: sync initializes two goroutines at startup: a "watcher" and an
@@ -125,9 +132,16 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncServi
 	go s.watchStore()
 
 	// Start initiator thread to periodically get deltas from peers.
-	go s.contactPeers()
+	go s.syncer(ctx)
 
 	return s, nil
+}
+
+// Close cleans up sync state.
+// TODO(hpucha): Hook it up to server shutdown of syncbased.
+func (s *syncService) Close() {
+	close(s.closed)
+	s.pending.Wait()
 }
 
 func NewSyncDatabase(db interfaces.Database) *syncDatabase {
@@ -137,7 +151,7 @@ func NewSyncDatabase(db interfaces.Database) *syncDatabase {
 ////////////////////////////////////////
 // Core sync method.
 
-func (s *syncService) GetDeltas(ctx *context.T, call rpc.ServerCall) error {
+func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 

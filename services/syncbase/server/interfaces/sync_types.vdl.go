@@ -28,8 +28,8 @@ func (PrefixGenVector) __VDLReflect(struct {
 }
 
 // GenVector is the generation vector for a Database, and maps prefixes to their
-// generation vectors. Note that the prefixes in a GenVector are global prefixes
-// that include the appropriate Application and Database name.
+// generation vectors. Note that the prefixes in a GenVector are relative to the
+// the Application and Database name.
 type GenVector map[string]PrefixGenVector
 
 func (GenVector) __VDLReflect(struct {
@@ -49,7 +49,7 @@ type LogRecMetadata struct {
 	Gen     uint64 // generation number for the log record.
 	RecType byte   // type of log record.
 	// Object related information.
-	ObjId      string    // id of the object that was updated.
+	ObjId      string    // id of the object that was updated. This id is relative to Application and Database names.
 	CurVers    string    // current version number of the object.
 	Parents    []string  // 0, 1 or 2 parent versions that the current version is derived from.
 	UpdTime    time.Time // timestamp when the update is generated.
@@ -155,6 +155,74 @@ func (SyncGroup) __VDLReflect(struct {
 }) {
 }
 
+// DeltaReq contains the initiator's genvector and the set of SyncGroups it is
+// interested with in a Database when requesting deltas for that Database.
+type DeltaReq struct {
+	SgIds   map[GroupId]struct{}
+	InitVec GenVector
+}
+
+func (DeltaReq) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.DeltaReq"`
+}) {
+}
+
+type (
+	// DeltaResp represents any single field of the DeltaResp union type.
+	//
+	// DeltaResp contains the responder's genvector or the missing log records
+	// returned in response to an initiator's request for deltas for a Database.
+	DeltaResp interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the DeltaResp union type.
+		__VDLReflect(__DeltaRespReflect)
+	}
+	// DeltaRespStart represents field Start of the DeltaResp union type.
+	DeltaRespStart struct{ Value bool }
+	// DeltaRespFinish represents field Finish of the DeltaResp union type.
+	DeltaRespFinish struct{ Value bool }
+	// DeltaRespRec represents field Rec of the DeltaResp union type.
+	DeltaRespRec struct{ Value LogRec }
+	// DeltaRespRespVec represents field RespVec of the DeltaResp union type.
+	DeltaRespRespVec struct{ Value GenVector }
+	// __DeltaRespReflect describes the DeltaResp union type.
+	__DeltaRespReflect struct {
+		Name  string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.DeltaResp"`
+		Type  DeltaResp
+		Union struct {
+			Start   DeltaRespStart
+			Finish  DeltaRespFinish
+			Rec     DeltaRespRec
+			RespVec DeltaRespRespVec
+		}
+	}
+)
+
+func (x DeltaRespStart) Index() int                      { return 0 }
+func (x DeltaRespStart) Interface() interface{}          { return x.Value }
+func (x DeltaRespStart) Name() string                    { return "Start" }
+func (x DeltaRespStart) __VDLReflect(__DeltaRespReflect) {}
+
+func (x DeltaRespFinish) Index() int                      { return 1 }
+func (x DeltaRespFinish) Interface() interface{}          { return x.Value }
+func (x DeltaRespFinish) Name() string                    { return "Finish" }
+func (x DeltaRespFinish) __VDLReflect(__DeltaRespReflect) {}
+
+func (x DeltaRespRec) Index() int                      { return 2 }
+func (x DeltaRespRec) Interface() interface{}          { return x.Value }
+func (x DeltaRespRec) Name() string                    { return "Rec" }
+func (x DeltaRespRec) __VDLReflect(__DeltaRespReflect) {}
+
+func (x DeltaRespRespVec) Index() int                      { return 3 }
+func (x DeltaRespRespVec) Interface() interface{}          { return x.Value }
+func (x DeltaRespRespVec) Name() string                    { return "RespVec" }
+func (x DeltaRespRespVec) __VDLReflect(__DeltaRespReflect) {}
+
 func init() {
 	vdl.Register((*PrefixGenVector)(nil))
 	vdl.Register((*GenVector)(nil))
@@ -163,6 +231,8 @@ func init() {
 	vdl.Register((*GroupId)(nil))
 	vdl.Register((*SyncGroupStatus)(nil))
 	vdl.Register((*SyncGroup)(nil))
+	vdl.Register((*DeltaReq)(nil))
+	vdl.Register((*DeltaResp)(nil))
 }
 
 const NoGroupId = GroupId(0)

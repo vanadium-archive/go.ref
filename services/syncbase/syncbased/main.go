@@ -56,7 +56,7 @@ func main() {
 		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 	}
 	vlog.Infof("Perms: %v", perms)
-	service, err := server.NewService(nil, nil, server.ServiceOptions{
+	service, err := server.NewService(ctx, nil, server.ServiceOptions{
 		Perms:   perms,
 		RootDir: *rootDir,
 		Engine:  *engine,

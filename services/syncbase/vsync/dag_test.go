@@ -108,7 +108,7 @@ func TestAddParent(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid, version := "1234", "7"
+	oid, version := "foo1", "7"
 
 	tx := st.NewTransaction()
 	if err := s.addParent(nil, tx, oid, version, "haha", nil); err == nil {
@@ -236,7 +236,7 @@ func TestLocalUpdates(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -293,7 +293,7 @@ func TestRemoteUpdates(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	graft, err := s.dagReplayCommands(nil, "remote-init-00.log.sync")
 	if err != nil {
@@ -335,7 +335,7 @@ func TestRemoteUpdates(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "VeyronPhone:10:1:2" {
+	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %v", oid, newHead, logrec)
 	}
 
@@ -367,7 +367,7 @@ func TestRemoteNoConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -411,10 +411,10 @@ func TestRemoteNoConflict(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogrec(nil, st, oid, oldHead); err != nil || logrec != "logrec-02" {
+	if logrec, err := getLogrec(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:10:3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %v", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "VeyronPhone:10:1:2" {
+	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %v", oid, newHead, logrec)
 	}
 
@@ -450,7 +450,7 @@ func TestRemoteConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -494,13 +494,13 @@ func TestRemoteConflict(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogrec(nil, st, oid, oldHead); err != nil || logrec != "logrec-02" {
+	if logrec, err := getLogrec(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:10:3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "VeyronPhone:10:1:2" {
+	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
-	if logrec, err := getLogrec(nil, st, oid, ancestor); err != nil || logrec != "logrec-01" {
+	if logrec, err := getLogrec(nil, st, oid, ancestor); err != nil || logrec != "$sync:log:10:2" {
 		t.Errorf("invalid logrec for ancestor object %s:%s: %s", oid, ancestor, logrec)
 	}
 
@@ -543,7 +543,7 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -587,13 +587,13 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogrec(nil, st, oid, oldHead); err != nil || logrec != "logrec-02" {
+	if logrec, err := getLogrec(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:10:3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "VeyronPhone:10:1:1" {
+	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:2" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
-	if logrec, err := getLogrec(nil, st, oid, ancestor); err != nil || logrec != "logrec-01" {
+	if logrec, err := getLogrec(nil, st, oid, ancestor); err != nil || logrec != "$sync:log:10:2" {
 		t.Errorf("invalid logrec for ancestor object %s:%s: %s", oid, ancestor, logrec)
 	}
 
@@ -630,7 +630,7 @@ func TestRemoteConflictNoAncestor(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -674,10 +674,10 @@ func TestRemoteConflictNoAncestor(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogrec(nil, st, oid, oldHead); err != nil || logrec != "logrec-02" {
+	if logrec, err := getLogrec(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:10:3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "VeyronPhone:10:1:2" {
+	if logrec, err := getLogrec(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
 
@@ -919,7 +919,7 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -989,7 +989,7 @@ func TestRemoteLinkedConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -1049,7 +1049,7 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -1111,7 +1111,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "1234"
+	oid := "foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)

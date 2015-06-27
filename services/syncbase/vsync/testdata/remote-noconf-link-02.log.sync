@@ -1,6 +1,6 @@
 # Update an object remotely, detect conflict, and bless the remote version, and continue updating.
 # The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
 
-addr|1234|4|1||VeyronPhone:10:1:0|0|1|false
-linkr|1234|3|4||VeyronPhone:10:1:1
-addr|1234|5|3||VeyronPhone:10:2:0|0|1|false
+addr|foo1|4|1||$sync:log:11:1|0|1|false
+linkr|foo1|3|4||$sync:log:11:2
+addr|foo1|5|3||$sync:log:11:3|0|1|false

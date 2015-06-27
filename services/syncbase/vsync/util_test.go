@@ -14,20 +14,24 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
+	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/test"
 )
 
 // mockService emulates a Syncbase service that includes store and sync.
 // It is used to access a mock application.
 type mockService struct {
-	engine string
-	path   string
-	st     store.Store
-	sync   *syncService
+	engine   string
+	path     string
+	st       store.Store
+	sync     *syncService
+	shutdown func()
 }
 
 func (s *mockService) St() store.Store {
@@ -114,6 +118,7 @@ func (d *mockDatabase) App() interfaces.App {
 
 // createService creates a mock Syncbase service used for testing sync functionality.
 func createService(t *testing.T) *mockService {
+	ctx, shutdown := test.V23Init()
 	engine := "leveldb"
 	path := fmt.Sprintf("%s/vsync_test_%d_%d", os.TempDir(), os.Getpid(), time.Now().UnixNano())
 
@@ -121,13 +126,17 @@ func createService(t *testing.T) *mockService {
 	if err != nil {
 		t.Fatalf("cannot create store %s (%s): %v", engine, path, err)
 	}
+	st, err = watchable.Wrap(st, &watchable.Options{
+		ManagedPrefixes: []string{util.RowPrefix},
+	})
 
 	s := &mockService{
-		st:     st,
-		engine: engine,
-		path:   path,
+		st:       st,
+		engine:   engine,
+		path:     path,
+		shutdown: shutdown,
 	}
-	if s.sync, err = New(nil, nil, s); err != nil {
+	if s.sync, err = New(ctx, nil, s); err != nil {
 		util.DestroyStore(engine, path)
 		t.Fatalf("cannot create sync service: %v", err)
 	}
@@ -136,6 +145,8 @@ func createService(t *testing.T) *mockService {
 
 // destroyService cleans up the mock Syncbase service.
 func destroyService(t *testing.T, s *mockService) {
+	defer s.shutdown()
+	defer s.sync.Close()
 	if err := util.DestroyStore(s.engine, s.path); err != nil {
 		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.path, err)
 	}

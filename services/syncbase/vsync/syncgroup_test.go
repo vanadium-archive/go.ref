@@ -9,6 +9,7 @@ package vsync
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
@@ -41,6 +42,8 @@ func checkSGStats(t *testing.T, svc *mockService, which string, numSG, numMember
 
 // TestAddSyncGroup tests adding SyncGroups.
 func TestAddSyncGroup(t *testing.T) {
+	// Set a large value to prevent the threads from firing.
+	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)
 	st := svc.St()
@@ -180,6 +183,8 @@ func TestAddSyncGroup(t *testing.T) {
 
 // TestInvalidAddSyncGroup tests adding SyncGroups.
 func TestInvalidAddSyncGroup(t *testing.T) {
+	// Set a large value to prevent the threads from firing.
+	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)
 	st := svc.St()
@@ -214,6 +219,8 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 
 // TestDeleteSyncGroup tests deleting a SyncGroup.
 func TestDeleteSyncGroup(t *testing.T) {
+	// Set a large value to prevent the threads from firing.
+	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)
 	st := svc.St()
@@ -300,6 +307,8 @@ func TestDeleteSyncGroup(t *testing.T) {
 
 // TestMultiSyncGroups tests creating multiple SyncGroups.
 func TestMultiSyncGroups(t *testing.T) {
+	// Set a large value to prevent the threads from firing.
+	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)
 	st := svc.St()
