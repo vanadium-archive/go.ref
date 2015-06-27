@@ -170,7 +170,13 @@ func getKnownProfiles() ([]*profile.Specification, error) {
 			Os:          build.OperatingSystemLinux,
 			Format:      build.FormatElf,
 		},
-		// TODO(caprita): Add other profiles for Mac, Pi, etc.
+		{
+			Label:       "darwin-amd64",
+			Description: "",
+			Arch:        build.ArchitectureAmd64,
+			Os:          build.OperatingSystemDarwin,
+			Format:      build.FormatMach,
+		},
 	}, nil
 
 	// TODO(jsimsa): This function assumes the existence of a profile
