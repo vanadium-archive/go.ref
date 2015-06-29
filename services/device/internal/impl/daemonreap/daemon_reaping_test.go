@@ -16,6 +16,9 @@ import (
 )
 
 func TestDaemonRestart(t *testing.T) {
+	if raceEnabled {
+		t.Skip("Test is flaky when run with -race.  Disabling until v.io/i/573 is fixed.")
+	}
 	cleanup, ctx, sh, envelope, root, helperPath, _ := utiltest.StartupHelper(t)
 	defer cleanup()
 
