@@ -19,8 +19,11 @@ type StoreReader interface {
 	// fails with ErrUnknownKey.
 	Get(key, valbuf []byte) ([]byte, error)
 
-	// Scan returns all rows with keys in range [start, limit).
-	// TODO(sadovsky): Describe the behavior of Scan with concurrent writes.
+	// Scan returns all rows with keys in range [start, limit). If limit is "",
+	// all rows with keys >= start are included.
+	// Concurrency semantics: It is legal to perform writes concurrently with
+	// Scan. The returned stream may or may not reflect subsequent writes to keys
+	// not yet reached by the stream.
 	Scan(start, limit []byte) Stream
 }
 
@@ -56,9 +59,21 @@ type Store interface {
 	NewSnapshot() Snapshot
 }
 
-// Transaction provides a mechanism for atomic reads and writes.
+// Transaction provides a mechanism for atomic reads and writes. Instead of
+// calling this function directly, clients are encouraged to use the
+// RunInTransaction() helper function, which detects "concurrent transaction"
+// errors and handles retries internally.
 //
-// Reads do reflect writes and deletes performed within this transaction.
+// Default concurrency semantics:
+// - Reads (e.g. gets, scans) inside a transaction operate over a consistent
+//   snapshot taken during NewTransaction(), and will see the effects of prior
+//   writes performed inside the transaction.
+// - Commit() may fail with ErrConcurrentTransaction, indicating that after
+//   NewTransaction() but before Commit(), some concurrent routine wrote to a
+//   key that matches a key or row-range read inside this transaction.
+// - Other methods will never fail with error ErrConcurrentTransaction, even if
+//   it is known that Commit() will fail with this error.
+//
 // Once a transaction has been committed or aborted, subsequent method calls
 // will fail with no effect.
 type Transaction interface {
