@@ -1080,6 +1080,8 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 		fs.ctx, _ = vtrace.WithNewSpan(fs.ctx, fmt.Sprintf("\"%s\".UNKNOWN", fs.suffix))
 		return nil, err
 	}
+	// We must call fs.drainDecoderArgs for any error that occurs
+	// after this point, and before we actually decode the arguments.
 	fs.method = req.Method
 	fs.suffix = strings.TrimLeft(req.Suffix, "/")
 
@@ -1104,11 +1106,13 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 
 	// Initialize security: blessings, discharges, etc.
 	if err := fs.initSecurity(req); err != nil {
+		fs.drainDecoderArgs(int(req.NumPosArgs))
 		return nil, err
 	}
 	// Lookup the invoker.
 	invoker, auth, err := fs.lookup(fs.suffix, fs.method)
 	if err != nil {
+		fs.drainDecoderArgs(int(req.NumPosArgs))
 		return nil, err
 	}
 
@@ -1122,21 +1126,12 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	argptrs, tags, err := invoker.Prepare(strippedMethod, numArgs)
 	fs.tags = tags
 	if err != nil {
+		fs.drainDecoderArgs(numArgs)
 		return nil, err
 	}
 	if called, want := req.NumPosArgs, uint64(len(argptrs)); called != want {
-		err := newErrBadNumInputArgs(fs.ctx, fs.suffix, fs.method, called, want)
-		// If the client is sending the wrong number of arguments, try to drain the
-		// arguments sent by the client before returning an error to ensure the client
-		// receives the correct error in call.Finish(). Otherwise, the client may get
-		// an EOF error while encoding args since the server closes the flow upon returning.
-		var any interface{}
-		for i := 0; i < int(req.NumPosArgs); i++ {
-			if decerr := fs.dec.Decode(&any); decerr != nil {
-				return nil, err
-			}
-		}
-		return nil, err
+		fs.drainDecoderArgs(numArgs)
+		return nil, newErrBadNumInputArgs(fs.ctx, fs.suffix, fs.method, called, want)
 	}
 	for ix, argptr := range argptrs {
 		if err := fs.dec.Decode(argptr); err != nil {
@@ -1153,6 +1148,21 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	results, err := invoker.Invoke(fs.ctx, fs, strippedMethod, argptrs)
 	fs.server.stats.record(fs.method, time.Since(fs.starttime))
 	return results, err
+}
+
+// drainDecoderArgs drains the next n arguments encoded onto the flows decoder.
+// This is needed to ensure that the client is able to encode all of its args
+// before the server closes its flow. This guarantees that the client will
+// consistently get the server's error response.
+// TODO(suharshs): Figure out a better way to solve this race condition without
+// unnecessarily reading all arguments.
+func (fs *flowServer) drainDecoderArgs(n int) error {
+	for i := 0; i < n; i++ {
+		if err := fs.dec.Ignore(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
