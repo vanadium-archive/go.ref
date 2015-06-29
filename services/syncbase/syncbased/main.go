@@ -20,7 +20,7 @@ import (
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/xrpc"
-	_ "v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var (
@@ -69,7 +69,9 @@ func main() {
 	if _, err = xrpc.NewDispatchingServer(ctx, *name, d); err != nil {
 		vlog.Fatal("xrpc.NewDispatchingServer() failed: ", err)
 	}
-	vlog.Info("Mounted at: ", *name)
+	if *name != "" {
+		vlog.Info("Mounted at: ", *name)
+	}
 
 	// Wait forever.
 	<-signals.ShutdownOnSignals(ctx)
