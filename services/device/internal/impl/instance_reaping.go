@@ -17,7 +17,6 @@ import (
 	"v.io/v23/services/stats"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 const (
@@ -67,7 +66,7 @@ func newReaper(ctx *context.T, root string, startState *appRunner) (*reaper, err
 		ctx:        ctx,
 	}
 	r.startState.reap = r
-	go r.processStatusPolling(pidMap)
+	go r.processStatusPolling(ctx, pidMap)
 
 	// Restart daemon jobs if they're not running (say because the machine crashed.)
 	for _, idir := range restartCandidates {
@@ -76,7 +75,7 @@ func newReaper(ctx *context.T, root string, startState *appRunner) (*reaper, err
 	return r, nil
 }
 
-func markNotRunning(idir string) {
+func markNotRunning(ctx *context.T, idir string) {
 	if err := transitionInstance(idir, device.InstanceStateRunning, device.InstanceStateNotRunning); err != nil {
 		// This may fail under two circumstances.
 		// 1. The app has crashed between where startCmd invokes
@@ -84,7 +83,7 @@ func markNotRunning(idir string) {
 		// 2. Remove experiences a failure (e.g. filesystem becoming R/O)
 		// 3. The app is in the process of being Kill'ed when the reaper poll
 		// finds the process dead and attempts a restart.
-		vlog.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v\n", idir, device.InstanceStateRunning, device.InstanceStateNotRunning, err)
+		ctx.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v\n", idir, device.InstanceStateRunning, device.InstanceStateNotRunning, err)
 	}
 }
 
@@ -93,18 +92,19 @@ func markNotRunning(idir string) {
 // functionality. For example, use the kevent facility in darwin or
 // replace init. See http://www.incenp.org/dvlpt/wait4.html for
 // inspiration.
-func (r *reaper) processStatusPolling(trackedPids map[string]int) {
-	poll := func() {
+func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int) {
+	poll := func(ctx *context.T) {
 		for idir, pid := range trackedPids {
 			switch err := syscall.Kill(pid, 0); err {
 			case syscall.ESRCH:
 				// No such PID.
-				vlog.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
-				markNotRunning(idir)
-				go r.startState.restartAppIfNecessary(r.ctx, idir)
+				go r.startState.restartAppIfNecessary(ctx, idir)
+				ctx.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
+				markNotRunning(ctx, idir)
+				go r.startState.restartAppIfNecessary(ctx, idir)
 				delete(trackedPids, idir)
 			case nil, syscall.EPERM:
-				vlog.VI(2).Infof("processStatusPolling saw live pid: %d", pid)
+				ctx.VI(2).Infof("processStatusPolling saw live pid: %d", pid)
 				// The task exists and is running under the same uid as
 				// the device manager or the task exists and is running
 				// under a different uid as would be the case if invoked
@@ -126,7 +126,7 @@ func (r *reaper) processStatusPolling(trackedPids map[string]int) {
 				// if the kernel claims that 0 is an invalid signal.
 				// Only a deeply confused kernel would say this so just give
 				// up.
-				vlog.Panicf("processStatusPolling: unanticpated result from sys.Kill: %v", err)
+				ctx.Panicf("processStatusPolling: unanticpated result from sys.Kill: %v", err)
 			}
 		}
 	}
@@ -139,22 +139,22 @@ func (r *reaper) processStatusPolling(trackedPids map[string]int) {
 				return
 			case p.pid == -1: // stop watching this instance
 				delete(trackedPids, p.instanceDir)
-				poll()
+				poll(ctx)
 			case p.pid == -2: // kill the process
 				if pid, ok := trackedPids[p.instanceDir]; ok {
-					if err := suidHelper.terminatePid(pid, nil, nil); err != nil {
-						vlog.Errorf("Failure to kill: %v", err)
+					if err := suidHelper.terminatePid(ctx, pid, nil, nil); err != nil {
+						ctx.Errorf("Failure to kill: %v", err)
 					}
 				}
 			case p.pid < 0:
-				vlog.Panicf("invalid pid %v", p.pid)
+				ctx.Panicf("invalid pid %v", p.pid)
 			default:
 				trackedPids[p.instanceDir] = p.pid
-				poll()
+				poll(ctx)
 			}
 		case <-time.After(time.Second):
 			// Poll once / second.
-			poll()
+			poll(ctx)
 		}
 	}
 }
@@ -201,11 +201,11 @@ func processStatusViaAppCycleMgr(ctx *context.T, c chan<- pidErrorTuple, instanc
 	sclient := stats.StatsClient(name)
 	v, err := sclient.Value(nctx)
 	if err != nil {
-		vlog.Infof("Instance: %v error: %v", instancePath, err)
+		ctx.Infof("Instance: %v error: %v", instancePath, err)
 		// No process is actually running for this instance.
-		vlog.VI(2).Infof("perinstance stats fetching failed: %v", err)
+		ctx.VI(2).Infof("perinstance stats fetching failed: %v", err)
 		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
-			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
+			ctx.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
 		}
 		// We only want to restart apps that were Running or Launching.
 		if state == device.InstanceStateLaunching || state == device.InstanceStateRunning {
@@ -219,7 +219,7 @@ func processStatusViaAppCycleMgr(ctx *context.T, c chan<- pidErrorTuple, instanc
 	var pid int
 	if err := vdl.Convert(&pid, v); err != nil {
 		err = verror.New(errPIDIsNotInteger, ctx, err)
-		vlog.Errorf(err.Error())
+		ctx.Errorf(err.Error())
 		c <- pidErrorTuple{ipath: instancePath, err: err}
 		return
 	}
@@ -236,10 +236,10 @@ func processStatusViaAppCycleMgr(ctx *context.T, c chan<- pidErrorTuple, instanc
 	// (in case the device restarted while the instance was in one of the
 	// transitional states like launching, dying, etc).
 	if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
-		vlog.Errorf("transitionInstance(%s,%v,%s) failed: %v", instancePath, state, device.InstanceStateRunning, err)
+		ctx.Errorf("transitionInstance(%s,%v,%s) failed: %v", instancePath, state, device.InstanceStateRunning, err)
 	}
 
-	vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)
+	ctx.VI(0).Infof("perInstance go routine for %v ending", instancePath)
 	c <- ptuple
 }
 
@@ -248,14 +248,14 @@ func processStatusViaAppCycleMgr(ctx *context.T, c chan<- pidErrorTuple, instanc
 // likely to be managed by the device manager and a live process is not
 // responsive because the agent has been restarted rather than being
 // created through a different means.
-func processStatusViaKill(c chan<- pidErrorTuple, instancePath string, info *instanceInfo, state device.InstanceState) {
+func processStatusViaKill(ctx *context.T, c chan<- pidErrorTuple, instancePath string, info *instanceInfo, state device.InstanceState) {
 	pid := info.Pid
 
 	switch err := syscall.Kill(pid, 0); err {
 	case syscall.ESRCH:
 		// No such PID.
 		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
-			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
+			ctx.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
 		}
 		// We only want to restart apps that were Running or Launching.
 		if state == device.InstanceStateLaunching || state == device.InstanceStateRunning {
@@ -266,16 +266,16 @@ func processStatusViaKill(c chan<- pidErrorTuple, instancePath string, info *ins
 	case nil, syscall.EPERM:
 		// The instance was found to be running, so update its state.
 		if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
-			vlog.Errorf("transitionInstance(%s,%v, %v) failed: %v", instancePath, state, device.InstanceStateRunning, err)
+			ctx.Errorf("transitionInstance(%s,%v, %v) failed: %v", instancePath, state, device.InstanceStateRunning, err)
 		}
-		vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)
+		ctx.VI(0).Infof("perInstance go routine for %v ending", instancePath)
 		c <- pidErrorTuple{ipath: instancePath, pid: pid}
 	}
 }
 
 func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg *sync.WaitGroup) {
 	defer wg.Done()
-	vlog.Infof("Instance: %v", instancePath)
+	ctx.Infof("Instance: %v", instancePath)
 	state, err := getInstanceState(instancePath)
 	switch state {
 	// Ignore apps already in deleted and not running states.
@@ -288,16 +288,16 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	// update its state back to not running.
 	case device.InstanceStateUpdating:
 		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
-			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
+			ctx.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
 		}
 		return
 	}
-	vlog.VI(2).Infof("perInstance firing up on %s", instancePath)
+	ctx.VI(2).Infof("perInstance firing up on %s", instancePath)
 
 	// Read the instance data.
 	info, err := loadInstanceInfo(ctx, instancePath)
 	if err != nil {
-		vlog.Errorf("loadInstanceInfo failed: %v", err)
+		ctx.Errorf("loadInstanceInfo failed: %v", err)
 		// Something has gone badly wrong.
 		// TODO(rjkroege,caprita): Consider removing the instance or at
 		// least set its state to something indicating error?
@@ -312,7 +312,7 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 		processStatusViaAppCycleMgr(ctx, c, instancePath, info, state)
 		return
 	}
-	processStatusViaKill(c, instancePath, info, state)
+	processStatusViaKill(ctx, c, instancePath, info, state)
 }
 
 // Digs through the directory hierarchy
@@ -336,7 +336,7 @@ func findAllTheInstances(ctx *context.T, root string) (map[string]int, []string,
 	restartCandidates := make([]string, len(paths))
 	for p := range pidchan {
 		if p.err != nil {
-			vlog.Errorf("instance at %s had an error: %v", p.ipath, p.err)
+			ctx.Errorf("instance at %s had an error: %v", p.ipath, p.err)
 		}
 		if p.pid > 0 {
 			pidmap[p.ipath] = p.pid

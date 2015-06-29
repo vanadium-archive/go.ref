@@ -62,7 +62,6 @@ import (
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
 	"v.io/x/lib/metadata"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
@@ -127,53 +126,53 @@ type CreatorInfo struct {
 	MetaData string
 }
 
-func SaveCreatorInfo(dir string) error {
+func SaveCreatorInfo(ctx *context.T, dir string) error {
 	info := CreatorInfo{
 		Version:  CurrentVersion,
 		MetaData: metadata.ToXML(),
 	}
 	jsonInfo, err := json.Marshal(info)
 	if err != nil {
-		vlog.Errorf("Marshal(%v) failed: %v", info, err)
+		ctx.Errorf("Marshal(%v) failed: %v", info, err)
 		return verror.New(errors.ErrOperationFailed, nil)
 	}
 	if err := os.MkdirAll(dir, os.FileMode(0700)); err != nil {
-		vlog.Errorf("MkdirAll(%v) failed: %v", dir, err)
+		ctx.Errorf("MkdirAll(%v) failed: %v", dir, err)
 		return verror.New(errors.ErrOperationFailed, nil)
 	}
 	infoPath := filepath.Join(dir, "creation_info")
 	if err := ioutil.WriteFile(infoPath, jsonInfo, 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", infoPath, err)
+		ctx.Errorf("WriteFile(%v) failed: %v", infoPath, err)
 		return verror.New(errors.ErrOperationFailed, nil)
 	}
 	// Make the file read-only as we don't want anyone changing it
 	if err := os.Chmod(infoPath, 0400); err != nil {
-		vlog.Errorf("Chmod(0400, %v) failed: %v", infoPath, err)
+		ctx.Errorf("Chmod(0400, %v) failed: %v", infoPath, err)
 		return verror.New(errors.ErrOperationFailed, nil)
 	}
 	return nil
 }
 
-func loadCreatorInfo(dir string) (*CreatorInfo, error) {
+func loadCreatorInfo(ctx *context.T, dir string) (*CreatorInfo, error) {
 	infoPath := filepath.Join(dir, "creation_info")
 	info := new(CreatorInfo)
 	if infoBytes, err := ioutil.ReadFile(infoPath); err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", infoPath, err)
+		ctx.Errorf("ReadFile(%v) failed: %v", infoPath, err)
 		return nil, verror.New(errors.ErrOperationFailed, nil)
 	} else if err := json.Unmarshal(infoBytes, info); err != nil {
-		vlog.Errorf("Unmarshal(%v) failed: %v", infoBytes, err)
+		ctx.Errorf("Unmarshal(%v) failed: %v", infoBytes, err)
 		return nil, verror.New(errors.ErrOperationFailed, nil)
 	}
 	return info, nil
 }
 
 // Checks the compatibilty of the running binary against the device manager directory on disk
-func CheckCompatibility(dir string) error {
-	if infoOnDisk, err := loadCreatorInfo(dir); err != nil {
-		vlog.Errorf("Failed to load creator info from %s", dir)
+func CheckCompatibility(ctx *context.T, dir string) error {
+	if infoOnDisk, err := loadCreatorInfo(ctx, dir); err != nil {
+		ctx.Errorf("Failed to load creator info from %s", dir)
 		return verror.New(errors.ErrOperationFailed, nil)
 	} else if CurrentVersion.Major != infoOnDisk.Version.Major {
-		vlog.Errorf("Device Manager binary vs disk major version mismatch (%+v vs %+v)",
+		ctx.Errorf("Device Manager binary vs disk major version mismatch (%+v vs %+v)",
 			CurrentVersion, infoOnDisk.Version)
 		return verror.New(errors.ErrOperationFailed, nil)
 	}
@@ -328,7 +327,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 			if f, err := os.Open(fName); err == nil {
 				scanner := bufio.NewScanner(f)
 				for scanner.Scan() {
-					vlog.Infof("[testDeviceManager %s] %s", k, scanner.Text())
+					ctx.Infof("[testDeviceManager %s] %s", k, scanner.Text())
 				}
 			}
 		}(k)
@@ -397,12 +396,12 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	// Start the child process.
 	if err := handle.Start(); err != nil {
-		vlog.Errorf("Start() failed: %v", err)
+		ctx.Errorf("Start() failed: %v", err)
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
 	}
 	defer func() {
 		if err := handle.Clean(); err != nil {
-			vlog.Errorf("Clean() failed: %v", err)
+			ctx.Errorf("Clean() failed: %v", err)
 		}
 	}()
 
@@ -506,7 +505,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	}
 
 	deferrer := func() {
-		CleanupDir(workspace, "")
+		CleanupDir(ctx, workspace, "")
 	}
 	defer func() {
 		if deferrer != nil {
@@ -642,11 +641,11 @@ func (s *deviceService) AssociateAccount(_ *context.T, _ rpc.ServerCall, identit
 
 func (s *deviceService) ListAssociations(ctx *context.T, call rpc.ServerCall) (associations []device.Association, err error) {
 	// Temporary code. Dump this.
-	if vlog.V(2) {
+	if ctx.V(2) {
 		b, r := security.RemoteBlessingNames(ctx, call.Security())
-		vlog.Infof("ListAssociations given blessings: %v\n", b)
+		ctx.Infof("ListAssociations given blessings: %v\n", b)
 		if len(r) > 0 {
-			vlog.Infof("ListAssociations rejected blessings: %v\n", r)
+			ctx.Infof("ListAssociations rejected blessings: %v\n", r)
 		}
 	}
 	return s.uat.AllBlessingSystemAssociations()

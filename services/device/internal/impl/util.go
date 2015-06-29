@@ -22,7 +22,6 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/binarylib"
@@ -120,9 +119,9 @@ func publisherBlessingNames(ctx *context.T, env application.Envelope) ([]string,
 	})
 	names, rejected := security.RemoteBlessingNames(ctx, call)
 	if len(rejected) > 0 {
-		vlog.Infof("For envelope %v, rejected publisher blessings: %v", env.Title, rejected)
+		ctx.Infof("For envelope %v, rejected publisher blessings: %v", env.Title, rejected)
 	}
-	vlog.VI(2).Infof("accepted publisher blessings: %v", names)
+	ctx.VI(2).Infof("accepted publisher blessings: %v", names)
 	return names, rejected
 }
 
@@ -158,19 +157,19 @@ func UpdateLink(target, link string) error {
 	return nil
 }
 
-func BaseCleanupDir(path, helper string) {
+func BaseCleanupDir(ctx *context.T, path, helper string) {
 	if helper != "" {
 		out, err := exec.Command(helper, "--rm", path).CombinedOutput()
 		if err != nil {
-			vlog.Errorf("exec.Command(%s %s %s).CombinedOutput() failed: %v", helper, "--rm", path, err)
+			ctx.Errorf("exec.Command(%s %s %s).CombinedOutput() failed: %v", helper, "--rm", path, err)
 			return
 		}
 		if len(out) != 0 {
-			vlog.Errorf("exec.Command(%s %s %s).CombinedOutput() generated output: %v", helper, "--rm", path, string(out))
+			ctx.Errorf("exec.Command(%s %s %s).CombinedOutput() generated output: %v", helper, "--rm", path, string(out))
 		}
 	} else {
 		if err := os.RemoveAll(path); err != nil {
-			vlog.Errorf("RemoveAll(%v) failed: %v", path, err)
+			ctx.Errorf("RemoveAll(%v) failed: %v", path, err)
 		}
 	}
 }

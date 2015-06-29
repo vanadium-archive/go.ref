@@ -22,7 +22,6 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/device"
 	"v.io/v23/services/repository"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/packages"
@@ -39,8 +38,8 @@ type ListAssociationResponse struct {
 	err error
 }
 
-func (mdi *mockDeviceInvoker) ListAssociations(*context.T, rpc.ServerCall) (associations []device.Association, err error) {
-	vlog.VI(2).Infof("ListAssociations() was called")
+func (mdi *mockDeviceInvoker) ListAssociations(ctx *context.T, _ rpc.ServerCall) (associations []device.Association, err error) {
+	ctx.VI(2).Infof("ListAssociations() was called")
 
 	ir := mdi.tape.Record("ListAssociations")
 	r := ir.(ListAssociationResponse)

@@ -14,7 +14,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/device/internal/errors"
 )
 
@@ -85,7 +84,7 @@ func pruneDeletedInstances(ctx *context.T, root string, now time.Time) error {
 		}
 
 		if shouldDelete {
-			if err := suidHelper.deleteFileTree(pth, nil, nil); err != nil {
+			if err := suidHelper.deleteFileTree(ctx, pth, nil, nil); err != nil {
 				allerrors = append(allerrors, pthError{pth, err})
 			}
 		}
@@ -157,7 +156,7 @@ func pruneUninstalledInstallations(ctx *context.T, root string, now time.Time) e
 		}
 
 		if shouldDelete {
-			if err := suidHelper.deleteFileTree(pth, nil, nil); err != nil {
+			if err := suidHelper.deleteFileTree(ctx, pth, nil, nil); err != nil {
 				allerrors = append(allerrors, pthError{pth, err})
 			}
 		}
@@ -205,7 +204,7 @@ func pruneOldLogs(ctx *context.T, root string, now time.Time) error {
 	}
 
 	for pth, _ := range pruneCandidates {
-		if err := suidHelper.deleteFileTree(pth, nil, nil); err != nil {
+		if err := suidHelper.deleteFileTree(ctx, pth, nil, nil); err != nil {
 			allerrors = append(allerrors, pthError{pth, err})
 		}
 	}
@@ -229,7 +228,7 @@ func tidyHarness(ctx *context.T, root string) error {
 
 // tidyDaemon runs in a Go routine, processing requests to tidy
 // or tidying on a schedule.
-func tidyDaemon(c <-chan tidyRequests, root string) {
+func tidyDaemon(ctx *context.T, c <-chan tidyRequests, root string) {
 	for {
 		select {
 		case req, ok := <-c:
@@ -239,7 +238,7 @@ func tidyDaemon(c <-chan tidyRequests, root string) {
 			req.bc <- tidyHarness(req.ctx, root)
 		case <-time.After(AutomaticTidyingInterval):
 			if err := tidyHarness(nil, root); err != nil {
-				vlog.Errorf("tidyDaemon failed to tidy: %v", err)
+				ctx.Errorf("tidyDaemon failed to tidy: %v", err)
 			}
 		}
 
@@ -251,8 +250,8 @@ type tidyRequests struct {
 	bc  chan<- error
 }
 
-func newTidyingDaemon(root string) chan<- tidyRequests {
+func newTidyingDaemon(ctx *context.T, root string) chan<- tidyRequests {
 	c := make(chan tidyRequests)
-	go tidyDaemon(c, root)
+	go tidyDaemon(ctx, c, root)
 	return c
 }

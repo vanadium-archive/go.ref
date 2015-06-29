@@ -19,8 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -33,6 +31,7 @@ import (
 	"v.io/v23/services/pprof"
 	"v.io/v23/services/stats"
 	"v.io/v23/verror"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/internal/impl"
@@ -53,7 +52,7 @@ func init() {
 		return device.Description{Profiles: map[string]struct{}{"test-profile": struct{}{}}}, nil
 	}
 
-	impl.CleanupDir = func(dir, helper string) {
+	impl.CleanupDir = func(ctx *context.T, dir, helper string) {
 		if dir == "" {
 			return
 		}
@@ -65,7 +64,7 @@ func init() {
 			renamed = filepath.Join(parentDir, "deleted_"+base)
 		}
 		if err := os.Rename(dir, renamed); err != nil {
-			vlog.Errorf("Rename(%v, %v) failed: %v", dir, renamed, err)
+			ctx.Errorf("Rename(%v, %v) failed: %v", dir, renamed, err)
 		}
 	}
 
@@ -188,7 +187,7 @@ func ClaimDevice(t *testing.T, ctx *context.T, claimableName, deviceName, extens
 		if err == nil {
 			return
 		}
-		vlog.VI(4).Infof("Resolve(%q) failed: %v", err)
+		ctx.VI(4).Infof("Resolve(%q) failed: %v", err)
 		time.Sleep(time.Millisecond)
 		if elapsed := time.Since(start); elapsed > time.Minute {
 			t.Fatalf("Device hasn't remounted itself in %v since it was claimed", elapsed)
@@ -505,7 +504,7 @@ func GenerateSuidHelperScript(t *testing.T, root string) string {
 	output += "exec " + os.Args[0] + " -minuid=1 -test.run=TestSuidHelper \"$@\""
 	output += "\n"
 
-	vlog.VI(1).Infof("script\n%s", output)
+	logger.Global().VI(1).Infof("script\n%s", output)
 
 	if err := os.MkdirAll(root, 0755); err != nil {
 		t.Fatalf("MkdirAll failed: %v", err)
@@ -559,7 +558,7 @@ func CtxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider,
 
 // TODO(rjkroege): This helper is generally useful. Use it to reduce
 // boiler plate across all device manager tests.
-func StartupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *testutil.IDProvider) {
+func StartupHelper(t *testing.T) (_ func(), ctx *context.T, _ *modules.Shell, _ *application.Envelope, _ string, _ string, _ *testutil.IDProvider) {
 	ctx, shutdown := test.V23Init()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -573,7 +572,7 @@ func StartupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *applicati
 	envelope, envCleanup := StartMockRepos(t, ctx)
 
 	root, rootCleanup := servicetest.SetupRootDir(t, "devicemanager")
-	if err := impl.SaveCreatorInfo(root); err != nil {
+	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
@@ -738,7 +737,7 @@ func SetNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 			naming.ServesMountTable(origep.ServesMountTable()))
 		roots[i] = naming.JoinAddressName(ep, suffix)
 	}
-	vlog.Infof("Changing namespace roots from %v to %v", origroots, roots)
+	ctx.Infof("Changing namespace roots from %v to %v", origroots, roots)
 	ctx, _, err := v23.WithNewNamespace(ctx, roots...)
 	return ctx, err
 }

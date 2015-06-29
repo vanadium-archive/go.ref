@@ -23,7 +23,6 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref"
 	"v.io/x/ref/services/agent/keymgr"
 	s_device "v.io/x/ref/services/device"
@@ -61,6 +60,9 @@ type dispatcher struct {
 	permsStore *pathperms.PathStore
 	// Namespace
 	mtAddress string // The address of the local mounttable.
+	// TODO(cnicolaou): remove this when Lookup takes a context.T parameter directly,
+	// see v.io/i/572.
+	ctx *context.T
 }
 
 var _ rpc.Dispatcher = (*dispatcher)(nil)
@@ -109,19 +111,20 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	if err != nil {
 		return nil, verror.New(errCantCreateAccountStore, ctx, err)
 	}
-	InitSuidHelper(config.Helper)
+	InitSuidHelper(ctx, config.Helper)
 	d := &dispatcher{
 		internal: &internalState{
 			callback:       newCallbackState(config.Name),
 			updating:       newUpdatingState(),
 			restartHandler: restartHandler,
 			testMode:       testMode,
-			tidying:        newTidyingDaemon(config.Root),
+			tidying:        newTidyingDaemon(ctx, config.Root),
 		},
 		config:     config,
 		uat:        uat,
 		permsStore: permStore,
 		mtAddress:  mtAddress,
+		ctx:        ctx,
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -151,38 +154,39 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 }
 
 // Shutdown the dispatcher.
-func Shutdown(rpcd rpc.Dispatcher) {
+func Shutdown(ctx *context.T, rpcd rpc.Dispatcher) {
 	switch d := rpcd.(type) {
 	case *dispatcher:
 		d.internal.reap.shutdown()
 	case *testModeDispatcher:
-		Shutdown(d.realDispatcher)
+		Shutdown(ctx, d.realDispatcher)
 	default:
-		vlog.Panicf("%v not a supported dispatcher type.", rpcd)
+		ctx.Panicf("%v not a supported dispatcher type.", rpcd)
 	}
 }
 
 // Logging invoker that logs any error messages before returning.
-func newLoggingInvoker(obj interface{}) (rpc.Invoker, error) {
+func newLoggingInvoker(ctx *context.T, obj interface{}) (rpc.Invoker, error) {
 	if invoker, ok := obj.(rpc.Invoker); ok {
-		return &loggingInvoker{invoker}, nil
+		return &loggingInvoker{invoker: invoker, ctx: ctx}, nil
 	}
 	invoker, err := rpc.ReflectInvoker(obj)
 	if err != nil {
-		vlog.Errorf("rpc.ReflectInvoker returned error: %v", err)
+		ctx.Errorf("rpc.ReflectInvoker returned error: %v", err)
 		return nil, err
 	}
-	return &loggingInvoker{invoker}, nil
+	return &loggingInvoker{invoker: invoker, ctx: ctx}, nil
 }
 
 type loggingInvoker struct {
 	invoker rpc.Invoker
+	ctx     *context.T
 }
 
 func (l *loggingInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, err error) {
 	argptrs, tags, err = l.invoker.Prepare(method, numArgs)
 	if err != nil {
-		vlog.Errorf("Prepare(%s %d) returned error: %v", method, numArgs, err)
+		l.ctx.Errorf("Prepare(%s %d) returned error: %v", method, numArgs, err)
 	}
 	return
 }
@@ -190,7 +194,7 @@ func (l *loggingInvoker) Prepare(method string, numArgs int) (argptrs []interfac
 func (l *loggingInvoker) Invoke(ctx *context.T, call rpc.StreamServerCall, method string, argptrs []interface{}) (results []interface{}, err error) {
 	results, err = l.invoker.Invoke(ctx, call, method, argptrs)
 	if err != nil {
-		vlog.Errorf("Invoke(method:%s argptrs:%v) returned error: %v", method, argptrs, err)
+		ctx.Errorf("Invoke(method:%s argptrs:%v) returned error: %v", method, argptrs, err)
 	}
 	return
 }
@@ -198,7 +202,7 @@ func (l *loggingInvoker) Invoke(ctx *context.T, call rpc.StreamServerCall, metho
 func (l *loggingInvoker) Signature(ctx *context.T, call rpc.ServerCall) ([]signature.Interface, error) {
 	sig, err := l.invoker.Signature(ctx, call)
 	if err != nil {
-		vlog.Errorf("Signature returned error: %v", err)
+		ctx.Errorf("Signature returned error: %v", err)
 	}
 	return sig, err
 }
@@ -206,7 +210,7 @@ func (l *loggingInvoker) Signature(ctx *context.T, call rpc.ServerCall) ([]signa
 func (l *loggingInvoker) MethodSignature(ctx *context.T, call rpc.ServerCall, method string) (signature.Method, error) {
 	methodSig, err := l.invoker.MethodSignature(ctx, call, method)
 	if err != nil {
-		vlog.Errorf("MethodSignature(%s) returned error: %v", method, err)
+		ctx.Errorf("MethodSignature(%s) returned error: %v", method, err)
 	}
 	return methodSig, err
 }
@@ -221,7 +225,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	if err != nil {
 		return nil, nil, err
 	}
-	loggingInvoker, err := newLoggingInvoker(invoker)
+	loggingInvoker, err := newLoggingInvoker(d.ctx, invoker)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -372,10 +376,10 @@ func (d *testModeDispatcher) Lookup(suffix string) (interface{}, security.Author
 
 func (testModeDispatcher) Authorize(ctx *context.T, call security.Call) error {
 	if call.Suffix() == deviceSuffix && call.Method() == "Delete" {
-		vlog.Infof("testModeDispatcher.Authorize: Allow %q.%s()", call.Suffix(), call.Method())
+		ctx.Infof("testModeDispatcher.Authorize: Allow %q.%s()", call.Suffix(), call.Method())
 		return nil
 	}
-	vlog.Infof("testModeDispatcher.Authorize: Reject %q.%s()", call.Suffix(), call.Method())
+	ctx.Infof("testModeDispatcher.Authorize: Reject %q.%s()", call.Suffix(), call.Method())
 	return verror.New(errors.ErrInvalidSuffix, nil)
 }
 

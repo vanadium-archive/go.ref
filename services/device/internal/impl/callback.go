@@ -7,8 +7,6 @@ package impl
 import (
 	"v.io/v23/context"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/services/device"
@@ -29,9 +27,9 @@ func InvokeCallback(ctx *context.T, name string) {
 		ctx, cancel := context.WithTimeout(ctx, rpcContextTimeout)
 		defer cancel()
 		if err := client.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
-			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)
+			ctx.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)
 		}
 	} else if verror.ErrorID(err) != exec.ErrNoVersion.ID {
-		vlog.Fatalf("GetChildHandle() failed: %v", err)
+		ctx.Fatalf("GetChildHandle() failed: %v", err)
 	}
 }

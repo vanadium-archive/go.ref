@@ -22,7 +22,6 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/xrpc"
 )
 
@@ -47,11 +46,11 @@ func StartApplicationRepository(ctx *context.T) (*application.Envelope, func()) 
 	name := MockApplicationRepoName
 	server, err := xrpc.NewServer(ctx, name, repository.ApplicationServer(invoker), security.AllowEveryone())
 	if err != nil {
-		vlog.Fatalf("NewServer(%v) failed: %v", name, err)
+		ctx.Fatalf("NewServer(%v) failed: %v", name, err)
 	}
 	return &invoker.envelope, func() {
 		if err := server.Stop(); err != nil {
-			vlog.Fatalf("Stop() failed: %v", err)
+			ctx.Fatalf("Stop() failed: %v", err)
 		}
 	}
 }
@@ -64,19 +63,19 @@ type arInvoker struct {
 }
 
 // APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
-func (i *arInvoker) Match(_ *context.T, _ rpc.ServerCall, profiles []string) (application.Envelope, error) {
-	vlog.VI(1).Infof("Match()")
+func (i *arInvoker) Match(ctx *context.T, _ rpc.ServerCall, profiles []string) (application.Envelope, error) {
+	ctx.VI(1).Infof("Match()")
 	if want := []string{"test-profile"}; !reflect.DeepEqual(profiles, want) {
 		return application.Envelope{}, fmt.Errorf("Expected profiles %v, got %v", want, profiles)
 	}
 	return i.envelope, nil
 }
 
-func (i *arInvoker) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
+func (i *arInvoker) GetPermissions(ctx *context.T, _ rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	return nil, "", nil
 }
 
-func (i *arInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
+func (i *arInvoker) SetPermissions(ctx *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
 	return nil
 }
 
@@ -94,11 +93,11 @@ func StartBinaryRepository(ctx *context.T) func() {
 	name := MockBinaryRepoName
 	server, err := xrpc.NewServer(ctx, name, repository.BinaryServer(new(brInvoker)), security.AllowEveryone())
 	if err != nil {
-		vlog.Fatalf("Serve(%q) failed: %v", name, err)
+		ctx.Fatalf("Serve(%q) failed: %v", name, err)
 	}
 	return func() {
 		if err := server.Stop(); err != nil {
-			vlog.Fatalf("Stop() failed: %v", err)
+			ctx.Fatalf("Stop() failed: %v", err)
 		}
 	}
 }
@@ -110,13 +109,13 @@ const pkgPath = "v.io/x/ref/services/device/internal/impl/utiltest"
 
 var ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "")
 
-func (*brInvoker) Create(*context.T, rpc.ServerCall, int32, repository.MediaInfo) error {
-	vlog.VI(1).Infof("Create()")
+func (*brInvoker) Create(ctx *context.T, _ rpc.ServerCall, _ int32, _ repository.MediaInfo) error {
+	ctx.VI(1).Infof("Create()")
 	return nil
 }
 
-func (i *brInvoker) Delete(*context.T, rpc.ServerCall) error {
-	vlog.VI(1).Infof("Delete()")
+func (i *brInvoker) Delete(ctx *context.T, _ rpc.ServerCall) error {
+	ctx.VI(1).Infof("Delete()")
 	return nil
 }
 
@@ -132,10 +131,10 @@ func mockBinaryBytesReader() (io.Reader, func(), error) {
 }
 
 func (i *brInvoker) Download(ctx *context.T, call repository.BinaryDownloadServerCall, _ int32) error {
-	vlog.VI(1).Infof("Download()")
+	ctx.VI(1).Infof("Download()")
 	file, cleanup, err := mockBinaryBytesReader()
 	if err != nil {
-		vlog.Errorf("Open() failed: %v", err)
+		ctx.Errorf("Open() failed: %v", err)
 		return verror.New(ErrOperationFailed, ctx)
 	}
 	defer cleanup()
@@ -149,23 +148,23 @@ func (i *brInvoker) Download(ctx *context.T, call repository.BinaryDownloadServe
 			return nil
 		case nil:
 			if err := sender.Send(buffer[:n]); err != nil {
-				vlog.Errorf("Send() failed: %v", err)
+				ctx.Errorf("Send() failed: %v", err)
 				return verror.New(ErrOperationFailed, ctx)
 			}
 		default:
-			vlog.Errorf("Read() failed: %v", err)
+			ctx.Errorf("Read() failed: %v", err)
 			return verror.New(ErrOperationFailed, ctx)
 		}
 	}
 }
 
-func (*brInvoker) DownloadUrl(*context.T, rpc.ServerCall) (string, int64, error) {
-	vlog.VI(1).Infof("DownloadUrl()")
+func (*brInvoker) DownloadUrl(ctx *context.T, _ rpc.ServerCall) (string, int64, error) {
+	ctx.VI(1).Infof("DownloadUrl()")
 	return "", 0, nil
 }
 
 func (*brInvoker) Stat(ctx *context.T, call rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
-	vlog.VI(1).Infof("Stat()")
+	ctx.VI(1).Infof("Stat()")
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
 	if err != nil {
@@ -176,8 +175,8 @@ func (*brInvoker) Stat(ctx *context.T, call rpc.ServerCall) ([]binary.PartInfo, 
 	return []binary.PartInfo{part}, repository.MediaInfo{Type: "application/octet-stream"}, nil
 }
 
-func (i *brInvoker) Upload(*context.T, repository.BinaryUploadServerCall, int32) error {
-	vlog.VI(1).Infof("Upload()")
+func (i *brInvoker) Upload(ctx *context.T, _ repository.BinaryUploadServerCall, _ int32) error {
+	ctx.VI(1).Infof("Upload()")
 	return nil
 }
 
