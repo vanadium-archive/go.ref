@@ -19,6 +19,9 @@ import (
 )
 
 func TestReapRestartsDaemonMode(t *testing.T) {
+	// TODO(rjkroege): Enable this test once v.io/i/573 is fixed.
+	t.Skip("Test is flaky. Disabling until v.io/i/573 is fixed.")
+
 	cleanup, ctx, sh, envelope, root, helperPath, _ := utiltest.StartupHelper(t)
 	defer cleanup()
 
