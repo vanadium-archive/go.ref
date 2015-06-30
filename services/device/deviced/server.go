@@ -24,8 +24,8 @@ import (
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/roaming"
+	"v.io/x/ref/services/device/deviced/internal/starter"
 	"v.io/x/ref/services/device/internal/config"
-	"v.io/x/ref/services/device/internal/starter"
 )
 
 const pkgPath = "v.io/x/ref/services/device/deviced"

@@ -11,8 +11,8 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/services/device/internal/impl"
-	"v.io/x/ref/services/device/internal/installer"
+	"v.io/x/ref/services/device/deviced/internal/impl"
+	"v.io/x/ref/services/device/deviced/internal/installer"
 )
 
 var (
