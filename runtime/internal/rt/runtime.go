@@ -334,7 +334,7 @@ func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shu
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
-	defer apilog.LogCallf(ctx, "principal=")(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	defer apilog.LogCallf(ctx, "principal=%v", principal)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	var err error
 	newctx := ctx
 
@@ -449,12 +449,12 @@ func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 }
 
 func (*Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
-	// nologcall
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return context.WithValue(ctx, listenKey, ls.Copy())
 }
 
 func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {
-	// nologcall
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -476,7 +476,7 @@ func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
-	// nologcall
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return context.WithValue(ctx, reservedNameKey, d)
 }
 

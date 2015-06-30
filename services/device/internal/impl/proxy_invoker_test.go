@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -25,8 +24,6 @@ import (
 func TestProxyInvoker(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// server1 is a normal server
 	server1, err := xrpc.NewServer(ctx, "", &dummy{}, nil)

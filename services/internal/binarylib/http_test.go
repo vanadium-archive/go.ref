@@ -12,8 +12,6 @@ import (
 	"net/http"
 	"testing"
 
-	"v.io/v23"
-	"v.io/v23/naming"
 	"v.io/v23/services/repository"
 
 	"v.io/x/ref/services/internal/binarylib"
@@ -26,8 +24,6 @@ func TestHTTP(t *testing.T) {
 	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// TODO(caprita): This is based on TestMultiPart (impl_test.go).  Share
 	// the code where possible.

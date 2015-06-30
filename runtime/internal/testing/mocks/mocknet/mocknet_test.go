@@ -325,12 +325,6 @@ func TestV23Drop(t *testing.T) {
 	}
 }
 
-func newCtx() (*context.T, v23.Shutdown) {
-	ctx, shutdown := test.V23Init()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-	return ctx, shutdown
-}
-
 type simple struct{}
 
 func (s *simple) Ping(ctx *context.T, call rpc.ServerCall) (string, error) {
@@ -348,7 +342,7 @@ func initServer(t *testing.T, ctx *context.T) (string, func()) {
 }
 
 func TestV23Control(t *testing.T) {
-	ctx, shutdown := newCtx()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	matcher := func(_ bool, msg message.T) bool {

@@ -7,10 +7,12 @@ package fake
 import (
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/namespace"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
+	"v.io/x/ref/lib/apilog"
 	vsecurity "v.io/x/ref/lib/security"
+	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
 )
 
 type contextKey int
@@ -22,7 +24,9 @@ const (
 	backgroundKey
 )
 
-type Runtime struct{}
+type Runtime struct {
+	ns namespace.T
+}
 
 func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
 	p, err := vsecurity.NewPrincipal()
@@ -30,16 +34,16 @@ func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, func() {}, err
 	}
 	ctx = context.WithValue(ctx, principalKey, p)
-	return &Runtime{}, ctx, func() {}, nil
+	return &Runtime{ns: tnaming.NewSimpleNamespace()}, ctx, func() {}, nil
 }
 
 func (r *Runtime) Init(ctx *context.T) error {
-	// nologcall
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return nil
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
-	// nologcall
+	defer apilog.LogCallf(ctx, "principal=%v", principal)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return context.WithValue(ctx, principalKey, principal), nil
 }
 
@@ -55,7 +59,7 @@ func (r *Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
 }
 
 func (r *Runtime) WithBackgroundContext(ctx *context.T) *context.T {
-	// nologcall
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -77,7 +81,7 @@ func (r *Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
-	// nologcall
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	panic("unimplemented")
 }
 

@@ -17,7 +17,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
@@ -128,8 +127,6 @@ var App = modules.Register(appFunc, "App")
 func appFunc(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	if expected, got := 1, len(args); expected != got {
 		ctx.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)

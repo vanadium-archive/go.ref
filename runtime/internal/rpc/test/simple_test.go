@@ -12,6 +12,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/x/ref/test"
 )
 
 type simple struct {
@@ -75,7 +76,7 @@ func (s *simple) Inc(_ *context.T, call rpc.StreamServerCall, inc int) (int, err
 }
 
 func TestSimpleRPC(t *testing.T) {
-	ctx, shutdown := newCtx()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
@@ -95,7 +96,7 @@ func TestSimpleRPC(t *testing.T) {
 }
 
 func TestSimpleStreaming(t *testing.T) {
-	ctx, shutdown := newCtx()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()

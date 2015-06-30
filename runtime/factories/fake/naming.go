@@ -20,6 +20,6 @@ func (r *Runtime) WithNewNamespace(ctx *context.T, roots ...string) (*context.T,
 	panic("unimplemented")
 }
 func (r *Runtime) GetNamespace(ctx *context.T) namespace.T {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
+	// nologcall
+	return r.ns
 }
