@@ -39,6 +39,6 @@ func (r *Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 }
 
 func (r *Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
-	// nologcall
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return ctx
 }

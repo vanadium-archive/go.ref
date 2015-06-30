@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"v.io/v23"
-	"v.io/v23/naming"
 	"v.io/v23/rpc"
 
 	"v.io/x/lib/vlog"
@@ -68,7 +67,6 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 	defer fmt.Fprintf(env.Stdout, "%v terminated\n", publishName)
 	defer vlog.VI(1).Infof("%v terminated", publishName)
 	defer shutdown()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Satisfy the contract described in doc.go by passing the config state
 	// through to the device manager dispatcher constructor.

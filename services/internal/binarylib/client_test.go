@@ -77,8 +77,6 @@ func TestBufferAPI(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
 	data := testutil.RandomBytes(testutil.RandomIntn(10 << 20))
@@ -130,8 +128,6 @@ func TestFileAPI(t *testing.T) {
 	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
@@ -187,8 +183,6 @@ func TestFileAPI(t *testing.T) {
 func TestDownloadUrl(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()

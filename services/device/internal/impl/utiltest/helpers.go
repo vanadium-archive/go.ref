@@ -561,7 +561,6 @@ func CtxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider,
 // boiler plate across all device manager tests.
 func StartupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *testutil.IDProvider) {
 	ctx, shutdown := test.V23Init()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Make a new identity context.
 	idp := testutil.NewIDProvider("root")

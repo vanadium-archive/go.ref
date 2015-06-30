@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/repository"
@@ -81,8 +80,6 @@ func TestHierarchy(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-
 	for i := 0; i < md5.Size; i++ {
 		binary, ep, _, cleanup := startServer(t, ctx, i)
 		defer cleanup()
@@ -134,8 +131,6 @@ func TestHierarchy(t *testing.T) {
 func TestMultiPart(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	for length := 2; length < 5; length++ {
 		binary, _, _, cleanup := startServer(t, ctx, 2)
@@ -190,8 +185,6 @@ func TestResumption(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-
 	for length := 2; length < 5; length++ {
 		binary, _, _, cleanup := startServer(t, ctx, 2)
 		defer cleanup()
@@ -237,8 +230,6 @@ func TestErrors(t *testing.T) {
 	defer testutil.InitRandGenerator(t.Logf)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	binary, _, _, cleanup := startServer(t, ctx, 2)
 	defer cleanup()
@@ -304,8 +295,6 @@ func TestErrors(t *testing.T) {
 func TestGlob(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	_, ep, _, cleanup := startServer(t, ctx, 2)
 	defer cleanup()

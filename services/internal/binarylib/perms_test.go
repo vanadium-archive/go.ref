@@ -13,7 +13,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/repository"
@@ -83,7 +82,6 @@ func ctxWithBlessedPrincipal(ctx *context.T, childExtension string) (*context.T,
 func TestBinaryCreateAccessList(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	selfCtx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("self"))
 	if err != nil {
@@ -138,7 +136,6 @@ func TestBinaryCreateAccessList(t *testing.T) {
 func TestBinaryRootAccessList(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	selfPrincipal := testutil.NewPrincipal("self")
 	selfCtx, err := v23.WithPrincipal(ctx, selfPrincipal)
@@ -422,7 +419,6 @@ func TestBinaryRootAccessList(t *testing.T) {
 func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	selfPrincipal := testutil.NewPrincipal("self")
 	selfCtx, err := v23.WithPrincipal(ctx, selfPrincipal)

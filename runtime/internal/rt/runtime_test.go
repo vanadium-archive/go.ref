@@ -17,8 +17,8 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-// InitForTest creates a context for use in a test.
-func InitForTest(t *testing.T) (*rt.Runtime, *context.T, v23.Shutdown) {
+// initForTest creates a context for use in a test.
+func initForTest(t *testing.T) (*rt.Runtime, *context.T, v23.Shutdown) {
 	ctx, cancel := context.RootContext()
 	r, ctx, shutdown, err := rt.Init(ctx, nil, nil, nil, nil, "", flags.RuntimeFlags{}, nil)
 	if err != nil {
@@ -34,7 +34,7 @@ func InitForTest(t *testing.T) (*rt.Runtime, *context.T, v23.Shutdown) {
 }
 
 func TestNewServer(t *testing.T) {
-	r, ctx, shutdown := InitForTest(t)
+	r, ctx, shutdown := initForTest(t)
 	defer shutdown()
 
 	if s, err := r.NewServer(ctx); err != nil || s == nil {
@@ -43,7 +43,7 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestPrincipal(t *testing.T) {
-	r, ctx, shutdown := InitForTest(t)
+	r, ctx, shutdown := initForTest(t)
 	defer shutdown()
 
 	p2 := testutil.NewPrincipal()
@@ -60,7 +60,7 @@ func TestPrincipal(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
-	r, ctx, shutdown := InitForTest(t)
+	r, ctx, shutdown := initForTest(t)
 	defer shutdown()
 
 	orig := r.GetClient(ctx)
@@ -81,7 +81,7 @@ func TestClient(t *testing.T) {
 }
 
 func TestNamespace(t *testing.T) {
-	r, ctx, shutdown := InitForTest(t)
+	r, ctx, shutdown := initForTest(t)
 	defer shutdown()
 
 	orig := r.GetNamespace(ctx)
@@ -117,7 +117,7 @@ func TestNamespace(t *testing.T) {
 }
 
 func TestBackgroundContext(t *testing.T) {
-	r, ctx, shutdown := InitForTest(t)
+	r, ctx, shutdown := initForTest(t)
 	defer shutdown()
 
 	bgctx := r.GetBackgroundContext(ctx)
@@ -133,7 +133,7 @@ func TestBackgroundContext(t *testing.T) {
 }
 
 func TestReservedNameDispatcher(t *testing.T) {
-	r, ctx, shutdown := InitForTest(t)
+	r, ctx, shutdown := initForTest(t)
 	defer shutdown()
 
 	oldDebugDisp := r.GetReservedNameDispatcher(ctx)

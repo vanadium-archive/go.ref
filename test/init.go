@@ -95,6 +95,8 @@ func V23InitWithParams(params InitParams) (*context.T, v23.Shutdown) {
 			panic(err)
 		}
 	}
+	ns := v23.GetNamespace(ctx)
+	ns.CacheCtl(naming.DisableCache(true))
 	if params.CreateMounttable {
 		disp, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 		if err != nil {
@@ -104,9 +106,7 @@ func V23InitWithParams(params InitParams) (*context.T, v23.Shutdown) {
 		if err != nil {
 			panic(err)
 		}
-		ns := v23.GetNamespace(ctx)
 		ns.SetRoots(s.Status().Endpoints[0].Name())
-		ns.CacheCtl(naming.DisableCache(true))
 	}
 	return ctx, shutdown
 }

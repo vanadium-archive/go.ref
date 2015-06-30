@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"v.io/v23"
-	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
@@ -208,7 +207,6 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 func TestPerAppPermissions(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	// By default, all principals in this test will have blessings generated based
 	// on the username/machine running this process. Give them recognizable names
 	// ("root/self" etc.), so the Permissions can be set deterministically.
