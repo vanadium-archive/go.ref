@@ -119,13 +119,13 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	}
 
 	// Filter out the log entries for keys not part of any SyncGroup.
-	// TODO(rdaoud): filter out entries made by sync (echo suppression).
+	// Ignore as well log entries made by sync (echo suppression).
 	totalCount := uint64(len(dataLogs))
 	appdb := appDbName(appName, dbName)
 	logs = make([]*watchable.LogEntry, 0, len(dataLogs))
 
 	for _, entry := range dataLogs {
-		if syncable(appdb, entry) {
+		if !entry.FromSync && syncable(appdb, entry) {
 			logs = append(logs, entry)
 		}
 	}
@@ -323,51 +323,53 @@ func getWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, re
 // key or probably in a value wrapper that would contain other metadata.
 func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchable.LogEntry) *localLogRec {
 	_ = tx.(store.Transaction)
+	var rec *localLogRec
+	timestamp := logEnt.CommitTimestamp
 
 	switch op := logEnt.Op.(type) {
 	case *watchable.OpGet:
 		// TODO(rdaoud): save read-set in sync.
-		return nil
 
 	case *watchable.OpScan:
 		// TODO(rdaoud): save scan-set in sync.
-		return nil
 
 	case *watchable.OpPut:
-		rec := localLogRec{}
-		oid := string(op.Value.Key)
-		rec.Metadata.ObjId = oid
-		rec.Metadata.CurVers = string(op.Value.Version)
-		if head, err := getHead(ctx, tx, oid); err == nil {
-			rec.Metadata.Parents = []string{head}
-		} else if verror.ErrorID(err) != verror.ErrNoExist.ID {
-			vlog.Fatalf("cannot getHead to convert Put log record for %s: %v", oid, err)
-		}
-		rec.Metadata.UpdTime = unixNanoToTime(logEnt.CommitTimestamp)
-		return &rec
+		rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
+
+	case *watchable.OpSyncSnapshot:
+		rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
 
 	case *watchable.OpDelete:
-		rec := localLogRec{}
-		oid := string(op.Value.Key)
-		rec.Metadata.ObjId = oid
-		rec.Metadata.CurVers = string(watchable.NewVersion())
-		rec.Metadata.Delete = true
-		if head, err := getHead(ctx, tx, oid); err == nil {
-			rec.Metadata.Parents = []string{head}
-		} else {
-			vlog.Fatalf("cannot getHead to convert Delete log record for %s: %v", oid, err)
-		}
-		rec.Metadata.UpdTime = unixNanoToTime(logEnt.CommitTimestamp)
-		return &rec
+		rec = newLocalLogRec(ctx, tx, op.Value.Key, watchable.NewVersion(), true, timestamp)
 
 	case *watchable.OpSyncGroup:
 		vlog.Errorf("watch LogEntry for SyncGroup should not be converted: %v", logEnt)
-		return nil
 
 	default:
 		vlog.Errorf("invalid watch LogEntry: %v", logEnt)
-		return nil
 	}
+
+	return rec
+}
+
+// newLocalLogRec creates a local sync log record given its information: key,
+// version, deletion flag, and timestamp.  It retrieves the current DAG head
+// for the key (if one exists) to use as its parent (previous) version.
+func newLocalLogRec(ctx *context.T, tx store.StoreReadWriter, key, version []byte, deleted bool, timestamp int64) *localLogRec {
+	_ = tx.(store.Transaction)
+
+	rec := localLogRec{}
+	oid := string(key)
+	rec.Metadata.ObjId = oid
+	rec.Metadata.CurVers = string(version)
+	rec.Metadata.Delete = deleted
+	if head, err := getHead(ctx, tx, oid); err == nil {
+		rec.Metadata.Parents = []string{head}
+	} else if deleted || (verror.ErrorID(err) != verror.ErrNoExist.ID) {
+		vlog.Fatalf("cannot getHead to convert log record for %s: %v", oid, err)
+	}
+	rec.Metadata.UpdTime = unixNanoToTime(timestamp)
+	return &rec
 }
 
 // processSyncGroupLogRecord checks if the log entry is a SyncGroup update and,
@@ -401,9 +403,20 @@ func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 		key = string(op.Value.Key)
 	case *watchable.OpDelete:
 		key = string(op.Value.Key)
+	case *watchable.OpSyncSnapshot:
+		key = string(op.Value.Key)
 	default:
 		return false
 	}
+
+	// The key starts with one of the store's reserved prefixes for managed
+	// namespaced (e.g. $row or $perm).  Remove that prefix before comparing
+	// it with the SyncGroup prefixes which are defined by the application.
+	parts := util.SplitKeyParts(key)
+	if len(parts) < 2 {
+		vlog.Fatalf("syncable: %s: invalid entry key %s: %v", appdb, key, logEnt)
+	}
+	key = util.JoinKeyParts(parts[1:]...)
 
 	for prefix := range watchPrefixes[appdb] {
 		if strings.HasPrefix(key, prefix) {

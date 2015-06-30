@@ -69,6 +69,23 @@ func (SyncGroupOp) __VDLReflect(struct {
 }) {
 }
 
+// SyncSnapshotOp represents a snapshot operation when creating and joining a
+// SyncGroup.  The sync watcher needs to get a snapshot of the Database at the
+// point of creating/joining a SyncGroup.  A SyncSnapshotOp entry is written to
+// the log for each Database key that falls within the SyncGroup prefixes.  This
+// allows sync to initialize its metadata at the correct versions of the objects
+// when they become syncable.  These log entries should be filtered by the
+// client-facing Watch interface because the user data did not actually change.
+type SyncSnapshotOp struct {
+	Key     []byte
+	Version []byte
+}
+
+func (SyncSnapshotOp) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.SyncSnapshotOp"`
+}) {
+}
+
 type (
 	// Op represents any single field of the Op union type.
 	//
@@ -93,16 +110,19 @@ type (
 	OpDelete struct{ Value DeleteOp }
 	// OpSyncGroup represents field SyncGroup of the Op union type.
 	OpSyncGroup struct{ Value SyncGroupOp }
+	// OpSyncSnapshot represents field SyncSnapshot of the Op union type.
+	OpSyncSnapshot struct{ Value SyncSnapshotOp }
 	// __OpReflect describes the Op union type.
 	__OpReflect struct {
 		Name  string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.Op"`
 		Type  Op
 		Union struct {
-			Get       OpGet
-			Scan      OpScan
-			Put       OpPut
-			Delete    OpDelete
-			SyncGroup OpSyncGroup
+			Get          OpGet
+			Scan         OpScan
+			Put          OpPut
+			Delete       OpDelete
+			SyncGroup    OpSyncGroup
+			SyncSnapshot OpSyncSnapshot
 		}
 	}
 )
@@ -132,6 +152,11 @@ func (x OpSyncGroup) Interface() interface{}   { return x.Value }
 func (x OpSyncGroup) Name() string             { return "SyncGroup" }
 func (x OpSyncGroup) __VDLReflect(__OpReflect) {}
 
+func (x OpSyncSnapshot) Index() int               { return 5 }
+func (x OpSyncSnapshot) Interface() interface{}   { return x.Value }
+func (x OpSyncSnapshot) Name() string             { return "SyncSnapshot" }
+func (x OpSyncSnapshot) __VDLReflect(__OpReflect) {}
+
 // LogEntry represents a single store operation. This operation may have been
 // part of a transaction, as signified by the Continued boolean. Read-only
 // operations (and read-only transactions) are not logged.
@@ -140,6 +165,8 @@ type LogEntry struct {
 	Op Op
 	// Time when the operation was committed.
 	CommitTimestamp int64
+	// Operation came from sync (used for echo suppression).
+	FromSync bool
 	// If true, this entry is followed by more entries that belong to the same
 	// commit as this entry.
 	Continued bool
@@ -156,6 +183,7 @@ func init() {
 	vdl.Register((*PutOp)(nil))
 	vdl.Register((*DeleteOp)(nil))
 	vdl.Register((*SyncGroupOp)(nil))
+	vdl.Register((*SyncSnapshotOp)(nil))
 	vdl.Register((*Op)(nil))
 	vdl.Register((*LogEntry)(nil))
 }

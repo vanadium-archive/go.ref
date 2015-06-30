@@ -7,10 +7,15 @@ package vsync
 // Tests for the sync watcher in Syncbase.
 
 import (
+	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 // TestSetResmark tests setting and getting a resume marker.
@@ -42,6 +47,7 @@ func TestSetResmark(t *testing.T) {
 
 // TestWatchPrefixes tests setting and updating the watch prefixes map.
 func TestWatchPrefixes(t *testing.T) {
+	watchPollInterval = time.Millisecond
 	svc := createService(t)
 	defer destroyService(t, svc)
 
@@ -111,7 +117,7 @@ func TestWatchPrefixes(t *testing.T) {
 	for _, test := range checkSyncableTests {
 		log := &watchable.LogEntry{
 			Op: &watchable.OpPut{
-				watchable.PutOp{Key: []byte(test.key)},
+				watchable.PutOp{Key: []byte(makeRowKey(test.key))},
 			},
 		}
 		res := syncable(appDbName(test.appName, test.dbName), log)
@@ -151,14 +157,17 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	s := svc.sync
 
 	app, db := "mockapp", "mockdb"
+	fooKey := makeRowKey("foo")
+	barKey := makeRowKey("bar")
+	fooxyzKey := makeRowKey("fooxyz")
 
 	// Empty logs does not fail.
 	s.processWatchLogBatch(nil, app, db, st, nil, "")
 
 	// Non-syncable logs.
 	batch := []*watchable.LogEntry{
-		newLog("foo", "123", false),
-		newLog("bar", "555", false),
+		newLog(fooKey, "123", false),
+		newLog(barKey, "555", false),
 	}
 
 	resmark := "abcd"
@@ -167,16 +176,16 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	if res, err := getResMark(nil, st); err != nil && res != resmark {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
 	}
-	if hasNode(nil, st, "foo", "123") || hasNode(nil, st, "bar", "555") {
+	if hasNode(nil, st, fooKey, "123") || hasNode(nil, st, barKey, "555") {
 		t.Error("hasNode() found DAG entries for non-syncable logs")
 	}
 
 	// Partially syncable logs.
 	batch = []*watchable.LogEntry{
 		newSGLog([]string{"f", "x"}, false),
-		newLog("foo", "333", false),
-		newLog("fooxyz", "444", false),
-		newLog("bar", "222", false),
+		newLog(fooKey, "333", false),
+		newLog(fooxyzKey, "444", false),
+		newLog(barKey, "222", false),
 	}
 
 	resmark = "cdef"
@@ -185,33 +194,75 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	if res, err := getResMark(nil, st); err != nil && res != resmark {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
 	}
-	if head, err := getHead(nil, st, "foo"); err != nil && head != "333" {
+	if head, err := getHead(nil, st, fooKey); err != nil && head != "333" {
 		t.Errorf("getHead() did not find foo: %s, %v", head, err)
 	}
-	node, err := getNode(nil, st, "foo", "333")
+	node, err := getNode(nil, st, fooKey, "333")
 	if err != nil {
 		t.Errorf("getNode() did not find foo: %v", err)
 	}
 	if node.Level != 0 || node.Parents != nil || node.Logrec == "" || node.BatchId == NoBatchId {
 		t.Errorf("invalid DAG node for foo: %v", node)
 	}
-	node2, err := getNode(nil, st, "fooxyz", "444")
+	node2, err := getNode(nil, st, fooxyzKey, "444")
 	if err != nil {
 		t.Errorf("getNode() did not find fooxyz: %v", err)
 	}
 	if node2.Level != 0 || node2.Parents != nil || node2.Logrec == "" || node2.BatchId != node.BatchId {
 		t.Errorf("invalid DAG node for fooxyz: %v", node2)
 	}
-	if hasNode(nil, st, "bar", "222") {
+	if hasNode(nil, st, barKey, "222") {
+		t.Error("hasNode() found DAG entries for non-syncable logs")
+	}
+
+	// More partially syncable logs updating existing ones.
+	batch = []*watchable.LogEntry{
+		newLog(fooKey, "1", false),
+		newLog(fooxyzKey, "", true),
+		newLog(barKey, "7", false),
+	}
+
+	resmark = "ghij"
+	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
+
+	if res, err := getResMark(nil, st); err != nil && res != resmark {
+		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
+	}
+	if head, err := getHead(nil, st, fooKey); err != nil && head != "1" {
+		t.Errorf("getHead() did not find foo: %s, %v", head, err)
+	}
+	node, err = getNode(nil, st, fooKey, "1")
+	if err != nil {
+		t.Errorf("getNode() did not find foo: %v", err)
+	}
+	expParents := []string{"333"}
+	if node.Level != 1 || !reflect.DeepEqual(node.Parents, expParents) ||
+		node.Logrec == "" || node.BatchId == NoBatchId {
+		t.Errorf("invalid DAG node for foo: %v", node)
+	}
+	head2, err := getHead(nil, st, fooxyzKey)
+	if err != nil {
+		t.Errorf("getHead() did not find fooxyz: %v", err)
+	}
+	node2, err = getNode(nil, st, fooxyzKey, head2)
+	if err != nil {
+		t.Errorf("getNode() did not find fooxyz: %v", err)
+	}
+	expParents = []string{"444"}
+	if node2.Level != 1 || !reflect.DeepEqual(node2.Parents, expParents) ||
+		node2.Logrec == "" || node2.BatchId == NoBatchId {
+		t.Errorf("invalid DAG node for fooxyz: %v", node2)
+	}
+	if hasNode(nil, st, barKey, "7") {
 		t.Error("hasNode() found DAG entries for non-syncable logs")
 	}
 
 	// Back to non-syncable logs (remove "f" prefix).
 	batch = []*watchable.LogEntry{
 		newSGLog([]string{"f"}, true),
-		newLog("foo", "99", false),
-		newLog("fooxyz", "888", true),
-		newLog("bar", "007", false),
+		newLog(fooKey, "99", false),
+		newLog(fooxyzKey, "888", true),
+		newLog(barKey, "007", false),
 	}
 
 	resmark = "tuvw"
@@ -221,16 +272,92 @@ func TestProcessWatchLogBatch(t *testing.T) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
 	}
 	// No changes to "foo".
-	if head, err := getHead(nil, st, "foo"); err != nil && head != "333" {
+	if head, err := getHead(nil, st, fooKey); err != nil && head != "333" {
 		t.Errorf("getHead() did not find foo: %s, %v", head, err)
 	}
-	if node, err := getNode(nil, st, "foo", "99"); err == nil {
+	if node, err := getNode(nil, st, fooKey, "99"); err == nil {
 		t.Errorf("getNode() should not have found foo @ 99: %v", node)
 	}
-	if node, err := getNode(nil, st, "fooxyz", "888"); err == nil {
+	if node, err := getNode(nil, st, fooxyzKey, "888"); err == nil {
 		t.Errorf("getNode() should not have found fooxyz @ 888: %v", node)
 	}
-	if hasNode(nil, st, "bar", "007") {
+	if hasNode(nil, st, barKey, "007") {
 		t.Error("hasNode() found DAG entries for non-syncable logs")
+	}
+}
+
+// TestGetWatchLogBatch tests fetching a batch of log records.
+func TestGetWatchLogBatch(t *testing.T) {
+	svc := createService(t)
+	defer destroyService(t, svc)
+	st := svc.St()
+
+	// Create a set of batches to fill the log queue.
+	numTx, numPut := 3, 4
+
+	makeKeyVal := func(batchNum, recNum int) ([]byte, []byte) {
+		key := util.JoinKeyParts(util.RowPrefix, fmt.Sprintf("foo-%d-%d", batchNum, recNum))
+		val := fmt.Sprintf("val-%d-%d", batchNum, recNum)
+		return []byte(key), []byte(val)
+	}
+
+	for i := 0; i < numTx; i++ {
+		tx := st.NewTransaction()
+		for j := 0; j < numPut; j++ {
+			key, val := makeKeyVal(i, j)
+			if err := tx.Put(key, val); err != nil {
+				t.Errorf("cannot put %s (%s): %v", key, val, err)
+			}
+		}
+		tx.Commit()
+	}
+
+	// Fetch the batches and a few more empty fetches and verify them.
+	app, db := "mockapp", "mockdb"
+	resmark := ""
+	count := 0
+
+	for i := 0; i < (numTx + 3); i++ {
+		logs, newResmark := getWatchLogBatch(nil, app, db, st, resmark)
+		if i < numTx {
+			if len(logs) != numPut {
+				t.Errorf("log fetch (i=%d) wrong log count: %d instead of %d",
+					i, len(logs), numPut)
+			}
+
+			count += len(logs)
+			expResmark := makeResMark(count - 1)
+			if newResmark != expResmark {
+				t.Errorf("log fetch (i=%d) wrong resmark: %s instead of %s",
+					i, newResmark, expResmark)
+			}
+
+			for j, log := range logs {
+				op := log.Op.(watchable.OpPut)
+				expKey, expVal := makeKeyVal(i, j)
+				key := op.Value.Key
+				if !bytes.Equal(key, expKey) {
+					t.Errorf("log fetch (i=%d, j=%d) bad key: %s instead of %s",
+						i, j, key, expKey)
+				}
+				tx := st.NewTransaction()
+				var val []byte
+				val, err := watchable.GetAtVersion(nil, tx, key, val, op.Value.Version)
+				if err != nil {
+					t.Errorf("log fetch (i=%d, j=%d) cannot GetAtVersion(): %v", i, j, err)
+				}
+				if !bytes.Equal(val, expVal) {
+					t.Errorf("log fetch (i=%d, j=%d) bad value: %s instead of %s",
+						i, j, val, expVal)
+				}
+				tx.Abort()
+			}
+		} else {
+			if logs != nil || newResmark != resmark {
+				t.Errorf("NOP log fetch (i=%d) had changes: %d logs, resmask %s",
+					i, len(logs), newResmark)
+			}
+		}
+		resmark = newResmark
 	}
 }

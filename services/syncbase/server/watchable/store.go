@@ -9,7 +9,7 @@
 // internal watching of store updates.
 //
 // LogEntry records are stored chronologically, using keys of the form
-// "$log:<seq>:<txSeq>". Sequence numbers are zero-padded to ensure that the
+// "$log:<seq>". Sequence numbers are zero-padded to ensure that the
 // lexicographic order matches the numeric order.
 //
 // Version number records are stored using keys of the form "$version:<key>",
@@ -49,6 +49,7 @@ type Options struct {
 // Wrap returns a watchable.Store that wraps the given store.Store.
 func Wrap(st store.Store, opts *Options) (Store, error) {
 	// Determine initial value for seq.
+	// TODO(sadovsky): Consider using a bigger seq.
 	var seq uint64 = 0
 	// TODO(sadovsky): Perform a binary search to determine seq, or persist the
 	// current sequence number on every nth write so that at startup time we can
@@ -67,7 +68,7 @@ func Wrap(st store.Store, opts *Options) (Store, error) {
 	if advanced {
 		key := string(keybuf)
 		parts := split(key)
-		if len(parts) != 3 {
+		if len(parts) != 2 {
 			panic("wrong number of parts: " + key)
 		}
 		var err error

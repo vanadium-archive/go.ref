@@ -14,6 +14,7 @@ import (
 	"v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 // checkSGStats verifies SyncGroup stats.

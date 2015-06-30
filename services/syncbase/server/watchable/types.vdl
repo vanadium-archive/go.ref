@@ -36,13 +36,26 @@ type SyncGroupOp struct {
 	Remove   bool
 }
 
+// SyncSnapshotOp represents a snapshot operation when creating and joining a
+// SyncGroup.  The sync watcher needs to get a snapshot of the Database at the
+// point of creating/joining a SyncGroup.  A SyncSnapshotOp entry is written to
+// the log for each Database key that falls within the SyncGroup prefixes.  This
+// allows sync to initialize its metadata at the correct versions of the objects
+// when they become syncable.  These log entries should be filtered by the
+// client-facing Watch interface because the user data did not actually change.
+type SyncSnapshotOp struct {
+	Key     []byte
+	Version []byte
+}
+
 // Op represents a store operation.
 type Op union {
-	Get       GetOp
-	Scan      ScanOp
-	Put       PutOp
-	Delete    DeleteOp
-	SyncGroup SyncGroupOp
+	Get          GetOp
+	Scan         ScanOp
+	Put          PutOp
+	Delete       DeleteOp
+	SyncGroup    SyncGroupOp
+	SyncSnapshot SyncSnapshotOp
 }
 
 // LogEntry represents a single store operation. This operation may have been
@@ -54,6 +67,9 @@ type LogEntry struct {
 
 	// Time when the operation was committed.
 	CommitTimestamp int64
+
+	// Operation came from sync (used for echo suppression).
+	FromSync bool
 
 	// If true, this entry is followed by more entries that belong to the same
 	// commit as this entry.

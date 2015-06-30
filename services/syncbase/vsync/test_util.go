@@ -20,7 +20,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
 
@@ -127,7 +126,7 @@ func createService(t *testing.T) *mockService {
 		t.Fatalf("cannot create store %s (%s): %v", engine, path, err)
 	}
 	st, err = watchable.Wrap(st, &watchable.Options{
-		ManagedPrefixes: []string{util.RowPrefix},
+		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
 	})
 
 	s := &mockService{
@@ -150,4 +149,14 @@ func destroyService(t *testing.T, s *mockService) {
 	if err := util.DestroyStore(s.engine, s.path); err != nil {
 		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.path, err)
 	}
+}
+
+// makeResMark returns the resume marker for a given log entry position.
+func makeResMark(pos int) string {
+	return util.JoinKeyParts(util.LogPrefix, fmt.Sprintf("%016x", pos))
+}
+
+// makeRowKey returns the database row key for a given application key.
+func makeRowKey(key string) string {
+	return util.JoinKeyParts(util.RowPrefix, key)
 }

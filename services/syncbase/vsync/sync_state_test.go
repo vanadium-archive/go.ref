@@ -11,6 +11,7 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 // Tests for sync state management and storage in Syncbase.

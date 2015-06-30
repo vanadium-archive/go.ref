@@ -85,7 +85,7 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 		return nil, err
 	}
 	st, err = watchable.Wrap(st, &watchable.Options{
-		ManagedPrefixes: []string{util.RowPrefix},
+		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
 	})
 	if err != nil {
 		return nil, err

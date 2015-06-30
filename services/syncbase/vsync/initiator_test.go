@@ -14,6 +14,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 // TestLogStreamRemoteOnly tests processing of a remote log stream. Commands are

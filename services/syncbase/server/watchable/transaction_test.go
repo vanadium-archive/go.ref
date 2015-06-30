@@ -80,7 +80,8 @@ func TestLogEntryTimestamps(t *testing.T) {
 		t.Errorf("Failed to wrap store for update")
 	}
 	seqForUpdate := getSeq(wst2)
-	if seqForUpdate != (seqForCreate + 1) {
+	// We expect the sequence number to have moved by +2 for the two puts.
+	if seqForUpdate != (seqForCreate + 2) {
 		t.Errorf("unexpected sequence number for update. seq for create: %d, seq for update: %d", seqForCreate, seqForUpdate)
 	}
 

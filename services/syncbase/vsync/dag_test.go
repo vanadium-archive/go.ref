@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
-
 	"v.io/v23/context"
+	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 // TestSetNode tests setting and getting a DAG node.
