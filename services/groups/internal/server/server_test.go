@@ -23,8 +23,17 @@ import (
 	"v.io/x/ref/services/groups/internal/server"
 	"v.io/x/ref/services/groups/internal/store"
 	"v.io/x/ref/services/groups/internal/store/gkv"
-	"v.io/x/ref/services/groups/internal/store/memstore"
+	"v.io/x/ref/services/groups/internal/store/leveldb"
+	"v.io/x/ref/services/groups/internal/store/mem"
 	"v.io/x/ref/test/testutil"
+)
+
+type backend int
+
+const (
+	gkvstore backend = iota
+	leveldbstore
+	memstore
 )
 
 func Fatal(t *testing.T, args ...interface{}) {
@@ -89,20 +98,18 @@ func entriesEqual(a, b map[groups.BlessingPatternChunk]struct{}) bool {
 	return reflect.DeepEqual(a, b)
 }
 
-// TODO(sadovsky): Write storage engine tests, then maybe drop this constant.
-const useMemstore = false
-
-func newServer(ctx *context.T) (string, func()) {
+func newServer(ctx *context.T, be backend) (string, func()) {
 	// TODO(sadovsky): Pass in perms and test perms-checking in Group.Create().
 	perms := access.Permissions{}
 	var st store.Store
-	var file *os.File
+	var path string
 	var err error
 
-	if useMemstore {
-		st = memstore.New()
-	} else {
-		file, err = ioutil.TempFile("", "")
+	switch be {
+	case memstore:
+		st = mem.New()
+	case gkvstore:
+		file, err := ioutil.TempFile("", "")
 		if err != nil {
 			ctx.Fatal("ioutil.TempFile() failed: ", err)
 		}
@@ -110,6 +117,18 @@ func newServer(ctx *context.T) (string, func()) {
 		if err != nil {
 			ctx.Fatal("gkv.New() failed: ", err)
 		}
+		path = file.Name()
+	case leveldbstore:
+		path, err = ioutil.TempDir("", "")
+		if err != nil {
+			ctx.Fatal("ioutil.TempDir() failed: ", err)
+		}
+		st, err = leveldb.Open(path)
+		if err != nil {
+			ctx.Fatal("leveldb.Open() failed: ", err)
+		}
+	default:
+		ctx.Fatal("unknown backend: ", be)
 	}
 
 	m := server.NewManager(st, perms)
@@ -122,13 +141,13 @@ func newServer(ctx *context.T) (string, func()) {
 	name := server.Status().Endpoints[0].Name()
 	return name, func() {
 		server.Stop()
-		if file != nil {
-			os.Remove(file.Name())
+		if path != "" {
+			os.RemoveAll(path)
 		}
 	}
 }
 
-func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
+func setupOrDie(be backend) (clientCtx *context.T, serverName string, cleanup func()) {
 	ctx, shutdown := v23.Init()
 	cp, sp := testutil.NewPrincipal("client"), testutil.NewPrincipal("server")
 
@@ -156,7 +175,7 @@ func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
 		clientCtx.Fatal("v23.WithPrincipal() failed: ", err)
 	}
 
-	serverName, stopServer := newServer(serverCtx)
+	serverName, stopServer := newServer(serverCtx, be)
 	cleanup = func() {
 		stopServer()
 		shutdown()
@@ -167,8 +186,20 @@ func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
 ////////////////////////////////////////
 // Test cases
 
-func TestCreate(t *testing.T) {
-	ctx, serverName, cleanup := setupOrDie()
+func TestCreateGkvStore(t *testing.T) {
+	testCreateHelper(t, gkvstore)
+}
+
+func TestCreateLevelDBStore(t *testing.T) {
+	testCreateHelper(t, leveldbstore)
+}
+
+func TestCreateMemStore(t *testing.T) {
+	testCreateHelper(t, memstore)
+}
+
+func testCreateHelper(t *testing.T, be backend) {
+	ctx, serverName, cleanup := setupOrDie(be)
 	defer cleanup()
 
 	// Create a group with a default perms and no entries.
@@ -219,8 +250,20 @@ func TestCreate(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
-	ctx, serverName, cleanup := setupOrDie()
+func TestDeleteGkvStore(t *testing.T) {
+	testDeleteHelper(t, gkvstore)
+}
+
+func TestDeleteLevelDBStore(t *testing.T) {
+	testDeleteHelper(t, leveldbstore)
+}
+
+func TestDeleteMemStore(t *testing.T) {
+	testDeleteHelper(t, memstore)
+}
+
+func testDeleteHelper(t *testing.T, be backend) {
+	ctx, serverName, cleanup := setupOrDie(be)
 	defer cleanup()
 
 	// Create a group with a default perms and no entries, check that we can
@@ -279,8 +322,20 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestPerms(t *testing.T) {
-	ctx, serverName, cleanup := setupOrDie()
+func TestPermsGkvStore(t *testing.T) {
+	testPermsHelper(t, gkvstore)
+}
+
+func TestPermsLevelDBStore(t *testing.T) {
+	testPermsHelper(t, leveldbstore)
+}
+
+func TestPermsMemStore(t *testing.T) {
+	testPermsHelper(t, memstore)
+}
+
+func testPermsHelper(t *testing.T, be backend) {
+	ctx, serverName, cleanup := setupOrDie(be)
 	defer cleanup()
 
 	// Create a group with a default perms.
@@ -384,9 +439,21 @@ func TestPerms(t *testing.T) {
 	}
 }
 
-// Mirrors TestRemove.
-func TestAdd(t *testing.T) {
-	ctx, serverName, cleanup := setupOrDie()
+func TestAddGkvStore(t *testing.T) {
+	testAddHelper(t, gkvstore)
+}
+
+func TestAddLevelDBStore(t *testing.T) {
+	testAddHelper(t, leveldbstore)
+}
+
+func TestAddMemStore(t *testing.T) {
+	testAddHelper(t, memstore)
+}
+
+// testAddHelper tests mirror testRemoveHelper tests.
+func testAddHelper(t *testing.T, be backend) {
+	ctx, serverName, cleanup := setupOrDie(be)
 	defer cleanup()
 
 	// Create a group with a default perms and no entries.
@@ -469,9 +536,21 @@ func TestAdd(t *testing.T) {
 	}
 }
 
-// Mirrors TestAdd.
-func TestRemove(t *testing.T) {
-	ctx, serverName, cleanup := setupOrDie()
+func TestRemoveGkvStore(t *testing.T) {
+	testRemoveHelper(t, gkvstore)
+}
+
+func TestRemoveLevelDBStore(t *testing.T) {
+	testRemoveHelper(t, leveldbstore)
+}
+
+func TestRemoveMemStore(t *testing.T) {
+	testRemoveHelper(t, memstore)
+}
+
+// testRemoveHelper tests mirror testAddHelper tests.
+func testRemoveHelper(t *testing.T, be backend) {
+	ctx, serverName, cleanup := setupOrDie(be)
 	defer cleanup()
 
 	// Create a group with a default perms and two entries.

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package memstore provides a simple, in-memory implementation of server.Store.
-// Since it's a prototype implementation, it doesn't bother with entry-level
-// locking.
-package memstore
+// Package mem provides a simple, in-memory implementation of
+// server.Store. Since it's a prototype implementation, it doesn't
+// bother with entry-level locking.
+package mem
 
 import (
 	"strconv"

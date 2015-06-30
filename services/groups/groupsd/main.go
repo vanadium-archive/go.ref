@@ -23,7 +23,7 @@ import (
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/groups/internal/server"
-	"v.io/x/ref/services/groups/internal/store/memstore"
+	"v.io/x/ref/services/groups/internal/store/mem"
 )
 
 var flagName string
@@ -68,7 +68,7 @@ func runGroupsD(ctx *context.T, env *cmdline.Env, args []string) error {
 		ctx.Infof("No permissions flag provided. Giving local principal all permissions.")
 		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 	}
-	m := server.NewManager(memstore.New(), perms)
+	m := server.NewManager(mem.New(), perms)
 	server, err := xrpc.NewDispatchingServer(ctx, flagName, m)
 	if err != nil {
 		fmt.Errorf("NewDispatchingServer(%v) failed: %v", flagName, err)
