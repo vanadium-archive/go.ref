@@ -156,8 +156,11 @@ func (SyncGroup) __VDLReflect(struct {
 }
 
 // DeltaReq contains the initiator's genvector and the set of SyncGroups it is
-// interested with in a Database when requesting deltas for that Database.
+// interested in within a Database (specified by the AppName/DbName) when
+// requesting deltas for that Database.
 type DeltaReq struct {
+	AppName string
+	DbName  string
 	SgIds   map[GroupId]struct{}
 	InitVec GenVector
 }

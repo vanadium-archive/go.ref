@@ -29,9 +29,10 @@ import (
 // syncService contains the metadata for the sync module.
 type syncService struct {
 	// TODO(hpucha): see if "v.io/v23/uniqueid" is a better fit. It is 128 bits.
-	id   uint64 // globally unique id for this instance of Syncbase.
-	name string // name derived from the global id.
-	sv   interfaces.Service
+	id     uint64 // globally unique id for this instance of Syncbase.
+	name   string // name derived from the global id.
+	sv     interfaces.Service
+	server rpc.Server
 
 	// State to coordinate shutdown of spawned goroutines.
 	pending sync.WaitGroup
@@ -96,9 +97,10 @@ func randIntn(n int) int {
 // changes to its objects. The "initiator" thread is responsible for
 // periodically contacting peers to fetch changes from them. In addition, the
 // sync module responds to incoming RPCs from remote sync modules.
-func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service) (*syncService, error) {
+func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, server rpc.Server) (*syncService, error) {
 	s := &syncService{
 		sv:      sv,
+		server:  server,
 		batches: make(batchSet),
 	}
 
@@ -146,13 +148,6 @@ func (s *syncService) Close() {
 
 func NewSyncDatabase(db interfaces.Database) *syncDatabase {
 	return &syncDatabase{db: db}
-}
-
-////////////////////////////////////////
-// Core sync method.
-
-func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall) error {
-	return verror.NewErrNotImplemented(ctx)
 }
 
 ////////////////////////////////////////

@@ -18,13 +18,12 @@ import (
 	"strings"
 	"time"
 
+	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
-
-	wire "v.io/syncbase/v23/services/syncbase/nosql"
-
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
@@ -609,9 +608,20 @@ func bootstrapSyncGroup(tx store.StoreReadWriter, prefixes []string) error {
 }
 
 func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall, spec wire.SyncGroupSpec) error {
-	// TODO(hpucha): To be implemented.
-	// Pass server to Service in store.
-	// server.ServeDispatcher(*name, service, authorizer)
+	// Get this Syncbase's sync module handle.
+	ss := sd.db.App().Service().Sync().(*syncService)
+
+	for _, mt := range spec.MountTables {
+		name := naming.Join(mt, ss.name)
+		// TODO(hpucha): Is this add idempotent? Appears to be from code.
+		// Will it handle absolute names. Appears to be.
+		if err := ss.server.AddName(name); err != nil {
+			return err
+		}
+	}
+
+	// TODO(hpucha): Do we have to publish in neighborhood explicitly?
+
 	return nil
 }
 

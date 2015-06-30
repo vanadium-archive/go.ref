@@ -136,7 +136,7 @@ func createService(t *testing.T) *mockService {
 		path:     path,
 		shutdown: shutdown,
 	}
-	if s.sync, err = New(ctx, nil, s); err != nil {
+	if s.sync, err = New(ctx, nil, s, nil); err != nil {
 		util.DestroyStore(engine, path)
 		t.Fatalf("cannot create sync service: %v", err)
 	}
