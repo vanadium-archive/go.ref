@@ -102,7 +102,7 @@ func initCommand(root, command string, stderr, stdout io.Writer) (bool, error) {
 
 // SelfInstall installs the device manager and configures it using the
 // environment and the supplied command-line flags.
-func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singleUser, sessionMode, init bool, args, env []string, stderr, stdout io.Writer) error {
+func SelfInstall(ctx *context.T, installDir, suidHelper, agent, initHelper, origin string, singleUser, sessionMode, init bool, args, env []string, stderr, stdout io.Writer) error {
 	if os.Getenv(ref.EnvCredentials) != "" {
 		return fmt.Errorf("Attempting to install device manager under agent with the %q environment variable set.", ref.EnvCredentials)
 	}
@@ -117,7 +117,7 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 	}
 
 	// save info about the binary creating this tree
-	if err := impl.SaveCreatorInfo(root); err != nil {
+	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
 		return err
 	}
 
@@ -246,20 +246,19 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 
 // Uninstall undoes SelfInstall, removing the device manager's installation
 // directory.
-func Uninstall(installDir, helperPath string, stdout, stderr io.Writer) error {
+func Uninstall(ctx *context.T, installDir, helperPath string, stdout, stderr io.Writer) error {
 	// TODO(caprita): ensure device is stopped?
 
 	root := filepath.Join(installDir, dmRoot)
 	if _, err := initCommand(root, "uninstall", stdout, stderr); err != nil {
 		return err
 	}
-
-	impl.InitSuidHelper(helperPath)
-	return impl.DeleteFileTree(root, stdout, stderr)
+	impl.InitSuidHelper(ctx, helperPath)
+	return impl.DeleteFileTree(ctx, root, stdout, stderr)
 }
 
 // Start starts the device manager.
-func Start(installDir string, stderr, stdout io.Writer) error {
+func Start(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 	// TODO(caprita): make sure it's not already running?
 
 	root := filepath.Join(installDir, dmRoot)

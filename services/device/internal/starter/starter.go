@@ -14,21 +14,20 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/x/ref/runtime/factories/roaming"
-	"v.io/x/ref/services/debug/debuglib"
-	"v.io/x/ref/services/device/internal/config"
-	"v.io/x/ref/services/device/internal/impl"
-	"v.io/x/ref/services/internal/pathperms"
-	"v.io/x/ref/services/mounttable/mounttablelib"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/xrpc"
+	"v.io/x/ref/runtime/factories/roaming"
+	"v.io/x/ref/services/debug/debuglib"
+	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/device/internal/impl"
+	"v.io/x/ref/services/internal/pathperms"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 )
 
 const pkgPath = "v.io/x/ref/services/device/internal/starter"
@@ -88,7 +87,7 @@ type Args struct {
 // failure.
 func Start(ctx *context.T, args Args) (string, func(), error) {
 	// Is this binary compatible with the state on disk?
-	if err := impl.CheckCompatibility(args.Device.ConfigState.Root); err != nil {
+	if err := impl.CheckCompatibility(ctx, args.Device.ConfigState.Root); err != nil {
 		return "", nil, err
 	}
 	// In test mode, we skip writing the info file to disk, and we skip
@@ -160,9 +159,9 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		return "", nil, err
 	}
 	shutdown := func() {
-		vlog.Infof("Stopping claimable server...")
+		ctx.Infof("Stopping claimable server...")
 		server.Stop()
-		vlog.Infof("Stopped claimable server.")
+		ctx.Infof("Stopped claimable server.")
 		cancel()
 	}
 	endpoints := server.Status().Endpoints
@@ -176,12 +175,12 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		for {
 			p := server.Status().Proxies
 			if len(p) == 0 {
-				vlog.Infof("Waiting for proxy address to appear...")
+				ctx.Infof("Waiting for proxy address to appear...")
 				time.Sleep(time.Second)
 				continue
 			}
 			epName = p[0].Endpoint.Name()
-			vlog.Infof("Proxied address: %s", epName)
+			ctx.Infof("Proxied address: %s", epName)
 			break
 		}
 	} else {
@@ -190,8 +189,8 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		}
 		epName = endpoints[0].Name()
 	}
-	vlog.Infof("Unclaimed device manager (%v) with public_key: %s", epName, base64.URLEncoding.EncodeToString(publicKey))
-	vlog.FlushLog()
+	ctx.Infof("Unclaimed device manager (%v) with public_key: %s", epName, base64.URLEncoding.EncodeToString(publicKey))
+	ctx.FlushLog()
 	return epName, shutdown, nil
 }
 
@@ -207,7 +206,7 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 	}
 	shutdown, err := startClaimedDevice(ctx, args)
 	if err != nil {
-		vlog.Errorf("Failed to start device service after it was claimed: %v", err)
+		ctx.Errorf("Failed to start device service after it was claimed: %v", err)
 		v23.GetAppCycle(ctx).Stop()
 		return
 	}
@@ -223,13 +222,13 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 		return nil, err
 	}
 
-	debugDisp := debuglib.NewDispatcher(vlog.Log.LogDir, debugAuth)
+	debugDisp := debuglib.NewDispatcher(logger.Manager(ctx).LogDir, debugAuth)
 
 	ctx = v23.WithReservedNameDispatcher(ctx, debugDisp)
 
 	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
 	if err != nil {
-		vlog.Errorf("Failed to start mounttable service: %v", err)
+		ctx.Errorf("Failed to start mounttable service: %v", err)
 		return nil, err
 	}
 	// TODO(caprita): We link in a proxy server into the device manager so that we
@@ -240,13 +239,13 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 	// local proxy altogether.
 	stopProxy, err := startProxyServer(ctx, args.Proxy, mtName)
 	if err != nil {
-		vlog.Errorf("Failed to start proxy service: %v", err)
+		ctx.Errorf("Failed to start proxy service: %v", err)
 		stopMT()
 		return nil, err
 	}
 	stopDevice, err := startDeviceServer(ctx, args.Device, mtName, permStore)
 	if err != nil {
-		vlog.Errorf("Failed to start device service: %v", err)
+		ctx.Errorf("Failed to start device service: %v", err)
 		stopProxy()
 		stopMT()
 		return nil, err
@@ -283,25 +282,25 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 	if err != nil {
 		return nil, verror.New(errCantCreateProxy, ctx, err)
 	}
-	vlog.Infof("Local proxy (%v)", ep.Name())
+	ctx.Infof("Local proxy (%v)", ep.Name())
 	return func() {
-		vlog.Infof("Stopping proxy...")
+		ctx.Infof("Stopping proxy...")
 		shutdown()
-		vlog.Infof("Stopped proxy.")
+		ctx.Infof("Stopped proxy.")
 	}, nil
 }
 
 func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 	mtName, stopMT, err := mounttablelib.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.PermissionsFile, n.PersistenceDir, "mounttable")
 	if err != nil {
-		vlog.Errorf("mounttablelib.StartServers(%#v) failed: %v", n, err)
+		ctx.Errorf("mounttablelib.StartServers(%#v) failed: %v", n, err)
 	} else {
-		vlog.Infof("Local mounttable (%v) published as %q", mtName, n.Name)
+		ctx.Infof("Local mounttable (%v) published as %q", mtName, n.Name)
 	}
 	return mtName, func() {
-		vlog.Infof("Stopping mounttable...")
+		ctx.Infof("Stopping mounttable...")
 		stopMT()
-		vlog.Infof("Stopped mounttable.")
+		ctx.Infof("Stopped mounttable.")
 	}, err
 }
 
@@ -339,16 +338,16 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pa
 	shutdown = func() {
 		// TODO(caprita): Capture the Dying state by feeding it back to
 		// the dispatcher and exposing it in Status.
-		vlog.Infof("Stopping device server...")
+		ctx.Infof("Stopping device server...")
 		server.Stop()
-		impl.Shutdown(dispatcher)
-		vlog.Infof("Stopped device.")
+		impl.Shutdown(ctx, dispatcher)
+		ctx.Infof("Stopped device.")
 	}
 	if err := server.ServeDispatcher(args.name(mt), dispatcher); err != nil {
 		shutdown()
 		return nil, err
 	}
-	vlog.Infof("Device manager (%v) published as %v", args.ConfigState.Name, args.name(mt))
+	ctx.Infof("Device manager (%v) published as %v", args.ConfigState.Name, args.name(mt))
 	return shutdown, nil
 }
 
@@ -361,7 +360,7 @@ func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
 				if err == nil {
 					break
 				}
-				vlog.Infof("Failed to Mount global namespace: %v", err)
+				ctx.Infof("Failed to Mount global namespace: %v", err)
 				time.Sleep(time.Second)
 			}
 		}(root)

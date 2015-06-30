@@ -12,14 +12,12 @@ import (
 	"syscall"
 	"testing"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 	"v.io/x/ref/services/internal/servicetest"
@@ -29,8 +27,8 @@ import (
 
 var mockIsSetuid = flag.Bool("mocksetuid", false, "set flag to pretend to have a helper with setuid permissions")
 
-func possiblyMockIsSetuid(fileStat os.FileInfo) bool {
-	vlog.VI(2).Infof("Mock isSetuid is reporting: %v", *mockIsSetuid)
+func possiblyMockIsSetuid(ctx *context.T, fileStat os.FileInfo) bool {
+	ctx.VI(2).Infof("Mock isSetuid is reporting: %v", *mockIsSetuid)
 	return *mockIsSetuid
 }
 
@@ -58,7 +56,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(root); err != nil {
+	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,7 +86,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Install and start the app as root/self.
 	appID := utiltest.InstallApp(t, selfCtx)
 
-	vlog.VI(2).Infof("Validate that the created app has the right permission lists.")
+	ctx.VI(2).Infof("Validate that the created app has the right permission lists.")
 	perms, _, err := utiltest.AppStub(appID).GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions on appID: %v failed %v", appID, err)
@@ -114,7 +112,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	pingCh.VerifyPingArgs(t, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 	utiltest.TerminateApp(t, selfCtx, appID, instance1ID)
 
-	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
+	ctx.VI(2).Infof("other attempting to run an app without access. Should fail.")
 	utiltest.LaunchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// Self will now let other also install apps.
@@ -135,11 +133,11 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// while other now has administrator permissions on the device manager,
 	// other doesn't have execution permissions for the app. So this will
 	// fail.
-	vlog.VI(2).Infof("other attempting to run an app still without access. Should fail.")
+	ctx.VI(2).Infof("other attempting to run an app still without access. Should fail.")
 	utiltest.LaunchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// But self can give other permissions  to start applications.
-	vlog.VI(2).Infof("self attempting to give other permission to start %s", appID)
+	ctx.VI(2).Infof("self attempting to give other permission to start %s", appID)
 	newAccessList, _, err = utiltest.AppStub(appID).GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions on appID: %v failed %v", appID, err)
@@ -149,11 +147,11 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatalf("SetPermissions on appID: %v failed: %v", appID, err)
 	}
 
-	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
+	ctx.VI(2).Infof("other attempting to run an app with access. Should succeed.")
 	instance2ID := utiltest.LaunchApp(t, otherCtx, appID)
 	pingCh.VerifyPingArgs(t, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
-	vlog.VI(2).Infof("Validate that created instance has the right permissions.")
+	ctx.VI(2).Infof("Validate that created instance has the right permissions.")
 	expected = make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
 		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/other/$"}}
@@ -169,15 +167,15 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Shutdown the app.
 	utiltest.KillApp(t, otherCtx, appID, instance2ID)
 
-	vlog.VI(2).Infof("Verify that Run with the same systemName works.")
+	ctx.VI(2).Infof("Verify that Run with the same systemName works.")
 	utiltest.RunApp(t, otherCtx, appID, instance2ID)
 	pingCh.VerifyPingArgs(t, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 	utiltest.KillApp(t, otherCtx, appID, instance2ID)
 
-	vlog.VI(2).Infof("Verify that other can install and run applications.")
+	ctx.VI(2).Infof("Verify that other can install and run applications.")
 	otherAppID := utiltest.InstallApp(t, otherCtx)
 
-	vlog.VI(2).Infof("other attempting to run an app that other installed. Should succeed.")
+	ctx.VI(2).Infof("other attempting to run an app that other installed. Should succeed.")
 	instance4ID := utiltest.LaunchApp(t, otherCtx, otherAppID)
 	pingCh.VerifyPingArgs(t, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
@@ -189,13 +187,13 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
-	vlog.VI(2).Infof("Show that Run with a different systemName fails.")
+	ctx.VI(2).Infof("Show that Run with a different systemName fails.")
 	utiltest.RunAppExpectError(t, otherCtx, appID, instance2ID, verror.ErrNoAccess.ID)
 
 	// Clean up.
 	utiltest.DeleteApp(t, otherCtx, appID, instance2ID)
 
-	vlog.VI(2).Infof("Show that Start with different systemName works.")
+	ctx.VI(2).Infof("Show that Start with different systemName works.")
 	instance3ID := utiltest.LaunchApp(t, otherCtx, appID)
 	pingCh.VerifyPingArgs(t, anotherTestUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 

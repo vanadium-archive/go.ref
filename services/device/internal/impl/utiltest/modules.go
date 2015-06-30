@@ -14,9 +14,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-
-	"v.io/x/lib/vlog"
-
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"
@@ -35,7 +33,7 @@ const (
 // ExecScript launches the script passed as argument.
 var ExecScript = modules.Register(func(env *modules.Env, args ...string) error {
 	if want, got := 1, len(args); want != got {
-		vlog.Fatalf("ExecScript expected %d arguments, got %d instead", want, got)
+		logger.Global().Fatalf("ExecScript expected %d arguments, got %d instead", want, got)
 	}
 	script := args[0]
 	osenv := []string{RedirectEnv + "=1"}
@@ -61,12 +59,12 @@ var DeviceManager = modules.Register(deviceManagerFunc, "DeviceManager")
 func deviceManagerFunc(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.V23Init()
 	if len(args) == 0 {
-		vlog.Fatalf("deviceManager expected at least an argument")
+		ctx.Fatalf("deviceManager expected at least an argument")
 	}
 	publishName := args[0]
 	args = args[1:]
 	defer fmt.Fprintf(env.Stdout, "%v terminated\n", publishName)
-	defer vlog.VI(1).Infof("%v terminated", publishName)
+	defer ctx.VI(1).Infof("%v terminated", publishName)
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -74,7 +72,7 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 	// through to the device manager dispatcher constructor.
 	configState, err := config.Load()
 	if err != nil {
-		vlog.Fatalf("Failed to decode config state: %v", err)
+		ctx.Fatalf("Failed to decode config state: %v", err)
 	}
 
 	// This exemplifies how to override or set specific config fields, if,
@@ -83,7 +81,7 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 	var pairingToken string
 	if len(args) > 0 {
 		if want, got := 4, len(args); want > got {
-			vlog.Fatalf("expected atleast %d additional arguments, got %d instead: %q", want, got, args)
+			ctx.Fatalf("expected atleast %d additional arguments, got %d instead: %q", want, got, args)
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 		if len(args) > 4 {
@@ -114,7 +112,7 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 		// MountGlobalNamespaceInLocalNamespace: true,
 	})
 	if err != nil {
-		vlog.Errorf("starter.Start failed: %v", err)
+		ctx.Errorf("starter.Start failed: %v", err)
 		return err
 	}
 	defer stop()
@@ -135,7 +133,7 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 	}
 	// TODO(ashankar): Figure out a way to incorporate this check in the test.
 	// if impl.DispatcherLeaking(dispatcher) {
-	//	vlog.Fatalf("device manager leaking resources")
+	//	ctx.Fatalf("device manager leaking resources")
 	// }
 	return nil
 }
@@ -165,8 +163,8 @@ func TestSuidHelperImpl(t *testing.T) {
 	if os.Getenv("V23_SUIDHELPER_TEST") != "1" {
 		return
 	}
-	vlog.VI(1).Infof("TestSuidHelper starting")
+	logger.Global().VI(1).Infof("TestSuidHelper starting")
 	if err := suid.Run(os.Environ()); err != nil {
-		vlog.Fatalf("Failed to Run() setuidhelper: %v", err)
+		logger.Global().Fatalf("Failed to Run() setuidhelper: %v", err)
 	}
 }

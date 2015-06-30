@@ -85,7 +85,7 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(root); err != nil {
+	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 

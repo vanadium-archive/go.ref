@@ -73,13 +73,13 @@ type PingArgs struct {
 // carrying a PingArgs instance.
 func ping(ctx *context.T, flagValue string) {
 
-	vlog.Errorf("ping flagValue: %s", flagValue)
+	ctx.Errorf("ping flagValue: %s", flagValue)
 
 	helperEnv := os.Getenv(suid.SavedArgs)
 	d := json.NewDecoder(strings.NewReader(helperEnv))
 	var savedArgs suid.ArgsSavedForTest
 	if err := d.Decode(&savedArgs); err != nil {
-		vlog.Fatalf("Failed to decode preserved argument %v: %v", helperEnv, err)
+		ctx.Fatalf("Failed to decode preserved argument %v: %v", helperEnv, err)
 	}
 	args := &PingArgs{
 		// TODO(rjkroege): Consider validating additional parameters
@@ -100,9 +100,9 @@ func ping(ctx *context.T, flagValue string) {
 
 	client := v23.GetClient(ctx)
 	if call, err := client.StartCall(ctx, "pingserver", "Ping", []interface{}{args}); err != nil {
-		vlog.Fatalf("StartCall failed: %v", err)
+		ctx.Fatalf("StartCall failed: %v", err)
 	} else if err := call.Finish(); err != nil {
-		vlog.Fatalf("Finish failed: %v", err)
+		ctx.Fatalf("Finish failed: %v", err)
 	}
 }
 
@@ -132,22 +132,22 @@ func appFunc(env *modules.Env, args ...string) error {
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	if expected, got := 1, len(args); expected != got {
-		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
+		ctx.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
 	}
 	publishName := args[0]
 
 	_, err := xrpc.NewServer(ctx, publishName, new(appService), nil)
 	if err != nil {
-		vlog.Fatalf("NewServer(%v) failed: %v", publishName, err)
+		ctx.Fatalf("NewServer(%v) failed: %v", publishName, err)
 	}
 	// Some of our tests look for log files, so make sure they are flushed
 	// to ensure that at least the files exist.
-	vlog.FlushLog()
+	ctx.FlushLog()
 	ping(ctx, *flagValue)
 
 	<-signals.ShutdownOnSignals(ctx)
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
-		vlog.Fatalf("Failed to write testfile: %v", err)
+		ctx.Fatalf("Failed to write testfile: %v", err)
 	}
 	return nil
 }

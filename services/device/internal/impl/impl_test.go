@@ -20,7 +20,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/errors"
@@ -88,7 +87,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(root); err != nil {
+	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
@@ -316,7 +315,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	dmDir := filepath.Join(testDir, "dm")
 	// TODO(caprita): Add test logic when initMode = true.
 	singleUser, sessionMode, initMode := true, true, false
-	if err := installer.SelfInstall(dmDir, suidHelperPath, agentPath, initHelperPath, "", singleUser, sessionMode, initMode, dmargs[1:], dmenv, os.Stderr, os.Stdout); err != nil {
+	if err := installer.SelfInstall(ctx, dmDir, suidHelperPath, agentPath, initHelperPath, "", singleUser, sessionMode, initMode, dmargs[1:], dmenv, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("SelfInstall failed: %v", err)
 	}
 
@@ -325,7 +324,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	stdout := make(simpleRW, 100)
 	defer os.Setenv(utiltest.RedirectEnv, os.Getenv(utiltest.RedirectEnv))
 	os.Setenv(utiltest.RedirectEnv, "1")
-	if err := installer.Start(dmDir, os.Stderr, stdout); err != nil {
+	if err := installer.Start(ctx, dmDir, os.Stderr, stdout); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
 	dms := expect.NewSession(t, stdout, servicetest.ExpectTimeout)
@@ -340,7 +339,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	dms.Expect("dm terminated")
 
 	// Uninstall.
-	if err := installer.Uninstall(dmDir, suidHelperPath, os.Stderr, os.Stdout); err != nil {
+	if err := installer.Uninstall(ctx, dmDir, suidHelperPath, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("Uninstall failed: %v", err)
 	}
 	// Ensure that the installation is gone.
@@ -397,7 +396,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(root); err != nil {
+	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
@@ -504,7 +503,7 @@ func TestAccountAssociation(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(root); err != nil {
+	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
@@ -535,14 +534,14 @@ func TestAccountAssociation(t *testing.T) {
 	// self claims the device manager.
 	utiltest.ClaimDevice(t, selfCtx, "claimable", "dm", "alice", utiltest.NoPairingToken)
 
-	vlog.VI(2).Info("Verify that associations start out empty.")
+	ctx.VI(2).Info("Verify that associations start out empty.")
 	deviceStub := device.DeviceClient("dm/device")
 	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association(nil))
 
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
 	}
-	vlog.VI(2).Info("Added association should appear.")
+	ctx.VI(2).Info("Added association should appear.")
 	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association{
 		{
 			"root/self",
@@ -557,7 +556,7 @@ func TestAccountAssociation(t *testing.T) {
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self", "root/other"}, "alice_other_account"); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
-	vlog.VI(2).Info("Change the associations and the change should appear.")
+	ctx.VI(2).Info("Change the associations and the change should appear.")
 	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association{
 		{
 			"root/self",
@@ -572,7 +571,7 @@ func TestAccountAssociation(t *testing.T) {
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, ""); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
-	vlog.VI(2).Info("Verify that we can remove an association.")
+	ctx.VI(2).Info("Verify that we can remove an association.")
 	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association{
 		{
 			"root/self",

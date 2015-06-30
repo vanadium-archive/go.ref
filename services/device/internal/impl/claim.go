@@ -14,7 +14,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/pathperms"
 )
@@ -90,7 +89,7 @@ func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken stri
 	if err := c.permsStore.Set(c.permsDir, perms, ""); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx)
 	}
-	vlog.Infof("Device claimed and Permissions set to: %v", perms)
+	ctx.Infof("Device claimed and Permissions set to: %v", perms)
 	close(c.notify)
 	c.notify = nil
 	return nil

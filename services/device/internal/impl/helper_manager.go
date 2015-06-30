@@ -15,7 +15,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/device/internal/errors"
 )
 
@@ -26,14 +25,14 @@ type suidHelperState struct {
 
 var suidHelper *suidHelperState
 
-func InitSuidHelper(helperPath string) {
+func InitSuidHelper(ctx *context.T, helperPath string) {
 	if suidHelper != nil || helperPath == "" {
 		return
 	}
 
 	u, err := user.Current()
 	if err != nil {
-		vlog.Panicf("devicemanager has no current user: %v", err)
+		ctx.Panicf("devicemanager has no current user: %v", err)
 	}
 	suidHelper = &suidHelperState{
 		dmUser:     u.Username,
@@ -46,30 +45,30 @@ func (s suidHelperState) getCurrentUser() string {
 }
 
 // terminatePid sends a SIGKILL to the target pid
-func (s suidHelperState) terminatePid(pid int, stdout, stderr io.Writer) error {
-	if err := s.internalModalOp(stdout, stderr, "--kill", strconv.Itoa(pid)); err != nil {
+func (s suidHelperState) terminatePid(ctx *context.T, pid int, stdout, stderr io.Writer) error {
+	if err := s.internalModalOp(ctx, stdout, stderr, "--kill", strconv.Itoa(pid)); err != nil {
 		return fmt.Errorf("devicemanager's invocation of suidhelper to kill pid %v failed: %v", pid, err)
 	}
 	return nil
 }
 
-func DeleteFileTree(dirOrFile string, stdout, stderr io.Writer) error {
-	return suidHelper.deleteFileTree(dirOrFile, stdout, stderr)
+func DeleteFileTree(ctx *context.T, dirOrFile string, stdout, stderr io.Writer) error {
+	return suidHelper.deleteFileTree(ctx, dirOrFile, stdout, stderr)
 }
 
 // deleteFileTree deletes a file or directory
-func (s suidHelperState) deleteFileTree(dirOrFile string, stdout, stderr io.Writer) error {
-	if err := s.internalModalOp(stdout, stderr, "--rm", dirOrFile); err != nil {
+func (s suidHelperState) deleteFileTree(ctx *context.T, dirOrFile string, stdout, stderr io.Writer) error {
+	if err := s.internalModalOp(ctx, stdout, stderr, "--rm", dirOrFile); err != nil {
 		return fmt.Errorf("devicemanager's invocation of suidhelper delete %v failed: %v", dirOrFile, err)
 	}
 	return nil
 }
 
 // chown files or directories
-func (s suidHelperState) chownTree(username string, dirOrFile string, stdout, stderr io.Writer) error {
+func (s suidHelperState) chownTree(ctx *context.T, username string, dirOrFile string, stdout, stderr io.Writer) error {
 	args := []string{"--chown", "--username", username, dirOrFile}
 
-	if err := s.internalModalOp(stdout, stderr, args...); err != nil {
+	if err := s.internalModalOp(ctx, stdout, stderr, args...); err != nil {
 		return fmt.Errorf("devicemanager's invocation of suidhelper chown %v failed: %v", dirOrFile, err)
 	}
 	return nil
@@ -87,14 +86,14 @@ type suidAppCmdArgs struct {
 }
 
 // getAppCmd produces an exec.Cmd that can be used to start an app
-func (s suidHelperState) getAppCmd(a *suidAppCmdArgs) (*exec.Cmd, error) {
+func (s suidHelperState) getAppCmd(ctx *context.T, a *suidAppCmdArgs) (*exec.Cmd, error) {
 	if a.targetUser == "" || a.progname == "" || a.binpath == "" || a.workspace == "" || a.logdir == "" {
 		return nil, fmt.Errorf("Invalid args passed to getAppCmd: %+v", a)
 	}
 
 	cmd := exec.Command(s.helperPath)
 
-	switch yes, err := s.suidhelperEnabled(a.targetUser); {
+	switch yes, err := s.suidhelperEnabled(ctx, a.targetUser); {
 	case err != nil:
 		return nil, err
 	case yes:
@@ -123,7 +122,7 @@ func (s suidHelperState) getAppCmd(a *suidAppCmdArgs) (*exec.Cmd, error) {
 // internalModalOp is a convenience routine containing the common part of all
 // modal operations. Only other routines implementing specific suidhelper operations
 // (like terminatePid and deleteFileTree) should call this directly.
-func (s suidHelperState) internalModalOp(stdout, stderr io.Writer, arg ...string) error {
+func (s suidHelperState) internalModalOp(ctx *context.T, stdout, stderr io.Writer, arg ...string) error {
 	cmd := exec.Command(s.helperPath)
 	cmd.Args = append(cmd.Args, arg...)
 	if stderr != nil {
@@ -134,7 +133,7 @@ func (s suidHelperState) internalModalOp(stdout, stderr io.Writer, arg ...string
 	}
 
 	if err := cmd.Run(); err != nil {
-		vlog.Errorf("failed calling helper with args (%v):%v", arg, err)
+		ctx.Errorf("failed calling helper with args (%v):%v", arg, err)
 		return err
 	}
 	return nil
@@ -142,8 +141,8 @@ func (s suidHelperState) internalModalOp(stdout, stderr io.Writer, arg ...string
 
 // IsSetuid is defined like this so we can override its
 // implementation for tests.
-var IsSetuid = func(fileStat os.FileInfo) bool {
-	vlog.VI(2).Infof("running the original isSetuid")
+var IsSetuid = func(ctx *context.T, fileStat os.FileInfo) bool {
+	ctx.VI(2).Infof("running the original isSetuid")
 	return fileStat.Mode()&os.ModeSetuid == os.ModeSetuid
 }
 
@@ -152,12 +151,12 @@ var IsSetuid = func(fileStat os.FileInfo) bool {
 // setuidhelper must be invoked with the --dryrun flag to skip making
 // system calls that will fail or provide apps with a trivial
 // priviledge escalation.
-func (s suidHelperState) suidhelperEnabled(targetUser string) (bool, error) {
+func (s suidHelperState) suidhelperEnabled(ctx *context.T, targetUser string) (bool, error) {
 	helperStat, err := os.Stat(s.helperPath)
 	if err != nil {
 		return false, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Stat(%v) failed: %v. helper is required.", s.helperPath, err))
 	}
-	haveHelper := IsSetuid(helperStat)
+	haveHelper := IsSetuid(ctx, helperStat)
 
 	switch {
 	case haveHelper && s.dmUser != targetUser:

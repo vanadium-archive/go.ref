@@ -13,11 +13,15 @@ import (
 	"path"
 	"testing"
 
+	"v.io/v23/context"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/impl/utiltest"
 )
 
 func TestBaseCleanupDir(t *testing.T) {
+	ctx, _ := context.RootContext()
+	ctx = context.WithLogger(ctx, logger.Global())
 	dir, err := ioutil.TempDir("", "impl_helper_test")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir() failed: %v", err)
@@ -38,12 +42,12 @@ func TestBaseCleanupDir(t *testing.T) {
 	// Setup a helper.
 	helper := utiltest.GenerateSuidHelperScript(t, dir)
 
-	impl.BaseCleanupDir(helperTarget, helper)
+	impl.BaseCleanupDir(ctx, helperTarget, helper)
 	if _, err := os.Stat(helperTarget); err == nil || os.IsExist(err) {
 		t.Fatalf("%s should be missing but isn't", helperTarget)
 	}
 
-	impl.BaseCleanupDir(nohelperTarget, "")
+	impl.BaseCleanupDir(ctx, nohelperTarget, "")
 	if _, err := os.Stat(nohelperTarget); err == nil || os.IsExist(err) {
 		t.Fatalf("%s should be missing but isn't", nohelperTarget)
 	}

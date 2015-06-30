@@ -20,7 +20,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
@@ -58,17 +57,17 @@ func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {
 	if handle, err := vexec.GetChildHandle(); err == nil {
 		if _, err := handle.Config.Get(mgmt.ParentNameConfigKey); err == nil {
 			testMode = true
-			vlog.Infof("TEST MODE")
+			ctx.Infof("TEST MODE")
 		}
 	}
 	configState, err := config.Load()
 	if err != nil {
-		vlog.Errorf("Failed to load config passed from parent: %v", err)
+		ctx.Errorf("Failed to load config passed from parent: %v", err)
 		return err
 	}
 	mtPermsDir := filepath.Join(configState.Root, "mounttable")
 	if err := os.MkdirAll(mtPermsDir, 0700); err != nil {
-		vlog.Errorf("os.MkdirAll(%q) failed: %v", mtPermsDir, err)
+		ctx.Errorf("os.MkdirAll(%q) failed: %v", mtPermsDir, err)
 		return err
 	}
 
@@ -91,12 +90,12 @@ func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {
 	if *usePairingToken {
 		var token [8]byte
 		if _, err := rand.Read(token[:]); err != nil {
-			vlog.Errorf("unable to generate pairing token: %v", err)
+			ctx.Errorf("unable to generate pairing token: %v", err)
 			return err
 		}
 		pairingToken = base64.URLEncoding.EncodeToString(token[:])
-		vlog.VI(0).Infof("Device manager pairing token: %v", pairingToken)
-		vlog.FlushLog()
+		ctx.VI(0).Infof("Device manager pairing token: %v", pairingToken)
+		ctx.FlushLog()
 	}
 	dev := starter.DeviceArgs{
 		ConfigState:     configState,
@@ -130,7 +129,7 @@ func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {
 	// Wait until shutdown.  Ignore duplicate signals (sent by agent and
 	// received as part of process group).
 	signals.SameSignalTimeWindow = 500 * time.Millisecond
-	vlog.Info("Shutting down due to: ", <-shutdownChan)
+	ctx.Info("Shutting down due to: ", <-shutdownChan)
 	return exitErr
 }
 
@@ -142,7 +141,7 @@ func derivedListenSpec(ctx *context.T, ls rpc.ListenSpec, port int) (rpc.ListenS
 		host, _, err := net.SplitHostPort(a.Address)
 		if err != nil {
 			err = verror.New(errSplitHostPortFailed, ctx, a.Address, err)
-			vlog.Errorf(err.Error())
+			ctx.Errorf(err.Error())
 			return ls, err
 		}
 		a.Address = net.JoinHostPort(host, strconv.Itoa(port))

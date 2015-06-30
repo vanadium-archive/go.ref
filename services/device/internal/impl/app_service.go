@@ -143,7 +143,6 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
@@ -364,14 +363,14 @@ func instanceDirName(instanceID string) string {
 	return instancePrefix + instanceID
 }
 
-func mkdir(dir string) error {
-	return mkdirPerm(dir, 0700)
+func mkdir(ctx *context.T, dir string) error {
+	return mkdirPerm(ctx, dir, 0700)
 }
 
-func mkdirPerm(dir string, permissions int) error {
+func mkdirPerm(ctx *context.T, dir string, permissions int) error {
 	perm := os.FileMode(permissions)
 	if err := os.MkdirAll(dir, perm); err != nil {
-		vlog.Errorf("MkdirAll(%v, %v) failed: %v", dir, perm, err)
+		ctx.Errorf("MkdirAll(%v, %v) failed: %v", dir, perm, err)
 		return err
 	}
 	return nil
@@ -393,14 +392,14 @@ func fetchAppEnvelope(ctx *context.T, origin string) (*application.Envelope, err
 // newVersion sets up the directory for a new application version.
 func newVersion(ctx *context.T, installationDir string, envelope *application.Envelope, oldVersionDir string) (string, error) {
 	versionDir := filepath.Join(installationDir, generateVersionDirName())
-	if err := mkdirPerm(versionDir, 0711); err != nil {
+	if err := mkdirPerm(ctx, versionDir, 0711); err != nil {
 		return "", verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	if err := saveEnvelope(ctx, versionDir, envelope); err != nil {
 		return versionDir, err
 	}
 	pkgDir := filepath.Join(versionDir, "pkg")
-	if err := mkdir(pkgDir); err != nil {
+	if err := mkdir(ctx, pkgDir); err != nil {
 		return "", verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	publisher := envelope.Publisher
@@ -442,9 +441,9 @@ func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON
 	installationID := generateID()
 	installationDir := filepath.Join(i.config.Root, applicationDirName(envelope.Title), installationDirName(installationID))
 	deferrer := func() {
-		CleanupDir(installationDir, "")
+		CleanupDir(ctx, installationDir, "")
 	}
-	if err := mkdirPerm(installationDir, 0711); err != nil {
+	if err := mkdirPerm(ctx, installationDir, 0711); err != nil {
 		return "", verror.New(errors.ErrOperationFailed, nil)
 	}
 	defer func() {
@@ -466,7 +465,7 @@ func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON
 		return "", err
 	}
 	pkgDir := filepath.Join(installationDir, "pkg")
-	if err := mkdir(pkgDir); err != nil {
+	if err := mkdir(ctx, pkgDir); err != nil {
 		return "", verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	// We use a zero value publisher, meaning that any signatures present in the
@@ -655,7 +654,7 @@ func addPublisherBlessings(ctx *context.T, instanceDir string, p security.Princi
 
 	blessings, _ := publisherBlessingNames(ctx, *envelope)
 	for _, s := range blessings {
-		vlog.VI(2).Infof("adding publisher blessing %v for app %v", s, envelope.Title)
+		ctx.VI(2).Infof("adding publisher blessing %v for app %v", s, envelope.Title)
 		tmpBlessing, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "a/"+s, security.UnconstrainedUse())
 		if b, err = security.UnionOfBlessings(b, tmpBlessing); err != nil {
 			return b, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("UnionOfBlessings failed: %v %v", b, tmpBlessing))
@@ -730,11 +729,11 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 	instanceID := generateID()
 	instanceDir := filepath.Join(installationDir, "instances", instanceDirName(instanceID))
 	// Set permissions for app to have access.
-	if mkdirPerm(instanceDir, 0711) != nil {
+	if mkdirPerm(ctx, instanceDir, 0711) != nil {
 		return "", "", verror.New(errors.ErrOperationFailed, ctx)
 	}
 	rootDir := filepath.Join(instanceDir, "root")
-	if err := mkdir(rootDir); err != nil {
+	if err := mkdir(ctx, rootDir); err != nil {
 		return instanceDir, instanceID, verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	installationLink := filepath.Join(instanceDir, "installation")
@@ -822,8 +821,8 @@ func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error
 	saArgs.workspace = rootDir
 
 	logDir := filepath.Join(instanceDir, "logs")
-	suidHelper.chownTree(suidHelper.getCurrentUser(), instanceDir, os.Stdout, os.Stdin)
-	if err := mkdirPerm(logDir, 0755); err != nil {
+	suidHelper.chownTree(ctx, suidHelper.getCurrentUser(), instanceDir, os.Stdout, os.Stdin)
+	if err := mkdirPerm(ctx, logDir, 0755); err != nil {
 		return nil, err
 	}
 	saArgs.logdir = logDir
@@ -843,7 +842,7 @@ func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error
 	appArgs = append(appArgs, envelope.Args...)
 
 	saArgs.appArgs = appArgs
-	return suidHelper.getAppCmd(&saArgs)
+	return suidHelper.getAppCmd(ctx, &saArgs)
 }
 
 // instanceNameFromDir returns the instance name, given the instanceDir.
@@ -911,7 +910,7 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	if sa := i.securityAgent; sa != nil {
 		file, err := sa.keyMgrAgent.NewConnection(info.SecurityAgentHandle)
 		if err != nil {
-			vlog.Errorf("NewConnection(%v) failed: %v", info.SecurityAgentHandle, err)
+			ctx.Errorf("NewConnection(%v) failed: %v", info.SecurityAgentHandle, err)
 			return 0, err
 		}
 		agentCleaner = func() {
@@ -933,7 +932,7 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	defer func() {
 		if handle != nil {
 			if err := handle.Clean(); err != nil {
-				vlog.Errorf("Clean() failed: %v", err)
+				ctx.Errorf("Clean() failed: %v", err)
 			}
 		}
 	}()
@@ -956,7 +955,7 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Wait() on suidhelper failed: %v", err))
 	}
 
-	pid, childName, err := handshaker.doHandshake(handle, listener)
+	pid, childName, err := handshaker.doHandshake(ctx, handle, listener)
 
 	if err != nil {
 		return 0, err
@@ -991,23 +990,23 @@ func (i *appRunner) run(ctx *context.T, instanceDir string) error {
 	return nil
 }
 
-func synchronizedShouldRestart(instanceDir string) bool {
+func synchronizedShouldRestart(ctx *context.T, instanceDir string) bool {
 	info, err := loadInstanceInfo(nil, instanceDir)
 	if err != nil {
-		vlog.Error(err)
+		ctx.Error(err)
 		return false
 	}
 
 	envelope, err := loadEnvelopeForInstance(nil, instanceDir)
 	if err != nil {
-		vlog.Error(err)
+		ctx.Error(err)
 		return false
 	}
 
 	shouldRestart := newBasicRestartPolicy().decide(envelope, info)
 
 	if err := saveInstanceInfo(nil, instanceDir, info); err != nil {
-		vlog.Error(err)
+		ctx.Error(err)
 		return false
 	}
 	return shouldRestart
@@ -1023,14 +1022,14 @@ func synchronizedShouldRestart(instanceDir string) bool {
 // complete.
 func (i *appRunner) restartAppIfNecessary(ctx *context.T, instanceDir string) {
 	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateLaunching); err != nil {
-		vlog.Error(err)
+		ctx.Error(err)
 		return
 	}
 
-	shouldRestart := synchronizedShouldRestart(instanceDir)
+	shouldRestart := synchronizedShouldRestart(ctx, instanceDir)
 
 	if err := transitionInstance(instanceDir, device.InstanceStateLaunching, device.InstanceStateNotRunning); err != nil {
-		vlog.Error(err)
+		ctx.Error(err)
 		return
 	}
 
@@ -1039,7 +1038,7 @@ func (i *appRunner) restartAppIfNecessary(ctx *context.T, instanceDir string) {
 	}
 
 	if err := i.run(ctx, instanceDir); err != nil {
-		vlog.Error(err)
+		ctx.Error(err)
 	}
 }
 
@@ -1047,12 +1046,12 @@ func (i *appService) Instantiate(ctx *context.T, call device.ApplicationInstanti
 	helper := i.config.Helper
 	instanceDir, instanceID, err := i.newInstance(ctx, call)
 	if err != nil {
-		CleanupDir(instanceDir, helper)
+		CleanupDir(ctx, instanceDir, helper)
 		return "", err
 	}
 	systemName := suidHelper.usernameForPrincipal(ctx, call.Security(), i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
-		CleanupDir(instanceDir, helper)
+		CleanupDir(ctx, instanceDir, helper)
 		return "", err
 	}
 	return instanceID, nil
@@ -1117,7 +1116,7 @@ func stopAppRemotely(ctx *context.T, appVON string, deadline time.Duration) erro
 	}
 	rstream := stream.RecvStream()
 	for rstream.Advance() {
-		vlog.VI(2).Infof("%v.Stop() task update: %v", appVON, rstream.Value())
+		ctx.VI(2).Infof("%v.Stop() task update: %v", appVON, rstream.Value())
 	}
 	if err := rstream.Err(); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Advance() failed: %v", err))
@@ -1242,7 +1241,7 @@ func updateInstallation(ctx *context.T, installationDir string) error {
 	}
 	versionDir, err := newVersion(ctx, installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
-		CleanupDir(versionDir, "")
+		CleanupDir(ctx, versionDir, "")
 		return err
 	}
 	return nil
@@ -1367,7 +1366,7 @@ func (i *appService) scanEnvelopes(ctx *context.T, tree *treeNode, appDir string
 	envGlob := []string{i.config.Root, appDir, installationPrefix + "*", "*", "envelope"}
 	envelopes, err := filepath.Glob(filepath.Join(envGlob...))
 	if err != nil {
-		vlog.Errorf("unexpected error: %v", err)
+		ctx.Errorf("unexpected error: %v", err)
 		return
 	}
 	for _, path := range envelopes {
@@ -1378,7 +1377,7 @@ func (i *appService) scanEnvelopes(ctx *context.T, tree *treeNode, appDir string
 		relpath, _ := filepath.Rel(i.config.Root, path)
 		elems := strings.Split(relpath, string(filepath.Separator))
 		if len(elems) != len(envGlob)-1 {
-			vlog.Errorf("unexpected number of path components: %q (%q)", elems, path)
+			ctx.Errorf("unexpected number of path components: %q (%q)", elems, path)
 			continue
 		}
 		installID := strings.TrimPrefix(elems[1], installationPrefix)
@@ -1402,7 +1401,7 @@ func (i *appService) scanInstances(ctx *context.T, tree *treeNode) {
 	infoGlob := []string{installDir, "instances", instancePrefix + "*", "info"}
 	instances, err := filepath.Glob(filepath.Join(infoGlob...))
 	if err != nil {
-		vlog.Errorf("unexpected error: %v", err)
+		ctx.Errorf("unexpected error: %v", err)
 		return
 	}
 	for _, path := range instances {
@@ -1418,7 +1417,7 @@ func (i *appService) scanInstance(ctx *context.T, tree *treeNode, title, instanc
 	}
 	rootDir, _, installID, instanceID := parseInstanceDir(instanceDir)
 	if installID == "" || instanceID == "" || filepath.Clean(i.config.Root) != filepath.Clean(rootDir) {
-		vlog.Errorf("failed to parse instanceDir %v (got: %v %v %v)", instanceDir, rootDir, installID, instanceID)
+		ctx.Errorf("failed to parse instanceDir %v (got: %v %v %v)", instanceDir, rootDir, installID, instanceID)
 		return
 	}
 
@@ -1464,18 +1463,18 @@ func (i *appService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan st
 }
 
 // TODO(rjkroege): Refactor to eliminate redundancy with newAppSpecificAuthorizer.
-func dirFromSuffix(suffix []string, root string) (string, bool, error) {
+func dirFromSuffix(ctx *context.T, suffix []string, root string) (string, bool, error) {
 	if len(suffix) == 2 {
 		p, err := installationDirCore(suffix, root)
 		if err != nil {
-			vlog.Errorf("dirFromSuffix failed: %v", err)
+			ctx.Errorf("dirFromSuffix failed: %v", err)
 			return "", false, err
 		}
 		return p, false, nil
 	} else if len(suffix) > 2 {
 		p, err := instanceDir(root, suffix[0:3])
 		if err != nil {
-			vlog.Errorf("dirFromSuffix failed: %v", err)
+			ctx.Errorf("dirFromSuffix failed: %v", err)
 			return "", false, err
 		}
 		return p, true, nil
@@ -1485,7 +1484,7 @@ func dirFromSuffix(suffix []string, root string) (string, bool, error) {
 
 // TODO(rjkroege): Consider maintaining an in-memory Permissions cache.
 func (i *appService) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
-	dir, isInstance, err := dirFromSuffix(i.suffix, i.config.Root)
+	dir, isInstance, err := dirFromSuffix(ctx, i.suffix, i.config.Root)
 	if err != nil {
 		return err
 	}
@@ -1498,8 +1497,8 @@ func (i *appService) SetPermissions(ctx *context.T, call rpc.ServerCall, perms a
 	return i.permsStore.Set(path.Join(dir, "acls"), perms, version)
 }
 
-func (i *appService) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
-	dir, _, err := dirFromSuffix(i.suffix, i.config.Root)
+func (i *appService) GetPermissions(ctx *context.T, _ rpc.ServerCall) (perms access.Permissions, version string, err error) {
+	dir, _, err := dirFromSuffix(ctx, i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1622,7 +1621,7 @@ Roots: {{.Principal.Roots.DebugString}}
 	if sa := i.runner.securityAgent; sa != nil {
 		file, err := sa.keyMgrAgent.NewConnection(debugInfo.Info.SecurityAgentHandle)
 		if err != nil {
-			vlog.Errorf("NewConnection(%v) failed: %v", debugInfo.Info.SecurityAgentHandle, err)
+			ctx.Errorf("NewConnection(%v) failed: %v", debugInfo.Info.SecurityAgentHandle, err)
 			return "", err
 		}
 		var cancel func()

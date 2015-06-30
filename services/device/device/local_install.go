@@ -25,7 +25,6 @@ import (
 	"v.io/v23/services/device"
 	"v.io/v23/services/repository"
 	"v.io/v23/uniqueid"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
@@ -99,7 +98,7 @@ func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) 
 		return nil, nil, err
 	}
 	endpoints := server.Status().Endpoints
-	vlog.VI(1).Infof("Server listening on %v (%v)", endpoints, name)
+	ctx.VI(1).Infof("Server listening on %v (%v)", endpoints, name)
 	cleanup := func() {
 		if err := server.Stop(); err != nil {
 			fmt.Fprintf(stderr, "server.Stop failed: %v", err)
@@ -136,13 +135,13 @@ func (binaryInvoker) Delete(*context.T, rpc.ServerCall) error {
 	return errNotImplemented
 }
 
-func (i binaryInvoker) Download(_ *context.T, call repository.BinaryDownloadServerCall, _ int32) error {
+func (i binaryInvoker) Download(ctx *context.T, call repository.BinaryDownloadServerCall, _ int32) error {
 	fileName := string(i)
 	fStat, err := os.Stat(fileName)
 	if err != nil {
 		return err
 	}
-	vlog.VI(1).Infof("Download commenced for %v (%v bytes)", fileName, fStat.Size())
+	ctx.VI(1).Infof("Download commenced for %v (%v bytes)", fileName, fStat.Size())
 	file, err := os.Open(fileName)
 	if err != nil {
 		return err
@@ -157,14 +156,14 @@ func (i binaryInvoker) Download(_ *context.T, call repository.BinaryDownloadServ
 		n, err := file.Read(buffer)
 		switch err {
 		case io.EOF:
-			vlog.VI(1).Infof("Download complete for %v (%v bytes)", fileName, fStat.Size())
+			ctx.VI(1).Infof("Download complete for %v (%v bytes)", fileName, fStat.Size())
 			return nil
 		case nil:
 			if err := sender.Send(buffer[:n]); err != nil {
 				return err
 			}
 			if sentTotal/logChunk < (sentTotal+int64(n))/logChunk {
-				vlog.VI(1).Infof("Download progress for %v: %v/%v", fileName, sentTotal+int64(n), fStat.Size())
+				ctx.VI(1).Infof("Download progress for %v: %v/%v", fileName, sentTotal+int64(n), fStat.Size())
 			}
 			sentTotal += int64(n)
 		default:
@@ -295,7 +294,7 @@ func runInstallLocal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	vlog.VI(1).Infof("binary %v serving as %v", binary, envelope.Binary.File)
+	ctx.VI(1).Infof("binary %v serving as %v", binary, envelope.Binary.File)
 
 	// For each package dir/file specified in the arguments list, set up an
 	// object in the binary service to serve that package, and add the
@@ -313,7 +312,7 @@ func runInstallLocal(ctx *context.T, env *cmdline.Env, args []string) error {
 		if err != nil {
 			return err
 		}
-		vlog.VI(1).Infof("package %v serving as %v", pname, oname)
+		ctx.VI(1).Infof("package %v serving as %v", pname, oname)
 		envelope.Packages[pname] = application.SignedFile{File: oname}
 	}
 	packagesRewritten := application.Packages{}
@@ -322,7 +321,7 @@ func runInstallLocal(ctx *context.T, env *cmdline.Env, args []string) error {
 		if err != nil {
 			return err
 		}
-		vlog.VI(1).Infof("package %v serving as %v", pname, oname)
+		ctx.VI(1).Infof("package %v serving as %v", pname, oname)
 		pspec.File = oname
 		packagesRewritten[pname] = pspec
 	}
@@ -330,7 +329,7 @@ func runInstallLocal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	vlog.VI(1).Infof("application serving envelope as %v", appName)
+	ctx.VI(1).Infof("application serving envelope as %v", appName)
 	appID, err := device.ApplicationClient(deviceName).Install(ctx, appName, device.Config(configOverride), packagesRewritten)
 	// Reset the value for any future invocations of "install" or
 	// "install-local" (we run more than one command per process in unit
