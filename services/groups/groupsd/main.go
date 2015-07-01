@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/x/lib/cmdline"
@@ -23,13 +24,18 @@ import (
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/groups/internal/server"
+	"v.io/x/ref/services/groups/internal/store/leveldb"
 	"v.io/x/ref/services/groups/internal/store/mem"
 )
 
-var flagName string
+var (
+	flagName    string
+	flagPersist string
+)
 
 func main() {
 	cmdGroupsD.Flags.StringVar(&flagName, "name", "", "Name to mount the groups server as.")
+	cmdGroupsD.Flags.StringVar(&flagPersist, "persist", "", "Path to a directory used to persist the groups definitions. If none is specified, groups definitions are not persisted.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdGroupsD)
@@ -68,8 +74,17 @@ func runGroupsD(ctx *context.T, env *cmdline.Env, args []string) error {
 		ctx.Infof("No permissions flag provided. Giving local principal all permissions.")
 		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 	}
-	m := server.NewManager(mem.New(), perms)
-	server, err := xrpc.NewDispatchingServer(ctx, flagName, m)
+	var dispatcher rpc.Dispatcher
+	if flagPersist == "" {
+		dispatcher = server.NewManager(mem.New(), perms)
+	} else {
+		store, err := leveldb.Open(flagPersist)
+		if err != nil {
+			ctx.Fatalf("Open(%v) failed: %v", flagPersist, err)
+		}
+		dispatcher = server.NewManager(store, perms)
+	}
+	server, err := xrpc.NewDispatchingServer(ctx, flagName, dispatcher)
 	if err != nil {
 		fmt.Errorf("NewDispatchingServer(%v) failed: %v", flagName, err)
 	}
