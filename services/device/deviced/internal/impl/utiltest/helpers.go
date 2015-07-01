@@ -35,6 +35,7 @@ import (
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/deviced/internal/impl"
+	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
@@ -571,7 +572,7 @@ func StartupHelper(t *testing.T) (_ func(), ctx *context.T, _ *modules.Shell, _ 
 	envelope, envCleanup := StartMockRepos(t, ctx)
 
 	root, rootCleanup := servicetest.SetupRootDir(t, "devicemanager")
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 

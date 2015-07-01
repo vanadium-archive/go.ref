@@ -25,6 +25,7 @@ import (
 	"v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/device/deviced/internal/impl"
+	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -87,7 +88,7 @@ type Args struct {
 // failure.
 func Start(ctx *context.T, args Args) (string, func(), error) {
 	// Is this binary compatible with the state on disk?
-	if err := impl.CheckCompatibility(ctx, args.Device.ConfigState.Root); err != nil {
+	if err := versioning.CheckCompatibility(ctx, args.Device.ConfigState.Root); err != nil {
 		return "", nil, err
 	}
 	// In test mode, we skip writing the info file to disk, and we skip

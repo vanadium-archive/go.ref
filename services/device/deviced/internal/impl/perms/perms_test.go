@@ -16,8 +16,8 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
+	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
@@ -46,7 +46,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
@@ -128,7 +128,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 

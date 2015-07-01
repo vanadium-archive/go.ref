@@ -24,6 +24,7 @@ import (
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
 	"v.io/x/ref/services/device/deviced/internal/installer"
+	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/binarylib"
@@ -87,7 +88,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
@@ -396,7 +397,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
@@ -503,7 +504,7 @@ func TestAccountAssociation(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 

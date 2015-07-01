@@ -15,8 +15,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/starter"
+	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/test"
@@ -138,7 +138,7 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 
 // This is the same as DeviceManager above, except that it has a different major version number
 var DeviceManagerV10 = modules.Register(func(env *modules.Env, args ...string) error {
-	impl.CurrentVersion = impl.Version{10, 0} // Set the version number to 10.0
+	versioning.CurrentVersion = versioning.Version{10, 0} // Set the version number to 10.0
 	return deviceManagerFunc(env, args...)
 }, "DeviceManagerV10")
 

@@ -54,6 +54,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/x/ref"
 	"v.io/x/ref/services/device/deviced/internal/impl"
+	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/sysinit"
 )
@@ -117,7 +118,7 @@ func SelfInstall(ctx *context.T, installDir, suidHelper, agent, initHelper, orig
 	}
 
 	// save info about the binary creating this tree
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		return err
 	}
 

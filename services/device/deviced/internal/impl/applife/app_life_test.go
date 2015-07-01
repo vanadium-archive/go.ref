@@ -26,8 +26,8 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
+	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
@@ -85,7 +85,7 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 

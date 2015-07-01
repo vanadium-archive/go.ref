@@ -20,6 +20,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
+	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -56,7 +57,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
-	if err := impl.SaveCreatorInfo(ctx, root); err != nil {
+	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
 		t.Fatal(err)
 	}
 
