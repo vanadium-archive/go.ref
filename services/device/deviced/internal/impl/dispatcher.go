@@ -40,8 +40,8 @@ type internalState struct {
 	securityAgent  *securityAgentState
 	restartHandler func()
 	testMode       bool
-	// reap is the app process monitoring subsystem.
-	reap *reaper
+	// runner is responsible for running app instances.
+	runner *appRunner
 	// tidying is the automatic state tidying subsystem.
 	tidying chan<- tidyRequests
 }
@@ -107,14 +107,16 @@ func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken s
 	return &claimable{token: pairingToken, permsStore: permsStore, permsDir: permsDir, notify: notify}, notify
 }
 
-// NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func(), permStore *pathperms.PathStore) (rpc.Dispatcher, error) {
+// NewDispatcher is the device manager dispatcher factory.  It returns a new
+// dispatcher as well as a shutdown function, to be called when the dispatcher
+// is no longer needed.
+func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func(), permStore *pathperms.PathStore) (rpc.Dispatcher, func(), error) {
 	if err := config.Validate(); err != nil {
-		return nil, verror.New(errInvalidConfig, ctx, config, err)
+		return nil, nil, verror.New(errInvalidConfig, ctx, config, err)
 	}
 	uat, err := NewBlessingSystemAssociationStore(config.Root)
 	if err != nil {
-		return nil, verror.New(errCantCreateAccountStore, ctx, err)
+		return nil, nil, verror.New(errCantCreateAccountStore, ctx, err)
 	}
 	InitSuidHelper(ctx, config.Helper)
 	d := &dispatcher{
@@ -135,39 +137,30 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	// If we're in 'security agent mode', set up the key manager agent.
 	if len(os.Getenv(ref.EnvAgentEndpoint)) > 0 {
 		if keyMgrAgent, err := keymgr.NewAgent(); err != nil {
-			return nil, verror.New(errNewAgentFailed, ctx, err)
+			return nil, nil, verror.New(errNewAgentFailed, ctx, err)
 		} else {
 			d.internal.securityAgent = &securityAgentState{
 				keyMgrAgent: keyMgrAgent,
 			}
 		}
 	}
-	reap, err := newReaper(ctx, config.Root, &appRunner{
+	runner := &appRunner{
 		callback:       d.internal.callback,
 		securityAgent:  d.internal.securityAgent,
 		appServiceName: naming.Join(d.config.Name, appsSuffix),
-	})
-	if err != nil {
-		return nil, verror.New(errCantCreateAppWatcher, ctx, err)
+		mtAddress:      d.mtAddress,
 	}
-	d.internal.reap = reap
+	d.internal.runner = runner
+	reap, err := newReaper(ctx, config.Root, runner)
+	if err != nil {
+		return nil, nil, verror.New(errCantCreateAppWatcher, ctx, err)
+	}
+	runner.reap = reap
 
 	if testMode {
-		return &testModeDispatcher{d}, nil
+		return &testModeDispatcher{d}, reap.shutdown, nil
 	}
-	return d, nil
-}
-
-// Shutdown the dispatcher.
-func Shutdown(ctx *context.T, rpcd rpc.Dispatcher) {
-	switch d := rpcd.(type) {
-	case *dispatcher:
-		d.internal.reap.shutdown()
-	case *testModeDispatcher:
-		Shutdown(ctx, d.realDispatcher)
-	default:
-		ctx.Panicf("%v not a supported dispatcher type.", rpcd)
-	}
+	return d, reap.shutdown, nil
 }
 
 // Logging invoker that logs any error messages before returning.
@@ -333,13 +326,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			suffix:     components[1:],
 			uat:        d.uat,
 			permsStore: d.permsStore,
-			runner: &appRunner{
-				reap:           d.internal.reap,
-				callback:       d.internal.callback,
-				securityAgent:  d.internal.securityAgent,
-				mtAddress:      d.mtAddress,
-				appServiceName: naming.Join(d.config.Name, appsSuffix),
-			},
+			runner:     d.internal.runner,
 		})
 		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.permsStore)
 		if err != nil {
