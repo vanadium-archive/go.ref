@@ -96,7 +96,7 @@ func binaryWithCredentials(i *v23tests.T, extension, pkgpath string) *v23tests.B
 }
 
 func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
-	defer testutil.InitRandGenerator(i.Logf)()
+	testutil.InitRandGenerator(i.Logf)
 	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 
 	// Build the required binaries.

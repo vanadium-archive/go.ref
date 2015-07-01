@@ -21,7 +21,7 @@ import (
 
 // TestHTTP checks that HTTP download works.
 func TestHTTP(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 

@@ -136,7 +136,7 @@ func TestClear(t *testing.T) {
 }
 
 func TestRandom(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	var q T
 	var contents []int
 	for i := 0; i != 1000; i++ {

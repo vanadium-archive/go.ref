@@ -144,7 +144,7 @@ func TestDeferHandling(t *testing.T) {
 }
 
 func TestInputRedirection(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	env := v23tests.New(t)
 	defer env.Cleanup()
 

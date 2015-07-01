@@ -62,7 +62,7 @@ const (
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
 // ensures that the same string is read back.
 func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	defer flow.Close()
 	wrote := testutil.RandomBytes(size)
 	go func() {

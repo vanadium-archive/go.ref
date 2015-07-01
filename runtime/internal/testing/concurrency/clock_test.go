@@ -14,7 +14,7 @@ import (
 
 // TestClone checks the clone() method of a clock.
 func TestClone(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	c1 := newClock()
 	c1[0] = testutil.RandomIntn(100)
 	c2 := c1.clone()

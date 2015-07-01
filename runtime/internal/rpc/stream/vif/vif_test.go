@@ -85,7 +85,7 @@ func TestSingleFlowCreatedAtServer(t *testing.T) {
 }
 
 func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	// This test dials multiple VCs from the client to the server.
 	// On each VC, it creates multiple flows, writes to them and verifies
 	// that the other process received what was written.

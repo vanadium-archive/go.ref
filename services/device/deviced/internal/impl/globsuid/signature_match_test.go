@@ -28,7 +28,7 @@ import (
 )
 
 func TestDownloadSignatureMatch(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 

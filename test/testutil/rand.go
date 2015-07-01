@@ -92,15 +92,11 @@ func NewRandGenerator() *Random {
 // and returns a function intended to be defer'ed that prints out the
 // seed use when creating the number number generator using the supplied
 // logging function.
-func InitRandGenerator(loggingFunc func(format string, args ...interface{})) func() {
+func InitRandGenerator(loggingFunc func(format string, args ...interface{})) {
 	once.Do(func() {
 		Rand = NewRandGenerator()
+		loggingFunc("Seeded pseudo-random number generator with %v", Rand.seed)
 	})
-	return func() {
-		if loggingFunc != nil {
-			loggingFunc("Seeded pseudo-random number generator with %v", Rand.seed)
-		}
-	}
 }
 
 var (
