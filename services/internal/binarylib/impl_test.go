@@ -181,7 +181,7 @@ func TestMultiPart(t *testing.T) {
 // resumption ranging the number of parts the uploaded binary consists
 // of.
 func TestResumption(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -227,7 +227,7 @@ func TestResumption(t *testing.T) {
 
 // TestErrors checks that the binary interface correctly reports errors.
 func TestErrors(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 

@@ -15,7 +15,7 @@ import (
 // TestRandom tests Wait after a random sequence of TryAdd's and Done's that
 // leaves the counter at 0.
 func TestRandom(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	var w WaitGroup
 	N := 100
 

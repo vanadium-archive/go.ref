@@ -14,7 +14,7 @@ import (
 )
 
 func TestQueueRW(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	q := modules.NewRW()
 	size := testutil.RandomIntn(1000)
 	data := testutil.RandomBytes(size)

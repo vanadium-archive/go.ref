@@ -11,7 +11,7 @@ import (
 )
 
 func TestRandSeed(t *testing.T) {
-	defer testutil.InitRandGenerator(t.Logf)()
+	testutil.InitRandGenerator(t.Logf)
 	t.Logf("rand: %d", testutil.RandomInt())
 	t.FailNow()
 }
