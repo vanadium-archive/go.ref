@@ -17,7 +17,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
-	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/binarylib"
@@ -67,13 +66,8 @@ func b(name string) repository.BinaryClientStub {
 }
 
 func ctxWithBlessedPrincipal(ctx *context.T, childExtension string) (*context.T, error) {
-	parent := v23.GetPrincipal(ctx)
 	child := testutil.NewPrincipal()
-	b, err := parent.Bless(child.PublicKey(), parent.BlessingStore().Default(), childExtension, security.UnconstrainedUse())
-	if err != nil {
-		return nil, err
-	}
-	if err := vsecurity.SetDefaultBlessings(child, b); err != nil {
+	if err := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx)).Bless(child, childExtension); err != nil {
 		return nil, err
 	}
 	return v23.WithPrincipal(ctx, child)
