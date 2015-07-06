@@ -15,6 +15,7 @@ import (
 	"v.io/v23/vdl"
 
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/test"
 )
 
@@ -48,7 +49,7 @@ func setup(t *testing.T) (*Browspr, func()) {
 	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "/mock/proxy"
 	mockPostMessage := func(_ int32, _, _ string) {}
-	browspr := NewBrowspr(ctx, mockPostMessage, &spec, "/mock:1234/identd", nil)
+	browspr := NewBrowspr(ctx, mockPostMessage, &spec, "/mock:1234/identd", nil, principal.NewInMemorySerializer())
 	principal := v23.GetPrincipal(browspr.ctx)
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(principal))
 

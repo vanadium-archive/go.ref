@@ -26,6 +26,7 @@ import (
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/browspr"
 	"v.io/x/ref/services/wspr/internal/channel/channel_nacl"
+	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
 
@@ -138,11 +139,11 @@ func (inst *browsprInstance) initKey() (*ecdsa.PrivateKey, error) {
 }
 
 func (inst *browsprInstance) newPrincipal(ecdsaKey *ecdsa.PrivateKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig string) (security.Principal, error) {
-	roots, err := browspr.NewFileSerializer(blessingRootsData, blessingRootsSig, inst.fs)
+	roots, err := principal.NewFileSerializer(blessingRootsData, blessingRootsSig, inst.fs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blessing roots serializer:%s", err)
 	}
-	store, err := browspr.NewFileSerializer(blessingStoreData, blessingStoreSig, inst.fs)
+	store, err := principal.NewFileSerializer(blessingStoreData, blessingStoreSig, inst.fs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blessing store serializer:%s", err)
 	}
@@ -193,15 +194,15 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 		return nil, fmt.Errorf("HandleStartMessage did not receive StartMessage, received: %v, %v", val, err)
 	}
 
-	principal, err := inst.newPersistantPrincipal(msg.IdentitydBlessingRoot.Names)
+	p, err := inst.newPersistantPrincipal(msg.IdentitydBlessingRoot.Names)
 	if err != nil {
 		return nil, err
 	}
 
 	blessingName := "browspr-default-blessing"
-	blessing, err := principal.BlessSelf(blessingName)
+	blessing, err := p.BlessSelf(blessingName)
 	if err != nil {
-		return nil, fmt.Errorf("principal.BlessSelf(%v) failed: %v", blessingName, err)
+		return nil, fmt.Errorf("p.BlessSelf(%v) failed: %v", blessingName, err)
 	}
 
 	// If msg.IdentitydBlessingRoot has a public key and names, then add
@@ -222,18 +223,18 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 			pattern := security.BlessingPattern(name)
 
 			// Trust the identity servers blessing root.
-			principal.Roots().Add(key, pattern)
+			p.Roots().Add(key, pattern)
 
 			// Use our blessing to only talk to the identity server.
-			if _, err := principal.BlessingStore().Set(blessing, pattern); err != nil {
-				return nil, fmt.Errorf("principal.BlessingStore().Set(%v, %v) failed: %v", blessing, pattern, err)
+			if _, err := p.BlessingStore().Set(blessing, pattern); err != nil {
+				return nil, fmt.Errorf("p.BlessingStore().Set(%v, %v) failed: %v", blessing, pattern, err)
 			}
 		}
 	} else {
 		inst.logger.VI(1).Infof("IdentitydBlessingRoot.PublicKey is empty.  Will allow browspr blessing to be shareable with all principals.")
 		// Set our blessing as shareable with all peers.
-		if _, err := principal.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
-			return nil, fmt.Errorf("principal.BlessingStore().Set(%v, %v) failed: %v", blessing, security.AllPrincipals, err)
+		if _, err := p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
+			return nil, fmt.Errorf("p.BlessingStore().Set(%v, %v) failed: %v", blessing, security.AllPrincipals, err)
 		}
 	}
 
@@ -241,7 +242,7 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 	// TODO(suharshs,mattr): Should we worried about not shutting down here?
 	ctx, _ := v23.Init()
 
-	ctx, err = v23.WithPrincipal(ctx, principal)
+	ctx, err = v23.WithPrincipal(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -265,12 +266,18 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 	listenSpec := v23.GetListenSpec(ctx)
 	listenSpec.Proxy = msg.Proxy
 
+	principalSerializer, err := principal.NewFileSerializer(browsprDir+"/principalData", browsprDir+"/principalSignature", inst.fs)
+	if err != nil {
+		return nil, fmt.Errorf("principal.NewFileSerializer() failed: %v", err)
+	}
+
 	inst.logger.VI(1).Infof("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
 	inst.browspr = browspr.NewBrowspr(ctx,
 		inst.BrowsprOutgoingPostMessage,
 		&listenSpec,
 		msg.Identityd,
-		[]string{msg.NamespaceRoot})
+		[]string{msg.NamespaceRoot},
+		principalSerializer)
 
 	// Add the rpc handlers that depend on inst.browspr.
 	inst.channel.RegisterRequestHandler("auth:create-account", inst.browspr.HandleAuthCreateAccountRpc)

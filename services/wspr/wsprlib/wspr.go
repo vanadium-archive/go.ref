@@ -123,10 +123,10 @@ func NewWSPR(ctx *context.T, httpPort int, listenSpec *rpc.ListenSpec, identdEP 
 		pipes:          map[*http.Request]*pipe{},
 	}
 
-	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
 	p := v23.GetPrincipal(ctx)
 	var err error
-	if wspr.principalManager, err = principal.NewPrincipalManager(p, &principal.InMemorySerializer{}); err != nil {
+	// TODO(nlacasse): Use a serializer that can actually persist, as we do in browspr.
+	if wspr.principalManager, err = principal.NewPrincipalManager(p, principal.NewInMemorySerializer()); err != nil {
 		ctx.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 

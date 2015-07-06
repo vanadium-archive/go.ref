@@ -47,7 +47,6 @@ type AccountManager struct {
 	ctx              *context.T
 	blesser          BlesserService
 	principalManager *principal.PrincipalManager
-	accounts         []string
 }
 
 func NewAccountManager(identitydEndpoint string, principalManager *principal.PrincipalManager) *AccountManager {
@@ -72,13 +71,11 @@ func (am *AccountManager) CreateAccount(ctx *context.T, accessToken string) (str
 		return "", fmt.Errorf("Error adding account: %v", err)
 	}
 
-	am.accounts = append(am.accounts, account)
-
 	return account, nil
 }
 
 func (am *AccountManager) GetAccounts() []string {
-	return am.accounts
+	return am.principalManager.GetAccounts()
 }
 
 func (am *AccountManager) AssociateAccount(ctx *context.T, origin, account string, cavs []Caveat) error {

@@ -134,7 +134,7 @@ func newTester(root security.Principal) *tester {
 
 func TestPrincipalManager(t *testing.T) {
 	root := testutil.NewPrincipal()
-	m, err := NewPrincipalManager(root, &InMemorySerializer{})
+	m, err := NewPrincipalManager(root, NewInMemorySerializer())
 	if err != nil {
 		t.Fatalf("NewPrincipalManager failed: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestPrincipalManager(t *testing.T) {
 
 func TestPrincipalManagerPersistence(t *testing.T) {
 	root := testutil.NewPrincipal()
-	serializer := &InMemorySerializer{}
+	serializer := NewInMemorySerializer()
 	m, err := NewPrincipalManager(root, serializer)
 	if err != nil {
 		t.Fatalf("NewPrincipalManager failed: %v", err)
@@ -174,7 +174,7 @@ func TestPrincipalManagerPersistence(t *testing.T) {
 
 func TestOriginHasAccount(t *testing.T) {
 	root := testutil.NewPrincipal()
-	m, err := NewPrincipalManager(root, &InMemorySerializer{})
+	m, err := NewPrincipalManager(root, NewInMemorySerializer())
 	if err != nil {
 		t.Fatalf("NewPrincipalManager failed: %v", err)
 	}

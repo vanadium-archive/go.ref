@@ -33,7 +33,6 @@ package principal
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net/url"
 	"sync"
 	"time"
@@ -89,28 +88,6 @@ type bufferCloser struct {
 
 func (*bufferCloser) Close() error {
 	return nil
-}
-
-// InMemorySerializer implements SerializerReaderWriter. This Serializer should only
-// be used in tests.
-type InMemorySerializer struct {
-	data      bufferCloser
-	signature bufferCloser
-	hasData   bool
-}
-
-func (s *InMemorySerializer) Readers() (io.ReadCloser, io.ReadCloser, error) {
-	if !s.hasData {
-		return nil, nil, nil
-	}
-	return &s.data, &s.signature, nil
-}
-
-func (s *InMemorySerializer) Writers() (io.WriteCloser, io.WriteCloser, error) {
-	s.hasData = true
-	s.data.Reset()
-	s.signature.Reset()
-	return &s.data, &s.signature, nil
 }
 
 // PrincipalManager manages app principals. We only serialize the accounts
@@ -259,6 +236,19 @@ func (i *PrincipalManager) AddAccount(account string, blessings security.Blessin
 		return err
 	}
 	return nil
+}
+
+// GetAccounts returns a list of account names known to the Principal Manager.
+func (i *PrincipalManager) GetAccounts() []string {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	accounts := make([]string, 0, len(i.state.Accounts))
+	for account := range i.state.Accounts {
+		accounts = append(accounts, account)
+	}
+
+	return accounts
 }
 
 // AddOrigin adds an origin to the manager linked to the given account.

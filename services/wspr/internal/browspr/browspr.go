@@ -15,6 +15,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
+	"v.io/x/ref/lib/security"
 	"v.io/x/ref/services/wspr/internal/account"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/principal"
@@ -39,7 +40,8 @@ func NewBrowspr(ctx *context.T,
 	postMessage func(instanceId int32, ty, msg string),
 	listenSpec *rpc.ListenSpec,
 	identd string,
-	wsNamespaceRoots []string) *Browspr {
+	wsNamespaceRoots []string,
+	principalSerializer security.SerializerReaderWriter) *Browspr {
 	if listenSpec.Proxy == "" {
 		ctx.Fatalf("a vanadium proxy must be set")
 	}
@@ -58,7 +60,12 @@ func NewBrowspr(ctx *context.T,
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
 	var err error
 	p := v23.GetPrincipal(ctx)
-	if browspr.principalManager, err = principal.NewPrincipalManager(p, &principal.InMemorySerializer{}); err != nil {
+
+	if principalSerializer == nil {
+		ctx.Fatalf("principalSerializer must not be nil")
+	}
+
+	if browspr.principalManager, err = principal.NewPrincipalManager(p, principalSerializer); err != nil {
 		ctx.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
@@ -167,7 +174,8 @@ func (b *Browspr) HandleAuthAssociateAccountRpc(val *vdl.Value) (*vdl.Value, err
 
 // HandleAuthGetAccountsRpc gets the root account name from the account manager.
 func (b *Browspr) HandleAuthGetAccountsRpc(*vdl.Value) (*vdl.Value, error) {
-	return vdl.ValueFromReflect(reflect.ValueOf(b.accountManager.GetAccounts()))
+	accounts := b.accountManager.GetAccounts()
+	return vdl.ValueFromReflect(reflect.ValueOf(accounts))
 }
 
 // HandleAuthOriginHasAccountRpc returns true iff the origin has an associated

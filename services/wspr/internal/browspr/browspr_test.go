@@ -25,6 +25,7 @@ import (
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/lib"
+	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/test"
 )
 
@@ -161,7 +162,7 @@ found:
 	}
 
 	v23.GetNamespace(ctx).SetRoots(root)
-	browspr := NewBrowspr(ctx, postMessageHandler, &spec, "/mock:1234/identd", []string{root})
+	browspr := NewBrowspr(ctx, postMessageHandler, &spec, "/mock:1234/identd", []string{root}, principal.NewInMemorySerializer())
 
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
 	browspr.namespaceRoots = []string{root}

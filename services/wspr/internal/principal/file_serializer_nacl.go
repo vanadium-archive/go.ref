@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package browspr
+package principal
 
 import (
 	"io"
 	"os"
 	"runtime/ppapi"
+
+	"v.io/x/ref/lib/security"
 )
 
 // fileSerializer implements vsecurity.SerializerReaderWriter that persists state to
@@ -20,6 +22,8 @@ type fileSerializer struct {
 	dataFile      string
 	signatureFile string
 }
+
+var _ security.SerializerReaderWriter = (*fileSerializer)(nil)
 
 func (fs *fileSerializer) Readers() (data io.ReadCloser, sig io.ReadCloser, err error) {
 	if fs.data == nil || fs.signature == nil {
