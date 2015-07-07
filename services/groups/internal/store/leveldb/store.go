@@ -31,7 +31,7 @@ var _ store.Store = (*T)(nil)
 // Open opens a groups server store located at the given path,
 // creating it if it doesn't exist.
 func Open(path string) (store.Store, error) {
-	db, err := leveldb.Open(path)
+	db, err := leveldb.Open(path, leveldb.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		return nil, convertError(err)
 	}
