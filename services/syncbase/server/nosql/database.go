@@ -406,30 +406,21 @@ type tableDb struct {
 func (t *tableDb) Scan(keyRanges query_db.KeyRanges) (query_db.KeyValueStream, error) {
 	streams := []store.Stream{}
 	for _, keyRange := range keyRanges {
-		start := keyRange.Start
-		limit := keyRange.Limit
-		// 0-255 means examine all rows
-		if start == string([]byte{0}) && limit == string([]byte{255}) {
-			start = ""
-			limit = ""
-		}
 		// TODO(jkline): For now, acquire all of the streams at once to minimize the race condition.
 		//               Need a way to Scan multiple ranges at the same state of uncommitted changes.
-		streams = append(streams, t.qdb.st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.req.name), start, limit)))
+		streams = append(streams, t.qdb.st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.req.name), keyRange.Start, keyRange.Limit)))
 	}
 	return &kvs{
-		t:         t,
-		keyRanges: keyRanges,
-		curr:      0,
-		validRow:  false,
-		it:        streams,
-		err:       nil,
+		t:        t,
+		curr:     0,
+		validRow: false,
+		it:       streams,
+		err:      nil,
 	}, nil
 }
 
 type kvs struct {
 	t         *tableDb
-	keyRanges query_db.KeyRanges
 	curr      int
 	validRow  bool
 	currKey   string
@@ -442,7 +433,7 @@ func (s *kvs) Advance() bool {
 	if s.err != nil {
 		return false
 	}
-	for s.curr < len(s.keyRanges) {
+	for s.curr < len(s.it) {
 		if s.it[s.curr].Advance() {
 			// key
 			keyBytes := s.it[s.curr].Key(nil)
@@ -497,7 +488,7 @@ func (s *kvs) Cancel() {
 		s.it = nil
 	}
 	// set curr to end of keyRanges so Advance will return false
-	s.curr = len(s.keyRanges)
+	s.curr = len(s.it)
 }
 
 ////////////////////////////////////////
