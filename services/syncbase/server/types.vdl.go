@@ -39,11 +39,15 @@ func (appData) __VDLReflect(struct {
 }
 
 // dbInfo contains information about one database for an App.
-// TODO(sadovsky): Track NoSQL vs. SQL, storage engine config, etc.
+// TODO(sadovsky): Track NoSQL vs. SQL.
 type dbInfo struct {
 	Name        string
 	Initialized bool
 	Deleted     bool
+	// Select fields from nosql.DatabaseOptions, needed in order to open storage
+	// engine on restart.
+	RootDir string // interpreted by storage engine
+	Engine  string // name of storage engine, e.g. "leveldb"
 }
 
 func (dbInfo) __VDLReflect(struct {

@@ -47,7 +47,7 @@ func getPath() string {
 }
 
 func createLevelDB(path string) store.Store {
-	st, err := leveldb.Open(path)
+	st, err := leveldb.Open(path, leveldb.OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
 	if err != nil {
 		panic(fmt.Sprintf("can't open db at %v: %v", path, err))
 	}

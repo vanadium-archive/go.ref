@@ -121,7 +121,7 @@ func createService(t *testing.T) *mockService {
 	engine := "leveldb"
 	path := fmt.Sprintf("%s/vsync_test_%d_%d", os.TempDir(), os.Getpid(), time.Now().UnixNano())
 
-	st, err := util.OpenStore(engine, path)
+	st, err := util.OpenStore(engine, path, util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		t.Fatalf("cannot create store %s (%s): %v", engine, path, err)
 	}

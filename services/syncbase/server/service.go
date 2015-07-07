@@ -14,6 +14,7 @@ import (
 
 	wire "v.io/syncbase/v23/services/syncbase"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
+	"v.io/syncbase/x/ref/services/syncbase/server/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/vsync"
@@ -21,6 +22,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 )
 
 // service is a singleton (i.e. not per-request) that handles Service RPCs.
@@ -55,11 +57,12 @@ type ServiceOptions struct {
 
 // NewService creates a new service instance and returns it.
 // Returns a VDL-compatible error.
+// TODO(sadovsky): If possible, close all stores when the server is stopped.
 func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*service, error) {
 	if opts.Perms == nil {
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
-	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine))
+	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +74,63 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 	data := &serviceData{
 		Perms: opts.Perms,
 	}
-	if err := util.Put(ctx, s.st, s, data); err != nil {
-		return nil, err
+	if err := util.GetWithoutAuth(ctx, st, s, &serviceData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err != nil {
+			return nil, err
+		}
+		// Service exists. Initialize in-memory data structures.
+		// Read all apps, populate apps map.
+		aIt := st.Scan(util.ScanPrefixArgs(util.AppPrefix, ""))
+		aBytes := []byte{}
+		for aIt.Advance() {
+			aBytes = aIt.Value(aBytes)
+			aData := &appData{}
+			if err := vom.Decode(aBytes, aData); err != nil {
+				return nil, verror.New(verror.ErrInternal, ctx, err)
+			}
+			a := &app{
+				name:   aData.Name,
+				s:      s,
+				exists: true,
+				dbs:    make(map[string]interfaces.Database),
+			}
+			s.apps[a.name] = a
+			// Read all dbs for this app, populate dbs map.
+			dIt := st.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.DbInfoPrefix, aData.Name), ""))
+			dBytes := []byte{}
+			for dIt.Advance() {
+				dBytes = dIt.Value(dBytes)
+				info := &dbInfo{}
+				if err := vom.Decode(dBytes, info); err != nil {
+					return nil, verror.New(verror.ErrInternal, ctx, err)
+				}
+				d, err := nosql.OpenDatabase(ctx, a, info.Name, nosql.DatabaseOptions{
+					RootDir: info.RootDir,
+					Engine:  info.Engine,
+				}, util.OpenOptions{
+					CreateIfMissing: false,
+					ErrorIfExists:   false,
+				})
+				if err != nil {
+					return nil, verror.New(verror.ErrInternal, ctx, err)
+				}
+				a.dbs[info.Name] = d
+			}
+			if err := dIt.Err(); err != nil {
+				return nil, verror.New(verror.ErrInternal, ctx, err)
+			}
+		}
+		if err := aIt.Err(); err != nil {
+			return nil, verror.New(verror.ErrInternal, ctx, err)
+		}
+	} else {
+		// Service does not exist.
+		if err := util.Put(ctx, st, s, data); err != nil {
+			return nil, err
+		}
 	}
+	// Note, vsync.New internally handles both first-time and subsequent
+	// invocations.
 	if s.sync, err = vsync.New(ctx, call, s, opts.Server); err != nil {
 		return nil, err
 	}
@@ -129,15 +186,11 @@ func (s *service) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
-// TODO(sadovsky): Currently, we return an error (here and elsewhere) if the
-// specified app does not exist in s.apps. But note, this will always be the
-// case after a Syncbase service restart. The implementation should be updated
-// so that s.apps acts as an in-memory cache of app handles. If an app exists
-// but is not present in s.apps, s.App() should open the app and add its handle
-// to s.apps.
 func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Note, currently the service's apps map as well as per-app dbs maps are
+	// populated at startup.
 	a, ok := s.apps[appName]
 	if !ok {
 		return nil, verror.New(verror.ErrNoExist, ctx, appName)
@@ -171,7 +224,7 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 		name:   appName,
 		s:      s,
 		exists: true,
-		dbs:    map[string]interfaces.Database{},
+		dbs:    make(map[string]interfaces.Database),
 	}
 
 	if err := store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {

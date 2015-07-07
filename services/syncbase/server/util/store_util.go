@@ -125,15 +125,34 @@ func PutObject(st store.StoreWriter, k string, v interface{}) error {
 	return st.Put([]byte(k), bytes)
 }
 
-func OpenStore(engine, path string) (store.Store, error) {
+type OpenOptions struct {
+	CreateIfMissing bool
+	ErrorIfExists   bool
+}
+
+// OpenStore opens the given store.Store. OpenOptions are respected to the
+// degree possible for the specified engine.
+func OpenStore(engine, path string, opts OpenOptions) (store.Store, error) {
 	switch engine {
 	case "memstore":
+		if !opts.CreateIfMissing {
+			return nil, verror.New(verror.ErrInternal, nil, "cannot open memstore")
+		}
+		// By definition, the memstore does not already exist.
 		return memstore.New(), nil
 	case "leveldb":
-		if err := os.MkdirAll(path, 0700); err != nil {
-			return nil, verror.New(verror.ErrInternal, nil, err)
+		leveldbOpts := leveldb.OpenOptions{
+			CreateIfMissing: opts.CreateIfMissing,
+			ErrorIfExists:   opts.ErrorIfExists,
 		}
-		return leveldb.Open(path)
+		if opts.CreateIfMissing {
+			// Note, os.MkdirAll is a noop if the path already exists. We rely on
+			// leveldb to enforce ErrorIfExists.
+			if err := os.MkdirAll(path, 0700); err != nil {
+				return nil, verror.New(verror.ErrInternal, nil, err)
+			}
+		}
+		return leveldb.Open(path, leveldbOpts)
 	default:
 		return nil, verror.New(verror.ErrBadArg, nil, engine)
 	}

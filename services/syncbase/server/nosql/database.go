@@ -38,7 +38,9 @@ type database struct {
 	a    interfaces.App
 	// The fields below are initialized iff this database exists.
 	exists bool
-	st     store.Store // stores all data for a single database
+	// TODO(sadovsky): Make st point to a store.Store wrapper that handles paging,
+	// and do not actually open the store in NewDatabase.
+	st store.Store // stores all data for a single database
 
 	// Active snapshots and transactions corresponding to client batches.
 	// TODO(sadovsky): Add timeouts and GC.
@@ -73,14 +75,10 @@ type DatabaseOptions struct {
 	Engine string
 }
 
-// NewDatabase creates a new database instance and returns it.
-// Returns a VDL-compatible error.
-// Designed for use from within App.CreateNoSQLDatabase.
-func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name string, opts DatabaseOptions) (*database, error) {
-	if opts.Perms == nil {
-		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
-	}
-	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine))
+// OpenDatabase opens a database and returns a *database for it. Designed for
+// use from within NewDatabase and server.NewService.
+func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOptions, openOpts util.OpenOptions) (*database, error) {
+	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), openOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -90,13 +88,26 @@ func NewDatabase(ctx *context.T, call rpc.ServerCall, a interfaces.App, name str
 	if err != nil {
 		return nil, err
 	}
-	d := &database{
+	return &database{
 		name:   name,
 		a:      a,
 		exists: true,
 		st:     st,
 		sns:    make(map[uint64]store.Snapshot),
 		txs:    make(map[uint64]store.Transaction),
+	}, nil
+}
+
+// NewDatabase creates a new database instance and returns it.
+// Returns a VDL-compatible error.
+// Designed for use from within App.CreateNoSQLDatabase.
+func NewDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOptions) (*database, error) {
+	if opts.Perms == nil {
+		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
+	}
+	d, err := OpenDatabase(ctx, a, name, opts, util.OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
+	if err != nil {
+		return nil, err
 	}
 	data := &databaseData{
 		Name:  d.name,

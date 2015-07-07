@@ -54,6 +54,49 @@ func TestTransactionsWithGet(t *testing.T) {
 	runTest(t, test.RunTransactionsWithGetTest)
 }
 
+func TestOpenOptions(t *testing.T) {
+	path, err := ioutil.TempDir("", "syncbase_leveldb")
+	if err != nil {
+		t.Fatalf("can't create temp dir: %v", err)
+	}
+	// DB is missing => call should fail.
+	st, err := Open(path, OpenOptions{CreateIfMissing: false, ErrorIfExists: false})
+	if err == nil {
+		t.Fatalf("open should've failed")
+	}
+	// DB is missing => call should succeed.
+	st, err = Open(path, OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+	st.Close()
+	// DB exists => call should succeed.
+	st, err = Open(path, OpenOptions{CreateIfMissing: false, ErrorIfExists: false})
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+	st.Close()
+	// DB exists => call should fail.
+	st, err = Open(path, OpenOptions{CreateIfMissing: false, ErrorIfExists: true})
+	if err == nil {
+		t.Fatalf("open should've failed")
+	}
+	// DB exists => call should fail.
+	st, err = Open(path, OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
+	if err == nil {
+		t.Fatalf("open should've failed")
+	}
+	// DB exists => call should succeed.
+	st, err = Open(path, OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+	st.Close()
+	if err := Destroy(path); err != nil {
+		t.Fatalf("destroy failed: %v", err)
+	}
+}
+
 func runTest(t *testing.T, f func(t *testing.T, st store.Store)) {
 	st, dbPath := newDB()
 	defer destroyDB(st, dbPath)
@@ -65,7 +108,7 @@ func newDB() (store.Store, string) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temp dir: %v", err))
 	}
-	st, err := Open(path)
+	st, err := Open(path, OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
 	if err != nil {
 		panic(fmt.Sprintf("can't open db at %v: %v", path, err))
 	}

@@ -90,7 +90,7 @@ type ChunkMap struct {
 func New(ctx *context.T, dir string) (cm *ChunkMap, err error) {
 	cm = new(ChunkMap)
 	cm.dir = dir
-	cm.st, err = leveldb.Open(dir)
+	cm.st, err = leveldb.Open(dir, leveldb.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	return cm, err
 }
 

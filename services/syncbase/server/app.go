@@ -98,18 +98,10 @@ func (a *app) Service() interfaces.Service {
 	return a.s
 }
 
-// TODO(sadovsky): Currently, we return an error (here and elsewhere) if the
-// specified db does not exist in a.dbs. But note, this will always be the case
-// after a Syncbase service restart. The implementation should be updated so
-// that a.dbs acts as an in-memory cache of db handles. If a database exists but
-// is not present in a.dbs, a.NoSQLDatabase() should open the database and add
-// its handle to a.dbs.
 func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}
-	// TODO(sadovsky): Record storage engine config (e.g. LevelDB directory) in
-	// dbInfo, and add API for opening and closing storage engines.
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	d, ok := a.dbs[dbName]
@@ -154,6 +146,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	}
 
 	// 1. Check appData perms, create dbInfo record.
+	rootDir, engine := a.rootDirForDb(dbName), a.s.opts.Engine
 	aData := &appData{}
 	if err := store.RunInTransaction(a.s.st, func(st store.StoreReadWriter) error {
 		// Check appData perms.
@@ -170,7 +163,9 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 		}
 		// Write new dbInfo.
 		info := &dbInfo{
-			Name: dbName,
+			Name:    dbName,
+			RootDir: rootDir,
+			Engine:  engine,
 		}
 		return a.putDbInfo(ctx, st, dbName, info)
 	}); err != nil {
@@ -181,10 +176,10 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	if perms == nil {
 		perms = aData.Perms
 	}
-	d, err := nosql.NewDatabase(ctx, call, a, dbName, nosql.DatabaseOptions{
+	d, err := nosql.NewDatabase(ctx, a, dbName, nosql.DatabaseOptions{
 		Perms:   perms,
-		RootDir: a.rootDirForDb(dbName),
-		Engine:  a.s.opts.Engine,
+		RootDir: rootDir,
+		Engine:  engine,
 	})
 	if err != nil {
 		return err

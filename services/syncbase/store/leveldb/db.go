@@ -45,15 +45,28 @@ type db struct {
 
 var _ store.Store = (*db)(nil)
 
-// Open opens the database located at the given path, creating it if it doesn't
-// exist.
-func Open(path string) (store.Store, error) {
+type OpenOptions struct {
+	CreateIfMissing bool
+	ErrorIfExists   bool
+}
+
+// Open opens the database located at the given path.
+func Open(path string, opts OpenOptions) (store.Store, error) {
 	var cError *C.char
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
+	var cOptsCreateIfMissing, cOptsErrorIfExists C.uchar
+	if opts.CreateIfMissing {
+		cOptsCreateIfMissing = 1
+	}
+	if opts.ErrorIfExists {
+		cOptsErrorIfExists = 1
+	}
+
 	cOpts := C.leveldb_options_create()
-	C.leveldb_options_set_create_if_missing(cOpts, 1)
+	C.leveldb_options_set_create_if_missing(cOpts, cOptsCreateIfMissing)
+	C.leveldb_options_set_error_if_exists(cOpts, cOptsErrorIfExists)
 	C.leveldb_options_set_paranoid_checks(cOpts, 1)
 	defer C.leveldb_options_destroy(cOpts)
 
