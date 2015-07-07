@@ -71,7 +71,7 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 		clientBin.Start("relate", groupB, "a/b/c/d").WaitOrDie(&buffer, &buffer)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
-			t.Fatalf("Unmarshal(%v) failed: %v", buffer.Bytes(), err)
+			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
 		}
 		want := relateResult{
 			Remainder:      set.String.FromSlice([]string{"c/d", "d"}),
@@ -89,7 +89,7 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 		clientBin.Start("relate", groupA, "a/b/c/d").WaitOrDie(&buffer, &buffer)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
-			t.Fatalf("Unmarshal(%v) failed: %v", buffer.Bytes(), err)
+			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
 		}
 		want := relateResult{
 			Remainder:      set.String.FromSlice([]string{"b/c/d", "c/d", "d"}),
@@ -109,7 +109,7 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 		clientBin.Start("relate", groupB, "a/b/c/d").WaitOrDie(&buffer, &buffer)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
-			t.Fatalf("Unmarshal(%v) failed: %v", buffer.Bytes(), err)
+			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
 		}
 		want := relateResult{
 			Remainder: set.String.FromSlice([]string{"c/d", "d"}),
