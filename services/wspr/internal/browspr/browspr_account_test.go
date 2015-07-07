@@ -6,6 +6,8 @@ package browspr
 
 import (
 	"fmt"
+	"reflect"
+	"sort"
 	"testing"
 
 	"v.io/v23"
@@ -110,8 +112,13 @@ func TestHandleCreateAccount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
-	if want := vdl.ValueOf([]string{account1.RawString(), account2.RawString()}); !vdl.EqualValue(want, gotAccounts2) {
-		t.Fatalf("Expected account to be %v but got empty but got %v", want, gotAccounts2)
+	var got []string
+	if err := vdl.Convert(&got, gotAccounts2); err != nil {
+		t.Fatalf("vdl.Convert failed: %v", err)
+	}
+	sort.Strings(got)
+	if want := []string{account1.RawString(), account2.RawString()}; !reflect.DeepEqual(want, got) {
+		t.Fatalf("Expected account to be %v but got %v", want, got)
 	}
 
 	// Verify that principalManager has both accounts
