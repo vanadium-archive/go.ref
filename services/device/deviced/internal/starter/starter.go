@@ -330,7 +330,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pa
 	}
 	args.ConfigState.Name = endpoints[0].Name()
 
-	dispatcher, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback, permStore)
+	dispatcher, dShutdown, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback, permStore)
 	if err != nil {
 		shutdown()
 		return nil, err
@@ -341,7 +341,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pa
 		// the dispatcher and exposing it in Status.
 		ctx.Infof("Stopping device server...")
 		server.Stop()
-		impl.Shutdown(ctx, dispatcher)
+		dShutdown()
 		ctx.Infof("Stopped device.")
 	}
 	if err := server.ServeDispatcher(args.name(mt), dispatcher); err != nil {

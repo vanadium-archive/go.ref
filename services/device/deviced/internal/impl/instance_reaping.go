@@ -43,14 +43,13 @@ type pidInstanceDirPair struct {
 }
 
 type reaper struct {
-	c          chan pidInstanceDirPair
-	startState *appRunner
-	ctx        *context.T
+	c   chan pidInstanceDirPair
+	ctx *context.T
 }
 
 var stashedPidMap map[string]int
 
-func newReaper(ctx *context.T, root string, startState *appRunner) (*reaper, error) {
+func newReaper(ctx *context.T, root string, appRunner *appRunner) (*reaper, error) {
 	pidMap, restartCandidates, err := findAllTheInstances(ctx, root)
 
 	// Used only by the testing code that verifies that all processes
@@ -61,16 +60,14 @@ func newReaper(ctx *context.T, root string, startState *appRunner) (*reaper, err
 	}
 
 	r := &reaper{
-		c:          make(chan pidInstanceDirPair),
-		startState: startState,
-		ctx:        ctx,
+		c:   make(chan pidInstanceDirPair),
+		ctx: ctx,
 	}
-	r.startState.reap = r
-	go r.processStatusPolling(ctx, pidMap)
+	go r.processStatusPolling(ctx, pidMap, appRunner)
 
 	// Restart daemon jobs if they're not running (say because the machine crashed.)
 	for _, idir := range restartCandidates {
-		go r.startState.restartAppIfNecessary(ctx, idir)
+		go appRunner.restartAppIfNecessary(ctx, idir)
 	}
 	return r, nil
 }
@@ -92,16 +89,16 @@ func markNotRunning(ctx *context.T, idir string) {
 // functionality. For example, use the kevent facility in darwin or
 // replace init. See http://www.incenp.org/dvlpt/wait4.html for
 // inspiration.
-func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int) {
+func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int, appRunner *appRunner) {
 	poll := func(ctx *context.T) {
 		for idir, pid := range trackedPids {
 			switch err := syscall.Kill(pid, 0); err {
 			case syscall.ESRCH:
 				// No such PID.
-				go r.startState.restartAppIfNecessary(ctx, idir)
+				go appRunner.restartAppIfNecessary(ctx, idir)
 				ctx.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
 				markNotRunning(ctx, idir)
-				go r.startState.restartAppIfNecessary(ctx, idir)
+				go appRunner.restartAppIfNecessary(ctx, idir)
 				delete(trackedPids, idir)
 			case nil, syscall.EPERM:
 				ctx.VI(2).Infof("processStatusPolling saw live pid: %d", pid)
