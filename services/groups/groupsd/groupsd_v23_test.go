@@ -67,8 +67,8 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 
 	// Test simple group resolution.
 	{
-		var buffer bytes.Buffer
-		clientBin.Start("relate", groupB, "a/b/c/d").WaitOrDie(&buffer, &buffer)
+		var buffer, stderrBuf bytes.Buffer
+		clientBin.Start("relate", groupB, "a/b/c/d").WaitOrDie(&buffer, &stderrBuf)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
 			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
@@ -81,12 +81,15 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got %v, want %v", got, want)
 		}
+		if got, want := stderrBuf.Len(), 0; got != want {
+			t.Errorf("got %v, want %v", got, want)
+		}
 	}
 
 	// Test recursive group resolution.
 	{
-		var buffer bytes.Buffer
-		clientBin.Start("relate", groupA, "a/b/c/d").WaitOrDie(&buffer, &buffer)
+		var buffer, stderrBuf bytes.Buffer
+		clientBin.Start("relate", groupA, "a/b/c/d").WaitOrDie(&buffer, &stderrBuf)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
 			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
@@ -99,14 +102,17 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got %v, want %v", got, want)
 		}
+		if got, want := stderrBuf.Len(), 0; got != want {
+			t.Errorf("got %v, want %v", got, want)
+		}
 	}
 
 	// Test group resolution failure. Note that under-approximation is
 	// used as the default to handle resolution failures.
 	{
 		clientBin.Start("add", groupB, "<grp:groups-server/groupC>").WaitOrDie(os.Stdout, os.Stderr)
-		var buffer bytes.Buffer
-		clientBin.Start("relate", groupB, "a/b/c/d").WaitOrDie(&buffer, &buffer)
+		var buffer, stderrBuf bytes.Buffer
+		clientBin.Start("relate", groupB, "a/b/c/d").WaitOrDie(&buffer, &stderrBuf)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
 			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
@@ -122,6 +128,9 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 			Version: "3",
 		}
 		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
+		}
+		if got, want := stderrBuf.Len(), 0; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
 	}
