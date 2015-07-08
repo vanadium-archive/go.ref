@@ -713,10 +713,7 @@ func setNode(ctx *context.T, tx store.StoreReadWriter, oid, version string, node
 		return verror.New(verror.ErrInternal, ctx, "invalid version", version)
 	}
 
-	if err := util.PutObject(tx, nodeKey(oid, version), node); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Put(ctx, tx, nodeKey(oid, version), node)
 }
 
 // getNode retrieves the DAG node entry for the given (oid, version).
@@ -727,8 +724,8 @@ func getNode(ctx *context.T, st store.StoreReader, oid, version string) (*dagNod
 
 	var node dagNode
 	key := nodeKey(oid, version)
-	if err := util.GetObject(st, key, &node); err != nil {
-		return nil, translateError(ctx, err, key)
+	if err := util.Get(ctx, st, key, &node); err != nil {
+		return nil, err
 	}
 	return &node, nil
 }
@@ -741,10 +738,7 @@ func delNode(ctx *context.T, tx store.StoreReadWriter, oid, version string) erro
 		return verror.New(verror.ErrInternal, ctx, "invalid version", version)
 	}
 
-	if err := tx.Delete([]byte(nodeKey(oid, version))); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Delete(ctx, tx, nodeKey(oid, version))
 }
 
 // hasNode returns true if the node (oid, version) exists in the DAG.
@@ -769,18 +763,15 @@ func setHead(ctx *context.T, tx store.StoreReadWriter, oid, version string) erro
 		return verror.New(verror.ErrInternal, ctx, fmt.Errorf("invalid version: %s", version))
 	}
 
-	if err := util.PutObject(tx, headKey(oid), version); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Put(ctx, tx, headKey(oid), version)
 }
 
 // getHead retrieves the DAG object head.
 func getHead(ctx *context.T, st store.StoreReader, oid string) (string, error) {
 	var version string
 	key := headKey(oid)
-	if err := util.GetObject(st, key, &version); err != nil {
-		return NoVersion, translateError(ctx, err, key)
+	if err := util.Get(ctx, st, key, &version); err != nil {
+		return NoVersion, err
 	}
 	return version, nil
 }
@@ -788,11 +779,7 @@ func getHead(ctx *context.T, st store.StoreReader, oid string) (string, error) {
 // delHead deletes the DAG object head.
 func delHead(ctx *context.T, tx store.StoreReadWriter, oid string) error {
 	_ = tx.(store.Transaction)
-
-	if err := tx.Delete([]byte(headKey(oid))); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Delete(ctx, tx, headKey(oid))
 }
 
 // batchKey returns the key used to access the DAG batch info.
@@ -808,10 +795,7 @@ func setBatch(ctx *context.T, tx store.StoreReadWriter, btid uint64, info *batch
 		return verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
 	}
 
-	if err := util.PutObject(tx, batchKey(btid), info); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Put(ctx, tx, batchKey(btid), info)
 }
 
 // getBatch retrieves the DAG batch entry.
@@ -822,8 +806,8 @@ func getBatch(ctx *context.T, st store.StoreReader, btid uint64) (*batchInfo, er
 
 	var info batchInfo
 	key := batchKey(btid)
-	if err := util.GetObject(st, key, &info); err != nil {
-		return nil, translateError(ctx, err, key)
+	if err := util.Get(ctx, st, key, &info); err != nil {
+		return nil, err
 	}
 	return &info, nil
 }
@@ -836,10 +820,7 @@ func delBatch(ctx *context.T, tx store.StoreReadWriter, btid uint64) error {
 		return verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
 	}
 
-	if err := tx.Delete([]byte(batchKey(btid))); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Delete(ctx, tx, batchKey(btid))
 }
 
 // getParentMap is a testing and debug helper function that returns for an

@@ -81,7 +81,6 @@ func (tx *transaction) Put(key, value []byte) error {
 	if !tx.st.managesKey(key) {
 		return tx.itx.Put(key, value)
 	}
-
 	version, err := putVersioned(tx.itx, key, value)
 	if err != nil {
 		return err
@@ -99,12 +98,14 @@ func (tx *transaction) Delete(key []byte) error {
 	}
 	var err error
 	if !tx.st.managesKey(key) {
-		err = tx.itx.Delete(key)
-	} else {
-		err = deleteVersioned(tx.itx, key)
-		tx.ops = append(tx.ops, &OpDelete{DeleteOp{Key: key}})
+		return tx.itx.Delete(key)
 	}
-	return err
+	err = deleteVersioned(tx.itx, key)
+	if err != nil {
+		return err
+	}
+	tx.ops = append(tx.ops, &OpDelete{DeleteOp{Key: key}})
+	return nil
 }
 
 // Commit implements the store.Transaction interface.
@@ -132,7 +133,7 @@ func (tx *transaction) Commit() error {
 			FromSync:        tx.fromSync,
 			Continued:       i < len(tx.ops)-1,
 		}
-		if err := util.PutObject(tx.itx, key, value); err != nil {
+		if err := util.Put(nil, tx.itx, key, value); err != nil {
 			return err
 		}
 		seq++

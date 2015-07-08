@@ -19,7 +19,6 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/store"
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -73,7 +72,6 @@ var (
 	rng     = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	rngLock sync.Mutex
 	_       interfaces.SyncServerMethods = (*syncService)(nil)
-	_       util.Layer                   = (*syncService)(nil)
 )
 
 // rand64 generates an unsigned 64-bit pseudo-random number.
@@ -105,15 +103,15 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, server rpc.
 	}
 
 	data := &syncData{}
-	if err := util.GetObject(sv.St(), s.StKey(), data); err != nil {
-		if verror.ErrorID(err) != store.ErrUnknownKey.ID {
-			return nil, verror.New(verror.ErrInternal, ctx, err)
+	if err := util.Get(ctx, sv.St(), s.stKey(), data); err != nil {
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
+			return nil, err
 		}
 		// First invocation of vsync.New().
 		// TODO(sadovsky): Maybe move guid generation and storage to serviceData.
 		data.Id = rand64()
-		if err := util.PutObject(sv.St(), s.StKey(), data); err != nil {
-			return nil, verror.New(verror.ErrInternal, ctx, err)
+		if err := util.Put(ctx, sv.St(), s.stKey(), data); err != nil {
+			return nil, err
 		}
 	}
 
@@ -150,13 +148,6 @@ func NewSyncDatabase(db interfaces.Database) *syncDatabase {
 	return &syncDatabase{db: db}
 }
 
-////////////////////////////////////////
-// util.Layer methods.
-
-func (s *syncService) Name() string {
-	return "sync"
-}
-
-func (s *syncService) StKey() string {
+func (s *syncService) stKey() string {
 	return util.SyncPrefix
 }

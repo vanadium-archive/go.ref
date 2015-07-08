@@ -35,7 +35,6 @@ type app struct {
 var (
 	_ wire.AppServerMethods = (*app)(nil)
 	_ interfaces.App        = (*app)(nil)
-	_ util.Layer            = (*app)(nil)
 )
 
 ////////////////////////////////////////
@@ -69,7 +68,7 @@ func (a *app) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.
 		return nil, "", verror.New(verror.ErrNoExist, ctx, a.name)
 	}
 	data := &appData{}
-	if err := util.Get(ctx, call, a.s.st, a, data); err != nil {
+	if err := util.GetWithAuth(ctx, call, a.s.st, a.stKey(), data); err != nil {
 		return nil, "", err
 	}
 	return data.Perms, util.FormatVersion(data.Version), nil
@@ -84,7 +83,7 @@ func (a *app) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string
 	closeSnapshot := func() error {
 		return sn.Close()
 	}
-	if err := util.Get(ctx, call, sn, a, &appData{}); err != nil {
+	if err := util.GetWithAuth(ctx, call, sn, a.stKey(), &appData{}); err != nil {
 		closeSnapshot()
 		return nil, err
 	}
@@ -150,7 +149,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	aData := &appData{}
 	if err := store.RunInTransaction(a.s.st, func(st store.StoreReadWriter) error {
 		// Check appData perms.
-		if err := util.Get(ctx, call, st, a, aData); err != nil {
+		if err := util.GetWithAuth(ctx, call, st, a.stKey(), aData); err != nil {
 			return err
 		}
 		// Check for "database already exists".
@@ -267,19 +266,16 @@ func (a *app) SetDatabasePerms(ctx *context.T, call rpc.ServerCall, dbName strin
 	return d.SetPermsInternal(ctx, call, perms, version)
 }
 
-////////////////////////////////////////
-// util.Layer methods
-
 func (a *app) Name() string {
 	return a.name
 }
 
-func (a *app) StKey() string {
-	return util.JoinKeyParts(util.AppPrefix, a.stKeyPart())
-}
-
 ////////////////////////////////////////
 // Internal helpers
+
+func (a *app) stKey() string {
+	return util.JoinKeyParts(util.AppPrefix, a.stKeyPart())
+}
 
 func (a *app) stKeyPart() string {
 	return a.name

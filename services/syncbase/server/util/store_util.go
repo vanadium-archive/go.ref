@@ -29,100 +29,73 @@ func CheckVersion(ctx *context.T, presented string, actual uint64) error {
 	return nil
 }
 
-////////////////////////////////////////////////////////////
-// RPC-aware, higher-level get/put
-
-type Layer interface {
-	// Name returns the name of this instance, e.g. "fooapp" or "bardb".
-	Name() string
-	// StKey returns the storage engine key to use for metadata about this layer,
-	// e.g. "$table:baztable".
-	StKey() string
-}
+// TODO(sadovsky): Perhaps these functions should strip key prefixes such as
+// "$table:" from the error messages they return.
 
 type Permser interface {
 	// GetPerms returns the Permissions for this Layer.
 	GetPerms() access.Permissions
 }
 
-// GetWithoutAuth does st.Get(l.StKey(), v), populating v.
-// Returns a VDL-compatible error.
-func GetWithoutAuth(ctx *context.T, st store.StoreReader, l Layer, v interface{}) error {
-	if err := GetObject(st, l.StKey(), v); err != nil {
+// Get does st.Get(k, v) and wraps the returned error.
+func Get(ctx *context.T, st store.StoreReader, k string, v interface{}) error {
+	bytes, err := st.Get([]byte(k), nil)
+	if err != nil {
 		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
-			return verror.New(verror.ErrNoExist, ctx, l.Name())
+			return verror.New(verror.ErrNoExist, ctx, k)
 		}
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	if err = vom.Decode(bytes, v); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
 }
 
-// Get does GetWithoutAuth followed by an auth check.
-// Returns a VDL-compatible error.
-func Get(ctx *context.T, call rpc.ServerCall, st store.StoreReader, l Layer, v Permser) error {
-	if err := GetWithoutAuth(ctx, st, l, v); err != nil {
+// GetWithAuth does Get followed by an auth check.
+func GetWithAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, k string, v Permser) error {
+	if err := Get(ctx, st, k, v); err != nil {
 		return err
 	}
 	auth, _ := access.PermissionsAuthorizer(v.GetPerms(), access.TypicalTagType())
 	if err := auth.Authorize(ctx, call.Security()); err != nil {
-		return verror.New(verror.ErrNoAccess, ctx, l.Name())
+		return verror.New(verror.ErrNoAccess, ctx, err)
 	}
 	return nil
 }
 
-// Put does st.Put(l.StKey(), v).
-// Returns a VDL-compatible error.
-// If you need to perform an authorization check, use Update().
-func Put(ctx *context.T, st store.StoreWriter, l Layer, v interface{}) error {
-	if err := PutObject(st, l.StKey(), v); err != nil {
+// Put does st.Put(k, v) and wraps the returned error.
+func Put(ctx *context.T, st store.StoreWriter, k string, v interface{}) error {
+	bytes, err := vom.Encode(v)
+	if err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	if err = st.Put([]byte(k), bytes); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
 }
 
-// Delete does st.Delete(l.StKey()).
-// Returns a VDL-compatible error.
-// If you need to perform an authorization check, call Get() first.
-func Delete(ctx *context.T, st store.StoreWriter, l Layer) error {
-	if err := st.Delete([]byte(l.StKey())); err != nil {
+// Delete does st.Delete(k, v) and wraps the returned error.
+func Delete(ctx *context.T, st store.StoreWriter, k string) error {
+	if err := st.Delete([]byte(k)); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
 }
 
-// Update performs a read-modify-write.
-// Input v is populated by the "read" step. fn should "modify" v, and should
-// return a VDL-compatible error.
+// UpdateWithAuth performs a read-modify-write.
+// Input v is populated by the "read" step. fn should "modify" v.
 // Performs an auth check as part of the "read" step.
-// Returns a VDL-compatible error.
-func Update(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, l Layer, v Permser, fn func() error) error {
+func UpdateWithAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, k string, v Permser, fn func() error) error {
 	_ = st.(store.Transaction) // panics on failure, as desired
-	if err := Get(ctx, call, st, l, v); err != nil {
+	if err := GetWithAuth(ctx, call, st, k, v); err != nil {
 		return err
 	}
 	if err := fn(); err != nil {
 		return err
 	}
-	return Put(ctx, st, l, v)
-}
-
-////////////////////////////////////////////////////////////
-// RPC-oblivious, lower-level helpers
-
-func GetObject(st store.StoreReader, k string, v interface{}) error {
-	bytes, err := st.Get([]byte(k), nil)
-	if err != nil {
-		return err
-	}
-	return vom.Decode(bytes, v)
-}
-
-func PutObject(st store.StoreWriter, k string, v interface{}) error {
-	bytes, err := vom.Encode(v)
-	if err != nil {
-		return err
-	}
-	return st.Put([]byte(k), bytes)
+	return Put(ctx, st, k, v)
 }
 
 type OpenOptions struct {

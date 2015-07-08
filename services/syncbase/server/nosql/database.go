@@ -62,7 +62,6 @@ type databaseReq struct {
 var (
 	_ wire.DatabaseServerMethods = (*databaseReq)(nil)
 	_ interfaces.Database        = (*database)(nil)
-	_ util.Layer                 = (*database)(nil)
 )
 
 // DatabaseOptions configures a database.
@@ -99,7 +98,6 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 }
 
 // NewDatabase creates a new database instance and returns it.
-// Returns a VDL-compatible error.
 // Designed for use from within App.CreateNoSQLDatabase.
 func NewDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOptions) (*database, error) {
 	if opts.Perms == nil {
@@ -113,7 +111,7 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOpt
 		Name:  d.name,
 		Perms: opts.Perms,
 	}
-	if err := util.Put(ctx, d.st, d, data); err != nil {
+	if err := util.Put(ctx, d.st, d.stKey(), data); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -275,7 +273,7 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 		return nil, "", wire.NewErrBoundToBatch(ctx)
 	}
 	data := &databaseData{}
-	if err := util.Get(ctx, call, d.st, d, data); err != nil {
+	if err := util.GetWithAuth(ctx, call, d.st, d.stKey(), data); err != nil {
 		return nil, "", err
 	}
 	return data.Perms, util.FormatVersion(data.Version), nil
@@ -293,7 +291,7 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-cha
 	closeSnapshot := func() error {
 		return sn.Close()
 	}
-	if err := util.Get(ctx, call, sn, d, &databaseData{}); err != nil {
+	if err := util.GetWithAuth(ctx, call, sn, d.stKey(), &databaseData{}); err != nil {
 		closeSnapshot()
 		return nil, err
 	}
@@ -348,7 +346,7 @@ func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st st
 	if !d.exists {
 		vlog.Fatalf("database %q does not exist", d.name)
 	}
-	return util.Get(ctx, call, st, d, &databaseData{})
+	return util.GetWithAuth(ctx, call, st, d.stKey(), &databaseData{})
 }
 
 func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
@@ -357,7 +355,7 @@ func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms a
 	}
 	return store.RunInTransaction(d.st, func(st store.StoreReadWriter) error {
 		data := &databaseData{}
-		return util.Update(ctx, call, st, d, data, func() error {
+		return util.UpdateWithAuth(ctx, call, st, d.stKey(), data, func() error {
 			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
 				return err
 			}
@@ -368,19 +366,12 @@ func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms a
 	})
 }
 
-////////////////////////////////////////
-// util.Layer methods
-
 func (d *database) Name() string {
 	return d.name
 }
 
-func (d *database) StKey() string {
-	return util.DatabasePrefix
-}
-
 ////////////////////////////////////////
-// query_db implementations
+// query_db implementation
 
 // Implement query_db's Database, Table and KeyValueStream interfaces.
 type queryDb struct {
@@ -403,7 +394,7 @@ func (db *queryDb) GetTable(name string) (query_db.Table, error) {
 		},
 	}
 	// Now that we have a table, we need to check permissions.
-	if err := util.Get(db.ctx, db.call, db.st, tDb.req, &tableData{}); err != nil {
+	if err := util.GetWithAuth(db.ctx, db.call, db.st, tDb.req.stKey(), &tableData{}); err != nil {
 		return nil, err
 	}
 	return tDb, nil
@@ -504,6 +495,10 @@ func (s *kvs) Cancel() {
 
 ////////////////////////////////////////
 // Internal helpers
+
+func (d *database) stKey() string {
+	return util.DatabasePrefix
+}
 
 func (d *databaseReq) batchReader() store.StoreReader {
 	if d.batchId == nil {

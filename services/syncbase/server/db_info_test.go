@@ -8,23 +8,18 @@ import (
 	"testing"
 )
 
-type stk struct {
-	appName string
-	dbName  string
-	stkey   string
-}
-
-var stTestKey stk = stk{"app1", "db1", "$dbInfo:app1:db1"}
-
-var dbinfo *dbInfoLayer = &dbInfoLayer{
-	name: stTestKey.dbName,
-	a: &app{
-		name: stTestKey.appName,
-	},
-}
-
 func TestStKey(t *testing.T) {
-	if stTestKey.stkey != dbinfo.StKey() {
-		t.Errorf("dbInfoLayer stkey expected to be %q but found to be %q", stTestKey.stkey, dbinfo.StKey())
+	tests := []struct {
+		appName string
+		dbName  string
+		stKey   string
+	}{
+		{"app1", "db1", "$dbInfo:app1:db1"},
+	}
+	for _, test := range tests {
+		got, want := dbInfoStKey(&app{name: test.appName}, test.dbName), test.stKey
+		if got != want {
+			t.Errorf("wrong stKey: got %q, want %q", got, want)
+		}
 	}
 }
