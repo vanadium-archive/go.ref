@@ -256,7 +256,7 @@ func testInit(t *testing.T, lfile, rfile string) (*mockService, *initiationState
 	testIfMapArrEqual(t, iSt.sgPfxs, sg1.Spec.Prefixes)
 	testIfMapArrEqual(t, iSt.mtTables, sg1.Spec.MountTables)
 
-	s.syncState[gdb] = &dbSyncStateInMem{}
+	s.initDbSyncStateInMem(nil, "mockapp", "mockdb")
 
 	// Create local genvec so that it contains knowledge only about common prefixes.
 	if err := iSt.createLocalGenVec(nil); err != nil {

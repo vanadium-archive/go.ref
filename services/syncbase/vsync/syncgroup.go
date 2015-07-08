@@ -21,6 +21,7 @@ import (
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -420,9 +421,8 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 			return err
 		}
 
-		// TODO(hpucha): Add watch notification to signal SG creation.
-
-		return nil
+		tx1 := tx.(store.Transaction)
+		return watchable.AddSyncGroupOp(ctx, tx1, spec.Prefixes, false)
 	})
 
 	if err != nil {
@@ -516,9 +516,8 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 			return err
 		}
 
-		// TODO(hpucha): Add a watch notification to signal new SG.
-
-		return nil
+		tx1 := tx.(store.Transaction)
+		return watchable.AddSyncGroupOp(ctx, tx1, sg.Spec.Prefixes, false)
 	})
 
 	if err != nil {

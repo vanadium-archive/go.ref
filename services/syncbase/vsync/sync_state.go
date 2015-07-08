@@ -155,8 +155,21 @@ func (s *syncService) checkPtLocalGen(ctx *context.T, appName, dbName string) er
 		return verror.New(verror.ErrInternal, ctx, "db state not found", name)
 	}
 
-	ds.ckPtGen = ds.gen
+	// The frozen generation is the last generation number used, i.e. one
+	// below the next available one to use.
+	ds.ckPtGen = ds.gen - 1
 	return nil
+}
+
+// initDbSyncStateInMem initializes the in memory sync state of the Database if needed.
+func (s *syncService) initDbSyncStateInMem(ctx *context.T, appName, dbName string) {
+	s.syncStateLock.Lock()
+	defer s.syncStateLock.Unlock()
+
+	name := appDbName(appName, dbName)
+	if s.syncState[name] == nil {
+		s.syncState[name] = &dbSyncStateInMem{gen: 1}
+	}
 }
 
 // getDbSyncStateInMem returns a copy of the current in memory sync state of the Database.

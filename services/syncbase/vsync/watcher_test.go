@@ -116,7 +116,7 @@ func TestWatchPrefixes(t *testing.T) {
 
 	for _, test := range checkSyncableTests {
 		log := &watchable.LogEntry{
-			Op: &watchable.OpPut{
+			Op: watchable.OpPut{
 				watchable.PutOp{Key: []byte(makeRowKey(test.key))},
 			},
 		}
@@ -133,9 +133,9 @@ func newLog(key, version string, delete bool) *watchable.LogEntry {
 	k, v := []byte(key), []byte(version)
 	log := &watchable.LogEntry{}
 	if delete {
-		log.Op = &watchable.OpDelete{watchable.DeleteOp{Key: k}}
+		log.Op = watchable.OpDelete{watchable.DeleteOp{Key: k}}
 	} else {
-		log.Op = &watchable.OpPut{watchable.PutOp{Key: k, Version: v}}
+		log.Op = watchable.OpPut{watchable.PutOp{Key: k, Version: v}}
 	}
 	return log
 }
@@ -143,7 +143,7 @@ func newLog(key, version string, delete bool) *watchable.LogEntry {
 // newSGLog creates a SyncGroup watch log entry.
 func newSGLog(prefixes []string, remove bool) *watchable.LogEntry {
 	return &watchable.LogEntry{
-		Op: &watchable.OpSyncGroup{
+		Op: watchable.OpSyncGroup{
 			watchable.SyncGroupOp{Prefixes: prefixes, Remove: remove},
 		},
 	}

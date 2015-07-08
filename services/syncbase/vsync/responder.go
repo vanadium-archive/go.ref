@@ -10,15 +10,17 @@ import (
 	"strings"
 
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 )
 
 // GetDeltas implements the responder side of the GetDeltas RPC.
 func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall) error {
 	recvr := call.RecvStream()
-
 	for recvr.Advance() {
 		req := recvr.Value()
 		// Ignoring errors since if one Database fails for any reason,
@@ -281,10 +283,11 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T) error {
 
 		if !filterLogRec(rec, rSt.req.InitVec, initPfxs) {
 			// Send on the wire.
-			wireRec := interfaces.LogRec{Metadata: rec.Metadata}
-			// TODO(hpucha): Hash out this fake stream stuff when
-			// defining the RPC and the rest of the responder.
-			sender.Send(interfaces.DeltaRespRec{wireRec})
+			wireRec, err := makeWireLogRec(ctx, rSt.st, rec)
+			if err != nil {
+				return err
+			}
+			sender.Send(interfaces.DeltaRespRec{*wireRec})
 		}
 
 		// Add a new record from the same device if not done.
@@ -387,11 +390,19 @@ func getNextLogRec(ctx *context.T, sn store.StoreReader, dev uint64, r *genRange
 
 // Note: initPfxs is sorted.
 func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []string) bool {
-	filter := true
+	// The key starts with one of the store's reserved prefixes for managed
+	// namespaces (e.g. $row, $perms).  Remove that prefix before comparing
+	// it with the SyncGroup prefixes which are defined by the application.
+	parts := util.SplitKeyParts(rec.Metadata.ObjId)
+	if len(parts) < 2 {
+		vlog.Fatalf("filterLogRec: invalid entry key %s", rec.Metadata.ObjId)
+	}
+	key := util.JoinKeyParts(parts[1:]...)
 
+	filter := true
 	var maxGen uint64
 	for _, p := range initPfxs {
-		if strings.HasPrefix(rec.Metadata.ObjId, p) {
+		if strings.HasPrefix(key, p) {
 			// Do not filter. Initiator is interested in this
 			// prefix.
 			filter = false
@@ -406,10 +417,29 @@ func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []str
 
 	// Filter this record if the initiator already has it.
 	if maxGen >= rec.Metadata.Gen {
-		return true
+		filter = true
 	}
 
 	return filter
+}
+
+// makeWireLogRec creates a sync log record to send on the wire from a given
+// local sync record.
+func makeWireLogRec(ctx *context.T, st store.Store, rec *localLogRec) (*interfaces.LogRec, error) {
+	// Get the object value at the required version.  Note: GetAtVersion()
+	// requires a transaction to read the data, so create and abort one.
+	// TODO(hpucha): remove the fake Tx after the change in GetAtVersion().
+	tx := st.NewTransaction()
+	defer tx.Abort()
+
+	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
+	value, err := watchable.GetAtVersion(ctx, tx, []byte(key), nil, []byte(version))
+	if err != nil {
+		return nil, err
+	}
+
+	wireRec := &interfaces.LogRec{Metadata: rec.Metadata, Value: value}
+	return wireRec, nil
 }
 
 // A minHeap implements heap.Interface and holds local log records.

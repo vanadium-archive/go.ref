@@ -93,6 +93,9 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 		resMark = ""
 	}
 
+	// Initialize Database sync state if needed.
+	s.initDbSyncStateInMem(ctx, appName, dbName)
+
 	// Get a batch of watch log entries, if any, after this resume marker.
 	if logs, nextResmark := getWatchLogBatch(ctx, appName, dbName, st, resMark); logs != nil {
 		s.processWatchLogBatch(ctx, appName, dbName, st, logs, nextResmark)
@@ -327,22 +330,22 @@ func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchabl
 	timestamp := logEnt.CommitTimestamp
 
 	switch op := logEnt.Op.(type) {
-	case *watchable.OpGet:
+	case watchable.OpGet:
 		// TODO(rdaoud): save read-set in sync.
 
-	case *watchable.OpScan:
+	case watchable.OpScan:
 		// TODO(rdaoud): save scan-set in sync.
 
-	case *watchable.OpPut:
+	case watchable.OpPut:
 		rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
 
-	case *watchable.OpSyncSnapshot:
+	case watchable.OpSyncSnapshot:
 		rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
 
-	case *watchable.OpDelete:
+	case watchable.OpDelete:
 		rec = newLocalLogRec(ctx, tx, op.Value.Key, watchable.NewVersion(), true, timestamp)
 
-	case *watchable.OpSyncGroup:
+	case watchable.OpSyncGroup:
 		vlog.Errorf("watch LogEntry for SyncGroup should not be converted: %v", logEnt)
 
 	default:
@@ -377,7 +380,7 @@ func newLocalLogRec(ctx *context.T, tx store.StoreReadWriter, key, version []byt
 // Otherwise it returns false with no other changes.
 func processSyncGroupLogRecord(appName, dbName string, logEnt *watchable.LogEntry) bool {
 	switch op := logEnt.Op.(type) {
-	case *watchable.OpSyncGroup:
+	case watchable.OpSyncGroup:
 		remove := op.Value.Remove
 		for _, prefix := range op.Value.Prefixes {
 			if remove {
@@ -399,11 +402,11 @@ func processSyncGroupLogRecord(appName, dbName string, logEnt *watchable.LogEntr
 func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 	var key string
 	switch op := logEnt.Op.(type) {
-	case *watchable.OpPut:
+	case watchable.OpPut:
 		key = string(op.Value.Key)
-	case *watchable.OpDelete:
+	case watchable.OpDelete:
 		key = string(op.Value.Key)
-	case *watchable.OpSyncSnapshot:
+	case watchable.OpSyncSnapshot:
 		key = string(op.Value.Key)
 	default:
 		return false

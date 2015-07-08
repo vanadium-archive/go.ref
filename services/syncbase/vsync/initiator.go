@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
@@ -124,7 +125,13 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
 		}
 
 		iSt.stream = stream
-		req := interfaces.DeltaReq{SgIds: iSt.sgIds, InitVec: iSt.local}
+		req := interfaces.DeltaReq{
+			AppName: iSt.appName,
+			DbName:  iSt.dbName,
+			SgIds:   iSt.sgIds,
+			InitVec: iSt.local,
+		}
+
 		sender := iSt.stream.SendStream()
 		sender.Send(req)
 
@@ -264,7 +271,8 @@ func (iSt *initiationState) connectToPeer(ctx *context.T) (interfaces.SyncGetDel
 		return nil, false
 	}
 	for mt := range iSt.mtTables {
-		c := interfaces.SyncClient(naming.Join(mt, iSt.peer))
+		absName := naming.Join(mt, iSt.peer, util.SyncbaseSuffix)
+		c := interfaces.SyncClient(absName)
 		stream, err := c.GetDeltas(ctx)
 		if err == nil {
 			return stream, true
@@ -382,7 +390,6 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 				return verror.New(verror.ErrInternal, ctx, "received finish followed by finish in delta response stream")
 			}
 			finish = true
-			break
 
 		case interfaces.DeltaRespRespVec:
 			iSt.remote = v.Value
@@ -410,6 +417,11 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 			}
 			// Mark object dirty.
 			iSt.updObjects[rec.Metadata.ObjId] = &objConflictState{}
+		}
+
+		// Break out of the stream.
+		if finish {
+			break
 		}
 	}
 
@@ -514,6 +526,7 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 
 	for {
 		iSt.tx = iSt.st.NewTransaction()
+		watchable.SetTransactionFromSync(iSt.tx) // for echo-suppression
 
 		if err := iSt.detectConflicts(ctx); err != nil {
 			return err
