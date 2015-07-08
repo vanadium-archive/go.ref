@@ -19,58 +19,30 @@ import (
 	"v.io/v23/context"
 )
 
-type dbInfoLayer struct {
-	name string
-	a    *app
-}
-
-var (
-	_ util.Layer = (*dbInfoLayer)(nil)
-)
-
-////////////////////////////////////////
-// dbInfoLayer util.Layer methods
-
-func (d *dbInfoLayer) Name() string {
-	return d.name
-}
-
-func (d *dbInfoLayer) StKey() string {
-	return util.JoinKeyParts(util.DbInfoPrefix, d.stKeyPart())
-}
-
-////////////////////////////////////////
-// Internal helpers
-
-func (d *dbInfoLayer) stKeyPart() string {
-	return util.JoinKeyParts(d.a.stKeyPart(), d.name)
+func dbInfoStKey(a *app, dbName string) string {
+	return util.JoinKeyParts(util.DbInfoPrefix, a.stKeyPart(), dbName)
 }
 
 // getDbInfo reads data from the storage engine.
-// Returns a VDL-compatible error.
 func (a *app) getDbInfo(ctx *context.T, st store.StoreReader, dbName string) (*dbInfo, error) {
 	info := &dbInfo{}
-	if err := util.GetWithoutAuth(ctx, st, &dbInfoLayer{dbName, a}, info); err != nil {
+	if err := util.Get(ctx, st, dbInfoStKey(a, dbName), info); err != nil {
 		return nil, err
 	}
 	return info, nil
 }
 
 // putDbInfo writes data to the storage engine.
-// Returns a VDL-compatible error.
 func (a *app) putDbInfo(ctx *context.T, st store.StoreWriter, dbName string, info *dbInfo) error {
-	return util.Put(ctx, st, &dbInfoLayer{dbName, a}, info)
+	return util.Put(ctx, st, dbInfoStKey(a, dbName), info)
 }
 
 // delDbInfo deletes data from the storage engine.
-// Returns a VDL-compatible error.
 func (a *app) delDbInfo(ctx *context.T, st store.StoreWriter, dbName string) error {
-	return util.Delete(ctx, st, &dbInfoLayer{dbName, a})
+	return util.Delete(ctx, st, dbInfoStKey(a, dbName))
 }
 
-// updateDbInfo performs a read-modify-write.
-// fn should "modify" v, and should return a VDL-compatible error.
-// Returns a VDL-compatible error.
+// updateDbInfo performs a read-modify-write. fn should "modify" v.
 func (a *app) updateDbInfo(ctx *context.T, st store.StoreReadWriter, dbName string, fn func(info *dbInfo) error) error {
 	_ = st.(store.Transaction) // panics on failure, as desired
 	info, err := a.getDbInfo(ctx, st, dbName)

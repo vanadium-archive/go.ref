@@ -5,7 +5,6 @@
 package interfaces
 
 import (
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -13,7 +12,6 @@ import (
 )
 
 // Database is an internal interface to the database layer.
-// All methods return VDL-compatible errors.
 type Database interface {
 	// St returns the storage engine instance for this database.
 	St() store.Store
@@ -30,5 +28,6 @@ type Database interface {
 	// Designed for use from within App.SetDatabasePerms.
 	SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error
 
-	util.Layer
+	// Name returns the name of this database.
+	Name() string
 }

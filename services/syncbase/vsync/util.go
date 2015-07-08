@@ -12,7 +12,6 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
 
@@ -73,14 +72,6 @@ func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, appName, d
 		return nil, err
 	}
 	return db.St(), nil
-}
-
-// translateError translates store errors.
-func translateError(ctx *context.T, err error, key string) error {
-	if verror.ErrorID(err) == store.ErrUnknownKey.ID {
-		return verror.New(verror.ErrNoExist, ctx, key)
-	}
-	return verror.New(verror.ErrInternal, ctx, key, err)
 }
 
 // unixNanoToTime converts a Unix timestamp in nanoseconds to a Time object.

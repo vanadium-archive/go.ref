@@ -302,7 +302,9 @@ func sgNameKey(name string) string {
 func hasSGDataEntry(st store.StoreReader, gid interfaces.GroupId) bool {
 	// TODO(rdaoud): optimize to avoid the unneeded fetch/decode of the data.
 	var sg interfaces.SyncGroup
-	if err := util.GetObject(st, sgDataKey(gid), &sg); err != nil {
+	// NOTE(sadovsky): This implementation doesn't explicitly handle
+	// non-ErrNoExist errors. Is that intentional?
+	if err := util.Get(nil, st, sgDataKey(gid), &sg); err != nil {
 		return false
 	}
 	return true
@@ -312,7 +314,9 @@ func hasSGDataEntry(st store.StoreReader, gid interfaces.GroupId) bool {
 func hasSGNameEntry(st store.StoreReader, name string) bool {
 	// TODO(rdaoud): optimize to avoid the unneeded fetch/decode of the data.
 	var gid interfaces.GroupId
-	if err := util.GetObject(st, sgNameKey(name), &gid); err != nil {
+	// NOTE(sadovsky): This implementation doesn't explicitly handle
+	// non-ErrNoExist errors. Is that intentional?
+	if err := util.Get(nil, st, sgNameKey(name), &gid); err != nil {
 		return false
 	}
 	return true
@@ -321,28 +325,20 @@ func hasSGNameEntry(st store.StoreReader, name string) bool {
 // setSGDataEntry stores the SyncGroup data entry.
 func setSGDataEntry(ctx *context.T, tx store.StoreReadWriter, gid interfaces.GroupId, sg *interfaces.SyncGroup) error {
 	_ = tx.(store.Transaction)
-
-	if err := util.PutObject(tx, sgDataKey(gid), sg); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Put(ctx, tx, sgDataKey(gid), sg)
 }
 
 // setSGNameEntry stores the SyncGroup name entry.
 func setSGNameEntry(ctx *context.T, tx store.StoreReadWriter, name string, gid interfaces.GroupId) error {
 	_ = tx.(store.Transaction)
-
-	if err := util.PutObject(tx, sgNameKey(name), gid); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Put(ctx, tx, sgNameKey(name), gid)
 }
 
 // getSGDataEntry retrieves the SyncGroup data for a given group ID.
 func getSGDataEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (*interfaces.SyncGroup, error) {
 	var sg interfaces.SyncGroup
-	if err := util.GetObject(st, sgDataKey(gid), &sg); err != nil {
-		return nil, verror.New(verror.ErrInternal, ctx, err)
+	if err := util.Get(ctx, st, sgDataKey(gid), &sg); err != nil {
+		return nil, err
 	}
 	return &sg, nil
 }
@@ -350,8 +346,8 @@ func getSGDataEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId
 // getSGNameEntry retrieves the SyncGroup name to ID mapping.
 func getSGNameEntry(ctx *context.T, st store.StoreReader, name string) (interfaces.GroupId, error) {
 	var gid interfaces.GroupId
-	if err := util.GetObject(st, sgNameKey(name), &gid); err != nil {
-		return gid, verror.New(verror.ErrNoExist, ctx, err)
+	if err := util.Get(ctx, st, sgNameKey(name), &gid); err != nil {
+		return gid, err
 	}
 	return gid, nil
 }
@@ -359,21 +355,13 @@ func getSGNameEntry(ctx *context.T, st store.StoreReader, name string) (interfac
 // delSGDataEntry deletes the SyncGroup data entry.
 func delSGDataEntry(ctx *context.T, tx store.StoreReadWriter, gid interfaces.GroupId) error {
 	_ = tx.(store.Transaction)
-
-	if err := tx.Delete([]byte(sgDataKey(gid))); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Delete(ctx, tx, sgDataKey(gid))
 }
 
 // delSGNameEntry deletes the SyncGroup name to ID mapping.
 func delSGNameEntry(ctx *context.T, tx store.StoreReadWriter, name string) error {
 	_ = tx.(store.Transaction)
-
-	if err := tx.Delete([]byte(sgNameKey(name))); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Delete(ctx, tx, sgNameKey(name))
 }
 
 ////////////////////////////////////////////////////////////
@@ -382,7 +370,6 @@ func delSGNameEntry(ctx *context.T, tx store.StoreReadWriter, name string) error
 // TODO(hpucha): Pass blessings along.
 func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, myInfo wire.SyncGroupMemberInfo) error {
 	err := store.RunInTransaction(sd.db.St(), func(tx store.StoreReadWriter) error {
-
 		// Check permissions on Database.
 		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
 			return err

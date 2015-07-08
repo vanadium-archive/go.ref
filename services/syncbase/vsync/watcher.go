@@ -437,19 +437,15 @@ func resMarkKey() string {
 // setResMark stores the watcher resume marker for a database.
 func setResMark(ctx *context.T, tx store.StoreReadWriter, resMark string) error {
 	_ = tx.(store.Transaction)
-
-	if err := util.PutObject(tx, resMarkKey(), resMark); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Put(ctx, tx, resMarkKey(), resMark)
 }
 
 // getResMark retrieves the watcher resume marker for a database.
 func getResMark(ctx *context.T, st store.StoreReader) (string, error) {
 	var resMark string
 	key := resMarkKey()
-	if err := util.GetObject(st, key, &resMark); err != nil {
-		return NoVersion, translateError(ctx, err, key)
+	if err := util.Get(ctx, st, key, &resMark); err != nil {
+		return NoVersion, err
 	}
 	return resMark, nil
 }

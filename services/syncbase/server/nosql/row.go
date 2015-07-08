@@ -21,7 +21,6 @@ type rowReq struct {
 
 var (
 	_ wire.RowServerMethods = (*rowReq)(nil)
-	_ util.Layer            = (*rowReq)(nil)
 )
 
 ////////////////////////////////////////
@@ -73,18 +72,11 @@ func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall) error {
 }
 
 ////////////////////////////////////////
-// util.Layer methods
+// Internal helpers
 
-func (r *rowReq) Name() string {
-	return r.key
-}
-
-func (r *rowReq) StKey() string {
+func (r *rowReq) stKey() string {
 	return util.JoinKeyParts(util.RowPrefix, r.stKeyPart())
 }
-
-////////////////////////////////////////
-// Internal helpers
 
 func (r *rowReq) stKeyPart() string {
 	return util.JoinKeyParts(r.t.stKeyPart(), r.key)
@@ -92,22 +84,20 @@ func (r *rowReq) stKeyPart() string {
 
 // checkAccess checks that this row's table exists in the database, and performs
 // an authorization check.
-// Returns a VDL-compatible error.
 func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
 	return r.t.checkAccess(ctx, call, st, r.key)
 }
 
 // get reads data from the storage engine.
 // Performs authorization check.
-// Returns a VDL-compatible error.
 func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) ([]byte, error) {
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return nil, err
 	}
-	value, err := st.Get([]byte(r.StKey()), nil)
+	value, err := st.Get([]byte(r.stKey()), nil)
 	if err != nil {
 		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
-			return nil, verror.New(verror.ErrNoExist, ctx, r.Name())
+			return nil, verror.New(verror.ErrNoExist, ctx, r.stKey())
 		}
 		return nil, verror.New(verror.ErrInternal, ctx, err)
 	}
@@ -116,12 +106,11 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) 
 
 // put writes data to the storage engine.
 // Performs authorization check.
-// Returns a VDL-compatible error.
 func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, value []byte) error {
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return err
 	}
-	if err := st.Put([]byte(r.StKey()), value); err != nil {
+	if err := st.Put([]byte(r.stKey()), value); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
@@ -129,12 +118,11 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWrit
 
 // delete deletes data from the storage engine.
 // Performs authorization check.
-// Returns a VDL-compatible error.
 func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
 	if err := r.checkAccess(ctx, call, st); err != nil {
 		return err
 	}
-	if err := st.Delete([]byte(r.StKey())); err != nil {
+	if err := st.Delete([]byte(r.stKey())); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil

@@ -11,7 +11,6 @@ import (
 )
 
 // Service is an internal interface to the service layer.
-// All methods return VDL-compatible errors.
 type Service interface {
 	// St returns the storage engine instance for this service.
 	St() store.Store

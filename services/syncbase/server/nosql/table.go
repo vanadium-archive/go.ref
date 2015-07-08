@@ -25,7 +25,6 @@ type tableReq struct {
 
 var (
 	_ wire.TableServerMethods = (*tableReq)(nil)
-	_ util.Layer              = (*tableReq)(nil)
 )
 
 ////////////////////////////////////////
@@ -38,11 +37,11 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Perm
 	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
 		// Check databaseData perms.
 		dData := &databaseData{}
-		if err := util.Get(ctx, call, st, t.d, dData); err != nil {
+		if err := util.GetWithAuth(ctx, call, st, t.d.stKey(), dData); err != nil {
 			return err
 		}
 		// Check for "table already exists".
-		if err := util.GetWithoutAuth(ctx, st, t, &tableData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err := util.Get(ctx, st, t.stKey(), &tableData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -57,7 +56,7 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Perm
 			Name:  t.name,
 			Perms: perms,
 		}
-		return util.Put(ctx, st, t, data)
+		return util.Put(ctx, st, t.stKey(), data)
 	})
 }
 
@@ -67,14 +66,14 @@ func (t *tableReq) Delete(ctx *context.T, call rpc.ServerCall) error {
 	}
 	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
 		// Read-check-delete tableData.
-		if err := util.Get(ctx, call, st, t, &tableData{}); err != nil {
+		if err := util.GetWithAuth(ctx, call, st, t.stKey(), &tableData{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
 				return nil // delete is idempotent
 			}
 			return err
 		}
 		// TODO(sadovsky): Delete all rows in this table.
-		return util.Delete(ctx, st, t)
+		return util.Delete(ctx, st, t.stKey())
 	})
 }
 
@@ -199,7 +198,7 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, prefix st
 		}
 		if prefix == "" {
 			data := &tableData{}
-			return util.Update(ctx, call, st, t, data, func() error {
+			return util.UpdateWithAuth(ctx, call, st, t.stKey(), data, func() error {
 				data.Perms = perms
 				return nil
 			})
@@ -224,10 +223,10 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, prefix st
 		stPrefixLimit := stPrefix + util.PrefixRangeLimitSuffix
 		prefixPerms = stPrefixPerms{Parent: parent, Perms: perms}
 		// Put the (prefix, perms) pair to the database.
-		if err := util.PutObject(st, stPrefix, prefixPerms); err != nil {
+		if err := util.Put(ctx, st, stPrefix, prefixPerms); err != nil {
 			return err
 		}
-		return util.PutObject(st, stPrefixLimit, prefixPerms)
+		return util.Put(ctx, st, stPrefixLimit, prefixPerms)
 	}
 	if t.d.batchId != nil {
 		if st, err := t.d.batchReadWriter(); err != nil {
@@ -315,18 +314,11 @@ func (t *tableReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan s
 }
 
 ////////////////////////////////////////
-// util.Layer methods
+// Internal helpers
 
-func (t *tableReq) Name() string {
-	return t.name
-}
-
-func (t *tableReq) StKey() string {
+func (t *tableReq) stKey() string {
 	return util.JoinKeyParts(util.TablePrefix, t.stKeyPart())
 }
-
-////////////////////////////////////////
-// Internal helpers
 
 func (t *tableReq) stKeyPart() string {
 	return t.name
@@ -348,7 +340,7 @@ func (t *tableReq) updateParentRefs(ctx *context.T, st store.StoreReadWriter, pr
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
 		prefixPerms.Parent = newParent
-		if err := util.PutObject(st, string(key), prefixPerms); err != nil {
+		if err := util.Put(ctx, st, string(key), prefixPerms); err != nil {
 			it.Cancel()
 			return err
 		}
@@ -359,31 +351,29 @@ func (t *tableReq) updateParentRefs(ctx *context.T, st store.StoreReadWriter, pr
 	return nil
 }
 
-// lock invalidates all concurrent transactions with ErrConcurrentTransaction
-// that have accessed this table.
-// Returns a VDL-compatible error.
+// lock invalidates all in-flight transactions that have touched this table,
+// such that any subsequent tx.Commit() will return ErrConcurrentTransaction.
 //
-// It is necessary to call lock() every time prefix permissions are updated,
-// so snapshots inside all transactions reflect up-to-date permissions. Since
+// It is necessary to call lock() every time prefix permissions are updated so
+// that snapshots inside all transactions reflect up-to-date permissions. Since
 // every public function that touches this table has to read the table-level
-// permissions object, it is enough to add the key of table-level permissions
-// to the write set of the current transaction.
+// permissions object, it suffices to add the key of this object to the write
+// set of the current transaction.
 //
 // TODO(rogulenko): Revisit this behavior to provide more granularity.
-// A possible option would be to add prefix and its parent to the write set
-// of the current transaction when permissions object for a prefix is updated.
+// One option is to add a prefix and its parent to the write set of the current
+// transaction when the permissions object for that prefix is updated.
 func (t *tableReq) lock(ctx *context.T, st store.StoreReadWriter) error {
 	var data tableData
-	if err := util.GetWithoutAuth(ctx, st, t, &data); err != nil {
+	if err := util.Get(ctx, st, t.stKey(), &data); err != nil {
 		return err
 	}
-	return util.Put(ctx, st, t, data)
+	return util.Put(ctx, st, t.stKey(), data)
 }
 
 // checkAccess checks that this table exists in the database, and performs
 // an authorization check. The access is checked at table level and at the
 // level of the most specific prefix for the given key.
-// Returns a VDL-compatible error.
 // TODO(rogulenko): Revisit this behavior. Eventually we'll want the table-level
 // access check to be a check for "Resolve", i.e. also check access to
 // service, app and database.
@@ -393,7 +383,7 @@ func (t *tableReq) checkAccess(ctx *context.T, call rpc.ServerCall, st store.Sto
 		return err
 	}
 	if prefix != "" {
-		if err := util.Get(ctx, call, st, t, &tableData{}); err != nil {
+		if err := util.GetWithAuth(ctx, call, st, t.stKey(), &tableData{}); err != nil {
 			return err
 		}
 	}
@@ -405,15 +395,14 @@ func (t *tableReq) checkAccess(ctx *context.T, call rpc.ServerCall, st store.Sto
 }
 
 // permsForKey returns the longest prefix of the given key that has
-// associated permissions with its permissions object.
+// associated permissions, along with its permissions object.
 // permsForKey doesn't perform an authorization check.
-// Returns a VDL-compatible error.
 //
-// Virtually we represent all prefixes as a forest T, where each vertex maps to
-// a prefix. A parent for a string is the maximum proper prefix of it that
+// Effectively, we represent all prefixes as a forest T, where each vertex maps
+// to a prefix. A parent for a string is the maximum proper prefix of it that
 // belongs to T. Each prefix P from T is represented as a pair of entries with
-// keys P and P~ with values of type stPrefixPerms (parent + perms).
-// High level of how this function works:
+// keys P and P~ with values of type stPrefixPerms (parent + perms). High level
+// explanation of how this function works:
 // 1	iter = db.Scan(K, "")
 // 		Here last character of iter.Key() is removed automatically if it is '~'
 // 2	if hasPrefix(K, iter.Key()) return iter.Value()
@@ -452,17 +441,16 @@ func (t *tableReq) permsForKey(ctx *context.T, st store.StoreReader, key string)
 
 // permsForPrefix returns the permissions object associated with the
 // provided prefix.
-// Returns a VDL-compatible error.
 func (t *tableReq) permsForPrefix(ctx *context.T, st store.StoreReader, prefix string) (stPrefixPerms, error) {
 	if prefix == "" {
 		var data tableData
-		if err := util.GetWithoutAuth(ctx, st, t, &data); err != nil {
+		if err := util.Get(ctx, st, t.stKey(), &data); err != nil {
 			return stPrefixPerms{}, err
 		}
 		return stPrefixPerms{Perms: data.Perms}, nil
 	}
 	var prefixPerms stPrefixPerms
-	if err := util.GetObject(st, t.prefixPermsKey(prefix), &prefixPerms); err != nil {
+	if err := util.Get(ctx, st, t.prefixPermsKey(prefix), &prefixPerms); err != nil {
 		return stPrefixPerms{}, verror.New(verror.ErrInternal, ctx, err)
 	}
 	return prefixPerms, nil

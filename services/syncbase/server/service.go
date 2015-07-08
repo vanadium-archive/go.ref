@@ -39,7 +39,6 @@ type service struct {
 var (
 	_ wire.ServiceServerMethods = (*service)(nil)
 	_ interfaces.Service        = (*service)(nil)
-	_ util.Layer                = (*service)(nil)
 )
 
 // ServiceOptions configures a service.
@@ -56,7 +55,6 @@ type ServiceOptions struct {
 }
 
 // NewService creates a new service instance and returns it.
-// Returns a VDL-compatible error.
 // TODO(sadovsky): If possible, close all stores when the server is stopped.
 func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*service, error) {
 	if opts.Perms == nil {
@@ -74,7 +72,7 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 	data := &serviceData{
 		Perms: opts.Perms,
 	}
-	if err := util.GetWithoutAuth(ctx, st, s, &serviceData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+	if err := util.Get(ctx, st, s.stKey(), &serviceData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 		if err != nil {
 			return nil, err
 		}
@@ -125,7 +123,7 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 		}
 	} else {
 		// Service does not exist.
-		if err := util.Put(ctx, st, s, data); err != nil {
+		if err := util.Put(ctx, st, s.stKey(), data); err != nil {
 			return nil, err
 		}
 	}
@@ -143,7 +141,7 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	return store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
 		data := &serviceData{}
-		return util.Update(ctx, call, st, s, data, func() error {
+		return util.UpdateWithAuth(ctx, call, st, s.stKey(), data, func() error {
 			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
 				return err
 			}
@@ -156,7 +154,7 @@ func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms acce
 
 func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	data := &serviceData{}
-	if err := util.Get(ctx, call, s.st, s, data); err != nil {
+	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), data); err != nil {
 		return nil, "", err
 	}
 	return data.Perms, util.FormatVersion(data.Version), nil
@@ -168,7 +166,7 @@ func (s *service) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan st
 	closeSnapshot := func() error {
 		return sn.Close()
 	}
-	if err := util.Get(ctx, call, sn, s, &serviceData{}); err != nil {
+	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &serviceData{}); err != nil {
 		closeSnapshot()
 		return nil, err
 	}
@@ -230,11 +228,11 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 	if err := store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
 		// Check serviceData perms.
 		sData := &serviceData{}
-		if err := util.Get(ctx, call, st, s, sData); err != nil {
+		if err := util.GetWithAuth(ctx, call, st, s.stKey(), sData); err != nil {
 			return err
 		}
 		// Check for "app already exists".
-		if err := util.GetWithoutAuth(ctx, st, a, &appData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err := util.Get(ctx, st, a.stKey(), &appData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -248,7 +246,7 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 			Name:  appName,
 			Perms: perms,
 		}
-		return util.Put(ctx, st, a, data)
+		return util.Put(ctx, st, a.stKey(), data)
 	}); err != nil {
 		return err
 	}
@@ -267,14 +265,14 @@ func (s *service) deleteApp(ctx *context.T, call rpc.ServerCall, appName string)
 
 	if err := store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
 		// Read-check-delete appData.
-		if err := util.Get(ctx, call, st, a, &appData{}); err != nil {
+		if err := util.GetWithAuth(ctx, call, st, a.stKey(), &appData{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
 				return nil // delete is idempotent
 			}
 			return err
 		}
 		// TODO(sadovsky): Delete all databases in this app.
-		return util.Delete(ctx, st, a)
+		return util.Delete(ctx, st, a.stKey())
 	}); err != nil {
 		return err
 	}
@@ -292,7 +290,7 @@ func (s *service) setAppPerms(ctx *context.T, call rpc.ServerCall, appName strin
 	}
 	return store.RunInTransaction(s.st, func(st store.StoreReadWriter) error {
 		data := &appData{}
-		return util.Update(ctx, call, st, a, data, func() error {
+		return util.UpdateWithAuth(ctx, call, st, a.stKey(), data, func() error {
 			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
 				return err
 			}
@@ -304,12 +302,8 @@ func (s *service) setAppPerms(ctx *context.T, call rpc.ServerCall, appName strin
 }
 
 ////////////////////////////////////////
-// util.Layer methods
+// Other internal helpers
 
-func (s *service) Name() string {
-	return "service"
-}
-
-func (s *service) StKey() string {
+func (s *service) stKey() string {
 	return util.ServicePrefix
 }

@@ -274,17 +274,14 @@ func dbSyncStateKey() string {
 // putDbSyncState persists the sync state object for a given Database.
 func putDbSyncState(ctx *context.T, tx store.StoreReadWriter, ds *dbSyncState) error {
 	_ = tx.(store.Transaction)
-	if err := util.PutObject(tx, dbSyncStateKey(), ds); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Put(ctx, tx, dbSyncStateKey(), ds)
 }
 
 // getDbSyncState retrieves the sync state object for a given Database.
 func getDbSyncState(ctx *context.T, st store.StoreReader) (*dbSyncState, error) {
 	var ds dbSyncState
-	if err := util.GetObject(st, dbSyncStateKey(), &ds); err != nil {
-		return nil, translateError(ctx, err, dbSyncStateKey())
+	if err := util.Get(ctx, st, dbSyncStateKey(), &ds); err != nil {
+		return nil, err
 	}
 	return &ds, nil
 }
@@ -324,7 +321,9 @@ func splitLogRecKey(ctx *context.T, key string) (uint64, uint64, error) {
 func hasLogRec(st store.StoreReader, id, gen uint64) bool {
 	// TODO(hpucha): optimize to avoid the unneeded fetch/decode of the data.
 	var rec localLogRec
-	if err := util.GetObject(st, logRecKey(id, gen), &rec); err != nil {
+	// NOTE(sadovsky): This implementation doesn't explicitly handle
+	// non-ErrNoExist errors. Is that intentional?
+	if err := util.Get(nil, st, logRecKey(id, gen), &rec); err != nil {
 		return false
 	}
 	return true
@@ -333,17 +332,14 @@ func hasLogRec(st store.StoreReader, id, gen uint64) bool {
 // putLogRec stores the log record.
 func putLogRec(ctx *context.T, tx store.StoreReadWriter, rec *localLogRec) error {
 	_ = tx.(store.Transaction)
-	if err := util.PutObject(tx, logRecKey(rec.Metadata.Id, rec.Metadata.Gen), rec); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Put(ctx, tx, logRecKey(rec.Metadata.Id, rec.Metadata.Gen), rec)
 }
 
 // getLogRec retrieves the log record for a given (devid, gen).
 func getLogRec(ctx *context.T, st store.StoreReader, id, gen uint64) (*localLogRec, error) {
 	var rec localLogRec
-	if err := util.GetObject(st, logRecKey(id, gen), &rec); err != nil {
-		return nil, translateError(ctx, err, logRecKey(id, gen))
+	if err := util.Get(ctx, st, logRecKey(id, gen), &rec); err != nil {
+		return nil, err
 	}
 	return &rec, nil
 }
@@ -351,9 +347,5 @@ func getLogRec(ctx *context.T, st store.StoreReader, id, gen uint64) (*localLogR
 // delLogRec deletes the log record for a given (devid, gen).
 func delLogRec(ctx *context.T, tx store.StoreReadWriter, id, gen uint64) error {
 	_ = tx.(store.Transaction)
-
-	if err := tx.Delete([]byte(logRecKey(id, gen))); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return util.Delete(ctx, tx, logRecKey(id, gen))
 }
