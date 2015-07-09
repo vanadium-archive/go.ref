@@ -196,7 +196,7 @@ install() {
     echo "${V23_DEVICE_DIR} already exists!"
     exit 1
   fi
-  mkdir -m 711 "${V23_DEVICE_DIR}"
+  mkdir -p -m 711 "${V23_DEVICE_DIR}"
   local -r BIN_INSTALL="${V23_DEVICE_DIR}/bin"
   mkdir -m 700 "${BIN_INSTALL}"
 
