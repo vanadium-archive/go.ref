@@ -80,7 +80,8 @@ type client struct {
 
 	// We cache the IP networks on the device since it is not that cheap to read
 	// network interfaces through os syscall.
-	// TODO(jhahn): Add monitoring the network interface changes.
+	// TODO(toddw): this can be removed since netstate now implements caching
+	// directly.
 	ipNets []*net.IPNet
 
 	vcCache *vc.VCCache
