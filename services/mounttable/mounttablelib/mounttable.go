@@ -649,6 +649,11 @@ type globEntry struct {
 
 // globStep is called with n and n.parent locked.  Returns with both unlocked.
 func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name string, pattern *glob.Glob, ch chan<- naming.GlobReply) {
+	if shouldAbort(ctx) {
+		n.parent.Unlock()
+		n.Unlock()
+		return
+	}
 	ctx.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	// Globing is the lowest priority so we give up the cpu often.
@@ -706,6 +711,10 @@ func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name
 
 		// Recurse through the children.
 		for k, c := range children {
+			if shouldAbort(ctx) {
+				n.Unlock()
+				return
+			}
 			// At this point, n lock is held.
 			if ok, _, suffix := pattern.MatchInitialSegment(k); ok {
 				c.Lock()
@@ -881,4 +890,13 @@ func (mt *mountTable) debit(ctx *context.T, call security.Call) (string, error) 
 		return "", verror.New(errTooManyNodes, ctx)
 	}
 	return creator, nil
+}
+
+func shouldAbort(ctx *context.T) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	default:
+		return false
+	}
 }
