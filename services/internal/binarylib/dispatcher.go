@@ -54,7 +54,7 @@ func newAuthorizer(rootDir, suffix string, permsStore *pathperms.PathStore) (sec
 		permsStore)
 }
 
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	auth, err := newAuthorizer(d.state.rootDir, suffix, d.permsStore)
 	if err != nil {
 		return nil, nil, err

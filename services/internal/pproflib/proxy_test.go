@@ -10,12 +10,12 @@ import (
 	"net/http"
 	"testing"
 
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/ref/lib/xrpc"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/internal/pproflib"
 	"v.io/x/ref/test"
-
-	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 //go:generate v23 test generate
@@ -24,7 +24,7 @@ type dispatcher struct {
 	server interface{}
 }
 
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return d.server, nil, nil
 }
 

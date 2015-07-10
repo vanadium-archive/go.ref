@@ -34,7 +34,7 @@ func NewDispatcher(storeDir string) (rpc.Dispatcher, error) {
 	return &dispatcher{store: store, storeRoot: storeDir}, nil
 }
 
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	name, _, err := parse(nil, suffix)
 	if err != nil {
 		return nil, nil, err

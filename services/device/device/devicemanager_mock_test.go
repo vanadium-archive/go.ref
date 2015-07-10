@@ -310,6 +310,6 @@ func newDispatcher(t *testing.T, tapes *tapeMap) rpc.Dispatcher {
 	return &dispatcher{tapes: tapes, t: t}
 }
 
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return &mockDeviceInvoker{tape: d.tapes.forSuffix(suffix), t: d.t}, nil, nil
 }

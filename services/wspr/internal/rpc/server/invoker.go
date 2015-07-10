@@ -44,7 +44,7 @@ func newInvoker(signature []signature.Interface, invokeFunc remoteInvokeFunc, gl
 }
 
 // Prepare implements the Invoker interface.
-func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []*vdl.Value, error) {
+func (i *invoker) Prepare(_ *context.T, methodName string, numArgs int) ([]interface{}, []*vdl.Value, error) {
 	method, err := i.MethodSignature(nil, nil, methodName)
 	if err != nil {
 		return nil, nil, err

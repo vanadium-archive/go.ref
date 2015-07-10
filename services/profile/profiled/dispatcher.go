@@ -7,9 +7,9 @@ package main
 import (
 	"path/filepath"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
 	"v.io/x/ref/services/internal/fs"
 	"v.io/x/ref/services/repository"
 )
@@ -35,6 +35,6 @@ func NewDispatcher(storeDir string, authorizer security.Authorizer) (rpc.Dispatc
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return repository.ProfileServer(NewProfileService(d.store, d.storeRoot, suffix)), d.auth, nil
 }

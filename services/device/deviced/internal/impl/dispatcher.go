@@ -181,8 +181,8 @@ type loggingInvoker struct {
 	ctx     *context.T
 }
 
-func (l *loggingInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, err error) {
-	argptrs, tags, err = l.invoker.Prepare(method, numArgs)
+func (l *loggingInvoker) Prepare(ctx *context.T, method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, err error) {
+	argptrs, tags, err = l.invoker.Prepare(ctx, method, numArgs)
 	if err != nil {
 		l.ctx.Errorf("Prepare(%s %d) returned error: %v", method, numArgs, err)
 	}
@@ -218,7 +218,7 @@ func (l *loggingInvoker) Globber() *rpc.GlobState {
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	invoker, auth, err := d.internalLookup(suffix)
 	if err != nil {
 		return nil, nil, err
@@ -361,8 +361,8 @@ type testModeDispatcher struct {
 	realDispatcher rpc.Dispatcher
 }
 
-func (d *testModeDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	obj, _, err := d.realDispatcher.Lookup(suffix)
+func (d *testModeDispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
+	obj, _, err := d.realDispatcher.Lookup(ctx, suffix)
 	return obj, d, err
 }
 

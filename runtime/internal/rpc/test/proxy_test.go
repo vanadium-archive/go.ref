@@ -103,7 +103,7 @@ func (testServerAuthorizer) Authorize(*context.T, security.Call) error {
 
 type testServerDisp struct{ server interface{} }
 
-func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (t testServerDisp) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return t.server, testServerAuthorizer{}, nil
 }
 

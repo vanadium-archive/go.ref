@@ -47,7 +47,7 @@ type mockInvoker struct {
 	hasGlobber bool
 }
 
-func (m mockInvoker) Prepare(string, int) ([]interface{}, []*vdl.Value, error) {
+func (m mockInvoker) Prepare(*context.T, string, int) ([]interface{}, []*vdl.Value, error) {
 	return nil, nil, nil
 }
 
@@ -112,7 +112,7 @@ func TestSuccessfulLookup(t *testing.T) {
 		d.handleLookupResponse(ctx, 0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
-	invoker, auth, err := d.Lookup("a/b")
+	invoker, auth, err := d.Lookup(ctx, "a/b")
 
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -164,7 +164,7 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 		d.handleLookupResponse(ctx, 0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
-	invoker, auth, err := d.Lookup("a/b")
+	invoker, auth, err := d.Lookup(ctx, "a/b")
 
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -211,7 +211,7 @@ func TestFailedLookup(t *testing.T) {
 		d.handleLookupResponse(ctx, 0, lib.HexVomEncodeOrDie(reply, nil))
 	}()
 
-	_, _, err := d.Lookup("a/b")
+	_, _, err := d.Lookup(ctx, "a/b")
 
 	if err == nil {
 		t.Error("expected error, but got none")

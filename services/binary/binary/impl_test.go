@@ -96,7 +96,7 @@ func NewDispatcher() rpc.Dispatcher {
 	return &dispatcher{}
 }
 
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return repository.BinaryServer(&server{suffix: suffix}), nil, nil
 }
 

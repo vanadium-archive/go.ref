@@ -333,7 +333,7 @@ func traceWithAuth(t *testing.T, ctx *context.T, principal security.Principal) b
 
 type debugDispatcher string
 
-func (permsDisp debugDispatcher) Lookup(string) (interface{}, security.Authorizer, error) {
+func (permsDisp debugDispatcher) Lookup(*context.T, string) (interface{}, security.Authorizer, error) {
 	perms, err := access.ReadPermissions(strings.NewReader(string(permsDisp)))
 	if err != nil {
 		return nil, nil, err

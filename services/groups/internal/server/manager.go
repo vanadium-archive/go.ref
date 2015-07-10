@@ -7,6 +7,7 @@ package server
 import (
 	"strings"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
@@ -25,7 +26,7 @@ func NewManager(st store.Store, perms access.Permissions) *manager {
 	return &manager{st: st, perms: perms}
 }
 
-func (m *manager) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (m *manager) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, "/")
 	// TODO(sadovsky): Check that suffix is a valid group name.
 	// TODO(sadovsky): Use a real authorizer. Note, this authorizer will be

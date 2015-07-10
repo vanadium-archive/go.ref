@@ -55,7 +55,7 @@ func init() {
 
 type mapDispatcher map[string]interface{}
 
-func (d mapDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d mapDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	o, ok := d[suffix]
 	if !ok {
 		return nil, nil, fmt.Errorf("suffix %s not found", suffix)

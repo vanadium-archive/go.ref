@@ -10,6 +10,7 @@ import (
 	"path"
 	"testing"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
@@ -27,7 +28,7 @@ type logFileDispatcher struct {
 	root string
 }
 
-func (d *logFileDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *logFileDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return logreaderlib.NewLogFileService(d.root, suffix), nil, nil
 }
 

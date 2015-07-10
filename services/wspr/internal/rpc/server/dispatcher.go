@@ -71,7 +71,7 @@ func (d *dispatcher) Cleanup() {
 }
 
 // Lookup implements dispatcher interface Lookup.
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	// If the server has been closed, we immediately return a retryable error.
 	d.mu.Lock()
 	if d.closed {

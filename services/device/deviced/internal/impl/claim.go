@@ -97,7 +97,7 @@ func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken stri
 
 // TODO(ashankar): Remove this and use Serve instead of ServeDispatcher to setup
 // the Claiming service. Shouldn't need the "device" suffix.
-func (c *claimable) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (c *claimable) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	if suffix != "" && suffix != "device" {
 		return nil, nil, verror.New(errors.ErrUnclaimedDevice, nil)
 	}

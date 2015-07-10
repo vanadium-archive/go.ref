@@ -460,7 +460,7 @@ func (l *localCall) RemoteEndpoint() naming.Endpoint                 { return ni
 func (l *localCall) Security() security.Call                         { return l }
 
 func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg *RpcRequest, w lib.ClientWriter, span vtrace.Span, decoder *vom.Decoder) {
-	argptrs, tags, err := invoker.Prepare(msg.Method, int(msg.NumInArgs))
+	argptrs, tags, err := invoker.Prepare(ctx, msg.Method, int(msg.NumInArgs))
 	if err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return

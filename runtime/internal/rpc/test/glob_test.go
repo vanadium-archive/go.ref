@@ -250,7 +250,7 @@ type disp struct {
 	tree *node
 }
 
-func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *disp) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	elems := strings.Split(suffix, "/")
 	var auth security.Authorizer
 	for _, e := range elems {
