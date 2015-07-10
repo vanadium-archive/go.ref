@@ -21,8 +21,8 @@ const (
 	name = "/vanadium/name"
 )
 
-func initContext(t *testing.T) (*context.T, clientWithTimesCalled, v23.Shutdown) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+func initRuntime(t *testing.T) (*context.T, clientWithTimesCalled, v23.Shutdown) {
+	ctx, shutdown := test.V23InitAnon()
 	initialSig := []signature.Interface{
 		{
 			Methods: []signature.Method{
@@ -43,7 +43,7 @@ func initContext(t *testing.T) (*context.T, clientWithTimesCalled, v23.Shutdown)
 }
 
 func TestFetching(t *testing.T) {
-	ctx, _, shutdown := initContext(t)
+	ctx, _, shutdown := initRuntime(t)
 	defer shutdown()
 
 	sm := NewSignatureManager()
@@ -69,7 +69,7 @@ func TestFetching(t *testing.T) {
 }
 
 func TestThatCachedAfterFetching(t *testing.T) {
-	ctx, _, shutdown := initContext(t)
+	ctx, _, shutdown := initRuntime(t)
 	defer shutdown()
 
 	sm := NewSignatureManager().(*signatureManager)
@@ -85,7 +85,7 @@ func TestThatCachedAfterFetching(t *testing.T) {
 }
 
 func TestThatCacheIsUsed(t *testing.T) {
-	ctx, client, shutdown := initContext(t)
+	ctx, client, shutdown := initRuntime(t)
 	defer shutdown()
 
 	// call twice
@@ -101,7 +101,7 @@ func TestThatCacheIsUsed(t *testing.T) {
 }
 
 func TestThatLastAccessedGetUpdated(t *testing.T) {
-	ctx, _, shutdown := initContext(t)
+	ctx, _, shutdown := initRuntime(t)
 	defer shutdown()
 
 	sm := NewSignatureManager().(*signatureManager)
@@ -121,7 +121,7 @@ func TestThatLastAccessedGetUpdated(t *testing.T) {
 }
 
 func TestThatTTLExpires(t *testing.T) {
-	ctx, client, shutdown := initContext(t)
+	ctx, client, shutdown := initRuntime(t)
 	defer shutdown()
 
 	sm := NewSignatureManager().(*signatureManager)
@@ -140,7 +140,7 @@ func TestThatTTLExpires(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
-	ctx, client, shutdown := initContext(t)
+	ctx, client, shutdown := initRuntime(t)
 	defer shutdown()
 
 	sm := NewSignatureManager().(*signatureManager)

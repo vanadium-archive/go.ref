@@ -37,7 +37,7 @@ import (
 //go:generate v23 test generate
 
 func TestSingleFlowCreatedAtClient(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -65,7 +65,7 @@ func TestSingleFlowCreatedAtClient(t *testing.T) {
 }
 
 func TestSingleFlowCreatedAtServer(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -96,7 +96,7 @@ func TestSingleFlowCreatedAtServer(t *testing.T) {
 
 func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 	testutil.InitRandGenerator(t.Logf)
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	// This test dials multiple VCs from the client to the server.
 	// On each VC, it creates multiple flows, writes to them and verifies
@@ -255,7 +255,7 @@ func TestMultipleVCsAndMultipleFlows_5(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -294,7 +294,7 @@ func TestClose(t *testing.T) {
 }
 
 func TestOnClose(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -335,7 +335,7 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 	const (
 		waitTime = 5 * time.Millisecond
 	)
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -424,7 +424,7 @@ func testStartTimeout(t *testing.T, testServer bool) {
 		// connection of the other side to be closed especially in race testing.
 		waitTime = 150 * time.Millisecond
 	)
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -485,7 +485,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 		idleTime = 10 * time.Millisecond
 		waitTime = idleTime * 2
 	)
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -603,7 +603,7 @@ func TestIdleTimeout(t *testing.T)       { testIdleTimeout(t, false) }
 func TestIdleTimeoutServer(t *testing.T) { testIdleTimeout(t, true) }
 
 func TestShutdownVCs(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -670,7 +670,7 @@ type versionTestCase struct {
 }
 
 func (tc *versionTestCase) Run(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -730,7 +730,7 @@ func TestIncompatibleVersions(t *testing.T) {
 }
 
 func TestNetworkFailure(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
@@ -764,7 +764,7 @@ func TestNetworkFailure(t *testing.T) {
 }
 
 func TestPreAuthentication(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.V23InitAnon()
 	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")

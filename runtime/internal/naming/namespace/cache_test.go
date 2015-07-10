@@ -27,8 +27,8 @@ func future(secs uint32) vdltime.Deadline {
 
 // TestCache tests the cache directly rather than via the namespace methods.
 func TestCache(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	preload := []struct {
 		name   string
 		suffix string
@@ -69,8 +69,8 @@ func TestCache(t *testing.T) {
 }
 
 func TestCacheLimit(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	c := newTTLCache().(*ttlCache)
 	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "the rain in spain", Deadline: future(3000)}}}
 	for i := 0; i < maxCacheEntries; i++ {
@@ -87,8 +87,8 @@ func TestCacheLimit(t *testing.T) {
 }
 
 func TestCacheTTL(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	before := vdltime.Deadline{time.Now()}
 	c := newTTLCache().(*ttlCache)
 	// Fill cache.
@@ -113,8 +113,8 @@ func TestCacheTTL(t *testing.T) {
 }
 
 func TestFlushCacheEntry(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	preload := []struct {
 		name   string
 		server string
@@ -166,8 +166,8 @@ func disabled(ctls []naming.CacheCtl) bool {
 }
 
 func TestCacheDisableEnable(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	ns, _ := New()
 
 	// Default should be working resolution cache.

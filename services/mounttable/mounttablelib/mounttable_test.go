@@ -648,7 +648,7 @@ func TestExpiry(t *testing.T) {
 }
 
 func TestBadAccessLists(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	ctx, shutdown := test.TestContext()
 	defer shutdown()
 	_, err := mounttablelib.NewMountTableDispatcher(ctx, "testdata/invalid.perms", "", "mounttable")
 	if err == nil {
