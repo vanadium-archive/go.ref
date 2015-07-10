@@ -12,6 +12,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -31,7 +32,7 @@ func NewDispatcher(s *service) *dispatcher {
 // RPC method implementations to perform proper authorization.
 var auth security.Authorizer = security.AllowEveryone()
 
-func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, "/")
 	parts := strings.SplitN(suffix, "/", 2)
 
@@ -80,5 +81,5 @@ func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 	// handling of this request. Depending on the order in which things execute,
 	// the client may not get an error, but in any case ultimately the store will
 	// end up in a consistent state.
-	return nosql.NewDispatcher(a).Lookup(parts[1])
+	return nosql.NewDispatcher(a).Lookup(ctx, parts[1])
 }

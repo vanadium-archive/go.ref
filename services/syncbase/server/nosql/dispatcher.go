@@ -13,6 +13,7 @@ import (
 	pubutil "v.io/syncbase/v23/syncbase/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -33,7 +34,7 @@ func NewDispatcher(a interfaces.App) *dispatcher {
 // RPC method implementations to perform proper authorization.
 var auth security.Authorizer = security.AllowEveryone()
 
-func (disp *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (disp *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, "/")
 	parts := strings.Split(suffix, "/")
 
