@@ -9,14 +9,17 @@ import (
 	"testing"
 
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
+	"v.io/x/ref/test"
 )
 
 func TestVCMap(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	m := newVCMap()
 
-	vc12 := vc.InternalNew(vc.Params{VCI: 12})
-	vc34 := vc.InternalNew(vc.Params{VCI: 34})
-	vc45 := vc.InternalNew(vc.Params{VCI: 45})
+	vc12 := vc.InternalNew(ctx, vc.Params{VCI: 12})
+	vc34 := vc.InternalNew(ctx, vc.Params{VCI: 34})
+	vc45 := vc.InternalNew(ctx, vc.Params{VCI: 45})
 
 	if vc, _, _ := m.Find(12); vc != nil {
 		t.Errorf("Unexpected VC found: %+v", vc)
@@ -43,9 +46,11 @@ func TestVCMap(t *testing.T) {
 }
 
 func TestVCMapFreeze(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	m := newVCMap()
-	vc1 := vc.InternalNew(vc.Params{VCI: 1})
-	vc2 := vc.InternalNew(vc.Params{VCI: 2})
+	vc1 := vc.InternalNew(ctx, vc.Params{VCI: 1})
+	vc2 := vc.InternalNew(ctx, vc.Params{VCI: 2})
 	if ok, _, _ := m.Insert(vc1); !ok {
 		t.Fatal("Should be able to insert the VC")
 	}
@@ -63,10 +68,12 @@ func TestVCMapFreeze(t *testing.T) {
 }
 
 func TestVCMapDelete(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	m := newVCMap()
 
-	vc1 := vc.InternalNew(vc.Params{VCI: 1})
-	vc2 := vc.InternalNew(vc.Params{VCI: 2})
+	vc1 := vc.InternalNew(ctx, vc.Params{VCI: 1})
+	vc2 := vc.InternalNew(ctx, vc.Params{VCI: 2})
 
 	m.Insert(vc1)
 	if empty := m.Delete(vc1.VCI()); !empty {

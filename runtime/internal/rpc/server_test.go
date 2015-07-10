@@ -11,6 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/netstate"
+	"v.io/x/lib/pubsub"
+	"v.io/x/lib/set"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -18,10 +22,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/netstate"
-	"v.io/x/lib/pubsub"
-	"v.io/x/lib/set"
-	"v.io/x/lib/vlog"
+
 	inaming "v.io/x/ref/runtime/internal/naming"
 	imanager "v.io/x/ref/runtime/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
@@ -48,11 +49,13 @@ func (badObjectDispatcher) Lookup(suffix string) (interface{}, security.Authoriz
 func TestBadObject(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	pclient, pserver := newClientServerPrincipals()
-	server, err := testInternalNewServer(ctx, sm, ns, pserver)
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	server, err := testInternalNewServer(sctx, sm, ns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,10 +80,9 @@ func TestBadObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	ctx, _ = v23.WithPrincipal(ctx, pclient)
-	ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
+	ctx, _ = context.WithDeadline(cctx, time.Now().Add(10*time.Second))
 	var result string
-	if err := client.Call(ctx, "servername", "SomeMethod", nil, []interface{}{&result}); err == nil {
+	if err := client.Call(cctx, "servername", "SomeMethod", nil, []interface{}{&result}); err == nil {
 		// TODO(caprita): Check the error type rather than
 		// merely ensuring the test doesn't panic.
 		t.Fatalf("Call should have failed")
@@ -88,12 +90,13 @@ func TestBadObject(t *testing.T) {
 }
 
 func TestServerArgs(t *testing.T) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
+	sctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("test"))
+	server, err := testInternalNewServer(sctx, sm, ns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,11 +142,12 @@ func (s *statusServer) Hang(*context.T, rpc.ServerCall) error {
 func TestServerStatus(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	principal := testutil.NewPrincipal("testServerStatus")
-	server, err := testInternalNewServer(ctx, sm, ns, principal)
+	ctx, _ = v23.WithPrincipal(ctx, principal)
+	server, err := testInternalNewServer(ctx, sm, ns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +175,6 @@ func TestServerStatus(t *testing.T) {
 	progress := make(chan error)
 
 	client, err := InternalNewClient(sm, ns)
-	ctx, _ = v23.WithPrincipal(ctx, principal)
 	makeCall := func(ctx *context.T) {
 		call, err := client.StartCall(ctx, "test", "Hang", nil)
 		progress <- err
@@ -229,12 +232,12 @@ func TestServerStatus(t *testing.T) {
 }
 
 func TestServerStates(t *testing.T) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
+	sctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("test"))
 	expectBadState := func(err error) {
 		if verror.ErrorID(err) != verror.ErrBadState.ID {
 			t.Fatalf("%s: unexpected error: %v", loc(1), err)
@@ -247,7 +250,7 @@ func TestServerStates(t *testing.T) {
 		}
 	}
 
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
+	server, err := testInternalNewServer(sctx, sm, ns)
 	expectNoError(err)
 	defer server.Stop()
 
@@ -297,12 +300,14 @@ func TestServerStates(t *testing.T) {
 }
 
 func TestMountStatus(t *testing.T) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
+	sctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("test"))
+
+	server, err := testInternalNewServer(sctx, sm, ns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -417,11 +422,11 @@ func getUniqPorts(eps []naming.Endpoint) []string {
 }
 
 func TestRoaming(t *testing.T) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
 
 	publisher := pubsub.NewPublisher()
 	roaming := make(chan pubsub.Setting)
@@ -431,7 +436,8 @@ func TestRoaming(t *testing.T) {
 	}
 	defer func() { publisher.Shutdown(); <-stop }()
 
-	server, err := testInternalNewServerWithPubsub(ctx, sm, ns, publisher, "TestRoaming", testutil.NewPrincipal("test"))
+	nctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("test"))
+	server, err := testInternalNewServerWithPubsub(nctx, sm, ns, publisher, "TestRoaming")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -487,7 +493,7 @@ func TestRoaming(t *testing.T) {
 	roaming <- NewAddAddrsSetting([]net.Addr{n1, n2})
 
 	waitForChange := func() *rpc.NetworkChange {
-		vlog.Infof("Waiting on %p", watcher)
+		ctx.Infof("Waiting on %p", watcher)
 		select {
 		case c := <-watcher:
 			return &c
@@ -567,11 +573,11 @@ func TestRoaming(t *testing.T) {
 }
 
 func TestWatcherDeadlock(t *testing.T) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
 
 	publisher := pubsub.NewPublisher()
 	roaming := make(chan pubsub.Setting)
@@ -581,7 +587,8 @@ func TestWatcherDeadlock(t *testing.T) {
 	}
 	defer func() { publisher.Shutdown(); <-stop }()
 
-	server, err := testInternalNewServerWithPubsub(ctx, sm, ns, publisher, "TestWatcherDeadlock", testutil.NewPrincipal("test"))
+	nctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("test"))
+	server, err := testInternalNewServerWithPubsub(nctx, sm, ns, publisher, "TestWatcherDeadlock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -638,11 +645,13 @@ func TestWatcherDeadlock(t *testing.T) {
 func TestIsLeafServerOption(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	pclient, pserver := newClientServerPrincipals()
-	server, err := testInternalNewServer(ctx, sm, ns, pserver, options.IsLeaf(true))
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	server, err := testInternalNewServer(sctx, sm, ns, options.IsLeaf(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -661,12 +670,11 @@ func TestIsLeafServerOption(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	ctx, _ = v23.WithPrincipal(ctx, pclient)
-	ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
+	cctx, _ = context.WithDeadline(cctx, time.Now().Add(10*time.Second))
 	var result string
 	// we have set IsLeaf to true, sending any suffix to leafserver should result
 	// in an suffix was not expected error.
-	callErr := client.Call(ctx, "leafserver/unwantedSuffix", "Echo", []interface{}{"Mirror on the wall"}, []interface{}{&result})
+	callErr := client.Call(cctx, "leafserver/unwantedSuffix", "Echo", []interface{}{"Mirror on the wall"}, []interface{}{&result})
 	if callErr == nil {
 		t.Fatalf("Call should have failed with suffix was not expected error")
 	}

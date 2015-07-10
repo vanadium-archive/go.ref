@@ -15,7 +15,6 @@ import (
 
 	"v.io/x/lib/metadata"
 	"v.io/x/lib/pubsub"
-	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -70,6 +69,7 @@ type vtraceDependency struct{}
 // Please see the interface definition for documentation of the
 // individiual methods.
 type Runtime struct {
+	ctx  *context.T
 	deps *dependency.Graph
 }
 
@@ -100,7 +100,7 @@ func Init(
 	}
 
 	err := logger.Manager(logger.Global()).ConfigureFromFlags()
-	if err != nil && err != vlog.ErrConfigured {
+	if err != nil && !logger.IsAlreadyConfiguredError(err) {
 		return nil, nil, nil, err
 	}
 
@@ -169,7 +169,7 @@ func Init(
 	if err != nil {
 		return nil, nil, nil, err
 	}
-
+	r.ctx = ctx
 	return r, r.WithBackgroundContext(ctx), r.shutdown, nil
 }
 
@@ -195,7 +195,7 @@ func (r *Runtime) Init(ctx *context.T) error {
 
 func (r *Runtime) shutdown() {
 	r.deps.CloseAndWaitForAll()
-	vlog.FlushLog()
+	r.ctx.FlushLog()
 }
 
 func (r *Runtime) initSignalHandling(ctx *context.T) {
@@ -214,7 +214,7 @@ func (r *Runtime) initSignalHandling(ctx *context.T) {
 			if !ok {
 				break
 			}
-			vlog.Infof("Received signal %v", sig)
+			r.ctx.Infof("Received signal %v", sig)
 		}
 	}()
 	r.addChild(ctx, signals, func() {
@@ -231,7 +231,7 @@ func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
 func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	defer apilog.LogCallf(ctx, "opts...=%v", opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Create a new RoutingID (and StreamManager) for each server.
-	sm, err := newStreamManager()
+	sm, err := newStreamManager(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rpc/stream/Manager: %v", err)
 	}
@@ -257,13 +257,13 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, 
 			Blessings: principal.BlessingStore().Default(),
 		})
 	}
-	server, err := irpc.InternalNewServer(ctx, sm, ns, id.settingsPublisher, id.settingsName, r.GetClient(ctx), principal, otherOpts...)
+	server, err := irpc.InternalNewServer(ctx, sm, ns, id.settingsPublisher, id.settingsName, r.GetClient(ctx), otherOpts...)
 	if err != nil {
 		return nil, err
 	}
 	stop := func() {
 		if err := server.Stop(); err != nil {
-			vlog.Errorf("A server could not be stopped: %v", err)
+			r.ctx.Errorf("A server could not be stopped: %v", err)
 		}
 		sm.Shutdown()
 	}
@@ -286,17 +286,17 @@ func hasServerBlessingsOpt(opts []rpc.ServerOpt) bool {
 	return false
 }
 
-func newStreamManager() (stream.Manager, error) {
+func newStreamManager(ctx *context.T) (stream.Manager, error) {
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		return nil, err
 	}
-	sm := imanager.InternalNew(rid)
+	sm := imanager.InternalNew(ctx, rid)
 	return sm, nil
 }
 
 func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
-	sm, err := newStreamManager()
+	sm, err := newStreamManager(ctx)
 	if err != nil {
 		return nil, err
 	}

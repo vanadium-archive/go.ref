@@ -14,7 +14,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/stats/histogram"
 )
 
@@ -90,12 +89,12 @@ func run(f func(*context.T) (time.Duration, error), p params) error {
 					MinValue:     int64(float64(avgms) * 0.95),
 					GrowthFactor: 0.20,
 				}
-				vlog.Infof("Creating histogram after %d samples (%vms avg latency): %+v", ret.Count, avgms, opts)
+				p.Context.Infof("Creating histogram after %d samples (%vms avg latency): %+v", ret.Count, avgms, opts)
 				ret.HistMS = histogram.New(opts)
 			}
 		case sig := <-interrupt:
 			if time.Since(lastInterrupt) < time.Second {
-				vlog.Infof("Multiple %v signals received, aborting test", sig)
+				p.Context.Infof("Multiple %v signals received, aborting test", sig)
 				stopped = true
 				break
 			}
@@ -119,7 +118,7 @@ func run(f func(*context.T) (time.Duration, error), p params) error {
 
 func warmup(ctx *context.T, f func(*context.T) (time.Duration, error)) {
 	const nWarmup = 10
-	vlog.Infof("Sending %d requests as warmup", nWarmup)
+	ctx.Infof("Sending %d requests as warmup", nWarmup)
 	var wg sync.WaitGroup
 	for i := 0; i < nWarmup; i++ {
 		wg.Add(1)
@@ -129,7 +128,7 @@ func warmup(ctx *context.T, f func(*context.T) (time.Duration, error)) {
 		}()
 	}
 	wg.Wait()
-	vlog.Infof("Done with warmup")
+	ctx.Infof("Done with warmup")
 }
 
 func call(ctx *context.T, f func(*context.T) (time.Duration, error), reauth bool, d chan<- time.Duration) {
@@ -143,7 +142,7 @@ func call(ctx *context.T, f func(*context.T) (time.Duration, error), reauth bool
 		// change!
 		var err error
 		if ctx, err = v23.WithPrincipal(ctx, v23.GetPrincipal(ctx)); err != nil {
-			vlog.Infof("%v", err)
+			ctx.Infof("%v", err)
 			return
 		}
 		client = v23.GetClient(ctx)
@@ -151,7 +150,7 @@ func call(ctx *context.T, f func(*context.T) (time.Duration, error), reauth bool
 	}
 	sample, err := f(ctx)
 	if err != nil {
-		vlog.Infof("%v", err)
+		ctx.Infof("%v", err)
 		return
 	}
 	d <- sample

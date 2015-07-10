@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/internal/logger"
 )
 
 //go:generate v23 test generate
@@ -81,7 +81,7 @@ func TestSequential(t *testing.T) {
 	cancel := make(chan struct{})
 
 	// Check that the queue elements are sequentially increasing ints.
-	vlog.VI(1).Infof("Start consumer")
+	logger.Global().VI(1).Infof("Start consumer")
 	go func() {
 		for i := 0; i != elementCount; i++ {
 			item, err := queue.Get(cancel)
@@ -100,27 +100,27 @@ func TestSequential(t *testing.T) {
 	}()
 
 	// Generate the sequential ints.
-	vlog.VI(1).Infof("Put values")
+	logger.Global().VI(1).Infof("Put values")
 	for i := 0; i != elementCount; i++ {
 		queue.Put(i, nil)
 	}
 
 	// Wait for the consumer.
-	vlog.VI(1).Infof("Waiting for consumer")
+	logger.Global().VI(1).Infof("Waiting for consumer")
 	<-done
 
 	// Any subsequent read should timeout.
-	vlog.VI(1).Infof("Start consumer")
+	logger.Global().VI(1).Infof("Start consumer")
 	go func() {
 		_, err := queue.Get(cancel)
 		if err != ErrCancelled {
 			t.Errorf("Expected timeout: %v", err)
 		}
-		vlog.VI(1).Infof("Consumer done")
+		logger.Global().VI(1).Infof("Consumer done")
 		done <- struct{}{}
 	}()
 
-	vlog.VI(1).Infof("Sleep a little")
+	logger.Global().VI(1).Infof("Sleep a little")
 	time.Sleep(100 * time.Millisecond)
 	select {
 	case <-done:
@@ -128,10 +128,10 @@ func TestSequential(t *testing.T) {
 	default:
 	}
 
-	vlog.VI(1).Infof("Cancel")
+	logger.Global().VI(1).Infof("Cancel")
 	close(cancel)
 
-	vlog.VI(1).Infof("Wait for consumer")
+	logger.Global().VI(1).Infof("Wait for consumer")
 	<-done
 }
 
@@ -141,7 +141,7 @@ func TestSequentialPutCancel(t *testing.T) {
 	done := make(chan struct{}, 1)
 	cancel := make(chan struct{})
 
-	vlog.VI(1).Infof("Put values")
+	logger.Global().VI(1).Infof("Put values")
 	for i := 0; i != queueSize; i++ {
 		err := queue.Put(i, nil)
 		if err != nil {
@@ -149,7 +149,7 @@ func TestSequentialPutCancel(t *testing.T) {
 		}
 	}
 
-	vlog.VI(1).Infof("Start producer")
+	logger.Global().VI(1).Infof("Start producer")
 	go func() {
 		err := queue.Put(0, cancel)
 		if err != ErrCancelled {
@@ -158,7 +158,7 @@ func TestSequentialPutCancel(t *testing.T) {
 		done <- struct{}{}
 	}()
 
-	vlog.VI(1).Infof("Sleep a little")
+	logger.Global().VI(1).Infof("Sleep a little")
 	time.Sleep(100 * time.Millisecond)
 	select {
 	case <-done:
@@ -166,10 +166,10 @@ func TestSequentialPutCancel(t *testing.T) {
 	default:
 	}
 
-	vlog.VI(1).Infof("Cancel")
+	logger.Global().VI(1).Infof("Cancel")
 	close(cancel)
 
-	vlog.VI(1).Infof("Wait for producer")
+	logger.Global().VI(1).Infof("Wait for producer")
 	<-done
 }
 
@@ -213,7 +213,7 @@ func TestConcurrentClose(t *testing.T) {
 		go func() {
 			err := queue.Put(1, nil)
 			if err != nil {
-				vlog.VI(1).Infof("Put: %v", err)
+				logger.Global().VI(1).Infof("Put: %v", err)
 			}
 			pending.Done()
 		}()
@@ -241,7 +241,7 @@ func TestConcurrentClose(t *testing.T) {
 		}
 		readers++
 	}
-	vlog.VI(1).Infof("%d operations completed", readers)
+	logger.Global().VI(1).Infof("%d operations completed", readers)
 	if readers > writerCount {
 		t.Errorf("Too many readers")
 	}
@@ -317,7 +317,7 @@ func TestConcurrentGet(t *testing.T) {
 	// Sum up the results and compare.
 	sum := uint32(0)
 	count := uint32(0)
-	vlog.VI(1).Infof("Start consumers")
+	logger.Global().VI(1).Infof("Start consumers")
 	for i := 0; i != readerCount; i++ {
 		pid := i
 		go func() {
@@ -335,13 +335,13 @@ func TestConcurrentGet(t *testing.T) {
 				atomic.AddUint32(&sum, uint32(item.(int)))
 				atomic.AddUint32(&count, 1)
 			}
-			vlog.VI(1).Infof("Consumer %d done", pid)
+			logger.Global().VI(1).Infof("Consumer %d done", pid)
 			pending.Done()
 		}()
 	}
 
 	// Generate the sequential ints.
-	vlog.VI(1).Infof("Start producers")
+	logger.Global().VI(1).Infof("Start producers")
 	for i := 0; i != writerCount; i++ {
 		pid := i
 		go func() {
@@ -351,18 +351,18 @@ func TestConcurrentGet(t *testing.T) {
 					t.Errorf("Put: %v", err)
 				}
 			}
-			vlog.VI(1).Infof("Producer %d done", pid)
+			logger.Global().VI(1).Infof("Producer %d done", pid)
 			pending.Done()
 		}()
 	}
 
-	vlog.VI(1).Infof("Start termination checker")
+	logger.Global().VI(1).Infof("Start termination checker")
 	go func() {
 		pending.Wait()
 		done <- struct{}{}
 	}()
 
-	vlog.VI(1).Infof("Wait for processes")
+	logger.Global().VI(1).Infof("Wait for processes")
 	stop := false
 	for !stop {
 		time.Sleep(100 * time.Millisecond)
@@ -374,7 +374,7 @@ func TestConcurrentGet(t *testing.T) {
 		}
 	}
 
-	vlog.VI(1).Infof("Checking the sum")
+	logger.Global().VI(1).Infof("Checking the sum")
 	expected := writerCount * elementCount * (elementCount - 1) / 2
 	s := atomic.LoadUint32(&sum)
 	if s != uint32(expected) {

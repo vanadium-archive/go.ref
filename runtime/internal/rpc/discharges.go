@@ -17,7 +17,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
 )
 
 // NoDischarges specifies that the RPC call should not fetch discharges.
@@ -150,9 +149,9 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 				defer wg.Done()
 				tp := cav.ThirdPartyDetails()
 				var dis security.Discharge
-				vlog.VI(3).Infof("Fetching discharge for %v", tp)
+				ctx.VI(3).Infof("Fetching discharge for %v", tp)
 				if err := d.c.Call(ctx, tp.Location(), "Discharge", []interface{}{cav, impetuses[i]}, []interface{}{&dis}, NoDischarges{}); err != nil {
-					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
+					ctx.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
 					return
 				}
 				discharges <- fetched{i, dis, caveats[i], impetuses[i]}
@@ -167,7 +166,7 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 			got++
 		}
 		if want > 0 {
-			vlog.VI(3).Infof("fetchDischarges: got %d of %d discharge(s) (total %d caveats)", got, want, len(caveats))
+			ctx.VI(3).Infof("fetchDischarges: got %d of %d discharge(s) (total %d caveats)", got, want, len(caveats))
 		}
 		if got == 0 || got == want {
 			return

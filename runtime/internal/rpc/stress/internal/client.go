@@ -12,7 +12,6 @@ import (
 
 	"v.io/v23/context"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/runtime/internal/rpc/stress"
 )
 
@@ -30,10 +29,10 @@ func CallEcho(ctx *context.T, server string, payloadSize int, duration time.Dura
 	for {
 		got, err := stub.Echo(ctx, payload)
 		if err != nil {
-			vlog.Fatalf("Echo failed: %v", err)
+			ctx.Fatalf("Echo failed: %v", err)
 		}
 		if !bytes.Equal(got, payload) {
-			vlog.Fatalf("Echo returned %v, but expected %v", got, payload)
+			ctx.Fatalf("Echo returned %v, but expected %v", got, payload)
 		}
 		iterations++
 
@@ -49,17 +48,17 @@ func CallSum(ctx *context.T, server string, maxPayloadSize int, stats *stress.Su
 	stub := stress.StressClient(server)
 	arg, err := newSumArg(maxPayloadSize)
 	if err != nil {
-		vlog.Fatalf("new arg failed: %v", err)
+		ctx.Fatalf("new arg failed: %v", err)
 	}
 
 	got, err := stub.Sum(ctx, arg)
 	if err != nil {
-		vlog.Fatalf("Sum failed: %v", err)
+		ctx.Fatalf("Sum failed: %v", err)
 	}
 
 	wanted, _ := doSum(&arg)
 	if !bytes.Equal(got, wanted) {
-		vlog.Fatalf("Sum returned %v, but expected %v", got, wanted)
+		ctx.Fatalf("Sum returned %v, but expected %v", got, wanted)
 	}
 	stats.SumCount++
 	stats.BytesSent += uint64(lenSumArg(&arg))
@@ -73,7 +72,7 @@ func CallSumStream(ctx *context.T, server string, maxChunkCnt, maxPayloadSize in
 	stub := stress.StressClient(server)
 	stream, err := stub.SumStream(ctx)
 	if err != nil {
-		vlog.Fatalf("Stream failed: %v", err)
+		ctx.Fatalf("Stream failed: %v", err)
 	}
 
 	chunkCnt := rand.Intn(maxChunkCnt) + 1
@@ -107,23 +106,23 @@ func CallSumStream(ctx *context.T, server string, maxChunkCnt, maxPayloadSize in
 	for i := 0; i < chunkCnt; i++ {
 		arg, err := newSumArg(maxPayloadSize)
 		if err != nil {
-			vlog.Fatalf("new arg failed: %v", err)
+			ctx.Fatalf("new arg failed: %v", err)
 		}
 		args[i] = arg
 
 		if err = sendS.Send(arg); err != nil {
-			vlog.Fatalf("SendStream failed to send: %v", err)
+			ctx.Fatalf("SendStream failed to send: %v", err)
 		}
 		stats.BytesSent += uint64(lenSumArg(&arg))
 	}
 	if err = sendS.Close(); err != nil {
-		vlog.Fatalf("SendStream failed to close: %v", err)
+		ctx.Fatalf("SendStream failed to close: %v", err)
 	}
 	if err = <-done; err != nil {
-		vlog.Fatalf("%v", err)
+		ctx.Fatalf("%v", err)
 	}
 	if err = stream.Finish(); err != nil {
-		vlog.Fatalf("Stream failed to finish: %v", err)
+		ctx.Fatalf("Stream failed to finish: %v", err)
 	}
 	stats.SumStreamCount++
 }

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -62,7 +60,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task, t
 	}()
 	client := v23.GetClient(ctx)
 	pstr := t.pattern.String()
-	vlog.VI(2).Infof("globAtServer(%v, %v)", *t.me, pstr)
+	ctx.VI(2).Infof("globAtServer(%v, %v)", *t.me, pstr)
 
 	servers := []string{}
 	for _, s := range t.me.Servers {

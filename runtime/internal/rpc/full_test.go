@@ -21,7 +21,6 @@ import (
 
 	"v.io/x/lib/netstate"
 	"v.io/x/lib/pubsub"
-	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -79,16 +78,16 @@ func (c *fakeClock) Advance(steps uint) {
 	c.Unlock()
 }
 
-func testInternalNewServerWithPubsub(ctx *context.T, streamMgr stream.Manager, ns namespace.T, settingsPublisher *pubsub.Publisher, settingsStreamName string, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func testInternalNewServerWithPubsub(ctx *context.T, streamMgr stream.Manager, ns namespace.T, settingsPublisher *pubsub.Publisher, settingsStreamName string, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	client, err := InternalNewClient(streamMgr, ns)
 	if err != nil {
 		return nil, err
 	}
-	return InternalNewServer(ctx, streamMgr, ns, settingsPublisher, settingsStreamName, client, principal, opts...)
+	return InternalNewServer(ctx, streamMgr, ns, settingsPublisher, settingsStreamName, client, opts...)
 }
 
-func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
-	return testInternalNewServerWithPubsub(ctx, streamMgr, ns, nil, "", principal, opts...)
+func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, opts ...rpc.ServerOpt) (rpc.Server, error) {
+	return testInternalNewServerWithPubsub(ctx, streamMgr, ns, nil, "", opts...)
 }
 
 type userType string
@@ -245,13 +244,13 @@ func endpointsToStrings(eps []naming.Endpoint) []string {
 }
 
 func startServerWS(t *testing.T, ctx *context.T, principal security.Principal, sm stream.Manager, ns namespace.T, name string, disp rpc.Dispatcher, shouldUseWebsocket websocketMode, opts ...rpc.ServerOpt) (naming.Endpoint, rpc.Server) {
-	vlog.VI(1).Info("InternalNewServer")
+	ctx.VI(1).Info("InternalNewServer")
 	ctx, _ = v23.WithPrincipal(ctx, principal)
-	server, err := testInternalNewServer(ctx, sm, ns, principal, opts...)
+	server, err := testInternalNewServer(ctx, sm, ns, opts...)
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
-	vlog.VI(1).Info("server.Listen")
+	ctx.VI(1).Info("server.Listen")
 	spec := listenSpec
 	if shouldUseWebsocket {
 		spec = listenWSSpec
@@ -260,7 +259,7 @@ func startServerWS(t *testing.T, ctx *context.T, principal security.Principal, s
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
-	vlog.VI(1).Info("server.Serve")
+	ctx.VI(1).Info("server.Serve")
 	if err := server.ServeDispatcher(name, disp); err != nil {
 		t.Errorf("server.ServeDispatcher failed: %v", err)
 	}
@@ -303,7 +302,7 @@ func verifyMountMissing(t *testing.T, ctx *context.T, ns namespace.T, name strin
 }
 
 func stopServer(t *testing.T, ctx *context.T, server rpc.Server, ns namespace.T, name string) {
-	vlog.VI(1).Info("server.Stop")
+	ctx.VI(1).Info("server.Stop")
 	new_name := "should_appear_in_mt/server"
 	verifyMount(t, ctx, ns, name)
 
@@ -325,7 +324,7 @@ func stopServer(t *testing.T, ctx *context.T, server rpc.Server, ns namespace.T,
 	if err == nil || verror.ErrorID(err) != verror.ErrBadState.ID {
 		t.Errorf("either no error, or a wrong error was returned: %v", err)
 	}
-	vlog.VI(1).Info("server.Stop DONE")
+	ctx.VI(1).Info("server.Stop DONE")
 }
 
 // fakeWSName creates a name containing a endpoint address that forces
@@ -370,7 +369,7 @@ func createBundle(t *testing.T, ctx *context.T, server security.Principal, ts in
 }
 
 func createBundleWS(t *testing.T, ctx *context.T, server security.Principal, ts interface{}, shouldUseWebsocket websocketMode) (b bundle) {
-	b.sm = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	b.sm = imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	b.ns = tnaming.NewSimpleNamespace()
 	b.name = "mountpoint/server"
 	if server != nil {
@@ -393,13 +392,13 @@ func matchesErrorPattern(err error, id verror.IDAction, pattern string) bool {
 	return verror.ErrorID(err) == id.ID
 }
 
-func runServer(t *testing.T, ctx *context.T, ns namespace.T, principal security.Principal, name string, obj interface{}, opts ...rpc.ServerOpt) stream.Manager {
+func runServer(t *testing.T, ctx *context.T, ns namespace.T, name string, obj interface{}, opts ...rpc.ServerOpt) stream.Manager {
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		t.Fatal(err)
 	}
-	sm := imanager.InternalNew(rid)
-	server, err := testInternalNewServer(ctx, sm, ns, principal, opts...)
+	sm := imanager.InternalNew(ctx, rid)
+	server, err := testInternalNewServer(ctx, sm, ns, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,11 +412,12 @@ func runServer(t *testing.T, ctx *context.T, ns namespace.T, principal security.
 }
 
 func TestMultipleCallsToServeAndName(t *testing.T) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+	ns := tnaming.NewSimpleNamespace()
+	sctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("server"))
+	server, err := testInternalNewServer(sctx, sm, ns)
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -504,7 +504,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		bOther           = bless(pprovider, pserver, "other")
 		bTwoBlessings, _ = security.UnionOfBlessings(bServer, bOther)
 
-		mgr   = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
+		mgr   = imanager.InternalNew(ctx, naming.FixedRoutingID(0x1111111))
 		ns    = tnaming.NewSimpleNamespace()
 		tests = []struct {
 			server security.Blessings // blessings presented by the server to the client.
@@ -603,9 +603,11 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 	// somehow "takes over" the network endpoint (a naughty router
 	// perhaps), thus trying to steal traffic.
 	var (
-		pclient   = testutil.NewPrincipal("client")
-		pserver   = testutil.NewPrincipal("server")
-		pattacker = testutil.NewPrincipal("attacker")
+		pclient        = testutil.NewPrincipal("client")
+		pserver        = testutil.NewPrincipal("server")
+		pattacker      = testutil.NewPrincipal("attacker")
+		attackerCtx, _ = v23.WithPrincipal(ctx, pattacker)
+		cctx, _        = v23.WithPrincipal(ctx, pclient)
 	)
 	// Client recognizes both the server and the attacker's blessings.
 	// (Though, it doesn't need to do the latter for the purposes of this
@@ -615,13 +617,13 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 
 	// Start up the attacker's server.
 	attacker, err := testInternalNewServer(
-		ctx,
-		imanager.InternalNew(naming.FixedRoutingID(0xaaaaaaaaaaaaaaaa)),
+		attackerCtx,
+		imanager.InternalNew(ctx, naming.FixedRoutingID(0xaaaaaaaaaaaaaaaa)),
 		// (To prevent the attacker for legitimately mounting on the
 		// namespace that the client will use, provide it with a
 		// different namespace).
 		tnaming.NewSimpleNamespace(),
-		pattacker)
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -650,19 +652,19 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 	// (attacker's) server are not consistent with the ones registered in
 	// the mounttable trusted by the client.
 	client, err := InternalNewClient(
-		imanager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc)),
+		imanager.InternalNew(cctx, naming.FixedRoutingID(0xcccccccccccccccc)),
 		ns)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	ctx, _ = v23.WithPrincipal(ctx, pclient)
-	if _, err := client.StartCall(ctx, "mountpoint/server", "Closure", nil); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+	ctx, _ = v23.WithPrincipal(cctx, pclient)
+	if _, err := client.StartCall(cctx, "mountpoint/server", "Closure", nil); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("Got error %v (errorid=%v), want errorid=%v", err, verror.ErrorID(err), verror.ErrNotTrusted.ID)
 	}
 	// But the RPC should succeed if the client explicitly
 	// decided to skip server authorization.
-	if _, err := client.StartCall(ctx, "mountpoint/server", "Closure", nil, options.SkipServerEndpointAuthorization{}); err != nil {
+	if _, err := client.StartCall(cctx, "mountpoint/server", "Closure", nil, options.SkipServerEndpointAuthorization{}); err != nil {
 		t.Errorf("Unexpected error(%v) when skipping server authorization", err)
 	}
 }
@@ -737,7 +739,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 	ctx, _ = v23.WithPrincipal(ctx, pclient)
 	ctx = i18n.WithLangID(ctx, "foolang")
 	for _, test := range tests {
-		vlog.VI(1).Infof("%s client.StartCall", name(test))
+		ctx.VI(1).Infof("%s client.StartCall", name(test))
 		vname := test.name
 		if shouldUseWebsocket {
 			var err error
@@ -753,7 +755,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 			continue
 		}
 		for _, sarg := range test.streamArgs {
-			vlog.VI(1).Infof("%s client.Send(%v)", name(test), sarg)
+			ctx.VI(1).Infof("%s client.Send(%v)", name(test), sarg)
 			if err := call.Send(sarg); err != nil {
 				t.Errorf(`%s call.Send(%v) got unexpected error "%v"`, name(test), sarg, err)
 			}
@@ -766,7 +768,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 			}
 		}
 		if shouldCloseSend {
-			vlog.VI(1).Infof("%s call.CloseSend", name(test))
+			ctx.VI(1).Infof("%s call.CloseSend", name(test))
 			// When the method does not involve streaming
 			// arguments, the server gets all the arguments in
 			// StartCall and then sends a response without
@@ -781,7 +783,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 				t.Errorf(`%s call.CloseSend got unexpected error "%v"`, name(test), err)
 			}
 		}
-		vlog.VI(1).Infof("%s client.Finish", name(test))
+		ctx.VI(1).Infof("%s client.Finish", name(test))
 		results := makeResultPtrs(test.results)
 		err = call.Finish(results...)
 		if got, want := err, test.finishErr; (got == nil) != (want == nil) {
@@ -905,23 +907,27 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		pserver     = testutil.NewPrincipal("server")
 		pdischarger = testutil.NewPrincipal("discharger")
 		pclient     = testutil.NewPrincipal("client")
-		sm          = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-		ns          = tnaming.NewSimpleNamespace()
+		pctx, _     = v23.WithPrincipal(ctx, pdischarger)
+		sctx, _     = v23.WithPrincipal(ctx, pserver)
 
-		// Setup the client so that it shares a blessing with a third-party caveat with the server.
-		setClientBlessings = func(req security.ThirdPartyRequirements) security.Principal {
-			cav, err := security.NewPublicKeyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", req, security.UnconstrainedUse())
-			if err != nil {
-				t.Fatalf("Failed to create ThirdPartyCaveat(%+v): %v", req, err)
-			}
-			b, err := pclient.BlessSelf("client_for_server", cav)
-			if err != nil {
-				t.Fatalf("BlessSelf failed: %v", err)
-			}
-			pclient.BlessingStore().Set(b, "server")
-			return pclient
-		}
+		sm = imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+		ns = tnaming.NewSimpleNamespace()
 	)
+
+	// Setup the client so that it shares a blessing with a third-party caveat with the server.
+	setClientBlessings := func(req security.ThirdPartyRequirements) security.Principal {
+		cav, err := security.NewPublicKeyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", req, security.UnconstrainedUse())
+		if err != nil {
+			t.Fatalf("Failed to create ThirdPartyCaveat(%+v): %v", req, err)
+		}
+		b, err := pclient.BlessSelf("client_for_server", cav)
+		if err != nil {
+			t.Fatalf("BlessSelf failed: %v", err)
+		}
+		pclient.BlessingStore().Set(b, "server")
+		return pclient
+	}
+
 	// Initialize the client principal.
 	// It trusts both the application server and the discharger.
 	pclient.AddToRoots(pserver.BlessingStore().Default())
@@ -929,7 +935,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 
 	// Setup the discharge server.
 	var tester dischargeTestServer
-	dischargeServer, err := testInternalNewServer(ctx, sm, ns, pdischarger)
+	dischargeServer, err := testInternalNewServer(pctx, sm, ns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -942,7 +948,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 	}
 
 	// Setup the application server.
-	appServer, err := testInternalNewServer(ctx, sm, ns, pserver)
+	appServer, err := testInternalNewServer(sctx, sm, ns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -990,15 +996,15 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 
 	for _, test := range tests {
 		pclient := setClientBlessings(test.Requirements)
-		ctx, _ = v23.WithPrincipal(ctx, pclient)
+		cctx, _ := v23.WithPrincipal(ctx, pclient)
 		client, err := InternalNewClient(sm, ns)
 		if err != nil {
 			t.Fatalf("InternalNewClient(%+v) failed: %v", test.Requirements, err)
 		}
 		defer client.Close()
-		tid := vtrace.GetSpan(ctx).Trace()
+		tid := vtrace.GetSpan(cctx).Trace()
 		// StartCall should fetch the discharge, do not worry about finishing the RPC - do not care about that for this test.
-		if _, err := client.StartCall(ctx, object, "Method", []interface{}{"argument"}); err != nil {
+		if _, err := client.StartCall(cctx, object, "Method", []interface{}{"argument"}); err != nil {
 			t.Errorf("StartCall(%+v) failed: %v", test.Requirements, err)
 			continue
 		}
@@ -1029,6 +1035,9 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 }
 
 func TestRPCClientAuthorization(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
+
 	type v []interface{}
 	var (
 		// Principals
@@ -1055,7 +1064,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 		bClient                = pclient.BlessingStore().Default()
 		bRandom, _             = pclient.BlessSelf("random")
 
-		mgr   = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
+		mgr   = imanager.InternalNew(ctx, naming.FixedRoutingID(0x1111111))
 		ns    = tnaming.NewSimpleNamespace()
 		tests = []struct {
 			blessings  security.Blessings // Blessings used by the client
@@ -1120,8 +1129,6 @@ func TestRPCClientAuthorization(t *testing.T) {
 		}
 	)
 
-	ctx, shutdown := initForTest()
-	defer shutdown()
 	// Start the main server.
 	_, server := startServer(t, ctx, pserver, mgr, ns, serverName, testServerDisp{&testServer{}})
 	defer stopServer(t, ctx, server, ns, serverName)
@@ -1264,7 +1271,7 @@ func TestServerLocalBlessings(t *testing.T) {
 		pprovider, pclient, pserver = testutil.NewPrincipal("root"), testutil.NewPrincipal("client"), testutil.NewPrincipal("server")
 		pdischarger                 = pprovider
 
-		mgr = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
+		mgr = imanager.InternalNew(ctx, naming.FixedRoutingID(0x1111111))
 		ns  = tnaming.NewSimpleNamespace()
 
 		tpCav = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
@@ -1545,13 +1552,14 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 func TestPreferredAddress(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	pa := netstate.AddressChooserFunc(func(string, []net.Addr) ([]net.Addr, error) {
 		return []net.Addr{netstate.NewNetAddr("tcp", "1.1.1.1")}, nil
 	})
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("server"))
+	server, err := testInternalNewServer(ctx, sm, ns)
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1588,13 +1596,14 @@ func TestPreferredAddress(t *testing.T) {
 func TestPreferredAddressErrors(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	paerr := netstate.AddressChooserFunc(func(_ string, a []net.Addr) ([]net.Addr, error) {
 		return nil, fmt.Errorf("oops")
 	})
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("server"))
+	server, err := testInternalNewServer(ctx, sm, ns)
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1620,7 +1629,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 func TestSecurityNone(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x66666666))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	server, err := testInternalNewServer(ctx, sm, ns, nil, options.SecurityNone)
@@ -1652,10 +1661,11 @@ func TestSecurityNone(t *testing.T) {
 func TestNoPrincipal(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x66666666))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("server"))
+	server, err := testInternalNewServer(ctx, sm, ns)
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}
@@ -1683,7 +1693,9 @@ func TestNoPrincipal(t *testing.T) {
 }
 
 func TestCallWithNilContext(t *testing.T) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
+	ctx, shutdown := initForTest()
+	defer shutdown()
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x66666666))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	client, err := InternalNewClient(sm, ns)
@@ -1700,13 +1712,17 @@ func TestCallWithNilContext(t *testing.T) {
 }
 
 func TestServerBlessingsOpt(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
+
 	var (
 		pserver   = testutil.NewPrincipal("server")
 		pclient   = testutil.NewPrincipal("client")
 		batman, _ = pserver.BlessSelf("batman")
+		cctx, _   = v23.WithPrincipal(ctx, pclient)
+		sctx, _   = v23.WithPrincipal(ctx, pserver)
 	)
-	ctx, shutdown := initForTest()
-	defer shutdown()
+
 	// Client and server recognize the servers blessings
 	for _, p := range []security.Principal{pserver, pclient} {
 		if err := p.AddToRoots(pserver.BlessingStore().Default()); err != nil {
@@ -1720,12 +1736,12 @@ func TestServerBlessingsOpt(t *testing.T) {
 	// to act as batman (as opposed to using the default blessing).
 	ns := tnaming.NewSimpleNamespace()
 
-	defer runServer(t, ctx, ns, pserver, "mountpoint/batman", &testServer{}, options.ServerBlessings{batman}).Shutdown()
-	defer runServer(t, ctx, ns, pserver, "mountpoint/default", &testServer{}).Shutdown()
+	defer runServer(t, sctx, ns, "mountpoint/batman", &testServer{}, options.ServerBlessings{batman}).Shutdown()
+	defer runServer(t, sctx, ns, "mountpoint/default", &testServer{}).Shutdown()
 
 	// And finally, make an RPC and see that the client sees "batman"
 	runClient := func(server string) ([]string, error) {
-		smc := imanager.InternalNew(naming.FixedRoutingID(0xc))
+		smc := imanager.InternalNew(ctx, naming.FixedRoutingID(0xc))
 		defer smc.Shutdown()
 		client, err := InternalNewClient(
 			smc,
@@ -1734,8 +1750,8 @@ func TestServerBlessingsOpt(t *testing.T) {
 			return nil, err
 		}
 		defer client.Close()
-		ctx, _ = v23.WithPrincipal(ctx, pclient)
-		call, err := client.StartCall(ctx, server, "Closure", nil)
+		ctx, _ = v23.WithPrincipal(cctx, pclient)
+		call, err := client.StartCall(cctx, server, "Closure", nil)
 		if err != nil {
 			return nil, err
 		}
@@ -1754,13 +1770,17 @@ func TestServerBlessingsOpt(t *testing.T) {
 }
 
 func TestNoDischargesOpt(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	var (
 		pdischarger = testutil.NewPrincipal("discharger")
 		pserver     = testutil.NewPrincipal("server")
 		pclient     = testutil.NewPrincipal("client")
+		cctx, _     = v23.WithPrincipal(ctx, pclient)
+		sctx, _     = v23.WithPrincipal(ctx, pserver)
+		pctx, _     = v23.WithPrincipal(ctx, pdischarger)
 	)
-	ctx, shutdown := initForTest()
-	defer shutdown()
+
 	// Make the client recognize all server blessings
 	if err := pclient.AddToRoots(pserver.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
@@ -1783,15 +1803,15 @@ func TestNoDischargesOpt(t *testing.T) {
 
 	// Setup the disharger and test server.
 	discharger := &dischargeServer{}
-	defer runServer(t, ctx, ns, pdischarger, "mountpoint/discharger", discharger).Shutdown()
-	defer runServer(t, ctx, ns, pserver, "mountpoint/testServer", &testServer{}).Shutdown()
+	defer runServer(t, pctx, ns, "mountpoint/discharger", discharger).Shutdown()
+	defer runServer(t, sctx, ns, "mountpoint/testServer", &testServer{}).Shutdown()
 
 	runClient := func(noDischarges bool) {
 		rid, err := naming.NewRoutingID()
 		if err != nil {
 			t.Fatal(err)
 		}
-		smc := imanager.InternalNew(rid)
+		smc := imanager.InternalNew(ctx, rid)
 		defer smc.Shutdown()
 		client, err := InternalNewClient(smc, ns)
 		if err != nil {
@@ -1802,8 +1822,7 @@ func TestNoDischargesOpt(t *testing.T) {
 		if noDischarges {
 			opts = append(opts, NoDischarges{})
 		}
-		ctx, _ = v23.WithPrincipal(ctx, pclient)
-		if _, err = client.StartCall(ctx, "mountpoint/testServer", "Closure", nil, opts...); err != nil {
+		if _, err = client.StartCall(cctx, "mountpoint/testServer", "Closure", nil, opts...); err != nil {
 			t.Fatalf("failed to StartCall: %v", err)
 		}
 	}
@@ -1820,14 +1839,18 @@ func TestNoDischargesOpt(t *testing.T) {
 }
 
 func TestNoImplicitDischargeFetching(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	// This test ensures that discharge clients only fetch discharges for the specified tp caveats and not its own.
 	var (
 		pdischarger1     = testutil.NewPrincipal("discharger1")
 		pdischarger2     = testutil.NewPrincipal("discharger2")
 		pdischargeClient = testutil.NewPrincipal("dischargeClient")
+		p1ctx, _         = v23.WithPrincipal(ctx, pdischarger1)
+		p2ctx, _         = v23.WithPrincipal(ctx, pdischarger2)
+		cctx, _          = v23.WithPrincipal(ctx, pdischargeClient)
 	)
-	ctx, shutdown := initForTest()
-	defer shutdown()
+
 	// Bless the client with a ThirdPartyCaveat from discharger1.
 	tpcav1 := mkThirdPartyCaveat(pdischarger1.PublicKey(), "mountpoint/discharger1", mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 	blessings, err := pdischarger1.Bless(pdischargeClient.PublicKey(), pdischarger1.BlessingStore().Default(), "tpcav1", tpcav1)
@@ -1846,14 +1869,14 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	// Setup the disharger and test server.
 	discharger1 := &dischargeServer{}
 	discharger2 := &dischargeServer{}
-	defer runServer(t, ctx, ns, pdischarger1, "mountpoint/discharger1", discharger1).Shutdown()
-	defer runServer(t, ctx, ns, pdischarger2, "mountpoint/discharger2", discharger2).Shutdown()
+	defer runServer(t, p1ctx, ns, "mountpoint/discharger1", discharger1).Shutdown()
+	defer runServer(t, p2ctx, ns, "mountpoint/discharger2", discharger2).Shutdown()
 
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		t.Fatal(err)
 	}
-	sm := imanager.InternalNew(rid)
+	sm := imanager.InternalNew(ctx, rid)
 
 	c, err := InternalNewClient(sm, ns)
 	if err != nil {
@@ -1864,8 +1887,7 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	ctx, _ = v23.WithPrincipal(ctx, pdischargeClient)
-	dc.PrepareDischarges(ctx, []security.Caveat{tpcav2}, security.DischargeImpetus{})
+	dc.PrepareDischarges(cctx, []security.Caveat{tpcav2}, security.DischargeImpetus{})
 
 	// Ensure that discharger1 was not called and discharger2 was called.
 	if discharger1.called {
@@ -1879,12 +1901,15 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 // TestBlessingsCache tests that the VCCache is used to sucessfully used to cache duplicate
 // calls blessings.
 func TestBlessingsCache(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	var (
 		pserver = testutil.NewPrincipal("server")
 		pclient = testutil.NewPrincipal("client")
+		cctx, _ = v23.WithPrincipal(ctx, pclient)
+		sctx, _ = v23.WithPrincipal(ctx, pserver)
 	)
-	ctx, shutdown := initForTest()
-	defer shutdown()
+
 	// Make the client recognize all server blessings
 	if err := pclient.AddToRoots(pserver.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
@@ -1892,18 +1917,16 @@ func TestBlessingsCache(t *testing.T) {
 
 	ns := tnaming.NewSimpleNamespace()
 
-	serverSM := runServer(t, ctx, ns, pserver, "mountpoint/testServer", &testServer{})
+	serverSM := runServer(t, sctx, ns, "mountpoint/testServer", &testServer{})
 	defer serverSM.Shutdown()
 	rid := serverSM.RoutingID()
-
-	ctx, _ = v23.WithPrincipal(ctx, pclient)
 
 	newClient := func() rpc.Client {
 		rid, err := naming.NewRoutingID()
 		if err != nil {
 			t.Fatal(err)
 		}
-		smc := imanager.InternalNew(rid)
+		smc := imanager.InternalNew(sctx, rid)
 		defer smc.Shutdown()
 		client, err := InternalNewClient(smc, ns)
 		if err != nil {
@@ -1913,7 +1936,7 @@ func TestBlessingsCache(t *testing.T) {
 	}
 
 	runClient := func(client rpc.Client) {
-		if err := client.Call(ctx, "mountpoint/testServer", "Closure", nil, nil); err != nil {
+		if err := client.Call(cctx, "mountpoint/testServer", "Closure", nil, nil); err != nil {
 			t.Fatalf("failed to Call: %v", err)
 		}
 	}
@@ -1967,20 +1990,23 @@ var fakeTimeCaveat = security.CaveatDescriptor{
 }
 
 func TestServerPublicKeyOpt(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	var (
 		pserver = testutil.NewPrincipal("server")
 		pother  = testutil.NewPrincipal("other")
 		pclient = testutil.NewPrincipal("client")
+		cctx, _ = v23.WithPrincipal(ctx, pclient)
+		sctx, _ = v23.WithPrincipal(ctx, pserver)
 	)
-	ctx, shutdown := initForTest()
-	defer shutdown()
+
 	ns := tnaming.NewSimpleNamespace()
 	mountName := "mountpoint/default"
 
 	// Start a server with pserver.
-	defer runServer(t, ctx, ns, pserver, mountName, &testServer{}).Shutdown()
+	defer runServer(t, sctx, ns, mountName, &testServer{}).Shutdown()
 
-	smc := imanager.InternalNew(naming.FixedRoutingID(0xc))
+	smc := imanager.InternalNew(sctx, naming.FixedRoutingID(0xc))
 	client, err := InternalNewClient(smc, ns)
 	if err != nil {
 		t.Fatal(err)
@@ -1988,13 +2014,12 @@ func TestServerPublicKeyOpt(t *testing.T) {
 	defer smc.Shutdown()
 	defer client.Close()
 
-	ctx, _ = v23.WithPrincipal(ctx, pclient)
 	// The call should succeed when the server presents the same public as the opt...
-	if _, err = client.StartCall(ctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{pserver.PublicKey()}); err != nil {
+	if _, err = client.StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{pserver.PublicKey()}); err != nil {
 		t.Errorf("Expected call to succeed but got %v", err)
 	}
 	// ...but fail if they differ.
-	if _, err = client.StartCall(ctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{pother.PublicKey()}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+	if _, err = client.StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{pother.PublicKey()}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.ErrNotTrusted.ID)
 	}
 }
@@ -2035,24 +2060,26 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 		tpcav                = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 		ns                   = tnaming.NewSimpleNamespace()
 		discharger           = &expiryDischarger{}
+		pctx, _              = v23.WithPrincipal(ctx, pdischarger)
 	)
+	ctx, _ = v23.WithPrincipal(ctx, pclient)
 
 	// Setup the disharge server.
-	defer runServer(t, ctx, ns, pdischarger, "mountpoint/discharger", discharger).Shutdown()
+	defer runServer(t, pctx, ns, "mountpoint/discharger", discharger).Shutdown()
 
 	// Create a discharge client.
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		t.Fatal(err)
 	}
-	smc := imanager.InternalNew(rid)
+	smc := imanager.InternalNew(ctx, rid)
 	defer smc.Shutdown()
 	client, err := InternalNewClient(smc, ns)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
 	defer client.Close()
-	ctx, _ = v23.WithPrincipal(ctx, pclient)
+
 	dc := InternalNewDischargeClient(ctx, client, 0)
 
 	// Fetch discharges for tpcav.

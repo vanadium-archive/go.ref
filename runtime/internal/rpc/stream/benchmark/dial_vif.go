@@ -9,17 +9,21 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/runtime/internal/rpc/stream/vif"
-	"v.io/x/ref/test/benchmark"
-	"v.io/x/ref/test/testutil"
-
+	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
+
+	"v.io/x/ref/runtime/internal/rpc/stream/vif"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/benchmark"
+	"v.io/x/ref/test/testutil"
 )
 
 // benchmarkDialVIF measures VIF creation time over the underlying net connection.
 func benchmarkDialVIF(b *testing.B, mode options.SecurityLevel) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	stats := benchmark.AddStats(b, 16)
 	var (
 		principal security.Principal
@@ -28,6 +32,7 @@ func benchmarkDialVIF(b *testing.B, mode options.SecurityLevel) {
 	if mode == securityDefault {
 		principal = testutil.NewPrincipal("test")
 		blessings = principal.BlessingStore().Default()
+		ctx, _ = v23.WithPrincipal(ctx, principal)
 	}
 
 	b.ResetTimer() // Exclude setup time from measurement.
@@ -38,14 +43,14 @@ func benchmarkDialVIF(b *testing.B, mode options.SecurityLevel) {
 
 		serverch := make(chan *vif.VIF)
 		go func() {
-			server, _ := vif.InternalNewAcceptedVIF(ns, naming.FixedRoutingID(0x5), principal, blessings, nil, nil)
+			server, _ := vif.InternalNewAcceptedVIF(ctx, ns, naming.FixedRoutingID(0x5), blessings, nil, nil)
 			serverch <- server
 		}()
 
 		b.StartTimer()
 		start := time.Now()
 
-		client, err := vif.InternalNewDialedVIF(nc, naming.FixedRoutingID(0xc), principal, nil, nil)
+		client, err := vif.InternalNewDialedVIF(ctx, nc, naming.FixedRoutingID(0xc), nil, nil)
 		if err != nil {
 			b.Fatal(err)
 		}

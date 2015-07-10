@@ -144,6 +144,9 @@ func runMountTable(t *testing.T, ctx *context.T, args ...string) (*modules.Shell
 
 	root.ExpectVar("PID")
 	rootName := root.ExpectVar("MT_NAME")
+	if len(rootName) == 0 {
+		root.Shutdown(nil, os.Stderr)
+	}
 
 	sh.SetVar(ref.EnvNamespacePrefix, rootName)
 	if err = v23.GetNamespace(ctx).SetRoots(rootName); err != nil {
@@ -426,7 +429,7 @@ func TestStartCallBadProtocol(t *testing.T) {
 	nctx, _ := context.WithTimeout(ctx, time.Minute)
 	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{}, options.SecurityNone)
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
-		t.Fatalf("wrong error: %s", err)
+		t.Fatalf("wrong error: %s", verror.DebugString(err))
 	}
 	if call != nil {
 		t.Fatalf("expected call to be nil")

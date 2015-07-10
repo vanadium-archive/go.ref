@@ -5,10 +5,9 @@
 package tcp
 
 import (
+	"fmt"
 	"net"
 	"time"
-
-	"v.io/x/lib/vlog"
 
 	"v.io/v23/rpc"
 
@@ -62,7 +61,7 @@ func (ln *tcpListener) Accept() (net.Conn, error) {
 		return nil, err
 	}
 	if err := tcputil.EnableTCPKeepAlive(conn); err != nil {
-		vlog.Errorf("Failed to enable TCP keep alive: %v", err)
+		return nil, fmt.Errorf("Failed to enable TCP keep alive: %v", err)
 	}
 	return conn, nil
 }

@@ -14,7 +14,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/apilog"
 )
 
@@ -25,8 +24,8 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 	for _, s := range e.Servers {
 		name := naming.JoinAddressName(s.Server, e.Name)
 		// First check the cache.
-		if ne, err := ns.resolutionCache.lookup(name); err == nil {
-			vlog.VI(2).Infof("resolveAMT %s from cache -> %v", name, convertServersToStrings(ne.Servers, ne.Name))
+		if ne, err := ns.resolutionCache.lookup(ctx, name); err == nil {
+			ctx.VI(2).Infof("resolveAMT %s from cache -> %v", name, convertServersToStrings(ne.Servers, ne.Name))
 			return &ne, nil
 		}
 		// Not in cache, call the real server.
@@ -44,15 +43,15 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 			}
 			// Keep track of the final error and continue with next server.
 			finalErr = err
-			vlog.VI(2).Infof("resolveAMT: Finish %s failed: %s", name, err)
+			ctx.VI(2).Infof("resolveAMT: Finish %s failed: %s", name, err)
 			continue
 		}
 		// Add result to cache.
-		ns.resolutionCache.remember(name, entry)
-		vlog.VI(2).Infof("resolveAMT %s -> %v", name, entry)
+		ns.resolutionCache.remember(ctx, name, entry)
+		ctx.VI(2).Infof("resolveAMT %s -> %v", name, entry)
 		return entry, nil
 	}
-	vlog.VI(2).Infof("resolveAMT %v -> %v", e.Servers, finalErr)
+	ctx.VI(2).Infof("resolveAMT %v -> %v", e.Servers, finalErr)
 	return nil, finalErr
 }
 
@@ -64,10 +63,10 @@ func terminal(e *naming.MountEntry) bool {
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	e, _ := ns.rootMountEntry(name, opts...)
-	if vlog.V(2) {
+	if ctx.V(2) {
 		_, file, line, _ := runtime.Caller(1)
-		vlog.Infof("Resolve(%s) called from %s:%d", name, file, line)
-		vlog.Infof("Resolve(%s) -> rootMountEntry %v", name, *e)
+		ctx.Infof("Resolve(%s) called from %s:%d", name, file, line)
+		ctx.Infof("Resolve(%s) -> rootMountEntry %v", name, *e)
 	}
 	if skipResolve(opts) {
 		return e, nil
@@ -80,9 +79,9 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Namespa
 
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
-		vlog.VI(2).Infof("Resolve(%s) loop %v", name, *e)
+		ctx.VI(2).Infof("Resolve(%s) loop %v", name, *e)
 		if !e.ServesMountTable || terminal(e) {
-			vlog.VI(1).Infof("Resolve(%s) -> %v", name, *e)
+			ctx.VI(1).Infof("Resolve(%s) -> %v", name, *e)
 			return e, nil
 		}
 		var err error
@@ -91,13 +90,13 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Namespa
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
 			if notAnMT(err) {
-				vlog.VI(1).Infof("Resolve(%s) -> %v", name, curr)
+				ctx.VI(1).Infof("Resolve(%s) -> %v", name, curr)
 				return curr, nil
 			}
 			if verror.ErrorID(err) == naming.ErrNoSuchNameRoot.ID {
 				err = verror.New(naming.ErrNoSuchName, ctx, name)
 			}
-			vlog.VI(1).Infof("Resolve(%s) -> (%s: %v)", err, name, curr)
+			ctx.VI(1).Infof("Resolve(%s) -> (%s: %v)", err, name, curr)
 			return nil, err
 		}
 	}
@@ -108,10 +107,10 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Namespa
 func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	e, _ := ns.rootMountEntry(name, opts...)
-	if vlog.V(2) {
+	if ctx.V(2) {
 		_, file, line, _ := runtime.Caller(1)
-		vlog.Infof("ResolveToMountTable(%s) called from %s:%d", name, file, line)
-		vlog.Infof("ResolveToMountTable(%s) -> rootNames %v", name, e)
+		ctx.Infof("ResolveToMountTable(%s) called from %s:%d", name, file, line)
+		ctx.Infof("ResolveToMountTable(%s) -> rootNames %v", name, e)
 	}
 	if len(e.Servers) == 0 {
 		return nil, verror.New(naming.ErrNoMountTable, ctx)
@@ -120,33 +119,33 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 	client := v23.GetClient(ctx)
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
-		vlog.VI(2).Infof("ResolveToMountTable(%s) loop %v", name, e)
+		ctx.VI(2).Infof("ResolveToMountTable(%s) loop %v", name, e)
 		var err error
 		curr := e
 		// If the next name to resolve doesn't point to a mount table, we're done.
 		if !e.ServesMountTable || terminal(e) {
-			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
+			ctx.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
 			return last, nil
 		}
 		if e, err = ns.resolveAgainstMountTable(ctx, client, e, callOpts...); err != nil {
 			if verror.ErrorID(err) == naming.ErrNoSuchNameRoot.ID {
-				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
+				ctx.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
 				return last, nil
 			}
 			if verror.ErrorID(err) == naming.ErrNoSuchName.ID {
-				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchName: %v)", name, curr, curr)
+				ctx.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchName: %v)", name, curr, curr)
 				return curr, nil
 			}
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
 			if notAnMT(err) {
-				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
+				ctx.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
 				return last, nil
 			}
 			// TODO(caprita): If the server is unreachable for
 			// example, we may still want to return its parent
 			// mounttable rather than an error.
-			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, err)
+			ctx.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, err)
 			return nil, err
 		}
 		last = curr
@@ -156,21 +155,21 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 
 // FlushCache flushes the most specific entry found for name.  It returns true if anything was
 // actually flushed.
-func (ns *namespace) FlushCacheEntry(name string) bool {
+func (ns *namespace) FlushCacheEntry(ctx *context.T, name string) bool {
 	defer apilog.LogCallf(nil, "name=%.10s...", name)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	flushed := false
 	for _, n := range ns.rootName(name) {
 		// Walk the cache as we would in a resolution.  Unlike a resolution, we have to follow
 		// all branches since we want to flush all entries at which we might end up whereas in a resolution,
 		// we stop with the first branch that works.
-		if e, err := ns.resolutionCache.lookup(n); err == nil {
+		if e, err := ns.resolutionCache.lookup(ctx, n); err == nil {
 			// Recurse.
 			for _, s := range e.Servers {
-				flushed = flushed || ns.FlushCacheEntry(naming.Join(s.Server, e.Name))
+				flushed = flushed || ns.FlushCacheEntry(ctx, naming.Join(s.Server, e.Name))
 			}
 			if !flushed {
 				// Forget the entry we just used.
-				ns.resolutionCache.forget([]string{naming.TrimSuffix(n, e.Name)})
+				ns.resolutionCache.forget(ctx, []string{naming.TrimSuffix(n, e.Name)})
 				flushed = true
 			}
 		}

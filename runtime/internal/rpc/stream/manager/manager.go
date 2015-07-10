@@ -12,11 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/stats"
@@ -54,9 +55,10 @@ const (
 // As the name suggests, this method is intended for use only within packages
 // placed inside v.io/x/ref/runtime/internal. Code outside the
 // v.io/x/ref/runtime/internal/* packages should never call this method.
-func InternalNew(rid naming.RoutingID) stream.Manager {
+func InternalNew(ctx *context.T, rid naming.RoutingID) stream.Manager {
 	statsPrefix := naming.Join("rpc", "stream", "routing-id", rid.String())
 	m := &manager{
+		ctx:         ctx,
 		rid:         rid,
 		vifs:        vif.NewSet(),
 		listeners:   make(map[listener]bool),
@@ -68,6 +70,7 @@ func InternalNew(rid naming.RoutingID) stream.Manager {
 }
 
 type manager struct {
+	ctx  *context.T
 	rid  naming.RoutingID
 	vifs *vif.Set
 
@@ -113,7 +116,7 @@ func resolve(r rpc.ResolverFunc, network, address string) (string, string, error
 // FindOrDialVIF returns the network connection (VIF) to the provided address
 // from the cache in the manager. If not already present in the cache, a new
 // connection will be created using net.Dial.
-func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Principal, opts ...stream.VCOpt) (*vif.VIF, error) {
+func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...stream.VCOpt) (*vif.VIF, error) {
 	// Extract options.
 	var timeout time.Duration
 	for _, o := range opts {
@@ -137,19 +140,19 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	}
 	vf, unblock := m.vifs.BlockingFind(network, address)
 	if vf != nil {
-		vlog.VI(1).Infof("(%q, %q) resolved to (%q, %q) which exists in the VIF cache.", addr.Network(), addr.String(), network, address)
+		ctx.VI(1).Infof("(%q, %q) resolved to (%q, %q) which exists in the VIF cache.", addr.Network(), addr.String(), network, address)
 		return vf, nil
 	}
 	defer unblock()
 
-	vlog.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
+	ctx.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
 	conn, err := dial(d, network, address, timeout)
 	if err != nil {
 		return nil, err
 	}
 
 	opts = append([]stream.VCOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
-	vf, err = vif.InternalNewDialedVIF(conn, m.rid, principal, nil, m.deleteVIF, opts...)
+	vf, err = vif.InternalNewDialedVIF(ctx, conn, m.rid, nil, m.deleteVIF, opts...)
 	if err != nil {
 		conn.Close()
 		return nil, err
@@ -158,16 +161,16 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	return vf, nil
 }
 
-func (m *manager) Dial(remote naming.Endpoint, principal security.Principal, opts ...stream.VCOpt) (stream.VC, error) {
+func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC, error) {
 	// If vif.Dial fails because the cached network connection was broken, remove from
 	// the cache and try once more.
 	for retry := true; true; retry = false {
-		vf, err := m.FindOrDialVIF(remote, principal, opts...)
+		vf, err := m.FindOrDialVIF(ctx, remote, opts...)
 		if err != nil {
 			return nil, err
 		}
 		opts = append([]stream.VCOpt{vc.IdleTimeout{defaultIdleTimeout}}, opts...)
-		vc, err := vf.Dial(remote, principal, opts...)
+		vc, err := vf.Dial(ctx, remote, opts...)
 		if !retry || verror.ErrorID(err) != stream.ErrAborted.ID {
 			return vc, err
 		}
@@ -177,7 +180,7 @@ func (m *manager) Dial(remote naming.Endpoint, principal security.Principal, opt
 }
 
 func (m *manager) deleteVIF(vf *vif.VIF) {
-	vlog.VI(2).Infof("%p: VIF %v is closed, removing from cache", m, vf)
+	m.ctx.VI(2).Infof("%p: VIF %v is closed, removing from cache", m, vf)
 	m.vifs.Delete(vf)
 }
 
@@ -192,12 +195,13 @@ func listen(protocol, address string) (net.Listener, error) {
 	return nil, verror.New(stream.ErrBadArg, nil, verror.New(errUnknownNetwork, nil, protocol))
 }
 
-func (m *manager) Listen(protocol, address string, principal security.Principal, blessings security.Blessings, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
+func (m *manager) Listen(ctx *context.T, protocol, address string, blessings security.Blessings, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
+	principal := stream.GetPrincipalListenerOpts(ctx, opts...)
 	bNames, err := extractBlessingNames(principal, blessings)
 	if err != nil {
 		return nil, nil, err
 	}
-	ln, ep, err := m.internalListen(protocol, address, principal, blessings, opts...)
+	ln, ep, err := m.internalListen(ctx, protocol, address, blessings, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -205,7 +209,7 @@ func (m *manager) Listen(protocol, address string, principal security.Principal,
 	return ln, ep, nil
 }
 
-func (m *manager) internalListen(protocol, address string, principal security.Principal, blessings security.Blessings, opts ...stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
+func (m *manager) internalListen(ctx *context.T, protocol, address string, blessings security.Blessings, opts ...stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
@@ -219,7 +223,7 @@ func (m *manager) internalListen(protocol, address string, principal security.Pr
 		if err != nil {
 			return nil, nil, verror.New(stream.ErrBadArg, nil, verror.New(errEndpointParseError, nil, address, err))
 		}
-		return m.remoteListen(ep, principal, opts)
+		return m.remoteListen(ctx, ep, opts)
 	}
 	netln, err := listen(protocol, address)
 	if err != nil {
@@ -229,11 +233,11 @@ func (m *manager) internalListen(protocol, address string, principal security.Pr
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
-		closeNetListener(netln)
+		closeNetListener(ctx, netln)
 		return nil, nil, verror.New(stream.ErrBadState, nil, verror.New(errAlreadyShutdown, nil))
 	}
 
-	ln := newNetListener(m, netln, principal, blessings, opts)
+	ln := newNetListener(ctx, m, netln, blessings, opts)
 	m.listeners[ln] = true
 	m.muListeners.Unlock()
 	ep := &inaming.Endpoint{
@@ -244,8 +248,8 @@ func (m *manager) internalListen(protocol, address string, principal security.Pr
 	return ln, ep, nil
 }
 
-func (m *manager) remoteListen(proxy naming.Endpoint, principal security.Principal, listenerOpts []stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
-	ln, ep, err := newProxyListener(m, proxy, principal, listenerOpts)
+func (m *manager) remoteListen(ctx *context.T, proxy naming.Endpoint, listenerOpts []stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
+	ln, ep, err := newProxyListener(ctx, m, proxy, listenerOpts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -265,13 +269,13 @@ func (m *manager) ShutdownEndpoint(remote naming.Endpoint) {
 	for _, vf := range vifs {
 		total += vf.ShutdownVCs(remote)
 	}
-	vlog.VI(1).Infof("ShutdownEndpoint(%q) closed %d VCs", remote, total)
+	m.ctx.VI(1).Infof("ShutdownEndpoint(%q) closed %d VCs", remote, total)
 }
 
-func closeNetListener(ln net.Listener) {
+func closeNetListener(ctx *context.T, ln net.Listener) {
 	addr := ln.Addr()
 	err := ln.Close()
-	vlog.VI(1).Infof("Closed net.Listener on (%q, %q): %v", addr.Network(), addr, err)
+	ctx.VI(1).Infof("Closed net.Listener on (%q, %q): %v", addr.Network(), addr, err)
 }
 
 func (m *manager) removeListener(ln listener) {

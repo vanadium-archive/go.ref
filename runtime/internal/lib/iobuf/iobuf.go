@@ -31,7 +31,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/internal/logger"
 )
 
 // A iobuf is a storage space for memory read from the network.  The data should
@@ -92,7 +92,7 @@ func (pool *Pool) alloc(size uint) *buf {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 	if pool.freelist == nil {
-		vlog.Info("iobuf.Pool is closed")
+		logger.Global().Info("iobuf.Pool is closed")
 		return nil
 	}
 
@@ -131,7 +131,7 @@ func (pool *Pool) release(iobuf *buf) {
 func (iobuf *buf) release() {
 	refcount := atomic.AddInt32(&iobuf.refcount, -1)
 	if refcount < 0 {
-		vlog.Infof("Refcount is negative: %d.  This is a bug in the program.", refcount)
+		logger.Global().Infof("Refcount is negative: %d.  This is a bug in the program.", refcount)
 	}
 	if refcount == 0 {
 		iobuf.pool.release(iobuf)

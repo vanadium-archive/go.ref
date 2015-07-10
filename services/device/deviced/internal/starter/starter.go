@@ -208,7 +208,7 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 	shutdown, err := startClaimedDevice(ctx, args)
 	if err != nil {
 		ctx.Errorf("Failed to start device service after it was claimed: %v", err)
-		v23.GetAppCycle(ctx).Stop()
+		v23.GetAppCycle(ctx).Stop(ctx)
 		return
 	}
 	defer shutdown()

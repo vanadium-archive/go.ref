@@ -19,7 +19,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 // Publisher manages the publishing of servers in mounttable.
@@ -57,6 +56,7 @@ type publisher struct {
 	cmdchan  chan interface{} // value is one of {server,name,debug}Cmd
 	stopchan chan struct{}    // closed when no longer accepting commands.
 	donechan chan struct{}    // closed when the publisher is done
+	ctx      *context.T
 }
 
 type addServerCmd struct {
@@ -89,6 +89,7 @@ func New(ctx *context.T, ns namespace.T, period time.Duration) Publisher {
 		cmdchan:  make(chan interface{}),
 		stopchan: make(chan struct{}),
 		donechan: make(chan struct{}),
+		ctx:      ctx,
 	}
 	go runLoop(ctx, p.cmdchan, p.donechan, ns, period)
 	return p
@@ -158,7 +159,7 @@ func (p *publisher) WaitForStop() {
 }
 
 func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, ns namespace.T, period time.Duration) {
-	vlog.VI(2).Info("rpc pub: start runLoop")
+	ctx.VI(2).Info("rpc pub: start runLoop")
 	state := newPubState(ctx, ns, period)
 	for {
 		select {
@@ -167,7 +168,7 @@ func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, n
 			case stopCmd:
 				state.unmountAll()
 				close(donechan)
-				vlog.VI(2).Info("rpc pub: exit runLoop")
+				ctx.VI(2).Info("rpc pub: exit runLoop")
 				return
 			case addServerCmd:
 				state.addServer(tcmd.server)
@@ -292,12 +293,12 @@ func (ps *pubState) mount(name, server string, status *rpc.MountStatus, attr nam
 	status.TTL = ttl
 	// If the mount status changed, log it.
 	if status.LastMountErr != nil {
-		if verror.ErrorID(last.LastMountErr) != verror.ErrorID(status.LastMountErr) || vlog.V(2) {
-			vlog.Errorf("rpc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)
+		if verror.ErrorID(last.LastMountErr) != verror.ErrorID(status.LastMountErr) || ps.ctx.V(2) {
+			ps.ctx.Errorf("rpc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)
 		}
 	} else {
-		if last.LastMount.IsZero() || last.LastMountErr != nil || vlog.V(2) {
-			vlog.Infof("rpc pub: mount(%v, %v, %v)", name, server, ttl)
+		if last.LastMount.IsZero() || last.LastMountErr != nil || ps.ctx.V(2) {
+			ps.ctx.Infof("rpc pub: mount(%v, %v, %v)", name, server, ttl)
 		}
 	}
 }
@@ -322,9 +323,9 @@ func (ps *pubState) unmount(name, server string, status *rpc.MountStatus, retry 
 	}
 	status.LastUnmountErr = ps.ns.Unmount(ps.ctx, name, server, opts...)
 	if status.LastUnmountErr != nil {
-		vlog.Errorf("rpc pub: couldn't unmount(%v, %v): %v", name, server, status.LastUnmountErr)
+		ps.ctx.Errorf("rpc pub: couldn't unmount(%v, %v): %v", name, server, status.LastUnmountErr)
 	} else {
-		vlog.VI(1).Infof("rpc pub: unmount(%v, %v)", name, server)
+		ps.ctx.VI(1).Infof("rpc pub: unmount(%v, %v)", name, server)
 		delete(ps.mounts, mountKey{name, server})
 	}
 }

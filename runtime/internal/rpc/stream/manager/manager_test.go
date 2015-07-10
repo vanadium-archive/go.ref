@@ -15,12 +15,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
-
+	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -41,8 +41,9 @@ import (
 // we need to set runtime.GOMAXPROCS.
 func TestMain(m *testing.M) {
 	test.Init()
+
 	// testutil.Init sets GOMAXPROCS to NumCPU.  We want to force
-	// GOMAXPROCS to remain at 1, in order to trigger a particular race
+	// GOMAXPFDROCS to remain at 1, in order to trigger a particular race
 	// condition that occurs when closing the server; also, using 1 cpu
 	// introduces less variance in the behavior of the test.
 	runtime.GOMAXPROCS(1)
@@ -51,13 +52,16 @@ func TestMain(m *testing.M) {
 }
 
 func testSimpleFlow(t *testing.T, protocol string) {
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+	client := InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 	pclient := testutil.NewPrincipal("client")
 	pclient2 := testutil.NewPrincipal("client2")
 	pserver := testutil.NewPrincipal("server")
+	ctx, _ = v23.WithPrincipal(ctx, pserver)
 
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", pserver, pserver.BlessingStore().Default())
+	ln, ep, err := server.Listen(ctx, protocol, "127.0.0.1:0", pserver.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +70,8 @@ func testSimpleFlow(t *testing.T, protocol string) {
 	var clientVC stream.VC
 	var clientF1 stream.Flow
 	go func() {
-		if clientVC, err = client.Dial(ep, pclient); err != nil {
+		cctx, _ := v23.WithPrincipal(ctx, pclient)
+		if clientVC, err = client.Dial(cctx, ep); err != nil {
 			t.Errorf("Dial(%q) failed: %v", ep, err)
 			return
 		}
@@ -134,7 +139,8 @@ func testSimpleFlow(t *testing.T, protocol string) {
 	// Opening a new VC should fail fast. Note that we need to use a different
 	// principal since the client doesn't expect a response from a server
 	// when re-using VIF authentication.
-	if _, err := client.Dial(ep, pclient2); err == nil {
+	cctx, _ := v23.WithPrincipal(ctx, pclient2)
+	if _, err := client.Dial(cctx, ep); err == nil {
 		t.Errorf("Should not be able to Dial after listener is closed")
 	}
 }
@@ -148,13 +154,16 @@ func TestSimpleFlowWS(t *testing.T) {
 }
 
 func TestConnectionTimeout(t *testing.T) {
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	client := InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 
 	ch := make(chan error)
 	go func() {
 		// 203.0.113.0 is TEST-NET-3 from RFC5737
 		ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("tcp", "203.0.113.10:80"))
-		_, err := client.Dial(ep, testutil.NewPrincipal("client"), DialTimeout(time.Second))
+		nctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("client"))
+		_, err := client.Dial(nctx, ep, DialTimeout(time.Second))
 		ch <- err
 	}()
 
@@ -169,16 +178,21 @@ func TestConnectionTimeout(t *testing.T) {
 }
 
 func testAuthenticatedByDefault(t *testing.T, protocol string) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	var (
-		server = InternalNew(naming.FixedRoutingID(0x55555555))
-		client = InternalNew(naming.FixedRoutingID(0xcccccccc))
+		server = InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+		client = InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 
 		clientPrincipal = testutil.NewPrincipal("client")
 		serverPrincipal = testutil.NewPrincipal("server")
 		clientKey       = clientPrincipal.PublicKey()
 		serverBlessings = serverPrincipal.BlessingStore().Default()
+		cctx, _         = v23.WithPrincipal(ctx, clientPrincipal)
+		sctx, _         = v23.WithPrincipal(ctx, serverPrincipal)
 	)
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", serverPrincipal, serverPrincipal.BlessingStore().Default())
+
+	ln, ep, err := server.Listen(sctx, protocol, "127.0.0.1:0", serverPrincipal.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +230,7 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 	}()
 
 	go func() {
-		vc, err := client.Dial(ep, clientPrincipal)
+		vc, err := client.Dial(cctx, ep)
 		if err != nil {
 			errs <- err
 			return
@@ -251,11 +265,14 @@ func debugString(m stream.Manager) string { return m.(*manager).DebugString() }
 func numVIFs(m stream.Manager) int        { return len(m.(*manager).vifs.List()) }
 
 func TestListenEndpoints(t *testing.T) {
-	server := InternalNew(naming.FixedRoutingID(0xcafe))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0xcafe))
 	principal := testutil.NewPrincipal("test")
+	ctx, _ = v23.WithPrincipal(ctx, principal)
 	blessings := principal.BlessingStore().Default()
-	ln1, ep1, err1 := server.Listen("tcp", "127.0.0.1:0", principal, blessings)
-	ln2, ep2, err2 := server.Listen("tcp", "127.0.0.1:0", principal, blessings)
+	ln1, ep1, err1 := server.Listen(ctx, "tcp", "127.0.0.1:0", blessings)
+	ln2, ep2, err2 := server.Listen(ctx, "tcp", "127.0.0.1:0", blessings)
 	// Since "127.0.0.1:0" was used as the network address, a random port will be
 	// assigned in each case. The endpoint should include that random port.
 	if err1 != nil {
@@ -280,14 +297,15 @@ func TestListenEndpoints(t *testing.T) {
 	}
 }
 
-func acceptLoop(ln stream.Listener) {
+func acceptLoop(wg *sync.WaitGroup, ln stream.Listener) {
 	for {
 		f, err := ln.Accept()
 		if err != nil {
-			return
+			break
 		}
 		f.Close()
 	}
+	wg.Done()
 }
 
 func TestCloseListener(t *testing.T) {
@@ -299,48 +317,62 @@ func TestCloseListenerWS(t *testing.T) {
 }
 
 func testCloseListener(t *testing.T, protocol string) {
-	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0x5e97e9))
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
 	blessings := pserver.BlessingStore().Default()
-
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", pserver, blessings)
+	ln, ep, err := server.Listen(sctx, protocol, "127.0.0.1:0", blessings)
 	if err != nil {
 		t.Fatal(err)
 	}
+	var wg sync.WaitGroup
+	wg.Add(1)
 	// Server will just listen for flows and close them.
-	go acceptLoop(ln)
-	client := InternalNew(naming.FixedRoutingID(0xc1e41))
-	if _, err = client.Dial(ep, pclient); err != nil {
+	go acceptLoop(&wg, ln)
+	client := InternalNew(ctx, naming.FixedRoutingID(0xc1e41))
+	if _, err = client.Dial(cctx, ep); err != nil {
 		t.Fatal(err)
 	}
 	ln.Close()
-	client = InternalNew(naming.FixedRoutingID(0xc1e42))
-	if _, err := client.Dial(ep, pclient); err == nil {
+	client = InternalNew(ctx, naming.FixedRoutingID(0xc1e42))
+	if _, err := client.Dial(cctx, ep); err == nil {
 		t.Errorf("client.Dial(%q) should have failed", ep)
 	}
+	time.Sleep(time.Second)
+	wg.Wait()
 }
 
 func TestShutdown(t *testing.T) {
-	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0x5e97e9))
 	principal := testutil.NewPrincipal("test")
+	ctx, _ = v23.WithPrincipal(ctx, principal)
 	blessings := principal.BlessingStore().Default()
-	ln, _, err := server.Listen("tcp", "127.0.0.1:0", principal, blessings)
+	ln, _, err := server.Listen(ctx, "tcp", "127.0.0.1:0", blessings)
 	if err != nil {
 		t.Fatal(err)
 	}
+	var wg sync.WaitGroup
+	wg.Add(1)
 	// Server will just listen for flows and close them.
-	go acceptLoop(ln)
+	go acceptLoop(&wg, ln)
 	if n, expect := numListeners(server), 1; n != expect {
 		t.Errorf("expecting %d listeners, got %d for %s", n, expect, debugString(server))
 	}
 	server.Shutdown()
-	if _, _, err := server.Listen("tcp", "127.0.0.1:0", principal, blessings); err == nil {
+	if _, _, err := server.Listen(ctx, "tcp", "127.0.0.1:0", blessings); err == nil {
 		t.Error("server should have shut down")
 	}
 	if n, expect := numListeners(server), 0; n != expect {
 		t.Errorf("expecting %d listeners, got %d for %s", n, expect, debugString(server))
 	}
+	wg.Wait()
+	fmt.Fprintf(os.Stderr, "DONE\n")
 }
 
 func TestShutdownEndpoint(t *testing.T) {
@@ -352,19 +384,25 @@ func TestShutdownEndpointWS(t *testing.T) {
 }
 
 func testShutdownEndpoint(t *testing.T, protocol string) {
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+	client := InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 	principal := testutil.NewPrincipal("test")
+	ctx, _ = v23.WithPrincipal(ctx, principal)
 
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", principal, principal.BlessingStore().Default())
+	ln, ep, err := server.Listen(ctx, protocol, "127.0.0.1:0", principal.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	// Server will just listen for flows and close them.
-	go acceptLoop(ln)
+	go acceptLoop(&wg, ln)
 
-	vc, err := client.Dial(ep, testutil.NewPrincipal("client"))
+	cctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("client"))
+	vc, err := client.Dial(cctx, ep)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,23 +413,29 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 	if f, err := vc.Connect(); f != nil || err == nil {
 		t.Errorf("vc.Connect unexpectedly succeeded: (%v, %v)", f, err)
 	}
+	ln.Close()
+	wg.Wait()
 }
 
 func TestStartTimeout(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	const (
 		startTime = 5 * time.Millisecond
 	)
 
 	var (
-		server  = InternalNew(naming.FixedRoutingID(0x55555555))
+		server  = InternalNew(ctx, naming.FixedRoutingID(0x55555555))
 		pserver = testutil.NewPrincipal("server")
 		lopts   = []stream.ListenerOpt{vc.StartTimeout{startTime}}
 	)
 
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+
 	// Pause the start timers.
 	triggerTimers := vif.SetFakeTimers()
 
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", pserver, pserver.BlessingStore().Default(), lopts...)
+	ln, ep, err := server.Listen(sctx, "tcp", "127.0.0.1:0", pserver.BlessingStore().Default(), lopts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -421,6 +465,8 @@ func TestStartTimeout(t *testing.T) {
 }
 
 func testIdleTimeout(t *testing.T, testServer bool) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	const (
 		idleTime = 10 * time.Millisecond
 		// We use a long wait time here since it takes some time to handle VC close
@@ -429,14 +475,17 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	)
 
 	var (
-		server  = InternalNew(naming.FixedRoutingID(0x55555555))
-		client  = InternalNew(naming.FixedRoutingID(0xcccccccc))
+		server  = InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+		client  = InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 		pclient = testutil.NewPrincipal("client")
 		pserver = testutil.NewPrincipal("server")
+		cctx, _ = v23.WithPrincipal(ctx, pclient)
+		sctx, _ = v23.WithPrincipal(ctx, pserver)
 
 		opts  []stream.VCOpt
 		lopts []stream.ListenerOpt
 	)
+
 	if testServer {
 		lopts = []stream.ListenerOpt{vc.IdleTimeout{idleTime}}
 	} else {
@@ -446,7 +495,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	// Pause the idle timers.
 	triggerTimers := vif.SetFakeTimers()
 
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", pserver, pserver.BlessingStore().Default(), lopts...)
+	ln, ep, err := server.Listen(sctx, "tcp", "127.0.0.1:0", pserver.BlessingStore().Default(), lopts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,7 +507,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 		}
 	}()
 
-	vc, err := client.Dial(ep, pclient, opts...)
+	vc, err := client.Dial(cctx, ep, opts...)
 	if err != nil {
 		t.Fatalf("client.Dial(%q) failed: %v", ep, err)
 	}
@@ -516,16 +565,19 @@ func TestSessionTicketCache(t *testing.T) {
 */
 
 func testMultipleVCs(t *testing.T, protocol string) {
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+	client := InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 	principal := testutil.NewPrincipal("test")
+	sctx, _ := v23.WithPrincipal(ctx, principal)
 
 	const nVCs = 2
 	const data = "bugs bunny"
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", principal, principal.BlessingStore().Default())
+	ln, ep, err := server.Listen(sctx, protocol, "127.0.0.1:0", principal.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -562,7 +614,9 @@ func testMultipleVCs(t *testing.T, protocol string) {
 	var vcs [nVCs]stream.VC
 	for i := 0; i < nVCs; i++ {
 		var err error
-		vcs[i], err = client.Dial(ep, testutil.NewPrincipal("client"))
+		pclient := testutil.NewPrincipal("client")
+		cctx, _ := v23.WithPrincipal(ctx, pclient)
+		vcs[i], err = client.Dial(cctx, ep)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -605,20 +659,25 @@ func TestMultipleVCsWS(t *testing.T) {
 }
 
 func TestAddressResolution(t *testing.T) {
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+	client := InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 	principal := testutil.NewPrincipal("test")
+	sctx, _ := v23.WithPrincipal(ctx, principal)
 
 	// Using "tcp4" instead of "tcp" because the latter can end up with IPv6
 	// addresses and our Google Compute Engine integration test machines cannot
 	// resolve IPv6 addresses.
 	// As of April 2014, https://developers.google.com/compute/docs/networking
 	// said that IPv6 is not yet supported.
-	ln, ep, err := server.Listen("tcp4", "127.0.0.1:0", principal, principal.BlessingStore().Default())
+	ln, ep, err := server.Listen(sctx, "tcp4", "127.0.0.1:0", principal.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}
-	go acceptLoop(ln)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go acceptLoop(&wg, ln)
 
 	// We'd like an endpoint that contains an address that's different than the
 	// one used for the connection. In practice this is awkward to achieve since
@@ -634,7 +693,9 @@ func TestAddressResolution(t *testing.T) {
 
 	// Dial multiple VCs
 	for i := 0; i < 2; i++ {
-		if _, err = client.Dial(nep, testutil.NewPrincipal("client")); err != nil {
+		pclient := testutil.NewPrincipal("client")
+		cctx, _ := v23.WithPrincipal(ctx, pclient)
+		if _, err = client.Dial(cctx, nep); err != nil {
 			t.Fatalf("Dial #%d failed: %v", i, err)
 		}
 	}
@@ -642,6 +703,8 @@ func TestAddressResolution(t *testing.T) {
 	if n := numVIFs(client); n != 1 {
 		t.Errorf("Client has %d VIFs, want 1\n%v", n, debugString(client))
 	}
+	ln.Close()
+	wg.Wait()
 	// TODO(ashankar): While a VIF can be re-used to Dial from the server
 	// to the client, currently there is no way to have the client "listen"
 	// on the same VIF. It can listen on a VC for new flows, but it cannot
@@ -657,9 +720,14 @@ func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
 }
 
 func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	client := InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 	pclient := testutil.NewPrincipal("client")
 	pclient2 := testutil.NewPrincipal("client2")
+	ctx1, _ := v23.WithPrincipal(ctx, pclient)
+	ctx2, _ := v23.WithPrincipal(ctx, pclient2)
+
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -674,7 +742,7 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	if err != nil {
 		t.Fatalf("inaming.NewEndpoint(%q): %v", epstr, err)
 	}
-	if _, err := client.Dial(ep, pclient); err != nil {
+	if _, err := client.Dial(ctx1, ep); err != nil {
 		t.Fatal(err)
 	}
 	h.Shutdown(nil, os.Stderr)
@@ -682,7 +750,7 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	// A new VC cannot be created since the server is dead. Note that we need to
 	// use a different principal since the client doesn't expect a response from
 	// a server when re-using VIF authentication.
-	if _, err := client.Dial(ep, pclient2); err == nil {
+	if _, err := client.Dial(ctx2, ep); err == nil {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 
@@ -698,7 +766,7 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	if got, want := ep.Addr().String(), ep2.Addr().String(); got != want {
 		t.Fatalf("Got %q, want %q", got, want)
 	}
-	if _, err := client.Dial(ep2, pclient); err != nil {
+	if _, err := client.Dial(ctx1, ep2); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -706,9 +774,12 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 var runServer = modules.Register(runServerFunc, "runServer")
 
 func runServerFunc(env *modules.Env, args ...string) error {
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0x55555555))
 	principal := testutil.NewPrincipal("test")
-	_, ep, err := server.Listen(args[0], args[1], principal, principal.BlessingStore().Default())
+	ctx, _ = v23.WithPrincipal(ctx, principal)
+	_, ep, err := server.Listen(ctx, args[0], args[1], principal.BlessingStore().Default())
 	if err != nil {
 		fmt.Fprintln(env.Stderr, err)
 		return err
@@ -751,7 +822,6 @@ func readLine(f stream.Flow) (string, error) {
 
 func writeLine(f stream.Flow, data string) error {
 	data = data + "\n"
-	vlog.VI(1).Infof("write sending %d bytes", len(data))
 	if n, err := f.Write([]byte(data)); err != nil {
 		return fmt.Errorf("Write returned (%d, %v)", n, err)
 	}
@@ -759,10 +829,13 @@ func writeLine(f stream.Flow, data string) error {
 }
 
 func TestRegistration(t *testing.T) {
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+	client := InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 	principal := testutil.NewPrincipal("server")
 	blessings := principal.BlessingStore().Default()
+	ctx, _ = v23.WithPrincipal(ctx, principal)
 
 	dialer := func(_, _ string, _ time.Duration) (net.Conn, error) {
 		return nil, fmt.Errorf("tn.Dial")
@@ -775,12 +848,12 @@ func TestRegistration(t *testing.T) {
 	}
 	rpc.RegisterProtocol("tn", dialer, resolver, listener)
 
-	_, _, err := server.Listen("tnx", "127.0.0.1:0", principal, blessings)
+	_, _, err := server.Listen(ctx, "tnx", "127.0.0.1:0", blessings)
 	if err == nil || !strings.Contains(err.Error(), "unknown network: tnx") {
 		t.Fatalf("expected error is missing (%v)", err)
 	}
 
-	_, _, err = server.Listen("tn", "127.0.0.1:0", principal, blessings)
+	_, _, err = server.Listen(ctx, "tn", "127.0.0.1:0", blessings)
 	if err == nil || !strings.Contains(err.Error(), "tn.Listen") {
 		t.Fatalf("expected error is missing (%v)", err)
 	}
@@ -794,23 +867,26 @@ func TestRegistration(t *testing.T) {
 		t.Errorf("got %t, want %t", got, want)
 	}
 
-	_, ep, err := server.Listen("tn", "127.0.0.1:0", principal, blessings)
+	_, ep, err := server.Listen(ctx, "tn", "127.0.0.1:0", blessings)
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 
-	_, err = client.Dial(ep, testutil.NewPrincipal("client"))
+	cctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("client"))
+	_, err = client.Dial(cctx, ep)
 	if err == nil || !strings.Contains(err.Error(), "tn.Resolve") {
 		t.Fatalf("expected error is missing (%v)", err)
 	}
 }
 
 func TestBlessingNamesInEndpoint(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	var (
 		p    = testutil.NewPrincipal("default")
 		b, _ = p.BlessSelf("dev.v.io/users/foo@bar.com/devices/desktop/app/myapp")
 
-		server = InternalNew(naming.FixedRoutingID(0x1))
+		server = InternalNew(ctx, naming.FixedRoutingID(0x1))
 
 		tests = []struct {
 			principal     security.Principal
@@ -838,10 +914,12 @@ func TestBlessingNamesInEndpoint(t *testing.T) {
 			},
 		}
 	)
+
 	// p must recognize its own blessings!
 	p.AddToRoots(b)
 	for idx, test := range tests {
-		ln, ep, err := server.Listen("tcp", "127.0.0.1:0", test.principal, test.blessings)
+		sctx, _ := v23.WithPrincipal(ctx, test.principal)
+		ln, ep, err := server.Listen(sctx, "tcp", "127.0.0.1:0", test.blessings)
 		if (err != nil) != test.err {
 			t.Errorf("test #%d: Got error %v, wanted error: %v", idx, err, test.err)
 		}
@@ -859,6 +937,8 @@ func TestBlessingNamesInEndpoint(t *testing.T) {
 }
 
 func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatal(err)
@@ -890,9 +970,10 @@ func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
 	// has reached its file descriptor limit.
 	nattempts := 0
 	for i := 0; i < 2*nfiles; i++ {
-		client := InternalNew(naming.FixedRoutingID(uint64(i)))
+		client := InternalNew(ctx, naming.FixedRoutingID(uint64(i)))
 		defer client.Shutdown()
 		principal := testutil.NewPrincipal(fmt.Sprintf("client%d", i))
+		cctx, _ := v23.WithPrincipal(ctx, principal)
 		connected := false
 		for !connected {
 			nattempts++
@@ -900,7 +981,7 @@ func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
 			// was at its limit, it might fail.  However, this
 			// failure will trigger the "kill connections" logic at
 			// the server and eventually the client should succeed.
-			vc, err := client.Dial(ep, principal)
+			vc, err := client.Dial(cctx, ep)
 			if err != nil {
 				continue
 			}
@@ -920,6 +1001,7 @@ func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
 		t.Logf("%s", stderr.String())
 		t.Fatal(err)
 	}
+	fmt.Fprintf(os.Stderr, "11\n")
 	if log := expect.NewSession(t, bytes.NewReader(stderr.Bytes()), time.Minute).ExpectSetEventuallyRE("listener.go.*Killing [1-9][0-9]* Conns"); len(log) == 0 {
 		t.Errorf("Failed to find log message talking about killing Conns in:\n%v", stderr.String())
 	}
@@ -928,21 +1010,26 @@ func TestVIFCleanupWhenFDLimitIsReached(t *testing.T) {
 }
 
 func TestConcurrentDials(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	// Concurrent Dials to the same network, address should only result in one VIF.
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	server := InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+	client := InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 	principal := testutil.NewPrincipal("test")
+	ctx, _ = v23.WithPrincipal(ctx, principal)
 
 	// Using "tcp4" instead of "tcp" because the latter can end up with IPv6
 	// addresses and our Google Compute Engine integration test machines cannot
 	// resolve IPv6 addresses.
 	// As of April 2014, https://developers.google.com/compute/docs/networking
 	// said that IPv6 is not yet supported.
-	ln, ep, err := server.Listen("tcp4", "127.0.0.1:0", principal, principal.BlessingStore().Default())
+	ln, ep, err := server.Listen(ctx, "tcp4", "127.0.0.1:0", principal.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}
-	go acceptLoop(ln)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go acceptLoop(&wg, ln)
 
 	nep := &inaming.Endpoint{
 		Protocol: ep.Addr().Network(),
@@ -954,7 +1041,8 @@ func TestConcurrentDials(t *testing.T) {
 	errCh := make(chan error, 10)
 	for i := 0; i < 10; i++ {
 		go func() {
-			_, err := client.Dial(nep, testutil.NewPrincipal("client"))
+			cctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("client"))
+			_, err := client.Dial(cctx, nep)
 			errCh <- err
 		}()
 	}
@@ -967,4 +1055,6 @@ func TestConcurrentDials(t *testing.T) {
 	if n := numVIFs(client); n != 1 {
 		t.Errorf("Client has %d VIFs, want 1\n%v", n, debugString(client))
 	}
+	ln.Close()
+	wg.Wait()
 }

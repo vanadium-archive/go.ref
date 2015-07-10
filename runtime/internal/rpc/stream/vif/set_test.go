@@ -13,11 +13,17 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/set"
+
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/x/lib/set"
+	"v.io/v23/verror"
+
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/vif"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -64,19 +70,22 @@ func newConn(network, address string) (net.Conn, net.Conn, error) {
 	return conn, <-done, nil
 }
 
-func newVIF(c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
+func newVIF(ctx *context.T, c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
 	done := make(chan *vif.VIF)
 	go func() {
 		principal := testutil.NewPrincipal("accepted")
+		ctx, _ = v23.WithPrincipal(ctx, principal)
 		blessings := principal.BlessingStore().Default()
-		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), principal, blessings, nil, nil)
+		vf, err := vif.InternalNewAcceptedVIF(ctx, s, naming.FixedRoutingID(0x5), blessings, nil, nil)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERR 2: %s\n", verror.DebugString(err))
 			panic(err)
 		}
 		done <- vf
 	}()
 
-	vf, err := vif.InternalNewDialedVIF(c, naming.FixedRoutingID(0xc), testutil.NewPrincipal("dialed"), nil, nil)
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("dialed"))
+	vf, err := vif.InternalNewDialedVIF(ctx, c, naming.FixedRoutingID(0xc), nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -96,6 +105,8 @@ func find(set *vif.Set, n, a string) *vif.VIF {
 }
 
 func TestSetBasic(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	sockdir, err := ioutil.TempDir("", "TestSetBasic")
 	if err != nil {
 		t.Fatal(err)
@@ -138,7 +149,7 @@ func TestSetBasic(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		vf, _, err := newVIF(c, s)
+		vf, _, err := newVIF(ctx, c, s)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -167,6 +178,8 @@ func TestSetBasic(t *testing.T) {
 }
 
 func TestSetWithPipes(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	c1, s1 := net.Pipe()
 	c2, s2 := net.Pipe()
 	a1 := c1.RemoteAddr()
@@ -177,11 +190,11 @@ func TestSetWithPipes(t *testing.T) {
 			a1.Network(), a1, a2.Network(), a2)
 	}
 
-	vf1, _, err := newVIF(c1, s1)
+	vf1, _, err := newVIF(ctx, c1, s1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	vf2, _, err := newVIF(c2, s2)
+	vf2, _, err := newVIF(ctx, c2, s2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,6 +227,8 @@ func TestSetWithPipes(t *testing.T) {
 }
 
 func TestSetWithUnixSocket(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	dir, err := ioutil.TempDir("", "TestSetWithUnixSocket")
 	if err != nil {
 		t.Fatal(err)
@@ -238,11 +253,11 @@ func TestSetWithUnixSocket(t *testing.T) {
 			a1.Network(), a1, a2.Network(), a2)
 	}
 
-	_, vf1, err := newVIF(c1, s1)
+	_, vf1, err := newVIF(ctx, c1, s1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, vf2, err := newVIF(c2, s2)
+	_, vf2, err := newVIF(ctx, c2, s2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,8 +290,10 @@ func TestSetWithUnixSocket(t *testing.T) {
 }
 
 func TestSetInsertDelete(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	c1, s1 := net.Pipe()
-	vf1, _, err := newVIF(c1, s1)
+	vf1, _, err := newVIF(ctx, c1, s1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,6 +313,8 @@ func TestSetInsertDelete(t *testing.T) {
 }
 
 func TestBlockingFind(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	network, address := "tcp", "127.0.0.1:1234"
 	set := vif.NewSet()
 
@@ -318,7 +337,7 @@ func TestBlockingFind(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	vf, _, err := newVIF(c, s)
+	vf, _, err := newVIF(ctx, c, s)
 	if err != nil {
 		t.Fatal(err)
 	}

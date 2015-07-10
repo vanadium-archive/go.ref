@@ -10,7 +10,9 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/x/lib/vlog"
+	"v.io/v23/options"
+
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal/rt"
 	"v.io/x/ref/services/debug/debuglib"
@@ -37,7 +39,11 @@ func TestNewServer(t *testing.T) {
 	r, ctx, shutdown := initForTest(t)
 	defer shutdown()
 
-	if s, err := r.NewServer(ctx); err != nil || s == nil {
+	// Use options.SecurityNone to avoid calling back into the
+	// v23 runtime, which is not setup in these tests.
+	// TODO(cnicolaou): this can be undone when the security agent
+	// no longer uses rpc as its communication mechanism.
+	if s, err := r.NewServer(ctx, options.SecurityNone); err != nil || s == nil {
 		t.Fatalf("Could not create server: %v", err)
 	}
 }
@@ -137,7 +143,7 @@ func TestReservedNameDispatcher(t *testing.T) {
 	defer shutdown()
 
 	oldDebugDisp := r.GetReservedNameDispatcher(ctx)
-	newDebugDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
+	newDebugDisp := debuglib.NewDispatcher(logger.Manager(ctx).LogDir, nil)
 
 	nctx := r.WithReservedNameDispatcher(ctx, newDebugDisp)
 	debugDisp := r.GetReservedNameDispatcher(nctx)

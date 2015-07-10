@@ -12,11 +12,9 @@ import (
 	"time"
 
 	"v.io/x/lib/netstate"
-	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/logging"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -94,6 +92,7 @@ type Proxy struct {
 // associated with the process at the other end of the network connection.
 type process struct {
 	proxy        *Proxy
+	ctx          *context.T
 	conn         net.Conn
 	pool         *iobuf.Pool
 	reader       *iobuf.Reader
@@ -138,8 +137,9 @@ func (s *server) String() string {
 // servermap is a concurrent-access safe map from the RoutingID of a server exporting itself
 // through the proxy to the underlying network connection that the server is found on.
 type servermap struct {
-	mu sync.Mutex
-	m  map[naming.RoutingID]*server
+	ctx *context.T
+	mu  sync.Mutex
+	m   map[naming.RoutingID]*server
 }
 
 func (m *servermap) Add(server *server) error {
@@ -150,7 +150,7 @@ func (m *servermap) Add(server *server) error {
 		return verror.New(stream.ErrProxy, nil, verror.New(errAlreadyProxied, nil, key))
 	}
 	m.m[key] = server
-	proxyLog().Infof("Started proxying server: %v", server)
+	proxyLog(m.ctx, "Started proxying server: %v", server)
 	return nil
 }
 
@@ -159,7 +159,7 @@ func (m *servermap) Remove(server *server) {
 	m.mu.Lock()
 	if m.m[key] != nil {
 		delete(m.m, key)
-		proxyLog().Infof("Stopped proxying server: %v", server)
+		proxyLog(m.ctx, "Stopped proxying server: %v", server)
 	}
 	m.mu.Unlock()
 }
@@ -239,7 +239,6 @@ func internalNew(rid naming.RoutingID, ctx *context.T, spec rpc.ListenSpec, auth
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errListenFailed, nil, network, address, err))
 	}
 	pub, _, err := netstate.PossibleAddresses(ln.Addr().Network(), ln.Addr().String(), spec.AddressChooser)
-	vlog.Infof("PUB: %s", pub)
 	if err != nil {
 		ln.Close()
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errAccessibleAddresses, nil, err))
@@ -256,7 +255,7 @@ func internalNew(rid naming.RoutingID, ctx *context.T, spec rpc.ListenSpec, auth
 		ln:         ln,
 		rid:        rid,
 		authorizer: authorizer,
-		servers:    &servermap{m: make(map[naming.RoutingID]*server)},
+		servers:    &servermap{ctx: ctx, m: make(map[naming.RoutingID]*server)},
 		processes:  make(map[*process]struct{}),
 		// TODO(cnicolaou): should use all of the available addresses
 		pubAddress: pub[0].String(),
@@ -273,11 +272,11 @@ func internalNew(rid naming.RoutingID, ctx *context.T, spec rpc.ListenSpec, auth
 }
 
 func (p *Proxy) listenLoop() {
-	proxyLog().Infof("Proxy listening on (%q, %q): %v", p.ln.Addr().Network(), p.ln.Addr(), p.endpoint())
+	proxyLog(p.ctx, "Proxy listening on (%q, %q): %v", p.ln.Addr().Network(), p.ln.Addr(), p.endpoint())
 	for {
 		conn, err := p.ln.Accept()
 		if err != nil {
-			proxyLog().Infof("Exiting listenLoop of proxy %q: %v", p.endpoint(), err)
+			proxyLog(p.ctx, "Exiting listenLoop of proxy %q: %v", p.endpoint(), err)
 			return
 		}
 		go p.acceptProcess(conn)
@@ -295,11 +294,12 @@ func (p *Proxy) acceptProcess(conn net.Conn) {
 
 	cipher, _, err := vif.AuthenticateAsServer(conn, reader, nil, nil, p.principal, blessings, nil)
 	if err != nil {
-		processLog().Infof("Process %v failed to authenticate: %s", p, err)
+		processLog(p.ctx, "Process %v failed to authenticate: %s", p, err)
 		return
 	}
 
 	process := &process{
+		ctx:          p.ctx,
 		proxy:        p,
 		conn:         conn,
 		pool:         pool,
@@ -324,7 +324,7 @@ func (p *Proxy) acceptProcess(conn net.Conn) {
 	go process.writeLoop()
 	go process.readLoop()
 
-	processLog().Infof("Started process %v", process)
+	processLog(p.ctx, "Started process %v", process)
 }
 
 func (p *Proxy) removeProcess(process *process) {
@@ -367,7 +367,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	}
 	enc := vom.NewEncoder(conn)
 	if err := enc.Encode(response); err != nil {
-		proxyLog().Infof("Failed to encode response %#v for server %v", response, server)
+		proxyLog(p.ctx, "Failed to encode response %#v for server %v", response, server)
 		server.Close(verror.New(stream.ErrProxy, nil, verror.New(errVomEncodeResponse, nil, err)))
 		return
 	}
@@ -432,10 +432,10 @@ func (p *Proxy) routeCounters(process *process, counters message.Counters) {
 	}
 }
 
-func startRoutingVC(srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
+func startRoutingVC(ctx *context.T, srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
 	dstProcess.AddRoute(dstVCI, &destination{VCI: srcVCI, Process: srcProcess})
 	srcProcess.AddRoute(srcVCI, &destination{VCI: dstVCI, Process: dstProcess})
-	vcLog().Infof("Routing (VCI %d @ [%s]) <-> (VCI %d @ [%s])", srcVCI, srcProcess, dstVCI, dstProcess)
+	vcLog(ctx, "Routing (VCI %d @ [%s]) <-> (VCI %d @ [%s])", srcVCI, srcProcess, dstVCI, dstProcess)
 }
 
 // Endpoint returns the endpoint of the proxy service.  By Dialing a VC to this
@@ -476,7 +476,7 @@ func (p *process) serverVCsLoop() {
 		}
 		vci, fid := unpackIDs(w.ID())
 		if vc := p.ServerVC(vci); vc != nil {
-			queueDataMessages(bufs, vc, fid, p.queue)
+			queueDataMessages(p.ctx, bufs, vc, fid, p.queue)
 			if len(bufs) == 0 {
 				m := &message.Data{VCI: vci, Flow: fid}
 				m.SetClose()
@@ -495,17 +495,17 @@ func releaseBufs(start int, bufs []*iobuf.Slice) {
 	}
 }
 
-func queueDataMessages(bufs []*iobuf.Slice, vc *vc.VC, fid id.Flow, q *upcqueue.T) {
+func queueDataMessages(ctx *context.T, bufs []*iobuf.Slice, vc *vc.VC, fid id.Flow, q *upcqueue.T) {
 	for ix, b := range bufs {
 		m := &message.Data{VCI: vc.VCI(), Flow: fid}
 		var err error
 		if m.Payload, err = vc.Encrypt(fid, b); err != nil {
-			msgLog().Infof("vc.Encrypt failed. VC:%v Flow:%v Error:%v", vc, fid, err)
+			msgLog(ctx, "vc.Encrypt failed. VC:%v Flow:%v Error:%v", vc, fid, err)
 			releaseBufs(ix+1, bufs)
 			return
 		}
 		if err = q.Put(m); err != nil {
-			msgLog().Infof("Failed to enqueue data message %v: %v", m, err)
+			msgLog(ctx, "Failed to enqueue data message %v: %v", m, err)
 			m.Release()
 			releaseBufs(ix+1, bufs)
 			return
@@ -514,40 +514,40 @@ func queueDataMessages(bufs []*iobuf.Slice, vc *vc.VC, fid id.Flow, q *upcqueue.
 }
 
 func (p *process) writeLoop() {
-	defer processLog().Infof("Exited writeLoop for %v", p)
+	defer processLog(p.ctx, "Exited writeLoop for %v", p)
 	defer p.Close()
 
 	for {
 		item, err := p.queue.Get(nil)
 		if err != nil {
 			if err != upcqueue.ErrQueueIsClosed {
-				processLog().Infof("upcqueue.Get failed on %v: %v", p, err)
+				processLog(p.ctx, "upcqueue.Get failed on %v: %v", p, err)
 			}
 			return
 		}
 		if err = message.WriteTo(p.conn, item.(message.T), p.ctrlCipher); err != nil {
-			processLog().Infof("message.WriteTo on %v failed: %v", p, err)
+			processLog(p.ctx, "message.WriteTo on %v failed: %v", p, err)
 			return
 		}
 	}
 }
 
 func (p *process) readLoop() {
-	defer processLog().Infof("Exited readLoop for %v", p)
+	defer processLog(p.ctx, "Exited readLoop for %v", p)
 	defer p.Close()
 
 	for {
 		msg, err := message.ReadFrom(p.reader, p.ctrlCipher)
 		if err != nil {
-			processLog().Infof("Read on %v failed: %v", p, err)
+			processLog(p.ctx, "Read on %v failed: %v", p, err)
 			return
 		}
-		msgLog().Infof("Received msg: %T = %v", msg, msg)
+		msgLog(p.ctx, "Received msg: %T = %v", msg, msg)
 		switch m := msg.(type) {
 		case *message.Data:
 			if vc := p.ServerVC(m.VCI); vc != nil {
 				if err := vc.DispatchPayload(m.Flow, m.Payload); err != nil {
-					processLog().Infof("Ignoring data message %v from process %v: %v", m, p, err)
+					processLog(p.ctx, "Ignoring data message %v from process %v: %v", m, p, err)
 				}
 				if m.Close() {
 					vc.ShutdownFlow(m.Flow)
@@ -568,7 +568,7 @@ func (p *process) readLoop() {
 		case *message.OpenFlow:
 			if vc := p.ServerVC(m.VCI); vc != nil {
 				if err := vc.AcceptFlow(m.Flow); err != nil {
-					processLog().Infof("OpenFlow %+v on process %v failed: %v", m, p, err)
+					processLog(p.ctx, "OpenFlow %+v on process %v failed: %v", m, p, err)
 					cm := &message.Data{VCI: m.VCI, Flow: m.Flow}
 					cm.SetClose()
 					p.queue.Put(cm)
@@ -613,7 +613,7 @@ func (p *process) readLoop() {
 			if naming.Compare(dstrid, p.proxy.rid) || naming.Compare(dstrid, naming.NullRoutingID) {
 				// VC that terminates at the proxy.
 				// See protocol.vdl for details on the protocol between the server and the proxy.
-				vcObj := p.NewServerVC(m)
+				vcObj := p.NewServerVC(p.ctx, m)
 				// route counters after creating the VC so counters to vc are not lost.
 				p.proxy.routeCounters(p, m.Counters)
 				if vcObj != nil {
@@ -662,7 +662,7 @@ func (p *process) readLoop() {
 					break
 				}
 				dstVCI := dstprocess.AllocVCI()
-				startRoutingVC(srcVCI, dstVCI, p, dstprocess)
+				startRoutingVC(p.ctx, srcVCI, dstVCI, p, dstprocess)
 				if d = p.Route(srcVCI); d == nil {
 					p.SendCloseVC(srcVCI, verror.New(stream.ErrProxy, nil, verror.New(errServerVanished, nil, dstrid)))
 					p.proxy.routeCounters(p, m.Counters)
@@ -691,7 +691,7 @@ func (p *process) readLoop() {
 			p.proxy.routeCounters(p, counters)
 
 		default:
-			processLog().Infof("Closing %v because of invalid message %T", p, m)
+			processLog(p.ctx, "Closing %v because of invalid message %T", p, m)
 			return
 		}
 	}
@@ -766,14 +766,14 @@ func (p *process) ServerVC(vci id.VC) *vc.VC {
 	return p.servers[vci]
 }
 
-func (p *process) NewServerVC(m *message.SetupVC) *vc.VC {
+func (p *process) NewServerVC(ctx *context.T, m *message.SetupVC) *vc.VC {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if vc := p.servers[m.VCI]; vc != nil {
 		vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errDuplicateSetupVC, nil)))
 		return nil
 	}
-	vc := vc.InternalNew(vc.Params{
+	vc := vc.InternalNew(ctx, vc.Params{
 		VCI:          m.VCI,
 		LocalEP:      m.RemoteEndpoint,
 		RemoteEP:     m.LocalEndpoint,
@@ -782,7 +782,7 @@ func (p *process) NewServerVC(m *message.SetupVC) *vc.VC {
 		Helper:       p,
 	})
 	p.servers[m.VCI] = vc
-	proxyLog().Infof("Registered VC %v from server on process %v", vc, p)
+	proxyLog(p.ctx, "Registered VC %v from server on process %v", vc, p)
 	return vc
 }
 
@@ -791,7 +791,7 @@ func (p *process) RemoveServerVC(vci id.VC) *vc.VC {
 	defer p.mu.Unlock()
 	if vc := p.servers[vci]; vc != nil {
 		delete(p.servers, vci)
-		proxyLog().Infof("Unregistered server VC %v from process %v", vc, p)
+		proxyLog(p.ctx, "Unregistered server VC %v from process %v", vc, p)
 		return vc
 	}
 	return nil
@@ -801,7 +801,7 @@ func (p *process) RemoveServerVC(vci id.VC) *vc.VC {
 func (p *process) NotifyOfNewFlow(vci id.VC, fid id.Flow, bytes uint) {
 	msg := &message.OpenFlow{VCI: vci, Flow: fid, InitialCounters: uint32(bytes)}
 	if err := p.queue.Put(msg); err != nil {
-		processLog().Infof("Failed to send OpenFlow(%+v) on process %v: %v", msg, p, err)
+		processLog(p.ctx, "Failed to send OpenFlow(%+v) on process %v: %v", msg, p, err)
 	}
 }
 
@@ -812,7 +812,7 @@ func (p *process) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {
 	msg := &message.AddReceiveBuffers{Counters: message.NewCounters()}
 	msg.Counters.Add(vci, fid, uint32(bytes))
 	if err := p.queue.Put(msg); err != nil {
-		processLog().Infof("Failed to send AddReceiveBuffers(%+v) on process %v: %v", msg, p, err)
+		processLog(p.ctx, "Failed to send AddReceiveBuffers(%+v) on process %v: %v", msg, p, err)
 	}
 }
 
@@ -821,10 +821,19 @@ func (p *process) NewWriter(vci id.VC, fid id.Flow, priority bqueue.Priority) (b
 }
 
 // Convenience functions to assist with the logging convention.
-func proxyLog() logging.InfoLog   { return vlog.VI(1) }
-func processLog() logging.InfoLog { return vlog.VI(2) }
-func vcLog() logging.InfoLog      { return vlog.VI(3) }
-func msgLog() logging.InfoLog     { return vlog.VI(4) }
+func proxyLog(ctx *context.T, format string, args ...interface{}) {
+	ctx.VI(1).Infof(format, args...)
+}
+func processLog(ctx *context.T, format string, args ...interface{}) {
+	ctx.VI(2).Infof(format, args...)
+}
+func vcLog(ctx *context.T, format string, args ...interface{}) {
+	ctx.VI(3).Infof(format, args...)
+}
+func msgLog(ctx *context.T, format string, args ...interface{}) {
+	ctx.VI(4).Infof(format, args...)
+}
+
 func packIDs(vci id.VC, fid id.Flow) bqueue.ID {
 	return bqueue.ID(message.MakeCounterID(vci, fid))
 }

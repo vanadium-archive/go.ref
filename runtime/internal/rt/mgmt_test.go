@@ -37,9 +37,9 @@ func TestBasic(t *testing.T) {
 
 	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
-	m.WaitForStop(ch)
+	m.WaitForStop(ctx, ch)
 	for i := 0; i < 10; i++ {
-		m.Stop()
+		m.Stop(ctx)
 		if want, got := v23.LocalStop, <-ch; want != got {
 			t.Errorf("WaitForStop want %q got %q", want, got)
 		}
@@ -59,11 +59,11 @@ func TestMultipleWaiters(t *testing.T) {
 
 	m := v23.GetAppCycle(ctx)
 	ch1 := make(chan string, 1)
-	m.WaitForStop(ch1)
+	m.WaitForStop(ctx, ch1)
 	ch2 := make(chan string, 1)
-	m.WaitForStop(ch2)
+	m.WaitForStop(ctx, ch2)
 	for i := 0; i < 10; i++ {
-		m.Stop()
+		m.Stop(ctx)
 		if want, got := v23.LocalStop, <-ch1; want != got {
 			t.Errorf("WaitForStop want %q got %q", want, got)
 		}
@@ -82,9 +82,9 @@ func TestMultipleStops(t *testing.T) {
 
 	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
-	m.WaitForStop(ch)
+	m.WaitForStop(ctx, ch)
 	for i := 0; i < 10; i++ {
-		m.Stop()
+		m.Stop(ctx)
 	}
 	if want, got := v23.LocalStop, <-ch; want != got {
 		t.Errorf("WaitForStop want %q got %q", want, got)
@@ -103,7 +103,7 @@ var noWaiters = modules.Register(func(env *modules.Env, args ...string) error {
 	m := v23.GetAppCycle(ctx)
 	fmt.Fprintf(env.Stdout, "ready\n")
 	modules.WaitForEOF(env.Stdin)
-	m.Stop()
+	m.Stop(ctx)
 	os.Exit(42) // This should not be reached.
 	return nil
 }, "noWaiters")
@@ -134,8 +134,8 @@ var forceStop = modules.Register(func(env *modules.Env, args ...string) error {
 	m := v23.GetAppCycle(ctx)
 	fmt.Fprintf(env.Stdout, "ready\n")
 	modules.WaitForEOF(env.Stdin)
-	m.WaitForStop(make(chan string, 1))
-	m.ForceStop()
+	m.WaitForStop(ctx, make(chan string, 1))
+	m.ForceStop(ctx)
 	os.Exit(42) // This should not be reached.
 	return nil
 }, "forceStop")
@@ -249,7 +249,7 @@ var app = modules.Register(func(env *modules.Env, args ...string) error {
 
 	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
-	m.WaitForStop(ch)
+	m.WaitForStop(ctx, ch)
 	fmt.Fprintf(env.Stdout, "Got %s\n", <-ch)
 	m.AdvanceGoal(10)
 	fmt.Fprintf(env.Stdout, "Doing some work\n")

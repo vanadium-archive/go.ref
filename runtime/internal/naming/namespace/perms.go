@@ -11,7 +11,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/apilog"
 )
 
@@ -32,7 +31,7 @@ func (ns *namespace) SetPermissions(ctx *context.T, name string, perms access.Pe
 		return setPermsInMountTable(ctx, client, mt, perms, version, id, getCallOpts(opts))
 	}
 	err := ns.dispatch(ctx, name, f, opts)
-	vlog.VI(1).Infof("SetPermissions(%s, %v, %s) -> %v", name, perms, version, err)
+	ctx.VI(1).Infof("SetPermissions(%s, %v, %s) -> %v", name, perms, version, err)
 	return err
 }
 

@@ -10,6 +10,7 @@ import (
 	"v.io/v23/namespace"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/apilog"
 	vsecurity "v.io/x/ref/lib/security"
 	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
@@ -38,8 +39,8 @@ func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
 }
 
 func (r *Runtime) Init(ctx *context.T) error {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	return nil
+	// nologcall
+	return logger.Manager(ctx).ConfigureFromFlags()
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {

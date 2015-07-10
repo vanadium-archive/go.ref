@@ -120,7 +120,10 @@ func TestRegexp(t *testing.T) {
 
 		newSpan(traces[0], "foo", traces[0], st)
 		newSpan(traces[1], "foobar", traces[1], st)
-		sp := newSpan(traces[2], "baz", traces[2], st)
+		sp, err := newSpan(traces[2], "baz", traces[2], st)
+		if err != nil {
+			t.Fatal(err)
+		}
 		sp.Annotate("foobang")
 
 		compare(t, traceids(test.results...), st.TraceRecords())

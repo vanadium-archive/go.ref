@@ -14,7 +14,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/uniqueid"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags"
 )
@@ -29,10 +28,10 @@ type span struct {
 	store  *Store
 }
 
-func newSpan(parent uniqueid.Id, name string, trace uniqueid.Id, store *Store) *span {
+func newSpan(parent uniqueid.Id, name string, trace uniqueid.Id, store *Store) (*span, error) {
 	id, err := uniqueid.Random()
 	if err != nil {
-		vlog.Errorf("vtrace: Couldn't generate Span ID, debug data may be lost: %v", err)
+		return nil, fmt.Errorf("vtrace: Couldn't generate Span ID, debug data may be lost: %v", err)
 	}
 	s := &span{
 		id:     id,
@@ -43,7 +42,7 @@ func newSpan(parent uniqueid.Id, name string, trace uniqueid.Id, store *Store) *
 		store:  store,
 	}
 	store.start(s)
-	return s
+	return s, nil
 }
 
 func (s *span) ID() uniqueid.Id {
@@ -97,9 +96,12 @@ func (m manager) WithNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
 	// nologcall
 	id, err := uniqueid.Random()
 	if err != nil {
-		vlog.Errorf("vtrace: Couldn't generate Trace Id, debug data may be lost: %v", err)
+		ctx.Errorf("vtrace: Couldn't generate Trace Id, debug data may be lost: %v", err)
 	}
-	s := newSpan(id, "", id, getStore(ctx))
+	s, err := newSpan(id, "", id, getStore(ctx))
+	if err != nil {
+		ctx.Error(err)
+	}
 
 	return context.WithValue(ctx, spanKey, s), s
 }
@@ -114,7 +116,10 @@ func (m manager) WithContinuedTrace(ctx *context.T, name string, req vtrace.Requ
 	if req.Flags&vtrace.CollectInMemory != 0 {
 		st.ForceCollect(req.TraceId)
 	}
-	newSpan := newSpan(req.SpanId, name, req.TraceId, st)
+	newSpan, err := newSpan(req.SpanId, name, req.TraceId, st)
+	if err != nil {
+		ctx.Error(err)
+	}
 	return context.WithValue(ctx, spanKey, newSpan), newSpan
 }
 
@@ -126,11 +131,14 @@ func (m manager) WithNewSpan(ctx *context.T, name string) (*context.T, vtrace.Sp
 		if curSpan.store == nil {
 			panic("nil store")
 		}
-		s := newSpan(curSpan.ID(), name, curSpan.trace, curSpan.store)
+		s, err := newSpan(curSpan.ID(), name, curSpan.trace, curSpan.store)
+		if err != nil {
+			ctx.Error(err)
+		}
 		return context.WithValue(ctx, spanKey, s), s
 	}
 
-	vlog.Error("vtrace: Creating a new child span from context with no existing span.")
+	ctx.Error("vtrace: Creating a new child span from context with no existing span.")
 	return m.WithNewTrace(ctx)
 }
 

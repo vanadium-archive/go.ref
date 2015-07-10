@@ -13,14 +13,15 @@ import (
 	"regexp"
 	"time"
 
+	"v.io/x/lib/cmdline"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
@@ -202,7 +203,7 @@ Command mounttable sends commands to Vanadium mounttable services.
 }
 
 func blessingPatternsFromServer(ctx *context.T, server string) ([]security.BlessingPattern, error) {
-	vlog.Infof("Contacting %q to determine the blessings presented by it", server)
+	ctx.Infof("Contacting %q to determine the blessings presented by it", server)
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	call, err := v23.GetClient(ctx).StartCall(ctx, server, rpc.ReservedSignature, nil)

@@ -16,7 +16,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/flags"
@@ -68,7 +67,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, shutdown, err
 	}
 
-	vlog.Log.VI(1).Infof("Initializing GCE RuntimeFactory.")
+	ctx.VI(1).Infof("Initializing GCE RuntimeFactory.")
 
 	runtimeFactoryShutdown := func() {
 		ac.Shutdown()

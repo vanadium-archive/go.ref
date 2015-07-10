@@ -7,6 +7,7 @@ package stream
 import (
 	"io"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 )
@@ -116,13 +117,18 @@ type VCOpt interface {
 	RPCStreamVCOpt()
 }
 
+type AuthenticatedVC bool
+
+func (AuthenticatedVC) RPCStreamVCOpt()       {}
+func (AuthenticatedVC) RPCStreamListenerOpt() {}
+
 // Manager is the interface for managing the creation of VCs.
 type Manager interface {
 	// Listen creates a Listener that can be used to accept Flows initiated
 	// with the provided network address.
 	//
 	// For example:
-	//   ln, ep, err := Listen("tcp", ":0", principal)
+	//   ln, ep, err := Listen(ctx, "tcp", ":0")
 	//   for {
 	//     flow, err := ln.Accept()
 	//     // process flow
@@ -130,15 +136,14 @@ type Manager interface {
 	// can be used to accept Flows initiated by remote processes to the endpoint
 	// identified by the returned Endpoint.
 	//
-	// principal is used during authentication. If principal is nil, then the Listener
-	// expects to be used for unauthenticated, unencrypted communication.
-	// blessings are the Blessings presented to the Client during authentication.
-	Listen(protocol, address string, principal security.Principal, blessings security.Blessings, opts ...ListenerOpt) (Listener, naming.Endpoint, error)
+	// ctx contains the principal to be used during authentication and blessings the
+	// blessings to use.
+	Listen(ctx *context.T, protocol, address string, blessings security.Blessings, opts ...ListenerOpt) (Listener, naming.Endpoint, error)
 
 	// Dial creates a VC to the provided remote endpoint.
-	// principal is used during authentication. If principal is nil, then the VC expects
-	// to be used for unauthenticated, unencrypted communication.
-	Dial(remote naming.Endpoint, principal security.Principal, opts ...VCOpt) (VC, error)
+	// ctx contains the principal to be used during authentication.
+	// Authentication may be disabled via the AuthenticatedVC option.
+	Dial(ctx *context.T, remote naming.Endpoint, opts ...VCOpt) (VC, error)
 
 	// ShutdownEndpoint closes all VCs (and Flows and Listeners over it)
 	// involving the provided remote endpoint.

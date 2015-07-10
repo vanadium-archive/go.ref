@@ -141,7 +141,7 @@ func (ns *namespaceMock) ResolveToMountTable(ctx *context.T, name string, opts .
 	panic("ResolveToMountTable not implemented")
 }
 
-func (ns *namespaceMock) FlushCacheEntry(name string) bool {
+func (ns *namespaceMock) FlushCacheEntry(ctx *context.T, name string) bool {
 	defer apilog.LogCallf(nil, "name=%.10s...", name)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return false
 }

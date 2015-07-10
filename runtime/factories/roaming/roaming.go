@@ -20,7 +20,6 @@ import (
 	"v.io/x/lib/netconfig"
 	"v.io/x/lib/netstate"
 	"v.io/x/lib/pubsub"
-	"v.io/x/lib/vlog"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -157,29 +156,29 @@ done:
 			netstate.InvalidateCache()
 			cur, err := netstate.GetAccessibleIPs()
 			if err != nil {
-				vlog.Errorf("failed to read network state: %s", err)
+				ctx.Errorf("failed to read network state: %s", err)
 				continue
 			}
 			removed := netstate.FindRemoved(prev, cur)
 			added := netstate.FindAdded(prev, cur)
-			vlog.VI(2).Infof("Previous: %d: %s", len(prev), prev)
-			vlog.VI(2).Infof("Current : %d: %s", len(cur), cur)
-			vlog.VI(2).Infof("Added   : %d: %s", len(added), added)
-			vlog.VI(2).Infof("Removed : %d: %s", len(removed), removed)
+			ctx.VI(2).Infof("Previous: %d: %s", len(prev), prev)
+			ctx.VI(2).Infof("Current : %d: %s", len(cur), cur)
+			ctx.VI(2).Infof("Added   : %d: %s", len(added), added)
+			ctx.VI(2).Infof("Removed : %d: %s", len(removed), removed)
 			if len(removed) == 0 && len(added) == 0 {
-				vlog.VI(2).Infof("Network event that lead to no address changes since our last 'baseline'")
+				ctx.VI(2).Infof("Network event that lead to no address changes since our last 'baseline'")
 				continue
 			}
 			if len(removed) > 0 {
-				vlog.VI(2).Infof("Sending removed: %s", removed)
+				ctx.VI(2).Infof("Sending removed: %s", removed)
 				ch <- irpc.NewRmAddrsSetting(removed.AsNetAddrs())
 			}
 			// We will always send the best currently available address
 			if chosen, err := listenSpec.AddressChooser.ChooseAddress(listenSpec.Addrs[0].Protocol, cur.AsNetAddrs()); err == nil && chosen != nil {
-				vlog.VI(2).Infof("Sending added and chosen: %s", chosen)
+				ctx.VI(2).Infof("Sending added and chosen: %s", chosen)
 				ch <- irpc.NewAddAddrsSetting(chosen)
 			} else {
-				vlog.VI(2).Infof("Ignoring added %s", added)
+				ctx.VI(2).Infof("Ignoring added %s", added)
 			}
 			prev = cur
 		case <-cleanup:

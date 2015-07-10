@@ -12,7 +12,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal"
@@ -41,6 +40,6 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	if err != nil {
 		return nil, nil, shutdown, err
 	}
-	vlog.Log.VI(1).Infof("Initializing chrome RuntimeFactory.")
+	ctx.VI(1).Infof("Initializing chrome RuntimeFactory.")
 	return runtime, ctx, shutdown, nil
 }

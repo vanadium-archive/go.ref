@@ -15,7 +15,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
@@ -32,16 +33,19 @@ func TestDebugServer(t *testing.T) {
 		pclient = testutil.NewPrincipal("client")
 		pserver = testutil.NewPrincipal("server")
 		bclient = bless(pserver, pclient, "client") // server/client blessing.
+		sctx, _ = v23.WithPrincipal(ctx, pserver)
+		cctx, _ = v23.WithPrincipal(ctx, pclient)
 	)
 	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.
 	pclient.BlessingStore().Set(bclient, "server") // Client presents bclient to server
 
-	debugDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
+	debugDisp := debuglib.NewDispatcher(logger.Manager(ctx).LogDir, nil)
 
-	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
+	sm := manager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(ctx, sm, ns, pserver, ReservedNameDispatcher{debugDisp})
+
+	server, err := testInternalNewServer(sctx, sm, ns, ReservedNameDispatcher{debugDisp})
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}
@@ -53,7 +57,7 @@ func TestDebugServer(t *testing.T) {
 	if err := server.Serve("", &testObject{}, nil); err != nil {
 		t.Fatalf("server.Serve failed: %v", err)
 	}
-	ctx, _ = v23.WithPrincipal(ctx, pclient)
+
 	client, err := InternalNewClient(sm, ns)
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
@@ -63,7 +67,7 @@ func TestDebugServer(t *testing.T) {
 	// Call the Foo method on ""
 	{
 		var value string
-		if err := client.Call(ctx, ep.Name(), "Foo", nil, []interface{}{&value}); err != nil {
+		if err := client.Call(cctx, ep.Name(), "Foo", nil, []interface{}{&value}); err != nil {
 			t.Fatalf("client.Call failed: %v", err)
 		}
 		if want := "BAR"; value != want {
@@ -76,7 +80,7 @@ func TestDebugServer(t *testing.T) {
 		foo.Set("The quick brown fox jumps over the lazy dog")
 		addr := naming.JoinAddressName(ep.String(), "__debug/stats/testing/foo")
 		var value string
-		if err := client.Call(ctx, addr, "Value", nil, []interface{}{&value}, options.NoResolve{}); err != nil {
+		if err := client.Call(cctx, addr, "Value", nil, []interface{}{&value}, options.NoResolve{}); err != nil {
 			t.Fatalf("client.Call failed: %v", err)
 		}
 		if want := foo.Value(); value != want {
@@ -96,7 +100,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		addr := naming.JoinAddressName(ep.String(), tc.name)
-		call, err := client.StartCall(ctx, addr, rpc.GlobMethod, []interface{}{tc.pattern}, options.NoResolve{})
+		call, err := client.StartCall(cctx, addr, rpc.GlobMethod, []interface{}{tc.pattern}, options.NoResolve{})
 		if err != nil {
 			t.Fatalf("client.StartCall failed for %q: %v", tc.name, err)
 		}

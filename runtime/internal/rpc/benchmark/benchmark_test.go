@@ -10,7 +10,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
@@ -116,7 +115,7 @@ func TestMain(m *testing.M) {
 
 	server, err := xrpc.NewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
 	if err != nil {
-		vlog.Fatalf("NewServer failed: %v", err)
+		ctx.Fatalf("NewServer failed: %v", err)
 	}
 	serverAddr = server.Status().Endpoints[0].Name()
 

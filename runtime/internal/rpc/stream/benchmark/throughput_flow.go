@@ -8,12 +8,15 @@ import (
 	"io"
 	"testing"
 
-	"v.io/x/ref/runtime/internal/rpc/stream/manager"
-
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
+
 	"v.io/x/ref/runtime/internal/rpc/stream"
+	"v.io/x/ref/runtime/internal/rpc/stream/manager"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -31,7 +34,7 @@ type listener struct {
 // createListeners returns N (stream.Listener, naming.Endpoint) pairs, such
 // that calling stream.Manager.Dial to each of the endpoints will end up
 // creating a new VIF.
-func createListeners(mode options.SecurityLevel, m stream.Manager, N int) (servers []listener, err error) {
+func createListeners(ctx *context.T, mode options.SecurityLevel, m stream.Manager, N int) (servers []listener, err error) {
 	for i := 0; i < N; i++ {
 		var (
 			l         listener
@@ -42,7 +45,7 @@ func createListeners(mode options.SecurityLevel, m stream.Manager, N int) (serve
 			principal = testutil.NewPrincipal("test")
 			blessings = principal.BlessingStore().Default()
 		}
-		if l.ln, l.ep, err = m.Listen("tcp", "127.0.0.1:0", principal, blessings); err != nil {
+		if l.ln, l.ep, err = m.Listen(ctx, "tcp", "127.0.0.1:0", blessings); err != nil {
 			return
 		}
 		servers = append(servers, l)
@@ -51,15 +54,18 @@ func createListeners(mode options.SecurityLevel, m stream.Manager, N int) (serve
 }
 
 func benchmarkFlow(b *testing.B, mode options.SecurityLevel, nVIFs, nVCsPerVIF, nFlowsPerVC int) {
-	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccc))
-	server := manager.InternalNew(naming.FixedRoutingID(0x55555555))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	client := manager.InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
+	server := manager.InternalNew(ctx, naming.FixedRoutingID(0x55555555))
 
 	var principal security.Principal
 	if mode == securityDefault {
 		principal = testutil.NewPrincipal("test")
+		ctx, _ = v23.WithPrincipal(ctx, principal)
 	}
 
-	lns, err := createListeners(mode, server, nVIFs)
+	lns, err := createListeners(ctx, mode, server, nVIFs)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -75,7 +81,7 @@ func benchmarkFlow(b *testing.B, mode options.SecurityLevel, nVIFs, nVCsPerVIF, 
 		for i := 0; i < nVIFs; i++ {
 			ep := lns[i].ep
 			for j := 0; j < nVCsPerVIF; j++ {
-				vc, err := client.Dial(ep, principal)
+				vc, err := client.Dial(ctx, ep)
 				if err != nil {
 					b.Error(err)
 					return

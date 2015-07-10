@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
@@ -95,9 +93,14 @@ func InternalNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.Cli
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
-		ipNets:    ipNetworks(),
-		vcCache:   vc.NewVCCache(),
+
+		vcCache: vc.NewVCCache(),
 	}
+	ipNets, err := ipNetworks()
+	if err != nil {
+		return nil, err
+	}
+	c.ipNets = ipNets
 	c.dc = InternalNewDischargeClient(nil, c, 0)
 	for _, opt := range opts {
 		// Collect all client opts that are also vc opts.
@@ -146,7 +149,7 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 	}
 
 	sm := c.streamMgr
-	v, err := sm.Dial(ep, principal, vcOpts...)
+	v, err := sm.Dial(ctx, ep, vcOpts...)
 	if err != nil {
 		return nil, suberr(err)
 	}
@@ -210,13 +213,13 @@ func (c *client) Call(ctx *context.T, name, method string, inArgs, outArgs []int
 		// RetryConnection and RetryRefetch required actions by the client before
 		// retrying.
 		if !shouldRetryBackoff(verror.Action(lastErr), deadline, opts) {
-			vlog.VI(4).Infof("Cannot retry after error: %s", lastErr)
+			ctx.VI(4).Infof("Cannot retry after error: %s", lastErr)
 			break
 		}
 		if !backoff(retries, deadline) {
 			break
 		}
-		vlog.VI(4).Infof("Retrying due to error: %s", lastErr)
+		ctx.VI(4).Infof("Retrying due to error: %s", lastErr)
 	}
 	return lastErr
 }
@@ -374,7 +377,7 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 	}
 	if status.flow, status.serverErr = c.createFlow(ctx, principal, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.serverErr != nil {
 		status.serverErr.Name = suberrName(server, name, method)
-		vlog.VI(2).Infof("rpc: Failed to create Flow with %v: %v", server, status.serverErr.Err)
+		ctx.VI(2).Infof("rpc: Failed to create Flow with %v: %v", server, status.serverErr.Err)
 		return
 	}
 
@@ -399,7 +402,7 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		// We will test for errServerAuthorizeFailed in failedTryCall and report
 		// verror.ErrNotTrusted
 		status.serverErr = suberr(verror.New(errServerAuthorizeFailed, ctx, status.flow.RemoteBlessings(), err))
-		vlog.VI(2).Infof("rpc: Failed to authorize Flow created with server %v: %s", server, status.serverErr.Err)
+		ctx.VI(2).Infof("rpc: Failed to authorize Flow created with server %v: %s", server, status.serverErr.Err)
 		status.flow.Close()
 		status.flow = nil
 		return
@@ -474,7 +477,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 
 	responses := make([]*serverStatus, attempts)
 	ch := make(chan *serverStatus, attempts)
-	vcOpts := append(getVCOpts(opts), c.vcOpts...)
+	vcOpts := append(translateVCOpts(opts), c.vcOpts...)
 	authorizer := newServerAuthorizer(blessingPattern, opts...)
 	for i, server := range resolved.Names() {
 		// Create a copy of vcOpts for each call to tryCreateFlow
@@ -506,7 +509,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 				}
 			}
 		case <-timeoutChan:
-			vlog.VI(2).Infof("rpc: timeout on connection to server %v ", name)
+			ctx.VI(2).Infof("rpc: timeout on connection to server %v ", name)
 			_, _, _, err := c.failedTryCall(ctx, name, method, responses, ch)
 			if verror.ErrorID(err) != verror.ErrTimeout.ID {
 				return nil, verror.NoRetry, false, verror.New(verror.ErrTimeout, ctx, err)
@@ -541,7 +544,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 					Options: verror.Print,
 					Err:     verror.New(verror.ErrNotTrusted, nil, verror.New(errPrepareBlessingsAndDischarges, ctx, r.flow.RemoteBlessings(), err)),
 				}
-				vlog.VI(2).Infof("rpc: err: %s", r.serverErr)
+				ctx.VI(2).Infof("rpc: err: %s", r.serverErr)
 				r.flow.Close()
 				r.flow = nil
 				continue
@@ -617,7 +620,7 @@ func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serv
 // calls in tryCall failed or we timed out if we get here.
 func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (rpc.ClientCall, verror.ActionCode, bool, error) {
 	go cleanupTryCall(nil, responses, ch)
-	c.ns.FlushCacheEntry(name)
+	c.ns.FlushCacheEntry(ctx, name)
 	suberrs := []verror.SubErr{}
 	topLevelError := verror.ErrNoServers
 	topLevelAction := verror.RetryRefetch
@@ -1018,7 +1021,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 			// with retrying again and again with this discharge. As there is no direct way
 			// to detect it, we conservatively flush all discharges we used from the cache.
 			// TODO(ataly,andreser): add verror.BadDischarge and handle it explicitly?
-			vlog.VI(3).Infof("Discarding %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
+			fc.ctx.VI(3).Infof("Discarding %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
 			fc.dc.Invalidate(fc.ctx, fc.discharges...)
 		}
 		if id == errBadNumInputArgs.ID || id == errBadInputArg.ID {

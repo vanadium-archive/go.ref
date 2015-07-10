@@ -4,7 +4,7 @@
 
 package iobuf
 
-import "v.io/x/lib/vlog"
+import "v.io/x/ref/internal/logger"
 
 // Allocator is an allocator for Slices that tries to allocate contiguously.
 // That is, sequential allocations will tend to be contiguous, which means
@@ -51,7 +51,7 @@ func (a *Allocator) Alloc(bytes uint) *Slice {
 	n := bytes + a.reserve
 	if a.iobuf == nil {
 		if a.pool == nil {
-			vlog.Info("iobuf.Allocator has already been closed")
+			logger.Global().Info("iobuf.Allocator has already been closed")
 			return nil
 		}
 		a.iobuf = a.pool.alloc(n)

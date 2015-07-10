@@ -72,6 +72,9 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 		// during runtime shutdown.
 		ctx, shutdown = context.WithRootCancel(ctx)
 
+		// TODO(cnicolaou): the agentlib can call back into runtime to get the principal,
+		// which will be a problem if the runtime is not initialized, hence this code
+		// path is fragile. We should ideally provide an option to work around this case.
 		if principal, err = agentlib.NewAgentPrincipal(ctx, ep, client); err != nil {
 			shutdown()
 			client.Close()
