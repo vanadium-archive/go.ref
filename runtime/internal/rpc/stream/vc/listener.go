@@ -7,6 +7,7 @@ package vc
 import (
 	"v.io/v23/verror"
 
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	"v.io/x/ref/runtime/internal/rpc/stream"
 )
@@ -16,7 +17,7 @@ var (
 	// level errors and hence {1}{2} is omitted from their format
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
-	errListenerClosed = reg(".errListenerClosed", "Listener has been closed")
+	errListenerClosed = reg(".errListenerClosed", "listener has been closed")
 	errGetFromQueue   = reg(".errGetFromQueue", "upcqueue.Get failed{:3}")
 )
 
@@ -31,6 +32,7 @@ func newListener() *listener { return &listener{q: upcqueue.New()} }
 func (l *listener) Enqueue(f stream.Flow) error {
 	err := l.q.Put(f)
 	if err == upcqueue.ErrQueueIsClosed {
+		logger.Global().Infof("Listener closed: %p, %p", l, l.q)
 		return verror.New(stream.ErrBadState, nil, verror.New(errListenerClosed, nil))
 	}
 	return err
@@ -48,6 +50,7 @@ func (l *listener) Accept() (stream.Flow, error) {
 }
 
 func (l *listener) Close() error {
+	logger.Global().Infof("Listener being closed: %p, %p", l, l.q)
 	l.q.Close()
 	return nil
 }

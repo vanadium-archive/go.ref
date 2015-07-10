@@ -78,10 +78,18 @@ func noRetry(opts []rpc.CallOpt) bool {
 	return false
 }
 
-func getVCOpts(opts []rpc.CallOpt) (vcOpts []stream.VCOpt) {
+func translateVCOpts(opts []rpc.CallOpt) (vcOpts []stream.VCOpt) {
 	for _, o := range opts {
-		if v, ok := o.(stream.VCOpt); ok {
+		switch v := o.(type) {
+		case stream.VCOpt:
 			vcOpts = append(vcOpts, v)
+		case options.SecurityLevel:
+			switch v {
+			case options.SecurityNone:
+				vcOpts = append(vcOpts, stream.AuthenticatedVC(false))
+			case options.SecurityConfidential:
+				vcOpts = append(vcOpts, stream.AuthenticatedVC(true))
+			}
 		}
 	}
 	return

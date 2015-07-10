@@ -24,8 +24,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
-	"v.io/x/lib/vlog"
-
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/lib/bqueue"
 	"v.io/x/ref/runtime/internal/lib/bqueue/drrqueue"
 	"v.io/x/ref/runtime/internal/lib/iobuf"
@@ -34,6 +33,7 @@ import (
 	"v.io/x/ref/runtime/internal/rpc/stream/id"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	iversion "v.io/x/ref/runtime/internal/rpc/version"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -95,8 +95,10 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 }
 
 func TestHandshakeNoSecurity(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	// When the principals are nil, no blessings should be sent over the wire.
-	clientH, serverH := newVC()
+	clientH, serverH := newVC(ctx)
 	if err := handshakeVCNoAuthentication(LatestVersion, clientH.VC, serverH.VC); err != nil {
 		t.Fatal(err)
 	}
@@ -178,6 +180,8 @@ func (mockDischargeClient) RPCStreamVCOpt()                              {}
 var _ vc.DischargeClient = (mockDischargeClient)(nil)
 
 func testHandshake(t *testing.T, securityLevel testSecurityLevel) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	matchesError := func(got error, want string) error {
 		if (got == nil) && len(want) == 0 {
 			return nil
@@ -254,7 +258,7 @@ func testHandshake(t *testing.T, securityLevel testSecurityLevel) {
 		},
 	}
 	for i, d := range testdata {
-		clientH, serverH := newVC()
+		clientH, serverH := newVC(ctx)
 		var err error
 		switch securityLevel {
 		case SecurityPreAuthenticated:
@@ -462,7 +466,9 @@ type helper struct {
 // the one that initiated the VC). The "server" end (the one that "accepted" the
 // VC) listens for flows and simply echoes data read.
 func NewSimple(v version.RPCVersion, securityLevel testSecurityLevel) (*helper, stream.VC, error) {
-	clientH, serverH := newVC()
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	clientH, serverH := newVC(ctx)
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
 	var err error
@@ -482,7 +488,7 @@ func NewSimple(v version.RPCVersion, securityLevel testSecurityLevel) (*helper, 
 	return clientH, clientH.VC, err
 }
 
-func newVC() (clientH, serverH *helper) {
+func newVC(ctx *context.T) (clientH, serverH *helper) {
 	clientH = &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	serverH = &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	clientH.otherEnd = serverH
@@ -506,12 +512,12 @@ func newVC() (clientH, serverH *helper) {
 		Helper:   serverH,
 	}
 
-	clientH.VC = vc.InternalNew(clientParams)
-	serverH.VC = vc.InternalNew(serverParams)
+	clientH.VC = vc.InternalNew(ctx, clientParams)
+	serverH.VC = vc.InternalNew(ctx, serverParams)
 	clientH.AddReceiveBuffers(vci, vc.SharedFlowID, vc.DefaultBytesBufferedPerFlow)
 
-	go clientH.pipeLoop(serverH.VC)
-	go serverH.pipeLoop(clientH.VC)
+	go clientH.pipeLoop(ctx, serverH.VC)
+	go serverH.pipeLoop(ctx, clientH.VC)
 	return
 }
 
@@ -615,7 +621,7 @@ func handshakeVCNoAuthentication(v version.RPCVersion, client, server *vc.VC) er
 }
 
 // pipeLoop forwards slices written to h.bq to dst.
-func (h *helper) pipeLoop(dst *vc.VC) {
+func (h *helper) pipeLoop(ctx *context.T, dst *vc.VC) {
 	for {
 		w, bufs, err := h.bq.Get(nil)
 		if err != nil {
@@ -625,10 +631,10 @@ func (h *helper) pipeLoop(dst *vc.VC) {
 		for _, b := range bufs {
 			cipher, err := h.VC.Encrypt(fid, b)
 			if err != nil {
-				vlog.Infof("vc encrypt failed: %v", err)
+				ctx.Infof("vc encrypt failed: %v", err)
 			}
 			if err := dst.DispatchPayload(fid, cipher); err != nil {
-				vlog.Infof("dispatch payload failed: %v", err)
+				ctx.Infof("dispatch payload failed: %v", err)
 				return
 			}
 		}

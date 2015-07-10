@@ -13,7 +13,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/apilog"
 )
 
@@ -53,7 +52,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 		return mountIntoMountTable(ctx, client, mt, server, ttl, flags, id, getCallOpts(opts)...)
 	}
 	err := ns.dispatch(ctx, name, f, opts)
-	vlog.VI(1).Infof("Mount(%s, %q) -> %v", name, server, err)
+	ctx.VI(1).Infof("Mount(%s, %q) -> %v", name, server, err)
 	return err
 }
 
@@ -74,7 +73,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming
 		return unmountFromMountTable(ctx, client, mt, server, id, getCallOpts(opts)...)
 	}
 	err := ns.dispatch(ctx, name, f, opts)
-	vlog.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
+	ctx.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
 	return err
 }
 
@@ -96,7 +95,7 @@ func (ns *namespace) Delete(ctx *context.T, name string, deleteSubtree bool, opt
 		return deleteFromMountTable(ctx, client, mt, deleteSubtree, id, getCallOpts(opts)...)
 	}
 	err := ns.dispatch(ctx, name, f, opts)
-	vlog.VI(1).Infof("Remove(%s, %v) -> %v", name, deleteSubtree, err)
+	ctx.VI(1).Infof("Remove(%s, %v) -> %v", name, deleteSubtree, err)
 	return err
 }
 

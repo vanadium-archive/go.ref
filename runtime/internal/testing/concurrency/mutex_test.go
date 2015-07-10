@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/runtime/internal/testing/concurrency"
 	"v.io/x/ref/runtime/internal/testing/concurrency/sync"
 )
@@ -97,7 +97,7 @@ func TestMutexExplore(t *testing.T) {
 		expectedOutputs := generateMutexOutputs(createMutexSet(n))
 		checkExpectedOutputs(t, outputs, expectedOutputs)
 		checkUnexpectedOutputs(t, outputs, expectedOutputs)
-		vlog.VI(1).Infof("Explored %v iterations.", niterations)
+		logger.Global().VI(1).Infof("Explored %v iterations.", niterations)
 	}
 }
 
@@ -129,7 +129,7 @@ func TestMutexExploreN(t *testing.T) {
 		if niterations > stopAfter {
 			t.Fatalf("Unexpected number of iterations: expected at most %v, got %v", stopAfter, niterations)
 		}
-		vlog.VI(1).Infof("Explored %v iterations.", niterations)
+		logger.Global().VI(1).Infof("Explored %v iterations.", niterations)
 	}
 }
 
@@ -160,6 +160,6 @@ func TestMutexExploreFor(t *testing.T) {
 		if start.Add(deadline).After(end) {
 			checkExpectedOutputs(t, outputs, expectedOutputs)
 		}
-		vlog.VI(1).Infof("Explored %v iterations.", niterations)
+		logger.Global().VI(1).Infof("Explored %v iterations.", niterations)
 	}
 }

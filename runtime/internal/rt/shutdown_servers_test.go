@@ -16,7 +16,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -37,10 +37,10 @@ func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 		for scanner.Scan() {
 			switch scanner.Text() {
 			case "stop":
-				v23.GetAppCycle(ctx).Stop()
+				v23.GetAppCycle(ctx).Stop(ctx)
 			case "forcestop":
 				fmt.Println("straight exit")
-				v23.GetAppCycle(ctx).ForceStop()
+				v23.GetAppCycle(ctx).ForceStop(ctx)
 			case "close":
 				close(done)
 				return
@@ -70,11 +70,11 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 	// Create a couple servers, and start serving.
 	server1, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
-		vlog.Fatalf("r.NewServer error: %s", err)
+		ctx.Fatalf("r.NewServer error: %s", err)
 	}
 	server2, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
-		vlog.Fatalf("r.NewServer error: %s", err)
+		ctx.Fatalf("r.NewServer error: %s", err)
 	}
 
 	// This is how to wait for a shutdown.  In this example, a shutdown
@@ -89,7 +89,7 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 	// This is how to configure handling of stop commands to allow clean
 	// shutdown.
 	stopChan := make(chan string, 2)
-	v23.GetAppCycle(ctx).WaitForStop(stopChan)
+	v23.GetAppCycle(ctx).WaitForStop(ctx, stopChan)
 
 	// Blocking is used to prevent the process from exiting upon receiving a
 	// second signal or stop command while critical cleanup code is
@@ -222,7 +222,7 @@ var simpleServerProgram = modules.Register(func(env *modules.Env, args ...string
 	// Create a server, and start serving.
 	server, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
-		vlog.Fatalf("r.NewServer error: %s", err)
+		ctx.Fatalf("r.NewServer error: %s", err)
 	}
 
 	// This is how to wait for a shutdown.  In this example, a shutdown

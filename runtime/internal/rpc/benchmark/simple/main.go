@@ -15,7 +15,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/xrpc"
 
@@ -47,6 +46,9 @@ var (
 // rpc.Client doesn't export an interface for closing connection. So we
 // use the stream manager directly here.
 func benchmarkRPCConnection(b *testing.B) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	mp := runtime.GOMAXPROCS(numCPUs)
 	defer runtime.GOMAXPROCS(mp)
 
@@ -55,11 +57,10 @@ func benchmarkRPCConnection(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		client := manager.InternalNew(naming.FixedRoutingID(0xc))
+		client := manager.InternalNew(ctx, naming.FixedRoutingID(0xc))
 
 		b.StartTimer()
-
-		_, err := client.Dial(serverEP, v23.GetPrincipal(nctx))
+		_, err := client.Dial(nctx, serverEP)
 		if err != nil {
 			ctx.Fatalf("Dial failed: %v", err)
 		}
@@ -130,7 +131,7 @@ func main() {
 
 	server, err := xrpc.NewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
 	if err != nil {
-		vlog.Fatalf("NewServer failed: %v", err)
+		ctx.Fatalf("NewServer failed: %v", err)
 	}
 	serverEP = server.Status().Endpoints[0]
 

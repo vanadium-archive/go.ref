@@ -16,7 +16,6 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/glob"
@@ -191,7 +190,7 @@ type globInternal struct {
 const maxRecursiveGlobDepth = 10
 
 func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern string) error {
-	vlog.VI(3).Infof("rpc Glob: Incoming request: %q.Glob(%q)", i.receiver, pattern)
+	ctx.VI(3).Infof("rpc Glob: Incoming request: %q.Glob(%q)", i.receiver, pattern)
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
@@ -228,7 +227,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		subcall := callWithSuffix(ctx, call, naming.Join(i.receiver, state.name))
 		suffix := subcall.Suffix()
 		if state.depth > maxRecursiveGlobDepth {
-			vlog.Errorf("rpc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, suffix)
+			ctx.Errorf("rpc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, suffix)
 			call.Send(naming.GlobReplyError{
 				naming.GlobError{Name: state.name, Error: reserved.NewErrGlobMaxRecursionReached(ctx)},
 			})
@@ -236,14 +235,14 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		}
 		obj, auth, err := disp.Lookup(suffix)
 		if err != nil {
-			vlog.VI(3).Infof("rpc Glob: Lookup failed for %q: %v", suffix, err)
+			ctx.VI(3).Infof("rpc Glob: Lookup failed for %q: %v", suffix, err)
 			call.Send(naming.GlobReplyError{
 				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrNoExist, ctx, err)},
 			})
 			continue
 		}
 		if obj == nil {
-			vlog.VI(3).Infof("rpc Glob: object not found for %q", suffix)
+			ctx.VI(3).Infof("rpc Glob: object not found for %q", suffix)
 			call.Send(naming.GlobReplyError{
 				naming.GlobError{Name: state.name, Error: verror.New(verror.ErrNoExist, ctx, "nil object")},
 			})
@@ -253,7 +252,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		// Verify that that requester is authorized for the current object.
 		if err := authorize(ctx, call.Security(), auth); err != nil {
 			someMatchesOmitted = true
-			vlog.VI(3).Infof("rpc Glob: client is not authorized for %q: %v", suffix, err)
+			ctx.VI(3).Infof("rpc Glob: client is not authorized for %q: %v", suffix, err)
 			continue
 		}
 
@@ -261,7 +260,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		// use AllGlobber.
 		invoker, err := objectToInvoker(obj)
 		if err != nil {
-			vlog.VI(3).Infof("rpc Glob: object for %q cannot be converted to invoker: %v", suffix, err)
+			ctx.VI(3).Infof("rpc Glob: object for %q cannot be converted to invoker: %v", suffix, err)
 			call.Send(naming.GlobReplyError{
 				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)},
 			})
@@ -279,10 +278,10 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 			continue
 		}
 		if gs.AllGlobber != nil {
-			vlog.VI(3).Infof("rpc Glob: %q implements AllGlobber", suffix)
+			ctx.VI(3).Infof("rpc Glob: %q implements AllGlobber", suffix)
 			ch, err := gs.AllGlobber.Glob__(ctx, subcall, state.glob.String())
 			if err != nil {
-				vlog.VI(3).Infof("rpc Glob: %q.Glob(%q) failed: %v", suffix, state.glob, err)
+				ctx.VI(3).Infof("rpc Glob: %q.Glob(%q) failed: %v", suffix, state.glob, err)
 				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
 				continue
 			}
@@ -301,7 +300,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 			}
 			continue
 		}
-		vlog.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", suffix)
+		ctx.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", suffix)
 		children, err := gs.ChildrenGlobber.GlobChildren__(ctx, subcall)
 		// The requested object doesn't exist.
 		if err != nil {
@@ -323,7 +322,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		}
 		for child := range children {
 			if len(child) == 0 || strings.Contains(child, "/") {
-				vlog.Errorf("rpc Glob: %q.GlobChildren__() sent an invalid child name: %q", suffix, child)
+				ctx.Errorf("rpc Glob: %q.GlobChildren__() sent an invalid child name: %q", suffix, child)
 				continue
 			}
 			if ok, _, left := state.glob.MatchInitialSegment(child); ok {

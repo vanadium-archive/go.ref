@@ -117,6 +117,6 @@ func (ns *namespace) dispatch(ctx *context.T, mTName string, f func(*context.T, 
 	}
 	finalerr := collectStati(c, len(mts))
 	// Forget any previous cached information about these names.
-	ns.resolutionCache.forget(mts)
+	ns.resolutionCache.forget(ctx, mts)
 	return finalerr
 }

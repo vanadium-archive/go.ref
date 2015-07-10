@@ -47,7 +47,9 @@ func stopLoop(stop func(), stdin io.Reader, ch chan<- struct{}) {
 func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
 	ctx, shutdown := test.V23Init()
 	closeStopLoop := make(chan struct{})
-	go stopLoop(v23.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
+	// obtain ac here since stopLoop may execute after shutdown is called below
+	ac := v23.GetAppCycle(ctx)
+	go stopLoop(func() { ac.Stop(ctx) }, stdin, closeStopLoop)
 	wait := ShutdownOnSignals(ctx, signals...)
 	fmt.Fprintf(stdout, "ready\n")
 	fmt.Fprintf(stdout, "received signal %s\n", <-wait)
@@ -73,9 +75,10 @@ var handleCustomWithStop = modules.Register(func(env *modules.Env, args ...strin
 var handleDefaultsIgnoreChan = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
 	closeStopLoop := make(chan struct{})
-	go stopLoop(v23.GetAppCycle(ctx).Stop, env.Stdin, closeStopLoop)
+	// obtain ac here since stopLoop may execute after shutdown is called below
+	ac := v23.GetAppCycle(ctx)
+	go stopLoop(func() { ac.Stop(ctx) }, env.Stdin, closeStopLoop)
 	ShutdownOnSignals(ctx)
 	fmt.Fprintf(env.Stdout, "ready\n")
 	<-closeStopLoop

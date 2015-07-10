@@ -70,8 +70,8 @@ func (s *Server) ResolveToMountTable(ctx *context.T, _ rpc.ServerCall, name stri
 	return me.Names(), nil
 }
 
-func (s *Server) FlushCacheEntry(_ *context.T, _ rpc.ServerCall, name string) (bool, error) {
-	return s.ns.FlushCacheEntry(name), nil
+func (s *Server) FlushCacheEntry(ctx *context.T, _ rpc.ServerCall, name string) (bool, error) {
+	return s.ns.FlushCacheEntry(ctx, name), nil
 }
 
 func (s *Server) DisableCache(_ *context.T, _ rpc.ServerCall, disable bool) error {

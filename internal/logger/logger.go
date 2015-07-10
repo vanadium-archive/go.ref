@@ -72,3 +72,9 @@ func Manager(logger logging.Logger) ManageLog {
 	}
 	return &dummy{}
 }
+
+// IsAlreadyConfiguredError returns true if the err parameter indicates
+// the the logger has already been configured.
+func IsAlreadyConfiguredError(err error) bool {
+	return err == vlog.ErrConfigured
+}

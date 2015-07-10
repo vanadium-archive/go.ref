@@ -9,8 +9,6 @@ import (
 	"net"
 	"sort"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23/naming"
 	"v.io/v23/verror"
 
@@ -85,7 +83,6 @@ var defaultPreferredProtocolOrder = mkProtocolRankMap([]string{"unixfd", "wsh", 
 // these protocols will be returned also, but following the default
 // preferences.
 func filterAndOrderServers(servers []naming.MountedServer, protocols []string, ipnets []*net.IPNet) ([]naming.MountedServer, error) {
-	vlog.VI(3).Infof("filterAndOrderServers%v: %v", protocols, servers)
 	var (
 		errs       = verror.SubErrs{}
 		list       = make(sortableServerList, 0, len(servers))
@@ -193,20 +190,18 @@ func locality(ep naming.Endpoint, ipnets []*net.IPNet) serverLocality {
 }
 
 // ipNetworks returns the IP networks on this machine.
-func ipNetworks() []*net.IPNet {
+func ipNetworks() ([]*net.IPNet, error) {
 	ifcs, err := netstate.GetAllAddresses()
 	if err != nil {
-		vlog.VI(5).Infof("netstate.GetAllAddresses failed: %v", err)
-		return nil
+		return nil, err
 	}
 	ret := make([]*net.IPNet, 0, len(ifcs))
 	for _, a := range ifcs {
 		_, ipnet, err := net.ParseCIDR(a.String())
 		if err != nil {
-			vlog.VI(5).Infof("net.ParseCIDR(%q) failed: %v", a, err)
-			continue
+			return nil, err
 		}
 		ret = append(ret, ipnet)
 	}
-	return ret
+	return ret, nil
 }

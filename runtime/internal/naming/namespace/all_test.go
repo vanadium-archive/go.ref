@@ -20,7 +20,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -91,11 +90,11 @@ func compare(t *testing.T, caller, name string, got, want []string) {
 	a, foundA := contains(got, want)
 	b, foundB := contains(want, got)
 	if !foundA {
-		vlog.Infof("%s: %q: failed to find %q: got %v, want %v", caller, name, a, got, want)
+		t.Logf("%s: %q: failed to find %q: got %v, want %v", caller, name, a, got, want)
 		boom(t, "%s: %q: failed to find %q: got %v, want %v", caller, name, a, got, want)
 	}
 	if !foundB {
-		vlog.Infof("%s: %q: failed to find %q: got %v, want %v", caller, name, a, got, want)
+		t.Logf("%s: %q: failed to find %q: got %v, want %v", caller, name, a, got, want)
 		boom(t, "%s: %q: failed to find %q: got %v, want %v", caller, name, b, got, want)
 	}
 }
@@ -615,11 +614,11 @@ func TestGoroutineLeaks(t *testing.T) {
 
 	_, _, _, stopper := createNamespace(t, sc)
 	defer func() {
-		vlog.Infof("%d goroutines:", runtime.NumGoroutine())
+		sc.Infof("%d goroutines:", runtime.NumGoroutine())
 	}()
 	defer stopper()
 	defer func() {
-		vlog.Infof("%d goroutines:", runtime.NumGoroutine())
+		sc.Infof("%d goroutines:", runtime.NumGoroutine())
 	}()
 	//panic("this will show up lots of goroutine+channel leaks!!!!")
 }

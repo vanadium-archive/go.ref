@@ -13,18 +13,18 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/x/ref/runtime/internal/lib/upcqueue"
-	inaming "v.io/x/ref/runtime/internal/naming"
-	"v.io/x/ref/runtime/internal/rpc/stream/proxy"
-	"v.io/x/ref/runtime/internal/rpc/stream/vc"
-	"v.io/x/ref/runtime/internal/rpc/stream/vif"
-
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/runtime/internal/lib/upcqueue"
+	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream"
+	"v.io/x/ref/runtime/internal/rpc/stream/proxy"
+	"v.io/x/ref/runtime/internal/rpc/stream/vc"
+	"v.io/x/ref/runtime/internal/rpc/stream/vif"
 )
 
 // ProxyAuthenticator is a stream.ListenerOpt that is used when listening via a
@@ -71,6 +71,7 @@ type netListener struct {
 	netLn   net.Listener
 	manager *manager
 	vifs    *vif.Set
+	ctx     *context.T
 
 	connsMu sync.Mutex
 	conns   map[net.Conn]bool
@@ -88,19 +89,21 @@ type proxyListener struct {
 	proxyEP naming.Endpoint
 	manager *manager
 	vif     *vif.VIF
+	ctx     *context.T
 
 	vifLoop sync.WaitGroup
 }
 
 var _ stream.Listener = (*proxyListener)(nil)
 
-func newNetListener(m *manager, netLn net.Listener, principal security.Principal, blessings security.Blessings, opts []stream.ListenerOpt) listener {
+func newNetListener(ctx *context.T, m *manager, netLn net.Listener, blessings security.Blessings, opts []stream.ListenerOpt) listener {
 	ln := &netListener{
 		q:       upcqueue.New(),
 		manager: m,
 		netLn:   netLn,
 		vifs:    vif.NewSet(),
 		conns:   make(map[net.Conn]bool),
+		ctx:     ctx,
 	}
 
 	// Set the default idle timeout for VC. But for "unixfd", we do not set
@@ -110,7 +113,7 @@ func newNetListener(m *manager, netLn net.Listener, principal security.Principal
 	}
 
 	ln.netLoop.Add(1)
-	go ln.netAcceptLoop(principal, blessings, opts)
+	go ln.netAcceptLoop(blessings, opts)
 	return ln
 }
 
@@ -140,7 +143,7 @@ func (ln *netListener) killConnections(n int) {
 	removed := remaining[:n]
 	ln.connsMu.Unlock()
 
-	vlog.Infof("Killing %d Conns", n)
+	ln.ctx.Infof("Killing %d Conns", n)
 
 	var wg sync.WaitGroup
 	wg.Add(n)
@@ -148,7 +151,7 @@ func (ln *netListener) killConnections(n int) {
 		idx := rand.Intn(len(remaining))
 		conn := remaining[idx]
 		go func(conn net.Conn) {
-			vlog.Infof("Killing connection (%s, %s)", conn.LocalAddr(), conn.RemoteAddr())
+			ln.ctx.Infof("Killing connection (%s, %s)", conn.LocalAddr(), conn.RemoteAddr())
 			conn.Close()
 			ln.manager.killedConns.Incr(1)
 			wg.Done()
@@ -166,7 +169,7 @@ func (ln *netListener) killConnections(n int) {
 	wg.Wait()
 }
 
-func (ln *netListener) netAcceptLoop(principal security.Principal, blessings security.Blessings, opts []stream.ListenerOpt) {
+func (ln *netListener) netAcceptLoop(blessings security.Blessings, opts []stream.ListenerOpt) {
 	defer ln.netLoop.Done()
 	opts = append([]stream.ListenerOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
 	for {
@@ -175,7 +178,7 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 			// Use Info instead of Error to reduce the changes that
 			// the log library will cause the process to abort on
 			// failing to create a new file.
-			vlog.Infof("net.Listener.Accept() failed on %v with %v", ln.netLn, err)
+			ln.ctx.Infof("net.Listener.Accept() failed on %v with %v", ln.netLn, err)
 			for tokill := 1; isTemporaryError(err); tokill *= 2 {
 				if isTooManyOpenFiles(err) {
 					ln.killConnections(tokill)
@@ -194,26 +197,26 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 			// how I noticed). The right solution is to lock these datastructures, but
 			// that can wait until a bigger overhaul occurs. For now, we leave this at
 			// VI(1) knowing that it's basically harmless.
-			vlog.VI(1).Infof("Exiting netAcceptLoop: net.Listener.Accept() failed on %v with %v", ln.netLn, err)
+			ln.ctx.VI(1).Infof("Exiting netAcceptLoop: net.Listener.Accept() failed on %v with %v", ln.netLn, err)
 			return
 		}
 		ln.connsMu.Lock()
 		ln.conns[conn] = true
 		ln.connsMu.Unlock()
 
-		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
+		ln.ctx.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
+
 		go func() {
-			vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, principal, blessings, nil, ln.deleteVIF, opts...)
+			vf, err := vif.InternalNewAcceptedVIF(ln.ctx, conn, ln.manager.rid, blessings, nil, ln.deleteVIF, opts...)
 			if err != nil {
-				vlog.Infof("Shutting down conn from %s (local address: %s) as a VIF could not be created: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
+				ln.ctx.Infof("Shutting down conn from %s (local address: %s) as a VIF could not be created: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
 				conn.Close()
 				return
 			}
+			ln.vifLoops.Add(1)
 			ln.vifs.Insert(vf, conn.RemoteAddr().Network(), conn.RemoteAddr().String())
 			ln.manager.vifs.Insert(vf, conn.RemoteAddr().Network(), conn.RemoteAddr().String())
-
-			ln.vifLoops.Add(1)
-			vifLoop(vf, ln.q, func() {
+			vifLoop(ln.ctx, vf, ln.q, func() {
 				ln.connsMu.Lock()
 				delete(ln.conns, conn)
 				ln.connsMu.Unlock()
@@ -224,7 +227,7 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 }
 
 func (ln *netListener) deleteVIF(vf *vif.VIF) {
-	vlog.VI(2).Infof("VIF %v is closed, removing from cache", vf)
+	ln.ctx.VI(2).Infof("VIF %v is closed, removing from cache", vf)
 	ln.vifs.Delete(vf)
 	ln.manager.vifs.Delete(vf)
 }
@@ -242,19 +245,19 @@ func (ln *netListener) Accept() (stream.Flow, error) {
 }
 
 func (ln *netListener) Close() error {
-	closeNetListener(ln.netLn)
+	closeNetListener(ln.ctx, ln.netLn)
 	ln.netLoop.Wait()
 	for _, vif := range ln.vifs.List() {
 		// NOTE(caprita): We do not actually Close down the vifs, as
 		// that would require knowing when all outstanding requests are
 		// finished.  For now, do not worry about it, since we expect
 		// shut down to immediately precede process exit.
+		//v23.Logger().Infof("Close: stop accepting: %p", vif)
 		vif.StopAccepting()
 	}
 	ln.q.Shutdown()
 	ln.manager.removeListener(ln)
 	ln.vifLoops.Wait()
-	vlog.VI(3).Infof("Closed stream.Listener %s", ln)
 	return nil
 }
 
@@ -275,26 +278,27 @@ func (ln *netListener) DebugString() string {
 	return strings.Join(ret, "\n")
 }
 
-func newProxyListener(m *manager, proxyEP naming.Endpoint, principal security.Principal, opts []stream.ListenerOpt) (listener, *inaming.Endpoint, error) {
+func newProxyListener(ctx *context.T, m *manager, proxyEP naming.Endpoint, opts []stream.ListenerOpt) (listener, *inaming.Endpoint, error) {
 	ln := &proxyListener{
 		q:       upcqueue.New(),
 		proxyEP: proxyEP,
 		manager: m,
+		ctx:     ctx,
 	}
-	vf, ep, err := ln.connect(principal, opts)
+	vf, ep, err := ln.connect(opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	ln.vif = vf
 	ln.vifLoop.Add(1)
-	go vifLoop(ln.vif, ln.q, func() {
+	go vifLoop(ctx, ln.vif, ln.q, func() {
 		ln.vifLoop.Done()
 	})
 	return ln, ep, nil
 }
 
-func (ln *proxyListener) connect(principal security.Principal, opts []stream.ListenerOpt) (*vif.VIF, *inaming.Endpoint, error) {
-	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
+func (ln *proxyListener) connect(opts []stream.ListenerOpt) (*vif.VIF, *inaming.Endpoint, error) {
+	ln.ctx.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
 	// Requires dialing a VC to the proxy, need to extract options from ln.opts to do so.
 	var dialOpts []stream.VCOpt
 	var auth ProxyAuthenticator
@@ -310,7 +314,7 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 	// this covered by opts?)
 	// TODO(ashankar): Authorize the proxy server as well (similar to how
 	// clients authorize servers in RPCs).
-	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP, principal, dialOpts...)
+	vf, err := ln.manager.FindOrDialVIF(ln.ctx, ln.proxyEP, dialOpts...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -322,7 +326,7 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 	// Proxy protocol: See v.io/x/ref/runtime/internal/rpc/stream/proxy/protocol.vdl
 	//
 	// We don't need idle timeout for this VC, since one flow will be kept alive.
-	vc, err := vf.Dial(ln.proxyEP, principal, dialOpts...)
+	vc, err := vf.Dial(ln.ctx, ln.proxyEP, dialOpts...)
 	if err != nil {
 		vf.StopAccepting()
 		if verror.ErrorID(err) == verror.ErrAborted.ID {
@@ -392,7 +396,7 @@ func (ln *proxyListener) Close() error {
 	ln.q.Shutdown()
 	ln.manager.removeListener(ln)
 	ln.vifLoop.Wait()
-	vlog.VI(3).Infof("Closed stream.Listener %s", ln)
+	ln.ctx.VI(3).Infof("Closed stream.Listener %s", ln)
 	return nil
 }
 
@@ -404,19 +408,19 @@ func (ln *proxyListener) DebugString() string {
 	return fmt.Sprintf("stream.Listener: PROXY:%v RoutingID:%v", ln.proxyEP, ln.manager.rid)
 }
 
-func vifLoop(vf *vif.VIF, q *upcqueue.T, cleanup func()) {
+func vifLoop(ctx *context.T, vf *vif.VIF, q *upcqueue.T, cleanup func()) {
 	defer cleanup()
 	for {
 		cAndf, err := vf.Accept()
 		switch {
 		case err != nil:
-			vlog.VI(2).Infof("Shutting down listener on VIF %v: %v", vf, err)
+			ctx.VI(2).Infof("Shutting down listener on VIF %v: %v", vf, err)
 			return
 		case cAndf.Flow == nil:
-			vlog.VI(1).Infof("New VC %v on VIF %v", cAndf.Connector, vf)
+			ctx.VI(1).Infof("New VC %v on VIF %v", cAndf.Connector, vf)
 		default:
 			if err := q.Put(cAndf); err != nil {
-				vlog.VI(1).Infof("Closing new flow on VC %v (VIF %v) as Put failed in vifLoop: %v", cAndf.Connector, vf, err)
+				ctx.VI(1).Infof("Closing new flow on VC %v (VIF %v) as Put failed in vifLoop: %v", cAndf.Connector, vf, err)
 				cAndf.Flow.Close()
 			}
 		}

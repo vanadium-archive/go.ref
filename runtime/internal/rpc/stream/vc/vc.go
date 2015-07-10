@@ -23,7 +23,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/runtime/internal/lib/bqueue"
 	"v.io/x/ref/runtime/internal/lib/iobuf"
@@ -90,6 +89,7 @@ type TypeDecoderKey struct{}
 // queue (v.io/x/ref/runtime/internal/lib/bqueue) to provide flow control on Write
 // operations.
 type VC struct {
+	ctx                             *context.T
 	vci                             id.VC
 	localEP, remoteEP               naming.Endpoint
 	localPrincipal                  security.Principal
@@ -141,12 +141,6 @@ func (a *ServerAuthorizer) Authorize(params security.CallParams) error {
 	defer cancel()
 	return a.Policy.Authorize(ctx, security.NewCall(&params))
 }
-
-// DialContext establishes the context under which a VC Dial was initiated.
-type DialContext struct{ *context.T }
-
-func (DialContext) RPCStreamVCOpt()       {}
-func (DialContext) RPCStreamListenerOpt() {}
 
 // StartTimeout specifies the time after which the underlying VIF is closed
 // if no VC is opened.
@@ -219,12 +213,13 @@ type Params struct {
 // As the name suggests, this method is intended for use only within packages
 // placed inside v.io/x/ref/runtime/internal. Code outside the
 // v.io/x/ref/runtime/internal/* packages should never call this method.
-func InternalNew(p Params) *VC {
+func InternalNew(ctx *context.T, p Params) *VC {
 	fidOffset := 1
 	if p.Dialed {
 		fidOffset = 0
 	}
 	return &VC{
+		ctx:            ctx,
 		vci:            p.VCI,
 		localEP:        p.LocalEP,
 		remoteEP:       p.RemoteEP,
@@ -314,7 +309,6 @@ func (vc *VC) DispatchPayload(fid id.Flow, payload *iobuf.Slice) error {
 		var err error
 		if payload, err = vc.crypter.Decrypt(payload); err != nil {
 			vc.mu.Unlock()
-			vlog.Errorf("failed to decrypt payload on VC %v failed: %v", vc, err)
 			return verror.New(stream.ErrSecurity, nil, verror.New(errFailedToDecryptPayload, nil, err))
 		}
 	}
@@ -375,7 +369,7 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 	// Do it in a goroutine in case the implementation of AddReceiveBuffers
 	// ends up attempting to lock vc.mu
 	go vc.helper.AddReceiveBuffers(vc.vci, fid, DefaultBytesBufferedPerFlow)
-	vlog.VI(2).Infof("Added flow %d@%d to listener", fid, vc.vci)
+	vc.ctx.VI(2).Infof("Added flow %d@%d to listener", fid, vc.vci)
 	return nil
 }
 
@@ -391,7 +385,7 @@ func (vc *VC) ShutdownFlow(fid id.Flow) {
 	delete(vc.flowMap, fid)
 	vc.mu.Unlock()
 	f.Shutdown()
-	vlog.VI(2).Infof("Shutdown flow %d@%d", fid, vc.vci)
+	vc.ctx.VI(2).Infof("Shutdown flow %d@%d", fid, vc.vci)
 }
 
 // ReleaseCounters informs the Flow (identified by fid) that the remote end is
@@ -408,14 +402,14 @@ func (vc *VC) ReleaseCounters(fid id.Flow, bytes uint32) {
 	}
 	vc.mu.Unlock()
 	if f == nil {
-		vlog.VI(2).Infof("Ignoring ReleaseCounters(%d, %d) on VCI %d as the flow does not exist", fid, bytes, vc.vci)
+		vc.ctx.VI(2).Infof("Ignoring ReleaseCounters(%d, %d) on VCI %d as the flow does not exist", fid, bytes, vc.vci)
 		return
 	}
 	f.Release(int(bytes))
 }
 
 func (vc *VC) Close(reason error) error {
-	vlog.VI(1).Infof("Closing VC %v. Reason:%q", vc, reason)
+	vc.ctx.VI(1).Infof("Closing VC %v. Reason:%q", vc, reason)
 	vc.mu.Lock()
 	if vc.closed {
 		vc.mu.Unlock()
@@ -434,7 +428,7 @@ func (vc *VC) Close(reason error) error {
 
 	vc.sharedCounters.Close()
 	for fid, flow := range flows {
-		vlog.VI(2).Infof("Closing flow %d on VC %v as VC is being closed(%q)", fid, vc, reason)
+		vc.ctx.VI(2).Infof("Closing flow %d on VC %v as VC is being closed(%q)", fid, vc, reason)
 		flow.Close()
 	}
 	return nil
@@ -527,7 +521,7 @@ func (vc *VC) HandshakeDialedVCWithAuthentication(principal security.Principal, 
 	if err = vc.connectSystemFlows(); err != nil {
 		return vc.appendCloseReason(err)
 	}
-	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
+	vc.ctx.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
 	return nil
 }
 
@@ -572,7 +566,7 @@ func (vc *VC) HandshakeDialedVCPreAuthenticated(ver version.RPCVersion, params s
 	if err := vc.connectSystemFlows(); err != nil {
 		return vc.appendCloseReason(err)
 	}
-	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, params.RemoteBlessings, params.LocalBlessings)
+	vc.ctx.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, params.RemoteBlessings, params.LocalBlessings)
 	return nil
 }
 
@@ -607,7 +601,7 @@ func (vc *VC) HandshakeDialedVCNoAuthentication(sendSetupVC func() error, opts .
 			return vc.appendCloseReason(err)
 		}
 	}
-	vlog.VI(1).Infof("Client VC %v handshaked with no authentication.", vc)
+	vc.ctx.VI(1).Infof("Client VC %v handshaked with no authentication.", vc)
 	return nil
 }
 
@@ -680,7 +674,7 @@ func (vc *VC) HandshakeAcceptedVCWithAuthentication(ver version.RPCVersion, prin
 			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToAcceptSystemFlows, nil, err)), ln, result)
 			return
 		}
-		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
+		vc.ctx.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
 		result <- HandshakeResult{ln, nil}
 	}()
 	return result
@@ -722,7 +716,7 @@ func (vc *VC) HandshakeAcceptedVCPreAuthenticated(ver version.RPCVersion, params
 			vc.abortHandshakeAcceptedVC(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToAcceptSystemFlows, nil, err)), ln, result)
 			return
 		}
-		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, params.RemoteBlessings, params.LocalBlessings)
+		vc.ctx.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, params.RemoteBlessings, params.LocalBlessings)
 		result <- HandshakeResult{ln, nil}
 	}()
 	return result
@@ -762,7 +756,7 @@ func (vc *VC) HandshakeAcceptedVCNoAuthentication(ver version.RPCVersion, sendSe
 				return
 			}
 		}
-		vlog.VI(1).Infof("Server VC %v handshaked with no authentication.", vc)
+		vc.ctx.VI(1).Infof("Server VC %v handshaked with no authentication.", vc)
 		result <- HandshakeResult{ln, err}
 	}()
 	return result
@@ -816,7 +810,7 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 		case <-time.After(fetchDuration(expiry, dischargeExpiryBuffer)):
 			discharges = dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
 			if err := enc.Encode(discharges); err != nil {
-				vlog.Errorf("encoding discharges on VC %v failed: %v", vc, err)
+				vc.ctx.Errorf("encoding discharges on VC %v failed: %v", vc, err)
 				return
 			}
 			if len(discharges) == 0 {
@@ -831,7 +825,7 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 			}
 			vc.mu.Unlock()
 		case <-vc.closeCh:
-			vlog.VI(3).Infof("closing sendDischargesLoop on VC %v", vc)
+			vc.ctx.VI(3).Infof("closing sendDischargesLoop on VC %v", vc)
 			return
 		}
 	}
@@ -863,7 +857,7 @@ func (vc *VC) recvDischargesLoop(conn io.ReadCloser) {
 	for {
 		var discharges []security.Discharge
 		if err := dec.Decode(&discharges); err != nil {
-			vlog.VI(3).Infof("decoding discharges on %v failed: %v", vc, err)
+			vc.ctx.VI(3).Infof("decoding discharges on %v failed: %v", vc, err)
 			return
 		}
 		if len(discharges) == 0 {

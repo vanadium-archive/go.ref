@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/cmdline"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -19,8 +21,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
 	vdltime "v.io/v23/vdlroot/time"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -41,8 +42,8 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Glob__(_ *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
+func (s *server) Glob__(ctx *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+	ctx.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	ch := make(chan naming.GlobReply, 2)
 	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", deadline(1)}}, false, false}}
 	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", deadline(2)}, {"server3", deadline(3)}}, false, false}}
@@ -50,34 +51,34 @@ func (s *server) Glob__(_ *context.T, _ rpc.ServerCall, pattern string) (<-chan 
 	return ch, nil
 }
 
-func (s *server) Mount(_ *context.T, _ rpc.ServerCall, server string, ttl uint32, flags naming.MountFlag) error {
-	vlog.VI(2).Infof("Mount() was called. suffix=%v server=%q ttl=%d", s.suffix, server, ttl)
+func (s *server) Mount(ctx *context.T, _ rpc.ServerCall, server string, ttl uint32, flags naming.MountFlag) error {
+	ctx.VI(2).Infof("Mount() was called. suffix=%v server=%q ttl=%d", s.suffix, server, ttl)
 	return nil
 }
 
-func (s *server) Unmount(_ *context.T, _ rpc.ServerCall, server string) error {
-	vlog.VI(2).Infof("Unmount() was called. suffix=%v server=%q", s.suffix, server)
+func (s *server) Unmount(ctx *context.T, _ rpc.ServerCall, server string) error {
+	ctx.VI(2).Infof("Unmount() was called. suffix=%v server=%q", s.suffix, server)
 	return nil
 }
 
-func (s *server) ResolveStep(*context.T, rpc.ServerCall) (entry naming.MountEntry, err error) {
-	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
+func (s *server) ResolveStep(ctx *context.T, _ rpc.ServerCall) (entry naming.MountEntry, err error) {
+	ctx.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
 	entry.Servers = []naming.MountedServer{{"server1", deadline(1)}}
 	entry.Name = s.suffix
 	return
 }
 
-func (s *server) Delete(*context.T, rpc.ServerCall, bool) error {
-	vlog.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
+func (s *server) Delete(ctx *context.T, _ rpc.ServerCall, _ bool) error {
+	ctx.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
 	return nil
 }
-func (s *server) SetPermissions(*context.T, rpc.ServerCall, access.Permissions, string) error {
-	vlog.VI(2).Infof("SetPermissions() was called. suffix=%v", s.suffix)
+func (s *server) SetPermissions(ctx *context.T, _ rpc.ServerCall, _ access.Permissions, _ string) error {
+	ctx.VI(2).Infof("SetPermissions() was called. suffix=%v", s.suffix)
 	return nil
 }
 
-func (s *server) GetPermissions(*context.T, rpc.ServerCall) (access.Permissions, string, error) {
-	vlog.VI(2).Infof("GetPermissions() was called. suffix=%v", s.suffix)
+func (s *server) GetPermissions(ctx *context.T, _ rpc.ServerCall) (access.Permissions, string, error) {
+	ctx.VI(2).Infof("GetPermissions() was called. suffix=%v", s.suffix)
 	return nil, "", nil
 }
 
@@ -135,7 +136,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'resolvestep' command.
-	vlog.Infof("resovestep %s", naming.JoinAddressName(endpoint.String(), "name"))
+	ctx.Infof("resovestep %s", naming.JoinAddressName(endpoint.String(), "name"))
 	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
 		t.Fatalf("%v", err)
 	}

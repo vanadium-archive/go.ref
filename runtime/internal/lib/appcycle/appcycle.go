@@ -13,7 +13,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/apilog"
 
 	public "v.io/v23/services/appcycle"
@@ -51,13 +50,13 @@ func (m *AppCycle) Shutdown() {
 	m.taskTrackers = nil
 }
 
-func (m *AppCycle) stop(msg string) {
-	vlog.Infof("stop(%v)", msg)
-	defer vlog.Infof("stop(%v) done", msg)
+func (m *AppCycle) stop(ctx *context.T, msg string) {
+	ctx.Infof("stop(%v)", msg)
+	defer ctx.Infof("stop(%v) done", msg)
 	m.RLock()
 	defer m.RUnlock()
 	if len(m.waiters) == 0 {
-		vlog.Infof("Unhandled stop. Exiting.")
+		ctx.Infof("Unhandled stop. Exiting.")
 		os.Exit(v23.UnhandledStopExitCode)
 	}
 	for _, w := range m.waiters {
@@ -68,17 +67,17 @@ func (m *AppCycle) stop(msg string) {
 	}
 }
 
-func (m *AppCycle) Stop() {
+func (m *AppCycle) Stop(ctx *context.T) {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	m.stop(v23.LocalStop)
+	m.stop(ctx, v23.LocalStop)
 }
 
-func (*AppCycle) ForceStop() {
+func (*AppCycle) ForceStop(ctx *context.T) {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	os.Exit(v23.ForceStopExitCode)
 }
 
-func (m *AppCycle) WaitForStop(ch chan<- string) {
+func (m *AppCycle) WaitForStop(_ *context.T, ch chan<- string) {
 	defer apilog.LogCallf(nil, "ch=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	m.Lock()
 	defer m.Unlock()
@@ -137,13 +136,13 @@ func (m *AppCycle) Remote() interface{} {
 func (d *invoker) Stop(ctx *context.T, call public.AppCycleStopServerCall) error {
 	defer apilog.LogCallf(ctx, "call=")(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	blessings, _ := security.RemoteBlessingNames(ctx, call.Security())
-	vlog.Infof("AppCycle Stop request from %v", blessings)
+	ctx.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.
 	ch := make(chan v23.Task, 10)
 	d.ac.TrackTask(ch)
 	// TODO(caprita): Include identity of Stop issuer in message.
-	d.ac.stop(v23.RemoteStop)
+	d.ac.stop(ctx, v23.RemoteStop)
 	for {
 		task, ok := <-ch
 		if !ok {
@@ -151,15 +150,15 @@ func (d *invoker) Stop(ctx *context.T, call public.AppCycleStopServerCall) error
 			break
 		}
 		actask := public.Task{Progress: task.Progress, Goal: task.Goal}
-		vlog.Infof("AppCycle Stop progress %d/%d", task.Progress, task.Goal)
+		ctx.Infof("AppCycle Stop progress %d/%d", task.Progress, task.Goal)
 		call.SendStream().Send(actask)
 	}
-	vlog.Infof("AppCycle Stop done")
+	ctx.Infof("AppCycle Stop done")
 	return nil
 }
 
-func (d *invoker) ForceStop(*context.T, rpc.ServerCall) error {
+func (d *invoker) ForceStop(ctx *context.T, _ rpc.ServerCall) error {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	d.ac.ForceStop()
+	d.ac.ForceStop(ctx)
 	return fmt.Errorf("ForceStop should not reply as the process should be dead")
 }

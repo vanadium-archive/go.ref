@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -25,39 +26,43 @@ import (
 )
 
 func TestListenErrors(t *testing.T) {
-	server := manager.InternalNew(naming.FixedRoutingID(0x1))
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	server := manager.InternalNew(ctx, naming.FixedRoutingID(0x1))
 	pserver := testutil.NewPrincipal("server")
+	ctx, _ = v23.WithPrincipal(ctx, pserver)
 
 	// principal, no blessings
-	_, _, err := server.Listen("tcp", "127.0.0.1:0", pserver, security.Blessings{}, nil)
+	_, _, err := server.Listen(ctx, "tcp", "127.0.0.1:0", security.Blessings{}, nil)
 	if verror.ErrorID(err) != stream.ErrBadArg.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	t.Log(err)
 
 	// blessings, no principal
-	_, _, err = server.Listen("tcp", "127.0.0.1:0", nil, pserver.BlessingStore().Default(), nil)
+	nilctx, _ := v23.WithPrincipal(ctx, nil)
+	_, _, err = server.Listen(nilctx, "tcp", "127.0.0.1:0", pserver.BlessingStore().Default(), nil)
 	if verror.ErrorID(err) != stream.ErrBadArg.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	t.Log(err)
 
 	// bad protocol
-	_, _, err = server.Listen("foo", "127.0.0.1:0", pserver, pserver.BlessingStore().Default())
+	_, _, err = server.Listen(ctx, "foo", "127.0.0.1:0", pserver.BlessingStore().Default())
 	if verror.ErrorID(err) != stream.ErrBadArg.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	t.Log(err)
 
 	// bad address
-	_, _, err = server.Listen("tcp", "xx.0.0.1:0", pserver, pserver.BlessingStore().Default())
+	_, _, err = server.Listen(ctx, "tcp", "xx.0.0.1:0", pserver.BlessingStore().Default())
 	if verror.ErrorID(err) != stream.ErrNetwork.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	t.Log(err)
 
 	// bad address for proxy
-	_, _, err = server.Listen("v23", "127x.0.0.1", pserver, pserver.BlessingStore().Default())
+	_, _, err = server.Listen(ctx, "v23", "127x.0.0.1", pserver.BlessingStore().Default())
 	if verror.ErrorID(err) != stream.ErrBadArg.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
@@ -68,7 +73,7 @@ func acceptLoop(ln stream.Listener) {
 	for {
 		f, err := ln.Accept()
 		if err != nil {
-			return
+			break
 		}
 		f.Close()
 	}
@@ -94,16 +99,18 @@ func simpleResolver(network, address string) (string, string, error) {
 }
 
 func TestDialErrors(t *testing.T) {
-	_, shutdown := test.V23Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	server := manager.InternalNew(naming.FixedRoutingID(0x55555555))
-	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccc))
+	server := manager.InternalNew(ctx, naming.FixedRoutingID(0x55555555))
+	client := manager.InternalNew(ctx, naming.FixedRoutingID(0xcccccccc))
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
 
 	// bad protocol
 	ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("x", "127.0.0.1:2"))
-	_, err := client.Dial(ep, pclient)
+	_, err := client.Dial(cctx, ep)
 	// A bad protocol should result in a Resolve Error.
 	if verror.ErrorID(err) != stream.ErrResolveFailed.ID {
 		t.Errorf("wrong error: %v", err)
@@ -112,7 +119,7 @@ func TestDialErrors(t *testing.T) {
 
 	// no server
 	ep, _ = inaming.NewEndpoint(naming.FormatEndpoint("tcp", "127.0.0.1:2"))
-	_, err = client.Dial(ep, pclient)
+	_, err = client.Dial(cctx, ep)
 	if verror.ErrorID(err) != stream.ErrDialFailed.ID {
 		t.Errorf("wrong error: %v", err)
 	}
@@ -120,7 +127,7 @@ func TestDialErrors(t *testing.T) {
 
 	rpc.RegisterProtocol("dropData", dropDataDialer, simpleResolver, net.Listen)
 
-	ln, sep, err := server.Listen("tcp", "127.0.0.1:0", pserver, pserver.BlessingStore().Default())
+	ln, sep, err := server.Listen(sctx, "tcp", "127.0.0.1:0", pserver.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +139,7 @@ func TestDialErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.Dial(cep, pclient)
+	_, err = client.Dial(cctx, cep)
 	if verror.ErrorID(err) != stream.ErrNetwork.ID {
 		t.Errorf("wrong error: %v", err)
 	}

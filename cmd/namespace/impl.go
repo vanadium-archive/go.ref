@@ -15,15 +15,16 @@ import (
 	"sort"
 	"time"
 
+	"v.io/x/lib/cmdline"
+	"v.io/x/lib/set"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-	"v.io/x/lib/cmdline"
-	"v.io/x/lib/set"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
@@ -72,7 +73,7 @@ func runGlob(ctx *context.T, env *cmdline.Env, args []string) error {
 
 	c, err := ns.Glob(ctx, pattern)
 	if err != nil {
-		vlog.Infof("ns.Glob(%q) failed: %v", pattern, err)
+		ctx.Infof("ns.Glob(%q) failed: %v", pattern, err)
 		return err
 	}
 	if flagLongGlob {
@@ -148,7 +149,7 @@ func runMount(ctx *context.T, env *cmdline.Env, args []string) error {
 
 	ns := v23.GetNamespace(ctx)
 	if err = ns.Mount(ctx, name, server, ttl); err != nil {
-		vlog.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
+		ctx.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
 		return err
 	}
 	fmt.Fprintln(env.Stdout, "Server mounted successfully.")
@@ -180,7 +181,7 @@ func runUnmount(ctx *context.T, env *cmdline.Env, args []string) error {
 	ns := v23.GetNamespace(ctx)
 
 	if err := ns.Unmount(ctx, name, server); err != nil {
-		vlog.Infof("ns.Unmount(%q, %q) failed: %v", name, server, err)
+		ctx.Infof("ns.Unmount(%q, %q) failed: %v", name, server, err)
 		return err
 	}
 	fmt.Fprintln(env.Stdout, "Server unmounted successfully.")
@@ -213,7 +214,7 @@ func runResolve(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	me, err := ns.Resolve(ctx, name, opts...)
 	if err != nil {
-		vlog.Infof("ns.Resolve(%q) failed: %v", name, err)
+		ctx.Infof("ns.Resolve(%q) failed: %v", name, err)
 		return err
 	}
 	for _, n := range me.Names() {
@@ -247,7 +248,7 @@ func runResolveToMT(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	e, err := ns.ResolveToMountTable(ctx, name, opts...)
 	if err != nil {
-		vlog.Infof("ns.ResolveToMountTable(%q) failed: %v", name, err)
+		ctx.Infof("ns.ResolveToMountTable(%q) failed: %v", name, err)
 		return err
 	}
 	for _, s := range e.Servers {
@@ -311,7 +312,7 @@ func runPermissionsSet(ctx *context.T, env *cmdline.Env, args []string) error {
 			return err
 		}
 		if err = ns.SetPermissions(ctx, name, perms, etag); verror.ErrorID(err) == verror.ErrBadVersion.ID {
-			vlog.Infof("SetPermissions(%q, %q) failed: %v, retrying...", name, etag, err)
+			ctx.Infof("SetPermissions(%q, %q) failed: %v, retrying...", name, etag, err)
 			continue
 		}
 		return err

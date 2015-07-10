@@ -11,6 +11,7 @@ import (
 
 	"v.io/v23/naming"
 	vdltime "v.io/v23/vdlroot/time"
+	"v.io/x/ref/test"
 )
 
 func compatible(server string, servers []naming.MountedServer) bool {
@@ -26,6 +27,8 @@ func future(secs uint32) vdltime.Deadline {
 
 // TestCache tests the cache directly rather than via the namespace methods.
 func TestCache(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	preload := []struct {
 		name   string
 		suffix string
@@ -38,7 +41,7 @@ func TestCache(t *testing.T) {
 	c := newTTLCache()
 	for _, p := range preload {
 		e := &naming.MountEntry{Name: p.suffix, Servers: []naming.MountedServer{{Server: p.server, Deadline: future(30)}}}
-		c.remember(p.name, e)
+		c.remember(ctx, p.name, e)
 	}
 
 	tests := []struct {
@@ -55,7 +58,7 @@ func TestCache(t *testing.T) {
 		{"/h3//d//e", "e", "/h4:1234", true},
 	}
 	for _, p := range tests {
-		e, err := c.lookup(p.name)
+		e, err := c.lookup(ctx, p.name)
 		if (err == nil) != p.succeed {
 			t.Errorf("%s: lookup failed", p.name)
 		}
@@ -66,28 +69,32 @@ func TestCache(t *testing.T) {
 }
 
 func TestCacheLimit(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	c := newTTLCache().(*ttlCache)
 	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "the rain in spain", Deadline: future(3000)}}}
 	for i := 0; i < maxCacheEntries; i++ {
-		c.remember(fmt.Sprintf("%d", i), e)
+		c.remember(ctx, fmt.Sprintf("%d", i), e)
 		if len(c.entries) > maxCacheEntries {
 			t.Errorf("unexpected cache size: got %d not %d", len(c.entries), maxCacheEntries)
 		}
 	}
 	// Adding one more element should reduce us to 3/4 full.
-	c.remember(fmt.Sprintf("%d", maxCacheEntries), e)
+	c.remember(ctx, fmt.Sprintf("%d", maxCacheEntries), e)
 	if len(c.entries) != cacheHisteresisSize {
 		t.Errorf("cache shrunk wrong amount: got %d not %d", len(c.entries), cacheHisteresisSize)
 	}
 }
 
 func TestCacheTTL(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	before := vdltime.Deadline{time.Now()}
 	c := newTTLCache().(*ttlCache)
 	// Fill cache.
 	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "the rain in spain", Deadline: future(3000)}}}
 	for i := 0; i < maxCacheEntries; i++ {
-		c.remember(fmt.Sprintf("%d", i), e)
+		c.remember(ctx, fmt.Sprintf("%d", i), e)
 	}
 	// Time out half the entries.
 	i := len(c.entries) / 2
@@ -99,13 +106,15 @@ func TestCacheTTL(t *testing.T) {
 		i--
 	}
 	// Add an entry and make sure we now have room.
-	c.remember(fmt.Sprintf("%d", maxCacheEntries+2), e)
+	c.remember(ctx, fmt.Sprintf("%d", maxCacheEntries+2), e)
 	if len(c.entries) > cacheHisteresisSize {
 		t.Errorf("entries did not timeout: got %d not %d", len(c.entries), cacheHisteresisSize)
 	}
 }
 
 func TestFlushCacheEntry(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	preload := []struct {
 		name   string
 		server string
@@ -118,25 +127,25 @@ func TestFlushCacheEntry(t *testing.T) {
 	c := ns.resolutionCache.(*ttlCache)
 	for _, p := range preload {
 		e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "p.server", Deadline: future(3000)}}}
-		c.remember(p.name, e)
+		c.remember(ctx, p.name, e)
 	}
 	toflush := "/h1/xyzzy"
-	if ns.FlushCacheEntry(toflush) {
+	if ns.FlushCacheEntry(ctx, toflush) {
 		t.Errorf("%s should not have caused anything to flush", toflush)
 	}
 	toflush = "/h1/a/b/d/e"
-	if !ns.FlushCacheEntry(toflush) {
+	if !ns.FlushCacheEntry(ctx, toflush) {
 		t.Errorf("%s should have caused something to flush", toflush)
 	}
 	name := preload[2].name
-	if _, err := c.lookup(name); err != nil {
+	if _, err := c.lookup(ctx, name); err != nil {
 		t.Errorf("%s should not have been flushed", name)
 	}
 	if len(c.entries) != 2 {
 		t.Errorf("%s flushed too many entries", toflush)
 	}
 	toflush = preload[1].name
-	if !ns.FlushCacheEntry(toflush) {
+	if !ns.FlushCacheEntry(ctx, toflush) {
 		t.Errorf("%s should have caused something to flush", toflush)
 	}
 	if _, ok := c.entries[toflush]; ok {
@@ -157,6 +166,8 @@ func disabled(ctls []naming.CacheCtl) bool {
 }
 
 func TestCacheDisableEnable(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	ns, _ := New()
 
 	// Default should be working resolution cache.
@@ -164,8 +175,8 @@ func TestCacheDisableEnable(t *testing.T) {
 	serverName := "/h2//"
 	c := ns.resolutionCache.(*ttlCache)
 	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: serverName, Deadline: future(3000)}}}
-	c.remember(name, e)
-	if ne, err := c.lookup(name); err != nil || ne.Servers[0].Server != serverName {
+	c.remember(ctx, name, e)
+	if ne, err := c.lookup(ctx, name); err != nil || ne.Servers[0].Server != serverName {
 		t.Errorf("should have found the server in the cache")
 	}
 
@@ -175,8 +186,8 @@ func TestCacheDisableEnable(t *testing.T) {
 		t.Errorf("caching not disabled")
 	}
 	nc := ns.resolutionCache.(nullCache)
-	nc.remember(name, e)
-	if _, err := nc.lookup(name); err == nil {
+	nc.remember(ctx, name, e)
+	if _, err := nc.lookup(ctx, name); err == nil {
 		t.Errorf("should not have found the server in the cache")
 	}
 
@@ -186,8 +197,8 @@ func TestCacheDisableEnable(t *testing.T) {
 		t.Errorf("caching disabled")
 	}
 	c = ns.resolutionCache.(*ttlCache)
-	c.remember(name, e)
-	if ne, err := c.lookup(name); err != nil || ne.Servers[0].Server != serverName {
+	c.remember(ctx, name, e)
+	if ne, err := c.lookup(ctx, name); err != nil || ne.Servers[0].Server != serverName {
 		t.Errorf("should have found the server in the cache")
 	}
 }

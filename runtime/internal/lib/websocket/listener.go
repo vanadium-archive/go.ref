@@ -16,8 +16,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"v.io/x/lib/vlog"
-
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/runtime/internal/lib/tcputil"
 )
 
@@ -87,7 +86,7 @@ func (ln *wsTCPListener) Accept() (net.Conn, error) {
 		case error:
 			return nil, v
 		default:
-			vlog.Errorf("Unexpected type %T in channel (%v)", v, v)
+			logger.Global().Errorf("Unexpected type %T in channel (%v)", v, v)
 		}
 	}
 }
@@ -102,7 +101,7 @@ func (ln *wsTCPListener) Close() error {
 	ln.mu.Unlock()
 	addr := ln.netLn.Addr()
 	err := ln.netLn.Close()
-	vlog.VI(1).Infof("Closed net.Listener on (%q, %q): %v", addr.Network(), addr, err)
+	logger.Global().VI(1).Infof("Closed net.Listener on (%q, %q): %v", addr.Network(), addr, err)
 	// netAcceptLoop might be trying to push new TCP connections that
 	// arrived while the listener was being closed. Drop those.
 	drainChan(ln.acceptQ)
@@ -137,9 +136,9 @@ func (ln *wsTCPListener) netAcceptLoop() {
 			ln.acceptQ <- err
 			continue
 		}
-		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
+		logger.Global().VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
 		if err := tcputil.EnableTCPKeepAlive(conn); err != nil {
-			vlog.Errorf("Failed to enable TCP keep alive: %v", err)
+			logger.Global().Errorf("Failed to enable TCP keep alive: %v", err)
 		}
 		classifications.Add(1)
 		go ln.classify(conn, &classifications)
@@ -160,7 +159,7 @@ func (ln *wsTCPListener) classify(conn net.Conn, done *sync.WaitGroup) {
 		n, err := io.ReadFull(conn, magic[:])
 		if err != nil {
 			// Unable to classify, ignore this connection.
-			vlog.VI(1).Infof("Shutting down connection from %v since the magic bytes could not be read: %v", conn.RemoteAddr(), err)
+			logger.Global().VI(1).Infof("Shutting down connection from %v since the magic bytes could not be read: %v", conn.RemoteAddr(), err)
 			conn.Close()
 			return
 		}
@@ -184,12 +183,12 @@ func (ln *wsTCPListener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ws, err := websocket.Upgrade(w, r, nil, bufferSize, bufferSize)
 	if _, ok := err.(websocket.HandshakeError); ok {
 		http.Error(w, "Not a websocket handshake", http.StatusBadRequest)
-		vlog.Errorf("Rejected a non-websocket request: %v", err)
+		logger.Global().Errorf("Rejected a non-websocket request: %v", err)
 		return
 	}
 	if err != nil {
 		http.Error(w, "Internal Error", http.StatusInternalServerError)
-		vlog.Errorf("Rejected a non-websocket request: %v", err)
+		logger.Global().Errorf("Rejected a non-websocket request: %v", err)
 		return
 	}
 	ln.acceptQ <- WebsocketConn(ws)

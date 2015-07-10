@@ -13,7 +13,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
+	"v.io/v23/verror"
+
 	"v.io/x/ref/runtime/internal/rpc/stream"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
@@ -34,30 +35,30 @@ func (c *canceld) Run(ctx *context.T, _ rpc.StreamServerCall) error {
 
 	client, err := InternalNewClient(c.sm, c.ns)
 	if err != nil {
-		vlog.Error(err)
+		ctx.Error(err)
 		return err
 	}
 
+	ctx.Infof("Run: %s", c.child)
 	if c.child != "" {
 		if _, err = client.StartCall(ctx, c.child, "Run", []interface{}{}); err != nil {
-			vlog.Error(err)
+			ctx.Error(err)
 			return err
 		}
 	}
 
-	vlog.Info(c.name, " waiting for cancellation")
 	<-ctx.Done()
-	vlog.Info(c.name, " canceled")
 	close(c.canceled)
 	return nil
 }
 
 func makeCanceld(ctx *context.T, ns namespace.T, name, child string) (*canceld, error) {
-	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
-	s, err := testInternalNewServer(ctx, sm, ns, v23.GetPrincipal(ctx))
+	sm := manager.InternalNew(ctx, naming.FixedRoutingID(0x111111111))
+	s, err := testInternalNewServer(ctx, sm, ns)
 	if err != nil {
 		return nil, err
 	}
+
 	if _, err := s.Listen(listenSpec); err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func makeCanceld(ctx *context.T, ns namespace.T, name, child string) (*canceld, 
 	if err := s.Serve(name, c, security.AllowEveryone()); err != nil {
 		return nil, err
 	}
-
+	ctx.Infof("Serving: %q", name)
 	return c, nil
 }
 
@@ -85,7 +86,7 @@ func TestCancellationPropagation(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 	var (
-		sm               = manager.InternalNew(naming.FixedRoutingID(0x555555555))
+		sm               = manager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 		ns               = tnaming.NewSimpleNamespace()
 		pclient, pserver = newClientServerPrincipals()
 		serverCtx, _     = v23.WithPrincipal(ctx, pserver)
@@ -98,10 +99,9 @@ func TestCancellationPropagation(t *testing.T) {
 
 	c1, err := makeCanceld(serverCtx, ns, "c1", "c2")
 	if err != nil {
-		t.Fatal("Can't start server:", err)
+		t.Fatal("Can't start server:", err, verror.DebugString(err))
 	}
 	defer c1.stop()
-
 	c2, err := makeCanceld(serverCtx, ns, "c2", "")
 	if err != nil {
 		t.Fatal("Can't start server:", err)
@@ -117,10 +117,10 @@ func TestCancellationPropagation(t *testing.T) {
 	<-c1.started
 	<-c2.started
 
-	vlog.Info("cancelling initial call")
+	ctx.Info("cancelling initial call")
 	cancel()
 
-	vlog.Info("waiting for children to be canceled")
+	ctx.Info("waiting for children to be canceled")
 	<-c1.canceled
 	<-c2.canceled
 }

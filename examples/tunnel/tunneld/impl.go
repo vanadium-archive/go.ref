@@ -19,7 +19,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/logging"
 	"v.io/v23/security"
-
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/internal"
 )

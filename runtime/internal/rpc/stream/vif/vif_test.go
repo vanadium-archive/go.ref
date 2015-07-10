@@ -20,27 +20,33 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
-	"v.io/v23/security"
 
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/runtime/internal/rpc/stream/vif"
 	iversion "v.io/x/ref/runtime/internal/rpc/version"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
 
 func TestSingleFlowCreatedAtClient(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
-	client, server := NewClientServer(pclient, pserver)
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	client, server := NewClientServer(cctx, sctx)
 	defer client.Close()
 
-	clientVC, _, err := createVC(client, server, pclient, makeEP(0x5))
+	clientVC, _, err := createVC(cctx, client, server, makeEP(0x5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,12 +65,16 @@ func TestSingleFlowCreatedAtClient(t *testing.T) {
 }
 
 func TestSingleFlowCreatedAtServer(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
-	client, server := NewClientServer(pclient, pserver)
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	client, server := NewClientServer(cctx, sctx)
 	defer client.Close()
 
-	clientVC, serverConnector, err := createVC(client, server, pclient, makeEP(0x5))
+	clientVC, serverConnector, err := createVC(cctx, client, server, makeEP(0x5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,6 +96,8 @@ func TestSingleFlowCreatedAtServer(t *testing.T) {
 
 func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 	testutil.InitRandGenerator(t.Logf)
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	// This test dials multiple VCs from the client to the server.
 	// On each VC, it creates multiple flows, writes to them and verifies
 	// that the other process received what was written.
@@ -109,13 +121,15 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
-	client, server := NewClientServer(pclient, pserver)
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	client, server := NewClientServer(cctx, sctx)
 	defer client.Close()
 
 	// Create all the VCs
 	// clientVCs[i] is the VC at the client process
 	// serverConnectors[i] is the corresponding VC at the server process.
-	clientVCs, serverConnectors, err := createNVCs(client, server, pclient, 0, nVCs)
+	clientVCs, serverConnectors, err := createNVCs(cctx, client, server, 0, nVCs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,10 +255,14 @@ func TestMultipleVCsAndMultipleFlows_5(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
-	client, server := NewClientServer(pclient, pserver)
-	vc, _, err := createVC(client, server, pclient, makeEP(0x5))
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	client, server := NewClientServer(cctx, sctx)
+	vc, _, err := createVC(cctx, client, server, makeEP(0x5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,14 +294,18 @@ func TestClose(t *testing.T) {
 }
 
 func TestOnClose(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
 	notifyC, notifyS := make(chan *vif.VIF), make(chan *vif.VIF)
 	notifyFuncC := func(vf *vif.VIF) { notifyC <- vf }
 	notifyFuncS := func(vf *vif.VIF) { notifyS <- vf }
 
 	// Close the client VIF. Both client and server should be notified.
-	client, server, err := New(nil, nil, pclient, pserver, notifyFuncC, notifyFuncS, nil, nil)
+	client, server, err := New(nil, nil, cctx, sctx, notifyFuncC, notifyFuncS, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,7 +318,7 @@ func TestOnClose(t *testing.T) {
 	}
 
 	// Same as above, but close the server VIF at this time.
-	client, server, err = New(nil, nil, pclient, pserver, notifyFuncC, notifyFuncS, nil, nil)
+	client, server, err = New(nil, nil, cctx, sctx, notifyFuncC, notifyFuncS, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,15 +335,18 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 	const (
 		waitTime = 5 * time.Millisecond
 	)
-
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
 	notify := make(chan interface{})
 	notifyFunc := func(vf *vif.VIF) { notify <- vf }
 
 	newVIF := func() (vf, remote *vif.VIF) {
 		var err error
-		vf, remote, err = New(nil, nil, pclient, pserver, notifyFunc, notifyFunc, nil, nil)
+		vf, remote, err = New(nil, nil, cctx, sctx, notifyFunc, notifyFunc, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -342,7 +367,7 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 
 	// Open one VC. Should not be closed.
 	vf, remote = newVIF()
-	if _, _, err := createVC(vf, remote, pclient, makeEP(0x10)); err != nil {
+	if _, _, err := createVC(cctx, vf, remote, makeEP(0x10)); err != nil {
 		t.Fatal(err)
 	}
 	if err := vif.WaitWithTimeout(notify, waitTime); err != nil {
@@ -357,7 +382,7 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 
 	// Same as above, but open a VC from the remote side.
 	vf, remote = newVIF()
-	_, _, err := createVC(remote, vf, pclient, makeEP(0x10))
+	_, _, err := createVC(cctx, remote, vf, makeEP(0x10))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +396,7 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 
 	// Create two VCs.
 	vf, remote = newVIF()
-	if _, _, err := createNVCs(vf, remote, pclient, 0x10, 2); err != nil {
+	if _, _, err := createNVCs(cctx, vf, remote, 0x10, 2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -399,9 +424,12 @@ func testStartTimeout(t *testing.T, testServer bool) {
 		// connection of the other side to be closed especially in race testing.
 		waitTime = 150 * time.Millisecond
 	)
-
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
 	notify := make(chan interface{})
 	notifyFunc := func(vf *vif.VIF) { notify <- vf }
 
@@ -412,7 +440,7 @@ func testStartTimeout(t *testing.T, testServer bool) {
 			vfStartTime, remoteStartTime = remoteStartTime, vfStartTime
 		}
 		var err error
-		vf, remote, err = New(nil, nil, pclient, pserver, notifyFunc, notifyFunc, []stream.VCOpt{vc.StartTimeout{vfStartTime}}, []stream.ListenerOpt{vc.StartTimeout{remoteStartTime}})
+		vf, remote, err = New(nil, nil, cctx, sctx, notifyFunc, notifyFunc, []stream.VCOpt{vc.StartTimeout{vfStartTime}}, []stream.ListenerOpt{vc.StartTimeout{remoteStartTime}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -434,7 +462,7 @@ func testStartTimeout(t *testing.T, testServer bool) {
 
 	// Open one VC. Should not be closed.
 	vf, remote, triggerTimers = newVIF()
-	if _, _, err := createVC(vf, remote, pclient, makeEP(0x10)); err != nil {
+	if _, _, err := createVC(cctx, vf, remote, makeEP(0x10)); err != nil {
 		t.Fatal(err)
 	}
 	triggerTimers()
@@ -457,15 +485,18 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 		idleTime = 10 * time.Millisecond
 		waitTime = idleTime * 2
 	)
-
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
 	notify := make(chan interface{})
 	notifyFunc := func(vf *vif.VIF) { notify <- vf }
 
 	newVIF := func() (vf, remote *vif.VIF) {
 		var err error
-		if vf, remote, err = New(nil, nil, pclient, pserver, notifyFunc, notifyFunc, nil, nil); err != nil {
+		if vf, remote, err = New(nil, nil, cctx, sctx, notifyFunc, notifyFunc, nil, nil); err != nil {
 			t.Fatal(err)
 		}
 		if err = vf.StartAccepting(); err != nil {
@@ -479,7 +510,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	newVC := func(vf, remote *vif.VIF) (VC stream.VC, ln stream.Listener, remoteVC stream.Connector, triggerTimers func()) {
 		triggerTimers = vif.SetFakeTimers()
 		var err error
-		VC, remoteVC, err = createVC(vf, remote, pclient, makeEP(0x10), vc.IdleTimeout{idleTime})
+		VC, remoteVC, err = createVC(cctx, vf, remote, makeEP(0x10), vc.IdleTimeout{idleTime})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -508,7 +539,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	// Same as above, but with multiple VCs.
 	vf, remote = newVIF()
 	triggerTimers = vif.SetFakeTimers()
-	if _, _, err := createNVCs(vf, remote, pclient, 0x10, 5, vc.IdleTimeout{idleTime}); err != nil {
+	if _, _, err := createNVCs(cctx, vf, remote, 0x10, 5, vc.IdleTimeout{idleTime}); err != nil {
 		t.Fatal(err)
 	}
 	triggerTimers()
@@ -572,9 +603,13 @@ func TestIdleTimeout(t *testing.T)       { testIdleTimeout(t, false) }
 func TestIdleTimeoutServer(t *testing.T) { testIdleTimeout(t, true) }
 
 func TestShutdownVCs(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
-	client, server := NewClientServer(pclient, pserver)
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	client, server := NewClientServer(cctx, sctx)
 	defer server.Close()
 	defer client.Close()
 
@@ -586,19 +621,19 @@ func TestShutdownVCs(t *testing.T) {
 		return nil
 	}
 
-	if _, _, err := createVC(client, server, pclient, makeEP(0x5)); err != nil {
+	if _, _, err := createVC(cctx, client, server, makeEP(0x5)); err != nil {
 		t.Fatal(err)
 	}
 	if err := testN(1); err != nil {
 		t.Error(err)
 	}
-	if _, _, err := createVC(client, server, pclient, makeEP(0x5)); err != nil {
+	if _, _, err := createVC(cctx, client, server, makeEP(0x5)); err != nil {
 		t.Fatal(err)
 	}
 	if err := testN(2); err != nil {
 		t.Error(err)
 	}
-	if _, _, err := createVC(client, server, pclient, makeEP(0x7)); err != nil {
+	if _, _, err := createVC(cctx, client, server, makeEP(0x7)); err != nil {
 		t.Fatal(err)
 	}
 	if err := testN(3); err != nil {
@@ -635,9 +670,13 @@ type versionTestCase struct {
 }
 
 func (tc *versionTestCase) Run(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
-	client, server, err := NewVersionedClientServer(tc.client, tc.server, pclient, pserver)
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	client, server, err := NewVersionedClientServer(tc.client, tc.server, cctx, sctx)
 	if (err != nil) != tc.expectVIFError {
 		t.Errorf("Error mismatch.  Wanted error: %v, got %v; client: %v, server: %v", tc.expectVIFError, err, tc.client, tc.server)
 	}
@@ -651,7 +690,7 @@ func (tc *versionTestCase) Run(t *testing.T) {
 		Address:  "addr",
 		RID:      naming.FixedRoutingID(0x5),
 	}
-	clientVC, _, err := createVC(client, server, pclient, ep)
+	clientVC, _, err := createVC(cctx, client, server, ep)
 	if (err != nil) != tc.expectError {
 		t.Errorf("Error mismatch.  Wanted error: %v, got %v (client:%v, server:%v ep:%v)", tc.expectError, err, tc.client, tc.server, tc.ep)
 
@@ -691,19 +730,23 @@ func TestIncompatibleVersions(t *testing.T) {
 }
 
 func TestNetworkFailure(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
 	c1, c2 := pipe()
 	result := make(chan *vif.VIF)
 	closed := make(chan struct{})
 	go func() {
-		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), pclient, nil, func(vf *vif.VIF) { close(closed) })
+		client, err := vif.InternalNewDialedVIF(sctx, c1, naming.FixedRoutingID(0xc), nil, func(vf *vif.VIF) { close(closed) })
 		if err != nil {
 			t.Fatal(err)
 		}
 		result <- client
 	}()
-	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, pserver.BlessingStore().Default(), nil, nil)
+	server, err := vif.InternalNewAcceptedVIF(sctx, c2, naming.FixedRoutingID(0x5), pserver.BlessingStore().Default(), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -712,7 +755,7 @@ func TestNetworkFailure(t *testing.T) {
 	c1.Close()
 	// Wait until the VIF is closed, since Dial() may run before the underlying VC is closed.
 	<-closed
-	if _, err := client.Dial(makeEP(0x5), pclient); err == nil {
+	if _, err := client.Dial(cctx, makeEP(0x5)); err == nil {
 		t.Errorf("Expected client.Dial to fail")
 	}
 	if _, err := server.Accept(); err == nil {
@@ -721,9 +764,13 @@ func TestNetworkFailure(t *testing.T) {
 }
 
 func TestPreAuthentication(t *testing.T) {
+	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
+	defer shutdown()
 	pclient := testutil.NewPrincipal("client")
 	pserver := testutil.NewPrincipal("server")
-	client, server := NewClientServer(pclient, pserver)
+	cctx, _ := v23.WithPrincipal(ctx, pclient)
+	sctx, _ := v23.WithPrincipal(ctx, pserver)
+	client, server := NewClientServer(cctx, sctx)
 	defer client.Close()
 
 	check := func(numVCs, numPreAuth uint) error {
@@ -745,7 +792,7 @@ func TestPreAuthentication(t *testing.T) {
 	}
 
 	// Use a different routing ID. Should not use pre-auth.
-	_, _, err := createVC(client, server, pclient, makeEP(0x55))
+	_, _, err := createVC(cctx, client, server, makeEP(0x55))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -754,7 +801,7 @@ func TestPreAuthentication(t *testing.T) {
 	}
 
 	// Use the same routing ID. Should use pre-auth.
-	_, _, err = createVC(client, server, pclient, makeEP(0x5))
+	_, _, err = createVC(cctx, client, server, makeEP(0x5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -763,7 +810,7 @@ func TestPreAuthentication(t *testing.T) {
 	}
 
 	// Use the null routing ID. Should use VIF pre-auth.
-	_, _, err = createVC(client, server, pclient, makeEP(0x0))
+	_, _, err = createVC(cctx, client, server, makeEP(0x0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -772,7 +819,8 @@ func TestPreAuthentication(t *testing.T) {
 	}
 
 	// Use a different principal. Should not use pre-auth.
-	_, _, err = createVC(client, server, testutil.NewPrincipal("client2"), makeEP(0x5))
+	nctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("client2"))
+	_, _, err = createVC(nctx, client, server, makeEP(0x5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -859,25 +907,25 @@ func pipe() (net.Conn, net.Conn) {
 	return p1, p2
 }
 
-func NewClientServer(pclient, pserver security.Principal) (client, server *vif.VIF) {
+func NewClientServer(cctx, sctx *context.T) (client, server *vif.VIF) {
 	var err error
-	client, server, err = New(nil, nil, pclient, pserver, nil, nil, nil, nil)
+	client, server, err = New(nil, nil, cctx, sctx, nil, nil, nil, nil)
 	if err != nil {
 		panic(err)
 	}
 	return
 }
 
-func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range, pclient, pserver security.Principal) (client, server *vif.VIF, verr error) {
-	return New(clientVersions, serverVersions, pclient, pserver, nil, nil, nil, nil)
+func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range, cctx, sctx *context.T) (client, server *vif.VIF, verr error) {
+	return New(clientVersions, serverVersions, cctx, sctx, nil, nil, nil, nil)
 }
 
-func New(clientVersions, serverVersions *iversion.Range, pclient, pserver security.Principal, clientOnClose, serverOnClose func(*vif.VIF), opts []stream.VCOpt, lopts []stream.ListenerOpt) (client, server *vif.VIF, verr error) {
+func New(clientVersions, serverVersions *iversion.Range, cctx, sctx *context.T, clientOnClose, serverOnClose func(*vif.VIF), opts []stream.VCOpt, lopts []stream.ListenerOpt) (client, server *vif.VIF, verr error) {
 	c1, c2 := pipe()
 	var cerr error
 	cl := make(chan *vif.VIF)
 	go func() {
-		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), pclient, clientVersions, clientOnClose, opts...)
+		c, err := vif.InternalNewDialedVIF(cctx, c1, naming.FixedRoutingID(0xc), clientVersions, clientOnClose, opts...)
 		if err != nil {
 			cerr = err
 			close(cl)
@@ -885,7 +933,8 @@ func New(clientVersions, serverVersions *iversion.Range, pclient, pserver securi
 			cl <- c
 		}
 	}()
-	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, pserver.BlessingStore().Default(), serverVersions, serverOnClose, lopts...)
+	blessings := v23.GetPrincipal(sctx).BlessingStore().Default()
+	s, err := vif.InternalNewAcceptedVIF(sctx, c2, naming.FixedRoutingID(0x5), blessings, serverVersions, serverOnClose, lopts...)
 	c, ok := <-cl
 	if err != nil {
 		verr = err
@@ -929,12 +978,12 @@ func rwSingleFlow(t *testing.T, writer io.WriteCloser, reader io.Reader, data st
 // createVC creates a VC by dialing from the client process to the server
 // process.  It returns the VC at the client and the Connector at the server
 // (which the server can use to create flows over the VC)).
-func createVC(client, server *vif.VIF, pclient security.Principal, ep naming.Endpoint, opts ...stream.VCOpt) (clientVC stream.VC, serverConnector stream.Connector, err error) {
+func createVC(ctx *context.T, client, server *vif.VIF, ep naming.Endpoint, opts ...stream.VCOpt) (clientVC stream.VC, serverConnector stream.Connector, err error) {
 	vcChan := make(chan stream.VC)
 	scChan := make(chan stream.Connector)
 	errChan := make(chan error)
 	go func() {
-		vc, err := client.Dial(ep, pclient, opts...)
+		vc, err := client.Dial(ctx, ep, opts...)
 		errChan <- err
 		vcChan <- vc
 	}()
@@ -956,11 +1005,11 @@ func createVC(client, server *vif.VIF, pclient security.Principal, ep naming.End
 	return
 }
 
-func createNVCs(client, server *vif.VIF, pclient security.Principal, startRID uint64, N int, opts ...stream.VCOpt) (clientVCs []stream.VC, serverConnectors []stream.Connector, err error) {
+func createNVCs(ctx *context.T, client, server *vif.VIF, startRID uint64, N int, opts ...stream.VCOpt) (clientVCs []stream.VC, serverConnectors []stream.Connector, err error) {
 	var c stream.VC
 	var s stream.Connector
 	for i := 0; i < N; i++ {
-		c, s, err = createVC(client, server, pclient, makeEP(startRID+uint64(i)), opts...)
+		c, s, err = createVC(ctx, client, server, makeEP(startRID+uint64(i)), opts...)
 		if err != nil {
 			return
 		}

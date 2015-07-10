@@ -217,7 +217,7 @@ func (s *deviceService) revertDeviceManager(ctx *context.T) error {
 	if s.restartHandler != nil {
 		s.restartHandler()
 	}
-	v23.GetAppCycle(ctx).Stop()
+	v23.GetAppCycle(ctx).Stop(ctx)
 	return nil
 }
 
@@ -482,7 +482,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	if s.restartHandler != nil {
 		s.restartHandler()
 	}
-	v23.GetAppCycle(ctx).Stop()
+	v23.GetAppCycle(ctx).Stop(ctx)
 	deferrer = nil
 	return nil
 }
@@ -515,7 +515,7 @@ func (*deviceService) Instantiate(ctx *context.T, _ device.ApplicationInstantiat
 }
 
 func (*deviceService) Delete(ctx *context.T, _ rpc.ServerCall) error {
-	v23.GetAppCycle(ctx).Stop()
+	v23.GetAppCycle(ctx).Stop(ctx)
 	return nil
 }
 
@@ -523,7 +523,7 @@ func (s *deviceService) Kill(ctx *context.T, _ rpc.ServerCall, _ time.Duration) 
 	if s.restartHandler != nil {
 		s.restartHandler()
 	}
-	v23.GetAppCycle(ctx).Stop()
+	v23.GetAppCycle(ctx).Stop(ctx)
 	return nil
 }
 

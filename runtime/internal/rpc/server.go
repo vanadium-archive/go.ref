@@ -16,8 +16,8 @@ import (
 
 	"v.io/x/lib/netstate"
 	"v.io/x/lib/pubsub"
-	"v.io/x/lib/vlog"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
@@ -53,6 +53,7 @@ var (
 	errInternalTypeConversion    = reg(".errInternalTypeConversion", "failed to convert {3} to v.io/x/ref/runtime/internal/naming.Endpoint")
 	errFailedToParseIP           = reg(".errFailedToParseIP", "failed to parse {3} as an IP host")
 	errUnexpectedSuffix          = reg(".errUnexpectedSuffix", "suffix {3} was not expected because either server has the option IsLeaf set to true or it served an object and not a dispatcher")
+	errNoListeners               = reg(".errNoListeners", "failed to ceate any listeners{:3}")
 )
 
 // state for each requested listen address
@@ -180,22 +181,20 @@ func InternalNewServer(
 	settingsPublisher *pubsub.Publisher,
 	settingsName string,
 	client rpc.Client,
-	principal security.Principal,
 	opts ...rpc.ServerOpt) (rpc.Server, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.WithNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("rpc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
-		ctx:               ctx,
-		cancel:            cancel,
-		streamMgr:         streamMgr,
-		principal:         principal,
-		publisher:         publisher.New(ctx, ns, publishPeriod),
-		listenState:       make(map[*listenState]struct{}),
-		listeners:         make(map[stream.Listener]struct{}),
-		proxies:           make(map[string]proxyState),
-		stoppedChan:       make(chan struct{}),
-		ipNets:            ipNetworks(),
+		ctx:         ctx,
+		cancel:      cancel,
+		streamMgr:   streamMgr,
+		publisher:   publisher.New(ctx, ns, publishPeriod),
+		listenState: make(map[*listenState]struct{}),
+		listeners:   make(map[stream.Listener]struct{}),
+		proxies:     make(map[string]proxyState),
+		stoppedChan: make(chan struct{}),
+
 		ns:                ns,
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
@@ -205,6 +204,12 @@ func InternalNewServer(
 		dischargeExpiryBuffer = vc.DefaultServerDischargeExpiryBuffer
 		securityLevel         options.SecurityLevel
 	)
+	ipNets, err := ipNetworks()
+	if err != nil {
+		return nil, err
+	}
+	s.ipNets = ipNets
+
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case stream.ListenerOpt:
@@ -226,28 +231,36 @@ func InternalNewServer(
 			s.preferredProtocols = []string(opt)
 		case options.SecurityLevel:
 			securityLevel = opt
+
 		}
 	}
-	if s.blessings.IsZero() && principal != nil {
-		s.blessings = principal.BlessingStore().Default()
-	}
+
+	authenticateVC := true
+
 	if securityLevel == options.SecurityNone {
-		s.principal = nil
+		authenticateVC = false
 		s.blessings = security.Blessings{}
 		s.dispReserved = nil
 	}
+	if authenticateVC {
+		s.principal = v23.GetPrincipal(ctx)
+		if s.blessings.IsZero() && s.principal != nil {
+			s.blessings = s.principal.BlessingStore().Default()
+		}
+	}
+
 	// Make dischargeExpiryBuffer shorter than the VC discharge buffer to ensure we have fetched
-	// the discharges by the time the VC asks for them.`
+	// the discharges by the time the VC asks for them.
 	s.dc = InternalNewDischargeClient(ctx, client, dischargeExpiryBuffer-(5*time.Second))
 	s.listenerOpts = append(s.listenerOpts, s.dc)
-	s.listenerOpts = append(s.listenerOpts, vc.DialContext{ctx})
+	s.listenerOpts = append(s.listenerOpts, stream.AuthenticatedVC(authenticateVC))
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
 	// TODO(caprita): revist printing the blessings with %s, and
 	// instead expose them as a list.
 	stats.NewString(blessingsStatsName).Set(fmt.Sprintf("%s", s.blessings))
-	if principal != nil {
+	if s.principal != nil {
 		stats.NewStringFunc(blessingsStatsName, func() string {
-			return fmt.Sprintf("%s (default)", principal.BlessingStore().Default())
+			return fmt.Sprintf("%s (default)", s.principal.BlessingStore().Default())
 		})
 	}
 	return s, nil
@@ -403,10 +416,10 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 				protocol: addr.Protocol,
 				address:  addr.Address,
 			}
-			ls.ln, ls.lep, ls.lnerr = s.streamMgr.Listen(addr.Protocol, addr.Address, s.principal, s.blessings, s.listenerOpts...)
+			ls.ln, ls.lep, ls.lnerr = s.streamMgr.Listen(s.ctx, addr.Protocol, addr.Address, s.blessings, s.listenerOpts...)
 			lnState = append(lnState, ls)
 			if ls.lnerr != nil {
-				vlog.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, ls.lnerr)
+				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, ls.lnerr)
 				continue
 			}
 			ls.ieps, ls.port, ls.roaming, ls.eperr = s.createEndpoints(ls.lep, listenSpec.AddressChooser)
@@ -418,14 +431,18 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 	}
 
 	found := false
+	var lastErr error
 	for _, ls := range lnState {
 		if ls.ln != nil {
 			found = true
 			break
 		}
+		if ls.lnerr != nil {
+			lastErr = ls.lnerr
+		}
 	}
 	if !found && !useProxy {
-		return nil, verror.New(verror.ErrBadArg, s.ctx, "failed to create any listeners")
+		return nil, verror.New(verror.ErrBadArg, s.ctx, verror.New(errNoListeners, s.ctx, lastErr))
 	}
 
 	if roaming && s.dhcpState == nil && s.settingsPublisher != nil {
@@ -475,7 +492,7 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 		return nil, nil, verror.New(errFailedToResolveProxy, s.ctx, proxy, err)
 	}
 	opts := append([]stream.ListenerOpt{proxyAuth{s}}, s.listenerOpts...)
-	ln, ep, err := s.streamMgr.Listen(inaming.Network, resolved, s.principal, s.blessings, opts...)
+	ln, ep, err := s.streamMgr.Listen(s.ctx, inaming.Network, resolved, s.blessings, opts...)
 	if err != nil {
 		return nil, nil, verror.New(errFailedToListenForProxy, s.ctx, resolved, err)
 	}
@@ -501,7 +518,7 @@ func (s *server) proxyListenLoop(proxy string) {
 
 	iep, ln, err := s.reconnectAndPublishProxy(proxy)
 	if err != nil {
-		vlog.Errorf("Failed to connect to proxy: %s", err)
+		s.ctx.Errorf("Failed to connect to proxy: %s", err)
 	}
 	// the initial connection maybe have failed, but we enter the retry
 	// loop anyway so that we will continue to try and connect to the
@@ -552,9 +569,9 @@ func (s *server) proxyListenLoop(proxy string) {
 			}
 			// (3) reconnect, publish new address
 			if iep, ln, err = s.reconnectAndPublishProxy(proxy); err != nil {
-				vlog.Errorf("Failed to reconnect to proxy %q: %s", proxy, err)
+				s.ctx.Errorf("Failed to reconnect to proxy %q: %s", proxy, err)
 			} else {
-				vlog.VI(1).Infof("Reconnected to proxy %q, %s", proxy, iep)
+				s.ctx.VI(1).Infof("Reconnected to proxy %q, %s", proxy, iep)
 				break
 			}
 		}
@@ -588,7 +605,7 @@ func (s *server) rmListener(ln stream.Listener) bool {
 }
 
 func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) error {
-	defer vlog.VI(1).Infof("rpc: Stopped listening on %s", ep)
+	defer s.ctx.VI(1).Infof("rpc: Stopped listening on %s", ep)
 	var calls sync.WaitGroup
 
 	if !s.addListener(ln) {
@@ -603,7 +620,7 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) error {
 	for {
 		flow, err := ln.Accept()
 		if err != nil {
-			vlog.VI(10).Infof("rpc: Accept on %v failed: %v", ep, err)
+			s.ctx.VI(10).Infof("rpc: Accept on %v failed: %v", ep, err)
 			return err
 		}
 		calls.Add(1)
@@ -611,7 +628,7 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) error {
 			defer calls.Done()
 			fs, err := newFlowServer(flow, s)
 			if err != nil {
-				vlog.VI(1).Infof("newFlowServer on %v failed: %v", ep, err)
+				s.ctx.VI(1).Infof("newFlowServer on %v failed: %v", ep, err)
 				return
 			}
 			if err := fs.serve(); err != nil {
@@ -620,7 +637,7 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) error {
 				// TODO(cnicolaou): revisit this when verror2 transition is
 				// done.
 				if err != io.EOF {
-					vlog.VI(2).Infof("Flow.serve on %v failed: %v", ep, err)
+					s.ctx.VI(2).Infof("Flow.serve on %v failed: %v", ep, err)
 				}
 			}
 		}(flow)
@@ -628,8 +645,8 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) error {
 }
 
 func (s *server) dhcpLoop(ch chan pubsub.Setting) {
-	defer vlog.VI(1).Infof("rpc: Stopped listen for dhcp changes")
-	vlog.VI(2).Infof("rpc: dhcp loop")
+	defer s.ctx.VI(1).Infof("rpc: Stopped listen for dhcp changes")
+	s.ctx.VI(2).Infof("rpc: dhcp loop")
 	for setting := range ch {
 		if setting == nil {
 			return
@@ -653,7 +670,7 @@ func (s *server) dhcpLoop(ch chan pubsub.Setting) {
 				change.Changed, change.Error = s.removeAddresses(v)
 				change.RemovedAddrs = v
 			}
-			vlog.VI(2).Infof("rpc: dhcp: change %v", change)
+			s.ctx.VI(2).Infof("rpc: dhcp: change %v", change)
 			for ch, _ := range s.dhcpState.watchers {
 				select {
 				case ch <- change:
@@ -662,7 +679,7 @@ func (s *server) dhcpLoop(ch chan pubsub.Setting) {
 			}
 			s.Unlock()
 		default:
-			vlog.Errorf("rpc: dhcpLoop: unhandled setting type %T", v)
+			s.ctx.Errorf("rpc: dhcpLoop: unhandled setting type %T", v)
 		}
 	}
 }
@@ -691,7 +708,7 @@ func (s *server) removeAddresses(addrs []net.Addr) ([]naming.Endpoint, error) {
 						lnHost = iep.Address
 					}
 					if lnHost == host {
-						vlog.VI(2).Infof("rpc: dhcp removing: %s", iep)
+						s.ctx.VI(2).Infof("rpc: dhcp removing: %s", iep)
 						removed = append(removed, iep)
 						s.publisher.RemoveServer(iep.String())
 						continue
@@ -729,7 +746,7 @@ func (s *server) addAddresses(addrs []net.Addr) []naming.Endpoint {
 				niep.IsMountTable = s.servesMountTable
 				niep.IsLeaf = s.isLeaf
 				ls.ieps = append(ls.ieps, &niep)
-				vlog.VI(2).Infof("rpc: dhcp adding: %s", niep)
+				s.ctx.VI(2).Infof("rpc: dhcp adding: %s", niep)
 				s.publisher.AddServer(niep.String())
 				added = append(added, &niep)
 			}
@@ -827,8 +844,8 @@ func (s *server) RemoveName(name string) {
 func (s *server) Stop() error {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	serverDebug := fmt.Sprintf("Dispatcher: %T, Status:[%v]", s.disp, s.Status())
-	vlog.VI(1).Infof("Stop: %s", serverDebug)
-	defer vlog.VI(1).Infof("Stop done: %s", serverDebug)
+	s.ctx.VI(1).Infof("Stop: %s", serverDebug)
+	defer s.ctx.VI(1).Infof("Stop done: %s", serverDebug)
 	s.Lock()
 	if s.isStopState() {
 		s.Unlock()
@@ -910,16 +927,16 @@ func (s *server) Stop() error {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		vlog.Errorf("%s: Listener Close Error: %v", serverDebug, firstErr)
-		vlog.Errorf("%s: Timedout waiting for goroutines to stop: listeners: %d (currently: %d)", serverDebug, nListeners, len(s.listeners))
+		s.ctx.Errorf("%s: Listener Close Error: %v", serverDebug, firstErr)
+		s.ctx.Errorf("%s: Timedout waiting for goroutines to stop: listeners: %d (currently: %d)", serverDebug, nListeners, len(s.listeners))
 		for ln, _ := range s.listeners {
-			vlog.Errorf("%s: Listener: %v", serverDebug, ln)
+			s.ctx.Errorf("%s: Listener: %v", serverDebug, ln)
 		}
 		for ls, _ := range s.listenState {
-			vlog.Errorf("%s: ListenState: %v", serverDebug, ls)
+			s.ctx.Errorf("%s: ListenState: %v", serverDebug, ls)
 		}
 		<-done
-		vlog.Infof("%s: Done waiting.", serverDebug)
+		s.ctx.Infof("%s: Done waiting.", serverDebug)
 	}
 
 	s.Lock()

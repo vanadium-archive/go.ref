@@ -12,13 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 
 	"v.io/x/ref"
+	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -32,10 +31,11 @@ func TestInit(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	l := vlog.Log
-	fmt.Println(l)
-	args := fmt.Sprintf("%s", l)
-	expected := regexp.MustCompile("name=vlog logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= vfilepath= log_backtrace_at=:0")
+	mgr := logger.Manager(ctx)
+	fmt.Println(mgr)
+	args := fmt.Sprintf("%s", mgr)
+	expected := regexp.MustCompile("name=vanadium logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= vfilepath= log_backtrace_at=:0")
+
 	if !expected.MatchString(args) {
 		t.Errorf("unexpected default args: %s, want %s", args, expected)
 	}
@@ -55,12 +55,12 @@ func TestInit(t *testing.T) {
 }
 
 var child = modules.Register(func(env *modules.Env, args ...string) error {
-	_, shutdown := test.V23Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	logger := vlog.Log
-	vlog.Infof("%s\n", logger)
-	fmt.Fprintf(env.Stdout, "%s\n", logger)
+	mgr := logger.Manager(ctx)
+	ctx.Infof("%s\n", mgr)
+	fmt.Fprintf(env.Stdout, "%s\n", mgr)
 	modules.WaitForEOF(env.Stdin)
 	fmt.Fprintf(env.Stdout, "done\n")
 	return nil

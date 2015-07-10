@@ -67,10 +67,8 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23/verror"
-
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/runtime/internal/lib/iobuf"
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 	"v.io/x/ref/runtime/internal/rpc/stream/id"
@@ -247,7 +245,7 @@ func mkHeaderSpace(slice *iobuf.Slice, space uint) *iobuf.Slice {
 	if slice.ExpandFront(space) {
 		return slice
 	}
-	vlog.VI(10).Infof("Failed to expand slice by %d bytes. Copying", space)
+	logger.Global().VI(10).Infof("Failed to expand slice by %d bytes. Copying", space)
 	contents := make([]byte, slice.Size()+int(space))
 	copy(contents[space:], slice.Contents)
 	slice.Release()

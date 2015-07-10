@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/namespace"
@@ -178,8 +176,8 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 		// We use different stream managers for the client and server
 		// to prevent VIF re-use (in other words, we want to test VIF
 		// creation from both the client and server end).
-		smserver = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-		smclient = imanager.InternalNew(naming.FixedRoutingID(0x444444444))
+		smserver = imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+		smclient = imanager.InternalNew(ctx, naming.FixedRoutingID(0x444444444))
 		ns       = tnaming.NewSimpleNamespace()
 	)
 	defer smserver.Shutdown()
@@ -190,7 +188,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	}
 	defer client.Close()
 	serverCtx, _ := v23.WithPrincipal(ctx, pserver)
-	server, err := irpc.InternalNewServer(serverCtx, smserver, ns, nil, "", nil, pserver)
+	server, err := irpc.InternalNewServer(serverCtx, smserver, ns, nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +245,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 				continue
 			}
 			for i, s := range me.Servers {
-				vlog.Infof("%d: %s", i, s)
+				ctx.Infof("%d: %s", i, s)
 			}
 			if err == nil && len(me.Servers) == expect {
 				ch <- 1
