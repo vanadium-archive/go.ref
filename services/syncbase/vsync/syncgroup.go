@@ -404,12 +404,7 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 		// TODO(hpucha): Bootstrap DAG/Genvector etc for syncing the SG metadata.
 
 		// Take a snapshot of the data to bootstrap the SyncGroup.
-		if err := bootstrapSyncGroup(tx, spec.Prefixes); err != nil {
-			return err
-		}
-
-		tx1 := tx.(store.Transaction)
-		return watchable.AddSyncGroupOp(ctx, tx1, spec.Prefixes, false)
+		return sd.bootstrapSyncGroup(ctx, tx, spec.Prefixes)
 	})
 
 	if err != nil {
@@ -499,12 +494,7 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 		}
 
 		// Take a snapshot of the data to bootstrap the SyncGroup.
-		if err := bootstrapSyncGroup(tx, sg.Spec.Prefixes); err != nil {
-			return err
-		}
-
-		tx1 := tx.(store.Transaction)
-		return watchable.AddSyncGroupOp(ctx, tx1, sg.Spec.Prefixes, false)
+		return sd.bootstrapSyncGroup(ctx, tx, sg.Spec.Prefixes)
 	})
 
 	if err != nil {
@@ -571,23 +561,63 @@ func splitPrefix(name string) (string, string) {
 	return parts[0], ""
 }
 
-func bootstrapSyncGroup(tx store.StoreReadWriter, prefixes []string) error {
-	_ = tx.(store.Transaction)
+// bootstrapSyncGroup inserts into the transaction log a SyncGroup operation and
+// a set of Snapshot operations to notify the sync watcher about the SyncGroup
+// prefixes to start accepting and the initial state of existing store keys that
+// match these prefixes (both data and permission keys).
+// TODO(rdaoud): this operation scans the managed keys of the database and can
+// be time consuming.  Consider doing it asynchronously and letting the server
+// reply to the client earlier.  However it must happen within the scope of this
+// transaction (and its snapshot view).
+func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.StoreReadWriter, prefixes []string) error {
+	if len(prefixes) == 0 {
+		return verror.New(verror.ErrInternal, ctx, "no prefixes specified")
+	}
 
-	for _, p := range prefixes {
-		table, row := splitPrefix(p)
-		it := tx.Scan(util.ScanRangeArgs(table, row, ""))
-		key, value := []byte{}, []byte{}
-		for it.Advance() {
-			key, value = it.Key(key), it.Value(value)
+	// Get the store options to retrieve the list of managed key prefixes.
+	opts, err := watchable.GetOptions(sd.db.St())
+	if err != nil {
+		return err
+	}
+	if len(opts.ManagedPrefixes) == 0 {
+		return verror.New(verror.ErrInternal, ctx, "store has no managed prefixes")
+	}
 
-			// TODO(hpucha): Ensure prefix ACLs show up in the scan
-			// stream.
+	// Notify the watcher of the SyncGroup prefixes to start accepting.
+	if err := watchable.AddSyncGroupOp(ctx, tx, prefixes, false); err != nil {
+		return err
+	}
 
-			// TODO(hpucha): Process this object.
-		}
-		if err := it.Err(); err != nil {
-			return err
+	// Loop over the store managed key prefixes (e.g. data and permissions).
+	// For each one, scan the ranges of the given SyncGroup prefixes.  For
+	// each matching key, insert a snapshot operation in the log.  Scanning
+	// is done over the version entries to retrieve the matching keys and
+	// their version numbers (the key values).  Remove the version prefix
+	// from the key used in the snapshot operation.
+	// TODO(rdaoud): for SyncGroup prefixes, there should be a separation
+	// between their representation at the client (a list of (db, prefix)
+	// tuples) and internally as strings that match the store's key format.
+	for _, mp := range opts.ManagedPrefixes {
+		for _, p := range prefixes {
+			var k, v []byte
+			start, limit := util.ScanPrefixArgs(util.JoinKeyParts(util.VersionPrefix, mp), p)
+			stream := tx.Scan(start, limit)
+			for stream.Advance() {
+				k, v = stream.Key(k), stream.Value(v)
+				parts := util.SplitKeyParts(string(k))
+				if len(parts) < 2 {
+					vlog.Fatalf("bootstrapSyncGroup: invalid version key %s", string(k))
+
+				}
+				key := []byte(util.JoinKeyParts(parts[1:]...))
+				if err := watchable.AddSyncSnapshotOp(ctx, tx, key, v); err != nil {
+					return err
+				}
+
+			}
+			if err := stream.Err(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
