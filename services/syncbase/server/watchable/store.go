@@ -144,6 +144,14 @@ func (st *wstore) NewSnapshot() store.Snapshot {
 	return newSnapshot(st)
 }
 
+// GetOptions returns the options configured on a watchable.Store.
+// TODO(rdaoud): expose watchable store through an interface and change this
+// function to be a method on the store.
+func GetOptions(st store.Store) (*Options, error) {
+	wst := st.(*wstore)
+	return wst.opts, nil
+}
+
 ////////////////////////////////////////
 // Internal helpers
 

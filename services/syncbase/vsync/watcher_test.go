@@ -15,6 +15,7 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
+	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
@@ -201,14 +202,14 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	if err != nil {
 		t.Errorf("getNode() did not find foo: %v", err)
 	}
-	if node.Level != 0 || node.Parents != nil || node.Logrec == "" || node.BatchId == NoBatchId {
+	if node.Level != 0 || node.Parents != nil || node.Logrec == "" || node.BatchId != NoBatchId {
 		t.Errorf("invalid DAG node for foo: %v", node)
 	}
 	node2, err := getNode(nil, st, fooxyzKey, "444")
 	if err != nil {
 		t.Errorf("getNode() did not find fooxyz: %v", err)
 	}
-	if node2.Level != 0 || node2.Parents != nil || node2.Logrec == "" || node2.BatchId != node.BatchId {
+	if node2.Level != 0 || node2.Parents != nil || node2.Logrec == "" || node2.BatchId != NoBatchId {
 		t.Errorf("invalid DAG node for fooxyz: %v", node2)
 	}
 	if hasNode(nil, st, barKey, "222") {
@@ -283,6 +284,33 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 	if hasNode(nil, st, barKey, "007") {
 		t.Error("hasNode() found DAG entries for non-syncable logs")
+	}
+
+	// Scan the batch records and verify that there is only 1 DAG batch
+	// stored, with a total count of 3 and a map of 2 syncable entries.
+	// This is because the 1st batch, while containing syncable keys, is a
+	// SyncGroup snapshot that does not get assigned a batch ID.  The 2nd
+	// batch is an application batch with 3 keys of which 2 are syncable.
+	// The 3rd batch is also a SyncGroup snapshot.
+	count := 0
+	start, limit := util.ScanPrefixArgs(util.JoinKeyParts(util.SyncPrefix, "dag", "b"), "")
+	stream := st.Scan(start, limit)
+	for stream.Advance() {
+		count++
+		key := string(stream.Key(nil))
+		var info batchInfo
+		if err := vom.Decode(stream.Value(nil), &info); err != nil {
+			t.Errorf("cannot decode batch %s: %v", key, err)
+		}
+		if info.Count != 3 {
+			t.Errorf("wrong total count in batch %s: got %d instead of 3", key, info.Count)
+		}
+		if n := len(info.Objects); n != 2 {
+			t.Errorf("wrong object count in batch %s: got %d instead of 2", key, n)
+		}
+	}
+	if count != 1 {
+		t.Errorf("wrong count of batches: got %d instead of 2", count)
 	}
 }
 

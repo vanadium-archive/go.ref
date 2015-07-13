@@ -111,28 +111,30 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 		return
 	}
 
-	// First handle SyncGroup prefix changes within the batch by updating
-	// the watch prefixes.  It is as if these log entries were at the start
-	// of the batch.  Exclude them from the actual data batch.
-	dataLogs := make([]*watchable.LogEntry, 0, len(logs))
-	for _, entry := range logs {
-		if processSyncGroupLogRecord(appName, dbName, entry) == false {
-			dataLogs = append(dataLogs, entry)
-		}
+	// If the first log entry is a SyncGroup prefix operation, then this is
+	// a SyncGroup snapshot and not an application batch.  In this case,
+	// handle the SyncGroup prefix changes by updating the watch prefixes
+	// and exclude the first entry from the batch.  Also inform the batch
+	// processing below to not assign it a batch ID in the DAG.
+	appBatch := true
+	if processSyncGroupLogRecord(appName, dbName, logs[0]) {
+		appBatch = false
+		logs = logs[1:]
 	}
 
 	// Filter out the log entries for keys not part of any SyncGroup.
 	// Ignore as well log entries made by sync (echo suppression).
-	totalCount := uint64(len(dataLogs))
+	totalCount := uint64(len(logs))
 	appdb := appDbName(appName, dbName)
-	logs = make([]*watchable.LogEntry, 0, len(dataLogs))
 
-	for _, entry := range dataLogs {
+	i := 0
+	for _, entry := range logs {
 		if !entry.FromSync && syncable(appdb, entry) {
-			logs = append(logs, entry)
+			logs[i] = entry
+			i++
 		}
 	}
-	dataLogs = nil
+	logs = logs[:i]
 
 	// Transactional processing of the batch: convert these syncable log
 	// records to a batch of sync log records, filling their parent versions
@@ -145,7 +147,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 			}
 		}
 
-		if err := s.processBatch(ctx, appName, dbName, batch, totalCount, tx); err != nil {
+		if err := s.processBatch(ctx, appName, dbName, batch, appBatch, totalCount, tx); err != nil {
 			return err
 		}
 		return setResMark(ctx, tx, resMark)
@@ -159,7 +161,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 
 // processBatch applies a single batch of changes (object mutations) received
 // from watching a particular Database.
-func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch []*localLogRec, totalCount uint64, tx store.StoreReadWriter) error {
+func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch []*localLogRec, appBatch bool, totalCount uint64, tx store.StoreReadWriter) error {
 	_ = tx.(store.Transaction)
 
 	count := uint64(len(batch))
@@ -167,9 +169,9 @@ func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch
 		return nil
 	}
 
-	// If the batch has more than one mutation, start a batch for it.
+	// If an application batch has more than one mutation, start a batch for it.
 	batchId := NoBatchId
-	if totalCount > 1 {
+	if appBatch && totalCount > 1 {
 		batchId = s.startBatch(ctx, tx, batchId)
 		if batchId == NoBatchId {
 			return verror.New(verror.ErrInternal, ctx, "failed to generate batch ID")
@@ -200,7 +202,7 @@ func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch
 
 	// End the batch if any.
 	if batchId != NoBatchId {
-		if err := s.endBatch(ctx, tx, batchId, count); err != nil {
+		if err := s.endBatch(ctx, tx, batchId, totalCount); err != nil {
 			return err
 		}
 	}
@@ -340,7 +342,12 @@ func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchabl
 		rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
 
 	case watchable.OpSyncSnapshot:
-		rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
+		// Create records for object versions not already in the DAG.
+		// Duplicates can appear here in cases of nested SyncGroups or
+		// peer SyncGroups.
+		if !hasNode(ctx, tx, string(op.Value.Key), string(op.Value.Version)) {
+			rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
+		}
 
 	case watchable.OpDelete:
 		rec = newLocalLogRec(ctx, tx, op.Value.Key, watchable.NewVersion(), true, timestamp)
@@ -363,6 +370,7 @@ func newLocalLogRec(ctx *context.T, tx store.StoreReadWriter, key, version []byt
 
 	rec := localLogRec{}
 	oid := string(key)
+
 	rec.Metadata.ObjId = oid
 	rec.Metadata.CurVers = string(version)
 	rec.Metadata.Delete = deleted
