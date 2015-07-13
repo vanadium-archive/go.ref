@@ -20,7 +20,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/debug/debuglib"
@@ -223,7 +222,7 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 		return nil, err
 	}
 
-	debugDisp := debuglib.NewDispatcher(logger.Manager(ctx).LogDir, debugAuth)
+	debugDisp := debuglib.NewDispatcher(debugAuth)
 
 	ctx = v23.WithReservedNameDispatcher(ctx, debugDisp)
 

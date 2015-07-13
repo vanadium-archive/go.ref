@@ -62,7 +62,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		Addrs: rpc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
-	reservedDispatcher := debuglib.NewDispatcher(logger.Manager(logger.Global()).LogDir, securityflag.NewAuthorizerOrDie())
+	reservedDispatcher := debuglib.NewDispatcher(securityflag.NewAuthorizerOrDie())
 
 	ac := appcycle.New()
 

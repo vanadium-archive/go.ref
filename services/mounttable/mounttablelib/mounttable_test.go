@@ -26,7 +26,6 @@ import (
 	"v.io/v23/services/stats"
 	"v.io/v23/vdl"
 
-	"v.io/x/ref/internal/logger"
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/debug/debuglib"
@@ -187,7 +186,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 }
 
 func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (func() error, string) {
-	reservedDisp := debuglib.NewDispatcher(logger.Manager(logger.Global()).LogDir, nil)
+	reservedDisp := debuglib.NewDispatcher(nil)
 	ctx := v23.WithReservedNameDispatcher(rootCtx, reservedDisp)
 
 	// Add mount table service.

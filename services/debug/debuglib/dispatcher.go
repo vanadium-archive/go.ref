@@ -12,6 +12,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/services/internal/logreaderlib"
 	"v.io/x/ref/services/internal/pproflib"
 	"v.io/x/ref/services/internal/statslib"
@@ -20,20 +21,19 @@ import (
 
 // dispatcher holds the state of the debug dispatcher.
 type dispatcher struct {
-	logsDirFunc func() string // The function returns the root of the logs directory.
-	auth        security.Authorizer
+	auth security.Authorizer
 }
 
 var _ rpc.Dispatcher = (*dispatcher)(nil)
 
-func NewDispatcher(logsDirFunc func() string, authorizer security.Authorizer) rpc.Dispatcher {
-	return &dispatcher{logsDirFunc, authorizer}
+func NewDispatcher(authorizer security.Authorizer) rpc.Dispatcher {
+	return &dispatcher{authorizer}
 }
 
 // The first part of the names of the objects served by this dispatcher.
 var rootName = "__debug"
 
-func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	if suffix == "" {
 		return rpc.ChildrenGlobberInvoker(rootName), d.auth, nil
 	}
@@ -54,7 +54,7 @@ func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.
 	}
 	switch parts[0] {
 	case "logs":
-		return logreaderlib.NewLogFileService(d.logsDirFunc(), suffix), d.auth, nil
+		return logreaderlib.NewLogFileService(logger.Manager(ctx).LogDir(), suffix), d.auth, nil
 	case "pprof":
 		return pproflib.NewPProfService(), d.auth, nil
 	case "stats":

@@ -24,7 +24,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
-
+	"v.io/x/lib/vlog"
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -54,7 +54,12 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 
-	disp := NewDispatcher(func() string { return workdir }, nil)
+	// Use logger configured with the directory that we want to use for this test.
+	testLogger := vlog.NewLogger("TestDebugServer")
+	testLogger.Configure(vlog.LogDir(workdir))
+	ctx = context.WithLogger(ctx, testLogger)
+
+	disp := NewDispatcher(nil)
 	server, err := xrpc.NewDispatchingServer(ctx, "", disp)
 	if err != nil {
 		t.Fatalf("failed to start debug server: %v", err)
