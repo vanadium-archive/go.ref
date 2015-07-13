@@ -13,8 +13,8 @@ import (
 )
 
 func TestVCMap(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	m := newVCMap()
 
 	vc12 := vc.InternalNew(ctx, vc.Params{VCI: 12})
@@ -46,8 +46,8 @@ func TestVCMap(t *testing.T) {
 }
 
 func TestVCMapFreeze(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	m := newVCMap()
 	vc1 := vc.InternalNew(ctx, vc.Params{VCI: 1})
 	vc2 := vc.InternalNew(ctx, vc.Params{VCI: 2})
@@ -68,8 +68,8 @@ func TestVCMapFreeze(t *testing.T) {
 }
 
 func TestVCMapDelete(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	m := newVCMap()
 
 	vc1 := vc.InternalNew(ctx, vc.Params{VCI: 1})

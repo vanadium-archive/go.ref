@@ -16,8 +16,8 @@ import (
 )
 
 func TestBlessingAuditor(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	auditor, reader := NewMockBlessingAuditor()
 
 	p, err := vsecurity.NewPrincipal()

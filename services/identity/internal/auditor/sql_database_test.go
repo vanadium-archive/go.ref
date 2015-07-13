@@ -16,8 +16,8 @@ import (
 )
 
 func TestSQLDatabaseQuery(t *testing.T) {
-	ctx, shutdown := test.V23InitWithParams(test.InitParams{})
-	defer shutdown()
+	ctx, cancel := test.TestContext()
+	defer cancel()
 	db, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create new mock database stub: %v", err)

@@ -72,22 +72,22 @@ func Init() {
 // using the modules package.
 func V23Init() (*context.T, v23.Shutdown) {
 	moduleProcess := os.Getenv("V23_SHELL_HELPER_PROCESS_ENTRY_POINT") != ""
-	return V23InitWithParams(InitParams{
+	return initWithParams(initParams{
 		CreatePrincipal:  !moduleProcess,
 		CreateMounttable: !moduleProcess,
 	})
 }
 
-// Params contains parameters for tests that need to control what happens during
+// initParams contains parameters for tests that need to control what happens during
 // init carefully.
-type InitParams struct {
+type initParams struct {
 	CreateMounttable bool // CreateMounttable creates a new mounttable.
 	CreatePrincipal  bool // CreatePrincipal creates a new principal with self-signed blessing.
 }
 
-// V23InitWithParams initializes the runtime and returns a new context and shutdown function.
+// initWithParams initializes the runtime and returns a new context and shutdown function.
 // Specific aspects of initialization can be controlled via the params struct.
-func V23InitWithParams(params InitParams) (*context.T, v23.Shutdown) {
+func initWithParams(params initParams) (*context.T, v23.Shutdown) {
 	ctx, shutdown := v23.Init()
 	if params.CreatePrincipal {
 		var err error
@@ -109,4 +109,20 @@ func V23InitWithParams(params InitParams) (*context.T, v23.Shutdown) {
 		ns.SetRoots(s.Status().Endpoints[0].Name())
 	}
 	return ctx, shutdown
+}
+
+// TestContext returns a *contect.T suitable for use in tests with logging
+// configured to use loggler.Global(), but nothing else. In particular it does
+// not call v23.Init and hence any of the v23 functions that
+func TestContext() (*context.T, context.CancelFunc) {
+	ctx, cancel := context.RootContext()
+	return context.WithLogger(ctx, logger.Global()), cancel
+}
+
+// V23InitEmpty initializes a runtime but with no principal.
+func V23InitAnon() (*context.T, v23.Shutdown) {
+	return initWithParams(initParams{
+		CreatePrincipal:  false,
+		CreateMounttable: false,
+	})
 }
