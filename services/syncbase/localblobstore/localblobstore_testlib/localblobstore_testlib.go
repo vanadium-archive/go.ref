@@ -14,6 +14,7 @@ import "path/filepath"
 import "testing"
 
 import "v.io/syncbase/x/ref/services/syncbase/localblobstore"
+import "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunker"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
@@ -59,7 +60,7 @@ func writeBlob(t *testing.T, ctx *context.T, bs localblobstore.BlobStore, blobVe
 	content []byte, useResume bool, data ...blobOrBlockOrFile) []testBlob {
 	var bw localblobstore.BlobWriter
 	var err error
-	bw, err = bs.NewBlobWriter(ctx)
+	bw, err = bs.NewBlobWriter(ctx, "")
 	if err != nil {
 		t.Errorf("localblobstore.NewBlobWriter blob %d:%s failed: %v", len(blobVector), string(content), err)
 	}
@@ -545,4 +546,277 @@ func AddRetrieveAndDelete(t *testing.T, ctx *context.T, bs localblobstore.BlobSt
 	checkWrittenBlobsAreReadable(t, ctx, bs, blobVector)
 	checkAllBlobs(t, ctx, bs, blobVector, testDirName)
 	checkFragments(t, ctx, bs, fragmentMap, testDirName)
+}
+
+// writeBlobFromReader() writes the contents of rd to blobstore bs, as blob
+// "name", or picks a name name if "name" is empty.  It returns the name of the
+// blob.  Errors cause the test to terminate.  Error messages contain the
+// "callSite" value to allow the test to tell which call site is which.
+func writeBlobFromReader(t *testing.T, ctx *context.T, bs localblobstore.BlobStore, name string, rd io.Reader, callSite int) string {
+	var err error
+	var bw localblobstore.BlobWriter
+	if bw, err = bs.NewBlobWriter(ctx, name); err != nil {
+		t.Fatalf("callSite %d: NewBlobWriter failed: %v", callSite, err)
+	}
+	blobName := bw.Name()
+	buf := make([]byte, 8192) // buffer for data read from rd.
+	for i := 0; err == nil; i++ {
+		var n int
+		if n, err = rd.Read(buf); err != nil && err != io.EOF {
+			t.Fatalf("callSite %d: unexpected error from reader: %v", callSite, err)
+		}
+		if n > 0 {
+			if err = bw.AppendFragment(localblobstore.BlockOrFile{Block: buf[:n]}); err != nil {
+				t.Fatalf("callSite %d: BlobWriter.AppendFragment failed: %v", callSite, err)
+			}
+			// Every so often, close without finalizing, and reopen.
+			if (i % 7) == 0 {
+				if err = bw.CloseWithoutFinalize(); err != nil {
+					t.Fatalf("callSite %d: BlobWriter.CloseWithoutFinalize failed: %v", callSite, err)
+				}
+				if bw, err = bs.ResumeBlobWriter(ctx, blobName); err != nil {
+					t.Fatalf("callSite %d: ResumeBlobWriter %q failed: %v", callSite, blobName, err)
+				}
+			}
+		}
+	}
+	if err = bw.Close(); err != nil {
+		t.Fatalf("callSite %d: BlobWriter.Close failed: %v", callSite, err)
+	}
+	return blobName
+}
+
+// checkBlobAgainstReader() verifies that the blob blobName has the same bytes as the reader rd.
+// Errors cause the test to terminate.  Error messages contain the
+// "callSite" value to allow the test to tell which call site is which.
+func checkBlobAgainstReader(t *testing.T, ctx *context.T, bs localblobstore.BlobStore, blobName string, rd io.Reader, callSite int) {
+	// Open a reader on the blob.
+	var blob_rd io.Reader
+	var blob_err error
+	if blob_rd, blob_err = bs.NewBlobReader(ctx, blobName); blob_err != nil {
+		t.Fatalf("callSite %d: NewBlobReader on %q failed: %v", callSite, blobName, blob_err)
+	}
+
+	// Variables for reading the two streams, indexed by "reader" and "blob".
+	type stream struct {
+		name string
+		rd   io.Reader // Reader for this stream
+		buf  []byte    // buffer for data
+		i    int       // bytes processed within current buffer
+		n    int       // valid bytes in current buffer
+		err  error     // error, or nil
+	}
+
+	s := [2]stream{
+		{name: "reader", rd: rd, buf: make([]byte, 8192)},
+		{name: blobName, rd: blob_rd, buf: make([]byte, 8192)},
+	}
+
+	// Descriptive names for the two elements of s, when we aren't treating them the same.
+	reader := &s[0]
+	blob := &s[1]
+
+	var pos int // position within file, for error reporting.
+
+	for x := 0; x != 2; x++ {
+		s[x].n, s[x].err = s[x].rd.Read(s[x].buf)
+		s[x].i = 0
+	}
+	for blob.n != 0 && reader.n != 0 {
+		for reader.i != reader.n && blob.i != blob.n && reader.buf[reader.i] == blob.buf[blob.i] {
+			pos++
+			blob.i++
+			reader.i++
+		}
+		if reader.i != reader.n && blob.i != blob.n {
+			t.Fatalf("callSite %d: BlobStore %q: BlobReader on blob %q and rd reader generated different bytes at position %d: 0x%x vs 0x%x",
+				callSite, bs.Root(), blobName, pos, reader.buf[reader.i], blob.buf[blob.i])
+		}
+		for x := 0; x != 2; x++ { // read more data from each reader, if needed
+			if s[x].i == s[x].n {
+				s[x].i = 0
+				s[x].n = 0
+				if s[x].err == nil {
+					s[x].n, s[x].err = s[x].rd.Read(s[x].buf)
+				}
+			}
+		}
+	}
+	for x := 0; x != 2; x++ {
+		if s[x].err != io.EOF {
+			t.Fatalf("callSite %d: %s got error %v", callSite, s[x].name, s[x].err)
+		}
+		if s[x].n != 0 {
+			t.Fatalf("callSite %d: %s is longer than %s", callSite, s[x].name, s[1-x].name)
+		}
+	}
+}
+
+// checkBlobAgainstReader() verifies that the blob blobName has the same chunks
+// (according to BlobChunkStream) as a chunker applied to the reader rd.
+// Errors cause the test to terminate.  Error messages contain the
+// "callSite" value to allow the test to tell which call site is which.
+func checkBlobChunksAgainstReader(t *testing.T, ctx *context.T, bs localblobstore.BlobStore, blobName string, rd io.Reader, callSite int) {
+	buf := make([]byte, 8192) // buffer used to hold data from the chunk stream from rd.
+	rawChunks := chunker.NewStream(ctx, &chunker.DefaultParam, rd)
+	cs := bs.BlobChunkStream(ctx, blobName)
+	pos := 0 // byte position within the blob, to be retported in error messages
+	i := 0   // chunk index, to be reported in error messages
+	rawMore, more := rawChunks.Advance(), cs.Advance()
+	for rawMore && more {
+		c := rawChunks.Value()
+		rawChunk := md5.Sum(rawChunks.Value())
+		chunk := cs.Value(buf)
+		if bytes.Compare(rawChunk[:], chunk) != 0 {
+			t.Errorf("raw random stream and chunk record for blob %q have different chunk %d:\n\t%v\nvs\n\t%v\n\tpos %d\n\tlen %d\n\tc %v",
+				blobName, i, rawChunk, chunk, pos, len(c), c)
+		}
+		pos += len(c)
+		i++
+		rawMore, more = rawChunks.Advance(), cs.Advance()
+	}
+	if rawMore {
+		t.Fatalf("callSite %d: blob %q has fewer chunks than raw stream", callSite, blobName)
+	}
+	if more {
+		t.Fatalf("callSite %d: blob %q has more chunks than raw stream", callSite, blobName)
+	}
+	if rawChunks.Err() != nil {
+		t.Fatalf("callSite %d: error reading raw chunk stream: %v", callSite, rawChunks.Err())
+	}
+	if cs.Err() != nil {
+		t.Fatalf("callSite %d: error reading chunk stream for blob %q; %v", callSite, blobName, cs.Err())
+	}
+}
+
+// WriteViaChunks() tests that a large blob in one blob store can be transmitted
+// to another incrementally, without transferring chunks already in the other blob store.
+func WriteViaChunks(t *testing.T, ctx *context.T, bs [2]localblobstore.BlobStore) {
+	// The original blob will be a megabyte.
+	totalLength := 1024 * 1024
+
+	// Write a random blob to bs[0], using seed 1, then check that the
+	// bytes and chunk we get from the blob just written are the same as
+	// those obtained from an identical byte stream.
+	blob0 := writeBlobFromReader(t, ctx, bs[0], "", NewRandReader(1, totalLength, 0, io.EOF), 0)
+	checkBlobAgainstReader(t, ctx, bs[0], blob0, NewRandReader(1, totalLength, 0, io.EOF), 1)
+	checkBlobChunksAgainstReader(t, ctx, bs[0], blob0, NewRandReader(1, totalLength, 0, io.EOF), 2)
+
+	// ---------------------------------------------------------------------
+	// Write into bs[1] a blob that is similar to blob0, but not identical, and check it as above.
+	insertionInterval := 20 * 1024
+	blob1 := writeBlobFromReader(t, ctx, bs[1], "", NewRandReader(1, totalLength, insertionInterval, io.EOF), 3)
+	checkBlobAgainstReader(t, ctx, bs[1], blob1, NewRandReader(1, totalLength, insertionInterval, io.EOF), 4)
+	checkBlobChunksAgainstReader(t, ctx, bs[1], blob1, NewRandReader(1, totalLength, insertionInterval, io.EOF), 5)
+
+	// ---------------------------------------------------------------------
+	// Count the number of chunks, and the number of steps in the recipe
+	// for copying blob0 from bs[0] to bs[1].  We expect the that the
+	// former to be significantly bigger than the latter, because the
+	// insertionInterval is significantly larger than the expected chunk
+	// size.
+	cs := bs[0].BlobChunkStream(ctx, blob0)          // Stream of chunks in blob0
+	rs := bs[1].RecipeStreamFromChunkStream(ctx, cs) // Recipe from bs[1]
+
+	recipeLen := 0
+	chunkCount := 0
+	for rs.Advance() {
+		step := rs.Value()
+		if step.Chunk != nil {
+			chunkCount++
+		}
+		recipeLen++
+	}
+	if rs.Err() != nil {
+		t.Fatalf("RecipeStream got error: %v", rs.Err())
+	}
+
+	cs = bs[0].BlobChunkStream(ctx, blob0) // Get the original chunk count.
+	origChunkCount := 0
+	for cs.Advance() {
+		origChunkCount++
+	}
+	if cs.Err() != nil {
+		t.Fatalf("ChunkStream got error: %v", cs.Err())
+	}
+	if origChunkCount < chunkCount*5 {
+		t.Errorf("expected fewer chunks in repipe: recipeLen %d  chunkCount %d  origChunkCount %d\n",
+			recipeLen, chunkCount, origChunkCount)
+	}
+
+	// Copy blob0 from bs[0] to bs[1], using chunks from blob1 (already in bs[1]) where possible.
+	cs = bs[0].BlobChunkStream(ctx, blob0) // Stream of chunks in blob0
+	// In a real application, at this point the stream cs would be sent to the device with bs[1].
+	rs = bs[1].RecipeStreamFromChunkStream(ctx, cs) // Recipe from bs[1]
+	// Write blob with known blob name.
+	var bw localblobstore.BlobWriter
+	var err error
+	if bw, err = bs[1].NewBlobWriter(ctx, blob0); err != nil {
+		t.Fatalf("bs[1].NewBlobWriter yields error: %v", err)
+	}
+	var br localblobstore.BlobReader
+	const maxFragment = 1024 * 1024
+	blocks := make([]localblobstore.BlockOrFile, maxFragment/chunker.DefaultParam.MinChunk)
+	for gotStep := rs.Advance(); gotStep; {
+		step := rs.Value()
+		if step.Chunk == nil {
+			// This part of the blob can be read from an existing blob locally (at bs[1]).
+			if err = bw.AppendBlob(step.Blob, step.Size, step.Offset); err != nil {
+				t.Fatalf("AppendBlob(%v) yields error: %v", step, err)
+			}
+			gotStep = rs.Advance()
+		} else {
+			var fragmentSize int64
+			// In a real application, the sequence of chunk hashes
+			// in recipe steps would be communicated back to bs[0],
+			// which then finds the associated chunks.
+			var b int
+			for b = 0; gotStep && step.Chunk != nil && fragmentSize+chunker.DefaultParam.MaxChunk < maxFragment; b++ {
+				var loc localblobstore.Location
+				if loc, err = bs[0].LookupChunk(ctx, step.Chunk); err != nil {
+					t.Fatalf("bs[0] unexpectedly does not have chunk %v", step.Chunk)
+				}
+				if br != nil && br.Name() != loc.BlobName { // Close blob if we need a different one.
+					if err = br.Close(); err != nil {
+						t.Fatalf("unexpected error in BlobReader.Close(): %v", err)
+					}
+					br = nil
+				}
+				if br == nil { // Open blob if needed.
+					if br, err = bs[0].NewBlobReader(ctx, loc.BlobName); err != nil {
+						t.Fatalf("unexpected failure to create BlobReader on %q: %v", loc.BlobName, err)
+					}
+				}
+				if loc.Size > chunker.DefaultParam.MaxChunk {
+					t.Fatalf("chunk exceeds max chunk size: %d vs %d", loc.Size, chunker.DefaultParam.MaxChunk)
+				}
+				fragmentSize += loc.Size
+				if blocks[b].Block == nil {
+					blocks[b].Block = make([]byte, chunker.DefaultParam.MaxChunk)
+				}
+				blocks[b].Block = blocks[b].Block[:loc.Size]
+				var i int
+				var n int64
+				for n = int64(0); n != loc.Size; n += int64(i) {
+					if i, err = br.ReadAt(blocks[b].Block[n:loc.Size], n+loc.Offset); err != nil && err != io.EOF {
+						t.Fatalf("ReadAt on %q failed: %v", br.Name(), err)
+					}
+				}
+				if gotStep = rs.Advance(); gotStep {
+					step = rs.Value()
+				}
+			}
+			if err = bw.AppendFragment(blocks[:b]...); err != nil {
+				t.Fatalf("AppendFragment on %q failed: %v", bw.Name(), err)
+			}
+		}
+	}
+	if err = bw.Close(); err != nil {
+		t.Fatalf("BlobWriter.Close on %q failed: %v", bw.Name(), err)
+	}
+
+	// Check that the transferred blob in bs[1] is the same as the original
+	// stream used to make the blob in bs[0].
+	checkBlobAgainstReader(t, ctx, bs[1], blob0, NewRandReader(1, totalLength, 0, io.EOF), 6)
+	checkBlobChunksAgainstReader(t, ctx, bs[1], blob0, NewRandReader(1, totalLength, 0, io.EOF), 7)
 }

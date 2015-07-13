@@ -8,6 +8,7 @@
 package chunkmap
 
 import "encoding/binary"
+import "sync"
 
 import "v.io/syncbase/x/ref/services/syncbase/store"
 import "v.io/syncbase/x/ref/services/syncbase/store/leveldb"
@@ -75,7 +76,7 @@ var blobLimit []byte = []byte{
 
 // A Location describes chunk's location within a blob.
 type Location struct {
-	Blob   []byte // ID of blob
+	BlobID []byte // ID of blob
 	Offset int64  // byte offset of chunk within blob
 	Size   int64  // size of chunk
 }
@@ -104,8 +105,8 @@ func (cm *ChunkMap) Close() error {
 // associated with the specified Location.
 func (cm *ChunkMap) AssociateChunkWithLocation(ctx *context.T, chunk []byte, loc Location) (err error) {
 	// Check of expected lengths explicitly in routines that modify the database.
-	if len(loc.Blob) != blobIDLen {
-		err = verror.New(errBadBlobIDLen, ctx, cm.dir, len(loc.Blob), blobIDLen)
+	if len(loc.BlobID) != blobIDLen {
+		err = verror.New(errBadBlobIDLen, ctx, cm.dir, len(loc.BlobID), blobIDLen)
 	} else if len(chunk) != chunkHashLen {
 		err = verror.New(errBadChunkHashLen, ctx, cm.dir, len(chunk), chunkHashLen)
 	} else {
@@ -115,7 +116,7 @@ func (cm *ChunkMap) AssociateChunkWithLocation(ctx *context.T, chunk []byte, loc
 		// Put the blob-to-chunk entry first, since it's used
 		// to garbage collect the other.
 		keyLen := copy(key[:], blobPrefix)
-		keyLen += copy(key[keyLen:], loc.Blob)
+		keyLen += copy(key[keyLen:], loc.BlobID)
 		binary.BigEndian.PutUint64(key[keyLen:], uint64(loc.Offset))
 		keyLen += offsetLen
 
@@ -126,7 +127,7 @@ func (cm *ChunkMap) AssociateChunkWithLocation(ctx *context.T, chunk []byte, loc
 		if err == nil {
 			keyLen = copy(key[:], chunkPrefix)
 			keyLen += copy(key[keyLen:], chunk)
-			keyLen += copy(key[keyLen:], loc.Blob)
+			keyLen += copy(key[keyLen:], loc.BlobID)
 
 			valLen = binary.PutVarint(val[:], loc.Offset)
 			valLen += binary.PutVarint(val[valLen:], loc.Size)
@@ -202,12 +203,12 @@ func (cm *ChunkMap) DeleteBlob(ctx *context.T, blob []byte) (err error) {
 // been deleted, the client should remove the blob from the ChunkMap using
 // DeleteBlob(loc.Blob), and try again.  (The client may also wish to
 // arrange at some point to call GC() on the blob store.)
-func (cm *ChunkMap) LookupChunk(ctx *context.T, chunk []byte) (loc Location, err error) {
+func (cm *ChunkMap) LookupChunk(ctx *context.T, chunkHash []byte) (loc Location, err error) {
 	var start [maxKeyLen]byte
 	var limit [maxKeyLen]byte
 
 	startLen := copy(start[:], chunkPrefix)
-	startLen += copy(start[startLen:], chunk)
+	startLen += copy(start[startLen:], chunkHash)
 
 	limitLen := copy(limit[:], start[:startLen])
 	limitLen += copy(limit[limitLen:], blobLimit)
@@ -220,13 +221,13 @@ func (cm *ChunkMap) LookupChunk(ctx *context.T, chunk []byte) (loc Location, err
 		var n int
 		key := s.Key(keyBuf[:])
 		value := s.Value(valBuf[:])
-		loc.Blob = key[len(chunkPrefix)+chunkHashLen:]
+		loc.BlobID = key[len(chunkPrefix)+chunkHashLen:]
 		loc.Offset, n = binary.Varint(value)
 		if n > 0 {
 			loc.Size, n = binary.Varint(value[n:])
 		}
 		if n <= 0 {
-			err = verror.New(errMalformedChunkEntry, ctx, cm.dir, chunk, key, value)
+			err = verror.New(errMalformedChunkEntry, ctx, cm.dir, chunkHash, key, value)
 		}
 		s.Cancel()
 	} else {
@@ -234,23 +235,23 @@ func (cm *ChunkMap) LookupChunk(ctx *context.T, chunk []byte) (loc Location, err
 			err = s.Err()
 		}
 		if err == nil {
-			err = verror.New(errNoSuchChunk, ctx, cm.dir, chunk)
+			err = verror.New(errNoSuchChunk, ctx, cm.dir, chunkHash)
 		}
 	}
 
 	return loc, err
 }
 
-// A BlobStream allows the client to iterate over the chunks in a blob:
-//	bs := cm.NewBlobStream(ctx, blob)
-//	for bs.Advance() {
-//		chunkHash := bs.Value()
+// A ChunkStream allows the client to iterate over the chunks in a blob:
+//	cs := cm.NewChunkStream(ctx, blob)
+//	for cs.Advance() {
+//		chunkHash := cs.Value()
 //		...process chunkHash...
 //	}
-//	if bs.Err() != nil {
+//	if cs.Err() != nil {
 //		...there was an error...
 //	}
-type BlobStream struct {
+type ChunkStream struct {
 	cm     *ChunkMap
 	ctx    *context.T
 	stream store.Stream
@@ -264,9 +265,9 @@ type BlobStream struct {
 	more   bool            // whether stream may be consulted again
 }
 
-// NewBlobStream() returns a pointer to a new BlobStream that allows the client
+// NewChunkStream() returns a pointer to a new ChunkStream that allows the client
 // to enumerate the chunk hashes in a blob, in order.
-func (cm *ChunkMap) NewBlobStream(ctx *context.T, blob []byte) *BlobStream {
+func (cm *ChunkMap) NewChunkStream(ctx *context.T, blob []byte) *ChunkStream {
 	var start [maxKeyLen]byte
 	var limit [maxKeyLen]byte
 
@@ -276,13 +277,13 @@ func (cm *ChunkMap) NewBlobStream(ctx *context.T, blob []byte) *BlobStream {
 	limitLen := copy(limit[:], start[:startLen])
 	limitLen += copy(limit[limitLen:], offsetLimit)
 
-	bs := new(BlobStream)
-	bs.cm = cm
-	bs.ctx = ctx
-	bs.stream = cm.st.Scan(start[:startLen], limit[:limitLen])
-	bs.more = true
+	cs := new(ChunkStream)
+	cs.cm = cm
+	cs.ctx = ctx
+	cs.stream = cm.st.Scan(start[:startLen], limit[:limitLen])
+	cs.more = true
 
-	return bs
+	return cs
 }
 
 // Advance() stages an element so the client can retrieve the chunk hash with
@@ -291,27 +292,27 @@ func (cm *ChunkMap) NewBlobStream(ctx *context.T, blob []byte) *BlobStream {
 // Value() or Location() The client must call Cancel if it does not iterate
 // through all elements (i.e. until Advance() returns false).  Advance() may
 // block if an element is not immediately available.
-func (bs *BlobStream) Advance() (ok bool) {
-	if bs.more && bs.err == nil {
-		if !bs.stream.Advance() {
-			bs.err = bs.stream.Err()
-			bs.more = false // no more stream, even if no error
+func (cs *ChunkStream) Advance() (ok bool) {
+	if cs.more && cs.err == nil {
+		if !cs.stream.Advance() {
+			cs.err = cs.stream.Err()
+			cs.more = false // no more stream, even if no error
 		} else {
-			bs.key = bs.stream.Key(bs.keyBuf[:])
-			bs.value = bs.stream.Value(bs.valBuf[:])
-			ok = (len(bs.value) >= chunkHashLen) &&
-				(len(bs.key) == len(blobPrefix)+blobIDLen+offsetLen)
+			cs.key = cs.stream.Key(cs.keyBuf[:])
+			cs.value = cs.stream.Value(cs.valBuf[:])
+			ok = (len(cs.value) >= chunkHashLen) &&
+				(len(cs.key) == len(blobPrefix)+blobIDLen+offsetLen)
 			if ok {
 				var n int
-				bs.loc.Blob = make([]byte, blobIDLen)
-				copy(bs.loc.Blob, bs.key[len(blobPrefix):len(blobPrefix)+blobIDLen])
-				bs.loc.Offset = int64(binary.BigEndian.Uint64(bs.key[len(blobPrefix)+blobIDLen:]))
-				bs.loc.Size, n = binary.Varint(bs.value[chunkHashLen:])
+				cs.loc.BlobID = make([]byte, blobIDLen)
+				copy(cs.loc.BlobID, cs.key[len(blobPrefix):len(blobPrefix)+blobIDLen])
+				cs.loc.Offset = int64(binary.BigEndian.Uint64(cs.key[len(blobPrefix)+blobIDLen:]))
+				cs.loc.Size, n = binary.Varint(cs.value[chunkHashLen:])
 				ok = (n > 0)
 			}
 			if !ok {
-				bs.err = verror.New(errMalformedBlobEntry, bs.ctx, bs.cm.dir, bs.key, bs.value)
-				bs.stream.Cancel()
+				cs.err = verror.New(errMalformedBlobEntry, cs.ctx, cs.cm.dir, cs.key, cs.value)
+				cs.stream.Cancel()
 			}
 		}
 	}
@@ -323,19 +324,141 @@ func (bs *BlobStream) Advance() (ok bool) {
 // enough to hold the entire value.  Otherwise, a newly allocated slice will be
 // returned.  It is valid to pass a nil buf.  Value() may panic if Advance()
 // returned false or was not called at all.  Value() does not block.
-func (bs *BlobStream) Value(buf []byte) (result []byte) {
+func (cs *ChunkStream) Value(buf []byte) (result []byte) {
 	if len(buf) < chunkHashLen {
 		buf = make([]byte, chunkHashLen)
 	}
-	copy(buf, bs.value[:chunkHashLen])
+	copy(buf, cs.value[:chunkHashLen])
 	return buf[:chunkHashLen]
 }
 
 // Location() returns the Location associated with the chunk staged by
 // Advance().  Location() may panic if Advance() returned false or was not
 // called at all.  Location() does not block.
-func (bs *BlobStream) Location() Location {
-	return bs.loc
+func (cs *ChunkStream) Location() Location {
+	return cs.loc
+}
+
+// Err() returns a non-nil error iff the stream encountered any errors.  Err()
+// does not block.
+func (cs *ChunkStream) Err() error {
+	return cs.err
+}
+
+// Cancel() notifies the stream provider that it can stop producing elements.
+// The client must call Cancel() if it does not iterate through all elements
+// (i.e. until Advance() returns false).  Cancel() is idempotent and can be
+// called concurrently with a goroutine that is iterating via Advance() and
+// Value().  Cancel() causes Advance() to subsequently return false.
+// Cancel() does not block.
+func (cs *ChunkStream) Cancel() {
+	cs.stream.Cancel()
+}
+
+// A BlobStream allows the client to iterate over the blobs in ChunkMap:
+//	bs := cm.NewBlobStream(ctx)
+//	for bs.Advance() {
+//		blobID := bs.Value()
+//		...process blobID...
+//	}
+//	if bs.Err() != nil {
+//		...there was an error...
+//	}
+type BlobStream struct {
+	cm  *ChunkMap
+	ctx *context.T
+
+	key    []byte          // key for current element
+	keyBuf [maxKeyLen]byte // buffer for keys
+	err    error           // error encountered.
+	mu     sync.Mutex      // protects "more", which may be written in Cancel()
+	more   bool            // whether stream may be consulted again
+}
+
+// keyLimit is the key for limit in store.Scan() calls within a BlobStream.
+var keyLimit []byte
+
+func init() {
+	// The limit key is the maximum length key, all ones after the blobPrefix.
+	keyLimit = make([]byte, maxKeyLen)
+	for i := copy(keyLimit, blobPrefix); i != len(keyLimit); i++ {
+		keyLimit[i] = 0xff
+	}
+}
+
+// NewBlobStream() returns a pointer to a new BlobStream that allows the client
+// to enumerate the blobs ChunkMap, in lexicographic order.
+func (cm *ChunkMap) NewBlobStream(ctx *context.T) *BlobStream {
+	bs := new(BlobStream)
+	bs.cm = cm
+	bs.ctx = ctx
+	bs.more = true
+	return bs
+}
+
+// Advance() stages an element so the client can retrieve the next blob ID with
+// Value().  Advance() returns true iff there is an element to retrieve.  The
+// client must call Advance() before calling Value().  The client must call
+// Cancel if it does not iterate through all elements (i.e. until Advance()
+// returns false).  Advance() may block if an element is not immediately
+// available.
+func (bs *BlobStream) Advance() (ok bool) {
+	bs.mu.Lock()
+	ok = bs.more
+	bs.mu.Unlock()
+	if ok {
+		prefixAndKeyLen := len(blobPrefix) + blobIDLen
+		// Compute the next key to search for.
+		if len(bs.key) == 0 { // First time through: anything starting with blobPrefix.
+			n := copy(bs.keyBuf[:], blobPrefix)
+			bs.key = bs.keyBuf[:n]
+		} else {
+			// Increment the blobID to form the next possible key.
+			i := prefixAndKeyLen - 1
+			for ; i != len(blobPrefix)-1 && bs.keyBuf[i] == 0xff; i-- {
+				bs.keyBuf[i] = 0
+			}
+			if i == len(blobPrefix)-1 { // End of database
+				ok = false
+			} else {
+				bs.keyBuf[i]++
+			}
+			bs.key = bs.keyBuf[:prefixAndKeyLen]
+		}
+		if ok {
+			stream := bs.cm.st.Scan(bs.key, keyLimit)
+			if !stream.Advance() {
+				bs.err = stream.Err()
+				ok = false // no more stream, even if no error
+			} else {
+				bs.key = stream.Key(bs.keyBuf[:])
+				if len(bs.key) < prefixAndKeyLen {
+					bs.err = verror.New(errMalformedBlobEntry, bs.ctx, bs.cm.dir, bs.key, stream.Value(nil))
+					ok = false
+				}
+				stream.Cancel() // We get at most one element from each stream.
+			}
+		}
+		if !ok {
+			bs.mu.Lock()
+			bs.more = false
+			bs.mu.Unlock()
+		}
+	}
+	return ok
+}
+
+// Value() returns the blob ID staged by Advance().  The returned slice may be
+// a sub-slice of buf if buf is large enough to hold the entire value.
+// Otherwise, a newly allocated slice will be returned.  It is valid to pass a
+// nil buf.  Value() may panic if Advance() returned false or was not called at
+// all.  Value() does not block.
+func (bs *BlobStream) Value(buf []byte) (result []byte) {
+	if len(buf) < blobIDLen {
+		buf = make([]byte, blobIDLen)
+	}
+	copy(buf, bs.key[len(blobPrefix):len(blobPrefix)+blobIDLen])
+	return buf[:blobIDLen]
 }
 
 // Err() returns a non-nil error iff the stream encountered any errors.  Err()
@@ -351,5 +474,7 @@ func (bs *BlobStream) Err() error {
 // Value().  Cancel() causes Advance() to subsequently return false.
 // Cancel() does not block.
 func (bs *BlobStream) Cancel() {
-	bs.stream.Cancel()
+	bs.mu.Lock()
+	bs.more = false
+	bs.mu.Unlock()
 }

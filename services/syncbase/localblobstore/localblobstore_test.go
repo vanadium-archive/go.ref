@@ -41,3 +41,31 @@ func TestAddRetrieveAndDelete(t *testing.T) {
 	// Test it.
 	localblobstore_testlib.AddRetrieveAndDelete(t, ctx, bs, testDirName)
 }
+
+// This test case tests the incremental transfer of blobs via chunks.
+func TestWritingViaChunks(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	var err error
+
+	// Make a pair of blobstores, each in its own temporary directory.
+	const nBlobStores = 2
+	var testDirName [nBlobStores]string
+	var bs [nBlobStores]localblobstore.BlobStore
+	for i := 0; i != nBlobStores; i++ {
+		testDirName[i], err = ioutil.TempDir("", "localblobstore_test")
+		if err != nil {
+			t.Fatalf("localblobstore_test: can't make tmp directory: %v\n", err)
+		}
+		defer os.RemoveAll(testDirName[i])
+
+		bs[i], err = fs_cablobstore.Create(ctx, testDirName[i])
+		if err != nil {
+			t.Fatalf("fs_cablobstore.Create failed: %v", err)
+		}
+	}
+
+	// Test it.
+	localblobstore_testlib.WriteViaChunks(t, ctx, bs)
+}

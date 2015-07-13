@@ -4,6 +4,50 @@
 
 // Package localblobstore is the interface to a local blob store.
 // Implementations include fs_cablobstore.
+//
+// Expected use
+// ============
+// These examples assume that bs, bsS (sender) and bsR (receiver) are blobstores.
+//
+// Writing blobs
+//      bw, err := bs.NewBlobWriter(ctx, "")  // For a new blob, implementation picks blob name.
+//      if err == nil {
+//		blobName := bw.Name()  // Get name the implementation picked.
+//   	  	... use bw.AppendFragment() to append data to the blob...
+//   	  	... and/or bw.AppendBlob() to append data that's in another existing blob...
+//        	err = bw.Close()
+//   	}
+//
+// Resume writing a blob that was partially written due to a crash (not yet finalized).
+//	bw, err := bs.ResumeBlobWriter(ctx, name)
+//	if err == nil {
+//		size := bw.Size() // The store has this many bytes from the blob.
+//		... write the remaining data using bwAppendFragment() and/or bw.AppendBlob()...
+//		err = bw.Close()
+//	}
+//
+// Reading blobs
+//	br, err := bs.NewBlobReader(ctx, name)
+//	if err == nil {
+//		... read bytes with br.ReadAt() or br.Read(), perhas with br.Seek()...
+//		err = br.Close()
+//	}
+//
+// Transferring blobs from one store to another:
+// See example in localblobstore_transfer_test.go
+// Summary:
+// - The sender sends the chunksum of the blob from BlobReader's Hash().
+// - The receiver checks whether it already has the blob, with the same
+//   checksum.
+// - If the receiver does not have the blob, the sender sends the list of chunk
+//   hashes in the blob using BlobChunkStream().
+// - The receiver uses RecipeStreamFromChunkStream() with the chunk hash stream
+//   from the sender, and tells the sender the chunk hashes of the chunks it
+//   needs.
+// - The sender uses LookupChunk() to find the data for each chunk the receiver
+//   needs, and sends it to the receiver.
+// - The receiver applies the recipe steps, with the actual chunkj data from
+//   the sender and its own local data.
 package localblobstore
 
 import "v.io/v23/context"
@@ -17,12 +61,16 @@ type BlobStore interface {
 	NewBlobReader(ctx *context.T, blobName string) (br BlobReader, err error)
 
 	// NewBlobWriter() returns a pointer to a newly allocated BlobWriter on
-	// a newly created blob name, which can be found using the Name()
-	// method.  BlobWriters should not be used concurrently by multiple
-	// threads.  The returned handle should be closed with either the
-	// Close() or CloseWithoutFinalize() method to avoid leaking file
-	// handles.
-	NewBlobWriter(ctx *context.T) (bw BlobWriter, err error)
+	// a newly created blob.  If "name" is non-empty, its is used to name
+	// the blob, and it must be in the format of a name returned by this
+	// interface (probably by another instance on another device).
+	// Otherwise, otherwise a new name is created, which can be found using
+	// the Name() method.  It is an error to attempt to overwrite a blob
+	// that already exists in this blob store.  BlobWriters should not be
+	// used concurrently by multiple threads.  The returned handle should
+	// be closed with either the Close() or CloseWithoutFinalize() method
+	// to avoid leaking file handles.
+	NewBlobWriter(ctx *context.T, name string) (bw BlobWriter, err error)
 
 	// ResumeBlobWriter() returns a pointer to a newly allocated BlobWriter on
 	// an old, but unfinalized blob name.
@@ -36,6 +84,31 @@ type BlobStore interface {
 	// other calls to GC(), and with uses of BlobReaders and BlobWriters.
 	GC(ctx *context.T) error
 
+	// BlobChunkStream() returns a ChunkStream that can be used to read the
+	// ordered list of content hashes of chunks in blob blobName.  It is
+	// expected that this list will be presented to
+	// RecipeStreamFromChunkStream() on another device, to create a recipe
+	// for transmitting the blob efficiently to that other device.
+	BlobChunkStream(ctx *context.T, blobName string) ChunkStream
+
+	// RecipeStreamFromChunkStream() returns a pointer to a RecipeStream
+	// that allows the client to iterate over each RecipeStep needed to
+	// create the blob formed by the chunks in chunkStream.  It is expected
+	// that this will be called on a receiving device, and be given a
+	// ChunkStream from a sending device, to yield a recipe for efficient
+	// chunk transfer.  RecipeStep values with non-nil Chunk fields need
+	// the chunk from the sender; once the data is returned is can be
+	// written with BlobWriter.AppendFragment().  Those with blob
+	// references can be written locally with BlobWriter.AppendBlob().
+	RecipeStreamFromChunkStream(ctx *context.T, chunkStream ChunkStream) RecipeStream
+
+	// LookupChunk() returns the location of a chunk with the specified chunk
+	// hash within the store.  It is expected that chunk hashes from
+	// RecipeStep entries from RecipeStreamFromChunkStream() will be mapped
+	// to blob Location values on the sender for transmission to the
+	// receiver.
+	LookupChunk(ctx *context.T, chunkHash []byte) (loc Location, err error)
+
 	// ListBlobIds() returns an iterator that can be used to enumerate the
 	// blobs in a BlobStore.  Expected use is:
 	//
@@ -46,7 +119,7 @@ type BlobStore interface {
 	//	if iter.Err() != nil {
 	//	  // The loop terminated early due to an error.
 	//	}
-	ListBlobIds(ctx *context.T) (iter Iter)
+	ListBlobIds(ctx *context.T) (iter Stream)
 
 	// ListCAIds() returns an iterator that can be used to enumerate the
 	// content-addressable fragments in a BlobStore.  Expected use is:
@@ -58,10 +131,18 @@ type BlobStore interface {
 	//	if iter.Err() != nil {
 	//	  // The loop terminated early due to an error.
 	//	}
-	ListCAIds(ctx *context.T) (iter Iter)
+	ListCAIds(ctx *context.T) (iter Stream)
 
 	// Root() returns the name of the root directory where the BlobStore is stored.
 	Root() string
+}
+
+// A Location describes chunk's location within a blob.  It is returned by
+// BlobStore.LookupChunk().
+type Location struct {
+	BlobName string // name of blob
+	Offset   int64  // byte offset of chunk within blob
+	Size     int64  // size of chunk
 }
 
 // A BlobReader allows a blob to be read using the standard ReadAt(), Read(),
@@ -153,18 +234,67 @@ type BlobWriter interface {
 	Hash() []byte
 }
 
-// A Iter represents an iterator that allows the client to enumerate
-// all the blobs of fragments in a BlobStore.
-type Iter interface {
-	// Advance() stages an item so that it may be retrieved via Value.
-	// Returns true iff there is an item to retrieve.  Advance must be
-	// called before Value is called.
-	Advance() (advanced bool)
+// A Stream represents an iterator that allows the client to enumerate
+// all the blobs or fragments in a BlobStore.
+//
+// The interfaces Stream, ChunkStream, RecipeStream all have four calls,
+// and differ only in the Value() call.
+type Stream interface {
+	// Advance() stages an item so that it may be retrieved via Value().
+	// Returns true iff there is an item to retrieve.  Advance() must be
+	// called before Value() is called.  The caller is expected to read
+	// until Advance() returns false, or to call Cancel().
+	Advance() bool
 
-	// Value() returns the item that was staged by Advance.  May panic if
-	// Advance returned false or was not called.  Never blocks.
+	// Value() returns the item that was staged by Advance().  May panic if
+	// Advance() returned false or was not called.  Never blocks.
 	Value() (name string)
 
 	// Err() returns any error encountered by Advance.  Never blocks.
 	Err() error
+
+	// Cancel() indicates that the client wishes to cease reading from the stream.
+	// It causes the next call to Advance() to return false.  Never blocks.
+	// It may be called concurrently with other calls on the stream.
+	Cancel()
+}
+
+// A ChunkStream represents an iterator that allows the client to enumerate
+// the chunks in a blob.   See the comments for Stream for usage.
+type ChunkStream interface {
+	Advance() bool
+
+	// Value() returns the chunkHash that was staged by Advance().  May
+	// panic if Advance() returned false or was not called.  Never blocks.
+	// The result may share storage with buf[] if it is large enough;
+	// otherwise, a new buffer is allocated.  It is legal to call with
+	// buf==nil.
+	Value(buf []byte) (chunkHash []byte)
+
+	Err() error
+	Cancel()
+}
+
+// A RecipeStep describes one piece of a recipe for making a blob.
+// The step consists either of appending the chunk with content hash Chunk and size Size,
+// or (if Chunk==nil) the Size bytes from Blob, starting at Offset.
+type RecipeStep struct {
+	Chunk  []byte
+	Blob   string
+	Size   int64
+	Offset int64
+}
+
+// A RecipeStream represents an iterator that allows the client to obtain the
+// steps needed to construct a blob with a given ChunkStream, attempting to
+// reuse data in existing blobs.  See the comments for Stream for usage.
+type RecipeStream interface {
+	Advance() bool
+
+	// Value() returns the RecipeStep that was staged by Advance().  May panic if
+	// Advance() returned false or was not called.  Never blocks.
+	Value() RecipeStep
+
+	Err() error
+	Cancel()
 }

@@ -8,13 +8,17 @@
 package fs_cablobstore
 
 // Internals:
-//   The blobstore consists of a directory with "blob", "cas", and "tmp"
-//   subdirectories.
+// Blobs are partitioned into two types of unit: "fragments" and "chunks".
+// A fragment is stored in a single file on disc.  A chunk is a unit of network
+// transmission.
+//
+//   The blobstore consists of a directory with "blob", "cas", "chunk", and
+//   "tmp" subdirectories.
 //   - "tmp" is used for temporary files that are moved into place via
 //     link()/unlink() or rename(), depending on what's available.
 //   - "cas" contains files whose names are content hashes of the files being
 //     named.  A few slashes are thrown into the name near the front so that no
-//     single directory gets too large.
+//     single directory gets too large.  These files are called "fragments".
 //   - "blob" contains files whose names are random numbers.  These names are
 //     visible externally as "blob names".  Again, a few slashes are thrown
 //     into the name near the front so that no single directory gets too large.
@@ -26,13 +30,17 @@ package fs_cablobstore
 //     <offset> bytes into <cas-fragment>, which is in the "cas" subtree.  The
 //     "f" line indicates that the blob is "finalized" and gives its complete
 //     md5 hash.  No fragments may be appended to a finalized blob.
+//   - "chunk" contains a store (currently implemented with leveldb) that
+//     maps chunks of blobs to content hashes and vice versa.
 
 import "bufio"
+import "bytes"
 import "crypto/md5"
 import "fmt"
 import "hash"
 import "io"
 import "io/ioutil"
+import "math"
 import "math/rand"
 import "os"
 import "path/filepath"
@@ -42,6 +50,8 @@ import "sync"
 import "time"
 
 import "v.io/syncbase/x/ref/services/syncbase/localblobstore"
+import "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunker"
+import "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunkmap"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
@@ -62,35 +72,37 @@ var (
 	errCantDeleteBlob         = verror.Register(pkgPath+".errCantDeleteBlob", verror.NoRetry, "{1:}{2:} Can't delete blob {3}{:_}")
 	errBlobDeleted            = verror.Register(pkgPath+".errBlobDeleted", verror.NoRetry, "{1:}{2:} Blob is deleted{:_}")
 	errSizeTooBigForFragment  = verror.Register(pkgPath+".errSizeTooBigForFragment", verror.NoRetry, "{1:}{2:} writing blob {1}, size too big for fragment{:1}")
+	errStreamCancelled        = verror.Register(pkgPath+".errStreamCancelled", verror.NoRetry, "{1:}{2:} Advance() called on cancelled stream{:_}")
 )
 
 // For the moment, we disallow others from accessing the tree where blobs are
-// stored.  We could in the future relax this to 0711 or 0755.
+// stored.  We could in the future relax this to 0711/0755, and 0644.
 const dirPermissions = 0700
+const filePermissions = 0600
 
 // Subdirectories of the blobstore's tree
 const (
-	blobDir = "blob" // Subdirectory where blobs are indexed by blob id.
-	casDir  = "cas"  // Subdirectory where blobs are indexed by content hash.
-	tmpDir  = "tmp"  // Subdirectory where temporary files are created.
+	blobDir  = "blob"  // Subdirectory where blobs are indexed by blob id.
+	casDir   = "cas"   // Subdirectory where fragments are indexed by content hash.
+	chunkDir = "chunk" // Subdirectory where chunks are indexed by content hash.
+	tmpDir   = "tmp"   // Subdirectory where temporary files are created.
 )
 
 // An FsCaBlobStore represents a simple, content-addressable store.
 type FsCaBlobStore struct {
-	rootName string // The name of the root of the store.
+	rootName string             // The name of the root of the store.
+	cm       *chunkmap.ChunkMap // Mapping from chunks to blob locations and vice versa.
 
-	mu sync.Mutex // Protects fields below, plus
-	// blobDesc.fragment, blobDesc.activeDescIndex,
-	// and blobDesc.refCount.
+	// mu protects fields below, plus most fields in each blobDesc when used from a BlobWriter.
+	mu         sync.Mutex
 	activeDesc []*blobDesc        // The blob descriptors in use by active BlobReaders and BlobWriters.
 	toDelete   []*map[string]bool // Sets of items that active GC threads are about to delete. (Pointers to maps, to allow pointer comparison.)
 }
 
-// hashToFileName() returns the content-addressed name of the data with the
-// specified hash, given its content hash.  Requires len(hash)==16.  An md5
-// hash is suitable.
-func hashToFileName(hash []byte) string {
-	return filepath.Join(casDir,
+// hashToFileName() returns the name of the binary ID with the specified
+// prefix.  Requires len(id)==16.  An md5 hash is suitable.
+func hashToFileName(prefix string, hash []byte) string {
+	return filepath.Join(prefix,
 		fmt.Sprintf("%02x", hash[0]),
 		fmt.Sprintf("%02x", hash[1]),
 		fmt.Sprintf("%02x", hash[2]),
@@ -99,6 +111,23 @@ func hashToFileName(hash []byte) string {
 			hash[4], hash[5], hash[6], hash[7],
 			hash[8], hash[9], hash[10], hash[11],
 			hash[12], hash[13], hash[14], hash[15]))
+}
+
+// fileNameToHash() converts a file name in the format generated by
+// hashToFileName(prefix, ...) to a vector of 16 bytes.  If the string is
+// malformed, the nil slice is returned.
+func fileNameToHash(prefix string, s string) []byte {
+	idStr := strings.TrimPrefix(filepath.ToSlash(s), prefix+"/")
+	hash := make([]byte, 16, 16)
+	n, err := fmt.Sscanf(idStr, "%02x/%02x/%02x/%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+		&hash[0], &hash[1], &hash[2], &hash[3],
+		&hash[4], &hash[5], &hash[6], &hash[7],
+		&hash[8], &hash[9], &hash[10], &hash[11],
+		&hash[12], &hash[13], &hash[14], &hash[15])
+	if n != 16 || err != nil {
+		hash = nil
+	}
+	return hash
 }
 
 // newBlobName() returns a new random name for a blob.
@@ -143,7 +172,7 @@ func stringToHash(s string) []byte {
 // Create() returns a pointer to an FsCaBlobStore stored in the file system at
 // "rootName".  If the directory rootName does not exist, it is created.
 func Create(ctx *context.T, rootName string) (fscabs *FsCaBlobStore, err error) {
-	dir := []string{tmpDir, casDir, blobDir}
+	dir := []string{tmpDir, casDir, chunkDir, blobDir}
 	for i := 0; i != len(dir) && err == nil; i++ {
 		fullName := filepath.Join(rootName, dir[i])
 		os.MkdirAll(fullName, dirPermissions)
@@ -153,9 +182,14 @@ func Create(ctx *context.T, rootName string) (fscabs *FsCaBlobStore, err error) 
 			err = verror.New(errNotADir, ctx, fullName)
 		}
 	}
+	var cm *chunkmap.ChunkMap
+	if err == nil {
+		cm, err = chunkmap.New(ctx, filepath.Join(rootName, chunkDir))
+	}
 	if err == nil {
 		fscabs = new(FsCaBlobStore)
 		fscabs.rootName = rootName
+		fscabs.cm = cm
 	}
 	return fscabs, err
 }
@@ -169,12 +203,15 @@ func (fscabs *FsCaBlobStore) Root() string {
 func (fscabs *FsCaBlobStore) DeleteBlob(ctx *context.T, blobName string) (err error) {
 	// Disallow deletions of things outside the blob tree, or that may contain "..".
 	// For simplicity, the code currently disallows '.'.
-	if !strings.HasPrefix(blobName, blobDir+"/") || strings.IndexByte(blobName, '.') != -1 {
+	blobID := fileNameToHash(blobDir, blobName)
+	if blobID == nil || strings.IndexByte(blobName, '.') != -1 {
 		err = verror.New(errInvalidBlobName, ctx, blobName)
 	} else {
 		err = os.Remove(filepath.Join(fscabs.rootName, blobName))
 		if err != nil {
 			err = verror.New(errCantDeleteBlob, ctx, blobName, err)
+		} else {
+			err = fscabs.cm.DeleteBlob(ctx, blobID)
 		}
 	}
 	return err
@@ -250,7 +287,7 @@ func (f *file) closeAndRename(ctx *context.T, newName string, err error) error {
 
 // addFragment() ensures that the store *fscabs contains a fragment comprising
 // the catenation of the byte vectors named by item[..].block and the contents
-// of the files named by item[..].filename.  The block field is ignored if
+// of the files named by item[..].fileName.  The block field is ignored if
 // fileName!="".  The fragment is not physically added if already present.
 // The fragment is added to the fragment list of the descriptor *desc.
 func (fscabs *FsCaBlobStore) addFragment(ctx *context.T, extHasher hash.Hash,
@@ -305,7 +342,7 @@ func (fscabs *FsCaBlobStore) addFragment(ctx *context.T, extHasher hash.Hash,
 
 	// Compute the hash, and form the file name in the respository.
 	hash := hasher.Sum(nil)
-	relFileName := hashToFileName(hash)
+	relFileName := hashToFileName(casDir, hash)
 	absFileName := filepath.Join(fscabs.rootName, relFileName)
 
 	// Add the fragment's name to *desc's fragments so the garbage
@@ -316,7 +353,6 @@ func (fscabs *FsCaBlobStore) addFragment(ctx *context.T, extHasher hash.Hash,
 		size:     size,
 		offset:   0,
 		fileName: relFileName})
-	desc.size += size
 	fscabs.mu.Unlock()
 
 	// If the file does not already exist, ...
@@ -365,7 +401,11 @@ func (fscabs *FsCaBlobStore) addFragment(ctx *context.T, extHasher hash.Hash,
 		// Remove the entry added to fragment list above.
 		fscabs.mu.Lock()
 		desc.fragment = desc.fragment[0 : len(desc.fragment)-1]
-		desc.size -= size
+		fscabs.mu.Unlock()
+	} else { // commit the change by updating the size
+		fscabs.mu.Lock()
+		desc.size += size
+		desc.cv.Broadcast() // Tell chunkmap BlobReader there's more to read.
 		fscabs.mu.Unlock()
 	}
 
@@ -385,16 +425,24 @@ type blobDesc struct {
 	activeDescIndex int // Index into fscabs.activeDesc if refCount>0; under fscabs.mu.
 	refCount        int // Reference count; under fscabs.mu.
 
-	name     string         // Name of the blob.
-	fragment []blobFragment // All the fragements in this blob;
-	// modified under fscabs.mu and in BlobWriter
-	// owner's thread; may be read by GC under
-	// fscabs.mu.
-	size      int64 // Total size of the blob.
-	finalized bool  // Whether the blob has been finalized.
+	name string // Name of the blob.
+
+	// The following fields are modified under fscabs.mu and in BlobWriter
+	// owner's thread; they may be read by GC (when obtained from
+	// fscabs.activeDesc) and the chunk writer under fscabs.mu.  In the
+	// BlobWriter owner's thread, reading does not require a lock, but
+	// writing does.  In other contexts (BlobReader, or a desc that has
+	// just been allocated by getBlob()), no locking is needed.
+
+	fragment  []blobFragment // All the fragments in this blob
+	size      int64          // Total size of the blob.
+	finalized bool           // Whether the blob has been finalized.
 	// A finalized blob has a valid hash field, and no new bytes may be added
 	// to it.  A well-formed hash has 16 bytes.
 	hash []byte
+
+	openWriter bool       // Whether this descriptor is being written by an open BlobWriter.
+	cv         *sync.Cond // signalled when a BlobWriter writes or closes.
 }
 
 // isBeingDeleted() returns whether fragment fragName is about to be deleted
@@ -456,7 +504,8 @@ func (fscabs *FsCaBlobStore) descUnref(desc *blobDesc) {
 
 // getBlob() returns the in-memory blob descriptor for the named blob.
 func (fscabs *FsCaBlobStore) getBlob(ctx *context.T, blobName string) (desc *blobDesc, err error) {
-	if !strings.HasPrefix(blobName, blobDir+"/") || strings.IndexByte(blobName, '.') != -1 {
+	slashBlobName := filepath.ToSlash(blobName)
+	if !strings.HasPrefix(slashBlobName, blobDir+"/") || strings.IndexByte(blobName, '.') != -1 {
 		err = verror.New(errInvalidBlobName, ctx, blobName)
 	} else {
 		absBlobName := filepath.Join(fscabs.rootName, blobName)
@@ -467,6 +516,7 @@ func (fscabs *FsCaBlobStore) getBlob(ctx *context.T, blobName string) (desc *blo
 			desc = new(blobDesc)
 			desc.activeDescIndex = -1
 			desc.name = blobName
+			desc.cv = sync.NewCond(&fscabs.mu)
 			scanner := bufio.NewScanner(fh)
 			for scanner.Scan() {
 				field := strings.Split(scanner.Text(), " ")
@@ -528,32 +578,49 @@ type BlobWriter struct {
 	desc   *blobDesc // Description of the blob being written.
 	f      *file     // The file being written.
 	hasher hash.Hash // Running hash of blob.
+
+	// Fields to allow the ChunkMap to be written.
+	csBr  *BlobReader     // Reader over the blob that's currently being written.
+	cs    *chunker.Stream // Stream of chunks derived from csBr
+	csErr chan error      // writeChunkMap() sends its result here; Close/CloseWithoutFinalize receives it.
 }
 
-// NewBlobWriter() returns a pointer to a newly allocated BlobWriter on a newly
-// created blob name, which can be found using the Name() method.  BlobWriters
-// should not be used concurrently by multiple threads.  The returned handle
-// should be closed with either the Close() or CloseWithoutFinalize() method to
-// avoid leaking file handles.
-func (fscabs *FsCaBlobStore) NewBlobWriter(ctx *context.T) (localblobstore.BlobWriter, error) {
+// NewBlobWriter() returns a pointer to a newly allocated BlobWriter on
+// a newly created blob.  If "name" is non-empty, it is used to name
+// the blob, and it must be in the format of a name returned by this
+// interface (probably by another instance on another device).
+// Otherwise, a new name is created, which can be found using
+// the Name() method.  It is an error to attempt to overwrite a blob
+// that already exists in this blob store.  BlobWriters should not be
+// used concurrently by multiple threads.  The returned handle should
+// be closed with either the Close() or CloseWithoutFinalize() method
+// to avoid leaking file handles.
+func (fscabs *FsCaBlobStore) NewBlobWriter(ctx *context.T, name string) (localblobstore.BlobWriter, error) {
 	var bw *BlobWriter
-	newName := newBlobName()
-	fileName := filepath.Join(fscabs.rootName, newName)
+	if name == "" {
+		name = newBlobName()
+	}
+	fileName := filepath.Join(fscabs.rootName, name)
 	os.MkdirAll(filepath.Dir(fileName), dirPermissions)
-	f, err := newFile(os.Create(fileName))
+	f, err := newFile(os.OpenFile(fileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, filePermissions))
 	if err == nil {
 		bw = new(BlobWriter)
 		bw.fscabs = fscabs
 		bw.ctx = ctx
 		bw.desc = new(blobDesc)
 		bw.desc.activeDescIndex = -1
-		bw.desc.name = newName
+		bw.desc.name = name
+		bw.desc.cv = sync.NewCond(&fscabs.mu)
+		bw.desc.openWriter = true
 		bw.f = f
 		bw.hasher = md5.New()
 		if !fscabs.descRef(bw.desc) {
 			// Can't happen; descriptor refers to no fragments.
 			panic(verror.New(errBlobDeleted, ctx, bw.desc.name))
 		}
+		// Write the chunks of this blob into the ChunkMap, as they are
+		// written by this writer.
+		bw.forkWriteChunkMap()
 	}
 	return bw, err
 }
@@ -562,14 +629,17 @@ func (fscabs *FsCaBlobStore) NewBlobWriter(ctx *context.T) (localblobstore.BlobW
 // old, but unfinalized blob name.
 func (fscabs *FsCaBlobStore) ResumeBlobWriter(ctx *context.T, blobName string) (localblobstore.BlobWriter, error) {
 	var err error
-	bw := new(BlobWriter)
-	bw.fscabs = fscabs
-	bw.ctx = ctx
-	bw.desc, err = bw.fscabs.getBlob(ctx, blobName)
-	if err == nil && bw.desc.finalized {
+	var bw *BlobWriter
+	var desc *blobDesc
+	desc, err = fscabs.getBlob(ctx, blobName)
+	if err == nil && desc.finalized {
 		err = verror.New(errBlobAlreadyFinalized, ctx, blobName)
-		bw = nil
-	} else {
+	} else if err == nil {
+		bw = new(BlobWriter)
+		bw.fscabs = fscabs
+		bw.ctx = ctx
+		bw.desc = desc
+		bw.desc.openWriter = true
 		fileName := filepath.Join(fscabs.rootName, bw.desc.name)
 		bw.f, err = newFile(os.OpenFile(fileName, os.O_WRONLY|os.O_APPEND, 0666))
 		bw.hasher = md5.New()
@@ -581,7 +651,7 @@ func (fscabs *FsCaBlobStore) ResumeBlobWriter(ctx *context.T, blobName string) (
 			// non-zero.
 			panic(verror.New(errBlobDeleted, ctx, fileName))
 		}
-		br := fscabs.blobReaderFromDesc(ctx, bw.desc)
+		br := fscabs.blobReaderFromDesc(ctx, bw.desc, dontWaitForWriter)
 		buf := make([]byte, 8192, 8192)
 		for err == nil {
 			var n int
@@ -592,8 +662,87 @@ func (fscabs *FsCaBlobStore) ResumeBlobWriter(ctx *context.T, blobName string) (
 		if err == io.EOF { // EOF is expected.
 			err = nil
 		}
+		if err == nil {
+			// Write the chunks of this blob into the ChunkMap, as
+			// they are written by this writer.
+			bw.forkWriteChunkMap()
+		}
 	}
 	return bw, err
+}
+
+// forkWriteChunkMap() creates a new thread to run writeChunkMap().  It adds
+// the chunks written to *bw to the blob store's ChunkMap.  The caller is
+// expected to call joinWriteChunkMap() at some later point.
+func (bw *BlobWriter) forkWriteChunkMap() {
+	// The descRef's ref count is incremented here to compensate
+	// for the decrement it will receive in br.Close() in joinWriteChunkMap.
+	if !bw.fscabs.descRef(bw.desc) {
+		// Can't happen; descriptor's ref count was already non-zero.
+		panic(verror.New(errBlobDeleted, bw.ctx, bw.desc.name))
+	}
+	bw.csBr = bw.fscabs.blobReaderFromDesc(bw.ctx, bw.desc, waitForWriter)
+	bw.cs = chunker.NewStream(bw.ctx, &chunker.DefaultParam, bw.csBr)
+	bw.csErr = make(chan error)
+	go bw.writeChunkMap()
+}
+
+// insertChunk() inserts chunk into the blob store's ChunkMap, associating it
+// with the specified byte offset in the blob blobID being written by *bw.  The byte
+// offset of the next chunk is returned.
+func (bw *BlobWriter) insertChunk(blobID []byte, chunkHash []byte, offset int64, size int64) (int64, error) {
+	err := bw.fscabs.cm.AssociateChunkWithLocation(bw.ctx, chunkHash[:],
+		chunkmap.Location{BlobID: blobID, Offset: offset, Size: size})
+	if err != nil {
+		bw.cs.Cancel()
+	}
+	return offset + size, err
+}
+
+// writeChunkMap() iterates over the chunk in stream bw.cs, and associates each
+// one with the blob being written.
+func (bw *BlobWriter) writeChunkMap() {
+	var err error
+	var offset int64
+	blobID := fileNameToHash(blobDir, bw.desc.name)
+	// Associate each chunk only after the next chunk has been seen (or
+	// the blob finalized), to avoid recording an artificially short chunk
+	// at the end of a partial transfer.
+	var chunkHash [md5.Size]byte
+	var chunkLen int64
+	if bw.cs.Advance() {
+		chunk := bw.cs.Value()
+		// Record the hash and size, since chunk's underlying buffer
+		// may be reused by the next call to Advance().
+		chunkHash = md5.Sum(chunk)
+		chunkLen = int64(len(chunk))
+		for bw.cs.Advance() {
+			offset, err = bw.insertChunk(blobID, chunkHash[:], offset, chunkLen)
+			chunk = bw.cs.Value()
+			chunkHash = md5.Sum(chunk)
+			chunkLen = int64(len(chunk))
+		}
+	}
+	if err == nil {
+		err = bw.cs.Err()
+	}
+	bw.fscabs.mu.Lock()
+	if err == nil && chunkLen != 0 && bw.desc.finalized {
+		offset, err = bw.insertChunk(blobID, chunkHash[:], offset, chunkLen)
+	}
+	bw.fscabs.mu.Unlock()
+	bw.csErr <- err // wake joinWriteChunkMap()
+}
+
+// joinWriteChunkMap waits for the completion of the thread forked by forkWriteChunkMap().
+// It returns when the chunks in the blob have been written to the blob store's ChunkMap.
+func (bw *BlobWriter) joinWriteChunkMap(err error) error {
+	err2 := <-bw.csErr // read error from end of writeChunkMap()
+	if err == nil {
+		err = err2
+	}
+	bw.csBr.Close()
+	return err
 }
 
 // Close() finalizes *bw, and indicates that the client will perform no further
@@ -608,7 +757,12 @@ func (bw *BlobWriter) Close() (err error) {
 		_, err = fmt.Fprintf(bw.f.writer, "f %s\n", hashToString(h)) // finalize
 		_, err = bw.f.close(bw.ctx, err)
 		bw.f = nil
+		bw.fscabs.mu.Lock()
 		bw.desc.finalized = true
+		bw.desc.openWriter = false
+		bw.desc.cv.Broadcast() // Tell chunkmap BlobReader that writing has ceased.
+		bw.fscabs.mu.Unlock()
+		err = bw.joinWriteChunkMap(err)
 		bw.fscabs.descUnref(bw.desc)
 	}
 	return err
@@ -622,8 +776,13 @@ func (bw *BlobWriter) CloseWithoutFinalize() (err error) {
 	if bw.f == nil {
 		err = verror.New(errAlreadyClosed, bw.ctx, bw.desc.name)
 	} else {
+		bw.fscabs.mu.Lock()
+		bw.desc.openWriter = false
+		bw.desc.cv.Broadcast() // Tell chunkmap BlobReader that writing has ceased.
+		bw.fscabs.mu.Unlock()
 		_, err = bw.f.close(bw.ctx, err)
 		bw.f = nil
+		err = bw.joinWriteChunkMap(err)
 		bw.fscabs.descUnref(bw.desc)
 	}
 	return err
@@ -688,6 +847,7 @@ func (bw *BlobWriter) AppendBlob(blobName string, size int64, offset int64) (err
 						offset:   offset + desc.fragment[i].offset,
 						fileName: desc.fragment[i].fileName})
 					bw.desc.size += consume
+					bw.desc.cv.Broadcast() // Tell chunkmap BlobReader there's more to read.
 					bw.fscabs.mu.Unlock()
 				}
 				offset = 0
@@ -701,7 +861,7 @@ func (bw *BlobWriter) AppendBlob(blobName string, size int64, offset int64) (err
 			// non-zero.
 			panic(verror.New(errBlobDeleted, bw.ctx, blobName))
 		}
-		br := bw.fscabs.blobReaderFromDesc(bw.ctx, bw.desc)
+		br := bw.fscabs.blobReaderFromDesc(bw.ctx, bw.desc, dontWaitForWriter)
 		if err == nil {
 			_, err = br.Seek(origSize, 0)
 		}
@@ -752,7 +912,8 @@ type BlobReader struct {
 	fscabs *FsCaBlobStore
 	ctx    *context.T
 
-	desc *blobDesc // A description of the blob being read.
+	desc          *blobDesc // A description of the blob being read.
+	waitForWriter bool      // whether this reader should wait for a concurrent BlobWriter
 
 	pos int64 // The next position we will read from (used by Read/Seek, not ReadAt).
 
@@ -761,14 +922,23 @@ type BlobReader struct {
 	fh            *os.File // non-nil iff fragmentIndex != -1.
 }
 
+// constants to make the calls to blobReaderFromDesc invocations more readable
+const (
+	dontWaitForWriter = false
+	waitForWriter     = true
+)
+
 // blobReaderFromDesc() returns a pointer to a newly allocated BlobReader given
-// a pre-existing blobDesc.
-func (fscabs *FsCaBlobStore) blobReaderFromDesc(ctx *context.T, desc *blobDesc) *BlobReader {
+// a pre-existing blobDesc.  If waitForWriter is true, the reader will wait for
+// any BlobWriter to finish writing the part of the blob the reader is trying
+// to read.
+func (fscabs *FsCaBlobStore) blobReaderFromDesc(ctx *context.T, desc *blobDesc, waitForWriter bool) *BlobReader {
 	br := new(BlobReader)
 	br.fscabs = fscabs
 	br.ctx = ctx
 	br.fragmentIndex = -1
 	br.desc = desc
+	br.waitForWriter = waitForWriter
 	return br
 }
 
@@ -779,7 +949,7 @@ func (fscabs *FsCaBlobStore) NewBlobReader(ctx *context.T, blobName string) (br 
 	var desc *blobDesc
 	desc, err = fscabs.getBlob(ctx, blobName)
 	if err == nil {
-		br = fscabs.blobReaderFromDesc(ctx, desc)
+		br = fscabs.blobReaderFromDesc(ctx, desc, dontWaitForWriter)
 	}
 	return br, err
 }
@@ -821,24 +991,41 @@ func findFragment(fragment []blobFragment, offset int64) int {
 	return lo
 }
 
+// waitUntilAvailable() waits until position pos within *br is available for
+// reading, if this reader is waiting for writers.  This may be because:
+//  - *br is on an already written blob.
+//  - *br is on a blob being written that has been closed, or whose writes have
+//    passed position pos.
+// The value pos==math.MaxInt64 can be used to mean "until the writer is closed".
+// Requires br.fscabs.mu held.
+func (br *BlobReader) waitUntilAvailable(pos int64) {
+	for br.waitForWriter && br.desc.openWriter && br.desc.size < pos {
+		br.desc.cv.Wait()
+	}
+}
+
 // ReadAt() fills b[] with up to len(b) bytes of data starting at position "at"
 // within the blob that *br indicates, and returns the number of bytes read.
 func (br *BlobReader) ReadAt(b []byte, at int64) (n int, err error) {
+	br.fscabs.mu.Lock()
+	br.waitUntilAvailable(at + int64(len(b)))
 	i := findFragment(br.desc.fragment, at)
 	if i < len(br.desc.fragment) && at <= br.desc.size {
+		fragmenti := br.desc.fragment[i] // copy fragment data to allow releasing lock
+		br.fscabs.mu.Unlock()
 		if i != br.fragmentIndex {
 			br.closeInternal()
 		}
 		if br.fragmentIndex == -1 {
-			br.fh, err = os.Open(filepath.Join(br.fscabs.rootName, br.desc.fragment[i].fileName))
+			br.fh, err = os.Open(filepath.Join(br.fscabs.rootName, fragmenti.fileName))
 			if err == nil {
 				br.fragmentIndex = i
 			} else {
 				br.closeInternal()
 			}
 		}
-		var offset int64 = at - br.desc.fragment[i].pos + br.desc.fragment[i].offset
-		consume := br.desc.fragment[i].size - (at - br.desc.fragment[i].pos)
+		var offset int64 = at - fragmenti.pos + fragmenti.offset
+		consume := fragmenti.size - (at - fragmenti.pos)
 		if int64(len(b)) < consume {
 			consume = int64(len(b))
 		}
@@ -847,10 +1034,11 @@ func (br *BlobReader) ReadAt(b []byte, at int64) (n int, err error) {
 		} else if err == nil {
 			panic("failed to open blob fragment")
 		}
+		br.fscabs.mu.Lock()
 		// Return io.EOF if the Read reached the end of the last
 		// fragment, but not if it's merely the end of some interior
-		// fragment.
-		if int64(n)+at >= br.desc.size {
+		// fragment or the blob is still being extended.
+		if int64(n)+at >= br.desc.size && !(br.waitForWriter && br.desc.openWriter) {
 			if err == nil {
 				err = io.EOF
 			}
@@ -860,6 +1048,7 @@ func (br *BlobReader) ReadAt(b []byte, at int64) (n int, err error) {
 	} else {
 		err = verror.New(errIllegalPositionForRead, br.ctx, br.pos, br.desc.size)
 	}
+	br.fscabs.mu.Unlock()
 	return n, err
 }
 
@@ -879,11 +1068,13 @@ func (br *BlobReader) Read(b []byte) (n int, err error) {
 // offset+current_seek_position if whence==1, and offset+end_of_blob if
 // whence==2, and then returns the current seek position.
 func (br *BlobReader) Seek(offset int64, whence int) (result int64, err error) {
+	br.fscabs.mu.Lock()
 	if whence == 0 {
 		result = offset
 	} else if whence == 1 {
 		result = offset + br.pos
 	} else if whence == 2 {
+		br.waitUntilAvailable(math.MaxInt64)
 		result = offset + br.desc.size
 	} else {
 		err = verror.New(errBadSeekWhence, br.ctx, whence)
@@ -898,17 +1089,26 @@ func (br *BlobReader) Seek(offset int64, whence int) (result int64, err error) {
 	} else if err == nil {
 		br.pos = result
 	}
+	br.fscabs.mu.Unlock()
 	return result, err
 }
 
 // IsFinalized() returns whether *br has been finalized.
 func (br *BlobReader) IsFinalized() bool {
-	return br.desc.finalized
+	br.fscabs.mu.Lock()
+	br.waitUntilAvailable(math.MaxInt64)
+	finalized := br.desc.finalized
+	br.fscabs.mu.Unlock()
+	return finalized
 }
 
 // Size() returns *br's size.
 func (br *BlobReader) Size() int64 {
-	return br.desc.size
+	br.fscabs.mu.Lock()
+	br.waitUntilAvailable(math.MaxInt64)
+	size := br.desc.size
+	br.fscabs.mu.Unlock()
+	return size
 }
 
 // Name() returns *br's name.
@@ -918,7 +1118,11 @@ func (br *BlobReader) Name() string {
 
 // Hash() returns *br's hash.  It may be nil if the blob is not finalized.
 func (br *BlobReader) Hash() []byte {
-	return br.desc.hash
+	br.fscabs.mu.Lock()
+	br.waitUntilAvailable(math.MaxInt64)
+	hash := br.desc.hash
+	br.fscabs.mu.Unlock()
+	return hash
 }
 
 // -----------------------------------------------------------
@@ -936,6 +1140,10 @@ type FsCasIter struct {
 	fscabs *FsCaBlobStore // The parent FsCaBlobStore.
 	err    error          // If non-nil, the error that terminated iteration.
 	stack  []dirListing   // The stack of dirListings leading to the current entry.
+	ctx    *context.T     // context passed to ListBlobIds() or ListCAIds()
+
+	mu        sync.Mutex // Protects cancelled.
+	cancelled bool       // Whether Cancel() has been called.
 }
 
 // ListBlobIds() returns an iterator that can be used to enumerate the blobs in
@@ -947,10 +1155,10 @@ type FsCasIter struct {
 //    if fscabsi.Err() != nil {
 //      // The loop terminated early due to an error.
 //    }
-func (fscabs *FsCaBlobStore) ListBlobIds(ctx *context.T) localblobstore.Iter {
+func (fscabs *FsCaBlobStore) ListBlobIds(ctx *context.T) localblobstore.Stream {
 	stack := make([]dirListing, 1)
 	stack[0] = dirListing{pos: -1, nameList: []string{blobDir}}
-	return &FsCasIter{fscabs: fscabs, stack: stack}
+	return &FsCasIter{fscabs: fscabs, stack: stack, ctx: ctx}
 }
 
 // ListCAIds() returns an iterator that can be used to enumerate the
@@ -963,10 +1171,18 @@ func (fscabs *FsCaBlobStore) ListBlobIds(ctx *context.T) localblobstore.Iter {
 //    if fscabsi.Err() != nil {
 //      // The loop terminated early due to an error.
 //    }
-func (fscabs *FsCaBlobStore) ListCAIds(ctx *context.T) localblobstore.Iter {
+func (fscabs *FsCaBlobStore) ListCAIds(ctx *context.T) localblobstore.Stream {
 	stack := make([]dirListing, 1)
 	stack[0] = dirListing{pos: -1, nameList: []string{casDir}}
-	return &FsCasIter{fscabs: fscabs, stack: stack}
+	return &FsCasIter{fscabs: fscabs, stack: stack, ctx: ctx}
+}
+
+// isCancelled() returns whether Cancel() has been called.
+func (fscabsi *FsCasIter) isCancelled() bool {
+	fscabsi.mu.Lock()
+	cancelled := fscabsi.cancelled
+	fscabsi.mu.Unlock()
+	return cancelled
 }
 
 // Advance() stages an item so that it may be retrieved via Value.  Returns
@@ -976,7 +1192,7 @@ func (fscabsi *FsCasIter) Advance() (advanced bool) {
 	stack := fscabsi.stack
 	err := fscabsi.err
 
-	for err == nil && !advanced && len(stack) != 0 {
+	for err == nil && !advanced && len(stack) != 0 && !fscabsi.isCancelled() {
 		last := len(stack) - 1
 		stack[last].pos++
 		if stack[last].pos == len(stack[last].nameList) {
@@ -1005,6 +1221,13 @@ func (fscabsi *FsCasIter) Advance() (advanced bool) {
 		}
 	}
 
+	if fscabsi.isCancelled() {
+		if err == nil {
+			fscabsi.err = verror.New(errStreamCancelled, fscabsi.ctx)
+		}
+		advanced = false
+	}
+
 	fscabsi.err = err
 	return advanced
 }
@@ -1025,6 +1248,163 @@ func (fscabsi *FsCasIter) Value() (name string) {
 // Err() returns any error encountered by Advance.  Never blocks.
 func (fscabsi *FsCasIter) Err() error {
 	return fscabsi.err
+}
+
+// Cancel() indicates that the iteration stream should terminate early.
+// Never blocks.  May be called concurrently with other methods on fscabsi.
+func (fscabsi *FsCasIter) Cancel() {
+	fscabsi.mu.Lock()
+	fscabsi.cancelled = true
+	fscabsi.mu.Unlock()
+}
+
+// -----------------------------------------------------------
+
+// An errorChunkStream is a localblobstore.ChunkStream that yields an error.
+type errorChunkStream struct {
+	err error
+}
+
+func (*errorChunkStream) Advance() bool       { return false }
+func (*errorChunkStream) Value([]byte) []byte { return nil }
+func (ecs *errorChunkStream) Err() error      { return ecs.err }
+func (*errorChunkStream) Cancel()             {}
+
+// BlobChunkStream() returns a ChunkStream that can be used to read the ordered
+// list of content hashes of chunks in blob blobName.  It is expected that this
+// list will be presented to RecipeFromChunks() on another device, to create a
+// recipe for transmitting the blob efficiently to that other device.
+func (fscabs *FsCaBlobStore) BlobChunkStream(ctx *context.T, blobName string) (cs localblobstore.ChunkStream) {
+	blobID := fileNameToHash(blobDir, blobName)
+	if blobID == nil {
+		cs = &errorChunkStream{err: verror.New(errInvalidBlobName, ctx, blobName)}
+	} else {
+		cs = fscabs.cm.NewChunkStream(ctx, blobID)
+	}
+	return cs
+}
+
+// -----------------------------------------------------------
+
+// LookupChunk returns the location of a chunk with the specified chunk hash
+// within the store.
+func (fscabs *FsCaBlobStore) LookupChunk(ctx *context.T, chunkHash []byte) (loc localblobstore.Location, err error) {
+	var chunkMapLoc chunkmap.Location
+	chunkMapLoc, err = fscabs.cm.LookupChunk(ctx, chunkHash)
+	if err == nil {
+		loc.BlobName = hashToFileName(blobDir, chunkMapLoc.BlobID)
+		loc.Size = chunkMapLoc.Size
+		loc.Offset = chunkMapLoc.Offset
+	}
+	return loc, err
+}
+
+// -----------------------------------------------------------
+
+// A RecipeStream implements localblobstore.RecipeStream.  It allows the client
+// to iterate over the recipe steps to recreate a blob identified by a stream
+// of chunk hashes (from chunkStream), but using parts of blobs in the current
+// blob store where possible.
+type RecipeStream struct {
+	fscabs *FsCaBlobStore
+	ctx    *context.T
+
+	chunkStream     localblobstore.ChunkStream // the stream of chunks in the blob
+	pendingChunkBuf [16]byte                   // a buffer for pendingChunk
+	pendingChunk    []byte                     // the last unprocessed chunk hash read chunkStream, or nil if none
+	step            localblobstore.RecipeStep  // the recipe step to be returned by Value()
+	mu              sync.Mutex                 // protects cancelled
+	cancelled       bool                       // whether Cancel() has been called
+}
+
+// RecipeStreamFromChunkStream() returns a pointer to a RecipeStream that allows
+// the client to iterate over each RecipeStep needed to create the blob formed
+// by the chunks in chunkStream.
+func (fscabs *FsCaBlobStore) RecipeStreamFromChunkStream(ctx *context.T, chunkStream localblobstore.ChunkStream) localblobstore.RecipeStream {
+	rs := new(RecipeStream)
+	rs.fscabs = fscabs
+	rs.ctx = ctx
+	rs.chunkStream = chunkStream
+	return rs
+}
+
+// isCancelled() returns whether rs.Cancel() has been called.
+func (rs *RecipeStream) isCancelled() bool {
+	rs.mu.Lock()
+	cancelled := rs.cancelled
+	rs.mu.Unlock()
+	return cancelled
+}
+
+// Advance() stages an item so that it may be retrieved via Value().
+// Returns true iff there is an item to retrieve.  Advance() must be
+// called before Value() is called.  The caller is expected to read
+// until Advance() returns false, or to call Cancel().
+func (rs *RecipeStream) Advance() (ok bool) {
+	if rs.pendingChunk == nil && rs.chunkStream.Advance() {
+		rs.pendingChunk = rs.chunkStream.Value(rs.pendingChunkBuf[:])
+	}
+	for !ok && rs.pendingChunk != nil && !rs.isCancelled() {
+		var err error
+		var loc0 chunkmap.Location
+		loc0, err = rs.fscabs.cm.LookupChunk(rs.ctx, rs.pendingChunk)
+		if err == nil {
+			blobName := hashToFileName(blobDir, loc0.BlobID)
+			var blobDesc *blobDesc
+			if blobDesc, err = rs.fscabs.getBlob(rs.ctx, blobName); err != nil {
+				// The ChunkMap contained a reference to a
+				// deleted blob.  Delete the reference in the
+				// ChunkMap; the next loop iteration will
+				// consider the chunk again.
+				rs.fscabs.cm.DeleteBlob(rs.ctx, loc0.BlobID)
+			} else {
+				rs.fscabs.descUnref(blobDesc)
+				// The chunk is in a known blob.  Combine
+				// contiguous chunks into a single recipe
+				// entry.
+				rs.pendingChunk = nil // consumed
+				for rs.pendingChunk == nil && rs.chunkStream.Advance() {
+					rs.pendingChunk = rs.chunkStream.Value(rs.pendingChunkBuf[:])
+					var loc chunkmap.Location
+					loc, err = rs.fscabs.cm.LookupChunk(rs.ctx, rs.pendingChunk)
+					if err == nil && bytes.Compare(loc0.BlobID, loc.BlobID) == 0 && loc.Offset == loc0.Offset+loc0.Size {
+						loc0.Size += loc.Size
+						rs.pendingChunk = nil // consumed
+					}
+				}
+				rs.step = localblobstore.RecipeStep{Blob: blobName, Offset: loc0.Offset, Size: loc0.Size}
+				ok = true
+			}
+		} else { // The chunk is not in the ChunkMap; yield a single chunk hash.
+			rs.step = localblobstore.RecipeStep{Chunk: rs.pendingChunk}
+			rs.pendingChunk = nil // consumed
+			ok = true
+		}
+	}
+	return ok && !rs.isCancelled()
+}
+
+// Value() returns the item that was staged by Advance().  May panic if
+// Advance() returned false or was not called.  Never blocks.
+func (rs *RecipeStream) Value() localblobstore.RecipeStep {
+	return rs.step
+}
+
+// Err() returns any error encountered by Advance.  Never blocks.
+func (rs *RecipeStream) Err() error {
+	// There are no errors to return here.  The errors encountered in
+	// Advance() are expected and recoverable.
+	return nil
+}
+
+// Cancel() indicates that the client wishes to cease reading from the stream.
+// It causes the next call to Advance() to return false.  Never blocks.
+// It may be called concurrently with other calls on the stream.
+func (rs *RecipeStream) Cancel() {
+	rs.mu.Lock()
+	rs.cancelled = true
+	rs.mu.Unlock()
+	rs.chunkStream.Cancel()
 }
 
 // -----------------------------------------------------------
@@ -1057,16 +1437,46 @@ func (fscabs *FsCaBlobStore) GC(ctx *context.T) (err error) {
 	for caIter.Advance() {
 		caSet[caIter.Value()] = true
 	}
+	err = caIter.Err()
 
-	// Remove from caSet all fragments referenced by extant blobs.
-	blobIter := fscabs.ListBlobIds(ctx)
-	for blobIter.Advance() {
-		var blobDesc *blobDesc
-		if blobDesc, err = fscabs.getBlob(ctx, blobIter.Value()); err == nil {
-			for i := range blobDesc.fragment {
-				delete(caSet, blobDesc.fragment[i].fileName)
+	// cmBlobs maps the names of blobs found in the ChunkMap to their IDs.
+	// (The IDs can be derived from the names; the map is really being used
+	// to record which blobs exist, and the value merely avoids repeated
+	// conversions.)
+	cmBlobs := make(map[string][]byte)
+	if err == nil {
+		// Record all the blobs known to the ChunkMap;
+		bs := fscabs.cm.NewBlobStream(ctx)
+		for bs.Advance() {
+			blobID := bs.Value(nil)
+			cmBlobs[hashToFileName(blobDir, blobID)] = blobID
+		}
+	}
+
+	if err == nil {
+		// Remove from cmBlobs all extant blobs, and remove from
+		// caSet all their fragments.
+		blobIter := fscabs.ListBlobIds(ctx)
+		for blobIter.Advance() {
+			var blobDesc *blobDesc
+			if blobDesc, err = fscabs.getBlob(ctx, blobIter.Value()); err == nil {
+				delete(cmBlobs, blobDesc.name)
+				for i := range blobDesc.fragment {
+					delete(caSet, blobDesc.fragment[i].fileName)
+				}
+				fscabs.descUnref(blobDesc)
 			}
-			fscabs.descUnref(blobDesc)
+		}
+	}
+
+	if err == nil {
+		// Remove all blobs still mentioned in cmBlobs from the ChunkMap;
+		// these are the ones that no longer exist in the blobs directory.
+		for _, blobID := range cmBlobs {
+			err = fscabs.cm.DeleteBlob(ctx, blobID)
+			if err != nil {
+				break
+			}
 		}
 	}
 

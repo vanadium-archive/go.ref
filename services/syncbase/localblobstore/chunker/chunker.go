@@ -30,8 +30,17 @@ package chunker
 // http://www.hpl.hp.com/techreports/2005/HPL-2005-30R1.pdf
 
 import "io"
+import "sync"
 
 import "v.io/syncbase/x/ref/services/syncbase/localblobstore/crc64window"
+import "v.io/v23/context"
+import "v.io/v23/verror"
+
+const pkgPath = "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunker"
+
+var (
+	errStreamCancelled = verror.Register(pkgPath+".errStreamCancelled", verror.NoRetry, "{1:}{2:} Advance() called on cancelled stream{:_}")
+)
 
 // A Param contains the parameters for chunking.
 //
@@ -69,10 +78,13 @@ var DefaultParam Param = Param{WindowWidth: 48, MinChunk: 512, MaxChunk: 3072, P
 // stream.
 type Stream struct {
 	param        Param               // chunking parameters
+	ctx          *context.T          // context of creator
 	window       *crc64window.Window // sliding window for computing the hash
 	buf          []byte              // buffer of data
 	rd           io.Reader           // source of data
 	err          error               // error from rd
+	mu           sync.Mutex          // protects cancelled
+	cancelled    bool                // whether the stream has been cancelled
 	bufferChunks bool                // whether to buffer entire chunks
 	// Invariant:  bufStart <= chunkStart <= chunkEnd <= bufEnd
 	bufStart   int64  // offset in rd of first byte in buf[]
@@ -86,9 +98,10 @@ type Stream struct {
 // newStream() returns a pointer to a new Stream instance, with the
 // parameters in *param.  This internal version of NewStream() allows the caller
 // to specify via bufferChunks whether entire chunks should be buffered.
-func newStream(param *Param, rd io.Reader, bufferChunks bool) *Stream {
+func newStream(ctx *context.T, param *Param, rd io.Reader, bufferChunks bool) *Stream {
 	s := new(Stream)
 	s.param = *param
+	s.ctx = ctx
 	s.window = crc64window.New(crc64window.ECMA, s.param.WindowWidth)
 	bufSize := int64(8192)
 	if bufferChunks {
@@ -107,8 +120,16 @@ func newStream(param *Param, rd io.Reader, bufferChunks bool) *Stream {
 
 // NewStream() returns a pointer to a new Stream instance, with the
 // parameters in *param.
-func NewStream(param *Param, rd io.Reader) *Stream {
-	return newStream(param, rd, true)
+func NewStream(ctx *context.T, param *Param, rd io.Reader) *Stream {
+	return newStream(ctx, param, rd, true)
+}
+
+// isCancelled() returns whether s.Cancel() has been called.
+func (s *Stream) isCancelled() (cancelled bool) {
+	s.mu.Lock()
+	cancelled = s.cancelled
+	s.mu.Unlock()
+	return cancelled
 }
 
 // Advance() stages the next chunk so that it may be retrieved via Value().
@@ -132,7 +153,7 @@ func (s *Stream) Advance() bool {
 			s.bufStart = s.chunkEnd
 		}
 		// Fill buffer with data, unless error/EOF.
-		for s.err == nil && s.bufEnd < s.bufStart+int64(len(s.buf)) {
+		for s.err == nil && s.bufEnd < s.bufStart+int64(len(s.buf)) && !s.isCancelled() {
 			var n int
 			n, s.err = s.rd.Read(s.buf[s.bufEnd-s.bufStart:])
 			s.bufEnd += int64(n)
@@ -148,7 +169,7 @@ func (s *Stream) Advance() bool {
 	// While not end of chunk...
 	for s.windowEnd != maxChunk &&
 		(s.windowEnd < minChunk || (s.hash%s.param.Primary) != 1) &&
-		(s.windowEnd != s.bufEnd || s.err == nil) {
+		(s.windowEnd != s.bufEnd || s.err == nil) && !s.isCancelled() {
 
 		// Fill the buffer if empty, and there's more data to read.
 		if s.windowEnd == s.bufEnd && s.err == nil {
@@ -167,7 +188,10 @@ func (s *Stream) Advance() bool {
 			bufLimit = s.bufEnd
 		}
 		// Advance window until both MinChunk reached and primary boundary found.
-		for s.windowEnd != bufLimit && (s.windowEnd < minChunk || (s.hash%s.param.Primary) != 1) {
+		for s.windowEnd != bufLimit &&
+			(s.windowEnd < minChunk || (s.hash%s.param.Primary) != 1) &&
+			!s.isCancelled() {
+
 			// Advance the window by one byte.
 			s.hash = s.window.Advance(s.buf[s.windowEnd-s.bufStart])
 			s.windowEnd++
@@ -185,7 +209,7 @@ func (s *Stream) Advance() bool {
 		s.chunkEnd = s.windowEnd
 	}
 
-	return s.chunkStart != s.chunkEnd // We have a non-empty chunk to return.
+	return !s.isCancelled() && s.chunkStart != s.chunkEnd // We have a non-empty chunk to return.
 }
 
 // Value() returns the chunk that was staged by Advance().  May panic if
@@ -196,10 +220,24 @@ func (s *Stream) Value() []byte {
 
 // Err() returns any error encountered by Advance().  Never blocks.
 func (s *Stream) Err() (err error) {
+	s.mu.Lock()
+	if s.cancelled && (s.err == nil || s.err == io.EOF) {
+		s.err = verror.New(errStreamCancelled, s.ctx)
+	}
+	s.mu.Unlock()
 	if s.err != io.EOF { // Do not consider EOF to be an error.
 		err = s.err
 	}
 	return err
+}
+
+// Cancel() causes the next call to Advance() to return false.
+// It should be used when the client does not wish to iterate to the end of the stream.
+// Never blocks.  May be called concurrently with other method calls on s.
+func (s *Stream) Cancel() {
+	s.mu.Lock()
+	s.cancelled = true
+	s.mu.Unlock()
 }
 
 // ----------------------------------
@@ -214,9 +252,9 @@ type PosStream struct {
 
 // NewPosStream() returns a pointer to a new PosStream instance, with the
 // parameters in *param.
-func NewPosStream(param *Param, rd io.Reader) *PosStream {
+func NewPosStream(ctx *context.T, param *Param, rd io.Reader) *PosStream {
 	ps := new(PosStream)
-	ps.s = newStream(param, rd, false)
+	ps.s = newStream(ctx, param, rd, false)
 	return ps
 }
 
@@ -236,4 +274,11 @@ func (ps *PosStream) Value() int64 {
 // Err() returns any error encountered by Advance().  Never blocks.
 func (ps *PosStream) Err() error {
 	return ps.s.Err()
+}
+
+// Cancel() causes the next call to Advance() to return false.
+// It should be used when the client does not wish to iterate to the end of the stream.
+// Never blocks.  May be called concurrently with other method calls on ps.
+func (ps *PosStream) Cancel() {
+	ps.s.Cancel()
 }

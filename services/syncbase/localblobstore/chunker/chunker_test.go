@@ -9,68 +9,28 @@ import "bytes"
 import "crypto/md5"
 import "fmt"
 import "io"
-import "math/rand"
 import "testing"
 
 import "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunker"
-
-// A RandReader contains a pointer to a rand.Read, and a size limit.  Its
-// pointers implement the Read() method from io.Reader, which yields bytes
-// obtained from the random number generator.
-type RandReader struct {
-	rand           *rand.Rand // Source of random bytes.
-	pos            int        // Number of bytes read.
-	limit          int        // Max number of bytes that may be read.
-	insertInterval int        // If non-zero, number of bytes between insertions of zero bytes.
-	eofErr         error      // error to be returned at the end of the stream
-}
-
-// NewRandReader() returns a new RandReader with the specified seed and size limit.
-// It yields eofErr when the end of the stream is reached.
-// If insertInterval is non-zero, a zero byte is inserted into the stream every
-// insertInterval bytes, before resuming getting bytes from the random number
-// generator.
-func NewRandReader(seed int64, limit int, insertInterval int, eofErr error) *RandReader {
-	r := new(RandReader)
-	r.rand = rand.New(rand.NewSource(seed))
-	r.limit = limit
-	r.insertInterval = insertInterval
-	r.eofErr = eofErr
-	return r
-}
-
-// Read() implements the io.Reader Read() method for *RandReader.
-func (r *RandReader) Read(buf []byte) (n int, err error) {
-	// Generate bytes up to the end of the stream, or the end of the buffer.
-	max := r.limit - r.pos
-	if len(buf) < max {
-		max = len(buf)
-	}
-	for ; n != max; n++ {
-		if r.insertInterval == 0 || (r.pos%r.insertInterval) != 0 {
-			buf[n] = byte(r.rand.Int31n(256))
-		} else {
-			buf[n] = 0
-		}
-		r.pos++
-	}
-	if r.pos == r.limit {
-		err = r.eofErr
-	}
-	return n, err
-}
+import "v.io/syncbase/x/ref/services/syncbase/localblobstore/localblobstore_testlib"
+import "v.io/v23/context"
+import "v.io/x/ref/test"
+import _ "v.io/x/ref/runtime/factories/generic"
 
 // TestChunksPartitionStream() tests that the chunker partitions its input
 // stream into reasonable sized chunks, which when concatenated form the
 // original stream.
 func TestChunksPartitionStream(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	var err error
 	totalLength := 1024 * 1024
 
 	// Compute the md5 of an arbiotrary stream.  We will later compare this
 	// with the md5 of the concanenation of chunks from an equivalent
 	// stream.
-	r := NewRandReader(1, totalLength, 0, io.EOF)
+	r := localblobstore_testlib.NewRandReader(1, totalLength, 0, io.EOF)
 	hStream := md5.New()
 	buf := make([]byte, 8192)
 	for err == nil {
@@ -81,12 +41,12 @@ func TestChunksPartitionStream(t *testing.T) {
 	checksumStream := hStream.Sum(nil)
 
 	// Using an equivalent stream, break it into chunks.
-	r = NewRandReader(1, totalLength, 0, io.EOF)
+	r = localblobstore_testlib.NewRandReader(1, totalLength, 0, io.EOF)
 	param := &chunker.DefaultParam
 	hChunked := md5.New()
 
 	length := 0
-	s := chunker.NewStream(param, r)
+	s := chunker.NewStream(ctx, param, r)
 	for s.Advance() {
 		chunk := s.Value()
 		length += len(chunk)
@@ -116,10 +76,15 @@ func TestChunksPartitionStream(t *testing.T) {
 
 // TestPosStream() tests that a PosStream leads to the same chunks as an Stream.
 func TestPosStream(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	totalLength := 1024 * 1024
 
-	s := chunker.NewStream(&chunker.DefaultParam, NewRandReader(1, totalLength, 0, io.EOF))
-	ps := chunker.NewPosStream(&chunker.DefaultParam, NewRandReader(1, totalLength, 0, io.EOF))
+	s := chunker.NewStream(ctx, &chunker.DefaultParam,
+		localblobstore_testlib.NewRandReader(1, totalLength, 0, io.EOF))
+	ps := chunker.NewPosStream(ctx, &chunker.DefaultParam,
+		localblobstore_testlib.NewRandReader(1, totalLength, 0, io.EOF))
 
 	itReady := s.Advance()
 	pitReady := ps.Advance()
@@ -150,8 +115,8 @@ func TestPosStream(t *testing.T) {
 
 // chunkSums() returns a vector of md5 checksums for the chunks of the
 // specified Reader, using the default chunking parameters.
-func chunkSums(r io.Reader) (sums [][md5.Size]byte) {
-	s := chunker.NewStream(&chunker.DefaultParam, r)
+func chunkSums(ctx *context.T, r io.Reader) (sums [][md5.Size]byte) {
+	s := chunker.NewStream(ctx, &chunker.DefaultParam, r)
 	for s.Advance() {
 		sums = append(sums, md5.Sum(s.Value()))
 	}
@@ -161,14 +126,17 @@ func chunkSums(r io.Reader) (sums [][md5.Size]byte) {
 // TestInsertions() tests the how chunk sequences differ when bytes are
 // periodically inserted into a stream.
 func TestInsertions(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	totalLength := 1024 * 1024
 	insertionInterval := 20 * 1024
 	bytesInserted := totalLength / insertionInterval
 
 	// Get the md5 sums of the chunks of two similar streams, where the
 	// second has an extra bytes every 20k bytes.
-	sums0 := chunkSums(NewRandReader(1, totalLength, 0, io.EOF))
-	sums1 := chunkSums(NewRandReader(1, totalLength, insertionInterval, io.EOF))
+	sums0 := chunkSums(ctx, localblobstore_testlib.NewRandReader(1, totalLength, 0, io.EOF))
+	sums1 := chunkSums(ctx, localblobstore_testlib.NewRandReader(1, totalLength, insertionInterval, io.EOF))
 
 	// Iterate over chunks of second stream, counting which are in common
 	// with first stream.  We expect to find common chunks within 10 of the
@@ -208,10 +176,13 @@ func TestInsertions(t *testing.T) {
 // TestError() tests the behaviour of a chunker when given an error by its
 // reader.
 func TestError(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	notEOF := fmt.Errorf("not EOF")
 	totalLength := 50 * 1024
-	r := NewRandReader(1, totalLength, 0, notEOF)
-	s := chunker.NewStream(&chunker.DefaultParam, r)
+	r := localblobstore_testlib.NewRandReader(1, totalLength, 0, notEOF)
+	s := chunker.NewStream(ctx, &chunker.DefaultParam, r)
 	length := 0
 	for s.Advance() {
 		chunk := s.Value()
