@@ -79,7 +79,7 @@ type disp struct {
 	obj interface{}
 }
 
-func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *disp) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return d.obj, nil, nil
 }
 

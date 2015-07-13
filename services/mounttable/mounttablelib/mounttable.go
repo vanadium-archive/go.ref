@@ -21,7 +21,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/stats"
 )
@@ -178,7 +177,7 @@ func (mt *mountTable) deleteNode(parent *node, child string) {
 }
 
 // Lookup implements rpc.Dispatcher.Lookup.
-func (mt *mountTable) Lookup(name string) (interface{}, security.Authorizer, error) {
+func (mt *mountTable) Lookup(ctx *context.T, name string) (interface{}, security.Authorizer, error) {
 	mt.ctx.VI(2).Infof("*********************Lookup %s", name)
 	ms := &mountContext{
 		name: name,

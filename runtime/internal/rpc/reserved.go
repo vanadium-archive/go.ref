@@ -86,7 +86,7 @@ func (r *reservedMethods) Signature(ctx *context.T, call rpc.ServerCall) ([]sign
 	if disp == nil {
 		return nil, verror.New(verror.ErrUnknownSuffix, ctx, suffix)
 	}
-	obj, _, err := disp.Lookup(suffix)
+	obj, _, err := disp.Lookup(ctx, suffix)
 	switch {
 	case err != nil:
 		return nil, err
@@ -129,7 +129,7 @@ func (r *reservedMethods) MethodSignature(ctx *context.T, call rpc.ServerCall, m
 	if disp == nil {
 		return signature.Method{}, verror.New(verror.ErrUnknownMethod, ctx, rpc.ReservedMethodSignature)
 	}
-	obj, _, err := disp.Lookup(suffix)
+	obj, _, err := disp.Lookup(ctx, suffix)
 	switch {
 	case err != nil:
 		return signature.Method{}, err
@@ -233,7 +233,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 			})
 			continue
 		}
-		obj, auth, err := disp.Lookup(suffix)
+		obj, auth, err := disp.Lookup(ctx, suffix)
 		if err != nil {
 			ctx.VI(3).Infof("rpc Glob: Lookup failed for %q: %v", suffix, err)
 			call.Send(naming.GlobReplyError{

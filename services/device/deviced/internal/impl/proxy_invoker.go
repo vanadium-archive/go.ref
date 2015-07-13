@@ -52,7 +52,7 @@ type proxyInvoker struct {
 
 var _ rpc.Invoker = (*proxyInvoker)(nil)
 
-func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, _ error) {
+func (p *proxyInvoker) Prepare(_ *context.T, method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, _ error) {
 	// TODO(toddw): Change argptrs to be filled in with *vdl.Value, to avoid
 	// unnecessary type lookups.
 	argptrs = make([]interface{}, numArgs)

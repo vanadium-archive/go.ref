@@ -11,6 +11,7 @@ import (
 
 	istore "v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/store/leveldb"
+	"v.io/v23/context"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -31,6 +32,7 @@ var _ store.Store = (*T)(nil)
 // Open opens a groups server store located at the given path,
 // creating it if it doesn't exist.
 func Open(path string) (store.Store, error) {
+	var _ context.T
 	db, err := leveldb.Open(path, leveldb.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		return nil, convertError(err)

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/ref/services/internal/logreaderlib"
@@ -32,7 +33,7 @@ func NewDispatcher(logsDirFunc func() string, authorizer security.Authorizer) rp
 // The first part of the names of the objects served by this dispatcher.
 var rootName = "__debug"
 
-func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	if suffix == "" {
 		return rpc.ChildrenGlobberInvoker(rootName), d.auth, nil
 	}

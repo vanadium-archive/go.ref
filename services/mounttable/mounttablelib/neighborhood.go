@@ -10,9 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/lib/netconfig"
-	"v.io/x/ref/lib/glob"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -22,6 +19,8 @@ import (
 	"v.io/v23/services/mounttable"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
+	"v.io/x/lib/netconfig"
+	"v.io/x/ref/lib/glob"
 
 	"v.io/x/ref/internal/logger"
 
@@ -157,7 +156,7 @@ func NewNeighborhoodDispatcher(host string, addresses ...string) (rpc.Dispatcher
 }
 
 // Lookup implements rpc.Dispatcher.Lookup.
-func (nh *neighborhood) Lookup(name string) (interface{}, security.Authorizer, error) {
+func (nh *neighborhood) Lookup(ctx *context.T, name string) (interface{}, security.Authorizer, error) {
 	logger.Global().VI(1).Infof("*********************LookupServer '%s'\n", name)
 	elems := strings.Split(name, "/")[nh.nelems:]
 	if name == "" {

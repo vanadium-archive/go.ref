@@ -40,7 +40,7 @@ func (noExportedFieldsType) F(_ *context.T, _ rpc.ServerCall, f fieldType) error
 
 type badObjectDispatcher struct{}
 
-func (badObjectDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (badObjectDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return noMethodsType{}, nil, nil
 }
 

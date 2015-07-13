@@ -74,7 +74,7 @@ type proxyDispatcher struct {
 	desc   []rpc.InterfaceDesc
 }
 
-func (d *proxyDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *proxyDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	d.ctx.Infof("LOOKUP(%s): remote .... %s", suffix, d.remote)
 	return newProxyInvoker(naming.Join(d.remote, suffix), access.Debug, d.desc), nil, nil
 }

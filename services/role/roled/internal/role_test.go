@@ -308,7 +308,7 @@ func callTest(t *testing.T, ctx *context.T, addr string) (blessingNames []string
 type testDispatcher struct {
 }
 
-func (d *testDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d *testDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return d, d, nil
 }
 

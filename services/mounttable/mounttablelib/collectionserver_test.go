@@ -35,7 +35,7 @@ func newCollectionServer() *collectionDispatcher {
 }
 
 // Lookup implements rpc.Dispatcher.Lookup.
-func (d *collectionDispatcher) Lookup(name string) (interface{}, security.Authorizer, error) {
+func (d *collectionDispatcher) Lookup(_ *context.T, name string) (interface{}, security.Authorizer, error) {
 	rpcc := &rpcContext{name: name, collectionServer: d.collectionServer}
 	return rpcc, d, nil
 }

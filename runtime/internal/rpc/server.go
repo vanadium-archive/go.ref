@@ -760,7 +760,7 @@ type leafDispatcher struct {
 	auth    security.Authorizer
 }
 
-func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d leafDispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	defer apilog.LogCallf(nil, "suffix=%.10s...", suffix)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if suffix != "" {
 		return nil, nil, verror.New(verror.ErrUnknownSuffix, nil, suffix)
@@ -1003,7 +1003,7 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 // authorizeVtrace works by simulating a call to __debug/vtrace.Trace.  That
 // rpc is essentially equivalent in power to the data we are attempting to
 // attach here.
-func (fs *flowServer) authorizeVtrace() error {
+func (fs *flowServer) authorizeVtrace(ctx *context.T) error {
 	// Set up a context as though we were calling __debug/vtrace.
 	params := &security.CallParams{}
 	params.Copy(fs)
@@ -1013,7 +1013,7 @@ func (fs *flowServer) authorizeVtrace() error {
 
 	var auth security.Authorizer
 	if fs.server.dispReserved != nil {
-		_, auth, _ = fs.server.dispReserved.Lookup(params.Suffix)
+		_, auth, _ = fs.server.dispReserved.Lookup(ctx, params.Suffix)
 	}
 	return authorize(fs.ctx, security.NewCall(params), auth)
 }
@@ -1027,7 +1027,7 @@ func (fs *flowServer) serve() error {
 
 	var traceResponse vtrace.Response
 	// Check if the caller is permitted to view vtrace data.
-	if fs.authorizeVtrace() == nil {
+	if fs.authorizeVtrace(fs.ctx) == nil {
 		traceResponse = vtrace.GetResponse(fs.ctx)
 	}
 
@@ -1140,7 +1140,7 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
-	argptrs, tags, err := invoker.Prepare(strippedMethod, numArgs)
+	argptrs, tags, err := invoker.Prepare(fs.ctx, strippedMethod, numArgs)
 	fs.tags = tags
 	if err != nil {
 		fs.drainDecoderArgs(numArgs)
@@ -1214,7 +1214,7 @@ func (fs *flowServer) lookup(suffix string, method string) (rpc.Invoker, securit
 		return nil, nil, verror.New(verror.ErrUnknownSuffix, fs.ctx, suffix, innerErr)
 	}
 	if disp != nil {
-		obj, auth, err := disp.Lookup(suffix)
+		obj, auth, err := disp.Lookup(fs.ctx, suffix)
 		switch {
 		case err != nil:
 			return nil, nil, err

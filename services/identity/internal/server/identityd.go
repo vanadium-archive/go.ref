@@ -255,7 +255,7 @@ func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams)
 
 type dispatcher map[string]interface{}
 
-func (d dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	if invoker := d[suffix]; invoker != nil {
 		return invoker, security.AllowEveryone(), nil
 	}

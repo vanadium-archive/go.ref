@@ -108,7 +108,7 @@ func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 
 type nilDispatcher struct{}
 
-func (nilDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (nilDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return nil, nil, nil
 }
 

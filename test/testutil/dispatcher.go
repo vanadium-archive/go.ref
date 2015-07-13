@@ -5,6 +5,7 @@
 package testutil
 
 import (
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -22,7 +23,7 @@ type leafDispatcher struct {
 	auth    security.Authorizer
 }
 
-func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d leafDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	if suffix != "" {
 		return nil, nil, verror.New(verror.ErrUnknownSuffix, nil, suffix)
 	}

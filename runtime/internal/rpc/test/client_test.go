@@ -70,7 +70,7 @@ func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string)
 
 type treeDispatcher struct{ id string }
 
-func (d treeDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+func (d treeDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	return &echoServerObject{d.id, suffix}, nil, nil
 }
 
