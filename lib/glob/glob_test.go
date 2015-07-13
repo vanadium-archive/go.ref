@@ -109,7 +109,7 @@ func TestExactMatch(t *testing.T) {
 }
 
 func TestBadPattern(t *testing.T) {
-	tests := []string{"[", "[foo", "[^foo", "\\"}
+	tests := []string{"[", "[foo", "[^foo", "\\", "a\\", "abc[foo", "a//b"}
 	for _, test := range tests {
 		if _, err := Parse(test); err == nil {
 			t.Errorf("Unexpected success for %q", test)

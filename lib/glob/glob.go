@@ -33,6 +33,33 @@ type Glob struct {
 	restricted bool
 }
 
+func parseElem(pattern string) error {
+	if len(pattern) == 0 {
+		return filepath.ErrBadPattern
+	}
+	escape := false
+	inrange := false
+	for _, c := range pattern {
+		if escape {
+			escape = false
+			continue
+		}
+		switch c {
+		case '\\':
+			escape = true
+		case '[':
+			inrange = true
+		case ']':
+			inrange = false
+		}
+	}
+	// If we are in the middle of an escape or character range, the expression is incomplete.
+	if escape || inrange {
+		return filepath.ErrBadPattern
+	}
+	return nil
+}
+
 // Parse returns a new Glob.
 func Parse(pattern string) (*Glob, error) {
 	if len(pattern) > 0 && pattern[0] == '/' {
@@ -59,7 +86,7 @@ func Parse(pattern string) (*Glob, error) {
 	// I'll just check every part to make sure it's error free.
 	// Note: Match never returns an error when matching against an empty string.
 	for _, elem := range g.elems {
-		if _, err := filepath.Match(elem, "test"); err != nil {
+		if err := parseElem(elem); err != nil {
 			return nil, err
 		}
 	}
@@ -112,7 +139,7 @@ func (g *Glob) MatchInitialSegment(segment string) (matched bool, exact bool, re
 	}
 
 	if matches, err := filepath.Match(g.elems[0], segment); err != nil {
-		panic("Error in glob pattern found.")
+		return false, false, nil
 	} else if matches {
 		_, fixed := isFixed(g.elems[0])
 		return true, fixed, g.Split(1)
