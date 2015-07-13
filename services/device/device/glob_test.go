@@ -24,6 +24,7 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func simplePrintHandler(entry cmd_device.GlobResult, _ *context.T, stdout, _ io.Writer) error {
@@ -147,8 +148,8 @@ func newEnforceNoParallelismHandler(t *testing.T, n int, expected []string) cmd_
 func TestGlob(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	tapes := newTapeMap()
-	rootTape := tapes.forSuffix("")
+	tapes := servicetest.NewTapeMap()
+	rootTape := tapes.ForSuffix("")
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -421,14 +422,14 @@ func TestGlob(t *testing.T) {
 			"encountered a total of 2 error(s)",
 		},
 	} {
-		tapes.rewind()
+		tapes.Rewind()
 		var rootTapeResponses []interface{}
 		for _, r := range c.globResponses {
 			rootTapeResponses = append(rootTapeResponses, r)
 		}
 		rootTape.SetResponses(rootTapeResponses...)
 		for n, r := range c.statusResponses {
-			tapes.forSuffix(n).SetResponses(r...)
+			tapes.ForSuffix(n).SetResponses(r...)
 		}
 		var stdout, stderr bytes.Buffer
 		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}

@@ -19,12 +19,13 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestStatusCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -35,7 +36,7 @@ func TestStatusCommand(t *testing.T) {
 	globName := naming.JoinAddressName(addr, "glob")
 	appName := naming.JoinAddressName(addr, "app")
 
-	rootTape, appTape := tapes.forSuffix(""), tapes.forSuffix("app")
+	rootTape, appTape := tapes.ForSuffix(""), tapes.ForSuffix("app")
 	for _, c := range []struct {
 		tapeResponse device.Status
 		expected     string
@@ -55,7 +56,7 @@ func TestStatusCommand(t *testing.T) {
 	} {
 		var stdout, stderr bytes.Buffer
 		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-		tapes.rewind()
+		tapes.Rewind()
 		rootTape.SetResponses(GlobResponse{results: []string{"app"}})
 		appTape.SetResponses(c.tapeResponse)
 		if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"status", globName}); err != nil {

@@ -18,13 +18,14 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestInstantiateCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -45,7 +46,7 @@ func TestInstantiateCommand(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	rootTape.Rewind()
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"instantiate", "nope", "nope", "nope"}); err == nil {

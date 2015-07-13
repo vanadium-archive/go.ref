@@ -20,6 +20,7 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 const pkgPath = "v.io/x/ref/services/device/main"
@@ -32,7 +33,7 @@ func TestAccessListGetCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -45,7 +46,7 @@ func TestAccessListGetCommand(t *testing.T) {
 	deviceName := server.Status().Endpoints[0].Name()
 
 	// Test the 'get' command.
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	rootTape.SetResponses(GetPermissionsResponse{
 		perms: access.Permissions{
 			"Admin": access.AccessList{
@@ -79,7 +80,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -129,7 +130,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	// Correct operation in the absence of errors.
 	stderr.Reset()
 	stdout.Reset()
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	rootTape.SetResponses(
 		GetPermissionsResponse{
 			perms: access.Permissions{

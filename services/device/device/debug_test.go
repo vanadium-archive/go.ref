@@ -18,12 +18,13 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestDebugCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -33,7 +34,7 @@ func TestDebugCommand(t *testing.T) {
 	addr := server.Status().Endpoints[0].String()
 	globName := naming.JoinAddressName(addr, "glob")
 	appName := naming.JoinAddressName(addr, "app")
-	rootTape, appTape := tapes.forSuffix(""), tapes.forSuffix("app")
+	rootTape, appTape := tapes.ForSuffix(""), tapes.ForSuffix("app")
 	rootTape.SetResponses(GlobResponse{results: []string{"app"}})
 
 	var stdout, stderr bytes.Buffer

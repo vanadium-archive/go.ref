@@ -25,6 +25,7 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func createFile(t *testing.T, path string, contents string) {
@@ -37,7 +38,7 @@ func TestInstallLocalCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -54,7 +55,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		t.Fatalf("Failed to stat %v: %v", binary, err)
 	}
 	binarySize := fi.Size()
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	for i, c := range []struct {
 		args         []string
 		stderrSubstr string

@@ -21,13 +21,14 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestInstallCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -41,7 +42,7 @@ func TestInstallCommand(t *testing.T) {
 	appId := "myBestAppID"
 	cfg := device.Config{"someflag": "somevalue"}
 	pkg := application.Packages{"pkg": application.SignedFile{File: "somename"}}
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	for i, c := range []struct {
 		args         []string
 		config       device.Config

@@ -17,13 +17,14 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestListCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -35,7 +36,7 @@ func TestListCommand(t *testing.T) {
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	deviceName := server.Status().Endpoints[0].Name()
 
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	// Test the 'list' command.
 	rootTape.SetResponses(ListAssociationResponse{
 		na: []device.Association{
@@ -76,7 +77,7 @@ func TestAddCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -91,7 +92,7 @@ func TestAddCommand(t *testing.T) {
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"add", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	if got, expected := len(rootTape.Play()), 0; got != expected {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
@@ -127,7 +128,7 @@ func TestRemoveCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -142,7 +143,7 @@ func TestRemoveCommand(t *testing.T) {
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{"remove", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	if got, expected := len(rootTape.Play()), 0; got != expected {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}

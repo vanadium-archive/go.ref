@@ -19,6 +19,7 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 //go:generate v23 test generate
@@ -58,7 +59,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -80,7 +81,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	appTape := tapes.forSuffix("appname")
+	appTape := tapes.ForSuffix("appname")
 	appTape.Rewind()
 
 	if err := v23cmd.ParseAndRunForTest(cmd, ctx, env, []string{lower, "nope", "nope"}); err == nil {

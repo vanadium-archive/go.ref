@@ -16,6 +16,7 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 // TestLsCommand verifies the device ls command.  It also acts as a test for the
@@ -24,7 +25,7 @@ import (
 func TestLsCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -32,7 +33,7 @@ func TestLsCommand(t *testing.T) {
 	cmd := cmd_device.CmdRoot
 	endpoint := server.Status().Endpoints[0]
 	appName := naming.JoinAddressName(endpoint.String(), "app")
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	cannedGlobResponses := [][]string{
 		[]string{"app/3", "app/4", "app/6", "app/5"},
 		[]string{"app/2", "app/1"},
@@ -134,14 +135,14 @@ func TestLsCommand(t *testing.T) {
 	} {
 		var stdout, stderr bytes.Buffer
 		env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-		tapes.rewind()
+		tapes.Rewind()
 		var rootTapeResponses []interface{}
 		for _, r := range c.globResponses {
 			rootTapeResponses = append(rootTapeResponses, GlobResponse{results: r})
 		}
 		rootTape.SetResponses(rootTapeResponses...)
 		for n, r := range c.statusResponses {
-			tapes.forSuffix(n).SetResponses(r...)
+			tapes.ForSuffix(n).SetResponses(r...)
 		}
 		args := append([]string{"ls"}, c.lsFlags...)
 		for _, p := range c.globPatterns {

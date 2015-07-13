@@ -5,16 +5,18 @@
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
 
-package main
+package main_test
 
 import (
 	"os"
 	"testing"
 
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
 )
 
 func TestMain(m *testing.M) {
 	test.Init()
+	modules.DispatchAndExitIfChild()
 	os.Exit(m.Run())
 }

@@ -23,6 +23,7 @@ import (
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func capitalize(s string) string {
@@ -37,7 +38,7 @@ func capitalize(s string) string {
 func TestUpdateAndRevertCommands(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	tapes := newTapeMap()
+	tapes := servicetest.NewTapeMap()
 	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -45,7 +46,7 @@ func TestUpdateAndRevertCommands(t *testing.T) {
 	addr := server.Status().Endpoints[0].String()
 	root := cmd_device.CmdRoot
 	appName := naming.JoinAddressName(addr, "app")
-	rootTape := tapes.forSuffix("")
+	rootTape := tapes.ForSuffix("")
 	globName := naming.JoinAddressName(addr, "glob")
 	// TODO(caprita): Move joinLines to a common place.
 	joinLines := func(args ...string) string {
@@ -118,10 +119,10 @@ func TestUpdateAndRevertCommands(t *testing.T) {
 		} {
 			var stdout, stderr bytes.Buffer
 			env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-			tapes.rewind()
+			tapes.Rewind()
 			rootTape.SetResponses(GlobResponse{results: c.globResponses})
 			for n, r := range c.statusResponses {
-				tapes.forSuffix(n).SetResponses(r...)
+				tapes.ForSuffix(n).SetResponses(r...)
 			}
 			args := []string{cmd, globName}
 			if err := v23cmd.ParseAndRunForTest(root, ctx, env, args); err != nil {
@@ -141,7 +142,7 @@ func TestUpdateAndRevertCommands(t *testing.T) {
 				t.Errorf("Unexpected stderr output from %s.\nGot:\n%v\nExpected:\n%v", cmd, got, expected)
 			}
 			for n, m := range c.expectedStimuli {
-				if want, got := m, tapes.forSuffix(n).Play(); !reflect.DeepEqual(want, got) {
+				if want, got := m, tapes.ForSuffix(n).Play(); !reflect.DeepEqual(want, got) {
 					t.Errorf("Unexpected stimuli for %v. Want: %v, got %v.", n, want, got)
 				}
 			}

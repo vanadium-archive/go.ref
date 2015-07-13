@@ -25,10 +25,11 @@ import (
 
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/packages"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 type mockDeviceInvoker struct {
-	tape *tape
+	tape *servicetest.Tape
 	t    *testing.T
 }
 
@@ -302,14 +303,14 @@ func (mdi *mockDeviceInvoker) Glob__(_ *context.T, _ rpc.ServerCall, pattern str
 }
 
 type dispatcher struct {
-	tapes *tapeMap
+	tapes *servicetest.TapeMap
 	t     *testing.T
 }
 
-func newDispatcher(t *testing.T, tapes *tapeMap) rpc.Dispatcher {
+func newDispatcher(t *testing.T, tapes *servicetest.TapeMap) rpc.Dispatcher {
 	return &dispatcher{tapes: tapes, t: t}
 }
 
 func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
-	return &mockDeviceInvoker{tape: d.tapes.forSuffix(suffix), t: d.t}, nil, nil
+	return &mockDeviceInvoker{tape: d.tapes.ForSuffix(suffix), t: d.t}, nil, nil
 }
