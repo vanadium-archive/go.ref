@@ -13,6 +13,7 @@ import (
 
 	"v.io/v23/services/build"
 	"v.io/v23/services/device"
+	"v.io/x/ref/services/internal/profiles"
 	"v.io/x/ref/services/profile"
 )
 
@@ -101,7 +102,7 @@ func ComputeDeviceProfile() (*profile.Specification, error) {
 // TODO(jsimsa): Avoid retrieving the list of known profiles from a
 // remote server if a recent cached copy exists.
 func getProfile(name string) (*profile.Specification, error) {
-	profiles, err := getKnownProfiles()
+	profiles, err := profiles.GetKnownProfiles()
 	if err != nil {
 		return nil, err
 	}
@@ -134,74 +135,6 @@ func getProfile(name string) (*profile.Specification, error) {
 					return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Finish(%v) failed: %v\n", &profiles, err))
 				}
 		return &profile, nil
-	*/
-}
-
-// getKnownProfiles gets a list of description for all publicly known
-// profiles.
-//
-// TODO(jsimsa): Avoid retrieving the list of known profiles from a
-// remote server if a recent cached copy exists.
-func getKnownProfiles() ([]*profile.Specification, error) {
-	return []*profile.Specification{
-		{
-			Label:       "linux-amd64",
-			Description: "",
-			Arch:        build.ArchitectureAmd64,
-			Os:          build.OperatingSystemLinux,
-			Format:      build.FormatElf,
-		},
-		{
-			// Note that linux-386 is used instead of linux-x86 for the
-			// label to facilitate generation of a matching label string
-			// using the runtime.GOARCH value. In VDL, the 386 architecture
-			// is represented using the value X86 because the VDL grammar
-			// does not allow identifiers starting with a number.
-			Label:       "linux-386",
-			Description: "",
-			Arch:        build.ArchitectureX86,
-			Os:          build.OperatingSystemLinux,
-			Format:      build.FormatElf,
-		},
-		{
-			Label:       "linux-arm",
-			Description: "",
-			Arch:        build.ArchitectureArm,
-			Os:          build.OperatingSystemLinux,
-			Format:      build.FormatElf,
-		},
-		{
-			Label:       "darwin-amd64",
-			Description: "",
-			Arch:        build.ArchitectureAmd64,
-			Os:          build.OperatingSystemDarwin,
-			Format:      build.FormatMach,
-		},
-	}, nil
-
-	// TODO(jsimsa): This function assumes the existence of a profile
-	// server from which a list of known profiles can be retrieved. The
-	// profile server is a work in progress. When it exists, the
-	// commented out code below should work.
-
-	/*
-		knownProfiles := make([]profile.Specification, 0)
-				client, err := r.NewClient()
-				if err != nil {
-					return nil,  verror.New(ErrOperationFailed, nil, fmt.Sprintf("NewClient() failed: %v\n", err))
-				}
-				defer client.Close()
-			  server := // TODO
-				method := "List"
-				inputs := make([]interface{}, 0)
-				call, err := client.StartCall(server, method, inputs)
-				if err != nil {
-					return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("StartCall(%s, %q, %v) failed: %v\n", server, method, inputs, err))
-				}
-				if err := call.Finish(&knownProfiles); err != nil {
-					return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Finish(&knownProfile) failed: %v\n", err))
-				}
-		return knownProfiles, nil
 	*/
 }
 
@@ -241,7 +174,7 @@ var Describe = func() (device.Description, error) {
 	if err != nil {
 		return empty, err
 	}
-	knownProfiles, err := getKnownProfiles()
+	knownProfiles, err := profiles.GetKnownProfiles()
 	if err != nil {
 		return empty, err
 	}

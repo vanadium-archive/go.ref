@@ -29,8 +29,9 @@ func (t *Tape) Record(call interface{}) interface{} {
 
 	if len(t.responses) < 1 {
 		// Returning an error at this point will likely cause the mock
-		// device manager to panic trying to cast the response to what
-		// it expects.  Panic'ing here at least makes the issue more
+		// using the tape to panic when it tries to cast the response
+		// to the desired type.
+		// Panic'ing here at least makes the issue more
 		// apparent.
 		// TODO(caprita): Don't panic.
 		panic(fmt.Errorf("Record(%#v) had no response", call))

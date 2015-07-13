@@ -105,6 +105,15 @@ func downloadPart(ctx *context.T, w io.WriteSeeker, client repository.BinaryClie
 	return false
 }
 
+func Stat(ctx *context.T, name string) (repository.MediaInfo, error) {
+	client := repository.BinaryClient(name)
+	_, mediaInfo, err := client.Stat(ctx)
+	if err != nil {
+		return repository.MediaInfo{}, err
+	}
+	return mediaInfo, nil
+}
+
 func download(ctx *context.T, w io.WriteSeeker, von string) (repository.MediaInfo, error) {
 	client := repository.BinaryClient(von)
 	parts, mediaInfo, err := client.Stat(ctx)
