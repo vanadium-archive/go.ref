@@ -26,6 +26,11 @@ var (
 ////////////////////////////////////////
 // RPC methods
 
+func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
+	_, err := r.Get(ctx, call)
+	return util.ErrorToExists(err)
+}
+
 func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
 	impl := func(st store.StoreReader) ([]byte, error) {
 		return r.get(ctx, call, st)

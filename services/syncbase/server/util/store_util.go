@@ -98,6 +98,24 @@ func UpdateWithAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReadWrite
 	return Put(ctx, st, k, v)
 }
 
+// Wraps a call to Get and returns true if Get found the object, false
+// otherwise, suppressing ErrNoExist. Access errors are suppressed as well
+// because they imply existence in some Get implementations.
+// TODO(ivanpi): Revisit once ACL specification is finalized.
+func ErrorToExists(err error) (bool, error) {
+	if err == nil {
+		return true, nil
+	}
+	switch verror.ErrorID(err) {
+	case verror.ErrNoExist.ID:
+		return false, nil
+	case verror.ErrNoAccess.ID, verror.ErrNoExistOrNoAccess.ID:
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
 type OpenOptions struct {
 	CreateIfMissing bool
 	ErrorIfExists   bool

@@ -140,6 +140,13 @@ func (d *databaseReq) Delete(ctx *context.T, call rpc.ServerCall) error {
 	return d.a.DeleteNoSQLDatabase(ctx, call, d.name)
 }
 
+func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
+	if !d.exists {
+		return false, nil
+	}
+	return util.ErrorToExists(util.GetWithAuth(ctx, call, d.st, d.stKey(), &databaseData{}))
+}
+
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.BatchOptions) (string, error) {

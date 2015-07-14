@@ -56,6 +56,13 @@ func (a *app) Delete(ctx *context.T, call rpc.ServerCall) error {
 	return a.s.deleteApp(ctx, call, a.name)
 }
 
+func (a *app) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
+	if !a.exists {
+		return false, nil
+	}
+	return util.ErrorToExists(util.GetWithAuth(ctx, call, a.s.st, a.stKey(), &appData{}))
+}
+
 func (a *app) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	if !a.exists {
 		return verror.New(verror.ErrNoExist, ctx, a.name)

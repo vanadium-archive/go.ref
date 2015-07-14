@@ -77,6 +77,10 @@ func (t *tableReq) Delete(ctx *context.T, call rpc.ServerCall) error {
 	})
 }
 
+func (t *tableReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
+	return util.ErrorToExists(util.GetWithAuth(ctx, call, t.d.st, t.stKey(), &tableData{}))
+}
+
 func (t *tableReq) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit []byte) error {
 	impl := func(st store.StoreReadWriter) error {
 		// Check for table-level access before doing a scan.
