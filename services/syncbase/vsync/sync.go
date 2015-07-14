@@ -81,7 +81,7 @@ func rand64() uint64 {
 	return (uint64(rng.Int63()) << 1) | uint64(rng.Int63n(2))
 }
 
-// randIntn generates as an int, a non-negative pseudo-random number in [0,n).
+// randIntn mimics rand.Intn (generates a non-negative pseudo-random number in [0,n)).
 func randIntn(n int) int {
 	rngLock.Lock()
 	defer rngLock.Unlock()

@@ -35,7 +35,7 @@ type SyncClientMethods interface {
 	// records, the responder's genvector, and a "Finish" DeltaResp
 	// record. The initiator parses the stream between a Start and a Finish
 	// record as the response to its DeltaReq, and then moves on to the
-	// next Database, in common with this responder.
+	// next Database in common with this responder.
 	GetDeltas(*context.T, ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
@@ -206,7 +206,7 @@ type SyncServerMethods interface {
 	// records, the responder's genvector, and a "Finish" DeltaResp
 	// record. The initiator parses the stream between a Start and a Finish
 	// record as the response to its DeltaReq, and then moves on to the
-	// next Database, in common with this responder.
+	// next Database in common with this responder.
 	GetDeltas(*context.T, SyncGetDeltasServerCall) error
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
@@ -235,7 +235,7 @@ type SyncServerStubMethods interface {
 	// records, the responder's genvector, and a "Finish" DeltaResp
 	// record. The initiator parses the stream between a Start and a Finish
 	// record as the response to its DeltaReq, and then moves on to the
-	// next Database, in common with this responder.
+	// next Database in common with this responder.
 	GetDeltas(*context.T, *SyncGetDeltasServerCallStub) error
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
@@ -314,7 +314,7 @@ var descSync = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "GetDeltas",
-			Doc:  "// GetDeltas returns the responder's current generation vector and all\n// the missing log records when compared to the initiator's generation\n// vector. This process happens one Database at a time encompassing all\n// the SyncGroups common to the initiator and the responder. For each\n// Database, the initiator sends a DeltaReq. In response, the\n// responder sends a \"Start\" DeltaResp record, all the missing log\n// records, the responder's genvector, and a \"Finish\" DeltaResp\n// record. The initiator parses the stream between a Start and a Finish\n// record as the response to its DeltaReq, and then moves on to the\n// next Database, in common with this responder.",
+			Doc:  "// GetDeltas returns the responder's current generation vector and all\n// the missing log records when compared to the initiator's generation\n// vector. This process happens one Database at a time encompassing all\n// the SyncGroups common to the initiator and the responder. For each\n// Database, the initiator sends a DeltaReq. In response, the\n// responder sends a \"Start\" DeltaResp record, all the missing log\n// records, the responder's genvector, and a \"Finish\" DeltaResp\n// record. The initiator parses the stream between a Start and a Finish\n// record as the response to its DeltaReq, and then moves on to the\n// next Database in common with this responder.",
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{

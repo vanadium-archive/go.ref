@@ -43,7 +43,9 @@ func checkSGStats(t *testing.T, svc *mockService, which string, numSG, numMember
 
 // TestAddSyncGroup tests adding SyncGroups.
 func TestAddSyncGroup(t *testing.T) {
-	// Set a large value to prevent the threads from firing.
+	// Set a large value to prevent the initiator from running. Since this
+	// test adds a fake SyncGroup, if the initiator runs, it will attempt
+	// to initiate using this fake and partial SyncGroup data.
 	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)

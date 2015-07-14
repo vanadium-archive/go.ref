@@ -112,6 +112,32 @@ func TestPutGetDelLogRec(t *testing.T) {
 	checkLogRec(t, st, id, gen, false, nil)
 }
 
+func TestLogRecKeyUtils(t *testing.T) {
+	invalid := []string{"$sync:aa:bb", "log:aa:bb", "$sync:log:aa:xx", "$sync:log:x:bb"}
+
+	for _, k := range invalid {
+		if _, _, err := splitLogRecKey(nil, k); err == nil {
+			t.Fatalf("splitting log rec key didn't fail %q", k)
+		}
+	}
+
+	valid := []struct {
+		id  uint64
+		gen uint64
+	}{
+		{10, 20},
+		{190, 540},
+		{9999, 999999},
+	}
+
+	for _, v := range valid {
+		gotId, gotGen, err := splitLogRecKey(nil, logRecKey(v.id, v.gen))
+		if gotId != v.id || gotGen != v.gen || err != nil {
+			t.Fatalf("failed key conversion id got %v want %v, gen got %v want %v, err %v", gotId, v.id, gotGen, v.gen, err)
+		}
+	}
+}
+
 //////////////////////////////
 // Helpers
 

@@ -7,6 +7,7 @@ package vsync
 import (
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 )
 
 // Policies for conflict resolution.
@@ -64,9 +65,9 @@ func (iSt *initiationState) resolveConflicts(ctx *context.T) error {
 
 // resolveObjConflict resolves a conflict for an object given its ID and the 3
 // versions that express the conflict: the object's local version, its remote
-// version (from the device contacted), and the common ancestor from which both
-// versions branched away.  The function returns the new object value according
-// to the conflict resolution policy.
+// version (from the device contacted), and the closest common ancestor (see
+// dag.go on how the ancestor is chosen). The function returns the new object
+// value according to the conflict resolution policy.
 func (iSt *initiationState) resolveObjConflict(ctx *context.T, oid, local, remote, ancestor string) (*conflictResolution, error) {
 	// Fetch the log records of the 3 object versions.
 	versions := []string{local, remote, ancestor}
@@ -101,35 +102,29 @@ func (iSt *initiationState) resolveObjConflictByTime(ctx *context.T, oid string,
 		res.ty = pickLocal
 	case local.Metadata.CurVers < remote.Metadata.CurVers:
 		res.ty = pickRemote
+	default:
+		vlog.Fatalf("resolveObjConflictByTime:: local and remote update times and versions are the same, local %v remote %v", local, remote)
 	}
 
 	return &res, nil
 }
 
-// getLogRecsBatch gets the log records for an array of versions.
+// getLogRecsBatch gets the log records for an array of versions for a given object.
 func (iSt *initiationState) getLogRecsBatch(ctx *context.T, obj string, versions []string) ([]*localLogRec, error) {
 	lrecs := make([]*localLogRec, len(versions))
-	var err error
 	for p, v := range versions {
-		lrecs[p], err = iSt.getLogRec(ctx, obj, v)
+		logKey, err := getLogRecKey(ctx, iSt.tx, obj, v)
+		if err != nil {
+			return nil, err
+		}
+		dev, gen, err := splitLogRecKey(ctx, logKey)
+		if err != nil {
+			return nil, err
+		}
+		lrecs[p], err = getLogRec(ctx, iSt.tx, dev, gen)
 		if err != nil {
 			return nil, err
 		}
 	}
 	return lrecs, nil
-}
-
-// getLogRec returns the log record corresponding to a given object and its version.
-func (iSt *initiationState) getLogRec(ctx *context.T, obj, vers string) (*localLogRec, error) {
-	// TODO(hpucha): May be the change the name in dag for getLogrec. We now
-	// have a few functions of this name.
-	logKey, err := getLogrec(ctx, iSt.tx, obj, vers)
-	if err != nil {
-		return nil, err
-	}
-	dev, gen, err := splitLogRecKey(ctx, logKey)
-	if err != nil {
-		return nil, err
-	}
-	return getLogRec(ctx, iSt.tx, dev, gen)
 }

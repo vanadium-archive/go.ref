@@ -4,6 +4,12 @@
 
 package vsync
 
+// Initiator is a goroutine that periodically picks a peer from all the known
+// remote peers, and requests deltas from that peer for all the SyncGroups in
+// common across all apps/databases. It then modifies the sync metadata (DAG and
+// local log records) based on the deltas, detects and resolves conflicts if
+// any, and suitably updates the local Databases.
+
 import (
 	"sort"
 	"strings"
@@ -68,6 +74,9 @@ func (s *syncService) syncer(ctx *context.T) {
 		case <-ticker.C:
 		}
 
+		// TODO(hpucha): Cut a gen for the responder even if there is no
+		// one to initiate to?
+
 		// Do work.
 		peer, err := s.pickPeer(ctx)
 		if err != nil {
@@ -82,12 +91,21 @@ func (s *syncService) syncer(ctx *context.T) {
 // * Contacting the peer to receive all the deltas based on the local genvector.
 // * Processing those deltas to discover objects which have been updated.
 // * Processing updated objects to detect and resolve any conflicts if needed.
-// * Communicating relevant object updates to the Database.
-// The processing of the deltas is done one Database at a time.
+// * Communicating relevant object updates to the Database, and updating local
+// genvector to catch up to the received remote genvector.
+//
+// The processing of the deltas is done one Database at a time. If a local error
+// is encountered during the processing of a Database, that Database is skipped
+// and the initiator continues on to the next one. If the connection to the peer
+// encounters an error, this initiation round is aborted. Note that until the
+// local genvector is updated based on the received deltas (the last step in an
+// initiation round), the work done by the initiator is idempotent.
+//
+// TODO(hpucha): Check the idempotence, esp in addNode in DAG.
 func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
 	info := s.allMembers.members[peer]
 	if info == nil {
-		return
+		vlog.Fatalf("getDeltasFromPeer:: missing information in member view for %q", peer)
 	}
 	connected := false
 	var stream interfaces.SyncGetDeltasClientCall
@@ -299,11 +317,11 @@ func (iSt *initiationState) createLocalGenVec(ctx *context.T) error {
 	// devices.  These remote devices in turn can send these
 	// generations back to the initiator in progress which was
 	// started with older generation information.
-	if err := iSt.sync.checkPtLocalGen(ctx, iSt.appName, iSt.dbName); err != nil {
+	if err := iSt.sync.checkptLocalGen(ctx, iSt.appName, iSt.dbName); err != nil {
 		return err
 	}
 
-	local, lgen, err := iSt.sync.getDbGenInfo(ctx, iSt.appName, iSt.dbName)
+	local, lgen, err := iSt.sync.copyDbGenInfo(ctx, iSt.appName, iSt.dbName)
 	if err != nil {
 		return err
 	}
@@ -364,6 +382,10 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 	// repeatedly doesn't affect what data is seen next.
 	rcvr := iSt.stream.RecvStream()
 	start, finish := false, false
+
+	// TODO(hpucha): See if we can avoid committing the entire delta stream
+	// as one batch. Currently the dependency is between the log records and
+	// the batch info.
 	tx := iSt.st.NewTransaction()
 	committed := false
 
@@ -373,7 +395,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 		}
 	}()
 
-	// Track received batches.
+	// Track received batches (BatchId --> BatchCount mapping).
 	batchMap := make(map[uint64]uint64)
 
 	for rcvr.Advance() {
@@ -396,7 +418,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 
 		case interfaces.DeltaRespRec:
 			// Insert log record in Database.
-			// TODO(hpucha): Should we reserve more postions in a batch?
+			// TODO(hpucha): Should we reserve more positions in a batch?
 			// TODO(hpucha): Handle if SyncGroup is left/destroyed while sync is in progress.
 			pos := iSt.sync.reservePosInDbLog(ctx, iSt.appName, iSt.dbName, 1)
 			rec := &localLogRec{Metadata: v.Value.Metadata, Pos: pos}
@@ -444,6 +466,11 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 	// should not conflict with any other keys. So if it fails, it is a
 	// non-retriable error.
 	err := tx.Commit()
+	if verror.ErrorID(err) == store.ErrConcurrentTransaction.ID {
+		// Note: This might be triggered with memstore until it handles
+		// transactions in a more fine-grained fashion.
+		vlog.Fatalf("recvAndProcessDeltas:: encountered concurrent transaction")
+	}
 	if err == nil {
 		committed = true
 	}
@@ -474,7 +501,9 @@ func (iSt *initiationState) insertRecInLogDagAndDb(ctx *context.T, rec *localLog
 		return err
 	}
 	// TODO(hpucha): Hack right now. Need to change Database's handling of
-	// deleted objects.
+	// deleted objects. Currently, the initiator needs to treat deletions
+	// specially since deletions do not get a version number or a special
+	// value in the Database.
 	if !rec.Metadata.Delete && rec.Metadata.RecType == interfaces.NodeRec {
 		return watchable.PutAtVersion(ctx, tx, []byte(m.ObjId), valbuf, []byte(m.CurVers))
 	}
@@ -482,8 +511,13 @@ func (iSt *initiationState) insertRecInLogDagAndDb(ctx *context.T, rec *localLog
 }
 
 // processUpdatedObjects processes all the updates received by the initiator,
-// one object at a time. For each updated object, we first check if the object
-// has any conflicts, resulting in three possibilities:
+// one object at a time. Conflict detection and resolution is carried out after
+// the entire delta of log records is replayed, instead of incrementally after
+// each record/batch is replayed, to avoid repeating conflict resolution already
+// performed by other peers.
+//
+// For each updated object, we first check if the object has any conflicts,
+// resulting in three possibilities:
 //
 // * There is no conflict, and no updates are needed to the Database
 // (isConflict=false, newHead == oldHead). All changes received convey
@@ -565,16 +599,16 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 
 // detectConflicts iterates through all the updated objects to detect conflicts.
 func (iSt *initiationState) detectConflicts(ctx *context.T) error {
-	for obj, st := range iSt.updObjects {
+	for objid, confSt := range iSt.updObjects {
 		// Check if object has a conflict.
 		var err error
-		st.isConflict, st.newHead, st.oldHead, st.ancestor, err = hasConflict(ctx, iSt.tx, obj, iSt.dagGraft)
+		confSt.isConflict, confSt.newHead, confSt.oldHead, confSt.ancestor, err = hasConflict(ctx, iSt.tx, objid, iSt.dagGraft)
 		if err != nil {
 			return err
 		}
 
-		if !st.isConflict {
-			st.res = &conflictResolution{ty: pickRemote}
+		if !confSt.isConflict {
+			confSt.res = &conflictResolution{ty: pickRemote}
 		}
 	}
 	return nil
@@ -583,10 +617,10 @@ func (iSt *initiationState) detectConflicts(ctx *context.T) error {
 // updateDbAndSync updates the Database, and if that is successful, updates log,
 // dag and genvector data structures as needed.
 func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
-	for obj, st := range iSt.updObjects {
+	for objid, confSt := range iSt.updObjects {
 		// If the local version is picked, no further updates to the
 		// Database are needed.
-		if st.res.ty == pickLocal {
+		if confSt.res.ty == pickLocal {
 			continue
 		}
 
@@ -596,8 +630,8 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 		// TODO(hpucha): Hack right now. Need to change Database's
 		// handling of deleted objects.
 		oldVersDeleted := true
-		if st.oldHead != NoVersion {
-			oldDagNode, err := getNode(ctx, iSt.tx, obj, st.oldHead)
+		if confSt.oldHead != NoVersion {
+			oldDagNode, err := getNode(ctx, iSt.tx, objid, confSt.oldHead)
 			if err != nil {
 				return err
 			}
@@ -606,17 +640,17 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 
 		var newVersion string
 		var newVersDeleted bool
-		switch st.res.ty {
+		switch confSt.res.ty {
 		case pickRemote:
-			newVersion = st.newHead
-			newDagNode, err := getNode(ctx, iSt.tx, obj, newVersion)
+			newVersion = confSt.newHead
+			newDagNode, err := getNode(ctx, iSt.tx, objid, newVersion)
 			if err != nil {
 				return err
 			}
 			newVersDeleted = newDagNode.Deleted
 		case createNew:
-			newVersion = st.res.rec.Metadata.CurVers
-			newVersDeleted = st.res.rec.Metadata.Delete
+			newVersion = confSt.res.rec.Metadata.CurVers
+			newVersDeleted = confSt.res.rec.Metadata.Delete
 		}
 
 		// Skip delete followed by a delete.
@@ -626,36 +660,36 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 
 		if !oldVersDeleted {
 			// Read current version to enter it in the readset of the transaction.
-			version, err := watchable.GetVersion(ctx, iSt.tx, []byte(obj))
+			version, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid))
 			if err != nil {
 				return err
 			}
-			if string(version) != st.oldHead {
+			if string(version) != confSt.oldHead {
 				return store.NewErrConcurrentTransaction(ctx)
 			}
 		} else {
 			// Ensure key doesn't exist.
-			if _, err := watchable.GetVersion(ctx, iSt.tx, []byte(obj)); verror.ErrorID(err) != store.ErrUnknownKey.ID {
+			if _, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid)); verror.ErrorID(err) != store.ErrUnknownKey.ID {
 				return store.NewErrConcurrentTransaction(ctx)
 			}
 		}
 
 		if !newVersDeleted {
-			if st.res.ty == createNew {
-				if err := watchable.PutAtVersion(ctx, iSt.tx, []byte(obj), st.res.val, []byte(newVersion)); err != nil {
+			if confSt.res.ty == createNew {
+				if err := watchable.PutAtVersion(ctx, iSt.tx, []byte(objid), confSt.res.val, []byte(newVersion)); err != nil {
 					return err
 				}
 			}
-			if err := watchable.PutVersion(ctx, iSt.tx, []byte(obj), []byte(newVersion)); err != nil {
+			if err := watchable.PutVersion(ctx, iSt.tx, []byte(objid), []byte(newVersion)); err != nil {
 				return err
 			}
 		} else {
-			if err := iSt.tx.Delete([]byte(obj)); err != nil {
+			if err := iSt.tx.Delete([]byte(objid)); err != nil {
 				return err
 			}
 		}
 
-		if err := iSt.updateLogAndDag(ctx, obj); err != nil {
+		if err := iSt.updateLogAndDag(ctx, objid); err != nil {
 			return err
 		}
 	}
@@ -665,31 +699,31 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 
 // updateLogAndDag updates the log and dag data structures.
 func (iSt *initiationState) updateLogAndDag(ctx *context.T, obj string) error {
-	st, ok := iSt.updObjects[obj]
+	confSt, ok := iSt.updObjects[obj]
 	if !ok {
 		return verror.New(verror.ErrInternal, ctx, "object state not found", obj)
 	}
 	var newVersion string
 
-	if !st.isConflict {
-		newVersion = st.newHead
+	if !confSt.isConflict {
+		newVersion = confSt.newHead
 	} else {
 		// Object had a conflict. Create a log record to reflect resolution.
 		var rec *localLogRec
 
 		switch {
-		case st.res.ty == pickLocal:
+		case confSt.res.ty == pickLocal:
 			// Local version was picked as the conflict resolution.
-			rec = iSt.createLocalLinkLogRec(ctx, obj, st.oldHead, st.newHead)
-			newVersion = st.oldHead
-		case st.res.ty == pickRemote:
+			rec = iSt.createLocalLinkLogRec(ctx, obj, confSt.oldHead, confSt.newHead)
+			newVersion = confSt.oldHead
+		case confSt.res.ty == pickRemote:
 			// Remote version was picked as the conflict resolution.
-			rec = iSt.createLocalLinkLogRec(ctx, obj, st.newHead, st.oldHead)
-			newVersion = st.newHead
+			rec = iSt.createLocalLinkLogRec(ctx, obj, confSt.newHead, confSt.oldHead)
+			newVersion = confSt.newHead
 		default:
 			// New version was created to resolve the conflict.
-			rec = st.res.rec
-			newVersion = st.res.rec.Metadata.CurVers
+			rec = confSt.res.rec
+			newVersion = confSt.res.rec.Metadata.CurVers
 		}
 
 		if err := putLogRec(ctx, iSt.tx, rec); err != nil {
@@ -742,14 +776,14 @@ func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, obj, vers, par
 // updateSyncSt updates local sync state at the end of an initiator cycle.
 func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 	// Get the current local sync state.
-	dsInMem, err := iSt.sync.getDbSyncStateInMem(ctx, iSt.appName, iSt.dbName)
+	dsInMem, err := iSt.sync.copyDbSyncStateInMem(ctx, iSt.appName, iSt.dbName)
 	if err != nil {
 		return err
 	}
 	ds := &dbSyncState{
-		Gen:     dsInMem.gen,
-		CkPtGen: dsInMem.ckPtGen,
-		GenVec:  dsInMem.genvec,
+		Gen:        dsInMem.gen,
+		CheckptGen: dsInMem.checkptGen,
+		GenVec:     dsInMem.genvec,
 	}
 
 	// remote can be a subset of local.

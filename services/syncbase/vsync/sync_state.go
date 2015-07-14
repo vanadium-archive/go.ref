@@ -46,8 +46,8 @@ type dbSyncStateInMem struct {
 	gen uint64
 	pos uint64
 
-	ckPtGen uint64
-	genvec  interfaces.GenVector // Note: Generation vector contains state from remote devices only.
+	checkptGen uint64
+	genvec     interfaces.GenVector // Note: Generation vector contains state from remote devices only.
 }
 
 // initSync initializes the sync module during startup. It scans all the
@@ -144,8 +144,8 @@ func (s *syncService) reserveGenAndPosInternal(appName, dbName string, genCount,
 	return gen, pos
 }
 
-// checkPtLocalGen freezes the local generation number for the responder's use.
-func (s *syncService) checkPtLocalGen(ctx *context.T, appName, dbName string) error {
+// checkptLocalGen freezes the local generation number for the responder's use.
+func (s *syncService) checkptLocalGen(ctx *context.T, appName, dbName string) error {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
@@ -157,7 +157,7 @@ func (s *syncService) checkPtLocalGen(ctx *context.T, appName, dbName string) er
 
 	// The frozen generation is the last generation number used, i.e. one
 	// below the next available one to use.
-	ds.ckPtGen = ds.gen - 1
+	ds.checkptGen = ds.gen - 1
 	return nil
 }
 
@@ -172,8 +172,8 @@ func (s *syncService) initDbSyncStateInMem(ctx *context.T, appName, dbName strin
 	}
 }
 
-// getDbSyncStateInMem returns a copy of the current in memory sync state of the Database.
-func (s *syncService) getDbSyncStateInMem(ctx *context.T, appName, dbName string) (*dbSyncStateInMem, error) {
+// copyDbSyncStateInMem returns a copy of the current in memory sync state of the Database.
+func (s *syncService) copyDbSyncStateInMem(ctx *context.T, appName, dbName string) (*dbSyncStateInMem, error) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
@@ -184,19 +184,18 @@ func (s *syncService) getDbSyncStateInMem(ctx *context.T, appName, dbName string
 	}
 
 	dsCopy := &dbSyncStateInMem{
-		gen:     ds.gen,
-		pos:     ds.pos,
-		ckPtGen: ds.ckPtGen,
+		gen:        ds.gen,
+		pos:        ds.pos,
+		checkptGen: ds.checkptGen,
 	}
 
-	// Make a copy of the genvec.
 	dsCopy.genvec = copyGenVec(ds.genvec)
 
 	return dsCopy, nil
 }
 
-// getDbGenInfo returns a copy of the current generation information of the Database.
-func (s *syncService) getDbGenInfo(ctx *context.T, appName, dbName string) (interfaces.GenVector, uint64, error) {
+// copyDbGenInfo returns a copy of the current generation information of the Database.
+func (s *syncService) copyDbGenInfo(ctx *context.T, appName, dbName string) (interfaces.GenVector, uint64, error) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
@@ -206,15 +205,14 @@ func (s *syncService) getDbGenInfo(ctx *context.T, appName, dbName string) (inte
 		return nil, 0, verror.New(verror.ErrInternal, ctx, "db state not found", name)
 	}
 
-	// Make a copy of the genvec.
 	genvec := copyGenVec(ds.genvec)
 
 	// Add local generation information to the genvec.
 	for _, gv := range genvec {
-		gv[s.id] = ds.ckPtGen
+		gv[s.id] = ds.checkptGen
 	}
 
-	return genvec, ds.ckPtGen, nil
+	return genvec, ds.checkptGen, nil
 }
 
 // putDbGenInfoRemote puts the current remote generation information of the Database.
@@ -228,7 +226,6 @@ func (s *syncService) putDbGenInfoRemote(ctx *context.T, appName, dbName string,
 		return verror.New(verror.ErrInternal, ctx, "db state not found", name)
 	}
 
-	// Make a copy of the genvec.
 	ds.genvec = copyGenVec(genvec)
 
 	return nil
@@ -268,7 +265,7 @@ func copyGenVec(in interfaces.GenVector) interfaces.GenVector {
 
 // dbSyncStateKey returns the key used to access the sync state of a Database.
 func dbSyncStateKey() string {
-	return util.JoinKeyParts(util.SyncPrefix, "dbss")
+	return util.JoinKeyParts(util.SyncPrefix, dbssPrefix)
 }
 
 // putDbSyncState persists the sync state object for a given Database.
@@ -291,12 +288,12 @@ func getDbSyncState(ctx *context.T, st store.StoreReader) (*dbSyncState, error) 
 
 // logRecsPerDeviceScanPrefix returns the prefix used to scan log records for a particular device.
 func logRecsPerDeviceScanPrefix(id uint64) string {
-	return util.JoinKeyParts(util.SyncPrefix, "log", fmt.Sprintf("%x", id))
+	return util.JoinKeyParts(util.SyncPrefix, logPrefix, fmt.Sprintf("%x", id))
 }
 
 // logRecKey returns the key used to access a specific log record.
 func logRecKey(id, gen uint64) string {
-	return util.JoinKeyParts(util.SyncPrefix, "log", fmt.Sprintf("%x", id), fmt.Sprintf("%016x", gen))
+	return util.JoinKeyParts(util.SyncPrefix, logPrefix, fmt.Sprintf("%d", id), fmt.Sprintf("%016x", gen))
 }
 
 // splitLogRecKey is the inverse of logRecKey and returns device id and generation number.
@@ -306,11 +303,14 @@ func splitLogRecKey(ctx *context.T, key string) (uint64, uint64, error) {
 	if len(parts) != 4 {
 		return 0, 0, verr
 	}
+	if parts[0] != util.SyncPrefix || parts[1] != logPrefix {
+		return 0, 0, verr
+	}
 	id, err := strconv.ParseUint(parts[2], 10, 64)
 	if err != nil {
 		return 0, 0, verr
 	}
-	gen, err := strconv.ParseUint(parts[3], 10, 64)
+	gen, err := strconv.ParseUint(parts[3], 16, 64)
 	if err != nil {
 		return 0, 0, verr
 	}

@@ -164,7 +164,7 @@ func (rSt *responderState) computeDeltaBound(ctx *context.T) {
 
 	var respVec interfaces.GenVector
 	var respGen uint64
-	respVec, respGen, rSt.errState = rSt.sync.getDbGenInfo(ctx, rSt.req.AppName, rSt.req.DbName)
+	respVec, respGen, rSt.errState = rSt.sync.copyDbGenInfo(ctx, rSt.req.AppName, rSt.req.DbName)
 	if rSt.errState != nil {
 		return
 	}
@@ -426,14 +426,9 @@ func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []str
 // makeWireLogRec creates a sync log record to send on the wire from a given
 // local sync record.
 func makeWireLogRec(ctx *context.T, st store.Store, rec *localLogRec) (*interfaces.LogRec, error) {
-	// Get the object value at the required version.  Note: GetAtVersion()
-	// requires a transaction to read the data, so create and abort one.
-	// TODO(hpucha): remove the fake Tx after the change in GetAtVersion().
-	tx := st.NewTransaction()
-	defer tx.Abort()
-
+	// Get the object value at the required version.
 	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
-	value, err := watchable.GetAtVersion(ctx, tx, []byte(key), nil, []byte(version))
+	value, err := watchable.GetAtVersion(ctx, st, []byte(key), nil, []byte(version))
 	if err != nil {
 		return nil, err
 	}

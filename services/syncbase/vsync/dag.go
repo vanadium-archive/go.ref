@@ -688,8 +688,8 @@ func pruneDone(ctx *context.T, tx store.StoreReadWriter, batches batchSet) error
 	return nil
 }
 
-// getLogrec returns the log record information for a given object version.
-func getLogrec(ctx *context.T, st store.StoreReader, oid, version string) (string, error) {
+// getLogRecKey returns the key of the log record for a given object version.
+func getLogRecKey(ctx *context.T, st store.StoreReader, oid, version string) (string, error) {
 	node, err := getNode(ctx, st, oid, version)
 	if err != nil {
 		return "", err
@@ -702,7 +702,7 @@ func getLogrec(ctx *context.T, st store.StoreReader, oid, version string) (strin
 
 // nodeKey returns the key used to access a DAG node (oid, version).
 func nodeKey(oid, version string) string {
-	return util.JoinKeyParts(util.SyncPrefix, "dag", "n", oid, version)
+	return util.JoinKeyParts(util.SyncPrefix, dagPrefix, "n", oid, version)
 }
 
 // setNode stores the DAG node entry.
@@ -752,7 +752,7 @@ func hasNode(ctx *context.T, st store.StoreReader, oid, version string) bool {
 
 // headKey returns the key used to access the DAG object head.
 func headKey(oid string) string {
-	return util.JoinKeyParts(util.SyncPrefix, "dag", "h", oid)
+	return util.JoinKeyParts(util.SyncPrefix, dagPrefix, "h", oid)
 }
 
 // setHead stores version as the DAG object head.
@@ -784,7 +784,7 @@ func delHead(ctx *context.T, tx store.StoreReadWriter, oid string) error {
 
 // batchKey returns the key used to access the DAG batch info.
 func batchKey(btid uint64) string {
-	return util.JoinKeyParts(util.SyncPrefix, "dag", "b", fmt.Sprintf("%d", btid))
+	return util.JoinKeyParts(util.SyncPrefix, dagPrefix, "b", fmt.Sprintf("%d", btid))
 }
 
 // setBatch stores the DAG batch entry.

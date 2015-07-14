@@ -48,8 +48,10 @@ type LogRecMetadata struct {
 	Id      uint64 // device id that created the log record.
 	Gen     uint64 // generation number for the log record.
 	RecType byte   // type of log record.
-	// Object related information.
-	ObjId      string    // id of the object that was updated. This id is relative to Application and Database names.
+	// Id of the object that was updated. This id is relative to Application
+	// and Database names and is the store key for a particular row in a
+	// table.
+	ObjId      string
 	CurVers    string    // current version number of the object.
 	Parents    []string  // 0, 1 or 2 parent versions that the current version is derived from.
 	UpdTime    time.Time // timestamp when the update is generated.

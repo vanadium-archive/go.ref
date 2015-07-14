@@ -350,7 +350,7 @@ func TestSendDeltas(t *testing.T) {
 		s.id = 10 //responder.
 
 		wantDiff, wantVec := test.genDiff, test.outVec
-		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{gen: test.respGen, ckPtGen: test.respGen, genvec: test.respVec}
+		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{gen: test.respGen, checkptGen: test.respGen, genvec: test.respVec}
 
 		req := interfaces.DeltaReq{AppName: appName, DbName: dbName, InitVec: test.initVec}
 		rSt := newResponderState(nil, nil, s, req)

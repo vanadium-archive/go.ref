@@ -20,7 +20,6 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/v23/context"
 	"v.io/v23/verror"
 )
 
@@ -50,34 +49,6 @@ func makeAtVersionKey(key, version []byte) []byte {
 	return []byte(join(string(key), string(version)))
 }
 
-// GetVersion returns the current version of a managed key. This method is used
-// by the Sync module when the initiator is attempting to add new versions of
-// objects. Reading the version key is used for optimistic concurrency control.
-func GetVersion(ctx *context.T, st store.StoreReader, key []byte) ([]byte, error) {
-	wtx := st.(*transaction)
-
-	wtx.mu.Lock()
-	defer wtx.mu.Unlock()
-	if wtx.err != nil {
-		return nil, convertError(wtx.err)
-	}
-	return getVersion(wtx.itx, key)
-}
-
-// GetAtVersion returns the value of a managed key at the requested
-// version. This method is used by the Sync module when the responder needs to
-// send objects over the wire.
-func GetAtVersion(ctx *context.T, st store.StoreReader, key, valbuf, version []byte) ([]byte, error) {
-	wtx := st.(*transaction)
-
-	wtx.mu.Lock()
-	defer wtx.mu.Unlock()
-	if wtx.err != nil {
-		return valbuf, convertError(wtx.err)
-	}
-	return getAtVersion(wtx.itx, key, valbuf, version)
-}
-
 func getVersion(st store.StoreReader, key []byte) ([]byte, error) {
 	return st.Get(makeVersionKey(key), nil)
 }
@@ -93,41 +64,6 @@ func getVersioned(st store.StoreReader, key, valbuf []byte) ([]byte, error) {
 		return valbuf, err
 	}
 	return getAtVersion(st, key, valbuf, version)
-}
-
-// PutAtVersion puts a value for the managed key at the requested version. This
-// method is used by the Sync module exclusively when the initiator adds objects
-// with versions created on other Syncbases.
-func PutAtVersion(ctx *context.T, tx store.Transaction, key, valbuf, version []byte) error {
-	wtx := tx.(*transaction)
-
-	wtx.mu.Lock()
-	defer wtx.mu.Unlock()
-	if wtx.err != nil {
-		return convertError(wtx.err)
-	}
-
-	return wtx.itx.Put(makeAtVersionKey(key, version), valbuf)
-}
-
-// PutVersion updates the version of a managed key to the requested
-// version. This method is used by the Sync module exclusively when the
-// initiator selects which of the already stored versions (via PutAtVersion
-// calls) becomes the current version.
-func PutVersion(ctx *context.T, tx store.Transaction, key, version []byte) error {
-	wtx := tx.(*transaction)
-
-	wtx.mu.Lock()
-	defer wtx.mu.Unlock()
-	if wtx.err != nil {
-		return convertError(wtx.err)
-	}
-
-	if err := wtx.itx.Put(makeVersionKey(key), version); err != nil {
-		return err
-	}
-	wtx.ops = append(wtx.ops, &OpPut{PutOp{Key: key, Version: version}})
-	return nil
 }
 
 func putVersioned(tx store.Transaction, key, value []byte) ([]byte, error) {

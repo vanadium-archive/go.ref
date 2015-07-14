@@ -21,7 +21,7 @@ type Sync interface {
 	// records, the responder's genvector, and a "Finish" DeltaResp
 	// record. The initiator parses the stream between a Start and a Finish
 	// record as the response to its DeltaReq, and then moves on to the
-	// next Database, in common with this responder.
+	// next Database in common with this responder.
 	GetDeltas() stream<DeltaReq, DeltaResp> error {access.Read}
 
 	// SyncGroup-related methods.

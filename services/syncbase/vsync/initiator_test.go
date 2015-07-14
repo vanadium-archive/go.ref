@@ -2,6 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The initiator tests below are driven by replaying the state from the log
+// files (in testdata directory). These log files may mimic watching the
+// Database locally (addl commands in the log file) or obtaining log records and
+// generation vector from a remote peer (addr, genvec commands). The log files
+// contain the metadata of log records. The log files are only used to set up
+// the state. The tests verify that given a particular local state and a stream
+// of remote deltas, the initiator behaves as expected.
+
 package vsync
 
 import (
@@ -199,8 +207,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 // Helpers.
 
 func testInit(t *testing.T, lfile, rfile string) (*mockService, *initiationState, func(*testing.T, *mockService)) {
-	// Set a large value to prevent the threads from firing.
-	// Test is not thread safe.
+	// Set a large value to prevent the initiator from running.
 	peerSyncInterval = 1 * time.Hour
 	conflictResolutionPolicy = useTime
 	svc := createService(t)

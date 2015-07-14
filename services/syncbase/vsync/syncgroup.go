@@ -15,7 +15,6 @@ package vsync
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
@@ -285,17 +284,17 @@ func (s *syncService) getMembers(ctx *context.T) map[string]uint32 {
 
 // sgDataKeyScanPrefix returns the prefix used to scan SyncGroup data entries.
 func sgDataKeyScanPrefix() string {
-	return util.JoinKeyParts(util.SyncPrefix, "sg", "d")
+	return util.JoinKeyParts(util.SyncPrefix, sgPrefix, "d")
 }
 
 // sgDataKey returns the key used to access the SyncGroup data entry.
 func sgDataKey(gid interfaces.GroupId) string {
-	return util.JoinKeyParts(util.SyncPrefix, "sg", "d", fmt.Sprintf("%d", gid))
+	return util.JoinKeyParts(util.SyncPrefix, sgPrefix, "d", fmt.Sprintf("%d", gid))
 }
 
 // sgNameKey returns the key used to access the SyncGroup name entry.
 func sgNameKey(name string) string {
-	return util.JoinKeyParts(util.SyncPrefix, "sg", "n", name)
+	return util.JoinKeyParts(util.SyncPrefix, sgPrefix, "n", name)
 }
 
 // hasSGDataEntry returns true if the SyncGroup data entry exists.
@@ -552,15 +551,6 @@ func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sg
 	return err
 }
 
-// TODO(hpucha): Should this be generalized?
-func splitPrefix(name string) (string, string) {
-	parts := strings.SplitN(name, "/", 2)
-	if len(parts) == 2 {
-		return parts[0], parts[1]
-	}
-	return parts[0], ""
-}
-
 // bootstrapSyncGroup inserts into the transaction log a SyncGroup operation and
 // a set of Snapshot operations to notify the sync watcher about the SyncGroup
 // prefixes to start accepting and the initial state of existing store keys that
@@ -630,7 +620,7 @@ func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall
 	for _, mt := range spec.MountTables {
 		name := naming.Join(mt, ss.name)
 		// TODO(hpucha): Is this add idempotent? Appears to be from code.
-		// Will it handle absolute names. Appears to be.
+		// Confirm that it is ok to use absolute names here.
 		if err := ss.server.AddName(name); err != nil {
 			return err
 		}

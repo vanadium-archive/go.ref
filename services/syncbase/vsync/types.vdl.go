@@ -27,9 +27,9 @@ func (syncData) __VDLReflect(struct {
 
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
-	Gen     uint64               // local generation number incremented on every local update.
-	CkPtGen uint64               // local generation number advertised to remote peers (used by the responder).
-	GenVec  interfaces.GenVector // generation vector capturing the locally-known generations of remote peers.
+	Gen        uint64               // local generation number incremented on every local update.
+	CheckptGen uint64               // local generation number advertised to remote peers (used by the responder).
+	GenVec     interfaces.GenVector // generation vector capturing the locally-known generations of remote peers.
 }
 
 func (dbSyncState) __VDLReflect(struct {
@@ -54,3 +54,11 @@ func init() {
 	vdl.Register((*dbSyncState)(nil))
 	vdl.Register((*localLogRec)(nil))
 }
+
+const logPrefix = "log"
+
+const dbssPrefix = "dbss"
+
+const dagPrefix = "dag"
+
+const sgPrefix = "sg"
