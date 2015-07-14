@@ -320,12 +320,13 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		if state.glob.Len() == 0 {
 			depth++
 		}
+		matcher, left := state.glob.Head(), state.glob.Tail()
 		for child := range children {
 			if len(child) == 0 || strings.Contains(child, "/") {
 				ctx.Errorf("rpc Glob: %q.GlobChildren__() sent an invalid child name: %q", suffix, child)
 				continue
 			}
-			if ok, _, left := state.glob.MatchInitialSegment(child); ok {
+			if matcher.Match(child) {
 				next := naming.Join(state.name, child)
 				queue = append(queue, gState{next, left, depth})
 			}
