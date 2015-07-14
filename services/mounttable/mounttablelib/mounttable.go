@@ -60,7 +60,6 @@ type persistence interface {
 // mountTable represents a namespace.  One exists per server instance.
 type mountTable struct {
 	sync.Mutex
-	ctx                *context.T
 	root               *node
 	superUsers         access.AccessList
 	persisting         bool
@@ -115,7 +114,6 @@ const templateVar = "%%"
 // statsPrefix is the prefix for for exported statistics objects.
 func NewMountTableDispatcher(ctx *context.T, permsFile, persistDir, statsPrefix string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
-		ctx:                ctx,
 		root:               new(node),
 		nodeCounter:        stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
 		serverCounter:      stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
@@ -178,7 +176,7 @@ func (mt *mountTable) deleteNode(parent *node, child string) {
 
 // Lookup implements rpc.Dispatcher.Lookup.
 func (mt *mountTable) Lookup(ctx *context.T, name string) (interface{}, security.Authorizer, error) {
-	mt.ctx.VI(2).Infof("*********************Lookup %s", name)
+	ctx.VI(2).Infof("*********************Lookup %s", name)
 	ms := &mountContext{
 		name: name,
 		mt:   mt,

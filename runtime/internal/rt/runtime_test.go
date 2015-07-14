@@ -12,7 +12,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 
-	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal/rt"
 	"v.io/x/ref/services/debug/debuglib"
@@ -143,7 +142,7 @@ func TestReservedNameDispatcher(t *testing.T) {
 	defer shutdown()
 
 	oldDebugDisp := r.GetReservedNameDispatcher(ctx)
-	newDebugDisp := debuglib.NewDispatcher(logger.Manager(ctx).LogDir, nil)
+	newDebugDisp := debuglib.NewDispatcher(nil)
 
 	nctx := r.WithReservedNameDispatcher(ctx, newDebugDisp)
 	debugDisp := r.GetReservedNameDispatcher(nctx)

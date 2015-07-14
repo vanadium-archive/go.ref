@@ -71,12 +71,12 @@ func (d *dispatcher) Cleanup() {
 }
 
 // Lookup implements dispatcher interface Lookup.
-func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	// If the server has been closed, we immediately return a retryable error.
 	d.mu.Lock()
 	if d.closed {
 		d.mu.Unlock()
-		return nil, nil, NewErrServerStopped(nil)
+		return nil, nil, NewErrServerStopped(ctx)
 	}
 	flow := d.flowFactory.createFlow()
 	ch := make(chan LookupReply, 1)
@@ -88,7 +88,7 @@ func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.
 		Suffix:   suffix,
 	}
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
-		verr := verror.Convert(verror.ErrInternal, nil, err).(verror.E)
+		verr := verror.Convert(verror.ErrInternal, ctx, err).(verror.E)
 		ch <- LookupReply{Err: &verr}
 	}
 	reply := <-ch
@@ -103,7 +103,7 @@ func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.
 		return nil, nil, reply.Err
 	}
 	if reply.Handle < 0 {
-		return nil, nil, verror.New(verror.ErrNoExist, nil, "Dispatcher", suffix)
+		return nil, nil, verror.New(verror.ErrNoExist, ctx, "Dispatcher", suffix)
 	}
 
 	invoker, err := d.invokerFactory.createInvoker(reply.Handle, reply.Signature, reply.HasGlobber)

@@ -33,7 +33,6 @@ func TestProxyInvoker(t *testing.T) {
 
 	// server2 proxies requests to <suffix> to server1/__debug/stats/<suffix>
 	disp := &proxyDispatcher{
-		ctx:    ctx,
 		remote: naming.JoinAddressName(server1.Status().Endpoints[0].String(), "__debug/stats"),
 		desc:   stats.StatsServer(nil).Describe__(),
 	}
@@ -69,12 +68,11 @@ type dummy struct{}
 func (*dummy) Method(*context.T, rpc.ServerCall) error { return nil }
 
 type proxyDispatcher struct {
-	ctx    *context.T
 	remote string
 	desc   []rpc.InterfaceDesc
 }
 
-func (d *proxyDispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
-	d.ctx.Infof("LOOKUP(%s): remote .... %s", suffix, d.remote)
+func (d *proxyDispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
+	ctx.Infof("LOOKUP(%s): remote .... %s", suffix, d.remote)
 	return newProxyInvoker(naming.Join(d.remote, suffix), access.Debug, d.desc), nil, nil
 }

@@ -16,7 +16,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 
-	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
@@ -39,7 +38,7 @@ func TestDebugServer(t *testing.T) {
 	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.
 	pclient.BlessingStore().Set(bclient, "server") // Client presents bclient to server
 
-	debugDisp := debuglib.NewDispatcher(logger.Manager(ctx).LogDir, nil)
+	debugDisp := debuglib.NewDispatcher(nil)
 
 	sm := manager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()

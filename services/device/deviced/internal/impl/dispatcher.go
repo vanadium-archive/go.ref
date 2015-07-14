@@ -60,9 +60,6 @@ type dispatcher struct {
 	permsStore *pathperms.PathStore
 	// Namespace
 	mtAddress string // The address of the local mounttable.
-	// TODO(cnicolaou): remove this when Lookup takes a context.T parameter directly,
-	// see v.io/i/572.
-	ctx *context.T
 }
 
 var _ rpc.Dispatcher = (*dispatcher)(nil)
@@ -131,7 +128,6 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		uat:        uat,
 		permsStore: permStore,
 		mtAddress:  mtAddress,
-		ctx:        ctx,
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -166,25 +162,24 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 // Logging invoker that logs any error messages before returning.
 func newLoggingInvoker(ctx *context.T, obj interface{}) (rpc.Invoker, error) {
 	if invoker, ok := obj.(rpc.Invoker); ok {
-		return &loggingInvoker{invoker: invoker, ctx: ctx}, nil
+		return &loggingInvoker{invoker: invoker}, nil
 	}
 	invoker, err := rpc.ReflectInvoker(obj)
 	if err != nil {
 		ctx.Errorf("rpc.ReflectInvoker returned error: %v", err)
 		return nil, err
 	}
-	return &loggingInvoker{invoker: invoker, ctx: ctx}, nil
+	return &loggingInvoker{invoker: invoker}, nil
 }
 
 type loggingInvoker struct {
 	invoker rpc.Invoker
-	ctx     *context.T
 }
 
 func (l *loggingInvoker) Prepare(ctx *context.T, method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, err error) {
 	argptrs, tags, err = l.invoker.Prepare(ctx, method, numArgs)
 	if err != nil {
-		l.ctx.Errorf("Prepare(%s %d) returned error: %v", method, numArgs, err)
+		ctx.Errorf("Prepare(%s %d) returned error: %v", method, numArgs, err)
 	}
 	return
 }
@@ -218,12 +213,12 @@ func (l *loggingInvoker) Globber() *rpc.GlobState {
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
-func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	invoker, auth, err := d.internalLookup(suffix)
 	if err != nil {
 		return nil, nil, err
 	}
-	loggingInvoker, err := newLoggingInvoker(d.ctx, invoker)
+	loggingInvoker, err := newLoggingInvoker(ctx, invoker)
 	if err != nil {
 		return nil, nil, err
 	}
