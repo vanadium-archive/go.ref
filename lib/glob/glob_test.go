@@ -20,7 +20,7 @@ func same(a, b []string) bool {
 	return true
 }
 
-func TestStripFixedPrefix(t *testing.T) {
+func TestStripFixedElements(t *testing.T) {
 	tests := []struct {
 		pattern string
 		fixed   []string
@@ -37,8 +37,107 @@ func TestStripFixedPrefix(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parsing %q: %q", test.pattern, err.Error())
 		}
-		if f, ng := g.SplitFixedPrefix(); !same(f, test.fixed) || test.rest != ng.String() {
-			t.Fatalf("SplitFixedPrefix(%q) got %q,%q, expected %q,%q", test.pattern, f, ng.String(), test.fixed, test.rest)
+		if f, ng := g.SplitFixedElements(); !same(f, test.fixed) || test.rest != ng.String() {
+			t.Fatalf("SplitFixedElements(%q) got %q,%q, expected %q,%q", test.pattern, f, ng.String(), test.fixed, test.rest)
+		}
+	}
+}
+
+func TestMatch(t *testing.T) {
+	tests := []struct {
+		pattern string
+		name    string
+		matched bool
+	}{
+		{"...", "", true},
+		{"***", "", true},
+		{"...", "a", true},
+		{"***", "a", true},
+		{"a", "", false},
+		{"a", "a", true},
+		{"a", "b", false},
+		{"a*", "a", true},
+		{"a*", "b", false},
+		{"a*b", "ab", true},
+		{"a*b", "afoob", true},
+		{"a\\*", "a", false},
+		{"a\\*", "a*", true},
+		{"\\\\", "\\", true},
+		{"?", "?", true},
+		{"?", "a", true},
+		{"?", "", false},
+		{"*?", "", false},
+		{"*?", "a", true},
+		{"*?", "ab", true},
+		{"*?", "abv", true},
+		{"[abc]", "a", true},
+		{"[abc]", "b", true},
+		{"[abc]", "c", true},
+		{"[abc]", "d", false},
+		{"[a-c]", "a", true},
+		{"[a-c]", "b", true},
+		{"[a-c]", "c", true},
+		{"[a-c]", "d", false},
+		{"\\[abc]", "a", false},
+		{"\\[abc]", "[abc]", true},
+		{"a/*", "a", true},
+		{"a/*", "b", false},
+		{"a/...", "a", true},
+		{"a/...", "b", false},
+	}
+	for i, test := range tests {
+		g, err := Parse(test.pattern)
+		if err != nil {
+			t.Errorf("unexpected parsing error for %q (#%d): %v", test.pattern, i, err)
+			continue
+		}
+		if matched := g.Head().Match(test.name); matched != test.matched {
+			t.Errorf("unexpected result for %q.Match(%q) (#%d). Got %v, expected %v", test.pattern, test.name, i, matched, test.matched)
+		}
+	}
+}
+
+func TestFixedPrefix(t *testing.T) {
+	tests := []struct {
+		pattern string
+		prefix  string
+		full    bool
+	}{
+		{"", "", true},
+		{"...", "", false},
+		{"***", "", false},
+		{"...", "", false},
+		{"***", "", false},
+		{"a", "a", true},
+		{"*a", "", false},
+		{"a*", "a", false},
+		{"a*b", "a", false},
+		{"a\\*", "a*", true},
+		{"\\\\", "\\", true},
+		{"?", "", false},
+		{"\\?", "?", true},
+		{"*?", "", false},
+		{"[abc]", "", false},
+		{"\\[abc]", "[abc]", true},
+		{"\\[abc]*", "[abc]", false},
+	}
+	for i, test := range tests {
+		g, err := Parse(test.pattern)
+		if err != nil {
+			t.Errorf("unexpected parsing error for %q (#%d): %v", test.pattern, i, err)
+			continue
+		}
+		if prefix, full := g.Head().FixedPrefix(); prefix != test.prefix || full != test.full {
+			t.Errorf("unexpected result for %q.FixedPrefix() (#%d). Got (%q,%v), expected (%q,%v)", test.pattern, i, prefix, full, test.prefix, test.full)
+		}
+	}
+}
+
+func TestBadPattern(t *testing.T) {
+	tests := []string{"[", "[foo", "[^foo", "\\", "a\\", "abc[foo", "a//b"}
+	for _, test := range tests {
+		if _, err := Parse(test); err == nil {
+			t.Errorf("Unexpected success for %q", test)
 		}
 	}
 }
@@ -104,15 +203,6 @@ func TestExactMatch(t *testing.T) {
 		if matched != test.matched || exact != test.exact {
 			t.Fatalf("'%v'.PartialMatch(0, '%v') got (%v, %v), expected (%v, %v)",
 				test.pattern, test.elems, matched, exact, test.matched, test.exact)
-		}
-	}
-}
-
-func TestBadPattern(t *testing.T) {
-	tests := []string{"[", "[foo", "[^foo", "\\", "a\\", "abc[foo", "a//b"}
-	for _, test := range tests {
-		if _, err := Parse(test); err == nil {
-			t.Errorf("Unexpected success for %q", test)
 		}
 	}
 }

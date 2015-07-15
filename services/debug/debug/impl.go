@@ -401,7 +401,7 @@ func doWatch(ctx *context.T, pattern string, results chan<- string, errors chan<
 		return
 	}
 	var prefixElems []string
-	prefixElems, g = g.SplitFixedPrefix()
+	prefixElems, g = g.SplitFixedElements()
 	name := naming.Join(prefixElems...)
 	if len(root) != 0 {
 		name = naming.JoinAddressName(root, name)

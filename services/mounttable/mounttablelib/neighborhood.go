@@ -282,11 +282,11 @@ func (ns *neighborhoodService) Glob__(ctx *context.T, _ rpc.ServerCall, pattern 
 		ch := make(chan naming.GlobReply)
 		go func() {
 			defer close(ch)
+			matcher := g.Head()
 			for k, n := range nh.neighbors() {
-				if ok, _, _ := g.MatchInitialSegment(k); !ok {
-					continue
+				if matcher.Match(k) {
+					ch <- naming.GlobReplyEntry{naming.MountEntry{Name: k, Servers: n, ServesMountTable: true}}
 				}
-				ch <- naming.GlobReplyEntry{naming.MountEntry{Name: k, Servers: n, ServesMountTable: true}}
 			}
 		}()
 		return ch, nil

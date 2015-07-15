@@ -305,11 +305,12 @@ func (o *globObject) globLoop(ch chan<- naming.GlobReply, name string, g *glob.G
 	if g.Len() == 0 {
 		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: name}}
 	}
-	if g.Finished() {
+	if g.Empty() {
 		return
 	}
+	matcher, left := g.Head(), g.Tail()
 	for leaf, child := range n.children {
-		if ok, _, left := g.MatchInitialSegment(leaf); ok {
+		if matcher.Match(leaf) {
 			o.globLoop(ch, naming.Join(name, leaf), left, child)
 		}
 	}

@@ -678,7 +678,7 @@ func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name
 		return
 	}
 
-	if !pattern.Finished() {
+	if !pattern.Empty() {
 		// We can only list children to whom we have some access AND either
 		// - we have Read or Admin access to the directory or
 		// - we have Resolve or Create access to the directory and the
@@ -687,7 +687,7 @@ func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name
 			if err := n.satisfies(mt, ctx, call, traverseTags); err != nil {
 				goto out
 			}
-			fixed, _ := pattern.SplitFixedPrefix()
+			fixed, _ := pattern.SplitFixedElements()
 			if len(fixed) == 0 {
 				goto out
 			}
@@ -702,9 +702,10 @@ func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name
 		n.parent.Unlock()
 
 		// Recurse through the children.
+		matcher, suffix := pattern.Head(), pattern.Tail()
 		for k, c := range children {
 			// At this point, n lock is held.
-			if ok, _, suffix := pattern.MatchInitialSegment(k); ok {
+			if matcher.Match(k) {
 				c.Lock()
 				// If child allows any access show it.  Otherwise, skip.
 				if err := c.satisfies(mt, ctx, call, allTags); err != nil {

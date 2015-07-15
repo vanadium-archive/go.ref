@@ -196,7 +196,10 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 		}
 
 		// Get the pattern elements below the current path.
-		suffix := pattern.Split(depth(t.me.Name))
+		suffix := pattern
+		for i := depth(t.me.Name) - 1; i >= 0; i-- {
+			suffix = suffix.Tail()
+		}
 
 		// If we've satisfied the request and this isn't the root,
 		// reply to the caller.
@@ -210,7 +213,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 		// remote server) and the server is not another MT, then we needn't send the
 		// query on since we know the server will not supply a new address for the
 		// current name.
-		if suffix.Finished() {
+		if suffix.Empty() {
 			if !t.me.ServesMountTable {
 				continue
 			}
