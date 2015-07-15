@@ -31,7 +31,7 @@ func TestSetNode(t *testing.T) {
 		t.Errorf("found non-existent object %s:%s: %v", oid, version, node)
 	}
 
-	if hasNode(nil, st, oid, version) {
+	if ok, err := hasNode(nil, st, oid, version); err != nil || ok {
 		t.Errorf("hasNode() found non-existent object %s:%s", oid, version)
 	}
 
@@ -52,7 +52,7 @@ func TestSetNode(t *testing.T) {
 		t.Errorf("cannot find stored object %s:%s: %v", oid, version, err)
 	}
 
-	if !hasNode(nil, st, oid, version) {
+	if ok, err := hasNode(nil, st, oid, version); err != nil || !ok {
 		t.Errorf("hasNode() did not find object %s:%s", oid, version)
 	}
 
@@ -92,7 +92,7 @@ func TestDelNode(t *testing.T) {
 		t.Errorf("found deleted object %s:%s (%v)", oid, version, node2)
 	}
 
-	if hasNode(nil, st, oid, version) {
+	if ok, err := hasNode(nil, st, oid, version); err != nil || ok {
 		t.Errorf("hasNode() found deleted object %s:%s", oid, version)
 	}
 

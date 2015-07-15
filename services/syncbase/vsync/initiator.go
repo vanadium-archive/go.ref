@@ -60,17 +60,21 @@ var (
 //
 // TODO(hpucha): Currently only does initiation. Add rest.
 func (s *syncService) syncer(ctx *context.T) {
+	defer s.pending.Done()
+
 	// TODO(hpucha): Do we need context per initiator round?
 	ctx, cancel := context.WithRootCancel(ctx)
 	defer cancel()
 
 	ticker := time.NewTicker(peerSyncInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-s.closed:
-			ticker.Stop()
-			s.pending.Done()
+			vlog.VI(1).Info("sync: syncer: channel closed, stop work and exit")
 			return
+
 		case <-ticker.C:
 		}
 
@@ -103,9 +107,12 @@ func (s *syncService) syncer(ctx *context.T) {
 //
 // TODO(hpucha): Check the idempotence, esp in addNode in DAG.
 func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
+	vlog.VI(2).Infof("sync: getDeltasFromPeer: begin: contacting peer %s", peer)
+	defer vlog.VI(2).Infof("sync: getDeltasFromPeer: end: contacting peer %s", peer)
+
 	info := s.allMembers.members[peer]
 	if info == nil {
-		vlog.Fatalf("getDeltasFromPeer:: missing information in member view for %q", peer)
+		vlog.Fatalf("sync: getDeltasFromPeer: missing information in member view for %q", peer)
 	}
 	connected := false
 	var stream interfaces.SyncGetDeltasClientCall
@@ -117,12 +124,12 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
 		// Initialize initiation state for syncing this Database.
 		iSt, err := newInitiationState(ctx, s, peer, gdbName, sgInfo)
 		if err != nil {
-			vlog.Errorf("getDeltasFromPeer:: couldn't initialize initiator state for peer %s, gdb %s, err %v", peer, gdbName, err)
+			vlog.Errorf("sync: getDeltasFromPeer: couldn't initialize initiator state for peer %s, gdb %s, err %v", peer, gdbName, err)
 			continue
 		}
 
 		if len(iSt.sgIds) == 0 || len(iSt.sgPfxs) == 0 {
-			vlog.Errorf("getDeltasFromPeer:: didn't find any SyncGroups for peer %s, gdb %s, err %v", peer, gdbName, err)
+			vlog.Errorf("sync: getDeltasFromPeer: didn't find any SyncGroups for peer %s, gdb %s, err %v", peer, gdbName, err)
 			continue
 		}
 
@@ -138,7 +145,7 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
 
 		// Create local genvec so that it contains knowledge only about common prefixes.
 		if err := iSt.createLocalGenVec(ctx); err != nil {
-			vlog.Errorf("getDeltasFromPeer:: error creating local genvec for gdb %s, err %v", gdbName, err)
+			vlog.Errorf("sync: getDeltasFromPeer: error creating local genvec for gdb %s, err %v", gdbName, err)
 			continue
 		}
 
@@ -150,20 +157,22 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
 			InitVec: iSt.local,
 		}
 
+		vlog.VI(3).Infof("sync: getDeltasFromPeer: send request: %v", req)
 		sender := iSt.stream.SendStream()
 		sender.Send(req)
 
 		// Obtain deltas from the peer over the network.
 		if err := iSt.recvAndProcessDeltas(ctx); err != nil {
-			vlog.Errorf("getDeltasFromPeer:: error receiving deltas for gdb %s, err %v", gdbName, err)
+			vlog.Errorf("sync: getDeltasFromPeer: error receiving deltas for gdb %s, err %v", gdbName, err)
 			// Returning here since something could be wrong with
 			// the connection, and no point in attempting the next
 			// Database.
 			return
 		}
+		vlog.VI(3).Infof("sync: getDeltasFromPeer: got reply: %v", iSt.remote)
 
 		if err := iSt.processUpdatedObjects(ctx); err != nil {
-			vlog.Errorf("getDeltasFromPeer:: error processing objects for gdb %s, err %v", gdbName, err)
+			vlog.Errorf("sync: getDeltasFromPeer: error processing objects for gdb %s, err %v", gdbName, err)
 			// Move to the next Database even if processing updates
 			// failed.
 			continue
@@ -285,7 +294,7 @@ func (iSt *initiationState) peerMtTblsAndSgInfo(ctx *context.T, peer string, inf
 // obtained from the SyncGroups being synced in the current Database.
 func (iSt *initiationState) connectToPeer(ctx *context.T) (interfaces.SyncGetDeltasClientCall, bool) {
 	if len(iSt.mtTables) < 1 {
-		vlog.Errorf("getDeltasFromPeer:: no mount tables found to connect to peer %s, app %s db %s", iSt.peer, iSt.appName, iSt.dbName)
+		vlog.Errorf("sync: connectToPeer: no mount tables found to connect to peer %s, app %s db %s", iSt.peer, iSt.appName, iSt.dbName)
 		return nil, false
 	}
 	for mt := range iSt.mtTables {
@@ -293,6 +302,7 @@ func (iSt *initiationState) connectToPeer(ctx *context.T) (interfaces.SyncGetDel
 		c := interfaces.SyncClient(absName)
 		stream, err := c.GetDeltas(ctx)
 		if err == nil {
+			vlog.VI(3).Infof("sync: connectToPeer: established on %s", absName)
 			return stream, true
 		}
 	}
@@ -469,7 +479,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 	if verror.ErrorID(err) == store.ErrConcurrentTransaction.ID {
 		// Note: This might be triggered with memstore until it handles
 		// transactions in a more fine-grained fashion.
-		vlog.Fatalf("recvAndProcessDeltas:: encountered concurrent transaction")
+		vlog.Fatalf("sync: recvAndProcessDeltas: encountered concurrent transaction")
 	}
 	if err == nil {
 		committed = true
@@ -559,11 +569,15 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 	}()
 
 	for {
+		vlog.VI(3).Infof("sync: processUpdatedObjects: begin: %d objects updated", len(iSt.updObjects))
+
 		iSt.tx = iSt.st.NewTransaction()
 		watchable.SetTransactionFromSync(iSt.tx) // for echo-suppression
 
-		if err := iSt.detectConflicts(ctx); err != nil {
+		if count, err := iSt.detectConflicts(ctx); err != nil {
 			return err
+		} else {
+			vlog.VI(3).Infof("sync: processUpdatedObjects: %d conflicts detected", count)
 		}
 
 		if err := iSt.resolveConflicts(ctx); err != nil {
@@ -579,8 +593,9 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 			committed = true
 			// Update in-memory genvector since commit is successful.
 			if err := iSt.sync.putDbGenInfoRemote(ctx, iSt.appName, iSt.dbName, iSt.updLocal); err != nil {
-				vlog.Fatalf("processUpdatedObjects:: putting geninfo in memory failed for app %s db %s, err %v", iSt.appName, iSt.dbName, err)
+				vlog.Fatalf("sync: processUpdatedObjects: putting geninfo in memory failed for app %s db %s, err %v", iSt.appName, iSt.dbName, err)
 			}
+			vlog.VI(3).Info("sync: processUpdatedObjects: end: changes committed")
 			return nil
 		}
 
@@ -592,26 +607,30 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 		// solution. Next iteration will have coordination with watch
 		// thread to intelligently retry. Hence this value is not a
 		// config param.
+		vlog.VI(3).Info("sync: processUpdatedObjects: retry due to local mutations")
 		iSt.tx.Abort()
 		time.Sleep(1 * time.Second)
 	}
 }
 
 // detectConflicts iterates through all the updated objects to detect conflicts.
-func (iSt *initiationState) detectConflicts(ctx *context.T) error {
+func (iSt *initiationState) detectConflicts(ctx *context.T) (int, error) {
+	count := 0
 	for objid, confSt := range iSt.updObjects {
 		// Check if object has a conflict.
 		var err error
 		confSt.isConflict, confSt.newHead, confSt.oldHead, confSt.ancestor, err = hasConflict(ctx, iSt.tx, objid, iSt.dagGraft)
 		if err != nil {
-			return err
+			return 0, err
 		}
 
 		if !confSt.isConflict {
 			confSt.res = &conflictResolution{ty: pickRemote}
+		} else {
+			count++
 		}
 	}
-	return nil
+	return count, nil
 }
 
 // updateDbAndSync updates the Database, and if that is successful, updates log,

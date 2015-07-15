@@ -20,6 +20,9 @@ import (
 
 // GetDeltas implements the responder side of the GetDeltas RPC.
 func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall) error {
+	vlog.VI(2).Infof("sync: GetDeltas: begin")
+	defer vlog.VI(2).Infof("sync: GetDeltas: end")
+
 	recvr := call.RecvStream()
 	for recvr.Advance() {
 		req := recvr.Value()
@@ -88,6 +91,13 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 // responder learned them so that the initiator can reconstruct the DAG for the
 // objects by learning older nodes first.
 func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
+	// TODO(rdaoud): for such vlog.VI() calls where the function name is
+	// embedded, consider using a helper function to auto-fill it instead
+	// (see http://goo.gl/mEa4L0) but only incur that overhead when the
+	// logging level specified is enabled.
+	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: %s, %s: sgids %v, genvec %v",
+		rSt.req.AppName, rSt.req.DbName, rSt.req.SgIds, rSt.req.InitVec)
+
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
 	// caller only for the SyncGroups that allow access.
 	rSt.authorizeAndFilterSyncGroups(ctx)
@@ -234,6 +244,8 @@ func (rSt *responderState) computeDeltaBound(ctx *context.T) {
 		rSt.outVec[pfx] = respgv
 	}
 
+	vlog.VI(3).Infof("sync: computeDeltaBound: %s, %s: diff %v, outvec %v",
+		rSt.req.AppName, rSt.req.DbName, rSt.diff, rSt.outVec)
 	return
 }
 
@@ -395,7 +407,7 @@ func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []str
 	// it with the SyncGroup prefixes which are defined by the application.
 	parts := util.SplitKeyParts(rec.Metadata.ObjId)
 	if len(parts) < 2 {
-		vlog.Fatalf("filterLogRec: invalid entry key %s", rec.Metadata.ObjId)
+		vlog.Fatalf("sync: filterLogRec: invalid entry key %s", rec.Metadata.ObjId)
 	}
 	key := util.JoinKeyParts(parts[1:]...)
 

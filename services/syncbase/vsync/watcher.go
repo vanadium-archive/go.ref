@@ -67,7 +67,7 @@ func (s *syncService) watchStore(ctx *context.T) {
 	for {
 		select {
 		case <-s.closed:
-			vlog.VI(1).Info("watchStore: sync channel closed, stop watching and exit")
+			vlog.VI(1).Info("sync: watchStore: channel closed, stop watching and exit")
 			return
 
 		case <-ticker.C:
@@ -84,10 +84,13 @@ func (s *syncService) watchStore(ctx *context.T) {
 // from starving others.  A batch is stored as a contiguous set of log records
 // ending with one record having the "continued" flag set to false.
 func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st store.Store) {
+	vlog.VI(2).Infof("sync: processDatabase: begin: %s, %s", appName, dbName)
+	defer vlog.VI(2).Infof("sync: processDatabase: end: %s, %s", appName, dbName)
+
 	resMark, err := getResMark(ctx, st)
 	if err != nil {
 		if verror.ErrorID(err) != verror.ErrNoExist.ID {
-			vlog.Errorf("processDatabase: %s, %s: cannot get resMark: %v", appName, dbName, err)
+			vlog.Errorf("sync: processDatabase: %s, %s: cannot get resMark: %v", appName, dbName, err)
 			return
 		}
 		resMark = ""
@@ -135,6 +138,8 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 		}
 	}
 	logs = logs[:i]
+	vlog.VI(3).Infof("sync: processWatchLogBatch: %s, %s: sg snap %t, syncable %d, total %d",
+		appName, dbName, !appBatch, len(logs), totalCount)
 
 	// Transactional processing of the batch: convert these syncable log
 	// records to a batch of sync log records, filling their parent versions
@@ -142,7 +147,9 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	err := store.RunInTransaction(st, func(tx store.StoreReadWriter) error {
 		batch := make([]*localLogRec, 0, len(logs))
 		for _, entry := range logs {
-			if rec := convertLogRecord(ctx, tx, entry); rec != nil {
+			if rec, err := convertLogRecord(ctx, tx, entry); err != nil {
+				return err
+			} else if rec != nil {
 				batch = append(batch, rec)
 			}
 		}
@@ -155,7 +162,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 
 	if err != nil {
 		// TODO(rdaoud): don't crash, quarantine this app database.
-		vlog.Fatalf("processDatabase: %s, %s: watcher cannot process batch: %v", appName, dbName, err)
+		vlog.Fatalf("sync: processWatchLogBatch:: %s, %s: watcher cannot process batch: %v", appName, dbName, err)
 	}
 }
 
@@ -179,6 +186,9 @@ func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch
 	}
 
 	gen, pos := s.reserveGenAndPosInDbLog(ctx, appName, dbName, count)
+
+	vlog.VI(3).Infof("sync: processBatch: %s, %s: len %d, total %d, btid %x, gen %d, pos %d",
+		appName, dbName, count, totalCount, batchId, gen, pos)
 
 	for _, rec := range batch {
 		// Update the log record. Portions of the record Metadata must
@@ -290,7 +300,7 @@ func getWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, re
 		logKey := string(stream.Key(nil))
 		var logEnt watchable.LogEntry
 		if vom.Decode(stream.Value(nil), &logEnt) != nil {
-			vlog.Fatalf("getWatchLogBatch: %s, %s: invalid watch LogEntry %s: %v",
+			vlog.Fatalf("sync: getWatchLogBatch: %s, %s: invalid watch LogEntry %s: %v",
 				appName, dbName, logKey, stream.Value(nil))
 		}
 
@@ -305,12 +315,12 @@ func getWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, re
 	}
 
 	if err := stream.Err(); err != nil {
-		vlog.Errorf("getWatchLogBatch: %s, %s: scan stream error: %v", appName, dbName, err)
+		vlog.Errorf("sync: getWatchLogBatch: %s, %s: scan stream error: %v", appName, dbName, err)
 		return nil, resMark
 	}
 	if !endOfBatch {
 		if len(logs) > 0 {
-			vlog.Fatalf("processDatabase: %s, %s: end of batch not found after %d entries",
+			vlog.Fatalf("sync: getWatchLogBatch: %s, %s: end of batch not found after %d entries",
 				appName, dbName, len(logs))
 		}
 		return nil, resMark
@@ -326,7 +336,7 @@ func getWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, re
 // simplify the store-to-sync interaction.  A deleted key would still have a
 // version and its value entry would encode the "deleted" flag, either in the
 // key or probably in a value wrapper that would contain other metadata.
-func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchable.LogEntry) *localLogRec {
+func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchable.LogEntry) (*localLogRec, error) {
 	_ = tx.(store.Transaction)
 	var rec *localLogRec
 	timestamp := logEnt.CommitTimestamp
@@ -345,7 +355,9 @@ func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchabl
 		// Create records for object versions not already in the DAG.
 		// Duplicates can appear here in cases of nested SyncGroups or
 		// peer SyncGroups.
-		if !hasNode(ctx, tx, string(op.Value.Key), string(op.Value.Version)) {
+		if ok, err := hasNode(ctx, tx, string(op.Value.Key), string(op.Value.Version)); err != nil {
+			return nil, err
+		} else if !ok {
 			rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
 		}
 
@@ -353,13 +365,15 @@ func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchabl
 		rec = newLocalLogRec(ctx, tx, op.Value.Key, watchable.NewVersion(), true, timestamp)
 
 	case watchable.OpSyncGroup:
-		vlog.Errorf("watch LogEntry for SyncGroup should not be converted: %v", logEnt)
+		vlog.Errorf("sync: convertLogRecord: watch LogEntry for SyncGroup should not be converted: %v", logEnt)
+		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert a watch log OpSyncGroup entry")
 
 	default:
-		vlog.Errorf("invalid watch LogEntry: %v", logEnt)
+		vlog.Errorf("sync: convertLogRecord: invalid watch LogEntry: %v", logEnt)
+		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert unknown watch log entry")
 	}
 
-	return rec
+	return rec, nil
 }
 
 // newLocalLogRec creates a local sync log record given its information: key,
@@ -377,7 +391,7 @@ func newLocalLogRec(ctx *context.T, tx store.StoreReadWriter, key, version []byt
 	if head, err := getHead(ctx, tx, oid); err == nil {
 		rec.Metadata.Parents = []string{head}
 	} else if deleted || (verror.ErrorID(err) != verror.ErrNoExist.ID) {
-		vlog.Fatalf("cannot getHead to convert log record for %s: %v", oid, err)
+		vlog.Fatalf("sync: newLocalLogRec: cannot getHead to convert log record for %s: %v", oid, err)
 	}
 	rec.Metadata.UpdTime = unixNanoToTime(timestamp)
 	return &rec
@@ -397,6 +411,8 @@ func processSyncGroupLogRecord(appName, dbName string, logEnt *watchable.LogEntr
 				incrWatchPrefix(appName, dbName, prefix)
 			}
 		}
+		vlog.VI(3).Infof("sync: processSyncGroupLogRecord: %s, %s: remove %t, prefixes: %q",
+			appName, dbName, remove, op.Value.Prefixes)
 		return true
 
 	default:
@@ -425,7 +441,7 @@ func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 	// it with the SyncGroup prefixes which are defined by the application.
 	parts := util.SplitKeyParts(key)
 	if len(parts) < 2 {
-		vlog.Fatalf("syncable: %s: invalid entry key %s: %v", appdb, key, logEnt)
+		vlog.Fatalf("sync: syncable: %s: invalid entry key %s: %v", appdb, key, logEnt)
 	}
 	key = util.JoinKeyParts(parts[1:]...)
 

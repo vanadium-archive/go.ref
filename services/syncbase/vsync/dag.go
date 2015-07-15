@@ -279,7 +279,9 @@ func (s *syncService) addNode(ctx *context.T, tx store.StoreReadWriter, oid, ver
 	}
 
 	// The new node must not exist.
-	if hasNode(ctx, tx, oid, version) {
+	if ok, err := hasNode(ctx, tx, oid, version); err != nil {
+		return err
+	} else if ok {
 		return verror.New(verror.ErrInternal, ctx, "DAG node already exists", oid, version)
 	}
 
@@ -444,7 +446,9 @@ func moveHead(ctx *context.T, tx store.StoreReadWriter, oid, head string) error 
 	_ = tx.(store.Transaction)
 
 	// Verify that the node exists.
-	if !hasNode(ctx, tx, oid, head) {
+	if ok, err := hasNode(ctx, tx, oid, head); err != nil {
+		return err
+	} else if !ok {
 		return verror.New(verror.ErrInternal, ctx, "node", oid, head, "does not exist")
 	}
 
@@ -742,12 +746,15 @@ func delNode(ctx *context.T, tx store.StoreReadWriter, oid, version string) erro
 }
 
 // hasNode returns true if the node (oid, version) exists in the DAG.
-func hasNode(ctx *context.T, st store.StoreReader, oid, version string) bool {
+func hasNode(ctx *context.T, st store.StoreReader, oid, version string) (bool, error) {
 	// TODO(rdaoud): optimize to avoid the unneeded fetch/decode of the data.
 	if _, err := getNode(ctx, st, oid, version); err != nil {
-		return false
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			err = nil
+		}
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
 // headKey returns the key used to access the DAG object head.

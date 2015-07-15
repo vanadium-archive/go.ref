@@ -168,7 +168,7 @@ func checkLogRec(t *testing.T, st store.StoreReader, id, gen uint64, exists bool
 		t.Fatalf("getLogRec(%d:%d) failed, got %v, want %v", id, gen, gotRec, wantRec)
 	}
 
-	if hasLogRec(st, id, gen) != exists {
+	if ok, err := hasLogRec(st, id, gen); err != nil || ok != exists {
 		t.Fatalf("hasLogRec(%d:%d) failed, want %v", id, gen, exists)
 	}
 }

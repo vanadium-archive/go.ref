@@ -103,7 +103,7 @@ func (iSt *initiationState) resolveObjConflictByTime(ctx *context.T, oid string,
 	case local.Metadata.CurVers < remote.Metadata.CurVers:
 		res.ty = pickRemote
 	default:
-		vlog.Fatalf("resolveObjConflictByTime:: local and remote update times and versions are the same, local %v remote %v", local, remote)
+		vlog.Fatalf("sync: resolveObjConflictByTime: local and remote update times and versions are the same, local %v remote %v", local, remote)
 	}
 
 	return &res, nil

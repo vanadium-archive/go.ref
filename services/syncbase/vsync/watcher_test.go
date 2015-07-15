@@ -177,8 +177,11 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	if res, err := getResMark(nil, st); err != nil && res != resmark {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
 	}
-	if hasNode(nil, st, fooKey, "123") || hasNode(nil, st, barKey, "555") {
-		t.Error("hasNode() found DAG entries for non-syncable logs")
+	if ok, err := hasNode(nil, st, fooKey, "123"); err != nil || ok {
+		t.Error("hasNode() found DAG entry for non-syncable log on foo")
+	}
+	if ok, err := hasNode(nil, st, barKey, "555"); err != nil || ok {
+		t.Error("hasNode() found DAG entry for non-syncable log on bar")
 	}
 
 	// Partially syncable logs.
@@ -212,8 +215,8 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	if node2.Level != 0 || node2.Parents != nil || node2.Logrec == "" || node2.BatchId != NoBatchId {
 		t.Errorf("invalid DAG node for fooxyz: %v", node2)
 	}
-	if hasNode(nil, st, barKey, "222") {
-		t.Error("hasNode() found DAG entries for non-syncable logs")
+	if ok, err := hasNode(nil, st, barKey, "222"); err != nil || ok {
+		t.Error("hasNode() found DAG entry for non-syncable log on bar")
 	}
 
 	// More partially syncable logs updating existing ones.
@@ -254,8 +257,8 @@ func TestProcessWatchLogBatch(t *testing.T) {
 		node2.Logrec == "" || node2.BatchId == NoBatchId {
 		t.Errorf("invalid DAG node for fooxyz: %v", node2)
 	}
-	if hasNode(nil, st, barKey, "7") {
-		t.Error("hasNode() found DAG entries for non-syncable logs")
+	if ok, err := hasNode(nil, st, barKey, "7"); err != nil || ok {
+		t.Error("hasNode() found DAG entry for non-syncable log on bar")
 	}
 
 	// Back to non-syncable logs (remove "f" prefix).
@@ -282,8 +285,8 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	if node, err := getNode(nil, st, fooxyzKey, "888"); err == nil {
 		t.Errorf("getNode() should not have found fooxyz @ 888: %v", node)
 	}
-	if hasNode(nil, st, barKey, "007") {
-		t.Error("hasNode() found DAG entries for non-syncable logs")
+	if ok, err := hasNode(nil, st, barKey, "007"); err != nil || ok {
+		t.Error("hasNode() found DAG entry for non-syncable log on bar")
 	}
 
 	// Scan the batch records and verify that there is only 1 DAG batch

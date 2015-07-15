@@ -29,7 +29,7 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string,
 	// elsewhere).
 	appNames, err := s.sv.AppNames(ctx, nil)
 	if err != nil {
-		vlog.Errorf("forEachDatabaseStore: cannot get all app names: %v", err)
+		vlog.Errorf("sync: forEachDatabaseStore: cannot get all app names: %v", err)
 		return
 	}
 
@@ -37,12 +37,12 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string,
 		// For each app, get its databases and iterate over them.
 		app, err := s.sv.App(ctx, nil, a)
 		if err != nil {
-			vlog.Errorf("forEachDatabaseStore: cannot get app %s: %v", a, err)
+			vlog.Errorf("sync: forEachDatabaseStore: cannot get app %s: %v", a, err)
 			continue
 		}
 		dbNames, err := app.NoSQLDatabaseNames(ctx, nil)
 		if err != nil {
-			vlog.Errorf("forEachDatabaseStore: cannot get all db names for app %s: %v", a, err)
+			vlog.Errorf("sync: forEachDatabaseStore: cannot get all db names for app %s: %v", a, err)
 			continue
 		}
 
@@ -50,7 +50,7 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string,
 			// For each database, get its Store and invoke the callback.
 			db, err := app.NoSQLDatabase(ctx, nil, d)
 			if err != nil {
-				vlog.Errorf("forEachDatabaseStore: cannot get db %s for app %s: %v", d, a, err)
+				vlog.Errorf("sync: forEachDatabaseStore: cannot get db %s for app %s: %v", d, a, err)
 				continue
 			}
 
@@ -77,7 +77,7 @@ func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, appName, d
 // unixNanoToTime converts a Unix timestamp in nanoseconds to a Time object.
 func unixNanoToTime(timestamp int64) time.Time {
 	if timestamp < 0 {
-		vlog.Fatalf("unixNanoToTime: invalid timestamp %d", timestamp)
+		vlog.Fatalf("sync: unixNanoToTime: invalid timestamp %d", timestamp)
 	}
 	return time.Unix(timestamp/nanoPerSec, timestamp%nanoPerSec)
 }

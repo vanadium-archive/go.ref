@@ -318,15 +318,16 @@ func splitLogRecKey(ctx *context.T, key string) (uint64, uint64, error) {
 }
 
 // hasLogRec returns true if the log record for (devid, gen) exists.
-func hasLogRec(st store.StoreReader, id, gen uint64) bool {
+func hasLogRec(st store.StoreReader, id, gen uint64) (bool, error) {
 	// TODO(hpucha): optimize to avoid the unneeded fetch/decode of the data.
 	var rec localLogRec
-	// NOTE(sadovsky): This implementation doesn't explicitly handle
-	// non-ErrNoExist errors. Is that intentional?
 	if err := util.Get(nil, st, logRecKey(id, gen), &rec); err != nil {
-		return false
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			err = nil
+		}
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
 // putLogRec stores the log record.

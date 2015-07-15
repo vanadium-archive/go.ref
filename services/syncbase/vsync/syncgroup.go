@@ -118,10 +118,14 @@ func addSyncGroup(ctx *context.T, tx store.StoreReadWriter, sg *interfaces.SyncG
 		return err
 	}
 
-	if hasSGDataEntry(tx, sg.Id) {
+	if ok, err := hasSGDataEntry(tx, sg.Id); err != nil {
+		return err
+	} else if ok {
 		return verror.New(verror.ErrExist, ctx, "group id already exists")
 	}
-	if hasSGNameEntry(tx, sg.Name) {
+	if ok, err := hasSGNameEntry(tx, sg.Name); err != nil {
+		return err
+	} else if ok {
 		return verror.New(verror.ErrExist, ctx, "group name already exists")
 	}
 
@@ -247,7 +251,7 @@ func forEachSyncGroup(st store.StoreReader, callback func(*interfaces.SyncGroup)
 	for stream.Advance() {
 		var sg interfaces.SyncGroup
 		if vom.Decode(stream.Value(nil), &sg) != nil {
-			vlog.Errorf("invalid SyncGroup value for key %s", string(stream.Key(nil)))
+			vlog.Errorf("sync: forEachSyncGroup: invalid SyncGroup value for key %s", string(stream.Key(nil)))
 			continue
 		}
 
@@ -257,7 +261,7 @@ func forEachSyncGroup(st store.StoreReader, callback func(*interfaces.SyncGroup)
 	}
 
 	if err := stream.Err(); err != nil {
-		vlog.Errorf("forEachSyncGroup: scan stream error: %v", err)
+		vlog.Errorf("sync: forEachSyncGroup: scan stream error: %v", err)
 	}
 }
 
@@ -298,27 +302,29 @@ func sgNameKey(name string) string {
 }
 
 // hasSGDataEntry returns true if the SyncGroup data entry exists.
-func hasSGDataEntry(st store.StoreReader, gid interfaces.GroupId) bool {
+func hasSGDataEntry(st store.StoreReader, gid interfaces.GroupId) (bool, error) {
 	// TODO(rdaoud): optimize to avoid the unneeded fetch/decode of the data.
 	var sg interfaces.SyncGroup
-	// NOTE(sadovsky): This implementation doesn't explicitly handle
-	// non-ErrNoExist errors. Is that intentional?
 	if err := util.Get(nil, st, sgDataKey(gid), &sg); err != nil {
-		return false
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			err = nil
+		}
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
 // hasSGNameEntry returns true if the SyncGroup name entry exists.
-func hasSGNameEntry(st store.StoreReader, name string) bool {
+func hasSGNameEntry(st store.StoreReader, name string) (bool, error) {
 	// TODO(rdaoud): optimize to avoid the unneeded fetch/decode of the data.
 	var gid interfaces.GroupId
-	// NOTE(sadovsky): This implementation doesn't explicitly handle
-	// non-ErrNoExist errors. Is that intentional?
 	if err := util.Get(nil, st, sgNameKey(name), &gid); err != nil {
-		return false
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			err = nil
+		}
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
 // setSGDataEntry stores the SyncGroup data entry.
@@ -368,6 +374,9 @@ func delSGNameEntry(ctx *context.T, tx store.StoreReadWriter, name string) error
 
 // TODO(hpucha): Pass blessings along.
 func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, myInfo wire.SyncGroupMemberInfo) error {
+	vlog.VI(2).Infof("sync: CreateSyncGroup: begin: %s", sgName)
+	defer vlog.VI(2).Infof("sync: CreateSyncGroup: end: %s", sgName)
+
 	err := store.RunInTransaction(sd.db.St(), func(tx store.StoreReadWriter) error {
 		// Check permissions on Database.
 		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
@@ -421,6 +430,9 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 
 // TODO(hpucha): Pass blessings along.
 func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncGroupMemberInfo) (wire.SyncGroupSpec, error) {
+	vlog.VI(2).Infof("sync: JoinSyncGroup: begin: %s", sgName)
+	defer vlog.VI(2).Infof("sync: JoinSyncGroup: end: %s", sgName)
+
 	var sgErr error
 	var sg *interfaces.SyncGroup
 	nullSpec := wire.SyncGroupSpec{}
@@ -589,14 +601,13 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.StoreReadWri
 	// tuples) and internally as strings that match the store's key format.
 	for _, mp := range opts.ManagedPrefixes {
 		for _, p := range prefixes {
-			var k, v []byte
 			start, limit := util.ScanPrefixArgs(util.JoinKeyParts(util.VersionPrefix, mp), p)
 			stream := tx.Scan(start, limit)
 			for stream.Advance() {
-				k, v = stream.Key(k), stream.Value(v)
+				k, v := stream.Key(nil), stream.Value(nil)
 				parts := util.SplitKeyParts(string(k))
 				if len(parts) < 2 {
-					vlog.Fatalf("bootstrapSyncGroup: invalid version key %s", string(k))
+					vlog.Fatalf("sync: bootstrapSyncGroup: invalid version key %s", string(k))
 
 				}
 				key := []byte(util.JoinKeyParts(parts[1:]...))
