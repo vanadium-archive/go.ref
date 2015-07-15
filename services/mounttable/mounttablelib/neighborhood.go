@@ -12,6 +12,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -20,7 +21,6 @@ import (
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/x/lib/netconfig"
-	"v.io/x/ref/lib/glob"
 
 	"v.io/x/ref/internal/logger"
 
