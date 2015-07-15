@@ -19,6 +19,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/services/logreader"
 	"v.io/v23/services/pprof"
@@ -29,7 +30,6 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"

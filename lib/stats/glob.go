@@ -9,8 +9,8 @@ import (
 	"sort"
 	"time"
 
+	"v.io/v23/glob"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/glob"
 )
 
 // Glob returns the name and (optionally) the value of all the objects that

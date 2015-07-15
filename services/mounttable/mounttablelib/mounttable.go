@@ -15,13 +15,13 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/stats"
 )
 
