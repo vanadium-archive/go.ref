@@ -182,11 +182,17 @@ func (ln *wsTCPListener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ws, err := websocket.Upgrade(w, r, nil, bufferSize, bufferSize)
 	if _, ok := err.(websocket.HandshakeError); ok {
+		// Close the connection to not serve HTTP requests from this connection
+		// any more. Otherwise panic from negative httpReq counter can occur.
+		// Although go http.Server gracefully shutdowns the server from a panic,
+		// it would be nice to avoid it.
+		w.Header().Set("Connection", "close")
 		http.Error(w, "Not a websocket handshake", http.StatusBadRequest)
 		logger.Global().Errorf("Rejected a non-websocket request: %v", err)
 		return
 	}
 	if err != nil {
+		w.Header().Set("Connection", "close")
 		http.Error(w, "Internal Error", http.StatusInternalServerError)
 		logger.Global().Errorf("Rejected a non-websocket request: %v", err)
 		return

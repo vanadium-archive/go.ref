@@ -7,7 +7,10 @@
 package websocket
 
 import (
+	"bytes"
+	"log"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -41,8 +44,7 @@ func TestAcceptsAreNotSerialized(t *testing.T) {
 		close(portscan)
 		// Keep the connection alive by blocking on a read.  (The read
 		// should return once the test exits).
-		var buf [1024]byte
-		conn.Read(buf[:])
+		conn.Read(make([]byte, 1024))
 	}()
 	// Another client that dials a legitimate connection should not be
 	// blocked on the portscanner.
@@ -53,4 +55,40 @@ func TestAcceptsAreNotSerialized(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn.Close()
+}
+
+func TestNonWebsocketRequest(t *testing.T) {
+	ln, err := HybridListener("wsh", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { go ln.Close() }()
+
+	// Goroutine that continuously accepts connections.
+	go func() {
+		for {
+			_, err := ln.Accept()
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	var out bytes.Buffer
+	log.SetOutput(&out)
+
+	// Imagine some client keeps sending non-websocket requests.
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Error(err)
+	}
+	for i := 0; i < 2; i++ {
+		conn.Write([]byte("GET / HTTP/1.1\r\n\r\n"))
+		conn.Read(make([]byte, 1024))
+	}
+
+	logs := out.String()
+	if strings.Contains(logs, "panic") {
+		t.Errorf("Unexpected panic:\n%s", logs)
+	}
 }
