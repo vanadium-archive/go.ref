@@ -455,7 +455,7 @@ func TestGlobAborts(t *testing.T) {
 	}
 
 	mount := func(name string) error {
-		invoker, _, _ := mt.Lookup(name)
+		invoker, _, _ := mt.Lookup(ctx, name)
 		server := naming.FormatEndpoint("tcp", name)
 		return invoker.(mounttable.MountTableServerStub).Mount(ctx, fakeServerCall{}, server, 0, 0)
 	}
@@ -469,7 +469,7 @@ func TestGlobAborts(t *testing.T) {
 	}
 
 	glob := func(ctx *context.T) (int, error) {
-		root, _, _ := mt.Lookup("")
+		root, _, _ := mt.Lookup(ctx, "")
 		ch, err := root.(rpc.Globber).Globber().AllGlobber.Glob__(ctx, fakeServerCall{}, "...")
 		if err != nil {
 			return 0, err
