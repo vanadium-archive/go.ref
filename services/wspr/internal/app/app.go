@@ -374,22 +374,6 @@ func (c *Controller) SendOnStream(ctx *context.T, id int32, data string, w lib.C
 // SendVeyronRequest makes a vanadium request for the given flowId.  If signal is non-nil, it will receive
 // the call object after it has been constructed.
 func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *RpcRequest, inArgs []interface{}, w lib.ClientWriter, stream *outstandingStream, span vtrace.Span) {
-	sig, err := c.getSignature(ctx, msg.Name)
-	if err != nil {
-		w.Error(err)
-		return
-	}
-	methName := lib.UppercaseFirstCharacter(msg.Method)
-	methSig, ok := signature.FirstMethod(sig, methName)
-	if !ok {
-		w.Error(fmt.Errorf("method %q not found in signature: %#v", methName, sig))
-		return
-	}
-	if len(methSig.InArgs) != len(inArgs) {
-		w.Error(fmt.Errorf("invalid number of arguments, expected: %v, got:%v", methSig, *msg))
-		return
-	}
-
 	// We have to make the start call synchronous so we can make sure that we populate
 	// the call map before we can Handle a recieve call.
 	call, err := c.startCall(ctx, w, msg, inArgs)
