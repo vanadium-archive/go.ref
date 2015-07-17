@@ -38,5 +38,5 @@ type Sync interface {
 
 	// BlobSync methods.
 	// FetchBlob returns the requested blob.
-	FetchBlob() error {access.Read}
+	FetchBlob(br wire.BlobRef) error {access.Read}
 }

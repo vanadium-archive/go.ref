@@ -47,7 +47,7 @@ type SyncClientMethods interface {
 	JoinSyncGroupAtAdmin(ctx *context.T, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo, opts ...rpc.CallOpt) (SyncGroup, error)
 	// BlobSync methods.
 	// FetchBlob returns the requested blob.
-	FetchBlob(*context.T, ...rpc.CallOpt) error
+	FetchBlob(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) error
 }
 
 // SyncClientStub adds universal methods to SyncClientMethods.
@@ -84,8 +84,8 @@ func (c implSyncClientStub) JoinSyncGroupAtAdmin(ctx *context.T, i0 string, i1 s
 	return
 }
 
-func (c implSyncClientStub) FetchBlob(ctx *context.T, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "FetchBlob", nil, nil, opts...)
+func (c implSyncClientStub) FetchBlob(ctx *context.T, i0 nosql.BlobRef, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "FetchBlob", []interface{}{i0}, nil, opts...)
 	return
 }
 
@@ -218,7 +218,7 @@ type SyncServerMethods interface {
 	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (SyncGroup, error)
 	// BlobSync methods.
 	// FetchBlob returns the requested blob.
-	FetchBlob(*context.T, rpc.ServerCall) error
+	FetchBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) error
 }
 
 // SyncServerStubMethods is the server interface containing
@@ -247,7 +247,7 @@ type SyncServerStubMethods interface {
 	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (SyncGroup, error)
 	// BlobSync methods.
 	// FetchBlob returns the requested blob.
-	FetchBlob(*context.T, rpc.ServerCall) error
+	FetchBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) error
 }
 
 // SyncServerStub adds universal methods to SyncServerStubMethods.
@@ -291,8 +291,8 @@ func (s implSyncServerStub) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.Server
 	return s.impl.JoinSyncGroupAtAdmin(ctx, call, i0, i1, i2)
 }
 
-func (s implSyncServerStub) FetchBlob(ctx *context.T, call rpc.ServerCall) error {
-	return s.impl.FetchBlob(ctx, call)
+func (s implSyncServerStub) FetchBlob(ctx *context.T, call rpc.ServerCall, i0 nosql.BlobRef) error {
+	return s.impl.FetchBlob(ctx, call, i0)
 }
 
 func (s implSyncServerStub) Globber() *rpc.GlobState {
@@ -341,6 +341,9 @@ var descSync = rpc.InterfaceDesc{
 		{
 			Name: "FetchBlob",
 			Doc:  "// BlobSync methods.\n// FetchBlob returns the requested blob.",
+			InArgs: []rpc.ArgDesc{
+				{"br", ``}, // nosql.BlobRef
+			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 	},
