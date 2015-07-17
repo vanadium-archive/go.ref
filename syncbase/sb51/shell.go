@@ -154,7 +154,7 @@ func openAppDB(ctx *context.T, sbs syncbase.Service, appName, dbName string, cre
 			return nil, err
 		}
 	}
-	d := app.NoSQLDatabase(dbName)
+	d := app.NoSQLDatabase(dbName, nil)
 	if exists, err := d.Exists(ctx); err != nil {
 		return nil, fmt.Errorf("failed checking for db %q: %v", d.FullName(), err)
 	} else if !exists {

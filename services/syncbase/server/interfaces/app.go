@@ -5,6 +5,7 @@
 package interfaces
 
 import (
+	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
@@ -22,7 +23,7 @@ type App interface {
 	NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error)
 
 	// CreateNoSQLDatabase creates the specified NoSQL database.
-	CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions) error
+	CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *wire.SchemaMetadata) error
 
 	// DeleteNoSQLDatabase deletes the specified NoSQL database.
 	DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error

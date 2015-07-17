@@ -99,7 +99,7 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 
 // NewDatabase creates a new database instance and returns it.
 // Designed for use from within App.CreateNoSQLDatabase.
-func NewDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOptions) (*database, error) {
+func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.SchemaMetadata, opts DatabaseOptions) (*database, error) {
 	if opts.Perms == nil {
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
@@ -108,8 +108,9 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOpt
 		return nil, err
 	}
 	data := &databaseData{
-		Name:  d.name,
-		Perms: opts.Perms,
+		Name:           d.name,
+		Perms:          opts.Perms,
+		SchemaMetadata: metadata,
 	}
 	if err := util.Put(ctx, d.st, d.stKey(), data); err != nil {
 		return nil, err
@@ -120,7 +121,7 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOpt
 ////////////////////////////////////////
 // RPC methods
 
-func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions) error {
+func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions, metadata *wire.SchemaMetadata) error {
 	if d.exists {
 		return verror.New(verror.ErrExist, ctx, d.name)
 	}
@@ -130,7 +131,7 @@ func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, perms access.P
 	// This database does not yet exist; d is just an ephemeral handle that holds
 	// {name string, a *app}. d.a.CreateNoSQLDatabase will create a new database
 	// handle and store it in d.a.dbs[d.name].
-	return d.a.CreateNoSQLDatabase(ctx, call, d.name, perms)
+	return d.a.CreateNoSQLDatabase(ctx, call, d.name, perms, metadata)
 }
 
 func (d *databaseReq) Delete(ctx *context.T, call rpc.ServerCall) error {

@@ -12,14 +12,16 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
+	"v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/v23/security/access"
 )
 
 // databaseData represents the persistent state of a Database.
 type databaseData struct {
-	Name    string
-	Version uint64 // covers the fields below
-	Perms   access.Permissions
+	Name           string
+	Version        uint64 // covers the Perms field below
+	Perms          access.Permissions
+	SchemaMetadata *nosql.SchemaMetadata
 }
 
 func (databaseData) __VDLReflect(struct {

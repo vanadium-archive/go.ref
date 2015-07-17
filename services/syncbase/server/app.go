@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	wire "v.io/syncbase/v23/services/syncbase"
+	nosqlwire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
@@ -132,7 +133,7 @@ func (a *app) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string,
 	return dbNames, nil
 }
 
-func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions) error {
+func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *nosqlwire.SchemaMetadata) error {
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}
@@ -182,7 +183,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	if perms == nil {
 		perms = aData.Perms
 	}
-	d, err := nosql.NewDatabase(ctx, a, dbName, nosql.DatabaseOptions{
+	d, err := nosql.NewDatabase(ctx, a, dbName, metadata, nosql.DatabaseOptions{
 		Perms:   perms,
 		RootDir: rootDir,
 		Engine:  engine,

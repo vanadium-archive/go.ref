@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
@@ -62,7 +63,7 @@ func (a *mockApp) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]str
 	return []string{"mockdb"}, nil
 }
 
-func (a *mockApp) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions) error {
+func (a *mockApp) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *wire.SchemaMetadata) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
