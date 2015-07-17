@@ -286,6 +286,25 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
+func (d *databaseReq) Watch(ctx *context.T, call wire.DatabaseWatcherWatchServerCall, req wire.WatchRequest) error {
+	// TODO(rogulenko): Implement.
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.name)
+	}
+	if d.batchId != nil {
+		return wire.NewErrBoundToBatch(ctx)
+	}
+	return verror.NewErrNotImplemented(ctx)
+}
+
+func (d *databaseReq) GetResumeMarker(ctx *context.T, call rpc.ServerCall) (wire.ResumeMarker, error) {
+	// TODO(rogulenko): Implement.
+	if !d.exists {
+		return "", verror.New(verror.ErrNoExist, ctx, d.name)
+	}
+	return "", verror.NewErrNotImplemented(ctx)
+}
+
 func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
