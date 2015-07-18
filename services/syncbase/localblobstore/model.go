@@ -135,6 +135,9 @@ type BlobStore interface {
 
 	// Root() returns the name of the root directory where the BlobStore is stored.
 	Root() string
+
+	// Close() closes the BlobStore.
+	Close() error
 }
 
 // A Location describes chunk's location within a blob.  It is returned by

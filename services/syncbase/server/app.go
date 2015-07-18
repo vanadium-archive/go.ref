@@ -248,6 +248,9 @@ func (a *app) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	if err := d.St().Close(); err != nil {
 		return err
 	}
+	if err := d.BlobSt().Close(); err != nil {
+		return err
+	}
 	if err := util.DestroyStore(a.s.opts.Engine, a.rootDirForDb(dbName)); err != nil {
 		return err
 	}

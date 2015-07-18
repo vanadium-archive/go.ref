@@ -5,6 +5,7 @@
 package interfaces
 
 import (
+	"v.io/syncbase/x/ref/services/syncbase/localblobstore"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -15,6 +16,9 @@ import (
 type Database interface {
 	// St returns the storage engine instance for this database.
 	St() store.Store
+
+	// BlobSt returns the blob storage engine instance for this database.
+	BlobSt() localblobstore.BlobStore
 
 	// App returns the app handle for this database.
 	App() App

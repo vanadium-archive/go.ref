@@ -15,6 +15,8 @@ import (
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/v23/syncbase/nosql/query_db"
 	"v.io/syncbase/v23/syncbase/nosql/query_exec"
+	"v.io/syncbase/x/ref/services/syncbase/localblobstore"
+	"v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
@@ -41,6 +43,9 @@ type database struct {
 	// TODO(sadovsky): Make st point to a store.Store wrapper that handles paging,
 	// and do not actually open the store in NewDatabase.
 	st store.Store // stores all data for a single database
+
+	// Local blob store associated with this database.
+	bst localblobstore.BlobStore
 
 	// Active snapshots and transactions corresponding to client batches.
 	// TODO(sadovsky): Add timeouts and GC.
@@ -87,11 +92,17 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 	if err != nil {
 		return nil, err
 	}
+	// Open a co-located blob store, adjacent to the structured store.
+	bst, err := fs_cablobstore.Create(ctx, path.Join(opts.RootDir, "blobs"))
+	if err != nil {
+		return nil, err
+	}
 	return &database{
 		name:   name,
 		a:      a,
 		exists: true,
 		st:     st,
+		bst:    bst,
 		sns:    make(map[uint64]store.Snapshot),
 		txs:    make(map[uint64]store.Transaction),
 	}, nil
@@ -363,6 +374,13 @@ func (d *database) St() store.Store {
 		vlog.Fatalf("database %q does not exist", d.name)
 	}
 	return d.st
+}
+
+func (d *database) BlobSt() localblobstore.BlobStore {
+	if !d.exists {
+		vlog.Fatalf("database %q does not exist", d.name)
+	}
+	return d.bst
 }
 
 func (d *database) App() interfaces.App {

@@ -38,7 +38,7 @@ func (d *databaseReq) CommitBlob(ctx *context.T, call rpc.ServerCall, br wire.Bl
 	return sd.CommitBlob(ctx, call, br)
 }
 
-func (d *databaseReq) GetBlobSize(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) (uint64, error) {
+func (d *databaseReq) GetBlobSize(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) (int64, error) {
 	if d.batchId != nil {
 		return 0, wire.NewErrBoundToBatch(ctx)
 	}
@@ -54,7 +54,7 @@ func (d *databaseReq) DeleteBlob(ctx *context.T, call rpc.ServerCall, br wire.Bl
 	return sd.DeleteBlob(ctx, call, br)
 }
 
-func (d *databaseReq) GetBlob(ctx *context.T, call wire.BlobManagerGetBlobServerCall, br wire.BlobRef, offset uint64) error {
+func (d *databaseReq) GetBlob(ctx *context.T, call wire.BlobManagerGetBlobServerCall, br wire.BlobRef, offset int64) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}

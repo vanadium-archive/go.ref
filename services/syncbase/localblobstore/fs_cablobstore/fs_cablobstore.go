@@ -194,6 +194,11 @@ func Create(ctx *context.T, rootName string) (fscabs *FsCaBlobStore, err error) 
 	return fscabs, err
 }
 
+// Close() closes the FsCaBlobStore. {
+func (fscabs *FsCaBlobStore) Close() error {
+	return fscabs.cm.Close()
+}
+
 // Root() returns the name of the root directory where *fscabs is stored.
 func (fscabs *FsCaBlobStore) Root() string {
 	return fscabs.rootName

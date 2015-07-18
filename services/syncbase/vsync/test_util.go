@@ -9,10 +9,13 @@ package vsync
 import (
 	"fmt"
 	"os"
+	"path"
 	"testing"
 	"time"
 
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
+	"v.io/syncbase/x/ref/services/syncbase/localblobstore"
+	"v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
@@ -28,8 +31,9 @@ import (
 // It is used to access a mock application.
 type mockService struct {
 	engine   string
-	path     string
+	dir      string
 	st       store.Store
+	bst      localblobstore.BlobStore
 	sync     *syncService
 	shutdown func()
 }
@@ -43,7 +47,7 @@ func (s *mockService) Sync() interfaces.SyncServerMethods {
 }
 
 func (s *mockService) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
-	return &mockApp{st: s.st}, nil
+	return &mockApp{st: s.st, bst: s.bst}, nil
 }
 
 func (s *mockService) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
@@ -52,11 +56,12 @@ func (s *mockService) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, e
 
 // mockApp emulates a Syncbase App.  It is used to access a mock database.
 type mockApp struct {
-	st store.Store
+	st  store.Store
+	bst localblobstore.BlobStore
 }
 
 func (a *mockApp) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
-	return &mockDatabase{st: a.st}, nil
+	return &mockDatabase{st: a.st, bst: a.bst}, nil
 }
 
 func (a *mockApp) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
@@ -89,11 +94,16 @@ func (a *mockApp) StKey() string {
 
 // mockDatabase emulates a Syncbase Database.  It is used to test sync functionality.
 type mockDatabase struct {
-	st store.Store
+	st  store.Store
+	bst localblobstore.BlobStore
 }
 
 func (d *mockDatabase) St() store.Store {
 	return d.st
+}
+
+func (d *mockDatabase) BlobSt() localblobstore.BlobStore {
+	return d.bst
 }
 
 func (d *mockDatabase) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
@@ -120,24 +130,30 @@ func (d *mockDatabase) App() interfaces.App {
 func createService(t *testing.T) *mockService {
 	ctx, shutdown := test.V23Init()
 	engine := "leveldb"
-	path := fmt.Sprintf("%s/vsync_test_%d_%d", os.TempDir(), os.Getpid(), time.Now().UnixNano())
+	opts := util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false}
+	dir := fmt.Sprintf("%s/vsync_test_%d_%d", os.TempDir(), os.Getpid(), time.Now().UnixNano())
 
-	st, err := util.OpenStore(engine, path, util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
+	st, err := util.OpenStore(engine, path.Join(dir, engine), opts)
 	if err != nil {
-		t.Fatalf("cannot create store %s (%s): %v", engine, path, err)
+		t.Fatalf("cannot create store %s (%s): %v", engine, dir, err)
 	}
 	st, err = watchable.Wrap(st, &watchable.Options{
 		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
 	})
+	bst, err := fs_cablobstore.Create(ctx, path.Join(dir, "blobs"))
+	if err != nil {
+		t.Fatalf("cannot create blob store (%s): %v", dir, err)
+	}
 
 	s := &mockService{
 		st:       st,
+		bst:      bst,
 		engine:   engine,
-		path:     path,
+		dir:      dir,
 		shutdown: shutdown,
 	}
 	if s.sync, err = New(ctx, nil, s, nil); err != nil {
-		util.DestroyStore(engine, path)
+		util.DestroyStore(engine, dir)
 		t.Fatalf("cannot create sync service: %v", err)
 	}
 	return s
@@ -147,8 +163,8 @@ func createService(t *testing.T) *mockService {
 func destroyService(t *testing.T, s *mockService) {
 	defer s.shutdown()
 	defer s.sync.Close()
-	if err := util.DestroyStore(s.engine, s.path); err != nil {
-		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.path, err)
+	if err := util.DestroyStore(s.engine, s.dir); err != nil {
+		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.dir, err)
 	}
 }
 
