@@ -135,6 +135,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -1429,7 +1430,7 @@ func (i *appService) scanInstance(ctx *context.T, tree *treeNode, title, instanc
 	}
 }
 
-func (i *appService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
+func (i *appService) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:
@@ -1446,20 +1447,18 @@ func (i *appService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan st
 		}
 		i.scanInstance(ctx, tree, i.suffix[0], dir)
 	default:
-		return nil, verror.New(verror.ErrNoExist, nil, i.suffix)
+		return verror.New(verror.ErrNoExist, nil, i.suffix)
 	}
 	n := tree.find(i.suffix, false)
 	if n == nil {
-		return nil, verror.New(errors.ErrInvalidSuffix, nil)
+		return verror.New(errors.ErrInvalidSuffix, nil)
 	}
-	ch := make(chan string)
-	go func() {
-		for child, _ := range n.children {
-			ch <- child
+	for child, _ := range n.children {
+		if m.Match(child) {
+			call.SendStream().Send(naming.GlobChildrenReplyName{child})
 		}
-		close(ch)
-	}()
-	return ch, nil
+	}
+	return nil
 }
 
 // TODO(rjkroege): Refactor to eliminate redundancy with newAppSpecificAuthorizer.

@@ -16,6 +16,8 @@ import (
 	"strings"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/services/logreader"
 	"v.io/v23/verror"
@@ -112,42 +114,44 @@ func (i *logfileService) ReadLog(ctx *context.T, call logreader.LogFileReadLogSe
 	return reader.tell(), nil
 }
 
-// GlobChildren__ returns the list of files in a directory streamed on a
-// channel. The list is empty if the object is a file.
-func (i *logfileService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
+// GlobChildren__ returns the list of files in a directory on a stream.
+// The list is empty if the object is a file.
+func (i *logfileService) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
 	ctx.VI(1).Infof("%v.GlobChildren__()", i.suffix)
 	dirName, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	stat, err := os.Stat(dirName)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, verror.New(verror.ErrNoExist, ctx, dirName)
+			return verror.New(verror.ErrNoExist, ctx, dirName)
 		}
-		return nil, verror.New(errOperationFailed, ctx, dirName)
+		return verror.New(errOperationFailed, ctx, dirName)
 	}
 	if !stat.IsDir() {
-		return nil, nil
+		return nil
 	}
 
-	ch := make(chan string)
-	go func() {
-		defer close(ch)
-		f, err := os.Open(dirName)
+	f, err := os.Open(dirName)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	for {
+		fi, err := f.Readdir(100)
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			return
+			return err
 		}
-		defer f.Close()
-		for {
-			fi, err := f.Readdir(100)
-			if err != nil {
-				return
-			}
-			for _, file := range fi {
-				ch <- file.Name()
+		for _, file := range fi {
+			name := file.Name()
+			if m.Match(name) {
+				call.SendStream().Send(naming.GlobChildrenReplyName{name})
 			}
 		}
-	}()
-	return ch, nil
+	}
+	return nil
 }

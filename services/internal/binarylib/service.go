@@ -41,6 +41,8 @@ import (
 	"syscall"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
@@ -351,23 +353,21 @@ func (i *binaryService) Upload(ctx *context.T, call repository.BinaryUploadServe
 	return nil
 }
 
-func (i *binaryService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
+func (i *binaryService) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
 	elems := strings.Split(i.suffix, "/")
 	if len(elems) == 1 && elems[0] == "" {
 		elems = nil
 	}
 	n := i.createObjectNameTree().find(elems, false)
 	if n == nil {
-		return nil, verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx)
 	}
-	ch := make(chan string)
-	go func() {
-		for k, _ := range n.children {
-			ch <- k
+	for k, _ := range n.children {
+		if m.Match(k) {
+			call.SendStream().Send(naming.GlobChildrenReplyName{k})
 		}
-		close(ch)
-	}()
-	return ch, nil
+	}
+	return nil
 }
 
 func (i *binaryService) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {

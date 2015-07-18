@@ -35,6 +35,7 @@ func TestGlob(t *testing.T) {
 		"a/b/c2/d1",
 		"a/b/c2/d2",
 		"a/x/y/z",
+		"a/X/y/z",
 		"leaf",
 	}
 	tree := newNode()
@@ -62,6 +63,9 @@ func TestGlob(t *testing.T) {
 		{"", "...", []string{
 			"",
 			"a",
+			"a/X",
+			"a/X/y",
+			"a/X/y/z",
 			"a/b",
 			"a/b/c1",
 			"a/b/c1/d1",
@@ -76,6 +80,9 @@ func TestGlob(t *testing.T) {
 		}, nil},
 		{"a", "...", []string{
 			"",
+			"X",
+			"X/y",
+			"X/y/z",
 			"b",
 			"b/c1",
 			"b/c1/d1",
@@ -116,19 +123,28 @@ func TestGlob(t *testing.T) {
 		{"a/x/y/z", "...", []string{
 			"",
 		}, nil},
+		{"a/X", "...", []string{
+			"",
+			"y",
+			"y/z",
+		}, nil},
 		{"", "", []string{""}, nil},
 		{"", "*", []string{"a", "leaf"}, nil},
 		{"a", "", []string{""}, nil},
-		{"a", "*", []string{"b", "x"}, nil},
+		{"a", "*", []string{"X", "b", "x"}, nil},
 		{"a/b", "", []string{""}, nil},
 		{"a/b", "*", []string{"c1", "c2"}, nil},
 		{"a/b/c1", "", []string{""}, nil},
 		{"a/b/c1", "*", []string{"d1", "d2"}, nil},
 		{"a/b/c1/d1", "*", []string{}, nil},
 		{"a/b/c1/d1", "", []string{""}, nil},
+		{"a/b/c2", "", []string{""}, nil},
+		{"a/b/c2", "*", []string{"d1", "d2"}, nil},
+		{"a/b/c2/d1", "*", []string{}, nil},
+		{"a/b/c2/d1", "", []string{""}, nil},
 		{"a", "*/c?", []string{"b/c1", "b/c2"}, nil},
-		{"a", "*/*", []string{"b/c1", "b/c2", "x/y"}, nil},
-		{"a", "*/*/*", []string{"b/c1/d1", "b/c1/d2", "b/c2/d1", "b/c2/d2", "x/y/z"}, nil},
+		{"a", "*/*", []string{"X/y", "b/c1", "b/c2", "x/y"}, nil},
+		{"a", "*/*/*", []string{"X/y/z", "b/c1/d1", "b/c1/d2", "b/c2/d1", "b/c2/d2", "x/y/z"}, nil},
 		{"a/x", "*/*", []string{"y/z"}, nil},
 		{"bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
 		{"bad/foo", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
@@ -270,6 +286,12 @@ func (d *disp) Lookup(_ *context.T, suffix string) (interface{}, security.Author
 	if len(elems) < 2 || (elems[0] == "a" && elems[1] == "x") {
 		return &vChildrenObject{d.tree, elems}, auth, nil
 	}
+	if len(elems) < 2 || (elems[0] == "a" && elems[1] == "X") {
+		return &vChildrenXObject{d.tree, elems}, auth, nil
+	}
+	if len(elems) >= 3 && elems[0] == "a" && elems[1] == "b" && elems[2] == "c2" {
+		return &globXObject{d.tree, elems}, auth, nil
+	}
 	return &globObject{d.tree, elems}, auth, nil
 }
 
@@ -332,6 +354,54 @@ func (o *vChildrenObject) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-ch
 	}
 	close(ch)
 	return ch, nil
+}
+
+type globXObject struct {
+	n      *node
+	suffix []string
+}
+
+func (o *globXObject) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
+	n := o.n.find(o.suffix, false)
+	if n == nil {
+		return verror.New(verror.ErrNoExist, ctx, o.suffix)
+	}
+	o.globLoop(call, "", g, n)
+	return nil
+}
+
+func (o *globXObject) globLoop(call rpc.GlobServerCall, name string, g *glob.Glob, n *node) {
+	if g.Len() == 0 {
+		call.SendStream().Send(naming.GlobReplyEntry{naming.MountEntry{Name: name}})
+	}
+	if g.Empty() {
+		return
+	}
+	matcher, left := g.Head(), g.Tail()
+	for leaf, child := range n.children {
+		if matcher.Match(leaf) {
+			o.globLoop(call, naming.Join(name, leaf), left, child)
+		}
+	}
+}
+
+type vChildrenXObject struct {
+	n      *node
+	suffix []string
+}
+
+func (o *vChildrenXObject) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
+	n := o.n.find(o.suffix, false)
+	if n == nil {
+		return verror.New(verror.ErrNoExist, ctx, o.suffix)
+	}
+	sender := call.SendStream()
+	for child, _ := range n.children {
+		if m.Match(child) {
+			sender.Send(naming.GlobChildrenReplyName{child})
+		}
+	}
+	return nil
 }
 
 type node struct {

@@ -15,6 +15,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -42,13 +43,12 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Glob__(ctx *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	ctx.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
-	ch := make(chan naming.GlobReply, 2)
-	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", deadline(1)}}, false, false}}
-	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", deadline(2)}, {"server3", deadline(3)}}, false, false}}
-	close(ch)
-	return ch, nil
+func (s *server) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
+	ctx.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, g.String())
+	sender := call.SendStream()
+	sender.Send(naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", deadline(1)}}, false, false}})
+	sender.Send(naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", deadline(2)}, {"server3", deadline(3)}}, false, false}})
+	return nil
 }
 
 func (s *server) Mount(ctx *context.T, _ rpc.ServerCall, server string, ttl uint32, flags naming.MountFlag) error {

@@ -6,7 +6,7 @@ package server
 
 import (
 	"v.io/v23/context"
-	"v.io/v23/naming"
+	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
@@ -80,16 +80,23 @@ func (i *invoker) Invoke(ctx *context.T, call rpc.StreamServerCall, methodName s
 	return results, nil
 }
 
-// TODO(bjornick,rthellend): Find a reasonable way to implement this for JS.
 func (i *invoker) Globber() *rpc.GlobState {
 	if i.globFunc == nil {
 		return nil
 	}
-	return &rpc.GlobState{AllGlobber: i}
+	return &rpc.GlobState{AllGlobberX: i}
 }
 
-func (i *invoker) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	return i.globFunc(ctx, call, pattern)
+func (i *invoker) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
+	// TODO(rthellend,bjornick): Should we convert globFunc to match the
+	// new Glob__ interface?
+	ch, err := i.globFunc(ctx, call, g.String())
+	if ch != nil {
+		for reply := range ch {
+			call.SendStream().Send(reply)
+		}
+	}
+	return err
 }
 
 func (i *invoker) Signature(ctx *context.T, call rpc.ServerCall) ([]signature.Interface, error) {

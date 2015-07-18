@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/services/stats"
@@ -38,21 +39,17 @@ func NewStatsService(suffix string, watchFreq time.Duration) interface{} {
 }
 
 // Glob__ returns the name of all objects that match pattern.
-func (i *statsService) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	ctx.VI(1).Infof("%v.Glob__(%q)", i.suffix, pattern)
-
-	ch := make(chan naming.GlobReply)
-	go func() {
-		defer close(ch)
-		it := libstats.Glob(i.suffix, pattern, time.Time{}, false)
-		for it.Advance() {
-			ch <- naming.GlobReplyEntry{naming.MountEntry{Name: it.Value().Key}}
-		}
-		if err := it.Err(); err != nil {
-			ctx.VI(1).Infof("libstats.Glob(%q, %q) failed: %v", i.suffix, pattern, err)
-		}
-	}()
-	return ch, nil
+func (i *statsService) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
+	ctx.VI(1).Infof("%v.Glob__(%q)", i.suffix, g.String())
+	sender := call.SendStream()
+	it := libstats.Glob(i.suffix, g.String(), time.Time{}, false)
+	for it.Advance() {
+		sender.Send(naming.GlobReplyEntry{naming.MountEntry{Name: it.Value().Key}})
+	}
+	if err := it.Err(); err != nil {
+		ctx.VI(1).Infof("libstats.Glob(%q, %q) failed: %v", i.suffix, g.String(), err)
+	}
+	return nil
 }
 
 // WatchGlob returns the name and value of the objects that match the request,

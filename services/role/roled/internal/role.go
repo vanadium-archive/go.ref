@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -46,8 +47,8 @@ func (i *roleService) SeekBlessings(ctx *context.T, call rpc.ServerCall) (securi
 	return createBlessings(ctx, call.Security(), i.roleConfig, v23.GetPrincipal(ctx), extensions, caveats, i.serverConfig.dischargerLocation)
 }
 
-func (i *roleService) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
-	return globChildren(ctx, call.Security(), i.serverConfig)
+func (i *roleService) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
+	return globChildren(ctx, call, i.serverConfig, m)
 }
 
 // filterNonMembers returns only the blessing names that are authorized members

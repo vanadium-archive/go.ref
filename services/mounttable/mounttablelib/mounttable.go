@@ -645,7 +645,7 @@ type globEntry struct {
 }
 
 // globStep is called with n and n.parent locked.  Returns with both unlocked.
-func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name string, pattern *glob.Glob, ch chan<- naming.GlobReply) {
+func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name string, pattern *glob.Glob, gCall rpc.GlobServerCall) {
 	if shouldAbort(ctx) {
 		n.parent.Unlock()
 		n.Unlock()
@@ -679,7 +679,7 @@ func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name
 		}
 		// Hold no locks while we are sending on the channel to avoid livelock.
 		n.Unlock()
-		ch <- naming.GlobReplyEntry{me}
+		gCall.SendStream().Send(naming.GlobReplyEntry{me})
 		return
 	}
 
@@ -721,7 +721,7 @@ func (mt *mountTable) globStep(ctx *context.T, call security.Call, n *node, name
 					c.Unlock()
 					continue
 				}
-				mt.globStep(ctx, call, c, naming.Join(name, k), suffix, ch)
+				mt.globStep(ctx, call, c, naming.Join(name, k), suffix, gCall)
 				n.Lock()
 			}
 		}
@@ -749,7 +749,7 @@ out:
 	// Hold no locks while we are sending on the channel to avoid livelock.
 	n.Unlock()
 	// Intermediate nodes are marked as serving a mounttable since they answer the mounttable methods.
-	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: name, ServesMountTable: true}}
+	gCall.SendStream().Send(naming.GlobReplyEntry{naming.MountEntry{Name: name, ServesMountTable: true}})
 }
 
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
@@ -763,38 +763,29 @@ out:
 // a state that never existed in the mounttable.  For example, if someone removes c/d and later
 // adds a/b while a Glob is in progress, the Glob may return a set of nodes that includes both
 // c/d and a/b.
-func (ms *mountContext) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (ms *mountContext) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
 	ctx.VI(2).Infof("mt.Glob %v", ms.elems)
 	scall := call.Security()
 
-	g, err := glob.Parse(pattern)
-	if err != nil {
-		return nil, err
-	}
-
 	mt := ms.mt
-	ch := make(chan naming.GlobReply)
-	go func() {
-		defer close(ch)
-		// If there was an access error, just ignore the entry, i.e., make it invisible.
-		n, err := mt.findNode(ctx, scall, ms.elems, false, nil, nil)
-		if err != nil {
-			return
-		}
-		// If the current name is not fully resolvable on this nameserver we
-		// don't need to evaluate the glob expression. Send a partially resolved
-		// name back to the client.
-		if n == nil {
-			ms.linkToLeaf(ctx, scall, ch)
-			return
-		}
-		mt.globStep(ctx, scall, n, "", g, ch)
-	}()
-	return ch, nil
+	// If there was an access error, just ignore the entry, i.e., make it invisible.
+	n, err := mt.findNode(ctx, scall, ms.elems, false, nil, nil)
+	if err != nil {
+		return nil
+	}
+	// If the current name is not fully resolvable on this nameserver we
+	// don't need to evaluate the glob expression. Send a partially resolved
+	// name back to the client.
+	if n == nil {
+		ms.linkToLeaf(ctx, scall, call)
+		return nil
+	}
+	mt.globStep(ctx, scall, n, "", g, call)
+	return nil
 }
 
-func (ms *mountContext) linkToLeaf(ctx *context.T, call security.Call, ch chan<- naming.GlobReply) {
-	n, elems, err := ms.mt.findMountPoint(ctx, call, ms.elems)
+func (ms *mountContext) linkToLeaf(ctx *context.T, sCall security.Call, gCall rpc.GlobServerCall) {
+	n, elems, err := ms.mt.findMountPoint(ctx, sCall, ms.elems)
 	if err != nil || n == nil {
 		return
 	}
@@ -804,7 +795,7 @@ func (ms *mountContext) linkToLeaf(ctx *context.T, call security.Call, ch chan<-
 		servers[i].Server = naming.Join(s.Server, strings.Join(elems, "/"))
 	}
 	n.Unlock()
-	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: servers}}
+	gCall.SendStream().Send(naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: servers}})
 }
 
 func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {

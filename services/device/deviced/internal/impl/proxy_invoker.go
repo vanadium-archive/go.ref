@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
@@ -213,12 +214,11 @@ func (p *proxyInvoker) MethodSignature(ctx *context.T, call rpc.ServerCall, meth
 }
 
 func (p *proxyInvoker) Globber() *rpc.GlobState {
-	return &rpc.GlobState{AllGlobber: p}
+	return &rpc.GlobState{AllGlobberX: p}
 }
 
 type call struct {
-	rpc.ServerCall
-	ch chan<- naming.GlobReply
+	rpc.GlobServerCall
 }
 
 func (c *call) Recv(v interface{}) error {
@@ -226,17 +226,13 @@ func (c *call) Recv(v interface{}) error {
 }
 
 func (c *call) Send(v interface{}) error {
-	c.ch <- v.(naming.GlobReply)
-	return nil
+	return c.SendStream().Send(v.(naming.GlobReply))
 }
 
-func (p *proxyInvoker) Glob__(ctx *context.T, serverCall rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	ch := make(chan naming.GlobReply)
-	go func() {
-		p.Invoke(ctx, &call{serverCall, ch}, rpc.GlobMethod, []interface{}{&pattern})
-		close(ch)
-	}()
-	return ch, nil
+func (p *proxyInvoker) Glob__(ctx *context.T, serverCall rpc.GlobServerCall, g *glob.Glob) error {
+	pattern := g.String()
+	p.Invoke(ctx, &call{serverCall}, rpc.GlobMethod, []interface{}{&pattern})
+	return nil
 }
 
 // numResults returns the number of result values for the given method.
