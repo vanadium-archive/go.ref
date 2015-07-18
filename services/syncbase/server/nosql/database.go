@@ -22,6 +22,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
+	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -287,7 +288,7 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (d *databaseReq) Watch(ctx *context.T, call wire.DatabaseWatcherWatchServerCall, req wire.WatchRequest) error {
+func (d *databaseReq) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
 	// TODO(rogulenko): Implement.
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
@@ -298,12 +299,12 @@ func (d *databaseReq) Watch(ctx *context.T, call wire.DatabaseWatcherWatchServer
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *databaseReq) GetResumeMarker(ctx *context.T, call rpc.ServerCall) (wire.ResumeMarker, error) {
+func (d *databaseReq) GetResumeMarker(ctx *context.T, call rpc.ServerCall) (watch.ResumeMarker, error) {
 	// TODO(rogulenko): Implement.
 	if !d.exists {
-		return "", verror.New(verror.ErrNoExist, ctx, d.name)
+		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
 	}
-	return "", verror.NewErrNotImplemented(ctx)
+	return nil, verror.NewErrNotImplemented(ctx)
 }
 
 func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
