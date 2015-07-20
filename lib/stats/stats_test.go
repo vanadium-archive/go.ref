@@ -5,7 +5,10 @@
 package stats_test
 
 import (
+	"path/filepath"
 	"reflect"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -357,6 +360,12 @@ func TestFunc(t *testing.T) {
 	libstats.NewFloatFunc("testing/float", func() float64 { return 456.789 })
 	libstats.NewStringFunc("testing/string", func() string { return "Hello World" })
 	ch := make(chan int64, 5)
+
+	libstats.NewIntegerFunc("testing/timeout", func() int64 {
+		time.Sleep(time.Second)
+		return -1
+	})
+
 	libstats.NewIntegerFunc("testing/slowint", func() int64 {
 		return <-ch
 	})
@@ -368,22 +377,46 @@ func TestFunc(t *testing.T) {
 		{"testing/integer", int64(123)},
 		{"testing/float", float64(456.789)},
 		{"testing/string", "Hello World"},
-		{"testing/slowint", nil}, // Times out
+		{"testing/timeout", nil}, // Times out
 	}
 	for _, tc := range testcases {
 		checkVariable(t, tc.name, tc.expected)
 	}
-	checkVariable(t, "testing/slowint", nil) // Times out
-	checkVariable(t, "testing/slowint", nil) // Times out
+
+	then := time.Now()
+	checkVariable(t, "testing/timeout", nil) // Times out
+	if took := time.Now().Sub(then); took < 100*time.Millisecond {
+		t.Fatalf("expected a timeout: took %s", took)
+	}
+	checkVariable(t, "testing/timeout", nil) // Times out
+	if took := time.Now().Sub(then); took < 100*time.Millisecond {
+		t.Fatalf("expected a timeout: took %s", took)
+	}
+
 	ch <- int64(0)
+	then = time.Now()
 	checkVariable(t, "testing/slowint", int64(0)) // New value
-	checkVariable(t, "testing/slowint", int64(0)) // Times out
+	if took := time.Now().Sub(then); took > 100*time.Millisecond {
+		t.Fatalf("unexpected timeout: took %s", took)
+	}
 	for i := 1; i <= 5; i++ {
 		ch <- int64(i)
 	}
 	for i := 1; i <= 5; i++ {
 		checkVariable(t, "testing/slowint", int64(i)) // New value each time
 	}
+
+	// Parallel access
+	var wg sync.WaitGroup
+	for i := 1; i <= 5; i++ {
+		wg.Add(1)
+		go func() {
+			checkVariable(t, "testing/slowint", int64(555))
+			wg.Done()
+		}()
+	}
+	ch <- int64(555)
+	wg.Wait()
 }
 
 func checkVariable(t *testing.T, name string, expected interface{}) {
@@ -392,7 +425,8 @@ func checkVariable(t *testing.T, name string, expected interface{}) {
 		t.Errorf("unexpected error for %q: %v", name, err)
 	}
 	if got != expected {
-		t.Errorf("unexpected result for %q. Got %v, want %v", name, got, expected)
+		_, file, line, _ := runtime.Caller(1)
+		t.Errorf("%s:%d: unexpected result for %q. Got %v, want %v", filepath.Base(file), line, name, got, expected)
 	}
 }
 
