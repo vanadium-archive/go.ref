@@ -10,25 +10,29 @@ import (
 	"strings"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
+	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 )
 
-func globChildren(ctx *context.T, call security.Call, serverConfig *serverConfig) (<-chan string, error) {
-	n := findRoles(ctx, call, serverConfig.root)
-	suffix := call.Suffix()
+func globChildren(ctx *context.T, call rpc.GlobChildrenServerCall, serverConfig *serverConfig, m *glob.Element) error {
+	sCall := call.Security()
+	n := findRoles(ctx, sCall, serverConfig.root)
+	suffix := sCall.Suffix()
 	if len(suffix) > 0 {
 		n = n.find(strings.Split(suffix, "/"), false)
 	}
 	if n == nil {
-		return nil, verror.New(verror.ErrNoExistOrNoAccess, ctx)
+		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 	}
-	ch := make(chan string, len(n.children))
 	for c := range n.children {
-		ch <- c
+		if m.Match(c) {
+			call.SendStream().Send(naming.GlobChildrenReplyName{c})
+		}
 	}
-	close(ch)
-	return ch, nil
+	return nil
 }
 
 // findRoles finds all the roles to which the caller has access.

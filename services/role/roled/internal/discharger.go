@@ -9,6 +9,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -59,6 +60,6 @@ func (dischargerImpl) Discharge(ctx *context.T, call rpc.ServerCall, caveat secu
 	return discharge, nil
 }
 
-func (d *dischargerImpl) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
-	return globChildren(ctx, call.Security(), d.serverConfig)
+func (d *dischargerImpl) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
+	return globChildren(ctx, call, d.serverConfig, m)
 }

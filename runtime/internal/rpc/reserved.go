@@ -5,6 +5,7 @@
 package rpc
 
 import (
+	"fmt"
 	"strings"
 
 	"v.io/v23/context"
@@ -188,6 +189,12 @@ type globInternal struct {
 // levels.
 const maxRecursiveGlobDepth = 10
 
+type gState struct {
+	name  string
+	glob  *glob.Glob
+	depth int
+}
+
 func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern string) error {
 	ctx.VI(3).Infof("rpc Glob: Incoming request: %q.Glob(%q)", i.receiver, pattern)
 	g, err := glob.Parse(pattern)
@@ -205,11 +212,6 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 	}
 	call = callWithMethodTags(ctx, call, tags)
 
-	type gState struct {
-		name  string
-		glob  *glob.Glob
-		depth int
-	}
 	queue := []gState{gState{glob: g}}
 
 	someMatchesOmitted := false
@@ -227,7 +229,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		suffix := subcall.Suffix()
 		if state.depth > maxRecursiveGlobDepth {
 			ctx.Errorf("rpc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, suffix)
-			call.Send(naming.GlobReplyError{
+			subcall.Send(naming.GlobReplyError{
 				naming.GlobError{Name: state.name, Error: reserved.NewErrGlobMaxRecursionReached(ctx)},
 			})
 			continue
@@ -235,21 +237,21 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		obj, auth, err := disp.Lookup(ctx, suffix)
 		if err != nil {
 			ctx.VI(3).Infof("rpc Glob: Lookup failed for %q: %v", suffix, err)
-			call.Send(naming.GlobReplyError{
+			subcall.Send(naming.GlobReplyError{
 				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrNoExist, ctx, err)},
 			})
 			continue
 		}
 		if obj == nil {
 			ctx.VI(3).Infof("rpc Glob: object not found for %q", suffix)
-			call.Send(naming.GlobReplyError{
+			subcall.Send(naming.GlobReplyError{
 				naming.GlobError{Name: state.name, Error: verror.New(verror.ErrNoExist, ctx, "nil object")},
 			})
 			continue
 		}
 
 		// Verify that that requester is authorized for the current object.
-		if err := authorize(ctx, call.Security(), auth); err != nil {
+		if err := authorize(ctx, subcall.Security(), auth); err != nil {
 			someMatchesOmitted = true
 			ctx.VI(3).Infof("rpc Glob: client is not authorized for %q: %v", suffix, err)
 			continue
@@ -260,13 +262,13 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		invoker, err := objectToInvoker(obj)
 		if err != nil {
 			ctx.VI(3).Infof("rpc Glob: object for %q cannot be converted to invoker: %v", suffix, err)
-			call.Send(naming.GlobReplyError{
+			subcall.Send(naming.GlobReplyError{
 				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)},
 			})
 			continue
 		}
 		gs := invoker.Globber()
-		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
+		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil && gs.AllGlobberX == nil && gs.ChildrenGlobberX == nil) {
 			if state.glob.Len() == 0 {
 				subcall.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name, IsLeaf: true}})
 			} else {
@@ -299,42 +301,142 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 			}
 			continue
 		}
-		ctx.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", suffix)
-		children, err := gs.ChildrenGlobber.GlobChildren__(ctx, subcall)
-		// The requested object doesn't exist.
-		if err != nil {
-			subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
-			continue
-		}
-		// The glob pattern matches the current object.
-		if state.glob.Len() == 0 {
-			subcall.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name}})
-		}
-		// The current object has no children.
-		if children == nil {
-			continue
-		}
-		depth := state.depth
-		// This is a recursive pattern. Make sure we don't recurse forever.
-		if state.glob.Len() == 0 {
-			depth++
-		}
-		matcher, left := state.glob.Head(), state.glob.Tail()
-		for child := range children {
-			if len(child) == 0 || strings.Contains(child, "/") {
-				ctx.Errorf("rpc Glob: %q.GlobChildren__() sent an invalid child name: %q", suffix, child)
+		if gs.ChildrenGlobber != nil {
+			ctx.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", suffix)
+			children, err := gs.ChildrenGlobber.GlobChildren__(ctx, subcall)
+			// The requested object doesn't exist.
+			if err != nil {
+				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
 				continue
 			}
-			if matcher.Match(child) {
-				next := naming.Join(state.name, child)
-				queue = append(queue, gState{next, left, depth})
+			// The glob pattern matches the current object.
+			if state.glob.Len() == 0 {
+				subcall.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name}})
 			}
+			// The current object has no children.
+			if children == nil {
+				continue
+			}
+			depth := state.depth
+			// This is a recursive pattern. Make sure we don't recurse forever.
+			if state.glob.Len() == 0 {
+				depth++
+			}
+			matcher, left := state.glob.Head(), state.glob.Tail()
+			for child := range children {
+				if len(child) == 0 || strings.Contains(child, "/") {
+					ctx.Errorf("rpc Glob: %q.GlobChildren__() sent an invalid child name: %q", suffix, child)
+					continue
+				}
+				if matcher.Match(child) {
+					next := naming.Join(state.name, child)
+					queue = append(queue, gState{next, left, depth})
+				}
+			}
+			continue
+		}
+		if gs.AllGlobberX != nil {
+			ctx.VI(3).Infof("rpc Glob: %q implements AllGlobberX", suffix)
+			send := func(reply naming.GlobReply) error {
+				select {
+				case <-ctx.Done():
+					return verror.New(verror.ErrAborted, ctx)
+				default:
+				}
+				switch v := reply.(type) {
+				case naming.GlobReplyEntry:
+					v.Value.Name = naming.Join(state.name, v.Value.Name)
+					return subcall.Send(v)
+				case naming.GlobReplyError:
+					v.Value.Name = naming.Join(state.name, v.Value.Name)
+					return subcall.Send(v)
+				}
+				return nil
+			}
+			if err := gs.AllGlobberX.Glob__(ctx, &globServerCall{subcall, send}, state.glob); err != nil {
+				ctx.VI(3).Infof("rpc Glob: %q.Glob(%q) failed: %v", suffix, state.glob, err)
+				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
+			}
+			continue
+		}
+		if gs.ChildrenGlobberX != nil {
+			ctx.VI(3).Infof("rpc Glob: %q implements ChildrenGlobberX", suffix)
+			depth := state.depth
+			if state.glob.Len() == 0 {
+				// The glob pattern matches the current object.
+				subcall.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name}})
+				if state.glob.Recursive() {
+					// This is a recursive pattern. Make sure we don't recurse forever.
+					depth++
+				} else {
+					// The pattern can't possibly match any children of this node.
+					continue
+				}
+			}
+			matcher, tail := state.glob.Head(), state.glob.Tail()
+			send := func(reply naming.GlobChildrenReply) error {
+				select {
+				case <-ctx.Done():
+					return verror.New(verror.ErrAborted, ctx)
+				default:
+				}
+				switch v := reply.(type) {
+				case naming.GlobChildrenReplyName:
+					child := v.Value
+					if len(child) == 0 || strings.Contains(child, "/") {
+						return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("invalid child name: %q", child))
+					}
+					if !matcher.Match(child) {
+						return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("child name does not match: %q", child))
+					}
+					next := naming.Join(state.name, child)
+					queue = append(queue, gState{next, tail, depth})
+				case naming.GlobChildrenReplyError:
+					v.Value.Name = naming.Join(state.name, v.Value.Name)
+					return subcall.Send(naming.GlobReplyError{v.Value})
+				}
+				return nil
+			}
+			if err := gs.ChildrenGlobberX.GlobChildren__(ctx, &globChildrenServerCall{subcall, send}, matcher); err != nil {
+				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
+			}
+			continue
 		}
 	}
 	if someMatchesOmitted {
 		call.Send(naming.GlobReplyError{naming.GlobError{Error: reserved.NewErrGlobMatchesOmitted(ctx)}})
 	}
 	return nil
+}
+
+type globServerCall struct {
+	rpc.ServerCall
+	send func(reply naming.GlobReply) error
+}
+
+func (g *globServerCall) SendStream() interface {
+	Send(naming.GlobReply) error
+} {
+	return g
+}
+
+func (g *globServerCall) Send(reply naming.GlobReply) error {
+	return g.send(reply)
+}
+
+type globChildrenServerCall struct {
+	rpc.ServerCall
+	send func(reply naming.GlobChildrenReply) error
+}
+
+func (g *globChildrenServerCall) SendStream() interface {
+	Send(naming.GlobChildrenReply) error
+} {
+	return g
+}
+
+func (g *globChildrenServerCall) Send(reply naming.GlobChildrenReply) error {
+	return g.send(reply)
 }
 
 // derivedServerCall allows us to derive calls with slightly different properties,

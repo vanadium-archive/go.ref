@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -208,7 +209,7 @@ func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
 	return i.allAppVersionsForProfiles(appName, profiles)
 }
 
-func (i *appRepoService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
+func (i *appRepoService) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
 	ctx.VI(0).Infof("%v.GlobChildren__()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -224,34 +225,34 @@ func (i *appRepoService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-cha
 	case 0:
 		results, err = i.allApplications()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	case 1:
 		results, err = i.allAppVersions(elems[0])
 		if err != nil {
-			return nil, err
+			return err
 		}
 	case 2:
 		versions, err := i.allAppVersions(elems[0])
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, v := range versions {
 			if v == elems[1] {
-				return nil, nil
+				return nil
 			}
 		}
-		return nil, verror.New(verror.ErrNoExist, nil)
+		return verror.New(verror.ErrNoExist, nil)
 	default:
-		return nil, verror.New(verror.ErrNoExist, nil)
+		return verror.New(verror.ErrNoExist, nil)
 	}
 
-	ch := make(chan string, len(results))
 	for _, r := range results {
-		ch <- r
+		if m.Match(r) {
+			call.SendStream().Send(naming.GlobChildrenReplyName{r})
+		}
 	}
-	close(ch)
-	return ch, nil
+	return nil
 }
 
 func (i *appRepoService) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {

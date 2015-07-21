@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -291,15 +292,13 @@ type GlobResponse struct {
 	err     error
 }
 
-func (mdi *mockDeviceInvoker) Glob__(_ *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	gs := GlobStimulus{pattern}
+func (mdi *mockDeviceInvoker) Glob__(_ *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
+	gs := GlobStimulus{g.String()}
 	gr := mdi.tape.Record(gs).(GlobResponse)
-	ch := make(chan naming.GlobReply, len(gr.results))
-	defer close(ch)
 	for _, r := range gr.results {
-		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: r}}
+		call.SendStream().Send(naming.GlobReplyEntry{naming.MountEntry{Name: r}})
 	}
-	return ch, gr.err
+	return gr.err
 }
 
 type dispatcher struct {

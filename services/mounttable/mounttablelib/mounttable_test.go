@@ -18,6 +18,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/conventions"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -436,7 +437,9 @@ func TestGlob(t *testing.T) {
 	}
 }
 
-type fakeServerCall struct{}
+type fakeServerCall struct {
+	sendCount int
+}
 
 func (fakeServerCall) Security() security.Call              { return security.NewCall(&security.CallParams{}) }
 func (fakeServerCall) Suffix() string                       { return "" }
@@ -444,6 +447,15 @@ func (fakeServerCall) LocalEndpoint() naming.Endpoint       { return nil }
 func (fakeServerCall) RemoteEndpoint() naming.Endpoint      { return nil }
 func (fakeServerCall) GrantedBlessings() security.Blessings { return security.Blessings{} }
 func (fakeServerCall) Server() rpc.Server                   { return nil }
+func (c *fakeServerCall) SendStream() interface {
+	Send(naming.GlobReply) error
+} {
+	return c
+}
+func (c *fakeServerCall) Send(reply naming.GlobReply) error {
+	c.sendCount++
+	return nil
+}
 
 func TestGlobAborts(t *testing.T) {
 	ctx, shutdown := test.V23Init()
@@ -470,15 +482,10 @@ func TestGlobAborts(t *testing.T) {
 
 	glob := func(ctx *context.T) (int, error) {
 		root, _, _ := mt.Lookup(ctx, "")
-		ch, err := root.(rpc.Globber).Globber().AllGlobber.Glob__(ctx, fakeServerCall{}, "...")
-		if err != nil {
-			return 0, err
-		}
-		num := 0
-		for range ch {
-			num++
-		}
-		return num, nil
+		g, _ := glob.Parse("...")
+		fCall := &fakeServerCall{}
+		root.(rpc.Globber).Globber().AllGlobberX.Glob__(ctx, fCall, g)
+		return fCall.sendCount, nil
 	}
 
 	got, err := glob(ctx)

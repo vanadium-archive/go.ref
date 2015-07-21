@@ -268,39 +268,29 @@ func (*neighborhoodService) Delete(ctx *context.T, _ rpc.ServerCall, _ bool) err
 }
 
 // Glob__ implements rpc.AllGlobber
-func (ns *neighborhoodService) Glob__(ctx *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	g, err := glob.Parse(pattern)
-	if err != nil {
-		return nil, err
-	}
-
+func (ns *neighborhoodService) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
 	// return all neighbors that match the first element of the pattern.
 	nh := ns.nh
 
+	sender := call.SendStream()
 	switch len(ns.elems) {
 	case 0:
-		ch := make(chan naming.GlobReply)
-		go func() {
-			defer close(ch)
-			matcher := g.Head()
-			for k, n := range nh.neighbors() {
-				if matcher.Match(k) {
-					ch <- naming.GlobReplyEntry{naming.MountEntry{Name: k, Servers: n, ServesMountTable: true}}
-				}
+		matcher := g.Head()
+		for k, n := range nh.neighbors() {
+			if matcher.Match(k) {
+				sender.Send(naming.GlobReplyEntry{naming.MountEntry{Name: k, Servers: n, ServesMountTable: true}})
 			}
-		}()
-		return ch, nil
+		}
+		return nil
 	case 1:
 		neighbor := nh.neighbor(ns.elems[0])
 		if neighbor == nil {
-			return nil, verror.New(naming.ErrNoSuchName, ctx, ns.elems[0])
+			return verror.New(naming.ErrNoSuchName, ctx, ns.elems[0])
 		}
-		ch := make(chan naming.GlobReply, 1)
-		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: neighbor, ServesMountTable: true}}
-		close(ch)
-		return ch, nil
+		sender.Send(naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: neighbor, ServesMountTable: true}})
+		return nil
 	default:
-		return nil, verror.New(naming.ErrNoSuchName, ctx, ns.elems)
+		return verror.New(naming.ErrNoSuchName, ctx, ns.elems)
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -132,18 +133,20 @@ func (testServer) KnockKnock(*context.T, rpc.ServerCall) (string, error) {
 
 // testServer has the following namespace:
 // "" -> {level1} -> {level2}
-func (t *testServer) GlobChildren__(*context.T, rpc.ServerCall) (<-chan string, error) {
-	ch := make(chan string, 1)
+func (t *testServer) GlobChildren__(_ *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
 	switch t.suffix {
 	case "":
-		ch <- "level1"
+		if n := "level1"; m.Match(n) {
+			call.SendStream().Send(naming.GlobChildrenReplyName{n})
+		}
 	case "level1":
-		ch <- "level2"
+		if n := "level2"; m.Match(n) {
+			call.SendStream().Send(naming.GlobChildrenReplyName{n})
+		}
 	default:
-		return nil, nil
+		return nil
 	}
-	close(ch)
-	return ch, nil
+	return nil
 }
 
 type dispatcher struct{}
@@ -496,11 +499,11 @@ type GlobbableServer struct {
 	mu        sync.Mutex
 }
 
-func (g *GlobbableServer) Glob__(*context.T, rpc.ServerCall, string) (<-chan naming.GlobReply, error) {
+func (g *GlobbableServer) Glob__(*context.T, rpc.GlobServerCall, *glob.Glob) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.callCount++
-	return nil, nil
+	return nil
 }
 
 func (g *GlobbableServer) GetAndResetCount() int {
