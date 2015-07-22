@@ -19,7 +19,8 @@ func (d *databaseReq) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) ([]
 	if d.batchId != nil {
 		return nil, wire.NewErrBoundToBatch(ctx)
 	}
-	return nil, verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.GetSyncGroupNames(ctx, call)
 }
 
 func (d *databaseReq) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, myInfo wire.SyncGroupMemberInfo) error {
@@ -63,19 +64,22 @@ func (d *databaseReq) GetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgNa
 	if d.batchId != nil {
 		return wire.SyncGroupSpec{}, "", wire.NewErrBoundToBatch(ctx)
 	}
-	return wire.SyncGroupSpec{}, "", verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.GetSyncGroupSpec(ctx, call, sgName)
 }
 
 func (d *databaseReq) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, version string) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
-	return verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.SetSyncGroupSpec(ctx, call, sgName, spec, version)
 }
 
 func (d *databaseReq) GetSyncGroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncGroupMemberInfo, error) {
 	if d.batchId != nil {
 		return nil, wire.NewErrBoundToBatch(ctx)
 	}
-	return nil, verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.GetSyncGroupMembers(ctx, call, sgName)
 }

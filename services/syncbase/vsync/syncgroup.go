@@ -15,6 +15,7 @@ package vsync
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
@@ -246,7 +247,7 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 // make forEachSyncGroup() stop the iteration earlier; otherwise the function
 // loops across all SyncGroups in the Database.
 func forEachSyncGroup(st store.StoreReader, callback func(*interfaces.SyncGroup) bool) {
-	scanStart, scanLimit := util.ScanPrefixArgs(sgDataKeyScanPrefix(), "")
+	scanStart, scanLimit := util.ScanPrefixArgs(sgDataKeyScanPrefix, "")
 	stream := st.Scan(scanStart, scanLimit)
 	for stream.Advance() {
 		var sg interfaces.SyncGroup
@@ -286,10 +287,13 @@ func (s *syncService) getMembers(ctx *context.T) map[string]uint32 {
 // relationships.
 // Use the functions above to manipulate SyncGroups.
 
-// sgDataKeyScanPrefix returns the prefix used to scan SyncGroup data entries.
-func sgDataKeyScanPrefix() string {
-	return util.JoinKeyParts(util.SyncPrefix, sgPrefix, "d")
-}
+var (
+	// sgDataKeyScanPrefix is the prefix used to scan SyncGroup data entries.
+	sgDataKeyScanPrefix = util.JoinKeyParts(util.SyncPrefix, sgPrefix, "d")
+
+	// sgNameKeyScanPrefix is the prefix used to scan SyncGroup name entries.
+	sgNameKeyScanPrefix = util.JoinKeyParts(util.SyncPrefix, sgPrefix, "n")
+)
 
 // sgDataKey returns the key used to access the SyncGroup data entry.
 func sgDataKey(gid interfaces.GroupId) string {
@@ -299,6 +303,17 @@ func sgDataKey(gid interfaces.GroupId) string {
 // sgNameKey returns the key used to access the SyncGroup name entry.
 func sgNameKey(name string) string {
 	return util.JoinKeyParts(util.SyncPrefix, sgPrefix, "n", name)
+}
+
+// splitSgNameKey is the inverse of sgNameKey and returns the SyncGroup name.
+func splitSgNameKey(ctx *context.T, key string) (string, error) {
+	prefix := util.JoinKeyParts(util.SyncPrefix, sgPrefix, "n", "")
+
+	// Note that the actual SyncGroup name may contain ":" as a separator.
+	if !strings.HasPrefix(key, prefix) {
+		return "", verror.New(verror.ErrInternal, ctx, "invalid sgNamekey", key)
+	}
+	return strings.TrimPrefix(key, prefix), nil
 }
 
 // hasSGDataEntry returns true if the SyncGroup data entry exists.
@@ -516,6 +531,115 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 	sd.publishInMountTables(ctx, call, sg.Spec)
 
 	return sg.Spec, nil
+}
+
+func (sd *syncDatabase) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	var sgNames []string
+
+	vlog.VI(2).Infof("sync: GetSyncGroupNames: begin")
+	defer vlog.VI(2).Infof("sync: GetSyncGroupNames: end: %v", sgNames)
+
+	sn := sd.db.St().NewSnapshot()
+	defer sn.Close()
+
+	// Check permissions on Database.
+	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
+		return nil, err
+	}
+
+	// Scan all the SyncGroup names found in the Database.
+	scanStart, scanLimit := util.ScanPrefixArgs(sgNameKeyScanPrefix, "")
+	stream := sn.Scan(scanStart, scanLimit)
+	var key []byte
+	for stream.Advance() {
+		sgName, err := splitSgNameKey(ctx, string(stream.Key(key)))
+		if err != nil {
+			return nil, err
+		}
+		sgNames = append(sgNames, sgName)
+	}
+
+	if err := stream.Err(); err != nil {
+		return nil, err
+	}
+
+	return sgNames, nil
+}
+
+func (sd *syncDatabase) GetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncGroupSpec, string, error) {
+	var spec wire.SyncGroupSpec
+
+	vlog.VI(2).Infof("sync: GetSyncGroupSpec: begin %s", sgName)
+	defer vlog.VI(2).Infof("sync: GetSyncGroupSpec: end: %s spec %v", sgName, spec)
+
+	sn := sd.db.St().NewSnapshot()
+	defer sn.Close()
+
+	// Check permissions on Database.
+	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
+		return spec, "", err
+	}
+
+	// Get the SyncGroup information.
+	sg, err := getSyncGroupByName(ctx, sn, sgName)
+	if err != nil {
+		return spec, "", err
+	}
+	// TODO(hpucha): Check SyncGroup ACL.
+
+	spec = sg.Spec
+	return spec, sg.SpecVersion, nil
+}
+
+func (sd *syncDatabase) GetSyncGroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncGroupMemberInfo, error) {
+	var members map[string]wire.SyncGroupMemberInfo
+
+	vlog.VI(2).Infof("sync: GetSyncGroupMembers: begin %s", sgName)
+	defer vlog.VI(2).Infof("sync: GetSyncGroupMembers: end: %s members %v", sgName, members)
+
+	sn := sd.db.St().NewSnapshot()
+	defer sn.Close()
+
+	// Check permissions on Database.
+	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
+		return members, err
+	}
+
+	// Get the SyncGroup information.
+	sg, err := getSyncGroupByName(ctx, sn, sgName)
+	if err != nil {
+		return members, err
+	}
+
+	// TODO(hpucha): Check SyncGroup ACL.
+
+	members = sg.Joiners
+	return members, nil
+}
+
+// TODO(hpucha): Enable syncing syncgroup metadata.
+func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, version string) error {
+	vlog.VI(2).Infof("sync: SetSyncGroupSpec: begin %s %v %s", sgName, spec, version)
+	defer vlog.VI(2).Infof("sync: SetSyncGroupSpec: end: %s", sgName)
+
+	err := store.RunInTransaction(sd.db.St(), func(tx store.StoreReadWriter) error {
+		// Check permissions on Database.
+		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
+			return err
+		}
+
+		gid, err := getSyncGroupId(ctx, tx, sgName)
+		if err != nil {
+			return err
+		}
+		sg, err := getSyncGroupById(ctx, tx, gid)
+
+		// TODO(hpucha): Check SyncGroup ACL. Perform version checking.
+
+		sg.Spec = spec
+		return setSGDataEntry(ctx, tx, gid, sg)
+	})
+	return err
 }
 
 //////////////////////////////

@@ -388,7 +388,7 @@ func (d *database) App() interfaces.App {
 	return d.a
 }
 
-func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
+func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
 	if !d.exists {
 		vlog.Fatalf("database %q does not exist", d.name)
 	}

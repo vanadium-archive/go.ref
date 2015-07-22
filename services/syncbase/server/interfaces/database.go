@@ -26,7 +26,7 @@ type Database interface {
 	// CheckPermsInternal checks whether the given RPC (ctx, call) is allowed per
 	// the database perms.
 	// Designed for use from within App.DeleteNoSQLDatabase.
-	CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error
+	CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error
 
 	// SetPermsInternal updates the database perms.
 	// Designed for use from within App.SetDatabasePerms.

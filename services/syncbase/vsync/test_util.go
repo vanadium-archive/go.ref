@@ -106,7 +106,7 @@ func (d *mockDatabase) BlobSt() localblobstore.BlobStore {
 	return d.bst
 }
 
-func (d *mockDatabase) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
+func (d *mockDatabase) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
