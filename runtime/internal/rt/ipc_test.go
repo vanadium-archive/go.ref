@@ -337,8 +337,10 @@ func TestServerDischarges(t *testing.T) {
 	if err := pserver.BlessingStore().SetDefault(rootServerInvalidTPCaveat); err != nil {
 		t.Fatal(err)
 	}
-	if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil); verror.ErrorID(err) == verror.ErrNoAccess.ID {
+	call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil)
+	if verror.ErrorID(err) == verror.ErrNoAccess.ID {
 		remoteBlessings, _ := call.RemoteBlessings()
 		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remoteBlessings)
 	}
+	call.Finish() // make sure the rpc finishes before shutting down the test+runtime.
 }

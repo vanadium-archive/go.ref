@@ -499,7 +499,7 @@ var childPing = modules.Register(func(env *modules.Env, args ...string) error {
 	name := args[0]
 	got := ""
 	if err := v23.GetClient(ctx).Call(ctx, name, "Ping", nil, []interface{}{&got}); err != nil {
-		fmt.Errorf("unexpected error: %s", err)
+		return fmt.Errorf("unexpected error: %s", err)
 	}
 	fmt.Fprintf(env.Stdout, "RESULT=%s\n", got)
 	return nil
@@ -520,11 +520,12 @@ func TestTimeoutResponse(t *testing.T) {
 	name, fn := initServer(t, ctx)
 	defer fn()
 
-	ctx, _ = context.WithTimeout(ctx, time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, time.Millisecond)
 	err := v23.GetClient(ctx).Call(ctx, name, "Sleep", nil, nil)
 	if got, want := verror.ErrorID(err), verror.ErrTimeout.ID; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
+	cancel()
 }
 
 func TestArgsAndResponses(t *testing.T) {
