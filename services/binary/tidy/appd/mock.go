@@ -37,6 +37,10 @@ func (mdi *mockAppdInvoker) Match(ctx *context.T, _ rpc.ServerCall, profiles []s
 	return r.Env, r.Err
 }
 
+func (mdi *mockAppdInvoker) TidyNow(ctx *context.T, _ rpc.ServerCall) error {
+	return mdi.SimpleCore("TidyNow", "TidyNow")
+}
+
 type dispatcher struct {
 	tape *servicetest.Tape
 	t    *testing.T

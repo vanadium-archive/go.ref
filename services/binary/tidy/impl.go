@@ -25,8 +25,8 @@ import (
 	"v.io/x/ref/services/repository"
 )
 
-var cmdTidy = &cmdline.Command{
-	Runner: v23cmd.RunnerFunc(runTidyUp),
+var cmdBinaryTidy = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runBinaryTidy),
 	Name:   "binary",
 	Short:  "Binary sub-command tidies a specified binaryd",
 	Long: `
@@ -109,7 +109,7 @@ func getNames(ctx *context.T, env *cmdline.Env, endpoint string) ([]string, erro
 	return s, nil
 }
 
-func runTidyUp(ctx *context.T, env *cmdline.Env, args []string) error {
+func runBinaryTidy(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
@@ -184,14 +184,39 @@ func runTidyUp(ctx *context.T, env *cmdline.Env, args []string) error {
 	return nil
 }
 
+var cmdApplicationTidy = &cmdline.Command{
+	Runner: v23cmd.RunnerFunc(runApplicationTidy),
+	Name:   "application",
+	Short:  "Application sub-command tidies a specified applicationd",
+	Long: `
+Application sub-command uses the Tidy RPC to clean up outdated
+envelopes from the specified appilcationd. Call this before tidying a
+binaryd instance for maximum tidiness.
+`,
+	ArgsName: "<applicationd>",
+	ArgsLong: `
+<applicationd> is the name or endpoint of the applicationd instance
+to tidy.
+`,
+}
+
+func runApplicationTidy(ctx *context.T, env *cmdline.Env, args []string) error {
+	vlog.Infof("runApplicationTidy")
+	if expected, got := 1, len(args); expected != got {
+		return env.UsageErrorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	ac := repository.ApplicationClient(args[0])
+	return ac.TidyNow(ctx)
+}
+
 var cmdRoot = &cmdline.Command{
 	Name:  "tidy",
 	Short: "Tidy binary repositories",
 	Long: `
-Tidy tidies the Vanadium binary repository by removing unused
-binaries.
+Tidy tidies the Vanadium repository by removing unused
+envelopes and binaries.
 `,
-	Children: []*cmdline.Command{cmdTidy},
+	Children: []*cmdline.Command{cmdBinaryTidy, cmdApplicationTidy},
 }
 
 func main() {

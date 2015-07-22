@@ -6,13 +6,14 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Tidy tidies the Vanadium binary repository by removing unused binaries.
+Tidy tidies the Vanadium repository by removing unused envelopes and binaries.
 
 Usage:
    tidy <command>
 
 The tidy commands are:
    binary      Binary sub-command tidies a specified binaryd
+   application Application sub-command tidies a specified applicationd
    help        Display help for commands or topics
 
 The global flags are:
@@ -69,6 +70,17 @@ Usage:
 
 <applicationd> is the name or endpoint of the applicationd instance sourcing the
 envelopes. <binaryd> is the name or endpoint of a binaryd instance to clean up.
+
+Tidy application - Application sub-command tidies a specified applicationd
+
+Application sub-command uses the Tidy RPC to clean up outdated envelopes from
+the specified appilcationd. Call this before tidying a binaryd instance for
+maximum tidiness.
+
+Usage:
+   tidy application <applicationd>
+
+<applicationd> is the name or endpoint of the applicationd instance to tidy.
 
 Tidy help - Display help for commands or topics
 
