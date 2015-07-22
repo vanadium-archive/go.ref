@@ -5,8 +5,6 @@
 package conn
 
 import (
-	"io"
-
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
@@ -28,22 +26,21 @@ type Conn struct {
 var _ flow.Conn = &Conn{}
 
 // NewDialed dials a new Conn on the given conn.
-// TODO(mattr): Add the flow.BlessingsForPeer (or whatever we
-// called it) as the last param once that is added.
 func NewDialed(
 	ctx *context.T,
-	conn io.ReadWriter,
+	conn flow.MsgReadWriter,
 	principal security.Principal,
 	local, remote naming.Endpoint,
 	versions version.RPCVersionRange,
-	handler FlowHandler) (*Conn, error) {
+	handler FlowHandler,
+	fn flow.BlessingsForPeer) (*Conn, error) {
 	return nil, nil
 }
 
 // NewAccepted accepts a new Conn on the given conn.
 func NewAccepted(
 	ctx *context.T,
-	conn io.ReadWriter,
+	conn flow.MsgReadWriter,
 	principal security.Principal,
 	local naming.Endpoint,
 	lBlessings security.Blessings,
