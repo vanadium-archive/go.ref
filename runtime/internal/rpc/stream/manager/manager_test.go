@@ -447,6 +447,8 @@ func TestStartTimeout(t *testing.T) {
 			}
 		}
 	}()
+	// Arrange for the above goroutine to exit when the test finishes.
+	defer ln.Close()
 
 	_, err = net.Dial(ep.Addr().Network(), ep.Addr().String())
 	if err != nil {
@@ -500,12 +502,19 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 		t.Fatal(err)
 	}
 	errch := make(chan error)
+	done := make(chan struct{})
 	go func() {
 		for {
 			_, err := ln.Accept()
-			errch <- err
+			select {
+			case <-done:
+				return
+			case errch <- err:
+			}
 		}
 	}()
+	// Arrange for the above goroutine to exit when the test finishes.
+	defer func() { ln.Close(); close(done) }()
 
 	vc, err := client.Dial(cctx, ep, opts...)
 	if err != nil {

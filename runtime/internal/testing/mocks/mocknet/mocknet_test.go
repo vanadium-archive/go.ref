@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -151,8 +152,8 @@ func TestClose(t *testing.T) {
 			txBytes += tx
 			rxBytes += rx
 			if err != nil {
-				if got, want := err.Error(), c.err.Error(); got != want {
-					t.Fatalf("%d: got %v, want %v", ci, got, want)
+				if got, want := err.Error(), c.err.Error(); !strings.Contains(got, want) {
+					t.Fatalf("%d: got %q, does not contain %q", ci, got, want)
 				}
 			}
 		}

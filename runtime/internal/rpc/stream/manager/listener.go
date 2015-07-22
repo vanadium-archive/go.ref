@@ -125,7 +125,7 @@ func isTemporaryError(err error) bool {
 }
 
 func isTooManyOpenFiles(err error) bool {
-	if oErr, ok := err.(*net.OpError); ok && oErr.Err == syscall.EMFILE {
+	if oErr, ok := err.(*net.OpError); ok && strings.Contains(oErr.Err.Error(), syscall.EMFILE.Error()) {
 		return true
 	}
 	return false
