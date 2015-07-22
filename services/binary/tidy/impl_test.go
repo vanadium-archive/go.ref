@@ -24,7 +24,47 @@ import (
 
 //go:generate v23 test generate
 
-func TestBinaryClient(t *testing.T) {
+func TestApplicationTidying(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	apptape := servicetest.NewTape()
+	appserver, err := xrpc.NewDispatchingServer(ctx, "", appd.NewDispatcher(t, apptape))
+	if err != nil {
+		t.Fatalf("applicationd NewDispatchingServer failed: %v", err)
+	}
+
+	// Setup the command-line.
+	var stdout, stderr bytes.Buffer
+	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
+	applicationName := appserver.Status().Endpoints[0].Name()
+
+	apptape.SetResponses(
+		// TidyNow()
+		nil,
+	)
+
+	if err := v23cmd.ParseAndRunForTest(cmdApplicationTidy, ctx, env, []string{applicationName}); err != nil {
+		t.Errorf("error: %v", err)
+	}
+
+	// Verify no output.
+	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
+		t.Errorf("Unexpected output from tidy application. Got %q, expected %q", got, expected)
+	}
+	if expected, got := "", strings.TrimSpace(stderr.String()); got != expected {
+		t.Errorf("Unexpected error from tidy application. Got %q, expected %q", got, expected)
+	}
+
+	// Verify application tape.
+	if got, expected := apptape.Play(), []interface{}{
+		"TidyNow",
+	}; !reflect.DeepEqual(expected, got) {
+		t.Errorf("apptape invalid call sequence. Got %#v, want %#v", got, expected)
+	}
+}
+
+func TestBinaryTidying(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -249,16 +289,16 @@ func TestBinaryClient(t *testing.T) {
 		},
 	)
 
-	if err := v23cmd.ParseAndRunForTest(cmdTidy, ctx, env, []string{applicationName, binaryName}); err != nil {
-		t.Fatalf("error: %v", err)
+	if err := v23cmd.ParseAndRunForTest(cmdBinaryTidy, ctx, env, []string{applicationName, binaryName}); err != nil {
+		t.Errorf("error: %v", err)
 	}
 
 	// Verify no output.
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
-		t.Errorf("Unexpected output from bintidy. Got %q, expected %q", got, expected)
+		t.Errorf("Unexpected output from tidy binary. Got %q, expected %q", got, expected)
 	}
 	if expected, got := "", strings.TrimSpace(stderr.String()); got != expected {
-		t.Errorf("Unexpected error from bintidy. Got %q, expected %q", got, expected)
+		t.Errorf("Unexpected error from tidy binary. Got %q, expected %q", got, expected)
 	}
 
 	// Verify binaryd tape.
