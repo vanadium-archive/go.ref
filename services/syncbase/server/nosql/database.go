@@ -509,8 +509,8 @@ func (s *kvs) Advance() bool {
 		}
 		// We've reached the end of the iterator for this keyRange.
 		// Jump to the next one.
+		s.it[s.curr] = nil
 		s.curr++
-		s.it = nil
 		s.validRow = false
 	}
 	// There are no more prefixes to scan.
