@@ -46,9 +46,6 @@ var (
 // rpc.Client doesn't export an interface for closing connection. So we
 // use the stream manager directly here.
 func benchmarkRPCConnection(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-
 	mp := runtime.GOMAXPROCS(numCPUs)
 	defer runtime.GOMAXPROCS(mp)
 
