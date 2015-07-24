@@ -190,10 +190,6 @@ func TestCreateGkvStore(t *testing.T) {
 	testCreateHelper(t, gkvstore)
 }
 
-func TestCreateLevelDBStore(t *testing.T) {
-	testCreateHelper(t, leveldbstore)
-}
-
 func TestCreateMemStore(t *testing.T) {
 	testCreateHelper(t, memstore)
 }
@@ -252,10 +248,6 @@ func testCreateHelper(t *testing.T, be backend) {
 
 func TestDeleteGkvStore(t *testing.T) {
 	testDeleteHelper(t, gkvstore)
-}
-
-func TestDeleteLevelDBStore(t *testing.T) {
-	testDeleteHelper(t, leveldbstore)
 }
 
 func TestDeleteMemStore(t *testing.T) {
@@ -324,10 +316,6 @@ func testDeleteHelper(t *testing.T, be backend) {
 
 func TestPermsGkvStore(t *testing.T) {
 	testPermsHelper(t, gkvstore)
-}
-
-func TestPermsLevelDBStore(t *testing.T) {
-	testPermsHelper(t, leveldbstore)
 }
 
 func TestPermsMemStore(t *testing.T) {
@@ -443,10 +431,6 @@ func TestAddGkvStore(t *testing.T) {
 	testAddHelper(t, gkvstore)
 }
 
-func TestAddLevelDBStore(t *testing.T) {
-	testAddHelper(t, leveldbstore)
-}
-
 func TestAddMemStore(t *testing.T) {
 	testAddHelper(t, memstore)
 }
@@ -538,10 +522,6 @@ func testAddHelper(t *testing.T, be backend) {
 
 func TestRemoveGkvStore(t *testing.T) {
 	testRemoveHelper(t, gkvstore)
-}
-
-func TestRemoveLevelDBStore(t *testing.T) {
-	testRemoveHelper(t, leveldbstore)
 }
 
 func TestRemoveMemStore(t *testing.T) {

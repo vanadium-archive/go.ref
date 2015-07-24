@@ -11,6 +11,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -24,18 +25,22 @@ import (
 	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/groups/internal/server"
+	"v.io/x/ref/services/groups/internal/store/gkv"
 	"v.io/x/ref/services/groups/internal/store/leveldb"
 	"v.io/x/ref/services/groups/internal/store/mem"
 )
 
 var (
 	flagName    string
+	flagEngine  string
+	flagRootDir string
 	flagPersist string
 )
 
 func main() {
 	cmdGroupsD.Flags.StringVar(&flagName, "name", "", "Name to mount the groups server as.")
-	cmdGroupsD.Flags.StringVar(&flagPersist, "persist", "", "Path to a directory used to persist the groups definitions. If none is specified, groups definitions are not persisted.")
+	cmdGroupsD.Flags.StringVar(&flagEngine, "engine", "memstore", "Storage engine to use. Currently supported: gkv, leveldb, and memstore.")
+	cmdGroupsD.Flags.StringVar(&flagRootDir, "root-dir", "/var/lib/groupsd", "Root dir for storage engines and other data.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdGroupsD)
@@ -75,18 +80,28 @@ func runGroupsD(ctx *context.T, env *cmdline.Env, args []string) error {
 		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 	}
 	var dispatcher rpc.Dispatcher
-	if flagPersist == "" {
-		dispatcher = server.NewManager(mem.New(), perms)
-	} else {
-		store, err := leveldb.Open(flagPersist)
+	switch flagEngine {
+	case "gkv":
+		file := filepath.Join(flagRootDir, ".gkvstore")
+		store, err := gkv.New(file)
 		if err != nil {
-			ctx.Fatalf("Open(%v) failed: %v", flagPersist, err)
+			ctx.Fatalf("gkv.New(%v) failed: %v", file, err)
 		}
 		dispatcher = server.NewManager(store, perms)
+	case "leveldb":
+		store, err := leveldb.Open(flagRootDir)
+		if err != nil {
+			ctx.Fatalf("Open(%v) failed: %v", flagRootDir, err)
+		}
+		dispatcher = server.NewManager(store, perms)
+	case "memstore":
+		dispatcher = server.NewManager(mem.New(), perms)
+	default:
+		return fmt.Errorf("unknown storage engine %v", flagEngine)
 	}
 	server, err := xrpc.NewDispatchingServer(ctx, flagName, dispatcher)
 	if err != nil {
-		fmt.Errorf("NewDispatchingServer(%v) failed: %v", flagName, err)
+		return fmt.Errorf("NewDispatchingServer(%v) failed: %v", flagName, err)
 	}
 	ctx.Infof("Groups server running at endpoint=%q", server.Status().Endpoints[0].Name())
 
