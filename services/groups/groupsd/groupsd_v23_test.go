@@ -44,7 +44,7 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 	// Build binaries for the client and server.
 	var (
 		clientBin  = t.BuildV23Pkg("v.io/x/ref/services/groups/groups")
-		serverBin  = t.BuildV23Pkg("v.io/x/ref/services/groups/groupsd")
+		serverBin  = t.BuildV23Pkg("v.io/x/ref/services/groups/groupsd", "-tags=leveldb")
 		serverName = "groups-server"
 		groupA     = naming.Join(serverName, "groupA")
 		groupB     = naming.Join(serverName, "groupB")
