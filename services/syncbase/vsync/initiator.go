@@ -444,6 +444,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 				}
 			}
 
+			vlog.VI(4).Infof("sync: recvAndProcessDeltas: processing rec %v", rec)
 			if err := iSt.insertRecInLogDagAndDb(ctx, rec, batchId, v.Value.Value, tx); err != nil {
 				return err
 			}

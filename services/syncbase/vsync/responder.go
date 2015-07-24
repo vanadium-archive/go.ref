@@ -440,9 +440,13 @@ func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []str
 func makeWireLogRec(ctx *context.T, st store.Store, rec *localLogRec) (*interfaces.LogRec, error) {
 	// Get the object value at the required version.
 	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
-	value, err := watchable.GetAtVersion(ctx, st, []byte(key), nil, []byte(version))
-	if err != nil {
-		return nil, err
+	var value []byte
+	if !rec.Metadata.Delete {
+		var err error
+		value, err = watchable.GetAtVersion(ctx, st, []byte(key), nil, []byte(version))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	wireRec := &interfaces.LogRec{Metadata: rec.Metadata, Value: value}
