@@ -88,10 +88,6 @@ func (a *mockApp) Name() string {
 	return "mockapp"
 }
 
-func (a *mockApp) StKey() string {
-	return ""
-}
-
 // mockDatabase emulates a Syncbase Database.  It is used to test sync functionality.
 type mockDatabase struct {
 	st  store.Store
@@ -116,10 +112,6 @@ func (d *mockDatabase) SetPermsInternal(ctx *context.T, call rpc.ServerCall, per
 
 func (d *mockDatabase) Name() string {
 	return "mockdb"
-}
-
-func (d *mockDatabase) StKey() string {
-	return ""
 }
 
 func (d *mockDatabase) App() interfaces.App {
@@ -153,6 +145,7 @@ func createService(t *testing.T) *mockService {
 		shutdown: shutdown,
 	}
 	if s.sync, err = New(ctx, nil, s, nil); err != nil {
+		bst.Close()
 		util.DestroyStore(engine, dir)
 		t.Fatalf("cannot create sync service: %v", err)
 	}
@@ -163,6 +156,7 @@ func createService(t *testing.T) *mockService {
 func destroyService(t *testing.T, s *mockService) {
 	defer s.shutdown()
 	defer s.sync.Close()
+	s.bst.Close()
 	if err := util.DestroyStore(s.engine, s.dir); err != nil {
 		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.dir, err)
 	}
