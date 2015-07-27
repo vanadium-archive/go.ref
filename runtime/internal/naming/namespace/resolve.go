@@ -7,6 +7,7 @@ package namespace
 import (
 	"errors"
 	"runtime"
+	"strings"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -22,6 +23,15 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 	finalErr := errors.New("no servers to resolve query")
 	opts = append(opts, options.NoResolve{})
 	for _, s := range e.Servers {
+		// If the server was not specified as an endpoint (perhaps as host:port)
+		// then we really don't know if this is a mounttable or not.  Check the
+		// cache to see if we've tried in the recent past and it came back as not
+		// a mounttable.
+		if ns.resolutionCache.isNotMT(s.Server) {
+			finalErr = verror.New(verror.ErrUnknownMethod, nil, "ResolveStep")
+			continue
+		}
+		// Assume a mount table and make the call.
 		name := naming.JoinAddressName(s.Server, e.Name)
 		// First check the cache.
 		if ne, err := ns.resolutionCache.lookup(ctx, name); err == nil {
@@ -40,6 +50,13 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 			// If any replica says the name doesn't exist, return that fact.
 			if verror.ErrorID(err) == naming.ErrNoSuchName.ID || verror.ErrorID(err) == naming.ErrNoSuchNameRoot.ID {
 				return nil, err
+			}
+			// If it wasn't a mounttable remember that fact.  The check for the __ is for
+			// the debugging hack in the local namespace of every server.  That part never
+			// answers mounttable RPCs and shouldn't make us think this isn't a mounttable
+			// server.
+			if notAnMT(err) && !strings.HasPrefix(e.Name, "__") {
+				ns.resolutionCache.setNotMT(s.Server)
 			}
 			// Keep track of the final error and continue with next server.
 			finalErr = err

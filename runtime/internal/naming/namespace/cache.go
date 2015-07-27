@@ -27,17 +27,20 @@ type cache interface {
 	remember(ctx *context.T, prefix string, entry *naming.MountEntry)
 	forget(ctx *context.T, names []string)
 	lookup(ctx *context.T, name string) (naming.MountEntry, error)
+	isNotMT(s string) bool
+	setNotMT(s string)
 }
 
 // ttlCache is an instance of cache that obeys ttl from the mount points.
 type ttlCache struct {
 	sync.Mutex
 	entries map[string]naming.MountEntry
+	notMT   map[string]time.Time
 }
 
 // newTTLCache creates an empty ttlCache.
 func newTTLCache() cache {
-	return &ttlCache{entries: make(map[string]naming.MountEntry)}
+	return &ttlCache{entries: make(map[string]naming.MountEntry), notMT: make(map[string]time.Time)}
 }
 
 func isStale(now time.Time, e naming.MountEntry) bool {
@@ -143,6 +146,42 @@ func (c *ttlCache) lookup(ctx *context.T, name string) (naming.MountEntry, error
 	return naming.MountEntry{}, verror.New(naming.ErrNoSuchName, nil, name)
 }
 
+// setNotMT caches the fact that a server as not a mounttable.
+func (c *ttlCache) setNotMT(s string) {
+	c.Lock()
+	defer c.Unlock()
+	// Don't set if this is an endpoint since the endpoint contains the
+	// mounttable attribute and we should not override it.
+	//
+	// While looking for "@@" is not definitive for an endpoint containing
+	// the mounttable attribute, it is only incorrect for older version
+	// endpoints which should be rare.  This is just an optimization and
+	// not performing it is not an error.
+	if strings.Contains(s, "@@") {
+		return
+	}
+	// Set it for a minute.  This should be long enough to cut down on the
+	// extra resolutions without preserving mistakes.
+	c.notMT[s] = time.Now().Add(time.Minute)
+}
+
+// isNotMT looks in the cache to see if the server has been found to not be
+// a mounttable.
+func (c *ttlCache) isNotMT(s string) bool {
+	c.Lock()
+	defer c.Unlock()
+	if strings.Contains(s, "@@") {
+		return false
+	}
+	if expires, ok := c.notMT[s]; ok {
+		if !time.Now().After(expires) {
+			return true
+		}
+		delete(c.notMT, s)
+	}
+	return false
+}
+
 // backup moves the last element of the prefix to the suffix.
 func backup(prefix, suffix string) (string, string) {
 	for i := len(prefix) - 1; i > 0; i-- {
@@ -165,3 +204,5 @@ func (nullCache) forget(ctx *context.T, names []string)                         
 func (nullCache) lookup(ctx *context.T, name string) (e naming.MountEntry, err error) {
 	return e, verror.New(naming.ErrNoSuchName, nil, name)
 }
+func (nullCache) isNotMT(s string) bool { return false }
+func (nullCache) setNotMT(s string)     {}
