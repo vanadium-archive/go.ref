@@ -208,6 +208,9 @@ func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
 		delete(d.txs, *d.batchId)
 		d.mu.Unlock()
 	}
+	if verror.ErrorID(err) == store.ErrConcurrentTransaction.ID {
+		return verror.New(wire.ErrConcurrentBatch, ctx, err)
+	}
 	return err
 }
 

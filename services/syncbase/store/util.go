@@ -8,25 +8,30 @@ import (
 	"v.io/v23/verror"
 )
 
+// RunInTransaction runs the given fn in a transaction, managing retries and
+// commit/abort.
 func RunInTransaction(st Store, fn func(st StoreReadWriter) error) error {
-	// TODO(rogulenko): We should eventually give up with
-	// ErrConcurrentTransaction.
-	// TODO(rogulenko): Fail on RPC errors.
-	for {
+	// TODO(rogulenko): Make the number of attempts configurable.
+	// TODO(rogulenko): Change the default number of attempts to 3. Currently,
+	// some storage engine tests fail when the number of attempts is that low.
+	var err error
+	for i := 0; i < 100; i++ {
+		// TODO(sadovsky): Should NewTransaction return an error? If not, how will
+		// we deal with RPC errors when talking to remote storage engines? (Note,
+		// client-side BeginBatch returns an error.)
 		tx := st.NewTransaction()
-		if err := fn(tx); err != nil {
+		if err = fn(tx); err != nil {
 			tx.Abort()
 			return err
 		}
-		err := tx.Commit()
-		if err == nil {
-			return nil
+		// TODO(sadovsky): Commit() can fail for a number of reasons, e.g. RPC
+		// failure or ErrConcurrentTransaction. Depending on the cause of failure,
+		// it may be desirable to retry the Commit() and/or to call Abort().
+		if err = tx.Commit(); verror.ErrorID(err) != ErrConcurrentTransaction.ID {
+			return err
 		}
-		if verror.ErrorID(err) == ErrConcurrentTransaction.ID {
-			continue
-		}
-		return err
 	}
+	return err
 }
 
 // CopyBytes copies elements from a source slice into a destination slice.

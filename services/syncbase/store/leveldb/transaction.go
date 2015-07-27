@@ -13,6 +13,7 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 )
 
 // commitedTransaction is only used as an element of db.txEvents.
@@ -160,11 +161,13 @@ func (tx *transaction) Delete(key []byte) error {
 func (tx *transaction) validateReadSet() bool {
 	for _, key := range tx.reads.Keys {
 		if tx.d.txTable.get(key) > tx.seq {
+			vlog.VI(3).Infof("key conflict: %q", key)
 			return false
 		}
 	}
 	for _, r := range tx.reads.Ranges {
 		if tx.d.txTable.rangeMax(r.Start, r.Limit) > tx.seq {
+			vlog.VI(3).Infof("range conflict: {%q, %q}", r.Start, r.Limit)
 			return false
 		}
 
