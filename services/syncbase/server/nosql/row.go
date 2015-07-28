@@ -26,13 +26,16 @@ var (
 ////////////////////////////////////////
 // RPC methods
 
-func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
-	_, err := r.Get(ctx, call)
+func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {
+	_, err := r.Get(ctx, call, schemaVersion)
 	return util.ErrorToExists(err)
 }
 
-func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
+func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, schemaVersion int32) ([]byte, error) {
 	impl := func(st store.StoreReader) ([]byte, error) {
+		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+			return []byte{}, err
+		}
 		return r.get(ctx, call, st)
 	}
 	var st store.StoreReader
@@ -46,8 +49,11 @@ func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
 	return impl(st)
 }
 
-func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, value []byte) error {
+func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, schemaVersion int32, value []byte) error {
 	impl := func(st store.StoreReadWriter) error {
+		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+			return err
+		}
 		return r.put(ctx, call, st, value)
 	}
 	if r.t.d.batchId != nil {
@@ -61,8 +67,11 @@ func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, value []byte) error {
 	}
 }
 
-func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall) error {
+func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	impl := func(st store.StoreReadWriter) error {
+		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+			return err
+		}
 		return r.delete(ctx, call, st)
 	}
 	if r.t.d.batchId != nil {

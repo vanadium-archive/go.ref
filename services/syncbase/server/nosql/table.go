@@ -30,9 +30,12 @@ var (
 ////////////////////////////////////////
 // RPC methods
 
-func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions) error {
+func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int32, perms access.Permissions) error {
 	if t.d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
+	}
+	if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return err
 	}
 	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
 		// Check databaseData perms.
@@ -60,9 +63,12 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Perm
 	})
 }
 
-func (t *tableReq) Delete(ctx *context.T, call rpc.ServerCall) error {
+func (t *tableReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	if t.d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
+	}
+	if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return err
 	}
 	return store.RunInTransaction(t.d.st, func(st store.StoreReadWriter) error {
 		// Read-check-delete tableData.
@@ -77,14 +83,22 @@ func (t *tableReq) Delete(ctx *context.T, call rpc.ServerCall) error {
 	})
 }
 
-func (t *tableReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
+func (t *tableReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {
+	if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return false, err
+	}
 	return util.ErrorToExists(util.GetWithAuth(ctx, call, t.d.st, t.stKey(), &tableData{}))
 }
 
-func (t *tableReq) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, limit []byte) error {
+func (t *tableReq) DeleteRowRange(ctx *context.T, call rpc.ServerCall, schemaVersion int32, start, limit []byte) error {
 	impl := func(st store.StoreReadWriter) error {
 		// Check for table-level access before doing a scan.
 		if err := t.checkAccess(ctx, call, st, ""); err != nil {
+			return err
+		}
+		// Check if the db schema version and the version provided by client
+		// matches.
+		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
 		it := st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
@@ -121,10 +135,13 @@ func (t *tableReq) DeleteRowRange(ctx *context.T, call rpc.ServerCall, start, li
 	}
 }
 
-func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, start, limit []byte) error {
+func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, schemaVersion int32, start, limit []byte) error {
 	impl := func(st store.StoreReader) error {
 		// Check for table-level access before doing a scan.
 		if err := t.checkAccess(ctx, call, st, ""); err != nil {
+			return err
+		}
+		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
 		it := st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
@@ -157,10 +174,13 @@ func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, start, li
 	return impl(st)
 }
 
-func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, key string) ([]wire.PrefixPermissions, error) {
+func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, key string) ([]wire.PrefixPermissions, error) {
 	impl := func(st store.StoreReader) ([]wire.PrefixPermissions, error) {
 		// Check permissions only at table level.
 		if err := t.checkAccess(ctx, call, st, ""); err != nil {
+			return nil, err
+		}
+		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return nil, err
 		}
 		// Get the most specific permissions object.
@@ -190,9 +210,12 @@ func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, key strin
 	return impl(st)
 }
 
-func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, prefix string, perms access.Permissions) error {
+func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, prefix string, perms access.Permissions) error {
 	impl := func(st store.StoreReadWriter) error {
 		if err := t.checkAccess(ctx, call, st, prefix); err != nil {
+			return err
+		}
+		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
 		// Concurrent transactions that touch this table should fail with
@@ -243,12 +266,15 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, prefix st
 	}
 }
 
-func (t *tableReq) DeletePermissions(ctx *context.T, call rpc.ServerCall, prefix string) error {
+func (t *tableReq) DeletePermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, prefix string) error {
 	if prefix == "" {
 		return verror.New(verror.ErrBadArg, ctx, prefix)
 	}
 	impl := func(st store.StoreReadWriter) error {
 		if err := t.checkAccess(ctx, call, st, prefix); err != nil {
+			return err
+		}
+		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
 		// Concurrent transactions that touch this table should fail with

@@ -133,7 +133,7 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.S
 ////////////////////////////////////////
 // RPC methods
 
-func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions, metadata *wire.SchemaMetadata) error {
+func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.SchemaMetadata, perms access.Permissions) error {
 	if d.exists {
 		return verror.New(verror.ErrExist, ctx, d.name)
 	}
@@ -146,29 +146,39 @@ func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, perms access.P
 	return d.a.CreateNoSQLDatabase(ctx, call, d.name, perms, metadata)
 }
 
-func (d *databaseReq) Delete(ctx *context.T, call rpc.ServerCall) error {
+func (d *databaseReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
+	}
+	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return err
 	}
 	return d.a.DeleteNoSQLDatabase(ctx, call, d.name)
 }
 
-func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
+func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {
 	if !d.exists {
 		return false, nil
+	}
+	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return false, err
 	}
 	return util.ErrorToExists(util.GetWithAuth(ctx, call, d.st, d.stKey(), &databaseData{}))
 }
 
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
-func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.BatchOptions) (string, error) {
+func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, schemaVersion int32, bo wire.BatchOptions) (string, error) {
 	if !d.exists {
 		return "", verror.New(verror.ErrNoExist, ctx, d.name)
 	}
 	if d.batchId != nil {
 		return "", wire.NewErrBoundToBatch(ctx)
 	}
+	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return "", err
+	}
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	var id uint64
@@ -192,7 +202,7 @@ func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.Ba
 	return strings.Join([]string{d.name, batchType, strconv.FormatUint(id, 10)}, util.BatchSep), nil
 }
 
-func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
+func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
@@ -201,6 +211,9 @@ func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
 	}
 	if d.tx == nil {
 		return wire.NewErrReadOnlyBatch(ctx)
+	}
+	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return err
 	}
 	var err error
 	if err = d.tx.Commit(); err == nil {
@@ -214,12 +227,15 @@ func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
 	return err
 }
 
-func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall) error {
+func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
 	if d.batchId == nil {
 		return wire.NewErrNotBoundToBatch(ctx)
+	}
+	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return err
 	}
 	var err error
 	if d.tx != nil {
@@ -238,7 +254,10 @@ func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall) error {
 	return err
 }
 
-func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, q string) error {
+func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string) error {
+	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		return err
+	}
 	impl := func(headers []string, rs ResultStream, err error) error {
 		if err != nil {
 			return err
@@ -567,4 +586,23 @@ func (d *databaseReq) batchReadWriter() (store.StoreReadWriter, error) {
 	} else {
 		return nil, wire.NewErrReadOnlyBatch(nil)
 	}
+}
+
+// TODO(jlodhia): Schema check should happen within a transaction for each
+// operation in database, table and row. Do schema check along with permissions
+// check when fully-specified permission model is implemented.
+func (d *databaseReq) checkSchemaVersion(ctx *context.T, schemaVersion int32) error {
+	if !d.exists {
+		// database does not exist yet and hence there is no schema to check.
+		// This can happen if delete is called twice on the same database.
+		return nil
+	}
+	schemaMetadata, err := d.getSchemaMetadataWithoutAuth(ctx)
+	if err != nil {
+		return err
+	}
+	if (schemaMetadata == nil) || (schemaMetadata.Version == schemaVersion) {
+		return nil
+	}
+	return wire.NewErrSchemaVersionMismatch(ctx)
 }
