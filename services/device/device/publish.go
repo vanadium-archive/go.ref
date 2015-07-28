@@ -112,8 +112,18 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 	binaryVON := naming.Join(binaryService, binaryName, fmt.Sprintf("%s-%s", goosFlag, goarchFlag), timestamp)
 	binaryFile := filepath.Join(binPath, binaryName)
-	binarySig, err := binarylib.UploadFromFile(ctx, binaryVON, binaryFile)
-	if err != nil {
+	var binarySig *security.Signature
+	var err error
+	for i := 0; ; i++ {
+		binarySig, err = binarylib.UploadFromFile(ctx, binaryVON, binaryFile)
+		if verror.ErrorID(err) == verror.ErrExist.ID {
+			newTS := fmt.Sprintf("%s-%d", timestamp, i+1)
+			binaryVON = naming.Join(binaryService, binaryName, fmt.Sprintf("%s-%s", goosFlag, goarchFlag), newTS)
+			continue
+		}
+		if err == nil {
+			break
+		}
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "Binary %q uploaded from file %s\n", binaryVON, binaryFile)
