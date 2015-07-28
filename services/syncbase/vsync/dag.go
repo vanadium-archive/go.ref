@@ -100,9 +100,9 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
-
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 )
 
 const (
@@ -141,11 +141,15 @@ type graftMap map[string]*graftInfo
 // graftInfo holds the state of an object's node grafting in the DAG.
 // It is ephemeral (in-memory), used during a single sync operation to track
 // where the new DAG fragments are attached to the existing DAG for the object:
-// - newNodes:   the set of newly added nodes; used to detect the type of edges
-//               between nodes (new-node to old-node or vice versa).
-// - newHeads:   the set of new candidate head nodes; used to detect conflicts.
-// - graftNodes: the set of old nodes on which new nodes were added, and their
-//               level in the DAG; used to find common ancestors for conflicts.
+// - newNodes:    the set of newly added nodes; used to detect the type of edges
+//                between nodes (new-node to old-node or vice versa).
+// - newHeads:    the set of new candidate head nodes; used to detect conflicts.
+// - graftNodes:  the set of old nodes on which new nodes were added, and their
+//                level in the DAG; used to find common ancestors for conflicts.
+// - oldHeadSnap: snapshot of the current local head known by sync, used in
+//                conflict detection, particularly when conflict detection needs
+//                to be retried due to sync dag state being stale compared
+//                to local store.
 //
 // After the received mutations are applied, if there are two heads in the
 // newHeads set, there is a conflict to be resolved for the object.  Otherwise,
@@ -155,9 +159,10 @@ type graftMap map[string]*graftInfo
 // TODO(rdaoud): support open DAGs to handle delayed conflict resolution by
 // tracking multiple dangling remote heads in addition to the local head node.
 type graftInfo struct {
-	newNodes   map[string]bool
-	newHeads   map[string]bool
-	graftNodes map[string]uint64
+	newNodes    map[string]bool
+	newHeads    map[string]bool
+	graftNodes  map[string]uint64
+	oldHeadSnap string
 }
 
 // newBatchInfo allocates and initializes a batch info entry.
@@ -460,9 +465,12 @@ func moveHead(ctx *context.T, tx store.StoreReadWriter, oid, head string) error 
 // - Yes: return (true, newHead, oldHead, ancestor)   -- from a common past
 // - Yes: return (true, newHead, oldHead, NoVersion)  -- from disjoint pasts
 // - No:  return (false, newHead, oldHead, NoVersion) -- no conflict
+//
 // A conflict exists when there are two new-head nodes in the graft structure.
 // It means the newly added object versions are not derived in part from this
-// device's current knowledge.  If there is a single new-head, the object
+// device's current knowledge. A conflict also exists if the snapshotted local
+// head is different from the current local head. If there is a single new-head
+// and the snapshot head is the same as the current local head, the object
 // changes were applied without triggering a conflict.
 func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft graftMap) (isConflict bool, newHead, oldHead, ancestor string, err error) {
 	isConflict = false
@@ -493,21 +501,37 @@ func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft graftMa
 	// on this device and will not trigger a conflict.
 	oldHead, _ = getHead(ctx, st, oid)
 
-	// If there is only one new head node there is no conflict.  The new
-	// head is that single one, even if it might also be the same old node.
+	// If there is only one new head node and the snapshotted old head is
+	// still unchanged, there is no conflict. The new head is that single
+	// one, even if it might also be the same old node.
 	if numHeads == 1 {
 		for head := range info.newHeads {
 			newHead = head
 		}
-		return
+		if newHead == info.oldHeadSnap {
+			// Only link log records could've been received.
+			newHead = oldHead
+			return
+		} else if oldHead == info.oldHeadSnap {
+			return
+		}
 	}
 
-	// With two candidate head nodes, the new head is the non-old one.
+	// The new head is the non-old one.
 	for head := range info.newHeads {
-		if head != oldHead {
+		if head != info.oldHeadSnap {
 			newHead = head
 			break
 		}
+	}
+
+	// There wasn't a conflict at the old snapshot, but now there is. The
+	// snapshotted head is the common ancestor.
+	isConflict = true
+	if numHeads == 1 {
+		vlog.VI(4).Infof("sync: hasConflict: old graft snapshot %v, head %s", graft, oldHead)
+		ancestor = info.oldHeadSnap
+		return
 	}
 
 	// There is a conflict: the best choice ancestor is the graft node with
@@ -524,7 +548,6 @@ func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft graftMa
 	// graft nodes (empty set) and thus no common ancestor because the two
 	// DAG fragments were created from distinct root nodes.  The "NoVersion"
 	// value is returned as the ancestor.
-	isConflict = true
 	var maxLevel uint64
 	for node, level := range info.graftNodes {
 		if maxLevel < level || (maxLevel == level && ancestor < node) {
@@ -559,6 +582,7 @@ func getObjectGraftInfo(ctx *context.T, st store.StoreReader, graft graftMap, oi
 	// If the object has a head node, include it in the set of new heads.
 	if head, err := getHead(ctx, st, oid); err == nil {
 		info.newHeads[head] = true
+		info.oldHeadSnap = head
 	}
 
 	graft[oid] = info

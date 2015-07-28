@@ -314,6 +314,9 @@ func (iSt *initiationState) connectToPeer(ctx *context.T) (interfaces.SyncGetDel
 //
 // TODO(hpucha): Refactor this code with computeDelta code in sync_state.go.
 func (iSt *initiationState) createLocalGenVec(ctx *context.T) error {
+	iSt.sync.thLock.Lock()
+	defer iSt.sync.thLock.Unlock()
+
 	// Freeze the most recent batch of local changes before fetching
 	// remote changes from a peer. This frozen state is used by the
 	// responder when responding to GetDeltas RPC.
@@ -386,6 +389,9 @@ func (iSt *initiationState) createLocalGenVec(ctx *context.T) error {
 // resolution during replay.  This avoids resolving conflicts that have already
 // been resolved by other devices.
 func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
+	iSt.sync.thLock.Lock()
+	defer iSt.sync.thLock.Unlock()
+
 	// TODO(hpucha): This works for now, but figure out a long term solution
 	// as this may be implementation dependent. It currently works because
 	// the RecvStream call is stateless, and grabbing a handle to it
@@ -585,11 +591,10 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 			return err
 		}
 
-		if err := iSt.updateDbAndSyncSt(ctx); err != nil {
-			return err
+		err := iSt.updateDbAndSyncSt(ctx)
+		if err == nil {
+			err = iSt.tx.Commit()
 		}
-
-		err := iSt.tx.Commit()
 		if err == nil {
 			committed = true
 			// Update in-memory genvector since commit is successful.
@@ -599,11 +604,13 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 			vlog.VI(3).Info("sync: processUpdatedObjects: end: changes committed")
 			return nil
 		}
-
 		if verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
 			return err
 		}
 
+		// Either updateDbAndSyncSt() or tx.Commit() detected a
+		// concurrent transaction. Retry processing the remote updates.
+		//
 		// TODO(hpucha): Sleeping and retrying is a temporary
 		// solution. Next iteration will have coordination with watch
 		// thread to intelligently retry. Hence this value is not a
@@ -626,7 +633,11 @@ func (iSt *initiationState) detectConflicts(ctx *context.T) (int, error) {
 		}
 
 		if !confSt.isConflict {
-			confSt.res = &conflictResolution{ty: pickRemote}
+			if confSt.newHead == confSt.oldHead {
+				confSt.res = &conflictResolution{ty: pickLocal}
+			} else {
+				confSt.res = &conflictResolution{ty: pickRemote}
+			}
 		} else {
 			count++
 		}
@@ -639,76 +650,78 @@ func (iSt *initiationState) detectConflicts(ctx *context.T) (int, error) {
 func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 	for objid, confSt := range iSt.updObjects {
 		// If the local version is picked, no further updates to the
-		// Database are needed.
-		if confSt.res.ty == pickLocal {
-			continue
-		}
+		// Database are needed. If the remote version is picked or if a
+		// new version is created, we put it in the Database.
+		if confSt.res.ty != pickLocal {
 
-		// If the remote version is picked or if a new version is
-		// created, we put it in the Database.
-
-		// TODO(hpucha): Hack right now. Need to change Database's
-		// handling of deleted objects.
-		oldVersDeleted := true
-		if confSt.oldHead != NoVersion {
-			oldDagNode, err := getNode(ctx, iSt.tx, objid, confSt.oldHead)
-			if err != nil {
-				return err
+			// TODO(hpucha): Hack right now. Need to change Database's
+			// handling of deleted objects.
+			oldVersDeleted := true
+			if confSt.oldHead != NoVersion {
+				oldDagNode, err := getNode(ctx, iSt.tx, objid, confSt.oldHead)
+				if err != nil {
+					return err
+				}
+				oldVersDeleted = oldDagNode.Deleted
 			}
-			oldVersDeleted = oldDagNode.Deleted
-		}
 
-		var newVersion string
-		var newVersDeleted bool
-		switch confSt.res.ty {
-		case pickRemote:
-			newVersion = confSt.newHead
-			newDagNode, err := getNode(ctx, iSt.tx, objid, newVersion)
-			if err != nil {
-				return err
+			var newVersion string
+			var newVersDeleted bool
+			switch confSt.res.ty {
+			case pickRemote:
+				newVersion = confSt.newHead
+				newDagNode, err := getNode(ctx, iSt.tx, objid, newVersion)
+				if err != nil {
+					return err
+				}
+				newVersDeleted = newDagNode.Deleted
+			case createNew:
+				newVersion = confSt.res.rec.Metadata.CurVers
+				newVersDeleted = confSt.res.rec.Metadata.Delete
 			}
-			newVersDeleted = newDagNode.Deleted
-		case createNew:
-			newVersion = confSt.res.rec.Metadata.CurVers
-			newVersDeleted = confSt.res.rec.Metadata.Delete
-		}
 
-		// Skip delete followed by a delete.
-		if oldVersDeleted && newVersDeleted {
-			continue
-		}
+			// Skip delete followed by a delete.
+			if oldVersDeleted && newVersDeleted {
+				continue
+			}
 
-		if !oldVersDeleted {
-			// Read current version to enter it in the readset of the transaction.
-			version, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid))
-			if err != nil {
-				return err
+			if !oldVersDeleted {
+				// Read current version to enter it in the readset of the transaction.
+				version, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid))
+				if err != nil {
+					return err
+				}
+				if string(version) != confSt.oldHead {
+					vlog.VI(4).Infof("sync: updateDbAndSyncSt: concurrent updates %s %s", version, confSt.oldHead)
+					return store.NewErrConcurrentTransaction(ctx)
+				}
+			} else {
+				// Ensure key doesn't exist.
+				if _, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid)); verror.ErrorID(err) != store.ErrUnknownKey.ID {
+					return store.NewErrConcurrentTransaction(ctx)
+				}
 			}
-			if string(version) != confSt.oldHead {
-				return store.NewErrConcurrentTransaction(ctx)
-			}
-		} else {
-			// Ensure key doesn't exist.
-			if _, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid)); verror.ErrorID(err) != store.ErrUnknownKey.ID {
-				return store.NewErrConcurrentTransaction(ctx)
-			}
-		}
 
-		if !newVersDeleted {
-			if confSt.res.ty == createNew {
-				if err := watchable.PutAtVersion(ctx, iSt.tx, []byte(objid), confSt.res.val, []byte(newVersion)); err != nil {
+			if !newVersDeleted {
+				if confSt.res.ty == createNew {
+					vlog.VI(4).Infof("sync: updateDbAndSyncSt: PutAtVersion %s %s", objid, newVersion)
+					if err := watchable.PutAtVersion(ctx, iSt.tx, []byte(objid), confSt.res.val, []byte(newVersion)); err != nil {
+						return err
+					}
+				}
+				vlog.VI(4).Infof("sync: updateDbAndSyncSt: PutVersion %s %s", objid, newVersion)
+				if err := watchable.PutVersion(ctx, iSt.tx, []byte(objid), []byte(newVersion)); err != nil {
+					return err
+				}
+			} else {
+				vlog.VI(4).Infof("sync: updateDbAndSyncSt: Deleting obj %s", objid)
+				if err := iSt.tx.Delete([]byte(objid)); err != nil {
 					return err
 				}
 			}
-			if err := watchable.PutVersion(ctx, iSt.tx, []byte(objid), []byte(newVersion)); err != nil {
-				return err
-			}
-		} else {
-			if err := iSt.tx.Delete([]byte(objid)); err != nil {
-				return err
-			}
 		}
-
+		// Always update sync state irrespective of local/remote/new
+		// versions being picked.
 		if err := iSt.updateLogAndDag(ctx, objid); err != nil {
 			return err
 		}
@@ -773,6 +786,8 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, obj string) error {
 
 func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, obj, vers, par string) *localLogRec {
 	gen, pos := iSt.sync.reserveGenAndPosInDbLog(ctx, iSt.appName, iSt.dbName, 1)
+
+	vlog.VI(4).Infof("sync: createLocalLinkLogRec: obj %s vers %s par %s", obj, vers, par)
 
 	rec := &localLogRec{
 		Metadata: interfaces.LogRecMetadata{

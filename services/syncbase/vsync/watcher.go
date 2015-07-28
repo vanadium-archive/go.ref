@@ -84,6 +84,9 @@ func (s *syncService) watchStore(ctx *context.T) {
 // from starving others.  A batch is stored as a contiguous set of log records
 // ending with one record having the "continued" flag set to false.
 func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st store.Store) {
+	s.thLock.Lock()
+	defer s.thLock.Unlock()
+
 	vlog.VI(2).Infof("sync: processDatabase: begin: %s, %s", appName, dbName)
 	defer vlog.VI(2).Infof("sync: processDatabase: end: %s, %s", appName, dbName)
 
