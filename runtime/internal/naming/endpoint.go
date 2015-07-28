@@ -118,9 +118,9 @@ func (ep *Endpoint) parseV5(parts []string) error {
 		ep.Protocol = naming.UnknownProtocol
 	}
 
-	var err error
-	if ep.Address, err = unescape(parts[2]); err != nil {
-		return fmt.Errorf("invalid address: %v", err)
+	var ok bool
+	if ep.Address, ok = naming.Unescape(parts[2]); !ok {
+		return fmt.Errorf("invalid address: bad escape %s", parts[2])
 	}
 	if len(ep.Address) == 0 {
 		ep.Address = net.JoinHostPort("", "0")
@@ -130,6 +130,7 @@ func (ep *Endpoint) parseV5(parts []string) error {
 		return fmt.Errorf("invalid routing id: %v", err)
 	}
 
+	var err error
 	if ep.IsMountTable, ep.IsLeaf, err = parseMountTableFlag(parts[4]); err != nil {
 		return fmt.Errorf("invalid mount table flag: %v", err)
 	}
@@ -170,7 +171,7 @@ func (ep *Endpoint) VersionedString(version int) string {
 		}
 		blessings := strings.Join(ep.Blessings, blessingsSeparator)
 		return fmt.Sprintf("@5@%s@%s@%s@%s@%s@@",
-			ep.Protocol, escape(ep.Address), ep.RID, mt, blessings)
+			ep.Protocol, naming.Escape(ep.Address, "@"), ep.RID, mt, blessings)
 	}
 }
 
@@ -214,73 +215,4 @@ func (a *addr) Network() string {
 
 func (a *addr) String() string {
 	return a.address
-}
-
-func escape(s string) string {
-	if !strings.ContainsAny(s, "%@") {
-		return s
-	}
-	t := make([]byte, len(s)*3)
-	j := 0
-	for i := 0; i < len(s); i++ {
-		switch c := s[i]; c {
-		case '@', '%':
-			t[j] = '%'
-			t[j+1] = "0123456789ABCDEF"[c>>4]
-			t[j+2] = "0123456789ABCDEF"[c&15]
-			j += 3
-		default:
-			t[j] = c
-			j++
-		}
-	}
-	return string(t[:j])
-}
-
-func ishex(c byte) bool {
-	switch {
-	case '0' <= c && c <= '9':
-		return true
-	case 'a' <= c && c <= 'f':
-		return true
-	case 'A' <= c && c <= 'F':
-		return true
-	}
-	return false
-}
-
-func unhex(c byte) byte {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	}
-	return 0
-}
-
-func unescape(s string) (string, error) {
-	if !strings.Contains(s, "%") {
-		return s, nil
-	}
-	t := make([]byte, len(s))
-	j := 0
-	for i := 0; i < len(s); {
-		switch s[i] {
-		case '%':
-			if len(s) <= i+2 || !ishex(s[i+1]) || !ishex(s[i+2]) {
-				return s, fmt.Errorf("invalid escape %q", s)
-			}
-			t[j] = unhex(s[i+1])<<4 | unhex(s[i+2])
-			j++
-			i += 3
-		default:
-			t[j] = s[i]
-			j++
-			i++
-		}
-	}
-	return string(t[:j]), nil
 }
