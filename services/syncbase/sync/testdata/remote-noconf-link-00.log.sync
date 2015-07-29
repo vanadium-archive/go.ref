@@ -1,5 +1,0 @@
-# Update an object remotely, detect conflict, and bless the remote version.
-# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
-
-addr|1234|4|1||VeyronPhone:10:1:0|0|1|false
-linkr|1234|2|4||VeyronPhone:10:1:1

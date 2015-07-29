@@ -1,4 +1,0 @@
-# Create an object locally and update it twice (linked-list).
-# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
-
-addl|1234|6|2|5|logrec-06|0|1|false

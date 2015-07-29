@@ -1,9 +1,0 @@
-# Create objects locally and update one and delete another.
-# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
-
-addl|12|1|||logrec-00|0|1|false
-addl|12|2|1||logrec-01|0|1|false
-addl|12|3|2||logrec-02|0|1|false
-
-addl|45|1|||logrec-00|0|1|false
-addl|45|0|1||logrec-00|0|1|true
