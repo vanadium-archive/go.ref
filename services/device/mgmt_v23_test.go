@@ -28,7 +28,8 @@
 //
 // NB: the accounts provided as arguments to this test must already exist.
 // Also, the --v23.tests.shell-on-fail flag is useful to enable debugging
-// output.
+// output. Note that this flag does not work for some shells. Set
+// $SHELL in that case.
 
 package device_test
 
