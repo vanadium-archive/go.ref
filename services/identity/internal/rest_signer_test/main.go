@@ -4,7 +4,9 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
+	"math/big"
 
 	"v.io/x/ref/services/identity/internal/server"
 )
@@ -15,11 +17,19 @@ func main() {
 		fmt.Printf("NewRestSigner error: %v\n", err)
 		return
 	}
+	der, err := signer.PublicKey().MarshalBinary()
+	if err != nil {
+		fmt.Printf("Failed to marshal public key: %v\n", err)
+		return
+	}
 	sig, err := signer.Sign([]byte("purpose"), []byte("message"))
 	if err != nil {
 		fmt.Printf("Sign error: %v\n", err)
 		return
 	}
 	ok := sig.Verify(signer.PublicKey(), []byte("message"))
+	fmt.Printf("PublicKey: %v\n", base64.URLEncoding.EncodeToString(der))
+	fmt.Printf("R: %v\n", big.NewInt(0).SetBytes(sig.R))
+	fmt.Printf("S: %v\n", big.NewInt(0).SetBytes(sig.S))
 	fmt.Printf("Verified: %v\n", ok)
 }
