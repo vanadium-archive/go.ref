@@ -85,7 +85,14 @@ run() {
   local -r devmgr_user=$(getdevowner)
   if [[ "${devmgr_user}" == $(whoami) ]]; then
     "$@"
-  else
+  elif [[ "$(uname)" == "Darwin" ]]; then
+     # We use su -u on Darwin because Darwin su is different from Linux su
+      # and is not found in GCE or EC2 images.
+    sudo -u "${devmgr_user}" \
+         V23_NAMESPACE="${V23_NAMESPACE}" \
+         V23_DEVICE_DIR="${V23_DEVICE_DIR}" \
+         "$@"
+  else 
     # We use sudo/su rather than just sudo -u because the latter is often
     # set up to require a password in common GCE and EC2 images.
     sudo V23_NAMESPACE="${V23_NAMESPACE}"  V23_DEVICE_DIR="${V23_DEVICE_DIR}" \
@@ -336,7 +343,7 @@ start() {
     exit 1
   fi
   local -r BIN_INSTALL="${V23_DEVICE_DIR}/bin"
-    run "${BIN_INSTALL}/deviced" start
+    run "${BIN_INSTALL}/deviced" start  
 }
 
 ###############################################################################
