@@ -25,11 +25,11 @@
 // Sample run (assuming a syncbase service is mounted at '/:8101/syncbase',
 // otherwise specify using -service flag):
 //     > $V23_ROOT/roadmap/go/bin/sb51 sh -create-missing -make-demo -format=csv demoapp demodb
-//     ? select v.Name, v.Address.State from DemoCustomers where t = "Customer";
+//     ? select v.Name, v.Address.State from DemoCustomers where Type(v) = "Customer";
 //     v.Name,v.Address.State
 //     John Smith,CA
 //     Bat Masterson,IA
-//     ? select v.CustId, v.InvoiceNum, v.ShipTo.Zip, v.Amount from DemoCustomers where t = "Invoice" and v.Amount > 100;
+//     ? select v.CustId, v.InvoiceNum, v.ShipTo.Zip, v.Amount from DemoCustomers where Type(v) = "Invoice" and v.Amount > 100;
 //     v.CustId,v.InvoiceNum,v.ShipTo.Zip,v.Amount
 //     2,1001,50055,166
 //     2,1002,50055,243
