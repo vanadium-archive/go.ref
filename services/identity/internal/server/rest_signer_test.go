@@ -14,8 +14,9 @@ import (
 )
 
 func TestDecode(t *testing.T) {
-	encodedKey := &signer.PublicKey{Base64: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPqDbuT2B9Bb3JMcOGd2mm4bQuKSREeSKRt8_oofo0jRYiKFQ2ZVuCqssA-IUvFArT5KfXc6B9BNesgS10rPKrg=="}
-	encodedSig := &signer.VSignature{R: "0x42bca58e435f906c874536789cfc31656dd8f9ffbd3b7be84181611cc04eaf74", S: "0xa6f57e858a9f36b559e9cd9f13854b90fad49e0c5591ed66033fd286682b2078"}
+	// To generate encodedKey and encodedSig run the binary in v.io/x/ref/services/identity/internal/rest_signer_test
+	encodedKey := &signer.PublicKey{Base64: "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEx8xywmgl2_UmDUoJxrh2N9pAij7jg1kIqruKpnT6SNtcNubCG_PgdpWqiVLp3zBWlw1T3F2ecy4iGpi5N4Yj-A=="}
+	encodedSig := &signer.VSignature{R: "90128808689861327833210881969781001621382090117447023854233028840694123302875", S: "102696248968928040866906648206566376772954871370602978407028885005693672370943"}
 
 	key, err := server.DecodePublicKey(encodedKey)
 	if err != nil {
