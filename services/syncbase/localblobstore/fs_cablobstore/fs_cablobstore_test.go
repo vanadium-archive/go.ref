@@ -69,3 +69,29 @@ func TestWritingViaChunks(t *testing.T) {
 	// Test it.
 	localblobstore_testlib.WriteViaChunks(t, ctx, bs)
 }
+
+// This test case checks that empty blobs can be created, then extended via
+// ResumeBlobWriter.
+func TestCreateAndResume(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	// Make a temporary directory.
+	var err error
+	var testDirName string
+	testDirName, err = ioutil.TempDir("", "localblobstore_test")
+	if err != nil {
+		t.Fatalf("localblobstore_test: can't make tmp directory: %v\n", err)
+	}
+	defer os.RemoveAll(testDirName)
+
+	// Create an fs_cablobstore.
+	var bs localblobstore.BlobStore
+	bs, err = fs_cablobstore.Create(ctx, testDirName)
+	if err != nil {
+		t.Fatalf("fs_cablobstore.Create failed: %v", err)
+	}
+
+	// Test it.
+	localblobstore_testlib.CreateAndResume(t, ctx, bs)
+}

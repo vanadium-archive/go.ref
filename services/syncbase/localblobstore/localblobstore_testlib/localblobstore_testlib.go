@@ -820,3 +820,70 @@ func WriteViaChunks(t *testing.T, ctx *context.T, bs [2]localblobstore.BlobStore
 	checkBlobAgainstReader(t, ctx, bs[1], blob0, NewRandReader(1, totalLength, 0, io.EOF), 6)
 	checkBlobChunksAgainstReader(t, ctx, bs[1], blob0, NewRandReader(1, totalLength, 0, io.EOF), 7)
 }
+
+// checkBlobContent() checks that the named blob has the specified content.
+func checkBlobContent(t *testing.T, ctx *context.T, bs localblobstore.BlobStore, blobName string, content []byte) {
+	var err error
+	var br localblobstore.BlobReader
+	var data []byte
+	if br, err = bs.NewBlobReader(ctx, blobName); err != nil {
+		t.Fatalf("localblobstore.NewBlobReader failed: %v\n", err)
+	}
+	if data, err = ioutil.ReadAll(br); err != nil && err != io.EOF {
+		t.Fatalf("Read on br failed: %v\n", err)
+	}
+	if !bytes.Equal(data, content) {
+		t.Fatalf("Read on %q got %q, wanted %v\n", blobName, data, content)
+	}
+	if err = br.Close(); err != nil {
+		t.Fatalf("br.Close failed: %v\n", err)
+	}
+}
+
+// CreateAndResume() tests that it's possible to create a blob with
+// NewBlobWriter(), immediately close it, and then resume writing with
+// ResumeBlobWriter.  This test is called out because syncbase does this, and
+// it exposed a bug in the reader code, which could not cope with a request to
+// read starting at the very end of a file, thus returning no bytes.
+func CreateAndResume(t *testing.T, ctx *context.T, bs localblobstore.BlobStore) {
+	var err error
+
+	// Create an empty, unfinalized blob.
+	var bw localblobstore.BlobWriter
+	if bw, err = bs.NewBlobWriter(ctx, ""); err != nil {
+		t.Fatalf("localblobstore.NewBlobWriter failed: %v\n", err)
+	}
+	blobName := bw.Name()
+	if err = bw.CloseWithoutFinalize(); err != nil {
+		t.Fatalf("bw.CloseWithoutFinalize failed: %v\n", verror.DebugString(err))
+	}
+
+	checkBlobContent(t, ctx, bs, blobName, nil)
+
+	// Reopen the blob, but append no bytes (an empty byte vector).
+	if bw, err = bs.ResumeBlobWriter(ctx, blobName); err != nil {
+		t.Fatalf("localblobstore.ResumeBlobWriter failed: %v\n", err)
+	}
+	if err = bw.AppendFragment(localblobstore.BlockOrFile{Block: []byte("")}); err != nil {
+		t.Fatalf("bw.AppendFragment failed: %v", err)
+	}
+	if err = bw.CloseWithoutFinalize(); err != nil {
+		t.Fatalf("bw.Close failed: %v\n", err)
+	}
+
+	checkBlobContent(t, ctx, bs, blobName, nil)
+
+	// Reopen the blob, and append a non-empty sequence of bytes.
+	content := []byte("some content")
+	if bw, err = bs.ResumeBlobWriter(ctx, blobName); err != nil {
+		t.Fatalf("localblobstore.ResumeBlobWriter.Close failed: %v\n", err)
+	}
+	if err = bw.AppendFragment(localblobstore.BlockOrFile{Block: content}); err != nil {
+		t.Fatalf("bw.AppendFragment failed: %v", err)
+	}
+	if err = bw.Close(); err != nil {
+		t.Fatalf("bw.Close failed: %v\n", err)
+	}
+
+	checkBlobContent(t, ctx, bs, blobName, content)
+}

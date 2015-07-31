@@ -1050,6 +1050,8 @@ func (br *BlobReader) ReadAt(b []byte, at int64) (n int, err error) {
 		} else if err == io.EOF {
 			err = nil
 		}
+	} else if at == br.desc.size { // Reading at the end of the file, past the last fragment.
+		err = io.EOF
 	} else {
 		err = verror.New(errIllegalPositionForRead, br.ctx, br.pos, br.desc.size)
 	}
