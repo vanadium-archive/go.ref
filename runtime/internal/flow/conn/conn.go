@@ -12,6 +12,10 @@ import (
 	"v.io/v23/security"
 )
 
+// flowID is a number assigned to identify a flow.
+// Each flow on a given conn will have a unique number.
+type flowID uint64
+
 // FlowHandlers process accepted flows.
 type FlowHandler interface {
 	// HandleFlow processes an accepted flow.
