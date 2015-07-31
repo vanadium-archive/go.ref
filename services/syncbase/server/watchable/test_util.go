@@ -19,13 +19,18 @@ import (
 
 // This file provides utility methods for tests related to watchable store.
 
-///////  Functions related to creation/cleanup of store instances  ///////
+////////////////////////////////////////////////////////////
+// Functions for store creation/cleanup
 
 // createStore returns a store along with a function to destroy the store
 // once it is no longer needed.
-func createStore(useMemstore bool) (store.Store, func()) {
+func createStore() (store.Store, func()) {
 	var st store.Store
-	if useMemstore {
+	// With Memstore, TestReadWriteRandom is slow with ManagedPrefixes=nil since
+	// every watchable.Store.Get() takes a snapshot, and memstore snapshots are
+	// relatively expensive since the entire data map is copied. LevelDB snapshots
+	// are cheap, so with LevelDB ManagedPrefixes=nil is still reasonably fast.
+	if false {
 		st = memstore.New()
 		return st, func() {
 			st.Close()
@@ -61,7 +66,8 @@ func destroyLevelDB(st store.Store, path string) {
 	}
 }
 
-///////  Functions related to watchable store  ///////
+////////////////////////////////////////////////////////////
+// Functions related to watchable store
 
 func getSeq(st Store) uint64 {
 	wst := st.(*wstore)
@@ -73,23 +79,23 @@ func setMockSystemClock(st Store, mockClock clock.SystemClock) {
 	wst.clock.SetSystemClock(mockClock)
 }
 
-// LogEntryReader provides a stream-like interface to scan over the log entries
+// logEntryReader provides a stream-like interface to scan over the log entries
 // of a single batch, starting for a given sequence number.  It opens a stream
 // that scans the log from the sequence number given.  It stops after reading
 // the last entry in that batch (indicated by a false Continued flag).
-type LogEntryReader struct {
+type logEntryReader struct {
 	stream store.Stream // scan stream on the store Database
 	done   bool         // true after reading the last batch entry
 	key    string       // key of most recent log entry read
 	entry  LogEntry     // most recent log entry read
 }
 
-func NewLogEntryReader(st store.Store, seq uint64) *LogEntryReader {
+func newLogEntryReader(st store.Store, seq uint64) *logEntryReader {
 	stream := st.Scan([]byte(getLogEntryKey(seq)), []byte(getLogEntryKey(math.MaxUint64)))
-	return &LogEntryReader{stream: stream}
+	return &logEntryReader{stream: stream}
 }
 
-func (ler *LogEntryReader) Advance() bool {
+func (ler *logEntryReader) Advance() bool {
 	if ler.done {
 		return false
 	}
@@ -110,29 +116,29 @@ func (ler *LogEntryReader) Advance() bool {
 	return false
 }
 
-func (ler *LogEntryReader) GetEntry() (string, LogEntry) {
+func (ler *logEntryReader) GetEntry() (string, LogEntry) {
 	return ler.key, ler.entry
 }
 
-///////  Clock related utility code  ///////
+////////////////////////////////////////////////////////////
+// Clock related utility code
 
-// Mock Implementation for SystemClock
-type MockSystemClock struct {
+type mockSystemClock struct {
 	time      time.Time     // current time returned by call to Now()
 	increment time.Duration // how much to increment the clock by for subsequent calls to Now()
 }
 
-func NewMockSystemClock(firstTimestamp time.Time, increment time.Duration) *MockSystemClock {
-	return &MockSystemClock{
+func newMockSystemClock(firstTimestamp time.Time, increment time.Duration) *mockSystemClock {
+	return &mockSystemClock{
 		time:      firstTimestamp,
 		increment: increment,
 	}
 }
 
-func (sc *MockSystemClock) Now() time.Time {
+func (sc *mockSystemClock) Now() time.Time {
 	now := sc.time
 	sc.time = sc.time.Add(sc.increment)
 	return now
 }
 
-var _ clock.SystemClock = (*MockSystemClock)(nil)
+var _ clock.SystemClock = (*mockSystemClock)(nil)

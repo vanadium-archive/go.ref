@@ -61,14 +61,8 @@ func TestTransactionsWithGet(t *testing.T) {
 	runTest(t, nil, test.RunTransactionsWithGetTest)
 }
 
-// With Memstore, TestReadWriteRandom is slow with ManagedPrefixes=nil since
-// every watchable.Store.Get() takes a snapshot, and memstore snapshots are
-// relatively expensive since the entire data map is copied. LevelDB snapshots
-// are cheap, so with LevelDB ManagedPrefixes=nil is still reasonably fast.
-const useMemstore = false
-
 func runTest(t *testing.T, mp []string, f func(t *testing.T, st store.Store)) {
-	st, destroy := createStore(useMemstore)
+	st, destroy := createStore()
 	defer destroy()
 	st, err := Wrap(st, &Options{ManagedPrefixes: mp})
 	if err != nil {
