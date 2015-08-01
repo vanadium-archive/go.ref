@@ -35,12 +35,17 @@ func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, func() {}, err
 	}
 	ctx = context.WithValue(ctx, principalKey, p)
+	ctx = context.WithLogger(ctx, logger.Global())
 	return &Runtime{ns: tnaming.NewSimpleNamespace()}, ctx, func() {}, nil
 }
 
 func (r *Runtime) Init(ctx *context.T) error {
 	// nologcall
-	return logger.Manager(ctx).ConfigureFromFlags()
+	err := logger.Manager(ctx).ConfigureFromFlags()
+	if err != nil && !logger.IsAlreadyConfiguredError(err) {
+		return err
+	}
+	return nil
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {

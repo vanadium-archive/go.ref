@@ -9,9 +9,16 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc/version"
+	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/test"
 )
+
+func init() {
+	test.Init()
+}
 
 func TestVarInt(t *testing.T) {
 	cases := []uint64{
@@ -42,39 +49,24 @@ func TestVarInt(t *testing.T) {
 	}
 }
 
-type fakeMsgReadWriter struct {
-	bufs [][]byte
-	t    *testing.T
-}
-
-func (f *fakeMsgReadWriter) WriteMsg(data ...[]byte) (int, error) {
-	buf := []byte{}
-	for _, d := range data {
-		buf = append(buf, d...)
-	}
-	f.bufs = append(f.bufs, buf)
-	return len(buf), nil
-}
-
-func (f *fakeMsgReadWriter) ReadMsg() (buf []byte, err error) {
-	// TODO(mattr): block if empty.
-	buf, f.bufs = f.bufs[0], f.bufs[1:]
-	f.t.Logf("reading: %v", buf)
-	return buf, nil
-}
-
 func testMessages(t *testing.T, cases []message) {
-	ctx, cancel := context.RootContext()
-	defer cancel()
-	p := newMessagePipe(&fakeMsgReadWriter{t: t})
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+	w, r := newMRWPair(ctx)
+	wp, rp := newMessagePipe(w), newMessagePipe(r)
 	for _, want := range cases {
-		if err := p.writeMsg(ctx, want); err != nil {
-			t.Errorf("unexpected error for %#v: %v", want, err)
-		}
-		got, err := p.readMsg(ctx)
+		ch := make(chan struct{})
+		go func() {
+			if err := wp.writeMsg(ctx, want); err != nil {
+				t.Errorf("unexpected error for %#v: %v", want, err)
+			}
+			close(ch)
+		}()
+		got, err := rp.readMsg(ctx)
 		if err != nil {
 			t.Errorf("unexpected error reading %#v: %v", want, err)
 		}
+		<-ch
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got: %#v, want %#v", got, want)
 		}
@@ -111,12 +103,12 @@ func TestAddReceiveBuffers(t *testing.T) {
 
 func TestData(t *testing.T) {
 	testMessages(t, []message{
-		&data{id: 1123, flags: 232, payload: []byte("fake payload")},
+		&data{id: 1123, flags: 232, payload: [][]byte{[]byte("fake payload")}},
 	})
 }
 
 func TestUnencryptedData(t *testing.T) {
 	testMessages(t, []message{
-		&unencryptedData{id: 1123, flags: 232, payload: []byte("fake payload")},
+		&unencryptedData{id: 1123, flags: 232, payload: [][]byte{[]byte("fake payload")}},
 	})
 }

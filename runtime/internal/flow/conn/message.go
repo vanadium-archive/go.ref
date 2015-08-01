@@ -166,13 +166,14 @@ func (m *addRecieveBuffers) read(ctx *context.T, orig []byte) error {
 type data struct {
 	id      flowID
 	flags   uint64
-	payload []byte
+	payload [][]byte
 }
 
 func (m *data) write(ctx *context.T, p *messagePipe) error {
 	p.dataBuf = writeVarUint64(uint64(m.id), p.dataBuf[:0])
 	p.dataBuf = writeVarUint64(m.flags, p.dataBuf)
-	return p.write([][]byte{{dataType}}, [][]byte{p.dataBuf, m.payload})
+	encrypted := append([][]byte{p.dataBuf}, m.payload...)
+	return p.write([][]byte{{dataType}}, encrypted)
 }
 func (m *data) read(ctx *context.T, orig []byte) error {
 	var (
@@ -187,7 +188,7 @@ func (m *data) read(ctx *context.T, orig []byte) error {
 	if m.flags, data, valid = readVarUint64(ctx, data); !valid {
 		return NewErrInvalidMsg(ctx, dataType, int64(len(orig)), 1)
 	}
-	m.payload = data
+	m.payload = [][]byte{data}
 	return nil
 }
 
@@ -195,17 +196,20 @@ func (m *data) read(ctx *context.T, orig []byte) error {
 type unencryptedData struct {
 	id      flowID
 	flags   uint64
-	payload []byte
+	payload [][]byte
 }
 
 func (m *unencryptedData) write(ctx *context.T, p *messagePipe) error {
 	p.dataBuf = writeVarUint64(uint64(m.id), p.dataBuf[:0])
 	p.dataBuf = writeVarUint64(m.flags, p.dataBuf)
 	// re-use the controlBuf for the data size.
-	p.controlBuf = writeVarUint64(uint64(len(m.payload)), p.controlBuf[:0])
-	return p.write(
-		[][]byte{{unencryptedDataType}, p.controlBuf, m.payload},
-		[][]byte{p.dataBuf})
+	size := uint64(0)
+	for _, b := range m.payload {
+		size += uint64(len(b))
+	}
+	p.controlBuf = writeVarUint64(size, p.controlBuf[:0])
+	unencrypted := append([][]byte{[]byte{unencryptedDataType}, p.controlBuf}, m.payload...)
+	return p.write(unencrypted, [][]byte{p.dataBuf})
 }
 func (m *unencryptedData) read(ctx *context.T, orig []byte) error {
 	var (
@@ -220,7 +224,7 @@ func (m *unencryptedData) read(ctx *context.T, orig []byte) error {
 	if plen > len(data) {
 		return NewErrInvalidMsg(ctx, unencryptedDataType, int64(len(orig)), 1)
 	}
-	m.payload, data = data[:plen], data[plen:]
+	m.payload, data = [][]byte{data[:plen]}, data[plen:]
 	if v, data, valid = readVarUint64(ctx, data); !valid {
 		return NewErrInvalidMsg(ctx, unencryptedDataType, int64(len(orig)), 2)
 	}
