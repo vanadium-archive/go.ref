@@ -2,22 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// syncbased is a syncbase daemon.
 package main
-
-// Example invocation:
-// syncbased --veyron.tcp.address="127.0.0.1:0" --name=syncbased
 
 import (
 	"flag"
 
 	"v.io/syncbase/x/ref/services/syncbase/server"
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
-	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -39,10 +35,10 @@ func defaultPerms(blessingPatterns []security.BlessingPattern) access.Permission
 	return perms
 }
 
-func main() {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
+// TODO(sadovsky): We return interface{} as a quick hack to support Mojo. The
+// actual return value is of type *server.service, which we don't want to
+// export.
+func Serve(ctx *context.T) interface{} {
 	s, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatal("v23.NewServer() failed: ", err)
@@ -81,6 +77,5 @@ func main() {
 		vlog.Info("Mounted at: ", *name)
 	}
 
-	// Wait forever.
-	<-signals.ShutdownOnSignals(ctx)
+	return service
 }
