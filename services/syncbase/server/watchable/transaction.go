@@ -301,10 +301,3 @@ func PutVersion(ctx *context.T, tx store.StoreReadWriter, key, version []byte) e
 	wtx.ops = append(wtx.ops, &OpPut{PutOp{Key: cp(key), Version: cp(version)}})
 	return nil
 }
-
-// Exported as a helper function for testing purposes.
-func getLogEntryKey(seq uint64) string {
-	// Note: MaxUint64 is 0xffffffffffffffff.
-	// TODO(sadovsky): Use a more space-efficient lexicographic number encoding.
-	return join(util.LogPrefix, fmt.Sprintf("%016x", seq))
-}

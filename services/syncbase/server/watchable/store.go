@@ -24,13 +24,11 @@ package watchable
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 
 	pubutil "v.io/syncbase/v23/syncbase/util"
 	"v.io/syncbase/x/ref/services/syncbase/clock"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 )
 
@@ -48,40 +46,16 @@ type Options struct {
 
 // Wrap returns a watchable.Store that wraps the given store.Store.
 func Wrap(st store.Store, opts *Options) (Store, error) {
-	// Determine initial value for seq.
-	// TODO(sadovsky): Consider using a bigger seq.
-	var seq uint64 = 0
-	// TODO(sadovsky): Perform a binary search to determine seq, or persist the
-	// current sequence number on every nth write so that at startup time we can
-	// start our scan from there instead scanning over all log entries just to
-	// find the latest one.
-	it := st.Scan(util.ScanPrefixArgs(util.LogPrefix, ""))
-	advanced := false
-	keybuf := []byte{}
-	for it.Advance() {
-		advanced = true
-		keybuf = it.Key(keybuf)
-	}
-	if err := it.Err(); err != nil {
+	seq, err := getNextLogSeq(st)
+	if err != nil {
 		return nil, err
 	}
-	if advanced {
-		key := string(keybuf)
-		parts := split(key)
-		if len(parts) != 2 {
-			panic("wrong number of parts: " + key)
-		}
-		var err error
-		seq, err = strconv.ParseUint(parts[1], 10, 64)
-		// Current value of seq points to the last transaction committed.
-		// Increment this value by 1.
-		seq++
-		if err != nil {
-			panic("failed to parse seq: " + key)
-		}
-	}
-	vclock := clock.NewVClock()
-	return &wstore{ist: st, opts: opts, seq: seq, clock: vclock}, nil
+	return &wstore{
+		ist:   st,
+		opts:  opts,
+		seq:   seq,
+		clock: clock.NewVClock(),
+	}, nil
 }
 
 type wstore struct {
