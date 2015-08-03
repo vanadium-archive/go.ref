@@ -11,4 +11,7 @@ package manager
 // TODO(suharshs,toddw): Allow skipping of {1}{2} in vdl generated errors.
 error (
   LargerThan3ByteUInt() {"en":"integer too large to represent in 3 bytes"}
+  UnknownProtocol(protocol string) {"en":"unknown protocol{:protocol}"}
+  ManagerClosed() {"en": "manager is already closed"}
+  AcceptFailed(err error) {"en": "accept failed{:err}"}
 )

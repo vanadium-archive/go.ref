@@ -26,6 +26,7 @@ type Range struct {
 // Min is incremented whenever we want to remove support for old protocol
 // versions.
 var SupportedRange = &Range{Min: version.RPCVersion10, Max: version.RPCVersion11}
+var Supported = version.RPCVersionRange{Min: version.RPCVersion10, Max: version.RPCVersion11}
 
 func init() {
 	metadata.Insert("v23.RPCVersionMax", fmt.Sprint(SupportedRange.Max))
