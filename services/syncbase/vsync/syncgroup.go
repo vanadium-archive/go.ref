@@ -110,9 +110,7 @@ func verifySyncGroup(ctx *context.T, sg *interfaces.SyncGroup) error {
 }
 
 // addSyncGroup adds a new SyncGroup given its information.
-func addSyncGroup(ctx *context.T, tx store.StoreReadWriter, sg *interfaces.SyncGroup) error {
-	_ = tx.(store.Transaction)
-
+func addSyncGroup(ctx *context.T, tx store.Transaction, sg *interfaces.SyncGroup) error {
 	// Verify SyncGroup before storing it since it may have been received
 	// from a remote peer.
 	if err := verifySyncGroup(ctx, sg); err != nil {
@@ -170,9 +168,7 @@ func getSyncGroupByName(ctx *context.T, st store.StoreReader, name string) (*int
 }
 
 // delSyncGroupById deletes the SyncGroup given its ID.
-func delSyncGroupById(ctx *context.T, tx store.StoreReadWriter, gid interfaces.GroupId) error {
-	_ = tx.(store.Transaction)
-
+func delSyncGroupById(ctx *context.T, tx store.Transaction, gid interfaces.GroupId) error {
 	sg, err := getSyncGroupById(ctx, tx, gid)
 	if err != nil {
 		return err
@@ -184,9 +180,7 @@ func delSyncGroupById(ctx *context.T, tx store.StoreReadWriter, gid interfaces.G
 }
 
 // delSyncGroupByName deletes the SyncGroup given its name.
-func delSyncGroupByName(ctx *context.T, tx store.StoreReadWriter, name string) error {
-	_ = tx.(store.Transaction)
-
+func delSyncGroupByName(ctx *context.T, tx store.Transaction, name string) error {
 	gid, err := getSyncGroupId(ctx, tx, name)
 	if err != nil {
 		return err
@@ -218,7 +212,7 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 		// For each database, fetch its SyncGroup data entries by scanning their
 		// prefix range.  Use a database snapshot for the scan.
 		sn := st.NewSnapshot()
-		defer sn.Close()
+		defer sn.Abort()
 		name := appDbName(appName, dbName)
 
 		forEachSyncGroup(sn, func(sg *interfaces.SyncGroup) bool {
@@ -317,10 +311,10 @@ func splitSgNameKey(ctx *context.T, key string) (string, error) {
 }
 
 // hasSGDataEntry returns true if the SyncGroup data entry exists.
-func hasSGDataEntry(st store.StoreReader, gid interfaces.GroupId) (bool, error) {
+func hasSGDataEntry(sntx store.SnapshotOrTransaction, gid interfaces.GroupId) (bool, error) {
 	// TODO(rdaoud): optimize to avoid the unneeded fetch/decode of the data.
 	var sg interfaces.SyncGroup
-	if err := util.Get(nil, st, sgDataKey(gid), &sg); err != nil {
+	if err := util.Get(nil, sntx, sgDataKey(gid), &sg); err != nil {
 		if verror.ErrorID(err) == verror.ErrNoExist.ID {
 			err = nil
 		}
@@ -330,10 +324,10 @@ func hasSGDataEntry(st store.StoreReader, gid interfaces.GroupId) (bool, error) 
 }
 
 // hasSGNameEntry returns true if the SyncGroup name entry exists.
-func hasSGNameEntry(st store.StoreReader, name string) (bool, error) {
+func hasSGNameEntry(sntx store.SnapshotOrTransaction, name string) (bool, error) {
 	// TODO(rdaoud): optimize to avoid the unneeded fetch/decode of the data.
 	var gid interfaces.GroupId
-	if err := util.Get(nil, st, sgNameKey(name), &gid); err != nil {
+	if err := util.Get(nil, sntx, sgNameKey(name), &gid); err != nil {
 		if verror.ErrorID(err) == verror.ErrNoExist.ID {
 			err = nil
 		}
@@ -343,14 +337,12 @@ func hasSGNameEntry(st store.StoreReader, name string) (bool, error) {
 }
 
 // setSGDataEntry stores the SyncGroup data entry.
-func setSGDataEntry(ctx *context.T, tx store.StoreReadWriter, gid interfaces.GroupId, sg *interfaces.SyncGroup) error {
-	_ = tx.(store.Transaction)
+func setSGDataEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId, sg *interfaces.SyncGroup) error {
 	return util.Put(ctx, tx, sgDataKey(gid), sg)
 }
 
 // setSGNameEntry stores the SyncGroup name entry.
-func setSGNameEntry(ctx *context.T, tx store.StoreReadWriter, name string, gid interfaces.GroupId) error {
-	_ = tx.(store.Transaction)
+func setSGNameEntry(ctx *context.T, tx store.Transaction, name string, gid interfaces.GroupId) error {
 	return util.Put(ctx, tx, sgNameKey(name), gid)
 }
 
@@ -373,14 +365,12 @@ func getSGNameEntry(ctx *context.T, st store.StoreReader, name string) (interfac
 }
 
 // delSGDataEntry deletes the SyncGroup data entry.
-func delSGDataEntry(ctx *context.T, tx store.StoreReadWriter, gid interfaces.GroupId) error {
-	_ = tx.(store.Transaction)
+func delSGDataEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId) error {
 	return util.Delete(ctx, tx, sgDataKey(gid))
 }
 
 // delSGNameEntry deletes the SyncGroup name to ID mapping.
-func delSGNameEntry(ctx *context.T, tx store.StoreReadWriter, name string) error {
-	_ = tx.(store.Transaction)
+func delSGNameEntry(ctx *context.T, tx store.Transaction, name string) error {
 	return util.Delete(ctx, tx, sgNameKey(name))
 }
 
@@ -392,7 +382,7 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 	vlog.VI(2).Infof("sync: CreateSyncGroup: begin: %s", sgName)
 	defer vlog.VI(2).Infof("sync: CreateSyncGroup: end: %s", sgName)
 
-	err := store.RunInTransaction(sd.db.St(), func(tx store.StoreReadWriter) error {
+	err := store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
 		// Check permissions on Database.
 		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
 			return err
@@ -452,7 +442,7 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 	var sg *interfaces.SyncGroup
 	nullSpec := wire.SyncGroupSpec{}
 
-	err := store.RunInTransaction(sd.db.St(), func(tx store.StoreReadWriter) error {
+	err := store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
 		// Check permissions on Database.
 		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
 			return err
@@ -509,7 +499,7 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 		return nullSpec, verror.New(verror.ErrBadArg, ctx, "bad app/db with syncgroup")
 	}
 
-	err = store.RunInTransaction(sd.db.St(), func(tx store.StoreReadWriter) error {
+	err = store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
 
 		// TODO(hpucha): Bootstrap DAG/Genvector etc for syncing the SG metadata.
 
@@ -540,7 +530,7 @@ func (sd *syncDatabase) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) (
 	defer vlog.VI(2).Infof("sync: GetSyncGroupNames: end: %v", sgNames)
 
 	sn := sd.db.St().NewSnapshot()
-	defer sn.Close()
+	defer sn.Abort()
 
 	// Check permissions on Database.
 	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
@@ -573,7 +563,7 @@ func (sd *syncDatabase) GetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	defer vlog.VI(2).Infof("sync: GetSyncGroupSpec: end: %s spec %v", sgName, spec)
 
 	sn := sd.db.St().NewSnapshot()
-	defer sn.Close()
+	defer sn.Abort()
 
 	// Check permissions on Database.
 	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
@@ -598,7 +588,7 @@ func (sd *syncDatabase) GetSyncGroupMembers(ctx *context.T, call rpc.ServerCall,
 	defer vlog.VI(2).Infof("sync: GetSyncGroupMembers: end: %s members %v", sgName, members)
 
 	sn := sd.db.St().NewSnapshot()
-	defer sn.Close()
+	defer sn.Abort()
 
 	// Check permissions on Database.
 	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
@@ -622,7 +612,7 @@ func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	vlog.VI(2).Infof("sync: SetSyncGroupSpec: begin %s %v %s", sgName, spec, version)
 	defer vlog.VI(2).Infof("sync: SetSyncGroupSpec: end: %s", sgName)
 
-	err := store.RunInTransaction(sd.db.St(), func(tx store.StoreReadWriter) error {
+	err := store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
 		// Check permissions on Database.
 		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
 			return err
@@ -674,7 +664,7 @@ func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sg
 
 	// Publish rejected. Persist that to avoid retrying in the
 	// future and to remember the split universe scenario.
-	err = store.RunInTransaction(sd.db.St(), func(tx store.StoreReadWriter) error {
+	err = store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
 		// Ensure SG still exists.
 		sg, err := getSyncGroupByName(ctx, tx, sgName)
 		if err != nil {
@@ -695,7 +685,7 @@ func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sg
 // be time consuming.  Consider doing it asynchronously and letting the server
 // reply to the client earlier.  However it must happen within the scope of this
 // transaction (and its snapshot view).
-func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.StoreReadWriter, prefixes []string) error {
+func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction, prefixes []string) error {
 	if len(prefixes) == 0 {
 		return verror.New(verror.ErrInternal, ctx, "no prefixes specified")
 	}
@@ -790,7 +780,7 @@ func (s *syncService) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg i
 		return err
 	}
 
-	err = store.RunInTransaction(st, func(tx store.StoreReadWriter) error {
+	err = store.RunInTransaction(st, func(tx store.Transaction) error {
 		localSG, err := getSyncGroupByName(ctx, tx, sg.Name)
 
 		if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
@@ -857,7 +847,7 @@ func (s *syncService) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	}
 
 	var sg *interfaces.SyncGroup
-	err = store.RunInTransaction(dbSt, func(tx store.StoreReadWriter) error {
+	err = store.RunInTransaction(dbSt, func(tx store.Transaction) error {
 		var err error
 		sg, err = getSyncGroupById(ctx, tx, gid)
 		if err != nil {

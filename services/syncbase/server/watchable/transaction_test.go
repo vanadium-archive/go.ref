@@ -33,17 +33,17 @@ var data2 testData = testData{
 	updateVal: "val-b2",
 }
 
-func checkAndUpdate(st store.StoreReadWriter, data testData) error {
+func checkAndUpdate(tx store.Transaction, data testData) error {
 	// check and update data1
 	keyBytes := []byte(data.key)
-	val, err := st.Get(keyBytes, nil)
+	val, err := tx.Get(keyBytes, nil)
 	if err != nil {
 		return fmt.Errorf("can't get key %q: %v", data.key, err)
 	}
 	if !bytes.Equal(val, []byte(data.createVal)) {
 		return fmt.Errorf("Unexpected value for key %q: %q", data.key, string(val))
 	}
-	if err := st.Put(keyBytes, []byte(data.updateVal)); err != nil {
+	if err := tx.Put(keyBytes, []byte(data.updateVal)); err != nil {
 		return fmt.Errorf("can't put {%q: %v}: %v", data.key, data.updateVal, err)
 	}
 	return nil
@@ -79,13 +79,13 @@ func TestLogEntryTimestamps(t *testing.T) {
 	setMockSystemClock(wst1, mockClock)
 
 	// Create data in store
-	if err := store.RunInTransaction(wst1, func(st store.StoreReadWriter) error {
+	if err := store.RunInTransaction(wst1, func(tx store.Transaction) error {
 		// add data1
-		if err := st.Put([]byte(data1.key), []byte(data1.createVal)); err != nil {
+		if err := tx.Put([]byte(data1.key), []byte(data1.createVal)); err != nil {
 			return fmt.Errorf("can't put {%q: %v}: %v", data1.key, data1.createVal, err)
 		}
 		// add data2
-		if err := st.Put([]byte(data2.key), []byte(data2.createVal)); err != nil {
+		if err := tx.Put([]byte(data2.key), []byte(data2.createVal)); err != nil {
 			return fmt.Errorf("can't put {%q: %v}: %v", data2.key, data2.createVal, err)
 		}
 		return nil
@@ -110,11 +110,11 @@ func TestLogEntryTimestamps(t *testing.T) {
 		t.Errorf("unexpected sequence number for update. seq for create: %d, seq for update: %d", seqForCreate, seqForUpdate)
 	}
 
-	if err := store.RunInTransaction(wst2, func(st store.StoreReadWriter) error {
-		if err := checkAndUpdate(st, data1); err != nil {
+	if err := store.RunInTransaction(wst2, func(tx store.Transaction) error {
+		if err := checkAndUpdate(tx, data1); err != nil {
 			return err
 		}
-		if err := checkAndUpdate(st, data2); err != nil {
+		if err := checkAndUpdate(tx, data2); err != nil {
 			return err
 		}
 		return nil
@@ -144,33 +144,33 @@ func TestOpLogConsistency(t *testing.T) {
 		t.Fatalf("Wrap failed: %v", err)
 	}
 
-	if err := store.RunInTransaction(wst, func(st store.StoreReadWriter) error {
+	if err := store.RunInTransaction(wst, func(tx store.Transaction) error {
 		putKey, putVal := []byte("foo"), []byte("bar")
-		if err := st.Put(putKey, putVal); err != nil {
+		if err := tx.Put(putKey, putVal); err != nil {
 			return err
 		}
 		getKey := []byte("foo")
-		if getVal, err := st.Get(getKey, nil); err != nil {
+		if getVal, err := tx.Get(getKey, nil); err != nil {
 			return err
 		} else {
 			eq(t, getVal, putVal)
 		}
 		start, limit := []byte("aaa"), []byte("bbb")
-		st.Scan(start, limit)
+		tx.Scan(start, limit)
 		delKey := []byte("foo")
-		if err := st.Delete(delKey); err != nil {
+		if err := tx.Delete(delKey); err != nil {
 			return err
 		}
 		sgPrefixes := []string{"sga", "sgb"}
-		if err := AddSyncGroupOp(nil, st, sgPrefixes, false); err != nil {
+		if err := AddSyncGroupOp(nil, tx, sgPrefixes, false); err != nil {
 			return err
 		}
 		snKey, snVersion := []byte("aa"), []byte("123")
-		if err := AddSyncSnapshotOp(nil, st, snKey, snVersion); err != nil {
+		if err := AddSyncSnapshotOp(nil, tx, snKey, snVersion); err != nil {
 			return err
 		}
 		pvKey, pvVersion := []byte("pv"), []byte("456")
-		if err := PutVersion(nil, st, pvKey, pvVersion); err != nil {
+		if err := PutVersion(nil, tx, pvKey, pvVersion); err != nil {
 			return err
 		}
 		for _, buf := range [][]byte{putKey, putVal, getKey, start, limit, delKey, snKey, snVersion, pvKey, pvVersion} {

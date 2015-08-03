@@ -177,7 +177,7 @@ func (tx *transaction) Abort() error {
 // operations (create, join, leave, destroy) to notify the sync watcher of the
 // change at its proper position in the timeline (the transaction commit).
 // Note: this is an internal function used by sync, not part of the interface.
-func AddSyncGroupOp(ctx *context.T, tx store.StoreReadWriter, prefixes []string, remove bool) error {
+func AddSyncGroupOp(ctx *context.T, tx store.Transaction, prefixes []string, remove bool) error {
 	wtx := tx.(*transaction)
 	wtx.mu.Lock()
 	defer wtx.mu.Unlock()
@@ -195,7 +195,7 @@ func AddSyncGroupOp(ctx *context.T, tx store.StoreReadWriter, prefixes []string,
 // current keys and their versions to use when initializing the sync metadata
 // at the point in the timeline when these keys become syncable (at commit).
 // Note: this is an internal function used by sync, not part of the interface.
-func AddSyncSnapshotOp(ctx *context.T, tx store.StoreReadWriter, key, version []byte) error {
+func AddSyncSnapshotOp(ctx *context.T, tx store.Transaction, key, version []byte) error {
 	wtx := tx.(*transaction)
 	wtx.mu.Lock()
 	defer wtx.mu.Unlock()
@@ -227,10 +227,10 @@ func SetTransactionFromSync(tx store.Transaction) {
 // GetVersion returns the current version of a managed key. This method is used
 // by the Sync module when the initiator is attempting to add new versions of
 // objects. Reading the version key is used for optimistic concurrency
-// control. At minimum, an object implementing the StoreReader interface is
+// control. At minimum, an object implementing the Transaction interface is
 // required since this is a Get operation.
-func GetVersion(ctx *context.T, st store.StoreReader, key []byte) ([]byte, error) {
-	switch w := st.(type) {
+func GetVersion(ctx *context.T, tx store.Transaction, key []byte) ([]byte, error) {
+	switch w := tx.(type) {
 	case *transaction:
 		w.mu.Lock()
 		defer w.mu.Unlock()
@@ -238,8 +238,6 @@ func GetVersion(ctx *context.T, st store.StoreReader, key []byte) ([]byte, error
 			return nil, convertError(w.err)
 		}
 		return getVersion(w.itx, key)
-	case *wstore:
-		return getVersion(w.ist, key)
 	}
 	return nil, verror.New(verror.ErrInternal, ctx, "unsupported store type")
 }
@@ -266,8 +264,8 @@ func GetAtVersion(ctx *context.T, st store.StoreReader, key, valbuf, version []b
 // PutAtVersion puts a value for the managed key at the requested version. This
 // method is used by the Sync module exclusively when the initiator adds objects
 // with versions created on other Syncbases. At minimum, an object implementing
-// the StoreReadWriter interface is required since this is a Put operation.
-func PutAtVersion(ctx *context.T, tx store.StoreReadWriter, key, valbuf, version []byte) error {
+// the Transaction interface is required since this is a Put operation.
+func PutAtVersion(ctx *context.T, tx store.Transaction, key, valbuf, version []byte) error {
 	wtx := tx.(*transaction)
 
 	wtx.mu.Lock()
@@ -285,8 +283,8 @@ func PutAtVersion(ctx *context.T, tx store.StoreReadWriter, key, valbuf, version
 // version. This method is used by the Sync module exclusively when the
 // initiator selects which of the already stored versions (via PutAtVersion
 // calls) becomes the current version. At minimum, an object implementing
-// the StoreReadWriter interface is required since this is a Put operation.
-func PutVersion(ctx *context.T, tx store.StoreReadWriter, key, version []byte) error {
+// the Transaction interface is required since this is a Put operation.
+func PutVersion(ctx *context.T, tx store.Transaction, key, version []byte) error {
 	wtx := tx.(*transaction)
 
 	wtx.mu.Lock()

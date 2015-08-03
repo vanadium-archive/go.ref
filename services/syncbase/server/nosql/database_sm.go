@@ -41,9 +41,9 @@ func (d *databaseReq) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, met
 	}
 
 	// Check permissions on Database and store schema metadata.
-	return store.RunInTransaction(d.st, func(st store.StoreReadWriter) error {
+	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
 		dbData := databaseData{}
-		return util.UpdateWithAuth(ctx, call, st, d.stKey(), &dbData, func() error {
+		return util.UpdateWithAuth(ctx, call, tx, d.stKey(), &dbData, func() error {
 			// NOTE: For now we expect the client to not issue multiple
 			// concurrent SetSchemaMetadata calls.
 			dbData.SchemaMetadata = &metadata

@@ -169,7 +169,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	// Transactional processing of the batch: convert these syncable log
 	// records to a batch of sync log records, filling their parent versions
 	// from the DAG head nodes.
-	err := store.RunInTransaction(st, func(tx store.StoreReadWriter) error {
+	err := store.RunInTransaction(st, func(tx store.Transaction) error {
 		batch := make([]*localLogRec, 0, len(logs))
 		for _, entry := range logs {
 			if rec, err := convertLogRecord(ctx, tx, entry); err != nil {
@@ -193,9 +193,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 
 // processBatch applies a single batch of changes (object mutations) received
 // from watching a particular Database.
-func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch []*localLogRec, appBatch bool, totalCount uint64, tx store.StoreReadWriter) error {
-	_ = tx.(store.Transaction)
-
+func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch []*localLogRec, appBatch bool, totalCount uint64, tx store.Transaction) error {
 	count := uint64(len(batch))
 	if count == 0 {
 		return nil
@@ -247,7 +245,7 @@ func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch
 
 // processLocalLogRec processes a local log record by adding to the Database and
 // suitably updating the DAG metadata.
-func (s *syncService) processLocalLogRec(ctx *context.T, tx store.StoreReadWriter, rec *localLogRec) error {
+func (s *syncService) processLocalLogRec(ctx *context.T, tx store.Transaction, rec *localLogRec) error {
 	// Insert the new log record into the log.
 	if err := putLogRec(ctx, tx, rec); err != nil {
 		return err
@@ -361,8 +359,7 @@ func getWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, re
 // simplify the store-to-sync interaction.  A deleted key would still have a
 // version and its value entry would encode the "deleted" flag, either in the
 // key or probably in a value wrapper that would contain other metadata.
-func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchable.LogEntry) (*localLogRec, error) {
-	_ = tx.(store.Transaction)
+func convertLogRecord(ctx *context.T, tx store.Transaction, logEnt *watchable.LogEntry) (*localLogRec, error) {
 	var rec *localLogRec
 	timestamp := logEnt.CommitTimestamp
 
@@ -404,9 +401,7 @@ func convertLogRecord(ctx *context.T, tx store.StoreReadWriter, logEnt *watchabl
 // newLocalLogRec creates a local sync log record given its information: key,
 // version, deletion flag, and timestamp.  It retrieves the current DAG head
 // for the key (if one exists) to use as its parent (previous) version.
-func newLocalLogRec(ctx *context.T, tx store.StoreReadWriter, key, version []byte, deleted bool, timestamp int64) *localLogRec {
-	_ = tx.(store.Transaction)
-
+func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, deleted bool, timestamp int64) *localLogRec {
 	rec := localLogRec{}
 	oid := string(key)
 
@@ -484,8 +479,7 @@ func resMarkKey() string {
 }
 
 // setResMark stores the watcher resume marker for a database.
-func setResMark(ctx *context.T, tx store.StoreReadWriter, resMark string) error {
-	_ = tx.(store.Transaction)
+func setResMark(ctx *context.T, tx store.Transaction, resMark string) error {
 	return util.Put(ctx, tx, resMarkKey(), resMark)
 }
 

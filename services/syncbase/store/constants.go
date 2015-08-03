@@ -6,10 +6,10 @@ package store
 
 // TODO(sadovsky): Maybe define verrors for these.
 const (
-	ErrMsgClosedStore    = "closed store"
-	ErrMsgClosedSnapshot = "closed snapshot"
-	ErrMsgCanceledStream = "canceled stream"
-	ErrMsgCommittedTxn   = "already called commit"
-	ErrMsgAbortedTxn     = "already called abort"
-	ErrMsgExpiredTxn     = "expired transaction"
+	ErrMsgClosedStore     = "closed store"
+	ErrMsgAbortedSnapshot = "aborted snapshot"
+	ErrMsgCanceledStream  = "canceled stream"
+	ErrMsgCommittedTxn    = "already called commit"
+	ErrMsgAbortedTxn      = "already called abort"
+	ErrMsgExpiredTxn      = "expired transaction"
 )

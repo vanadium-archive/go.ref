@@ -137,7 +137,7 @@ func runReadWriteTest(t *testing.T, st store.Store, size int, steps []testStep) 
 	s.verify(t, st)
 	for i := 0; i < len(states); i++ {
 		states[i].verify(t, snapshots[i])
-		snapshots[i].Close()
+		snapshots[i].Abort()
 	}
 }
 
@@ -230,7 +230,7 @@ func RunCloseTest(t *testing.T, st store.Store) {
 	}
 	for _, snapshot := range snapshots {
 		_, err := snapshot.Get(key1, nil)
-		verifyError(t, err, verror.ErrCanceled.ID, store.ErrMsgClosedSnapshot)
+		verifyError(t, err, verror.ErrCanceled.ID, store.ErrMsgAbortedSnapshot)
 	}
 	for _, tx := range transactions {
 		_, err := tx.Get(key1, nil)

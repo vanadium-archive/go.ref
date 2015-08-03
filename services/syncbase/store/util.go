@@ -8,9 +8,13 @@ import (
 	"v.io/v23/verror"
 )
 
+type SnapshotSpecImpl struct{}
+
+func (s *SnapshotSpecImpl) __snapshotSpec() {}
+
 // RunInTransaction runs the given fn in a transaction, managing retries and
 // commit/abort.
-func RunInTransaction(st Store, fn func(st StoreReadWriter) error) error {
+func RunInTransaction(st Store, fn func(tx Transaction) error) error {
 	// TODO(rogulenko): Make the number of attempts configurable.
 	// TODO(rogulenko): Change the default number of attempts to 3. Currently,
 	// some storage engine tests fail when the number of attempts is that low.

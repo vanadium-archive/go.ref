@@ -53,29 +53,29 @@ func globPatternToPrefix(pattern string) (string, error) {
 	return res, nil
 }
 
-// Glob performs a glob. It calls closeStoreReader to close st.
+// Glob performs a glob. It calls closeSntx to close sntx.
 // TODO(sadovsky): Why do we make developers implement Glob differently from
 // other streaming RPCs? It's confusing that Glob must return immediately and
 // write its results to a channel, while other streaming RPC handlers must block
 // and write their results to the output stream. See nlacasse's TODO below, too.
-func Glob(ctx *context.T, call rpc.ServerCall, pattern string, st store.StoreReader, closeStoreReader func() error, stKeyPrefix string) (<-chan string, error) {
+func Glob(ctx *context.T, call rpc.ServerCall, pattern string, sntx store.SnapshotOrTransaction, closeSntx func() error, stKeyPrefix string) (<-chan string, error) {
 	// TODO(sadovsky): Support glob with non-prefix pattern.
 	if _, err := glob.Parse(pattern); err != nil {
-		closeStoreReader()
+		closeSntx()
 		return nil, verror.New(verror.ErrBadArg, ctx, err)
 	}
 	prefix, err := globPatternToPrefix(pattern)
 	if err != nil {
-		closeStoreReader()
+		closeSntx()
 		if verror.ErrorID(err) == verror.ErrBadArg.ID {
 			return nil, verror.NewErrNotImplemented(ctx)
 		}
 		return nil, verror.New(verror.ErrInternal, ctx, err)
 	}
-	it := st.Scan(ScanPrefixArgs(stKeyPrefix, prefix))
+	it := sntx.Scan(ScanPrefixArgs(stKeyPrefix, prefix))
 	ch := make(chan string)
 	go func() {
-		defer closeStoreReader()
+		defer closeSntx()
 		defer close(ch)
 		key := []byte{}
 		for it.Advance() {

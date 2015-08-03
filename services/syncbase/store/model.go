@@ -37,15 +37,15 @@ type StoreWriter interface {
 	Delete(key []byte) error
 }
 
-// StoreReadWriter combines StoreReader and StoreWriter.
-type StoreReadWriter interface {
+// storeReadWriter combines StoreReader and StoreWriter.
+type storeReadWriter interface {
 	StoreReader
 	StoreWriter
 }
 
 // Store is a CRUD-capable storage engine that supports transactions.
 type Store interface {
-	StoreReadWriter
+	storeReadWriter
 
 	// Close closes the store.
 	Close() error
@@ -57,6 +57,29 @@ type Store interface {
 	// NewSnapshot creates a snapshot.
 	// TODO(rogulenko): add snapshot options.
 	NewSnapshot() Snapshot
+}
+
+// SnapshotOrTransaction represents a Snapshot or a Transaction.
+type SnapshotOrTransaction interface {
+	StoreReader
+
+	// Abort closes the snapshot or transaction.
+	// Any subsequent method calls will fail.
+	// NOTE: this method is also used to distinguish between StoreReader and
+	// SnapshotOrTransaction.
+	Abort() error
+}
+
+// Snapshot is a handle to particular state in time of a Store.
+//
+// All read operations are executed against a consistent view of Store commit
+// history. Snapshots don't acquire locks and thus don't block transactions.
+type Snapshot interface {
+	SnapshotOrTransaction
+
+	// __snapshotSpec is a utility method to distinguish between Snapshot and
+	// SnapshotOrTransaction. This is a no-op.
+	__snapshotSpec()
 }
 
 // Transaction provides a mechanism for atomic reads and writes. Instead of
@@ -77,27 +100,13 @@ type Store interface {
 // Once a transaction has been committed or aborted, subsequent method calls
 // will fail with no effect.
 type Transaction interface {
-	StoreReadWriter
+	SnapshotOrTransaction
+	StoreWriter
 
 	// Commit commits the transaction.
 	// Fails if writes from outside this transaction conflict with reads from
 	// within this transaction.
 	Commit() error
-
-	// Abort aborts the transaction.
-	Abort() error
-}
-
-// Snapshot is a handle to particular state in time of a Store.
-//
-// All read operations are executed against a consistent view of Store commit
-// history. Snapshots don't acquire locks and thus don't block transactions.
-type Snapshot interface {
-	StoreReader
-
-	// Close closes the snapshot.
-	// Any subsequent method calls will fail.
-	Close() error
 }
 
 // Stream is an interface for iterating through a collection of key-value pairs.

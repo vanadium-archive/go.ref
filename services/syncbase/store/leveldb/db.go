@@ -166,7 +166,7 @@ func (d *db) NewSnapshot() store.Snapshot {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.err != nil {
-		return &store.InvalidSnapshot{d.err}
+		return &store.InvalidSnapshot{Error: d.err}
 	}
 	return newSnapshot(d, d.node)
 }

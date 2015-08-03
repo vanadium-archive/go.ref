@@ -222,9 +222,7 @@ func (s *syncService) addNodeToBatch(ctx *context.T, btid uint64, oid, version s
 
 // endBatch marks the end of a given batch.  The batch information is persisted
 // to the store and removed from the temporary in-memory entry.
-func (s *syncService) endBatch(ctx *context.T, tx store.StoreReadWriter, btid, count uint64) error {
-	_ = tx.(store.Transaction)
-
+func (s *syncService) endBatch(ctx *context.T, tx store.Transaction, btid, count uint64) error {
 	s.batchesLock.Lock()
 	defer s.batchesLock.Unlock()
 
@@ -271,9 +269,7 @@ func (s *syncService) endBatch(ctx *context.T, tx store.StoreReadWriter, btid, c
 //
 // The grafting structure is not needed when nodes are being added locally by
 // the Watcher, passing a nil grafting structure.
-func (s *syncService) addNode(ctx *context.T, tx store.StoreReadWriter, oid, version, logrec string, deleted bool, parents []string, btid uint64, graft graftMap) error {
-	_ = tx.(store.Transaction)
-
+func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version, logrec string, deleted bool, parents []string, btid uint64, graft graftMap) error {
 	if parents != nil {
 		if len(parents) > 2 {
 			return verror.New(verror.ErrInternal, ctx, "cannot have more than 2 parents")
@@ -380,9 +376,7 @@ func (s *syncService) addNode(ctx *context.T, tx store.StoreReadWriter, oid, ver
 // to track DAG attachements during a sync operation.  It is not needed if the
 // parent linkage is due to a local change (from conflict resolution selecting
 // an existing version).
-func (s *syncService) addParent(ctx *context.T, tx store.StoreReadWriter, oid, version, parent string, graft graftMap) error {
-	_ = tx.(store.Transaction)
-
+func (s *syncService) addParent(ctx *context.T, tx store.Transaction, oid, version, parent string, graft graftMap) error {
 	if version == parent {
 		return verror.New(verror.ErrInternal, ctx, "object", oid, version, "cannot be its own parent")
 	}
@@ -447,9 +441,7 @@ func (s *syncService) addParent(ctx *context.T, tx store.StoreReadWriter, oid, v
 }
 
 // moveHead moves the object head node in the DAG.
-func moveHead(ctx *context.T, tx store.StoreReadWriter, oid, head string) error {
-	_ = tx.(store.Transaction)
-
+func moveHead(ctx *context.T, tx store.Transaction, oid, head string) error {
 	// Verify that the node exists.
 	if ok, err := hasNode(ctx, tx, oid, head); err != nil {
 		return err
@@ -565,7 +557,7 @@ func newGraft() graftMap {
 
 // getObjectGraft returns the graftInfo for an object ID.  If the graftMap is
 // nil, a nil graftInfo is returned because grafting is not being tracked.
-func getObjectGraftInfo(ctx *context.T, st store.StoreReader, graft graftMap, oid string) *graftInfo {
+func getObjectGraftInfo(ctx *context.T, sntx store.SnapshotOrTransaction, graft graftMap, oid string) *graftInfo {
 	if graft == nil {
 		return nil
 	}
@@ -580,7 +572,7 @@ func getObjectGraftInfo(ctx *context.T, st store.StoreReader, graft graftMap, oi
 	}
 
 	// If the object has a head node, include it in the set of new heads.
-	if head, err := getHead(ctx, st, oid); err == nil {
+	if head, err := getHead(ctx, sntx, oid); err == nil {
 		info.newHeads[head] = true
 		info.oldHeadSnap = head
 	}
@@ -636,9 +628,7 @@ func newBatchPruning() batchSet {
 // The batch set passed is used to track batches affected by the deletion of DAG
 // objects across multiple calls to prune().  It is later given to pruneDone()
 // to do GC on these batches.
-func prune(ctx *context.T, tx store.StoreReadWriter, oid, version string, batches batchSet, delLogRec func(ctx *context.T, tx store.StoreReadWriter, logrec string) error) error {
-	_ = tx.(store.Transaction)
-
+func prune(ctx *context.T, tx store.Transaction, oid, version string, batches batchSet, delLogRec func(ctx *context.T, tx store.Transaction, logrec string) error) error {
 	if batches == nil {
 		return verror.New(verror.ErrInternal, ctx, "missing batch set")
 	}
@@ -690,9 +680,7 @@ func prune(ctx *context.T, tx store.StoreReadWriter, oid, version string, batche
 // pruneDone is called when object pruning is finished within a single pass of
 // the sync garbage collector.  It updates the batch sets affected by objects
 // deleted by prune().
-func pruneDone(ctx *context.T, tx store.StoreReadWriter, batches batchSet) error {
-	_ = tx.(store.Transaction)
-
+func pruneDone(ctx *context.T, tx store.Transaction, batches batchSet) error {
 	// Update batch sets by removing the pruned objects from them.
 	for btid, pruneInfo := range batches {
 		info, err := getBatch(ctx, tx, btid)
@@ -734,9 +722,7 @@ func nodeKey(oid, version string) string {
 }
 
 // setNode stores the DAG node entry.
-func setNode(ctx *context.T, tx store.StoreReadWriter, oid, version string, node *dagNode) error {
-	_ = tx.(store.Transaction)
-
+func setNode(ctx *context.T, tx store.Transaction, oid, version string, node *dagNode) error {
 	if version == NoVersion {
 		return verror.New(verror.ErrInternal, ctx, "invalid version", version)
 	}
@@ -759,9 +745,7 @@ func getNode(ctx *context.T, st store.StoreReader, oid, version string) (*dagNod
 }
 
 // delNode deletes the DAG node entry.
-func delNode(ctx *context.T, tx store.StoreReadWriter, oid, version string) error {
-	_ = tx.(store.Transaction)
-
+func delNode(ctx *context.T, tx store.Transaction, oid, version string) error {
 	if version == NoVersion {
 		return verror.New(verror.ErrInternal, ctx, "invalid version", version)
 	}
@@ -787,9 +771,7 @@ func headKey(oid string) string {
 }
 
 // setHead stores version as the DAG object head.
-func setHead(ctx *context.T, tx store.StoreReadWriter, oid, version string) error {
-	_ = tx.(store.Transaction)
-
+func setHead(ctx *context.T, tx store.Transaction, oid, version string) error {
 	if version == NoVersion {
 		return verror.New(verror.ErrInternal, ctx, fmt.Errorf("invalid version: %s", version))
 	}
@@ -808,8 +790,7 @@ func getHead(ctx *context.T, st store.StoreReader, oid string) (string, error) {
 }
 
 // delHead deletes the DAG object head.
-func delHead(ctx *context.T, tx store.StoreReadWriter, oid string) error {
-	_ = tx.(store.Transaction)
+func delHead(ctx *context.T, tx store.Transaction, oid string) error {
 	return util.Delete(ctx, tx, headKey(oid))
 }
 
@@ -819,9 +800,7 @@ func batchKey(btid uint64) string {
 }
 
 // setBatch stores the DAG batch entry.
-func setBatch(ctx *context.T, tx store.StoreReadWriter, btid uint64, info *batchInfo) error {
-	_ = tx.(store.Transaction)
-
+func setBatch(ctx *context.T, tx store.Transaction, btid uint64, info *batchInfo) error {
 	if btid == NoBatchId {
 		return verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
 	}
@@ -844,9 +823,7 @@ func getBatch(ctx *context.T, st store.StoreReader, btid uint64) (*batchInfo, er
 }
 
 // delBatch deletes the DAG batch entry.
-func delBatch(ctx *context.T, tx store.StoreReadWriter, btid uint64) error {
-	_ = tx.(store.Transaction)
-
+func delBatch(ctx *context.T, tx store.Transaction, btid uint64) error {
 	if btid == NoBatchId {
 		return verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
 	}

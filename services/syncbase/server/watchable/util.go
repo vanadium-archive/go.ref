@@ -50,21 +50,20 @@ func makeAtVersionKey(key, version []byte) []byte {
 	return []byte(join(string(key), string(version)))
 }
 
-func getVersion(st store.StoreReader, key []byte) ([]byte, error) {
-	return st.Get(makeVersionKey(key), nil)
+func getVersion(sntx store.SnapshotOrTransaction, key []byte) ([]byte, error) {
+	return sntx.Get(makeVersionKey(key), nil)
 }
 
 func getAtVersion(st store.StoreReader, key, valbuf, version []byte) ([]byte, error) {
 	return st.Get(makeAtVersionKey(key, version), valbuf)
 }
 
-func getVersioned(st store.StoreReader, key, valbuf []byte) ([]byte, error) {
-	checkTransactionOrSnapshot(st)
-	version, err := getVersion(st, key)
+func getVersioned(sntx store.SnapshotOrTransaction, key, valbuf []byte) ([]byte, error) {
+	version, err := getVersion(sntx, key)
 	if err != nil {
 		return valbuf, err
 	}
-	return getAtVersion(st, key, valbuf, version)
+	return getAtVersion(sntx, key, valbuf, version)
 }
 
 func putVersioned(tx store.Transaction, key, value []byte) ([]byte, error) {
@@ -80,14 +79,6 @@ func putVersioned(tx store.Transaction, key, value []byte) ([]byte, error) {
 
 func deleteVersioned(tx store.Transaction, key []byte) error {
 	return tx.Delete(makeVersionKey(key))
-}
-
-func checkTransactionOrSnapshot(st store.StoreReader) {
-	_, isTransaction := st.(store.Transaction)
-	_, isSnapshot := st.(store.Snapshot)
-	if !isTransaction && !isSnapshot {
-		panic("neither a Transaction nor a Snapshot")
-	}
 }
 
 func getLogEntryKey(seq uint64) string {

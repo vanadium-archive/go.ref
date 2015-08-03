@@ -32,35 +32,33 @@ func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32
 }
 
 func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, schemaVersion int32) ([]byte, error) {
-	impl := func(st store.StoreReader) ([]byte, error) {
+	impl := func(sntx store.SnapshotOrTransaction) ([]byte, error) {
 		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return []byte{}, err
 		}
-		return r.get(ctx, call, st)
+		return r.get(ctx, call, sntx)
 	}
-	var st store.StoreReader
 	if r.t.d.batchId != nil {
-		st = r.t.d.batchReader()
+		return impl(r.t.d.batchReader())
 	} else {
 		sn := r.t.d.st.NewSnapshot()
-		st = sn
-		defer sn.Close()
+		defer sn.Abort()
+		return impl(sn)
 	}
-	return impl(st)
 }
 
 func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, schemaVersion int32, value []byte) error {
-	impl := func(st store.StoreReadWriter) error {
+	impl := func(tx store.Transaction) error {
 		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
-		return r.put(ctx, call, st, value)
+		return r.put(ctx, call, tx, value)
 	}
 	if r.t.d.batchId != nil {
-		if st, err := r.t.d.batchReadWriter(); err != nil {
+		if tx, err := r.t.d.batchTransaction(); err != nil {
 			return err
 		} else {
-			return impl(st)
+			return impl(tx)
 		}
 	} else {
 		return store.RunInTransaction(r.t.d.st, impl)
@@ -68,17 +66,17 @@ func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, schemaVersion int32, v
 }
 
 func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
-	impl := func(st store.StoreReadWriter) error {
+	impl := func(tx store.Transaction) error {
 		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
-		return r.delete(ctx, call, st)
+		return r.delete(ctx, call, tx)
 	}
 	if r.t.d.batchId != nil {
-		if st, err := r.t.d.batchReadWriter(); err != nil {
+		if tx, err := r.t.d.batchTransaction(); err != nil {
 			return err
 		} else {
-			return impl(st)
+			return impl(tx)
 		}
 	} else {
 		return store.RunInTransaction(r.t.d.st, impl)
@@ -98,17 +96,17 @@ func (r *rowReq) stKeyPart() string {
 
 // checkAccess checks that this row's table exists in the database, and performs
 // an authorization check.
-func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
-	return r.t.checkAccess(ctx, call, st, r.key)
+func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) error {
+	return r.t.checkAccess(ctx, call, sntx, r.key)
 }
 
 // get reads data from the storage engine.
 // Performs authorization check.
-func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) ([]byte, error) {
-	if err := r.checkAccess(ctx, call, st); err != nil {
+func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) ([]byte, error) {
+	if err := r.checkAccess(ctx, call, sntx); err != nil {
 		return nil, err
 	}
-	value, err := st.Get([]byte(r.stKey()), nil)
+	value, err := sntx.Get([]byte(r.stKey()), nil)
 	if err != nil {
 		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
 			return nil, verror.New(verror.ErrNoExist, ctx, r.stKey())
@@ -120,11 +118,11 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, st store.StoreReader) 
 
 // put writes data to the storage engine.
 // Performs authorization check.
-func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, value []byte) error {
-	if err := r.checkAccess(ctx, call, st); err != nil {
+func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx store.Transaction, value []byte) error {
+	if err := r.checkAccess(ctx, call, tx); err != nil {
 		return err
 	}
-	if err := st.Put([]byte(r.stKey()), value); err != nil {
+	if err := tx.Put([]byte(r.stKey()), value); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
@@ -132,11 +130,11 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, st store.StoreReadWrit
 
 // delete deletes data from the storage engine.
 // Performs authorization check.
-func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter) error {
-	if err := r.checkAccess(ctx, call, st); err != nil {
+func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx store.Transaction) error {
+	if err := r.checkAccess(ctx, call, tx); err != nil {
 		return err
 	}
-	if err := st.Delete([]byte(r.stKey())); err != nil {
+	if err := tx.Delete([]byte(r.stKey())); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil

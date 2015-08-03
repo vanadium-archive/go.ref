@@ -26,12 +26,12 @@ func RunSnapshotTest(t *testing.T, st store.Store) {
 	verifyAdvance(t, s, key1, value1)
 	verifyAdvance(t, s, nil, nil)
 
-	// Test functions after Close.
-	if err := snapshot.Close(); err != nil {
-		t.Fatalf("can't close the snapshot: %v", err)
+	// Test functions after Abort.
+	if err := snapshot.Abort(); err != nil {
+		t.Fatalf("can't abort the snapshot: %v", err)
 	}
-	expectedErrMsg := store.ErrMsgClosedSnapshot
-	verifyError(t, snapshot.Close(), verror.ErrCanceled.ID, expectedErrMsg)
+	expectedErrMsg := store.ErrMsgAbortedSnapshot
+	verifyError(t, snapshot.Abort(), verror.ErrCanceled.ID, expectedErrMsg)
 
 	_, err := snapshot.Get(key1, nil)
 	verifyError(t, err, verror.ErrCanceled.ID, expectedErrMsg)

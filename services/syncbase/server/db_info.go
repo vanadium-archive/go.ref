@@ -24,33 +24,32 @@ func dbInfoStKey(a *app, dbName string) string {
 }
 
 // getDbInfo reads data from the storage engine.
-func (a *app) getDbInfo(ctx *context.T, st store.StoreReader, dbName string) (*dbInfo, error) {
+func (a *app) getDbInfo(ctx *context.T, sntx store.SnapshotOrTransaction, dbName string) (*dbInfo, error) {
 	info := &dbInfo{}
-	if err := util.Get(ctx, st, dbInfoStKey(a, dbName), info); err != nil {
+	if err := util.Get(ctx, sntx, dbInfoStKey(a, dbName), info); err != nil {
 		return nil, err
 	}
 	return info, nil
 }
 
 // putDbInfo writes data to the storage engine.
-func (a *app) putDbInfo(ctx *context.T, st store.StoreWriter, dbName string, info *dbInfo) error {
-	return util.Put(ctx, st, dbInfoStKey(a, dbName), info)
+func (a *app) putDbInfo(ctx *context.T, tx store.Transaction, dbName string, info *dbInfo) error {
+	return util.Put(ctx, tx, dbInfoStKey(a, dbName), info)
 }
 
 // delDbInfo deletes data from the storage engine.
-func (a *app) delDbInfo(ctx *context.T, st store.StoreWriter, dbName string) error {
-	return util.Delete(ctx, st, dbInfoStKey(a, dbName))
+func (a *app) delDbInfo(ctx *context.T, stw store.StoreWriter, dbName string) error {
+	return util.Delete(ctx, stw, dbInfoStKey(a, dbName))
 }
 
 // updateDbInfo performs a read-modify-write. fn should "modify" v.
-func (a *app) updateDbInfo(ctx *context.T, st store.StoreReadWriter, dbName string, fn func(info *dbInfo) error) error {
-	_ = st.(store.Transaction) // panics on failure, as desired
-	info, err := a.getDbInfo(ctx, st, dbName)
+func (a *app) updateDbInfo(ctx *context.T, tx store.Transaction, dbName string, fn func(info *dbInfo) error) error {
+	info, err := a.getDbInfo(ctx, tx, dbName)
 	if err != nil {
 		return err
 	}
 	if err := fn(info); err != nil {
 		return err
 	}
-	return a.putDbInfo(ctx, st, dbName, info)
+	return a.putDbInfo(ctx, tx, dbName, info)
 }

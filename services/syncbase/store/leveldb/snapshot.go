@@ -16,6 +16,7 @@ import (
 // snapshot is a wrapper around LevelDB snapshot that implements
 // the store.Snapshot interface.
 type snapshot struct {
+	store.SnapshotSpecImpl
 	// mu protects the state of the snapshot.
 	mu        sync.RWMutex
 	node      *store.ResourceNode
@@ -39,13 +40,13 @@ func newSnapshot(d *db, parent *store.ResourceNode) *snapshot {
 		cOpts:     cOpts,
 	}
 	parent.AddChild(s.node, func() {
-		s.Close()
+		s.Abort()
 	})
 	return s
 }
 
-// Close implements the store.Snapshot interface.
-func (s *snapshot) Close() error {
+// Abort implements the store.Snapshot interface.
+func (s *snapshot) Abort() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
@@ -56,7 +57,7 @@ func (s *snapshot) Close() error {
 	s.cOpts = nil
 	C.leveldb_release_snapshot(s.d.cDb, s.cSnapshot)
 	s.cSnapshot = nil
-	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedSnapshot)
+	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedSnapshot)
 	return nil
 }
 

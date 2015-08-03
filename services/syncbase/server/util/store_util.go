@@ -64,21 +64,21 @@ func GetWithAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, k st
 	return nil
 }
 
-// Put does st.Put(k, v) and wraps the returned error.
-func Put(ctx *context.T, st store.StoreWriter, k string, v interface{}) error {
+// Put does stw.Put(k, v) and wraps the returned error.
+func Put(ctx *context.T, stw store.StoreWriter, k string, v interface{}) error {
 	bytes, err := vom.Encode(v)
 	if err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
-	if err = st.Put([]byte(k), bytes); err != nil {
+	if err = stw.Put([]byte(k), bytes); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
 }
 
-// Delete does st.Delete(k, v) and wraps the returned error.
-func Delete(ctx *context.T, st store.StoreWriter, k string) error {
-	if err := st.Delete([]byte(k)); err != nil {
+// Delete does stw.Delete(k, v) and wraps the returned error.
+func Delete(ctx *context.T, stw store.StoreWriter, k string) error {
+	if err := stw.Delete([]byte(k)); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
@@ -87,15 +87,14 @@ func Delete(ctx *context.T, st store.StoreWriter, k string) error {
 // UpdateWithAuth performs a read-modify-write.
 // Input v is populated by the "read" step. fn should "modify" v.
 // Performs an auth check as part of the "read" step.
-func UpdateWithAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReadWriter, k string, v Permser, fn func() error) error {
-	_ = st.(store.Transaction) // panics on failure, as desired
-	if err := GetWithAuth(ctx, call, st, k, v); err != nil {
+func UpdateWithAuth(ctx *context.T, call rpc.ServerCall, tx store.Transaction, k string, v Permser, fn func() error) error {
+	if err := GetWithAuth(ctx, call, tx, k, v); err != nil {
 		return err
 	}
 	if err := fn(); err != nil {
 		return err
 	}
-	return Put(ctx, st, k, v)
+	return Put(ctx, tx, k, v)
 }
 
 // Wraps a call to Get and returns true if Get found the object, false

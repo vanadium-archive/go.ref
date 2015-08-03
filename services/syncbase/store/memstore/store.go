@@ -73,15 +73,15 @@ func (st *memstore) Scan(start, limit []byte) store.Stream {
 
 // Put implements the store.StoreWriter interface.
 func (st *memstore) Put(key, value []byte) error {
-	return store.RunInTransaction(st, func(st store.StoreReadWriter) error {
-		return st.Put(key, value)
+	return store.RunInTransaction(st, func(tx store.Transaction) error {
+		return tx.Put(key, value)
 	})
 }
 
 // Delete implements the store.StoreWriter interface.
 func (st *memstore) Delete(key []byte) error {
-	return store.RunInTransaction(st, func(st store.StoreReadWriter) error {
-		return st.Delete(key)
+	return store.RunInTransaction(st, func(tx store.Transaction) error {
+		return tx.Delete(key)
 	})
 }
 
@@ -101,7 +101,7 @@ func (st *memstore) NewSnapshot() store.Snapshot {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.err != nil {
-		return &store.InvalidSnapshot{st.err}
+		return &store.InvalidSnapshot{Error: st.err}
 	}
 	return newSnapshot(st, st.node)
 }

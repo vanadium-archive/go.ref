@@ -269,8 +269,7 @@ func dbSyncStateKey() string {
 }
 
 // putDbSyncState persists the sync state object for a given Database.
-func putDbSyncState(ctx *context.T, tx store.StoreReadWriter, ds *dbSyncState) error {
-	_ = tx.(store.Transaction)
+func putDbSyncState(ctx *context.T, tx store.Transaction, ds *dbSyncState) error {
 	return util.Put(ctx, tx, dbSyncStateKey(), ds)
 }
 
@@ -331,8 +330,7 @@ func hasLogRec(st store.StoreReader, id, gen uint64) (bool, error) {
 }
 
 // putLogRec stores the log record.
-func putLogRec(ctx *context.T, tx store.StoreReadWriter, rec *localLogRec) error {
-	_ = tx.(store.Transaction)
+func putLogRec(ctx *context.T, tx store.Transaction, rec *localLogRec) error {
 	return util.Put(ctx, tx, logRecKey(rec.Metadata.Id, rec.Metadata.Gen), rec)
 }
 
@@ -346,7 +344,6 @@ func getLogRec(ctx *context.T, st store.StoreReader, id, gen uint64) (*localLogR
 }
 
 // delLogRec deletes the log record for a given (devid, gen).
-func delLogRec(ctx *context.T, tx store.StoreReadWriter, id, gen uint64) error {
-	_ = tx.(store.Transaction)
+func delLogRec(ctx *context.T, tx store.Transaction, id, gen uint64) error {
 	return util.Delete(ctx, tx, logRecKey(id, gen))
 }
