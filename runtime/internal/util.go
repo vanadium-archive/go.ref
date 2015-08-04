@@ -7,7 +7,6 @@ package internal
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 
 	"v.io/x/lib/netstate"
@@ -40,7 +39,7 @@ func ParseFlags(f *flags.Flags) error {
 	if handle != nil {
 		config = handle.Config.Dump()
 	}
-	return f.Parse(os.Args[1:], config)
+	return parseFlagsInternal(f, config)
 }
 
 // IPAddressChooser returns the preferred IP address, which is,
