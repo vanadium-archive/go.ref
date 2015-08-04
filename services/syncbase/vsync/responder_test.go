@@ -111,7 +111,7 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 	for _, test := range tests {
 		want := test.genDiffWant
 		got := test.genDiffIn
-		rSt := newResponderState(nil, nil, s, interfaces.DeltaReq{})
+		rSt := newResponderState(nil, nil, s, interfaces.DeltaReq{}, "fakeInitiator")
 		rSt.diff = got
 		rSt.diffPrefixGenVectors(test.respPVec, test.initPVec)
 		checkEqualDevRanges(t, got, want)
@@ -353,7 +353,7 @@ func TestSendDeltas(t *testing.T) {
 		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{gen: test.respGen, checkptGen: test.respGen, genvec: test.respVec}
 
 		req := interfaces.DeltaReq{AppName: appName, DbName: dbName, InitVec: test.initVec}
-		rSt := newResponderState(nil, nil, s, req)
+		rSt := newResponderState(nil, nil, s, req, "fakeInitiator")
 
 		rSt.computeDeltaBound(nil)
 		if rSt.errState != nil || !reflect.DeepEqual(rSt.outVec, wantVec) {

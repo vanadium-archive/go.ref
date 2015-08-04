@@ -628,16 +628,15 @@ func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return err
 		}
 
-		gid, err := getSyncGroupId(ctx, tx, sgName)
+		sg, err := getSyncGroupByName(ctx, tx, sgName)
 		if err != nil {
 			return err
 		}
-		sg, err := getSyncGroupById(ctx, tx, gid)
 
 		// TODO(hpucha): Check SyncGroup ACL. Perform version checking.
 
 		sg.Spec = spec
-		return setSGDataEntry(ctx, tx, gid, sg)
+		return setSGDataEntry(ctx, tx, sg.Id, sg)
 	})
 	return err
 }

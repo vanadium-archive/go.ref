@@ -300,7 +300,7 @@ func (iSt *initiationState) connectToPeer(ctx *context.T) (interfaces.SyncGetDel
 	for mt := range iSt.mtTables {
 		absName := naming.Join(mt, iSt.peer, util.SyncbaseSuffix)
 		c := interfaces.SyncClient(absName)
-		stream, err := c.GetDeltas(ctx)
+		stream, err := c.GetDeltas(ctx, iSt.sync.name)
 		if err == nil {
 			vlog.VI(3).Infof("sync: connectToPeer: established on %s", absName)
 			return stream, true

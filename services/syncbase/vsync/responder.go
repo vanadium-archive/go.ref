@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
@@ -19,9 +20,9 @@ import (
 )
 
 // GetDeltas implements the responder side of the GetDeltas RPC.
-func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall) error {
-	vlog.VI(2).Infof("sync: GetDeltas: begin")
-	defer vlog.VI(2).Infof("sync: GetDeltas: end")
+func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall, initiator string) error {
+	vlog.VI(2).Infof("sync: GetDeltas: begin: from initiator %s", initiator)
+	defer vlog.VI(2).Infof("sync: GetDeltas: end: from initiator %s", initiator)
 
 	recvr := call.RecvStream()
 	for recvr.Advance() {
@@ -31,7 +32,7 @@ func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasSer
 		// the failure might be genuine. For example, the responder is
 		// no longer part of the requested SyncGroups, or the app/db is
 		// locally deleted, or a permission change has denied access.
-		rSt := newResponderState(ctx, call, s, req)
+		rSt := newResponderState(ctx, call, s, req, initiator)
 		rSt.sendDeltasPerDatabase(ctx)
 	}
 
@@ -42,17 +43,18 @@ func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasSer
 // responderState is state accumulated per Database by the responder during an
 // initiation round.
 type responderState struct {
-	req      interfaces.DeltaReq
-	call     interfaces.SyncGetDeltasServerCall // Stream handle for the GetDeltas RPC.
-	errState error                              // Captures the error from the first two phases of the responder.
-	sync     *syncService
-	st       store.Store // Store handle to the Database.
-	diff     genRangeVector
-	outVec   interfaces.GenVector
+	req       interfaces.DeltaReq
+	call      interfaces.SyncGetDeltasServerCall // Stream handle for the GetDeltas RPC.
+	initiator string
+	errState  error // Captures the error from the first two phases of the responder.
+	sync      *syncService
+	st        store.Store // Store handle to the Database.
+	diff      genRangeVector
+	outVec    interfaces.GenVector
 }
 
-func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, sync *syncService, req interfaces.DeltaReq) *responderState {
-	rSt := &responderState{call: call, sync: sync, req: req}
+func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, sync *syncService, req interfaces.DeltaReq, initiator string) *responderState {
+	rSt := &responderState{call: call, sync: sync, req: req, initiator: initiator}
 	return rSt
 }
 
@@ -138,6 +140,12 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) {
 		for _, p := range sg.Spec.Prefixes {
 			allowedPfxs[p] = struct{}{}
 		}
+
+		// Add the initiator to the SyncGroup membership if not already
+		// in it.  It is a temporary solution until SyncGroup metadata
+		// is synchronized peer to peer.
+		// TODO(rdaoud): remove this when SyncGroups are synced.
+		rSt.addInitiatorToSyncGroup(ctx, sgid)
 	}
 
 	// Filter the initiator's prefixes to what is allowed.
@@ -157,6 +165,39 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) {
 		}
 	}
 	return
+}
+
+// addInitiatorToSyncGroup adds the request initiator to the membership of the
+// given SyncGroup if the initiator is not already a member.  It is a temporary
+// solution until SyncGroup metadata starts being synchronized, at which time
+// peers will learn of new members through mutations of the SyncGroup metadata
+// by the SyncGroup administrators.
+// Note: the joiner metadata is fake because the responder does not have it.
+func (rSt *responderState) addInitiatorToSyncGroup(ctx *context.T, gid interfaces.GroupId) {
+	if rSt.initiator == "" {
+		return
+	}
+
+	err := store.RunInTransaction(rSt.st, func(tx store.StoreReadWriter) error {
+		sg, err := getSyncGroupById(ctx, tx, gid)
+		if err != nil {
+			return err
+		}
+
+		// If the initiator is already a member of the SyncGroup abort
+		// the transaction with a special error code.
+		if _, ok := sg.Joiners[rSt.initiator]; ok {
+			return verror.New(verror.ErrExist, ctx, "member already in SyncGroup")
+		}
+
+		vlog.VI(4).Infof("sync: addInitiatorToSyncGroup: add %s to sgid %d", rSt.initiator, gid)
+		sg.Joiners[rSt.initiator] = wire.SyncGroupMemberInfo{SyncPriority: 1}
+		return setSGDataEntry(ctx, tx, gid, sg)
+	})
+
+	if err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
+		vlog.Errorf("sync: addInitiatorToSyncGroup: initiator %s, sgid %d: %v", rSt.initiator, gid, err)
+	}
 }
 
 // computeDeltaBound computes the bound on missing generations across all

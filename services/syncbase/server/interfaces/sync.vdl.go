@@ -36,7 +36,7 @@ type SyncClientMethods interface {
 	// record. The initiator parses the stream between a Start and a Finish
 	// record as the response to its DeltaReq, and then moves on to the
 	// next Database in common with this responder.
-	GetDeltas(*context.T, ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
+	GetDeltas(ctx *context.T, initiator string, opts ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
 	PublishSyncGroup(ctx *context.T, sg SyncGroup, opts ...rpc.CallOpt) error
@@ -65,9 +65,9 @@ type implSyncClientStub struct {
 	name string
 }
 
-func (c implSyncClientStub) GetDeltas(ctx *context.T, opts ...rpc.CallOpt) (ocall SyncGetDeltasClientCall, err error) {
+func (c implSyncClientStub) GetDeltas(ctx *context.T, i0 string, opts ...rpc.CallOpt) (ocall SyncGetDeltasClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GetDeltas", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GetDeltas", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	ocall = &implSyncGetDeltasClientCall{ClientCall: call}
@@ -207,7 +207,7 @@ type SyncServerMethods interface {
 	// record. The initiator parses the stream between a Start and a Finish
 	// record as the response to its DeltaReq, and then moves on to the
 	// next Database in common with this responder.
-	GetDeltas(*context.T, SyncGetDeltasServerCall) error
+	GetDeltas(ctx *context.T, call SyncGetDeltasServerCall, initiator string) error
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
 	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg SyncGroup) error
@@ -236,7 +236,7 @@ type SyncServerStubMethods interface {
 	// record. The initiator parses the stream between a Start and a Finish
 	// record as the response to its DeltaReq, and then moves on to the
 	// next Database in common with this responder.
-	GetDeltas(*context.T, *SyncGetDeltasServerCallStub) error
+	GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, initiator string) error
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
 	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg SyncGroup) error
@@ -279,8 +279,8 @@ type implSyncServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub) error {
-	return s.impl.GetDeltas(ctx, call)
+func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, i0 string) error {
+	return s.impl.GetDeltas(ctx, call, i0)
 }
 
 func (s implSyncServerStub) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, i0 SyncGroup) error {
@@ -315,6 +315,9 @@ var descSync = rpc.InterfaceDesc{
 		{
 			Name: "GetDeltas",
 			Doc:  "// GetDeltas returns the responder's current generation vector and all\n// the missing log records when compared to the initiator's generation\n// vector. This process happens one Database at a time encompassing all\n// the SyncGroups common to the initiator and the responder. For each\n// Database, the initiator sends a DeltaReq. In response, the\n// responder sends a \"Start\" DeltaResp record, all the missing log\n// records, the responder's genvector, and a \"Finish\" DeltaResp\n// record. The initiator parses the stream between a Start and a Finish\n// record as the response to its DeltaReq, and then moves on to the\n// next Database in common with this responder.",
+			InArgs: []rpc.ArgDesc{
+				{"initiator", ``}, // string
+			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
