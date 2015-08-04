@@ -41,10 +41,87 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/vdl"
 
 	// VDL user imports
 	"v.io/v23/security"
 )
+
+type ConnInfo struct {
+	MinVersion int32
+	MaxVersion int32
+}
+
+func (ConnInfo) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/agent.ConnInfo"`
+}) {
+}
+
+type RpcRequest struct {
+	Id      uint64
+	Method  string
+	NumArgs uint32
+}
+
+func (RpcRequest) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/agent.RpcRequest"`
+}) {
+}
+
+type RpcResponse struct {
+	Id      uint64
+	Err     error
+	NumArgs uint32
+}
+
+func (RpcResponse) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/agent.RpcResponse"`
+}) {
+}
+
+type (
+	// RpcMessage represents any single field of the RpcMessage union type.
+	RpcMessage interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the RpcMessage union type.
+		__VDLReflect(__RpcMessageReflect)
+	}
+	// RpcMessageReq represents field Req of the RpcMessage union type.
+	RpcMessageReq struct{ Value RpcRequest }
+	// RpcMessageResp represents field Resp of the RpcMessage union type.
+	RpcMessageResp struct{ Value RpcResponse }
+	// __RpcMessageReflect describes the RpcMessage union type.
+	__RpcMessageReflect struct {
+		Name  string `vdl:"v.io/x/ref/services/agent.RpcMessage"`
+		Type  RpcMessage
+		Union struct {
+			Req  RpcMessageReq
+			Resp RpcMessageResp
+		}
+	}
+)
+
+func (x RpcMessageReq) Index() int                       { return 0 }
+func (x RpcMessageReq) Interface() interface{}           { return x.Value }
+func (x RpcMessageReq) Name() string                     { return "Req" }
+func (x RpcMessageReq) __VDLReflect(__RpcMessageReflect) {}
+
+func (x RpcMessageResp) Index() int                       { return 1 }
+func (x RpcMessageResp) Interface() interface{}           { return x.Value }
+func (x RpcMessageResp) Name() string                     { return "Resp" }
+func (x RpcMessageResp) __VDLReflect(__RpcMessageReflect) {}
+
+func init() {
+	vdl.Register((*ConnInfo)(nil))
+	vdl.Register((*RpcRequest)(nil))
+	vdl.Register((*RpcResponse)(nil))
+	vdl.Register((*RpcMessage)(nil))
+}
 
 // AgentClientMethods is the client interface
 // containing Agent methods.
