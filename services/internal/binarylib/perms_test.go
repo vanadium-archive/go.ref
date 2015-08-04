@@ -76,6 +76,7 @@ func ctxWithBlessedPrincipal(ctx *context.T, childExtension string) (*context.T,
 func TestBinaryCreateAccessList(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	rg := testutil.NewRandGenerator(t.Logf)
 
 	selfCtx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("self"))
 	if err != nil {
@@ -105,7 +106,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	if err := b("bini/private").Create(childCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
-	fakeDataPrivate := testData()
+	fakeDataPrivate := testData(rg)
 	if streamErr, err := invokeUpload(t, childCtx, b("bini/private"), fakeDataPrivate, 0); streamErr != nil || err != nil {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
@@ -130,6 +131,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 func TestBinaryRootAccessList(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	rg := testutil.NewRandGenerator(t.Logf)
 
 	selfPrincipal := testutil.NewPrincipal("self")
 	selfCtx, err := v23.WithPrincipal(ctx, selfPrincipal)
@@ -161,7 +163,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err := b("bini/private").Create(selfCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
-	fakeDataPrivate := testData()
+	fakeDataPrivate := testData(rg)
 	if streamErr, err := invokeUpload(t, selfCtx, b("bini/private"), fakeDataPrivate, 0); streamErr != nil || err != nil {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
@@ -169,7 +171,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err := b("bini/shared").Create(selfCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
-	fakeDataShared := testData()
+	fakeDataShared := testData(rg)
 	if streamErr, err := invokeUpload(t, selfCtx, b("bini/shared"), fakeDataShared, 0); streamErr != nil || err != nil {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
@@ -296,7 +298,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err := b("bini/otherbinary").Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
-	fakeDataOther := testData()
+	fakeDataOther := testData(rg)
 	if streamErr, err := invokeUpload(t, otherCtx, b("bini/otherbinary"), fakeDataOther, 0); streamErr != nil || err != nil {
 		t.FailNow()
 	}

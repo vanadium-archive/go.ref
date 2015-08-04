@@ -79,11 +79,12 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 func TestHierarchy(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	rg := testutil.NewRandGenerator(t.Logf)
 
 	for i := 0; i < md5.Size; i++ {
 		binary, ep, _, cleanup := startServer(t, ctx, i)
 		defer cleanup()
-		data := testData()
+		data := testData(rg)
 
 		// Test the binary repository interface.
 		if err := binary.Create(ctx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
@@ -131,6 +132,7 @@ func TestHierarchy(t *testing.T) {
 func TestMultiPart(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	rg := testutil.NewRandGenerator(t.Logf)
 
 	for length := 2; length < 5; length++ {
 		binary, _, _, cleanup := startServer(t, ctx, 2)
@@ -138,7 +140,7 @@ func TestMultiPart(t *testing.T) {
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
 		for i := 0; i < length; i++ {
-			data[i] = testData()
+			data[i] = testData(rg)
 		}
 		// Test the binary repository interface.
 		if err := binary.Create(ctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
@@ -181,9 +183,9 @@ func TestMultiPart(t *testing.T) {
 // resumption ranging the number of parts the uploaded binary consists
 // of.
 func TestResumption(t *testing.T) {
-	testutil.InitRandGenerator(t.Logf)
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	rg := testutil.NewRandGenerator(t.Logf)
 
 	for length := 2; length < 5; length++ {
 		binary, _, _, cleanup := startServer(t, ctx, 2)
@@ -191,7 +193,7 @@ func TestResumption(t *testing.T) {
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
 		for i := 0; i < length; i++ {
-			data[i] = testData()
+			data[i] = testData(rg)
 		}
 		if err := binary.Create(ctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 			t.Fatalf("Create() failed: %v", err)
@@ -211,7 +213,7 @@ func TestResumption(t *testing.T) {
 				break
 			}
 			for i := 0; i < length; i++ {
-				fail := testutil.RandomIntn(2)
+				fail := rg.RandomIntn(2)
 				if parts[i] == binarylib.MissingPart && fail != 0 {
 					if streamErr, err := invokeUpload(t, ctx, binary, data[i], int32(i)); streamErr != nil || err != nil {
 						t.FailNow()
@@ -227,18 +229,18 @@ func TestResumption(t *testing.T) {
 
 // TestErrors checks that the binary interface correctly reports errors.
 func TestErrors(t *testing.T) {
-	testutil.InitRandGenerator(t.Logf)
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	rg := testutil.NewRandGenerator(t.Logf)
 
 	binary, _, _, cleanup := startServer(t, ctx, 2)
 	defer cleanup()
 	const length = 2
 	data := make([][]byte, length)
 	for i := 0; i < length; i++ {
-		data[i] = testData()
+		data[i] = testData(rg)
 		for j := 0; j < len(data[i]); j++ {
-			data[i][j] = byte(testutil.RandomInt())
+			data[i][j] = byte(rg.RandomInt())
 		}
 	}
 	if err := binary.Create(ctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
@@ -295,10 +297,11 @@ func TestErrors(t *testing.T) {
 func TestGlob(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	rg := testutil.NewRandGenerator(t.Logf)
 
 	_, ep, _, cleanup := startServer(t, ctx, 2)
 	defer cleanup()
-	data := testData()
+	data := testData(rg)
 
 	objects := []string{"foo", "bar", "hello world", "a/b/c"}
 	for _, obj := range objects {

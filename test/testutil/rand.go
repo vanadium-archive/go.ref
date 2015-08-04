@@ -28,7 +28,6 @@ const randPanicMsg = "It looks like the singleton random number generator has no
 // Random is a concurrent-access friendly source of randomness.
 type Random struct {
 	mu   sync.Mutex
-	seed int64
 	rand *rand.Rand
 }
 
@@ -72,9 +71,12 @@ func (rand *Random) RandomBytes(size int) []byte {
 	return buffer
 }
 
-// Create a new pseudo-random number generator, the seed may be supplied
-// by V23_RNG_SEED to allow for reproducing a previous sequence.
-func NewRandGenerator() *Random {
+type loggingFunc func(format string, args ...interface{})
+
+// NewRandGenerator creates a new pseudo-random number generator; the seed may
+// be supplied by V23_RNG_SEED to allow for reproducing a previous sequence, and
+// is printed using the supplied logging function.
+func NewRandGenerator(logger loggingFunc) *Random {
 	seed := time.Now().UnixNano()
 	seedString := os.Getenv(SeedEnv)
 	if seedString != "" {
@@ -85,17 +87,35 @@ func NewRandGenerator() *Random {
 			panic(fmt.Sprintf("ParseInt(%v, %v, %v) failed: %v", seedString, base, bitSize, err))
 		}
 	}
-	return &Random{seed: seed, rand: rand.New(rand.NewSource(seed))}
+	logger("Seeded pseudo-random number generator with %v", seed)
+	return &Random{rand: rand.New(rand.NewSource(seed))}
 }
 
+// TODO(caprita): Consider deprecating InitRandGenerator in favor of using
+// NewRandGenerator directly.  There are several drawbacks to using the global
+// singleton Random object:
+//
+//   - tests that do not call InitRandGenerator themselves could depend on
+//   InitRandGenerator having been called by other tests in the same package and
+//   stop working when run standalone with test --run
+//
+//   - conversely, a test case may call InitRandGenerator without actually
+//   needing to; it's hard to figure out if some library called by a test
+//   actually uses the Random object or not
+//
+//   - when several test cases share the same Random object, there is
+//   interference in the stream of random numbers generated for each test case
+//   if run in parallel
+//
+// All these issues can be trivially addressed if the Random object is created
+// and plumbed through the call stack explicitly.
+
 // InitRandGenerator creates an instance of Random in the public variable Rand
-// and returns a function intended to be defer'ed that prints out the
-// seed use when creating the number number generator using the supplied
-// logging function.
-func InitRandGenerator(loggingFunc func(format string, args ...interface{})) {
+// and prints out the seed use when creating the number number generator using
+// the supplied logging function.
+func InitRandGenerator(logger loggingFunc) {
 	once.Do(func() {
-		Rand = NewRandGenerator()
-		loggingFunc("Seeded pseudo-random number generator with %v", Rand.seed)
+		Rand = NewRandGenerator(logger)
 	})
 }
 
