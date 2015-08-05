@@ -10,6 +10,7 @@ import (
 
 // InvalidSnapshot is a Snapshot for which all methods return errors.
 type InvalidSnapshot struct {
+	SnapshotSpecImpl
 	Error error // returned by all methods
 }
 
@@ -32,8 +33,8 @@ var (
 ////////////////////////////////////////////////////////////
 // InvalidSnapshot
 
-// Close implements the store.Snapshot interface.
-func (s *InvalidSnapshot) Close() error {
+// Abort implements the store.Snapshot interface.
+func (s *InvalidSnapshot) Abort() error {
 	return convertError(s.Error)
 }
 

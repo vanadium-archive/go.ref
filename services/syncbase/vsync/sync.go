@@ -19,7 +19,7 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
-
+	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
@@ -119,16 +119,19 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, server rpc.
 	}
 
 	data := &syncData{}
-	if err := util.Get(ctx, sv.St(), s.stKey(), data); err != nil {
-		if verror.ErrorID(err) != verror.ErrNoExist.ID {
-			return nil, err
+	if err := store.RunInTransaction(sv.St(), func(tx store.Transaction) error {
+		if err := util.Get(ctx, sv.St(), s.stKey(), data); err != nil {
+			if verror.ErrorID(err) != verror.ErrNoExist.ID {
+				return err
+			}
+			// First invocation of vsync.New().
+			// TODO(sadovsky): Maybe move guid generation and storage to serviceData.
+			data.Id = rand64()
+			return util.Put(ctx, tx, s.stKey(), data)
 		}
-		// First invocation of vsync.New().
-		// TODO(sadovsky): Maybe move guid generation and storage to serviceData.
-		data.Id = rand64()
-		if err := util.Put(ctx, sv.St(), s.stKey(), data); err != nil {
-			return nil, err
-		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	// data.Id is now guaranteed to be initialized.

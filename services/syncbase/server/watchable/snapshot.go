@@ -9,6 +9,7 @@ import (
 )
 
 type snapshot struct {
+	store.SnapshotSpecImpl
 	isn store.Snapshot
 	st  *wstore
 }
@@ -22,9 +23,9 @@ func newSnapshot(st *wstore) *snapshot {
 	}
 }
 
-// Close implements the store.Snapshot interface.
-func (s *snapshot) Close() error {
-	return s.isn.Close()
+// Abort implements the store.Snapshot interface.
+func (s *snapshot) Abort() error {
+	return s.isn.Abort()
 }
 
 // Get implements the store.StoreReader interface.

@@ -13,7 +13,7 @@ import (
 // stream streams keys and values for versioned records.
 type stream struct {
 	iit      store.Stream
-	st       store.StoreReader
+	sntx     store.SnapshotOrTransaction
 	mu       sync.Mutex
 	err      error
 	hasValue bool
@@ -25,11 +25,10 @@ var _ store.Stream = (*stream)(nil)
 
 // newStreamVersioned creates a new stream. It assumes all records in range
 // [start, limit) are managed, i.e. versioned.
-func newStreamVersioned(st store.StoreReader, start, limit []byte) *stream {
-	checkTransactionOrSnapshot(st)
+func newStreamVersioned(sntx store.SnapshotOrTransaction, start, limit []byte) *stream {
 	return &stream{
-		iit: st.Scan(makeVersionKey(start), makeVersionKey(limit)),
-		st:  st,
+		iit:  sntx.Scan(makeVersionKey(start), makeVersionKey(limit)),
+		sntx: sntx,
 	}
 }
 
@@ -46,7 +45,7 @@ func (s *stream) Advance() bool {
 	}
 	versionKey, version := s.iit.Key(nil), s.iit.Value(nil)
 	s.key = []byte(join(split(string(versionKey))[1:]...)) // drop "$version" prefix
-	s.value, s.err = s.st.Get(makeAtVersionKey(s.key, version), nil)
+	s.value, s.err = s.sntx.Get(makeAtVersionKey(s.key, version), nil)
 	if s.err != nil {
 		return false
 	}

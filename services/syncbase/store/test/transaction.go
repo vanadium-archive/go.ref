@@ -155,7 +155,7 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 		go func(idx int) {
 			rnd := rand.New(rand.NewSource(239017 * int64(idx)))
 			perm := rnd.Perm(n)
-			if err := store.RunInTransaction(st, func(st store.StoreReadWriter) error {
+			if err := store.RunInTransaction(st, func(tx store.Transaction) error {
 				for j := 0; j <= m; j++ {
 					var keystr string
 					if j < m {
@@ -164,7 +164,7 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 						keystr = fmt.Sprintf("%05d", n)
 					}
 					key := []byte(keystr)
-					val, err := st.Get(key, nil)
+					val, err := tx.Get(key, nil)
 					if err != nil {
 						return fmt.Errorf("can't get key %q: %v", key, err)
 					}
@@ -178,7 +178,7 @@ func RunTransactionsWithGetTest(t *testing.T, st store.Store) {
 					} else {
 						newValue = intValue + int64(m)
 					}
-					if err := st.Put(key, []byte(fmt.Sprintf("%d", newValue))); err != nil {
+					if err := tx.Put(key, []byte(fmt.Sprintf("%d", newValue))); err != nil {
 						return fmt.Errorf("can't put {%q: %v}: %v", key, newValue, err)
 					}
 				}

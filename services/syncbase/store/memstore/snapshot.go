@@ -12,6 +12,7 @@ import (
 )
 
 type snapshot struct {
+	store.SnapshotSpecImpl
 	mu   sync.Mutex
 	node *store.ResourceNode
 	data map[string][]byte
@@ -31,20 +32,20 @@ func newSnapshot(st *memstore, parent *store.ResourceNode) *snapshot {
 		data: dataCopy,
 	}
 	parent.AddChild(s.node, func() {
-		s.Close()
+		s.Abort()
 	})
 	return s
 }
 
-// Close implements the store.Snapshot interface.
-func (s *snapshot) Close() error {
+// Abort implements the store.Snapshot interface.
+func (s *snapshot) Abort() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
 		return convertError(s.err)
 	}
 	s.node.Close()
-	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedSnapshot)
+	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedSnapshot)
 	return nil
 }
 

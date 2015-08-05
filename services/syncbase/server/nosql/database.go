@@ -245,7 +245,7 @@ func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall, schemaVersion i
 			d.mu.Unlock()
 		}
 	} else {
-		if err = d.sn.Close(); err == nil {
+		if err = d.sn.Abort(); err == nil {
 			d.mu.Lock()
 			delete(d.sns, *d.batchId)
 			d.mu.Unlock()
@@ -276,13 +276,12 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 		}
 		return rs.Err()
 	}
-	var st store.StoreReader
+	var sntx store.SnapshotOrTransaction
 	if d.batchId != nil {
-		st = d.batchReader()
+		sntx = d.batchReader()
 	} else {
-		sn := d.st.NewSnapshot()
-		st = sn
-		defer sn.Close()
+		sntx = d.st.NewSnapshot()
+		defer sntx.Abort()
 	}
 	// queryDb implements query_db.Database
 	// which is needed by the query package's
@@ -291,7 +290,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 		ctx:  ctx,
 		call: call,
 		req:  d,
-		st:   st,
+		sntx: sntx,
 	}
 
 	return impl(query_exec.Exec(db, q))
@@ -349,14 +348,11 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-cha
 	}
 	// Check perms.
 	sn := d.st.NewSnapshot()
-	closeSnapshot := func() error {
-		return sn.Close()
-	}
 	if err := util.GetWithAuth(ctx, call, sn, d.stKey(), &databaseData{}); err != nil {
-		closeSnapshot()
+		sn.Abort()
 		return nil, err
 	}
-	return util.Glob(ctx, call, "*", sn, closeSnapshot, util.TablePrefix)
+	return util.Glob(ctx, call, "*", sn, sn.Abort, util.TablePrefix)
 }
 
 ////////////////////////////////////////
@@ -421,9 +417,9 @@ func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms a
 	if !d.exists {
 		vlog.Fatalf("database %q does not exist", d.name)
 	}
-	return store.RunInTransaction(d.st, func(st store.StoreReadWriter) error {
+	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
 		data := &databaseData{}
-		return util.UpdateWithAuth(ctx, call, st, d.stKey(), data, func() error {
+		return util.UpdateWithAuth(ctx, call, tx, d.stKey(), data, func() error {
 			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
 				return err
 			}
@@ -446,7 +442,7 @@ type queryDb struct {
 	ctx  *context.T
 	call wire.DatabaseExecServerCall
 	req  *databaseReq
-	st   store.StoreReader
+	sntx store.SnapshotOrTransaction
 }
 
 func (db *queryDb) GetContext() *context.T {
@@ -462,7 +458,7 @@ func (db *queryDb) GetTable(name string) (query_db.Table, error) {
 		},
 	}
 	// Now that we have a table, we need to check permissions.
-	if err := util.GetWithAuth(db.ctx, db.call, db.st, tDb.req.stKey(), &tableData{}); err != nil {
+	if err := util.GetWithAuth(db.ctx, db.call, db.sntx, tDb.req.stKey(), &tableData{}); err != nil {
 		return nil, err
 	}
 	return tDb, nil
@@ -478,7 +474,7 @@ func (t *tableDb) Scan(keyRanges query_db.KeyRanges) (query_db.KeyValueStream, e
 	for _, keyRange := range keyRanges {
 		// TODO(jkline): For now, acquire all of the streams at once to minimize the race condition.
 		//               Need a way to Scan multiple ranges at the same state of uncommitted changes.
-		streams = append(streams, t.qdb.st.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.req.name), keyRange.Start, keyRange.Limit)))
+		streams = append(streams, t.qdb.sntx.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.req.name), keyRange.Start, keyRange.Limit)))
 	}
 	return &kvs{
 		t:        t,
@@ -568,7 +564,7 @@ func (d *database) stKey() string {
 	return util.DatabasePrefix
 }
 
-func (d *databaseReq) batchReader() store.StoreReader {
+func (d *databaseReq) batchReader() store.SnapshotOrTransaction {
 	if d.batchId == nil {
 		return nil
 	} else if d.sn != nil {
@@ -578,7 +574,7 @@ func (d *databaseReq) batchReader() store.StoreReader {
 	}
 }
 
-func (d *databaseReq) batchReadWriter() (store.StoreReadWriter, error) {
+func (d *databaseReq) batchTransaction() (store.Transaction, error) {
 	if d.batchId == nil {
 		return nil, nil
 	} else if d.tx != nil {

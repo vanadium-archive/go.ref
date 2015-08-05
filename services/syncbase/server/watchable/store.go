@@ -79,7 +79,7 @@ func (st *wstore) Get(key, valbuf []byte) ([]byte, error) {
 		return st.ist.Get(key, valbuf)
 	}
 	sn := newSnapshot(st)
-	defer sn.Close()
+	defer sn.Abort()
 	return sn.Get(key, valbuf)
 }
 
@@ -95,16 +95,16 @@ func (st *wstore) Scan(start, limit []byte) store.Stream {
 // Put implements the store.StoreWriter interface.
 func (st *wstore) Put(key, value []byte) error {
 	// Use watchable.Store transaction so this op gets logged.
-	return store.RunInTransaction(st, func(st store.StoreReadWriter) error {
-		return st.Put(key, value)
+	return store.RunInTransaction(st, func(tx store.Transaction) error {
+		return tx.Put(key, value)
 	})
 }
 
 // Delete implements the store.StoreWriter interface.
 func (st *wstore) Delete(key []byte) error {
 	// Use watchable.Store transaction so this op gets logged.
-	return store.RunInTransaction(st, func(st store.StoreReadWriter) error {
-		return st.Delete(key)
+	return store.RunInTransaction(st, func(tx store.Transaction) error {
+		return tx.Delete(key)
 	})
 }
 

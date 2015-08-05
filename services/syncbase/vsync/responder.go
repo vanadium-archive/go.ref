@@ -427,9 +427,9 @@ func extractAndSortPrefixes(vec interfaces.GenVector) []string {
 
 // TODO(hpucha): This can be optimized using a scan instead of "gets" in a for
 // loop.
-func getNextLogRec(ctx *context.T, sn store.StoreReader, dev uint64, r *genRange) (*localLogRec, error) {
+func getNextLogRec(ctx *context.T, st store.Store, dev uint64, r *genRange) (*localLogRec, error) {
 	for i := r.cur; i <= r.max; i++ {
-		rec, err := getLogRec(ctx, sn, dev, i)
+		rec, err := getLogRec(ctx, st, dev, i)
 		if err == nil {
 			r.cur = i + 1
 			return rec, nil

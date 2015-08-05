@@ -790,7 +790,7 @@ func TestPruning(t *testing.T) {
 		tx := st.NewTransaction()
 		del := 0
 		err := prune(nil, tx, oid, version, batches,
-			func(ctx *context.T, tx store.StoreReadWriter, lr string) error {
+			func(ctx *context.T, tx store.Transaction, lr string) error {
 				del++
 				return nil
 			})
@@ -872,7 +872,7 @@ func TestPruningCallbackError(t *testing.T) {
 	batches := newBatchPruning()
 	tx := st.NewTransaction()
 	err := prune(nil, tx, oid, version, batches,
-		func(ctx *context.T, tx store.StoreReadWriter, lr string) error {
+		func(ctx *context.T, tx store.Transaction, lr string) error {
 			del++
 			if lr == "logrec-03" {
 				return fmt.Errorf("refuse to delete %s", lr)
@@ -1574,7 +1574,7 @@ func TestPruningBatches(t *testing.T) {
 			t.Errorf("cannot getHead() on object %s: %v", oid, err)
 		}
 		err = prune(nil, tx, oid, head, batches,
-			func(ctx *context.T, itx store.StoreReadWriter, lr string) error {
+			func(ctx *context.T, itx store.Transaction, lr string) error {
 				return nil
 			})
 		if err != nil {
@@ -1614,7 +1614,7 @@ func TestPruningBatches(t *testing.T) {
 
 	batches = newBatchPruning()
 	err = prune(nil, tx, oid_c, "3", batches,
-		func(ctx *context.T, itx store.StoreReadWriter, lr string) error {
+		func(ctx *context.T, itx store.Transaction, lr string) error {
 			return nil
 		})
 	if err != nil {
