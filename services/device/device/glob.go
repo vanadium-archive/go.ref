@@ -316,70 +316,83 @@ func glob(ctx *context.T, env *cmdline.Env, args []string) []*GlobResult {
 	return results
 }
 
-type instanceStateFlag map[device.InstanceState]bool
+type genericStateFlag map[genericState]bool
 
-func (f *instanceStateFlag) apply(state device.InstanceState) bool {
+// genericState interface is meant to abstract device.InstanceState and
+// device.InstallationState.  We only make use of the String method, but we
+// could also add Set and __VDLReflect to the method set to constrain the types
+// that can be used.  Ultimately, however, the state constructor passed into
+// genericStateFlag.fromString is the gatekeeper as to what can be allowed in
+// the genericStateFlag set.
+type genericState fmt.Stringer
+
+func (f *genericStateFlag) apply(state genericState) bool {
 	if len(*f) == 0 {
 		return true
 	}
 	return (*f)[state]
 }
 
-func (f *instanceStateFlag) String() string {
+func (f *genericStateFlag) String() string {
 	states := make([]string, 0, len(*f))
 	for s := range *f {
 		states = append(states, s.String())
 	}
 	sort.Strings(states)
 	return strings.Join(states, ",")
+}
+
+func (f *genericStateFlag) fromString(s string, stateConstructor func(string) (genericState, error)) error {
+	states := strings.Split(s, ",")
+	for _, s := range states {
+		state, err := stateConstructor(s)
+		if err != nil {
+			return err
+		}
+		f.add(state)
+	}
+	return nil
+}
+
+func (f *genericStateFlag) add(s genericState) {
+	if *f == nil {
+		*f = make(genericStateFlag)
+	}
+	(*f)[s] = true
+}
+
+type instanceStateFlag struct {
+	genericStateFlag
 }
 
 func (f *instanceStateFlag) Set(s string) error {
-	if *f == nil {
-		*f = make(instanceStateFlag)
-	}
-	states := strings.Split(s, ",")
+	return f.fromString(s, func(s string) (genericState, error) {
+		return device.InstanceStateFromString(s)
+	})
+}
+
+func InstanceStates(states ...device.InstanceState) (f instanceStateFlag) {
 	for _, s := range states {
-		state, err := device.InstanceStateFromString(s)
-		if err != nil {
-			return err
-		}
-		(*f)[state] = true
+		f.add(s)
 	}
-	return nil
+	return
 }
 
-type installationStateFlag map[device.InstallationState]bool
-
-func (f *installationStateFlag) apply(state device.InstallationState) bool {
-	if len(*f) == 0 {
-		return true
-	}
-	return (*f)[state]
-}
-
-func (f *installationStateFlag) String() string {
-	states := make([]string, 0, len(*f))
-	for s := range *f {
-		states = append(states, s.String())
-	}
-	sort.Strings(states)
-	return strings.Join(states, ",")
+type installationStateFlag struct {
+	genericStateFlag
 }
 
 func (f *installationStateFlag) Set(s string) error {
-	if *f == nil {
-		*f = make(installationStateFlag)
-	}
-	states := strings.Split(s, ",")
+	return f.fromString(s, func(s string) (genericState, error) {
+		return device.InstallationStateFromString(s)
+	})
+}
+
+func InstallationStates(states ...device.InstallationState) (f installationStateFlag) {
 	for _, s := range states {
-		state, err := device.InstallationStateFromString(s)
-		if err != nil {
-			return err
-		}
-		(*f)[state] = true
+		f.add(s)
 	}
-	return nil
+	return
 }
 
 type parallelismFlag int
