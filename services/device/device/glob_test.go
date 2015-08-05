@@ -287,6 +287,39 @@ func TestGlob(t *testing.T) {
 			"",
 			"",
 		},
+		// Verifies "instance state" filter with more than 1 state.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{InstanceStateFilter: cmd_device.InstanceStates(device.InstanceStateUpdating, device.InstanceStateRunning)},
+			allGlobArgs,
+			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app9Out, app6Out, app8Out),
+			"",
+			"",
+		},
+		// Verifies "instance state" filter with excluded state.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{InstanceStateFilter: cmd_device.ExcludeInstanceStates(device.InstanceStateUpdating)},
+			allGlobArgs,
+			joinLines(app2Out, app4Out, app7Out, app1Out, app5Out, app6Out, app8Out),
+			"",
+			"",
+		},
+		// Verifies "instance state" filter with more than 1 excluded state.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{InstanceStateFilter: cmd_device.ExcludeInstanceStates(device.InstanceStateUpdating, device.InstanceStateRunning)},
+			allGlobArgs,
+			joinLines(app2Out, app4Out, app7Out, app5Out, app6Out, app8Out),
+			"",
+			"",
+		},
 		// Verifies "installation state" filter.
 		{
 			simplePrintHandler,
@@ -295,6 +328,39 @@ func TestGlob(t *testing.T) {
 			cmd_device.GlobSettings{InstallationStateFilter: cmd_device.InstallationStates(device.InstallationStateActive)},
 			allGlobArgs,
 			joinLines(app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			"",
+			"",
+		},
+		// Verifies "installation state" filter with more than 1 state.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{InstallationStateFilter: cmd_device.InstallationStates(device.InstallationStateActive, device.InstallationStateUninstalled)},
+			allGlobArgs,
+			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			"",
+			"",
+		},
+		// Verifies "installation state" filter with excluded state.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{InstallationStateFilter: cmd_device.ExcludeInstallationStates(device.InstallationStateActive)},
+			allGlobArgs,
+			joinLines(app2Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			"",
+			"",
+		},
+		// Verifies "installation state" filter with more than 1 excluded state.
+		{
+			simplePrintHandler,
+			allGlobResponses,
+			allStatusResponses,
+			cmd_device.GlobSettings{InstallationStateFilter: cmd_device.ExcludeInstallationStates(device.InstallationStateActive, device.InstallationStateUninstalled)},
+			allGlobArgs,
+			joinLines(app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
 			"",
 			"",
 		},

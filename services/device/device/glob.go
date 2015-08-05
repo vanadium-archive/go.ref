@@ -316,7 +316,10 @@ func glob(ctx *context.T, env *cmdline.Env, args []string) []*GlobResult {
 	return results
 }
 
-type genericStateFlag map[genericState]bool
+type genericStateFlag struct {
+	set     map[genericState]bool
+	exclude bool
+}
 
 // genericState interface is meant to abstract device.InstanceState and
 // device.InstallationState.  We only make use of the String method, but we
@@ -327,22 +330,30 @@ type genericStateFlag map[genericState]bool
 type genericState fmt.Stringer
 
 func (f *genericStateFlag) apply(state genericState) bool {
-	if len(*f) == 0 {
+	if len(f.set) == 0 {
 		return true
 	}
-	return (*f)[state]
+	return f.exclude != f.set[state]
 }
 
 func (f *genericStateFlag) String() string {
-	states := make([]string, 0, len(*f))
-	for s := range *f {
+	states := make([]string, 0, len(f.set))
+	for s := range f.set {
 		states = append(states, s.String())
 	}
 	sort.Strings(states)
-	return strings.Join(states, ",")
+	statesStr := strings.Join(states, ",")
+	if f.exclude {
+		return "!" + statesStr
+	}
+	return statesStr
 }
 
 func (f *genericStateFlag) fromString(s string, stateConstructor func(string) (genericState, error)) error {
+	if len(s) > 0 && s[0] == '!' {
+		f.exclude = true
+		s = s[1:]
+	}
 	states := strings.Split(s, ",")
 	for _, s := range states {
 		state, err := stateConstructor(s)
@@ -355,10 +366,10 @@ func (f *genericStateFlag) fromString(s string, stateConstructor func(string) (g
 }
 
 func (f *genericStateFlag) add(s genericState) {
-	if *f == nil {
-		*f = make(genericStateFlag)
+	if f.set == nil {
+		f.set = make(map[genericState]bool)
 	}
-	(*f)[s] = true
+	f.set[s] = true
 }
 
 type instanceStateFlag struct {
@@ -378,6 +389,12 @@ func InstanceStates(states ...device.InstanceState) (f instanceStateFlag) {
 	return
 }
 
+func ExcludeInstanceStates(states ...device.InstanceState) instanceStateFlag {
+	f := InstanceStates(states...)
+	f.exclude = true
+	return f
+}
+
 type installationStateFlag struct {
 	genericStateFlag
 }
@@ -393,6 +410,12 @@ func InstallationStates(states ...device.InstallationState) (f installationState
 		f.add(s)
 	}
 	return
+}
+
+func ExcludeInstallationStates(states ...device.InstallationState) installationStateFlag {
+	f := InstallationStates(states...)
+	f.exclude = true
+	return f
 }
 
 type parallelismFlag int
@@ -467,8 +490,8 @@ func ResetGlobSettings() {
 }
 
 func defineGlobFlags(fs *flag.FlagSet, s *GlobSettings) {
-	fs.Var(&s.InstanceStateFilter, "instance-state", fmt.Sprintf("If non-empty, specifies allowed instance states (all other instances get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstanceStateAll))
-	fs.Var(&s.InstallationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v.", device.InstallationStateAll))
+	fs.Var(&s.InstanceStateFilter, "instance-state", fmt.Sprintf("If non-empty, specifies allowed instance states (all other instances get filtered out). The value of the flag is a comma-separated list of values from among: %v. If the value is prefixed by '!', the list acts as a blacklist (all matching instances get filtered out).", device.InstanceStateAll))
+	fs.Var(&s.InstallationStateFilter, "installation-state", fmt.Sprintf("If non-empty, specifies allowed installation states (all others installations get filtered out). The value of the flag is a comma-separated list of values from among: %v. If the value is prefixed by '!', the list acts as a blacklist (all matching installations get filtered out).", device.InstallationStateAll))
 	fs.BoolVar(&s.OnlyInstances, "only-instances", false, "If set, only consider instances.")
 	fs.BoolVar(&s.OnlyInstallations, "only-installations", false, "If set, only consider installations.")
 	var parallelismValues []string
