@@ -67,3 +67,24 @@ type Agent interface {
 	// recieving a new item.
 	NotifyWhenChanged() stream<_, bool> error
 }
+
+type ConnInfo struct {
+	MinVersion, MaxVersion int32
+}
+
+type RpcRequest struct {
+	Id uint64
+	Method string
+	NumArgs uint32
+}
+
+type RpcResponse struct {
+	Id uint64
+	Err error
+	NumArgs uint32
+}
+
+type RpcMessage union {
+	Req RpcRequest
+	Resp RpcResponse
+}
