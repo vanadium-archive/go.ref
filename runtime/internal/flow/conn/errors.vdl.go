@@ -19,6 +19,7 @@ var (
 	ErrInvalidControlMsg = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidControlMsg", verror.NoRetry, "{1:}{2:} control message of cmd{:3} and size{:4} failed decoding at field{:5}.")
 	ErrUnknownMsg        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnknownMsg", verror.NoRetry, "{1:}{2:} unknown message type{:3}.")
 	ErrUnknownControlMsg = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnknownControlMsg", verror.NoRetry, "{1:}{2:} unknown control command{:3}.")
+	ErrCacheClosed       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CacheClosed", verror.NoRetry, "{1:}{2:} cache is closed")
 )
 
 func init() {
@@ -26,6 +27,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidControlMsg.ID), "{1:}{2:} control message of cmd{:3} and size{:4} failed decoding at field{:5}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnknownMsg.ID), "{1:}{2:} unknown message type{:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnknownControlMsg.ID), "{1:}{2:} unknown control command{:3}.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCacheClosed.ID), "{1:}{2:} cache is closed")
 }
 
 // NewErrInvalidMsg returns an error with the ErrInvalidMsg ID.
@@ -46,4 +48,9 @@ func NewErrUnknownMsg(ctx *context.T, typ byte) error {
 // NewErrUnknownControlMsg returns an error with the ErrUnknownControlMsg ID.
 func NewErrUnknownControlMsg(ctx *context.T, cmd byte) error {
 	return verror.New(ErrUnknownControlMsg, ctx, cmd)
+}
+
+// NewErrCacheClosed returns an error with the ErrCacheClosed ID.
+func NewErrCacheClosed(ctx *context.T) error {
+	return verror.New(ErrCacheClosed, ctx)
 }
