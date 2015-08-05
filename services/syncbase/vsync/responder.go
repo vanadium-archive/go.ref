@@ -178,7 +178,7 @@ func (rSt *responderState) addInitiatorToSyncGroup(ctx *context.T, gid interface
 		return
 	}
 
-	err := store.RunInTransaction(rSt.st, func(tx store.StoreReadWriter) error {
+	err := store.RunInTransaction(rSt.st, func(tx store.Transaction) error {
 		sg, err := getSyncGroupById(ctx, tx, gid)
 		if err != nil {
 			return err
