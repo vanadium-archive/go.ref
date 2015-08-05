@@ -118,6 +118,10 @@ func (c *Conn) Dial(ctx *context.T) (flow.Flow, error) {
 // with an error and no more flows will be sent to the FlowHandler.
 func (c *Conn) Closed() <-chan struct{} { return c.closed }
 
+// Close marks the Conn as closed. All Dial calls will fail with an error and
+// no more flows will be sent to the FlowHandler.
+func (c *Conn) Close() { close(c.closed) }
+
 // LocalEndpoint returns the local vanadium Endpoint
 func (c *Conn) LocalEndpoint() naming.Endpoint { return c.local }
 

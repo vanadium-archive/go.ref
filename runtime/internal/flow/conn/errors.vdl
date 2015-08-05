@@ -16,4 +16,5 @@ error (
   "en":"control message of cmd{:cmd} and size{:size} failed decoding at field{:field}."}
   UnknownMsg(typ byte) {"en":"unknown message type{:typ}."}
   UnknownControlMsg(cmd byte) {"en":"unknown control command{:cmd}."}
+  CacheClosed() {"en":"cache is closed"}
 )
