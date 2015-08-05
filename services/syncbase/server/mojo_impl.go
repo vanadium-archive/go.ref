@@ -75,7 +75,7 @@ func (m *mojoImpl) DbExists(name string) (wire.Error, bool, error) {
 	return wire.Error{}, false, nil
 }
 
-func (m *mojoImpl) DbExec(name string, stream wire.ExecStream_Request) (wire.Error, error) {
+func (m *mojoImpl) DbExec(name string, query string, stream wire.ExecStream_Request) (wire.Error, error) {
 	return wire.Error{}, nil
 }
 
