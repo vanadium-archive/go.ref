@@ -45,6 +45,10 @@ var (
 		State:   device.InstanceStateNotRunning,
 		Version: "special edition",
 	}}
+	instanceDeleted = device.StatusInstance{device.InstanceStatus{
+		State:   device.InstanceStateDeleted,
+		Version: "mini series",
+	}}
 	deviceService = device.StatusDevice{device.DeviceStatus{
 		State:   device.InstanceStateRunning,
 		Version: "han shot first",

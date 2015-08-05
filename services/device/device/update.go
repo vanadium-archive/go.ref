@@ -29,7 +29,11 @@ var cmdUpdate = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdUpdate, runUpdate, &GlobSettings{HandlerParallelism: KindParallelism})
+	globify(cmdUpdate, runUpdate, &GlobSettings{
+		HandlerParallelism:      KindParallelism,
+		InstanceStateFilter:     ExcludeInstanceStates(device.InstanceStateDeleted),
+		InstallationStateFilter: ExcludeInstallationStates(device.InstallationStateUninstalled),
+	})
 }
 
 var cmdRevert = &cmdline.Command{
@@ -42,7 +46,11 @@ var cmdRevert = &cmdline.Command{
 }
 
 func init() {
-	globify(cmdRevert, runRevert, &GlobSettings{HandlerParallelism: KindParallelism})
+	globify(cmdRevert, runRevert, &GlobSettings{
+		HandlerParallelism:      KindParallelism,
+		InstanceStateFilter:     ExcludeInstanceStates(device.InstanceStateDeleted),
+		InstallationStateFilter: ExcludeInstallationStates(device.InstallationStateUninstalled),
+	})
 }
 
 func instanceIsRunning(ctx *context.T, von string) (bool, error) {
