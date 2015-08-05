@@ -62,11 +62,18 @@ func TestUpdateAndRevertCommands(t *testing.T) {
 			expectedError   string
 		}{
 			{ // Everything succeeds.
-				[]string{"app/2", "app/1", "app/3"},
+				[]string{"app/2", "app/1", "app/5", "app/3", "app/4"},
 				map[string][]interface{}{
 					"app/1": []interface{}{instanceRunning, nil, nil, nil},
 					"app/2": []interface{}{instanceNotRunning, nil},
 					"app/3": []interface{}{installationActive, nil},
+					// The uninstalled installation and the
+					// deleted instance should be excluded
+					// from the Update and Revert as per the
+					// default GlobSettings for the update
+					// and revert commands.
+					"app/4": []interface{}{installationUninstalled, nil},
+					"app/5": []interface{}{instanceDeleted, nil},
 				},
 				map[string][]interface{}{
 					"app/1": []interface{}{"Status", KillStimulus{"Kill", 10 * time.Second}, capitalize(cmd), "Run"},

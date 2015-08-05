@@ -259,12 +259,12 @@ Usage:
 to the device manager service, or to application installations and instances.
 
 The device revert flags are:
- -installation-state=
+ -installation-state=!Uninstalled
    If non-empty, specifies allowed installation states (all others installations
    get filtered out). The value of the flag is a comma-separated list of values
    from among: [Active Uninstalled]. If the value is prefixed by '!', the list
    acts as a blacklist (all matching installations get filtered out).
- -instance-state=
+ -instance-state=!Deleted
    If non-empty, specifies allowed instance states (all other instances get
    filtered out). The value of the flag is a comma-separated list of values from
    among: [Launching Running Dying NotRunning Updating Deleted]. If the value is
@@ -289,12 +289,12 @@ Usage:
 to the device manager service, or to application installations and instances.
 
 The device update flags are:
- -installation-state=
+ -installation-state=!Uninstalled
    If non-empty, specifies allowed installation states (all others installations
    get filtered out). The value of the flag is a comma-separated list of values
    from among: [Active Uninstalled]. If the value is prefixed by '!', the list
    acts as a blacklist (all matching installations get filtered out).
- -instance-state=
+ -instance-state=!Deleted
    If non-empty, specifies allowed instance states (all other instances get
    filtered out). The value of the flag is a comma-separated list of values from
    among: [Launching Running Dying NotRunning Updating Deleted]. If the value is
