@@ -182,15 +182,15 @@ func TestGlob(t *testing.T) {
 		return fmt.Sprintf("%v", *r)
 	}
 	var (
-		app1Out = outLine("1", instanceRunning)
-		app2Out = outLine("2", installationUninstalled)
-		app3Out = outLine("3", instanceUpdating)
-		app4Out = outLine("4", installationActive)
-		app5Out = outLine("5", instanceNotRunning)
-		app6Out = outLine("6", deviceService)
-		app7Out = outLine("7", installationActive)
-		app8Out = outLine("8", deviceUpdating)
-		app9Out = outLine("9", instanceUpdating)
+		runningIstc1Out     = outLine("1", instanceRunning)
+		uninstalledIstl2Out = outLine("2", installationUninstalled)
+		updatingIstc3Out    = outLine("3", instanceUpdating)
+		activeIstl4Out      = outLine("4", installationActive)
+		notRunningIstc5Out  = outLine("5", instanceNotRunning)
+		devc6Out            = outLine("6", deviceService)
+		activeIstl7Out      = outLine("7", installationActive)
+		updatingDevc8Out    = outLine("8", deviceUpdating)
+		updatingIstc9Out    = outLine("9", instanceUpdating)
 	)
 
 	noParallelismHandler := newEnforceNoParallelismHandler(t, len(allStatusResponses), []string{"app/2", "app/4", "app/7", "app/1", "app/3", "app/5", "app/9", "app/6", "app/8"})
@@ -213,7 +213,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -225,7 +225,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{HandlerParallelism: cmd_device.FullParallelism},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -238,7 +238,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{HandlerParallelism: cmd_device.KindParallelism},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -250,7 +250,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{HandlerParallelism: cmd_device.NoParallelism},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -261,7 +261,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{OnlyInstances: true},
 			allGlobArgs,
-			joinLines(app1Out, app3Out, app5Out, app9Out),
+			joinLines(runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out),
 			"",
 			"",
 		},
@@ -272,7 +272,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{OnlyInstallations: true},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out),
 			"",
 			"",
 		},
@@ -283,7 +283,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{InstanceStateFilter: cmd_device.InstanceStates(device.InstanceStateUpdating)},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app3Out, app9Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, updatingIstc3Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -294,7 +294,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{InstanceStateFilter: cmd_device.InstanceStates(device.InstanceStateUpdating, device.InstanceStateRunning)},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app9Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, runningIstc1Out, updatingIstc3Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -305,7 +305,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{InstanceStateFilter: cmd_device.ExcludeInstanceStates(device.InstanceStateUpdating)},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app1Out, app5Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, runningIstc1Out, notRunningIstc5Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -316,7 +316,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{InstanceStateFilter: cmd_device.ExcludeInstanceStates(device.InstanceStateUpdating, device.InstanceStateRunning)},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app5Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, notRunningIstc5Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -327,7 +327,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{InstallationStateFilter: cmd_device.InstallationStates(device.InstallationStateActive)},
 			allGlobArgs,
-			joinLines(app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			joinLines(activeIstl4Out, activeIstl7Out, runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -338,7 +338,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{InstallationStateFilter: cmd_device.InstallationStates(device.InstallationStateActive, device.InstallationStateUninstalled)},
 			allGlobArgs,
-			joinLines(app2Out, app4Out, app7Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, activeIstl4Out, activeIstl7Out, runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -349,7 +349,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{InstallationStateFilter: cmd_device.ExcludeInstallationStates(device.InstallationStateActive)},
 			allGlobArgs,
-			joinLines(app2Out, app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -360,7 +360,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{InstallationStateFilter: cmd_device.ExcludeInstallationStates(device.InstallationStateActive, device.InstallationStateUninstalled)},
 			allGlobArgs,
-			joinLines(app1Out, app3Out, app5Out, app9Out, app6Out, app8Out),
+			joinLines(runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -374,7 +374,7 @@ func TestGlob(t *testing.T) {
 				OnlyInstallations:       true,
 			},
 			allGlobArgs,
-			joinLines(app4Out, app7Out),
+			joinLines(activeIstl4Out, activeIstl7Out),
 			"",
 			"",
 		},
@@ -388,7 +388,7 @@ func TestGlob(t *testing.T) {
 				OnlyInstances:           true,
 			},
 			allGlobArgs,
-			joinLines(app1Out, app3Out, app5Out, app9Out),
+			joinLines(runningIstc1Out, updatingIstc3Out, notRunningIstc5Out, updatingIstc9Out),
 			"",
 			"",
 		},
@@ -402,7 +402,7 @@ func TestGlob(t *testing.T) {
 				InstallationStateFilter: cmd_device.InstallationStates(device.InstallationStateUninstalled),
 			},
 			allGlobArgs,
-			joinLines(app2Out, app1Out, app6Out, app8Out),
+			joinLines(uninstalledIstl2Out, runningIstc1Out, devc6Out, updatingDevc8Out),
 			"",
 			"",
 		},
@@ -449,7 +449,7 @@ func TestGlob(t *testing.T) {
 			allStatusResponses,
 			cmd_device.GlobSettings{},
 			[]string{"glob", "glob"},
-			joinLines(app4Out, app3Out),
+			joinLines(activeIstl4Out, updatingIstc3Out),
 			fmt.Sprintf("Glob(%v) returned an error for %v: device.test:\"\".__Glob: Internal error: glob utter failure", naming.JoinAddressName(endpoint.String(), "glob"), naming.JoinAddressName(endpoint.String(), "")),
 			"",
 		},
@@ -465,7 +465,7 @@ func TestGlob(t *testing.T) {
 			},
 			cmd_device.GlobSettings{},
 			allGlobArgs,
-			joinLines(app4Out, app1Out, app3Out),
+			joinLines(activeIstl4Out, runningIstc1Out, updatingIstc3Out),
 			fmt.Sprintf("Status(%v) failed: device.test:<rpc.Client>\"%v\".Status: Error: status miserable failure", appName+"/2", appName+"/2"),
 			"",
 		},
@@ -481,7 +481,7 @@ func TestGlob(t *testing.T) {
 			},
 			cmd_device.GlobSettings{},
 			allGlobArgs,
-			joinLines(app1Out, app3Out),
+			joinLines(runningIstc1Out, updatingIstc3Out),
 			joinLines(
 				fmt.Sprintf("ERROR for \"%v\": handler complete failure.", appName+"/2"),
 				fmt.Sprintf("ERROR for \"%v\": handler complete failure.", appName+"/4")),
