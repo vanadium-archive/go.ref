@@ -19,6 +19,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/syncbase/x/ref/services/syncbase/vsync"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
@@ -160,14 +161,14 @@ func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms acc
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (s *service) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
+func (s *service) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
 	// Check perms.
 	sn := s.st.NewSnapshot()
 	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &serviceData{}); err != nil {
 		sn.Abort()
-		return nil, err
+		return err
 	}
-	return util.Glob(ctx, call, "*", sn, sn.Abort, util.AppPrefix)
+	return util.Glob(ctx, call, matcher, sn, sn.Abort, util.AppPrefix)
 }
 
 ////////////////////////////////////////
