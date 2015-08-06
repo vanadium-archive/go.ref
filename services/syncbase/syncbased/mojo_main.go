@@ -10,14 +10,8 @@ package main
 // cd $V23_ROOT/experimental/projects/ether
 // make gen/mojo/syncbased.mojo
 
-// TODO(sadovsky): Currently fails with error "flag provided but not defined:
-// -child-connection-id". Need to debug. Probably just need to peel off any Mojo
-// flags before having the Syncbase code do its flag parsing.
-
 import (
 	"log"
-
-	"golang.org/x/mobile/app"
 
 	"mojo/public/go/application"
 	"mojo/public/go/bindings"
@@ -74,6 +68,6 @@ func MojoMain(handle C.MojoHandle) C.MojoResult {
 	return C.MOJO_RESULT_OK
 }
 
-func main() {
-	app.Run(app.Callbacks{})
-}
+// NOTE(nlacasse): Mojo runs Go code by calling MojoMain().  The main() method
+// below is still needed because the Go tool won't build without it.
+func main() {}
