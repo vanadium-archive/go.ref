@@ -173,6 +173,13 @@ func (c *ConnCache) FindWithRoutingID(rid naming.RoutingID) (*Conn, error) {
 	return entry.conn, nil
 }
 
+// Size returns the number of Conns stored in the ConnCache.
+func (c *ConnCache) Size() int {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return len(c.addrCache)
+}
+
 func key(protocol, address string, blessingNames []string) string {
 	// TODO(suharshs): We may be able to do something more inclusive with our
 	// blessingNames.

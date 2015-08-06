@@ -27,6 +27,7 @@ type manager struct {
 	rid    naming.RoutingID
 	closed <-chan struct{}
 	q      *upcqueue.T
+	cache  *conn.ConnCache
 
 	mu              *sync.Mutex
 	listenEndpoints []naming.Endpoint
@@ -36,8 +37,9 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 	m := &manager{
 		rid:    rid,
 		closed: ctx.Done(),
-		mu:     &sync.Mutex{},
 		q:      upcqueue.New(),
+		cache:  conn.NewConnCache(),
+		mu:     &sync.Mutex{},
 	}
 	return m
 }
@@ -70,8 +72,10 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 		netConn, err := netLn.Accept()
 		for tokill := 1; isTemporaryError(err); tokill *= 2 {
 			if isTooManyOpenFiles(err) {
-				// TODO(suharshs): Find a way to kill connections here. We will need
-				// caching to be able to delete the connections.
+				if err := m.cache.KillConnections(tokill); err != nil {
+					ctx.VI(2).Infof("failed to kill connections: %v", err)
+					continue
+				}
 			} else {
 				tokill = 1
 			}
@@ -79,9 +83,9 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 			netConn, err = netLn.Accept()
 		}
 		if err != nil {
-			ctx.VI(2).Infof("net.Listener.Accept on localEP %v failed: %v", local, err)
+			ctx.Errorf("net.Listener.Accept on localEP %v failed: %v", local, err)
+			continue
 		}
-		// TODO(suharshs): This conn needs to be cached instead of ignored.
 		_, err = conn.NewAccepted(
 			ctx,
 			&framer{ReadWriter: netConn},
@@ -92,8 +96,15 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 		)
 		if err != nil {
 			netConn.Close()
-			ctx.VI(2).Infof("failed to accept flow.Conn on localEP %v failed: %v", local, err)
+			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
+			continue
 		}
+		// TODO(suharshs): We need the remote endpoint in conn to be able to insert
+		// it into the cache. This handshake has not been implemented yet. So for now
+		// we will comment it out.
+		// if err := m.cache.Insert(c); err != nil {
+		// 	ctx.VI(2).Infof("failed to cache conn %v: %v", c, err)
+		// }
 	}
 }
 
@@ -160,27 +171,50 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 // The flow.Manager associated with ctx must be the receiver of the method,
 // otherwise an error is returned.
 func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, error) {
-	// TODO(suharshs): Add caching of connections.
 	addr := remote.Addr()
-	d, _, _, _ := rpc.RegisteredProtocol(addr.Network())
-	netConn, err := dial(ctx, d, addr.Network(), addr.String())
+	d, r, _, _ := rpc.RegisteredProtocol(addr.Network())
+	// (network, address) in the endpoint might not always match up
+	// with the key used for caching conns. For example:
+	// - conn, err := net.Dial("tcp", "www.google.com:80")
+	//   fmt.Println(conn.RemoteAddr()) // Might yield the corresponding IP address
+	// - Similarly, an unspecified IP address (net.IP.IsUnspecified) like "[::]:80"
+	//   might yield "[::1]:80" (loopback interface) in conn.RemoteAddr().
+	// Thus we look for Conns with the resolved address.
+	network, address, err := resolve(ctx, r, addr.Network(), addr.String())
+	if err != nil {
+		return nil, flow.NewErrResolveFailed(ctx, err)
+	}
+	c, err := m.cache.ReservedFind(network, address, remote.BlessingNames())
+	if err != nil {
+		return nil, flow.NewErrBadState(ctx, err)
+	}
+	defer m.cache.Unreserve(network, address, remote.BlessingNames())
+	if c == nil {
+		netConn, err := dial(ctx, d, network, address)
+		if err != nil {
+			return nil, flow.NewErrDialFailed(ctx, err)
+		}
+		c, err = conn.NewDialed(
+			ctx,
+			&framer{ReadWriter: netConn}, // TODO(suharshs): Don't frame if the net.Conn already has framing in its protocol.
+			localEndpoint(netConn, m.rid),
+			remote,
+			version.Supported,
+			&flowHandler{q: m.q, closed: m.closed},
+			fn,
+		)
+		if err != nil {
+			return nil, flow.NewErrDialFailed(ctx, err)
+		}
+		if err := m.cache.Insert(c); err != nil {
+			return nil, flow.NewErrBadState(ctx, err)
+		}
+	}
+	f, err := c.Dial(ctx)
 	if err != nil {
 		return nil, flow.NewErrDialFailed(ctx, err)
 	}
-
-	c, err := conn.NewDialed(
-		ctx,
-		&framer{ReadWriter: netConn}, // TODO(suharshs): Don't frame if the net.Conn already has framing in its protocol.
-		localEndpoint(netConn, m.rid),
-		remote,
-		version.Supported,
-		&flowHandler{q: m.q, closed: m.closed},
-		fn,
-	)
-	if err != nil {
-		return nil, flow.NewErrDialFailed(ctx, err)
-	}
-	return c.Dial(ctx)
+	return f, nil
 }
 
 // Closed returns a channel that remains open for the lifetime of the Manager
