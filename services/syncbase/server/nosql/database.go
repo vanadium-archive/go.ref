@@ -22,6 +22,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/services/watch"
@@ -339,20 +340,20 @@ func (d *databaseReq) GetResumeMarker(ctx *context.T, call rpc.ServerCall) (watc
 	return nil, verror.NewErrNotImplemented(ctx)
 }
 
-func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
+func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
 	if !d.exists {
-		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
 	if d.batchId != nil {
-		return nil, wire.NewErrBoundToBatch(ctx)
+		return wire.NewErrBoundToBatch(ctx)
 	}
 	// Check perms.
 	sn := d.st.NewSnapshot()
 	if err := util.GetWithAuth(ctx, call, sn, d.stKey(), &databaseData{}); err != nil {
 		sn.Abort()
-		return nil, err
+		return err
 	}
-	return util.Glob(ctx, call, "*", sn, sn.Abort, util.TablePrefix)
+	return util.Glob(ctx, call, matcher, sn, sn.Abort, util.TablePrefix)
 }
 
 ////////////////////////////////////////
