@@ -94,28 +94,47 @@ func newBinaryService(state *state, suffix string, permsStore *pathperms.PathSto
 
 const BufferLength = 4096
 
-func (i *binaryService) Create(ctx *context.T, call rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
-	ctx.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
-	if nparts < 1 {
-		return verror.New(ErrInvalidParts, ctx)
-	}
-	parent, perm := filepath.Dir(i.path), os.FileMode(0700)
-	if err := os.MkdirAll(parent, perm); err != nil {
-		ctx.Errorf("MkdirAll(%v, %v) failed: %v", parent, perm, err)
-		return verror.New(ErrOperationFailed, ctx)
+func (i *binaryService) createFileTree(ctx *context.T, nparts int32, mediaInfo repository.MediaInfo) (string, error) {
+	parent, dirPerm := filepath.Dir(i.path), os.FileMode(0700)
+	if err := os.MkdirAll(parent, dirPerm); err != nil {
+		ctx.Errorf("MkdirAll(%v, %v) failed: %v", parent, dirPerm, err)
+		return "", verror.New(ErrOperationFailed, ctx)
 	}
 	prefix := "creating-"
 	tmpDir, err := ioutil.TempDir(parent, prefix)
 	if err != nil {
 		ctx.Errorf("TempDir(%v, %v) failed: %v", parent, prefix, err)
-		return verror.New(ErrOperationFailed, ctx)
+		return "", verror.New(ErrOperationFailed, ctx)
 	}
-	nameFile := filepath.Join(tmpDir, nameFileName)
-	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), os.FileMode(0600)); err != nil {
+	nameFile, filePerm := filepath.Join(tmpDir, nameFileName), os.FileMode(0600)
+	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), filePerm); err != nil {
 		ctx.Errorf("WriteFile(%q) failed: %v", nameFile, err)
-		return verror.New(ErrOperationFailed, ctx)
+		return "", verror.New(ErrOperationFailed, ctx)
 	}
+	infoFile := filepath.Join(tmpDir, mediaInfoFileName)
+	jInfo, err := json.Marshal(mediaInfo)
+	if err != nil {
+		ctx.Errorf("json.Marshal(%v) failed: %v", mediaInfo, err)
+		return "", verror.New(ErrOperationFailed, ctx)
+	}
+	if err := ioutil.WriteFile(infoFile, jInfo, filePerm); err != nil {
+		ctx.Errorf("WriteFile(%q) failed: %v", infoFile, err)
+		return "", verror.New(ErrOperationFailed, ctx)
+	}
+	for j := 0; j < int(nparts); j++ {
+		partPath := generatePartPath(tmpDir, j)
+		if err := os.MkdirAll(partPath, dirPerm); err != nil {
+			ctx.Errorf("MkdirAll(%v, %v) failed: %v", partPath, dirPerm, err)
+			if err := os.RemoveAll(tmpDir); err != nil {
+				ctx.Errorf("RemoveAll(%v) failed: %v", tmpDir, err)
+			}
+			return "", verror.New(ErrOperationFailed, ctx)
+		}
+	}
+	return tmpDir, nil
+}
 
+func (i *binaryService) setInitialPermissions(ctx *context.T, call rpc.ServerCall) error {
 	rb, _ := security.RemoteBlessingNames(ctx, call.Security())
 	if len(rb) == 0 {
 		// None of the client's blessings are valid.
@@ -125,26 +144,17 @@ func (i *binaryService) Create(ctx *context.T, call rpc.ServerCall, nparts int32
 		ctx.Errorf("insertPermissions(%v) failed: %v", rb, err)
 		return verror.New(ErrOperationFailed, ctx)
 	}
+	return nil
+}
 
-	infoFile := filepath.Join(tmpDir, mediaInfoFileName)
-	jInfo, err := json.Marshal(mediaInfo)
+func (i *binaryService) Create(ctx *context.T, call rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
+	ctx.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
+	if nparts < 1 {
+		return verror.New(ErrInvalidParts, ctx)
+	}
+	tmpDir, err := i.createFileTree(ctx, nparts, mediaInfo)
 	if err != nil {
-		ctx.Errorf("json.Marshal(%v) failed: %v", mediaInfo, err)
-		return verror.New(ErrOperationFailed, ctx)
-	}
-	if err := ioutil.WriteFile(infoFile, jInfo, os.FileMode(0600)); err != nil {
-		ctx.Errorf("WriteFile(%q) failed: %v", infoFile, err)
-		return verror.New(ErrOperationFailed, ctx)
-	}
-	for j := 0; j < int(nparts); j++ {
-		partPath, partPerm := generatePartPath(tmpDir, j), os.FileMode(0700)
-		if err := os.MkdirAll(partPath, partPerm); err != nil {
-			ctx.Errorf("MkdirAll(%v, %v) failed: %v", partPath, partPerm, err)
-			if err := os.RemoveAll(tmpDir); err != nil {
-				ctx.Errorf("RemoveAll(%v) failed: %v", tmpDir, err)
-			}
-			return verror.New(ErrOperationFailed, ctx)
-		}
+		return err
 	}
 	// Use os.Rename() to atomically create the binary directory
 	// structure.
@@ -159,6 +169,23 @@ func (i *binaryService) Create(ctx *context.T, call rpc.ServerCall, nparts int32
 		}
 		ctx.Errorf("Rename(%v, %v) failed: %v", tmpDir, i.path, err)
 		return verror.New(ErrOperationFailed, ctx, i.path)
+	}
+	// We only set the permissions for the binary after we ensure that it
+	// did not already exist.  This allows for brief time period during
+	// which the new binary's directory has been created but no permissions
+	// have been set yet.  To prevent unauthorized access during this
+	// interval, the authorizer is configured to reject RPCs other than
+	// Create when there are no permissions set on a binary (we also allow
+	// Glob in order to permit globbing inner nodes that don't have
+	// permissions set).
+	//
+	// TODO(caprita): consider making the setting of permissions atomic
+	// w.r.t. creating the binary.
+	if err := i.setInitialPermissions(ctx, call); err != nil {
+		if err := os.RemoveAll(i.path); err != nil {
+			ctx.Errorf("RemoveAll(%v) failed: %v", i.path, err)
+		}
+		return err
 	}
 	return nil
 }

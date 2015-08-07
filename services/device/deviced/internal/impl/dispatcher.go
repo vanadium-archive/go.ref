@@ -233,7 +233,7 @@ func newTestableHierarchicalAuth(testMode bool, rootDir, childDir string, get pa
 		// authorizer anyway.
 		return nil, nil
 	}
-	return pathperms.NewHierarchicalAuthorizer(rootDir, childDir, get)
+	return pathperms.NewHierarchicalAuthorizer(rootDir, childDir, get, nil)
 }
 
 func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Authorizer, error) {
@@ -385,7 +385,7 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		if err != nil {
 			return nil, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
-		return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "acls"), getter)
+		return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "acls"), getter, nil)
 	}
 	// Use the special debugacls for instance/logs, instance/pprof, instance/stats.
 	if len(suffix) > 3 && (suffix[3] == "logs" || suffix[3] == "pprof" || suffix[3] == "stats") {
@@ -393,12 +393,12 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		if err != nil {
 			return nil, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
-		return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "debugacls"), getter)
+		return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "debugacls"), getter, nil)
 	}
 
 	p, err := instanceDir(config.Root, suffix[0:3])
 	if err != nil {
 		return nil, verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 	}
-	return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "acls"), getter)
+	return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "acls"), getter, nil)
 }

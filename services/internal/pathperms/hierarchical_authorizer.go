@@ -5,6 +5,8 @@
 package pathperms
 
 import (
+	"fmt"
+
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
@@ -13,8 +15,9 @@ import (
 // hierarchicalAuthorizer contains the state needed to implement
 // hierarchical authorization in the Authorize method.
 type hierarchicalAuthorizer struct {
-	rootDir, childDir string
-	get               PermsGetter
+	rootDir, childDir      string
+	get                    PermsGetter
+	emptyChildPermsMethods map[string]bool
 }
 
 // PermsGetter defines an abstract interface that a customer of
@@ -31,11 +34,25 @@ type PermsGetter interface {
 // NewHierarchicalAuthorizer creates a new hierarchicalAuthorizer: one
 // that implements a "root" like concept: admin rights at the root of
 // a server can invoke RPCs regardless of permissions set on child objects.
-func NewHierarchicalAuthorizer(rootDir, childDir string, get PermsGetter) (security.Authorizer, error) {
+//
+// If the root permissions are not set, the authorizer behaves like the
+// DefaultAuthorizer.
+//
+// If the child permissions are not set, the authorizer uses the permissions set
+// on the root to restrict access to the child (including the admin override
+// described above), provided that the method being invoked is among the subset
+// specified (empty set means all methods).  If the method is not among the
+// subset and the child permissions are not set, the request is rejected.
+func NewHierarchicalAuthorizer(rootDir, childDir string, get PermsGetter, emptyChildPermissionsMethods []string) (security.Authorizer, error) {
+	emptyChildPermsMethods := make(map[string]bool)
+	for _, m := range emptyChildPermissionsMethods {
+		emptyChildPermsMethods[m] = true
+	}
 	return &hierarchicalAuthorizer{
 		rootDir:  rootDir,
 		childDir: childDir,
 		get:      get,
+		emptyChildPermsMethods: emptyChildPermsMethods,
 	}, nil
 }
 
@@ -54,12 +71,15 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T, call security.Call) 
 	}
 
 	// This is not fatal: the childDir may not exist if we are invoking
-	// a Create() method so we only use the root Permissions.
+	// a method creating the object, so we only use the root Permissions.
 	childPerms, intentionallyEmpty, err := ha.get.PermsForPath(ctx, ha.childDir)
 	if err != nil {
 		return err
 	} else if intentionallyEmpty {
-		return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(rootPerms), rootPerms)
+		if len(ha.emptyChildPermsMethods) == 0 || ha.emptyChildPermsMethods[call.Method()] {
+			return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(rootPerms), rootPerms)
+		}
+		return fmt.Errorf("access disallowed for method %v: no permissions specified on object", call.Method())
 	}
 
 	return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(childPerms), rootPerms)
