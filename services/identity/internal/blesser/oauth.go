@@ -64,24 +64,37 @@ func (b *oauthBlesser) BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall
 	if err != nil {
 		return noblessings, "", err
 	}
-	return b.bless(ctx, call.Security(), email, clientName)
+	return b.bless(ctx, call.Security(), email, clientName, nil)
 }
 
-func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientName string) (security.Blessings, string, error) {
+func (b *oauthBlesser) BlessUsingAccessTokenWithCaveats(ctx *context.T, call rpc.ServerCall, accessToken string, caveats []security.Caveat) (security.Blessings, string, error) {
+	var noblessings security.Blessings
+	email, clientName, err := b.oauthProvider.GetEmailAndClientName(accessToken, b.accessTokenClients)
+	if err != nil {
+		return noblessings, "", err
+	}
+	return b.bless(ctx, call.Security(), email, clientName, caveats)
+}
+
+func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientName string, caveats []security.Caveat) (security.Blessings, string, error) {
 	var noblessings security.Blessings
 	self := call.LocalPrincipal()
 	if self == nil {
 		return noblessings, "", fmt.Errorf("server error: no authentication happened")
 	}
-	var caveat security.Caveat
-	var err error
-	if b.revocationManager != nil {
-		caveat, err = b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
-	} else {
-		caveat, err = security.NewExpiryCaveat(time.Now().Add(b.duration))
-	}
-	if err != nil {
-		return noblessings, "", err
+	// TODO(suharshs, ataly): Should we ensure that we have at least a revocation or expiry caveat?
+	if len(caveats) == 0 {
+		var caveat security.Caveat
+		var err error
+		if b.revocationManager != nil {
+			caveat, err = b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
+		} else {
+			caveat, err = security.NewExpiryCaveat(time.Now().Add(b.duration))
+		}
+		if err != nil {
+			return noblessings, "", err
+		}
+		caveats = append(caveats, caveat)
 	}
 	// Append clientName (e.g., "android", "chrome") to the email and then bless under that.
 	// Since blessings issued by this process do not have many caveats on them and typically
@@ -89,7 +102,7 @@ func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientNa
 	// servers can explicitly distinguish these clients while specifying authorization policies
 	// (say, via AccessLists).
 	extension := strings.Join([]string{email, clientName}, security.ChainSeparator)
-	blessing, err := self.Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), extension, caveat)
+	blessing, err := self.Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), extension, caveats[0], caveats[1:]...)
 	if err != nil {
 		return noblessings, "", err
 	}

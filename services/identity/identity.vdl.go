@@ -57,6 +57,7 @@ type OAuthBlesserClientMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
 	BlessUsingAccessToken(ctx *context.T, token string, opts ...rpc.CallOpt) (blessing security.Blessings, email string, err error)
+	BlessUsingAccessTokenWithCaveats(ctx *context.T, token string, caveats []security.Caveat, opts ...rpc.CallOpt) (blessing security.Blessings, email string, err error)
 }
 
 // OAuthBlesserClientStub adds universal methods to OAuthBlesserClientMethods.
@@ -76,6 +77,11 @@ type implOAuthBlesserClientStub struct {
 
 func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 security.Blessings, o1 string, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, []interface{}{&o0, &o1}, opts...)
+	return
+}
+
+func (c implOAuthBlesserClientStub) BlessUsingAccessTokenWithCaveats(ctx *context.T, i0 string, i1 []security.Caveat, opts ...rpc.CallOpt) (o0 security.Blessings, o1 string, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessUsingAccessTokenWithCaveats", []interface{}{i0, i1}, []interface{}{&o0, &o1}, opts...)
 	return
 }
 
@@ -99,6 +105,7 @@ type OAuthBlesserServerMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
 	BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall, token string) (blessing security.Blessings, email string, err error)
+	BlessUsingAccessTokenWithCaveats(ctx *context.T, call rpc.ServerCall, token string, caveats []security.Caveat) (blessing security.Blessings, email string, err error)
 }
 
 // OAuthBlesserServerStubMethods is the server interface containing
@@ -140,6 +147,10 @@ func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx *context.T, call r
 	return s.impl.BlessUsingAccessToken(ctx, call, i0)
 }
 
+func (s implOAuthBlesserServerStub) BlessUsingAccessTokenWithCaveats(ctx *context.T, call rpc.ServerCall, i0 string, i1 []security.Caveat) (security.Blessings, string, error) {
+	return s.impl.BlessUsingAccessTokenWithCaveats(ctx, call, i0, i1)
+}
+
 func (s implOAuthBlesserServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
@@ -162,6 +173,17 @@ var descOAuthBlesser = rpc.InterfaceDesc{
 			Doc:  "// BlessUsingAccessToken uses the provided access token to obtain the email\n// address and returns a blessing along with the email address.",
 			InArgs: []rpc.ArgDesc{
 				{"token", ``}, // string
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"blessing", ``}, // security.Blessings
+				{"email", ``},    // string
+			},
+		},
+		{
+			Name: "BlessUsingAccessTokenWithCaveats",
+			InArgs: []rpc.ArgDesc{
+				{"token", ``},   // string
+				{"caveats", ``}, // []security.Caveat
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"blessing", ``}, // security.Blessings

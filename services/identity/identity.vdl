@@ -24,6 +24,7 @@ type OAuthBlesser interface {
   // BlessUsingAccessToken uses the provided access token to obtain the email
   // address and returns a blessing along with the email address.
   BlessUsingAccessToken(token string) (blessing security.WireBlessings, email string | error)
+  BlessUsingAccessTokenWithCaveats(token string, caveats []security.Caveat) (blessing security.WireBlessings, email string | error)
 }
 
 // MacaroonBlesser returns a blessing given the provided macaroon string.

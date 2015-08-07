@@ -6,6 +6,7 @@ package blesser
 
 import (
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -60,4 +61,75 @@ func TestOAuthBlesser(t *testing.T) {
 	if _, ok := binfo[join("provider", wantExtension)]; !ok {
 		t.Errorf("BlessingsInfo %v does not have name %s", binfo, wantExtension)
 	}
+}
+
+func TestOAuthBlesserWithCaveats(t *testing.T) {
+	var (
+		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
+		ctx, call      = fakeContextAndCall(provider, user)
+	)
+	mockEmail := "testemail@example.com"
+	blesser := NewOAuthBlesserServer(OAuthBlesserParams{
+		OAuthProvider:    oauth.NewMockOAuth(mockEmail),
+		BlessingDuration: time.Hour,
+	})
+
+	expiryCav, err := security.NewExpiryCaveat(time.Now().Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	methodCav, err := security.NewMethodCaveat("foo", "bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	caveats := []security.Caveat{expiryCav, methodCav}
+
+	b, extension, err := blesser.BlessUsingAccessTokenWithCaveats(ctx, call, "test-access-token", caveats)
+	if err != nil {
+		t.Errorf("BlessUsingAccessToken failed: %v", err)
+	}
+
+	wantExtension := join(mockEmail, oauth.MockClient)
+	if extension != wantExtension {
+		t.Errorf("got extension: %s, want: %s", extension, wantExtension)
+	}
+
+	if !reflect.DeepEqual(b.PublicKey(), user.PublicKey()) {
+		t.Errorf("Received blessing for public key %v. Client:%v, Blesser:%v", b.PublicKey(), user.PublicKey(), provider.PublicKey())
+	}
+
+	// When the user does not recognize the provider, it should not see any strings for
+	// the client's blessings.
+	if got := user.BlessingsInfo(b); got != nil {
+		t.Errorf("Got blessing with info %v, want nil", got)
+	}
+	// But once it recognizes the provider, it should see exactly the name
+	// "provider/testemail@example.com/test-client".
+	user.AddToRoots(b)
+	binfo := user.BlessingsInfo(b)
+	if num := len(binfo); num != 1 {
+		t.Errorf("Got blessings with %d names, want exactly one name", num)
+	}
+	cavs, ok := binfo[join("provider", wantExtension)]
+	if !ok {
+		t.Errorf("BlessingsInfo %v does not have name %s", binfo, wantExtension)
+	}
+	if !caveatsMatch(cavs, caveats) {
+		t.Errorf("got %v, want %v", cavs, caveats)
+	}
+}
+
+func caveatsMatch(got, want []security.Caveat) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	gotStrings := make([]string, len(got))
+	wantStrings := make([]string, len(want))
+	for i := 0; i < len(got); i++ {
+		gotStrings[i] = got[i].String()
+		wantStrings[i] = want[i].String()
+	}
+	sort.Strings(gotStrings)
+	sort.Strings(wantStrings)
+	return reflect.DeepEqual(gotStrings, wantStrings)
 }
