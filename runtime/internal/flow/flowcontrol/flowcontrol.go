@@ -144,7 +144,7 @@ func (w *Worker) Run(ctx *context.T, r Runner) (err error) {
 	return err
 }
 
-func (w *Worker) releaseLocked(tokens int) {
+func (w *Worker) releaseLocked(ctx *context.T, tokens int) {
 	if w.counters == nil {
 		return
 	}
@@ -164,9 +164,9 @@ func (w *Worker) releaseLocked(tokens int) {
 // Release releases tokens to this worker.
 // Workers will first repay any debts to the flow controllers shared pool
 // and use any surplus in subsequent calls to Run.
-func (w *Worker) Release(tokens int) {
+func (w *Worker) Release(ctx *context.T, tokens int) {
 	w.fc.mu.Lock()
-	w.releaseLocked(tokens)
+	w.releaseLocked(ctx, tokens)
 	next := w.fc.nextWorkerLocked()
 	w.fc.mu.Unlock()
 	if next != nil {
@@ -223,13 +223,13 @@ type Release struct {
 
 // Release releases to many Workers atomically.  It is conceptually
 // the same as calling release on each worker indepedently.
-func (fc *FlowController) Release(to []Release) error {
+func (fc *FlowController) Release(ctx *context.T, to []Release) error {
 	fc.mu.Lock()
 	for _, t := range to {
 		if t.Worker.fc != fc {
-			return verror.New(ErrWrongFlowController, nil)
+			return verror.New(ErrWrongFlowController, ctx)
 		}
-		t.Worker.releaseLocked(t.Tokens)
+		t.Worker.releaseLocked(ctx, t.Tokens)
 	}
 	next := fc.nextWorkerLocked()
 	fc.mu.Unlock()

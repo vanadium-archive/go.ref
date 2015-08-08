@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"v.io/v23/context"
-	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 )
@@ -93,10 +92,16 @@ type tearDown struct {
 }
 
 func (m *tearDown) write(ctx *context.T, p *messagePipe) error {
-	return p.write([][]byte{{controlType}}, [][]byte{{tearDownCmd}, []byte(m.Err.Error())})
+	var errBytes []byte
+	if m.Err != nil {
+		errBytes = []byte(m.Err.Error())
+	}
+	return p.write([][]byte{{controlType}}, [][]byte{{tearDownCmd}, errBytes})
 }
 func (m *tearDown) read(ctx *context.T, data []byte) error {
-	m.Err = errors.New(string(data))
+	if len(data) > 0 {
+		m.Err = errors.New(string(data))
+	}
 	return nil
 }
 
@@ -148,6 +153,9 @@ func (m *addRecieveBuffers) read(ctx *context.T, orig []byte) error {
 		fid, val uint64
 		n        int64
 	)
+	if len(data) == 0 {
+		return nil
+	}
 	m.counters = map[flowID]uint64{}
 	for len(data) > 0 {
 		if fid, data, valid = readVarUint64(ctx, data); !valid {
@@ -188,7 +196,9 @@ func (m *data) read(ctx *context.T, orig []byte) error {
 	if m.flags, data, valid = readVarUint64(ctx, data); !valid {
 		return NewErrInvalidMsg(ctx, dataType, int64(len(orig)), 1)
 	}
-	m.payload = [][]byte{data}
+	if len(data) > 0 {
+		m.payload = [][]byte{data}
+	}
 	return nil
 }
 
@@ -224,7 +234,9 @@ func (m *unencryptedData) read(ctx *context.T, orig []byte) error {
 	if plen > len(data) {
 		return NewErrInvalidMsg(ctx, unencryptedDataType, int64(len(orig)), 1)
 	}
-	m.payload, data = [][]byte{data[:plen]}, data[plen:]
+	if plen > 0 {
+		m.payload, data = [][]byte{data[:plen]}, data[plen:]
+	}
 	if v, data, valid = readVarUint64(ctx, data); !valid {
 		return NewErrInvalidMsg(ctx, unencryptedDataType, int64(len(orig)), 2)
 	}
@@ -236,19 +248,23 @@ func (m *unencryptedData) read(ctx *context.T, orig []byte) error {
 }
 
 type messagePipe struct {
-	rw         flow.MsgReadWriter
+	rw         MsgReadWriteCloser
 	controlBuf []byte
 	dataBuf    []byte
 	outBuf     [][]byte
 }
 
-func newMessagePipe(rw flow.MsgReadWriter) *messagePipe {
+func newMessagePipe(rw MsgReadWriteCloser) *messagePipe {
 	return &messagePipe{
 		rw:         rw,
 		controlBuf: make([]byte, 256),
 		dataBuf:    make([]byte, 2*maxVarUint64Size),
 		outBuf:     make([][]byte, 5),
 	}
+}
+
+func (p *messagePipe) close() error {
+	return p.rw.Close()
 }
 
 func (p *messagePipe) write(unencrypted [][]byte, encrypted [][]byte) error {

@@ -9,9 +9,16 @@ import (
 	"testing"
 )
 
+type readWriteCloser struct {
+	bytes.Buffer
+}
+
+func (*readWriteCloser) Close() error {
+	return nil
+}
+
 func TestFramer(t *testing.T) {
-	b := &bytes.Buffer{}
-	f := &framer{ReadWriter: b}
+	f := &framer{ReadWriteCloser: &readWriteCloser{}}
 	bufs := [][]byte{[]byte("read "), []byte("this "), []byte("please.")}
 	want := []byte("read this please.")
 	l := len(want)

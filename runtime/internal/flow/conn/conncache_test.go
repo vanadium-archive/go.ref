@@ -8,12 +8,18 @@ import (
 	"strconv"
 	"testing"
 
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/rpc/version"
 
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 func TestCache(t *testing.T) {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
 	c := NewConnCache()
 	remote := &inaming.Endpoint{
 		Protocol:  "tcp",
@@ -21,10 +27,7 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x5555),
 		Blessings: []string{"A", "B", "C"},
 	}
-	conn := &Conn{
-		remote: remote,
-		closed: make(chan struct{}),
-	}
+	conn := makeConn(t, ctx, remote)
 	if err := c.Insert(conn); err != nil {
 		t.Fatal(err)
 	}
@@ -63,10 +66,8 @@ func TestCache(t *testing.T) {
 		Address:   "other",
 		Blessings: []string{"other"},
 	}
-	otherConn := &Conn{
-		remote: otherEP,
-		closed: make(chan struct{}),
-	}
+	otherConn := makeConn(t, ctx, otherEP)
+
 	// Looking up a not yet inserted endpoint should fail.
 	if got, err := c.ReservedFind(otherEP.Protocol, otherEP.Address, otherEP.Blessings); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
@@ -99,26 +100,25 @@ func TestCache(t *testing.T) {
 	if isClosed(otherConn) {
 		t.Fatalf("wanted otherConn to not be closed")
 	}
-	c.Close()
+	c.Close(ctx)
 	// Now the connections should be closed.
-	if !isClosed(conn) {
-		t.Errorf("wanted conn to be closed")
-	}
-	if !isClosed(otherConn) {
-		t.Errorf("wanted otherConn to be closed")
-	}
+	<-conn.Closed()
+	<-otherConn.Closed()
 }
 
 func TestLRU(t *testing.T) {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
 	// Ensure that the least recently inserted conns are killed by KillConnections.
 	c := NewConnCache()
-	conns := nConns(10)
+	conns := nConns(t, ctx, 10)
 	for _, conn := range conns {
 		if err := c.Insert(conn); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := c.KillConnections(3); err != nil {
+	if err := c.KillConnections(ctx, 3); err != nil {
 		t.Fatal(err)
 	}
 	if !cacheSizeMatches(c) {
@@ -135,9 +135,7 @@ func TestLRU(t *testing.T) {
 		}
 	}
 	for _, conn := range conns[:3] {
-		if !isClosed(conn) {
-			t.Errorf("conn %v should have been closed", conn)
-		}
+		<-conn.Closed()
 		if isInCache(t, c, conn) {
 			t.Errorf("conn %v should not be in cache", conn)
 		}
@@ -145,7 +143,7 @@ func TestLRU(t *testing.T) {
 
 	// Ensure that ReservedFind marks conns as more recently used.
 	c = NewConnCache()
-	conns = nConns(10)
+	conns = nConns(t, ctx, 10)
 	for _, conn := range conns {
 		if err := c.Insert(conn); err != nil {
 			t.Fatal(err)
@@ -157,7 +155,7 @@ func TestLRU(t *testing.T) {
 		}
 		c.Unreserve(conn.remote.Addr().Network(), conn.remote.Addr().String(), conn.remote.BlessingNames())
 	}
-	if err := c.KillConnections(3); err != nil {
+	if err := c.KillConnections(ctx, 3); err != nil {
 		t.Fatal(err)
 	}
 	if !cacheSizeMatches(c) {
@@ -174,9 +172,7 @@ func TestLRU(t *testing.T) {
 		}
 	}
 	for _, conn := range conns[7:] {
-		if !isClosed(conn) {
-			t.Errorf("conn %v should have been closed", conn)
-		}
+		<-conn.Closed()
 		if isInCache(t, c, conn) {
 			t.Errorf("conn %v should not be in cache", conn)
 		}
@@ -184,7 +180,7 @@ func TestLRU(t *testing.T) {
 
 	// Ensure that FindWithRoutingID marks conns as more recently used.
 	c = NewConnCache()
-	conns = nConns(10)
+	conns = nConns(t, ctx, 10)
 	for _, conn := range conns {
 		if err := c.Insert(conn); err != nil {
 			t.Fatal(err)
@@ -195,7 +191,7 @@ func TestLRU(t *testing.T) {
 			t.Errorf("got %v, want %v, err: %v", got, conn, err)
 		}
 	}
-	if err := c.KillConnections(3); err != nil {
+	if err := c.KillConnections(ctx, 3); err != nil {
 		t.Fatal(err)
 	}
 	if !cacheSizeMatches(c) {
@@ -212,9 +208,7 @@ func TestLRU(t *testing.T) {
 		}
 	}
 	for _, conn := range conns[7:] {
-		if !isClosed(conn) {
-			t.Errorf("conn %v should have been closed", conn)
-		}
+		<-conn.Closed()
 		if isInCache(t, c, conn) {
 			t.Errorf("conn %v should not be in cache", conn)
 		}
@@ -249,16 +243,22 @@ func listSize(c *ConnCache) int {
 	return size
 }
 
-func nConns(n int) []*Conn {
+func nConns(t *testing.T, ctx *context.T, n int) []*Conn {
 	conns := make([]*Conn, n)
 	for i := 0; i < n; i++ {
-		conns[i] = &Conn{
-			remote: &inaming.Endpoint{
-				Protocol: strconv.Itoa(i),
-				RID:      naming.FixedRoutingID(uint64(i)),
-			},
-			closed: make(chan struct{}),
-		}
+		conns[i] = makeConn(t, ctx, &inaming.Endpoint{
+			Protocol: strconv.Itoa(i),
+			RID:      naming.FixedRoutingID(uint64(i)),
+		})
 	}
 	return conns
+}
+
+func makeConn(t *testing.T, ctx *context.T, ep naming.Endpoint) *Conn {
+	d, _, _ := newMRWPair(ctx)
+	c, err := NewDialed(ctx, d, ep, ep, version.RPCVersionRange{Min: 1, Max: 5}, nil, nil)
+	if err != nil {
+		t.Fatalf("Could not create conn: %v", err)
+	}
+	return c
 }

@@ -10,18 +10,16 @@ import (
 	"v.io/v23/security"
 
 	"v.io/x/ref/runtime/internal/flow/flowcontrol"
-	"v.io/x/ref/runtime/internal/lib/upcqueue"
 )
 
 type flw struct {
 	id               flowID
 	ctx              *context.T
+	cancel           context.CancelFunc
 	conn             *Conn
-	closed           chan struct{}
 	worker           *flowcontrol.Worker
 	opened           bool
-	q                *upcqueue.T
-	readBufs         [][]byte
+	q                *readq
 	dialerBlessings  security.Blessings
 	dialerDischarges map[string]security.Discharge
 }
@@ -31,12 +29,11 @@ var _ flow.Flow = &flw{}
 func (c *Conn) newFlowLocked(ctx *context.T, id flowID) *flw {
 	f := &flw{
 		id:     id,
-		ctx:    ctx,
 		conn:   c,
-		closed: make(chan struct{}),
 		worker: c.fc.NewWorker(flowPriority),
-		q:      upcqueue.New(),
+		q:      newReadQ(),
 	}
+	f.SetContext(ctx)
 	c.flows[id] = f
 	return f
 }
@@ -49,19 +46,10 @@ func (f *flw) dialed() bool {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) Read(p []byte) (n int, err error) {
-	for {
-		for len(f.readBufs) > 0 && len(f.readBufs[0]) == 0 {
-			f.readBufs = f.readBufs[1:]
-		}
-		if len(f.readBufs) > 0 {
-			break
-		}
-		var msg interface{}
-		msg, err = f.q.Get(f.ctx.Done())
-		f.readBufs = msg.([][]byte)
+	var release bool
+	if n, release, err = f.q.read(f.ctx, p); release {
+		f.conn.release(f.ctx)
 	}
-	n = copy(p, f.readBufs[0])
-	f.readBufs[0] = f.readBufs[0][n:]
 	return
 }
 
@@ -70,19 +58,14 @@ func (f *flw) Read(p []byte) (n int, err error) {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) ReadMsg() (buf []byte, err error) {
-	for {
-		for len(f.readBufs) > 0 {
-			buf, f.readBufs = f.readBufs[0], f.readBufs[1:]
-			if len(buf) > 0 {
-				return buf, nil
-			}
-		}
-		bufs, err := f.q.Get(f.ctx.Done())
-		if err != nil {
-			return nil, err
-		}
-		f.readBufs = bufs.([][]byte)
+	var release bool
+	// TODO(mattr): Currently we only ever release counters when some flow
+	// reads.  We may need to do it more or less often.  Currently
+	// we'll send counters whenever a new flow is opened.
+	if buf, release, err = f.q.get(f.ctx); release {
+		f.conn.release(f.ctx)
 	}
+	return
 }
 
 // Implement io.Writer.
@@ -95,10 +78,7 @@ func (f *flw) Write(p []byte) (n int, err error) {
 func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 	sent := 0
 	var left []byte
-
-	f.ctx.VI(3).Infof("trying to write: %d.", f.id)
 	err := f.worker.Run(f.ctx, func(tokens int) (int, bool, error) {
-		f.ctx.VI(3).Infof("writing: %d.", f.id)
 		if !f.opened {
 			// TODO(mattr): we should be able to send multiple messages
 			// in a single writeMsg call.
@@ -116,6 +96,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 		if len(left) > 0 {
 			size += len(left)
 			bufs = append(bufs, left)
+			left = nil
 		}
 		for size <= tokens && len(parts) > 0 {
 			bufs = append(bufs, parts[0])
@@ -128,6 +109,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 			take := len(last) - (size - tokens)
 			bufs[lidx] = last[:take]
 			left = last[take:]
+			size = tokens
 		}
 		d := &data{
 			id:      f.id,
@@ -140,6 +122,9 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 		sent += size
 		return size, done, f.conn.mp.writeMsg(f.ctx, d)
 	})
+	if alsoClose || err != nil {
+		f.close(err)
+	}
 	return sent, err
 }
 
@@ -163,6 +148,7 @@ func (f *flw) WriteMsgAndClose(parts ...[]byte) (int, error) {
 // SetContext sets the context associated with the flow.  Typically this is
 // used to set state that is only available after the flow is connected, such
 // as a more restricted flow timeout, or the language of the request.
+// Calling SetContext may invalidate values previously returned from Closed.
 //
 // The flow.Manager associated with ctx must be the same flow.Manager that the
 // flow was dialed or accepted from, otherwise an error is returned.
@@ -171,7 +157,10 @@ func (f *flw) WriteMsgAndClose(parts ...[]byte) (int, error) {
 // TODO(mattr): update v23/flow documentation.
 // SetContext may not be called concurrently with other methods.
 func (f *flw) SetContext(ctx *context.T) error {
-	f.ctx = ctx
+	if f.cancel != nil {
+		f.cancel()
+	}
+	f.ctx, f.cancel = context.WithCancel(ctx)
 	return nil
 }
 
@@ -220,8 +209,21 @@ func (f *flw) Conn() flow.Conn {
 	return f.conn
 }
 
-// Closed returns a channel that remains open until the flow has been closed or
-// the ctx to the Dial or Accept call used to create the flow has been cancelled.
+// Closed returns a channel that remains open until the flow has been closed remotely
+// or the context attached to the flow has been canceled.
+//
+// Note that after the returned channel is closed starting new writes will result
+// in an error, but reads of previously queued data are still possible.  No
+// new data will be queued.
+// TODO(mattr): update v23/flow docs.
 func (f *flw) Closed() <-chan struct{} {
-	return f.closed
+	return f.ctx.Done()
+}
+
+func (f *flw) close(err error) {
+	f.q.close(f.ctx)
+	f.cancel()
+
+	// TODO(mattr): maybe send a final close data message.
+	// TODO(mattr): save the error to hand out later.
 }

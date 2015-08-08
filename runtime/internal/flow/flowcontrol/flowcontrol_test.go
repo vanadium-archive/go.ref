@@ -46,7 +46,7 @@ func TestFlowControl(t *testing.T) {
 	for i := 0; i < workers; i++ {
 		go func(idx int) {
 			el := fc.NewWorker(0)
-			go el.Release(messages * 5) // Try to make races happen
+			go el.Release(ctx, messages*5) // Try to make races happen
 			j := 0
 			el.Run(ctx, func(tokens int) (used int, done bool, err error) {
 				msgs[idx] = append(msgs[idx], []byte(fmt.Sprintf("%d-%d,", idx, j))...)
@@ -91,7 +91,7 @@ func TestOrdering(t *testing.T) {
 			work <- w
 			return t, false, nil
 		})
-		w.Release(mtu)
+		w.Release(ctx, mtu)
 		<-work
 		return w
 	}
@@ -104,7 +104,7 @@ func TestOrdering(t *testing.T) {
 
 	// Release to all the flows at once and ensure the writes
 	// happen in the correct order.
-	fc.Release([]Release{{w0, 2 * mtu}, {w1a, 2 * mtu}, {w1b, 3 * mtu}, {w1c, 0}, {w2, mtu}})
+	fc.Release(ctx, []Release{{w0, 2 * mtu}, {w1a, 2 * mtu}, {w1b, 3 * mtu}, {w1c, 0}, {w2, mtu}})
 	expect(t, work, w0, w0, w1a, w1b, w1a, w1b, w1b, w2)
 }
 
@@ -137,11 +137,11 @@ func TestSharedCounters(t *testing.T) {
 	w1 := worker(1)
 	// Now Release to w0 which shouldn't allow it to run since it's just repaying, but
 	// should allow w1 to run on the returned shared counters.
-	w0.Release(2 * mtu)
+	w0.Release(ctx, 2*mtu)
 	expect(t, work, w1, w1)
 
 	// Releasing again will allow w0 to run.
-	w0.Release(mtu)
+	w0.Release(ctx, mtu)
 	expect(t, work, w0)
 }
 
@@ -250,7 +250,7 @@ func BenchmarkWithFlowControl(b *testing.B) {
 		for i := 0; i < workers; i++ {
 			go func(idx int) {
 				w := fc.NewWorker(0)
-				w.Release(len(testdata))
+				w.Release(ctx, len(testdata))
 				t := testdata
 				err := w.Run(ctx, func(tokens int) (used int, done bool, err error) {
 					towrite := min(tokens, len(t))

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 )
 
@@ -112,13 +113,13 @@ func (c *ConnCache) Insert(conn *Conn) error {
 }
 
 // Close marks the ConnCache as closed and closes all Conns in the cache.
-func (c *ConnCache) Close() {
+func (c *ConnCache) Close(ctx *context.T) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	c.addrCache, c.ridCache, c.started = nil, nil, nil
 	d := c.head.next
 	for d != c.head {
-		d.conn.Close()
+		d.conn.Close(ctx, nil)
 		d = d.next
 	}
 	c.head = nil
@@ -129,7 +130,7 @@ func (c *ConnCache) Close() {
 // If num is greater than the number of connections in the cache, all cached
 // connections will be closed and removed.
 // KillConnections returns an error iff the cache is closed.
-func (c *ConnCache) KillConnections(num int) error {
+func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
@@ -140,7 +141,7 @@ func (c *ConnCache) KillConnections(num int) error {
 		if d == c.head {
 			break
 		}
-		d.conn.Close()
+		d.conn.Close(ctx, nil)
 		delete(c.addrCache, d.addrKey)
 		delete(c.ridCache, d.rid)
 		prev := d.prev

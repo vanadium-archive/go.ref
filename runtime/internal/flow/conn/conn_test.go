@@ -5,70 +5,74 @@
 package conn
 
 import (
+	"bytes"
+	"crypto/rand"
+	"io"
 	"testing"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
-	"v.io/v23/rpc/version"
-	"v.io/v23/security"
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/test"
 )
 
+var randData []byte
+
 func init() {
 	test.Init()
+
+	randData = make([]byte, 2*defaultBufferSize)
+	if _, err := rand.Read(randData); err != nil {
+		panic("Could not read random data.")
+	}
 }
 
-func setupConns(t *testing.T, ctx *context.T, dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn) {
-	dmrw, amrw := newMRWPair(ctx)
-	versions := version.RPCVersionRange{Min: 3, Max: 5}
-	d, err := NewDialed(ctx, dmrw, nil, nil, versions, fh(dflows), nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	a, err := NewAccepted(ctx, amrw, nil, security.Blessings{}, versions, fh(aflows))
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	return d, a
-}
+func testWrite(t *testing.T, ctx *context.T, want []byte, df flow.Flow, flows <-chan flow.Flow) {
+	finished := make(chan struct{})
+	go func(x []byte) {
+		mid := len(x) / 2
+		wrote, err := df.WriteMsgAndClose(x[:mid], x[mid:])
+		if err != nil {
+			t.Fatalf("Unexpected error for write: %v", err)
+		}
+		if wrote != len(x) {
+			t.Errorf("got %d want %d", wrote, len(x))
+		}
+		close(finished)
+	}(want)
 
-func testWrite(t *testing.T, ctx *context.T, dialer *Conn, flows <-chan flow.Flow) {
-	df, err := dialer.Dial(ctx)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	want := "hello world"
-	df.WriteMsgAndClose([]byte(want[:5]), []byte(want[5:]))
 	af := <-flows
-	msg, err := af.ReadMsg()
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+	for len(want) > 0 {
+		got, err := af.ReadMsg()
+		if err != nil && err != io.EOF {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if !bytes.Equal(got, want[:len(got)]) {
+			t.Fatalf("Got: %s want %s", got, want)
+		}
+		want = want[len(got):]
 	}
-	if got := string(msg); got != want {
-		t.Errorf("Got: %s want %s", got, want)
+	if len(want) != 0 {
+		t.Errorf("got %d leftover bytes, expected 0.", len(want))
 	}
+	<-finished
+	<-df.Closed()
+	<-af.Closed()
 }
 
-func TestDailerDialsFlow(t *testing.T) {
+func TestDial(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	aflows := make(chan flow.Flow, 1)
-	d, _ := setupConns(t, ctx, nil, aflows)
-	testWrite(t, ctx, d, aflows)
+	for _, dialerDials := range []bool{true, false} {
+		df, flows := setupFlow(t, ctx, dialerDials)
+		testWrite(t, ctx, []byte("hello world"), df, flows)
+	}
 }
 
-func TestAcceptorDialsFlow(t *testing.T) {
+func TestLargeWrite(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	dflows := make(chan flow.Flow, 1)
-	_, a := setupConns(t, ctx, dflows, nil)
-	testWrite(t, ctx, a, dflows)
+	df, flows := setupFlow(t, ctx, true)
+	testWrite(t, ctx, randData, df, flows)
 }
-
-// TODO(mattr): List of tests to write
-// 1. multiple writes
-// 2. interleave writemsg and write
-// 3. interleave read and readmsg
-// 4. multiple reads

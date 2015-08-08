@@ -72,7 +72,7 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 		netConn, err := netLn.Accept()
 		for tokill := 1; isTemporaryError(err); tokill *= 2 {
 			if isTooManyOpenFiles(err) {
-				if err := m.cache.KillConnections(tokill); err != nil {
+				if err := m.cache.KillConnections(ctx, tokill); err != nil {
 					ctx.VI(2).Infof("failed to kill connections: %v", err)
 					continue
 				}
@@ -88,7 +88,7 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 		}
 		_, err = conn.NewAccepted(
 			ctx,
-			&framer{ReadWriter: netConn},
+			&framer{ReadWriteCloser: netConn},
 			local,
 			v23.GetPrincipal(ctx).BlessingStore().Default(),
 			version.Supported,
@@ -196,7 +196,7 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.Blessings
 		}
 		c, err = conn.NewDialed(
 			ctx,
-			&framer{ReadWriter: netConn}, // TODO(suharshs): Don't frame if the net.Conn already has framing in its protocol.
+			&framer{ReadWriteCloser: netConn}, // TODO(suharshs): Don't frame if the net.Conn already has framing in its protocol.
 			localEndpoint(netConn, m.rid),
 			remote,
 			version.Supported,

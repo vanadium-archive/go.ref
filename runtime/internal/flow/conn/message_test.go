@@ -52,7 +52,7 @@ func TestVarInt(t *testing.T) {
 func testMessages(t *testing.T, cases []message) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	w, r := newMRWPair(ctx)
+	w, r, _ := newMRWPair(ctx)
 	wp, rp := newMessagePipe(w), newMessagePipe(r)
 	for _, want := range cases {
 		ch := make(chan struct{})
@@ -76,24 +76,27 @@ func testMessages(t *testing.T, cases []message) {
 func TestSetup(t *testing.T) {
 	testMessages(t, []message{
 		&setup{versions: version.RPCVersionRange{Min: 3, Max: 5}},
+		&setup{},
 	})
 }
 
 func TestTearDown(t *testing.T) {
 	testMessages(t, []message{
 		&tearDown{Err: errors.New("foobar")},
+		&tearDown{},
 	})
 }
 
 func TestOpenFlow(t *testing.T) {
 	testMessages(t, []message{
 		&openFlow{id: 23, initialCounters: 1 << 20},
+		&openFlow{},
 	})
 }
 
 func TestAddReceiveBuffers(t *testing.T) {
 	testMessages(t, []message{
-		&addRecieveBuffers{counters: map[flowID]uint64{}},
+		&addRecieveBuffers{},
 		&addRecieveBuffers{counters: map[flowID]uint64{
 			4: 233,
 			9: 423242,
@@ -104,11 +107,13 @@ func TestAddReceiveBuffers(t *testing.T) {
 func TestData(t *testing.T) {
 	testMessages(t, []message{
 		&data{id: 1123, flags: 232, payload: [][]byte{[]byte("fake payload")}},
+		&data{},
 	})
 }
 
 func TestUnencryptedData(t *testing.T) {
 	testMessages(t, []message{
 		&unencryptedData{id: 1123, flags: 232, payload: [][]byte{[]byte("fake payload")}},
+		&unencryptedData{},
 	})
 }

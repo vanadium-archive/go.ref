@@ -11,10 +11,16 @@ package conn
 // TODO(suharshs,toddw): Allow skipping of {1}{2} in vdl generated errors.
 error (
   InvalidMsg(typ byte, size, field int64) {
-  "en":"message of type{:typ} and size{:size} failed decoding at field{:field}."}
+  "en": "message of type{:typ} and size{:size} failed decoding at field{:field}."}
   InvalidControlMsg(cmd byte, size, field int64) {
-  "en":"control message of cmd{:cmd} and size{:size} failed decoding at field{:field}."}
+  "en": "control message of cmd{:cmd} and size{:size} failed decoding at field{:field}."}
   UnknownMsg(typ byte) {"en":"unknown message type{:typ}."}
-  UnknownControlMsg(cmd byte) {"en":"unknown control command{:cmd}."}
+  UnknownControlMsg(cmd byte) {"en": "unknown control command{:cmd}."}
+
+  UnexpectedMsg(typ string) {"en": "unexpected message type{:typ}."}
+  ConnectionClosed() {"en": "connection closed."}
+  Send(typ, dest string, err error) {"en": "failure sending {typ} message to {dest}{:err}."}
+  Recv(src string, err error) {"en": "error reading from {src}{:err}"}
   CacheClosed() {"en":"cache is closed"}
+  CounterOverflow() {"en": "A remote process has sent more data than allowed."}
 )
