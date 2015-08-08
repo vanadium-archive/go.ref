@@ -33,7 +33,7 @@ const (
 	setupCmd
 	tearDownCmd
 	openFlowCmd
-	addRecieveBuffersCmd
+	releaseCmd
 )
 
 // setup options.
@@ -132,21 +132,21 @@ func (m *openFlow) read(ctx *context.T, orig []byte) error {
 	return nil
 }
 
-// addRecieveBuffers is sent as flows are read from locally.  The counters
+// release is sent as flows are read from locally.  The counters
 // inform remote writers that there is local buffer space available.
-type addRecieveBuffers struct {
+type release struct {
 	counters map[flowID]uint64
 }
 
-func (m *addRecieveBuffers) write(ctx *context.T, p *messagePipe) error {
+func (m *release) write(ctx *context.T, p *messagePipe) error {
 	p.controlBuf = p.controlBuf[:0]
 	for fid, val := range m.counters {
 		p.controlBuf = writeVarUint64(uint64(fid), p.controlBuf)
 		p.controlBuf = writeVarUint64(val, p.controlBuf)
 	}
-	return p.write([][]byte{{controlType}}, [][]byte{{addRecieveBuffersCmd}, p.controlBuf})
+	return p.write([][]byte{{controlType}}, [][]byte{{releaseCmd}, p.controlBuf})
 }
-func (m *addRecieveBuffers) read(ctx *context.T, orig []byte) error {
+func (m *release) read(ctx *context.T, orig []byte) error {
 	var (
 		data     = orig
 		valid    bool
@@ -159,10 +159,10 @@ func (m *addRecieveBuffers) read(ctx *context.T, orig []byte) error {
 	m.counters = map[flowID]uint64{}
 	for len(data) > 0 {
 		if fid, data, valid = readVarUint64(ctx, data); !valid {
-			return NewErrInvalidControlMsg(ctx, addRecieveBuffersCmd, int64(len(orig)), n)
+			return NewErrInvalidControlMsg(ctx, releaseCmd, int64(len(orig)), n)
 		}
 		if val, data, valid = readVarUint64(ctx, data); !valid {
-			return NewErrInvalidControlMsg(ctx, addRecieveBuffersCmd, int64(len(orig)), n+1)
+			return NewErrInvalidControlMsg(ctx, releaseCmd, int64(len(orig)), n+1)
 		}
 		m.counters[flowID(fid)] = val
 		n += 2
@@ -300,8 +300,8 @@ func (p *messagePipe) readMsg(ctx *context.T) (message, error) {
 			m = &tearDown{}
 		case openFlowCmd:
 			m = &openFlow{}
-		case addRecieveBuffersCmd:
-			m = &addRecieveBuffers{}
+		case releaseCmd:
+			m = &release{}
 		default:
 			return nil, NewErrUnknownControlMsg(ctx, msg[0])
 		}

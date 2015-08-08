@@ -184,13 +184,13 @@ func (c *Conn) release(ctx *context.T) {
 	}
 
 	err := c.fc.Run(ctx, expressPriority, func(_ int) (int, bool, error) {
-		err := c.mp.writeMsg(ctx, &addRecieveBuffers{
+		err := c.mp.writeMsg(ctx, &release{
 			counters: counts,
 		})
 		return 0, true, err
 	})
 	if err != nil {
-		c.Close(ctx, NewErrSend(ctx, "addRecieveBuffers", c.remote.String(), err))
+		c.Close(ctx, NewErrSend(ctx, "release", c.remote.String(), err))
 	}
 }
 
@@ -216,7 +216,7 @@ func (c *Conn) readLoop(ctx *context.T) {
 			c.mu.Unlock()
 			c.handler.HandleFlow(f)
 
-		case *addRecieveBuffers:
+		case *release:
 			release := make([]flowcontrol.Release, 0, len(msg.counters))
 			c.mu.Lock()
 			for fid, val := range msg.counters {

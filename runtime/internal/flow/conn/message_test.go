@@ -96,8 +96,8 @@ func TestOpenFlow(t *testing.T) {
 
 func TestAddReceiveBuffers(t *testing.T) {
 	testMessages(t, []message{
-		&addRecieveBuffers{},
-		&addRecieveBuffers{counters: map[flowID]uint64{
+		&release{},
+		&release{counters: map[flowID]uint64{
 			4: 233,
 			9: 423242,
 		}},
