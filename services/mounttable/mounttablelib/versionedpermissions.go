@@ -151,6 +151,9 @@ func (mt *mountTable) parsePermFile(ctx *context.T, path string) error {
 					n.vPerms, _ = n.vPerms.Set(nil, "", perms)
 					n.explicitPermissions = true
 				}
+			} else {
+				ctx.Errorf("skipping node for %v; error: %v", elems, err)
+				continue
 			}
 			n.parent.Unlock()
 			n.Unlock()

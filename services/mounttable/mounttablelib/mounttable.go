@@ -26,7 +26,10 @@ import (
 )
 
 const pkgPath = "v.io/x/ref/services/mounttable/mounttablelib"
-const defaultMaxNodesPerUser = 1000
+
+// NOTE(caprita): this was doubled from 1000 on 8/7/2015 to recover from crashes
+// due to hitting this in production.  We should revisit.
+const defaultMaxNodesPerUser = 2000
 
 var (
 	errMalformedAddress = verror.Register(pkgPath+".errMalformedAddress", verror.NoRetry, "{1:}{2:} malformed address {3} for mounted server {4}{:_}")
