@@ -10,17 +10,7 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/verror"
 )
-
-const pkgPath = "v.io/x/ref/runtime/internal/flow/flowcontrol"
-
-var ErrConcurrentRun = verror.Register(
-	verror.ID(pkgPath+".ErrConcurrentRun"),
-	verror.NoRetry, "Run called concurrently.")
-var ErrWrongFlowController = verror.Register(
-	verror.ID(pkgPath+".ErrWrongFlowController"),
-	verror.NoRetry, "Release called for worker from different flow controller.")
 
 // Runners are called by Workers.  For a given flow controller
 // only one Runner will be running at a time.  tokens specifies
@@ -69,7 +59,7 @@ func (w *Worker) Run(ctx *context.T, r Runner) (err error) {
 	w.fc.mu.Lock()
 	if w.state != idle {
 		w.fc.mu.Unlock()
-		return verror.New(ErrConcurrentRun, ctx)
+		return NewErrConcurrentRun(ctx)
 	}
 
 	w.state = running
@@ -227,7 +217,7 @@ func (fc *FlowController) Release(ctx *context.T, to []Release) error {
 	fc.mu.Lock()
 	for _, t := range to {
 		if t.Worker.fc != fc {
-			return verror.New(ErrWrongFlowController, ctx)
+			return NewErrWrongFlowController(ctx)
 		}
 		t.Worker.releaseLocked(ctx, t.Tokens)
 	}
