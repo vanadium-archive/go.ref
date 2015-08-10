@@ -39,10 +39,6 @@ var (
 
 const addressPrefix = "address:"
 
-// AnonymousNeighbor is the neighborhood host name to use if you want to be a client of the neighborhood namespace
-// without appearing in it.
-const AnonymousNeighbor = "_"
-
 // neighborhood defines a set of machines on the same multicast media.
 type neighborhood struct {
 	mdns             *mdns.MDNS
@@ -108,20 +104,30 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 	}
 
 	// Start up MDNS, subscribe to the vanadium service, and add us as a vanadium service provider.
-	mdns, err := mdns.NewMDNS(host, "", "", loopback, false)
+	m, err := mdns.NewMDNS(host, "", "", loopback, false)
 	if err != nil {
-		logger.Global().Errorf("mdns startup failed: %s", err)
-		return nil, err
+		// The name may not have been unique.  Try one more time with a unique
+		// name.  NewMDNS will replace the "()" with "(hardware mac address)".
+		if len(host) > 0 {
+			m, err = mdns.NewMDNS(host+"()", "", "", loopback, false)
+		}
+		if err != nil {
+			logger.Global().Errorf("mdns startup failed: %s", err)
+			return nil, err
+		}
 	}
 	logger.Global().VI(2).Infof("listening for service vanadium on port %d", port)
-	mdns.SubscribeToService("vanadium")
-	if host != AnonymousNeighbor {
-		mdns.AddService("vanadium", "", port, txt...)
+	m.SubscribeToService("vanadium")
+	if len(host) > 0 {
+		m.AddService("vanadium", "", port, txt...)
 	}
+
+	// A small sleep to allow the world to learn about us and vice versa.  Not
+	// necessary but helpful.
 	time.Sleep(50 * time.Millisecond)
 
 	nh := &neighborhood{
-		mdns: mdns,
+		mdns: m,
 	}
 
 	// Watch the network configuration so that we can make MDNS reattach to
