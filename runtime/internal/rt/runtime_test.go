@@ -152,3 +152,13 @@ func TestReservedNameDispatcher(t *testing.T) {
 	}
 
 }
+
+func TestFlowManager(t *testing.T) {
+	r, ctx, shutdown := initForTest(t)
+	defer shutdown()
+
+	if man := r.ExperimentalGetFlowManager(ctx); man == nil {
+		t.Error("ExperimentalGetFlowManager should have returned a non-nil value")
+	}
+
+}

@@ -18,6 +18,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
@@ -32,6 +33,7 @@ import (
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/lib/stats/sysstats"
+	"v.io/x/ref/runtime/internal/flow/manager"
 	"v.io/x/ref/runtime/internal/lib/dependency"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	inamespace "v.io/x/ref/runtime/internal/naming/namespace"
@@ -51,6 +53,7 @@ const (
 	backgroundKey
 	reservedNameKey
 	listenKey
+	flowManagerKey
 
 	// initKey is used to store values that are only set at init time.
 	initKey
@@ -169,6 +172,15 @@ func Init(
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
+	// Add the flow.Manager to the context.
+	// TODO(suharshs): Once the client and server use the flow.Manager we will need
+	// manage those dependencies (exactly as we are doing with stream.Manager)
+	ctx, err = r.setNewFlowManager(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	r.ctx = ctx
 	return r, r.WithBackgroundContext(ctx), r.shutdown, nil
 }
@@ -295,6 +307,23 @@ func newStreamManager(ctx *context.T) (stream.Manager, error) {
 	return sm, nil
 }
 
+func newFlowManager(ctx *context.T) (flow.Manager, error) {
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		return nil, err
+	}
+	return manager.New(ctx, rid), nil
+}
+
+func (r *Runtime) setNewFlowManager(ctx *context.T) (*context.T, error) {
+	fm, err := newFlowManager(ctx)
+	if err != nil {
+		return nil, err
+	}
+	newctx := context.WithValue(ctx, flowManagerKey, fm)
+	return newctx, err
+}
+
 func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
 	sm, err := newStreamManager(ctx)
 	if err != nil {
@@ -347,6 +376,9 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 		return ctx, err
 	}
 	if newctx, err = r.setNewStreamManager(newctx); err != nil {
+		return ctx, err
+	}
+	if newctx, err = r.setNewFlowManager(newctx); err != nil {
 		return ctx, err
 	}
 	if newctx, _, err = r.setNewNamespace(newctx, r.GetNamespace(ctx).Roots()...); err != nil {
@@ -483,6 +515,14 @@ func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *co
 func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
 	// nologcall
 	if d, ok := ctx.Value(reservedNameKey).(rpc.Dispatcher); ok {
+		return d
+	}
+	return nil
+}
+
+func (*Runtime) ExperimentalGetFlowManager(ctx *context.T) flow.Manager {
+	// nologcall
+	if d, ok := ctx.Value(flowManagerKey).(flow.Manager); ok {
 		return d
 	}
 	return nil

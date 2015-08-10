@@ -6,6 +6,7 @@ package fake
 
 import (
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/rpc"
 	"v.io/x/ref/lib/apilog"
 )
@@ -41,4 +42,9 @@ func (r *Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 func (r *Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return ctx
+}
+
+func (r *Runtime) ExperimentalGetFlowManager(ctx *context.T) flow.Manager {
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	panic("unimplemented")
 }
