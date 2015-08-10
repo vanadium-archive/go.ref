@@ -70,6 +70,15 @@ func (w *Worker) Run(ctx *context.T, r Runner) (err error) {
 
 	for {
 		next := w.fc.nextWorkerLocked()
+		if w.fc.writing == w {
+			// We're already schedule to write, but we should bail
+			// out if we're canceled.
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+			default:
+			}
+		}
 		for w.fc.writing != w && err == nil {
 			w.fc.mu.Unlock()
 			if next != nil {

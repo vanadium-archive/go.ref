@@ -10,13 +10,14 @@ import (
 	"testing"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	_ "v.io/x/ref/runtime/factories/fake"
 )
 
 func TestRemoteDialerClose(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, nil, nil)
+	d, a, w := setupConns(t, ctx, ctx, nil, nil)
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
@@ -28,7 +29,7 @@ func TestRemoteDialerClose(t *testing.T) {
 func TestRemoteAcceptorClose(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, nil, nil)
+	d, a, w := setupConns(t, ctx, ctx, nil, nil)
 	a.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-a.Closed()
 	<-d.Closed()
@@ -40,7 +41,7 @@ func TestRemoteAcceptorClose(t *testing.T) {
 func TestUnderlyingConnectionClosed(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, nil, nil)
+	d, a, w := setupConns(t, ctx, ctx, nil, nil)
 	w.close()
 	<-a.Closed()
 	<-d.Closed()
@@ -49,7 +50,7 @@ func TestUnderlyingConnectionClosed(t *testing.T) {
 func TestDialAfterConnClose(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, _ := setupConns(t, ctx, nil, nil)
+	d, a, _ := setupConns(t, ctx, ctx, nil, nil)
 
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
@@ -66,7 +67,7 @@ func TestReadWriteAfterConnClose(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	for _, dialerDials := range []bool{true, false} {
-		df, flows := setupFlow(t, ctx, dialerDials)
+		df, flows := setupFlow(t, ctx, ctx, dialerDials)
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {
 			t.Fatalf("write failed: %v", err)
 		}
@@ -79,7 +80,7 @@ func TestReadWriteAfterConnClose(t *testing.T) {
 		if _, err := df.WriteMsg([]byte("there")); err != nil {
 			t.Fatalf("second write failed: %v", err)
 		}
-		df.(*flw).conn.Close(ctx, nil)
+		df.(*flw).conn.Close(ctx, fmt.Errorf("Closing randomly."))
 		<-af.Conn().Closed()
 		if got, err := af.ReadMsg(); err != nil {
 			t.Fatalf("read failed: %v", err)
@@ -93,4 +94,50 @@ func TestReadWriteAfterConnClose(t *testing.T) {
 			t.Fatalf("nil error for read after close.")
 		}
 	}
+}
+
+func TestFlowCancelOnWrite(t *testing.T) {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+	dctx, cancel := context.WithCancel(ctx)
+	df, accept := setupFlow(t, dctx, ctx, true)
+	done := make(chan struct{})
+	go func() {
+		if _, err := df.WriteMsg([]byte("hello")); err != nil {
+			t.Fatalf("could not write flow: %v", err)
+		}
+		for {
+			if _, err := df.WriteMsg([]byte("hello")); err == context.Canceled {
+				break
+			} else if err != nil {
+				t.Fatalf("unexpected error waiting for cancel: %v", err)
+			}
+		}
+		close(done)
+	}()
+	af := <-accept
+	cancel()
+	<-done
+	<-af.Closed()
+}
+
+func TestFlowCancelOnRead(t *testing.T) {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+	dctx, cancel := context.WithCancel(ctx)
+	df, accept := setupFlow(t, dctx, ctx, true)
+	done := make(chan struct{})
+	go func() {
+		if _, err := df.WriteMsg([]byte("hello")); err != nil {
+			t.Fatalf("could not write flow: %v", err)
+		}
+		if _, err := df.ReadMsg(); err != context.Canceled {
+			t.Fatalf("unexpected error waiting for cancel: %v", err)
+		}
+		close(done)
+	}()
+	af := <-accept
+	cancel()
+	<-done
+	<-af.Closed()
 }

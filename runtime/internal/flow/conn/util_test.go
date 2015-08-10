@@ -96,34 +96,42 @@ func (fh fh) HandleFlow(f flow.Flow) error {
 	return nil
 }
 
-func setupConns(t *testing.T, ctx *context.T, dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn, _ *wire) {
-	dmrw, amrw, w := newMRWPair(ctx)
+func setupConns(t *testing.T, dctx, actx *context.T, dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn, _ *wire) {
+	dmrw, amrw, w := newMRWPair(dctx)
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
 	ep, err := v23.NewEndpoint("localhost:80")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	d, err := NewDialed(ctx, dmrw, ep, ep, versions, fh(dflows), nil)
+	d, err := NewDialed(dctx, dmrw, ep, ep, versions, fh(dflows), nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	a, err := NewAccepted(ctx, amrw, ep, security.Blessings{}, versions, fh(aflows))
+	a, err := NewAccepted(actx, amrw, ep, security.Blessings{}, versions, fh(aflows))
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	return d, a, w
 }
 
-func setupFlow(t *testing.T, ctx *context.T, dialFromDialer bool) (dialed flow.Flow, accepted <-chan flow.Flow) {
-	dflows, aflows := make(chan flow.Flow, 1), make(chan flow.Flow, 1)
-	d, a, _ := setupConns(t, ctx, dflows, aflows)
+func setupFlow(t *testing.T, dctx, actx *context.T, dialFromDialer bool) (dialed flow.Flow, accepted <-chan flow.Flow) {
+	d, accepted := setupFlows(t, dctx, actx, dialFromDialer, 1)
+	return d[0], accepted
+}
+
+func setupFlows(t *testing.T, dctx, actx *context.T, dialFromDialer bool, n int) (dialed []flow.Flow, accepted <-chan flow.Flow) {
+	dflows, aflows := make(chan flow.Flow, n), make(chan flow.Flow, n)
+	d, a, _ := setupConns(t, dctx, actx, dflows, aflows)
 	if !dialFromDialer {
 		d, a = a, d
 		aflows, dflows = dflows, aflows
 	}
-	df, err := d.Dial(ctx)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+	dialed = make([]flow.Flow, n)
+	for i := 0; i < n; i++ {
+		var err error
+		if dialed[i], err = d.Dial(dctx); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 	}
-	return df, aflows
+	return dialed, aflows
 }

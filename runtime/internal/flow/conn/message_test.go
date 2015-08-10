@@ -5,7 +5,6 @@
 package conn
 
 import (
-	"errors"
 	"reflect"
 	"testing"
 
@@ -82,7 +81,7 @@ func TestSetup(t *testing.T) {
 
 func TestTearDown(t *testing.T) {
 	testMessages(t, []message{
-		&tearDown{Err: errors.New("foobar")},
+		&tearDown{Message: "foobar"},
 		&tearDown{},
 	})
 }

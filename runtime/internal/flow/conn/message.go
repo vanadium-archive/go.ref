@@ -5,8 +5,6 @@
 package conn
 
 import (
-	"errors"
-
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
@@ -88,19 +86,15 @@ func (m *setup) read(ctx *context.T, orig []byte) error {
 
 // tearDown is sent over the wire before a connection is closed.
 type tearDown struct {
-	Err error
+	Message string
 }
 
 func (m *tearDown) write(ctx *context.T, p *messagePipe) error {
-	var errBytes []byte
-	if m.Err != nil {
-		errBytes = []byte(m.Err.Error())
-	}
-	return p.write([][]byte{{controlType}}, [][]byte{{tearDownCmd}, errBytes})
+	return p.write([][]byte{{controlType}}, [][]byte{{tearDownCmd}, []byte(m.Message)})
 }
 func (m *tearDown) read(ctx *context.T, data []byte) error {
 	if len(data) > 0 {
-		m.Err = errors.New(string(data))
+		m.Message = string(data)
 	}
 	return nil
 }

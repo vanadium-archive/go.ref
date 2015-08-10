@@ -119,7 +119,7 @@ func (c *ConnCache) Close(ctx *context.T) {
 	c.addrCache, c.ridCache, c.started = nil, nil, nil
 	d := c.head.next
 	for d != c.head {
-		d.conn.Close(ctx, nil)
+		d.conn.Close(ctx, NewErrCacheClosed(ctx))
 		d = d.next
 	}
 	c.head = nil
@@ -134,14 +134,15 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
-		return NewErrCacheClosed(nil)
+		return NewErrCacheClosed(ctx)
 	}
 	d := c.head.prev
+	err := NewErrConnKilledToFreeResources(ctx)
 	for i := 0; i < num; i++ {
 		if d == c.head {
 			break
 		}
-		d.conn.Close(ctx, nil)
+		d.conn.Close(ctx, err)
 		delete(c.addrCache, d.addrKey)
 		delete(c.ridCache, d.rid)
 		prev := d.prev

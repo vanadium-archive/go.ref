@@ -72,7 +72,7 @@ func TestDial(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	for _, dialerDials := range []bool{true, false} {
-		df, flows := setupFlow(t, ctx, dialerDials)
+		df, flows := setupFlow(t, ctx, ctx, dialerDials)
 		testWrite(t, ctx, []byte("hello world"), df, flows)
 	}
 }
@@ -80,6 +80,6 @@ func TestDial(t *testing.T) {
 func TestLargeWrite(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	df, flows := setupFlow(t, ctx, true)
+	df, flows := setupFlow(t, ctx, ctx, true)
 	testWrite(t, ctx, randData, df, flows)
 }

@@ -8,7 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/security"
-
+	"v.io/v23/verror"
 	"v.io/x/ref/runtime/internal/flow/flowcontrol"
 )
 
@@ -50,6 +50,9 @@ func (f *flw) Read(p []byte) (n int, err error) {
 	if n, release, err = f.q.read(f.ctx, p); release {
 		f.conn.release(f.ctx)
 	}
+	if err != nil {
+		f.close(f.ctx, err)
+	}
 	return
 }
 
@@ -64,6 +67,9 @@ func (f *flw) ReadMsg() (buf []byte, err error) {
 	// we'll send counters whenever a new flow is opened.
 	if buf, release, err = f.q.get(f.ctx); release {
 		f.conn.release(f.ctx)
+	}
+	if err != nil {
+		f.close(f.ctx, err)
 	}
 	return
 }
@@ -123,7 +129,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 		return size, done, f.conn.mp.writeMsg(f.ctx, d)
 	})
 	if alsoClose || err != nil {
-		f.close(err)
+		f.close(f.ctx, err)
 	}
 	return sent, err
 }
@@ -220,10 +226,18 @@ func (f *flw) Closed() <-chan struct{} {
 	return f.ctx.Done()
 }
 
-func (f *flw) close(err error) {
-	f.q.close(f.ctx)
+func (f *flw) close(ctx *context.T, err error) {
+	f.q.close(ctx)
 	f.cancel()
-
-	// TODO(mattr): maybe send a final close data message.
-	// TODO(mattr): save the error to hand out later.
+	if verror.ErrorID(err) != ErrFlowClosedRemotely.ID {
+		// We want to try to send this message even if ctx is already canceled.
+		ctx, cancel := context.WithRootCancel(ctx)
+		err := f.worker.Run(ctx, func(tokens int) (int, bool, error) {
+			return 0, true, f.conn.mp.writeMsg(ctx, &data{id: f.id, flags: closeFlag})
+		})
+		if err != nil {
+			ctx.Errorf("Could not send close flow message: %v", err)
+		}
+		cancel()
+	}
 }
