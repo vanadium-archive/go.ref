@@ -84,6 +84,10 @@ type client struct {
 
 	vcCache *vc.VCCache
 
+	wg     sync.WaitGroup
+	mu     sync.Mutex
+	closed bool
+
 	dc vc.DischargeClient
 }
 
@@ -93,8 +97,7 @@ func InternalNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.Cli
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
-
-		vcCache: vc.NewVCCache(),
+		vcCache:   vc.NewVCCache(),
 	}
 	ipNets, err := ipNetworks()
 	if err != nil {
@@ -346,6 +349,7 @@ func suberrName(server, name, method string) string {
 // flow itself.
 // TODO(cnicolaou): implement real, configurable load balancing.
 func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, index int, name, server, method string, auth security.Authorizer, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
+	defer c.wg.Done()
 	status := &serverStatus{index: index, server: server}
 	var span vtrace.Span
 	ctx, span = vtrace.WithNewSpan(ctx, "<client>tryCreateFlow")
@@ -354,7 +358,6 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		ch <- status
 		span.Finish()
 	}()
-
 	suberr := func(err error) *verror.SubErr {
 		return &verror.SubErr{
 			Name:    suberrName(server, name, method),
@@ -485,6 +488,14 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		// other while manipulating their copy of the options.
 		vcOptsCopy := make([]stream.VCOpt, len(vcOpts))
 		copy(vcOptsCopy, vcOpts)
+		c.mu.Lock()
+		if c.closed {
+			c.mu.Unlock()
+			return nil, verror.NoRetry, false, verror.New(errClientCloseAlreadyCalled, ctx)
+		}
+		c.wg.Add(1)
+		c.mu.Unlock()
+
 		go c.tryCreateFlow(ctx, principal, i, name, server, method, authorizer, ch, vcOptsCopy)
 	}
 
@@ -734,9 +745,13 @@ func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, call security.Call
 
 func (c *client) Close() {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	c.mu.Lock()
+	c.closed = true
+	c.mu.Unlock()
 	for _, v := range c.vcCache.Close() {
 		c.streamMgr.ShutdownEndpoint(v.RemoteEndpoint())
 	}
+	c.wg.Wait()
 }
 
 // flowClient implements the RPC client-side protocol for a single RPC, over a

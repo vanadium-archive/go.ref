@@ -113,6 +113,11 @@ func resolve(r rpc.ResolverFunc, network, address string) (string, string, error
 	return "", "", verror.New(stream.ErrResolveFailed, nil, verror.New(errUnknownNetwork, nil, network))
 }
 
+type dialResult struct {
+	conn net.Conn
+	err  error
+}
+
 // FindOrDialVIF returns the network connection (VIF) to the provided address
 // from the cache in the manager. If not already present in the cache, a new
 // connection will be created using net.Dial.
@@ -146,7 +151,20 @@ func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...
 	defer unblock()
 
 	ctx.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
-	conn, err := dial(d, network, address, timeout)
+
+	ch := make(chan *dialResult)
+	go func() {
+		conn, err := dial(d, network, address, timeout)
+		ch <- &dialResult{conn, err}
+	}()
+
+	var conn net.Conn
+	select {
+	case result := <-ch:
+		conn, err = result.conn, result.err
+	case <-ctx.Done():
+		return nil, verror.New(stream.ErrDialFailed, ctx, err)
+	}
 	if err != nil {
 		return nil, err
 	}
