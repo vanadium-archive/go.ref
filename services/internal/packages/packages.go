@@ -143,6 +143,7 @@ func CreateZip(zipFile, sourceDir string) error {
 		if err != nil {
 			return err
 		}
+		fh.Method = zip.Deflate
 		fh.Name, _ = filepath.Rel(sourceDir, path)
 		hdr, err := w.CreateHeader(fh)
 		if err != nil {
