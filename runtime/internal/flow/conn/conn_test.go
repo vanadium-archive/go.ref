@@ -43,15 +43,22 @@ func testWrite(t *testing.T, ctx *context.T, want []byte, df flow.Flow, flows <-
 	}(want)
 
 	af := <-flows
+	read := 0
 	for len(want) > 0 {
 		got, err := af.ReadMsg()
 		if err != nil && err != io.EOF {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		if !bytes.Equal(got, want[:len(got)]) {
-			t.Fatalf("Got: %s want %s", got, want)
+			pl := len(got)
+			if pl > 100 {
+				pl = 100
+			}
+			pg, pw := got[:pl], want[:pl]
+			t.Fatalf("On read %d got: %v want %v", read, pg, pw)
 		}
 		want = want[len(got):]
+		read++
 	}
 	if len(want) != 0 {
 		t.Errorf("got %d leftover bytes, expected 0.", len(want))

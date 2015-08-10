@@ -17,6 +17,7 @@ type readq struct {
 	b, e int
 
 	size      int
+	nbufs     int
 	toRelease int
 	notify    chan struct{}
 }
@@ -32,9 +33,6 @@ func newReadQ() *readq {
 }
 
 func (r *readq) put(ctx *context.T, bufs [][]byte) error {
-	if len(bufs) == 0 {
-		return nil
-	}
 	l := 0
 	for _, b := range bufs {
 		l += len(b)
@@ -53,13 +51,13 @@ func (r *readq) put(ctx *context.T, bufs [][]byte) error {
 	if newSize > defaultBufferSize {
 		return NewErrCounterOverflow(ctx)
 	}
-	if r.e == r.b {
-		r.reserveLocked(len(bufs))
-	}
+	newBufs := r.nbufs + len(bufs)
+	r.reserveLocked(newBufs)
 	for _, b := range bufs {
 		r.bufs[r.e] = b
 		r.e = (r.e + 1) % len(r.bufs)
 	}
+	r.nbufs = newBufs
 	if r.size == 0 {
 		select {
 		case r.notify <- struct{}{}:
@@ -82,6 +80,7 @@ func (r *readq) read(ctx *context.T, data []byte) (n int, release bool, err erro
 	if len(buf) > 0 {
 		r.bufs[r.b] = buf
 	} else {
+		r.nbufs -= 1
 		r.b = (r.b + 1) % len(r.bufs)
 	}
 	r.size -= n
@@ -98,6 +97,7 @@ func (r *readq) get(ctx *context.T) (out []byte, release bool, err error) {
 	out = r.bufs[r.b]
 	r.b = (r.b + 1) % len(r.bufs)
 	r.size -= len(out)
+	r.nbufs -= 1
 	r.toRelease += len(out)
 	return out, r.toRelease > defaultBufferSize/2, nil
 }
@@ -131,16 +131,17 @@ func (r *readq) close(ctx *context.T) {
 }
 
 func (r *readq) reserveLocked(n int) {
-	needed := n + r.e - r.b
-	if r.e < r.b {
-		needed += len(r.bufs)
-	}
-	if needed < len(r.bufs) {
+	if n < len(r.bufs) {
 		return
 	}
-	nb := make([][]byte, 2*needed)
-	copied := copy(nb, r.bufs[r.b:])
-	copied += copy(nb[n:], r.bufs[:r.e])
+	nb := make([][]byte, 2*n)
+	copied := 0
+	if r.e >= r.b {
+		copied = copy(nb, r.bufs[r.b:r.e])
+	} else {
+		copied = copy(nb, r.bufs[r.b:])
+		copied += copy(nb[copied:], r.bufs[:r.e])
+	}
 	r.bufs, r.b, r.e = nb, 0, copied
 }
 
