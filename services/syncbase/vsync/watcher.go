@@ -22,8 +22,8 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
+	"v.io/v23/services/watch"
 	"v.io/v23/verror"
-	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 )
 
@@ -116,14 +116,18 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 			vlog.Errorf("sync: processDatabase: %s, %s: cannot get resMark: %v", appName, dbName, err)
 			return false
 		}
-		resMark = ""
+		resMark = watchable.MakeResumeMarker(0)
 	}
 
 	// Initialize Database sync state if needed.
 	s.initDbSyncStateInMem(ctx, appName, dbName)
 
 	// Get a batch of watch log entries, if any, after this resume marker.
-	if logs, nextResmark := getWatchLogBatch(ctx, appName, dbName, st, resMark); logs != nil {
+	logs, nextResmark, err := watchable.WatchLogBatch(st, resMark)
+	if err != nil {
+		vlog.Fatalf("sync: processDatabase: %s, %s: cannot get watch log batch: %v", appName, dbName, verror.DebugString(err))
+	}
+	if logs != nil {
 		s.processWatchLogBatch(ctx, appName, dbName, st, logs, nextResmark)
 		return true
 	}
@@ -134,7 +138,7 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 // watchable SyncGroup prefixes, uses the prefixes to filter the batch to the
 // subset of syncable records, and transactionally applies these updates to the
 // sync metadata (DAG & log records) and updates the watch resume marker.
-func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, logs []*watchable.LogEntry, resMark string) {
+func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, logs []*watchable.LogEntry, resMark watch.ResumeMarker) {
 	if len(logs) == 0 {
 		return
 	}
@@ -289,68 +293,6 @@ func decrWatchPrefix(appName, dbName, prefix string) {
 	}
 }
 
-// dbLogScanArgs determines the arguments needed to start a new scan from a
-// given resume marker (last log entry read).  An empty resume marker is used
-// to begin the scan from the start of the log.
-func dbLogScanArgs(resMark string) ([]byte, []byte) {
-	start, limit := util.ScanPrefixArgs(util.LogPrefix, "")
-	if resMark != "" {
-		// To start just after the current resume marker, augment it by
-		// appending an extra byte at the end.  Use byte value zero to
-		// use the lowest value possible.  This works because resume
-		// markers have a fixed length and are sorted lexicographically.
-		// By creationg a fake longer resume marker that falls between
-		// real resume markers, the next scan will start right after
-		// where the previous one stopped without missing data.
-		start = append([]byte(resMark), 0)
-	}
-	return start, limit
-}
-
-// getWatchLogBatch returns a batch of watch log records (a transaction) from
-// the given database and the new resume marker at the end of the batch.
-func getWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, resMark string) ([]*watchable.LogEntry, string) {
-	scanStart, scanLimit := dbLogScanArgs(resMark)
-	endOfBatch := false
-	var newResmark string
-
-	// Use the store directly to scan these read-only log entries, no need
-	// to create a snapshot since they are never overwritten.  Read and
-	// buffer a batch before processing it.
-	var logs []*watchable.LogEntry
-	stream := st.Scan(scanStart, scanLimit)
-	for stream.Advance() {
-		logKey := string(stream.Key(nil))
-		var logEnt watchable.LogEntry
-		if vom.Decode(stream.Value(nil), &logEnt) != nil {
-			vlog.Fatalf("sync: getWatchLogBatch: %s, %s: invalid watch LogEntry %s: %v",
-				appName, dbName, logKey, stream.Value(nil))
-		}
-
-		logs = append(logs, &logEnt)
-
-		// Stop if this is the end of the batch.
-		if logEnt.Continued == false {
-			newResmark = logKey
-			endOfBatch = true
-			break
-		}
-	}
-
-	if err := stream.Err(); err != nil {
-		vlog.Errorf("sync: getWatchLogBatch: %s, %s: scan stream error: %v", appName, dbName, err)
-		return nil, resMark
-	}
-	if !endOfBatch {
-		if len(logs) > 0 {
-			vlog.Fatalf("sync: getWatchLogBatch: %s, %s: end of batch not found after %d entries",
-				appName, dbName, len(logs))
-		}
-		return nil, resMark
-	}
-	return logs, newResmark
-}
-
 // convertLogRecord converts a store log entry to a sync log record.  It fills
 // the previous object version (parent) by fetching its current DAG head if it
 // has one.  For a delete, it generates a new object version because the store
@@ -479,16 +421,16 @@ func resMarkKey() string {
 }
 
 // setResMark stores the watcher resume marker for a database.
-func setResMark(ctx *context.T, tx store.Transaction, resMark string) error {
+func setResMark(ctx *context.T, tx store.Transaction, resMark watch.ResumeMarker) error {
 	return util.Put(ctx, tx, resMarkKey(), resMark)
 }
 
 // getResMark retrieves the watcher resume marker for a database.
-func getResMark(ctx *context.T, st store.StoreReader) (string, error) {
-	var resMark string
+func getResMark(ctx *context.T, st store.StoreReader) (watch.ResumeMarker, error) {
+	var resMark watch.ResumeMarker
 	key := resMarkKey()
 	if err := util.Get(ctx, st, key, &resMark); err != nil {
-		return NoVersion, err
+		return nil, err
 	}
 	return resMark, nil
 }

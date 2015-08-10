@@ -157,7 +157,10 @@ func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, schemaVer
 				it.Cancel()
 				return err
 			}
-			sender.Send(wire.KeyValue{Key: externalKey, Value: value})
+			if err := sender.Send(wire.KeyValue{Key: externalKey, Value: value}); err != nil {
+				it.Cancel()
+				return err
+			}
 		}
 		if err := it.Err(); err != nil {
 			return verror.New(verror.ErrInternal, ctx, err)

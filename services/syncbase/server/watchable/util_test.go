@@ -24,6 +24,6 @@ func TestGetNextLogSeq(t *testing.T) {
 		if got, want := seq, i; got != want {
 			t.Fatalf("unexpected log seq: got %v, want %v", got, want)
 		}
-		st.Put([]byte(getLogEntryKey(i)), nil)
+		st.Put([]byte(logEntryKey(i)), nil)
 	}
 }

@@ -162,11 +162,6 @@ func destroyService(t *testing.T, s *mockService) {
 	}
 }
 
-// makeResMark returns the resume marker for a given log entry position.
-func makeResMark(pos int) string {
-	return util.JoinKeyParts(util.LogPrefix, fmt.Sprintf("%016x", pos))
-}
-
 // makeRowKey returns the database row key for a given application key.
 func makeRowKey(key string) string {
 	return util.JoinKeyParts(util.RowPrefix, key)

@@ -8,7 +8,6 @@ package vsync
 
 import (
 	"bytes"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -26,11 +25,11 @@ func TestSetResmark(t *testing.T) {
 	st := svc.St()
 
 	resmark, err := getResMark(nil, st)
-	if err == nil || resmark != "" {
+	if err == nil || resmark != nil {
 		t.Errorf("found non-existent resume marker: %s, %v", resmark, err)
 	}
 
-	wantResmark := "1234567890"
+	wantResmark := watchable.MakeResumeMarker(1234567890)
 	tx := st.NewTransaction()
 	if err := setResMark(nil, tx, wantResmark); err != nil {
 		t.Errorf("cannot set resume marker: %v", err)
@@ -41,7 +40,7 @@ func TestSetResmark(t *testing.T) {
 	if err != nil {
 		t.Errorf("cannot get new resume marker: %v", err)
 	}
-	if resmark != wantResmark {
+	if !bytes.Equal(resmark, wantResmark) {
 		t.Errorf("invalid new resume: got %s instead of %s", resmark, wantResmark)
 	}
 }
@@ -163,7 +162,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	fooxyzKey := makeRowKey("fooxyz")
 
 	// Empty logs does not fail.
-	s.processWatchLogBatch(nil, app, db, st, nil, "")
+	s.processWatchLogBatch(nil, app, db, st, nil, nil)
 
 	// Non-syncable logs.
 	batch := []*watchable.LogEntry{
@@ -171,10 +170,10 @@ func TestProcessWatchLogBatch(t *testing.T) {
 		newLog(barKey, "555", false),
 	}
 
-	resmark := "abcd"
+	resmark := watchable.MakeResumeMarker(1234)
 	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
 
-	if res, err := getResMark(nil, st); err != nil && res != resmark {
+	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
 	}
 	if ok, err := hasNode(nil, st, fooKey, "123"); err != nil || ok {
@@ -192,10 +191,10 @@ func TestProcessWatchLogBatch(t *testing.T) {
 		newLog(barKey, "222", false),
 	}
 
-	resmark = "cdef"
+	resmark = watchable.MakeResumeMarker(3456)
 	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
 
-	if res, err := getResMark(nil, st); err != nil && res != resmark {
+	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
 	}
 	if head, err := getHead(nil, st, fooKey); err != nil && head != "333" {
@@ -226,10 +225,10 @@ func TestProcessWatchLogBatch(t *testing.T) {
 		newLog(barKey, "7", false),
 	}
 
-	resmark = "ghij"
+	resmark = watchable.MakeResumeMarker(7890)
 	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
 
-	if res, err := getResMark(nil, st); err != nil && res != resmark {
+	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
 	}
 	if head, err := getHead(nil, st, fooKey); err != nil && head != "1" {
@@ -269,10 +268,10 @@ func TestProcessWatchLogBatch(t *testing.T) {
 		newLog(barKey, "007", false),
 	}
 
-	resmark = "tuvw"
+	resmark = watchable.MakeResumeMarker(20212223)
 	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
 
-	if res, err := getResMark(nil, st); err != nil && res != resmark {
+	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
 	}
 	// No changes to "foo".
@@ -314,81 +313,5 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("wrong count of batches: got %d instead of 2", count)
-	}
-}
-
-// TestGetWatchLogBatch tests fetching a batch of log records.
-func TestGetWatchLogBatch(t *testing.T) {
-	svc := createService(t)
-	defer destroyService(t, svc)
-	st := svc.St()
-
-	// Create a set of batches to fill the log queue.
-	numTx, numPut := 3, 4
-
-	makeKeyVal := func(batchNum, recNum int) ([]byte, []byte) {
-		key := util.JoinKeyParts(util.RowPrefix, fmt.Sprintf("foo-%d-%d", batchNum, recNum))
-		val := fmt.Sprintf("val-%d-%d", batchNum, recNum)
-		return []byte(key), []byte(val)
-	}
-
-	for i := 0; i < numTx; i++ {
-		tx := st.NewTransaction()
-		for j := 0; j < numPut; j++ {
-			key, val := makeKeyVal(i, j)
-			if err := tx.Put(key, val); err != nil {
-				t.Errorf("cannot put %s (%s): %v", key, val, err)
-			}
-		}
-		tx.Commit()
-	}
-
-	// Fetch the batches and a few more empty fetches and verify them.
-	app, db := "mockapp", "mockdb"
-	resmark := ""
-	count := 0
-
-	for i := 0; i < (numTx + 3); i++ {
-		logs, newResmark := getWatchLogBatch(nil, app, db, st, resmark)
-		if i < numTx {
-			if len(logs) != numPut {
-				t.Errorf("log fetch (i=%d) wrong log count: %d instead of %d",
-					i, len(logs), numPut)
-			}
-
-			count += len(logs)
-			expResmark := makeResMark(count - 1)
-			if newResmark != expResmark {
-				t.Errorf("log fetch (i=%d) wrong resmark: %s instead of %s",
-					i, newResmark, expResmark)
-			}
-
-			for j, log := range logs {
-				op := log.Op.(watchable.OpPut)
-				expKey, expVal := makeKeyVal(i, j)
-				key := op.Value.Key
-				if !bytes.Equal(key, expKey) {
-					t.Errorf("log fetch (i=%d, j=%d) bad key: %s instead of %s",
-						i, j, key, expKey)
-				}
-				tx := st.NewTransaction()
-				var val []byte
-				val, err := watchable.GetAtVersion(nil, tx, key, val, op.Value.Version)
-				if err != nil {
-					t.Errorf("log fetch (i=%d, j=%d) cannot GetAtVersion(): %v", i, j, err)
-				}
-				if !bytes.Equal(val, expVal) {
-					t.Errorf("log fetch (i=%d, j=%d) bad value: %s instead of %s",
-						i, j, val, expVal)
-				}
-				tx.Abort()
-			}
-		} else {
-			if logs != nil || newResmark != resmark {
-				t.Errorf("NOP log fetch (i=%d) had changes: %d logs, resmask %s",
-					i, len(logs), newResmark)
-			}
-		}
-		resmark = newResmark
 	}
 }

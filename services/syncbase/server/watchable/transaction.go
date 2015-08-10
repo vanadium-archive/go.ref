@@ -142,7 +142,7 @@ func (tx *transaction) Commit() error {
 	timestamp := tx.st.clock.Now().UnixNano()
 	seq := tx.st.seq
 	for i, op := range tx.ops {
-		key := getLogEntryKey(seq)
+		key := logEntryKey(seq)
 		value := &LogEntry{
 			Op:              op,
 			CommitTimestamp: timestamp,
@@ -248,6 +248,8 @@ func GetVersion(ctx *context.T, tx store.Transaction, key []byte) ([]byte, error
 // StoreReader interface is required since this is a Get operation.
 func GetAtVersion(ctx *context.T, st store.StoreReader, key, valbuf, version []byte) ([]byte, error) {
 	switch w := st.(type) {
+	case *snapshot:
+		return getAtVersion(w.isn, key, valbuf, version)
 	case *transaction:
 		w.mu.Lock()
 		defer w.mu.Unlock()

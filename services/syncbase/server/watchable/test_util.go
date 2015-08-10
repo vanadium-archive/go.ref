@@ -91,7 +91,7 @@ type logEntryReader struct {
 }
 
 func newLogEntryReader(st store.Store, seq uint64) *logEntryReader {
-	stream := st.Scan([]byte(getLogEntryKey(seq)), []byte(getLogEntryKey(math.MaxUint64)))
+	stream := st.Scan([]byte(logEntryKey(seq)), []byte(logEntryKey(math.MaxUint64)))
 	return &logEntryReader{stream: stream}
 }
 

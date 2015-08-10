@@ -25,7 +25,6 @@ import (
 	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
-	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -273,7 +272,10 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 		sender.Send(resultHeaders)
 		for rs.Advance() {
 			result := rs.Result()
-			sender.Send(result)
+			if err := sender.Send(result); err != nil {
+				rs.Cancel()
+				return err
+			}
 		}
 		return rs.Err()
 	}
@@ -319,25 +321,6 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 		return nil, "", err
 	}
 	return data.Perms, util.FormatVersion(data.Version), nil
-}
-
-func (d *databaseReq) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
-	// TODO(rogulenko): Implement.
-	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
-	}
-	return verror.NewErrNotImplemented(ctx)
-}
-
-func (d *databaseReq) GetResumeMarker(ctx *context.T, call rpc.ServerCall) (watch.ResumeMarker, error) {
-	// TODO(rogulenko): Implement.
-	if !d.exists {
-		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
-	}
-	return nil, verror.NewErrNotImplemented(ctx)
 }
 
 func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
