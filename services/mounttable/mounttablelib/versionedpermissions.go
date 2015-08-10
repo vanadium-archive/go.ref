@@ -143,7 +143,13 @@ func (mt *mountTable) parsePermFile(ctx *context.T, path string) error {
 
 			// Create name and add the Permissions map to it.
 			n, err := mt.findNode(ctx, nil, elems, true, nil, nil)
-			if n != nil || err == nil {
+			if err != nil {
+				ctx.Errorf("skipping node for %v; error: %v", elems, err)
+			}
+			if n == nil {
+				continue
+			}
+			if err == nil {
 				ctx.VI(2).Infof("added perms %v to %s", perms, name)
 				if isPattern {
 					n.permsTemplate = perms
@@ -151,9 +157,6 @@ func (mt *mountTable) parsePermFile(ctx *context.T, path string) error {
 					n.vPerms, _ = n.vPerms.Set(nil, "", perms)
 					n.explicitPermissions = true
 				}
-			} else {
-				ctx.Errorf("skipping node for %v; error: %v", elems, err)
-				continue
 			}
 			n.parent.Unlock()
 			n.Unlock()
