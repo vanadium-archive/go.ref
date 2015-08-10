@@ -31,6 +31,8 @@ The global flags are:
    log to standard error instead of files
  -max_stack_buf_size=4292608
    max size in bytes of the buffer to use for logging stack traces
+ -metadata=<just specify -metadata to activate>
+   Displays metadata for the program and exits.
  -stderrthreshold=2
    logs at or above this threshold go to stderr
  -v=0
@@ -39,8 +41,6 @@ The global flags are:
    directory to use for storing security credentials
  -v23.i18n-catalogue=
    18n catalogue files to load, comma separated
- -v23.metadata=<just specify -v23.metadata to activate>
-   Displays metadata for the program and exits.
  -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
  -v23.permissions.file=map[]
