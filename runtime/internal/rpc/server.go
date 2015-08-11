@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"v.io/x/lib/netstate"
-	"v.io/x/lib/pubsub"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -32,6 +31,7 @@ import (
 	"v.io/v23/vtrace"
 
 	"v.io/x/ref/lib/apilog"
+	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/runtime/internal/lib/publisher"
 	inaming "v.io/x/ref/runtime/internal/naming"

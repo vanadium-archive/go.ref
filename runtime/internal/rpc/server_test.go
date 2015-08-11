@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"v.io/x/lib/netstate"
-	"v.io/x/lib/pubsub"
 	"v.io/x/lib/set"
 
 	"v.io/v23"
@@ -23,6 +22,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
+	"v.io/x/ref/lib/pubsub"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	imanager "v.io/x/ref/runtime/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"

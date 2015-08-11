@@ -19,7 +19,6 @@ import (
 
 	"v.io/x/lib/netconfig"
 	"v.io/x/lib/netstate"
-	"v.io/x/lib/pubsub"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -27,6 +26,7 @@ import (
 
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/flags"
+	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/runtime/internal"
 	"v.io/x/ref/runtime/internal/lib/appcycle"

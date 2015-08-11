@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"v.io/x/lib/metadata"
-	"v.io/x/lib/pubsub"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -31,6 +30,7 @@ import (
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/flags"
+	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/lib/stats/sysstats"
 	"v.io/x/ref/runtime/internal/flow/manager"

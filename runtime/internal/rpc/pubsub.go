@@ -7,7 +7,7 @@ package rpc
 import (
 	"net"
 
-	"v.io/x/lib/pubsub"
+	"v.io/x/ref/lib/pubsub"
 )
 
 // NewAddAddrsSetting creates the Setting to be sent to Listen to inform
