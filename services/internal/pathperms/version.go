@@ -17,7 +17,7 @@ import (
 // use to determine if the Permissions have been asynchronously modified.
 func ComputeVersion(perms access.Permissions) (string, error) {
 	b := new(bytes.Buffer)
-	if err := perms.WriteTo(b); err != nil {
+	if err := access.WritePermissions(b, perms); err != nil {
 		return "", err
 	}
 

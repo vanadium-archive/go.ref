@@ -177,7 +177,7 @@ func write(ctx *context.T, permsFile, sigFile, dir string, perms access.Permissi
 		ctx.Errorf("Failed to create NewSigningWriteCloser:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
-	if err = perms.WriteTo(writer); err != nil {
+	if err = access.WritePermissions(writer, perms); err != nil {
 		ctx.Errorf("Failed to SavePermissions:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}

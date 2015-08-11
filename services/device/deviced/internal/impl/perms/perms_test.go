@@ -157,7 +157,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 		expectedAccessList[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
 	}
 	var b bytes.Buffer
-	if err := expectedAccessList.WriteTo(&b); err != nil {
+	if err := access.WritePermissions(&b, expectedAccessList); err != nil {
 		t.Fatalf("Failed to save AccessList:%v", err)
 	}
 	// Note, "version" below refers to the Permissions version, not the device
