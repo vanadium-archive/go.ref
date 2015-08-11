@@ -33,7 +33,7 @@ The gclogs flags are:
    If true, each deleted file is shown on stdout.
 
 The global flags are:
- -v23.metadata=<just specify -v23.metadata to activate>
+ -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 */
 package main

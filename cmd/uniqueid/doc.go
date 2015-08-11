@@ -18,7 +18,7 @@ The uniqueid commands are:
    help        Display help for commands or topics
 
 The global flags are:
- -v23.metadata=<just specify -v23.metadata to activate>
+ -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
 
 Uniqueid generate - Generates UniqueIds
