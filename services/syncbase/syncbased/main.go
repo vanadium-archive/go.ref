@@ -10,6 +10,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server"
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/x/lib/vlog"
@@ -35,10 +36,9 @@ func defaultPerms(blessingPatterns []security.BlessingPattern) access.Permission
 	return perms
 }
 
-// TODO(sadovsky): We return interface{} as a quick hack to support Mojo. The
-// actual return value is of type *server.service, which we don't want to
-// export.
-func Serve(ctx *context.T) interface{} {
+// TODO(sadovsky): We return rpc.Server and rpc.Dispatcher as a quick hack to
+// support Mojo.
+func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher) {
 	s, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatal("v23.NewServer() failed: ", err)
@@ -77,5 +77,5 @@ func Serve(ctx *context.T) interface{} {
 		vlog.Info("Mounted at: ", *name)
 	}
 
-	return service
+	return s, d
 }

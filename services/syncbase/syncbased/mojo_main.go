@@ -21,20 +21,26 @@ import (
 
 	"v.io/syncbase/x/ref/services/syncbase/server"
 	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/rpc"
 )
 
 //#include "mojo/public/c/system/types.h"
 import "C"
 
 type delegate struct {
-	service interface{} // actual type is *server.service
-	stubs   []*bindings.Stub
+	ctx   *context.T
+	srv   rpc.Server
+	disp  rpc.Dispatcher
+	stubs []*bindings.Stub
 }
 
-func (d *delegate) Initialize(ctx application.Context) {}
+func (d *delegate) Initialize(ctx application.Context) {
+	d.srv, d.disp = Serve(d.ctx)
+}
 
 func (d *delegate) Create(req syncbase.Syncbase_Request) {
-	impl := server.NewMojoImpl(d.service)
+	impl := server.NewMojoImpl(d.ctx, d.srv, d.disp)
 	stub := syncbase.NewSyncbaseStub(req, impl, bindings.GetAsyncWaiter())
 	d.stubs = append(d.stubs, stub)
 	go func() {
@@ -64,7 +70,7 @@ func (d *delegate) Quit() {
 func MojoMain(handle C.MojoHandle) C.MojoResult {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	application.Run(&delegate{service: Serve(ctx)}, system.MojoHandle(handle))
+	application.Run(&delegate{ctx: ctx}, system.MojoHandle(handle))
 	return C.MOJO_RESULT_OK
 }
 
