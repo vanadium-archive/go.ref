@@ -35,7 +35,6 @@ func TestGlob(t *testing.T) {
 		"a/b/c2/d1",
 		"a/b/c2/d2",
 		"a/x/y/z",
-		"a/X/y/z",
 		"leaf",
 	}
 	tree := newNode()
@@ -63,9 +62,6 @@ func TestGlob(t *testing.T) {
 		{"", "...", []string{
 			"",
 			"a",
-			"a/X",
-			"a/X/y",
-			"a/X/y/z",
 			"a/b",
 			"a/b/c1",
 			"a/b/c1/d1",
@@ -80,9 +76,6 @@ func TestGlob(t *testing.T) {
 		}, nil},
 		{"a", "...", []string{
 			"",
-			"X",
-			"X/y",
-			"X/y/z",
 			"b",
 			"b/c1",
 			"b/c1/d1",
@@ -123,15 +116,10 @@ func TestGlob(t *testing.T) {
 		{"a/x/y/z", "...", []string{
 			"",
 		}, nil},
-		{"a/X", "...", []string{
-			"",
-			"y",
-			"y/z",
-		}, nil},
 		{"", "", []string{""}, nil},
 		{"", "*", []string{"a", "leaf"}, nil},
 		{"a", "", []string{""}, nil},
-		{"a", "*", []string{"X", "b", "x"}, nil},
+		{"a", "*", []string{"b", "x"}, nil},
 		{"a/b", "", []string{""}, nil},
 		{"a/b", "*", []string{"c1", "c2"}, nil},
 		{"a/b/c1", "", []string{""}, nil},
@@ -143,8 +131,8 @@ func TestGlob(t *testing.T) {
 		{"a/b/c2/d1", "*", []string{}, nil},
 		{"a/b/c2/d1", "", []string{""}, nil},
 		{"a", "*/c?", []string{"b/c1", "b/c2"}, nil},
-		{"a", "*/*", []string{"X/y", "b/c1", "b/c2", "x/y"}, nil},
-		{"a", "*/*/*", []string{"X/y/z", "b/c1/d1", "b/c1/d2", "b/c2/d1", "b/c2/d2", "x/y/z"}, nil},
+		{"a", "*/*", []string{"b/c1", "b/c2", "x/y"}, nil},
+		{"a", "*/*/*", []string{"b/c1/d1", "b/c1/d2", "b/c2/d1", "b/c2/d2", "x/y/z"}, nil},
 		{"a/x", "*/*", []string{"y/z"}, nil},
 		{"bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
 		{"bad/foo", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
@@ -266,13 +254,12 @@ type disp struct {
 	tree *node
 }
 
-func (d *disp) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
+func (d *disp) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	elems := strings.Split(suffix, "/")
 	var auth security.Authorizer
 	for _, e := range elems {
 		if e == "deny" {
-			auth = &denyAllAuthorizer{}
-			break
+			return &leafObject{}, &denyAllAuthorizer{}, nil
 		}
 	}
 	if len(elems) != 0 && elems[0] == "muah" {
@@ -281,18 +268,16 @@ func (d *disp) Lookup(_ *context.T, suffix string) (interface{}, security.Author
 
 	}
 	if len(elems) != 0 && elems[len(elems)-1] == "leaf" {
-		return leafObject{}, auth, nil
+		return &leafObject{}, auth, nil
+	}
+	n := d.tree.find(elems, false)
+	if n == nil {
+		return nil, nil, verror.New(verror.ErrNoExist, ctx, suffix)
 	}
 	if len(elems) < 2 || (elems[0] == "a" && elems[1] == "x") {
-		return &vChildrenObject{d.tree, elems}, auth, nil
+		return &vChildrenObject{n}, auth, nil
 	}
-	if len(elems) < 2 || (elems[0] == "a" && elems[1] == "X") {
-		return &vChildrenXObject{d.tree, elems}, auth, nil
-	}
-	if len(elems) >= 3 && elems[0] == "a" && elems[1] == "b" && elems[2] == "c2" {
-		return &globXObject{d.tree, elems}, auth, nil
-	}
-	return &globObject{d.tree, elems}, auth, nil
+	return &globObject{n}, auth, nil
 }
 
 type denyAllAuthorizer struct{}
@@ -302,75 +287,15 @@ func (denyAllAuthorizer) Authorize(*context.T, security.Call) error {
 }
 
 type globObject struct {
-	n      *node
-	suffix []string
+	n *node
 }
 
-func (o *globObject) Glob__(ctx *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	g, err := glob.Parse(pattern)
-	if err != nil {
-		return nil, err
-	}
-	n := o.n.find(o.suffix, false)
-	if n == nil {
-		return nil, verror.New(verror.ErrNoExist, ctx, o.suffix)
-	}
-	ch := make(chan naming.GlobReply)
-	go func() {
-		o.globLoop(ch, "", g, n)
-		close(ch)
-	}()
-	return ch, nil
-}
-
-func (o *globObject) globLoop(ch chan<- naming.GlobReply, name string, g *glob.Glob, n *node) {
-	if g.Len() == 0 {
-		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: name}}
-	}
-	if g.Empty() {
-		return
-	}
-	matcher, left := g.Head(), g.Tail()
-	for leaf, child := range n.children {
-		if matcher.Match(leaf) {
-			o.globLoop(ch, naming.Join(name, leaf), left, child)
-		}
-	}
-}
-
-type vChildrenObject struct {
-	n      *node
-	suffix []string
-}
-
-func (o *vChildrenObject) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
-	n := o.n.find(o.suffix, false)
-	if n == nil {
-		return nil, verror.New(verror.ErrNoExist, ctx, o.suffix)
-	}
-	ch := make(chan string, len(n.children))
-	for child, _ := range n.children {
-		ch <- child
-	}
-	close(ch)
-	return ch, nil
-}
-
-type globXObject struct {
-	n      *node
-	suffix []string
-}
-
-func (o *globXObject) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
-	n := o.n.find(o.suffix, false)
-	if n == nil {
-		return verror.New(verror.ErrNoExist, ctx, o.suffix)
-	}
-	o.globLoop(call, "", g, n)
+func (o *globObject) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
+	o.globLoop(call, "", g, o.n)
 	return nil
 }
 
-func (o *globXObject) globLoop(call rpc.GlobServerCall, name string, g *glob.Glob, n *node) {
+func (o *globObject) globLoop(call rpc.GlobServerCall, name string, g *glob.Glob, n *node) {
 	if g.Len() == 0 {
 		call.SendStream().Send(naming.GlobReplyEntry{naming.MountEntry{Name: name}})
 	}
@@ -385,18 +310,13 @@ func (o *globXObject) globLoop(call rpc.GlobServerCall, name string, g *glob.Glo
 	}
 }
 
-type vChildrenXObject struct {
-	n      *node
-	suffix []string
+type vChildrenObject struct {
+	n *node
 }
 
-func (o *vChildrenXObject) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
-	n := o.n.find(o.suffix, false)
-	if n == nil {
-		return verror.New(verror.ErrNoExist, ctx, o.suffix)
-	}
+func (o *vChildrenObject) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, m *glob.Element) error {
 	sender := call.SendStream()
-	for child, _ := range n.children {
+	for child, _ := range o.n.children {
 		if m.Match(child) {
 			sender.Send(naming.GlobChildrenReplyName{child})
 		}
@@ -438,6 +358,6 @@ func (n *node) find(names []string, create bool) *node {
 
 type leafObject struct{}
 
-func (l leafObject) Func(*context.T, rpc.ServerCall) error {
+func (leafObject) Func(*context.T, rpc.ServerCall) error {
 	return nil
 }

@@ -278,65 +278,14 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 			}
 			continue
 		}
+		if gs.AllGlobberX != nil {
+			gs.AllGlobber = gs.AllGlobberX
+		}
+		if gs.ChildrenGlobberX != nil {
+			gs.ChildrenGlobber = gs.ChildrenGlobberX
+		}
 		if gs.AllGlobber != nil {
 			ctx.VI(3).Infof("rpc Glob: %q implements AllGlobber", suffix)
-			ch, err := gs.AllGlobber.Glob__(ctx, subcall, state.glob.String())
-			if err != nil {
-				ctx.VI(3).Infof("rpc Glob: %q.Glob(%q) failed: %v", suffix, state.glob, err)
-				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
-				continue
-			}
-			if ch == nil {
-				continue
-			}
-			for gr := range ch {
-				switch v := gr.(type) {
-				case naming.GlobReplyEntry:
-					v.Value.Name = naming.Join(state.name, v.Value.Name)
-					subcall.Send(v)
-				case naming.GlobReplyError:
-					v.Value.Name = naming.Join(state.name, v.Value.Name)
-					subcall.Send(v)
-				}
-			}
-			continue
-		}
-		if gs.ChildrenGlobber != nil {
-			ctx.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", suffix)
-			children, err := gs.ChildrenGlobber.GlobChildren__(ctx, subcall)
-			// The requested object doesn't exist.
-			if err != nil {
-				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
-				continue
-			}
-			// The glob pattern matches the current object.
-			if state.glob.Len() == 0 {
-				subcall.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name}})
-			}
-			// The current object has no children.
-			if children == nil {
-				continue
-			}
-			depth := state.depth
-			// This is a recursive pattern. Make sure we don't recurse forever.
-			if state.glob.Len() == 0 {
-				depth++
-			}
-			matcher, left := state.glob.Head(), state.glob.Tail()
-			for child := range children {
-				if len(child) == 0 || strings.Contains(child, "/") {
-					ctx.Errorf("rpc Glob: %q.GlobChildren__() sent an invalid child name: %q", suffix, child)
-					continue
-				}
-				if matcher.Match(child) {
-					next := naming.Join(state.name, child)
-					queue = append(queue, gState{next, left, depth})
-				}
-			}
-			continue
-		}
-		if gs.AllGlobberX != nil {
-			ctx.VI(3).Infof("rpc Glob: %q implements AllGlobberX", suffix)
 			send := func(reply naming.GlobReply) error {
 				select {
 				case <-ctx.Done():
@@ -353,14 +302,14 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 				}
 				return nil
 			}
-			if err := gs.AllGlobberX.Glob__(ctx, &globServerCall{subcall, send}, state.glob); err != nil {
+			if err := gs.AllGlobber.Glob__(ctx, &globServerCall{subcall, send}, state.glob); err != nil {
 				ctx.VI(3).Infof("rpc Glob: %q.Glob(%q) failed: %v", suffix, state.glob, err)
 				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
 			}
 			continue
 		}
-		if gs.ChildrenGlobberX != nil {
-			ctx.VI(3).Infof("rpc Glob: %q implements ChildrenGlobberX", suffix)
+		if gs.ChildrenGlobber != nil {
+			ctx.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", suffix)
 			depth := state.depth
 			if state.glob.Len() == 0 {
 				// The glob pattern matches the current object.
@@ -397,7 +346,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 				}
 				return nil
 			}
-			if err := gs.ChildrenGlobberX.GlobChildren__(ctx, &globChildrenServerCall{subcall, send}, matcher); err != nil {
+			if err := gs.ChildrenGlobber.GlobChildren__(ctx, &globChildrenServerCall{subcall, send}, matcher); err != nil {
 				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
 			}
 			continue

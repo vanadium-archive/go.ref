@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -69,15 +70,13 @@ type GlobResponse struct {
 	Err     error
 }
 
-func (mdi *MockBinarydInvoker) Glob__(p *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	gs := GlobStimulus{pattern}
+func (mdi *MockBinarydInvoker) Glob__(p *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
+	gs := GlobStimulus{g.String()}
 	gr := mdi.Tape.Record(gs).(GlobResponse)
-	ch := make(chan naming.GlobReply, len(gr.Results))
-	defer close(ch)
 	for _, r := range gr.Results {
-		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: r}}
+		call.SendStream().Send(naming.GlobReplyEntry{naming.MountEntry{Name: r}})
 	}
-	return ch, gr.Err
+	return gr.Err
 }
 
 type dispatcher struct {
