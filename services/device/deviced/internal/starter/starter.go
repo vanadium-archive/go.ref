@@ -215,6 +215,7 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 }
 
 func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
+	ctx.Infof("Starting claimed device services...")
 	permStore := pathperms.NewPathStore(ctx)
 	permsDir := impl.PermsDir(args.Device.ConfigState)
 	debugAuth, err := pathperms.NewHierarchicalAuthorizer(permsDir, permsDir, permStore, nil)
@@ -226,10 +227,13 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 
 	ctx = v23.WithReservedNameDispatcher(ctx, debugDisp)
 
+	ctx.Infof("Starting mount table...")
 	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
 	if err != nil {
 		ctx.Errorf("Failed to start mounttable service: %v", err)
 		return nil, err
+	} else {
+		ctx.Infof("Started mount table.")
 	}
 	// TODO(caprita): We link in a proxy server into the device manager so that we
 	// can bootstrap with install-local before we can install an actual proxy app.
@@ -237,25 +241,34 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 	// the same connection it established to the device manager (see TODO in
 	// v.io/x/ref/services/device/device/local_install.go), we can get rid of this
 	// local proxy altogether.
+	ctx.Infof("Starting proxy service...")
 	stopProxy, err := startProxyServer(ctx, args.Proxy, mtName)
 	if err != nil {
 		ctx.Errorf("Failed to start proxy service: %v", err)
 		stopMT()
 		return nil, err
+	} else {
+		ctx.Infof("Started proxy service.")
 	}
+	ctx.Infof("Starting device service...")
 	stopDevice, err := startDeviceServer(ctx, args.Device, mtName, permStore)
 	if err != nil {
 		ctx.Errorf("Failed to start device service: %v", err)
 		stopProxy()
 		stopMT()
 		return nil, err
+	} else {
+		ctx.Infof("Started device service.")
 	}
 	if args.MountGlobalNamespaceInLocalNamespace {
+		ctx.Infof("Mounting %v ...", mtName)
 		mountGlobalNamespaceInLocalNamespace(ctx, mtName)
+		ctx.Infof("Mounted %v", mtName)
 	}
 
 	impl.InvokeCallback(ctx, args.Device.ConfigState.Name)
 
+	ctx.Infof("Started claimed device services.")
 	return func() {
 		stopDevice()
 		stopProxy()
