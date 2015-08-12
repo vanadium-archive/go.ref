@@ -73,7 +73,7 @@ func toV23Perms(mPerms mojom.Perms) (access.Permissions, error) {
 
 func toMojoPerms(vPerms access.Permissions) (mojom.Perms, error) {
 	b := new(bytes.Buffer)
-	if err := vPerms.WriteTo(b); err != nil {
+	if err := access.WritePermissions(b, vPerms); err != nil {
 		return mojom.Perms{}, err
 	}
 	return mojom.Perms{Json: b.String()}, nil
