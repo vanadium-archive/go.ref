@@ -84,7 +84,7 @@ func (i *invoker) Globber() *rpc.GlobState {
 	if i.globFunc == nil {
 		return nil
 	}
-	return &rpc.GlobState{AllGlobberX: i}
+	return &rpc.GlobState{AllGlobber: i}
 }
 
 func (i *invoker) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
