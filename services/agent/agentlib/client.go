@@ -8,9 +8,11 @@ package agentlib
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
+	"sync"
 	"syscall"
 
 	"v.io/v23/context"
@@ -21,7 +23,9 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/internal/logger"
+	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/cache"
+	"v.io/x/ref/services/agent/internal/ipc"
 	"v.io/x/ref/services/agent/internal/unixfd"
 )
 
@@ -38,13 +42,50 @@ type client struct {
 	key    security.PublicKey
 }
 
-type caller struct {
+type caller interface {
+	call(name string, results []interface{}, args ...interface{}) error
+	io.Closer
+}
+
+type ipcCaller struct {
+	conn  *ipc.IPCConn
+	flush func()
+	mu    sync.Mutex
+}
+
+func (i *ipcCaller) call(name string, results []interface{}, args ...interface{}) error {
+	return i.conn.Call(name, args, results...)
+}
+
+func (i *ipcCaller) Close() error {
+	i.conn.Close()
+	return nil
+}
+
+func (i *ipcCaller) FlushAllCaches() error {
+	var flush func()
+	i.mu.Lock()
+	flush = i.flush
+	i.mu.Unlock()
+	if flush != nil {
+		flush()
+	}
+	return nil
+}
+
+type vrpcCaller struct {
 	ctx    *context.T
 	client rpc.Client
 	name   string
+	cancel func()
 }
 
-func (c *caller) call(name string, results []interface{}, args ...interface{}) error {
+func (c *vrpcCaller) Close() error {
+	c.cancel()
+	return nil
+}
+
+func (c *vrpcCaller) call(name string, results []interface{}, args ...interface{}) error {
 	call, err := c.startCall(name, args...)
 	if err != nil {
 		return err
@@ -55,7 +96,7 @@ func (c *caller) call(name string, results []interface{}, args ...interface{}) e
 	return nil
 }
 
-func (c *caller) startCall(name string, args ...interface{}) (rpc.ClientCall, error) {
+func (c *vrpcCaller) startCall(name string, args ...interface{}) (rpc.ClientCall, error) {
 	ctx, _ := vtrace.WithNewTrace(c.ctx)
 	// SecurityNone is safe here since we're using anonymous unix sockets.
 	return c.client.StartCall(ctx, c.name, name, args, options.SecurityNone, options.NoResolve{})
@@ -63,6 +104,41 @@ func (c *caller) startCall(name string, args ...interface{}) (rpc.ClientCall, er
 
 func results(inputs ...interface{}) []interface{} {
 	return inputs
+}
+
+func newUncachedPrincipalX(path string) (*client, error) {
+	caller := new(ipcCaller)
+	i := ipc.NewIPC()
+	i.Serve(caller)
+	conn, err := i.Connect(path)
+	if err != nil {
+		return nil, err
+	}
+	caller.conn = conn
+	agent := &client{caller: caller}
+	if err := agent.fetchPublicKey(); err != nil {
+		return nil, err
+	}
+	return agent, nil
+}
+
+// NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.
+// 'path' is the path to the agent socket, typically obtained from
+// os.GetEnv(envvar.AgentAddress).
+func NewAgentPrincipalX(path string) (agent.Principal, error) {
+	p, err := newUncachedPrincipalX(path)
+	if err != nil {
+		return nil, err
+	}
+	cached, flush, err := cache.NewCachedPrincipalX(p)
+	if err != nil {
+		return nil, err
+	}
+	caller := p.caller.(*ipcCaller)
+	caller.mu.Lock()
+	caller.flush = flush
+	caller.mu.Unlock()
+	return cached, nil
 }
 
 // NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.
@@ -75,11 +151,12 @@ func NewAgentPrincipal(ctx *context.T, endpoint naming.Endpoint, insecureClient 
 	if err != nil {
 		return p, err
 	}
-	call, callErr := p.caller.startCall("NotifyWhenChanged")
+	caller := p.caller.(*vrpcCaller)
+	call, callErr := caller.startCall("NotifyWhenChanged")
 	if callErr != nil {
 		return nil, callErr
 	}
-	return cache.NewCachedPrincipal(p.caller.ctx, p, call)
+	return cache.NewCachedPrincipal(caller.ctx, p, call)
 }
 func newUncachedPrincipal(ctx *context.T, ep naming.Endpoint, insecureClient rpc.Client) (*client, error) {
 	// This isn't a real vanadium endpoint. It contains the vanadium version
@@ -112,16 +189,22 @@ func newUncachedPrincipal(ctx *context.T, ep naming.Endpoint, insecureClient rpc
 	if err != nil {
 		return nil, err
 	}
-	caller := caller{
+	ctx, cancel := context.WithCancel(ctx)
+	caller := &vrpcCaller{
 		client: insecureClient,
 		name:   naming.JoinAddressName(agentEndpoint("unixfd", addr.String()), ""),
 		ctx:    ctx,
+		cancel: cancel,
 	}
 	agent := &client{caller: caller}
 	if err := agent.fetchPublicKey(); err != nil {
 		return nil, err
 	}
 	return agent, nil
+}
+
+func (c *client) Close() error {
+	return c.caller.Close()
 }
 
 func (c *client) fetchPublicKey() (err error) {

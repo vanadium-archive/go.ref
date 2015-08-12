@@ -13,6 +13,7 @@ const (
 	ProtocolConfigKey              = "MGMT_CHILD_PROCESS_PROTOCOL"
 	ParentBlessingConfigKey        = "MGMT_PARENT_BLESSING_PEER_PATTERN"
 	SecurityAgentEndpointConfigKey = "MGMT_SECURITY_AGENT_EP"
+	SecurityAgentPathConfigKey     = "MGMT_SECURITY_AGENT_PATH"
 	AppOriginConfigKey             = "MGMT_APP_ORIGIN"
 	PublisherBlessingPrefixesKey   = "MGMT_PUBLISHER_BLESSING_PREFIXES"
 	InstanceNameKey                = "MGMT_INSTANCE_NAME"
