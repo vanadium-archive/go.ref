@@ -169,7 +169,7 @@ func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...
 		return nil, err
 	}
 
-	opts = append([]stream.VCOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
+	opts = append([]stream.VCOpt{vc.StartTimeout{Duration: defaultStartTimeout}}, opts...)
 	vf, err = vif.InternalNewDialedVIF(ctx, conn, m.rid, nil, m.deleteVIF, opts...)
 	if err != nil {
 		conn.Close()
@@ -187,7 +187,7 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, opts ...stream.VC
 		if err != nil {
 			return nil, err
 		}
-		opts = append([]stream.VCOpt{vc.IdleTimeout{defaultIdleTimeout}}, opts...)
+		opts = append([]stream.VCOpt{vc.IdleTimeout{Duration: defaultIdleTimeout}}, opts...)
 		vc, err := vf.Dial(ctx, remote, opts...)
 		if !retry || verror.ErrorID(err) != stream.ErrAborted.ID {
 			return vc, err

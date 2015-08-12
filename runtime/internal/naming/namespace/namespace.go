@@ -131,7 +131,7 @@ func (ns *namespace) rootName(name string) []string {
 func (ns *namespace) rootMountEntry(name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, bool) {
 	_, name = security.SplitPatternName(naming.Clean(name))
 	e := new(naming.MountEntry)
-	deadline := vdltime.Deadline{time.Now().Add(time.Hour)} // plenty of time for a call
+	deadline := vdltime.Deadline{Time: time.Now().Add(time.Hour)} // plenty of time for a call
 	address, suffix := naming.SplitAddressName(name)
 	if len(address) == 0 {
 		e.ServesMountTable = true

@@ -48,7 +48,7 @@ func TestServerList(t *testing.T) {
 	if got, want := sl.copyToSlice(), []naming.MountedServer{
 		{
 			Server:   "endpoint:dfgsfdg@@",
-			Deadline: vdltime.Deadline{now.Add(15 * time.Second)},
+			Deadline: vdltime.Deadline{Time: now.Add(15 * time.Second)},
 		},
 	}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)

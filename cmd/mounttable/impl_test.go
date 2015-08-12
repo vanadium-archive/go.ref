@@ -36,7 +36,9 @@ func init() {
 }
 
 func deadline(minutes int) vdltime.Deadline {
-	return vdltime.Deadline{now.Add(time.Minute * time.Duration(minutes))}
+	return vdltime.Deadline{
+		Time: now.Add(time.Minute * time.Duration(minutes)),
+	}
 }
 
 type server struct {
@@ -46,8 +48,22 @@ type server struct {
 func (s *server) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
 	ctx.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, g.String())
 	sender := call.SendStream()
-	sender.Send(naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", deadline(1)}}, false, false}})
-	sender.Send(naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", deadline(2)}, {"server3", deadline(3)}}, false, false}})
+	sender.Send(naming.GlobReplyEntry{
+		Value: naming.MountEntry{
+			Name:             "name1",
+			Servers:          []naming.MountedServer{{"server1", deadline(1)}},
+			ServesMountTable: false,
+			IsLeaf:           false,
+		},
+	})
+	sender.Send(naming.GlobReplyEntry{
+		Value: naming.MountEntry{
+			Name:             "name2",
+			Servers:          []naming.MountedServer{{"server2", deadline(2)}, {"server3", deadline(3)}},
+			ServesMountTable: false,
+			IsLeaf:           false,
+		},
+	})
 	return nil
 }
 

@@ -309,14 +309,14 @@ func TestArith(t *testing.T) {
 		if q != 2 || r != 1 {
 			t.Errorf("DivMod: expected (2,1) got (%d,%d)", q, r)
 		}
-		diff, err := ar.Sub(ctx, base.Args{7, 8})
+		diff, err := ar.Sub(ctx, base.Args{A: 7, B: 8})
 		if err != nil {
 			t.Errorf("Sub: got %q but expected no error", err)
 		}
 		if diff != -1 {
 			t.Errorf("Sub: got %d, expected -1", diff)
 		}
-		prod, err := ar.Mul(ctx, base.NestedArgs{base.Args{7, 8}})
+		prod, err := ar.Mul(ctx, base.NestedArgs{Args: base.Args{A: 7, B: 8}})
 		if err != nil {
 			t.Errorf("Mul: got %q, but expected no error", err)
 		}

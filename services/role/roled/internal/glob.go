@@ -29,7 +29,7 @@ func globChildren(ctx *context.T, call rpc.GlobChildrenServerCall, serverConfig 
 	}
 	for c := range n.children {
 		if m.Match(c) {
-			call.SendStream().Send(naming.GlobChildrenReplyName{c})
+			call.SendStream().Send(naming.GlobChildrenReplyName{Value: c})
 		}
 	}
 	return nil

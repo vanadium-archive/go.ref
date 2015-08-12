@@ -326,7 +326,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		cfg.Set(mgmt.SecurityAgentEndpointConfigKey, ep)
 	}
 
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
+	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: cfg})
 	// Start the child process.
 	if err := handle.Start(); err != nil {
 		ctx.Errorf("Start() failed: %v", err)

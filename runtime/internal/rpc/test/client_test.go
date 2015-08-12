@@ -279,8 +279,8 @@ func TestStartCallErrors(t *testing.T) {
 	}
 	logErr("no context", err)
 
-	p1 := options.ServerPublicKey{testutil.NewPrincipal().PublicKey()}
-	p2 := options.ServerPublicKey{testutil.NewPrincipal().PublicKey()}
+	p1 := options.ServerPublicKey{PublicKey: testutil.NewPrincipal().PublicKey()}
+	p2 := options.ServerPublicKey{PublicKey: testutil.NewPrincipal().PublicKey()}
 	_, err = client.StartCall(ctx, "noname", "nomethod", nil, p1, p2)
 	if verror.ErrorID(err) != verror.ErrBadArg.ID {
 		t.Fatalf("wrong error: %s", err)

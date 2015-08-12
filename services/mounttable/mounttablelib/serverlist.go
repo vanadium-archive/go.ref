@@ -120,7 +120,7 @@ func (sl *serverList) copyToSlice() []naming.MountedServer {
 		s := e.Value.(*server)
 		ms := naming.MountedServer{
 			Server:   s.oa,
-			Deadline: vdltime.Deadline{s.expires},
+			Deadline: vdltime.Deadline{Time: s.expires},
 		}
 		slice = append(slice, ms)
 	}

@@ -180,11 +180,23 @@ var (
 	tSet    = vdl.SetType(vdl.StringType)
 	tMap    = vdl.MapType(vdl.StringType, vdl.Int64Type)
 	tStruct = vdl.NamedType("TestStruct", vdl.StructType(
-		vdl.Field{"A", vdl.StringType},
-		vdl.Field{"B", vdl.Int64Type},
+		vdl.Field{
+			Name: "A",
+			Type: vdl.StringType,
+		},
+		vdl.Field{
+			Name: "B",
+			Type: vdl.Int64Type,
+		},
 	))
 	tUnion = vdl.NamedType("TestUnion", vdl.UnionType(
-		vdl.Field{"A", vdl.StringType},
-		vdl.Field{"B", vdl.Int64Type},
+		vdl.Field{
+			Name: "A",
+			Type: vdl.StringType,
+		},
+		vdl.Field{
+			Name: "B",
+			Type: vdl.Int64Type,
+		},
 	))
 )

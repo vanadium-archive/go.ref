@@ -149,7 +149,7 @@ func (i *logfileService) GlobChildren__(ctx *context.T, call rpc.GlobChildrenSer
 		for _, file := range fi {
 			name := file.Name()
 			if m.Match(name) {
-				call.SendStream().Send(naming.GlobChildrenReplyName{name})
+				call.SendStream().Send(naming.GlobChildrenReplyName{Value: name})
 			}
 		}
 	}

@@ -131,7 +131,7 @@ func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameId) (rp
 			opts := v.Value
 			n := rand.Intn(len(opts))
 			outer.VI(1).Infof("My turn to play. Picked %q from %v", opts[n], opts)
-			if err := sender.Send(rps.PlayerActionMove{opts[n]}); err != nil {
+			if err := sender.Send(rps.PlayerActionMove{Value: opts[n]}); err != nil {
 				return rps.PlayResult{}, err
 			}
 		case rps.JudgeActionRoundResult:

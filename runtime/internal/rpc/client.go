@@ -850,7 +850,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		Suffix:           suffix,
 		Method:           method,
 		NumPosArgs:       uint64(len(args)),
-		Deadline:         vtime.Deadline{deadline},
+		Deadline:         vtime.Deadline{Time: deadline},
 		GrantedBlessings: fc.grantedBlessings,
 		Blessings:        blessingsRequest,
 		Discharges:       fc.discharges,
@@ -909,7 +909,10 @@ func decodeNetError(ctx *context.T, err error) (verror.IDAction, error) {
 		}
 	}
 	if id := verror.ErrorID(err); id != verror.ErrUnknown.ID {
-		return verror.IDAction{id, verror.Action(err)}, err
+		return verror.IDAction{
+			ID:     id,
+			Action: verror.Action(err),
+		}, err
 	}
 	return verror.ErrBadProtocol, err
 }

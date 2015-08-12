@@ -122,7 +122,7 @@ func (c *clientBlessingsCache) makeBlessingsRequest(val clientCacheValue, blessi
 		return rpc.BlessingsRequest{Key: val.id}
 	}
 	// otherwise we still need to send both key and blessings, but we must ensure that we send the same key.
-	return rpc.BlessingsRequest{val.id, &blessings}
+	return rpc.BlessingsRequest{Key: val.id, Blessings: &blessings}
 }
 
 // nextIdLocked creates a new id for inserting blessings. It must be called after acquiring a writer lock.

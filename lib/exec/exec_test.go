@@ -119,7 +119,7 @@ func TestConfigExchange(t *testing.T) {
 	stderr, _ := cmd.StderrPipe()
 	cfg := vexec.NewConfig()
 	cfg.Set("foo", "bar")
-	ph := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
+	ph := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: cfg})
 	err := ph.Start()
 	if err != nil {
 		t.Fatalf("testConfig: start: %v", err)
@@ -213,7 +213,7 @@ func testMany(t *testing.T, name, test, result string) []*vexec.ParentHandle {
 		cmd[i].ExtraFiles = append(cmd[i].ExtraFiles, controlRead)
 		stderr[i], _ = cmd[i].StderrPipe()
 		tk := timekeeper.NewManualTime()
-		ph[i] = vexec.NewParentHandle(cmd[i], vexec.TimeKeeperOpt{tk})
+		ph[i] = vexec.NewParentHandle(cmd[i], vexec.TimeKeeperOpt{TimeKeeper: tk})
 		done.Add(1)
 		go func() {
 			// For simulated slow children, wait until the parent
@@ -311,7 +311,7 @@ func TestTooSlowToReady(t *testing.T) {
 	cmd.ExtraFiles = append(cmd.ExtraFiles, controlRead)
 	stderr, _ := cmd.StderrPipe()
 	tk := timekeeper.NewManualTime()
-	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
+	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{TimeKeeper: tk})
 	defer clean(t, ph)
 	defer controlWrite.Close()
 	defer controlRead.Close()
@@ -352,7 +352,7 @@ func TestToReadySlow(t *testing.T) {
 		t.Fatalf("%s: failed to get stderr pipe", name)
 	}
 	tk := timekeeper.NewManualTime()
-	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
+	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{TimeKeeper: tk})
 	defer clean(t, ph)
 	defer controlWrite.Close()
 	defer controlRead.Close()
@@ -422,7 +422,7 @@ func TestExitEarly(t *testing.T) {
 	name := "exitEarly"
 	cmd := helperCommand(name)
 	tk := timekeeper.NewManualTime()
-	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
+	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{TimeKeeper: tk})
 	err := ph.Start()
 	if err != nil {
 		t.Fatalf("%s: start: %v", name, err)
@@ -438,7 +438,7 @@ func TestWaitAndCleanRace(t *testing.T) {
 	name := "testReadyAndHang"
 	cmd := helperCommand(name)
 	tk := timekeeper.NewManualTime()
-	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
+	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{TimeKeeper: tk})
 	if err := waitForReady(t, cmd, name, 1, ph); err != nil {
 		t.Errorf("%s: WaitForReady: %v (%v)", name, err, ph)
 	}

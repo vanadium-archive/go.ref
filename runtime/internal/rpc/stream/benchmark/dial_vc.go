@@ -47,7 +47,7 @@ func benchmarkDialVC(b *testing.B, mode options.SecurityLevel) {
 	}
 
 	// Create one VC to prevent the underlying VIF from being closed.
-	_, err = client.Dial(ctx, ep, vc.IdleTimeout{0})
+	_, err = client.Dial(ctx, ep, vc.IdleTimeout{Duration: 0})
 	if err != nil {
 		b.Fatal(err)
 	}

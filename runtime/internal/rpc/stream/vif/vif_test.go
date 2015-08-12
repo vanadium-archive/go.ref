@@ -440,7 +440,11 @@ func testStartTimeout(t *testing.T, testServer bool) {
 			vfStartTime, remoteStartTime = remoteStartTime, vfStartTime
 		}
 		var err error
-		vf, remote, err = New(nil, nil, cctx, sctx, notifyFunc, notifyFunc, []stream.VCOpt{vc.StartTimeout{vfStartTime}}, []stream.ListenerOpt{vc.StartTimeout{remoteStartTime}})
+		vf, remote, err = New(nil, nil, cctx, sctx, notifyFunc, notifyFunc, []stream.VCOpt{vc.StartTimeout{
+			Duration: vfStartTime,
+		}}, []stream.ListenerOpt{vc.StartTimeout{
+			Duration: remoteStartTime,
+		}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -510,7 +514,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	newVC := func(vf, remote *vif.VIF) (VC stream.VC, ln stream.Listener, remoteVC stream.Connector, triggerTimers func()) {
 		triggerTimers = vif.SetFakeTimers()
 		var err error
-		VC, remoteVC, err = createVC(cctx, vf, remote, makeEP(0x10), vc.IdleTimeout{idleTime})
+		VC, remoteVC, err = createVC(cctx, vf, remote, makeEP(0x10), vc.IdleTimeout{Duration: idleTime})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -539,7 +543,7 @@ func testIdleTimeout(t *testing.T, testServer bool) {
 	// Same as above, but with multiple VCs.
 	vf, remote = newVIF()
 	triggerTimers = vif.SetFakeTimers()
-	if _, _, err := createNVCs(cctx, vf, remote, 0x10, 5, vc.IdleTimeout{idleTime}); err != nil {
+	if _, _, err := createNVCs(cctx, vf, remote, 0x10, 5, vc.IdleTimeout{Duration: idleTime}); err != nil {
 		t.Fatal(err)
 	}
 	triggerTimers()
@@ -713,15 +717,15 @@ func (tc *versionTestCase) Run(t *testing.T) {
 // that overlapping ranges work properly, but non-overlapping ranges generate
 // errors.
 func TestIncompatibleVersions(t *testing.T) {
-	unknown := &iversion.Range{version.UnknownRPCVersion, version.UnknownRPCVersion}
+	unknown := &iversion.Range{Min: version.UnknownRPCVersion, Max: version.UnknownRPCVersion}
 	tests := []versionTestCase{
-		{&iversion.Range{2, 2}, &iversion.Range{2, 2}, &iversion.Range{2, 2}, false, false},
-		{&iversion.Range{2, 3}, &iversion.Range{3, 5}, &iversion.Range{3, 5}, false, false},
-		{&iversion.Range{2, 3}, &iversion.Range{3, 5}, unknown, false, false},
+		{&iversion.Range{Min: 2, Max: 2}, &iversion.Range{Min: 2, Max: 2}, &iversion.Range{Min: 2, Max: 2}, false, false},
+		{&iversion.Range{Min: 2, Max: 3}, &iversion.Range{Min: 3, Max: 5}, &iversion.Range{Min: 3, Max: 5}, false, false},
+		{&iversion.Range{Min: 2, Max: 3}, &iversion.Range{Min: 3, Max: 5}, unknown, false, false},
 
 		// VIF error since there are no versions in common.
-		{&iversion.Range{2, 3}, &iversion.Range{4, 5}, &iversion.Range{4, 5}, true, true},
-		{&iversion.Range{2, 3}, &iversion.Range{4, 5}, unknown, true, true},
+		{&iversion.Range{Min: 2, Max: 3}, &iversion.Range{Min: 4, Max: 5}, &iversion.Range{Min: 4, Max: 5}, true, true},
+		{&iversion.Range{Min: 2, Max: 3}, &iversion.Range{Min: 4, Max: 5}, unknown, true, true},
 	}
 
 	for _, tc := range tests {

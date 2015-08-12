@@ -109,7 +109,7 @@ func newNetListener(ctx *context.T, m *manager, netLn net.Listener, blessings se
 	// Set the default idle timeout for VC. But for "unixfd", we do not set
 	// the idle timeout since we cannot reconnect it.
 	if ln.netLn.Addr().Network() != "unixfd" {
-		opts = append([]stream.ListenerOpt{vc.IdleTimeout{defaultIdleTimeout}}, opts...)
+		opts = append([]stream.ListenerOpt{vc.IdleTimeout{Duration: defaultIdleTimeout}}, opts...)
 	}
 
 	ln.netLoop.Add(1)
@@ -171,7 +171,7 @@ func (ln *netListener) killConnections(n int) {
 
 func (ln *netListener) netAcceptLoop(blessings security.Blessings, opts []stream.ListenerOpt) {
 	defer ln.netLoop.Done()
-	opts = append([]stream.ListenerOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
+	opts = append([]stream.ListenerOpt{vc.StartTimeout{Duration: defaultStartTimeout}}, opts...)
 	for {
 		conn, err := ln.netLn.Accept()
 		if isTemporaryError(err) {
@@ -319,7 +319,7 @@ func (ln *proxyListener) connect(opts []stream.ListenerOpt) (*vif.VIF, *inaming.
 		return nil, nil, err
 	}
 	// Prepend the default idle timeout for VC.
-	opts = append([]stream.ListenerOpt{vc.IdleTimeout{defaultIdleTimeout}}, opts...)
+	opts = append([]stream.ListenerOpt{vc.IdleTimeout{Duration: defaultIdleTimeout}}, opts...)
 	if err := vf.StartAccepting(opts...); err != nil {
 		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errAlreadyConnected, nil, vf, err))
 	}

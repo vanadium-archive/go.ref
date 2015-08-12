@@ -368,9 +368,9 @@ func testProxyIdleTimeout(t *testing.T, testServer bool) {
 		lopts []stream.ListenerOpt
 	)
 	if testServer {
-		lopts = []stream.ListenerOpt{vc.IdleTimeout{idleTime}}
+		lopts = []stream.ListenerOpt{vc.IdleTimeout{Duration: idleTime}}
 	} else {
-		opts = []stream.VCOpt{vc.IdleTimeout{idleTime}}
+		opts = []stream.VCOpt{vc.IdleTimeout{Duration: idleTime}}
 	}
 	cctx, _ := v23.WithPrincipal(ctx, pclient)
 	sctx, _ := v23.WithPrincipal(ctx, pserver)

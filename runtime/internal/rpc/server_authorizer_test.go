@@ -94,7 +94,7 @@ func TestServerAuthorizer(t *testing.T) {
 			// Only otherAli is authorized (since only pother's public key is
 			// authorized)
 			[]string{"ali"},
-			newServerAuthorizer("", options.ServerPublicKey{pother.PublicKey()}),
+			newServerAuthorizer("", options.ServerPublicKey{PublicKey: pother.PublicKey()}),
 			[]security.Blessings{otherAli},
 			[]security.Blessings{ali, bob, che},
 		},

@@ -55,7 +55,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		// Grab the blessing from our blessing store that the parent
 		// told us to use so they can talk to us.
 		serverBlessing := rt.GetPrincipal(ctx).BlessingStore().ForPeer(parentPeerPattern)
-		serverOpts = append(serverOpts, options.ServerBlessings{serverBlessing})
+		serverOpts = append(serverOpts, options.ServerBlessings{Blessings: serverBlessing})
 	}
 	server, err := rt.NewServer(ctx, serverOpts...)
 	if err != nil {

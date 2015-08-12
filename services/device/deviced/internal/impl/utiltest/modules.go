@@ -92,13 +92,14 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 	// method that calls Stop on the app cycle manager (e.g. the Stop RPC)
 	// will precipitate an immediate process exit.
 	shutdownChan := signals.ShutdownOnSignals(ctx)
+	localhost := []struct{ Protocol, Address string }{{"tcp", "127.0.0.1:0"}}
 	claimableName, stop, err := starter.Start(ctx, starter.Args{
 		Namespace: starter.NamespaceArgs{
-			ListenSpec: rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
+			ListenSpec: rpc.ListenSpec{Addrs: rpc.ListenAddrs(localhost)},
 		},
 		Device: starter.DeviceArgs{
 			Name:            publishName,
-			ListenSpec:      rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
+			ListenSpec:      rpc.ListenSpec{Addrs: rpc.ListenAddrs(localhost)},
 			ConfigState:     configState,
 			TestMode:        strings.HasSuffix(fmt.Sprint(v23.GetPrincipal(ctx).BlessingStore().Default()), "/testdm"),
 			RestartCallback: func() { fmt.Println("restart handler") },

@@ -530,8 +530,12 @@ func TestRPCServerAuthorization(t *testing.T) {
 			{bTwoBlessings, "mountpoint/server", O{options.AllowedServersPolicy{"root/other"}}, noErrID, ""},
 
 			// Test the ServerPublicKey option.
-			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{bOther.PublicKey()}}, noErrID, ""},
-			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{testutil.NewPrincipal("irrelevant").PublicKey()}}, verror.ErrNotTrusted, publicKeyErr},
+			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
+				PublicKey: bOther.PublicKey(),
+			}}, noErrID, ""},
+			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
+				PublicKey: testutil.NewPrincipal("irrelevant").PublicKey(),
+			}}, verror.ErrNotTrusted, publicKeyErr},
 
 			// Test the "paranoid" names, where the pattern is provided in the name.
 			{bServer, "__(root/server)/mountpoint/server", nil, noErrID, ""},
@@ -1736,7 +1740,7 @@ func TestServerBlessingsOpt(t *testing.T) {
 	// to act as batman (as opposed to using the default blessing).
 	ns := tnaming.NewSimpleNamespace()
 
-	defer runServer(t, sctx, ns, "mountpoint/batman", &testServer{}, options.ServerBlessings{batman}).Shutdown()
+	defer runServer(t, sctx, ns, "mountpoint/batman", &testServer{}, options.ServerBlessings{Blessings: batman}).Shutdown()
 	defer runServer(t, sctx, ns, "mountpoint/default", &testServer{}).Shutdown()
 
 	// And finally, make an RPC and see that the client sees "batman"
@@ -2015,11 +2019,15 @@ func TestServerPublicKeyOpt(t *testing.T) {
 	defer client.Close()
 
 	// The call should succeed when the server presents the same public as the opt...
-	if _, err = client.StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{pserver.PublicKey()}); err != nil {
+	if _, err = client.StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
+		PublicKey: pserver.PublicKey(),
+	}); err != nil {
 		t.Errorf("Expected call to succeed but got %v", err)
 	}
 	// ...but fail if they differ.
-	if _, err = client.StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{pother.PublicKey()}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+	if _, err = client.StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
+		PublicKey: pother.PublicKey(),
+	}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.ErrNotTrusted.ID)
 	}
 }
