@@ -76,10 +76,19 @@ func (iSt *initiationState) resolveObjConflict(ctx *context.T, oid, local, remot
 		return nil, err
 	}
 
+	// The local and remote records must exist, however it is valid for the
+	// common ancestor to not exist.  This happens when two Syncbases create
+	// separately their first versions for the same object (key).
+	locRec, remRec, ancRec := lrecs[0], lrecs[1], lrecs[2]
+	if locRec == nil || remRec == nil {
+		vlog.Fatalf("sync: resolveObjConflict: oid %s: invalid local (%s: %v) or remote recs (%s: %v)",
+			oid, local, locRec, remote, remRec)
+	}
+
 	// Resolve the conflict according to the resolution policy.
 	switch conflictResolutionPolicy {
 	case useTime:
-		return iSt.resolveObjConflictByTime(ctx, oid, lrecs[0], lrecs[1], lrecs[2])
+		return iSt.resolveObjConflictByTime(ctx, oid, locRec, remRec, ancRec)
 	default:
 		return nil, verror.New(verror.ErrInternal, ctx, "unknown conflict resolution policy", conflictResolutionPolicy)
 	}
@@ -113,6 +122,11 @@ func (iSt *initiationState) resolveObjConflictByTime(ctx *context.T, oid string,
 func (iSt *initiationState) getLogRecsBatch(ctx *context.T, obj string, versions []string) ([]*localLogRec, error) {
 	lrecs := make([]*localLogRec, len(versions))
 	for p, v := range versions {
+		if v == NoVersion {
+			lrecs[p] = nil
+			continue
+		}
+
 		logKey, err := getLogRecKey(ctx, iSt.tx, obj, v)
 		if err != nil {
 			return nil, err
