@@ -50,7 +50,7 @@ func methodDesc(desc rpc.InterfaceDesc, name string) rpc.MethodDesc {
 
 func (m *mojoImpl) newCtxCall(suffix string, method rpc.MethodDesc) (*context.T, rpc.ServerCall) {
 	ctx, _ := vtrace.WithNewTrace(m.ctx)
-	return ctx, newMojoServerCall(m.ctx, m.srv, suffix, method)
+	return ctx, newMojoServerCall(ctx, m.srv, suffix, method)
 }
 
 ////////////////////////////////////////
