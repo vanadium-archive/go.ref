@@ -59,7 +59,7 @@ func writePermissionsToFile(perms access.Permissions) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	if err := perms.WriteTo(f); err != nil {
+	if err := access.WritePermissions(f, perms); err != nil {
 		return "", err
 	}
 	return f.Name(), nil
