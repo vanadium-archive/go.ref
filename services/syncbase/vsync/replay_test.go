@@ -22,6 +22,7 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/v23/context"
+	"v.io/v23/vom"
 )
 
 const (
@@ -359,9 +360,15 @@ func createReplayStream(t *testing.T, syncfile string) *dummyStream {
 			t.Fatalf("createReplayStream unknown command %v", cmd)
 		}
 
+		var val string = "abc"
+		valbuf, err := vom.Encode(val)
+		if err != nil {
+			t.Fatalf("createReplayStream encode failed, err %v", err)
+		}
+
 		rec := interfaces.DeltaRespRec{interfaces.LogRec{
 			Metadata: createMetadata(t, ty, cmd),
-			Value:    []byte("abc"),
+			Value:    valbuf,
 		}}
 
 		stream.add(rec)

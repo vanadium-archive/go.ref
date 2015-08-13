@@ -263,6 +263,9 @@ func forEachSyncGroup(st store.StoreReader, callback func(*interfaces.SyncGroup)
 // getMembers returns all SyncGroup members and the count of SyncGroups each one
 // joined.
 func (s *syncService) getMembers(ctx *context.T) map[string]uint32 {
+	s.allMembersLock.Lock()
+	defer s.allMembersLock.Unlock()
+
 	s.refreshMembersIfExpired(ctx)
 
 	members := make(map[string]uint32)
@@ -275,6 +278,28 @@ func (s *syncService) getMembers(ctx *context.T) map[string]uint32 {
 	}
 
 	return members
+}
+
+// copyMemberInfo returns a copy of the info for the requested peer.
+func (s *syncService) copyMemberInfo(ctx *context.T, member string) *memberInfo {
+	s.allMembersLock.RLock()
+	defer s.allMembersLock.RUnlock()
+
+	info, ok := s.allMembers.members[member]
+	if !ok {
+		return nil
+	}
+
+	// Make a copy.
+	infoCopy := &memberInfo{make(map[string]sgMemberInfo)}
+	for gdbName, sgInfo := range info.db2sg {
+		infoCopy.db2sg[gdbName] = make(sgMemberInfo)
+		for gid, mi := range sgInfo {
+			infoCopy.db2sg[gdbName][gid] = mi
+		}
+	}
+
+	return infoCopy
 }
 
 // Low-level utility functions to access DB entries without tracking their
@@ -395,7 +420,7 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 		// has Admin privilege.
 
 		// Get this Syncbase's sync module handle.
-		ss := sd.db.App().Service().Sync().(*syncService)
+		ss := sd.sync.(*syncService)
 
 		// Instantiate sg. Add self as joiner.
 		sg := &interfaces.SyncGroup{
@@ -485,7 +510,7 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 	// Brand new join.
 
 	// Get this Syncbase's sync module handle.
-	ss := sd.db.App().Service().Sync().(*syncService)
+	ss := sd.sync.(*syncService)
 
 	// Contact a SyncGroup Admin to join the SyncGroup.
 	sg = &interfaces.SyncGroup{}
@@ -739,7 +764,7 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction,
 
 func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall, spec wire.SyncGroupSpec) error {
 	// Get this Syncbase's sync module handle.
-	ss := sd.db.App().Service().Sync().(*syncService)
+	ss := sd.sync.(*syncService)
 
 	for _, mt := range spec.MountTables {
 		name := naming.Join(mt, ss.name)

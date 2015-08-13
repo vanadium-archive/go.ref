@@ -258,7 +258,7 @@ func Example_blobTransfer() {
 		rs := bsR.RecipeStreamFromChunkStream(ctx, cs)
 
 		// 6. The following thread sends the chunk hashes that the
-		//    receiver does not have are to the sender.  It also makes
+		//    receiver does not have to the sender.  It also makes
 		//    a duplicate of the stream on the channel rsCopy.  The
 		//    buffering in rsCopy allows the receiver to put several
 		//    chunks into a fragment.

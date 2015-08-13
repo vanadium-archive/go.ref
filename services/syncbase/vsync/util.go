@@ -9,6 +9,7 @@ package vsync
 import (
 	"time"
 
+	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -80,4 +81,18 @@ func unixNanoToTime(timestamp int64) time.Time {
 		vlog.Fatalf("sync: unixNanoToTime: invalid timestamp %d", timestamp)
 	}
 	return time.Unix(timestamp/nanoPerSec, timestamp%nanoPerSec)
+}
+
+// extractAppKey extracts the app key from the key sent over the wire between
+// two Syncbases. The on-wire key starts with one of the store's reserved
+// prefixes for managed namespaces (e.g. $row, $perms). This function removes
+// that prefix and returns the application component of the key. This is done
+// typically before comparing keys with the SyncGroup prefixes which are defined
+// by the application.
+func extractAppKey(key string) string {
+	parts := util.SplitKeyParts(key)
+	if len(parts) < 2 {
+		vlog.Fatalf("sync: extractAppKey: invalid entry key %s", key)
+	}
+	return util.JoinKeyParts(parts[1:]...)
 }

@@ -14,8 +14,6 @@ import (
 	"time"
 
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
-	"v.io/syncbase/x/ref/services/syncbase/localblobstore"
-	"v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
@@ -33,7 +31,6 @@ type mockService struct {
 	engine   string
 	dir      string
 	st       store.Store
-	bst      localblobstore.BlobStore
 	sync     *syncService
 	shutdown func()
 }
@@ -47,7 +44,7 @@ func (s *mockService) Sync() interfaces.SyncServerMethods {
 }
 
 func (s *mockService) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
-	return &mockApp{st: s.st, bst: s.bst}, nil
+	return &mockApp{st: s.st}, nil
 }
 
 func (s *mockService) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
@@ -56,12 +53,11 @@ func (s *mockService) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, e
 
 // mockApp emulates a Syncbase App.  It is used to access a mock database.
 type mockApp struct {
-	st  store.Store
-	bst localblobstore.BlobStore
+	st store.Store
 }
 
 func (a *mockApp) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
-	return &mockDatabase{st: a.st, bst: a.bst}, nil
+	return &mockDatabase{st: a.st}, nil
 }
 
 func (a *mockApp) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
@@ -90,16 +86,11 @@ func (a *mockApp) Name() string {
 
 // mockDatabase emulates a Syncbase Database.  It is used to test sync functionality.
 type mockDatabase struct {
-	st  store.Store
-	bst localblobstore.BlobStore
+	st store.Store
 }
 
 func (d *mockDatabase) St() store.Store {
 	return d.st
-}
-
-func (d *mockDatabase) BlobSt() localblobstore.BlobStore {
-	return d.bst
 }
 
 func (d *mockDatabase) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
@@ -132,20 +123,14 @@ func createService(t *testing.T) *mockService {
 	st, err = watchable.Wrap(st, &watchable.Options{
 		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
 	})
-	bst, err := fs_cablobstore.Create(ctx, path.Join(dir, "blobs"))
-	if err != nil {
-		t.Fatalf("cannot create blob store (%s): %v", dir, err)
-	}
 
 	s := &mockService{
 		st:       st,
-		bst:      bst,
 		engine:   engine,
 		dir:      dir,
 		shutdown: shutdown,
 	}
-	if s.sync, err = New(ctx, nil, s, nil); err != nil {
-		bst.Close()
+	if s.sync, err = New(ctx, nil, s, nil, dir); err != nil {
 		util.DestroyStore(engine, dir)
 		t.Fatalf("cannot create sync service: %v", err)
 	}
@@ -156,7 +141,6 @@ func createService(t *testing.T) *mockService {
 func destroyService(t *testing.T, s *mockService) {
 	defer s.shutdown()
 	defer s.sync.Close()
-	s.bst.Close()
 	if err := util.DestroyStore(s.engine, s.dir); err != nil {
 		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.dir, err)
 	}

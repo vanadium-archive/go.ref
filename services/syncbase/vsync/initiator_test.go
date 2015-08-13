@@ -22,8 +22,64 @@ import (
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
+	"v.io/v23/vdl"
+	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
+
+func TestExtractBlobRefs(t *testing.T) {
+	var tests [][]byte
+	br := nosql.BlobRef("123")
+
+	// BlobRef is the value.
+	buf0, err := vom.Encode(br)
+	if err != nil {
+		t.Fatalf("Encode(BlobRef) failed, err %v", err)
+	}
+	tests = append(tests, buf0)
+
+	// Struct contains BlobRef.
+	type test1Struct struct {
+		A int64
+		B string
+		C nosql.BlobRef
+	}
+	v1 := test1Struct{A: 10, B: "foo", C: br}
+	buf1, err := vom.Encode(v1)
+	if err != nil {
+		t.Fatalf("Encode(test1Struct) failed, err %v", err)
+	}
+	tests = append(tests, buf1)
+
+	// Nested struct contains BlobRef.
+	type test2Struct struct {
+		A int64
+		B string
+		C test1Struct
+	}
+	v2 := test2Struct{A: 10, B: "foo", C: v1}
+	buf2, err := vom.Encode(v2)
+	if err != nil {
+		t.Fatalf("Encode(test2Struct) failed, err %v", err)
+	}
+	tests = append(tests, buf2)
+
+	for i, buf := range tests {
+		var val *vdl.Value
+		if err := vom.Decode(buf, &val); err != nil {
+			t.Fatalf("Decode failed (test %d), err %v", i, err)
+		}
+
+		gotbrs := make(map[nosql.BlobRef]struct{})
+		if err := extractBlobRefs(val, gotbrs); err != nil {
+			t.Fatalf("extractBlobRefs failed (test %d), err %v", i, err)
+		}
+		wantbrs := map[nosql.BlobRef]struct{}{br: struct{}{}}
+		if !reflect.DeepEqual(gotbrs, wantbrs) {
+			t.Fatalf("Data mismatch in blobrefs (test %d), got %v, want %v", i, gotbrs, wantbrs)
+		}
+	}
+}
 
 // TestLogStreamRemoteOnly tests processing of a remote log stream. Commands are
 // in file testdata/remote-init-00.log.sync.
@@ -99,8 +155,12 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 
 	// Verify Database state.
 	valbuf, err := svc.St().Get([]byte(objid), nil)
-	if err != nil || string(valbuf) != "abc" {
-		t.Fatalf("Invalid object %s in Database %v, err %v", objid, string(valbuf), err)
+	var val string
+	if err := vom.Decode(valbuf, &val); err != nil {
+		t.Fatalf("Value decode failed, err %v", err)
+	}
+	if err != nil || val != "abc" {
+		t.Fatalf("Invalid object %s in Database %v, err %v", objid, val, err)
 	}
 	tx := svc.St().NewTransaction()
 	version, err := watchable.GetVersion(nil, tx, []byte(objid))
@@ -192,8 +252,12 @@ func TestLogStreamNoConflict(t *testing.T) {
 
 	// Verify Database state.
 	valbuf, err := svc.St().Get([]byte(objid), nil)
-	if err != nil || string(valbuf) != "abc" {
-		t.Fatalf("Invalid object %s in Database %v, err %v", objid, string(valbuf), err)
+	var val string
+	if err := vom.Decode(valbuf, &val); err != nil {
+		t.Fatalf("Value decode failed, err %v", err)
+	}
+	if err != nil || val != "abc" {
+		t.Fatalf("Invalid object %s in Database %v, err %v", objid, val, err)
 	}
 	tx := svc.St().NewTransaction()
 	versbuf, err := watchable.GetVersion(nil, tx, []byte(objid))
@@ -234,7 +298,11 @@ func TestLogStreamConflict(t *testing.T) {
 
 	// Verify Database state.
 	valbuf, err := svc.St().Get([]byte(objid), nil)
-	if err != nil || string(valbuf) != "abc" {
+	var val string
+	if err := vom.Decode(valbuf, &val); err != nil {
+		t.Fatalf("Value decode failed, err %v", err)
+	}
+	if err != nil || val != "abc" {
 		t.Fatalf("Invalid object %s in Database %v, err %v", objid, string(valbuf), err)
 	}
 	tx := svc.St().NewTransaction()
@@ -277,7 +345,11 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 
 	// Verify Database state.
 	valbuf, err := svc.St().Get([]byte(objid), nil)
-	if err != nil || string(valbuf) != "abc" {
+	var val string
+	if err := vom.Decode(valbuf, &val); err != nil {
+		t.Fatalf("Value decode failed, err %v", err)
+	}
+	if err != nil || val != "abc" {
 		t.Fatalf("Invalid object %s in Database %v, err %v", objid, string(valbuf), err)
 	}
 	tx := svc.St().NewTransaction()
@@ -345,7 +417,7 @@ func testInit(t *testing.T, lfile, rfile string) (*mockService, *initiationState
 		t.Fatalf("newInitiationState failed with err %v", err)
 	}
 
-	testIfMapArrEqual(t, iSt.sgPfxs, sg1.Spec.Prefixes)
+	testIfSgPfxsEqual(t, iSt.sgPfxs, sg1.Spec.Prefixes)
 	testIfMapArrEqual(t, iSt.mtTables, sg1.Spec.MountTables)
 
 	s.initDbSyncStateInMem(nil, "mockapp", "mockdb")
@@ -375,14 +447,31 @@ func testInit(t *testing.T, lfile, rfile string) (*mockService, *initiationState
 	return svc, iSt, cleanup
 }
 
-func testIfMapArrEqual(t *testing.T, m map[string]struct{}, a []string) {
-	if len(a) != len(m) {
-		t.Fatalf("testIfMapArrEqual diff lengths, got %v want %v", a, m)
+func testIfSgPfxsEqual(t *testing.T, m map[string]sgSet, a []string) {
+	aMap := arrToMap(a)
+
+	if len(aMap) != len(m) {
+		t.Fatalf("testIfSgPfxsEqual diff lengths, got %v want %v", aMap, m)
 	}
 
-	for _, p := range a {
+	for p := range aMap {
 		if _, ok := m[p]; !ok {
-			t.Fatalf("testIfMapArrEqual want %v", p)
+			t.Fatalf("testIfSgPfxsEqual want %v", p)
 		}
 	}
+}
+
+func testIfMapArrEqual(t *testing.T, m map[string]struct{}, a []string) {
+	aMap := arrToMap(a)
+	if !reflect.DeepEqual(m, aMap) {
+		t.Fatalf("testIfMapArrEqual failed map %v, arr %v", m, aMap)
+	}
+}
+
+func arrToMap(a []string) map[string]struct{} {
+	m := make(map[string]struct{})
+	for _, s := range a {
+		m[s] = struct{}{}
+	}
+	return m
 }

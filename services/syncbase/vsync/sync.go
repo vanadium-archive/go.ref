@@ -14,9 +14,13 @@ package vsync
 import (
 	"fmt"
 	"math/rand"
+	"path"
 	"sync"
 	"time"
 
+	"v.io/syncbase/v23/services/syncbase/nosql"
+	blob "v.io/syncbase/x/ref/services/syncbase/localblobstore"
+	fsblob "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
@@ -62,7 +66,8 @@ type syncService struct {
 	// names must be advertised in the appropriate mount tables.
 
 	// In-memory sync membership info aggregated across databases.
-	allMembers *memberView
+	allMembers     *memberView
+	allMembersLock sync.RWMutex
 
 	// In-memory sync state per Database. This state is populated at
 	// startup, and periodically persisted by the initiator.
@@ -75,13 +80,20 @@ type syncService struct {
 	// access to the batch set.
 	batchesLock sync.Mutex
 	batches     batchSet
+
+	// Metadata related to blob handling.
+	bst           blob.BlobStore                 // local blob store associated with this Syncbase.
+	blobDirectory map[nosql.BlobRef]*blobLocInfo // directory structure containing blob location information.
+	blobDirLock   sync.RWMutex                   // lock to synchronize access to the blob directory information.
+
 }
 
 // syncDatabase contains the metadata for syncing a database. This struct is
 // used as a receiver to hand off the app-initiated SyncGroup calls that arrive
 // against a nosql.Database to the sync module.
 type syncDatabase struct {
-	db interfaces.Database
+	db   interfaces.Database
+	sync interfaces.SyncServerMethods
 }
 
 var (
@@ -111,7 +123,7 @@ func randIntn(n int) int {
 // changes to its objects. The "initiator" thread is responsible for
 // periodically contacting peers to fetch changes from them. In addition, the
 // sync module responds to incoming RPCs from remote sync modules.
-func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, server rpc.Server) (*syncService, error) {
+func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, server rpc.Server, rootDir string) (*syncService, error) {
 	s := &syncService{
 		sv:      sv,
 		server:  server,
@@ -136,12 +148,20 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, server rpc.
 
 	// data.Id is now guaranteed to be initialized.
 	s.id = data.Id
-	s.name = fmt.Sprintf("%x", s.id)
+	s.name = syncbaseIdToName(s.id)
 
 	// Initialize in-memory state for the sync module before starting any threads.
 	if err := s.initSync(ctx); err != nil {
 		return nil, verror.New(verror.ErrInternal, ctx, err)
 	}
+
+	// Open a blob store.
+	var err error
+	s.bst, err = fsblob.Create(ctx, path.Join(rootDir, "blobs"))
+	if err != nil {
+		return nil, err
+	}
+	s.blobDirectory = make(map[nosql.BlobRef]*blobLocInfo)
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})
@@ -159,12 +179,17 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, server rpc.
 // Close cleans up sync state.
 // TODO(hpucha): Hook it up to server shutdown of syncbased.
 func (s *syncService) Close() {
+	s.bst.Close()
 	close(s.closed)
 	s.pending.Wait()
 }
 
+func syncbaseIdToName(id uint64) string {
+	return fmt.Sprintf("%x", id)
+}
+
 func NewSyncDatabase(db interfaces.Database) *syncDatabase {
-	return &syncDatabase{db: db}
+	return &syncDatabase{db: db, sync: db.App().Service().Sync()}
 }
 
 func (s *syncService) stKey() string {

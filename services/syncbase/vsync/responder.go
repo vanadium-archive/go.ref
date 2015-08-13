@@ -11,7 +11,6 @@ import (
 
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
@@ -446,11 +445,7 @@ func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []str
 	// The key starts with one of the store's reserved prefixes for managed
 	// namespaces (e.g. $row, $perms).  Remove that prefix before comparing
 	// it with the SyncGroup prefixes which are defined by the application.
-	parts := util.SplitKeyParts(rec.Metadata.ObjId)
-	if len(parts) < 2 {
-		vlog.Fatalf("sync: filterLogRec: invalid entry key %s", rec.Metadata.ObjId)
-	}
-	key := util.JoinKeyParts(parts[1:]...)
+	key := extractAppKey(rec.Metadata.ObjId)
 
 	filter := true
 	var maxGen uint64

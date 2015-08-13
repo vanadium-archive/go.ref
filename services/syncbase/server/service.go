@@ -130,7 +130,7 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 	}
 	// Note, vsync.New internally handles both first-time and subsequent
 	// invocations.
-	if s.sync, err = vsync.New(ctx, call, s, opts.Server); err != nil {
+	if s.sync, err = vsync.New(ctx, call, s, opts.Server, opts.RootDir); err != nil {
 		return nil, err
 	}
 	return s, nil

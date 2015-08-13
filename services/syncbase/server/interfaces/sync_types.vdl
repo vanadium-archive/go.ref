@@ -117,3 +117,13 @@ type DeltaResp union {
 	Rec     LogRec
 	RespVec GenVector
 }
+
+// ChunkHash contains the hash of a chunk that is part of a blob's recipe.
+type ChunkHash struct {
+	Hash []byte
+}
+
+// ChunkData contains the data of a chunk.
+type ChunkData struct {
+	Data []byte
+}

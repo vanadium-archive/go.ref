@@ -228,6 +228,26 @@ func (x DeltaRespRespVec) Interface() interface{}          { return x.Value }
 func (x DeltaRespRespVec) Name() string                    { return "RespVec" }
 func (x DeltaRespRespVec) __VDLReflect(__DeltaRespReflect) {}
 
+// ChunkHash contains the hash of a chunk that is part of a blob's recipe.
+type ChunkHash struct {
+	Hash []byte
+}
+
+func (ChunkHash) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.ChunkHash"`
+}) {
+}
+
+// ChunkData contains the data of a chunk.
+type ChunkData struct {
+	Data []byte
+}
+
+func (ChunkData) __VDLReflect(struct {
+	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.ChunkData"`
+}) {
+}
+
 func init() {
 	vdl.Register((*PrefixGenVector)(nil))
 	vdl.Register((*GenVector)(nil))
@@ -238,6 +258,8 @@ func init() {
 	vdl.Register((*SyncGroup)(nil))
 	vdl.Register((*DeltaReq)(nil))
 	vdl.Register((*DeltaResp)(nil))
+	vdl.Register((*ChunkHash)(nil))
+	vdl.Register((*ChunkData)(nil))
 }
 
 const NoGroupId = GroupId(0)

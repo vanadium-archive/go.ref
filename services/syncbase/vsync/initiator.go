@@ -15,14 +15,16 @@ import (
 	"strings"
 	"time"
 
+	"v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/vdl"
 	"v.io/v23/verror"
-	"v.io/x/lib/set"
+	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 )
 
@@ -61,10 +63,6 @@ var (
 // TODO(hpucha): Currently only does initiation. Add rest.
 func (s *syncService) syncer(ctx *context.T) {
 	defer s.pending.Done()
-
-	// TODO(hpucha): Do we need context per initiator round?
-	ctx, cancel := context.WithRootCancel(ctx)
-	defer cancel()
 
 	ticker := time.NewTicker(peerSyncInterval)
 	defer ticker.Stop()
@@ -106,11 +104,13 @@ func (s *syncService) syncer(ctx *context.T) {
 // initiation round), the work done by the initiator is idempotent.
 //
 // TODO(hpucha): Check the idempotence, esp in addNode in DAG.
-func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
+func (s *syncService) getDeltasFromPeer(ctxIn *context.T, peer string) {
 	vlog.VI(2).Infof("sync: getDeltasFromPeer: begin: contacting peer %s", peer)
 	defer vlog.VI(2).Infof("sync: getDeltasFromPeer: end: contacting peer %s", peer)
 
-	info := s.allMembers.members[peer]
+	ctx, cancel := context.WithRootCancel(ctxIn)
+
+	info := s.copyMemberInfo(ctx, peer)
 	if info == nil {
 		vlog.Fatalf("sync: getDeltasFromPeer: missing information in member view for %q", peer)
 	}
@@ -167,6 +167,8 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
 			// Returning here since something could be wrong with
 			// the connection, and no point in attempting the next
 			// Database.
+			cancel()
+			stream.Finish()
 			return
 		}
 		vlog.VI(3).Infof("sync: getDeltasFromPeer: got reply: %v", iSt.remote)
@@ -182,7 +184,10 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer string) {
 	if connected {
 		stream.Finish()
 	}
+	cancel()
 }
+
+type sgSet map[interfaces.GroupId]struct{}
 
 // initiationState is accumulated for each Database during an initiation round.
 type initiationState struct {
@@ -193,10 +198,11 @@ type initiationState struct {
 	mtTables map[string]struct{}
 
 	// SyncGroups being requested in the initiation round.
-	sgIds map[interfaces.GroupId]struct{}
+	sgIds sgSet
 
-	// SyncGroup prefixes being requested in the initiation round.
-	sgPfxs map[string]struct{}
+	// SyncGroup prefixes being requested in the initiation round, and their
+	// corresponding SyncGroup ids.
+	sgPfxs map[string]sgSet
 
 	// Local generation vector.
 	local interfaces.GenVector
@@ -267,8 +273,8 @@ func newInitiationState(ctx *context.T, s *syncService, peer string, name string
 // SyncGroups in the specified Database.
 func (iSt *initiationState) peerMtTblsAndSgInfo(ctx *context.T, peer string, info sgMemberInfo) {
 	iSt.mtTables = make(map[string]struct{})
-	iSt.sgIds = make(map[interfaces.GroupId]struct{})
-	iSt.sgPfxs = make(map[string]struct{})
+	iSt.sgIds = make(sgSet)
+	iSt.sgPfxs = make(map[string]sgSet)
 
 	for id := range info {
 		sg, err := getSyncGroupById(ctx, iSt.st, id)
@@ -285,7 +291,12 @@ func (iSt *initiationState) peerMtTblsAndSgInfo(ctx *context.T, peer string, inf
 		iSt.sgIds[id] = struct{}{}
 
 		for _, p := range sg.Spec.Prefixes {
-			iSt.sgPfxs[p] = struct{}{}
+			sgs, ok := iSt.sgPfxs[p]
+			if !ok {
+				sgs = make(sgSet)
+				iSt.sgPfxs[p] = sgs
+			}
+			sgs[id] = struct{}{}
 		}
 	}
 }
@@ -340,7 +351,12 @@ func (iSt *initiationState) createLocalGenVec(ctx *context.T) error {
 	}
 	localPfxs := extractAndSortPrefixes(local)
 
-	sgPfxs := set.String.ToSlice(iSt.sgPfxs)
+	sgPfxs := make([]string, len(iSt.sgPfxs))
+	i := 0
+	for p := range iSt.sgPfxs {
+		sgPfxs[i] = p
+		i++
+	}
 	sort.Strings(sgPfxs)
 
 	iSt.local = make(interfaces.GenVector)
@@ -454,6 +470,12 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 			if err := iSt.insertRecInLogDagAndDb(ctx, rec, batchId, v.Value.Value, tx); err != nil {
 				return err
 			}
+
+			// Check for BlobRefs, and process them.
+			if err := iSt.processBlobRefs(ctx, &rec.Metadata, v.Value.Value); err != nil {
+				return err
+			}
+
 			// Mark object dirty.
 			iSt.updObjects[rec.Metadata.ObjId] = &objConflictState{}
 		}
@@ -492,6 +514,68 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 		committed = true
 	}
 	return err
+}
+
+func (iSt *initiationState) processBlobRefs(ctx *context.T, m *interfaces.LogRecMetadata, valbuf []byte) error {
+	objid := m.ObjId
+	srcPeer := syncbaseIdToName(m.Id)
+
+	vlog.VI(4).Infof("sync: processBlobRefs: begin processing blob refs for objid %s", objid)
+	defer vlog.VI(4).Infof("sync: processBlobRefs: end processing blob refs for objid %s", objid)
+
+	if valbuf == nil {
+		return nil
+	}
+
+	var val *vdl.Value
+	if err := vom.Decode(valbuf, &val); err != nil {
+		return err
+	}
+
+	brs := make(map[nosql.BlobRef]struct{})
+	if err := extractBlobRefs(val, brs); err != nil {
+		return err
+	}
+	sgIds := make(sgSet)
+	for br := range brs {
+		for p, sgs := range iSt.sgPfxs {
+			if strings.HasPrefix(extractAppKey(objid), p) {
+				for sg := range sgs {
+					sgIds[sg] = struct{}{}
+				}
+			}
+		}
+		vlog.VI(4).Infof("sync: processBlobRefs: Found blobref %v peer %v, source %v, sgs %v", br, iSt.peer, srcPeer, sgIds)
+		info := &blobLocInfo{peer: iSt.peer, source: srcPeer, sgIds: sgIds}
+		if err := iSt.sync.addBlobLocInfo(ctx, br, info); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// TODO(hpucha): Handle blobrefs part of list, map, any.
+func extractBlobRefs(val *vdl.Value, brs map[nosql.BlobRef]struct{}) error {
+	if val == nil {
+		return nil
+	}
+	switch val.Kind() {
+	case vdl.String:
+		// Could be a BlobRef.
+		var br nosql.BlobRef
+		if val.Type() == vdl.TypeOf(br) {
+			brs[nosql.BlobRef(val.RawString())] = struct{}{}
+		}
+	case vdl.Struct:
+		for i := 0; i < val.Type().NumField(); i++ {
+			v := val.StructField(i)
+			if err := extractBlobRefs(v, brs); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // insertRecInLogDagAndDb adds a new log record to log and dag data structures,

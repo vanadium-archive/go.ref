@@ -97,7 +97,7 @@ type BlobStore interface {
 	// that this will be called on a receiving device, and be given a
 	// ChunkStream from a sending device, to yield a recipe for efficient
 	// chunk transfer.  RecipeStep values with non-nil Chunk fields need
-	// the chunk from the sender; once the data is returned is can be
+	// the chunk from the sender; once the data is returned it can be
 	// written with BlobWriter.AppendFragment().  Those with blob
 	// references can be written locally with BlobWriter.AppendBlob().
 	RecipeStreamFromChunkStream(ctx *context.T, chunkStream ChunkStream) RecipeStream

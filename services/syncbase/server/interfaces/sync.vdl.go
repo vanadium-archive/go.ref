@@ -45,9 +45,22 @@ type SyncClientMethods interface {
 	// allowed to join the named SyncGroup, and if so, adds the requestor to
 	// the SyncGroup.
 	JoinSyncGroupAtAdmin(ctx *context.T, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo, opts ...rpc.CallOpt) (SyncGroup, error)
-	// BlobSync methods.
-	// FetchBlob returns the requested blob.
-	FetchBlob(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) error
+	// HaveBlob verifies that the peer has the requested blob, and if
+	// present, returns its size.
+	HaveBlob(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) (int64, error)
+	// FetchBlob fetches the requested blob.
+	FetchBlob(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) (SyncFetchBlobClientCall, error)
+	// Methods for incremental blob transfer. The transfer starts with the
+	// receiver making a FetchBlobRecipe call to the sender for a given
+	// BlobRef. The sender, in turn, sends the chunk hashes of all the
+	// chunks that make up the requested blob (blob recipe). The receiver
+	// looks up the chunk hashes in its local blob store, and identifies the
+	// missing ones. The receiver then fetches the missing chunks using a
+	// FetchChunks call from the sender. Finally, the receiver finishes the
+	// blob fetch by combining the chunks obtained over the network with the
+	// already available local chunks as per the blob recipe.
+	FetchBlobRecipe(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) (SyncFetchBlobRecipeClientCall, error)
+	FetchChunks(*context.T, ...rpc.CallOpt) (SyncFetchChunksClientCall, error)
 }
 
 // SyncClientStub adds universal methods to SyncClientMethods.
@@ -84,8 +97,35 @@ func (c implSyncClientStub) JoinSyncGroupAtAdmin(ctx *context.T, i0 string, i1 s
 	return
 }
 
-func (c implSyncClientStub) FetchBlob(ctx *context.T, i0 nosql.BlobRef, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "FetchBlob", []interface{}{i0}, nil, opts...)
+func (c implSyncClientStub) HaveBlob(ctx *context.T, i0 nosql.BlobRef, opts ...rpc.CallOpt) (o0 int64, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "HaveBlob", []interface{}{i0}, []interface{}{&o0}, opts...)
+	return
+}
+
+func (c implSyncClientStub) FetchBlob(ctx *context.T, i0 nosql.BlobRef, opts ...rpc.CallOpt) (ocall SyncFetchBlobClientCall, err error) {
+	var call rpc.ClientCall
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "FetchBlob", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	ocall = &implSyncFetchBlobClientCall{ClientCall: call}
+	return
+}
+
+func (c implSyncClientStub) FetchBlobRecipe(ctx *context.T, i0 nosql.BlobRef, opts ...rpc.CallOpt) (ocall SyncFetchBlobRecipeClientCall, err error) {
+	var call rpc.ClientCall
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "FetchBlobRecipe", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	ocall = &implSyncFetchBlobRecipeClientCall{ClientCall: call}
+	return
+}
+
+func (c implSyncClientStub) FetchChunks(ctx *context.T, opts ...rpc.CallOpt) (ocall SyncFetchChunksClientCall, err error) {
+	var call rpc.ClientCall
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "FetchChunks", nil, opts...); err != nil {
+		return
+	}
+	ocall = &implSyncFetchChunksClientCall{ClientCall: call}
 	return
 }
 
@@ -191,6 +231,246 @@ func (c *implSyncGetDeltasClientCall) Finish() (err error) {
 	return
 }
 
+// SyncFetchBlobClientStream is the client stream for Sync.FetchBlob.
+type SyncFetchBlobClientStream interface {
+	// RecvStream returns the receiver side of the Sync.FetchBlob client stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() []byte
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
+	}
+}
+
+// SyncFetchBlobClientCall represents the call returned from Sync.FetchBlob.
+type SyncFetchBlobClientCall interface {
+	SyncFetchBlobClientStream
+	// Finish blocks until the server is done, and returns the positional return
+	// values for call.
+	//
+	// Finish returns immediately if the call has been canceled; depending on the
+	// timing the output could either be an error signaling cancelation, or the
+	// valid positional return values from the server.
+	//
+	// Calling Finish is mandatory for releasing stream resources, unless the call
+	// has been canceled or any of the other methods return an error.  Finish should
+	// be called at most once.
+	Finish() error
+}
+
+type implSyncFetchBlobClientCall struct {
+	rpc.ClientCall
+	valRecv []byte
+	errRecv error
+}
+
+func (c *implSyncFetchBlobClientCall) RecvStream() interface {
+	Advance() bool
+	Value() []byte
+	Err() error
+} {
+	return implSyncFetchBlobClientCallRecv{c}
+}
+
+type implSyncFetchBlobClientCallRecv struct {
+	c *implSyncFetchBlobClientCall
+}
+
+func (c implSyncFetchBlobClientCallRecv) Advance() bool {
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implSyncFetchBlobClientCallRecv) Value() []byte {
+	return c.c.valRecv
+}
+func (c implSyncFetchBlobClientCallRecv) Err() error {
+	if c.c.errRecv == io.EOF {
+		return nil
+	}
+	return c.c.errRecv
+}
+func (c *implSyncFetchBlobClientCall) Finish() (err error) {
+	err = c.ClientCall.Finish()
+	return
+}
+
+// SyncFetchBlobRecipeClientStream is the client stream for Sync.FetchBlobRecipe.
+type SyncFetchBlobRecipeClientStream interface {
+	// RecvStream returns the receiver side of the Sync.FetchBlobRecipe client stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() ChunkHash
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
+	}
+}
+
+// SyncFetchBlobRecipeClientCall represents the call returned from Sync.FetchBlobRecipe.
+type SyncFetchBlobRecipeClientCall interface {
+	SyncFetchBlobRecipeClientStream
+	// Finish blocks until the server is done, and returns the positional return
+	// values for call.
+	//
+	// Finish returns immediately if the call has been canceled; depending on the
+	// timing the output could either be an error signaling cancelation, or the
+	// valid positional return values from the server.
+	//
+	// Calling Finish is mandatory for releasing stream resources, unless the call
+	// has been canceled or any of the other methods return an error.  Finish should
+	// be called at most once.
+	Finish() error
+}
+
+type implSyncFetchBlobRecipeClientCall struct {
+	rpc.ClientCall
+	valRecv ChunkHash
+	errRecv error
+}
+
+func (c *implSyncFetchBlobRecipeClientCall) RecvStream() interface {
+	Advance() bool
+	Value() ChunkHash
+	Err() error
+} {
+	return implSyncFetchBlobRecipeClientCallRecv{c}
+}
+
+type implSyncFetchBlobRecipeClientCallRecv struct {
+	c *implSyncFetchBlobRecipeClientCall
+}
+
+func (c implSyncFetchBlobRecipeClientCallRecv) Advance() bool {
+	c.c.valRecv = ChunkHash{}
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implSyncFetchBlobRecipeClientCallRecv) Value() ChunkHash {
+	return c.c.valRecv
+}
+func (c implSyncFetchBlobRecipeClientCallRecv) Err() error {
+	if c.c.errRecv == io.EOF {
+		return nil
+	}
+	return c.c.errRecv
+}
+func (c *implSyncFetchBlobRecipeClientCall) Finish() (err error) {
+	err = c.ClientCall.Finish()
+	return
+}
+
+// SyncFetchChunksClientStream is the client stream for Sync.FetchChunks.
+type SyncFetchChunksClientStream interface {
+	// RecvStream returns the receiver side of the Sync.FetchChunks client stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() ChunkData
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
+	}
+	// SendStream returns the send side of the Sync.FetchChunks client stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors
+		// encountered while sending, or if Send is called after Close or
+		// the stream has been canceled.  Blocks if there is no buffer
+		// space; will unblock when buffer space is available or after
+		// the stream has been canceled.
+		Send(item ChunkHash) error
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.
+		// This is an optional call - e.g. a client might call Close if it
+		// needs to continue receiving items from the server after it's
+		// done sending.  Returns errors encountered while closing, or if
+		// Close is called after the stream has been canceled.  Like Send,
+		// blocks if there is no buffer space available.
+		Close() error
+	}
+}
+
+// SyncFetchChunksClientCall represents the call returned from Sync.FetchChunks.
+type SyncFetchChunksClientCall interface {
+	SyncFetchChunksClientStream
+	// Finish performs the equivalent of SendStream().Close, then blocks until
+	// the server is done, and returns the positional return values for the call.
+	//
+	// Finish returns immediately if the call has been canceled; depending on the
+	// timing the output could either be an error signaling cancelation, or the
+	// valid positional return values from the server.
+	//
+	// Calling Finish is mandatory for releasing stream resources, unless the call
+	// has been canceled or any of the other methods return an error.  Finish should
+	// be called at most once.
+	Finish() error
+}
+
+type implSyncFetchChunksClientCall struct {
+	rpc.ClientCall
+	valRecv ChunkData
+	errRecv error
+}
+
+func (c *implSyncFetchChunksClientCall) RecvStream() interface {
+	Advance() bool
+	Value() ChunkData
+	Err() error
+} {
+	return implSyncFetchChunksClientCallRecv{c}
+}
+
+type implSyncFetchChunksClientCallRecv struct {
+	c *implSyncFetchChunksClientCall
+}
+
+func (c implSyncFetchChunksClientCallRecv) Advance() bool {
+	c.c.valRecv = ChunkData{}
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implSyncFetchChunksClientCallRecv) Value() ChunkData {
+	return c.c.valRecv
+}
+func (c implSyncFetchChunksClientCallRecv) Err() error {
+	if c.c.errRecv == io.EOF {
+		return nil
+	}
+	return c.c.errRecv
+}
+func (c *implSyncFetchChunksClientCall) SendStream() interface {
+	Send(item ChunkHash) error
+	Close() error
+} {
+	return implSyncFetchChunksClientCallSend{c}
+}
+
+type implSyncFetchChunksClientCallSend struct {
+	c *implSyncFetchChunksClientCall
+}
+
+func (c implSyncFetchChunksClientCallSend) Send(item ChunkHash) error {
+	return c.c.Send(item)
+}
+func (c implSyncFetchChunksClientCallSend) Close() error {
+	return c.c.CloseSend()
+}
+func (c *implSyncFetchChunksClientCall) Finish() (err error) {
+	err = c.ClientCall.Finish()
+	return
+}
+
 // SyncServerMethods is the interface a server writer
 // implements for Sync.
 //
@@ -216,9 +496,22 @@ type SyncServerMethods interface {
 	// allowed to join the named SyncGroup, and if so, adds the requestor to
 	// the SyncGroup.
 	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (SyncGroup, error)
-	// BlobSync methods.
-	// FetchBlob returns the requested blob.
-	FetchBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) error
+	// HaveBlob verifies that the peer has the requested blob, and if
+	// present, returns its size.
+	HaveBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) (int64, error)
+	// FetchBlob fetches the requested blob.
+	FetchBlob(ctx *context.T, call SyncFetchBlobServerCall, br nosql.BlobRef) error
+	// Methods for incremental blob transfer. The transfer starts with the
+	// receiver making a FetchBlobRecipe call to the sender for a given
+	// BlobRef. The sender, in turn, sends the chunk hashes of all the
+	// chunks that make up the requested blob (blob recipe). The receiver
+	// looks up the chunk hashes in its local blob store, and identifies the
+	// missing ones. The receiver then fetches the missing chunks using a
+	// FetchChunks call from the sender. Finally, the receiver finishes the
+	// blob fetch by combining the chunks obtained over the network with the
+	// already available local chunks as per the blob recipe.
+	FetchBlobRecipe(ctx *context.T, call SyncFetchBlobRecipeServerCall, br nosql.BlobRef) error
+	FetchChunks(*context.T, SyncFetchChunksServerCall) error
 }
 
 // SyncServerStubMethods is the server interface containing
@@ -245,9 +538,22 @@ type SyncServerStubMethods interface {
 	// allowed to join the named SyncGroup, and if so, adds the requestor to
 	// the SyncGroup.
 	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (SyncGroup, error)
-	// BlobSync methods.
-	// FetchBlob returns the requested blob.
-	FetchBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) error
+	// HaveBlob verifies that the peer has the requested blob, and if
+	// present, returns its size.
+	HaveBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) (int64, error)
+	// FetchBlob fetches the requested blob.
+	FetchBlob(ctx *context.T, call *SyncFetchBlobServerCallStub, br nosql.BlobRef) error
+	// Methods for incremental blob transfer. The transfer starts with the
+	// receiver making a FetchBlobRecipe call to the sender for a given
+	// BlobRef. The sender, in turn, sends the chunk hashes of all the
+	// chunks that make up the requested blob (blob recipe). The receiver
+	// looks up the chunk hashes in its local blob store, and identifies the
+	// missing ones. The receiver then fetches the missing chunks using a
+	// FetchChunks call from the sender. Finally, the receiver finishes the
+	// blob fetch by combining the chunks obtained over the network with the
+	// already available local chunks as per the blob recipe.
+	FetchBlobRecipe(ctx *context.T, call *SyncFetchBlobRecipeServerCallStub, br nosql.BlobRef) error
+	FetchChunks(*context.T, *SyncFetchChunksServerCallStub) error
 }
 
 // SyncServerStub adds universal methods to SyncServerStubMethods.
@@ -291,8 +597,20 @@ func (s implSyncServerStub) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.Server
 	return s.impl.JoinSyncGroupAtAdmin(ctx, call, i0, i1, i2)
 }
 
-func (s implSyncServerStub) FetchBlob(ctx *context.T, call rpc.ServerCall, i0 nosql.BlobRef) error {
+func (s implSyncServerStub) HaveBlob(ctx *context.T, call rpc.ServerCall, i0 nosql.BlobRef) (int64, error) {
+	return s.impl.HaveBlob(ctx, call, i0)
+}
+
+func (s implSyncServerStub) FetchBlob(ctx *context.T, call *SyncFetchBlobServerCallStub, i0 nosql.BlobRef) error {
 	return s.impl.FetchBlob(ctx, call, i0)
+}
+
+func (s implSyncServerStub) FetchBlobRecipe(ctx *context.T, call *SyncFetchBlobRecipeServerCallStub, i0 nosql.BlobRef) error {
+	return s.impl.FetchBlobRecipe(ctx, call, i0)
+}
+
+func (s implSyncServerStub) FetchChunks(ctx *context.T, call *SyncFetchChunksServerCallStub) error {
+	return s.impl.FetchChunks(ctx, call)
 }
 
 func (s implSyncServerStub) Globber() *rpc.GlobState {
@@ -342,12 +660,31 @@ var descSync = rpc.InterfaceDesc{
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
-			Name: "FetchBlob",
-			Doc:  "// BlobSync methods.\n// FetchBlob returns the requested blob.",
+			Name: "HaveBlob",
+			Doc:  "// HaveBlob verifies that the peer has the requested blob, and if\n// present, returns its size.",
 			InArgs: []rpc.ArgDesc{
 				{"br", ``}, // nosql.BlobRef
 			},
-			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // int64
+			},
+		},
+		{
+			Name: "FetchBlob",
+			Doc:  "// FetchBlob fetches the requested blob.",
+			InArgs: []rpc.ArgDesc{
+				{"br", ``}, // nosql.BlobRef
+			},
+		},
+		{
+			Name: "FetchBlobRecipe",
+			Doc:  "// Methods for incremental blob transfer. The transfer starts with the\n// receiver making a FetchBlobRecipe call to the sender for a given\n// BlobRef. The sender, in turn, sends the chunk hashes of all the\n// chunks that make up the requested blob (blob recipe). The receiver\n// looks up the chunk hashes in its local blob store, and identifies the\n// missing ones. The receiver then fetches the missing chunks using a\n// FetchChunks call from the sender. Finally, the receiver finishes the\n// blob fetch by combining the chunks obtained over the network with the\n// already available local chunks as per the blob recipe.",
+			InArgs: []rpc.ArgDesc{
+				{"br", ``}, // nosql.BlobRef
+			},
+		},
+		{
+			Name: "FetchChunks",
 		},
 	},
 }
@@ -434,5 +771,176 @@ type implSyncGetDeltasServerCallSend struct {
 }
 
 func (s implSyncGetDeltasServerCallSend) Send(item DeltaResp) error {
+	return s.s.Send(item)
+}
+
+// SyncFetchBlobServerStream is the server stream for Sync.FetchBlob.
+type SyncFetchBlobServerStream interface {
+	// SendStream returns the send side of the Sync.FetchBlob server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item []byte) error
+	}
+}
+
+// SyncFetchBlobServerCall represents the context passed to Sync.FetchBlob.
+type SyncFetchBlobServerCall interface {
+	rpc.ServerCall
+	SyncFetchBlobServerStream
+}
+
+// SyncFetchBlobServerCallStub is a wrapper that converts rpc.StreamServerCall into
+// a typesafe stub that implements SyncFetchBlobServerCall.
+type SyncFetchBlobServerCallStub struct {
+	rpc.StreamServerCall
+}
+
+// Init initializes SyncFetchBlobServerCallStub from rpc.StreamServerCall.
+func (s *SyncFetchBlobServerCallStub) Init(call rpc.StreamServerCall) {
+	s.StreamServerCall = call
+}
+
+// SendStream returns the send side of the Sync.FetchBlob server stream.
+func (s *SyncFetchBlobServerCallStub) SendStream() interface {
+	Send(item []byte) error
+} {
+	return implSyncFetchBlobServerCallSend{s}
+}
+
+type implSyncFetchBlobServerCallSend struct {
+	s *SyncFetchBlobServerCallStub
+}
+
+func (s implSyncFetchBlobServerCallSend) Send(item []byte) error {
+	return s.s.Send(item)
+}
+
+// SyncFetchBlobRecipeServerStream is the server stream for Sync.FetchBlobRecipe.
+type SyncFetchBlobRecipeServerStream interface {
+	// SendStream returns the send side of the Sync.FetchBlobRecipe server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item ChunkHash) error
+	}
+}
+
+// SyncFetchBlobRecipeServerCall represents the context passed to Sync.FetchBlobRecipe.
+type SyncFetchBlobRecipeServerCall interface {
+	rpc.ServerCall
+	SyncFetchBlobRecipeServerStream
+}
+
+// SyncFetchBlobRecipeServerCallStub is a wrapper that converts rpc.StreamServerCall into
+// a typesafe stub that implements SyncFetchBlobRecipeServerCall.
+type SyncFetchBlobRecipeServerCallStub struct {
+	rpc.StreamServerCall
+}
+
+// Init initializes SyncFetchBlobRecipeServerCallStub from rpc.StreamServerCall.
+func (s *SyncFetchBlobRecipeServerCallStub) Init(call rpc.StreamServerCall) {
+	s.StreamServerCall = call
+}
+
+// SendStream returns the send side of the Sync.FetchBlobRecipe server stream.
+func (s *SyncFetchBlobRecipeServerCallStub) SendStream() interface {
+	Send(item ChunkHash) error
+} {
+	return implSyncFetchBlobRecipeServerCallSend{s}
+}
+
+type implSyncFetchBlobRecipeServerCallSend struct {
+	s *SyncFetchBlobRecipeServerCallStub
+}
+
+func (s implSyncFetchBlobRecipeServerCallSend) Send(item ChunkHash) error {
+	return s.s.Send(item)
+}
+
+// SyncFetchChunksServerStream is the server stream for Sync.FetchChunks.
+type SyncFetchChunksServerStream interface {
+	// RecvStream returns the receiver side of the Sync.FetchChunks server stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() ChunkHash
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
+	}
+	// SendStream returns the send side of the Sync.FetchChunks server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item ChunkData) error
+	}
+}
+
+// SyncFetchChunksServerCall represents the context passed to Sync.FetchChunks.
+type SyncFetchChunksServerCall interface {
+	rpc.ServerCall
+	SyncFetchChunksServerStream
+}
+
+// SyncFetchChunksServerCallStub is a wrapper that converts rpc.StreamServerCall into
+// a typesafe stub that implements SyncFetchChunksServerCall.
+type SyncFetchChunksServerCallStub struct {
+	rpc.StreamServerCall
+	valRecv ChunkHash
+	errRecv error
+}
+
+// Init initializes SyncFetchChunksServerCallStub from rpc.StreamServerCall.
+func (s *SyncFetchChunksServerCallStub) Init(call rpc.StreamServerCall) {
+	s.StreamServerCall = call
+}
+
+// RecvStream returns the receiver side of the Sync.FetchChunks server stream.
+func (s *SyncFetchChunksServerCallStub) RecvStream() interface {
+	Advance() bool
+	Value() ChunkHash
+	Err() error
+} {
+	return implSyncFetchChunksServerCallRecv{s}
+}
+
+type implSyncFetchChunksServerCallRecv struct {
+	s *SyncFetchChunksServerCallStub
+}
+
+func (s implSyncFetchChunksServerCallRecv) Advance() bool {
+	s.s.valRecv = ChunkHash{}
+	s.s.errRecv = s.s.Recv(&s.s.valRecv)
+	return s.s.errRecv == nil
+}
+func (s implSyncFetchChunksServerCallRecv) Value() ChunkHash {
+	return s.s.valRecv
+}
+func (s implSyncFetchChunksServerCallRecv) Err() error {
+	if s.s.errRecv == io.EOF {
+		return nil
+	}
+	return s.s.errRecv
+}
+
+// SendStream returns the send side of the Sync.FetchChunks server stream.
+func (s *SyncFetchChunksServerCallStub) SendStream() interface {
+	Send(item ChunkData) error
+} {
+	return implSyncFetchChunksServerCallSend{s}
+}
+
+type implSyncFetchChunksServerCallSend struct {
+	s *SyncFetchChunksServerCallStub
+}
+
+func (s implSyncFetchChunksServerCallSend) Send(item ChunkData) error {
 	return s.s.Send(item)
 }
