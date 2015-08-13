@@ -484,7 +484,7 @@ func TestGlobAborts(t *testing.T) {
 		root, _, _ := mt.Lookup(ctx, "")
 		g, _ := glob.Parse("...")
 		fCall := &fakeServerCall{}
-		root.(rpc.Globber).Globber().AllGlobberX.Glob__(ctx, fCall, g)
+		root.(rpc.Globber).Globber().AllGlobber.Glob__(ctx, fCall, g)
 		return fCall.sendCount, nil
 	}
 

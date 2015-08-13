@@ -214,7 +214,7 @@ func (p *proxyInvoker) MethodSignature(ctx *context.T, call rpc.ServerCall, meth
 }
 
 func (p *proxyInvoker) Globber() *rpc.GlobState {
-	return &rpc.GlobState{AllGlobberX: p}
+	return &rpc.GlobState{AllGlobber: p}
 }
 
 type call struct {
