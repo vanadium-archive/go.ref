@@ -27,14 +27,14 @@ func Glob(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element
 		parts := SplitKeyParts(string(key))
 		name := parts[len(parts)-1]
 		if matcher.Match(name) {
-			if err := call.SendStream().Send(naming.GlobChildrenReplyName{name}); err != nil {
+			if err := call.SendStream().Send(naming.GlobChildrenReplyName{Value: name}); err != nil {
 				return err
 			}
 		}
 	}
 	if err := it.Err(); err != nil {
 		vlog.VI(1).Infof("Glob() failed: %v", err)
-		call.SendStream().Send(naming.GlobChildrenReplyError{naming.GlobError{Error: err}})
+		call.SendStream().Send(naming.GlobChildrenReplyError{Value: naming.GlobError{Error: err}})
 	}
 	return nil
 }

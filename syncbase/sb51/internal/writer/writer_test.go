@@ -21,6 +21,40 @@ type fakeResultStream struct {
 	curr int
 }
 
+var (
+	customer = db.Customer{
+		Name:   "John Smith",
+		Id:     1,
+		Active: true,
+		Address: db.AddressInfo{
+			Street: "1 Main St.",
+			City:   "Palo Alto",
+			State:  "CA",
+			Zip:    "94303",
+		},
+		Credit: db.CreditReport{
+			Agency: db.CreditAgencyEquifax,
+			Report: db.AgencyReportEquifaxReport{Value: db.EquifaxCreditReport{Rating: 'A'}},
+		},
+	}
+	invoice = db.Invoice{
+		CustId:     1,
+		InvoiceNum: 1000,
+		Amount:     42,
+		ShipTo: db.AddressInfo{
+			Street: "1 Main St.",
+			City:   "Palo Alto",
+			State:  "CA",
+			Zip:    "94303",
+		},
+	}
+)
+
+func array2String(s1, s2 string) db.Array2String {
+	a := [2]string{s1, s2}
+	return db.Array2String(a)
+}
+
 func newResultStream(iRows [][]interface{}) nosql.ResultStream {
 	vRows := make([][]*vdl.Value, len(iRows))
 	for i, iRow := range iRows {
@@ -161,10 +195,7 @@ bar |
 		},
 		{
 			[]string{"c1"},
-			[][]interface{}{
-				{db.Customer{"John Smith", 1, true, db.AddressInfo{"1 Main St.", "Palo Alto", "CA", "94303"}, db.CreditReport{Agency: db.CreditAgencyEquifax, Report: db.AgencyReportEquifaxReport{db.EquifaxCreditReport{'A'}}}}},
-				{db.Invoice{1, 1000, 42, db.AddressInfo{"1 Main St.", "Palo Alto", "CA", "94303"}}},
-			},
+			[][]interface{}{{customer}, {invoice}},
 			`
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |                                                                                                                                                                                       c1 |
@@ -177,7 +208,7 @@ bar |
 		{
 			[]string{"c1"},
 			[][]interface{}{
-				{db.Composite{db.Array2String{"foo", "棎鶊鵱"}, []int32{1, 2}, map[int32]struct{}{1: struct{}{}, 2: struct{}{}}, map[string]int32{"foo": 1, "bar": 2}}},
+				{db.Composite{array2String("foo", "棎鶊鵱"), []int32{1, 2}, map[int32]struct{}{1: struct{}{}, 2: struct{}{}}, map[string]int32{"foo": 1, "bar": 2}}},
 			},
 			`
 +----------------------------------------------------------------------------------+
@@ -204,10 +235,21 @@ bar |
 			[]string{"c1"},
 			[][]interface{}{
 				{
-					db.Recursive{nil, &db.Times{time.Unix(123456789, 42244224), time.Duration(13377331)}, map[db.Array2String]db.Recursive{
-						db.Array2String{"a", "b"}:       db.Recursive{},
-						db.Array2String{"x\nx", "y\"y"}: db.Recursive{vdl.ValueOf(db.AgencyReportExperianReport{db.ExperianCreditReport{db.ExperianRatingGood}}), nil, nil},
-					}},
+					db.Recursive{
+						Any: nil,
+						Maybe: &db.Times{
+							Stamp:    time.Unix(123456789, 42244224),
+							Interval: time.Duration(13377331),
+						},
+						Rec: map[db.Array2String]db.Recursive{
+							array2String("a", "b"): db.Recursive{},
+							array2String("x\nx", "y\"y"): db.Recursive{
+								Any:   vdl.ValueOf(db.AgencyReportExperianReport{Value: db.ExperianCreditReport{Rating: db.ExperianRatingGood}}),
+								Maybe: nil,
+								Rec:   nil,
+							},
+						},
+					},
 				},
 			},
 			`
@@ -324,10 +366,7 @@ foo	bar,"foo,bar"
 		},
 		{
 			[]string{"c1"},
-			[][]interface{}{
-				{db.Customer{"John Smith", 1, true, db.AddressInfo{"1 Main St.", "Palo Alto", "CA", "94303"}, db.CreditReport{Agency: db.CreditAgencyEquifax, Report: db.AgencyReportEquifaxReport{db.EquifaxCreditReport{'A'}}}}},
-				{db.Invoice{1, 1000, 42, db.AddressInfo{"1 Main St.", "Palo Alto", "CA", "94303"}}},
-			},
+			[][]interface{}{{customer}, {invoice}},
 			",",
 			`
 c1
@@ -450,10 +489,7 @@ func TestWriteJson(t *testing.T) {
 		},
 		{
 			[]string{"c1"},
-			[][]interface{}{
-				{db.Customer{"John Smith", 1, true, db.AddressInfo{"1 Main St.", "Palo Alto", "CA", "94303"}, db.CreditReport{Agency: db.CreditAgencyEquifax, Report: db.AgencyReportEquifaxReport{db.EquifaxCreditReport{'A'}}}}},
-				{db.Invoice{1, 1000, 42, db.AddressInfo{"1 Main St.", "Palo Alto", "CA", "94303"}}},
-			},
+			[][]interface{}{{customer}, {invoice}},
 			`
 [{
   "c1": {"Name":"John Smith","Id":1,"Active":true,"Address":{"Street":"1 Main St.","City":"Palo Alto","State":"CA","Zip":"94303"},"Credit":{"Agency":"Equifax","Report":{"EquifaxReport":{"Rating":65}}}}
@@ -467,7 +503,7 @@ func TestWriteJson(t *testing.T) {
 			[][]interface{}{
 				{
 					nil,
-					db.Composite{db.Array2String{"foo", "bar"}, []int32{1, 2}, map[int32]struct{}{1: struct{}{}, 2: struct{}{}}, map[string]int32{"foo": 1, "bar": 2}},
+					db.Composite{array2String("foo", "bar"), []int32{1, 2}, map[int32]struct{}{1: struct{}{}, 2: struct{}{}}, map[string]int32{"foo": 1, "bar": 2}},
 					vdl.TypeOf(map[string]struct{}{}),
 				},
 			},
@@ -483,10 +519,23 @@ func TestWriteJson(t *testing.T) {
 			[]string{"c1"},
 			[][]interface{}{
 				{
-					db.Recursive{nil, &db.Times{time.Unix(123456789, 42244224), time.Duration(1337)}, map[db.Array2String]db.Recursive{
-						db.Array2String{"a", "棎鶊鵱"}: db.Recursive{},
-						db.Array2String{"x", "y"}:   db.Recursive{vdl.ValueOf(db.CreditReport{Agency: db.CreditAgencyExperian, Report: db.AgencyReportExperianReport{db.ExperianCreditReport{db.ExperianRatingGood}}}), nil, nil},
-					}},
+					db.Recursive{
+						Any: nil,
+						Maybe: &db.Times{
+							Stamp:    time.Unix(123456789, 42244224),
+							Interval: time.Duration(1337),
+						},
+						Rec: map[db.Array2String]db.Recursive{
+							array2String("a", "棎鶊鵱"): db.Recursive{},
+							array2String("x", "y"): db.Recursive{
+								Any: vdl.ValueOf(db.CreditReport{
+									Agency: db.CreditAgencyExperian,
+									Report: db.AgencyReportExperianReport{Value: db.ExperianCreditReport{Rating: db.ExperianRatingGood}},
+								}),
+								Maybe: nil,
+								Rec:   nil,
+							},
+						}},
 				},
 			},
 			`
