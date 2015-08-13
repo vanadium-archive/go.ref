@@ -288,7 +288,11 @@ func (s *server) Status() rpc.ServerStatus {
 	}
 	status.Proxies = make([]rpc.ProxyStatus, 0, len(s.proxies))
 	for k, v := range s.proxies {
-		status.Proxies = append(status.Proxies, rpc.ProxyStatus{k, v.endpoint, v.err})
+		status.Proxies = append(status.Proxies, rpc.ProxyStatus{
+			Proxy:    k,
+			Endpoint: v.endpoint,
+			Error:    v.err,
+		})
 	}
 	return status
 }

@@ -161,7 +161,7 @@ func TestForceStop(t *testing.T) {
 }
 
 func checkProgress(t *testing.T, ch <-chan v23.Task, progress, goal int32) {
-	if want, got := (v23.Task{progress, goal}), <-ch; !reflect.DeepEqual(want, got) {
+	if want, got := (v23.Task{Progress: progress, Goal: goal}), <-ch; !reflect.DeepEqual(want, got) {
 		t.Errorf("Unexpected progress: want %+v, got %+v", want, got)
 	}
 }

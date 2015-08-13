@@ -67,7 +67,7 @@ func runInstantiate(ctx *context.T, env *cmdline.Env, args []string) error {
 			if err != nil {
 				return fmt.Errorf("Instantiate failed: %v", err)
 			}
-			call.SendStream().Send(device.BlessClientMessageAppBlessings{blessings})
+			call.SendStream().Send(device.BlessClientMessageAppBlessings{Value: blessings})
 		default:
 			fmt.Fprintf(env.Stderr, "Received unexpected message: %#v\n", msg)
 		}

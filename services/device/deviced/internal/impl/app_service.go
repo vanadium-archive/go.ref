@@ -1455,7 +1455,7 @@ func (i *appService) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerC
 	}
 	for child, _ := range n.children {
 		if m.Match(child) {
-			call.SendStream().Send(naming.GlobChildrenReplyName{child})
+			call.SendStream().Send(naming.GlobChildrenReplyName{Value: child})
 		}
 	}
 	return nil

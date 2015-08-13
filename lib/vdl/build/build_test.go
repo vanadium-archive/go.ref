@@ -579,7 +579,15 @@ type vs []*vdl.Value
 
 func TestBuildExprs(t *testing.T) {
 	ttArray := vdl.ArrayType(2, vdl.Int32Type)
-	ttStruct := vdl.StructType(vdl.Field{"A", vdl.Int32Type}, vdl.Field{"B", vdl.StringType})
+	ttStruct := vdl.StructType(
+		vdl.Field{
+			Name: "A",
+			Type: vdl.Int32Type,
+		}, vdl.Field{
+			Name: "B",
+			Type: vdl.StringType,
+		},
+	)
 	vvArray := vdl.ZeroValue(ttArray)
 	vvArray.Index(0).AssignInt(1)
 	vvArray.Index(1).AssignInt(-2)

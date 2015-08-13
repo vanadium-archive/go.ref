@@ -38,7 +38,7 @@ func quickTest(t *testing.T, e Encrypter, d Decrypter) {
 func TestNull(t *testing.T) {
 	crypter := NewNullCrypter()
 	quickTest(t, crypter, crypter)
-	crypter.String() // Only to test that String does not crash.
+	_ = crypter.String() // Only to test that String does not crash.
 }
 
 func TestNullWithChannelBinding(t *testing.T) {
@@ -48,13 +48,13 @@ func TestNullWithChannelBinding(t *testing.T) {
 	if got := crypter.ChannelBinding(); !bytes.Equal(cb, got) {
 		t.Errorf("Unexpected channel binding; got %q, want %q", got, cb)
 	}
-	crypter.String() // Only to test that String does not crash.
+	_ = crypter.String() // Only to test that String does not crash.
 }
 
 func testSimple(t *testing.T, c1, c2 Crypter) {
 	// Execute String just to check that it does not crash.
-	c1.String()
-	c2.String()
+	_ = c1.String()
+	_ = c2.String()
 	if t.Failed() {
 		return
 	}

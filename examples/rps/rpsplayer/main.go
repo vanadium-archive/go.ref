@@ -243,7 +243,7 @@ func playGame(outer *context.T, judge string, gameID rps.GameId) (rps.PlayResult
 			fmt.Println()
 			fmt.Println("Choose your weapon:")
 			m := selectOne(opts)
-			if err := game.SendStream().Send(rps.PlayerActionMove{opts[m]}); err != nil {
+			if err := game.SendStream().Send(rps.PlayerActionMove{Value: opts[m]}); err != nil {
 				return rps.PlayResult{}, err
 			}
 		case rps.JudgeActionScore:

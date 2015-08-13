@@ -130,7 +130,10 @@ func (m *ioManager) handleWindowResize(winch <-chan os.Signal, outchan chan<- tu
 			logger.Global().Infof("GetWindowSize failed: %v", err)
 			continue
 		}
-		outchan <- tunnel.ClientShellPacketWinSize{tunnel.WindowSize{ws.Row, ws.Col}}
+		outchan <- tunnel.ClientShellPacketWinSize{tunnel.WindowSize{
+			Rows: ws.Row,
+			Cols: ws.Col,
+		}}
 	}
 }
 

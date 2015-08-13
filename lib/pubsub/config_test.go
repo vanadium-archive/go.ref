@@ -149,7 +149,11 @@ func TestSimple(t *testing.T) {
 		}
 	}
 
-	got, want := pub.Latest("s2"), &pubsub.Stream{"s2", "eg2", nil}
+	got, want := pub.Latest("s2"), &pubsub.Stream{
+		Name:        "s2",
+		Description: "eg2",
+		Latest:      nil,
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}

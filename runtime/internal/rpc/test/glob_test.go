@@ -297,7 +297,7 @@ func (o *globObject) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glo
 
 func (o *globObject) globLoop(call rpc.GlobServerCall, name string, g *glob.Glob, n *node) {
 	if g.Len() == 0 {
-		call.SendStream().Send(naming.GlobReplyEntry{naming.MountEntry{Name: name}})
+		call.SendStream().Send(naming.GlobReplyEntry{Value: naming.MountEntry{Name: name}})
 	}
 	if g.Empty() {
 		return
@@ -318,7 +318,7 @@ func (o *vChildrenObject) GlobChildren__(ctx *context.T, call rpc.GlobChildrenSe
 	sender := call.SendStream()
 	for child, _ := range o.n.children {
 		if m.Match(child) {
-			sender.Send(naming.GlobChildrenReplyName{child})
+			sender.Send(naming.GlobChildrenReplyName{Value: child})
 		}
 	}
 	return nil

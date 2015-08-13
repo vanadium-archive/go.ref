@@ -40,7 +40,10 @@ func exportEnv() {
 	var kv []stats.KeyValue
 	for _, v := range os.Environ() {
 		if parts := strings.SplitN(v, "=", 2); len(parts) == 2 {
-			kv = append(kv, stats.KeyValue{parts[0], parts[1]})
+			kv = append(kv, stats.KeyValue{
+				Key:   parts[0],
+				Value: parts[1],
+			})
 		}
 	}
 	stats.NewMap("system/environ").Set(kv)
@@ -66,7 +69,10 @@ func exportMemStats() {
 		v := reflect.ValueOf(memstats)
 		kv := make([]stats.KeyValue, len(fieldNames))
 		for i, name := range fieldNames {
-			kv[i] = stats.KeyValue{name, v.FieldByName(name).Interface()}
+			kv[i] = stats.KeyValue{
+				Key:   name,
+				Value: v.FieldByName(name).Interface(),
+			}
 		}
 		mstats.Set(kv)
 	}
@@ -83,7 +89,10 @@ func exportMemStats() {
 func exportMetaData() {
 	var kv []stats.KeyValue
 	for id, value := range metadata.ToMap() {
-		kv = append(kv, stats.KeyValue{id, value})
+		kv = append(kv, stats.KeyValue{
+			Key:   id,
+			Value: value,
+		})
 	}
 	stats.NewMap("system/metadata").Set(kv)
 }

@@ -249,7 +249,7 @@ func (i *appRepoService) GlobChildren__(ctx *context.T, call rpc.GlobChildrenSer
 
 	for _, r := range results {
 		if m.Match(r) {
-			call.SendStream().Send(naming.GlobChildrenReplyName{r})
+			call.SendStream().Send(naming.GlobChildrenReplyName{Value: r})
 		}
 	}
 	return nil

@@ -172,7 +172,7 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 		p    = v23.GetPrincipal(ctx)
 		b1   = mkBlessings(p.BlessSelf("dev.v.io/users/foo@bar.com/devices/phone/applications/app"))
 		b2   = mkBlessings(p.BlessSelf("otherblessing"))
-		bopt = options.ServerBlessings{union(b1, b2)}
+		bopt = options.ServerBlessings{Blessings: union(b1, b2)}
 
 		tests = []struct {
 			opts      []rpc.ServerOpt

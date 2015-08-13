@@ -180,7 +180,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 		// If no tasks are running, return.
 		if t.error != nil {
 			if !notAnMT(t.error) {
-				reply <- &naming.GlobReplyError{naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}}
+				reply <- &naming.GlobReplyError{Value: naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}}
 			}
 			inFlight--
 			continue
@@ -190,7 +190,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 		if t.er != nil {
 			x := *t.er
 			x.Name = naming.Join(prefix, x.Name)
-			reply <- &naming.GlobReplyError{x}
+			reply <- &naming.GlobReplyError{Value: x}
 			continue
 		}
 
@@ -205,7 +205,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 		if suffix.Len() == 0 && t.depth != 0 {
 			x := *t.me
 			x.Name = naming.Join(prefix, x.Name)
-			reply <- &naming.GlobReplyEntry{x}
+			reply <- &naming.GlobReplyEntry{Value: x}
 		}
 
 		// If the pattern is finished (so we're only querying about the root on the

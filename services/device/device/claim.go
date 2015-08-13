@@ -54,7 +54,7 @@ func runClaim(ctx *context.T, env *cmdline.Env, args []string) error {
 		if deviceKey, err := security.UnmarshalPublicKey(marshalledPublicKey); err != nil {
 			return fmt.Errorf("Failed to unmarshal device public key:%v", err)
 		} else {
-			serverKeyOpts = options.ServerPublicKey{deviceKey}
+			serverKeyOpts = options.ServerPublicKey{PublicKey: deviceKey}
 		}
 	}
 	// Skip server endpoint authorization since an unclaimed device might have

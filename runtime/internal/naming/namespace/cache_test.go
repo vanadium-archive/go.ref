@@ -22,7 +22,7 @@ func compatible(server string, servers []naming.MountedServer) bool {
 }
 
 func future(secs uint32) vdltime.Deadline {
-	return vdltime.Deadline{time.Now().Add(time.Duration(secs) * time.Second)}
+	return vdltime.Deadline{Time: time.Now().Add(time.Duration(secs) * time.Second)}
 }
 
 // TestCache tests the cache directly rather than via the namespace methods.
@@ -89,7 +89,7 @@ func TestCacheLimit(t *testing.T) {
 func TestCacheTTL(t *testing.T) {
 	ctx, cancel := test.TestContext()
 	defer cancel()
-	before := vdltime.Deadline{time.Now()}
+	before := vdltime.Deadline{Time: time.Now()}
 	c := newTTLCache().(*ttlCache)
 	// Fill cache.
 	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "the rain in spain", Deadline: future(3000)}}}

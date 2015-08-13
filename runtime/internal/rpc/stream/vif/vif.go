@@ -360,7 +360,7 @@ func (vif *VIF) Dial(ctx *context.T, remoteEP naming.Endpoint, opts ...stream.VC
 					Versions: iversion.Range{Min: preauth.Version, Max: preauth.Version},
 					Options: []message.SetupOption{
 						&message.NaclBox{PublicKey: *pubKey},
-						&message.UseVIFAuthentication{sigPreauth},
+						&message.UseVIFAuthentication{Signature: sigPreauth},
 					},
 				},
 			})

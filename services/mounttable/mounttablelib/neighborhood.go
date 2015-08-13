@@ -207,11 +207,14 @@ func (nh *neighborhood) neighbor(instance string) []naming.MountedServer {
 			}
 			addr := s[len(addressPrefix):]
 			ttl := time.Second * time.Duration(rr.Header().Ttl)
-			addrMap[addr] = vdltime.Deadline{now.Add(ttl)}
+			addrMap[addr] = vdltime.Deadline{Time: now.Add(ttl)}
 		}
 	}
 	for addr, deadline := range addrMap {
-		reply = append(reply, naming.MountedServer{addr, deadline})
+		reply = append(reply, naming.MountedServer{
+			Server:   addr,
+			Deadline: deadline,
+		})
 	}
 	return reply
 }
@@ -284,7 +287,7 @@ func (ns *neighborhoodService) Glob__(ctx *context.T, call rpc.GlobServerCall, g
 		matcher := g.Head()
 		for k, n := range nh.neighbors() {
 			if matcher.Match(k) {
-				sender.Send(naming.GlobReplyEntry{naming.MountEntry{Name: k, Servers: n, ServesMountTable: true}})
+				sender.Send(naming.GlobReplyEntry{Value: naming.MountEntry{Name: k, Servers: n, ServesMountTable: true}})
 			}
 		}
 		return nil
@@ -293,7 +296,7 @@ func (ns *neighborhoodService) Glob__(ctx *context.T, call rpc.GlobServerCall, g
 		if neighbor == nil {
 			return verror.New(naming.ErrNoSuchName, ctx, ns.elems[0])
 		}
-		sender.Send(naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: neighbor, ServesMountTable: true}})
+		sender.Send(naming.GlobReplyEntry{Value: naming.MountEntry{Name: "", Servers: neighbor, ServesMountTable: true}})
 		return nil
 	default:
 		return verror.New(naming.ErrNoSuchName, ctx, ns.elems)

@@ -137,11 +137,11 @@ func (t *testServer) GlobChildren__(_ *context.T, call rpc.GlobChildrenServerCal
 	switch t.suffix {
 	case "":
 		if n := "level1"; m.Match(n) {
-			call.SendStream().Send(naming.GlobChildrenReplyName{n})
+			call.SendStream().Send(naming.GlobChildrenReplyName{Value: n})
 		}
 	case "level1":
 		if n := "level2"; m.Match(n) {
-			call.SendStream().Send(naming.GlobChildrenReplyName{n})
+			call.SendStream().Send(naming.GlobChildrenReplyName{Value: n})
 		}
 	default:
 		return nil

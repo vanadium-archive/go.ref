@@ -74,7 +74,7 @@ func (mdi *MockBinarydInvoker) Glob__(p *context.T, call rpc.GlobServerCall, g *
 	gs := GlobStimulus{g.String()}
 	gr := mdi.Tape.Record(gs).(GlobResponse)
 	for _, r := range gr.Results {
-		call.SendStream().Send(naming.GlobReplyEntry{naming.MountEntry{Name: r}})
+		call.SendStream().Send(naming.GlobReplyEntry{Value: naming.MountEntry{Name: r}})
 	}
 	return gr.Err
 }

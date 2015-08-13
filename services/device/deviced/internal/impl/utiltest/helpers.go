@@ -327,7 +327,7 @@ func NewInstanceImpl(t *testing.T, ctx *context.T, appID, grant string) (string,
 			if err != nil {
 				return "", errors.New("bless failed")
 			}
-			call.SendStream().Send(device.BlessClientMessageAppBlessings{blessings})
+			call.SendStream().Send(device.BlessClientMessageAppBlessings{Value: blessings})
 		default:
 			return "", fmt.Errorf("newInstanceImpl: received unexpected message: %#v", msg)
 		}

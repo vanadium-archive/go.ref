@@ -335,7 +335,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	// Additionally, any server authorizaton options must only apply to the end server
 	// and not the proxy.
 	const expected = `method:"Echo",suffix:"suffix",arg:"batman"`
-	if result, err := makeCall(options.ServerPublicKey{serverKey}); result != expected || err != nil {
+	if result, err := makeCall(options.ServerPublicKey{PublicKey: serverKey}); result != expected || err != nil {
 		t.Fatalf("Got (%v, %v) want (%v, nil)", result, err, expected)
 	}
 

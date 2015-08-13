@@ -291,7 +291,7 @@ func (ipc *IPC) Close() {
 
 func (ipc *IPC) startCall(c *IPCConn, method string, args []interface{}, results []interface{}) (ch chan error) {
 	ch = make(chan error, 1)
-	header := agent.RpcMessageReq{agent.RpcRequest{Method: method, NumArgs: uint32(len(args))}}
+	header := agent.RpcMessageReq{Value: agent.RpcRequest{Method: method, NumArgs: uint32(len(args))}}
 	shouldClose := false
 	defer func() {
 		// Only close c after we unlock it.

@@ -129,7 +129,11 @@ func createBlessings(ctx *context.T, call security.Call, config *Config, princip
 			if err != nil {
 				return security.Blessings{}, verror.Convert(verror.ErrInternal, ctx, err)
 			}
-			thirdParty, err := security.NewPublicKeyCaveat(principal.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{true, true, true}, loggingCaveat)
+			thirdParty, err := security.NewPublicKeyCaveat(principal.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{
+				ReportServer:    true,
+				ReportMethod:    true,
+				ReportArguments: true,
+			}, loggingCaveat)
 			if err != nil {
 				return security.Blessings{}, verror.Convert(verror.ErrInternal, ctx, err)
 			}

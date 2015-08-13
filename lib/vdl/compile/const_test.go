@@ -183,7 +183,10 @@ func makeUnion(name string, val interface{}) *vdl.Value {
 }
 
 func makeStructTypeObjectType(name string) *vdl.Type {
-	return vdl.NamedType(name, vdl.StructType(vdl.Field{"T", vdl.TypeObjectType}))
+	return vdl.NamedType(name, vdl.StructType(vdl.Field{
+		Name: "T",
+		Type: vdl.TypeObjectType,
+	}))
 }
 
 func makeStructTypeObject(name string, t *vdl.Type) *vdl.Value {
@@ -196,7 +199,10 @@ func makeABStruct() *vdl.Value {
 	tA := vdl.NamedType("p.kg/a.A", vdl.StructType([]vdl.Field{
 		{"X", vdl.Int64Type}, {"Y", vdl.StringType},
 	}...))
-	tB := vdl.NamedType("p.kg/a.B", vdl.StructType(vdl.Field{"Z", vdl.ListType(tA)}))
+	tB := vdl.NamedType("p.kg/a.B", vdl.StructType(vdl.Field{
+		Name: "Z",
+		Type: vdl.ListType(tA),
+	}))
 	res := vdl.ZeroValue(tB)
 	listv := res.StructField(0).AssignLen(2)
 	listv.Index(0).StructField(0).AssignInt(1)
@@ -213,7 +219,10 @@ func makeEnumXYZ(name, label string) *vdl.Value {
 
 func makeInnerEnum(label string) *vdl.Value {
 	tA := vdl.NamedType("p.kg/a.A", vdl.EnumType("X", "Y", "Z"))
-	tB := vdl.NamedType("p.kg/a.B", vdl.StructType(vdl.Field{"A", tA}))
+	tB := vdl.NamedType("p.kg/a.B", vdl.StructType(vdl.Field{
+		Name: "A",
+		Type: tA,
+	}))
 	res := vdl.ZeroValue(tB)
 	res.StructField(0).AssignEnumLabel(label)
 	return res
