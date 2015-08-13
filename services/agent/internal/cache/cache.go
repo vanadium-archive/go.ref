@@ -12,6 +12,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/ref/internal/logger"
+	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/lru"
 )
 
@@ -30,7 +32,6 @@ const (
 type cachedRoots struct {
 	mu    *sync.RWMutex
 	impl  security.BlessingRoots
-	ctx   *context.T
 	cache map[string][]security.BlessingPattern // GUARDED_BY(mu)
 
 	// TODO(ataly): Get rid of the following fields once all agents have been
@@ -39,8 +40,8 @@ type cachedRoots struct {
 	negative   *lru.Cache // key + blessing -> error
 }
 
-func newCachedRoots(ctx *context.T, impl security.BlessingRoots, mu *sync.RWMutex) (*cachedRoots, error) {
-	roots := &cachedRoots{mu: mu, impl: impl, ctx: ctx}
+func newCachedRoots(impl security.BlessingRoots, mu *sync.RWMutex) (*cachedRoots, error) {
+	roots := &cachedRoots{mu: mu, impl: impl}
 	roots.flush()
 	if err := roots.fetchAndCacheRoots(); err != nil {
 		return nil, err
@@ -126,7 +127,7 @@ func (r *cachedRoots) Dump() map[security.BlessingPattern][]security.PublicKey {
 	if !cacheExists {
 		r.mu.Lock()
 		if err := r.fetchAndCacheRoots(); err != nil {
-			r.ctx.Errorf("failed to cache roots: %v", err)
+			logger.Global().Errorf("failed to cache roots: %v", err)
 			r.mu.Unlock()
 			return nil
 		}
@@ -177,7 +178,7 @@ func (r *cachedRoots) dumpFromCache() map[security.BlessingPattern][]security.Pu
 	for keyStr, patterns := range r.cache {
 		key, err := security.UnmarshalPublicKey([]byte(keyStr))
 		if err != nil {
-			r.ctx.Errorf("security.UnmarshalPublicKey(%v) returned error: %v", []byte(keyStr), err)
+			logger.Global().Errorf("security.UnmarshalPublicKey(%v) returned error: %v", []byte(keyStr), err)
 			return nil
 		}
 		for _, p := range patterns {
@@ -219,7 +220,6 @@ type cachedStore struct {
 	mu     *sync.RWMutex
 	key    security.PublicKey
 	def    security.Blessings
-	ctx    *context.T
 	hasDef bool
 	peers  map[security.BlessingPattern]security.Blessings
 	impl   security.BlessingStore
@@ -266,7 +266,7 @@ func (s *cachedStore) ForPeer(peerBlessings ...string) security.Blessings {
 			if union, err := security.UnionOfBlessings(ret, b); err == nil {
 				ret = union
 			} else {
-				s.ctx.Errorf("UnionOfBlessings(%v, %v) failed: %v, dropping the latter from BlessingStore.ForPeers(%v)", ret, b, err, peerBlessings)
+				logger.Global().Errorf("UnionOfBlessings(%v, %v) failed: %v, dropping the latter from BlessingStore.ForPeers(%v)", ret, b, err, peerBlessings)
 			}
 		}
 	}
@@ -341,7 +341,7 @@ func (s *cachedStore) flush() {
 // wraps over another implementation and adds caching.
 type cachedPrincipal struct {
 	cache security.Principal
-	/* impl */ security.Principal
+	/* impl */ agent.Principal
 }
 
 func (p *cachedPrincipal) BlessingsByName(pattern security.BlessingPattern) []security.Blessings {
@@ -364,6 +364,10 @@ func (p *cachedPrincipal) AddToRoots(blessings security.Blessings) error {
 	return p.cache.AddToRoots(blessings)
 }
 
+func (p *cachedPrincipal) Close() error {
+	return p.Principal.Close()
+}
+
 type dummySigner struct {
 	key security.PublicKey
 }
@@ -377,9 +381,32 @@ func (s dummySigner) PublicKey() security.PublicKey {
 	return s.key
 }
 
-func NewCachedPrincipal(ctx *context.T, impl security.Principal, call rpc.ClientCall) (p security.Principal, err error) {
+func NewCachedPrincipal(ctx *context.T, impl agent.Principal, call rpc.ClientCall) (p agent.Principal, err error) {
+	p, flush, err := NewCachedPrincipalX(impl)
+
+	if err == nil {
+		go func() {
+			var x bool
+			for {
+				if recvErr := call.Recv(&x); recvErr != nil {
+					if ctx.Err() != context.Canceled {
+						logger.Global().Errorf("Error from agent: %v", recvErr)
+					}
+					flush()
+					call.Finish()
+					return
+				}
+				flush()
+			}
+		}()
+	}
+
+	return
+}
+
+func NewCachedPrincipalX(impl agent.Principal) (p agent.Principal, flush func(), err error) {
 	var mu sync.RWMutex
-	cachedRoots, err := newCachedRoots(ctx, impl.Roots(), &mu)
+	cachedRoots, err := newCachedRoots(impl.Roots(), &mu)
 	if err != nil {
 		return
 	}
@@ -387,34 +414,19 @@ func NewCachedPrincipal(ctx *context.T, impl security.Principal, call rpc.Client
 		mu:   &mu,
 		key:  impl.PublicKey(),
 		impl: impl.BlessingStore(),
-		ctx:  ctx,
 	}
-	flush := func() {
+	flush = func() {
 		defer mu.Unlock()
 		mu.Lock()
 		cachedRoots.flush()
 		cachedStore.flush()
 	}
-	p, err = security.CreatePrincipal(dummySigner{impl.PublicKey()}, cachedStore, cachedRoots)
+	sp, err := security.CreatePrincipal(dummySigner{impl.PublicKey()}, cachedStore, cachedRoots)
 	if err != nil {
 		return
 	}
 
-	go func() {
-		var x bool
-		for {
-			if recvErr := call.Recv(&x); recvErr != nil {
-				if ctx.Err() != context.Canceled {
-					ctx.Errorf("Error from agent: %v", recvErr)
-				}
-				flush()
-				call.Finish()
-				return
-			}
-			flush()
-		}
-	}()
-	p = &cachedPrincipal{p, impl}
+	p = &cachedPrincipal{sp, impl}
 	return
 }
 

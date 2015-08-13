@@ -24,12 +24,20 @@ const (
 	// See v.io/x/ref/lib/security.CreatePersistentPrincipal.
 	EnvCredentials = "V23_CREDENTIALS"
 
+	// EnvAgentPath is the name of the environment variable pointing to an
+	// agentd process containing all the credentials a principal (the blessing
+	// store, the blessing roots, possibly the private key etc.).
+	//
+	// Typically only one of EnvCredentials or EnvAgentPaths will be set in a
+	// process. If both are set, then EnvCredentials takes preference.
+	EnvAgentPath = "V23_AGENT_PATH"
+
 	// EnvAgentEndpoint is the name of the environment variable pointing to an
 	// agentd process containing all the credentials a principal (the blessing
 	// store, the blessing roots, possibly the private key etc.).
 	//
-	// Typically only one of EnvCredentials or EnvAgentEndpoint will be set in a
-	// process. If both are set, then EnvCredentials takes preference.
+	// EnvAgentEndpoint is deprecated. New agentd processes should use EnvAgentPath.
+	// If both are set, EnvAgentPath takes preference.
 	EnvAgentEndpoint = "V23_AGENT_ENDPOINT"
 
 	// EnvNamespacePrefix is the prefix of all environment variables that define a

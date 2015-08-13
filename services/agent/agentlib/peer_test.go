@@ -14,3 +14,7 @@ import (
 func NewUncachedPrincipal(ctx *context.T, endpoint naming.Endpoint, insecureClient rpc.Client) (security.Principal, error) {
 	return newUncachedPrincipal(ctx, endpoint, insecureClient)
 }
+
+func NewUncachedPrincipalX(path string) (security.Principal, error) {
+	return newUncachedPrincipalX(path)
+}

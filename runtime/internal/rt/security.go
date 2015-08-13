@@ -20,6 +20,7 @@ import (
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
 	inaming "v.io/x/ref/runtime/internal/naming"
+	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
 )
 
@@ -48,6 +49,11 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 		return principal, nil, func() {}, nil
 	}
 	// Use credentials stored in the agent.
+	if principal, err := ipcAgent(); err != nil {
+		return nil, nil, nil, err
+	} else if principal != nil {
+		return principal, nil, func() { principal.Close() }, nil
+	}
 	if ep, _, err := agentEP(); err != nil {
 		return nil, nil, nil, err
 	} else if ep != nil {
@@ -96,6 +102,24 @@ func parseAgentFD(ep naming.Endpoint) (int, error) {
 		ifd = -1
 	}
 	return ifd, nil
+}
+
+func ipcAgent() (agent.Principal, error) {
+	handle, err := exec.GetChildHandle()
+	if err != nil && verror.ErrorID(err) != exec.ErrNoVersion.ID {
+		return nil, err
+	}
+	var path string
+	if handle != nil {
+		// We were started by a parent (presumably, device manager).
+		path, _ = handle.Config.Get(mgmt.SecurityAgentPathConfigKey)
+	} else {
+		path = os.Getenv(ref.EnvAgentPath)
+	}
+	if path == "" {
+		return nil, nil
+	}
+	return agentlib.NewAgentPrincipalX(path)
 }
 
 // agentEP returns an Endpoint to be used to communicate with

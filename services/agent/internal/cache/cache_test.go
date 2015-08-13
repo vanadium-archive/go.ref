@@ -22,7 +22,7 @@ func createRoots() (security.PublicKey, security.BlessingRoots, *cachedRoots) {
 	ctx = context.WithLogger(ctx, logger.Global())
 	p := testutil.NewPrincipal()
 	impl := p.Roots()
-	roots, err := newCachedRoots(ctx, impl, &mu)
+	roots, err := newCachedRoots(impl, &mu)
 	if err != nil {
 		panic(err)
 	}
