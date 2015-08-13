@@ -178,12 +178,18 @@ func TestOriginHasAccount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPrincipalManager failed: %v", err)
 	}
+
 	googleAccount := "fred/jim@gmail.com"
+	googleBlessings := accountBlessing(root, googleAccount)
+
+	if err := m.AddAccount(googleAccount, googleBlessings); err != nil {
+		t.Errorf("AddAccount(%v, %v) failed: %v", googleAccount, googleBlessings, err)
+	}
 
 	// Test with unknown origin.
 	unknownOrigin := "http://unknown.com"
 	if m.OriginHasAccount(unknownOrigin) {
-		fmt.Errorf("Expected m.OriginHasAccount(%v) to be false but it was true.", unknownOrigin)
+		t.Errorf("Expected m.OriginHasAccount(%v) to be false but it was true.", unknownOrigin)
 	}
 
 	// Test with no expiration caveat.
@@ -191,15 +197,15 @@ func TestOriginHasAccount(t *testing.T) {
 
 	methodCav, err := security.NewMethodCaveat("Foo")
 	if err != nil {
-		fmt.Errorf("security.MethodCaveat failed: %v", err)
+		t.Errorf("security.MethodCaveat failed: %v", err)
 	}
 
 	if err := m.AddOrigin(origin1, googleAccount, []security.Caveat{methodCav}, nil); err != nil {
-		fmt.Errorf("AddOrigin failed: %v", err)
+		t.Errorf("AddOrigin failed: %v", err)
 	}
 
 	if !m.OriginHasAccount(origin1) {
-		fmt.Errorf("Expected m.OriginHasAccount(%v) to be true but it was false.", origin1)
+		t.Errorf("Expected m.OriginHasAccount(%v) to be true but it was false.", origin1)
 	}
 
 	// Test with expiration caveat in the future.
@@ -208,15 +214,15 @@ func TestOriginHasAccount(t *testing.T) {
 
 	futureExpCav, err := security.NewExpiryCaveat(futureTime)
 	if err != nil {
-		fmt.Errorf("security.NewExpiryCaveat(%v) failed: %v", futureTime, err)
+		t.Errorf("security.NewExpiryCaveat(%v) failed: %v", futureTime, err)
 	}
 
 	if err := m.AddOrigin(origin2, googleAccount, []security.Caveat{futureExpCav}, []time.Time{futureTime}); err != nil {
-		fmt.Errorf("AddOrigin failed: %v", err)
+		t.Errorf("AddOrigin failed: %v", err)
 	}
 
 	if !m.OriginHasAccount(origin2) {
-		fmt.Errorf("Expected m.OriginHasAccount(%v) to be true but it was false.", origin2)
+		t.Errorf("Expected m.OriginHasAccount(%v) to be true but it was false.", origin2)
 	}
 
 	// Test with expiration caveats in the past and future.
@@ -225,14 +231,14 @@ func TestOriginHasAccount(t *testing.T) {
 
 	pastExpCav, err := security.NewExpiryCaveat(pastTime)
 	if err != nil {
-		fmt.Errorf("security.NewExpiryCaveat(%v) failed: %v", pastTime, err)
+		t.Errorf("security.NewExpiryCaveat(%v) failed: %v", pastTime, err)
 	}
 
 	if err := m.AddOrigin(origin3, googleAccount, []security.Caveat{futureExpCav, pastExpCav}, []time.Time{futureTime, pastTime}); err != nil {
-		fmt.Errorf("AddOrigin failed: %v", err)
+		t.Errorf("AddOrigin failed: %v", err)
 	}
 
 	if m.OriginHasAccount(origin3) {
-		fmt.Errorf("Expected m.OriginHasAccount(%v) to be false but it was true.", origin3)
+		t.Errorf("Expected m.OriginHasAccount(%v) to be false but it was true.", origin3)
 	}
 }
