@@ -131,6 +131,7 @@ func TestDialErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ln.Close()
 
 	// Server will just listen for flows and close them.
 	go acceptLoop(ln)
