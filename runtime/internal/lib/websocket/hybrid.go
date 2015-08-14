@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"v.io/x/ref/runtime/internal/lib/tcputil"
+
+	"v.io/v23/context"
 )
 
 // TODO(jhahn): Figure out a way for this mapping to be shared.
@@ -18,7 +20,7 @@ var mapWebSocketToTCP = map[string]string{"ws": "tcp", "ws4": "tcp4", "ws6": "tc
 // always uses tcp. A client must specifically elect to use websockets by
 // calling websocket.Dialer. The returned net.Conn will report 'tcp' as its
 // Network.
-func HybridDial(network, address string, timeout time.Duration) (net.Conn, error) {
+func HybridDial(ctx *context.T, network, address string, timeout time.Duration) (net.Conn, error) {
 	tcp := mapWebSocketToTCP[network]
 	conn, err := net.DialTimeout(tcp, address, timeout)
 	if err != nil {
@@ -32,7 +34,7 @@ func HybridDial(network, address string, timeout time.Duration) (net.Conn, error
 
 // HybridResolve performs a DNS resolution on the network, address and always
 // returns tcp as its Network.
-func HybridResolve(network, address string) (string, string, error) {
+func HybridResolve(ctx *context.T, network, address string) (string, string, error) {
 	tcp := mapWebSocketToTCP[network]
 	tcpAddr, err := net.ResolveTCPAddr(tcp, address)
 	if err != nil {
@@ -49,6 +51,6 @@ func HybridResolve(network, address string) (string, string, error) {
 // to decide if it's a websocket protocol or not. These must be 'GET ' for
 // websockets, all other protocols must guarantee to not send 'GET ' as the
 // first four bytes of the payload.
-func HybridListener(protocol, address string) (net.Listener, error) {
+func HybridListener(ctx *context.T, protocol, address string) (net.Listener, error) {
 	return listener(protocol, address, true)
 }

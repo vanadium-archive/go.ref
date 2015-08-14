@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 )
 
@@ -27,7 +28,8 @@ func init() {
 }
 
 func newSender(t *testing.T, dialer rpc.DialerFunc, protocol, address string) net.Conn {
-	conn, err := dialer(protocol, address, time.Minute)
+	ctx, _ := context.RootContext()
+	conn, err := dialer(ctx, protocol, address, time.Minute)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 		return nil

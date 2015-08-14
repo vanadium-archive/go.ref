@@ -13,10 +13,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"v.io/v23/context"
 )
 
 func TestAcceptsAreNotSerialized(t *testing.T) {
-	ln, err := HybridListener("wsh", "127.0.0.1:0")
+	ctx, _ := context.RootContext()
+	ln, err := HybridListener(ctx, "wsh", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +53,7 @@ func TestAcceptsAreNotSerialized(t *testing.T) {
 	// blocked on the portscanner.
 	// (Wait for the portscanner to establish the TCP connection first).
 	<-portscan
-	conn, err := Dial(ln.Addr().Network(), ln.Addr().String(), time.Second)
+	conn, err := Dial(ctx, ln.Addr().Network(), ln.Addr().String(), time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +61,8 @@ func TestAcceptsAreNotSerialized(t *testing.T) {
 }
 
 func TestNonWebsocketRequest(t *testing.T) {
-	ln, err := HybridListener("wsh", "127.0.0.1:0")
+	ctx, _ := context.RootContext()
+	ln, err := HybridListener(ctx, "wsh", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -230,14 +230,14 @@ func dial(ctx *context.T, d rpc.DialerFunc, protocol, address string) (net.Conn,
 		if dl, ok := ctx.Deadline(); ok {
 			timeout = dl.Sub(time.Now())
 		}
-		return d(protocol, address, timeout)
+		return d(ctx, protocol, address, timeout)
 	}
 	return nil, NewErrUnknownProtocol(ctx, protocol)
 }
 
 func resolve(ctx *context.T, r rpc.ResolverFunc, protocol, address string) (string, string, error) {
 	if r != nil {
-		net, addr, err := r(protocol, address)
+		net, addr, err := r(ctx, protocol, address)
 		if err != nil {
 			return "", "", err
 		}
@@ -248,7 +248,7 @@ func resolve(ctx *context.T, r rpc.ResolverFunc, protocol, address string) (stri
 
 func listen(ctx *context.T, protocol, address string) (net.Listener, error) {
 	if _, _, l, _ := rpc.RegisteredProtocol(protocol); l != nil {
-		ln, err := l(protocol, address)
+		ln, err := l(ctx, protocol, address)
 		if err != nil {
 			return nil, err
 		}

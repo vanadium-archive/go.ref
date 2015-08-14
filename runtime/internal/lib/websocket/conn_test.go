@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"v.io/v23/context"
 )
 
 func writer(c net.Conn, data []byte, times int, wg *sync.WaitGroup) {
@@ -94,7 +96,8 @@ func TestMultipleGoRoutines(t *testing.T) {
 	}
 	// Dial out in another go routine
 	go func() {
-		conn, err := Dial("tcp", addr.String(), time.Second)
+		ctx, _ := context.RootContext()
+		conn, err := Dial(ctx, "tcp", addr.String(), time.Second)
 		numTries := 0
 		for err != nil && numTries < 5 {
 			numTries++

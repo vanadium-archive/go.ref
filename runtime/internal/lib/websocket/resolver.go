@@ -8,10 +8,12 @@ package websocket
 
 import (
 	"net"
+
+	"v.io/v23/context"
 )
 
 // Resolve performs a DNS resolution on the provided protocol and address.
-func Resolve(protocol, address string) (string, string, error) {
+func Resolve(ctx *context.T, protocol, address string) (string, string, error) {
 	tcp := mapWebSocketToTCP[protocol]
 	tcpAddr, err := net.ResolveTCPAddr(tcp, address)
 	if err != nil {

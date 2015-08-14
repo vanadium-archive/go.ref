@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -847,13 +848,13 @@ func TestRegistration(t *testing.T) {
 	blessings := principal.BlessingStore().Default()
 	ctx, _ = v23.WithPrincipal(ctx, principal)
 
-	dialer := func(_, _ string, _ time.Duration) (net.Conn, error) {
+	dialer := func(_ *context.T, _, _ string, _ time.Duration) (net.Conn, error) {
 		return nil, fmt.Errorf("tn.Dial")
 	}
-	resolver := func(_, _ string) (string, string, error) {
+	resolver := func(_ *context.T, _, _ string) (string, string, error) {
 		return "", "", fmt.Errorf("tn.Resolve")
 	}
-	listener := func(_, _ string) (net.Listener, error) {
+	listener := func(_ *context.T, _, _ string) (net.Listener, error) {
 		return nil, fmt.Errorf("tn.Listen")
 	}
 	rpc.RegisterProtocol("tn", dialer, resolver, listener)
@@ -869,7 +870,7 @@ func TestRegistration(t *testing.T) {
 	}
 
 	// Need a functional listener to test Dial.
-	listener = func(_, addr string) (net.Listener, error) {
+	listener = func(_ *context.T, _, addr string) (net.Listener, error) {
 		return net.Listen("tcp", addr)
 	}
 

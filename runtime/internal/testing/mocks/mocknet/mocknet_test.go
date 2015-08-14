@@ -355,7 +355,7 @@ func TestV23Control(t *testing.T) {
 		return true
 	}
 
-	dropControlDialer := func(network, address string, timeout time.Duration) (net.Conn, error) {
+	dropControlDialer := func(ctx *context.T, network, address string, timeout time.Duration) (net.Conn, error) {
 		opts := mocknet.Opts{
 			Mode:              mocknet.V23CloseAtMessage,
 			V23MessageMatcher: matcher,
@@ -363,11 +363,15 @@ func TestV23Control(t *testing.T) {
 		return mocknet.DialerWithOpts(opts, network, address, timeout)
 	}
 
-	simpleResolver := func(network, address string) (string, string, error) {
+	simpleResolver := func(ctx *context.T, network, address string) (string, string, error) {
 		return network, address, nil
 	}
 
-	rpc.RegisterProtocol("dropControl", dropControlDialer, simpleResolver, net.Listen)
+	simpleListen := func(ctx *context.T, network, address string) (net.Listener, error) {
+		return net.Listen(network, address)
+	}
+
+	rpc.RegisterProtocol("dropControl", dropControlDialer, simpleResolver, simpleListen)
 
 	server, fn := initServer(t, ctx)
 	defer fn()

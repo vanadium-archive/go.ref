@@ -18,6 +18,8 @@ import (
 
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/runtime/internal/lib/tcputil"
+
+	"v.io/v23/context"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")
@@ -53,7 +55,7 @@ func (ln *chanListener) Accept() (net.Conn, error) {
 	return conn, nil
 }
 
-func Listener(protocol, address string) (net.Listener, error) {
+func Listener(ctx *context.T, protocol, address string) (net.Listener, error) {
 	return listener(protocol, address, false)
 }
 

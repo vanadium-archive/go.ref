@@ -12,6 +12,8 @@ import (
 	"runtime/ppapi"
 	"sync"
 	"time"
+
+	"v.io/v23/context"
 )
 
 // Ppapi instance which must be set before the Dial is called.
@@ -32,7 +34,7 @@ type wrappedConn struct {
 	currBuffer []byte
 }
 
-func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {
+func Dial(ctx *context.T, protocol, address string, timeout time.Duration) (net.Conn, error) {
 	inst := PpapiInstance
 	u, err := url.Parse("ws://" + address)
 	if err != nil {
@@ -46,7 +48,7 @@ func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {
 	return WebsocketConn(address, ws), nil
 }
 
-func Resolve(protocol, address string) (string, string, error) {
+func Resolve(ctx *context.T, protocol, address string) (string, string, error) {
 	return "ws", address, nil
 }
 

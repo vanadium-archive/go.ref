@@ -8,14 +8,17 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 
 	"v.io/x/ref/runtime/internal/lib/websocket"
 )
 
 func packetTester(t *testing.T, dialer rpc.DialerFunc, listener rpc.ListenerFunc, txProtocol, rxProtocol string) {
-	ln, err := listener(rxProtocol, "127.0.0.1:0")
+	ctx, _ := context.RootContext()
+	ln, err := listener(ctx, rxProtocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -29,7 +32,8 @@ func packetTester(t *testing.T, dialer rpc.DialerFunc, listener rpc.ListenerFunc
 }
 
 func byteTester(t *testing.T, dialer rpc.DialerFunc, listener rpc.ListenerFunc, txProtocol, rxProtocol string) {
-	ln, err := listener(rxProtocol, "127.0.0.1:0")
+	ctx, _ := context.RootContext()
+	ln, err := listener(ctx, rxProtocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -41,6 +45,10 @@ func byteTester(t *testing.T, dialer rpc.DialerFunc, listener rpc.ListenerFunc, 
 	byteRunner(t, ln, dialer, txProtocol, ln.Addr().String())
 	byteRunner(t, ln, dialer, txProtocol, ln.Addr().String())
 
+}
+
+func simpleDial(ctx *context.T, p, a string, timeout time.Duration) (net.Conn, error) {
+	return net.DialTimeout(p, a, timeout)
 }
 
 func TestWSToWS(t *testing.T) {
@@ -59,12 +67,13 @@ func TestWSHToWSH(t *testing.T) {
 }
 
 func TestTCPToWSH(t *testing.T) {
-	byteTester(t, net.DialTimeout, websocket.HybridListener, "tcp", "wsh")
-	packetTester(t, net.DialTimeout, websocket.HybridListener, "tcp", "wsh")
+	byteTester(t, simpleDial, websocket.HybridListener, "tcp", "wsh")
+	packetTester(t, simpleDial, websocket.HybridListener, "tcp", "wsh")
 }
 
 func TestMixed(t *testing.T) {
-	ln, err := websocket.HybridListener("wsh", "127.0.0.1:0")
+	ctx, _ := context.RootContext()
+	ln, err := websocket.HybridListener(ctx, "wsh", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -78,7 +87,7 @@ func TestMixed(t *testing.T) {
 
 	pwg.Add(4)
 	go packetTest(websocket.Dial, "ws")
-	go packetTest(net.DialTimeout, "tcp")
+	go packetTest(simpleDial, "tcp")
 	go packetTest(websocket.Dial, "ws")
 	go packetTest(websocket.HybridDial, "wsh")
 	pwg.Wait()
@@ -90,7 +99,7 @@ func TestMixed(t *testing.T) {
 	}
 	bwg.Add(4)
 	go byteTest(websocket.Dial, "ws")
-	go byteTest(net.DialTimeout, "tcp")
+	go byteTest(simpleDial, "tcp")
 	go byteTest(websocket.Dial, "ws")
 	go byteTest(websocket.HybridDial, "wsh")
 

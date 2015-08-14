@@ -30,10 +30,16 @@ import (
 var supportsIPv6 bool
 
 func init() {
-	simpleResolver := func(network, address string) (string, string, error) {
+	simpleResolver := func(ctx *context.T, network, address string) (string, string, error) {
 		return network, address, nil
 	}
-	rpc.RegisterProtocol("unix", net.DialTimeout, simpleResolver, net.Listen)
+	simpleDial := func(ctx *context.T, p, a string, timeout time.Duration) (net.Conn, error) {
+		return net.DialTimeout(p, a, timeout)
+	}
+	simpleListen := func(ctx *context.T, p, a string) (net.Listener, error) {
+		return net.Listen(p, a)
+	}
+	rpc.RegisterProtocol("unix", simpleDial, simpleResolver, simpleListen)
 
 	// Check whether the platform supports IPv6.
 	ln, err := net.Listen("tcp6", "[::1]:0")
@@ -45,7 +51,7 @@ func init() {
 
 func newConn(network, address string) (net.Conn, net.Conn, error) {
 	dfunc, _, lfunc, _ := rpc.RegisteredProtocol(network)
-	ln, err := lfunc(network, address)
+	ln, err := lfunc(nil, network, address)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,7 +67,7 @@ func newConn(network, address string) (net.Conn, net.Conn, error) {
 		done <- conn
 	}()
 
-	conn, err := dfunc(ln.Addr().Network(), ln.Addr().String(), 1*time.Second)
+	conn, err := dfunc(nil, ln.Addr().Network(), ln.Addr().String(), 1*time.Second)
 	if err != nil {
 		return nil, nil, err
 	}

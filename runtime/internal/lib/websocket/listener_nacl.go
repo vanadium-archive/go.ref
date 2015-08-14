@@ -9,6 +9,8 @@ package websocket
 import (
 	"fmt"
 	"net"
+
+	"v.io/v23/context"
 )
 
 // Websocket listeners are not supported in NaCl.
@@ -17,6 +19,6 @@ func listener(protocol, address string, hybrid bool) (net.Listener, error) {
 	return nil, fmt.Errorf("Websocket Listener called in nacl code!")
 }
 
-func Listener(protocol, address string) (net.Listener, error) {
+func Listener(ctx *context.T, protocol, address string) (net.Listener, error) {
 	return nil, fmt.Errorf("Websocket Listener called in nacl code!")
 }

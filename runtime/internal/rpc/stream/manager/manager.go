@@ -91,26 +91,26 @@ func (DialTimeout) RPCClientOpt() {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
-func dial(d rpc.DialerFunc, network, address string, timeout time.Duration) (net.Conn, error) {
+func dial(ctx *context.T, d rpc.DialerFunc, network, address string, timeout time.Duration) (net.Conn, error) {
 	if d != nil {
-		conn, err := d(network, address, timeout)
+		conn, err := d(ctx, network, address, timeout)
 		if err != nil {
-			return nil, verror.New(stream.ErrDialFailed, nil, err)
+			return nil, verror.New(stream.ErrDialFailed, ctx, err)
 		}
 		return conn, nil
 	}
-	return nil, verror.New(stream.ErrDialFailed, nil, verror.New(errUnknownNetwork, nil, network))
+	return nil, verror.New(stream.ErrDialFailed, ctx, verror.New(errUnknownNetwork, ctx, network))
 }
 
-func resolve(r rpc.ResolverFunc, network, address string) (string, string, error) {
+func resolve(ctx *context.T, r rpc.ResolverFunc, network, address string) (string, string, error) {
 	if r != nil {
-		net, addr, err := r(network, address)
+		net, addr, err := r(ctx, network, address)
 		if err != nil {
-			return "", "", verror.New(stream.ErrResolveFailed, nil, err)
+			return "", "", verror.New(stream.ErrResolveFailed, ctx, err)
 		}
 		return net, addr, nil
 	}
-	return "", "", verror.New(stream.ErrResolveFailed, nil, verror.New(errUnknownNetwork, nil, network))
+	return "", "", verror.New(stream.ErrResolveFailed, ctx, verror.New(errUnknownNetwork, ctx, network))
 }
 
 type dialResult struct {
@@ -139,7 +139,7 @@ func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...
 	// - Similarly, an unspecified IP address (net.IP.IsUnspecified) like "[::]:80"
 	//   might yield "[::1]:80" (loopback interface) in conn.RemoteAddr().
 	// Thus, look for VIFs with the resolved address.
-	network, address, err := resolve(r, addr.Network(), addr.String())
+	network, address, err := resolve(ctx, r, addr.Network(), addr.String())
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...
 
 	ch := make(chan *dialResult)
 	go func() {
-		conn, err := dial(d, network, address, timeout)
+		conn, err := dial(ctx, d, network, address, timeout)
 		ch <- &dialResult{conn, err}
 	}()
 
@@ -202,15 +202,15 @@ func (m *manager) deleteVIF(vf *vif.VIF) {
 	m.vifs.Delete(vf)
 }
 
-func listen(protocol, address string) (net.Listener, error) {
+func listen(ctx *context.T, protocol, address string) (net.Listener, error) {
 	if _, _, l, _ := rpc.RegisteredProtocol(protocol); l != nil {
-		ln, err := l(protocol, address)
+		ln, err := l(ctx, protocol, address)
 		if err != nil {
-			return nil, verror.New(stream.ErrNetwork, nil, err)
+			return nil, verror.New(stream.ErrNetwork, ctx, err)
 		}
 		return ln, nil
 	}
-	return nil, verror.New(stream.ErrBadArg, nil, verror.New(errUnknownNetwork, nil, protocol))
+	return nil, verror.New(stream.ErrBadArg, ctx, verror.New(errUnknownNetwork, ctx, protocol))
 }
 
 func (m *manager) Listen(ctx *context.T, protocol, address string, blessings security.Blessings, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
@@ -243,7 +243,7 @@ func (m *manager) internalListen(ctx *context.T, protocol, address string, bless
 		}
 		return m.remoteListen(ctx, ep, opts)
 	}
-	netln, err := listen(protocol, address)
+	netln, err := listen(ctx, protocol, address)
 	if err != nil {
 		return nil, nil, err
 	}

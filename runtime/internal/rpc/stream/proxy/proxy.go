@@ -234,7 +234,7 @@ func internalNew(rid naming.RoutingID, ctx *context.T, spec rpc.ListenSpec, auth
 	if listenFn == nil {
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errUnknownNetwork, nil, network))
 	}
-	ln, err := listenFn(network, address)
+	ln, err := listenFn(ctx, network, address)
 	if err != nil {
 		return nil, verror.New(stream.ErrProxy, nil, verror.New(errListenFailed, nil, network, address, err))
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -79,7 +80,7 @@ func acceptLoop(ln stream.Listener) {
 	}
 
 }
-func dropDataDialer(network, address string, timeout time.Duration) (net.Conn, error) {
+func dropDataDialer(ctx *context.T, network, address string, timeout time.Duration) (net.Conn, error) {
 	matcher := func(read bool, msg message.T) bool {
 		switch msg.(type) {
 		case *message.Setup:
@@ -94,8 +95,12 @@ func dropDataDialer(network, address string, timeout time.Duration) (net.Conn, e
 	return mocknet.DialerWithOpts(opts, network, address, timeout)
 }
 
-func simpleResolver(network, address string) (string, string, error) {
+func simpleResolver(ctx *context.T, network, address string) (string, string, error) {
 	return network, address, nil
+}
+
+func simpleListen(ctx *context.T, network, address string) (net.Listener, error) {
+	return net.Listen(network, address)
 }
 
 func TestDialErrors(t *testing.T) {
@@ -125,7 +130,7 @@ func TestDialErrors(t *testing.T) {
 	}
 	t.Log(err)
 
-	rpc.RegisterProtocol("dropData", dropDataDialer, simpleResolver, net.Listen)
+	rpc.RegisterProtocol("dropData", dropDataDialer, simpleResolver, simpleListen)
 
 	ln, sep, err := server.Listen(sctx, "tcp", "127.0.0.1:0", pserver.BlessingStore().Default())
 	if err != nil {

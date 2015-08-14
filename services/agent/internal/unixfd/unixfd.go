@@ -17,6 +17,7 @@ import (
 	"time"
 	"unsafe"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 )
@@ -84,7 +85,7 @@ func (l *singleConnListener) Addr() net.Addr {
 	return l.addr
 }
 
-func unixFDConn(protocol, address string, timeout time.Duration) (net.Conn, error) {
+func unixFDConn(ctx *context.T, protocol, address string, timeout time.Duration) (net.Conn, error) {
 	// TODO(cnicolaou): have this respect the timeout. Possibly have a helper
 	// function that can be generally used for this, but in practice, I think
 	// it'll be cleaner to use the underlying protocol's deadline support of it
@@ -136,12 +137,12 @@ func (c *fdConn) RemoteAddr() net.Addr {
 	return c.addr
 }
 
-func unixFDResolve(_, address string) (string, string, error) {
+func unixFDResolve(ctx *context.T, _, address string) (string, string, error) {
 	return Network, address, nil
 }
 
-func unixFDListen(protocol, address string) (net.Listener, error) {
-	conn, err := unixFDConn(protocol, address, 0)
+func unixFDListen(ctx *context.T, protocol, address string) (net.Listener, error) {
+	conn, err := unixFDConn(ctx, protocol, address, 0)
 	if err != nil {
 		return nil, err
 	}

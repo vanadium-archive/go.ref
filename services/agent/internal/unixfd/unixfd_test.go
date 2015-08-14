@@ -10,19 +10,23 @@ import (
 	"net"
 	"reflect"
 	"testing"
+
+	"v.io/v23/context"
 )
 
 type nothing struct{}
 
 func dial(fd *fileDescriptor) (net.Conn, net.Addr, error) {
 	addr := fd.releaseAddr()
-	conn, err := unixFDConn(Network, addr.String(), 0)
+	ctx, _ := context.RootContext()
+	conn, err := unixFDConn(ctx, Network, addr.String(), 0)
 	return conn, addr, err
 }
 
 func listen(fd *fileDescriptor) (net.Listener, net.Addr, error) {
 	addr := fd.releaseAddr()
-	l, err := unixFDListen(Network, addr.String())
+	ctx, _ := context.RootContext()
+	l, err := unixFDListen(ctx, Network, addr.String())
 	return l, addr, err
 }
 
@@ -169,11 +173,12 @@ func TestSendConnection(t *testing.T) {
 		t.Fatalf("unexpected data %q", data)
 	}
 
-	a, err := unixFDConn(Network, caddr.String(), 0)
+	ctx, _ := context.RootContext()
+	a, err := unixFDConn(ctx, Network, caddr.String(), 0)
 	if err != nil {
 		t.Fatalf("dial %v: %v", caddr, err)
 	}
-	b, err := unixFDConn(Network, saddr.String(), 0)
+	b, err := unixFDConn(ctx, Network, saddr.String(), 0)
 	if err != nil {
 		t.Fatalf("dial %v: %v", saddr, err)
 	}

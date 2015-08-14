@@ -15,9 +15,11 @@ import (
 	"github.com/gorilla/websocket"
 
 	"v.io/x/ref/runtime/internal/lib/tcputil"
+
+	"v.io/v23/context"
 )
 
-func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {
+func Dial(ctx *context.T, protocol, address string, timeout time.Duration) (net.Conn, error) {
 	var then time.Time
 	if timeout > 0 {
 		then = time.Now().Add(timeout)

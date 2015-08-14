@@ -10,13 +10,16 @@ import (
 	"testing"
 
 	"v.io/x/ref/runtime/internal/lib/websocket"
+
+	"v.io/v23/context"
 )
 
 // benchmarkWS sets up nConns WS connections and measures throughput.
 func benchmarkWSH(b *testing.B, protocol string, nConns int) {
+	ctx, _ := context.RootContext()
 	rchan := make(chan net.Conn, nConns)
 	wchan := make(chan net.Conn, nConns)
-	ln, err := websocket.HybridListener("wsh", "127.0.0.1:0")
+	ln, err := websocket.HybridListener(ctx, "wsh", "127.0.0.1:0")
 	if err != nil {
 		b.Fatalf("websocket.HybridListener failed: %v", err)
 		return
@@ -31,7 +34,7 @@ func benchmarkWSH(b *testing.B, protocol string, nConns int) {
 			case "tcp":
 				conn, err = net.Dial("tcp", ln.Addr().String())
 			case "ws":
-				conn, err = websocket.Dial("ws", ln.Addr().String(), 0)
+				conn, err = websocket.Dial(ctx, "ws", ln.Addr().String(), 0)
 			}
 			if err != nil {
 				b.Fatalf("Dial(%q, %q) failed: %v", protocol, ln.Addr(), err)

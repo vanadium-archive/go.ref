@@ -9,6 +9,7 @@ import (
 	"net"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 
 	"v.io/x/ref/runtime/internal/lib/tcputil"
@@ -20,7 +21,7 @@ func init() {
 	rpc.RegisterProtocol("tcp6", tcpDial, tcpResolve, tcpListen)
 }
 
-func tcpDial(network, address string, timeout time.Duration) (net.Conn, error) {
+func tcpDial(ctx *context.T, network, address string, timeout time.Duration) (net.Conn, error) {
 	conn, err := net.DialTimeout(network, address, timeout)
 	if err != nil {
 		return nil, err
@@ -32,7 +33,7 @@ func tcpDial(network, address string, timeout time.Duration) (net.Conn, error) {
 }
 
 // tcpResolve performs a DNS resolution on the provided network and address.
-func tcpResolve(network, address string) (string, string, error) {
+func tcpResolve(ctx *context.T, network, address string) (string, string, error) {
 	tcpAddr, err := net.ResolveTCPAddr(network, address)
 	if err != nil {
 		return "", "", err
@@ -41,7 +42,7 @@ func tcpResolve(network, address string) (string, string, error) {
 }
 
 // tcpListen returns a listener that sets KeepAlive on all accepted connections.
-func tcpListen(network, laddr string) (net.Listener, error) {
+func tcpListen(ctx *context.T, network, laddr string) (net.Listener, error) {
 	ln, err := net.Listen(network, laddr)
 	if err != nil {
 		return nil, err
