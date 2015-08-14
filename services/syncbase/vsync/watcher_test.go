@@ -117,7 +117,7 @@ func TestWatchPrefixes(t *testing.T) {
 	for _, test := range checkSyncableTests {
 		log := &watchable.LogEntry{
 			Op: watchable.OpPut{
-				watchable.PutOp{Key: []byte(makeRowKey(test.key))},
+				Value: watchable.PutOp{Key: []byte(makeRowKey(test.key))},
 			},
 		}
 		res := syncable(appDbName(test.appName, test.dbName), log)
@@ -144,7 +144,7 @@ func newLog(key, version string, delete bool) *watchable.LogEntry {
 func newSGLog(prefixes []string, remove bool) *watchable.LogEntry {
 	return &watchable.LogEntry{
 		Op: watchable.OpSyncGroup{
-			watchable.SyncGroupOp{Prefixes: prefixes, Remove: remove},
+			Value: watchable.SyncGroupOp{Prefixes: prefixes, Remove: remove},
 		},
 	}
 }
