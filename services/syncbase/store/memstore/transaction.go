@@ -90,7 +90,7 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if err := tx.error(); err != nil {
-		return &store.InvalidStream{err}
+		return &store.InvalidStream{Error: err}
 	}
 
 	// Create an array of store.WriteOps as it is needed to merge

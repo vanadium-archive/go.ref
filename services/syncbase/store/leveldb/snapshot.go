@@ -76,7 +76,7 @@ func (s *snapshot) Scan(start, limit []byte) store.Stream {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.err != nil {
-		return &store.InvalidStream{s.err}
+		return &store.InvalidStream{Error: s.err}
 	}
 	return newStream(s.d, s.node, start, limit, s.cOpts)
 }

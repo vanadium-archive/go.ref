@@ -125,7 +125,7 @@ func (d *db) Scan(start, limit []byte) store.Stream {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.err != nil {
-		return &store.InvalidStream{d.err}
+		return &store.InvalidStream{Error: d.err}
 	}
 	return newStream(d, d.node, start, limit, d.readOptions)
 }
@@ -156,7 +156,7 @@ func (d *db) NewTransaction() store.Transaction {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.err != nil {
-		return &store.InvalidTransaction{d.err}
+		return &store.InvalidTransaction{Error: d.err}
 	}
 	return newTransaction(d, d.node)
 }

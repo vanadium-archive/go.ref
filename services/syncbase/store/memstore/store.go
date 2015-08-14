@@ -65,7 +65,7 @@ func (st *memstore) Scan(start, limit []byte) store.Stream {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.err != nil {
-		return &store.InvalidStream{st.err}
+		return &store.InvalidStream{Error: st.err}
 	}
 	// TODO(sadovsky): Close snapshot once stream is closed or canceled.
 	return newSnapshot(st, st.node).Scan(start, limit)
@@ -90,7 +90,7 @@ func (st *memstore) NewTransaction() store.Transaction {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.err != nil {
-		return &store.InvalidTransaction{st.err}
+		return &store.InvalidTransaction{Error: st.err}
 	}
 	st.lastSeq++
 	return newTransaction(st, st.node, st.lastSeq)

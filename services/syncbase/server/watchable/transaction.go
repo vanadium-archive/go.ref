@@ -75,7 +75,7 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return &store.InvalidStream{tx.err}
+		return &store.InvalidStream{Error: tx.err}
 	}
 	var it store.Stream
 	if !tx.st.managesRange(start, limit) {

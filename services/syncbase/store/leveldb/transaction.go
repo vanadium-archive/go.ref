@@ -114,7 +114,7 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return &store.InvalidStream{tx.err}
+		return &store.InvalidStream{Error: tx.err}
 	}
 
 	tx.reads.Ranges = append(tx.reads.Ranges, store.ScanRange{
