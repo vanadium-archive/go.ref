@@ -36,9 +36,10 @@ func createStore() (store.Store, func()) {
 			st.Close()
 		}
 	} else {
-		st = createLevelDB(getPath())
+		path := getPath()
+		st = createLevelDB(path)
 		return st, func() {
-			destroyLevelDB(st, getPath())
+			destroyLevelDB(st, path)
 		}
 	}
 }
