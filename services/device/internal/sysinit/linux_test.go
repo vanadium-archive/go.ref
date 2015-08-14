@@ -49,7 +49,7 @@ func TestUpstart(t *testing.T) {
 	timestr := lines.Text()
 	_, err := time.Parse(dateFormat, timestr)
 	if err != nil {
-		t.Fatalf("unexpected error parsing time: %s, err: %s", t, err)
+		t.Fatalf("unexpected error parsing time: %v, err: %v", t, err)
 	}
 	lines.Scan()
 	if lines.Text() != "tester" {
@@ -121,9 +121,9 @@ func TestSystemd(t *testing.T) {
 	}
 	contents := string(c)
 	if !strings.Contains(contents, "Description=my test") {
-		t.Errorf("bad Description in generated service spec: ", contents)
+		t.Errorf("bad Description in generated service spec: %v", contents)
 	}
 	if !strings.Contains(contents, "ExecStart=/bin/echo -n foo") {
-		t.Errorf("bad ExecStart in generated service spec: ", contents)
+		t.Errorf("bad ExecStart in generated service spec: %v", contents)
 	}
 }
