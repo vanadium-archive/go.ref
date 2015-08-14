@@ -70,6 +70,7 @@ func testSimpleFlow(t *testing.T, protocol string) {
 	var clientVC stream.VC
 	var clientF1 stream.Flow
 	go func() {
+		var err error
 		cctx, _ := v23.WithPrincipal(ctx, pclient)
 		if clientVC, err = client.Dial(cctx, ep); err != nil {
 			t.Errorf("Dial(%q) failed: %v", ep, err)

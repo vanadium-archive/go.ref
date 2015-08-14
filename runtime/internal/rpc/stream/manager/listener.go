@@ -70,11 +70,11 @@ type netListener struct {
 	q       *upcqueue.T
 	netLn   net.Listener
 	manager *manager
-	vifs    *vif.Set
 	ctx     *context.T
 
 	connsMu sync.Mutex
 	conns   map[net.Conn]bool
+	vifs    *vif.Set
 
 	netLoop  sync.WaitGroup
 	vifLoops sync.WaitGroup
@@ -206,15 +206,24 @@ func (ln *netListener) netAcceptLoop(blessings security.Blessings, opts []stream
 
 		ln.ctx.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
 
+		ln.vifLoops.Add(1)
 		go func() {
 			vf, err := vif.InternalNewAcceptedVIF(ln.ctx, conn, ln.manager.rid, blessings, nil, ln.deleteVIF, opts...)
 			if err != nil {
 				ln.ctx.Infof("Shutting down conn from %s (local address: %s) as a VIF could not be created: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
 				conn.Close()
+				ln.vifLoops.Done()
 				return
 			}
-			ln.vifLoops.Add(1)
+			ln.connsMu.Lock()
+			if ln.vifs == nil {
+				ln.connsMu.Unlock()
+				vf.Close()
+				ln.vifLoops.Done()
+				return
+			}
 			ln.vifs.Insert(vf, conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+			ln.connsMu.Unlock()
 			ln.manager.vifs.Insert(vf, conn.RemoteAddr().Network(), conn.RemoteAddr().String())
 			vifLoop(ln.ctx, vf, ln.q, func() {
 				ln.connsMu.Lock()
@@ -228,7 +237,11 @@ func (ln *netListener) netAcceptLoop(blessings security.Blessings, opts []stream
 
 func (ln *netListener) deleteVIF(vf *vif.VIF) {
 	ln.ctx.VI(2).Infof("VIF %v is closed, removing from cache", vf)
-	ln.vifs.Delete(vf)
+	ln.connsMu.Lock()
+	if ln.vifs != nil {
+		ln.vifs.Delete(vf)
+	}
+	ln.connsMu.Unlock()
 	ln.manager.vifs.Delete(vf)
 }
 
@@ -247,13 +260,21 @@ func (ln *netListener) Accept() (stream.Flow, error) {
 func (ln *netListener) Close() error {
 	closeNetListener(ln.ctx, ln.netLn)
 	ln.netLoop.Wait()
-	for _, vif := range ln.vifs.List() {
+
+	ln.connsMu.Lock()
+	var vfs []*vif.VIF
+	if ln.vifs != nil {
+		vfs, ln.vifs = ln.vifs.List(), nil
+	}
+	ln.connsMu.Unlock()
+
+	for _, vf := range vfs {
 		// NOTE(caprita): We do not actually Close down the vifs, as
 		// that would require knowing when all outstanding requests are
 		// finished.  For now, do not worry about it, since we expect
 		// shut down to immediately precede process exit.
 		//v23.Logger().Infof("Close: stop accepting: %p", vif)
-		vif.StopAccepting()
+		vf.StopAccepting()
 	}
 	ln.q.Shutdown()
 	ln.manager.removeListener(ln)
@@ -269,7 +290,13 @@ func (ln *netListener) DebugString() string {
 	ret := []string{
 		fmt.Sprintf("stream.Listener: net.Listener on (%q, %q)", ln.netLn.Addr().Network(), ln.netLn.Addr()),
 	}
-	if vifs := ln.vifs.List(); len(vifs) > 0 {
+	ln.connsMu.Lock()
+	var vifs []*vif.VIF
+	if ln.vifs != nil {
+		vifs, ln.vifs = ln.vifs.List(), nil
+	}
+	ln.connsMu.Unlock()
+	if len(vifs) > 0 {
 		ret = append(ret, fmt.Sprintf("===Accepted VIFs(%d)===", len(vifs)))
 		for ix, vif := range vifs {
 			ret = append(ret, fmt.Sprintf("%4d) %v", ix, vif))

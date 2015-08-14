@@ -129,6 +129,8 @@ type VIF struct {
 
 	muStats sync.Mutex
 	stats   Stats
+
+	loopWG sync.WaitGroup
 }
 
 // ConnectorAndFlow represents a Flow and the Connector that can be used to
@@ -313,6 +315,7 @@ func internalNew(ctx *context.T, conn net.Conn, pool *iobuf.Pool, reader *iobuf.
 			vif.closeVCAndSendMsg(vc, false, verror.New(errIdleTimeout, nil))
 		}
 	})
+	vif.loopWG.Add(2)
 	go vif.readLoop()
 	go vif.writeLoop()
 	return vif, nil
@@ -559,10 +562,13 @@ func (vif *VIF) Close() {
 	if err := vif.conn.Close(); err != nil {
 		vif.ctx.VI(1).Infof("net.Conn.Close failed on VIF %s: %v", vif, err)
 	}
+
 	// Notify that the VIF has been closed.
 	if vif.onClose != nil {
 		go vif.onClose(vif)
 	}
+
+	vif.loopWG.Wait()
 }
 
 // StartAccepting begins accepting Flows (and VCs) initiated by the remote end
@@ -630,6 +636,7 @@ func (vif *VIF) String() string {
 
 func (vif *VIF) readLoop() {
 	defer vif.Close()
+	defer vif.loopWG.Done()
 	defer vif.stopVCDispatchLoops()
 	for {
 		// vif.ctrlCipher is guarded by vif.writeMu.  However, the only mutation
@@ -819,6 +826,7 @@ func (vif *VIF) distributeCounters(counters message.Counters) {
 }
 
 func (vif *VIF) writeLoop() {
+	defer vif.loopWG.Done()
 	defer vif.outgoing.Close()
 	defer vif.stopVCWriteLoops()
 	for {
