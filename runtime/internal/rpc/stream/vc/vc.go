@@ -115,6 +115,7 @@ type VC struct {
 
 	helper    Helper
 	dataCache *dataCache // dataCache contains information that can shared between Flows from this VC.
+	loopWG    sync.WaitGroup
 }
 
 // ServerAuthorizer encapsulates the policy used to authorize servers during VC
@@ -431,6 +432,8 @@ func (vc *VC) Close(reason error) error {
 		vc.ctx.VI(2).Infof("Closing flow %d on VC %v as VC is being closed(%q)", fid, vc, reason)
 		flow.Close()
 	}
+
+	vc.loopWG.Wait()
 	return nil
 }
 
@@ -800,6 +803,7 @@ func (vc *VC) abortHandshakeAcceptedVC(reason error, ln stream.Listener, result 
 
 func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs []security.Caveat, dischargeExpiryBuffer time.Duration) {
 	defer conn.Close()
+	defer vc.loopWG.Done()
 	if dc == nil {
 		return
 	}
@@ -853,6 +857,7 @@ func minExpiryTime(discharges []security.Discharge, tpCavs []security.Caveat) ti
 
 func (vc *VC) recvDischargesLoop(conn io.ReadCloser) {
 	defer conn.Close()
+	defer vc.loopWG.Done()
 	dec := vom.NewDecoder(conn)
 	for {
 		var discharges []security.Discharge
@@ -890,6 +895,7 @@ func (vc *VC) connectSystemFlows() error {
 		if err != nil {
 			return verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForDischarge, nil, err))
 		}
+		vc.loopWG.Add(1)
 		go vc.recvDischargesLoop(conn)
 	}
 
@@ -917,6 +923,7 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener, dischargeClient DischargeCli
 		if err != nil {
 			return verror.New(errFlowForDischargeNotAccepted, nil, err)
 		}
+		vc.loopWG.Add(1)
 		go vc.sendDischargesLoop(conn, dischargeClient, tpCaveats, dischargeExpiryBuffer)
 	}
 	return nil
