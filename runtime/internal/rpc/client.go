@@ -434,6 +434,9 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		case verror.ErrorID(err) == verror.ErrNoServers.ID:
 			// Avoid wrapping errors unnecessarily.
 			return nil, verror.NoRetry, false, err
+		case verror.ErrorID(err) == verror.ErrTimeout.ID:
+			// If the call timed out we actually want to propagate that error.
+			return nil, verror.NoRetry, false, err
 		default:
 			return nil, verror.NoRetry, false, verror.New(verror.ErrNoServers, ctx, name, err)
 		}

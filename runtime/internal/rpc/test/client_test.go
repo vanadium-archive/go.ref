@@ -352,14 +352,10 @@ func TestStartCallErrors(t *testing.T) {
 	// The following two tests will fail due to a timeout.
 	ns.SetRoots("/203.0.113.10:8101")
 	nctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
-	// This call will timeout talking to the mount table, returning
-	// NoServers, but with the string 'Timeout' in the message.
+	// This call will timeout talking to the mount table.
 	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{})
-	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+	if verror.ErrorID(err) != verror.ErrTimeout.ID {
 		t.Fatalf("wrong error: %s", err)
-	}
-	if want := "Timeout"; !strings.Contains(err.Error(), want) {
-		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
 	}
 	if call != nil {
 		t.Fatalf("expected call to be nil")
