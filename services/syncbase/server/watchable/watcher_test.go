@@ -45,7 +45,7 @@ func runWatchLogBatchTest(t *testing.T, st store.Store) {
 	var seq uint64
 
 	for i := 0; i < (numTx + 3); i++ {
-		logs, newResmark, err := WatchLogBatch(st, resmark)
+		logs, newResmark, err := ReadBatchFromLog(st, resmark)
 		if err != nil {
 			t.Fatalf("can't get watch log batch: %v", err)
 		}

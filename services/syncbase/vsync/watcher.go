@@ -123,7 +123,7 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 	s.initDbSyncStateInMem(ctx, appName, dbName)
 
 	// Get a batch of watch log entries, if any, after this resume marker.
-	logs, nextResmark, err := watchable.WatchLogBatch(st, resMark)
+	logs, nextResmark, err := watchable.ReadBatchFromLog(st, resMark)
 	if err != nil {
 		vlog.Fatalf("sync: processDatabase: %s, %s: cannot get watch log batch: %v", appName, dbName, verror.DebugString(err))
 	}

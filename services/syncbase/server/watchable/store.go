@@ -16,12 +16,6 @@
 // where <key> is the client-specified key.
 package watchable
 
-// TODO(sadovsky): Write unit tests. (As of May 2015 we're still iterating on
-// the design for how to expose a "watch" API from the storage engine, and we
-// don't want to write lots of tests prematurely.)
-// TODO(sadovsky): Expose helper functions for constructing LogEntry keys.
-// TODO(sadovsky): Allow clients to subscribe via Go channel.
-
 import (
 	"fmt"
 	"strings"
@@ -51,25 +45,28 @@ func Wrap(st store.Store, opts *Options) (Store, error) {
 		return nil, err
 	}
 	return &wstore{
-		ist:   st,
-		opts:  opts,
-		seq:   seq,
-		clock: clock.NewVClock(),
+		ist:     st,
+		watcher: newWatcher(),
+		opts:    opts,
+		seq:     seq,
+		clock:   clock.NewVClock(),
 	}, nil
 }
 
 type wstore struct {
-	ist   store.Store
-	opts  *Options
-	mu    sync.Mutex    // held during transaction commits; protects seq
-	seq   uint64        // the next sequence number to be used for a new commit
-	clock *clock.VClock // used to provide write timestamps
+	ist     store.Store
+	watcher *watcher
+	opts    *Options
+	mu      sync.Mutex    // held during transaction commits; protects seq
+	seq     uint64        // the next sequence number to be used for a new commit
+	clock   *clock.VClock // used to provide write timestamps
 }
 
 var _ Store = (*wstore)(nil)
 
 // Close implements the store.Store interface.
 func (st *wstore) Close() error {
+	st.watcher.close()
 	return st.ist.Close()
 }
 

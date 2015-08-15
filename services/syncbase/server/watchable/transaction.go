@@ -158,6 +158,7 @@ func (tx *transaction) Commit() error {
 		return err
 	}
 	tx.st.seq = seq
+	tx.st.watcher.broadcastUpdates()
 	return nil
 }
 

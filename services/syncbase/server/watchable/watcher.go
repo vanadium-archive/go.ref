@@ -7,6 +7,7 @@ package watchable
 import (
 	"fmt"
 	"strconv"
+	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/store"
@@ -15,6 +16,79 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 )
+
+// watcher maintains a state and a condition variable. The watcher sends
+// a broadcast signal every time the state changes. The state is increased
+// by 1 every time the store has new data. Initially the state equals to 1.
+// If the state becomes 0, then the watcher is closed and the state will not
+// be changed later.
+// TODO(rogulenko): Broadcast a signal from time to time to unblock waiting
+// clients.
+type watcher struct {
+	mu    *sync.RWMutex
+	cond  *sync.Cond
+	state uint64
+}
+
+func newWatcher() *watcher {
+	mu := &sync.RWMutex{}
+	return &watcher{
+		mu:    mu,
+		cond:  sync.NewCond(mu.RLocker()),
+		state: 1,
+	}
+}
+
+// close closes the watcher.
+func (w *watcher) close() {
+	w.mu.Lock()
+	w.state = 0
+	w.cond.Broadcast()
+	w.mu.Unlock()
+}
+
+// broadcastUpdates broadcast the update notification to watch clients.
+func (w *watcher) broadcastUpdates() {
+	w.mu.Lock()
+	if w.state != 0 {
+		w.state++
+		w.cond.Broadcast()
+	} else {
+		vlog.Error("broadcastUpdates() called on a closed watcher")
+	}
+	w.mu.Unlock()
+}
+
+// WatchUpdates returns a function that can be used to watch for changes of
+// the database. The store maintains a state (initially 1) that is increased
+// by 1 every time the store has new data. The waitForChange function takes
+// the last returned state and blocks until the state changes, returning the new
+// state. State equal to 0 means the store is closed and no updates will come
+// later. If waitForChange function takes a state different from the current
+// state of the store or the store is closed, the waitForChange function returns
+// immediately. It might happen that the waitForChange function returns
+// a non-zero state equal to the state passed as the argument. This behavior
+// helps to unblock clients if the store doesn't have updates for a long period
+// of time.
+func WatchUpdates(st store.Store) (waitForChange func(state uint64) uint64) {
+	// TODO(rogulenko): Remove dynamic type assertion here and in other places.
+	watcher := st.(*wstore).watcher
+	return func(state uint64) uint64 {
+		watcher.cond.L.Lock()
+		defer watcher.cond.L.Unlock()
+		if watcher.state != 0 && watcher.state == state {
+			watcher.cond.Wait()
+		}
+		return watcher.state
+	}
+}
+
+// GetResumeMarker returns the ResumeMarker that points to the current end
+// of the event log.
+func GetResumeMarker(st store.StoreReader) (watch.ResumeMarker, error) {
+	seq, err := getNextLogSeq(st)
+	return watch.ResumeMarker(logEntryKey(seq)), err
+}
 
 // MakeResumeMarker converts a sequence number to the resume marker.
 func MakeResumeMarker(seq uint64) watch.ResumeMarker {
@@ -27,9 +101,9 @@ func logEntryKey(seq uint64) string {
 	return join(util.LogPrefix, fmt.Sprintf("%016x", seq))
 }
 
-// WatchLogBatch returns a batch of watch log records (a transaction) from
+// ReadBatchFromLog returns a batch of watch log records (a transaction) from
 // the given database and the new resume marker at the end of the batch.
-func WatchLogBatch(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEntry, watch.ResumeMarker, error) {
+func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEntry, watch.ResumeMarker, error) {
 	seq, err := parseResumeMarker(string(resumeMarker))
 	if err != nil {
 		return nil, resumeMarker, err
