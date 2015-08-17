@@ -159,6 +159,9 @@ func Run(ctx *context.T, env *cmdline.Env, args []string, handler GlobHandler, s
 	results := glob(ctx, env, args)
 	sort.Sort(byTypeAndName(results))
 	results = filterResults(results, s)
+	if len(results) == 0 {
+		return fmt.Errorf("no objects found")
+	}
 	stdouts, stderrs := make([]bytes.Buffer, len(results)), make([]bytes.Buffer, len(results))
 	var errorCounter uint32 = 0
 	perResult := func(r *GlobResult, index int) {

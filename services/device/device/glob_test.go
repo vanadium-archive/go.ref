@@ -418,7 +418,7 @@ func TestGlob(t *testing.T) {
 			allGlobArgs,
 			"",
 			"",
-			"",
+			"no objects found",
 		},
 		// No glob arguments.
 		{
@@ -429,7 +429,7 @@ func TestGlob(t *testing.T) {
 			[]string{},
 			"",
 			"",
-			"",
+			"no objects found",
 		},
 		// No glob results.
 		{
@@ -440,7 +440,7 @@ func TestGlob(t *testing.T) {
 			allGlobArgs,
 			"",
 			"",
-			"",
+			"no objects found",
 		},
 		// Error in glob.
 		{
