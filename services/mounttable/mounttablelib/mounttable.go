@@ -27,19 +27,19 @@ import (
 
 const pkgPath = "v.io/x/ref/services/mounttable/mounttablelib"
 
-// NOTE(caprita): this was doubled from 1000 on 8/7/2015 to recover from crashes
-// due to hitting this in production.  We should revisit.
 const defaultMaxNodesPerUser = 1000
+const maxNameElementLen = 512
 
 var (
-	errMalformedAddress = verror.Register(pkgPath+".errMalformedAddress", verror.NoRetry, "{1:}{2:} malformed address {3} for mounted server {4}{:_}")
-	errMTDoesntMatch    = verror.Register(pkgPath+".errMTDoesntMatch", verror.NoRetry, "{1:}{2:} MT doesn't match{:_}")
-	errLeafDoesntMatch  = verror.Register(pkgPath+".errLeafDoesntMatch", verror.NoRetry, "{1:}{2:} Leaf doesn't match{:_}")
-	errCantDeleteRoot   = verror.Register(pkgPath+".errCantDeleteRoot", verror.NoRetry, "{1:}{2:} cannot delete root node{:_}")
-	errNotEmpty         = verror.Register(pkgPath+".errNotEmpty", verror.NoRetry, "{1:}{2:} cannot delete {3}: has children{:_}")
-	errNamingLoop       = verror.Register(pkgPath+".errNamingLoop", verror.NoRetry, "{1:}{2:} Loop in namespace{:_}")
-	errTooManyNodes     = verror.Register(pkgPath+".errTooManyNodes", verror.NoRetry, "{1:}{2:} User has exceeded his node limit {:_}")
-	errNoSharedRoot     = verror.Register(pkgPath+".errNoSharedRoot", verror.NoRetry, "{1:}{2:} Server and User share no blessing root {:_}")
+	errMalformedAddress   = verror.Register(pkgPath+".errMalformedAddress", verror.NoRetry, "{1:}{2:} malformed address {3} for mounted server {4}{:_}")
+	errMTDoesntMatch      = verror.Register(pkgPath+".errMTDoesntMatch", verror.NoRetry, "{1:}{2:} MT doesn't match{:_}")
+	errLeafDoesntMatch    = verror.Register(pkgPath+".errLeafDoesntMatch", verror.NoRetry, "{1:}{2:} Leaf doesn't match{:_}")
+	errCantDeleteRoot     = verror.Register(pkgPath+".errCantDeleteRoot", verror.NoRetry, "{1:}{2:} cannot delete root node{:_}")
+	errNotEmpty           = verror.Register(pkgPath+".errNotEmpty", verror.NoRetry, "{1:}{2:} cannot delete {3}: has children{:_}")
+	errNamingLoop         = verror.Register(pkgPath+".errNamingLoop", verror.NoRetry, "{1:}{2:} Loop in namespace{:_}")
+	errTooManyNodes       = verror.Register(pkgPath+".errTooManyNodes", verror.NoRetry, "{1:}{2:} User has exceeded his node limit {:_}")
+	errNoSharedRoot       = verror.Register(pkgPath+".errNoSharedRoot", verror.NoRetry, "{1:}{2:} Server and User share no blessing root {:_}")
+	errNameElementTooLong = verror.Register(pkgPath+".errNameElementTooLong", verror.NoRetry, "{1:}{2:} path element {3}: too long {:_}")
 )
 
 var (
@@ -485,14 +485,28 @@ func numServers(n *node) int64 {
 	return int64(n.mount.servers.len())
 }
 
+// This isn't a storage system.
+func checkElementLengths(ctx *context.T, elems []string) error {
+	for _, e := range elems {
+		if len(e) > maxNameElementLen {
+			return verror.New(errNameElementTooLong, ctx, e)
+		}
+	}
+	return nil
+}
+
+
 // Mount a server onto the name in the receiver.
 func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
+	ctx.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)
+	if err := checkElementLengths(ctx, ms.elems); err != nil {
+		return err
+	}
 	cc := newCallContext(ctx, call.Security(), createMissingNodes)
 	mt := ms.mt
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
 	}
-	ctx.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)
 
 	// Make sure the server address is reasonable.
 	epString := server
@@ -816,6 +830,9 @@ func (ms *mountContext) linkToLeaf(cc *callContext, gCall rpc.GlobServerCall) {
 
 func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	ctx.VI(2).Infof("SetPermissions %q", ms.name)
+	if err := checkElementLengths(ctx, ms.elems); err != nil {
+		return err
+	}
 	cc := newCallContext(ctx, call.Security(), createMissingNodes)
 	mt := ms.mt
 
