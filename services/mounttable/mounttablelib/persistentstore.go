@@ -123,6 +123,12 @@ func (s *store) parseLogFile(ctx *context.T, f *os.File) error {
 	ctx.VI(2).Infof("parseLogFile(%s)", f.Name())
 	mt := s.mt
 	decoder := json.NewDecoder(f)
+	cc := &callContext{ctx: ctx,
+		creatorSet:   true,
+		create:       true,
+		ignorePerms:  true,
+		ignoreLimits: true,
+	}
 	for {
 		var e storeElement
 		if err := decoder.Decode(&e); err != nil {
@@ -133,9 +139,12 @@ func (s *store) parseLogFile(ctx *context.T, f *os.File) error {
 		}
 
 		elems := strings.Split(e.N, "/")
-		n, err := mt.findNode(ctx, nil, elems, true, nil, nil)
-		if n != nil || err == nil {
-			n.creator = e.C
+		cc.creator = e.C
+		n, err := mt.findNode(cc, elems, nil, nil)
+		if n == nil {
+			continue
+		}
+		if err == nil {
 			if e.D {
 				mt.deleteNode(n.parent, elems[len(elems)-1])
 				ctx.VI(2).Infof("deleted %s", e.N)

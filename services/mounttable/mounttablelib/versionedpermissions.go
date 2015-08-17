@@ -108,6 +108,12 @@ func (mt *mountTable) parsePermFile(ctx *context.T, path string) error {
 			}
 			return err
 		}
+		cc := &callContext{ctx: ctx,
+			creatorSet:   true,
+			create:       true,
+			ignorePerms:  true,
+			ignoreLimits: true,
+		}
 		// Sort the map shortest key first.  That way configs for nodes higher up in the
 		// name tree happen first ensuring that lower nodes correctly inherit permissions.
 		var keys []string
@@ -142,7 +148,8 @@ func (mt *mountTable) parsePermFile(ctx *context.T, path string) error {
 			}
 
 			// Create name and add the Permissions map to it.
-			n, err := mt.findNode(ctx, nil, elems, true, nil, nil)
+			cc.creator = mt.pickCreator(ctx, nil)
+			n, err := mt.findNode(cc, elems, nil, nil)
 			if err != nil {
 				ctx.Errorf("skipping node for %v; error: %v", elems, err)
 			}
