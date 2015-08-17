@@ -12,7 +12,7 @@ import (
 	"v.io/v23/naming"
 )
 
-func TestEndpoint(t *testing.T) {
+func TestEndpointV5(t *testing.T) {
 	defver := defaultVersion
 	defer func() {
 		defaultVersion = defver
@@ -56,7 +56,6 @@ func TestEndpoint(t *testing.T) {
 		// Blessings that look similar to other parts of the endpoint.
 		Blessings: []string{"@@", "@s", "@m"},
 	}
-
 	testcasesA := []struct {
 		endpoint naming.Endpoint
 		address  string
@@ -71,7 +70,6 @@ func TestEndpoint(t *testing.T) {
 			t.Errorf("unexpected address %q, not %q", addr.String(), test.address)
 		}
 	}
-
 	// Test v5 endpoints.
 	testcasesC := []struct {
 		Endpoint naming.Endpoint
@@ -84,6 +82,106 @@ func TestEndpoint(t *testing.T) {
 		{v5d, "@5@ws6@batman.com:2345@00000000000000000000000000000000@s@@@", 5},
 		{v5e, "@5@tcp@batman.com:2345@0000000000000000000000000000ba77@m@dev.v.io/foo@bar.com,dev.v.io/bar@bar.com/delegate@@", 5},
 		{v5f, "@5@tcp@batman.com:2345@0000000000000000000000000000ba77@m@@@,@s,@m@@", 5},
+	}
+	for i, test := range testcasesC {
+		if got, want := test.Endpoint.VersionedString(test.Version), test.String; got != want {
+			t.Errorf("Test %d: Got %q want %q for endpoint (v%d): %#v", i, got, want, test.Version, test.Endpoint)
+		}
+		ep, err := NewEndpoint(test.String)
+		if err != nil {
+			t.Errorf("Test %d: NewEndpoint(%q) failed with %v", i, test.String, err)
+			continue
+		}
+		if !reflect.DeepEqual(ep, test.Endpoint) {
+			t.Errorf("Test %d: Got endpoint %#v, want %#v for string %q", i, ep, test.Endpoint, test.String)
+		}
+	}
+}
+
+func TestEndpoint(t *testing.T) {
+	defver := defaultVersion
+	defer func() {
+		defaultVersion = defver
+	}()
+	defaultVersion = 6
+	v6a := &Endpoint{
+		Protocol:     naming.UnknownProtocol,
+		Address:      "batman.com:1234",
+		RID:          naming.FixedRoutingID(0xdabbad00),
+		IsMountTable: true,
+	}
+	v6b := &Endpoint{
+		Protocol:     naming.UnknownProtocol,
+		Address:      "batman.com:2345",
+		RID:          naming.FixedRoutingID(0xdabbad00),
+		IsMountTable: false,
+	}
+	v6c := &Endpoint{
+		Protocol:     "tcp",
+		Address:      "batman.com:2345",
+		RID:          naming.FixedRoutingID(0x0),
+		IsMountTable: false,
+	}
+	v6d := &Endpoint{
+		Protocol:     "ws6",
+		Address:      "batman.com:2345",
+		RID:          naming.FixedRoutingID(0x0),
+		IsMountTable: false,
+	}
+	v6e := &Endpoint{
+		Protocol:     "tcp",
+		Address:      "batman.com:2345",
+		RID:          naming.FixedRoutingID(0xba77),
+		RouteList:    []string{"1"},
+		IsMountTable: true,
+		Blessings:    []string{"dev.v.io/foo@bar.com", "dev.v.io/bar@bar.com/delegate"},
+	}
+	v6f := &Endpoint{
+		Protocol:     "tcp",
+		Address:      "batman.com:2345",
+		RouteList:    []string{"1", "2", "3"},
+		RID:          naming.FixedRoutingID(0xba77),
+		IsMountTable: true,
+		// Blessings that look similar to other parts of the endpoint.
+		Blessings: []string{"@@", "@s", "@m"},
+	}
+	v6g := &Endpoint{
+		Protocol: "tcp",
+		Address:  "batman.com:2345",
+		// Routes that have commas should be escaped correctly
+		RouteList:    []string{"a,b", ",ab", "ab,"},
+		RID:          naming.FixedRoutingID(0xba77),
+		IsMountTable: true,
+	}
+
+	testcasesA := []struct {
+		endpoint naming.Endpoint
+		address  string
+	}{
+		{v6a, "batman.com:1234"},
+		{v6b, "batman.com:2345"},
+		{v6c, "batman.com:2345"},
+	}
+	for _, test := range testcasesA {
+		addr := test.endpoint.Addr()
+		if addr.String() != test.address {
+			t.Errorf("unexpected address %q, not %q", addr.String(), test.address)
+		}
+	}
+
+	// Test v6 endpoints.
+	testcasesC := []struct {
+		Endpoint naming.Endpoint
+		String   string
+		Version  int
+	}{
+		{v6a, "@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@", 6},
+		{v6b, "@6@@batman.com:2345@@000000000000000000000000dabbad00@s@@@", 6},
+		{v6c, "@6@tcp@batman.com:2345@@00000000000000000000000000000000@s@@@", 6},
+		{v6d, "@6@ws6@batman.com:2345@@00000000000000000000000000000000@s@@@", 6},
+		{v6e, "@6@tcp@batman.com:2345@1@0000000000000000000000000000ba77@m@dev.v.io/foo@bar.com,dev.v.io/bar@bar.com/delegate@@", 6},
+		{v6f, "@6@tcp@batman.com:2345@1,2,3@0000000000000000000000000000ba77@m@@@,@s,@m@@", 6},
+		{v6g, "@6@tcp@batman.com:2345@a%2Cb,%2Cab,ab%2C@0000000000000000000000000000ba77@m@@@", 6},
 	}
 
 	for i, test := range testcasesC {
@@ -131,13 +229,14 @@ func TestHostPortEndpoint(t *testing.T) {
 	defer func() {
 		defaultVersion = defver
 	}()
+	defaultVersion = 6
 	testcases := []endpointTest{
-		{"localhost:10", "@5@@localhost:10@00000000000000000000000000000000@m@@@", nil},
-		{"localhost:", "@5@@localhost:@00000000000000000000000000000000@m@@@", nil},
+		{"localhost:10", "@6@@localhost:10@@00000000000000000000000000000000@m@@@", nil},
+		{"localhost:", "@6@@localhost:@@00000000000000000000000000000000@m@@@", nil},
 		{"localhost", "", errInvalidEndpointString},
-		{"(dev.v.io/service/mounttabled)@ns.dev.v.io:8101", "@5@@ns.dev.v.io:8101@00000000000000000000000000000000@m@dev.v.io/service/mounttabled@@", nil},
-		{"(dev.v.io/users/foo@bar.com)@ns.dev.v.io:8101", "@5@@ns.dev.v.io:8101@00000000000000000000000000000000@m@dev.v.io/users/foo@bar.com@@", nil},
-		{"(@1@tcp)@ns.dev.v.io:8101", "@5@@ns.dev.v.io:8101@00000000000000000000000000000000@m@@1@tcp@@", nil},
+		{"(dev.v.io/service/mounttabled)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io/service/mounttabled@@", nil},
+		{"(dev.v.io/users/foo@bar.com)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io/users/foo@bar.com@@", nil},
+		{"(@1@tcp)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@@1@tcp@@", nil},
 	}
 	runEndpointTests(t, testcases)
 }
