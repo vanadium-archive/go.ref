@@ -25,6 +25,7 @@ import (
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
+	"v.io/x/ref/services/device/internal/claim"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -114,7 +115,7 @@ func Start(ctx *context.T, args Args) (string, func(), error) {
 	// claimable service and wait for it to be claimed.
 	// Once a device is claimed, close any previously running servers and
 	// start a new mounttable and device service.
-	claimable, claimed := impl.NewClaimableDispatcher(ctx, args.Device.ConfigState, args.Device.PairingToken)
+	claimable, claimed := claim.NewClaimableDispatcher(ctx, impl.PermsDir(args.Device.ConfigState), args.Device.PairingToken, security.AllowEveryone())
 	if claimable == nil {
 		// Device has already been claimed, bypass claimable service
 		// stage.

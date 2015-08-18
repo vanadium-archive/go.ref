@@ -84,26 +84,6 @@ var (
 	errNewAgentFailed         = verror.Register(pkgPath+".errNewAgentFailed", verror.NoRetry, "{1:}{2:} NewAgent() failed{:_}")
 )
 
-// NewClaimableDispatcher returns an rpc.Dispatcher that allows the device to
-// be Claimed if it hasn't been already and a channel that will be closed once
-// the device has been claimed.
-//
-// It returns (nil, nil) if the device is no longer claimable.
-func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (rpc.Dispatcher, <-chan struct{}) {
-	var (
-		permsDir   = PermsDir(config)
-		permsStore = pathperms.NewPathStore(ctx)
-	)
-	if _, _, err := permsStore.Get(permsDir); !os.IsNotExist(err) {
-		return nil, nil
-	}
-	// The device is claimable only if Claim hasn't been called before. The
-	// existence of the Permissions file is an indication of a successful prior
-	// call to Claim.
-	notify := make(chan struct{})
-	return &claimable{token: pairingToken, permsStore: permsStore, permsDir: permsDir, notify: notify}, notify
-}
-
 // NewDispatcher is the device manager dispatcher factory.  It returns a new
 // dispatcher as well as a shutdown function, to be called when the dispatcher
 // is no longer needed.

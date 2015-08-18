@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl
+package claim
 
 import (
 	"crypto/subtle"
+	"os"
 	"sync"
 
 	"v.io/v23"
@@ -13,10 +14,28 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
+	"v.io/v23/services/device"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/pathperms"
 )
+
+// NewClaimableDispatcher returns an rpc.Dispatcher that allows the device to
+// be Claimed if it hasn't been already and a channel that will be closed once
+// the device has been claimed.
+//
+// It returns (nil, nil) if the device is no longer claimable.
+func NewClaimableDispatcher(ctx *context.T, permsDir, pairingToken string, auth security.Authorizer) (rpc.Dispatcher, <-chan struct{}) {
+	permsStore := pathperms.NewPathStore(ctx)
+	if _, _, err := permsStore.Get(permsDir); !os.IsNotExist(err) {
+		// The device is claimable only if Claim hasn't been called before. The
+		// existence of the Permissions file is an indication of a successful prior
+		// call to Claim.
+		return nil, nil
+	}
+	notify := make(chan struct{})
+	return &claimable{token: pairingToken, permsStore: permsStore, permsDir: permsDir, notify: notify, auth: auth}, notify
+}
 
 // claimable implements the device.Claimable RPC interface and the
 // rpc.Dispatcher and security.Authorizer to serve it.
@@ -27,6 +46,7 @@ type claimable struct {
 	permsStore *pathperms.PathStore
 	permsDir   string
 	notify     chan struct{} // GUARDED_BY(mu)
+	auth       security.Authorizer
 
 	// Lock used to ensure that a successful claim can happen at most once.
 	// This is done by allowing only a single goroutine to execute the
@@ -101,11 +121,5 @@ func (c *claimable) Lookup(_ *context.T, suffix string) (interface{}, security.A
 	if suffix != "" && suffix != "device" {
 		return nil, nil, verror.New(errors.ErrUnclaimedDevice, nil)
 	}
-	return c, c, nil
-}
-
-func (c *claimable) Authorize(*context.T, security.Call) error {
-	// Claim is open to all. The Claim method implementation
-	// allows at most one successful call.
-	return nil
+	return device.ClaimableServer(c), c.auth, nil
 }
