@@ -176,7 +176,7 @@ func Init(
 	// Add the flow.Manager to the context.
 	// TODO(suharshs): Once the client and server use the flow.Manager we will need
 	// manage those dependencies (exactly as we are doing with stream.Manager)
-	ctx, err = r.setNewFlowManager(ctx)
+	ctx, _, err = r.setNewFlowManager(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -315,13 +315,13 @@ func newFlowManager(ctx *context.T) (flow.Manager, error) {
 	return manager.New(ctx, rid), nil
 }
 
-func (r *Runtime) setNewFlowManager(ctx *context.T) (*context.T, error) {
+func (r *Runtime) setNewFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
 	fm, err := newFlowManager(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	newctx := context.WithValue(ctx, flowManagerKey, fm)
-	return newctx, err
+	return newctx, fm, nil
 }
 
 func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
@@ -378,7 +378,7 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 	if newctx, err = r.setNewStreamManager(newctx); err != nil {
 		return ctx, err
 	}
-	if newctx, err = r.setNewFlowManager(newctx); err != nil {
+	if newctx, _, err = r.setNewFlowManager(newctx); err != nil {
 		return ctx, err
 	}
 	if newctx, _, err = r.setNewNamespace(newctx, r.GetNamespace(ctx).Roots()...); err != nil {
@@ -526,4 +526,18 @@ func (*Runtime) ExperimentalGetFlowManager(ctx *context.T) flow.Manager {
 		return d
 	}
 	return nil
+}
+
+func (r *Runtime) ExperimentalWithNewFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	newctx, m, err := r.setNewFlowManager(ctx)
+	if err != nil {
+		return ctx, nil, err
+	}
+	// Create a new client since it depends on the flow manager.
+	newctx, _, err = r.WithNewClient(newctx)
+	if err != nil {
+		return ctx, nil, err
+	}
+	return newctx, m, nil
 }
