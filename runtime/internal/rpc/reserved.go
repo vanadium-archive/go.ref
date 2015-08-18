@@ -268,7 +268,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 			continue
 		}
 		gs := invoker.Globber()
-		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil && gs.AllGlobberX == nil && gs.ChildrenGlobberX == nil) {
+		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
 			if state.glob.Len() == 0 {
 				subcall.Send(naming.GlobReplyEntry{
 					Value: naming.MountEntry{Name: state.name, IsLeaf: true},
@@ -279,12 +279,6 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 				})
 			}
 			continue
-		}
-		if gs.AllGlobberX != nil {
-			gs.AllGlobber = gs.AllGlobberX
-		}
-		if gs.ChildrenGlobberX != nil {
-			gs.ChildrenGlobber = gs.ChildrenGlobberX
 		}
 		if gs.AllGlobber != nil {
 			ctx.VI(3).Infof("rpc Glob: %q implements AllGlobber", suffix)
