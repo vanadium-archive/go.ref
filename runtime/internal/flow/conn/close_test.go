@@ -55,10 +55,10 @@ func TestDialAfterConnClose(t *testing.T) {
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
-	if _, err := d.Dial(ctx); err == nil {
+	if _, err := d.Dial(ctx, testBFP); err == nil {
 		t.Errorf("Nil error dialing on dialer")
 	}
-	if _, err := a.Dial(ctx); err == nil {
+	if _, err := a.Dial(ctx, testBFP); err == nil {
 		t.Errorf("Nil error dialing on acceptor")
 	}
 }

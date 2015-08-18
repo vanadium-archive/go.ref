@@ -36,7 +36,14 @@ func TestDirectConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bFn := func(*context.T, security.Call) (security.Blessings, error) { return p.BlessingStore().Default(), nil }
+	bFn := func(
+		ctx *context.T,
+		localEndpoint, remoteEndpoint naming.Endpoint,
+		remoteBlessings security.Blessings,
+		remoteDischarges map[string]security.Discharge,
+	) (security.Blessings, error) {
+		return p.BlessingStore().Default(), nil
+	}
 	eps := m.ListeningEndpoints()
 	if len(eps) == 0 {
 		t.Fatalf("no endpoints listened on")
@@ -70,7 +77,14 @@ func TestDialCachedConn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bFn := func(*context.T, security.Call) (security.Blessings, error) { return p.BlessingStore().Default(), nil }
+	bFn := func(
+		ctx *context.T,
+		localEndpoint, remoteEndpoint naming.Endpoint,
+		remoteBlessings security.Blessings,
+		remoteDischarges map[string]security.Discharge,
+	) (security.Blessings, error) {
+		return p.BlessingStore().Default(), nil
+	}
 	eps := am.ListeningEndpoints()
 	if len(eps) == 0 {
 		t.Fatalf("no endpoints listened on")

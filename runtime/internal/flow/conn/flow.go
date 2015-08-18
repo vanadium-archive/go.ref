@@ -13,33 +13,34 @@ import (
 )
 
 type flw struct {
-	id               flowID
-	ctx              *context.T
-	cancel           context.CancelFunc
-	conn             *Conn
-	worker           *flowcontrol.Worker
-	opened           bool
-	q                *readq
-	dialerBlessings  security.Blessings
-	dialerDischarges map[string]security.Discharge
+	id         flowID
+	dialed     bool
+	ctx        *context.T
+	cancel     context.CancelFunc
+	conn       *Conn
+	worker     *flowcontrol.Worker
+	opened     bool
+	q          *readq
+	bkey, dkey uint64
 }
 
+// Ensure that *flw implements flow.Flow.
 var _ flow.Flow = &flw{}
 
-func (c *Conn) newFlowLocked(ctx *context.T, id flowID) *flw {
+func (c *Conn) newFlowLocked(ctx *context.T, id flowID, bkey, dkey uint64, dialed, preopen bool) *flw {
 	f := &flw{
 		id:     id,
+		dialed: dialed,
 		conn:   c,
 		worker: c.fc.NewWorker(flowPriority),
 		q:      newReadQ(),
+		bkey:   bkey,
+		dkey:   dkey,
+		opened: preopen,
 	}
 	f.SetContext(ctx)
 	c.flows[id] = f
 	return f
-}
-
-func (f *flw) dialed() bool {
-	return f.id%2 == 0
 }
 
 // Implement io.Reader.
@@ -91,6 +92,8 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 			err := f.conn.mp.writeMsg(f.ctx, &openFlow{
 				id:              f.id,
 				initialCounters: defaultBufferSize,
+				bkey:            f.bkey,
+				dkey:            f.dkey,
 			})
 			if err != nil {
 				return 0, false, err
@@ -173,19 +176,27 @@ func (f *flw) SetContext(ctx *context.T) error {
 // LocalBlessings returns the blessings presented by the local end of the flow
 // during authentication.
 func (f *flw) LocalBlessings() security.Blessings {
-	if f.dialed() {
-		return f.dialerBlessings
+	if f.dialed {
+		blessings, _, err := f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+		if err != nil {
+			f.conn.Close(f.ctx, err)
+		}
+		return blessings
 	}
-	return f.conn.AcceptorBlessings()
+	return f.conn.lBlessings
 }
 
 // RemoteBlessings returns the blessings presented by the remote end of the
 // flow during authentication.
 func (f *flw) RemoteBlessings() security.Blessings {
-	if f.dialed() {
-		return f.conn.AcceptorBlessings()
+	if !f.dialed {
+		blessings, _, err := f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+		if err != nil {
+			f.conn.Close(f.ctx, err)
+		}
+		return blessings
 	}
-	return f.dialerBlessings
+	return f.conn.rBlessings
 }
 
 // LocalDischarges returns the discharges presented by the local end of the
@@ -193,10 +204,14 @@ func (f *flw) RemoteBlessings() security.Blessings {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) LocalDischarges() map[string]security.Discharge {
-	if f.dialed() {
-		return f.dialerDischarges
+	if f.dialed {
+		_, discharges, err := f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+		if err != nil {
+			f.conn.Close(f.ctx, err)
+		}
+		return discharges
 	}
-	return f.conn.AcceptorDischarges()
+	return f.conn.lDischarges
 }
 
 // RemoteDischarges returns the discharges presented by the remote end of the
@@ -204,10 +219,14 @@ func (f *flw) LocalDischarges() map[string]security.Discharge {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) RemoteDischarges() map[string]security.Discharge {
-	if f.dialed() {
-		return f.conn.AcceptorDischarges()
+	if !f.dialed {
+		_, discharges, err := f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+		if err != nil {
+			f.conn.Close(f.ctx, err)
+		}
+		return discharges
 	}
-	return f.dialerDischarges
+	return f.conn.rDischarges
 }
 
 // Conn returns the connection the flow is multiplexed on.
@@ -229,7 +248,8 @@ func (f *flw) Closed() <-chan struct{} {
 func (f *flw) close(ctx *context.T, err error) {
 	f.q.close(ctx)
 	f.cancel()
-	if verror.ErrorID(err) != ErrFlowClosedRemotely.ID {
+	if eid := verror.ErrorID(err); eid != ErrFlowClosedRemotely.ID &&
+		eid != ErrConnectionClosed.ID {
 		// We want to try to send this message even if ctx is already canceled.
 		ctx, cancel := context.WithRootCancel(ctx)
 		err := f.worker.Run(ctx, func(tokens int) (int, bool, error) {

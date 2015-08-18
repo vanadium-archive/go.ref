@@ -15,7 +15,6 @@ import (
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/runtime/internal/flow/flowcontrol"
 )
 
@@ -23,9 +22,14 @@ import (
 // Each flow on a given conn will have a unique number.
 type flowID uint64
 
+const (
+	invalidFlowID = flowID(iota)
+	blessingsFlowID
+	reservedFlows = 10
+)
+
 const mtu = 1 << 16
 const defaultBufferSize = 1 << 20
-const reservedFlows = 10
 
 const (
 	expressPriority = iota
@@ -45,22 +49,24 @@ type FlowHandler interface {
 }
 
 // Conns are a multiplexing encrypted channels that can host Flows.
+// TODO(mattr): track and clean up all spawned goroutines.
 type Conn struct {
-	fc                *flowcontrol.FlowController
-	mp                *messagePipe
-	handler           FlowHandler
-	versions          version.RPCVersionRange
-	acceptorBlessings security.Blessings
-	dialerPublicKey   security.PublicKey
-	local, remote     naming.Endpoint
-	closed            chan struct{}
+	fc                       *flowcontrol.FlowController
+	mp                       *messagePipe
+	handler                  FlowHandler
+	version                  version.RPCVersion
+	lBlessings, rBlessings   security.Blessings
+	rDischarges, lDischarges map[string]security.Discharge
+	local, remote            naming.Endpoint
+	closed                   chan struct{}
+	blessingsFlow            *blessingsFlow
 
 	mu      sync.Mutex
 	nextFid flowID
 	flows   map[flowID]*flw
 }
 
-// Ensure that *Conn implements flow.Conn
+// Ensure that *Conn implements flow.Conn.
 var _ flow.Conn = &Conn{}
 
 // NewDialed dials a new Conn on the given conn.
@@ -69,20 +75,21 @@ func NewDialed(
 	conn MsgReadWriteCloser,
 	local, remote naming.Endpoint,
 	versions version.RPCVersionRange,
-	handler FlowHandler,
-	fn flow.BlessingsForPeer) (*Conn, error) {
-	principal := v23.GetPrincipal(ctx)
+	handler FlowHandler) (*Conn, error) {
 	c := &Conn{
-		fc:              flowcontrol.New(defaultBufferSize, mtu),
-		mp:              newMessagePipe(conn),
-		handler:         handler,
-		versions:        versions,
-		dialerPublicKey: principal.PublicKey(),
-		local:           local,
-		remote:          remote,
-		closed:          make(chan struct{}),
-		nextFid:         reservedFlows,
-		flows:           map[flowID]*flw{},
+		fc:         flowcontrol.New(defaultBufferSize, mtu),
+		mp:         newMessagePipe(conn),
+		handler:    handler,
+		lBlessings: v23.GetPrincipal(ctx).BlessingStore().Default(),
+		local:      local,
+		remote:     remote,
+		closed:     make(chan struct{}),
+		nextFid:    reservedFlows,
+		flows:      map[flowID]*flw{},
+	}
+	if err := c.dialHandshake(ctx, versions); err != nil {
+		c.Close(ctx, err)
+		return nil, err
 	}
 	go c.readLoop(ctx)
 	return c, nil
@@ -93,27 +100,39 @@ func NewAccepted(
 	ctx *context.T,
 	conn MsgReadWriteCloser,
 	local naming.Endpoint,
-	lBlessings security.Blessings,
 	versions version.RPCVersionRange,
 	handler FlowHandler) (*Conn, error) {
 	c := &Conn{
-		fc:                flowcontrol.New(defaultBufferSize, mtu),
-		mp:                newMessagePipe(conn),
-		handler:           handler,
-		versions:          versions,
-		acceptorBlessings: lBlessings,
-		local:             local,
-		remote:            local, // TODO(mattr): Get the real remote endpoint.
-		closed:            make(chan struct{}),
-		nextFid:           reservedFlows + 1,
-		flows:             map[flowID]*flw{},
+		fc:         flowcontrol.New(defaultBufferSize, mtu),
+		mp:         newMessagePipe(conn),
+		handler:    handler,
+		lBlessings: v23.GetPrincipal(ctx).BlessingStore().Default(),
+		local:      local,
+		closed:     make(chan struct{}),
+		nextFid:    reservedFlows + 1,
+		flows:      map[flowID]*flw{},
+	}
+	if err := c.acceptHandshake(ctx, versions); err != nil {
+		c.Close(ctx, err)
+		return nil, err
 	}
 	go c.readLoop(ctx)
 	return c, nil
 }
 
 // Dial dials a new flow on the Conn.
-func (c *Conn) Dial(ctx *context.T) (flow.Flow, error) {
+func (c *Conn) Dial(ctx *context.T, fn flow.BlessingsForPeer) (flow.Flow, error) {
+	if c.rBlessings.IsZero() {
+		return nil, NewErrDialingNonServer(ctx)
+	}
+	blessings, err := fn(ctx, c.local, c.remote, c.rBlessings, c.rDischarges)
+	if err != nil {
+		return nil, err
+	}
+	bkey, dkey, err := c.blessingsFlow.put(ctx, blessings, nil)
+	if err != nil {
+		return nil, err
+	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.flows == nil {
@@ -121,7 +140,7 @@ func (c *Conn) Dial(ctx *context.T) (flow.Flow, error) {
 	}
 	id := c.nextFid
 	c.nextFid++
-	return c.newFlowLocked(ctx, id), nil
+	return c.newFlowLocked(ctx, id, bkey, dkey, true, false), nil
 }
 
 // LocalEndpoint returns the local vanadium Endpoint
@@ -129,16 +148,6 @@ func (c *Conn) LocalEndpoint() naming.Endpoint { return c.local }
 
 // RemoteEndpoint returns the remote vanadium Endpoint
 func (c *Conn) RemoteEndpoint() naming.Endpoint { return c.remote }
-
-// DialerPublicKey returns the public key presented by the dialer during authentication.
-func (c *Conn) DialerPublicKey() security.PublicKey { return c.dialerPublicKey }
-
-// AcceptorBlessings returns the blessings presented by the acceptor during authentication.
-func (c *Conn) AcceptorBlessings() security.Blessings { return c.acceptorBlessings }
-
-// AcceptorDischarges returns the discharges presented by the acceptor during authentication.
-// Discharges are organized in a map keyed by the discharge-identifier.
-func (c *Conn) AcceptorDischarges() map[string]security.Discharge { return nil }
 
 // Closed returns a channel that will be closed after the Conn is shutdown.
 // After this channel is closed it is guaranteed that all Dial calls will fail
@@ -156,10 +165,7 @@ func (c *Conn) Close(ctx *context.T, err error) {
 		// We've already torn this conn down.
 		return
 	}
-	ferr := err
-	if verror.ErrorID(err) == ErrConnClosedRemotely.ID {
-		ferr = NewErrFlowClosedRemotely(ctx)
-	} else {
+	if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
 		message := ""
 		if err != nil {
 			message = err.Error()
@@ -172,7 +178,7 @@ func (c *Conn) Close(ctx *context.T, err error) {
 		}
 	}
 	for _, f := range flows {
-		f.close(ctx, ferr)
+		f.close(ctx, NewErrConnectionClosed(ctx))
 	}
 	if cerr := c.mp.close(); cerr != nil {
 		ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)
@@ -206,77 +212,83 @@ func (c *Conn) release(ctx *context.T) {
 	}
 }
 
-func (c *Conn) readLoop(ctx *context.T) {
-	var terr error
-	defer c.Close(ctx, terr)
+func (c *Conn) handleMessage(ctx *context.T, x message) error {
+	switch msg := x.(type) {
+	case *tearDown:
+		return NewErrConnClosedRemotely(ctx, msg.Message)
 
-	for {
-		x, err := c.mp.readMsg(ctx)
-		if err != nil {
-			c.Close(ctx, NewErrRecv(ctx, c.remote.String(), err))
-			return
+	case *openFlow:
+		if c.handler == nil {
+			return NewErrUnexpectedMsg(ctx, "openFlow")
+		}
+		c.mu.Lock()
+		f := c.newFlowLocked(ctx, msg.id, msg.bkey, msg.dkey, false, false)
+		c.mu.Unlock()
+		c.handler.HandleFlow(f)
+
+	case *release:
+		release := make([]flowcontrol.Release, 0, len(msg.counters))
+		c.mu.Lock()
+		for fid, val := range msg.counters {
+			if f := c.flows[fid]; f != nil {
+				release = append(release, flowcontrol.Release{
+					Worker: f.worker,
+					Tokens: int(val),
+				})
+			}
+		}
+		c.mu.Unlock()
+		if err := c.fc.Release(ctx, release); err != nil {
+			return err
 		}
 
-		switch msg := x.(type) {
-		case *tearDown:
-			terr = NewErrConnClosedRemotely(ctx, msg.Message)
-			return
+	case *data:
+		c.mu.Lock()
+		f := c.flows[msg.id]
+		c.mu.Unlock()
+		if f == nil {
+			ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d", c.remote, msg.id)
+			return nil
+		}
+		if err := f.q.put(ctx, msg.payload); err != nil {
+			return err
+		}
+		if msg.flags&closeFlag != 0 {
+			f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
+		}
 
-		case *openFlow:
-			c.mu.Lock()
-			f := c.newFlowLocked(ctx, msg.id)
-			c.mu.Unlock()
-			c.handler.HandleFlow(f)
+	case *unencryptedData:
+		c.mu.Lock()
+		f := c.flows[msg.id]
+		c.mu.Unlock()
+		if f == nil {
+			ctx.Infof("Ignoring data message for unknown flow: %d", msg.id)
+			return nil
+		}
+		if err := f.q.put(ctx, msg.payload); err != nil {
+			return err
+		}
+		if msg.flags&closeFlag != 0 {
+			f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
+		}
 
-		case *release:
-			release := make([]flowcontrol.Release, 0, len(msg.counters))
-			c.mu.Lock()
-			for fid, val := range msg.counters {
-				if f := c.flows[fid]; f != nil {
-					release = append(release, flowcontrol.Release{
-						Worker: f.worker,
-						Tokens: int(val),
-					})
-				}
-			}
-			c.mu.Unlock()
-			if terr = c.fc.Release(ctx, release); terr != nil {
-				return
-			}
+	default:
+		return NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())
+	}
+	return nil
+}
 
-		case *data:
-			c.mu.Lock()
-			f := c.flows[msg.id]
-			c.mu.Unlock()
-			if f == nil {
-				ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d", c.remote, msg.id)
-				continue
-			}
-			if terr = f.q.put(ctx, msg.payload); terr != nil {
-				return
-			}
-			if msg.flags&closeFlag != 0 {
-				f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
-			}
-
-		case *unencryptedData:
-			c.mu.Lock()
-			f := c.flows[msg.id]
-			c.mu.Unlock()
-			if f == nil {
-				ctx.Infof("Ignoring data message for unknown flow: %d", msg.id)
-				continue
-			}
-			if terr = f.q.put(ctx, msg.payload); terr != nil {
-				return
-			}
-			if msg.flags&closeFlag != 0 {
-				f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
-			}
-
-		default:
-			terr = NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).Name())
-			return
+func (c *Conn) readLoop(ctx *context.T) {
+	var err error
+	for {
+		msg, rerr := c.mp.readMsg(ctx)
+		if rerr != nil {
+			err = NewErrRecv(ctx, c.remote.String(), rerr)
+			break
+		}
+		if err = c.handleMessage(ctx, msg); err != nil {
+			break
 		}
 	}
+	c.Close(ctx, err)
 }

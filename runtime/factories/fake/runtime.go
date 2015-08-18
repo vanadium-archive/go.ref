@@ -12,8 +12,8 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/apilog"
-	vsecurity "v.io/x/ref/lib/security"
 	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
+	"v.io/x/ref/test/testutil"
 )
 
 type contextKey int
@@ -30,11 +30,7 @@ type Runtime struct {
 }
 
 func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
-	p, err := vsecurity.NewPrincipal()
-	if err != nil {
-		return nil, nil, func() {}, err
-	}
-	ctx = context.WithValue(ctx, principalKey, p)
+	ctx = context.WithValue(ctx, principalKey, testutil.NewPrincipal("fake"))
 	ctx = context.WithLogger(ctx, logger.Global())
 	return &Runtime{ns: tnaming.NewSimpleNamespace()}, ctx, func() {}, nil
 }

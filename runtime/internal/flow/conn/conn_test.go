@@ -21,7 +21,6 @@ var randData []byte
 
 func init() {
 	test.Init()
-
 	randData = make([]byte, 2*defaultBufferSize)
 	if _, err := rand.Read(randData); err != nil {
 		panic("Could not read random data.")
@@ -66,15 +65,6 @@ func testWrite(t *testing.T, ctx *context.T, want []byte, df flow.Flow, flows <-
 	<-finished
 	<-df.Closed()
 	<-af.Closed()
-}
-
-func TestDial(t *testing.T) {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-	for _, dialerDials := range []bool{true, false} {
-		df, flows := setupFlow(t, ctx, ctx, dialerDials)
-		testWrite(t, ctx, []byte("hello world"), df, flows)
-	}
 }
 
 func TestLargeWrite(t *testing.T) {

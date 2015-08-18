@@ -12,8 +12,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
+	"v.io/x/ref/internal/logger"
 )
 
 type wire struct {
@@ -56,6 +58,11 @@ func (f *mRW) WriteMsg(data ...[]byte) (int, error) {
 	for _, d := range data {
 		buf = append(buf, d...)
 	}
+	logbuf := buf
+	if len(buf) > 128 {
+		logbuf = buf[:128]
+	}
+	logger.Global().VI(2).Infof("Writing %d bytes to the wire: %#v", len(buf), logbuf)
 	defer f.wire.mu.Unlock()
 	f.wire.mu.Lock()
 	for f.peer.in != nil && !f.wire.closed {
@@ -79,6 +86,11 @@ func (f *mRW) ReadMsg() (buf []byte, err error) {
 	}
 	buf, f.in = f.in, nil
 	f.wire.c.Broadcast()
+	logbuf := buf
+	if len(buf) > 128 {
+		logbuf = buf[:128]
+	}
+	logger.Global().VI(2).Infof("Reading %d bytes from the wire: %#v", len(buf), logbuf)
 	return buf, nil
 }
 func (f *mRW) Close() error {
@@ -103,15 +115,31 @@ func setupConns(t *testing.T, dctx, actx *context.T, dflows, aflows chan<- flow.
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	d, err := NewDialed(dctx, dmrw, ep, ep, versions, fh(dflows), nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	a, err := NewAccepted(actx, amrw, ep, security.Blessings{}, versions, fh(aflows))
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	return d, a, w
+	dch := make(chan *Conn)
+	ach := make(chan *Conn)
+	go func() {
+		var handler FlowHandler
+		if dflows != nil {
+			handler = fh(dflows)
+		}
+		d, err := NewDialed(dctx, dmrw, ep, ep, versions, handler)
+		if err != nil {
+			panic(err)
+		}
+		dch <- d
+	}()
+	go func() {
+		var handler FlowHandler
+		if aflows != nil {
+			handler = fh(aflows)
+		}
+		a, err := NewAccepted(actx, amrw, ep, versions, handler)
+		if err != nil {
+			panic(err)
+		}
+		ach <- a
+	}()
+	return <-dch, <-ach, w
 }
 
 func setupFlow(t *testing.T, dctx, actx *context.T, dialFromDialer bool) (dialed flow.Flow, accepted <-chan flow.Flow) {
@@ -129,9 +157,29 @@ func setupFlows(t *testing.T, dctx, actx *context.T, dialFromDialer bool, n int)
 	dialed = make([]flow.Flow, n)
 	for i := 0; i < n; i++ {
 		var err error
-		if dialed[i], err = d.Dial(dctx); err != nil {
+		if dialed[i], err = d.Dial(dctx, testBFP); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 	}
 	return dialed, aflows
+}
+
+func testBFP(
+	ctx *context.T,
+	localEndpoint, remoteEndpoint naming.Endpoint,
+	remoteBlessings security.Blessings,
+	remoteDischarges map[string]security.Discharge,
+) (security.Blessings, error) {
+	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil
+}
+
+func makeBFP(in security.Blessings) flow.BlessingsForPeer {
+	return func(
+		ctx *context.T,
+		localEndpoint, remoteEndpoint naming.Endpoint,
+		remoteBlessings security.Blessings,
+		remoteDischarges map[string]security.Discharge,
+	) (security.Blessings, error) {
+		return in, nil
+	}
 }

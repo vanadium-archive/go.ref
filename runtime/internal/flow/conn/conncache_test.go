@@ -255,10 +255,23 @@ func nConns(t *testing.T, ctx *context.T, n int) []*Conn {
 }
 
 func makeConn(t *testing.T, ctx *context.T, ep naming.Endpoint) *Conn {
-	d, _, _ := newMRWPair(ctx)
-	c, err := NewDialed(ctx, d, ep, ep, version.RPCVersionRange{Min: 1, Max: 5}, nil, nil)
-	if err != nil {
-		t.Fatalf("Could not create conn: %v", err)
-	}
-	return c
+	dmrw, amrw, _ := newMRWPair(ctx)
+	dch := make(chan *Conn)
+	ach := make(chan *Conn)
+	go func() {
+		d, err := NewDialed(ctx, dmrw, ep, ep, version.RPCVersionRange{1, 5}, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		dch <- d
+	}()
+	go func() {
+		a, err := NewAccepted(ctx, amrw, ep, version.RPCVersionRange{1, 5}, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		ach <- a
+	}()
+	<-dch
+	return <-ach
 }

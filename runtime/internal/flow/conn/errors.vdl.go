@@ -16,7 +16,10 @@ import (
 
 var (
 	ErrInvalidMsg                = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidMsg", verror.NoRetry, "{1:}{2:} message of type{:3} and size{:4} failed decoding at field{:5}.")
-	ErrInvalidControlMsg         = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidControlMsg", verror.NoRetry, "{1:}{2:} control message of cmd{:3} and size{:4} failed decoding at field{:5}.")
+	ErrInvalidControlMsg         = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidControlMsg", verror.NoRetry, "{1:}{2:} control message of cmd {3} and size {4} failed decoding at field {5}{:6}.")
+	ErrInvalidSetupOption        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidSetupOption", verror.NoRetry, "{1:}{2:} setup option{:3} failed decoding at field{:4}.")
+	ErrMissingSetupOption        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.MissingSetupOption", verror.NoRetry, "{1:}{2:} missing required setup option{:3}.")
+	ErrUnknownSetupOption        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnknownSetupOption", verror.NoRetry, "{1:}{2:} unknown setup option{:3}.")
 	ErrUnknownMsg                = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnknownMsg", verror.NoRetry, "{1:}{2:} unknown message type{:3}.")
 	ErrUnknownControlMsg         = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnknownControlMsg", verror.NoRetry, "{1:}{2:} unknown control command{:3}.")
 	ErrUnexpectedMsg             = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnexpectedMsg", verror.NoRetry, "{1:}{2:} unexpected message type{:3}.")
@@ -28,11 +31,19 @@ var (
 	ErrRecv                      = verror.Register("v.io/x/ref/runtime/internal/flow/conn.Recv", verror.NoRetry, "{1:}{2:} error reading from {3}{:4}")
 	ErrCacheClosed               = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CacheClosed", verror.NoRetry, "{1:}{2:} cache is closed")
 	ErrCounterOverflow           = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CounterOverflow", verror.NoRetry, "{1:}{2:} A remote process has sent more data than allowed.")
+	ErrBlessingsFlowClosed       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.BlessingsFlowClosed", verror.NoRetry, "{1:}{2:} The blessings flow was closed.")
+	ErrInvalidChannelBinding     = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidChannelBinding", verror.NoRetry, "{1:}{2:} The channel binding was invalid.")
+	ErrNoPublicKey               = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoPublicKey", verror.NoRetry, "{1:}{2:} No public key was received by the remote end.")
+	ErrDialingNonServer          = verror.Register("v.io/x/ref/runtime/internal/flow/conn.DialingNonServer", verror.NoRetry, "{1:}{2:} You are attempting to dial on a connection with no remote server.")
+	ErrAcceptorBlessingsMissing  = verror.Register("v.io/x/ref/runtime/internal/flow/conn.AcceptorBlessingsMissing", verror.NoRetry, "{1:}{2:} The acceptor did not send blessings.")
 )
 
 func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidMsg.ID), "{1:}{2:} message of type{:3} and size{:4} failed decoding at field{:5}.")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidControlMsg.ID), "{1:}{2:} control message of cmd{:3} and size{:4} failed decoding at field{:5}.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidControlMsg.ID), "{1:}{2:} control message of cmd {3} and size {4} failed decoding at field {5}{:6}.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidSetupOption.ID), "{1:}{2:} setup option{:3} failed decoding at field{:4}.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrMissingSetupOption.ID), "{1:}{2:} missing required setup option{:3}.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnknownSetupOption.ID), "{1:}{2:} unknown setup option{:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnknownMsg.ID), "{1:}{2:} unknown message type{:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnknownControlMsg.ID), "{1:}{2:} unknown control command{:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnexpectedMsg.ID), "{1:}{2:} unexpected message type{:3}.")
@@ -44,16 +55,36 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrRecv.ID), "{1:}{2:} error reading from {3}{:4}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCacheClosed.ID), "{1:}{2:} cache is closed")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCounterOverflow.ID), "{1:}{2:} A remote process has sent more data than allowed.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBlessingsFlowClosed.ID), "{1:}{2:} The blessings flow was closed.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidChannelBinding.ID), "{1:}{2:} The channel binding was invalid.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoPublicKey.ID), "{1:}{2:} No public key was received by the remote end.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDialingNonServer.ID), "{1:}{2:} You are attempting to dial on a connection with no remote server.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAcceptorBlessingsMissing.ID), "{1:}{2:} The acceptor did not send blessings.")
 }
 
 // NewErrInvalidMsg returns an error with the ErrInvalidMsg ID.
-func NewErrInvalidMsg(ctx *context.T, typ byte, size int64, field int64) error {
+func NewErrInvalidMsg(ctx *context.T, typ byte, size uint64, field uint64) error {
 	return verror.New(ErrInvalidMsg, ctx, typ, size, field)
 }
 
 // NewErrInvalidControlMsg returns an error with the ErrInvalidControlMsg ID.
-func NewErrInvalidControlMsg(ctx *context.T, cmd byte, size int64, field int64) error {
-	return verror.New(ErrInvalidControlMsg, ctx, cmd, size, field)
+func NewErrInvalidControlMsg(ctx *context.T, cmd byte, size uint64, field uint64, err error) error {
+	return verror.New(ErrInvalidControlMsg, ctx, cmd, size, field, err)
+}
+
+// NewErrInvalidSetupOption returns an error with the ErrInvalidSetupOption ID.
+func NewErrInvalidSetupOption(ctx *context.T, option uint64, field uint64) error {
+	return verror.New(ErrInvalidSetupOption, ctx, option, field)
+}
+
+// NewErrMissingSetupOption returns an error with the ErrMissingSetupOption ID.
+func NewErrMissingSetupOption(ctx *context.T, option uint64) error {
+	return verror.New(ErrMissingSetupOption, ctx, option)
+}
+
+// NewErrUnknownSetupOption returns an error with the ErrUnknownSetupOption ID.
+func NewErrUnknownSetupOption(ctx *context.T, option uint64) error {
+	return verror.New(ErrUnknownSetupOption, ctx, option)
 }
 
 // NewErrUnknownMsg returns an error with the ErrUnknownMsg ID.
@@ -109,4 +140,29 @@ func NewErrCacheClosed(ctx *context.T) error {
 // NewErrCounterOverflow returns an error with the ErrCounterOverflow ID.
 func NewErrCounterOverflow(ctx *context.T) error {
 	return verror.New(ErrCounterOverflow, ctx)
+}
+
+// NewErrBlessingsFlowClosed returns an error with the ErrBlessingsFlowClosed ID.
+func NewErrBlessingsFlowClosed(ctx *context.T) error {
+	return verror.New(ErrBlessingsFlowClosed, ctx)
+}
+
+// NewErrInvalidChannelBinding returns an error with the ErrInvalidChannelBinding ID.
+func NewErrInvalidChannelBinding(ctx *context.T) error {
+	return verror.New(ErrInvalidChannelBinding, ctx)
+}
+
+// NewErrNoPublicKey returns an error with the ErrNoPublicKey ID.
+func NewErrNoPublicKey(ctx *context.T) error {
+	return verror.New(ErrNoPublicKey, ctx)
+}
+
+// NewErrDialingNonServer returns an error with the ErrDialingNonServer ID.
+func NewErrDialingNonServer(ctx *context.T) error {
+	return verror.New(ErrDialingNonServer, ctx)
+}
+
+// NewErrAcceptorBlessingsMissing returns an error with the ErrAcceptorBlessingsMissing ID.
+func NewErrAcceptorBlessingsMissing(ctx *context.T) error {
+	return verror.New(ErrAcceptorBlessingsMissing, ctx)
 }

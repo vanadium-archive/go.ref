@@ -1,0 +1,18 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package conn
+
+import "v.io/v23/security"
+
+// Blessings is used to transport blessings and their discharges
+// between the two ends of a Conn.  Since these objects can be large
+// we try not to send them more than once, therefore whenever we send
+// new blessings or discharges we associate them with an integer
+// key (BKey and DKey).  Thereafter we refer to them by their key.
+type Blessings struct {
+     Blessings  security.WireBlessings
+     Discharges []security.WireDischarge
+     BKey, DKey uint64
+}

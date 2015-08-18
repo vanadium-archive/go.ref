@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
@@ -90,7 +89,6 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 			ctx,
 			&framer{ReadWriteCloser: netConn},
 			local,
-			v23.GetPrincipal(ctx).BlessingStore().Default(),
 			version.Supported,
 			&flowHandler{q: m.q, closed: m.closed},
 		)
@@ -194,6 +192,9 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.Blessings
 		if err != nil {
 			return nil, flow.NewErrDialFailed(ctx, err)
 		}
+		// TODO(mattr): We should only pass a flowHandler to NewDialed if there
+		// is a server attached to this flow manager.  Perhaps we can signal
+		// "serving flow manager" by passing a 0 RID to non-serving flow managers?
 		c, err = conn.NewDialed(
 			ctx,
 			&framer{ReadWriteCloser: netConn}, // TODO(suharshs): Don't frame if the net.Conn already has framing in its protocol.
@@ -201,7 +202,6 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.Blessings
 			remote,
 			version.Supported,
 			&flowHandler{q: m.q, closed: m.closed},
-			fn,
 		)
 		if err != nil {
 			return nil, flow.NewErrDialFailed(ctx, err)
@@ -210,7 +210,7 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.Blessings
 			return nil, flow.NewErrBadState(ctx, err)
 		}
 	}
-	f, err := c.Dial(ctx)
+	f, err := c.Dial(ctx, fn)
 	if err != nil {
 		return nil, flow.NewErrDialFailed(ctx, err)
 	}
