@@ -20,12 +20,15 @@ const (
 	separator          = "@"
 	suffix             = "@@"
 	blessingsSeparator = ","
+	routeSeparator     = ","
 )
 
 var (
 	errInvalidEndpointString = errors.New("invalid endpoint string")
 	hostportEP               = regexp.MustCompile("^(?:\\((.*)\\)@)?([^@]+)$")
 )
+
+// TODO(suharshs): Remove endpoint version 5 after the transition to 6 is complete.
 
 // Network is the string returned by naming.Endpoint.Network implementations
 // defined in this package.
@@ -36,6 +39,7 @@ type Endpoint struct {
 	Protocol     string
 	Address      string
 	RID          naming.RoutingID
+	RouteList    []string
 	Blessings    []string
 	IsMountTable bool
 	IsLeaf       bool
@@ -67,6 +71,8 @@ func NewEndpoint(input string) (*Endpoint, error) {
 	}
 
 	switch version {
+	case 6:
+		err = ep.parseV6(parts)
 	case 5:
 		err = ep.parseV5(parts)
 	default:
@@ -141,10 +147,58 @@ func (ep *Endpoint) parseV5(parts []string) error {
 	return nil
 }
 
+func (ep *Endpoint) parseV6(parts []string) error {
+	if len(parts) < 6 {
+		return errInvalidEndpointString
+	}
+
+	ep.Protocol = parts[1]
+	if len(ep.Protocol) == 0 {
+		ep.Protocol = naming.UnknownProtocol
+	}
+
+	var ok bool
+	if ep.Address, ok = naming.Unescape(parts[2]); !ok {
+		return fmt.Errorf("invalid address: bad escape %s", parts[2])
+	}
+	if len(ep.Address) == 0 {
+		ep.Address = net.JoinHostPort("", "0")
+	}
+
+	if len(parts[3]) > 0 {
+		ep.RouteList = strings.Split(parts[3], routeSeparator)
+		for i := range ep.RouteList {
+			if ep.RouteList[i], ok = naming.Unescape(ep.RouteList[i]); !ok {
+				return fmt.Errorf("invalid route: bad escape %s", ep.RouteList[i])
+			}
+		}
+	}
+
+	if err := ep.RID.FromString(parts[4]); err != nil {
+		return fmt.Errorf("invalid routing id: %v", err)
+	}
+
+	var err error
+	if ep.IsMountTable, ep.IsLeaf, err = parseMountTableFlag(parts[5]); err != nil {
+		return fmt.Errorf("invalid mount table flag: %v", err)
+	}
+	// Join the remaining and re-split.
+	if str := strings.Join(parts[6:], separator); len(str) > 0 {
+		ep.Blessings = strings.Split(str, blessingsSeparator)
+	}
+	return nil
+}
+
 func (ep *Endpoint) RoutingID() naming.RoutingID {
 	//nologcall
 	return ep.RID
 }
+
+func (ep *Endpoint) Routes() []string {
+	//nologcall
+	return ep.RouteList
+}
+
 func (ep *Endpoint) Network() string {
 	//nologcall
 	return Network
@@ -159,8 +213,6 @@ var defaultVersion = 5
 func (ep *Endpoint) VersionedString(version int) string {
 	// nologcall
 	switch version {
-	default:
-		return ep.VersionedString(defaultVersion)
 	case 5:
 		mt := "s"
 		switch {
@@ -172,6 +224,24 @@ func (ep *Endpoint) VersionedString(version int) string {
 		blessings := strings.Join(ep.Blessings, blessingsSeparator)
 		return fmt.Sprintf("@5@%s@%s@%s@%s@%s@@",
 			ep.Protocol, naming.Escape(ep.Address, "@"), ep.RID, mt, blessings)
+	case 6:
+		mt := "s"
+		switch {
+		case ep.IsLeaf:
+			mt = "l"
+		case ep.IsMountTable:
+			mt = "m"
+		}
+		blessings := strings.Join(ep.Blessings, blessingsSeparator)
+		escaped := make([]string, len(ep.RouteList))
+		for i := range ep.RouteList {
+			escaped[i] = naming.Escape(ep.RouteList[i], routeSeparator)
+		}
+		routes := strings.Join(escaped, routeSeparator)
+		return fmt.Sprintf("@6@%s@%s@%s@%s@%s@%s@@",
+			ep.Protocol, naming.Escape(ep.Address, "@"), routes, ep.RID, mt, blessings)
+	default:
+		return ep.VersionedString(defaultVersion)
 	}
 }
 
