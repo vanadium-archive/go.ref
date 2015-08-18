@@ -51,7 +51,7 @@ import "time"
 
 import "v.io/syncbase/x/ref/services/syncbase/localblobstore"
 import "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunker"
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunkmap"
+import "v.io/syncbase/x/ref/services/syncbase/localblobstore/blobmap"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
@@ -90,8 +90,8 @@ const (
 
 // An FsCaBlobStore represents a simple, content-addressable store.
 type FsCaBlobStore struct {
-	rootName string             // The name of the root of the store.
-	cm       *chunkmap.ChunkMap // Mapping from chunks to blob locations and vice versa.
+	rootName string           // The name of the root of the store.
+	bm       *blobmap.BlobMap // Mapping from chunks to blob locations and vice versa.
 
 	// mu protects fields below, plus most fields in each blobDesc when used from a BlobWriter.
 	mu         sync.Mutex
@@ -182,21 +182,21 @@ func Create(ctx *context.T, rootName string) (fscabs *FsCaBlobStore, err error) 
 			err = verror.New(errNotADir, ctx, fullName)
 		}
 	}
-	var cm *chunkmap.ChunkMap
+	var bm *blobmap.BlobMap
 	if err == nil {
-		cm, err = chunkmap.New(ctx, filepath.Join(rootName, chunkDir))
+		bm, err = blobmap.New(ctx, filepath.Join(rootName, chunkDir))
 	}
 	if err == nil {
 		fscabs = new(FsCaBlobStore)
 		fscabs.rootName = rootName
-		fscabs.cm = cm
+		fscabs.bm = bm
 	}
 	return fscabs, err
 }
 
 // Close() closes the FsCaBlobStore. {
 func (fscabs *FsCaBlobStore) Close() error {
-	return fscabs.cm.Close()
+	return fscabs.bm.Close()
 }
 
 // Root() returns the name of the root directory where *fscabs is stored.
@@ -216,7 +216,7 @@ func (fscabs *FsCaBlobStore) DeleteBlob(ctx *context.T, blobName string) (err er
 		if err != nil {
 			err = verror.New(errCantDeleteBlob, ctx, blobName, err)
 		} else {
-			err = fscabs.cm.DeleteBlob(ctx, blobID)
+			err = fscabs.bm.DeleteBlob(ctx, blobID)
 		}
 	}
 	return err
@@ -410,7 +410,7 @@ func (fscabs *FsCaBlobStore) addFragment(ctx *context.T, extHasher hash.Hash,
 	} else { // commit the change by updating the size
 		fscabs.mu.Lock()
 		desc.size += size
-		desc.cv.Broadcast() // Tell chunkmap BlobReader there's more to read.
+		desc.cv.Broadcast() // Tell blobmap BlobReader there's more to read.
 		fscabs.mu.Unlock()
 	}
 
@@ -584,10 +584,10 @@ type BlobWriter struct {
 	f      *file     // The file being written.
 	hasher hash.Hash // Running hash of blob.
 
-	// Fields to allow the ChunkMap to be written.
+	// Fields to allow the BlobMap to be written.
 	csBr  *BlobReader     // Reader over the blob that's currently being written.
 	cs    *chunker.Stream // Stream of chunks derived from csBr
-	csErr chan error      // writeChunkMap() sends its result here; Close/CloseWithoutFinalize receives it.
+	csErr chan error      // writeBlobMap() sends its result here; Close/CloseWithoutFinalize receives it.
 }
 
 // NewBlobWriter() returns a pointer to a newly allocated BlobWriter on
@@ -623,9 +623,9 @@ func (fscabs *FsCaBlobStore) NewBlobWriter(ctx *context.T, name string) (localbl
 			// Can't happen; descriptor refers to no fragments.
 			panic(verror.New(errBlobDeleted, ctx, bw.desc.name))
 		}
-		// Write the chunks of this blob into the ChunkMap, as they are
+		// Write the chunks of this blob into the BlobMap, as they are
 		// written by this writer.
-		bw.forkWriteChunkMap()
+		bw.forkWriteBlobMap()
 	}
 	return bw, err
 }
@@ -668,20 +668,20 @@ func (fscabs *FsCaBlobStore) ResumeBlobWriter(ctx *context.T, blobName string) (
 			err = nil
 		}
 		if err == nil {
-			// Write the chunks of this blob into the ChunkMap, as
+			// Write the chunks of this blob into the BlobMap, as
 			// they are written by this writer.
-			bw.forkWriteChunkMap()
+			bw.forkWriteBlobMap()
 		}
 	}
 	return bw, err
 }
 
-// forkWriteChunkMap() creates a new thread to run writeChunkMap().  It adds
-// the chunks written to *bw to the blob store's ChunkMap.  The caller is
-// expected to call joinWriteChunkMap() at some later point.
-func (bw *BlobWriter) forkWriteChunkMap() {
+// forkWriteBlobMap() creates a new thread to run writeBlobMap().  It adds
+// the chunks written to *bw to the blob store's BlobMap.  The caller is
+// expected to call joinWriteBlobMap() at some later point.
+func (bw *BlobWriter) forkWriteBlobMap() {
 	// The descRef's ref count is incremented here to compensate
-	// for the decrement it will receive in br.Close() in joinWriteChunkMap.
+	// for the decrement it will receive in br.Close() in joinWriteBlobMap.
 	if !bw.fscabs.descRef(bw.desc) {
 		// Can't happen; descriptor's ref count was already non-zero.
 		panic(verror.New(errBlobDeleted, bw.ctx, bw.desc.name))
@@ -689,24 +689,24 @@ func (bw *BlobWriter) forkWriteChunkMap() {
 	bw.csBr = bw.fscabs.blobReaderFromDesc(bw.ctx, bw.desc, waitForWriter)
 	bw.cs = chunker.NewStream(bw.ctx, &chunker.DefaultParam, bw.csBr)
 	bw.csErr = make(chan error)
-	go bw.writeChunkMap()
+	go bw.writeBlobMap()
 }
 
-// insertChunk() inserts chunk into the blob store's ChunkMap, associating it
+// insertChunk() inserts chunk into the blob store's BlobMap, associating it
 // with the specified byte offset in the blob blobID being written by *bw.  The byte
 // offset of the next chunk is returned.
 func (bw *BlobWriter) insertChunk(blobID []byte, chunkHash []byte, offset int64, size int64) (int64, error) {
-	err := bw.fscabs.cm.AssociateChunkWithLocation(bw.ctx, chunkHash[:],
-		chunkmap.Location{BlobID: blobID, Offset: offset, Size: size})
+	err := bw.fscabs.bm.AssociateChunkWithLocation(bw.ctx, chunkHash[:],
+		blobmap.Location{BlobID: blobID, Offset: offset, Size: size})
 	if err != nil {
 		bw.cs.Cancel()
 	}
 	return offset + size, err
 }
 
-// writeChunkMap() iterates over the chunk in stream bw.cs, and associates each
+// writeBlobMap() iterates over the chunk in stream bw.cs, and associates each
 // one with the blob being written.
-func (bw *BlobWriter) writeChunkMap() {
+func (bw *BlobWriter) writeBlobMap() {
 	var err error
 	var offset int64
 	blobID := fileNameToHash(blobDir, bw.desc.name)
@@ -736,13 +736,13 @@ func (bw *BlobWriter) writeChunkMap() {
 		offset, err = bw.insertChunk(blobID, chunkHash[:], offset, chunkLen)
 	}
 	bw.fscabs.mu.Unlock()
-	bw.csErr <- err // wake joinWriteChunkMap()
+	bw.csErr <- err // wake joinWriteBlobMap()
 }
 
-// joinWriteChunkMap waits for the completion of the thread forked by forkWriteChunkMap().
-// It returns when the chunks in the blob have been written to the blob store's ChunkMap.
-func (bw *BlobWriter) joinWriteChunkMap(err error) error {
-	err2 := <-bw.csErr // read error from end of writeChunkMap()
+// joinWriteBlobMap waits for the completion of the thread forked by forkWriteBlobMap().
+// It returns when the chunks in the blob have been written to the blob store's BlobMap.
+func (bw *BlobWriter) joinWriteBlobMap(err error) error {
+	err2 := <-bw.csErr // read error from end of writeBlobMap()
 	if err == nil {
 		err = err2
 	}
@@ -765,9 +765,9 @@ func (bw *BlobWriter) Close() (err error) {
 		bw.fscabs.mu.Lock()
 		bw.desc.finalized = true
 		bw.desc.openWriter = false
-		bw.desc.cv.Broadcast() // Tell chunkmap BlobReader that writing has ceased.
+		bw.desc.cv.Broadcast() // Tell blobmap BlobReader that writing has ceased.
 		bw.fscabs.mu.Unlock()
-		err = bw.joinWriteChunkMap(err)
+		err = bw.joinWriteBlobMap(err)
 		bw.fscabs.descUnref(bw.desc)
 	}
 	return err
@@ -783,11 +783,11 @@ func (bw *BlobWriter) CloseWithoutFinalize() (err error) {
 	} else {
 		bw.fscabs.mu.Lock()
 		bw.desc.openWriter = false
-		bw.desc.cv.Broadcast() // Tell chunkmap BlobReader that writing has ceased.
+		bw.desc.cv.Broadcast() // Tell blobmap BlobReader that writing has ceased.
 		bw.fscabs.mu.Unlock()
 		_, err = bw.f.close(bw.ctx, err)
 		bw.f = nil
-		err = bw.joinWriteChunkMap(err)
+		err = bw.joinWriteBlobMap(err)
 		bw.fscabs.descUnref(bw.desc)
 	}
 	return err
@@ -852,7 +852,7 @@ func (bw *BlobWriter) AppendBlob(blobName string, size int64, offset int64) (err
 						offset:   offset + desc.fragment[i].offset,
 						fileName: desc.fragment[i].fileName})
 					bw.desc.size += consume
-					bw.desc.cv.Broadcast() // Tell chunkmap BlobReader there's more to read.
+					bw.desc.cv.Broadcast() // Tell blobmap BlobReader there's more to read.
 					bw.fscabs.mu.Unlock()
 				}
 				offset = 0
@@ -1286,7 +1286,7 @@ func (fscabs *FsCaBlobStore) BlobChunkStream(ctx *context.T, blobName string) (c
 	if blobID == nil {
 		cs = &errorChunkStream{err: verror.New(errInvalidBlobName, ctx, blobName)}
 	} else {
-		cs = fscabs.cm.NewChunkStream(ctx, blobID)
+		cs = fscabs.bm.NewChunkStream(ctx, blobID)
 	}
 	return cs
 }
@@ -1296,8 +1296,8 @@ func (fscabs *FsCaBlobStore) BlobChunkStream(ctx *context.T, blobName string) (c
 // LookupChunk returns the location of a chunk with the specified chunk hash
 // within the store.
 func (fscabs *FsCaBlobStore) LookupChunk(ctx *context.T, chunkHash []byte) (loc localblobstore.Location, err error) {
-	var chunkMapLoc chunkmap.Location
-	chunkMapLoc, err = fscabs.cm.LookupChunk(ctx, chunkHash)
+	var chunkMapLoc blobmap.Location
+	chunkMapLoc, err = fscabs.bm.LookupChunk(ctx, chunkHash)
 	if err == nil {
 		loc.BlobName = hashToFileName(blobDir, chunkMapLoc.BlobID)
 		loc.Size = chunkMapLoc.Size
@@ -1353,17 +1353,17 @@ func (rs *RecipeStream) Advance() (ok bool) {
 	}
 	for !ok && rs.pendingChunk != nil && !rs.isCancelled() {
 		var err error
-		var loc0 chunkmap.Location
-		loc0, err = rs.fscabs.cm.LookupChunk(rs.ctx, rs.pendingChunk)
+		var loc0 blobmap.Location
+		loc0, err = rs.fscabs.bm.LookupChunk(rs.ctx, rs.pendingChunk)
 		if err == nil {
 			blobName := hashToFileName(blobDir, loc0.BlobID)
 			var blobDesc *blobDesc
 			if blobDesc, err = rs.fscabs.getBlob(rs.ctx, blobName); err != nil {
-				// The ChunkMap contained a reference to a
+				// The BlobMap contained a reference to a
 				// deleted blob.  Delete the reference in the
-				// ChunkMap; the next loop iteration will
+				// BlobMap; the next loop iteration will
 				// consider the chunk again.
-				rs.fscabs.cm.DeleteBlob(rs.ctx, loc0.BlobID)
+				rs.fscabs.bm.DeleteBlob(rs.ctx, loc0.BlobID)
 			} else {
 				rs.fscabs.descUnref(blobDesc)
 				// The chunk is in a known blob.  Combine
@@ -1372,8 +1372,8 @@ func (rs *RecipeStream) Advance() (ok bool) {
 				rs.pendingChunk = nil // consumed
 				for rs.pendingChunk == nil && rs.chunkStream.Advance() {
 					rs.pendingChunk = rs.chunkStream.Value(rs.pendingChunkBuf[:])
-					var loc chunkmap.Location
-					loc, err = rs.fscabs.cm.LookupChunk(rs.ctx, rs.pendingChunk)
+					var loc blobmap.Location
+					loc, err = rs.fscabs.bm.LookupChunk(rs.ctx, rs.pendingChunk)
 					if err == nil && bytes.Compare(loc0.BlobID, loc.BlobID) == 0 && loc.Offset == loc0.Offset+loc0.Size {
 						loc0.Size += loc.Size
 						rs.pendingChunk = nil // consumed
@@ -1382,7 +1382,7 @@ func (rs *RecipeStream) Advance() (ok bool) {
 				rs.step = localblobstore.RecipeStep{Blob: blobName, Offset: loc0.Offset, Size: loc0.Size}
 				ok = true
 			}
-		} else { // The chunk is not in the ChunkMap; yield a single chunk hash.
+		} else { // The chunk is not in the BlobMap; yield a single chunk hash.
 			rs.step = localblobstore.RecipeStep{Chunk: rs.pendingChunk}
 			rs.pendingChunk = nil // consumed
 			ok = true
@@ -1446,14 +1446,14 @@ func (fscabs *FsCaBlobStore) GC(ctx *context.T) (err error) {
 	}
 	err = caIter.Err()
 
-	// cmBlobs maps the names of blobs found in the ChunkMap to their IDs.
+	// cmBlobs maps the names of blobs found in the BlobMap to their IDs.
 	// (The IDs can be derived from the names; the map is really being used
 	// to record which blobs exist, and the value merely avoids repeated
 	// conversions.)
 	cmBlobs := make(map[string][]byte)
 	if err == nil {
-		// Record all the blobs known to the ChunkMap;
-		bs := fscabs.cm.NewBlobStream(ctx)
+		// Record all the blobs known to the BlobMap;
+		bs := fscabs.bm.NewBlobStream(ctx)
 		for bs.Advance() {
 			blobID := bs.Value(nil)
 			cmBlobs[hashToFileName(blobDir, blobID)] = blobID
@@ -1477,10 +1477,10 @@ func (fscabs *FsCaBlobStore) GC(ctx *context.T) (err error) {
 	}
 
 	if err == nil {
-		// Remove all blobs still mentioned in cmBlobs from the ChunkMap;
+		// Remove all blobs still mentioned in cmBlobs from the BlobMap;
 		// these are the ones that no longer exist in the blobs directory.
 		for _, blobID := range cmBlobs {
-			err = fscabs.cm.DeleteBlob(ctx, blobID)
+			err = fscabs.bm.DeleteBlob(ctx, blobID)
 			if err != nil {
 				break
 			}

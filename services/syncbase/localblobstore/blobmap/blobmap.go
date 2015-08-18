@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package chunkmap implements a map from chunk checksums to chunk locations
+// Package blobmap implements a map from chunk checksums to chunk locations
 // and vice versa, using a store.Store (currently, one implemented with
 // leveldb).
-package chunkmap
+package blobmap
 
 import "encoding/binary"
 import "sync"
@@ -15,15 +15,15 @@ import "v.io/syncbase/x/ref/services/syncbase/store/leveldb"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
-const pkgPath = "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunkmap"
+const pkgPath = "v.io/syncbase/x/ref/services/syncbase/localblobstore/blobmap"
 
 var (
-	errBadBlobIDLen        = verror.Register(pkgPath+".errBadBlobIDLen", verror.NoRetry, "{1:}{2:} chunkmap {3}: bad blob length {4} should be {5}{:_}")
-	errBadChunkHashLen     = verror.Register(pkgPath+".errBadChunkHashLen", verror.NoRetry, "{1:}{2:} chunkmap {3}: bad chunk hash length {4} should be {5}{:_}")
-	errNoSuchBlob          = verror.Register(pkgPath+".errNoSuchBlob", verror.NoRetry, "{1:}{2:} chunkmap {3}: no such blob{:_}")
-	errMalformedChunkEntry = verror.Register(pkgPath+".errMalformedChunkEntry", verror.NoRetry, "{1:}{2:} chunkmap {3}: malfored chunk entry{:_}")
-	errNoSuchChunk         = verror.Register(pkgPath+".errNoSuchChunk", verror.NoRetry, "{1:}{2:} chunkmap {3}: no such chunk{:_}")
-	errMalformedBlobEntry  = verror.Register(pkgPath+".errMalformedBlobEntry", verror.NoRetry, "{1:}{2:} chunkmap {3}: malfored blob entry{:_}")
+	errBadBlobIDLen        = verror.Register(pkgPath+".errBadBlobIDLen", verror.NoRetry, "{1:}{2:} blobmap {3}: bad blob length {4} should be {5}{:_}")
+	errBadChunkHashLen     = verror.Register(pkgPath+".errBadChunkHashLen", verror.NoRetry, "{1:}{2:} blobmap {3}: bad chunk hash length {4} should be {5}{:_}")
+	errNoSuchBlob          = verror.Register(pkgPath+".errNoSuchBlob", verror.NoRetry, "{1:}{2:} blobmap {3}: no such blob{:_}")
+	errMalformedChunkEntry = verror.Register(pkgPath+".errMalformedChunkEntry", verror.NoRetry, "{1:}{2:} blobmap {3}: malfored chunk entry{:_}")
+	errNoSuchChunk         = verror.Register(pkgPath+".errNoSuchChunk", verror.NoRetry, "{1:}{2:} blobmap {3}: no such chunk{:_}")
+	errMalformedBlobEntry  = verror.Register(pkgPath+".errMalformedBlobEntry", verror.NoRetry, "{1:}{2:} blobmap {3}: malfored blob entry{:_}")
 )
 
 // There are two tables: chunk-to-location, and blob-to-chunk.
@@ -81,34 +81,34 @@ type Location struct {
 	Size   int64  // size of chunk
 }
 
-// A ChunkMap maps chunk checksums to Locations, and vice versa.
-type ChunkMap struct {
+// A BlobMap maps chunk checksums to Locations, and vice versa.
+type BlobMap struct {
 	dir string      // the directory where the store is held
 	st  store.Store // private store that holds the mapping.
 }
 
-// New() returns a pointer to a ChunkMap, backed by storage in directory dir.
-func New(ctx *context.T, dir string) (cm *ChunkMap, err error) {
-	cm = new(ChunkMap)
-	cm.dir = dir
-	cm.st, err = leveldb.Open(dir, leveldb.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
-	return cm, err
+// New() returns a pointer to a BlobMap, backed by storage in directory dir.
+func New(ctx *context.T, dir string) (bm *BlobMap, err error) {
+	bm = new(BlobMap)
+	bm.dir = dir
+	bm.st, err = leveldb.Open(dir, leveldb.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
+	return bm, err
 }
 
-// Close() closes any files or other resources associated with *cm.
-// No other methods on cm may be called after Close().
-func (cm *ChunkMap) Close() error {
-	return cm.st.Close()
+// Close() closes any files or other resources associated with *bm.
+// No other methods on bm may be called after Close().
+func (bm *BlobMap) Close() error {
+	return bm.st.Close()
 }
 
 // AssociateChunkWithLocation() remembers that the specified chunk hash is
 // associated with the specified Location.
-func (cm *ChunkMap) AssociateChunkWithLocation(ctx *context.T, chunk []byte, loc Location) (err error) {
+func (bm *BlobMap) AssociateChunkWithLocation(ctx *context.T, chunk []byte, loc Location) (err error) {
 	// Check of expected lengths explicitly in routines that modify the database.
 	if len(loc.BlobID) != blobIDLen {
-		err = verror.New(errBadBlobIDLen, ctx, cm.dir, len(loc.BlobID), blobIDLen)
+		err = verror.New(errBadBlobIDLen, ctx, bm.dir, len(loc.BlobID), blobIDLen)
 	} else if len(chunk) != chunkHashLen {
-		err = verror.New(errBadChunkHashLen, ctx, cm.dir, len(chunk), chunkHashLen)
+		err = verror.New(errBadChunkHashLen, ctx, bm.dir, len(chunk), chunkHashLen)
 	} else {
 		var key [maxKeyLen]byte
 		var val [maxValLen]byte
@@ -122,7 +122,7 @@ func (cm *ChunkMap) AssociateChunkWithLocation(ctx *context.T, chunk []byte, loc
 
 		valLen := copy(val[:], chunk)
 		valLen += binary.PutVarint(val[valLen:], loc.Size)
-		err = cm.st.Put(key[:keyLen], val[:valLen])
+		err = bm.st.Put(key[:keyLen], val[:valLen])
 
 		if err == nil {
 			keyLen = copy(key[:], chunkPrefix)
@@ -132,7 +132,7 @@ func (cm *ChunkMap) AssociateChunkWithLocation(ctx *context.T, chunk []byte, loc
 			valLen = binary.PutVarint(val[:], loc.Offset)
 			valLen += binary.PutVarint(val[valLen:], loc.Size)
 
-			err = cm.st.Put(key[:keyLen], val[:valLen])
+			err = bm.st.Put(key[:keyLen], val[:valLen])
 		}
 	}
 
@@ -141,10 +141,10 @@ func (cm *ChunkMap) AssociateChunkWithLocation(ctx *context.T, chunk []byte, loc
 
 // DeleteBlob() deletes any of the chunk associations previously added with
 // AssociateChunkWithLocation(..., chunk, ...).
-func (cm *ChunkMap) DeleteBlob(ctx *context.T, blob []byte) (err error) {
+func (bm *BlobMap) DeleteBlob(ctx *context.T, blob []byte) (err error) {
 	// Check of expected lengths explicitly in routines that modify the database.
 	if len(blob) != blobIDLen {
-		err = verror.New(errBadBlobIDLen, ctx, cm.dir, len(blob), blobIDLen)
+		err = verror.New(errBadBlobIDLen, ctx, bm.dir, len(blob), blobIDLen)
 	} else {
 		var start [maxKeyLen]byte
 		var limit [maxKeyLen]byte
@@ -163,7 +163,7 @@ func (cm *ChunkMap) DeleteBlob(ctx *context.T, blob []byte) (err error) {
 
 		seenAValue := false
 
-		s := cm.st.Scan(start[:startLen], limit[:limitLen])
+		s := bm.st.Scan(start[:startLen], limit[:limitLen])
 		for s.Advance() && err == nil {
 			seenAValue = true
 
@@ -174,13 +174,13 @@ func (cm *ChunkMap) DeleteBlob(ctx *context.T, blob []byte) (err error) {
 				deleteKeyLen := deletePrefixLen
 				deleteKeyLen += copy(deleteKey[deleteKeyLen:], value[:chunkHashLen])
 				deleteKeyLen += copy(deleteKey[deleteKeyLen:], blob)
-				err = cm.st.Delete(deleteKey[:deleteKeyLen])
+				err = bm.st.Delete(deleteKey[:deleteKeyLen])
 			}
 
 			if err == nil {
 				// Delete the blob-to-chunk entry last, as it's
 				// used to find the chunk-to-location entry.
-				err = cm.st.Delete(key)
+				err = bm.st.Delete(key)
 			}
 		}
 
@@ -189,7 +189,7 @@ func (cm *ChunkMap) DeleteBlob(ctx *context.T, blob []byte) (err error) {
 		} else {
 			err = s.Err()
 			if err == nil && !seenAValue {
-				err = verror.New(errNoSuchBlob, ctx, cm.dir, blob)
+				err = verror.New(errNoSuchBlob, ctx, bm.dir, blob)
 			}
 		}
 	}
@@ -200,10 +200,10 @@ func (cm *ChunkMap) DeleteBlob(ctx *context.T, blob []byte) (err error) {
 // LookupChunk() returns a Location for the specified chunk.  Only one Location
 // is returned, even if several are available in the database.  If the client
 // finds that the Location is not available, perhaps because its blob has
-// been deleted, the client should remove the blob from the ChunkMap using
+// been deleted, the client should remove the blob from the BlobMap using
 // DeleteBlob(loc.Blob), and try again.  (The client may also wish to
 // arrange at some point to call GC() on the blob store.)
-func (cm *ChunkMap) LookupChunk(ctx *context.T, chunkHash []byte) (loc Location, err error) {
+func (bm *BlobMap) LookupChunk(ctx *context.T, chunkHash []byte) (loc Location, err error) {
 	var start [maxKeyLen]byte
 	var limit [maxKeyLen]byte
 
@@ -216,7 +216,7 @@ func (cm *ChunkMap) LookupChunk(ctx *context.T, chunkHash []byte) (loc Location,
 	var keyBuf [maxKeyLen]byte // buffer for keys returned by stream
 	var valBuf [maxValLen]byte // buffer for values returned by stream
 
-	s := cm.st.Scan(start[:startLen], limit[:limitLen])
+	s := bm.st.Scan(start[:startLen], limit[:limitLen])
 	if s.Advance() {
 		var n int
 		key := s.Key(keyBuf[:])
@@ -227,7 +227,7 @@ func (cm *ChunkMap) LookupChunk(ctx *context.T, chunkHash []byte) (loc Location,
 			loc.Size, n = binary.Varint(value[n:])
 		}
 		if n <= 0 {
-			err = verror.New(errMalformedChunkEntry, ctx, cm.dir, chunkHash, key, value)
+			err = verror.New(errMalformedChunkEntry, ctx, bm.dir, chunkHash, key, value)
 		}
 		s.Cancel()
 	} else {
@@ -235,7 +235,7 @@ func (cm *ChunkMap) LookupChunk(ctx *context.T, chunkHash []byte) (loc Location,
 			err = s.Err()
 		}
 		if err == nil {
-			err = verror.New(errNoSuchChunk, ctx, cm.dir, chunkHash)
+			err = verror.New(errNoSuchChunk, ctx, bm.dir, chunkHash)
 		}
 	}
 
@@ -243,7 +243,7 @@ func (cm *ChunkMap) LookupChunk(ctx *context.T, chunkHash []byte) (loc Location,
 }
 
 // A ChunkStream allows the client to iterate over the chunks in a blob:
-//	cs := cm.NewChunkStream(ctx, blob)
+//	cs := bm.NewChunkStream(ctx, blob)
 //	for cs.Advance() {
 //		chunkHash := cs.Value()
 //		...process chunkHash...
@@ -252,7 +252,7 @@ func (cm *ChunkMap) LookupChunk(ctx *context.T, chunkHash []byte) (loc Location,
 //		...there was an error...
 //	}
 type ChunkStream struct {
-	cm     *ChunkMap
+	bm     *BlobMap
 	ctx    *context.T
 	stream store.Stream
 
@@ -267,7 +267,7 @@ type ChunkStream struct {
 
 // NewChunkStream() returns a pointer to a new ChunkStream that allows the client
 // to enumerate the chunk hashes in a blob, in order.
-func (cm *ChunkMap) NewChunkStream(ctx *context.T, blob []byte) *ChunkStream {
+func (bm *BlobMap) NewChunkStream(ctx *context.T, blob []byte) *ChunkStream {
 	var start [maxKeyLen]byte
 	var limit [maxKeyLen]byte
 
@@ -278,9 +278,9 @@ func (cm *ChunkMap) NewChunkStream(ctx *context.T, blob []byte) *ChunkStream {
 	limitLen += copy(limit[limitLen:], offsetLimit)
 
 	cs := new(ChunkStream)
-	cs.cm = cm
+	cs.bm = bm
 	cs.ctx = ctx
-	cs.stream = cm.st.Scan(start[:startLen], limit[:limitLen])
+	cs.stream = bm.st.Scan(start[:startLen], limit[:limitLen])
 	cs.more = true
 
 	return cs
@@ -311,7 +311,7 @@ func (cs *ChunkStream) Advance() (ok bool) {
 				ok = (n > 0)
 			}
 			if !ok {
-				cs.err = verror.New(errMalformedBlobEntry, cs.ctx, cs.cm.dir, cs.key, cs.value)
+				cs.err = verror.New(errMalformedBlobEntry, cs.ctx, cs.bm.dir, cs.key, cs.value)
 				cs.stream.Cancel()
 			}
 		}
@@ -355,8 +355,8 @@ func (cs *ChunkStream) Cancel() {
 	cs.stream.Cancel()
 }
 
-// A BlobStream allows the client to iterate over the blobs in ChunkMap:
-//	bs := cm.NewBlobStream(ctx)
+// A BlobStream allows the client to iterate over the blobs in BlobMap:
+//	bs := bm.NewBlobStream(ctx)
 //	for bs.Advance() {
 //		blobID := bs.Value()
 //		...process blobID...
@@ -365,7 +365,7 @@ func (cs *ChunkStream) Cancel() {
 //		...there was an error...
 //	}
 type BlobStream struct {
-	cm  *ChunkMap
+	bm  *BlobMap
 	ctx *context.T
 
 	key    []byte          // key for current element
@@ -387,10 +387,10 @@ func init() {
 }
 
 // NewBlobStream() returns a pointer to a new BlobStream that allows the client
-// to enumerate the blobs ChunkMap, in lexicographic order.
-func (cm *ChunkMap) NewBlobStream(ctx *context.T) *BlobStream {
+// to enumerate the blobs BlobMap, in lexicographic order.
+func (bm *BlobMap) NewBlobStream(ctx *context.T) *BlobStream {
 	bs := new(BlobStream)
-	bs.cm = cm
+	bs.bm = bm
 	bs.ctx = ctx
 	bs.more = true
 	return bs
@@ -426,14 +426,14 @@ func (bs *BlobStream) Advance() (ok bool) {
 			bs.key = bs.keyBuf[:prefixAndKeyLen]
 		}
 		if ok {
-			stream := bs.cm.st.Scan(bs.key, keyLimit)
+			stream := bs.bm.st.Scan(bs.key, keyLimit)
 			if !stream.Advance() {
 				bs.err = stream.Err()
 				ok = false // no more stream, even if no error
 			} else {
 				bs.key = stream.Key(bs.keyBuf[:])
 				if len(bs.key) < prefixAndKeyLen {
-					bs.err = verror.New(errMalformedBlobEntry, bs.ctx, bs.cm.dir, bs.key, stream.Value(nil))
+					bs.err = verror.New(errMalformedBlobEntry, bs.ctx, bs.bm.dir, bs.key, stream.Value(nil))
 					ok = false
 				}
 				stream.Cancel() // We get at most one element from each stream.
