@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package conn
+package manager
 
 import (
 	"strings"
@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/x/ref/runtime/internal/flow/conn"
 )
 
 // ConnCache is a cache of Conns keyed by (protocol, address, blessingNames)
@@ -26,7 +27,7 @@ type ConnCache struct {
 }
 
 type connEntry struct {
-	conn       *Conn
+	conn       *conn.Conn
 	rid        naming.RoutingID
 	addrKey    string
 	next, prev *connEntry
@@ -57,7 +58,7 @@ func NewConnCache() *ConnCache {
 // be the same as the arguments provided to ReservedFind.
 // All new ReservedFind calls for the (protocol, address, blessings) will Block
 // until the corresponding Unreserve call is made.
-func (c *ConnCache) ReservedFind(protocol, address string, blessingNames []string) (*Conn, error) {
+func (c *ConnCache) ReservedFind(protocol, address string, blessingNames []string) (*conn.Conn, error) {
 	k := key(protocol, address, blessingNames)
 	defer c.mu.Unlock()
 	c.mu.Lock()
@@ -93,7 +94,7 @@ func (c *ConnCache) Unreserve(protocol, address string, blessingNames []string) 
 
 // Insert adds conn to the cache.
 // An error will be returned iff the cache has been closed.
-func (c *ConnCache) Insert(conn *Conn) error {
+func (c *ConnCache) Insert(conn *conn.Conn) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
@@ -155,7 +156,7 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 // FindWithRoutingID returns a Conn where the remote end of the connection
 // is identified by the provided rid. nil is returned if there is no such Conn.
 // FindWithRoutingID will return an error iff the cache is closed.
-func (c *ConnCache) FindWithRoutingID(rid naming.RoutingID) (*Conn, error) {
+func (c *ConnCache) FindWithRoutingID(rid naming.RoutingID) (*conn.Conn, error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
@@ -206,9 +207,9 @@ func (c *connEntry) moveAfter(prev *connEntry) {
 	prev.next = c
 }
 
-func isClosed(conn *Conn) bool {
+func isClosed(conn *conn.Conn) bool {
 	select {
-	case <-conn.closed:
+	case <-conn.Closed():
 		return true
 	default:
 		return false

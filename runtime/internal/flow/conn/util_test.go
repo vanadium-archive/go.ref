@@ -5,8 +5,6 @@
 package conn
 
 import (
-	"io"
-	"sync"
 	"testing"
 
 	"v.io/v23"
@@ -15,88 +13,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
-	"v.io/x/ref/internal/logger"
+	"v.io/x/ref/runtime/internal/flow/flowtest"
 )
-
-type wire struct {
-	ctx    *context.T
-	mu     sync.Mutex
-	c      *sync.Cond
-	closed bool
-}
-
-func (w *wire) close() {
-	w.mu.Lock()
-	w.closed = true
-	w.c.Broadcast()
-	w.mu.Unlock()
-}
-
-func (w *wire) isClosed() bool {
-	w.mu.Lock()
-	c := w.closed
-	w.mu.Unlock()
-	return c
-}
-
-type mRW struct {
-	wire *wire
-	in   []byte
-	peer *mRW
-}
-
-func newMRWPair(ctx *context.T) (MsgReadWriteCloser, MsgReadWriteCloser, *wire) {
-	w := &wire{ctx: ctx}
-	w.c = sync.NewCond(&w.mu)
-	a, b := &mRW{wire: w}, &mRW{wire: w}
-	a.peer, b.peer = b, a
-	return a, b, w
-}
-
-func (f *mRW) WriteMsg(data ...[]byte) (int, error) {
-	buf := []byte{}
-	for _, d := range data {
-		buf = append(buf, d...)
-	}
-	logbuf := buf
-	if len(buf) > 128 {
-		logbuf = buf[:128]
-	}
-	logger.Global().VI(2).Infof("Writing %d bytes to the wire: %#v", len(buf), logbuf)
-	defer f.wire.mu.Unlock()
-	f.wire.mu.Lock()
-	for f.peer.in != nil && !f.wire.closed {
-		f.wire.c.Wait()
-	}
-	if f.wire.closed {
-		return 0, io.EOF
-	}
-	f.peer.in = buf
-	f.wire.c.Broadcast()
-	return len(buf), nil
-}
-func (f *mRW) ReadMsg() (buf []byte, err error) {
-	defer f.wire.mu.Unlock()
-	f.wire.mu.Lock()
-	for f.in == nil && !f.wire.closed {
-		f.wire.c.Wait()
-	}
-	if f.wire.closed {
-		return nil, io.EOF
-	}
-	buf, f.in = f.in, nil
-	f.wire.c.Broadcast()
-	logbuf := buf
-	if len(buf) > 128 {
-		logbuf = buf[:128]
-	}
-	logger.Global().VI(2).Infof("Reading %d bytes from the wire: %#v", len(buf), logbuf)
-	return buf, nil
-}
-func (f *mRW) Close() error {
-	f.wire.close()
-	return nil
-}
 
 type fh chan<- flow.Flow
 
@@ -108,8 +26,8 @@ func (fh fh) HandleFlow(f flow.Flow) error {
 	return nil
 }
 
-func setupConns(t *testing.T, dctx, actx *context.T, dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn, _ *wire) {
-	dmrw, amrw, w := newMRWPair(dctx)
+func setupConns(t *testing.T, dctx, actx *context.T, dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn, _ *flowtest.Wire) {
+	dmrw, amrw, w := flowtest.NewMRWPair(dctx)
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
 	ep, err := v23.NewEndpoint("localhost:80")
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc/version"
 	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/runtime/internal/flow/flowtest"
 	"v.io/x/ref/test"
 )
 
@@ -49,7 +50,7 @@ func TestVarInt(t *testing.T) {
 }
 
 func testMessages(t *testing.T, ctx *context.T, cases []message) {
-	w, r, _ := newMRWPair(ctx)
+	w, r, _ := flowtest.NewMRWPair(ctx)
 	wp, rp := newMessagePipe(w), newMessagePipe(r)
 	for _, want := range cases {
 		ch := make(chan struct{})

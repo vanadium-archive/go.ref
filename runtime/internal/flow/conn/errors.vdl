@@ -21,12 +21,10 @@ error (
   UnknownControlMsg(cmd byte) {"en": "unknown control command{:cmd}."}
   UnexpectedMsg(typ string) {"en": "unexpected message type{:typ}."}
   ConnectionClosed() {"en": "connection closed."}
-  ConnKilledToFreeResources() {"en": "Connection killed to free resources."}
   ConnClosedRemotely(msg string) {"en": "connection closed remotely{:msg}."}
   FlowClosedRemotely() {"en": "flow closed remotely."}
   Send(typ, dest string, err error) {"en": "failure sending {typ} message to {dest}{:err}."}
   Recv(src string, err error) {"en": "error reading from {src}{:err}"}
-  CacheClosed() {"en":"cache is closed"}
   CounterOverflow() {"en": "A remote process has sent more data than allowed."}
   BlessingsFlowClosed() {"en": "The blessings flow was closed."}
   InvalidChannelBinding() {"en": "The channel binding was invalid."}
