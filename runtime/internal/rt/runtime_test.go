@@ -148,7 +148,7 @@ func TestReservedNameDispatcher(t *testing.T) {
 	debugDisp := r.GetReservedNameDispatcher(nctx)
 
 	if debugDisp != newDebugDisp || debugDisp == oldDebugDisp {
-		t.Error("SetNewDebugDispatcher didn't update the context properly")
+		t.Error("WithNewDebugDispatcher didn't update the context properly")
 	}
 
 }
@@ -157,8 +157,19 @@ func TestFlowManager(t *testing.T) {
 	r, ctx, shutdown := initForTest(t)
 	defer shutdown()
 
-	if man := r.ExperimentalGetFlowManager(ctx); man == nil {
+	oldman := r.ExperimentalGetFlowManager(ctx)
+	if oldman == nil {
 		t.Error("ExperimentalGetFlowManager should have returned a non-nil value")
 	}
-
+	newctx, newman, err := r.ExperimentalWithNewFlowManager(ctx)
+	if err != nil || newman == nil || newman == oldman {
+		t.Fatalf("Could not create flow manager: %v", err)
+	}
+	if !newctx.Initialized() {
+		t.Fatal("Got uninitialized context.")
+	}
+	man := r.ExperimentalGetFlowManager(newctx)
+	if man != newman || man == oldman {
+		t.Error("ExperimentalWithNewFlowManager didn't update the context properly")
+	}
 }
