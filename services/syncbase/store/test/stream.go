@@ -14,14 +14,26 @@ import (
 
 // RunStreamTest verifies store.Stream operations.
 func RunStreamTest(t *testing.T, st store.Store) {
+	// Test that advancing or canceling a stream that has reached its end
+	// doesn't cause a panic.
+	s := st.Scan([]byte("a"), []byte("z"))
+	verifyAdvance(t, s, nil, nil)
+	verifyAdvance(t, s, nil, nil)
+	if s.Err() != nil {
+		t.Fatalf("unexpected error: %v", s.Err())
+	}
+	s.Cancel()
+	if s.Err() != nil {
+		t.Fatalf("unexpected error: %v", s.Err())
+	}
+
 	key1, value1 := []byte("key1"), []byte("value1")
 	st.Put(key1, value1)
 	key2, value2 := []byte("key2"), []byte("value2")
 	st.Put(key2, value2)
 	key3, value3 := []byte("key3"), []byte("value3")
 	st.Put(key3, value3)
-
-	s := st.Scan([]byte("a"), []byte("z"))
+	s = st.Scan([]byte("a"), []byte("z"))
 	verifyAdvance(t, s, key1, value1)
 	if !s.Advance() {
 		t.Fatalf("can't advance the stream")

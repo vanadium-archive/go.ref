@@ -65,7 +65,7 @@ func (s *stream) Advance() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hasValue = false
-	if s.err != nil {
+	if s.cIter == nil {
 		return false
 	}
 	// The C iterator starts out initialized, pointing at the first value; we
@@ -121,7 +121,7 @@ func (s *stream) Err() error {
 func (s *stream) Cancel() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.err != nil {
+	if s.cIter == nil {
 		return
 	}
 	// s.hasValue will be false if Advance has never been called.

@@ -20,6 +20,7 @@ type stream struct {
 	currIndex int
 	currKey   *string
 	err       error
+	done      bool
 }
 
 var _ store.Stream = (*stream)(nil)
@@ -48,17 +49,18 @@ func newStream(sn *snapshot, parent *store.ResourceNode, start, limit []byte) *s
 func (s *stream) Advance() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.err != nil {
-		s.currKey = nil
-	} else {
-		s.currIndex++
-		if s.currIndex < len(s.keys) {
-			s.currKey = &s.keys[s.currIndex]
-		} else {
-			s.currKey = nil
-		}
+	s.currKey = nil
+	if s.done {
+		return false
 	}
-	return s.currKey != nil
+	s.currIndex++
+	if s.currIndex < len(s.keys) {
+		s.currKey = &s.keys[s.currIndex]
+	} else {
+		s.done = true
+		s.currKey = nil
+	}
+	return !s.done
 }
 
 // Key implements the store.Stream interface.
@@ -92,9 +94,10 @@ func (s *stream) Err() error {
 func (s *stream) Cancel() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.err != nil {
+	if s.done {
 		return
 	}
+	s.done = true
 	s.node.Close()
 	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgCanceledStream)
 }
