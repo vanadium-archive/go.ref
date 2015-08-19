@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/v23"
+	"v.io/x/ref/test/goroutines"
 )
 
 func mkBufs(in ...string) [][]byte {
@@ -20,6 +21,8 @@ func mkBufs(in ...string) [][]byte {
 }
 
 func TestReadqRead(t *testing.T) {
+	defer goroutines.NoLeaks(t, 0)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -45,6 +48,8 @@ func TestReadqRead(t *testing.T) {
 }
 
 func TestReadqGet(t *testing.T) {
+	defer goroutines.NoLeaks(t, 0)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -69,6 +74,8 @@ func TestReadqGet(t *testing.T) {
 }
 
 func TestReadqMixed(t *testing.T) {
+	defer goroutines.NoLeaks(t, 0)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 

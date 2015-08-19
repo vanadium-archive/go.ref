@@ -49,7 +49,6 @@ type FlowHandler interface {
 }
 
 // Conns are a multiplexing encrypted channels that can host Flows.
-// TODO(mattr): track and clean up all spawned goroutines.
 type Conn struct {
 	fc                       *flowcontrol.FlowController
 	mp                       *messagePipe
@@ -60,6 +59,7 @@ type Conn struct {
 	local, remote            naming.Endpoint
 	closed                   chan struct{}
 	blessingsFlow            *blessingsFlow
+	loopWG                   sync.WaitGroup
 
 	mu      sync.Mutex
 	nextFid flowID
@@ -91,6 +91,7 @@ func NewDialed(
 		c.Close(ctx, err)
 		return nil, err
 	}
+	c.loopWG.Add(1)
 	go c.readLoop(ctx)
 	return c, nil
 }
@@ -116,6 +117,7 @@ func NewAccepted(
 		c.Close(ctx, err)
 		return nil, err
 	}
+	c.loopWG.Add(1)
 	go c.readLoop(ctx)
 	return c, nil
 }
@@ -154,23 +156,28 @@ func (c *Conn) RemoteEndpoint() naming.Endpoint { return c.remote }
 // with an error and no more flows will be sent to the FlowHandler.
 func (c *Conn) Closed() <-chan struct{} { return c.closed }
 
-// Close shuts down a conn.  This will cause the read loop
-// to exit.
+// Close shuts down a conn.
 func (c *Conn) Close(ctx *context.T, err error) {
 	c.mu.Lock()
 	var flows map[flowID]*flw
 	flows, c.flows = c.flows, nil
 	c.mu.Unlock()
+
 	if flows == nil {
-		// We've already torn this conn down.
+		// This conn is already being torn down.
+		<-c.closed
 		return
 	}
+	c.internalClose(ctx, err, flows)
+}
+
+func (c *Conn) internalClose(ctx *context.T, err error, flows map[flowID]*flw) {
 	if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
 		message := ""
 		if err != nil {
 			message = err.Error()
 		}
-		cerr := c.fc.Run(ctx, expressPriority, func(_ int) (int, bool, error) {
+		cerr := c.fc.Run(ctx, "close", expressPriority, func(_ int) (int, bool, error) {
 			return 0, true, c.mp.writeMsg(ctx, &tearDown{Message: message})
 		})
 		if cerr != nil {
@@ -183,8 +190,7 @@ func (c *Conn) Close(ctx *context.T, err error) {
 	if cerr := c.mp.close(); cerr != nil {
 		ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)
 	}
-
-	// TODO(mattr): ensure the readLoop is finished before closing this.
+	c.loopWG.Wait()
 	close(c.closed)
 }
 
@@ -201,7 +207,7 @@ func (c *Conn) release(ctx *context.T) {
 		return
 	}
 
-	err := c.fc.Run(ctx, expressPriority, func(_ int) (int, bool, error) {
+	err := c.fc.Run(ctx, "release", expressPriority, func(_ int) (int, bool, error) {
 		err := c.mp.writeMsg(ctx, &release{
 			counters: counts,
 		})
@@ -290,5 +296,14 @@ func (c *Conn) readLoop(ctx *context.T) {
 			break
 		}
 	}
-	c.Close(ctx, err)
+
+	c.mu.Lock()
+	var flows map[flowID]*flw
+	flows, c.flows = c.flows, nil
+	c.mu.Unlock()
+
+	c.loopWG.Done()
+	if flows != nil {
+		c.internalClose(ctx, err, flows)
+	}
 }

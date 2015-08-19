@@ -5,6 +5,8 @@
 package conn
 
 import (
+	"strconv"
+
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/security"
@@ -32,7 +34,7 @@ func (c *Conn) newFlowLocked(ctx *context.T, id flowID, bkey, dkey uint64, diale
 		id:     id,
 		dialed: dialed,
 		conn:   c,
-		worker: c.fc.NewWorker(flowPriority),
+		worker: c.fc.NewWorker(strconv.FormatUint(uint64(id), 10), flowPriority),
 		q:      newReadQ(),
 		bkey:   bkey,
 		dkey:   dkey,

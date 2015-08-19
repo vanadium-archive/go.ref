@@ -13,6 +13,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/test/goroutines"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -49,6 +50,8 @@ func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings) flow
 }
 
 func TestUnidirectional(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	dctx, shutdown := v23.Init()
 	defer shutdown()
 	actx, err := v23.WithPrincipal(dctx, testutil.NewPrincipal("acceptor"))
@@ -57,6 +60,8 @@ func TestUnidirectional(t *testing.T) {
 	}
 	aflows := make(chan flow.Flow, 2)
 	dc, ac, _ := setupConns(t, dctx, actx, nil, aflows)
+	defer dc.Close(dctx, nil)
+	defer ac.Close(actx, nil)
 
 	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default())
 	af1 := <-aflows
@@ -82,6 +87,8 @@ func TestUnidirectional(t *testing.T) {
 }
 
 func TestBidirectional(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	dctx, shutdown := v23.Init()
 	defer shutdown()
 	actx, err := v23.WithPrincipal(dctx, testutil.NewPrincipal("acceptor"))
@@ -91,6 +98,8 @@ func TestBidirectional(t *testing.T) {
 	dflows := make(chan flow.Flow, 2)
 	aflows := make(chan flow.Flow, 2)
 	dc, ac, _ := setupConns(t, dctx, actx, dflows, aflows)
+	defer dc.Close(dctx, nil)
+	defer ac.Close(actx, nil)
 
 	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default())
 	af1 := <-aflows

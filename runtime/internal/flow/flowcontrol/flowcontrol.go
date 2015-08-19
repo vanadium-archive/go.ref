@@ -41,6 +41,7 @@ const (
 // producers do not overwhelm consumers.  Only one Worker
 // will be executing at a time.
 type Worker struct {
+	name     string
 	fc       *FlowController
 	priority int
 	work     chan struct{}
@@ -49,6 +50,10 @@ type Worker struct {
 	counters   *counterState // State related to the flow control counters.
 	state      state
 	next, prev *Worker // Used as a list when in an active queue.
+}
+
+func (w *Worker) String() string {
+	return fmt.Sprintf("%s(%p)", w.name, w)
 }
 
 // Run runs r potentially multiple times.
@@ -71,7 +76,7 @@ func (w *Worker) Run(ctx *context.T, r Runner) (err error) {
 	for {
 		next := w.fc.nextWorkerLocked()
 		if w.fc.writing == w {
-			// We're already schedule to write, but we should bail
+			// We're already scheduled to write, but we should bail
 			// out if we're canceled.
 			select {
 			case <-ctx.Done():
@@ -82,8 +87,9 @@ func (w *Worker) Run(ctx *context.T, r Runner) (err error) {
 		for w.fc.writing != w && err == nil {
 			w.fc.mu.Unlock()
 			if next != nil {
-				next.work <- struct{}{}
+				next.notify()
 			}
+			ctx.VI(4).Infof("worker waiting: %s\nfc: %s", w, w.fc)
 			select {
 			case <-ctx.Done():
 				err = ctx.Err()
@@ -92,6 +98,7 @@ func (w *Worker) Run(ctx *context.T, r Runner) (err error) {
 			w.fc.mu.Lock()
 		}
 		if err != nil {
+			w.fc.writing = nil
 			break
 		}
 
@@ -138,7 +145,7 @@ func (w *Worker) Run(ctx *context.T, r Runner) (err error) {
 	next := w.fc.nextWorkerLocked()
 	w.fc.mu.Unlock()
 	if next != nil {
-		next.work <- struct{}{}
+		next.notify()
 	}
 	return err
 }
@@ -169,7 +176,7 @@ func (w *Worker) Release(ctx *context.T, tokens int) {
 	next := w.fc.nextWorkerLocked()
 	w.fc.mu.Unlock()
 	if next != nil {
-		next.work <- struct{}{}
+		next.notify()
 	}
 }
 
@@ -178,6 +185,13 @@ func (w *Worker) readyLocked() bool {
 		return true
 	}
 	return w.counters.released > 0 || (!w.counters.everReleased && w.fc.shared > 0)
+}
+
+func (w *Worker) notify() {
+	select {
+	case w.work <- struct{}{}:
+	default:
+	}
 }
 
 // FlowController manages multiple Workers to ensure only one runs at a time.
@@ -204,11 +218,12 @@ func New(shared, mtu int) *FlowController {
 // execute is controlled by priority.  Higher priority
 // workers that are ready will run before any lower priority
 // workers.
-func (fc *FlowController) NewWorker(priority int) *Worker {
+func (fc *FlowController) NewWorker(name string, priority int) *Worker {
 	w := &Worker{
+		name:     name,
 		fc:       fc,
 		priority: priority,
-		work:     make(chan struct{}),
+		work:     make(chan struct{}, 1),
 		counters: &counterState{},
 	}
 	w.next, w.prev = w, w
@@ -233,7 +248,7 @@ func (fc *FlowController) Release(ctx *context.T, to []Release) error {
 	next := fc.nextWorkerLocked()
 	fc.mu.Unlock()
 	if next != nil {
-		next.work <- struct{}{}
+		next.notify()
 	}
 	return nil
 }
@@ -241,11 +256,12 @@ func (fc *FlowController) Release(ctx *context.T, to []Release) error {
 // Run runs the given runner on a non-flow controlled Worker.  This
 // worker does not wait for any flow control tokens and is limited
 // only by the MTU.
-func (fc *FlowController) Run(ctx *context.T, p int, r Runner) error {
+func (fc *FlowController) Run(ctx *context.T, name string, p int, r Runner) error {
 	w := &Worker{
+		name:     name,
 		fc:       fc,
 		priority: p,
-		work:     make(chan struct{}),
+		work:     make(chan struct{}, 1),
 	}
 	w.next, w.prev = w, w
 	return w.Run(ctx, r)
@@ -313,13 +329,15 @@ func (fc *FlowController) String() string {
 	fmt.Fprintf(buf, "FlowController %p: \n", fc)
 
 	fc.mu.Lock()
-	fmt.Fprintf(buf, "writing: %p\n", fc.writing)
+	if fc.writing != nil {
+		fmt.Fprintf(buf, "writing: %s\n", fc.writing)
+	}
 	fmt.Fprintln(buf, "active:")
 	for p, head := range fc.active {
-		fmt.Fprintf(buf, "  %v: %p", p, head)
+		fmt.Fprintf(buf, "  %v: %s", p, head)
 		if head != nil {
 			for cur := head.next; cur != head; cur = cur.next {
-				fmt.Fprintf(buf, " %p", cur)
+				fmt.Fprintf(buf, " %s", cur)
 			}
 		}
 		fmt.Fprintln(buf, "")
