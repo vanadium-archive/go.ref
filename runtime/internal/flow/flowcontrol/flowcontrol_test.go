@@ -45,7 +45,7 @@ func TestFlowControl(t *testing.T) {
 	wg.Add(workers)
 	for i := 0; i < workers; i++ {
 		go func(idx int) {
-			el := fc.NewWorker(0)
+			el := fc.NewWorker(fmt.Sprintf("%d", idx), 0)
 			go el.Release(ctx, messages*5) // Try to make races happen
 			j := 0
 			el.Run(ctx, func(tokens int) (used int, done bool, err error) {
@@ -86,7 +86,7 @@ func TestOrdering(t *testing.T) {
 
 	work := make(chan interface{})
 	worker := func(p int) *Worker {
-		w := fc.NewWorker(p)
+		w := fc.NewWorker(fmt.Sprintf("%d", p), p)
 		go w.Run(ctx, func(t int) (int, bool, error) {
 			work <- w
 			return t, false, nil
@@ -122,7 +122,7 @@ func TestSharedCounters(t *testing.T) {
 	work := make(chan interface{})
 
 	worker := func(p int) *Worker {
-		w := fc.NewWorker(p)
+		w := fc.NewWorker(fmt.Sprintf("%d", p), p)
 		go w.Run(ctx, func(t int) (int, bool, error) {
 			work <- w
 			return t, false, nil
@@ -152,7 +152,7 @@ func TestConcurrentRun(t *testing.T) {
 	fc := New(mtu, mtu)
 
 	ready, wait := make(chan struct{}), make(chan struct{})
-	w := fc.NewWorker(0)
+	w := fc.NewWorker("", 0)
 	go w.Run(ctx, func(t int) (int, bool, error) {
 		close(ready)
 		<-wait
@@ -174,22 +174,22 @@ func TestNonFlowControlledRun(t *testing.T) {
 	work := make(chan interface{})
 	ready, wait := make(chan struct{}), make(chan struct{})
 	// Start one worker running
-	go fc.Run(ctx, 0, func(t int) (int, bool, error) {
+	go fc.Run(ctx, "0", 0, func(t int) (int, bool, error) {
 		close(ready)
 		<-wait
 		return t, true, nil
 	})
 	<-ready
 	// Now queue up sever workers and make sure they execute in order.
-	go fc.Run(ctx, 2, func(t int) (int, bool, error) {
+	go fc.Run(ctx, "2", 2, func(t int) (int, bool, error) {
 		work <- "c"
 		return t, true, nil
 	})
-	go fc.Run(ctx, 1, func(t int) (int, bool, error) {
+	go fc.Run(ctx, "1", 1, func(t int) (int, bool, error) {
 		work <- "b"
 		return t, true, nil
 	})
-	go fc.Run(ctx, 0, func(t int) (int, bool, error) {
+	go fc.Run(ctx, "0", 0, func(t int) (int, bool, error) {
 		work <- "a"
 		return t, true, nil
 	})
@@ -249,7 +249,7 @@ func BenchmarkWithFlowControl(b *testing.B) {
 		wg.Add(workers)
 		for i := 0; i < workers; i++ {
 			go func(idx int) {
-				w := fc.NewWorker(0)
+				w := fc.NewWorker(fmt.Sprintf("%d", idx), 0)
 				w.Release(ctx, len(testdata))
 				t := testdata
 				err := w.Run(ctx, func(tokens int) (used int, done bool, err error) {

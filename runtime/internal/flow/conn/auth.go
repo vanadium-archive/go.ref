@@ -23,7 +23,8 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) e
 	if err != nil {
 		return err
 	}
-	c.blessingsFlow = newBlessingsFlow(ctx, c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true), true)
+	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG,
+		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true), true)
 	if err = c.readRemoteAuth(ctx, binding); err != nil {
 		return err
 	}
@@ -59,7 +60,8 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 	if err != nil {
 		return err
 	}
-	c.blessingsFlow = newBlessingsFlow(ctx, c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true), false)
+	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG,
+		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true), false)
 	signedBinding, err := v23.GetPrincipal(ctx).Sign(binding)
 	if err != nil {
 		return err
@@ -171,7 +173,7 @@ type blessingsFlow struct {
 	byBKey  map[uint64]*Blessings
 }
 
-func newBlessingsFlow(ctx *context.T, f flow.Flow, dialed bool) *blessingsFlow {
+func newBlessingsFlow(ctx *context.T, loopWG *sync.WaitGroup, f flow.Flow, dialed bool) *blessingsFlow {
 	b := &blessingsFlow{
 		enc:     vom.NewEncoder(f),
 		dec:     vom.NewDecoder(f),
@@ -183,7 +185,8 @@ func newBlessingsFlow(ctx *context.T, f flow.Flow, dialed bool) *blessingsFlow {
 	if !dialed {
 		b.nextKey++
 	}
-	go b.readLoop(ctx)
+	loopWG.Add(1)
+	go b.readLoop(ctx, loopWG)
 	return b
 }
 
@@ -233,7 +236,8 @@ func (b *blessingsFlow) get(ctx *context.T, bkey, dkey uint64) (security.Blessin
 	return security.Blessings{}, nil, NewErrBlessingsFlowClosed(ctx)
 }
 
-func (b *blessingsFlow) readLoop(ctx *context.T) {
+func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {
+	defer loopWG.Done()
 	for {
 		var received Blessings
 		err := b.dec.Decode(&received)

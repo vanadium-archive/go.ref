@@ -9,13 +9,15 @@ import (
 	"crypto/rand"
 	"io"
 	"testing"
+	"time"
 
 	"v.io/v23"
-	"v.io/v23/context"
-	"v.io/v23/flow"
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/goroutines"
 )
+
+const leakWaitTime = 100 * time.Millisecond
 
 var randData []byte
 
@@ -27,7 +29,15 @@ func init() {
 	}
 }
 
-func testWrite(t *testing.T, ctx *context.T, want []byte, df flow.Flow, flows <-chan flow.Flow) {
+func TestLargeWrite(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
+	ctx, shutdown := v23.Init()
+	df, flows, cl := setupFlow(t, ctx, ctx, true)
+	defer cl()
+	defer shutdown()
+
+	want := randData
 	finished := make(chan struct{})
 	go func(x []byte) {
 		mid := len(x) / 2
@@ -65,11 +75,4 @@ func testWrite(t *testing.T, ctx *context.T, want []byte, df flow.Flow, flows <-
 	<-finished
 	<-df.Closed()
 	<-af.Closed()
-}
-
-func TestLargeWrite(t *testing.T) {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-	df, flows := setupFlow(t, ctx, ctx, true)
-	testWrite(t, ctx, randData, df, flows)
 }

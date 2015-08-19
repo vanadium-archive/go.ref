@@ -12,9 +12,12 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/test/goroutines"
 )
 
 func TestRemoteDialerClose(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	d, a, w := setupConns(t, ctx, ctx, nil, nil)
@@ -27,6 +30,8 @@ func TestRemoteDialerClose(t *testing.T) {
 }
 
 func TestRemoteAcceptorClose(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	d, a, w := setupConns(t, ctx, ctx, nil, nil)
@@ -39,6 +44,8 @@ func TestRemoteAcceptorClose(t *testing.T) {
 }
 
 func TestUnderlyingConnectionClosed(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	d, a, w := setupConns(t, ctx, ctx, nil, nil)
@@ -48,6 +55,8 @@ func TestUnderlyingConnectionClosed(t *testing.T) {
 }
 
 func TestDialAfterConnClose(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	d, a, _ := setupConns(t, ctx, ctx, nil, nil)
@@ -64,10 +73,12 @@ func TestDialAfterConnClose(t *testing.T) {
 }
 
 func TestReadWriteAfterConnClose(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	for _, dialerDials := range []bool{true, false} {
-		df, flows := setupFlow(t, ctx, ctx, dialerDials)
+		df, flows, cl := setupFlow(t, ctx, ctx, dialerDials)
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {
 			t.Fatalf("write failed: %v", err)
 		}
@@ -93,14 +104,18 @@ func TestReadWriteAfterConnClose(t *testing.T) {
 		if _, err := af.ReadMsg(); err == nil {
 			t.Fatalf("nil error for read after close.")
 		}
+		cl()
 	}
 }
 
 func TestFlowCancelOnWrite(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	dctx, cancel := context.WithCancel(ctx)
-	df, accept := setupFlow(t, dctx, ctx, true)
+	df, accept, cl := setupFlow(t, dctx, ctx, true)
+	defer cl()
 	done := make(chan struct{})
 	go func() {
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {
@@ -122,10 +137,13 @@ func TestFlowCancelOnWrite(t *testing.T) {
 }
 
 func TestFlowCancelOnRead(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	dctx, cancel := context.WithCancel(ctx)
-	df, accept := setupFlow(t, dctx, ctx, true)
+	df, accept, cl := setupFlow(t, dctx, ctx, true)
+	defer cl()
 	done := make(chan struct{})
 	go func() {
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {

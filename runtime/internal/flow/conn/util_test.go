@@ -60,26 +60,19 @@ func setupConns(t *testing.T, dctx, actx *context.T, dflows, aflows chan<- flow.
 	return <-dch, <-ach, w
 }
 
-func setupFlow(t *testing.T, dctx, actx *context.T, dialFromDialer bool) (dialed flow.Flow, accepted <-chan flow.Flow) {
-	d, accepted := setupFlows(t, dctx, actx, dialFromDialer, 1)
-	return d[0], accepted
-}
-
-func setupFlows(t *testing.T, dctx, actx *context.T, dialFromDialer bool, n int) (dialed []flow.Flow, accepted <-chan flow.Flow) {
-	dflows, aflows := make(chan flow.Flow, n), make(chan flow.Flow, n)
+func setupFlow(t *testing.T, dctx, actx *context.T, dialFromDialer bool) (dialed flow.Flow, accepted <-chan flow.Flow, close func()) {
+	dflows, aflows := make(chan flow.Flow, 1), make(chan flow.Flow, 1)
 	d, a, _ := setupConns(t, dctx, actx, dflows, aflows)
 	if !dialFromDialer {
 		d, a = a, d
+		dctx, actx = actx, dctx
 		aflows, dflows = dflows, aflows
 	}
-	dialed = make([]flow.Flow, n)
-	for i := 0; i < n; i++ {
-		var err error
-		if dialed[i], err = d.Dial(dctx, testBFP); err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
+	df, err := d.Dial(dctx, testBFP)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
-	return dialed, aflows
+	return df, aflows, func() { d.Close(dctx, nil); a.Close(actx, nil) }
 }
 
 func testBFP(
