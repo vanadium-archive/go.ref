@@ -68,14 +68,23 @@ var TestIdentityd = modules.Register(func(env *modules.Env, args ...string) erro
 		}
 	}
 
+	mockClientID := "test-client-id"
+	mockClientName := "test-client"
+
 	auditor, reader := auditor.NewMockBlessingAuditor()
 	revocationManager := revocation.NewMockRevocationManager(ctx)
-	oauthProvider := oauth.NewMockOAuth("testemail@example.com")
+	oauthProvider := oauth.NewMockOAuth("testemail@example.com", mockClientID)
 
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
 		BlessingDuration:  duration,
 		RevocationManager: revocationManager,
+		AccessTokenClients: []oauth.AccessTokenClient{
+			oauth.AccessTokenClient{
+				Name:     mockClientName,
+				ClientID: mockClientID,
+			},
+		},
 	}
 
 	s := server.NewIdentityServer(

@@ -90,14 +90,23 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
+	mockClientID := "test-client-id"
+	mockClientName := "test-client"
+
 	auditor, reader := auditor.NewMockBlessingAuditor()
 	revocationManager := revocation.NewMockRevocationManager(ctx)
-	oauthProvider := oauth.NewMockOAuth(oauthEmail)
+	oauthProvider := oauth.NewMockOAuth(oauthEmail, mockClientID)
 
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
 		BlessingDuration:  duration,
 		RevocationManager: revocationManager,
+		AccessTokenClients: []oauth.AccessTokenClient{
+			oauth.AccessTokenClient{
+				Name:     mockClientName,
+				ClientID: mockClientID,
+			},
+		},
 	}
 
 	caveatSelector := caveats.NewMockCaveatSelector()

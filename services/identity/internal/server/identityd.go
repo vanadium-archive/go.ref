@@ -139,7 +139,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 		ctx.Fatalf("macaroonKey generation failed: %v", err)
 	}
 
-	rpcServer, published, err := s.setupServices(ctx, listenSpec, macaroonKey)
+	rpcServer, published, err := s.setupBlessingServices(ctx, listenSpec, macaroonKey)
 	if err != nil {
 		ctx.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
@@ -207,8 +207,9 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 	return names
 }
 
-// Starts the blessing services and the discharging service on the same port.
-func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *rpc.ListenSpec, macaroonKey []byte) (rpc.Server, []string, error) {
+// Starts the Vanadium and HTTP services for blessing, and the Vanadium service for discharging.
+// All Vanadium services are started on the same port.
+func (s *IdentityServer) setupBlessingServices(ctx *context.T, listenSpec *rpc.ListenSpec, macaroonKey []byte) (rpc.Server, []string, error) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new rpc.Server: %v", err)
@@ -228,11 +229,17 @@ func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *rpc.ListenSpe
 	} else {
 		rootedObjectAddr = s.rootedObjectAddrs[0].Name()
 	}
-	dispatcher := newDispatcher(macaroonKey, oauthBlesserParams(s.oauthBlesserParams, rootedObjectAddr))
+
+	params := oauthBlesserParams(s.oauthBlesserParams, rootedObjectAddr)
+	dispatcher := newDispatcher(macaroonKey, params)
 	if err := server.ServeDispatcher(objectAddr, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Vanadium services: %v", err)
 	}
-	ctx.Infof("Blessing and discharger services will be published at %v", rootedObjectAddr)
+	ctx.Infof("Vanadium Blessing and discharger services will be published at %v", rootedObjectAddr)
+
+	// Start the HTTP Handler for the OAuth2 access token based blesser.
+	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(ctx, params))
+
 	return server, []string{rootedObjectAddr}, nil
 }
 

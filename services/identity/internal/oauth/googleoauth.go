@@ -105,13 +105,9 @@ func (g *googleOAuth) ExchangeAuthCodeForEmail(authcode string, url string) (str
 	return gtoken.Email, nil
 }
 
-// GetEmailAndClientName uses Google's tokeninfo API to verify that the token has been issued
-// for one of the provided 'accessTokenClients' and if so returns the email and client name
-// from the tokeninfo obtained.
-func (g *googleOAuth) GetEmailAndClientName(accessToken string, accessTokenClients []AccessTokenClient) (string, string, error) {
-	if len(accessTokenClients) == 0 {
-		return "", "", fmt.Errorf("no expected AccessTokenClients specified")
-	}
+// GetEmailAndClientID uses Google's tokeninfo API to determine the email and clientID
+// associated with the token.
+func (g *googleOAuth) GetEmailAndClientID(accessToken string) (string, string, error) {
 	// As per https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken
 	// we obtain the 'info' for the token via an HTTP roundtrip to Google.
 	tokeninfo, err := http.Get(g.verifyURL + "access_token=" + accessToken)
@@ -136,25 +132,12 @@ func (g *googleOAuth) GetEmailAndClientName(accessToken string, accessTokenClien
 	if err := json.NewDecoder(tokeninfo.Body).Decode(&token); err != nil {
 		return "", "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
 	}
-	var client AccessTokenClient
-	audienceMatch := false
-	for _, c := range accessTokenClients {
-		if token.Audience == c.ClientID {
-			client = c
-			audienceMatch = true
-			break
-		}
-	}
-	if !audienceMatch {
-		g.ctx.Infof("Got access token [%+v], wanted one of client ids %v", token, accessTokenClients)
-		return "", "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
-	}
 	// We check both "verified_email" and "email_verified" here because the token response sometimes
 	// contains one and sometimes contains the other.
 	if !token.VerifiedEmail && !token.EmailVerified {
 		return "", "", fmt.Errorf("email not verified")
 	}
-	return token.Email, client.Name, nil
+	return token.Email, token.Audience, nil
 }
 
 func (g *googleOAuth) oauthConfig(redirectUrl string) *oauth2.Config {

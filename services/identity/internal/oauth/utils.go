@@ -10,6 +10,14 @@ import (
 	"io"
 )
 
+// AccessTokenClient represents a client of an OAuthProvider.
+type AccessTokenClient struct {
+	// Descriptive name of the client.
+	Name string
+	// OAuth Client ID.
+	ClientID string
+}
+
 // ClientIDFromJSON parses JSON-encoded API access information in 'r' and returns
 // the extracted ClientID.
 // This JSON-encoded data is typically available as a download from the Google
@@ -50,6 +58,18 @@ func ClientIDAndSecretFromJSON(r io.Reader) (id, secret string, err error) {
 		return
 	}
 	return
+}
+
+// ClientName checks if the provided clientID is present in one of the provided
+// 'clients' and if so returns the corresponding client name. It returns an error
+// otherwise.
+func ClientName(clientID string, clients []AccessTokenClient) (string, error) {
+	for _, c := range clients {
+		if clientID == c.ClientID {
+			return c.Name, nil
+		}
+	}
+	return "", fmt.Errorf("unrecognized client ID, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
 }
 
 func decodeAccessMapFromJSON(r io.Reader) (data map[string]interface{}, typ string, err error) {

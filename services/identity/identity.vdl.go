@@ -48,11 +48,14 @@ func init() {
 // though the Google implementation also has informative documentation at
 // https://developers.google.com/accounts/docs/OAuth2
 //
-// WARNING: There is no binding between the channel over which the access token
-// was obtained (typically https) and the channel used to make the RPC (a
-// vanadium virtual circuit).
-// Thus, if Mallory possesses the access token associated with Alice's account,
-// she may be able to obtain a blessing with Alice's name on it.
+// WARNING: There is no binding between the channel over which the access
+// token was obtained (typically https) and the channel used to make the RPC
+// (a vanadium virtual circuit). Thus, if Mallory possesses the access token
+// associated with Alice's account she may be able to obtain a blessing with
+// Alice's name on it.
+//
+// TODO(ataly): Get rid of this service once all clients have been
+// switched to use the HTTP OAuthBlessingHandler service.
 type OAuthBlesserClientMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
@@ -96,11 +99,14 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessTokenWithCaveats(ctx *contex
 // though the Google implementation also has informative documentation at
 // https://developers.google.com/accounts/docs/OAuth2
 //
-// WARNING: There is no binding between the channel over which the access token
-// was obtained (typically https) and the channel used to make the RPC (a
-// vanadium virtual circuit).
-// Thus, if Mallory possesses the access token associated with Alice's account,
-// she may be able to obtain a blessing with Alice's name on it.
+// WARNING: There is no binding between the channel over which the access
+// token was obtained (typically https) and the channel used to make the RPC
+// (a vanadium virtual circuit). Thus, if Mallory possesses the access token
+// associated with Alice's account she may be able to obtain a blessing with
+// Alice's name on it.
+//
+// TODO(ataly): Get rid of this service once all clients have been
+// switched to use the HTTP OAuthBlessingHandler service.
 type OAuthBlesserServerMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
@@ -166,7 +172,7 @@ var OAuthBlesserDesc rpc.InterfaceDesc = descOAuthBlesser
 var descOAuthBlesser = rpc.InterfaceDesc{
 	Name:    "OAuthBlesser",
 	PkgPath: "v.io/x/ref/services/identity",
-	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access token\n// was obtained (typically https) and the channel used to make the RPC (a\n// vanadium virtual circuit).\n// Thus, if Mallory possesses the access token associated with Alice's account,\n// she may be able to obtain a blessing with Alice's name on it.",
+	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access\n// token was obtained (typically https) and the channel used to make the RPC\n// (a vanadium virtual circuit). Thus, if Mallory possesses the access token\n// associated with Alice's account she may be able to obtain a blessing with\n// Alice's name on it.\n//\n// TODO(ataly): Get rid of this service once all clients have been\n// switched to use the HTTP OAuthBlessingHandler service.",
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "BlessUsingAccessToken",

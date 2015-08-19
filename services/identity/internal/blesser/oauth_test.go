@@ -27,9 +27,17 @@ func TestOAuthBlesser(t *testing.T) {
 		ctx, call      = fakeContextAndCall(provider, user)
 	)
 	mockEmail := "testemail@example.com"
+	mockClientID := "test-client-id"
+	mockClientName := "test-client"
 	blesser := NewOAuthBlesserServer(OAuthBlesserParams{
-		OAuthProvider:    oauth.NewMockOAuth(mockEmail),
+		OAuthProvider:    oauth.NewMockOAuth(mockEmail, mockClientID),
 		BlessingDuration: time.Hour,
+		AccessTokenClients: []oauth.AccessTokenClient{
+			oauth.AccessTokenClient{
+				Name:     mockClientName,
+				ClientID: mockClientID,
+			},
+		},
 	})
 
 	b, extension, err := blesser.BlessUsingAccessToken(ctx, call, "test-access-token")
@@ -37,7 +45,7 @@ func TestOAuthBlesser(t *testing.T) {
 		t.Errorf("BlessUsingAccessToken failed: %v", err)
 	}
 
-	wantExtension := join(mockEmail, oauth.MockClient)
+	wantExtension := join(mockEmail, mockClientName)
 	if extension != wantExtension {
 		t.Errorf("got extension: %s, want: %s", extension, wantExtension)
 	}
@@ -69,9 +77,17 @@ func TestOAuthBlesserWithCaveats(t *testing.T) {
 		ctx, call      = fakeContextAndCall(provider, user)
 	)
 	mockEmail := "testemail@example.com"
+	mockClientID := "test-client-id"
+	mockClientName := "test-client"
 	blesser := NewOAuthBlesserServer(OAuthBlesserParams{
-		OAuthProvider:    oauth.NewMockOAuth(mockEmail),
+		OAuthProvider:    oauth.NewMockOAuth(mockEmail, mockClientID),
 		BlessingDuration: time.Hour,
+		AccessTokenClients: []oauth.AccessTokenClient{
+			oauth.AccessTokenClient{
+				Name:     mockClientName,
+				ClientID: mockClientID,
+			},
+		},
 	})
 
 	expiryCav, err := security.NewExpiryCaveat(time.Now().Add(time.Minute))
@@ -89,7 +105,7 @@ func TestOAuthBlesserWithCaveats(t *testing.T) {
 		t.Errorf("BlessUsingAccessToken failed: %v", err)
 	}
 
-	wantExtension := join(mockEmail, oauth.MockClient)
+	wantExtension := join(mockEmail, mockClientName)
 	if extension != wantExtension {
 		t.Errorf("got extension: %s, want: %s", extension, wantExtension)
 	}
