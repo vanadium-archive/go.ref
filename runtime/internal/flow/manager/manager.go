@@ -26,7 +26,7 @@ type manager struct {
 	rid    naming.RoutingID
 	closed <-chan struct{}
 	q      *upcqueue.T
-	cache  *conn.ConnCache
+	cache  *ConnCache
 
 	mu              *sync.Mutex
 	listenEndpoints []naming.Endpoint
@@ -37,7 +37,7 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 		rid:    rid,
 		closed: ctx.Done(),
 		q:      upcqueue.New(),
-		cache:  conn.NewConnCache(),
+		cache:  NewConnCache(),
 		mu:     &sync.Mutex{},
 	}
 	return m

@@ -21,7 +21,7 @@ func TestRemoteDialerClose(t *testing.T) {
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
-	if !w.isClosed() {
+	if !w.IsClosed() {
 		t.Errorf("The connection should be closed")
 	}
 }
@@ -33,7 +33,7 @@ func TestRemoteAcceptorClose(t *testing.T) {
 	a.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-a.Closed()
 	<-d.Closed()
-	if !w.isClosed() {
+	if !w.IsClosed() {
 		t.Errorf("The connection should be closed")
 	}
 }
@@ -42,7 +42,7 @@ func TestUnderlyingConnectionClosed(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	d, a, w := setupConns(t, ctx, ctx, nil, nil)
-	w.close()
+	w.Close()
 	<-a.Closed()
 	<-d.Closed()
 }

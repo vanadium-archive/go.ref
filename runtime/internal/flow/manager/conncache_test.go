@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package conn
+package manager
 
 import (
 	"strconv"
@@ -12,7 +12,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
-
+	connpackage "v.io/x/ref/runtime/internal/flow/conn"
+	"v.io/x/ref/runtime/internal/flow/flowtest"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
@@ -73,8 +74,8 @@ func TestCache(t *testing.T) {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	// Looking it up again should block until a matching Unreserve call is made.
-	ch := make(chan *Conn, 1)
-	go func(ch chan *Conn) {
+	ch := make(chan *connpackage.Conn, 1)
+	go func(ch chan *connpackage.Conn) {
 		conn, err := c.ReservedFind(otherEP.Protocol, otherEP.Address, otherEP.Blessings)
 		if err != nil {
 			t.Fatal(err)
@@ -150,10 +151,11 @@ func TestLRU(t *testing.T) {
 		}
 	}
 	for _, conn := range conns[:7] {
-		if got, err := c.ReservedFind(conn.remote.Addr().Network(), conn.remote.Addr().String(), conn.remote.BlessingNames()); err != nil || got != conn {
+		rep := conn.RemoteEndpoint()
+		if got, err := c.ReservedFind(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames()); err != nil || got != conn {
 			t.Errorf("got %v, want %v, err: %v", got, conn, err)
 		}
-		c.Unreserve(conn.remote.Addr().Network(), conn.remote.Addr().String(), conn.remote.BlessingNames())
+		c.Unreserve(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames())
 	}
 	if err := c.KillConnections(ctx, 3); err != nil {
 		t.Fatal(err)
@@ -187,7 +189,8 @@ func TestLRU(t *testing.T) {
 		}
 	}
 	for _, conn := range conns[:7] {
-		if got, err := c.FindWithRoutingID(conn.remote.RoutingID()); err != nil || got != conn {
+		rep := conn.RemoteEndpoint()
+		if got, err := c.FindWithRoutingID(rep.RoutingID()); err != nil || got != conn {
 			t.Errorf("got %v, want %v, err: %v", got, conn, err)
 		}
 	}
@@ -215,13 +218,14 @@ func TestLRU(t *testing.T) {
 	}
 }
 
-func isInCache(t *testing.T, c *ConnCache, conn *Conn) bool {
-	rfconn, err := c.ReservedFind(conn.remote.Addr().Network(), conn.remote.Addr().String(), conn.remote.BlessingNames())
+func isInCache(t *testing.T, c *ConnCache, conn *connpackage.Conn) bool {
+	rep := conn.RemoteEndpoint()
+	rfconn, err := c.ReservedFind(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames())
 	if err != nil {
 		t.Errorf("got %v, want %v, err: %v", rfconn, conn, err)
 	}
-	c.Unreserve(conn.remote.Addr().Network(), conn.remote.Addr().String(), conn.remote.BlessingNames())
-	ridconn, err := c.FindWithRoutingID(conn.remote.RoutingID())
+	c.Unreserve(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames())
+	ridconn, err := c.FindWithRoutingID(rep.RoutingID())
 	if err != nil {
 		t.Errorf("got %v, want %v, err: %v", ridconn, conn, err)
 	}
@@ -243,8 +247,8 @@ func listSize(c *ConnCache) int {
 	return size
 }
 
-func nConns(t *testing.T, ctx *context.T, n int) []*Conn {
-	conns := make([]*Conn, n)
+func nConns(t *testing.T, ctx *context.T, n int) []*connpackage.Conn {
+	conns := make([]*connpackage.Conn, n)
 	for i := 0; i < n; i++ {
 		conns[i] = makeConn(t, ctx, &inaming.Endpoint{
 			Protocol: strconv.Itoa(i),
@@ -254,19 +258,21 @@ func nConns(t *testing.T, ctx *context.T, n int) []*Conn {
 	return conns
 }
 
-func makeConn(t *testing.T, ctx *context.T, ep naming.Endpoint) *Conn {
-	dmrw, amrw, _ := newMRWPair(ctx)
-	dch := make(chan *Conn)
-	ach := make(chan *Conn)
+func makeConn(t *testing.T, ctx *context.T, ep naming.Endpoint) *connpackage.Conn {
+	dmrw, amrw, _ := flowtest.NewMRWPair(ctx)
+	dch := make(chan *connpackage.Conn)
+	ach := make(chan *connpackage.Conn)
 	go func() {
-		d, err := NewDialed(ctx, dmrw, ep, ep, version.RPCVersionRange{1, 5}, nil)
+		d, err := connpackage.NewDialed(ctx, dmrw, ep, ep,
+			version.RPCVersionRange{Min: 1, Max: 5}, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		dch <- d
 	}()
 	go func() {
-		a, err := NewAccepted(ctx, amrw, ep, version.RPCVersionRange{1, 5}, nil)
+		a, err := connpackage.NewAccepted(ctx, amrw, ep,
+			version.RPCVersionRange{Min: 1, Max: 5}, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
