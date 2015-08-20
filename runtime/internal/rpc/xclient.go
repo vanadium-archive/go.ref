@@ -168,7 +168,11 @@ type blessingsForPeer struct {
 	suffix string
 }
 
-func (x blessingsForPeer) run(ctx *context.T, localEP, remoteEP naming.Endpoint, remoteBlessings security.Blessings, remoteDischarges map[string]security.Discharge) (security.Blessings, error) {
+func (x blessingsForPeer) run(
+	ctx *context.T,
+	localEP, remoteEP naming.Endpoint,
+	remoteBlessings security.Blessings,
+	remoteDischarges map[string]security.Discharge) (security.Blessings, map[string]security.Discharge, error) {
 	localPrincipal := v23.GetPrincipal(ctx)
 	call := security.NewCall(&security.CallParams{
 		Timestamp:        time.Now(),
@@ -182,16 +186,16 @@ func (x blessingsForPeer) run(ctx *context.T, localEP, remoteEP naming.Endpoint,
 		// TODO(toddw): MethodTags, LocalDischarges
 	})
 	if err := x.auth.Authorize(ctx, call); err != nil {
-		return security.Blessings{}, verror.New(errServerAuthorizeFailed, ctx, call.RemoteBlessings(), err)
+		return security.Blessings{}, nil, verror.New(errServerAuthorizeFailed, ctx, call.RemoteBlessings(), err)
 	}
 	serverB, serverBRejected := security.RemoteBlessingNames(ctx, call)
 	clientB := localPrincipal.BlessingStore().ForPeer(serverB...)
 	if clientB.IsZero() {
 		// TODO(ataly, ashankar): We need not error out here and instead can just
 		// send the <nil> blessings to the server.
-		return security.Blessings{}, verror.New(errNoBlessingsForPeer, ctx, serverB, serverBRejected)
+		return security.Blessings{}, nil, verror.New(errNoBlessingsForPeer, ctx, serverB, serverBRejected)
 	}
-	return clientB, nil
+	return clientB, nil, nil
 }
 
 // tryCall makes a single attempt at a call. It may connect to multiple servers
