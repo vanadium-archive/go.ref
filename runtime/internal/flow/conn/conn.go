@@ -228,7 +228,7 @@ func (c *Conn) handleMessage(ctx *context.T, x message) error {
 			return NewErrUnexpectedMsg(ctx, "openFlow")
 		}
 		c.mu.Lock()
-		f := c.newFlowLocked(ctx, msg.id, msg.bkey, msg.dkey, false, false)
+		f := c.newFlowLocked(ctx, msg.id, msg.bkey, msg.dkey, false, true)
 		c.mu.Unlock()
 		c.handler.HandleFlow(f)
 
