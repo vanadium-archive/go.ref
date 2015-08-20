@@ -39,7 +39,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -47,7 +46,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"v.io/x/ref"
@@ -104,6 +102,7 @@ func V23TestDeviceManagerMultiUser(i *v23tests.T) {
 
 func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	defer fmt.Fprintf(os.Stderr, "--------------- SHUTDOWN ---------------\n")
+	userFlag := "--single_user"
 	tempDir := ""
 
 	if withSuid {
@@ -215,7 +214,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	if withSuid {
 		deviceScriptArguments = append(deviceScriptArguments, "--devuser="+deviceUser)
 	} else {
-		deviceScriptArguments = append(deviceScriptArguments, "--single_user")
+		deviceScriptArguments = append(deviceScriptArguments, userFlag)
 	}
 
 	deviceScriptArguments = append(deviceScriptArguments, []string{
@@ -227,24 +226,9 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	deviceScript.Start(deviceScriptArguments...).WaitOrDie(os.Stdout, os.Stderr)
 	deviceScript.Start("start").WaitOrDie(os.Stdout, os.Stderr)
-	dmLog := filepath.Join(dmInstallDir, "dmroot/device-manager/logs/deviced.INFO")
-	stopDevMgr := func() {
-		deviceScript.Run("stop")
-		if dmLogF, err := os.Open(dmLog); err != nil {
-			i.Errorf("Failed to read dm log: %v", err)
-		} else {
-			fmt.Fprintf(os.Stderr, "--------------- START DM LOG ---------------\n")
-			defer dmLogF.Close()
-			if _, err := io.Copy(os.Stderr, dmLogF); err != nil {
-				i.Errorf("Error dumping dm log: %v", err)
-			}
-			fmt.Fprintf(os.Stderr, "--------------- END DM LOG ---------------\n")
-		}
-	}
-	var stopDevMgrOnce sync.Once
-	defer stopDevMgrOnce.Do(stopDevMgr)
 	// Grab the endpoint for the claimable service from the device manager's
 	// log.
+	dmLog := filepath.Join(dmInstallDir, "dmroot/device-manager/logs/deviced.INFO")
 	var claimableEP string
 	expiry := time.Now().Add(30 * time.Second)
 	for {
@@ -512,7 +496,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	mtEP = resolveChange(mtName, mtEP)
 
 	// Shut down the device manager.
-	stopDevMgrOnce.Do(stopDevMgr)
+	deviceScript.Run("stop")
 
 	// Wait for the mounttable entry to go away.
 	resolveGone := func(name string) string {

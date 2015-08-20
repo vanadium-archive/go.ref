@@ -6,6 +6,7 @@ package handlers
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -20,9 +21,13 @@ import (
 )
 
 const (
-	PublicKeyFormKey   = "public_key"
-	AccessTokenFormKey = "token"
-	CaveatsFormKey     = "caveats"
+	publicKeyFormKey    = "public_key"
+	tokenFormKey        = "token"
+	caveatsFormKey      = "caveats"
+	outputFormatFormKey = "output_format"
+
+	jsonFormat      = "json"
+	base64VomFormat = "base64vom"
 )
 
 type accessTokenBlesser struct {
@@ -30,7 +35,7 @@ type accessTokenBlesser struct {
 	params blesser.OAuthBlesserParams
 }
 
-// NewOAuthBlessingHandler returns an http.Handler that uses OAuth2 access tokens
+// NewOAuthBlessingHandler returns an http.Handler that uses Google OAuth2 Access tokens
 // to obtain the username of the requestor and reponds with blessings for that username.
 //
 // The blessings are namespaced under the ClientID for the access token. In particular,
@@ -41,11 +46,16 @@ type accessTokenBlesser struct {
 // RevocationManager is specified by the params or they carry an ExpiryCaveat that
 // expires after the duration specified by the params.
 //
-// The handler expects the following parameters in the form data sent during a
-// request
+// The handler expects the following request parameters:
 // - "public_key": Base64 DER encoded PKIX representation of the client's public key
-// - "caveats": Base64 VOM encoded list of caveats
-// - "token": OAuth2 access token
+// - "caveats": Base64 VOM encoded list of caveats [OPTIONAL]
+// - "token": Google OAuth2 Access token
+// - "output_format": The encoding format for the returned blessings. The following
+//   formats are supported:
+//     - "json": JSON-encoding of the wire format of Blessings.
+//     - "base64vom": Base64 encoding of VOM-encoded Blessings [DEFAULT]
+//
+// The response consists of blessings encoded in the requested output format.
 //
 // WARNINGS:
 //   - There is no binding between the channel over which the access token
@@ -59,16 +69,17 @@ func NewOAuthBlessingHandler(ctx *context.T, params blesser.OAuthBlesserParams) 
 }
 
 func (a *accessTokenBlesser) blessingCaveats(r *http.Request, p security.Principal) ([]security.Caveat, error) {
-	caveatsVom, err := base64.URLEncoding.DecodeString(r.FormValue(CaveatsFormKey))
-	if err != nil {
-		return nil, fmt.Errorf("failed to base64 decode caveats: %v", err)
-	}
-
 	var caveats []security.Caveat
-	if err := vom.Decode(caveatsVom, &caveats); err != nil {
-		return nil, fmt.Errorf("failed to VOM decode caveats: %v", err)
-	}
+	if base64VomCaveats := r.FormValue(caveatsFormKey); len(base64VomCaveats) != 0 {
+		vomCaveats, err := base64.URLEncoding.DecodeString(base64VomCaveats)
+		if err != nil {
+			return nil, fmt.Errorf("base64.URLEncoding.DecodeString failed: %v", err)
+		}
 
+		if err := vom.Decode(vomCaveats, &caveats); err != nil {
+			return nil, fmt.Errorf("vom.Decode failed: %v", err)
+		}
+	}
 	// TODO(suharshs, ataly): Should we ensure that we have at least a
 	// revocation or expiry caveat?
 	if len(caveats) == 0 {
@@ -91,15 +102,15 @@ func (a *accessTokenBlesser) blessingCaveats(r *http.Request, p security.Princip
 }
 
 func (a *accessTokenBlesser) remotePublicKey(r *http.Request) (security.PublicKey, error) {
-	publicKeyVom, err := base64.URLEncoding.DecodeString(r.FormValue(PublicKeyFormKey))
+	publicKeyVom, err := base64.URLEncoding.DecodeString(r.FormValue(publicKeyFormKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to base64 decode public key: %v", err)
+		return nil, fmt.Errorf("base64.URLEncoding.DecodeString failed: %v", err)
 	}
 	return security.UnmarshalPublicKey(publicKeyVom)
 }
 
 func (a *accessTokenBlesser) blessingExtension(r *http.Request) (string, error) {
-	email, clientID, err := a.params.OAuthProvider.GetEmailAndClientID(r.FormValue(AccessTokenFormKey))
+	email, clientID, err := a.params.OAuthProvider.GetEmailAndClientID(r.FormValue(tokenFormKey))
 	if err != nil {
 		return "", err
 	}
@@ -116,11 +127,23 @@ func (a *accessTokenBlesser) blessingExtension(r *http.Request) (string, error) 
 	return strings.Join([]string{clientID, email}, security.ChainSeparator), nil
 }
 
+func (a *accessTokenBlesser) encodeBlessingsJson(b security.Blessings) ([]byte, error) {
+	return json.Marshal(security.MarshalBlessings(b))
+}
+
+func (a *accessTokenBlesser) encodeBlessingsVom(b security.Blessings) (string, error) {
+	bVom, err := vom.Encode(b)
+	if err != nil {
+		return "", fmt.Errorf("vom.Encode(%v) failed: %v", b, err)
+	}
+	return base64.URLEncoding.EncodeToString(bVom), nil
+}
+
 func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	remoteKey, err := a.remotePublicKey(r)
 	if err != nil {
 		a.ctx.Info("Failed to decode public key [%v] for request %#v", err, r)
-		util.HTTPServerError(w, err)
+		util.HTTPServerError(w, fmt.Errorf("failed to decode public key: %v", err))
 		return
 	}
 
@@ -130,31 +153,50 @@ func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	caveats, err := a.blessingCaveats(r, p)
 	if err != nil {
 		a.ctx.Info("Failed to constuct caveats for blessing [%v] for request %#v", err, r)
-		util.HTTPServerError(w, err)
+		util.HTTPServerError(w, fmt.Errorf("failed to construct caveats for blessing: %v", err))
 		return
 	}
 
 	extension, err := a.blessingExtension(r)
 	if err != nil {
 		a.ctx.Info("Failed to process access token [%v] for request %#v", err, r)
-		util.HTTPServerError(w, err)
+		util.HTTPServerError(w, fmt.Errorf("failed to process access token: %v", err))
 		return
 	}
 
 	blessings, err := p.Bless(remoteKey, with, extension, caveats[0], caveats[1:]...)
 	if err != nil {
 		a.ctx.Info("Failed to Bless [%v] for request %#v", err, r)
-		util.HTTPServerError(w, fmt.Errorf("Bless failed: %v", err))
+		util.HTTPServerError(w, fmt.Errorf("failed to Bless: %v", err))
 		return
 	}
 
-	blessingsVom, err := vom.Encode(blessings)
-	if err != nil {
-		a.ctx.Info("Failed to VOM encode blessings [%v] for request %#v", err, r)
-		util.HTTPServerError(w, fmt.Errorf("failed to VOM encode blessings: %v", err))
+	outputFormat := r.FormValue(outputFormatFormKey)
+	if len(outputFormat) == 0 {
+		outputFormat = base64VomFormat
+	}
+	switch outputFormat {
+	case jsonFormat:
+		encodedBlessings, err := a.encodeBlessingsJson(blessings)
+		if err != nil {
+			a.ctx.Info("Failed to encode blessings [%v] for request %#v", err, r)
+			util.HTTPServerError(w, fmt.Errorf("failed to encode blessings in format %v: %v", outputFormat, err))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(encodedBlessings)
+	case base64VomFormat:
+		encodedBlessings, err := a.encodeBlessingsVom(blessings)
+		if err != nil {
+			a.ctx.Info("Failed to encode blessings [%v] for request %#v", err, r)
+			util.HTTPServerError(w, fmt.Errorf("failed to encode blessings in format %v: %v", outputFormat, err))
+			return
+		}
+		w.Header().Set("Content-Type", "application/text")
+		w.Write([]byte(encodedBlessings))
+	default:
+		a.ctx.Info("Unrecognized output format [%v] in request %#v", outputFormat, r)
+		util.HTTPServerError(w, fmt.Errorf("unrecognized output format [%v] in request. Allowed formats are [%v, %v]", outputFormat, base64VomFormat, jsonFormat))
 		return
 	}
-	blessingsVomB64 := base64.URLEncoding.EncodeToString(blessingsVom)
-	w.Header().Set("Content-Type", "application/text")
-	w.Write([]byte(blessingsVomB64))
 }
