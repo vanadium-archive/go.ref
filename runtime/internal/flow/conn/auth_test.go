@@ -6,38 +6,40 @@ package conn
 
 import (
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	_ "v.io/x/ref/runtime/factories/fake"
+	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/test/goroutines"
 	"v.io/x/ref/test/testutil"
 )
 
-func checkBlessings(t *testing.T, df, af flow.Flow, db, ab security.Blessings) {
-	msg, err := af.ReadMsg()
-	if err != nil {
-		t.Fatal(err)
+func checkBlessings(t *testing.T, got, want security.Blessings, gotd map[string]security.Discharge) {
+	if !got.Equivalent(want) {
+		t.Errorf("got: %#v wanted %#v", got, want)
 	}
-	if string(msg) != "hello" {
-		t.Fatalf("Got %s, wanted hello", string(msg))
-	}
-	if !af.LocalBlessings().Equivalent(ab) {
-		t.Errorf("got: %#v wanted %#v", af.LocalBlessings(), ab)
-	}
-	if !af.RemoteBlessings().Equivalent(db) {
-		t.Errorf("got: %#v wanted %#v", af.RemoteBlessings(), db)
-	}
-	if !df.LocalBlessings().Equivalent(db) {
-		t.Errorf("got: %#v wanted %#v", df.LocalBlessings(), db)
-	}
-	if !df.RemoteBlessings().Equivalent(ab) {
-		t.Errorf("got: %#v wanted %#v", df.RemoteBlessings(), ab)
+	tpid := got.ThirdPartyCaveats()[0].ThirdPartyDetails().ID()
+	if _, has := gotd[tpid]; !has {
+		t.Errorf("got: %#v wanted %s", gotd, tpid)
 	}
 }
+
+func checkFlowBlessings(t *testing.T, df, af flow.Flow, db, ab security.Blessings) {
+	if msg, err := af.ReadMsg(); err != nil || string(msg) != "hello" {
+		t.Errorf("Got %s, %v wanted hello, nil", string(msg), err)
+	}
+	checkBlessings(t, af.LocalBlessings(), ab, af.LocalDischarges())
+	checkBlessings(t, af.RemoteBlessings(), db, af.RemoteDischarges())
+	checkBlessings(t, df.LocalBlessings(), db, df.LocalDischarges())
+	checkBlessings(t, df.RemoteBlessings(), ab, df.RemoteDischarges())
+}
+
 func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings) flow.Flow {
 	df, err := dc.Dial(ctx, makeBFP(b))
 	if err != nil {
@@ -49,15 +51,61 @@ func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings) flow
 	return df
 }
 
-func TestUnidirectional(t *testing.T) {
-	defer goroutines.NoLeaks(t, leakWaitTime)()
-
-	dctx, shutdown := v23.Init()
-	defer shutdown()
-	actx, err := v23.WithPrincipal(dctx, testutil.NewPrincipal("acceptor"))
+func BlessWithTPCaveat(t *testing.T, ctx *context.T, p security.Principal, s string) security.Blessings {
+	dp := v23.GetPrincipal(ctx)
+	expcav, err := security.NewExpiryCaveat(time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
+	tpcav, err := security.NewPublicKeyCaveat(dp.PublicKey(), "discharge",
+		security.ThirdPartyRequirements{}, expcav)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := testutil.IDProviderFromPrincipal(dp).NewBlessings(p, s, tpcav)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func NewPrincipalWithTPCaveat(t *testing.T, ctx *context.T, s string) *context.T {
+	p := testutil.NewPrincipal()
+	vsecurity.SetDefaultBlessings(p, BlessWithTPCaveat(t, ctx, p, s))
+	ctx, err := v23.WithPrincipal(ctx, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ctx
+}
+
+type fakeDischargeClient struct {
+	p security.Principal
+}
+
+func (fc *fakeDischargeClient) Call(_ *context.T, _, _ string, inArgs, outArgs []interface{}, _ ...rpc.CallOpt) error {
+	expiry, err := security.NewExpiryCaveat(time.Now().Add(time.Minute))
+	if err != nil {
+		panic(err)
+	}
+	*(outArgs[0].(*security.Discharge)), err = fc.p.MintDischarge(
+		inArgs[0].(security.Caveat), expiry)
+	return err
+}
+func (fc *fakeDischargeClient) StartCall(*context.T, string, string, []interface{}, ...rpc.CallOpt) (rpc.ClientCall, error) {
+	return nil, nil
+}
+func (fc *fakeDischargeClient) Close() {}
+
+func TestUnidirectional(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+	ctx = fake.SetClient(ctx, &fakeDischargeClient{v23.GetPrincipal(ctx)})
+
+	dctx := NewPrincipalWithTPCaveat(t, ctx, "dialer")
+	actx := NewPrincipalWithTPCaveat(t, ctx, "acceptor")
 	aflows := make(chan flow.Flow, 2)
 	dc, ac, _ := setupConns(t, dctx, actx, nil, aflows)
 	defer dc.Close(dctx, nil)
@@ -65,22 +113,19 @@ func TestUnidirectional(t *testing.T) {
 
 	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default())
 	af1 := <-aflows
-	checkBlessings(t, df1, af1,
+	checkFlowBlessings(t, df1, af1,
 		v23.GetPrincipal(dctx).BlessingStore().Default(),
 		v23.GetPrincipal(actx).BlessingStore().Default())
 
-	db2, err := v23.GetPrincipal(dctx).BlessSelf("other")
-	if err != nil {
-		t.Fatal(err)
-	}
+	db2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(dctx), "other")
 	df2 := dialFlow(t, dctx, dc, db2)
 	af2 := <-aflows
-	checkBlessings(t, df2, af2, db2,
+	checkFlowBlessings(t, df2, af2, db2,
 		v23.GetPrincipal(actx).BlessingStore().Default())
 
 	// We should not be able to dial in the other direction, because that flow
 	// manager is not willing to accept flows.
-	_, err = ac.Dial(actx, testBFP)
+	_, err := ac.Dial(actx, testBFP)
 	if verror.ErrorID(err) != ErrDialingNonServer.ID {
 		t.Errorf("got %v, wanted ErrDialingNonServer", err)
 	}
@@ -89,12 +134,12 @@ func TestUnidirectional(t *testing.T) {
 func TestBidirectional(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	dctx, shutdown := v23.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
-	actx, err := v23.WithPrincipal(dctx, testutil.NewPrincipal("acceptor"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx = fake.SetClient(ctx, &fakeDischargeClient{v23.GetPrincipal(ctx)})
+
+	dctx := NewPrincipalWithTPCaveat(t, ctx, "dialer")
+	actx := NewPrincipalWithTPCaveat(t, ctx, "acceptor")
 	dflows := make(chan flow.Flow, 2)
 	aflows := make(chan flow.Flow, 2)
 	dc, ac, _ := setupConns(t, dctx, actx, dflows, aflows)
@@ -103,31 +148,25 @@ func TestBidirectional(t *testing.T) {
 
 	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default())
 	af1 := <-aflows
-	checkBlessings(t, df1, af1,
+	checkFlowBlessings(t, df1, af1,
 		v23.GetPrincipal(dctx).BlessingStore().Default(),
 		v23.GetPrincipal(actx).BlessingStore().Default())
 
-	db2, err := v23.GetPrincipal(dctx).BlessSelf("other")
-	if err != nil {
-		t.Fatal(err)
-	}
+	db2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(dctx), "other")
 	df2 := dialFlow(t, dctx, dc, db2)
 	af2 := <-aflows
-	checkBlessings(t, df2, af2, db2,
+	checkFlowBlessings(t, df2, af2, db2,
 		v23.GetPrincipal(actx).BlessingStore().Default())
 
 	af3 := dialFlow(t, actx, ac, v23.GetPrincipal(actx).BlessingStore().Default())
 	df3 := <-dflows
-	checkBlessings(t, af3, df3,
+	checkFlowBlessings(t, af3, df3,
 		v23.GetPrincipal(actx).BlessingStore().Default(),
 		v23.GetPrincipal(dctx).BlessingStore().Default())
 
-	ab2, err := v23.GetPrincipal(actx).BlessSelf("aother")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ab2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(actx), "aother")
 	af4 := dialFlow(t, actx, ac, ab2)
 	df4 := <-dflows
-	checkBlessings(t, af4, df4, ab2,
+	checkFlowBlessings(t, af4, df4, ab2,
 		v23.GetPrincipal(dctx).BlessingStore().Default())
 }

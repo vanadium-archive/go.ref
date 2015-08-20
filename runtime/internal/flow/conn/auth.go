@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"reflect"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/nacl/box"
 	"v.io/v23"
@@ -16,6 +17,7 @@ import (
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/vom"
+	slib "v.io/x/ref/lib/security"
 )
 
 func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) error {
@@ -41,18 +43,13 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) e
 	// We only send our blessings if we are a server in addition to being a client.
 	// If we are a pure client, we only send our public key.
 	if c.handler != nil {
-		bkey, dkey, err := c.blessingsFlow.put(ctx, c.lBlessings, c.lDischarges)
-		if err != nil {
+		if lAuth.bkey, lAuth.dkey, err = c.refreshDischarges(ctx); err != nil {
 			return err
 		}
-		lAuth.bkey, lAuth.dkey = bkey, dkey
 	} else {
 		lAuth.publicKey = c.lBlessings.PublicKey()
 	}
-	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
-		return err
-	}
-	return err
+	return c.mp.writeMsg(ctx, lAuth)
 }
 
 func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange) error {
@@ -66,16 +63,13 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 	if err != nil {
 		return err
 	}
-	bkey, dkey, err := c.blessingsFlow.put(ctx, c.lBlessings, c.lDischarges)
-	if err != nil {
+	lAuth := &auth{
+		channelBinding: signedBinding,
+	}
+	if lAuth.bkey, lAuth.dkey, err = c.refreshDischarges(ctx); err != nil {
 		return err
 	}
-	err = c.mp.writeMsg(ctx, &auth{
-		bkey:           bkey,
-		dkey:           dkey,
-		channelBinding: signedBinding,
-	})
-	if err != nil {
+	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
 		return err
 	}
 	return c.readRemoteAuth(ctx, binding)
@@ -144,7 +138,7 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {
 	if rauth.bkey != 0 {
 		var err error
 		// TODO(mattr): Make sure we cancel out of this at some point.
-		c.rBlessings, c.rDischarges, err = c.blessingsFlow.get(ctx, rauth.bkey, rauth.dkey)
+		c.rBlessings, _, err = c.blessingsFlow.get(ctx, rauth.bkey, rauth.dkey)
 		if err != nil {
 			return err
 		}
@@ -159,6 +153,45 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {
 		return NewErrInvalidChannelBinding(ctx)
 	}
 	return nil
+}
+
+func (c *Conn) refreshDischarges(ctx *context.T) (bkey, dkey uint64, err error) {
+	dis := slib.PrepareDischarges(ctx, c.lBlessings,
+		security.DischargeImpetus{}, time.Minute)
+	// Schedule the next update.
+	var timer *time.Timer
+	if dur, expires := minExpiryTime(c.lBlessings, dis); expires {
+		timer = time.AfterFunc(dur, func() {
+			c.refreshDischarges(ctx)
+		})
+	}
+	bkey, dkey, err = c.blessingsFlow.put(ctx, c.lBlessings, dis)
+	c.mu.Lock()
+	c.dischargeTimer = timer
+	c.mu.Unlock()
+	return
+}
+
+func minExpiryTime(blessings security.Blessings, discharges map[string]security.Discharge) (time.Duration, bool) {
+	var min time.Time
+	cavCount := len(blessings.ThirdPartyCaveats())
+	if cavCount == 0 {
+		return 0, false
+	}
+	for _, d := range discharges {
+		if exp := d.Expiry(); min.IsZero() || (!exp.IsZero() && exp.Before(min)) {
+			min = exp
+		}
+	}
+	if min.IsZero() && cavCount == len(discharges) {
+		return 0, false
+	}
+	now := time.Now()
+	d := min.Sub(now)
+	if d > time.Minute && cavCount > len(discharges) {
+		d = time.Minute
+	}
+	return d, true
 }
 
 type blessingsFlow struct {
@@ -234,6 +267,20 @@ func (b *blessingsFlow) get(ctx *context.T, bkey, dkey uint64) (security.Blessin
 		b.cond.Wait()
 	}
 	return security.Blessings{}, nil, NewErrBlessingsFlowClosed(ctx)
+}
+
+func (b *blessingsFlow) getLatestDischarges(ctx *context.T, blessings security.Blessings) (map[string]security.Discharge, error) {
+	defer b.mu.Unlock()
+	b.mu.Lock()
+	buid := string(blessings.UniqueID())
+	for !b.closed {
+		element, has := b.byUID[buid]
+		if has {
+			return dischargeMap(element.Discharges), nil
+		}
+		b.cond.Wait()
+	}
+	return nil, NewErrBlessingsFlowClosed(ctx)
 }
 
 func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {

@@ -6,6 +6,7 @@ package conn
 
 import (
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -13,6 +14,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
+	securitylib "v.io/x/ref/lib/security"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
 )
 
@@ -80,8 +82,8 @@ func testBFP(
 	localEndpoint, remoteEndpoint naming.Endpoint,
 	remoteBlessings security.Blessings,
 	remoteDischarges map[string]security.Discharge,
-) (security.Blessings, error) {
-	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil
+) (security.Blessings, map[string]security.Discharge, error) {
+	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
 
 func makeBFP(in security.Blessings) flow.BlessingsForPeer {
@@ -90,7 +92,9 @@ func makeBFP(in security.Blessings) flow.BlessingsForPeer {
 		localEndpoint, remoteEndpoint naming.Endpoint,
 		remoteBlessings security.Blessings,
 		remoteDischarges map[string]security.Discharge,
-	) (security.Blessings, error) {
-		return in, nil
+	) (security.Blessings, map[string]security.Discharge, error) {
+		dis := securitylib.PrepareDischarges(
+			ctx, in, security.DischargeImpetus{}, time.Minute)
+		return in, dis, nil
 	}
 }

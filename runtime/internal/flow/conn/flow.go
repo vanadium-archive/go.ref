@@ -206,14 +206,17 @@ func (f *flw) RemoteBlessings() security.Blessings {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) LocalDischarges() map[string]security.Discharge {
+	var discharges map[string]security.Discharge
+	var err error
 	if f.dialed {
-		_, discharges, err := f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
-		if err != nil {
-			f.conn.Close(f.ctx, err)
-		}
-		return discharges
+		_, discharges, err = f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+	} else {
+		discharges, err = f.conn.blessingsFlow.getLatestDischarges(f.ctx, f.conn.lBlessings)
 	}
-	return f.conn.lDischarges
+	if err != nil {
+		f.conn.Close(f.ctx, err)
+	}
+	return discharges
 }
 
 // RemoteDischarges returns the discharges presented by the remote end of the
@@ -221,14 +224,17 @@ func (f *flw) LocalDischarges() map[string]security.Discharge {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) RemoteDischarges() map[string]security.Discharge {
+	var discharges map[string]security.Discharge
+	var err error
 	if !f.dialed {
-		_, discharges, err := f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
-		if err != nil {
-			f.conn.Close(f.ctx, err)
-		}
-		return discharges
+		_, discharges, err = f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+	} else {
+		discharges, err = f.conn.blessingsFlow.getLatestDischarges(f.ctx, f.conn.rBlessings)
 	}
-	return f.conn.rDischarges
+	if err != nil {
+		f.conn.Close(f.ctx, err)
+	}
+	return discharges
 }
 
 // Conn returns the connection the flow is multiplexed on.

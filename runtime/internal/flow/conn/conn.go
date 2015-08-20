@@ -7,6 +7,7 @@ package conn
 import (
 	"reflect"
 	"sync"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -50,20 +51,20 @@ type FlowHandler interface {
 
 // Conns are a multiplexing encrypted channels that can host Flows.
 type Conn struct {
-	fc                       *flowcontrol.FlowController
-	mp                       *messagePipe
-	handler                  FlowHandler
-	version                  version.RPCVersion
-	lBlessings, rBlessings   security.Blessings
-	rDischarges, lDischarges map[string]security.Discharge
-	local, remote            naming.Endpoint
-	closed                   chan struct{}
-	blessingsFlow            *blessingsFlow
-	loopWG                   sync.WaitGroup
+	fc                     *flowcontrol.FlowController
+	mp                     *messagePipe
+	handler                FlowHandler
+	version                version.RPCVersion
+	lBlessings, rBlessings security.Blessings
+	local, remote          naming.Endpoint
+	closed                 chan struct{}
+	blessingsFlow          *blessingsFlow
+	loopWG                 sync.WaitGroup
 
-	mu      sync.Mutex
-	nextFid flowID
-	flows   map[flowID]*flw
+	mu             sync.Mutex
+	nextFid        flowID
+	flows          map[flowID]*flw
+	dischargeTimer *time.Timer
 }
 
 // Ensure that *Conn implements flow.Conn.
@@ -127,11 +128,15 @@ func (c *Conn) Dial(ctx *context.T, fn flow.BlessingsForPeer) (flow.Flow, error)
 	if c.rBlessings.IsZero() {
 		return nil, NewErrDialingNonServer(ctx)
 	}
-	blessings, err := fn(ctx, c.local, c.remote, c.rBlessings, c.rDischarges)
+	rDischarges, err := c.blessingsFlow.getLatestDischarges(ctx, c.rBlessings)
 	if err != nil {
 		return nil, err
 	}
-	bkey, dkey, err := c.blessingsFlow.put(ctx, blessings, nil)
+	blessings, discharges, err := fn(ctx, c.local, c.remote, c.rBlessings, rDischarges)
+	if err != nil {
+		return nil, err
+	}
+	bkey, dkey, err := c.blessingsFlow.put(ctx, blessings, discharges)
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +166,10 @@ func (c *Conn) Close(ctx *context.T, err error) {
 	c.mu.Lock()
 	var flows map[flowID]*flw
 	flows, c.flows = c.flows, nil
+	if c.dischargeTimer != nil {
+		c.dischargeTimer.Stop()
+		c.dischargeTimer = nil
+	}
 	c.mu.Unlock()
 
 	if flows == nil {

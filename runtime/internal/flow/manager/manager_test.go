@@ -41,8 +41,8 @@ func TestDirectConnection(t *testing.T) {
 		localEndpoint, remoteEndpoint naming.Endpoint,
 		remoteBlessings security.Blessings,
 		remoteDischarges map[string]security.Discharge,
-	) (security.Blessings, error) {
-		return p.BlessingStore().Default(), nil
+	) (security.Blessings, map[string]security.Discharge, error) {
+		return p.BlessingStore().Default(), nil, nil
 	}
 	eps := m.ListeningEndpoints()
 	if len(eps) == 0 {
@@ -82,8 +82,8 @@ func TestDialCachedConn(t *testing.T) {
 		localEndpoint, remoteEndpoint naming.Endpoint,
 		remoteBlessings security.Blessings,
 		remoteDischarges map[string]security.Discharge,
-	) (security.Blessings, error) {
-		return p.BlessingStore().Default(), nil
+	) (security.Blessings, map[string]security.Discharge, error) {
+		return p.BlessingStore().Default(), nil, nil
 	}
 	eps := am.ListeningEndpoints()
 	if len(eps) == 0 {
