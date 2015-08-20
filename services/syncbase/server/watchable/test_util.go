@@ -75,11 +75,6 @@ func getSeq(st Store) uint64 {
 	return wst.seq
 }
 
-func setMockSystemClock(st Store, mockClock clock.SystemClock) {
-	wst := st.(*wstore)
-	wst.clock.SetSystemClock(mockClock)
-}
-
 // logEntryReader provides a stream-like interface to scan over the log entries
 // of a single batch, starting for a given sequence number.  It opens a stream
 // that scans the log from the sequence number given.  It stops after reading
@@ -140,6 +135,10 @@ func (sc *mockSystemClock) Now() time.Time {
 	now := sc.time
 	sc.time = sc.time.Add(sc.increment)
 	return now
+}
+
+func (sc *mockSystemClock) ElapsedTime() (time.Duration, error) {
+	return sc.increment, nil
 }
 
 var _ clock.SystemClock = (*mockSystemClock)(nil)

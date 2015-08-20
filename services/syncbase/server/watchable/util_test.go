@@ -6,13 +6,17 @@ package watchable
 
 import (
 	"testing"
+
+	"v.io/syncbase/x/ref/services/syncbase/clock"
 )
 
 // TestGetNextLogSeq tests that the getNextLogSeq helper works on range 0..10.
 func TestGetNextLogSeq(t *testing.T) {
 	st, destroy := createStore()
 	defer destroy()
-	st, err := Wrap(st, &Options{})
+	var mockAdapter clock.StorageAdapter = clock.MockStorageAdapter()
+	vclock := clock.NewVClockWithMockServices(mockAdapter, nil, nil)
+	st, err := Wrap(st, vclock, &Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

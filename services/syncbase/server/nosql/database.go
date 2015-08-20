@@ -15,6 +15,7 @@ import (
 	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/syncbase/v23/syncbase/nosql/query_db"
 	"v.io/syncbase/v23/syncbase/nosql/query_exec"
+	"v.io/syncbase/x/ref/services/syncbase/clock"
 	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
 	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
@@ -82,7 +83,8 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 	if err != nil {
 		return nil, err
 	}
-	st, err = watchable.Wrap(st, &watchable.Options{
+	vclock := clock.NewVClock(a.Service().St())
+	st, err = watchable.Wrap(st, vclock, &watchable.Options{
 		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
 	})
 	if err != nil {

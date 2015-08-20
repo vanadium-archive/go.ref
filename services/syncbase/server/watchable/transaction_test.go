@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/syncbase/x/ref/services/syncbase/clock"
 	"v.io/syncbase/x/ref/services/syncbase/store"
 )
 
@@ -70,13 +71,14 @@ func TestLogEntryTimestamps(t *testing.T) {
 	t1 := time.Now()
 	inc := time.Duration(1) * time.Second
 	mockClock := newMockSystemClock(t1, inc)
+	var mockAdapter clock.StorageAdapter = clock.MockStorageAdapter()
 
-	wst1, err := Wrap(ist, &Options{ManagedPrefixes: nil})
+	vclock := clock.NewVClockWithMockServices(mockAdapter, mockClock, nil)
+	wst1, err := Wrap(ist, vclock, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
 	seqForCreate := getSeq(wst1)
-	setMockSystemClock(wst1, mockClock)
 
 	// Create data in store
 	if err := store.RunInTransaction(wst1, func(tx store.Transaction) error {
@@ -99,11 +101,10 @@ func TestLogEntryTimestamps(t *testing.T) {
 	verifyCommitLog(t, ist, seqForCreate, 2, t1)
 
 	// Update data already present in store with a new watchable store
-	wst2, err := Wrap(ist, &Options{ManagedPrefixes: nil})
+	wst2, err := Wrap(ist, vclock, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
-	setMockSystemClock(wst2, mockClock)
 	seqForUpdate := getSeq(wst2)
 	// We expect the sequence number to have moved by +2 for the two puts.
 	if seqForUpdate != (seqForCreate + 2) {
@@ -139,7 +140,13 @@ func eq(t *testing.T, got, want interface{}) {
 func TestOpLogConsistency(t *testing.T) {
 	ist, destroy := createStore()
 	defer destroy()
-	wst, err := Wrap(ist, &Options{ManagedPrefixes: nil})
+	t1 := time.Now()
+	inc := time.Duration(1) * time.Second
+	mockClock := newMockSystemClock(t1, inc)
+	var mockAdapter clock.StorageAdapter = clock.MockStorageAdapter()
+
+	vclock := clock.NewVClockWithMockServices(mockAdapter, mockClock, nil)
+	wst, err := Wrap(ist, vclock, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}

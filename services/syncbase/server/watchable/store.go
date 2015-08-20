@@ -39,7 +39,7 @@ type Options struct {
 }
 
 // Wrap returns a watchable.Store that wraps the given store.Store.
-func Wrap(st store.Store, opts *Options) (Store, error) {
+func Wrap(st store.Store, vclock *clock.VClock, opts *Options) (Store, error) {
 	seq, err := getNextLogSeq(st)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func Wrap(st store.Store, opts *Options) (Store, error) {
 		watcher: newWatcher(),
 		opts:    opts,
 		seq:     seq,
-		clock:   clock.NewVClock(),
+		clock:   vclock,
 	}, nil
 }
 

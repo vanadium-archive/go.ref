@@ -139,7 +139,7 @@ func (tx *transaction) Commit() error {
 		return verror.New(verror.ErrInternal, nil, "seq maxed out")
 	}
 	// Write LogEntry records.
-	timestamp := tx.st.clock.Now().UnixNano()
+	timestamp := tx.st.clock.Now(nil).UnixNano()
 	seq := tx.st.seq
 	for i, op := range tx.ops {
 		key := logEntryKey(seq)
