@@ -95,7 +95,6 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 			switch err := syscall.Kill(pid, 0); err {
 			case syscall.ESRCH:
 				// No such PID.
-				go appRunner.restartAppIfNecessary(ctx, idir)
 				ctx.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
 				markNotRunning(ctx, idir)
 				go appRunner.restartAppIfNecessary(ctx, idir)
