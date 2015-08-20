@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package store
+package transactions
 
 import (
 	"sort"
+
+	"v.io/syncbase/x/ref/services/syncbase/store"
 )
 
 //////////////////////////////////////////////////////////////
@@ -19,7 +21,7 @@ import (
 // changes to be passed in as an array of WriteOp.
 
 // Create a new stream which merges a snapshot stream with an array of write operations.
-func MergeWritesWithStream(sn Snapshot, w []WriteOp, start, limit []byte) Stream {
+func mergeWritesWithStream(sn store.Snapshot, w []WriteOp, start, limit []byte) store.Stream {
 	// Collect writes with the range specified, then sort them.
 	// Note: Writes could contain more than one write for a given key.
 	//       The last write is the current state.
@@ -29,7 +31,7 @@ func MergeWritesWithStream(sn Snapshot, w []WriteOp, start, limit []byte) Stream
 			writesMap[string(write.Key)] = write
 		}
 	}
-	var writesArray WriteOpArray
+	var writesArray writeOpArray
 	for _, writeOp := range writesMap {
 		writesArray = append(writesArray, writeOp)
 	}
@@ -45,7 +47,7 @@ func MergeWritesWithStream(sn Snapshot, w []WriteOp, start, limit []byte) Stream
 }
 
 type mergedStream struct {
-	snapshotStream      Stream
+	snapshotStream      store.Stream
 	writesArray         []WriteOp
 	writesCursor        int
 	unusedSnapshotValue bool
@@ -94,8 +96,8 @@ func (s *mergedStream) pickKeyValue() bool {
 		s.writesCursor++
 		return false
 	}
-	s.key = CopyBytes(s.key, s.writesArray[s.writesCursor].Key)
-	s.value = CopyBytes(s.value, s.writesArray[s.writesCursor].Value)
+	s.key = store.CopyBytes(s.key, s.writesArray[s.writesCursor].Key)
+	s.value = store.CopyBytes(s.value, s.writesArray[s.writesCursor].Value)
 	s.writesCursor++
 	return true
 }
@@ -122,7 +124,7 @@ func (s *mergedStream) Key(keybuf []byte) []byte {
 	if !s.hasValue {
 		panic("nothing staged")
 	}
-	return CopyBytes(keybuf, s.key)
+	return store.CopyBytes(keybuf, s.key)
 }
 
 // Value implements the Stream interface.
@@ -130,7 +132,7 @@ func (s *mergedStream) Value(valbuf []byte) []byte {
 	if !s.hasValue {
 		panic("nothing staged")
 	}
-	return CopyBytes(valbuf, s.value)
+	return store.CopyBytes(valbuf, s.value)
 }
 
 // Err implements the Stream interface.

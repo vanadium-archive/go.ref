@@ -113,7 +113,7 @@ func (s *stream) Value(valbuf []byte) []byte {
 func (s *stream) Err() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return convertError(s.err)
+	return store.ConvertError(s.err)
 }
 
 // Cancel implements the store.Stream interface.

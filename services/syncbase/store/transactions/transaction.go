@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package leveldb
+package transactions
 
-// #include "leveldb/c.h"
-import "C"
 import (
 	"bytes"
 	"container/list"
@@ -16,59 +14,41 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-// commitedTransaction is only used as an element of db.txEvents.
-type commitedTransaction struct {
-	seq   uint64
-	batch [][]byte
-}
-
-// transaction is a wrapper around LevelDB WriteBatch that implements
-// the store.Transaction interface.
+// transaction is a wrapper on top of a BatchWriter and a store.Snapshot that
+// implements the store.Transaction interface.
 type transaction struct {
 	// mu protects the state of the transaction.
 	mu       sync.Mutex
-	node     *store.ResourceNode
-	d        *db
+	mg       *manager
 	seq      uint64
 	event    *list.Element // pointer to element of db.txEvents
 	snapshot store.Snapshot
-	reads    store.ReadSet
-	writes   []store.WriteOp
-	cOpts    *C.leveldb_writeoptions_t
+	reads    readSet
+	writes   []WriteOp
 	err      error
 }
 
 var _ store.Transaction = (*transaction)(nil)
 
-func newTransaction(d *db, parent *store.ResourceNode) *transaction {
-	node := store.NewResourceNode()
-	snapshot := newSnapshot(d, node)
+func newTransaction(mg *manager) *transaction {
 	tx := &transaction{
-		node:     node,
-		d:        d,
-		snapshot: snapshot,
-		seq:      d.txSequenceNumber,
-		cOpts:    d.writeOptions,
+		mg:       mg,
+		snapshot: mg.BatchStore.NewSnapshot(),
+		seq:      mg.seq,
 	}
-	tx.event = d.txEvents.PushFront(tx)
-	parent.AddChild(tx.node, func() {
-		tx.Abort()
-	})
+	tx.event = mg.events.PushFront(tx)
 	return tx
 }
 
-// close frees allocated C objects and releases acquired locks.
+// close removes this transaction from the mg.events queue and aborts
+// the underlying snapshot.
 // Assumes mu is held.
 func (tx *transaction) close() {
 	tx.removeEvent()
-	tx.node.Close()
-	if tx.cOpts != tx.d.writeOptions {
-		C.leveldb_writeoptions_destroy(tx.cOpts)
-	}
-	tx.cOpts = nil
+	tx.snapshot.Abort()
 }
 
-// removeEvent removes this transaction from the db.txEvents queue.
+// removeEvent removes this transaction from the mg.events queue.
 // Assumes mu is held.
 func (tx *transaction) removeEvent() {
 	// This can happen if the transaction was committed, since Commit()
@@ -76,9 +56,9 @@ func (tx *transaction) removeEvent() {
 	if tx.event == nil {
 		return
 	}
-	tx.d.txmu.Lock()
-	tx.d.txEvents.Remove(tx.event)
-	tx.d.txmu.Unlock()
+	tx.mg.mu.Lock()
+	tx.mg.events.Remove(tx.event)
+	tx.mg.mu.Unlock()
 	tx.event = nil
 }
 
@@ -87,7 +67,7 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return valbuf, convertError(tx.err)
+		return valbuf, store.ConvertError(tx.err)
 	}
 	tx.reads.Keys = append(tx.reads.Keys, key)
 
@@ -99,7 +79,7 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	for i := len(tx.writes) - 1; i >= 0; i-- {
 		op := &tx.writes[i]
 		if bytes.Equal(op.Key, key) {
-			if op.T == store.PutOp {
+			if op.T == PutOp {
 				return op.Value, nil
 			}
 			return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
@@ -117,13 +97,13 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 		return &store.InvalidStream{Error: tx.err}
 	}
 
-	tx.reads.Ranges = append(tx.reads.Ranges, store.ScanRange{
+	tx.reads.Ranges = append(tx.reads.Ranges, scanRange{
 		Start: start,
 		Limit: limit,
 	})
 
 	// Return a stream which merges the snaphot stream with the uncommitted changes.
-	return store.MergeWritesWithStream(tx.snapshot, tx.writes, start, limit)
+	return mergeWritesWithStream(tx.snapshot, tx.writes, start, limit)
 }
 
 // Put implements the store.StoreWriter interface.
@@ -131,10 +111,10 @@ func (tx *transaction) Put(key, value []byte) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return convertError(tx.err)
+		return store.ConvertError(tx.err)
 	}
-	tx.writes = append(tx.writes, store.WriteOp{
-		T:     store.PutOp,
+	tx.writes = append(tx.writes, WriteOp{
+		T:     PutOp,
 		Key:   key,
 		Value: value,
 	})
@@ -146,10 +126,10 @@ func (tx *transaction) Delete(key []byte) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return convertError(tx.err)
+		return store.ConvertError(tx.err)
 	}
-	tx.writes = append(tx.writes, store.WriteOp{
-		T:   store.DeleteOp,
+	tx.writes = append(tx.writes, WriteOp{
+		T:   DeleteOp,
 		Key: key,
 	})
 	return nil
@@ -157,16 +137,16 @@ func (tx *transaction) Delete(key []byte) error {
 
 // validateReadSet returns true iff the read set of this transaction has not
 // been invalidated by other transactions.
-// Assumes tx.d.txmu is held.
+// Assumes tx.mg.mu is held.
 func (tx *transaction) validateReadSet() bool {
 	for _, key := range tx.reads.Keys {
-		if tx.d.txTable.get(key) > tx.seq {
+		if tx.mg.txTable.get(key) > tx.seq {
 			vlog.VI(3).Infof("key conflict: %q", key)
 			return false
 		}
 	}
 	for _, r := range tx.reads.Ranges {
-		if tx.d.txTable.rangeMax(r.Start, r.Limit) > tx.seq {
+		if tx.mg.txTable.rangeMax(r.Start, r.Limit) > tx.seq {
 			vlog.VI(3).Infof("range conflict: {%q, %q}", r.Start, r.Limit)
 			return false
 		}
@@ -180,7 +160,7 @@ func (tx *transaction) Commit() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return convertError(tx.err)
+		return store.ConvertError(tx.err)
 	}
 	tx.err = verror.New(verror.ErrBadState, nil, store.ErrMsgCommittedTxn)
 	// Explicitly remove this transaction from the event queue. If this was the
@@ -188,12 +168,16 @@ func (tx *transaction) Commit() error {
 	// not add this transaction's write set to txTable.
 	tx.removeEvent()
 	defer tx.close()
-	tx.d.txmu.Lock()
-	defer tx.d.txmu.Unlock()
+	tx.mg.mu.Lock()
+	defer tx.mg.mu.Unlock()
 	if !tx.validateReadSet() {
 		return store.NewErrConcurrentTransaction(nil)
 	}
-	return tx.d.writeLocked(tx.writes, tx.cOpts)
+	if err := tx.mg.BatchStore.WriteBatch(tx.writes...); err != nil {
+		return err
+	}
+	tx.mg.trackBatch(tx.writes...)
+	return nil
 }
 
 // Abort implements the store.Transaction interface.
@@ -201,7 +185,7 @@ func (tx *transaction) Abort() error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
 	if tx.err != nil {
-		return convertError(tx.err)
+		return store.ConvertError(tx.err)
 	}
 	tx.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedTxn)
 	tx.close()

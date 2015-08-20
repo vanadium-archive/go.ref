@@ -50,7 +50,7 @@ func (s *snapshot) Abort() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
-		return convertError(s.err)
+		return store.ConvertError(s.err)
 	}
 	s.node.Close()
 	C.leveldb_readoptions_destroy(s.cOpts)
@@ -66,7 +66,7 @@ func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.err != nil {
-		return valbuf, convertError(s.err)
+		return valbuf, store.ConvertError(s.err)
 	}
 	return s.d.getWithOpts(key, valbuf, s.cOpts)
 }

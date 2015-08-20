@@ -55,42 +55,7 @@ func CopyBytes(dst, src []byte) []byte {
 	return dst
 }
 
-//////////////////////////////////////////////////////////////
-// Read and Write types used for storing transcation reads
-// and uncommitted writes.
-
-type ScanRange struct {
-	Start, Limit []byte
-}
-
-type ReadSet struct {
-	Keys   [][]byte
-	Ranges []ScanRange
-}
-
-type WriteType int
-
-const (
-	PutOp WriteType = iota
-	DeleteOp
-)
-
-type WriteOp struct {
-	T     WriteType
-	Key   []byte
-	Value []byte
-}
-
-type WriteOpArray []WriteOp
-
-func (a WriteOpArray) Len() int {
-	return len(a)
-}
-
-func (a WriteOpArray) Less(i, j int) bool {
-	return string(a[i].Key) < string(a[j].Key)
-}
-
-func (a WriteOpArray) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
+// ConvertError returns a copy of the verror, appending the current stack to it.
+func ConvertError(err error) error {
+	return verror.Convert(verror.IDAction{}, nil, err)
 }

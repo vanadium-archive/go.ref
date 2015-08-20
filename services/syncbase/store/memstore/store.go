@@ -7,9 +7,11 @@
 package memstore
 
 import (
+	"fmt"
 	"sync"
 
 	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/syncbase/x/ref/services/syncbase/store/transactions"
 	"v.io/v23/verror"
 )
 
@@ -18,20 +20,14 @@ type memstore struct {
 	node *store.ResourceNode
 	data map[string][]byte
 	err  error
-	// Most recent sequence number handed out.
-	lastSeq uint64
-	// Value of lastSeq at the time of the most recent commit.
-	lastCommitSeq uint64
 }
-
-var _ store.Store = (*memstore)(nil)
 
 // New creates a new memstore.
 func New() store.Store {
-	return &memstore{
+	return transactions.Wrap(&memstore{
 		data: map[string][]byte{},
 		node: store.NewResourceNode(),
-	}
+	})
 }
 
 // Close implements the store.Store interface.
@@ -39,7 +35,7 @@ func (st *memstore) Close() error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.err != nil {
-		return convertError(st.err)
+		return store.ConvertError(st.err)
 	}
 	st.node.Close()
 	st.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedStore)
@@ -51,7 +47,7 @@ func (st *memstore) Get(key, valbuf []byte) ([]byte, error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.err != nil {
-		return valbuf, convertError(st.err)
+		return valbuf, store.ConvertError(st.err)
 	}
 	value, ok := st.data[string(key)]
 	if !ok {
@@ -71,31 +67,6 @@ func (st *memstore) Scan(start, limit []byte) store.Stream {
 	return newSnapshot(st, st.node).Scan(start, limit)
 }
 
-// Put implements the store.StoreWriter interface.
-func (st *memstore) Put(key, value []byte) error {
-	return store.RunInTransaction(st, func(tx store.Transaction) error {
-		return tx.Put(key, value)
-	})
-}
-
-// Delete implements the store.StoreWriter interface.
-func (st *memstore) Delete(key []byte) error {
-	return store.RunInTransaction(st, func(tx store.Transaction) error {
-		return tx.Delete(key)
-	})
-}
-
-// NewTransaction implements the store.Store interface.
-func (st *memstore) NewTransaction() store.Transaction {
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	if st.err != nil {
-		return &store.InvalidTransaction{Error: st.err}
-	}
-	st.lastSeq++
-	return newTransaction(st, st.node, st.lastSeq)
-}
-
 // NewSnapshot implements the store.Store interface.
 func (st *memstore) NewSnapshot() store.Snapshot {
 	st.mu.Lock()
@@ -104,4 +75,24 @@ func (st *memstore) NewSnapshot() store.Snapshot {
 		return &store.InvalidSnapshot{Error: st.err}
 	}
 	return newSnapshot(st, st.node)
+}
+
+// WriteBatch implements the transactions.BatchStore interface.
+func (st *memstore) WriteBatch(batch ...transactions.WriteOp) error {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.err != nil {
+		return store.ConvertError(st.err)
+	}
+	for _, write := range batch {
+		switch write.T {
+		case transactions.PutOp:
+			st.data[string(write.Key)] = write.Value
+		case transactions.DeleteOp:
+			delete(st.data, string(write.Key))
+		default:
+			panic(fmt.Sprintf("unknown write operation type: %v", write.T))
+		}
+	}
+	return nil
 }

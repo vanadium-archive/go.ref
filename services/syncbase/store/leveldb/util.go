@@ -44,7 +44,3 @@ func goBytes(str *C.char, size C.size_t) []byte {
 	})
 	return *(*[]byte)(ptr)
 }
-
-func convertError(err error) error {
-	return verror.Convert(verror.IDAction{}, nil, err)
-}
