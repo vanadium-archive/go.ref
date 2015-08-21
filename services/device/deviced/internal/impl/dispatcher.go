@@ -111,7 +111,32 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
-	if len(os.Getenv(ref.EnvAgentEndpoint)) > 0 {
+	if path := os.Getenv(ref.EnvAgentPath); len(path) > 0 {
+		// TODO(caprita): Making the decision to be in agent mode based
+		// on the presence of this env var is approximate for two
+		// reasons:
+		//
+		// 1. the device manager may have its agent path set using a
+		// config key/value instead of an env var.
+		//
+		// 2. the device manager may have this env var set, but a
+		// higher-precedence setting like the V23_CREDENTIALS env var
+		// may still have configured the device manager to operate in
+		// non-agent mode.
+		//
+		// We ought to hook into the logic inside rt/security.go when
+		// deciding if we're in agent mode, and figuring out what path
+		// the agent socket is at.
+		if km, err := keymgr.NewKeyManager(path); err != nil {
+			return nil, nil, verror.New(errNewAgentFailed, ctx, err)
+		} else {
+			d.internal.securityAgent = &securityAgentState{
+				keyMgr: km,
+			}
+		}
+	} else if len(os.Getenv(ref.EnvAgentEndpoint)) > 0 {
+		// This code path is deprecated in favor of socket agent
+		// connection.
 		if keyMgrAgent, err := keymgr.NewAgent(); err != nil {
 			return nil, nil, verror.New(errNewAgentFailed, ctx, err)
 		} else {
