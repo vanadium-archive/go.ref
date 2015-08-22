@@ -6,6 +6,7 @@ package conn
 
 import (
 	"crypto/rand"
+	"io"
 	"reflect"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/flow/message"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/vom"
@@ -37,17 +39,17 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) e
 	if err != nil {
 		return err
 	}
-	lAuth := &auth{
-		channelBinding: signedBinding,
+	lAuth := &message.Auth{
+		ChannelBinding: signedBinding,
 	}
 	// We only send our blessings if we are a server in addition to being a client.
 	// If we are a pure client, we only send our public key.
 	if c.handler != nil {
-		if lAuth.bkey, lAuth.dkey, err = c.refreshDischarges(ctx); err != nil {
+		if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx); err != nil {
 			return err
 		}
 	} else {
-		lAuth.publicKey = c.lBlessings.PublicKey()
+		lAuth.PublicKey = c.lBlessings.PublicKey()
 	}
 	return c.mp.writeMsg(ctx, lAuth)
 }
@@ -63,10 +65,10 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 	if err != nil {
 		return err
 	}
-	lAuth := &auth{
-		channelBinding: signedBinding,
+	lAuth := &message.Auth{
+		ChannelBinding: signedBinding,
 	}
-	if lAuth.bkey, lAuth.dkey, err = c.refreshDischarges(ctx); err != nil {
+	if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx); err != nil {
 		return err
 	}
 	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
@@ -80,13 +82,13 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	lSetup := &setup{
-		versions:          versions,
-		peerLocalEndpoint: c.local,
-		peerNaClPublicKey: pk,
+	lSetup := &message.Setup{
+		Versions:          versions,
+		PeerLocalEndpoint: c.local,
+		PeerNaClPublicKey: pk,
 	}
 	if c.remote != nil {
-		lSetup.peerRemoteEndpoint = c.remote
+		lSetup.PeerRemoteEndpoint = c.remote
 	}
 	ch := make(chan error)
 	go func() {
@@ -96,38 +98,38 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	if err != nil {
 		return nil, NewErrRecv(ctx, "unknown", err)
 	}
-	rSetup, valid := msg.(*setup)
+	rSetup, valid := msg.(*message.Setup)
 	if !valid {
 		return nil, NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())
 	}
 	if err := <-ch; err != nil {
 		return nil, NewErrSend(ctx, "setup", c.remote.String(), err)
 	}
-	if c.version, err = version.CommonVersion(ctx, lSetup.versions, rSetup.versions); err != nil {
+	if c.version, err = version.CommonVersion(ctx, lSetup.Versions, rSetup.Versions); err != nil {
 		return nil, err
 	}
 	// TODO(mattr): Decide which endpoints to actually keep, the ones we know locally
 	// or what the remote side thinks.
-	if rSetup.peerRemoteEndpoint != nil {
-		c.local = rSetup.peerRemoteEndpoint
+	if rSetup.PeerRemoteEndpoint != nil {
+		c.local = rSetup.PeerRemoteEndpoint
 	}
-	if rSetup.peerLocalEndpoint != nil {
-		c.remote = rSetup.peerLocalEndpoint
+	if rSetup.PeerLocalEndpoint != nil {
+		c.remote = rSetup.PeerLocalEndpoint
 	}
-	if rSetup.peerNaClPublicKey == nil {
-		return nil, NewErrMissingSetupOption(ctx, peerNaClPublicKeyOption)
+	if rSetup.PeerNaClPublicKey == nil {
+		return nil, NewErrMissingSetupOption(ctx, "peerNaClPublicKey")
 	}
-	return c.mp.setupEncryption(ctx, pk, sk, rSetup.peerNaClPublicKey), nil
+	return c.mp.setupEncryption(ctx, pk, sk, rSetup.PeerNaClPublicKey), nil
 }
 
 func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {
-	var rauth *auth
+	var rauth *message.Auth
 	for {
 		msg, err := c.mp.readMsg(ctx)
 		if err != nil {
 			return NewErrRecv(ctx, c.remote.String(), err)
 		}
-		if rauth, _ = msg.(*auth); rauth != nil {
+		if rauth, _ = msg.(*message.Auth); rauth != nil {
 			break
 		}
 		if err = c.handleMessage(ctx, msg); err != nil {
@@ -135,21 +137,21 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {
 		}
 	}
 	var rPublicKey security.PublicKey
-	if rauth.bkey != 0 {
+	if rauth.BlessingsKey != 0 {
 		var err error
 		// TODO(mattr): Make sure we cancel out of this at some point.
-		c.rBlessings, _, err = c.blessingsFlow.get(ctx, rauth.bkey, rauth.dkey)
+		c.rBlessings, _, err = c.blessingsFlow.get(ctx, rauth.BlessingsKey, rauth.DischargeKey)
 		if err != nil {
 			return err
 		}
 		rPublicKey = c.rBlessings.PublicKey()
 	} else {
-		rPublicKey = rauth.publicKey
+		rPublicKey = rauth.PublicKey
 	}
 	if rPublicKey == nil {
 		return NewErrNoPublicKey(ctx)
 	}
-	if !rauth.channelBinding.Verify(rPublicKey, binding) {
+	if !rauth.ChannelBinding.Verify(rPublicKey, binding) {
 		return NewErrInvalidChannelBinding(ctx)
 	}
 	return nil
@@ -290,6 +292,9 @@ func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {
 		err := b.dec.Decode(&received)
 		b.mu.Lock()
 		if err != nil {
+			if err != io.EOF {
+				ctx.Errorf("Blessings flow closed: %v", err)
+			}
 			b.closed = true
 			b.mu.Unlock()
 			return

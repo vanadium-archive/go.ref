@@ -12,6 +12,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
@@ -21,10 +22,8 @@ import (
 
 // flowID is a number assigned to identify a flow.
 // Each flow on a given conn will have a unique number.
-type flowID uint64
-
 const (
-	invalidFlowID = flowID(iota)
+	invalidFlowID = iota
 	blessingsFlowID
 	reservedFlows = 10
 )
@@ -62,8 +61,8 @@ type Conn struct {
 	loopWG                 sync.WaitGroup
 
 	mu             sync.Mutex
-	nextFid        flowID
-	flows          map[flowID]*flw
+	nextFid        uint64
+	flows          map[uint64]*flw
 	dischargeTimer *time.Timer
 }
 
@@ -86,7 +85,7 @@ func NewDialed(
 		remote:     remote,
 		closed:     make(chan struct{}),
 		nextFid:    reservedFlows,
-		flows:      map[flowID]*flw{},
+		flows:      map[uint64]*flw{},
 	}
 	if err := c.dialHandshake(ctx, versions); err != nil {
 		c.Close(ctx, err)
@@ -112,7 +111,7 @@ func NewAccepted(
 		local:      local,
 		closed:     make(chan struct{}),
 		nextFid:    reservedFlows + 1,
-		flows:      map[flowID]*flw{},
+		flows:      map[uint64]*flw{},
 	}
 	if err := c.acceptHandshake(ctx, versions); err != nil {
 		c.Close(ctx, err)
@@ -164,7 +163,7 @@ func (c *Conn) Closed() <-chan struct{} { return c.closed }
 // Close shuts down a conn.
 func (c *Conn) Close(ctx *context.T, err error) {
 	c.mu.Lock()
-	var flows map[flowID]*flw
+	var flows map[uint64]*flw
 	flows, c.flows = c.flows, nil
 	if c.dischargeTimer != nil {
 		c.dischargeTimer.Stop()
@@ -180,14 +179,15 @@ func (c *Conn) Close(ctx *context.T, err error) {
 	c.internalClose(ctx, err, flows)
 }
 
-func (c *Conn) internalClose(ctx *context.T, err error, flows map[flowID]*flw) {
+func (c *Conn) internalClose(ctx *context.T, err error, flows map[uint64]*flw) {
+	ctx.VI(2).Infof("Closing connection: %v", err)
 	if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
-		message := ""
+		msg := ""
 		if err != nil {
-			message = err.Error()
+			msg = err.Error()
 		}
 		cerr := c.fc.Run(ctx, "close", expressPriority, func(_ int) (int, bool, error) {
-			return 0, true, c.mp.writeMsg(ctx, &tearDown{Message: message})
+			return 0, true, c.mp.writeMsg(ctx, &message.TearDown{Message: msg})
 		})
 		if cerr != nil {
 			ctx.Errorf("Error sending tearDown on connection to %s: %v", c.remote, cerr)
@@ -204,7 +204,7 @@ func (c *Conn) internalClose(ctx *context.T, err error, flows map[flowID]*flw) {
 }
 
 func (c *Conn) release(ctx *context.T) {
-	counts := map[flowID]uint64{}
+	counts := map[uint64]uint64{}
 	c.mu.Lock()
 	for fid, f := range c.flows {
 		if release := f.q.release(); release > 0 {
@@ -217,8 +217,8 @@ func (c *Conn) release(ctx *context.T) {
 	}
 
 	err := c.fc.Run(ctx, "release", expressPriority, func(_ int) (int, bool, error) {
-		err := c.mp.writeMsg(ctx, &release{
-			counters: counts,
+		err := c.mp.writeMsg(ctx, &message.Release{
+			Counters: counts,
 		})
 		return 0, true, err
 	})
@@ -227,24 +227,24 @@ func (c *Conn) release(ctx *context.T) {
 	}
 }
 
-func (c *Conn) handleMessage(ctx *context.T, x message) error {
-	switch msg := x.(type) {
-	case *tearDown:
+func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
+	switch msg := m.(type) {
+	case *message.TearDown:
 		return NewErrConnClosedRemotely(ctx, msg.Message)
 
-	case *openFlow:
+	case *message.OpenFlow:
 		if c.handler == nil {
 			return NewErrUnexpectedMsg(ctx, "openFlow")
 		}
 		c.mu.Lock()
-		f := c.newFlowLocked(ctx, msg.id, msg.bkey, msg.dkey, false, true)
+		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, false, true)
 		c.mu.Unlock()
 		c.handler.HandleFlow(f)
 
-	case *release:
-		release := make([]flowcontrol.Release, 0, len(msg.counters))
+	case *message.Release:
+		release := make([]flowcontrol.Release, 0, len(msg.Counters))
 		c.mu.Lock()
-		for fid, val := range msg.counters {
+		for fid, val := range msg.Counters {
 			if f := c.flows[fid]; f != nil {
 				release = append(release, flowcontrol.Release{
 					Worker: f.worker,
@@ -257,33 +257,18 @@ func (c *Conn) handleMessage(ctx *context.T, x message) error {
 			return err
 		}
 
-	case *data:
+	case *message.Data:
 		c.mu.Lock()
-		f := c.flows[msg.id]
+		f := c.flows[msg.ID]
 		c.mu.Unlock()
 		if f == nil {
-			ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d", c.remote, msg.id)
+			ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d", c.remote, msg.ID)
 			return nil
 		}
-		if err := f.q.put(ctx, msg.payload); err != nil {
+		if err := f.q.put(ctx, msg.Payload); err != nil {
 			return err
 		}
-		if msg.flags&closeFlag != 0 {
-			f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
-		}
-
-	case *unencryptedData:
-		c.mu.Lock()
-		f := c.flows[msg.id]
-		c.mu.Unlock()
-		if f == nil {
-			ctx.Infof("Ignoring data message for unknown flow: %d", msg.id)
-			return nil
-		}
-		if err := f.q.put(ctx, msg.payload); err != nil {
-			return err
-		}
-		if msg.flags&closeFlag != 0 {
+		if msg.Flags&message.CloseFlag != 0 {
 			f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
 		}
 
@@ -307,7 +292,7 @@ func (c *Conn) readLoop(ctx *context.T) {
 	}
 
 	c.mu.Lock()
-	var flows map[flowID]*flw
+	var flows map[uint64]*flw
 	flows, c.flows = c.flows, nil
 	c.mu.Unlock()
 

@@ -10,15 +10,8 @@ package conn
 // since all of their errors are intended to be used as arguments to higher level errors.
 // TODO(suharshs,toddw): Allow skipping of {1}{2} in vdl generated errors.
 error (
-  InvalidMsg(typ byte, size, field uint64) {"en": "message of type{:typ} and size{:size} failed decoding at field{:field}."}
-  InvalidControlMsg(cmd byte, size, field uint64, err error) {"en": "control message of cmd {cmd} and size {size} failed decoding at field {field}{:err}."}
-  InvalidSetupOption(option, field uint64) {
-    "en": "setup option{:option} failed decoding at field{:field}."}
-  MissingSetupOption(option uint64) {
+  MissingSetupOption(option string) {
     "en": "missing required setup option{:option}."}
-  UnknownSetupOption(option uint64) {"en": "unknown setup option{:option}."}
-  UnknownMsg(typ byte) {"en":"unknown message type{:typ}."}
-  UnknownControlMsg(cmd byte) {"en": "unknown control command{:cmd}."}
   UnexpectedMsg(typ string) {"en": "unexpected message type{:typ}."}
   ConnectionClosed() {"en": "connection closed."}
   ConnClosedRemotely(msg string) {"en": "connection closed remotely{:msg}."}

@@ -9,13 +9,14 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/flow/message"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/ref/runtime/internal/flow/flowcontrol"
 )
 
 type flw struct {
-	id         flowID
+	id         uint64
 	dialed     bool
 	ctx        *context.T
 	cancel     context.CancelFunc
@@ -29,7 +30,7 @@ type flw struct {
 // Ensure that *flw implements flow.Flow.
 var _ flow.Flow = &flw{}
 
-func (c *Conn) newFlowLocked(ctx *context.T, id flowID, bkey, dkey uint64, dialed, preopen bool) *flw {
+func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, dialed, preopen bool) *flw {
 	f := &flw{
 		id:     id,
 		dialed: dialed,
@@ -91,11 +92,11 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 		if !f.opened {
 			// TODO(mattr): we should be able to send multiple messages
 			// in a single writeMsg call.
-			err := f.conn.mp.writeMsg(f.ctx, &openFlow{
-				id:              f.id,
-				initialCounters: defaultBufferSize,
-				bkey:            f.bkey,
-				dkey:            f.dkey,
+			err := f.conn.mp.writeMsg(f.ctx, &message.OpenFlow{
+				ID:              f.id,
+				InitialCounters: defaultBufferSize,
+				BlessingsKey:    f.bkey,
+				DischargeKey:    f.dkey,
 			})
 			if err != nil {
 				return 0, false, err
@@ -122,13 +123,13 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 			left = last[take:]
 			size = tokens
 		}
-		d := &data{
-			id:      f.id,
-			payload: bufs,
+		d := &message.Data{
+			ID:      f.id,
+			Payload: bufs,
 		}
 		done := len(left) == 0 && len(parts) == 0
 		if alsoClose && done {
-			d.flags |= closeFlag
+			d.Flags |= message.CloseFlag
 		}
 		sent += size
 		return size, done, f.conn.mp.writeMsg(f.ctx, d)
@@ -261,7 +262,10 @@ func (f *flw) close(ctx *context.T, err error) {
 		// We want to try to send this message even if ctx is already canceled.
 		ctx, cancel := context.WithRootCancel(ctx)
 		err := f.worker.Run(ctx, func(tokens int) (int, bool, error) {
-			return 0, true, f.conn.mp.writeMsg(ctx, &data{id: f.id, flags: closeFlag})
+			return 0, true, f.conn.mp.writeMsg(ctx, &message.Data{
+				ID:    f.id,
+				Flags: message.CloseFlag,
+			})
 		})
 		if err != nil {
 			ctx.Errorf("Could not send close flow message: %v", err)
