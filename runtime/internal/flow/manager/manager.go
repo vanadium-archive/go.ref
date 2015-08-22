@@ -11,10 +11,13 @@ import (
 	"syscall"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
+	"v.io/v23/vom"
 
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
@@ -49,20 +52,64 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 // The flow.Manager associated with ctx must be the receiver of the method,
 // otherwise an error is returned.
 func (m *manager) Listen(ctx *context.T, protocol, address string) error {
+	var (
+		ep  naming.Endpoint
+		err error
+	)
+	if protocol == inaming.Network {
+		ep, err = m.proxyListen(ctx, address)
+	} else {
+		ep, err = m.listen(ctx, protocol, address)
+	}
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	m.listenEndpoints = append(m.listenEndpoints, ep)
+	m.mu.Unlock()
+	return nil
+}
+
+func (m *manager) listen(ctx *context.T, protocol, address string) (naming.Endpoint, error) {
 	netLn, err := listen(ctx, protocol, address)
 	if err != nil {
-		return flow.NewErrNetwork(ctx, err)
+		return nil, flow.NewErrNetwork(ctx, err)
 	}
 	local := &inaming.Endpoint{
 		Protocol: protocol,
 		Address:  netLn.Addr().String(),
 		RID:      m.rid,
 	}
-	m.mu.Lock()
-	m.listenEndpoints = append(m.listenEndpoints, local)
-	m.mu.Unlock()
 	go m.netLnAcceptLoop(ctx, netLn, local)
-	return nil
+	return local, nil
+}
+
+func (m *manager) proxyListen(ctx *context.T, address string) (naming.Endpoint, error) {
+	ep, err := inaming.NewEndpoint(address)
+	if err != nil {
+		return nil, flow.NewErrBadArg(ctx, err)
+	}
+	f, err := m.internalDial(ctx, ep, proxyBlessingsForPeer{}.run, &proxyFlowHandler{ctx: ctx, m: m})
+	if err != nil {
+		return nil, flow.NewErrNetwork(ctx, err)
+	}
+	// Write to ensure we send an openFlow message.
+	if _, err := f.Write([]byte{0}); err != nil {
+		return nil, flow.NewErrNetwork(ctx, err)
+	}
+	var lep string
+	if err := vom.NewDecoder(f).Decode(&lep); err != nil {
+		return nil, flow.NewErrNetwork(ctx, err)
+	}
+	return inaming.NewEndpoint(lep)
+}
+
+type proxyBlessingsForPeer struct{}
+
+// TODO(suharshs): Figure out what blessings to present here. And present discharges.
+func (proxyBlessingsForPeer) run(ctx *context.T, lep, rep naming.Endpoint, rb security.Blessings,
+	rd map[string]security.Discharge) (security.Blessings, map[string]security.Discharge, error) {
+	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
 
 func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local naming.Endpoint) {
@@ -85,7 +132,7 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 			ctx.Errorf("net.Listener.Accept on localEP %v failed: %v", local, err)
 			continue
 		}
-		_, err = conn.NewAccepted(
+		c, err := conn.NewAccepted(
 			ctx,
 			&framer{ReadWriteCloser: netConn},
 			local,
@@ -97,12 +144,9 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
 			continue
 		}
-		// TODO(suharshs): We need the remote endpoint in conn to be able to insert
-		// it into the cache. This handshake has not been implemented yet. So for now
-		// we will comment it out.
-		// if err := m.cache.Insert(c); err != nil {
-		// 	ctx.VI(2).Infof("failed to cache conn %v: %v", c, err)
-		// }
+		if err := m.cache.Insert(c); err != nil {
+			ctx.VI(2).Infof("failed to cache conn %v: %v", c, err)
+		}
 	}
 }
 
@@ -119,6 +163,37 @@ func (h *flowHandler) HandleFlow(f flow.Flow) error {
 	default:
 	}
 	return h.q.Put(f)
+}
+
+type proxyFlowHandler struct {
+	ctx *context.T
+	m   *manager
+}
+
+func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
+	select {
+	case <-h.m.closed:
+		h.m.q.Close()
+		return upcqueue.ErrQueueIsClosed
+	default:
+	}
+	go func() {
+		c, err := conn.NewAccepted(
+			h.ctx,
+			closer{f},
+			f.Conn().LocalEndpoint(),
+			version.Supported,
+			&flowHandler{q: h.m.q, closed: h.m.closed})
+		if err != nil {
+			h.ctx.Errorf("failed to create accepted conn: %v", err)
+			return
+		}
+		if err := h.m.cache.Insert(c); err != nil {
+			h.ctx.Errorf("failed to create accepted conn: %v", err)
+			return
+		}
+	}()
+	return nil
 }
 
 // ListeningEndpoints returns the endpoints that the Manager has explicitly
@@ -169,24 +244,40 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 // The flow.Manager associated with ctx must be the receiver of the method,
 // otherwise an error is returned.
 func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, error) {
-	addr := remote.Addr()
-	d, r, _, _ := rpc.RegisteredProtocol(addr.Network())
-	// (network, address) in the endpoint might not always match up
-	// with the key used for caching conns. For example:
-	// - conn, err := net.Dial("tcp", "www.google.com:80")
-	//   fmt.Println(conn.RemoteAddr()) // Might yield the corresponding IP address
-	// - Similarly, an unspecified IP address (net.IP.IsUnspecified) like "[::]:80"
-	//   might yield "[::1]:80" (loopback interface) in conn.RemoteAddr().
-	// Thus we look for Conns with the resolved address.
-	network, address, err := resolve(ctx, r, addr.Network(), addr.String())
-	if err != nil {
-		return nil, flow.NewErrResolveFailed(ctx, err)
-	}
-	c, err := m.cache.ReservedFind(network, address, remote.BlessingNames())
+	return m.internalDial(ctx, remote, fn, &flowHandler{q: m.q, closed: m.closed})
+}
+
+func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer, fh conn.FlowHandler) (flow.Flow, error) {
+	// Look up the connection based on RoutingID first.
+	c, err := m.cache.FindWithRoutingID(remote.RoutingID())
 	if err != nil {
 		return nil, flow.NewErrBadState(ctx, err)
 	}
-	defer m.cache.Unreserve(network, address, remote.BlessingNames())
+	var (
+		d                rpc.DialerFunc
+		network, address string
+	)
+	if c == nil {
+		addr := remote.Addr()
+		var r rpc.ResolverFunc
+		d, r, _, _ = rpc.RegisteredProtocol(addr.Network())
+		// (network, address) in the endpoint might not always match up
+		// with the key used for caching conns. For example:
+		// - conn, err := net.Dial("tcp", "www.google.com:80")
+		//   fmt.Println(conn.RemoteAddr()) // Might yield the corresponding IP address
+		// - Similarly, an unspecified IP address (net.IP.IsUnspecified) like "[::]:80"
+		//   might yield "[::1]:80" (loopback interface) in conn.RemoteAddr().
+		// Thus we look for Conns with the resolved address.
+		network, address, err = resolve(ctx, r, addr.Network(), addr.String())
+		if err != nil {
+			return nil, flow.NewErrResolveFailed(ctx, err)
+		}
+		c, err = m.cache.ReservedFind(network, address, remote.BlessingNames())
+		if err != nil {
+			return nil, flow.NewErrBadState(ctx, err)
+		}
+		defer m.cache.Unreserve(network, address, remote.BlessingNames())
+	}
 	if c == nil {
 		netConn, err := dial(ctx, d, network, address)
 		if err != nil {
@@ -201,7 +292,7 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.Blessings
 			localEndpoint(netConn, m.rid),
 			remote,
 			version.Supported,
-			&flowHandler{q: m.q, closed: m.closed},
+			fh,
 		)
 		if err != nil {
 			return nil, flow.NewErrDialFailed(ctx, err)
@@ -214,7 +305,41 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.Blessings
 	if err != nil {
 		return nil, flow.NewErrDialFailed(ctx, err)
 	}
+
+	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
+	// return a flow on that corresponding conn.
+	if remote.RoutingID() != c.RemoteEndpoint().RoutingID() {
+		if err := sendRouteInfo(remote, f); err != nil {
+			return nil, flow.NewErrDialFailed(ctx, err)
+		}
+		c, err = conn.NewDialed(
+			ctx,
+			closer{f},
+			c.LocalEndpoint(),
+			remote,
+			version.Supported,
+			fh,
+		)
+		if err != nil {
+			return nil, flow.NewErrDialFailed(ctx, err)
+		}
+		f, err = c.Dial(ctx, fn)
+		if err != nil {
+			return nil, flow.NewErrDialFailed(ctx, err)
+		}
+	}
 	return f, nil
+}
+
+func sendRouteInfo(ep naming.Endpoint, f flow.Flow) error {
+	// TODO(suharshs): Also send endpoint routes here when implementing multi proxy.
+	rid := ep.RoutingID()
+	return vom.NewEncoder(f).Encode(rid.String())
+}
+
+// RoutingID returns the naming.Routing of the flow.Manager.
+func (m *manager) RoutingID() naming.RoutingID {
+	return m.rid
 }
 
 // Closed returns a channel that remains open for the lifetime of the Manager
@@ -275,4 +400,13 @@ func isTemporaryError(err error) bool {
 func isTooManyOpenFiles(err error) bool {
 	oErr, ok := err.(*net.OpError)
 	return ok && strings.Contains(oErr.Err.Error(), syscall.EMFILE.Error())
+}
+
+// TODO(suharshs): should we add Close method to the Flow API?
+type closer struct {
+	flow.Flow
+}
+
+func (c closer) Close() error {
+	return nil
 }
