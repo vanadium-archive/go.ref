@@ -311,3 +311,9 @@ func (c *Conn) readLoop(ctx *context.T) {
 		c.internalClose(ctx, err, flows)
 	}
 }
+
+func (c *Conn) markUsed() {
+	c.mu.Lock()
+	c.lastUsedTime = time.Now()
+	c.mu.Unlock()
+}

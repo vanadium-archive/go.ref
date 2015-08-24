@@ -6,7 +6,6 @@ package conn
 
 import (
 	"strconv"
-	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/flow"
@@ -51,9 +50,7 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, diale
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) Read(p []byte) (n int, err error) {
-	f.conn.mu.Lock()
-	f.conn.lastUsedTime = time.Now()
-	f.conn.mu.Unlock()
+	f.conn.markUsed()
 	var release bool
 	if n, release, err = f.q.read(f.ctx, p); release {
 		f.conn.release(f.ctx)
@@ -69,9 +66,7 @@ func (f *flw) Read(p []byte) (n int, err error) {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) ReadMsg() (buf []byte, err error) {
-	f.conn.mu.Lock()
-	f.conn.lastUsedTime = time.Now()
-	f.conn.mu.Unlock()
+	f.conn.markUsed()
 	var release bool
 	// TODO(mattr): Currently we only ever release counters when some flow
 	// reads.  We may need to do it more or less often.  Currently
@@ -93,9 +88,7 @@ func (f *flw) Write(p []byte) (n int, err error) {
 }
 
 func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
-	f.conn.mu.Lock()
-	f.conn.lastUsedTime = time.Now()
-	f.conn.mu.Unlock()
+	f.conn.markUsed()
 	sent := 0
 	var left []byte
 	err := f.worker.Run(f.ctx, func(tokens int) (int, bool, error) {
