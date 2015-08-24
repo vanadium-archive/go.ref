@@ -64,6 +64,7 @@ type Conn struct {
 	nextFid        uint64
 	flows          map[uint64]*flw
 	dischargeTimer *time.Timer
+	lastUsedTime   time.Time
 }
 
 // Ensure that *Conn implements flow.Conn.
@@ -77,15 +78,16 @@ func NewDialed(
 	versions version.RPCVersionRange,
 	handler FlowHandler) (*Conn, error) {
 	c := &Conn{
-		fc:         flowcontrol.New(defaultBufferSize, mtu),
-		mp:         newMessagePipe(conn),
-		handler:    handler,
-		lBlessings: v23.GetPrincipal(ctx).BlessingStore().Default(),
-		local:      local,
-		remote:     remote,
-		closed:     make(chan struct{}),
-		nextFid:    reservedFlows,
-		flows:      map[uint64]*flw{},
+		fc:           flowcontrol.New(defaultBufferSize, mtu),
+		mp:           newMessagePipe(conn),
+		handler:      handler,
+		lBlessings:   v23.GetPrincipal(ctx).BlessingStore().Default(),
+		local:        local,
+		remote:       remote,
+		closed:       make(chan struct{}),
+		nextFid:      reservedFlows,
+		flows:        map[uint64]*flw{},
+		lastUsedTime: time.Now(),
 	}
 	if err := c.dialHandshake(ctx, versions); err != nil {
 		c.Close(ctx, err)
@@ -104,14 +106,15 @@ func NewAccepted(
 	versions version.RPCVersionRange,
 	handler FlowHandler) (*Conn, error) {
 	c := &Conn{
-		fc:         flowcontrol.New(defaultBufferSize, mtu),
-		mp:         newMessagePipe(conn),
-		handler:    handler,
-		lBlessings: v23.GetPrincipal(ctx).BlessingStore().Default(),
-		local:      local,
-		closed:     make(chan struct{}),
-		nextFid:    reservedFlows + 1,
-		flows:      map[uint64]*flw{},
+		fc:           flowcontrol.New(defaultBufferSize, mtu),
+		mp:           newMessagePipe(conn),
+		handler:      handler,
+		lBlessings:   v23.GetPrincipal(ctx).BlessingStore().Default(),
+		local:        local,
+		closed:       make(chan struct{}),
+		nextFid:      reservedFlows + 1,
+		flows:        map[uint64]*flw{},
+		lastUsedTime: time.Now(),
 	}
 	if err := c.acceptHandshake(ctx, versions); err != nil {
 		c.Close(ctx, err)
@@ -154,6 +157,13 @@ func (c *Conn) LocalEndpoint() naming.Endpoint { return c.local }
 
 // RemoteEndpoint returns the remote vanadium Endpoint
 func (c *Conn) RemoteEndpoint() naming.Endpoint { return c.remote }
+
+// LastUsedTime returns the time at which the Conn had bytes read or written on it.
+func (c *Conn) LastUsedTime() time.Time {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return c.lastUsedTime
+}
 
 // Closed returns a channel that will be closed after the Conn is shutdown.
 // After this channel is closed it is guaranteed that all Dial calls will fail

@@ -5,6 +5,7 @@
 package manager
 
 import (
+	"sort"
 	"strings"
 	"sync"
 
@@ -23,28 +24,23 @@ type ConnCache struct {
 	ridCache  map[naming.RoutingID]*connEntry // keyed by naming.RoutingID
 	started   map[string]bool                 // keyed by (protocol, address, blessingNames)
 	cond      *sync.Cond
-	head      *connEntry // the head and tail pointer of the linked list for implementing LRU.
 }
 
 type connEntry struct {
-	conn       *conn.Conn
-	rid        naming.RoutingID
-	addrKey    string
-	next, prev *connEntry
+	conn    *conn.Conn
+	rid     naming.RoutingID
+	addrKey string
 }
 
 func NewConnCache() *ConnCache {
 	mu := &sync.Mutex{}
 	cond := sync.NewCond(mu)
-	head := &connEntry{}
-	head.next, head.prev = head, head
 	return &ConnCache{
 		mu:        mu,
 		addrCache: make(map[string]*connEntry),
 		ridCache:  make(map[naming.RoutingID]*connEntry),
 		started:   make(map[string]bool),
 		cond:      cond,
-		head:      head,
 	}
 }
 
@@ -76,10 +72,8 @@ func (c *ConnCache) ReservedFind(protocol, address string, blessingNames []strin
 	if isClosed(entry.conn) {
 		delete(c.addrCache, entry.addrKey)
 		delete(c.ridCache, entry.rid)
-		entry.removeFromList()
 		return nil, nil
 	}
-	entry.moveAfter(c.head)
 	return entry.conn, nil
 }
 
@@ -109,7 +103,6 @@ func (c *ConnCache) Insert(conn *conn.Conn) error {
 	}
 	c.addrCache[k] = entry
 	c.ridCache[entry.rid] = entry
-	entry.moveAfter(c.head)
 	return nil
 }
 
@@ -117,16 +110,14 @@ func (c *ConnCache) Insert(conn *conn.Conn) error {
 func (c *ConnCache) Close(ctx *context.T) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	c.addrCache, c.ridCache, c.started = nil, nil, nil
-	d := c.head.next
-	for d != c.head {
+	c.addrCache, c.started = nil, nil
+	for _, d := range c.ridCache {
 		d.conn.Close(ctx, NewErrCacheClosed(ctx))
-		d = d.next
 	}
-	c.head = nil
 }
 
 // KillConnections will close and remove num LRU Conns in the cache.
+// If connections are already closed they will be removed from the cache.
 // This is useful when the manager is approaching system FD limits.
 // If num is greater than the number of connections in the cache, all cached
 // connections will be closed and removed.
@@ -137,20 +128,40 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 	if c.addrCache == nil {
 		return NewErrCacheClosed(ctx)
 	}
-	d := c.head.prev
 	err := NewErrConnKilledToFreeResources(ctx)
-	for i := 0; i < num; i++ {
-		if d == c.head {
-			break
+	pq := make(connEntries, 0, len(c.ridCache))
+	for _, e := range c.ridCache {
+		if isClosed(e.conn) {
+			delete(c.addrCache, e.addrKey)
+			delete(c.ridCache, e.rid)
+			continue
 		}
+		pq = append(pq, e)
+	}
+	sort.Sort(pq)
+	for i := 0; i < num; i++ {
+		d := pq[i]
 		d.conn.Close(ctx, err)
 		delete(c.addrCache, d.addrKey)
 		delete(c.ridCache, d.rid)
-		prev := d.prev
-		d.removeFromList()
-		d = prev
 	}
 	return nil
+}
+
+// TODO(suharshs): If sorting the connections becomes too slow, switch to
+// container/heap instead of sorting all the connections.
+type connEntries []*connEntry
+
+func (c connEntries) Len() int {
+	return len(c)
+}
+
+func (c connEntries) Less(i, j int) bool {
+	return c[i].conn.LastUsedTime().Before(c[j].conn.LastUsedTime())
+}
+
+func (c connEntries) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
 }
 
 // FindWithRoutingID returns a Conn where the remote end of the connection
@@ -169,10 +180,8 @@ func (c *ConnCache) FindWithRoutingID(rid naming.RoutingID) (*conn.Conn, error) 
 	if isClosed(entry.conn) {
 		delete(c.addrCache, entry.addrKey)
 		delete(c.ridCache, entry.rid)
-		entry.removeFromList()
 		return nil, nil
 	}
-	entry.moveAfter(c.head)
 	return entry.conn, nil
 }
 
@@ -187,24 +196,6 @@ func key(protocol, address string, blessingNames []string) string {
 	// TODO(suharshs): We may be able to do something more inclusive with our
 	// blessingNames.
 	return strings.Join(append([]string{protocol, address}, blessingNames...), ",")
-}
-
-func (c *connEntry) removeFromList() {
-	if c.prev != nil {
-		c.prev.next = c.next
-	}
-	if c.next != nil {
-		c.next.prev = c.prev
-	}
-	c.next, c.prev = nil, nil
-}
-
-func (c *connEntry) moveAfter(prev *connEntry) {
-	c.removeFromList()
-	c.prev = prev
-	c.next = prev.next
-	prev.next.prev = c
-	prev.next = c
 }
 
 func isClosed(conn *conn.Conn) bool {

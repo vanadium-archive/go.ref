@@ -8,7 +8,11 @@ import (
 	"io"
 	"sync"
 
+	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+
 	"v.io/x/ref/internal/logger"
 )
 
@@ -69,6 +73,7 @@ func (f *MRW) WriteMsg(data ...[]byte) (int, error) {
 	f.wire.c.Broadcast()
 	return len(buf), nil
 }
+
 func (f *MRW) ReadMsg() (buf []byte, err error) {
 	defer f.wire.mu.Unlock()
 	f.wire.mu.Lock()
@@ -87,7 +92,17 @@ func (f *MRW) ReadMsg() (buf []byte, err error) {
 	logger.Global().VI(2).Infof("Reading %d bytes from the wire: %#v", len(buf), logbuf)
 	return buf, nil
 }
+
 func (f *MRW) Close() error {
 	f.wire.Close()
 	return nil
+}
+
+func BlessingsForPeer(
+	ctx *context.T,
+	localEndpoint, remoteEndpoint naming.Endpoint,
+	remoteBlessings security.Blessings,
+	remoteDischarges map[string]security.Discharge,
+) (security.Blessings, map[string]security.Discharge, error) {
+	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }

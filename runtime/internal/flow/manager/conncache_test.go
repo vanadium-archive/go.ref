@@ -10,8 +10,10 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
+
 	connpackage "v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
 	inaming "v.io/x/ref/runtime/internal/naming"
@@ -28,7 +30,7 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x5555),
 		Blessings: []string{"A", "B", "C"},
 	}
-	conn := makeConn(t, ctx, remote)
+	conn := makeConnAndFlow(t, ctx, remote).c
 	if err := c.Insert(conn); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +69,7 @@ func TestCache(t *testing.T) {
 		Address:   "other",
 		Blessings: []string{"other"},
 	}
-	otherConn := makeConn(t, ctx, otherEP)
+	otherConn := makeConnAndFlow(t, ctx, otherEP).c
 
 	// Looking up a not yet inserted endpoint should fail.
 	if got, err := c.ReservedFind(otherEP.Protocol, otherEP.Address, otherEP.Blessings); err != nil || got != nil {
@@ -111,11 +113,11 @@ func TestLRU(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	// Ensure that the least recently inserted conns are killed by KillConnections.
+	// Ensure that the least recently created conns are killed by KillConnections.
 	c := NewConnCache()
-	conns := nConns(t, ctx, 10)
+	conns := nConnAndFlows(t, ctx, 10)
 	for _, conn := range conns {
-		if err := c.Insert(conn); err != nil {
+		if err := c.Insert(conn.c); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -128,34 +130,30 @@ func TestLRU(t *testing.T) {
 	// conns[3:] should not be closed and still in the cache.
 	// conns[:3] should be closed and removed from the cache.
 	for _, conn := range conns[3:] {
-		if isClosed(conn) {
+		if isClosed(conn.c) {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
-		if !isInCache(t, c, conn) {
+		if !isInCache(t, c, conn.c) {
 			t.Errorf("conn %v should still be in cache", conn)
 		}
 	}
 	for _, conn := range conns[:3] {
-		<-conn.Closed()
-		if isInCache(t, c, conn) {
+		<-conn.c.Closed()
+		if isInCache(t, c, conn.c) {
 			t.Errorf("conn %v should not be in cache", conn)
 		}
 	}
 
-	// Ensure that ReservedFind marks conns as more recently used.
+	// Ensure that writing to conns marks conns as more recently used.
 	c = NewConnCache()
-	conns = nConns(t, ctx, 10)
+	conns = nConnAndFlows(t, ctx, 10)
 	for _, conn := range conns {
-		if err := c.Insert(conn); err != nil {
+		if err := c.Insert(conn.c); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for _, conn := range conns[:7] {
-		rep := conn.RemoteEndpoint()
-		if got, err := c.ReservedFind(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames()); err != nil || got != conn {
-			t.Errorf("got %v, want %v, err: %v", got, conn, err)
-		}
-		c.Unreserve(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames())
+		conn.write()
 	}
 	if err := c.KillConnections(ctx, 3); err != nil {
 		t.Fatal(err)
@@ -166,33 +164,30 @@ func TestLRU(t *testing.T) {
 	// conns[:7] should not be closed and still in the cache.
 	// conns[7:] should be closed and removed from the cache.
 	for _, conn := range conns[:7] {
-		if isClosed(conn) {
+		if isClosed(conn.c) {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
-		if !isInCache(t, c, conn) {
+		if !isInCache(t, c, conn.c) {
 			t.Errorf("conn %v should still be in cache", conn)
 		}
 	}
 	for _, conn := range conns[7:] {
-		<-conn.Closed()
-		if isInCache(t, c, conn) {
+		<-conn.c.Closed()
+		if isInCache(t, c, conn.c) {
 			t.Errorf("conn %v should not be in cache", conn)
 		}
 	}
 
-	// Ensure that FindWithRoutingID marks conns as more recently used.
+	// Ensure that reading from conns marks conns as more recently used.
 	c = NewConnCache()
-	conns = nConns(t, ctx, 10)
+	conns = nConnAndFlows(t, ctx, 10)
 	for _, conn := range conns {
-		if err := c.Insert(conn); err != nil {
+		if err := c.Insert(conn.c); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for _, conn := range conns[:7] {
-		rep := conn.RemoteEndpoint()
-		if got, err := c.FindWithRoutingID(rep.RoutingID()); err != nil || got != conn {
-			t.Errorf("got %v, want %v, err: %v", got, conn, err)
-		}
+		conn.read()
 	}
 	if err := c.KillConnections(ctx, 3); err != nil {
 		t.Fatal(err)
@@ -203,16 +198,16 @@ func TestLRU(t *testing.T) {
 	// conns[:7] should not be closed and still in the cache.
 	// conns[7:] should be closed and removed from the cache.
 	for _, conn := range conns[:7] {
-		if isClosed(conn) {
+		if isClosed(conn.c) {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
-		if !isInCache(t, c, conn) {
+		if !isInCache(t, c, conn.c) {
 			t.Errorf("conn %v should still be in cache", conn)
 		}
 	}
 	for _, conn := range conns[7:] {
-		<-conn.Closed()
-		if isInCache(t, c, conn) {
+		<-conn.c.Closed()
+		if isInCache(t, c, conn.c) {
 			t.Errorf("conn %v should not be in cache", conn)
 		}
 	}
@@ -233,32 +228,40 @@ func isInCache(t *testing.T, c *ConnCache, conn *connpackage.Conn) bool {
 }
 
 func cacheSizeMatches(c *ConnCache) bool {
-	ls := listSize(c)
-	return ls == len(c.addrCache) && ls == len(c.ridCache)
+	return len(c.addrCache) == len(c.ridCache)
 }
 
-func listSize(c *ConnCache) int {
-	size := 0
-	d := c.head.next
-	for d != c.head {
-		size++
-		d = d.next
+type connAndFlow struct {
+	c *connpackage.Conn
+	f flow.Flow
+}
+
+func (c connAndFlow) write() {
+	_, err := c.f.WriteMsg([]byte{0})
+	if err != nil {
+		panic(err)
 	}
-	return size
 }
 
-func nConns(t *testing.T, ctx *context.T, n int) []*connpackage.Conn {
-	conns := make([]*connpackage.Conn, n)
+func (c connAndFlow) read() {
+	_, err := c.f.ReadMsg()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func nConnAndFlows(t *testing.T, ctx *context.T, n int) []connAndFlow {
+	cfs := make([]connAndFlow, n)
 	for i := 0; i < n; i++ {
-		conns[i] = makeConn(t, ctx, &inaming.Endpoint{
+		cfs[i] = makeConnAndFlow(t, ctx, &inaming.Endpoint{
 			Protocol: strconv.Itoa(i),
 			RID:      naming.FixedRoutingID(uint64(i)),
 		})
 	}
-	return conns
+	return cfs
 }
 
-func makeConn(t *testing.T, ctx *context.T, ep naming.Endpoint) *connpackage.Conn {
+func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFlow {
 	dmrw, amrw, _ := flowtest.NewMRWPair(ctx)
 	dch := make(chan *connpackage.Conn)
 	ach := make(chan *connpackage.Conn)
@@ -272,12 +275,34 @@ func makeConn(t *testing.T, ctx *context.T, ep naming.Endpoint) *connpackage.Con
 	}()
 	go func() {
 		a, err := connpackage.NewAccepted(ctx, amrw, ep,
-			version.RPCVersionRange{Min: 1, Max: 5}, nil)
+			version.RPCVersionRange{Min: 1, Max: 5}, fh{t})
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		ach <- a
 	}()
-	<-dch
-	return <-ach
+	conn := <-dch
+	<-ach
+	f, err := conn.Dial(ctx, flowtest.BlessingsForPeer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Write a byte to send the openFlow message.
+	if _, err := f.Write([]byte{0}); err != nil {
+		t.Fatal(err)
+	}
+	return connAndFlow{conn, f}
+}
+
+type fh struct {
+	t *testing.T
+}
+
+func (h fh) HandleFlow(f flow.Flow) error {
+	go func() {
+		if _, err := f.WriteMsg([]byte{0}); err != nil {
+			h.t.Errorf("failed to write: %v", err)
+		}
+	}()
+	return nil
 }

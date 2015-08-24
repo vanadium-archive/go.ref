@@ -13,9 +13,9 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
-	"v.io/v23/security"
 
 	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/runtime/internal/flow/flowtest"
 	"v.io/x/ref/test"
 )
 
@@ -27,7 +27,6 @@ func TestDirectConnection(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	p := v23.GetPrincipal(ctx)
 	rid := naming.FixedRoutingID(0x5555)
 	m := New(ctx, rid)
 	want := "read this please"
@@ -36,19 +35,11 @@ func TestDirectConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bFn := func(
-		ctx *context.T,
-		localEndpoint, remoteEndpoint naming.Endpoint,
-		remoteBlessings security.Blessings,
-		remoteDischarges map[string]security.Discharge,
-	) (security.Blessings, map[string]security.Discharge, error) {
-		return p.BlessingStore().Default(), nil, nil
-	}
 	eps := m.ListeningEndpoints()
 	if len(eps) == 0 {
 		t.Fatalf("no endpoints listened on")
 	}
-	flow, err := m.Dial(ctx, eps[0], bFn)
+	flow, err := m.Dial(ctx, eps[0], flowtest.BlessingsForPeer)
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,20 +62,11 @@ func TestDialCachedConn(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	p := v23.GetPrincipal(ctx)
 	am := New(ctx, naming.FixedRoutingID(0x5555))
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 
-	bFn := func(
-		ctx *context.T,
-		localEndpoint, remoteEndpoint naming.Endpoint,
-		remoteBlessings security.Blessings,
-		remoteDischarges map[string]security.Discharge,
-	) (security.Blessings, map[string]security.Discharge, error) {
-		return p.BlessingStore().Default(), nil, nil
-	}
 	eps := am.ListeningEndpoints()
 	if len(eps) == 0 {
 		t.Fatalf("no endpoints listened on")
@@ -95,13 +77,13 @@ func TestDialCachedConn(t *testing.T) {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 	// After dialing a connection the cache should hold one connection.
-	dialAndAccept(t, ctx, dm, am, eps[0], bFn)
+	dialAndAccept(t, ctx, dm, am, eps[0], flowtest.BlessingsForPeer)
 	if got, want := dm.(*manager).cache.Size(), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 	// After dialing another connection the cache should still hold one connection
 	// because the connections should be reused.
-	dialAndAccept(t, ctx, dm, am, eps[0], bFn)
+	dialAndAccept(t, ctx, dm, am, eps[0], flowtest.BlessingsForPeer)
 	if got, want := dm.(*manager).cache.Size(), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
