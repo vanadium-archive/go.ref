@@ -273,3 +273,10 @@ func (f *flw) close(ctx *context.T, err error) {
 		cancel()
 	}
 }
+
+// Close marks the flow as closed. After Close is called, new data cannot be
+// written on the flow. Reads of already queued data are still possible.
+func (f *flw) Close() error {
+	f.close(f.ctx, nil)
+	return nil
+}
