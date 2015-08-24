@@ -32,7 +32,7 @@ var (
 
 const defaultManagerSocket = 4
 
-type keyManager struct {
+type KeyManager struct {
 	conn *ipc.IPCConn
 }
 
@@ -50,15 +50,23 @@ func NewAgent() (*Agent, error) {
 func NewKeyManager(path string) (agent.KeyManager, error) {
 	i := ipc.NewIPC()
 	conn, err := i.Connect(path)
-	var m *keyManager
+	var m *KeyManager
 	if err == nil {
-		m = &keyManager{conn}
+		m = &KeyManager{conn}
 	}
 	return m, err
 }
 
-func NewLocalAgent(path string, passphrase []byte) (agent.KeyManager, error) {
-	return server.NewLocalKeyManager(path, passphrase)
+func NewLocalAgent(ctx *context.T, path string, passphrase []byte) (*Agent, error) {
+	file, err := server.RunKeyManager(ctx, path, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.FileConn(file)
+	if err != nil {
+		return nil, err
+	}
+	return &Agent{conn: conn.(*net.UnixConn)}, nil
 }
 
 func newAgent(fd int) (a *Agent, err error) {
@@ -103,7 +111,7 @@ func (a *Agent) NewPrincipal(ctx *context.T, inMemory bool) (handle []byte, conn
 
 // NewPrincipal creates a new principal and returns a handle.
 // The handle may be passed to ServePrincipal to start an agent serving the principal.
-func (m *keyManager) NewPrincipal(inMemory bool) (handle [agent.PrincipalHandleByteSize]byte, err error) {
+func (m *KeyManager) NewPrincipal(inMemory bool) (handle [agent.PrincipalHandleByteSize]byte, err error) {
 	args := []interface{}{inMemory}
 	err = m.conn.Call("NewPrincipal", args, &handle)
 	return
@@ -135,7 +143,7 @@ func (a *Agent) NewConnection(handle []byte) (*os.File, error) {
 
 // ServePrincipal creates a socket at socketPath and serves a principal
 // previously created with NewPrincipal.
-func (m *keyManager) ServePrincipal(handle [agent.PrincipalHandleByteSize]byte, socketPath string) error {
+func (m *KeyManager) ServePrincipal(handle [agent.PrincipalHandleByteSize]byte, socketPath string) error {
 	args := []interface{}{handle, socketPath}
 	return m.conn.Call("ServePrincipal", args)
 }
@@ -143,19 +151,19 @@ func (m *keyManager) ServePrincipal(handle [agent.PrincipalHandleByteSize]byte, 
 // StopServing shuts down a server previously started with ServePrincipal.
 // The principal is not deleted and the server can be restarted by calling
 // ServePrincipal again.
-func (m *keyManager) StopServing(handle [agent.PrincipalHandleByteSize]byte) error {
+func (m *KeyManager) StopServing(handle [agent.PrincipalHandleByteSize]byte) error {
 	args := []interface{}{handle}
 	return m.conn.Call("StopServing", args)
 }
 
 // DeletePrincipal shuts down a server started by ServePrincipal and additionally
 // deletes the principal.
-func (m *keyManager) DeletePrincipal(handle [agent.PrincipalHandleByteSize]byte) error {
+func (m *KeyManager) DeletePrincipal(handle [agent.PrincipalHandleByteSize]byte) error {
 	args := []interface{}{handle}
 	return m.conn.Call("DeletePrincipal", args)
 }
 
-func (m *keyManager) Close() error {
+func (m *KeyManager) Close() error {
 	m.conn.Close()
 	return nil
 }

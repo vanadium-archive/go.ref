@@ -14,12 +14,12 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
 
+	"v.io/v23"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
@@ -27,23 +27,20 @@ import (
 	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
 	vsignals "v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/agent/internal/ipc"
-	"v.io/x/ref/services/agent/internal/lockfile"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/internal/server"
 )
 
 const childAgentFd = 3
 const pkgPath = "v.io/x/ref/services/agent/agentd"
-const agentSocketName = "agent.sock" // Keep in sync with internal/lockfile/lockfile.go
 
 var (
 	errCantReadPassphrase       = verror.Register(pkgPath+".errCantReadPassphrase", verror.NoRetry, "{1:}{2:} failed to read passphrase{:_}")
 	errNeedPassphrase           = verror.Register(pkgPath+".errNeedPassphrase", verror.NoRetry, "{1:}{2:} Passphrase required for decrypting principal{:_}")
 	errCantParseRestartExitCode = verror.Register(pkgPath+".errCantParseRestartExitCode", verror.NoRetry, "{1:}{2:} Failed to parse restart exit code{:_}")
 
-	keypath, restartExitCode string
-	newname, credentials     string
-	noPassphrase             bool
+	keypath, restartExitCode, newname string
+	noPassphrase                      bool
 )
 
 func main() {
@@ -57,8 +54,6 @@ func main() {
 
 	cmdAgentD.Flags.StringVar(&newname, "new-principal-blessing-name", "", "If creating a new principal (--v23.credentials does not exist), then have it blessed with this name.")
 
-	cmdAgentD.Flags.StringVar(&credentials, "v23.credentials", "", "The directory containing the (possibly encrypted) credentials to serve.  Must be specified.")
-
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdAgentD)
 }
@@ -67,15 +62,14 @@ var cmdAgentD = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runAgentD),
 	Name:   "agentd",
 	Short:  "Holds a private key in memory and makes it available to a subprocess",
-	Long: `
+	Long: fmt.Sprintf(`
 Command agentd runs the security agent daemon, which holds a private key in
 memory and makes it available to a subprocess.
 
-Loads the private key specified in privatekey.pem in the specified
-credentials directory into memory, then starts the specified command
-with access to the private key via the agent protocol instead of
-directly reading from disk.
-`,
+Loads the private key specified in privatekey.pem in %v into memory, then
+starts the specified command with access to the private key via the
+agent protocol instead of directly reading from disk.
+`, ref.EnvCredentials),
 	ArgsName: "command [command_args...]",
 	ArgsLong: `
 The command is started as a subprocess with the given [command_args...].
@@ -91,18 +85,38 @@ func runAgentD(env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("%v", err)
 	}
 
-	if len(credentials) == 0 {
-		credentials = os.Getenv(ref.EnvCredentials)
+	// This is a bit tricky. We're trying to share the runtime's
+	// v23.credentials flag.  However we need to parse it before
+	// creating the runtime.  We depend on the profile's init() function
+	// calling flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
+	// This will read the ref.EnvCredentials env var, then our call to
+	// flag.Parse() will take any override passed on the command line.
+	var dir string
+	if f := flag.Lookup("v23.credentials").Value; true {
+		dir = f.String()
+		// Clear out the flag value to prevent v23.Init from
+		// trying to load this password protected principal.
+		f.Set("")
 	}
-	if len(credentials) == 0 {
-		return env.UsageErrorf("The -credentials flag must be specified.")
+	if len(dir) == 0 {
+		return env.UsageErrorf("The %v environment variable must be set to a directory: %q", ref.EnvCredentials, env.Vars[ref.EnvCredentials])
 	}
 
-	p, passphrase, err := newPrincipalFromDir(credentials)
+	p, passphrase, err := newPrincipalFromDir(dir)
 	if err != nil {
-		return fmt.Errorf("failed to create new principal from dir(%s): %v", credentials, err)
+		return fmt.Errorf("failed to create new principal from dir(%s): %v", dir, err)
 	}
-	defer lockfile.RemoveLockfile(credentials)
+
+	// Clear out the environment variable before v23.Init.
+	if err = ref.EnvClearCredentials(); err != nil {
+		return fmt.Errorf("ref.EnvClearCredentials: %v", err)
+	}
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
+		return fmt.Errorf("failed to set principal for ctx: %v", err)
+	}
 
 	if keypath == "" && passphrase != nil {
 		// If we're done with the passphrase, zero it out so it doesn't stay in memory
@@ -113,31 +127,19 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	}
 
 	// Start running our server.
-	i := ipc.NewIPC()
-	defer i.Close()
-	if err = server.ServeAgent(i, p); err != nil {
-		return fmt.Errorf("ServeAgent: %v", err)
+	var sock, mgrSock *os.File
+	var endpoint string
+	if sock, endpoint, err = server.RunAnonymousAgent(ctx, p, childAgentFd); err != nil {
+		return fmt.Errorf("RunAnonymousAgent: %v", err)
 	}
-	if keypath != "" {
-		if err = server.ServeKeyManager(i, keypath, passphrase); err != nil {
-			return fmt.Errorf("ServeKeyManager: %v", err)
-		}
-	}
-	path, err := filepath.Abs(filepath.Join(credentials, agentSocketName))
-	if err != nil {
-		return fmt.Errorf("abs: %v", err)
-	}
-	path = filepath.Clean(path)
-	if err = os.Setenv(ref.EnvAgentPath, path); err != nil {
+	if err = os.Setenv(ref.EnvAgentEndpoint, endpoint); err != nil {
 		return fmt.Errorf("setenv: %v", err)
 	}
-	if err = i.Listen(path); err != nil {
-		return err
-	}
 
-	// Clear out the environment variable before starting the child.
-	if err = ref.EnvClearCredentials(); err != nil {
-		return fmt.Errorf("ref.EnvClearCredentials: %v", err)
+	if keypath != "" {
+		if mgrSock, err = server.RunKeyManager(ctx, keypath, passphrase); err != nil {
+			return fmt.Errorf("RunKeyManager: %v", err)
+		}
 	}
 
 	exitCode := 0
@@ -147,6 +149,11 @@ func runAgentD(env *cmdline.Env, args []string) error {
 		cmd.Stdin = env.Stdin
 		cmd.Stdout = env.Stdout
 		cmd.Stderr = env.Stderr
+		cmd.ExtraFiles = []*os.File{sock}
+
+		if mgrSock != nil {
+			cmd.ExtraFiles = append(cmd.ExtraFiles, mgrSock)
+		}
 
 		err = cmd.Start()
 		if err != nil {
@@ -155,7 +162,7 @@ func runAgentD(env *cmdline.Env, args []string) error {
 		shutdown := make(chan struct{})
 		go func() {
 			select {
-			case sig := <-vsignals.ShutdownOnSignals(nil):
+			case sig := <-vsignals.ShutdownOnSignals(ctx):
 				// TODO(caprita): Should we also relay double
 				// signal to the child?  That currently just
 				// force exits the current process.
@@ -173,19 +180,18 @@ func runAgentD(env *cmdline.Env, args []string) error {
 			break
 		}
 	}
+	// TODO(caprita): If restartOpts.enabled is false, we could close these
+	// right after cmd.Start().
+	sock.Close()
+	mgrSock.Close()
 	if exitCode != 0 {
 		return cmdline.ErrExitCode(exitCode)
 	}
 	return nil
 }
 
-func newPrincipalFromDir(dir string) (p security.Principal, pass []byte, err error) {
-	defer func() {
-		if err == nil {
-			err = lockfile.CreateLockfile(dir)
-		}
-	}()
-	p, err = vsecurity.LoadPersistentPrincipal(dir, nil)
+func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
+	p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
 	if os.IsNotExist(err) {
 		return handleDoesNotExist(dir)
 	}

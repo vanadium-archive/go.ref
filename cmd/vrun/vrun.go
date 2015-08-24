@@ -8,7 +8,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +21,6 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/services/role"
@@ -60,22 +58,10 @@ func vrun(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		args = []string{"bash", "--norc"}
 	}
-	m, err := connectToKeyManager()
+	principal, conn, err := createPrincipal(ctx, env)
 	if err != nil {
-		return err
+		return env.UsageErrorf("%v", err)
 	}
-
-	path, err := newPrincipal(m)
-	if err != nil {
-		return err
-	}
-
-	// Connect to the Principal
-	principal, err := agentlib.NewAgentPrincipalX(path)
-	if err != nil {
-		vlog.Errorf("Couldn't connect to principal")
-	}
-
 	if len(roleFlag) == 0 {
 		if len(nameFlag) == 0 {
 			nameFlag = filepath.Base(args[0])
@@ -100,7 +86,7 @@ func vrun(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
-	return doExec(args, path)
+	return doExec(args, conn)
 }
 
 func bless(ctx *context.T, p security.Principal, name string) error {
@@ -132,10 +118,13 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 	return nil
 }
 
-func doExec(cmd []string, agentPath string) error {
-	ref.EnvClearCredentials()
-	if err := os.Setenv(ref.EnvAgentPath, agentPath); err != nil {
-		return err
+func doExec(cmd []string, conn *os.File) error {
+	if conn.Fd() != 3 {
+		if err := syscall.Dup2(int(conn.Fd()), 3); err != nil {
+			vlog.Errorf("Couldn't dup fd")
+			return err
+		}
+		conn.Close()
 	}
 	p, err := exec.LookPath(cmd[0])
 	if err != nil {
@@ -147,26 +136,41 @@ func doExec(cmd []string, agentPath string) error {
 	return err
 }
 
-func connectToKeyManager() (agent.KeyManager, error) {
-	path := os.Getenv(ref.EnvAgentPath)
-	return keymgr.NewKeyManager(path)
-}
+func createPrincipal(ctx *context.T, env *cmdline.Env) (security.Principal, *os.File, error) {
+	kagent, err := keymgr.NewAgent()
+	if err != nil {
+		vlog.Errorf("Could not initialize agent")
+		return nil, nil, err
+	}
 
-func newPrincipal(m agent.KeyManager) (path string, err error) {
-	var dir string
-	if dir, err = ioutil.TempDir("", "vrun"); err != nil {
-		return
-	}
-	var id [64]byte
-	if id, err = m.NewPrincipal(true); err != nil {
+	_, conn, err := kagent.NewPrincipal(ctx, true)
+	if err != nil {
 		vlog.Errorf("Couldn't create principal")
-		return
+		return nil, nil, err
 	}
-	// Note: because we exec the child, there's no way to cleanup
-	// this principal and socket after the child is gone.
-	path = filepath.Join(dir, "sock")
-	err = m.ServePrincipal(id, path)
-	return
+
+	ep, err := v23.NewEndpoint(env.Vars[ref.EnvAgentEndpoint])
+	if err != nil {
+		vlog.Errorf("Couldn't parse %v=%q: %v", ref.EnvAgentEndpoint, env.Vars[ref.EnvAgentEndpoint], err)
+		return nil, nil, err
+	}
+	// Connect to the Principal
+	fd, err := syscall.Dup(int(conn.Fd()))
+	if err != nil {
+		vlog.Errorf("Couldn't copy fd")
+		return nil, nil, err
+	}
+	syscall.CloseOnExec(fd)
+	ep, err = v23.NewEndpoint(agentlib.AgentEndpoint(fd))
+	if err != nil {
+		vlog.Errorf("Error creating endpoint: %v", err)
+		return nil, nil, err
+	}
+	principal, err := agentlib.NewAgentPrincipal(ctx, ep, v23.GetClient(ctx))
+	if err != nil {
+		vlog.Errorf("Couldn't connect to principal")
+	}
+	return principal, conn, nil
 }
 
 func setupRoleBlessings(ctx *context.T, roleStr string) error {

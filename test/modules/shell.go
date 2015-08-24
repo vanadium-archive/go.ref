@@ -138,7 +138,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -153,7 +152,6 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/exec"
-	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/test/expect"
@@ -186,7 +184,7 @@ type Shell struct {
 	tempCredDir      string
 	config           exec.Config
 	principal        security.Principal
-	agent            agent.KeyManager
+	agent            *keymgr.Agent
 	ctx              *context.T
 	logger           logging.Logger
 	sessionVerbosity bool
@@ -232,7 +230,7 @@ func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Tes
 	if sh.tempCredDir, err = ioutil.TempDir("", "shell_credentials-"); err != nil {
 		return nil, err
 	}
-	if sh.agent, err = keymgr.NewLocalAgent(sh.tempCredDir, nil); err != nil {
+	if sh.agent, err = keymgr.NewLocalAgent(ctx, sh.tempCredDir, nil); err != nil {
 		return nil, err
 	}
 	sh.principal = p
@@ -255,8 +253,9 @@ func (sh *Shell) SetDefaultStartOpts(opts StartOpts) {
 // CustomCredentials encapsulates a Principal which can be shared with
 // one or more processes run by a Shell.
 type CustomCredentials struct {
-	p    security.Principal
-	path string
+	p     security.Principal
+	agent *keymgr.Agent
+	id    []byte
 }
 
 // Principal returns the Principal.
@@ -264,10 +263,11 @@ func (c *CustomCredentials) Principal() security.Principal {
 	return c.p
 }
 
-// Path returns the path to the credential's agent.
-// Typically you would pass this to a child process in EnvAgentPath.
-func (c *CustomCredentials) Path() string {
-	return c.path
+// File returns a socket which can be used to connect to the agent
+// managing this principal. Typically you would pass this to a child
+// process.
+func (c *CustomCredentials) File() (*os.File, error) {
+	return c.agent.NewConnection(c.id)
 }
 
 func dup(conn *os.File) (int, error) {
@@ -289,23 +289,26 @@ func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 	if sh.ctx == nil {
 		return nil, nil
 	}
-	id, err := sh.agent.NewPrincipal(true)
+	id, conn, err := sh.agent.NewPrincipal(sh.ctx, true)
 	if err != nil {
 		return nil, err
 	}
-	dir, err := ioutil.TempDir(sh.tempCredDir, "agent")
+	fd, err := dup(conn)
+	conn.Close()
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(dir, "sock")
-	if err := sh.agent.ServePrincipal(id, path); err != nil {
-		return nil, err
-	}
-	p, err := agentlib.NewAgentPrincipalX(path)
+	ep, err := v23.NewEndpoint(agentlib.AgentEndpoint(fd))
 	if err != nil {
+		syscall.Close(fd)
 		return nil, err
 	}
-	return &CustomCredentials{p, path}, nil
+	p, err := agentlib.NewAgentPrincipal(sh.ctx, ep, v23.GetClient(sh.ctx))
+	if err != nil {
+		syscall.Close(fd)
+		return nil, err
+	}
+	return &CustomCredentials{p, sh.agent, id}, nil
 }
 
 // NewChildCredentials creates a new principal, served via the security agent
@@ -546,13 +549,16 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, prog Program, args 
 		}
 	}
 
-	var agentPath string
+	var p *os.File
 	if opts.Credentials != nil {
-		agentPath = opts.Credentials.Path()
+		p, err = opts.Credentials.File()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	handle := info.factory()
-	h, err := handle.start(sh, agentPath, &opts, sh.setupProgramEnv(env), sh.expand(args))
+	h, err := handle.start(sh, p, &opts, sh.setupProgramEnv(env), sh.expand(args))
 	if err != nil {
 		return h, err
 	}
@@ -724,7 +730,6 @@ func (sh *Shell) setupProgramEnv(env []string) []string {
 	// by the shell's VeyronCredentials.
 	delete(m1, ref.EnvCredentials)
 	delete(m1, ref.EnvAgentEndpoint)
-	delete(m1, ref.EnvAgentPath)
 
 	m2 := envvar.MergeMaps(m1, evmap)
 	return envvar.MapToSlice(m2)

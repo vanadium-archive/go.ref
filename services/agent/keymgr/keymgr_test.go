@@ -9,42 +9,45 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/v23/verror"
-	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
-	"v.io/x/ref/services/agent/internal/ipc"
 	"v.io/x/ref/services/agent/internal/server"
+	"v.io/x/ref/test"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-func createAgent(path string) (agent.KeyManager, func(), error) {
+func createAgent(ctx *context.T, path string) (*Agent, func(), error) {
 	var defers []func()
 	cleanup := func() {
 		for _, f := range defers {
 			f()
 		}
 	}
-	i := ipc.NewIPC()
-	if err := server.ServeKeyManager(i, path, nil); err != nil {
-		return nil, cleanup, err
+	sock, err := server.RunKeyManager(ctx, path, nil)
+	var agent *Agent
+	if sock != nil {
+		defers = append(defers, func() { os.RemoveAll(path) })
+		defers = append(defers, func() { sock.Close() })
+		fd, err := syscall.Dup(int(sock.Fd()))
+		if err != nil {
+			return nil, cleanup, err
+		}
+		agent, err = newAgent(fd)
 	}
-	defers = append(defers, func() { os.RemoveAll(path) })
-	sock := filepath.Join(path, "keymgr.sock")
-	if err := i.Listen(sock); err != nil {
-		return nil, cleanup, err
-	}
-	defers = append(defers, i.Close)
-
-	m, err := NewKeyManager(sock)
-	return m, cleanup, err
+	return agent, cleanup, err
 }
 
 func TestNoDeviceManager(t *testing.T) {
-	agent, cleanup, err := createAgent("")
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	agent, cleanup, err := createAgent(ctx, "")
 	defer cleanup()
 	if err == nil {
 		t.Fatal(err)
@@ -54,38 +57,52 @@ func TestNoDeviceManager(t *testing.T) {
 	}
 }
 
-func createClient(deviceAgent agent.KeyManager, id [64]byte) (security.Principal, error) {
-	dir, err := ioutil.TempDir("", "conn")
+func createClient(ctx *context.T, deviceAgent *Agent, id []byte) (security.Principal, error) {
+	file, err := deviceAgent.NewConnection(id)
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(dir, "sock")
-	if err := deviceAgent.ServePrincipal(id, path); err != nil {
+	defer file.Close()
+	return createClient2(ctx, file)
+}
+
+func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
+	fd, err := syscall.Dup(int(conn.Fd()))
+	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(dir)
-	return agentlib.NewAgentPrincipalX(path)
+
+	ep, err := v23.NewEndpoint(agentlib.AgentEndpoint(fd))
+	if err != nil {
+		return nil, err
+	}
+	return agentlib.NewAgentPrincipal(ctx, ep, v23.GetClient(ctx))
 }
 
 func TestSigning(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	path, err := ioutil.TempDir("", "agent")
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, cleanup, err := createAgent(path)
+	agent, cleanup, err := createAgent(ctx, path)
 	defer cleanup()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	id1, err := agent.NewPrincipal(false)
+	id1, conn1, err := agent.NewPrincipal(ctx, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id2, err := agent.NewPrincipal(false)
+	conn1.Close()
+	id2, conn2, err := agent.NewPrincipal(ctx, false)
 	if err != nil {
 		t.Fatal(err)
 	}
+	conn2.Close()
 
 	dir, err := os.Open(filepath.Join(path, "keys"))
 	if err != nil {
@@ -99,16 +116,11 @@ func TestSigning(t *testing.T) {
 		t.Errorf("Expected 2 files created, found %d", len(files))
 	}
 
-	a, err := createClient(agent, id1)
+	a, err := createClient(ctx, agent, id1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Serving again should be an error
-	if _, err := createClient(agent, id1); verror.ErrorID(err) != verror.ErrExist.ID {
-		t.Fatalf("Expected ErrExist, got %v", err)
-	}
-
-	b, err := createClient(agent, id2)
+	b, err := createClient(ctx, agent, id2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,17 +147,20 @@ func TestSigning(t *testing.T) {
 }
 
 func TestInMemorySigning(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	path, err := ioutil.TempDir("", "agent")
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, cleanup, err := createAgent(path)
+	agent, cleanup, err := createAgent(ctx, path)
 	defer cleanup()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	id, err := agent.NewPrincipal(true)
+	id, conn, err := agent.NewPrincipal(ctx, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,11 +177,23 @@ func TestInMemorySigning(t *testing.T) {
 		t.Errorf("Expected 0 files created, found %d", len(files))
 	}
 
-	c, err := createClient(agent, id)
+	c, err := createClient2(ctx, conn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	sig, err := c.Sign([]byte("foobar"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sig.Verify(c.PublicKey(), []byte("foobar")) {
+		t.Errorf("Signature a fails verification")
+	}
+
+	c2, err := createClient(ctx, agent, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig, err = c2.Sign([]byte("foobar"))
 	if err != nil {
 		t.Fatal(err)
 	}
