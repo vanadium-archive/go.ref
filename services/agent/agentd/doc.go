@@ -22,9 +22,6 @@ The agentd flags are:
  -additional-principals=
    If non-empty, allow for the creation of new principals and save them in this
    directory.
- -credentials=
-   The directory containing the (possibly encrypted) credentials to serve.  Must
-   be specified.
  -new-principal-blessing-name=
    If creating a new principal (--v23.credentials does not exist), then have it
    blessed with this name.
@@ -35,6 +32,9 @@ The agentd flags are:
    command's exit code matches the value of this flag.  The value must be an
    integer, or an integer preceded by '!' (in which case all exit codes except
    the flag will trigger a restart).
+ -v23.credentials=
+   The directory containing the (possibly encrypted) credentials to serve.  Must
+   be specified.
 
 The global flags are:
  -alsologtostderr=true
