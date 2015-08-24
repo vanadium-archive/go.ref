@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,14 @@ func BenchmarkTestMulti(b *testing.B) {
 	}
 }
 
+func benchmarkName(name string) string {
+	procs := runtime.GOMAXPROCS(-1)
+	if procs != 1 {
+		return fmt.Sprintf("%s-%d", name, procs)
+	}
+	return name
+}
+
 func TestStatsInjection(t *testing.T) {
 	stdout := os.Stdout
 	r, w, _ := os.Pipe()
@@ -48,11 +57,11 @@ func TestStatsInjection(t *testing.T) {
 
 	startStatsInjector()
 
-	fmt.Printf("%s\t", "BenchmarkTest")
+	fmt.Printf("%s\t", benchmarkName("BenchmarkTest"))
 	result := testing.Benchmark(BenchmarkTest)
 	fmt.Println(result.String())
 
-	fmt.Printf("%s\t", "BenchmarkTestMulti")
+	fmt.Printf("%s\t", benchmarkName("BenchmarkTestMulti"))
 	result = testing.Benchmark(BenchmarkTestMulti)
 	fmt.Println(result.String())
 
