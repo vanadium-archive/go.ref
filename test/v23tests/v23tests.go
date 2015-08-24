@@ -24,7 +24,6 @@ import (
 	"v.io/v23/security"
 
 	"v.io/x/ref"
-	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
@@ -347,11 +346,9 @@ func (t *T) DebugSystemShell(env ...string) {
 		return
 	}
 
-	var agentFile *os.File
+	var agentPath string
 	if creds, err := t.shell.NewChildCredentials("debug"); err == nil {
-		if agentFile, err = creds.File(); err != nil {
-			t.ctx.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
-		}
+		agentPath = creds.Path()
 	} else {
 		t.ctx.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
 	}
@@ -362,8 +359,7 @@ func (t *T) DebugSystemShell(env ...string) {
 		Dir:   cwd,
 	}
 	// Set up agent for Child.
-	attr.Files = append(attr.Files, agentFile)
-	attr.Env = append(attr.Env, fmt.Sprintf("%s=%v", ref.EnvAgentEndpoint, agentlib.AgentEndpoint(len(attr.Files)-1)))
+	attr.Env = append(attr.Env, fmt.Sprintf("%s=%v", ref.EnvAgentPath, agentPath))
 
 	// Set up environment for Child.
 	for _, v := range t.shell.Env() {

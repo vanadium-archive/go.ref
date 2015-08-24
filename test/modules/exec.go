@@ -20,7 +20,6 @@ import (
 	"v.io/x/ref/internal/logger"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
-	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/test/expect"
 )
 
@@ -114,7 +113,7 @@ func (eh *execHandle) envelope(sh *Shell, env []string, args []string) ([]string
 	return newargs, envvar.MapToSlice(newenv)
 }
 
-func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []string, args []string) (*execHandle, error) {
+func (eh *execHandle) start(sh *Shell, agentPath string, opts *StartOpts, env []string, args []string) (*execHandle, error) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.sh = sh
@@ -160,11 +159,8 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []
 			return nil, err
 		}
 		config.MergeFrom(serialized)
-		if agentfd != nil {
-			childfd := len(cmd.ExtraFiles) + vexec.FileOffset
-			config.Set(mgmt.SecurityAgentEndpointConfigKey, agentlib.AgentEndpoint(childfd))
-			cmd.ExtraFiles = append(cmd.ExtraFiles, agentfd)
-			defer agentfd.Close()
+		if agentPath != "" {
+			config.Set(mgmt.SecurityAgentPathConfigKey, agentPath)
 		}
 		execOpts = append(execOpts, vexec.ConfigOpt{Config: config})
 	}
