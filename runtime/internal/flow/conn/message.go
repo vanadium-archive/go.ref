@@ -6,6 +6,7 @@ package conn
 
 import (
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 )
@@ -13,12 +14,12 @@ import (
 // TODO(mattr): Consider cleaning up the ControlCipher library to
 // eliminate extraneous functionality and reduce copying.
 type messagePipe struct {
-	rw       MsgReadWriteCloser
+	rw       flow.MsgReadWriteCloser
 	cipher   crypto.ControlCipher
 	writeBuf []byte
 }
 
-func newMessagePipe(rw MsgReadWriteCloser) *messagePipe {
+func newMessagePipe(rw flow.MsgReadWriteCloser) *messagePipe {
 	return &messagePipe{
 		rw:       rw,
 		writeBuf: make([]byte, mtu),

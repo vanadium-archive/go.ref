@@ -37,11 +37,6 @@ const (
 	tearDownPriority
 )
 
-type MsgReadWriteCloser interface {
-	flow.MsgReadWriter
-	Close() error
-}
-
 // FlowHandlers process accepted flows.
 type FlowHandler interface {
 	// HandleFlow processes an accepted flow.
@@ -73,7 +68,7 @@ var _ flow.Conn = &Conn{}
 // NewDialed dials a new Conn on the given conn.
 func NewDialed(
 	ctx *context.T,
-	conn MsgReadWriteCloser,
+	conn flow.MsgReadWriteCloser,
 	local, remote naming.Endpoint,
 	versions version.RPCVersionRange,
 	handler FlowHandler) (*Conn, error) {
@@ -101,7 +96,7 @@ func NewDialed(
 // NewAccepted accepts a new Conn on the given conn.
 func NewAccepted(
 	ctx *context.T,
-	conn MsgReadWriteCloser,
+	conn flow.MsgReadWriteCloser,
 	local naming.Endpoint,
 	versions version.RPCVersionRange,
 	handler FlowHandler) (*Conn, error) {

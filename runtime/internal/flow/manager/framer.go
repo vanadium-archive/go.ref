@@ -11,13 +11,13 @@ import (
 )
 
 // framer is a wrapper of io.ReadWriter that adds framing to a net.Conn
-// and implements flow.MsgReadWriter.
+// and implements flow.MsgReadWriteCloser.
 type framer struct {
 	io.ReadWriteCloser
 	buf []byte
 }
 
-var _ flow.MsgReadWriter = (*framer)(nil)
+var _ flow.MsgReadWriteCloser = (*framer)(nil)
 
 func (f *framer) WriteMsg(data ...[]byte) (int, error) {
 	// Compute the message size.
