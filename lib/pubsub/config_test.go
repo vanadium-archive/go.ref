@@ -66,8 +66,10 @@ func ExampleShutdown() {
 	pub := pubsub.NewPublisher()
 	stop, _ := pub.CreateStream("net", "network settings", in)
 
-	var ready sync.WaitGroup
-	ready.Add(1)
+	var producerReady sync.WaitGroup
+	producerReady.Add(1)
+	var consumersReady sync.WaitGroup
+	consumersReady.Add(2)
 
 	// A producer to write 100 Settings before signalling that it's
 	// ready to be shutdown. This is purely to demonstrate how to use
@@ -81,7 +83,7 @@ func ExampleShutdown() {
 			default:
 				in <- pubsub.NewString("ip", "address", "1.2.3.4")
 				if i == 100 {
-					ready.Done()
+					producerReady.Done()
 				}
 			}
 		}
@@ -93,6 +95,7 @@ func ExampleShutdown() {
 	consumer := func() {
 		ch := make(chan pubsub.Setting, 10)
 		pub.ForkStream("net", ch)
+		consumersReady.Done()
 		i := 0
 		for {
 			if _, ok := <-ch; !ok {
@@ -109,10 +112,11 @@ func ExampleShutdown() {
 		waiter.Done()
 	}
 
+	go consumer()
+	go consumer()
+	consumersReady.Wait()
 	go producer()
-	go consumer()
-	go consumer()
-	ready.Wait()
+	producerReady.Wait()
 	pub.Shutdown()
 	waiter.Wait()
 	// Output:
