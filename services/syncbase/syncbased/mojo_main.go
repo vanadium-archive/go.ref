@@ -8,7 +8,7 @@ package main
 
 // To build:
 // cd $V23_ROOT/experimental/projects/ether
-// make build
+// make gen/mojo/syncbased.mojo
 
 import (
 	"log"
