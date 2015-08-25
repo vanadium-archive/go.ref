@@ -6,9 +6,6 @@
 // Currently, this API and its implementations are meant to be internal.
 package store
 
-// TODO(sadovsky): Decide whether to defensively copy passed-in []byte's vs.
-// requiring clients not to modify passed-in []byte's.
-
 // StoreReader reads data from a CRUD-capable storage engine.
 type StoreReader interface {
 	// Get returns the value for the given key. The returned slice may be a
@@ -17,6 +14,8 @@ type StoreReader interface {
 	// nil valbuf.
 	// If the given key is unknown, valbuf is returned unchanged and the function
 	// fails with ErrUnknownKey.
+	//
+	// It is safe to modify the contents of the key after Get returns.
 	Get(key, valbuf []byte) ([]byte, error)
 
 	// Scan returns all rows with keys in range [start, limit). If limit is "",
@@ -24,16 +23,26 @@ type StoreReader interface {
 	// Concurrency semantics: It is legal to perform writes concurrently with
 	// Scan. The returned stream may or may not reflect subsequent writes to keys
 	// not yet reached by the stream.
+	//
+	// It is safe to modify the contents of the arguments after Scan returns.
 	Scan(start, limit []byte) Stream
 }
 
 // StoreWriter writes data to a CRUD-capable storage engine.
 type StoreWriter interface {
 	// Put writes the given value for the given key.
+	//
+	// WARNING: For performance reasons, a Put inside a transaction doesn't make
+	// a defensive copy of the value. The client MUST keep the value unchanged
+	// until the transaction commits or aborts.
+	//
+	// It is safe to modify the contents of the key after Put returns.
 	Put(key, value []byte) error
 
 	// Delete deletes the entry for the given key.
 	// Succeeds (no-op) if the given key is unknown.
+	//
+	// It is safe to modify the contents of the key after Delete returns.
 	Delete(key []byte) error
 }
 
