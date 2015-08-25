@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package manager
+package framer
 
 import (
 	"io"
@@ -17,7 +17,9 @@ type framer struct {
 	buf []byte
 }
 
-var _ flow.MsgReadWriteCloser = (*framer)(nil)
+func New(c io.ReadWriteCloser) flow.MsgReadWriteCloser {
+	return &framer{ReadWriteCloser: c}
+}
 
 func (f *framer) WriteMsg(data ...[]byte) (int, error) {
 	// Compute the message size.
