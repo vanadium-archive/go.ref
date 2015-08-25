@@ -62,7 +62,6 @@ func AddStatsWithName(b *testing.B, name string, numBuckets int) *Stats {
 	if procs != 1 {
 		benchName = fmt.Sprintf("%s-%d", benchName, procs)
 	}
-
 	stats := NewStats(numBuckets)
 
 	if injectCond != nil {
