@@ -38,10 +38,10 @@ func (s *sqlDatabase) Revoke(thirdPartyCaveatID string) error {
 
 func (s *sqlDatabase) IsRevoked(revocationCaveatID []byte) (bool, error) {
 	rows, err := s.isRevokedStmt.Query(hex.EncodeToString(revocationCaveatID))
-	defer rows.Close()
 	if err != nil {
 		return false, err
 	}
+	defer rows.Close()
 	return rows.Next(), err
 }
 
