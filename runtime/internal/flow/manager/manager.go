@@ -20,6 +20,7 @@ import (
 	"v.io/v23/vom"
 
 	"v.io/x/ref/runtime/internal/flow/conn"
+	"v.io/x/ref/runtime/internal/lib/framer"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/version"
@@ -134,7 +135,7 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 		}
 		c, err := conn.NewAccepted(
 			ctx,
-			&framer{ReadWriteCloser: netConn},
+			framer.New(netConn),
 			local,
 			version.Supported,
 			&flowHandler{q: m.q, closed: m.closed},
@@ -288,7 +289,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		// "serving flow manager" by passing a 0 RID to non-serving flow managers?
 		c, err = conn.NewDialed(
 			ctx,
-			&framer{ReadWriteCloser: netConn}, // TODO(suharshs): Don't frame if the net.Conn already has framing in its protocol.
+			framer.New(netConn), // TODO(suharshs): Don't frame if the net.Conn already has framing in its protocol.
 			localEndpoint(netConn, m.rid),
 			remote,
 			version.Supported,

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package manager
+package framer
 
 // These messages are constructed so as to avoid embedding a component/method name
 // and are thus more suitable for inclusion in other verrors.
@@ -10,9 +10,5 @@ package manager
 // since all of their errors are intended to be used as arguments to higher level errors.
 // TODO(suharshs,toddw): Allow skipping of {1}{2} in vdl generated errors.
 error (
-  UnknownProtocol(protocol string) {"en":"unknown protocol{:protocol}"}
-  ManagerClosed() {"en": "manager is already closed"}
-  AcceptFailed(err error) {"en": "accept failed{:err}"}
-  CacheClosed() {"en":"cache is closed"}
-  ConnKilledToFreeResources() {"en": "Connection killed to free resources."}
+  LargerThan3ByteUInt() {"en":"integer too large to represent in 3 bytes"}
 )
