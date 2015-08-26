@@ -15,14 +15,21 @@ import (
 )
 
 var (
-	ErrNotListening = verror.Register("v.io/x/ref/services/xproxyd.NotListening", verror.NoRetry, "{1:}{2:} Proxy is not listening on any endpoints.")
+	ErrNotListening      = verror.Register("v.io/x/ref/services/xproxyd.NotListening", verror.NoRetry, "{1:}{2:} Proxy is not listening on any endpoints.")
+	ErrUnexpectedMessage = verror.Register("v.io/x/ref/services/xproxyd.UnexpectedMessage", verror.NoRetry, "{1:}{2:} Unexpected message of type{:3}")
 )
 
 func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNotListening.ID), "{1:}{2:} Proxy is not listening on any endpoints.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnexpectedMessage.ID), "{1:}{2:} Unexpected message of type{:3}")
 }
 
 // NewErrNotListening returns an error with the ErrNotListening ID.
 func NewErrNotListening(ctx *context.T) error {
 	return verror.New(ErrNotListening, ctx)
+}
+
+// NewErrUnexpectedMessage returns an error with the ErrUnexpectedMessage ID.
+func NewErrUnexpectedMessage(ctx *context.T, msgType string) error {
+	return verror.New(ErrUnexpectedMessage, ctx, msgType)
 }

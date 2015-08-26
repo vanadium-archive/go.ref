@@ -310,9 +310,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
 	// return a flow on that corresponding conn.
 	if remote.RoutingID() != c.RemoteEndpoint().RoutingID() {
-		if err := sendRouteInfo(remote, f); err != nil {
-			return nil, flow.NewErrDialFailed(ctx, err)
-		}
 		c, err = conn.NewDialed(
 			ctx,
 			closer{f},
@@ -330,12 +327,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		}
 	}
 	return f, nil
-}
-
-func sendRouteInfo(ep naming.Endpoint, f flow.Flow) error {
-	// TODO(suharshs): Also send endpoint routes here when implementing multi proxy.
-	rid := ep.RoutingID()
-	return vom.NewEncoder(f).Encode(rid.String())
 }
 
 // RoutingID returns the naming.Routing of the flow.Manager.

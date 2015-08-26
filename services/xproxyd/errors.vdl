@@ -6,4 +6,5 @@ package xproxyd
 
 error (
   NotListening() {"en": "Proxy is not listening on any endpoints."}
+  UnexpectedMessage(msgType string) {"en": "Unexpected message of type{:msgType}"}
 )

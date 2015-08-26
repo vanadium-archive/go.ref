@@ -5,11 +5,13 @@
 package xproxyd
 
 import (
+	"fmt"
 	"io"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/vom"
@@ -26,7 +28,6 @@ func New(ctx *context.T) (*proxy, error) {
 		m: v23.ExperimentalGetFlowManager(ctx),
 	}
 	for _, addr := range v23.GetListenSpec(ctx).Addrs {
-		ctx.Infof("proxy listening on %v", addr)
 		if err := p.m.Listen(ctx, addr.Protocol, addr.Address); err != nil {
 			return nil, err
 		}
@@ -54,30 +55,13 @@ func (p *proxy) listenLoop(ctx *context.T) {
 }
 
 func (p *proxy) startRouting(ctx *context.T, f flow.Flow) error {
-	rid, err := p.readRouteInfo(ctx, f)
-	if err != nil {
-		return err
-	}
-	// TODO(suharshs): Find a better way to do this.
-	ep, err := v23.NewEndpoint("@6@@@@" + rid.String() + "@@@@")
-	if err != nil {
-		return err
-	}
-	fout, err := p.m.Dial(ctx, ep, proxyBlessingsForPeer{}.run)
+	fout, err := p.dialNextHop(ctx, f)
 	if err != nil {
 		return err
 	}
 	go p.forwardLoop(ctx, f, fout)
 	go p.forwardLoop(ctx, fout, f)
 	return nil
-}
-
-type proxyBlessingsForPeer struct{}
-
-// TODO(suharshs): Figure out what blessings to present here. And present discharges.
-func (proxyBlessingsForPeer) run(ctx *context.T, lep, rep naming.Endpoint, rb security.Blessings,
-	rd map[string]security.Discharge) (security.Blessings, map[string]security.Discharge, error) {
-	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
 
 func (p *proxy) replyToServer(ctx *context.T, f flow.Flow) error {
@@ -113,20 +97,55 @@ func (p *proxy) forwardLoop(ctx *context.T, fin, fout flow.Flow) {
 	}
 }
 
-func (p *proxy) readRouteInfo(ctx *context.T, f flow.Flow) (naming.RoutingID, error) {
+func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow) (flow.Flow, error) {
 	// TODO(suharshs): Read route information here when implementing multi proxy.
-	var (
-		rid string
-		ret naming.RoutingID
-	)
-	if err := vom.NewDecoder(f).Decode(&rid); err != nil {
-		return ret, err
+	m, err := readSetupMessage(ctx, f)
+	if err != nil {
+		return nil, err
 	}
-	err := ret.FromString(rid)
-	return ret, err
+	fout, err := p.m.Dial(ctx, m.PeerRemoteEndpoint, proxyBlessingsForPeer{}.run)
+	if err != nil {
+		return nil, err
+	}
+	// Write the setup message back onto the flow for the next hop to read.
+	return fout, writeSetupMessage(ctx, m, fout)
+}
+
+func readSetupMessage(ctx *context.T, f flow.Flow) (*message.Setup, error) {
+	b, err := f.ReadMsg()
+	if err != nil {
+		return nil, err
+	}
+	m, err := message.Read(ctx, b)
+	if err != nil {
+		return nil, err
+	}
+	if m, isSetup := m.(*message.Setup); isSetup {
+		return m, nil
+	}
+	return nil, NewErrUnexpectedMessage(ctx, fmt.Sprintf("%t", m))
+}
+
+func writeSetupMessage(ctx *context.T, m message.Message, f flow.Flow) error {
+	// TODO(suharshs): When reading the routes we should remove the read route from
+	// the endpoint.
+	w, err := message.Append(ctx, m, []byte{})
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteMsg(w)
+	return err
 }
 
 func (p *proxy) shouldRoute(f flow.Flow) bool {
 	rid := f.Conn().LocalEndpoint().RoutingID()
 	return rid != p.m.RoutingID() && rid != naming.NullRoutingID
+}
+
+type proxyBlessingsForPeer struct{}
+
+// TODO(suharshs): Figure out what blessings to present here. And present discharges.
+func (proxyBlessingsForPeer) run(ctx *context.T, lep, rep naming.Endpoint, rb security.Blessings,
+	rd map[string]security.Discharge) (security.Blessings, map[string]security.Discharge, error) {
+	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
