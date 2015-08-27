@@ -86,8 +86,8 @@ func TestGet(t *testing.T) {
 		t.Errorf("runGoC is missing")
 	} else if len(c.Stack) != 1 {
 		t.Errorf("got %d expected 1: %#v", len(c.Stack), c.Stack)
-	} else if !strings.HasPrefix(c.Stack[0].Call, "v.io/x/ref/test/goroutines.func·") {
-		t.Errorf("got %s, wanted it to start with v.io/x/ref/test/goroutines.func·",
+	} else if !strings.HasPrefix(c.Stack[0].Call, "v.io/x/ref/test/goroutines.") {
+		t.Errorf("got %s, wanted it to start with v.io/x/ref/test/goroutines.",
 			c.Stack[0].Call)
 	}
 }

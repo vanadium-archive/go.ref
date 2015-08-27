@@ -18,6 +18,7 @@ import (
 	"v.io/v23/flow/message"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
 	slib "v.io/x/ref/lib/security"
 )
@@ -96,10 +97,15 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	}()
 	msg, err := c.mp.readMsg(ctx)
 	if err != nil {
+		<-ch
+		if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
+			return nil, err
+		}
 		return nil, NewErrRecv(ctx, "unknown", err)
 	}
 	rSetup, valid := msg.(*message.Setup)
 	if !valid {
+		<-ch
 		return nil, NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())
 	}
 	if err := <-ch; err != nil {

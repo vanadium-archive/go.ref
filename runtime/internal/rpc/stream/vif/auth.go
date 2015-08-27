@@ -195,10 +195,12 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, localEP naming
 	remoteMsg, err := message.ReadFrom(reader, nullCipher)
 	close(readch) // Note: we need to close this whether we get an error or not.
 	if err != nil {
+		<-errch
 		return nil, nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	remoteSetup, ok := remoteMsg.(*message.Setup)
 	if !ok {
+		<-errch
 		return nil, nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
 	}
 

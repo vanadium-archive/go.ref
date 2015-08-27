@@ -14,6 +14,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/flow/message"
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
@@ -66,6 +67,9 @@ func InternalNewXClient(flowMgr flow.Manager, ns namespace.T, opts ...rpc.Client
 
 func (c *xclient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
 	defer apilog.LogCallf(ctx, "name=%.10s...,method=%.10s...,args=,opts...=%v", name, method, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	if !ctx.Initialized() {
+		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.LangID("en-us"), "<rpc.Client>", "StartCall", "context not initialized")
+	}
 	deadline := getDeadline(ctx, opts)
 	return c.startCall(ctx, name, method, args, deadline, opts)
 }
@@ -287,6 +291,9 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 		for _, r := range responses {
 			if r != nil {
 				numResponses++
+				if verror.ErrorID(r.serverErr.Err) == message.ErrWrongProtocol.ID {
+					return nil, verror.NoRetry, false, r.serverErr.Err
+				}
 			}
 			if r == nil || r.flow == nil {
 				continue

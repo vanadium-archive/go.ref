@@ -230,7 +230,8 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 		buf := make([]byte, 1)
 		for {
 			clientAddr, _, ack, err := unixfd.ReadConnection(conn, buf)
-			if err == io.EOF {
+			opErr, isNetOptErr := err.(*net.OpError)
+			if err == io.EOF || (isNetOptErr && opErr.Err == io.EOF) {
 				conn.Close()
 				return
 			} else if err != nil {
@@ -239,7 +240,7 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 				case <-donech:
 					return
 				default:
-					ctx.Infof("Error accepting connection: %v", err)
+					ctx.Infof("Error accepting connection: %#v", err)
 					continue
 				}
 			}
