@@ -234,6 +234,8 @@ func TestMultipleEndpoints(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
+	t.Skip("https://github.com/vanadium/issues/issues/650")
+
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	client := v23.GetClient(ctx)
