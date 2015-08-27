@@ -122,7 +122,6 @@ package impl
 import (
 	"bytes"
 	"crypto/md5"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -347,16 +346,6 @@ func loadOrigin(ctx *context.T, dir string) (string, error) {
 func generateID() string {
 	const timeFormat = "20060102-15:04:05.0000"
 	return time.Now().UTC().Format(timeFormat)
-}
-
-// generateRandomString returns a cryptographically-strong random string.
-func generateRandomString() (string, error) {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(b), nil
 }
 
 // TODO(caprita): Nothing prevents different applications from sharing the same
@@ -590,22 +579,9 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 			return verror.New(errors.ErrOperationFailed, ctx, "NewPrincipal() failed", err)
 		}
 		info.setHandle(handle)
-		randomPattern, err := generateRandomString()
+		sockDir, err := generateAgentSockDir(rootDir)
 		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "generateRandomString() failed", err)
-		}
-		// We keep the socket files close to the root dir of the device
-		// manager installation to ensure that the socket file path is
-		// shorter than 108 characters (a requirement on Linux).
-		sockDir := filepath.Join(rootDir, "socks", randomPattern)
-		// TODO(caprita): For multi-user mode, we should chown the
-		// socket dir to the app user, and set up a unix group to permit
-		// access to the socket dir to the agent and device manager.
-		// For now, 'security' hinges on the fact that the name of the
-		// socket dir is unknown to everyone except the device manager,
-		// the agent, and the app.
-		if err := os.MkdirAll(sockDir, 0711); err != nil {
-			return fmt.Errorf("MkdirAll(%q) failed: %v", sockDir, err)
+			return verror.New(errors.ErrOperationFailed, ctx, "generateAgentSockDir() failed", err)
 		}
 		sockLink := filepath.Join(instanceDir, "agent-sock-dir")
 		if err := os.Symlink(sockDir, sockLink); err != nil {
@@ -1001,6 +977,7 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 			// running.
 			return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ServePrincipal failed: %v", err))
 		}
+		cfg.Set(mgmt.SecurityAgentPathConfigKey, sockPath)
 		defer func() {
 			if !stopServingAgentSocket {
 				return

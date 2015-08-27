@@ -414,8 +414,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	uname, err := getUserForPid(i, pid)
 	if err != nil {
 		i.Errorf("getUserForPid could not determine the user running pid %v", pid)
-	}
-	if uname != appUser {
+	} else if uname != appUser {
 		i.Errorf("app expected to be running as %v but is running as %v", appUser, uname)
 	}
 
@@ -481,6 +480,9 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	}
 
 	// Revert the device manager
+	// The argument to "device revert" is a glob pattern. So we need to
+	// wait for devmgr to be mounted before running the command.
+	resolve(mtEP + "/devmgr")
 	adminDeviceBin.Run("revert", mtName+"/devmgr/device")
 	mtEP = resolveChange(mtName, mtEP)
 
@@ -492,17 +494,12 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	// Verify that the local mounttable exists, and that the device manager,
 	// the global namespace, and the neighborhood are mounted on it.
-	n := mtEP + "/devmgr"
-	if namespaceBin.Run("resolve", n) == "" {
-		i.Fatalf("failed to resolve %s", n)
-	}
-	n = mtEP + "/nh"
-	if namespaceBin.Run("resolve", n) == "" {
-		i.Fatalf("failed to resolve %s", n)
-	}
+	resolve(mtEP + "/devmgr")
+	resolve(mtEP + "/nh")
+	resolve(mtEP + "/global")
+
 	namespaceRoot, _ := i.GetVar(ref.EnvNamespacePrefix)
-	n = mtEP + "/global"
-	if got, want := namespaceBin.Run("resolve", n), namespaceRoot; got != want {
+	if got, want := namespaceBin.Run("resolve", mtEP+"/global"), namespaceRoot; got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
 

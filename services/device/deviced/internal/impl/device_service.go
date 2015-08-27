@@ -278,9 +278,38 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 
 	var p security.Principal
 	var agentHandle []byte
-	if s.securityAgent != nil {
-		// TODO(rthellend): Cleanup principal
-		handle, conn, err := s.securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
+
+	switch sa := s.securityAgent; {
+	case sa != nil && sa.keyMgr != nil:
+		handle, err := sa.keyMgr.NewPrincipal(true)
+		if err != nil {
+			return verror.New(errors.ErrOperationFailed, ctx, "NewPrincipal() failed", err)
+		}
+		sockDir, err := generateAgentSockDir(s.config.Root)
+		if err != nil {
+			return verror.New(errors.ErrOperationFailed, ctx, "generateAgentSockDir() failed", err)
+		}
+		// TODO(caprita): Add a check to ensure that len(sockPath) < 108.
+		sockPath := filepath.Join(sockDir, "s")
+		if err := sa.keyMgr.ServePrincipal(handle, sockPath); err != nil {
+			return verror.New(errors.ErrOperationFailed, ctx, "ServePrincipal failed", err)
+		}
+		cfg.Set(mgmt.SecurityAgentPathConfigKey, sockPath)
+		defer func() {
+			if err := sa.keyMgr.StopServing(handle); err != nil {
+				ctx.Errorf("StopServing failed: %v", err)
+			}
+			if err := sa.keyMgr.DeletePrincipal(handle); err != nil {
+				ctx.Errorf("DeletePrincipal failed: %v", err)
+			}
+		}()
+		if p, err = agentlib.NewAgentPrincipalX(sockPath); err != nil {
+			return verror.New(errors.ErrOperationFailed, ctx, "NewAgentPrincipalX failed", err)
+		}
+	case sa != nil && sa.keyMgrAgent != nil:
+		// This code path is deprecated in favor of the socket agent
+		// connection.
+		handle, conn, err := sa.keyMgrAgent.NewPrincipal(ctx, true)
 		if err != nil {
 			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("NewPrincipal() failed %v", err))
 		}
@@ -290,8 +319,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("agentPrincipal failed: %v", err))
 		}
 		defer cancel()
-
-	} else {
+	default:
 		credentialsDir := filepath.Join(workspace, "credentials")
 		var err error
 		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
@@ -311,7 +339,9 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 
-	if s.securityAgent != nil {
+	if s.securityAgent != nil && s.securityAgent.keyMgrAgent != nil {
+		// This code path is deprecated in favor of the socket agent
+		// connection.
 		file, err := s.securityAgent.keyMgrAgent.NewConnection(agentHandle)
 		if err != nil {
 			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("NewConnection(%v) failed: %v", agentHandle, err))

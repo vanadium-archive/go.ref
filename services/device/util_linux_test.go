@@ -11,7 +11,7 @@ import (
 	"v.io/x/ref/test/v23tests"
 )
 
-const psFlags = "-ef"
+const psFlags = "-eouser:20,pid"
 
 func makeTestAccounts(i *v23tests.T) {
 	userAddCmd := i.BinaryFromPath("/usr/bin/sudo")
