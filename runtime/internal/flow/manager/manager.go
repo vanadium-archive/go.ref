@@ -14,9 +14,11 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
 
 	"v.io/x/ref/runtime/internal/flow/conn"
@@ -296,6 +298,9 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			fh,
 		)
 		if err != nil {
+			if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
+				return nil, err
+			}
 			return nil, flow.NewErrDialFailed(ctx, err)
 		}
 		if err := m.cache.Insert(c); err != nil {
@@ -319,6 +324,9 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			fh,
 		)
 		if err != nil {
+			if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
+				return nil, err
+			}
 			return nil, flow.NewErrDialFailed(ctx, err)
 		}
 		f, err = c.Dial(ctx, fn)

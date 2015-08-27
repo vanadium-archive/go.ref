@@ -131,13 +131,13 @@ func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 	msgType := header.Contents[0]
 	msgPayloadSize := read3ByteUint(header.Contents[1:4])
 	header.Release()
-	payload, err := r.Read(msgPayloadSize)
-	if err != nil {
-		return nil, verror.New(errFailedToReadPayload, nil, msgPayloadSize, msgType, err)
-	}
 	macSize := c.MACSize()
 	switch msgType {
 	case controlType, controlTypeWS:
+		payload, err := r.Read(msgPayloadSize)
+		if err != nil {
+			return nil, verror.New(errFailedToReadPayload, nil, msgPayloadSize, msgType, err)
+		}
 		if !c.Open(payload.Contents) {
 			payload.Release()
 			return nil, verror.New(errCorruptedMessage, nil)
@@ -146,6 +146,10 @@ func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 		payload.Release()
 		return m, err
 	case dataType, dataTypeWS:
+		payload, err := r.Read(msgPayloadSize)
+		if err != nil {
+			return nil, verror.New(errFailedToReadPayload, nil, msgPayloadSize, msgType, err)
+		}
 		if !c.Open(payload.Contents[0 : dataHeaderSizeBytes+macSize]) {
 			payload.Release()
 			return nil, verror.New(errCorruptedMessage, nil)
@@ -159,7 +163,6 @@ func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 		m.Payload.TruncateFront(uint(dataHeaderSizeBytes + macSize))
 		return m, nil
 	default:
-		payload.Release()
 		return nil, verror.New(errUnrecognizedMessageType, nil, msgType)
 	}
 }

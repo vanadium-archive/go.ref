@@ -174,9 +174,7 @@ func Init(
 	}
 
 	// Add the flow.Manager to the context.
-	// TODO(suharshs): Once the client and server use the flow.Manager we will need
-	// manage those dependencies (exactly as we are doing with stream.Manager)
-	ctx, _, err = r.setNewFlowManager(ctx)
+	ctx, _, err = r.ExperimentalWithNewFlowManager(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -320,6 +318,10 @@ func (r *Runtime) setNewFlowManager(ctx *context.T) (*context.T, flow.Manager, e
 	if err != nil {
 		return nil, nil, err
 	}
+	// TODO(mattr): How can we close a flow manager.
+	if err = r.addChild(ctx, fm, func() {}); err != nil {
+		return ctx, nil, err
+	}
 	newctx := context.WithValue(ctx, flowManagerKey, fm)
 	return newctx, fm, nil
 }
@@ -404,17 +406,30 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(namespace.T)
+	fm, _ := ctx.Value(flowManagerKey).(flow.Manager)
 	otherOpts = append(otherOpts, imanager.DialTimeout(5*time.Minute))
 
 	if id, _ := ctx.Value(initKey).(*initData); id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredProtocols(id.protocols))
 	}
-	client, err := irpc.InternalNewClient(sm, ns, otherOpts...)
+	var client rpc.Client
+	var err error
+	deps := []interface{}{vtraceDependency{}}
+	switch {
+	case fm != nil && sm != nil:
+		client, err = irpc.NewTransitionClient(fm, sm, ns, otherOpts...)
+		deps = append(deps, fm, sm)
+	case fm != nil:
+		client, err = irpc.InternalNewXClient(fm, ns, otherOpts...)
+		deps = append(deps, fm)
+	case sm != nil:
+		client, err = irpc.InternalNewClient(sm, ns, otherOpts...)
+		deps = append(deps, sm)
+	}
 	if err != nil {
 		return ctx, nil, err
 	}
 	newctx := context.WithValue(ctx, clientKey, client)
-	deps := []interface{}{sm, vtraceDependency{}}
 	if p != nil {
 		deps = append(deps, p)
 	}
