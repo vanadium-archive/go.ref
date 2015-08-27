@@ -1,8 +1,0 @@
-#!/bin/bash
-# Copyright 2015 The Vanadium Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style
-# license that can be found in the LICENSE file.
-#
-# Tombstone for the vbash script after move.
-# TODO(caprita): Remove this on 4/29/15.
-echo "vbash has moved to ${V23_ROOT}/infrastructure/vanadium/scripts/vbash"
