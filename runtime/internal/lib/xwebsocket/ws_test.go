@@ -51,7 +51,7 @@ func runTest(t *testing.T, dialObj, listenObj flow.Protocol, dialP, listenP stri
 	ctx, _ := context.RootContext()
 	address := "127.0.0.1:0"
 	timeout := time.Second
-	acceptCh := make(chan flow.MsgReadWriteCloser)
+	acceptCh := make(chan flow.Conn)
 
 	ln, err := listenObj.Listen(ctx, listenP, address)
 	if err != nil {
@@ -76,7 +76,7 @@ func runTest(t *testing.T, dialObj, listenObj flow.Protocol, dialP, listenP stri
 	go readData(t, accepted, randData)
 }
 
-func writeData(t *testing.T, c flow.MsgReadWriteCloser, data []byte) {
+func writeData(t *testing.T, c flow.Conn, data []byte) {
 	for i := 0; i < numChunks; i++ {
 		if _, err := c.WriteMsg(data[:chunkSize]); err != nil {
 			t.Fatal(err)
@@ -85,7 +85,7 @@ func writeData(t *testing.T, c flow.MsgReadWriteCloser, data []byte) {
 	}
 }
 
-func readData(t *testing.T, c flow.MsgReadWriteCloser, expected []byte) {
+func readData(t *testing.T, c flow.Conn, expected []byte) {
 	read := make([]byte, len(expected))
 	read = read[:0]
 	for i := 0; i < numChunks; i++ {

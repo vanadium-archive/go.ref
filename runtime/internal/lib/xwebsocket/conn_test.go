@@ -20,14 +20,14 @@ import (
 	"v.io/v23/flow"
 )
 
-func writer(c flow.MsgReadWriteCloser, data []byte, times int, wg *sync.WaitGroup) {
+func writer(c flow.Conn, data []byte, times int, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for i := 0; i < times; i++ {
 		c.WriteMsg(data)
 	}
 }
 
-func reader(t *testing.T, c flow.MsgReadWriteCloser, expected []byte, totalWrites int) {
+func reader(t *testing.T, c flow.Conn, expected []byte, totalWrites int) {
 	totalReads := 0
 	for buf, err := c.ReadMsg(); err == nil; buf, err = c.ReadMsg() {
 		totalReads++

@@ -62,8 +62,8 @@ type Conn struct {
 	lastUsedTime   time.Time
 }
 
-// Ensure that *Conn implements flow.Conn.
-var _ flow.Conn = &Conn{}
+// Ensure that *Conn implements flow.ManagedConn.
+var _ flow.ManagedConn = &Conn{}
 
 // NewDialed dials a new Conn on the given conn.
 func NewDialed(

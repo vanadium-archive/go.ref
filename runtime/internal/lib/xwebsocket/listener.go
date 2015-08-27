@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"v.io/x/ref/internal/logger"
-	"v.io/x/ref/runtime/internal/lib/framer"
 	"v.io/x/ref/runtime/internal/lib/tcputil"
 
 	"v.io/v23/context"
@@ -30,14 +29,14 @@ type wsTCPListener struct {
 	closed bool // GUARDED_BY(mu)
 	mu     sync.Mutex
 
-	acceptQ chan interface{} // flow.MsgReadWriteCloser or error returned by netLn.Accept
+	acceptQ chan interface{} // flow.Conn or error returned by netLn.Accept
 	httpQ   chan net.Conn    // Candidates for websocket upgrades before being added to acceptQ
 	netLn   net.Listener     // The underlying listener
 	httpReq sync.WaitGroup   // Number of active HTTP requests
 	hybrid  bool             // true if running in 'hybrid' mode
 }
 
-func listener(protocol, address string, hybrid bool) (flow.MsgListener, error) {
+func listener(protocol, address string, hybrid bool) (flow.Listener, error) {
 	netLn, err := net.Listen(mapWebSocketToTCP[protocol], address)
 	if err != nil {
 		return nil, err
@@ -54,14 +53,14 @@ func listener(protocol, address string, hybrid bool) (flow.MsgListener, error) {
 	return ln, nil
 }
 
-func (ln *wsTCPListener) Accept(ctx *context.T) (flow.MsgReadWriteCloser, error) {
+func (ln *wsTCPListener) Accept(ctx *context.T) (flow.Conn, error) {
 	for {
 		item, ok := <-ln.acceptQ
 		if !ok {
 			return nil, NewErrListenerClosed(ctx)
 		}
 		switch v := item.(type) {
-		case flow.MsgReadWriteCloser:
+		case flow.Conn:
 			return v, nil
 		case error:
 			return nil, v
@@ -159,7 +158,7 @@ func (ln *wsTCPListener) classify(conn net.Conn, done *sync.WaitGroup) {
 		ln.httpQ <- conn
 		return
 	}
-	ln.acceptQ <- framer.New(conn)
+	ln.acceptQ <- tcputil.NewTCPConn(conn)
 }
 
 func (ln *wsTCPListener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -213,7 +212,7 @@ func drainChan(c <-chan interface{}) {
 		if !ok {
 			return
 		}
-		if conn, ok := item.(flow.MsgReadWriteCloser); ok {
+		if conn, ok := item.(flow.Conn); ok {
 			conn.Close()
 		}
 	}

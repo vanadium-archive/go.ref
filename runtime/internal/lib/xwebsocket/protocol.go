@@ -27,7 +27,7 @@ const bufferSize = 4096
 
 type WS struct{}
 
-func (WS) Dial(ctx *context.T, protocol, address string, timeout time.Duration) (flow.MsgReadWriteCloser, error) {
+func (WS) Dial(ctx *context.T, protocol, address string, timeout time.Duration) (flow.Conn, error) {
 	var deadline time.Time
 	if timeout > 0 {
 		deadline = time.Now().Add(timeout)
@@ -63,6 +63,6 @@ func (WS) Resolve(ctx *context.T, protocol, address string) (string, string, err
 	return "ws", tcpAddr.String(), nil
 }
 
-func (WS) Listen(ctx *context.T, protocol, address string) (flow.MsgListener, error) {
+func (WS) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
 	return listener(protocol, address, false)
 }

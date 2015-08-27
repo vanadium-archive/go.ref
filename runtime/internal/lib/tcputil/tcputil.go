@@ -41,7 +41,7 @@ func EnableTCPKeepAlive(conn net.Conn) error {
 type TCP struct{}
 
 // Dial dials a net.Conn to a the specific address and adds framing to the connection.
-func (TCP) Dial(ctx *context.T, network, address string, timeout time.Duration) (flow.MsgReadWriteCloser, error) {
+func (TCP) Dial(ctx *context.T, network, address string, timeout time.Duration) (flow.Conn, error) {
 	conn, err := net.DialTimeout(network, address, timeout)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (TCP) Dial(ctx *context.T, network, address string, timeout time.Duration) 
 	if err := EnableTCPKeepAlive(conn); err != nil {
 		return nil, err
 	}
-	return framer.New(conn), nil
+	return NewTCPConn(conn), nil
 }
 
 // Resolve performs a DNS resolution on the provided network and address.
@@ -63,7 +63,7 @@ func (TCP) Resolve(ctx *context.T, network, address string) (string, string, err
 
 // Listen returns a listener that sets KeepAlive on all accepted connections.
 // Connections returned from the listener will be framed.
-func (TCP) Listen(ctx *context.T, network, address string) (flow.MsgListener, error) {
+func (TCP) Listen(ctx *context.T, network, address string) (flow.Listener, error) {
 	ln, err := net.Listen(network, address)
 	if err != nil {
 		return nil, err
@@ -72,12 +72,12 @@ func (TCP) Listen(ctx *context.T, network, address string) (flow.MsgListener, er
 }
 
 // tcpListener is a wrapper around net.Listener that sets KeepAlive on all
-// accepted connections and returns framed flow.MsgReadWriteClosers.
+// accepted connections and returns framed flow.Conns.
 type tcpListener struct {
 	netLn net.Listener
 }
 
-func (ln *tcpListener) Accept(ctx *context.T) (flow.MsgReadWriteCloser, error) {
+func (ln *tcpListener) Accept(ctx *context.T) (flow.Conn, error) {
 	conn, err := ln.netLn.Accept()
 	if err != nil {
 		return nil, err
@@ -85,9 +85,22 @@ func (ln *tcpListener) Accept(ctx *context.T) (flow.MsgReadWriteCloser, error) {
 	if err := EnableTCPKeepAlive(conn); err != nil {
 		return nil, err
 	}
-	return framer.New(conn), nil
+	return NewTCPConn(conn), nil
 }
 
 func (ln *tcpListener) Addr() net.Addr {
 	return ln.netLn.Addr()
+}
+
+func NewTCPConn(c net.Conn) flow.Conn {
+	return tcpConn{framer.New(c), c.LocalAddr()}
+}
+
+type tcpConn struct {
+	flow.MsgReadWriteCloser
+	localAddr net.Addr
+}
+
+func (c tcpConn) LocalAddr() net.Addr {
+	return c.localAddr
 }

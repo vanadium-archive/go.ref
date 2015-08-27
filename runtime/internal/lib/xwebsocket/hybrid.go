@@ -8,7 +8,6 @@ import (
 	"net"
 	"time"
 
-	"v.io/x/ref/runtime/internal/lib/framer"
 	"v.io/x/ref/runtime/internal/lib/tcputil"
 
 	"v.io/v23/context"
@@ -17,11 +16,11 @@ import (
 
 type WSH struct{}
 
-// Dial returns flow.MsgReadWriteCloser that can be used with a
+// Dial returns flow.Conn that can be used with a
 // HybridListener but always uses tcp. A client must specifically elect to use
 // websockets by calling websocket.Dialer. The returned net.Conn will report
 // 'tcp' as its Network.
-func (WSH) Dial(ctx *context.T, network, address string, timeout time.Duration) (flow.MsgReadWriteCloser, error) {
+func (WSH) Dial(ctx *context.T, network, address string, timeout time.Duration) (flow.Conn, error) {
 	tcp := mapWebSocketToTCP[network]
 	conn, err := net.DialTimeout(tcp, address, timeout)
 	if err != nil {
@@ -30,7 +29,7 @@ func (WSH) Dial(ctx *context.T, network, address string, timeout time.Duration) 
 	if err := tcputil.EnableTCPKeepAlive(conn); err != nil {
 		return nil, err
 	}
-	return framer.New(conn), nil
+	return tcputil.NewTCPConn(conn), nil
 }
 
 // Resolve performs a DNS resolution on the network, address and always
@@ -44,7 +43,7 @@ func (WSH) Resolve(ctx *context.T, network, address string) (string, string, err
 	return tcp, tcpAddr.String(), nil
 }
 
-// Listener returns a flow.MsgReadWriteCloser that supports both tcp and
+// Listener returns a flow.Conn that supports both tcp and
 // websockets over the same, single, port. A listen address of
 // --v23.tcp.protocol=wsh --v23.tcp.address=127.0.0.1:8101 means
 // that port 8101 can accept connections that use either tcp or websocket.
@@ -52,6 +51,6 @@ func (WSH) Resolve(ctx *context.T, network, address string) (string, string, err
 // to decide if it's a websocket protocol or not. These must be 'GET ' for
 // websockets, all other protocols must guarantee to not send 'GET ' as the
 // first four bytes of the payload.
-func (WSH) Listen(ctx *context.T, protocol, address string) (flow.MsgListener, error) {
+func (WSH) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
 	return listener(protocol, address, true)
 }

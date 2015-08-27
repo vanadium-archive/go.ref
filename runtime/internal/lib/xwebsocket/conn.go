@@ -18,12 +18,12 @@ import (
 	"v.io/v23/flow"
 )
 
-// WebsocketConn provides a flow.MsgReadWriteCloser interface for a websocket connection.
-func WebsocketConn(ws *websocket.Conn) flow.MsgReadWriteCloser {
+// WebsocketConn provides a flow.Conn interface for a websocket connection.
+func WebsocketConn(ws *websocket.Conn) flow.Conn {
 	return &wrappedConn{ws: ws}
 }
 
-// wrappedConn provides a flow.MsgReadWriteCloser interface to a websocket.
+// wrappedConn provides a flow.Conn interface to a websocket.
 // The underlying websocket connection needs regular calls to Read to make sure
 // websocket control messages (such as pings) are processed by the websocket
 // library.
@@ -80,6 +80,10 @@ func (c *wrappedConn) Close() error {
 	msg := websocket.FormatCloseMessage(websocket.CloseGoingAway, "EOF")
 	c.ws.WriteControl(websocket.CloseMessage, msg, time.Now().Add(time.Second))
 	return c.ws.Close()
+}
+
+func (c *wrappedConn) LocalAddr() net.Addr {
+	return c.ws.LocalAddr()
 }
 
 // hybridConn is used by the 'hybrid' protocol that can accept

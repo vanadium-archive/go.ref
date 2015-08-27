@@ -242,7 +242,7 @@ func (f *flw) RemoteDischarges() map[string]security.Discharge {
 }
 
 // Conn returns the connection the flow is multiplexed on.
-func (f *flw) Conn() flow.Conn {
+func (f *flw) Conn() flow.ManagedConn {
 	return f.conn
 }
 
