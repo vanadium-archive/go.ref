@@ -15,12 +15,15 @@ import (
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/tcp"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
 	"v.io/x/ref/runtime/internal/lib/websocket"
+	grt "v.io/x/ref/runtime/internal/rt"
+
+	// TODO(suharshs): Remove these once we switch to the flow protocols.
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/tcp"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/ws"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/wsh"
-	grt "v.io/x/ref/runtime/internal/rt"
 )
 
 var commonFlags *flags.Flags
