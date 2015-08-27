@@ -93,20 +93,13 @@ const (
 	ApplicationInstallationObject objectKind = iota
 	ApplicationInstanceObject
 	DeviceServiceObject
-	sentinelObjectKind
+	SentinelObjectKind // For invariant checking in testing.
 )
 
-var objectKinds = []objectKind{
+var ObjectKinds = []objectKind{
 	ApplicationInstallationObject,
 	ApplicationInstanceObject,
 	DeviceServiceObject,
-}
-
-func init() {
-	// TODO(caprita): Move to glob_test.go once that exists.
-	if len(objectKinds) != int(sentinelObjectKind) {
-		panic(fmt.Sprintf("broken invariant: mismatching number of object kinds"))
-	}
 }
 
 // GlobResult defines the input to a GlobHandler.
@@ -170,7 +163,6 @@ func Run(ctx *context.T, env *cmdline.Env, args []string, handler GlobHandler, s
 			atomic.AddUint32(&errorCounter, 1)
 		}
 	}
-	// TODO(caprita): Add unit test logic to cover all parallelism options.
 	switch s.HandlerParallelism {
 	case FullParallelism:
 		var wg sync.WaitGroup
@@ -188,7 +180,7 @@ func Run(ctx *context.T, env *cmdline.Env, args []string, handler GlobHandler, s
 		}
 	case KindParallelism:
 		processed := 0
-		for _, k := range objectKinds {
+		for _, k := range ObjectKinds {
 			var wg sync.WaitGroup
 			for i, r := range results {
 				if r.Kind != k {

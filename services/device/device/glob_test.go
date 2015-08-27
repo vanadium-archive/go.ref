@@ -144,6 +144,14 @@ func newEnforceNoParallelismHandler(t *testing.T, n int, expected []string) cmd_
 	}
 }
 
+// TestObjectKindInvariant ensures that the object kind enum and list are in
+// sync and have not been inadvertently updated independently of each other.
+func TestObjectKindInvariant(t *testing.T) {
+	if len(cmd_device.ObjectKinds) != int(cmd_device.SentinelObjectKind) {
+		t.Errorf("Broken invariant: mismatching number of object kinds")
+	}
+}
+
 // TestGlob tests the internals of the globbing support for the device tool.
 func TestGlob(t *testing.T) {
 	ctx, shutdown := test.V23Init()
