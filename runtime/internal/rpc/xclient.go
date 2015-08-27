@@ -45,10 +45,10 @@ type xclient struct {
 
 var _ rpc.Client = (*xclient)(nil)
 
-func InternalNewXClient(flowMgr flow.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
+func InternalNewXClient(ctx *context.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	c := &xclient{
-		flowMgr: flowMgr,
-		ns:      ns,
+		flowMgr: v23.ExperimentalGetFlowManager(ctx),
+		ns:      v23.GetNamespace(ctx),
 	}
 	ipNets, err := ipNetworks()
 	if err != nil {
@@ -195,6 +195,7 @@ func (x blessingsForPeer) run(
 		// send the <nil> blessings to the server.
 		return security.Blessings{}, nil, verror.New(errNoBlessingsForPeer, ctx, serverB, serverBRejected)
 	}
+	// TODO(toddw): Return discharge map.
 	return clientB, nil, nil
 }
 
@@ -209,9 +210,6 @@ func (x blessingsForPeer) run(
 func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{}, opts []rpc.CallOpt) (call rpc.ClientCall, action verror.ActionCode, requireResolve bool, err error) {
 	blessingPattern, name := security.SplitPatternName(name)
 	resolved, err := c.ns.Resolve(ctx, name, getNamespaceOpts(opts)...)
-	// We always return NoServers as the error so that the caller knows
-	// that's ok to retry the operation since the name may be registered
-	// in the near future.
 	switch {
 	case verror.ErrorID(err) == naming.ErrNoSuchName.ID:
 		return nil, verror.RetryRefetch, false, verror.New(verror.ErrNoServers, ctx, name)
@@ -238,6 +236,9 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 	// order; that order is indicated by the order of entries in servers.
 	// So, if two respones come in at the same 'instant', we prefer the
 	// first in the resolved.Servers)
+	//
+	// TODO(toddw): Refactor the parallel dials so that the policy can be changed,
+	// and so that the goroutines for each Call are tracked separately.
 	responses := make([]*xserverStatus, len(resolved.Servers))
 	ch := make(chan *xserverStatus, len(resolved.Servers))
 	authorizer := newServerAuthorizer(blessingPattern, opts...)
@@ -251,11 +252,6 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 		c.mu.Unlock()
 
 		go c.tryCreateFlow(ctx, i, name, server, method, authorizer, ch)
-	}
-
-	var timeoutChan <-chan time.Time
-	if deadline, ok := ctx.Deadline(); ok {
-		timeoutChan = time.After(deadline.Sub(time.Now()))
 	}
 
 	for {
@@ -273,7 +269,7 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 					responses[r.index] = r
 				}
 			}
-		case <-timeoutChan:
+		case <-ctx.Done():
 			ctx.VI(2).Infof("rpc: timeout on connection to server %v ", name)
 			_, _, _, err := c.failedTryCall(ctx, name, method, responses, ch)
 			if verror.ErrorID(err) != verror.ErrTimeout.ID {
@@ -292,7 +288,6 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 				continue
 			}
 
-			doneChan := ctx.Done()
 			fc, err := newFlowXClient(ctx, r.flow)
 			if err != nil {
 				return nil, verror.NoRetry, false, err
@@ -314,15 +309,19 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 			// RPCs.
 			go xcleanupTryCall(r, responses, ch)
 
-			if doneChan != nil {
-				go func() {
-					select {
-					case <-doneChan:
-						vtrace.GetSpan(fc.ctx).Annotate("Canceled")
-					case <-fc.flow.Closed():
-					}
-				}()
-			}
+			// TODO(toddw): It's wasteful to create this goroutine just for a vtrace
+			// annotation.  Refactor this when we refactor the parallel dial logic.
+			/*
+				if ctx.Done() != nil {
+					go func() {
+						select {
+						case <-ctx.Done():
+							vtrace.GetSpan(fc.ctx).Annotate("Canceled")
+						case <-fc.flow.Closed():
+						}
+					}()
+				}
+			*/
 
 			deadline, _ := ctx.Deadline()
 			if verr := fc.start(r.suffix, method, args, deadline); verr != nil {
@@ -351,6 +350,9 @@ func xcleanupTryCall(skip *xserverStatus, responses []*xserverStatus, ch chan *x
 			// response already; nothing more to do.
 		default:
 			// We received the response, but haven't closed the flow yet.
+			//
+			// TODO(toddw): Currently we only notice cancellation when we read or
+			// write the flow.  Decide how to handle this.
 			r.flow.WriteMsgAndClose() // TODO(toddw): cancel context instead?
 		}
 	}
@@ -422,7 +424,6 @@ type flowXClient struct {
 	enc      *vom.Encoder // to encode requests and args to the server
 	response rpc.Response // each decoded response message is kept here
 
-	blessings        security.Blessings // the local blessings for the current RPC.
 	grantedBlessings security.Blessings // the blessings granted to the server.
 
 	sendClosedMu sync.Mutex
@@ -494,7 +495,7 @@ func (fc *flowXClient) start(suffix, method string, args []interface{}, deadline
 		Method:     method,
 		NumPosArgs: uint64(len(args)),
 		Deadline:   vtime.Deadline{Time: deadline},
-		// TODO(toddw): Blessings and GrantedBlessings?
+		// TODO(toddw): Handle GrantedBlessings.
 		TraceRequest: vtrace.GetRequest(fc.ctx),
 		Language:     string(i18n.GetLangID(fc.ctx)),
 	}
@@ -595,6 +596,8 @@ func (fc *flowXClient) closeSend() error {
 	return nil
 }
 
+// TODO(toddw): Should we require Finish to be called, even if send or recv
+// return an error?
 func (fc *flowXClient) Finish(resultptrs ...interface{}) error {
 	defer apilog.LogCallf(nil, "resultptrs...=%v", resultptrs)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	defer vtrace.GetSpan(fc.ctx).Finish()
@@ -632,17 +635,13 @@ func (fc *flowXClient) Finish(resultptrs ...interface{}) error {
 			return fc.close(berr)
 		}
 	}
-	/*
-		if fc.response.AckBlessings {
-			clientAckBlessings(fc.flow.VCDataCache(), fc.blessings)
-		}
-	*/
 	// Incorporate any VTrace info that was returned.
 	vtrace.GetStore(fc.ctx).Merge(fc.response.TraceResponse)
 	if fc.response.Error != nil {
 		id := verror.ErrorID(fc.response.Error)
 		/*
-		   TODO(toddw): What about this logic?
+		   TODO(toddw): We need to invalidate discharges somehow; there's a method
+		   on the BlessingStore to do this.
 
 		   		if id == verror.ErrNoAccess.ID && fc.dc != nil {
 		   			// In case the error was caused by a bad discharge, we do not want to get stuck
