@@ -9,9 +9,9 @@
 Command agentd runs the security agent daemon, which holds a private key in
 memory and makes it available to a subprocess.
 
-Loads the private key specified in privatekey.pem in V23_CREDENTIALS into
-memory, then starts the specified command with access to the private key via the
-agent protocol instead of directly reading from disk.
+Loads the private key specified in privatekey.pem in the specified credentials
+directory into memory, then starts the specified command with access to the
+private key via the agent protocol instead of directly reading from disk.
 
 Usage:
    agentd [flags] command [command_args...]
@@ -32,6 +32,9 @@ The agentd flags are:
    command's exit code matches the value of this flag.  The value must be an
    integer, or an integer preceded by '!' (in which case all exit codes except
    the flag will trigger a restart).
+ -v23.credentials=
+   The directory containing the (possibly encrypted) credentials to serve.  Must
+   be specified.
 
 The global flags are:
  -alsologtostderr=true
@@ -50,28 +53,6 @@ The global flags are:
    logs at or above this threshold go to stderr
  -v=0
    log level for V logs
- -v23.credentials=
-   directory to use for storing security credentials
- -v23.i18n-catalogue=
-   18n catalogue files to load, comma separated
- -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
-   local namespace root; can be repeated to provided multiple roots
- -v23.proxy=
-   object name of proxy service to use to export services across network
-   boundaries
- -v23.tcp.address=
-   address to listen on
- -v23.tcp.protocol=wsh
-   protocol to listen with
- -v23.vtrace.cache-size=1024
-   The number of vtrace traces to store in memory.
- -v23.vtrace.collect-regexp=
-   Spans and annotations that match this regular expression will trigger trace
-   collection.
- -v23.vtrace.dump-on-shutdown=true
-   If true, dump all stored traces on runtime shutdown.
- -v23.vtrace.sample-rate=0
-   Rate (from 0.0 to 1.0) to sample vtrace traces.
  -vmodule=
    comma-separated list of pattern=N settings for filename-filtered logging
  -vpath=

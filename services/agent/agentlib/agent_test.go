@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
 	"v.io/v23"
-	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/ref/services/agent/agentlib"
+	"v.io/x/ref/services/agent/internal/ipc"
 	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -52,58 +53,70 @@ var getPrincipalAndHang = modules.Register(func(env *modules.Env, args ...string
 	return nil
 }, "getPrincipalAndHang")
 
-func newAgent(ctx *context.T, endpoint string, cached bool) (security.Principal, error) {
-	ep, err := v23.NewEndpoint(endpoint)
-	if err != nil {
-		return nil, err
-	}
+func newAgent(path string, cached bool) (security.Principal, error) {
 	if cached {
-		return agentlib.NewAgentPrincipal(ctx, ep, v23.GetClient(ctx))
+		return agentlib.NewAgentPrincipalX(path)
 	} else {
-		return agentlib.NewUncachedPrincipal(ctx, ep, v23.GetClient(ctx))
+		return agentlib.NewUncachedPrincipalX(path)
 	}
 }
 
-func setupAgentPair(t *testing.T, ctx *context.T, p security.Principal) (security.Principal, security.Principal) {
-	sock, ep, err := server.RunAnonymousAgent(ctx, p, -1)
+func setupAgentPair(t *testing.T, p security.Principal) (security.Principal, security.Principal, func()) {
+	i := ipc.NewIPC()
+	if err := server.ServeAgent(i, p); err != nil {
+		t.Fatal(err)
+	}
+	dir, err := ioutil.TempDir("", "agent")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sock.Close()
+	sock := filepath.Join(dir, "sock")
+	defer os.RemoveAll(dir)
+	if err := i.Listen(sock); err != nil {
+		t.Fatal(err)
+	}
+	agent1, err := newAgent(sock, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	agent2, err := newAgent(sock, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	agent1, err := newAgent(ctx, ep, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	agent2, err := newAgent(ctx, ep, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return agent1, agent2
+	return agent1, agent2, i.Close
 }
 
-func setupAgent(ctx *context.T, caching bool) security.Principal {
-	sock, ep, err := server.RunAnonymousAgent(ctx, v23.GetPrincipal(ctx), -1)
+func setupAgent(caching bool) (security.Principal, func()) {
+	p := testutil.NewPrincipal("agentTest")
+	i := ipc.NewIPC()
+	if err := server.ServeAgent(i, p); err != nil {
+		panic(err)
+	}
+	dir, err := ioutil.TempDir("", "agent")
 	if err != nil {
 		panic(err)
 	}
-	defer sock.Close()
-	agent, err := newAgent(ctx, ep, caching)
+	sock := filepath.Join(dir, "sock")
+	defer os.RemoveAll(dir)
+	if err := i.Listen(sock); err != nil {
+		panic(err)
+	}
+
+	agent, err := newAgent(sock, caching)
 	if err != nil {
 		panic(err)
 	}
-	return agent
+	return agent, i.Close
 }
 
 func TestAgent(t *testing.T) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
 
 	var (
-		p              = testutil.NewPrincipal("agentTest")
-		agent1, agent2 = setupAgentPair(t, ctx, p)
+		p                       = testutil.NewPrincipal("agentTest")
+		agent1, agent2, cleanup = setupAgentPair(t, p)
 	)
+	defer cleanup()
 
 	defP, def1, def2 := p.BlessingStore().Default(), agent1.BlessingStore().Default(), agent2.BlessingStore().Default()
 
@@ -234,73 +247,69 @@ func runRecognizedBenchmark(b *testing.B, p security.Principal) {
 }
 
 func BenchmarkSignNoAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runSignBenchmark(b, v23.GetPrincipal(ctx))
+	p := testutil.NewPrincipal("agentTest")
+	runSignBenchmark(b, p)
 }
 
 func BenchmarkSignCachedAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runSignBenchmark(b, setupAgent(ctx, true))
+	p, cleanup := setupAgent(true)
+	defer cleanup()
+	runSignBenchmark(b, p)
 }
 
 func BenchmarkSignUncachedAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runSignBenchmark(b, setupAgent(ctx, false))
+	p, cleanup := setupAgent(false)
+	defer cleanup()
+	runSignBenchmark(b, p)
 }
 
 func BenchmarkDefaultNoAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runDefaultBenchmark(b, v23.GetPrincipal(ctx))
+	p := testutil.NewPrincipal("agentTest")
+	runDefaultBenchmark(b, p)
 }
 
 func BenchmarkDefaultCachedAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runDefaultBenchmark(b, setupAgent(ctx, true))
+	p, cleanup := setupAgent(true)
+	defer cleanup()
+	runDefaultBenchmark(b, p)
 }
 
 func BenchmarkDefaultUncachedAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runDefaultBenchmark(b, setupAgent(ctx, false))
+	p, cleanup := setupAgent(false)
+	defer cleanup()
+	runDefaultBenchmark(b, p)
 }
 
 func BenchmarkRecognizedNegativeNoAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runRecognizedNegativeBenchmark(b, v23.GetPrincipal(ctx))
+	p := testutil.NewPrincipal("agentTest")
+	runRecognizedNegativeBenchmark(b, p)
 }
 
 func BenchmarkRecognizedNegativeCachedAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runRecognizedNegativeBenchmark(b, setupAgent(ctx, true))
+	p, cleanup := setupAgent(true)
+	defer cleanup()
+	runRecognizedNegativeBenchmark(b, p)
 }
 
 func BenchmarkRecognizedNegativeUncachedAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runRecognizedNegativeBenchmark(b, setupAgent(ctx, false))
+	p, cleanup := setupAgent(false)
+	defer cleanup()
+	runRecognizedNegativeBenchmark(b, p)
 }
 
 func BenchmarkRecognizedNoAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runRecognizedBenchmark(b, v23.GetPrincipal(ctx))
+	p := testutil.NewPrincipal("agentTest")
+	runRecognizedBenchmark(b, p)
 }
 
 func BenchmarkRecognizedCachedAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runRecognizedBenchmark(b, setupAgent(ctx, true))
+	p, cleanup := setupAgent(true)
+	defer cleanup()
+	runRecognizedBenchmark(b, p)
 }
 
 func BenchmarkRecognizedUncachedAgent(b *testing.B) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-	runRecognizedBenchmark(b, setupAgent(ctx, false))
+	p, cleanup := setupAgent(false)
+	defer cleanup()
+	runRecognizedBenchmark(b, p)
 }

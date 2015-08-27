@@ -12,25 +12,16 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"io"
-	"net"
 	"os"
 	"path/filepath"
-	"strconv"
+	"sync"
 
-	"v.io/v23"
-	"v.io/v23/context"
-	"v.io/v23/options"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
-	"v.io/x/ref/services/agent/agentlib"
-	"v.io/x/ref/services/agent/internal/unixfd"
+	"v.io/x/ref/services/agent/internal/ipc"
 )
-
-const PrincipalHandleByteSize = sha512.Size
 
 const pkgPath = "v.io/x/ref/services/agent/internal/server"
 
@@ -42,61 +33,38 @@ var (
 		verror.NoRetry, "{1:}{2:} Not running in multi-key mode")
 )
 
-type keyHandle [PrincipalHandleByteSize]byte
-
 type agentd struct {
-	id        int
-	w         *watchers
+	ipc       *ipc.IPC
 	principal security.Principal
-	ctx       *context.T
+	mu        sync.RWMutex
 }
 
 type keyData struct {
-	w *watchers
-	p security.Principal
+	p     security.Principal
+	agent *ipc.IPC
 }
 
 type keymgr struct {
 	path       string
 	passphrase []byte
-	ctx        *context.T
+	cache      map[[agent.PrincipalHandleByteSize]byte]keyData
+	mu         sync.Mutex
 }
 
-// RunAnonymousAgent starts the agent server listening on an
-// anonymous unix domain socket. It will respond to requests
-// using 'principal'.
-//
-// The returned 'client' and 'endpoint' are typically passed via
-// cmd.ExtraFiles and envvar.AgentEndpoint to a child process.
-//
-// When passing 'endpoint' to a child, set 'remoteFd' to the fd number
-// in the child process. If 'endpoint' will be used in this process
-// (e.g. in the agent unit tests), set 'remoteFd' to -1.
-func RunAnonymousAgent(ctx *context.T, principal security.Principal, remoteFd int) (client *os.File, endpoint string, err error) {
-	local, remote, err := unixfd.Socketpair()
-	if err != nil {
-		return nil, "", err
-	}
-	if err = startAgent(ctx, local, newWatchers(), principal); err != nil {
-		remote.Close()
-		return nil, "", err
-	}
-	if remoteFd == -1 {
-		remoteFd = int(remote.Fd())
-	}
-	return remote, agentlib.AgentEndpoint(remoteFd), nil
+// ServeAgent registers the agent server with 'ipc'.
+// It will respond to requests using 'principal'.
+// Must be called before ipc.Listen or ipc.Connect.
+func ServeAgent(i *ipc.IPC, principal security.Principal) (err error) {
+	server := &agentd{ipc: i, principal: principal}
+	return i.Serve(server)
 }
 
-// RunKeyManager starts the key manager server listening on an anonymous unix
-// domain socket. It will persist principals in 'path' using 'passphrase'.
-// The returned 'client' is typically passed via cmd.ExtraFiles to a child
-// process.
-func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.File, err error) {
+func newKeyManager(path string, passphrase []byte) (*keymgr, error) {
 	if path == "" {
 		return nil, verror.New(errStoragePathRequired, nil)
 	}
 
-	mgr := &keymgr{path: path, passphrase: passphrase, ctx: ctx}
+	mgr := &keymgr{path: path, passphrase: passphrase, cache: make(map[[agent.PrincipalHandleByteSize]byte]keyData)}
 
 	if err := os.MkdirAll(filepath.Join(mgr.path, "keys"), 0700); err != nil {
 		return nil, err
@@ -104,83 +72,50 @@ func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.F
 	if err := os.MkdirAll(filepath.Join(mgr.path, "creds"), 0700); err != nil {
 		return nil, err
 	}
+	return mgr, nil
+}
 
-	local, client, err := unixfd.Socketpair()
+type localKeymgr struct {
+	*keymgr
+}
+
+func NewLocalKeyManager(path string, passphrase []byte) (agent.KeyManager, error) {
+	m, err := newKeyManager(path, passphrase)
+	return localKeymgr{m}, err
+}
+
+func (l localKeymgr) Close() error {
+	defer l.mu.Unlock()
+	l.mu.Lock()
+	for _, data := range l.cache {
+		if data.agent != nil {
+			data.agent.Close()
+		}
+	}
+	return nil
+}
+
+// ServeKeyManager registers key manager server with 'ipc'.
+// It will persist principals in 'path' using 'passphrase'.
+// Must be called before ipc.Listen or ipc.Connect.
+func ServeKeyManager(i *ipc.IPC, path string, passphrase []byte) error {
+	mgr, err := newKeyManager(path, passphrase)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	go mgr.readConns(ctx, local)
-
-	return client, nil
+	return i.Serve(mgr)
 }
 
-func (a *keymgr) readConns(ctx *context.T, conn *net.UnixConn) {
-	cache := make(map[keyHandle]keyData)
-	donech := a.ctx.Done()
-	if donech != nil {
-		go func() {
-			// Shut down our read loop if the context is cancelled
-			<-donech
-			conn.Close()
-		}()
-	}
-	defer conn.Close()
-	var buf keyHandle
-	for {
-		addr, n, ack, err := unixfd.ReadConnection(conn, buf[:])
-		if err == io.EOF {
-			return
-		} else if err != nil {
-			// We ignore read errors, unless the context is cancelled.
-			select {
-			case <-donech:
-				return
-			default:
-				ctx.Infof("Error accepting connection: %v", err)
-				continue
-			}
-		}
-		ack()
-		var data keyData
-		if n == len(buf) {
-			if cached, ok := cache[buf]; ok {
-				data = cached
-			} else if data, err = a.readKey(buf); err != nil {
-				ctx.Error(err)
-				continue
-			} else {
-				cache[buf] = data
-			}
-		} else if n == 1 {
-			if buf, data, err = a.newKey(buf[0] == 1); err != nil {
-				ctx.Infof("Error creating key: %v", err)
-				unixfd.CloseUnixAddr(addr)
-				continue
-			}
-			cache[buf] = data
-			if _, err = conn.Write(buf[:]); err != nil {
-				ctx.Infof("Error sending key handle: %v", err)
-				unixfd.CloseUnixAddr(addr)
-				continue
-			}
-		} else {
-			ctx.Infof("invalid key: %d bytes, expected %d or 1", n, len(buf))
-			unixfd.CloseUnixAddr(addr)
-			continue
-		}
-		conn, err := dial(addr)
-		if err != nil {
-			ctx.Info(err)
-			continue
-		}
-		if err := startAgent(a.ctx, conn, data.w, data.p); err != nil {
-			ctx.Infof("error starting agent: %v", err)
+func (a *keymgr) readKey(handle [agent.PrincipalHandleByteSize]byte) (keyData, error) {
+	{
+		a.mu.Lock()
+		cached, ok := a.cache[handle]
+		a.mu.Unlock()
+		if ok {
+			return cached, nil
 		}
 	}
-}
 
-func (a *keymgr) readKey(handle keyHandle) (keyData, error) {
 	var nodata keyData
 	filename := base64.URLEncoding.EncodeToString(handle[:])
 	in, err := os.Open(filepath.Join(a.path, "keys", filename))
@@ -200,82 +135,18 @@ func (a *keymgr) readKey(handle keyHandle) (keyData, error) {
 	if err != nil {
 		return nodata, fmt.Errorf("unable to load principal: %v", err)
 	}
-	return keyData{newWatchers(), principal}, nil
+	data := keyData{p: principal}
+	a.mu.Lock()
+	if cachedData, ok := a.cache[handle]; ok {
+		data = cachedData
+	} else {
+		a.cache[handle] = data
+	}
+	a.mu.Unlock()
+	return data, nil
 }
 
-func dial(addr net.Addr) (*net.UnixConn, error) {
-	fd, err := strconv.ParseInt(addr.String(), 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("invalid address: %v", addr)
-	}
-	file := os.NewFile(uintptr(fd), "client")
-	defer file.Close()
-	conn, err := net.FileConn(file)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create conn: %v", err)
-	}
-	return conn.(*net.UnixConn), nil
-}
-
-func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal security.Principal) error {
-	donech := ctx.Done()
-	if donech != nil {
-		go func() {
-			// Interrupt the read loop if the context is cancelled.
-			<-donech
-			conn.Close()
-		}()
-	}
-	go func() {
-		buf := make([]byte, 1)
-		for {
-			clientAddr, _, ack, err := unixfd.ReadConnection(conn, buf)
-			opErr, isNetOptErr := err.(*net.OpError)
-			if err == io.EOF || (isNetOptErr && opErr.Err == io.EOF) {
-				conn.Close()
-				return
-			} else if err != nil {
-				// We ignore read errors, unless the context is cancelled.
-				select {
-				case <-donech:
-					return
-				default:
-					ctx.Infof("Error accepting connection: %#v", err)
-					continue
-				}
-			}
-			if clientAddr != nil {
-				// SecurityNone is safe since we're using anonymous unix sockets.
-				// Only our child process can possibly communicate on the socket.
-				//
-				// Also, SecurityNone implies that s (rpc.Server) created below does not
-				// authenticate to clients, so runtime.Principal is irrelevant for the agent.
-				// TODO(ribrdb): Shutdown these servers when the connection is closed.
-				s, err := v23.NewServer(ctx, options.SecurityNone)
-				if err != nil {
-					ctx.Infof("Error creating server: %v", err)
-					ack()
-					continue
-				}
-				a := []struct{ Protocol, Address string }{
-					{clientAddr.Network(), clientAddr.String()},
-				}
-				spec := rpc.ListenSpec{Addrs: rpc.ListenAddrs(a)}
-				if _, err = s.Listen(spec); err == nil {
-					server := agent.AgentServer(&agentd{w.newID(), w, principal, ctx})
-					err = s.Serve("", server, nil)
-				}
-				ack()
-			}
-			if err != nil {
-				ctx.Infof("Error accepting connection: %v", err)
-			}
-		}
-	}()
-	return nil
-}
-
-func (a agentd) Bless(_ *context.T, _ rpc.ServerCall, key []byte, with security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error) {
+func (a *agentd) Bless(key []byte, with security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error) {
 	pkey, err := security.UnmarshalPublicKey(key)
 	if err != nil {
 		return security.Blessings{}, err
@@ -283,61 +154,65 @@ func (a agentd) Bless(_ *context.T, _ rpc.ServerCall, key []byte, with security.
 	return a.principal.Bless(pkey, with, extension, caveat, additionalCaveats...)
 }
 
-func (a agentd) BlessSelf(_ *context.T, _ rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error) {
+func (a *agentd) BlessSelf(name string, caveats []security.Caveat) (security.Blessings, error) {
 	return a.principal.BlessSelf(name, caveats...)
 }
 
-func (a agentd) Sign(_ *context.T, _ rpc.ServerCall, message []byte) (security.Signature, error) {
+func (a *agentd) Sign(message []byte) (security.Signature, error) {
 	return a.principal.Sign(message)
 }
 
-func (a agentd) MintDischarge(_ *context.T, _ rpc.ServerCall, forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error) {
+func (a *agentd) MintDischarge(forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error) {
 	return a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
 }
 
-func (a *keymgr) newKey(in_memory bool) (keyHandle, keyData, error) {
-	var handle keyHandle
-	var nodata keyData
+func (a *keymgr) NewPrincipal(in_memory bool) (handle [agent.PrincipalHandleByteSize]byte, err error) {
 	if a.path == "" {
-		return handle, nodata, verror.New(errNotMultiKeyMode, nil)
+		return handle, verror.New(errNotMultiKeyMode, nil)
 	}
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return handle, nodata, err
+		return handle, err
 	}
 	if handle, err = keyid(key); err != nil {
-		return handle, nodata, err
+		return handle, err
 	}
 	signer := security.NewInMemoryECDSASigner(key)
 	var p security.Principal
 	if in_memory {
 		if p, err = vsecurity.NewPrincipalFromSigner(signer, nil); err != nil {
-			return handle, nodata, err
+			return handle, err
 		}
 	} else {
 		filename := base64.URLEncoding.EncodeToString(handle[:])
 		out, err := os.OpenFile(filepath.Join(a.path, "keys", filename), os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
-			return handle, nodata, err
+			return handle, err
 		}
 		defer out.Close()
 		err = vsecurity.SavePEMKey(out, key, a.passphrase)
 		if err != nil {
-			return handle, nodata, err
+			return handle, err
 		}
 		state, err := vsecurity.NewPrincipalStateSerializer(filepath.Join(a.path, "creds", filename))
 		if err != nil {
-			return handle, nodata, err
+			return handle, err
 		}
 		p, err = vsecurity.NewPrincipalFromSigner(signer, state)
 		if err != nil {
-			return handle, nodata, err
+			return handle, err
 		}
 	}
-	return handle, keyData{newWatchers(), p}, nil
+	data := keyData{p: p}
+	a.mu.Lock()
+	if _, ok := a.cache[handle]; !ok {
+		a.cache[handle] = data
+	}
+	a.mu.Unlock()
+	return handle, nil
 }
 
-func keyid(key *ecdsa.PrivateKey) (handle keyHandle, err error) {
+func keyid(key *ecdsa.PrivateKey) (handle [agent.PrincipalHandleByteSize]byte, err error) {
 	slice, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
 	if err != nil {
 		return
@@ -345,108 +220,114 @@ func keyid(key *ecdsa.PrivateKey) (handle keyHandle, err error) {
 	return sha512.Sum512(slice), nil
 }
 
-func (a agentd) PublicKey(_ *context.T, _ rpc.ServerCall) ([]byte, error) {
+func (a *agentd) unlock() {
+	a.mu.Unlock()
+	for _, conn := range a.ipc.Connections() {
+		go conn.Call("FlushAllCaches", nil)
+	}
+}
+
+func (a *agentd) PublicKey() ([]byte, error) {
 	return a.principal.PublicKey().MarshalBinary()
 }
 
-func (a agentd) BlessingsByName(_ *context.T, _ rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error) {
-	a.w.rlock()
-	defer a.w.runlock()
+func (a *agentd) BlessingsByName(name security.BlessingPattern) ([]security.Blessings, error) {
+	defer a.mu.RUnlock()
+	a.mu.RLock()
 	return a.principal.BlessingsByName(name), nil
 }
 
-func (a agentd) BlessingsInfo(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error) {
-	a.w.rlock()
-	defer a.w.runlock()
+func (a *agentd) BlessingsInfo(blessings security.Blessings) (map[string][]security.Caveat, error) {
+	a.mu.RLock()
 	return a.principal.BlessingsInfo(blessings), nil
 }
 
-func (a agentd) AddToRoots(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) error {
-	a.w.lock()
-	defer a.w.unlock(a.id)
+func (a *agentd) AddToRoots(blessings security.Blessings) error {
+	defer a.unlock()
+	a.mu.Lock()
 	return a.principal.AddToRoots(blessings)
 }
 
-func (a agentd) BlessingStoreSet(_ *context.T, _ rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
-	a.w.lock()
-	defer a.w.unlock(a.id)
+func (a *agentd) BlessingStoreSet(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
+	defer a.unlock()
+	a.mu.Lock()
 	return a.principal.BlessingStore().Set(blessings, forPeers)
 }
 
-func (a agentd) BlessingStoreForPeer(_ *context.T, _ rpc.ServerCall, peerBlessings []string) (security.Blessings, error) {
-	a.w.rlock()
-	defer a.w.runlock()
+func (a *agentd) BlessingStoreForPeer(peerBlessings []string) (security.Blessings, error) {
+	defer a.mu.RUnlock()
+	a.mu.RLock()
 	return a.principal.BlessingStore().ForPeer(peerBlessings...), nil
 }
 
-func (a agentd) BlessingStoreSetDefault(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) error {
-	a.w.lock()
-	defer a.w.unlock(a.id)
+func (a *agentd) BlessingStoreSetDefault(blessings security.Blessings) error {
+	defer a.unlock()
+	a.mu.Lock()
 	return a.principal.BlessingStore().SetDefault(blessings)
 }
 
-func (a agentd) BlessingStorePeerBlessings(_ *context.T, _ rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error) {
-	a.w.rlock()
-	defer a.w.runlock()
+func (a *agentd) BlessingStorePeerBlessings() (map[security.BlessingPattern]security.Blessings, error) {
+	defer a.mu.RUnlock()
+	a.mu.RLock()
 	return a.principal.BlessingStore().PeerBlessings(), nil
 }
 
-func (a agentd) BlessingStoreDebugString(_ *context.T, _ rpc.ServerCall) (string, error) {
-	a.w.rlock()
-	defer a.w.runlock()
+func (a *agentd) BlessingStoreDebugString() (string, error) {
+	defer a.mu.RUnlock()
+	a.mu.RLock()
 	return a.principal.BlessingStore().DebugString(), nil
 }
 
-func (a agentd) BlessingStoreDefault(_ *context.T, _ rpc.ServerCall) (security.Blessings, error) {
-	a.w.rlock()
-	defer a.w.runlock()
+func (a *agentd) BlessingStoreDefault() (security.Blessings, error) {
+	defer a.mu.RUnlock()
+	a.mu.RLock()
 	return a.principal.BlessingStore().Default(), nil
 }
 
-func (a agentd) BlessingStoreCacheDischarge(_ *context.T, _ rpc.ServerCall, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error {
-	a.w.lock()
+func (a *agentd) BlessingStoreCacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error {
+	defer a.mu.Unlock()
+	a.mu.Lock()
 	a.principal.BlessingStore().CacheDischarge(discharge, caveat, impetus)
-	a.w.unlock(a.id)
 	return nil
 }
 
-func (a agentd) BlessingStoreClearDischarges(_ *context.T, _ rpc.ServerCall, discharges []security.Discharge) error {
-	a.w.lock()
+func (a *agentd) BlessingStoreClearDischarges(discharges []security.Discharge) error {
+	defer a.mu.Unlock()
+	a.mu.Lock()
 	a.principal.BlessingStore().ClearDischarges(discharges...)
-	a.w.unlock(a.id)
 	return nil
 }
 
-func (a agentd) BlessingStoreDischarge(_ *context.T, _ rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
-	a.w.lock()
-	defer a.w.unlock(a.id)
+func (a *agentd) BlessingStoreDischarge(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
+	defer a.mu.Unlock()
+	a.mu.Lock()
 	return a.principal.BlessingStore().Discharge(caveat, impetus), nil
 }
 
-func (a agentd) BlessingRootsAdd(_ *context.T, _ rpc.ServerCall, root []byte, pattern security.BlessingPattern) error {
+func (a *agentd) BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error {
 	pkey, err := security.UnmarshalPublicKey(root)
 	if err != nil {
 		return err
 	}
-	a.w.lock()
-	defer a.w.unlock(a.id)
+	defer a.unlock()
+	a.mu.Lock()
 	return a.principal.Roots().Add(pkey, pattern)
 }
 
-func (a agentd) BlessingRootsRecognized(_ *context.T, _ rpc.ServerCall, root []byte, blessing string) error {
+func (a *agentd) BlessingRootsRecognized(root []byte, blessing string) error {
 	pkey, err := security.UnmarshalPublicKey(root)
 	if err != nil {
 		return err
 	}
-	a.w.rlock()
-	defer a.w.runlock()
+	defer a.mu.RUnlock()
+	a.mu.RLock()
 	return a.principal.Roots().Recognized(pkey, blessing)
 }
 
-func (a agentd) BlessingRootsDump(_ *context.T, _ rpc.ServerCall) (map[security.BlessingPattern][][]byte, error) {
+func (a *agentd) BlessingRootsDump() (map[security.BlessingPattern][][]byte, error) {
 	ret := make(map[security.BlessingPattern][][]byte)
-	a.w.rlock()
-	defer a.w.runlock()
+	defer a.mu.RUnlock()
+	a.mu.RLock()
 	for p, keys := range a.principal.Roots().Dump() {
 		for _, key := range keys {
 			marshaledKey, err := key.MarshalBinary()
@@ -459,28 +340,73 @@ func (a agentd) BlessingRootsDump(_ *context.T, _ rpc.ServerCall) (map[security.
 	return ret, nil
 }
 
-func (a agentd) BlessingRootsDebugString(_ *context.T, _ rpc.ServerCall) (string, error) {
-	a.w.rlock()
-	defer a.w.runlock()
+func (a *agentd) BlessingRootsDebugString() (string, error) {
+	defer a.mu.RUnlock()
+	a.mu.RLock()
 	return a.principal.Roots().DebugString(), nil
 }
 
-func (a agentd) NotifyWhenChanged(ctx *context.T, call agent.AgentNotifyWhenChangedServerCall) error {
-	ch := a.w.register(a.id)
-	defer a.w.unregister(a.id, ch)
-	for {
-		select {
-		case <-a.ctx.Done():
-			return nil
-		case <-ctx.Done():
-			return nil
-		case _, ok := <-ch:
-			if !ok {
-				return nil
-			}
-			if err := call.SendStream().Send(true); err != nil {
-				return err
-			}
-		}
+func (m *keymgr) ServePrincipal(handle [agent.PrincipalHandleByteSize]byte, path string) error {
+	if _, err := m.readKey(handle); err != nil {
+		return err
 	}
+	defer m.mu.Unlock()
+	m.mu.Lock()
+	data, ok := m.cache[handle]
+	if !ok {
+		return fmt.Errorf("key deleted")
+	}
+	if data.agent != nil {
+		return verror.NewErrExist(nil)
+	}
+	ipc := ipc.NewIPC()
+	if err := ServeAgent(ipc, data.p); err != nil {
+		return err
+	}
+	if err := ipc.Listen(path); err != nil {
+		return err
+	}
+	data.agent = ipc
+	m.cache[handle] = data
+	return nil
+}
+
+func (m *keymgr) StopServing(handle [agent.PrincipalHandleByteSize]byte) error {
+	if _, err := m.readKey(handle); err != nil {
+		return err
+	}
+	defer m.mu.Unlock()
+	m.mu.Lock()
+	data, ok := m.cache[handle]
+	if !ok {
+		return fmt.Errorf("key deleted")
+	}
+	if data.agent == nil {
+		return verror.NewErrNoExist(nil)
+	}
+	data.agent.Close()
+	data.agent = nil
+	m.cache[handle] = data
+	return nil
+}
+
+func (m *keymgr) DeletePrincipal(handle [agent.PrincipalHandleByteSize]byte) error {
+	defer m.mu.Unlock()
+	m.mu.Lock()
+	data, cached := m.cache[handle]
+	if cached {
+		if data.agent != nil {
+			data.agent.Close()
+		}
+		delete(m.cache, handle)
+	}
+	filename := base64.URLEncoding.EncodeToString(handle[:])
+	keyErr := os.Remove(filepath.Join(m.path, "keys", filename))
+	credErr := os.RemoveAll(filepath.Join(m.path, "creds", filename))
+	if os.IsNotExist(keyErr) && !cached {
+		return verror.NewErrNoExist(nil)
+	} else if keyErr != nil {
+		return keyErr
+	}
+	return credErr
 }

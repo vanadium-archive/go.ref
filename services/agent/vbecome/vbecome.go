@@ -12,6 +12,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,6 +26,7 @@ import (
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/services/agent/internal/ipc"
 	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/services/role"
 
@@ -108,15 +110,25 @@ func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 
 	// Start an agent server.
-	sock, endpoint, err := server.RunAnonymousAgent(ctx, principal, childAgentFd)
+	i := ipc.NewIPC()
+	if err := server.ServeAgent(i, principal); err != nil {
+		return err
+	}
+	dir, err := ioutil.TempDir("", "vbecome")
 	if err != nil {
 		return err
 	}
-	if err = os.Setenv(ref.EnvAgentEndpoint, endpoint); err != nil {
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "sock")
+	if err := i.Listen(path); err != nil {
+		return err
+	}
+	defer i.Close()
+	if err = os.Setenv(ref.EnvAgentPath, path); err != nil {
 		ctx.Fatalf("setenv: %v", err)
 	}
 
-	return doExec(args, sock)
+	return doExec(args)
 }
 
 func bless(ctx *context.T, p security.Principal, name string) error {
@@ -148,12 +160,11 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 	return nil
 }
 
-func doExec(args []string, sock *os.File) error {
+func doExec(args []string) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.ExtraFiles = []*os.File{sock}
 	return cmd.Run()
 }
 
