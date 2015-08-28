@@ -102,11 +102,6 @@ func Init(
 		ctx = context.WithValue(ctx, reservedNameKey, reservedDispatcher)
 	}
 
-	err := logger.Manager(logger.Global()).ConfigureFromFlags()
-	if err != nil && !logger.IsAlreadyConfiguredError(err) {
-		return nil, nil, nil, err
-	}
-
 	// Configure the context to use the global logger.
 	ctx = context.WithLogger(ctx, logger.Global())
 
@@ -124,7 +119,7 @@ func Init(
 	}
 
 	// Setup the initial trace.
-	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
+	ctx, err := ivtrace.Init(ctx, flags.Vtrace)
 	if err != nil {
 		return nil, nil, nil, err
 	}

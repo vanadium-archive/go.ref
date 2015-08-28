@@ -36,11 +36,6 @@ func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
 }
 
 func (r *Runtime) Init(ctx *context.T) error {
-	// nologcall
-	err := logger.Manager(ctx).ConfigureFromFlags()
-	if err != nil && !logger.IsAlreadyConfiguredError(err) {
-		return err
-	}
 	return nil
 }
 

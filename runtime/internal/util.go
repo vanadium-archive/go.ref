@@ -14,6 +14,7 @@ import (
 	"v.io/v23/logging"
 	"v.io/v23/verror"
 
+	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/flags"
 )
@@ -40,6 +41,28 @@ func ParseFlags(f *flags.Flags) error {
 		config = handle.Config.Dump()
 	}
 	return parseFlagsInternal(f, config)
+}
+
+// ParseFlagsAndConfigurGlobalLogger calls ParseFlags and then
+// ConfigureGlobalLoggerFromFlags.
+func ParseFlagsAndConfigureGlobalLogger(f *flags.Flags) error {
+	if err := ParseFlags(f); err != nil {
+		return err
+	}
+	if err := ConfigureGlobalLoggerFromFlags(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ConfigureGlobalLoggerFromFlags configures the global logger from command
+// line flags.  Should be called immediately after ParseFlags.
+func ConfigureGlobalLoggerFromFlags() error {
+	err := logger.Manager(logger.Global()).ConfigureFromFlags()
+	if err != nil && !logger.IsAlreadyConfiguredError(err) {
+		return err
+	}
+	return nil
 }
 
 // IPAddressChooser returns the preferred IP address, which is,
