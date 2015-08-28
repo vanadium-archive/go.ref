@@ -16,6 +16,8 @@ import (
 	"v.io/v23/rpc"
 
 	_ "v.io/x/ref/runtime/internal/flow/protocols/tcp"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh"
 	"v.io/x/ref/runtime/internal/lib/websocket"
 
 	// TODO(suharshs): Remove these once we switch to the flow protocols.

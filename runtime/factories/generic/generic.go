@@ -16,6 +16,8 @@ import (
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal"
 	_ "v.io/x/ref/runtime/internal/flow/protocols/tcp"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
 	"v.io/x/ref/runtime/internal/lib/websocket"
 	grt "v.io/x/ref/runtime/internal/rt"
