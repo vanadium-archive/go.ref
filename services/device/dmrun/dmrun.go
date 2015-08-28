@@ -58,7 +58,11 @@ func die(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
 	fmt.Fprintln(os.Stderr)
 	if cleanupOnDeath != nil {
-		cleanupOnDeath()
+		savedCleanupFn := cleanupOnDeath
+		cleanupOnDeath = func() {
+			fmt.Fprintf(os.Stderr, "Avoided recursive call to cleanup in die()\n")
+		}
+		savedCleanupFn()
 	}
 	os.Exit(1)
 }
@@ -92,7 +96,7 @@ func setupWorkDir() {
 	workDir, err = ioutil.TempDir("", filepath.Base(os.Args[0]))
 	dieIfErr(err, "Couldn't set up work dir")
 	dieIfErr(os.Chmod(workDir, 0777), "Couldn't chmod work dir")
-	fmt.Println(workDir)
+	fmt.Println("Working dir: %s", workDir)
 }
 
 // buildV23Binary builds the specified binary and returns the path to the
@@ -275,21 +279,27 @@ func startApp(installationName, extension string) string {
 }
 
 func main() {
+	flag.Parse()
+	if len(flag.Args()) == 0 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <app> <arguments ... >\n", os.Args[0])
+		os.Exit(1)
+	}
 	setupWorkDir()
 	cleanupOnDeath = func() {
 		os.RemoveAll(workDir)
 	}
 	defer os.RemoveAll(workDir)
-	flag.Parse()
 	vcloud = buildV23Binary(vcloudBin)
 	device = buildV23Binary(deviceBin)
 	dmBins := buildDMBinaries()
 	archive := createArchive(append(dmBins, getPath(devicexRepo, devicex)))
 	gceInstanceName, gceInstanceIP := setupInstance()
 	cleanupOnDeath = func() {
-		os.RemoveAll(workDir)
+		fmt.Fprintf(os.Stderr, "Deleting GCE instance ...\n")
 		cmd := exec.Command(vcloud, "node", "delete", "--project=google.com:veyron", "--zone=us-central1-c", gceInstanceName)
 		output, err := cmd.CombinedOutput()
+		fmt.Fprintf(os.Stderr, "Removing tmp files ...\n")
+		os.RemoveAll(workDir)
 		dieIfErr(err, "Deleting GCE instance (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
 	}
 	installArchive(archive, gceInstanceName)
