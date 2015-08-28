@@ -42,6 +42,7 @@ func runGoC(wg *sync.WaitGroup, wait chan struct{}) {
 }
 
 func TestGet(t *testing.T) {
+	defer NoLeaks(t, 100*time.Millisecond)()
 	var wg sync.WaitGroup
 	wg.Add(3)
 	wait := make(chan struct{})
@@ -93,6 +94,8 @@ func TestGet(t *testing.T) {
 }
 
 func TestFormat(t *testing.T) {
+	defer NoLeaks(t, 100*time.Millisecond)()
+
 	var wg sync.WaitGroup
 	wg.Add(3)
 	wait := make(chan struct{})
