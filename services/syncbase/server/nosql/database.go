@@ -49,6 +49,11 @@ type database struct {
 	mu  sync.Mutex // protects the fields below
 	sns map[uint64]store.Snapshot
 	txs map[uint64]store.Transaction
+
+	// Active ConflictResolver connection from the app to this database.
+	// NOTE: For now, we assume there's only one open conflict resolution stream
+	// per database (typically, from the app that owns the database).
+	resolver wire.ConflictManagerStartConflictResolverServerCall
 }
 
 // databaseReq is a per-request object that handles Database RPCs.
