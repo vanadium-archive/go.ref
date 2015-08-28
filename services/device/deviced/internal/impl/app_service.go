@@ -1202,6 +1202,10 @@ func (i *appService) Run(ctx *context.T, call rpc.ServerCall) error {
 	if startSystemName != systemName {
 		return verror.New(verror.ErrNoAccess, ctx, "Not allowed to resume an application under a different system name.")
 	}
+
+	// TODO(caprita): We should reset the Restarts and RestartWindowBegan
+	// fields in the instance info when the instance is started with Run.
+
 	return i.runner.run(ctx, instanceDir)
 }
 
@@ -1677,6 +1681,8 @@ System name / start system name: {{.SystemName}} / {{.StartSystemName}}
 
 Cmd: {{printf "%+v" .Cmd}}
 
+Envelope: {{printf "%+v" .Envelope}}
+
 Info: {{printf "%+v" .Info}}
 
 Principal: {{.PrincipalType}}
@@ -1696,6 +1702,7 @@ Roots: {{.Principal.Roots.DebugString}}
 	debugInfo := struct {
 		InstanceDir, SystemName, StartSystemName string
 		Cmd                                      *exec.Cmd
+		Envelope                                 *application.Envelope
 		Info                                     *instanceInfo
 		Principal                                security.Principal
 		PrincipalType                            string
@@ -1718,6 +1725,12 @@ Roots: {{.Principal.Roots.DebugString}}
 		return "", err
 	} else {
 		debugInfo.Cmd = cmd
+	}
+
+	if envelope, err := loadEnvelopeForInstance(ctx, instanceDir); err != nil {
+		return "", err
+	} else {
+		debugInfo.Envelope = envelope
 	}
 
 	switch sa := i.runner.securityAgent; {
