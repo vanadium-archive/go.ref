@@ -58,7 +58,7 @@ func init() {
 }
 
 func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
-	if err := internal.ParseFlags(commonFlags); err != nil {
+	if err := internal.ParseFlagsAndConfigureGlobalLogger(commonFlags); err != nil {
 		return nil, nil, nil, err
 	}
 

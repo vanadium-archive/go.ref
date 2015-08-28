@@ -43,12 +43,12 @@ func init() {
 }
 
 func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
-	if !gce.RunningOnGCE() {
-		return nil, nil, nil, fmt.Errorf("GCE profile used on a non-GCE system")
+	if err := internal.ParseFlagsAndConfigureGlobalLogger(commonFlags); err != nil {
+		return nil, nil, nil, err
 	}
 
-	if err := internal.ParseFlags(commonFlags); err != nil {
-		return nil, nil, nil, err
+	if !gce.RunningOnGCE() {
+		return nil, nil, nil, fmt.Errorf("GCE profile used on a non-GCE system")
 	}
 
 	ac := appcycle.New()

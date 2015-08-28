@@ -15,6 +15,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 
+	"v.io/x/ref/runtime/internal"
 	_ "v.io/x/ref/runtime/internal/flow/protocols/tcp"
 	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
 	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh"
@@ -41,6 +42,10 @@ func init() {
 }
 
 func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
+	if err := internal.ConfigureGlobalLoggerFromFlags(); err != nil {
+		return nil, nil, nil, err
+	}
+
 	runtimeInfo.mu.Lock()
 	defer runtimeInfo.mu.Unlock()
 	if runtimeInfo.runtime != nil {
