@@ -13,7 +13,7 @@ import (
 	"v.io/v23/security"
 )
 
-type Server struct {
+type server struct {
 	s rpc.Server
 }
 
@@ -35,7 +35,7 @@ type Server struct {
 // Invoker interface, the Invoker is used to invoke methods directly,
 // without reflection.  If name is an empty string, no attempt will
 // made to publish.
-func NewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*Server, error) {
+func NewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (rpc.XServer, error) {
 	s, err := v23.NewServer(ctx, opts...)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func NewServer(ctx *context.T, name string, object interface{}, auth security.Au
 		s.Stop()
 		return nil, err
 	}
-	return &Server{s: s}, nil
+	return &server{s: s}, nil
 }
 
 // NewDispatchingServer creates a new Server instance to serve a given dispatcher.
@@ -68,7 +68,7 @@ func NewServer(ctx *context.T, name string, object interface{}, auth security.Au
 // method which will in turn return the object and security.Authorizer
 // used to serve the actual RPC call.  If name is an empty string, no
 // attempt will made to publish that name to a mount table.
-func NewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*Server, error) {
+func NewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (rpc.XServer, error) {
 	s, err := v23.NewServer(ctx, opts...)
 	if err != nil {
 		return nil, err
@@ -79,24 +79,24 @@ func NewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts
 	if err = s.ServeDispatcher(name, disp); err != nil {
 		return nil, err
 	}
-	return &Server{s: s}, nil
+	return &server{s: s}, nil
 }
 
 // AddName adds the specified name to the mount table for this server.
 // AddName may be called multiple times.
-func (s *Server) AddName(name string) error {
+func (s *server) AddName(name string) error {
 	return s.s.AddName(name)
 }
 
 // RemoveName removes the specified name from the mount table.
 // RemoveName may be called multiple times.
-func (s *Server) RemoveName(name string) {
+func (s *server) RemoveName(name string) {
 	s.s.RemoveName(name)
 }
 
 // Status returns the current status of the server, see ServerStatus
 // for details.
-func (s *Server) Status() rpc.ServerStatus {
+func (s *server) Status() rpc.ServerStatus {
 	return s.s.Status()
 }
 
@@ -104,13 +104,13 @@ func (s *Server) Status() rpc.ServerStatus {
 // be sent. The Server will not block sending data over this channel
 // and hence change events may be lost if the caller doesn't ensure
 // there is sufficient buffering in the channel.
-func (s *Server) WatchNetwork(ch chan<- rpc.NetworkChange) {
+func (s *server) WatchNetwork(ch chan<- rpc.NetworkChange) {
 	s.s.WatchNetwork(ch)
 }
 
 // UnwatchNetwork unregisters a channel previously registered using
 // WatchNetwork.
-func (s *Server) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
+func (s *server) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
 	s.s.UnwatchNetwork(ch)
 }
 
@@ -118,6 +118,6 @@ func (s *Server) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
 // rejected, but any in-flight calls are allowed to complete.  All
 // published mountpoints are unmounted.  This call waits for this
 // process to complete, and returns once the server has been shut down.
-func (s *Server) Stop() error {
+func (s *server) Stop() error {
 	return s.s.Stop()
 }
