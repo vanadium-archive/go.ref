@@ -417,10 +417,10 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	deps := []interface{}{vtraceDependency{}}
 	switch {
 	case fm != nil && sm != nil:
-		client, err = irpc.NewTransitionClient(fm, sm, ns, otherOpts...)
+		client, err = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
 		deps = append(deps, fm, sm)
 	case fm != nil:
-		client, err = irpc.InternalNewXClient(fm, ns, otherOpts...)
+		client, err = irpc.InternalNewXClient(ctx, otherOpts...)
 		deps = append(deps, fm)
 	case sm != nil:
 		client, err = irpc.InternalNewClient(sm, ns, otherOpts...)
