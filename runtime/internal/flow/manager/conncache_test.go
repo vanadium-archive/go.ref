@@ -273,9 +273,10 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 		}
 		dch <- d
 	}()
+	fh := fh{t, make(chan struct{})}
 	go func() {
 		a, err := connpackage.NewAccepted(ctx, amrw, ep,
-			version.RPCVersionRange{Min: 1, Max: 5}, fh{t})
+			version.RPCVersionRange{Min: 1, Max: 5}, fh)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -291,11 +292,13 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	if _, err := f.Write([]byte{0}); err != nil {
 		t.Fatal(err)
 	}
+	<-fh.ch
 	return connAndFlow{conn, f}
 }
 
 type fh struct {
-	t *testing.T
+	t  *testing.T
+	ch chan struct{}
 }
 
 func (h fh) HandleFlow(f flow.Flow) error {
@@ -303,6 +306,7 @@ func (h fh) HandleFlow(f flow.Flow) error {
 		if _, err := f.WriteMsg([]byte{0}); err != nil {
 			h.t.Errorf("failed to write: %v", err)
 		}
+		close(h.ch)
 	}()
 	return nil
 }
