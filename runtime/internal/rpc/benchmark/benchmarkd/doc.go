@@ -36,6 +36,8 @@ The global flags are:
    write a goroutine blocking profile to the named file after execution
  -test.blockprofilerate=1
    if >= 0, calls runtime.SetBlockProfileRate()
+ -test.count=1
+   run tests and benchmarks `n` times
  -test.coverprofile=
    write a coverage profile to the named file after execution
  -test.cpu=
@@ -48,7 +50,7 @@ The global flags are:
    if >=0, sets runtime.MemProfileRate
  -test.outputdir=
    directory in which to write profiles
- -test.parallel=1
+ -test.parallel=12
    maximum test parallelism
  -test.run=
    regular expression to select tests and examples to run
@@ -56,8 +58,12 @@ The global flags are:
    run smaller test suite to save time
  -test.timeout=0
    if positive, sets an aggregate time limit for all tests
+ -test.trace=
+   write an execution trace to the named file after execution
  -test.v=false
    verbose: print additional output
+ -v=0
+   log level for V logs
  -v23.credentials=
    directory to use for storing security credentials
  -v23.i18n-catalogue=
