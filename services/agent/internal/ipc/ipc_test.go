@@ -153,11 +153,6 @@ func TestBadMinVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = enc.Encode(agent.RpcMessageReq{Value: agent.RpcRequest{Id: 0, Method: "foo", NumArgs: 0}}); err != nil {
-		if err != io.EOF {
-			t.Fatal(err)
-		}
-	}
 	var response agent.RpcMessage
 	if err = dec.Decode(&response); err != io.EOF {
 		t.Fatalf("Expected EOF, got %v", err)
@@ -185,11 +180,6 @@ func TestBadMaxVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = enc.Encode(agent.RpcMessageReq{Value: agent.RpcRequest{Id: 0, Method: "foo", NumArgs: 0}}); err != nil {
-		if err != io.EOF {
-			t.Fatal(err)
-		}
-	}
 	var response agent.RpcMessage
 	if err = dec.Decode(&response); err != io.EOF {
 		t.Fatalf("Expected EOF, got %v", err)
