@@ -624,6 +624,9 @@ func hasPrefixMatches(prefixList, stringList string) bool {
 // envelope.
 func verifyAppPeerBlessings(t *testing.T, ctx, pubCtx *context.T, instanceDebug string, e *application.Envelope) {
 	// Extract the blessings from the debug output
+	//
+	// TODO(caprita): This is flaky, since the '...' peer pattern may not be
+	// the first one in the sorted pattern list.  See v.io/i/680
 	blessingRE := regexp.MustCompile(`Blessings\s?\n\s?\.\.\.\s*([^\n]+)`)
 	blessingMatches := blessingRE.FindStringSubmatch(instanceDebug)
 	if len(blessingMatches) < 2 {

@@ -46,6 +46,7 @@ func (rp *basicDecisionPolicy) decide(envelope *application.Envelope, instance *
 
 	if instance.Restarts < envelope.Restarts {
 		instance.Restarts++
+		instance.RestartWindowBegan = time.Now()
 		return true
 	}
 

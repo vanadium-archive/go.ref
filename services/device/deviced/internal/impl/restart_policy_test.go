@@ -73,11 +73,11 @@ func TestRestartPolicy(t *testing.T) {
 			},
 			&instanceInfo{
 				Restarts:           1,
-				RestartWindowBegan: time.Now(),
+				RestartWindowBegan: time.Date(2015, time.December, 25, 12, 0, 0, 0, time.UTC),
 			},
 			&instanceInfo{
 				Restarts:           1,
-				RestartWindowBegan: time.Now(),
+				RestartWindowBegan: time.Date(2015, time.December, 25, 12, 0, 0, 0, time.UTC),
 			},
 			false,
 		},
@@ -97,11 +97,28 @@ func TestRestartPolicy(t *testing.T) {
 			},
 			true,
 		},
+		// Every time a restart happens, the beginning of the window
+		// should be reset.
+		{
+			&application.Envelope{
+				Restarts:          2,
+				RestartTimeWindow: time.Minute,
+			},
+			&instanceInfo{
+				Restarts:           1,
+				RestartWindowBegan: time.Now().Add(-10 * time.Second),
+			},
+			&instanceInfo{
+				Restarts:           2,
+				RestartWindowBegan: time.Now(),
+			},
+			true,
+		},
 	}
 
-	for _, tv := range testVectors {
+	for ti, tv := range testVectors {
 		if got, want := nbr.decide(tv.envelope, tv.info), tv.decision; got != want {
-			t.Errorf("basicDecisionPolicy decide: got %v, want %v", got, want)
+			t.Errorf("Test case #%d: basicDecisionPolicy decide: got %v, want %v", ti, got, want)
 		}
 
 		if got, want := tv.info.Restarts, tv.wantInfo.Restarts; got != want {
@@ -109,8 +126,8 @@ func TestRestartPolicy(t *testing.T) {
 		}
 
 		// Times should be "nearly" same.
-		if got, want := tv.info.RestartWindowBegan, tv.wantInfo.RestartWindowBegan; !(got.Sub(want) < time.Second) && (got.Sub(want) > 0) {
-			t.Errorf("basicDecisionPolicy instanceInfo RestartTimeBegan got %v, want %v", got, want)
+		if got, want := tv.info.RestartWindowBegan, tv.wantInfo.RestartWindowBegan; !((got.Sub(want) < time.Second) && (got.Sub(want) >= 0)) {
+			t.Errorf("Test case #%d: basicDecisionPolicy instanceInfo RestartTimeBegan got %v, want %v", ti, got, want)
 		}
 	}
 }
