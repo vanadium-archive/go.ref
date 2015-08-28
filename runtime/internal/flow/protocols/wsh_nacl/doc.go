@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package xwebsocket
-
-error (
-  ListenerClosed() {"en":"listener is already closed."}
-  ListenCalledInNaCl() {"en": "Listen cannot be called in NaCl code."}
-)
+// Package wsh_nacl registers the websocket 'hybrid' protocol for nacl
+// architectures. It will only be built if on the nacl architecture.
+package wsh_nacl

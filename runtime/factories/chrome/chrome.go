@@ -15,10 +15,14 @@ import (
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh_nacl"
 	"v.io/x/ref/runtime/internal/lib/websocket"
+	grt "v.io/x/ref/runtime/internal/rt"
+
+	// TODO(suharshs): Remove this after we switch to the flow protocols.
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/ws"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/wsh_nacl"
-	grt "v.io/x/ref/runtime/internal/rt"
 )
 
 var commonFlags *flags.Flags

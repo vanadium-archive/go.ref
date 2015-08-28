@@ -30,6 +30,8 @@ import (
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/runtime/internal"
 	_ "v.io/x/ref/runtime/internal/flow/protocols/tcp"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
 	"v.io/x/ref/runtime/internal/lib/websocket"
 	irpc "v.io/x/ref/runtime/internal/rpc"
