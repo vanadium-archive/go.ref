@@ -14,7 +14,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -22,6 +21,7 @@ import (
 	"v.io/v23/services/groups"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 )
 
@@ -82,24 +82,16 @@ func capitalize(s string) string {
 	return string(unicode.ToUpper(rune)) + s[size:]
 }
 
-func startServer(ctx *context.T, t *testing.T) (rpc.Server, naming.Endpoint) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-	}
-	l := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(l)
-	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", l, err)
-	}
+func startServer(ctx *context.T, t *testing.T) (rpc.XServer, naming.Endpoint) {
 	unpublished := ""
-	if err := server.Serve(unpublished, groups.GroupServer(&mock{}), nil); err != nil {
-		t.Fatalf("Serve(%v) failed: %v", unpublished, err)
+	s, err := xrpc.NewServer(ctx, unpublished, groups.GroupServer(&mock{}), nil)
+	if err != nil {
+		t.Fatalf("NewServer(%v) failed: %v", unpublished, err)
 	}
-	return server, endpoints[0]
+	return s, s.Status().Endpoints[0]
 }
 
-func stopServer(t *testing.T, server rpc.Server) {
+func stopServer(t *testing.T, server rpc.XServer) {
 	if err := server.Stop(); err != nil {
 		t.Errorf("Stop() failed: %v", err)
 	}
