@@ -18,15 +18,17 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/role"
 	irole "v.io/x/ref/services/role/roled/internal"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func TestSeekBlessings(t *testing.T) {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")
@@ -38,9 +40,9 @@ func TestSeekBlessings(t *testing.T) {
 	// Role A is a restricted role, i.e. it can be used in sensitive Permissions.
 	roleAConf := irole.Config{
 		Members: []security.BlessingPattern{
-			"root/users/user1/_role",
-			"root/users/user2/_role",
-			"root/users/user3", // _role implied
+			"test-blessing/users/user1/_role",
+			"test-blessing/users/user2/_role",
+			"test-blessing/users/user3", // _role implied
 		},
 		Extend: true,
 	}
@@ -49,15 +51,15 @@ func TestSeekBlessings(t *testing.T) {
 	// Role B is an unrestricted role.
 	roleBConf := irole.Config{
 		Members: []security.BlessingPattern{
-			"root/users/user1/_role",
-			"root/users/user3/_role",
+			"test-blessing/users/user1/_role",
+			"test-blessing/users/user3/_role",
 		},
 		Audit:  true,
 		Extend: false,
 	}
 	irole.WriteConfig(t, roleBConf, filepath.Join(workdir, "B.conf"))
 
-	root := testutil.NewIDProvider("root")
+	root := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 
 	var (
 		user1  = newPrincipalContext(t, ctx, root, "users/user1")
@@ -69,10 +71,10 @@ func TestSeekBlessings(t *testing.T) {
 	)
 
 	testServerCtx := newPrincipalContext(t, ctx, root, "testserver")
-	server, testAddr := newServer(t, testServerCtx)
 	tDisp := &testDispatcher{}
-	if err := server.ServeDispatcher("", tDisp); err != nil {
-		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	_, err = xrpc.NewDispatchingServer(testServerCtx, "test", tDisp)
+	if err != nil {
+		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
 
 	const noErr = ""
@@ -88,18 +90,18 @@ func TestSeekBlessings(t *testing.T) {
 		{user3, "unknown", verror.ErrNoAccess.ID, nil},
 
 		{user1, "A", verror.ErrNoAccess.ID, nil},
-		{user1R, "A", noErr, []string{"root/roles/A/root/users/user1"}},
+		{user1R, "A", noErr, []string{"test-blessing/roles/A/test-blessing/users/user1"}},
 		{user2, "A", verror.ErrNoAccess.ID, nil},
-		{user2R, "A", noErr, []string{"root/roles/A/root/users/user2"}},
+		{user2R, "A", noErr, []string{"test-blessing/roles/A/test-blessing/users/user2"}},
 		{user3, "A", verror.ErrNoAccess.ID, nil},
-		{user3R, "A", noErr, []string{"root/roles/A/root/users/user3/_role/bar", "root/roles/A/root/users/user3/_role/foo"}},
+		{user3R, "A", noErr, []string{"test-blessing/roles/A/test-blessing/users/user3/_role/bar", "test-blessing/roles/A/test-blessing/users/user3/_role/foo"}},
 
 		{user1, "B", verror.ErrNoAccess.ID, nil},
-		{user1R, "B", noErr, []string{"root/roles/B"}},
+		{user1R, "B", noErr, []string{"test-blessing/roles/B"}},
 		{user2, "B", verror.ErrNoAccess.ID, nil},
 		{user2R, "B", verror.ErrNoAccess.ID, nil},
 		{user3, "B", verror.ErrNoAccess.ID, nil},
-		{user3R, "B", noErr, []string{"root/roles/B"}},
+		{user3R, "B", noErr, []string{"test-blessing/roles/B"}},
 	}
 	addr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
 	for _, tc := range testcases {
@@ -113,7 +115,7 @@ func TestSeekBlessings(t *testing.T) {
 			continue
 		}
 		previousBlessings, _ := v23.GetPrincipal(tc.ctx).BlessingStore().Set(blessings, security.AllPrincipals)
-		blessingNames, rejected := callTest(t, tc.ctx, testAddr)
+		blessingNames, rejected := callTest(t, tc.ctx, "test")
 		if !reflect.DeepEqual(blessingNames, tc.blessings) {
 			t.Errorf("unexpected blessings for (%q, %q). Got %q, expected %q", user, tc.role, blessingNames, tc.blessings)
 		}
@@ -125,7 +127,7 @@ func TestSeekBlessings(t *testing.T) {
 }
 
 func TestPeerBlessingCaveats(t *testing.T) {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")
@@ -135,16 +137,16 @@ func TestPeerBlessingCaveats(t *testing.T) {
 	defer os.RemoveAll(workdir)
 
 	roleConf := irole.Config{
-		Members: []security.BlessingPattern{"root/users/user/_role"},
+		Members: []security.BlessingPattern{"test-blessing/users/user/_role"},
 		Peers: []security.BlessingPattern{
-			security.BlessingPattern("root/peer1"),
-			security.BlessingPattern("root/peer3"),
+			security.BlessingPattern("test-blessing/peer1"),
+			security.BlessingPattern("test-blessing/peer3"),
 		},
 	}
 	irole.WriteConfig(t, roleConf, filepath.Join(workdir, "role.conf"))
 
 	var (
-		root  = testutil.NewIDProvider("root")
+		root  = testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 		user  = newPrincipalContext(t, ctx, root, "users/user/_role")
 		peer1 = newPrincipalContext(t, ctx, root, "peer1")
 		peer2 = newPrincipalContext(t, ctx, root, "peer2")
@@ -154,17 +156,17 @@ func TestPeerBlessingCaveats(t *testing.T) {
 	roleAddr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
 
 	tDisp := &testDispatcher{}
-	server1, testPeer1 := newServer(t, peer1)
-	if err := server1.ServeDispatcher("", tDisp); err != nil {
-		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	_, err = xrpc.NewDispatchingServer(peer1, "peer1", tDisp)
+	if err != nil {
+		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
-	server2, testPeer2 := newServer(t, peer2)
-	if err := server2.ServeDispatcher("", tDisp); err != nil {
-		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	_, err = xrpc.NewDispatchingServer(peer2, "peer2", tDisp)
+	if err != nil {
+		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
-	server3, testPeer3 := newServer(t, peer3)
-	if err := server3.ServeDispatcher("", tDisp); err != nil {
-		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	_, err = xrpc.NewDispatchingServer(peer3, "peer3", tDisp)
+	if err != nil {
+		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
 
 	c := role.RoleClient(naming.Join(roleAddr, "role"))
@@ -179,9 +181,9 @@ func TestPeerBlessingCaveats(t *testing.T) {
 		blessingNames []string
 		rejectedNames []string
 	}{
-		{testPeer1, []string{"root/roles/role"}, nil},
-		{testPeer2, nil, []string{"root/roles/role"}},
-		{testPeer3, []string{"root/roles/role"}, nil},
+		{"peer1", []string{"test-blessing/roles/role"}, nil},
+		{"peer2", nil, []string{"test-blessing/roles/role"}},
+		{"peer3", []string{"test-blessing/roles/role"}, nil},
 	}
 	for i, tc := range testcases {
 		blessingNames, rejected := callTest(t, user, tc.peer)
@@ -199,7 +201,7 @@ func TestPeerBlessingCaveats(t *testing.T) {
 }
 
 func TestGlob(t *testing.T) {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")
@@ -212,17 +214,17 @@ func TestGlob(t *testing.T) {
 	os.Mkdir(filepath.Join(workdir, "sub3"), 0700)
 
 	// Role that user1 has access to.
-	roleAConf := irole.Config{Members: []security.BlessingPattern{"root/user1"}}
+	roleAConf := irole.Config{Members: []security.BlessingPattern{"test-blessing/user1"}}
 	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "A.conf"))
 	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/B.conf"))
 	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/C.conf"))
 	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/sub2/D.conf"))
 
 	// Role that user2 has access to.
-	roleBConf := irole.Config{Members: []security.BlessingPattern{"root/user2"}}
+	roleBConf := irole.Config{Members: []security.BlessingPattern{"test-blessing/user2"}}
 	irole.WriteConfig(t, roleBConf, filepath.Join(workdir, "sub1/sub2/X.conf"))
 
-	root := testutil.NewIDProvider("root")
+	root := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 	user1 := newPrincipalContext(t, ctx, root, "user1/_role")
 	user2 := newPrincipalContext(t, ctx, root, "user2/_role")
 	user3 := newPrincipalContext(t, ctx, root, "user3/_role")
@@ -274,24 +276,11 @@ func newPrincipalContext(t *testing.T, ctx *context.T, root *testutil.IDProvider
 }
 
 func newRoleServer(t *testing.T, ctx *context.T, dir string) string {
-	server, addr := newServer(t, ctx)
-	if err := server.ServeDispatcher("", irole.NewDispatcher(dir, addr)); err != nil {
+	_, err := xrpc.NewDispatchingServer(ctx, "role", irole.NewDispatcher(dir, "role"))
+	if err != nil {
 		t.Fatalf("ServeDispatcher failed: %v", err)
 	}
-	return addr
-}
-
-func newServer(t *testing.T, ctx *context.T) (rpc.Server, string) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
-	spec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	endpoints, err := server.Listen(spec)
-	if err != nil {
-		t.Fatalf("Listen(%v) failed: %v", spec, err)
-	}
-	return server, endpoints[0].Name()
+	return "role"
 }
 
 func callTest(t *testing.T, ctx *context.T, addr string) (blessingNames []string, rejected []security.RejectedBlessing) {
