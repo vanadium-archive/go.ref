@@ -16,13 +16,11 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/naming"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 
 	"v.io/x/ref/runtime/internal/flow/conn"
-	"v.io/x/ref/runtime/internal/lib/framer"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/version"
@@ -74,16 +72,16 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 }
 
 func (m *manager) listen(ctx *context.T, protocol, address string) (naming.Endpoint, error) {
-	netLn, err := listen(ctx, protocol, address)
+	ln, err := listen(ctx, protocol, address)
 	if err != nil {
 		return nil, flow.NewErrNetwork(ctx, err)
 	}
 	local := &inaming.Endpoint{
 		Protocol: protocol,
-		Address:  netLn.Addr().String(),
+		Address:  ln.Addr().String(),
 		RID:      m.rid,
 	}
-	go m.netLnAcceptLoop(ctx, netLn, local)
+	go m.lnAcceptLoop(ctx, ln, local)
 	return local, nil
 }
 
@@ -115,10 +113,10 @@ func (proxyBlessingsForPeer) run(ctx *context.T, lep, rep naming.Endpoint, rb se
 	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
 
-func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local naming.Endpoint) {
+func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.Endpoint) {
 	const killConnectionsRetryDelay = 5 * time.Millisecond
 	for {
-		netConn, err := netLn.Accept()
+		flowConn, err := ln.Accept(ctx)
 		for tokill := 1; isTemporaryError(err); tokill *= 2 {
 			if isTooManyOpenFiles(err) {
 				if err := m.cache.KillConnections(ctx, tokill); err != nil {
@@ -129,21 +127,21 @@ func (m *manager) netLnAcceptLoop(ctx *context.T, netLn net.Listener, local nami
 				tokill = 1
 			}
 			time.Sleep(killConnectionsRetryDelay)
-			netConn, err = netLn.Accept()
+			flowConn, err = ln.Accept(ctx)
 		}
 		if err != nil {
-			ctx.Errorf("net.Listener.Accept on localEP %v failed: %v", local, err)
+			ctx.Errorf("ln.Accept on localEP %v failed: %v", local, err)
 			continue
 		}
 		c, err := conn.NewAccepted(
 			ctx,
-			framer.New(netConn),
+			flowConn,
 			local,
 			version.Supported,
 			&flowHandler{q: m.q, closed: m.closed},
 		)
 		if err != nil {
-			netConn.Close()
+			flowConn.Close()
 			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
 			continue
 		}
@@ -183,7 +181,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 	go func() {
 		c, err := conn.NewAccepted(
 			h.ctx,
-			closer{f},
+			f,
 			f.Conn().LocalEndpoint(),
 			version.Supported,
 			&flowHandler{q: h.m.q, closed: h.m.closed})
@@ -257,13 +255,12 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		return nil, flow.NewErrBadState(ctx, err)
 	}
 	var (
-		d                rpc.DialerFunc
+		protocol         flow.Protocol
 		network, address string
 	)
 	if c == nil {
 		addr := remote.Addr()
-		var r rpc.ResolverFunc
-		d, r, _, _ = rpc.RegisteredProtocol(addr.Network())
+		protocol, _ = flow.RegisteredProtocol(addr.Network())
 		// (network, address) in the endpoint might not always match up
 		// with the key used for caching conns. For example:
 		// - conn, err := net.Dial("tcp", "www.google.com:80")
@@ -271,7 +268,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		// - Similarly, an unspecified IP address (net.IP.IsUnspecified) like "[::]:80"
 		//   might yield "[::1]:80" (loopback interface) in conn.RemoteAddr().
 		// Thus we look for Conns with the resolved address.
-		network, address, err = resolve(ctx, r, addr.Network(), addr.String())
+		network, address, err = resolve(ctx, protocol, addr.Network(), addr.String())
 		if err != nil {
 			return nil, flow.NewErrResolveFailed(ctx, err)
 		}
@@ -282,7 +279,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		defer m.cache.Unreserve(network, address, remote.BlessingNames())
 	}
 	if c == nil {
-		netConn, err := dial(ctx, d, network, address)
+		flowConn, err := dial(ctx, protocol, network, address)
 		if err != nil {
 			return nil, flow.NewErrDialFailed(ctx, err)
 		}
@@ -291,8 +288,8 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		// "serving flow manager" by passing a 0 RID to non-serving flow managers?
 		c, err = conn.NewDialed(
 			ctx,
-			framer.New(netConn), // TODO(suharshs): Don't frame if the net.Conn already has framing in its protocol.
-			localEndpoint(netConn, m.rid),
+			flowConn,
+			localEndpoint(flowConn, m.rid),
 			remote,
 			version.Supported,
 			fh,
@@ -317,7 +314,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 	if remote.RoutingID() != c.RemoteEndpoint().RoutingID() {
 		c, err = conn.NewDialed(
 			ctx,
-			closer{f},
+			f,
 			c.LocalEndpoint(),
 			remote,
 			version.Supported,
@@ -349,20 +346,20 @@ func (m *manager) Closed() <-chan struct{} {
 	return m.closed
 }
 
-func dial(ctx *context.T, d rpc.DialerFunc, protocol, address string) (net.Conn, error) {
-	if d != nil {
+func dial(ctx *context.T, p flow.Protocol, protocol, address string) (flow.Conn, error) {
+	if p != nil {
 		var timeout time.Duration
 		if dl, ok := ctx.Deadline(); ok {
 			timeout = dl.Sub(time.Now())
 		}
-		return d(ctx, protocol, address, timeout)
+		return p.Dial(ctx, protocol, address, timeout)
 	}
 	return nil, NewErrUnknownProtocol(ctx, protocol)
 }
 
-func resolve(ctx *context.T, r rpc.ResolverFunc, protocol, address string) (string, string, error) {
-	if r != nil {
-		net, addr, err := r(ctx, protocol, address)
+func resolve(ctx *context.T, p flow.Protocol, protocol, address string) (string, string, error) {
+	if p != nil {
+		net, addr, err := p.Resolve(ctx, protocol, address)
 		if err != nil {
 			return "", "", err
 		}
@@ -371,9 +368,9 @@ func resolve(ctx *context.T, r rpc.ResolverFunc, protocol, address string) (stri
 	return "", "", NewErrUnknownProtocol(ctx, protocol)
 }
 
-func listen(ctx *context.T, protocol, address string) (net.Listener, error) {
-	if _, _, l, _ := rpc.RegisteredProtocol(protocol); l != nil {
-		ln, err := l(ctx, protocol, address)
+func listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
+	if p, _ := flow.RegisteredProtocol(protocol); p != nil {
+		ln, err := p.Listen(ctx, protocol, address)
 		if err != nil {
 			return nil, err
 		}
@@ -382,7 +379,7 @@ func listen(ctx *context.T, protocol, address string) (net.Listener, error) {
 	return nil, NewErrUnknownProtocol(ctx, protocol)
 }
 
-func localEndpoint(conn net.Conn, rid naming.RoutingID) naming.Endpoint {
+func localEndpoint(conn flow.Conn, rid naming.RoutingID) naming.Endpoint {
 	localAddr := conn.LocalAddr()
 	ep := &inaming.Endpoint{
 		Protocol: localAddr.Network(),
@@ -400,13 +397,4 @@ func isTemporaryError(err error) bool {
 func isTooManyOpenFiles(err error) bool {
 	oErr, ok := err.(*net.OpError)
 	return ok && strings.Contains(oErr.Err.Error(), syscall.EMFILE.Error())
-}
-
-// TODO(suharshs): should we add Close method to the Flow API?
-type closer struct {
-	flow.Flow
-}
-
-func (c closer) Close() error {
-	return nil
 }
