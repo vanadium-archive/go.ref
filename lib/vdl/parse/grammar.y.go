@@ -108,7 +108,10 @@ const tIMAGLIT = 57376
 const notPackage = 57377
 const notConfig = 57378
 
-var yyToknames = []string{
+var yyToknames = [...]string{
+	"$end",
+	"error",
+	"$unk",
 	"startFileImports",
 	"startFile",
 	"startConfigImports",
@@ -166,14 +169,14 @@ var yyToknames = []string{
 	"notPackage",
 	"notConfig",
 }
-var yyStatenames = []string{}
+var yyStatenames = [...]string{}
 
 const yyEofCode = 1
 const yyErrCode = 2
 const yyMaxDepth = 200
 
 //line yacctab:1
-var yyExca = []int{
+var yyExca = [...]int{
 	-1, 1,
 	1, -1,
 	-2, 0,
@@ -197,7 +200,7 @@ var yyStates []string
 
 const yyLast = 800
 
-var yyAct = []int{
+var yyAct = [...]int{
 
 	14, 27, 13, 140, 139, 242, 251, 235, 220, 151,
 	186, 193, 175, 137, 147, 38, 190, 252, 253, 133,
@@ -280,7 +283,7 @@ var yyAct = []int{
 	53, 0, 0, 58, 59, 60, 61, 62, 63, 64,
 	65, 0, 0, 0, 54, 55, 56, 57, 66, 67,
 }
-var yyPact = []int{
+var yyPact = [...]int{
 
 	319, -1000, 0, 0, -10, -10, 98, -1000, -12, -1000,
 	-1000, 88, -1000, 235, 718, -1000, -1000, 98, 98, 98,
@@ -314,7 +317,7 @@ var yyPact = []int{
 	100, 98, 59, 50, 105, -1000, 204, 201, -1000, -1000,
 	-1000,
 }
-var yyPgo = []int{
+var yyPgo = [...]int{
 
 	0, 1, 15, 19, 353, 100, 31, 352, 3, 351,
 	13, 4, 7, 8, 350, 349, 5, 0, 189, 346,
@@ -322,7 +325,7 @@ var yyPgo = []int{
 	307, 102, 108, 310, 334, 331, 20, 9, 328, 319,
 	312, 297, 10, 296, 295, 16, 285, 11, 12,
 }
-var yyR1 = []int{
+var yyR1 = [...]int{
 
 	0, 28, 28, 28, 28, 28, 31, 31, 31, 31,
 	29, 29, 33, 33, 30, 30, 34, 34, 34, 35,
@@ -340,7 +343,7 @@ var yyR1 = []int{
 	46, 46, 47, 25, 25, 25, 26, 26, 27, 27,
 	1, 1, 2, 2, 7, 7, 36, 36, 48, 48,
 }
-var yyR2 = []int{
+var yyR2 = [...]int{
 
 	0, 4, 4, 4, 4, 3, 0, 1, 1, 1,
 	0, 3, 0, 4, 0, 3, 3, 5, 2, 1,
@@ -358,7 +361,7 @@ var yyR2 = []int{
 	1, 3, 3, 0, 2, 4, 1, 3, 1, 3,
 	1, 3, 1, 3, 0, 1, 0, 1, 0, 1,
 }
-var yyChk = []int{
+var yyChk = [...]int{
 
 	-1000, -28, 4, 5, 6, 7, 8, -29, 46, -29,
 	-33, 53, -33, -21, -17, -18, -19, 22, 23, 24,
@@ -392,7 +395,7 @@ var yyChk = []int{
 	-48, 11, 28, 28, -5, 18, 42, 42, 20, 14,
 	14,
 }
-var yyDef = []int{
+var yyDef = [...]int{
 
 	0, -2, 10, 10, 12, 12, 144, 14, 0, 14,
 	14, 0, 14, 0, 83, 88, 107, 144, 144, 144,
@@ -426,7 +429,7 @@ var yyDef = []int{
 	0, -2, 0, 0, 0, 82, 0, 0, 79, 74,
 	75,
 }
-var yyTok1 = []int{
+var yyTok1 = [...]int{
 
 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -442,35 +445,63 @@ var yyTok1 = []int{
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 17, 28, 18,
 }
-var yyTok2 = []int{
+var yyTok2 = [...]int{
 
 	2, 3, 4, 5, 6, 7, 8, 32, 33, 34,
 	35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
 	45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
 	55, 56, 57, 58, 59,
 }
-var yyTok3 = []int{
+var yyTok3 = [...]int{
 	0,
 }
+
+var yyErrorMessages = [...]struct {
+	state int
+	token int
+	msg   string
+}{}
 
 //line yaccpar:1
 
 /*	parser for yacc output	*/
 
-var yyDebug = 0
+var (
+	yyDebug        = 0
+	yyErrorVerbose = false
+)
 
 type yyLexer interface {
 	Lex(lval *yySymType) int
 	Error(s string)
 }
 
+type yyParser interface {
+	Parse(yyLexer) int
+	Lookahead() int
+}
+
+type yyParserImpl struct {
+	lookahead func() int
+}
+
+func (p *yyParserImpl) Lookahead() int {
+	return p.lookahead()
+}
+
+func yyNewParser() yyParser {
+	p := &yyParserImpl{
+		lookahead: func() int { return -1 },
+	}
+	return p
+}
+
 const yyFlag = -1000
 
 func yyTokname(c int) string {
-	// 4 is TOKSTART above
-	if c >= 4 && c-4 < len(yyToknames) {
-		if yyToknames[c-4] != "" {
-			return yyToknames[c-4]
+	if c >= 1 && c-1 < len(yyToknames) {
+		if yyToknames[c-1] != "" {
+			return yyToknames[c-1]
 		}
 	}
 	return __yyfmt__.Sprintf("tok-%v", c)
@@ -485,51 +516,129 @@ func yyStatname(s int) string {
 	return __yyfmt__.Sprintf("state-%v", s)
 }
 
-func yylex1(lex yyLexer, lval *yySymType) int {
-	c := 0
-	char := lex.Lex(lval)
+func yyErrorMessage(state, lookAhead int) string {
+	const TOKSTART = 4
+
+	if !yyErrorVerbose {
+		return "syntax error"
+	}
+
+	for _, e := range yyErrorMessages {
+		if e.state == state && e.token == lookAhead {
+			return "syntax error: " + e.msg
+		}
+	}
+
+	res := "syntax error: unexpected " + yyTokname(lookAhead)
+
+	// To match Bison, suggest at most four expected tokens.
+	expected := make([]int, 0, 4)
+
+	// Look for shiftable tokens.
+	base := yyPact[state]
+	for tok := TOKSTART; tok-1 < len(yyToknames); tok++ {
+		if n := base + tok; n >= 0 && n < yyLast && yyChk[yyAct[n]] == tok {
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+	}
+
+	if yyDef[state] == -2 {
+		i := 0
+		for yyExca[i] != -1 || yyExca[i+1] != state {
+			i += 2
+		}
+
+		// Look for tokens that we accept or reduce.
+		for i += 2; yyExca[i] >= 0; i += 2 {
+			tok := yyExca[i]
+			if tok < TOKSTART || yyExca[i+1] == 0 {
+				continue
+			}
+			if len(expected) == cap(expected) {
+				return res
+			}
+			expected = append(expected, tok)
+		}
+
+		// If the default action is to accept or reduce, give up.
+		if yyExca[i+1] != 0 {
+			return res
+		}
+	}
+
+	for i, tok := range expected {
+		if i == 0 {
+			res += ", expecting "
+		} else {
+			res += " or "
+		}
+		res += yyTokname(tok)
+	}
+	return res
+}
+
+func yylex1(lex yyLexer, lval *yySymType) (char, token int) {
+	token = 0
+	char = lex.Lex(lval)
 	if char <= 0 {
-		c = yyTok1[0]
+		token = yyTok1[0]
 		goto out
 	}
 	if char < len(yyTok1) {
-		c = yyTok1[char]
+		token = yyTok1[char]
 		goto out
 	}
 	if char >= yyPrivate {
 		if char < yyPrivate+len(yyTok2) {
-			c = yyTok2[char-yyPrivate]
+			token = yyTok2[char-yyPrivate]
 			goto out
 		}
 	}
 	for i := 0; i < len(yyTok3); i += 2 {
-		c = yyTok3[i+0]
-		if c == char {
-			c = yyTok3[i+1]
+		token = yyTok3[i+0]
+		if token == char {
+			token = yyTok3[i+1]
 			goto out
 		}
 	}
 
 out:
-	if c == 0 {
-		c = yyTok2[1] /* unknown char */
+	if token == 0 {
+		token = yyTok2[1] /* unknown char */
 	}
 	if yyDebug >= 3 {
-		__yyfmt__.Printf("lex %s(%d)\n", yyTokname(c), uint(char))
+		__yyfmt__.Printf("lex %s(%d)\n", yyTokname(token), uint(char))
 	}
-	return c
+	return char, token
 }
 
 func yyParse(yylex yyLexer) int {
+	return yyNewParser().Parse(yylex)
+}
+
+func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
 	var yyn int
 	var yylval yySymType
 	var yyVAL yySymType
+	var yyDollar []yySymType
+	_ = yyDollar // silence set and not used
 	yyS := make([]yySymType, yyMaxDepth)
 
 	Nerrs := 0   /* number of errors */
 	Errflag := 0 /* error recovery flag */
 	yystate := 0
 	yychar := -1
+	yytoken := -1 // yychar translated into internal numbering
+	yyrcvr.lookahead = func() int { return yychar }
+	defer func() {
+		// Make sure we report no lookahead when not parsing.
+		yystate = -1
+		yychar = -1
+		yytoken = -1
+	}()
 	yyp := -1
 	goto yystack
 
@@ -542,7 +651,7 @@ ret1:
 yystack:
 	/* put a state and value onto the stack */
 	if yyDebug >= 4 {
-		__yyfmt__.Printf("char %v in %v\n", yyTokname(yychar), yyStatname(yystate))
+		__yyfmt__.Printf("char %v in %v\n", yyTokname(yytoken), yyStatname(yystate))
 	}
 
 	yyp++
@@ -560,15 +669,16 @@ yynewstate:
 		goto yydefault /* simple state */
 	}
 	if yychar < 0 {
-		yychar = yylex1(yylex, &yylval)
+		yychar, yytoken = yylex1(yylex, &yylval)
 	}
-	yyn += yychar
+	yyn += yytoken
 	if yyn < 0 || yyn >= yyLast {
 		goto yydefault
 	}
 	yyn = yyAct[yyn]
-	if yyChk[yyn] == yychar { /* valid shift */
+	if yyChk[yyn] == yytoken { /* valid shift */
 		yychar = -1
+		yytoken = -1
 		yyVAL = yylval
 		yystate = yyn
 		if Errflag > 0 {
@@ -582,7 +692,7 @@ yydefault:
 	yyn = yyDef[yystate]
 	if yyn == -2 {
 		if yychar < 0 {
-			yychar = yylex1(yylex, &yylval)
+			yychar, yytoken = yylex1(yylex, &yylval)
 		}
 
 		/* look through exception table */
@@ -595,7 +705,7 @@ yydefault:
 		}
 		for xi += 2; ; xi += 2 {
 			yyn = yyExca[xi+0]
-			if yyn < 0 || yyn == yychar {
+			if yyn < 0 || yyn == yytoken {
 				break
 			}
 		}
@@ -608,11 +718,11 @@ yydefault:
 		/* error ... attempt to resume parsing */
 		switch Errflag {
 		case 0: /* brand new error */
-			yylex.Error("syntax error")
+			yylex.Error(yyErrorMessage(yystate, yytoken))
 			Nerrs++
 			if yyDebug >= 1 {
 				__yyfmt__.Printf("%s", yyStatname(yystate))
-				__yyfmt__.Printf(" saw %s\n", yyTokname(yychar))
+				__yyfmt__.Printf(" saw %s\n", yyTokname(yytoken))
 			}
 			fallthrough
 
@@ -640,12 +750,13 @@ yydefault:
 
 		case 3: /* no shift yet; clobber input char */
 			if yyDebug >= 2 {
-				__yyfmt__.Printf("error recovery discards %s\n", yyTokname(yychar))
+				__yyfmt__.Printf("error recovery discards %s\n", yyTokname(yytoken))
 			}
-			if yychar == yyEofCode {
+			if yytoken == yyEofCode {
 				goto ret1
 			}
 			yychar = -1
+			yytoken = -1
 			goto yynewstate /* try again in the same state */
 		}
 	}
@@ -660,6 +771,13 @@ yydefault:
 	_ = yypt // guard against "declared and not used"
 
 	yyp -= yyR2[yyn]
+	// yyp is now the index of $0. Perform the default action. Iff the
+	// reduced production is ε, $1 is possibly out of range.
+	if yyp+1 >= len(yyS) {
+		nyys := make([]yySymType, len(yyS)*2)
+		copy(nyys, yyS)
+		yyS = nyys
+	}
 	yyVAL = yyS[yyp+1]
 
 	/* consult goto table to find next state */
@@ -679,614 +797,728 @@ yydefault:
 	switch yynt {
 
 	case 5:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:143
 		{
-			lexStoreExprs(yylex, yyS[yypt-1].constexprs)
+			lexStoreExprs(yylex, yyDollar[2].constexprs)
 		}
 	case 6:
+		yyDollar = yyS[yypt-0 : yypt+1]
 		//line grammar.y:152
 		{
 			lexGenEOF(yylex)
 		}
 	case 7:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:154
 		{
 			lexGenEOF(yylex)
 		}
 	case 8:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:156
 		{
 			lexGenEOF(yylex)
 		}
 	case 9:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:158
 		{
 			lexGenEOF(yylex)
 		}
 	case 10:
+		yyDollar = yyS[yypt-0 : yypt+1]
 		//line grammar.y:163
 		{
 			lexPosErrorf(yylex, Pos{}, "vdl file must start with package clause")
 		}
 	case 11:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:165
 		{
-			lexVDLFile(yylex).PackageDef = NamePos{Name: yyS[yypt-1].strpos.String, Pos: yyS[yypt-1].strpos.Pos}
+			lexVDLFile(yylex).PackageDef = NamePos{Name: yyDollar[2].strpos.String, Pos: yyDollar[2].strpos.Pos}
 		}
 	case 12:
+		yyDollar = yyS[yypt-0 : yypt+1]
 		//line grammar.y:170
 		{
 			lexPosErrorf(yylex, Pos{}, "config file must start with config clause")
 		}
 	case 13:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:172
 		{
 			// We allow "config" as an identifier; it is not a keyword.  So we check
 			// manually to make sure the syntax is correct.
-			if yyS[yypt-3].strpos.String != "config" {
-				lexPosErrorf(yylex, yyS[yypt-3].strpos.Pos, "config file must start with config clause")
+			if yyDollar[1].strpos.String != "config" {
+				lexPosErrorf(yylex, yyDollar[1].strpos.Pos, "config file must start with config clause")
 				return 1 // Any non-zero code indicates an error
 			}
 			file := lexVDLFile(yylex)
-			file.PackageDef = NamePos{Name: "config", Pos: yyS[yypt-3].strpos.Pos}
-			file.ConstDefs = []*ConstDef{{Expr: yyS[yypt-1].constexpr}}
+			file.PackageDef = NamePos{Name: "config", Pos: yyDollar[1].strpos.Pos}
+			file.ConstDefs = []*ConstDef{{Expr: yyDollar[3].constexpr}}
 		}
 	case 21:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:200
 		{
 			imps := &lexVDLFile(yylex).Imports
-			*imps = append(*imps, &Import{Path: yyS[yypt-0].strpos.String, NamePos: NamePos{Pos: yyS[yypt-0].strpos.Pos}})
+			*imps = append(*imps, &Import{Path: yyDollar[1].strpos.String, NamePos: NamePos{Pos: yyDollar[1].strpos.Pos}})
 		}
 	case 22:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:205
 		{
 			imps := &lexVDLFile(yylex).Imports
-			*imps = append(*imps, &Import{Path: yyS[yypt-0].strpos.String, NamePos: NamePos{Name: yyS[yypt-1].strpos.String, Pos: yyS[yypt-1].strpos.Pos}})
+			*imps = append(*imps, &Import{Path: yyDollar[2].strpos.String, NamePos: NamePos{Name: yyDollar[1].strpos.String, Pos: yyDollar[1].strpos.Pos}})
 		}
 	case 39:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:240
 		{
 			tds := &lexVDLFile(yylex).TypeDefs
-			*tds = append(*tds, &TypeDef{Type: yyS[yypt-0].typeexpr, NamePos: NamePos{Name: yyS[yypt-1].strpos.String, Pos: yyS[yypt-1].strpos.Pos}})
+			*tds = append(*tds, &TypeDef{Type: yyDollar[2].typeexpr, NamePos: NamePos{Name: yyDollar[1].strpos.String, Pos: yyDollar[1].strpos.Pos}})
 		}
 	case 40:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:262
 		{
-			yyVAL.typeexpr = &TypeNamed{Name: yyS[yypt-0].strpos.String, P: yyS[yypt-0].strpos.Pos}
+			yyVAL.typeexpr = &TypeNamed{Name: yyDollar[1].strpos.String, P: yyDollar[1].strpos.Pos}
 		}
 	case 41:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:264
 		{
-			yyVAL.typeexpr = &TypeNamed{Name: "error", P: yyS[yypt-0].pos}
+			yyVAL.typeexpr = &TypeNamed{Name: "error", P: yyDollar[1].pos}
 		}
 	case 42:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:266
 		{
-			yyVAL.typeexpr = &TypeArray{Len: int(yyS[yypt-2].intpos.int.Int64()), Elem: yyS[yypt-0].typeexpr, P: yyS[yypt-3].pos}
+			yyVAL.typeexpr = &TypeArray{Len: int(yyDollar[2].intpos.int.Int64()), Elem: yyDollar[4].typeexpr, P: yyDollar[1].pos}
 		}
 	case 43:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:268
 		{
-			yyVAL.typeexpr = &TypeList{Elem: yyS[yypt-0].typeexpr, P: yyS[yypt-2].pos}
+			yyVAL.typeexpr = &TypeList{Elem: yyDollar[3].typeexpr, P: yyDollar[1].pos}
 		}
 	case 44:
+		yyDollar = yyS[yypt-5 : yypt+1]
 		//line grammar.y:270
 		{
-			yyVAL.typeexpr = &TypeEnum{Labels: yyS[yypt-2].nameposes, P: yyS[yypt-4].pos}
+			yyVAL.typeexpr = &TypeEnum{Labels: yyDollar[3].nameposes, P: yyDollar[1].pos}
 		}
 	case 45:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:272
 		{
-			yyVAL.typeexpr = &TypeSet{Key: yyS[yypt-1].typeexpr, P: yyS[yypt-3].pos}
+			yyVAL.typeexpr = &TypeSet{Key: yyDollar[3].typeexpr, P: yyDollar[1].pos}
 		}
 	case 46:
+		yyDollar = yyS[yypt-5 : yypt+1]
 		//line grammar.y:274
 		{
-			yyVAL.typeexpr = &TypeMap{Key: yyS[yypt-2].typeexpr, Elem: yyS[yypt-0].typeexpr, P: yyS[yypt-4].pos}
+			yyVAL.typeexpr = &TypeMap{Key: yyDollar[3].typeexpr, Elem: yyDollar[5].typeexpr, P: yyDollar[1].pos}
 		}
 	case 47:
+		yyDollar = yyS[yypt-5 : yypt+1]
 		//line grammar.y:276
 		{
-			yyVAL.typeexpr = &TypeStruct{Fields: yyS[yypt-2].fields, P: yyS[yypt-4].pos}
+			yyVAL.typeexpr = &TypeStruct{Fields: yyDollar[3].fields, P: yyDollar[1].pos}
 		}
 	case 48:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:278
 		{
-			yyVAL.typeexpr = &TypeStruct{P: yyS[yypt-2].pos}
+			yyVAL.typeexpr = &TypeStruct{P: yyDollar[1].pos}
 		}
 	case 49:
+		yyDollar = yyS[yypt-5 : yypt+1]
 		//line grammar.y:280
 		{
-			yyVAL.typeexpr = &TypeUnion{Fields: yyS[yypt-2].fields, P: yyS[yypt-4].pos}
+			yyVAL.typeexpr = &TypeUnion{Fields: yyDollar[3].fields, P: yyDollar[1].pos}
 		}
 	case 50:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:282
 		{
-			yyVAL.typeexpr = &TypeUnion{P: yyS[yypt-2].pos}
+			yyVAL.typeexpr = &TypeUnion{P: yyDollar[1].pos}
 		}
 	case 51:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:284
 		{
-			yyVAL.typeexpr = &TypeOptional{Base: yyS[yypt-0].typeexpr, P: yyS[yypt-1].pos}
+			yyVAL.typeexpr = &TypeOptional{Base: yyDollar[2].typeexpr, P: yyDollar[1].pos}
 		}
 	case 52:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:289
 		{
-			yyVAL.typeexpr = yyS[yypt-0].typeexpr
+			yyVAL.typeexpr = yyDollar[1].typeexpr
 		}
 	case 53:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:291
 		{
-			yyVAL.typeexpr = &TypeNamed{Name: "typeobject", P: yyS[yypt-0].pos}
+			yyVAL.typeexpr = &TypeNamed{Name: "typeobject", P: yyDollar[1].pos}
 		}
 	case 54:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:295
 		{
-			yyVAL.nameposes = []NamePos{yyS[yypt-0].namepos}
+			yyVAL.nameposes = []NamePos{yyDollar[1].namepos}
 		}
 	case 55:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:297
 		{
-			yyVAL.nameposes = append(yyS[yypt-2].nameposes, yyS[yypt-0].namepos)
+			yyVAL.nameposes = append(yyDollar[1].nameposes, yyDollar[3].namepos)
 		}
 	case 56:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:301
 		{
-			yyVAL.namepos = NamePos{Name: yyS[yypt-0].strpos.String, Pos: yyS[yypt-0].strpos.Pos}
+			yyVAL.namepos = NamePos{Name: yyDollar[1].strpos.String, Pos: yyDollar[1].strpos.Pos}
 		}
 	case 57:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:305
 		{
-			yyVAL.fields = yyS[yypt-0].fields
+			yyVAL.fields = yyDollar[1].fields
 		}
 	case 58:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:307
 		{
-			yyVAL.fields = append(yyS[yypt-2].fields, yyS[yypt-0].fields...)
+			yyVAL.fields = append(yyDollar[1].fields, yyDollar[3].fields...)
 		}
 	case 59:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:345
 		{
-			if names, ok := typeListToStrList(yylex, yyS[yypt-1].typeexprs); ok {
+			if names, ok := typeListToStrList(yylex, yyDollar[1].typeexprs); ok {
 				for _, n := range names {
-					yyVAL.fields = append(yyVAL.fields, &Field{Type: yyS[yypt-0].typeexpr, NamePos: NamePos{Name: n.String, Pos: n.Pos}})
+					yyVAL.fields = append(yyVAL.fields, &Field{Type: yyDollar[2].typeexpr, NamePos: NamePos{Name: n.String, Pos: n.Pos}})
 				}
 			} else {
-				lexPosErrorf(yylex, yyS[yypt-0].typeexpr.Pos(), "perhaps you forgot a comma before %q?.", yyS[yypt-0].typeexpr.String())
+				lexPosErrorf(yylex, yyDollar[2].typeexpr.Pos(), "perhaps you forgot a comma before %q?.", yyDollar[2].typeexpr.String())
 			}
 		}
 	case 60:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:357
 		{
-			yyVAL.typeexprs = []Type{yyS[yypt-0].typeexpr}
+			yyVAL.typeexprs = []Type{yyDollar[1].typeexpr}
 		}
 	case 61:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:359
 		{
-			yyVAL.typeexprs = append(yyS[yypt-2].typeexprs, yyS[yypt-0].typeexpr)
+			yyVAL.typeexprs = append(yyDollar[1].typeexprs, yyDollar[3].typeexpr)
 		}
 	case 62:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:364
 		{
 			ifs := &lexVDLFile(yylex).Interfaces
-			*ifs = append(*ifs, &Interface{NamePos: NamePos{Name: yyS[yypt-3].strpos.String, Pos: yyS[yypt-3].strpos.Pos}})
+			*ifs = append(*ifs, &Interface{NamePos: NamePos{Name: yyDollar[1].strpos.String, Pos: yyDollar[1].strpos.Pos}})
 		}
 	case 63:
+		yyDollar = yyS[yypt-6 : yypt+1]
 		//line grammar.y:369
 		{
-			yyS[yypt-2].iface.Name, yyS[yypt-2].iface.Pos = yyS[yypt-5].strpos.String, yyS[yypt-5].strpos.Pos
+			yyDollar[4].iface.Name, yyDollar[4].iface.Pos = yyDollar[1].strpos.String, yyDollar[1].strpos.Pos
 			ifs := &lexVDLFile(yylex).Interfaces
-			*ifs = append(*ifs, yyS[yypt-2].iface)
+			*ifs = append(*ifs, yyDollar[4].iface)
 		}
 	case 64:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:377
 		{
-			yyVAL.iface = yyS[yypt-0].iface
+			yyVAL.iface = yyDollar[1].iface
 		}
 	case 65:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:379
 		{
-			yyS[yypt-2].iface.Embeds = append(yyS[yypt-2].iface.Embeds, yyS[yypt-0].iface.Embeds...)
-			yyS[yypt-2].iface.Methods = append(yyS[yypt-2].iface.Methods, yyS[yypt-0].iface.Methods...)
-			yyVAL.iface = yyS[yypt-2].iface
+			yyDollar[1].iface.Embeds = append(yyDollar[1].iface.Embeds, yyDollar[3].iface.Embeds...)
+			yyDollar[1].iface.Methods = append(yyDollar[1].iface.Methods, yyDollar[3].iface.Methods...)
+			yyVAL.iface = yyDollar[1].iface
 		}
 	case 66:
+		yyDollar = yyS[yypt-5 : yypt+1]
 		//line grammar.y:387
 		{
-			yyVAL.iface = &Interface{Methods: []*Method{{InArgs: yyS[yypt-3].fields, InStream: yyS[yypt-2].typeexprs[0], OutStream: yyS[yypt-2].typeexprs[1], OutArgs: yyS[yypt-1].fields, Tags: yyS[yypt-0].constexprs, NamePos: NamePos{Name: yyS[yypt-4].strpos.String, Pos: yyS[yypt-4].strpos.Pos}}}}
+			yyVAL.iface = &Interface{Methods: []*Method{{InArgs: yyDollar[2].fields, InStream: yyDollar[3].typeexprs[0], OutStream: yyDollar[3].typeexprs[1], OutArgs: yyDollar[4].fields, Tags: yyDollar[5].constexprs, NamePos: NamePos{Name: yyDollar[1].strpos.String, Pos: yyDollar[1].strpos.Pos}}}}
 		}
 	case 67:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:389
 		{
-			yyVAL.iface = &Interface{Embeds: []*NamePos{{Name: yyS[yypt-0].strpos.String, Pos: yyS[yypt-0].strpos.Pos}}}
+			yyVAL.iface = &Interface{Embeds: []*NamePos{{Name: yyDollar[1].strpos.String, Pos: yyDollar[1].strpos.Pos}}}
 		}
 	case 68:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:393
 		{
 			yyVAL.fields = nil
 		}
 	case 69:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:395
 		{
-			yyVAL.fields = yyS[yypt-2].fields
+			yyVAL.fields = yyDollar[2].fields
 		}
 	case 70:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:399
 		{
-			for _, t := range yyS[yypt-2].typeexprs {
+			for _, t := range yyDollar[2].typeexprs {
 				yyVAL.fields = append(yyVAL.fields, &Field{Type: t, NamePos: NamePos{Pos: t.Pos()}})
 			}
 		}
 	case 71:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:409
 		{
-			yyVAL.fields = yyS[yypt-0].fields
+			yyVAL.fields = yyDollar[1].fields
 		}
 	case 72:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:411
 		{
-			yyVAL.fields = append(yyS[yypt-2].fields, yyS[yypt-0].fields...)
+			yyVAL.fields = append(yyDollar[1].fields, yyDollar[3].fields...)
 		}
 	case 73:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:422
 		{
 			yyVAL.fields = nil
 		}
 	case 74:
+		yyDollar = yyS[yypt-6 : yypt+1]
 		//line grammar.y:424
 		{
-			yyVAL.fields = yyS[yypt-4].fields
+			yyVAL.fields = yyDollar[2].fields
 		}
 	case 75:
+		yyDollar = yyS[yypt-6 : yypt+1]
 		//line grammar.y:428
 		{
-			for _, t := range yyS[yypt-4].typeexprs {
+			for _, t := range yyDollar[2].typeexprs {
 				yyVAL.fields = append(yyVAL.fields, &Field{Type: t, NamePos: NamePos{Pos: t.Pos()}})
 			}
 		}
 	case 76:
+		yyDollar = yyS[yypt-0 : yypt+1]
 		//line grammar.y:436
 		{
 			yyVAL.typeexprs = []Type{nil, nil}
 		}
 	case 77:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:438
 		{
 			yyVAL.typeexprs = []Type{nil, nil}
 		}
 	case 78:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:440
 		{
-			yyVAL.typeexprs = []Type{yyS[yypt-1].typeexpr, nil}
+			yyVAL.typeexprs = []Type{yyDollar[3].typeexpr, nil}
 		}
 	case 79:
+		yyDollar = yyS[yypt-6 : yypt+1]
 		//line grammar.y:442
 		{
-			yyVAL.typeexprs = []Type{yyS[yypt-3].typeexpr, yyS[yypt-1].typeexpr}
+			yyVAL.typeexprs = []Type{yyDollar[3].typeexpr, yyDollar[5].typeexpr}
 		}
 	case 80:
+		yyDollar = yyS[yypt-0 : yypt+1]
 		//line grammar.y:446
 		{
 			yyVAL.constexprs = nil
 		}
 	case 81:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:448
 		{
 			yyVAL.constexprs = nil
 		}
 	case 82:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:450
 		{
-			yyVAL.constexprs = yyS[yypt-2].constexprs
+			yyVAL.constexprs = yyDollar[2].constexprs
 		}
 	case 83:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:454
 		{
-			yyVAL.constexprs = []ConstExpr{yyS[yypt-0].constexpr}
+			yyVAL.constexprs = []ConstExpr{yyDollar[1].constexpr}
 		}
 	case 84:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:456
 		{
-			yyVAL.constexprs = append(yyS[yypt-2].constexprs, yyS[yypt-0].constexpr)
+			yyVAL.constexprs = append(yyDollar[1].constexprs, yyDollar[3].constexpr)
 		}
 	case 87:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:465
 		{
 			cds := &lexVDLFile(yylex).ConstDefs
-			*cds = append(*cds, &ConstDef{Expr: yyS[yypt-0].constexpr, NamePos: NamePos{Name: yyS[yypt-2].strpos.String, Pos: yyS[yypt-2].strpos.Pos}})
+			*cds = append(*cds, &ConstDef{Expr: yyDollar[3].constexpr, NamePos: NamePos{Name: yyDollar[1].strpos.String, Pos: yyDollar[1].strpos.Pos}})
 		}
 	case 88:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:472
 		{
-			yyVAL.constexpr = yyS[yypt-0].constexpr
+			yyVAL.constexpr = yyDollar[1].constexpr
 		}
 	case 89:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:474
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"||", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"||", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 90:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:476
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"&&", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"&&", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 91:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:478
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"<", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"<", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 92:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:480
 		{
-			yyVAL.constexpr = &ConstBinaryOp{">", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{">", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 93:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:482
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"<=", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"<=", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 94:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:484
 		{
-			yyVAL.constexpr = &ConstBinaryOp{">=", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{">=", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 95:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:486
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"!=", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"!=", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 96:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:488
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"==", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"==", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 97:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:490
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"+", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"+", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 98:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:492
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"-", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"-", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 99:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:494
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"*", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"*", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 100:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:496
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"/", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"/", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 101:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:498
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"%", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"%", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 102:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:500
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"|", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"|", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 103:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:502
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"&", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"&", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 104:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:504
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"^", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"^", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 105:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:506
 		{
-			yyVAL.constexpr = &ConstBinaryOp{"<<", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{"<<", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 106:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:508
 		{
-			yyVAL.constexpr = &ConstBinaryOp{">>", yyS[yypt-2].constexpr, yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstBinaryOp{">>", yyDollar[1].constexpr, yyDollar[3].constexpr, yyDollar[2].pos}
 		}
 	case 107:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:512
 		{
-			yyVAL.constexpr = yyS[yypt-0].constexpr
+			yyVAL.constexpr = yyDollar[1].constexpr
 		}
 	case 108:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:514
 		{
-			yyVAL.constexpr = &ConstUnaryOp{"!", yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstUnaryOp{"!", yyDollar[2].constexpr, yyDollar[1].pos}
 		}
 	case 109:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:516
 		{
-			yyVAL.constexpr = &ConstUnaryOp{"+", yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstUnaryOp{"+", yyDollar[2].constexpr, yyDollar[1].pos}
 		}
 	case 110:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:518
 		{
-			yyVAL.constexpr = &ConstUnaryOp{"-", yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstUnaryOp{"-", yyDollar[2].constexpr, yyDollar[1].pos}
 		}
 	case 111:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:520
 		{
-			yyVAL.constexpr = &ConstUnaryOp{"^", yyS[yypt-0].constexpr, yyS[yypt-1].pos}
+			yyVAL.constexpr = &ConstUnaryOp{"^", yyDollar[2].constexpr, yyDollar[1].pos}
 		}
 	case 112:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:522
 		{
-			yyVAL.constexpr = &ConstTypeConv{yyS[yypt-3].typeexpr, yyS[yypt-1].constexpr, yyS[yypt-3].typeexpr.Pos()}
+			yyVAL.constexpr = &ConstTypeConv{yyDollar[1].typeexpr, yyDollar[3].constexpr, yyDollar[1].typeexpr.Pos()}
 		}
 	case 113:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:524
 		{
-			yyVAL.constexpr = &ConstTypeObject{yyS[yypt-1].typeexpr, yyS[yypt-3].pos}
+			yyVAL.constexpr = &ConstTypeObject{yyDollar[3].typeexpr, yyDollar[1].pos}
 		}
 	case 114:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:529
 		{
-			yyVAL.constexpr = &ConstLit{yyS[yypt-0].strpos.String, yyS[yypt-0].strpos.Pos}
+			yyVAL.constexpr = &ConstLit{yyDollar[1].strpos.String, yyDollar[1].strpos.Pos}
 		}
 	case 115:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:531
 		{
-			yyVAL.constexpr = &ConstLit{yyS[yypt-0].intpos.int, yyS[yypt-0].intpos.pos}
+			yyVAL.constexpr = &ConstLit{yyDollar[1].intpos.int, yyDollar[1].intpos.pos}
 		}
 	case 116:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:533
 		{
-			yyVAL.constexpr = &ConstLit{yyS[yypt-0].ratpos.rat, yyS[yypt-0].ratpos.pos}
+			yyVAL.constexpr = &ConstLit{yyDollar[1].ratpos.rat, yyDollar[1].ratpos.pos}
 		}
 	case 117:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:535
 		{
-			yyVAL.constexpr = &ConstLit{yyS[yypt-0].imagpos.imag, yyS[yypt-0].imagpos.pos}
+			yyVAL.constexpr = &ConstLit{yyDollar[1].imagpos.imag, yyDollar[1].imagpos.pos}
 		}
 	case 118:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:537
 		{
-			yyVAL.constexpr = &ConstNamed{yyS[yypt-0].strpos.String, yyS[yypt-0].strpos.Pos}
+			yyVAL.constexpr = &ConstNamed{yyDollar[1].strpos.String, yyDollar[1].strpos.Pos}
 		}
 	case 119:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:539
 		{
-			yyVAL.constexpr = yyS[yypt-0].complit
+			yyVAL.constexpr = yyDollar[1].complit
 		}
 	case 120:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:541
 		{
-			lexPosErrorf(yylex, yyS[yypt-1].pos, "cannot apply selector operator to unnamed constant")
+			lexPosErrorf(yylex, yyDollar[2].pos, "cannot apply selector operator to unnamed constant")
 		}
 	case 121:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:543
 		{
-			lexPosErrorf(yylex, yyS[yypt-2].pos, "cannot apply index operator to unnamed constant")
+			lexPosErrorf(yylex, yyDollar[2].pos, "cannot apply index operator to unnamed constant")
 		}
 	case 122:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:545
 		{
-			yyVAL.constexpr = &ConstIndexed{&ConstNamed{yyS[yypt-3].strpos.String, yyS[yypt-3].strpos.Pos}, yyS[yypt-1].constexpr, yyS[yypt-3].strpos.Pos}
+			yyVAL.constexpr = &ConstIndexed{&ConstNamed{yyDollar[1].strpos.String, yyDollar[1].strpos.Pos}, yyDollar[3].constexpr, yyDollar[1].strpos.Pos}
 		}
 	case 123:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:547
 		{
-			yyVAL.constexpr = yyS[yypt-1].constexpr
+			yyVAL.constexpr = yyDollar[2].constexpr
 		}
 	case 124:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:551
 		{
-			yyVAL.complit = &ConstCompositeLit{yyS[yypt-2].typeexpr, nil, yyS[yypt-1].pos}
+			yyVAL.complit = &ConstCompositeLit{yyDollar[1].typeexpr, nil, yyDollar[2].pos}
 		}
 	case 125:
+		yyDollar = yyS[yypt-5 : yypt+1]
 		//line grammar.y:553
 		{
-			yyVAL.complit = &ConstCompositeLit{yyS[yypt-4].typeexpr, yyS[yypt-2].kvlits, yyS[yypt-3].pos}
+			yyVAL.complit = &ConstCompositeLit{yyDollar[1].typeexpr, yyDollar[3].kvlits, yyDollar[2].pos}
 		}
 	case 126:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:557
 		{
-			yyVAL.kvlits = []KVLit{yyS[yypt-0].kvlit}
+			yyVAL.kvlits = []KVLit{yyDollar[1].kvlit}
 		}
 	case 127:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:559
 		{
-			yyVAL.kvlits = append(yyS[yypt-2].kvlits, yyS[yypt-0].kvlit)
+			yyVAL.kvlits = append(yyDollar[1].kvlits, yyDollar[3].kvlit)
 		}
 	case 128:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:563
 		{
-			yyVAL.kvlit = KVLit{Value: yyS[yypt-0].constexpr}
+			yyVAL.kvlit = KVLit{Value: yyDollar[1].constexpr}
 		}
 	case 129:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:565
 		{
-			yyVAL.kvlit = KVLit{Key: yyS[yypt-2].constexpr, Value: yyS[yypt-0].constexpr}
+			yyVAL.kvlit = KVLit{Key: yyDollar[1].constexpr, Value: yyDollar[3].constexpr}
 		}
 	case 132:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:574
 		{
 			// Create *ErrorDef starting with a copy of error_details, filling in the
 			// name and params
-			ed := yyS[yypt-0].errordef
-			ed.NamePos = NamePos{Name: yyS[yypt-2].strpos.String, Pos: yyS[yypt-2].strpos.Pos}
-			ed.Params = yyS[yypt-1].fields
+			ed := yyDollar[3].errordef
+			ed.NamePos = NamePos{Name: yyDollar[1].strpos.String, Pos: yyDollar[1].strpos.Pos}
+			ed.Params = yyDollar[2].fields
 			eds := &lexVDLFile(yylex).ErrorDefs
 			*eds = append(*eds, &ed)
 		}
 	case 133:
+		yyDollar = yyS[yypt-0 : yypt+1]
 		//line grammar.y:586
 		{
 			yyVAL.errordef = ErrorDef{}
 		}
 	case 134:
+		yyDollar = yyS[yypt-2 : yypt+1]
 		//line grammar.y:588
 		{
 			yyVAL.errordef = ErrorDef{}
 		}
 	case 135:
+		yyDollar = yyS[yypt-4 : yypt+1]
 		//line grammar.y:590
 		{
-			yyVAL.errordef = yyS[yypt-2].errordef
+			yyVAL.errordef = yyDollar[2].errordef
 		}
 	case 136:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:594
 		{
-			yyVAL.errordef = yyS[yypt-0].errordef
+			yyVAL.errordef = yyDollar[1].errordef
 		}
 	case 137:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:596
 		{
 			// Merge each ErrorDef in-order to build the final ErrorDef.
-			yyVAL.errordef = yyS[yypt-2].errordef
+			yyVAL.errordef = yyDollar[1].errordef
 			switch {
-			case len(yyS[yypt-0].errordef.Actions) > 0:
-				yyVAL.errordef.Actions = append(yyVAL.errordef.Actions, yyS[yypt-0].errordef.Actions...)
-			case len(yyS[yypt-0].errordef.Formats) > 0:
-				yyVAL.errordef.Formats = append(yyVAL.errordef.Formats, yyS[yypt-0].errordef.Formats...)
+			case len(yyDollar[3].errordef.Actions) > 0:
+				yyVAL.errordef.Actions = append(yyVAL.errordef.Actions, yyDollar[3].errordef.Actions...)
+			case len(yyDollar[3].errordef.Formats) > 0:
+				yyVAL.errordef.Formats = append(yyVAL.errordef.Formats, yyDollar[3].errordef.Formats...)
 			}
 		}
 	case 138:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:609
 		{
-			yyVAL.errordef = ErrorDef{Actions: []StringPos{yyS[yypt-0].strpos}}
+			yyVAL.errordef = ErrorDef{Actions: []StringPos{yyDollar[1].strpos}}
 		}
 	case 139:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:611
 		{
-			yyVAL.errordef = ErrorDef{Formats: []LangFmt{{Lang: yyS[yypt-2].strpos, Fmt: yyS[yypt-0].strpos}}}
+			yyVAL.errordef = ErrorDef{Formats: []LangFmt{{Lang: yyDollar[1].strpos, Fmt: yyDollar[3].strpos}}}
 		}
 	case 140:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:623
 		{
-			yyVAL.strpos = yyS[yypt-0].strpos
+			yyVAL.strpos = yyDollar[1].strpos
 		}
 	case 141:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:625
 		{
-			yyVAL.strpos = StringPos{"\"" + yyS[yypt-2].strpos.String + "\"." + yyS[yypt-0].strpos.String, yyS[yypt-2].strpos.Pos}
+			yyVAL.strpos = StringPos{"\"" + yyDollar[1].strpos.String + "\"." + yyDollar[3].strpos.String, yyDollar[1].strpos.Pos}
 		}
 	case 142:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:630
 		{
-			yyVAL.strpos = yyS[yypt-0].strpos
+			yyVAL.strpos = yyDollar[1].strpos
 		}
 	case 143:
+		yyDollar = yyS[yypt-3 : yypt+1]
 		//line grammar.y:632
 		{
-			yyVAL.strpos = StringPos{yyS[yypt-2].strpos.String + "." + yyS[yypt-0].strpos.String, yyS[yypt-2].strpos.Pos}
+			yyVAL.strpos = StringPos{yyDollar[1].strpos.String + "." + yyDollar[3].strpos.String, yyDollar[1].strpos.Pos}
 		}
 	case 144:
+		yyDollar = yyS[yypt-0 : yypt+1]
 		//line grammar.y:636
 		{
 			yyVAL.typeexpr = nil
 		}
 	case 145:
+		yyDollar = yyS[yypt-1 : yypt+1]
 		//line grammar.y:638
 		{
-			yyVAL.typeexpr = yyS[yypt-0].typeexpr
+			yyVAL.typeexpr = yyDollar[1].typeexpr
 		}
 	}
 	goto yystack /* stack new state and value */
