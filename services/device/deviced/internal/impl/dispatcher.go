@@ -19,7 +19,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/device"
 	"v.io/v23/services/pprof"
-	"v.io/v23/services/stats"
+	libstats "v.io/v23/services/stats"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
@@ -39,6 +39,7 @@ type internalState struct {
 	updating       *updatingState
 	securityAgent  *securityAgentState
 	restartHandler func()
+	stats          *stats
 	testMode       bool
 	// runner is responsible for running app instances.
 	runner *appRunner
@@ -101,6 +102,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 			callback:       newCallbackState(config.Name),
 			updating:       newUpdatingState(),
 			restartHandler: restartHandler,
+			stats:          newStats(),
 			testMode:       testMode,
 			tidying:        newTidyingDaemon(ctx, config.Root),
 		},
@@ -150,6 +152,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		securityAgent:  d.internal.securityAgent,
 		appServiceName: naming.Join(d.config.Name, appsSuffix),
 		mtAddress:      d.mtAddress,
+		stats:          d.internal.stats,
 	}
 	d.internal.runner = runner
 	reap, err := newReaper(ctx, config.Root, runner)
@@ -308,7 +311,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 				case "pprof":
 					desc = pprof.PProfServer(nil).Describe__()
 				case "stats":
-					desc = stats.StatsServer(nil).Describe__()
+					desc = libstats.StatsServer(nil).Describe__()
 				}
 				suffix := naming.Join("__debug", naming.Join(components[4:]...))
 				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
@@ -327,6 +330,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			uat:        d.uat,
 			permsStore: d.permsStore,
 			runner:     d.internal.runner,
+			stats:      d.internal.stats,
 		})
 		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.permsStore)
 		if err != nil {

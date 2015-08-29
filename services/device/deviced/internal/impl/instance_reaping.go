@@ -14,7 +14,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/device"
-	"v.io/v23/services/stats"
+	libstats "v.io/v23/services/stats"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 )
@@ -194,7 +194,7 @@ func processStatusViaAppCycleMgr(ctx *context.T, c chan<- pidErrorTuple, instanc
 	nctx, _ := context.WithTimeout(ctx, appCycleTimeout*time.Second)
 
 	name := naming.Join(info.AppCycleMgrName, "__debug/stats/system/pid")
-	sclient := stats.StatsClient(name)
+	sclient := libstats.StatsClient(name)
 	v, err := sclient.Value(nctx)
 	if err != nil {
 		ctx.Infof("Instance: %v error: %v", instancePath, err)
