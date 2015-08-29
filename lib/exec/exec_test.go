@@ -379,7 +379,6 @@ func TestToReadySlow(t *testing.T) {
 }
 
 func TestToCompletion(t *testing.T) {
-	t.Skip("failing on Go1.5, see http://v.io/i/682")
 	ph := readyHelper(t, "TestToCompletion", "testSuccess", "...ok")
 	e := ph.Wait(time.Second)
 	if e != nil {
@@ -398,7 +397,6 @@ func TestToCompletionError(t *testing.T) {
 }
 
 func TestExtraFiles(t *testing.T) {
-	t.Skip("failing on Go1.5, see http://v.io/i/682")
 	cmd := helperCommand("testExtraFiles")
 	rd, wr, err := os.Pipe()
 	if err != nil {
