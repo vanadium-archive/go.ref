@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -31,6 +32,14 @@ import (
 const baselineOpenFiles = 3
 
 func init() {
+	if os.Getenv("GOMAXPROCS") == "" {
+		// Set the number of logical processors to 1 if GOMAXPROCS is
+		// not set in the environment.
+		//
+		// TODO(caprita): the default in Go 1.5 is num cpus, which
+		// causes flakiness.  Figure out why.
+		runtime.GOMAXPROCS(1)
+	}
 	if os.Getenv("GO_WANT_HELPER_PROCESS_EXEC") == "1" {
 		return
 	}
