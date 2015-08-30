@@ -50,7 +50,7 @@ The global flags are:
    if >=0, sets runtime.MemProfileRate
  -test.outputdir=
    directory in which to write profiles
- -test.parallel=12
+ -test.parallel=<number of threads>
    maximum test parallelism
  -test.run=
    regular expression to select tests and examples to run
