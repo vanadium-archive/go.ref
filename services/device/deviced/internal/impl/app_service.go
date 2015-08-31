@@ -229,6 +229,7 @@ type appRunner struct {
 	mtAddress string
 	// appServiceName is a name by which the appService can be reached
 	appServiceName string
+	stats          *stats
 }
 
 // appService implements the Device manager's Application interface.
@@ -244,6 +245,7 @@ type appService struct {
 	deviceAccessList access.Permissions
 	// State needed to (re)start an application.
 	runner *appRunner
+	stats  *stats
 }
 
 func saveEnvelope(ctx *context.T, dir string, envelope *application.Envelope) error {
@@ -1061,6 +1063,10 @@ func (i *appRunner) run(ctx *context.T, instanceDir string) error {
 	if err == nil {
 		pid, err = i.startCmd(ctx, instanceDir, cmd)
 	}
+	// TODO(caprita): If startCmd fails, we never reach startWatching; this
+	// means that the restart policy never kicks in, and the app stays dead.
+	// We should allow the app to be considered for restart if startCmd
+	// fails after having successfully started the app process.
 	if err != nil {
 		transitionInstance(instanceDir, device.InstanceStateLaunching, device.InstanceStateNotRunning)
 		return err
@@ -1136,6 +1142,13 @@ func (i *appRunner) restartAppIfNecessary(ctx *context.T, instanceDir string) {
 		return
 	}
 
+	if instanceName, err := instanceNameFromDir(ctx, instanceDir); err != nil {
+		ctx.Error(err)
+		i.stats.incrRestarts("unknown")
+	} else {
+		i.stats.incrRestarts(instanceName)
+	}
+
 	if err := i.run(ctx, instanceDir); err != nil {
 		ctx.Error(err)
 	}
@@ -1202,6 +1215,8 @@ func (i *appService) Run(ctx *context.T, call rpc.ServerCall) error {
 	if startSystemName != systemName {
 		return verror.New(verror.ErrNoAccess, ctx, "Not allowed to resume an application under a different system name.")
 	}
+
+	i.stats.incrRuns(naming.Join(i.suffix...))
 
 	// TODO(caprita): We should reset the Restarts and RestartWindowBegan
 	// fields in the instance info when the instance is started with Run.

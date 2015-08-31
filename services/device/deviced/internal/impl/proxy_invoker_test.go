@@ -13,7 +13,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/v23/services/stats"
+	libstats "v.io/v23/services/stats"
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -34,7 +34,7 @@ func TestProxyInvoker(t *testing.T) {
 	// server2 proxies requests to <suffix> to server1/__debug/stats/<suffix>
 	disp := &proxyDispatcher{
 		remote: naming.JoinAddressName(server1.Status().Endpoints[0].String(), "__debug/stats"),
-		desc:   stats.StatsServer(nil).Describe__(),
+		desc:   libstats.StatsServer(nil).Describe__(),
 	}
 	server2, err := xrpc.NewDispatchingServer(ctx, "", disp)
 	if err != nil {
@@ -44,7 +44,7 @@ func TestProxyInvoker(t *testing.T) {
 
 	// Call Value()
 	name := naming.JoinAddressName(addr2, "system/start-time-rfc1123")
-	c := stats.StatsClient(name)
+	c := libstats.StatsClient(name)
 	if _, err := c.Value(ctx); err != nil {
 		t.Fatalf("%q.Value() error: %v", name, err)
 	}
