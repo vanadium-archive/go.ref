@@ -19,10 +19,10 @@ import (
 	"v.io/v23/syncbase"
 	"v.io/v23/syncbase/nosql"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/cmd/sb51/internal/demodb"
+	"v.io/x/ref/cmd/sb51/internal/reader"
+	"v.io/x/ref/cmd/sb51/internal/writer"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/syncbase/sb51/internal/demodb"
-	"v.io/x/ref/syncbase/sb51/internal/reader"
-	"v.io/x/ref/syncbase/sb51/internal/writer"
 )
 
 var cmdSbShell = &cmdline.Command{
