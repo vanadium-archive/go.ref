@@ -389,7 +389,7 @@ func TestToReadySlow(t *testing.T) {
 
 func TestToCompletion(t *testing.T) {
 	ph := readyHelper(t, "TestToCompletion", "testSuccess", "...ok")
-	e := ph.Wait(time.Second)
+	e := ph.Wait(10 * time.Second)
 	if e != nil {
 		t.Errorf("Wait failed: err %s\n", e)
 	}
@@ -418,7 +418,7 @@ func TestExtraFiles(t *testing.T) {
 	if ph == nil {
 		t.Fatalf("Failed to get vexec.ParentHandle\n")
 	}
-	e := ph.Wait(1 * time.Second)
+	e := ph.Wait(10 * time.Second)
 	if e != nil {
 		t.Errorf("Wait failed: err %s\n", e)
 	}
@@ -450,6 +450,11 @@ func TestWaitAndCleanRace(t *testing.T) {
 	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{TimeKeeper: tk})
 	if err := waitForReady(t, cmd, name, 1, ph); err != nil {
 		t.Errorf("%s: WaitForReady: %v (%v)", name, err, ph)
+	}
+	// Drain the tk.Requests() channel since waitForReady can leave something in it.
+	select {
+	case <-tk.Requests():
+	default:
 	}
 	go func() {
 		// Wait for the ph.Wait below to block, then advance the time
