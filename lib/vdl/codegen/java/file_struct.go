@@ -119,9 +119,9 @@ package {{.PackagePath}};
                 result += ", ";
             {{ end }}
             {{ if .IsArray }}
-                result += "{{$field.LowercaseName}}:" + java.util.Arrays.toString({{$field.LowercaseName}});
+                result += "{{$field.LowercaseName}}:" + java.util.Arrays.toString(this.{{$field.LowercaseName}});
             {{ else }}
-            result += "{{$field.LowercaseName}}:" + {{$field.LowercaseName}};
+            result += "{{$field.LowercaseName}}:" + this.{{$field.LowercaseName}};
             {{ end}} {{/* if is array */}}
         {{ end }} {{/* range over fields */}}
         return result + "}";
@@ -164,7 +164,7 @@ func genJavaStructFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 			AccessModifier:      accessModifierForName(fld.Name),
 			Class:               javaType(fld.Type, true, env),
 			Doc:                 javaDoc(tdef.FieldDoc[i], tdef.FieldDocSuffix[i]),
-			HashcodeComputation: javaHashCode(vdlutil.FirstRuneToLower(fld.Name), fld.Type, env),
+			HashcodeComputation: javaHashCode("this." + vdlutil.FirstRuneToLower(fld.Name), fld.Type, env),
 			IsClass:             isClass(fld.Type, env),
 			IsArray:             isJavaNativeArray(fld.Type, env),
 			LowercaseName:       vdlutil.FirstRuneToLower(fld.Name),
