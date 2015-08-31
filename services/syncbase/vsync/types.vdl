@@ -1,0 +1,37 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package vsync
+
+import (
+	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
+)
+
+// Key prefixes for sync data structures. All these prefixes are prepended with
+// util.SyncPrefix.
+const (
+	logPrefix  = "log"
+	dbssPrefix = "dbss"
+	dagPrefix  = "dag"
+	sgPrefix   = "sg"
+)
+
+// syncData represents the persistent state of the sync module.
+type syncData struct {
+	Id uint64
+}
+
+// dbSyncState represents the persistent sync state of a Database.
+type dbSyncState struct {
+	Gen        uint64               // local generation number incremented on every local update.
+	CheckptGen uint64               // local generation number advertised to remote peers (used by the responder).
+	GenVec     interfaces.GenVector // generation vector capturing the locally-known generations of remote peers.
+}
+
+// localLogRec represents the persistent local state of a log record. Metadata
+// is synced across peers, while pos is local-only.
+type localLogRec struct {
+	Metadata interfaces.LogRecMetadata
+	Pos      uint64 // position in the Database log.
+}

@@ -1,0 +1,10 @@
+# Update an object remotely three times triggering a conflict with
+# 2 graft points: v1 and v4.  This assumes that the remote sync got
+# v1, made its own conflicting v4 that it resolved into v5 (against v2)
+# then made a v6 change.  When the local sync gets back this info it
+# sees 2 graft points: v1-v4 and v2-v5.
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
+
+addr|foo1|4|1||$sync:log:12:1|0|1|false
+addr|foo1|5|2|4|$sync:log:11:1|0|1|false
+addr|foo1|6|5||$sync:log:11:2|0|1|false

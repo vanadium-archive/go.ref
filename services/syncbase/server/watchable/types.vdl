@@ -1,0 +1,77 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package watchable
+
+// GetOp represents a store get operation.
+type GetOp struct {
+	Key []byte
+}
+
+// ScanOp represents a store scan operation.
+type ScanOp struct {
+	Start []byte
+	Limit []byte
+}
+
+// PutOp represents a store put operation.  The new version is written instead
+// of the value to avoid duplicating the user data in the store.  The version
+// is used to access the user data of that specific mutation.
+type PutOp struct {
+	Key     []byte
+	Version []byte
+}
+
+// DeleteOp represents a store delete operation.
+type DeleteOp struct {
+	Key []byte
+}
+
+// SyncGroupOp represents a change in SyncGroup tracking, adding or removing
+// key prefixes to sync.  SyncGroup prefixes cannot be changed, this is used
+// to track changes due to SyncGroup create/join/leave/destroy.
+type SyncGroupOp struct {
+	Prefixes []string
+	Remove   bool
+}
+
+// SyncSnapshotOp represents a snapshot operation when creating and joining a
+// SyncGroup.  The sync watcher needs to get a snapshot of the Database at the
+// point of creating/joining a SyncGroup.  A SyncSnapshotOp entry is written to
+// the log for each Database key that falls within the SyncGroup prefixes.  This
+// allows sync to initialize its metadata at the correct versions of the objects
+// when they become syncable.  These log entries should be filtered by the
+// client-facing Watch interface because the user data did not actually change.
+type SyncSnapshotOp struct {
+	Key     []byte
+	Version []byte
+}
+
+// Op represents a store operation.
+type Op union {
+	Get          GetOp
+	Scan         ScanOp
+	Put          PutOp
+	Delete       DeleteOp
+	SyncGroup    SyncGroupOp
+	SyncSnapshot SyncSnapshotOp
+}
+
+// LogEntry represents a single store operation. This operation may have been
+// part of a transaction, as signified by the Continued boolean. Read-only
+// operations (and read-only transactions) are not logged.
+type LogEntry struct {
+	// The store operation that was performed.
+	Op Op
+
+	// Time when the operation was committed.
+	CommitTimestamp int64
+
+	// Operation came from sync (used for echo suppression).
+	FromSync bool
+
+	// If true, this entry is followed by more entries that belong to the same
+	// commit as this entry.
+	Continued bool
+}

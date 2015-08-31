@@ -1,0 +1,34 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package server
+
+import (
+	"v.io/v23/security/access"
+)
+
+// serviceData represents the persistent state of a Service.
+type serviceData struct {
+	Version uint64 // covers the fields below
+	Perms   access.Permissions
+}
+
+// appData represents the persistent state of an App.
+type appData struct {
+	Name    string
+	Version uint64 // covers the fields below
+	Perms   access.Permissions
+}
+
+// dbInfo contains information about one database for an App.
+// TODO(sadovsky): Track NoSQL vs. SQL.
+type dbInfo struct {
+	Name        string
+	Initialized bool
+	Deleted     bool
+	// Select fields from nosql.DatabaseOptions, needed in order to open storage
+	// engine on restart.
+	RootDir string // interpreted by storage engine
+	Engine string // name of storage engine, e.g. "leveldb"
+}

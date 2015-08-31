@@ -1,0 +1,6 @@
+# Create an object locally and update it twice (linked-list).
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
+
+addl|foo1|1|||$sync:log:10:1|0|1|false
+addl|foo1|2|1||$sync:log:10:2|0|1|false
+addl|foo1|3|2||$sync:log:10:3|0|1|false

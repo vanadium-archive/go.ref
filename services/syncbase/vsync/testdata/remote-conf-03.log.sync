@@ -1,0 +1,6 @@
+# Create the same object remotely from scratch and update it twice (linked-list).
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
+
+addr|foo1|4|||$sync:log:11:1|0|1|false
+addr|foo1|5|4||$sync:log:11:2|0|1|false
+addr|foo1|6|5||$sync:log:11:3|0|1|false
