@@ -45,11 +45,14 @@ func (c *VClock) Now(ctx *context.T) time.Time {
 	if err := c.sa.GetClockData(ctx, clockData); err != nil {
 		if verror.ErrorID(err) == verror.ErrNoExist.ID {
 			// VClock's cron job to setup UTC time at boot has not been run yet.
-			vlog.Error("No ClockData found while creating a timestamp")
+			// TODO(jlodhia): uncomment info messages once clock service
+			// scheduling is enabled. In absence of clock service, no clock
+			// data is present and hence these logs get printed all the time.
+			// vlog.Info("No ClockData found while creating a timestamp")
 		} else {
 			vlog.Errorf("Error while fetching clock data: %v", err)
 		}
-		vlog.Error("Returning current system clock time")
+		// vlog.Info("Returning current system clock time")
 		return c.clock.Now()
 	}
 	skew := time.Duration(clockData.Skew)
