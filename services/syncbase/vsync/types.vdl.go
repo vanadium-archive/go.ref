@@ -21,7 +21,7 @@ type syncData struct {
 }
 
 func (syncData) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/vsync.syncData"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.syncData"`
 }) {
 }
 
@@ -33,7 +33,7 @@ type dbSyncState struct {
 }
 
 func (dbSyncState) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/vsync.dbSyncState"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.dbSyncState"`
 }) {
 }
 
@@ -45,7 +45,7 @@ type localLogRec struct {
 }
 
 func (localLogRec) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/vsync.localLogRec"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.localLogRec"`
 }) {
 }
 

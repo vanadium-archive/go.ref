@@ -627,7 +627,7 @@ var SyncDesc rpc.InterfaceDesc = descSync
 // descSync hides the desc to keep godoc clean.
 var descSync = rpc.InterfaceDesc{
 	Name:    "Sync",
-	PkgPath: "v.io/syncbase/x/ref/services/syncbase/server/interfaces",
+	PkgPath: "v.io/x/ref/services/syncbase/server/interfaces",
 	Doc:     "// Sync defines methods for data exchange between Syncbases.\n// TODO(hpucha): Flesh this out further.",
 	Methods: []rpc.MethodDesc{
 		{

@@ -25,7 +25,7 @@ type databaseData struct {
 }
 
 func (databaseData) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/nosql.databaseData"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/nosql.databaseData"`
 }) {
 }
 
@@ -37,7 +37,7 @@ type tableData struct {
 }
 
 func (tableData) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/nosql.tableData"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/nosql.tableData"`
 }) {
 }
 
@@ -56,7 +56,7 @@ type stPrefixPerms struct {
 }
 
 func (stPrefixPerms) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/nosql.stPrefixPerms"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/nosql.stPrefixPerms"`
 }) {
 }
 

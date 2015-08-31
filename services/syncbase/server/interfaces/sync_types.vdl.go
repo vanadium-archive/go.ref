@@ -23,7 +23,7 @@ import (
 type PrefixGenVector map[uint64]uint64
 
 func (PrefixGenVector) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.PrefixGenVector"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.PrefixGenVector"`
 }) {
 }
 
@@ -33,7 +33,7 @@ func (PrefixGenVector) __VDLReflect(struct {
 type GenVector map[string]PrefixGenVector
 
 func (GenVector) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.GenVector"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.GenVector"`
 }) {
 }
 
@@ -61,7 +61,7 @@ type LogRecMetadata struct {
 }
 
 func (LogRecMetadata) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.LogRecMetadata"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata"`
 }) {
 }
 
@@ -73,7 +73,7 @@ type LogRec struct {
 }
 
 func (LogRec) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.LogRec"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.LogRec"`
 }) {
 }
 
@@ -81,7 +81,7 @@ func (LogRec) __VDLReflect(struct {
 type GroupId uint64
 
 func (GroupId) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.GroupId"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.GroupId"`
 }) {
 }
 
@@ -134,7 +134,7 @@ func (x SyncGroupStatus) String() string {
 }
 
 func (SyncGroupStatus) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.SyncGroupStatus"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SyncGroupStatus"`
 	Enum struct{ PublishPending, PublishRejected, Running string }
 }) {
 }
@@ -153,7 +153,7 @@ type SyncGroup struct {
 }
 
 func (SyncGroup) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.SyncGroup"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SyncGroup"`
 }) {
 }
 
@@ -168,7 +168,7 @@ type DeltaReq struct {
 }
 
 func (DeltaReq) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.DeltaReq"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaReq"`
 }) {
 }
 
@@ -197,7 +197,7 @@ type (
 	DeltaRespRespVec struct{ Value GenVector }
 	// __DeltaRespReflect describes the DeltaResp union type.
 	__DeltaRespReflect struct {
-		Name  string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.DeltaResp"`
+		Name  string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaResp"`
 		Type  DeltaResp
 		Union struct {
 			Start   DeltaRespStart
@@ -234,7 +234,7 @@ type ChunkHash struct {
 }
 
 func (ChunkHash) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.ChunkHash"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.ChunkHash"`
 }) {
 }
 
@@ -244,7 +244,7 @@ type ChunkData struct {
 }
 
 func (ChunkData) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/interfaces.ChunkData"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.ChunkData"`
 }) {
 }
 

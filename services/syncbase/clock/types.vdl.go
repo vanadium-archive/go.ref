@@ -26,7 +26,7 @@ type ClockData struct {
 }
 
 func (ClockData) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/clock.ClockData"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/clock.ClockData"`
 }) {
 }
 

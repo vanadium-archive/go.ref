@@ -18,7 +18,7 @@ type GetOp struct {
 }
 
 func (GetOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.GetOp"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.GetOp"`
 }) {
 }
 
@@ -29,7 +29,7 @@ type ScanOp struct {
 }
 
 func (ScanOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.ScanOp"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.ScanOp"`
 }) {
 }
 
@@ -42,7 +42,7 @@ type PutOp struct {
 }
 
 func (PutOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.PutOp"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.PutOp"`
 }) {
 }
 
@@ -52,7 +52,7 @@ type DeleteOp struct {
 }
 
 func (DeleteOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.DeleteOp"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.DeleteOp"`
 }) {
 }
 
@@ -65,7 +65,7 @@ type SyncGroupOp struct {
 }
 
 func (SyncGroupOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.SyncGroupOp"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.SyncGroupOp"`
 }) {
 }
 
@@ -82,7 +82,7 @@ type SyncSnapshotOp struct {
 }
 
 func (SyncSnapshotOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.SyncSnapshotOp"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.SyncSnapshotOp"`
 }) {
 }
 
@@ -114,7 +114,7 @@ type (
 	OpSyncSnapshot struct{ Value SyncSnapshotOp }
 	// __OpReflect describes the Op union type.
 	__OpReflect struct {
-		Name  string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.Op"`
+		Name  string `vdl:"v.io/x/ref/services/syncbase/server/watchable.Op"`
 		Type  Op
 		Union struct {
 			Get          OpGet
@@ -173,7 +173,7 @@ type LogEntry struct {
 }
 
 func (LogEntry) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server/watchable.LogEntry"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.LogEntry"`
 }) {
 }
 

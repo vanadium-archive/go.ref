@@ -17,9 +17,9 @@ import (
 var (
 	// ConcurrentTransaction means that the current transaction failed to commit
 	// because its read set was invalidated by some other transaction.
-	ErrConcurrentTransaction = verror.Register("v.io/syncbase/x/ref/services/syncbase/store.ConcurrentTransaction", verror.NoRetry, "{1:}{2:} Concurrent transaction{:_}")
+	ErrConcurrentTransaction = verror.Register("v.io/x/ref/services/syncbase/store.ConcurrentTransaction", verror.NoRetry, "{1:}{2:} Concurrent transaction{:_}")
 	// UnknownKey means the given key does not exist in the store.
-	ErrUnknownKey = verror.Register("v.io/syncbase/x/ref/services/syncbase/store.UnknownKey", verror.NoRetry, "{1:}{2:} Unknown key{:_}")
+	ErrUnknownKey = verror.Register("v.io/x/ref/services/syncbase/store.UnknownKey", verror.NoRetry, "{1:}{2:} Unknown key{:_}")
 )
 
 func init() {

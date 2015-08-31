@@ -56,7 +56,7 @@ type DataWithSignature struct {
 }
 
 func (DataWithSignature) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/signing.DataWithSignature"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/signing.DataWithSignature"`
 }) {
 }
 
@@ -90,7 +90,7 @@ type (
 	ItemHash struct{ Value []byte } // Hash of what would have been in Data, as returned by SumByteVectorWithLength(Data).
 	// __ItemReflect describes the Item union type.
 	__ItemReflect struct {
-		Name  string `vdl:"v.io/syncbase/x/ref/services/syncbase/signing.Item"`
+		Name  string `vdl:"v.io/x/ref/services/syncbase/signing.Item"`
 		Type  Item
 		Union struct {
 			Data ItemData
@@ -117,7 +117,7 @@ type WireValidatorData struct {
 }
 
 func (WireValidatorData) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/signing.WireValidatorData"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/signing.WireValidatorData"`
 }) {
 }
 

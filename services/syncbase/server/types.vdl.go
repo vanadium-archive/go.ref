@@ -22,7 +22,7 @@ type serviceData struct {
 }
 
 func (serviceData) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server.serviceData"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.serviceData"`
 }) {
 }
 
@@ -34,7 +34,7 @@ type appData struct {
 }
 
 func (appData) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server.appData"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.appData"`
 }) {
 }
 
@@ -51,7 +51,7 @@ type dbInfo struct {
 }
 
 func (dbInfo) __VDLReflect(struct {
-	Name string `vdl:"v.io/syncbase/x/ref/services/syncbase/server.dbInfo"`
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.dbInfo"`
 }) {
 }
 
