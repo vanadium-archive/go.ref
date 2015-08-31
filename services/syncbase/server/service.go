@@ -12,18 +12,18 @@ import (
 	"path"
 	"sync"
 
-	wire "v.io/syncbase/v23/services/syncbase"
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/server/nosql"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/vsync"
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/nosql"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/vsync"
 )
 
 // service is a singleton (i.e. not per-request) that handles Service RPCs.

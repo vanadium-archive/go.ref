@@ -8,10 +8,10 @@ import (
 	"math"
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/v23/context"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/server/util"
 )
 
 // This file contains code related to checking current system clock to see

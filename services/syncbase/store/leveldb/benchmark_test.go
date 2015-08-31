@@ -7,8 +7,8 @@ package leveldb
 import (
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/benchmark"
+	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/benchmark"
 )
 
 func testConfig(db store.Store) *benchmark.Config {

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // verifyGet verifies that st.Get(key) == value. If value is nil, verifies that

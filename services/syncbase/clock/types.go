@@ -44,7 +44,7 @@ type NtpData struct {
 
 	// Delay is the round trip network delay experienced while talking to NTP
 	// server. The smaller the delay, the more accurate the offset is.
-	delay  time.Duration
+	delay time.Duration
 }
 
 func (cd *ClockData) SystemBootTime() time.Time {

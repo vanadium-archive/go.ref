@@ -13,7 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"v.io/syncbase/v23/syncbase/nosql"
+	"v.io/v23/syncbase/nosql"
 	"v.io/v23/vdl"
 	vtime "v.io/v23/vdlroot/time"
 )

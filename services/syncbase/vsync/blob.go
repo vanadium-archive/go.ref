@@ -7,15 +7,15 @@ package vsync
 import (
 	"io"
 
-	wire "v.io/syncbase/v23/services/syncbase/nosql"
-	blob "v.io/syncbase/x/ref/services/syncbase/localblobstore"
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	blob "v.io/x/ref/services/syncbase/localblobstore"
+	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/util"
 )
 
 const (

@@ -7,7 +7,7 @@ package watchable
 import (
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/clock"
+	"v.io/x/ref/services/syncbase/clock"
 )
 
 // TestGetNextLogSeq tests that the getNextLogSeq helper works on range 0..10.

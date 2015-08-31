@@ -49,13 +49,13 @@ import "strings"
 import "sync"
 import "time"
 
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore"
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunker"
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/blobmap"
+import "v.io/x/ref/services/syncbase/localblobstore"
+import "v.io/x/ref/services/syncbase/localblobstore/chunker"
+import "v.io/x/ref/services/syncbase/localblobstore/blobmap"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
-const pkgPath = "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore"
+const pkgPath = "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 
 var (
 	errNotADir                = verror.Register(pkgPath+".errNotADir", verror.NoRetry, "{1:}{2:} Not a directory{:_}")

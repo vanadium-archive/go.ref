@@ -5,9 +5,9 @@
 package interfaces
 
 import (
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // Service is an internal interface to the service layer.

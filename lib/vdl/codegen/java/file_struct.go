@@ -164,7 +164,7 @@ func genJavaStructFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 			AccessModifier:      accessModifierForName(fld.Name),
 			Class:               javaType(fld.Type, true, env),
 			Doc:                 javaDoc(tdef.FieldDoc[i], tdef.FieldDocSuffix[i]),
-			HashcodeComputation: javaHashCode("this." + vdlutil.FirstRuneToLower(fld.Name), fld.Type, env),
+			HashcodeComputation: javaHashCode("this."+vdlutil.FirstRuneToLower(fld.Name), fld.Type, env),
 			IsClass:             isClass(fld.Type, env),
 			IsArray:             isJavaNativeArray(fld.Type, env),
 			LowercaseName:       vdlutil.FirstRuneToLower(fld.Name),

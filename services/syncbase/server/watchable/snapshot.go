@@ -5,7 +5,7 @@
 package watchable
 
 import (
-	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 type snapshot struct {

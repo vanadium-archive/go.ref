@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"sync"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/services/watch"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // watcher maintains a state and a condition variable. The watcher sends

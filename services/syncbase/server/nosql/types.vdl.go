@@ -12,8 +12,8 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/v23/security/access"
+	"v.io/v23/services/syncbase/nosql"
 )
 
 // databaseData represents the persistent state of a Database.

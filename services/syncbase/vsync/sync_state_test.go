@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // Tests for sync state management and storage in Syncbase.
@@ -141,7 +141,7 @@ func TestLogRecKeyUtils(t *testing.T) {
 //////////////////////////////
 // Helpers
 
-// TODO(hpucha): Look into using v.io/syncbase/v23/syncbase/testutil.Fatalf()
+// TODO(hpucha): Look into using v.io/v23/syncbase/testutil.Fatalf()
 // for getting the stack trace. Right now cannot import the package due to a
 // cycle.
 

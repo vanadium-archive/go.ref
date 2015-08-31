@@ -12,8 +12,8 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // RunTransactionStateTest verifies operations that modify the state of a

@@ -495,7 +495,6 @@ func checkElementLengths(ctx *context.T, elems []string) error {
 	return nil
 }
 
-
 // Mount a server onto the name in the receiver.
 func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
 	ctx.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)

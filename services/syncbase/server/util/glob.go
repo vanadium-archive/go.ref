@@ -5,12 +5,12 @@
 package util
 
 import (
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // NOTE(nlacasse): Syncbase handles Glob requests by implementing

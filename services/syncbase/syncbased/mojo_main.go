@@ -19,10 +19,10 @@ import (
 
 	"mojom/syncbase"
 
-	"v.io/syncbase/x/ref/services/syncbase/server"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/x/ref/services/syncbase/server"
 )
 
 //#include "mojo/public/c/system/types.h"

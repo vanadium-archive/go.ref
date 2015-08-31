@@ -7,10 +7,10 @@ package clock
 import (
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // VClock holds data required to provide an estimate of the UTC time at any

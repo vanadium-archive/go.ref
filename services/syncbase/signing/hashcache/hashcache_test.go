@@ -9,7 +9,7 @@ import "runtime"
 import "testing"
 import "time"
 
-import "v.io/syncbase/x/ref/services/syncbase/signing/hashcache"
+import "v.io/x/ref/services/syncbase/signing/hashcache"
 
 // checkHashesWithNoData() checks that hash[start:] have no data in the cache.
 // (The start index is passed, rather than expecting the caller to sub-slice,

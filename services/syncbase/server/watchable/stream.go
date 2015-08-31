@@ -7,7 +7,7 @@ package watchable
 import (
 	"sync"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // stream streams keys and values for versioned records.

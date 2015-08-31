@@ -9,7 +9,7 @@ import "hash/crc64"
 import "math/rand"
 import "testing"
 
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/crc64window"
+import "v.io/x/ref/services/syncbase/localblobstore/crc64window"
 
 // A test for the example given in the package's specification.
 func TestCRC64WindowExample(t *testing.T) {

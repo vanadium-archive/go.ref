@@ -19,12 +19,12 @@ import (
 	"mojo/public/go/bindings"
 
 	mojom "mojom/syncbase"
-	wire "v.io/syncbase/v23/services/syncbase"
-	nosqlwire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/services/permissions"
+	wire "v.io/v23/services/syncbase"
+	nosqlwire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 )

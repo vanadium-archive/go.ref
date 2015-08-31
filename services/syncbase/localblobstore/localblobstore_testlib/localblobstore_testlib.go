@@ -13,8 +13,8 @@ import "io/ioutil"
 import "path/filepath"
 import "testing"
 
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore"
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunker"
+import "v.io/x/ref/services/syncbase/localblobstore"
+import "v.io/x/ref/services/syncbase/localblobstore/chunker"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
@@ -204,13 +204,13 @@ func checkWrittenBlobsAreReadable(t *testing.T, ctx *context.T, bs localblobstor
 
 					// Check that reads behave as expected.
 					if (whence == -1 || whence == 3) &&
-						verror.ErrorID(err) == "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore.errBadSeekWhence" {
+						verror.ErrorID(err) == "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore.errBadSeekWhence" {
 						// Expected error from bad "whence" value.
 					} else if expectedPos < 0 &&
-						verror.ErrorID(err) == "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore.errNegativeSeekPosition" {
+						verror.ErrorID(err) == "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore.errNegativeSeekPosition" {
 						// Expected error from negative Seek position.
 					} else if expectedPos > dataLen &&
-						verror.ErrorID(err) == "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore.errIllegalPositionForRead" {
+						verror.ErrorID(err) == "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore.errIllegalPositionForRead" {
 						// Expected error from too high a Seek position.
 					} else if 0 <= expectedPos && expectedPos+expectedSize <= int64(len(data)) &&
 						bytes.Compare(data[expectedPos:expectedPos+expectedSize], content) == 0 && err == io.EOF &&
@@ -444,11 +444,11 @@ func AddRetrieveAndDelete(t *testing.T, ctx *context.T, bs localblobstore.BlobSt
 	// -------------------------------------------------
 	// Ensure that deleting non-existent blobs fails.
 	err = bs.DeleteBlob(ctx, "../../../../etc/passwd")
-	if verror.ErrorID(err) != "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore.errInvalidBlobName" {
+	if verror.ErrorID(err) != "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore.errInvalidBlobName" {
 		t.Errorf("DeleteBlob attempted to delete a bogus blob name")
 	}
 	err = bs.DeleteBlob(ctx, "foo/00/00/00/00000000000000000000000000")
-	if verror.ErrorID(err) != "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore.errInvalidBlobName" {
+	if verror.ErrorID(err) != "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore.errInvalidBlobName" {
 		t.Errorf("DeleteBlob attempted to delete a bogus blob name")
 	}
 

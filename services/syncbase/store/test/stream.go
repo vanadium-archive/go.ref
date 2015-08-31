@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // RunStreamTest verifies store.Stream operations.

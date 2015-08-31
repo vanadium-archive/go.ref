@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/clock"
-	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/test"
+	"v.io/x/ref/services/syncbase/clock"
+	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/test"
 )
 
 func init() {

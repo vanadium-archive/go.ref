@@ -7,7 +7,6 @@ package main
 import (
 	"flag"
 
-	"v.io/syncbase/x/ref/services/syncbase/server"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -16,6 +15,7 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	_ "v.io/x/ref/runtime/factories/roaming"
+	"v.io/x/ref/services/syncbase/server"
 )
 
 var (

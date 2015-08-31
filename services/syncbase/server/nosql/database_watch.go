@@ -8,16 +8,16 @@ import (
 	"bytes"
 	"strings"
 
-	wire "v.io/syncbase/v23/services/syncbase/nosql"
-	pubutil "v.io/syncbase/v23/syncbase/util"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/services/watch"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/server/watchable"
 )
 
 // GetResumeMarker implements the wire.DatabaseWatcher interface.

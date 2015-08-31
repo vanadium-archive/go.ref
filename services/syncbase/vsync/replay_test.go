@@ -18,11 +18,11 @@ import (
 	"testing"
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/v23/context"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/server/watchable"
 )
 
 const (

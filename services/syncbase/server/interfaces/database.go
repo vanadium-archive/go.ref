@@ -5,10 +5,10 @@
 package interfaces
 
 import (
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // Database is an internal interface to the database layer.

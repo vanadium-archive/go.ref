@@ -10,7 +10,7 @@ import "bytes"
 import "testing"
 import "time"
 
-import "v.io/syncbase/x/ref/services/syncbase/signing"
+import "v.io/x/ref/services/syncbase/signing"
 import "v.io/v23/security"
 import "v.io/x/ref/test"
 import _ "v.io/x/ref/runtime/factories/generic"

@@ -12,7 +12,7 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 
 // syncData represents the persistent state of the sync module.

@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/server/watchable"
 )
 
 // TestSetResmark tests setting and getting a resume marker.

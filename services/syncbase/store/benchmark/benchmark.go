@@ -9,7 +9,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // RandomGenerator is a helper for generating random data.

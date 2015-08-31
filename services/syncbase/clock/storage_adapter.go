@@ -5,9 +5,9 @@
 package clock
 
 import (
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 var _ StorageAdapter = (*storageAdapterImpl)(nil)

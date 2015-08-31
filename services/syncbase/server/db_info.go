@@ -14,9 +14,9 @@ package server
 // database's storage engine.
 
 import (
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 func dbInfoStKey(a *app, dbName string) string {

@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/server/util"
 )
 
 type kpt struct {

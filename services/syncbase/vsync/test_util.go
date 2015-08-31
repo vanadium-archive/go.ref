@@ -13,16 +13,16 @@ import (
 	"testing"
 	"time"
 
-	wire "v.io/syncbase/v23/services/syncbase/nosql"
-	"v.io/syncbase/x/ref/services/syncbase/clock"
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/clock"
+	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/server/watchable"
+	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/test"
 )
 

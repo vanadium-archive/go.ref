@@ -15,9 +15,9 @@ import (
 	"sync"
 	"unsafe"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/transactions"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/transactions"
 )
 
 // db is a wrapper around LevelDB that implements the transactions.BatchStore

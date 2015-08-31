@@ -9,8 +9,8 @@ import "C"
 import (
 	"sync"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // snapshot is a wrapper around LevelDB snapshot that implements

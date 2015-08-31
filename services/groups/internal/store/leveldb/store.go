@@ -9,13 +9,13 @@ package leveldb
 import (
 	"strconv"
 
-	istore "v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/leveldb"
 	"v.io/v23/context"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/groups/internal/store"
+	istore "v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/leveldb"
 )
 
 type entry struct {

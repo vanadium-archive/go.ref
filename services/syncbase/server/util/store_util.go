@@ -8,14 +8,14 @@ import (
 	"os"
 	"strconv"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/leveldb"
-	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/leveldb"
+	"v.io/x/ref/services/syncbase/store/memstore"
 )
 
 func FormatVersion(version uint64) string {

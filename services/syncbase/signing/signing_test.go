@@ -3,15 +3,15 @@
 // license that can be found in the LICENSE file.
 
 // Package signing_test implements a test for the package
-// v.io/syncbase/x/ref/services/syncbase/signing
+// v.io/x/ref/services/syncbase/signing
 package signing_test
 
 import "crypto/sha256"
 import "testing"
 import "time"
 
-import "v.io/syncbase/x/ref/services/syncbase/signing"
-import "v.io/syncbase/x/ref/services/syncbase/signing/krl"
+import "v.io/x/ref/services/syncbase/signing"
+import "v.io/x/ref/services/syncbase/signing/krl"
 import "v.io/v23/naming"
 import "v.io/v23/security"
 import "v.io/v23/vdl"

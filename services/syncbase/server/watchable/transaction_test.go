@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/clock"
-	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/clock"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 type testData struct {

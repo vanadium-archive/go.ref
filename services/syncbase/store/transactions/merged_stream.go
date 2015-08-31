@@ -7,7 +7,7 @@ package transactions
 import (
 	"sort"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 //////////////////////////////////////////////////////////////

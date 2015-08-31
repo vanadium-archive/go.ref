@@ -77,12 +77,12 @@ import "encoding/binary"
 import "hash"
 import "time"
 
-import "v.io/syncbase/x/ref/services/syncbase/signing/krl"
+import "v.io/x/ref/services/syncbase/signing/krl"
 import "v.io/v23/context"
 import "v.io/v23/security"
 import "v.io/v23/verror"
 
-const pkgPath = "v.io/syncbase/x/ref/services/syncbase/signing"
+const pkgPath = "v.io/x/ref/services/syncbase/signing"
 
 // These are among the errors may be returned by Check(), and indicate that the
 // operation should be retried when new data has been added to the

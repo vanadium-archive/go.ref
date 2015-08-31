@@ -14,7 +14,7 @@ import "crypto/sha256"
 import "encoding/binary"
 import "time"
 
-import "v.io/syncbase/x/ref/services/syncbase/signing/hashcache"
+import "v.io/x/ref/services/syncbase/signing/hashcache"
 import "v.io/v23/context"
 import "v.io/v23/security"
 import "v.io/v23/vom"

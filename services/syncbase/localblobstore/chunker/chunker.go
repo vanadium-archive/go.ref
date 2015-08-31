@@ -32,11 +32,11 @@ package chunker
 import "io"
 import "sync"
 
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/crc64window"
+import "v.io/x/ref/services/syncbase/localblobstore/crc64window"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
-const pkgPath = "v.io/syncbase/x/ref/services/syncbase/localblobstore/chunker"
+const pkgPath = "v.io/x/ref/services/syncbase/localblobstore/chunker"
 
 var (
 	errStreamCancelled = verror.Register(pkgPath+".errStreamCancelled", verror.NoRetry, "{1:}{2:} Advance() called on cancelled stream{:_}")

@@ -8,8 +8,8 @@ import (
 	"container/list"
 	"sync"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // BatchStore is a CRUD-capable storage engine that supports atomic batch

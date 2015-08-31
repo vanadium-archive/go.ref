@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"testing"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // TestWatchLogBatch tests fetching a batch of log records.

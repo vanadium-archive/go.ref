@@ -21,9 +21,9 @@ import (
 	"strings"
 	"sync"
 
-	pubutil "v.io/syncbase/v23/syncbase/util"
-	"v.io/syncbase/x/ref/services/syncbase/clock"
-	"v.io/syncbase/x/ref/services/syncbase/store"
+	pubutil "v.io/v23/syncbase/util"
+	"v.io/x/ref/services/syncbase/clock"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // Store is a store.Store that provides versioned storage and a watchable oplog.

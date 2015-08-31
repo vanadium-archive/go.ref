@@ -17,7 +17,7 @@
 // errors cause the shell to exit with a non-zero status.
 //
 // To build client:
-//     v23 go install v.io/syncbase/x/ref/syncbase/sb51
+//     v23 go install v.io/x/ref/syncbase/sb51
 //
 // To run client:
 //     $V23_ROOT/roadmap/go/bin/sb51 sh <appname> <dbname>

@@ -57,7 +57,7 @@ var _ SystemClock = (*systemClockMockImpl)(nil)
 
 func MockSystemClock(now time.Time, elapsedTime time.Duration) *systemClockMockImpl {
 	return &systemClockMockImpl{
-		now: now,
+		now:         now,
 		elapsedTime: elapsedTime,
 	}
 }

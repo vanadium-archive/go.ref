@@ -9,9 +9,9 @@ import "io/ioutil"
 import "os"
 import "testing"
 
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore"
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore"
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/localblobstore_testlib"
+import "v.io/x/ref/services/syncbase/localblobstore"
+import "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
+import "v.io/x/ref/services/syncbase/localblobstore/localblobstore_testlib"
 import "v.io/x/ref/test"
 import _ "v.io/x/ref/runtime/factories/generic"
 

@@ -7,10 +7,10 @@ package clock
 import (
 	"math"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/v23/context"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/server/util"
 )
 
 // runNtpCheck talks to an NTP server, fetches the current UTC time from it
@@ -39,7 +39,7 @@ func (c *VClock) runNtpCheck(ctx *context.T) error {
 	// Update clock skew if the difference between offset and skew is larger
 	// than NtpDiffThreshold. NtpDiffThreshold helps avoid constant tweaking of
 	// the syncbase clock.
-	if math.Abs(float64(offset.Nanoseconds() - data.Skew)) > util.NtpDiffThreshold {
+	if math.Abs(float64(offset.Nanoseconds()-data.Skew)) > util.NtpDiffThreshold {
 		writeNewClockData(ctx, c, offset)
 	}
 	return nil

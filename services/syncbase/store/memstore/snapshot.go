@@ -7,8 +7,8 @@ package memstore
 import (
 	"sync"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 type snapshot struct {

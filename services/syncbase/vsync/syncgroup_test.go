@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/syncbase/v23/services/syncbase/nosql"
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/store"
+	"v.io/v23/services/syncbase/nosql"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // checkSGStats verifies SyncGroup stats.

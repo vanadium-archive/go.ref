@@ -10,11 +10,11 @@ import (
 	"math"
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/clock"
-	"v.io/syncbase/x/ref/services/syncbase/store"
-	"v.io/syncbase/x/ref/services/syncbase/store/leveldb"
-	"v.io/syncbase/x/ref/services/syncbase/store/memstore"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/syncbase/clock"
+	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/leveldb"
+	"v.io/x/ref/services/syncbase/store/memstore"
 )
 
 // This file provides utility methods for tests related to watchable store.

@@ -9,9 +9,9 @@ import (
 	"container/list"
 	"sync"
 
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // transaction is a wrapper on top of a BatchWriter and a store.Snapshot that

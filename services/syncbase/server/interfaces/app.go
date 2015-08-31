@@ -5,10 +5,10 @@
 package interfaces
 
 import (
-	wire "v.io/syncbase/v23/services/syncbase/nosql"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase/nosql"
 )
 
 // App is an internal interface to the app layer.

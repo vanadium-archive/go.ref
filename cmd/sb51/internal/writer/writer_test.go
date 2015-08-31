@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/syncbase/v23/syncbase/nosql"
-	db "v.io/syncbase/x/ref/syncbase/sb51/internal/demodb"
-	"v.io/syncbase/x/ref/syncbase/sb51/internal/writer"
+	"v.io/v23/syncbase/nosql"
 	"v.io/v23/vdl"
+	db "v.io/x/ref/syncbase/sb51/internal/demodb"
+	"v.io/x/ref/syncbase/sb51/internal/writer"
 )
 
 type fakeResultStream struct {

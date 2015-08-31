@@ -9,7 +9,7 @@ import "runtime"
 import "testing"
 import "time"
 
-import "v.io/syncbase/x/ref/services/syncbase/signing/krl"
+import "v.io/x/ref/services/syncbase/signing/krl"
 
 // checkKeysNotRevoked() checks that key[start:] have not been revoked.  (The
 // start index is passed, rather than expecting the called to sub-slice, so

@@ -12,7 +12,7 @@ import "os"
 import "runtime"
 import "testing"
 
-import "v.io/syncbase/x/ref/services/syncbase/localblobstore/blobmap"
+import "v.io/x/ref/services/syncbase/localblobstore/blobmap"
 import "v.io/v23/context"
 
 import "v.io/x/ref/test"

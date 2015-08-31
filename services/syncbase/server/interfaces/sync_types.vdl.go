@@ -14,7 +14,7 @@ import (
 
 	// VDL user imports
 	"time"
-	"v.io/syncbase/v23/services/syncbase/nosql"
+	"v.io/v23/services/syncbase/nosql"
 	_ "v.io/v23/vdlroot/time"
 )
 

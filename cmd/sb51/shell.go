@@ -15,14 +15,14 @@ import (
 
 	isatty "github.com/mattn/go-isatty"
 
-	"v.io/syncbase/v23/syncbase"
-	"v.io/syncbase/v23/syncbase/nosql"
-	"v.io/syncbase/x/ref/syncbase/sb51/internal/demodb"
-	"v.io/syncbase/x/ref/syncbase/sb51/internal/reader"
-	"v.io/syncbase/x/ref/syncbase/sb51/internal/writer"
 	"v.io/v23/context"
+	"v.io/v23/syncbase"
+	"v.io/v23/syncbase/nosql"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/syncbase/sb51/internal/demodb"
+	"v.io/x/ref/syncbase/sb51/internal/reader"
+	"v.io/x/ref/syncbase/sb51/internal/writer"
 )
 
 var cmdSbShell = &cmdline.Command{

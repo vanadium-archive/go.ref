@@ -5,8 +5,8 @@
 package nosql
 
 import (
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
 	"v.io/v23/security/access"
+	"v.io/x/ref/services/syncbase/server/util"
 )
 
 var (

@@ -10,12 +10,12 @@ package blobmap
 import "encoding/binary"
 import "sync"
 
-import "v.io/syncbase/x/ref/services/syncbase/store"
-import "v.io/syncbase/x/ref/services/syncbase/store/leveldb"
+import "v.io/x/ref/services/syncbase/store"
+import "v.io/x/ref/services/syncbase/store/leveldb"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
-const pkgPath = "v.io/syncbase/x/ref/services/syncbase/localblobstore/blobmap"
+const pkgPath = "v.io/x/ref/services/syncbase/localblobstore/blobmap"
 
 var (
 	errBadBlobIDLen        = verror.Register(pkgPath+".errBadBlobIDLen", verror.NoRetry, "{1:}{2:} blobmap {3}: bad blob length {4} should be {5}{:_}")

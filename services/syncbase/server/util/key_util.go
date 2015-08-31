@@ -7,7 +7,7 @@ package util
 import (
 	"strings"
 
-	"v.io/syncbase/v23/syncbase/util"
+	"v.io/v23/syncbase/util"
 )
 
 // JoinKeyParts builds keys for accessing data in the storage engine.

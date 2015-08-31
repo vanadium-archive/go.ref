@@ -11,7 +11,7 @@ package server_test
 import (
 	"testing"
 
-	tu "v.io/syncbase/v23/syncbase/testutil"
+	tu "v.io/v23/syncbase/testutil"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 

@@ -9,7 +9,7 @@ import (
 	"net"
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/server/util"
 )
 
 const (

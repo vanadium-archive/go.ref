@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/server/watchable"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/watchable"
 )
 
 // TestDiffPrefixGenVectors tests diffing prefix gen vectors.

@@ -18,15 +18,15 @@ import (
 	"sync"
 	"time"
 
-	"v.io/syncbase/v23/services/syncbase/nosql"
-	blob "v.io/syncbase/x/ref/services/syncbase/localblobstore"
-	fsblob "v.io/syncbase/x/ref/services/syncbase/localblobstore/fs_cablobstore"
-	"v.io/syncbase/x/ref/services/syncbase/server/interfaces"
-	"v.io/syncbase/x/ref/services/syncbase/server/util"
-	"v.io/syncbase/x/ref/services/syncbase/store"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
+	blob "v.io/x/ref/services/syncbase/localblobstore"
+	fsblob "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
+	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // syncService contains the metadata for the sync module.
