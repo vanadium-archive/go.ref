@@ -12,98 +12,11 @@ import (
 	"v.io/v23/naming"
 )
 
-func TestEndpointV5(t *testing.T) {
-	defver := defaultVersion
-	defer func() {
-		defaultVersion = defver
-	}()
-	v5a := &Endpoint{
-		Protocol:     naming.UnknownProtocol,
-		Address:      "batman.com:1234",
-		RID:          naming.FixedRoutingID(0xdabbad00),
-		IsMountTable: true,
-	}
-	v5b := &Endpoint{
-		Protocol:     naming.UnknownProtocol,
-		Address:      "batman.com:2345",
-		RID:          naming.FixedRoutingID(0xdabbad00),
-		IsMountTable: false,
-	}
-	v5c := &Endpoint{
-		Protocol:     "tcp",
-		Address:      "batman.com:2345",
-		RID:          naming.FixedRoutingID(0x0),
-		IsMountTable: false,
-	}
-	v5d := &Endpoint{
-		Protocol:     "ws6",
-		Address:      "batman.com:2345",
-		RID:          naming.FixedRoutingID(0x0),
-		IsMountTable: false,
-	}
-	v5e := &Endpoint{
-		Protocol:     "tcp",
-		Address:      "batman.com:2345",
-		RID:          naming.FixedRoutingID(0xba77),
-		IsMountTable: true,
-		Blessings:    []string{"dev.v.io/foo@bar.com", "dev.v.io/bar@bar.com/delegate"},
-	}
-	v5f := &Endpoint{
-		Protocol:     "tcp",
-		Address:      "batman.com:2345",
-		RID:          naming.FixedRoutingID(0xba77),
-		IsMountTable: true,
-		// Blessings that look similar to other parts of the endpoint.
-		Blessings: []string{"@@", "@s", "@m"},
-	}
-	testcasesA := []struct {
-		endpoint naming.Endpoint
-		address  string
-	}{
-		{v5a, "batman.com:1234"},
-		{v5b, "batman.com:2345"},
-		{v5c, "batman.com:2345"},
-	}
-	for _, test := range testcasesA {
-		addr := test.endpoint.Addr()
-		if addr.String() != test.address {
-			t.Errorf("unexpected address %q, not %q", addr.String(), test.address)
-		}
-	}
-	// Test v5 endpoints.
-	testcasesC := []struct {
-		Endpoint naming.Endpoint
-		String   string
-		Version  int
-	}{
-		{v5a, "@5@@batman.com:1234@000000000000000000000000dabbad00@m@@@", 5},
-		{v5b, "@5@@batman.com:2345@000000000000000000000000dabbad00@s@@@", 5},
-		{v5c, "@5@tcp@batman.com:2345@00000000000000000000000000000000@s@@@", 5},
-		{v5d, "@5@ws6@batman.com:2345@00000000000000000000000000000000@s@@@", 5},
-		{v5e, "@5@tcp@batman.com:2345@0000000000000000000000000000ba77@m@dev.v.io/foo@bar.com,dev.v.io/bar@bar.com/delegate@@", 5},
-		{v5f, "@5@tcp@batman.com:2345@0000000000000000000000000000ba77@m@@@,@s,@m@@", 5},
-	}
-	for i, test := range testcasesC {
-		if got, want := test.Endpoint.VersionedString(test.Version), test.String; got != want {
-			t.Errorf("Test %d: Got %q want %q for endpoint (v%d): %#v", i, got, want, test.Version, test.Endpoint)
-		}
-		ep, err := NewEndpoint(test.String)
-		if err != nil {
-			t.Errorf("Test %d: NewEndpoint(%q) failed with %v", i, test.String, err)
-			continue
-		}
-		if !reflect.DeepEqual(ep, test.Endpoint) {
-			t.Errorf("Test %d: Got endpoint %#v, want %#v for string %q", i, ep, test.Endpoint, test.String)
-		}
-	}
-}
-
 func TestEndpoint(t *testing.T) {
 	defver := defaultVersion
 	defer func() {
 		defaultVersion = defver
 	}()
-	defaultVersion = 6
 	v6a := &Endpoint{
 		Protocol:     naming.UnknownProtocol,
 		Address:      "batman.com:1234",

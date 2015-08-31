@@ -408,8 +408,8 @@ func (b *blessingRoots) DebugString() (s string) {
 }
 
 func agentEndpoint(proto, addr string) string {
-	// TODO: use naming.FormatEndpoint when it supports version 5.
-	return fmt.Sprintf("@5@%s@%s@@s@@@", proto, addr)
+	// TODO: use naming.FormatEndpoint when it supports version 6.
+	return fmt.Sprintf("@6@%s@%s@@@s@@@", proto, addr)
 }
 
 func AgentEndpoint(fd int) string {
