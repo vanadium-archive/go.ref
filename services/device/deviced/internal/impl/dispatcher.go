@@ -102,7 +102,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 			callback:       newCallbackState(config.Name),
 			updating:       newUpdatingState(),
 			restartHandler: restartHandler,
-			stats:          newStats(),
+			stats:          newStats("device-manager"),
 			testMode:       testMode,
 			tidying:        newTidyingDaemon(ctx, config.Root),
 		},

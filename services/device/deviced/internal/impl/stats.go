@@ -15,6 +15,8 @@ import (
 // stats contains various exported stats we maintain for the device manager.
 type stats struct {
 	sync.Mutex
+	// Prefix for each of the stat names.
+	prefix string
 	// How many times apps were run via the Run rpc.
 	runs *counter.Counter
 	// How many times apps were auto-restarted by the reaper.
@@ -27,12 +29,17 @@ type stats struct {
 	restartsPerInstance map[string]*counter.Counter
 }
 
-func newStats() *stats {
+func newCounter(names ...string) *counter.Counter {
+	return libstats.NewCounter(naming.Join(names...))
+}
+
+func newStats(prefix string) *stats {
 	return &stats{
-		runs:                libstats.NewCounter("runs"),
+		runs:                newCounter(prefix, "runs"),
 		runsPerInstance:     make(map[string]*counter.Counter),
-		restarts:            libstats.NewCounter("restarts"),
+		restarts:            newCounter(prefix, "restarts"),
 		restartsPerInstance: make(map[string]*counter.Counter),
+		prefix:              prefix,
 	}
 }
 
@@ -42,7 +49,7 @@ func (s *stats) incrRestarts(instance string) {
 	s.restarts.Incr(1)
 	perInstanceCtr, ok := s.restartsPerInstance[instance]
 	if !ok {
-		perInstanceCtr = libstats.NewCounter(naming.Join("restarts", instance))
+		perInstanceCtr = newCounter(s.prefix, "restarts", instance)
 		s.restartsPerInstance[instance] = perInstanceCtr
 	}
 	perInstanceCtr.Incr(1)
@@ -54,7 +61,7 @@ func (s *stats) incrRuns(instance string) {
 	s.runs.Incr(1)
 	perInstanceCtr, ok := s.runsPerInstance[instance]
 	if !ok {
-		perInstanceCtr = libstats.NewCounter(naming.Join("runs", instance))
+		perInstanceCtr = newCounter(s.prefix, "runs", instance)
 		s.runsPerInstance[instance] = perInstanceCtr
 	}
 	perInstanceCtr.Incr(1)
