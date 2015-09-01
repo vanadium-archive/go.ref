@@ -122,7 +122,6 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		return fmt.Errorf("Failed to start RevocationManager: %v", err)
 	}
 
-	listenSpec := v23.GetListenSpec(ctx)
 	s := server.NewIdentityServer(
 		googleoauth,
 		auditor,
@@ -132,7 +131,7 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		caveats.NewBrowserCaveatSelector(assetsPrefix),
 		assetsPrefix,
 		mountPrefix)
-	s.Serve(ctx, &listenSpec, externalHttpAddr, httpAddr, tlsConfig)
+	s.Serve(ctx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
 }
 

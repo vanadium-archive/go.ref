@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/security/audit"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/discharger"
 	"v.io/x/ref/services/identity/internal/auditor"
 	"v.io/x/ref/services/identity/internal/blesser"
@@ -103,7 +105,7 @@ func findUnusedPort() (int, error) {
 	return 0, nil
 }
 
-func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpAddr, tlsConfig string) {
+func (s *IdentityServer) Serve(ctx *context.T, externalHttpAddr, httpAddr, tlsConfig string) {
 	ctx, err := v23.WithPrincipal(ctx, audit.NewPrincipal(ctx, s.auditor))
 	if err != nil {
 		ctx.Panic(err)
@@ -116,7 +118,7 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, exter
 		}
 		httpAddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
 	}
-	rpcServer, _, externalAddr := s.Listen(ctx, listenSpec, externalHttpAddr, httpAddr, tlsConfig)
+	rpcServer, _, externalAddr := s.Listen(ctx, externalHttpAddr, httpAddr, tlsConfig)
 	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
 	if len(s.rootedObjectAddrs) > 0 {
 		fmt.Printf("NAME=%s\n", s.rootedObjectAddrs[0].Name())
@@ -127,9 +129,7 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, exter
 	}
 }
 
-func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpAddr, tlsConfig string) (rpc.Server, []string, string) {
-	// Setup handlers
-
+func (s *IdentityServer) Listen(ctx *context.T, externalHttpAddr, httpAddr, tlsConfig string) (rpc.XServer, []string, string) {
 	// json-encoded public key and blessing names of this server
 	principal := v23.GetPrincipal(ctx)
 	http.Handle("/auth/blessing-root", handlers.BlessingRoot{principal})
@@ -139,7 +139,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 		ctx.Fatalf("macaroonKey generation failed: %v", err)
 	}
 
-	rpcServer, published, err := s.setupBlessingServices(ctx, listenSpec, macaroonKey)
+	rpcServer, published, err := s.setupBlessingServices(ctx, macaroonKey)
 	if err != nil {
 		ctx.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
@@ -209,18 +209,15 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 
 // Starts the Vanadium and HTTP services for blessing, and the Vanadium service for discharging.
 // All Vanadium services are started on the same port.
-func (s *IdentityServer) setupBlessingServices(ctx *context.T, listenSpec *rpc.ListenSpec, macaroonKey []byte) (rpc.Server, []string, error) {
-	server, err := v23.NewServer(ctx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create new rpc.Server: %v", err)
-	}
-
+func (s *IdentityServer) setupBlessingServices(ctx *context.T, macaroonKey []byte) (rpc.XServer, []string, error) {
+	disp := newDispatcher(macaroonKey, s.oauthBlesserParams)
 	principal := v23.GetPrincipal(ctx)
 	objectAddr := naming.Join(s.mountNamePrefix, fmt.Sprintf("%v", principal.BlessingStore().Default()))
-	if s.rootedObjectAddrs, err = server.Listen(*listenSpec); err != nil {
-		defer server.Stop()
-		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", *listenSpec, err)
+	server, err := xrpc.NewDispatchingServer(ctx, objectAddr, disp)
+	if err != nil {
+		return nil, nil, err
 	}
+	s.rootedObjectAddrs = server.Status().Endpoints
 	var rootedObjectAddr string
 	if naming.Rooted(objectAddr) {
 		rootedObjectAddr = objectAddr
@@ -229,49 +226,53 @@ func (s *IdentityServer) setupBlessingServices(ctx *context.T, listenSpec *rpc.L
 	} else {
 		rootedObjectAddr = s.rootedObjectAddrs[0].Name()
 	}
-
-	params := oauthBlesserParams(s.oauthBlesserParams, rootedObjectAddr)
-	dispatcher := newDispatcher(macaroonKey, params)
-	if err := server.ServeDispatcher(objectAddr, dispatcher); err != nil {
-		return nil, nil, fmt.Errorf("failed to start Vanadium services: %v", err)
-	}
+	disp.activate(rootedObjectAddr)
 	ctx.Infof("Vanadium Blessing and discharger services will be published at %v", rootedObjectAddr)
-
 	// Start the HTTP Handler for the OAuth2 access token based blesser.
-	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(ctx, params))
-
+	s.oauthBlesserParams.DischargerLocation = naming.Join(rootedObjectAddr, dischargerService)
+	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(ctx, s.oauthBlesserParams))
 	return server, []string{rootedObjectAddr}, nil
 }
 
 // newDispatcher returns a dispatcher for both the blessing and the
 // discharging service.
-func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams) rpc.Dispatcher {
-	d := dispatcher(map[string]interface{}{
-		macaroonService:     blesser.NewMacaroonBlesserServer(macaroonKey),
-		dischargerService:   discharger.DischargerServer(dischargerlib.NewDischarger()),
-		oauthBlesserService: blesser.NewOAuthBlesserServer(blesserParams),
-	})
-	// Set up the glob invoker.
-	var children []string
-	for k, _ := range d {
-		children = append(children, k)
-	}
-	d[""] = rpc.ChildrenGlobberInvoker(children...)
+func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams) *dispatcher {
+	d := &dispatcher{}
+	d.macaroonKey = macaroonKey
+	d.blesserParams = blesserParams
+	d.wg.Add(1) // Will be removed at activate.
 	return d
 }
 
-type dispatcher map[string]interface{}
+type dispatcher struct {
+	m             map[string]interface{}
+	wg            sync.WaitGroup
+	macaroonKey   []byte
+	blesserParams blesser.OAuthBlesserParams
+}
 
-func (d dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
-	if invoker := d[suffix]; invoker != nil {
+func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
+	d.wg.Wait() // Wait until activate is called.
+	if invoker := d.m[suffix]; invoker != nil {
 		return invoker, security.AllowEveryone(), nil
 	}
 	return nil, nil, verror.New(verror.ErrNoExist, nil, suffix)
 }
 
-func oauthBlesserParams(inputParams blesser.OAuthBlesserParams, servername string) blesser.OAuthBlesserParams {
-	inputParams.DischargerLocation = naming.Join(servername, dischargerService)
-	return inputParams
+func (d *dispatcher) activate(serverName string) {
+	d.blesserParams.DischargerLocation = naming.Join(serverName, dischargerService)
+	d.m = map[string]interface{}{
+		macaroonService:     blesser.NewMacaroonBlesserServer(d.macaroonKey),
+		dischargerService:   discharger.DischargerServer(dischargerlib.NewDischarger()),
+		oauthBlesserService: blesser.NewOAuthBlesserServer(d.blesserParams),
+	}
+	// Set up the glob invoker.
+	var children []string
+	for k, _ := range d.m {
+		children = append(children, k)
+	}
+	d.m[""] = rpc.ChildrenGlobberInvoker(children...)
+	d.wg.Done() // Trigger any pending lookups.
 }
 
 func runHTTPSServer(ctx *context.T, addr, tlsConfig string) {

@@ -12,7 +12,6 @@ import (
 	"net"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
@@ -114,7 +113,6 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 		caveatSelector = caveats.NewBrowserCaveatSelector(assetsPrefix)
 	}
 
-	listenSpec := v23.GetListenSpec(ctx)
 	s := server.NewIdentityServer(
 		oauthProvider,
 		auditor,
@@ -124,6 +122,6 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 		caveatSelector,
 		assetsPrefix,
 		mountPrefix)
-	s.Serve(ctx, &listenSpec, externalHttpAddr, httpAddr, tlsConfig)
+	s.Serve(ctx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
 }
