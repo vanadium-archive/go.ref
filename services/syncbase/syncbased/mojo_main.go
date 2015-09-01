@@ -30,7 +30,7 @@ import "C"
 
 type delegate struct {
 	ctx   *context.T
-	srv   rpc.Server
+	srv   rpc.XServer
 	disp  rpc.Dispatcher
 	stubs []*bindings.Stub
 }
