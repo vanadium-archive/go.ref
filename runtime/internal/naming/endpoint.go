@@ -208,7 +208,7 @@ func init() {
 	metadata.Insert("v23.RPCEndpointVersion", fmt.Sprint(defaultVersion))
 }
 
-var defaultVersion = 5
+var defaultVersion = 6
 
 func (ep *Endpoint) VersionedString(version int) string {
 	// nologcall
