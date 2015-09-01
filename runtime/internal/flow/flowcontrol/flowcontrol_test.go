@@ -201,7 +201,7 @@ func TestNonFlowControlledRun(t *testing.T) {
 }
 
 func newNullConn(mtu int) net.Conn {
-	ln, err := net.Listen("tcp", ":0")
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
 	}
