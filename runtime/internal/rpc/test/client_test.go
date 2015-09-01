@@ -262,6 +262,8 @@ func logErrors(t *testing.T, msg string, logerr, logstack, debugString bool, err
 }
 
 func TestStartCallErrors(t *testing.T) {
+	// TODO(suharshs,mattr): This test will be enables once the new client is written and solves the flakiness.
+	t.Skip("TODO(suharshs,mattr): This test is very flaky and is temporarily disabled.")
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	client := v23.GetClient(ctx)
