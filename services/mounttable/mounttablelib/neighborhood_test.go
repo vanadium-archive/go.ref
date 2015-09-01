@@ -15,6 +15,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
@@ -37,36 +38,29 @@ func TestNeighborhood(t *testing.T) {
 	defer shutdown()
 
 	rootCtx.Infof("TestNeighborhood")
-	server, err := v23.NewServer(rootCtx)
-	if err != nil {
-		boom(t, "r.NewServer: %s", err)
-	}
-	defer server.Stop()
 
-	// Start serving on a loopback address.
-	eps, err := server.Listen(v23.GetListenSpec(rootCtx))
-	if err != nil {
-		boom(t, "Failed to Listen mount table: %s", err)
-	}
-	estr := eps[0].String()
+	mstr := v23.GetNamespace(rootCtx).Roots()[0]
 	addresses := []string{
-		naming.JoinAddressName(estr, ""),
-		naming.JoinAddressName(estr, "suffix1"),
-		naming.JoinAddressName(estr, "suffix2"),
+		naming.JoinAddressName(mstr, ""),
+		naming.JoinAddressName(mstr, "suffix1"),
+		naming.JoinAddressName(mstr, "suffix2"),
 	}
 
 	// Create a name for the server.
 	serverName := fmt.Sprintf("nhtest%d", os.Getpid())
-
 	// Add neighborhood server.
 	nhd, err := mounttablelib.NewLoopbackNeighborhoodDispatcher(serverName, addresses...)
 	if err != nil {
 		boom(t, "Failed to create neighborhood server: %s\n", err)
 	}
 	defer nhd.(stopper).Stop()
-	if err := server.ServeDispatcher("", nhd); err != nil {
-		boom(t, "Failed to register neighborhood server: %s", err)
+
+	// Start serving on a loopback address.
+	server, err := xrpc.NewDispatchingServer(rootCtx, "", nhd)
+	if err != nil {
+		boom(t, "Failed to create neighborhood: %s", err)
 	}
+	estr := server.Status().Endpoints[0].Name()
 
 	// Wait for the mounttable to appear in mdns
 L:
