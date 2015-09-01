@@ -458,8 +458,9 @@ func (t *tableReq) permsForKey(ctx *context.T, sntx store.SnapshotOrTransaction,
 	if strings.HasPrefix(key, prefix) {
 		return prefix, prefixPerms, nil
 	}
+	parent := prefixPerms.Parent
 	prefixPerms, err := t.permsForPrefix(ctx, sntx, prefixPerms.Parent)
-	return prefixPerms.Parent, prefixPerms, err
+	return parent, prefixPerms, err
 }
 
 // permsForPrefix returns the permissions object associated with the
