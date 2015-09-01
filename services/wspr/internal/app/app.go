@@ -429,7 +429,7 @@ func (l *localCall) Send(item interface{}) error {
 }
 func (l *localCall) Recv(interface{}) error                          { return nil }
 func (l *localCall) GrantedBlessings() security.Blessings            { return security.Blessings{} }
-func (l *localCall) Server() rpc.Server                              { return nil }
+func (l *localCall) Server() rpc.XServer                             { return nil }
 func (l *localCall) Timestamp() (t time.Time)                        { return }
 func (l *localCall) Method() string                                  { return l.vrpc.Method }
 func (l *localCall) MethodTags() []*vdl.Value                        { return l.tags }

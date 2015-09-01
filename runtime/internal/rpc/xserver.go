@@ -769,7 +769,7 @@ func (fs *xflowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.flow.RemoteDischarges()
 }
-func (fs *xflowServer) Server() rpc.Server {
+func (fs *xflowServer) Server() rpc.XServer {
 	//nologcall
 	return nil // TODO(toddw): Change return to rpc.XServer
 }
