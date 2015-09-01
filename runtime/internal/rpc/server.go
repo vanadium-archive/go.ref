@@ -1338,7 +1338,7 @@ func (fs *flowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.discharges
 }
-func (fs *flowServer) Server() rpc.Server {
+func (fs *flowServer) Server() rpc.XServer {
 	//nologcall
 	return fs.server
 }
