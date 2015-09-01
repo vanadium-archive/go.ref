@@ -33,11 +33,11 @@ const NoSchema int32 = -1
 
 type mojoImpl struct {
 	ctx  *context.T
-	srv  rpc.Server
+	srv  rpc.XServer
 	disp rpc.Dispatcher
 }
 
-func NewMojoImpl(ctx *context.T, srv rpc.Server, disp rpc.Dispatcher) *mojoImpl {
+func NewMojoImpl(ctx *context.T, srv rpc.XServer, disp rpc.Dispatcher) *mojoImpl {
 	return &mojoImpl{ctx: ctx, srv: srv, disp: disp}
 }
 
