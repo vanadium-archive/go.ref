@@ -232,14 +232,20 @@ func (bs *blessingStore) DebugString() string {
 	buff := bytes.NewBufferString(fmt.Sprintf(format, "Default Blessings", bs.state.DefaultBlessings))
 
 	buff.WriteString(fmt.Sprintf(format, "Peer pattern", "Blessings"))
-
+	writePattern := func(pattern security.BlessingPattern) {
+		buff.WriteString(fmt.Sprintf(format, pattern, bs.state.PeerBlessings[security.BlessingPattern(pattern)]))
+	}
 	sorted := make([]string, 0, len(bs.state.PeerBlessings))
 	for k, _ := range bs.state.PeerBlessings {
-		sorted = append(sorted, string(k))
+		if k == security.AllPrincipals {
+			writePattern(k)
+		} else {
+			sorted = append(sorted, string(k))
+		}
 	}
 	sort.Strings(sorted)
 	for _, pattern := range sorted {
-		buff.WriteString(fmt.Sprintf(format, pattern, bs.state.PeerBlessings[security.BlessingPattern(pattern)]))
+		writePattern(security.BlessingPattern(pattern))
 	}
 	return buff.String()
 }

@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"regexp"
 	"testing"
 
 	"v.io/v23/security"
@@ -265,4 +266,27 @@ func TestBlessingStoreSetReturnsOldValue(t *testing.T) {
 	if old, err := s.Set(empty, security.AllPrincipals); !reflect.DeepEqual(old, bob) || err != nil {
 		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, bob)
 	}
+}
+
+func TestBlessingStoreDebugString(t *testing.T) {
+	p, err := NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var (
+		alice = blessSelf(p, "alice")
+		bob   = blessSelf(p, "bob")
+		s     = p.BlessingStore()
+	)
+	if _, err := s.Set(alice, security.AllPrincipals); err != nil {
+		t.Errorf("Got error %v", err)
+	}
+	if _, err := s.Set(bob, "-patternstartingwithdash"); err != nil {
+		t.Errorf("Got error %v", err)
+	}
+	blessingPatternsRE := regexp.MustCompile("Peer pattern[^\n]*\n...[^\n]*\n-patternstartingwithdash")
+	if ds := s.DebugString(); !blessingPatternsRE.MatchString(ds) {
+		t.Errorf("DebugString (%s) doesn't match", ds)
+	}
+
 }
