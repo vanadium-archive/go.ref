@@ -14,6 +14,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 
+	"v.io/x/ref/runtime/internal/rpc/stream"
 	"v.io/x/ref/runtime/internal/rpc/stream/vif"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/benchmark"
@@ -26,13 +27,15 @@ func benchmarkDialVIF(b *testing.B, mode options.SecurityLevel) {
 	defer shutdown()
 	stats := benchmark.AddStats(b, 16)
 	var (
-		principal security.Principal
-		blessings security.Blessings
+		principal     security.Principal
+		blessings     security.Blessings
+		authenticated bool
 	)
 	if mode == securityDefault {
 		principal = testutil.NewPrincipal("test")
 		blessings = principal.BlessingStore().Default()
 		ctx, _ = v23.WithPrincipal(ctx, principal)
+		authenticated = true
 	}
 
 	b.ResetTimer() // Exclude setup time from measurement.
@@ -43,14 +46,17 @@ func benchmarkDialVIF(b *testing.B, mode options.SecurityLevel) {
 
 		serverch := make(chan *vif.VIF)
 		go func() {
-			server, _ := vif.InternalNewAcceptedVIF(ctx, ns, naming.FixedRoutingID(0x5), blessings, nil, nil)
+			server, err := vif.InternalNewAcceptedVIF(ctx, ns, naming.FixedRoutingID(0x5), blessings, nil, nil, stream.AuthenticatedVC(authenticated))
+			if err != nil {
+				panic(err)
+			}
 			serverch <- server
 		}()
 
 		b.StartTimer()
 		start := time.Now()
 
-		client, err := vif.InternalNewDialedVIF(ctx, nc, naming.FixedRoutingID(0xc), nil, nil)
+		client, err := vif.InternalNewDialedVIF(ctx, nc, naming.FixedRoutingID(0xc), nil, nil, stream.AuthenticatedVC(authenticated))
 		if err != nil {
 			b.Fatal(err)
 		}
