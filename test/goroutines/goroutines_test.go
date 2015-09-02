@@ -70,8 +70,8 @@ func TestGet(t *testing.T) {
 	a := bycreator["v.io/x/ref/test/goroutines.runGoA"]
 	if a == nil {
 		t.Errorf("runGoA is missing")
-	} else if len(a.Stack) != 1 {
-		t.Errorf("got %d expected 1: %#v", len(a.Stack), a.Stack)
+	} else if len(a.Stack) < 1 {
+		t.Errorf("got %d expected at least 1: %s", len(a.Stack), Format(a))
 	} else if !strings.HasPrefix(a.Stack[0].Call, "v.io/x/ref/test/goroutines.waitForIt") {
 		t.Errorf("got %s, wanted it to start with v.io/x/ref/test/goroutines.waitForIt",
 			a.Stack[0].Call)
@@ -79,14 +79,14 @@ func TestGet(t *testing.T) {
 	b := bycreator["v.io/x/ref/test/goroutines.runGoB"]
 	if b == nil {
 		t.Errorf("runGoB is missing")
-	} else if len(b.Stack) != 5 {
-		t.Errorf("got %d expected 1: %#v", len(b.Stack), b.Stack)
+	} else if len(b.Stack) < 5 {
+		t.Errorf("got %d expected at least 5: %s", len(b.Stack), Format(b))
 	}
 	c := bycreator["v.io/x/ref/test/goroutines.runGoC"]
 	if c == nil {
 		t.Errorf("runGoC is missing")
-	} else if len(c.Stack) != 1 {
-		t.Errorf("got %d expected 1: %#v", len(c.Stack), c.Stack)
+	} else if len(c.Stack) < 1 {
+		t.Errorf("got %d expected at least 1: %s", len(c.Stack), Format(c))
 	} else if !strings.HasPrefix(c.Stack[0].Call, "v.io/x/ref/test/goroutines.") {
 		t.Errorf("got %s, wanted it to start with v.io/x/ref/test/goroutines.",
 			c.Stack[0].Call)
