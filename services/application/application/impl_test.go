@@ -93,6 +93,16 @@ func (s *server) Put(ctx *context.T, _ rpc.ServerCall, profiles []string, env ap
 	return nil
 }
 
+func (s *server) PutX(ctx *context.T, _ rpc.ServerCall, profile string, env application.Envelope, overwrite bool) error {
+	ctx.VI(2).Infof("%v.PutX(%v, %v, %t) was called", s.suffix, profile, env, overwrite)
+	return nil
+}
+
+func (s *server) Profiles(ctx *context.T, _ rpc.ServerCall) ([]string, error) {
+	ctx.VI(2).Infof("%v.Profiles() was called", s.suffix)
+	return nil, nil
+}
+
 func (s *server) Remove(ctx *context.T, _ rpc.ServerCall, profile string) error {
 	ctx.VI(2).Infof("%v.Remove(%v) was called", s.suffix, profile)
 	return nil

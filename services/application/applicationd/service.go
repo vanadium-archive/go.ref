@@ -60,6 +60,43 @@ func parse(ctx *context.T, suffix string) (string, string, error) {
 	}
 }
 
+func (i *appRepoService) Profiles(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	ctx.VI(0).Infof("%v.Profiles()", i.suffix)
+	name, version, err := parse(ctx, i.suffix)
+	if err != nil {
+		return []string{}, err
+	}
+	i.store.Lock()
+	defer i.store.Unlock()
+
+	profiles, err := i.store.BindObject(naming.Join("/applications", name)).Children()
+	if err != nil {
+		return []string{}, err
+	}
+	if version == "" {
+		return profiles, nil
+	}
+	profilesRet := make(map[string]struct{})
+	for _, profile := range profiles {
+		versions, err := i.store.BindObject(naming.Join("/applications", name, profile)).Children()
+		if err != nil {
+			return []string{}, err
+		}
+		for _, v := range versions {
+			if version == v {
+				profilesRet[profile] = struct{}{}
+				break
+			}
+		}
+	}
+	ret := set.String.ToSlice(profilesRet)
+	if len(ret) == 0 {
+		return []string{}, verror.New(verror.ErrNoExist, ctx)
+	}
+	sort.Strings(ret)
+	return ret, nil
+}
+
 func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []string) (application.Envelope, error) {
 	ctx.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
@@ -145,6 +182,52 @@ func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profiles []str
 	return nil
 }
 
+func (i *appRepoService) PutX(ctx *context.T, call rpc.ServerCall, profile string, envelope application.Envelope, overwrite bool) error {
+	ctx.VI(0).Infof("%v.PutX(%v, %v, %t)", i.suffix, profile, envelope, overwrite)
+	name, version, err := parse(ctx, i.suffix)
+	if err != nil {
+		return err
+	}
+	if version == "" {
+		return verror.New(ErrInvalidSuffix, ctx)
+	}
+	i.store.Lock()
+	defer i.store.Unlock()
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(call)
+	if err != nil {
+		return err
+	}
+
+	// Only add a Permissions value if there is not already one present.
+	apath := naming.Join("/acls", name, "data")
+	aobj := i.store.BindObject(apath)
+	if _, err := aobj.Get(call); verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
+		rb, _ := security.RemoteBlessingNames(ctx, call.Security())
+		if len(rb) == 0 {
+			// None of the client's blessings are valid.
+			return verror.New(ErrNotAuthorized, ctx)
+		}
+		newperms := pathperms.PermissionsForBlessings(rb)
+		if _, err := aobj.Put(nil, newperms); err != nil {
+			return err
+		}
+	}
+
+	path := naming.Join(tname, "/applications", name, profile, version)
+	object := i.store.BindObject(path)
+	if _, err := object.Get(call); verror.ErrorID(err) != fs.ErrNotInMemStore.ID && !overwrite {
+		return verror.New(verror.ErrExist, ctx, "envelope already exists for profile", profile)
+	}
+	if _, err := object.Put(call, envelope); err != nil {
+		return verror.New(ErrOperationFailed, ctx)
+	}
+	if err := i.store.BindTransaction(tname).Commit(call); err != nil {
+		return verror.New(ErrOperationFailed, ctx)
+	}
+	return nil
+}
+
 func (i *appRepoService) Remove(ctx *context.T, call rpc.ServerCall, profile string) error {
 	ctx.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
 	name, version, err := parse(ctx, i.suffix)
@@ -158,20 +241,29 @@ func (i *appRepoService) Remove(ctx *context.T, call rpc.ServerCall, profile str
 	if err != nil {
 		return err
 	}
-	path := naming.Join(tname, "/applications", name, profile)
-	if version != "" {
-		path += "/" + version
+	profiles := []string{profile}
+	if profile == "*" {
+		var err error
+		if profiles, err = i.store.BindObject(naming.Join("/applications", name)).Children(); err != nil {
+			return err
+		}
 	}
-	object := i.store.BindObject(path)
-	found, err := object.Exists(call)
-	if err != nil {
-		return verror.New(ErrOperationFailed, ctx)
-	}
-	if !found {
-		return verror.New(verror.ErrNoExist, ctx)
-	}
-	if err := object.Remove(call); err != nil {
-		return verror.New(ErrOperationFailed, ctx)
+	for _, profile := range profiles {
+		path := naming.Join(tname, "/applications", name, profile)
+		if version != "" {
+			path += "/" + version
+		}
+		object := i.store.BindObject(path)
+		found, err := object.Exists(call)
+		if err != nil {
+			return verror.New(ErrOperationFailed, ctx)
+		}
+		if !found {
+			return verror.New(verror.ErrNoExist, ctx)
+		}
+		if err := object.Remove(call); err != nil {
+			return verror.New(ErrOperationFailed, ctx)
+		}
 	}
 	if err := i.store.BindTransaction(tname).Commit(call); err != nil {
 		return verror.New(ErrOperationFailed, ctx)

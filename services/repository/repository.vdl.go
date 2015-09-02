@@ -28,9 +28,9 @@ import (
 // ApplicationClientMethods is the client interface
 // containing Application methods.
 //
-// Application describes an application repository internally. Besides
-// the public Application interface, it allows to add and remove
-// application envelopes.
+// Application describes an application repository internally. Besides the
+// public Application interface, it allows adding and removing application
+// envelopes, as well as querying for a list of supported profiles.
 type ApplicationClientMethods interface {
 	// Application provides access to application envelopes. An
 	// application envelope is identified by an application name and an
@@ -43,18 +43,33 @@ type ApplicationClientMethods interface {
 	//   and executing the "search" application, version "v1", runnable
 	//   on either the "base" or "media" profile.
 	repository.ApplicationClientMethods
+	// DEPRECATED. Please use PutX for new code.
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
 	Put(ctx *context.T, Profiles []string, Envelope application.Envelope, opts ...rpc.CallOpt) error
+	// PutX adds the given application envelope for the given profile and
+	// application version (required, and specified through the object name
+	// suffix).
+	//
+	// An error is returned if an envelope already exists, unless the
+	// overwrite option is set.
+	PutX(ctx *context.T, Profile string, Envelope application.Envelope, Overwrite bool, opts ...rpc.CallOpt) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
-	// suffix). If no version is specified as part of the suffix, the
-	// method removes all versions for the given profile.
+	// suffix).
 	//
-	// TODO(jsimsa): Add support for using "*" to specify all profiles
-	// when Matt implements Globing (or Ken implements querying).
+	// If no version is specified as part of the suffix, the method removes
+	// all versions for the given profile.
+	//
+	// If the profile is the string "*", all profiles are removed for the
+	// given version (or for all versions if the version is not specified).
 	Remove(ctx *context.T, Profile string, opts ...rpc.CallOpt) error
+	// Profiles returns the supported profiles for the application version
+	// specified through the object name suffix.  If the version is not
+	// specified, Profiles returns the union of profiles across all
+	// versions.
+	Profiles(*context.T, ...rpc.CallOpt) ([]string, error)
 }
 
 // ApplicationClientStub adds universal methods to ApplicationClientMethods.
@@ -79,17 +94,27 @@ func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 applicati
 	return
 }
 
+func (c implApplicationClientStub) PutX(ctx *context.T, i0 string, i1 application.Envelope, i2 bool, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "PutX", []interface{}{i0, i1, i2}, nil, opts...)
+	return
+}
+
 func (c implApplicationClientStub) Remove(ctx *context.T, i0 string, opts ...rpc.CallOpt) (err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "Remove", []interface{}{i0}, nil, opts...)
+	return
+}
+
+func (c implApplicationClientStub) Profiles(ctx *context.T, opts ...rpc.CallOpt) (o0 []string, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Profiles", nil, []interface{}{&o0}, opts...)
 	return
 }
 
 // ApplicationServerMethods is the interface a server writer
 // implements for Application.
 //
-// Application describes an application repository internally. Besides
-// the public Application interface, it allows to add and remove
-// application envelopes.
+// Application describes an application repository internally. Besides the
+// public Application interface, it allows adding and removing application
+// envelopes, as well as querying for a list of supported profiles.
 type ApplicationServerMethods interface {
 	// Application provides access to application envelopes. An
 	// application envelope is identified by an application name and an
@@ -102,18 +127,33 @@ type ApplicationServerMethods interface {
 	//   and executing the "search" application, version "v1", runnable
 	//   on either the "base" or "media" profile.
 	repository.ApplicationServerMethods
+	// DEPRECATED. Please use PutX for new code.
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
 	Put(ctx *context.T, call rpc.ServerCall, Profiles []string, Envelope application.Envelope) error
+	// PutX adds the given application envelope for the given profile and
+	// application version (required, and specified through the object name
+	// suffix).
+	//
+	// An error is returned if an envelope already exists, unless the
+	// overwrite option is set.
+	PutX(ctx *context.T, call rpc.ServerCall, Profile string, Envelope application.Envelope, Overwrite bool) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
-	// suffix). If no version is specified as part of the suffix, the
-	// method removes all versions for the given profile.
+	// suffix).
 	//
-	// TODO(jsimsa): Add support for using "*" to specify all profiles
-	// when Matt implements Globing (or Ken implements querying).
+	// If no version is specified as part of the suffix, the method removes
+	// all versions for the given profile.
+	//
+	// If the profile is the string "*", all profiles are removed for the
+	// given version (or for all versions if the version is not specified).
 	Remove(ctx *context.T, call rpc.ServerCall, Profile string) error
+	// Profiles returns the supported profiles for the application version
+	// specified through the object name suffix.  If the version is not
+	// specified, Profiles returns the union of profiles across all
+	// versions.
+	Profiles(*context.T, rpc.ServerCall) ([]string, error)
 }
 
 // ApplicationServerStubMethods is the server interface containing
@@ -157,8 +197,16 @@ func (s implApplicationServerStub) Put(ctx *context.T, call rpc.ServerCall, i0 [
 	return s.impl.Put(ctx, call, i0, i1)
 }
 
+func (s implApplicationServerStub) PutX(ctx *context.T, call rpc.ServerCall, i0 string, i1 application.Envelope, i2 bool) error {
+	return s.impl.PutX(ctx, call, i0, i1, i2)
+}
+
 func (s implApplicationServerStub) Remove(ctx *context.T, call rpc.ServerCall, i0 string) error {
 	return s.impl.Remove(ctx, call, i0)
+}
+
+func (s implApplicationServerStub) Profiles(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	return s.impl.Profiles(ctx, call)
 }
 
 func (s implApplicationServerStub) Globber() *rpc.GlobState {
@@ -176,14 +224,14 @@ var ApplicationDesc rpc.InterfaceDesc = descApplication
 var descApplication = rpc.InterfaceDesc{
 	Name:    "Application",
 	PkgPath: "v.io/x/ref/services/repository",
-	Doc:     "// Application describes an application repository internally. Besides\n// the public Application interface, it allows to add and remove\n// application envelopes.",
+	Doc:     "// Application describes an application repository internally. Besides the\n// public Application interface, it allows adding and removing application\n// envelopes, as well as querying for a list of supported profiles.",
 	Embeds: []rpc.EmbedDesc{
 		{"Application", "v.io/v23/services/repository", "// Application provides access to application envelopes. An\n// application envelope is identified by an application name and an\n// application version, which are specified through the object name,\n// and a profile name, which is specified using a method argument.\n//\n// Example:\n// /apps/search/v1.Match([]string{\"base\", \"media\"})\n//   returns an application envelope that can be used for downloading\n//   and executing the \"search\" application, version \"v1\", runnable\n//   on either the \"base\" or \"media\" profile."},
 	},
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "Put",
-			Doc:  "// Put adds the given tuple of application version (specified\n// through the object name suffix) and application envelope to all\n// of the given application profiles.",
+			Doc:  "// DEPRECATED. Please use PutX for new code.\n// Put adds the given tuple of application version (specified\n// through the object name suffix) and application envelope to all\n// of the given application profiles.",
 			InArgs: []rpc.ArgDesc{
 				{"Profiles", ``}, // []string
 				{"Envelope", ``}, // application.Envelope
@@ -191,12 +239,30 @@ var descApplication = rpc.InterfaceDesc{
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 		{
+			Name: "PutX",
+			Doc:  "// PutX adds the given application envelope for the given profile and\n// application version (required, and specified through the object name\n// suffix).\n//\n// An error is returned if an envelope already exists, unless the\n// overwrite option is set.",
+			InArgs: []rpc.ArgDesc{
+				{"Profile", ``},   // string
+				{"Envelope", ``},  // application.Envelope
+				{"Overwrite", ``}, // bool
+			},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
+		},
+		{
 			Name: "Remove",
-			Doc:  "// Remove removes the application envelope for the given profile\n// name and application version (specified through the object name\n// suffix). If no version is specified as part of the suffix, the\n// method removes all versions for the given profile.\n//\n// TODO(jsimsa): Add support for using \"*\" to specify all profiles\n// when Matt implements Globing (or Ken implements querying).",
+			Doc:  "// Remove removes the application envelope for the given profile\n// name and application version (specified through the object name\n// suffix).\n//\n// If no version is specified as part of the suffix, the method removes\n// all versions for the given profile.\n//\n// If the profile is the string \"*\", all profiles are removed for the\n// given version (or for all versions if the version is not specified).",
 			InArgs: []rpc.ArgDesc{
 				{"Profile", ``}, // string
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
+		},
+		{
+			Name: "Profiles",
+			Doc:  "// Profiles returns the supported profiles for the application version\n// specified through the object name suffix.  If the version is not\n// specified, Profiles returns the union of profiles across all\n// versions.",
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // []string
+			},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 	},
 }
