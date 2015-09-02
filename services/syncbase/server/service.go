@@ -50,9 +50,6 @@ type ServiceOptions struct {
 	RootDir string
 	// Storage engine to use (for service and per-database engines).
 	Engine string
-	// RPC server for this service. Needed to advertise this service in
-	// mount tables attached to SyncGroups.
-	Server rpc.Server
 }
 
 // NewService creates a new service instance and returns it.
@@ -130,7 +127,7 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 	}
 	// Note, vsync.New internally handles both first-time and subsequent
 	// invocations.
-	if s.sync, err = vsync.New(ctx, call, s, opts.Server, opts.RootDir); err != nil {
+	if s.sync, err = vsync.New(ctx, call, s, opts.RootDir); err != nil {
 		return nil, err
 	}
 	return s, nil

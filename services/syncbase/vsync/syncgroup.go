@@ -770,7 +770,7 @@ func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall
 		name := naming.Join(mt, ss.name)
 		// TODO(hpucha): Is this add idempotent? Appears to be from code.
 		// Confirm that it is ok to use absolute names here.
-		if err := ss.server.AddName(name); err != nil {
+		if err := call.Server().AddName(name); err != nil {
 			return err
 		}
 	}
