@@ -163,6 +163,12 @@ func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...
 	case result := <-ch:
 		conn, err = result.conn, result.err
 	case <-ctx.Done():
+		go func() {
+			result := <-ch
+			if result.conn != nil {
+				result.conn.Close()
+			}
+		}()
 		return nil, verror.New(stream.ErrDialFailed, ctx, err)
 	}
 	if err != nil {
