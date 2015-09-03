@@ -129,14 +129,17 @@ func TestInterface(t *testing.T) {
 	}
 	checkNoProfile(t, ctx, stub)
 
-	// Test Put(), adding a number of application envelopes.
-	if err := stubV1.Put(ctx, []string{"base", "media"}, envelopeV1); err != nil {
-		t.Fatalf("Put() failed: %v", err)
+	// Test PutX(), adding a number of application envelopes.
+	if err := stubV1.PutX(ctx, "base", envelopeV1, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
 	}
-	if err := stubV2.Put(ctx, []string{"base"}, envelopeV2); err != nil {
-		t.Fatalf("Put() failed: %v", err)
+	if err := stubV1.PutX(ctx, "media", envelopeV1, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
 	}
-	if err := stub.Put(ctx, []string{"base", "media"}, envelopeV1); err == nil || verror.ErrorID(err) != appd.ErrInvalidSuffix.ID {
+	if err := stubV2.PutX(ctx, "base", envelopeV2, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
+	}
+	if err := stub.PutX(ctx, "base", envelopeV1, false); err == nil || verror.ErrorID(err) != appd.ErrInvalidSuffix.ID {
 		t.Fatalf("Unexpected error: expected %v, got %v", appd.ErrInvalidSuffix, err)
 	}
 
@@ -160,8 +163,8 @@ func TestInterface(t *testing.T) {
 
 	// Test that if we add another envelope for a version that's the highest
 	// in sort order, the new envelope becomes the latest.
-	if err := stubV3.Put(ctx, []string{"base"}, envelopeV3); err != nil {
-		t.Fatalf("Put() failed: %v", err)
+	if err := stubV3.PutX(ctx, "base", envelopeV3, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
 	}
 	checkEnvelope(t, ctx, envelopeV3, stub, "base", "media")
 	checkProfiles(t, ctx, stubV3, "base")
@@ -176,8 +179,8 @@ func TestInterface(t *testing.T) {
 		},
 		Publisher: blessings,
 	}
-	if err := stubV0.Put(ctx, []string{"base"}, envelopeV0); err != nil {
-		t.Fatalf("Put() failed: %v", err)
+	if err := stubV0.PutX(ctx, "base", envelopeV0, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
 	}
 	checkEnvelope(t, ctx, envelopeV3, stub, "base", "media")
 
@@ -312,8 +315,8 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		Publisher: blessings,
 	}
 
-	if err := stubV1.Put(ctx, []string{"media"}, envelopeV1); err != nil {
-		t.Fatalf("Put() failed: %v", err)
+	if err := stubV1.PutX(ctx, "media", envelopeV1, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
 	}
 
 	// There is content here now.
@@ -467,8 +470,8 @@ func TestTidyNow(t *testing.T) {
 	// Test that we can add an envelope for v3 with profile media and after calling
 	// TidyNow(), there will be all versions still in glob but v0 will only match profile
 	// base and not have an envelope for profile media.
-	if err := stubs[3].Put(ctx, []string{"media"}, envelopeV3); err != nil {
-		t.Fatalf("Put() failed: %v", err)
+	if err := stubs[3].PutX(ctx, "media", envelopeV3, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
 	}
 
 	if err := stubs[0].TidyNow(ctx); err != nil {
@@ -536,8 +539,10 @@ func testGlob(t *testing.T, ctx *context.T, endpoint string, expected []string) 
 
 func stuffEnvelopes(t *testing.T, ctx *context.T, stubs []repository.ApplicationClientStub, pets []profEnvTuple) {
 	for i, pet := range pets {
-		if err := stubs[i].Put(ctx, pet.p, *pet.e); err != nil {
-			t.Fatalf("%d: Put(%v) failed: %v", i, pet, err)
+		for _, profile := range pet.p {
+			if err := stubs[i].PutX(ctx, profile, *pet.e, true); err != nil {
+				t.Fatalf("%d: PutX(%v) failed: %v", i, pet, err)
+			}
 		}
 	}
 }
