@@ -13,23 +13,38 @@ import (
 	public "v.io/v23/services/repository"
 )
 
-// Application describes an application repository internally. Besides
-// the public Application interface, it allows to add and remove
-// application envelopes.
+// Application describes an application repository internally. Besides the
+// public Application interface, it allows adding and removing application
+// envelopes, as well as querying for a list of supported profiles.
 type Application interface {
 	public.Application
+	// DEPRECATED. Please use PutX for new code.
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
 	Put(Profiles []string, Envelope application.Envelope) error {access.Write}
+	// PutX adds the given application envelope for the given profile and
+	// application version (required, and specified through the object name
+	// suffix).
+	//
+	// An error is returned if an envelope already exists, unless the
+	// overwrite option is set.
+	PutX(Profile string, Envelope application.Envelope, Overwrite bool) error {access.Write}
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
-	// suffix). If no version is specified as part of the suffix, the
-	// method removes all versions for the given profile.
+	// suffix).
 	//
-	// TODO(jsimsa): Add support for using "*" to specify all profiles
-	// when Matt implements Globing (or Ken implements querying).
+	// If no version is specified as part of the suffix, the method removes
+	// all versions for the given profile.
+	//
+	// If the profile is the string "*", all profiles are removed for the
+	// given version (or for all versions if the version is not specified).
 	Remove(Profile string) error {access.Write}
+	// Profiles returns the supported profiles for the application version
+	// specified through the object name suffix.  If the version is not
+	// specified, Profiles returns the union of profiles across all
+	// versions.
+	Profiles() ([]string | error) {access.Read}
 }
 
 // Profile describes a profile internally. Besides the public Profile

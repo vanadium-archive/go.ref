@@ -39,6 +39,34 @@ func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.B
 	return b, sig
 }
 
+func checkEnvelope(t *testing.T, ctx *context.T, expected application.Envelope, stub repository.ApplicationClientStub, profiles ...string) {
+	if output, err := stub.Match(ctx, profiles); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Match() failed: %v", err))
+	} else if !reflect.DeepEqual(expected, output) {
+		t.Fatalf(testutil.FormatLogLine(2, "Incorrect Match output: expected %#v, got %#v", expected, output))
+	}
+}
+
+func checkNoEnvelope(t *testing.T, ctx *context.T, stub repository.ApplicationClientStub, profiles ...string) {
+	if _, err := stub.Match(ctx, profiles); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf(testutil.FormatLogLine(2, "Unexpected error: expected %v, got %v", verror.ErrNoExist, err))
+	}
+}
+
+func checkProfiles(t *testing.T, ctx *context.T, stub repository.ApplicationClientStub, expected ...string) {
+	if output, err := stub.Profiles(ctx); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Profiles() failed: %v", err))
+	} else if !reflect.DeepEqual(expected, output) {
+		t.Fatalf(testutil.FormatLogLine(2, "Incorrect Profiles output: expected %v, got %v", expected, output))
+	}
+}
+
+func checkNoProfile(t *testing.T, ctx *context.T, stub repository.ApplicationClientStub) {
+	if _, err := stub.Profiles(ctx); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf(testutil.FormatLogLine(2, "Unexpected error: expected %v, got %v", verror.ErrNoExist, err))
+	}
+}
+
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
 func TestInterface(t *testing.T) {
@@ -99,6 +127,7 @@ func TestInterface(t *testing.T) {
 		},
 		Publisher: blessings,
 	}
+	checkNoProfile(t, ctx, stub)
 
 	// Test Put(), adding a number of application envelopes.
 	if err := stubV1.Put(ctx, []string{"base", "media"}, envelopeV1); err != nil {
@@ -111,47 +140,31 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("Unexpected error: expected %v, got %v", appd.ErrInvalidSuffix, err)
 	}
 
-	// Test Match(), trying to retrieve both existing and non-existing
-	// application envelopes.
-	var output application.Envelope
-	if output, err = stubV2.Match(ctx, []string{"base", "media"}); err != nil {
-		t.Fatalf("Match() failed: %v", err)
-	}
-	if !reflect.DeepEqual(envelopeV2, output) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV2, output)
-	}
-	if output, err = stubV1.Match(ctx, []string{"media"}); err != nil {
-		t.Fatalf("Match() failed: %v", err)
-	}
-	if !reflect.DeepEqual(envelopeV1, output) {
-		t.Fatalf("Unexpected output: expected %v, got %v", envelopeV1, output)
-	}
-	if _, err := stubV2.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
-	}
-	if _, err := stubV2.Match(ctx, []string{}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
-	}
+	// Test Match() against versioned names, trying profiles that do and
+	// don't have any envelopes uploaded.
+	checkNoEnvelope(t, ctx, stubV2)
+	checkEnvelope(t, ctx, envelopeV2, stubV2, "base")
+	checkNoEnvelope(t, ctx, stubV2, "media")
+	checkEnvelope(t, ctx, envelopeV2, stubV2, "base", "media")
+	checkEnvelope(t, ctx, envelopeV2, stubV2, "media", "base")
 
-	// Test that Match() against a name without a version suffix returns the latest.
-	if output, err = stub.Match(ctx, []string{"base", "media"}); err != nil {
-		t.Fatalf("Match() failed: %v", err)
-	}
-	if !reflect.DeepEqual(envelopeV2, output) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV2, output)
-	}
+	// Test that Match() against a name without a version suffix returns the
+	// latest.
+	checkEnvelope(t, ctx, envelopeV2, stub, "base", "media")
+	checkEnvelope(t, ctx, envelopeV1, stub, "media")
 
-	// Test that we can add another envelope in sort order and we still get the
-	// correct (i.e. newest) version.
+	checkProfiles(t, ctx, stub, "base", "media")
+	checkProfiles(t, ctx, stubV1, "base", "media")
+	checkProfiles(t, ctx, stubV2, "base")
+	checkNoProfile(t, ctx, stubV3)
+
+	// Test that if we add another envelope for a version that's the highest
+	// in sort order, the new envelope becomes the latest.
 	if err := stubV3.Put(ctx, []string{"base"}, envelopeV3); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
-	if output, err = stub.Match(ctx, []string{"base", "media"}); err != nil {
-		t.Fatalf("Match() failed: %v", err)
-	}
-	if !reflect.DeepEqual(envelopeV3, output) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV3, output)
-	}
+	checkEnvelope(t, ctx, envelopeV3, stub, "base", "media")
+	checkProfiles(t, ctx, stubV3, "base")
 
 	// Test that this is not based on time but on sort order.
 	envelopeV0 := application.Envelope{
@@ -166,12 +179,7 @@ func TestInterface(t *testing.T) {
 	if err := stubV0.Put(ctx, []string{"base"}, envelopeV0); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
-	if output, err = stub.Match(ctx, []string{"base", "media"}); err != nil {
-		t.Fatalf("Match() failed: %v", err)
-	}
-	if !reflect.DeepEqual(envelopeV3, output) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV3, output)
-	}
+	checkEnvelope(t, ctx, envelopeV3, stub, "base", "media")
 
 	// Test Glob
 	matches, _, err := testutil.GlobName(ctx, naming.JoinAddressName(endpoint, ""), "...")
@@ -190,38 +198,75 @@ func TestInterface(t *testing.T) {
 		t.Errorf("unexpected Glob results. Got %q, want %q", matches, expected)
 	}
 
+	// PutX cannot replace the envelope for v0-base when overwrite is false.
+	if err := stubV0.PutX(ctx, "base", envelopeV2, false); err == nil || verror.ErrorID(err) != verror.ErrExist.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", appd.ErrInvalidSuffix, err)
+	}
+	checkEnvelope(t, ctx, envelopeV0, stubV0, "base")
+	// PutX can replace the envelope for v0-base when overwrite is true.
+	if err := stubV0.PutX(ctx, "base", envelopeV2, true); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
+	}
+	checkEnvelope(t, ctx, envelopeV2, stubV0, "base")
+
 	// Test Remove(), trying to remove both existing and non-existing
 	// application envelopes.
 	if err := stubV1.Remove(ctx, "base"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
-	if output, err = stubV1.Match(ctx, []string{"media"}); err != nil {
-		t.Fatalf("Match() failed: %v", err)
-	}
+	checkNoEnvelope(t, ctx, stubV1)
+	checkEnvelope(t, ctx, envelopeV1, stubV1, "media")
+	checkNoEnvelope(t, ctx, stubV1, "base")
+	checkEnvelope(t, ctx, envelopeV1, stubV1, "base", "media")
+	checkEnvelope(t, ctx, envelopeV1, stubV1, "media", "base")
+
 	if err := stubV1.Remove(ctx, "base"); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
 		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
 	if err := stub.Remove(ctx, "base"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
+	checkNoProfile(t, ctx, stubV0)
+	checkProfiles(t, ctx, stubV1, "media")
+	checkNoProfile(t, ctx, stubV2)
+	checkNoProfile(t, ctx, stubV3)
+	checkProfiles(t, ctx, stub, "media")
 	if err := stubV2.Remove(ctx, "media"); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
 		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
 	if err := stubV1.Remove(ctx, "media"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
+	checkNoProfile(t, ctx, stub)
 
 	// Finally, use Match() to test that Remove really removed the
 	// application envelopes.
-	if _, err := stubV1.Match(ctx, []string{"base"}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+	checkNoEnvelope(t, ctx, stubV1, "base")
+	checkNoEnvelope(t, ctx, stubV1, "media")
+	checkNoEnvelope(t, ctx, stubV2, "base")
+
+	if err := stubV0.PutX(ctx, "base", envelopeV0, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
+	}
+	if err := stubV1.PutX(ctx, "base", envelopeV1, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
+	}
+	if err := stubV1.PutX(ctx, "media", envelopeV1, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
+	}
+	if err := stubV2.PutX(ctx, "base", envelopeV2, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
+	}
+	if err := stubV3.PutX(ctx, "base", envelopeV3, false); err != nil {
+		t.Fatalf("PutX() failed: %v", err)
+	}
+	if err := stub.Remove(ctx, "*"); err != nil {
+		t.Fatalf("Remove() failed: %v", err)
+	}
+	if err := stub.Remove(ctx, "*"); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
 		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
-	if _, err := stubV1.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
-	}
-	if _, err := stubV2.Match(ctx, []string{"base"}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
-	}
+	checkNoProfile(t, ctx, stub)
 
 	// Shutdown the application repository server.
 	if err := server.Stop(); err != nil {
@@ -272,13 +317,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	}
 
 	// There is content here now.
-	output, err := stubV1.Match(ctx, []string{"media"})
-	if err != nil {
-		t.Fatalf("Match(%v) failed: %v", "media", err)
-	}
-	if !reflect.DeepEqual(envelopeV1, output) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV1, output)
-	}
+	checkEnvelope(t, ctx, envelopeV1, stubV1, "media")
 
 	server.Stop()
 
@@ -296,13 +335,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 
 	stubV1 = repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
 
-	output, err = stubV1.Match(ctx, []string{"media"})
-	if err != nil {
-		t.Fatalf("Match(%v) failed: %v", "media", err)
-	}
-	if !reflect.DeepEqual(envelopeV1, output) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV1, output)
-	}
+	checkEnvelope(t, ctx, envelopeV1, stubV1, "media")
 }
 
 // TestTidyNow tests that TidyNow operates correctly.
@@ -428,21 +461,8 @@ func TestTidyNow(t *testing.T) {
 
 	// And the newest version for each profile differs because
 	// not every version supports all profiles.
-	output1, err := stub.Match(ctx, []string{"media"})
-	if err != nil {
-		t.Fatalf("Match(%v) failed: %v", "media", err)
-	}
-	if !reflect.DeepEqual(envelopeV2, output1) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV2, output1)
-	}
-
-	output2, err := stub.Match(ctx, []string{"base"})
-	if err != nil {
-		t.Fatalf("Match(%v) failed: %v", "base", err)
-	}
-	if !reflect.DeepEqual(envelopeV3, output2) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV3, output2)
-	}
+	checkEnvelope(t, ctx, envelopeV2, stub, "media")
+	checkEnvelope(t, ctx, envelopeV3, stub, "base")
 
 	// Test that we can add an envelope for v3 with profile media and after calling
 	// TidyNow(), there will be all versions still in glob but v0 will only match profile
@@ -463,26 +483,8 @@ func TestTidyNow(t *testing.T) {
 		"search/v3",
 	})
 
-	output3, err := stubs[0].Match(ctx, []string{"base"})
-	if err != nil {
-		t.Fatalf("Match(%v) failed: %v", "base", err)
-	}
-	if !reflect.DeepEqual(envelopeV3, output2) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV3, output3)
-	}
-
-	output4, err := stubs[0].Match(ctx, []string{"base"})
-	if err != nil {
-		t.Fatalf("Match(%v) failed: %v", "base", err)
-	}
-	if !reflect.DeepEqual(envelopeV3, output2) {
-		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV3, output4)
-	}
-
-	_, err = stubs[0].Match(ctx, []string{"media"})
-	if verror.ErrorID(err) != verror.ErrNoExist.ID {
-		t.Fatalf("got error %v,  expected %v", err, verror.ErrNoExist)
-	}
+	checkEnvelope(t, ctx, envelopeV1, stubs[0], "base")
+	checkNoEnvelope(t, ctx, stubs[0], "media")
 
 	stuffEnvelopes(t, ctx, stubs, []profEnvTuple{
 		{
