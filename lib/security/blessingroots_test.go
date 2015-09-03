@@ -16,15 +16,20 @@ import (
 	"v.io/v23/verror"
 )
 
-type rootsTester [4]security.PublicKey
+type rootsTester [4][]byte
 
 func newRootsTester() *rootsTester {
 	var tester rootsTester
-	var err error
 	for idx := range tester {
-		if tester[idx], _, err = NewPrincipalKey(); err != nil {
+		key, _, err := NewPrincipalKey()
+		if err != nil {
 			panic(err)
 		}
+		keybytes, err := key.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		tester[idx] = keybytes
 	}
 	return &tester
 }
@@ -34,7 +39,7 @@ func (t *rootsTester) add(br security.BlessingRoots) error {
 		return fmt.Errorf("Add( , %v) succeeded, expected it to fail", security.AllPrincipals)
 	}
 	testdata := []struct {
-		root    security.PublicKey
+		root    []byte
 		pattern security.BlessingPattern
 	}{
 		{t[0], "vanadium"},
@@ -52,7 +57,7 @@ func (t *rootsTester) add(br security.BlessingRoots) error {
 
 func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 	testdata := []struct {
-		root          security.PublicKey
+		root          []byte
 		recognized    []string
 		notRecognized []string
 	}{
@@ -99,10 +104,17 @@ func (s pubKeySorter) Less(i, j int) bool { return s[i].String() < s[j].String()
 func (s pubKeySorter) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func (t *rootsTester) testDump(br security.BlessingRoots) error {
+	object := func(data []byte) security.PublicKey {
+		ret, err := security.UnmarshalPublicKey(data)
+		if err != nil {
+			panic(err)
+		}
+		return ret
+	}
 	want := map[security.BlessingPattern][]security.PublicKey{
-		"google/foo": []security.PublicKey{t[1], t[2]},
-		"google/$":   []security.PublicKey{t[0]},
-		"vanadium":   []security.PublicKey{t[0]},
+		"google/foo": []security.PublicKey{object(t[1]), object(t[2])},
+		"google/$":   []security.PublicKey{object(t[0])},
+		"vanadium":   []security.PublicKey{object(t[0])},
 	}
 	got := br.Dump()
 	sort.Sort(pubKeySorter(want["google/foo"]))

@@ -49,11 +49,8 @@ func newCachedRoots(impl security.BlessingRoots, mu *sync.RWMutex) (*cachedRoots
 	return roots, nil
 }
 
-func (r *cachedRoots) Add(root security.PublicKey, pattern security.BlessingPattern) error {
-	cacheKey, err := keyToString(root)
-	if err != nil {
-		return err
-	}
+func (r *cachedRoots) Add(root []byte, pattern security.BlessingPattern) error {
+	cachekey := string(root)
 
 	defer r.mu.Unlock()
 	r.mu.Lock()
@@ -63,22 +60,19 @@ func (r *cachedRoots) Add(root security.PublicKey, pattern security.BlessingPatt
 	}
 
 	if r.cache != nil {
-
-		r.cache[cacheKey] = append(r.cache[cacheKey], pattern)
+		r.cache[cachekey] = append(r.cache[cachekey], pattern)
 	}
 	return nil
 }
 
-func (r *cachedRoots) Recognized(root security.PublicKey, blessing string) (result error) {
-	key, err := keyToString(root)
-	if err != nil {
-		return err
-	}
+func (r *cachedRoots) Recognized(root []byte, blessing string) (result error) {
+	cachekey := string(root)
 
-	r.mu.RLock()
 	var cacheExists bool
+	var err error
+	r.mu.RLock()
 	if r.cache != nil {
-		err = r.recognizeFromCache(key, root, blessing)
+		err = r.recognizeFromCache(cachekey, root, blessing)
 		cacheExists = true
 	}
 	r.mu.RUnlock()
@@ -89,7 +83,7 @@ func (r *cachedRoots) Recognized(root security.PublicKey, blessing string) (resu
 			r.mu.Unlock()
 			return err
 		}
-		err = r.recognizeFromCache(key, root, blessing)
+		err = r.recognizeFromCache(cachekey, root, blessing)
 		r.mu.Unlock()
 	}
 
@@ -97,11 +91,11 @@ func (r *cachedRoots) Recognized(root security.PublicKey, blessing string) (resu
 	// to support the 'Dump' method.
 	r.mu.RLock()
 	if !r.dumpExists && err != nil {
-		negKey := key + blessing
+		negKey := cachekey + blessing
 		negErr, ok := r.negative.Get(negKey)
 		if !ok {
 			r.mu.RUnlock()
-			return r.recognizeFromImpl(key, root, blessing)
+			return r.recognizeFromImpl(root, blessing)
 		}
 		r.negative.Put(negKey, err)
 		err = negErr.(error)
@@ -150,13 +144,14 @@ func (r *cachedRoots) fetchAndCacheRoots() error {
 		return nil
 	}
 
-	for p, keys := range dump {
-		for _, key := range keys {
-			cacheKey, err := keyToString(key)
+	for p, pubkeys := range dump {
+		for _, pubkey := range pubkeys {
+			keybytes, err := pubkey.MarshalBinary()
 			if err != nil {
 				return err
 			}
-			r.cache[cacheKey] = append(r.cache[cacheKey], p)
+			cachekey := string(keybytes)
+			r.cache[cachekey] = append(r.cache[cachekey], p)
 		}
 	}
 	r.dumpExists = true
@@ -176,38 +171,44 @@ func (r *cachedRoots) dumpFromCache() map[security.BlessingPattern][]security.Pu
 	}
 	dump := make(map[security.BlessingPattern][]security.PublicKey)
 	for keyStr, patterns := range r.cache {
-		key, err := security.UnmarshalPublicKey([]byte(keyStr))
+		pubkey, err := security.UnmarshalPublicKey([]byte(keyStr))
 		if err != nil {
 			logger.Global().Errorf("security.UnmarshalPublicKey(%v) returned error: %v", []byte(keyStr), err)
 			return nil
 		}
 		for _, p := range patterns {
-			dump[p] = append(dump[p], key)
+			dump[p] = append(dump[p], pubkey)
 		}
 	}
 	return dump
 }
 
 // Must be called while holding mu.
-func (r *cachedRoots) recognizeFromCache(key string, root security.PublicKey, blessing string) error {
-	for _, p := range r.cache[key] {
+func (r *cachedRoots) recognizeFromCache(cachekey string, root []byte, blessing string) error {
+	for _, p := range r.cache[cachekey] {
 		if p.MatchedBy(blessing) {
 			return nil
 		}
 	}
-	return security.NewErrUnrecognizedRoot(nil, root.String(), nil)
+	// Silly to do this unmarshaling work on an error. Change the error string?
+	object, err := security.UnmarshalPublicKey(root)
+	if err != nil {
+		return err
+	}
+	return security.NewErrUnrecognizedRoot(nil, object.String(), nil)
 }
 
 // TODO(ataly): Get rid of this method once all agents have been updated
 // to support the 'Dump' method.
-func (r *cachedRoots) recognizeFromImpl(key string, root security.PublicKey, blessing string) error {
-	negKey := key + blessing
+func (r *cachedRoots) recognizeFromImpl(root []byte, blessing string) error {
+	cachekey := string(root)
 	err := r.impl.Recognized(root, blessing)
 
 	r.mu.Lock()
 	if err == nil {
-		r.cache[key] = append(r.cache[key], security.BlessingPattern(blessing))
+		r.cache[cachekey] = append(r.cache[cachekey], security.BlessingPattern(blessing))
 	} else {
+		negKey := cachekey + blessing
 		r.negative.Put(negKey, err)
 	}
 	r.mu.Unlock()
@@ -218,7 +219,7 @@ func (r *cachedRoots) recognizeFromImpl(key string, root security.PublicKey, ble
 // wraps over another implementation and adds caching.
 type cachedStore struct {
 	mu     *sync.RWMutex
-	key    security.PublicKey
+	pubkey security.PublicKey
 	def    security.Blessings
 	hasDef bool
 	peers  map[security.BlessingPattern]security.Blessings
@@ -302,7 +303,7 @@ func (s *cachedStore) fetchAndCacheBlessings() map[security.BlessingPattern]secu
 }
 
 func (s *cachedStore) PublicKey() security.PublicKey {
-	return s.key
+	return s.pubkey
 }
 
 func (s *cachedStore) DebugString() string {
@@ -369,7 +370,7 @@ func (p *cachedPrincipal) Close() error {
 }
 
 type dummySigner struct {
-	key security.PublicKey
+	pubkey security.PublicKey
 }
 
 func (s dummySigner) Sign(purpose, message []byte) (security.Signature, error) {
@@ -378,7 +379,7 @@ func (s dummySigner) Sign(purpose, message []byte) (security.Signature, error) {
 }
 
 func (s dummySigner) PublicKey() security.PublicKey {
-	return s.key
+	return s.pubkey
 }
 
 func NewCachedPrincipal(ctx *context.T, impl agent.Principal, call rpc.ClientCall) (p agent.Principal, err error) {
@@ -411,9 +412,9 @@ func NewCachedPrincipalX(impl agent.Principal) (p agent.Principal, flush func(),
 		return
 	}
 	cachedStore := &cachedStore{
-		mu:   &mu,
-		key:  impl.PublicKey(),
-		impl: impl.BlessingStore(),
+		mu:     &mu,
+		pubkey: impl.PublicKey(),
+		impl:   impl.BlessingStore(),
 	}
 	flush = func() {
 		defer mu.Unlock()
@@ -428,12 +429,4 @@ func NewCachedPrincipalX(impl agent.Principal) (p agent.Principal, flush func(),
 
 	p = &cachedPrincipal{sp, impl}
 	return
-}
-
-func keyToString(key security.PublicKey) (string, error) {
-	bytes, err := key.MarshalBinary()
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
 }

@@ -505,11 +505,7 @@ this tool. - is used for STDIN.
 			if err != nil {
 				return fmt.Errorf("invalid base64 encoding of public key: %v", err)
 			}
-			key, err := security.UnmarshalPublicKey(der)
-			if err != nil {
-				return fmt.Errorf("invalid DER encoding of public key: %v", err)
-			}
-			return p.Roots().Add(key, security.BlessingPattern(args[0]))
+			return p.Roots().Add(der, security.BlessingPattern(args[0]))
 		}),
 	}
 

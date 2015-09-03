@@ -99,13 +99,17 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 		errorf("MintDischarge: %v", err)
 	}
 	// BlessingRoots
-	if err := p.Roots().Recognized(p.PublicKey(), "batman"); err == nil {
+	keybytes, err := p.PublicKey().MarshalBinary()
+	if err != nil {
+		errorf("Failed to marshal public key: %v", err)
+	}
+	if err := p.Roots().Recognized(keybytes, "batman"); err == nil {
 		errorf("Roots().Recognized returned nil")
 	}
 	if err := p.AddToRoots(b); err != nil {
 		errorf("AddToRoots: %v", err)
 	}
-	if err := p.Roots().Recognized(p.PublicKey(), "batman"); err != nil {
+	if err := p.Roots().Recognized(keybytes, "batman"); err != nil {
 		errorf("Roots().Recognized: %v", err)
 	}
 	// BlessingStore: Defaults

@@ -16,7 +16,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func createRoots() (security.PublicKey, security.BlessingRoots, *cachedRoots) {
+func createRoots() ([]byte, security.BlessingRoots, *cachedRoots) {
 	var mu sync.RWMutex
 	ctx, _ := context.RootContext()
 	ctx = context.WithLogger(ctx, logger.Global())
@@ -26,7 +26,11 @@ func createRoots() (security.PublicKey, security.BlessingRoots, *cachedRoots) {
 	if err != nil {
 		panic(err)
 	}
-	return p.PublicKey(), impl, roots
+	keybytes, err := p.PublicKey().MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	return keybytes, impl, roots
 }
 
 func TestCreateRoots(t *testing.T) {
@@ -39,17 +43,15 @@ func TestCreateRoots(t *testing.T) {
 	}
 }
 
-func expectRecognized(roots security.BlessingRoots, key security.PublicKey, blessing string) string {
-	err := roots.Recognized(key, blessing)
-	if err != nil {
+func expectRecognized(roots security.BlessingRoots, key []byte, blessing string) string {
+	if err := roots.Recognized(key, blessing); err != nil {
 		return fmt.Sprintf("Key (%s, %v) not matched by roots:\n%s, Recognized returns error: %v", key, blessing, roots.DebugString(), err)
 	}
 	return ""
 }
 
-func expectNotRecognized(roots security.BlessingRoots, key security.PublicKey, blessing string) string {
-	err := roots.Recognized(key, blessing)
-	if err == nil {
+func expectNotRecognized(roots security.BlessingRoots, key []byte, blessing string) string {
+	if err := roots.Recognized(key, blessing); err == nil {
 		return fmt.Sprintf("Key (%s, %s) should not match roots:\n%s", key, blessing, roots.DebugString())
 	}
 	return ""
@@ -164,7 +166,7 @@ func TestRootsDump(t *testing.T) {
 func createStore(p security.Principal) (security.BlessingStore, *cachedStore) {
 	var mu sync.RWMutex
 	impl := p.BlessingStore()
-	return impl, &cachedStore{mu: &mu, key: p.PublicKey(), impl: impl}
+	return impl, &cachedStore{mu: &mu, pubkey: p.PublicKey(), impl: impl}
 }
 
 func TestDefaultBlessing(t *testing.T) {

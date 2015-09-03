@@ -219,7 +219,10 @@ func runDefaultBenchmark(b *testing.B, p security.Principal) {
 }
 
 func runRecognizedNegativeBenchmark(b *testing.B, p security.Principal) {
-	key := p.PublicKey()
+	key, err := p.PublicKey().MarshalBinary()
+	if err != nil {
+		b.Fatal(err)
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if d := p.Roots().Recognized(key, "foobar"); d == nil {
@@ -229,7 +232,10 @@ func runRecognizedNegativeBenchmark(b *testing.B, p security.Principal) {
 }
 
 func runRecognizedBenchmark(b *testing.B, p security.Principal) {
-	key := p.PublicKey()
+	key, err := p.PublicKey().MarshalBinary()
+	if err != nil {
+		b.Fatal(err)
+	}
 	blessing, err := p.BlessSelf("foobar")
 	if err != nil {
 		b.Fatal(err)

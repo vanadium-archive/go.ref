@@ -17,10 +17,14 @@ func TestIDProvider(t *testing.T) {
 	if err := idp.Bless(p, "bar"); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.Roots().Recognized(idp.PublicKey(), "foo"); err != nil {
+	idpkey, err := idp.PublicKey().MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Roots().Recognized(idpkey, "foo"); err != nil {
 		t.Error(err)
 	}
-	if err := p.Roots().Recognized(idp.PublicKey(), "foo/bar"); err != nil {
+	if err := p.Roots().Recognized(idpkey, "foo/bar"); err != nil {
 		t.Error(err)
 	}
 	def := p.BlessingStore().Default()
