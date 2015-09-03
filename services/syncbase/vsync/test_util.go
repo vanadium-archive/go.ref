@@ -69,7 +69,7 @@ func (a *mockApp) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbNam
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (a *mockApp) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
+func (a *mockApp) DestroyNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 

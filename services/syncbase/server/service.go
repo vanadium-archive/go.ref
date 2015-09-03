@@ -250,19 +250,19 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 	return nil
 }
 
-func (s *service) deleteApp(ctx *context.T, call rpc.ServerCall, appName string) error {
+func (s *service) destroyApp(ctx *context.T, call rpc.ServerCall, appName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	a, ok := s.apps[appName]
 	if !ok {
-		return nil // delete is idempotent
+		return nil // destroy is idempotent
 	}
 
 	if err := store.RunInTransaction(s.st, func(tx store.Transaction) error {
 		// Read-check-delete appData.
 		if err := util.GetWithAuth(ctx, call, tx, a.stKey(), &appData{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
-				return nil // delete is idempotent
+				return nil // destroy is idempotent
 			}
 			return err
 		}

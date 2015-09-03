@@ -37,15 +37,10 @@ type StoreWriter interface {
 	Delete(key []byte) error
 }
 
-// storeReadWriter combines StoreReader and StoreWriter.
-type storeReadWriter interface {
-	StoreReader
-	StoreWriter
-}
-
 // Store is a CRUD-capable storage engine that supports transactions.
 type Store interface {
-	storeReadWriter
+	StoreReader
+	StoreWriter
 
 	// Close closes the store.
 	Close() error

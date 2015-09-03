@@ -210,13 +210,13 @@ func (m *mojoImpl) AppCreate(name string, mPerms mojom.Perms) (mojom.Error, erro
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) AppDelete(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(wire.AppDesc, "Delete"))
+func (m *mojoImpl) AppDestroy(name string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.AppDesc, "Destroy"))
 	stub, err := m.getApp(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Delete(ctx, call)
+	err = stub.Destroy(ctx, call)
 	return toMojoError(err), nil
 }
 
@@ -278,13 +278,13 @@ func (m *mojoImpl) DbCreate(name string, mPerms mojom.Perms) (mojom.Error, error
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) DbDelete(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Delete"))
+func (m *mojoImpl) DbDestroy(name string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Destroy"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Delete(ctx, call, NoSchema)
+	err = stub.Destroy(ctx, call, NoSchema)
 	return toMojoError(err), nil
 }
 

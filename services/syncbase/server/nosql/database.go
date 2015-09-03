@@ -142,14 +142,14 @@ func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire
 	return d.a.CreateNoSQLDatabase(ctx, call, d.name, perms, metadata)
 }
 
-func (d *databaseReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
+func (d *databaseReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
 	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 		return err
 	}
-	return d.a.DeleteNoSQLDatabase(ctx, call, d.name)
+	return d.a.DestroyNoSQLDatabase(ctx, call, d.name)
 }
 
 func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {

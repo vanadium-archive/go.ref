@@ -54,8 +54,8 @@ func (a *app) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissio
 	return a.s.createApp(ctx, call, a.name, perms)
 }
 
-func (a *app) Delete(ctx *context.T, call rpc.ServerCall) error {
-	return a.s.deleteApp(ctx, call, a.name)
+func (a *app) Destroy(ctx *context.T, call rpc.ServerCall) error {
+	return a.s.destroyApp(ctx, call, a.name)
 }
 
 func (a *app) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
@@ -204,7 +204,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	return nil
 }
 
-func (a *app) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
+func (a *app) DestroyNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}
@@ -221,13 +221,13 @@ func (a *app) DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	defer a.mu.Unlock()
 	d, ok := a.dbs[dbName]
 	if !ok {
-		return nil // delete is idempotent
+		return nil // destroy is idempotent
 	}
 
 	// 1. Check databaseData perms.
 	if err := d.CheckPermsInternal(ctx, call, d.St()); err != nil {
 		if verror.ErrorID(err) == verror.ErrNoExist.ID {
-			return nil // delete is idempotent
+			return nil // destroy is idempotent
 		}
 		return err
 	}

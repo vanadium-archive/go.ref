@@ -25,8 +25,8 @@ type App interface {
 	// CreateNoSQLDatabase creates the specified NoSQL database.
 	CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *wire.SchemaMetadata) error
 
-	// DeleteNoSQLDatabase deletes the specified NoSQL database.
-	DeleteNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error
+	// DestroyNoSQLDatabase deletes the specified NoSQL database.
+	DestroyNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error
 
 	// SetDatabasePerms sets the perms for the specified database.
 	SetDatabasePerms(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, version string) error
