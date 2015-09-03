@@ -14,6 +14,7 @@ Usage:
 The application commands are:
    match       Shows the first matching envelope that matches the given
                profiles.
+   profiles    Shows the profiles supported by the given application.
    put         Add the given envelope to the application for the given profiles.
    remove      removes the application envelope for the given profile.
    edit        edits the application envelope for the given profile.
@@ -70,20 +71,33 @@ Shows the first matching envelope that matches the given profiles.
 Usage:
    application match <application> <profiles>
 
-<application> is the full name of the application. <profiles> is a
+<application> is the full name of the application. <profiles> is a non-empty
 comma-separated list of profiles.
+
+Application profiles
+
+Returns a comma-separated list of profiles supported by the given application.
+
+Usage:
+   application profiles <application>
+
+<application> is the full name of the application.
 
 Application put
 
 Add the given envelope to the application for the given profiles.
 
 Usage:
-   application put <application> <profiles> [<envelope>]
+   application put [flags] <application> <profiles> [<envelope>]
 
 <application> is the full name of the application. <profiles> is a
 comma-separated list of profiles. <envelope> is the file that contains a
 JSON-encoded envelope. If this file is not provided, the user will be prompted
 to enter the data manually.
+
+The application put flags are:
+ -overwrite=false
+   If true, put forces an overwrite of any existing envelope
 
 Application remove
 
