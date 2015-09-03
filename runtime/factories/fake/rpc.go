@@ -37,17 +37,24 @@ func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
 
 func (r *Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	return rpc.ListenSpec{}
+	ls, _ := ctx.Value(listenSpecKey).(rpc.ListenSpec)
+	return ls
 }
 
 func (r *Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	return context.WithValue(ctx, listenSpecKey, ls)
 	return ctx
+}
+
+func SetFlowManager(ctx *context.T, manager flow.Manager) *context.T {
+	return context.WithValue(ctx, flowManagerKey, manager)
 }
 
 func (r *Runtime) ExperimentalGetFlowManager(ctx *context.T) flow.Manager {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
+	fm, _ := ctx.Value(flowManagerKey).(flow.Manager)
+	return fm
 }
 
 func (r *Runtime) ExperimentalWithNewFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {

@@ -74,7 +74,7 @@ type xserver struct {
 	stats *rpcStats // stats for this server.
 }
 
-func InternalNewXServer(ctx *context.T, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.XServer, error) {
+func NewServer(ctx *context.T, name string, object interface{}, authorizer security.Authorizer, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.XServer, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	flowMgr := v23.ExperimentalGetFlowManager(ctx)
 	ns, principal := v23.GetNamespace(ctx), v23.GetPrincipal(ctx)
@@ -119,6 +119,14 @@ func InternalNewXServer(ctx *context.T, settingsPublisher *pubsub.Publisher, set
 	stats.NewStringFunc(blessingsStatsName, func() string {
 		return fmt.Sprintf("%s (default)", s.principal.BlessingStore().Default())
 	})
+	if err = s.listen(ctx, v23.GetListenSpec(ctx)); err != nil {
+		s.Stop()
+		return nil, err
+	}
+	if err = s.serve(name, object, authorizer); err != nil {
+		s.Stop()
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -212,7 +220,6 @@ func (s *xserver) createEndpoints(lep naming.Endpoint, chooser netstate.AddressC
 func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
 	s.Lock()
 	defer s.Unlock()
-
 	var lastErr error
 	for _, addr := range listenSpec.Addrs {
 		if len(addr.Address) > 0 {
@@ -281,7 +288,7 @@ func (s *xserver) acceptLoop(ctx *context.T) error {
 	}
 }
 
-func (s *server) serve(name string, obj interface{}, authorizer security.Authorizer) error {
+func (s *xserver) serve(name string, obj interface{}, authorizer security.Authorizer) error {
 	if obj == nil {
 		return verror.New(verror.ErrBadArg, s.ctx, "nil object")
 	}
@@ -293,7 +300,7 @@ func (s *server) serve(name string, obj interface{}, authorizer security.Authori
 	s.Lock()
 	s.isLeaf = true
 	s.Unlock()
-	return s.ServeDispatcher(name, &leafDispatcher{invoker, authorizer})
+	return s.serveDispatcher(name, &leafDispatcher{invoker, authorizer})
 }
 
 func (s *xserver) serveDispatcher(name string, disp rpc.Dispatcher) error {

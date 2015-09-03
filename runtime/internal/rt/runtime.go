@@ -415,7 +415,7 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 		client, err = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
 		deps = append(deps, fm, sm)
 	case fm != nil:
-		client, err = irpc.InternalNewXClient(ctx, otherOpts...)
+		client, err = irpc.NewXClient(ctx, otherOpts...)
 		deps = append(deps, fm)
 	case sm != nil:
 		client, err = irpc.InternalNewClient(sm, ns, otherOpts...)

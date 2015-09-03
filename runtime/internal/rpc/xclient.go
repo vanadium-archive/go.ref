@@ -46,7 +46,7 @@ type xclient struct {
 
 var _ rpc.Client = (*xclient)(nil)
 
-func InternalNewXClient(ctx *context.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
+func NewXClient(ctx *context.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	c := &xclient{
 		flowMgr: v23.ExperimentalGetFlowManager(ctx),
 		ns:      v23.GetNamespace(ctx),
@@ -287,7 +287,7 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 		for _, r := range responses {
 			if r != nil {
 				numResponses++
-				if verror.ErrorID(r.serverErr.Err) == message.ErrWrongProtocol.ID {
+				if r.serverErr != nil && verror.ErrorID(r.serverErr.Err) == message.ErrWrongProtocol.ID {
 					return nil, verror.NoRetry, false, r.serverErr.Err
 				}
 			}
@@ -463,7 +463,9 @@ func (fc *flowXClient) close(err error) error {
 	subErr.Name = "remote=" + fc.flow.Conn().RemoteEndpoint().String()
 	// TODO(toddw): cancel context instead?
 	if _, cerr := fc.flow.WriteMsgAndClose(); cerr != nil && err == nil {
-		return verror.New(verror.ErrInternal, fc.ctx, subErr)
+		// TODO(mattr): The context is often already canceled here, in
+		// which case we'll get an error.  Not clear what to do.
+		//return verror.New(verror.ErrInternal, fc.ctx, subErr)
 	}
 	if err == nil {
 		return nil

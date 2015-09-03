@@ -23,6 +23,8 @@ const (
 	principalKey
 	loggerKey
 	backgroundKey
+	listenSpecKey
+	flowManagerKey
 )
 
 type Runtime struct {
