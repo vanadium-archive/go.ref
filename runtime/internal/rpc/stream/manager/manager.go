@@ -169,7 +169,7 @@ func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...
 				result.conn.Close()
 			}
 		}()
-		return nil, verror.New(stream.ErrDialFailed, ctx, err)
+		return nil, verror.New(verror.ErrTimeout, ctx)
 	}
 	if err != nil {
 		return nil, err
