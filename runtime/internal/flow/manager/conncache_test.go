@@ -64,6 +64,25 @@ func TestCache(t *testing.T) {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 
+	// Caching with InsertWithRoutingID should only cache by RoutingID, not with network/address.
+	ridEP := &inaming.Endpoint{
+		Protocol:  "ridonly",
+		Address:   "ridonly",
+		RID:       naming.FixedRoutingID(0x1111),
+		Blessings: []string{"ridonly"},
+	}
+	ridConn := makeConnAndFlow(t, ctx, ridEP).c
+	if err := c.InsertWithRoutingID(ridConn); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := c.ReservedFind(ridEP.Protocol, ridEP.Address, ridEP.Blessings); err != nil || got != nil {
+		t.Errorf("got %v, want <nil>, err: %v", got, err)
+	}
+	c.Unreserve(ridEP.Protocol, ridEP.Address, ridEP.Blessings)
+	if got, err := c.FindWithRoutingID(ridEP.RID); err != nil || got != ridConn {
+		t.Errorf("got %v, want %v, err: %v", got, ridConn, err)
+	}
+
 	otherEP := &inaming.Endpoint{
 		Protocol:  "other",
 		Address:   "other",
@@ -217,12 +236,12 @@ func isInCache(t *testing.T, c *ConnCache, conn *connpackage.Conn) bool {
 	rep := conn.RemoteEndpoint()
 	rfconn, err := c.ReservedFind(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames())
 	if err != nil {
-		t.Errorf("got %v, want %v, err: %v", rfconn, conn, err)
+		t.Error(err)
 	}
 	c.Unreserve(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames())
 	ridconn, err := c.FindWithRoutingID(rep.RoutingID())
 	if err != nil {
-		t.Errorf("got %v, want %v, err: %v", ridconn, conn, err)
+		t.Error(err)
 	}
 	return rfconn != nil || ridconn != nil
 }

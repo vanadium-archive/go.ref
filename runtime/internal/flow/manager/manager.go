@@ -150,7 +150,7 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
 			continue
 		}
-		if err := m.cache.Insert(c); err != nil {
+		if err := m.cache.InsertWithRoutingID(c); err != nil {
 			ctx.VI(2).Infof("failed to cache conn %v: %v", c, err)
 		}
 	}
@@ -194,7 +194,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 			h.ctx.Errorf("failed to create accepted conn: %v", err)
 			return
 		}
-		if err := h.m.cache.Insert(c); err != nil {
+		if err := h.m.cache.InsertWithRoutingID(c); err != nil {
 			h.ctx.Errorf("failed to create accepted conn: %v", err)
 			return
 		}
@@ -334,6 +334,9 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 				return nil, err
 			}
 			return nil, flow.NewErrDialFailed(ctx, err)
+		}
+		if err := m.cache.InsertWithRoutingID(c); err != nil {
+			return nil, flow.NewErrBadState(ctx, err)
 		}
 		f, err = c.Dial(ctx, fn)
 		if err != nil {
