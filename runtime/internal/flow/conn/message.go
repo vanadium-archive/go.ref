@@ -80,5 +80,5 @@ func (p *messagePipe) readMsg(ctx *context.T) (message.Message, error) {
 	}
 	m, err := message.Read(ctx, msg[:len(msg)-p.cipher.MACSize()])
 	ctx.VI(2).Infof("Read low-level message: %#v", m)
-	return m, nil
+	return m, err
 }

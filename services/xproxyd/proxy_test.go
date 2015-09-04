@@ -32,46 +32,60 @@ func TestProxiedConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Start the proxy.
-	addr := struct {
-		Protocol, Address string
-	}{
-		Protocol: "tcp",
-		Address:  "127.0.0.1:0",
-	}
-	pctx = v23.WithListenSpec(pctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{addr}})
-	p, err := xproxyd.New(pctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	peps := p.ListeningEndpoints()
-	if len(peps) == 0 {
-		t.Fatal("Proxy not listening on any endpoints")
-	}
-	pep := peps[0]
+	pep := startProxy(t, pctx, address{"tcp", "127.0.0.1:0"})
 
-	t.Logf("proxy endpoint: %s", pep.String())
-	// Start a accepting flow.Manager and make it listen through the proxy.
 	if err := am.Listen(actx, "v23", pep.String()); err != nil {
 		t.Fatal(err)
 	}
+	testEndToEndConnections(t, dctx, actx, dm, am)
+}
+
+func TestMultipleProxies(t *testing.T) {
+	pctx, shutdown := v23.Init()
+	defer shutdown()
+	p2ctx, _, err := v23.ExperimentalWithNewFlowManager(pctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p3ctx, _, err := v23.ExperimentalWithNewFlowManager(pctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actx, am, err := v23.ExperimentalWithNewFlowManager(pctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dctx, dm, err := v23.ExperimentalWithNewFlowManager(pctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pep := startProxy(t, pctx, address{"tcp", "127.0.0.1:0"})
+
+	p2ep := startProxy(t, p2ctx, address{"v23", pep.String()}, address{"tcp", "127.0.0.1:0"})
+
+	p3ep := startProxy(t, p3ctx, address{"v23", p2ep.String()}, address{"tcp", "127.0.0.1:0"})
+
+	if err := am.Listen(actx, "v23", p3ep.String()); err != nil {
+		t.Fatal(err)
+	}
+	testEndToEndConnections(t, dctx, actx, dm, am)
+}
+
+func testEndToEndConnections(t *testing.T, dctx, actx *context.T, dm, am flow.Manager) {
 	aeps := am.ListeningEndpoints()
 	if len(aeps) == 0 {
-		t.Fatal("Acceptor not listening on any endpoints")
+		t.Fatal("acceptor not listening on any endpoints")
 	}
-	aep := aeps[0]
+	for _, aep := range aeps {
+		testEndToEndConnection(t, dctx, actx, dm, am, aep)
+	}
+}
 
+func testEndToEndConnection(t *testing.T, dctx, actx *context.T, dm, am flow.Manager, aep naming.Endpoint) {
 	// The dialing flow.Manager dials a flow to the accepting flow.Manager.
 	want := "Do you read me?"
-	bFn := func(
-		ctx *context.T,
-		localEndpoint, remoteEndpoint naming.Endpoint,
-		remoteBlessings security.Blessings,
-		remoteDischarges map[string]security.Discharge,
-	) (security.Blessings, map[string]security.Discharge, error) {
-		return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
-	}
-	df, err := dm.Dial(dctx, aep, bFn)
+	df, err := dm.Dial(dctx, aep, bfp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,11 +97,9 @@ func TestProxiedConnection(t *testing.T) {
 	}
 	got, err := readLine(af)
 	if err != nil {
-		pctx.Errorf("error")
 		t.Fatal(err)
 	}
 	if got != want {
-		pctx.Errorf("error")
 		t.Errorf("got %v, want %v", got, want)
 	}
 
@@ -96,17 +108,14 @@ func TestProxiedConnection(t *testing.T) {
 	writeLine(af, want)
 	got, err = readLine(df)
 	if err != nil {
-		pctx.Errorf("error")
 		t.Fatal(err)
 	}
 	if got != want {
-		pctx.Errorf("error")
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
 
-// TODO(suharshs): Add tests for multiple proxies and bidirectional RPC through
-// a proxy once we have bidirpc working.
+// TODO(suharshs): Add test for bidirectional RPC.
 
 func readLine(f flow.Flow) (string, error) {
 	s, err := bufio.NewReader(f).ReadString('\n')
@@ -117,4 +126,37 @@ func writeLine(f flow.Flow, data string) error {
 	data += "\n"
 	_, err := f.Write([]byte(data))
 	return err
+}
+
+func bfp(
+	ctx *context.T,
+	localEndpoint, remoteEndpoint naming.Endpoint,
+	remoteBlessings security.Blessings,
+	remoteDischarges map[string]security.Discharge,
+) (security.Blessings, map[string]security.Discharge, error) {
+	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
+}
+
+type address struct {
+	Protocol, Address string
+}
+
+func startProxy(t *testing.T, ctx *context.T, addrs ...address) naming.Endpoint {
+	var ls rpc.ListenSpec
+	for _, addr := range addrs {
+		ls.Addrs = append(ls.Addrs, addr)
+	}
+	ctx = v23.WithListenSpec(ctx, ls)
+	proxy, err := xproxyd.New(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	peps := proxy.ListeningEndpoints()
+	for _, pep := range peps {
+		if pep.Addr().Network() == "tcp" {
+			return pep
+		}
+	}
+	t.Fatal("Proxy not listening on network address.")
+	return nil
 }

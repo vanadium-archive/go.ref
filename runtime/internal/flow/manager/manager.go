@@ -26,6 +26,11 @@ import (
 	"v.io/x/ref/runtime/internal/rpc/version"
 )
 
+const (
+	clientByte = 'c'
+	serverByte = 's'
+)
+
 type manager struct {
 	rid    naming.RoutingID
 	closed <-chan struct{}
@@ -95,7 +100,7 @@ func (m *manager) proxyListen(ctx *context.T, address string) (naming.Endpoint, 
 		return nil, flow.NewErrNetwork(ctx, err)
 	}
 	// Write to ensure we send an openFlow message.
-	if _, err := f.Write([]byte{0}); err != nil {
+	if _, err := f.Write([]byte{serverByte}); err != nil {
 		return nil, flow.NewErrNetwork(ctx, err)
 	}
 	var lep string
@@ -312,6 +317,10 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
 	// return a flow on that corresponding conn.
 	if remote.RoutingID() != c.RemoteEndpoint().RoutingID() {
+		// Write to tell the proxy that this should be routed.
+		if _, err := f.Write([]byte{clientByte}); err != nil {
+			return nil, flow.NewErrNetwork(ctx, err)
+		}
 		c, err = conn.NewDialed(
 			ctx,
 			f,
