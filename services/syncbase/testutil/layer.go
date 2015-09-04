@@ -110,10 +110,10 @@ func TestDelete(t *testing.T, ctx *context.T, i interface{}) {
 
 	assertExists(t, ctx, self, "self", true)
 
-	// By default, self perms are copied from parent, so self.Delete should
+	// By default, self perms are copied from parent, so self.Destroy should
 	// succeed.
-	if err := self.Delete(ctx); err != nil {
-		t.Fatalf("self.Delete() failed: %v", err)
+	if err := self.Destroy(ctx); err != nil {
+		t.Fatalf("self.Destroy() failed: %v", err)
 	}
 
 	assertExists(t, ctx, self, "self", false)
@@ -146,8 +146,8 @@ func TestDelete(t *testing.T, ctx *context.T, i interface{}) {
 	if err := self2.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("self2.SetPermissions() failed: %v", err)
 	}
-	if err := self2.Delete(ctx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
-		t.Fatalf("self2.Delete() should have failed: %v", err)
+	if err := self2.Destroy(ctx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
+		t.Fatalf("self2.Destroy() should have failed: %v", err)
 	}
 
 	assertExists(t, ctx, self2, "self2", true)
@@ -158,15 +158,15 @@ func TestDelete(t *testing.T, ctx *context.T, i interface{}) {
 	if err := parent.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("parent.SetPermissions() failed: %v", err)
 	}
-	if err := self.Delete(ctx); err != nil {
-		t.Fatalf("self.Delete() failed: %v", err)
+	if err := self.Destroy(ctx); err != nil {
+		t.Fatalf("self.Destroy() failed: %v", err)
 	}
 
 	assertExists(t, ctx, self, "self", false)
 
 	// Test that delete is idempotent.
-	if err := self.Delete(ctx); err != nil {
-		t.Fatalf("self.Delete() failed: %v", err)
+	if err := self.Destroy(ctx); err != nil {
+		t.Fatalf("self.Destroy() failed: %v", err)
 	}
 
 	assertExists(t, ctx, self, "self", false)
@@ -314,9 +314,7 @@ const notAvailable = "not available"
 type layer interface {
 	util.AccessController
 	Create(ctx *context.T, perms access.Permissions) error
-	// TODO(aghassemi): Rename to Destroy and drop Destroy impls below once
-	// Table.Delete is renamed to Destroy.
-	Delete(ctx *context.T) error
+	Destroy(ctx *context.T) error
 	Exists(ctx *context.T) (bool, error)
 	ListChildren(ctx *context.T) ([]string, error)
 	Child(childName string) layer
@@ -329,7 +327,7 @@ type service struct {
 func (s *service) Create(ctx *context.T, perms access.Permissions) error {
 	panic(notAvailable)
 }
-func (s *service) Delete(ctx *context.T) error {
+func (s *service) Destroy(ctx *context.T) error {
 	panic(notAvailable)
 }
 func (s *service) Exists(ctx *context.T) (bool, error) {
@@ -352,9 +350,6 @@ func (a *app) ListChildren(ctx *context.T) ([]string, error) {
 func (a *app) Child(childName string) layer {
 	return makeLayer(a.NoSQLDatabase(childName, nil))
 }
-func (a *app) Delete(ctx *context.T) error {
-	return a.Destroy(ctx)
-}
 
 type database struct {
 	nosql.Database
@@ -366,9 +361,6 @@ func (d *database) ListChildren(ctx *context.T) ([]string, error) {
 func (d *database) Child(childName string) layer {
 	return &table{Table: d.Table(childName), d: d}
 }
-func (d *database) Delete(ctx *context.T) error {
-	return d.Destroy(ctx)
-}
 
 type table struct {
 	nosql.Table
@@ -376,10 +368,7 @@ type table struct {
 }
 
 func (t *table) Create(ctx *context.T, perms access.Permissions) error {
-	return t.d.CreateTable(ctx, t.Name(), perms)
-}
-func (t *table) Delete(ctx *context.T) error {
-	return t.d.DeleteTable(ctx, t.Name())
+	return t.Table.Create(ctx, perms)
 }
 func (t *table) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
 	return t.Table.SetPermissions(ctx, nosql.Prefix(""), perms)
@@ -408,7 +397,7 @@ func (r *row) Create(ctx *context.T, perms access.Permissions) error {
 	}
 	return r.Put(ctx, true)
 }
-func (r *row) Delete(ctx *context.T) error {
+func (r *row) Destroy(ctx *context.T) error {
 	return r.Delete(ctx)
 }
 func (r *row) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {

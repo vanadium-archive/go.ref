@@ -401,13 +401,13 @@ func (m *mojoImpl) TableCreate(name string, mPerms mojom.Perms) (mojom.Error, er
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) TableDelete(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "Delete"))
+func (m *mojoImpl) TableDestroy(name string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "Destroy"))
 	stub, err := m.getTable(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Delete(ctx, call, NoSchema)
+	err = stub.Destroy(ctx, call, NoSchema)
 	return toMojoError(err), nil
 }
 

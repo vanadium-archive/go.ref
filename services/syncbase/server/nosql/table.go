@@ -64,7 +64,7 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int
 	})
 }
 
-func (t *tableReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
+func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	if t.d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}

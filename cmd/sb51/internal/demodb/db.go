@@ -111,15 +111,15 @@ var demoTables = []table{
 	},
 }
 
-// Creates demo tables in the provided database. Tables are deleted and
+// Creates demo tables in the provided database. Tables are destroyed and
 // recreated if they already exist.
 func PopulateDemoDB(ctx *context.T, db nosql.Database) error {
 	for i, t := range demoTables {
 		tn := demoPrefix + t.name
-		if err := db.DeleteTable(ctx, tn); err != nil {
-			return fmt.Errorf("failed deleting table %s (%d/%d): %v", tn, i+1, len(demoTables), err)
+		if err := db.Table(tn).Destroy(ctx); err != nil {
+			return fmt.Errorf("failed destroying table %s (%d/%d): %v", tn, i+1, len(demoTables), err)
 		}
-		if err := db.CreateTable(ctx, tn, nil); err != nil {
+		if err := db.Table(tn).Create(ctx, nil); err != nil {
 			return fmt.Errorf("failed creating table %s (%d/%d): %v", tn, i+1, len(demoTables), err)
 		}
 		if err := nosql.RunInBatch(ctx, db, wire.BatchOptions{}, func(db nosql.BatchDatabase) error {

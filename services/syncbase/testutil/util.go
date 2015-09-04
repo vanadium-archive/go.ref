@@ -56,8 +56,8 @@ func CreateNoSQLDatabase(t *testing.T, ctx *context.T, a syncbase.App, name stri
 }
 
 func CreateTable(t *testing.T, ctx *context.T, d nosql.Database, name string) nosql.Table {
-	if err := d.CreateTable(ctx, name, nil); err != nil {
-		Fatalf(t, "d.CreateTable() failed: %v", err)
+	if err := d.Table(name).Create(ctx, nil); err != nil {
+		Fatalf(t, "d.Table(name).Create() failed: %v", err)
 	}
 	return d.Table(name)
 }
