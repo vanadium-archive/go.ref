@@ -174,7 +174,7 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 		envelope.Publisher = security.Blessings{}
 	}
 
-	if err := appClient.PutX(ctx, profile, envelope, true); err != nil {
+	if err := appClient.Put(ctx, profile, envelope, true); err != nil {
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "Published %q\n", appVON)
