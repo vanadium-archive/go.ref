@@ -18,7 +18,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
@@ -137,7 +136,7 @@ func TestClientServerBlessings(t *testing.T) {
 			t.Errorf("pserver.SetDefault(%v) failed: %v", test.server, err)
 			continue
 		}
-		server, err := xrpc.NewServer(serverCtx, "", testService{}, security.AllowEveryone())
+		_, server, err := v23.WithNewServer(serverCtx, "", testService{}, security.AllowEveryone())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -186,7 +185,7 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 		t.Fatal(err)
 	}
 	for idx, test := range tests {
-		server, err := xrpc.NewServer(ctx, "", testService{}, nil, test.opts...)
+		_, server, err := v23.WithNewServer(ctx, "", testService{}, nil, test.opts...)
 		if err != nil {
 			t.Errorf("test #%d: %v", idx, err)
 			continue
@@ -258,7 +257,7 @@ func TestServerDischarges(t *testing.T) {
 		t.Fatal(err)
 	}
 	ds := &dischargeService{}
-	server, err := xrpc.NewServer(dischargerCtx, "", ds, security.AllowEveryone())
+	dischargerCtx, server, err := v23.WithNewServer(dischargerCtx, "", ds, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +266,7 @@ func TestServerDischarges(t *testing.T) {
 	if err := root.Bless(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName)); err != nil {
 		t.Fatal(err)
 	}
-	server, err = xrpc.NewServer(serverCtx, "", testService{}, security.AllowEveryone(), vc.DischargeExpiryBuffer(10*time.Millisecond))
+	serverCtx, server, err = v23.WithNewServer(serverCtx, "", testService{}, security.AllowEveryone(), vc.DischargeExpiryBuffer(10*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}

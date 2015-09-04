@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/services/application"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/binary/tidy/appd"
 	"v.io/x/ref/services/binary/tidy/binaryd"
@@ -29,7 +29,7 @@ func TestApplicationTidying(t *testing.T) {
 	defer shutdown()
 
 	apptape := servicetest.NewTape()
-	appserver, err := xrpc.NewDispatchingServer(ctx, "", appd.NewDispatcher(t, apptape))
+	ctx, appserver, err := v23.WithNewDispatchingServer(ctx, "", appd.NewDispatcher(t, apptape))
 	if err != nil {
 		t.Fatalf("applicationd NewDispatchingServer failed: %v", err)
 	}
@@ -69,13 +69,13 @@ func TestBinaryTidying(t *testing.T) {
 	defer shutdown()
 
 	binarytape := servicetest.NewTape()
-	binserver, err := xrpc.NewDispatchingServer(ctx, "", binaryd.NewDispatcher(t, binarytape))
+	ctx, binserver, err := v23.WithNewDispatchingServer(ctx, "", binaryd.NewDispatcher(t, binarytape))
 	if err != nil {
 		t.Fatalf("binaryd NewDispatchingServer failed: %v", err)
 	}
 
 	apptape := servicetest.NewTape()
-	appserver, err := xrpc.NewDispatchingServer(ctx, "", appd.NewDispatcher(t, apptape))
+	ctx, appserver, err := v23.WithNewDispatchingServer(ctx, "", appd.NewDispatcher(t, apptape))
 	if err != nil {
 		t.Fatalf("applicationd NewDispatchingServer failed: %v", err)
 	}

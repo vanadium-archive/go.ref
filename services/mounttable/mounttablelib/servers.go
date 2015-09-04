@@ -12,7 +12,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
-	"v.io/x/ref/lib/xrpc"
 )
 
 func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, permsFile, persistDir, debugPrefix string) (string, func(), error) {
@@ -29,10 +28,10 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 		return "", nil, err
 	}
 	ctx = v23.WithListenSpec(ctx, listenSpec)
-	mtServer, err := xrpc.NewDispatchingServer(ctx, mountName, mt, options.ServesMountTable(true))
+	ctx, mtServer, err := v23.WithNewDispatchingServer(ctx, mountName, mt, options.ServesMountTable(true))
 	if err != nil {
 
-		ctx.Errorf("v23.NewServer failed: %v", err)
+		ctx.Errorf("v23.WithNewServer failed: %v", err)
 		return "", nil, err
 	}
 	stopFuncs = append(stopFuncs, mtServer.Stop)
@@ -60,9 +59,9 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 			nh, err = NewNeighborhoodDispatcher(nhName, names...)
 		}
 
-		nhServer, err := xrpc.NewDispatchingServer(ctx, naming.Join(mtName, "nh"), nh, options.ServesMountTable(true))
+		ctx, nhServer, err := v23.WithNewDispatchingServer(ctx, naming.Join(mtName, "nh"), nh, options.ServesMountTable(true))
 		if err != nil {
-			ctx.Errorf("v23.NewServer failed: %v", err)
+			ctx.Errorf("v23.WithNewServer failed: %v", err)
 			stop()
 			return "", nil, err
 		}

@@ -14,6 +14,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -21,7 +22,6 @@ import (
 	"v.io/v23/services/groups"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 )
 
@@ -84,7 +84,7 @@ func capitalize(s string) string {
 
 func startServer(ctx *context.T, t *testing.T) (rpc.Server, naming.Endpoint) {
 	unpublished := ""
-	s, err := xrpc.NewServer(ctx, unpublished, groups.GroupServer(&mock{}), nil)
+	ctx, s, err := v23.WithNewServer(ctx, unpublished, groups.GroupServer(&mock{}), nil)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", unpublished, err)
 	}

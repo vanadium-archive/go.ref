@@ -11,7 +11,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
 )
@@ -58,7 +57,7 @@ func V23TestProxyd(t *v23tests.T) {
 var runServer = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	if _, err := xrpc.NewServer(ctx, serverName, service{}, security.AllowEveryone()); err != nil {
+	if _, _, err := v23.WithNewServer(ctx, serverName, service{}, security.AllowEveryone()); err != nil {
 		return err
 	}
 	modules.WaitForEOF(env.Stdin)

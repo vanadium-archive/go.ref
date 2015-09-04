@@ -21,7 +21,6 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -349,7 +348,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
 	ch := make(chan string)
-	server, err := xrpc.NewServer(ctx, "", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie())
+	ctx, server, err := v23.WithNewServer(ctx, "", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}

@@ -21,7 +21,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	displib "v.io/x/ref/lib/dispatcher"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/device/deviced/internal/impl"
@@ -155,7 +154,7 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		return "", nil, err
 	}
 	ctx = v23.WithListenSpec(ctx, args.Device.ListenSpec)
-	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		cancel()
 		return "", nil, err
@@ -334,7 +333,7 @@ func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pathperms.PathStore) (shutdown func(), err error) {
 	ctx = v23.WithListenSpec(ctx, args.ListenSpec)
 	wrapper := displib.NewDispatcherWrapper()
-	server, err := xrpc.NewDispatchingServer(ctx, args.name(mt), wrapper)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, args.name(mt), wrapper)
 	if err != nil {
 		return nil, err
 	}

@@ -31,7 +31,6 @@ import (
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
 )
 
@@ -769,7 +768,7 @@ This file can be supplied to bless:
 				token:     base64.URLEncoding.EncodeToString(token[:]),
 				notify:    make(chan error),
 			}
-			server, err := xrpc.NewServer(ctx, "", service, security.AllowEveryone())
+			ctx, server, err := v23.WithNewServer(ctx, "", service, security.AllowEveryone())
 			if err != nil {
 				return fmt.Errorf("failed to create server to listen for blessings: %v", err)
 			}

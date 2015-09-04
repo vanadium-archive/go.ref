@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/internal/pproflib"
 	"v.io/x/ref/test"
@@ -32,7 +32,7 @@ func TestPProfProxy(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	s, err := xrpc.NewDispatchingServer(ctx, "", &dispatcher{pproflib.NewPProfService()})
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, "", &dispatcher{pproflib.NewPProfService()})
 	if err != nil {
 		t.Fatalf("failed to start server: %v", err)
 	}

@@ -10,12 +10,12 @@ import (
 	"path"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/logreaderlib"
 	"v.io/x/ref/test"
 
@@ -50,7 +50,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, err := xrpc.NewDispatchingServer(ctx, "", &logFileDispatcher{workdir})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &logFileDispatcher{workdir})
 	if err != nil {
 		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestReadLogImplWithFollow(t *testing.T) {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, err := xrpc.NewDispatchingServer(ctx, "", &logFileDispatcher{workdir})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &logFileDispatcher{workdir})
 	if err != nil {
 		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}

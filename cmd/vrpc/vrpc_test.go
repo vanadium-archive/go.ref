@@ -17,7 +17,6 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/cmd/vrpc/internal"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -120,7 +119,7 @@ func (*server) ZStream(_ *context.T, call internal.TypeTesterZStreamServerCall, 
 func initTest(t *testing.T) (ctx *context.T, name string, shutdown v23.Shutdown) {
 	ctx, shutdown = test.V23Init()
 	obj := internal.TypeTesterServer(&server{})
-	server, err := xrpc.NewServer(ctx, "", obj, nil)
+	ctx, server, err := v23.WithNewServer(ctx, "", obj, nil)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return

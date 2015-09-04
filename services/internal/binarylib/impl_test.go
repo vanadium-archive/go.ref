@@ -19,7 +19,7 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 
-	"v.io/x/ref/lib/xrpc"
+	"v.io/v23"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
@@ -57,7 +57,7 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 		t.Fatalf("NewDispatcher failed: %v", err)
 	}
 	dontPublishName := ""
-	server, err := xrpc.NewDispatchingServer(ctx, dontPublishName, dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, dontPublishName, dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%q) failed: %v", dontPublishName, err)
 	}

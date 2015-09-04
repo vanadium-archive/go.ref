@@ -18,7 +18,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/groups"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/groups/internal/server"
 	"v.io/x/ref/services/groups/internal/store"
@@ -133,7 +132,7 @@ func newServer(ctx *context.T, be backend) (string, func()) {
 
 	m := server.NewManager(st, perms)
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", m)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", m)
 	if err != nil {
 		ctx.Fatal("NewDispatchingServer() failed: ", err)
 	}

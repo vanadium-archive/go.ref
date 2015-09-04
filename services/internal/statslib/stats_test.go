@@ -17,9 +17,9 @@ import (
 	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
 
+	"v.io/v23"
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/histogram"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/statslib"
 	s_stats "v.io/x/ref/services/stats"
 	"v.io/x/ref/test"
@@ -41,7 +41,7 @@ func TestStatsImpl(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", &statsDispatcher{})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &statsDispatcher{})
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return

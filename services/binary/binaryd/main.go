@@ -19,7 +19,6 @@ import (
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/internal/binarylib"
 )
@@ -98,7 +97,7 @@ func runBinaryD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return fmt.Errorf("NewDispatcher() failed: %v\n", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, name, dis)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, name, dis)
 	if err != nil {
 		return fmt.Errorf("NewServer() failed: %v", err)
 	}

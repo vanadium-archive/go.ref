@@ -12,10 +12,10 @@ import (
 
 	"v.io/v23/context"
 
+	"v.io/v23"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 )
@@ -33,7 +33,7 @@ var cmdRoot = &cmdline.Command{
 }
 
 func runBenchmarkD(ctx *context.T, env *cmdline.Env, args []string) error {
-	server, err := xrpc.NewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	ctx, server, err := v23.WithNewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}

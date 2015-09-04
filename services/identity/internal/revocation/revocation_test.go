@@ -7,22 +7,20 @@ package revocation
 import (
 	"testing"
 
-	"v.io/x/ref/lib/xrpc"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/discharger"
 	"v.io/x/ref/services/identity/internal/dischargerlib"
 	"v.io/x/ref/test"
-
-	"v.io/v23"
-	"v.io/v23/context"
-	"v.io/v23/security"
 )
 
 //go:generate v23 test generate
 
 func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager) {
 	dischargerServiceStub := discharger.DischargerServer(dischargerlib.NewDischarger())
-	dischargerServer, err := xrpc.NewServer(ctx, "", dischargerServiceStub, nil)
+	ctx, dischargerServer, err := v23.WithNewServer(ctx, "", dischargerServiceStub, nil)
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)
 	}

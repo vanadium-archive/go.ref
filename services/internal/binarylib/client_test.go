@@ -17,8 +17,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/repository"
-
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -49,7 +47,7 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v\n", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}

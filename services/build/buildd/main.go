@@ -11,13 +11,13 @@ import (
 	"fmt"
 	"os"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/services/build"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -44,7 +44,7 @@ v.io/v23/services/build.Builder interface.
 }
 
 func runBuildD(ctx *context.T, env *cmdline.Env, args []string) error {
-	server, err := xrpc.NewServer(ctx, name, build.BuilderServer(NewBuilderService(gobin, goroot)), securityflag.NewAuthorizerOrDie())
+	ctx, server, err := v23.WithNewServer(ctx, name, build.BuilderServer(NewBuilderService(gobin, goroot)), securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		return fmt.Errorf("NewServer() failed: %v", err)
 	}

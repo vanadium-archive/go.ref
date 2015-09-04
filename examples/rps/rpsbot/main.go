@@ -16,11 +16,11 @@ import (
 
 	"v.io/v23/context"
 
+	"v.io/v23"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
@@ -61,7 +61,7 @@ func runBot(ctx *context.T, env *cmdline.Env, args []string) error {
 		fmt.Sprintf("rps/player/%s", name),
 		fmt.Sprintf("rps/scorekeeper/%s", name),
 	}
-	server, err := xrpc.NewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), auth)
+	ctx, server, err := v23.WithNewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), auth)
 	if err != nil {
 		return fmt.Errorf("NewServer failed: %v", err)
 	}

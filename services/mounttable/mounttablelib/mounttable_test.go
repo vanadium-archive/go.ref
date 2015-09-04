@@ -27,9 +27,7 @@ import (
 	"v.io/v23/services/mounttable"
 	"v.io/v23/services/stats"
 	"v.io/v23/vdl"
-
 	libstats "v.io/x/ref/lib/stats"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
@@ -198,7 +196,7 @@ func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *contex
 	}
 
 	// Start serving on a loopback address.
-	server, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -211,7 +209,7 @@ func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *contex
 func newCollection(t *testing.T, rootCtx *context.T) (func() error, string) {
 	// Start serving a collection service on a loopback address.  This
 	// is just a service we can mount and test against.
-	server, err := xrpc.NewDispatchingServer(rootCtx, "collection", newCollectionServer())
+	_, server, err := v23.WithNewDispatchingServer(rootCtx, "collection", newCollectionServer())
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}

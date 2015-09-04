@@ -21,7 +21,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -37,7 +36,7 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
@@ -54,7 +53,7 @@ func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RP
 	ns.SetRoots(mtAddress)
 	rpsService := NewRPS(ctx)
 	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
-	server, err := xrpc.NewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), nil)
+	ctx, server, err := v23.WithNewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), nil)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}

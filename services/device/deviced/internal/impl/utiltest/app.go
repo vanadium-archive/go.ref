@@ -23,7 +23,6 @@ import (
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -133,7 +132,7 @@ func appFunc(env *modules.Env, args ...string) error {
 	}
 	publishName := args[0]
 
-	_, err := xrpc.NewServer(ctx, publishName, new(appService), nil)
+	ctx, _, err := v23.WithNewServer(ctx, publishName, new(appService), nil)
 	if err != nil {
 		ctx.Fatalf("NewServer(%v) failed: %v", publishName, err)
 	}
@@ -166,7 +165,7 @@ func (p PingServer) Ping(_ *context.T, _ rpc.ServerCall, arg PingArgs) error {
 // function.
 func SetupPingServer(t *testing.T, ctx *context.T) (PingServer, func()) {
 	pingCh := make(chan PingArgs, 1)
-	server, err := xrpc.NewServer(ctx, "pingserver", PingServer{pingCh}, security.AllowEveryone())
+	ctx, server, err := v23.WithNewServer(ctx, "pingserver", PingServer{pingCh}, security.AllowEveryone())
 	if err != nil {
 		t.Fatalf("NewServer(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}

@@ -15,8 +15,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
@@ -236,8 +234,8 @@ func TestPermissions(t *testing.T) {
 	if err := ns.SetPermissions(rootCtx, name, closedPerms, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)
 	}
-	if _, err := xrpc.NewServer(rootCtx, name, &nopServer{1}, nil); err != nil {
-		t.Fatalf("v23.NewServer failed: %v", err)
+	if rootCtx, _, err = v23.WithNewServer(rootCtx, name, &nopServer{1}, nil); err != nil {
+		t.Fatalf("v23.WithNewServer failed: %v", err)
 	}
 	// Alice shouldn't be able to resolve it.
 	_, err = v23.GetNamespace(aliceCtx).Resolve(aliceCtx, name)

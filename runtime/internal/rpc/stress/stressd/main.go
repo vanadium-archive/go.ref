@@ -11,12 +11,12 @@ import (
 	"runtime"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/runtime/internal/rpc/stress/internal"
 )
@@ -40,7 +40,7 @@ func runStressD(ctx *context.T, env *cmdline.Env, args []string) error {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	service, stop := internal.NewService()
-	server, err := xrpc.NewServer(ctx, "", service, security.AllowEveryone())
+	ctx, server, err := v23.WithNewServer(ctx, "", service, security.AllowEveryone())
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/services/device"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 
 	cmd_device "v.io/x/ref/services/device/device"
@@ -26,7 +26,7 @@ func TestStatusCommand(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	tapes := servicetest.NewTapeMap()
-	server, err := xrpc.NewDispatchingServer(ctx, "", newDispatcher(t, tapes))
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", newDispatcher(t, tapes))
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}

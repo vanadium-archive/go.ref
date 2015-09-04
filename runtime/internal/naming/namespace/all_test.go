@@ -21,8 +21,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inamespace "v.io/x/ref/runtime/internal/naming/namespace"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -222,7 +220,7 @@ func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
 }
 
 func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, mt bool) *serverEntry {
-	s, err := xrpc.NewDispatchingServer(ctx, mountPoint, disp, options.ServesMountTable(mt))
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, mountPoint, disp, options.ServesMountTable(mt))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -775,9 +773,9 @@ func TestLeaf(t *testing.T) {
 	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(root.name)
 
-	server, err := xrpc.NewServer(ctx, "leaf", &leafObject{}, nil)
+	ctx, server, err := v23.WithNewServer(ctx, "leaf", &leafObject{}, nil)
 	if err != nil {
-		boom(t, "xrpc.NewServer: %s", err)
+		boom(t, "v23.WithNewServer: %s", err)
 	}
 	defer server.Stop()
 

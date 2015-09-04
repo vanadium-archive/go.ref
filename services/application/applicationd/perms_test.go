@@ -17,7 +17,6 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/xrpc"
 	appd "v.io/x/ref/services/application/applicationd"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/services/repository"
@@ -45,7 +44,7 @@ var appRepository = modules.Register(func(env *modules.Env, args ...string) erro
 	if err != nil {
 		ctx.Fatalf("Failed to create repository dispatcher: %v", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, publishName, dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, publishName, dispatcher)
 	if err != nil {
 		ctx.Fatalf("NewDispatchingServer(%v) failed: %v", publishName, err)
 	}

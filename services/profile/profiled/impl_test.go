@@ -10,10 +10,9 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/services/build"
-
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
@@ -49,7 +48,7 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -109,7 +108,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -138,7 +137,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	server, err = xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err = v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}

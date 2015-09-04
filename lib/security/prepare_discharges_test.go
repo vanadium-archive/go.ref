@@ -14,7 +14,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	securitylib "v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -91,7 +90,7 @@ func TestPrepareDischarges(t *testing.T) {
 	tpid := tpcav.ThirdPartyDetails().ID()
 
 	v23.GetPrincipal(dctx)
-	_, err = xrpc.NewServer(dctx,
+	dctx, _, err = v23.WithNewServer(dctx,
 		"discharger",
 		&expiryDischarger{},
 		security.AllowEveryone())

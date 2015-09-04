@@ -15,21 +15,17 @@ import (
 	"sync"
 	"time"
 
-	"v.io/x/lib/cmdline"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
-
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
-
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -132,7 +128,7 @@ func recvChallenge(ctx *context.T) gameChallenge {
 	fullname := fmt.Sprintf("rps/player/%s", name)
 	service := rps.PlayerServer(&impl{ch: ch})
 	auth := internal.NewAuthorizer(aclFile)
-	server, err := xrpc.NewServer(ctx, fullname, service, auth)
+	ctx, server, err := v23.WithNewServer(ctx, fullname, service, auth)
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}

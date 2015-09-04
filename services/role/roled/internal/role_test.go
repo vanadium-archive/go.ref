@@ -18,7 +18,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/role"
 	irole "v.io/x/ref/services/role/roled/internal"
 	"v.io/x/ref/test"
@@ -72,7 +71,7 @@ func TestSeekBlessings(t *testing.T) {
 
 	testServerCtx := newPrincipalContext(t, ctx, root, "testserver")
 	tDisp := &testDispatcher{}
-	_, err = xrpc.NewDispatchingServer(testServerCtx, "test", tDisp)
+	testServerCtx, _, err = v23.WithNewDispatchingServer(testServerCtx, "test", tDisp)
 	if err != nil {
 		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
@@ -156,15 +155,15 @@ func TestPeerBlessingCaveats(t *testing.T) {
 	roleAddr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
 
 	tDisp := &testDispatcher{}
-	_, err = xrpc.NewDispatchingServer(peer1, "peer1", tDisp)
+	peer1, _, err = v23.WithNewDispatchingServer(peer1, "peer1", tDisp)
 	if err != nil {
 		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
-	_, err = xrpc.NewDispatchingServer(peer2, "peer2", tDisp)
+	peer2, _, err = v23.WithNewDispatchingServer(peer2, "peer2", tDisp)
 	if err != nil {
 		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
-	_, err = xrpc.NewDispatchingServer(peer3, "peer3", tDisp)
+	peer3, _, err = v23.WithNewDispatchingServer(peer3, "peer3", tDisp)
 	if err != nil {
 		t.Fatalf("NewDispatchingServer failed: %v", err)
 	}
@@ -276,7 +275,7 @@ func newPrincipalContext(t *testing.T, ctx *context.T, root *testutil.IDProvider
 }
 
 func newRoleServer(t *testing.T, ctx *context.T, dir string) string {
-	_, err := xrpc.NewDispatchingServer(ctx, "role", irole.NewDispatcher(dir, "role"))
+	ctx, _, err := v23.WithNewDispatchingServer(ctx, "role", irole.NewDispatcher(dir, "role"))
 	if err != nil {
 		t.Fatalf("ServeDispatcher failed: %v", err)
 	}

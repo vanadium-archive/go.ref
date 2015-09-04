@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -22,7 +23,6 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/xrpc"
 )
 
 const MockBinaryRepoName = "br"
@@ -44,7 +44,7 @@ func StartMockRepos(t *testing.T, ctx *context.T) (*application.Envelope, func()
 func StartApplicationRepository(ctx *context.T) (*application.Envelope, func()) {
 	invoker := new(arInvoker)
 	name := MockApplicationRepoName
-	server, err := xrpc.NewServer(ctx, name, repository.ApplicationServer(invoker), security.AllowEveryone())
+	ctx, server, err := v23.WithNewServer(ctx, name, repository.ApplicationServer(invoker), security.AllowEveryone())
 	if err != nil {
 		ctx.Fatalf("NewServer(%v) failed: %v", name, err)
 	}
@@ -91,7 +91,7 @@ type brInvoker struct{}
 // returns a cleanup function.
 func StartBinaryRepository(ctx *context.T) func() {
 	name := MockBinaryRepoName
-	server, err := xrpc.NewServer(ctx, name, repository.BinaryServer(new(brInvoker)), security.AllowEveryone())
+	ctx, server, err := v23.WithNewServer(ctx, name, repository.BinaryServer(new(brInvoker)), security.AllowEveryone())
 	if err != nil {
 		ctx.Fatalf("Serve(%q) failed: %v", name, err)
 	}

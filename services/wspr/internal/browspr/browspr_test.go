@@ -19,8 +19,6 @@ import (
 	"v.io/v23/vdl"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
-
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/app"
@@ -74,7 +72,7 @@ func TestBrowspr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create mounttable: %v", err)
 	}
-	s, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		t.Fatalf("Failed to start mounttable server: %v", err)
 	}
@@ -86,7 +84,7 @@ func TestBrowspr(t *testing.T) {
 	}
 
 	mockServerName := "mock/server"
-	mockServer, err := xrpc.NewServer(ctx, mockServerName, mockServer{}, nil)
+	ctx, mockServer, err := v23.WithNewServer(ctx, mockServerName, mockServer{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}

@@ -11,7 +11,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/rpc"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -19,7 +18,7 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	server, err := xrpc.NewServer(ctx, "roamer", &dummy{}, nil)
+	ctx, server, err := v23.WithNewServer(ctx, "roamer", &dummy{}, nil)
 	if err != nil {
 		ctx.Fatalf("unexpected error: %q", err)
 	}

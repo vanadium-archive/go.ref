@@ -10,11 +10,11 @@ package main
 import (
 	"fmt"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/static"
 	irole "v.io/x/ref/services/role/roled/internal"
 )
@@ -43,7 +43,7 @@ func runRoleD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(name) == 0 {
 		return env.UsageErrorf("-name must be specified")
 	}
-	_, err := xrpc.NewDispatchingServer(ctx, name, irole.NewDispatcher(configDir, name))
+	ctx, _, err := v23.WithNewDispatchingServer(ctx, name, irole.NewDispatcher(configDir, name))
 	if err != nil {
 		return fmt.Errorf("NewServer failed: %v", err)
 	}

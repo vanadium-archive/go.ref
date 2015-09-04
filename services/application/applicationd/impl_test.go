@@ -17,8 +17,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
-
-	"v.io/x/ref/lib/xrpc"
 	appd "v.io/x/ref/services/application/applicationd"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
@@ -84,7 +82,7 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}
@@ -293,7 +291,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
@@ -330,7 +328,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, err = xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err = v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}
@@ -357,7 +355,7 @@ func TestTidyNow(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}

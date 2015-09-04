@@ -14,7 +14,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/server"
 )
@@ -62,9 +61,9 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher) {
 	d := server.NewDispatcher(service)
 
 	// Publish the service in the mount table.
-	s, err := xrpc.NewDispatchingServer(ctx, *name, d)
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, *name, d)
 	if err != nil {
-		vlog.Fatal("v23.NewDispatchingServer() failed: ", err)
+		vlog.Fatal("v23.WithNewDispatchingServer() failed: ", err)
 	}
 	if *name != "" {
 		vlog.Info("Mounted at: ", *name)

@@ -21,8 +21,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
-
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 	"v.io/x/ref/runtime/internal/rpc/stream/message"
@@ -333,7 +331,7 @@ func (s *simple) Ping(ctx *context.T, call rpc.ServerCall) (string, error) {
 }
 
 func initServer(t *testing.T, ctx *context.T) (string, func()) {
-	server, err := xrpc.NewServer(ctx, "", &simple{}, nil, options.SecurityNone)
+	ctx, server, err := v23.WithNewServer(ctx, "", &simple{}, nil, options.SecurityNone)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

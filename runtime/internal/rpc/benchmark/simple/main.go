@@ -14,10 +14,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-
 	"v.io/x/ref/lib/security/securityflag"
-	"v.io/x/ref/lib/xrpc"
-
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
@@ -126,7 +123,7 @@ func main() {
 	ctx, shutdown = test.V23Init()
 	defer shutdown()
 
-	server, err := xrpc.NewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	ctx, server, err := v23.WithNewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}

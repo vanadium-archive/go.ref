@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -17,7 +18,6 @@ import (
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 )
@@ -67,7 +67,7 @@ func serverMain(ctx *context.T) error {
 	// Use the default authorization policy (nil authorizer), which will
 	// only authorize clients if the blessings of the client is a prefix of
 	// that of the server or vice-versa.
-	s, err := xrpc.NewServer(ctx, "", PingPongServer(&pongd{}), nil)
+	ctx, s, err := v23.WithNewServer(ctx, "", PingPongServer(&pongd{}), nil)
 	if err != nil {
 		return fmt.Errorf("failure creating server: %v", err)
 	}

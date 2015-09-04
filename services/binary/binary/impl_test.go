@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -24,7 +25,6 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -104,7 +104,7 @@ func TestBinaryClient(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", NewDispatcher())
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", NewDispatcher())
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}

@@ -8,9 +8,9 @@ import (
 	"io"
 	"testing"
 
+	"v.io/v23"
 	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/vtrace"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/vtracelib"
 	"v.io/x/ref/test"
 
@@ -23,7 +23,7 @@ func TestVtraceServer(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := xrpc.NewServer(ctx, "", vtracelib.NewVtraceService(), nil)
+	ctx, server, err := v23.WithNewServer(ctx, "", vtracelib.NewVtraceService(), nil)
 	if err != nil {
 		t.Fatalf("Could not create server: %s", err)
 	}

@@ -14,11 +14,11 @@ import (
 
 	"v.io/v23/context"
 
+	"v.io/v23"
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
@@ -42,7 +42,7 @@ Command tunneld runs the tunneld daemon, which implements the Tunnel interface.
 
 func runTunnelD(ctx *context.T, env *cmdline.Env, args []string) error {
 	auth := securityflag.NewAuthorizerOrDie()
-	server, err := xrpc.NewServer(ctx, name, tunnel.TunnelServer(&T{}), auth)
+	ctx, server, err := v23.WithNewServer(ctx, name, tunnel.TunnelServer(&T{}), auth)
 	if err != nil {
 		return fmt.Errorf("NewServer failed: %v", err)
 	}

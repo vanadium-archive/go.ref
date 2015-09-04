@@ -8,13 +8,13 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	libstats "v.io/v23/services/stats"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -26,7 +26,7 @@ func TestProxyInvoker(t *testing.T) {
 	defer shutdown()
 
 	// server1 is a normal server
-	server1, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
+	ctx, server1, err := v23.WithNewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestProxyInvoker(t *testing.T) {
 		remote: naming.JoinAddressName(server1.Status().Endpoints[0].String(), "__debug/stats"),
 		desc:   libstats.StatsServer(nil).Describe__(),
 	}
-	server2, err := xrpc.NewDispatchingServer(ctx, "", disp)
+	ctx, server2, err := v23.WithNewDispatchingServer(ctx, "", disp)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}

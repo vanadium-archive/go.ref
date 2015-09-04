@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -20,7 +21,6 @@ import (
 	"v.io/v23/services/application"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
@@ -137,7 +137,7 @@ func TestApplicationClient(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", &dispatcher{})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &dispatcher{})
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)
 		return

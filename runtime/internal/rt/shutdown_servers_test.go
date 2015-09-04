@@ -16,9 +16,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -68,11 +66,11 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 	defer remoteCmdLoop(ctx, env.Stdin)()
 
 	// Create a couple servers, and start serving.
-	server1, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
+	ctx, server1, err := v23.WithNewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
 		ctx.Fatalf("r.NewServer error: %s", err)
 	}
-	server2, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
+	ctx, server2, err := v23.WithNewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
 		ctx.Fatalf("r.NewServer error: %s", err)
 	}
@@ -220,7 +218,7 @@ var simpleServerProgram = modules.Register(func(env *modules.Env, args ...string
 	defer remoteCmdLoop(ctx, env.Stdin)()
 
 	// Create a server, and start serving.
-	server, err := xrpc.NewServer(ctx, "", &dummy{}, nil)
+	ctx, server, err := v23.WithNewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
 		ctx.Fatalf("r.NewServer error: %s", err)
 	}

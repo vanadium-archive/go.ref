@@ -10,12 +10,12 @@ package main
 import (
 	"fmt"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
@@ -49,7 +49,7 @@ func runProfileD(ctx *context.T, env *cmdline.Env, args []string) error {
 		return fmt.Errorf("NewDispatcher() failed: %v", err)
 	}
 
-	server, err := xrpc.NewDispatchingServer(ctx, name, dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, name, dispatcher)
 	if err != nil {
 		return fmt.Errorf("NewServer() failed: %v", err)
 	}

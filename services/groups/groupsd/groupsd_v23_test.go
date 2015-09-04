@@ -22,7 +22,6 @@ import (
 	"v.io/v23/services/groups"
 	"v.io/v23/verror"
 	"v.io/x/lib/set"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/groups/groupsd/testdata/kvstore"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
@@ -174,7 +173,7 @@ var runServer = modules.Register(func(env *modules.Env, args ...string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := xrpc.NewServer(ctx, kvServerName, kvstore.StoreServer(&store{}), authorizer); err != nil {
+	if _, _, err := v23.WithNewServer(ctx, kvServerName, kvstore.StoreServer(&store{}), authorizer); err != nil {
 		return err
 	}
 	modules.WaitForEOF(env.Stdin)

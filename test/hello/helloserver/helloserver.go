@@ -10,13 +10,13 @@ package main
 import (
 	"fmt"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
@@ -44,7 +44,7 @@ func (*helloServer) Hello(ctx *context.T, call rpc.ServerCall) (string, error) {
 }
 
 func runHelloServer(ctx *context.T, env *cmdline.Env, args []string) error {
-	server, err := xrpc.NewServer(ctx, name, &helloServer{}, security.AllowEveryone())
+	ctx, server, err := v23.WithNewServer(ctx, name, &helloServer{}, security.AllowEveryone())
 	if err != nil {
 		return fmt.Errorf("NewServer: %v", err)
 	}

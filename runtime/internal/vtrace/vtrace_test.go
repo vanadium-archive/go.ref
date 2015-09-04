@@ -19,10 +19,8 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/uniqueid"
 	"v.io/v23/vtrace"
-
 	"v.io/x/ref/lib/flags"
 	_ "v.io/x/ref/lib/security/securityflag"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	ivtrace "v.io/x/ref/runtime/internal/vtrace"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -47,7 +45,7 @@ func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) 
 	if err != nil {
 		t.Fatalf("Could not create mt dispatcher %v", err)
 	}
-	s, err := xrpc.NewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
 	if err != nil {
 		t.Fatalf("Could not create mt server %v", err)
 	}
@@ -176,7 +174,7 @@ func makeTestServer(ctx *context.T, principal security.Principal, name string) (
 	c := &testServer{
 		name: name,
 	}
-	s, err := xrpc.NewServer(ctx, name, c, security.AllowEveryone())
+	ctx, s, err := v23.WithNewServer(ctx, name, c, security.AllowEveryone())
 	if err != nil {
 		return nil, err
 	}

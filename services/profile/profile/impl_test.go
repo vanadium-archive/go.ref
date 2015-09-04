@@ -16,9 +16,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/build"
 
+	"v.io/v23"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
@@ -91,7 +91,7 @@ func TestProfileClient(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", &dispatcher{})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &dispatcher{})
 	if err != nil {
 		return
 	}

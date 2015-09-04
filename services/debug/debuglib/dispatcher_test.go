@@ -26,7 +26,6 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 	libstats "v.io/x/ref/lib/stats"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -60,7 +59,7 @@ func TestDebugServer(t *testing.T) {
 	ctx = context.WithLogger(ctx, testLogger)
 
 	disp := NewDispatcher(nil)
-	server, err := xrpc.NewDispatchingServer(ctx, "", disp)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", disp)
 	if err != nil {
 		t.Fatalf("failed to start debug server: %v", err)
 	}

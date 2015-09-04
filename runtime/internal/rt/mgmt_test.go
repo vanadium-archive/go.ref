@@ -18,7 +18,6 @@ import (
 	"v.io/v23/services/appcycle"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -278,7 +277,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 	ch := make(chan string)
 	service := device.ConfigServer(&configServer{ch})
 	authorizer := securityflag.NewAuthorizerOrDie()
-	configServer, err := xrpc.NewServer(ctx, "", service, authorizer)
+	ctx, configServer, err := v23.WithNewServer(ctx, "", service, authorizer)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}

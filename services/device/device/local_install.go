@@ -25,10 +25,8 @@ import (
 	"v.io/v23/services/device"
 	"v.io/v23/services/repository"
 	"v.io/v23/uniqueid"
-
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/packages"
 )
 
@@ -93,7 +91,7 @@ func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) 
 		spec.Addrs = nil
 		ctx = v23.WithListenSpec(ctx, spec)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, name, dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, name, dispatcher)
 	if err != nil {
 		return nil, nil, err
 	}

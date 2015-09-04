@@ -25,7 +25,6 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/lib"
@@ -109,7 +108,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	s, err := xrpc.NewServer(ctx, "", simpleAdder{}, nil)
+	ctx, s, err := v23.WithNewServer(ctx, "", simpleAdder{}, nil)
 	if err != nil {
 		t.Fatalf("unable to start server: %v", err)
 	}
@@ -152,7 +151,7 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	s, err := xrpc.NewServer(ctx, "", simpleAdder{}, nil)
+	ctx, s, err := v23.WithNewServer(ctx, "", simpleAdder{}, nil)
 	if err != nil {
 		t.Fatalf("unable to start server: %v", err)
 	}
@@ -320,7 +319,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	if err != nil {
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}
-	s, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}

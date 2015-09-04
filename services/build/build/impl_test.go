@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -17,7 +18,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -47,7 +47,7 @@ type dispatcher struct{}
 
 func startServer(ctx *context.T, t *testing.T) naming.Endpoint {
 	unpublished := ""
-	server, err := xrpc.NewServer(ctx, unpublished, build.BuilderServer(&mock{}), nil)
+	ctx, server, err := v23.WithNewServer(ctx, unpublished, build.BuilderServer(&mock{}), nil)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}

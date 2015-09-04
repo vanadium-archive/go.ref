@@ -15,12 +15,12 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/testdata/arith"
 	"v.io/x/ref/lib/vdl/testdata/base"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/test"
 
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -103,7 +103,7 @@ func TestCalculator(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	server, err := xrpc.NewServer(ctx, "", arith.CalculatorServer(&serverCalculator{}), nil)
+	ctx, server, err := v23.WithNewServer(ctx, "", arith.CalculatorServer(&serverCalculator{}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestArith(t *testing.T) {
 	}
 
 	for i, obj := range objects {
-		server, err := xrpc.NewServer(ctx, "", obj, nil)
+		ctx, server, err := v23.WithNewServer(ctx, "", obj, nil)
 		if err != nil {
 			t.Fatalf("%d: %v", i, err)
 		}

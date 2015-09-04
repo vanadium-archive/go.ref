@@ -14,10 +14,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/testutil"
 )
@@ -102,7 +100,7 @@ func initWithParams(params initParams) (*context.T, v23.Shutdown) {
 		if err != nil {
 			panic(err)
 		}
-		s, err := xrpc.NewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
+		_, s, err := v23.WithNewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
 		if err != nil {
 			panic(err)
 		}

@@ -15,7 +15,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/build"
 
-	"v.io/x/ref/lib/xrpc"
+	"v.io/v23"
 	"v.io/x/ref/test"
 )
 
@@ -68,7 +68,7 @@ func startServer(t *testing.T, ctx *context.T) build.BuilderClientMethods {
 	gobin, goroot := findGoBinary(t, "go")
 	service := build.BuilderServer(NewBuilderService(gobin, goroot))
 	unpublished := ""
-	server, err := xrpc.NewServer(ctx, unpublished, service, nil)
+	ctx, server, err := v23.WithNewServer(ctx, unpublished, service, nil)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}

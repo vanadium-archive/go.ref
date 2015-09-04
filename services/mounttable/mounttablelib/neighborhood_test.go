@@ -14,8 +14,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
@@ -56,7 +54,7 @@ func TestNeighborhood(t *testing.T) {
 	defer nhd.(stopper).Stop()
 
 	// Start serving on a loopback address.
-	server, err := xrpc.NewDispatchingServer(rootCtx, "", nhd)
+	rootCtx, server, err := v23.WithNewDispatchingServer(rootCtx, "", nhd)
 	if err != nil {
 		boom(t, "Failed to create neighborhood: %s", err)
 	}

@@ -26,7 +26,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/security/audit"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/discharger"
 	"v.io/x/ref/services/identity/internal/auditor"
 	"v.io/x/ref/services/identity/internal/blesser"
@@ -213,7 +212,7 @@ func (s *IdentityServer) setupBlessingServices(ctx *context.T, macaroonKey []byt
 	disp := newDispatcher(macaroonKey, s.oauthBlesserParams)
 	principal := v23.GetPrincipal(ctx)
 	objectAddr := naming.Join(s.mountNamePrefix, fmt.Sprintf("%v", principal.BlessingStore().Default()))
-	server, err := xrpc.NewDispatchingServer(ctx, objectAddr, disp)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, objectAddr, disp)
 	if err != nil {
 		return nil, nil, err
 	}

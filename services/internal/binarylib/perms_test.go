@@ -18,7 +18,6 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
@@ -49,7 +48,7 @@ var binaryd = modules.Register(func(env *modules.Env, args ...string) error {
 	if err != nil {
 		ctx.Fatalf("Failed to create binaryd dispatcher: %v", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, publishName, dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, publishName, dispatcher)
 	if err != nil {
 		ctx.Fatalf("NewDispatchingServer(%v) failed: %v", publishName, err)
 	}

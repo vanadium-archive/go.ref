@@ -11,7 +11,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/ref/examples/fortune"
-	"v.io/x/ref/lib/xrpc"
 )
 
 func TestGet(t *testing.T) {
@@ -56,7 +55,7 @@ func setup(t *testing.T) (*context.T, fortune.FortuneClientStub, v23.Shutdown) {
 	service := fortune.FortuneServer(impl)
 	name := ""
 
-	server, err := xrpc.NewServer(ctx, name, service, authorizer)
+	ctx, server, err := v23.WithNewServer(ctx, name, service, authorizer)
 	if err != nil {
 		t.Errorf("Failure creating server: %v", err)
 	}

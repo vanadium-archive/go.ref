@@ -13,7 +13,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref/examples/fortune"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/xrpc"
+
 	// The v23.Init call below will use the generic runtime factory.
 	_ "v.io/x/ref/runtime/factories/generic"
 )
@@ -30,7 +30,7 @@ func main() {
 	impl := newImpl()
 	service := fortune.FortuneServer(impl)
 
-	server, err := xrpc.NewServer(ctx, *name, service, authorizer)
+	ctx, server, err := v23.WithNewServer(ctx, *name, service, authorizer)
 	if err != nil {
 		log.Panic("Failure creating server: ", err)
 	}

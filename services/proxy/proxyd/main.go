@@ -14,18 +14,15 @@ import (
 	"net/http"
 	"time"
 
-	"v.io/x/lib/cmdline"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/logging"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/static"
 )
 
@@ -97,7 +94,7 @@ func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 		monitoringName = name + "-mon"
 	}
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: proxyEndpoint.Name()})
-	server, err := xrpc.NewDispatchingServer(ctx, monitoringName, &nilDispatcher{})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, monitoringName, &nilDispatcher{})
 	if err != nil {
 		return fmt.Errorf("NewServer failed: %v", err)
 	}

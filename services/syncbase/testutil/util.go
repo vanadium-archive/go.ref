@@ -24,7 +24,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/services/syncbase/server"
 	tsecurity "v.io/x/ref/test/testutil"
 )
@@ -240,9 +239,9 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)
 	}
-	s, err := xrpc.NewDispatchingServer(serverCtx, "", server.NewDispatcher(service))
+	serverCtx, s, err := v23.WithNewDispatchingServer(serverCtx, "", server.NewDispatcher(service))
 	if err != nil {
-		vlog.Fatal("xrpc.NewDispatchingServer() failed: ", err)
+		vlog.Fatal("v23.WithNewDispatchingServer() failed: ", err)
 	}
 	name := s.Status().Endpoints[0].Name()
 	return name, func() {

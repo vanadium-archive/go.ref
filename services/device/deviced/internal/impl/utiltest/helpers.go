@@ -32,7 +32,6 @@ import (
 	"v.io/v23/services/stats"
 	"v.io/v23/verror"
 	"v.io/x/ref/internal/logger"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
@@ -763,7 +762,7 @@ func StartRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 	if err != nil {
 		t.Fatalf("server.NewDispatcher failed: %v", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, von, d)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, von, d)
 	if err != nil {
 		t.Fatalf("server.ServeDispatcher failed: %v", err)
 	}
