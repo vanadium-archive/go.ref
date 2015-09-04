@@ -172,7 +172,7 @@ func (s *server) isStopState() bool {
 	return s.state == stopping || s.state == stopped
 }
 
-var _ rpc.Server = (*server)(nil)
+var _ rpc.DeprecatedServer = (*server)(nil)
 
 func InternalNewServer(
 	ctx *context.T,
@@ -181,7 +181,7 @@ func InternalNewServer(
 	settingsPublisher *pubsub.Publisher,
 	settingsName string,
 	client rpc.Client,
-	opts ...rpc.ServerOpt) (rpc.Server, error) {
+	opts ...rpc.ServerOpt) (rpc.DeprecatedServer, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.WithNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("rpc", "server", "routing-id", streamMgr.RoutingID().String())
@@ -1338,7 +1338,7 @@ func (fs *flowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.discharges
 }
-func (fs *flowServer) Server() rpc.XServer {
+func (fs *flowServer) Server() rpc.Server {
 	//nologcall
 	return fs.server
 }

@@ -13,7 +13,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/xrpc"
 )
 
 var errRetryThis = verror.Register("retry_test.retryThis", verror.RetryBackoff, "retryable error")
@@ -39,7 +38,7 @@ func TestRetryCall(t *testing.T) {
 
 	// Start the server.
 	rs := retryServer{}
-	server, err := xrpc.NewServer(ctx, "", &rs, security.AllowEveryone())
+	ctx, server, err := v23.WithNewServer(ctx, "", &rs, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}

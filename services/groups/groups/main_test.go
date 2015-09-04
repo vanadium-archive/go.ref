@@ -82,7 +82,7 @@ func capitalize(s string) string {
 	return string(unicode.ToUpper(rune)) + s[size:]
 }
 
-func startServer(ctx *context.T, t *testing.T) (rpc.XServer, naming.Endpoint) {
+func startServer(ctx *context.T, t *testing.T) (rpc.Server, naming.Endpoint) {
 	unpublished := ""
 	s, err := xrpc.NewServer(ctx, unpublished, groups.GroupServer(&mock{}), nil)
 	if err != nil {
@@ -91,7 +91,7 @@ func startServer(ctx *context.T, t *testing.T) (rpc.XServer, naming.Endpoint) {
 	return s, s.Status().Endpoints[0]
 }
 
-func stopServer(t *testing.T, server rpc.XServer) {
+func stopServer(t *testing.T, server rpc.Server) {
 	if err := server.Stop(); err != nil {
 		t.Errorf("Stop() failed: %v", err)
 	}

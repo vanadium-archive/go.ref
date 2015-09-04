@@ -14,7 +14,7 @@ import (
 )
 
 type server struct {
-	s rpc.Server
+	s rpc.DeprecatedServer
 }
 
 // NewServer creates a new Server instance to serve a service object.
@@ -35,7 +35,7 @@ type server struct {
 // Invoker interface, the Invoker is used to invoke methods directly,
 // without reflection.  If name is an empty string, no attempt will
 // made to publish.
-func NewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (rpc.XServer, error) {
+func NewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	s, err := v23.NewServer(ctx, opts...)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func NewServer(ctx *context.T, name string, object interface{}, auth security.Au
 // method which will in turn return the object and security.Authorizer
 // used to serve the actual RPC call.  If name is an empty string, no
 // attempt will made to publish that name to a mount table.
-func NewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (rpc.XServer, error) {
+func NewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	s, err := v23.NewServer(ctx, opts...)
 	if err != nil {
 		return nil, err

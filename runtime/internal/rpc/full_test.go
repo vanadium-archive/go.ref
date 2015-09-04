@@ -78,7 +78,7 @@ func (c *fakeClock) Advance(steps uint) {
 	c.Unlock()
 }
 
-func testInternalNewServerWithPubsub(ctx *context.T, streamMgr stream.Manager, ns namespace.T, settingsPublisher *pubsub.Publisher, settingsStreamName string, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func testInternalNewServerWithPubsub(ctx *context.T, streamMgr stream.Manager, ns namespace.T, settingsPublisher *pubsub.Publisher, settingsStreamName string, opts ...rpc.ServerOpt) (rpc.DeprecatedServer, error) {
 	client, err := InternalNewClient(streamMgr, ns)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func testInternalNewServerWithPubsub(ctx *context.T, streamMgr stream.Manager, n
 	return InternalNewServer(ctx, streamMgr, ns, settingsPublisher, settingsStreamName, client, opts...)
 }
 
-func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, opts ...rpc.ServerOpt) (rpc.DeprecatedServer, error) {
 	return testInternalNewServerWithPubsub(ctx, streamMgr, ns, nil, "", opts...)
 }
 

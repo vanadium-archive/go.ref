@@ -73,7 +73,7 @@ type Server struct {
 
 	// The server that handles the rpc layer.  Listen on this server is
 	// lazily started.
-	server rpc.Server
+	server rpc.DeprecatedServer
 
 	// The saved dispatcher to reuse when serve is called multiple times.
 	dispatcher *dispatcher

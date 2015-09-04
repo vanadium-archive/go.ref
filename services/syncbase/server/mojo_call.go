@@ -16,12 +16,12 @@ import (
 
 type mojoServerCall struct {
 	sec    security.Call
-	srv    rpc.XServer
+	srv    rpc.Server
 	suffix string
 }
 
 // TODO(sadovsky): Synthesize endpoints and discharges as needed.
-func newMojoServerCall(ctx *context.T, srv rpc.XServer, suffix string, method rpc.MethodDesc) rpc.ServerCall {
+func newMojoServerCall(ctx *context.T, srv rpc.Server, suffix string, method rpc.MethodDesc) rpc.ServerCall {
 	p := v23.GetPrincipal(ctx)
 	// HACK: For now, we set the remote (client, i.e. Mojo app) blessing to be the
 	// same as the local (server, i.e. Syncbase Mojo service) blessing.
@@ -63,6 +63,6 @@ func (call *mojoServerCall) GrantedBlessings() security.Blessings {
 	return security.Blessings{}
 }
 
-func (call *mojoServerCall) Server() rpc.XServer {
+func (call *mojoServerCall) Server() rpc.Server {
 	return call.srv
 }

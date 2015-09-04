@@ -74,7 +74,7 @@ type xserver struct {
 	stats *rpcStats // stats for this server.
 }
 
-func NewServer(ctx *context.T, name string, object interface{}, authorizer security.Authorizer, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.XServer, error) {
+func NewServer(ctx *context.T, name string, object interface{}, authorizer security.Authorizer, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	if object == nil {
 		return nil, verror.New(verror.ErrBadArg, ctx, "nil object")
 	}
@@ -87,7 +87,7 @@ func NewServer(ctx *context.T, name string, object interface{}, authorizer secur
 	return NewDispatchingServer(ctx, name, d, settingsPublisher, settingsName, opts...)
 }
 
-func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.XServer, error) {
+func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	if dispatcher == nil {
 		return nil, verror.New(verror.ErrBadArg, ctx, "nil dispatcher")
 	}
@@ -764,9 +764,9 @@ func (fs *xflowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.flow.RemoteDischarges()
 }
-func (fs *xflowServer) Server() rpc.XServer {
+func (fs *xflowServer) Server() rpc.Server {
 	//nologcall
-	return nil // TODO(toddw): Change return to rpc.XServer
+	return nil // TODO(toddw): Change return to rpc.Server
 }
 func (fs *xflowServer) Timestamp() time.Time {
 	//nologcall

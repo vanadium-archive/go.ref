@@ -487,7 +487,7 @@ func (d *dummyResponder) GrantedBlessings() security.Blessings {
 	return security.Blessings{}
 }
 
-func (d *dummyResponder) Server() rpc.XServer {
+func (d *dummyResponder) Server() rpc.Server {
 	return nil
 }
 

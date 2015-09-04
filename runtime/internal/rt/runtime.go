@@ -43,6 +43,27 @@ import (
 	ivtrace "v.io/x/ref/runtime/internal/vtrace"
 )
 
+const (
+	none = iota
+	xclients
+	xservers
+)
+
+var transitionState = none
+
+func init() {
+	switch ts := os.Getenv("V23_RPC_TRANSITION_STATE"); ts {
+	case "xclients":
+		transitionState = xclients
+	case "xservers":
+		transitionState = xservers
+	case "":
+		transitionState = none
+	default:
+		panic("Unknown transition state: " + ts)
+	}
+}
+
 type contextKey int
 
 const (
@@ -233,7 +254,7 @@ func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
 	return inaming.NewEndpoint(ep)
 }
 
-func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.DeprecatedServer, error) {
 	defer apilog.LogCallf(ctx, "opts...=%v", opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Create a new RoutingID (and StreamManager) for each server.
 	sm, err := newStreamManager(ctx)
@@ -410,17 +431,15 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	var client rpc.Client
 	var err error
 	deps := []interface{}{vtraceDependency{}}
-	switch {
-	case fm != nil && sm != nil:
+
+	if fm != nil && transitionState >= xclients {
 		client, err = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
 		deps = append(deps, fm, sm)
-	case fm != nil:
-		client, err = irpc.NewXClient(ctx, otherOpts...)
-		deps = append(deps, fm)
-	case sm != nil:
+	} else {
 		client, err = irpc.InternalNewClient(sm, ns, otherOpts...)
 		deps = append(deps, sm)
 	}
+
 	if err != nil {
 		return ctx, nil, err
 	}
@@ -570,32 +589,62 @@ func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*cont
 	return newctx, id.settingsPublisher, id.settingsName, otherOpts, nil
 }
 
-func (r *Runtime) XWithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.XServer, error) {
+func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	// TODO(mattr): Deal with shutdown deps.
-	newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+	if transitionState >= xservers {
+		// TODO(mattr): Deal with shutdown deps.
+		newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+		if err != nil {
+			return ctx, nil, err
+		}
+		s, err := irpc.NewServer(newctx, name, object, auth, spub, sname, opts...)
+		if err != nil {
+			// TODO(mattr): Stop the flow manager.
+			return ctx, nil, err
+		}
+		return newctx, s, nil
+	}
+	s, err := r.NewServer(ctx, opts...)
 	if err != nil {
 		return ctx, nil, err
 	}
-	s, err := irpc.NewServer(newctx, name, object, auth, spub, sname, opts...)
-	if err != nil {
-		// TODO(mattr): Stop the flow manager.
+	if _, err = s.Listen(r.GetListenSpec(ctx)); err != nil {
+		s.Stop()
 		return ctx, nil, err
 	}
-	return newctx, s, err
+	if err = s.Serve(name, object, auth); err != nil {
+		s.Stop()
+		return ctx, nil, err
+	}
+	return ctx, s, nil
 }
 
-func (r *Runtime) XWithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.XServer, error) {
+func (r *Runtime) WithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	// TODO(mattr): Deal with shutdown deps.
-	newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+	if transitionState >= xservers {
+		// TODO(mattr): Deal with shutdown deps.
+		newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+		if err != nil {
+			return ctx, nil, err
+		}
+		s, err := irpc.NewDispatchingServer(newctx, name, disp, spub, sname, opts...)
+		if err != nil {
+			// TODO(mattr): Stop the flow manager.
+			return ctx, nil, err
+		}
+		return newctx, s, nil
+	}
+
+	s, err := r.NewServer(ctx, opts...)
 	if err != nil {
 		return ctx, nil, err
 	}
-	s, err := irpc.NewDispatchingServer(newctx, name, disp, spub, sname, opts...)
-	if err != nil {
-		// TODO(mattr): Stop the flow manager.
+	if _, err = s.Listen(r.GetListenSpec(ctx)); err != nil {
 		return ctx, nil, err
 	}
-	return newctx, s, err
+	if err = s.ServeDispatcher(name, disp); err != nil {
+		s.Stop()
+		return ctx, nil, err
+	}
+	return ctx, s, nil
 }

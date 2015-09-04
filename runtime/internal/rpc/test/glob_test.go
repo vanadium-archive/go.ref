@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/i18n"
@@ -19,7 +20,6 @@ import (
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -42,7 +42,7 @@ func TestGlob(t *testing.T) {
 		tree.find(strings.Split(p, "/"), true)
 	}
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", &disp{tree})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &disp{tree})
 	if err != nil {
 		t.Fatalf("failed to start debug server: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestGlobDeny(t *testing.T) {
 	tree.find([]string{"a", "b"}, true)
 	tree.find([]string{"a", "deny", "x"}, true)
 
-	server, err := xrpc.NewDispatchingServer(ctx, "", &disp{tree})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &disp{tree})
 	if err != nil {
 		t.Fatalf("failed to start debug server: %v", err)
 	}

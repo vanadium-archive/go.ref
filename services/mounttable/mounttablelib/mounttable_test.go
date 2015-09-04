@@ -450,7 +450,7 @@ func (fakeServerCall) Suffix() string                       { return "" }
 func (fakeServerCall) LocalEndpoint() naming.Endpoint       { return nil }
 func (fakeServerCall) RemoteEndpoint() naming.Endpoint      { return nil }
 func (fakeServerCall) GrantedBlessings() security.Blessings { return security.Blessings{} }
-func (fakeServerCall) Server() rpc.XServer                  { return nil }
+func (fakeServerCall) Server() rpc.Server                   { return nil }
 func (c *fakeServerCall) SendStream() interface {
 	Send(naming.GlobReply) error
 } {

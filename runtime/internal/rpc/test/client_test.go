@@ -25,7 +25,6 @@ import (
 
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
@@ -55,7 +54,7 @@ func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string)
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
-	server, err := xrpc.NewDispatchingServer(ctx, "", mt, options.ServesMountTable(true), seclevel)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true), seclevel)
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
@@ -99,7 +98,7 @@ var echoServer = modules.Register(func(env *modules.Env, args ...string) error {
 
 	id, mp := args[0], args[1]
 	disp := &treeDispatcher{id: id}
-	server, err := xrpc.NewDispatchingServer(ctx, mp, disp)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, mp, disp)
 	if err != nil {
 		return err
 	}
@@ -514,7 +513,7 @@ var childPing = modules.Register(func(env *modules.Env, args ...string) error {
 
 func initServer(t *testing.T, ctx *context.T, opts ...rpc.ServerOpt) (string, func()) {
 	done := make(chan struct{})
-	server, err := xrpc.NewServer(ctx, "", &simple{done}, nil, opts...)
+	ctx, server, err := v23.WithNewServer(ctx, "", &simple{done}, nil, opts...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

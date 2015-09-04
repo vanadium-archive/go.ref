@@ -5,8 +5,6 @@
 package rpc
 
 import (
-	"strings"
-
 	"v.io/v23/context"
 	"v.io/v23/flow/message"
 	"v.io/v23/namespace"
@@ -24,11 +22,9 @@ var _ = rpc.Client((*transitionClient)(nil))
 func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	var err error
 	ret := &transitionClient{}
-	// TODO(mattr): Un-comment this once servers are sending setups before closing
-	// connections in error cases.
-	// if ret.xc, err = InternalNewXClient(ctx, opts...); err != nil {
-	// 	return nil, err
-	// }
+	if ret.xc, err = NewXClient(ctx, opts...); err != nil {
+		return nil, err
+	}
 	if ret.c, err = InternalNewClient(streamMgr, ns, opts...); err != nil {
 		ret.xc.Close()
 		return nil, err
@@ -37,12 +33,6 @@ func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, ns namespace.
 }
 
 func (t *transitionClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
-	// The agent cannot reconnect, and it's never going to transition to the new
-	// rpc system.  Instead it's moving off of rpc entirely.  For now we detect
-	// and send it to the old rpc system.
-	if t.xc == nil || strings.HasPrefix(name, "/@5@unixfd@") || strings.HasPrefix(name, "/@6@unixfd@") {
-		return t.c.StartCall(ctx, name, method, args, opts...)
-	}
 	call, err := t.xc.StartCall(ctx, name, method, args, opts...)
 	if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
 		call, err = t.c.StartCall(ctx, name, method, args, opts...)
@@ -51,12 +41,6 @@ func (t *transitionClient) StartCall(ctx *context.T, name, method string, args [
 }
 
 func (t *transitionClient) Call(ctx *context.T, name, method string, in, out []interface{}, opts ...rpc.CallOpt) error {
-	// The agent cannot reconnect, and it's never going to transition to the new
-	// rpc system.  Instead it's moving off of rpc entirely.  For now we detect
-	// and send it to the old rpc system.
-	if t.xc == nil || strings.HasPrefix(name, "/@5@unixfd@") || strings.HasPrefix(name, "/@6@unixfd@") {
-		return t.c.Call(ctx, name, method, in, out, opts...)
-	}
 	err := t.xc.Call(ctx, name, method, in, out, opts...)
 	if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
 		err = t.c.Call(ctx, name, method, in, out, opts...)
@@ -65,8 +49,6 @@ func (t *transitionClient) Call(ctx *context.T, name, method string, in, out []i
 }
 
 func (t *transitionClient) Close() {
-	if t.xc != nil {
-		t.xc.Close()
-	}
+	t.xc.Close()
 	t.c.Close()
 }

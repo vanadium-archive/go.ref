@@ -8,13 +8,12 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
-
-	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -45,7 +44,7 @@ func (*streamStringBool) SendStream() interface {
 func TestMethodSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	server, err := xrpc.NewServer(ctx, "", sigImpl{}, nil)
+	ctx, server, err := v23.WithNewServer(ctx, "", sigImpl{}, nil)
 	if err != nil {
 		t.Fatalf("failed to start sig server: %v", err)
 	}
@@ -90,7 +89,7 @@ func TestMethodSignature(t *testing.T) {
 func TestSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	server, err := xrpc.NewServer(ctx, "", sigImpl{}, nil)
+	ctx, server, err := v23.WithNewServer(ctx, "", sigImpl{}, nil)
 	if err != nil {
 		t.Fatalf("failed to start sig server: %v", err)
 	}

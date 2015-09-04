@@ -129,7 +129,7 @@ func (s *IdentityServer) Serve(ctx *context.T, externalHttpAddr, httpAddr, tlsCo
 	}
 }
 
-func (s *IdentityServer) Listen(ctx *context.T, externalHttpAddr, httpAddr, tlsConfig string) (rpc.XServer, []string, string) {
+func (s *IdentityServer) Listen(ctx *context.T, externalHttpAddr, httpAddr, tlsConfig string) (rpc.Server, []string, string) {
 	// json-encoded public key and blessing names of this server
 	principal := v23.GetPrincipal(ctx)
 	http.Handle("/auth/blessing-root", handlers.BlessingRoot{principal})
@@ -209,7 +209,7 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 
 // Starts the Vanadium and HTTP services for blessing, and the Vanadium service for discharging.
 // All Vanadium services are started on the same port.
-func (s *IdentityServer) setupBlessingServices(ctx *context.T, macaroonKey []byte) (rpc.XServer, []string, error) {
+func (s *IdentityServer) setupBlessingServices(ctx *context.T, macaroonKey []byte) (rpc.Server, []string, error) {
 	disp := newDispatcher(macaroonKey, s.oauthBlesserParams)
 	principal := v23.GetPrincipal(ctx)
 	objectAddr := naming.Join(s.mountNamePrefix, fmt.Sprintf("%v", principal.BlessingStore().Default()))
