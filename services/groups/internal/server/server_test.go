@@ -21,7 +21,6 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/groups/internal/server"
 	"v.io/x/ref/services/groups/internal/store"
-	"v.io/x/ref/services/groups/internal/store/gkv"
 	"v.io/x/ref/services/groups/internal/store/leveldb"
 	"v.io/x/ref/services/groups/internal/store/mem"
 	"v.io/x/ref/test/testutil"
@@ -30,8 +29,7 @@ import (
 type backend int
 
 const (
-	gkvstore backend = iota
-	leveldbstore
+	leveldbstore backend = iota
 	memstore
 )
 
@@ -107,16 +105,6 @@ func newServer(ctx *context.T, be backend) (string, func()) {
 	switch be {
 	case memstore:
 		st = mem.New()
-	case gkvstore:
-		file, err := ioutil.TempFile("", "")
-		if err != nil {
-			ctx.Fatal("ioutil.TempFile() failed: ", err)
-		}
-		st, err = gkv.New(file.Name())
-		if err != nil {
-			ctx.Fatal("gkv.New() failed: ", err)
-		}
-		path = file.Name()
 	case leveldbstore:
 		path, err = ioutil.TempDir("", "")
 		if err != nil {
@@ -185,10 +173,6 @@ func setupOrDie(be backend) (clientCtx *context.T, serverName string, cleanup fu
 ////////////////////////////////////////
 // Test cases
 
-func TestCreateGkvStore(t *testing.T) {
-	testCreateHelper(t, gkvstore)
-}
-
 func TestCreateMemStore(t *testing.T) {
 	testCreateHelper(t, memstore)
 }
@@ -243,10 +227,6 @@ func testCreateHelper(t *testing.T, be backend) {
 	if !entriesEqual(got, want) {
 		t.Errorf("Entries do not match: got %v, want %v", got, want)
 	}
-}
-
-func TestDeleteGkvStore(t *testing.T) {
-	testDeleteHelper(t, gkvstore)
 }
 
 func TestDeleteMemStore(t *testing.T) {
@@ -311,10 +291,6 @@ func testDeleteHelper(t *testing.T, be backend) {
 	if err := g.Delete(ctx, ""); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Delete should have failed with access error: %v", err)
 	}
-}
-
-func TestPermsGkvStore(t *testing.T) {
-	testPermsHelper(t, gkvstore)
 }
 
 func TestPermsMemStore(t *testing.T) {
@@ -426,10 +402,6 @@ func testPermsHelper(t *testing.T, be backend) {
 	}
 }
 
-func TestAddGkvStore(t *testing.T) {
-	testAddHelper(t, gkvstore)
-}
-
 func TestAddMemStore(t *testing.T) {
 	testAddHelper(t, memstore)
 }
@@ -517,10 +489,6 @@ func testAddHelper(t *testing.T, be backend) {
 	if err := g.Add(ctx, bpc("foo"), ""); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Add should have failed with access error: %v", err)
 	}
-}
-
-func TestRemoveGkvStore(t *testing.T) {
-	testRemoveHelper(t, gkvstore)
 }
 
 func TestRemoveMemStore(t *testing.T) {
