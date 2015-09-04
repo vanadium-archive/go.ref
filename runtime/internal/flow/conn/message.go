@@ -58,10 +58,16 @@ func (p *messagePipe) writeMsg(ctx *context.T, m message.Message) (err error) {
 	if err = p.cipher.Seal(p.writeBuf); err != nil {
 		return err
 	}
-	if _, err = p.rw.WriteMsg(p.writeBuf); err == nil {
-		ctx.VI(2).Infof("Wrote low-level message: %#v", m)
+	if _, err = p.rw.WriteMsg(p.writeBuf); err != nil {
+		return err
 	}
-	return err
+	if data, ok := m.(*message.Data); ok && (data.Flags&message.DisableEncryptionFlag != 0) {
+		if _, err = p.rw.WriteMsg(data.Payload...); err != nil {
+			return err
+		}
+	}
+	ctx.VI(2).Infof("Wrote low-level message: %#v", m)
+	return nil
 }
 
 func (p *messagePipe) readMsg(ctx *context.T) (message.Message, error) {

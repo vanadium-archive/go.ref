@@ -125,7 +125,13 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	if rSetup.PeerNaClPublicKey == nil {
 		return nil, NewErrMissingSetupOption(ctx, "peerNaClPublicKey")
 	}
-	return c.mp.setupEncryption(ctx, pk, sk, rSetup.PeerNaClPublicKey), nil
+	binding := c.mp.setupEncryption(ctx, pk, sk, rSetup.PeerNaClPublicKey)
+	// if we're encapsulated in another flow, tell that flow to stop
+	// encrypting now that we've started.
+	if f, ok := c.mp.rw.(*flw); ok {
+		f.disableEncryption()
+	}
+	return binding, nil
 }
 
 func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {

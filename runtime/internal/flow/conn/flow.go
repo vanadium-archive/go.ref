@@ -25,6 +25,7 @@ type flw struct {
 	opened     bool
 	q          *readq
 	bkey, dkey uint64
+	noEncrypt  bool
 }
 
 // Ensure that *flw implements flow.Flow.
@@ -44,6 +45,11 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, diale
 	f.SetContext(ctx)
 	c.flows[id] = f
 	return f
+}
+
+// disableEncrytion should not be called concurrently with Write* methods.
+func (f *flw) disableEncryption() {
+	f.noEncrypt = false
 }
 
 // Implement io.Reader.
@@ -133,6 +139,9 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 		done := len(left) == 0 && len(parts) == 0
 		if alsoClose && done {
 			d.Flags |= message.CloseFlag
+		}
+		if f.noEncrypt {
+			d.Flags |= message.DisableEncryptionFlag
 		}
 		sent += size
 		return size, done, f.conn.mp.writeMsg(f.ctx, d)
