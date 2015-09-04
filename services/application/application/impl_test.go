@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -75,6 +76,8 @@ var (
   "Restarts": 0,
   "RestartTimeWindow": 0
 }`
+	profiles  = "a,b,c,d"
+	serverOut bytes.Buffer
 )
 
 //go:generate v23 test generate
@@ -95,12 +98,13 @@ func (s *server) Put(ctx *context.T, _ rpc.ServerCall, profiles []string, env ap
 
 func (s *server) PutX(ctx *context.T, _ rpc.ServerCall, profile string, env application.Envelope, overwrite bool) error {
 	ctx.VI(2).Infof("%v.PutX(%v, %v, %t) was called", s.suffix, profile, env, overwrite)
+	fmt.Fprintf(&serverOut, "PutX(%s, ..., %t)\n", profile, overwrite)
 	return nil
 }
 
 func (s *server) Profiles(ctx *context.T, _ rpc.ServerCall) ([]string, error) {
 	ctx.VI(2).Infof("%v.Profiles() was called", s.suffix)
-	return nil, nil
+	return strings.Split(profiles, ","), nil
 }
 
 func (s *server) Remove(ctx *context.T, _ rpc.ServerCall, profile string) error {
@@ -142,18 +146,24 @@ func TestApplicationClient(t *testing.T) {
 
 	// Setup the command-line.
 	var stdout, stderr bytes.Buffer
+	resetOut := func() {
+		stdout.Reset()
+		stderr.Reset()
+		serverOut.Reset()
+	}
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "myapp/1")
-	profile := "myprofile"
+	oneProfile := "myprofile"
+	severalProfiles := "myprofile1,myprofile2,myprofile1"
 
 	// Test the 'Match' command.
-	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"match", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"match", appName, oneProfile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := jsonEnv, strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from match. Got %q, expected %q", got, expected)
 	}
-	stdout.Reset()
+	resetOut()
 
 	// Test the 'put' command.
 	f, err := ioutil.TempFile("", "test")
@@ -168,40 +178,81 @@ func TestApplicationClient(t *testing.T) {
 	if err = f.Close(); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"put", appName, profile, fileName}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"put", appName, severalProfiles, fileName}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "Application envelope added successfully.", strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Application envelope added for profile myprofile1.\nApplication envelope added for profile myprofile2.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from put. Got %q, expected %q", got, expected)
 	}
-	stdout.Reset()
+	if expected1, expected2, got := "PutX(myprofile1, ..., false)\nPutX(myprofile2, ..., false)", "PutX(myprofile2, ..., false)\nPutX(myprofile1, ..., false)", strings.TrimSpace(serverOut.String()); got != expected1 && got != expected2 {
+		t.Errorf("Unexpected output from mock server. Got %q, expected %q or %q", got, expected1, expected2)
+	}
+	resetOut()
+
+	// Test the 'put' command with overwrite = true.
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"put", "--overwrite", appName, oneProfile, fileName}); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if expected, got := "Application envelope added for profile myprofile.", strings.TrimSpace(stdout.String()); got != expected {
+		t.Errorf("Unexpected output from put. Got %q, expected %q", got, expected)
+	}
+	if expected, got := "PutX(myprofile, ..., true)", strings.TrimSpace(serverOut.String()); got != expected {
+		t.Errorf("Unexpected output from mock server. Got %q, expected %q", got, expected)
+	}
+	resetOut()
+
+	// Test the 'put' command with no profiles.
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"put", appName, ",,,", fileName}); err == nil {
+		t.Errorf("Expected put with no profiles to fail")
+	} else if expected, got := "ERROR: put: no profiles specified", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+		t.Errorf("Unexpected stderr output from put. Got %q, expected %q", got, expected+" ...")
+	}
+	resetOut()
 
 	// Test the 'remove' command.
-	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"remove", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"remove", appName, oneProfile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Application envelope removed successfully.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from remove. Got %q, expected %q", got, expected)
 	}
-	stdout.Reset()
+	resetOut()
 
 	// Test the 'edit' command. (nothing changed)
 	env.Vars = map[string]string{"EDITOR": "true"}
-	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, oneProfile}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Nothing changed", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from edit. Got %q, expected %q", got, expected)
 	}
-	stdout.Reset()
+	resetOut()
 
 	// Test the 'edit' command.
 	env.Vars = map[string]string{"EDITOR": "perl -pi -e 's/arg1/arg111/'"}
-	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, profile}); err != nil {
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, oneProfile}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "Application envelope updated successfully.", strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Application envelope added for profile myprofile.\nApplication envelope updated successfully.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from edit. Got %q, expected %q", got, expected)
 	}
-	stdout.Reset()
+	resetOut()
+
+	// Test the 'edit' command with more than 1 profiles.
+	env.Vars = map[string]string{"EDITOR": "true"}
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"edit", appName, severalProfiles}); err == nil {
+		t.Errorf("Expected edit with two profiles to fail")
+	} else if expected, got := "ERROR: edit: incorrect number of profiles, expected 1, got 2", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+		t.Errorf("Unexpected stderr output from edit. Got %q, expected %q", got, expected+" ...")
+	}
+	resetOut()
+
+	// Test the 'profiles' command.
+	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"profiles", appName}); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if expected, got := profiles, strings.TrimSpace(stdout.String()); got != expected {
+		t.Errorf("Unexpected output from profiles. Got %q, expected %q", got, expected)
+	}
+	resetOut()
 }
