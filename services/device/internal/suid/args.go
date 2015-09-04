@@ -33,6 +33,7 @@ type WorkParameters struct {
 	uid       int
 	gid       int
 	workspace string
+	agentsock string
 	logDir    string
 	argv0     string
 	argv      []string
@@ -54,9 +55,9 @@ type ArgsSavedForTest struct {
 const SavedArgs = "V23_SAVED_ARGS"
 
 var (
-	flagUsername, flagWorkspace, flagLogDir, flagRun, flagProgName *string
-	flagMinimumUid                                                 *int64
-	flagRemove, flagKill, flagChown, flagDryrun                    *bool
+	flagUsername, flagWorkspace, flagLogDir, flagRun, flagProgName, flagAgentSock *string
+	flagMinimumUid                                                                *int64
+	flagRemove, flagKill, flagChown, flagDryrun                                   *bool
 )
 
 func init() {
@@ -67,6 +68,7 @@ func setupFlags(fs *flag.FlagSet) {
 	const uidThreshold = 501
 	flagUsername = fs.String("username", "", "The UNIX user name used for the other functions of this tool.")
 	flagWorkspace = fs.String("workspace", "", "Path to the application's workspace directory.")
+	flagAgentSock = fs.String("agentsock", "", "Path to the application's security agent socket.")
 	flagLogDir = fs.String("logdir", "", "Path to the log directory.")
 	flagRun = fs.String("run", "", "Path to the application to exec.")
 	flagProgName = fs.String("progname", "unnamed_app", "Visible name of the application, used in argv[0]")
@@ -218,6 +220,7 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 	}
 
 	wp.workspace = *flagWorkspace
+	wp.agentsock = *flagAgentSock
 	wp.argv0 = *flagRun
 	wp.logDir = *flagLogDir
 	wp.argv = append([]string{*flagProgName}, fs.Args()...)

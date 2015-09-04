@@ -41,6 +41,8 @@ The global flags are:
    generate a pairing token for the device manager that will need to be provided
    when a device is claimed
 
+ -agentsock=
+   Path to the application's security agent socket.
  -alsologtostderr=true
    log to standard error as well as files
  -chown=false

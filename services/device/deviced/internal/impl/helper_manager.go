@@ -76,7 +76,7 @@ func (s suidHelperState) chownTree(ctx *context.T, username string, dirOrFile st
 
 type suidAppCmdArgs struct {
 	// args to helper
-	targetUser, progname, workspace, logdir, binpath string
+	targetUser, progname, workspace, logdir, binpath, sockPath string
 	// fields in exec.Cmd
 	env            []string
 	stdout, stderr io.Writer
@@ -105,6 +105,9 @@ func (s suidHelperState) getAppCmd(ctx *context.T, a *suidAppCmdArgs) (*exec.Cmd
 	cmd.Args = append(cmd.Args, "--progname", a.progname)
 	cmd.Args = append(cmd.Args, "--workspace", a.workspace)
 	cmd.Args = append(cmd.Args, "--logdir", a.logdir)
+	if a.sockPath != "" {
+		cmd.Args = append(cmd.Args, "--agentsock", a.sockPath)
+	}
 
 	cmd.Args = append(cmd.Args, "--run", a.binpath)
 	cmd.Args = append(cmd.Args, "--")

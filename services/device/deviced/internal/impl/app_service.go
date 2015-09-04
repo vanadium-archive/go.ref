@@ -834,7 +834,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 	return instanceDir, instanceID, nil
 }
 
-func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error) {
+func genCmd(ctx *context.T, instanceDir, nsRoot string, usingSocketAgent bool) (*exec.Cmd, error) {
 	systemName, err := readSystemNameForInstance(instanceDir)
 	if err != nil {
 		return nil, err
@@ -855,6 +855,11 @@ func genCmd(ctx *context.T, instanceDir string, nsRoot string) (*exec.Cmd, error
 	}
 
 	saArgs := suidAppCmdArgs{targetUser: systemName, binpath: binPath}
+	if usingSocketAgent {
+		if saArgs.sockPath, err = sockPath(instanceDir); err != nil {
+			return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to obtain agent socket path: %v", err))
+		}
+	}
 
 	// Pass the displayed name of the program (argv0 as seen in ps output)
 	// Envelope data comes from the user so we sanitize it for safety
@@ -1053,13 +1058,17 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	return pid, nil
 }
 
+func (i *appRunner) usingSocketAgent() bool {
+	return i.securityAgent != nil && i.securityAgent.keyMgr != nil
+}
+
 func (i *appRunner) run(ctx *context.T, instanceDir string) error {
 	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateLaunching); err != nil {
 		return err
 	}
 	var pid int
 
-	cmd, err := genCmd(ctx, instanceDir, i.mtAddress)
+	cmd, err := genCmd(ctx, instanceDir, i.mtAddress, i.usingSocketAgent())
 	if err == nil {
 		pid, err = i.startCmd(ctx, instanceDir, cmd)
 	}
@@ -1736,7 +1745,7 @@ Roots: {{.Principal.Roots.DebugString}}
 	} else {
 		debugInfo.Info = info
 	}
-	if cmd, err := genCmd(ctx, instanceDir, i.runner.mtAddress); err != nil {
+	if cmd, err := genCmd(ctx, instanceDir, i.runner.mtAddress, i.runner.usingSocketAgent()); err != nil {
 		return "", err
 	} else {
 		debugInfo.Cmd = cmd

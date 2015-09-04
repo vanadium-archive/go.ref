@@ -42,9 +42,13 @@ func (hw *WorkParameters) Chown() error {
 	chownPaths := hw.argv
 	if !hw.chown {
 		// Chown was invoked as part of regular suid execution, rather than directly
-		// via --chown. In that case, we chown the workspace and log directory
+		// via --chown. In that case, we chown the workspace, log directory, and,
+		// if specified, the agent socket path
 		// TODO(rjkroege): Ensure that the device manager can read log entries.
 		chownPaths = []string{hw.workspace, hw.logDir}
+		if hw.agentsock != "" {
+			chownPaths = append(chownPaths, hw.agentsock)
+		}
 	}
 
 	for _, p := range chownPaths {
