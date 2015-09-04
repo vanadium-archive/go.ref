@@ -5,39 +5,27 @@
 package memstore
 
 import (
-	"sort"
 	"sync"
 
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/ptrie"
 )
 
 type stream struct {
-	mu        sync.Mutex
-	node      *store.ResourceNode
-	sn        *snapshot
-	keys      []string
-	currIndex int
-	currKey   *string
-	err       error
-	done      bool
+	mu      sync.Mutex
+	node    *store.ResourceNode
+	pstream *ptrie.Stream
+	err     error
+	done    bool
 }
 
 var _ store.Stream = (*stream)(nil)
 
-func newStream(sn *snapshot, parent *store.ResourceNode, start, limit []byte) *stream {
-	keys := []string{}
-	for k := range sn.data {
-		if k >= string(start) && (len(limit) == 0 || k < string(limit)) {
-			keys = append(keys, k)
-		}
-	}
-	sort.Strings(keys)
+func newStream(data *ptrie.T, parent *store.ResourceNode, start, limit []byte) *stream {
 	s := &stream{
-		node:      store.NewResourceNode(),
-		sn:        sn,
-		keys:      keys,
-		currIndex: -1,
+		node:    store.NewResourceNode(),
+		pstream: data.Scan(start, limit),
 	}
 	parent.AddChild(s.node, func() {
 		s.Cancel()
@@ -49,16 +37,11 @@ func newStream(sn *snapshot, parent *store.ResourceNode, start, limit []byte) *s
 func (s *stream) Advance() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.currKey = nil
 	if s.done {
 		return false
 	}
-	s.currIndex++
-	if s.currIndex < len(s.keys) {
-		s.currKey = &s.keys[s.currIndex]
-	} else {
-		s.done = true
-		s.currKey = nil
+	if s.done = !s.pstream.Advance(); s.done {
+		s.node.Close()
 	}
 	return !s.done
 }
@@ -67,20 +50,14 @@ func (s *stream) Advance() bool {
 func (s *stream) Key(keybuf []byte) []byte {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.currKey == nil {
-		panic("nothing staged")
-	}
-	return store.CopyBytes(keybuf, []byte(*s.currKey))
+	return s.pstream.Key(keybuf)
 }
 
 // Value implements the store.Stream interface.
 func (s *stream) Value(valbuf []byte) []byte {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.currKey == nil {
-		panic("nothing staged")
-	}
-	return store.CopyBytes(valbuf, s.sn.data[*s.currKey])
+	return store.CopyBytes(valbuf, s.pstream.Value().([]byte))
 }
 
 // Err implements the store.Stream interface.
@@ -93,11 +70,10 @@ func (s *stream) Err() error {
 // Cancel implements the store.Stream interface.
 func (s *stream) Cancel() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.done {
-		return
+	if !s.done {
+		s.done = true
+		s.node.Close()
+		s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgCanceledStream)
 	}
-	s.done = true
-	s.node.Close()
-	s.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgCanceledStream)
+	s.mu.Unlock()
 }

@@ -12,21 +12,22 @@ import (
 
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/ptrie"
 	"v.io/x/ref/services/syncbase/store/transactions"
 )
 
 type memstore struct {
 	mu   sync.Mutex
 	node *store.ResourceNode
-	data map[string][]byte
+	data *ptrie.T
 	err  error
 }
 
 // New creates a new memstore.
 func New() store.Store {
 	return transactions.Wrap(&memstore{
-		data: map[string][]byte{},
 		node: store.NewResourceNode(),
+		data: ptrie.New(true),
 	})
 }
 
@@ -49,11 +50,11 @@ func (st *memstore) Get(key, valbuf []byte) ([]byte, error) {
 	if st.err != nil {
 		return valbuf, store.ConvertError(st.err)
 	}
-	value, ok := st.data[string(key)]
-	if !ok {
+	value := st.data.Get(key)
+	if value == nil {
 		return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
 	}
-	return store.CopyBytes(valbuf, value), nil
+	return store.CopyBytes(valbuf, value.([]byte)), nil
 }
 
 // Scan implements the store.StoreReader interface.
@@ -63,8 +64,7 @@ func (st *memstore) Scan(start, limit []byte) store.Stream {
 	if st.err != nil {
 		return &store.InvalidStream{Error: st.err}
 	}
-	// TODO(sadovsky): Close snapshot once stream is closed or canceled.
-	return newSnapshot(st, st.node).Scan(start, limit)
+	return newStream(st.data.Copy(), st.node, start, limit)
 }
 
 // NewSnapshot implements the store.Store interface.
@@ -74,7 +74,7 @@ func (st *memstore) NewSnapshot() store.Snapshot {
 	if st.err != nil {
 		return &store.InvalidSnapshot{Error: st.err}
 	}
-	return newSnapshot(st, st.node)
+	return newSnapshot(st.data.Copy(), st.node)
 }
 
 // WriteBatch implements the transactions.BatchStore interface.
@@ -87,9 +87,9 @@ func (st *memstore) WriteBatch(batch ...transactions.WriteOp) error {
 	for _, write := range batch {
 		switch write.T {
 		case transactions.PutOp:
-			st.data[string(write.Key)] = write.Value
+			st.data.Put(write.Key, store.CopyBytes(nil, write.Value))
 		case transactions.DeleteOp:
-			delete(st.data, string(write.Key))
+			st.data.Delete(write.Key)
 		default:
 			panic(fmt.Sprintf("unknown write operation type: %v", write.T))
 		}
