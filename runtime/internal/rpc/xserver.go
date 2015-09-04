@@ -75,6 +75,22 @@ type xserver struct {
 }
 
 func NewServer(ctx *context.T, name string, object interface{}, authorizer security.Authorizer, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.XServer, error) {
+	if object == nil {
+		return nil, verror.New(verror.ErrBadArg, ctx, "nil object")
+	}
+	invoker, err := objectToInvoker(object)
+	if err != nil {
+		return nil, verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("bad object: %v", err))
+	}
+	d := &leafDispatcher{invoker, authorizer}
+	opts = append([]rpc.ServerOpt{options.IsLeaf(true)}, opts...)
+	return NewDispatchingServer(ctx, name, d, settingsPublisher, settingsName, opts...)
+}
+
+func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.XServer, error) {
+	if dispatcher == nil {
+		return nil, verror.New(verror.ErrBadArg, ctx, "nil dispatcher")
+	}
 	ctx, cancel := context.WithRootCancel(ctx)
 	flowMgr := v23.ExperimentalGetFlowManager(ctx)
 	ns, principal := v23.GetNamespace(ctx), v23.GetPrincipal(ctx)
@@ -92,6 +108,7 @@ func NewServer(ctx *context.T, name string, object interface{}, authorizer secur
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
 		settingsName:      settingsName,
+		disp:              dispatcher,
 	}
 	ipNets, err := ipNetworks()
 	if err != nil {
@@ -123,9 +140,12 @@ func NewServer(ctx *context.T, name string, object interface{}, authorizer secur
 		s.Stop()
 		return nil, err
 	}
-	if err = s.serve(name, object, authorizer); err != nil {
-		s.Stop()
-		return nil, err
+	if len(name) > 0 {
+		for _, ep := range s.chosenEndpoints {
+			s.publisher.AddServer(ep.String())
+		}
+		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
+		vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	}
 	return s, nil
 }
@@ -286,38 +306,6 @@ func (s *xserver) acceptLoop(ctx *context.T) error {
 			}
 		}(fl)
 	}
-}
-
-func (s *xserver) serve(name string, obj interface{}, authorizer security.Authorizer) error {
-	if obj == nil {
-		return verror.New(verror.ErrBadArg, s.ctx, "nil object")
-	}
-	invoker, err := objectToInvoker(obj)
-	if err != nil {
-		return verror.New(verror.ErrBadArg, s.ctx, fmt.Sprintf("bad object: %v", err))
-	}
-	// TODO(mattr): Does this really need to be locked?
-	s.Lock()
-	s.isLeaf = true
-	s.Unlock()
-	return s.serveDispatcher(name, &leafDispatcher{invoker, authorizer})
-}
-
-func (s *xserver) serveDispatcher(name string, disp rpc.Dispatcher) error {
-	if disp == nil {
-		return verror.New(verror.ErrBadArg, s.ctx, "nil dispatcher")
-	}
-	s.Lock()
-	defer s.Unlock()
-	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
-	s.disp = disp
-	if len(name) > 0 {
-		for _, ep := range s.chosenEndpoints {
-			s.publisher.AddServer(ep.String())
-		}
-		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
-	}
-	return nil
 }
 
 func (s *xserver) AddName(name string) error {

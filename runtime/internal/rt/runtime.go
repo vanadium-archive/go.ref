@@ -552,12 +552,50 @@ func (r *Runtime) ExperimentalWithNewFlowManager(ctx *context.T) (*context.T, fl
 	return newctx, m, nil
 }
 
+func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*context.T, *pubsub.Publisher, string, []rpc.ServerOpt, error) {
+	newctx, _, err := r.ExperimentalWithNewFlowManager(ctx)
+	if err != nil {
+		return ctx, nil, "", nil, err
+	}
+	otherOpts := append([]rpc.ServerOpt{}, opts...)
+	if reservedDispatcher := r.GetReservedNameDispatcher(ctx); reservedDispatcher != nil {
+		otherOpts = append(otherOpts, irpc.ReservedNameDispatcher{
+			Dispatcher: reservedDispatcher,
+		})
+	}
+	id, _ := ctx.Value(initKey).(*initData)
+	if id.protocols != nil {
+		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(id.protocols))
+	}
+	return newctx, id.settingsPublisher, id.settingsName, otherOpts, nil
+}
+
 func (r *Runtime) XWithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.XServer, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
+	// TODO(mattr): Deal with shutdown deps.
+	newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+	if err != nil {
+		return ctx, nil, err
+	}
+	s, err := irpc.NewServer(newctx, name, object, auth, spub, sname, opts...)
+	if err != nil {
+		// TODO(mattr): Stop the flow manager.
+		return ctx, nil, err
+	}
+	return newctx, s, err
 }
 
 func (r *Runtime) XWithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.XServer, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
+	// TODO(mattr): Deal with shutdown deps.
+	newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+	if err != nil {
+		return ctx, nil, err
+	}
+	s, err := irpc.NewDispatchingServer(newctx, name, disp, spub, sname, opts...)
+	if err != nil {
+		// TODO(mattr): Stop the flow manager.
+		return ctx, nil, err
+	}
+	return newctx, s, err
 }
