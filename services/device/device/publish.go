@@ -138,15 +138,12 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 	// upload to application service.
 
 	// TODO(caprita): use the profile detection machinery and/or let user
-	// specify profiles by hand.
-	profiles := []string{fmt.Sprintf("%s-%s", goosFlag, goarchFlag)}
+	// specify the profile by hand.
+	profile := fmt.Sprintf("%s-%s", goosFlag, goarchFlag)
 	// TODO(caprita): use a label e.g. "prod" instead of "0".
 	appVON := naming.Join(applicationService, envelopeName, "0")
 	appClient := repository.ApplicationClient(appVON)
-	// NOTE: If profiles contains more than one entry, this will return only
-	// the first match.  But presumably that's ok, since we're going to set
-	// the envelopes for all the profiles to the same envelope anyway below.
-	envelope, err := appClient.Match(ctx, profiles)
+	envelope, err := appClient.Match(ctx, []string{profile})
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		// There was nothing published yet, create a new envelope.
 		envelope = application.Envelope{Title: title}
@@ -177,7 +174,7 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 		envelope.Publisher = security.Blessings{}
 	}
 
-	if err := repository.ApplicationClient(appVON).Put(ctx, profiles, envelope); err != nil {
+	if err := appClient.PutX(ctx, profile, envelope, true); err != nil {
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "Published %q\n", appVON)
