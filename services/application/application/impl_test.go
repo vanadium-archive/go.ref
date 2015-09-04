@@ -91,8 +91,9 @@ func (s *server) Match(ctx *context.T, _ rpc.ServerCall, profiles []string) (app
 	return envelope, nil
 }
 
-func (s *server) Put(ctx *context.T, _ rpc.ServerCall, profiles []string, env application.Envelope) error {
-	ctx.VI(2).Infof("%v.Put(%v, %v) was called", s.suffix, profiles, env)
+func (s *server) Put(ctx *context.T, _ rpc.ServerCall, profile string, env application.Envelope, overwrite bool) error {
+	ctx.VI(2).Infof("%v.Put(%v, %v, %t) was called", s.suffix, profile, env, overwrite)
+	fmt.Fprintf(&serverOut, "Put(%s, ..., %t)\n", profile, overwrite)
 	return nil
 }
 

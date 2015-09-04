@@ -101,13 +101,13 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	}
 
 	// Envelope putting as other should fail.
-	if err := v1stub.PutX(otherCtx, "base", envelopeV1, false); verror.ErrorID(err) != verror.ErrNoAccess.ID {
-		t.Fatalf("PutX() returned errorid=%v wanted errorid=%v [%v]", verror.ErrorID(err), verror.ErrNoAccess.ID, err)
+	if err := v1stub.Put(otherCtx, "base", envelopeV1, false); verror.ErrorID(err) != verror.ErrNoAccess.ID {
+		t.Fatalf("Put() returned errorid=%v wanted errorid=%v [%v]", verror.ErrorID(err), verror.ErrNoAccess.ID, err)
 	}
 
 	// Envelope putting as global should succeed.
-	if err := v1stub.PutX(ctx, "base", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := v1stub.Put(ctx, "base", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 
 	ctx.VI(2).Infof("Accessing the Permission Lists of the root returns a (simulated) list providing default authorization.")
@@ -158,8 +158,8 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	}
 
 	// Envelope putting as other should now succeed.
-	if err := v1stub.PutX(otherCtx, "base", envelopeV1, true); err != nil {
-		t.Fatalf("PutX() wrongly failed: %v", err)
+	if err := v1stub.Put(otherCtx, "base", envelopeV1, true); err != nil {
+		t.Fatalf("Put() wrongly failed: %v", err)
 	}
 
 	// Other takes control.
@@ -243,16 +243,16 @@ func TestPerAppPermissions(t *testing.T) {
 
 	ctx.VI(2).Info("Upload an envelope")
 	v1stub := repository.ApplicationClient("repo/search/v1")
-	if err := v1stub.PutX(ctx, "base", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := v1stub.Put(ctx, "base", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 	v2stub := repository.ApplicationClient("repo/search/v2")
-	if err := v2stub.PutX(ctx, "base", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := v2stub.Put(ctx, "base", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 	v3stub := repository.ApplicationClient("repo/naps/v1")
-	if err := v3stub.PutX(ctx, "base", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := v3stub.Put(ctx, "base", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 
 	ctx.VI(2).Info("Self can access Permissions but other can't.")
@@ -377,8 +377,8 @@ func TestPerAppPermissions(t *testing.T) {
 
 	// Other can now upload an envelope at both locations.
 	for _, stub := range []repository.ApplicationClientStub{v1stub, v2stub} {
-		if err := stub.PutX(otherCtx, "base", envelopeV1, true); err != nil {
-			t.Fatalf("PutX() failed: %v", err)
+		if err := stub.Put(otherCtx, "base", envelopeV1, true); err != nil {
+			t.Fatalf("Put() failed: %v", err)
 		}
 	}
 

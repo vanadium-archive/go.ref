@@ -18,17 +18,14 @@ import (
 // envelopes, as well as querying for a list of supported profiles.
 type Application interface {
 	public.Application
-	// DEPRECATED. Please use PutX for new code.
-	// Put adds the given tuple of application version (specified
-	// through the object name suffix) and application envelope to all
-	// of the given application profiles.
-	Put(Profiles []string, Envelope application.Envelope) error {access.Write}
-	// PutX adds the given application envelope for the given profile and
+	// Put adds the given application envelope for the given profile and
 	// application version (required, and specified through the object name
 	// suffix).
 	//
 	// An error is returned if an envelope already exists, unless the
 	// overwrite option is set.
+	Put(Profile string, Envelope application.Envelope, Overwrite bool) error {access.Write}
+	// DEPRECATED. Please use Put for new code.
 	PutX(Profile string, Envelope application.Envelope, Overwrite bool) error {access.Write}
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
