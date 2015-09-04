@@ -17,8 +17,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
-	"v.io/v23/syncbase/nosql/query_db"
-	"v.io/v23/syncbase/nosql/query_exec"
+	"v.io/v23/syncbase/nosql/query"
+	"v.io/v23/syncbase/nosql/query/exec"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -254,7 +254,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 		return err
 	}
-	impl := func(headers []string, rs ResultStream, err error) error {
+	impl := func(headers []string, rs query.ResultStream, err error) error {
 		if err != nil {
 			return err
 		}
@@ -282,9 +282,8 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 		sntx = d.st.NewSnapshot()
 		defer sntx.Abort()
 	}
-	// queryDb implements query_db.Database
-	// which is needed by the query package's
-	// Exec function.
+	// queryDb implements the query.Database interface, which is needed by the
+	// exec.Exec function.
 	db := &queryDb{
 		ctx:  ctx,
 		call: call,
@@ -292,7 +291,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 		sntx: sntx,
 	}
 
-	return impl(query_exec.Exec(db, q))
+	return impl(exec.Exec(db, q))
 }
 
 func (d *databaseReq) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
@@ -333,36 +332,6 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 		return err
 	}
 	return util.Glob(ctx, call, matcher, sn, sn.Abort, util.TablePrefix)
-}
-
-////////////////////////////////////////
-// ResultStream interface
-
-// ResultStream is an interface for iterating through results (a.k.a, rows) returned from a
-// query.  Each resulting rows are arrays of vdl objects.
-type ResultStream interface {
-	// Advance stages an element so the client can retrieve it with Result.
-	// Advance returns true iff there is a result to retrieve. The client must
-	// call Advance before calling Result. The client must call Cancel if it
-	// does not iterate through all elements (i.e. until Advance returns false).
-	// Advance may block if an element is not immediately available.
-	Advance() bool
-
-	// Result returns the row (i.e., array of vdl Values) that was staged by Advance.
-	// Result may panic if Advance returned false or was not called at all.
-	// Result does not block.
-	Result() []*vdl.Value
-
-	// Err returns a non-nil error iff the stream encountered any errors. Err does
-	// not block.
-	Err() error
-
-	// Cancel notifies the ResultStream provider that it can stop producing results.
-	// The client must call Cancel if it does not iterate through all results
-	// (i.e. until Advance returns false). Cancel is idempotent and can be called
-	// concurrently with a goroutine that is iterating via Advance/Result.
-	// Cancel causes Advance to subsequently return false. Cancel does not block.
-	Cancel()
 }
 
 ////////////////////////////////////////
@@ -408,9 +377,9 @@ func (d *database) Name() string {
 }
 
 ////////////////////////////////////////
-// query_db implementation
+// query interface implementations
 
-// Implement query_db's Database, Table and KeyValueStream interfaces.
+// queryDb implements query.Database.
 type queryDb struct {
 	ctx  *context.T
 	call wire.DatabaseExecServerCall
@@ -422,7 +391,7 @@ func (db *queryDb) GetContext() *context.T {
 	return db.ctx
 }
 
-func (db *queryDb) GetTable(name string) (query_db.Table, error) {
+func (db *queryDb) GetTable(name string) (query.Table, error) {
 	tDb := &tableDb{
 		qdb: db,
 		req: &tableReq{
@@ -437,16 +406,18 @@ func (db *queryDb) GetTable(name string) (query_db.Table, error) {
 	return tDb, nil
 }
 
+// tableDb implements query.Table.
 type tableDb struct {
 	qdb *queryDb
 	req *tableReq
 }
 
-func (t *tableDb) Scan(keyRanges query_db.KeyRanges) (query_db.KeyValueStream, error) {
+func (t *tableDb) Scan(keyRanges query.KeyRanges) (query.KeyValueStream, error) {
 	streams := []store.Stream{}
 	for _, keyRange := range keyRanges {
-		// TODO(jkline): For now, acquire all of the streams at once to minimize the race condition.
-		//               Need a way to Scan multiple ranges at the same state of uncommitted changes.
+		// TODO(jkline): For now, acquire all of the streams at once to minimize the
+		// race condition. Need a way to Scan multiple ranges at the same state of
+		// uncommitted changes.
 		streams = append(streams, t.qdb.sntx.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.req.name), keyRange.Start, keyRange.Limit)))
 	}
 	return &kvs{
@@ -458,6 +429,7 @@ func (t *tableDb) Scan(keyRanges query_db.KeyRanges) (query_db.KeyValueStream, e
 	}, nil
 }
 
+// kvs implements query.KeyValueStream.
 type kvs struct {
 	t         *tableDb
 	curr      int

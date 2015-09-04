@@ -141,7 +141,7 @@ func TestLogRecKeyUtils(t *testing.T) {
 //////////////////////////////
 // Helpers
 
-// TODO(hpucha): Look into using v.io/v23/syncbase/testutil.Fatalf()
+// TODO(hpucha): Look into using v.io/x/ref/services/syncbase/testutil.Fatalf()
 // for getting the stack trace. Right now cannot import the package due to a
 // cycle.
 
