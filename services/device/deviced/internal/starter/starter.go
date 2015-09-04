@@ -20,6 +20,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	displib "v.io/x/ref/lib/dispatcher"
 	"v.io/x/ref/lib/xrpc"
 	"v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/debug/debuglib"
@@ -331,21 +332,17 @@ func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 // (1) Function to be called to force the service to shutdown
 // (2) Any errors in starting the service (in which case, (1) will be nil)
 func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pathperms.PathStore) (shutdown func(), err error) {
-	server, err := v23.NewServer(ctx)
+	ctx = v23.WithListenSpec(ctx, args.ListenSpec)
+	wrapper := displib.NewDispatcherWrapper()
+	server, err := xrpc.NewDispatchingServer(ctx, args.name(mt), wrapper)
 	if err != nil {
 		return nil, err
 	}
-	shutdown = func() { server.Stop() }
-	endpoints, err := server.Listen(args.ListenSpec)
-	if err != nil {
-		shutdown()
-		return nil, err
-	}
-	args.ConfigState.Name = endpoints[0].Name()
+	args.ConfigState.Name = server.Status().Endpoints[0].Name()
 
 	dispatcher, dShutdown, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback, permStore)
 	if err != nil {
-		shutdown()
+		server.Stop()
 		return nil, err
 	}
 
@@ -357,10 +354,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pa
 		dShutdown()
 		ctx.Infof("Stopped device.")
 	}
-	if err := server.ServeDispatcher(args.name(mt), dispatcher); err != nil {
-		shutdown()
-		return nil, err
-	}
+	wrapper.SetDispatcher(dispatcher)
 	ctx.Infof("Device manager (%v) published as %v", args.ConfigState.Name, args.name(mt))
 	return shutdown, nil
 }

@@ -20,6 +20,7 @@ import (
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/lib/xrpc"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/internal/claim"
 	"v.io/x/ref/services/identity"
@@ -41,14 +42,8 @@ func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {
 		return errors.New("device is already claimed")
 	}
 
-	server, err := v23.NewServer(ctx)
+	server, err := xrpc.NewDispatchingServer(ctx, "", claimable)
 	if err != nil {
-		return err
-	}
-	if _, err := server.Listen(v23.GetListenSpec(ctx)); err != nil {
-		return err
-	}
-	if err := server.ServeDispatcher("", claimable); err != nil {
 		return err
 	}
 
