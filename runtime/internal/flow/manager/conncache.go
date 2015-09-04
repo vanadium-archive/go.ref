@@ -106,6 +106,21 @@ func (c *ConnCache) Insert(conn *conn.Conn) error {
 	return nil
 }
 
+// InsertWithRoutingID add conn to the cache keyed only by conn's RoutingID.
+func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn) error {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.addrCache == nil {
+		return NewErrCacheClosed(nil)
+	}
+	entry := &connEntry{
+		conn: conn,
+		rid:  conn.RemoteEndpoint().RoutingID(),
+	}
+	c.ridCache[entry.rid] = entry
+	return nil
+}
+
 // Close marks the ConnCache as closed and closes all Conns in the cache.
 func (c *ConnCache) Close(ctx *context.T) {
 	defer c.mu.Unlock()
@@ -183,13 +198,6 @@ func (c *ConnCache) FindWithRoutingID(rid naming.RoutingID) (*conn.Conn, error) 
 		return nil, nil
 	}
 	return entry.conn, nil
-}
-
-// Size returns the number of Conns stored in the ConnCache.
-func (c *ConnCache) Size() int {
-	defer c.mu.Unlock()
-	c.mu.Lock()
-	return len(c.addrCache)
 }
 
 func key(protocol, address string, blessingNames []string) string {

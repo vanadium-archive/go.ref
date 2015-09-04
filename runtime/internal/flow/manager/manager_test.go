@@ -73,18 +73,18 @@ func TestDialCachedConn(t *testing.T) {
 	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111))
 	// At first the cache should be empty.
-	if got, want := dm.(*manager).cache.Size(), 0; got != want {
+	if got, want := len(dm.(*manager).cache.addrCache), 0; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 	// After dialing a connection the cache should hold one connection.
 	dialAndAccept(t, ctx, dm, am, eps[0], flowtest.BlessingsForPeer)
-	if got, want := dm.(*manager).cache.Size(), 1; got != want {
+	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 	// After dialing another connection the cache should still hold one connection
 	// because the connections should be reused.
 	dialAndAccept(t, ctx, dm, am, eps[0], flowtest.BlessingsForPeer)
-	if got, want := dm.(*manager).cache.Size(), 1; got != want {
+	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 }
