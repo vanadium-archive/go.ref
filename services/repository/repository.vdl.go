@@ -43,17 +43,14 @@ type ApplicationClientMethods interface {
 	//   and executing the "search" application, version "v1", runnable
 	//   on either the "base" or "media" profile.
 	repository.ApplicationClientMethods
-	// DEPRECATED. Please use PutX for new code.
-	// Put adds the given tuple of application version (specified
-	// through the object name suffix) and application envelope to all
-	// of the given application profiles.
-	Put(ctx *context.T, Profiles []string, Envelope application.Envelope, opts ...rpc.CallOpt) error
-	// PutX adds the given application envelope for the given profile and
+	// Put adds the given application envelope for the given profile and
 	// application version (required, and specified through the object name
 	// suffix).
 	//
 	// An error is returned if an envelope already exists, unless the
 	// overwrite option is set.
+	Put(ctx *context.T, Profile string, Envelope application.Envelope, Overwrite bool, opts ...rpc.CallOpt) error
+	// DEPRECATED. Please use Put for new code.
 	PutX(ctx *context.T, Profile string, Envelope application.Envelope, Overwrite bool, opts ...rpc.CallOpt) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
@@ -89,8 +86,8 @@ type implApplicationClientStub struct {
 	repository.ApplicationClientStub
 }
 
-func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 application.Envelope, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "Put", []interface{}{i0, i1}, nil, opts...)
+func (c implApplicationClientStub) Put(ctx *context.T, i0 string, i1 application.Envelope, i2 bool, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Put", []interface{}{i0, i1, i2}, nil, opts...)
 	return
 }
 
@@ -127,17 +124,14 @@ type ApplicationServerMethods interface {
 	//   and executing the "search" application, version "v1", runnable
 	//   on either the "base" or "media" profile.
 	repository.ApplicationServerMethods
-	// DEPRECATED. Please use PutX for new code.
-	// Put adds the given tuple of application version (specified
-	// through the object name suffix) and application envelope to all
-	// of the given application profiles.
-	Put(ctx *context.T, call rpc.ServerCall, Profiles []string, Envelope application.Envelope) error
-	// PutX adds the given application envelope for the given profile and
+	// Put adds the given application envelope for the given profile and
 	// application version (required, and specified through the object name
 	// suffix).
 	//
 	// An error is returned if an envelope already exists, unless the
 	// overwrite option is set.
+	Put(ctx *context.T, call rpc.ServerCall, Profile string, Envelope application.Envelope, Overwrite bool) error
+	// DEPRECATED. Please use Put for new code.
 	PutX(ctx *context.T, call rpc.ServerCall, Profile string, Envelope application.Envelope, Overwrite bool) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
@@ -193,8 +187,8 @@ type implApplicationServerStub struct {
 	gs *rpc.GlobState
 }
 
-func (s implApplicationServerStub) Put(ctx *context.T, call rpc.ServerCall, i0 []string, i1 application.Envelope) error {
-	return s.impl.Put(ctx, call, i0, i1)
+func (s implApplicationServerStub) Put(ctx *context.T, call rpc.ServerCall, i0 string, i1 application.Envelope, i2 bool) error {
+	return s.impl.Put(ctx, call, i0, i1, i2)
 }
 
 func (s implApplicationServerStub) PutX(ctx *context.T, call rpc.ServerCall, i0 string, i1 application.Envelope, i2 bool) error {
@@ -231,16 +225,17 @@ var descApplication = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "Put",
-			Doc:  "// DEPRECATED. Please use PutX for new code.\n// Put adds the given tuple of application version (specified\n// through the object name suffix) and application envelope to all\n// of the given application profiles.",
+			Doc:  "// Put adds the given application envelope for the given profile and\n// application version (required, and specified through the object name\n// suffix).\n//\n// An error is returned if an envelope already exists, unless the\n// overwrite option is set.",
 			InArgs: []rpc.ArgDesc{
-				{"Profiles", ``}, // []string
-				{"Envelope", ``}, // application.Envelope
+				{"Profile", ``},   // string
+				{"Envelope", ``},  // application.Envelope
+				{"Overwrite", ``}, // bool
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 		{
 			Name: "PutX",
-			Doc:  "// PutX adds the given application envelope for the given profile and\n// application version (required, and specified through the object name\n// suffix).\n//\n// An error is returned if an envelope already exists, unless the\n// overwrite option is set.",
+			Doc:  "// DEPRECATED. Please use Put for new code.",
 			InArgs: []rpc.ArgDesc{
 				{"Profile", ``},   // string
 				{"Envelope", ``},  // application.Envelope

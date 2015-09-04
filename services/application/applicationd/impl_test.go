@@ -127,17 +127,17 @@ func TestInterface(t *testing.T) {
 	}
 	checkNoProfile(t, ctx, stub)
 
-	// Test PutX(), adding a number of application envelopes.
-	if err := stubV1.PutX(ctx, "base", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	// Test Put(), adding a number of application envelopes.
+	if err := stubV1.Put(ctx, "base", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stubV1.PutX(ctx, "media", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV1.Put(ctx, "media", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stubV2.PutX(ctx, "base", envelopeV2, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV2.Put(ctx, "base", envelopeV2, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stub.PutX(ctx, "base", envelopeV1, false); err == nil || verror.ErrorID(err) != appd.ErrInvalidSuffix.ID {
+	if err := stub.Put(ctx, "base", envelopeV1, false); err == nil || verror.ErrorID(err) != appd.ErrInvalidSuffix.ID {
 		t.Fatalf("Unexpected error: expected %v, got %v", appd.ErrInvalidSuffix, err)
 	}
 
@@ -161,8 +161,8 @@ func TestInterface(t *testing.T) {
 
 	// Test that if we add another envelope for a version that's the highest
 	// in sort order, the new envelope becomes the latest.
-	if err := stubV3.PutX(ctx, "base", envelopeV3, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV3.Put(ctx, "base", envelopeV3, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 	checkEnvelope(t, ctx, envelopeV3, stub, "base", "media")
 	checkProfiles(t, ctx, stubV3, "base")
@@ -177,8 +177,8 @@ func TestInterface(t *testing.T) {
 		},
 		Publisher: blessings,
 	}
-	if err := stubV0.PutX(ctx, "base", envelopeV0, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV0.Put(ctx, "base", envelopeV0, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 	checkEnvelope(t, ctx, envelopeV3, stub, "base", "media")
 
@@ -199,14 +199,14 @@ func TestInterface(t *testing.T) {
 		t.Errorf("unexpected Glob results. Got %q, want %q", matches, expected)
 	}
 
-	// PutX cannot replace the envelope for v0-base when overwrite is false.
-	if err := stubV0.PutX(ctx, "base", envelopeV2, false); err == nil || verror.ErrorID(err) != verror.ErrExist.ID {
+	// Put cannot replace the envelope for v0-base when overwrite is false.
+	if err := stubV0.Put(ctx, "base", envelopeV2, false); err == nil || verror.ErrorID(err) != verror.ErrExist.ID {
 		t.Fatalf("Unexpected error: expected %v, got %v", appd.ErrInvalidSuffix, err)
 	}
 	checkEnvelope(t, ctx, envelopeV0, stubV0, "base")
-	// PutX can replace the envelope for v0-base when overwrite is true.
-	if err := stubV0.PutX(ctx, "base", envelopeV2, true); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	// Put can replace the envelope for v0-base when overwrite is true.
+	if err := stubV0.Put(ctx, "base", envelopeV2, true); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 	checkEnvelope(t, ctx, envelopeV2, stubV0, "base")
 
@@ -246,20 +246,20 @@ func TestInterface(t *testing.T) {
 	checkNoEnvelope(t, ctx, stubV1, "media")
 	checkNoEnvelope(t, ctx, stubV2, "base")
 
-	if err := stubV0.PutX(ctx, "base", envelopeV0, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV0.Put(ctx, "base", envelopeV0, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stubV1.PutX(ctx, "base", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV1.Put(ctx, "base", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stubV1.PutX(ctx, "media", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV1.Put(ctx, "media", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stubV2.PutX(ctx, "base", envelopeV2, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV2.Put(ctx, "base", envelopeV2, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stubV3.PutX(ctx, "base", envelopeV3, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV3.Put(ctx, "base", envelopeV3, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 	if err := stub.Remove(ctx, "*"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
@@ -313,8 +313,8 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		Publisher: blessings,
 	}
 
-	if err := stubV1.PutX(ctx, "media", envelopeV1, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubV1.Put(ctx, "media", envelopeV1, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 
 	// There is content here now.
@@ -468,8 +468,8 @@ func TestTidyNow(t *testing.T) {
 	// Test that we can add an envelope for v3 with profile media and after calling
 	// TidyNow(), there will be all versions still in glob but v0 will only match profile
 	// base and not have an envelope for profile media.
-	if err := stubs[3].PutX(ctx, "media", envelopeV3, false); err != nil {
-		t.Fatalf("PutX() failed: %v", err)
+	if err := stubs[3].Put(ctx, "media", envelopeV3, false); err != nil {
+		t.Fatalf("Put() failed: %v", err)
 	}
 
 	if err := stubs[0].TidyNow(ctx); err != nil {
@@ -538,8 +538,8 @@ func testGlob(t *testing.T, ctx *context.T, endpoint string, expected []string) 
 func stuffEnvelopes(t *testing.T, ctx *context.T, stubs []repository.ApplicationClientStub, pets []profEnvTuple) {
 	for i, pet := range pets {
 		for _, profile := range pet.p {
-			if err := stubs[i].PutX(ctx, profile, *pet.e, true); err != nil {
-				t.Fatalf("%d: PutX(%v) failed: %v", i, pet, err)
+			if err := stubs[i].Put(ctx, profile, *pet.e, true); err != nil {
+				t.Fatalf("%d: Put(%v) failed: %v", i, pet, err)
 			}
 		}
 	}

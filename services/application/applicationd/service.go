@@ -135,55 +135,12 @@ func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []s
 	return empty, verror.New(verror.ErrNoExist, ctx)
 }
 
-func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profiles []string, envelope application.Envelope) error {
-	ctx.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
-	name, version, err := parse(ctx, i.suffix)
-	if err != nil {
-		return err
-	}
-	if version == "" {
-		return verror.New(ErrInvalidSuffix, ctx)
-	}
-	i.store.Lock()
-	defer i.store.Unlock()
-	// Transaction is rooted at "", so tname == tid.
-	tname, err := i.store.BindTransactionRoot("").CreateTransaction(call)
-	if err != nil {
-		return err
-	}
-
-	// Only add a Permissions value if there is not already one present.
-	apath := naming.Join("/acls", name, "data")
-	aobj := i.store.BindObject(apath)
-	if _, err := aobj.Get(call); verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
-		rb, _ := security.RemoteBlessingNames(ctx, call.Security())
-		if len(rb) == 0 {
-			// None of the client's blessings are valid.
-			return verror.New(ErrNotAuthorized, ctx)
-		}
-		newperms := pathperms.PermissionsForBlessings(rb)
-		if _, err := aobj.Put(nil, newperms); err != nil {
-			return err
-		}
-	}
-
-	for _, profile := range profiles {
-		path := naming.Join(tname, "/applications", name, profile, version)
-
-		object := i.store.BindObject(path)
-		_, err := object.Put(call, envelope)
-		if err != nil {
-			return verror.New(ErrOperationFailed, ctx)
-		}
-	}
-	if err := i.store.BindTransaction(tname).Commit(call); err != nil {
-		return verror.New(ErrOperationFailed, ctx)
-	}
-	return nil
+func (i *appRepoService) PutX(ctx *context.T, call rpc.ServerCall, profile string, envelope application.Envelope, overwrite bool) error {
+	return i.Put(ctx, call, profile, envelope, overwrite)
 }
 
-func (i *appRepoService) PutX(ctx *context.T, call rpc.ServerCall, profile string, envelope application.Envelope, overwrite bool) error {
-	ctx.VI(0).Infof("%v.PutX(%v, %v, %t)", i.suffix, profile, envelope, overwrite)
+func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profile string, envelope application.Envelope, overwrite bool) error {
+	ctx.VI(0).Infof("%v.Put(%v, %v, %t)", i.suffix, profile, envelope, overwrite)
 	name, version, err := parse(ctx, i.suffix)
 	if err != nil {
 		return err
