@@ -9,7 +9,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,50 +17,33 @@ import (
 
 // manualTrigger provides a gc trigger that can be signaled manually
 type manualTrigger struct {
-	gcShouldBeNext bool
-	lock           sync.Mutex
-	cond           *sync.Cond
-	gcHasRun       bool
+	gcHasRun bool
+	ch       chan time.Time
+	nextCh   chan bool
 }
 
 func newManualTrigger() *manualTrigger {
-	mt := &manualTrigger{
-		gcShouldBeNext: true,
+	return &manualTrigger{
+		ch:     make(chan time.Time),
+		nextCh: make(chan bool),
 	}
-	mt.cond = sync.NewCond(&mt.lock)
-	return mt
 }
 
-// policyTrigger is the trigger that should be provided in GC policy config.
-// It waits until it receives a signal and then returns a chan time.Time
-// that resolves immediately.
+// manualTrigger is the trigger that should be provided in GC policy config.
+// It returns a chan time.Time that resolves immediately after next is called.
 func (mt *manualTrigger) waitForNextGc() <-chan time.Time {
-	mt.lock.Lock()
 	if !mt.gcHasRun {
 		mt.gcHasRun = true
 	} else {
-		mt.gcShouldBeNext = false // hand off control
-		mt.cond.Broadcast()
-		for !mt.gcShouldBeNext {
-			mt.cond.Wait()
-		}
+		mt.nextCh <- true
 	}
-	mt.lock.Unlock()
-
-	trigger := make(chan time.Time, 1)
-	trigger <- time.Time{}
-	return trigger
+	return mt.ch
 }
 
 // next should be called to trigger the next policy trigger event.
 func (mt *manualTrigger) next() {
-	mt.lock.Lock()
-	mt.gcShouldBeNext = true // hand off control
-	mt.cond.Broadcast()
-	for mt.gcShouldBeNext {
-		mt.cond.Wait()
-	}
-	mt.lock.Unlock()
+	mt.ch <- time.Time{}
+	<-mt.nextCh
 }
 
 // Test just to confirm it signals in order as expected.
@@ -70,7 +52,7 @@ func TestManualTrigger(t *testing.T) {
 
 	countTriggers := 0
 	go func() {
-		for i := 1; i <= 100; i++ {
+		for i := 0; i < 100; i++ {
 			<-mt.waitForNextGc()
 			countTriggers++
 		}
