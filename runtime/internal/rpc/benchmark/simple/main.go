@@ -16,8 +16,11 @@ import (
 	"v.io/v23/naming"
 	"v.io/x/ref/lib/security/securityflag"
 	_ "v.io/x/ref/runtime/factories/static"
+	"v.io/x/ref/runtime/internal/flow/flowtest"
+	fmanager "v.io/x/ref/runtime/internal/flow/manager"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
+	"v.io/x/ref/runtime/internal/rt"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/benchmark"
 	"v.io/x/ref/test/testutil"
@@ -49,19 +52,28 @@ func benchmarkRPCConnection(b *testing.B) {
 	principal := testutil.NewPrincipal("test")
 	nctx, _ := v23.WithPrincipal(ctx, principal)
 
+	b.StopTimer()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		client := manager.InternalNew(ctx, naming.FixedRoutingID(0xc))
-
-		b.StartTimer()
-		_, err := client.Dial(nctx, serverEP)
-		if err != nil {
-			ctx.Fatalf("Dial failed: %v", err)
+		if rt.TransitionState >= rt.XServers {
+			m := fmanager.New(nctx, naming.FixedRoutingID(0xc))
+			b.StartTimer()
+			_, err := m.Dial(nctx, serverEP, flowtest.BlessingsForPeer)
+			if err != nil {
+				ctx.Fatalf("Dial failed: %v", err)
+			}
+			b.StopTimer()
+			// TODO(mattr): close m.
+		} else {
+			client := manager.InternalNew(ctx, naming.FixedRoutingID(0xc))
+			b.StartTimer()
+			_, err := client.Dial(nctx, serverEP)
+			if err != nil {
+				ctx.Fatalf("Dial failed: %v", err)
+			}
+			b.StopTimer()
+			client.Shutdown()
 		}
-
-		b.StopTimer()
-
-		client.Shutdown()
 	}
 }
 

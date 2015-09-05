@@ -44,21 +44,21 @@ import (
 )
 
 const (
-	none = iota
-	xclients
-	xservers
+	None = iota
+	XClients
+	XServers
 )
 
-var transitionState = none
+var TransitionState = None
 
 func init() {
 	switch ts := os.Getenv("V23_RPC_TRANSITION_STATE"); ts {
 	case "xclients":
-		transitionState = xclients
+		TransitionState = XClients
 	case "xservers":
-		transitionState = xservers
+		TransitionState = XServers
 	case "":
-		transitionState = none
+		TransitionState = None
 	default:
 		panic("Unknown transition state: " + ts)
 	}
@@ -432,8 +432,8 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	var err error
 	deps := []interface{}{vtraceDependency{}}
 
-	if fm != nil && transitionState >= xclients {
-		client, err = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
+	if fm != nil && TransitionState >= XClients {
+		client, err = irpc.NewTransitionClient(ctx, sm, fm, ns, otherOpts...)
 		deps = append(deps, fm, sm)
 	} else {
 		client, err = irpc.InternalNewClient(sm, ns, otherOpts...)
@@ -591,7 +591,7 @@ func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*cont
 
 func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	if transitionState >= xservers {
+	if TransitionState >= XServers {
 		// TODO(mattr): Deal with shutdown deps.
 		newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
 		if err != nil {
@@ -621,7 +621,7 @@ func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{},
 
 func (r *Runtime) WithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	if transitionState >= xservers {
+	if TransitionState >= XServers {
 		// TODO(mattr): Deal with shutdown deps.
 		newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
 		if err != nil {

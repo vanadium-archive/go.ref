@@ -151,7 +151,11 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 }
 
 func (s *xserver) Status() rpc.ServerStatus {
-	return rpc.ServerStatus{}
+	ret := rpc.ServerStatus{}
+	for _, e := range s.chosenEndpoints {
+		ret.Endpoints = append(ret.Endpoints, e)
+	}
+	return ret
 }
 
 func (s *xserver) WatchNetwork(ch chan<- rpc.NetworkChange) {

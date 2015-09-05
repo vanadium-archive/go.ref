@@ -6,6 +6,7 @@ package rpc
 
 import (
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/namespace"
 	"v.io/v23/rpc"
@@ -19,10 +20,10 @@ type transitionClient struct {
 
 var _ = rpc.Client((*transitionClient)(nil))
 
-func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
+func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, flowMgr flow.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	var err error
 	ret := &transitionClient{}
-	if ret.xc, err = NewXClient(ctx, opts...); err != nil {
+	if ret.xc, err = NewXClient(ctx, flowMgr, ns, opts...); err != nil {
 		return nil, err
 	}
 	if ret.c, err = InternalNewClient(streamMgr, ns, opts...); err != nil {

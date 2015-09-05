@@ -46,10 +46,10 @@ type xclient struct {
 
 var _ rpc.Client = (*xclient)(nil)
 
-func NewXClient(ctx *context.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
+func NewXClient(ctx *context.T, fm flow.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	c := &xclient{
-		flowMgr: v23.ExperimentalGetFlowManager(ctx),
-		ns:      v23.GetNamespace(ctx),
+		flowMgr: fm,
+		ns:      ns,
 	}
 	ipNets, err := ipNetworks()
 	if err != nil {

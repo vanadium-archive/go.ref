@@ -34,7 +34,7 @@ func TestXClientServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
-	client, err := NewXClient(ctx)
+	client, err := NewXClient(ctx, v23.ExperimentalGetFlowManager(ctx), v23.GetNamespace(ctx))
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
@@ -64,7 +64,7 @@ func TestXClientDispatchingServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
-	client, err := NewXClient(ctx)
+	client, err := NewXClient(ctx, v23.ExperimentalGetFlowManager(ctx), v23.GetNamespace(ctx))
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}

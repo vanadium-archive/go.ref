@@ -305,7 +305,9 @@ func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {
 		b.mu.Lock()
 		if err != nil {
 			if err != io.EOF {
-				ctx.Errorf("Blessings flow closed: %v", err)
+				// TODO(mattr): In practice this is very spammy,
+				// figure out how to log it more effectively.
+				ctx.VI(3).Infof("Blessings flow closed: %v", err)
 			}
 			b.closed = true
 			b.mu.Unlock()
