@@ -421,7 +421,7 @@ func (m *mojoImpl) TableExists(name string) (mojom.Error, bool, error) {
 	return toMojoError(err), exists, nil
 }
 
-func (m *mojoImpl) TableDeleteRowRange(name string, start, limit []byte) (mojom.Error, error) {
+func (m *mojoImpl) TableDeleteRange(name string, start, limit []byte) (mojom.Error, error) {
 	return mojom.Error{}, nil
 }
 

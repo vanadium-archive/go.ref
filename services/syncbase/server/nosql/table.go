@@ -91,7 +91,7 @@ func (t *tableReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int
 	return util.ErrorToExists(util.GetWithAuth(ctx, call, t.d.st, t.stKey(), &tableData{}))
 }
 
-func (t *tableReq) DeleteRowRange(ctx *context.T, call rpc.ServerCall, schemaVersion int32, start, limit []byte) error {
+func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersion int32, start, limit []byte) error {
 	impl := func(tx store.Transaction) error {
 		// Check for table-level access before doing a scan.
 		if err := t.checkAccess(ctx, call, tx, ""); err != nil {
