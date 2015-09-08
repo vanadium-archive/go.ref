@@ -62,7 +62,7 @@ Valid time units are "ms", "s", "m", "h".
 				// point should generate random test data -
 				// mountpoints at different depths and the like
 				start := time.Now()
-				if err := v23.GetClient(ctx).Call(ctx, mountpoint, "Mount", []interface{}{ep, uint32(ttl / time.Second), 0}, nil, options.NoResolve{}); err != nil {
+				if err := v23.GetClient(ctx).Call(ctx, mountpoint, "Mount", []interface{}{ep, uint32(ttl / time.Second), 0}, nil, options.Preresolved{}); err != nil {
 					return 0, err
 				}
 				return time.Since(start), nil
@@ -93,7 +93,7 @@ Repeatedly issues a Resolve request (at --rate) to a name and measures latency
 			resolve := func(ctx *context.T) (time.Duration, error) {
 				var entry naming.MountEntry
 				start := time.Now()
-				if err := v23.GetClient(ctx).Call(ctx, name, "ResolveStep", nil, []interface{}{&entry}, options.NoResolve{}); err != nil && verror.ErrorID(err) != naming.ErrNoSuchName.ID {
+				if err := v23.GetClient(ctx).Call(ctx, name, "ResolveStep", nil, []interface{}{&entry}, options.Preresolved{}); err != nil && verror.ErrorID(err) != naming.ErrNoSuchName.ID {
 					// ErrNoSuchName is fine, it just means
 					// that the mounttable server did not
 					// find an entry in its tables.

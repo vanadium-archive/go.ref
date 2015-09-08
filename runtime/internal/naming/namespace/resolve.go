@@ -5,7 +5,6 @@
 package namespace
 
 import (
-	"errors"
 	"runtime"
 	"strings"
 
@@ -18,58 +17,76 @@ import (
 	"v.io/x/ref/lib/apilog"
 )
 
+var (
+	errNoServers = verror.Register(pkgPath+".errNoServers", verror.NoRetry, "{1} {2} No servers found to resolve query {_}")
+)
+
+// resolveAgainstMountTable asks each server in e.Servers that might be a mounttable to resolve e.Name.  The requests
+// are parallelized by the client rpc code.
 func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client, e *naming.MountEntry, opts ...rpc.CallOpt) (*naming.MountEntry, error) {
-	// Try each server till one answers.
-	finalErr := errors.New("no servers to resolve query")
-	opts = append(opts, options.NoResolve{})
+	// Run through the server list looking for answers in the cache or servers that aren't mounttables.
+	change := false
 	for _, s := range e.Servers {
 		// If the server was not specified as an endpoint (perhaps as host:port)
 		// then we really don't know if this is a mounttable or not.  Check the
 		// cache to see if we've tried in the recent past and it came back as not
 		// a mounttable.
 		if ns.resolutionCache.isNotMT(s.Server) {
-			finalErr = verror.New(verror.ErrUnknownMethod, nil, "ResolveStep")
+			change = true
 			continue
 		}
-		// Assume a mount table and make the call.
-		name := naming.JoinAddressName(s.Server, e.Name)
-		// First check the cache.
-		if ne, err := ns.resolutionCache.lookup(ctx, name); err == nil {
-			ctx.VI(2).Infof("resolveAMT %s from cache -> %v", name, convertServersToStrings(ne.Servers, ne.Name))
+
+		// Check the cache.  If its there, we're done.
+		n := naming.JoinAddressName(s.Server, e.Name)
+		if ne, err := ns.resolutionCache.lookup(ctx, n); err == nil {
+			ctx.VI(2).Infof("resolveAMT %s from cache -> %v", n, convertServersToStrings(ne.Servers, ne.Name))
 			return &ne, nil
 		}
-		// Not in cache, call the real server.
-		callCtx := ctx
-		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-			// Only set a per-call timeout if a deadline has not already
-			// been set.
-			callCtx = withTimeout(ctx)
-		}
-		entry := new(naming.MountEntry)
-		if err := client.Call(callCtx, name, "ResolveStep", nil, []interface{}{entry}, opts...); err != nil {
-			// If any replica says the name doesn't exist, return that fact.
-			if verror.ErrorID(err) == naming.ErrNoSuchName.ID || verror.ErrorID(err) == naming.ErrNoSuchNameRoot.ID {
-				return nil, err
+	}
+	// We had at least one server that wasn't a mount table.  Create a new mount entry without those servers.
+	if change {
+		ne := *e
+		ne.Servers = nil
+		for _, s := range e.Servers {
+			if !ns.resolutionCache.isNotMT(s.Server) {
+				ne.Servers = append(ne.Servers, s)
 			}
-			// If it wasn't a mounttable remember that fact.  The check for the __ is for
-			// the debugging hack in the local namespace of every server.  That part never
-			// answers mounttable RPCs and shouldn't make us think this isn't a mounttable
-			// server.
-			if notAnMT(err) && !strings.HasPrefix(e.Name, "__") {
+		}
+		e = &ne
+	}
+	// If we have no servers to query, give up.
+	if len(e.Servers) == 0 {
+		ctx.VI(2).Infof("resolveAMT %s -> No servers", e.Name)
+		return nil, verror.New(errNoServers, ctx)
+	}
+	// We have preresolved the servers.  Pass the mount entry to the call.
+	opts = append(opts, options.Preresolved{e})
+	callCtx := ctx
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		// Only set a per-call timeout if a deadline has not already
+		// been set.
+		callCtx = withTimeout(ctx)
+	}
+	entry := new(naming.MountEntry)
+	if err := client.Call(callCtx, e.Name, "ResolveStep", nil, []interface{}{entry}, opts...); err != nil {
+		// If it wasn't a mounttable remember that fact.  The check for the __ is for
+		// the debugging hack in the local namespace of every server.  That part never
+		// answers mounttable RPCs and shouldn't make us think this isn't a mounttable
+		// server.
+		if notAnMT(err) && !strings.HasPrefix(e.Name, "__") {
+			for _, s := range e.Servers {
 				ns.resolutionCache.setNotMT(s.Server)
 			}
-			// Keep track of the final error and continue with next server.
-			finalErr = err
-			ctx.VI(2).Infof("resolveAMT: Finish %s failed: %s", name, err)
-			continue
 		}
-		// Add result to cache.
-		ns.resolutionCache.remember(ctx, name, entry)
-		ctx.VI(2).Infof("resolveAMT %s -> %v", name, entry)
-		return entry, nil
+		return nil, err
 	}
-	ctx.VI(2).Infof("resolveAMT %v -> %v", e.Servers, finalErr)
-	return nil, finalErr
+	// Add result to cache for each server that may have returned it.
+	for _, s := range e.Servers {
+		n := naming.JoinAddressName(s.Server, e.Name)
+		ns.resolutionCache.remember(ctx, n, entry)
+	}
+	ctx.VI(2).Infof("resolveAMT %s -> %v", e.Name, entry)
+	return entry, nil
 }
 
 func terminal(e *naming.MountEntry) bool {
@@ -79,13 +96,20 @@ func terminal(e *naming.MountEntry) bool {
 // Resolve implements v.io/v23/naming.Namespace.
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	e, _ := ns.rootMountEntry(name, opts...)
+	// If caller supplied a mount entry, use it.
+	e, skipResolution := preresolved(opts)
+	if e != nil {
+		return e, nil
+	}
+	// Expand any relative name.
+	e, _ = ns.rootMountEntry(name, opts...)
 	if ctx.V(2) {
 		_, file, line, _ := runtime.Caller(1)
 		ctx.Infof("Resolve(%s) called from %s:%d", name, file, line)
-		ctx.Infof("Resolve(%s) -> rootMountEntry %v", name, *e)
+		ctx.Infof("Resolve(%s) -> rootEntry %v", name, *e)
 	}
-	if skipResolve(opts) {
+	// If caller didn't want resolution, use expanded name.
+	if skipResolution {
 		return e, nil
 	}
 	if len(e.Servers) == 0 {
@@ -194,11 +218,11 @@ func (ns *namespace) FlushCacheEntry(ctx *context.T, name string) bool {
 	return flushed
 }
 
-func skipResolve(opts []naming.NamespaceOpt) bool {
+func preresolved(opts []naming.NamespaceOpt) (*naming.MountEntry, bool) {
 	for _, o := range opts {
-		if _, ok := o.(options.NoResolve); ok {
-			return true
+		if v, ok := o.(options.Preresolved); ok {
+			return v.Resolution, true
 		}
 	}
-	return false
+	return nil, false
 }

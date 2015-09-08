@@ -53,7 +53,8 @@ func getRetryTimeoutOpt(opts []rpc.CallOpt) (time.Duration, bool) {
 
 func getNoNamespaceOpt(opts []rpc.CallOpt) bool {
 	for _, o := range opts {
-		if _, ok := o.(options.NoResolve); ok {
+		switch o.(type) {
+		case options.Preresolved:
 			return true
 		}
 	}

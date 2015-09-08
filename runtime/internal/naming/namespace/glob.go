@@ -13,6 +13,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/apilog"
@@ -23,12 +24,12 @@ type tracks struct {
 	places map[string]struct{}
 }
 
-func (tr *tracks) beenThereDoneThat(servers []string, pstr string) bool {
+func (tr *tracks) beenThereDoneThat(servers []naming.MountedServer, pstr string) bool {
 	tr.m.Lock()
 	defer tr.m.Unlock()
 	found := false
 	for _, s := range servers {
-		x := s + "!" + pstr
+		x := naming.JoinAddressName(s.Server, "") + "!" + pstr
 		if _, ok := tr.places[x]; ok {
 			found = true
 		}
@@ -61,25 +62,25 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task, t
 	pstr := t.pattern.String()
 	ctx.VI(2).Infof("globAtServer(%v, %v)", *t.me, pstr)
 
-	servers := []string{}
-	for _, s := range t.me.Servers {
-		servers = append(servers, naming.JoinAddressName(s.Server, ""))
-	}
-
 	// If there are no servers to call, this isn't a mount point.  No sense
 	// trying to call servers that aren't there.
-	if len(servers) == 0 {
+	if len(t.me.Servers) == 0 {
 		t.error = nil
 		return
 	}
 
 	// If we've been there before with the same request, give up.
-	if tr.beenThereDoneThat(servers, pstr) {
+	if tr.beenThereDoneThat(t.me.Servers, pstr) {
 		t.error = nil
 		return
 	}
 
-	call, err := ns.parallelStartCall(ctx, client, servers, rpc.GlobMethod, []interface{}{pstr}, opts)
+	// t.me.Name has already been matched at this point to so don't pass it to the Call.  Kind of sleazy to do this
+	// but it avoids making yet another copy of the MountEntry.
+	on := t.me.Name
+	t.me.Name = ""
+	call, err := client.StartCall(withTimeout(ctx), "", rpc.GlobMethod, []interface{}{pstr}, append(opts, options.Preresolved{t.me})...)
+	t.me.Name = on
 	if err != nil {
 		t.error = err
 		return

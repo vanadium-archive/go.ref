@@ -61,7 +61,7 @@ func runGlob(ctx *context.T, env *cmdline.Env, args []string) error {
 
 	name, pattern := args[0], args[1]
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, rpc.GlobMethod, []interface{}{pattern}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, rpc.GlobMethod, []interface{}{pattern}, options.Preresolved{})
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func runMount(ctx *context.T, env *cmdline.Env, args []string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
-	if err := client.Call(ctx, name, "Mount", []interface{}{server, seconds, flags}, nil, options.NoResolve{}); err != nil {
+	if err := client.Call(ctx, name, "Mount", []interface{}{server, seconds, flags}, nil, options.Preresolved{}); err != nil {
 		return err
 	}
 	fmt.Fprintln(env.Stdout, "Name mounted successfully.")
@@ -160,7 +160,7 @@ func runUnmount(ctx *context.T, env *cmdline.Env, args []string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
-	if err := client.Call(ctx, args[0], "Unmount", []interface{}{args[1]}, nil, options.NoResolve{}); err != nil {
+	if err := client.Call(ctx, args[0], "Unmount", []interface{}{args[1]}, nil, options.Preresolved{}); err != nil {
 		return err
 	}
 	fmt.Fprintln(env.Stdout, "Unmount successful or name not mounted.")
@@ -186,7 +186,7 @@ func runResolveStep(ctx *context.T, env *cmdline.Env, args []string) error {
 	defer cancel()
 	client := v23.GetClient(ctx)
 	var entry naming.MountEntry
-	if err := client.Call(ctx, args[0], "ResolveStep", nil, []interface{}{&entry}, options.NoResolve{}); err != nil {
+	if err := client.Call(ctx, args[0], "ResolveStep", nil, []interface{}{&entry}, options.Preresolved{}); err != nil {
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "Servers: %v Suffix: %q MT: %v\n", entry.Servers, entry.Name, entry.ServesMountTable)

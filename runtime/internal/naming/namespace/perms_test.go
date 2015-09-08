@@ -136,24 +136,18 @@ func TestPermissions(t *testing.T) {
 	ns := v23.GetNamespace(rootCtx)
 	ns.SetRoots("/" + rmtAddr)
 
-	// Create two parallel mount tables.
+	// Create lower mount table.
 	stop1, mt1Addr := newMT(t, rootCtx)
 	fmt.Printf("mt1 at %s\n", mt1Addr)
 	defer stop1()
-	stop2, mt2Addr := newMT(t, rootCtx)
-	fmt.Printf("mt2 at %s\n", mt2Addr)
-	defer stop2()
 
 	// Mount them into the root.
 	if err := ns.Mount(rootCtx, "a/b/c", mt1Addr, 0, naming.ServesMountTable(true)); err != nil {
 		t.Fatalf("Failed to Mount %s onto a/b/c: %s", "/"+mt1Addr, err)
 	}
-	if err := ns.Mount(rootCtx, "a/b/c", mt2Addr, 0, naming.ServesMountTable(true)); err != nil {
-		t.Fatalf("Failed to Mount %s onto a/b/c: %s", "/"+mt2Addr, err)
-	}
 
 	// Set/Get the mount point's Permissions.
-	perms, version, err := ns.GetPermissions(rootCtx, "a/b/c")
+	_, version, err := ns.GetPermissions(rootCtx, "a/b/c")
 	if err != nil {
 		t.Fatalf("GetPermissions a/b/c: %s", err)
 	}
@@ -168,7 +162,7 @@ func TestPermissions(t *testing.T) {
 		t.Fatalf("want %v, got %v", openPerms, nacl)
 	}
 
-	// Now Set/Get the parallel mount point's Permissions.
+	// Now Set/Get the in lower mount table.
 	name := "a/b/c/d/e"
 	version = "" // Parallel setperms with any other value is dangerous
 	if err := ns.SetPermissions(rootCtx, name, openPerms, version); err != nil {
@@ -180,24 +174,6 @@ func TestPermissions(t *testing.T) {
 	}
 	if !reflect.DeepEqual(openPerms, nacl) {
 		t.Fatalf("want %v, got %v", openPerms, nacl)
-	}
-
-	// Get from each server individually to make sure both are set.
-	name = naming.Join(mt1Addr, "d/e")
-	nacl, _, err = ns.GetPermissions(rootCtx, name)
-	if err != nil {
-		t.Fatalf("GetPermissions %s: %s", name, err)
-	}
-	if !reflect.DeepEqual(openPerms, nacl) {
-		t.Fatalf("want %v, got %v", openPerms, nacl)
-	}
-	name = naming.Join(mt2Addr, "d/e")
-	nacl, _, err = ns.GetPermissions(rootCtx, name)
-	if err != nil {
-		t.Fatalf("GetPermissions %s: %s", name, err)
-	}
-	if !reflect.DeepEqual(openPerms, nacl) {
-		t.Fatalf("want %v, got %v", perms, nacl)
 	}
 
 	// Create mount points accessible only by root's key and owner.

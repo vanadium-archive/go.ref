@@ -79,7 +79,7 @@ func TestDebugServer(t *testing.T) {
 		foo.Set("The quick brown fox jumps over the lazy dog")
 		addr := naming.JoinAddressName(ep.String(), "__debug/stats/testing/foo")
 		var value string
-		if err := client.Call(cctx, addr, "Value", nil, []interface{}{&value}, options.NoResolve{}); err != nil {
+		if err := client.Call(cctx, addr, "Value", nil, []interface{}{&value}, options.Preresolved{}); err != nil {
 			t.Fatalf("client.Call failed: %v", err)
 		}
 		if want := foo.Value(); value != want {
@@ -99,7 +99,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		addr := naming.JoinAddressName(ep.String(), tc.name)
-		call, err := client.StartCall(cctx, addr, rpc.GlobMethod, []interface{}{tc.pattern}, options.NoResolve{})
+		call, err := client.StartCall(cctx, addr, rpc.GlobMethod, []interface{}{tc.pattern}, options.Preresolved{})
 		if err != nil {
 			t.Fatalf("client.StartCall failed for %q: %v", tc.name, err)
 		}

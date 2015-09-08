@@ -84,7 +84,7 @@ L:
 
 	client := v23.GetClient(rootCtx)
 	name := naming.JoinAddressName(estr, serverName+"/"+expectedSuffix)
-	call, cerr := client.StartCall(rootCtx, name, "ResolveStep", nil, options.NoResolve{})
+	call, cerr := client.StartCall(rootCtx, name, "ResolveStep", nil, options.Preresolved{})
 	if cerr != nil {
 		boom(t, "ResolveStep.StartCall: %s", cerr)
 	}

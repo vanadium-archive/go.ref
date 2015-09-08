@@ -11,17 +11,16 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/ref/lib/apilog"
 )
 
-// mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string, opts ...rpc.CallOpt) (s status) {
-	s.id = id
-	ctx = withTimeout(ctx)
-	s.err = client.Call(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, nil, append(opts, options.NoResolve{})...)
-	return
+func (ns *namespace) forget(ctx *context.T, me *naming.MountEntry) {
+	var names []string
+	for _, s := range me.Servers {
+		names = append(names, naming.JoinAddressName(s.Server, me.Name))
+	}
+	ns.resolutionCache.forget(ctx, names)
 }
 
 // Mount implements Namespace.Mount.
@@ -45,56 +44,39 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 			}
 		}
 	}
-
-	client := v23.GetClient(ctx)
-	// Mount the server in all the returned mount tables.
-	f := func(ctx *context.T, mt, id string) status {
-		return mountIntoMountTable(ctx, client, mt, server, ttl, flags, id, getCallOpts(opts)...)
+	
+	me, err := ns.ResolveToMountTable(ctx, name, opts...)
+	if err == nil {
+		copts := append(getCallOpts(opts), options.Preresolved{me})
+		err = v23.GetClient(ctx).Call(withTimeout(ctx), name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, nil, copts...)
+		ns.forget(ctx, me)
 	}
-	err := ns.dispatch(ctx, name, f, opts)
 	ctx.VI(1).Infof("Mount(%s, %q) -> %v", name, server, err)
 	return err
-}
-
-// unmountFromMountTable removes a single mounted server from a single mount table.
-func unmountFromMountTable(ctx *context.T, client rpc.Client, name, server string, id string, opts ...rpc.CallOpt) (s status) {
-	s.id = id
-	ctx = withTimeout(ctx)
-	s.err = client.Call(ctx, name, "Unmount", []interface{}{server}, nil, append(opts, options.NoResolve{})...)
-	return
 }
 
 // Unmount implements Namespace.Unmount.
 func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming.NamespaceOpt) error {
 	defer apilog.LogCallf(ctx, "name=%.10s...,server=%.10s...,opts...=%v", name, server, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	// Unmount the server from all the mount tables.
-	client := v23.GetClient(ctx)
-	f := func(ctx *context.T, mt, id string) status {
-		return unmountFromMountTable(ctx, client, mt, server, id, getCallOpts(opts)...)
+	me, err := ns.ResolveToMountTable(ctx, name, opts...)
+	if err == nil {
+		copts := append(getCallOpts(opts), options.Preresolved{me})
+		err = v23.GetClient(ctx).Call(withTimeout(ctx), name, "Unmount", []interface{}{server}, nil, copts...)
+		ns.forget(ctx, me)
 	}
-	err := ns.dispatch(ctx, name, f, opts)
 	ctx.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
 	return err
 }
 
-// deleteFromMountTable deletes a name from a single mount table.  If there are any children
-// and deleteSubtree isn't true, nothing is deleted.
-func deleteFromMountTable(ctx *context.T, client rpc.Client, name string, deleteSubtree bool, id string, opts ...rpc.CallOpt) (s status) {
-	s.id = id
-	ctx = withTimeout(ctx)
-	s.err = client.Call(ctx, name, "Delete", []interface{}{deleteSubtree}, nil, append(opts, options.NoResolve{})...)
-	return
-}
-
-// RDeleteemove implements Namespace.Delete.
+// Delete implements Namespace.Delete.
 func (ns *namespace) Delete(ctx *context.T, name string, deleteSubtree bool, opts ...naming.NamespaceOpt) error {
 	defer apilog.LogCallf(ctx, "name=%.10s...,deleteSubtree=%v,opts...=%v", name, deleteSubtree, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	// Remove from all the mount tables.
-	client := v23.GetClient(ctx)
-	f := func(ctx *context.T, mt, id string) status {
-		return deleteFromMountTable(ctx, client, mt, deleteSubtree, id, getCallOpts(opts)...)
+	me, err := ns.ResolveToMountTable(ctx, name, opts...)
+	if err == nil {
+		copts := append(getCallOpts(opts), options.Preresolved{me})
+		err = v23.GetClient(ctx).Call(withTimeout(ctx), name, "Delete", []interface{}{deleteSubtree}, nil, copts...)
+		ns.forget(ctx, me)
 	}
-	err := ns.dispatch(ctx, name, f, opts)
 	ctx.VI(1).Infof("Remove(%s, %v) -> %v", name, deleteSubtree, err)
 	return err
 }
