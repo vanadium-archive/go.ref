@@ -29,33 +29,12 @@ func TestDirectConnection(t *testing.T) {
 
 	rid := naming.FixedRoutingID(0x5555)
 	m := New(ctx, rid)
-	want := "read this please"
 
 	if err := m.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 
-	eps := m.ListeningEndpoints()
-	if len(eps) == 0 {
-		t.Fatalf("no endpoints listened on")
-	}
-	flow, err := m.Dial(ctx, eps[0], flowtest.BlessingsForPeer)
-	if err != nil {
-		t.Error(err)
-	}
-	writeLine(flow, want)
-
-	flow, err = m.Accept(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := readLine(flow)
-	if err != nil {
-		t.Error(err)
-	}
-	if got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
+	testFlows(t, ctx, m, m, flowtest.BlessingsForPeer)
 }
 
 func TestDialCachedConn(t *testing.T) {
@@ -67,39 +46,78 @@ func TestDialCachedConn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eps := am.ListeningEndpoints()
-	if len(eps) == 0 {
-		t.Fatalf("no endpoints listened on")
-	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111))
 	// At first the cache should be empty.
 	if got, want := len(dm.(*manager).cache.addrCache), 0; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 	// After dialing a connection the cache should hold one connection.
-	dialAndAccept(t, ctx, dm, am, eps[0], flowtest.BlessingsForPeer)
+	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
 	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 	// After dialing another connection the cache should still hold one connection
 	// because the connections should be reused.
-	dialAndAccept(t, ctx, dm, am, eps[0], flowtest.BlessingsForPeer)
+	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
 	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 }
 
-func dialAndAccept(t *testing.T, ctx *context.T, dm, am flow.Manager, ep naming.Endpoint, bFn flow.BlessingsForPeer) (df, af flow.Flow) {
+func TestBidirectionalListeningEndpoint(t *testing.T) {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	am := New(ctx, naming.FixedRoutingID(0x5555))
+	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+	eps := am.ListeningEndpoints()
+	if len(eps) == 0 {
+		t.Fatalf("no endpoints listened on")
+	}
+	dm := New(ctx, naming.FixedRoutingID(0x1111))
+	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
+	// Now am should be able to make a flow to dm even though dm is not listening.
+	testFlows(t, ctx, am, dm, flowtest.BlessingsForPeer)
+}
+
+func testFlows(t *testing.T, ctx *context.T, dm, am flow.Manager, bFn flow.BlessingsForPeer) (df, af flow.Flow) {
+	eps := am.ListeningEndpoints()
+	if len(eps) == 0 {
+		t.Fatalf("no endpoints listened on")
+	}
+	ep := eps[0]
 	var err error
 	df, err = dm.Dial(ctx, ep, bFn)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Write a line to ensure that the openFlow message is sent.
-	writeLine(df, "")
+	want := "do you read me?"
+	writeLine(df, want)
 	af, err = am.Accept(ctx)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	got, err := readLine(af)
+	if err != nil {
+		t.Error(err)
+	}
+	if got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+
+	want = "i read you"
+	if err := writeLine(af, want); err != nil {
+		t.Error(err)
+	}
+	got, err = readLine(df)
+	if err != nil {
+		t.Error(err)
+	}
+	if got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 	return
 }

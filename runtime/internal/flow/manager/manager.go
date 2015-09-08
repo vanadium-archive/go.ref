@@ -204,12 +204,17 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 
 // ListeningEndpoints returns the endpoints that the Manager has explicitly
 // listened on. The Manager will accept new flows on these endpoints.
-// Returned endpoints all have a RoutingID unique to the Acceptor.
+// If the Manager is not listening on any endpoints, an endpoint with the
+// Manager's RoutingID will be returned for use in bidirectional RPC.
+// Returned endpoints all have the Manager's unique RoutingID.
 func (m *manager) ListeningEndpoints() []naming.Endpoint {
 	m.mu.Lock()
 	ret := make([]naming.Endpoint, len(m.listenEndpoints))
 	copy(ret, m.listenEndpoints)
 	m.mu.Unlock()
+	if len(ret) == 0 {
+		ret = append(ret, &inaming.Endpoint{RID: m.rid})
+	}
 	return ret
 }
 
