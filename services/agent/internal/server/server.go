@@ -305,23 +305,15 @@ func (a *agentd) BlessingStoreDischarge(caveat security.Caveat, impetus security
 }
 
 func (a *agentd) BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error {
-	pkey, err := security.UnmarshalPublicKey(root)
-	if err != nil {
-		return err
-	}
 	defer a.unlock()
 	a.mu.Lock()
-	return a.principal.Roots().Add(pkey, pattern)
+	return a.principal.Roots().Add(root, pattern)
 }
 
 func (a *agentd) BlessingRootsRecognized(root []byte, blessing string) error {
-	pkey, err := security.UnmarshalPublicKey(root)
-	if err != nil {
-		return err
-	}
 	defer a.mu.RUnlock()
 	a.mu.RLock()
-	return a.principal.Roots().Recognized(pkey, blessing)
+	return a.principal.Roots().Recognized(root, blessing)
 }
 
 func (a *agentd) BlessingRootsDump() (map[security.BlessingPattern][][]byte, error) {

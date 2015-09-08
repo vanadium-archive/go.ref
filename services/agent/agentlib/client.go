@@ -362,20 +362,12 @@ type blessingRoots struct {
 	caller caller
 }
 
-func (b *blessingRoots) Add(root security.PublicKey, pattern security.BlessingPattern) error {
-	marshalledKey, err := root.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	return b.caller.call("BlessingRootsAdd", results(), marshalledKey, pattern)
+func (b *blessingRoots) Add(root []byte, pattern security.BlessingPattern) error {
+	return b.caller.call("BlessingRootsAdd", results(), root, pattern)
 }
 
-func (b *blessingRoots) Recognized(root security.PublicKey, blessing string) error {
-	marshalledKey, err := root.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	return b.caller.call("BlessingRootsRecognized", results(), marshalledKey, blessing)
+func (b *blessingRoots) Recognized(root []byte, blessing string) error {
+	return b.caller.call("BlessingRootsRecognized", results(), root, blessing)
 }
 
 func (b *blessingRoots) Dump() map[security.BlessingPattern][]security.PublicKey {

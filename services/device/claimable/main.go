@@ -64,13 +64,9 @@ func addRoot(ctx *context.T, jRoot string) {
 	if err := json.Unmarshal([]byte(jRoot), &bRoot); err != nil {
 		ctx.Fatalf("unable to unmarshal the json blessing root: %v", err)
 	}
-	decodedKey, err := base64.URLEncoding.DecodeString(bRoot.PublicKey)
+	key, err := base64.URLEncoding.DecodeString(bRoot.PublicKey)
 	if err != nil {
 		ctx.Fatalf("unable to decode public key: %v", err)
-	}
-	key, err := security.UnmarshalPublicKey(decodedKey)
-	if err != nil {
-		ctx.Fatalf("unable to unmarshal the public key: %v", err)
 	}
 	roots := v23.GetPrincipal(ctx).Roots()
 	for _, name := range bRoot.Names {

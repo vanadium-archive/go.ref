@@ -214,16 +214,16 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 		}
 
 		inst.logger.VI(1).Infof("Using blessing roots for identity with key %v and names %v", msg.IdentitydBlessingRoot.PublicKey, msg.IdentitydBlessingRoot.Names)
-		key, err := decodeAndUnmarshalPublicKey(msg.IdentitydBlessingRoot.PublicKey)
+		keybytes, err := base64.URLEncoding.DecodeString(msg.IdentitydBlessingRoot.PublicKey)
 		if err != nil {
-			inst.logger.Fatalf("decodeAndUnmarshalPublicKey(%v) failed: %v", msg.IdentitydBlessingRoot.PublicKey, err)
+			inst.logger.Fatalf("failed to decode public key (%v): %v", msg.IdentitydBlessingRoot.PublicKey, err)
 		}
 
 		for _, name := range msg.IdentitydBlessingRoot.Names {
 			pattern := security.BlessingPattern(name)
 
 			// Trust the identity servers blessing root.
-			p.Roots().Add(key, pattern)
+			p.Roots().Add(keybytes, pattern)
 
 			// Use our blessing to only talk to the identity server.
 			if _, err := p.BlessingStore().Set(blessing, pattern); err != nil {

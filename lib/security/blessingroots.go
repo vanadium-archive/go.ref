@@ -26,23 +26,15 @@ type blessingRoots struct {
 	state         blessingRootsState // GUARDED_BY(mu)
 }
 
-func stateMapKey(root security.PublicKey) (string, error) {
-	rootBytes, err := root.MarshalBinary()
-	if err != nil {
-		return "", err
-	}
-	return string(rootBytes), nil
-}
-
-func (br *blessingRoots) Add(root security.PublicKey, pattern security.BlessingPattern) error {
+func (br *blessingRoots) Add(root []byte, pattern security.BlessingPattern) error {
 	if pattern == security.AllPrincipals {
 		return verror.New(errRootsAddPattern, nil)
 	}
-	key, err := stateMapKey(root)
-	if err != nil {
+	// Sanity check to avoid invalid keys being added.
+	if _, err := security.UnmarshalPublicKey(root); err != nil {
 		return err
 	}
-
+	key := string(root)
 	br.mu.Lock()
 	defer br.mu.Unlock()
 	patterns := br.state[key]
@@ -61,20 +53,23 @@ func (br *blessingRoots) Add(root security.PublicKey, pattern security.BlessingP
 	return nil
 }
 
-func (br *blessingRoots) Recognized(root security.PublicKey, blessing string) error {
-	key, err := stateMapKey(root)
-	if err != nil {
-		return err
-	}
-
+func (br *blessingRoots) Recognized(root []byte, blessing string) error {
+	key := string(root)
 	br.mu.RLock()
-	defer br.mu.RUnlock()
 	for _, p := range br.state[key] {
 		if p.MatchedBy(blessing) {
+			br.mu.RUnlock()
 			return nil
 		}
 	}
-	return security.NewErrUnrecognizedRoot(nil, root.String(), nil)
+	br.mu.RUnlock()
+	// Silly to have to unmarshal the public key on an error.
+	// Change the error message to not require that?
+	obj, err := security.UnmarshalPublicKey(root)
+	if err != nil {
+		return err
+	}
+	return security.NewErrUnrecognizedRoot(nil, obj.String(), nil)
 }
 
 func (br *blessingRoots) Dump() map[security.BlessingPattern][]security.PublicKey {
