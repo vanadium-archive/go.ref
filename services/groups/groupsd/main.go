@@ -11,7 +11,6 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -24,7 +23,6 @@ import (
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/groups/internal/server"
-	"v.io/x/ref/services/groups/internal/store/gkv"
 	"v.io/x/ref/services/groups/internal/store/leveldb"
 	"v.io/x/ref/services/groups/internal/store/mem"
 )
@@ -38,7 +36,7 @@ var (
 
 func main() {
 	cmdGroupsD.Flags.StringVar(&flagName, "name", "", "Name to mount the groups server as.")
-	cmdGroupsD.Flags.StringVar(&flagEngine, "engine", "memstore", "Storage engine to use. Currently supported: gkv, leveldb, and memstore.")
+	cmdGroupsD.Flags.StringVar(&flagEngine, "engine", "memstore", "Storage engine to use. Currently supported: leveldb, and memstore.")
 	cmdGroupsD.Flags.StringVar(&flagRootDir, "root-dir", "/var/lib/groupsd", "Root dir for storage engines and other data.")
 
 	cmdline.HideGlobalFlagsExcept()
@@ -80,13 +78,6 @@ func runGroupsD(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	var dispatcher rpc.Dispatcher
 	switch flagEngine {
-	case "gkv":
-		file := filepath.Join(flagRootDir, ".gkvstore")
-		store, err := gkv.New(file)
-		if err != nil {
-			ctx.Fatalf("gkv.New(%v) failed: %v", file, err)
-		}
-		dispatcher = server.NewManager(store, perms)
 	case "leveldb":
 		store, err := leveldb.Open(flagRootDir)
 		if err != nil {
