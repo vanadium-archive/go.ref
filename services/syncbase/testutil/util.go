@@ -55,10 +55,11 @@ func CreateNoSQLDatabase(t *testing.T, ctx *context.T, a syncbase.App, name stri
 }
 
 func CreateTable(t *testing.T, ctx *context.T, d nosql.Database, name string) nosql.Table {
-	if err := d.Table(name).Create(ctx, nil); err != nil {
-		Fatalf(t, "d.Table(name).Create() failed: %v", err)
+	tb := d.Table(name)
+	if err := tb.Create(ctx, nil); err != nil {
+		Fatalf(t, "tb.Create() failed: %v", err)
 	}
-	return d.Table(name)
+	return tb
 }
 
 // TODO(sadovsky): Drop the 'perms' argument. The only client that passes

@@ -90,8 +90,8 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self3, "self3", false)
 }
 
-// TestDelete tests that object deletion works as expected.
-func TestDelete(t *testing.T, ctx *context.T, i interface{}) {
+// TestDestroy tests that object destruction works as expected.
+func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	parent := makeLayer(i)
 	self := parent.Child("self")
 	child := self.Child("child")
@@ -128,7 +128,7 @@ func TestDelete(t *testing.T, ctx *context.T, i interface{}) {
 	// with an error instead of returning false.
 	//assertExists(t, ctx, child, "child", false)
 
-	// self.Create should succeed, since self was deleted.
+	// self.Create should succeed, since self was destroyed.
 	if err := self.Create(ctx, nil); err != nil {
 		t.Fatalf("self.Create() failed: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestDelete(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self, "self", true)
 	assertExists(t, ctx, child, "child", false)
 
-	// Test that delete fails if the perms disallow access.
+	// Test that destroy fails if the perms disallow access.
 	self2 := parent.Child("self2")
 	if err := self2.Create(ctx, nil); err != nil {
 		t.Fatalf("self2.Create() failed: %v", err)
@@ -152,7 +152,7 @@ func TestDelete(t *testing.T, ctx *context.T, i interface{}) {
 
 	assertExists(t, ctx, self2, "self2", true)
 
-	// Test that delete succeeds even if the parent perms disallow access.
+	// Test that destroy succeeds even if the parent perms disallow access.
 	perms = DefaultPerms("root/client")
 	perms.Blacklist("root/client", string(access.Write))
 	if err := parent.SetPermissions(ctx, perms, ""); err != nil {
@@ -164,7 +164,7 @@ func TestDelete(t *testing.T, ctx *context.T, i interface{}) {
 
 	assertExists(t, ctx, self, "self", false)
 
-	// Test that delete is idempotent.
+	// Test that destroy is idempotent.
 	if err := self.Destroy(ctx); err != nil {
 		t.Fatalf("self.Destroy() failed: %v", err)
 	}
@@ -359,17 +359,13 @@ func (d *database) ListChildren(ctx *context.T) ([]string, error) {
 	return d.ListTables(ctx)
 }
 func (d *database) Child(childName string) layer {
-	return &table{Table: d.Table(childName), d: d}
+	return makeLayer(d.Table(childName))
 }
 
 type table struct {
 	nosql.Table
-	d nosql.Database
 }
 
-func (t *table) Create(ctx *context.T, perms access.Permissions) error {
-	return t.Table.Create(ctx, perms)
-}
 func (t *table) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
 	return t.Table.SetPermissions(ctx, nosql.Prefix(""), perms)
 }
@@ -421,6 +417,8 @@ func makeLayer(i interface{}) layer {
 		return &app{t}
 	case nosql.Database:
 		return &database{t}
+	case nosql.Table:
+		return &table{t}
 	default:
 		vlog.Fatalf("unexpected type: %T", t)
 	}
