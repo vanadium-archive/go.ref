@@ -422,7 +422,13 @@ func (m *mojoImpl) TableExists(name string) (mojom.Error, bool, error) {
 }
 
 func (m *mojoImpl) TableDeleteRange(name string, start, limit []byte) (mojom.Error, error) {
-	return mojom.Error{}, nil
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "DeleteRange"))
+	stub, err := m.getTable(ctx, call, name)
+	if err != nil {
+		return toMojoError(err), nil
+	}
+	err = stub.DeleteRange(ctx, call, NoSchema, start, limit)
+	return toMojoError(err), nil
 }
 
 type scanStreamImpl struct {
