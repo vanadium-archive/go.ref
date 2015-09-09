@@ -153,6 +153,9 @@ func (c *Conn) LocalEndpoint() naming.Endpoint { return c.local }
 // RemoteEndpoint returns the remote vanadium Endpoint
 func (c *Conn) RemoteEndpoint() naming.Endpoint { return c.remote }
 
+// CommonVersion returns the RPCVersion negotiated between the local and remote endpoints.
+func (c *Conn) CommonVersion() version.RPCVersion { return c.version }
+
 // LastUsedTime returns the time at which the Conn had bytes read or written on it.
 func (c *Conn) LastUsedTime() time.Time {
 	defer c.mu.Unlock()
