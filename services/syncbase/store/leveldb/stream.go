@@ -44,7 +44,7 @@ func newStream(d *db, parent *store.ResourceNode, start, limit []byte, cOpts *C.
 	s := &stream{
 		node:  store.NewResourceNode(),
 		cIter: cIter,
-		limit: limit,
+		limit: store.CopyBytes(nil, limit),
 	}
 	parent.AddChild(s.node, func() {
 		s.Cancel()

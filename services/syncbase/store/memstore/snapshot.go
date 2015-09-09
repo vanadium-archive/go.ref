@@ -9,27 +9,24 @@ import (
 
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/ptrie"
 )
 
 type snapshot struct {
 	store.SnapshotSpecImpl
 	mu   sync.Mutex
 	node *store.ResourceNode
-	data map[string][]byte
+	data *ptrie.T
 	err  error
 }
 
 var _ store.Snapshot = (*snapshot)(nil)
 
 // Assumes st lock is held.
-func newSnapshot(st *memstore, parent *store.ResourceNode) *snapshot {
-	dataCopy := make(map[string][]byte, len(st.data))
-	for k, v := range st.data {
-		dataCopy[k] = v
-	}
+func newSnapshot(data *ptrie.T, parent *store.ResourceNode) *snapshot {
 	s := &snapshot{
 		node: store.NewResourceNode(),
-		data: dataCopy,
+		data: data,
 	}
 	parent.AddChild(s.node, func() {
 		s.Abort()
@@ -56,11 +53,11 @@ func (s *snapshot) Get(key, valbuf []byte) ([]byte, error) {
 	if s.err != nil {
 		return valbuf, store.ConvertError(s.err)
 	}
-	value, ok := s.data[string(key)]
-	if !ok {
+	value := s.data.Get(key)
+	if value == nil {
 		return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
 	}
-	return store.CopyBytes(valbuf, value), nil
+	return store.CopyBytes(valbuf, value.([]byte)), nil
 }
 
 // Scan implements the store.StoreReader interface.
@@ -70,5 +67,5 @@ func (s *snapshot) Scan(start, limit []byte) store.Stream {
 	if s.err != nil {
 		return &store.InvalidStream{Error: s.err}
 	}
-	return newStream(s, s.node, start, limit)
+	return newStream(s.data, s.node, start, limit)
 }
