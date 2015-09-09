@@ -4,6 +4,30 @@
 
 package discovery
 
+import (
+	"github.com/pborman/uuid"
+
+	"v.io/v23/discovery"
+)
+
 // ds is an implementation of discovery.T.
 type ds struct {
+	plugins []Plugin
+}
+
+// Advertisement holds a set of service properties to advertise.
+type Advertisement struct {
+	discovery.Service
+
+	// The service UUID to advertise.
+	ServiceUuid uuid.UUID
+
+	// TODO(jhahn): Add proximity.
+}
+
+// TODO(jhahn): Need a better API.
+func New(plugins []Plugin) discovery.T {
+	ds := &ds{plugins: make([]Plugin, len(plugins))}
+	copy(ds.plugins, plugins)
+	return ds
 }

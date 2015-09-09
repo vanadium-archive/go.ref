@@ -11,6 +11,23 @@ import (
 )
 
 // Advertise implements discovery.Advertiser.
+//
+// TODO(jhahn): Handle ACL.
 func (ds *ds) Advertise(ctx *context.T, service discovery.Service, perms access.Permissions) error {
+	if len(service.InstanceUuid) == 0 {
+		service.InstanceUuid = NewInstanceUUID()
+	}
+	ad := &Advertisement{
+		ServiceUuid: NewServiceUUID(service.InterfaceName),
+		Service:     service,
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	for _, plugin := range ds.plugins {
+		err := plugin.Advertise(ctx, ad)
+		if err != nil {
+			cancel()
+			return err
+		}
+	}
 	return nil
 }
