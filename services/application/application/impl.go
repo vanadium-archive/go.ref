@@ -61,7 +61,7 @@ func putEnvelopeJSON(ctx *context.T, env *cmdline.Env, app repository.Applicatio
 			results <- struct {
 				profile string
 				err     error
-			}{profile, app.PutX(ctx, profile, envelope, overwrite)}
+			}{profile, app.Put(ctx, profile, envelope, overwrite)}
 		}(profile)
 	}
 	resultsMap := make(map[string]error, len(profiles))

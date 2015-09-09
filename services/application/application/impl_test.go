@@ -185,7 +185,7 @@ func TestApplicationClient(t *testing.T) {
 	if expected, got := "Application envelope added for profile myprofile1.\nApplication envelope added for profile myprofile2.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from put. Got %q, expected %q", got, expected)
 	}
-	if expected1, expected2, got := "PutX(myprofile1, ..., false)\nPutX(myprofile2, ..., false)", "PutX(myprofile2, ..., false)\nPutX(myprofile1, ..., false)", strings.TrimSpace(serverOut.String()); got != expected1 && got != expected2 {
+	if expected1, expected2, got := "Put(myprofile1, ..., false)\nPut(myprofile2, ..., false)", "Put(myprofile2, ..., false)\nPut(myprofile1, ..., false)", strings.TrimSpace(serverOut.String()); got != expected1 && got != expected2 {
 		t.Errorf("Unexpected output from mock server. Got %q, expected %q or %q", got, expected1, expected2)
 	}
 	resetOut()
@@ -197,7 +197,7 @@ func TestApplicationClient(t *testing.T) {
 	if expected, got := "Application envelope added for profile myprofile.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from put. Got %q, expected %q", got, expected)
 	}
-	if expected, got := "PutX(myprofile, ..., true)", strings.TrimSpace(serverOut.String()); got != expected {
+	if expected, got := "Put(myprofile, ..., true)", strings.TrimSpace(serverOut.String()); got != expected {
 		t.Errorf("Unexpected output from mock server. Got %q, expected %q", got, expected)
 	}
 	resetOut()
