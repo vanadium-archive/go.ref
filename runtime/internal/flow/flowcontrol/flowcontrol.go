@@ -89,7 +89,7 @@ func (w *Worker) Run(ctx *context.T, r Runner) (err error) {
 			if next != nil {
 				next.notify()
 			}
-			ctx.VI(4).Infof("worker waiting: %s\nfc: %s", w, w.fc)
+			ctx.VI(4).Infof("worker waiting: %s %#v\nfc: %s %d", w, w.counters, w.fc, w.fc.shared)
 			select {
 			case <-ctx.Done():
 				err = ctx.Err()
