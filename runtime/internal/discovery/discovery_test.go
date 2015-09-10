@@ -5,7 +5,9 @@
 package discovery_test
 
 import (
+	"fmt"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
@@ -34,64 +36,37 @@ func TestBasic(t *testing.T) {
 	for _, service := range services {
 		stop, err := advertise(ds, service)
 		if err != nil {
-			t.Fatalf("Advertise failed: %v\n", err)
+			t.Fatal(err)
 		}
 		stops = append(stops, stop)
 	}
 
-	updates, err := scan(ds, "v.io/v23/a")
-	if err != nil {
-		t.Fatalf("Scan failed: %v\n", err)
+	if err := scanAndMatch(ds, "v.io/v23/a", services[0]); err != nil {
+		t.Error(err)
 	}
-	if !match(updates, services[0]) {
-		t.Errorf("Scan failed; got %v, but wanted %v\n", updates, services[0])
+	if err := scanAndMatch(ds, "v.io/v23/b", services[1]); err != nil {
+		t.Error(err)
 	}
-	updates, err = scan(ds, "v.io/v23/b")
-	if err != nil {
-		t.Fatalf("Scan failed: %v\n", err)
+	if err := scanAndMatch(ds, "", services...); err != nil {
+		t.Error(err)
 	}
-	if !match(updates, services[1]) {
-		t.Errorf("Scan failed; got %v, but wanted %v\n", updates, services[1])
-	}
-	updates, err = scan(ds, "")
-	if err != nil {
-		t.Fatalf("Scan failed: %v\n", err)
-	}
-	if !match(updates, services...) {
-		t.Errorf("Scan failed; got %v, but wanted %v\n", updates, services)
-	}
-	updates, err = scan(ds, "v.io/v23/c")
-	if err != nil {
-		t.Fatalf("Scan failed: %v\n", err)
-	}
-	if !match(updates) {
-		t.Errorf("Scan failed; got %v, but wanted %v\n", updates, nil)
+	if err := scanAndMatch(ds, "v.io/v23/c"); err != nil {
+		t.Error(err)
 	}
 
 	// Stop advertising the first service. Shouldn't affect the other.
 	stops[0]()
-	updates, err = scan(ds, "v.io/v23/a")
-	if err != nil {
-		t.Fatalf("Scan failed: %v\n", err)
+	if err := scanAndMatch(ds, "v.io/v23/a"); err != nil {
+		t.Error(err)
 	}
-	if !match(updates) {
-		t.Errorf("Scan failed; got %v, but wanted %v\n", updates, nil)
+	if err := scanAndMatch(ds, "v.io/v23/b", services[1]); err != nil {
+		t.Error(err)
 	}
-	updates, err = scan(ds, "v.io/v23/b")
-	if err != nil {
-		t.Fatalf("Scan failed: %v\n", err)
-	}
-	if !match(updates, services[1]) {
-		t.Errorf("Scan failed; got %v, but wanted %v\n", updates, services[1])
-	}
+
 	// Stop advertising the other. Now shouldn't discover any service.
 	stops[1]()
-	updates, err = scan(ds, "")
-	if err != nil {
-		t.Fatalf("Scan failed: %v\n", err)
-	}
-	if !match(updates) {
-		t.Errorf("Scan failed; got %v, but wanted %v\n", updates, nil)
+	if err := scanAndMatch(ds, ""); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -99,25 +74,24 @@ func advertise(ds discovery.Advertiser, services ...discovery.Service) (func(), 
 	ctx, cancel := context.RootContext()
 	for _, service := range services {
 		if err := ds.Advertise(ctx, service, nil); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Advertise failed: %v", err)
 		}
 	}
 	return cancel, nil
 }
 
 func scan(ds discovery.Scanner, query string) ([]discovery.Update, error) {
-	ctx, cancel := context.RootContext()
-	defer cancel()
+	ctx, _ := context.RootContext()
 	updateCh, err := ds.Scan(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Scan failed: %v", err)
 	}
 	var updates []discovery.Update
 	for {
 		select {
 		case update := <-updateCh:
 			updates = append(updates, update)
-		case <-time.After(10 * time.Millisecond):
+		case <-time.After(5 * time.Millisecond):
 			return updates, nil
 		}
 	}
@@ -142,4 +116,23 @@ func match(updates []discovery.Update, wants ...discovery.Service) bool {
 		}
 	}
 	return len(updates) == 0
+}
+
+func scanAndMatch(ds discovery.Scanner, query string, wants ...discovery.Service) error {
+	const timeout = 3 * time.Second
+
+	var updates []discovery.Update
+	for now := time.Now(); time.Since(now) < timeout; {
+		runtime.Gosched()
+
+		var err error
+		updates, err = scan(ds, query)
+		if err != nil {
+			return err
+		}
+		if match(updates, wants...) {
+			return nil
+		}
+	}
+	return fmt.Errorf("Match failed; got %v, but wanted %v", updates, wants)
 }
