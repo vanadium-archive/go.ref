@@ -5,6 +5,7 @@
 package manager
 
 import (
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -18,17 +19,11 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/v23/vom"
 
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/version"
-)
-
-const (
-	clientByte = 'c'
-	serverByte = 's'
 )
 
 type manager struct {
@@ -59,24 +54,24 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 // otherwise an error is returned.
 func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	var (
-		ep  naming.Endpoint
+		eps []naming.Endpoint
 		err error
 	)
 	if protocol == inaming.Network {
-		ep, err = m.proxyListen(ctx, address)
+		eps, err = m.proxyListen(ctx, address)
 	} else {
-		ep, err = m.listen(ctx, protocol, address)
+		eps, err = m.listen(ctx, protocol, address)
 	}
 	if err != nil {
 		return err
 	}
 	m.mu.Lock()
-	m.listenEndpoints = append(m.listenEndpoints, ep)
+	m.listenEndpoints = append(m.listenEndpoints, eps...)
 	m.mu.Unlock()
 	return nil
 }
 
-func (m *manager) listen(ctx *context.T, protocol, address string) (naming.Endpoint, error) {
+func (m *manager) listen(ctx *context.T, protocol, address string) ([]naming.Endpoint, error) {
 	ln, err := listen(ctx, protocol, address)
 	if err != nil {
 		return nil, flow.NewErrNetwork(ctx, err)
@@ -87,10 +82,10 @@ func (m *manager) listen(ctx *context.T, protocol, address string) (naming.Endpo
 		RID:      m.rid,
 	}
 	go m.lnAcceptLoop(ctx, ln, local)
-	return local, nil
+	return []naming.Endpoint{local}, nil
 }
 
-func (m *manager) proxyListen(ctx *context.T, address string) (naming.Endpoint, error) {
+func (m *manager) proxyListen(ctx *context.T, address string) ([]naming.Endpoint, error) {
 	ep, err := inaming.NewEndpoint(address)
 	if err != nil {
 		return nil, flow.NewErrBadArg(ctx, err)
@@ -99,15 +94,31 @@ func (m *manager) proxyListen(ctx *context.T, address string) (naming.Endpoint, 
 	if err != nil {
 		return nil, flow.NewErrNetwork(ctx, err)
 	}
-	// Write to ensure we send an openFlow message.
-	if _, err := f.Write([]byte{serverByte}); err != nil {
+	w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
+	if err != nil {
+		return nil, flow.NewErrBadArg(ctx, err)
+	}
+	if _, err := f.WriteMsg(w); err != nil {
+		return nil, flow.NewErrBadArg(ctx, err)
+	}
+
+	return m.readProxyResponse(ctx, f)
+}
+
+func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpoint, error) {
+	b, err := f.ReadMsg()
+	if err != nil {
 		return nil, flow.NewErrNetwork(ctx, err)
 	}
-	var lep string
-	if err := vom.NewDecoder(f).Decode(&lep); err != nil {
-		return nil, flow.NewErrNetwork(ctx, err)
+	msg, err := message.Read(ctx, b)
+	if err != nil {
+		return nil, flow.NewErrBadArg(ctx, err)
 	}
-	return inaming.NewEndpoint(lep)
+	res, ok := msg.(*message.ProxyResponse)
+	if !ok {
+		return nil, flow.NewErrBadArg(ctx, NewErrInvalidProxyResponse(ctx, fmt.Sprintf("%t", res)))
+	}
+	return res.Endpoints, nil
 }
 
 type proxyBlessingsForPeer struct{}
@@ -322,10 +333,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
 	// return a flow on that corresponding conn.
 	if remote.RoutingID() != c.RemoteEndpoint().RoutingID() {
-		// Write to tell the proxy that this should be routed.
-		if _, err := f.Write([]byte{clientByte}); err != nil {
-			return nil, flow.NewErrNetwork(ctx, err)
-		}
 		c, err = conn.NewDialed(
 			ctx,
 			f,

@@ -15,4 +15,5 @@ error (
   AcceptFailed(err error) {"en": "accept failed{:err}"}
   CacheClosed() {"en":"cache is closed"}
   ConnKilledToFreeResources() {"en": "Connection killed to free resources."}
+  InvalidProxyResponse(typ string) {"en": "Invalid proxy response{:typ}"}
 )

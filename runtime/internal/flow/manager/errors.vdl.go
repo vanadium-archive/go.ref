@@ -20,6 +20,7 @@ var (
 	ErrAcceptFailed              = verror.Register("v.io/x/ref/runtime/internal/flow/manager.AcceptFailed", verror.NoRetry, "{1:}{2:} accept failed{:3}")
 	ErrCacheClosed               = verror.Register("v.io/x/ref/runtime/internal/flow/manager.CacheClosed", verror.NoRetry, "{1:}{2:} cache is closed")
 	ErrConnKilledToFreeResources = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ConnKilledToFreeResources", verror.NoRetry, "{1:}{2:} Connection killed to free resources.")
+	ErrInvalidProxyResponse      = verror.Register("v.io/x/ref/runtime/internal/flow/manager.InvalidProxyResponse", verror.NoRetry, "{1:}{2:} Invalid proxy response{:3}")
 )
 
 func init() {
@@ -28,6 +29,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAcceptFailed.ID), "{1:}{2:} accept failed{:3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCacheClosed.ID), "{1:}{2:} cache is closed")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnKilledToFreeResources.ID), "{1:}{2:} Connection killed to free resources.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidProxyResponse.ID), "{1:}{2:} Invalid proxy response{:3}")
 }
 
 // NewErrUnknownProtocol returns an error with the ErrUnknownProtocol ID.
@@ -53,4 +55,9 @@ func NewErrCacheClosed(ctx *context.T) error {
 // NewErrConnKilledToFreeResources returns an error with the ErrConnKilledToFreeResources ID.
 func NewErrConnKilledToFreeResources(ctx *context.T) error {
 	return verror.New(ErrConnKilledToFreeResources, ctx)
+}
+
+// NewErrInvalidProxyResponse returns an error with the ErrInvalidProxyResponse ID.
+func NewErrInvalidProxyResponse(ctx *context.T, typ string) error {
+	return verror.New(ErrInvalidProxyResponse, ctx, typ)
 }

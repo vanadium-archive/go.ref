@@ -5,21 +5,18 @@
 package xproxyd
 
 import (
+	"fmt"
 	"io"
 	"sync"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/flow/message"
 	"v.io/v23/naming"
-	"v.io/v23/vom"
 )
 
 // TODO(suharshs): Make sure that we don't leak any goroutines.
-
-const proxyByte = byte('p')
-const serverByte = byte('s')
-const clientByte = byte('c')
 
 type proxy struct {
 	m              flow.Manager
@@ -42,19 +39,19 @@ func New(ctx *context.T) (*proxy, error) {
 				return nil, err
 			}
 			// Send a byte telling the acceptor that we are a proxy.
-			if _, err := f.Write([]byte{proxyByte}); err != nil {
+			if err := writeMessage(ctx, &message.MultiProxyRequest{}, f); err != nil {
 				return nil, err
 			}
-			var lep string
-			if err := vom.NewDecoder(f).Decode(&lep); err != nil {
-				return nil, err
-			}
-			proxyEndpoint, err := v23.NewEndpoint(lep)
+			msg, err := readMessage(ctx, f)
 			if err != nil {
 				return nil, err
 			}
+			m, ok := msg.(*message.ProxyResponse)
+			if !ok {
+				return nil, NewErrUnexpectedMessage(ctx, fmt.Sprintf("%t", m))
+			}
 			p.mu.Lock()
-			p.proxyEndpoints = append(p.proxyEndpoints, proxyEndpoint)
+			p.proxyEndpoints = append(p.proxyEndpoints, m.Endpoints...)
 			p.mu.Unlock()
 		} else if err := p.m.Listen(ctx, addr.Protocol, addr.Address); err != nil {
 			return nil, err
@@ -75,16 +72,16 @@ func (p *proxy) listenLoop(ctx *context.T) {
 			ctx.Infof("p.m.Accept failed: %v", err)
 			break
 		}
-		msg := make([]byte, 1)
-		if _, err := f.Read(msg); err != nil {
+		msg, err := readMessage(ctx, f)
+		if err != nil {
 			ctx.Errorf("reading type byte failed: %v", err)
 		}
-		switch msg[0] {
-		case clientByte:
-			err = p.startRouting(ctx, f)
-		case proxyByte:
+		switch m := msg.(type) {
+		case *message.Setup:
+			err = p.startRouting(ctx, f, m)
+		case *message.MultiProxyRequest:
 			err = p.replyToProxy(ctx, f)
-		case serverByte:
+		case *message.ProxyServerRequest:
 			err = p.replyToServer(ctx, f)
 		default:
 			continue
@@ -95,8 +92,8 @@ func (p *proxy) listenLoop(ctx *context.T) {
 	}
 }
 
-func (p *proxy) startRouting(ctx *context.T, f flow.Flow) error {
-	fout, err := p.dialNextHop(ctx, f)
+func (p *proxy) startRouting(ctx *context.T, f flow.Flow, m *message.Setup) error {
+	fout, err := p.dialNextHop(ctx, f, m)
 	if err != nil {
 		return err
 	}
@@ -117,14 +114,12 @@ func (p *proxy) forwardLoop(ctx *context.T, fin, fout flow.Flow) {
 	}
 }
 
-func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow) (flow.Flow, error) {
-	m, err := readSetupMessage(ctx, f)
-	if err != nil {
-		return nil, err
-	}
-	var rid naming.RoutingID
-	var ep naming.Endpoint
-	var shouldWriteClientByte bool
+func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow.Flow, error) {
+	var (
+		rid naming.RoutingID
+		ep  naming.Endpoint
+		err error
+	)
 	if routes := m.PeerRemoteEndpoint.Routes(); len(routes) > 0 {
 		if err := rid.FromString(routes[0]); err != nil {
 			return nil, err
@@ -141,7 +136,6 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow) (flow.Flow, error) {
 		if m.PeerRemoteEndpoint, err = setEndpointRoutes(m.PeerRemoteEndpoint, routes[1:]); err != nil {
 			return nil, err
 		}
-		shouldWriteClientByte = true
 	} else {
 		ep = m.PeerRemoteEndpoint
 	}
@@ -149,27 +143,17 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow) (flow.Flow, error) {
 	if err != nil {
 		return nil, err
 	}
-	if shouldWriteClientByte {
-		// We only write the clientByte on flows made to proxys. If we are creating
-		// the last hop flow to the end server, we don't need to send the byte.
-		if _, err := fout.Write([]byte{clientByte}); err != nil {
-			return nil, err
-		}
-	}
-
 	// Write the setup message back onto the flow for the next hop to read.
-	return fout, writeSetupMessage(ctx, m, fout)
+	return fout, writeMessage(ctx, m, fout)
 }
 
 func (p *proxy) replyToServer(ctx *context.T, f flow.Flow) error {
 	rid := f.Conn().RemoteEndpoint().RoutingID()
-	epString, err := p.returnEndpoint(ctx, rid, "")
+	eps, err := p.returnEndpoints(ctx, rid, "")
 	if err != nil {
 		return err
 	}
-	// TODO(suharshs): Make a low-level message for this information instead of
-	// VOM-Encoding the endpoint string.
-	return vom.NewEncoder(f).Encode(epString)
+	return writeMessage(ctx, &message.ProxyResponse{Endpoints: eps}, f)
 }
 
 func (p *proxy) replyToProxy(ctx *context.T, f flow.Flow) error {
@@ -178,37 +162,38 @@ func (p *proxy) replyToProxy(ctx *context.T, f flow.Flow) error {
 	// by a server's rid by some later proxy.
 	// TODO(suharshs): Use a local route instead of this global routingID.
 	rid := f.Conn().RemoteEndpoint().RoutingID()
-	epString, err := p.returnEndpoint(ctx, naming.NullRoutingID, rid.String())
+	eps, err := p.returnEndpoints(ctx, naming.NullRoutingID, rid.String())
 	if err != nil {
 		return err
 	}
-	return vom.NewEncoder(f).Encode(epString)
+	return writeMessage(ctx, &message.ProxyResponse{Endpoints: eps}, f)
 }
 
-func (p *proxy) returnEndpoint(ctx *context.T, rid naming.RoutingID, route string) (string, error) {
+func (p *proxy) returnEndpoints(ctx *context.T, rid naming.RoutingID, route string) ([]naming.Endpoint, error) {
 	p.mu.Lock()
 	eps := append(p.m.ListeningEndpoints(), p.proxyEndpoints...)
 	p.mu.Unlock()
 	if len(eps) == 0 {
-		return "", NewErrNotListening(ctx)
+		return nil, NewErrNotListening(ctx)
 	}
-	// TODO(suharshs): handle listening on multiple endpoints.
-	ep := eps[len(eps)-1]
-	var err error
-	if rid != naming.NullRoutingID {
-		ep, err = setEndpointRoutingID(ep, rid)
-		if err != nil {
-			return "", err
+	for idx, ep := range eps {
+		var err error
+		if rid != naming.NullRoutingID {
+			ep, err = setEndpointRoutingID(ep, rid)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
-	if len(route) > 0 {
-		var cp []string
-		cp = append(cp, ep.Routes()...)
-		cp = append(cp, route)
-		ep, err = setEndpointRoutes(ep, cp)
-		if err != nil {
-			return "", err
+		if len(route) > 0 {
+			var cp []string
+			cp = append(cp, ep.Routes()...)
+			cp = append(cp, route)
+			ep, err = setEndpointRoutes(ep, cp)
+			if err != nil {
+				return nil, err
+			}
 		}
+		eps[idx] = ep
 	}
-	return ep.String(), nil
+	return eps, nil
 }

@@ -5,8 +5,6 @@
 package xproxyd
 
 import (
-	"fmt"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
@@ -73,26 +71,19 @@ func (proxyBlessingsForPeer) run(ctx *context.T, lep, rep naming.Endpoint, rb se
 	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
 
-func readSetupMessage(ctx *context.T, f flow.Flow) (*message.Setup, error) {
-	b, err := f.ReadMsg()
-	if err != nil {
-		return nil, err
-	}
-	m, err := message.Read(ctx, b)
-	if err != nil {
-		return nil, err
-	}
-	if m, isSetup := m.(*message.Setup); isSetup {
-		return m, nil
-	}
-	return nil, NewErrUnexpectedMessage(ctx, fmt.Sprintf("%t", m))
-}
-
-func writeSetupMessage(ctx *context.T, m message.Message, f flow.Flow) error {
-	w, err := message.Append(ctx, m, []byte{})
+func writeMessage(ctx *context.T, m message.Message, f flow.Flow) error {
+	w, err := message.Append(ctx, m, nil)
 	if err != nil {
 		return err
 	}
 	_, err = f.WriteMsg(w)
 	return err
+}
+
+func readMessage(ctx *context.T, f flow.Flow) (message.Message, error) {
+	b, err := f.ReadMsg()
+	if err != nil {
+		return nil, err
+	}
+	return message.Read(ctx, b)
 }
