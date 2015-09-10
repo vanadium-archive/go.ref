@@ -28,6 +28,11 @@ import (
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
+const (
+	dataFlow = 'd'
+	typeFlow = 't'
+)
+
 type xclient struct {
 	flowMgr            flow.Manager
 	ns                 namespace.T
@@ -39,6 +44,9 @@ type xclient struct {
 	// directly.
 	ipNets []*net.IPNet
 
+	// typeCache maintains a cache of type encoders and decoders.
+	typeCache *typeCache
+
 	wg     sync.WaitGroup
 	mu     sync.Mutex
 	closed bool
@@ -48,8 +56,9 @@ var _ rpc.Client = (*xclient)(nil)
 
 func NewXClient(ctx *context.T, fm flow.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	c := &xclient{
-		flowMgr: fm,
-		ns:      ns,
+		flowMgr:   fm,
+		ns:        ns,
+		typeCache: newTypeCache(),
 	}
 	ipNets, err := ipNetworks()
 	if err != nil {
@@ -118,6 +127,8 @@ type xserverStatus struct {
 	server, suffix string
 	flow           flow.Flow
 	serverErr      *verror.SubErr
+	typeEnc        *vom.TypeEncoder
+	typeDec        *vom.TypeDecoder
 }
 
 // tryCreateFlow attempts to establish a Flow to "server" (which must be a
@@ -157,13 +168,27 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		status.serverErr = suberr(verror.New(errInvalidEndpoint, ctx))
 		return
 	}
-	flow, err := c.flowMgr.Dial(ctx, ep, blessingsForPeer{auth, method, suffix}.run)
-	if err != nil {
+	bfp := blessingsForPeer{auth, method, suffix}.run
+	if status.flow, err = c.flowMgr.Dial(ctx, ep, bfp); err != nil {
 		ctx.VI(2).Infof("rpc: failed to create Flow with %v: %v", server, err)
 		status.serverErr = suberr(err)
 		return
 	}
-	status.flow = flow
+	if write := c.typeCache.writer(status.flow.Conn()); write != nil {
+		if tflow, err := c.flowMgr.Dial(ctx, ep, bfp); err != nil {
+			ctx.VI(2).Infof("rpc: failed to create type Flow with %v: %v", server, err)
+			status.serverErr = suberr(err)
+			return
+		} else if _, err = tflow.Write([]byte{typeFlow}); err != nil {
+			ctx.VI(2).Infof("rpc: Failed to write type byte. %v: %v", server, err)
+			tflow.Close()
+			status.serverErr = suberr(err)
+			return
+		} else {
+			write(tflow)
+		}
+	}
+	status.typeEnc, status.typeDec = c.typeCache.get(status.flow.Conn())
 }
 
 type blessingsForPeer struct {
@@ -295,7 +320,7 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 				continue
 			}
 
-			fc, err := newFlowXClient(ctx, r.flow)
+			fc, err := newFlowXClient(ctx, r.flow, r.typeEnc, r.typeDec)
 			if err != nil {
 				return nil, verror.NoRetry, false, err
 			}
@@ -441,14 +466,17 @@ type flowXClient struct {
 var _ rpc.ClientCall = (*flowXClient)(nil)
 var _ rpc.Stream = (*flowXClient)(nil)
 
-func newFlowXClient(ctx *context.T, flow flow.Flow) (*flowXClient, error) {
+func newFlowXClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, typeDec *vom.TypeDecoder) (*flowXClient, error) {
+	if _, err := flow.Write([]byte{dataFlow}); err != nil {
+		flow.Close()
+		return nil, err
+	}
 	fc := &flowXClient{
 		ctx:  ctx,
 		flow: flow,
-		dec:  vom.NewDecoder(flow),
-		enc:  vom.NewEncoder(flow),
+		dec:  vom.NewDecoderWithTypeDecoder(flow, typeDec),
+		enc:  vom.NewEncoderWithTypeEncoder(flow, typeEnc),
 	}
-	// TODO(toddw): Add logic to create separate type flows!
 	return fc, nil
 }
 
