@@ -16,19 +16,21 @@ type readq struct {
 	bufs [][]byte
 	b, e int
 
-	size      int
-	nbufs     int
-	toRelease int
-	notify    chan struct{}
+	id     uint64
+	size   int
+	nbufs  int
+	notify chan struct{}
+	conn   *Conn
 }
 
 const initialReadqBufferSize = 10
 
-func newReadQ() *readq {
+func newReadQ(conn *Conn, id uint64) *readq {
 	return &readq{
-		bufs:      make([][]byte, initialReadqBufferSize),
-		notify:    make(chan struct{}, 1),
-		toRelease: defaultBufferSize,
+		bufs:   make([][]byte, initialReadqBufferSize),
+		notify: make(chan struct{}, 1),
+		conn:   conn,
+		id:     id,
 	}
 }
 
@@ -68,38 +70,40 @@ func (r *readq) put(ctx *context.T, bufs [][]byte) error {
 	return nil
 }
 
-func (r *readq) read(ctx *context.T, data []byte) (n int, release bool, err error) {
-	defer r.mu.Unlock()
+func (r *readq) read(ctx *context.T, data []byte) (n int, err error) {
 	r.mu.Lock()
-	if err := r.waitLocked(ctx); err != nil {
-		return 0, false, err
+	if err = r.waitLocked(ctx); err == nil {
+		buf := r.bufs[r.b]
+		n = copy(data, buf)
+		buf = buf[n:]
+		if len(buf) > 0 {
+			r.bufs[r.b] = buf
+		} else {
+			r.nbufs -= 1
+			r.b = (r.b + 1) % len(r.bufs)
+		}
+		r.size -= n
 	}
-	buf := r.bufs[r.b]
-	n = copy(data, buf)
-	buf = buf[n:]
-	if len(buf) > 0 {
-		r.bufs[r.b] = buf
-	} else {
-		r.nbufs -= 1
-		r.b = (r.b + 1) % len(r.bufs)
+	r.mu.Unlock()
+	if r.conn != nil {
+		r.conn.release(ctx, r.id, uint64(n))
 	}
-	r.size -= n
-	r.toRelease += n
-	return n, r.toRelease > defaultBufferSize/2, nil
+	return
 }
 
-func (r *readq) get(ctx *context.T) (out []byte, release bool, err error) {
-	defer r.mu.Unlock()
+func (r *readq) get(ctx *context.T) (out []byte, err error) {
 	r.mu.Lock()
-	if err := r.waitLocked(ctx); err != nil {
-		return nil, false, err
+	if err = r.waitLocked(ctx); err == nil {
+		out = r.bufs[r.b]
+		r.b = (r.b + 1) % len(r.bufs)
+		r.size -= len(out)
+		r.nbufs -= 1
 	}
-	out = r.bufs[r.b]
-	r.b = (r.b + 1) % len(r.bufs)
-	r.size -= len(out)
-	r.nbufs -= 1
-	r.toRelease += len(out)
-	return out, r.toRelease > defaultBufferSize/2, nil
+	r.mu.Unlock()
+	if r.conn != nil {
+		r.conn.release(ctx, r.id, uint64(len(out)))
+	}
+	return
 }
 
 func (r *readq) waitLocked(ctx *context.T) (err error) {
@@ -124,7 +128,6 @@ func (r *readq) close(ctx *context.T) {
 	r.mu.Lock()
 	if r.e != -1 {
 		r.e = -1
-		r.toRelease = 0
 		close(r.notify)
 	}
 	r.mu.Unlock()
@@ -143,11 +146,4 @@ func (r *readq) reserveLocked(n int) {
 		copied += copy(nb[copied:], r.bufs[:r.e])
 	}
 	r.bufs, r.b, r.e = nb, 0, copied
-}
-
-func (r *readq) release() (out int) {
-	r.mu.Lock()
-	out, r.toRelease = r.toRelease, 0
-	r.mu.Unlock()
-	return out
 }

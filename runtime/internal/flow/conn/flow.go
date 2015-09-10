@@ -37,7 +37,7 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, diale
 		dialed: dialed,
 		conn:   c,
 		worker: c.fc.NewWorker(strconv.FormatUint(uint64(id), 10), flowPriority),
-		q:      newReadQ(),
+		q:      newReadQ(c, id),
 		bkey:   bkey,
 		dkey:   dkey,
 		opened: preopen,
@@ -57,11 +57,7 @@ func (f *flw) disableEncryption() {
 // or each other.
 func (f *flw) Read(p []byte) (n int, err error) {
 	f.conn.markUsed()
-	var release bool
-	if n, release, err = f.q.read(f.ctx, p); release {
-		f.conn.release(f.ctx)
-	}
-	if err != nil {
+	if n, err = f.q.read(f.ctx, p); err != nil {
 		f.close(f.ctx, err)
 	}
 	return
@@ -73,14 +69,10 @@ func (f *flw) Read(p []byte) (n int, err error) {
 // or each other.
 func (f *flw) ReadMsg() (buf []byte, err error) {
 	f.conn.markUsed()
-	var release bool
 	// TODO(mattr): Currently we only ever release counters when some flow
 	// reads.  We may need to do it more or less often.  Currently
 	// we'll send counters whenever a new flow is opened.
-	if buf, release, err = f.q.get(f.ctx); release {
-		f.conn.release(f.ctx)
-	}
-	if err != nil {
+	if buf, err = f.q.get(f.ctx); err != nil {
 		f.close(f.ctx, err)
 	}
 	return

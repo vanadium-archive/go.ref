@@ -28,8 +28,10 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) e
 	if err != nil {
 		return err
 	}
-	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG,
-		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true), true)
+	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true)
+	bflow.worker.Release(ctx, defaultBufferSize)
+	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG, bflow, true)
+
 	if err = c.readRemoteAuth(ctx, binding); err != nil {
 		return err
 	}

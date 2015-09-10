@@ -26,7 +26,7 @@ func TestReadqRead(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	r := newReadQ()
+	r := newReadQ(nil, 1)
 	r.put(ctx, mkBufs("one", "two"))
 	r.put(ctx, mkBufs("thre", "reallong"))
 	r.close(ctx)
@@ -34,7 +34,7 @@ func TestReadqRead(t *testing.T) {
 	read := make([]byte, 4)
 	want := []string{"one", "two", "thre", "real", "long"}
 	for _, w := range want {
-		n, _, err := r.read(ctx, read)
+		n, err := r.read(ctx, read)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -42,7 +42,7 @@ func TestReadqRead(t *testing.T) {
 			t.Errorf("got: %s, want %s", got, w)
 		}
 	}
-	if _, _, err := r.read(ctx, read); err != io.EOF {
+	if _, err := r.read(ctx, read); err != io.EOF {
 		t.Errorf("expected EOF got %v", err)
 	}
 }
@@ -53,14 +53,14 @@ func TestReadqGet(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	r := newReadQ()
+	r := newReadQ(nil, 1)
 	r.put(ctx, mkBufs("one", "two"))
 	r.put(ctx, mkBufs("thre", "reallong"))
 	r.close(ctx)
 
 	want := []string{"one", "two", "thre", "reallong"}
 	for _, w := range want {
-		out, _, err := r.get(ctx)
+		out, err := r.get(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -68,7 +68,7 @@ func TestReadqGet(t *testing.T) {
 			t.Errorf("got: %s, want %s", got, w)
 		}
 	}
-	if _, _, err := r.get(ctx); err != io.EOF {
+	if _, err := r.get(ctx); err != io.EOF {
 		t.Errorf("expected EOF got %v", err)
 	}
 }
@@ -79,7 +79,7 @@ func TestReadqMixed(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	r := newReadQ()
+	r := newReadQ(nil, 1)
 	r.put(ctx, mkBufs("one", "two"))
 	r.put(ctx, mkBufs("thre", "reallong"))
 	r.close(ctx)
@@ -94,10 +94,10 @@ func TestReadqMixed(t *testing.T) {
 			read = make([]byte, 4)
 		)
 		if i%2 == 0 {
-			out, _, err = r.get(ctx)
+			out, err = r.get(ctx)
 			got = string(out)
 		} else {
-			n, _, err = r.read(ctx, read)
+			n, err = r.read(ctx, read)
 			got = string(read[:n])
 		}
 		if err != nil {
@@ -107,10 +107,10 @@ func TestReadqMixed(t *testing.T) {
 			t.Errorf("got: %s, want %s", got, w)
 		}
 	}
-	if _, _, err := r.get(ctx); err != io.EOF {
+	if _, err := r.get(ctx); err != io.EOF {
 		t.Errorf("expected EOF got %v", err)
 	}
-	if _, _, err := r.read(ctx, nil); err != io.EOF {
+	if _, err := r.read(ctx, nil); err != io.EOF {
 		t.Errorf("expected EOF got %v", err)
 	}
 }

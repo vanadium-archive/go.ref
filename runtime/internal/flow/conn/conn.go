@@ -60,6 +60,8 @@ type Conn struct {
 	flows          map[uint64]*flw
 	dischargeTimer *time.Timer
 	lastUsedTime   time.Time
+	toRelease      map[uint64]uint64
+	borrowing      map[uint64]bool
 }
 
 // Ensure that *Conn implements flow.ManagedConn.
@@ -83,6 +85,8 @@ func NewDialed(
 		nextFid:      reservedFlows,
 		flows:        map[uint64]*flw{},
 		lastUsedTime: time.Now(),
+		toRelease:    map[uint64]uint64{},
+		borrowing:    map[uint64]bool{},
 	}
 	if err := c.dialHandshake(ctx, versions); err != nil {
 		c.Close(ctx, err)
@@ -110,6 +114,8 @@ func NewAccepted(
 		nextFid:      reservedFlows + 1,
 		flows:        map[uint64]*flw{},
 		lastUsedTime: time.Now(),
+		toRelease:    map[uint64]uint64{},
+		borrowing:    map[uint64]bool{},
 	}
 	if err := c.acceptHandshake(ctx, versions); err != nil {
 		c.Close(ctx, err)
@@ -211,22 +217,32 @@ func (c *Conn) internalClose(ctx *context.T, err error, flows map[uint64]*flw) {
 	close(c.closed)
 }
 
-func (c *Conn) release(ctx *context.T) {
-	counts := map[uint64]uint64{}
+func (c *Conn) release(ctx *context.T, fid, count uint64) {
+	var toRelease map[uint64]uint64
+	var release bool
 	c.mu.Lock()
-	for fid, f := range c.flows {
-		if release := f.q.release(); release > 0 {
-			counts[fid] = uint64(release)
-		}
+	c.toRelease[fid] += count
+	if c.borrowing[fid] {
+		c.toRelease[invalidFlowID] += count
+		release = c.toRelease[invalidFlowID] > defaultBufferSize/2
+	} else {
+		release = c.toRelease[fid] > defaultBufferSize/2
+	}
+	if release {
+		toRelease = c.toRelease
+		c.toRelease = make(map[uint64]uint64, len(c.toRelease))
+		c.borrowing = make(map[uint64]bool, len(c.borrowing))
 	}
 	c.mu.Unlock()
-	if len(counts) == 0 {
+
+	if toRelease == nil {
 		return
 	}
+	delete(toRelease, invalidFlowID)
 
 	err := c.fc.Run(ctx, "release", expressPriority, func(_ int) (int, bool, error) {
 		err := c.mp.writeMsg(ctx, &message.Release{
-			Counters: counts,
+			Counters: toRelease,
 		})
 		return 0, true, err
 	})
@@ -246,6 +262,9 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		}
 		c.mu.Lock()
 		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, false, true)
+		f.worker.Release(ctx, int(msg.InitialCounters))
+		c.toRelease[msg.ID] = defaultBufferSize
+		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
 		c.handler.HandleFlow(f)
 
