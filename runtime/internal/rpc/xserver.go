@@ -53,6 +53,7 @@ type xserver struct {
 	blessings         security.Blessings
 	protoEndpoints    []*inaming.Endpoint
 	chosenEndpoints   []*inaming.Endpoint
+	typeCache         *typeCache
 
 	// state of proxies keyed by the name of the proxy
 	proxies map[string]proxyState
@@ -109,6 +110,7 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 		settingsPublisher: settingsPublisher,
 		settingsName:      settingsName,
 		disp:              dispatcher,
+		typeCache:         newTypeCache(),
 	}
 	ipNets, err := ipNetworks()
 	if err != nil {
@@ -294,19 +296,34 @@ func (s *xserver) acceptLoop(ctx *context.T) error {
 		calls.Add(1)
 		go func(fl flow.Flow) {
 			defer calls.Done()
-			fs, err := newXFlowServer(fl, s)
-			if err != nil {
-				s.ctx.VI(1).Infof("newFlowServer on %v failed", err)
+			var ty [1]byte
+			if _, err := io.ReadFull(fl, ty[:]); err != nil {
+				s.ctx.VI(1).Infof("failed to read flow type: %v", err)
 				return
 			}
-			if err := fs.serve(); err != nil {
-				// TODO(caprita): Logging errors here is too spammy. For example, "not
-				// authorized" errors shouldn't be logged as server errors.
-				// TODO(cnicolaou): revisit this when verror2 transition is
-				// done.
-				if err != io.EOF {
-					s.ctx.VI(2).Infof("Flow.serve failed: %v", err)
+			switch ty[0] {
+			case dataFlow:
+				fs, err := newXFlowServer(fl, s)
+				if err != nil {
+					s.ctx.VI(1).Infof("newFlowServer failed %v", err)
+					return
 				}
+				if err := fs.serve(); err != nil {
+					// TODO(caprita): Logging errors here is too spammy. For example, "not
+					// authorized" errors shouldn't be logged as server errors.
+					// TODO(cnicolaou): revisit this when verror2 transition is
+					// done.
+					if err != io.EOF {
+						s.ctx.VI(2).Infof("Flow.serve failed: %v", err)
+					}
+				}
+			case typeFlow:
+				write := s.typeCache.writer(fl.Conn())
+				if write == nil {
+					s.ctx.VI(1).Infof("ignoring duplicate type flow.")
+					return
+				}
+				write(fl)
 			}
 		}(fl)
 	}
@@ -452,14 +469,14 @@ func newXFlowServer(flow flow.Flow, server *xserver) (*xflowServer, error) {
 	server.Lock()
 	disp := server.disp
 	server.Unlock()
-
+	typeEnc, typeDec := server.typeCache.get(flow.Conn())
 	fs := &xflowServer{
 		ctx:        server.ctx,
 		server:     server,
 		disp:       disp,
 		flow:       flow,
-		enc:        vom.NewEncoder(flow),
-		dec:        vom.NewDecoder(flow),
+		enc:        vom.NewEncoderWithTypeEncoder(flow, typeEnc),
+		dec:        vom.NewDecoderWithTypeDecoder(flow, typeDec),
 		discharges: make(map[string]security.Discharge),
 	}
 	// TODO(toddw): Add logic to create separate type flows!
