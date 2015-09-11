@@ -380,33 +380,7 @@ func (sd *syncDatabase) locateBlob(ctx *context.T, br wire.BlobRef) (string, int
 func (sd *syncDatabase) getMountTables(ctx *context.T, peer string) (map[string]struct{}, error) {
 	ss := sd.sync.(*syncService)
 	mInfo := ss.copyMemberInfo(ctx, peer)
-
-	mtTables := make(map[string]struct{})
-	for gdbName, sgInfo := range mInfo.db2sg {
-		appName, dbName, err := splitAppDbName(ctx, gdbName)
-		if err != nil {
-			return nil, err
-		}
-		st, err := ss.getDbStore(ctx, nil, appName, dbName)
-		if err != nil {
-			return nil, err
-		}
-
-		for id := range sgInfo {
-			sg, err := getSyncGroupById(ctx, st, id)
-			if err != nil {
-				continue
-			}
-			if _, ok := sg.Joiners[peer]; !ok {
-				// Peer is no longer part of the SyncGroup.
-				continue
-			}
-			for _, mt := range sg.Spec.MountTables {
-				mtTables[mt] = struct{}{}
-			}
-		}
-	}
-	return mtTables, nil
+	return mInfo.mtTables, nil
 }
 
 // TODO(hpucha): Persist the blob directory periodically.

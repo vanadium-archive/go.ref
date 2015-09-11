@@ -278,21 +278,6 @@ func (ds *dummyStream) Finish() error {
 func (ds *dummyStream) Cancel() {
 }
 
-func (ds *dummyStream) SendStream() interface {
-	Send(item interfaces.DeltaReq) error
-	Close() error
-} {
-	return ds
-}
-
-func (ds *dummyStream) Send(item interfaces.DeltaReq) error {
-	return nil
-}
-
-func (ds *dummyStream) Close() error {
-	return nil
-}
-
 // replayLocalCommands replays local log records parsed from the input file.
 func replayLocalCommands(t *testing.T, s *mockService, syncfile string) {
 	cmds, err := parseSyncCommands(syncfile)
@@ -342,9 +327,6 @@ func createReplayStream(t *testing.T, syncfile string) *dummyStream {
 	}
 
 	stream := newStream()
-	start := interfaces.DeltaRespStart{true}
-	stream.add(start)
-
 	for _, cmd := range cmds {
 		var ty byte
 		switch cmd.cmd {
@@ -373,13 +355,11 @@ func createReplayStream(t *testing.T, syncfile string) *dummyStream {
 
 		stream.add(rec)
 	}
-	fin := interfaces.DeltaRespFinish{true}
-	stream.add(fin)
 	return stream
 }
 
 func createMetadata(t *testing.T, ty byte, cmd syncCommand) interfaces.LogRecMetadata {
-	id, gen, err := splitLogRecKey(nil, cmd.logrec)
+	_, id, gen, err := splitLogRecKey(nil, cmd.logrec)
 	if err != nil {
 		t.Fatalf("createReplayStream splitLogRecKey failed, key %s, err %v", cmd.logrec, gen)
 	}

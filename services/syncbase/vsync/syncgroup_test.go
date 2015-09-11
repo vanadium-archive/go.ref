@@ -329,7 +329,8 @@ func TestMultiSyncGroups(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-1",
 		Spec: nosql.SyncGroupSpec{
-			Prefixes: []string{"foo"},
+			MountTables: []string{"mt1"},
+			Prefixes:    []string{"foo"},
 		},
 		Joiners: map[string]nosql.SyncGroupMemberInfo{
 			"phone":  nosql.SyncGroupMemberInfo{SyncPriority: 10},
@@ -345,7 +346,8 @@ func TestMultiSyncGroups(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-2",
 		Spec: nosql.SyncGroupSpec{
-			Prefixes: []string{"bar"},
+			MountTables: []string{"mt2", "mt3"},
+			Prefixes:    []string{"bar"},
 		},
 		Joiners: map[string]nosql.SyncGroupMemberInfo{
 			"tablet": nosql.SyncGroupMemberInfo{SyncPriority: 111},
@@ -383,6 +385,11 @@ func TestMultiSyncGroups(t *testing.T) {
 		t.Errorf("invalid SyncGroup members: got %v instead of %v", members, expMembers)
 	}
 
+	mt2and3 := map[string]struct{}{
+		"mt2": struct{}{},
+		"mt3": struct{}{},
+	}
+
 	expMemberInfo := map[string]*memberInfo{
 		"phone": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
@@ -390,6 +397,7 @@ func TestMultiSyncGroups(t *testing.T) {
 					sgId1: sg1.Joiners["phone"],
 				},
 			},
+			mtTables: map[string]struct{}{"mt1": struct{}{}},
 		},
 		"tablet": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
@@ -398,6 +406,11 @@ func TestMultiSyncGroups(t *testing.T) {
 					sgId2: sg2.Joiners["tablet"],
 				},
 			},
+			mtTables: map[string]struct{}{
+				"mt1": struct{}{},
+				"mt2": struct{}{},
+				"mt3": struct{}{},
+			},
 		},
 		"cloud": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
@@ -405,6 +418,7 @@ func TestMultiSyncGroups(t *testing.T) {
 					sgId1: sg1.Joiners["cloud"],
 				},
 			},
+			mtTables: map[string]struct{}{"mt1": struct{}{}},
 		},
 		"door": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
@@ -412,6 +426,7 @@ func TestMultiSyncGroups(t *testing.T) {
 					sgId2: sg2.Joiners["door"],
 				},
 			},
+			mtTables: mt2and3,
 		},
 		"lamp": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
@@ -419,6 +434,7 @@ func TestMultiSyncGroups(t *testing.T) {
 					sgId2: sg2.Joiners["lamp"],
 				},
 			},
+			mtTables: mt2and3,
 		},
 	}
 
@@ -430,7 +446,7 @@ func TestMultiSyncGroups(t *testing.T) {
 		}
 		expInfo := expMemberInfo[mm]
 		if !reflect.DeepEqual(mi, expInfo) {
-			t.Errorf("invalid Info for SyncGroup member %s: got %v instead of %v", mm, mi, expInfo)
+			t.Errorf("invalid Info for SyncGroup member %s: got %#v instead of %#v", mm, mi, expInfo)
 		}
 	}
 
@@ -462,6 +478,7 @@ func TestMultiSyncGroups(t *testing.T) {
 					sgId2: sg2.Joiners["tablet"],
 				},
 			},
+			mtTables: mt2and3,
 		},
 		"door": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
@@ -469,6 +486,7 @@ func TestMultiSyncGroups(t *testing.T) {
 					sgId2: sg2.Joiners["door"],
 				},
 			},
+			mtTables: mt2and3,
 		},
 		"lamp": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
@@ -476,6 +494,7 @@ func TestMultiSyncGroups(t *testing.T) {
 					sgId2: sg2.Joiners["lamp"],
 				},
 			},
+			mtTables: mt2and3,
 		},
 	}
 

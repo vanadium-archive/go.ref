@@ -25,11 +25,23 @@ func (syncData) __VDLReflect(struct {
 }) {
 }
 
+// localGenInfo represents the persistent state corresponding to local generations.
+type localGenInfo struct {
+	Gen        uint64 // local generation number incremented on every local update.
+	CheckptGen uint64 // local generation number advertised to remote peers (used by the responder).
+}
+
+func (localGenInfo) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.localGenInfo"`
+}) {
+}
+
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
-	Gen        uint64               // local generation number incremented on every local update.
-	CheckptGen uint64               // local generation number advertised to remote peers (used by the responder).
-	GenVec     interfaces.GenVector // generation vector capturing the locally-known generations of remote peers.
+	Data     localGenInfo
+	Sgs      map[interfaces.GroupId]localGenInfo
+	GenVec   interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for data in Database.
+	SgGenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for SyncGroups in Database.
 }
 
 func (dbSyncState) __VDLReflect(struct {
@@ -51,14 +63,17 @@ func (localLogRec) __VDLReflect(struct {
 
 func init() {
 	vdl.Register((*syncData)(nil))
+	vdl.Register((*localGenInfo)(nil))
 	vdl.Register((*dbSyncState)(nil))
 	vdl.Register((*localLogRec)(nil))
 }
 
-const logPrefix = "log"
+const logPrefix = "log" // log state.
 
-const dbssPrefix = "dbss"
+const logDataPrefix = "data" // data log state.
 
-const dagPrefix = "dag"
+const dbssPrefix = "dbss" // database sync state.
 
-const sgPrefix = "sg"
+const dagPrefix = "dag" // dag state.
+
+const sgPrefix = "sg" // syncgroup state.

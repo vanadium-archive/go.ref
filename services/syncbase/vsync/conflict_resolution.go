@@ -131,11 +131,7 @@ func (iSt *initiationState) getLogRecsBatch(ctx *context.T, obj string, versions
 		if err != nil {
 			return nil, err
 		}
-		dev, gen, err := splitLogRecKey(ctx, logKey)
-		if err != nil {
-			return nil, err
-		}
-		lrecs[p], err = getLogRec(ctx, iSt.tx, dev, gen)
+		lrecs[p], err = getLogRecByKey(ctx, iSt.tx, logKey)
 		if err != nil {
 			return nil, err
 		}

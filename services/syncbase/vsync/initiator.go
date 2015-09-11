@@ -4,11 +4,10 @@
 
 package vsync
 
-// Initiator is a goroutine that periodically picks a peer from all the known
-// remote peers, and requests deltas from that peer for all the SyncGroups in
-// common across all apps/databases. It then modifies the sync metadata (DAG and
-// local log records) based on the deltas, detects and resolves conflicts if
-// any, and suitably updates the local Databases.
+// Initiator requests deltas from a chosen peer for all the SyncGroups in common
+// across all apps/databases. It then modifies the sync metadata (DAG and local
+// log records) based on the deltas, detects and resolves conflicts if any, and
+// suitably updates the local Databases.
 
 import (
 	"sort"
@@ -21,6 +20,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/lib/set"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
@@ -28,204 +28,167 @@ import (
 	"v.io/x/ref/services/syncbase/store"
 )
 
-// Policies to pick a peer to sync with.
-const (
-	// Picks a peer at random from the available set.
-	selectRandom = iota
-
-	// TODO(hpucha): implement other policies.
-	// Picks a peer with most differing generations.
-	selectMostDiff
-
-	// Picks a peer that was synced with the furthest in the past.
-	selectOldest
-)
-
-var (
-	// peerSyncInterval is the duration between two consecutive peer
-	// contacts. During every peer contact, the initiator obtains any
-	// pending updates from that peer.
-	peerSyncInterval = 50 * time.Millisecond
-
-	// peerSelectionPolicy is the policy used to select a peer when
-	// the initiator gets a chance to sync.
-	peerSelectionPolicy = selectRandom
-)
-
-// syncer wakes up every peerSyncInterval to do work: (1) Act as an initiator
-// for SyncGroup metadata by selecting a SyncGroup Admin, and syncing Syncgroup
-// metadata with it (getting updates from the remote peer, detecting and
-// resolving conflicts); (2) Refresh memberView if needed and act as an
-// initiator for data by selecting a peer, and syncing data corresponding to all
-// common SyncGroups across all Databases; (3) Act as a SyncGroup publisher to
-// publish pending SyncGroups; (4) Garbage collect older generations.
-//
-// TODO(hpucha): Currently only does initiation. Add rest.
-func (s *syncService) syncer(ctx *context.T) {
-	defer s.pending.Done()
-
-	ticker := time.NewTicker(peerSyncInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-s.closed:
-			vlog.VI(1).Info("sync: syncer: channel closed, stop work and exit")
-			return
-
-		case <-ticker.C:
-		}
-
-		// TODO(hpucha): Cut a gen for the responder even if there is no
-		// one to initiate to?
-
-		// Do work.
-		peer, err := s.pickPeer(ctx)
-		if err != nil {
-			continue
-		}
-		s.getDeltasFromPeer(ctx, peer)
-	}
-}
-
-// getDeltasFromPeer performs an initiation round to the specified
-// peer. An initiation round consists of:
+// getDeltas performs an initiation round to the specified peer. An
+// initiation round consists of two sync rounds:
+// * Sync SyncGroup metadata.
+// * Sync data.
+// Each sync round involves:
 // * Contacting the peer to receive all the deltas based on the local genvector.
 // * Processing those deltas to discover objects which have been updated.
 // * Processing updated objects to detect and resolve any conflicts if needed.
-// * Communicating relevant object updates to the Database, and updating local
-// genvector to catch up to the received remote genvector.
+// * Communicating relevant object updates to the Database in case of data.
+// * Updating local genvector to catch up to the received remote genvector.
 //
-// The processing of the deltas is done one Database at a time. If a local error
-// is encountered during the processing of a Database, that Database is skipped
-// and the initiator continues on to the next one. If the connection to the peer
+// The processing of the deltas is done one Database at a time, encompassing all
+// the SyncGroups common to the initiator and the responder. If a local error is
+// encountered during the processing of a Database, that Database is skipped and
+// the initiator continues on to the next one. If the connection to the peer
 // encounters an error, this initiation round is aborted. Note that until the
 // local genvector is updated based on the received deltas (the last step in an
 // initiation round), the work done by the initiator is idempotent.
 //
 // TODO(hpucha): Check the idempotence, esp in addNode in DAG.
-func (s *syncService) getDeltasFromPeer(ctxIn *context.T, peer string) {
-	vlog.VI(2).Infof("sync: getDeltasFromPeer: begin: contacting peer %s", peer)
-	defer vlog.VI(2).Infof("sync: getDeltasFromPeer: end: contacting peer %s", peer)
-
-	ctx, cancel := context.WithRootCancel(ctxIn)
+func (s *syncService) getDeltas(ctx *context.T, peer string) {
+	vlog.VI(2).Infof("sync: getDeltas: begin: contacting peer %s", peer)
+	defer vlog.VI(2).Infof("sync: getDeltas: end: contacting peer %s", peer)
 
 	info := s.copyMemberInfo(ctx, peer)
 	if info == nil {
-		vlog.Fatalf("sync: getDeltasFromPeer: missing information in member view for %q", peer)
+		vlog.Fatalf("sync: getDeltas: missing information in member view for %q", peer)
 	}
-	connected := false
-	var stream interfaces.SyncGetDeltasClientCall
+
+	// Preferred mount tables for this peer.
+	prfMtTbls := set.String.ToSlice(info.mtTables)
 
 	// Sync each Database that may have SyncGroups common with this peer,
 	// one at a time.
-	for gdbName, sgInfo := range info.db2sg {
+	for gdbName := range info.db2sg {
+		vlog.VI(4).Infof("sync: getDeltas: started for peer %s db %s", peer, gdbName)
 
-		// Initialize initiation state for syncing this Database.
-		iSt, err := newInitiationState(ctx, s, peer, gdbName, sgInfo)
-		if err != nil {
-			vlog.Errorf("sync: getDeltasFromPeer: couldn't initialize initiator state for peer %s, gdb %s, err %v", peer, gdbName, err)
-			continue
-		}
-
-		if len(iSt.sgIds) == 0 || len(iSt.sgPfxs) == 0 {
-			vlog.Errorf("sync: getDeltasFromPeer: didn't find any SyncGroups for peer %s, gdb %s, err %v", peer, gdbName, err)
-			continue
-		}
-
-		// Make contact with the peer once.
-		if !connected {
-			stream, connected = iSt.connectToPeer(ctx)
-			if !connected {
-				// Try a different Database. Perhaps there are
-				// different mount tables.
-				continue
-			}
-		}
-
-		// Create local genvec so that it contains knowledge only about common prefixes.
-		if err := iSt.createLocalGenVec(ctx); err != nil {
-			vlog.Errorf("sync: getDeltasFromPeer: error creating local genvec for gdb %s, err %v", gdbName, err)
-			continue
-		}
-
-		iSt.stream = stream
-		req := interfaces.DeltaReq{
-			AppName: iSt.appName,
-			DbName:  iSt.dbName,
-			SgIds:   iSt.sgIds,
-			InitVec: iSt.local,
-		}
-
-		vlog.VI(3).Infof("sync: getDeltasFromPeer: send request: %v", req)
-		sender := iSt.stream.SendStream()
-		sender.Send(req)
-
-		// Obtain deltas from the peer over the network.
-		if err := iSt.recvAndProcessDeltas(ctx); err != nil {
-			vlog.Errorf("sync: getDeltasFromPeer: error receiving deltas for gdb %s, err %v", gdbName, err)
-			// Returning here since something could be wrong with
-			// the connection, and no point in attempting the next
-			// Database.
-			cancel()
-			stream.Finish()
+		if len(prfMtTbls) < 1 {
+			vlog.Errorf("sync: getDeltas: no mount tables found to connect to peer %s", peer)
 			return
 		}
-		vlog.VI(3).Infof("sync: getDeltasFromPeer: got reply: %v", iSt.remote)
 
-		if err := iSt.processUpdatedObjects(ctx); err != nil {
-			vlog.Errorf("sync: getDeltasFromPeer: error processing objects for gdb %s, err %v", gdbName, err)
-			// Move to the next Database even if processing updates
-			// failed.
+		c, err := newInitiationConfig(ctx, s, peer, gdbName, info, prfMtTbls)
+		if err != nil {
+			vlog.Errorf("sync: getDeltas: couldn't initialize initiator config for peer %s, gdb %s, err %v", peer, gdbName, err)
 			continue
+		}
+
+		if err := s.getDBDeltas(ctx, peer, c, true); err == nil {
+			if err := s.getDBDeltas(ctx, peer, c, false); err != nil {
+				vlog.Errorf("sync: getDeltas: failed for data sync, err %v", err)
+			}
+		} else {
+			// If SyncGroup sync fails, abort data sync as well.
+			vlog.Errorf("sync: getDeltas: failed for SyncGroup sync, err %v", err)
+		}
+
+		// Cache the pruned mount table list for the next Database.
+		prfMtTbls = c.mtTables
+
+		vlog.VI(4).Infof("sync: getDeltas: done for peer %s db %s", peer, gdbName)
+	}
+}
+
+// getDBDeltas gets the deltas from the chosen peer. If sg flag is set to true,
+// it will sync SyncGroup metadata. If sg flag is false, it will sync data.
+func (s *syncService) getDBDeltas(ctxIn *context.T, peer string, c *initiationConfig, sg bool) error {
+	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer sg %v %s", sg, peer)
+	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer sg %v %s", sg, peer)
+
+	ctx, cancel := context.WithRootCancel(ctxIn)
+	// cancel() is idempotent.
+	defer cancel()
+
+	// Initialize initiation state for syncing this Database.
+	iSt := newInitiationState(ctx, c, sg)
+
+	// Initialize SyncGroup prefixes for data syncing.
+	if !sg {
+		iSt.peerSgInfo(ctx)
+		if len(iSt.config.sgPfxs) == 0 {
+			return verror.New(verror.ErrInternal, ctx, "no SyncGroup prefixes found", peer, iSt.config.appName, iSt.config.dbName)
 		}
 	}
 
-	if connected {
-		stream.Finish()
+	if sg {
+		// Create local genvec so that it contains knowledge about
+		// common SyncGroups and then send the SyncGroup metadata sync
+		// request.
+		if err := iSt.prepareSGDeltaReq(ctx); err != nil {
+			return err
+		}
+	} else {
+		// Create local genvec so that it contains knowledge only about common
+		// prefixes and then send the data sync request.
+		if err := iSt.prepareDataDeltaReq(ctx); err != nil {
+			return err
+		}
 	}
-	cancel()
+
+	// Make contact with the peer.
+	if !iSt.connectToPeer(ctx) {
+		return verror.New(verror.ErrInternal, ctx, "couldn't connect to peer", peer)
+	}
+
+	// Obtain deltas from the peer over the network.
+	if err := iSt.recvAndProcessDeltas(ctx); err != nil {
+		cancel()
+		iSt.stream.Finish()
+		return err
+	}
+
+	vlog.VI(4).Infof("sync: getDBDeltas: got reply: %v", iSt.remote)
+
+	if err := iSt.processUpdatedObjects(ctx); err != nil {
+		return err
+	}
+
+	return iSt.stream.Finish()
 }
 
 type sgSet map[interfaces.GroupId]struct{}
 
-// initiationState is accumulated for each Database during an initiation round.
-type initiationState struct {
-	// Relative name of the peer to sync with.
-	peer string
+// initiationConfig is the configuration information for a Database in an
+// initiation round.
+type initiationConfig struct {
+	peer string // relative name of the peer to sync with.
 
-	// Collection of mount tables that this peer may have registered with.
-	mtTables map[string]struct{}
+	// Mount tables that this peer may have registered with. The first entry
+	// in this array is the mount table where the peer was successfully
+	// reached the last time.
+	mtTables []string
 
-	// SyncGroups being requested in the initiation round.
-	sgIds sgSet
-
-	// SyncGroup prefixes being requested in the initiation round, and their
-	// corresponding SyncGroup ids.
-	sgPfxs map[string]sgSet
-
-	// Local generation vector.
-	local interfaces.GenVector
-
-	// Generation vector from the remote peer.
-	remote interfaces.GenVector
-
-	// Updated local generation vector at the end of the initiation round.
-	updLocal interfaces.GenVector
-
-	// State to track updated objects during a log replay.
-	updObjects map[string]*objConflictState
-
-	// DAG state that tracks conflicts and common ancestors.
-	dagGraft graftMap
-
+	sgIds   sgSet            // SyncGroups being requested in the initiation round.
+	sgPfxs  map[string]sgSet // SyncGroup prefixes and their ids being requested in the initiation round.
 	sync    *syncService
 	appName string
 	dbName  string
-	st      store.Store                        // Store handle to the Database.
-	stream  interfaces.SyncGetDeltasClientCall // Stream handle for the GetDeltas RPC.
+	st      store.Store // Store handle to the Database.
+}
 
-	// Transaction handle for the initiation round. Used during the update
+// initiationState is accumulated for a Database in each sync round in an
+// initiation round.
+type initiationState struct {
+	// Config information.
+	config *initiationConfig
+
+	// Accumulated sync state.
+	local      interfaces.GenVector         // local generation vector.
+	remote     interfaces.GenVector         // generation vector from the remote peer.
+	updLocal   interfaces.GenVector         // updated local generation vector at the end of sync round.
+	updObjects map[string]*objConflictState // tracks updated objects during a log replay.
+	dagGraft   graftMap                     // DAG state that tracks conflicts and common ancestors.
+
+	req    interfaces.DeltaReq                // GetDeltas RPC request.
+	stream interfaces.SyncGetDeltasClientCall // stream handle for the GetDeltas RPC.
+
+	// Flag to indicate if this is SyncGroup metadata sync.
+	sg bool
+
+	// Transaction handle for the sync round. Used during the update
 	// of objects in the Database.
 	tx store.Transaction
 }
@@ -240,93 +203,90 @@ type objConflictState struct {
 	res        *conflictResolution
 }
 
-// newInitiationState creates new initiation state.
-func newInitiationState(ctx *context.T, s *syncService, peer string, name string, sgInfo sgMemberInfo) (*initiationState, error) {
-	iSt := &initiationState{}
-	iSt.peer = peer
-	iSt.updObjects = make(map[string]*objConflictState)
-	iSt.dagGraft = newGraft()
-	iSt.sync = s
+// newInitiatonConfig creates new initiation config. This will be shared between
+// the two sync rounds in the initiation round of a Database.
+func newInitiationConfig(ctx *context.T, s *syncService, peer string, name string, info *memberInfo, mtTables []string) (*initiationConfig, error) {
+	c := &initiationConfig{}
+	c.peer = peer
+	c.mtTables = mtTables
+	c.sgIds = make(sgSet)
+	for id := range info.db2sg[name] {
+		c.sgIds[id] = struct{}{}
+	}
+	if len(c.sgIds) == 0 {
+		return nil, verror.New(verror.ErrInternal, ctx, "no SyncGroups found", peer, name)
+	}
+	// Note: sgPfxs will be inited when needed by the data sync.
+
+	c.sync = s
 
 	// TODO(hpucha): Would be nice to standardize on the combined "app:db"
 	// name across sync (not syncbase) so we only join split/join them at
 	// the boundary with the store part.
 	var err error
-	iSt.appName, iSt.dbName, err = splitAppDbName(ctx, name)
+	c.appName, c.dbName, err = splitAppDbName(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO(hpucha): nil rpc.ServerCall ok?
-	iSt.st, err = s.getDbStore(ctx, nil, iSt.appName, iSt.dbName)
+	c.st, err = s.getDbStore(ctx, nil, c.appName, c.dbName)
 	if err != nil {
 		return nil, err
 	}
 
-	iSt.peerMtTblsAndSgInfo(ctx, peer, sgInfo)
-
-	return iSt, nil
+	return c, nil
 }
 
-// peerMtTblsAndSgInfo computes the possible mount tables, the SyncGroup Ids and
-// prefixes common with a remote peer in a particular Database by consulting the
-// SyncGroups in the specified Database.
-func (iSt *initiationState) peerMtTblsAndSgInfo(ctx *context.T, peer string, info sgMemberInfo) {
-	iSt.mtTables = make(map[string]struct{})
-	iSt.sgIds = make(sgSet)
-	iSt.sgPfxs = make(map[string]sgSet)
+// newInitiationState creates new initiation state.
+func newInitiationState(ctx *context.T, c *initiationConfig, sg bool) *initiationState {
+	iSt := &initiationState{}
+	iSt.config = c
+	iSt.updObjects = make(map[string]*objConflictState)
+	iSt.dagGraft = newGraft()
+	iSt.sg = sg
+	return iSt
+}
 
-	for id := range info {
-		sg, err := getSyncGroupById(ctx, iSt.st, id)
+// peerSgInfo computes the SyncGroup Ids and prefixes common with a remote peer
+// in a particular Database by consulting the SyncGroups in the specified
+// Database.
+func (iSt *initiationState) peerSgInfo(ctx *context.T) {
+	sgs := iSt.config.sgIds
+	iSt.config.sgIds = make(sgSet) // regenerate the sgids since we are going through the SyncGroups in any case.
+	iSt.config.sgPfxs = make(map[string]sgSet)
+
+	for id := range sgs {
+		sg, err := getSyncGroupById(ctx, iSt.config.st, id)
 		if err != nil {
 			continue
 		}
-		if _, ok := sg.Joiners[peer]; !ok {
+		if _, ok := sg.Joiners[iSt.config.peer]; !ok {
 			// Peer is no longer part of the SyncGroup.
 			continue
 		}
-		for _, mt := range sg.Spec.MountTables {
-			iSt.mtTables[mt] = struct{}{}
-		}
-		iSt.sgIds[id] = struct{}{}
+
+		iSt.config.sgIds[id] = struct{}{}
 
 		for _, p := range sg.Spec.Prefixes {
-			sgs, ok := iSt.sgPfxs[p]
+			sgs, ok := iSt.config.sgPfxs[p]
 			if !ok {
 				sgs = make(sgSet)
-				iSt.sgPfxs[p] = sgs
+				iSt.config.sgPfxs[p] = sgs
 			}
 			sgs[id] = struct{}{}
 		}
 	}
 }
 
-// connectToPeer attempts to connect to the remote peer using the mount tables
-// obtained from the SyncGroups being synced in the current Database.
-func (iSt *initiationState) connectToPeer(ctx *context.T) (interfaces.SyncGetDeltasClientCall, bool) {
-	if len(iSt.mtTables) < 1 {
-		vlog.Errorf("sync: connectToPeer: no mount tables found to connect to peer %s, app %s db %s", iSt.peer, iSt.appName, iSt.dbName)
-		return nil, false
-	}
-	for mt := range iSt.mtTables {
-		absName := naming.Join(mt, iSt.peer, util.SyncbaseSuffix)
-		c := interfaces.SyncClient(absName)
-		stream, err := c.GetDeltas(ctx, iSt.sync.name)
-		if err == nil {
-			vlog.VI(3).Infof("sync: connectToPeer: established on %s", absName)
-			return stream, true
-		}
-	}
-	return nil, false
-}
-
-// createLocalGenVec creates the generation vector with local knowledge for the
-// initiator to send to the responder.
+// prepareDataDeltaReq creates the generation vector with local knowledge for the
+// initiator to send to the responder, and creates the request to start the data
+// sync.
 //
 // TODO(hpucha): Refactor this code with computeDelta code in sync_state.go.
-func (iSt *initiationState) createLocalGenVec(ctx *context.T) error {
-	iSt.sync.thLock.Lock()
-	defer iSt.sync.thLock.Unlock()
+func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
+	iSt.config.sync.thLock.Lock()
+	defer iSt.config.sync.thLock.Unlock()
 
 	// Freeze the most recent batch of local changes before fetching
 	// remote changes from a peer. This frozen state is used by the
@@ -341,19 +301,20 @@ func (iSt *initiationState) createLocalGenVec(ctx *context.T) error {
 	// devices.  These remote devices in turn can send these
 	// generations back to the initiator in progress which was
 	// started with older generation information.
-	if err := iSt.sync.checkptLocalGen(ctx, iSt.appName, iSt.dbName); err != nil {
+	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.appName, iSt.config.dbName, nil); err != nil {
 		return err
 	}
 
-	local, lgen, err := iSt.sync.copyDbGenInfo(ctx, iSt.appName, iSt.dbName)
+	local, lgen, err := iSt.config.sync.copyDbGenInfo(ctx, iSt.config.appName, iSt.config.dbName, nil)
 	if err != nil {
 		return err
 	}
+
 	localPfxs := extractAndSortPrefixes(local)
 
-	sgPfxs := make([]string, len(iSt.sgPfxs))
+	sgPfxs := make([]string, len(iSt.config.sgPfxs))
 	i := 0
-	for p := range iSt.sgPfxs {
+	for p := range iSt.config.sgPfxs {
 		sgPfxs[i] = p
 		i++
 	}
@@ -390,12 +351,82 @@ func (iSt *initiationState) createLocalGenVec(ctx *context.T) error {
 		if lpStart == "" {
 			// No matching prefixes for pfx were found.
 			iSt.local[pfx] = make(interfaces.PrefixGenVector)
-			iSt.local[pfx][iSt.sync.id] = lgen
+			iSt.local[pfx][iSt.config.sync.id] = lgen
 		} else {
 			iSt.local[pfx] = local[lpStart]
 		}
 	}
+
+	// Send request.
+	req := interfaces.DataDeltaReq{
+		AppName: iSt.config.appName,
+		DbName:  iSt.config.dbName,
+		SgIds:   iSt.config.sgIds,
+		InitVec: iSt.local,
+	}
+
+	iSt.req = interfaces.DeltaReqData{req}
+
+	vlog.VI(4).Infof("sync: prepareDataDeltaReq: request: %v", req)
+
 	return nil
+}
+
+// prepareSGDeltaReq creates the SyncGroup generation vector with local knowledge
+// for the initiator to send to the responder, and prepares the request to start
+// the SyncGroup sync.
+func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
+	iSt.config.sync.thLock.Lock()
+	defer iSt.config.sync.thLock.Unlock()
+
+	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.appName, iSt.config.dbName, iSt.config.sgIds); err != nil {
+		return err
+	}
+
+	var err error
+	iSt.local, _, err = iSt.config.sync.copyDbGenInfo(ctx, iSt.config.appName, iSt.config.dbName, iSt.config.sgIds)
+	if err != nil {
+		return err
+	}
+
+	// Send request.
+	req := interfaces.SgDeltaReq{
+		AppName: iSt.config.appName,
+		DbName:  iSt.config.dbName,
+		InitVec: iSt.local,
+	}
+
+	iSt.req = interfaces.DeltaReqSgs{req}
+
+	vlog.VI(4).Infof("sync: prepareSGDeltaReq: request: %v", req)
+
+	return nil
+}
+
+// connectToPeer attempts to connect to the remote peer using the mount tables
+// obtained from all the common SyncGroups.
+func (iSt *initiationState) connectToPeer(ctx *context.T) bool {
+	if len(iSt.config.mtTables) < 1 {
+		vlog.Errorf("sync: connectToPeer: no mount tables found to connect to peer %s, app %s db %s", iSt.config.peer, iSt.config.appName, iSt.config.dbName)
+		return false
+	}
+
+	for i, mt := range iSt.config.mtTables {
+		absName := naming.Join(mt, iSt.config.peer, util.SyncbaseSuffix)
+		c := interfaces.SyncClient(absName)
+		var err error
+		iSt.stream, err = c.GetDeltas(ctx, iSt.req, iSt.config.sync.name)
+		if err == nil {
+			vlog.VI(4).Infof("sync: connectToPeer: established on %s", absName)
+
+			// Prune out the unsuccessful mount tables.
+			iSt.config.mtTables = iSt.config.mtTables[i:]
+			return true
+		}
+	}
+	iSt.config.mtTables = nil
+	vlog.Errorf("sync: connectToPeer: couldn't connect to peer %s", iSt.config.peer)
+	return false
 }
 
 // recvAndProcessDeltas first receives the log records and generation vector
@@ -405,20 +436,28 @@ func (iSt *initiationState) createLocalGenVec(ctx *context.T) error {
 // resolution during replay.  This avoids resolving conflicts that have already
 // been resolved by other devices.
 func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
-	iSt.sync.thLock.Lock()
-	defer iSt.sync.thLock.Unlock()
+	// This is to handle issues with graftMap in DAG. Ideally, the
+	// transaction created to store all the deltas received over the network
+	// should not contend with any other store changes since this is all
+	// brand new information. However, as log records are received over the
+	// network, they are also incrementally processed. To enable incremental
+	// processing, the current head of each dirty object is read to populate
+	// the graftMap. This read can potentially contend with the watcher
+	// updating the head of an object. This lock prevents that contention in
+	// order to avoid retrying the whole transaction.
+	iSt.config.sync.thLock.Lock()
+	defer iSt.config.sync.thLock.Unlock()
 
 	// TODO(hpucha): This works for now, but figure out a long term solution
 	// as this may be implementation dependent. It currently works because
 	// the RecvStream call is stateless, and grabbing a handle to it
 	// repeatedly doesn't affect what data is seen next.
 	rcvr := iSt.stream.RecvStream()
-	start, finish := false, false
 
 	// TODO(hpucha): See if we can avoid committing the entire delta stream
 	// as one batch. Currently the dependency is between the log records and
 	// the batch info.
-	tx := iSt.st.NewTransaction()
+	tx := iSt.config.st.NewTransaction()
 	committed := false
 
 	defer func() {
@@ -433,18 +472,6 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 	for rcvr.Advance() {
 		resp := rcvr.Value()
 		switch v := resp.(type) {
-		case interfaces.DeltaRespStart:
-			if start {
-				return verror.New(verror.ErrInternal, ctx, "received start followed by start in delta response stream")
-			}
-			start = true
-
-		case interfaces.DeltaRespFinish:
-			if finish {
-				return verror.New(verror.ErrInternal, ctx, "received finish followed by finish in delta response stream")
-			}
-			finish = true
-
 		case interfaces.DeltaRespRespVec:
 			iSt.remote = v.Value
 
@@ -452,12 +479,18 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 			// Insert log record in Database.
 			// TODO(hpucha): Should we reserve more positions in a batch?
 			// TODO(hpucha): Handle if SyncGroup is left/destroyed while sync is in progress.
-			pos := iSt.sync.reservePosInDbLog(ctx, iSt.appName, iSt.dbName, 1)
+			var pos uint64
+			if iSt.sg {
+				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, v.Value.Metadata.ObjId, 1)
+			} else {
+				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, "", 1)
+			}
+
 			rec := &localLogRec{Metadata: v.Value.Metadata, Pos: pos}
 			batchId := rec.Metadata.BatchId
 			if batchId != NoBatchId {
 				if cnt, ok := batchMap[batchId]; !ok {
-					if iSt.sync.startBatch(ctx, tx, batchId) != batchId {
+					if iSt.config.sync.startBatch(ctx, tx, batchId) != batchId {
 						return verror.New(verror.ErrInternal, ctx, "failed to create batch info")
 					}
 					batchMap[batchId] = rec.Metadata.BatchCount
@@ -467,27 +500,25 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 			}
 
 			vlog.VI(4).Infof("sync: recvAndProcessDeltas: processing rec %v", rec)
-			if err := iSt.insertRecInLogDagAndDb(ctx, rec, batchId, v.Value.Value, tx); err != nil {
+			if err := iSt.insertRecInLogAndDag(ctx, rec, batchId, tx); err != nil {
 				return err
 			}
 
-			// Check for BlobRefs, and process them.
-			if err := iSt.processBlobRefs(ctx, &rec.Metadata, v.Value.Value); err != nil {
-				return err
+			if iSt.sg {
+				// Add the SyncGroup value to the Database.
+			} else {
+				if err := iSt.insertRecInDb(ctx, rec, v.Value.Value, tx); err != nil {
+					return err
+				}
+				// Check for BlobRefs, and process them.
+				if err := iSt.processBlobRefs(ctx, &rec.Metadata, v.Value.Value); err != nil {
+					return err
+				}
 			}
 
 			// Mark object dirty.
 			iSt.updObjects[rec.Metadata.ObjId] = &objConflictState{}
 		}
-
-		// Break out of the stream.
-		if finish {
-			break
-		}
-	}
-
-	if !(start && finish) {
-		return verror.New(verror.ErrInternal, ctx, "didn't receive start/finish delimiters in delta response stream")
 	}
 
 	if err := rcvr.Err(); err != nil {
@@ -496,7 +527,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 
 	// End the started batches if any.
 	for bid, cnt := range batchMap {
-		if err := iSt.sync.endBatch(ctx, tx, bid, cnt); err != nil {
+		if err := iSt.config.sync.endBatch(ctx, tx, bid, cnt); err != nil {
 			return err
 		}
 	}
@@ -514,6 +545,48 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 		committed = true
 	}
 	return err
+}
+
+// insertRecInLogAndDag adds a new log record to log and dag data structures.
+func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *localLogRec, batchId uint64, tx store.Transaction) error {
+	var pfx string
+	m := rec.Metadata
+
+	if iSt.sg {
+		pfx = m.ObjId
+	} else {
+		pfx = logDataPrefix
+	}
+
+	if err := putLogRec(ctx, tx, pfx, rec); err != nil {
+		return err
+	}
+	logKey := logRecKey(pfx, m.Id, m.Gen)
+
+	var err error
+	switch m.RecType {
+	case interfaces.NodeRec:
+		err = iSt.config.sync.addNode(ctx, tx, m.ObjId, m.CurVers, logKey, m.Delete, m.Parents, m.BatchId, iSt.dagGraft)
+	case interfaces.LinkRec:
+		err = iSt.config.sync.addParent(ctx, tx, m.ObjId, m.CurVers, m.Parents[0], iSt.dagGraft)
+	default:
+		err = verror.New(verror.ErrInternal, ctx, "unknown log record type")
+	}
+
+	return err
+}
+
+// insertRecInDb inserts the versioned value in the Database.
+func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *localLogRec, valbuf []byte, tx store.Transaction) error {
+	m := rec.Metadata
+	// TODO(hpucha): Hack right now. Need to change Database's handling of
+	// deleted objects. Currently, the initiator needs to treat deletions
+	// specially since deletions do not get a version number or a special
+	// value in the Database.
+	if !rec.Metadata.Delete && rec.Metadata.RecType == interfaces.NodeRec {
+		return watchable.PutAtVersion(ctx, tx, []byte(m.ObjId), valbuf, []byte(m.CurVers))
+	}
+	return nil
 }
 
 func (iSt *initiationState) processBlobRefs(ctx *context.T, m *interfaces.LogRecMetadata, valbuf []byte) error {
@@ -538,16 +611,16 @@ func (iSt *initiationState) processBlobRefs(ctx *context.T, m *interfaces.LogRec
 	}
 	sgIds := make(sgSet)
 	for br := range brs {
-		for p, sgs := range iSt.sgPfxs {
+		for p, sgs := range iSt.config.sgPfxs {
 			if strings.HasPrefix(extractAppKey(objid), p) {
 				for sg := range sgs {
 					sgIds[sg] = struct{}{}
 				}
 			}
 		}
-		vlog.VI(4).Infof("sync: processBlobRefs: Found blobref %v peer %v, source %v, sgs %v", br, iSt.peer, srcPeer, sgIds)
-		info := &blobLocInfo{peer: iSt.peer, source: srcPeer, sgIds: sgIds}
-		if err := iSt.sync.addBlobLocInfo(ctx, br, info); err != nil {
+		vlog.VI(4).Infof("sync: processBlobRefs: Found blobref %v peer %v, source %v, sgs %v", br, iSt.config.peer, srcPeer, sgIds)
+		info := &blobLocInfo{peer: iSt.config.peer, source: srcPeer, sgIds: sgIds}
+		if err := iSt.config.sync.addBlobLocInfo(ctx, br, info); err != nil {
 			return err
 		}
 	}
@@ -574,39 +647,6 @@ func extractBlobRefs(val *vdl.Value, brs map[nosql.BlobRef]struct{}) error {
 				return err
 			}
 		}
-	}
-	return nil
-}
-
-// insertRecInLogDagAndDb adds a new log record to log and dag data structures,
-// and inserts the versioned value in the Database.
-func (iSt *initiationState) insertRecInLogDagAndDb(ctx *context.T, rec *localLogRec, batchId uint64, valbuf []byte, tx store.Transaction) error {
-	if err := putLogRec(ctx, tx, rec); err != nil {
-		return err
-	}
-
-	m := rec.Metadata
-	logKey := logRecKey(m.Id, m.Gen)
-
-	var err error
-	switch m.RecType {
-	case interfaces.NodeRec:
-		err = iSt.sync.addNode(ctx, tx, m.ObjId, m.CurVers, logKey, m.Delete, m.Parents, m.BatchId, iSt.dagGraft)
-	case interfaces.LinkRec:
-		err = iSt.sync.addParent(ctx, tx, m.ObjId, m.CurVers, m.Parents[0], iSt.dagGraft)
-	default:
-		err = verror.New(verror.ErrInternal, ctx, "unknown log record type")
-	}
-
-	if err != nil {
-		return err
-	}
-	// TODO(hpucha): Hack right now. Need to change Database's handling of
-	// deleted objects. Currently, the initiator needs to treat deletions
-	// specially since deletions do not get a version number or a special
-	// value in the Database.
-	if !rec.Metadata.Delete && rec.Metadata.RecType == interfaces.NodeRec {
-		return watchable.PutAtVersion(ctx, tx, []byte(m.ObjId), valbuf, []byte(m.CurVers))
 	}
 	return nil
 }
@@ -660,15 +700,15 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 	}()
 
 	for {
-		vlog.VI(3).Infof("sync: processUpdatedObjects: begin: %d objects updated", len(iSt.updObjects))
+		vlog.VI(4).Infof("sync: processUpdatedObjects: begin: %d objects updated", len(iSt.updObjects))
 
-		iSt.tx = iSt.st.NewTransaction()
+		iSt.tx = iSt.config.st.NewTransaction()
 		watchable.SetTransactionFromSync(iSt.tx) // for echo-suppression
 
 		if count, err := iSt.detectConflicts(ctx); err != nil {
 			return err
 		} else {
-			vlog.VI(3).Infof("sync: processUpdatedObjects: %d conflicts detected", count)
+			vlog.VI(4).Infof("sync: processUpdatedObjects: %d conflicts detected", count)
 		}
 
 		if err := iSt.resolveConflicts(ctx); err != nil {
@@ -682,10 +722,10 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 		if err == nil {
 			committed = true
 			// Update in-memory genvector since commit is successful.
-			if err := iSt.sync.putDbGenInfoRemote(ctx, iSt.appName, iSt.dbName, iSt.updLocal); err != nil {
-				vlog.Fatalf("sync: processUpdatedObjects: putting geninfo in memory failed for app %s db %s, err %v", iSt.appName, iSt.dbName, err)
+			if err := iSt.config.sync.putDbGenInfoRemote(ctx, iSt.config.appName, iSt.config.dbName, iSt.sg, iSt.updLocal); err != nil {
+				vlog.Fatalf("sync: processUpdatedObjects: putting geninfo in memory failed for app %s db %s, err %v", iSt.config.appName, iSt.config.dbName, err)
 			}
-			vlog.VI(3).Info("sync: processUpdatedObjects: end: changes committed")
+			vlog.VI(4).Info("sync: processUpdatedObjects: end: changes committed")
 			return nil
 		}
 		if verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
@@ -699,7 +739,7 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 		// solution. Next iteration will have coordination with watch
 		// thread to intelligently retry. Hence this value is not a
 		// config param.
-		vlog.VI(3).Info("sync: processUpdatedObjects: retry due to local mutations")
+		vlog.VI(4).Info("sync: processUpdatedObjects: retry due to local mutations")
 		iSt.tx.Abort()
 		time.Sleep(1 * time.Second)
 	}
@@ -736,7 +776,7 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 		// If the local version is picked, no further updates to the
 		// Database are needed. If the remote version is picked or if a
 		// new version is created, we put it in the Database.
-		if confSt.res.ty != pickLocal {
+		if confSt.res.ty != pickLocal && !iSt.sg {
 
 			// TODO(hpucha): Hack right now. Need to change Database's
 			// handling of deleted objects.
@@ -815,10 +855,10 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 }
 
 // updateLogAndDag updates the log and dag data structures.
-func (iSt *initiationState) updateLogAndDag(ctx *context.T, obj string) error {
-	confSt, ok := iSt.updObjects[obj]
+func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string) error {
+	confSt, ok := iSt.updObjects[objid]
 	if !ok {
-		return verror.New(verror.ErrInternal, ctx, "object state not found", obj)
+		return verror.New(verror.ErrInternal, ctx, "object state not found", objid)
 	}
 	var newVersion string
 
@@ -831,11 +871,11 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, obj string) error {
 		switch {
 		case confSt.res.ty == pickLocal:
 			// Local version was picked as the conflict resolution.
-			rec = iSt.createLocalLinkLogRec(ctx, obj, confSt.oldHead, confSt.newHead)
+			rec = iSt.createLocalLinkLogRec(ctx, objid, confSt.oldHead, confSt.newHead)
 			newVersion = confSt.oldHead
 		case confSt.res.ty == pickRemote:
 			// Remote version was picked as the conflict resolution.
-			rec = iSt.createLocalLinkLogRec(ctx, obj, confSt.newHead, confSt.oldHead)
+			rec = iSt.createLocalLinkLogRec(ctx, objid, confSt.newHead, confSt.oldHead)
 			newVersion = confSt.newHead
 		default:
 			// New version was created to resolve the conflict.
@@ -843,7 +883,13 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, obj string) error {
 			newVersion = confSt.res.rec.Metadata.CurVers
 		}
 
-		if err := putLogRec(ctx, iSt.tx, rec); err != nil {
+		var pfx string
+		if iSt.sg {
+			pfx = objid
+		} else {
+			pfx = logDataPrefix
+		}
+		if err := putLogRec(ctx, iSt.tx, pfx, rec); err != nil {
 			return err
 		}
 
@@ -852,9 +898,9 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, obj string) error {
 		m := rec.Metadata
 		switch m.RecType {
 		case interfaces.NodeRec:
-			err = iSt.sync.addNode(ctx, iSt.tx, obj, m.CurVers, logRecKey(m.Id, m.Gen), m.Delete, m.Parents, NoBatchId, nil)
+			err = iSt.config.sync.addNode(ctx, iSt.tx, objid, m.CurVers, logRecKey(pfx, m.Id, m.Gen), m.Delete, m.Parents, NoBatchId, nil)
 		case interfaces.LinkRec:
-			err = iSt.sync.addParent(ctx, iSt.tx, obj, m.CurVers, m.Parents[0], nil)
+			err = iSt.config.sync.addParent(ctx, iSt.tx, objid, m.CurVers, m.Parents[0], nil)
 		default:
 			return verror.New(verror.ErrInternal, ctx, "unknown log record type")
 		}
@@ -865,21 +911,26 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, obj string) error {
 
 	// Move the head. This should be idempotent. We may move head to the
 	// local head in some cases.
-	return moveHead(ctx, iSt.tx, obj, newVersion)
+	return moveHead(ctx, iSt.tx, objid, newVersion)
 }
 
-func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, obj, vers, par string) *localLogRec {
-	gen, pos := iSt.sync.reserveGenAndPosInDbLog(ctx, iSt.appName, iSt.dbName, 1)
+func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, par string) *localLogRec {
+	vlog.VI(4).Infof("sync: createLocalLinkLogRec: obj %s vers %s par %s", objid, vers, par)
 
-	vlog.VI(4).Infof("sync: createLocalLinkLogRec: obj %s vers %s par %s", obj, vers, par)
+	var gen, pos uint64
+	if iSt.sg {
+		gen, pos = iSt.config.sync.reserveGenAndPosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, objid, 1)
+	} else {
+		gen, pos = iSt.config.sync.reserveGenAndPosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, "", 1)
+	}
 
 	rec := &localLogRec{
 		Metadata: interfaces.LogRecMetadata{
-			Id:      iSt.sync.id,
+			Id:      iSt.config.sync.id,
 			Gen:     gen,
 			RecType: interfaces.LinkRec,
 
-			ObjId:      obj,
+			ObjId:      objid,
 			CurVers:    vers,
 			Parents:    []string{par},
 			UpdTime:    time.Now().UTC(),
@@ -895,34 +946,52 @@ func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, obj, vers, par
 // updateSyncSt updates local sync state at the end of an initiator cycle.
 func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 	// Get the current local sync state.
-	dsInMem, err := iSt.sync.copyDbSyncStateInMem(ctx, iSt.appName, iSt.dbName)
+	dsInMem, err := iSt.config.sync.copyDbSyncStateInMem(ctx, iSt.config.appName, iSt.config.dbName)
 	if err != nil {
 		return err
 	}
+	// Create the state to be persisted.
 	ds := &dbSyncState{
-		Gen:        dsInMem.gen,
-		CheckptGen: dsInMem.checkptGen,
-		GenVec:     dsInMem.genvec,
+		Data: localGenInfo{
+			Gen:        dsInMem.data.gen,
+			CheckptGen: dsInMem.data.checkptGen,
+		},
+		Sgs:      make(map[interfaces.GroupId]localGenInfo),
+		GenVec:   dsInMem.genvec,
+		SgGenVec: dsInMem.sggenvec,
 	}
 
+	for id, info := range dsInMem.sgs {
+		ds.Sgs[id] = localGenInfo{
+			Gen:        info.gen,
+			CheckptGen: info.checkptGen,
+		}
+	}
+
+	genvec := ds.GenVec
+	if iSt.sg {
+		genvec = ds.SgGenVec
+	}
 	// remote can be a subset of local.
 	for rpfx, respgv := range iSt.remote {
-		for lpfx, lpgv := range ds.GenVec {
+		for lpfx, lpgv := range genvec {
 			if strings.HasPrefix(lpfx, rpfx) {
 				mergePrefixGenVectors(lpgv, respgv)
 			}
 		}
-		if _, ok := ds.GenVec[rpfx]; !ok {
-			ds.GenVec[rpfx] = respgv
+		if _, ok := genvec[rpfx]; !ok {
+			genvec[rpfx] = respgv
 		}
 	}
 
-	iSt.updLocal = ds.GenVec
+	iSt.updLocal = genvec
 	// Clean the genvector of any local state. Note that local state is held
 	// in gen/ckPtGen in sync state struct.
 	for _, pgv := range iSt.updLocal {
-		delete(pgv, iSt.sync.id)
+		delete(pgv, iSt.config.sync.id)
 	}
+
+	// TODO(hpucha): Flip join pending if needed.
 
 	// TODO(hpucha): Add knowledge compaction.
 
@@ -936,33 +1005,5 @@ func mergePrefixGenVectors(lpgv, respgv interfaces.PrefixGenVector) {
 		if !ok || gen < rgen {
 			lpgv[devid] = rgen
 		}
-	}
-}
-
-////////////////////////////////////////
-// Peer selection policies.
-
-// pickPeer picks a Syncbase to sync with.
-func (s *syncService) pickPeer(ctx *context.T) (string, error) {
-	switch peerSelectionPolicy {
-	case selectRandom:
-		members := s.getMembers(ctx)
-		// Remove myself from the set.
-		delete(members, s.name)
-		if len(members) == 0 {
-			return "", verror.New(verror.ErrInternal, ctx, "no useful peer")
-		}
-
-		// Pick a peer at random.
-		ind := randIntn(len(members))
-		for m := range members {
-			if ind == 0 {
-				return m, nil
-			}
-			ind--
-		}
-		return "", verror.New(verror.ErrInternal, ctx, "random selection didn't succeed")
-	default:
-		return "", verror.New(verror.ErrInternal, ctx, "unknown peer selection policy")
 	}
 }
