@@ -6,7 +6,9 @@ package vsync
 
 import (
 	"container/heap"
+	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"v.io/v23/context"
@@ -19,41 +21,62 @@ import (
 )
 
 // GetDeltas implements the responder side of the GetDeltas RPC.
-func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall, initiator string) error {
+func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall, req interfaces.DeltaReq, initiator string) error {
 	vlog.VI(2).Infof("sync: GetDeltas: begin: from initiator %s", initiator)
 	defer vlog.VI(2).Infof("sync: GetDeltas: end: from initiator %s", initiator)
 
-	recvr := call.RecvStream()
-	for recvr.Advance() {
-		req := recvr.Value()
-		// Ignoring errors since if one Database fails for any reason,
-		// it is fine to continue to the next one. In fact, sometimes
-		// the failure might be genuine. For example, the responder is
-		// no longer part of the requested SyncGroups, or the app/db is
-		// locally deleted, or a permission change has denied access.
-		rSt := newResponderState(ctx, call, s, req, initiator)
-		rSt.sendDeltasPerDatabase(ctx)
-	}
-
-	// TODO(hpucha): Is there a need to call finish or some such?
-	return recvr.Err()
+	rSt := newResponderState(ctx, call, s, req, initiator)
+	return rSt.sendDeltasPerDatabase(ctx)
 }
 
 // responderState is state accumulated per Database by the responder during an
 // initiation round.
 type responderState struct {
-	req       interfaces.DeltaReq
+	// Parameters from the request.
+	appName string
+	dbName  string
+	sgIds   sgSet
+	initVec interfaces.GenVector
+	sg      bool
+
 	call      interfaces.SyncGetDeltasServerCall // Stream handle for the GetDeltas RPC.
 	initiator string
-	errState  error // Captures the error from the first two phases of the responder.
 	sync      *syncService
 	st        store.Store // Store handle to the Database.
-	diff      genRangeVector
-	outVec    interfaces.GenVector
+
+	diff   genRangeVector
+	outVec interfaces.GenVector
 }
 
 func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, sync *syncService, req interfaces.DeltaReq, initiator string) *responderState {
-	rSt := &responderState{call: call, sync: sync, req: req, initiator: initiator}
+	rSt := &responderState{
+		call:      call,
+		sync:      sync,
+		initiator: initiator,
+	}
+
+	switch v := req.(type) {
+	case interfaces.DeltaReqData:
+		rSt.appName = v.Value.AppName
+		rSt.dbName = v.Value.DbName
+		rSt.sgIds = v.Value.SgIds
+		rSt.initVec = v.Value.InitVec
+
+	case interfaces.DeltaReqSgs:
+		rSt.sg = true
+		rSt.appName = v.Value.AppName
+		rSt.dbName = v.Value.DbName
+		rSt.initVec = v.Value.InitVec
+		rSt.sgIds = make(sgSet)
+		// Populate the sgids from the initvec.
+		for id := range rSt.initVec {
+			gid, err := strconv.ParseUint(id, 10, 64)
+			if err != nil {
+				vlog.Fatalf("sync: newResponderState: invalid syncgroup id", gid)
+			}
+			rSt.sgIds[interfaces.GroupId(gid)] = struct{}{}
+		}
+	}
 	return rSt
 }
 
@@ -97,43 +120,60 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 	// (see http://goo.gl/mEa4L0) but only incur that overhead when the
 	// logging level specified is enabled.
 	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: %s, %s: sgids %v, genvec %v",
-		rSt.req.AppName, rSt.req.DbName, rSt.req.SgIds, rSt.req.InitVec)
+		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVec)
 
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
 	// caller only for the SyncGroups that allow access.
-	rSt.authorizeAndFilterSyncGroups(ctx)
+	err := rSt.authorizeAndFilterSyncGroups(ctx)
 
-	// Phase 2 of sendDeltas: diff contains the bound on the
+	// Check error from phase 1.
+	if err != nil {
+		return err
+	}
+
+	if len(rSt.initVec) == 0 {
+		return verror.New(verror.ErrInternal, ctx, "empty initiator generation vector")
+	}
+
+	// Phase 2 and 3 of sendDeltas: diff contains the bound on the
 	// generations missing from the initiator per device.
-	rSt.computeDeltaBound(ctx)
+	if rSt.sg {
+		err = rSt.sendSgDeltas(ctx)
+	} else {
+		err = rSt.sendDataDeltas(ctx)
+	}
 
-	// Phase 3 of sendDeltas: Process the diff, filtering out records that
-	// are not needed, and send the remainder on the wire ordered.
-	return rSt.filterAndSendDeltas(ctx)
+	return err
 }
 
 // authorizeAndFilterSyncGroups authorizes the initiator against the requested
 // SyncGroups and filters the initiator's prefixes to only include those from
 // allowed SyncGroups (phase 1 of sendDeltas).
-func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) {
-	rSt.st, rSt.errState = rSt.sync.getDbStore(ctx, nil, rSt.req.AppName, rSt.req.DbName)
-	if rSt.errState != nil {
-		return
+func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) error {
+	var err error
+	rSt.st, err = rSt.sync.getDbStore(ctx, nil, rSt.appName, rSt.dbName)
+	if err != nil {
+		return err
 	}
 
 	allowedPfxs := make(map[string]struct{})
-	for sgid := range rSt.req.SgIds {
+	for sgid := range rSt.sgIds {
 		// Check permissions for the SyncGroup.
 		var sg *interfaces.SyncGroup
-		sg, rSt.errState = getSyncGroupById(ctx, rSt.st, sgid)
-		if rSt.errState != nil {
-			return
-		}
-		rSt.errState = authorize(ctx, rSt.call.Security(), sg)
-		if verror.ErrorID(rSt.errState) == verror.ErrNoAccess.ID {
+		sg, err = getSyncGroupById(ctx, rSt.st, sgid)
+		if err != nil {
+			vlog.Errorf("sync: authorizeAndFilterSyncGroups: accessing SyncGroup information failed %v, err %v", sgid, err)
 			continue
-		} else if rSt.errState != nil {
-			return
+		}
+		err = authorize(ctx, rSt.call.Security(), sg)
+		if verror.ErrorID(err) == verror.ErrNoAccess.ID {
+			if rSt.sg {
+				id := fmt.Sprintf("%d", sgid)
+				delete(rSt.initVec, id)
+			}
+			continue
+		} else if err != nil {
+			return err
 		}
 
 		for _, p := range sg.Spec.Prefixes {
@@ -147,8 +187,16 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) {
 		rSt.addInitiatorToSyncGroup(ctx, sgid)
 	}
 
+	if err != nil {
+		return err
+	}
+
+	if rSt.sg {
+		return nil
+	}
+
 	// Filter the initiator's prefixes to what is allowed.
-	for pfx := range rSt.req.InitVec {
+	for pfx := range rSt.initVec {
 		if _, ok := allowedPfxs[pfx]; ok {
 			continue
 		}
@@ -160,10 +208,10 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) {
 		}
 
 		if !allowed {
-			delete(rSt.req.InitVec, pfx)
+			delete(rSt.initVec, pfx)
 		}
 	}
-	return
+	return nil
 }
 
 // addInitiatorToSyncGroup adds the request initiator to the membership of the
@@ -199,27 +247,58 @@ func (rSt *responderState) addInitiatorToSyncGroup(ctx *context.T, gid interface
 	}
 }
 
-// computeDeltaBound computes the bound on missing generations across all
-// requested prefixes (phase 2 of sendDeltas).
-func (rSt *responderState) computeDeltaBound(ctx *context.T) {
-	// Check error from phase 1.
-	if rSt.errState != nil {
-		return
+// sendSgDeltas computes the bound on missing generations, and sends the missing
+// log records across all requested SyncGroups (phases 2 and 3 of sendDeltas).
+func (rSt *responderState) sendSgDeltas(ctx *context.T) error {
+	vlog.VI(3).Infof("sync: sendSgDeltas: %s, %s: sgids %v, genvec %v",
+		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVec)
+
+	respVec, _, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, rSt.sgIds)
+	if err != nil {
+		return err
 	}
 
-	if len(rSt.req.InitVec) == 0 {
-		rSt.errState = verror.New(verror.ErrInternal, ctx, "empty initiator generation vector")
-		return
+	rSt.outVec = make(interfaces.GenVector)
+
+	for sg, initpgv := range rSt.initVec {
+		respgv, ok := respVec[sg]
+		if !ok {
+			continue
+		}
+		rSt.diff = make(genRangeVector)
+		rSt.diffPrefixGenVectors(respgv, initpgv)
+		rSt.outVec[sg] = respgv
+
+		if err := rSt.filterAndSendDeltas(ctx, sg); err != nil {
+			return err
+		}
+	}
+	return rSt.sendGenVec(ctx)
+}
+
+// sendDataDeltas computes the bound on missing generations across all requested
+// prefixes, and sends the missing log records (phases 2 and 3 of sendDeltas).
+func (rSt *responderState) sendDataDeltas(ctx *context.T) error {
+	// Phase 2 of sendDeltas: Compute the missing generations.
+	if err := rSt.computeDataDeltas(ctx); err != nil {
+		return err
 	}
 
-	var respVec interfaces.GenVector
-	var respGen uint64
-	respVec, respGen, rSt.errState = rSt.sync.copyDbGenInfo(ctx, rSt.req.AppName, rSt.req.DbName)
-	if rSt.errState != nil {
-		return
+	// Phase 3 of sendDeltas: Process the diff, filtering out records that
+	// are not needed, and send the remainder on the wire ordered.
+	if err := rSt.filterAndSendDeltas(ctx, logDataPrefix); err != nil {
+		return err
+	}
+	return rSt.sendGenVec(ctx)
+}
+
+func (rSt *responderState) computeDataDeltas(ctx *context.T) error {
+	respVec, respGen, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, nil)
+	if err != nil {
+		return err
 	}
 	respPfxs := extractAndSortPrefixes(respVec)
-	initPfxs := extractAndSortPrefixes(rSt.req.InitVec)
+	initPfxs := extractAndSortPrefixes(rSt.initVec)
 
 	rSt.outVec = make(interfaces.GenVector)
 	rSt.diff = make(genRangeVector)
@@ -235,7 +314,7 @@ func (rSt *responderState) computeDeltaBound(ctx *context.T) {
 		pfx = p
 
 		// Lower bound on initiator's knowledge for this prefix set.
-		initpgv := rSt.req.InitVec[pfx]
+		initpgv := rSt.initVec[pfx]
 
 		// Find the relevant responder prefixes and add the corresponding knowledge.
 		var respgv interfaces.PrefixGenVector
@@ -285,27 +364,17 @@ func (rSt *responderState) computeDeltaBound(ctx *context.T) {
 	}
 
 	vlog.VI(3).Infof("sync: computeDeltaBound: %s, %s: diff %v, outvec %v",
-		rSt.req.AppName, rSt.req.DbName, rSt.diff, rSt.outVec)
-	return
+		rSt.appName, rSt.dbName, rSt.diff, rSt.outVec)
+	return nil
 }
 
 // filterAndSendDeltas filters the computed delta to remove records already
 // known by the initiator, and sends the resulting records to the initiator
 // (phase 3 of sendDeltas).
-func (rSt *responderState) filterAndSendDeltas(ctx *context.T) error {
-	// Always send a start and finish response so that the initiator can
-	// move on to the next Database.
-	//
+func (rSt *responderState) filterAndSendDeltas(ctx *context.T, pfx string) error {
 	// TODO(hpucha): Although ok for now to call SendStream once per
 	// Database, would like to make this implementation agnostic.
 	sender := rSt.call.SendStream()
-	sender.Send(interfaces.DeltaRespStart{true})
-	defer sender.Send(interfaces.DeltaRespFinish{true})
-
-	// Check error from phase 2.
-	if rSt.errState != nil {
-		return rSt.errState
-	}
 
 	// First two phases were successful. So now on to phase 3. We now visit
 	// every log record in the generation range as obtained from phase 1 in
@@ -316,7 +385,7 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T) error {
 	mh := make(minHeap, 0, len(rSt.diff))
 	for dev, r := range rSt.diff {
 		r.cur = r.min
-		rec, err := getNextLogRec(ctx, rSt.st, dev, r)
+		rec, err := getNextLogRec(ctx, rSt.st, pfx, dev, r)
 		if err != nil {
 			return err
 		}
@@ -329,11 +398,14 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T) error {
 	heap.Init(&mh)
 
 	// Process the log records in order.
-	initPfxs := extractAndSortPrefixes(rSt.req.InitVec)
+	var initPfxs []string
+	if !rSt.sg {
+		initPfxs = extractAndSortPrefixes(rSt.initVec)
+	}
 	for mh.Len() > 0 {
 		rec := heap.Pop(&mh).(*localLogRec)
 
-		if !filterLogRec(rec, rSt.req.InitVec, initPfxs) {
+		if rSt.sg || !filterLogRec(rec, rSt.initVec, initPfxs) {
 			// Send on the wire.
 			wireRec, err := makeWireLogRec(ctx, rSt.st, rec)
 			if err != nil {
@@ -344,7 +416,7 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T) error {
 
 		// Add a new record from the same device if not done.
 		dev := rec.Metadata.Id
-		rec, err := getNextLogRec(ctx, rSt.st, dev, rSt.diff[dev])
+		rec, err := getNextLogRec(ctx, rSt.st, pfx, dev, rSt.diff[dev])
 		if err != nil {
 			return err
 		}
@@ -354,7 +426,11 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T) error {
 			delete(rSt.diff, dev)
 		}
 	}
+	return nil
+}
 
+func (rSt *responderState) sendGenVec(ctx *context.T) error {
+	sender := rSt.call.SendStream()
 	sender.Send(interfaces.DeltaRespRespVec{rSt.outVec})
 	return nil
 }
@@ -426,9 +502,9 @@ func extractAndSortPrefixes(vec interfaces.GenVector) []string {
 
 // TODO(hpucha): This can be optimized using a scan instead of "gets" in a for
 // loop.
-func getNextLogRec(ctx *context.T, st store.Store, dev uint64, r *genRange) (*localLogRec, error) {
+func getNextLogRec(ctx *context.T, st store.Store, pfx string, dev uint64, r *genRange) (*localLogRec, error) {
 	for i := r.cur; i <= r.max; i++ {
-		rec, err := getLogRec(ctx, st, dev, i)
+		rec, err := getLogRec(ctx, st, pfx, dev, i)
 		if err == nil {
 			r.cur = i + 1
 			return rec, nil

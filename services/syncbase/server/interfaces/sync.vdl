@@ -14,15 +14,8 @@ import (
 type Sync interface {
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
-	// vector. This process happens one Database at a time encompassing all
-	// the SyncGroups common to the initiator and the responder. For each
-	// Database, the initiator sends a DeltaReq. In response, the
-	// responder sends a "Start" DeltaResp record, all the missing log
-	// records, the responder's genvector, and a "Finish" DeltaResp
-	// record. The initiator parses the stream between a Start and a Finish
-	// record as the response to its DeltaReq, and then moves on to the
-	// next Database in common with this responder.
-	GetDeltas(initiator string) stream<DeltaReq, DeltaResp> error {access.Read}
+	// vector for one Database for either SyncGroup metadata or data.
+	GetDeltas(req DeltaReq, initiator string) stream<_, DeltaResp> error {access.Read}
 
 	// SyncGroup-related methods.
 

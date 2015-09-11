@@ -11,10 +11,11 @@ import (
 // Key prefixes for sync data structures. All these prefixes are prepended with
 // util.SyncPrefix.
 const (
-	logPrefix  = "log"
-	dbssPrefix = "dbss"
-	dagPrefix  = "dag"
-	sgPrefix   = "sg"
+	logPrefix     = "log"  // log state.
+	logDataPrefix = "data" // data log state.
+	dbssPrefix    = "dbss" // database sync state.
+	dagPrefix     = "dag"  // dag state.
+	sgPrefix      = "sg"   // syncgroup state.
 )
 
 // syncData represents the persistent state of the sync module.
@@ -22,11 +23,18 @@ type syncData struct {
 	Id uint64
 }
 
+// localGenInfo represents the persistent state corresponding to local generations.
+type localGenInfo struct {
+	Gen        uint64 // local generation number incremented on every local update.
+	CheckptGen uint64 // local generation number advertised to remote peers (used by the responder).
+}
+
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
-	Gen        uint64               // local generation number incremented on every local update.
-	CheckptGen uint64               // local generation number advertised to remote peers (used by the responder).
-	GenVec     interfaces.GenVector // generation vector capturing the locally-known generations of remote peers.
+	Data     localGenInfo
+	Sgs      map[interfaces.GroupId]localGenInfo
+	GenVec   interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for data in Database.
+	SgGenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for SyncGroups in Database.
 }
 
 // localLogRec represents the persistent local state of a log record. Metadata

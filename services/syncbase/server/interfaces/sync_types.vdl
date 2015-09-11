@@ -29,6 +29,7 @@ const (
 
 // PrefixGenVector is the generation vector for a data prefix, which maps each
 // device id to its last locally known generation in the scope of that prefix.
+// TODO(hpucha): Rename this type.
 type PrefixGenVector map[uint64]uint64
 
 // GenVector is the generation vector for a Database, and maps prefixes to their
@@ -70,6 +71,7 @@ type LogRec struct {
 }
 
 // GroupId is a globally unique SyncGroup ID.
+// TODO(hpucha): Make this a string since now the syncgroup id is an object id.
 type GroupId uint64
 
 // Possible states for a SyncGroup.
@@ -99,21 +101,35 @@ type SyncGroup struct {
 	Joiners     map[string]wire.SyncGroupMemberInfo // map of joiners to their metadata
 }
 
-// DeltaReq contains the initiator's genvector and the set of SyncGroups it is
-// interested in within a Database (specified by the AppName/DbName) when
+// DeltaReq contains a request to sync either data or SyncGroup metadata for a
+// Database.
+type DeltaReq union {
+	Sgs SgDeltaReq
+	Data DataDeltaReq
+}
+
+// DataDeltaReq contains the initiator's genvector and the set of SyncGroups it
+// is interested in within a Database (specified by the AppName/DbName) when
 // requesting deltas for that Database.
-type DeltaReq struct {
+type DataDeltaReq struct {
 	AppName string
 	DbName string
 	SgIds   set[GroupId]
 	InitVec GenVector
 }
 
+// SgDeltaReq contains the initiator's genvector for the SyncGroups it is
+// interested in within a Database (specified by the AppName/DbName) when
+// requesting deltas for those SyncGroups.
+type SgDeltaReq struct {
+	AppName string
+	DbName string
+	InitVec GenVector // Contains a genvector per SyncGroup.
+}
+
 // DeltaResp contains the responder's genvector or the missing log records
 // returned in response to an initiator's request for deltas for a Database.
 type DeltaResp union {
-	Start   bool
-	Finish  bool
 	Rec     LogRec
 	RespVec GenVector
 }

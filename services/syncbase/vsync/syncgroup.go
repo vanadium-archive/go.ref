@@ -54,10 +54,13 @@ type memberView struct {
 }
 
 // memberInfo holds the member metadata for each SyncGroup this member belongs
-// to within each App/Database (i.e. global database name).  It's a mapping of
-// global DB names to sets of SyncGroup member information.
+// to within each App/Database (i.e. global database name). It's a mapping of
+// global DB names to sets of SyncGroup member information. It also maintains
+// all the mount table candidates that could be used to reach this peer, learned
+// from the SyncGroup metadata.
 type memberInfo struct {
-	db2sg map[string]sgMemberInfo
+	db2sg    map[string]sgMemberInfo
+	mtTables map[string]struct{}
 }
 
 // sgMemberInfo maps SyncGroups to their member metadata.
@@ -220,12 +223,20 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 			// A member's info is different across SyncGroups, so gather all of them.
 			for member, info := range sg.Joiners {
 				if _, ok := newMembers[member]; !ok {
-					newMembers[member] = &memberInfo{db2sg: make(map[string]sgMemberInfo)}
+					newMembers[member] = &memberInfo{
+						db2sg:    make(map[string]sgMemberInfo),
+						mtTables: make(map[string]struct{}),
+					}
 				}
 				if _, ok := newMembers[member].db2sg[name]; !ok {
 					newMembers[member].db2sg[name] = make(sgMemberInfo)
 				}
 				newMembers[member].db2sg[name][sg.Id] = info
+
+				// Collect mount tables.
+				for _, mt := range sg.Spec.MountTables {
+					newMembers[member].mtTables[mt] = struct{}{}
+				}
 			}
 			return false
 		})
@@ -291,12 +302,18 @@ func (s *syncService) copyMemberInfo(ctx *context.T, member string) *memberInfo 
 	}
 
 	// Make a copy.
-	infoCopy := &memberInfo{make(map[string]sgMemberInfo)}
+	infoCopy := &memberInfo{
+		db2sg:    make(map[string]sgMemberInfo),
+		mtTables: make(map[string]struct{}),
+	}
 	for gdbName, sgInfo := range info.db2sg {
 		infoCopy.db2sg[gdbName] = make(sgMemberInfo)
 		for gid, mi := range sgInfo {
 			infoCopy.db2sg[gdbName][gid] = mi
 		}
+	}
+	for mt := range info.mtTables {
+		infoCopy.mtTables[mt] = struct{}{}
 	}
 
 	return infoCopy
@@ -407,6 +424,10 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 	vlog.VI(2).Infof("sync: CreateSyncGroup: begin: %s", sgName)
 	defer vlog.VI(2).Infof("sync: CreateSyncGroup: end: %s", sgName)
 
+	// Get this Syncbase's sync module handle.
+	ss := sd.sync.(*syncService)
+	var sg *interfaces.SyncGroup
+
 	err := store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
 		// Check permissions on Database.
 		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
@@ -419,11 +440,8 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 		// TODO(hpucha): Do some SG ACL checking. Check creator
 		// has Admin privilege.
 
-		// Get this Syncbase's sync module handle.
-		ss := sd.sync.(*syncService)
-
 		// Instantiate sg. Add self as joiner.
-		sg := &interfaces.SyncGroup{
+		sg = &interfaces.SyncGroup{
 			Id:          newSyncGroupId(),
 			Name:        sgName,
 			SpecVersion: newSyncGroupVersion(),
@@ -449,6 +467,7 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 		return err
 	}
 
+	ss.initSyncStateInMem(ctx, sg.AppName, sg.DbName, sg.Id)
 	// Local SG create succeeded. Publish the SG at the chosen server.
 	sd.publishSyncGroup(ctx, call, sgName)
 
@@ -541,6 +560,8 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 	if err != nil {
 		return nullSpec, err
 	}
+
+	ss.initSyncStateInMem(ctx, sg.AppName, sg.DbName, sg.Id)
 
 	// Publish at the chosen mount table and in the neighborhood.
 	sd.publishInMountTables(ctx, call, sg.Spec)
@@ -841,7 +862,11 @@ func (s *syncService) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg i
 		return addSyncGroup(ctx, tx, &sg)
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+	s.initSyncStateInMem(ctx, sg.AppName, sg.DbName, sg.Id)
+	return nil
 }
 
 func (s *syncService) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, joinerName string, joinerInfo wire.SyncGroupMemberInfo) (interfaces.SyncGroup, error) {

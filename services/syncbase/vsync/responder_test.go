@@ -111,7 +111,7 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 	for _, test := range tests {
 		want := test.genDiffWant
 		got := test.genDiffIn
-		rSt := newResponderState(nil, nil, s, interfaces.DeltaReq{}, "fakeInitiator")
+		rSt := newResponderState(nil, nil, s, interfaces.DeltaReqData{}, "fakeInitiator")
 		rSt.diff = got
 		rSt.diffPrefixGenVectors(test.respPVec, test.initPVec)
 		checkEqualDevRanges(t, got, want)
@@ -121,7 +121,7 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 // TestSendDeltas tests the computation of the delta bound (computeDeltaBound)
 // and if the log records on the wire are correctly ordered (phases 2 and 3 of
 // SendDeltas).
-func TestSendDeltas(t *testing.T) {
+func TestSendDataDeltas(t *testing.T) {
 	appName := "mockapp"
 	dbName := "mockdb"
 
@@ -350,16 +350,13 @@ func TestSendDeltas(t *testing.T) {
 		s.id = 10 //responder.
 
 		wantDiff, wantVec := test.genDiff, test.outVec
-		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{gen: test.respGen, checkptGen: test.respGen, genvec: test.respVec}
-
-		req := interfaces.DeltaReq{AppName: appName, DbName: dbName, InitVec: test.initVec}
-		rSt := newResponderState(nil, nil, s, req, "fakeInitiator")
-
-		rSt.computeDeltaBound(nil)
-		if rSt.errState != nil || !reflect.DeepEqual(rSt.outVec, wantVec) {
-			t.Fatalf("computeDeltaBound failed (I: %v), (R: %v, %v), got %v, want %v err %v", test.initVec, test.respGen, test.respVec, rSt.outVec, wantVec, rSt.errState)
+		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{
+			data: &localGenInfoInMem{
+				gen:        test.respGen,
+				checkptGen: test.respGen,
+			},
+			genvec: test.respVec,
 		}
-		checkEqualDevRanges(t, rSt.diff, wantDiff)
 
 		////////////////////////////////////////
 		// Test sending deltas.
@@ -385,7 +382,7 @@ func TestSendDeltas(t *testing.T) {
 					Metadata: interfaces.LogRecMetadata{Id: id, Gen: k, ObjId: okey, CurVers: vers, UpdTime: time.Now().UTC()},
 					Pos:      pos + k,
 				}
-				if err := putLogRec(nil, tx, rec); err != nil {
+				if err := putLogRec(nil, tx, logDataPrefix, rec); err != nil {
 					t.Fatalf("putLogRec(%d:%d) failed rec %v err %v", id, k, rec, err)
 				}
 				value := fmt.Sprintf("value_%s", okey)
@@ -404,16 +401,31 @@ func TestSendDeltas(t *testing.T) {
 			t.Fatalf("cannot commit putting log rec, err %v", err)
 		}
 
+		req := interfaces.DataDeltaReq{
+			AppName: appName,
+			DbName:  dbName,
+			InitVec: test.initVec,
+		}
+
+		rSt := newResponderState(nil, nil, s, interfaces.DeltaReqData{req}, "fakeInitiator")
 		d := &dummyResponder{}
 		rSt.call = d
-		rSt.st, rSt.errState = rSt.sync.getDbStore(nil, nil, rSt.req.AppName, rSt.req.DbName)
-		if rSt.errState != nil {
-			t.Fatalf("filterAndSendDeltas failed to get store handle for app/db %v %v", rSt.req.AppName, rSt.req.DbName)
-		}
-		err := rSt.filterAndSendDeltas(nil)
+		var err error
+		rSt.st, err = rSt.sync.getDbStore(nil, nil, rSt.appName, rSt.dbName)
 		if err != nil {
-			t.Fatalf("filterAndSendDeltas failed (I: %v), (R: %v, %v) err %v", test.initVec, test.respGen, test.respVec, err)
+			t.Fatalf("getDbStore failed to get store handle for app/db %v %v", rSt.appName, rSt.dbName)
 		}
+
+		err = rSt.computeDataDeltas(nil)
+		if err != nil || !reflect.DeepEqual(rSt.outVec, wantVec) {
+			t.Fatalf("computeDataDeltas failed (I: %v), (R: %v, %v), got %v, want %v err %v", test.initVec, test.respGen, test.respVec, rSt.outVec, wantVec, err)
+		}
+		checkEqualDevRanges(t, rSt.diff, wantDiff)
+
+		if err = rSt.sendDataDeltas(nil); err != nil {
+			t.Fatalf("sendDataDeltas failed, err %v", err)
+		}
+
 		d.diffLogRecs(t, wantRecs, wantVec)
 
 		destroyService(t, svc)
@@ -424,28 +436,9 @@ func TestSendDeltas(t *testing.T) {
 // Helpers
 
 type dummyResponder struct {
-	start, finish int
-	gotRecs       []*localLogRec
-	outVec        interfaces.GenVector
+	gotRecs []*localLogRec
+	outVec  interfaces.GenVector
 }
-
-func (d *dummyResponder) RecvStream() interface {
-	Advance() bool
-	Value() interfaces.DeltaReq
-	Err() error
-} {
-	return d
-}
-
-func (d *dummyResponder) Advance() bool {
-	return false
-}
-
-func (d *dummyResponder) Value() interfaces.DeltaReq {
-	return interfaces.DeltaReq{}
-}
-
-func (d *dummyResponder) Err() error { return nil }
 
 func (d *dummyResponder) SendStream() interface {
 	Send(item interfaces.DeltaResp) error
@@ -455,10 +448,6 @@ func (d *dummyResponder) SendStream() interface {
 
 func (d *dummyResponder) Send(item interfaces.DeltaResp) error {
 	switch v := item.(type) {
-	case interfaces.DeltaRespStart:
-		d.start++
-	case interfaces.DeltaRespFinish:
-		d.finish++
 	case interfaces.DeltaRespRespVec:
 		d.outVec = v.Value
 	case interfaces.DeltaRespRec:
@@ -492,9 +481,6 @@ func (d *dummyResponder) Server() rpc.Server {
 }
 
 func (d *dummyResponder) diffLogRecs(t *testing.T, wantRecs []*localLogRec, wantVec interfaces.GenVector) {
-	if d.start != 1 || d.finish != 1 {
-		t.Fatalf("diffLogRecs incorrect start/finish records (%v, %v)", d.start, d.finish)
-	}
 	if len(d.gotRecs) != len(wantRecs) {
 		t.Fatalf("diffLogRecs failed, gotLen %v, wantLen %v\n", len(d.gotRecs), len(wantRecs))
 	}

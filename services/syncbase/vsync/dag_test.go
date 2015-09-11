@@ -335,7 +335,7 @@ func TestRemoteUpdates(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %v", oid, newHead, logrec)
 	}
 
@@ -411,10 +411,10 @@ func TestRemoteNoConflict(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:10:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:data:10:3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %v", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %v", oid, newHead, logrec)
 	}
 
@@ -494,13 +494,13 @@ func TestRemoteConflict(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:10:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:data:10:3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync:log:10:2" {
+	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync:log:data:10:2" {
 		t.Errorf("invalid logrec for ancestor object %s:%s: %s", oid, ancestor, logrec)
 	}
 
@@ -587,13 +587,13 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:10:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:data:10:3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:2" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:2" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync:log:10:2" {
+	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync:log:data:10:2" {
 		t.Errorf("invalid logrec for ancestor object %s:%s: %s", oid, ancestor, logrec)
 	}
 
@@ -674,10 +674,10 @@ func TestRemoteConflictNoAncestor(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:10:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:data:10:3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:11:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
 

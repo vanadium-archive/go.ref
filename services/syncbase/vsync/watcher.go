@@ -120,7 +120,7 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 	}
 
 	// Initialize Database sync state if needed.
-	s.initDbSyncStateInMem(ctx, appName, dbName)
+	s.initSyncStateInMem(ctx, appName, dbName, interfaces.NoGroupId)
 
 	// Get a batch of watch log entries, if any, after this resume marker.
 	logs, nextResmark, err := watchable.ReadBatchFromLog(st, resMark)
@@ -212,7 +212,7 @@ func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch
 		}
 	}
 
-	gen, pos := s.reserveGenAndPosInDbLog(ctx, appName, dbName, count)
+	gen, pos := s.reserveGenAndPosInDbLog(ctx, appName, dbName, "", count)
 
 	vlog.VI(3).Infof("sync: processBatch: %s, %s: len %d, total %d, btid %x, gen %d, pos %d",
 		appName, dbName, count, totalCount, batchId, gen, pos)
@@ -251,12 +251,12 @@ func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch
 // suitably updating the DAG metadata.
 func (s *syncService) processLocalLogRec(ctx *context.T, tx store.Transaction, rec *localLogRec) error {
 	// Insert the new log record into the log.
-	if err := putLogRec(ctx, tx, rec); err != nil {
+	if err := putLogRec(ctx, tx, logDataPrefix, rec); err != nil {
 		return err
 	}
 
 	m := rec.Metadata
-	logKey := logRecKey(m.Id, m.Gen)
+	logKey := logRecKey(logDataPrefix, m.Id, m.Gen)
 
 	// Insert the new log record into dag.
 	if err := s.addNode(ctx, tx, m.ObjId, m.CurVers, logKey, m.Delete, m.Parents, m.BatchId, nil); err != nil {

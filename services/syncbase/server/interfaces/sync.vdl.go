@@ -28,15 +28,8 @@ import (
 type SyncClientMethods interface {
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
-	// vector. This process happens one Database at a time encompassing all
-	// the SyncGroups common to the initiator and the responder. For each
-	// Database, the initiator sends a DeltaReq. In response, the
-	// responder sends a "Start" DeltaResp record, all the missing log
-	// records, the responder's genvector, and a "Finish" DeltaResp
-	// record. The initiator parses the stream between a Start and a Finish
-	// record as the response to its DeltaReq, and then moves on to the
-	// next Database in common with this responder.
-	GetDeltas(ctx *context.T, initiator string, opts ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
+	// vector for one Database for either SyncGroup metadata or data.
+	GetDeltas(ctx *context.T, req DeltaReq, initiator string, opts ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
 	PublishSyncGroup(ctx *context.T, sg SyncGroup, opts ...rpc.CallOpt) error
@@ -78,9 +71,9 @@ type implSyncClientStub struct {
 	name string
 }
 
-func (c implSyncClientStub) GetDeltas(ctx *context.T, i0 string, opts ...rpc.CallOpt) (ocall SyncGetDeltasClientCall, err error) {
+func (c implSyncClientStub) GetDeltas(ctx *context.T, i0 DeltaReq, i1 string, opts ...rpc.CallOpt) (ocall SyncGetDeltasClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GetDeltas", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GetDeltas", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	ocall = &implSyncGetDeltasClientCall{ClientCall: call}
@@ -143,30 +136,13 @@ type SyncGetDeltasClientStream interface {
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-	// SendStream returns the send side of the Sync.GetDeltas client stream.
-	SendStream() interface {
-		// Send places the item onto the output stream.  Returns errors
-		// encountered while sending, or if Send is called after Close or
-		// the stream has been canceled.  Blocks if there is no buffer
-		// space; will unblock when buffer space is available or after
-		// the stream has been canceled.
-		Send(item DeltaReq) error
-		// Close indicates to the server that no more items will be sent;
-		// server Recv calls will receive io.EOF after all sent items.
-		// This is an optional call - e.g. a client might call Close if it
-		// needs to continue receiving items from the server after it's
-		// done sending.  Returns errors encountered while closing, or if
-		// Close is called after the stream has been canceled.  Like Send,
-		// blocks if there is no buffer space available.
-		Close() error
-	}
 }
 
 // SyncGetDeltasClientCall represents the call returned from Sync.GetDeltas.
 type SyncGetDeltasClientCall interface {
 	SyncGetDeltasClientStream
-	// Finish performs the equivalent of SendStream().Close, then blocks until
-	// the server is done, and returns the positional return values for the call.
+	// Finish blocks until the server is done, and returns the positional return
+	// values for call.
 	//
 	// Finish returns immediately if the call has been canceled; depending on the
 	// timing the output could either be an error signaling cancelation, or the
@@ -208,23 +184,6 @@ func (c implSyncGetDeltasClientCallRecv) Err() error {
 		return nil
 	}
 	return c.c.errRecv
-}
-func (c *implSyncGetDeltasClientCall) SendStream() interface {
-	Send(item DeltaReq) error
-	Close() error
-} {
-	return implSyncGetDeltasClientCallSend{c}
-}
-
-type implSyncGetDeltasClientCallSend struct {
-	c *implSyncGetDeltasClientCall
-}
-
-func (c implSyncGetDeltasClientCallSend) Send(item DeltaReq) error {
-	return c.c.Send(item)
-}
-func (c implSyncGetDeltasClientCallSend) Close() error {
-	return c.c.CloseSend()
 }
 func (c *implSyncGetDeltasClientCall) Finish() (err error) {
 	err = c.ClientCall.Finish()
@@ -479,15 +438,8 @@ func (c *implSyncFetchChunksClientCall) Finish() (err error) {
 type SyncServerMethods interface {
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
-	// vector. This process happens one Database at a time encompassing all
-	// the SyncGroups common to the initiator and the responder. For each
-	// Database, the initiator sends a DeltaReq. In response, the
-	// responder sends a "Start" DeltaResp record, all the missing log
-	// records, the responder's genvector, and a "Finish" DeltaResp
-	// record. The initiator parses the stream between a Start and a Finish
-	// record as the response to its DeltaReq, and then moves on to the
-	// next Database in common with this responder.
-	GetDeltas(ctx *context.T, call SyncGetDeltasServerCall, initiator string) error
+	// vector for one Database for either SyncGroup metadata or data.
+	GetDeltas(ctx *context.T, call SyncGetDeltasServerCall, req DeltaReq, initiator string) error
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
 	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg SyncGroup) error
@@ -521,15 +473,8 @@ type SyncServerMethods interface {
 type SyncServerStubMethods interface {
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
-	// vector. This process happens one Database at a time encompassing all
-	// the SyncGroups common to the initiator and the responder. For each
-	// Database, the initiator sends a DeltaReq. In response, the
-	// responder sends a "Start" DeltaResp record, all the missing log
-	// records, the responder's genvector, and a "Finish" DeltaResp
-	// record. The initiator parses the stream between a Start and a Finish
-	// record as the response to its DeltaReq, and then moves on to the
-	// next Database in common with this responder.
-	GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, initiator string) error
+	// vector for one Database for either SyncGroup metadata or data.
+	GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, req DeltaReq, initiator string) error
 	// PublishSyncGroup is typically invoked on a "central" peer to publish
 	// the SyncGroup.
 	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg SyncGroup) error
@@ -585,8 +530,8 @@ type implSyncServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, i0 string) error {
-	return s.impl.GetDeltas(ctx, call, i0)
+func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, i0 DeltaReq, i1 string) error {
+	return s.impl.GetDeltas(ctx, call, i0, i1)
 }
 
 func (s implSyncServerStub) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, i0 SyncGroup) error {
@@ -632,8 +577,9 @@ var descSync = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "GetDeltas",
-			Doc:  "// GetDeltas returns the responder's current generation vector and all\n// the missing log records when compared to the initiator's generation\n// vector. This process happens one Database at a time encompassing all\n// the SyncGroups common to the initiator and the responder. For each\n// Database, the initiator sends a DeltaReq. In response, the\n// responder sends a \"Start\" DeltaResp record, all the missing log\n// records, the responder's genvector, and a \"Finish\" DeltaResp\n// record. The initiator parses the stream between a Start and a Finish\n// record as the response to its DeltaReq, and then moves on to the\n// next Database in common with this responder.",
+			Doc:  "// GetDeltas returns the responder's current generation vector and all\n// the missing log records when compared to the initiator's generation\n// vector for one Database for either SyncGroup metadata or data.",
 			InArgs: []rpc.ArgDesc{
+				{"req", ``},       // DeltaReq
 				{"initiator", ``}, // string
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
@@ -691,18 +637,6 @@ var descSync = rpc.InterfaceDesc{
 
 // SyncGetDeltasServerStream is the server stream for Sync.GetDeltas.
 type SyncGetDeltasServerStream interface {
-	// RecvStream returns the receiver side of the Sync.GetDeltas server stream.
-	RecvStream() interface {
-		// Advance stages an item so that it may be retrieved via Value.  Returns
-		// true iff there is an item to retrieve.  Advance must be called before
-		// Value is called.  May block if an item is not available.
-		Advance() bool
-		// Value returns the item that was staged by Advance.  May panic if Advance
-		// returned false or was not called.  Never blocks.
-		Value() DeltaReq
-		// Err returns any error encountered by Advance.  Never blocks.
-		Err() error
-	}
 	// SendStream returns the send side of the Sync.GetDeltas server stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
@@ -722,41 +656,11 @@ type SyncGetDeltasServerCall interface {
 // a typesafe stub that implements SyncGetDeltasServerCall.
 type SyncGetDeltasServerCallStub struct {
 	rpc.StreamServerCall
-	valRecv DeltaReq
-	errRecv error
 }
 
 // Init initializes SyncGetDeltasServerCallStub from rpc.StreamServerCall.
 func (s *SyncGetDeltasServerCallStub) Init(call rpc.StreamServerCall) {
 	s.StreamServerCall = call
-}
-
-// RecvStream returns the receiver side of the Sync.GetDeltas server stream.
-func (s *SyncGetDeltasServerCallStub) RecvStream() interface {
-	Advance() bool
-	Value() DeltaReq
-	Err() error
-} {
-	return implSyncGetDeltasServerCallRecv{s}
-}
-
-type implSyncGetDeltasServerCallRecv struct {
-	s *SyncGetDeltasServerCallStub
-}
-
-func (s implSyncGetDeltasServerCallRecv) Advance() bool {
-	s.s.valRecv = DeltaReq{}
-	s.s.errRecv = s.s.Recv(&s.s.valRecv)
-	return s.s.errRecv == nil
-}
-func (s implSyncGetDeltasServerCallRecv) Value() DeltaReq {
-	return s.s.valRecv
-}
-func (s implSyncGetDeltasServerCallRecv) Err() error {
-	if s.s.errRecv == io.EOF {
-		return nil
-	}
-	return s.s.errRecv
 }
 
 // SendStream returns the send side of the Sync.GetDeltas server stream.
