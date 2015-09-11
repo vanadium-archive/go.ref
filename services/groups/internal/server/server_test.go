@@ -5,10 +5,12 @@
 package server_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"testing"
 
 	"v.io/v23"
@@ -95,9 +97,19 @@ func entriesEqual(a, b map[groups.BlessingPatternChunk]struct{}) bool {
 	return reflect.DeepEqual(a, b)
 }
 
+// security.Authorizer implementation that disallows any operations on a
+// "reserved*" suffix. Used to test that the provided authorization policy
+// is applied to group creation operations.
+type reservedAuthorizer struct{}
+
+func (reservedAuthorizer) Authorize(_ *context.T, call security.Call) error {
+	if strings.HasPrefix(call.Suffix(), "reserved") {
+		return fmt.Errorf("operations on %q are reserved and not authorized", call.Suffix())
+	}
+	return nil
+}
+
 func newServer(ctx *context.T, be backend) (string, func()) {
-	// TODO(sadovsky): Pass in perms and test perms-checking in Group.Create().
-	perms := access.Permissions{}
 	var st store.Store
 	var path string
 	var err error
@@ -118,7 +130,7 @@ func newServer(ctx *context.T, be backend) (string, func()) {
 		ctx.Fatal("unknown backend: ", be)
 	}
 
-	m := server.NewManager(st, perms)
+	m := server.NewManager(st, reservedAuthorizer{})
 
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", m)
 	if err != nil {
@@ -181,6 +193,11 @@ func testCreateHelper(t *testing.T, be backend) {
 	ctx, serverName, cleanup := setupOrDie(be)
 	defer cleanup()
 
+	// Unauthorized creates should fail.
+	// This fails because of the reservedAuthorizer used in setupOrDie.
+	if err := groups.GroupClient(naming.JoinAddressName(serverName, "reservedGroup")).Create(ctx, nil, nil); err == nil {
+		t.Errorf("Creation of reservedGroup succeeded")
+	}
 	// Create a group with a default perms and no entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {

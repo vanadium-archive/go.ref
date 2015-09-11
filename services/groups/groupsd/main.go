@@ -11,14 +11,15 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/conventions"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/v23/security/access"
+	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
@@ -32,6 +33,8 @@ var (
 	flagEngine  string
 	flagRootDir string
 	flagPersist string
+
+	errNotAuthorizedToCreate = verror.Register("v.io/x/ref/services/groups/groupsd.errNotAuthorizedToCreate", verror.NoRetry, "{1} {2} Creator user ids {3} are not authorized to create group {4}")
 )
 
 func main() {
@@ -43,16 +46,27 @@ func main() {
 	cmdline.Main(cmdGroupsD)
 }
 
-// defaultPerms returns a permissions object that grants all permissions to the
-// provided blessing patterns.
-func defaultPerms(blessingPatterns []security.BlessingPattern) access.Permissions {
-	perms := access.Permissions{}
-	for _, tag := range access.AllTypicalTags() {
-		for _, bp := range blessingPatterns {
-			perms.Add(bp, string(tag))
+// Authorizer implementing the authorization policy for Create operations.
+//
+// A user is allowed to create any group that begins with the user id.
+//
+// TODO(ashankar): This is experimental use of the "conventions" API and of a
+// creation policy. This policy was thought of in a 5 minute period. Think
+// about this more!
+type createAuthorizer struct{}
+
+func (createAuthorizer) Authorize(ctx *context.T, call security.Call) error {
+	userids := conventions.GetClientUserIds(ctx, call)
+	for _, uid := range userids {
+		if strings.HasPrefix(call.Suffix(), uid+"/") {
+			return nil
 		}
 	}
-	return perms
+	// Revert to the default authorization policy.
+	if err := security.DefaultAuthorizer().Authorize(ctx, call); err == nil {
+		return nil
+	}
+	return verror.New(errNotAuthorizedToCreate, ctx, userids, call.Suffix())
 }
 
 var cmdGroupsD = &cmdline.Command{
@@ -66,16 +80,6 @@ v.io/v23/services/groups.Group interface.
 }
 
 func runGroupsD(ctx *context.T, env *cmdline.Env, args []string) error {
-	perms, err := securityflag.PermissionsFromFlag()
-	if err != nil {
-		return fmt.Errorf("PermissionsFromFlag() failed: %v", err)
-	}
-	if perms != nil {
-		ctx.Infof("Using permissions from command line flag.")
-	} else {
-		ctx.Infof("No permissions flag provided. Giving local principal all permissions.")
-		perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
-	}
 	var dispatcher rpc.Dispatcher
 	switch flagEngine {
 	case "leveldb":
@@ -83,9 +87,9 @@ func runGroupsD(ctx *context.T, env *cmdline.Env, args []string) error {
 		if err != nil {
 			ctx.Fatalf("Open(%v) failed: %v", flagRootDir, err)
 		}
-		dispatcher = server.NewManager(store, perms)
+		dispatcher = server.NewManager(store, createAuthorizer{})
 	case "memstore":
-		dispatcher = server.NewManager(mem.New(), perms)
+		dispatcher = server.NewManager(mem.New(), createAuthorizer{})
 	default:
 		return fmt.Errorf("unknown storage engine %v", flagEngine)
 	}

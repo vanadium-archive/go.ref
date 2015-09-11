@@ -26,15 +26,11 @@ type group struct {
 
 var _ groups.GroupServerMethods = (*group)(nil)
 
-// TODO(sadovsky): Reserve buckets for users.
+// TODO(sadovsky): Limit the number of groups that a particular user
+// (v23/conventsions.GetClientUserId) can create?
 func (g *group) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions, entries []groups.BlessingPatternChunk) error {
-	// Perform Permissions check.
-	// TODO(sadovsky): Enable this Permissions check and acquire a lock on the
-	// group server Permissions.
-	if false {
-		if err := g.authorize(ctx, call.Security(), g.m.perms); err != nil {
-			return err
-		}
+	if err := g.m.createAuthorizer.Authorize(ctx, call.Security()); err != nil {
+		return err
 	}
 	if perms == nil {
 		perms = access.Permissions{}
