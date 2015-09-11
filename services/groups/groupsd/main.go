@@ -34,7 +34,7 @@ var (
 	flagRootDir string
 	flagPersist string
 
-	errNotAuthorizedToCreate = verror.Register("v.io/x/ref/services/groups/groupsd.errNotAuthorizedToCreate", verror.NoRetry, "{1} {2} Creator user ids {3} are not authorized to create group {4}")
+	errNotAuthorizedToCreate = verror.Register("v.io/x/ref/services/groups/groupsd.errNotAuthorizedToCreate", verror.NoRetry, "{1} {2} Creator user ids {3} are not authorized to create group {4}, group name must begin with one of the user ids")
 )
 
 func main() {
