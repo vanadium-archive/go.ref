@@ -246,11 +246,11 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 		} else {
 			parent = prefixPerms.Parent
 		}
-		stPrefix := t.prefixPermsKey(prefix)
-		stPrefixLimit := stPrefix + util.PrefixRangeLimitSuffix
+		stPrefixStart := t.prefixPermsKey(prefix)
+		stPrefixLimit := t.prefixPermsKey(prefix) + util.PrefixRangeLimitSuffix
 		prefixPerms = stPrefixPerms{Parent: parent, Perms: perms}
 		// Put the (prefix, perms) pair to the database.
-		if err := util.Put(ctx, tx, stPrefix, prefixPerms); err != nil {
+		if err := util.Put(ctx, tx, stPrefixStart, prefixPerms); err != nil {
 			return err
 		}
 		return util.Put(ctx, tx, stPrefixLimit, prefixPerms)
@@ -298,9 +298,9 @@ func (t *tableReq) DeletePermissions(ctx *context.T, call rpc.ServerCall, schema
 		if err := t.updateParentRefs(ctx, tx, prefix, prefixPerms.Parent); err != nil {
 			return err
 		}
-		stPrefix := []byte(t.prefixPermsKey(prefix))
-		stPrefixLimit := append(stPrefix, util.PrefixRangeLimitSuffix...)
-		if err := tx.Delete(stPrefix); err != nil {
+		stPrefixStart := []byte(t.prefixPermsKey(prefix))
+		stPrefixLimit := []byte(t.prefixPermsKey(prefix) + util.PrefixRangeLimitSuffix)
+		if err := tx.Delete(stPrefixStart); err != nil {
 			return err
 		}
 		return tx.Delete(stPrefixLimit)
@@ -350,23 +350,22 @@ func (t *tableReq) stKeyPart() string {
 // updateParentRefs updates the parent for all children of the given
 // prefix to newParent.
 func (t *tableReq) updateParentRefs(ctx *context.T, tx store.Transaction, prefix, newParent string) error {
-	stPrefix := []byte(t.prefixPermsKey(prefix))
-	stPrefixStart := append(stPrefix, 0)
-	stPrefixLimit := append(stPrefix, util.PrefixRangeLimitSuffix...)
+	stPrefixStart := []byte(t.prefixPermsKey(prefix) + "\x00")
+	stPrefixLimit := []byte(t.prefixPermsKey(prefix) + util.PrefixRangeLimitSuffix)
 	it := tx.Scan(stPrefixStart, stPrefixLimit)
 	var key, value []byte
 	for it.Advance() {
 		key, value = it.Key(key), it.Value(value)
+		it.Cancel()
 		var prefixPerms stPrefixPerms
 		if err := vom.Decode(value, &prefixPerms); err != nil {
-			it.Cancel()
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
 		prefixPerms.Parent = newParent
 		if err := util.Put(ctx, tx, string(key), prefixPerms); err != nil {
-			it.Cancel()
 			return err
 		}
+		it = tx.Scan([]byte(string(key)+util.PrefixRangeLimitSuffix), stPrefixLimit)
 	}
 	if err := it.Err(); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
