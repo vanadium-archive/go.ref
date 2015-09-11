@@ -90,20 +90,6 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 	sent := 0
 	var left []byte
 	err := f.worker.Run(f.ctx, func(tokens int) (int, bool, error) {
-		if !f.opened {
-			// TODO(mattr): we should be able to send multiple messages
-			// in a single writeMsg call.
-			err := f.conn.mp.writeMsg(f.ctx, &message.OpenFlow{
-				ID:              f.id,
-				InitialCounters: defaultBufferSize,
-				BlessingsKey:    f.bkey,
-				DischargeKey:    f.dkey,
-			})
-			if err != nil {
-				return 0, false, err
-			}
-			f.opened = true
-		}
 		size := 0
 		var bufs [][]byte
 		if len(left) > 0 {
@@ -136,7 +122,22 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 			d.Flags |= message.DisableEncryptionFlag
 		}
 		sent += size
-		return size, done, f.conn.mp.writeMsg(f.ctx, d)
+
+		var err error
+		if f.opened {
+			err = f.conn.mp.writeMsg(f.ctx, d)
+		} else {
+			err = f.conn.mp.writeMsg(f.ctx, &message.OpenFlow{
+				ID:              f.id,
+				InitialCounters: defaultBufferSize,
+				BlessingsKey:    f.bkey,
+				DischargeKey:    f.dkey,
+				Flags:           d.Flags,
+				Payload:         d.Payload,
+			})
+			f.opened = true
+		}
+		return size, done, err
 	})
 	if alsoClose || err != nil {
 		f.close(f.ctx, err)

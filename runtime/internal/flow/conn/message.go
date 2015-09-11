@@ -61,8 +61,19 @@ func (p *messagePipe) writeMsg(ctx *context.T, m message.Message) (err error) {
 	if _, err = p.rw.WriteMsg(p.writeBuf); err != nil {
 		return err
 	}
-	if data, ok := m.(*message.Data); ok && (data.Flags&message.DisableEncryptionFlag != 0) {
-		if _, err = p.rw.WriteMsg(data.Payload...); err != nil {
+	var payload [][]byte
+	switch msg := m.(type) {
+	case *message.Data:
+		if msg.Flags&message.DisableEncryptionFlag != 0 {
+			payload = msg.Payload
+		}
+	case *message.OpenFlow:
+		if msg.Flags&message.DisableEncryptionFlag != 0 {
+			payload = msg.Payload
+		}
+	}
+	if payload != nil {
+		if _, err = p.rw.WriteMsg(payload...); err != nil {
 			return err
 		}
 	}
