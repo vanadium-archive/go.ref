@@ -6,6 +6,7 @@ package main_test
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -104,11 +105,33 @@ func V23TestStatsRead(i *v23tests.T) {
 		binary.Start("logs", "read", "__debug/logs/"+logName).WaitOrDie(os.Stderr, os.Stderr)
 	}
 
-	got := binary.Start("stats", "read", "__debug/stats/rpc/server/routing-id/*/methods/ReadLog/latency-ms").Output()
+	readlogStatsEndpoint := "__debug/stats/rpc/server/routing-id/*/methods/ReadLog/latency-ms"
+	got := binary.Start("stats", "read", readlogStatsEndpoint).Output()
 
 	want := fmt.Sprintf("Count: %d", runCount)
 	if !strings.Contains(got, want) {
 		i.Fatalf("expected output %q to contain %q, but did not\n", got, want)
+	}
+
+	// Test "-json" format.
+	jsonOutput := binary.Start("stats", "read", "-json", readlogStatsEndpoint).Output()
+	var stats []struct {
+		Name  string
+		Value struct {
+			Count int
+		}
+	}
+	if err := json.Unmarshal([]byte(jsonOutput), &stats); err != nil {
+		i.Fatalf("invalid json output:\n%s", jsonOutput)
+	}
+	if want, got := 1, len(stats); want != got {
+		i.Fatalf("unexpected stats length, want %d, got %d", want, got)
+	}
+	if !strings.HasPrefix(stats[0].Name, "__debug/stats/rpc/server/routing-id") {
+		i.Fatalf("unexpected Name field, want %q, got %q", want, got)
+	}
+	if want, got := runCount, stats[0].Value.Count; want != got {
+		i.Fatalf("unexpected Value.Count field, want %d, got %d", want, got)
 	}
 }
 

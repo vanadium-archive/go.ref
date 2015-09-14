@@ -144,6 +144,9 @@ Usage:
 object names.
 
 The debug stats read flags are:
+ -json=false
+   When true, the command will display the raw value of the object in json
+   format.
  -raw=false
    When true, the command will display the raw value of the object.
  -type=false
