@@ -267,6 +267,12 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
 		c.handler.HandleFlow(f)
+		if err := f.q.put(ctx, msg.Payload); err != nil {
+			return err
+		}
+		if msg.Flags&message.CloseFlag != 0 {
+			f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
+		}
 
 	case *message.Release:
 		release := make([]flowcontrol.Release, 0, len(msg.Counters))
