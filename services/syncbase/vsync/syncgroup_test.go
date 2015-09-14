@@ -50,6 +50,7 @@ func TestAddSyncGroup(t *testing.T) {
 	svc := createService(t)
 	defer destroyService(t, svc)
 	st := svc.St()
+	s := svc.sync
 
 	checkSGStats(t, svc, "add-1", 0, 0)
 
@@ -57,6 +58,7 @@ func TestAddSyncGroup(t *testing.T) {
 
 	sgName := "foobar"
 	sgId := interfaces.GroupId(1234)
+	version := "v111"
 
 	sg := &interfaces.SyncGroup{
 		Name:        sgName,
@@ -76,7 +78,7 @@ func TestAddSyncGroup(t *testing.T) {
 	}
 
 	tx := st.NewTransaction()
-	if err := addSyncGroup(nil, tx, sg); err != nil {
+	if err := s.addSyncGroup(nil, tx, version, true, "", nil, s.id, 1, 1, sg); err != nil {
 		t.Errorf("cannot add SyncGroup ID %d: %v", sg.Id, err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -87,10 +89,6 @@ func TestAddSyncGroup(t *testing.T) {
 
 	if id, err := getSyncGroupId(nil, st, sgName); err != nil || id != sgId {
 		t.Errorf("cannot get ID of SyncGroup %s: got %d instead of %d; err: %v", sgName, id, sgId, err)
-	}
-	if name, err := getSyncGroupName(nil, st, sgId); err != nil || name != sgName {
-		t.Errorf("cannot get name of SyncGroup %d: got %s instead of %s; err: %v",
-			sgId, name, sgName, err)
 	}
 
 	sgOut, err := getSyncGroupById(nil, st, sgId)
@@ -150,7 +148,7 @@ func TestAddSyncGroup(t *testing.T) {
 	sg.Name = "another-name"
 
 	tx = st.NewTransaction()
-	if err = addSyncGroup(nil, tx, sg); err == nil {
+	if err = s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 2, 2, sg); err == nil {
 		t.Errorf("re-adding SyncGroup %d did not fail", sgId)
 	}
 	tx.Abort()
@@ -159,7 +157,7 @@ func TestAddSyncGroup(t *testing.T) {
 	sg.Id = interfaces.GroupId(5555)
 
 	tx = st.NewTransaction()
-	if err = addSyncGroup(nil, tx, sg); err == nil {
+	if err = s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 3, 3, sg); err == nil {
 		t.Errorf("adding SyncGroup %s with a different ID did not fail", sgName)
 	}
 	tx.Abort()
@@ -172,9 +170,6 @@ func TestAddSyncGroup(t *testing.T) {
 	badId := interfaces.GroupId(999)
 	if id, err := getSyncGroupId(nil, st, badName); err == nil {
 		t.Errorf("found non-existing SyncGroup %s: got ID %d", badName, id)
-	}
-	if name, err := getSyncGroupName(nil, st, badId); err == nil {
-		t.Errorf("found non-existing SyncGroup %d: got name %s", badId, name)
 	}
 	if sg, err := getSyncGroupByName(nil, st, badName); err == nil {
 		t.Errorf("found non-existing SyncGroup %s: got %v", badName, sg)
@@ -191,10 +186,11 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 	svc := createService(t)
 	defer destroyService(t, svc)
 	st := svc.St()
+	s := svc.sync
 
 	checkBadAddSyncGroup := func(t *testing.T, st store.Store, sg *interfaces.SyncGroup, msg string) {
 		tx := st.NewTransaction()
-		if err := addSyncGroup(nil, tx, sg); err == nil {
+		if err := s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err == nil {
 			t.Errorf("checkBadAddSyncGroup: adding bad SyncGroup (%s) did not fail", msg)
 		}
 		tx.Abort()
@@ -202,13 +198,22 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 
 	checkBadAddSyncGroup(t, st, nil, "nil SG")
 
-	sg := &interfaces.SyncGroup{Id: 1234}
+	sg := &interfaces.SyncGroup{}
 	checkBadAddSyncGroup(t, st, sg, "SG w/o name")
 
-	sg = &interfaces.SyncGroup{Name: "foobar"}
-	checkBadAddSyncGroup(t, st, sg, "SG w/o Id")
+	sg.Name = "foobar"
+	checkBadAddSyncGroup(t, st, sg, "SG w/o AppName")
 
-	sg.Id = 1234
+	sg.AppName = "mockApp"
+	checkBadAddSyncGroup(t, st, sg, "SG w/o DbName")
+
+	sg.DbName = "mockDb"
+	checkBadAddSyncGroup(t, st, sg, "SG w/o creator")
+
+	sg.Creator = "haha"
+	checkBadAddSyncGroup(t, st, sg, "SG w/o ID")
+
+	sg.Id = newSyncGroupId()
 	checkBadAddSyncGroup(t, st, sg, "SG w/o Version")
 
 	sg.SpecVersion = "v1"
@@ -218,6 +223,9 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 		"phone": nosql.SyncGroupMemberInfo{SyncPriority: 10},
 	}
 	checkBadAddSyncGroup(t, st, sg, "SG w/o Prefixes")
+
+	sg.Spec.Prefixes = []string{"foo", "bar", "foo"}
+	checkBadAddSyncGroup(t, st, sg, "SG with duplicate Prefixes")
 }
 
 // TestDeleteSyncGroup tests deleting a SyncGroup.
@@ -227,6 +235,7 @@ func TestDeleteSyncGroup(t *testing.T) {
 	svc := createService(t)
 	defer destroyService(t, svc)
 	st := svc.St()
+	s := svc.sync
 
 	sgName := "foobar"
 	sgId := interfaces.GroupId(1234)
@@ -264,7 +273,7 @@ func TestDeleteSyncGroup(t *testing.T) {
 	}
 
 	tx = st.NewTransaction()
-	if err := addSyncGroup(nil, tx, sg); err != nil {
+	if err := s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err != nil {
 		t.Errorf("creating SyncGroup ID %d failed: %v", sgId, err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -285,14 +294,22 @@ func TestDeleteSyncGroup(t *testing.T) {
 
 	checkSGStats(t, svc, "del-3", 0, 0)
 
-	// Create it again then delete it by name.
+	// Create it again, update it, then delete it by name.
 
 	tx = st.NewTransaction()
-	if err := addSyncGroup(nil, tx, sg); err != nil {
+	if err := s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 2, 2, sg); err != nil {
 		t.Errorf("creating SyncGroup ID %d after delete failed: %v", sgId, err)
 	}
 	if err := tx.Commit(); err != nil {
 		t.Errorf("cannot commit adding SyncGroup ID %d after delete: %v", sgId, err)
+	}
+
+	tx = st.NewTransaction()
+	if err := s.updateSyncGroupVersioning(nil, tx, NoVersion, true, s.id, 3, 3, sg); err != nil {
+		t.Errorf("updating SyncGroup ID %d version: %v", sgId, err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Errorf("cannot commit updating SyncGroup ID %d version: %v", sgId, err)
 	}
 
 	checkSGStats(t, svc, "del-4", 1, 3)
@@ -315,6 +332,7 @@ func TestMultiSyncGroups(t *testing.T) {
 	svc := createService(t)
 	defer destroyService(t, svc)
 	st := svc.St()
+	s := svc.sync
 
 	sgName1, sgName2 := "foo", "bar"
 	sgId1, sgId2 := interfaces.GroupId(1234), interfaces.GroupId(8888)
@@ -357,7 +375,7 @@ func TestMultiSyncGroups(t *testing.T) {
 	}
 
 	tx := st.NewTransaction()
-	if err := addSyncGroup(nil, tx, sg1); err != nil {
+	if err := s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
 		t.Errorf("creating SyncGroup ID %d failed: %v", sgId1, err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -367,7 +385,7 @@ func TestMultiSyncGroups(t *testing.T) {
 	checkSGStats(t, svc, "multi-1", 1, 3)
 
 	tx = st.NewTransaction()
-	if err := addSyncGroup(nil, tx, sg2); err != nil {
+	if err := s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 2, 2, sg2); err != nil {
 		t.Errorf("creating SyncGroup ID %d failed: %v", sgId2, err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -509,4 +527,22 @@ func TestMultiSyncGroups(t *testing.T) {
 			t.Errorf("invalid Info for SyncGroup member %s: got %v instead of %v", mm, mi, expInfo)
 		}
 	}
+}
+
+// TestPrefixCompare tests the prefix comparison utility.
+func TestPrefixCompare(t *testing.T) {
+	check := func(t *testing.T, pfx1, pfx2 []string, want bool, msg string) {
+		if got := samePrefixes(pfx1, pfx2); got != want {
+			t.Errorf("samePrefixes: %s: got %t instead of %t", msg, got, want)
+		}
+	}
+
+	check(t, nil, nil, true, "both nil")
+	check(t, []string{}, nil, true, "empty vs nil")
+	check(t, []string{"a", "b"}, []string{"b", "a"}, true, "different ordering")
+	check(t, []string{"a", "b", "c"}, []string{"b", "a"}, false, "p1 superset of p2")
+	check(t, []string{"a", "b"}, []string{"b", "a", "c"}, false, "p2 superset of p1")
+	check(t, []string{"a", "b", "c"}, []string{"b", "d", "a"}, false, "overlap")
+	check(t, []string{"a", "b", "c"}, []string{"x", "y"}, false, "no overlap")
+	check(t, []string{"a", "b"}, []string{"B", "a"}, false, "upper/lowercases")
 }

@@ -255,11 +255,7 @@ func TestLocalUpdates(t *testing.T) {
 		t.Errorf("invalid object %s parent map: (%v) instead of (%v)", oid, pmap, exp)
 	}
 
-	// Make sure an existing node cannot be added again.
 	tx := st.NewTransaction()
-	if err := s.addNode(nil, tx, oid, "2", "foo", false, []string{"1", "3"}, NoBatchId, nil); err == nil {
-		t.Errorf("addNode() did not fail when given an existing node")
-	}
 
 	// Make sure a new node cannot have more than 2 parents.
 	if err := s.addNode(nil, tx, oid, "4", "foo", false, []string{"1", "2", "3"}, NoBatchId, nil); err == nil {
@@ -780,10 +776,10 @@ func TestPruning(t *testing.T) {
 	exp := map[string][]string{"1": nil, "2": {"1"}, "3": {"2"}, "4": {"2"}, "5": {"3", "4"}, "6": {"5"}, "7": {"2"}, "8": {"6", "7"}, "9": {"8"}}
 
 	// Loop pruning at an invalid version (333) then at different valid versions.
-	testVersions := []string{"333", "1", "2", "6", "8", "9", "9"}
-	delCounts := []int{0, 0, 1, 4, 2, 1, 0}
-	which := "prune-snip-"
-	remain := 9
+	// The last version used (NoVersion) deletes all remaining nodes for the
+	// object, including the head node.
+	testVersions := []string{"333", "1", "2", "6", "8", "9", "9", NoVersion}
+	delCounts := []int{0, 0, 1, 4, 2, 1, 0, 1}
 
 	for i, version := range testVersions {
 		batches := newBatchPruning()
@@ -807,11 +803,13 @@ func TestPruning(t *testing.T) {
 				oid, version, del, delCounts[i])
 		}
 
-		which += "*"
-		remain -= del
-
-		if head, err := getHead(nil, st, oid); err != nil || head != "9" {
-			t.Errorf("object %s has wrong head: %s", oid, head)
+		head, err := getHead(nil, st, oid)
+		if version != NoVersion {
+			if err != nil || head != "9" {
+				t.Errorf("object %s has wrong head: %s", oid, head)
+			}
+		} else if err == nil {
+			t.Errorf("found head %s for object %s after pruning all versions", head, oid)
 		}
 
 		tx = st.NewTransaction()
@@ -823,16 +821,20 @@ func TestPruning(t *testing.T) {
 
 		// Remove pruned nodes from the expected parent map used to validate
 		// and set the parents of the pruned node to nil.
-		intVersion, err := strconv.ParseInt(version, 10, 32)
-		if err != nil {
-			t.Errorf("invalid version: %s", version)
-		}
-
-		if intVersion < 10 {
-			for j := int64(0); j < intVersion; j++ {
-				delete(exp, fmt.Sprintf("%d", j))
+		if version == NoVersion {
+			exp = make(map[string][]string)
+		} else {
+			intVersion, err := strconv.ParseInt(version, 10, 32)
+			if err != nil {
+				t.Errorf("invalid version: %s", version)
 			}
-			exp[version] = nil
+
+			if intVersion < 10 {
+				for j := int64(0); j < intVersion; j++ {
+					delete(exp, fmt.Sprintf("%d", j))
+				}
+				exp[version] = nil
+			}
 		}
 
 		pmap := getParentMap(nil, st, oid, nil)
@@ -903,6 +905,16 @@ func TestPruningCallbackError(t *testing.T) {
 	if !reflect.DeepEqual(pmap, exp) {
 		t.Errorf("invalid object %s parent map: (%v) instead of (%v)", oid, pmap, exp)
 	}
+
+	// Invalid pruning without a batch set.
+	tx = st.NewTransaction()
+	err = prune(nil, tx, oid, version, nil, func(ctx *context.T, tx store.Transaction, lr string) error {
+		return nil
+	})
+	if err == nil {
+		t.Errorf("pruning object %s:%s without a batch set did not fail", oid, version)
+	}
+	tx.Abort()
 }
 
 // TestRemoteLinkedNoConflictSameHead tests sync of remote updates that contain

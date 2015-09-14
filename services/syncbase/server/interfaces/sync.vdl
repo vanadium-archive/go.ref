@@ -19,15 +19,36 @@ type Sync interface {
 
 	// SyncGroup-related methods.
 
-	// PublishSyncGroup is typically invoked on a "central" peer to publish
-	// the SyncGroup.
-	PublishSyncGroup(sg SyncGroup) error {access.Write}
+	// PublishSyncGroup is invoked on the SyncGroup name (typically served
+	// by a "central" peer) to publish the SyncGroup.  It takes the name of
+	// Syncbase doing the publishing (the publisher) and returns the name
+	// of the Syncbase where the SyncGroup is published (the publishee).
+	// This allows the publisher and the publishee to learn of each other.
+	// When a SyncGroup is published, the publishee is given the SyncGroup
+	// metadata, its current version at the publisher, and the current
+	// SyncGroup generation vector.  The generation vector serves as a
+	// checkpoint at the time of publishing.  The publishing proceeds
+	// asynchronously, and the publishee learns the SyncGroup history
+	// through the routine p2p sync process and determines when it has
+	// caught up to the level of knowledge at the time of publishing using
+	// the checkpointed generation vector.  Until that point, the publishee
+	// locally deems the SyncGroup to be in a pending state and does not
+	// mutate it.  Thus it locally rejects SyncGroup joins or updates to
+	// its spec until it is caught up on the SyncGroup history.
+	PublishSyncGroup(publisher string, sg SyncGroup, version string, genvec PrefixGenVector) (string | error) {access.Write}
 
 	// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's
 	// Syncbase on a SyncGroup admin. It checks whether the requestor is
 	// allowed to join the named SyncGroup, and if so, adds the requestor to
-	// the SyncGroup.
-	JoinSyncGroupAtAdmin(sgName, joinerName string, myInfo wire.SyncGroupMemberInfo) (SyncGroup | error) {access.Read}
+	// the SyncGroup.  It returns a copy of the updated SyncGroup metadata,
+	// its version, and the SyncGroup generation vector at the time of the
+	// join.  Similar to the PublishSyncGroup scenario, the joiner at that
+	// point does not have the SyncGroup history and locally deems it to be
+	// in a pending state and does not mutate it.  This means it rejects
+	// local updates to the SyncGroup spec or, if it were also an admin on
+	// the SyncGroup, it would reject SyncGroup joins until it is caught up
+	// on the SyncGroup history through p2p sync.
+	JoinSyncGroupAtAdmin(sgName, joinerName string, myInfo wire.SyncGroupMemberInfo) (sg SyncGroup, version string, genvec PrefixGenVector | error) {access.Read}
 
 	// BlobSync methods.
 
@@ -50,3 +71,7 @@ type Sync interface {
 	FetchBlobRecipe(br wire.BlobRef) stream<_, ChunkHash> error
 	FetchChunks() stream<ChunkHash, ChunkData> error
 }
+
+error (
+	DupSyncGroupPublish(name string) {"en": "duplicate publish on SyncGroup: {name}"}
+)

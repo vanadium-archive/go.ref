@@ -52,6 +52,21 @@ func Get(ctx *context.T, st store.StoreReader, k string, v interface{}) error {
 	return nil
 }
 
+// Exists returns true if the key exists in the store.
+// TODO(rdaoud): for now it only bypasses the Get's VOM decode step.  It should
+// be optimized further by adding a st.Exists(k) API and let each implementation
+// do its best to reduce data fetching in its key lookup.
+func Exists(ctx *context.T, st store.StoreReader, k string) (bool, error) {
+	_, err := st.Get([]byte(k), nil)
+	if err != nil {
+		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
+			return false, nil
+		}
+		return false, verror.New(verror.ErrInternal, ctx, err)
+	}
+	return true, nil
+}
+
 // GetWithAuth does Get followed by an auth check.
 func GetWithAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, k string, v Permser) error {
 	if err := Get(ctx, st, k, v); err != nil {

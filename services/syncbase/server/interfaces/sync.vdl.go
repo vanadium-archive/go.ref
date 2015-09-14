@@ -12,13 +12,28 @@ import (
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/i18n"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
+	"v.io/v23/verror"
 
 	// VDL user imports
 	"v.io/v23/security/access"
 	"v.io/v23/services/syncbase/nosql"
 )
+
+var (
+	ErrDupSyncGroupPublish = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DupSyncGroupPublish", verror.NoRetry, "{1:}{2:} duplicate publish on SyncGroup: {3}")
+)
+
+func init() {
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDupSyncGroupPublish.ID), "{1:}{2:} duplicate publish on SyncGroup: {3}")
+}
+
+// NewErrDupSyncGroupPublish returns an error with the ErrDupSyncGroupPublish ID.
+func NewErrDupSyncGroupPublish(ctx *context.T, name string) error {
+	return verror.New(ErrDupSyncGroupPublish, ctx, name)
+}
 
 // SyncClientMethods is the client interface
 // containing Sync methods.
@@ -30,14 +45,35 @@ type SyncClientMethods interface {
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either SyncGroup metadata or data.
 	GetDeltas(ctx *context.T, req DeltaReq, initiator string, opts ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
-	// PublishSyncGroup is typically invoked on a "central" peer to publish
-	// the SyncGroup.
-	PublishSyncGroup(ctx *context.T, sg SyncGroup, opts ...rpc.CallOpt) error
+	// PublishSyncGroup is invoked on the SyncGroup name (typically served
+	// by a "central" peer) to publish the SyncGroup.  It takes the name of
+	// Syncbase doing the publishing (the publisher) and returns the name
+	// of the Syncbase where the SyncGroup is published (the publishee).
+	// This allows the publisher and the publishee to learn of each other.
+	// When a SyncGroup is published, the publishee is given the SyncGroup
+	// metadata, its current version at the publisher, and the current
+	// SyncGroup generation vector.  The generation vector serves as a
+	// checkpoint at the time of publishing.  The publishing proceeds
+	// asynchronously, and the publishee learns the SyncGroup history
+	// through the routine p2p sync process and determines when it has
+	// caught up to the level of knowledge at the time of publishing using
+	// the checkpointed generation vector.  Until that point, the publishee
+	// locally deems the SyncGroup to be in a pending state and does not
+	// mutate it.  Thus it locally rejects SyncGroup joins or updates to
+	// its spec until it is caught up on the SyncGroup history.
+	PublishSyncGroup(ctx *context.T, publisher string, sg SyncGroup, version string, genvec PrefixGenVector, opts ...rpc.CallOpt) (string, error)
 	// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's
 	// Syncbase on a SyncGroup admin. It checks whether the requestor is
 	// allowed to join the named SyncGroup, and if so, adds the requestor to
-	// the SyncGroup.
-	JoinSyncGroupAtAdmin(ctx *context.T, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo, opts ...rpc.CallOpt) (SyncGroup, error)
+	// the SyncGroup.  It returns a copy of the updated SyncGroup metadata,
+	// its version, and the SyncGroup generation vector at the time of the
+	// join.  Similar to the PublishSyncGroup scenario, the joiner at that
+	// point does not have the SyncGroup history and locally deems it to be
+	// in a pending state and does not mutate it.  This means it rejects
+	// local updates to the SyncGroup spec or, if it were also an admin on
+	// the SyncGroup, it would reject SyncGroup joins until it is caught up
+	// on the SyncGroup history through p2p sync.
+	JoinSyncGroupAtAdmin(ctx *context.T, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo, opts ...rpc.CallOpt) (sg SyncGroup, version string, genvec PrefixGenVector, err error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
 	HaveBlob(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) (int64, error)
@@ -80,13 +116,13 @@ func (c implSyncClientStub) GetDeltas(ctx *context.T, i0 DeltaReq, i1 string, op
 	return
 }
 
-func (c implSyncClientStub) PublishSyncGroup(ctx *context.T, i0 SyncGroup, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "PublishSyncGroup", []interface{}{i0}, nil, opts...)
+func (c implSyncClientStub) PublishSyncGroup(ctx *context.T, i0 string, i1 SyncGroup, i2 string, i3 PrefixGenVector, opts ...rpc.CallOpt) (o0 string, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "PublishSyncGroup", []interface{}{i0, i1, i2, i3}, []interface{}{&o0}, opts...)
 	return
 }
 
-func (c implSyncClientStub) JoinSyncGroupAtAdmin(ctx *context.T, i0 string, i1 string, i2 nosql.SyncGroupMemberInfo, opts ...rpc.CallOpt) (o0 SyncGroup, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "JoinSyncGroupAtAdmin", []interface{}{i0, i1, i2}, []interface{}{&o0}, opts...)
+func (c implSyncClientStub) JoinSyncGroupAtAdmin(ctx *context.T, i0 string, i1 string, i2 nosql.SyncGroupMemberInfo, opts ...rpc.CallOpt) (o0 SyncGroup, o1 string, o2 PrefixGenVector, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "JoinSyncGroupAtAdmin", []interface{}{i0, i1, i2}, []interface{}{&o0, &o1, &o2}, opts...)
 	return
 }
 
@@ -440,14 +476,35 @@ type SyncServerMethods interface {
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either SyncGroup metadata or data.
 	GetDeltas(ctx *context.T, call SyncGetDeltasServerCall, req DeltaReq, initiator string) error
-	// PublishSyncGroup is typically invoked on a "central" peer to publish
-	// the SyncGroup.
-	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg SyncGroup) error
+	// PublishSyncGroup is invoked on the SyncGroup name (typically served
+	// by a "central" peer) to publish the SyncGroup.  It takes the name of
+	// Syncbase doing the publishing (the publisher) and returns the name
+	// of the Syncbase where the SyncGroup is published (the publishee).
+	// This allows the publisher and the publishee to learn of each other.
+	// When a SyncGroup is published, the publishee is given the SyncGroup
+	// metadata, its current version at the publisher, and the current
+	// SyncGroup generation vector.  The generation vector serves as a
+	// checkpoint at the time of publishing.  The publishing proceeds
+	// asynchronously, and the publishee learns the SyncGroup history
+	// through the routine p2p sync process and determines when it has
+	// caught up to the level of knowledge at the time of publishing using
+	// the checkpointed generation vector.  Until that point, the publishee
+	// locally deems the SyncGroup to be in a pending state and does not
+	// mutate it.  Thus it locally rejects SyncGroup joins or updates to
+	// its spec until it is caught up on the SyncGroup history.
+	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, publisher string, sg SyncGroup, version string, genvec PrefixGenVector) (string, error)
 	// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's
 	// Syncbase on a SyncGroup admin. It checks whether the requestor is
 	// allowed to join the named SyncGroup, and if so, adds the requestor to
-	// the SyncGroup.
-	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (SyncGroup, error)
+	// the SyncGroup.  It returns a copy of the updated SyncGroup metadata,
+	// its version, and the SyncGroup generation vector at the time of the
+	// join.  Similar to the PublishSyncGroup scenario, the joiner at that
+	// point does not have the SyncGroup history and locally deems it to be
+	// in a pending state and does not mutate it.  This means it rejects
+	// local updates to the SyncGroup spec or, if it were also an admin on
+	// the SyncGroup, it would reject SyncGroup joins until it is caught up
+	// on the SyncGroup history through p2p sync.
+	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (sg SyncGroup, version string, genvec PrefixGenVector, err error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
 	HaveBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) (int64, error)
@@ -475,14 +532,35 @@ type SyncServerStubMethods interface {
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either SyncGroup metadata or data.
 	GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, req DeltaReq, initiator string) error
-	// PublishSyncGroup is typically invoked on a "central" peer to publish
-	// the SyncGroup.
-	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, sg SyncGroup) error
+	// PublishSyncGroup is invoked on the SyncGroup name (typically served
+	// by a "central" peer) to publish the SyncGroup.  It takes the name of
+	// Syncbase doing the publishing (the publisher) and returns the name
+	// of the Syncbase where the SyncGroup is published (the publishee).
+	// This allows the publisher and the publishee to learn of each other.
+	// When a SyncGroup is published, the publishee is given the SyncGroup
+	// metadata, its current version at the publisher, and the current
+	// SyncGroup generation vector.  The generation vector serves as a
+	// checkpoint at the time of publishing.  The publishing proceeds
+	// asynchronously, and the publishee learns the SyncGroup history
+	// through the routine p2p sync process and determines when it has
+	// caught up to the level of knowledge at the time of publishing using
+	// the checkpointed generation vector.  Until that point, the publishee
+	// locally deems the SyncGroup to be in a pending state and does not
+	// mutate it.  Thus it locally rejects SyncGroup joins or updates to
+	// its spec until it is caught up on the SyncGroup history.
+	PublishSyncGroup(ctx *context.T, call rpc.ServerCall, publisher string, sg SyncGroup, version string, genvec PrefixGenVector) (string, error)
 	// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's
 	// Syncbase on a SyncGroup admin. It checks whether the requestor is
 	// allowed to join the named SyncGroup, and if so, adds the requestor to
-	// the SyncGroup.
-	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (SyncGroup, error)
+	// the SyncGroup.  It returns a copy of the updated SyncGroup metadata,
+	// its version, and the SyncGroup generation vector at the time of the
+	// join.  Similar to the PublishSyncGroup scenario, the joiner at that
+	// point does not have the SyncGroup history and locally deems it to be
+	// in a pending state and does not mutate it.  This means it rejects
+	// local updates to the SyncGroup spec or, if it were also an admin on
+	// the SyncGroup, it would reject SyncGroup joins until it is caught up
+	// on the SyncGroup history through p2p sync.
+	JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncGroupMemberInfo) (sg SyncGroup, version string, genvec PrefixGenVector, err error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
 	HaveBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) (int64, error)
@@ -534,11 +612,11 @@ func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerC
 	return s.impl.GetDeltas(ctx, call, i0, i1)
 }
 
-func (s implSyncServerStub) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, i0 SyncGroup) error {
-	return s.impl.PublishSyncGroup(ctx, call, i0)
+func (s implSyncServerStub) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, i0 string, i1 SyncGroup, i2 string, i3 PrefixGenVector) (string, error) {
+	return s.impl.PublishSyncGroup(ctx, call, i0, i1, i2, i3)
 }
 
-func (s implSyncServerStub) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, i0 string, i1 string, i2 nosql.SyncGroupMemberInfo) (SyncGroup, error) {
+func (s implSyncServerStub) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, i0 string, i1 string, i2 nosql.SyncGroupMemberInfo) (SyncGroup, string, PrefixGenVector, error) {
 	return s.impl.JoinSyncGroupAtAdmin(ctx, call, i0, i1, i2)
 }
 
@@ -586,22 +664,30 @@ var descSync = rpc.InterfaceDesc{
 		},
 		{
 			Name: "PublishSyncGroup",
-			Doc:  "// PublishSyncGroup is typically invoked on a \"central\" peer to publish\n// the SyncGroup.",
+			Doc:  "// PublishSyncGroup is invoked on the SyncGroup name (typically served\n// by a \"central\" peer) to publish the SyncGroup.  It takes the name of\n// Syncbase doing the publishing (the publisher) and returns the name\n// of the Syncbase where the SyncGroup is published (the publishee).\n// This allows the publisher and the publishee to learn of each other.\n// When a SyncGroup is published, the publishee is given the SyncGroup\n// metadata, its current version at the publisher, and the current\n// SyncGroup generation vector.  The generation vector serves as a\n// checkpoint at the time of publishing.  The publishing proceeds\n// asynchronously, and the publishee learns the SyncGroup history\n// through the routine p2p sync process and determines when it has\n// caught up to the level of knowledge at the time of publishing using\n// the checkpointed generation vector.  Until that point, the publishee\n// locally deems the SyncGroup to be in a pending state and does not\n// mutate it.  Thus it locally rejects SyncGroup joins or updates to\n// its spec until it is caught up on the SyncGroup history.",
 			InArgs: []rpc.ArgDesc{
-				{"sg", ``}, // SyncGroup
+				{"publisher", ``}, // string
+				{"sg", ``},        // SyncGroup
+				{"version", ``},   // string
+				{"genvec", ``},    // PrefixGenVector
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // string
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 		{
 			Name: "JoinSyncGroupAtAdmin",
-			Doc:  "// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's\n// Syncbase on a SyncGroup admin. It checks whether the requestor is\n// allowed to join the named SyncGroup, and if so, adds the requestor to\n// the SyncGroup.",
+			Doc:  "// JoinSyncGroupAtAdmin is invoked by a prospective SyncGroup member's\n// Syncbase on a SyncGroup admin. It checks whether the requestor is\n// allowed to join the named SyncGroup, and if so, adds the requestor to\n// the SyncGroup.  It returns a copy of the updated SyncGroup metadata,\n// its version, and the SyncGroup generation vector at the time of the\n// join.  Similar to the PublishSyncGroup scenario, the joiner at that\n// point does not have the SyncGroup history and locally deems it to be\n// in a pending state and does not mutate it.  This means it rejects\n// local updates to the SyncGroup spec or, if it were also an admin on\n// the SyncGroup, it would reject SyncGroup joins until it is caught up\n// on the SyncGroup history through p2p sync.",
 			InArgs: []rpc.ArgDesc{
 				{"sgName", ``},     // string
 				{"joinerName", ``}, // string
 				{"myInfo", ``},     // nosql.SyncGroupMemberInfo
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // SyncGroup
+				{"sg", ``},      // SyncGroup
+				{"version", ``}, // string
+				{"genvec", ``},  // PrefixGenVector
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},

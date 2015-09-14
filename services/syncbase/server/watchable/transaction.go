@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
@@ -171,6 +172,12 @@ func (tx *transaction) Abort() error {
 	}
 	tx.err = verror.New(verror.ErrCanceled, nil, store.ErrMsgAbortedTxn)
 	return tx.itx.Abort()
+}
+
+// GetStoreTime returns the current time from the given transaction store.
+func GetStoreTime(ctx *context.T, tx store.Transaction) time.Time {
+	wtx := tx.(*transaction)
+	return wtx.st.clock.Now(ctx)
 }
 
 // AddSyncGroupOp injects a SyncGroup operation notification in the log entries

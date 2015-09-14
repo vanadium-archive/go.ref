@@ -226,7 +226,11 @@ func (rSt *responderState) addInitiatorToSyncGroup(ctx *context.T, gid interface
 	}
 
 	err := store.RunInTransaction(rSt.st, func(tx store.Transaction) error {
-		sg, err := getSyncGroupById(ctx, tx, gid)
+		version, err := getSyncGroupVersion(ctx, tx, gid)
+		if err != nil {
+			return err
+		}
+		sg, err := getSGDataEntry(ctx, tx, gid, version)
 		if err != nil {
 			return err
 		}
@@ -239,7 +243,7 @@ func (rSt *responderState) addInitiatorToSyncGroup(ctx *context.T, gid interface
 
 		vlog.VI(4).Infof("sync: addInitiatorToSyncGroup: add %s to sgid %d", rSt.initiator, gid)
 		sg.Joiners[rSt.initiator] = wire.SyncGroupMemberInfo{SyncPriority: 1}
-		return setSGDataEntry(ctx, tx, gid, sg)
+		return setSGDataEntry(ctx, tx, gid, version, sg)
 	})
 
 	if err != nil && verror.ErrorID(err) != verror.ErrExist.ID {

@@ -279,13 +279,6 @@ func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version
 		}
 	}
 
-	// The new node must not exist.
-	if ok, err := hasNode(ctx, tx, oid, version); err != nil {
-		return err
-	} else if ok {
-		return verror.New(verror.ErrInternal, ctx, "DAG node already exists", oid, version)
-	}
-
 	// Verify the parents, determine the node level.  Also save the levels
 	// of the parent nodes for later in this function in graft updates.
 	parentLevels := make(map[string]uint64)
@@ -620,10 +613,14 @@ func newBatchPruning() batchSet {
 
 // prune trims the DAG of an object at a given version (node) by deleting all
 // its ancestor nodes, making it the new root node.  For each deleted node it
-// calls the given callback function to delete its log record.
+// calls the given callback function to delete its log record.  If NoVersion
+// is given instead, then all object nodes are deleted, including the head node.
 //
-// Note: this function should only be used when sync determines that all devices
-// that know about this object have gotten past this version.
+// Note: this function is typically used when sync determines that all devices
+// that know about this object have gotten past this version, as part of its
+// GC operations.  It can also be used when an object history is obliterated,
+// for example when destroying a SyncGroup, which is also versioned and tracked
+// in the DAG.
 //
 // The batch set passed is used to track batches affected by the deletion of DAG
 // objects across multiple calls to prune().  It is later given to pruneDone()
@@ -633,21 +630,33 @@ func prune(ctx *context.T, tx store.Transaction, oid, version string, batches ba
 		return verror.New(verror.ErrInternal, ctx, "missing batch set")
 	}
 
-	// Get the node at the pruning point and set its parents to nil.
-	// It will become the oldest DAG node (root) for the object.
-	node, err := getNode(ctx, tx, oid, version)
-	if err != nil {
-		return err
-	}
-	if node.Parents == nil {
-		// Nothing to do, this node is already the root.
-		return nil
-	}
-
-	parents := node.Parents
-	node.Parents = nil
-	if err = setNode(ctx, tx, oid, version, node); err != nil {
-		return err
+	var parents []string
+	if version == NoVersion {
+		// Delete all object versions including its head version.
+		head, err := getHead(ctx, tx, oid)
+		if err != nil {
+			return err
+		}
+		if err := delHead(ctx, tx, oid); err != nil {
+			return err
+		}
+		parents = []string{head}
+	} else {
+		// Get the node at the pruning point and set its parents to nil.
+		// It will become the oldest DAG node (root) for the object.
+		node, err := getNode(ctx, tx, oid, version)
+		if err != nil {
+			return err
+		}
+		if node.Parents == nil {
+			// Nothing to do, this node is already the root.
+			return nil
+		}
+		parents = node.Parents
+		node.Parents = nil
+		if err = setNode(ctx, tx, oid, version, node); err != nil {
+			return err
+		}
 	}
 
 	// Delete all ancestor nodes and their log records. Delete as many as
@@ -724,7 +733,7 @@ func nodeKey(oid, version string) string {
 // setNode stores the DAG node entry.
 func setNode(ctx *context.T, tx store.Transaction, oid, version string, node *dagNode) error {
 	if version == NoVersion {
-		return verror.New(verror.ErrInternal, ctx, "invalid version", version)
+		vlog.Fatalf("sync: setNode: invalid version: %s", version)
 	}
 
 	return util.Put(ctx, tx, nodeKey(oid, version), node)
@@ -733,7 +742,7 @@ func setNode(ctx *context.T, tx store.Transaction, oid, version string, node *da
 // getNode retrieves the DAG node entry for the given (oid, version).
 func getNode(ctx *context.T, st store.StoreReader, oid, version string) (*dagNode, error) {
 	if version == NoVersion {
-		return nil, verror.New(verror.ErrInternal, ctx, "invalid version", version)
+		vlog.Fatalf("sync: getNode: invalid version: %s", version)
 	}
 
 	var node dagNode
@@ -747,7 +756,7 @@ func getNode(ctx *context.T, st store.StoreReader, oid, version string) (*dagNod
 // delNode deletes the DAG node entry.
 func delNode(ctx *context.T, tx store.Transaction, oid, version string) error {
 	if version == NoVersion {
-		return verror.New(verror.ErrInternal, ctx, "invalid version", version)
+		vlog.Fatalf("sync: delNode: invalid version: %s", version)
 	}
 
 	return util.Delete(ctx, tx, nodeKey(oid, version))
@@ -755,14 +764,11 @@ func delNode(ctx *context.T, tx store.Transaction, oid, version string) error {
 
 // hasNode returns true if the node (oid, version) exists in the DAG.
 func hasNode(ctx *context.T, st store.StoreReader, oid, version string) (bool, error) {
-	// TODO(rdaoud): optimize to avoid the unneeded fetch/decode of the data.
-	if _, err := getNode(ctx, st, oid, version); err != nil {
-		if verror.ErrorID(err) == verror.ErrNoExist.ID {
-			err = nil
-		}
-		return false, err
+	if version == NoVersion {
+		vlog.Fatalf("sync: hasNode: invalid version: %s", version)
 	}
-	return true, nil
+
+	return util.Exists(ctx, st, nodeKey(oid, version))
 }
 
 // headKey returns the key used to access the DAG object head.
@@ -773,7 +779,7 @@ func headKey(oid string) string {
 // setHead stores version as the DAG object head.
 func setHead(ctx *context.T, tx store.Transaction, oid, version string) error {
 	if version == NoVersion {
-		return verror.New(verror.ErrInternal, ctx, fmt.Errorf("invalid version: %s", version))
+		vlog.Fatalf("sync: setHead: invalid version: %s", version)
 	}
 
 	return util.Put(ctx, tx, headKey(oid), version)

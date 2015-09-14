@@ -53,6 +53,7 @@ package vsync
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
@@ -104,12 +105,23 @@ func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
 	return out
 }
 
+// sgPublishInfo holds information on a SyncGroup waiting to be published to a
+// remote peer.  It is an in-memory entry in a queue of pending SyncGroups.
+type sgPublishInfo struct {
+	sgName  string
+	appName string
+	dbName  string
+	queued  time.Time
+	lastTry time.Time
+}
+
 // initSync initializes the sync module during startup. It scans all the
 // databases across all apps to initialize the following:
 // a) in-memory sync state of a Database and all its SyncGroups consisting of
 // the current generation number, log position and generation vector.
 // b) watcher map of prefixes currently being synced.
 // c) republish names in mount tables for all syncgroups.
+// d) in-memory queue of SyncGroups to be published.
 //
 // TODO(hpucha): This is incomplete. Flesh this out further.
 func (s *syncService) initSync(ctx *context.T) error {
@@ -132,6 +144,10 @@ func (s *syncService) initSync(ctx *context.T) error {
 			// entry as would have happened without a restart.
 			for _, prefix := range sg.Spec.Prefixes {
 				incrWatchPrefix(appName, dbName, prefix)
+			}
+
+			if sg.Status == interfaces.SyncGroupStatusPublishPending {
+				s.enqueuePublishSyncGroup(sg.Name, appName, dbName, false)
 			}
 			return false
 		})
@@ -162,6 +178,23 @@ func (s *syncService) initSync(ctx *context.T) error {
 	})
 
 	return errFinal
+}
+
+// enqueuePublishSyncGroup appends the given SyncGroup to the publish queue.
+func (s *syncService) enqueuePublishSyncGroup(sgName, appName, dbName string, attempted bool) {
+	s.sgPublishQueueLock.Lock()
+	defer s.sgPublishQueueLock.Unlock()
+
+	entry := &sgPublishInfo{
+		sgName:  sgName,
+		appName: appName,
+		dbName:  dbName,
+		queued:  time.Now(),
+	}
+	if attempted {
+		entry.lastTry = entry.queued
+	}
+	s.sgPublishQueue.PushBack(entry)
 }
 
 // Note: For all the utilities below, if the sgid parameter is non-nil, the
@@ -420,15 +453,7 @@ func splitLogRecKey(ctx *context.T, key string) (string, uint64, uint64, error) 
 
 // hasLogRec returns true if the log record for (devid, gen) exists.
 func hasLogRec(st store.StoreReader, pfx string, id, gen uint64) (bool, error) {
-	// TODO(hpucha): optimize to avoid the unneeded fetch/decode of the data.
-	var rec localLogRec
-	if err := util.Get(nil, st, logRecKey(pfx, id, gen), &rec); err != nil {
-		if verror.ErrorID(err) == verror.ErrNoExist.ID {
-			err = nil
-		}
-		return false, err
-	}
-	return true, nil
+	return util.Exists(nil, st, logRecKey(pfx, id, gen))
 }
 
 // putLogRec stores the log record.
