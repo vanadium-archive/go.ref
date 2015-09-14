@@ -1,2 +1,4 @@
+/.jiri
+#TODO(nlacasse): Get rid of .v23 below once v23->jiri transition is complete.
 /.v23
 **/.DS_Store
