@@ -50,8 +50,6 @@ type ApplicationClientMethods interface {
 	// An error is returned if an envelope already exists, unless the
 	// overwrite option is set.
 	Put(ctx *context.T, Profile string, Envelope application.Envelope, Overwrite bool, opts ...rpc.CallOpt) error
-	// DEPRECATED. Please use Put for new code.
-	PutX(ctx *context.T, Profile string, Envelope application.Envelope, Overwrite bool, opts ...rpc.CallOpt) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix).
@@ -91,11 +89,6 @@ func (c implApplicationClientStub) Put(ctx *context.T, i0 string, i1 application
 	return
 }
 
-func (c implApplicationClientStub) PutX(ctx *context.T, i0 string, i1 application.Envelope, i2 bool, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "PutX", []interface{}{i0, i1, i2}, nil, opts...)
-	return
-}
-
 func (c implApplicationClientStub) Remove(ctx *context.T, i0 string, opts ...rpc.CallOpt) (err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "Remove", []interface{}{i0}, nil, opts...)
 	return
@@ -131,8 +124,6 @@ type ApplicationServerMethods interface {
 	// An error is returned if an envelope already exists, unless the
 	// overwrite option is set.
 	Put(ctx *context.T, call rpc.ServerCall, Profile string, Envelope application.Envelope, Overwrite bool) error
-	// DEPRECATED. Please use Put for new code.
-	PutX(ctx *context.T, call rpc.ServerCall, Profile string, Envelope application.Envelope, Overwrite bool) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix).
@@ -191,10 +182,6 @@ func (s implApplicationServerStub) Put(ctx *context.T, call rpc.ServerCall, i0 s
 	return s.impl.Put(ctx, call, i0, i1, i2)
 }
 
-func (s implApplicationServerStub) PutX(ctx *context.T, call rpc.ServerCall, i0 string, i1 application.Envelope, i2 bool) error {
-	return s.impl.PutX(ctx, call, i0, i1, i2)
-}
-
 func (s implApplicationServerStub) Remove(ctx *context.T, call rpc.ServerCall, i0 string) error {
 	return s.impl.Remove(ctx, call, i0)
 }
@@ -226,16 +213,6 @@ var descApplication = rpc.InterfaceDesc{
 		{
 			Name: "Put",
 			Doc:  "// Put adds the given application envelope for the given profile and\n// application version (required, and specified through the object name\n// suffix).\n//\n// An error is returned if an envelope already exists, unless the\n// overwrite option is set.",
-			InArgs: []rpc.ArgDesc{
-				{"Profile", ``},   // string
-				{"Envelope", ``},  // application.Envelope
-				{"Overwrite", ``}, // bool
-			},
-			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
-		},
-		{
-			Name: "PutX",
-			Doc:  "// DEPRECATED. Please use Put for new code.",
 			InArgs: []rpc.ArgDesc{
 				{"Profile", ``},   // string
 				{"Envelope", ``},  // application.Envelope
