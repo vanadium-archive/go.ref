@@ -68,18 +68,11 @@ type Server struct {
 	// This should be locked before outstandingRequestLock.
 	serverStateLock sync.Mutex
 
-	// The rpc.ListenSpec to use with server.Listen
-	listenSpec *rpc.ListenSpec
+	// The server that handles the rpc layer.
+	server rpc.Server
 
-	// The server that handles the rpc layer.  Listen on this server is
-	// lazily started.
-	server rpc.DeprecatedServer
-
-	// The saved dispatcher to reuse when serve is called multiple times.
+	// The saved dispatcher.
 	dispatcher *dispatcher
-
-	// Whether the server is listening.
-	isListening bool
 
 	// The server id.
 	id     uint32
@@ -100,11 +93,10 @@ type Server struct {
 
 type serverContextKey struct{}
 
-func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper, opts ...rpc.ServerOpt) (*Server, error) {
+func NewServer(id uint32, name string, listenSpec *rpc.ListenSpec, helper ServerHelper, opts ...rpc.ServerOpt) (*Server, error) {
 	server := &Server{
-		id:                            id,
-		helper:                        helper,
-		listenSpec:                    listenSpec,
+		id:     id,
+		helper: helper,
 		outstandingServerRequests:     make(map[int32]chan *lib.ServerRpcReply),
 		outstandingAuthRequests:       make(map[int32]chan error),
 		outstandingValidationRequests: make(map[int32]chan []error),
@@ -112,10 +104,20 @@ func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper, opts 
 	var err error
 	ctx := helper.Context()
 	ctx = context.WithValue(ctx, serverContextKey{}, server)
-	if server.server, err = v23.NewServer(ctx, opts...); err != nil {
+
+	server.serverStateLock.Lock()
+	defer server.serverStateLock.Unlock()
+
+	server.dispatcher = newDispatcher(server.id, server, server, server, server.helper)
+	ctx = v23.WithListenSpec(ctx, *listenSpec)
+
+	if ctx, server.server, err = v23.WithNewDispatchingServer(ctx, name, server.dispatcher, opts...); err != nil {
 		return nil, err
 	}
 	server.ctx = ctx
+	server.statusClose = make(chan struct{}, 1)
+	go server.readStatus()
+
 	return server, nil
 }
 
@@ -600,29 +602,6 @@ func (s *Server) readStatus() {
 			return
 		}
 	}
-}
-
-func (s *Server) Serve(name string) error {
-	s.serverStateLock.Lock()
-	defer s.serverStateLock.Unlock()
-
-	if s.dispatcher == nil {
-		s.dispatcher = newDispatcher(s.id, s, s, s, s.helper)
-	}
-
-	if !s.isListening {
-		_, err := s.server.Listen(*s.listenSpec)
-		if err != nil {
-			return err
-		}
-		s.isListening = true
-	}
-	if err := s.server.ServeDispatcher(name, s.dispatcher); err != nil {
-		return err
-	}
-	s.statusClose = make(chan struct{}, 1)
-	go s.readStatus()
-	return nil
 }
 
 func (s *Server) popServerRequest(id int32) chan *lib.ServerRpcReply {

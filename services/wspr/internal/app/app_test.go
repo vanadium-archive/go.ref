@@ -352,7 +352,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	typeEncoder := vom.NewTypeEncoder(typeStream)
 	req, err := makeRequest(typeEncoder, RpcRequest{
 		Name:       "__controller",
-		Method:     "Serve",
+		Method:     "NewServer",
 		NumInArgs:  3,
 		NumOutArgs: 1,
 		Deadline:   vdltime.Deadline{},

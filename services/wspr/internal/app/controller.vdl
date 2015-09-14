@@ -12,9 +12,9 @@ import (
 )
 
 type Controller interface {
-	// Serve instructs WSPR to start listening for calls on behalf
-	// of a javascript server.
-	Serve(name string, serverId uint32, serverOpts []RpcServerOption) error
+	// NewServer instructs WSPR to create a server and start listening for calls on
+	// behalf of a JavaScript server.
+	NewServer(name string, serverId uint32, serverOpts []RpcServerOption) error
 	// Stop instructs WSPR to stop listening for calls for the
 	// given javascript server.
 	Stop(serverId uint32) error
