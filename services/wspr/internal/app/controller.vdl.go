@@ -22,9 +22,9 @@ import (
 // ControllerClientMethods is the client interface
 // containing Controller methods.
 type ControllerClientMethods interface {
-	// Serve instructs WSPR to start listening for calls on behalf
-	// of a javascript server.
-	Serve(ctx *context.T, name string, serverId uint32, serverOpts []RpcServerOption, opts ...rpc.CallOpt) error
+	// NewServer instructs WSPR to create a server and start listening for calls on
+	// behalf of a JavaScript server.
+	NewServer(ctx *context.T, name string, serverId uint32, serverOpts []RpcServerOption, opts ...rpc.CallOpt) error
 	// Stop instructs WSPR to stop listening for calls for the
 	// given javascript server.
 	Stop(ctx *context.T, serverId uint32, opts ...rpc.CallOpt) error
@@ -74,8 +74,8 @@ type implControllerClientStub struct {
 	name string
 }
 
-func (c implControllerClientStub) Serve(ctx *context.T, i0 string, i1 uint32, i2 []RpcServerOption, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "Serve", []interface{}{i0, i1, i2}, nil, opts...)
+func (c implControllerClientStub) NewServer(ctx *context.T, i0 string, i1 uint32, i2 []RpcServerOption, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "NewServer", []interface{}{i0, i1, i2}, nil, opts...)
 	return
 }
 
@@ -157,9 +157,9 @@ func (c implControllerClientStub) Signature(ctx *context.T, i0 string, opts ...r
 // ControllerServerMethods is the interface a server writer
 // implements for Controller.
 type ControllerServerMethods interface {
-	// Serve instructs WSPR to start listening for calls on behalf
-	// of a javascript server.
-	Serve(ctx *context.T, call rpc.ServerCall, name string, serverId uint32, serverOpts []RpcServerOption) error
+	// NewServer instructs WSPR to create a server and start listening for calls on
+	// behalf of a JavaScript server.
+	NewServer(ctx *context.T, call rpc.ServerCall, name string, serverId uint32, serverOpts []RpcServerOption) error
 	// Stop instructs WSPR to stop listening for calls for the
 	// given javascript server.
 	Stop(ctx *context.T, call rpc.ServerCall, serverId uint32) error
@@ -229,8 +229,8 @@ type implControllerServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implControllerServerStub) Serve(ctx *context.T, call rpc.ServerCall, i0 string, i1 uint32, i2 []RpcServerOption) error {
-	return s.impl.Serve(ctx, call, i0, i1, i2)
+func (s implControllerServerStub) NewServer(ctx *context.T, call rpc.ServerCall, i0 string, i1 uint32, i2 []RpcServerOption) error {
+	return s.impl.NewServer(ctx, call, i0, i1, i2)
 }
 
 func (s implControllerServerStub) Stop(ctx *context.T, call rpc.ServerCall, i0 uint32) error {
@@ -310,8 +310,8 @@ var descController = rpc.InterfaceDesc{
 	PkgPath: "v.io/x/ref/services/wspr/internal/app",
 	Methods: []rpc.MethodDesc{
 		{
-			Name: "Serve",
-			Doc:  "// Serve instructs WSPR to start listening for calls on behalf\n// of a javascript server.",
+			Name: "NewServer",
+			Doc:  "// NewServer instructs WSPR to create a server and start listening for calls on\n// behalf of a JavaScript server.",
 			InArgs: []rpc.ArgDesc{
 				{"name", ``},       // string
 				{"serverId", ``},   // uint32

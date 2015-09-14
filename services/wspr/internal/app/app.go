@@ -580,20 +580,6 @@ func (c *Controller) CloseStream(ctx *context.T, id int32) {
 	ctx.Errorf("close called on non-existent call: %v", id)
 }
 
-func (c *Controller) maybeCreateServer(serverId uint32, opts ...rpc.ServerOpt) (*server.Server, error) {
-	c.Lock()
-	defer c.Unlock()
-	if server, ok := c.servers[serverId]; ok {
-		return server, nil
-	}
-	server, err := server.NewServer(serverId, c.listenSpec, c, opts...)
-	if err != nil {
-		return nil, err
-	}
-	c.servers[serverId] = server
-	return server, nil
-}
-
 // HandleLookupResponse handles the result of a Dispatcher.Lookup call that was
 // run by the Javascript server.
 func (c *Controller) HandleLookupResponse(ctx *context.T, id int32, data string) {
@@ -624,22 +610,25 @@ func (c *Controller) HandleAuthResponse(ctx *context.T, id int32, data string) {
 	server.HandleAuthResponse(ctx, id, data)
 }
 
-// Serve instructs WSPR to start listening for calls on behalf
-// of a javascript server.
-func (c *Controller) Serve(ctx *context.T, _ rpc.ServerCall, name string, serverId uint32, rpcServerOpts []RpcServerOption) error {
-
+// NewServer instructs WSPR to create a server and start listening for calls on
+// behalf of a JavaScript server.
+func (c *Controller) NewServer(ctx *context.T, _ rpc.ServerCall, name string, serverId uint32, rpcServerOpts []RpcServerOption) error {
 	opts, err := c.serverOpts(rpcServerOpts)
 	if err != nil {
 		return verror.Convert(verror.ErrInternal, nil, err)
 	}
-	server, err := c.maybeCreateServer(serverId, opts...)
+
+	s, err := server.NewServer(serverId, name, c.listenSpec, c, opts...)
 	if err != nil {
 		return verror.Convert(verror.ErrInternal, nil, err)
 	}
-	ctx.VI(2).Infof("serving under name: %q", name)
-	if err := server.Serve(name); err != nil {
-		return verror.Convert(verror.ErrInternal, nil, err)
-	}
+
+	c.Lock()
+	c.servers[serverId] = s
+	c.Unlock()
+
+	ctx.VI(2).Infof("server created under name: %q", name)
+
 	return nil
 }
 
@@ -661,11 +650,11 @@ func (c *Controller) Stop(_ *context.T, _ rpc.ServerCall, serverId uint32) error
 
 // AddName adds a published name to an existing server.
 func (c *Controller) AddName(_ *context.T, _ rpc.ServerCall, serverId uint32, name string) error {
-	// Create a server for the pipe, if it does not exist already
-	server, err := c.maybeCreateServer(serverId)
+	server, err := c.getServerById(serverId)
 	if err != nil {
-		return verror.Convert(verror.ErrInternal, nil, err)
+		return err
 	}
+
 	// Add name
 	if err := server.AddName(name); err != nil {
 		return verror.Convert(verror.ErrInternal, nil, err)
@@ -675,16 +664,28 @@ func (c *Controller) AddName(_ *context.T, _ rpc.ServerCall, serverId uint32, na
 
 // RemoveName removes a published name from an existing server.
 func (c *Controller) RemoveName(_ *context.T, _ rpc.ServerCall, serverId uint32, name string) error {
-	// Create a server for the pipe, if it does not exist already
-	server, err := c.maybeCreateServer(serverId)
+	server, err := c.getServerById(serverId)
 	if err != nil {
-		return verror.Convert(verror.ErrInternal, nil, err)
+		return err
 	}
+
 	// Remove name
 	server.RemoveName(name)
 	// Remove name from signature cache as well
 	c.signatureManager.FlushCacheEntry(name)
 	return nil
+}
+
+// getServerById return a server for the given id or an error if id does not match any servers.
+func (c *Controller) getServerById(serverId uint32) (*server.Server, error) {
+	c.Lock()
+	defer c.Unlock()
+	server, ok := c.servers[serverId]
+	if !ok {
+		return nil, verror.Convert(verror.ErrInternal, nil, fmt.Errorf("Trying to getServerById, but id %d does not match any servers.", serverId))
+	}
+
+	return server, nil
 }
 
 // HandleServerResponse handles the completion of outstanding calls to JavaScript services
