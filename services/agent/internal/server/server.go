@@ -339,6 +339,9 @@ func (a *agentd) BlessingRootsDebugString() (string, error) {
 }
 
 func (m *keymgr) ServePrincipal(handle [agent.PrincipalHandleByteSize]byte, path string) error {
+	if maxLen := GetMaxSockPathLen(); len(path) > maxLen {
+		return fmt.Errorf("socket path (%s) exceeds maximum allowed socket path length (%d)", path, maxLen)
+	}
 	if _, err := m.readKey(handle); err != nil {
 		return err
 	}
