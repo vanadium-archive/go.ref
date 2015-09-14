@@ -229,7 +229,7 @@ func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Tes
 	sh.ctx = ctx
 	sh.logger = ctx
 
-	if sh.tempCredDir, err = ioutil.TempDir("", "shell_credentials-"); err != nil {
+	if sh.tempCredDir, err = ioutil.TempDir("", "sh_creds"); err != nil {
 		return nil, err
 	}
 	if sh.agent, err = keymgr.NewLocalAgent(sh.tempCredDir, nil); err != nil {
@@ -282,7 +282,7 @@ func dup(conn *os.File) (int, error) {
 	return fd, nil
 }
 
-// NewCustomCredentials creates a new Principal for StartWithOpts..
+// NewCustomCredentials creates a new Principal for StartWithOpts.
 // Returns nil if the shell is not managing principals.
 func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 	// Create child principal.
@@ -293,7 +293,7 @@ func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 	if err != nil {
 		return nil, err
 	}
-	dir, err := ioutil.TempDir(sh.tempCredDir, "agent")
+	dir, err := ioutil.TempDir(sh.tempCredDir, "a")
 	if err != nil {
 		return nil, err
 	}
