@@ -10,6 +10,8 @@ import (
 	"v.io/v23/discovery"
 )
 
+const pkgPath = "v.io/x/ref/runtime/internal/discovery"
+
 // ds is an implementation of discovery.T.
 type ds struct {
 	plugins []Plugin

@@ -8,12 +8,25 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 	"v.io/v23/security/access"
+	"v.io/v23/verror"
+)
+
+var (
+	errNoInterfaceName = verror.Register(pkgPath+".errNoInterfaceName", verror.NoRetry, "{1:}{2:} interface name not provided")
+	errNoAddresses     = verror.Register(pkgPath+".errNoAddress", verror.NoRetry, "{1:}{2:} address not provided")
 )
 
 // Advertise implements discovery.Advertiser.
 //
 // TODO(jhahn): Handle ACL.
 func (ds *ds) Advertise(ctx *context.T, service discovery.Service, perms access.Permissions) error {
+	if len(service.InterfaceName) == 0 {
+		return verror.New(errNoInterfaceName, ctx)
+	}
+	if len(service.Addrs) == 0 {
+		return verror.New(errNoAddresses, ctx)
+	}
+
 	if len(service.InstanceUuid) == 0 {
 		service.InstanceUuid = NewInstanceUUID()
 	}
