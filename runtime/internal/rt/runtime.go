@@ -341,8 +341,7 @@ func (r *Runtime) setNewBidiFlowManager(ctx *context.T) (*context.T, flow.Manage
 
 func (r *Runtime) setNewFlowManager(ctx *context.T, rid naming.RoutingID) (*context.T, flow.Manager, error) {
 	fm := manager.New(ctx, rid)
-	// TODO(mattr): How can we close a flow manager.
-	if err := r.addChild(ctx, fm, func() {}); err != nil {
+	if err := r.addChild(ctx, fm, func() { <-fm.Closed() }); err != nil {
 		return ctx, nil, err
 	}
 	newctx := context.WithValue(ctx, flowManagerKey, fm)

@@ -28,22 +28,41 @@ import (
 
 type manager struct {
 	rid    naming.RoutingID
-	closed <-chan struct{}
+	closed chan struct{}
 	q      *upcqueue.T
 	cache  *ConnCache
 
 	mu              *sync.Mutex
 	listenEndpoints []naming.Endpoint
+	listeners       []flow.Listener
+	wg              sync.WaitGroup
 }
 
 func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 	m := &manager{
-		rid:    rid,
-		closed: ctx.Done(),
-		q:      upcqueue.New(),
-		cache:  NewConnCache(),
-		mu:     &sync.Mutex{},
+		rid:       rid,
+		closed:    make(chan struct{}),
+		q:         upcqueue.New(),
+		cache:     NewConnCache(),
+		mu:        &sync.Mutex{},
+		listeners: []flow.Listener{},
 	}
+	go func() {
+		select {
+		case <-ctx.Done():
+			m.mu.Lock()
+			listeners := m.listeners
+			m.listeners = nil
+			m.mu.Unlock()
+			for _, ln := range listeners {
+				ln.Close()
+			}
+			m.cache.Close(ctx)
+			m.q.Close()
+			m.wg.Wait()
+			close(m.closed)
+		}
+	}()
 	return m
 }
 
@@ -81,6 +100,13 @@ func (m *manager) listen(ctx *context.T, protocol, address string) ([]naming.End
 		Address:  ln.Addr().String(),
 		RID:      m.rid,
 	}
+	m.mu.Lock()
+	if m.listeners == nil {
+		return nil, flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
+	}
+	m.listeners = append(m.listeners, ln)
+	m.mu.Unlock()
+	m.wg.Add(1)
 	go m.lnAcceptLoop(ctx, ln, local)
 	return []naming.Endpoint{local}, nil
 }
@@ -130,6 +156,7 @@ func (proxyBlessingsForPeer) run(ctx *context.T, lep, rep naming.Endpoint, rb se
 }
 
 func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.Endpoint) {
+	defer m.wg.Done()
 	const killConnectionsRetryDelay = 5 * time.Millisecond
 	for {
 		flowConn, err := ln.Accept(ctx)
@@ -147,14 +174,14 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 		}
 		if err != nil {
 			ctx.Errorf("ln.Accept on localEP %v failed: %v", local, err)
-			continue
+			return
 		}
 		c, err := conn.NewAccepted(
 			ctx,
 			flowConn,
 			local,
 			version.Supported,
-			&flowHandler{q: m.q, closed: m.closed},
+			&flowHandler{q: m.q},
 		)
 		if err != nil {
 			flowConn.Close()
@@ -168,17 +195,10 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 }
 
 type flowHandler struct {
-	q      *upcqueue.T
-	closed <-chan struct{}
+	q *upcqueue.T
 }
 
 func (h *flowHandler) HandleFlow(f flow.Flow) error {
-	select {
-	case <-h.closed:
-		// This will make the Put call below return a upcqueue.ErrQueueIsClosed.
-		h.q.Close()
-	default:
-	}
 	return h.q.Put(f)
 }
 
@@ -188,19 +208,13 @@ type proxyFlowHandler struct {
 }
 
 func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
-	select {
-	case <-h.m.closed:
-		h.m.q.Close()
-		return upcqueue.ErrQueueIsClosed
-	default:
-	}
 	go func() {
 		c, err := conn.NewAccepted(
 			h.ctx,
 			f,
 			f.Conn().LocalEndpoint(),
 			version.Supported,
-			&flowHandler{q: h.m.q, closed: h.m.closed})
+			&flowHandler{q: h.m.q})
 		if err != nil {
 			h.ctx.Errorf("failed to create accepted conn: %v", err)
 			return
@@ -246,7 +260,7 @@ func (m *manager) ListeningEndpoints() []naming.Endpoint {
 // otherwise an error is returned.
 func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 	// TODO(suharshs): Ensure that m is attached to ctx.
-	item, err := m.q.Get(m.closed)
+	item, err := m.q.Get(ctx.Done())
 	switch {
 	case err == upcqueue.ErrQueueIsClosed:
 		return nil, flow.NewErrNetwork(ctx, NewErrManagerClosed(ctx))
@@ -268,7 +282,7 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, error) {
 	var fh conn.FlowHandler
 	if m.rid != naming.NullRoutingID {
-		fh = &flowHandler{q: m.q, closed: m.closed}
+		fh = &flowHandler{q: m.q}
 	}
 	return m.internalDial(ctx, remote, fn, fh)
 }
