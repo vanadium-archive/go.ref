@@ -43,14 +43,6 @@ func TestProxiedConnection(t *testing.T) {
 func TestMultipleProxies(t *testing.T) {
 	pctx, shutdown := v23.Init()
 	defer shutdown()
-	p2ctx, _, err := v23.ExperimentalWithNewFlowManager(pctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p3ctx, _, err := v23.ExperimentalWithNewFlowManager(pctx)
-	if err != nil {
-		t.Fatal(err)
-	}
 	actx, am, err := v23.ExperimentalWithNewFlowManager(pctx)
 	if err != nil {
 		t.Fatal(err)
@@ -62,9 +54,9 @@ func TestMultipleProxies(t *testing.T) {
 
 	pep := startProxy(t, pctx, address{"tcp", "127.0.0.1:0"})
 
-	p2ep := startProxy(t, p2ctx, address{"v23", pep.String()}, address{"tcp", "127.0.0.1:0"})
+	p2ep := startProxy(t, pctx, address{"v23", pep.String()}, address{"tcp", "127.0.0.1:0"})
 
-	p3ep := startProxy(t, p3ctx, address{"v23", p2ep.String()}, address{"tcp", "127.0.0.1:0"})
+	p3ep := startProxy(t, pctx, address{"v23", p2ep.String()}, address{"tcp", "127.0.0.1:0"})
 
 	if err := am.Listen(actx, "v23", p3ep.String()); err != nil {
 		t.Fatal(err)
@@ -147,7 +139,7 @@ func startProxy(t *testing.T, ctx *context.T, addrs ...address) naming.Endpoint 
 		ls.Addrs = append(ls.Addrs, addr)
 	}
 	ctx = v23.WithListenSpec(ctx, ls)
-	proxy, err := xproxyd.New(ctx)
+	proxy, _, err := xproxyd.New(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

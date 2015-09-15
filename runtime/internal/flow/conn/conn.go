@@ -159,6 +159,12 @@ func (c *Conn) LocalEndpoint() naming.Endpoint { return c.local }
 // RemoteEndpoint returns the remote vanadium Endpoint
 func (c *Conn) RemoteEndpoint() naming.Endpoint { return c.remote }
 
+// LocalBlessings returns the local blessings.
+func (c *Conn) LocalBlessings() security.Blessings { return c.lBlessings }
+
+// RemoteBlessings returns the remote blessings.
+func (c *Conn) RemoteBlessings() security.Blessings { return c.rBlessings }
+
 // CommonVersion returns the RPCVersion negotiated between the local and remote endpoints.
 func (c *Conn) CommonVersion() version.RPCVersion { return c.version }
 

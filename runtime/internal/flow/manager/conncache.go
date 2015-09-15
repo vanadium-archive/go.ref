@@ -183,6 +183,9 @@ func (c connEntries) Swap(i, j int) {
 // is identified by the provided rid. nil is returned if there is no such Conn.
 // FindWithRoutingID will return an error iff the cache is closed.
 func (c *ConnCache) FindWithRoutingID(rid naming.RoutingID) (*conn.Conn, error) {
+	if rid == naming.NullRoutingID {
+		return nil, nil
+	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {

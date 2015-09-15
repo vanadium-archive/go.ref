@@ -24,41 +24,45 @@ type proxy struct {
 	proxyEndpoints []naming.Endpoint
 }
 
-func New(ctx *context.T) (*proxy, error) {
+func New(ctx *context.T) (*proxy, *context.T, error) {
+	ctx, mgr, err := v23.ExperimentalWithNewFlowManager(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 	p := &proxy{
-		m: v23.ExperimentalGetFlowManager(ctx),
+		m: mgr,
 	}
 	for _, addr := range v23.GetListenSpec(ctx).Addrs {
 		if addr.Protocol == "v23" {
 			ep, err := v23.NewEndpoint(addr.Address)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			f, err := p.m.Dial(ctx, ep, proxyBlessingsForPeer{}.run)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			// Send a byte telling the acceptor that we are a proxy.
 			if err := writeMessage(ctx, &message.MultiProxyRequest{}, f); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			msg, err := readMessage(ctx, f)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			m, ok := msg.(*message.ProxyResponse)
 			if !ok {
-				return nil, NewErrUnexpectedMessage(ctx, fmt.Sprintf("%t", m))
+				return nil, nil, NewErrUnexpectedMessage(ctx, fmt.Sprintf("%t", m))
 			}
 			p.mu.Lock()
 			p.proxyEndpoints = append(p.proxyEndpoints, m.Endpoints...)
 			p.mu.Unlock()
 		} else if err := p.m.Listen(ctx, addr.Protocol, addr.Address); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	go p.listenLoop(ctx)
-	return p, nil
+	return p, ctx, nil
 }
 
 func (p *proxy) ListeningEndpoints() []naming.Endpoint {
