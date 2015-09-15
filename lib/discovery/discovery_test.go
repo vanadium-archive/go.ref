@@ -14,20 +14,20 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 
-	idiscovery "v.io/x/ref/runtime/internal/discovery"
-	"v.io/x/ref/runtime/internal/discovery/plugins/mock"
+	ldiscovery "v.io/x/ref/lib/discovery"
+	"v.io/x/ref/lib/discovery/plugins/mock"
 )
 
 func TestBasic(t *testing.T) {
-	ds := idiscovery.New([]idiscovery.Plugin{mock.New()})
+	ds := ldiscovery.New([]ldiscovery.Plugin{mock.New()})
 	services := []discovery.Service{
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceUuid:  ldiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/v23/a",
 			Addrs:         []string{"/h1:123/x", "/h2:123/y"},
 		},
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceUuid:  ldiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/v23/b",
 			Addrs:         []string{"/h1:123/x", "/h2:123/z"},
 		},

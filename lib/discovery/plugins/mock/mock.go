@@ -11,7 +11,7 @@ import (
 
 	"v.io/v23/context"
 
-	"v.io/x/ref/runtime/internal/discovery"
+	"v.io/x/ref/lib/discovery"
 )
 
 type plugin struct {

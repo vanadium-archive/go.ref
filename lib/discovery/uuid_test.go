@@ -7,7 +7,7 @@ package discovery_test
 import (
 	"testing"
 
-	"v.io/x/ref/runtime/internal/discovery"
+	"v.io/x/ref/lib/discovery"
 )
 
 func TestServiceUUID(t *testing.T) {

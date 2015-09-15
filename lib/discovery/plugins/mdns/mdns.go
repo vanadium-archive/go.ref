@@ -31,7 +31,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 
-	idiscovery "v.io/x/ref/runtime/internal/discovery"
+	ldiscovery "v.io/x/ref/lib/discovery"
 
 	"github.com/pborman/uuid"
 	mdns "github.com/presotto/go-mdns-sd"
@@ -52,7 +52,7 @@ const (
 
 type plugin struct {
 	mdns      *mdns.MDNS
-	adStopper *idiscovery.Trigger
+	adStopper *ldiscovery.Trigger
 
 	subscriptionRefreshTime time.Duration
 	subscriptionWaitTime    time.Duration
@@ -65,7 +65,7 @@ type subscription struct {
 	lastSubscription time.Time
 }
 
-func (p *plugin) Advertise(ctx *context.T, ad *idiscovery.Advertisement) error {
+func (p *plugin) Advertise(ctx *context.T, ad *ldiscovery.Advertisement) error {
 	serviceName := ad.ServiceUuid.String() + serviceNameSuffix
 	hostName := fmt.Sprintf("%x.%s%s", ad.InstanceUuid, ad.ServiceUuid.String(), hostNameSuffix)
 	txt, err := createTXTRecords(ad)
@@ -92,7 +92,7 @@ func (p *plugin) Advertise(ctx *context.T, ad *idiscovery.Advertisement) error {
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *idiscovery.Advertisement) error {
+func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *ldiscovery.Advertisement) error {
 	var serviceName string
 	if len(serviceUuid) == 0 {
 		serviceName = v23ServiceName
@@ -145,7 +145,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *idis
 	return nil
 }
 
-func createTXTRecords(ad *idiscovery.Advertisement) ([]string, error) {
+func createTXTRecords(ad *ldiscovery.Advertisement) ([]string, error) {
 	// Prepare a TXT record with attributes and addresses to announce.
 	//
 	// TODO(jhahn): Currently, the record size is limited to 2000 bytes in
@@ -162,7 +162,7 @@ func createTXTRecords(ad *idiscovery.Advertisement) ([]string, error) {
 	return txt, nil
 }
 
-func decodeAdvertisement(service mdns.ServiceInstance) (*idiscovery.Advertisement, error) {
+func decodeAdvertisement(service mdns.ServiceInstance) (*ldiscovery.Advertisement, error) {
 	// Note that service.Name would be '<instance uuid>.<service uuid>._v23._tcp.local.' for
 	// subtype service discovery and ''<instance uuid>.<service uuid>' for v23 service discovery.
 	p := strings.SplitN(service.Name, ".", 3)
@@ -178,7 +178,7 @@ func decodeAdvertisement(service mdns.ServiceInstance) (*idiscovery.Advertisemen
 		return nil, fmt.Errorf("invalid service uuid in host name: %s", p[1])
 	}
 
-	ad := idiscovery.Advertisement{
+	ad := ldiscovery.Advertisement{
 		ServiceUuid: serviceUuid,
 		Service: discovery.Service{
 			InstanceUuid: instanceUuid,
@@ -204,11 +204,11 @@ func decodeAdvertisement(service mdns.ServiceInstance) (*idiscovery.Advertisemen
 	return &ad, nil
 }
 
-func New(host string) (idiscovery.Plugin, error) {
+func New(host string) (ldiscovery.Plugin, error) {
 	return newWithLoopback(host, false)
 }
 
-func newWithLoopback(host string, loopback bool) (idiscovery.Plugin, error) {
+func newWithLoopback(host string, loopback bool) (ldiscovery.Plugin, error) {
 	if len(host) == 0 {
 		// go-mdns-sd reannounce the services periodically only when the host name
 		// is set. Use a default one if not given.
@@ -227,7 +227,7 @@ func newWithLoopback(host string, loopback bool) (idiscovery.Plugin, error) {
 	}
 	p := plugin{
 		mdns:      m,
-		adStopper: idiscovery.NewTrigger(),
+		adStopper: ldiscovery.NewTrigger(),
 		// TODO(jhahn): Figure out a good subscription refresh time.
 		subscriptionRefreshTime: 10 * time.Second,
 		subscription:            make(map[string]subscription),

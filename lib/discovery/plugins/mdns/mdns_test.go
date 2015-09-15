@@ -16,13 +16,13 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 
-	idiscovery "v.io/x/ref/runtime/internal/discovery"
+	ldiscovery "v.io/x/ref/lib/discovery"
 )
 
 func TestBasic(t *testing.T) {
 	services := []discovery.Service{
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceUuid:  ldiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/x",
 			Attrs: discovery.Attributes{
 				"a": "a1234",
@@ -33,7 +33,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceUuid:  ldiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/x",
 			Attrs: discovery.Attributes{
 				"a": "a5678",
@@ -44,7 +44,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceUuid:  ldiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/y",
 			Attrs: discovery.Attributes{
 				"c": "c1234",
@@ -102,10 +102,10 @@ func TestBasic(t *testing.T) {
 	}
 }
 
-func advertise(p idiscovery.Plugin, service discovery.Service) (func(), error) {
+func advertise(p ldiscovery.Plugin, service discovery.Service) (func(), error) {
 	ctx, cancel := context.RootContext()
-	ad := idiscovery.Advertisement{
-		ServiceUuid: idiscovery.NewServiceUUID(service.InterfaceName),
+	ad := ldiscovery.Advertisement{
+		ServiceUuid: ldiscovery.NewServiceUUID(service.InterfaceName),
 		Service:     service,
 	}
 	if err := p.Advertise(ctx, &ad); err != nil {
@@ -114,17 +114,17 @@ func advertise(p idiscovery.Plugin, service discovery.Service) (func(), error) {
 	return cancel, nil
 }
 
-func scan(p idiscovery.Plugin, interfaceName string) ([]idiscovery.Advertisement, error) {
+func scan(p ldiscovery.Plugin, interfaceName string) ([]ldiscovery.Advertisement, error) {
 	ctx, _ := context.RootContext()
-	scanCh := make(chan *idiscovery.Advertisement)
+	scanCh := make(chan *ldiscovery.Advertisement)
 	var serviceUuid uuid.UUID
 	if len(interfaceName) > 0 {
-		serviceUuid = idiscovery.NewServiceUUID(interfaceName)
+		serviceUuid = ldiscovery.NewServiceUUID(interfaceName)
 	}
 	if err := p.Scan(ctx, serviceUuid, scanCh); err != nil {
 		return nil, fmt.Errorf("Scan failed: %v", err)
 	}
-	var ads []idiscovery.Advertisement
+	var ads []ldiscovery.Advertisement
 	for {
 		select {
 		case ad := <-scanCh:
@@ -135,11 +135,11 @@ func scan(p idiscovery.Plugin, interfaceName string) ([]idiscovery.Advertisement
 	}
 }
 
-func match(ads []idiscovery.Advertisement, wants ...discovery.Service) bool {
+func match(ads []ldiscovery.Advertisement, wants ...discovery.Service) bool {
 	for _, want := range wants {
 		matched := false
 		for i, ad := range ads {
-			if !uuid.Equal(ad.ServiceUuid, idiscovery.NewServiceUUID(want.InterfaceName)) {
+			if !uuid.Equal(ad.ServiceUuid, ldiscovery.NewServiceUUID(want.InterfaceName)) {
 				continue
 			}
 			matched = reflect.DeepEqual(ad.Service, want)
@@ -155,10 +155,10 @@ func match(ads []idiscovery.Advertisement, wants ...discovery.Service) bool {
 	return len(ads) == 0
 }
 
-func scanAndMatch(p idiscovery.Plugin, interfaceName string, wants ...discovery.Service) error {
+func scanAndMatch(p ldiscovery.Plugin, interfaceName string, wants ...discovery.Service) error {
 	const timeout = 1 * time.Second
 
-	var ads []idiscovery.Advertisement
+	var ads []ldiscovery.Advertisement
 	for now := time.Now(); time.Since(now) < timeout; {
 		runtime.Gosched()
 
