@@ -266,7 +266,11 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 // The flow.Manager associated with ctx must be the receiver of the method,
 // otherwise an error is returned.
 func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, error) {
-	return m.internalDial(ctx, remote, fn, &flowHandler{q: m.q, closed: m.closed})
+	var fh conn.FlowHandler
+	if m.rid != naming.NullRoutingID {
+		fh = &flowHandler{q: m.q, closed: m.closed}
+	}
+	return m.internalDial(ctx, remote, fn, fh)
 }
 
 func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer, fh conn.FlowHandler) (flow.Flow, error) {

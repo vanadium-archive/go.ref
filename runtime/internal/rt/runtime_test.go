@@ -161,6 +161,9 @@ func TestFlowManager(t *testing.T) {
 	if oldman == nil {
 		t.Error("ExperimentalGetFlowManager should have returned a non-nil value")
 	}
+	if rid := oldman.RoutingID(); rid != naming.NullRoutingID {
+		t.Errorf("Initial flow.Manager should have NullRoutingID, got %v", rid)
+	}
 	newctx, newman, err := r.ExperimentalWithNewFlowManager(ctx)
 	if err != nil || newman == nil || newman == oldman {
 		t.Fatalf("Could not create flow manager: %v", err)
@@ -171,5 +174,8 @@ func TestFlowManager(t *testing.T) {
 	man := r.ExperimentalGetFlowManager(newctx)
 	if man != newman || man == oldman {
 		t.Error("ExperimentalWithNewFlowManager didn't update the context properly")
+	}
+	if man.RoutingID() == naming.NullRoutingID {
+		t.Error("Newly created flow.Manager should not have NullRoutingID")
 	}
 }

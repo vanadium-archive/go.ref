@@ -190,7 +190,13 @@ func Init(
 	}
 
 	// Add the flow.Manager to the context.
-	ctx, _, err = r.ExperimentalWithNewFlowManager(ctx)
+	// This initial Flow Manager can only be used as a client.
+	ctx, _, err = r.setNewClientFlowManager(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	// Add the Client to the context.
+	ctx, _, err = r.WithNewClient(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -321,21 +327,22 @@ func newStreamManager(ctx *context.T) (stream.Manager, error) {
 	return sm, nil
 }
 
-func newFlowManager(ctx *context.T) (flow.Manager, error) {
-	rid, err := naming.NewRoutingID()
-	if err != nil {
-		return nil, err
-	}
-	return manager.New(ctx, rid), nil
+func (r *Runtime) setNewClientFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
+	return r.setNewFlowManager(ctx, naming.NullRoutingID)
 }
 
-func (r *Runtime) setNewFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
-	fm, err := newFlowManager(ctx)
+func (r *Runtime) setNewBidiFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
+	rid, err := naming.NewRoutingID()
 	if err != nil {
 		return nil, nil, err
 	}
+	return r.setNewFlowManager(ctx, rid)
+}
+
+func (r *Runtime) setNewFlowManager(ctx *context.T, rid naming.RoutingID) (*context.T, flow.Manager, error) {
+	fm := manager.New(ctx, rid)
 	// TODO(mattr): How can we close a flow manager.
-	if err = r.addChild(ctx, fm, func() {}); err != nil {
+	if err := r.addChild(ctx, fm, func() {}); err != nil {
 		return ctx, nil, err
 	}
 	newctx := context.WithValue(ctx, flowManagerKey, fm)
@@ -396,7 +403,12 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 	if newctx, err = r.setNewStreamManager(newctx); err != nil {
 		return ctx, err
 	}
-	if newctx, _, err = r.setNewFlowManager(newctx); err != nil {
+	if rid := r.ExperimentalGetFlowManager(newctx).RoutingID(); rid == naming.NullRoutingID {
+		newctx, _, err = r.setNewClientFlowManager(newctx)
+	} else {
+		newctx, _, err = r.setNewBidiFlowManager(newctx)
+	}
+	if err != nil {
 		return ctx, err
 	}
 	if newctx, _, err = r.setNewNamespace(newctx, r.GetNamespace(ctx).Roots()...); err != nil {
@@ -559,7 +571,7 @@ func (*Runtime) ExperimentalGetFlowManager(ctx *context.T) flow.Manager {
 
 func (r *Runtime) ExperimentalWithNewFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	newctx, m, err := r.setNewFlowManager(ctx)
+	newctx, m, err := r.setNewBidiFlowManager(ctx)
 	if err != nil {
 		return ctx, nil, err
 	}
