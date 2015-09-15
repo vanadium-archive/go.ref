@@ -25,8 +25,6 @@ type Application interface {
 	// An error is returned if an envelope already exists, unless the
 	// overwrite option is set.
 	Put(Profile string, Envelope application.Envelope, Overwrite bool) error {access.Write}
-	// DEPRECATED. Please use Put for new code.
-	PutX(Profile string, Envelope application.Envelope, Overwrite bool) error {access.Write}
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix).

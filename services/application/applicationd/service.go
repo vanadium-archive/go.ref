@@ -135,10 +135,6 @@ func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []s
 	return empty, verror.New(verror.ErrNoExist, ctx)
 }
 
-func (i *appRepoService) PutX(ctx *context.T, call rpc.ServerCall, profile string, envelope application.Envelope, overwrite bool) error {
-	return i.Put(ctx, call, profile, envelope, overwrite)
-}
-
 func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profile string, envelope application.Envelope, overwrite bool) error {
 	ctx.VI(0).Infof("%v.Put(%v, %v, %t)", i.suffix, profile, envelope, overwrite)
 	name, version, err := parse(ctx, i.suffix)

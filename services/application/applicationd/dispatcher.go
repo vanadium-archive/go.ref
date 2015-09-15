@@ -44,7 +44,7 @@ func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.
 		naming.Join("/acls", "data"),
 		naming.Join("/acls", name, "data"),
 		(*applicationPermsStore)(d.store),
-		[]string{"Put", "PutX", "__Glob"})
+		[]string{"Put", "__Glob"})
 	if err != nil {
 		return nil, nil, err
 	}
