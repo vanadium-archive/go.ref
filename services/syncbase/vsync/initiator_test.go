@@ -457,7 +457,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	}
 
 	tx := svc.St().NewTransaction()
-	if err := addSyncGroup(nil, tx, sg1); err != nil {
+	if err := s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
 		t.Fatalf("cannot add SyncGroup ID %d, err %v", sg1.Id, err)
 	}
 	if err := tx.Commit(); err != nil {

@@ -12,6 +12,7 @@ package vsync
 // records in response to a GetDeltas request, it replays those log
 // records to get in sync with the sender.
 import (
+	"container/list"
 	"fmt"
 	"math/rand"
 	"path"
@@ -73,6 +74,11 @@ type syncService struct {
 	syncState     map[string]*dbSyncStateInMem
 	syncStateLock sync.Mutex // lock to protect access to the sync state.
 
+	// In-memory queue of SyncGroups to be published.  It is reconstructed
+	// at startup from SyncGroup info so it does not need to be persisted.
+	sgPublishQueue     *list.List
+	sgPublishQueueLock sync.Mutex
+
 	// In-memory tracking of batches during their construction.
 	// The sync Initiator and Watcher build batches incrementally here
 	// and then persist them in DAG batch entries.  The mutex guards
@@ -124,8 +130,9 @@ func randIntn(n int) int {
 // sync module responds to incoming RPCs from remote sync modules.
 func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, rootDir string) (*syncService, error) {
 	s := &syncService{
-		sv:      sv,
-		batches: make(batchSet),
+		sv:             sv,
+		batches:        make(batchSet),
+		sgPublishQueue: list.New(),
 	}
 
 	data := &syncData{}
