@@ -5,7 +5,6 @@
 package nosql
 
 import (
-	"strconv"
 	"strings"
 
 	"v.io/v23/context"
@@ -34,25 +33,25 @@ func NewDispatcher(a interfaces.App) *dispatcher {
 // RPC method implementations to perform proper authorization.
 var auth security.Authorizer = security.AllowEveryone()
 
-func (disp *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
+func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, "/")
-	parts := strings.Split(suffix, "/")
+	parts := strings.Split(suffix, pubutil.NameSepWithSlashes)
 
 	if len(parts) == 0 {
 		vlog.Fatal("invalid nosql.dispatcher Lookup")
 	}
 
-	dParts := strings.Split(parts[0], util.BatchSep)
+	dParts := strings.SplitN(parts[0], util.BatchSep, 2)
 	dName := dParts[0]
 
 	// Validate all key atoms up front, so that we can avoid doing so in all our
 	// method implementations.
 	if !pubutil.ValidName(dName) {
-		return nil, nil, wire.NewErrInvalidName(nil, suffix)
+		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 	}
 	for _, s := range parts[1:] {
 		if !pubutil.ValidName(s) {
-			return nil, nil, wire.NewErrInvalidName(nil, suffix)
+			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 		}
 	}
 
@@ -75,8 +74,10 @@ func (disp *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, securi
 	}
 
 	dReq := &databaseReq{database: d}
-	if !setBatchFields(dReq, dParts) {
-		return nil, nil, wire.NewErrInvalidName(nil, suffix)
+	if len(dParts) == 2 {
+		if !setBatchFields(dReq, dParts[1]) {
+			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
+		}
 	}
 	if len(parts) == 1 {
 		return nosqlWire.DatabaseServer(dReq), auth, nil
@@ -85,7 +86,7 @@ func (disp *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, securi
 	// All table and row methods require the database to exist. If it doesn't,
 	// abort early.
 	if !dExists {
-		return nil, nil, verror.New(verror.ErrNoExist, nil, d.name)
+		return nil, nil, verror.New(verror.ErrNoExist, ctx, d.name)
 	}
 
 	// Note, it's possible for the database to be deleted concurrently with
@@ -108,20 +109,14 @@ func (disp *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, securi
 		return nosqlWire.RowServer(rReq), auth, nil
 	}
 
-	return nil, nil, verror.NewErrNoExist(nil)
+	return nil, nil, verror.NewErrNoExist(ctx)
 }
 
 // setBatchFields sets the batch-related fields in databaseReq based on the
-// value of dParts, the parts of the database name component. It returns false
-// if dParts is malformed.
-func setBatchFields(d *databaseReq, dParts []string) bool {
-	if len(dParts) == 1 {
-		return true
-	}
-	if len(dParts) != 3 {
-		return false
-	}
-	batchId, err := strconv.ParseUint(dParts[2], 0, 64)
+// value of batchInfo (suffix of the database name component). It returns false
+// if batchInfo is malformed.
+func setBatchFields(d *databaseReq, batchInfo string) bool {
+	batchType, batchId, err := util.SplitBatchInfo(batchInfo)
 	if err != nil {
 		return false
 	}
@@ -129,13 +124,11 @@ func setBatchFields(d *databaseReq, dParts []string) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	var ok bool
-	switch dParts[1] {
-	case "sn":
+	switch batchType {
+	case util.BatchTypeSn:
 		d.sn, ok = d.sns[batchId]
-	case "tx":
+	case util.BatchTypeTx:
 		d.tx, ok = d.txs[batchId]
-	default:
-		return false
 	}
 	return ok
 }

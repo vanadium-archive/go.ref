@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
@@ -136,6 +135,8 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 ////////////////////////////////////////
 // RPC methods
 
+// TODO(sadovsky): Implement Glob__ or GlobChildren__.
+
 func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	return store.RunInTransaction(s.st, func(tx store.Transaction) error {
 		data := &serviceData{}
@@ -158,14 +159,14 @@ func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms acc
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (s *service) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
+func (s *service) ListApps(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	// Check perms.
 	sn := s.st.NewSnapshot()
 	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &serviceData{}); err != nil {
 		sn.Abort()
-		return err
+		return nil, err
 	}
-	return util.Glob(ctx, call, matcher, sn, sn.Abort, util.AppPrefix)
+	return util.ListChildren(ctx, call, sn, util.AppPrefix)
 }
 
 ////////////////////////////////////////

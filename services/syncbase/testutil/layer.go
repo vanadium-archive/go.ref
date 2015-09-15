@@ -12,6 +12,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	"v.io/v23/syncbase/nosql"
 	"v.io/v23/syncbase/util"
@@ -72,7 +73,8 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 		t.Errorf("Perms do not match: got %v, want %v", gotPerms, wantPerms)
 	}
 
-	// Even though self2 exists, Exists returns false because Read access is needed.
+	// Even though self2 exists, Exists returns false because Read access is
+	// needed.
 	assertExists(t, ctx, self2, "self2", false)
 
 	// Test that create fails if the parent perms disallow access.
@@ -88,6 +90,33 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 
 	assertExists(t, ctx, self, "self", true)
 	assertExists(t, ctx, self3, "self3", false)
+}
+
+// Tests that non-ASCII UTF-8 chars are supported at all layers as long as they
+// satisfy util.ValidName.
+// This test only requires layer.Create to be implemented and thus works for
+// rows.
+func TestCreateNameValidation(t *testing.T, ctx *context.T, i interface{}) {
+	parent := makeLayer(i)
+
+	// Invalid names.
+	// TODO(sadovsky): Add names with slashes to this list once we implement
+	// client-side name validation. As it stands, some names with slashes result
+	// in RPCs against objects at the next layer of hierarchy, and naming.Join
+	// drops some leading and trailing slashes before they reach the server-side
+	// name-checking code.
+	for _, name := range []string{"a\x00", "\x00a", "@@", "a@@", "@@a", "@@a", "$", "a/$", "$/a"} {
+		if err := parent.Child(name).Create(ctx, nil); verror.ErrorID(err) != wire.ErrInvalidName.ID {
+			t.Fatalf("Create(%q) should have failed: %v", name, err)
+		}
+	}
+
+	// Valid names.
+	for _, name := range []string{"a", "aa", "*", "a*", "*a", "a*b", "a/b", "a/$$", "$$/a", "a/$$/b", "dev.v.io/a/admin@myapp.com", "alice/bob", "안녕하세요"} {
+		if err := parent.Child(name).Create(ctx, nil); err != nil {
+			t.Fatalf("Create(%q) failed: %v", name, err)
+		}
+	}
 }
 
 // TestDestroy tests that object destruction works as expected.
@@ -179,7 +208,7 @@ func TestListChildren(t *testing.T, ctx *context.T, i interface{}) {
 	var err error
 
 	got, err = self.ListChildren(ctx)
-	want = []string{}
+	want = []string(nil)
 	if err != nil {
 		t.Fatalf("self.ListChildren() failed: %v", err)
 	}
@@ -204,6 +233,19 @@ func TestListChildren(t *testing.T, ctx *context.T, i interface{}) {
 	}
 	got, err = self.ListChildren(ctx)
 	want = []string{"x", "y"}
+	if err != nil {
+		t.Fatalf("self.ListChildren() failed: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Lists do not match: got %v, want %v", got, want)
+	}
+
+	hello := "안녕하세요"
+	if err := self.Child(hello).Create(ctx, nil); err != nil {
+		t.Fatalf("hello.Create() failed: %v", err)
+	}
+	got, err = self.ListChildren(ctx)
+	want = []string{"x", "y", hello}
 	if err != nil {
 		t.Fatalf("self.ListChildren() failed: %v", err)
 	}

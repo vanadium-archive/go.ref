@@ -55,7 +55,7 @@ func StartSyncbased(t *v23tests.T, creds *modules.CustomCredentials, name, rootD
 	}
 }
 
-// RunClient runs modules.Program and waits until it terminates.
+// RunClient runs the given program and waits until it terminates.
 func RunClient(t *v23tests.T, creds *modules.CustomCredentials, program modules.Program, args ...string) {
 	client, err := t.Shell().StartWithOpts(
 		t.Shell().DefaultStartOpts().WithCustomCredentials(creds),

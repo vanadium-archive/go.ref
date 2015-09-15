@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
@@ -41,6 +40,8 @@ var (
 
 ////////////////////////////////////////
 // RPC methods
+
+// TODO(sadovsky): Implement Glob__ or GlobChildren__.
 
 // TODO(sadovsky): Require the app name to match the client's blessing name.
 // I.e. reserve names at the app level of the hierarchy.
@@ -83,17 +84,17 @@ func (a *app) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (a *app) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
+func (a *app) ListDatabases(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	if !a.exists {
-		return verror.New(verror.ErrNoExist, ctx, a.name)
+		return nil, verror.New(verror.ErrNoExist, ctx, a.name)
 	}
 	// Check perms.
 	sn := a.s.st.NewSnapshot()
 	if err := util.GetWithAuth(ctx, call, sn, a.stKey(), &appData{}); err != nil {
 		sn.Abort()
-		return err
+		return nil, err
 	}
-	return util.Glob(ctx, call, matcher, sn, sn.Abort, util.JoinKeyParts(util.DbInfoPrefix, a.name))
+	return util.ListChildren(ctx, call, sn, util.JoinKeyParts(util.DbInfoPrefix, a.name))
 }
 
 ////////////////////////////////////////

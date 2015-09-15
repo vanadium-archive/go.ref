@@ -34,21 +34,26 @@ var auth security.Authorizer = security.AllowEveryone()
 
 func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, "/")
-	parts := strings.SplitN(suffix, "/", 2)
 
 	if len(suffix) == 0 {
 		return wire.ServiceServer(disp.s), auth, nil
 	}
 
+	// If the first slash-separated component of suffix is SyncbaseSuffix,
+	// dispatch to the sync module.
+	parts := strings.SplitN(suffix, "/", 2)
 	if parts[0] == util.SyncbaseSuffix {
 		return interfaces.SyncServer(disp.s.sync), auth, nil
 	}
+
+	// Otherwise, split on NameSepWithSlashes to get hierarchy component names.
+	parts = strings.SplitN(suffix, pubutil.NameSepWithSlashes, 2)
 
 	// Validate all key atoms up front, so that we can avoid doing so in all our
 	// method implementations.
 	appName := parts[0]
 	if !pubutil.ValidName(appName) {
-		return nil, nil, wire.NewErrInvalidName(nil, suffix)
+		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 	}
 
 	aExists := false
@@ -74,7 +79,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 	// All database, table, and row methods require the app to exist. If it
 	// doesn't, abort early.
 	if !aExists {
-		return nil, nil, verror.New(verror.ErrNoExist, nil, a.name)
+		return nil, nil, verror.New(verror.ErrNoExist, ctx, a.name)
 	}
 
 	// Note, it's possible for the app to be deleted concurrently with downstream

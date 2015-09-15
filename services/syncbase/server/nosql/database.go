@@ -7,13 +7,11 @@ package nosql
 import (
 	"math/rand"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
@@ -129,6 +127,8 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.S
 ////////////////////////////////////////
 // RPC methods
 
+// TODO(sadovsky): Implement Glob__ or GlobChildren__.
+
 func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.SchemaMetadata, perms access.Permissions) error {
 	if d.exists {
 		return verror.New(verror.ErrExist, ctx, d.name)
@@ -178,24 +178,24 @@ func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, schemaVers
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	var id uint64
-	var batchType string
+	var batchType util.BatchType
 	for {
 		id = uint64(rng.Int63())
 		if bo.ReadOnly {
 			if _, ok := d.sns[id]; !ok {
 				d.sns[id] = d.st.NewSnapshot()
-				batchType = "sn"
+				batchType = util.BatchTypeSn
 				break
 			}
 		} else {
 			if _, ok := d.txs[id]; !ok {
 				d.txs[id] = d.st.NewTransaction()
-				batchType = "tx"
+				batchType = util.BatchTypeTx
 				break
 			}
 		}
 	}
-	return strings.Join([]string{d.name, batchType, strconv.FormatUint(id, 10)}, util.BatchSep), nil
+	return strings.Join([]string{d.name, util.JoinBatchInfo(batchType, id)}, util.BatchSep), nil
 }
 
 func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
@@ -251,10 +251,20 @@ func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall, schemaVersion i
 }
 
 func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.name)
+	}
 	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 		return err
 	}
-	impl := func(headers []string, rs query.ResultStream, err error) error {
+	impl := func(sntx store.SnapshotOrTransaction) error {
+		db := &queryDb{
+			ctx:  ctx,
+			call: call,
+			req:  d,
+			sntx: sntx,
+		}
+		headers, rs, err := exec.Exec(db, q)
 		if err != nil {
 			return err
 		}
@@ -275,23 +285,13 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 		}
 		return rs.Err()
 	}
-	var sntx store.SnapshotOrTransaction
 	if d.batchId != nil {
-		sntx = d.batchReader()
+		return impl(d.batchReader())
 	} else {
-		sntx = d.st.NewSnapshot()
+		sntx := d.st.NewSnapshot()
 		defer sntx.Abort()
+		return impl(sntx)
 	}
-	// queryDb implements the query.Database interface, which is needed by the
-	// exec.Exec function.
-	db := &queryDb{
-		ctx:  ctx,
-		call: call,
-		req:  d,
-		sntx: sntx,
-	}
-
-	return impl(exec.Exec(db, q))
 }
 
 func (d *databaseReq) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
@@ -318,20 +318,25 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
+func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
+	}
+	impl := func(sntx store.SnapshotOrTransaction) ([]string, error) {
+		// Check perms.
+		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &databaseData{}); err != nil {
+			sntx.Abort()
+			return nil, err
+		}
+		return util.ListChildren(ctx, call, sntx, util.TablePrefix)
 	}
 	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
+		return impl(d.batchReader())
+	} else {
+		sntx := d.st.NewSnapshot()
+		defer sntx.Abort()
+		return impl(sntx)
 	}
-	// Check perms.
-	sn := d.st.NewSnapshot()
-	if err := util.GetWithAuth(ctx, call, sn, d.stKey(), &databaseData{}); err != nil {
-		sn.Abort()
-		return err
-	}
-	return util.Glob(ctx, call, matcher, sn, sn.Abort, util.TablePrefix)
 }
 
 ////////////////////////////////////////

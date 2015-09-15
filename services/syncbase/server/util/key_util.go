@@ -5,18 +5,21 @@
 package util
 
 import (
+	"strconv"
 	"strings"
 
 	"v.io/v23/syncbase/util"
+	"v.io/v23/verror"
 )
 
 // JoinKeyParts builds keys for accessing data in the storage engine.
+// TODO(sadovsky): Allow ":" in names and use a different separator here.
 func JoinKeyParts(parts ...string) string {
-	// TODO(sadovsky): Figure out which delimiter makes the most sense.
 	return strings.Join(parts, KeyPartSep)
 }
 
 // SplitKeyParts is the inverse of JoinKeyParts.
+// TODO(sadovsky): Allow ":" in names and use a different separator here.
 func SplitKeyParts(key string) []string {
 	return strings.Split(key, KeyPartSep)
 }
@@ -34,4 +37,37 @@ func ScanRangeArgs(stKeyPrefix, start, limit string) ([]byte, []byte) {
 		fullLimit = util.PrefixRangeLimit(fullLimit)
 	}
 	return []byte(fullStart), []byte(fullLimit)
+}
+
+type BatchType int
+
+const (
+	BatchTypeSn BatchType = iota // snapshot
+	BatchTypeTx                  // transaction
+)
+
+// JoinBatchInfo encodes batch type and id into a single "info" string.
+func JoinBatchInfo(batchType BatchType, batchId uint64) string {
+	return strings.Join([]string{strconv.Itoa(int(batchType)), strconv.FormatUint(batchId, 10)}, BatchSep)
+}
+
+// SplitBatchInfo is the inverse of JoinBatchInfo.
+func SplitBatchInfo(batchInfo string) (BatchType, uint64, error) {
+	parts := strings.Split(batchInfo, BatchSep)
+	if len(parts) != 2 {
+		return BatchTypeSn, 0, verror.New(verror.ErrBadArg, nil, batchInfo)
+	}
+	batchTypeInt, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return BatchTypeSn, 0, err
+	}
+	batchType := BatchType(batchTypeInt)
+	if batchType != BatchTypeSn && batchType != BatchTypeTx {
+		return BatchTypeSn, 0, verror.New(verror.ErrBadArg, nil, batchInfo)
+	}
+	batchId, err := strconv.ParseUint(parts[1], 0, 64)
+	if err != nil {
+		return BatchTypeSn, 0, err
+	}
+	return batchType, batchId, nil
 }

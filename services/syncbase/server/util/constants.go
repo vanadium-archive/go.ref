@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-// TODO(sadovsky): Consider using shorter strings.
-
 // Constants related to storage engine keys.
+// Note, these are persisted and therefore must not be modified.
+// Below, they are ordered lexicographically by value.
 const (
 	AppPrefix      = "$app"
 	ClockPrefix    = "$clock"
@@ -23,26 +23,48 @@ const (
 	SyncPrefix     = "$sync"
 	TablePrefix    = "$table"
 	VersionPrefix  = "$version"
+
+	// TODO(sadovsky): Changing these prefixes breaks various tests. Tests
+	// generally shouldn't depend on the values of these constants.
+	/*
+		AppPrefix      = "a"
+		ClockPrefix    = "c"
+		DatabasePrefix = "d"
+		DbInfoPrefix   = "i"
+		LogPrefix      = "l"
+		PermsPrefix    = "p"
+		RowPrefix      = "r"
+		ServicePrefix  = "s"
+		TablePrefix    = "t"
+		VersionPrefix  = "v"
+		SyncPrefix     = "y"
+	*/
+
+	// Separator for parts of storage engine keys.
+	// TODO(sadovsky): Allow ":" in names and use a different separator here.
+	KeyPartSep = ":"
+
+	// PrefixRangeLimitSuffix is a key suffix that indicates the end of a prefix
+	// range. Must be greater than any character allowed in client-provided keys.
+	PrefixRangeLimitSuffix = "\xff"
 )
 
 // Constants related to object names.
 const (
-	// Service object name suffix for Syncbase-to-Syncbase RPCs.
-	SyncbaseSuffix = "$sync"
+	// Object name component for Syncbase-to-Syncbase (sync) RPCs.
+	// Sync object names have the form:
+	//     <syncbase>/@@sync/...
+	SyncbaseSuffix = "@@sync"
 	// Separator for batch info in database names.
-	BatchSep = ":"
-	// Separator for parts of storage engine keys.
-	KeyPartSep = ":"
-	// PrefixRangeLimitSuffix is the suffix of a key which indicates the end of
-	// a prefix range. Should be more than any regular key in the store.
-	// TODO(rogulenko): Change this constant to something out of the UTF8 space.
-	PrefixRangeLimitSuffix = "~"
+	// Batch object names have the form:
+	//     <syncbase>/<app>/$/<database>@@<batchInfo>/...
+	BatchSep = "@@"
 )
 
 // Constants related to syncbase clock.
 const (
-	// The pool.ntp.org project is a big virtual cluster of timeservers
-	// providing reliable easy to use NTP service for millions of clients.
+	// The pool.ntp.org project is a big virtual cluster of timeservers,
+	// providing reliable, easy-to-use NTP service for millions of clients.
 	// See more at http://www.pool.ntp.org/en/
 	NtpServerPool            = "pool.ntp.org"
 	NtpSampleCount           = 15

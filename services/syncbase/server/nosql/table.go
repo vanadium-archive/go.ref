@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"v.io/v23/context"
-	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
@@ -30,6 +29,8 @@ var (
 
 ////////////////////////////////////////
 // RPC methods
+
+// TODO(sadovsky): Implement Glob__ or GlobChildren__.
 
 func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int32, perms access.Permissions) error {
 	if t.d.batchId != nil {
@@ -313,26 +314,6 @@ func (t *tableReq) DeletePermissions(ctx *context.T, call rpc.ServerCall, schema
 		}
 	} else {
 		return store.RunInTransaction(t.d.st, impl)
-	}
-}
-
-func (t *tableReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
-	impl := func(sntx store.SnapshotOrTransaction, closeSntx func() error) error {
-		// Check perms.
-		if err := t.checkAccess(ctx, call, sntx, ""); err != nil {
-			closeSntx()
-			return err
-		}
-		// TODO(rogulenko): Check prefix permissions for children.
-		return util.Glob(ctx, call, matcher, sntx, closeSntx, util.JoinKeyParts(util.RowPrefix, t.name))
-	}
-	if t.d.batchId != nil {
-		return impl(t.d.batchReader(), func() error {
-			return nil
-		})
-	} else {
-		sn := t.d.st.NewSnapshot()
-		return impl(sn, sn.Abort)
 	}
 }
 
