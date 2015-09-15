@@ -12,9 +12,11 @@ import (
 	"testing"
 
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
 )
 
 func TestMain(m *testing.M) {
 	test.Init()
+	modules.DispatchAndExitIfChild()
 	os.Exit(m.Run())
 }

@@ -8,12 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"v.io/x/lib/cmdline"
+	"v.io/x/ref/test/v23tests"
 )
 
 const (
@@ -25,18 +24,15 @@ const (
 
 // Compares generated VDL files against the copy in the repo.
 func TestVDLGenerator(t *testing.T) {
+	testEnv := v23tests.New(t)
+	defer testEnv.Cleanup()
+	vdlBin := testEnv.BuildGoPkg("v.io/x/ref/cmd/vdl")
+
 	// Use vdl to generate Go code from input, into a temporary directory.
-	outDir, err := ioutil.TempDir("", "vdltest")
-	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
-	}
-	defer os.RemoveAll(outDir)
+	outDir := testEnv.NewTempDir("")
 	// TODO(toddw): test the generated java and javascript files too.
 	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
-	env := cmdline.EnvFromOS()
-	if err := cmdline.ParseAndRun(cmdVDL, env, []string{"generate", "--lang=go", outOpt, testDir}); err != nil {
-		t.Fatalf("Execute() failed: %v", err)
-	}
+	vdlBin.Run("generate", "--lang=go", outOpt, testDir)
 	// Check that each *.vdl.go file in the testDir matches the generated output.
 	entries, err := ioutil.ReadDir(testDir)
 	if err != nil {
