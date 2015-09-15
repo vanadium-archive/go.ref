@@ -234,6 +234,10 @@ func setCredentialsEnv(cmd *exec.Cmd) {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", ref.EnvCredentials, creds))
 	} else if agentCreds := os.Getenv(ref.EnvAgentEndpoint); len(agentCreds) > 0 {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", ref.EnvAgentEndpoint, agentCreds))
+	} else if agentCreds := os.Getenv(ref.EnvAgentPath); len(agentCreds) > 0 {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", ref.EnvAgentPath, agentCreds))
+	} else {
+		fmt.Fprintf(os.Stderr, "WARNING: no credentials found. You'll probably have authorization issues later on.\n")
 	}
 }
 
