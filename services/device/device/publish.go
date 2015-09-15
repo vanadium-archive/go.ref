@@ -140,8 +140,7 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 	// TODO(caprita): use the profile detection machinery and/or let user
 	// specify the profile by hand.
 	profile := fmt.Sprintf("%s-%s", goosFlag, goarchFlag)
-	// TODO(caprita): use a label e.g. "prod" instead of "0".
-	appVON := naming.Join(applicationService, envelopeName, "0")
+	appVON := naming.Join(applicationService, envelopeName)
 	appClient := repository.ApplicationClient(appVON)
 	envelope, err := appClient.Match(ctx, []string{profile})
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
@@ -173,8 +172,16 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 		envelope.Binary.Signature = security.Signature{}
 		envelope.Publisher = security.Blessings{}
 	}
-
-	if err := appClient.Put(ctx, profile, envelope, true); err != nil {
+	appVON = naming.Join(appVON, timestamp)
+	appClient = repository.ApplicationClient(appVON)
+	if err := appClient.Put(ctx, profile, envelope, false); err != nil {
+		// NOTE(caprita): We don't retry if an envelope already exists
+		// at the versioned name, as we do when uploading binaries.  In
+		// the case of binaries, it's likely that the same binary is
+		// uploaded more than once in a given second, due to apps
+		// sharing the same binary.  The scenarios where the same app is
+		// published repeatedly in a short time-frame are expected to be
+		// rare, and the operator can retry manually in such cases.
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "Published %q\n", appVON)

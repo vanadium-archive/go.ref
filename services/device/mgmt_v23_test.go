@@ -350,14 +350,14 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	// Allow publishers to create and update envelopes
 	deviceBin.Run("acl", "set", appDName, "root/a", "Read,Write,Resolve")
 
-	sampleAppName := appDName + "/testapp/0"
+	sampleAppName := appDName + "/testapp"
 	appPubName := "testbinaryd"
 	appEnvelopeFilename := filepath.Join(workDir, "app.envelope")
 	appEnvelope := fmt.Sprintf("{\"Title\":\"BINARYD\", \"Args\":[\"--name=%s\", \"--root-dir=./binstore\", \"--v23.tcp.address=127.0.0.1:0\", \"--http=127.0.0.1:0\"], \"Binary\":{\"File\":%q}, \"Env\":[]}", appPubName, sampleAppBinName)
 	ioutil.WriteFile(appEnvelopeFilename, []byte(appEnvelope), 0666)
 	defer os.Remove(appEnvelopeFilename)
 
-	output := applicationBin.Run("put", sampleAppName, deviceProfile, appEnvelopeFilename)
+	output := applicationBin.Run("put", sampleAppName+"/0", deviceProfile, appEnvelopeFilename)
 	if got, want := output, fmt.Sprintf("Application envelope added for profile %s.", deviceProfile); got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
