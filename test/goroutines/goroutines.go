@@ -19,6 +19,10 @@ import (
 var goroutineHeaderRE = regexp.MustCompile(`^goroutine (\d+) \[([^\]]+)\]:$`)
 var stackFileRE = regexp.MustCompile(`^\s+([^:]+):(\d+)(?: \+0x([0-9A-Fa-f]+))?$`)
 
+var ignoredGoroutines = []string{
+	"runtime.ensureSigM",
+}
+
 type Goroutine struct {
 	ID      int
 	State   string
@@ -55,9 +59,22 @@ func Parse(buf []byte) ([]*Goroutine, error) {
 		if err != nil {
 			return out, fmt.Errorf("Error %v parsing trace:\n%s", err, string(buf))
 		}
-		out = append(out, g)
+		if !shouldIgnore(g) {
+			out = append(out, g)
+		}
 	}
 	return out, scanner.Err()
+}
+
+func shouldIgnore(g *Goroutine) bool {
+	for _, ignored := range ignoredGoroutines {
+		for _, f := range g.Stack {
+			if strings.Contains(f.Call, ignored) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func parseGoroutine(scanner *bufio.Scanner) (*Goroutine, error) {

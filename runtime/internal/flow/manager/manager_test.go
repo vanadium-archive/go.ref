@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"strings"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -18,13 +19,17 @@ import (
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/goroutines"
 )
 
 func init() {
 	test.Init()
 }
 
+const leakWaitTime = 100 * time.Millisecond
+
 func TestDirectConnection(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -39,6 +44,7 @@ func TestDirectConnection(t *testing.T) {
 }
 
 func TestDialCachedConn(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -66,6 +72,7 @@ func TestDialCachedConn(t *testing.T) {
 }
 
 func TestBidirectionalListeningEndpoint(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 

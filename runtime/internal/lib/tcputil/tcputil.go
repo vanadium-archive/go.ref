@@ -92,6 +92,10 @@ func (ln *tcpListener) Addr() net.Addr {
 	return ln.netLn.Addr()
 }
 
+func (ln *tcpListener) Close() error {
+	return ln.netLn.Close()
+}
+
 func NewTCPConn(c net.Conn) flow.Conn {
 	return tcpConn{framer.New(c), c.LocalAddr()}
 }

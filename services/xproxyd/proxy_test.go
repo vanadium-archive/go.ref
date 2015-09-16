@@ -8,9 +8,11 @@ import (
 	"bufio"
 	"strings"
 	"testing"
+	"time"
 
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/xproxyd"
+	"v.io/x/ref/test/goroutines"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -20,7 +22,10 @@ import (
 	"v.io/v23/security"
 )
 
+const leakWaitTime = 100 * time.Millisecond
+
 func TestProxiedConnection(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
 	pctx, shutdown := v23.Init()
 	defer shutdown()
 	actx, am, err := v23.ExperimentalWithNewFlowManager(pctx)
@@ -41,6 +46,7 @@ func TestProxiedConnection(t *testing.T) {
 }
 
 func TestMultipleProxies(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
 	pctx, shutdown := v23.Init()
 	defer shutdown()
 	actx, am, err := v23.ExperimentalWithNewFlowManager(pctx)
