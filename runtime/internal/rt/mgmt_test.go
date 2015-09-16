@@ -328,6 +328,7 @@ func TestRemoteForceStop(t *testing.T) {
 // TestRemoteStop verifies that the child shuts down cleanly when sending it
 // a remote Stop rpc.
 func TestRemoteStop(t *testing.T) {
+	t.Skip("This test is flaky, enable it once it is fixed.")
 	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
 	stream, err := appCycle.Stop(ctx)
@@ -337,7 +338,7 @@ func TestRemoteStop(t *testing.T) {
 	rStream := stream.RecvStream()
 	expectTask := func(progress, goal int32) {
 		if !rStream.Advance() {
-			t.Fatalf("unexpected streaming error: %q", rStream.Err())
+			t.Fatalf("unexpected streaming error: %v", rStream.Err())
 		}
 		task := rStream.Value()
 		if task.Progress != progress || task.Goal != goal {
