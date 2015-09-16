@@ -42,7 +42,7 @@ By default the binary name is used as the name of the application envelope, and 
 title in the envelope. However, <envelope-name> and <title> can be specified explicitly
 using :<envelope-name> and @<title>.
 The binary is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>.
-The application envelope is published as <appserv>/<envelope-name>/0.
+The application envelope is published as <appserv>/<envelope-name>/<TIMESTAMP>.
 Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
 	ArgsName: "<binary name>[:<envelope-name>][@<title>] ...",
 }

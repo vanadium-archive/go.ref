@@ -429,8 +429,8 @@ the application envelope, and as the title in the envelope. However,
 <envelope-name> and <title> can be specified explicitly using :<envelope-name>
 and @<title>. The binary is published as <binserv>/<binary
 name>/<GOOS>-<GOARCH>/<TIMESTAMP>. The application envelope is published as
-<appserv>/<envelope-name>/0. Optionally, adds blessing patterns to the Read and
-Resolve AccessLists.
+<appserv>/<envelope-name>/<TIMESTAMP>. Optionally, adds blessing patterns to the
+Read and Resolve AccessLists.
 
 Usage:
    device publish [flags] <binary name>[:<envelope-name>][@<title>] ...
