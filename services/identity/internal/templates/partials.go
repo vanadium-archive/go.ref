@@ -107,9 +107,8 @@ var sidebarPartial = `{{define "sidebar"}}
   <div class="provider-info-section">
     <h5>Learn more</h5>
     <p>
-    Vanadium Concepts: <a href="https://v.io/concepts/security.html">Security</a><br>
-    <a href="https://v.io/tutorials/security">Tutorials</a><br>
-    <a href="https://v.io/tools/identity-service-faq.html">FAQ</a><br>
+    Vanadium Concepts: <a href="https://github.com/vanadium/docs/blob/master/concepts/security.md">Security</a><br>
+    <a href="https://github.com/vanadium/docs/blob/master/tools/identity-service-faq.md">FAQ</a><br>
     </p>
   </div>
 </section>

@@ -119,7 +119,7 @@ func init() {
 }
 
 func TestDeferHandling(t *testing.T) {
-	t.Skip("http://v.io/i/686 -- test is flaky in Go1.5")
+	t.Skip("https://v.io/i/686 -- test is flaky in Go1.5")
 	sh, _ := modules.NewShell(nil, nil, testing.Verbose(), t)
 	child, err := sh.Start(nil, RunIntegrationTestInChild, "--test.run=TestHelperProcess", "--v23.tests")
 	if err != nil {
