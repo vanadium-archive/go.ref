@@ -17,15 +17,23 @@ type ScanOp struct {
 
 // PutOp represents a store put operation.  The new version is written instead
 // of the value to avoid duplicating the user data in the store.  The version
-// is used to access the user data of that specific mutation.
+// is used to access the user data of that specific mutation.  The key and the
+// version of the permissions entry that was checked to allow this put operation
+// are also tracked to secure the access to this history.
 type PutOp struct {
-	Key     []byte
-	Version []byte
+	Key         []byte
+	Version     []byte
+	PermKey     []byte
+	PermVersion []byte
 }
 
-// DeleteOp represents a store delete operation.
+// DeleteOp represents a store delete operation.  The key and the version of the
+// permissions entry that was checked to allow this delete operation are also
+// tracked to secure the access to this history.
 type DeleteOp struct {
-	Key []byte
+	Key         []byte
+	PermKey     []byte
+	PermVersion []byte
 }
 
 // SyncGroupOp represents a change in SyncGroup tracking, adding or removing
@@ -43,9 +51,13 @@ type SyncGroupOp struct {
 // allows sync to initialize its metadata at the correct versions of the objects
 // when they become syncable.  These log entries should be filtered by the
 // client-facing Watch interface because the user data did not actually change.
+// The key and the version of the permissions entry that was checked when the
+// key was accessed are also tracked to secure the access to this history.
 type SyncSnapshotOp struct {
-	Key     []byte
-	Version []byte
+	Key         []byte
+	Version     []byte
+	PermKey     []byte
+	PermVersion []byte
 }
 
 // Op represents a store operation.

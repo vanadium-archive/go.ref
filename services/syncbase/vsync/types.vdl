@@ -84,3 +84,27 @@ type sgLocalState struct {
 	SyncPending   bool
 	PendingGenVec interfaces.PrefixGenVector
 }
+
+// dagNode holds the information on an object mutation in the DAG.  The node
+// information is extracted from the log records exchanged between Syncbases.
+// They are also stored in the DAG node to improve DAG traversal for conflict
+// resolution and pruning without having to fetch the full log record.
+type dagNode struct {
+	Level    uint64   // node distance from root
+	Parents  []string // references to parent versions
+	Logrec   string   // reference to log record
+	BatchId  uint64   // ID of a write batch
+	Shell    bool     // true when the data is hidden due to permissions
+	Deleted  bool     // true if the change was a delete
+	PermId   string   // ID of the permissions controlling this version
+	PermVers string   // current version of the permissions object
+}
+
+// batchInfo holds the information on a write batch:
+// - The map of syncable (versioned) objects: {oid: version}
+// - The total count of batch objects, including non-syncable ones.
+// TODO(rdaoud): add support to track the read and scan sets.
+type batchInfo struct {
+	Objects map[string]string
+	Count   uint64
+}

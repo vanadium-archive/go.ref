@@ -104,12 +104,48 @@ func (sgLocalState) __VDLReflect(struct {
 }) {
 }
 
+// dagNode holds the information on an object mutation in the DAG.  The node
+// information is extracted from the log records exchanged between Syncbases.
+// They are also stored in the DAG node to improve DAG traversal for conflict
+// resolution and pruning without having to fetch the full log record.
+type dagNode struct {
+	Level    uint64   // node distance from root
+	Parents  []string // references to parent versions
+	Logrec   string   // reference to log record
+	BatchId  uint64   // ID of a write batch
+	Shell    bool     // true when the data is hidden due to permissions
+	Deleted  bool     // true if the change was a delete
+	PermId   string   // ID of the permissions controlling this version
+	PermVers string   // current version of the permissions object
+}
+
+func (dagNode) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.dagNode"`
+}) {
+}
+
+// batchInfo holds the information on a write batch:
+// - The map of syncable (versioned) objects: {oid: version}
+// - The total count of batch objects, including non-syncable ones.
+// TODO(rdaoud): add support to track the read and scan sets.
+type batchInfo struct {
+	Objects map[string]string
+	Count   uint64
+}
+
+func (batchInfo) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.batchInfo"`
+}) {
+}
+
 func init() {
 	vdl.Register((*syncData)(nil))
 	vdl.Register((*localGenInfo)(nil))
 	vdl.Register((*dbSyncState)(nil))
 	vdl.Register((*localLogRec)(nil))
 	vdl.Register((*sgLocalState)(nil))
+	vdl.Register((*dagNode)(nil))
+	vdl.Register((*batchInfo)(nil))
 }
 
 const logPrefix = "log" // log state.

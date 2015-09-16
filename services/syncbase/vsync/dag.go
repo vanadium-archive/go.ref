@@ -110,30 +110,8 @@ const (
 	NoBatchId = uint64(0)
 )
 
-// dagNode holds the information on a object mutation in the DAG.
-// Note: the batch ID and deleted flag are copies of information in the log
-// record.  They are also stored in the DAG node to improve DAG traversal for
-// conflict resolution and pruning without having to fetch the full log record
-// every time.
-type dagNode struct {
-	Level   uint64   // node distance from root
-	Parents []string // references to parent versions
-	Logrec  string   // reference to log record
-	BatchId uint64   // ID of a write batch
-	Deleted bool     // true if the change was a delete
-}
-
 // batchSet holds information on a set of write batches.
 type batchSet map[uint64]*batchInfo
-
-// batchInfo holds the information on a write batch:
-// - The map of syncable (versioned) objects: {oid: version}
-// - The total count of batch objects, including non-syncable ones.
-// TODO(rdaoud): add support to track the read and scan sets.
-type batchInfo struct {
-	Objects map[string]string
-	Count   uint64
-}
 
 // graftMap holds the state of DAG node grafting (attaching) per object.
 type graftMap map[string]*graftInfo
