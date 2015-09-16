@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command dmrun runs a binary on a remote GCE instance using device manager.
+// Command dmrun runs a binary on a remote VM instance using device manager.
 //
-// dmrun creates the GCE instance, installs and starts device manager on it, and
+// dmrun creates the VM instance, installs and starts device manager on it, and
 // then installs and starts an app from the specified binary.
 //
 // dmrun uses the credentials it is running with in order to claim the device
@@ -35,12 +35,14 @@ import (
 	"time"
 
 	"v.io/x/ref"
+	"v.io/x/ref/services/device/dmrun/backend"
 )
 
 var (
 	workDir        string
 	vcloud         string
 	device         string
+	vm             backend.CloudVM
 	cleanupOnDeath func()
 )
 
@@ -148,39 +150,28 @@ func createArchive(files []string) string {
 	return zipFile
 }
 
-// setupInstance creates a new GCE instance and returns its name and IP address.
-func setupInstance() (string, string) {
+// setupInstance creates a new VM instance and returns its name and IP address.
+func setupInstance(vmOptions interface{}) (backend.CloudVM, string, string) {
 	currUser, err := user.Current()
 	dieIfErr(err, "Couldn't obtain current user")
 	instanceName := fmt.Sprintf("%s-%s", currUser.Username, time.Now().UTC().Format("20060102-150405"))
-	// TODO(caprita): Allow project and zone to be customized.
-	cmd := exec.Command(vcloud, "node", "create", "--project=google.com:veyron", "--zone=us-central1-c", instanceName)
-	output, err := cmd.CombinedOutput()
-	dieIfErr(err, "Setting up new GCE instance (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
-	cmd = exec.Command(vcloud, "list", "--project=google.com:veyron", "--noheader", "--fields=EXTERNAL_IP", instanceName)
-	output, err = cmd.CombinedOutput()
-	dieIfErr(err, "Listing instances (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
-	instanceIP := strings.TrimSpace(string(output))
-	if net.ParseIP(instanceIP) == nil {
-		die("Not a valid IP address: %v", instanceIP)
-	}
+	vm, err = backend.CreateCloudVM(instanceName, vmOptions)
+	dieIfErr(err, "VM Instance Creation Failed: %v", err)
+	instanceIP := vm.IP()
 	// Install unzip so we can unpack the archive.
 	// TODO(caprita): Use tar instead.
-	cmd = exec.Command(vcloud, "sh", "--project=google.com:veyron", instanceName, "sudo", "apt-get", "install", "unzip")
-	output, err = cmd.CombinedOutput()
-	dieIfErr(err, "Installing unzip (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
-	fmt.Println("Created GCE instance", instanceName, "with IP", instanceIP)
-	return instanceName, instanceIP
+	output, err := vm.RunCommand("sudo", "apt-get", "install", "unzip")
+	dieIfErr(err, "Installing unzip failed. Output:\n%v", string(output))
+	fmt.Println("Created VM instance", instanceName, "with IP", instanceIP)
+	return vm, instanceName, instanceIP
 }
 
-// installArchive ships the archive to the GCE instance and unpacks it.
+// installArchive ships the archive to the VM instance and unpacks it.
 func installArchive(archive, instance string) {
-	cmd := exec.Command("gcloud", "compute", "--project=google.com:veyron", "copy-files", archive, fmt.Sprintf("veyron@%s:/tmp/", instance), "--zone=us-central1-c")
-	output, err := cmd.CombinedOutput()
-	dieIfErr(err, "Copying archive (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
-	cmd = exec.Command(vcloud, "sh", "--project=google.com:veyron", instance, "unzip", path.Join("/tmp", filepath.Base(archive)), "-d", "/tmp/unpacked")
-	output, err = cmd.CombinedOutput()
-	dieIfErr(err, "Extracting archive (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
+	err := vm.CopyFile(archive, "/tmp/")
+	dieIfErr(err, "Copying archive failed: %v", err)
+	output, err := vm.RunCommand("unzip", path.Join("/tmp", filepath.Base(archive)), "-d", "/tmp/unpacked")
+	dieIfErr(err, "Extracting archive failed. Output:\n%v", string(output))
 }
 
 // installDevice installs and starts device manager, and returns the public key
@@ -188,12 +179,10 @@ func installArchive(archive, instance string) {
 func installDevice(instance string) (string, string) {
 	fmt.Println("Installing device manager...")
 	defer fmt.Println("Done installing device manager...")
-	cmd := exec.Command(vcloud, "sh", "--project=google.com:veyron", instance, "V23_DEVICE_DIR=/tmp/dm", "/tmp/unpacked/devicex", "install", "/tmp/unpacked", "--single_user", "--", "--v23.tcp.address=:8151", "--deviced-port=8150", "--proxy-port=8160", "--use-pairing-token")
-	output, err := cmd.CombinedOutput()
-	dieIfErr(err, "Installing device manager (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
-	cmd = exec.Command(vcloud, "sh", "--project=google.com:veyron", instance, "V23_DEVICE_DIR=/tmp/dm", "/tmp/unpacked/devicex", "start")
-	output, err = cmd.CombinedOutput()
-	dieIfErr(err, "Starting device manager (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
+	output, err := vm.RunCommand("V23_DEVICE_DIR=/tmp/dm", "/tmp/unpacked/devicex", "install", "/tmp/unpacked", "--single_user", "--", "--v23.tcp.address=:8151", "--deviced-port=8150", "--proxy-port=8160", "--use-pairing-token")
+	dieIfErr(err, "Installing device manager failed. Output:\n%v", string(output))
+	output, err = vm.RunCommand("V23_DEVICE_DIR=/tmp/dm", "/tmp/unpacked/devicex", "start")
+	dieIfErr(err, "Starting device manager failed. Output:\n%v", string(output))
 	// Grab the token and public key from the device manager log.
 	dieAfter := time.After(5 * time.Second)
 	firstIteration := true
@@ -207,9 +196,8 @@ func installDevice(instance string) (string, string) {
 		} else {
 			firstIteration = false
 		}
-		cmd = exec.Command(vcloud, "sh", "--project=google.com:veyron", instance, "cat", "/tmp/dm/dmroot/device-manager/logs/deviced.INFO")
-		output, err = cmd.CombinedOutput()
-		dieIfErr(err, "Reading device manager log (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
+		output, err = vm.RunCommand("cat", "/tmp/dm/dmroot/device-manager/logs/deviced.INFO")
+		dieIfErr(err, "Reading device manager log failed. Output:\n%v", string(output))
 		pairingTokenRE := regexp.MustCompile("Device manager pairing token: (.*)")
 		matches := pairingTokenRE.FindSubmatch(output)
 		if matches == nil {
@@ -301,21 +289,21 @@ func main() {
 	device = buildV23Binary(deviceBin)
 	dmBins := buildDMBinaries()
 	archive := createArchive(append(dmBins, getPath(devicexRepo, devicex)))
-	gceInstanceName, gceInstanceIP := setupInstance()
+	vmOpts := backend.VcloudVMOptions{VcloudBinary: vcloud}
+	vm, vmInstanceName, vmInstanceIP := setupInstance(vmOpts)
 	cleanupOnDeath = func() {
-		fmt.Fprintf(os.Stderr, "Deleting GCE instance ...\n")
-		cmd := exec.Command(vcloud, "node", "delete", "--project=google.com:veyron", "--zone=us-central1-c", gceInstanceName)
-		output, err := cmd.CombinedOutput()
+		fmt.Fprintf(os.Stderr, "Deleting VM instance ...\n")
+		err := vm.Delete()
 		fmt.Fprintf(os.Stderr, "Removing tmp files ...\n")
 		os.RemoveAll(workDir)
-		dieIfErr(err, "Deleting GCE instance (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
+		dieIfErr(err, "Deleting VM instance failed")
 	}
-	installArchive(archive, gceInstanceName)
-	publicKey, pairingToken := installDevice(gceInstanceName)
-	deviceAddr := net.JoinHostPort(gceInstanceIP, "8150")
+	installArchive(archive, vmInstanceName)
+	publicKey, pairingToken := installDevice(vmInstanceName)
+	deviceAddr := net.JoinHostPort(vmInstanceIP, "8150")
 	deviceName := "/" + deviceAddr
-	claimDevice(deviceName, gceInstanceIP, publicKey, pairingToken, gceInstanceName)
-	installationName := installApp(deviceName, gceInstanceIP)
+	claimDevice(deviceName, vmInstanceIP, publicKey, pairingToken, vmInstanceName)
+	installationName := installApp(deviceName, vmInstanceIP)
 	instanceName := startApp(installationName, "app")
 	fmt.Println("Launched app.")
 	fmt.Println("-------------")
@@ -325,6 +313,6 @@ func main() {
 	fmt.Printf("\t${V23_ROOT}/release/go/bin/debug glob %s/logs/*\n", instanceName)
 	fmt.Println("Dump e.g. the INFO log:")
 	fmt.Printf("\t${V23_ROOT}/release/go/bin/debug logs read %s/logs/app.INFO\n", instanceName)
-	fmt.Println("Clean up by deleting the GCE instance:")
-	fmt.Printf("\t${V23_ROOT}/release/go/bin/vcloud node delete --project=google.com:veyron --zone=us-central1-c %s\n", gceInstanceName)
+	fmt.Println("Clean up by deleting the VM instance:")
+	fmt.Printf("\t%s\n", vm.DeleteCommandForUser())
 }
