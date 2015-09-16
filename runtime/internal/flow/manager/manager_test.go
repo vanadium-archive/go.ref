@@ -31,7 +31,6 @@ const leakWaitTime = 100 * time.Millisecond
 func TestDirectConnection(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
-	defer shutdown()
 
 	rid := naming.FixedRoutingID(0x5555)
 	m := New(ctx, rid)
@@ -41,12 +40,14 @@ func TestDirectConnection(t *testing.T) {
 	}
 
 	testFlows(t, ctx, m, m, flowtest.BlessingsForPeer)
+
+	shutdown()
+	<-m.Closed()
 }
 
 func TestDialCachedConn(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
-	defer shutdown()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555))
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -69,12 +70,15 @@ func TestDialCachedConn(t *testing.T) {
 	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
+
+	shutdown()
+	<-am.Closed()
+	<-dm.Closed()
 }
 
 func TestBidirectionalListeningEndpoint(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
-	defer shutdown()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555))
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -88,29 +92,38 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
 	// Now am should be able to make a flow to dm even though dm is not listening.
 	testFlows(t, ctx, am, dm, flowtest.BlessingsForPeer)
+
+	shutdown()
+	<-am.Closed()
+	<-dm.Closed()
 }
 
 func TestNullClientBlessings(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
-	defer shutdown()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555))
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
-	dm := New(ctx, naming.NullRoutingID)
-	_, af := testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
+	nulldm := New(ctx, naming.NullRoutingID)
+	_, af := testFlows(t, ctx, nulldm, am, flowtest.BlessingsForPeer)
 	// Ensure that the remote blessings of the underlying conn of the accepted flow are zero.
 	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); !rBlessings.IsZero() {
 		t.Errorf("got %v, want zero-value blessings", rBlessings)
 	}
-	dm = New(ctx, naming.FixedRoutingID(0x1111))
+	dm := New(ctx, naming.FixedRoutingID(0x1111))
 	_, af = testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
 	// Ensure that the remote blessings of the underlying conn of the accepted flow are
 	// non-zero if we did specify a RoutingID.
 	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); rBlessings.IsZero() {
 		t.Errorf("got %v, want non-zero blessings", rBlessings)
 	}
+
+	shutdown()
+	<-am.Closed()
+	<-dm.Closed()
+	<-nulldm.Closed()
 }
 
 func testFlows(t *testing.T, ctx *context.T, dm, am flow.Manager, bFn flow.BlessingsForPeer) (df, af flow.Flow) {
