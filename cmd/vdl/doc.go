@@ -26,6 +26,9 @@ The vdl additional help topics are:
    vdl.config  Description of vdl.config files
 
 The vdl flags are:
+ -builtin_vdlroot=false
+   If V23_ROOT and VDLROOT are not set, use built-in VDL definitions for core
+   types
  -exts=.vdl
    Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false

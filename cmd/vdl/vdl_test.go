@@ -8,10 +8,12 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"v.io/x/lib/envvar"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -22,18 +24,7 @@ const (
 
 //go:generate v23 test generate
 
-// Compares generated VDL files against the copy in the repo.
-func TestVDLGenerator(t *testing.T) {
-	testEnv := v23tests.New(t)
-	defer testEnv.Cleanup()
-	vdlBin := testEnv.BuildGoPkg("v.io/x/ref/cmd/vdl")
-
-	// Use vdl to generate Go code from input, into a temporary directory.
-	outDir := testEnv.NewTempDir("")
-	// TODO(toddw): test the generated java and javascript files too.
-	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
-	vdlBin.Run("generate", "--lang=go", outOpt, testDir)
-	// Check that each *.vdl.go file in the testDir matches the generated output.
+func verifyOutput(t *testing.T, outDir string) {
 	entries, err := ioutil.ReadDir(testDir)
 	if err != nil {
 		t.Fatalf("ReadDir(%v) failed: %v", testDir, err)
@@ -61,4 +52,35 @@ func TestVDLGenerator(t *testing.T) {
 	if numEqual == 0 {
 		t.Fatalf("testDir %s has no golden files *.vdl.go", testDir)
 	}
+}
+
+// Compares generated VDL files against the copy in the repo.
+func TestVDLGenerator(t *testing.T) {
+	testEnv := v23tests.New(t)
+	defer testEnv.Cleanup()
+	vdlBin := testEnv.BuildGoPkg("v.io/x/ref/cmd/vdl")
+
+	// Use vdl to generate Go code from input, into a temporary directory.
+	outDir := testEnv.NewTempDir("")
+	// TODO(toddw): test the generated java and javascript files too.
+	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
+	vdlBin.Run("generate", "--lang=go", outOpt, testDir)
+	// Check that each *.vdl.go file in the testDir matches the generated output.
+	verifyOutput(t, outDir)
+}
+
+// Asserts that the VDL command can run to completion without VDLROOT or
+// V23_ROOT being set.
+func TestVDLGeneratorWithNoVDLRoot(t *testing.T) {
+	testEnv := v23tests.New(t)
+	defer testEnv.Cleanup()
+	vdlBin := testEnv.BuildGoPkg("v.io/x/ref/cmd/vdl")
+
+	outDir := testEnv.NewTempDir("")
+	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
+	env := envvar.SliceToMap(os.Environ())
+	env["V23_ROOT"] = ""
+	env["VDLROOT"] = ""
+	vdlBin.WithEnv(envvar.MapToSlice(env)...).Run("-v", "--builtin_vdlroot", "generate", "--lang=go", outOpt, testDir)
+	verifyOutput(t, outDir)
 }
