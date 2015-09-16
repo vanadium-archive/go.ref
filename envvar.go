@@ -4,8 +4,6 @@
 
 // Package ref defines constants used through the Vanadium reference
 // implementation, which is implemented in its subdirectories.
-//
-// For more details about the Vanadium project, please visit https://v.io.
 package ref
 
 import (
