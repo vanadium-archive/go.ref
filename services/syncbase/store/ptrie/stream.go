@@ -35,7 +35,7 @@ type dfsStackElement struct {
 // A nil node is treated as an empty ptrie.
 func (node *pnode) Scan(start, limit []byte) *Stream {
 	if node == nil {
-		node = &pnode{}
+		return &Stream{}
 	}
 	s := &Stream{
 		limit: store.CopyBytes(nil, limit),
