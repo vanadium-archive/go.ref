@@ -9,7 +9,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
@@ -45,8 +44,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		// successfully started.
 		return handle.SetReady()
 	}
-	listenSpec, err := getListenSpec(ctx, handle)
-	if err != nil {
+	if ctx, err = setListenSpec(ctx, rt, handle); err != nil {
 		return err
 	}
 	var serverOpts []rpc.ServerOpt
@@ -57,19 +55,11 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		serverBlessing := rt.GetPrincipal(ctx).BlessingStore().ForPeer(parentPeerPattern)
 		serverOpts = append(serverOpts, options.ServerBlessings{Blessings: serverBlessing})
 	}
-	server, err := rt.NewServer(ctx, serverOpts...)
+	_, server, err := rt.WithNewServer(ctx, "", v23.GetAppCycle(ctx).Remote(), nil, serverOpts...)
 	if err != nil {
 		return err
 	}
-	eps, err := server.Listen(*listenSpec)
-	if err != nil {
-		return err
-	}
-	if err := server.Serve("", v23.GetAppCycle(ctx).Remote(), nil); err != nil {
-		server.Stop()
-		return err
-	}
-	err = rt.callbackToParent(ctx, parentName, naming.JoinAddressName(eps[0].String(), ""))
+	err = rt.callbackToParent(ctx, parentName, server.Status().Endpoints[0].Name())
 	if err != nil {
 		server.Stop()
 		return err
@@ -77,7 +67,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	return handle.SetReady()
 }
 
-func getListenSpec(ctx *context.T, handle *exec.ChildHandle) (*rpc.ListenSpec, error) {
+func setListenSpec(ctx *context.T, rt *Runtime, handle *exec.ChildHandle) (*context.T, error) {
 	protocol, err := handle.Config.Get(mgmt.ProtocolConfigKey)
 	if err != nil {
 		return nil, err
@@ -93,7 +83,7 @@ func getListenSpec(ctx *context.T, handle *exec.ChildHandle) (*rpc.ListenSpec, e
 	if address == "" {
 		return nil, verror.New(errConfigKeyNotSet, ctx, mgmt.AddressConfigKey)
 	}
-	return &rpc.ListenSpec{Addrs: rpc.ListenAddrs{{protocol, address}}}, nil
+	return rt.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{protocol, address}}}), nil
 }
 
 func (rt *Runtime) callbackToParent(ctx *context.T, parentName, myName string) error {

@@ -260,8 +260,7 @@ func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
 	return inaming.NewEndpoint(ep)
 }
 
-func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.DeprecatedServer, error) {
-	defer apilog.LogCallf(ctx, "opts...=%v", opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+func (r *Runtime) newServer(ctx *context.T, opts ...rpc.ServerOpt) (irpc.DeprecatedServer, error) {
 	// Create a new RoutingID (and StreamManager) for each server.
 	sm, err := newStreamManager(ctx)
 	if err != nil {
@@ -615,7 +614,7 @@ func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{},
 		}
 		return newctx, s, nil
 	}
-	s, err := r.NewServer(ctx, opts...)
+	s, err := r.newServer(ctx, opts...)
 	if err != nil {
 		return ctx, nil, err
 	}
@@ -646,7 +645,7 @@ func (r *Runtime) WithNewDispatchingServer(ctx *context.T, name string, disp rpc
 		return newctx, s, nil
 	}
 
-	s, err := r.NewServer(ctx, opts...)
+	s, err := r.newServer(ctx, opts...)
 	if err != nil {
 		return ctx, nil, err
 	}

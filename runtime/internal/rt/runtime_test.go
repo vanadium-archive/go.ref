@@ -10,67 +10,51 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/options"
+	"v.io/v23/rpc"
 
-	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/runtime/internal/rt"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/debug/debuglib"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
-// initForTest creates a context for use in a test.
-func initForTest(t *testing.T) (*rt.Runtime, *context.T, v23.Shutdown) {
-	ctx, cancel := context.RootContext()
-	r, ctx, shutdown, err := rt.Init(ctx, nil, nil, nil, nil, "", flags.RuntimeFlags{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ctx, err = r.WithPrincipal(ctx, testutil.NewPrincipal("test-blessing")); err != nil {
-		t.Fatal(err)
-	}
-	return r, ctx, func() {
-		cancel()
-		shutdown()
-	}
-}
+type fakeServer struct{}
 
-func TestNewServer(t *testing.T) {
-	r, ctx, shutdown := initForTest(t)
+func (*fakeServer) Foo(ctx *context.T, call rpc.ServerCall) error { return nil }
+
+func TestWithNewServer(t *testing.T) {
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	// Use options.SecurityNone to avoid calling back into the
-	// v23 runtime, which is not setup in these tests.
-	// TODO(cnicolaou): this can be undone when the security agent
-	// no longer uses rpc as its communication mechanism.
-	if s, err := r.NewServer(ctx, options.SecurityNone); err != nil || s == nil {
+	if _, s, err := v23.WithNewServer(ctx, "", &fakeServer{}, nil); err != nil || s == nil {
 		t.Fatalf("Could not create server: %v", err)
 	}
 }
 
 func TestPrincipal(t *testing.T) {
-	r, ctx, shutdown := initForTest(t)
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	p2 := testutil.NewPrincipal()
-	c2, err := r.WithPrincipal(ctx, p2)
+	c2, err := v23.WithPrincipal(ctx, p2)
 	if err != nil {
 		t.Fatalf("Could not attach principal: %v", err)
 	}
 	if !c2.Initialized() {
 		t.Fatal("Got uninitialized context.")
 	}
-	if p2 != r.GetPrincipal(c2) {
+	if p2 != v23.GetPrincipal(c2) {
 		t.Fatal("The new principal should be attached to the context, but it isn't")
 	}
 }
 
 func TestClient(t *testing.T) {
-	r, ctx, shutdown := initForTest(t)
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	orig := r.GetClient(ctx)
+	orig := v23.GetClient(ctx)
 
-	c2, client, err := r.WithNewClient(ctx)
+	c2, client, err := v23.WithNewClient(ctx)
 	if err != nil || client == nil {
 		t.Fatalf("Could not create client: %v", err)
 	}
@@ -80,20 +64,20 @@ func TestClient(t *testing.T) {
 	if client == orig {
 		t.Fatal("Should have replaced the client but didn't")
 	}
-	if client != r.GetClient(c2) {
+	if client != v23.GetClient(c2) {
 		t.Fatal("The new client should be attached to the context, but it isn't")
 	}
 }
 
 func TestNamespace(t *testing.T) {
-	r, ctx, shutdown := initForTest(t)
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	orig := r.GetNamespace(ctx)
+	orig := v23.GetNamespace(ctx)
 	orig.CacheCtl(naming.DisableCache(true))
 
 	newroots := []string{"/newroot1", "/newroot2"}
-	c2, ns, err := r.WithNewNamespace(ctx, newroots...)
+	c2, ns, err := v23.WithNewNamespace(ctx, newroots...)
 	if err != nil || ns == nil {
 		t.Fatalf("Could not create namespace: %v", err)
 	}
@@ -103,7 +87,7 @@ func TestNamespace(t *testing.T) {
 	if ns == orig {
 		t.Fatal("Should have replaced the namespace but didn't")
 	}
-	if ns != r.GetNamespace(c2) {
+	if ns != v23.GetNamespace(c2) {
 		t.Fatal("The new namespace should be attached to the context, but it isn't")
 	}
 	newrootmap := map[string]bool{"/newroot1": true, "/newroot2": true}
@@ -122,30 +106,30 @@ func TestNamespace(t *testing.T) {
 }
 
 func TestBackgroundContext(t *testing.T) {
-	r, ctx, shutdown := initForTest(t)
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	bgctx := r.GetBackgroundContext(ctx)
+	bgctx := v23.GetBackgroundContext(ctx)
 
 	if bgctx == ctx {
 		t.Error("The background context should not be the same as the context")
 	}
 
-	bgctx2 := r.GetBackgroundContext(bgctx)
+	bgctx2 := v23.GetBackgroundContext(bgctx)
 	if bgctx != bgctx2 {
 		t.Error("Calling GetBackgroundContext a second time should return the same context.")
 	}
 }
 
 func TestReservedNameDispatcher(t *testing.T) {
-	r, ctx, shutdown := initForTest(t)
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	oldDebugDisp := r.GetReservedNameDispatcher(ctx)
+	oldDebugDisp := v23.GetReservedNameDispatcher(ctx)
 	newDebugDisp := debuglib.NewDispatcher(nil)
 
-	nctx := r.WithReservedNameDispatcher(ctx, newDebugDisp)
-	debugDisp := r.GetReservedNameDispatcher(nctx)
+	nctx := v23.WithReservedNameDispatcher(ctx, newDebugDisp)
+	debugDisp := v23.GetReservedNameDispatcher(nctx)
 
 	if debugDisp != newDebugDisp || debugDisp == oldDebugDisp {
 		t.Error("WithNewDebugDispatcher didn't update the context properly")
@@ -154,24 +138,24 @@ func TestReservedNameDispatcher(t *testing.T) {
 }
 
 func TestFlowManager(t *testing.T) {
-	r, ctx, shutdown := initForTest(t)
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	oldman := r.ExperimentalGetFlowManager(ctx)
+	oldman := v23.ExperimentalGetFlowManager(ctx)
 	if oldman == nil {
 		t.Error("ExperimentalGetFlowManager should have returned a non-nil value")
 	}
 	if rid := oldman.RoutingID(); rid != naming.NullRoutingID {
 		t.Errorf("Initial flow.Manager should have NullRoutingID, got %v", rid)
 	}
-	newctx, newman, err := r.ExperimentalWithNewFlowManager(ctx)
+	newctx, newman, err := v23.ExperimentalWithNewFlowManager(ctx)
 	if err != nil || newman == nil || newman == oldman {
 		t.Fatalf("Could not create flow manager: %v", err)
 	}
 	if !newctx.Initialized() {
 		t.Fatal("Got uninitialized context.")
 	}
-	man := r.ExperimentalGetFlowManager(newctx)
+	man := v23.ExperimentalGetFlowManager(newctx)
 	if man != newman || man == oldman {
 		t.Error("ExperimentalWithNewFlowManager didn't update the context properly")
 	}

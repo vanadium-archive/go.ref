@@ -96,6 +96,10 @@ func startMT(t *testing.T, sh *modules.Shell) string {
 	return s.ExpectVar("MT_NAME")
 }
 
+type fakeService struct{}
+
+func (f *fakeService) Foo(ctx *context.T, call rpc.ServerCall) error { return nil }
+
 func TestResolveToEndpoint(t *testing.T) {
 	setupRuntime()
 	ctx, shutdown := v23.Init()
@@ -117,7 +121,7 @@ func TestResolveToEndpoint(t *testing.T) {
 		t.Fatalf("ns.Mount failed: %s", err)
 	}
 
-	server, err := v23.NewServer(ctx)
+	_, server, err := v23.WithNewServer(ctx, "", &fakeService{}, nil)
 	if err != nil {
 		t.Fatalf("runtime.NewServer failed: %s", err)
 	}

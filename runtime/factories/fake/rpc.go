@@ -26,10 +26,6 @@ func (r *Runtime) GetClient(ctx *context.T) rpc.Client {
 	return c
 }
 
-func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.DeprecatedServer, error) {
-	defer apilog.LogCallf(ctx, "opts...=%v", opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
-}
 func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	panic("unimplemented")
