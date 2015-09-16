@@ -56,6 +56,74 @@ var (
 	errNoListeners               = reg(".errNoListeners", "failed to ceate any listeners{:3}")
 )
 
+type DeprecatedServer interface {
+	// Listen creates a listening network endpoint for the Server
+	// as specified by its ListenSpec parameter. If any of the listen
+	// addresses passed in the ListenSpec are 'unspecified' (e.g. don't
+	// include a fixed address such as in ":0") and the ListenSpec includes
+	// a Publisher, then 'roaming' support will be enabled. In this mode
+	// the server will listen for changes in the network configuration
+	// using a Stream created on the supplied Publisher and change the
+	// set of Endpoints it publishes to the mount table accordingly.
+	// The set of expected Settings received over the Stream is defined
+	// by the New<setting>Functions above. The Publisher is ignored if
+	// all of the addresses are specified.
+	//
+	// Listen may be called multiple times, but it must be called before
+	// Serve or ServeDispatcher.
+	//
+	// Listen returns the set of endpoints that can be used to reach
+	// this server. A single listen address in the ListenSpec can lead
+	// to multiple such endpoints (e.g. :0 on a device with multiple interfaces
+	// or that is being proxied). In the case where multiple listen addresses
+	// are used it is not possible to tell which listen address supports which
+	// Endpoint. If there is need to associate endpoints with specific
+	// listen addresses then Listen should be called separately for each one.
+	//
+	// Any non-nil value of error can be converted to a verror.E.  If
+	// error is nil and at least one address was supplied in the ListenSpec
+	// then ListenEndpoints will include at least one Endpoint.
+	Listen(spec rpc.ListenSpec) ([]naming.Endpoint, error)
+
+	// Serve associates object with name by publishing the address of this
+	// server with the mount table under the supplied name and using
+	// authorizer to authorize access to it. RPCs invoked on the supplied
+	// name will be delivered to methods implemented by the supplied object.
+	//
+	// Reflection is used to match requests to the object's method set.  As
+	// a special-case, if the object implements the Invoker interface, the
+	// Invoker is used to invoke methods directly, without reflection.
+	//
+	// If name is an empty string, no attempt will made to publish that
+	// name to a mount table.
+	//
+	// It is an error to call Serve if ServeDispatcher has already been
+	// called. It is also an error to call Serve multiple times.
+	// It is considered an error to call Listen after Serve.
+	Serve(name string, object interface{}, auth security.Authorizer) error
+
+	// ServeDispatcher associates dispatcher with the portion of the mount
+	// table's name space for which name is a prefix, by publishing the
+	// address of this dispatcher with the mount table under the supplied
+	// name.
+	//
+	// If name is an empty string, no attempt will made to publish that name
+	// to a mount table.
+	//
+	// RPCs invoked on the supplied name will be delivered to the supplied
+	// Dispatcher's Lookup method which will in turn return the object
+	// and security.Authorizer used to serve the actual RPC call.
+	// If name is an empty string, no attempt will made to publish that
+	// name to a mount table.
+	//
+	// It is an error to call ServeDispatcher if Serve has already been
+	// called. It is also an error to call ServeDispatcher multiple times.
+	// It is considered an error to call Listen after ServeDispatcher.
+	ServeDispatcher(name string, disp rpc.Dispatcher) error
+
+	rpc.Server
+}
+
 // state for each requested listen address
 type listenState struct {
 	protocol, address string
@@ -172,7 +240,7 @@ func (s *server) isStopState() bool {
 	return s.state == stopping || s.state == stopped
 }
 
-var _ rpc.DeprecatedServer = (*server)(nil)
+var _ DeprecatedServer = (*server)(nil)
 
 func InternalNewServer(
 	ctx *context.T,
@@ -181,7 +249,7 @@ func InternalNewServer(
 	settingsPublisher *pubsub.Publisher,
 	settingsName string,
 	client rpc.Client,
-	opts ...rpc.ServerOpt) (rpc.DeprecatedServer, error) {
+	opts ...rpc.ServerOpt) (DeprecatedServer, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.WithNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("rpc", "server", "routing-id", streamMgr.RoutingID().String())
