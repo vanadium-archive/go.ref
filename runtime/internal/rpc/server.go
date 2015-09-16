@@ -151,7 +151,7 @@ var (
 	}
 
 	externalStates = map[serverState]rpc.ServerState{
-		initialized: rpc.ServerInit,
+		initialized: rpc.ServerActive,
 		listening:   rpc.ServerActive,
 		serving:     rpc.ServerActive,
 		publishing:  rpc.ServerActive,

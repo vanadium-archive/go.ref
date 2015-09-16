@@ -154,7 +154,7 @@ func TestServerStatus(t *testing.T) {
 	defer server.Stop()
 
 	status := server.Status()
-	if got, want := status.State, rpc.ServerInit; got != want {
+	if got, want := status.State, rpc.ServerActive; got != want {
 		t.Fatalf("got %s, want %s", got, want)
 	}
 	server.Listen(rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}})
@@ -260,7 +260,7 @@ func TestServerStates(t *testing.T) {
 		}
 	}
 
-	expectState(rpc.ServerInit)
+	expectState(rpc.ServerActive)
 
 	// Need to call Listen first.
 	err = server.Serve("", &testServer{}, nil)
