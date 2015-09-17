@@ -32,17 +32,17 @@ func TestDirectConnection(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 
-	rid := naming.FixedRoutingID(0x5555)
-	m := New(ctx, rid)
-
-	if err := m.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+	am := New(ctx, naming.FixedRoutingID(0x5555))
+	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
+	dm := New(ctx, naming.FixedRoutingID(0x1111))
 
-	testFlows(t, ctx, m, m, flowtest.BlessingsForPeer)
+	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
 
 	shutdown()
-	<-m.Closed()
+	<-am.Closed()
+	<-dm.Closed()
 }
 
 func TestDialCachedConn(t *testing.T) {
@@ -84,10 +84,7 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
-	eps := am.ListeningEndpoints()
-	if len(eps) == 0 {
-		t.Fatalf("no endpoints listened on")
-	}
+
 	dm := New(ctx, naming.FixedRoutingID(0x1111))
 	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
 	// Now am should be able to make a flow to dm even though dm is not listening.
