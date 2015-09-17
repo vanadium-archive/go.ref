@@ -173,16 +173,30 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 	}
 	var epName string
 	if args.Device.ListenSpec.Proxy != "" {
-		for {
-			p := server.Status().Proxies
-			if len(p) == 0 {
+		if os.Getenv("V23_RPC_TRANSITION_STATE") == "xservers" {
+			for {
+				eps := server.Status().Endpoints
+				if len(eps) > 0 && len(eps[0].Addr().Network()) > 0 {
+					epName = eps[0].Name()
+					ctx.Infof("Proxied address: %s", epName)
+					break
+				}
 				ctx.Infof("Waiting for proxy address to appear...")
 				time.Sleep(time.Second)
-				continue
 			}
-			epName = p[0].Endpoint.Name()
-			ctx.Infof("Proxied address: %s", epName)
-			break
+		} else {
+			// TODO(suharshs): Remove this else block once the transition is complete.
+			for {
+				p := server.Status().Proxies
+				if len(p) == 0 {
+					ctx.Infof("Waiting for proxy address to appear...")
+					time.Sleep(time.Second)
+					continue
+				}
+				epName = p[0].Endpoint.Name()
+				ctx.Infof("Proxied address: %s", epName)
+				break
+			}
 		}
 	} else {
 		if len(endpoints) == 0 {

@@ -55,9 +55,6 @@ type xserver struct {
 	chosenEndpoints   []*inaming.Endpoint
 	typeCache         *typeCache
 
-	// state of proxies keyed by the name of the proxy
-	proxies map[string]proxyState
-
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       rpc.Dispatcher // dispatcher for reserved methods
 	active             sync.WaitGroup // active goroutines we've spawned.
@@ -103,7 +100,6 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 		principal:         principal,
 		blessings:         principal.BlessingStore().Default(),
 		publisher:         publisher.New(ctx, ns, publishPeriod),
-		proxies:           make(map[string]proxyState),
 		stoppedChan:       make(chan struct{}),
 		ns:                ns,
 		stats:             newRPCStats(statsPrefix),
@@ -247,10 +243,18 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
 	s.Lock()
 	defer s.Unlock()
 	var lastErr error
+	if len(listenSpec.Proxy) > 0 {
+		lastErr = s.flowMgr.Listen(ctx, inaming.Network, listenSpec.Proxy)
+		if lastErr != nil {
+			s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", inaming.Network, listenSpec.Proxy, lastErr)
+		}
+	}
 	for _, addr := range listenSpec.Addrs {
 		if len(addr.Address) > 0 {
 			lastErr = s.flowMgr.Listen(ctx, addr.Protocol, addr.Address)
-			s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, lastErr)
+			if lastErr != nil {
+				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, lastErr)
+			}
 		}
 	}
 
