@@ -64,11 +64,15 @@ func TestDialCachedConn(t *testing.T) {
 	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
+	old := dm.(*manager).cache.ridCache[am.RoutingID()]
 	// After dialing another connection the cache should still hold one connection
 	// because the connections should be reused.
 	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
 	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
-		t.Fatalf("got cache size %v, want %v", got, want)
+		t.Errorf("got cache size %v, want %v", got, want)
+	}
+	if c := dm.(*manager).cache.ridCache[am.RoutingID()]; c != old {
+		t.Errorf("got %v want %v", c, old)
 	}
 
 	shutdown()
