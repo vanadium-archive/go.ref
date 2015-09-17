@@ -26,6 +26,8 @@ import (
 	"v.io/x/ref/runtime/internal/rpc/version"
 )
 
+const reconnectDelay = 50 * time.Millisecond
+
 type manager struct {
 	rid    naming.RoutingID
 	closed chan struct{}
@@ -116,7 +118,6 @@ func (m *manager) proxyListen(ctx *context.T, address string) error {
 
 func (m *manager) connectToProxy(ctx *context.T, address string, ep naming.Endpoint) {
 	defer m.wg.Done()
-	reconnectDelay := 50 * time.Millisecond
 	for delay := reconnectDelay; ; delay *= 2 {
 		time.Sleep(delay - reconnectDelay)
 		select {
