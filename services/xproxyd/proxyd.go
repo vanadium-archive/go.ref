@@ -16,7 +16,7 @@ import (
 	"v.io/v23/naming"
 )
 
-// TODO(suharshs): Make sure that we don't leak any goroutines.
+const reconnectDelay = 50 * time.Millisecond
 
 type proxy struct {
 	m              flow.Manager
@@ -200,7 +200,6 @@ func (p *proxy) returnEndpoints(ctx *context.T, rid naming.RoutingID, route stri
 }
 
 func (p *proxy) connectToProxy(ctx *context.T, address string, ep naming.Endpoint) {
-	reconnectDelay := 50 * time.Millisecond
 	for delay := reconnectDelay; ; delay *= 2 {
 		time.Sleep(delay - reconnectDelay)
 		select {
