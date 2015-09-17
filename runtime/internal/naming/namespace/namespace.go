@@ -159,9 +159,9 @@ func notAnMT(err error) bool {
 	case verror.ErrBadArg.ID:
 		// This should cover "rpc: wrong number of in-args".
 		return true
-	case verror.ErrNoExist.ID, verror.ErrUnknownMethod.ID, verror.ErrUnknownSuffix.ID:
+	case verror.ErrNoExist.ID, verror.ErrUnknownMethod.ID, verror.ErrUnknownSuffix.ID, errNoServers.ID:
 		// This should cover "rpc: unknown method", "rpc: dispatcher not
-		// found", and dispatcher Lookup not found errors.
+		// found", dispatcher Lookup not found, and "No servers found to resolve query "errors.
 		return true
 	case verror.ErrBadProtocol.ID:
 		// This covers "rpc: response decoding failed: EOF".
