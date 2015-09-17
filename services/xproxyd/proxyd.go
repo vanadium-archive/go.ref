@@ -5,9 +5,9 @@
 package xproxyd
 
 import (
-	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -21,7 +21,7 @@ import (
 type proxy struct {
 	m              flow.Manager
 	mu             sync.Mutex
-	proxyEndpoints []naming.Endpoint
+	proxyEndpoints map[string][]naming.Endpoint // keyed by proxy address
 }
 
 func New(ctx *context.T) (*proxy, *context.T, error) {
@@ -30,7 +30,8 @@ func New(ctx *context.T) (*proxy, *context.T, error) {
 		return nil, nil, err
 	}
 	p := &proxy{
-		m: mgr,
+		m:              mgr,
+		proxyEndpoints: make(map[string][]naming.Endpoint),
 	}
 	for _, addr := range v23.GetListenSpec(ctx).Addrs {
 		if addr.Protocol == "v23" {
@@ -38,25 +39,7 @@ func New(ctx *context.T) (*proxy, *context.T, error) {
 			if err != nil {
 				return nil, nil, err
 			}
-			f, err := p.m.Dial(ctx, ep, proxyBlessingsForPeer{}.run)
-			if err != nil {
-				return nil, nil, err
-			}
-			// Send a byte telling the acceptor that we are a proxy.
-			if err := writeMessage(ctx, &message.MultiProxyRequest{}, f); err != nil {
-				return nil, nil, err
-			}
-			msg, err := readMessage(ctx, f)
-			if err != nil {
-				return nil, nil, err
-			}
-			m, ok := msg.(*message.ProxyResponse)
-			if !ok {
-				return nil, nil, NewErrUnexpectedMessage(ctx, fmt.Sprintf("%t", m))
-			}
-			p.mu.Lock()
-			p.proxyEndpoints = append(p.proxyEndpoints, m.Endpoints...)
-			p.mu.Unlock()
+			go p.connectToProxy(ctx, addr.Address, ep)
 		} else if err := p.m.Listen(ctx, addr.Protocol, addr.Address); err != nil {
 			return nil, nil, err
 		}
@@ -67,6 +50,16 @@ func New(ctx *context.T) (*proxy, *context.T, error) {
 
 func (p *proxy) ListeningEndpoints() []naming.Endpoint {
 	return p.m.ListeningEndpoints()
+}
+
+func (p *proxy) MultipleProxyEndpoints() []naming.Endpoint {
+	var eps []naming.Endpoint
+	p.mu.Lock()
+	for _, v := range p.proxyEndpoints {
+		eps = append(eps, v...)
+	}
+	p.mu.Unlock()
+	return eps
 }
 
 func (p *proxy) listenLoop(ctx *context.T) {
@@ -99,6 +92,7 @@ func (p *proxy) listenLoop(ctx *context.T) {
 func (p *proxy) startRouting(ctx *context.T, f flow.Flow, m *message.Setup) error {
 	fout, err := p.dialNextHop(ctx, f, m)
 	if err != nil {
+		f.Close()
 		return err
 	}
 	go p.forwardLoop(ctx, f, fout)
@@ -108,10 +102,9 @@ func (p *proxy) startRouting(ctx *context.T, f flow.Flow, m *message.Setup) erro
 
 func (p *proxy) forwardLoop(ctx *context.T, fin, fout flow.Flow) {
 	for {
-		_, err := io.Copy(fin, fout)
-		if err == io.EOF {
-			return
-		} else if err != nil {
+		if _, err := io.Copy(fin, fout); err != nil {
+			fin.Close()
+			fout.Close()
 			ctx.Errorf("f.Read failed: %v", err)
 			return
 		}
@@ -124,7 +117,10 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 		ep  naming.Endpoint
 		err error
 	)
-	if routes := m.PeerRemoteEndpoint.Routes(); len(routes) > 0 {
+	if ep, err = removeNetworkAddress(m.PeerRemoteEndpoint); err != nil {
+		return nil, err
+	}
+	if routes := ep.Routes(); len(routes) > 0 {
 		if err := rid.FromString(routes[0]); err != nil {
 			return nil, err
 		}
@@ -133,15 +129,13 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 		// TODO(suharshs): Make sure that the routingID from the route belongs to a
 		// connection that is stored in the manager's cache. (i.e. a Server has connected
 		// with the routingID before)
-		if ep, err = setEndpointRoutingID(m.PeerRemoteEndpoint, rid); err != nil {
+		if ep, err = setEndpointRoutingID(ep, rid); err != nil {
 			return nil, err
 		}
 		// Remove the read route from the setup message endpoint.
 		if m.PeerRemoteEndpoint, err = setEndpointRoutes(m.PeerRemoteEndpoint, routes[1:]); err != nil {
 			return nil, err
 		}
-	} else {
-		ep = m.PeerRemoteEndpoint
 	}
 	fout, err := p.m.Dial(ctx, ep, proxyBlessingsForPeer{}.run)
 	if err != nil {
@@ -175,7 +169,10 @@ func (p *proxy) replyToProxy(ctx *context.T, f flow.Flow) error {
 
 func (p *proxy) returnEndpoints(ctx *context.T, rid naming.RoutingID, route string) ([]naming.Endpoint, error) {
 	p.mu.Lock()
-	eps := append(p.m.ListeningEndpoints(), p.proxyEndpoints...)
+	eps := p.m.ListeningEndpoints()
+	for _, peps := range p.proxyEndpoints {
+		eps = append(eps, peps...)
+	}
 	p.mu.Unlock()
 	if len(eps) == 0 {
 		return nil, NewErrNotListening(ctx)
@@ -200,4 +197,43 @@ func (p *proxy) returnEndpoints(ctx *context.T, rid naming.RoutingID, route stri
 		eps[idx] = ep
 	}
 	return eps, nil
+}
+
+func (p *proxy) connectToProxy(ctx *context.T, address string, ep naming.Endpoint) {
+	reconnectDelay := 50 * time.Millisecond
+	for delay := reconnectDelay; ; delay *= 2 {
+		time.Sleep(delay - reconnectDelay)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		f, err := p.m.Dial(ctx, ep, proxyBlessingsForPeer{}.run)
+		if err != nil {
+			ctx.Error(err)
+			continue
+		}
+		// Send a byte telling the acceptor that we are a proxy.
+		if err := writeMessage(ctx, &message.MultiProxyRequest{}, f); err != nil {
+			ctx.Error(err)
+			continue
+		}
+		eps, err := readProxyResponse(ctx, f)
+		if err != nil {
+			ctx.Error(err)
+			continue
+		}
+		p.mu.Lock()
+		p.proxyEndpoints[address] = eps
+		p.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return
+		case <-f.Closed():
+			p.mu.Lock()
+			delete(p.proxyEndpoints, address)
+			p.mu.Unlock()
+			delay = reconnectDelay
+		}
+	}
 }

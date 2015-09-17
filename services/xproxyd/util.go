@@ -5,6 +5,8 @@
 package xproxyd
 
 import (
+	"fmt"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
@@ -12,6 +14,16 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 )
+
+func removeNetworkAddress(ep naming.Endpoint) (naming.Endpoint, error) {
+	_, _, routes, rid, bnames, mountable := getEndpointParts(ep)
+	opts := routes
+	opts = append(opts, bnames...)
+	opts = append(opts, rid)
+	opts = append(opts, mountable)
+	epString := naming.FormatEndpoint("", "", opts...)
+	return v23.NewEndpoint(epString)
+}
 
 // setEndpointRoutingID returns a copy of ep with RoutingId changed to rid.
 func setEndpointRoutingID(ep naming.Endpoint, rid naming.RoutingID) (naming.Endpoint, error) {
@@ -86,4 +98,16 @@ func readMessage(ctx *context.T, f flow.Flow) (message.Message, error) {
 		return nil, err
 	}
 	return message.Read(ctx, b)
+}
+
+func readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpoint, error) {
+	msg, err := readMessage(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	res, ok := msg.(*message.ProxyResponse)
+	if !ok {
+		return nil, NewErrUnexpectedMessage(ctx, fmt.Sprintf("%t", msg))
+	}
+	return res.Endpoints, nil
 }

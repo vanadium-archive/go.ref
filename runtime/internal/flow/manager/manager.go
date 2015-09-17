@@ -34,18 +34,20 @@ type manager struct {
 
 	mu              *sync.Mutex
 	listenEndpoints []naming.Endpoint
+	proxyEndpoints  map[string][]naming.Endpoint // keyed by proxy address
 	listeners       []flow.Listener
 	wg              sync.WaitGroup
 }
 
 func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 	m := &manager{
-		rid:       rid,
-		closed:    make(chan struct{}),
-		q:         upcqueue.New(),
-		cache:     NewConnCache(),
-		mu:        &sync.Mutex{},
-		listeners: []flow.Listener{},
+		rid:            rid,
+		closed:         make(chan struct{}),
+		q:              upcqueue.New(),
+		cache:          NewConnCache(),
+		mu:             &sync.Mutex{},
+		proxyEndpoints: make(map[string][]naming.Endpoint),
+		listeners:      []flow.Listener{},
 	}
 	go func() {
 		select {
@@ -72,28 +74,16 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 // The flow.Manager associated with ctx must be the receiver of the method,
 // otherwise an error is returned.
 func (m *manager) Listen(ctx *context.T, protocol, address string) error {
-	var (
-		eps []naming.Endpoint
-		err error
-	)
 	if protocol == inaming.Network {
-		eps, err = m.proxyListen(ctx, address)
-	} else {
-		eps, err = m.listen(ctx, protocol, address)
+		return m.proxyListen(ctx, address)
 	}
-	if err != nil {
-		return err
-	}
-	m.mu.Lock()
-	m.listenEndpoints = append(m.listenEndpoints, eps...)
-	m.mu.Unlock()
-	return nil
+	return m.listen(ctx, protocol, address)
 }
 
-func (m *manager) listen(ctx *context.T, protocol, address string) ([]naming.Endpoint, error) {
+func (m *manager) listen(ctx *context.T, protocol, address string) error {
 	ln, err := listen(ctx, protocol, address)
 	if err != nil {
-		return nil, flow.NewErrNetwork(ctx, err)
+		return flow.NewErrNetwork(ctx, err)
 	}
 	local := &inaming.Endpoint{
 		Protocol: protocol,
@@ -102,33 +92,70 @@ func (m *manager) listen(ctx *context.T, protocol, address string) ([]naming.End
 	}
 	m.mu.Lock()
 	if m.listeners == nil {
-		return nil, flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
+		return flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
 	}
 	m.listeners = append(m.listeners, ln)
 	m.mu.Unlock()
 	m.wg.Add(1)
 	go m.lnAcceptLoop(ctx, ln, local)
-	return []naming.Endpoint{local}, nil
+	m.mu.Lock()
+	m.listenEndpoints = append(m.listenEndpoints, local)
+	m.mu.Unlock()
+	return nil
 }
 
-func (m *manager) proxyListen(ctx *context.T, address string) ([]naming.Endpoint, error) {
+func (m *manager) proxyListen(ctx *context.T, address string) error {
 	ep, err := inaming.NewEndpoint(address)
 	if err != nil {
-		return nil, flow.NewErrBadArg(ctx, err)
+		return flow.NewErrBadArg(ctx, err)
 	}
-	f, err := m.internalDial(ctx, ep, proxyBlessingsForPeer{}.run, &proxyFlowHandler{ctx: ctx, m: m})
-	if err != nil {
-		return nil, flow.NewErrNetwork(ctx, err)
-	}
-	w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
-	if err != nil {
-		return nil, flow.NewErrBadArg(ctx, err)
-	}
-	if _, err := f.WriteMsg(w); err != nil {
-		return nil, flow.NewErrBadArg(ctx, err)
-	}
+	m.wg.Add(1)
+	go m.connectToProxy(ctx, address, ep)
+	return nil
+}
 
-	return m.readProxyResponse(ctx, f)
+func (m *manager) connectToProxy(ctx *context.T, address string, ep naming.Endpoint) {
+	defer m.wg.Done()
+	reconnectDelay := 50 * time.Millisecond
+	for delay := reconnectDelay; ; delay *= 2 {
+		time.Sleep(delay - reconnectDelay)
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		f, err := m.internalDial(ctx, ep, proxyBlessingsForPeer{}.run, &proxyFlowHandler{ctx: ctx, m: m})
+		if err != nil {
+			ctx.Error(err)
+			continue
+		}
+		w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
+		if err != nil {
+			ctx.Error(err)
+			continue
+		}
+		if _, err = f.WriteMsg(w); err != nil {
+			ctx.Error(err)
+			continue
+		}
+		eps, err := m.readProxyResponse(ctx, f)
+		if err != nil {
+			ctx.Error(err)
+			continue
+		}
+		m.mu.Lock()
+		m.proxyEndpoints[address] = eps
+		m.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return
+		case <-f.Closed():
+			m.mu.Lock()
+			delete(m.proxyEndpoints, address)
+			m.mu.Unlock()
+			delay = reconnectDelay
+		}
+	}
 }
 
 func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpoint, error) {
@@ -236,6 +263,9 @@ func (m *manager) ListeningEndpoints() []naming.Endpoint {
 	m.mu.Lock()
 	ret := make([]naming.Endpoint, len(m.listenEndpoints))
 	copy(ret, m.listenEndpoints)
+	for _, peps := range m.proxyEndpoints {
+		ret = append(ret, peps...)
+	}
 	m.mu.Unlock()
 	if len(ret) == 0 {
 		ret = append(ret, &inaming.Endpoint{RID: m.rid})
@@ -334,6 +364,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			fh,
 		)
 		if err != nil {
+			flowConn.Close()
 			if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
 				return nil, err
 			}
@@ -350,16 +381,17 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 
 	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
 	// return a flow on that corresponding conn.
-	if remote.RoutingID() != c.RemoteEndpoint().RoutingID() {
+	if proxyConn := c; remote.RoutingID() != proxyConn.RemoteEndpoint().RoutingID() {
 		c, err = conn.NewDialed(
 			ctx,
 			f,
-			c.LocalEndpoint(),
+			proxyConn.LocalEndpoint(),
 			remote,
 			version.Supported,
 			fh,
 		)
 		if err != nil {
+			proxyConn.Close(ctx, err)
 			if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
 				return nil, err
 			}
@@ -370,6 +402,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		}
 		f, err = c.Dial(ctx, fn)
 		if err != nil {
+			proxyConn.Close(ctx, err)
 			return nil, flow.NewErrDialFailed(ctx, err)
 		}
 	}
