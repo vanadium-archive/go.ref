@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	leakWaitTime = 100 * time.Millisecond
+	leakWaitTime = 250 * time.Millisecond
 	pollTime     = 50 * time.Millisecond
 )
 
