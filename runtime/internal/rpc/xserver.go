@@ -243,10 +243,16 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
 	s.Lock()
 	defer s.Unlock()
 	var lastErr error
+	var ep string
 	if len(listenSpec.Proxy) > 0 {
-		lastErr = s.flowMgr.Listen(ctx, inaming.Network, listenSpec.Proxy)
+		ep, lastErr = s.resolveToEndpoint(listenSpec.Proxy)
 		if lastErr != nil {
-			s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", inaming.Network, listenSpec.Proxy, lastErr)
+			s.ctx.VI(2).Infof("resolveToEndpoint(%q) failed: %v", listenSpec.Proxy, lastErr)
+		} else {
+			lastErr = s.flowMgr.Listen(ctx, inaming.Network, ep)
+			if lastErr != nil {
+				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", inaming.Network, ep, lastErr)
+			}
 		}
 	}
 	for _, addr := range listenSpec.Addrs {
