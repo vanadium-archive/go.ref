@@ -107,3 +107,10 @@ func appendBits(a []byte, bitlen uint32, b []byte) []byte {
 	a[bitlen>>3] = (bitmask & a[bitlen>>3]) | (^bitmask & oldByte)
 	return a
 }
+
+// copyBytes returns a copy of the provided slice.
+func copyBytes(slice []byte) []byte {
+	result := make([]byte, len(slice))
+	copy(result, slice)
+	return result
+}

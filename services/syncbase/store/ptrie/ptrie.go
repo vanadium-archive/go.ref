@@ -53,10 +53,6 @@
 // the current one.
 package ptrie
 
-import (
-	"v.io/x/ref/services/syncbase/store"
-)
-
 // T represents a ptrie.
 type T struct {
 	root        *pnode
@@ -164,6 +160,9 @@ func (node *pnode) delete(key []byte, makeCopy bool) *pnode {
 		return nil
 	}
 	newNode, _ := deleteInternal(node, 0, key, makeCopy)
+	if newNode.value == nil && newNode.child[0] == nil && newNode.child[1] == nil {
+		return nil
+	}
 	return newNode
 }
 
@@ -208,7 +207,7 @@ func putInternal(node *pnode, bitIndex uint32, key []byte, value interface{}, ma
 	//      o - newChild.node
 	newChild := &pchild{
 		node:   &pnode{value: value},
-		bitstr: store.CopyBytes(nil, key[(bitIndex+lcp)>>3:]),
+		bitstr: copyBytes(key[(bitIndex+lcp)>>3:]),
 		bitlen: bitlen(key) - bitIndex - lcp,
 	}
 	if child == nil {
@@ -224,7 +223,7 @@ func putInternal(node *pnode, bitIndex uint32, key []byte, value interface{}, ma
 	// Update the child of the node, i.e. the A part.
 	node.child[currBit] = &pchild{
 		node:   middleNode,
-		bitstr: store.CopyBytes(nil, child.bitstr[:((bitIndex&7)+lcp+7)>>3]),
+		bitstr: child.bitstr[:((bitIndex&7)+lcp+7)>>3],
 		bitlen: lcp,
 	}
 	// Pick the first bit on path C. Since C can be empty, we pick the first
@@ -233,11 +232,13 @@ func putInternal(node *pnode, bitIndex uint32, key []byte, value interface{}, ma
 	// Set the C part only if C is not empty.
 	if bitIndex+lcp < bitlen(key) {
 		middleNode.child[nextBit] = newChild
+	} else {
+		middleNode.value = value
 	}
 	// Set the B part.
 	middleNode.child[nextBit^1] = &pchild{
 		node:   child.node,
-		bitstr: store.CopyBytes(nil, child.bitstr[((bitIndex&7)+lcp)>>3:]),
+		bitstr: child.bitstr[((bitIndex&7)+lcp)>>3:],
 		bitlen: child.bitlen - lcp,
 	}
 	return node
@@ -249,15 +250,17 @@ func putInternal(node *pnode, bitIndex uint32, key []byte, value interface{}, ma
 // Invariant: the first bitIndex bits of the key represent the path from
 // the root to the current node.
 func getInternal(node *pnode, bitIndex uint32, key []byte) interface{} {
-	if bitlen(key) == bitIndex {
-		return node.value
+	keybitlen := bitlen(key)
+	for keybitlen > bitIndex {
+		child := node.child[getBit(key, bitIndex)]
+		lcp := bitLCP(child, key[bitIndex>>3:], bitIndex&7)
+		if child == nil || lcp != child.bitlen {
+			return nil
+		}
+		bitIndex += lcp
+		node = child.node
 	}
-	child := node.child[getBit(key, bitIndex)]
-	lcp := bitLCP(child, key[bitIndex>>3:], bitIndex&7)
-	if child == nil || lcp != child.bitlen {
-		return nil
-	}
-	return getInternal(child.node, bitIndex+lcp, key)
+	return node.value
 }
 
 // deleteInternal does a DFS through the ptrie to find a node corresponding to
@@ -315,6 +318,7 @@ func deleteInternal(node *pnode, bitIndex uint32, key []byte, makeCopy bool) (ne
 			child = newNode.child[1]
 		}
 		node.child[currBit].node = child.node
+		node.child[currBit].bitstr = copyBytes(node.child[currBit].bitstr)
 		node.child[currBit].bitstr = appendBits(node.child[currBit].bitstr, (bitIndex&7)+node.child[currBit].bitlen, child.bitstr)
 		node.child[currBit].bitlen += child.bitlen
 	} else {
