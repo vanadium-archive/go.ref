@@ -204,29 +204,37 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			ctx.Errorf("ln.Accept on localEP %v failed: %v", local, err)
 			return
 		}
+		cached := make(chan struct{})
 		c, err := conn.NewAccepted(
 			ctx,
 			flowConn,
 			local,
 			version.Supported,
-			&flowHandler{q: m.q},
+			&flowHandler{q: m.q, cached: cached},
 		)
 		if err != nil {
+			close(cached)
 			flowConn.Close()
 			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
 			continue
 		}
 		if err := m.cache.InsertWithRoutingID(c); err != nil {
-			ctx.VI(2).Infof("failed to cache conn %v: %v", c, err)
+			close(cached)
+			ctx.Errorf("failed to cache conn %v: %v", c, err)
 		}
+		close(cached)
 	}
 }
 
 type flowHandler struct {
-	q *upcqueue.T
+	q      *upcqueue.T
+	cached chan struct{}
 }
 
 func (h *flowHandler) HandleFlow(f flow.Flow) error {
+	if h.cached != nil {
+		<-h.cached
+	}
 	return h.q.Put(f)
 }
 
