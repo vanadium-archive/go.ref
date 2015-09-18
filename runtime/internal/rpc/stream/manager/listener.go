@@ -293,7 +293,7 @@ func (ln *netListener) DebugString() string {
 	ln.connsMu.Lock()
 	var vifs []*vif.VIF
 	if ln.vifs != nil {
-		vifs, ln.vifs = ln.vifs.List(), nil
+		vifs = ln.vifs.List()
 	}
 	ln.connsMu.Unlock()
 	if len(vifs) > 0 {

@@ -431,6 +431,7 @@ func TestStartTimeout(t *testing.T) {
 		pserver = testutil.NewPrincipal("server")
 		lopts   = []stream.ListenerOpt{vc.StartTimeout{Duration: startTime}}
 	)
+	defer server.Shutdown()
 
 	sctx, _ := v23.WithPrincipal(ctx, pserver)
 
@@ -452,10 +453,11 @@ func TestStartTimeout(t *testing.T) {
 	// Arrange for the above goroutine to exit when the test finishes.
 	defer ln.Close()
 
-	_, err = net.Dial(ep.Addr().Network(), ep.Addr().String())
+	conn, err := net.Dial(ep.Addr().Network(), ep.Addr().String())
 	if err != nil {
 		t.Fatalf("net.Dial failed: %v", err)
 	}
+	defer conn.Close()
 
 	// Trigger the start timers.
 	triggerTimers()
