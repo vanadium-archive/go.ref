@@ -56,7 +56,7 @@ func (f *flw) disableEncryption() {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) Read(p []byte) (n int, err error) {
-	f.conn.markUsed()
+	f.markUsed()
 	if n, err = f.q.read(f.ctx, p); err != nil {
 		f.close(f.ctx, err)
 	}
@@ -68,7 +68,7 @@ func (f *flw) Read(p []byte) (n int, err error) {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) ReadMsg() (buf []byte, err error) {
-	f.conn.markUsed()
+	f.markUsed()
 	// TODO(mattr): Currently we only ever release counters when some flow
 	// reads.  We may need to do it more or less often.  Currently
 	// we'll send counters whenever a new flow is opened.
@@ -86,7 +86,7 @@ func (f *flw) Write(p []byte) (n int, err error) {
 }
 
 func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
-	f.conn.markUsed()
+	f.markUsed()
 	sent := 0
 	var left []byte
 	err := f.worker.Run(f.ctx, func(tokens int) (int, bool, error) {
@@ -284,4 +284,10 @@ func (f *flw) close(ctx *context.T, err error) {
 func (f *flw) Close() error {
 	f.close(f.ctx, nil)
 	return nil
+}
+
+func (f *flw) markUsed() {
+	if f.id >= reservedFlows {
+		f.conn.markUsed()
+	}
 }
