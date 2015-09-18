@@ -26,7 +26,7 @@ func init() {
 	test.Init()
 }
 
-const leakWaitTime = 100 * time.Millisecond
+const leakWaitTime = 250 * time.Millisecond
 
 func TestDirectConnection(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
