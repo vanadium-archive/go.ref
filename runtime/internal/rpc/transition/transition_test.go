@@ -38,7 +38,7 @@ func TestTransitionToOld(t *testing.T) {
 
 	sp := testutil.NewPrincipal()
 	testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx)).Bless(sp, "server")
-	server, err := irpc.InternalNewServer(ctx, sm, v23.GetNamespace(ctx),
+	server, err := irpc.DeprecatedNewServer(ctx, sm, v23.GetNamespace(ctx),
 		nil, "", v23.GetClient(ctx))
 	if err != nil {
 		t.Fatal(err)

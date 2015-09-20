@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rpc
+package test
 
 import (
 	"io"
@@ -13,60 +13,40 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/rpc"
-
 	"v.io/x/ref/lib/stats"
-	"v.io/x/ref/runtime/internal/rpc/stream/manager"
-	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
+	irpc "v.io/x/ref/runtime/internal/rpc"
 	"v.io/x/ref/services/debug/debuglib"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
 func TestDebugServer(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
+
 	// Setup the client and server principals, with the client willing to share its
 	// blessing with the server.
 	var (
-		pclient = testutil.NewPrincipal("client")
-		pserver = testutil.NewPrincipal("server")
-		bclient = bless(pserver, pclient, "client") // server/client blessing.
-		sctx, _ = v23.WithPrincipal(ctx, pserver)
+		pclient = testutil.NewPrincipal()
 		cctx, _ = v23.WithPrincipal(ctx, pclient)
 	)
-	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.
-	pclient.BlessingStore().Set(bclient, "server") // Client presents bclient to server
-
+	idp := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
+	if err := idp.Bless(pclient, "client"); err != nil {
+		t.Fatal(err)
+	}
+	name := "testserver"
 	debugDisp := debuglib.NewDispatcher(nil)
-
-	sm := manager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
-
-	server, err := testInternalNewServer(sctx, sm, ns, ReservedNameDispatcher{debugDisp})
+	_, _, err := v23.WithNewServer(ctx, name, &testObject{}, nil,
+		irpc.ReservedNameDispatcher{debugDisp})
 	if err != nil {
-		t.Fatalf("InternalNewServer failed: %v", err)
-	}
-	defer server.Stop()
-	eps, err := server.Listen(listenSpec)
-	if err != nil {
-		t.Fatalf("server.Listen failed: %v", err)
-	}
-	if err := server.Serve("", &testObject{}, nil); err != nil {
-		t.Fatalf("server.Serve failed: %v", err)
+		t.Fatal(err)
 	}
 
-	client, err := InternalNewClient(sm, ns)
-	if err != nil {
-		t.Fatalf("InternalNewClient failed: %v", err)
-	}
-	defer client.Close()
-	ep := eps[0]
 	// Call the Foo method on ""
 	{
 		var value string
-		if err := client.Call(cctx, ep.Name(), "Foo", nil, []interface{}{&value}); err != nil {
+		if err := v23.GetClient(cctx).Call(cctx, name, "Foo", nil, []interface{}{&value}); err != nil {
 			t.Fatalf("client.Call failed: %v", err)
 		}
 		if want := "BAR"; value != want {
@@ -77,9 +57,9 @@ func TestDebugServer(t *testing.T) {
 	{
 		foo := stats.NewString("testing/foo")
 		foo.Set("The quick brown fox jumps over the lazy dog")
-		addr := naming.JoinAddressName(ep.String(), "__debug/stats/testing/foo")
+		fullname := naming.Join(name, "__debug/stats/testing/foo")
 		var value string
-		if err := client.Call(cctx, addr, "Value", nil, []interface{}{&value}, options.Preresolved{}); err != nil {
+		if err := v23.GetClient(cctx).Call(cctx, fullname, "Value", nil, []interface{}{&value}); err != nil {
 			t.Fatalf("client.Call failed: %v", err)
 		}
 		if want := foo.Value(); value != want {
@@ -98,8 +78,8 @@ func TestDebugServer(t *testing.T) {
 		{"__debug", "*", []string{"logs", "pprof", "stats", "vtrace"}},
 	}
 	for _, tc := range testcases {
-		addr := naming.JoinAddressName(ep.String(), tc.name)
-		call, err := client.StartCall(cctx, addr, rpc.GlobMethod, []interface{}{tc.pattern}, options.Preresolved{})
+		fullname := naming.Join(name, tc.name)
+		call, err := v23.GetClient(ctx).StartCall(cctx, fullname, rpc.GlobMethod, []interface{}{tc.pattern})
 		if err != nil {
 			t.Fatalf("client.StartCall failed for %q: %v", tc.name, err)
 		}

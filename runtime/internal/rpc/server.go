@@ -242,7 +242,7 @@ func (s *server) isStopState() bool {
 
 var _ DeprecatedServer = (*server)(nil)
 
-func InternalNewServer(
+func DeprecatedNewServer(
 	ctx *context.T,
 	streamMgr stream.Manager,
 	ns namespace.T,

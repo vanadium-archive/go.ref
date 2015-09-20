@@ -26,7 +26,7 @@ func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, flowMgr flow.
 	if ret.xc, err = NewXClient(ctx, flowMgr, ns, opts...); err != nil {
 		return nil, err
 	}
-	if ret.c, err = InternalNewClient(streamMgr, ns, opts...); err != nil {
+	if ret.c, err = DeprecatedNewClient(streamMgr, ns, opts...); err != nil {
 		ret.xc.Close()
 		return nil, err
 	}

@@ -14,13 +14,13 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/x/ref"
 	"v.io/x/ref/lib/security/securityflag"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
 	fmanager "v.io/x/ref/runtime/internal/flow/manager"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
-	"v.io/x/ref/runtime/internal/rt"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/benchmark"
 	"v.io/x/ref/test/testutil"
@@ -55,7 +55,7 @@ func benchmarkRPCConnection(b *testing.B) {
 	b.StopTimer()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rt.TransitionState >= rt.XServers {
+		if ref.RPCTransitionState() >= ref.XServers {
 			m := fmanager.New(nctx, naming.FixedRoutingID(0xc))
 			b.StartTimer()
 			_, err := m.Dial(nctx, serverEP, flowtest.BlessingsForPeer)

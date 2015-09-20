@@ -27,6 +27,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 
+	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/flags"
@@ -42,27 +43,6 @@ import (
 	imanager "v.io/x/ref/runtime/internal/rpc/stream/manager"
 	ivtrace "v.io/x/ref/runtime/internal/vtrace"
 )
-
-const (
-	None = iota
-	XClients
-	XServers
-)
-
-var TransitionState = None
-
-func init() {
-	switch ts := os.Getenv("V23_RPC_TRANSITION_STATE"); ts {
-	case "xclients":
-		TransitionState = XClients
-	case "xservers":
-		TransitionState = XServers
-	case "":
-		TransitionState = None
-	default:
-		panic("Unknown transition state: " + ts)
-	}
-}
 
 type contextKey int
 
@@ -288,7 +268,7 @@ func (r *Runtime) newServer(ctx *context.T, opts ...rpc.ServerOpt) (irpc.Depreca
 			Blessings: principal.BlessingStore().Default(),
 		})
 	}
-	server, err := irpc.InternalNewServer(ctx, sm, ns, id.settingsPublisher, id.settingsName, r.GetClient(ctx), otherOpts...)
+	server, err := irpc.DeprecatedNewServer(ctx, sm, ns, id.settingsPublisher, id.settingsName, r.GetClient(ctx), otherOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -442,11 +422,11 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	var err error
 	deps := []interface{}{vtraceDependency{}}
 
-	if fm != nil && TransitionState >= XClients {
+	if fm != nil && ref.RPCTransitionState() >= ref.XClients {
 		client, err = irpc.NewTransitionClient(ctx, sm, fm, ns, otherOpts...)
 		deps = append(deps, fm, sm)
 	} else {
-		client, err = irpc.InternalNewClient(sm, ns, otherOpts...)
+		client, err = irpc.DeprecatedNewClient(sm, ns, otherOpts...)
 		deps = append(deps, sm)
 	}
 
@@ -601,7 +581,7 @@ func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*cont
 
 func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	if TransitionState >= XServers {
+	if ref.RPCTransitionState() >= ref.XServers {
 		// TODO(mattr): Deal with shutdown deps.
 		newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
 		if err != nil {
@@ -631,7 +611,7 @@ func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{},
 
 func (r *Runtime) WithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	if TransitionState >= XServers {
+	if ref.RPCTransitionState() >= ref.XServers {
 		// TODO(mattr): Deal with shutdown deps.
 		newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
 		if err != nil {

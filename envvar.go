@@ -50,6 +50,11 @@ const (
 	// to the url of the OAuth identity provider used by the principal
 	// seekblessings command.
 	EnvOAuthIdentityProvider = "V23_OAUTH_IDENTITY_PROVIDER"
+
+	// RPCTransitionStateVar is a temporary variable that determines how far along we
+	// are in the transition from old to new RPC systems.  It should be removed
+	// when the transition is complete.
+	RPCTransitionStateVar = "V23_RPC_TRANSITION_STATE"
 )
 
 // EnvNamespaceRoots returns the set of namespace roots to be used by the
@@ -86,4 +91,25 @@ func EnvClearCredentials() error {
 		}
 	}
 	return nil
+}
+
+type TransitionState int
+
+const (
+	None TransitionState = iota
+	XClients
+	XServers
+)
+
+func RPCTransitionState() TransitionState {
+	switch ts := os.Getenv(RPCTransitionStateVar); ts {
+	case "xclients":
+		return XClients
+	case "xservers":
+		return XServers
+	case "":
+		return None
+	default:
+		panic("Unknown transition state: " + ts)
+	}
 }

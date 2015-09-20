@@ -21,30 +21,15 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/v23/vtrace"
-	"v.io/x/ref/lib/flags"
+	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/lib/publisher"
 	inaming "v.io/x/ref/runtime/internal/naming"
-	irpc "v.io/x/ref/runtime/internal/rpc"
-	imanager "v.io/x/ref/runtime/internal/rpc/stream/manager"
 	"v.io/x/ref/runtime/internal/rpc/stream/proxy"
-	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
-	ivtrace "v.io/x/ref/runtime/internal/vtrace"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
-
-func testContext() (*context.T, func()) {
-	ctx, shutdown := v23.Init()
-	ctx, _ = context.WithTimeout(ctx, 20*time.Second)
-	var err error
-	if ctx, err = ivtrace.Init(ctx, flags.VtraceFlags{}); err != nil {
-		panic(err)
-	}
-	ctx, _ = vtrace.WithNewTrace(ctx)
-	return ctx, shutdown
-}
 
 var proxyServer = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
@@ -86,24 +71,6 @@ var proxyServer = modules.Register(func(env *modules.Env, args ...string) error 
 	fmt.Fprintf(env.Stdout, "DONE\n")
 	return nil
 }, "")
-
-type testServer struct{}
-
-func (*testServer) Echo(_ *context.T, call rpc.ServerCall, arg string) (string, error) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "Echo", call.Suffix(), arg), nil
-}
-
-type testServerAuthorizer struct{}
-
-func (testServerAuthorizer) Authorize(*context.T, security.Call) error {
-	return nil
-}
-
-type testServerDisp struct{ server interface{} }
-
-func (t testServerDisp) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
-	return t.server, testServerAuthorizer{}, nil
-}
 
 type proxyHandle struct {
 	ns    namespace.T
@@ -166,33 +133,41 @@ func TestWSProxy(t *testing.T) {
 }
 
 func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
-	ctx, shutdown := testContext()
+	if ref.RPCTransitionState() >= ref.XServers {
+		// This test cannot pass under the new RPC system.  It expects
+		// to distinguish between proxy endpoints and non-proxy endpoints
+		// which the new system does not support.
+		t.SkipNow()
+	}
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	var (
-		pserver   = testutil.NewPrincipal("server")
-		pclient   = testutil.NewPrincipal("client")
+		pserver   = testutil.NewPrincipal()
+		pclient   = testutil.NewPrincipal()
 		serverKey = pserver.PublicKey()
-		// We use different stream managers for the client and server
-		// to prevent VIF re-use (in other words, we want to test VIF
-		// creation from both the client and server end).
-		smserver = imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
-		smclient = imanager.InternalNew(ctx, naming.FixedRoutingID(0x444444444))
-		ns       = tnaming.NewSimpleNamespace()
+		ns        = v23.GetNamespace(ctx)
 	)
-	defer smserver.Shutdown()
-	defer smclient.Shutdown()
-	client, err := irpc.InternalNewClient(smserver, ns)
+	idp := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
+	idp.Bless(pserver, "server")
+	idp.Bless(pclient, "client")
+	clientCtx, err := v23.WithPrincipal(ctx, pclient)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
-	serverCtx, _ := v23.WithPrincipal(ctx, pserver)
-	server, err := irpc.InternalNewServer(serverCtx, smserver, ns, nil, "", nil)
+	client := v23.GetClient(clientCtx)
+
+	serverCtx, err := v23.WithPrincipal(v23.WithListenSpec(ctx, spec), pserver)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer server.Stop()
+	_, server, err := v23.WithNewDispatchingServer(
+		serverCtx,
+		"mountpoint/server",
+		testServerDisp{&testServer{}})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// The client must recognize the server's blessings, otherwise it won't
 	// communicate with it.
@@ -228,16 +203,21 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 		t.Fatalf("failed to lookup proxy")
 	}
 
-	eps, err := server.Listen(spec)
+	proxyAddr, _ := naming.SplitAddressName(addrs[0])
+	proxyEP, err := inaming.NewEndpoint(proxyAddr)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := server.ServeDispatcher("mountpoint/server", testServerDisp{&testServer{}}); err != nil {
-		t.Fatal(err)
+		t.Fatalf("unexpected error for %q: %s", proxyEP, err)
 	}
 
+	// Proxy connetions are created asynchronously, so we wait for the
+	// expected number of endpoints to appear for the specified service name.
+	ch := make(chan struct{})
+	numNames := 1
+	if hasLocalListener {
+		numNames = 2
+	}
 	// Proxy connections are started asynchronously, so we need to wait..
-	waitForMountTable := func(ch chan int, expect int) {
+	go func() {
 		then := time.Now().Add(time.Minute)
 		for {
 			me, err := ns.Resolve(ctx, name)
@@ -247,64 +227,36 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 			for i, s := range me.Servers {
 				ctx.Infof("%d: %s", i, s)
 			}
-			if err == nil && len(me.Servers) == expect {
-				ch <- 1
+			if err == nil && len(me.Servers) == numNames {
+				close(ch)
 				return
 			}
 			if time.Now().After(then) {
-				t.Fatalf("timed out waiting for %d servers, found %d", expect, len(me.Servers))
+				t.Fatalf("timed out waiting for %d servers, found %d", numNames, len(me.Servers))
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
-	}
-	waitForServerStatus := func(ch chan int, proxy string) {
-		then := time.Now().Add(time.Minute)
-		for {
-			status := server.Status()
-			if len(status.Proxies) == 1 && status.Proxies[0].Proxy == proxy {
-				ch <- 2
-				return
-			}
-			if time.Now().After(then) {
-				t.Fatalf("timed out")
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-	proxyEP, _ := naming.SplitAddressName(addrs[0])
-	proxiedEP, err := inaming.NewEndpoint(proxyEP)
-	if err != nil {
-		t.Fatalf("unexpected error for %q: %s", proxyEP, err)
-	}
-	proxiedEP.RID = naming.FixedRoutingID(0x555555555)
-	proxiedEP.Blessings = []string{"server"}
-	expectedNames := []string{naming.JoinAddressName(proxiedEP.String(), "suffix")}
-	if hasLocalListener {
-		expectedNames = append(expectedNames, naming.JoinAddressName(eps[0].String(), "suffix"))
-	}
+	}()
 
-	// Proxy connetions are created asynchronously, so we wait for the
-	// expected number of endpoints to appear for the specified service name.
-	ch := make(chan int, 2)
-	go waitForMountTable(ch, len(expectedNames))
-	go waitForServerStatus(ch, spec.Proxy)
 	select {
 	case <-time.After(time.Minute):
 		t.Fatalf("timedout waiting for two entries in the mount table and server status")
-	case i := <-ch:
-		select {
-		case <-time.After(time.Minute):
-			t.Fatalf("timedout waiting for two entries in the mount table or server status")
-		case j := <-ch:
-			if !((i == 1 && j == 2) || (i == 2 && j == 1)) {
-				t.Fatalf("unexpected return values from waiters")
-			}
-		}
+	case <-ch:
 	}
 
 	status := server.Status()
-	if got, want := status.Proxies[0].Endpoint, proxiedEP; !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %q, want %q", got, want)
+	proxiedEP := status.Proxies[0].Endpoint
+	if proxiedEP.Network() != proxyEP.Network() ||
+		proxiedEP.Addr().String() != proxyEP.Addr().String() ||
+		proxiedEP.ServesMountTable() || proxiedEP.ServesLeaf() ||
+		proxiedEP.BlessingNames()[0] != "test-blessing/server" {
+		t.Fatalf("got %q, want (tcp, %s, s, test-blessing/server)",
+			proxiedEP, proxyEP.Addr().String())
+	}
+	expectedNames := []string{naming.JoinAddressName(proxiedEP.String(), "suffix")}
+	if hasLocalListener {
+		normalEP := status.Endpoints[0]
+		expectedNames = append(expectedNames, naming.JoinAddressName(normalEP.String(), "suffix"))
 	}
 
 	got := []string{}
@@ -322,7 +274,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 		// mount table, given that we're trying to test the proxy, we remove
 		// the local endpoint from the mount table entry!  We have to remove both
 		// the tcp and the websocket address.
-		sep := eps[0].String()
+		sep := status.Endpoints[0].String()
 		ns.Unmount(ctx, "mountpoint/server", sep)
 	}
 

@@ -93,7 +93,7 @@ type client struct {
 
 var _ rpc.Client = (*client)(nil)
 
-func InternalNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
+func DeprecatedNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
