@@ -34,6 +34,7 @@ func TestXClientServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
+	ctx = fake.SetFlowManager(ctx, manager.New(ctx, naming.FixedRoutingID(0x2)))
 	client, err := NewXClient(ctx, v23.ExperimentalGetFlowManager(ctx), v23.GetNamespace(ctx))
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
@@ -64,6 +65,7 @@ func TestXClientDispatchingServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
+	ctx = fake.SetFlowManager(ctx, manager.New(ctx, naming.FixedRoutingID(0x2)))
 	client, err := NewXClient(ctx, v23.ExperimentalGetFlowManager(ctx), v23.GetNamespace(ctx))
 	if err != nil {
 		t.Fatal(verror.DebugString(err))

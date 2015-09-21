@@ -327,6 +327,12 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.Blessings
 }
 
 func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer, fh conn.FlowHandler) (flow.Flow, error) {
+	// Disallow making connections to ourselves.
+	// TODO(suharshs): Figure out the right thing to do here. We could create a "localflow"
+	// that bypasses auth and is added to the accept queue immediately.
+	if remote.RoutingID() == m.rid {
+		return nil, flow.NewErrBadArg(ctx, NewErrManagerDialingSelf(ctx))
+	}
 	// Look up the connection based on RoutingID first.
 	c, err := m.cache.FindWithRoutingID(remote.RoutingID())
 	if err != nil {

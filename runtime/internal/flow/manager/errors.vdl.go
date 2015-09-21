@@ -21,6 +21,7 @@ var (
 	ErrCacheClosed               = verror.Register("v.io/x/ref/runtime/internal/flow/manager.CacheClosed", verror.NoRetry, "{1:}{2:} cache is closed")
 	ErrConnKilledToFreeResources = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ConnKilledToFreeResources", verror.NoRetry, "{1:}{2:} Connection killed to free resources.")
 	ErrInvalidProxyResponse      = verror.Register("v.io/x/ref/runtime/internal/flow/manager.InvalidProxyResponse", verror.NoRetry, "{1:}{2:} Invalid proxy response{:3}")
+	ErrManagerDialingSelf        = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ManagerDialingSelf", verror.NoRetry, "{1:}{2:} manager cannot be used to dial itself")
 )
 
 func init() {
@@ -30,6 +31,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCacheClosed.ID), "{1:}{2:} cache is closed")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnKilledToFreeResources.ID), "{1:}{2:} Connection killed to free resources.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidProxyResponse.ID), "{1:}{2:} Invalid proxy response{:3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrManagerDialingSelf.ID), "{1:}{2:} manager cannot be used to dial itself")
 }
 
 // NewErrUnknownProtocol returns an error with the ErrUnknownProtocol ID.
@@ -60,4 +62,9 @@ func NewErrConnKilledToFreeResources(ctx *context.T) error {
 // NewErrInvalidProxyResponse returns an error with the ErrInvalidProxyResponse ID.
 func NewErrInvalidProxyResponse(ctx *context.T, typ string) error {
 	return verror.New(ErrInvalidProxyResponse, ctx, typ)
+}
+
+// NewErrManagerDialingSelf returns an error with the ErrManagerDialingSelf ID.
+func NewErrManagerDialingSelf(ctx *context.T) error {
+	return verror.New(ErrManagerDialingSelf, ctx)
 }
