@@ -40,9 +40,11 @@ func doScan(ctx *context.T, scanCh <-chan *Advertisement, updateCh chan<- discov
 		select {
 		case ad := <-scanCh:
 			// TODO(jhahn): Merge scanData based on InstanceUuid.
-			// TODO(jhahn): Handle "Lost" case.
-			update := discovery.UpdateFound{
-				Value: discovery.Found{Service: ad.Service},
+			var update discovery.Update
+			if ad.Lost {
+				update = discovery.UpdateLost{discovery.Lost{Service: ad.Service}}
+			} else {
+				update = discovery.UpdateFound{discovery.Found{Service: ad.Service}}
 			}
 			updateCh <- update
 		case <-ctx.Done():

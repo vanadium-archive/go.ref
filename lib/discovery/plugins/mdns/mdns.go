@@ -191,8 +191,9 @@ func decodeAdvertisement(service mdns.ServiceInstance) (*ldiscovery.Advertisemen
 			InstanceUuid: instanceUuid,
 			Attrs:        make(discovery.Attributes),
 		},
+		Lost: len(service.SrvRRs) == 0 && len(service.TxtRRs) == 0,
 	}
-	// TODO(jhahn): Handle lost service.
+
 	for _, rr := range service.TxtRRs {
 		for _, txt := range rr.Txt {
 			kv := strings.SplitN(txt, "=", 2)

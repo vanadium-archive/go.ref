@@ -41,6 +41,7 @@ func TestBasic(t *testing.T) {
 		stops = append(stops, stop)
 	}
 
+	// Make sure all advertisements are discovered.
 	if err := scanAndMatch(ds, "v.io/v23/a", services[0]); err != nil {
 		t.Error(err)
 	}
@@ -54,16 +55,31 @@ func TestBasic(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Stop advertising the first service. Shouldn't affect the other.
-	stops[0]()
-	if err := scanAndMatch(ds, "v.io/v23/a"); err != nil {
+	// Open a new scan channel and consume expected advertisements first.
+	scan, scanStop, err := startScan(ds, "v.io/v23/a")
+	if err != nil {
 		t.Error(err)
 	}
+	defer scanStop()
+	update := <-scan
+	if !matchFound([]discovery.Update{update}, services[0]) {
+		t.Errorf("Unexpected scan: %v", update)
+	}
+
+	// Make sure scan returns the lost advertisement when advertising is stopped.
+	stops[0]()
+
+	update = <-scan
+	if !matchLost([]discovery.Update{update}, services[0]) {
+		t.Errorf("Unexpected scan: %v", update)
+	}
+
+	// Also it shouldn't affect the other.
 	if err := scanAndMatch(ds, "v.io/v23/b", services[1]); err != nil {
 		t.Error(err)
 	}
 
-	// Stop advertising the other. Now shouldn't discover any service.
+	// Stop advertising the remaining one; Shouldn't discover any service.
 	stops[1]()
 	if err := scanAndMatch(ds, ""); err != nil {
 		t.Error(err)
@@ -80,16 +96,26 @@ func advertise(ds discovery.Advertiser, services ...discovery.Service) (func(), 
 	return cancel, nil
 }
 
-func scan(ds discovery.Scanner, query string) ([]discovery.Update, error) {
-	ctx, _ := context.RootContext()
-	updateCh, err := ds.Scan(ctx, query)
+func startScan(ds discovery.Scanner, query string) (<-chan discovery.Update, func(), error) {
+	ctx, stop := context.RootContext()
+	scan, err := ds.Scan(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("Scan failed: %v", err)
+		return nil, nil, fmt.Errorf("Scan failed: %v", err)
 	}
+	return scan, stop, err
+}
+
+func scan(ds discovery.Scanner, query string) ([]discovery.Update, error) {
+	scan, stop, err := startScan(ds, query)
+	if err != nil {
+		return nil, err
+	}
+	defer stop()
+
 	var updates []discovery.Update
 	for {
 		select {
-		case update := <-updateCh:
+		case update := <-scan:
 			updates = append(updates, update)
 		case <-time.After(5 * time.Millisecond):
 			return updates, nil
@@ -97,15 +123,22 @@ func scan(ds discovery.Scanner, query string) ([]discovery.Update, error) {
 	}
 }
 
-func match(updates []discovery.Update, wants ...discovery.Service) bool {
+func match(updates []discovery.Update, lost bool, wants ...discovery.Service) bool {
 	for _, want := range wants {
 		matched := false
 		for i, update := range updates {
-			found, ok := update.(discovery.UpdateFound)
-			if !ok {
-				continue
+			var service discovery.Service
+			switch u := update.(type) {
+			case discovery.UpdateFound:
+				if !lost {
+					service = u.Value.Service
+				}
+			case discovery.UpdateLost:
+				if lost {
+					service = u.Value.Service
+				}
 			}
-			matched = reflect.DeepEqual(found.Value.Service, want)
+			matched = reflect.DeepEqual(service, want)
 			if matched {
 				updates = append(updates[:i], updates[i+1:]...)
 				break
@@ -116,6 +149,14 @@ func match(updates []discovery.Update, wants ...discovery.Service) bool {
 		}
 	}
 	return len(updates) == 0
+}
+
+func matchFound(updates []discovery.Update, wants ...discovery.Service) bool {
+	return match(updates, false, wants...)
+}
+
+func matchLost(updates []discovery.Update, wants ...discovery.Service) bool {
+	return match(updates, true, wants...)
 }
 
 func scanAndMatch(ds discovery.Scanner, query string, wants ...discovery.Service) error {
@@ -130,7 +171,7 @@ func scanAndMatch(ds discovery.Scanner, query string, wants ...discovery.Service
 		if err != nil {
 			return err
 		}
-		if match(updates, wants...) {
+		if matchFound(updates, wants...) {
 			return nil
 		}
 	}

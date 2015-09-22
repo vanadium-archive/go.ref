@@ -5,6 +5,7 @@
 package mock
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/pborman/uuid"
@@ -17,18 +18,22 @@ import (
 type plugin struct {
 	mu       sync.Mutex
 	services map[string][]*discovery.Advertisement // GUARDED_BY(mu)
+
+	updated *sync.Cond
 }
 
 func (p *plugin) Advertise(ctx *context.T, ad *discovery.Advertisement) error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	key := string(ad.ServiceUuid)
 	ads := p.services[key]
 	p.services[key] = append(ads, ad)
+	p.mu.Unlock()
+	p.updated.Broadcast()
+
 	go func() {
 		<-ctx.Done()
+
 		p.mu.Lock()
-		defer p.mu.Unlock()
 		ads := p.services[key]
 		for i, a := range ads {
 			if uuid.Equal(a.InstanceUuid, ad.InstanceUuid) {
@@ -41,24 +46,73 @@ func (p *plugin) Advertise(ctx *context.T, ad *discovery.Advertisement) error {
 		} else {
 			delete(p.services, key)
 		}
+		p.mu.Unlock()
+		p.updated.Broadcast()
 	}()
 	return nil
 }
 
 func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *discovery.Advertisement) error {
+	rescan := make(chan struct{})
 	go func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		for key, service := range p.services {
-			if len(serviceUuid) > 0 && key != string(serviceUuid) {
-				continue
+		for {
+			p.updated.L.Lock()
+			p.updated.Wait()
+			p.updated.L.Unlock()
+			select {
+			case rescan <- struct{}{}:
+			case <-ctx.Done():
+				return
 			}
-			for _, ad := range service {
+		}
+	}()
+
+	go func() {
+		scanned := make(map[string]*discovery.Advertisement)
+
+		for {
+			current := make(map[string]*discovery.Advertisement)
+			p.mu.Lock()
+			for key, ads := range p.services {
+				if len(serviceUuid) > 0 && key != string(serviceUuid) {
+					continue
+				}
+				for _, ad := range ads {
+					current[string(ad.InstanceUuid)] = ad
+				}
+			}
+			p.mu.Unlock()
+
+			changed := make([]*discovery.Advertisement, 0, len(current))
+			for key, ad := range current {
+				old, ok := scanned[key]
+				if !ok || !reflect.DeepEqual(old, ad) {
+					changed = append(changed, ad)
+				}
+			}
+			for key, ad := range scanned {
+				if _, ok := current[key]; !ok {
+					ad.Lost = true
+					changed = append(changed, ad)
+				}
+			}
+
+			// Push new changes.
+			for _, ad := range changed {
 				select {
 				case scanCh <- ad:
 				case <-ctx.Done():
 					return
 				}
+			}
+
+			scanned = current
+
+			// Wait the next update.
+			select {
+			case <-rescan:
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
@@ -66,5 +120,8 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *disc
 }
 
 func New() discovery.Plugin {
-	return &plugin{services: make(map[string][]*discovery.Advertisement)}
+	return &plugin{
+		services: make(map[string][]*discovery.Advertisement),
+		updated:  sync.NewCond(&sync.Mutex{}),
+	}
 }
