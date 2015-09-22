@@ -26,7 +26,10 @@ import (
 	"v.io/x/ref/runtime/internal/rpc/version"
 )
 
-const reconnectDelay = 50 * time.Millisecond
+const (
+	reconnectDelay    = 50 * time.Millisecond
+	reapCacheInterval = 5 * time.Minute
+)
 
 type manager struct {
 	rid    naming.RoutingID
@@ -52,19 +55,27 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 		listeners:      []flow.Listener{},
 	}
 	go func() {
-		select {
-		case <-ctx.Done():
-			m.mu.Lock()
-			listeners := m.listeners
-			m.listeners = nil
-			m.mu.Unlock()
-			for _, ln := range listeners {
-				ln.Close()
+		ticker := time.NewTicker(reapCacheInterval)
+		for {
+			select {
+			case <-ctx.Done():
+				m.mu.Lock()
+				listeners := m.listeners
+				m.listeners = nil
+				m.mu.Unlock()
+				for _, ln := range listeners {
+					ln.Close()
+				}
+				m.cache.Close(ctx)
+				m.q.Close()
+				m.wg.Wait()
+				ticker.Stop()
+				close(m.closed)
+				return
+			case <-ticker.C:
+				// Periodically kill closed connections.
+				m.cache.KillConnections(ctx, 0)
 			}
-			m.cache.Close(ctx)
-			m.q.Close()
-			m.wg.Wait()
-			close(m.closed)
 		}
 	}()
 	return m
