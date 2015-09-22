@@ -85,8 +85,8 @@ func (p *plugin) Advertise(ctx *context.T, ad *ldiscovery.Advertisement) error {
 		return err
 	}
 	stop := func() {
-		p.mdns.RemoveService(serviceName, hostName)
-		p.mdns.RemoveService(v23ServiceName, hostName)
+		p.mdns.RemoveService(serviceName, hostName, 0)
+		p.mdns.RemoveService(v23ServiceName, hostName, 0)
 	}
 	p.adStopper.Add(stop, ctx.Done())
 	return nil
@@ -101,10 +101,10 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *ldis
 	}
 
 	go func() {
+		// Subscribe to the service if not subscribed yet or if we haven't refreshed in a while.
 		p.subscriptionMu.Lock()
 		sub := p.subscription[serviceName]
 		sub.count++
-		// If we haven't refreshed in a while, do it now.
 		if time.Since(sub.lastSubscription) > p.subscriptionRefreshTime {
 			p.mdns.SubscribeToService(serviceName)
 			// Wait a bit to learn about neighborhood.
@@ -114,7 +114,10 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *ldis
 		p.subscription[serviceName] = sub
 		p.subscriptionMu.Unlock()
 
+		// Watch the membership changes.
+		watcher, stopWatcher := p.mdns.ServiceMemberWatch(serviceName)
 		defer func() {
+			stopWatcher()
 			p.subscriptionMu.Lock()
 			sub := p.subscription[serviceName]
 			sub.count--
@@ -127,9 +130,13 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *ldis
 			p.subscriptionMu.Unlock()
 		}()
 
-		// TODO(jhahn): Handle "Lost" case.
-		services := p.mdns.ServiceDiscovery(serviceName)
-		for _, service := range services {
+		for {
+			var service mdns.ServiceInstance
+			select {
+			case service = <-watcher:
+			case <-ctx.Done():
+				return
+			}
 			ad, err := decodeAdvertisement(service)
 			if err != nil {
 				ctx.Error(err)
@@ -185,6 +192,7 @@ func decodeAdvertisement(service mdns.ServiceInstance) (*ldiscovery.Advertisemen
 			Attrs:        make(discovery.Attributes),
 		},
 	}
+	// TODO(jhahn): Handle lost service.
 	for _, rr := range service.TxtRRs {
 		for _, txt := range rr.Txt {
 			kv := strings.SplitN(txt, "=", 2)
@@ -214,7 +222,13 @@ func newWithLoopback(host string, loopback bool) (ldiscovery.Plugin, error) {
 		// is set. Use a default one if not given.
 		host = "v23()"
 	}
-	m, err := mdns.NewMDNS(host, "", "", loopback, false)
+	var v4addr, v6addr string
+	if loopback {
+		// To avoid interference from other mDNS server in unit tests.
+		v4addr = "224.0.0.251:9999"
+		v6addr = "[FF02::FB]:9999"
+	}
+	m, err := mdns.NewMDNS(host, v4addr, v6addr, loopback, false)
 	if err != nil {
 		// The name may not have been unique. Try one more time with a unique
 		// name. NewMDNS will replace the "()" with "(hardware mac address)".
