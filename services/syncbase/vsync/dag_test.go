@@ -128,7 +128,7 @@ func TestAddParent(t *testing.T) {
 	}
 	tx.Commit()
 
-	graft := newGraft()
+	graft := newGraft(st)
 	tx = st.NewTransaction()
 	if err := s.addParent(nil, tx, oid, version, version, graft); err == nil {
 		t.Errorf("addParent() did not fail on a self-parent for object %s:%s", oid, version)
@@ -154,7 +154,7 @@ func TestAddParent(t *testing.T) {
 		}
 		tx.Commit()
 
-		var g graftMap
+		var g *graftMap
 		if remote {
 			g = graft
 		}
@@ -311,7 +311,7 @@ func TestRemoteUpdates(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"3": true}
 
@@ -388,7 +388,7 @@ func TestRemoteNoConflict(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"6": true}
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
@@ -471,7 +471,7 @@ func TestRemoteConflict(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"3": true, "6": true}
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
@@ -564,7 +564,7 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"3": true, "6": true}
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
@@ -651,7 +651,7 @@ func TestRemoteConflictNoAncestor(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"3": true, "6": true}
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
@@ -956,7 +956,7 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"3": true}
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
@@ -981,7 +981,7 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 		t.Errorf("hasConflict() on %v did not fail with a nil graft map: flag %t, newHead %s, oldHead %s, ancestor %s, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
-	isConflict, newHead, oldHead, ancestor, errConflict = hasConflict(nil, st, oid, newGraft())
+	isConflict, newHead, oldHead, ancestor, errConflict = hasConflict(nil, st, oid, newGraft(st))
 	if errConflict == nil {
 		t.Errorf("hasConflict() on %v did not fail with an empty graft map: flag %t, newHead %s, oldHead %s, ancestor %s, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
@@ -1026,7 +1026,7 @@ func TestRemoteLinkedConflict(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"3": true, "4": true}
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
@@ -1086,7 +1086,7 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"4": true}
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
@@ -1148,7 +1148,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	g := graft[oid]
+	g := graft.objGraft[oid]
 
 	expNewHeads := map[string]bool{"5": true}
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
@@ -1185,7 +1185,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 		t.Errorf("object %s has wrong head: %s", oid, head)
 	}
 
-	g = graft[oid]
+	g = graft.objGraft[oid]
 
 	if !reflect.DeepEqual(g.newHeads, expNewHeads) {
 		t.Errorf("object %s has invalid newHeads: (%v) instead of (%v)", oid, g.newHeads, expNewHeads)

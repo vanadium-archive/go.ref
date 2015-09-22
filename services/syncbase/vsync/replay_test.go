@@ -179,14 +179,14 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 
 // dagReplayCommands parses a sync test file and replays its commands, updating
 // the DAG structures associated with the sync service.
-func (s *syncService) dagReplayCommands(ctx *context.T, syncfile string) (graftMap, error) {
+func (s *syncService) dagReplayCommands(ctx *context.T, syncfile string) (*graftMap, error) {
 	cmds, err := parseSyncCommands(syncfile)
 	if err != nil {
 		return nil, err
 	}
 
 	st := s.sv.St()
-	graft := newGraft()
+	graft := newGraft(st)
 
 	for _, cmd := range cmds {
 		tx := st.NewTransaction()

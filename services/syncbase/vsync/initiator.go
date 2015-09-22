@@ -180,7 +180,7 @@ type initiationState struct {
 	remote     interfaces.GenVector         // generation vector from the remote peer.
 	updLocal   interfaces.GenVector         // updated local generation vector at the end of sync round.
 	updObjects map[string]*objConflictState // tracks updated objects during a log replay.
-	dagGraft   graftMap                     // DAG state that tracks conflicts and common ancestors.
+	dagGraft   *graftMap                    // DAG state that tracks conflicts and common ancestors.
 
 	req    interfaces.DeltaReq                // GetDeltas RPC request.
 	stream interfaces.SyncGetDeltasClientCall // stream handle for the GetDeltas RPC.
@@ -243,7 +243,7 @@ func newInitiationState(ctx *context.T, c *initiationConfig, sg bool) *initiatio
 	iSt := &initiationState{}
 	iSt.config = c
 	iSt.updObjects = make(map[string]*objConflictState)
-	iSt.dagGraft = newGraft()
+	iSt.dagGraft = newGraft(c.st)
 	iSt.sg = sg
 	return iSt
 }
@@ -436,18 +436,6 @@ func (iSt *initiationState) connectToPeer(ctx *context.T) bool {
 // resolution during replay.  This avoids resolving conflicts that have already
 // been resolved by other devices.
 func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
-	// This is to handle issues with graftMap in DAG. Ideally, the
-	// transaction created to store all the deltas received over the network
-	// should not contend with any other store changes since this is all
-	// brand new information. However, as log records are received over the
-	// network, they are also incrementally processed. To enable incremental
-	// processing, the current head of each dirty object is read to populate
-	// the graftMap. This read can potentially contend with the watcher
-	// updating the head of an object. This lock prevents that contention in
-	// order to avoid retrying the whole transaction.
-	iSt.config.sync.thLock.Lock()
-	defer iSt.config.sync.thLock.Unlock()
-
 	// TODO(hpucha): This works for now, but figure out a long term solution
 	// as this may be implementation dependent. It currently works because
 	// the RecvStream call is stateless, and grabbing a handle to it

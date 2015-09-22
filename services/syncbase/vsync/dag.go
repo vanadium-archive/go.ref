@@ -113,8 +113,14 @@ const (
 // batchSet holds information on a set of write batches.
 type batchSet map[uint64]*batchInfo
 
-// graftMap holds the state of DAG node grafting (attaching) per object.
-type graftMap map[string]*graftInfo
+// graftMap holds the state of DAG node grafting (attaching) per object.  It
+// holds a store handle to use when reading the object heads during grafting
+// operations.  This avoids contaminating the transaction read-set of the
+// caller (typically the Initiator storing newly received deltas).
+type graftMap struct {
+	objGraft map[string]*graftInfo
+	st       store.Store
+}
 
 // graftInfo holds the state of an object's node grafting in the DAG.
 // It is ephemeral (in-memory), used during a single sync operation to track
@@ -247,7 +253,7 @@ func (s *syncService) endBatch(ctx *context.T, tx store.Transaction, btid, count
 //
 // The grafting structure is not needed when nodes are being added locally by
 // the Watcher, passing a nil grafting structure.
-func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version, logrec string, deleted bool, parents []string, btid uint64, graft graftMap) error {
+func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version, logrec string, deleted bool, parents []string, btid uint64, graft *graftMap) error {
 	if parents != nil {
 		if len(parents) > 2 {
 			return verror.New(verror.ErrInternal, ctx, "cannot have more than 2 parents")
@@ -347,7 +353,7 @@ func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version
 // to track DAG attachements during a sync operation.  It is not needed if the
 // parent linkage is due to a local change (from conflict resolution selecting
 // an existing version).
-func (s *syncService) addParent(ctx *context.T, tx store.Transaction, oid, version, parent string, graft graftMap) error {
+func (s *syncService) addParent(ctx *context.T, tx store.Transaction, oid, version, parent string, graft *graftMap) error {
 	if version == parent {
 		return verror.New(verror.ErrInternal, ctx, "object", oid, version, "cannot be its own parent")
 	}
@@ -435,7 +441,7 @@ func moveHead(ctx *context.T, tx store.Transaction, oid, head string) error {
 // head is different from the current local head. If there is a single new-head
 // and the snapshot head is the same as the current local head, the object
 // changes were applied without triggering a conflict.
-func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft graftMap) (isConflict bool, newHead, oldHead, ancestor string, err error) {
+func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft *graftMap) (isConflict bool, newHead, oldHead, ancestor string, err error) {
 	isConflict = false
 	oldHead = NoVersion
 	newHead = NoVersion
@@ -447,7 +453,7 @@ func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft graftMa
 		return
 	}
 
-	info := graft[oid]
+	info := graft.objGraft[oid]
 	if info == nil {
 		err = verror.New(verror.ErrInternal, ctx, "node", oid, "has no DAG graft info")
 		return
@@ -521,18 +527,22 @@ func hasConflict(ctx *context.T, st store.StoreReader, oid string, graft graftMa
 	return
 }
 
-// newGraft allocates a graftMap to track DAG node grafting during sync.
-func newGraft() graftMap {
-	return make(graftMap)
+// newGraft allocates a graftMap to track DAG node grafting during sync.  It is
+// given a handle to a store to use for its own reading of object head nodes.
+func newGraft(st store.Store) *graftMap {
+	return &graftMap{
+		objGraft: make(map[string]*graftInfo),
+		st:       st,
+	}
 }
 
 // getObjectGraft returns the graftInfo for an object ID.  If the graftMap is
 // nil, a nil graftInfo is returned because grafting is not being tracked.
-func getObjectGraftInfo(ctx *context.T, sntx store.SnapshotOrTransaction, graft graftMap, oid string) *graftInfo {
+func getObjectGraftInfo(ctx *context.T, sntx store.SnapshotOrTransaction, graft *graftMap, oid string) *graftInfo {
 	if graft == nil {
 		return nil
 	}
-	if info := graft[oid]; info != nil {
+	if info := graft.objGraft[oid]; info != nil {
 		return info
 	}
 
@@ -543,12 +553,20 @@ func getObjectGraftInfo(ctx *context.T, sntx store.SnapshotOrTransaction, graft 
 	}
 
 	// If the object has a head node, include it in the set of new heads.
-	if head, err := getHead(ctx, sntx, oid); err == nil {
+	// Note: use the store handle of the graftMap if available to avoid
+	// contaminating the read-set of the caller's transaction.  Otherwise
+	// use the caller's transaction.
+	var st store.StoreReader
+	st = graft.st
+	if st == nil {
+		st = sntx
+	}
+	if head, err := getHead(ctx, st, oid); err == nil {
 		info.newHeads[head] = true
 		info.oldHeadSnap = head
 	}
 
-	graft[oid] = info
+	graft.objGraft[oid] = info
 	return info
 }
 
@@ -818,15 +836,15 @@ func delBatch(ctx *context.T, tx store.Transaction, btid uint64) error {
 // getParentMap is a testing and debug helper function that returns for an
 // object a map of its DAG (node-to-parents relations).  If a graft structure
 // is given, include its fragments in the map.
-func getParentMap(ctx *context.T, st store.StoreReader, oid string, graft graftMap) map[string][]string {
+func getParentMap(ctx *context.T, st store.StoreReader, oid string, graft *graftMap) map[string][]string {
 	parentMap := make(map[string][]string)
 	var start []string
 
 	if head, err := getHead(ctx, st, oid); err == nil {
 		start = append(start, head)
 	}
-	if graft != nil && graft[oid] != nil {
-		for v := range graft[oid].newHeads {
+	if graft != nil && graft.objGraft[oid] != nil {
+		for v := range graft.objGraft[oid].newHeads {
 			start = append(start, v)
 		}
 	}
