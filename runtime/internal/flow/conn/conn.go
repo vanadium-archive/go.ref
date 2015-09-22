@@ -346,3 +346,8 @@ func (c *Conn) markUsed() {
 	c.lastUsedTime = time.Now()
 	c.mu.Unlock()
 }
+
+func (c *Conn) IsEncapsulated() bool {
+	_, ok := c.mp.rw.(*flw)
+	return ok
+}

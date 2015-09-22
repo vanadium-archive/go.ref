@@ -151,6 +151,10 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 			delete(c.ridCache, e.rid)
 			continue
 		}
+		if e.conn.IsEncapsulated() {
+			// Killing a proxied connection doesn't save us any FD resources, just memory.
+			continue
+		}
 		pq = append(pq, e)
 	}
 	sort.Sort(pq)
