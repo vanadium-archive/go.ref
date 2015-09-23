@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/jiri/collect"
 	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/textutil"
@@ -32,7 +33,26 @@ func init() {
 }
 
 func main() {
-	cmdline.Main(cmdVDL)
+  env := cmdline.EnvFromOS()
+  err := runMain(env)
+  os.Exit(cmdline.ExitCode(err, env.Stderr))
+}
+
+func runMain(env *cmdline.Env) (e error) {
+	args := os.Args[1:]
+	runner, args, err := cmdline.Parse(cmdVDL, env, args)
+	if err != nil {
+		return err
+	}
+	cleanup, errs := maybeExtractBuiltinVdlroot()
+	defer collect.Error(cleanup, &err)
+	if err := checkErrors(errs); err != nil {
+		return err
+	}
+	if err := runner.Run(env, args); err != nil {
+		return err
+	}
+	return nil
 }
 
 func checkErrors(errs *vdlutil.Errors) error {
@@ -322,11 +342,12 @@ func (x *genOutDir) Set(value string) error {
 
 var (
 	// Common flags for the tool itself, applicable to all commands.
-	flagVerbose       bool
-	flagMaxErrors     int
-	flagExts          string
-	flagVDLConfig     string
-	flagIgnoreUnknown bool
+	flagVerbose        bool
+	flagMaxErrors      int
+	flagExts           string
+	flagVDLConfig      string
+	flagIgnoreUnknown  bool
+	flagBuiltinVdlroot bool
 
 	// Options for each command.
 	optCompileStatus bool
@@ -375,6 +396,7 @@ func init() {
 	cmdVDL.Flags.StringVar(&flagExts, "exts", ".vdl", "Comma-separated list of valid VDL file name extensions.")
 	cmdVDL.Flags.StringVar(&flagVDLConfig, "vdl.config", "vdl.config", "Basename of the optional per-package config file.")
 	cmdVDL.Flags.BoolVar(&flagIgnoreUnknown, "ignore_unknown", false, "Ignore unknown packages provided on the command line.")
+	cmdVDL.Flags.BoolVar(&flagBuiltinVdlroot, "builtin_vdlroot", false, "If V23_ROOT and VDLROOT are not set, use built-in VDL definitions for core types")
 
 	// Options for compile.
 	cmdCompile.Flags.BoolVar(&optCompileStatus, "status", true, "Show package names while we compile")
