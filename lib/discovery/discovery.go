@@ -25,6 +25,8 @@ type Advertisement struct {
 	ServiceUuid uuid.UUID
 
 	// TODO(jhahn): Add proximity.
+	// TODO(jhahn): Use proximity for Lost.
+	Lost bool
 }
 
 // TODO(jhahn): Need a better API.
