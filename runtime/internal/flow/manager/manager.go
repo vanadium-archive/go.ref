@@ -20,6 +20,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
+	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
@@ -87,6 +88,9 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 // The flow.Manager associated with ctx must be the receiver of the method,
 // otherwise an error is returned.
 func (m *manager) Listen(ctx *context.T, protocol, address string) error {
+	if err := m.validateContext(ctx); err != nil {
+		return err
+	}
 	if protocol == inaming.Network {
 		return m.proxyListen(ctx, address)
 	}
@@ -309,7 +313,9 @@ func (m *manager) ListeningEndpoints() []naming.Endpoint {
 // The flow.Manager associated with ctx must be the receiver of the method,
 // otherwise an error is returned.
 func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
-	// TODO(suharshs): Ensure that m is attached to ctx.
+	if err := m.validateContext(ctx); err != nil {
+		return nil, err
+	}
 	item, err := m.q.Get(ctx.Done())
 	switch {
 	case err == upcqueue.ErrQueueIsClosed:
@@ -330,6 +336,9 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 // The flow.Manager associated with ctx must be the receiver of the method,
 // otherwise an error is returned.
 func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, error) {
+	if err := m.validateContext(ctx); err != nil {
+		return nil, err
+	}
 	var fh conn.FlowHandler
 	if m.rid != naming.NullRoutingID {
 		fh = &flowHandler{q: m.q}
@@ -445,6 +454,13 @@ func (m *manager) RoutingID() naming.RoutingID {
 // necessarily fail.
 func (m *manager) Closed() <-chan struct{} {
 	return m.closed
+}
+
+func (m *manager) validateContext(ctx *context.T) error {
+	if v23.ExperimentalGetFlowManager(ctx) != m {
+		return flow.NewErrBadArg(ctx, iflow.NewErrWrongObjectInContext(ctx, "manager"))
+	}
+	return nil
 }
 
 func dial(ctx *context.T, p flow.Protocol, protocol, address string) (flow.Conn, error) {
