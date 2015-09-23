@@ -109,6 +109,11 @@ func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
+	// Clear out the environment variable before starting the child.
+	if err = ref.EnvClearCredentials(); err != nil {
+		return err
+	}
+
 	// Start an agent server.
 	i := ipc.NewIPC()
 	if err := server.ServeAgent(i, principal); err != nil {
