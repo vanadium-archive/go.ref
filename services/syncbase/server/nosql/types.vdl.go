@@ -30,7 +30,6 @@ func (databaseData) __VDLReflect(struct {
 }
 
 // tableData represents the persistent state of a Table.
-// TODO(sadovsky): Decide whether to track "empty-prefix" perms here.
 type tableData struct {
 	Name  string
 	Perms access.Permissions

@@ -409,14 +409,11 @@ type table struct {
 }
 
 func (t *table) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
-	return t.Table.SetPermissions(ctx, nosql.Prefix(""), perms)
+	return t.Table.SetPermissions(ctx, perms)
 }
 func (t *table) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
-	permsList, err := t.Table.GetPermissions(ctx, "")
-	if len(permsList) != 1 || permsList[0].Prefix.Prefix() != "" {
-		panic(fmt.Sprintf("unexpected perms list: %v", permsList))
-	}
-	return permsList[0].Perms, "", nil
+	perms, err = t.Table.GetPermissions(ctx)
+	return perms, "", err
 }
 func (t *table) ListChildren(ctx *context.T) ([]string, error) {
 	panic(notAvailable)

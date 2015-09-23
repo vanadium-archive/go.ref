@@ -50,13 +50,19 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int
 			if err != nil {
 				return err
 			}
-			// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
 			return verror.New(verror.ErrExist, ctx, t.name)
 		}
-		// Write new tableData.
 		if perms == nil {
 			perms = dData.Perms
 		}
+		// Write empty prefix permissions.
+		if err := util.Put(ctx, tx, t.prefixPermsKey(""), stPrefixPerms{Perms: perms}); err != nil {
+			return err
+		}
+		if err := util.Put(ctx, tx, t.prefixPermsKey("")+util.PrefixRangeLimitSuffix, stPrefixPerms{Perms: perms}); err != nil {
+			return err
+		}
+		// Write new tableData.
 		data := &tableData{
 			Name:  t.name,
 			Perms: perms,
@@ -81,6 +87,12 @@ func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion in
 			return err
 		}
 		// TODO(sadovsky): Delete all rows in this table.
+		if err := util.Delete(ctx, tx, t.prefixPermsKey("")); err != nil {
+			return err
+		}
+		if err := util.Delete(ctx, tx, t.prefixPermsKey("")+util.PrefixRangeLimitSuffix); err != nil {
+			return err
+		}
 		return util.Delete(ctx, tx, t.stKey())
 	})
 }
@@ -90,6 +102,48 @@ func (t *tableReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int
 		return false, err
 	}
 	return util.ErrorToExists(util.GetWithAuth(ctx, call, t.d.st, t.stKey(), &tableData{}))
+}
+
+func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (perms access.Permissions, err error) {
+	impl := func(sntx store.SnapshotOrTransaction) (perms access.Permissions, err error) {
+		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+			return nil, err
+		}
+		data := &tableData{}
+		if err := util.GetWithAuth(ctx, call, sntx, t.stKey(), data); err != nil {
+			return nil, err
+		}
+		return data.Perms, nil
+	}
+	if t.d.batchId != nil {
+		return impl(t.d.batchReader())
+	} else {
+		sntx := t.d.st.NewSnapshot()
+		defer sntx.Abort()
+		return impl(sntx)
+	}
+}
+
+func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, perms access.Permissions) error {
+	impl := func(tx store.Transaction) error {
+		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+			return err
+		}
+		data := &tableData{}
+		return util.UpdateWithAuth(ctx, call, tx, t.stKey(), data, func() error {
+			data.Perms = perms
+			return nil
+		})
+	}
+	if t.d.batchId != nil {
+		if tx, err := t.d.batchTransaction(); err != nil {
+			return err
+		} else {
+			return impl(tx)
+		}
+	} else {
+		return store.RunInTransaction(t.d.st, impl)
+	}
 }
 
 func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersion int32, start, limit []byte) error {
@@ -177,7 +231,7 @@ func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, schemaVer
 	}
 }
 
-func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, key string) ([]wire.PrefixPermissions, error) {
+func (t *tableReq) GetPrefixPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, key string) ([]wire.PrefixPermissions, error) {
 	impl := func(sntx store.SnapshotOrTransaction) ([]wire.PrefixPermissions, error) {
 		// Check permissions only at table level.
 		if err := t.checkAccess(ctx, call, sntx, ""); err != nil {
@@ -211,7 +265,7 @@ func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 	}
 }
 
-func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, prefix string, perms access.Permissions) error {
+func (t *tableReq) SetPrefixPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, prefix string, perms access.Permissions) error {
 	impl := func(tx store.Transaction) error {
 		if err := t.checkAccess(ctx, call, tx, prefix); err != nil {
 			return err
@@ -223,13 +277,6 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 		// ErrConcurrentTransaction when this transaction commits.
 		if err := t.lock(ctx, tx); err != nil {
 			return err
-		}
-		if prefix == "" {
-			data := &tableData{}
-			return util.UpdateWithAuth(ctx, call, tx, t.stKey(), data, func() error {
-				data.Perms = perms
-				return nil
-			})
 		}
 		// Get the most specific permissions object.
 		parent, prefixPerms, err := t.permsForKey(ctx, tx, prefix)
@@ -267,8 +314,9 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 	}
 }
 
-func (t *tableReq) DeletePermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, prefix string) error {
+func (t *tableReq) DeletePrefixPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, prefix string) error {
 	if prefix == "" {
+		// TODO(rogulenko): Write a better return msg in this case.
 		return verror.New(verror.ErrBadArg, ctx, prefix)
 	}
 	impl := func(tx store.Transaction) error {
@@ -381,14 +429,12 @@ func (t *tableReq) lock(ctx *context.T, tx store.Transaction) error {
 // access check to be a check for "Resolve", i.e. also check access to
 // service, app and database.
 func (t *tableReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction, key string) error {
+	if err := util.GetWithAuth(ctx, call, sntx, t.stKey(), &tableData{}); err != nil {
+		return err
+	}
 	prefix, prefixPerms, err := t.permsForKey(ctx, sntx, key)
 	if err != nil {
 		return err
-	}
-	if prefix != "" {
-		if err := util.GetWithAuth(ctx, call, sntx, t.stKey(), &tableData{}); err != nil {
-			return err
-		}
 	}
 	auth, _ := access.PermissionsAuthorizer(prefixPerms.Perms, access.TypicalTagType())
 	if err := auth.Authorize(ctx, call.Security()); err != nil {
@@ -446,13 +492,6 @@ func (t *tableReq) permsForKey(ctx *context.T, sntx store.SnapshotOrTransaction,
 // permsForPrefix returns the permissions object associated with the
 // provided prefix.
 func (t *tableReq) permsForPrefix(ctx *context.T, sntx store.SnapshotOrTransaction, prefix string) (stPrefixPerms, error) {
-	if prefix == "" {
-		var data tableData
-		if err := util.Get(ctx, sntx, t.stKey(), &data); err != nil {
-			return stPrefixPerms{}, err
-		}
-		return stPrefixPerms{Perms: data.Perms}, nil
-	}
 	var prefixPerms stPrefixPerms
 	if err := util.Get(ctx, sntx, t.prefixPermsKey(prefix), &prefixPerms); err != nil {
 		return stPrefixPerms{}, verror.New(verror.ErrInternal, ctx, err)

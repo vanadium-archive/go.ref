@@ -500,6 +500,14 @@ func (m *mojoImpl) TableExists(name string) (mojom.Error, bool, error) {
 	return toMojoError(err), exists, nil
 }
 
+func (m *mojoImpl) TableGetPermissions(name string) (mojom.Error, mojom.Perms, error) {
+	return mojom.Error{}, mojom.Perms{}, nil
+}
+
+func (m *mojoImpl) TableSetPermissions(name string, mPerms mojom.Perms) (mojom.Error, error) {
+	return mojom.Error{}, nil
+}
+
 func (m *mojoImpl) TableDeleteRange(name string, start, limit []byte) (mojom.Error, error) {
 	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "DeleteRange"))
 	stub, err := m.getTable(ctx, call, name)
@@ -567,15 +575,15 @@ func (m *mojoImpl) TableScan(name string, start, limit []byte, ptr mojom.ScanStr
 	return mojom.Error{}, nil
 }
 
-func (m *mojoImpl) TableGetPermissions(name, key string) (mojom.Error, []mojom.PrefixPerms, error) {
+func (m *mojoImpl) TableGetPrefixPermissions(name, key string) (mojom.Error, []mojom.PrefixPerms, error) {
 	return mojom.Error{}, nil, nil
 }
 
-func (m *mojoImpl) TableSetPermissions(name, prefix string, mPerms mojom.Perms) (mojom.Error, error) {
+func (m *mojoImpl) TableSetPrefixPermissions(name, prefix string, mPerms mojom.Perms) (mojom.Error, error) {
 	return mojom.Error{}, nil
 }
 
-func (m *mojoImpl) TableDeletePermissions(name, prefix string) (mojom.Error, error) {
+func (m *mojoImpl) TableDeletePrefixPermissions(name, prefix string) (mojom.Error, error) {
 	return mojom.Error{}, nil
 }
 
