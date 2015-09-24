@@ -20,11 +20,11 @@
 //     v23 go install v.io/x/ref/cmd/sb51
 //
 // To run client:
-//     $V23_ROOT/release/go/bin/sb51 sh <appname> <dbname>
+//     $JIRI_ROOT/release/go/bin/sb51 sh <appname> <dbname>
 //
 // Sample run (assuming a syncbase service is mounted at '/:8101/syncbase',
 // otherwise specify using -service flag):
-//     > $V23_ROOT/release/go/bin/sb51 sh -create-missing -make-demo -format=csv demoapp demodb
+//     > $JIRI_ROOT/release/go/bin/sb51 sh -create-missing -make-demo -format=csv demoapp demodb
 //     ? select v.Name, v.Address.State from DemoCustomers where Type(v) = "Customer";
 //     v.Name,v.Address.State
 //     John Smith,CA

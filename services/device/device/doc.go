@@ -423,7 +423,7 @@ The device acl set flags are:
 Device publish
 
 Publishes the given application(s) to the binary and application servers. The
-binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>] by default (can
+binaries should be in $JIRI_ROOT/release/go/bin/[<GOOS>_<GOARCH>] by default (can
 be overrriden with --from). By default the binary name is used as the name of
 the application envelope, and as the title in the envelope. However,
 <envelope-name> and <title> can be specified explicitly using :<envelope-name>
@@ -444,7 +444,7 @@ The device publish flags are:
    Name of binary service.
  -from=
    Location of binaries to be published.  Defaults to
-   $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>]
+   $JIRI_ROOT/release/go/bin/[<GOOS>_<GOARCH>]
  -goarch=<runtime.GOARCH>
    GOARCH for application.  The default is the value of runtime.GOARCH.
  -goos=<runtime.GOOS>

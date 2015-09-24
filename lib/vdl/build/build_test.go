@@ -53,8 +53,8 @@ func setEnvironment(t *testing.T, vdlroot, vdlpath string) bool {
 }
 
 func setVanadiumRoot(t *testing.T, root string) bool {
-	if err := os.Setenv("V23_ROOT", root); err != nil {
-		t.Errorf("Setenv(V23_ROOT, %q) failed: %v", root, err)
+	if err := os.Setenv("JIRI_ROOT", root); err != nil {
+		t.Errorf("Setenv(JIRI_ROOT, %q) failed: %v", root, err)
 		return false
 	}
 	return true
@@ -75,12 +75,12 @@ func TestSrcDirsVdlRoot(t *testing.T) {
 		Want         []string
 		ErrRE        string
 	}{
-		{"", "", nil, "Either VDLROOT or V23_ROOT must be set"},
+		{"", "", nil, "Either VDLROOT or JIRI_ROOT must be set"},
 		{"/a", "", []string{"/a"}, ""},
 		{"/a/b/c", "", []string{"/a/b/c"}, ""},
 		{"", "/v23", []string{"/v23/release/go/src/v.io/v23/vdlroot"}, ""},
 		{"", "/a/b/c", []string{"/a/b/c/release/go/src/v.io/v23/vdlroot"}, ""},
-		// If both VDLROOT and V23_ROOT are specified, VDLROOT takes precedence.
+		// If both VDLROOT and JIRI_ROOT are specified, VDLROOT takes precedence.
 		{"/a", "/v23", []string{"/a"}, ""},
 		{"/a/b/c", "/x/y/z", []string{"/a/b/c"}, ""},
 	}

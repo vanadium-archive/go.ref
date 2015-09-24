@@ -27,7 +27,7 @@ The vdl additional help topics are:
 
 The vdl flags are:
  -builtin_vdlroot=false
-   If V23_ROOT and VDLROOT are not set, use built-in VDL definitions for core
+   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
    types
  -exts=.vdl
    Comma-separated list of valid VDL file name extensions.
@@ -277,8 +277,8 @@ containing the standard vdl packages.
 
 Setting VDLROOT is optional.
 
-If VDLROOT is empty, we try to construct it out of the V23_ROOT environment
-variable.  It is an error if both VDLROOT and V23_ROOT are empty.
+If VDLROOT is empty, we try to construct it out of the JIRI_ROOT environment
+variable.  It is an error if both VDLROOT and JIRI_ROOT are empty.
 
 Vdl vdl.config
 

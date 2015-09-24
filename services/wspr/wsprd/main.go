@@ -11,7 +11,7 @@
 // go:generate comment, since generate also needs to be run with -tags=wspr,
 // which is troublesome for presubmit tests.
 //
-// cd $V23_ROOT/release/go/src && go run v.io/x/lib/cmdline/testdata/gendoc.go -tags=wspr v.io/x/ref/services/wspr/wsprd -help
+// cd $JIRI_ROOT/release/go/src && go run v.io/x/lib/cmdline/testdata/gendoc.go -tags=wspr v.io/x/ref/services/wspr/wsprd -help
 
 package main
 

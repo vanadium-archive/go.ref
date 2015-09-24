@@ -24,9 +24,9 @@ import (
 // findGoBinary returns the path to the given Go binary and
 // the GOROOT environment variable to use.
 func findGoBinary(t *testing.T, name string) (bin, goroot string) {
-	root := os.Getenv("V23_ROOT")
+	root := os.Getenv("JIRI_ROOT")
 	if root == "" {
-		t.Fatalf("V23_ROOT is not set")
+		t.Fatalf("JIRI_ROOT is not set")
 	}
 	envroot := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go")
 	envbin := filepath.Join(envroot, "bin", name)

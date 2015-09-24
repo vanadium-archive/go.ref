@@ -257,7 +257,7 @@ func (p *Package) CloseFiles() error {
 }
 
 // SrcDirs returns a list of package root source directories, based on the
-// VDLPATH, VDLROOT and V23_ROOT environment variables.
+// VDLPATH, VDLROOT and JIRI_ROOT environment variables.
 //
 // VDLPATH is a list of directories separated by filepath.ListSeparator;
 // e.g. the separator is ":" on UNIX, and ";" on Windows.  Each VDLPATH
@@ -266,8 +266,8 @@ func (p *Package) CloseFiles() error {
 //
 // VDLROOT is a single directory specifying the location of the standard vdl
 // packages.  It has the same requirements as VDLPATH components.  If VDLROOT is
-// empty, we use V23_ROOT to construct the VDLROOT.  An error is reported if
-// neither VDLROOT nor V23_ROOT is specified.
+// empty, we use JIRI_ROOT to construct the VDLROOT.  An error is reported if
+// neither VDLROOT nor JIRI_ROOT is specified.
 func SrcDirs(errs *vdlutil.Errors) []string {
 	var srcDirs []string
 	if root := VdlRootDir(errs); root != "" {
@@ -277,19 +277,19 @@ func SrcDirs(errs *vdlutil.Errors) []string {
 }
 
 // VdlRootDir returns the VDL root directory, based on the VDLPATH, VDLROOT and
-// V23_ROOT environment variables.
+// JIRI_ROOT environment variables.
 //
 // VDLROOT is a single directory specifying the location of the standard vdl
 // packages.  It has the same requirements as VDLPATH components.  If VDLROOT is
-// empty, we use V23_ROOT to construct the VDLROOT.  An error is reported if
-// neither VDLROOT nor V23_ROOT is specified.
+// empty, we use JIRI_ROOT to construct the VDLROOT.  An error is reported if
+// neither VDLROOT nor JIRI_ROOT is specified.
 func VdlRootDir(errs *vdlutil.Errors) string {
 	vdlroot := os.Getenv("VDLROOT")
 	if vdlroot == "" {
-		// Try to construct VDLROOT out of V23_ROOT.
-		vroot := os.Getenv("V23_ROOT")
+		// Try to construct VDLROOT out of JIRI_ROOT.
+		vroot := os.Getenv("JIRI_ROOT")
 		if vroot == "" {
-			errs.Error("Either VDLROOT or V23_ROOT must be set")
+			errs.Error("Either VDLROOT or JIRI_ROOT must be set")
 			return ""
 		}
 		vdlroot = filepath.Join(vroot, "release", "go", "src", "v.io", "v23", "vdlroot")

@@ -37,7 +37,7 @@ var cmdPublish = &cmdline.Command{
 	Short:  "Publish the given application(s).",
 	Long: `
 Publishes the given application(s) to the binary and application servers.
-The binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>] by default (can be overrriden with --from).
+The binaries should be in $JIRI_ROOT/release/go/bin/[<GOOS>_<GOARCH>] by default (can be overrriden with --from).
 By default the binary name is used as the name of the application envelope, and as the
 title in the envelope. However, <envelope-name> and <title> can be specified explicitly
 using :<envelope-name> and @<title>.
@@ -61,7 +61,7 @@ func init() {
 	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve AccessList.")
 	cmdPublish.Flags.BoolVar(&addPublisher, "add-publisher", true, "If true, add a publisher blessing to the application envelope")
 	cmdPublish.Flags.DurationVar(&minValidPublisherDuration, "publisher-min-validity", 30*time.Hour, "Publisher blessings that are valid for less than this amount of time are considered invalid")
-	cmdPublish.Flags.StringVar(&fromFlag, "from", "", "Location of binaries to be published.  Defaults to $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>]")
+	cmdPublish.Flags.StringVar(&fromFlag, "from", "", "Location of binaries to be published.  Defaults to $JIRI_ROOT/release/go/bin/[<GOOS>_<GOARCH>]")
 }
 
 func setAccessLists(ctx *context.T, env *cmdline.Env, von string) error {
@@ -201,9 +201,9 @@ func runPublish(ctx *context.T, env *cmdline.Env, args []string) error {
 	binaries := args
 	binPath := fromFlag
 	if binPath == "" {
-		vroot := env.Vars["V23_ROOT"]
+		vroot := env.Vars["JIRI_ROOT"]
 		if vroot == "" {
-			return env.UsageErrorf("publish: $V23_ROOT environment variable should be set")
+			return env.UsageErrorf("publish: $JIRI_ROOT environment variable should be set")
 		}
 		binPath = filepath.Join(vroot, "release/go/bin")
 		if goosFlag != runtime.GOOS || goarchFlag != runtime.GOARCH {

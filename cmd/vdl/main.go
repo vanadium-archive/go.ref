@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $JIRI_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
 
 package main
 
@@ -168,8 +168,8 @@ containing the standard vdl packages.
 
 Setting VDLROOT is optional.
 
-If VDLROOT is empty, we try to construct it out of the V23_ROOT environment
-variable.  It is an error if both VDLROOT and V23_ROOT are empty.
+If VDLROOT is empty, we try to construct it out of the JIRI_ROOT environment
+variable.  It is an error if both VDLROOT and JIRI_ROOT are empty.
 `,
 }
 
@@ -396,7 +396,7 @@ func init() {
 	cmdVDL.Flags.StringVar(&flagExts, "exts", ".vdl", "Comma-separated list of valid VDL file name extensions.")
 	cmdVDL.Flags.StringVar(&flagVDLConfig, "vdl.config", "vdl.config", "Basename of the optional per-package config file.")
 	cmdVDL.Flags.BoolVar(&flagIgnoreUnknown, "ignore_unknown", false, "Ignore unknown packages provided on the command line.")
-	cmdVDL.Flags.BoolVar(&flagBuiltinVdlroot, "builtin_vdlroot", false, "If V23_ROOT and VDLROOT are not set, use built-in VDL definitions for core types")
+	cmdVDL.Flags.BoolVar(&flagBuiltinVdlroot, "builtin_vdlroot", false, "If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core types")
 
 	// Options for compile.
 	cmdCompile.Flags.BoolVar(&optCompileStatus, "status", true, "Show package names while we compile")
