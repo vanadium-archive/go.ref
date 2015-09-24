@@ -131,7 +131,7 @@ copy_binary() {
 # Fetches binaries needed by device manager installation.
 # Globals:
 #   BIN_NAMES
-#   V23_ROOT
+#   JIRI_ROOT
 # Arguments:
 #   destination for binaries
 #   source of binaries
@@ -149,11 +149,11 @@ get_binaries() {
 
   # If source is not specified, try to look for it in the repository.
   if [[ -z "${BIN_SOURCE}" ]]; then
-    if [[ -z "${V23_ROOT}" ]]; then
+    if [[ -z "${JIRI_ROOT}" ]]; then
       echo 'ERROR: binary source not specified and no local repository available'
       exit 1
     fi
-    local -r REPO_BIN_DIR="${V23_ROOT}/release/go/bin"
+    local -r REPO_BIN_DIR="${JIRI_ROOT}/release/go/bin"
     echo "Fetching binaries:${bin_names_str} from build repository: ${REPO_BIN_DIR} ..."
     for bin_name in "${BIN_NAMES[@]}"; do
       copy_binary "${bin_name}" "${REPO_BIN_DIR}" "${BIN_INSTALL}"

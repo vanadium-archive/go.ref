@@ -543,7 +543,7 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 func V23TestForkWithoutVDLPATH(t *v23tests.T) {
 	var (
 		parent = t.NewTempDir("")
-		bin    = t.BuildGoPkg("v.io/x/ref/cmd/principal").WithEnv("V23_ROOT=''", "VDLPATH=''")
+		bin    = t.BuildGoPkg("v.io/x/ref/cmd/principal").WithEnv("JIRI_ROOT=''", "VDLPATH=''")
 	)
 	if err := bin.Start("create", parent, "parent").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Fatalf("create %q failed: %v", parent, err)

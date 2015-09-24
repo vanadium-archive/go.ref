@@ -60,7 +60,7 @@ func extractBuiltinVdlroot(destDir string) error {
 }
 
 // maybeExtractBuiltinVdlroot checks to see if VDLROOT is set or can be
-// determined from V23_ROOT. If not, the builtin root VDL definitions are
+// determined from JIRI_ROOT. If not, the builtin root VDL definitions are
 // extracted to a new temporary directory and the VDLROOT environment variable
 // is set. cleanupFunc should be called unconditionally (even if there is
 // a non-empty set of errors returned).

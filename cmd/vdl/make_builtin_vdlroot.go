@@ -99,9 +99,9 @@ func (w *wrapWriter) Write(b []byte) (int, error) {
 // writeVdlrootData creates a gzip'd tar file containing all of the VDL files
 // in vdlroot. The data is encoded as base64. Does not close out.
 func writeVdlrootData(out io.Writer) error {
-	v23root := os.Getenv("V23_ROOT")
+	v23root := os.Getenv("JIRI_ROOT")
 	if v23root == "" {
-		return fmt.Errorf("V23_ROOT is not set")
+		return fmt.Errorf("JIRI_ROOT is not set")
 	}
 	vdlroot := filepath.Join(v23root, "release", "go", "src", "v.io", "v23", "vdlroot")
 	wrapWriter := &wrapWriter{

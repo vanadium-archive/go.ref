@@ -70,7 +70,7 @@ func TestVDLGenerator(t *testing.T) {
 }
 
 // Asserts that the VDL command can run to completion without VDLROOT or
-// V23_ROOT being set.
+// JIRI_ROOT being set.
 func TestVDLGeneratorWithNoVDLRoot(t *testing.T) {
 	testEnv := v23tests.New(t)
 	defer testEnv.Cleanup()
@@ -79,7 +79,7 @@ func TestVDLGeneratorWithNoVDLRoot(t *testing.T) {
 	outDir := testEnv.NewTempDir("")
 	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
 	env := envvar.SliceToMap(os.Environ())
-	env["V23_ROOT"] = ""
+	env["JIRI_ROOT"] = ""
 	env["VDLROOT"] = ""
 	vdlBin.WithEnv(envvar.MapToSlice(env)...).Run("-v", "--builtin_vdlroot", "generate", "--lang=go", outOpt, testDir)
 	verifyOutput(t, outDir)
