@@ -9,8 +9,6 @@ import (
 )
 
 // Constants related to storage engine keys.
-// Note, these are persisted and therefore must not be modified.
-// Below, they are ordered lexicographically by value.
 const (
 	AppPrefix      = "$app"
 	ClockPrefix    = "$clock"
@@ -24,6 +22,8 @@ const (
 	TablePrefix    = "$table"
 	VersionPrefix  = "$version"
 
+	// Note, these are persisted and therefore must not be modified.
+	// Below, they are ordered lexicographically by value.
 	// TODO(sadovsky): Changing these prefixes breaks various tests. Tests
 	// generally shouldn't depend on the values of these constants.
 	/*
@@ -41,7 +41,8 @@ const (
 	*/
 
 	// Separator for parts of storage engine keys.
-	// TODO(sadovsky): Allow ":" in names and use a different separator here.
+	// TODO(sadovsky): Allow ":" in names and use a different separator here,
+	// perhaps "%%".
 	KeyPartSep = ":"
 
 	// PrefixRangeLimitSuffix is a key suffix that indicates the end of a prefix
@@ -53,12 +54,13 @@ const (
 const (
 	// Object name component for Syncbase-to-Syncbase (sync) RPCs.
 	// Sync object names have the form:
-	//     <syncbase>/@@sync/...
-	SyncbaseSuffix = "@@sync"
+	//     <syncbase>/%%sync/...
+	// FIXME: update all apps, again...
+	SyncbaseSuffix = "%%sync"
 	// Separator for batch info in database names.
 	// Batch object names have the form:
-	//     <syncbase>/<app>/$/<database>@@<batchInfo>/...
-	BatchSep = "@@"
+	//     <syncbase>/<app>/<database>%%<batchInfo>/...
+	BatchSep = "%%"
 )
 
 // Constants related to syncbase clock.

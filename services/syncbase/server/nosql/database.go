@@ -7,11 +7,11 @@ package nosql
 import (
 	"math/rand"
 	"path"
-	"strings"
 	"sync"
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
@@ -127,8 +127,6 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.S
 ////////////////////////////////////////
 // RPC methods
 
-// TODO(sadovsky): Implement Glob__ or GlobChildren__.
-
 func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.SchemaMetadata, perms access.Permissions) error {
 	if d.exists {
 		return verror.New(verror.ErrExist, ctx, d.name)
@@ -195,7 +193,7 @@ func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, schemaVers
 			}
 		}
 	}
-	return strings.Join([]string{d.name, util.JoinBatchInfo(batchType, id)}, util.BatchSep), nil
+	return util.BatchSep + util.JoinBatchInfo(batchType, id), nil
 }
 
 func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
@@ -318,24 +316,26 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
 	if !d.exists {
-		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
-	impl := func(sntx store.SnapshotOrTransaction) ([]string, error) {
+	impl := func(sntx store.SnapshotOrTransaction, closeSntx func() error) error {
 		// Check perms.
-		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &databaseData{}); err != nil {
-			sntx.Abort()
-			return nil, err
+		sn := d.st.NewSnapshot()
+		if err := util.GetWithAuth(ctx, call, sn, d.stKey(), &databaseData{}); err != nil {
+			sn.Abort()
+			return err
 		}
-		return util.ListChildren(ctx, call, sntx, util.TablePrefix)
+		return util.GlobChildren(ctx, call, matcher, sn, closeSntx, util.TablePrefix)
 	}
 	if d.batchId != nil {
-		return impl(d.batchReader())
+		return impl(d.batchReader(), func() error {
+			return nil
+		})
 	} else {
-		sntx := d.st.NewSnapshot()
-		defer sntx.Abort()
-		return impl(sntx)
+		sn := d.st.NewSnapshot()
+		return impl(sn, sn.Abort)
 	}
 }
 

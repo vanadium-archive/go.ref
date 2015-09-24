@@ -13,13 +13,11 @@ import (
 )
 
 // JoinKeyParts builds keys for accessing data in the storage engine.
-// TODO(sadovsky): Allow ":" in names and use a different separator here.
 func JoinKeyParts(parts ...string) string {
 	return strings.Join(parts, KeyPartSep)
 }
 
 // SplitKeyParts is the inverse of JoinKeyParts.
-// TODO(sadovsky): Allow ":" in names and use a different separator here.
 func SplitKeyParts(key string) []string {
 	return strings.Split(key, KeyPartSep)
 }

@@ -33,34 +33,32 @@ func NewDispatcher(s *service) *dispatcher {
 var auth security.Authorizer = security.AllowEveryone()
 
 func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
+	// TODO(sadovsky): Can we drop this TrimPrefix?
 	suffix = strings.TrimPrefix(suffix, "/")
-
 	if len(suffix) == 0 {
 		return wire.ServiceServer(disp.s), auth, nil
 	}
+	parts := strings.SplitN(suffix, "/", 2)
 
 	// If the first slash-separated component of suffix is SyncbaseSuffix,
 	// dispatch to the sync module.
-	parts := strings.SplitN(suffix, "/", 2)
 	if parts[0] == util.SyncbaseSuffix {
 		return interfaces.SyncServer(disp.s.sync), auth, nil
 	}
 
-	// Otherwise, split on NameSepWithSlashes to get hierarchy component names.
-	parts = strings.SplitN(suffix, pubutil.NameSepWithSlashes, 2)
-
-	// Validate all key atoms up front, so that we can avoid doing so in all our
-	// method implementations.
-	appName := parts[0]
-	if !pubutil.ValidName(appName) {
+	// Validate all name components up front, so that we can avoid doing so in all
+	// our method implementations.
+	escAppName := parts[0]
+	appName, ok := pubutil.Unescape(escAppName)
+	if !ok || !pubutil.ValidAppName(appName) {
 		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 	}
 
-	aExists := false
+	appExists := false
 	var a *app
 	if aInt, err := disp.s.App(nil, nil, appName); err == nil {
 		a = aInt.(*app) // panics on failure, as desired
-		aExists = true
+		appExists = true
 	} else {
 		if verror.ErrorID(err) != verror.ErrNoExist.ID {
 			return nil, nil, err
@@ -78,7 +76,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 
 	// All database, table, and row methods require the app to exist. If it
 	// doesn't, abort early.
-	if !aExists {
+	if !appExists {
 		return nil, nil, verror.New(verror.ErrNoExist, ctx, a.name)
 	}
 

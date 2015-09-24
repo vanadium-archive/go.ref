@@ -171,8 +171,8 @@ func (t *tableReq) processLogBatch(ctx *context.T, call rpc.ServerCall, prefix s
 			continue
 		}
 		parts := util.SplitKeyParts(opKey)
-		// TODO(rogulenko): Currently we process only rows, i.e. keys of the form
-		// <RowPrefix>:xxx:yyy. Consider processing other keys.
+		// TODO(rogulenko): Currently we only process rows, i.e. keys of the form
+		// <rowPrefix>:xxx:yyy. Consider processing other keys.
 		if len(parts) != 3 || parts[0] != util.RowPrefix {
 			continue
 		}
@@ -188,7 +188,7 @@ func (t *tableReq) processLogBatch(ctx *context.T, call rpc.ServerCall, prefix s
 			continue
 		}
 		change := watch.Change{
-			Name:      naming.Join(table, pubutil.NameSep, row),
+			Name:      naming.Join(table, row),
 			Continued: true,
 		}
 		switch op := logEntry.Op.(type) {

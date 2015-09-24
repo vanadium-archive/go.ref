@@ -26,8 +26,6 @@ var (
 ////////////////////////////////////////
 // RPC methods
 
-// TODO(sadovsky): Implement Glob__ or GlobChildren__.
-
 func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {
 	_, err := r.Get(ctx, call, schemaVersion)
 	return util.ErrorToExists(err)

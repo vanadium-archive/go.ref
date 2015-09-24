@@ -35,7 +35,7 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self, "self", false)
 	// TODO(ivanpi): Exists on child when parent does not exist currently fails
 	// with an error instead of returning false.
-	//assertExists(t, ctx, child, "child", false)
+	// assertExists(t, ctx, child, "child", false)
 
 	// Create self.
 	if err := self.Create(ctx, nil); err != nil {
@@ -92,29 +92,27 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self3, "self3", false)
 }
 
-// Tests that non-ASCII UTF-8 chars are supported at all layers as long as they
-// satisfy util.ValidName.
-// This test only requires layer.Create to be implemented and thus works for
-// rows.
-func TestCreateNameValidation(t *testing.T, ctx *context.T, i interface{}) {
+// Tests that Create() checks name validity.
+func TestCreateNameValidation(t *testing.T, ctx *context.T, i interface{}, okNames, notOkNames []string) {
 	parent := makeLayer(i)
-
-	// Invalid names.
-	// TODO(sadovsky): Add names with slashes to this list once we implement
-	// client-side name validation. As it stands, some names with slashes result
-	// in RPCs against objects at the next layer of hierarchy, and naming.Join
-	// drops some leading and trailing slashes before they reach the server-side
-	// name-checking code.
-	for _, name := range []string{"a\x00", "\x00a", "@@", "a@@", "@@a", "@@a", "$", "a/$", "$/a"} {
-		if err := parent.Child(name).Create(ctx, nil); verror.ErrorID(err) != wire.ErrInvalidName.ID {
-			t.Fatalf("Create(%q) should have failed: %v", name, err)
-		}
-	}
-
-	// Valid names.
-	for _, name := range []string{"a", "aa", "*", "a*", "*a", "a*b", "a/b", "a/$$", "$$/a", "a/$$/b", "dev.v.io/a/admin@myapp.com", "alice/bob", "안녕하세요"} {
+	for _, name := range okNames {
 		if err := parent.Child(name).Create(ctx, nil); err != nil {
 			t.Fatalf("Create(%q) failed: %v", name, err)
+		}
+	}
+	for _, name := range notOkNames {
+		if err := parent.Child(name).Create(ctx, nil); err == nil {
+			t.Fatalf("Create(%q) should have failed: %v", name, err)
+			// TODO(sadovsky): Currently for name "" we cannot check for
+			// ErrInvalidName, since parent.Child("") dispatches on the parent
+			// component. Create will still fail, but for a different reason. If/when
+			// we add client-side name validation, we'll be able to check for
+			// ErrInvalidName specifically.
+			// TODO(sadovsky): Will dropping the "TrimPrefix" calls in our server-side
+			// dispatchers fix this?
+			if name != "" && verror.ErrorID(err) != wire.ErrInvalidName.ID {
+				t.Fatalf("Create(%q) should have failed with ErrInvalidName: %v", name, err)
+			}
 		}
 	}
 }
@@ -155,7 +153,7 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self, "self", false)
 	// TODO(ivanpi): Exists on child when parent does not exist currently fails
 	// with an error instead of returning false.
-	//assertExists(t, ctx, child, "child", false)
+	// assertExists(t, ctx, child, "child", false)
 
 	// self.Create should succeed, since self was destroyed.
 	if err := self.Create(ctx, nil); err != nil {
@@ -208,11 +206,11 @@ func TestListChildren(t *testing.T, ctx *context.T, i interface{}) {
 	var err error
 
 	got, err = self.ListChildren(ctx)
-	want = []string(nil)
+	want = []string{}
 	if err != nil {
 		t.Fatalf("self.ListChildren() failed: %v", err)
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !reflect.DeepEqual([]string(got), want) {
 		t.Fatalf("Lists do not match: got %v, want %v", got, want)
 	}
 
@@ -233,19 +231,6 @@ func TestListChildren(t *testing.T, ctx *context.T, i interface{}) {
 	}
 	got, err = self.ListChildren(ctx)
 	want = []string{"x", "y"}
-	if err != nil {
-		t.Fatalf("self.ListChildren() failed: %v", err)
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("Lists do not match: got %v, want %v", got, want)
-	}
-
-	hello := "안녕하세요"
-	if err := self.Child(hello).Create(ctx, nil); err != nil {
-		t.Fatalf("hello.Create() failed: %v", err)
-	}
-	got, err = self.ListChildren(ctx)
-	want = []string{"x", "y", hello}
 	if err != nil {
 		t.Fatalf("self.ListChildren() failed: %v", err)
 	}
