@@ -21,7 +21,7 @@ import (
 	ivtrace "v.io/x/ref/runtime/internal/vtrace"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func testContext() *context.T {
 	ctx, _ := context.RootContext()

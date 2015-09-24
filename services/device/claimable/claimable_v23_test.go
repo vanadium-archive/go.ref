@@ -17,7 +17,7 @@ import (
 	"v.io/x/ref/test/v23tests"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func V23TestClaimableServer(t *v23tests.T) {
 	workdir, err := ioutil.TempDir("", "claimable-test-")

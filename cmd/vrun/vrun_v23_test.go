@@ -4,7 +4,7 @@
 
 package main_test
 
-//go:generate v23 test generate .
+//go:generate jiri test generate .
 
 import (
 	"fmt"

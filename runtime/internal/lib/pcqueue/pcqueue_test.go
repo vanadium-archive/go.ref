@@ -13,7 +13,7 @@ import (
 	"v.io/x/ref/internal/logger"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 const (
 	queueSize    = 10

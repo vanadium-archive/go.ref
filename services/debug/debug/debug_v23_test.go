@@ -18,7 +18,7 @@ import (
 	"v.io/x/ref/test/v23tests"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func V23TestDebugGlob(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")

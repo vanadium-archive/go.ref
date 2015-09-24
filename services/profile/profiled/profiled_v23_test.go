@@ -14,7 +14,7 @@ import (
 	"v.io/x/ref/test/v23tests"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func profileCommandOutput(i *v23tests.T, profileBin *v23tests.Binary, expectError bool, command, name, suffix string) string {
 	labelArgs := []string{

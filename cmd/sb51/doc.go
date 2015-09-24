@@ -17,7 +17,7 @@
 // errors cause the shell to exit with a non-zero status.
 //
 // To build client:
-//     v23 go install v.io/x/ref/cmd/sb51
+//     jiri go install v.io/x/ref/cmd/sb51
 //
 // To run client:
 //     $JIRI_ROOT/release/go/bin/sb51 sh <appname> <dbname>

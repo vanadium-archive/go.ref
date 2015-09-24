@@ -83,7 +83,7 @@ func dieIfErr(err error, format string, args ...interface{}) {
 // getPath returns the filesystem path to a file specified by a repository and a
 // repository-relative path.
 func getPath(repo, file string) string {
-	cmd := exec.Command("v23", "project", "list")
+	cmd := exec.Command("jiri", "project", "list")
 	output, err := cmd.CombinedOutput()
 	out := string(output)
 	dieIfErr(err, "Running %v failed. Output:\n%v", strings.Join(cmd.Args, " "), out)
@@ -110,7 +110,7 @@ func setupWorkDir() {
 func buildV23Binary(pkg string) string {
 	fmt.Println("Building", pkg)
 	dest := filepath.Join(workDir, path.Base(pkg))
-	cmd := exec.Command("v23", "go", "build", "-x", "-o", dest, pkg)
+	cmd := exec.Command("jiri", "go", "build", "-x", "-o", dest, pkg)
 	output, err := cmd.CombinedOutput()
 	dieIfErr(err, "Running build command %v failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
 	return dest

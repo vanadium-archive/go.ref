@@ -41,7 +41,7 @@ import (
 // BenchmarkRecognizedCachedAgent	   :   12609 ns/op
 // BenchmarkRecognizedUncachedAgent	   : 4232959 ns/op
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 var getPrincipalAndHang = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.V23Init()

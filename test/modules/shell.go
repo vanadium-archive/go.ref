@@ -41,12 +41,12 @@
 //   Dispatch: must be called in the child process to lookup and invoke the
 //     requested function.  Typically called from TestMain.
 //
-// The v23 tool can automate generation of TestMain.  Adding the comment below
+// The jiri tool can automate generation of TestMain.  Adding the comment below
 // to a test file will generate the appropriate code.
 //
-//   //go:generate v23 test generate .
+//   //go:generate jiri test generate .
 //
-// Use 'v23 test generate --help' to get a complete explanation.
+// Use 'jiri test generate --help' to get a complete explanation.
 //
 // In all cases programs are started by invoking the StartWithOpts method on the
 // Shell with the name of the program to run. An instance of the Handle

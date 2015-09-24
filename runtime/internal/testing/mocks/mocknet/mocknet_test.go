@@ -28,7 +28,7 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func newListener(t *testing.T, opts mocknet.Opts) net.Listener {
 	ln, err := mocknet.ListenerWithOpts(opts, "test", "127.0.0.1:0")

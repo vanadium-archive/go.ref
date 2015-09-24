@@ -600,7 +600,7 @@ func buildPkg(t *T, binDir, pkg string, flags []string) (bool, string, error) {
 		buildArgs := []string{"go", "build", "-x", "-o", uniqueBinFile}
 		buildArgs = append(buildArgs, flags...)
 		buildArgs = append(buildArgs, pkg)
-		cmd := exec.Command("v23", buildArgs...)
+		cmd := exec.Command("jiri", buildArgs...)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.ctx.VI(1).Infof("\n%v:\n%v\n", strings.Join(cmd.Args, " "), string(output))
 			return false, "", err
@@ -647,7 +647,7 @@ func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
 // across multiple instances of the test environment. This is achieved
 // by setting the V23_BIN_DIR environment variable if it is not already
 // set in the test processes environment (as will typically be the case when
-// these tests are run from the v23 tool). It is intended to be called
+// these tests are run from the jiri tool). It is intended to be called
 // from TestMain.
 func UseSharedBinDir() func() {
 	if v23BinDir := os.Getenv("V23_BIN_DIR"); len(v23BinDir) == 0 {

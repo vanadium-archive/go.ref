@@ -7,7 +7,7 @@
 
 package main
 
-//go:generate v23 go run make_builtin_vdlroot.go
+//go:generate jiri go run make_builtin_vdlroot.go
 
 const (
 	// builtinVdlrootData contains a base64-encoded gzip'd tar file. This file

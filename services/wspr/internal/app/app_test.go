@@ -34,7 +34,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 var testPrincipal = testutil.NewPrincipal("test")
 

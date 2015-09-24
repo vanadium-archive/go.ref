@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command make_builtin_vdlroot runs at v23 go generate time. It emits a Go
-// source file called builtin_vdlroot.go containing a gzip'd version of all
-// the core VDL types required by the VDL tool. This allows the VDL tool to
-// run 'standalone' (i.e. without access to the Vanadium source code).
+// Command make_builtin_vdlroot runs at jiri go generate time. It emits a Go
+// source file called builtin_vdlroot.go containing a gzip'd version of all the
+// core VDL types required by the VDL tool. This allows the VDL tool to run
+// 'standalone' (i.e. without access to the Vanadium source code).
 //
 // +build ignored
 
@@ -34,7 +34,7 @@ const (
 
 package main
 
-//go:generate v23 go run make_builtin_vdlroot.go
+//go:generate jiri go run make_builtin_vdlroot.go
 
 const (
 	// builtinVdlrootData contains a base64-encoded gzip'd tar file. This file
@@ -71,36 +71,36 @@ type wrapWriter struct {
 // Writes b to the underlying writer but inserts a \n every 78 characters. The
 // returned bytes-written count includes the \n characters.
 func (w *wrapWriter) Write(b []byte) (int, error) {
-  const max = 78
-  n := 0
-  for len(b) > 0 {
-    newline := true
-    chunk := max - w.totalWritten%max
-    if len(b) < chunk {
-      chunk = len(b)
-      newline = false
-    }
-    if err := writeBytes(w.writer, b[:chunk]); err != nil {
-      return n, err
-    }
-    n += chunk
-    w.totalWritten += chunk
-    b = b[chunk:]
-    if newline {
-      if err := writeString(w.writer, "\n"); err != nil {
-        return n, err
-      }
-      n++
-    }
-  }
-  return n, nil
+	const max = 78
+	n := 0
+	for len(b) > 0 {
+		newline := true
+		chunk := max - w.totalWritten%max
+		if len(b) < chunk {
+			chunk = len(b)
+			newline = false
+		}
+		if err := writeBytes(w.writer, b[:chunk]); err != nil {
+			return n, err
+		}
+		n += chunk
+		w.totalWritten += chunk
+		b = b[chunk:]
+		if newline {
+			if err := writeString(w.writer, "\n"); err != nil {
+				return n, err
+			}
+			n++
+		}
+	}
+	return n, nil
 }
 
 // writeVdlrootData creates a gzip'd tar file containing all of the VDL files
 // in vdlroot. The data is encoded as base64. Does not close out.
 func writeVdlrootData(out io.Writer) error {
-	v23root := os.Getenv("JIRI_ROOT")
-	if v23root == "" {
+	jiriRoot := os.Getenv("JIRI_ROOT")
+	if jiriRoot == "" {
 		return fmt.Errorf("JIRI_ROOT is not set")
 	}
 	vdlroot := filepath.Join(v23root, "release", "go", "src", "v.io", "v23", "vdlroot")
@@ -122,9 +122,9 @@ func writeVdlrootData(out io.Writer) error {
 				return err
 			}
 			header := tar.Header{
-				Mode:    int64(0644),
-				Name:    relPath,
-				Size:    int64(len(content)),
+				Mode: int64(0644),
+				Name: relPath,
+				Size: int64(len(content)),
 			}
 			if err := tarWriter.WriteHeader(&header); err != nil {
 				return err

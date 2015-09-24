@@ -14,7 +14,7 @@ import (
 	vsync "v.io/x/ref/runtime/internal/lib/sync"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 const (
 	elementCount = 100

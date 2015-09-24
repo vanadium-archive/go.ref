@@ -19,7 +19,7 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 // findGoBinary returns the path to the given Go binary and
 // the GOROOT environment variable to use.

@@ -27,7 +27,7 @@
 // The go generate mechanism is used to generate the test code, thus the
 // comment:
 //
-// //go:generate v23 test generate
+// //go:generate jiri test generate
 //
 // will generate the files v23_test.go and internal_v23_test.go for the
 // package in which it occurs. Run v23 test generate --help for full

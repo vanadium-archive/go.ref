@@ -16,7 +16,7 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 var createLockfile = modules.Register(func(env *modules.Env, args ...string) error {
 	dir := args[0]

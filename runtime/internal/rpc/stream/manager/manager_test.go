@@ -38,7 +38,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-// We write our own TestMain here instead of relying on v23 test generate because
+// We write our own TestMain here instead of relying on jiri test generate because
 // we need to set runtime.GOMAXPROCS.
 func TestMain(m *testing.M) {
 	test.Init()
