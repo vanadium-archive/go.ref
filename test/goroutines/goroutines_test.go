@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const leakWaitTime = 250 * time.Millisecond
+
 func wrappedWaitForIt(wg *sync.WaitGroup, wait chan struct{}, n int64) {
 	if n == 0 {
 		waitForIt(wg, wait)
@@ -42,7 +44,7 @@ func runGoC(wg *sync.WaitGroup, wait chan struct{}) {
 }
 
 func TestGet(t *testing.T) {
-	defer NoLeaks(t, 100*time.Millisecond)()
+	defer NoLeaks(t, leakWaitTime)()
 	var wg sync.WaitGroup
 	wg.Add(3)
 	wait := make(chan struct{})
@@ -87,14 +89,11 @@ func TestGet(t *testing.T) {
 		t.Errorf("runGoC is missing")
 	} else if len(c.Stack) < 1 {
 		t.Errorf("got %d expected at least 1: %s", len(c.Stack), Format(c))
-	} else if !strings.HasPrefix(c.Stack[0].Call, "v.io/x/ref/test/goroutines.") {
-		t.Errorf("got %s, wanted it to start with v.io/x/ref/test/goroutines.",
-			c.Stack[0].Call)
 	}
 }
 
 func TestFormat(t *testing.T) {
-	defer NoLeaks(t, 100*time.Millisecond)()
+	defer NoLeaks(t, leakWaitTime)()
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -131,7 +130,7 @@ func (f *fakeErrorReporter) Errorf(format string, args ...interface{}) {
 
 func TestNoLeaks(t *testing.T) {
 	er := &fakeErrorReporter{}
-	f := NoLeaks(er, 100*time.Millisecond)
+	f := NoLeaks(er, leakWaitTime)
 
 	var wg sync.WaitGroup
 	wg.Add(3)
