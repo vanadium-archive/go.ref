@@ -551,7 +551,6 @@ func newXFlowServer(flow flow.Flow, server *xserver) (*xflowServer, error) {
 		dec:        vom.NewDecoderWithTypeDecoder(flow, typeDec),
 		discharges: make(map[string]security.Discharge),
 	}
-	// TODO(toddw): Add logic to create separate type flows!
 	return fs, nil
 }
 
@@ -831,7 +830,7 @@ func (fs *xflowServer) RemoteDischarges() map[string]security.Discharge {
 }
 func (fs *xflowServer) Server() rpc.Server {
 	//nologcall
-	return nil // TODO(toddw): Change return to rpc.Server
+	return fs.server
 }
 func (fs *xflowServer) Timestamp() time.Time {
 	//nologcall
