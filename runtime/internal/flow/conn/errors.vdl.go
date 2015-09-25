@@ -28,6 +28,7 @@ var (
 	ErrNoPublicKey              = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoPublicKey", verror.NoRetry, "{1:}{2:} No public key was received by the remote end.")
 	ErrDialingNonServer         = verror.Register("v.io/x/ref/runtime/internal/flow/conn.DialingNonServer", verror.NoRetry, "{1:}{2:} You are attempting to dial on a connection with no remote server.")
 	ErrAcceptorBlessingsMissing = verror.Register("v.io/x/ref/runtime/internal/flow/conn.AcceptorBlessingsMissing", verror.NoRetry, "{1:}{2:} The acceptor did not send blessings.")
+	ErrUpdatingNilFlowHandler   = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UpdatingNilFlowHandler", verror.NoRetry, "{1:}{2:} nil flowHandler cannot be updated to non-nil value.")
 )
 
 func init() {
@@ -44,6 +45,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoPublicKey.ID), "{1:}{2:} No public key was received by the remote end.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDialingNonServer.ID), "{1:}{2:} You are attempting to dial on a connection with no remote server.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAcceptorBlessingsMissing.ID), "{1:}{2:} The acceptor did not send blessings.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUpdatingNilFlowHandler.ID), "{1:}{2:} nil flowHandler cannot be updated to non-nil value.")
 }
 
 // NewErrMissingSetupOption returns an error with the ErrMissingSetupOption ID.
@@ -109,4 +111,9 @@ func NewErrDialingNonServer(ctx *context.T) error {
 // NewErrAcceptorBlessingsMissing returns an error with the ErrAcceptorBlessingsMissing ID.
 func NewErrAcceptorBlessingsMissing(ctx *context.T) error {
 	return verror.New(ErrAcceptorBlessingsMissing, ctx)
+}
+
+// NewErrUpdatingNilFlowHandler returns an error with the ErrUpdatingNilFlowHandler ID.
+func NewErrUpdatingNilFlowHandler(ctx *context.T) error {
+	return verror.New(ErrUpdatingNilFlowHandler, ctx)
 }

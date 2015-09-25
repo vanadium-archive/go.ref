@@ -380,9 +380,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		if err != nil {
 			return nil, flow.NewErrDialFailed(ctx, err)
 		}
-		// TODO(mattr): We should only pass a flowHandler to NewDialed if there
-		// is a server attached to this flow manager.  Perhaps we can signal
-		// "serving flow manager" by passing a 0 RID to non-serving flow managers?
 		c, err = conn.NewDialed(
 			ctx,
 			flowConn,
