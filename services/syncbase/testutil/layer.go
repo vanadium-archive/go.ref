@@ -7,6 +7,7 @@ package testutil
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 
 	"v.io/v23/context"
@@ -103,16 +104,13 @@ func TestCreateNameValidation(t *testing.T, ctx *context.T, i interface{}, okNam
 	for _, name := range notOkNames {
 		if err := parent.Child(name).Create(ctx, nil); err == nil {
 			t.Fatalf("Create(%q) should have failed: %v", name, err)
+		} else if name != "" && verror.ErrorID(err) != wire.ErrInvalidName.ID {
 			// TODO(sadovsky): Currently for name "" we cannot check for
 			// ErrInvalidName, since parent.Child("") dispatches on the parent
 			// component. Create will still fail, but for a different reason. If/when
 			// we add client-side name validation, we'll be able to check for
 			// ErrInvalidName specifically.
-			// TODO(sadovsky): Will dropping the "TrimPrefix" calls in our server-side
-			// dispatchers fix this?
-			if name != "" && verror.ErrorID(err) != wire.ErrInvalidName.ID {
-				t.Fatalf("Create(%q) should have failed with ErrInvalidName: %v", name, err)
-			}
+			t.Fatalf("Create(%q) should have failed with ErrInvalidName: %v", name, err)
 		}
 	}
 }
@@ -199,43 +197,36 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self, "self", false)
 }
 
-func TestListChildren(t *testing.T, ctx *context.T, i interface{}) {
+func TestListChildren(t *testing.T, ctx *context.T, i interface{}, names []string) {
 	self := makeLayer(i)
 
 	var got, want []string
 	var err error
 
-	got, err = self.ListChildren(ctx)
-	want = []string{}
-	if err != nil {
-		t.Fatalf("self.ListChildren() failed: %v", err)
-	}
-	if !reflect.DeepEqual([]string(got), want) {
-		t.Fatalf("Lists do not match: got %v, want %v", got, want)
-	}
+	sortedNames := make([]string, len(names))
+	copy(sortedNames, names)
+	sort.Strings(sortedNames)
+	names = sortedNames
 
-	if err := self.Child("y").Create(ctx, nil); err != nil {
-		t.Fatalf("y.Create() failed: %v", err)
-	}
-	got, err = self.ListChildren(ctx)
-	want = []string{"y"}
-	if err != nil {
-		t.Fatalf("self.ListChildren() failed: %v", err)
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("Lists do not match: got %v, want %v", got, want)
-	}
-
-	if err := self.Child("x").Create(ctx, nil); err != nil {
-		t.Fatalf("x.Create() failed: %v", err)
-	}
-	got, err = self.ListChildren(ctx)
-	want = []string{"x", "y"}
-	if err != nil {
-		t.Fatalf("self.ListChildren() failed: %v", err)
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("Lists do not match: got %v, want %v", got, want)
+	for i := 0; i <= len(names); i++ {
+		got, err = self.ListChildren(ctx)
+		want = names[:i]
+		if err != nil {
+			t.Fatalf("self.ListChildren() failed: %v", err)
+		}
+		if got == nil {
+			got = []string{}
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("Lists do not match: got %v, want %v", got, want)
+		}
+		if i == len(names) {
+			break
+		}
+		name := names[i]
+		if err := self.Child(name).Create(ctx, nil); err != nil {
+			t.Fatalf("Create(%q) failed: %v", name, err)
+		}
 	}
 }
 
@@ -340,6 +331,8 @@ const notAvailable = "not available"
 
 type layer interface {
 	util.AccessController
+	Name() string
+	FullName() string
 	Create(ctx *context.T, perms access.Permissions) error
 	Destroy(ctx *context.T) error
 	Exists(ctx *context.T) (bool, error)
@@ -351,6 +344,9 @@ type service struct {
 	syncbase.Service
 }
 
+func (s *service) Name() string {
+	panic(notAvailable)
+}
 func (s *service) Create(ctx *context.T, perms access.Permissions) error {
 	panic(notAvailable)
 }
@@ -411,6 +407,9 @@ type row struct {
 	nosql.Row
 }
 
+func (r *row) Name() string {
+	return r.Key()
+}
 func (r *row) Create(ctx *context.T, perms access.Permissions) error {
 	if perms != nil {
 		panic(fmt.Sprintf("bad perms: %v", perms))

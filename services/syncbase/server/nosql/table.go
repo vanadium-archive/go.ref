@@ -117,9 +117,9 @@ func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 	if t.d.batchId != nil {
 		return impl(t.d.batchReader())
 	} else {
-		sntx := t.d.st.NewSnapshot()
-		defer sntx.Abort()
-		return impl(sntx)
+		sn := t.d.st.NewSnapshot()
+		defer sn.Abort()
+		return impl(sn)
 	}
 }
 
@@ -365,21 +365,19 @@ func (t *tableReq) DeletePrefixPermissions(ctx *context.T, call rpc.ServerCall, 
 }
 
 func (t *tableReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
-	impl := func(sntx store.SnapshotOrTransaction, closeSntx func() error) error {
+	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
 		if err := t.checkAccess(ctx, call, sntx, ""); err != nil {
-			closeSntx()
 			return err
 		}
-		return util.GlobChildren(ctx, call, matcher, sntx, closeSntx, util.JoinKeyParts(util.RowPrefix, t.name))
+		return util.GlobChildren(ctx, call, matcher, sntx, util.JoinKeyParts(util.RowPrefix, t.name))
 	}
 	if t.d.batchId != nil {
-		return impl(t.d.batchReader(), func() error {
-			return nil
-		})
+		return impl(t.d.batchReader())
 	} else {
 		sn := t.d.st.NewSnapshot()
-		return impl(sn, sn.Abort)
+		defer sn.Abort()
+		return impl(sn)
 	}
 }
 

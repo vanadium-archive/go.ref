@@ -89,11 +89,11 @@ func (a *app) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, ma
 	}
 	// Check perms.
 	sn := a.s.st.NewSnapshot()
+	defer sn.Abort()
 	if err := util.GetWithAuth(ctx, call, sn, a.stKey(), &appData{}); err != nil {
-		sn.Abort()
 		return err
 	}
-	return util.GlobChildren(ctx, call, matcher, sn, sn.Abort, util.JoinKeyParts(util.DbInfoPrefix, a.name))
+	return util.GlobChildren(ctx, call, matcher, sn, util.JoinKeyParts(util.DbInfoPrefix, a.name))
 }
 
 ////////////////////////////////////////
