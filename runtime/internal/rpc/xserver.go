@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -523,8 +524,6 @@ type xflowServer struct {
 	flow   flow.Flow      // underlying flow
 
 	// Fields filled in during the server invocation.
-	clientBlessings  security.Blessings
-	ackBlessings     bool
 	grantedBlessings security.Blessings
 	method, suffix   string
 	tags             []*vdl.Value
@@ -593,7 +592,6 @@ func (fs *xflowServer) serve() error {
 		EndStreamResults: true,
 		NumPosResults:    uint64(len(results)),
 		TraceResponse:    traceResponse,
-		AckBlessings:     fs.ackBlessings,
 	}
 	if err := fs.enc.Encode(response); err != nil {
 		if err == io.EOF {
@@ -682,8 +680,7 @@ func (fs *xflowServer) processRequest() ([]interface{}, error) {
 	// TODO(toddw): Explicitly cancel the context when the flow is done.
 	_ = cancel
 
-	// Initialize security: blessings, discharges, etc.
-	if err := fs.initSecurity(req); err != nil {
+	if err := fs.readGrantedBlessings(req); err != nil {
 		fs.drainDecoderArgs(int(req.NumPosArgs))
 		return nil, err
 	}
@@ -775,48 +772,22 @@ func (fs *xflowServer) lookup(suffix string, method string) (rpc.Invoker, securi
 	return nil, nil, verror.New(verror.ErrUnknownSuffix, fs.ctx, suffix)
 }
 
-func (fs *xflowServer) initSecurity(req *rpc.Request) error {
-	// TODO(toddw): Do something with this.
-	/*
-		// LocalPrincipal is nil which means we are operating under
-		// SecurityNone.
-		if fs.LocalPrincipal() == nil {
-			return nil
-		}
-
-		// If additional credentials are provided, make them available in the context
-		// Detect unusable blessings now, rather then discovering they are unusable on
-		// first use.
-		//
-		// TODO(ashankar,ataly): Potential confused deputy attack: The client provides
-		// the server's identity as the blessing. Figure out what we want to do about
-		// this - should servers be able to assume that a blessing is something that
-		// does not have the authorizations that the server's own identity has?
-		if got, want := req.GrantedBlessings.PublicKey(), fs.LocalPrincipal().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
-			return verror.New(verror.ErrNoAccess, fs.ctx, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", got, want))
-		}
-		fs.grantedBlessings = req.GrantedBlessings
-
-		var err error
-		if fs.clientBlessings, err = serverDecodeBlessings(fs.flow.VCDataCache(), req.Blessings, fs.server.stats); err != nil {
-			// When the server can't access the blessings cache, the client is not following
-			// protocol, so the server closes the VCs corresponding to the client endpoint.
-			// TODO(suharshs,toddw): Figure out a way to only shutdown the current VC, instead
-			// of all VCs connected to the RemoteEndpoint.
-			fs.server.streamMgr.ShutdownEndpoint(fs.RemoteEndpoint())
-			return verror.New(verror.ErrBadProtocol, fs.ctx, newErrBadBlessingsCache(fs.ctx, err))
-		}
-		// Verify that the blessings sent by the client in the request have the same public
-		// key as those sent by the client during VC establishment.
-		if got, want := fs.clientBlessings.PublicKey(), fs.flow.RemoteBlessings().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
-			return verror.New(verror.ErrNoAccess, fs.ctx, fmt.Sprintf("blessings sent with the request are bound to a different public key (%v) from the blessing used during VC establishment (%v)", got, want))
-		}
-		fs.ackBlessings = true
-
-		for _, d := range req.Discharges {
-			fs.discharges[d.ID()] = d
-		}
-	*/
+func (fs *xflowServer) readGrantedBlessings(req *rpc.Request) error {
+	if req.GrantedBlessings.IsZero() {
+		return nil
+	}
+	// If additional credentials are provided, make them available in the context
+	// Detect unusable blessings now, rather then discovering they are unusable on
+	// first use.
+	//
+	// TODO(ashankar,ataly): Potential confused deputy attack: The client provides
+	// the server's identity as the blessing. Figure out what we want to do about
+	// this - should servers be able to assume that a blessing is something that
+	// does not have the authorizations that the server's own identity has?
+	if got, want := req.GrantedBlessings.PublicKey(), fs.LocalPrincipal().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
+		return verror.New(verror.ErrNoAccess, fs.ctx, verror.New(errBlessingsNotBound, fs.ctx, got, want))
+	}
+	fs.grantedBlessings = req.GrantedBlessings
 	return nil
 }
 
