@@ -54,6 +54,7 @@ var (
 	errFailedToParseIP           = reg(".errFailedToParseIP", "failed to parse {3} as an IP host")
 	errUnexpectedSuffix          = reg(".errUnexpectedSuffix", "suffix {3} was not expected because either server has the option IsLeaf set to true or it served an object and not a dispatcher")
 	errNoListeners               = reg(".errNoListeners", "failed to ceate any listeners{:3}")
+	errBlessingsNotBound         = reg(".errBlessingNotBound", "blessing granted not bound to this server({3} vs {4})")
 )
 
 type DeprecatedServer interface {
@@ -1327,7 +1328,7 @@ func (fs *flowServer) initSecurity(req *rpc.Request) error {
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
 	if got, want := req.GrantedBlessings.PublicKey(), fs.LocalPrincipal().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
-		return verror.New(verror.ErrNoAccess, fs.ctx, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", got, want))
+		return verror.New(verror.ErrNoAccess, fs.ctx, verror.New(errBlessingsNotBound, fs.ctx, got, want))
 	}
 	fs.grantedBlessings = req.GrantedBlessings
 
