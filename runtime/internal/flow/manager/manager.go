@@ -40,20 +40,18 @@ type manager struct {
 
 	mu              *sync.Mutex
 	listenEndpoints []naming.Endpoint
-	proxyEndpoints  map[string][]naming.Endpoint // keyed by proxy address
 	listeners       []flow.Listener
 	wg              sync.WaitGroup
 }
 
 func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 	m := &manager{
-		rid:            rid,
-		closed:         make(chan struct{}),
-		q:              upcqueue.New(),
-		cache:          NewConnCache(),
-		mu:             &sync.Mutex{},
-		proxyEndpoints: make(map[string][]naming.Endpoint),
-		listeners:      []flow.Listener{},
+		rid:       rid,
+		closed:    make(chan struct{}),
+		q:         upcqueue.New(),
+		cache:     NewConnCache(),
+		mu:        &sync.Mutex{},
+		listeners: []flow.Listener{},
 	}
 	go func() {
 		ticker := time.NewTicker(reapCacheInterval)
@@ -91,13 +89,6 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	if err := m.validateContext(ctx); err != nil {
 		return err
 	}
-	if protocol == inaming.Network {
-		return m.proxyListen(ctx, address)
-	}
-	return m.listen(ctx, protocol, address)
-}
-
-func (m *manager) listen(ctx *context.T, protocol, address string) error {
 	ln, err := listen(ctx, protocol, address)
 	if err != nil {
 		return flow.NewErrNetwork(ctx, err)
@@ -121,18 +112,26 @@ func (m *manager) listen(ctx *context.T, protocol, address string) error {
 	return nil
 }
 
-func (m *manager) proxyListen(ctx *context.T, address string) error {
-	ep, err := inaming.NewEndpoint(address)
-	if err != nil {
-		return flow.NewErrBadArg(ctx, err)
+// ProxyListen causes the Manager to accept flows from the specified endpoint.
+// The endpoint must correspond to a vanadium proxy.
+//
+// update gets passed the complete set of endpoints for the proxy every time it
+// is called.
+//
+// The flow.Manager associated with ctx must be the receiver of the method,
+// otherwise an error is returned.
+func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint, update func([]naming.Endpoint)) error {
+	if err := m.validateContext(ctx); err != nil {
+		return err
 	}
 	m.wg.Add(1)
-	go m.connectToProxy(ctx, address, ep)
+	go m.connectToProxy(ctx, ep, update)
 	return nil
 }
 
-func (m *manager) connectToProxy(ctx *context.T, address string, ep naming.Endpoint) {
+func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func([]naming.Endpoint)) {
 	defer m.wg.Done()
+	var eps []naming.Endpoint
 	for delay := reconnectDelay; ; delay *= 2 {
 		time.Sleep(delay - reconnectDelay)
 		select {
@@ -154,21 +153,17 @@ func (m *manager) connectToProxy(ctx *context.T, address string, ep naming.Endpo
 			ctx.Error(err)
 			continue
 		}
-		eps, err := m.readProxyResponse(ctx, f)
+		eps, err = m.readProxyResponse(ctx, f)
 		if err != nil {
 			ctx.Error(err)
 			continue
 		}
-		m.mu.Lock()
-		m.proxyEndpoints[address] = eps
-		m.mu.Unlock()
+		update(eps)
 		select {
 		case <-ctx.Done():
 			return
 		case <-f.Closed():
-			m.mu.Lock()
-			delete(m.proxyEndpoints, address)
-			m.mu.Unlock()
+			update(nil)
 			delay = reconnectDelay
 		}
 	}
@@ -279,7 +274,8 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 }
 
 // ListeningEndpoints returns the endpoints that the Manager has explicitly
-// listened on. The Manager will accept new flows on these endpoints.
+// called Listen on. The Manager will accept new flows on these endpoints.
+// Proxied endpoints are not returned.
 // If the Manager is not listening on any endpoints, an endpoint with the
 // Manager's RoutingID will be returned for use in bidirectional RPC.
 // Returned endpoints all have the Manager's unique RoutingID.
@@ -287,9 +283,6 @@ func (m *manager) ListeningEndpoints() []naming.Endpoint {
 	m.mu.Lock()
 	ret := make([]naming.Endpoint, len(m.listenEndpoints))
 	copy(ret, m.listenEndpoints)
-	for _, peps := range m.proxyEndpoints {
-		ret = append(ret, peps...)
-	}
 	m.mu.Unlock()
 	if len(ret) == 0 {
 		ret = append(ret, &inaming.Endpoint{RID: m.rid})

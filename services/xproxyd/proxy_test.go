@@ -7,6 +7,7 @@ package xproxyd_test
 import (
 	"bufio"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -29,6 +30,85 @@ const (
 	pollTime     = 50 * time.Millisecond
 )
 
+type testService struct{}
+
+func (t *testService) Echo(ctx *context.T, call rpc.ServerCall, arg string) (string, error) {
+	return "response:" + arg, nil
+}
+
+func TestProxyRPC(t *testing.T) {
+	if os.Getenv("V23_RPC_TRANSITION_STATE") != "xservers" {
+		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
+	}
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	// Start the proxy.
+	pep := startProxy(t, ctx, address{"tcp", "127.0.0.1:0"})
+
+	// Start the server listening through the proxy.
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: pep.Name()})
+	_, s, err := v23.WithNewServer(ctx, "", &testService{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the server to finish listening through the proxy.
+	eps := s.Status().Endpoints
+	for ; len(eps) < 2 || eps[1].Addr().Network() == ""; eps = s.Status().Endpoints {
+		time.Sleep(pollTime)
+	}
+
+	var got string
+	if err := v23.GetClient(ctx).Call(ctx, eps[1].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "response:hello"; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestMultipleProxyRPC(t *testing.T) {
+	if os.Getenv("V23_RPC_TRANSITION_STATE") != "xservers" {
+		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
+	}
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	kp := newKillProtocol()
+	flow.RegisterProtocol("kill", kp)
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	// Start the proxies.
+	pep := startProxy(t, ctx, address{"kill", "127.0.0.1:0"})
+	p2ep := startProxy(t, ctx, address{"v23", pep.String()}, address{"kill", "127.0.0.1:0"})
+
+	// Start the server listening through the proxy.
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: p2ep.Name()})
+	_, s, err := v23.WithNewServer(ctx, "", &testService{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Create a new flow manager for the client.
+	cctx, _, err := v23.ExperimentalWithNewFlowManager(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the server to finish listening through the proxy.
+	eps := s.Status().Endpoints
+	for ; len(eps) == 0 || eps[0].Addr().Network() == ""; eps = s.Status().Endpoints {
+		time.Sleep(pollTime)
+	}
+
+	var got string
+	if err := v23.GetClient(cctx).Call(ctx, eps[0].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "response:hello"; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+// TODO(suharshs): Remove the below tests when the transition is complete.
 func TestSingleProxy(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	kp := newKillProtocol()
@@ -46,15 +126,20 @@ func TestSingleProxy(t *testing.T) {
 
 	pep := startProxy(t, pctx, address{"kill", "127.0.0.1:0"})
 
-	if err := am.Listen(actx, "v23", pep.String()); err != nil {
+	done := make(chan struct{})
+	update := func(eps []naming.Endpoint) {
+		if len(eps) > 0 {
+			if err := testEndToEndConnection(t, dctx, actx, dm, am, eps[0]); err != nil {
+				t.Error(err)
+			}
+			close(done)
+		}
+	}
+
+	if err := am.ProxyListen(actx, pep, update); err != nil {
 		t.Fatal(err)
 	}
-
-	for am.ListeningEndpoints()[0].Addr().Network() == "" {
-		time.Sleep(pollTime)
-	}
-
-	testEndToEndConnections(t, dctx, actx, dm, am, kp)
+	<-done
 }
 
 func TestMultipleProxies(t *testing.T) {
@@ -78,34 +163,34 @@ func TestMultipleProxies(t *testing.T) {
 
 	p3ep := startProxy(t, pctx, address{"v23", p2ep.String()}, address{"kill", "127.0.0.1:0"})
 
-	if err := am.Listen(actx, "v23", p3ep.String()); err != nil {
+	ch := make(chan struct{})
+	var allEps []naming.Endpoint
+	idx := 0
+	update := func(eps []naming.Endpoint) {
+		// TODO(suharshs): Fix this test once we have the proxy send update messages to the
+		// server when it reconnects to a proxy.
+		if len(eps) == 3 {
+			allEps = eps
+		}
+		if len(eps) > 0 {
+			if err := testEndToEndConnection(t, dctx, actx, dm, am, allEps[idx]); err != nil {
+				t.Error(err)
+			}
+			idx++
+			ch <- struct{}{}
+		}
+	}
+
+	if err := am.ProxyListen(actx, p3ep, update); err != nil {
 		t.Fatal(err)
 	}
 
-	// Wait for am.Listen to get 3 endpoints.
-	for len(am.ListeningEndpoints()) != 3 {
-		time.Sleep(pollTime)
-	}
-
-	testEndToEndConnections(t, dctx, actx, dm, am, kp)
-}
-
-func testEndToEndConnections(t *testing.T, dctx, actx *context.T, dm, am flow.Manager, kp *killProtocol) {
-	aeps := am.ListeningEndpoints()
-	if len(aeps) == 0 {
-		t.Fatal("acceptor not listening on any endpoints")
-	}
-	for _, aep := range aeps {
-		// Kill the connections, connections should still eventually succeed.
+	<-ch
+	// Test the other two endpoints.
+	for i := 0; i < 2; i++ {
+		// Kill the connections to test reconnection.
 		kp.KillConnections()
-		for {
-			if err := testEndToEndConnection(t, dctx, actx, dm, am, aep); err != nil {
-				t.Log(err)
-				time.Sleep(pollTime)
-				continue
-			}
-			break
-		}
+		<-ch
 	}
 }
 

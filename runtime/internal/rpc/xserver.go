@@ -51,9 +51,13 @@ type xserver struct {
 	dhcpState         *dhcpState          // dhcpState, nil if not using dhcp
 	principal         security.Principal
 	blessings         security.Blessings
-	protoEndpoints    []*inaming.Endpoint
-	chosenEndpoints   []*inaming.Endpoint
 	typeCache         *typeCache
+	addressChooser    rpc.AddressChooser
+
+	mu              sync.Mutex
+	chosenEndpoints map[string]*inaming.Endpoint            // endpoints chosen by the addressChooser for publishing.
+	protoEndpoints  map[string]*inaming.Endpoint            // endpoints that act as "template" endpoints.
+	proxyEndpoints  map[string]map[string]*inaming.Endpoint // keyed by ep.String()
 
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       rpc.Dispatcher // dispatcher for reserved methods
@@ -107,6 +111,7 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 		settingsName:      settingsName,
 		disp:              dispatcher,
 		typeCache:         newTypeCache(),
+		proxyEndpoints:    make(map[string]map[string]*inaming.Endpoint),
 	}
 	ipNets, err := ipNetworks()
 	if err != nil {
@@ -139,9 +144,11 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 		return nil, err
 	}
 	if len(name) > 0 {
-		for _, ep := range s.chosenEndpoints {
-			s.publisher.AddServer(ep.String())
+		s.mu.Lock()
+		for k, _ := range s.chosenEndpoints {
+			s.publisher.AddServer(k)
 		}
+		s.mu.Unlock()
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 		vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	}
@@ -150,9 +157,11 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 
 func (s *xserver) Status() rpc.ServerStatus {
 	ret := rpc.ServerStatus{}
+	s.mu.Lock()
 	for _, e := range s.chosenEndpoints {
 		ret.Endpoints = append(ret.Endpoints, e)
 	}
+	s.mu.Unlock()
 	return ret
 }
 
@@ -175,12 +184,12 @@ func (s *xserver) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
 }
 
 // resolveToEndpoint resolves an object name or address to an endpoint.
-func (s *xserver) resolveToEndpoint(address string) (string, error) {
+func (s *xserver) resolveToEndpoint(address string) (naming.Endpoint, error) {
 	var resolved *naming.MountEntry
 	var err error
 	if s.ns != nil {
 		if resolved, err = s.ns.Resolve(s.ctx, address); err != nil {
-			return "", err
+			return nil, err
 		}
 	} else {
 		// Fake a namespace resolution
@@ -190,7 +199,7 @@ func (s *xserver) resolveToEndpoint(address string) (string, error) {
 	}
 	// An empty set of protocols means all protocols...
 	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols, s.ipNets); err != nil {
-		return "", err
+		return nil, err
 	}
 	for _, n := range resolved.Names() {
 		address, suffix := naming.SplitAddressName(n)
@@ -198,10 +207,10 @@ func (s *xserver) resolveToEndpoint(address string) (string, error) {
 			continue
 		}
 		if ep, err := inaming.NewEndpoint(address); err == nil {
-			return ep.String(), nil
+			return ep, nil
 		}
 	}
-	return "", verror.New(errFailedToResolveToEndpoint, s.ctx, address)
+	return nil, verror.New(errFailedToResolveToEndpoint, s.ctx, address)
 }
 
 // createEndpoints creates appropriate inaming.Endpoint instances for
@@ -239,17 +248,62 @@ func (s *xserver) createEndpoints(lep naming.Endpoint, chooser netstate.AddressC
 	return ieps, port, unspecified, nil
 }
 
+func (s *xserver) update(pep naming.Endpoint) func([]naming.Endpoint) {
+	return func(leps []naming.Endpoint) {
+		chosenEps := make(map[string]*inaming.Endpoint)
+		pkey := pep.String()
+		for _, ep := range leps {
+			eps, _, _, _ := s.createEndpoints(ep, s.addressChooser)
+			for _, cep := range eps {
+				chosenEps[cep.String()] = cep
+			}
+			// TODO(suharshs): do protoEndpoints need to be handled here?
+		}
+
+		// Endpoints to add and remove.
+		s.mu.Lock()
+		oldEps := s.proxyEndpoints[pkey]
+		s.proxyEndpoints[pkey] = chosenEps
+		rmEps := setDiff(oldEps, chosenEps)
+		addEps := setDiff(chosenEps, oldEps)
+		for k := range rmEps {
+			delete(s.chosenEndpoints, k)
+		}
+		for k, ep := range addEps {
+			s.chosenEndpoints[k] = ep
+		}
+		s.mu.Unlock()
+
+		for k := range rmEps {
+			s.publisher.RemoveServer(k)
+		}
+		for k := range addEps {
+			s.publisher.AddServer(k)
+		}
+	}
+}
+
+// setDiff returns the endpoints in a that are not in b.
+func setDiff(a, b map[string]*inaming.Endpoint) map[string]*inaming.Endpoint {
+	ret := make(map[string]*inaming.Endpoint)
+	for k, ep := range a {
+		if _, ok := b[k]; !ok {
+			ret[k] = ep
+		}
+	}
+	return ret
+}
+
 func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
 	s.Lock()
 	defer s.Unlock()
 	var lastErr error
-	var ep string
 	if len(listenSpec.Proxy) > 0 {
-		ep, lastErr = s.resolveToEndpoint(listenSpec.Proxy)
-		if lastErr != nil {
+		var ep naming.Endpoint
+		if ep, lastErr = s.resolveToEndpoint(listenSpec.Proxy); lastErr != nil {
 			s.ctx.VI(2).Infof("resolveToEndpoint(%q) failed: %v", listenSpec.Proxy, lastErr)
 		} else {
-			lastErr = s.flowMgr.Listen(ctx, inaming.Network, ep)
+			lastErr = s.flowMgr.ProxyListen(ctx, ep, s.update(ep))
 			if lastErr != nil {
 				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", inaming.Network, ep, lastErr)
 			}
@@ -269,15 +323,24 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
 		return verror.New(verror.ErrBadArg, s.ctx, verror.New(errNoListeners, s.ctx, lastErr))
 	}
 
+	s.addressChooser = listenSpec.AddressChooser
 	roaming := false
+	chosenEps := make(map[string]*inaming.Endpoint)
+	protoEps := make(map[string]*inaming.Endpoint)
 	for _, ep := range leps {
 		eps, _, eproaming, eperr := s.createEndpoints(ep, listenSpec.AddressChooser)
-		s.chosenEndpoints = append(s.chosenEndpoints, eps...)
+		for _, cep := range eps {
+			chosenEps[cep.String()] = cep
+		}
 		if eproaming && eperr == nil {
-			s.protoEndpoints = append(s.protoEndpoints, ep.(*inaming.Endpoint))
+			protoEps[ep.String()] = ep.(*inaming.Endpoint)
 			roaming = true
 		}
 	}
+	s.mu.Lock()
+	s.chosenEndpoints = chosenEps
+	s.protoEndpoints = protoEps
+	s.mu.Unlock()
 
 	if roaming && s.dhcpState == nil && s.settingsPublisher != nil {
 		// TODO(mattr): Support roaming.
