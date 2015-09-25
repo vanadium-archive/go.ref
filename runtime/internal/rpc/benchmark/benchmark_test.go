@@ -112,7 +112,7 @@ func TestMain(m *testing.M) {
 	var shutdown v23.Shutdown
 	ctx, shutdown = test.V23Init()
 
-	ctx, server, err := v23.WithNewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	_, server, err := v23.WithNewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}
