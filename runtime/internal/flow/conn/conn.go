@@ -47,7 +47,6 @@ type FlowHandler interface {
 type Conn struct {
 	fc                     *flowcontrol.FlowController
 	mp                     *messagePipe
-	handler                FlowHandler
 	version                version.RPCVersion
 	lBlessings, rBlessings security.Blessings
 	local, remote          naming.Endpoint
@@ -56,6 +55,7 @@ type Conn struct {
 	loopWG                 sync.WaitGroup
 
 	mu             sync.Mutex
+	handler        FlowHandler
 	nextFid        uint64
 	flows          map[uint64]*flw
 	dischargeTimer *time.Timer
@@ -263,16 +263,17 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		return NewErrConnClosedRemotely(ctx, msg.Message)
 
 	case *message.OpenFlow:
+		c.mu.Lock()
 		if c.handler == nil {
 			return NewErrUnexpectedMsg(ctx, "openFlow")
 		}
-		c.mu.Lock()
+		handler := c.handler
 		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, false, true)
 		f.worker.Release(ctx, int(msg.InitialCounters))
 		c.toRelease[msg.ID] = defaultBufferSize
 		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
-		c.handler.HandleFlow(f)
+		handler.HandleFlow(f)
 		if err := f.q.put(ctx, msg.Payload); err != nil {
 			return err
 		}
@@ -350,4 +351,14 @@ func (c *Conn) markUsed() {
 func (c *Conn) IsEncapsulated() bool {
 	_, ok := c.mp.rw.(*flw)
 	return ok
+}
+
+func (c *Conn) UpdateFlowHandler(ctx *context.T, handler FlowHandler) error {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.handler == nil && handler != nil {
+		return NewErrUpdatingNilFlowHandler(ctx)
+	}
+	c.handler = handler
+	return nil
 }
