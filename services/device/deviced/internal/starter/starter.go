@@ -20,6 +20,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/ref"
 	displib "v.io/x/ref/lib/dispatcher"
 	"v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/debug/debuglib"
@@ -173,7 +174,7 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 	}
 	var epName string
 	if args.Device.ListenSpec.Proxy != "" {
-		if os.Getenv("V23_RPC_TRANSITION_STATE") == "xservers" {
+		if ref.RPCTransitionState() == ref.XServers {
 			for {
 				eps := server.Status().Endpoints
 				if len(eps) > 0 && len(eps[0].Addr().Network()) > 0 {
