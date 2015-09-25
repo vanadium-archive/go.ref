@@ -56,6 +56,17 @@ package {{.Package}};
         super(VDL_TYPE, convert(arr));
     }
 
+	/**
+	 * Converts the array into its primitive (array) type.
+	 */
+	public {{ .ElemPrimitiveType }}[] toPrimitiveArray() {
+		{{ .ElemPrimitiveType }}[] ret = new {{ .ElemPrimitiveType }}[size()];
+		for (int i = 0; i < size(); ++i) {
+			ret[i] = get(i);
+		}
+		return ret;
+	}
+
     private static {{ .ElemType }}[] convert({{ .ElemPrimitiveType }}[] arr) {
         {{ .ElemType }}[] ret = new {{ .ElemType }}[arr.length];
         for (int i = 0; i < arr.length; ++i) {
