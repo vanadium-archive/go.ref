@@ -44,7 +44,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 			}
 		}
 	}
-	
+
 	me, err := ns.ResolveToMountTable(ctx, name, opts...)
 	if err == nil {
 		copts := append(getCallOpts(opts), options.Preresolved{me})
