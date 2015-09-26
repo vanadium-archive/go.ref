@@ -7,6 +7,7 @@ package xproxyd_test
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"strings"
 	"sync"
 	"testing"
@@ -163,21 +164,19 @@ func TestMultipleProxies(t *testing.T) {
 
 	p3ep := startProxy(t, pctx, address{"v23", p2ep.String()}, address{"kill", "127.0.0.1:0"})
 
-	ch := make(chan struct{})
-	var allEps []naming.Endpoint
-	idx := 0
+	done := make(chan struct{})
 	update := func(eps []naming.Endpoint) {
 		// TODO(suharshs): Fix this test once we have the proxy send update messages to the
-		// server when it reconnects to a proxy.
-		if len(eps) == 3 {
-			allEps = eps
-		}
+		// server when it reconnects to a proxy. This test only really tests the first connection
+		// currently because the connections are cached. So we need to kill connections and
+		// wait for them to reestablish but we need proxies to update communicate their new endpoints
+		// to each other and to the server. For now we at least check a random endpoint so the
+		// test will at least fail over many runs if something is wrong.
 		if len(eps) > 0 {
-			if err := testEndToEndConnection(t, dctx, actx, dm, am, allEps[idx]); err != nil {
+			if err := testEndToEndConnection(t, dctx, actx, dm, am, eps[rand.Int()%3]); err != nil {
 				t.Error(err)
 			}
-			idx++
-			ch <- struct{}{}
+			close(done)
 		}
 	}
 
@@ -185,13 +184,7 @@ func TestMultipleProxies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	<-ch
-	// Test the other two endpoints.
-	for i := 0; i < 2; i++ {
-		// Kill the connections to test reconnection.
-		kp.KillConnections()
-		<-ch
-	}
+	<-done
 }
 
 func testEndToEndConnection(t *testing.T, dctx, actx *context.T, dm, am flow.Manager, aep naming.Endpoint) error {
