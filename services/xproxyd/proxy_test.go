@@ -7,12 +7,12 @@ package xproxyd_test
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/xproxyd"
 	"v.io/x/ref/test/goroutines"
@@ -37,7 +37,7 @@ func (t *testService) Echo(ctx *context.T, call rpc.ServerCall, arg string) (str
 }
 
 func TestProxyRPC(t *testing.T) {
-	if os.Getenv("V23_RPC_TRANSITION_STATE") != "xservers" {
+	if ref.RPCTransitionState() != ref.XServers {
 		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
 	}
 	defer goroutines.NoLeaks(t, leakWaitTime)()
@@ -69,7 +69,7 @@ func TestProxyRPC(t *testing.T) {
 }
 
 func TestMultipleProxyRPC(t *testing.T) {
-	if os.Getenv("V23_RPC_TRANSITION_STATE") != "xservers" {
+	if ref.RPCTransitionState() != ref.XServers {
 		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
 	}
 	defer goroutines.NoLeaks(t, leakWaitTime)()
