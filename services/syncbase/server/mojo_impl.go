@@ -408,7 +408,9 @@ func (m *mojoImpl) DbWatchGlob(name string, mReq mojom.GlobRequest, ptr mojom.Wa
 		// NOTE(nlacasse): Since we are already streaming, we send any error back
 		// to the client on the stream.  The WatchGlob function itself should not
 		// return an error at this point.
-		proxy.OnReturn(toMojoError(err))
+		// NOTE(aghassemi): WatchGlob call is long-running and does not return
+		// unless there is an error.
+		proxy.OnError(toMojoError(err))
 	}()
 
 	return mojom.Error{}, nil
