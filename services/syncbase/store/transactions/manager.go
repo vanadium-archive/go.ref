@@ -62,24 +62,21 @@ func Wrap(bs BatchStore) store.Store {
 // Close implements the store.Store interface.
 func (mg *manager) Close() error {
 	mg.mu.Lock()
-	defer mg.mu.Unlock()
 	if mg.txTable == nil {
+		mg.mu.Unlock()
 		return verror.New(verror.ErrCanceled, nil, store.ErrMsgClosedStore)
 	}
 	mg.BatchStore.Close()
-	for event := mg.events.Front(); event != nil; event = event.Next() {
+	events := mg.events
+	mg.events = nil
+	mg.txTable = nil
+	// tx.Abort() internally locks mg.mu.
+	mg.mu.Unlock()
+	for event := events.Front(); event != nil; event = event.Next() {
 		if tx, ok := event.Value.(*transaction); ok {
-			// tx.Abort() internally removes tx from the mg.events list under
-			// the mg.mu lock. To brake the cyclic dependency, we set tx.event
-			// to nil.
-			tx.mu.Lock()
-			tx.event = nil
-			tx.mu.Unlock()
 			tx.Abort()
 		}
 	}
-	mg.events = nil
-	mg.txTable = nil
 	return nil
 }
 
