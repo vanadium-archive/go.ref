@@ -150,7 +150,6 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {
 			return err
 		}
 	}
-	var rPublicKey security.PublicKey
 	if rauth.BlessingsKey != 0 {
 		var err error
 		// TODO(mattr): Make sure we cancel out of this at some point.
@@ -158,14 +157,14 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {
 		if err != nil {
 			return err
 		}
-		rPublicKey = c.rBlessings.PublicKey()
+		c.rPublicKey = c.rBlessings.PublicKey()
 	} else {
-		rPublicKey = rauth.PublicKey
+		c.rPublicKey = rauth.PublicKey
 	}
-	if rPublicKey == nil {
+	if c.rPublicKey == nil {
 		return NewErrNoPublicKey(ctx)
 	}
-	if !rauth.ChannelBinding.Verify(rPublicKey, binding) {
+	if !rauth.ChannelBinding.Verify(c.rPublicKey, binding) {
 		return NewErrInvalidChannelBinding(ctx)
 	}
 	return nil

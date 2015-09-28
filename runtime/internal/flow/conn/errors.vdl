@@ -25,4 +25,5 @@ error (
   DialingNonServer() {"en": "You are attempting to dial on a connection with no remote server."}
   AcceptorBlessingsMissing() {"en": "The acceptor did not send blessings."}
   UpdatingNilFlowHandler() {"en": "nil flowHandler cannot be updated to non-nil value."}
+  BlessingsNotBound() {"en": "blessings not bound to connection remote public key"}
 )
