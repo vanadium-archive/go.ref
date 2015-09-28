@@ -24,8 +24,6 @@ type table struct {
 	rows []kv
 }
 
-const demoPrefix = "Demo"
-
 var demoTables = []table{
 	table{
 		name: "Customers",
@@ -115,15 +113,14 @@ var demoTables = []table{
 // recreated if they already exist.
 func PopulateDemoDB(ctx *context.T, db nosql.Database) error {
 	for i, t := range demoTables {
-		tn := demoPrefix + t.name
-		if err := db.Table(tn).Destroy(ctx); err != nil {
-			return fmt.Errorf("failed destroying table %s (%d/%d): %v", tn, i+1, len(demoTables), err)
+		if err := db.Table(t.name).Destroy(ctx); err != nil {
+			return fmt.Errorf("failed destroying table %s (%d/%d): %v", t.name, i+1, len(demoTables), err)
 		}
-		if err := db.Table(tn).Create(ctx, nil); err != nil {
-			return fmt.Errorf("failed creating table %s (%d/%d): %v", tn, i+1, len(demoTables), err)
+		if err := db.Table(t.name).Create(ctx, nil); err != nil {
+			return fmt.Errorf("failed creating table %s (%d/%d): %v", t.name, i+1, len(demoTables), err)
 		}
 		if err := nosql.RunInBatch(ctx, db, wire.BatchOptions{}, func(db nosql.BatchDatabase) error {
-			dt := db.Table(tn)
+			dt := db.Table(t.name)
 			for _, kv := range t.rows {
 				if err := dt.Put(ctx, kv.key, kv.value); err != nil {
 					return err
@@ -131,7 +128,7 @@ func PopulateDemoDB(ctx *context.T, db nosql.Database) error {
 			}
 			return nil
 		}); err != nil {
-			return fmt.Errorf("failed populating table %s (%d/%d): %v", tn, i+1, len(demoTables), err)
+			return fmt.Errorf("failed populating table %s (%d/%d): %v", t.name, i+1, len(demoTables), err)
 		}
 	}
 	return nil

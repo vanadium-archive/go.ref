@@ -25,21 +25,21 @@
 // Sample run (assuming a syncbase service is mounted at '/:8101/syncbase',
 // otherwise specify using -service flag):
 //     > $JIRI_ROOT/release/go/bin/sb51 sh -create-missing -make-demo -format=csv demoapp demodb
-//     ? select v.Name, v.Address.State from DemoCustomers where Type(v) = "Customer";
+//     ? select v.Name, v.Address.State from Customers where Type(v) = "Customer";
 //     v.Name,v.Address.State
 //     John Smith,CA
 //     Bat Masterson,IA
-//     ? select v.CustId, v.InvoiceNum, v.ShipTo.Zip, v.Amount from DemoCustomers where Type(v) = "Invoice" and v.Amount > 100;
+//     ? select v.CustId, v.InvoiceNum, v.ShipTo.Zip, v.Amount from Customers where Type(v) = "Invoice" and v.Amount > 100;
 //     v.CustId,v.InvoiceNum,v.ShipTo.Zip,v.Amount
 //     2,1001,50055,166
 //     2,1002,50055,243
 //     2,1004,50055,787
-//     ? select k, v fro DemoCustomers;
+//     ? select k, v fro Customers;
 //     Error:
-//     select k, v fro DemoCustomers
+//     select k, v fro Customers
 //                 ^
 //     13: Expected 'from', found fro.
-//     ? select k, v from DemoCustomers;
+//     ? select k, v from Customers;
 //     k,v
 //     001,"{Name: ""John Smith"", Id: 1, Active: true, Address: {Street: ""1 Main St."", City: ""Palo Alto"", State: ""CA"", Zip: ""94303""}, Credit: {Agency: Equifax, Report: EquifaxReport: {Rating: 65}}}"
 //     001001,"{CustId: 1, InvoiceNum: 1000, Amount: 42, ShipTo: {Street: ""1 Main St."", City: ""Palo Alto"", State: ""CA"", Zip: ""94303""}}"
