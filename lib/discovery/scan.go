@@ -7,6 +7,7 @@ package discovery
 import (
 	"github.com/pborman/uuid"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 )
@@ -19,7 +20,7 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 		serviceUuid = NewServiceUUID(query)
 	}
 	// TODO(jhahn): Revisit the buffer size.
-	scanCh := make(chan *Advertisement, 10)
+	scanCh := make(chan Advertisement, 10)
 	ctx, cancel := context.WithCancel(ctx)
 	for _, plugin := range ds.plugins {
 		err := plugin.Scan(ctx, serviceUuid, scanCh)
@@ -34,19 +35,48 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 	return updateCh, nil
 }
 
-func doScan(ctx *context.T, scanCh <-chan *Advertisement, updateCh chan<- discovery.Update) {
+func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discovery.Update) {
 	defer close(updateCh)
+
+	// Get the blessing names belong to the principal.
+	//
+	// TODO(jhahn): It isn't clear that we will always have the blessing required to decrypt
+	// the advertisement as their "default" blessing - indeed it may not even be in the store.
+	// Revisit this issue.
+	principal := v23.GetPrincipal(ctx)
+	var names []string
+	if principal != nil {
+		blessings := principal.BlessingStore().Default()
+		for n, _ := range principal.BlessingsInfo(blessings) {
+			names = append(names, n)
+		}
+	}
+
+	// A plugin may returns a Lost event with clearing all attributes including encryption
+	// keys. Thus, we have to keep what we've found so far so that we can ignore the Lost
+	// events for instances that we ignored due to permission.
+	found := make(map[string]struct{})
 	for {
 		select {
 		case ad := <-scanCh:
-			// TODO(jhahn): Merge scanData based on InstanceUuid.
-			var update discovery.Update
-			if ad.Lost {
-				update = discovery.UpdateLost{discovery.Lost{Service: ad.Service}}
-			} else {
-				update = discovery.UpdateFound{discovery.Found{Service: ad.Service}}
+			if err := decrypt(&ad, names); err != nil {
+				// Couldn't decrypt it. Ignore it.
+				if err != errNoPermission {
+					ctx.Error(err)
+				}
+				continue
 			}
-			updateCh <- update
+			id := string(ad.InstanceUuid)
+			// TODO(jhahn): Merge scanData based on InstanceUuid.
+			if ad.Lost {
+				if _, ok := found[id]; ok {
+					delete(found, id)
+					updateCh <- discovery.UpdateLost{discovery.Lost{Service: ad.Service}}
+				}
+			} else {
+				found[id] = struct{}{}
+				updateCh <- discovery.UpdateFound{discovery.Found{Service: ad.Service}}
+			}
 		case <-ctx.Done():
 			return
 		}

@@ -12,18 +12,12 @@
 //
 //    v23._tcp.local.
 //    _<printer_service_uuid>._sub._v23._tcp.local.
-//
-// Even though an instance is advertised as two services, both PTR records refer
-// to the same name.
-//
-//    _v23._tcp.local.  PTR <instance_uuid>.<printer_service_uuid>._v23._tcp.local.
-//    _<printer_service_uuid>._sub._v23._tcp.local.
-//                      PTR <instance_uuid>.<printer_service_uuid>._v23._tcp.local.
 package mdns
 
 import (
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -40,14 +34,15 @@ import (
 const (
 	v23ServiceName    = "v23"
 	serviceNameSuffix = "._sub._" + v23ServiceName
-	// The host name is in the form of '<instance uuid>.<service uuid>._v23._tcp.local.'.
-	// The double dots at the end are for bypassing the host name composition in
-	// go-mdns-sd package so that we can use the same host name both in the (subtype)
-	// service and v23 service announcements.
-	hostNameSuffix = "._v23._tcp.local.."
 
-	attrInterface = "__intf"
-	attrAddr      = "__addr"
+	// The attribute names should not exceed 4 bytes due to the txt record
+	// size limit.
+	attrServiceUuid = "_srv"
+	attrInterface   = "_itf"
+	attrAddr        = "_adr"
+	// TODO(jhahn): Remove attrEncryptionAlgorithm.
+	attrEncryptionAlgorithm = "_xxx"
+	attrEncryptionKeys      = "_key"
 )
 
 type plugin struct {
@@ -65,10 +60,12 @@ type subscription struct {
 	lastSubscription time.Time
 }
 
-func (p *plugin) Advertise(ctx *context.T, ad *ldiscovery.Advertisement) error {
+func (p *plugin) Advertise(ctx *context.T, ad ldiscovery.Advertisement) error {
 	serviceName := ad.ServiceUuid.String() + serviceNameSuffix
-	hostName := fmt.Sprintf("%x.%s%s", ad.InstanceUuid, ad.ServiceUuid.String(), hostNameSuffix)
-	txt, err := createTXTRecords(ad)
+	// We use the instance uuid as the host name so that we can get the instance uuid
+	// from the lost service instance, which has no txt records at all.
+	hostName := hex.EncodeToString(ad.InstanceUuid)
+	txt, err := createTXTRecords(&ad)
 	if err != nil {
 		return err
 	}
@@ -85,14 +82,14 @@ func (p *plugin) Advertise(ctx *context.T, ad *ldiscovery.Advertisement) error {
 		return err
 	}
 	stop := func() {
-		p.mdns.RemoveService(serviceName, hostName, 0)
-		p.mdns.RemoveService(v23ServiceName, hostName, 0)
+		p.mdns.RemoveService(serviceName, hostName, 0, txt...)
+		p.mdns.RemoveService(v23ServiceName, hostName, 0, txt...)
 	}
 	p.adStopper.Add(stop, ctx.Done())
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *ldiscovery.Advertisement) error {
+func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- ldiscovery.Advertisement) error {
 	var serviceName string
 	if len(serviceUuid) == 0 {
 		serviceName = v23ServiceName
@@ -143,7 +140,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *ldis
 				continue
 			}
 			select {
-			case scanCh <- ad:
+			case ch <- ad:
 			case <-ctx.Done():
 				return
 			}
@@ -155,38 +152,37 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *ldis
 func createTXTRecords(ad *ldiscovery.Advertisement) ([]string, error) {
 	// Prepare a TXT record with attributes and addresses to announce.
 	//
-	// TODO(jhahn): Currently, the record size is limited to 2000 bytes in
-	// go-mdns-sd package. Think about how to handle a large TXT record size
-	// exceeds the limit.
-	txt := make([]string, 0, len(ad.Attrs)+len(ad.Addrs)+1)
+	// TODO(jhahn): Currently, the packet size is limited to 2000 bytes in
+	// go-mdns-sd package. Think about how to handle a large number of TXT
+	// records.
+	txt := make([]string, 0, len(ad.Attrs)+4)
+	txt = append(txt, fmt.Sprintf("%s=%s", attrServiceUuid, ad.ServiceUuid))
 	txt = append(txt, fmt.Sprintf("%s=%s", attrInterface, ad.InterfaceName))
 	for k, v := range ad.Attrs {
 		txt = append(txt, fmt.Sprintf("%s=%s", k, v))
 	}
-	for _, addr := range ad.Addrs {
-		txt = append(txt, fmt.Sprintf("%s=%s", attrAddr, addr))
+	for _, a := range ad.Addrs {
+		txt = append(txt, fmt.Sprintf("%s=%s", attrAddr, a))
+	}
+	txt = append(txt, fmt.Sprintf("%s=%d", attrEncryptionAlgorithm, ad.EncryptionAlgorithm))
+	for _, k := range ad.EncryptionKeys {
+		txt = append(txt, fmt.Sprintf("%s=%s", attrEncryptionKeys, k))
 	}
 	return txt, nil
 }
 
-func decodeAdvertisement(service mdns.ServiceInstance) (*ldiscovery.Advertisement, error) {
-	// Note that service.Name would be '<instance uuid>.<service uuid>._v23._tcp.local.' for
-	// subtype service discovery and ''<instance uuid>.<service uuid>' for v23 service discovery.
-	p := strings.SplitN(service.Name, ".", 3)
-	if len(p) < 2 {
-		return nil, fmt.Errorf("invalid host name: %s", service.Name)
+func decodeAdvertisement(service mdns.ServiceInstance) (ldiscovery.Advertisement, error) {
+	// Note that service.Name starts with a host name, which is the instance uuid.
+	p := strings.SplitN(service.Name, ".", 2)
+	if len(p) < 1 {
+		return ldiscovery.Advertisement{}, fmt.Errorf("invalid host name: %s", service.Name)
 	}
 	instanceUuid, err := hex.DecodeString(p[0])
 	if err != nil {
-		return nil, fmt.Errorf("invalid instance uuid in host name: %s", p[0])
-	}
-	serviceUuid := uuid.Parse(p[1])
-	if len(serviceUuid) == 0 {
-		return nil, fmt.Errorf("invalid service uuid in host name: %s", p[1])
+		return ldiscovery.Advertisement{}, fmt.Errorf("invalid host name: %v", err)
 	}
 
 	ad := ldiscovery.Advertisement{
-		ServiceUuid: serviceUuid,
 		Service: discovery.Service{
 			InstanceUuid: instanceUuid,
 			Attrs:        make(discovery.Attributes),
@@ -198,19 +194,26 @@ func decodeAdvertisement(service mdns.ServiceInstance) (*ldiscovery.Advertisemen
 		for _, txt := range rr.Txt {
 			kv := strings.SplitN(txt, "=", 2)
 			if len(kv) != 2 {
-				return nil, fmt.Errorf("invalid txt record: %s", txt)
+				return ldiscovery.Advertisement{}, fmt.Errorf("invalid txt record: %s", txt)
 			}
 			switch k, v := kv[0], kv[1]; k {
+			case attrServiceUuid:
+				ad.ServiceUuid = uuid.Parse(v)
 			case attrInterface:
 				ad.InterfaceName = v
 			case attrAddr:
 				ad.Addrs = append(ad.Addrs, v)
+			case attrEncryptionAlgorithm:
+				a, _ := strconv.Atoi(v)
+				ad.EncryptionAlgorithm = ldiscovery.EncryptionAlgorithm(a)
+			case attrEncryptionKeys:
+				ad.EncryptionKeys = append(ad.EncryptionKeys, ldiscovery.EncryptionKey(v))
 			default:
 				ad.Attrs[k] = v
 			}
 		}
 	}
-	return &ad, nil
+	return ad, nil
 }
 
 func New(host string) (ldiscovery.Plugin, error) {
@@ -219,8 +222,8 @@ func New(host string) (ldiscovery.Plugin, error) {
 
 func newWithLoopback(host string, loopback bool) (ldiscovery.Plugin, error) {
 	if len(host) == 0 {
-		// go-mdns-sd reannounce the services periodically only when the host name
-		// is set. Use a default one if not given.
+		// go-mdns-sd doesn't answer when the host name is not set.
+		// Assign a default one if not given.
 		host = "v23()"
 	}
 	var v4addr, v6addr string

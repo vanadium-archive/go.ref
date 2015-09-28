@@ -5,24 +5,29 @@
 package ble
 
 import (
-	"github.com/pborman/uuid"
 	"reflect"
 	"testing"
+
+	"github.com/pborman/uuid"
+
 	vdiscovery "v.io/v23/discovery"
+
 	"v.io/x/ref/lib/discovery"
 )
 
 func TestConvertingBackAndForth(t *testing.T) {
 	v23Adv := discovery.Advertisement{
 		Service: vdiscovery.Service{
-			Addrs:        []string{"localhost:1000", "example.com:540"},
-			InstanceUuid: []byte(uuid.NewUUID()),
-			Attrs: map[string]string{
+			InstanceUuid: []byte(discovery.NewInstanceUUID()),
+			Attrs: vdiscovery.Attributes{
 				"key1": "value1",
 				"key2": "value2",
 			},
+			Addrs: []string{"localhost:1000", "example.com:540"},
 		},
-		ServiceUuid: uuid.NewUUID(),
+		ServiceUuid:         uuid.NewUUID(),
+		EncryptionAlgorithm: discovery.TestEncryption,
+		EncryptionKeys:      []discovery.EncryptionKey{discovery.EncryptionKey("k1"), discovery.EncryptionKey("k2")},
 	}
 
 	adv := newAdvertisment(v23Adv)

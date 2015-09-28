@@ -15,7 +15,7 @@ import (
 type Plugin interface {
 	// Advertise advertises the advertisement. Advertising will continue until
 	// the context is canceled or exceeds its deadline.
-	Advertise(ctx *context.T, ad *Advertisement) error
+	Advertise(ctx *context.T, ad Advertisement) error
 
 	// Scan scans services that match the service uuid and returns scanned
 	// advertisements to the channel. A zero-value service uuid means any service.
@@ -23,5 +23,5 @@ type Plugin interface {
 	// deadline.
 	//
 	// TODO(jhahn): Pass a filter on service attributes.
-	Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *Advertisement) error
+	Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- Advertisement) error
 }
