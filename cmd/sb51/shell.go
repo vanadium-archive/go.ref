@@ -121,6 +121,7 @@ stmtLoop:
 				case "dump":
 					err = dumpDB(ctx, env.Stdout, d)
 				case "make-demo":
+					// TODO(jkline): add an "Are you sure prompt" to give the user a 2nd chance.
 					err = makeDemoDB(ctx, d)
 				case "select":
 					err = queryExec(ctx, env.Stdout, d, q)
