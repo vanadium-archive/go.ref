@@ -114,17 +114,27 @@ func TestCache(t *testing.T) {
 		t.Errorf("got %v, want %v", cachedConn, otherConn)
 	}
 
+	// Insert a duplicate conn to ensure that replaced conns still get closed.
+	dupConn := makeConnAndFlow(t, ctx, remote).c
+	if err := c.Insert(dupConn); err != nil {
+		t.Fatal(err)
+	}
+
 	// Closing the cache should close all the connections in the cache.
 	// Ensure that the conns are not closed yet.
 	if isClosed(conn) {
-		t.Fatalf("wanted conn to not be closed")
+		t.Fatal("wanted conn to not be closed")
+	}
+	if isClosed(dupConn) {
+		t.Fatal("wanted dupConn to not be closed")
 	}
 	if isClosed(otherConn) {
-		t.Fatalf("wanted otherConn to not be closed")
+		t.Fatal("wanted otherConn to not be closed")
 	}
 	c.Close(ctx)
 	// Now the connections should be closed.
 	<-conn.Closed()
+	<-dupConn.Closed()
 	<-otherConn.Closed()
 }
 

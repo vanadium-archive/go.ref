@@ -19,11 +19,12 @@ import (
 // Multiple goroutines can invoke methods on the ConnCache simultaneously.
 // TODO(suharshs): We should periodically look for closed connections and remove them.
 type ConnCache struct {
-	mu        *sync.Mutex
-	addrCache map[string]*connEntry           // keyed by (protocol, address, blessingNames)
-	ridCache  map[naming.RoutingID]*connEntry // keyed by naming.RoutingID
-	started   map[string]bool                 // keyed by (protocol, address, blessingNames)
-	cond      *sync.Cond
+	mu            *sync.Mutex
+	cond          *sync.Cond
+	addrCache     map[string]*connEntry           // keyed by (protocol, address, blessingNames)
+	ridCache      map[naming.RoutingID]*connEntry // keyed by naming.RoutingID
+	started       map[string]bool                 // keyed by (protocol, address, blessingNames)
+	unmappedConns map[*connEntry]bool             // list of connEntries replaced by other entries
 }
 
 type connEntry struct {
@@ -36,11 +37,12 @@ func NewConnCache() *ConnCache {
 	mu := &sync.Mutex{}
 	cond := sync.NewCond(mu)
 	return &ConnCache{
-		mu:        mu,
-		addrCache: make(map[string]*connEntry),
-		ridCache:  make(map[naming.RoutingID]*connEntry),
-		started:   make(map[string]bool),
-		cond:      cond,
+		mu:            mu,
+		cond:          cond,
+		addrCache:     make(map[string]*connEntry),
+		ridCache:      make(map[naming.RoutingID]*connEntry),
+		started:       make(map[string]bool),
+		unmappedConns: make(map[*connEntry]bool),
 	}
 }
 
@@ -101,6 +103,9 @@ func (c *ConnCache) Insert(conn *conn.Conn) error {
 		rid:     ep.RoutingID(),
 		addrKey: k,
 	}
+	if old := c.ridCache[entry.rid]; old != nil {
+		c.unmappedConns[old] = true
+	}
 	c.addrCache[k] = entry
 	c.ridCache[entry.rid] = entry
 	return nil
@@ -117,6 +122,9 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn) error {
 		conn: conn,
 		rid:  conn.RemoteEndpoint().RoutingID(),
 	}
+	if old := c.ridCache[entry.rid]; old != nil {
+		c.unmappedConns[old] = true
+	}
 	c.ridCache[entry.rid] = entry
 	return nil
 }
@@ -126,8 +134,12 @@ func (c *ConnCache) Close(ctx *context.T) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	c.addrCache, c.started = nil, nil
+	err := NewErrCacheClosed(ctx)
 	for _, d := range c.ridCache {
-		d.conn.Close(ctx, NewErrCacheClosed(ctx))
+		d.conn.Close(ctx, err)
+	}
+	for d := range c.unmappedConns {
+		d.conn.Close(ctx, err)
 	}
 }
 
@@ -157,12 +169,23 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 		}
 		pq = append(pq, e)
 	}
+	for d := range c.unmappedConns {
+		if isClosed(d.conn) {
+			delete(c.unmappedConns, d)
+			continue
+		}
+		if d.conn.IsEncapsulated() {
+			continue
+		}
+		pq = append(pq, d)
+	}
 	sort.Sort(pq)
 	for i := 0; i < num; i++ {
 		d := pq[i]
 		d.conn.Close(ctx, err)
 		delete(c.addrCache, d.addrKey)
 		delete(c.ridCache, d.rid)
+		delete(c.unmappedConns, d)
 	}
 	return nil
 }
