@@ -5,15 +5,14 @@
 package ble
 
 import (
+	"fmt"
 	"strings"
 
-	"fmt"
-	"net/url"
+	"github.com/pborman/uuid"
 
 	vdiscovery "v.io/v23/discovery"
-	"v.io/x/ref/lib/discovery"
 
-	"github.com/pborman/uuid"
+	"v.io/x/ref/lib/discovery"
 )
 
 type bleAdv struct {
@@ -22,28 +21,21 @@ type bleAdv struct {
 	attrs       map[string][]byte
 }
 
-var (
-	// This uuids are v4 uuid generated out of band.  These constants need
+const (
+	// This uuids are v5 uuid generated out of band.  These constants need
 	// to be accessible in all the languages that have a ble implementation
-
-	// The attribute uuid for the unique service id
-	instanceUUID = "f6445c7f-73fd-4b8d-98d0-c4e02b087844"
-
-	// The attribute uuid for the interface name
-	interfaceNameUUID = "d4789810-4db0-40d8-9658-92f8e304d578"
-
-	addrUUID = "f123fb0e-770f-4e46-b8ad-aee4185ab5a1"
+	instanceUUID      = "12db9a9c-1c7c-5560-bc6b-73a115c93413" // NewAttributeUUID("_instanceuuid")
+	interfaceNameUUID = "b2cadfd4-d003-576c-acad-58b8e3a9cbc8" // NewAttributeUUID("_interfacename")
+	addrsUUID         = "ad2566b7-59d8-50ae-8885-222f43f65fdc" // NewAttributeUUID("_addrs")
+	encryptionUUID    = "6286d80a-adaa-519a-8a06-281a4645a607" // NewAttributeUUID("_encryption")
 )
 
 func newAdvertisment(adv discovery.Advertisement) bleAdv {
-	cleanAddrs := make([]string, len(adv.Addrs))
-	for i, v := range adv.Addrs {
-		cleanAddrs[i] = url.QueryEscape(v)
-	}
 	attrs := map[string][]byte{
 		instanceUUID:      adv.InstanceUuid,
 		interfaceNameUUID: []byte(adv.InterfaceName),
-		addrUUID:          []byte(strings.Join(cleanAddrs, "&")),
+		addrsUUID:         discovery.PackAddresses(adv.Addrs),
+		encryptionUUID:    discovery.PackEncryptionKeys(adv.EncryptionAlgorithm, adv.EncryptionKeys),
 	}
 
 	for k, v := range adv.Attrs {
@@ -58,34 +50,31 @@ func newAdvertisment(adv discovery.Advertisement) bleAdv {
 }
 
 func (a *bleAdv) toDiscoveryAdvertisement() (*discovery.Advertisement, error) {
-	out := &discovery.Advertisement{
+	adv := &discovery.Advertisement{
 		Service: vdiscovery.Service{
-			Attrs:         vdiscovery.Attributes{},
-			InterfaceName: string(a.attrs[interfaceNameUUID]),
-			InstanceUuid:  a.instanceID,
+			InstanceUuid: a.instanceID,
+			Attrs:        make(vdiscovery.Attributes),
 		},
 		ServiceUuid: a.serviceUUID,
 	}
-	out.Addrs = strings.Split(string(a.attrs[addrUUID]), "&")
-	var err error
-	for i, v := range out.Addrs {
-		out.Addrs[i], err = url.QueryUnescape(v)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	for k, v := range a.attrs {
-		if k == instanceUUID || k == interfaceNameUUID || k == addrUUID {
-			continue
+		switch k {
+		case instanceUUID:
+			adv.InstanceUuid = v
+		case interfaceNameUUID:
+			adv.InterfaceName = string(v)
+		case addrsUUID:
+			adv.Addrs = discovery.UnpackAddresses(v)
+		case encryptionUUID:
+			adv.EncryptionAlgorithm, adv.EncryptionKeys = discovery.UnpackEncryptionKeys(v)
+		default:
+			parts := strings.SplitN(string(v), "=", 2)
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("incorrectly formatted value, %s", v)
+			}
+			adv.Attrs[parts[0]] = parts[1]
 		}
-		parts := strings.SplitN(string(v), "=", 2)
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("incorrectly formatted value, %s", v)
-		}
-		out.Attrs[parts[0]] = parts[1]
-
 	}
-
-	return out, nil
+	return adv, nil
 }

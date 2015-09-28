@@ -19,15 +19,15 @@ type blePlugin struct {
 	trigger *discovery.Trigger
 }
 
-func (b *blePlugin) Advertise(ctx *context.T, ad *discovery.Advertisement) error {
-	b.b.addAdvertisement(newAdvertisment(*ad))
+func (b *blePlugin) Advertise(ctx *context.T, ad discovery.Advertisement) error {
+	b.b.addAdvertisement(newAdvertisment(ad))
 	b.trigger.Add(func() {
 		b.b.removeService(ad.InstanceUuid)
 	}, ctx.Done())
 	return nil
 }
 
-func (b *blePlugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scan chan<- *discovery.Advertisement) error {
+func (b *blePlugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scan chan<- discovery.Advertisement) error {
 	ch, id := b.b.addScanner(serviceUuid)
 	drain := func() {
 		for range ch {
@@ -44,7 +44,7 @@ func (b *blePlugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scan chan<- *dis
 			case <-ctx.Done():
 				break L
 			case a := <-ch:
-				scan <- a
+				scan <- *a
 			}
 		}
 	}()

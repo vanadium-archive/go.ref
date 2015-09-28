@@ -17,12 +17,12 @@ import (
 
 type plugin struct {
 	mu       sync.Mutex
-	services map[string][]*discovery.Advertisement // GUARDED_BY(mu)
+	services map[string][]discovery.Advertisement // GUARDED_BY(mu)
 
 	updated *sync.Cond
 }
 
-func (p *plugin) Advertise(ctx *context.T, ad *discovery.Advertisement) error {
+func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement) error {
 	p.mu.Lock()
 	key := string(ad.ServiceUuid)
 	ads := p.services[key]
@@ -52,7 +52,7 @@ func (p *plugin) Advertise(ctx *context.T, ad *discovery.Advertisement) error {
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *discovery.Advertisement) error {
+func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- discovery.Advertisement) error {
 	rescan := make(chan struct{})
 	go func() {
 		for {
@@ -68,10 +68,10 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *disc
 	}()
 
 	go func() {
-		scanned := make(map[string]*discovery.Advertisement)
+		scanned := make(map[string]discovery.Advertisement)
 
 		for {
-			current := make(map[string]*discovery.Advertisement)
+			current := make(map[string]discovery.Advertisement)
 			p.mu.Lock()
 			for key, ads := range p.services {
 				if len(serviceUuid) > 0 && key != string(serviceUuid) {
@@ -83,7 +83,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *disc
 			}
 			p.mu.Unlock()
 
-			changed := make([]*discovery.Advertisement, 0, len(current))
+			changed := make([]discovery.Advertisement, 0, len(current))
 			for key, ad := range current {
 				old, ok := scanned[key]
 				if !ok || !reflect.DeepEqual(old, ad) {
@@ -100,7 +100,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *disc
 			// Push new changes.
 			for _, ad := range changed {
 				select {
-				case scanCh <- ad:
+				case ch <- ad:
 				case <-ctx.Done():
 					return
 				}
@@ -121,7 +121,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scanCh chan<- *disc
 
 func New() discovery.Plugin {
 	return &plugin{
-		services: make(map[string][]*discovery.Advertisement),
+		services: make(map[string][]discovery.Advertisement),
 		updated:  sync.NewCond(&sync.Mutex{}),
 	}
 }

@@ -24,10 +24,26 @@ type Advertisement struct {
 	// The service UUID to advertise.
 	ServiceUuid uuid.UUID
 
+	// Type of encryption applied to the advertisement so that it can
+	// only be decoded by authorized principals.
+	EncryptionAlgorithm EncryptionAlgorithm
+	// If the advertisement is encrypted, then the data required to
+	// decrypt it. The format of this data is a function of the algorithm.
+	EncryptionKeys []EncryptionKey
+
 	// TODO(jhahn): Add proximity.
 	// TODO(jhahn): Use proximity for Lost.
 	Lost bool
 }
+
+type EncryptionAlgorithm byte
+type EncryptionKey []byte
+
+const (
+	NoEncryption   EncryptionAlgorithm = 0
+	TestEncryption EncryptionAlgorithm = 1
+	IbeEncryption  EncryptionAlgorithm = 2
+)
 
 // TODO(jhahn): Need a better API.
 func New(plugins []Plugin) discovery.T {
