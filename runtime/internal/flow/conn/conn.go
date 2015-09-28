@@ -67,6 +67,7 @@ type Conn struct {
 	mp                     *messagePipe
 	version                version.RPCVersion
 	lBlessings, rBlessings security.Blessings
+	rPublicKey             security.PublicKey
 	local, remote          naming.Endpoint
 	closed                 chan struct{}
 	blessingsFlow          *blessingsFlow
@@ -360,6 +361,14 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		c.toRelease[msg.ID] = defaultBufferSize
 		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
+
+		rBlessings, _, err := c.blessingsFlow.get(ctx, msg.BlessingsKey, msg.DischargeKey)
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(rBlessings.PublicKey(), c.rPublicKey) {
+			return NewErrBlessingsNotBound(ctx)
+		}
 
 		handler.HandleFlow(f)
 		if err := f.q.put(ctx, msg.Payload); err != nil {
