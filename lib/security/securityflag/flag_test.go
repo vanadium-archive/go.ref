@@ -18,7 +18,7 @@ import (
 	"v.io/x/ref/test/modules"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 var (
 	perms1 = access.Permissions{}

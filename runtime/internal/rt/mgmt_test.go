@@ -26,7 +26,7 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.

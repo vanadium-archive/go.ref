@@ -12,7 +12,7 @@
 // This script can exercise the device manager in two different modes. It
 // can be executed like so:
 //
-// v23 go test -v . --v23.tests
+// jiri go test -v . --v23.tests
 //
 // This will exercise the device manager's single user mode where all
 // processes run as the same invoking user.
@@ -24,7 +24,7 @@
 // executed in this fashion, root permissions will be required to install
 // and it may require configuring an agent passphrase. For example:
 //
-//   v23 go test -v . --v23.tests --deviceuser devicemanager --appuser  vana
+//   jiri go test -v . --v23.tests --deviceuser devicemanager --appuser  vana
 //
 // NB: the accounts provided as arguments to this test must already exist.
 // Also, the --v23.tests.shell-on-fail flag is useful to enable debugging
@@ -33,7 +33,7 @@
 
 package device_test
 
-//go:generate v23 test generate .
+//go:generate jiri test generate .
 
 import (
 	"errors"

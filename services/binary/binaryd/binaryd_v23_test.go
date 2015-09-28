@@ -18,7 +18,7 @@ import (
 	"v.io/x/ref/test/v23tests"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func checkFileType(i *v23tests.T, file, typeString string) {
 	var catOut bytes.Buffer

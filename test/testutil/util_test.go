@@ -39,10 +39,10 @@ func TestPanic(t *testing.T) {
 	}
 }
 
-//go:generate v23 test generate .
+//go:generate jiri test generate .
 
 func V23TestRandSeed(i *v23tests.T) {
-	v23bin := i.BinaryFromPath("v23")
+	v23bin := i.BinaryFromPath("jiri")
 	inv := v23bin.Start("go", "test", "./testdata")
 	inv.ExpectRE("FAIL: TestRandSeed.*", 1)
 	parts := inv.ExpectRE(`Seeded pseudo-random number generator with (\d+)`, -1)

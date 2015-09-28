@@ -22,7 +22,7 @@ const (
 	outPkgPath = "v.io/x/ref/lib/vdl/testdata/base"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func verifyOutput(t *testing.T, outDir string) {
 	entries, err := ioutil.ReadDir(testDir)

@@ -22,7 +22,7 @@ import (
 	"v.io/x/ref/services/internal/servicetest"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 var (
 	installationUninstalled = device.StatusInstallation{device.InstallationStatus{

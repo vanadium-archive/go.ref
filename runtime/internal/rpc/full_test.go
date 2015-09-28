@@ -41,7 +41,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 var (
 	errMethod     = verror.New(verror.ErrAborted, nil)

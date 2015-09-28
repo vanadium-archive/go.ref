@@ -19,7 +19,7 @@ import (
 	"v.io/x/ref/test/v23tests"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func V23TestTestPassPhraseUse(i *v23tests.T) {
 	bin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithEnv(ref.EnvCredentials + "=" + i.NewTempDir(""))

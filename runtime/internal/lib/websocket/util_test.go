@@ -19,7 +19,7 @@ import (
 	"v.io/v23/rpc"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 var crcTable *crc64.Table
 

@@ -24,8 +24,8 @@ import (
 	"v.io/x/ref/test"
 )
 
-// We provide our own TestMain, rather than allowing v23 test generate to create
-// one for us, to ensure all files require the "wspr" build tag.
+// We provide our own TestMain, rather than allowing jiri test generate to
+// create one for us, to ensure all files require the "wspr" build tag.
 func TestMain(m *testing.M) {
 	test.Init()
 	os.Exit(m.Run())
@@ -42,7 +42,7 @@ func TestServiceRunner(t *testing.T) {
 
 	bin := path.Join(tmpdir, "servicerunner")
 	fmt.Println("Building", bin)
-	err = exec.Command("v23", "go", "build", "-o", bin, "-a", "-tags", "wspr", "v.io/x/ref/cmd/servicerunner").Run()
+	err = exec.Command("jiri", "go", "build", "-o", bin, "-a", "-tags", "wspr", "v.io/x/ref/cmd/servicerunner").Run()
 	if err != nil {
 		t.Fatal(err)
 	}

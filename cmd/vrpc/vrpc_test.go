@@ -23,7 +23,7 @@ import (
 
 type server struct{}
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 // TypeTester interface implementation
 

@@ -24,7 +24,7 @@ import (
 	"v.io/x/ref/test/modules"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func TestInit(t *testing.T) {
 	ref.EnvClearCredentials()

@@ -14,7 +14,7 @@ import (
 	"v.io/x/ref/test/v23tests"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func helper(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, cmd string, args ...string) string {
 	args = append([]string{cmd}, args...)

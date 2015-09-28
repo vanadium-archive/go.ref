@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func TestSemaphore(t *testing.T) {
 	s1 := NewSemaphore()

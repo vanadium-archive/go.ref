@@ -26,7 +26,7 @@ This test creates a VC before the benchmark begins. So, the VC creation
 overhead is excluded.
 
 ```
-$ v23 go test -bench=. -timeout=1h -cpu=1 -benchtime=5s v.io/x/ref/runtime/internal/rpc/benchmark
+$ jiri go test -bench=. -timeout=1h -cpu=1 -benchtime=5s v.io/x/ref/runtime/internal/rpc/benchmark
 PASS
 Benchmark____1B     1000           8301357 ns/op           0.00 MB/s
 --- Histogram (unit: ms)
@@ -55,7 +55,7 @@ Benchmark___10B     1000           8587341 ns/op           0.00 MB/s
 RPC setup time, latency, and throughput.
 
 ```
-$ v23 go run simple/main.go
+$ jiri go run simple/main.go
 RPC Connection  33.48 ms/rpc
 RPC (echo 1000B)  1.31 ms/rpc (763.05 qps)
 RPC Streaming (echo 1000B)  0.11 ms/rpc
@@ -71,14 +71,14 @@ this test includes the startup cost of name resolution, creating the VC, etc. in
 the first RPC.
 
 ```
-$ v23 go run benchmarkd/main.go \
+$ jiri go run benchmarkd/main.go \
   -v23.tcp.address=localhost:8888 -v23.permissions.literal='{"Read": {"In": ["..."]}}'
 ```
 
 (In a different shell)
 
 ```
-$ v23 go run benchmark/main.go \
+$ jiri go run benchmark/main.go \
   -server=/localhost:8888 -iterations=100 -chunk_count=0 -payload_size=10
 iterations: 100  chunk_count: 0  payload_size: 10
 elapsed time: 1.369034277s

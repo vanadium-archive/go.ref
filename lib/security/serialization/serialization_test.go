@@ -24,7 +24,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-// We call our own TestMain here because v23 test generate causes an import cycle
+// We call our own TestMain here because jiri test generate causes an import cycle
 // in this package.
 func TestMain(m *testing.M) {
 	test.Init()

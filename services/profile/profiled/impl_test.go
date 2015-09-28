@@ -30,7 +30,7 @@ var (
 	}
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 // TestInterface tests that the implementation correctly implements
 // the Profile interface.

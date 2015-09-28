@@ -42,7 +42,7 @@ var (
 	serverEP = endpoint(naming.FixedRoutingID(0x5555555555555555))
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 const (
 	// Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".

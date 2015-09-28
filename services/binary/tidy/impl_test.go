@@ -22,7 +22,7 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func TestApplicationTidying(t *testing.T) {
 	ctx, shutdown := test.V23Init()

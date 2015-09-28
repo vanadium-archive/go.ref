@@ -26,7 +26,7 @@ import (
 	"v.io/x/ref/test/modules"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.V23Init()

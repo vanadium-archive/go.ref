@@ -13,7 +13,7 @@ import (
 	"v.io/x/ref/test/v23tests"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func getHostname(i *v23tests.T) string {
 	if hostname, err := os.Hostname(); err != nil {

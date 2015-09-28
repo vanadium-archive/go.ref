@@ -27,7 +27,7 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 type mockServer struct{}
 

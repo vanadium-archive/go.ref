@@ -37,7 +37,7 @@ var (
 	}
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 type server struct {
 	suffix string

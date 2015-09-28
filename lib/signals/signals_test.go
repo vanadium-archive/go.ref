@@ -28,7 +28,7 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-//go:generate v23 test generate
+//go:generate jiri test generate
 
 func stopLoop(stop func(), stdin io.Reader, ch chan<- struct{}) {
 	scanner := bufio.NewScanner(stdin)
