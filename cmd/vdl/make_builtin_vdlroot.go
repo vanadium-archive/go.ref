@@ -103,7 +103,7 @@ func writeVdlrootData(out io.Writer) error {
 	if jiriRoot == "" {
 		return fmt.Errorf("JIRI_ROOT is not set")
 	}
-	vdlroot := filepath.Join(v23root, "release", "go", "src", "v.io", "v23", "vdlroot")
+	vdlroot := filepath.Join(jiriRoot, "release", "go", "src", "v.io", "v23", "vdlroot")
 	wrapWriter := &wrapWriter{
 		writer:       out,
 		totalWritten: 0,
