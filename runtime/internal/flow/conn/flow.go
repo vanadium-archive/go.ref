@@ -43,6 +43,9 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, diale
 		opened: preopen,
 	}
 	f.SetContext(ctx)
+	if !f.opened {
+		c.unopenedFlows.Add(1)
+	}
 	c.flows[id] = f
 	return f
 }
@@ -136,6 +139,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 				Payload:         d.Payload,
 			})
 			f.opened = true
+			f.conn.unopenedFlows.Done()
 		}
 		return size, done, err
 	})
@@ -262,21 +266,34 @@ func (f *flw) Closed() <-chan struct{} {
 func (f *flw) close(ctx *context.T, err error) {
 	f.q.close(ctx)
 	f.cancel()
-	if eid := verror.ErrorID(err); eid != ErrFlowClosedRemotely.ID &&
-		eid != ErrConnectionClosed.ID {
-		// We want to try to send this message even if ctx is already canceled.
-		ctx, cancel := context.WithRootCancel(ctx)
-		err := f.worker.Run(ctx, func(tokens int) (int, bool, error) {
-			return 0, true, f.conn.mp.writeMsg(ctx, &message.Data{
-				ID:    f.id,
-				Flags: message.CloseFlag,
-			})
-		})
-		if err != nil {
-			ctx.Errorf("Could not send close flow message: %v", err)
+	// We want to try to send this message even if ctx is already canceled.
+	ctx, cancel := context.WithRootCancel(ctx)
+	serr := f.worker.Run(ctx, func(tokens int) (int, bool, error) {
+		f.conn.mu.Lock()
+		delete(f.conn.flows, f.id)
+		connClosed := f.conn.flows == nil
+		f.conn.mu.Unlock()
+
+		if !f.opened {
+			// Closing a flow that was never opened.
+			f.conn.unopenedFlows.Done()
+			return 0, true, nil
+		} else if eid := verror.ErrorID(err); eid == ErrFlowClosedRemotely.ID || connClosed {
+			// Note: If the conn is closed there is no point in trying to send
+			// the flow close message as it will fail.  This is racy with the connection
+			// closing, but there are no ill-effects other than spamming the logs a little
+			// so it's OK.
+			return 0, true, nil
 		}
-		cancel()
+		return 0, true, f.conn.mp.writeMsg(ctx, &message.Data{
+			ID:    f.id,
+			Flags: message.CloseFlag,
+		})
+	})
+	if serr != nil {
+		ctx.Errorf("Could not send close flow message: %v", err)
 	}
+	cancel()
 }
 
 // Close marks the flow as closed. After Close is called, new data cannot be

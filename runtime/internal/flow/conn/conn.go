@@ -43,6 +43,24 @@ type FlowHandler interface {
 	HandleFlow(flow.Flow) error
 }
 
+// Status describes the current state of the Conn.
+type Status struct {
+	Closed bool
+	// LocalLameDuck signifies that we have received acknowledgment from the
+	// remote host of our lame duck mode and therefore should not expect new
+	// flows to arrive on this Conn.
+	LocalLameDuck bool
+	// RemoteLameDuck signifies that we have received a lameduck notification
+	// from the remote host and therefore should not open new flows on this Conn.
+	RemoteLameDuck bool
+}
+
+// Events that can be emitted through the events channel.
+type StatusUpdate struct {
+	Conn   *Conn
+	Status Status
+}
+
 // Conns are a multiplexing encrypted channels that can host Flows.
 type Conn struct {
 	fc                     *flowcontrol.FlowController
@@ -53,6 +71,8 @@ type Conn struct {
 	closed                 chan struct{}
 	blessingsFlow          *blessingsFlow
 	loopWG                 sync.WaitGroup
+	unopenedFlows          sync.WaitGroup
+	events                 chan<- StatusUpdate
 
 	mu             sync.Mutex
 	handler        FlowHandler
@@ -62,6 +82,7 @@ type Conn struct {
 	lastUsedTime   time.Time
 	toRelease      map[uint64]uint64
 	borrowing      map[uint64]bool
+	status         Status
 }
 
 // Ensure that *Conn implements flow.ManagedConn.
@@ -73,7 +94,8 @@ func NewDialed(
 	conn flow.MsgReadWriteCloser,
 	local, remote naming.Endpoint,
 	versions version.RPCVersionRange,
-	handler FlowHandler) (*Conn, error) {
+	handler FlowHandler,
+	events chan<- StatusUpdate) (*Conn, error) {
 	c := &Conn{
 		fc:           flowcontrol.New(defaultBufferSize, mtu),
 		mp:           newMessagePipe(conn),
@@ -87,6 +109,7 @@ func NewDialed(
 		lastUsedTime: time.Now(),
 		toRelease:    map[uint64]uint64{},
 		borrowing:    map[uint64]bool{},
+		events:       events,
 	}
 	if err := c.dialHandshake(ctx, versions); err != nil {
 		c.Close(ctx, err)
@@ -103,7 +126,8 @@ func NewAccepted(
 	conn flow.MsgReadWriteCloser,
 	local naming.Endpoint,
 	versions version.RPCVersionRange,
-	handler FlowHandler) (*Conn, error) {
+	handler FlowHandler,
+	events chan<- StatusUpdate) (*Conn, error) {
 	c := &Conn{
 		fc:           flowcontrol.New(defaultBufferSize, mtu),
 		mp:           newMessagePipe(conn),
@@ -116,6 +140,7 @@ func NewAccepted(
 		lastUsedTime: time.Now(),
 		toRelease:    map[uint64]uint64{},
 		borrowing:    map[uint64]bool{},
+		events:       events,
 	}
 	if err := c.acceptHandshake(ctx, versions); err != nil {
 		c.Close(ctx, err)
@@ -124,6 +149,16 @@ func NewAccepted(
 	c.loopWG.Add(1)
 	go c.readLoop(ctx)
 	return c, nil
+}
+
+// Enter LameDuck mode.
+func (c *Conn) EnterLameDuck(ctx *context.T) {
+	err := c.fc.Run(ctx, "enterlameduck", expressPriority, func(_ int) (int, bool, error) {
+		return 0, true, c.mp.writeMsg(ctx, &message.EnterLameDuck{})
+	})
+	if err != nil {
+		c.Close(ctx, NewErrSend(ctx, "release", c.remote.String(), err))
+	}
 }
 
 // Dial dials a new flow on the Conn.
@@ -145,7 +180,7 @@ func (c *Conn) Dial(ctx *context.T, fn flow.BlessingsForPeer) (flow.Flow, error)
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.flows == nil {
+	if c.status.RemoteLameDuck || c.flows == nil {
 		return nil, NewErrConnectionClosed(ctx)
 	}
 	id := c.nextFid
@@ -180,47 +215,63 @@ func (c *Conn) LastUsedTime() time.Time {
 // with an error and no more flows will be sent to the FlowHandler.
 func (c *Conn) Closed() <-chan struct{} { return c.closed }
 
+func (c *Conn) Status() Status {
+	c.mu.Lock()
+	status := c.status
+	c.mu.Unlock()
+	return status
+}
+
 // Close shuts down a conn.
 func (c *Conn) Close(ctx *context.T, err error) {
 	c.mu.Lock()
+	c.internalCloseLocked(ctx, err)
+	c.mu.Unlock()
+	<-c.closed
+}
+
+func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
+	ctx.VI(2).Infof("Closing connection: %v", err)
+
 	var flows map[uint64]*flw
 	flows, c.flows = c.flows, nil
 	if c.dischargeTimer != nil {
 		c.dischargeTimer.Stop()
 		c.dischargeTimer = nil
 	}
-	c.mu.Unlock()
-
 	if flows == nil {
 		// This conn is already being torn down.
-		<-c.closed
 		return
 	}
-	c.internalClose(ctx, err, flows)
-}
-
-func (c *Conn) internalClose(ctx *context.T, err error, flows map[uint64]*flw) {
-	ctx.VI(2).Infof("Closing connection: %v", err)
-	if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
-		msg := ""
-		if err != nil {
-			msg = err.Error()
+	go func() {
+		if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
+			msg := ""
+			if err != nil {
+				msg = err.Error()
+			}
+			cerr := c.fc.Run(ctx, "close", expressPriority, func(_ int) (int, bool, error) {
+				return 0, true, c.mp.writeMsg(ctx, &message.TearDown{Message: msg})
+			})
+			if cerr != nil {
+				ctx.Errorf("Error sending tearDown on connection to %s: %v", c.remote, cerr)
+			}
 		}
-		cerr := c.fc.Run(ctx, "close", expressPriority, func(_ int) (int, bool, error) {
-			return 0, true, c.mp.writeMsg(ctx, &message.TearDown{Message: msg})
-		})
-		if cerr != nil {
-			ctx.Errorf("Error sending tearDown on connection to %s: %v", c.remote, cerr)
+		for _, f := range flows {
+			f.close(ctx, NewErrConnectionClosed(ctx))
 		}
-	}
-	for _, f := range flows {
-		f.close(ctx, NewErrConnectionClosed(ctx))
-	}
-	if cerr := c.mp.close(); cerr != nil {
-		ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)
-	}
-	c.loopWG.Wait()
-	close(c.closed)
+		if cerr := c.mp.close(); cerr != nil {
+			ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)
+		}
+		c.loopWG.Wait()
+		c.mu.Lock()
+		c.status.Closed = true
+		status := c.status
+		c.mu.Unlock()
+		if c.events != nil {
+			c.events <- StatusUpdate{c, status}
+		}
+		close(c.closed)
+	}()
 }
 
 func (c *Conn) release(ctx *context.T, fid, count uint64) {
@@ -260,12 +311,48 @@ func (c *Conn) release(ctx *context.T, fid, count uint64) {
 func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 	switch msg := m.(type) {
 	case *message.TearDown:
-		return NewErrConnClosedRemotely(ctx, msg.Message)
+		c.mu.Lock()
+		c.internalCloseLocked(ctx, NewErrConnClosedRemotely(ctx, msg.Message))
+		c.mu.Unlock()
+		return nil
+
+	case *message.EnterLameDuck:
+		c.mu.Lock()
+		c.status.RemoteLameDuck = true
+		status := c.status
+		c.mu.Unlock()
+		if c.events != nil {
+			c.events <- StatusUpdate{c, status}
+		}
+		go func() {
+			// We only want to send the lame duck acknowledgment after all outstanding
+			// OpenFlows are sent.
+			c.unopenedFlows.Wait()
+			err := c.fc.Run(ctx, "lameduck", expressPriority, func(_ int) (int, bool, error) {
+				return 0, true, c.mp.writeMsg(ctx, &message.AckLameDuck{})
+			})
+			if err != nil {
+				c.Close(ctx, NewErrSend(ctx, "release", c.remote.String(), err))
+			}
+		}()
+
+	case *message.AckLameDuck:
+		c.mu.Lock()
+		c.status.LocalLameDuck = true
+		status := c.status
+		c.mu.Unlock()
+		if c.events != nil {
+			c.events <- StatusUpdate{c, status}
+		}
 
 	case *message.OpenFlow:
 		c.mu.Lock()
 		if c.handler == nil {
+			c.mu.Unlock()
 			return NewErrUnexpectedMsg(ctx, "openFlow")
+		} else if c.flows == nil {
+			c.mu.Unlock()
+			return nil // Conn is already being closed.
 		}
 		handler := c.handler
 		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, false, true)
@@ -273,6 +360,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		c.toRelease[msg.ID] = defaultBufferSize
 		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
+
 		handler.HandleFlow(f)
 		if err := f.q.put(ctx, msg.Payload); err != nil {
 			return err
@@ -299,6 +387,10 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 
 	case *message.Data:
 		c.mu.Lock()
+		if c.flows == nil {
+			c.mu.Unlock()
+			return nil // Conn is already being shut down.
+		}
 		f := c.flows[msg.ID]
 		c.mu.Unlock()
 		if f == nil {
@@ -319,6 +411,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 }
 
 func (c *Conn) readLoop(ctx *context.T) {
+	defer c.loopWG.Done()
 	var err error
 	for {
 		msg, rerr := c.mp.readMsg(ctx)
@@ -330,16 +423,9 @@ func (c *Conn) readLoop(ctx *context.T) {
 			break
 		}
 	}
-
 	c.mu.Lock()
-	var flows map[uint64]*flw
-	flows, c.flows = c.flows, nil
+	c.internalCloseLocked(ctx, err)
 	c.mu.Unlock()
-
-	c.loopWG.Done()
-	if flows != nil {
-		c.internalClose(ctx, err, flows)
-	}
 }
 
 func (c *Conn) markUsed() {

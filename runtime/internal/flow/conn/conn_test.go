@@ -100,14 +100,14 @@ func TestUpdateFlowHandler(t *testing.T) {
 	q1, q2 := make(chan flow.Flow, 1), make(chan flow.Flow, 1)
 	fh1, fh2 := fh(q1), fh(q2)
 	go func() {
-		d, err := NewDialed(ctx, dmrw, ep, ep, versions, nil)
+		d, err := NewDialed(ctx, dmrw, ep, ep, versions, nil, nil)
 		if err != nil {
 			panic(err)
 		}
 		dch <- d
 	}()
 	go func() {
-		a, err := NewAccepted(ctx, amrw, ep, versions, fh1)
+		a, err := NewAccepted(ctx, amrw, ep, versions, fh1, nil)
 		if err != nil {
 			panic(err)
 		}

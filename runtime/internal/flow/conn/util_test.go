@@ -28,7 +28,16 @@ func (fh fh) HandleFlow(f flow.Flow) error {
 	return nil
 }
 
-func setupConns(t *testing.T, dctx, actx *context.T, dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn, _ *flowtest.Wire) {
+func setupConns(t *testing.T,
+	dctx, actx *context.T,
+	dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn, _ *flowtest.Wire) {
+	return setupConnsWithEvents(t, dctx, actx, dflows, aflows, nil)
+}
+
+func setupConnsWithEvents(t *testing.T,
+	dctx, actx *context.T,
+	dflows, aflows chan<- flow.Flow,
+	events chan<- StatusUpdate) (dialed, accepted *Conn, _ *flowtest.Wire) {
 	dmrw, amrw, w := flowtest.NewMRWPair(dctx)
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
 	ep, err := v23.NewEndpoint("localhost:80")
@@ -42,7 +51,7 @@ func setupConns(t *testing.T, dctx, actx *context.T, dflows, aflows chan<- flow.
 		if dflows != nil {
 			handler = fh(dflows)
 		}
-		d, err := NewDialed(dctx, dmrw, ep, ep, versions, handler)
+		d, err := NewDialed(dctx, dmrw, ep, ep, versions, handler, events)
 		if err != nil {
 			panic(err)
 		}
@@ -53,7 +62,7 @@ func setupConns(t *testing.T, dctx, actx *context.T, dflows, aflows chan<- flow.
 		if aflows != nil {
 			handler = fh(aflows)
 		}
-		a, err := NewAccepted(actx, amrw, ep, versions, handler)
+		a, err := NewAccepted(actx, amrw, ep, versions, handler, events)
 		if err != nil {
 			panic(err)
 		}

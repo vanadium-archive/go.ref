@@ -221,7 +221,7 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			local,
 			version.Supported,
 			&flowHandler{q: m.q, cached: cached},
-		)
+			nil)
 		if err != nil {
 			close(cached)
 			flowConn.Close()
@@ -260,7 +260,8 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 			f,
 			f.Conn().LocalEndpoint(),
 			version.Supported,
-			&flowHandler{q: h.m.q})
+			&flowHandler{q: h.m.q},
+			nil)
 		if err != nil {
 			h.ctx.Errorf("failed to create accepted conn: %v", err)
 			return
@@ -387,6 +388,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			remote,
 			version.Supported,
 			fh,
+			nil,
 		)
 		if err != nil {
 			flowConn.Close()
@@ -414,6 +416,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			remote,
 			version.Supported,
 			fh,
+			nil,
 		)
 		if err != nil {
 			proxyConn.Close(ctx, err)
