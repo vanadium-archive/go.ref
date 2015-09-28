@@ -42,7 +42,7 @@ func TestGlob(t *testing.T) {
 		tree.find(strings.Split(p, "/"), true)
 	}
 
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &disp{tree})
+	_, server, err := v23.WithNewDispatchingServer(ctx, "", &disp{tree})
 	if err != nil {
 		t.Fatalf("failed to start debug server: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestGlobDeny(t *testing.T) {
 	tree.find([]string{"a", "b"}, true)
 	tree.find([]string{"a", "deny", "x"}, true)
 
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", &disp{tree})
+	_, server, err := v23.WithNewDispatchingServer(ctx, "", &disp{tree})
 	if err != nil {
 		t.Fatalf("failed to start debug server: %v", err)
 	}
