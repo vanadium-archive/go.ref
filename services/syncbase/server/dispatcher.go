@@ -33,8 +33,6 @@ func NewDispatcher(s *service) *dispatcher {
 var auth security.Authorizer = security.AllowEveryone()
 
 func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
-	// TODO(sadovsky): Can we drop this TrimPrefix?
-	suffix = strings.TrimPrefix(suffix, "/")
 	if len(suffix) == 0 {
 		return wire.ServiceServer(disp.s), auth, nil
 	}

@@ -17,6 +17,7 @@ import (
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/syncbase/nosql/query"
 	"v.io/v23/syncbase/nosql/query/exec"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -320,22 +321,53 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
-	impl := func(sntx store.SnapshotOrTransaction, closeSntx func() error) error {
+	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
-		sn := d.st.NewSnapshot()
-		if err := util.GetWithAuth(ctx, call, sn, d.stKey(), &databaseData{}); err != nil {
-			sn.Abort()
+		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &databaseData{}); err != nil {
 			return err
 		}
-		return util.GlobChildren(ctx, call, matcher, sn, closeSntx, util.TablePrefix)
+		return util.GlobChildren(ctx, call, matcher, sntx, util.TablePrefix)
 	}
 	if d.batchId != nil {
-		return impl(d.batchReader(), func() error {
-			return nil
-		})
+		return impl(d.batchReader())
 	} else {
 		sn := d.st.NewSnapshot()
-		return impl(sn, sn.Abort)
+		defer sn.Abort()
+		return impl(sn)
+	}
+}
+
+// See comment in v.io/v23/services/syncbase/nosql/service.vdl for why we can't
+// implement ListTables using Glob.
+func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	if !d.exists {
+		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
+	}
+	impl := func(sntx store.SnapshotOrTransaction) ([]string, error) {
+		// Check perms.
+		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &databaseData{}); err != nil {
+			return nil, err
+		}
+		it := sntx.Scan(util.ScanPrefixArgs(util.TablePrefix, ""))
+		key := []byte{}
+		res := []string{}
+		for it.Advance() {
+			key = it.Key(key)
+			parts := util.SplitKeyParts(string(key))
+			// For explanation of Escape(), see comment in server/nosql/dispatcher.go.
+			res = append(res, pubutil.Escape(parts[len(parts)-1]))
+		}
+		if err := it.Err(); err != nil {
+			return nil, err
+		}
+		return res, nil
+	}
+	if d.batchId != nil {
+		return impl(d.batchReader())
+	} else {
+		sntx := d.st.NewSnapshot()
+		defer sntx.Abort()
+		return impl(sntx)
 	}
 }
 

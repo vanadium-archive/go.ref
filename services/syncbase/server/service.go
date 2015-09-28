@@ -161,11 +161,11 @@ func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms acc
 func (s *service) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
 	// Check perms.
 	sn := s.st.NewSnapshot()
+	defer sn.Abort()
 	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &serviceData{}); err != nil {
-		sn.Abort()
 		return err
 	}
-	return util.GlobChildren(ctx, call, matcher, sn, sn.Abort, util.AppPrefix)
+	return util.GlobChildren(ctx, call, matcher, sn, util.AppPrefix)
 }
 
 ////////////////////////////////////////

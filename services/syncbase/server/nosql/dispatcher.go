@@ -50,8 +50,6 @@ var auth security.Authorizer = security.AllowEveryone()
 // restricted to be valid identifiers, such that neither "<appName>:<dbName>"
 // nor "<tableName>:<rowKey>" can be ambiguous.
 func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
-	// TODO(sadovsky): Can we drop this TrimPrefix?
-	suffix = strings.TrimPrefix(suffix, "/")
 	parts := strings.SplitN(suffix, "/", 3) // db, table, row
 
 	// Note, the slice returned by strings.SplitN is guaranteed to contain at
