@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"path"
 	"strings"
 )
 
@@ -16,6 +17,7 @@ type VcloudVM struct {
 	sshUser             string // ssh into the VM as this user
 	projectArg, zoneArg string // common flags used with the vcloud command
 	name, ip            string
+	workingDir          string
 	isDeleted           bool
 }
 
@@ -49,6 +51,14 @@ func newVcloudVM(instanceName string, opt VcloudVMOptions) (vm *VcloudVM, err er
 	}
 	g.ip = tmpIP
 	g.name = instanceName
+
+	const workingDir = "/tmp/dmrun"
+	output, err = g.RunCommand("mkdir", workingDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make working dir: %v (output: %s)", err, output)
+	}
+	g.workingDir = workingDir
+
 	return g, nil
 }
 
@@ -82,7 +92,7 @@ func (g *VcloudVM) RunCommand(args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("RunCommand called on deleted VcloudVM")
 	}
 
-	cmd := exec.Command(g.vcloud, append([]string{"sh", g.projectArg, g.name}, args...)...)
+	cmd := g.generateExecCmdForRun(args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("failed running [%s] on VM %s", strings.Join(args, " "), g.name)
@@ -90,12 +100,29 @@ func (g *VcloudVM) RunCommand(args ...string) ([]byte, error) {
 	return output, err
 }
 
+func (g *VcloudVM) RunCommandForUser(args ...string) string {
+	if g.isDeleted {
+		return ""
+	}
+	cmd := g.generateExecCmdForRun(args...)
+
+	result := cmd.Path
+	for i := 1; i < len(cmd.Args); i++ {
+		result = fmt.Sprintf("%s %q", result, cmd.Args[i])
+	}
+	return result
+}
+
+func (g *VcloudVM) generateExecCmdForRun(args ...string) *exec.Cmd {
+	return exec.Command(g.vcloud, append([]string{"sh", g.projectArg, g.name, "cd", g.workingDir, "&&"}, args...)...)
+}
+
 func (g *VcloudVM) CopyFile(infile, destination string) error {
 	if g.isDeleted {
 		return fmt.Errorf("CopyFile called on deleted VcloudVM")
 	}
 
-	cmd := exec.Command("gcloud", "compute", g.projectArg, "copy-files", infile, fmt.Sprintf("%s@%s:/%s", g.sshUser, g.Name(), destination), g.zoneArg)
+	cmd := exec.Command("gcloud", "compute", g.projectArg, "copy-files", infile, fmt.Sprintf("%s@%s:/%s", g.sshUser, g.Name(), path.Join(g.workingDir, destination)), g.zoneArg)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("failed copying %s to %s:%s - %v\nOutput:\n%v", infile, g.name, destination, err, string(output))

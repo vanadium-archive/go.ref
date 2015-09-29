@@ -13,14 +13,19 @@ type CloudVM interface {
 	// IP address (as a string) of the VM instance
 	IP() string
 
-	// Execute a command on the VM instance
+	// Execute a command on the VM instance. The current directory will be the
+	// working directory of the VM when the command is run.
 	RunCommand(...string) (output []byte, err error)
 
-	// Copy a file to the VM instance
+	// Copy a file to the working directory of VM instance. The destination is treated as a
+	// pathname relative to the workspace of the VM.
 	CopyFile(infile, destination string) error
 
 	// Delete the VM instance
 	Delete() error
+
+	// Provide what the user must run to run a specified command on the VM.
+	RunCommandForUser(commandPlusArgs ...string) string
 
 	// Provide the command that the user can use to delete a VM instance for which Delete()
 	// was not called
@@ -28,10 +33,12 @@ type CloudVM interface {
 }
 
 func CreateCloudVM(instanceName string, options interface{}) (CloudVM, error) {
-	switch options.(type) {
+	switch t := options.(type) {
 	default:
 		return nil, fmt.Errorf("Unknown options type")
 	case VcloudVMOptions:
-		return newVcloudVM(instanceName, options.(VcloudVMOptions))
+		return newVcloudVM(instanceName, t)
+	case SSHVMOptions:
+		return newSSHVM(instanceName, t)
 	}
 }

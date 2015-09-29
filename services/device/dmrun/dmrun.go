@@ -20,6 +20,7 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -168,9 +169,9 @@ func setupInstance(vmOptions interface{}) (backend.CloudVM, string, string) {
 
 // installArchive ships the archive to the VM instance and unpacks it.
 func installArchive(archive, instance string) {
-	err := vm.CopyFile(archive, "/tmp/")
+	err := vm.CopyFile(archive, "/")
 	dieIfErr(err, "Copying archive failed: %v", err)
-	output, err := vm.RunCommand("unzip", path.Join("/tmp", filepath.Base(archive)), "-d", "/tmp/unpacked")
+	output, err := vm.RunCommand("unzip", path.Join("./", filepath.Base(archive)), "-d", "./unpacked")
 	dieIfErr(err, "Extracting archive failed. Output:\n%v", string(output))
 }
 
@@ -179,9 +180,9 @@ func installArchive(archive, instance string) {
 func installDevice(instance string) (string, string) {
 	fmt.Println("Installing device manager...")
 	defer fmt.Println("Done installing device manager...")
-	output, err := vm.RunCommand("V23_DEVICE_DIR=/tmp/dm", "/tmp/unpacked/devicex", "install", "/tmp/unpacked", "--single_user", "--", "--v23.tcp.address=:8151", "--deviced-port=8150", "--proxy-port=8160", "--use-pairing-token")
+	output, err := vm.RunCommand("V23_DEVICE_DIR=`pwd`/dm", "./unpacked/devicex", "install", "./unpacked", "--single_user", "--", "--v23.tcp.address=:8151", "--deviced-port=8150", "--proxy-port=8160", "--use-pairing-token")
 	dieIfErr(err, "Installing device manager failed. Output:\n%v", string(output))
-	output, err = vm.RunCommand("V23_DEVICE_DIR=/tmp/dm", "/tmp/unpacked/devicex", "start")
+	output, err = vm.RunCommand("V23_DEVICE_DIR=`pwd`/dm", "./unpacked/devicex", "start")
 	dieIfErr(err, "Starting device manager failed. Output:\n%v", string(output))
 	// Grab the token and public key from the device manager log.
 	dieAfter := time.After(5 * time.Second)
@@ -196,7 +197,7 @@ func installDevice(instance string) (string, string) {
 		} else {
 			firstIteration = false
 		}
-		output, err = vm.RunCommand("cat", "/tmp/dm/dmroot/device-manager/logs/deviced.INFO")
+		output, err = vm.RunCommand("cat", "./dm/dmroot/device-manager/logs/deviced.INFO")
 		dieIfErr(err, "Reading device manager log failed. Output:\n%v", string(output))
 		pairingTokenRE := regexp.MustCompile("Device manager pairing token: (.*)")
 		matches := pairingTokenRE.FindSubmatch(output)
@@ -236,10 +237,11 @@ func claimDevice(deviceName, ip, publicKey, pairingToken, extension string) {
 	setCredentialsEnv(cmd)
 	output, err := cmd.CombinedOutput()
 	dieIfErr(err, "Claiming device manager (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
-	cmd = exec.Command(device, "acl", "get", fmt.Sprintf("/%s:8151/devmgr/device", ip))
+	cmd = exec.Command(device, "acl", "get", fmt.Sprintf("/%s:8150/device", ip))
 	setCredentialsEnv(cmd)
 	output, err = cmd.CombinedOutput()
 	dieIfErr(err, "Getting device manager acls (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
+
 	fmt.Printf("Done claiming device manager. Device manager ACLs:\n%s", string(output))
 }
 
@@ -251,9 +253,15 @@ func installApp(deviceName, ip string) string {
 	cmd := exec.Command(device, args...)
 	setCredentialsEnv(cmd)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("V23_NAMESPACE=/%s:8151", ip))
-	output, err := cmd.CombinedOutput()
-	dieIfErr(err, "Installing app (%v) failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
+
+	// During installation, there are sometimes timeout messages on stderr even when the
+	// installation succeeds -- so we need to capture stderr separately from stdout
+	buf := new(bytes.Buffer)
+	cmd.Stderr = buf
+	output, err := cmd.Output()
+	dieIfErr(err, "Installing app (%v) failed. Output:\n%v\nStderr:\n%v", strings.Join(cmd.Args, " "), string(output), buf.String())
 	installationName := strings.TrimSpace(string(output))
+
 	fmt.Println("Installed", installationName)
 	return installationName
 }
@@ -274,29 +282,64 @@ func startApp(installationName, extension string) string {
 	return instanceName
 }
 
-func main() {
+// check flags and produce the options used to build the backend VM
+func handleFlags() (vmOpts interface{}) {
+	var sshTarget, sshOptions string
+	flag.StringVar(&sshTarget, "ssh", "", "specify [user@]ip target for ssh")
+	flag.StringVar(&sshOptions, "sshoptions", "", "flags to pass to ssh, e.g. \"-i <keyfile>\"")
 	flag.Parse()
-	if len(flag.Args()) == 0 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <app> <arguments ... >\n", os.Args[0])
-		os.Exit(1)
+
+	// Pick backend based on flags
+	if sshTarget != "" {
+		// Ssh backend
+		opts := backend.SSHVMOptions{}
+		targetComponents := strings.Split(sshTarget, "@")
+		switch len(targetComponents) {
+		case 1:
+			opts.SSHHostIP = targetComponents[0]
+		case 2:
+			opts.SSHUser = targetComponents[0]
+			opts.SSHHostIP = targetComponents[1]
+		default:
+			die("Unable to parse sshTarget: %s\n", sshTarget)
+		}
+		if sshOptions = strings.TrimSpace(sshOptions); sshOptions != "" {
+			opts.SSHOptions = strings.Split(sshOptions, " ")
+		}
+		vmOpts = opts
+	} else {
+		// Vcloud backend
+		vcloud = buildV23Binary(vcloudBin)
+		vmOpts = backend.VcloudVMOptions{VcloudBinary: vcloud}
 	}
+
+	if len(flag.Args()) == 0 {
+		die("Usage: %s [--ssh [user@]ip] [--sshoptions \"<options>\"]  <app> <arguments ... >\n", os.Args[0])
+	}
+
+	return vmOpts
+}
+
+func main() {
+	vmOpts := handleFlags()
 	setupWorkDir()
 	cleanupOnDeath = func() {
 		os.RemoveAll(workDir)
 	}
 	defer os.RemoveAll(workDir)
-	vcloud = buildV23Binary(vcloudBin)
 	device = buildV23Binary(deviceBin)
 	dmBins := buildDMBinaries()
 	archive := createArchive(append(dmBins, getPath(devicexRepo, devicex)))
-	vmOpts := backend.VcloudVMOptions{VcloudBinary: vcloud}
+
 	vm, vmInstanceName, vmInstanceIP := setupInstance(vmOpts)
 	cleanupOnDeath = func() {
-		fmt.Fprintf(os.Stderr, "Deleting VM instance ...\n")
+		fmt.Fprintf(os.Stderr, "Attempting to stop agentd/deviced ...\n")
+		vm.RunCommand("sudo", "killall", "-9", "agentd", "deviced") // errors are ignored
+		fmt.Fprintf(os.Stderr, "Cleaning up VM instance ...\n")
 		err := vm.Delete()
-		fmt.Fprintf(os.Stderr, "Removing tmp files ...\n")
+		fmt.Fprintf(os.Stderr, "Removing local tmp files ...\n")
 		os.RemoveAll(workDir)
-		dieIfErr(err, "Deleting VM instance failed")
+		dieIfErr(err, "Cleaning up VM instance failed")
 	}
 	installArchive(archive, vmInstanceName)
 	publicKey, pairingToken := installDevice(vmInstanceName)
@@ -313,6 +356,8 @@ func main() {
 	fmt.Printf("\t${JIRI_ROOT}/release/go/bin/debug glob %s/logs/*\n", instanceName)
 	fmt.Println("Dump e.g. the INFO log:")
 	fmt.Printf("\t${JIRI_ROOT}/release/go/bin/debug logs read %s/logs/app.INFO\n", instanceName)
-	fmt.Println("Clean up by deleting the VM instance:")
+
+	fmt.Println("Clean up the VM instance:")
+	fmt.Printf("\t%s\n", vm.RunCommandForUser("sudo", "killall", "-9", "agentd", "deviced"))
 	fmt.Printf("\t%s\n", vm.DeleteCommandForUser())
 }
