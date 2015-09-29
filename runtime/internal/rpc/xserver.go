@@ -320,9 +320,6 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
 	}
 
 	leps := s.flowMgr.ListeningEndpoints()
-	if len(leps) == 0 {
-		return verror.New(verror.ErrBadArg, s.ctx, verror.New(errNoListeners, s.ctx, lastErr))
-	}
 
 	s.addressChooser = listenSpec.AddressChooser
 	roaming := false

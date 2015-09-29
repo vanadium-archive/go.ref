@@ -17,6 +17,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/ref"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/test"
 )
@@ -69,6 +70,12 @@ func TestBadObject(t *testing.T) {
 }
 
 func TestServerArgs(t *testing.T) {
+	if ref.RPCTransitionState() == ref.XServers {
+		// TODO(suharshs): This test doesn't make sense in the new RPC system
+		// because servers always have an endpoint with their routingID. Remove
+		// this test once the transition is complete.
+		t.SkipNow()
+	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	sctx := withPrincipal(t, ctx, "server")

@@ -223,13 +223,9 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			&flowHandler{q: m.q, cached: cached},
 			nil)
 		if err != nil {
-			close(cached)
 			flowConn.Close()
 			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
-			continue
-		}
-		if err := m.cache.InsertWithRoutingID(c); err != nil {
-			close(cached)
+		} else if err := m.cache.InsertWithRoutingID(c); err != nil {
 			ctx.Errorf("failed to cache conn %v: %v", c, err)
 		}
 		close(cached)

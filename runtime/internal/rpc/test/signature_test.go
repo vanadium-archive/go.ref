@@ -44,7 +44,7 @@ func (*streamStringBool) SendStream() interface {
 func TestMethodSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	ctx, server, err := v23.WithNewServer(ctx, "", sigImpl{}, nil)
+	_, server, err := v23.WithNewServer(ctx, "", sigImpl{}, nil)
 	if err != nil {
 		t.Fatalf("failed to start sig server: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestMethodSignature(t *testing.T) {
 func TestSignature(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	ctx, server, err := v23.WithNewServer(ctx, "", sigImpl{}, nil)
+	_, server, err := v23.WithNewServer(ctx, "", sigImpl{}, nil)
 	if err != nil {
 		t.Fatalf("failed to start sig server: %v", err)
 	}

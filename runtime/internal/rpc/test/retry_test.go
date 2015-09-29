@@ -38,7 +38,7 @@ func TestRetryCall(t *testing.T) {
 
 	// Start the server.
 	rs := retryServer{}
-	ctx, server, err := v23.WithNewServer(ctx, "", &rs, security.AllowEveryone())
+	_, server, err := v23.WithNewServer(ctx, "", &rs, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
