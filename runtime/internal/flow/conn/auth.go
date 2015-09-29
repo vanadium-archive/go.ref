@@ -23,6 +23,11 @@ import (
 	slib "v.io/x/ref/lib/security"
 )
 
+var (
+	authDialerTag   = []byte("AuthDial\x00")
+	authAcceptorTag = []byte("AuthAcpt\x00")
+)
+
 func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) error {
 	binding, err := c.setup(ctx, versions)
 	if err != nil {
@@ -32,13 +37,13 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) e
 	bflow.worker.Release(ctx, defaultBufferSize)
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG, bflow, true)
 
-	if err = c.readRemoteAuth(ctx, binding); err != nil {
+	if err = c.readRemoteAuth(ctx, authAcceptorTag, binding); err != nil {
 		return err
 	}
 	if c.rBlessings.IsZero() {
 		return NewErrAcceptorBlessingsMissing(ctx)
 	}
-	signedBinding, err := v23.GetPrincipal(ctx).Sign(binding)
+	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authDialerTag, binding...))
 	if err != nil {
 		return err
 	}
@@ -64,7 +69,7 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 	}
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG,
 		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true), false)
-	signedBinding, err := v23.GetPrincipal(ctx).Sign(binding)
+	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authAcceptorTag, binding...))
 	if err != nil {
 		return err
 	}
@@ -77,7 +82,7 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
 		return err
 	}
-	return c.readRemoteAuth(ctx, binding)
+	return c.readRemoteAuth(ctx, authDialerTag, binding)
 }
 
 func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, error) {
@@ -136,7 +141,7 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	return binding, nil
 }
 
-func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {
+func (c *Conn) readRemoteAuth(ctx *context.T, tag []byte, binding []byte) error {
 	var rauth *message.Auth
 	for {
 		msg, err := c.mp.readMsg(ctx)
@@ -164,7 +169,7 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte) error {
 	if c.rPublicKey == nil {
 		return NewErrNoPublicKey(ctx)
 	}
-	if !rauth.ChannelBinding.Verify(c.rPublicKey, binding) {
+	if !rauth.ChannelBinding.Verify(c.rPublicKey, append(tag, binding...)) {
 		return NewErrInvalidChannelBinding(ctx)
 	}
 	return nil

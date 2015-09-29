@@ -5,9 +5,11 @@
 package test
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/nacl/box"
 	"io"
 	"net"
 	"reflect"
@@ -16,6 +18,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow/message"
 	"v.io/v23/i18n"
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -27,7 +30,9 @@ import (
 	"v.io/x/lib/netstate"
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/runtime/internal/lib/tcputil"
 	inaming "v.io/x/ref/runtime/internal/naming"
+	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -886,5 +891,119 @@ func TestServerPublicKeyOpt(t *testing.T) {
 		PublicKey: v23.GetPrincipal(octx).PublicKey(),
 	}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.ErrNotTrusted.ID)
+	}
+}
+
+func TestReplayAttack(t *testing.T) {
+	if ref.RPCTransitionState() != ref.XServers {
+		t.SkipNow()
+	}
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	sctx := withPrincipal(t, ctx, "server")
+	cctx := withPrincipal(t, ctx, "client")
+
+	_, s, err := v23.WithNewDispatchingServer(sctx, "", testServerDisp{&testServer{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep := s.Status().Endpoints[0]
+	addr := ep.Addr()
+
+	// Dial the server.
+	tcp := tcputil.TCP{}
+	conn, err := tcp.Dial(cctx, addr.Network(), addr.String(), time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	// Read the setup message from the server.
+	b, err := conn.ReadMsg()
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := message.Read(cctx, b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rSetup, ok := m.(*message.Setup)
+	if !ok {
+		t.Fatalf("got %#v, want *message.Setup", m)
+	}
+	rpk := rSetup.PeerNaClPublicKey
+
+	// Send our setup message to the server.
+	pk, sk, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lSetup := &message.Setup{
+		Versions:          rSetup.Versions,
+		PeerLocalEndpoint: rSetup.PeerLocalEndpoint,
+		PeerNaClPublicKey: pk,
+	}
+	b, err = message.Append(ctx, lSetup, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = conn.WriteMsg(b); err != nil {
+		t.Fatal(err)
+	}
+
+	// Setup encryption to the server.
+	cipher := crypto.NewControlCipherRPC11(
+		(*crypto.BoxKey)(pk),
+		(*crypto.BoxKey)(sk),
+		(*crypto.BoxKey)(rpk))
+
+	// Read the auth message from the server.
+	var rAuth *message.Auth
+	for {
+		b, err = conn.ReadMsg()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !cipher.Open(b) {
+			t.Fatal("failed to decrypt message")
+		}
+		m, err = message.Read(ctx, b[:len(b)-cipher.MACSize()])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rAuth, ok = m.(*message.Auth); ok {
+			break
+		}
+	}
+
+	// Send the auth message back to the server.
+	if b, err = message.Append(ctx, rAuth, nil); err != nil {
+		t.Fatal(err)
+	}
+	tmp := make([]byte, len(b)+cipher.MACSize())
+	copy(tmp, b)
+	b = tmp
+	if err = cipher.Seal(b); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = conn.WriteMsg(b); err != nil {
+		t.Fatal(err)
+	}
+
+	// The server should send a tearDown message complaining about the channel binding.
+	b, err = conn.ReadMsg()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cipher.Open(b) {
+		t.Fatal("failed to decrypt message")
+	}
+	m, err = message.Read(ctx, b[:len(b)-cipher.MACSize()])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok = m.(*message.TearDown); !ok {
+		t.Fatalf("got %#v, want *message.TearDown", m)
 	}
 }
