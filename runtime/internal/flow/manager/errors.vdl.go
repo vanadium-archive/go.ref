@@ -22,6 +22,7 @@ var (
 	ErrConnKilledToFreeResources = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ConnKilledToFreeResources", verror.NoRetry, "{1:}{2:} Connection killed to free resources.")
 	ErrInvalidProxyResponse      = verror.Register("v.io/x/ref/runtime/internal/flow/manager.InvalidProxyResponse", verror.NoRetry, "{1:}{2:} Invalid proxy response{:3}")
 	ErrManagerDialingSelf        = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ManagerDialingSelf", verror.NoRetry, "{1:}{2:} manager cannot be used to dial itself")
+	ErrListeningWithNullRid      = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ListeningWithNullRid", verror.NoRetry, "{1:}{2:} manager cannot listen when created with NullRoutingID")
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnKilledToFreeResources.ID), "{1:}{2:} Connection killed to free resources.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidProxyResponse.ID), "{1:}{2:} Invalid proxy response{:3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrManagerDialingSelf.ID), "{1:}{2:} manager cannot be used to dial itself")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrListeningWithNullRid.ID), "{1:}{2:} manager cannot listen when created with NullRoutingID")
 }
 
 // NewErrUnknownProtocol returns an error with the ErrUnknownProtocol ID.
@@ -67,4 +69,9 @@ func NewErrInvalidProxyResponse(ctx *context.T, typ string) error {
 // NewErrManagerDialingSelf returns an error with the ErrManagerDialingSelf ID.
 func NewErrManagerDialingSelf(ctx *context.T) error {
 	return verror.New(ErrManagerDialingSelf, ctx)
+}
+
+// NewErrListeningWithNullRid returns an error with the ErrListeningWithNullRid ID.
+func NewErrListeningWithNullRid(ctx *context.T) error {
+	return verror.New(ErrListeningWithNullRid, ctx)
 }

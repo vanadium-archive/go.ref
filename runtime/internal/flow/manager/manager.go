@@ -35,49 +35,93 @@ const (
 type manager struct {
 	rid    naming.RoutingID
 	closed chan struct{}
-	q      *upcqueue.T
 	cache  *ConnCache
-
-	mu              *sync.Mutex
-	listenEndpoints []naming.Endpoint
-	listeners       []flow.Listener
-	wg              sync.WaitGroup
+	ls     *listenState
 }
 
 func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 	m := &manager{
-		rid:       rid,
-		closed:    make(chan struct{}),
-		q:         upcqueue.New(),
-		cache:     NewConnCache(),
-		mu:        &sync.Mutex{},
-		listeners: []flow.Listener{},
+		rid:    rid,
+		closed: make(chan struct{}),
+		cache:  NewConnCache(),
+	}
+	var events chan conn.StatusUpdate
+	if rid != naming.NullRoutingID {
+		m.ls = &listenState{
+			q:         upcqueue.New(),
+			listeners: []flow.Listener{},
+			// TODO(mattr): This channel is sized somewhat arbitrarily right now.
+			// I should measure the impact of the size.
+			events: make(chan conn.StatusUpdate, 16),
+		}
+		events = m.ls.events
 	}
 	go func() {
 		ticker := time.NewTicker(reapCacheInterval)
 		for {
 			select {
 			case <-ctx.Done():
-				m.mu.Lock()
-				listeners := m.listeners
-				m.listeners = nil
-				m.mu.Unlock()
-				for _, ln := range listeners {
-					ln.Close()
-				}
+				m.stopListening()
 				m.cache.Close(ctx)
-				m.q.Close()
-				m.wg.Wait()
 				ticker.Stop()
 				close(m.closed)
 				return
 			case <-ticker.C:
 				// Periodically kill closed connections.
 				m.cache.KillConnections(ctx, 0)
+			case e := <-events:
+				if e.Status.Closed && !e.Status.LocalLameDuck || e.Status.LocalLameDuck {
+					m.ls.activeConns.Done()
+				}
 			}
 		}
 	}()
 	return m
+}
+
+type listenState struct {
+	q           *upcqueue.T
+	events      chan conn.StatusUpdate
+	listenLoops sync.WaitGroup
+	activeConns sync.WaitGroup
+
+	mu        sync.Mutex
+	listeners []flow.Listener
+	endpoints []naming.Endpoint
+}
+
+func (m *manager) stopListening() {
+	if m.ls == nil {
+		return
+	}
+	m.ls.mu.Lock()
+	listeners := m.ls.listeners
+	m.ls.listeners = nil
+	m.ls.endpoints = nil
+	m.ls.mu.Unlock()
+	for _, ln := range listeners {
+		ln.Close()
+	}
+	m.ls.listenLoops.Wait()
+}
+
+func (m *manager) StopListening(ctx *context.T) {
+	if m.ls == nil {
+		return
+	}
+	m.stopListening()
+	// Now no more connections can start.  We should lame duck all the conns
+	// and wait for all of them to ack.
+	m.cache.EnterLameDuckMode(ctx)
+	done := make(chan struct{})
+	go func() {
+		m.ls.activeConns.Wait()
+		close(done)
+	}()
+	select {
+	case <-m.closed:
+	case <-done:
+	}
 }
 
 // Listen causes the Manager to accept flows from the provided protocol and address.
@@ -89,6 +133,9 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	if err := m.validateContext(ctx); err != nil {
 		return err
 	}
+	if m.ls == nil {
+		return NewErrListeningWithNullRid(ctx)
+	}
 	ln, err := listen(ctx, protocol, address)
 	if err != nil {
 		return flow.NewErrNetwork(ctx, err)
@@ -98,17 +145,18 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 		Address:  ln.Addr().String(),
 		RID:      m.rid,
 	}
-	m.mu.Lock()
-	if m.listeners == nil {
+	m.ls.mu.Lock()
+	if m.ls.listeners == nil {
+		m.ls.mu.Unlock()
+		ln.Close()
 		return flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
 	}
-	m.listeners = append(m.listeners, ln)
-	m.mu.Unlock()
-	m.wg.Add(1)
+	m.ls.listeners = append(m.ls.listeners, ln)
+	m.ls.endpoints = append(m.ls.endpoints, local)
+	m.ls.mu.Unlock()
+
+	m.ls.listenLoops.Add(1)
 	go m.lnAcceptLoop(ctx, ln, local)
-	m.mu.Lock()
-	m.listenEndpoints = append(m.listenEndpoints, local)
-	m.mu.Unlock()
 	return nil
 }
 
@@ -124,13 +172,16 @@ func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint, update func([]
 	if err := m.validateContext(ctx); err != nil {
 		return err
 	}
-	m.wg.Add(1)
+	if m.ls == nil {
+		return NewErrListeningWithNullRid(ctx)
+	}
+	m.ls.listenLoops.Add(1)
 	go m.connectToProxy(ctx, ep, update)
 	return nil
 }
 
 func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func([]naming.Endpoint)) {
-	defer m.wg.Done()
+	defer m.ls.listenLoops.Done()
 	var eps []naming.Endpoint
 	for delay := reconnectDelay; ; delay *= 2 {
 		time.Sleep(delay - reconnectDelay)
@@ -139,11 +190,12 @@ func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func
 			return
 		default:
 		}
-		f, err := m.internalDial(ctx, ep, proxyBlessingsForPeer{}.run, &proxyFlowHandler{ctx: ctx, m: m})
+		f, c, err := m.internalDial(ctx, ep, proxyBlessingsForPeer{}.run)
 		if err != nil {
 			ctx.Error(err)
 			continue
 		}
+		c.UpdateFlowHandler(ctx, &proxyFlowHandler{ctx: ctx, m: m})
 		w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
 		if err != nil {
 			ctx.Error(err)
@@ -194,7 +246,7 @@ func (proxyBlessingsForPeer) run(ctx *context.T, lep, rep naming.Endpoint, rb se
 }
 
 func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.Endpoint) {
-	defer m.wg.Done()
+	defer m.ls.listenLoops.Done()
 	const killConnectionsRetryDelay = 5 * time.Millisecond
 	for {
 		flowConn, err := ln.Accept(ctx)
@@ -214,26 +266,27 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			ctx.Errorf("ln.Accept on localEP %v failed: %v", local, err)
 			return
 		}
-		cached := make(chan struct{})
+		fh := &flowHandler{m, make(chan struct{})}
+		m.ls.activeConns.Add(1)
 		c, err := conn.NewAccepted(
 			ctx,
 			flowConn,
 			local,
 			version.Supported,
-			&flowHandler{q: m.q, cached: cached},
-			nil)
+			fh,
+			m.ls.events)
 		if err != nil {
 			flowConn.Close()
 			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
-		} else if err := m.cache.InsertWithRoutingID(c); err != nil {
+		} else if err = m.cache.InsertWithRoutingID(c); err != nil {
 			ctx.Errorf("failed to cache conn %v: %v", c, err)
 		}
-		close(cached)
+		close(fh.cached)
 	}
 }
 
 type flowHandler struct {
-	q      *upcqueue.T
+	m      *manager
 	cached chan struct{}
 }
 
@@ -241,7 +294,7 @@ func (h *flowHandler) HandleFlow(f flow.Flow) error {
 	if h.cached != nil {
 		<-h.cached
 	}
-	return h.q.Put(f)
+	return h.m.ls.q.Put(f)
 }
 
 type proxyFlowHandler struct {
@@ -251,21 +304,21 @@ type proxyFlowHandler struct {
 
 func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 	go func() {
+		fh := &flowHandler{h.m, make(chan struct{})}
+		h.m.ls.activeConns.Add(1)
 		c, err := conn.NewAccepted(
 			h.ctx,
 			f,
 			f.Conn().LocalEndpoint(),
 			version.Supported,
-			&flowHandler{q: h.m.q},
-			nil)
+			fh,
+			h.m.ls.events)
 		if err != nil {
 			h.ctx.Errorf("failed to create accepted conn: %v", err)
-			return
-		}
-		if err := h.m.cache.InsertWithRoutingID(c); err != nil {
+		} else if err = h.m.cache.InsertWithRoutingID(c); err != nil {
 			h.ctx.Errorf("failed to create accepted conn: %v", err)
-			return
 		}
+		close(fh.cached)
 	}()
 	return nil
 }
@@ -276,15 +329,18 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 // If the Manager is not listening on any endpoints, an endpoint with the
 // Manager's RoutingID will be returned for use in bidirectional RPC.
 // Returned endpoints all have the Manager's unique RoutingID.
-func (m *manager) ListeningEndpoints() []naming.Endpoint {
-	m.mu.Lock()
-	ret := make([]naming.Endpoint, len(m.listenEndpoints))
-	copy(ret, m.listenEndpoints)
-	m.mu.Unlock()
-	if len(ret) == 0 {
-		ret = append(ret, &inaming.Endpoint{RID: m.rid})
+func (m *manager) ListeningEndpoints() (out []naming.Endpoint) {
+	if m.ls == nil {
+		return nil
 	}
-	return ret
+	m.ls.mu.Lock()
+	out = make([]naming.Endpoint, len(m.ls.endpoints))
+	copy(out, m.ls.endpoints)
+	m.ls.mu.Unlock()
+	if len(out) == 0 {
+		out = append(out, &inaming.Endpoint{RID: m.rid})
+	}
+	return out
 }
 
 // Accept blocks until a new Flow has been initiated by a remote process.
@@ -306,7 +362,10 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 	if err := m.validateContext(ctx); err != nil {
 		return nil, err
 	}
-	item, err := m.q.Get(ctx.Done())
+	if m.ls == nil {
+		return nil, NewErrListeningWithNullRid(ctx)
+	}
+	item, err := m.ls.q.Get(ctx.Done())
 	switch {
 	case err == upcqueue.ErrQueueIsClosed:
 		return nil, flow.NewErrNetwork(ctx, NewErrManagerClosed(ctx))
@@ -329,24 +388,27 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.Blessings
 	if err := m.validateContext(ctx); err != nil {
 		return nil, err
 	}
-	var fh conn.FlowHandler
-	if m.rid != naming.NullRoutingID {
-		fh = &flowHandler{q: m.q}
-	}
-	return m.internalDial(ctx, remote, fn, fh)
+	f, _, err := m.internalDial(ctx, remote, fn)
+	return f, err
 }
 
-func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer, fh conn.FlowHandler) (flow.Flow, error) {
+func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, *conn.Conn, error) {
 	// Disallow making connections to ourselves.
 	// TODO(suharshs): Figure out the right thing to do here. We could create a "localflow"
 	// that bypasses auth and is added to the accept queue immediately.
 	if remote.RoutingID() == m.rid {
-		return nil, flow.NewErrBadArg(ctx, NewErrManagerDialingSelf(ctx))
+		return nil, nil, flow.NewErrBadArg(ctx, NewErrManagerDialingSelf(ctx))
+	}
+	var fh conn.FlowHandler
+	var events chan conn.StatusUpdate
+	if m.ls != nil {
+		fh = &flowHandler{m: m}
+		events = m.ls.events
 	}
 	// Look up the connection based on RoutingID first.
 	c, err := m.cache.FindWithRoutingID(remote.RoutingID())
 	if err != nil {
-		return nil, flow.NewErrBadState(ctx, err)
+		return nil, nil, flow.NewErrBadState(ctx, err)
 	}
 	var (
 		protocol         flow.Protocol
@@ -364,18 +426,21 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		// Thus we look for Conns with the resolved address.
 		network, address, err = resolve(ctx, protocol, addr.Network(), addr.String())
 		if err != nil {
-			return nil, flow.NewErrResolveFailed(ctx, err)
+			return nil, nil, flow.NewErrResolveFailed(ctx, err)
 		}
 		c, err = m.cache.ReservedFind(network, address, remote.BlessingNames())
 		if err != nil {
-			return nil, flow.NewErrBadState(ctx, err)
+			return nil, nil, flow.NewErrBadState(ctx, err)
 		}
 		defer m.cache.Unreserve(network, address, remote.BlessingNames())
 	}
 	if c == nil {
 		flowConn, err := dial(ctx, protocol, network, address)
 		if err != nil {
-			return nil, flow.NewErrDialFailed(ctx, err)
+			return nil, nil, flow.NewErrDialFailed(ctx, err)
+		}
+		if m.ls != nil {
+			m.ls.activeConns.Add(1)
 		}
 		c, err = conn.NewDialed(
 			ctx,
@@ -384,27 +449,30 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			remote,
 			version.Supported,
 			fh,
-			nil,
+			events,
 		)
 		if err != nil {
 			flowConn.Close()
 			if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
-				return nil, err
+				return nil, nil, err
 			}
-			return nil, flow.NewErrDialFailed(ctx, err)
+			return nil, nil, flow.NewErrDialFailed(ctx, err)
 		}
 		if err := m.cache.Insert(c); err != nil {
-			return nil, flow.NewErrBadState(ctx, err)
+			return nil, nil, flow.NewErrBadState(ctx, err)
 		}
 	}
 	f, err := c.Dial(ctx, fn)
 	if err != nil {
-		return nil, flow.NewErrDialFailed(ctx, err)
+		return nil, nil, flow.NewErrDialFailed(ctx, err)
 	}
 
 	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
 	// return a flow on that corresponding conn.
 	if proxyConn := c; remote.RoutingID() != proxyConn.RemoteEndpoint().RoutingID() {
+		if m.ls != nil {
+			m.ls.activeConns.Add(1)
+		}
 		c, err = conn.NewDialed(
 			ctx,
 			f,
@@ -412,25 +480,24 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			remote,
 			version.Supported,
 			fh,
-			nil,
-		)
+			events)
 		if err != nil {
 			proxyConn.Close(ctx, err)
 			if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
-				return nil, err
+				return nil, nil, err
 			}
-			return nil, flow.NewErrDialFailed(ctx, err)
+			return nil, nil, flow.NewErrDialFailed(ctx, err)
 		}
 		if err := m.cache.InsertWithRoutingID(c); err != nil {
-			return nil, flow.NewErrBadState(ctx, err)
+			return nil, nil, flow.NewErrBadState(ctx, err)
 		}
 		f, err = c.Dial(ctx, fn)
 		if err != nil {
 			proxyConn.Close(ctx, err)
-			return nil, flow.NewErrDialFailed(ctx, err)
+			return nil, nil, flow.NewErrDialFailed(ctx, err)
 		}
 	}
-	return f, nil
+	return f, c, nil
 }
 
 // RoutingID returns the naming.Routing of the flow.Manager.

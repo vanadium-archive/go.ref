@@ -17,4 +17,5 @@ error (
   ConnKilledToFreeResources() {"en": "Connection killed to free resources."}
   InvalidProxyResponse(typ string) {"en": "Invalid proxy response{:typ}"}
   ManagerDialingSelf() {"en": "manager cannot be used to dial itself"}
+  ListeningWithNullRid() {"en": "manager cannot listen when created with NullRoutingID"}
 )

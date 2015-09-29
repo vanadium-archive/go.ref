@@ -68,15 +68,7 @@ func (c *ConnCache) ReservedFind(protocol, address string, blessingNames []strin
 	}
 	c.started[k] = true
 	entry := c.addrCache[k]
-	if entry == nil {
-		return nil, nil
-	}
-	if isClosed(entry.conn) {
-		delete(c.addrCache, entry.addrKey)
-		delete(c.ridCache, entry.rid)
-		return nil, nil
-	}
-	return entry.conn, nil
+	return c.removeUndialable(entry), nil
 }
 
 // Unreserve marks the status of the (protocol, address, blessingNames) as no
@@ -158,9 +150,7 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 	err := NewErrConnKilledToFreeResources(ctx)
 	pq := make(connEntries, 0, len(c.ridCache))
 	for _, e := range c.ridCache {
-		if isClosed(e.conn) {
-			delete(c.addrCache, e.addrKey)
-			delete(c.ridCache, e.rid)
+		if c.removeUndialable(e) == nil {
 			continue
 		}
 		if e.conn.IsEncapsulated() {
@@ -170,7 +160,7 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 		pq = append(pq, e)
 	}
 	for d := range c.unmappedConns {
-		if isClosed(d.conn) {
+		if status := d.conn.Status(); status.Closed {
 			delete(c.unmappedConns, d)
 			continue
 		}
@@ -188,6 +178,15 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 		delete(c.unmappedConns, d)
 	}
 	return nil
+}
+
+func (c *ConnCache) EnterLameDuckMode(ctx *context.T) {
+	for _, e := range c.ridCache {
+		e.conn.EnterLameDuck(ctx)
+	}
+	for d := range c.unmappedConns {
+		d.conn.EnterLameDuck(ctx)
+	}
 }
 
 // TODO(suharshs): If sorting the connections becomes too slow, switch to
@@ -219,28 +218,26 @@ func (c *ConnCache) FindWithRoutingID(rid naming.RoutingID) (*conn.Conn, error) 
 		return nil, NewErrCacheClosed(nil)
 	}
 	entry := c.ridCache[rid]
-	if entry == nil {
-		return nil, nil
+	return c.removeUndialable(entry), nil
+}
+
+func (c *ConnCache) removeUndialable(e *connEntry) *conn.Conn {
+	if e == nil {
+		return nil
 	}
-	if isClosed(entry.conn) {
-		delete(c.addrCache, entry.addrKey)
-		delete(c.ridCache, entry.rid)
-		return nil, nil
+	if status := e.conn.Status(); status.Closed || status.LocalLameDuck {
+		delete(c.addrCache, e.addrKey)
+		delete(c.ridCache, e.rid)
+		if !status.Closed {
+			c.unmappedConns[e] = true
+		}
+		return nil
 	}
-	return entry.conn, nil
+	return e.conn
 }
 
 func key(protocol, address string, blessingNames []string) string {
 	// TODO(suharshs): We may be able to do something more inclusive with our
 	// blessingNames.
 	return strings.Join(append([]string{protocol, address}, blessingNames...), ",")
-}
-
-func isClosed(conn *conn.Conn) bool {
-	select {
-	case <-conn.Closed():
-		return true
-	default:
-		return false
-	}
 }

@@ -136,6 +136,32 @@ func TestNullClientBlessings(t *testing.T) {
 	<-nulldm.Closed()
 }
 
+func TestStopListening(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := v23.Init()
+
+	am := New(ctx, naming.FixedRoutingID(0x5555))
+	actx := fake.SetFlowManager(ctx, am)
+	if err := am.Listen(actx, "tcp", "127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+
+	dm := New(ctx, naming.FixedRoutingID(0x1111))
+	dctx := fake.SetFlowManager(ctx, dm)
+
+	testFlows(t, dctx, actx, flowtest.BlessingsForPeer)
+
+	am.StopListening(actx)
+
+	if f, err := dm.Dial(dctx, am.ListeningEndpoints()[0], flowtest.BlessingsForPeer); err == nil {
+		t.Errorf("dialing a lame duck should fail, but didn't %#v.", f)
+	}
+
+	shutdown()
+	<-am.Closed()
+	<-dm.Closed()
+}
+
 func testFlows(t *testing.T, dctx, actx *context.T, bFn flow.BlessingsForPeer) (df, af flow.Flow) {
 	am := v23.ExperimentalGetFlowManager(actx)
 	ep := am.ListeningEndpoints()[0]

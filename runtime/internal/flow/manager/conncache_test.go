@@ -122,13 +122,13 @@ func TestCache(t *testing.T) {
 
 	// Closing the cache should close all the connections in the cache.
 	// Ensure that the conns are not closed yet.
-	if isClosed(conn) {
+	if status := conn.Status(); status.Closed {
 		t.Fatal("wanted conn to not be closed")
 	}
-	if isClosed(dupConn) {
+	if status := dupConn.Status(); status.Closed {
 		t.Fatal("wanted dupConn to not be closed")
 	}
-	if isClosed(otherConn) {
+	if status := otherConn.Status(); status.Closed {
 		t.Fatal("wanted otherConn to not be closed")
 	}
 	c.Close(ctx)
@@ -159,7 +159,7 @@ func TestLRU(t *testing.T) {
 	// conns[3:] should not be closed and still in the cache.
 	// conns[:3] should be closed and removed from the cache.
 	for _, conn := range conns[3:] {
-		if isClosed(conn.c) {
+		if status := conn.c.Status(); status.Closed {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
 		if !isInCache(t, c, conn.c) {
@@ -193,7 +193,7 @@ func TestLRU(t *testing.T) {
 	// conns[:7] should not be closed and still in the cache.
 	// conns[7:] should be closed and removed from the cache.
 	for _, conn := range conns[:7] {
-		if isClosed(conn.c) {
+		if status := conn.c.Status(); status.Closed {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
 		if !isInCache(t, c, conn.c) {
@@ -227,7 +227,7 @@ func TestLRU(t *testing.T) {
 	// conns[:7] should not be closed and still in the cache.
 	// conns[7:] should be closed and removed from the cache.
 	for _, conn := range conns[:7] {
-		if isClosed(conn.c) {
+		if status := conn.c.Status(); status.Closed {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
 		if !isInCache(t, c, conn.c) {
