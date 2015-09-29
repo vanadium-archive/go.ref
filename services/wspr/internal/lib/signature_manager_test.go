@@ -11,6 +11,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/x/ref/runtime/factories/fake"
@@ -38,7 +39,9 @@ func initRuntime(t *testing.T) (*context.T, clientWithTimesCalled, v23.Shutdown)
 			"__Signature": []interface{}{initialSig},
 		},
 	)
-	ctx = fake.SetClient(ctx, client)
+	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
+		return client
+	})
 	return ctx, client, shutdown
 }
 

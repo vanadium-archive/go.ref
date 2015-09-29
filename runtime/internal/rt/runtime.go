@@ -54,7 +54,6 @@ const (
 	backgroundKey
 	reservedNameKey
 	listenKey
-	flowManagerKey
 
 	// initKey is used to store values that are only set at init time.
 	initKey
@@ -169,12 +168,6 @@ func Init(
 		return nil, nil, nil, err
 	}
 
-	// Add the flow.Manager to the context.
-	// This initial Flow Manager can only be used as a client.
-	ctx, _, err = r.setNewClientFlowManager(ctx)
-	if err != nil {
-		return nil, nil, nil, err
-	}
 	// Add the Client to the context.
 	ctx, _, err = r.WithNewClient(ctx)
 	if err != nil {
@@ -306,27 +299,6 @@ func newStreamManager(ctx *context.T) (stream.Manager, error) {
 	return sm, nil
 }
 
-func (r *Runtime) setNewClientFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
-	return r.setNewFlowManager(ctx, naming.NullRoutingID)
-}
-
-func (r *Runtime) setNewBidiFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
-	rid, err := naming.NewRoutingID()
-	if err != nil {
-		return nil, nil, err
-	}
-	return r.setNewFlowManager(ctx, rid)
-}
-
-func (r *Runtime) setNewFlowManager(ctx *context.T, rid naming.RoutingID) (*context.T, flow.Manager, error) {
-	fm := manager.New(ctx, rid)
-	if err := r.addChild(ctx, fm, func() { <-fm.Closed() }); err != nil {
-		return ctx, nil, err
-	}
-	newctx := context.WithValue(ctx, flowManagerKey, fm)
-	return newctx, fm, nil
-}
-
 func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
 	sm, err := newStreamManager(ctx)
 	if err != nil {
@@ -381,14 +353,6 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 	if newctx, err = r.setNewStreamManager(newctx); err != nil {
 		return ctx, err
 	}
-	if rid := r.ExperimentalGetFlowManager(newctx).RoutingID(); rid == naming.NullRoutingID {
-		newctx, _, err = r.setNewClientFlowManager(newctx)
-	} else {
-		newctx, _, err = r.setNewBidiFlowManager(newctx)
-	}
-	if err != nil {
-		return ctx, err
-	}
 	if newctx, _, err = r.setNewNamespace(newctx, r.GetNamespace(ctx).Roots()...); err != nil {
 		return ctx, err
 	}
@@ -412,35 +376,28 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(namespace.T)
-	fm, _ := ctx.Value(flowManagerKey).(flow.Manager)
 	otherOpts = append(otherOpts, imanager.DialTimeout(5*time.Minute))
-
 	if id, _ := ctx.Value(initKey).(*initData); id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredProtocols(id.protocols))
 	}
 	var client rpc.Client
-	var err error
 	deps := []interface{}{vtraceDependency{}}
 
-	if fm != nil && ref.RPCTransitionState() >= ref.XClients {
-		client, err = irpc.NewTransitionClient(ctx, sm, fm, ns, otherOpts...)
-		deps = append(deps, fm, sm)
-	} else {
-		client, err = irpc.DeprecatedNewClient(sm, ns, otherOpts...)
+	if ref.RPCTransitionState() >= ref.XClients {
+		client = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
 		deps = append(deps, sm)
-	}
-
-	if err != nil {
-		return ctx, nil, err
+	} else {
+		client = irpc.DeprecatedNewClient(sm, ns, otherOpts...)
+		deps = append(deps, sm)
 	}
 	newctx := context.WithValue(ctx, clientKey, client)
 	if p != nil {
 		deps = append(deps, p)
 	}
-	if err = r.addChild(ctx, client, client.Close, deps...); err != nil {
+	if err := r.addChild(ctx, client, client.Close, deps...); err != nil {
 		return ctx, nil, err
 	}
-	return newctx, client, err
+	return newctx, client, nil
 }
 
 func (*Runtime) GetClient(ctx *context.T) rpc.Client {
@@ -539,33 +496,16 @@ func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
 	return nil
 }
 
-func (*Runtime) ExperimentalGetFlowManager(ctx *context.T) flow.Manager {
-	// nologcall
-	if d, ok := ctx.Value(flowManagerKey).(flow.Manager); ok {
-		return d
-	}
-	return nil
-}
-
-func (r *Runtime) ExperimentalWithNewFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
+func (r *Runtime) NewFlowManager(ctx *context.T) (flow.Manager, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	newctx, m, err := r.setNewBidiFlowManager(ctx)
+	rid, err := naming.NewRoutingID()
 	if err != nil {
-		return ctx, nil, err
+		return nil, err
 	}
-	// Create a new client since it depends on the flow manager.
-	newctx, _, err = r.WithNewClient(newctx)
-	if err != nil {
-		return ctx, nil, err
-	}
-	return newctx, m, nil
+	return manager.New(ctx, rid), nil
 }
 
-func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*context.T, *pubsub.Publisher, string, []rpc.ServerOpt, error) {
-	newctx, _, err := r.ExperimentalWithNewFlowManager(ctx)
-	if err != nil {
-		return ctx, nil, "", nil, err
-	}
+func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubsub.Publisher, string, []rpc.ServerOpt, error) {
 	otherOpts := append([]rpc.ServerOpt{}, opts...)
 	if reservedDispatcher := r.GetReservedNameDispatcher(ctx); reservedDispatcher != nil {
 		otherOpts = append(otherOpts, irpc.ReservedNameDispatcher{
@@ -576,20 +516,21 @@ func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*cont
 	if id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(id.protocols))
 	}
-	return newctx, id.settingsPublisher, id.settingsName, otherOpts, nil
+	return id.settingsPublisher, id.settingsName, otherOpts, nil
 }
 
 func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if ref.RPCTransitionState() >= ref.XServers {
-		// TODO(mattr): Deal with shutdown deps.
-		newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+		spub, sname, opts, err := r.commonServerInit(ctx, opts...)
 		if err != nil {
 			return ctx, nil, err
 		}
-		s, err := irpc.NewServer(newctx, name, object, auth, spub, sname, opts...)
+		newctx, s, err := irpc.WithNewServer(ctx, name, object, auth, spub, sname, opts...)
 		if err != nil {
-			// TODO(mattr): Stop the flow manager.
+			return ctx, nil, err
+		}
+		if err = r.addChild(ctx, s, func() { <-s.Closed() }); err != nil {
 			return ctx, nil, err
 		}
 		return newctx, s, nil
@@ -612,14 +553,15 @@ func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{},
 func (r *Runtime) WithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if ref.RPCTransitionState() >= ref.XServers {
-		// TODO(mattr): Deal with shutdown deps.
-		newctx, spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+		spub, sname, opts, err := r.commonServerInit(ctx, opts...)
 		if err != nil {
 			return ctx, nil, err
 		}
-		s, err := irpc.NewDispatchingServer(newctx, name, disp, spub, sname, opts...)
+		newctx, s, err := irpc.WithNewDispatchingServer(ctx, name, disp, spub, sname, opts...)
 		if err != nil {
-			// TODO(mattr): Stop the flow manager.
+			return ctx, nil, err
+		}
+		if err = r.addChild(ctx, s, func() { <-s.Closed() }); err != nil {
 			return ctx, nil, err
 		}
 		return newctx, s, nil

@@ -35,10 +35,6 @@ func (p *messagePipe) setupEncryption(ctx *context.T, pk, sk, opk *[32]byte) []b
 	return p.cipher.ChannelBinding()
 }
 
-func (p *messagePipe) close() error {
-	return p.rw.Close()
-}
-
 func (p *messagePipe) writeMsg(ctx *context.T, m message.Message) (err error) {
 	// TODO(mattr): Because of the API of the underlying crypto library,
 	// an enormous amount of copying happens here.

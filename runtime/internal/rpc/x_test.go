@@ -9,6 +9,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -26,21 +27,24 @@ func (t *testService) Echo(ctx *context.T, call rpc.ServerCall, arg string) (str
 func TestXClientServer(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	ctx = fake.SetFlowManager(ctx, manager.New(ctx, naming.FixedRoutingID(0x1)))
+	var i uint64 = 1
+	ctx = fake.SetFlowManagerFactory(ctx, func(ctx *context.T) flow.Manager {
+		i++
+		return manager.New(ctx, naming.FixedRoutingID(i))
+	})
+	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, o ...rpc.ClientOpt) rpc.Client {
+		return NewXClient(ctx, v23.GetNamespace(ctx), o...)
+	})
+
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}},
 	})
-	_, err := NewServer(ctx, "server", &testService{}, nil, nil, "")
-	if err != nil {
-		t.Fatal(verror.DebugString(err))
-	}
-	ctx = fake.SetFlowManager(ctx, manager.New(ctx, naming.FixedRoutingID(0x2)))
-	client, err := NewXClient(ctx, v23.ExperimentalGetFlowManager(ctx), v23.GetNamespace(ctx))
+	_, _, err := WithNewServer(ctx, "server", &testService{}, nil, nil, "")
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
 	var result string
-	if err = client.Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&result}); err != nil {
+	if err = v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&result}); err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
 	if want := "response:hello"; result != want {
@@ -57,21 +61,24 @@ func (t *testDispatcher) Lookup(ctx *context.T, suffix string) (interface{}, sec
 func TestXClientDispatchingServer(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	ctx = fake.SetFlowManager(ctx, manager.New(ctx, naming.FixedRoutingID(0x1)))
+	var i uint64 = 1
+	ctx = fake.SetFlowManagerFactory(ctx, func(ctx *context.T) flow.Manager {
+		i++
+		return manager.New(ctx, naming.FixedRoutingID(i))
+	})
+	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, o ...rpc.ClientOpt) rpc.Client {
+		return NewXClient(ctx, v23.GetNamespace(ctx), o...)
+	})
+
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}},
 	})
-	_, err := NewDispatchingServer(ctx, "server", &testDispatcher{}, nil, "")
-	if err != nil {
-		t.Fatal(verror.DebugString(err))
-	}
-	ctx = fake.SetFlowManager(ctx, manager.New(ctx, naming.FixedRoutingID(0x2)))
-	client, err := NewXClient(ctx, v23.ExperimentalGetFlowManager(ctx), v23.GetNamespace(ctx))
+	_, _, err := WithNewDispatchingServer(ctx, "server", &testDispatcher{}, nil, "")
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
 	var result string
-	if err = client.Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&result}); err != nil {
+	if err = v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&result}); err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
 	if want := "response:hello"; result != want {

@@ -50,7 +50,7 @@ func (r *readq) put(ctx *context.T, bufs [][]byte) error {
 		return nil
 	}
 	newSize := l + r.size
-	if newSize > defaultBufferSize {
+	if newSize > DefaultBytesBufferedPerFlow {
 		return NewErrCounterOverflow(ctx)
 	}
 	newBufs := r.nbufs + len(bufs)
@@ -124,13 +124,16 @@ func (r *readq) waitLocked(ctx *context.T) (err error) {
 	return
 }
 
-func (r *readq) close(ctx *context.T) {
+func (r *readq) close(ctx *context.T) bool {
 	r.mu.Lock()
+	closed := false
 	if r.e != -1 {
+		closed = true
 		r.e = -1
 		close(r.notify)
 	}
 	r.mu.Unlock()
+	return closed
 }
 
 func (r *readq) reserveLocked(n int) {

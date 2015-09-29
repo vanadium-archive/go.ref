@@ -7,7 +7,6 @@ package rpc
 import (
 	"fmt"
 	"io"
-	"net"
 	"sync"
 	"time"
 
@@ -27,6 +26,7 @@ import (
 
 	"v.io/x/ref/lib/apilog"
 	slib "v.io/x/ref/lib/security"
+	"v.io/x/ref/runtime/internal/flow/manager"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
@@ -37,16 +37,17 @@ const (
 	dischargeBuffer = time.Minute
 )
 
+type clientFlowManagerOpt struct {
+	mgr flow.Manager
+}
+
+func (clientFlowManagerOpt) RPCClientOpt() {}
+
 type xclient struct {
 	flowMgr            flow.Manager
 	ns                 namespace.T
 	preferredProtocols []string
-
-	// We cache the IP networks on the device since it is not that cheap to read
-	// network interfaces through os syscall.
-	// TODO(toddw): this can be removed since netstate now implements caching
-	// directly.
-	ipNets []*net.IPNet
+	ctx                *context.T
 
 	// typeCache maintains a cache of type encoders and decoders.
 	typeCache *typeCache
@@ -58,24 +59,37 @@ type xclient struct {
 
 var _ rpc.Client = (*xclient)(nil)
 
-func NewXClient(ctx *context.T, fm flow.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
+func NewXClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
 	c := &xclient{
-		flowMgr:   fm,
+		ctx:       ctx,
 		ns:        ns,
 		typeCache: newTypeCache(),
 	}
-	ipNets, err := ipNetworks()
-	if err != nil {
-		return nil, err
-	}
-	c.ipNets = ipNets
+
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case PreferredProtocols:
 			c.preferredProtocols = v
+		case clientFlowManagerOpt:
+			c.flowMgr = v.mgr
 		}
 	}
-	return c, nil
+	if c.flowMgr == nil {
+		c.flowMgr = manager.New(ctx, naming.NullRoutingID)
+	}
+
+	go func() {
+		<-ctx.Done()
+		c.mu.Lock()
+		// TODO(mattr): Do we really need c.closed?
+		c.closed = true
+		c.mu.Unlock()
+
+		<-c.flowMgr.Closed()
+		c.wg.Wait()
+	}()
+
+	return c
 }
 
 func (c *xclient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
@@ -173,26 +187,43 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		return
 	}
 	bfp := blessingsForPeer{auth, method, suffix, args}.run
-	if status.flow, err = c.flowMgr.Dial(ctx, ep, bfp); err != nil {
+	flow, err := c.flowMgr.Dial(ctx, ep, bfp)
+	if err != nil {
 		ctx.VI(2).Infof("rpc: failed to create Flow with %v: %v", server, err)
 		status.serverErr = suberr(err)
 		return
 	}
-	if write := c.typeCache.writer(status.flow.Conn()); write != nil {
-		if tflow, err := c.flowMgr.Dial(ctx, ep, bfp); err != nil {
-			ctx.VI(2).Infof("rpc: failed to create type Flow with %v: %v", server, err)
-			status.serverErr = suberr(err)
+	if write := c.typeCache.writer(flow.Conn()); write != nil {
+		// Create a type flow, note that we use c.ctx instead of ctx.
+		// This is because type flows have a longer lifetime than the
+		// main flow being constructed.
+		tflow, err := c.flowMgr.Dial(c.ctx, ep, bfp)
+		if err != nil {
+			status.serverErr = suberr(newErrTypeFlowFailure(ctx, err))
+			flow.Close()
 			return
-		} else if _, err = tflow.Write([]byte{typeFlow}); err != nil {
-			ctx.VI(2).Infof("rpc: Failed to write type byte. %v: %v", server, err)
-			tflow.Close()
-			status.serverErr = suberr(err)
-			return
-		} else {
-			write(tflow)
 		}
+		if tflow.Conn() != flow.Conn() {
+			status.serverErr = suberr(newErrTypeFlowFailure(ctx, nil))
+			flow.Close()
+			tflow.Close()
+			return
+		}
+		if _, err = tflow.Write([]byte{typeFlow}); err != nil {
+			status.serverErr = suberr(newErrTypeFlowFailure(ctx, nil))
+			flow.Close()
+			tflow.Close()
+			return
+		}
+		write(tflow)
 	}
-	status.typeEnc, status.typeDec = c.typeCache.get(status.flow.Conn())
+	status.typeEnc, status.typeDec, err = c.typeCache.get(ctx, flow.Conn())
+	if err != nil {
+		status.serverErr = suberr(newErrTypeFlowFailure(ctx, err))
+		flow.Close()
+		return
+	}
+	status.flow = flow
 }
 
 type blessingsForPeer struct {
@@ -259,7 +290,7 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 		// This should never happen.
 		return nil, verror.NoRetry, true, verror.New(verror.ErrInternal, ctx, name)
 	}
-	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols, c.ipNets); err != nil {
+	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols); err != nil {
 		return nil, verror.RetryRefetch, true, verror.New(verror.ErrNoServers, ctx, name, err)
 	}
 
@@ -306,7 +337,6 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 				}
 			}
 		case <-ctx.Done():
-			ctx.VI(2).Infof("rpc: timeout on connection to server %v ", name)
 			_, _, _, err := c.failedTryCall(ctx, name, method, responses, ch)
 			if verror.ErrorID(err) != verror.ErrTimeout.ID {
 				return nil, verror.NoRetry, false, verror.New(verror.ErrTimeout, ctx, err)
@@ -446,12 +476,11 @@ func (c *xclient) failedTryCall(ctx *context.T, name, method string, responses [
 }
 
 func (c *xclient) Close() {
-	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	c.mu.Lock()
-	c.closed = true
-	c.mu.Unlock()
-	// TODO(toddw): Implement this!
-	c.wg.Wait()
+	panic("this method is deprecated.")
+}
+
+func (c *xclient) Closed() <-chan struct{} {
+	return c.flowMgr.Closed()
 }
 
 // flowXClient implements the RPC client-side protocol for a single RPC, over a
@@ -705,6 +734,7 @@ func (fc *flowXClient) Finish(resultptrs ...interface{}) error {
 			berr := verror.New(id, fc.ctx, verror.New(errResponseDecoding, fc.ctx, verr))
 			return fc.close(berr)
 		}
+
 		// The response header must indicate the streaming results have ended.
 		if fc.response.Error == nil && !fc.response.EndStreamResults {
 			berr := verror.New(errRemainingStreamResults, fc.ctx)

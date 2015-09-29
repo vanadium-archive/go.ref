@@ -14,7 +14,6 @@ import (
 	"golang.org/x/crypto/nacl/box"
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
@@ -33,8 +32,9 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) e
 	if err != nil {
 		return err
 	}
+
 	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true)
-	bflow.worker.Release(ctx, defaultBufferSize)
+	bflow.worker.Release(ctx, DefaultBytesBufferedPerFlow)
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG, bflow, true)
 
 	if err = c.readRemoteAuth(ctx, authAcceptorTag, binding); err != nil {
@@ -217,6 +217,7 @@ func minExpiryTime(blessings security.Blessings, discharges map[string]security.
 type blessingsFlow struct {
 	enc *vom.Encoder
 	dec *vom.Decoder
+	f   *flw
 
 	mu      sync.Mutex
 	cond    *sync.Cond
@@ -226,8 +227,9 @@ type blessingsFlow struct {
 	byBKey  map[uint64]*Blessings
 }
 
-func newBlessingsFlow(ctx *context.T, loopWG *sync.WaitGroup, f flow.Flow, dialed bool) *blessingsFlow {
+func newBlessingsFlow(ctx *context.T, loopWG *sync.WaitGroup, f *flw, dialed bool) *blessingsFlow {
 	b := &blessingsFlow{
+		f:       f,
 		enc:     vom.NewEncoder(f),
 		dec:     vom.NewDecoder(f),
 		nextKey: 1,

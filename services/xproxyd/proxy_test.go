@@ -89,11 +89,6 @@ func TestMultipleProxyRPC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Create a new flow manager for the client.
-	cctx, _, err := v23.ExperimentalWithNewFlowManager(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
 	// Wait for the server to finish listening through the proxy.
 	eps := s.Status().Endpoints
 	for ; len(eps) == 0 || eps[0].Addr().Network() == ""; eps = s.Status().Endpoints {
@@ -101,7 +96,7 @@ func TestMultipleProxyRPC(t *testing.T) {
 	}
 
 	var got string
-	if err := v23.GetClient(cctx).Call(ctx, eps[0].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
+	if err := v23.GetClient(ctx).Call(ctx, eps[0].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
 		t.Fatal(err)
 	}
 	if want := "response:hello"; got != want {
@@ -114,30 +109,29 @@ func TestSingleProxy(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	kp := newKillProtocol()
 	flow.RegisterProtocol("kill", kp)
-	pctx, shutdown := v23.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
-	actx, am, err := v23.ExperimentalWithNewFlowManager(pctx)
+	am, err := v23.NewFlowManager(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dctx, dm, err := v23.ExperimentalWithNewFlowManager(pctx)
+	dm, err := v23.NewFlowManager(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pep := startProxy(t, pctx, address{"kill", "127.0.0.1:0"})
+	pep := startProxy(t, ctx, address{"kill", "127.0.0.1:0"})
 
 	done := make(chan struct{})
 	update := func(eps []naming.Endpoint) {
 		if len(eps) > 0 {
-			if err := testEndToEndConnection(t, dctx, actx, dm, am, eps[0]); err != nil {
+			if err := testEndToEndConnection(t, ctx, dm, am, eps[0]); err != nil {
 				t.Error(err)
 			}
 			close(done)
 		}
 	}
-
-	if err := am.ProxyListen(actx, pep, update); err != nil {
+	if err := am.ProxyListen(ctx, pep, update); err != nil {
 		t.Fatal(err)
 	}
 	<-done
@@ -147,22 +141,22 @@ func TestMultipleProxies(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	kp := newKillProtocol()
 	flow.RegisterProtocol("kill", kp)
-	pctx, shutdown := v23.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
-	actx, am, err := v23.ExperimentalWithNewFlowManager(pctx)
+	am, err := v23.NewFlowManager(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dctx, dm, err := v23.ExperimentalWithNewFlowManager(pctx)
+	dm, err := v23.NewFlowManager(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pep := startProxy(t, pctx, address{"kill", "127.0.0.1:0"})
+	pep := startProxy(t, ctx, address{"kill", "127.0.0.1:0"})
 
-	p2ep := startProxy(t, pctx, address{"v23", pep.String()}, address{"kill", "127.0.0.1:0"})
+	p2ep := startProxy(t, ctx, address{"v23", pep.String()}, address{"kill", "127.0.0.1:0"})
 
-	p3ep := startProxy(t, pctx, address{"v23", p2ep.String()}, address{"kill", "127.0.0.1:0"})
+	p3ep := startProxy(t, ctx, address{"v23", p2ep.String()}, address{"kill", "127.0.0.1:0"})
 
 	done := make(chan struct{})
 	update := func(eps []naming.Endpoint) {
@@ -173,24 +167,24 @@ func TestMultipleProxies(t *testing.T) {
 		// to each other and to the server. For now we at least check a random endpoint so the
 		// test will at least fail over many runs if something is wrong.
 		if len(eps) > 0 {
-			if err := testEndToEndConnection(t, dctx, actx, dm, am, eps[rand.Int()%3]); err != nil {
+			if err := testEndToEndConnection(t, ctx, dm, am, eps[rand.Int()%3]); err != nil {
 				t.Error(err)
 			}
 			close(done)
 		}
 	}
 
-	if err := am.ProxyListen(actx, p3ep, update); err != nil {
+	if err := am.ProxyListen(ctx, p3ep, update); err != nil {
 		t.Fatal(err)
 	}
 
 	<-done
 }
 
-func testEndToEndConnection(t *testing.T, dctx, actx *context.T, dm, am flow.Manager, aep naming.Endpoint) error {
+func testEndToEndConnection(t *testing.T, ctx *context.T, dm, am flow.Manager, aep naming.Endpoint) error {
 	// The dialing flow.Manager dials a flow to the accepting flow.Manager.
 	want := "Do you read me?"
-	df, err := dm.Dial(dctx, aep, bfp)
+	df, err := dm.Dial(ctx, aep, bfp)
 	if err != nil {
 		return err
 	}
@@ -198,7 +192,7 @@ func testEndToEndConnection(t *testing.T, dctx, actx *context.T, dm, am flow.Man
 	if err := writeLine(df, want); err != nil {
 		return err
 	}
-	af, err := am.Accept(actx)
+	af, err := am.Accept(ctx)
 	if err != nil {
 		return err
 	}

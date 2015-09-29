@@ -25,7 +25,7 @@ type proxy struct {
 }
 
 func New(ctx *context.T) (*proxy, *context.T, error) {
-	ctx, mgr, err := v23.ExperimentalWithNewFlowManager(ctx)
+	mgr, err := v23.NewFlowManager(ctx)
 	if err != nil {
 		return nil, nil, err
 	}

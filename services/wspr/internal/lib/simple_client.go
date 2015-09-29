@@ -90,6 +90,10 @@ func (c *simpleMockClient) Call(ctx *context.T, name, method string, inArgs, out
 func (*simpleMockClient) Close() {
 }
 
+func (*simpleMockClient) Closed() <-chan struct{} {
+	return nil
+}
+
 // mockCall implements rpc.ClientCall
 type mockCall struct {
 	mockStream

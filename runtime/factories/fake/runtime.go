@@ -24,7 +24,9 @@ const (
 	loggerKey
 	backgroundKey
 	listenSpecKey
-	flowManagerKey
+
+	clientFactoryKey
+	flowFactoryKey
 )
 
 type Runtime struct {

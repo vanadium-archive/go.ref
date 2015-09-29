@@ -185,7 +185,6 @@ type server struct {
 	// We cache the IP networks on the device since it is not that cheap to read
 	// network interfaces through os syscall.
 	// TODO(jhahn): Add monitoring the network interface changes.
-	ipNets           []*net.IPNet
 	ns               namespace.T
 	servesMountTable bool
 	isLeaf           bool
@@ -273,11 +272,6 @@ func DeprecatedNewServer(
 		dischargeExpiryBuffer = vc.DefaultServerDischargeExpiryBuffer
 		securityLevel         options.SecurityLevel
 	)
-	ipNets, err := ipNetworks()
-	if err != nil {
-		return nil, err
-	}
-	s.ipNets = ipNets
 
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -399,7 +393,7 @@ func (s *server) resolveToEndpoint(address string) (string, error) {
 		}}
 	}
 	// An empty set of protocols means all protocols...
-	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols, s.ipNets); err != nil {
+	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols); err != nil {
 		return "", err
 	}
 	for _, n := range resolved.Names() {
@@ -1021,6 +1015,10 @@ func (s *server) Stop() error {
 	s.state = stopped
 	s.cancel()
 	return nil
+}
+
+func (s *server) Closed() <-chan struct{} {
+	return s.ctx.Done()
 }
 
 // flowServer implements the RPC server-side protocol for a single RPC, over a

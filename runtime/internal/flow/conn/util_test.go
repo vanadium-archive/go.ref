@@ -51,7 +51,7 @@ func setupConnsWithEvents(t *testing.T,
 		if dflows != nil {
 			handler = fh(dflows)
 		}
-		d, err := NewDialed(dctx, dmrw, ep, ep, versions, handler, events)
+		d, err := NewDialed(dctx, dmrw, ep, ep, versions, time.Minute, handler, events)
 		if err != nil {
 			panic(err)
 		}
@@ -62,7 +62,7 @@ func setupConnsWithEvents(t *testing.T,
 		if aflows != nil {
 			handler = fh(aflows)
 		}
-		a, err := NewAccepted(actx, amrw, ep, versions, handler, events)
+		a, err := NewAccepted(actx, amrw, ep, versions, time.Minute, handler, events)
 		if err != nil {
 			panic(err)
 		}

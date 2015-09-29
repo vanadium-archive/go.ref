@@ -7,13 +7,13 @@ package manager
 import (
 	"strconv"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
-
 	connpackage "v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
 	inaming "v.io/x/ref/runtime/internal/naming"
@@ -296,7 +296,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	ach := make(chan *connpackage.Conn)
 	go func() {
 		d, err := connpackage.NewDialed(ctx, dmrw, ep, ep,
-			version.RPCVersionRange{Min: 1, Max: 5}, nil, nil)
+			version.RPCVersionRange{Min: 1, Max: 5}, time.Minute, nil, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -305,7 +305,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	fh := fh{t, make(chan struct{})}
 	go func() {
 		a, err := connpackage.NewAccepted(ctx, amrw, ep,
-			version.RPCVersionRange{Min: 1, Max: 5}, fh, nil)
+			version.RPCVersionRange{Min: 1, Max: 5}, time.Minute, fh, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

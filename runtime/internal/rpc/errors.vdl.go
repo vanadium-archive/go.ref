@@ -23,6 +23,7 @@ var (
 	errBadBlessingsCache = verror.Register("v.io/x/ref/runtime/internal/rpc.badBlessingsCache", verror.NoRetry, "{1:}{2:} failed to find blessings in cache: {3}")
 	errBadDischarge      = verror.Register("v.io/x/ref/runtime/internal/rpc.badDischarge", verror.NoRetry, "{1:}{2:} failed to decode discharge #{3}: {4}")
 	errBadAuth           = verror.Register("v.io/x/ref/runtime/internal/rpc.badAuth", verror.NoRetry, "{1:}{2:} not authorized to call {3}.{4}: {5}")
+	errTypeFlowFailure   = verror.Register("v.io/x/ref/runtime/internal/rpc.typeFlowFailure", verror.NoRetry, "{1:}{2:} type flow could not be constructed{:3}")
 )
 
 func init() {
@@ -33,6 +34,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessingsCache.ID), "{1:}{2:} failed to find blessings in cache: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischarge.ID), "{1:}{2:} failed to decode discharge #{3}: {4}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadAuth.ID), "{1:}{2:} not authorized to call {3}.{4}: {5}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errTypeFlowFailure.ID), "{1:}{2:} type flow could not be constructed{:3}")
 }
 
 // newErrBadRequest returns an error with the errBadRequest ID.
@@ -68,4 +70,9 @@ func newErrBadDischarge(ctx *context.T, index uint64, err error) error {
 // newErrBadAuth returns an error with the errBadAuth ID.
 func newErrBadAuth(ctx *context.T, suffix string, method string, err error) error {
 	return verror.New(errBadAuth, ctx, suffix, method, err)
+}
+
+// newErrTypeFlowFailure returns an error with the errTypeFlowFailure ID.
+func newErrTypeFlowFailure(ctx *context.T, err error) error {
+	return verror.New(errTypeFlowFailure, ctx, err)
 }

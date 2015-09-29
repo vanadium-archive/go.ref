@@ -20,7 +20,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
-	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
@@ -30,6 +29,7 @@ import (
 const (
 	reconnectDelay    = 50 * time.Millisecond
 	reapCacheInterval = 5 * time.Minute
+	handshakeTimeout  = time.Minute
 )
 
 type manager struct {
@@ -37,6 +37,7 @@ type manager struct {
 	closed chan struct{}
 	cache  *ConnCache
 	ls     *listenState
+	ctx    *context.T
 }
 
 func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
@@ -44,6 +45,7 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 		rid:    rid,
 		closed: make(chan struct{}),
 		cache:  NewConnCache(),
+		ctx:    ctx,
 	}
 	var events chan conn.StatusUpdate
 	if rid != naming.NullRoutingID {
@@ -122,17 +124,13 @@ func (m *manager) StopListening(ctx *context.T) {
 	case <-m.closed:
 	case <-done:
 	}
+	// Now nobody should send any more flows, so close the queue.
+	m.ls.q.Close()
 }
 
 // Listen causes the Manager to accept flows from the provided protocol and address.
 // Listen may be called muliple times.
-//
-// The flow.Manager associated with ctx must be the receiver of the method,
-// otherwise an error is returned.
 func (m *manager) Listen(ctx *context.T, protocol, address string) error {
-	if err := m.validateContext(ctx); err != nil {
-		return err
-	}
 	if m.ls == nil {
 		return NewErrListeningWithNullRid(ctx)
 	}
@@ -165,13 +163,7 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 //
 // update gets passed the complete set of endpoints for the proxy every time it
 // is called.
-//
-// The flow.Manager associated with ctx must be the receiver of the method,
-// otherwise an error is returned.
 func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint, update func([]naming.Endpoint)) error {
-	if err := m.validateContext(ctx); err != nil {
-		return err
-	}
 	if m.ls == nil {
 		return NewErrListeningWithNullRid(ctx)
 	}
@@ -263,16 +255,22 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			flowConn, err = ln.Accept(ctx)
 		}
 		if err != nil {
-			ctx.Errorf("ln.Accept on localEP %v failed: %v", local, err)
+			m.ls.mu.Lock()
+			closed := m.ls.listeners == nil
+			m.ls.mu.Unlock()
+			if !closed {
+				ctx.Errorf("ln.Accept on localEP %v failed: %v", local, err)
+			}
 			return
 		}
 		fh := &flowHandler{m, make(chan struct{})}
 		m.ls.activeConns.Add(1)
 		c, err := conn.NewAccepted(
-			ctx,
+			m.ctx,
 			flowConn,
 			local,
 			version.Supported,
+			handshakeTimeout,
 			fh,
 			m.ls.events)
 		if err != nil {
@@ -311,6 +309,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 			f,
 			f.Conn().LocalEndpoint(),
 			version.Supported,
+			handshakeTimeout,
 			fh,
 			h.m.ls.events)
 		if err != nil {
@@ -355,13 +354,7 @@ func (m *manager) ListeningEndpoints() (out []naming.Endpoint) {
 //   }
 //
 // can be used to accept Flows initiated by remote processes.
-//
-// The flow.Manager associated with ctx must be the receiver of the method,
-// otherwise an error is returned.
 func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
-	if err := m.validateContext(ctx); err != nil {
-		return nil, err
-	}
 	if m.ls == nil {
 		return nil, NewErrListeningWithNullRid(ctx)
 	}
@@ -381,13 +374,7 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 //
 // To maximize re-use of connections, the Manager will also Listen on Dialed
 // connections for the lifetime of the connection.
-//
-// The flow.Manager associated with ctx must be the receiver of the method,
-// otherwise an error is returned.
 func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, error) {
-	if err := m.validateContext(ctx); err != nil {
-		return nil, err
-	}
 	f, _, err := m.internalDial(ctx, remote, fn)
 	return f, err
 }
@@ -443,11 +430,12 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			m.ls.activeConns.Add(1)
 		}
 		c, err = conn.NewDialed(
-			ctx,
+			m.ctx,
 			flowConn,
 			localEndpoint(flowConn, m.rid),
 			remote,
 			version.Supported,
+			handshakeTimeout,
 			fh,
 			events,
 		)
@@ -474,11 +462,12 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			m.ls.activeConns.Add(1)
 		}
 		c, err = conn.NewDialed(
-			ctx,
+			m.ctx,
 			f,
 			proxyConn.LocalEndpoint(),
 			remote,
 			version.Supported,
+			handshakeTimeout,
 			fh,
 			events)
 		if err != nil {
@@ -510,13 +499,6 @@ func (m *manager) RoutingID() naming.RoutingID {
 // necessarily fail.
 func (m *manager) Closed() <-chan struct{} {
 	return m.closed
-}
-
-func (m *manager) validateContext(ctx *context.T) error {
-	if v23.ExperimentalGetFlowManager(ctx) != m {
-		return flow.NewErrBadArg(ctx, iflow.NewErrWrongObjectInContext(ctx, "manager"))
-	}
-	return nil
 }
 
 func dial(ctx *context.T, p flow.Protocol, protocol, address string) (flow.Conn, error) {

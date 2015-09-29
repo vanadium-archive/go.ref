@@ -75,35 +75,24 @@ type client struct {
 	ns                 namespace.T
 	vcOpts             []stream.VCOpt // vc opts passed to dial
 	preferredProtocols []string
+	vcCache            *vc.VCCache
+	wg                 sync.WaitGroup
+	dc                 vc.DischargeClient
 
-	// We cache the IP networks on the device since it is not that cheap to read
-	// network interfaces through os syscall.
-	// TODO(toddw): this can be removed since netstate now implements caching
-	// directly.
-	ipNets []*net.IPNet
-
-	vcCache *vc.VCCache
-
-	wg     sync.WaitGroup
-	mu     sync.Mutex
-	closed bool
-
-	dc vc.DischargeClient
+	mu      sync.Mutex
+	closed  bool
+	closech chan struct{}
 }
 
 var _ rpc.Client = (*client)(nil)
 
-func DeprecatedNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
+func DeprecatedNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
 		vcCache:   vc.NewVCCache(),
+		closech:   make(chan struct{}),
 	}
-	ipNets, err := ipNetworks()
-	if err != nil {
-		return nil, err
-	}
-	c.ipNets = ipNets
 	c.dc = InternalNewDischargeClient(nil, c, 0)
 	for _, opt := range opts {
 		// Collect all client opts that are also vc opts.
@@ -114,8 +103,7 @@ func DeprecatedNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.C
 			c.preferredProtocols = v
 		}
 	}
-
-	return c, nil
+	return c
 }
 
 func (c *client) createFlow(ctx *context.T, principal security.Principal, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, *verror.SubErr) {
@@ -446,7 +434,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			return nil, verror.NoRetry, true, verror.New(verror.ErrInternal, ctx, name)
 		}
 		// An empty set of protocols means all protocols...
-		if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols, c.ipNets); err != nil {
+		if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols); err != nil {
 			return nil, verror.RetryRefetch, true, verror.New(verror.ErrNoServers, ctx, name, err)
 		}
 	}
@@ -752,12 +740,19 @@ func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, call security.Call
 func (c *client) Close() {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	c.mu.Lock()
-	c.closed = true
+	if !c.closed {
+		c.closed = true
+		close(c.closech)
+	}
 	c.mu.Unlock()
 	for _, v := range c.vcCache.Close() {
 		c.streamMgr.ShutdownEndpoint(v.RemoteEndpoint())
 	}
 	c.wg.Wait()
+}
+
+func (c *client) Closed() <-chan struct{} {
+	return c.closech
 }
 
 // flowClient implements the RPC client-side protocol for a single RPC, over a

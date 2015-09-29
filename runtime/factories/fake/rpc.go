@@ -12,23 +12,27 @@ import (
 	"v.io/x/ref/lib/apilog"
 )
 
-// SetClient can be used to inject a mock client implementation into the context.
-func SetClient(ctx *context.T, client rpc.Client) *context.T {
+// SetClientFactory can be used to inject a mock Client implementation
+// into the context.  When v23.WithNewClient is called passed function
+// will be invoked.
+func SetClientFactory(ctx *context.T, factory func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client) *context.T {
+	client := factory(ctx)
+	ctx = context.WithValue(ctx, clientFactoryKey, factory)
 	return context.WithValue(ctx, clientKey, client)
 }
 func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.T, rpc.Client, error) {
 	defer apilog.LogCallf(ctx, "opts...=%v", opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
+	factory, ok := ctx.Value(clientFactoryKey).(func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client)
+	if !ok {
+		panic("Calling WithNewClient on the fake runtime, but no factory has been set.")
+	}
+	client := factory(ctx, opts...)
+	return context.WithValue(ctx, clientKey, client), client, nil
 }
 func (r *Runtime) GetClient(ctx *context.T) rpc.Client {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	c, _ := ctx.Value(clientKey).(rpc.Client)
 	return c
-}
-
-func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
 }
 
 func (r *Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
@@ -43,19 +47,26 @@ func (r *Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
 	return ctx
 }
 
-func SetFlowManager(ctx *context.T, manager flow.Manager) *context.T {
-	return context.WithValue(ctx, flowManagerKey, manager)
-}
-
-func (r *Runtime) ExperimentalGetFlowManager(ctx *context.T) flow.Manager {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	fm, _ := ctx.Value(flowManagerKey).(flow.Manager)
-	return fm
-}
-
-func (r *Runtime) ExperimentalWithNewFlowManager(ctx *context.T) (*context.T, flow.Manager, error) {
+func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	panic("unimplemented")
+}
+
+// SetFlowManagerFactory can be used to inject a mock FlowManager
+// implementation into the context.  When v23.NewFlowManager is called
+// passed function will be invoked.
+func SetFlowManagerFactory(ctx *context.T, factory func(ctx *context.T) flow.Manager) *context.T {
+	return context.WithValue(ctx, flowFactoryKey, factory)
+}
+
+func (r *Runtime) NewFlowManager(ctx *context.T) (flow.Manager, error) {
+	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+
+	factory, ok := ctx.Value(flowFactoryKey).(func(ctx *context.T) flow.Manager)
+	if !ok {
+		panic("Calling NewFlowManager on the fake runtime, but no factory has been set.")
+	}
+	return factory(ctx), nil
 }
 
 func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {

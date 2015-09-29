@@ -95,14 +95,18 @@ func (fc *fakeDischargeClient) Call(_ *context.T, _, _ string, inArgs, outArgs [
 func (fc *fakeDischargeClient) StartCall(*context.T, string, string, []interface{}, ...rpc.CallOpt) (rpc.ClientCall, error) {
 	return nil, nil
 }
-func (fc *fakeDischargeClient) Close() {}
+func (fc *fakeDischargeClient) Close()                  {}
+func (fc *fakeDischargeClient) Closed() <-chan struct{} { return nil }
 
 func TestUnidirectional(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	ctx = fake.SetClient(ctx, &fakeDischargeClient{v23.GetPrincipal(ctx)})
+	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
+		return &fakeDischargeClient{v23.GetPrincipal(ctx)}
+	})
+	ctx, _, _ = v23.WithNewClient(ctx)
 
 	dctx := NewPrincipalWithTPCaveat(t, ctx, "dialer")
 	actx := NewPrincipalWithTPCaveat(t, ctx, "acceptor")
@@ -136,7 +140,10 @@ func TestBidirectional(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	ctx = fake.SetClient(ctx, &fakeDischargeClient{v23.GetPrincipal(ctx)})
+	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
+		return &fakeDischargeClient{v23.GetPrincipal(ctx)}
+	})
+	ctx, _, _ = v23.WithNewClient(ctx)
 
 	dctx := NewPrincipalWithTPCaveat(t, ctx, "dialer")
 	actx := NewPrincipalWithTPCaveat(t, ctx, "acceptor")

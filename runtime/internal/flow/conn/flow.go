@@ -6,6 +6,7 @@ package conn
 
 import (
 	"strconv"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/flow"
@@ -42,7 +43,7 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, diale
 		dkey:   dkey,
 		opened: preopen,
 	}
-	f.SetContext(ctx)
+	f.ctx, f.cancel = context.WithCancel(ctx)
 	if !f.opened {
 		c.unopenedFlows.Add(1)
 	}
@@ -132,7 +133,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
 		} else {
 			err = f.conn.mp.writeMsg(f.ctx, &message.OpenFlow{
 				ID:              f.id,
-				InitialCounters: defaultBufferSize,
+				InitialCounters: DefaultBytesBufferedPerFlow,
 				BlessingsKey:    f.bkey,
 				DischargeKey:    f.dkey,
 				Flags:           d.Flags,
@@ -177,12 +178,16 @@ func (f *flw) WriteMsgAndClose(parts ...[]byte) (int, error) {
 //
 // TODO(mattr): update v23/flow documentation.
 // SetContext may not be called concurrently with other methods.
-func (f *flw) SetContext(ctx *context.T) error {
+func (f *flw) SetDeadlineContext(ctx *context.T, deadline time.Time) *context.T {
 	if f.cancel != nil {
 		f.cancel()
 	}
-	f.ctx, f.cancel = context.WithCancel(ctx)
-	return nil
+	if !deadline.IsZero() {
+		f.ctx, f.cancel = context.WithDeadline(ctx, deadline)
+	} else {
+		f.ctx, f.cancel = context.WithCancel(ctx)
+	}
+	return f.ctx
 }
 
 // LocalBlessings returns the blessings presented by the local end of the flow
@@ -264,36 +269,38 @@ func (f *flw) Closed() <-chan struct{} {
 }
 
 func (f *flw) close(ctx *context.T, err error) {
-	f.q.close(ctx)
-	f.cancel()
-	// We want to try to send this message even if ctx is already canceled.
-	ctx, cancel := context.WithRootCancel(ctx)
-	serr := f.worker.Run(ctx, func(tokens int) (int, bool, error) {
-		f.conn.mu.Lock()
-		delete(f.conn.flows, f.id)
-		connClosed := f.conn.flows == nil
-		f.conn.mu.Unlock()
+	if f.q.close(ctx) {
+		f.cancel()
+		// We want to try to send this message even if ctx is already canceled.
+		ctx, cancel := context.WithRootCancel(ctx)
+		serr := f.worker.Run(ctx, func(tokens int) (int, bool, error) {
+			f.conn.mu.Lock()
+			delete(f.conn.flows, f.id)
+			connClosed := f.conn.flows == nil
+			f.conn.mu.Unlock()
 
-		if !f.opened {
-			// Closing a flow that was never opened.
-			f.conn.unopenedFlows.Done()
-			return 0, true, nil
-		} else if eid := verror.ErrorID(err); eid == ErrFlowClosedRemotely.ID || connClosed {
-			// Note: If the conn is closed there is no point in trying to send
-			// the flow close message as it will fail.  This is racy with the connection
-			// closing, but there are no ill-effects other than spamming the logs a little
-			// so it's OK.
-			return 0, true, nil
-		}
-		return 0, true, f.conn.mp.writeMsg(ctx, &message.Data{
-			ID:    f.id,
-			Flags: message.CloseFlag,
+			eid := verror.ErrorID(err)
+			if !f.opened {
+				// Closing a flow that was never opened.
+				f.conn.unopenedFlows.Done()
+				return 0, true, nil
+			} else if eid == ErrFlowClosedRemotely.ID || connClosed {
+				// Note: If the conn is closed there is no point in trying to send
+				// the flow close message as it will fail.  This is racy with the connection
+				// closing, but there are no ill-effects other than spamming the logs a little
+				// so it's OK.
+				return 0, true, nil
+			}
+			return 0, true, f.conn.mp.writeMsg(ctx, &message.Data{
+				ID:    f.id,
+				Flags: message.CloseFlag,
+			})
 		})
-	})
-	if serr != nil {
-		ctx.Errorf("Could not send close flow message: %v", err)
+		if serr != nil {
+			ctx.Errorf("Could not send close flow message: %v", err)
+		}
+		cancel()
 	}
-	cancel()
 }
 
 // Close marks the flow as closed. After Close is called, new data cannot be

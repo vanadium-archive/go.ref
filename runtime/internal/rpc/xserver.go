@@ -19,7 +19,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/i18n"
-	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -63,50 +62,46 @@ type xserver struct {
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       rpc.Dispatcher // dispatcher for reserved methods
 	active             sync.WaitGroup // active goroutines we've spawned.
-	stoppedChan        chan struct{}  // closed when the server has been stopped.
 	preferredProtocols []string       // protocols to use when resolving proxy name to endpoint.
-	// We cache the IP networks on the device since it is not that cheap to read
-	// network interfaces through os syscall.
-	// TODO(jhahn): Add monitoring the network interface changes.
-	ipNets           []*net.IPNet
-	ns               namespace.T
-	servesMountTable bool
-	isLeaf           bool
+	servesMountTable   bool
+	isLeaf             bool
 
 	// TODO(cnicolaou): add roaming stats to rpcStats
 	stats *rpcStats // stats for this server.
 }
 
-func NewServer(ctx *context.T, name string, object interface{}, authorizer security.Authorizer, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func WithNewServer(ctx *context.T,
+	name string, object interface{}, authorizer security.Authorizer,
+	settingsPublisher *pubsub.Publisher, settingsName string,
+	opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	if object == nil {
-		return nil, verror.New(verror.ErrBadArg, ctx, "nil object")
+		return ctx, nil, verror.New(verror.ErrBadArg, ctx, "nil object")
 	}
 	invoker, err := objectToInvoker(object)
 	if err != nil {
-		return nil, verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("bad object: %v", err))
+		return ctx, nil, verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("bad object: %v", err))
 	}
 	d := &leafDispatcher{invoker, authorizer}
 	opts = append([]rpc.ServerOpt{options.IsLeaf(true)}, opts...)
-	return NewDispatchingServer(ctx, name, d, settingsPublisher, settingsName, opts...)
+	return WithNewDispatchingServer(ctx, name, d, settingsPublisher, settingsName, opts...)
 }
 
-func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher, settingsPublisher *pubsub.Publisher, settingsName string, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func WithNewDispatchingServer(ctx *context.T,
+	name string, dispatcher rpc.Dispatcher,
+	settingsPublisher *pubsub.Publisher, settingsName string,
+	opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	if dispatcher == nil {
-		return nil, verror.New(verror.ErrBadArg, ctx, "nil dispatcher")
+		return ctx, nil, verror.New(verror.ErrBadArg, ctx, "nil dispatcher")
 	}
-	ctx, cancel := context.WithRootCancel(ctx)
-	flowMgr := v23.ExperimentalGetFlowManager(ctx)
-	ns, principal := v23.GetNamespace(ctx), v23.GetPrincipal(ctx)
-	statsPrefix := naming.Join("rpc", "server", "routing-id", flowMgr.RoutingID().String())
+
+	rootCtx, cancel := context.WithRootCancel(ctx)
+	fm, err := v23.NewFlowManager(rootCtx)
+
+	statsPrefix := naming.Join("rpc", "server", "routing-id", fm.RoutingID().String())
 	s := &xserver{
-		ctx:               ctx,
 		cancel:            cancel,
-		flowMgr:           flowMgr,
-		principal:         principal,
-		blessings:         principal.BlessingStore().Default(),
-		publisher:         publisher.New(ctx, ns, publishPeriod),
-		stoppedChan:       make(chan struct{}),
-		ns:                ns,
+		flowMgr:           fm,
+		blessings:         v23.GetPrincipal(rootCtx).BlessingStore().Default(),
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
 		settingsName:      settingsName,
@@ -114,12 +109,6 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 		typeCache:         newTypeCache(),
 		proxyEndpoints:    make(map[string]map[string]*inaming.Endpoint),
 	}
-	ipNets, err := ipNetworks()
-	if err != nil {
-		return nil, err
-	}
-	s.ipNets = ipNets
-
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case options.ServesMountTable:
@@ -132,19 +121,25 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 			s.preferredProtocols = []string(opt)
 		}
 	}
-
-	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
-	// TODO(caprita): revist printing the blessings with %s, and
-	// instead expose them as a list.
-	stats.NewString(blessingsStatsName).Set(fmt.Sprintf("%s", s.blessings))
-	stats.NewStringFunc(blessingsStatsName, func() string {
-		return fmt.Sprintf("%s (default)", s.principal.BlessingStore().Default())
-	})
-	if err = s.listen(ctx, v23.GetListenSpec(ctx)); err != nil {
-		s.Stop()
-		return nil, err
+	rootCtx, _, err = v23.WithNewClient(rootCtx,
+		clientFlowManagerOpt{fm},
+		PreferredProtocols(s.preferredProtocols))
+	if err != nil {
+		cancel()
+		return ctx, nil, err
 	}
+	s.ctx = rootCtx
+	s.publisher = publisher.New(rootCtx, v23.GetNamespace(rootCtx), publishPeriod)
+
+	// TODO(caprita): revist printing the blessings with string, and
+	// instead expose them as a list.
+	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
+	stats.NewString(blessingsStatsName).Set(s.blessings.String())
+
+	s.listen(rootCtx, v23.GetListenSpec(rootCtx))
 	if len(name) > 0 {
+		// TODO(mattr): We only call AddServer here, but if someone calls AddName
+		// later there will be no servers?
 		s.mu.Lock()
 		for k, _ := range s.chosenEndpoints {
 			s.publisher.AddServer(k)
@@ -153,7 +148,66 @@ func NewDispatchingServer(ctx *context.T, name string, dispatcher rpc.Dispatcher
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 		vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	}
-	return s, nil
+
+	go func() {
+		<-ctx.Done()
+		serverDebug := fmt.Sprintf("Dispatcher: %T, Status:[%v]", s.disp, s.Status())
+		s.ctx.VI(1).Infof("Stop: %s", serverDebug)
+		defer s.ctx.VI(1).Infof("Stop done: %s", serverDebug)
+
+		s.stats.stop()
+		s.publisher.Stop()
+
+		done := make(chan struct{})
+		go func() {
+			s.flowMgr.StopListening(ctx)
+			s.publisher.WaitForStop()
+			// At this point no new flows should arrive.  Wait for existing calls
+			// to complete.
+			s.active.Wait()
+			close(done)
+		}()
+
+		s.Lock()
+		// TODO(mattr): I don't understand what this is.
+		if dhcp := s.dhcpState; dhcp != nil {
+			// TODO(cnicolaou,caprita): investigate not having to close and drain
+			// the channel here. It's a little awkward right now since we have to
+			// be careful to not close the channel in two places, i.e. here and
+			// and from the publisher's Shutdown method.
+			if err := dhcp.publisher.CloseFork(dhcp.name, dhcp.ch); err == nil {
+			drain:
+				for {
+					select {
+					case v := <-dhcp.ch:
+						if v == nil {
+							break drain
+						}
+					default:
+						close(dhcp.ch)
+						break drain
+					}
+				}
+			}
+		}
+		s.Unlock()
+
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second): // TODO(mattr): This should be configurable.
+			s.ctx.Errorf("%s: Timedout waiting for active requests to complete", serverDebug)
+		}
+		// Now we cancel the root context which closes all the connections
+		// in the flow manager and cancels all the contexts used by
+		// ongoing requests.  Hopefully this will bring all outstanding
+		// operations to a close.
+		s.cancel()
+		<-s.flowMgr.Closed()
+		// Now we really will wait forever.  If this doesn't exit, there's something
+		// wrong with the users code.
+		<-done
+	}()
+	return rootCtx, s, nil
 }
 
 func (s *xserver) Status() rpc.ServerStatus {
@@ -185,11 +239,12 @@ func (s *xserver) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
 }
 
 // resolveToEndpoint resolves an object name or address to an endpoint.
-func (s *xserver) resolveToEndpoint(address string) (naming.Endpoint, error) {
+func (s *xserver) resolveToEndpoint(ctx *context.T, address string) (naming.Endpoint, error) {
 	var resolved *naming.MountEntry
 	var err error
-	if s.ns != nil {
-		if resolved, err = s.ns.Resolve(s.ctx, address); err != nil {
+	// TODO(mattr): Why should ns be nil?
+	if ns := v23.GetNamespace(ctx); ns != nil {
+		if resolved, err = ns.Resolve(ctx, address); err != nil {
 			return nil, err
 		}
 	} else {
@@ -199,7 +254,7 @@ func (s *xserver) resolveToEndpoint(address string) (naming.Endpoint, error) {
 		}}
 	}
 	// An empty set of protocols means all protocols...
-	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols, s.ipNets); err != nil {
+	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols); err != nil {
 		return nil, err
 	}
 	for _, n := range resolved.Names() {
@@ -295,13 +350,14 @@ func setDiff(a, b map[string]*inaming.Endpoint) map[string]*inaming.Endpoint {
 	return ret
 }
 
-func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
+func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	s.Lock()
 	defer s.Unlock()
 	var lastErr error
+	var ep naming.Endpoint
 	if len(listenSpec.Proxy) > 0 {
-		var ep naming.Endpoint
-		if ep, lastErr = s.resolveToEndpoint(listenSpec.Proxy); lastErr != nil {
+		ep, lastErr = s.resolveToEndpoint(ctx, listenSpec.Proxy)
+		if lastErr != nil {
 			s.ctx.VI(2).Infof("resolveToEndpoint(%q) failed: %v", listenSpec.Proxy, lastErr)
 		} else {
 			lastErr = s.flowMgr.ProxyListen(ctx, ep, s.update(ep))
@@ -320,7 +376,6 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
 	}
 
 	leps := s.flowMgr.ListeningEndpoints()
-
 	s.addressChooser = listenSpec.AddressChooser
 	roaming := false
 	chosenEps := make(map[string]*inaming.Endpoint)
@@ -346,7 +401,6 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) error {
 
 	s.active.Add(1)
 	go s.acceptLoop(ctx)
-	return nil
 }
 
 func (s *xserver) acceptLoop(ctx *context.T) error {
@@ -389,12 +443,9 @@ func (s *xserver) acceptLoop(ctx *context.T) error {
 					}
 				}
 			case typeFlow:
-				write := s.typeCache.writer(fl.Conn())
-				if write == nil {
-					s.ctx.VI(1).Infof("ignoring duplicate type flow.")
-					return
+				if write := s.typeCache.writer(fl.Conn()); write != nil {
+					write(fl)
 				}
-				write(fl)
 			}
 		}(fl)
 	}
@@ -422,105 +473,23 @@ func (s *xserver) RemoveName(name string) {
 
 func (s *xserver) Stop() error {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	panic("unimplemented")
+}
 
-	serverDebug := fmt.Sprintf("Dispatcher: %T, Status:[%v]", s.disp, s.Status())
-	s.ctx.VI(1).Infof("Stop: %s", serverDebug)
-	defer s.ctx.VI(1).Infof("Stop done: %s", serverDebug)
-
-	s.Lock()
-	if s.disp == nil {
-		s.Unlock()
-		return nil
-	}
-	s.disp = nil
-	close(s.stoppedChan)
-	s.Unlock()
-
-	// Delete the stats object.
-	s.stats.stop()
-
-	// Note, It's safe to Stop/WaitForStop on the publisher outside of the
-	// server lock, since publisher is safe for concurrent access.
-	// Stop the publisher, which triggers unmounting of published names.
-	s.publisher.Stop()
-
-	// Wait for the publisher to be done unmounting before we can proceed to
-	// close the listeners (to minimize the number of mounted names pointing
-	// to endpoint that are no longer serving).
-	//
-	// TODO(caprita): See if make sense to fail fast on rejecting
-	// connections once listeners are closed, and parallelize the publisher
-	// and listener shutdown.
-	s.publisher.WaitForStop()
-
-	s.Lock()
-
-	// TODO(mattr): What should we do when we stop a server now?  We need to
-	// interrupt Accept at some point, but it's weird to stop the flowmanager.
-	// Close all listeners.  No new flows will be accepted, while in-flight
-	// flows will continue until they terminate naturally.
-	// nListeners := len(s.listeners)
-	// errCh := make(chan error, nListeners)
-	// for ln, _ := range s.listeners {
-	// 	go func(ln stream.Listener) {
-	// 		errCh <- ln.Close()
-	// 	}(ln)
-	// }
-
-	if dhcp := s.dhcpState; dhcp != nil {
-		// TODO(cnicolaou,caprita): investigate not having to close and drain
-		// the channel here. It's a little awkward right now since we have to
-		// be careful to not close the channel in two places, i.e. here and
-		// and from the publisher's Shutdown method.
-		if err := dhcp.publisher.CloseFork(dhcp.name, dhcp.ch); err == nil {
-		drain:
-			for {
-				select {
-				case v := <-dhcp.ch:
-					if v == nil {
-						break drain
-					}
-				default:
-					close(dhcp.ch)
-					break drain
-				}
-			}
-		}
-	}
-
-	s.Unlock()
-
-	// At this point, we are guaranteed that no new requests are going to be
-	// accepted.
-
-	// Wait for the publisher and active listener + flows to finish.
-	done := make(chan struct{}, 1)
-	go func() { s.active.Wait(); done <- struct{}{} }()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		s.ctx.Errorf("%s: Timedout waiting for goroutines to stop", serverDebug)
-		// TODO(mattr): This doesn't make sense, shouldn't we not wait after timing out?
-		<-done
-		s.ctx.Infof("%s: Done waiting.", serverDebug)
-	}
-
-	s.cancel()
-	return nil
+func (s *xserver) Closed() <-chan struct{} {
+	return s.ctx.Done()
 }
 
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type xflowServer struct {
-	ctx    *context.T     // context associated with the RPC
 	server *xserver       // rpc.Server that this flow server belongs to
 	disp   rpc.Dispatcher // rpc.Dispatcher that will serve RPCs on this flow
-	dec    *vom.Decoder   // to decode requests and args from the client
-	enc    *vom.Encoder   // to encode responses and results to the client
 	flow   flow.Flow      // underlying flow
 
 	// Fields filled in during the server invocation.
+	dec              *vom.Decoder // to decode requests and args from the client
+	enc              *vom.Encoder // to encode responses and results to the client
 	grantedBlessings security.Blessings
 	method, suffix   string
 	tags             []*vdl.Value
@@ -535,17 +504,10 @@ var (
 )
 
 func newXFlowServer(flow flow.Flow, server *xserver) (*xflowServer, error) {
-	server.Lock()
-	disp := server.disp
-	server.Unlock()
-	typeEnc, typeDec := server.typeCache.get(flow.Conn())
 	fs := &xflowServer{
-		ctx:        server.ctx,
 		server:     server,
-		disp:       disp,
+		disp:       server.disp,
 		flow:       flow,
-		enc:        vom.NewEncoderWithTypeEncoder(flow, typeEnc),
-		dec:        vom.NewDecoderWithTypeDecoder(flow, typeDec),
 		discharges: make(map[string]security.Discharge),
 	}
 	return fs, nil
@@ -566,20 +528,19 @@ func (fs *xflowServer) authorizeVtrace(ctx *context.T) error {
 	if fs.server.dispReserved != nil {
 		_, auth, _ = fs.server.dispReserved.Lookup(ctx, params.Suffix)
 	}
-	return authorize(fs.ctx, security.NewCall(params), auth)
+	return authorize(ctx, security.NewCall(params), auth)
 }
 
 func (fs *xflowServer) serve() error {
 	defer fs.flow.Close()
 
-	results, err := fs.processRequest()
-
-	vtrace.GetSpan(fs.ctx).Finish()
+	ctx, results, err := fs.processRequest()
+	vtrace.GetSpan(ctx).Finish()
 
 	var traceResponse vtrace.Response
 	// Check if the caller is permitted to view vtrace data.
-	if fs.authorizeVtrace(fs.ctx) == nil {
-		traceResponse = vtrace.GetResponse(fs.ctx)
+	if fs.authorizeVtrace(ctx) == nil {
+		traceResponse = vtrace.GetResponse(ctx)
 	}
 
 	// Respond to the client with the response header and positional results.
@@ -593,7 +554,7 @@ func (fs *xflowServer) serve() error {
 		if err == io.EOF {
 			return err
 		}
-		return verror.New(errResponseEncoding, fs.ctx, fs.LocalEndpoint().String(), fs.RemoteEndpoint().String(), err)
+		return verror.New(errResponseEncoding, ctx, fs.LocalEndpoint().String(), fs.RemoteEndpoint().String(), err)
 	}
 	if response.Error != nil {
 		return response.Error
@@ -603,7 +564,7 @@ func (fs *xflowServer) serve() error {
 			if err == io.EOF {
 				return err
 			}
-			return verror.New(errResultEncoding, fs.ctx, ix, fmt.Sprintf("%T=%v", res, res), err)
+			return verror.New(errResultEncoding, ctx, ix, fmt.Sprintf("%T=%v", res, res), err)
 		}
 	}
 	// TODO(ashankar): Should unread data from the flow be drained?
@@ -622,69 +583,67 @@ func (fs *xflowServer) serve() error {
 	return nil
 }
 
-func (fs *xflowServer) readRPCRequest() (*rpc.Request, error) {
-	// TODO(toddw): How do we set the initial timeout?  It might be shorter than
-	// the timeout we set later, which we learn after we've decoded the request.
-	/*
-		// Set a default timeout before reading from the flow. Without this timeout,
-		// a client that sends no request or a partial request will retain the flow
-		// indefinitely (and lock up server resources).
-		initTimer := newTimer(defaultCallTimeout)
-		defer initTimer.Stop()
-		fs.flow.SetDeadline(initTimer.C)
-	*/
-
+func (fs *xflowServer) readRPCRequest(ctx *context.T) (*rpc.Request, error) {
 	// Decode the initial request.
 	var req rpc.Request
 	if err := fs.dec.Decode(&req); err != nil {
-		return nil, verror.New(verror.ErrBadProtocol, fs.ctx, newErrBadRequest(fs.ctx, err))
+		return nil, verror.New(verror.ErrBadProtocol, ctx, newErrBadRequest(ctx, err))
 	}
 	return &req, nil
 }
 
-func (fs *xflowServer) processRequest() ([]interface{}, error) {
+func (fs *xflowServer) processRequest() (*context.T, []interface{}, error) {
 	fs.starttime = time.Now()
-	req, err := fs.readRPCRequest()
+
+	// Set an initial deadline on the flow to ensure that we don't wait forever
+	// for the initial read.
+	ctx := fs.flow.SetDeadlineContext(fs.server.ctx, time.Now().Add(defaultCallTimeout))
+
+	typeEnc, typeDec, err := fs.server.typeCache.get(ctx, fs.flow.Conn())
+	if err != nil {
+		return ctx, nil, err
+	}
+	fs.enc = vom.NewEncoderWithTypeEncoder(fs.flow, typeEnc)
+	fs.dec = vom.NewDecoderWithTypeDecoder(fs.flow, typeDec)
+
+	req, err := fs.readRPCRequest(ctx)
 	if err != nil {
 		// We don't know what the rpc call was supposed to be, but we'll create
 		// a placeholder span so we can capture annotations.
-		fs.ctx, _ = vtrace.WithNewSpan(fs.ctx, fmt.Sprintf("\"%s\".UNKNOWN", fs.suffix))
-		return nil, err
+		// TODO(mattr): I'm not sure this makes sense anymore, but I'll revisit it
+		// when I'm doing another round of vtrace next quarter.
+		ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("\"%s\".UNKNOWN", fs.suffix))
+		return ctx, nil, err
 	}
+
+	// Start building up a new context for the request now that we know
+	// the header information.
+	ctx = fs.server.ctx
+
 	// We must call fs.drainDecoderArgs for any error that occurs
 	// after this point, and before we actually decode the arguments.
 	fs.method = req.Method
 	fs.suffix = strings.TrimLeft(req.Suffix, "/")
-
 	if req.Language != "" {
-		fs.ctx = i18n.WithLangID(fs.ctx, i18n.LangID(req.Language))
+		ctx = i18n.WithLangID(ctx, i18n.LangID(req.Language))
 	}
 
 	// TODO(mattr): Currently this allows users to trigger trace collection
 	// on the server even if they will not be allowed to collect the
 	// results later.  This might be considered a DOS vector.
 	spanName := fmt.Sprintf("\"%s\".%s", fs.suffix, fs.method)
-	fs.ctx, _ = vtrace.WithContinuedTrace(fs.ctx, spanName, req.TraceRequest)
+	ctx, _ = vtrace.WithContinuedTrace(ctx, spanName, req.TraceRequest)
+	ctx = fs.flow.SetDeadlineContext(ctx, req.Deadline.Time)
 
-	var cancel context.CancelFunc
-	if !req.Deadline.IsZero() {
-		fs.ctx, cancel = context.WithDeadline(fs.ctx, req.Deadline.Time)
-	} else {
-		fs.ctx, cancel = context.WithCancel(fs.ctx)
-	}
-	fs.flow.SetContext(fs.ctx)
-	// TODO(toddw): Explicitly cancel the context when the flow is done.
-	_ = cancel
-
-	if err := fs.readGrantedBlessings(req); err != nil {
+	if err := fs.readGrantedBlessings(ctx, req); err != nil {
 		fs.drainDecoderArgs(int(req.NumPosArgs))
-		return nil, err
+		return ctx, nil, err
 	}
 	// Lookup the invoker.
-	invoker, auth, err := fs.lookup(fs.suffix, fs.method)
+	invoker, auth, err := fs.lookup(ctx, fs.suffix, fs.method)
 	if err != nil {
 		fs.drainDecoderArgs(int(req.NumPosArgs))
-		return nil, err
+		return ctx, nil, err
 	}
 
 	// Note that we strip the reserved prefix when calling the invoker so
@@ -694,31 +653,31 @@ func (fs *xflowServer) processRequest() ([]interface{}, error) {
 
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
-	argptrs, tags, err := invoker.Prepare(fs.ctx, strippedMethod, numArgs)
+	argptrs, tags, err := invoker.Prepare(ctx, strippedMethod, numArgs)
 	fs.tags = tags
 	if err != nil {
 		fs.drainDecoderArgs(numArgs)
-		return nil, err
+		return ctx, nil, err
 	}
 	if called, want := req.NumPosArgs, uint64(len(argptrs)); called != want {
 		fs.drainDecoderArgs(numArgs)
-		return nil, newErrBadNumInputArgs(fs.ctx, fs.suffix, fs.method, called, want)
+		return ctx, nil, newErrBadNumInputArgs(ctx, fs.suffix, fs.method, called, want)
 	}
 	for ix, argptr := range argptrs {
 		if err := fs.dec.Decode(argptr); err != nil {
-			return nil, newErrBadInputArg(fs.ctx, fs.suffix, fs.method, uint64(ix), err)
+			return ctx, nil, newErrBadInputArg(ctx, fs.suffix, fs.method, uint64(ix), err)
 		}
 	}
 
 	// Check application's authorization policy.
-	if err := authorize(fs.ctx, fs, auth); err != nil {
-		return nil, err
+	if err := authorize(ctx, fs, auth); err != nil {
+		return ctx, nil, err
 	}
 
 	// Invoke the method.
-	results, err := invoker.Invoke(fs.ctx, fs, strippedMethod, argptrs)
+	results, err := invoker.Invoke(ctx, fs, strippedMethod, argptrs)
 	fs.server.stats.record(fs.method, time.Since(fs.starttime))
-	return results, err
+	return ctx, results, err
 }
 
 // drainDecoderArgs drains the next n arguments encoded onto the flows decoder.
@@ -741,7 +700,7 @@ func (fs *xflowServer) drainDecoderArgs(n int) error {
 // with rpc.DebugKeyword, we use the internal debug dispatcher to look up the
 // invoker. Otherwise, and we use the server's dispatcher. The suffix and method
 // value may be modified to match the actual suffix and method to use.
-func (fs *xflowServer) lookup(suffix string, method string) (rpc.Invoker, security.Authorizer, error) {
+func (fs *xflowServer) lookup(ctx *context.T, suffix string, method string) (rpc.Invoker, security.Authorizer, error) {
 	if naming.IsReserved(method) {
 		return reservedInvoker(fs.disp, fs.server.dispReserved), security.AllowEveryone(), nil
 	}
@@ -749,26 +708,26 @@ func (fs *xflowServer) lookup(suffix string, method string) (rpc.Invoker, securi
 	if naming.IsReserved(suffix) {
 		disp = fs.server.dispReserved
 	} else if fs.server.isLeaf && suffix != "" {
-		innerErr := verror.New(errUnexpectedSuffix, fs.ctx, suffix)
-		return nil, nil, verror.New(verror.ErrUnknownSuffix, fs.ctx, suffix, innerErr)
+		innerErr := verror.New(errUnexpectedSuffix, ctx, suffix)
+		return nil, nil, verror.New(verror.ErrUnknownSuffix, ctx, suffix, innerErr)
 	}
 	if disp != nil {
-		obj, auth, err := disp.Lookup(fs.ctx, suffix)
+		obj, auth, err := disp.Lookup(ctx, suffix)
 		switch {
 		case err != nil:
 			return nil, nil, err
 		case obj != nil:
 			invoker, err := objectToInvoker(obj)
 			if err != nil {
-				return nil, nil, verror.New(verror.ErrInternal, fs.ctx, "invalid received object", err)
+				return nil, nil, verror.New(verror.ErrInternal, ctx, "invalid received object", err)
 			}
 			return invoker, auth, nil
 		}
 	}
-	return nil, nil, verror.New(verror.ErrUnknownSuffix, fs.ctx, suffix)
+	return nil, nil, verror.New(verror.ErrUnknownSuffix, ctx, suffix)
 }
 
-func (fs *xflowServer) readGrantedBlessings(req *rpc.Request) error {
+func (fs *xflowServer) readGrantedBlessings(ctx *context.T, req *rpc.Request) error {
 	if req.GrantedBlessings.IsZero() {
 		return nil
 	}
@@ -781,7 +740,8 @@ func (fs *xflowServer) readGrantedBlessings(req *rpc.Request) error {
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
 	if got, want := req.GrantedBlessings.PublicKey(), fs.LocalPrincipal().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
-		return verror.New(verror.ErrNoAccess, fs.ctx, verror.New(errBlessingsNotBound, fs.ctx, got, want))
+		return verror.New(verror.ErrNoAccess, ctx,
+			verror.New(errBlessingsNotBound, ctx, got, want))
 	}
 	fs.grantedBlessings = req.GrantedBlessings
 	return nil

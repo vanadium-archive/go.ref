@@ -7,6 +7,7 @@ package rpc
 import (
 	"sync"
 
+	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/vom"
 )
@@ -54,7 +55,7 @@ func (tc *typeCache) writer(c flow.ManagedConn) (write func(flow.Flow)) {
 	return
 }
 
-func (tc *typeCache) get(c flow.ManagedConn) (*vom.TypeEncoder, *vom.TypeDecoder) {
+func (tc *typeCache) get(ctx *context.T, c flow.ManagedConn) (*vom.TypeEncoder, *vom.TypeDecoder, error) {
 	tc.mu.Lock()
 	tce := tc.flows[c]
 	if tce == nil {
@@ -62,8 +63,14 @@ func (tc *typeCache) get(c flow.ManagedConn) (*vom.TypeEncoder, *vom.TypeDecoder
 		tc.flows[c] = tce
 	}
 	tc.mu.Unlock()
-	<-tce.ready
-	return tce.enc, tce.dec
+	select {
+	case <-c.Closed():
+		return nil, nil, newErrTypeFlowFailure(ctx, nil)
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	case <-tce.ready:
+	}
+	return tce.enc, tce.dec, nil
 }
 
 func (tc *typeCache) collect() {

@@ -6,7 +6,6 @@ package rpc
 
 import (
 	"v.io/v23/context"
-	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/namespace"
 	"v.io/v23/rpc"
@@ -15,22 +14,24 @@ import (
 )
 
 type transitionClient struct {
-	c, xc rpc.Client
+	c, xc   rpc.Client
+	closech chan struct{}
 }
 
 var _ = rpc.Client((*transitionClient)(nil))
 
-func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, flowMgr flow.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
-	var err error
-	ret := &transitionClient{}
-	if ret.xc, err = NewXClient(ctx, flowMgr, ns, opts...); err != nil {
-		return nil, err
+func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
+	tc := &transitionClient{
+		xc:      NewXClient(ctx, ns, opts...),
+		c:       DeprecatedNewClient(streamMgr, ns, opts...),
+		closech: make(chan struct{}),
 	}
-	if ret.c, err = DeprecatedNewClient(streamMgr, ns, opts...); err != nil {
-		ret.xc.Close()
-		return nil, err
-	}
-	return ret, nil
+	go func() {
+		<-tc.xc.Closed()
+		<-tc.c.Closed()
+		close(tc.closech)
+	}()
+	return tc
 }
 
 func (t *transitionClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
@@ -50,6 +51,10 @@ func (t *transitionClient) Call(ctx *context.T, name, method string, in, out []i
 }
 
 func (t *transitionClient) Close() {
-	t.xc.Close()
 	t.c.Close()
+	<-t.xc.Closed()
+}
+
+func (t *transitionClient) Closed() <-chan struct{} {
+	return t.closech
 }

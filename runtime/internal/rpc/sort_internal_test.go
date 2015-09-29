@@ -21,7 +21,7 @@ func servers2names(servers []naming.MountedServer) []string {
 func TestIncompatible(t *testing.T) {
 	servers := []naming.MountedServer{}
 
-	_, err := filterAndOrderServers(servers, []string{"tcp"}, nil)
+	_, err := filterAndOrderServers(servers, []string{"tcp"})
 	if err == nil || err.Error() != "failed to find any compatible servers" {
 		t.Errorf("expected a different error: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestIncompatible(t *testing.T) {
 		servers = append(servers, naming.MountedServer{Server: name})
 	}
 
-	_, err = filterAndOrderServers(servers, []string{"foobar"}, nil)
+	_, err = filterAndOrderServers(servers, []string{"foobar"})
 	if err == nil || !strings.HasSuffix(err.Error(), "undesired protocol: tcp]") {
 		t.Errorf("expected a different error to: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestOrderingByProtocol(t *testing.T) {
 		name := naming.JoinAddressName(naming.FormatEndpoint("tcp6", a), "")
 		servers = append(servers, naming.MountedServer{Server: name})
 	}
-	if _, err := filterAndOrderServers(servers, []string{"batman"}, ipnets); err == nil {
+	if _, err := filterAndOrderServers(servers, []string{"batman"}, ipnets...); err == nil {
 		t.Fatalf("expected an error")
 	}
 
@@ -77,7 +77,7 @@ func TestOrderingByProtocol(t *testing.T) {
 		"/@6@tcp4@127.0.0.2@@@@@@",
 		"/127.0.0.12:14141",
 	}
-	result, err := filterAndOrderServers(servers, []string{"foobar", "tcp4"}, ipnets)
+	result, err := filterAndOrderServers(servers, []string{"foobar", "tcp4"}, ipnets...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -101,14 +101,14 @@ func TestOrderingByProtocol(t *testing.T) {
 		"/@6@foobar@127.0.0.11@@@@@@",
 		"/127.0.0.12:14141",
 	}
-	if result, err = filterAndOrderServers(servers, nil, ipnets); err != nil {
+	if result, err = filterAndOrderServers(servers, nil, ipnets...); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if got := servers2names(result); !reflect.DeepEqual(got, want) {
 		t.Errorf("got: %v, want %v", got, want)
 	}
 
-	if result, err = filterAndOrderServers(servers, []string{}, ipnets); err != nil {
+	if result, err = filterAndOrderServers(servers, []string{}, ipnets...); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if got := servers2names(result); !reflect.DeepEqual(got, want) {
@@ -125,7 +125,7 @@ func TestOrderingByProtocol(t *testing.T) {
 		"/@6@tcp6@127.0.0.8@@@@@@",
 		"/127.0.0.12:14141",
 	}
-	if result, err = filterAndOrderServers(servers, []string{"tcp"}, ipnets); err != nil {
+	if result, err = filterAndOrderServers(servers, []string{"tcp"}, ipnets...); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if got := servers2names(result); !reflect.DeepEqual(got, want) {
@@ -154,7 +154,7 @@ func TestOrderingByProtocol(t *testing.T) {
 		name := naming.JoinAddressName(naming.FormatEndpoint("foobar", a), "")
 		servers = append(servers, naming.MountedServer{Server: name})
 	}
-	if result, err = filterAndOrderServers(servers, []string{}, ipnets); err != nil {
+	if result, err = filterAndOrderServers(servers, []string{}, ipnets...); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if got := servers2names(result); !reflect.DeepEqual(got, want) {
@@ -171,7 +171,7 @@ func TestOrderingByLocality(t *testing.T) {
 		name := naming.JoinAddressName(naming.FormatEndpoint("tcp", a), "")
 		servers = append(servers, naming.MountedServer{Server: name})
 	}
-	result, err := filterAndOrderServers(servers, []string{"tcp"}, ipnets)
+	result, err := filterAndOrderServers(servers, []string{"tcp"}, ipnets...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -190,7 +190,7 @@ func TestOrderingByLocality(t *testing.T) {
 		servers = append(servers, naming.MountedServer{Server: name})
 	}
 
-	if result, err = filterAndOrderServers(servers, []string{"ws", "tcp"}, ipnets); err != nil {
+	if result, err = filterAndOrderServers(servers, []string{"ws", "tcp"}, ipnets...); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	want = []string{

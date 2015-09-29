@@ -27,4 +27,7 @@ error (
 	badAuth(suffix, method string, err error) {
 		"en": "not authorized to call {suffix}.{method}: {err}",
 	}
+	typeFlowFailure(err error) {
+		"en": "type flow could not be constructed{:err}",
+	}
 )

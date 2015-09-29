@@ -13,6 +13,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/ref"
+	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
 )
@@ -27,14 +29,18 @@ type canceld struct {
 func (c *canceld) Run(ctx *context.T, _ rpc.ServerCall) error {
 	close(c.started)
 	client := v23.GetClient(ctx)
-	ctx.Infof("Run: %s", c.child)
+	var done chan struct{}
 	if c.child != "" {
-		if _, err := client.StartCall(ctx, c.child, "Run", []interface{}{}); err != nil {
-			ctx.Error(err)
-			return err
-		}
+		done = make(chan struct{})
+		go func() {
+			client.Call(ctx, c.child, "Run", nil, nil)
+			close(done)
+		}()
 	}
 	<-ctx.Done()
+	if done != nil {
+		<-done
+	}
 	close(c.canceled)
 	return nil
 }
@@ -50,7 +56,6 @@ func makeCanceld(ctx *context.T, name, child string) (*canceld, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx.Infof("Serving: %q", name)
 	return c, nil
 }
 
@@ -70,20 +75,18 @@ func TestCancellationPropagation(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	_, err = v23.GetClient(ctx).StartCall(ctx, "c1", "Run", []interface{}{})
-	if err != nil {
-		t.Fatalf("can't call: ", err)
-	}
+	done := make(chan struct{})
+	go func() {
+		v23.GetClient(ctx).Call(ctx, "c1", "Run", nil, nil)
+		close(done)
+	}()
 
 	<-c1.started
 	<-c2.started
-
-	ctx.Info("cancelling initial call")
 	cancel()
-
-	ctx.Info("waiting for children to be canceled")
 	<-c1.canceled
 	<-c2.canceled
+	<-done
 }
 
 type cancelTestServer struct {
@@ -141,11 +144,13 @@ func TestCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 	cctx, cancel := context.WithCancel(cctx)
-	_, err = v23.GetClient(cctx).StartCall(cctx, "cancel", "CancelStreamReader", []interface{}{})
-	if err != nil {
-		t.Fatalf("Start call failed: %v", err)
-	}
+	done := make(chan struct{})
+	go func() {
+		v23.GetClient(cctx).Call(cctx, "cancel", "CancelStreamReader", nil, nil)
+		close(done)
+	}()
 	waitForCancel(t, ts, cancel)
+	<-done
 }
 
 // TestCancelWithFullBuffers tests that even if the writer has filled the buffers and
@@ -163,16 +168,25 @@ func TestCancelWithFullBuffers(t *testing.T) {
 		t.Fatal(err)
 	}
 	cctx, cancel := context.WithCancel(cctx)
-	call, err := v23.GetClient(cctx).StartCall(cctx, "cancel", "CancelStreamIgnorer", []interface{}{})
+	call, err := v23.GetClient(cctx).StartCall(cctx, "cancel", "CancelStreamIgnorer", nil)
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
 
 	// Fill up all the write buffers to ensure that cancelling works even when the stream
 	// is blocked.
-	// TODO(mattr): Update for new RPC system.
-	call.Send(make([]byte, vc.MaxSharedBytes))
-	call.Send(make([]byte, vc.DefaultBytesBufferedPerFlow))
+	if ref.RPCTransitionState() >= ref.XServers {
+		call.Send(conn.DefaultBytesBufferedPerFlow)
+	} else {
+		call.Send(make([]byte, vc.MaxSharedBytes))
+		call.Send(make([]byte, vc.DefaultBytesBufferedPerFlow))
+	}
+	done := make(chan struct{})
+	go func() {
+		call.Finish()
+		close(done)
+	}()
 
 	waitForCancel(t, ts, cancel)
+	<-done
 }

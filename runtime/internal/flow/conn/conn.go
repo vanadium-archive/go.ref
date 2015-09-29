@@ -29,7 +29,7 @@ const (
 )
 
 const mtu = 1 << 16
-const defaultBufferSize = 1 << 20
+const DefaultBytesBufferedPerFlow = 1 << 20
 
 const (
 	expressPriority = iota
@@ -95,10 +95,11 @@ func NewDialed(
 	conn flow.MsgReadWriteCloser,
 	local, remote naming.Endpoint,
 	versions version.RPCVersionRange,
+	handshakeTimeout time.Duration,
 	handler FlowHandler,
 	events chan<- StatusUpdate) (*Conn, error) {
 	c := &Conn{
-		fc:           flowcontrol.New(defaultBufferSize, mtu),
+		fc:           flowcontrol.New(DefaultBytesBufferedPerFlow, mtu),
 		mp:           newMessagePipe(conn),
 		handler:      handler,
 		lBlessings:   v23.GetPrincipal(ctx).BlessingStore().Default(),
@@ -112,7 +113,14 @@ func NewDialed(
 		borrowing:    map[uint64]bool{},
 		events:       events,
 	}
-	if err := c.dialHandshake(ctx, versions); err != nil {
+	// TODO(mattr): This scheme for deadlines is nice, but it doesn't
+	// provide for cancellation when ctx is canceled.
+	t := time.AfterFunc(handshakeTimeout, func() { conn.Close() })
+	err := c.dialHandshake(ctx, versions)
+	if stopped := t.Stop(); !stopped {
+		err = verror.NewErrTimeout(ctx)
+	}
+	if err != nil {
 		c.Close(ctx, err)
 		return nil, err
 	}
@@ -127,10 +135,11 @@ func NewAccepted(
 	conn flow.MsgReadWriteCloser,
 	local naming.Endpoint,
 	versions version.RPCVersionRange,
+	handshakeTimeout time.Duration,
 	handler FlowHandler,
 	events chan<- StatusUpdate) (*Conn, error) {
 	c := &Conn{
-		fc:           flowcontrol.New(defaultBufferSize, mtu),
+		fc:           flowcontrol.New(DefaultBytesBufferedPerFlow, mtu),
 		mp:           newMessagePipe(conn),
 		handler:      handler,
 		lBlessings:   v23.GetPrincipal(ctx).BlessingStore().Default(),
@@ -143,7 +152,14 @@ func NewAccepted(
 		borrowing:    map[uint64]bool{},
 		events:       events,
 	}
-	if err := c.acceptHandshake(ctx, versions); err != nil {
+	// FIXME(mattr): This scheme for deadlines is nice, but it doesn't
+	// provide for cancellation when ctx is canceled.
+	t := time.AfterFunc(handshakeTimeout, func() { conn.Close() })
+	err := c.acceptHandshake(ctx, versions)
+	if stopped := t.Stop(); !stopped {
+		err = verror.NewErrTimeout(ctx)
+	}
+	if err != nil {
 		c.Close(ctx, err)
 		return nil, err
 	}
@@ -250,17 +266,28 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 			if err != nil {
 				msg = err.Error()
 			}
-			cerr := c.fc.Run(ctx, "close", expressPriority, func(_ int) (int, bool, error) {
+			// We use a root context here to ensure that the message get's sent even if
+			// the context is canceled.
+			// TODO(mattr): Consider other options like a special mode in the flow controller
+			// that doesn't care about the context.  Or perhaps 'stop' the flow controller
+			// and then just write the message directly.
+			rootctx, cancel := context.WithRootCancel(ctx)
+			cerr := c.fc.Run(rootctx, "close", expressPriority, func(_ int) (int, bool, error) {
 				return 0, true, c.mp.writeMsg(ctx, &message.TearDown{Message: msg})
 			})
 			if cerr != nil {
 				ctx.Errorf("Error sending tearDown on connection to %s: %v", c.remote, cerr)
 			}
+			cancel()
 		}
+		flowErr := NewErrConnectionClosed(ctx)
 		for _, f := range flows {
-			f.close(ctx, NewErrConnectionClosed(ctx))
+			f.close(ctx, flowErr)
 		}
-		if cerr := c.mp.close(); cerr != nil {
+		if c.blessingsFlow != nil {
+			c.blessingsFlow.f.close(ctx, flowErr)
+		}
+		if cerr := c.mp.rw.Close(); cerr != nil {
 			ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)
 		}
 		c.loopWG.Wait()
@@ -282,9 +309,9 @@ func (c *Conn) release(ctx *context.T, fid, count uint64) {
 	c.toRelease[fid] += count
 	if c.borrowing[fid] {
 		c.toRelease[invalidFlowID] += count
-		release = c.toRelease[invalidFlowID] > defaultBufferSize/2
+		release = c.toRelease[invalidFlowID] > DefaultBytesBufferedPerFlow/2
 	} else {
-		release = c.toRelease[fid] > defaultBufferSize/2
+		release = c.toRelease[fid] > DefaultBytesBufferedPerFlow/2
 	}
 	if release {
 		toRelease = c.toRelease
@@ -358,7 +385,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		handler := c.handler
 		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, false, true)
 		f.worker.Release(ctx, int(msg.InitialCounters))
-		c.toRelease[msg.ID] = defaultBufferSize
+		c.toRelease[msg.ID] = DefaultBytesBufferedPerFlow
 		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
 
@@ -403,7 +430,8 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		f := c.flows[msg.ID]
 		c.mu.Unlock()
 		if f == nil {
-			ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d", c.remote, msg.ID)
+			ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d",
+				c.remote, msg.ID)
 			return nil
 		}
 		if err := f.q.put(ctx, msg.Payload); err != nil {

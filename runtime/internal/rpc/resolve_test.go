@@ -141,7 +141,7 @@ func TestResolveToEndpoint(t *testing.T) {
 		{"unknown", "", notfound},
 	}
 	for _, tc := range testcases {
-		result, err := irpc.InternalServerResolveToEndpoint(server, tc.address)
+		result, err := irpc.InternalServerResolveToEndpoint(ctx, server, tc.address)
 		if (err == nil) != (tc.err == nil) {
 			t.Errorf("Unexpected err for %q. Got %v, expected %v", tc.address, err, tc.err)
 		}

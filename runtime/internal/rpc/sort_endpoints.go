@@ -82,7 +82,13 @@ var defaultPreferredProtocolOrder = mkProtocolRankMap([]string{"unixfd", "wsh", 
 // will be used, but unlike the previous case, any servers that don't support
 // these protocols will be returned also, but following the default
 // preferences.
-func filterAndOrderServers(servers []naming.MountedServer, protocols []string, ipnets []*net.IPNet) ([]naming.MountedServer, error) {
+func filterAndOrderServers(servers []naming.MountedServer, protocols []string, ipnets ...*net.IPNet) ([]naming.MountedServer, error) {
+	if ipnets == nil {
+		var err error
+		if ipnets, err = ipNetworks(); err != nil {
+			return nil, err
+		}
+	}
 	var (
 		errs       = verror.SubErrs{}
 		list       = make(sortableServerList, 0, len(servers))
@@ -94,6 +100,7 @@ func filterAndOrderServers(servers []naming.MountedServer, protocols []string, i
 	adderr := func(name string, err error) {
 		errs = append(errs, verror.SubErr{Name: "server=" + name, Err: err, Options: verror.Print})
 	}
+
 	for _, server := range servers {
 		name := server.Server
 		ep, err := name2endpoint(name)
