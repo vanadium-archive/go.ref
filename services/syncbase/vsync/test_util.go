@@ -113,7 +113,7 @@ func (d *mockDatabase) App() interfaces.App {
 // createService creates a mock Syncbase service used for testing sync functionality.
 func createService(t *testing.T) *mockService {
 	ctx, shutdown := test.V23Init()
-	engine := "leveldb"
+	engine := store.EngineForTest
 	opts := util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false}
 	dir := fmt.Sprintf("%s/vsync_test_%d_%d", os.TempDir(), os.Getpid(), time.Now().UnixNano())
 
@@ -132,7 +132,7 @@ func createService(t *testing.T) *mockService {
 		dir:      dir,
 		shutdown: shutdown,
 	}
-	if s.sync, err = New(ctx, nil, s, dir); err != nil {
+	if s.sync, err = New(ctx, nil, s, engine, dir); err != nil {
 		util.DestroyStore(engine, dir)
 		t.Fatalf("cannot create sync service: %v", err)
 	}

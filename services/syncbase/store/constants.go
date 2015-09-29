@@ -4,6 +4,8 @@
 
 package store
 
+const EngineForTest = "leveldb"
+
 // TODO(sadovsky): Maybe define verrors for these.
 const (
 	ErrMsgClosedStore     = "closed store"

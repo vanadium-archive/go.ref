@@ -13,6 +13,7 @@ import "runtime"
 import "testing"
 
 import "v.io/x/ref/services/syncbase/localblobstore/blobmap"
+import "v.io/x/ref/services/syncbase/store"
 import "v.io/v23/context"
 
 import "v.io/x/ref/test"
@@ -167,7 +168,7 @@ func TestAddRetrieveAndDelete(t *testing.T) {
 
 	// Create a blobmap.
 	var bm *blobmap.BlobMap
-	bm, err = blobmap.New(ctx, testDirName)
+	bm, err = blobmap.New(ctx, store.EngineForTest, testDirName)
 	if err != nil {
 		t.Fatalf("blobmap_test: blobmap.New failed: %v", err)
 	}

@@ -10,8 +10,8 @@ package blobmap
 import "encoding/binary"
 import "sync"
 
+import "v.io/x/ref/services/syncbase/server/util"
 import "v.io/x/ref/services/syncbase/store"
-import "v.io/x/ref/services/syncbase/store/leveldb"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
@@ -88,10 +88,10 @@ type BlobMap struct {
 }
 
 // New() returns a pointer to a BlobMap, backed by storage in directory dir.
-func New(ctx *context.T, dir string) (bm *BlobMap, err error) {
+func New(ctx *context.T, stEngine, dir string) (bm *BlobMap, err error) {
 	bm = new(BlobMap)
 	bm.dir = dir
-	bm.st, err = leveldb.Open(dir, leveldb.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
+	bm.st, err = util.OpenStore(stEngine, dir, util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	return bm, err
 }
 

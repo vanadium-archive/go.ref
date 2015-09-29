@@ -25,6 +25,7 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/services/syncbase/server"
+	"v.io/x/ref/services/syncbase/store"
 	tsecurity "v.io/x/ref/test/testutil"
 )
 
@@ -235,7 +236,7 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	service, err := server.NewService(serverCtx, nil, server.ServiceOptions{
 		Perms:   perms,
 		RootDir: rootDir,
-		Engine:  "leveldb",
+		Engine:  store.EngineForTest,
 	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)

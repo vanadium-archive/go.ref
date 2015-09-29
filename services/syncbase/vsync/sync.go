@@ -128,7 +128,7 @@ func randIntn(n int) int {
 // changes to its objects. The "initiator" thread is responsible for
 // periodically contacting peers to fetch changes from them. In addition, the
 // sync module responds to incoming RPCs from remote sync modules.
-func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, rootDir string) (*syncService, error) {
+func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngine, blobRootDir string) (*syncService, error) {
 	s := &syncService{
 		sv:             sv,
 		batches:        make(batchSet),
@@ -162,7 +162,7 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, rootDir str
 
 	// Open a blob store.
 	var err error
-	s.bst, err = fsblob.Create(ctx, path.Join(rootDir, "blobs"))
+	s.bst, err = fsblob.Create(ctx, blobStEngine, path.Join(blobRootDir, "blobs"))
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import "testing"
 import "v.io/x/ref/services/syncbase/localblobstore"
 import "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 import "v.io/x/ref/services/syncbase/localblobstore/localblobstore_testlib"
+import "v.io/x/ref/services/syncbase/store"
 import "v.io/x/ref/test"
 import _ "v.io/x/ref/runtime/factories/generic"
 
@@ -33,7 +34,7 @@ func TestAddRetrieveAndDelete(t *testing.T) {
 
 	// Create an fs_cablobstore.
 	var bs localblobstore.BlobStore
-	bs, err = fs_cablobstore.Create(ctx, testDirName)
+	bs, err = fs_cablobstore.Create(ctx, store.EngineForTest, testDirName)
 	if err != nil {
 		t.Fatalf("fs_cablobstore.Create failed: %v", err)
 	}
@@ -60,7 +61,7 @@ func TestWritingViaChunks(t *testing.T) {
 		}
 		defer os.RemoveAll(testDirName[i])
 
-		bs[i], err = fs_cablobstore.Create(ctx, testDirName[i])
+		bs[i], err = fs_cablobstore.Create(ctx, store.EngineForTest, testDirName[i])
 		if err != nil {
 			t.Fatalf("fs_cablobstore.Create failed: %v", err)
 		}
@@ -87,7 +88,7 @@ func TestCreateAndResume(t *testing.T) {
 
 	// Create an fs_cablobstore.
 	var bs localblobstore.BlobStore
-	bs, err = fs_cablobstore.Create(ctx, testDirName)
+	bs, err = fs_cablobstore.Create(ctx, store.EngineForTest, testDirName)
 	if err != nil {
 		t.Fatalf("fs_cablobstore.Create failed: %v", err)
 	}

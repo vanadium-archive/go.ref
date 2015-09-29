@@ -16,6 +16,7 @@ import "os"
 
 import "v.io/x/ref/services/syncbase/localblobstore"
 import "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
+import "v.io/x/ref/services/syncbase/store"
 import "v.io/v23/context"
 import "v.io/x/ref/test"
 import _ "v.io/x/ref/runtime/factories/generic"
@@ -31,7 +32,7 @@ func createBlobStore(ctx *context.T) (bs localblobstore.BlobStore, dirName strin
 	if dirName, err = ioutil.TempDir("", "localblobstore_transfer_test"); err != nil {
 		panic(err)
 	}
-	if bs, err = fs_cablobstore.Create(ctx, dirName); err != nil {
+	if bs, err = fs_cablobstore.Create(ctx, store.EngineForTest, dirName); err != nil {
 		panic(err)
 	}
 	return bs, dirName

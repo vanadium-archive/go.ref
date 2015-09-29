@@ -12,9 +12,8 @@ import (
 
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/clock"
+	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
-	"v.io/x/ref/services/syncbase/store/leveldb"
-	"v.io/x/ref/services/syncbase/store/memstore"
 )
 
 // This file provides utility methods for tests related to watchable store.
@@ -26,22 +25,9 @@ import (
 // once it is no longer needed.
 func createStore() (store.Store, func()) {
 	var st store.Store
-	// With Memstore, TestReadWriteRandom is slow with ManagedPrefixes=nil since
-	// every watchable.Store.Get() takes a snapshot, and memstore snapshots are
-	// relatively expensive since the entire data map is copied. LevelDB snapshots
-	// are cheap, so with LevelDB ManagedPrefixes=nil is still reasonably fast.
-	if false {
-		st = memstore.New()
-		return st, func() {
-			st.Close()
-		}
-	} else {
-		path := getPath()
-		st = createLevelDB(path)
-		return st, func() {
-			destroyLevelDB(st, path)
-		}
-	}
+	path := getPath()
+	st, _ = util.OpenStore(store.EngineForTest, path, util.OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
+	return st, func() { util.DestroyStore(store.EngineForTest, path) }
 }
 
 func getPath() string {
@@ -50,21 +36,6 @@ func getPath() string {
 		panic(fmt.Sprintf("can't create temp dir: %v", err))
 	}
 	return path
-}
-
-func createLevelDB(path string) store.Store {
-	st, err := leveldb.Open(path, leveldb.OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
-	if err != nil {
-		panic(fmt.Sprintf("can't open db at %v: %v", path, err))
-	}
-	return st
-}
-
-func destroyLevelDB(st store.Store, path string) {
-	st.Close()
-	if err := leveldb.Destroy(path); err != nil {
-		panic(fmt.Sprintf("can't destroy db at %v: %v", path, err))
-	}
 }
 
 ////////////////////////////////////////////////////////////

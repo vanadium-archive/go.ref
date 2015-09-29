@@ -171,7 +171,7 @@ func stringToHash(s string) []byte {
 
 // Create() returns a pointer to an FsCaBlobStore stored in the file system at
 // "rootName".  If the directory rootName does not exist, it is created.
-func Create(ctx *context.T, rootName string) (fscabs *FsCaBlobStore, err error) {
+func Create(ctx *context.T, stEngine, rootName string) (fscabs *FsCaBlobStore, err error) {
 	dir := []string{tmpDir, casDir, chunkDir, blobDir}
 	for i := 0; i != len(dir) && err == nil; i++ {
 		fullName := filepath.Join(rootName, dir[i])
@@ -184,7 +184,7 @@ func Create(ctx *context.T, rootName string) (fscabs *FsCaBlobStore, err error) 
 	}
 	var bm *blobmap.BlobMap
 	if err == nil {
-		bm, err = blobmap.New(ctx, filepath.Join(rootName, chunkDir))
+		bm, err = blobmap.New(ctx, stEngine, filepath.Join(rootName, chunkDir))
 	}
 	if err == nil {
 		fscabs = new(FsCaBlobStore)
