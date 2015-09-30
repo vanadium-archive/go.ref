@@ -190,7 +190,7 @@ func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func
 			return
 		default:
 		}
-		f, c, err := m.internalDial(ctx, ep, proxyBlessingsForPeer{}.run)
+		f, c, err := m.internalDial(ctx, ep, proxyAuthorizer{})
 		if err != nil {
 			ctx.Error(err)
 			continue
@@ -239,11 +239,20 @@ func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpo
 	return res.Endpoints, nil
 }
 
-type proxyBlessingsForPeer struct{}
-
 // TODO(suharshs): Figure out what blessings to present here. And present discharges.
-func (proxyBlessingsForPeer) run(ctx *context.T, lep, rep naming.Endpoint, rb security.Blessings,
-	rd map[string]security.Discharge) (security.Blessings, map[string]security.Discharge, error) {
+type proxyAuthorizer struct{}
+
+func (proxyAuthorizer) AuthorizePeer(
+	ctx *context.T,
+	localEndpoint, remoteEndpoint naming.Endpoint,
+	remoteBlessings security.Blessings,
+	remoteDischarges map[string]security.Discharge,
+) ([]string, []security.RejectedBlessing, error) {
+	return nil, nil, nil
+}
+
+func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
+	security.Blessings, map[string]security.Discharge, error) {
 	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
 
@@ -379,17 +388,17 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 	}
 }
 
-// Dial creates a Flow to the provided remote endpoint, using 'fn' to
+// Dial creates a Flow to the provided remote endpoint, using 'auth' to
 // determine the blessings that will be sent to the remote end.
 //
 // To maximize re-use of connections, the Manager will also Listen on Dialed
 // connections for the lifetime of the connection.
-func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, error) {
-	f, _, err := m.internalDial(ctx, remote, fn)
+func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer) (flow.Flow, error) {
+	f, _, err := m.internalDial(ctx, remote, auth)
 	return f, err
 }
 
-func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.BlessingsForPeer) (flow.Flow, *conn.Conn, error) {
+func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer) (flow.Flow, *conn.Conn, error) {
 	// Disallow making connections to ourselves.
 	// TODO(suharshs): Figure out the right thing to do here. We could create a "localflow"
 	// that bypasses auth and is added to the accept queue immediately.
@@ -445,6 +454,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			localEndpoint(flowConn, m.rid),
 			remote,
 			version.Supported,
+			auth,
 			handshakeTimeout,
 			fh,
 			events,
@@ -460,7 +470,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			return nil, nil, flow.NewErrBadState(ctx, err)
 		}
 	}
-	f, err := c.Dial(ctx, fn)
+	f, err := c.Dial(ctx, auth)
 	if err != nil {
 		return nil, nil, flow.NewErrDialFailed(ctx, err)
 	}
@@ -477,6 +487,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 			proxyConn.LocalEndpoint(),
 			remote,
 			version.Supported,
+			auth,
 			handshakeTimeout,
 			fh,
 			events)
@@ -490,7 +501,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, fn flow.B
 		if err := m.cache.InsertWithRoutingID(c); err != nil {
 			return nil, nil, flow.NewErrBadState(ctx, err)
 		}
-		f, err = c.Dial(ctx, fn)
+		f, err = c.Dial(ctx, auth)
 		if err != nil {
 			proxyConn.Close(ctx, err)
 			return nil, nil, flow.NewErrDialFailed(ctx, err)

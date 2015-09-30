@@ -16,6 +16,7 @@ import (
 	"v.io/v23/verror"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/runtime/internal/flow/flowtest"
 	"v.io/x/ref/test/goroutines"
 	"v.io/x/ref/test/testutil"
 )
@@ -41,7 +42,7 @@ func checkFlowBlessings(t *testing.T, df, af flow.Flow, db, ab security.Blessing
 }
 
 func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings) flow.Flow {
-	df, err := dc.Dial(ctx, makeBFP(b))
+	df, err := dc.Dial(ctx, peerAuthorizer{b})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +130,7 @@ func TestUnidirectional(t *testing.T) {
 
 	// We should not be able to dial in the other direction, because that flow
 	// manager is not willing to accept flows.
-	_, err := ac.Dial(actx, testBFP)
+	_, err := ac.Dial(actx, flowtest.AllowAllPeersAuthorizer{})
 	if verror.ErrorID(err) != ErrDialingNonServer.ID {
 		t.Errorf("got %v, wanted ErrDialingNonServer", err)
 	}

@@ -37,7 +37,7 @@ func TestDirectConnection(t *testing.T) {
 	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111))
 
-	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
+	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 
 	shutdown()
 	<-am.Closed()
@@ -59,14 +59,14 @@ func TestDialCachedConn(t *testing.T) {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 	// After dialing a connection the cache should hold one connection.
-	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
+	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
 	}
 	old := dm.(*manager).cache.ridCache[am.RoutingID()]
 	// After dialing another connection the cache should still hold one connection
 	// because the connections should be reused.
-	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
+	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
 		t.Errorf("got cache size %v, want %v", got, want)
 	}
@@ -89,9 +89,9 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 	}
 
 	dm := New(ctx, naming.FixedRoutingID(0x1111))
-	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
+	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Now am should be able to make a flow to dm even though dm is not listening.
-	testFlows(t, ctx, am, dm, flowtest.BlessingsForPeer)
+	testFlows(t, ctx, am, dm, flowtest.AllowAllPeersAuthorizer{})
 
 	shutdown()
 	<-am.Closed()
@@ -107,13 +107,13 @@ func TestNullClientBlessings(t *testing.T) {
 		t.Fatal(err)
 	}
 	nulldm := New(ctx, naming.NullRoutingID)
-	_, af := testFlows(t, ctx, nulldm, am, flowtest.BlessingsForPeer)
+	_, af := testFlows(t, ctx, nulldm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Ensure that the remote blessings of the underlying conn of the accepted flow are zero.
 	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); !rBlessings.IsZero() {
 		t.Errorf("got %v, want zero-value blessings", rBlessings)
 	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111))
-	_, af = testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
+	_, af = testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Ensure that the remote blessings of the underlying conn of the accepted flow are
 	// non-zero if we did specify a RoutingID.
 	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); rBlessings.IsZero() {
@@ -135,11 +135,11 @@ func TestStopListening(t *testing.T) {
 		t.Fatal(err)
 	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111))
-	testFlows(t, ctx, dm, am, flowtest.BlessingsForPeer)
+	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 
 	am.StopListening(ctx)
 
-	if f, err := dm.Dial(ctx, am.ListeningEndpoints()[0], flowtest.BlessingsForPeer); err == nil {
+	if f, err := dm.Dial(ctx, am.ListeningEndpoints()[0], flowtest.AllowAllPeersAuthorizer{}); err == nil {
 		t.Errorf("dialing a lame duck should fail, but didn't %#v.", f)
 	}
 
@@ -148,10 +148,10 @@ func TestStopListening(t *testing.T) {
 	<-dm.Closed()
 }
 
-func testFlows(t *testing.T, ctx *context.T, dm, am flow.Manager, bFn flow.BlessingsForPeer) (df, af flow.Flow) {
+func testFlows(t *testing.T, ctx *context.T, dm, am flow.Manager, auth flow.PeerAuthorizer) (df, af flow.Flow) {
 	ep := am.ListeningEndpoints()[0]
 	var err error
-	df, err = dm.Dial(ctx, ep, bFn)
+	df, err = dm.Dial(ctx, ep, auth)
 	if err != nil {
 		t.Fatal(err)
 	}

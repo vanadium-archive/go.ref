@@ -51,7 +51,7 @@ func setupConnsWithEvents(t *testing.T,
 		if dflows != nil {
 			handler = fh(dflows)
 		}
-		d, err := NewDialed(dctx, dmrw, ep, ep, versions, time.Minute, handler, events)
+		d, err := NewDialed(dctx, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, handler, events)
 		if err != nil {
 			panic(err)
 		}
@@ -79,31 +79,28 @@ func setupFlow(t *testing.T, dctx, actx *context.T, dialFromDialer bool) (dialed
 		dctx, actx = actx, dctx
 		aflows, dflows = dflows, aflows
 	}
-	df, err := d.Dial(dctx, testBFP)
+	df, err := d.Dial(dctx, flowtest.AllowAllPeersAuthorizer{})
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 	return df, aflows, func() { d.Close(dctx, nil); a.Close(actx, nil) }
 }
 
-func testBFP(
+type peerAuthorizer struct {
+	blessings security.Blessings
+}
+
+func (peerAuthorizer) AuthorizePeer(
 	ctx *context.T,
 	localEndpoint, remoteEndpoint naming.Endpoint,
 	remoteBlessings security.Blessings,
 	remoteDischarges map[string]security.Discharge,
-) (security.Blessings, map[string]security.Discharge, error) {
-	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
+) ([]string, []security.RejectedBlessing, error) {
+	return nil, nil, nil
 }
 
-func makeBFP(in security.Blessings) flow.BlessingsForPeer {
-	return func(
-		ctx *context.T,
-		localEndpoint, remoteEndpoint naming.Endpoint,
-		remoteBlessings security.Blessings,
-		remoteDischarges map[string]security.Discharge,
-	) (security.Blessings, map[string]security.Discharge, error) {
-		dis := securitylib.PrepareDischarges(
-			ctx, in, security.DischargeImpetus{}, time.Minute)
-		return in, dis, nil
-	}
+func (a peerAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
+	security.Blessings, map[string]security.Discharge, error) {
+	dis := securitylib.PrepareDischarges(ctx, a.blessings, security.DischargeImpetus{}, time.Minute)
+	return a.blessings, dis, nil
 }

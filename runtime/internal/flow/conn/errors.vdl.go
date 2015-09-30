@@ -12,6 +12,9 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/verror"
+
+	// VDL user imports
+	"v.io/v23/security"
 )
 
 var (
@@ -30,6 +33,7 @@ var (
 	ErrAcceptorBlessingsMissing = verror.Register("v.io/x/ref/runtime/internal/flow/conn.AcceptorBlessingsMissing", verror.NoRetry, "{1:}{2:} The acceptor did not send blessings.")
 	ErrUpdatingNilFlowHandler   = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UpdatingNilFlowHandler", verror.NoRetry, "{1:}{2:} nil flowHandler cannot be updated to non-nil value.")
 	ErrBlessingsNotBound        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.BlessingsNotBound", verror.NoRetry, "{1:}{2:} blessings not bound to connection remote public key")
+	ErrNoBlessingsForPeer       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoBlessingsForPeer", verror.NoRetry, "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 )
 
 func init() {
@@ -48,6 +52,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAcceptorBlessingsMissing.ID), "{1:}{2:} The acceptor did not send blessings.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUpdatingNilFlowHandler.ID), "{1:}{2:} nil flowHandler cannot be updated to non-nil value.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBlessingsNotBound.ID), "{1:}{2:} blessings not bound to connection remote public key")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoBlessingsForPeer.ID), "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 }
 
 // NewErrMissingSetupOption returns an error with the ErrMissingSetupOption ID.
@@ -123,4 +128,9 @@ func NewErrUpdatingNilFlowHandler(ctx *context.T) error {
 // NewErrBlessingsNotBound returns an error with the ErrBlessingsNotBound ID.
 func NewErrBlessingsNotBound(ctx *context.T) error {
 	return verror.New(ErrBlessingsNotBound, ctx)
+}
+
+// NewErrNoBlessingsForPeer returns an error with the ErrNoBlessingsForPeer ID.
+func NewErrNoBlessingsForPeer(ctx *context.T, peerNames []string, rejected []security.RejectedBlessing, err error) error {
+	return verror.New(ErrNoBlessingsForPeer, ctx, peerNames, rejected, err)
 }

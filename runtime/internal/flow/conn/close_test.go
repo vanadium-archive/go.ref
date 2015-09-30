@@ -12,6 +12,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/runtime/internal/flow/flowtest"
 	"v.io/x/ref/test/goroutines"
 )
 
@@ -64,10 +65,10 @@ func TestDialAfterConnClose(t *testing.T) {
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
-	if _, err := d.Dial(ctx, testBFP); err == nil {
+	if _, err := d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err == nil {
 		t.Errorf("Nil error dialing on dialer")
 	}
-	if _, err := a.Dial(ctx, testBFP); err == nil {
+	if _, err := a.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err == nil {
 		t.Errorf("Nil error dialing on acceptor")
 	}
 }

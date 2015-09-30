@@ -186,8 +186,8 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		status.serverErr = suberr(verror.New(errInvalidEndpoint, ctx))
 		return
 	}
-	bfp := blessingsForPeer{auth, method, suffix, args}.run
-	flow, err := c.flowMgr.Dial(ctx, ep, bfp)
+	peerAuth := peerAuthorizer{auth, method, suffix, args}
+	flow, err := c.flowMgr.Dial(ctx, ep, peerAuth)
 	if err != nil {
 		ctx.VI(2).Infof("rpc: failed to create Flow with %v: %v", server, err)
 		status.serverErr = suberr(err)
@@ -197,7 +197,7 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		// Create a type flow, note that we use c.ctx instead of ctx.
 		// This is because type flows have a longer lifetime than the
 		// main flow being constructed.
-		tflow, err := c.flowMgr.Dial(c.ctx, ep, bfp)
+		tflow, err := c.flowMgr.Dial(c.ctx, ep, peerAuth)
 		if err != nil {
 			status.serverErr = suberr(newErrTypeFlowFailure(ctx, err))
 			flow.Close()
@@ -226,18 +226,18 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 	status.flow = flow
 }
 
-type blessingsForPeer struct {
+type peerAuthorizer struct {
 	auth   security.Authorizer
 	method string
 	suffix string
 	args   []interface{}
 }
 
-func (x blessingsForPeer) run(
+func (x peerAuthorizer) AuthorizePeer(
 	ctx *context.T,
 	localEP, remoteEP naming.Endpoint,
 	remoteBlessings security.Blessings,
-	remoteDischarges map[string]security.Discharge) (security.Blessings, map[string]security.Discharge, error) {
+	remoteDischarges map[string]security.Discharge) ([]string, []security.RejectedBlessing, error) {
 	localPrincipal := v23.GetPrincipal(ctx)
 	call := security.NewCall(&security.CallParams{
 		Timestamp:        time.Now(),
@@ -250,16 +250,24 @@ func (x blessingsForPeer) run(
 		RemoteEndpoint:   remoteEP,
 	})
 	if err := x.auth.Authorize(ctx, call); err != nil {
-		return security.Blessings{}, nil, verror.New(errServerAuthorizeFailed, ctx, call.RemoteBlessings(), err)
+		return nil, nil, verror.New(errPeerAuthorizeFailed, ctx, call.RemoteBlessings(), err)
 	}
-	serverB, serverBRejected := security.RemoteBlessingNames(ctx, call)
-	clientB := localPrincipal.BlessingStore().ForPeer(serverB...)
+	peerNames, rejectedPeerNames := security.RemoteBlessingNames(ctx, call)
+	return peerNames, rejectedPeerNames, nil
+}
+
+func (x peerAuthorizer) BlessingsForPeer(ctx *context.T, peerNames []string) (
+	security.Blessings, map[string]security.Discharge, error) {
+	localPrincipal := v23.GetPrincipal(ctx)
+	clientB := localPrincipal.BlessingStore().ForPeer(peerNames...)
 	if clientB.IsZero() {
 		// TODO(ataly, ashankar): We need not error out here and instead can just
 		// send the <nil> blessings to the server.
-		return security.Blessings{}, nil, verror.New(errNoBlessingsForPeer, ctx, serverB, serverBRejected)
+		// TODO(suharshs): Make this a different error when we are making all the vdl errors
+		// in a errors.vdl file.
+		return security.Blessings{}, nil, verror.New(errNoBlessingsForPeer, ctx, nil, nil)
 	}
-	impetus, err := mkDischargeImpetus(serverB, x.method, x.args)
+	impetus, err := mkDischargeImpetus(peerNames, x.method, x.args)
 	if err != nil {
 		return security.Blessings{}, nil, err
 	}
@@ -446,7 +454,7 @@ func (c *xclient) failedTryCall(ctx *context.T, name, method string, responses [
 	for _, r := range responses {
 		if r != nil && r.serverErr != nil && r.serverErr.Err != nil {
 			switch verror.ErrorID(r.serverErr.Err) {
-			case /*stream.ErrNotTrusted.ID,*/ verror.ErrNotTrusted.ID, errServerAuthorizeFailed.ID:
+			case /*stream.ErrNotTrusted.ID,*/ verror.ErrNotTrusted.ID, errPeerAuthorizeFailed.ID:
 				topLevelError = verror.ErrNotTrusted
 				topLevelAction = verror.NoRetry
 				onlyErrNetwork = false
@@ -602,7 +610,7 @@ func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts 
 		Suffix:           suffix,
 	})
 	// TODO(suharshs): Its unfortunate that we compute these here and also in the
-	// blessingsForPeer.run function. Find a way to only do this once.
+	// peerAuthorizer struct. Find a way to only do this once.
 	fc.remoteBNames, _ = security.RemoteBlessingNames(ctx, call)
 	var grantedB security.Blessings
 	for _, o := range opts {

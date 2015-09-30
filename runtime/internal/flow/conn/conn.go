@@ -95,6 +95,7 @@ func NewDialed(
 	conn flow.MsgReadWriteCloser,
 	local, remote naming.Endpoint,
 	versions version.RPCVersionRange,
+	auth flow.PeerAuthorizer,
 	handshakeTimeout time.Duration,
 	handler FlowHandler,
 	events chan<- StatusUpdate) (*Conn, error) {
@@ -116,7 +117,7 @@ func NewDialed(
 	// TODO(mattr): This scheme for deadlines is nice, but it doesn't
 	// provide for cancellation when ctx is canceled.
 	t := time.AfterFunc(handshakeTimeout, func() { conn.Close() })
-	err := c.dialHandshake(ctx, versions)
+	err := c.dialHandshake(ctx, versions, auth)
 	if stopped := t.Stop(); !stopped {
 		err = verror.NewErrTimeout(ctx)
 	}
@@ -179,7 +180,7 @@ func (c *Conn) EnterLameDuck(ctx *context.T) {
 }
 
 // Dial dials a new flow on the Conn.
-func (c *Conn) Dial(ctx *context.T, fn flow.BlessingsForPeer) (flow.Flow, error) {
+func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error) {
 	if c.rBlessings.IsZero() {
 		return nil, NewErrDialingNonServer(ctx)
 	}
@@ -187,9 +188,14 @@ func (c *Conn) Dial(ctx *context.T, fn flow.BlessingsForPeer) (flow.Flow, error)
 	if err != nil {
 		return nil, err
 	}
-	blessings, discharges, err := fn(ctx, c.local, c.remote, c.rBlessings, rDischarges)
+	// TODO(suharshs): On the first flow dial, find a way to not call this twice.
+	rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges)
 	if err != nil {
 		return nil, err
+	}
+	blessings, discharges, err := auth.BlessingsForPeer(ctx, rbnames)
+	if err != nil {
+		return nil, NewErrNoBlessingsForPeer(ctx, rbnames, rejected, err)
 	}
 	bkey, dkey, err := c.blessingsFlow.put(ctx, blessings, discharges)
 	if err != nil {

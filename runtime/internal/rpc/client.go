@@ -62,7 +62,7 @@ var (
 	errNoBlessingsForPeer        = reg(".errNoBlessingsForPeer", "no blessings tagged for peer {3}{:4}")
 	errBlessingGrant             = reg(".errBlessingGrant", "failed to grant blessing to server with blessings{:3}")
 	errBlessingAdd               = reg(".errBlessingAdd", "failed to add blessing granted to server{:3}")
-	errServerAuthorizeFailed     = reg(".errServerAuthorizedFailed", "failed to authorize flow with remote blessings{:3} {:4}")
+	errPeerAuthorizeFailed       = reg(".errPeerAuthorizedFailed", "failed to authorize flow with remote blessings{:3} {:4}")
 
 	errPrepareBlessingsAndDischarges = reg(".prepareBlessingsAndDischarges", "failed to prepare blessings and discharges: remote blessings{:3} {:4}")
 
@@ -390,9 +390,9 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		Suffix:           status.suffix,
 	})
 	if err := auth.Authorize(ctx, seccall); err != nil {
-		// We will test for errServerAuthorizeFailed in failedTryCall and report
+		// We will test for errPeerAuthorizeFailed in failedTryCall and report
 		// verror.ErrNotTrusted
-		status.serverErr = suberr(verror.New(errServerAuthorizeFailed, ctx, status.flow.RemoteBlessings(), err))
+		status.serverErr = suberr(verror.New(errPeerAuthorizeFailed, ctx, status.flow.RemoteBlessings(), err))
 		ctx.VI(2).Infof("rpc: Failed to authorize Flow created with server %v: %s", server, status.serverErr.Err)
 		status.flow.Close()
 		status.flow = nil
@@ -630,7 +630,7 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	for _, r := range responses {
 		if r != nil && r.serverErr != nil && r.serverErr.Err != nil {
 			switch verror.ErrorID(r.serverErr.Err) {
-			case stream.ErrNotTrusted.ID, verror.ErrNotTrusted.ID, errServerAuthorizeFailed.ID:
+			case stream.ErrNotTrusted.ID, verror.ErrNotTrusted.ID, errPeerAuthorizeFailed.ID:
 				topLevelError = verror.ErrNotTrusted
 				topLevelAction = verror.NoRetry
 				onlyErrNetwork = false
