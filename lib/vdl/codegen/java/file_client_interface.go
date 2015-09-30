@@ -38,6 +38,8 @@ public interface {{ .ServiceName }}Client {{ .Extends }} {
     {{ $method.Doc }}
     {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}) throws io.v.v23.verror.VException;
     {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException;
+    void {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.rpc.Callback<{{ $method.GenericRetType }}> callback) throws io.v.v23.verror.VException;
+    void {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.Options vOpts, io.v.v23.rpc.Callback<{{ $method.GenericRetType }}> callback) throws io.v.v23.verror.VException;
 {{ end }}
 }
 `
@@ -54,6 +56,7 @@ type clientInterfaceMethod struct {
 	IsMultipleRet       bool
 	RetArgs             []clientInterfaceArg
 	RetType             string
+	GenericRetType      string
 	UppercaseMethodName string
 }
 
@@ -69,11 +72,11 @@ func clientInterfaceNonStreamingOutArg(iface *compile.Interface, method *compile
 	}
 }
 
-func clientInterfaceOutArg(iface *compile.Interface, method *compile.Method, env *compile.Env) string {
+func clientInterfaceOutArg(iface *compile.Interface, method *compile.Method, env *compile.Env, forceClass bool) string {
 	if isStreamingMethod(method) {
 		return fmt.Sprintf("io.v.v23.vdl.TypedClientStream<%s, %s, %s>", javaType(method.InStream, true, env), javaType(method.OutStream, true, env), clientInterfaceNonStreamingOutArg(iface, method, true, env))
 	}
-	return clientInterfaceNonStreamingOutArg(iface, method, false, env)
+	return clientInterfaceNonStreamingOutArg(iface, method, forceClass, env)
 }
 
 func processClientInterfaceMethod(iface *compile.Interface, method *compile.Method, env *compile.Env) clientInterfaceMethod {
@@ -92,7 +95,8 @@ func processClientInterfaceMethod(iface *compile.Interface, method *compile.Meth
 		Name:                vdlutil.FirstRuneToLower(method.Name),
 		IsMultipleRet:       len(retArgs) > 1,
 		RetArgs:             retArgs,
-		RetType:             clientInterfaceOutArg(iface, method, env),
+		RetType:             clientInterfaceOutArg(iface, method, env, false),
+		GenericRetType:      clientInterfaceOutArg(iface, method, env, true),
 		UppercaseMethodName: method.Name,
 	}
 }
