@@ -137,7 +137,7 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 			return nil, err
 		}
 	}
-	fout, err := p.m.Dial(ctx, ep, proxyBlessingsForPeer{}.run)
+	fout, err := p.m.Dial(ctx, ep, proxyAuthorizer{})
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func (p *proxy) connectToProxy(ctx *context.T, address string, ep naming.Endpoin
 			return
 		default:
 		}
-		f, err := p.m.Dial(ctx, ep, proxyBlessingsForPeer{}.run)
+		f, err := p.m.Dial(ctx, ep, proxyAuthorizer{})
 		if err != nil {
 			ctx.Error(err)
 			continue

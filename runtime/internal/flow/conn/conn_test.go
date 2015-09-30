@@ -100,7 +100,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 	q1, q2 := make(chan flow.Flow, 1), make(chan flow.Flow, 1)
 	fh1, fh2 := fh(q1), fh(q2)
 	go func() {
-		d, err := NewDialed(ctx, dmrw, ep, ep, versions, time.Minute, nil, nil)
+		d, err := NewDialed(ctx, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, nil, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -115,7 +115,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 	}()
 	d, a := <-dch, <-ach
 	var f flow.Flow
-	if f, err = d.Dial(ctx, flowtest.BlessingsForPeer); err != nil {
+	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err != nil {
 		t.Fatal(err)
 	}
 	// Write a byte to send the openFlow message.
@@ -126,7 +126,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 	<-q1
 	// After updating to fh2 the flow should be accepted in fh2.
 	a.UpdateFlowHandler(ctx, fh2)
-	if f, err = d.Dial(ctx, flowtest.BlessingsForPeer); err != nil {
+	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err != nil {
 		t.Fatal(err)
 	}
 	// Write a byte to send the openFlow message.

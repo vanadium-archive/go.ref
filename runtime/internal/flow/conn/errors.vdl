@@ -4,6 +4,8 @@
 
 package conn
 
+import "v.io/v23/security"
+
 // These messages are constructed so as to avoid embedding a component/method name
 // and are thus more suitable for inclusion in other verrors.
 // This practice of omitting {1}{2} should be used throughout the flow implementations
@@ -26,4 +28,5 @@ error (
   AcceptorBlessingsMissing() {"en": "The acceptor did not send blessings."}
   UpdatingNilFlowHandler() {"en": "nil flowHandler cannot be updated to non-nil value."}
   BlessingsNotBound() {"en": "blessings not bound to connection remote public key"}
+  NoBlessingsForPeer(peerNames []string, rejected []security.RejectedBlessing, err error) {"en": "no blessings tagged for peer {peerNames}, rejected:{rejected}{:err}"}
 )

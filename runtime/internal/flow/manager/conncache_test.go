@@ -296,7 +296,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	ach := make(chan *connpackage.Conn)
 	go func() {
 		d, err := connpackage.NewDialed(ctx, dmrw, ep, ep,
-			version.RPCVersionRange{Min: 1, Max: 5}, time.Minute, nil, nil)
+			version.RPCVersionRange{Min: 1, Max: 5}, flowtest.AllowAllPeersAuthorizer{}, time.Minute, nil, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -313,7 +313,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	}()
 	conn := <-dch
 	<-ach
-	f, err := conn.Dial(ctx, flowtest.BlessingsForPeer)
+	f, err := conn.Dial(ctx, flowtest.AllowAllPeersAuthorizer{})
 	if err != nil {
 		t.Fatal(err)
 	}

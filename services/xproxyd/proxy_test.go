@@ -184,7 +184,7 @@ func TestMultipleProxies(t *testing.T) {
 func testEndToEndConnection(t *testing.T, ctx *context.T, dm, am flow.Manager, aep naming.Endpoint) error {
 	// The dialing flow.Manager dials a flow to the accepting flow.Manager.
 	want := "Do you read me?"
-	df, err := dm.Dial(ctx, aep, bfp)
+	df, err := dm.Dial(ctx, aep, allowAllPeersAuthorizer{})
 	if err != nil {
 		return err
 	}
@@ -232,12 +232,19 @@ func writeLine(f flow.Flow, data string) error {
 	return err
 }
 
-func bfp(
+type allowAllPeersAuthorizer struct{}
+
+func (allowAllPeersAuthorizer) AuthorizePeer(
 	ctx *context.T,
 	localEndpoint, remoteEndpoint naming.Endpoint,
 	remoteBlessings security.Blessings,
 	remoteDischarges map[string]security.Discharge,
-) (security.Blessings, map[string]security.Discharge, error) {
+) ([]string, []security.RejectedBlessing, error) {
+	return nil, nil, nil
+}
+
+func (allowAllPeersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
+	security.Blessings, map[string]security.Discharge, error) {
 	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
 

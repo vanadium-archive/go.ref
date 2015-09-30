@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/nacl/box"
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
@@ -27,7 +28,7 @@ var (
 	authAcceptorTag = []byte("AuthAcpt\x00")
 )
 
-func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) error {
+func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, auth flow.PeerAuthorizer) error {
 	binding, err := c.setup(ctx, versions)
 	if err != nil {
 		return err
@@ -37,11 +38,15 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange) e
 	bflow.worker.Release(ctx, DefaultBytesBufferedPerFlow)
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG, bflow, true)
 
-	if err = c.readRemoteAuth(ctx, authAcceptorTag, binding); err != nil {
+	rDischarges, err := c.readRemoteAuth(ctx, authAcceptorTag, binding)
+	if err != nil {
 		return err
 	}
 	if c.rBlessings.IsZero() {
 		return NewErrAcceptorBlessingsMissing(ctx)
+	}
+	if _, _, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges); err != nil {
+		return err
 	}
 	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authDialerTag, binding...))
 	if err != nil {
@@ -82,7 +87,8 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
 		return err
 	}
-	return c.readRemoteAuth(ctx, authDialerTag, binding)
+	_, err = c.readRemoteAuth(ctx, authDialerTag, binding)
+	return err
 }
 
 func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, error) {
@@ -141,38 +147,39 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	return binding, nil
 }
 
-func (c *Conn) readRemoteAuth(ctx *context.T, tag []byte, binding []byte) error {
+func (c *Conn) readRemoteAuth(ctx *context.T, tag, binding []byte) (map[string]security.Discharge, error) {
 	var rauth *message.Auth
 	for {
 		msg, err := c.mp.readMsg(ctx)
 		if err != nil {
-			return NewErrRecv(ctx, c.remote.String(), err)
+			return nil, NewErrRecv(ctx, c.remote.String(), err)
 		}
 		if rauth, _ = msg.(*message.Auth); rauth != nil {
 			break
 		}
 		if err = c.handleMessage(ctx, msg); err != nil {
-			return err
+			return nil, err
 		}
 	}
+	var rDischarges map[string]security.Discharge
 	if rauth.BlessingsKey != 0 {
 		var err error
 		// TODO(mattr): Make sure we cancel out of this at some point.
-		c.rBlessings, _, err = c.blessingsFlow.get(ctx, rauth.BlessingsKey, rauth.DischargeKey)
+		c.rBlessings, rDischarges, err = c.blessingsFlow.get(ctx, rauth.BlessingsKey, rauth.DischargeKey)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		c.rPublicKey = c.rBlessings.PublicKey()
 	} else {
 		c.rPublicKey = rauth.PublicKey
 	}
 	if c.rPublicKey == nil {
-		return NewErrNoPublicKey(ctx)
+		return nil, NewErrNoPublicKey(ctx)
 	}
 	if !rauth.ChannelBinding.Verify(c.rPublicKey, append(tag, binding...)) {
-		return NewErrInvalidChannelBinding(ctx)
+		return nil, NewErrInvalidChannelBinding(ctx)
 	}
-	return nil
+	return rDischarges, nil
 }
 
 func (c *Conn) refreshDischarges(ctx *context.T) (bkey, dkey uint64, err error) {

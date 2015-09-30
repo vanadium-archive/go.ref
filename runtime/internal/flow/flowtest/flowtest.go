@@ -98,11 +98,18 @@ func (f *MRW) Close() error {
 	return nil
 }
 
-func BlessingsForPeer(
+type AllowAllPeersAuthorizer struct{}
+
+func (AllowAllPeersAuthorizer) AuthorizePeer(
 	ctx *context.T,
 	localEndpoint, remoteEndpoint naming.Endpoint,
 	remoteBlessings security.Blessings,
 	remoteDischarges map[string]security.Discharge,
-) (security.Blessings, map[string]security.Discharge, error) {
+) ([]string, []security.RejectedBlessing, error) {
+	return nil, nil, nil
+}
+
+func (AllowAllPeersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
+	security.Blessings, map[string]security.Discharge, error) {
 	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
