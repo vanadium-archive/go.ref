@@ -1018,9 +1018,17 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	// Decode the response header, if it hasn't already been decoded by Recv.
 	if fc.response.Error == nil && !fc.response.EndStreamResults {
 		if err := fc.dec.Decode(&fc.response); err != nil {
-			id, verr := decodeNetError(fc.ctx, err)
-			berr := verror.New(id, fc.ctx, verror.New(errResponseDecoding, fc.ctx, verr))
-			return fc.close(berr)
+			select {
+			case <-fc.ctx.Done():
+				if fc.ctx.Err() == context.Canceled {
+					return verror.New(verror.ErrCanceled, fc.ctx)
+				}
+				return verror.New(verror.ErrTimeout, fc.ctx)
+			default:
+				id, verr := decodeNetError(fc.ctx, err)
+				berr := verror.New(id, fc.ctx, verror.New(errResponseDecoding, fc.ctx, verr))
+				return fc.close(berr)
+			}
 		}
 		// The response header must indicate the streaming results have ended.
 		if fc.response.Error == nil && !fc.response.EndStreamResults {
