@@ -176,7 +176,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 	// Fill up all the write buffers to ensure that cancelling works even when the stream
 	// is blocked.
 	if ref.RPCTransitionState() >= ref.XServers {
-		call.Send(conn.DefaultBytesBufferedPerFlow)
+		call.Send(make([]byte, conn.DefaultBytesBufferedPerFlow-2048))
 	} else {
 		call.Send(make([]byte, vc.MaxSharedBytes))
 		call.Send(make([]byte, vc.DefaultBytesBufferedPerFlow))
