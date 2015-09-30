@@ -49,7 +49,6 @@ type xserver struct {
 	settingsPublisher *pubsub.Publisher   // pubsub publisher for dhcp
 	settingsName      string              // pubwsub stream name for dhcp
 	dhcpState         *dhcpState          // dhcpState, nil if not using dhcp
-	principal         security.Principal
 	blessings         security.Blessings
 	typeCache         *typeCache
 	addressChooser    rpc.AddressChooser
@@ -807,7 +806,7 @@ func (fs *xflowServer) Suffix() string {
 }
 func (fs *xflowServer) LocalPrincipal() security.Principal {
 	//nologcall
-	return fs.server.principal
+	return v23.GetPrincipal(fs.server.ctx)
 }
 func (fs *xflowServer) LocalBlessings() security.Blessings {
 	//nologcall

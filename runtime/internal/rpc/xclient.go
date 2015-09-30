@@ -564,7 +564,8 @@ func (fc *flowXClient) close(err error) error {
 func (fc *flowXClient) start(suffix, method string, args []interface{}, deadline time.Time, opts []rpc.CallOpt) error {
 	grantedB, err := fc.initSecurity(fc.ctx, method, suffix, opts)
 	if err != nil {
-		fc.close(err)
+		berr := verror.New(verror.ErrNotTrusted, fc.ctx, err)
+		return fc.close(berr)
 	}
 	req := rpc.Request{
 		Suffix:           suffix,

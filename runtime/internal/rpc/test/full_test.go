@@ -289,13 +289,13 @@ func TestPreferredAddressErrors(t *testing.T) {
 	}
 	status := server.Status()
 	if got, want := len(status.Endpoints), 0; got != want {
-		t.Errorf("got %q, want %q", got, want)
+		t.Errorf("got %d, want %d", got, want)
 	}
 	if got, want := len(status.Errors), 1; got != want {
-		t.Errorf("got %q, want %q", got, want)
+		t.Errorf("got %d, want %d", got, want)
 	}
 	if got, want := status.Errors[0].Error(), "oops"; got != want {
-		t.Errorf("got %q, want %q", got, want)
+		t.Errorf("got %d, want %d", got, want)
 	}
 }
 
