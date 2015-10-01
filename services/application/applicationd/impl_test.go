@@ -82,7 +82,7 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	_, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}
@@ -291,7 +291,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	_, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
@@ -328,7 +328,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	ctx, server, err = v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	_, server, err = v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}
@@ -355,7 +355,7 @@ func TestTidyNow(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	_, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}

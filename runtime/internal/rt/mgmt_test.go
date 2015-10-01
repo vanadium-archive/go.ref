@@ -277,7 +277,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 	ch := make(chan string)
 	service := device.ConfigServer(&configServer{ch})
 	authorizer := securityflag.NewAuthorizerOrDie()
-	ctx, configServer, err := v23.WithNewServer(ctx, "", service, authorizer)
+	_, configServer, err := v23.WithNewServer(ctx, "", service, authorizer)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}

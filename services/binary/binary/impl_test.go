@@ -104,7 +104,7 @@ func TestBinaryClient(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", NewDispatcher())
+	_, server, err := v23.WithNewDispatchingServer(ctx, "", NewDispatcher())
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}

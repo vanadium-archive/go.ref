@@ -220,7 +220,7 @@ func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
 }
 
 func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, mt bool) *serverEntry {
-	ctx, s, err := v23.WithNewDispatchingServer(ctx, mountPoint, disp, options.ServesMountTable(mt))
+	_, s, err := v23.WithNewDispatchingServer(ctx, mountPoint, disp, options.ServesMountTable(mt))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -773,7 +773,7 @@ func TestLeaf(t *testing.T) {
 	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(root.name)
 
-	ctx, server, err := v23.WithNewServer(ctx, "leaf", &leafObject{}, nil)
+	_, server, err := v23.WithNewServer(ctx, "leaf", &leafObject{}, nil)
 	if err != nil {
 		boom(t, "v23.WithNewServer: %s", err)
 	}

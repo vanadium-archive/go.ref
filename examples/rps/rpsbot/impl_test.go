@@ -36,7 +36,7 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
+	_, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
@@ -53,7 +53,7 @@ func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RP
 	ns.SetRoots(mtAddress)
 	rpsService := NewRPS(ctx)
 	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
-	ctx, server, err := v23.WithNewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), nil)
+	_, server, err := v23.WithNewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), nil)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
