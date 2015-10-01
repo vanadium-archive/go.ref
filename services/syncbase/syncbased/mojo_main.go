@@ -12,6 +12,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"mojo/public/go/application"
 	"mojo/public/go/bindings"
@@ -29,13 +30,22 @@ import (
 import "C"
 
 type delegate struct {
-	ctx   *context.T
-	srv   rpc.Server
-	disp  rpc.Dispatcher
-	stubs []*bindings.Stub
+	ctx      *context.T
+	disp     rpc.Dispatcher
+	shutdown func()
+	srv      rpc.Server
+	stubs    []*bindings.Stub
 }
 
-func (d *delegate) Initialize(ctx application.Context) {
+func (d *delegate) Initialize(actx application.Context) {
+	// actx.Args() is a slice that contains the url of this mojo service
+	// followed by all arguments passed to the mojo service via the
+	// "--args-for" flag.
+	// Since the v23 runtime factories parse arguments from os.Args, we must
+	// overwrite os.Args with actx.Args().
+	// Note that os.Args must be set before calling v23.Init().
+	os.Args = actx.Args()
+	d.ctx, d.shutdown = v23.Init()
 	d.srv, d.disp = Serve(d.ctx)
 }
 
@@ -64,13 +74,12 @@ func (d *delegate) Quit() {
 	for _, stub := range d.stubs {
 		stub.Close()
 	}
+	d.shutdown()
 }
 
 //export MojoMain
 func MojoMain(handle C.MojoHandle) C.MojoResult {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-	application.Run(&delegate{ctx: ctx}, system.MojoHandle(handle))
+	application.Run(&delegate{}, system.MojoHandle(handle))
 	return C.MOJO_RESULT_OK
 }
 
