@@ -55,7 +55,7 @@ func setup(t *testing.T) (*context.T, fortune.FortuneClientStub, v23.Shutdown) {
 	service := fortune.FortuneServer(impl)
 	name := ""
 
-	ctx, server, err := v23.WithNewServer(ctx, name, service, authorizer)
+	_, server, err := v23.WithNewServer(ctx, name, service, authorizer)
 	if err != nil {
 		t.Errorf("Failure creating server: %v", err)
 	}

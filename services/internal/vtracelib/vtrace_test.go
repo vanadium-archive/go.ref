@@ -23,7 +23,7 @@ func TestVtraceServer(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ctx, server, err := v23.WithNewServer(ctx, "", vtracelib.NewVtraceService(), nil)
+	_, server, err := v23.WithNewServer(ctx, "", vtracelib.NewVtraceService(), nil)
 	if err != nil {
 		t.Fatalf("Could not create server: %s", err)
 	}

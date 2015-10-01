@@ -68,7 +68,7 @@ func startServer(t *testing.T, ctx *context.T) build.BuilderClientMethods {
 	gobin, goroot := findGoBinary(t, "go")
 	service := build.BuilderServer(NewBuilderService(gobin, goroot))
 	unpublished := ""
-	ctx, server, err := v23.WithNewServer(ctx, unpublished, service, nil)
+	_, server, err := v23.WithNewServer(ctx, unpublished, service, nil)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}

@@ -348,7 +348,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
 	ch := make(chan string)
-	ctx, server, err := v23.WithNewServer(ctx, "", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie())
+	_, server, err := v23.WithNewServer(ctx, "", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
