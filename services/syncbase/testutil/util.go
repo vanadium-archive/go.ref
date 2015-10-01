@@ -233,6 +233,7 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	if err != nil {
 		vlog.Fatal("ioutil.TempDir() failed: ", err)
 	}
+	serverCtx, cancel := context.WithCancel(serverCtx)
 	service, err := server.NewService(serverCtx, nil, server.ServiceOptions{
 		Perms:   perms,
 		RootDir: rootDir,
@@ -247,7 +248,8 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	}
 	name := s.Status().Endpoints[0].Name()
 	return name, func() {
-		s.Stop()
+		cancel()
+		<-s.Closed()
 		os.RemoveAll(rootDir)
 	}
 }
