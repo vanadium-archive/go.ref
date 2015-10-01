@@ -15,9 +15,9 @@
 package mdns
 
 import (
-	"encoding/hex"
+	"bytes"
+	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -35,14 +35,25 @@ const (
 	v23ServiceName    = "v23"
 	serviceNameSuffix = "._sub._" + v23ServiceName
 
-	// The attribute names should not exceed 4 bytes due to the txt record
-	// size limit.
-	attrServiceUuid = "_srv"
-	attrInterface   = "_itf"
-	attrAddr        = "_adr"
-	// TODO(jhahn): Remove attrEncryptionAlgorithm.
-	attrEncryptionAlgorithm = "_xxx"
-	attrEncryptionKeys      = "_key"
+	// Use short attribute names due to the txt record size limit.
+	attrName       = "_n"
+	attrInterface  = "_i"
+	attrAddrs      = "_a"
+	attrEncryption = "_e"
+
+	// The prefix for attribute names for encoded large txt records.
+	attrLargeTxtPrefix = "_x"
+
+	// RFC 6763 limits each DNS txt record to 255 bytes and recommends to not have
+	// the cumulative size be larger than 1300 bytes.
+	//
+	// TODO(jhahn): Figure out how to overcome this limit.
+	maxTxtRecordLen       = 255
+	maxTotalTxtRecordsLen = 1300
+)
+
+var (
+	errMaxTxtRecordLenExceeded = errors.New("max txt record size exceeded")
 )
 
 type plugin struct {
@@ -64,8 +75,8 @@ func (p *plugin) Advertise(ctx *context.T, ad ldiscovery.Advertisement) error {
 	serviceName := ad.ServiceUuid.String() + serviceNameSuffix
 	// We use the instance uuid as the host name so that we can get the instance uuid
 	// from the lost service instance, which has no txt records at all.
-	hostName := hex.EncodeToString(ad.InstanceUuid)
-	txt, err := createTXTRecords(&ad)
+	hostName := encodeInstanceUuid(ad.InstanceUuid)
+	txt, err := createTxtRecords(&ad)
 	if err != nil {
 		return err
 	}
@@ -134,7 +145,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- ldiscover
 			case <-ctx.Done():
 				return
 			}
-			ad, err := decodeAdvertisement(service)
+			ad, err := createAdvertisement(service)
 			if err != nil {
 				ctx.Error(err)
 				continue
@@ -149,65 +160,89 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- ldiscover
 	return nil
 }
 
-func createTXTRecords(ad *ldiscovery.Advertisement) ([]string, error) {
-	// Prepare a TXT record with attributes and addresses to announce.
-	//
-	// TODO(jhahn): Currently, the packet size is limited to 2000 bytes in
-	// go-mdns-sd package. Think about how to handle a large number of TXT
-	// records.
-	txt := make([]string, 0, len(ad.Attrs)+4)
-	txt = append(txt, fmt.Sprintf("%s=%s", attrServiceUuid, ad.ServiceUuid))
-	txt = append(txt, fmt.Sprintf("%s=%s", attrInterface, ad.InterfaceName))
+func createTxtRecords(ad *ldiscovery.Advertisement) ([]string, error) {
+	// Prepare a txt record with attributes and addresses to announce.
+	txt := appendTxtRecord(nil, attrInterface, ad.InterfaceName)
+	if len(ad.InstanceName) > 0 {
+		txt = appendTxtRecord(txt, attrName, ad.InstanceName)
+	}
+	if len(ad.Addrs) > 0 {
+		addrs := ldiscovery.PackAddresses(ad.Addrs)
+		txt = appendTxtRecord(txt, attrAddrs, string(addrs))
+	}
+	if ad.EncryptionAlgorithm != ldiscovery.NoEncryption {
+		enc := ldiscovery.PackEncryptionKeys(ad.EncryptionAlgorithm, ad.EncryptionKeys)
+		txt = appendTxtRecord(txt, attrEncryption, string(enc))
+	}
 	for k, v := range ad.Attrs {
-		txt = append(txt, fmt.Sprintf("%s=%s", k, v))
+		txt = appendTxtRecord(txt, k, v)
 	}
-	for _, a := range ad.Addrs {
-		txt = append(txt, fmt.Sprintf("%s=%s", attrAddr, a))
+	txt, err := maybeSplitLargeTXT(txt)
+	if err != nil {
+		return nil, err
 	}
-	txt = append(txt, fmt.Sprintf("%s=%d", attrEncryptionAlgorithm, ad.EncryptionAlgorithm))
-	for _, k := range ad.EncryptionKeys {
-		txt = append(txt, fmt.Sprintf("%s=%s", attrEncryptionKeys, k))
+	n := 0
+	for _, v := range txt {
+		n += len(v)
+		if n > maxTotalTxtRecordsLen {
+			return nil, errMaxTxtRecordLenExceeded
+		}
 	}
 	return txt, nil
 }
 
-func decodeAdvertisement(service mdns.ServiceInstance) (ldiscovery.Advertisement, error) {
+func appendTxtRecord(txt []string, k, v string) []string {
+	var buf bytes.Buffer
+	buf.WriteString(k)
+	buf.WriteByte('=')
+	buf.WriteString(v)
+	kv := buf.String()
+	txt = append(txt, kv)
+	return txt
+}
+
+func createAdvertisement(service mdns.ServiceInstance) (ldiscovery.Advertisement, error) {
 	// Note that service.Name starts with a host name, which is the instance uuid.
 	p := strings.SplitN(service.Name, ".", 2)
 	if len(p) < 1 {
-		return ldiscovery.Advertisement{}, fmt.Errorf("invalid host name: %s", service.Name)
+		return ldiscovery.Advertisement{}, fmt.Errorf("invalid service name: %s", service.Name)
 	}
-	instanceUuid, err := hex.DecodeString(p[0])
+	instanceUuid, err := decodeInstanceUuid(p[0])
 	if err != nil {
 		return ldiscovery.Advertisement{}, fmt.Errorf("invalid host name: %v", err)
 	}
 
-	ad := ldiscovery.Advertisement{
-		Service: discovery.Service{
-			InstanceUuid: instanceUuid,
-			Attrs:        make(discovery.Attributes),
-		},
-		Lost: len(service.SrvRRs) == 0 && len(service.TxtRRs) == 0,
+	ad := ldiscovery.Advertisement{Service: discovery.Service{InstanceUuid: instanceUuid}}
+	if len(service.SrvRRs) == 0 && len(service.TxtRRs) == 0 {
+		ad.Lost = true
+		return ad, nil
 	}
 
+	ad.Attrs = make(discovery.Attributes)
 	for _, rr := range service.TxtRRs {
-		for _, txt := range rr.Txt {
-			kv := strings.SplitN(txt, "=", 2)
-			if len(kv) != 2 {
+		txt, err := maybeJoinLargeTXT(rr.Txt)
+		if err != nil {
+			return ldiscovery.Advertisement{}, err
+		}
+
+		for _, kv := range txt {
+			p := strings.SplitN(kv, "=", 2)
+			if len(p) != 2 {
 				return ldiscovery.Advertisement{}, fmt.Errorf("invalid txt record: %s", txt)
 			}
-			switch k, v := kv[0], kv[1]; k {
-			case attrServiceUuid:
-				ad.ServiceUuid = uuid.Parse(v)
+			switch k, v := p[0], p[1]; k {
+			case attrName:
+				ad.InstanceName = v
 			case attrInterface:
 				ad.InterfaceName = v
-			case attrAddr:
-				ad.Addrs = append(ad.Addrs, v)
-			case attrEncryptionAlgorithm:
-				a, _ := strconv.Atoi(v)
-				ad.EncryptionAlgorithm = ldiscovery.EncryptionAlgorithm(a)
-			case attrEncryptionKeys:
-				ad.EncryptionKeys = append(ad.EncryptionKeys, ldiscovery.EncryptionKey(v))
+			case attrAddrs:
+				if ad.Addrs, err = ldiscovery.UnpackAddresses([]byte(v)); err != nil {
+					return ldiscovery.Advertisement{}, err
+				}
+			case attrEncryption:
+				if ad.EncryptionAlgorithm, ad.EncryptionKeys, err = ldiscovery.UnpackEncryptionKeys([]byte(v)); err != nil {
+					return ldiscovery.Advertisement{}, err
+				}
 			default:
 				ad.Attrs[k] = v
 			}

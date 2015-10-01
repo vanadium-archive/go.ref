@@ -19,6 +19,7 @@ func TestConvertingBackAndForth(t *testing.T) {
 	v23Adv := discovery.Advertisement{
 		Service: vdiscovery.Service{
 			InstanceUuid: []byte(discovery.NewInstanceUUID()),
+			InstanceName: "service",
 			Attrs: vdiscovery.Attributes{
 				"key1": "value1",
 				"key2": "value2",
@@ -27,7 +28,7 @@ func TestConvertingBackAndForth(t *testing.T) {
 		},
 		ServiceUuid:         uuid.NewUUID(),
 		EncryptionAlgorithm: discovery.TestEncryption,
-		EncryptionKeys:      []discovery.EncryptionKey{discovery.EncryptionKey("k1"), discovery.EncryptionKey("k2")},
+		EncryptionKeys:      []discovery.EncryptionKey{discovery.EncryptionKey("k")},
 	}
 
 	adv := newAdvertisment(v23Adv)
