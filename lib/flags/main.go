@@ -29,6 +29,6 @@ func main() {
 	for _, a := range lf.Addrs {
 		fmt.Printf("Listen: Protocol %q, Address %q\n", a.Protocol, a.Address)
 	}
-	fmt.Printf("Listen: Proxy %q\n", lf.ListenProxy)
+	fmt.Printf("Listen: Proxy %q\n", lf.Proxy)
 	fmt.Printf("AccessList: %v\n", fl.AccessListFlags())
 }

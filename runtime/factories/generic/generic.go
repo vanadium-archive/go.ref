@@ -48,7 +48,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	listenSpec := rpc.ListenSpec{
 		Addrs:          rpc.ListenAddrs(lf.Addrs),
 		AddressChooser: internal.IPAddressChooser{},
-		Proxy:          lf.ListenProxy,
+		Proxy:          lf.Proxy,
 	}
 
 	runtime, ctx, shutdown, err := grt.Init(ctx,
