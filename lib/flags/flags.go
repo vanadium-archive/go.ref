@@ -187,10 +187,10 @@ type ListenAddrs []struct {
 
 // ListenFlags contains the values of the Listen flag group.
 type ListenFlags struct {
-	Addrs       ListenAddrs
-	ListenProxy string
-	protocol    tcpProtocolFlagVar
-	addresses   ipHostPortFlagVar
+	Addrs     ListenAddrs
+	Proxy     string
+	protocol  tcpProtocolFlagVar
+	addresses ipHostPortFlagVar
 }
 
 type tcpProtocolFlagVar struct {
@@ -343,7 +343,7 @@ func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
 
 	fs.Var(&f.protocol, "v23.tcp.protocol", "protocol to listen with")
 	fs.Var(&f.addresses, "v23.tcp.address", "address to listen on")
-	fs.StringVar(&f.ListenProxy, "v23.proxy", "", "object name of proxy service to use to export services across network boundaries")
+	fs.StringVar(&f.Proxy, "v23.proxy", "", "object name of proxy service to use to export services across network boundaries")
 
 	return f
 }

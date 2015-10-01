@@ -48,7 +48,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	lf := commonFlags.ListenFlags()
 	listenSpec := rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs(lf.Addrs),
-		Proxy: lf.ListenProxy,
+		Proxy: lf.Proxy,
 	}
 	reservedDispatcher := debuglib.NewDispatcher(securityflag.NewAuthorizerOrDie())
 
