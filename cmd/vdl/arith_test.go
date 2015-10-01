@@ -103,7 +103,7 @@ func TestCalculator(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ctx, server, err := v23.WithNewServer(ctx, "", arith.CalculatorServer(&serverCalculator{}), nil)
+	_, server, err := v23.WithNewServer(ctx, "", arith.CalculatorServer(&serverCalculator{}), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestArith(t *testing.T) {
 	}
 
 	for i, obj := range objects {
-		ctx, server, err := v23.WithNewServer(ctx, "", obj, nil)
+		_, server, err := v23.WithNewServer(ctx, "", obj, nil)
 		if err != nil {
 			t.Fatalf("%d: %v", i, err)
 		}
