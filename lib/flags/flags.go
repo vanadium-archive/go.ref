@@ -410,8 +410,7 @@ func (f *Flags) ListenFlags() ListenFlags {
 		lf := p.(*ListenFlags)
 		n := *lf
 		if len(lf.Addrs) == 0 {
-			n.Addrs = ListenAddrs{{n.protocol.String(),
-				n.addresses.validator.String()}}
+			n.Addrs = ListenAddrs{{n.protocol.String(), n.addresses.validator.String()}}
 			return n
 		}
 		n.Addrs = make(ListenAddrs, len(lf.Addrs))
