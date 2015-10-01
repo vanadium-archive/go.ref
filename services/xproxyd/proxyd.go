@@ -71,7 +71,7 @@ func (p *proxy) listenLoop(ctx *context.T) {
 		}
 		msg, err := readMessage(ctx, f)
 		if err != nil {
-			ctx.Errorf("reading type byte failed: %v", err)
+			ctx.Errorf("reading message failed: %v", err)
 		}
 		switch m := msg.(type) {
 		case *message.Setup:
