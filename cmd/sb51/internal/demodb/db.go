@@ -107,6 +107,37 @@ var demoTables = []table{
 			},
 		},
 	},
+	table{
+		name: "Students",
+		rows: []kv{
+			kv{
+				"1",
+				vdl.ValueOf(Student{Name: "John Smith", TestTime: t("Jul 22 12:34:56 PDT 2015"), Score: ActOrSatScoreActScore{Value: 36}}),
+			},
+			kv{
+				"2",
+				vdl.ValueOf(Student{Name: "Mary Jones", TestTime: t("Sep 4 01:23:45 PDT 2015"), Score: ActOrSatScoreSatScore{Value: 1200}}),
+			},
+		},
+	},
+	table{
+		name: "AnythingGoes",
+		rows: []kv{
+			kv{
+				"bar",
+				vdl.ValueOf(AnythingGoes{NameOfType: "Student", Anything: vdl.ValueOf(Student{Name: "John Smith", Score: ActOrSatScoreActScore{Value: 36}})}),
+			},
+			kv{
+				"baz",
+				vdl.ValueOf(AnythingGoes{NameOfType: "Customer", Anything: vdl.ValueOf(Customer{"Bat Masterson", 2, true, AddressInfo{"777 Any St.", "Collins", "IA", "50055"}, CreditReport{Agency: CreditAgencyTransUnion, Report: AgencyReportTransUnionReport{TransUnionCreditReport{80}}}})}),
+			},
+		},
+	},
+}
+
+func t(timeStr string) time.Time {
+	t, _ := time.Parse("Jan 2 15:04:05 MST 2006", timeStr)
+	return t
 }
 
 // Creates demo tables in the provided database. Tables are destroyed and

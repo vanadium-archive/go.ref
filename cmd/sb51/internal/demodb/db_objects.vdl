@@ -113,3 +113,19 @@ type Recursive struct {
 	Maybe ?Times
 	Rec   map[Array2String]Recursive
 }
+
+type ActOrSatScore union {
+	ActScore uint16
+	SatScore uint16
+}
+
+type Student struct {
+	Name     string
+	TestTime time.Time
+	Score    ActOrSatScore
+}
+
+type AnythingGoes struct {
+	NameOfType string
+	Anything   any
+}

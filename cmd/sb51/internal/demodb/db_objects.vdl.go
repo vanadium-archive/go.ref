@@ -360,6 +360,64 @@ func (Recursive) __VDLReflect(struct {
 }) {
 }
 
+type (
+	// ActOrSatScore represents any single field of the ActOrSatScore union type.
+	ActOrSatScore interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the ActOrSatScore union type.
+		__VDLReflect(__ActOrSatScoreReflect)
+	}
+	// ActOrSatScoreActScore represents field ActScore of the ActOrSatScore union type.
+	ActOrSatScoreActScore struct{ Value uint16 }
+	// ActOrSatScoreSatScore represents field SatScore of the ActOrSatScore union type.
+	ActOrSatScoreSatScore struct{ Value uint16 }
+	// __ActOrSatScoreReflect describes the ActOrSatScore union type.
+	__ActOrSatScoreReflect struct {
+		Name  string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.ActOrSatScore"`
+		Type  ActOrSatScore
+		Union struct {
+			ActScore ActOrSatScoreActScore
+			SatScore ActOrSatScoreSatScore
+		}
+	}
+)
+
+func (x ActOrSatScoreActScore) Index() int                          { return 0 }
+func (x ActOrSatScoreActScore) Interface() interface{}              { return x.Value }
+func (x ActOrSatScoreActScore) Name() string                        { return "ActScore" }
+func (x ActOrSatScoreActScore) __VDLReflect(__ActOrSatScoreReflect) {}
+
+func (x ActOrSatScoreSatScore) Index() int                          { return 1 }
+func (x ActOrSatScoreSatScore) Interface() interface{}              { return x.Value }
+func (x ActOrSatScoreSatScore) Name() string                        { return "SatScore" }
+func (x ActOrSatScoreSatScore) __VDLReflect(__ActOrSatScoreReflect) {}
+
+type Student struct {
+	Name     string
+	TestTime time.Time
+	Score    ActOrSatScore
+}
+
+func (Student) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Student"`
+}) {
+}
+
+type AnythingGoes struct {
+	NameOfType string
+	Anything   *vdl.Value
+}
+
+func (AnythingGoes) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.AnythingGoes"`
+}) {
+}
+
 func init() {
 	vdl.Register((*AddressInfo)(nil))
 	vdl.Register((*CreditAgency)(nil))
@@ -380,4 +438,7 @@ func init() {
 	vdl.Register((*Composite)(nil))
 	vdl.Register((*Times)(nil))
 	vdl.Register((*Recursive)(nil))
+	vdl.Register((*ActOrSatScore)(nil))
+	vdl.Register((*Student)(nil))
+	vdl.Register((*AnythingGoes)(nil))
 }
