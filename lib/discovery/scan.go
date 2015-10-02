@@ -71,7 +71,7 @@ func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discove
 			if ad.Lost {
 				if _, ok := found[id]; ok {
 					delete(found, id)
-					updateCh <- discovery.UpdateLost{discovery.Lost{Service: ad.Service}}
+					updateCh <- discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.InstanceUuid}}
 				}
 			} else {
 				found[id] = struct{}{}

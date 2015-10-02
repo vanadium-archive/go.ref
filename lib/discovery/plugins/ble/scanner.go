@@ -5,12 +5,13 @@
 package ble
 
 import (
-	"log"
 	"sync"
 
-	"v.io/x/ref/lib/discovery"
-
 	"github.com/pborman/uuid"
+
+	vdiscovery "v.io/v23/discovery"
+
+	"v.io/x/ref/lib/discovery"
 )
 
 type scanner struct {
@@ -26,13 +27,16 @@ func (s *scanner) handleChange(id uuid.UUID, oldAdv *bleAdv, newAdv *bleAdv) err
 	if s.done {
 		return nil
 	}
+
+	// TODO(bjornick,jhahn): Revisit this strategy to provide the consistent behavior
+	// for updated advertisements across all plugins.
 	if oldAdv != nil {
-		a, err := oldAdv.toDiscoveryAdvertisement()
-		if err != nil {
-			log.Println("failed to convert advertisement:", err)
+		s.ch <- &discovery.Advertisement{
+			Service: vdiscovery.Service{
+				InstanceUuid: oldAdv.instanceID,
+			},
+			Lost: true,
 		}
-		a.Lost = true
-		s.ch <- a
 	}
 
 	if newAdv != nil {

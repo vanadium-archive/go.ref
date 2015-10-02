@@ -5,6 +5,7 @@
 package discovery_test
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -83,18 +84,12 @@ func match(updates []discovery.Update, lost bool, wants ...discovery.Service) bo
 	for _, want := range wants {
 		matched := false
 		for i, update := range updates {
-			var service discovery.Service
 			switch u := update.(type) {
 			case discovery.UpdateFound:
-				if !lost {
-					service = u.Value.Service
-				}
+				matched = !lost && reflect.DeepEqual(u.Value.Service, want)
 			case discovery.UpdateLost:
-				if lost {
-					service = u.Value.Service
-				}
+				matched = lost && bytes.Equal(u.Value.InstanceUuid, want.InstanceUuid)
 			}
-			matched = reflect.DeepEqual(service, want)
 			if matched {
 				updates = append(updates[:i], updates[i+1:]...)
 				break
