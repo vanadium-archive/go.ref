@@ -166,34 +166,37 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 		return nil
 	}
 
-	username := *flagUsername
-	if username == "" {
-		return verror.New(errUserNameMissing, nil)
-	}
+	if *flagDryrun {
+		wp.uid, wp.gid = -1, -1
+	} else {
+		username := *flagUsername
+		if username == "" {
+			return verror.New(errUserNameMissing, nil)
+		}
 
-	usr, err := user.Lookup(username)
-	if err != nil {
-		return verror.New(errUnknownUser, nil, username)
-	}
+		usr, err := user.Lookup(username)
+		if err != nil {
+			return verror.New(errUnknownUser, nil, username)
+		}
 
-	uid, err := strconv.ParseInt(usr.Uid, 0, 32)
-	if err != nil {
-		return verror.New(errInvalidUID, nil, usr.Uid)
-	}
-	gid, err := strconv.ParseInt(usr.Gid, 0, 32)
-	if err != nil {
-		return verror.New(errInvalidGID, nil, usr.Gid)
-	}
-	warnMissingSuidPrivs(int(uid))
+		uid, err := strconv.ParseInt(usr.Uid, 0, 32)
+		if err != nil {
+			return verror.New(errInvalidUID, nil, usr.Uid)
+		}
+		gid, err := strconv.ParseInt(usr.Gid, 0, 32)
+		if err != nil {
+			return verror.New(errInvalidGID, nil, usr.Gid)
+		}
+		warnMissingSuidPrivs(int(uid))
 
-	// Uids less than 501 can be special so we forbid running as them.
-	if uid < *flagMinimumUid {
-		return verror.New(errUIDTooLow, nil,
-			uid, *flagMinimumUid)
+		// Uids less than 501 can be special so we forbid running as them.
+		if uid < *flagMinimumUid {
+			return verror.New(errUIDTooLow, nil,
+				uid, *flagMinimumUid)
+		}
+		wp.uid = int(uid)
+		wp.gid = int(gid)
 	}
-	wp.uid = int(uid)
-	wp.gid = int(gid)
-
 	wp.dryrun = *flagDryrun
 
 	// At this point, all flags allowed by --chown have been processed

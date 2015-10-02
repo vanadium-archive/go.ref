@@ -53,7 +53,7 @@ func TestSuidHelper(t *testing.T) {
 // of how device manager implementation sets up its updated versions.
 func generateDeviceManagerScript(t *testing.T, root string, args, env []string) string {
 	env = impl.VanadiumEnvironment(env)
-	output := "#!/bin/bash\n"
+	output := "#!" + impl.ShellPath + "\n"
 	output += strings.Join(config.QuoteEnv(env), " ") + " exec "
 	output += strings.Join(args, " ")
 	if err := os.MkdirAll(filepath.Join(root, "factory"), 0755); err != nil {

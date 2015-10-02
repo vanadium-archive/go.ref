@@ -40,6 +40,8 @@ func ComputeDeviceProfile() (*profile.Specification, error) {
 		result.Format = build.FormatElf
 	case build.OperatingSystemWindows:
 		result.Format = build.FormatPe
+	case build.OperatingSystemAndroid:
+		result.Format = build.FormatElf
 	default:
 		return nil, errors.New("Unsupported operating system: " + os.String())
 	}
@@ -91,6 +93,8 @@ func ComputeDeviceProfile() (*profile.Specification, error) {
 		// TODO(jsimsa): Implement.
 	case "windows":
 		// TODO(jsimsa): Implement.
+	case "android":
+		// TODO(caprita): Implement.
 	default:
 		return nil, errors.New("Unsupported operating system: " + runtime.GOOS)
 	}

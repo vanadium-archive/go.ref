@@ -498,7 +498,7 @@ func CompareAssociations(t *testing.T, got, expected []device.Association) {
 // GenerateSuidHelperScript builds a script to execute the test target as
 // a suidhelper instance and returns the path to the script.
 func GenerateSuidHelperScript(t *testing.T, root string) string {
-	output := "#!/bin/bash\n"
+	output := "#!" + impl.ShellPath + "\n"
 	output += "V23_SUIDHELPER_TEST=1"
 	output += " "
 	output += "exec " + os.Args[0] + " -minuid=1 -test.run=TestSuidHelper \"$@\""
@@ -519,8 +519,8 @@ func GenerateSuidHelperScript(t *testing.T, root string) string {
 // GenerateAgentScript creates a simple script that acts as the security agent
 // for tests.  It blackholes arguments meant for the agent.
 func GenerateAgentScript(t *testing.T, root string) string {
-	output := `
-#!/bin/bash
+	output := "#!" + impl.ShellPath + "\n" +
+		`
 ARGS=$*
 for ARG in ${ARGS[@]}; do
   if [[ ${ARG} = -- ]]; then
