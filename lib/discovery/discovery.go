@@ -36,7 +36,7 @@ type Advertisement struct {
 	Lost bool
 }
 
-type EncryptionAlgorithm byte
+type EncryptionAlgorithm int
 type EncryptionKey []byte
 
 const (

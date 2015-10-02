@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -128,6 +129,7 @@ func TestBasic(t *testing.T) {
 	services := []discovery.Service{
 		{
 			InstanceUuid:  ldiscovery.NewInstanceUUID(),
+			InstanceName:  "service1",
 			InterfaceName: "v.io/x",
 			Attrs: discovery.Attributes{
 				"a": "a1234",
@@ -139,6 +141,7 @@ func TestBasic(t *testing.T) {
 		},
 		{
 			InstanceUuid:  ldiscovery.NewInstanceUUID(),
+			InstanceName:  "service2",
 			InterfaceName: "v.io/x",
 			Attrs: discovery.Attributes{
 				"a": "a5678",
@@ -150,6 +153,7 @@ func TestBasic(t *testing.T) {
 		},
 		{
 			InstanceUuid:  ldiscovery.NewInstanceUUID(),
+			InstanceName:  "service3",
 			InterfaceName: "v.io/y",
 			Attrs: discovery.Attributes{
 				"c": "c1234",
@@ -226,6 +230,43 @@ func TestBasic(t *testing.T) {
 	// Stop advertising the remaining one; Shouldn't discover anything.
 	stops[1]()
 	if err := scanAndMatch(ctx, p2, ""); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLargeTxt(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	service := discovery.Service{
+		InstanceUuid:  ldiscovery.NewInstanceUUID(),
+		InstanceName:  "service2",
+		InterfaceName: strings.Repeat("i", 280),
+		Attrs: discovery.Attributes{
+			"k": strings.Repeat("v", 280),
+		},
+		Addrs: []string{
+			strings.Repeat("a1", 100),
+			strings.Repeat("a2", 100),
+		},
+	}
+
+	p1, err := newWithLoopback("m1", true)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	stop, err := advertise(ctx, p1, service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stop()
+
+	p2, err := newWithLoopback("m2", true)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+
+	if err := scanAndMatch(ctx, p2, "", service); err != nil {
 		t.Error(err)
 	}
 }

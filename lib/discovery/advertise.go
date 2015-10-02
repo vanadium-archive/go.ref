@@ -25,15 +25,13 @@ func (ds *ds) Advertise(ctx *context.T, service discovery.Service, perms []secur
 	if len(service.InterfaceName) == 0 {
 		return verror.New(errNoInterfaceName, ctx)
 	}
-	if !IsAttributePackable(service.Attrs) {
-		return verror.New(errNotPackableAttributes, ctx)
-	}
 	if len(service.Addrs) == 0 {
 		return verror.New(errNoAddresses, ctx)
 	}
-	if !IsAddressPackable(service.Addrs) {
-		return verror.New(errNotPackableAddresses, ctx)
+	if err := validateAttributes(service.Attrs); err != nil {
+		return err
 	}
+
 	if len(service.InstanceUuid) == 0 {
 		service.InstanceUuid = NewInstanceUUID()
 	}
