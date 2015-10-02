@@ -73,7 +73,8 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 				// Periodically kill closed connections.
 				m.cache.KillConnections(ctx, 0)
 			case e := <-events:
-				if e.Status.Closed && !e.Status.LocalLameDuck || e.Status.LocalLameDuck {
+				if e.Status.Closed && !e.Status.LocalLameDuck ||
+					!e.Status.Closed && e.Status.LocalLameDuck {
 					m.ls.activeConns.Done()
 				}
 			}
