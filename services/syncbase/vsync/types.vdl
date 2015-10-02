@@ -15,7 +15,8 @@ const (
 	logDataPrefix = "data" // data log state.
 	dbssPrefix    = "dbss" // database sync state.
 	dagPrefix     = "dag"  // dag state.
-	sgPrefix      = "sg"   // syncgroup state.
+	sgPrefix      = "sg"   // local syncgroup state.
+	sgDataPrefix  = "sgd"  // synced syncgroup state.
 )
 
 // syncData represents the persistent state of the sync module.
@@ -32,7 +33,7 @@ type localGenInfo struct {
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
 	Data     localGenInfo
-	Sgs      map[interfaces.GroupId]localGenInfo
+	Sgs      map[string]localGenInfo
 	GenVec   interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for data in Database.
 	SgGenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for SyncGroups in Database.
 }

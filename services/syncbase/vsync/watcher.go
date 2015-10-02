@@ -120,7 +120,7 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 	}
 
 	// Initialize Database sync state if needed.
-	s.initSyncStateInMem(ctx, appName, dbName, interfaces.NoGroupId)
+	s.initSyncStateInMem(ctx, appName, dbName, "")
 
 	// Get a batch of watch log entries, if any, after this resume marker.
 	logs, nextResmark, err := watchable.ReadBatchFromLog(st, resMark)

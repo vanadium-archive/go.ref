@@ -6,7 +6,6 @@ package vsync
 
 import (
 	"reflect"
-	"strconv"
 	"testing"
 	"time"
 
@@ -40,11 +39,7 @@ func TestReserveGenAndPos(t *testing.T) {
 			if sgid == "" {
 				info = s.syncState[name].data
 			} else {
-				id, err := strconv.ParseUint(sgid, 10, 64)
-				if err != nil {
-					t.Fatalf("reserveGenAndPosInternal failed, invalid sgid %v", sgid)
-				}
-				info = s.syncState[name].sgs[interfaces.GroupId(id)]
+				info = s.syncState[name].sgs[sgid]
 			}
 			if info.gen != wantGen || info.pos != wantPos {
 				t.Fatalf("reserveGenAndPosInternal failed, gotGen %v wantGen %v, gotPos %v wantPos %v", info.gen, wantGen, info.pos, wantPos)
@@ -74,9 +69,9 @@ func TestPutGetDbSyncState(t *testing.T) {
 			100: 200, 300: 400, 500: 600,
 		},
 	}
-	localsgs := make(map[interfaces.GroupId]localGenInfo)
-	localsgs[interfaces.GroupId(8888)] = localGenInfo{Gen: 56, CheckptGen: 2000}
-	localsgs[interfaces.GroupId(1008888)] = localGenInfo{Gen: 25890, CheckptGen: 100}
+	localsgs := make(map[string]localGenInfo)
+	localsgs["8888"] = localGenInfo{Gen: 56, CheckptGen: 2000}
+	localsgs["1008888"] = localGenInfo{Gen: 25890, CheckptGen: 100}
 
 	tx := st.NewTransaction()
 	wantSt := &dbSyncState{

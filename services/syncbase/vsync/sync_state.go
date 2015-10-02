@@ -57,7 +57,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
@@ -82,8 +81,11 @@ func (in *localGenInfoInMem) deepCopy() *localGenInfoInMem {
 // dbSyncStateInMem represents the in-memory sync state of a Database and all
 // its SyncGroups.
 type dbSyncStateInMem struct {
-	data *localGenInfoInMem                        // info for data.
-	sgs  map[interfaces.GroupId]*localGenInfoInMem // info for SyncGroups.
+	data *localGenInfoInMem // info for data.
+
+	// Info for SyncGroups. The key here is the SyncGroup oid of the form
+	// $sync:sgd:<group id>. More details in syncgroup.go.
+	sgs map[string]*localGenInfoInMem
 
 	// Note: Generation vector contains state from remote devices only.
 	genvec   interfaces.GenVector
@@ -94,9 +96,9 @@ func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
 	out := &dbSyncStateInMem{}
 	out.data = in.data.deepCopy()
 
-	out.sgs = make(map[interfaces.GroupId]*localGenInfoInMem)
-	for id, info := range in.sgs {
-		out.sgs[id] = info.deepCopy()
+	out.sgs = make(map[string]*localGenInfoInMem)
+	for oid, info := range in.sgs {
+		out.sgs[oid] = info.deepCopy()
 	}
 
 	out.genvec = in.genvec.DeepCopy()
@@ -200,25 +202,22 @@ func (s *syncService) enqueuePublishSyncGroup(sgName, appName, dbName string, at
 // Note: For all the utilities below, if the sgid parameter is non-nil, the
 // operation is performed in the SyncGroup space. If nil, it is performed in the
 // data space for the Database.
-//
-// TODO(hpucha): Once GroupId is changed to string, clean up these function
-// signatures.
 
 // reserveGenAndPosInDbLog reserves a chunk of generation numbers and log
 // positions in a Database's log. Used when local updates result in log
 // entries.
-func (s *syncService) reserveGenAndPosInDbLog(ctx *context.T, appName, dbName, sgid string, count uint64) (uint64, uint64) {
-	return s.reserveGenAndPosInternal(appName, dbName, sgid, count, count)
+func (s *syncService) reserveGenAndPosInDbLog(ctx *context.T, appName, dbName, sgoid string, count uint64) (uint64, uint64) {
+	return s.reserveGenAndPosInternal(appName, dbName, sgoid, count, count)
 }
 
 // reservePosInDbLog reserves a chunk of log positions in a Database's log. Used
 // when remote log records are received.
-func (s *syncService) reservePosInDbLog(ctx *context.T, appName, dbName, sgid string, count uint64) uint64 {
-	_, pos := s.reserveGenAndPosInternal(appName, dbName, sgid, 0, count)
+func (s *syncService) reservePosInDbLog(ctx *context.T, appName, dbName, sgoid string, count uint64) uint64 {
+	_, pos := s.reserveGenAndPosInternal(appName, dbName, sgoid, 0, count)
 	return pos
 }
 
-func (s *syncService) reserveGenAndPosInternal(appName, dbName, sgid string, genCount, posCount uint64) (uint64, uint64) {
+func (s *syncService) reserveGenAndPosInternal(appName, dbName, sgoid string, genCount, posCount uint64) (uint64, uint64) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
@@ -227,23 +226,18 @@ func (s *syncService) reserveGenAndPosInternal(appName, dbName, sgid string, gen
 	if !ok {
 		ds = &dbSyncStateInMem{
 			data: &localGenInfoInMem{gen: 1},
-			sgs:  make(map[interfaces.GroupId]*localGenInfoInMem),
+			sgs:  make(map[string]*localGenInfoInMem),
 		}
 		s.syncState[name] = ds
 	}
 
 	var info *localGenInfoInMem
-	if sgid != "" {
-		id, err := strconv.ParseUint(sgid, 10, 64)
-		if err != nil {
-			vlog.Fatalf("sync: reserveGenAndPosInternal: invalid syncgroup id", sgid)
-		}
-
+	if sgoid != "" {
 		var ok bool
-		info, ok = ds.sgs[interfaces.GroupId(id)]
+		info, ok = ds.sgs[sgoid]
 		if !ok {
 			info = &localGenInfoInMem{gen: 1}
-			ds.sgs[interfaces.GroupId(id)] = info
+			ds.sgs[sgoid] = info
 		}
 	} else {
 		info = ds.data
@@ -273,7 +267,7 @@ func (s *syncService) checkptLocalGen(ctx *context.T, appName, dbName string, sg
 	if len(sgs) > 0 {
 		// Checkpoint requested SyncGroups.
 		for id := range sgs {
-			info, ok := ds.sgs[id]
+			info, ok := ds.sgs[sgOID(id)]
 			if !ok {
 				return verror.New(verror.ErrInternal, ctx, "sg state not found", name, id)
 			}
@@ -286,7 +280,7 @@ func (s *syncService) checkptLocalGen(ctx *context.T, appName, dbName string, sg
 }
 
 // initSyncStateInMem initializes the in memory sync state of the Database/SyncGroup if needed.
-func (s *syncService) initSyncStateInMem(ctx *context.T, appName, dbName string, sgid interfaces.GroupId) {
+func (s *syncService) initSyncStateInMem(ctx *context.T, appName, dbName string, sgoid string) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
@@ -294,13 +288,13 @@ func (s *syncService) initSyncStateInMem(ctx *context.T, appName, dbName string,
 	if s.syncState[name] == nil {
 		s.syncState[name] = &dbSyncStateInMem{
 			data: &localGenInfoInMem{gen: 1},
-			sgs:  make(map[interfaces.GroupId]*localGenInfoInMem),
+			sgs:  make(map[string]*localGenInfoInMem),
 		}
 	}
-	if sgid != interfaces.NoGroupId {
+	if sgoid != "" {
 		ds := s.syncState[name]
-		if _, ok := ds.sgs[sgid]; !ok {
-			ds.sgs[sgid] = &localGenInfoInMem{gen: 1}
+		if _, ok := ds.sgs[sgoid]; !ok {
+			ds.sgs[sgoid] = &localGenInfoInMem{gen: 1}
 		}
 	}
 	return
@@ -335,10 +329,10 @@ func (s *syncService) copyDbGenInfo(ctx *context.T, appName, dbName string, sgs 
 	if len(sgs) > 0 {
 		genvec = make(interfaces.GenVector)
 		for id := range sgs {
-			sid := fmt.Sprintf("%d", id)
-			gv := ds.sggenvec[sid]
-			genvec[sid] = gv.DeepCopy()
-			genvec[sid][s.id] = ds.sgs[id].checkptGen
+			sgoid := sgOID(id)
+			gv := ds.sggenvec[sgoid]
+			genvec[sgoid] = gv.DeepCopy()
+			genvec[sgoid][s.id] = ds.sgs[sgoid].checkptGen
 		}
 	} else {
 		genvec = ds.genvec.DeepCopy()

@@ -31,6 +31,7 @@ func StartSyncbased(t *v23tests.T, creds *modules.CustomCredentials, name, rootD
 		}
 		rmRootDir = true
 	}
+
 	// Start syncbased.
 	invocation := syncbased.WithStartOpts(syncbased.StartOpts().WithCustomCredentials(creds)).Start(
 		"--v23.tcp.address=127.0.0.1:0",

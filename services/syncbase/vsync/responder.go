@@ -8,12 +8,11 @@ import (
 	"container/heap"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"v.io/v23/context"
-	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/watchable"
@@ -69,10 +68,10 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 		rSt.initVec = v.Value.InitVec
 		rSt.sgIds = make(sgSet)
 		// Populate the sgids from the initvec.
-		for id := range rSt.initVec {
-			gid, err := strconv.ParseUint(id, 10, 64)
+		for oid := range rSt.initVec {
+			gid, err := sgID(oid)
 			if err != nil {
-				vlog.Fatalf("sync: newResponderState: invalid syncgroup id", gid)
+				vlog.Fatalf("sync: newResponderState: invalid syncgroup key", oid)
 			}
 			rSt.sgIds[interfaces.GroupId(gid)] = struct{}{}
 		}
@@ -119,8 +118,8 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 	// embedded, consider using a helper function to auto-fill it instead
 	// (see http://goo.gl/mEa4L0) but only incur that overhead when the
 	// logging level specified is enabled.
-	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: %s, %s: sgids %v, genvec %v",
-		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVec)
+	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: recvd %s, %s: sgids %v, genvec %v, sg %v",
+		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVec, rSt.sg)
 
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
 	// caller only for the SyncGroups that allow access.
@@ -179,12 +178,6 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) error {
 		for _, p := range sg.Spec.Prefixes {
 			allowedPfxs[p] = struct{}{}
 		}
-
-		// Add the initiator to the SyncGroup membership if not already
-		// in it.  It is a temporary solution until SyncGroup metadata
-		// is synchronized peer to peer.
-		// TODO(rdaoud): remove this when SyncGroups are synced.
-		rSt.addInitiatorToSyncGroup(ctx, sgid)
 	}
 
 	if err != nil {
@@ -214,49 +207,9 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) error {
 	return nil
 }
 
-// addInitiatorToSyncGroup adds the request initiator to the membership of the
-// given SyncGroup if the initiator is not already a member.  It is a temporary
-// solution until SyncGroup metadata starts being synchronized, at which time
-// peers will learn of new members through mutations of the SyncGroup metadata
-// by the SyncGroup administrators.
-// Note: the joiner metadata is fake because the responder does not have it.
-func (rSt *responderState) addInitiatorToSyncGroup(ctx *context.T, gid interfaces.GroupId) {
-	if rSt.initiator == "" {
-		return
-	}
-
-	err := store.RunInTransaction(rSt.st, func(tx store.Transaction) error {
-		version, err := getSyncGroupVersion(ctx, tx, gid)
-		if err != nil {
-			return err
-		}
-		sg, err := getSGDataEntry(ctx, tx, gid, version)
-		if err != nil {
-			return err
-		}
-
-		// If the initiator is already a member of the SyncGroup abort
-		// the transaction with a special error code.
-		if _, ok := sg.Joiners[rSt.initiator]; ok {
-			return verror.New(verror.ErrExist, ctx, "member already in SyncGroup")
-		}
-
-		vlog.VI(4).Infof("sync: addInitiatorToSyncGroup: add %s to sgid %d", rSt.initiator, gid)
-		sg.Joiners[rSt.initiator] = wire.SyncGroupMemberInfo{SyncPriority: 1}
-		return setSGDataEntry(ctx, tx, gid, version, sg)
-	})
-
-	if err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
-		vlog.Errorf("sync: addInitiatorToSyncGroup: initiator %s, sgid %d: %v", rSt.initiator, gid, err)
-	}
-}
-
 // sendSgDeltas computes the bound on missing generations, and sends the missing
 // log records across all requested SyncGroups (phases 2 and 3 of sendDeltas).
 func (rSt *responderState) sendSgDeltas(ctx *context.T) error {
-	vlog.VI(3).Infof("sync: sendSgDeltas: %s, %s: sgids %v, genvec %v",
-		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVec)
-
 	respVec, _, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, rSt.sgIds)
 	if err != nil {
 		return err
@@ -367,7 +320,7 @@ func (rSt *responderState) computeDataDeltas(ctx *context.T) error {
 		rSt.outVec[pfx] = respgv
 	}
 
-	vlog.VI(3).Infof("sync: computeDeltaBound: %s, %s: diff %v, outvec %v",
+	vlog.VI(3).Infof("sync: computeDataDeltas: %s, %s: diff %v, outvec %v",
 		rSt.appName, rSt.dbName, rSt.diff, rSt.outVec)
 	return nil
 }
@@ -411,7 +364,7 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T, pfx string) error
 
 		if rSt.sg || !filterLogRec(rec, rSt.initVec, initPfxs) {
 			// Send on the wire.
-			wireRec, err := makeWireLogRec(ctx, rSt.st, rec)
+			wireRec, err := makeWireLogRec(ctx, rSt.sg, rSt.st, rec)
 			if err != nil {
 				return err
 			}
@@ -434,6 +387,8 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T, pfx string) error
 }
 
 func (rSt *responderState) sendGenVec(ctx *context.T) error {
+	vlog.VI(3).Infof("sync: sendGenVec: sending genvec %v", rSt.outVec)
+
 	sender := rSt.call.SendStream()
 	sender.Send(interfaces.DeltaRespRespVec{rSt.outVec})
 	return nil
@@ -553,11 +508,20 @@ func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []str
 
 // makeWireLogRec creates a sync log record to send on the wire from a given
 // local sync record.
-func makeWireLogRec(ctx *context.T, st store.Store, rec *localLogRec) (*interfaces.LogRec, error) {
+func makeWireLogRec(ctx *context.T, sg bool, st store.Store, rec *localLogRec) (*interfaces.LogRec, error) {
 	// Get the object value at the required version.
 	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
 	var value []byte
-	if !rec.Metadata.Delete {
+	if sg {
+		sg, err := getSGDataEntryByOID(ctx, st, key, version)
+		if err != nil {
+			return nil, err
+		}
+		value, err = vom.Encode(sg)
+		if err != nil {
+			return nil, err
+		}
+	} else if !rec.Metadata.Delete {
 		var err error
 		value, err = watchable.GetAtVersion(ctx, st, []byte(key), nil, []byte(version))
 		if err != nil {

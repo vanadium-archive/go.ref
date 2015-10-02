@@ -494,6 +494,9 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 
 			if iSt.sg {
 				// Add the SyncGroup value to the Database.
+				if err := iSt.insertSgRecInDb(ctx, rec, v.Value.Value, tx); err != nil {
+					return err
+				}
 			} else {
 				if err := iSt.insertRecInDb(ctx, rec, v.Value.Value, tx); err != nil {
 					return err
@@ -562,6 +565,16 @@ func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *localLogRe
 	}
 
 	return err
+}
+
+// insertSgRecInDb inserts the versioned value of a SyncGroup in the Database.
+func (iSt *initiationState) insertSgRecInDb(ctx *context.T, rec *localLogRec, valbuf []byte, tx store.Transaction) error {
+	m := rec.Metadata
+	var sg interfaces.SyncGroup
+	if err := vom.Decode(valbuf, &sg); err != nil {
+		return err
+	}
+	return setSGDataEntryByOID(ctx, tx, m.ObjId, m.CurVers, &sg)
 }
 
 // insertRecInDb inserts the versioned value in the Database.
@@ -944,7 +957,7 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 			Gen:        dsInMem.data.gen,
 			CheckptGen: dsInMem.data.checkptGen,
 		},
-		Sgs:      make(map[interfaces.GroupId]localGenInfo),
+		Sgs:      make(map[string]localGenInfo),
 		GenVec:   dsInMem.genvec,
 		SgGenVec: dsInMem.sggenvec,
 	}
@@ -970,6 +983,31 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 		if _, ok := genvec[rpfx]; !ok {
 			genvec[rpfx] = respgv
 		}
+
+		if iSt.sg {
+			// Flip sync pending if needed in case of SyncGroup
+			// syncing. See explanation for SyncPending flag in
+			// types.vdl.
+			gid, err := sgID(rpfx)
+			if err != nil {
+				return err
+			}
+			state, err := getSGIdEntry(ctx, iSt.tx, gid)
+			if err != nil {
+				return err
+			}
+			if state.SyncPending {
+				curgv := genvec[rpfx]
+				res := curgv.Compare(state.PendingGenVec)
+				vlog.VI(4).Infof("sync: updateSyncSt:: checking join pending %v, curgv %v, res %v", state.PendingGenVec, curgv, res)
+				if res >= 0 {
+					state.SyncPending = false
+					if err := setSGIdEntry(ctx, iSt.tx, gid, state); err != nil {
+						return err
+					}
+				}
+			}
+		}
 	}
 
 	iSt.updLocal = genvec
@@ -978,8 +1016,6 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 	for _, pgv := range iSt.updLocal {
 		delete(pgv, iSt.config.sync.id)
 	}
-
-	// TODO(hpucha): Flip join pending if needed.
 
 	// TODO(hpucha): Add knowledge compaction.
 

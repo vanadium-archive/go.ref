@@ -39,7 +39,7 @@ func (localGenInfo) __VDLReflect(struct {
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
 	Data     localGenInfo
-	Sgs      map[interfaces.GroupId]localGenInfo
+	Sgs      map[string]localGenInfo
 	GenVec   interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for data in Database.
 	SgGenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for SyncGroups in Database.
 }
@@ -156,4 +156,6 @@ const dbssPrefix = "dbss" // database sync state.
 
 const dagPrefix = "dag" // dag state.
 
-const sgPrefix = "sg" // syncgroup state.
+const sgPrefix = "sg" // local syncgroup state.
+
+const sgDataPrefix = "sgd" // synced syncgroup state.

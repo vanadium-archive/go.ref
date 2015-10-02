@@ -490,7 +490,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		t.Fatalf("Mount tables are not equal config %v, spec %v", iSt.config.mtTables, sg1.Spec.MountTables)
 	}
 
-	s.initSyncStateInMem(nil, "mockapp", "mockdb", sgId1)
+	s.initSyncStateInMem(nil, "mockapp", "mockdb", sgOID(sgId1))
 
 	iSt.stream = createReplayStream(t, rfile)
 
