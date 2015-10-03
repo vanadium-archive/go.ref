@@ -60,6 +60,9 @@ func (f *flw) disableEncryption() {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) Read(p []byte) (n int, err error) {
+	if err = f.checkBlessings(); err != nil {
+		return
+	}
 	f.markUsed()
 	if n, err = f.q.read(f.ctx, p); err != nil {
 		f.close(f.ctx, err)
@@ -72,6 +75,9 @@ func (f *flw) Read(p []byte) (n int, err error) {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) ReadMsg() (buf []byte, err error) {
+	if err = f.checkBlessings(); err != nil {
+		return
+	}
 	f.markUsed()
 	// TODO(mattr): Currently we only ever release counters when some flow
 	// reads.  We may need to do it more or less often.  Currently
@@ -90,6 +96,9 @@ func (f *flw) Write(p []byte) (n int, err error) {
 }
 
 func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (int, error) {
+	if err := f.checkBlessings(); err != nil {
+		return 0, err
+	}
 	f.markUsed()
 	sent := 0
 	var left []byte
@@ -167,6 +176,14 @@ func (f *flw) WriteMsgAndClose(parts ...[]byte) (int, error) {
 	return f.writeMsg(true, parts...)
 }
 
+func (f *flw) checkBlessings() error {
+	var err error
+	if !f.dialed && f.bkey != 0 {
+		_, _, err = f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+	}
+	return err
+}
+
 // SetContext sets the context associated with the flow.  Typically this is
 // used to set state that is only available after the flow is connected, such
 // as a more restricted flow timeout, or the language of the request.
@@ -226,7 +243,7 @@ func (f *flw) LocalDischarges() map[string]security.Discharge {
 	if f.dialed {
 		_, discharges, err = f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
 	} else {
-		discharges, err = f.conn.blessingsFlow.getLatestDischarges(f.ctx, f.conn.lBlessings)
+		discharges, err = f.conn.blessingsFlow.getLatestDischarges(f.ctx, f.conn.lBlessings, true)
 	}
 	if err != nil {
 		f.conn.Close(f.ctx, err)
@@ -244,7 +261,7 @@ func (f *flw) RemoteDischarges() map[string]security.Discharge {
 	if !f.dialed {
 		_, discharges, err = f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
 	} else {
-		discharges, err = f.conn.blessingsFlow.getLatestDischarges(f.ctx, f.conn.rBlessings)
+		discharges, err = f.conn.blessingsFlow.getLatestDischarges(f.ctx, f.conn.rBlessings, false)
 	}
 	if err != nil {
 		f.conn.Close(f.ctx, err)

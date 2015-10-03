@@ -45,8 +45,10 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	if c.rBlessings.IsZero() {
 		return NewErrAcceptorBlessingsMissing(ctx)
 	}
-	if _, _, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges); err != nil {
-		return err
+	if !c.isProxy {
+		if _, _, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges); err != nil {
+			return verror.New(verror.ErrNotTrusted, ctx, err)
+		}
 	}
 	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authDialerTag, binding...))
 	if err != nil {
@@ -55,9 +57,10 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	lAuth := &message.Auth{
 		ChannelBinding: signedBinding,
 	}
-	// We only send our blessings if we are a server in addition to being a client.
-	// If we are a pure client, we only send our public key.
-	if c.handler != nil {
+	// We only send our blessings if we are a server in addition to being a client,
+	// and we are not talking through a proxy.
+	// Otherwise, we only send our public key.
+	if c.handler != nil && !c.isProxy {
 		if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx); err != nil {
 			return err
 		}
@@ -127,12 +130,16 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	if c.version, err = version.CommonVersion(ctx, lSetup.Versions, rSetup.Versions); err != nil {
 		return nil, err
 	}
-	// TODO(mattr): Decide which endpoints to actually keep, the ones we know locally
-	// or what the remote side thinks.
-	if rSetup.PeerRemoteEndpoint != nil {
+	if c.local == nil {
 		c.local = rSetup.PeerRemoteEndpoint
 	}
-	if rSetup.PeerLocalEndpoint != nil {
+	// We use the remote ends local endpoint as our remote endpoint when the routingID's
+	// of the endpoints differ. This as an indicator to the manager that we are talking to a proxy.
+	// This means that the manager will need to dial a subsequent conn on this conn
+	// to the end server.
+	// TODO(suharshs): Determine how to authorize the proxy.
+	c.isProxy = c.remote != nil && c.remote.RoutingID() != rSetup.PeerLocalEndpoint.RoutingID()
+	if c.remote == nil || c.isProxy {
 		c.remote = rSetup.PeerLocalEndpoint
 	}
 	if rSetup.PeerNaClPublicKey == nil {
@@ -230,8 +237,13 @@ type blessingsFlow struct {
 	cond    *sync.Cond
 	closed  bool
 	nextKey uint64
-	byUID   map[string]*Blessings
+	byUID   map[uidKey]*Blessings
 	byBKey  map[uint64]*Blessings
+}
+
+type uidKey struct {
+	uid   string
+	local bool
 }
 
 func newBlessingsFlow(ctx *context.T, loopWG *sync.WaitGroup, f *flw, dialed bool) *blessingsFlow {
@@ -240,7 +252,7 @@ func newBlessingsFlow(ctx *context.T, loopWG *sync.WaitGroup, f *flw, dialed boo
 		enc:     vom.NewEncoder(f),
 		dec:     vom.NewDecoder(f),
 		nextKey: 1,
-		byUID:   make(map[string]*Blessings),
+		byUID:   make(map[uidKey]*Blessings),
 		byBKey:  make(map[uint64]*Blessings),
 	}
 	b.cond = sync.NewCond(&b.mu)
@@ -255,7 +267,8 @@ func newBlessingsFlow(ctx *context.T, loopWG *sync.WaitGroup, f *flw, dialed boo
 func (b *blessingsFlow) put(ctx *context.T, blessings security.Blessings, discharges map[string]security.Discharge) (bkey, dkey uint64, err error) {
 	defer b.mu.Unlock()
 	b.mu.Lock()
-	buid := string(blessings.UniqueID())
+	// Only return blessings that we inserted.
+	buid := uidKey{string(blessings.UniqueID()), true}
 	element, has := b.byUID[buid]
 	if has && equalDischarges(discharges, element.Discharges) {
 		return element.BKey, element.DKey, nil
@@ -288,20 +301,25 @@ func (b *blessingsFlow) put(ctx *context.T, blessings security.Blessings, discha
 func (b *blessingsFlow) get(ctx *context.T, bkey, dkey uint64) (security.Blessings, map[string]security.Discharge, error) {
 	defer b.mu.Unlock()
 	b.mu.Lock()
-	for !b.closed {
+	for {
 		element, has := b.byBKey[bkey]
 		if has && element.DKey == dkey {
 			return element.Blessings, dischargeMap(element.Discharges), nil
+		}
+		// We check b.closed after we check the map to allow gets to succeed even after
+		// the blessingsFlow is closed.
+		if b.closed {
+			break
 		}
 		b.cond.Wait()
 	}
 	return security.Blessings{}, nil, NewErrBlessingsFlowClosed(ctx)
 }
 
-func (b *blessingsFlow) getLatestDischarges(ctx *context.T, blessings security.Blessings) (map[string]security.Discharge, error) {
+func (b *blessingsFlow) getLatestDischarges(ctx *context.T, blessings security.Blessings, local bool) (map[string]security.Discharge, error) {
 	defer b.mu.Unlock()
 	b.mu.Lock()
-	buid := string(blessings.UniqueID())
+	buid := uidKey{string(blessings.UniqueID()), local}
 	for !b.closed {
 		element, has := b.byUID[buid]
 		if has {
@@ -328,11 +346,38 @@ func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {
 			b.mu.Unlock()
 			return
 		}
-		b.byUID[string(received.Blessings.UniqueID())] = &received
+		// When accepting, make sure the blessings received are bound to the conn's
+		// remote public key.
+		// Someone is trying to be use our blessings.
+		if received.BKey%2 == b.nextKey%2 {
+			b.mu.Unlock()
+			b.f.conn.mu.Lock()
+			b.f.conn.internalCloseLocked(ctx, NewErrBlessingsNotBound(ctx))
+			b.f.conn.mu.Unlock()
+			return
+		}
+		if b.f.conn.rPublicKey != nil && received.BKey != 0 {
+			if !reflect.DeepEqual(received.Blessings.PublicKey(), b.f.conn.rPublicKey) {
+				b.mu.Unlock()
+				b.f.conn.mu.Lock()
+				b.f.conn.internalCloseLocked(ctx, NewErrBlessingsNotBound(ctx))
+				b.f.conn.mu.Unlock()
+				return
+			}
+		}
+		b.byUID[uidKey{string(received.Blessings.UniqueID()), false}] = &received
 		b.byBKey[received.BKey] = &received
 		b.cond.Broadcast()
 		b.mu.Unlock()
 	}
+}
+
+func (b *blessingsFlow) close(ctx *context.T, err error) {
+	defer b.mu.Unlock()
+	b.mu.Lock()
+	b.f.close(ctx, err)
+	b.closed = true
+	b.cond.Broadcast()
 }
 
 func dischargeList(in map[string]security.Discharge) []security.Discharge {

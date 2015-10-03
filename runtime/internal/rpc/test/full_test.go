@@ -611,8 +611,8 @@ func TestRPCServerAuthorization(t *testing.T) {
 				t.Errorf("%s: Client sees server as %v, expected a single blessing matching test-blessing", name, blessings)
 			}
 		}
-		s.Stop()
 		cancel()
+		<-s.Closed()
 	}
 }
 
@@ -648,7 +648,7 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 	}
 	// But the RPC should succeed if the client explicitly
 	// decided to skip server authorization.
-	if err := v23.GetClient(ctx).Call(cctx, "mountpoint/server", "Closure", nil, nil, options.SkipServerEndpointAuthorization{}); err != nil {
+	if err := v23.GetClient(cctx).Call(cctx, "mountpoint/server", "Closure", nil, nil, options.SkipServerEndpointAuthorization{}); err != nil {
 		t.Errorf("Unexpected error(%v) when skipping server authorization", err)
 	}
 }
@@ -758,6 +758,7 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	v23.GetPrincipal(cctx).BlessingStore().SetDefault(bclient)
 
 	bvictim := v23.GetPrincipal(withPrincipal(t, ctx, "victim")).BlessingStore().Default()
 
@@ -770,18 +771,18 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 	tests := []struct {
 		blessings security.Blessings
 		errID     verror.IDAction
-		err       string
+		err       bool
 	}{
 		{blessings: bclient},
 		// server disallows clients from authenticating with blessings not bound to
 		// the client principal's public key
-		{blessings: bvictim, errID: verror.ErrNoAccess, err: "bound to a different public key"},
-		{blessings: bserver, errID: verror.ErrNoAccess, err: "bound to a different public key"},
+		{blessings: bvictim, errID: verror.ErrNoAccess, err: true},
+		{blessings: bserver, errID: verror.ErrNoAccess, err: true},
 	}
 	for i, test := range tests {
 		name := fmt.Sprintf("%d: Client RPCing with blessings %v", i, test.blessings)
 		v23.GetPrincipal(cctx).BlessingStore().Set(test.blessings, "test-blessings")
-		if err := v23.GetClient(cctx).Call(cctx, object, "Closure", nil, nil); !matchesErrorPattern(err, test.errID, test.err) {
+		if err := v23.GetClient(cctx).Call(cctx, object, "Closure", nil, nil); test.err && err == nil {
 			t.Errorf("%v: client.Call returned error %v", name, err)
 			continue
 		}
