@@ -60,7 +60,8 @@ func (c *fakeClock) Advance(steps uint) {
 // shareable with any peer. It does not care about the public key that
 // blessing being set is bound to.
 type singleBlessingStore struct {
-	b security.Blessings
+	b   security.Blessings
+	def security.Blessings
 }
 
 func (s *singleBlessingStore) Set(b security.Blessings, _ security.BlessingPattern) (security.Blessings, error) {
@@ -70,11 +71,12 @@ func (s *singleBlessingStore) Set(b security.Blessings, _ security.BlessingPatte
 func (s *singleBlessingStore) ForPeer(...string) security.Blessings {
 	return s.b
 }
-func (*singleBlessingStore) SetDefault(b security.Blessings) error {
+func (s *singleBlessingStore) SetDefault(b security.Blessings) error {
+	s.def = b
 	return nil
 }
-func (*singleBlessingStore) Default() security.Blessings {
-	return security.Blessings{}
+func (s *singleBlessingStore) Default() security.Blessings {
+	return s.def
 }
 func (*singleBlessingStore) PublicKey() security.PublicKey {
 	return nil

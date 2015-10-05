@@ -74,6 +74,7 @@ type Conn struct {
 	loopWG                 sync.WaitGroup
 	unopenedFlows          sync.WaitGroup
 	events                 chan<- StatusUpdate
+	isProxy                bool
 
 	mu             sync.Mutex
 	handler        FlowHandler
@@ -184,22 +185,25 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error)
 	if c.rBlessings.IsZero() {
 		return nil, NewErrDialingNonServer(ctx)
 	}
-	rDischarges, err := c.blessingsFlow.getLatestDischarges(ctx, c.rBlessings)
+	rDischarges, err := c.blessingsFlow.getLatestDischarges(ctx, c.rBlessings, false)
 	if err != nil {
 		return nil, err
 	}
-	// TODO(suharshs): On the first flow dial, find a way to not call this twice.
-	rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges)
-	if err != nil {
-		return nil, err
-	}
-	blessings, discharges, err := auth.BlessingsForPeer(ctx, rbnames)
-	if err != nil {
-		return nil, NewErrNoBlessingsForPeer(ctx, rbnames, rejected, err)
-	}
-	bkey, dkey, err := c.blessingsFlow.put(ctx, blessings, discharges)
-	if err != nil {
-		return nil, err
+	var bkey, dkey uint64
+	if !c.isProxy {
+		// TODO(suharshs): On the first flow dial, find a way to not call this twice.
+		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges)
+		if err != nil {
+			return nil, verror.New(verror.ErrNotTrusted, ctx, err)
+		}
+		blessings, discharges, err := auth.BlessingsForPeer(ctx, rbnames)
+		if err != nil {
+			return nil, NewErrNoBlessingsForPeer(ctx, rbnames, rejected, err)
+		}
+		bkey, dkey, err = c.blessingsFlow.put(ctx, blessings, discharges)
+		if err != nil {
+			return nil, err
+		}
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
@@ -291,7 +295,7 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 			f.close(ctx, flowErr)
 		}
 		if c.blessingsFlow != nil {
-			c.blessingsFlow.f.close(ctx, flowErr)
+			c.blessingsFlow.close(ctx, flowErr)
 		}
 		if cerr := c.mp.rw.Close(); cerr != nil {
 			ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)
@@ -398,14 +402,6 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		c.toRelease[msg.ID] = DefaultBytesBufferedPerFlow
 		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
-
-		rBlessings, _, err := c.blessingsFlow.get(ctx, msg.BlessingsKey, msg.DischargeKey)
-		if err != nil {
-			return err
-		}
-		if !reflect.DeepEqual(rBlessings.PublicKey(), c.rPublicKey) {
-			return NewErrBlessingsNotBound(ctx)
-		}
 
 		handler.HandleFlow(f)
 		if err := f.q.put(ctx, msg.Payload); err != nil {

@@ -146,9 +146,10 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 		return flow.NewErrNetwork(ctx, err)
 	}
 	local := &inaming.Endpoint{
-		Protocol: protocol,
-		Address:  ln.Addr().String(),
-		RID:      m.rid,
+		Protocol:  protocol,
+		Address:   ln.Addr().String(),
+		RID:       m.rid,
+		Blessings: m.blessingNames(),
 	}
 	m.ls.mu.Lock()
 	if m.ls.listeners == nil {
@@ -210,6 +211,10 @@ func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func
 		if err != nil {
 			ctx.Error(err)
 			continue
+		}
+		bnames := m.blessingNames()
+		for i := range eps {
+			eps[i].(*inaming.Endpoint).Blessings = bnames
 		}
 		update(eps)
 		select {
@@ -294,8 +299,8 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			fh,
 			m.ls.events)
 		if err != nil {
-			flowConn.Close()
 			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
+			flowConn.Close()
 		} else if err = m.cache.InsertWithRoutingID(c); err != nil {
 			ctx.Errorf("failed to cache conn %v: %v", c, err)
 		}
@@ -462,7 +467,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		)
 		if err != nil {
 			flowConn.Close()
-			if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
+			if id := verror.ErrorID(err); id == message.ErrWrongProtocol.ID || id == verror.ErrNotTrusted.ID {
 				return nil, nil, err
 			}
 			return nil, nil, flow.NewErrDialFailed(ctx, err)
@@ -574,4 +579,16 @@ func isTemporaryError(err error) bool {
 func isTooManyOpenFiles(err error) bool {
 	oErr, ok := err.(*net.OpError)
 	return ok && strings.Contains(oErr.Err.Error(), syscall.EMFILE.Error())
+}
+
+// TODO(suharshs): Make this not recompute over and over again.
+func (m *manager) blessingNames() []string {
+	p := v23.GetPrincipal(m.ctx)
+	def := p.BlessingStore().Default()
+	var ret []string
+	// TODO(suharshs): Shoudl we be filtering names with unreasonable caveats?
+	for b, _ := range p.BlessingsInfo(def) {
+		ret = append(ret, b)
+	}
+	return ret
 }

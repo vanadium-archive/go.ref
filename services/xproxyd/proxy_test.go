@@ -17,6 +17,7 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/xproxyd"
 	"v.io/x/ref/test/goroutines"
+	"v.io/x/ref/test/testutil"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -97,6 +98,62 @@ func TestMultipleProxyRPC(t *testing.T) {
 
 	var got string
 	if err := v23.GetClient(ctx).Call(ctx, eps[0].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "response:hello"; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestProxyNotAuthorized(t *testing.T) {
+	if ref.RPCTransitionState() != ref.XServers {
+		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
+	}
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	// Make principals for the proxy and server.
+	pctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("proxy"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Server blesses the proxy so that the server is willing to talk to it.
+	ids := testutil.IDProviderFromPrincipal(v23.GetPrincipal(sctx))
+	if err := ids.Bless(v23.GetPrincipal(pctx), "proxy"); err != nil {
+		t.Fatal(err)
+	}
+	// Client blesses the server so that the client is willing to talk to it.
+	idc := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
+	if err := idc.Bless(v23.GetPrincipal(sctx), "server"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now the proxy's blessings would fail authorization from the client using the
+	// default authorizer.
+	pep := startProxy(t, pctx, address{"tcp", "127.0.0.1:0"})
+
+	// Start the server listening through the proxy.
+	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Proxy: pep.Name()})
+	_, s, err := v23.WithNewServer(sctx, "", &testService{}, security.AllowEveryone())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the server to finish listening through the proxy.
+	eps := s.Status().Endpoints
+	for ; len(eps) < 2 || eps[1].Addr().Network() == ""; eps = s.Status().Endpoints {
+		time.Sleep(pollTime)
+	}
+
+	// The call should succeed which means that the client did not try to authorize
+	// the proxy's blessings.
+	var got string
+	if err := v23.GetClient(ctx).Call(ctx, eps[1].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
 		t.Fatal(err)
 	}
 	if want := "response:hello"; got != want {
