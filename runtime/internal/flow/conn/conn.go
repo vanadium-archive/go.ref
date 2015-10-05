@@ -207,7 +207,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error)
 		return nil, NewErrConnectionClosed(ctx)
 	}
 	id := c.nextFid
-	c.nextFid++
+	c.nextFid += 2
 	return c.newFlowLocked(ctx, id, bkey, dkey, true, false), nil
 }
 
@@ -381,6 +381,10 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 
 	case *message.OpenFlow:
 		c.mu.Lock()
+		if c.nextFid%2 == msg.ID%2 {
+			c.mu.Unlock()
+			return NewErrInvalidPeerFlow(ctx)
+		}
 		if c.handler == nil {
 			c.mu.Unlock()
 			return NewErrUnexpectedMsg(ctx, "openFlow")
