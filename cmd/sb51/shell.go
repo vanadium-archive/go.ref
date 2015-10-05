@@ -82,7 +82,7 @@ func runSbShell(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 
 	if flagMakeDemoTables {
-		if err := makeDemoDB(ctx, d); err != nil {
+		if err := makeDemoDB(ctx, env.Stdout, d); err != nil {
 			return err
 		}
 	}
@@ -122,7 +122,7 @@ stmtLoop:
 					err = dumpDB(ctx, env.Stdout, d)
 				case "make-demo":
 					// TODO(jkline): add an "Are you sure prompt" to give the user a 2nd chance.
-					err = makeDemoDB(ctx, d)
+					err = makeDemoDB(ctx, env.Stdout, d)
 				case "select":
 					err = queryExec(ctx, env.Stdout, d, q)
 				default:
@@ -191,8 +191,10 @@ func dumpDB(ctx *context.T, w io.Writer, d nosql.Database) error {
 	return nil
 }
 
-func makeDemoDB(ctx *context.T, d nosql.Database) error {
-	if err := demodb.PopulateDemoDB(ctx, d); err != nil {
+func makeDemoDB(ctx *context.T, w io.Writer, d nosql.Database) error {
+	if err := demodb.PopulateDemoDB(ctx, d); err == nil {
+		fmt.Fprintln(w, "Demo tables created and populated.")
+	} else {
 		return fmt.Errorf("failed making demo tables: %v", err)
 	}
 	return nil
