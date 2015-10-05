@@ -103,8 +103,8 @@ func TestParseArguments(t *testing.T) {
 			[]string{"A=B"},
 			"",
 			WorkParameters{
-				uid:       testUid,
-				gid:       testGid,
+				uid:       -1,
+				gid:       -1,
 				workspace: "",
 				agentsock: "",
 				logDir:    "",
@@ -167,8 +167,8 @@ func TestParseArguments(t *testing.T) {
 			[]string{"A=B"},
 			"",
 			WorkParameters{
-				uid:       testUid,
-				gid:       testGid,
+				uid:       -1,
+				gid:       -1,
 				workspace: "/hello",
 				agentsock: "/tmp/2981298123/s",
 				logDir:    "/logging",

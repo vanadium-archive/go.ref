@@ -163,6 +163,11 @@ func TestBinaryTidying(t *testing.T) {
 			application.Envelope{},
 			fmt.Errorf("no applications.Match(darwin-amd64)"),
 		},
+		// applications.Match(android-arm)
+		appd.MatchResult{
+			application.Envelope{},
+			fmt.Errorf("no applications.Match(android-arm)"),
+		},
 		// applications/applicationd.Match(linux-amd64)
 		appd.MatchResult{
 			application.Envelope{
@@ -191,6 +196,11 @@ func TestBinaryTidying(t *testing.T) {
 			},
 			nil,
 		},
+		// applications/applicationd.Match(android-arm)
+		appd.MatchResult{
+			application.Envelope{},
+			fmt.Errorf("no applications/applicationd.Match(android-arm)"),
+		},
 		// applications/applicationd/0.Match(linux-amd64)
 		appd.MatchResult{
 			application.Envelope{
@@ -218,6 +228,11 @@ func TestBinaryTidying(t *testing.T) {
 				},
 			},
 			nil,
+		},
+		// applications/applicationd/0.Match(android-arm)
+		appd.MatchResult{
+			application.Envelope{},
+			fmt.Errorf("no applications/applicationd/0.Match(android-arm)"),
 		},
 		// applications/binaryd.Match(linux-amd64)
 		appd.MatchResult{
@@ -253,6 +268,11 @@ func TestBinaryTidying(t *testing.T) {
 			},
 			nil,
 		},
+		// applications/binaryd.Match(android-arm)
+		appd.MatchResult{
+			application.Envelope{},
+			fmt.Errorf("no applications/binaryd.Match(android-arm)"),
+		},
 		// applications/binaryd/1.Match(linux-amd64)
 		appd.MatchResult{
 			application.Envelope{
@@ -286,6 +306,11 @@ func TestBinaryTidying(t *testing.T) {
 				},
 			},
 			nil,
+		},
+		// applications/binaryd/1.Match(android-arm)
+		appd.MatchResult{
+			application.Envelope{},
+			fmt.Errorf("no applications/binaryd/1.Match(android-arm)"),
 		},
 	)
 
@@ -333,22 +358,27 @@ func TestBinaryTidying(t *testing.T) {
 		appd.MatchStimulus{Name: "Match", Suffix: "applications", Profiles: []string{"linux-386"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications", Profiles: []string{"linux-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications", Profiles: []string{"darwin-amd64"}},
+		appd.MatchStimulus{Name: "Match", Suffix: "applications", Profiles: []string{"android-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd", Profiles: []string{"linux-amd64"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd", Profiles: []string{"linux-386"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd", Profiles: []string{"linux-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd", Profiles: []string{"darwin-amd64"}},
+		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd", Profiles: []string{"android-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd/0", Profiles: []string{"linux-amd64"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd/0", Profiles: []string{"linux-386"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd/0", Profiles: []string{"linux-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd/0", Profiles: []string{"darwin-amd64"}},
+		appd.MatchStimulus{Name: "Match", Suffix: "applications/applicationd/0", Profiles: []string{"android-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd", Profiles: []string{"linux-amd64"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd", Profiles: []string{"linux-386"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd", Profiles: []string{"linux-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd", Profiles: []string{"darwin-amd64"}},
+		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd", Profiles: []string{"android-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd/1", Profiles: []string{"linux-amd64"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd/1", Profiles: []string{"linux-386"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd/1", Profiles: []string{"linux-arm"}},
 		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd/1", Profiles: []string{"darwin-amd64"}},
+		appd.MatchStimulus{Name: "Match", Suffix: "applications/binaryd/1", Profiles: []string{"android-arm"}},
 	}; !reflect.DeepEqual(expected, got) {
 		t.Errorf("apptape invalid call sequence. Got %#v, want %#v", got, expected)
 	}

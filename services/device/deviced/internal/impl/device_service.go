@@ -416,7 +416,7 @@ func GenerateScript(workspace string, configSettings []string, envelope *applica
 	}
 	stderrLog, stdoutLog := filepath.Join(logs, "STDERR"), filepath.Join(logs, "STDOUT")
 
-	output := "#!/bin/bash\n"
+	output := "#!" + ShellPath + "\n"
 	output += "if [ -z \"$DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR\" ]; then\n"
 	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", DateCommand)
 	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)

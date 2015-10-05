@@ -26,16 +26,21 @@ type suidHelperState struct {
 var suidHelper *suidHelperState
 
 func InitSuidHelper(ctx *context.T, helperPath string) {
-	if suidHelper != nil || helperPath == "" {
+	if suidHelper != nil {
 		return
 	}
+	if helperPath == "" {
+		ctx.Panicf("suidhelper path needs to be specified")
+	}
 
-	u, err := user.Current()
-	if err != nil {
-		ctx.Panicf("devicemanager has no current user: %v", err)
+	var userName string
+	if user, _ := user.Current(); user != nil && len(user.Username) > 0 {
+		userName = user.Username
+	} else {
+		userName = "anonymous"
 	}
 	suidHelper = &suidHelperState{
-		dmUser:     u.Username,
+		dmUser:     userName,
 		helperPath: helperPath,
 	}
 }

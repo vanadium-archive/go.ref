@@ -56,6 +56,13 @@ func GetKnownProfiles() ([]*profile.Specification, error) {
 			Os:          build.OperatingSystemDarwin,
 			Format:      build.FormatMach,
 		},
+		{
+			Label:       "android-arm",
+			Description: "",
+			Arch:        build.ArchitectureArm,
+			Os:          build.OperatingSystemAndroid,
+			Format:      build.FormatElf,
+		},
 	}, nil
 
 	// TODO(jsimsa): This function assumes the existence of a profile

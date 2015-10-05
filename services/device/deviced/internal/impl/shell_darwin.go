@@ -5,5 +5,6 @@
 package impl
 
 const (
+	ShellPath   = "/bin/bash"
 	DateCommand = "/bin/date +%s.$RANDOM"
 )

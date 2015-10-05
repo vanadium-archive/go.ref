@@ -218,7 +218,7 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	}
 	stdoutLog, stderrLog := filepath.Join(logs, "STDOUT"), filepath.Join(logs, "STDERR")
 	// TODO(caprita): Switch all our generated bash scripts to use templates.
-	output := "#!/bin/bash\n"
+	output := "#!" + impl.ShellPath + "\n"
 	output += "if [ -z \"$DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR\" ]; then\n"
 	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", impl.DateCommand)
 	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
