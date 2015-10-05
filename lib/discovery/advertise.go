@@ -19,9 +19,7 @@ var (
 )
 
 // Advertise implements discovery.Advertiser.
-//
-// TODO(jhahn): Handle ACL.
-func (ds *ds) Advertise(ctx *context.T, service discovery.Service, perms []security.BlessingPattern) error {
+func (ds *ds) Advertise(ctx *context.T, service discovery.Service, visibility []security.BlessingPattern) error {
 	if len(service.InterfaceName) == 0 {
 		return verror.New(errNoInterfaceName, ctx)
 	}
@@ -40,14 +38,18 @@ func (ds *ds) Advertise(ctx *context.T, service discovery.Service, perms []secur
 		ServiceUuid: NewServiceUUID(service.InterfaceName),
 		Service:     service,
 	}
-	if err := encrypt(&ad, perms); err != nil {
+	if err := encrypt(&ad, visibility); err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel, err := ds.addTask(ctx)
+	if err != nil {
+		return err
+	}
+
+	barrier := NewBarrier(func() { ds.removeTask(ctx) })
 	for _, plugin := range ds.plugins {
-		err := plugin.Advertise(ctx, ad)
-		if err != nil {
+		if err := plugin.Advertise(ctx, ad, barrier.Add()); err != nil {
 			cancel()
 			return err
 		}

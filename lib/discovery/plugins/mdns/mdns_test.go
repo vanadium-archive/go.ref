@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,28 +28,40 @@ func encryptionKeys(key []byte) []ldiscovery.EncryptionKey {
 }
 
 func advertise(ctx *context.T, p ldiscovery.Plugin, service discovery.Service) (func(), error) {
-	ctx, stop := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	ad := ldiscovery.Advertisement{
 		ServiceUuid:         ldiscovery.NewServiceUUID(service.InterfaceName),
 		Service:             service,
 		EncryptionAlgorithm: ldiscovery.TestEncryption,
 		EncryptionKeys:      encryptionKeys(service.InstanceUuid),
 	}
-	if err := p.Advertise(ctx, ad); err != nil {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	if err := p.Advertise(ctx, ad, wg.Done); err != nil {
 		return nil, fmt.Errorf("Advertise failed: %v", err)
+	}
+	stop := func() {
+		cancel()
+		wg.Wait()
 	}
 	return stop, nil
 }
 
 func startScan(ctx *context.T, p ldiscovery.Plugin, interfaceName string) (<-chan ldiscovery.Advertisement, func(), error) {
-	ctx, stop := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	scan := make(chan ldiscovery.Advertisement)
 	var serviceUuid uuid.UUID
 	if len(interfaceName) > 0 {
 		serviceUuid = ldiscovery.NewServiceUUID(interfaceName)
 	}
-	if err := p.Scan(ctx, serviceUuid, scan); err != nil {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	if err := p.Scan(ctx, serviceUuid, scan, wg.Done); err != nil {
 		return nil, nil, fmt.Errorf("Scan failed: %v", err)
+	}
+	stop := func() {
+		cancel()
+		wg.Wait()
 	}
 	return scan, stop, nil
 }

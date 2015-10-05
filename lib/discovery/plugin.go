@@ -14,14 +14,15 @@ import (
 // All implementation should be goroutine-safe.
 type Plugin interface {
 	// Advertise advertises the advertisement. Advertising will continue until
-	// the context is canceled or exceeds its deadline.
-	Advertise(ctx *context.T, ad Advertisement) error
+	// the context is canceled or exceeds its deadline. done should be called
+	// once when advertising is done or canceled.
+	Advertise(ctx *context.T, ad Advertisement, done func()) error
 
 	// Scan scans services that match the service uuid and returns scanned
 	// advertisements to the channel. A zero-value service uuid means any service.
 	// Scanning will continue until the context is canceled or exceeds its
-	// deadline.
+	// deadline. done should be called once when scanning is done or canceled.
 	//
 	// TODO(jhahn): Pass a filter on service attributes.
-	Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- Advertisement) error
+	Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- Advertisement, done func()) error
 }

@@ -22,7 +22,7 @@ type plugin struct {
 	updated *sync.Cond
 }
 
-func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement) error {
+func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func()) error {
 	p.mu.Lock()
 	key := string(ad.ServiceUuid)
 	ads := p.services[key]
@@ -31,6 +31,7 @@ func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement) error {
 	p.updated.Broadcast()
 
 	go func() {
+		defer done()
 		<-ctx.Done()
 
 		p.mu.Lock()
@@ -52,7 +53,7 @@ func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement) error {
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- discovery.Advertisement) error {
+func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- discovery.Advertisement, done func()) error {
 	rescan := make(chan struct{})
 	go func() {
 		for {
@@ -68,8 +69,9 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- discovery
 	}()
 
 	go func() {
-		scanned := make(map[string]discovery.Advertisement)
+		defer done()
 
+		scanned := make(map[string]discovery.Advertisement)
 		for {
 			current := make(map[string]discovery.Advertisement)
 			p.mu.Lock()

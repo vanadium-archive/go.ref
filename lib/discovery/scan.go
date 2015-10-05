@@ -19,12 +19,20 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 	if len(query) > 0 {
 		serviceUuid = NewServiceUUID(query)
 	}
+
+	ctx, cancel, err := ds.addTask(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO(jhahn): Revisit the buffer size.
 	scanCh := make(chan Advertisement, 10)
-	ctx, cancel := context.WithCancel(ctx)
+	barrier := NewBarrier(func() {
+		close(scanCh)
+		ds.removeTask(ctx)
+	})
 	for _, plugin := range ds.plugins {
-		err := plugin.Scan(ctx, serviceUuid, scanCh)
-		if err != nil {
+		if err := plugin.Scan(ctx, serviceUuid, scanCh, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
 		}
