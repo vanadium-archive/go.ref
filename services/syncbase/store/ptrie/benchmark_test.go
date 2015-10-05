@@ -84,27 +84,12 @@ func BenchmarkPtriePut(b *testing.B) {
 	fillPtrie(b, t, keys)
 }
 
-func BenchmarkMapPut(b *testing.B) {
-	keys := generateMapKeys(b)
-	m := make(map[string]interface{})
-	b.ResetTimer()
-	fillMap(b, m, keys)
-}
-
 func BenchmarkPtrieOverwrite(b *testing.B) {
 	keys := generatePtrieKeys(b)
 	t := New(copyOnWrite)
 	fillPtrie(b, t, keys)
 	b.ResetTimer()
 	fillPtrie(b, t, keys)
-}
-
-func BenchmarkMapOverwrite(b *testing.B) {
-	keys := generateMapKeys(b)
-	m := make(map[string]interface{})
-	fillMap(b, m, keys)
-	b.ResetTimer()
-	fillMap(b, m, keys)
 }
 
 func BenchmarkPtrieDelete(b *testing.B) {
@@ -114,16 +99,6 @@ func BenchmarkPtrieDelete(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		t.Delete(keys[i])
-	}
-}
-
-func BenchmarkMapDelete(b *testing.B) {
-	keys := generateMapKeys(b)
-	m := make(map[string]interface{})
-	fillMap(b, m, keys)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		delete(m, keys[i])
 	}
 }
 
@@ -137,16 +112,6 @@ func BenchmarkPtrieGet(b *testing.B) {
 	}
 }
 
-func BenchmarkMapGet(b *testing.B) {
-	keys := generateMapKeys(b)
-	m := make(map[string]interface{})
-	fillMap(b, m, keys)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = m[keys[i]]
-	}
-}
-
 func BenchmarkPtrieScan(b *testing.B) {
 	keys := generatePtrieKeys(b)
 	t := New(copyOnWrite)
@@ -156,12 +121,59 @@ func BenchmarkPtrieScan(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s.Advance()
 	}
-	if s.Advance() {
-		panic(123)
+}
+
+func BenchmarkMapPut(b *testing.B) {
+	// Running this test takes a lot of time and benchmarking a map is not
+	// really important, so we skip the test.
+	b.SkipNow()
+	keys := generateMapKeys(b)
+	m := make(map[string]interface{})
+	b.ResetTimer()
+	fillMap(b, m, keys)
+}
+
+func BenchmarkMapOverwrite(b *testing.B) {
+	// Running this test takes a lot of time and benchmarking a map is not
+	// really important, so we skip the test.
+	b.SkipNow()
+	keys := generateMapKeys(b)
+	m := make(map[string]interface{})
+	fillMap(b, m, keys)
+	b.ResetTimer()
+	fillMap(b, m, keys)
+}
+
+func BenchmarkMapDelete(b *testing.B) {
+	// Running this test takes a lot of time and benchmarking a map is not
+	// really important, so we skip the test.
+	b.SkipNow()
+	keys := generateMapKeys(b)
+	m := make(map[string]interface{})
+	fillMap(b, m, keys)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		delete(m, keys[i])
+	}
+}
+
+func BenchmarkMapGet(b *testing.B) {
+	// Running this test takes a lot of time and benchmarking a map is not
+	// really important, so we skip the test.
+	b.SkipNow()
+	keys := generateMapKeys(b)
+	m := make(map[string]interface{})
+	fillMap(b, m, keys)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = m[keys[i]]
 	}
 }
 
 func BenchmarkMapScan(b *testing.B) {
+	// Running this test takes a lot of time and benchmarking a map is not
+	// really important, so we skip the test.
+	b.SkipNow()
 	keys := generateMapKeys(b)
 	m := make(map[string]interface{})
 	fillMap(b, m, keys)
