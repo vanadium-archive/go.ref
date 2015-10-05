@@ -175,17 +175,3 @@ type readSet struct {
 	Keys   [][]byte
 	Ranges []scanRange
 }
-
-type writeOpArray []WriteOp
-
-func (a writeOpArray) Len() int {
-	return len(a)
-}
-
-func (a writeOpArray) Less(i, j int) bool {
-	return string(a[i].Key) < string(a[j].Key)
-}
-
-func (a writeOpArray) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}

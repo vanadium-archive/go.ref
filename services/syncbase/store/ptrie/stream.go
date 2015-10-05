@@ -38,7 +38,7 @@ func (node *pnode) Scan(start, limit []byte) *Stream {
 		return &Stream{}
 	}
 	s := &Stream{
-		limit: store.CopyBytes(nil, limit),
+		limit: copyBytes(limit),
 	}
 	// Locate the first key-value pair with key >= start and capture
 	// the DFS stack.

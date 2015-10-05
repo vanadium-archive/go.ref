@@ -5,14 +5,17 @@
 package transactions
 
 import (
-	"bytes"
 	"container/list"
+	"fmt"
 	"sync"
 
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/ptrie"
 )
+
+type isDeleted struct{}
 
 // transaction is a wrapper on top of a BatchWriter and a store.Snapshot that
 // implements the store.Transaction interface.
@@ -24,8 +27,13 @@ type transaction struct {
 	event    *list.Element // pointer to element of mg.events
 	snapshot store.Snapshot
 	reads    readSet
-	writes   []WriteOp
-	err      error
+	// writes holds in-flight mutations of the transaction.
+	// writes holds key-value pairs where the value type can be:
+	//   isDeleted: the last modification of the row was Delete;
+	//   []byte: the last modification of the row was Put, value holds
+	//           the actual value that was put.
+	writes *ptrie.T
+	err    error
 }
 
 var _ store.Transaction = (*transaction)(nil)
@@ -35,6 +43,7 @@ func newTransaction(mg *manager) *transaction {
 		mg:       mg,
 		snapshot: mg.BatchStore.NewSnapshot(),
 		seq:      mg.seq,
+		writes:   ptrie.New(true),
 	}
 	tx.event = mg.events.PushFront(tx)
 	return tx
@@ -56,23 +65,18 @@ func (tx *transaction) Get(key, valbuf []byte) ([]byte, error) {
 	if tx.err != nil {
 		return valbuf, store.ConvertError(tx.err)
 	}
+	key = store.CopyBytes(nil, key)
 	tx.reads.Keys = append(tx.reads.Keys, key)
-
-	// Reflect the state of the transaction: the "writes" (puts and
-	// deletes) override the values in the transaction snapshot.
-	// Find the last "writes" entry for this key, if one exists.
-	// Note: this step could be optimized by using maps (puts and
-	// deletes) instead of an array.
-	for i := len(tx.writes) - 1; i >= 0; i-- {
-		op := &tx.writes[i]
-		if bytes.Equal(op.Key, key) {
-			if op.T == PutOp {
-				return op.Value, nil
-			}
+	if value := tx.writes.Get(key); value != nil {
+		switch bytes := value.(type) {
+		case []byte:
+			return store.CopyBytes(valbuf, bytes), nil
+		case isDeleted:
 			return valbuf, verror.New(store.ErrUnknownKey, nil, string(key))
+		default:
+			panic(fmt.Sprintf("unexpected type %T of value", bytes))
 		}
 	}
-
 	return tx.snapshot.Get(key, valbuf)
 }
 
@@ -83,14 +87,13 @@ func (tx *transaction) Scan(start, limit []byte) store.Stream {
 	if tx.err != nil {
 		return &store.InvalidStream{Error: tx.err}
 	}
-
+	start, limit = store.CopyBytes(nil, start), store.CopyBytes(nil, limit)
 	tx.reads.Ranges = append(tx.reads.Ranges, scanRange{
 		Start: start,
 		Limit: limit,
 	})
-
 	// Return a stream which merges the snaphot stream with the uncommitted changes.
-	return mergeWritesWithStream(tx.snapshot, tx.writes, start, limit)
+	return mergeWritesWithStream(tx.snapshot, tx.writes.Copy(), start, limit)
 }
 
 // Put implements the store.StoreWriter interface.
@@ -100,11 +103,7 @@ func (tx *transaction) Put(key, value []byte) error {
 	if tx.err != nil {
 		return store.ConvertError(tx.err)
 	}
-	tx.writes = append(tx.writes, WriteOp{
-		T:     PutOp,
-		Key:   key,
-		Value: value,
-	})
+	tx.writes.Put(key, value)
 	return nil
 }
 
@@ -115,10 +114,7 @@ func (tx *transaction) Delete(key []byte) error {
 	if tx.err != nil {
 		return store.ConvertError(tx.err)
 	}
-	tx.writes = append(tx.writes, WriteOp{
-		T:   DeleteOp,
-		Key: key,
-	})
+	tx.writes.Put(key, isDeleted{})
 	return nil
 }
 
@@ -163,10 +159,22 @@ func (tx *transaction) Commit() error {
 	if !tx.validateReadSet() {
 		return store.NewErrConcurrentTransaction(nil)
 	}
-	if err := tx.mg.BatchStore.WriteBatch(tx.writes...); err != nil {
+	var batch []WriteOp
+	s := tx.writes.Scan(nil, nil)
+	for s.Advance() {
+		switch bytes := s.Value().(type) {
+		case []byte:
+			batch = append(batch, WriteOp{T: PutOp, Key: s.Key(nil), Value: bytes})
+		case isDeleted:
+			batch = append(batch, WriteOp{T: DeleteOp, Key: s.Key(nil)})
+		default:
+			panic(fmt.Sprintf("unexpected type %T of value", bytes))
+		}
+	}
+	if err := tx.mg.BatchStore.WriteBatch(batch...); err != nil {
 		return err
 	}
-	tx.mg.trackBatch(tx.writes...)
+	tx.mg.trackBatch(batch...)
 	return nil
 }
 

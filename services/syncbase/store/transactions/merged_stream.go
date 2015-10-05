@@ -5,9 +5,12 @@
 package transactions
 
 import (
-	"sort"
+	"bytes"
+	"fmt"
+	"sync"
 
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/ptrie"
 )
 
 //////////////////////////////////////////////////////////////
@@ -16,103 +19,112 @@ import (
 // This implementation of Stream must take into account writes
 // which have occurred since the snapshot was taken on the
 // transaction.
-//
-// The MergeWritesWithStream() function requires uncommitted
-// changes to be passed in as an array of WriteOp.
 
-// Create a new stream which merges a snapshot stream with an array of write operations.
-func mergeWritesWithStream(sn store.Snapshot, w []WriteOp, start, limit []byte) store.Stream {
-	// Collect writes with the range specified, then sort them.
-	// Note: Writes could contain more than one write for a given key.
-	//       The last write is the current state.
-	writesMap := map[string]WriteOp{}
-	for _, write := range w {
-		if string(write.Key) >= string(start) && (string(limit) == "" || string(write.Key) < string(limit)) {
-			writesMap[string(write.Key)] = write
-		}
+// Create a new stream which merges a snapshot stream with write operations.
+func mergeWritesWithStream(sn store.Snapshot, w *ptrie.T, start, limit []byte) store.Stream {
+	m := &mergedStream{
+		s:       sn.Scan(start, limit),
+		sHasKey: true,
+		p:       w.Scan(start, limit),
+		pHasKey: true,
 	}
-	var writesArray writeOpArray
-	for _, writeOp := range writesMap {
-		writesArray = append(writesArray, writeOp)
-	}
-	sort.Sort(writesArray)
-	return &mergedStream{
-		snapshotStream:      sn.Scan(start, limit),
-		writesArray:         writesArray,
-		writesCursor:        0,
-		unusedSnapshotValue: false,
-		snapshotStreamEOF:   false,
-		hasValue:            false,
-	}
+	m.advanceS()
+	m.advanceP()
+	return m
 }
+
+type valueSourceType uint32
+
+const (
+	notInitialized valueSourceType = iota
+	snapshotStream
+	ptrieStream
+)
 
 type mergedStream struct {
-	snapshotStream      store.Stream
-	writesArray         []WriteOp
-	writesCursor        int
-	unusedSnapshotValue bool
-	snapshotStreamEOF   bool
-	hasValue            bool // if true, Key() and Value() can be called
-	key                 []byte
-	value               []byte
+	mu sync.Mutex
+
+	s       store.Stream
+	sHasKey bool
+	sKey    []byte
+
+	p       *ptrie.Stream
+	pHasKey bool
+	pKey    []byte
+	// value indicates which stream holds the staged key-value pair
+	valueSource valueSourceType
+	cancelMutex sync.Mutex // protects isCanceled
+	isCanceled  bool
 }
 
-// Convenience function to check EOF on writesArray
-func (s *mergedStream) writesArrayEOF() bool {
-	return s.writesCursor >= len(s.writesArray)
+func (m *mergedStream) advanceS() {
+	if m.sHasKey {
+		m.sHasKey = m.s.Advance()
+	}
+	if m.sHasKey {
+		m.sKey = m.s.Key(m.sKey)
+	}
 }
 
-// If a kv from the snapshot isn't on deck, call
-// Advance on the snapshot and set unusedSnapshotValue.
-// If EOF encountered, set snapshotStreamEOF.
-// If error encountered, return it.
-func (s *mergedStream) stageSnapshotKeyValue() error {
-	if !s.snapshotStreamEOF && !s.unusedSnapshotValue {
-		if !s.snapshotStream.Advance() {
-			s.snapshotStreamEOF = true
-			if err := s.snapshotStream.Err(); err != nil {
-				return err
-			}
-		}
-		s.unusedSnapshotValue = true
+func (m *mergedStream) advanceP() {
+	if m.pHasKey {
+		m.pHasKey = m.p.Advance()
 	}
-	return nil
+	if m.pHasKey {
+		m.pKey = m.p.Key(m.pKey)
+	}
 }
 
-// Pick a kv from either the snapshot or the uncommited writes array.
-// If an uncommited write is picked advance past it and return false (also, advance the snapshot
-// stream if its current key is equal to the ucommitted delete).
-func (s *mergedStream) pickKeyValue() bool {
-	if !s.snapshotStreamEOF && (s.writesArrayEOF() || string(s.writesArray[s.writesCursor].Key) > string(s.snapshotStream.Key(nil))) {
-		s.key = s.snapshotStream.Key(s.key)
-		s.value = s.snapshotStream.Value(s.value)
-		s.unusedSnapshotValue = false
-		return true
-	}
-	if !s.snapshotStreamEOF && string(s.writesArray[s.writesCursor].Key) == string(s.snapshotStream.Key(nil)) {
-		s.unusedSnapshotValue = false
-	}
-	if s.writesArrayEOF() || s.writesArray[s.writesCursor].T == DeleteOp {
-		s.writesCursor++
-		return false
-	}
-	s.key = store.CopyBytes(s.key, s.writesArray[s.writesCursor].Key)
-	s.value = store.CopyBytes(s.value, s.writesArray[s.writesCursor].Value)
-	s.writesCursor++
-	return true
+func (m *mergedStream) canceled() bool {
+	m.cancelMutex.Lock()
+	defer m.cancelMutex.Unlock()
+	return m.isCanceled
 }
 
-func (s *mergedStream) Advance() bool {
-	s.hasValue = false
+// stage stages a key-value pair from either the snapshot or the uncommitted
+// writes.
+func (m *mergedStream) stage() valueSourceType {
+	if m.sHasKey && (!m.pHasKey || bytes.Compare(m.sKey, m.pKey) < 0) {
+		return snapshotStream
+	}
+	if m.sHasKey && bytes.Compare(m.sKey, m.pKey) == 0 {
+		m.advanceS()
+	}
+	switch value := m.p.Value().(type) {
+	case isDeleted:
+		m.advanceP()
+		return notInitialized
+	case []byte:
+		return ptrieStream
+	default:
+		panic(fmt.Sprintf("unexpected type %T of value", value))
+	}
+}
+
+// Advance implements the Stream interface.
+func (m *mergedStream) Advance() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Invariant: one of the two streams points to the last staged key-value
+	// pair and the other stream points to the key greater than the last staged
+	// key with the exception if it is the first call of Advance().
+	switch m.valueSource {
+	case snapshotStream:
+		m.advanceS()
+	case ptrieStream:
+		m.advanceP()
+	}
+	m.valueSource = notInitialized
+	// Invariant: both streams point to a key-value pairs with keys greater than
+	// the last staged key.
+	// We need to pick a stream that points to a smaller key. If the picked
+	// stream is the ptrie stream and the key-value pair represents a delete
+	// operation, we skip the key-value pair and pick a key-value pair again.
 	for true {
-		if err := s.stageSnapshotKeyValue(); err != nil {
+		if m.canceled() || (!m.sHasKey && !m.pHasKey) {
 			return false
 		}
-		if s.snapshotStreamEOF && s.writesArrayEOF() {
-			return false
-		}
-		if s.pickKeyValue() {
-			s.hasValue = true
+		if m.valueSource = m.stage(); m.valueSource != notInitialized {
 			return true
 		}
 	}
@@ -120,30 +132,45 @@ func (s *mergedStream) Advance() bool {
 }
 
 // Key implements the Stream interface.
-func (s *mergedStream) Key(keybuf []byte) []byte {
-	if !s.hasValue {
+func (m *mergedStream) Key(keybuf []byte) []byte {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	switch m.valueSource {
+	case snapshotStream:
+		return store.CopyBytes(keybuf, m.sKey)
+	case ptrieStream:
+		return store.CopyBytes(keybuf, m.pKey)
+	default:
 		panic("nothing staged")
 	}
-	return store.CopyBytes(keybuf, s.key)
 }
 
 // Value implements the Stream interface.
-func (s *mergedStream) Value(valbuf []byte) []byte {
-	if !s.hasValue {
+func (m *mergedStream) Value(valbuf []byte) []byte {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	switch m.valueSource {
+	case snapshotStream:
+		// m.s.Value internally copies bytes to valbuf.
+		return m.s.Value(valbuf)
+	case ptrieStream:
+		return store.CopyBytes(valbuf, m.p.Value().([]byte))
+	default:
 		panic("nothing staged")
 	}
-	return store.CopyBytes(valbuf, s.value)
 }
 
 // Err implements the Stream interface.
-func (s *mergedStream) Err() error {
-	return s.snapshotStream.Err()
+func (m *mergedStream) Err() error {
+	return m.s.Err()
 }
 
 // Cancel implements the Stream interface.
-func (s *mergedStream) Cancel() {
-	s.snapshotStream.Cancel()
-	s.hasValue = false
-	s.snapshotStreamEOF = true
-	s.writesCursor = len(s.writesArray)
+func (m *mergedStream) Cancel() {
+	m.cancelMutex.Lock()
+	if !m.isCanceled {
+		m.isCanceled = true
+		m.s.Cancel()
+	}
+	m.cancelMutex.Unlock()
 }
