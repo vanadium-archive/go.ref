@@ -12,9 +12,10 @@ import (
 )
 
 type readq struct {
-	mu   sync.Mutex
-	bufs [][]byte
-	b, e int
+	mu     sync.Mutex
+	bufs   [][]byte
+	b, e   int
+	closed bool
 
 	id     uint64
 	size   int
@@ -45,7 +46,7 @@ func (r *readq) put(ctx *context.T, bufs [][]byte) error {
 
 	defer r.mu.Unlock()
 	r.mu.Lock()
-	if r.e == -1 {
+	if r.closed {
 		// The flow has already closed.  Simply drop the data.
 		return nil
 	}
@@ -72,7 +73,8 @@ func (r *readq) put(ctx *context.T, bufs [][]byte) error {
 
 func (r *readq) read(ctx *context.T, data []byte) (n int, err error) {
 	r.mu.Lock()
-	if err = r.waitLocked(ctx); err == nil {
+	if err = r.waitLocked(ctx); err == nil || (err == io.EOF && r.nbufs > 0) {
+		err = nil
 		buf := r.bufs[r.b]
 		n = copy(data, buf)
 		buf = buf[n:]
@@ -93,7 +95,8 @@ func (r *readq) read(ctx *context.T, data []byte) (n int, err error) {
 
 func (r *readq) get(ctx *context.T) (out []byte, err error) {
 	r.mu.Lock()
-	if err = r.waitLocked(ctx); err == nil {
+	if err = r.waitLocked(ctx); err == nil || (err == io.EOF && r.nbufs > 0) {
+		err = nil
 		out = r.bufs[r.b]
 		r.b = (r.b + 1) % len(r.bufs)
 		r.size -= len(out)
@@ -127,9 +130,9 @@ func (r *readq) waitLocked(ctx *context.T) (err error) {
 func (r *readq) close(ctx *context.T) bool {
 	r.mu.Lock()
 	closed := false
-	if r.e != -1 {
+	if !r.closed {
+		r.closed = true
 		closed = true
-		r.e = -1
 		close(r.notify)
 	}
 	r.mu.Unlock()
