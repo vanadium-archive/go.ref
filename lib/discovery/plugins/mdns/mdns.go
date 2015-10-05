@@ -71,36 +71,40 @@ type subscription struct {
 	lastSubscription time.Time
 }
 
-func (p *plugin) Advertise(ctx *context.T, ad ldiscovery.Advertisement) error {
+func (p *plugin) Advertise(ctx *context.T, ad ldiscovery.Advertisement, done func()) (err error) {
 	serviceName := ad.ServiceUuid.String() + serviceNameSuffix
 	// We use the instance uuid as the host name so that we can get the instance uuid
 	// from the lost service instance, which has no txt records at all.
 	hostName := encodeInstanceUuid(ad.InstanceUuid)
 	txt, err := createTxtRecords(&ad)
 	if err != nil {
+		done()
 		return err
 	}
 
 	// Announce the service.
 	err = p.mdns.AddService(serviceName, hostName, 0, txt...)
 	if err != nil {
+		done()
 		return err
 	}
 	// Announce it as v23 service as well so that we can discover
 	// all v23 services through mDNS.
 	err = p.mdns.AddService(v23ServiceName, hostName, 0, txt...)
 	if err != nil {
+		done()
 		return err
 	}
 	stop := func() {
 		p.mdns.RemoveService(serviceName, hostName, 0, txt...)
 		p.mdns.RemoveService(v23ServiceName, hostName, 0, txt...)
+		done()
 	}
 	p.adStopper.Add(stop, ctx.Done())
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- ldiscovery.Advertisement) error {
+func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- ldiscovery.Advertisement, done func()) error {
 	var serviceName string
 	if len(serviceUuid) == 0 {
 		serviceName = v23ServiceName
@@ -109,6 +113,8 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- ldiscover
 	}
 
 	go func() {
+		defer done()
+
 		// Subscribe to the service if not subscribed yet or if we haven't refreshed in a while.
 		p.subscriptionMu.Lock()
 		sub := p.subscription[serviceName]
