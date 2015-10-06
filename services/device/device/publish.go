@@ -143,7 +143,8 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 	appVON := naming.Join(applicationService, envelopeName)
 	appClient := repository.ApplicationClient(appVON)
 	envelope, err := appClient.Match(ctx, []string{profile})
-	if verror.ErrorID(err) == verror.ErrNoExist.ID {
+	// TODO(caprita): Fix https://github.com/vanadium/issues/issues/679
+	if errID := verror.ErrorID(err); errID == verror.ErrNoExist.ID || errID == "v.io/x/ref/services/application/applicationd.InvalidSuffix" {
 		// There was nothing published yet, create a new envelope.
 		envelope = application.Envelope{Title: title}
 	} else if err != nil {
