@@ -409,15 +409,9 @@ func (s *watchGlobStreamImpl) Send(item interface{}) error {
 		Continued:    vc.Continued,
 	}
 
-	// Block until client acks receiving and processing the previous change before sending more.
-	// This effectively creates a flow control mechanism.
-	// TODO(aghassemi): Consider sending more than a single change event before
-	// blocking until receiving ack.
-	ack, err := s.proxy.OnChange(mc)
-	if !ack && err != nil {
-		err = verror.NewErrInternal(s.ctx)
-	}
-	return err
+	// proxy.OnChange() blocks until the client acks the previous invocation, 
+	// thus providing flow control.
+	return s.proxy.OnChange(mc)
 }
 
 func (s *watchGlobStreamImpl) Recv(_ interface{}) error {
@@ -653,21 +647,12 @@ func (s *scanStreamImpl) Send(item interface{}) error {
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
-
-	// Block until client acks receiving and processing the previous change before sending more.
-	// This effectively creates a flow control mechanism.
-	// TODO(aghassemi): Consider sending more than a single KeyValue before
-	// blocking until receiving ack.
-	ack, err := s.proxy.OnKeyValue(mojom.KeyValue{
+	// proxy.OnKeyValue() blocks until the client acks the previous invocation,
+	// thus providing flow control.
+	return s.proxy.OnKeyValue(mojom.KeyValue{
 		Key:   kv.Key,
 		Value: kv.Value,
 	})
-
-	if !ack && err != nil {
-		err = verror.NewErrInternal(s.ctx)
-	}
-
-	return err
 }
 
 func (s *scanStreamImpl) Recv(_ interface{}) error {
