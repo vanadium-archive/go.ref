@@ -12,6 +12,10 @@ import (
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type Sync interface {
+	// GetTime returns metadata related to syncbase clock like syncbase clock
+	// timestamps, last NTP timestamp, num reboots, etc.
+	GetTime(req TimeReq, initiator string) (TimeResp | error)
+
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either SyncGroup metadata or data.

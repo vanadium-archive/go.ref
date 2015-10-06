@@ -9,6 +9,7 @@ import (
 	"net"
 	"time"
 
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/util"
 )
 
@@ -42,7 +43,7 @@ func (ns *ntpSourceImpl) NtpSync(sampleCount int) (*NtpData, error) {
 		}
 	}
 	if canonicalSample == nil {
-		err := fmt.Errorf("Failed to get any sample from NTP server: %s", ns.ntpHost)
+		err := fmt.Errorf("clock: NtpSync: Failed to get any sample from NTP server: %s", ns.ntpHost)
 		return nil, err
 	}
 	return canonicalSample, nil
@@ -72,6 +73,18 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 	}
 	defer con.Close()
 
+	// To make sure that the system clock does not change between fetching
+	// send and receive timestamps, we get the elapsed time since
+	// boot (which is immutable) before registering the send timestamp and
+	// after registering the receive timestamp and call HasSysClockChanged()
+	// to verify if the clock changed in between or not. If it did, we return
+	// ErrInternal as response.
+	elapsedOrig, err := ns.sc.ElapsedTime()
+	if err != nil {
+		vlog.Errorf("clock: NtpSync: error while fetching elapsed time: %v", err)
+		return nil, err
+	}
+
 	msg := ns.createRequest()
 	_, err = con.Write(msg)
 	if err != nil {
@@ -85,9 +98,21 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 	}
 
 	clientReceiveTs := ns.sc.Now()
+	elapsedEnd, err := ns.sc.ElapsedTime()
+	if err != nil {
+		vlog.Errorf("clock: NtpSync: error while fetching elapsed time: %v", err)
+		return nil, err
+	}
+
 	clientTransmitTs := extractTime(msg[24:32])
 	serverReceiveTs := extractTime(msg[32:40])
 	serverTransmitTs := extractTime(msg[40:48])
+
+	if HasSysClockChanged(clientTransmitTs, clientReceiveTs, elapsedOrig, elapsedEnd) {
+		err := fmt.Errorf("clock: NtpSync: system clock changed midway through syncing wih NTP.")
+		vlog.Errorf("%v", err)
+		return nil, err
+	}
 
 	// Following code extracts the clock offset and network delay based on the
 	// transmit and receive timestamps on the client and the server as per
@@ -95,7 +120,7 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 	data := NtpData{}
 	data.offset = (serverReceiveTs.Sub(clientTransmitTs) + serverTransmitTs.Sub(clientReceiveTs)) / 2
 	data.delay = clientReceiveTs.Sub(clientTransmitTs) - serverTransmitTs.Sub(serverReceiveTs)
-
+	data.ntpTs = serverTransmitTs
 	return &data, nil
 }
 

@@ -71,6 +71,8 @@ func (s *syncService) syncer(ctx *context.T) {
 			continue
 		}
 
+		s.syncClock(ctx, peer)
+
 		// Sync Syncgroup metadata and data.
 		s.getDeltas(ctx, peer)
 	}

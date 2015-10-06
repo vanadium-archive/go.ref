@@ -8,174 +8,179 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	"v.io/v23/verror"
 )
 
 func TestWithMockNtpForErr(t *testing.T) {
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
 	sysClock := MockSystemClock(time.Now(), 0)
-	stAdapter := MockStorageAdapter()
 	ntpSource := MockNtpSource()
 	ntpSource.Err = net.UnknownNetworkError("network err")
+	vclock := NewVClockWithMockServices(testStore.st, sysClock, ntpSource)
 
-	vclock := NewVClockWithMockServices(stAdapter, sysClock, ntpSource)
-
-	if err := vclock.runNtpCheck(nil); err == nil {
-		t.Error("Network error expected but not found")
-	}
-
-	if stAdapter.clockData != nil {
-		t.Error("Non-nil clock data found.")
+	vclock.runNtpCheck()
+	clockData := &ClockData{}
+	if err := vclock.GetClockData(vclock.St(), clockData); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Errorf("Non-nil clock data found: %v", clockData)
 	}
 }
 
 func TestWithMockNtpForDiffBelowThreshold(t *testing.T) {
-	sysClock := MockSystemClock(time.Now(), 0) // not used
-	stAdapter := MockStorageAdapter()
-	originalData := NewClockData(0)
-	stAdapter.SetClockData(nil, &originalData)
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
+	sysTs := time.Now()
+	elapsedTime := time.Duration(50)
+	var skew int64 = 0
+	sysClock := MockSystemClock(sysTs, elapsedTime)
+	originalData := NewClockData(skew)
 
 	ntpSource := MockNtpSource()
 	offset := 1800 * time.Millisecond // error threshold is 2 seconds
-	ntpSource.Data = &NtpData{offset: offset, delay: 5 * time.Millisecond}
+	ntpSource.Data = &NtpData{
+		offset: offset,
+		delay:  5 * time.Millisecond,
+		ntpTs:  sysTs.Add(offset),
+	}
 
-	vclock := NewVClockWithMockServices(stAdapter, sysClock, ntpSource)
-	if err := vclock.runNtpCheck(nil); err != nil {
-		t.Errorf("Unexpected err: %v", err)
+	vclock := NewVClockWithMockServices(testStore.st, sysClock, ntpSource)
+	tx := vclock.St().NewTransaction()
+	vclock.SetClockData(tx, &originalData)
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Error while commiting tx: %v", err)
 	}
-	if isClockDataChanged(stAdapter, &originalData) {
-		t.Error("ClockData expected to be unchanged but found updated")
-	}
+
+	vclock.runNtpCheck()
+	expectedSystemTimeAtBoot := sysTs.UnixNano() - elapsedTime.Nanoseconds()
+	expected := newClockData(expectedSystemTimeAtBoot, skew, elapsedTime.Nanoseconds(), &ntpSource.Data.ntpTs, 0, 0)
+	VerifyClockData(t, vclock, expected)
 }
 
 func TestWithMockNtpForDiffAboveThreshold(t *testing.T) {
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
 	sysTs := time.Now()
 	elapsedTime := 10 * time.Minute
 	sysClock := MockSystemClock(sysTs, elapsedTime)
-
-	stAdapter := MockStorageAdapter()
 	originalData := NewClockData(0)
-	stAdapter.SetClockData(nil, &originalData)
 
 	ntpSource := MockNtpSource()
 	skew := 2100 * time.Millisecond // error threshold is 2 seconds
-	ntpSource.Data = &NtpData{offset: skew, delay: 5 * time.Millisecond}
+	ntpSource.Data = &NtpData{
+		offset: skew,
+		delay:  5 * time.Millisecond,
+		ntpTs:  sysTs.Add(skew),
+	}
 
-	vclock := NewVClockWithMockServices(stAdapter, sysClock, ntpSource)
-	if err := vclock.runNtpCheck(nil); err != nil {
-		t.Errorf("Unexpected err: %v", err)
+	vclock := NewVClockWithMockServices(testStore.st, sysClock, ntpSource)
+	tx := vclock.St().NewTransaction()
+	vclock.SetClockData(tx, &originalData)
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Error while commiting tx: %v", err)
 	}
-	if !isClockDataChanged(stAdapter, &originalData) {
-		t.Error("ClockData expected to be updated but found unchanged")
-	}
+
+	vclock.runNtpCheck()
 	expectedBootTime := sysTs.Add(-elapsedTime).UnixNano()
-	if stAdapter.clockData.Skew != skew.Nanoseconds() {
-		t.Errorf("Skew expected to be %d but found %d",
-			skew.Nanoseconds(), stAdapter.clockData.Skew)
-	}
-	if stAdapter.clockData.ElapsedTimeSinceBoot != elapsedTime.Nanoseconds() {
-		t.Errorf("ElapsedTime expected to be %d but found %d",
-			elapsedTime.Nanoseconds(), stAdapter.clockData.ElapsedTimeSinceBoot)
-	}
-	if stAdapter.clockData.SystemTimeAtBoot != expectedBootTime {
-		t.Errorf("Skew expected to be %d but found %d",
-			expectedBootTime, stAdapter.clockData.SystemTimeAtBoot)
-	}
+	expected := newClockData(expectedBootTime, skew.Nanoseconds(), elapsedTime.Nanoseconds(), &ntpSource.Data.ntpTs, 0, 0)
+	VerifyClockData(t, vclock, expected)
 }
 
 func TestWithMockNtpForDiffBelowThresholdAndExistingLargeSkew(t *testing.T) {
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
 	sysTs := time.Now()
 	elapsedTime := 10 * time.Minute
 	sysClock := MockSystemClock(sysTs, elapsedTime)
 
-	stAdapter := MockStorageAdapter()
 	originalData := NewClockData(2300 * time.Millisecond.Nanoseconds()) // large skew
-	stAdapter.SetClockData(nil, &originalData)
 
 	ntpSource := MockNtpSource()
 	skew := 200 * time.Millisecond // error threshold is 2 seconds
-	ntpSource.Data = &NtpData{offset: skew, delay: 5 * time.Millisecond}
+	ntpSource.Data = &NtpData{
+		offset: skew,
+		delay:  5 * time.Millisecond,
+		ntpTs:  sysTs.Add(skew),
+	}
 
-	vclock := NewVClockWithMockServices(stAdapter, sysClock, ntpSource)
-	if err := vclock.runNtpCheck(nil); err != nil {
-		t.Errorf("Unexpected err: %v", err)
+	vclock := NewVClockWithMockServices(testStore.st, sysClock, ntpSource)
+	tx := vclock.St().NewTransaction()
+	vclock.SetClockData(tx, &originalData)
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Error while commiting tx: %v", err)
 	}
-	if !isClockDataChanged(stAdapter, &originalData) {
-		t.Error("ClockData expected to be updated but found unchanged")
-	}
+
+	vclock.runNtpCheck()
 	expectedBootTime := sysTs.Add(-elapsedTime).UnixNano()
-	if stAdapter.clockData.Skew != skew.Nanoseconds() {
-		t.Errorf("Skew expected to be %d but found %d",
-			skew.Nanoseconds(), stAdapter.clockData.Skew)
-	}
-	if stAdapter.clockData.ElapsedTimeSinceBoot != elapsedTime.Nanoseconds() {
-		t.Errorf("ElapsedTime expected to be %d but found %d",
-			elapsedTime.Nanoseconds(), stAdapter.clockData.ElapsedTimeSinceBoot)
-	}
-	if stAdapter.clockData.SystemTimeAtBoot != expectedBootTime {
-		t.Errorf("Skew expected to be %d but found %d",
-			expectedBootTime, stAdapter.clockData.SystemTimeAtBoot)
-	}
+	expected := newClockData(expectedBootTime, skew.Nanoseconds(), elapsedTime.Nanoseconds(), &ntpSource.Data.ntpTs, 0, 0)
+	VerifyClockData(t, vclock, expected)
 }
 
 func TestWithMockNtpForDiffBelowThresholdWithNoStoredClockData(t *testing.T) {
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
 	sysTs := time.Now()
 	elapsedTime := 10 * time.Minute
 	sysClock := MockSystemClock(sysTs, elapsedTime)
 
-	stAdapter := MockStorageAdapter() // no skew data stored
-
 	ntpSource := MockNtpSource()
 	skew := 200 * time.Millisecond // error threshold is 2 seconds
-	ntpSource.Data = &NtpData{offset: skew, delay: 5 * time.Millisecond}
+	ntpSource.Data = &NtpData{
+		offset: skew,
+		delay:  5 * time.Millisecond,
+		ntpTs:  sysTs.Add(skew),
+	}
 
-	vclock := NewVClockWithMockServices(stAdapter, sysClock, ntpSource)
-	if err := vclock.runNtpCheck(nil); err != nil {
-		t.Errorf("Unexpected err: %v", err)
-	}
-	if !isClockDataChanged(stAdapter, nil) {
-		t.Error("ClockData expected to be updated but found unchanged")
-	}
+	vclock := NewVClockWithMockServices(testStore.st, sysClock, ntpSource)
+	// no skew data stored
+	vclock.runNtpCheck()
 	expectedBootTime := sysTs.Add(-elapsedTime).UnixNano()
-	if stAdapter.clockData.Skew != skew.Nanoseconds() {
-		t.Errorf("Skew expected to be %d but found %d",
-			skew.Nanoseconds(), stAdapter.clockData.Skew)
-	}
-	if stAdapter.clockData.ElapsedTimeSinceBoot != elapsedTime.Nanoseconds() {
-		t.Errorf("ElapsedTime expected to be %d but found %d",
-			elapsedTime.Nanoseconds(), stAdapter.clockData.ElapsedTimeSinceBoot)
-	}
-	if stAdapter.clockData.SystemTimeAtBoot != expectedBootTime {
-		t.Errorf("Skew expected to be %d but found %d",
-			expectedBootTime, stAdapter.clockData.SystemTimeAtBoot)
-	}
+	expected := newClockData(expectedBootTime, skew.Nanoseconds(), elapsedTime.Nanoseconds(), &ntpSource.Data.ntpTs, 0, 0)
+	VerifyClockData(t, vclock, expected)
 }
 
 /*
-Following two tests are commented out as they hit the real NTP servers
-and can resut into being flaky if the clock of the machine running continuous
-test has a skew more than 2 seconds.
+// Following two tests are commented out as they hit the real NTP servers
+// and can resut into being flaky if the clock of the machine running continuous
+// test has a skew more than 2 seconds.
 
 func TestWithRealNtp(t *testing.T) {
-	stAdapter := MockStorageAdapter()
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
 	originalData := NewClockData(100 * time.Millisecond.Nanoseconds())  // small skew
-	stAdapter.SetClockData(nil, &originalData)
-	vclock := NewVClockWithMockServices(stAdapter, nil, nil)
-	if err := vclock.runNtpCheck(nil); err != nil {
-		t.Errorf("Unexpected err: %v", err)
+	vclock := NewVClockWithMockServices(testStore.st, nil, nil)
+	tx := vclock.St().NewTransaction()
+	vclock.SetClockData(tx, &originalData)
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Error while commiting tx: %v", err)
 	}
-	if isClockDataChanged(stAdapter, &originalData) {
-		t.Error("ClockData expected to be unchanged but found updated")
+	vclock.runNtpCheck()
+
+	clockData := ClockData{}
+	if err := vclock.GetClockData(vclock.St(), &clockData); err != nil {
+		t.Errorf("error looking up clock data: %v", err)
 	}
+	fmt.Printf("\nClockData old: %#v, new : %#v", originalData, clockData)
 }
 
 func TestWithRealNtpForNoClockData(t *testing.T) {
-	stAdapter := MockStorageAdapter()
-	vclock := NewVClockWithMockServices(stAdapter, nil, nil)
-	if err := vclock.runNtpCheck(nil); err != nil {
-		t.Errorf("Unexpected err: %v", err)
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
+	vclock := NewVClockWithMockServices(testStore.st, nil, nil)
+	vclock.runNtpCheck()
+
+	clockData := ClockData{}
+	if err := vclock.GetClockData(vclock.St(), &clockData); err != nil {
+		t.Errorf("error looking up clock data: %v", err)
 	}
-	if !isClockDataChanged(stAdapter, nil) {
-		t.Error("ClockData expected to be updated but found unchanged")
-	}
+	fmt.Printf("\nClockData: %#v", clockData)
 }
 */
 
@@ -185,8 +190,4 @@ func NewClockData(skew int64) ClockData {
 		Skew:                 skew,
 		ElapsedTimeSinceBoot: 0,
 	}
-}
-
-func isClockDataChanged(stAdapter *storageAdapterMockImpl, originalData *ClockData) bool {
-	return stAdapter.clockData != originalData // check for same pointer
 }

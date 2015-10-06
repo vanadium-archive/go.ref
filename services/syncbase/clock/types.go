@@ -6,8 +6,6 @@ package clock
 
 import (
 	"time"
-
-	"v.io/v23/context"
 )
 
 // This interface provides a wrapper over system clock to allow easy testing
@@ -21,11 +19,6 @@ type SystemClock interface {
 	// ElapsedTime returns a duration representing the time elapsed since the device
 	// rebooted.
 	ElapsedTime() (time.Duration, error)
-}
-
-type StorageAdapter interface {
-	GetClockData(ctx *context.T, data *ClockData) error
-	SetClockData(ctx *context.T, data *ClockData) error
 }
 
 type NtpSource interface {
@@ -45,6 +38,31 @@ type NtpData struct {
 	// Delay is the round trip network delay experienced while talking to NTP
 	// server. The smaller the delay, the more accurate the offset is.
 	delay time.Duration
+
+	// Timestamp from NTP server.
+	ntpTs time.Time
+}
+
+// PeerSyncData contains information about the peer's clock along with the
+// timestamps related to the roundtrip.
+type PeerSyncData struct {
+	// The send timestamp received in TimeReq from the originator.
+	MySendTs time.Time
+	// Time when the request was received by peer.
+	RecvTs time.Time
+	// Time when the response was sent by peer.
+	SendTs time.Time
+	// Time when the response was received by the originator.
+	MyRecvTs time.Time
+	// Timestamp received from NTP during last NTP sync. The last NTP sync could
+	// be done either by this device or some other device that this device
+	// synced its clock with.
+	LastNtpTs *time.Time
+	// Number of reboots since last NTP sync.
+	NumReboots uint16
+	// Number of hops between this device and the device that did the last
+	// NTP sync.
+	NumHops uint16
 }
 
 func (cd *ClockData) SystemBootTime() time.Time {

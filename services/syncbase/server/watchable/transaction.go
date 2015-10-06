@@ -140,7 +140,7 @@ func (tx *transaction) Commit() error {
 		return verror.New(verror.ErrInternal, nil, "seq maxed out")
 	}
 	// Write LogEntry records.
-	timestamp := tx.st.clock.Now(nil).UnixNano()
+	timestamp := tx.st.clock.Now().UnixNano()
 	seq := tx.st.seq
 	for i, op := range tx.ops {
 		key := logEntryKey(seq)
@@ -177,7 +177,7 @@ func (tx *transaction) Abort() error {
 // GetStoreTime returns the current time from the given transaction store.
 func GetStoreTime(ctx *context.T, tx store.Transaction) time.Time {
 	wtx := tx.(*transaction)
-	return wtx.st.clock.Now(ctx)
+	return wtx.st.clock.Now()
 }
 
 // AddSyncGroupOp injects a SyncGroup operation notification in the log entries

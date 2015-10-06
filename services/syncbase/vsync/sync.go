@@ -23,6 +23,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/clock"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
 	fsblob "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -91,6 +92,8 @@ type syncService struct {
 	blobDirectory map[nosql.BlobRef]*blobLocInfo // directory structure containing blob location information.
 	blobDirLock   sync.RWMutex                   // lock to synchronize access to the blob directory information.
 
+	// Syncbase clock related variables.
+	vclock *clock.VClock
 }
 
 // syncDatabase contains the metadata for syncing a database. This struct is
@@ -128,11 +131,12 @@ func randIntn(n int) int {
 // changes to its objects. The "initiator" thread is responsible for
 // periodically contacting peers to fetch changes from them. In addition, the
 // sync module responds to incoming RPCs from remote sync modules.
-func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngine, blobRootDir string) (*syncService, error) {
+func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngine, blobRootDir string, vclock *clock.VClock) (*syncService, error) {
 	s := &syncService{
 		sv:             sv,
 		batches:        make(batchSet),
 		sgPublishQueue: list.New(),
+		vclock:         vclock,
 	}
 
 	data := &syncData{}

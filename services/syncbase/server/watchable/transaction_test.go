@@ -71,9 +71,7 @@ func TestLogEntryTimestamps(t *testing.T) {
 	t1 := time.Now()
 	inc := time.Duration(1) * time.Second
 	mockClock := newMockSystemClock(t1, inc)
-	var mockAdapter clock.StorageAdapter = clock.MockStorageAdapter()
-
-	vclock := clock.NewVClockWithMockServices(mockAdapter, mockClock, nil)
+	vclock := clock.NewVClockWithMockServices(ist, mockClock, nil)
 	wst1, err := Wrap(ist, vclock, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
@@ -143,9 +141,7 @@ func TestOpLogConsistency(t *testing.T) {
 	t1 := time.Now()
 	inc := time.Duration(1) * time.Second
 	mockClock := newMockSystemClock(t1, inc)
-	var mockAdapter clock.StorageAdapter = clock.MockStorageAdapter()
-
-	vclock := clock.NewVClockWithMockServices(mockAdapter, mockClock, nil)
+	vclock := clock.NewVClockWithMockServices(ist, mockClock, nil)
 	wst, err := Wrap(ist, vclock, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)

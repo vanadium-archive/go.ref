@@ -19,6 +19,7 @@ import (
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/nosql"
 	"v.io/x/ref/services/syncbase/server/util"
@@ -28,9 +29,10 @@ import (
 
 // service is a singleton (i.e. not per-request) that handles Service RPCs.
 type service struct {
-	st   store.Store // keeps track of which apps and databases exist, etc.
-	sync interfaces.SyncServerMethods
-	opts ServiceOptions
+	st     store.Store // keeps track of which apps and databases exist, etc.
+	sync   interfaces.SyncServerMethods
+	clockD *clock.ClockD
+	opts   ServiceOptions
 	// Guards the fields below. Held during app Create, Delete, and
 	// SetPermissions.
 	mu   sync.Mutex
@@ -125,11 +127,16 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 			return nil, err
 		}
 	}
+	vclock := clock.NewVClock(st)
 	// Note, vsync.New internally handles both first-time and subsequent
 	// invocations.
-	if s.sync, err = vsync.New(ctx, call, s, opts.Engine, opts.RootDir); err != nil {
+	if s.sync, err = vsync.New(ctx, call, s, opts.Engine, opts.RootDir, vclock); err != nil {
 		return nil, err
 	}
+
+	// Create a new clock deamon and run clock check and ntp check in a
+	// scheduled loop.
+	s.clockD = clock.StartClockD(ctx, vclock)
 	return s, nil
 }
 

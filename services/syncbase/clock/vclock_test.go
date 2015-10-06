@@ -7,18 +7,23 @@ package clock
 import (
 	"testing"
 	"time"
-
-	"v.io/v23/verror"
 )
 
 func TestVClock(t *testing.T) {
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
 	sysTs := time.Now()
 	sysClock := MockSystemClock(sysTs, 0)
-	stAdapter := MockStorageAdapter()
-	stAdapter.SetClockData(nil, &ClockData{0, 0, 0})
-	clock := NewVClockWithMockServices(stAdapter, sysClock, nil)
+	clock := NewVClockWithMockServices(testStore.st, sysClock, nil)
 
-	ts := clock.Now(nil)
+	tx := clock.St().NewTransaction()
+	clock.SetClockData(tx, newClockData(0, 0, 0, nil, 0, 0))
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Error while commiting tx: %v", err)
+	}
+
+	ts := clock.Now()
 	if ts != sysTs {
 		t.Errorf("timestamp expected to be %q but found to be %q", sysTs, ts)
 	}
@@ -32,18 +37,25 @@ func TestVClockWithSkew(t *testing.T) {
 }
 
 func checkSkew(t *testing.T, skew int64) {
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
 	sysTs := time.Now()
+	ntpTs := sysTs.Add(time.Duration(-20))
 	sysClock := MockSystemClock(sysTs, 0)
 
 	var elapsedTime int64 = 100
-	stAdapter := MockStorageAdapter()
 	bootTime := sysTs.UnixNano() - elapsedTime
-	clockData := ClockData{bootTime, skew, elapsedTime}
-	stAdapter.SetClockData(nil, &clockData)
+	clockData := newClockData(bootTime, skew, elapsedTime, &ntpTs, 1, 1)
+	clock := NewVClockWithMockServices(testStore.st, sysClock, nil)
 
-	clock := NewVClockWithMockServices(stAdapter, sysClock, nil)
+	tx := clock.St().NewTransaction()
+	clock.SetClockData(tx, clockData)
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Error while commiting tx: %v", err)
+	}
 
-	ts := clock.Now(nil)
+	ts := clock.Now()
 	if ts == sysTs {
 		t.Errorf("timestamp expected to be %q but found to be %q", sysTs, ts)
 	}
@@ -52,18 +64,18 @@ func checkSkew(t *testing.T, skew int64) {
 	}
 }
 
-func TestVClockWithInternalErr(t *testing.T) {
+func TestVClockTs(t *testing.T) {
+	testStore := createStore(t)
+	defer destroyStore(t, testStore)
+
+	vclock := NewVClock(testStore.st)
+	skew := time.Minute.Nanoseconds()
+	clockData := newClockData(0, skew, 0, nil, 0, 0)
+
 	sysTs := time.Now()
-	sysClock := MockSystemClock(sysTs, 0)
+	adjTs := vclock.VClockTs(sysTs, *clockData)
 
-	stAdapter := MockStorageAdapter()
-	stAdapter.SetError(verror.NewErrInternal(nil))
-
-	clock := NewVClockWithMockServices(stAdapter, sysClock, nil)
-
-	// Internal err should result in vclock falling back to the system clock.
-	ts := clock.Now(nil)
-	if ts != sysTs {
-		t.Errorf("timestamp expected to be %q but found to be %q", sysTs, ts)
+	if adjTs.Sub(sysTs) != time.Minute {
+		t.Errorf("Unexpected diff found. SysTs: %v, AdjTs: %v", sysTs, adjTs)
 	}
 }

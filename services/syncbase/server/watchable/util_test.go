@@ -14,8 +14,7 @@ import (
 func TestGetNextLogSeq(t *testing.T) {
 	st, destroy := createStore()
 	defer destroy()
-	var mockAdapter clock.StorageAdapter = clock.MockStorageAdapter()
-	vclock := clock.NewVClockWithMockServices(mockAdapter, nil, nil)
+	vclock := clock.NewVClockWithMockServices(st, nil, nil)
 	st, err := Wrap(st, vclock, &Options{})
 	if err != nil {
 		t.Fatal(err)

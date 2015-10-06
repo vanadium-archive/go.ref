@@ -291,6 +291,42 @@ func (ChunkData) __VDLReflect(struct {
 }) {
 }
 
+// TimeReq contains the send timestamp from the requester.
+type TimeReq struct {
+	SendTs time.Time
+}
+
+func (TimeReq) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.TimeReq"`
+}) {
+}
+
+// TimeResp contains timestamps needed by the requester to correctly estimate
+// the difference between the two clocks along with clock metadata required
+// by the requester to decide which clock is more accurate.
+type TimeResp struct {
+	// The send timestamp received in TimeReq from the originator.
+	OrigTs time.Time
+	// Time when the request was received.
+	RecvTs time.Time
+	// Time when the response was sent.
+	SendTs time.Time
+	// Timestamp received from NTP during last NTP sync. The last NTP sync could
+	// be done either by this device or some other device that this device
+	// synced its clock with.
+	LastNtpTs *time.Time
+	// Number of reboots since last NTP sync.
+	NumReboots uint16
+	// Number of hops between this device and the device that did the last
+	// NTP sync.
+	NumHops uint16
+}
+
+func (TimeResp) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.TimeResp"`
+}) {
+}
+
 func init() {
 	vdl.Register((*PrefixGenVector)(nil))
 	vdl.Register((*GenVector)(nil))
@@ -305,6 +341,8 @@ func init() {
 	vdl.Register((*DeltaResp)(nil))
 	vdl.Register((*ChunkHash)(nil))
 	vdl.Register((*ChunkData)(nil))
+	vdl.Register((*TimeReq)(nil))
+	vdl.Register((*TimeResp)(nil))
 }
 
 const NoGroupId = GroupId(0)

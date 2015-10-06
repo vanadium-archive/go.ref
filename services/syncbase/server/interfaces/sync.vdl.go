@@ -41,6 +41,9 @@ func NewErrDupSyncGroupPublish(ctx *context.T, name string) error {
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type SyncClientMethods interface {
+	// GetTime returns metadata related to syncbase clock like syncbase clock
+	// timestamps, last NTP timestamp, num reboots, etc.
+	GetTime(ctx *context.T, req TimeReq, initiator string, opts ...rpc.CallOpt) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either SyncGroup metadata or data.
@@ -105,6 +108,11 @@ func SyncClient(name string) SyncClientStub {
 
 type implSyncClientStub struct {
 	name string
+}
+
+func (c implSyncClientStub) GetTime(ctx *context.T, i0 TimeReq, i1 string, opts ...rpc.CallOpt) (o0 TimeResp, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "GetTime", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
+	return
 }
 
 func (c implSyncClientStub) GetDeltas(ctx *context.T, i0 DeltaReq, i1 string, opts ...rpc.CallOpt) (ocall SyncGetDeltasClientCall, err error) {
@@ -472,6 +480,9 @@ func (c *implSyncFetchChunksClientCall) Finish() (err error) {
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type SyncServerMethods interface {
+	// GetTime returns metadata related to syncbase clock like syncbase clock
+	// timestamps, last NTP timestamp, num reboots, etc.
+	GetTime(ctx *context.T, call rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either SyncGroup metadata or data.
@@ -528,6 +539,9 @@ type SyncServerMethods interface {
 // The only difference between this interface and SyncServerMethods
 // is the streaming methods.
 type SyncServerStubMethods interface {
+	// GetTime returns metadata related to syncbase clock like syncbase clock
+	// timestamps, last NTP timestamp, num reboots, etc.
+	GetTime(ctx *context.T, call rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either SyncGroup metadata or data.
@@ -608,6 +622,10 @@ type implSyncServerStub struct {
 	gs   *rpc.GlobState
 }
 
+func (s implSyncServerStub) GetTime(ctx *context.T, call rpc.ServerCall, i0 TimeReq, i1 string) (TimeResp, error) {
+	return s.impl.GetTime(ctx, call, i0, i1)
+}
+
 func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, i0 DeltaReq, i1 string) error {
 	return s.impl.GetDeltas(ctx, call, i0, i1)
 }
@@ -653,6 +671,17 @@ var descSync = rpc.InterfaceDesc{
 	PkgPath: "v.io/x/ref/services/syncbase/server/interfaces",
 	Doc:     "// Sync defines methods for data exchange between Syncbases.\n// TODO(hpucha): Flesh this out further.",
 	Methods: []rpc.MethodDesc{
+		{
+			Name: "GetTime",
+			Doc:  "// GetTime returns metadata related to syncbase clock like syncbase clock\n// timestamps, last NTP timestamp, num reboots, etc.",
+			InArgs: []rpc.ArgDesc{
+				{"req", ``},       // TimeReq
+				{"initiator", ``}, // string
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // TimeResp
+			},
+		},
 		{
 			Name: "GetDeltas",
 			Doc:  "// GetDeltas returns the responder's current generation vector and all\n// the missing log records when compared to the initiator's generation\n// vector for one Database for either SyncGroup metadata or data.",

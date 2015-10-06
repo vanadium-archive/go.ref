@@ -55,7 +55,6 @@ const (
 	// Object name component for Syncbase-to-Syncbase (sync) RPCs.
 	// Sync object names have the form:
 	//     <syncbase>/%%sync/...
-	// FIXME: update all apps, again...
 	SyncbaseSuffix = "%%sync"
 	// Separator for batch info in database names.
 	// Batch object names have the form:
@@ -72,4 +71,7 @@ const (
 	NtpSampleCount           = 15
 	LocalClockDriftThreshold = float64(time.Second)
 	NtpDiffThreshold         = float64(2 * time.Second)
+	PeerSyncDiffThreshold    = NtpDiffThreshold
+	RebootTolerance          = float64(time.Minute)
+	HopTolerance             = 2
 )
