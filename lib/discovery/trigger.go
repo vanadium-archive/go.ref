@@ -48,8 +48,11 @@ func (tr *Trigger) loop() {
 			cases = append(cases, req.sc)
 		default:
 			go callbacks[chosen]()
-			callbacks = append(callbacks[:chosen], callbacks[chosen+1:]...)
-			cases = append(cases[:chosen], cases[chosen+1:]...)
+			n := len(callbacks) - 1
+			callbacks[chosen], callbacks[n] = callbacks[n], nil
+			callbacks = callbacks[:n]
+			cases[chosen], cases[n] = cases[n], reflect.SelectCase{}
+			cases = cases[:n]
 		}
 	}
 }
