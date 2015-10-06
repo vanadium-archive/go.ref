@@ -288,8 +288,15 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			}
 			return
 		}
-		fh := &flowHandler{m, make(chan struct{})}
+
+		m.ls.mu.Lock()
+		if m.ls.listeners == nil {
+			m.ls.mu.Unlock()
+			return
+		}
 		m.ls.activeConns.Add(1)
+		m.ls.mu.Unlock()
+		fh := &flowHandler{m, make(chan struct{})}
 		c, err := conn.NewAccepted(
 			m.ctx,
 			flowConn,
@@ -328,7 +335,17 @@ type proxyFlowHandler struct {
 func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 	go func() {
 		fh := &flowHandler{h.m, make(chan struct{})}
+		h.m.ls.mu.Lock()
+		if h.m.ls.listeners == nil {
+			// If we've entered lame duck mode we want to reject new flows
+			// from the proxy.  This should come out as a connection failure
+			// for the client, which will result in a retry.
+			h.m.ls.mu.Unlock()
+			f.Close()
+			return
+		}
 		h.m.ls.activeConns.Add(1)
+		h.m.ls.mu.Unlock()
 		c, err := conn.NewAccepted(
 			h.ctx,
 			f,
@@ -405,18 +422,6 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAut
 }
 
 func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer) (flow.Flow, *conn.Conn, error) {
-	// Disallow making connections to ourselves.
-	// TODO(suharshs): Figure out the right thing to do here. We could create a "localflow"
-	// that bypasses auth and is added to the accept queue immediately.
-	if remote.RoutingID() == m.rid {
-		return nil, nil, flow.NewErrBadArg(ctx, NewErrManagerDialingSelf(ctx))
-	}
-	var fh conn.FlowHandler
-	var events chan conn.StatusUpdate
-	if m.ls != nil {
-		fh = &flowHandler{m: m}
-		events = m.ls.events
-	}
 	// Look up the connection based on RoutingID first.
 	c, err := m.cache.FindWithRoutingID(remote.RoutingID())
 	if err != nil {
@@ -451,8 +456,16 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		if err != nil {
 			return nil, nil, flow.NewErrDialFailed(ctx, err)
 		}
+		var fh conn.FlowHandler
+		var events chan conn.StatusUpdate
 		if m.ls != nil {
-			m.ls.activeConns.Add(1)
+			m.ls.mu.Lock()
+			if stoppedListening := m.ls.listeners == nil; !stoppedListening {
+				fh = &flowHandler{m: m}
+				events = m.ls.events
+				m.ls.activeConns.Add(1)
+			}
+			m.ls.mu.Unlock()
 		}
 		c, err = conn.NewDialed(
 			m.ctx,
@@ -487,8 +500,16 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
 	// return a flow on that corresponding conn.
 	if proxyConn := c; remote.RoutingID() != proxyConn.RemoteEndpoint().RoutingID() {
+		var fh conn.FlowHandler
+		var events chan conn.StatusUpdate
 		if m.ls != nil {
-			m.ls.activeConns.Add(1)
+			m.ls.mu.Lock()
+			if stoppedListening := m.ls.listeners == nil; !stoppedListening {
+				fh = &flowHandler{m: m}
+				events = m.ls.events
+				m.ls.activeConns.Add(1)
+			}
+			m.ls.mu.Unlock()
 		}
 		c, err = conn.NewDialed(
 			m.ctx,

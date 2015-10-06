@@ -41,7 +41,10 @@ import (
 
 type xserver struct {
 	sync.Mutex
-	// context used by the server to make internal RPCs, error messages etc.
+	// stop is kept for backward compatibilty to implement Stop().
+	// TODO(mattr): deprecate Stop.
+	stop func()
+	// ctx is used by the server to make internal RPCs, error messages etc.
 	ctx               *context.T
 	cancel            context.CancelFunc // function to cancel the above context.
 	flowMgr           flow.Manager
@@ -93,11 +96,13 @@ func WithNewDispatchingServer(ctx *context.T,
 		return ctx, nil, verror.New(verror.ErrBadArg, ctx, "nil dispatcher")
 	}
 
+	ctx, stop := context.WithCancel(ctx)
 	rootCtx, cancel := context.WithRootCancel(ctx)
 	fm, err := v23.NewFlowManager(rootCtx)
 
 	statsPrefix := naming.Join("rpc", "server", "routing-id", fm.RoutingID().String())
 	s := &xserver{
+		stop:              stop,
 		cancel:            cancel,
 		flowMgr:           fm,
 		blessings:         v23.GetPrincipal(rootCtx).BlessingStore().Default(),
@@ -194,7 +199,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second): // TODO(mattr): This should be configurable.
-			s.ctx.Errorf("%s: Timedout waiting for active requests to complete", serverDebug)
+			s.ctx.Errorf("%s: Timed out waiting for active requests to complete", serverDebug)
 		}
 		// Now we cancel the root context which closes all the connections
 		// in the flow manager and cancels all the contexts used by
@@ -472,7 +477,9 @@ func (s *xserver) RemoveName(name string) {
 
 func (s *xserver) Stop() error {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
+	s.stop()
+	<-s.Closed()
+	return nil
 }
 
 func (s *xserver) Closed() <-chan struct{} {
@@ -540,6 +547,10 @@ func (fs *xflowServer) serve() error {
 	// Check if the caller is permitted to view vtrace data.
 	if fs.authorizeVtrace(ctx) == nil {
 		traceResponse = vtrace.GetResponse(ctx)
+	}
+
+	if err != nil && fs.enc == nil {
+		return err
 	}
 
 	// Respond to the client with the response header and positional results.

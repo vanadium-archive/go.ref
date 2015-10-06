@@ -48,6 +48,9 @@ type xclient struct {
 	ns                 namespace.T
 	preferredProtocols []string
 	ctx                *context.T
+	// stop is kept for backward compatibilty to implement Close().
+	// TODO(mattr): deprecate Close.
+	stop func()
 
 	// typeCache maintains a cache of type encoders and decoders.
 	typeCache *typeCache
@@ -60,10 +63,12 @@ type xclient struct {
 var _ rpc.Client = (*xclient)(nil)
 
 func NewXClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
+	ctx, cancel := context.WithCancel(ctx)
 	c := &xclient{
 		ctx:       ctx,
 		ns:        ns,
 		typeCache: newTypeCache(),
+		stop:      cancel,
 	}
 
 	for _, opt := range opts {
@@ -104,7 +109,8 @@ func (c *xclient) StartCall(ctx *context.T, name, method string, args []interfac
 func (c *xclient) startCall(ctx *context.T, name, method string, args []interface{}, deadline time.Time, opts []rpc.CallOpt) (rpc.ClientCall, error) {
 	ctx, span := vtrace.WithNewSpan(ctx, fmt.Sprintf("<rpc.Client>%q.%s", name, method))
 	for retries := uint(0); ; retries++ {
-		switch call, action, requireResolve, err := c.tryCall(ctx, name, method, args, opts); {
+		call, action, requireResolve, err := c.tryCall(ctx, name, method, args, opts)
+		switch {
 		case err == nil:
 			return call, nil
 		case !shouldRetry(action, requireResolve, deadline, opts):
@@ -160,8 +166,7 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 	defer c.wg.Done()
 	status := &xserverStatus{index: index, server: server}
 	var span vtrace.Span
-	ctx, span = vtrace.WithNewSpan(ctx, "<client>tryCreateFlow")
-	span.Annotatef("address:%v", server)
+	ctx, span = vtrace.WithNewSpan(ctx, "<client>tryCreateFlow "+server)
 	defer func() {
 		ch <- status
 		span.Finish()
@@ -484,7 +489,8 @@ func (c *xclient) failedTryCall(ctx *context.T, name, method string, responses [
 }
 
 func (c *xclient) Close() {
-	panic("this method is deprecated.")
+	c.stop()
+	<-c.Closed()
 }
 
 func (c *xclient) Closed() <-chan struct{} {

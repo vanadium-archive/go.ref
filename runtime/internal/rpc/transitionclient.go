@@ -52,7 +52,7 @@ func (t *transitionClient) Call(ctx *context.T, name, method string, in, out []i
 
 func (t *transitionClient) Close() {
 	t.c.Close()
-	<-t.xc.Closed()
+	t.xc.Close()
 }
 
 func (t *transitionClient) Closed() <-chan struct{} {
