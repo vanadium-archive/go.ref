@@ -478,6 +478,9 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 	}
 	f, err := c.Dial(ctx, auth)
 	if err != nil {
+		if id := verror.ErrorID(err); id == verror.ErrNotTrusted.ID {
+			return nil, nil, err
+		}
 		return nil, nil, flow.NewErrDialFailed(ctx, err)
 	}
 
@@ -499,7 +502,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			events)
 		if err != nil {
 			proxyConn.Close(ctx, err)
-			if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
+			if id := verror.ErrorID(err); id == message.ErrWrongProtocol.ID || id == verror.ErrNotTrusted.ID {
 				return nil, nil, err
 			}
 			return nil, nil, flow.NewErrDialFailed(ctx, err)
@@ -510,6 +513,9 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		f, err = c.Dial(ctx, auth)
 		if err != nil {
 			proxyConn.Close(ctx, err)
+			if id := verror.ErrorID(err); id == verror.ErrNotTrusted.ID {
+				return nil, nil, err
+			}
 			return nil, nil, flow.NewErrDialFailed(ctx, err)
 		}
 	}
