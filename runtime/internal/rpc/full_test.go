@@ -18,6 +18,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
@@ -32,6 +33,7 @@ import (
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/runtime/internal/lib/websocket"
+	"v.io/x/ref/runtime/internal/lib/xwebsocket"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/tcp"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/ws"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/wsh"
@@ -931,6 +933,7 @@ func newClientServerPrincipals() (client, server security.Principal) {
 
 func init() {
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
+	flow.RegisterUnknownProtocol("wsh", xwebsocket.WSH{})
 	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ *context.T, _ security.Call, t int64) error {
 		if now := clock.Now(); now > t {
 			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)
