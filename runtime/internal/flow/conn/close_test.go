@@ -120,13 +120,13 @@ func TestFlowCancelOnWrite(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {
-			t.Fatalf("could not write flow: %v", err)
+			panic("could not write flow: " + err.Error())
 		}
 		for {
 			if _, err := df.WriteMsg([]byte("hello")); err == context.Canceled {
 				break
 			} else if err != nil {
-				t.Fatalf("unexpected error waiting for cancel: %v", err)
+				panic("unexpected error waiting for cancel: " + err.Error())
 			}
 		}
 		close(done)

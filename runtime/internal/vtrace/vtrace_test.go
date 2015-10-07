@@ -13,7 +13,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
@@ -23,7 +22,6 @@ import (
 	_ "v.io/x/ref/lib/security/securityflag"
 	_ "v.io/x/ref/runtime/factories/generic"
 	ivtrace "v.io/x/ref/runtime/internal/vtrace"
-	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -34,23 +32,8 @@ func init() {
 
 // initForTest initializes the vtrace runtime and starts a mounttable.
 func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) {
-	idp := testutil.NewIDProvider("base")
 	ctx, shutdown := test.V23Init()
-
-	if err := idp.Bless(v23.GetPrincipal(ctx), "alice"); err != nil {
-		t.Fatalf("Could not bless initial principal %v", err)
-	}
-	// Start a local mounttable.
-	disp, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
-	if err != nil {
-		t.Fatalf("Could not create mt dispatcher %v", err)
-	}
-	ctx, s, err := v23.WithNewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
-	if err != nil {
-		t.Fatalf("Could not create mt server %v", err)
-	}
-	v23.GetNamespace(ctx).SetRoots(s.Status().Endpoints[0].Name())
-	return ctx, shutdown, idp
+	return ctx, shutdown, testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 }
 
 func TestNewFromContext(t *testing.T) {
@@ -76,7 +59,6 @@ func TestNewFromContext(t *testing.T) {
 type testServer struct {
 	name         string
 	child        string
-	stop         func() error
 	forceCollect bool
 }
 
@@ -111,11 +93,10 @@ func verifyMount(ctx *context.T, name string) error {
 func runCallChain(t *testing.T, ctx *context.T, idp *testutil.IDProvider, force1, force2 bool) *vtrace.TraceRecord {
 	ctx, span := vtrace.WithNewSpan(ctx, "")
 	span.Annotate("c0-begin")
-	_, stop, err := makeChainedTestServers(ctx, idp, force1, force2)
+	_, err := makeChainedTestServers(ctx, idp, force1, force2)
 	if err != nil {
 		t.Fatalf("Could not start servers %v", err)
 	}
-	defer stop()
 	call, err := v23.GetClient(ctx).StartCall(ctx, "c1", "Run", nil)
 	if err != nil {
 		t.Fatal("can't call: ", err)
@@ -129,20 +110,20 @@ func runCallChain(t *testing.T, ctx *context.T, idp *testutil.IDProvider, force1
 	return vtrace.GetStore(ctx).TraceRecord(span.Trace())
 }
 
-func makeChainedTestServers(ctx *context.T, idp *testutil.IDProvider, force ...bool) ([]*testServer, func(), error) {
+func makeChainedTestServers(ctx *context.T, idp *testutil.IDProvider, force ...bool) ([]*testServer, error) {
 	out := []*testServer{}
 	last := len(force) - 1
-	ext := "alice"
+	ext := "server"
 	for i, f := range force {
 		name := fmt.Sprintf("c%d", i+1)
-		ext += "/" + name
 		principal := testutil.NewPrincipal()
+		ext += "/" + name
 		if err := idp.Bless(principal, ext); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		c, err := makeTestServer(ctx, principal, name)
+		c, _, err := makeTestServer(ctx, principal, name)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if i < last {
 			c.child = fmt.Sprintf("c%d", i+2)
@@ -153,33 +134,26 @@ func makeChainedTestServers(ctx *context.T, idp *testutil.IDProvider, force ...b
 		// is invoked in runCallChain which complicate the span comparisons.
 		verifyMount(ctx, name)
 	}
-	return out, func() {
-		for _, s := range out {
-			s.stop()
-		}
-	}, nil
+	return out, nil
 }
 
-func makeTestServer(ctx *context.T, principal security.Principal, name string) (*testServer, error) {
+func makeTestServer(ctx *context.T, principal security.Principal, name string) (*testServer, rpc.Server, error) {
 	// Set a new vtrace store to simulate a separate process.
 	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ctx, _ = vtrace.WithNewTrace(ctx)
 	ctx, err = v23.WithPrincipal(ctx, principal)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	c := &testServer{
-		name: name,
-	}
-	ctx, s, err := v23.WithNewServer(ctx, name, c, security.AllowEveryone())
+	c := &testServer{name: name}
+	_, s, err := v23.WithNewServer(ctx, name, c, security.AllowEveryone())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	c.stop = s.Stop
-	return c, nil
+	return c, s, nil
 }
 
 func summary(span *vtrace.SpanRecord) string {
@@ -299,21 +273,20 @@ func TestTraceAcrossRPCsLateForce(t *testing.T) {
 }
 
 func traceWithAuth(t *testing.T, ctx *context.T, principal security.Principal) bool {
-	s, err := makeTestServer(ctx, principal, "server")
+	ctx, cancel := context.WithCancel(ctx)
+	_, s, err := makeTestServer(ctx, principal, "server")
+	defer func() {
+		cancel()
+		<-s.Closed()
+	}()
 	if err != nil {
 		t.Fatalf("Couldn't start server %v", err)
 	}
-	defer s.stop()
 
 	ctx, span := vtrace.WithNewTrace(ctx)
 	vtrace.ForceCollect(ctx)
 
-	ctx, client, err := v23.WithNewClient(ctx)
-	defer client.Close()
-	if err != nil {
-		t.Fatalf("Couldn't create client %v", err)
-	}
-	call, err := client.StartCall(ctx, "server", "Run", nil)
+	call, err := v23.GetClient(ctx).StartCall(ctx, "server", "Run", nil)
 	if err != nil {
 		t.Fatalf("Couldn't make call %v", err)
 	}
@@ -352,8 +325,8 @@ func TestTracePermissions(t *testing.T) {
 	}
 	cases := []testcase{
 		{`{}`, false},
-		{`{"Read":{"In": ["base/alice"]}, "Write":{"In": ["base/alice"]}}`, false},
-		{`{"Debug":{"In": ["base/alice"]}}`, true},
+		{`{"Read":{"In": ["test-blessing"]}, "Write":{"In": ["test-blessing"]}}`, false},
+		{`{"Debug":{"In": ["test-blessing"]}}`, true},
 	}
 
 	// Create a different principal for the server.
