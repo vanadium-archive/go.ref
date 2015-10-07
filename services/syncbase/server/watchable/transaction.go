@@ -12,6 +12,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 )
@@ -185,7 +186,7 @@ func GetStoreTime(ctx *context.T, tx store.Transaction) time.Time {
 // operations (create, join, leave, destroy) to notify the sync watcher of the
 // change at its proper position in the timeline (the transaction commit).
 // Note: this is an internal function used by sync, not part of the interface.
-func AddSyncGroupOp(ctx *context.T, tx store.Transaction, prefixes []string, remove bool) error {
+func AddSyncGroupOp(ctx *context.T, tx store.Transaction, gid interfaces.GroupId, prefixes []string, remove bool) error {
 	wtx := tx.(*transaction)
 	wtx.mu.Lock()
 	defer wtx.mu.Unlock()
@@ -193,7 +194,7 @@ func AddSyncGroupOp(ctx *context.T, tx store.Transaction, prefixes []string, rem
 		return convertError(wtx.err)
 	}
 	// Make a defensive copy of prefixes slice.
-	wtx.ops = append(wtx.ops, &OpSyncGroup{SyncGroupOp{Prefixes: cpStrings(prefixes), Remove: remove}})
+	wtx.ops = append(wtx.ops, &OpSyncGroup{SyncGroupOp{SgId: gid, Prefixes: cpStrings(prefixes), Remove: remove}})
 	return nil
 }
 

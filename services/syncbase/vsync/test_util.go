@@ -142,7 +142,7 @@ func createService(t *testing.T) *mockService {
 // destroyService cleans up the mock Syncbase service.
 func destroyService(t *testing.T, s *mockService) {
 	defer s.shutdown()
-	defer s.sync.Close()
+	defer Close(s.sync)
 	if err := util.DestroyStore(s.engine, s.dir); err != nil {
 		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.dir, err)
 	}

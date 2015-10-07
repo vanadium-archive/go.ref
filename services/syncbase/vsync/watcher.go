@@ -71,8 +71,16 @@ func (s *syncService) watchStore(ctx *context.T) {
 			return
 
 		case <-ticker.C:
-			s.processStoreUpdates(ctx)
+
 		}
+		select {
+		case <-s.closed:
+			vlog.VI(1).Info("sync: watchStore: channel closed, stop watching and exit")
+			return
+
+		default:
+		}
+		s.processStoreUpdates(ctx)
 	}
 }
 
@@ -149,7 +157,8 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	// and exclude the first entry from the batch.  Also inform the batch
 	// processing below to not assign it a batch ID in the DAG.
 	appBatch := true
-	if processSyncGroupLogRecord(appName, dbName, logs[0]) {
+	found, sgop := processSyncGroupLogRecord(appName, dbName, logs[0])
+	if found {
 		appBatch = false
 		logs = logs[1:]
 	}
@@ -186,6 +195,13 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 		if err := s.processBatch(ctx, appName, dbName, batch, appBatch, totalCount, tx); err != nil {
 			return err
 		}
+
+		if !appBatch {
+			if err := setSyncGroupWatchable(ctx, tx, sgop); err != nil {
+				return err
+			}
+		}
+
 		return setResMark(ctx, tx, resMark)
 	})
 
@@ -293,6 +309,17 @@ func decrWatchPrefix(appName, dbName, prefix string) {
 	}
 }
 
+// setSyncGroupWatchable sets the local watchable state of the SyncGroup.
+func setSyncGroupWatchable(ctx *context.T, tx store.Transaction, sgop watchable.SyncGroupOp) error {
+	state, err := getSGIdEntry(ctx, tx, sgop.SgId)
+	if err != nil {
+		return err
+	}
+	state.Watched = !sgop.Remove
+
+	return setSGIdEntry(ctx, tx, sgop.SgId, state)
+}
+
 // convertLogRecord converts a store log entry to a sync log record.  It fills
 // the previous object version (parent) by fetching its current DAG head if it
 // has one.  For a delete, it generates a new object version because the store
@@ -362,7 +389,7 @@ func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, d
 // processSyncGroupLogRecord checks if the log entry is a SyncGroup update and,
 // if it is, updates the watch prefixes for the app database and returns true.
 // Otherwise it returns false with no other changes.
-func processSyncGroupLogRecord(appName, dbName string, logEnt *watchable.LogEntry) bool {
+func processSyncGroupLogRecord(appName, dbName string, logEnt *watchable.LogEntry) (bool, watchable.SyncGroupOp) {
 	switch op := logEnt.Op.(type) {
 	case watchable.OpSyncGroup:
 		remove := op.Value.Remove
@@ -375,10 +402,10 @@ func processSyncGroupLogRecord(appName, dbName string, logEnt *watchable.LogEntr
 		}
 		vlog.VI(3).Infof("sync: processSyncGroupLogRecord: %s, %s: remove %t, prefixes: %q",
 			appName, dbName, remove, op.Value.Prefixes)
-		return true
+		return true, op.Value
 
 	default:
-		return false
+		return false, watchable.SyncGroupOp{}
 	}
 }
 

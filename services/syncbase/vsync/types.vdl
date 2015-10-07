@@ -24,16 +24,8 @@ type syncData struct {
 	Id uint64
 }
 
-// localGenInfo represents the persistent state corresponding to local generations.
-type localGenInfo struct {
-	Gen        uint64 // local generation number incremented on every local update.
-	CheckptGen uint64 // local generation number advertised to remote peers (used by the responder).
-}
-
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
-	Data     localGenInfo
-	Sgs      map[string]localGenInfo
 	GenVec   interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for data in Database.
 	SgGenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for SyncGroups in Database.
 }

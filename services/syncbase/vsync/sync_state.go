@@ -52,11 +52,12 @@ package vsync
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
@@ -124,62 +125,170 @@ type sgPublishInfo struct {
 // b) watcher map of prefixes currently being synced.
 // c) republish names in mount tables for all syncgroups.
 // d) in-memory queue of SyncGroups to be published.
-//
-// TODO(hpucha): This is incomplete. Flesh this out further.
 func (s *syncService) initSync(ctx *context.T) error {
+	vlog.VI(2).Infof("sync: initSync:: begin")
+	defer vlog.VI(2).Infof("sync: initSync:: end")
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
 	var errFinal error
 	s.syncState = make(map[string]*dbSyncStateInMem)
+	newMembers := make(map[string]*memberInfo)
 
 	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
-		// Scan the SyncGroups, skipping those not yet being watched.
+		// Fetch the sync state for data and SyncGroups.
+		ds, err := getDbSyncState(ctx, st)
+		if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
+			errFinal = err
+			return false
+		}
+
+		dsInMem := &dbSyncStateInMem{
+			data: &localGenInfoInMem{},
+			sgs:  make(map[string]*localGenInfoInMem),
+		}
+
+		if err == nil {
+			// Initialize in memory state from the persistent state.
+			dsInMem.genvec = ds.GenVec
+			dsInMem.sggenvec = ds.SgGenVec
+		}
+
+		vlog.VI(2).Infof("sync: initSync:: initing app %v db %v, dsInMem %v", appName, dbName, dsInMem)
+
+		sgCount := 0
+		name := appDbName(appName, dbName)
+
+		// Scan the SyncGroups and init relevant metadata.
 		forEachSyncGroup(st, func(sg *interfaces.SyncGroup) bool {
-			// TODO(rdaoud): only use SyncGroups that have been
-			// marked as "watchable" by the sync watcher thread.
-			// This is to handle the case of a SyncGroup being
-			// created but Syncbase restarting before the watcher
-			// processed the SyncGroupOp entry in the watch queue.
-			// It should not be syncing that SyncGroup's data after
-			// restart, but wait until the watcher processes the
-			// entry as would have happened without a restart.
-			for _, prefix := range sg.Spec.Prefixes {
-				incrWatchPrefix(appName, dbName, prefix)
+			sgCount++
+
+			// Only use SyncGroups that have been marked as
+			// "watchable" by the sync watcher thread. This is to
+			// handle the case of a SyncGroup being created but
+			// Syncbase restarting before the watcher processed the
+			// SyncGroupOp entry in the watch queue. It should not
+			// be syncing that SyncGroup's data after restart, but
+			// wait until the watcher processes the entry as would
+			// have happened without a restart.
+			state, err := getSGIdEntry(ctx, st, sg.Id)
+			if err != nil {
+				errFinal = err
+				return false
+			}
+			if state.Watched {
+				for _, prefix := range sg.Spec.Prefixes {
+					incrWatchPrefix(appName, dbName, prefix)
+				}
 			}
 
 			if sg.Status == interfaces.SyncGroupStatusPublishPending {
 				s.enqueuePublishSyncGroup(sg.Name, appName, dbName, false)
 			}
-			return false
-		})
 
-		if false {
-			// Fetch the sync state.
-			ds, err := getDbSyncState(ctx, st)
-			if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
+			// Refresh membership view.
+			refreshSyncGroupMembers(sg, name, newMembers)
+
+			sgoid := sgOID(sg.Id)
+			info := &localGenInfoInMem{}
+			dsInMem.sgs[sgoid] = info
+
+			// Adjust the gen and pos for the sgoid.
+			info.gen, info.pos, err = s.computeCurGenAndPos(ctx, st, sgoid, dsInMem.sggenvec[sgoid])
+			if err != nil {
 				errFinal = err
 				return false
 			}
-			var scanStart, scanLimit []byte
-			// Figure out what to scan among local log records.
-			if verror.ErrorID(err) == verror.ErrNoExist.ID {
-				scanStart, scanLimit = util.ScanPrefixArgs(logRecsPerDeviceScanPrefix(s.id), "")
-			} else {
-				scanStart, scanLimit = util.ScanPrefixArgs(logRecKey(logDataPrefix, s.id, ds.Data.Gen), "")
-			}
-			var maxpos uint64
-			var dbName string
-			// Scan local log records to find the most recent one.
-			st.Scan(scanStart, scanLimit)
-			// Scan remote log records using the persisted GenVector.
-			s.syncState[dbName] = &dbSyncStateInMem{data: &localGenInfoInMem{pos: maxpos + 1}}
+			info.checkptGen = info.gen - 1
+
+			vlog.VI(4).Infof("sync: initSync:: initing app %v db %v sg %v info %v", appName, dbName, sgoid, info)
+
+			return false
+		})
+
+		if sgCount == 0 {
+			vlog.VI(2).Infof("sync: initSync:: initing app %v db %v done (no sgs found)", appName, dbName)
+			return false
 		}
+
+		// Compute the max known data generation for each known device.
+		maxgenvec := interfaces.PrefixGenVector{}
+		for _, pgv := range dsInMem.genvec {
+			for dev, gen := range pgv {
+				if gen > maxgenvec[dev] {
+					maxgenvec[dev] = gen
+				}
+			}
+		}
+
+		// Adjust the gen and pos for the data.
+		dsInMem.data.gen, dsInMem.data.pos, err = s.computeCurGenAndPos(ctx, st, logDataPrefix, maxgenvec)
+		if err != nil {
+			errFinal = err
+			return false
+		}
+		dsInMem.data.checkptGen = dsInMem.data.gen - 1
+
+		s.syncState[name] = dsInMem
+
+		vlog.VI(2).Infof("sync: initSync:: initing app %v db %v done dsInMem %v (data %v)", appName, dbName, dsInMem, dsInMem.data)
 
 		return false
 	})
 
+	s.allMembersLock.Lock()
+	s.allMembers = &memberView{expiration: time.Now().Add(memberViewTTL), members: newMembers}
+	s.allMembersLock.Unlock()
+
 	return errFinal
+}
+
+// computeCurGenAndPos computes the current local generation count and local log
+// position for data or a specified SyncGroup.
+func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx string, genvec interfaces.PrefixGenVector) (uint64, uint64, error) {
+	found := false
+
+	// Scan the local log records to determine latest gen and its pos.
+	stream := st.Scan(util.ScanPrefixArgs(logRecsPerDeviceScanPrefix(pfx, s.id), ""))
+	defer stream.Cancel()
+
+	// Get the last value.
+	var val []byte
+	for stream.Advance() {
+		val = stream.Value(val)
+		found = true
+	}
+
+	if err := stream.Err(); err != nil {
+		return 0, 0, err
+	}
+
+	var maxpos, maxgen uint64
+	if found {
+		var lrec localLogRec
+		if err := vom.Decode(val, &lrec); err != nil {
+			return 0, 0, err
+		}
+		maxpos = lrec.Pos
+		maxgen = lrec.Metadata.Gen
+	}
+
+	for id, gen := range genvec {
+		lrec, err := getLogRec(ctx, st, pfx, id, gen)
+		if err != nil {
+			return 0, 0, err
+		}
+		if lrec.Pos > maxpos {
+			found = true
+			maxpos = lrec.Pos
+		}
+	}
+
+	if found {
+		maxpos++
+	}
+
+	return maxgen + 1, maxpos, nil
 }
 
 // enqueuePublishSyncGroup appends the given SyncGroup to the publish queue.
@@ -409,40 +518,13 @@ func getDbSyncState(ctx *context.T, st store.StoreReader) (*dbSyncState, error) 
 // Low-level utility functions to access log records.
 
 // logRecsPerDeviceScanPrefix returns the prefix used to scan log records for a particular device.
-func logRecsPerDeviceScanPrefix(id uint64) string {
-	return util.JoinKeyParts(util.SyncPrefix, logPrefix, fmt.Sprintf("%x", id))
+func logRecsPerDeviceScanPrefix(pfx string, id uint64) string {
+	return util.JoinKeyParts(util.SyncPrefix, logPrefix, pfx, fmt.Sprintf("%d", id))
 }
 
 // logRecKey returns the key used to access a specific log record.
 func logRecKey(pfx string, id, gen uint64) string {
 	return util.JoinKeyParts(util.SyncPrefix, logPrefix, pfx, fmt.Sprintf("%d", id), fmt.Sprintf("%016x", gen))
-}
-
-// splitLogRecKey is the inverse of logRecKey and returns the prefix, device id
-// and generation number.
-func splitLogRecKey(ctx *context.T, key string) (string, uint64, uint64, error) {
-	parts := util.SplitKeyParts(key)
-	verr := verror.New(verror.ErrInternal, ctx, "invalid logreckey", key)
-	if len(parts) != 5 {
-		return "", 0, 0, verr
-	}
-	if parts[0] != util.SyncPrefix || parts[1] != logPrefix {
-		return "", 0, 0, verr
-	}
-	if parts[2] != logDataPrefix {
-		if _, err := strconv.ParseUint(parts[2], 10, 64); err != nil {
-			return "", 0, 0, verr
-		}
-	}
-	id, err := strconv.ParseUint(parts[3], 10, 64)
-	if err != nil {
-		return "", 0, 0, verr
-	}
-	gen, err := strconv.ParseUint(parts[4], 16, 64)
-	if err != nil {
-		return "", 0, 0, verr
-	}
-	return parts[2], id, gen, nil
 }
 
 // hasLogRec returns true if the log record for (devid, gen) exists.

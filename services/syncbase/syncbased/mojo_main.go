@@ -34,6 +34,7 @@ type delegate struct {
 	disp     rpc.Dispatcher
 	shutdown func()
 	srv      rpc.Server
+	cleanup  func()
 	stubs    []*bindings.Stub
 }
 
@@ -46,7 +47,7 @@ func (d *delegate) Initialize(actx application.Context) {
 	// Note that os.Args must be set before calling v23.Init().
 	os.Args = actx.Args()
 	d.ctx, d.shutdown = v23.Init()
-	d.srv, d.disp = Serve(d.ctx)
+	d.srv, d.disp, d.cleanup = Serve(d.ctx)
 }
 
 func (d *delegate) Create(req syncbase.Syncbase_Request) {
@@ -74,6 +75,7 @@ func (d *delegate) Quit() {
 	for _, stub := range d.stubs {
 		stub.Close()
 	}
+	d.cleanup()
 	d.shutdown()
 }
 

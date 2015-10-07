@@ -59,7 +59,6 @@ func (a PrefixGenVector) Compare(b PrefixGenVector) int {
 			// Missing elements. So a cannot be greater than b.
 			return 2
 		}
-
 		return -1
 	}
 
