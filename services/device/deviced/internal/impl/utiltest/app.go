@@ -139,9 +139,11 @@ func appFunc(env *modules.Env, args ...string) error {
 	// Some of our tests look for log files, so make sure they are flushed
 	// to ensure that at least the files exist.
 	ctx.FlushLog()
+
+	shutdownChan := signals.ShutdownOnSignals(ctx)
 	ping(ctx, *flagValue)
 
-	<-signals.ShutdownOnSignals(ctx)
+	<-shutdownChan
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
 		ctx.Fatalf("Failed to write testfile: %v", err)
 	}
