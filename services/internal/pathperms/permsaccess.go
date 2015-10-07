@@ -124,25 +124,60 @@ func getCore(ctx *context.T, permspath, sigpath string) (access.Permissions, str
 // Set writes the specified Permissions to the provided directory with
 // enforcement of version synchronization mechanism and locking.
 func (store *PathStore) Set(dir string, perms access.Permissions, version string) error {
-	return store.SetShareable(dir, perms, version, false)
+	_, err := store.SetShareable(dir, perms, version, false, true)
+	return err
+}
+
+// SetIfAbsent writes the specified Permissions to the provided directory only
+// if they don't already exist.  Returns true if the permissions were written,
+// and false otherwise (the error is nil if the permissions already exist).
+func (store *PathStore) SetIfAbsent(dir string, perms access.Permissions) (bool, error) {
+	return store.SetShareable(dir, perms, "", false, false)
 }
 
 // SetShareable writes the specified Permissions to the provided
 // directory with enforcement of version synchronization mechanism and
 // locking with file modes that will give the application read-only
 // access to the permissions file.
-func (store *PathStore) SetShareable(dir string, perms access.Permissions, version string, shareable bool) error {
+func (store *PathStore) SetShareable(dir string, perms access.Permissions, version string, shareable, overwrite bool) (bool, error) {
 	permspath := filepath.Join(dir, permsName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
 	_, oversion, err := getCore(store.ctx, permspath, sigpath)
 	if err != nil && !os.IsNotExist(err) {
-		return verror.New(ErrOperationFailed, nil)
+		return false, verror.New(ErrOperationFailed, nil)
+	}
+	if !overwrite && err == nil {
+		// If overwrite is not set, we need the perms to not already
+		// exist; as per previous if test, os.IsNotExist(err) iff err !=
+		// nil.
+		return false, nil
 	}
 	if len(version) > 0 && version != oversion {
-		return verror.NewErrBadVersion(nil)
+		return false, verror.NewErrBadVersion(nil)
 	}
-	return write(store.ctx, permspath, sigpath, dir, perms, shareable)
+	if err := write(store.ctx, permspath, sigpath, dir, perms, shareable); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Delete removes the permissions stored in the specified directory.
+func (store *PathStore) Delete(dir string) error {
+	// NOTE: we're not using RemoveAll(dir) out of an excess of caution (in
+	// case a bad dir is passed in).
+	permspath := filepath.Join(dir, permsName)
+	if err := os.Remove(permspath); err != nil {
+		return err
+	}
+	sigpath := filepath.Join(dir, sigName)
+	if err := os.Remove(sigpath); err != nil {
+		return err
+	}
+	if err := os.Remove(dir); err != nil {
+		return err
+	}
+	return nil
 }
 
 // write writes the specified Permissions to the permsFile with a

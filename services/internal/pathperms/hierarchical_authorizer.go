@@ -5,8 +5,6 @@
 package pathperms
 
 import (
-	"fmt"
-
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
@@ -15,9 +13,8 @@ import (
 // hierarchicalAuthorizer contains the state needed to implement
 // hierarchical authorization in the Authorize method.
 type hierarchicalAuthorizer struct {
-	rootDir, childDir      string
-	get                    PermsGetter
-	emptyChildPermsMethods map[string]bool
+	rootDir, childDir string
+	get               PermsGetter
 }
 
 // PermsGetter defines an abstract interface that a customer of
@@ -40,19 +37,12 @@ type PermsGetter interface {
 //
 // If the child permissions are not set, the authorizer uses the permissions set
 // on the root to restrict access to the child (including the admin override
-// described above), provided that the method being invoked is among the subset
-// specified (empty set means all methods).  If the method is not among the
-// subset and the child permissions are not set, the request is rejected.
-func NewHierarchicalAuthorizer(rootDir, childDir string, get PermsGetter, emptyChildPermissionsMethods []string) (security.Authorizer, error) {
-	emptyChildPermsMethods := make(map[string]bool)
-	for _, m := range emptyChildPermissionsMethods {
-		emptyChildPermsMethods[m] = true
-	}
+// described above).
+func NewHierarchicalAuthorizer(rootDir, childDir string, get PermsGetter) (security.Authorizer, error) {
 	return &hierarchicalAuthorizer{
 		rootDir:  rootDir,
 		childDir: childDir,
 		get:      get,
-		emptyChildPermsMethods: emptyChildPermsMethods,
 	}, nil
 }
 
@@ -76,10 +66,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T, call security.Call) 
 	if err != nil {
 		return err
 	} else if intentionallyEmpty {
-		if len(ha.emptyChildPermsMethods) == 0 || ha.emptyChildPermsMethods[call.Method()] {
-			return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(rootPerms), rootPerms)
-		}
-		return fmt.Errorf("access disallowed for method %v: no permissions specified on object", call.Method())
+		return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(rootPerms), rootPerms)
 	}
 
 	return adminCheckAuth(ctx, call, access.TypicalTagTypePermissionsAuthorizer(childPerms), rootPerms)

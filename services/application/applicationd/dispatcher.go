@@ -43,8 +43,7 @@ func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.
 	auth, err := pathperms.NewHierarchicalAuthorizer(
 		naming.Join("/acls", "data"),
 		naming.Join("/acls", name, "data"),
-		(*applicationPermsStore)(d.store),
-		[]string{"Put", "__Glob"})
+		(*applicationPermsStore)(d.store))
 	if err != nil {
 		return nil, nil, err
 	}

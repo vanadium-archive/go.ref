@@ -40,5 +40,6 @@ func setPermsForDebugging(blessings []string, perms access.Permissions, instance
 	for _, v := range perms["Debug"].In {
 		set(v)
 	}
-	return permsStore.SetShareable(path, newPerms, "", true)
+	_, err := permsStore.SetShareable(path, newPerms, "", true, true)
+	return err
 }
