@@ -18,6 +18,13 @@ import (
 	public "v.io/v23/services/appcycle"
 )
 
+var (
+	// We may want to be able to override these (e.g. for testing), hence
+	// the variables.
+	ForceStopExitCode     = v23.ForceStopExitCode
+	UnhandledStopExitCode = v23.UnhandledStopExitCode
+)
+
 type AppCycle struct {
 	sync.RWMutex
 	waiters      []chan<- string
@@ -57,7 +64,7 @@ func (m *AppCycle) stop(ctx *context.T, msg string) {
 	defer m.RUnlock()
 	if len(m.waiters) == 0 {
 		ctx.Infof("Unhandled stop. Exiting.")
-		os.Exit(v23.UnhandledStopExitCode)
+		os.Exit(UnhandledStopExitCode)
 	}
 	for _, w := range m.waiters {
 		select {
@@ -74,7 +81,7 @@ func (m *AppCycle) Stop(ctx *context.T) {
 
 func (*AppCycle) ForceStop(ctx *context.T) {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	os.Exit(v23.ForceStopExitCode)
+	os.Exit(ForceStopExitCode)
 }
 
 func (m *AppCycle) WaitForStop(_ *context.T, ch chan<- string) {

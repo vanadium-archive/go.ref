@@ -97,7 +97,7 @@ func TestSimpleServerLocalForceStop(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), fmt.Sprintf("exit status %d", v23.ForceStopExitCode); got != want {
+	if got, want := err.Error(), fmt.Sprintf("exit status %d", testForceStopExitCode); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -204,7 +204,7 @@ func TestComplexServerLocalForceStop(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), fmt.Sprintf("exit status %d", v23.ForceStopExitCode); got != want {
+	if got, want := err.Error(), fmt.Sprintf("exit status %d", testForceStopExitCode); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
