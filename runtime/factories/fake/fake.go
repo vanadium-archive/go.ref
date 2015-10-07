@@ -13,6 +13,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/rpc"
 
 	"v.io/x/ref/runtime/internal"
@@ -20,6 +21,7 @@ import (
 	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
 	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh"
 	"v.io/x/ref/runtime/internal/lib/websocket"
+	"v.io/x/ref/runtime/internal/lib/xwebsocket"
 
 	// TODO(suharshs): Remove these once we switch to the flow protocols.
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/tcp"
@@ -39,6 +41,7 @@ var (
 func init() {
 	v23.RegisterRuntimeFactory(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
+	flow.RegisterUnknownProtocol("wsh", xwebsocket.WSH{})
 }
 
 func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {

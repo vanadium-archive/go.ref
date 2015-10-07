@@ -15,6 +15,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/rpc"
 
 	"v.io/x/lib/netstate"
@@ -26,6 +27,7 @@ import (
 	"v.io/x/ref/runtime/internal/gce"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
 	"v.io/x/ref/runtime/internal/lib/websocket"
+	"v.io/x/ref/runtime/internal/lib/xwebsocket"
 	grt "v.io/x/ref/runtime/internal/rt"
 
 	// TODO(suharshs): Remove these once we switch to the flow protocols.
@@ -39,6 +41,7 @@ var commonFlags *flags.Flags
 func init() {
 	v23.RegisterRuntimeFactory(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridResolve, websocket.HybridListener)
+	flow.RegisterUnknownProtocol("wsh", xwebsocket.WSH{})
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 
