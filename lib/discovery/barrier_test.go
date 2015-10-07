@@ -5,8 +5,8 @@
 package discovery
 
 import (
-	"runtime"
 	"testing"
+	"time"
 )
 
 func TestBarrier(t *testing.T) {
@@ -46,11 +46,10 @@ func TestBarrier(t *testing.T) {
 }
 
 func waitDone(ch <-chan struct{}) bool {
-	runtime.Gosched()
 	select {
 	case <-ch:
 		return true
-	default:
+	case <-time.After(10 * time.Millisecond):
 		return false
 	}
 }
