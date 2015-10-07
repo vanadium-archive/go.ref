@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Syncbase client shell. Currently supports SyncQL select queries.
+// Syncbase client shell. Currently supports syncQL select queries.
 
 package main
 
@@ -19,18 +19,18 @@ import (
 	"v.io/v23/syncbase"
 	"v.io/v23/syncbase/nosql"
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/cmd/sb51/internal/demodb"
-	"v.io/x/ref/cmd/sb51/internal/reader"
-	"v.io/x/ref/cmd/sb51/internal/writer"
+	"v.io/x/ref/cmd/sb/internal/demodb"
+	"v.io/x/ref/cmd/sb/internal/reader"
+	"v.io/x/ref/cmd/sb/internal/writer"
 	"v.io/x/ref/lib/v23cmd"
 )
 
 var cmdSbShell = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runSbShell),
 	Name:   "sh",
-	Short:  "Start a SyncQL shell",
+	Short:  "Start a syncQL shell",
 	Long: `
-Connect to a database on the Syncbase service and start a SyncQL shell.
+Connect to a database on the Syncbase service and start a syncQL shell.
 `,
 	ArgsName: "<app_name> <db_name>",
 	ArgsLong: `
@@ -63,7 +63,7 @@ func validateFlags() error {
 	return nil
 }
 
-// Starts a SyncQL shell against the specified database.
+// Starts a syncQL shell against the specified database.
 // Runs in interactive or batch mode depending on stdin.
 func runSbShell(ctx *context.T, env *cmdline.Env, args []string) error {
 	// TODO(ivanpi): Add 'use' statement, default to no app/database selected.

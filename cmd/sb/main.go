@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Antimony (sb51) - Syncbase general-purpose client and management utility.
-// Currently supports SyncQL select queries.
+// sb - syncbase general-purpose client and management utility.
+// Currently supports syncQL select queries.
 
 package main
 
@@ -15,15 +15,15 @@ import (
 )
 
 func main() {
-	cmdline.Main(cmdSb51)
+	cmdline.Main(cmdSb)
 }
 
-var cmdSb51 = &cmdline.Command{
-	Name:  "sb51",
-	Short: "Antimony - Vanadium Syncbase client and management utility",
+var cmdSb = &cmdline.Command{
+	Name:  "sb",
+	Short: "sb - Vanadium syncbase client and management utility",
 	Long: `
 Syncbase general-purpose client and management utility.
-Currently supports starting a SyncQL shell.
+Currently supports starting a syncQL shell.
 `,
 	Children: []*cmdline.Command{cmdSbShell},
 }

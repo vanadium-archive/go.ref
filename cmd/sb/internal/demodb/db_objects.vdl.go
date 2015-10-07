@@ -25,7 +25,7 @@ type AddressInfo struct {
 }
 
 func (AddressInfo) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.AddressInfo"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AddressInfo"`
 }) {
 }
 
@@ -77,7 +77,7 @@ func (x CreditAgency) String() string {
 }
 
 func (CreditAgency) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.CreditAgency"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.CreditAgency"`
 	Enum struct{ Equifax, Experian, TransUnion string }
 }) {
 }
@@ -124,7 +124,7 @@ func (x ExperianRating) String() string {
 }
 
 func (ExperianRating) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.ExperianRating"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.ExperianRating"`
 	Enum struct{ Good, Bad string }
 }) {
 }
@@ -134,7 +134,7 @@ type EquifaxCreditReport struct {
 }
 
 func (EquifaxCreditReport) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.EquifaxCreditReport"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.EquifaxCreditReport"`
 }) {
 }
 
@@ -143,7 +143,7 @@ type ExperianCreditReport struct {
 }
 
 func (ExperianCreditReport) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.ExperianCreditReport"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.ExperianCreditReport"`
 }) {
 }
 
@@ -152,7 +152,7 @@ type TransUnionCreditReport struct {
 }
 
 func (TransUnionCreditReport) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.TransUnionCreditReport"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.TransUnionCreditReport"`
 }) {
 }
 
@@ -176,7 +176,7 @@ type (
 	AgencyReportTransUnionReport struct{ Value TransUnionCreditReport }
 	// __AgencyReportReflect describes the AgencyReport union type.
 	__AgencyReportReflect struct {
-		Name  string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.AgencyReport"`
+		Name  string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AgencyReport"`
 		Type  AgencyReport
 		Union struct {
 			EquifaxReport    AgencyReportEquifaxReport
@@ -207,7 +207,7 @@ type CreditReport struct {
 }
 
 func (CreditReport) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.CreditReport"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.CreditReport"`
 }) {
 }
 
@@ -220,7 +220,7 @@ type Customer struct {
 }
 
 func (Customer) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Customer"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Customer"`
 }) {
 }
 
@@ -232,7 +232,7 @@ type Invoice struct {
 }
 
 func (Invoice) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Invoice"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Invoice"`
 }) {
 }
 
@@ -251,7 +251,7 @@ type Numbers struct {
 }
 
 func (Numbers) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Numbers"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Numbers"`
 }) {
 }
 
@@ -260,7 +260,7 @@ type FooType struct {
 }
 
 func (FooType) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.FooType"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.FooType"`
 }) {
 }
 
@@ -269,7 +269,7 @@ type BarType struct {
 }
 
 func (BarType) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.BarType"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.BarType"`
 }) {
 }
 
@@ -291,7 +291,7 @@ type (
 	TitleOrValueTypeValue struct{ Value int64 }
 	// __TitleOrValueTypeReflect describes the TitleOrValueType union type.
 	__TitleOrValueTypeReflect struct {
-		Name  string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.TitleOrValueType"`
+		Name  string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.TitleOrValueType"`
 		Type  TitleOrValueType
 		Union struct {
 			Title TitleOrValueTypeTitle
@@ -316,14 +316,14 @@ type BazType struct {
 }
 
 func (BazType) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.BazType"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.BazType"`
 }) {
 }
 
 type Array2String [2]string
 
 func (Array2String) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Array2String"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Array2String"`
 }) {
 }
 
@@ -335,7 +335,7 @@ type Composite struct {
 }
 
 func (Composite) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Composite"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Composite"`
 }) {
 }
 
@@ -345,7 +345,7 @@ type Times struct {
 }
 
 func (Times) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Times"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Times"`
 }) {
 }
 
@@ -356,7 +356,7 @@ type Recursive struct {
 }
 
 func (Recursive) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Recursive"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Recursive"`
 }) {
 }
 
@@ -378,7 +378,7 @@ type (
 	ActOrSatScoreSatScore struct{ Value uint16 }
 	// __ActOrSatScoreReflect describes the ActOrSatScore union type.
 	__ActOrSatScoreReflect struct {
-		Name  string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.ActOrSatScore"`
+		Name  string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.ActOrSatScore"`
 		Type  ActOrSatScore
 		Union struct {
 			ActScore ActOrSatScoreActScore
@@ -404,7 +404,7 @@ type Student struct {
 }
 
 func (Student) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.Student"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Student"`
 }) {
 }
 
@@ -414,7 +414,7 @@ type AnythingGoes struct {
 }
 
 func (AnythingGoes) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/cmd/sb51/internal/demodb.AnythingGoes"`
+	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AnythingGoes"`
 }) {
 }
 

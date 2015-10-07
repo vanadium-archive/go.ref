@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Antimony (sb51) is a Syncbase general-purpose client and management utility.
-// It currently supports experimenting with the Syncbase query language.
+// Sb is a syncbase general-purpose client and management utility.
+// It currently supports syncQL (the syncbase query language).
 //
-// The 'sh' command connects to a specified database on a Syncbase instance,
+// The 'sh' command connects to a specified database on a syncbase instance,
 // creating it if it does not exist if -create-missing is specified.
 // The user can then enter the following at the command line:
 //     1. dump - to get a dump of the database
@@ -17,14 +17,14 @@
 // errors cause the shell to exit with a non-zero status.
 //
 // To build client:
-//     jiri go install v.io/x/ref/cmd/sb51
+//     jiri go install v.io/x/ref/cmd/sb
 //
 // To run client:
-//     $JIRI_ROOT/release/go/bin/sb51 sh <appname> <dbname>
+//     $JIRI_ROOT/release/go/bin/sb sh <appname> <dbname>
 //
 // Sample run (assuming a syncbase service is mounted at '/:8101/syncbase',
 // otherwise specify using -service flag):
-//     > $JIRI_ROOT/release/go/bin/sb51 sh -create-missing -make-demo -format=csv demoapp demodb
+//     > $JIRI_ROOT/release/go/bin/sb sh -create-missing -make-demo -format=csv demoapp demodb
 //     ? select v.Name, v.Address.State from Customers where Type(v) = "Customer";
 //     v.Name,v.Address.State
 //     John Smith,CA
