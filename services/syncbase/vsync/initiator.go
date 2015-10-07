@@ -98,7 +98,7 @@ func (s *syncService) getDBDeltas(ctxIn *context.T, peer string, c *initiationCo
 	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer sg %v %s", sg, peer)
 	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer sg %v %s", sg, peer)
 
-	ctx, cancel := context.WithRootCancel(ctxIn)
+	ctx, cancel := context.WithCancel(ctxIn)
 	// cancel() is idempotent.
 	defer cancel()
 
@@ -136,17 +136,19 @@ func (s *syncService) getDBDeltas(ctxIn *context.T, peer string, c *initiationCo
 	// Obtain deltas from the peer over the network.
 	if err := iSt.recvAndProcessDeltas(ctx); err != nil {
 		cancel()
+		// Call Finish to clean up local state even on failure.
 		iSt.stream.Finish()
+		return err
+	}
+
+	if err := iSt.stream.Finish(); err != nil {
 		return err
 	}
 
 	vlog.VI(4).Infof("sync: getDBDeltas: got reply: %v", iSt.remote)
 
-	if err := iSt.processUpdatedObjects(ctx); err != nil {
-		return err
-	}
-
-	return iSt.stream.Finish()
+	// Process deltas locally.
+	return iSt.processUpdatedObjects(ctx)
 }
 
 type sgSet map[interfaces.GroupId]struct{}
@@ -405,17 +407,30 @@ func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
 
 // connectToPeer attempts to connect to the remote peer using the mount tables
 // obtained from all the common SyncGroups.
-func (iSt *initiationState) connectToPeer(ctx *context.T) bool {
+func (iSt *initiationState) connectToPeer(ctxIn *context.T) bool {
+	vlog.VI(4).Infof("sync: connectToPeer: begin")
+
 	if len(iSt.config.mtTables) < 1 {
 		vlog.Errorf("sync: connectToPeer: no mount tables found to connect to peer %s, app %s db %s", iSt.config.peer, iSt.config.appName, iSt.config.dbName)
 		return false
 	}
 
 	for i, mt := range iSt.config.mtTables {
+		ctx, cancel := context.WithCancel(ctxIn)
+
+		// We start a timer to bound the amount of time we wait to
+		// initiate a connection.
+		t := time.AfterFunc(connectionTimeOut, cancel)
+
 		absName := naming.Join(mt, iSt.config.peer, util.SyncbaseSuffix)
 		c := interfaces.SyncClient(absName)
+
+		vlog.VI(4).Infof("sync: connectToPeer: trying %v", absName)
+
 		var err error
 		iSt.stream, err = c.GetDeltas(ctx, iSt.req, iSt.config.sync.name)
+		t.Stop()
+
 		if err == nil {
 			vlog.VI(4).Infof("sync: connectToPeer: established on %s", absName)
 
@@ -423,6 +438,9 @@ func (iSt *initiationState) connectToPeer(ctx *context.T) bool {
 			iSt.config.mtTables = iSt.config.mtTables[i:]
 			return true
 		}
+		// When the RPC is successful, cancelling the parent context
+		// will take care of cancelling the child context.
+		cancel()
 	}
 	iSt.config.mtTables = nil
 	vlog.Errorf("sync: connectToPeer: couldn't connect to peer %s", iSt.config.peer)
@@ -603,7 +621,10 @@ func (iSt *initiationState) processBlobRefs(ctx *context.T, m *interfaces.LogRec
 
 	var val *vdl.Value
 	if err := vom.Decode(valbuf, &val); err != nil {
-		return err
+		// If we cannot decode the value, ignore blob processing and
+		// continue. This is fine since all stored values need not be
+		// vom encoded.
+		return nil
 	}
 
 	brs := make(map[nosql.BlobRef]struct{})
@@ -953,20 +974,8 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 	}
 	// Create the state to be persisted.
 	ds := &dbSyncState{
-		Data: localGenInfo{
-			Gen:        dsInMem.data.gen,
-			CheckptGen: dsInMem.data.checkptGen,
-		},
-		Sgs:      make(map[string]localGenInfo),
 		GenVec:   dsInMem.genvec,
 		SgGenVec: dsInMem.sggenvec,
-	}
-
-	for id, info := range dsInMem.sgs {
-		ds.Sgs[id] = localGenInfo{
-			Gen:        info.gen,
-			CheckptGen: info.checkptGen,
-		}
 	}
 
 	genvec := ds.GenVec

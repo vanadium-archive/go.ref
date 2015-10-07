@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
@@ -376,4 +377,73 @@ func createMetadata(t *testing.T, ty byte, cmd syncCommand) interfaces.LogRecMet
 		BatchCount: cmd.batchCount,
 	}
 	return m
+}
+
+// splitLogRecKey is the inverse of logRecKey and returns the prefix, device id
+// and generation number.
+func splitLogRecKey(ctx *context.T, key string) (string, uint64, uint64, error) {
+	parts := util.SplitKeyParts(key)
+	verr := verror.New(verror.ErrInternal, ctx, "invalid logreckey", key)
+	if len(parts) != 5 && len(parts) != 7 {
+		return "", 0, 0, verr
+	}
+	if parts[0] != util.SyncPrefix || parts[1] != logPrefix {
+		return "", 0, 0, verr
+	}
+
+	var idStr, genStr, prefix string
+	if parts[2] == logDataPrefix {
+		if len(parts) != 5 {
+			return "", 0, 0, verr
+		}
+		prefix = parts[2]
+		idStr = parts[3]
+		genStr = parts[4]
+	} else {
+		if len(parts) != 7 {
+			return "", 0, 0, verr
+		}
+		prefix = util.JoinKeyParts(parts[2:5]...)
+		if _, err := strconv.ParseUint(parts[4], 10, 64); err != nil {
+			return "", 0, 0, verr
+		}
+		idStr = parts[5]
+		genStr = parts[6]
+	}
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		return "", 0, 0, verr
+	}
+	gen, err := strconv.ParseUint(genStr, 16, 64)
+	if err != nil {
+		return "", 0, 0, verr
+	}
+	return prefix, id, gen, nil
+}
+
+func TestSplitLogRecKey(t *testing.T) {
+	invalid := []string{"$sync:100:bb", "log:100:bb", "$sync:log:data:100:xx", "$sync:log:data:aa:bb", "$sync:log:xx:100:bb", "$sync:log:data:aa:100:bb", "$sync:log:$sync:sgd:xx:100:bb"}
+
+	for _, k := range invalid {
+		if _, _, _, err := splitLogRecKey(nil, k); err == nil {
+			t.Fatalf("splitting log rec key didn't fail %q", k)
+		}
+	}
+
+	valid := []struct {
+		pfx string
+		id  uint64
+		gen uint64
+	}{
+		{logDataPrefix, 10, 20},
+		{"$sync:sgd:2500", 190, 540},
+		{"$sync:sgd:4200", 9999, 999999},
+	}
+
+	for _, v := range valid {
+		gotPfx, gotId, gotGen, err := splitLogRecKey(nil, logRecKey(v.pfx, v.id, v.gen))
+		if gotPfx != v.pfx || gotId != v.id || gotGen != v.gen || err != nil {
+			t.Fatalf("failed key conversion pfx got %v want %v, id got %v want %v, gen got %v want %v, err %v", gotPfx, v.pfx, gotId, v.id, gotGen, v.gen, err)
+		}
+	}
 }

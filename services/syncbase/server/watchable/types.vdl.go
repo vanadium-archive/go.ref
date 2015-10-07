@@ -10,6 +10,9 @@ package watchable
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+
+	// VDL user imports
+	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 
 // GetOp represents a store get operation.
@@ -68,6 +71,7 @@ func (DeleteOp) __VDLReflect(struct {
 // key prefixes to sync.  SyncGroup prefixes cannot be changed, this is used
 // to track changes due to SyncGroup create/join/leave/destroy.
 type SyncGroupOp struct {
+	SgId     interfaces.GroupId
 	Prefixes []string
 	Remove   bool
 }

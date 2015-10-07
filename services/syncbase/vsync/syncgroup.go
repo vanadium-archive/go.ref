@@ -376,23 +376,8 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 		forEachSyncGroup(sn, func(sg *interfaces.SyncGroup) bool {
 			// Add all members of this SyncGroup to the membership view.
 			// A member's info is different across SyncGroups, so gather all of them.
-			for member, info := range sg.Joiners {
-				if _, ok := newMembers[member]; !ok {
-					newMembers[member] = &memberInfo{
-						db2sg:    make(map[string]sgMemberInfo),
-						mtTables: make(map[string]struct{}),
-					}
-				}
-				if _, ok := newMembers[member].db2sg[name]; !ok {
-					newMembers[member].db2sg[name] = make(sgMemberInfo)
-				}
-				newMembers[member].db2sg[name][sg.Id] = info
+			refreshSyncGroupMembers(sg, name, newMembers)
 
-				// Collect mount tables.
-				for _, mt := range sg.Spec.MountTables {
-					newMembers[member].mtTables[mt] = struct{}{}
-				}
-			}
 			return false
 		})
 		return false
@@ -400,6 +385,26 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 
 	view.members = newMembers
 	view.expiration = time.Now().Add(memberViewTTL)
+}
+
+func refreshSyncGroupMembers(sg *interfaces.SyncGroup, name string, newMembers map[string]*memberInfo) {
+	for member, info := range sg.Joiners {
+		if _, ok := newMembers[member]; !ok {
+			newMembers[member] = &memberInfo{
+				db2sg:    make(map[string]sgMemberInfo),
+				mtTables: make(map[string]struct{}),
+			}
+		}
+		if _, ok := newMembers[member].db2sg[name]; !ok {
+			newMembers[member].db2sg[name] = make(sgMemberInfo)
+		}
+		newMembers[member].db2sg[name][sg.Id] = info
+
+		// Collect mount tables.
+		for _, mt := range sg.Spec.MountTables {
+			newMembers[member].mtTables[mt] = struct{}{}
+		}
+	}
 }
 
 // forEachSyncGroup iterates over all SyncGroups in the Database and invokes
@@ -675,7 +680,7 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 		}
 
 		// Take a snapshot of the data to bootstrap the SyncGroup.
-		return sd.bootstrapSyncGroup(ctx, tx, spec.Prefixes)
+		return sd.bootstrapSyncGroup(ctx, tx, gid, spec.Prefixes)
 	})
 
 	if err != nil {
@@ -753,7 +758,7 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 		}
 
 		if sgState.NumLocalJoiners == 0 {
-			if err := sd.bootstrapSyncGroup(ctx, tx, sg.Spec.Prefixes); err != nil {
+			if err := sd.bootstrapSyncGroup(ctx, tx, gid, sg.Spec.Prefixes); err != nil {
 				return err
 			}
 		}
@@ -798,7 +803,7 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 		}
 
 		// Take a snapshot of the data to bootstrap the SyncGroup.
-		return sd.bootstrapSyncGroup(ctx, tx, sg2.Spec.Prefixes)
+		return sd.bootstrapSyncGroup(ctx, tx, sg2.Id, sg2.Spec.Prefixes)
 	})
 
 	if err != nil {
@@ -1063,7 +1068,7 @@ func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sg
 // be time consuming.  Consider doing it asynchronously and letting the server
 // reply to the client earlier.  However it must happen within the scope of this
 // transaction (and its snapshot view).
-func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction, prefixes []string) error {
+func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction, sgId interfaces.GroupId, prefixes []string) error {
 	if len(prefixes) == 0 {
 		return verror.New(verror.ErrInternal, ctx, "no prefixes specified")
 	}
@@ -1078,7 +1083,7 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction,
 	}
 
 	// Notify the watcher of the SyncGroup prefixes to start accepting.
-	if err := watchable.AddSyncGroupOp(ctx, tx, prefixes, false); err != nil {
+	if err := watchable.AddSyncGroupOp(ctx, tx, sgId, prefixes, false); err != nil {
 		return err
 	}
 
@@ -1119,11 +1124,12 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction,
 func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall, spec wire.SyncGroupSpec) error {
 	// Get this Syncbase's sync module handle.
 	ss := sd.sync.(*syncService)
+	ss.nameLock.Lock()
+	defer ss.nameLock.Unlock()
 
 	for _, mt := range spec.MountTables {
 		name := naming.Join(mt, ss.name)
-		// TODO(hpucha): Is this add idempotent? Appears to be from code.
-		// Confirm that it is ok to use absolute names here.
+		// AddName is idempotent.
 		if err := call.Server().AddName(name); err != nil {
 			return err
 		}

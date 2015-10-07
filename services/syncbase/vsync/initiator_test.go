@@ -362,55 +362,6 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 	tx.Abort()
 }
 
-// TestSgSync tests that a local and a remote log stream can be correctly
-// applied when there are conflicts on a SyncGroup update. Commands are in files
-// testdata/<local-sginit-00.log.sync,remote-sgconf-00.log.sync>. Note that
-// since data syncing tests are covering different scenarios in detail, a single
-// sniff test is added for SyncGroup sync.
-// TODO(hpucha): Add this test.
-/* func TestSgSync(t *testing.T) {
-	svc, iSt, cleanup := testInit(t, "local-sginit-00.log.sync", "remote-sgconf-00.log.sync", false)
-	defer cleanup(t, svc)
-
-	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
-
-	// Verify conflict state.
-	if len(iSt.updObjects) != 1 {
-		t.Fatalf("Unexpected number of updated objects %d", len(iSt.updObjects))
-	}
-	st := iSt.updObjects[objid]
-	if !st.isConflict {
-		t.Fatalf("Didn't detect a conflict %v", st)
-	}
-	if st.newHead != "6" || st.oldHead != "3" || st.ancestor != "2" {
-		t.Fatalf("Conflict detection didn't succeed %v", st)
-	}
-	if st.res.ty != pickRemote {
-		t.Fatalf("Conflict resolution did not pick remote: %v", st.res.ty)
-	}
-
-	// Verify DAG state.
-	if head, err := getHead(nil, svc.St(), objid); err != nil || head != "6" {
-		t.Fatalf("Invalid object %s head in DAG %v, err %v", objid, head, err)
-	}
-
-	// Verify Database state.
-	valbuf, err := svc.St().Get([]byte(objid), nil)
-	var val string
-	if err := vom.Decode(valbuf, &val); err != nil {
-		t.Fatalf("Value decode failed, err %v", err)
-	}
-	if err != nil || val != "abc" {
-		t.Fatalf("Invalid object %s in Database %v, err %v", objid, string(valbuf), err)
-	}
-	tx := svc.St().NewTransaction()
-	versbuf, err := watchable.GetVersion(nil, tx, []byte(objid))
-	if err != nil || string(versbuf) != "6" {
-		t.Fatalf("Invalid object %s head in Database %v, err %v", objid, string(versbuf), err)
-	}
-	tx.Abort()
-} */
-
 //////////////////////////////
 // Helpers.
 

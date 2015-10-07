@@ -34,6 +34,10 @@ var (
 	// peerSelectionPolicy is the policy used to select a peer when
 	// the initiator gets a chance to sync.
 	peerSelectionPolicy = selectRandom
+
+	// We wait for connectionTimeOut duration for a connection to be
+	// established with a peer reachable via a chosen mount table.
+	connectionTimeOut = 2 * time.Second
 )
 
 // syncer wakes up every peerSyncInterval to do work: (1) Refresh memberView if
@@ -54,12 +58,21 @@ func (s *syncService) syncer(ctx *context.T) {
 	defer ticker.Stop()
 
 	for {
+		// Give priority to close event if both ticker and closed are
+		// simultaneously triggered.
 		select {
 		case <-s.closed:
 			vlog.VI(1).Info("sync: syncer: channel closed, stop work and exit")
 			return
 
 		case <-ticker.C:
+		}
+		select {
+		case <-s.closed:
+			vlog.VI(1).Info("sync: syncer: channel closed, stop work and exit")
+			return
+
+		default:
 		}
 
 		// TODO(hpucha): Cut a gen for the responder even if there is no

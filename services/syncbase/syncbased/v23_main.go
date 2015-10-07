@@ -18,6 +18,7 @@ import (
 func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	Serve(ctx)
+	_, _, cleanup := Serve(ctx)
+	defer cleanup()
 	<-signals.ShutdownOnSignals(ctx)
 }

@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
 )
@@ -141,10 +142,10 @@ func newLog(key, version string, delete bool) *watchable.LogEntry {
 }
 
 // newSGLog creates a SyncGroup watch log entry.
-func newSGLog(prefixes []string, remove bool) *watchable.LogEntry {
+func newSGLog(gid interfaces.GroupId, prefixes []string, remove bool) *watchable.LogEntry {
 	return &watchable.LogEntry{
 		Op: watchable.OpSyncGroup{
-			Value: watchable.SyncGroupOp{Prefixes: prefixes, Remove: remove},
+			Value: watchable.SyncGroupOp{SgId: gid, Prefixes: prefixes, Remove: remove},
 		},
 	}
 }
@@ -184,8 +185,18 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	// Partially syncable logs.
+	gid := interfaces.GroupId(1234)
+	state := &sgLocalState{}
+	tx := st.NewTransaction()
+	if err := setSGIdEntry(nil, tx, gid, state); err != nil {
+		t.Fatal("setSGIdEntry() failed for gid %v", gid)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("cannot commit putting sg local state, err %v", err)
+	}
+
 	batch = []*watchable.LogEntry{
-		newSGLog([]string{"f", "x"}, false),
+		newSGLog(gid, []string{"f", "x"}, false),
 		newLog(fooKey, "333", false),
 		newLog(fooxyzKey, "444", false),
 		newLog(barKey, "222", false),
@@ -262,7 +273,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 
 	// Back to non-syncable logs (remove "f" prefix).
 	batch = []*watchable.LogEntry{
-		newSGLog([]string{"f"}, true),
+		newSGLog(gid, []string{"f"}, true),
 		newLog(fooKey, "99", false),
 		newLog(fooxyzKey, "888", true),
 		newLog(barKey, "007", false),

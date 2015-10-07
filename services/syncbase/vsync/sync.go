@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/clock"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
 	fsblob "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
@@ -34,9 +36,10 @@ import (
 // syncService contains the metadata for the sync module.
 type syncService struct {
 	// TODO(hpucha): see if "v.io/v23/uniqueid" is a better fit. It is 128 bits.
-	id   uint64 // globally unique id for this instance of Syncbase.
-	name string // name derived from the global id.
-	sv   interfaces.Service
+	id       uint64 // globally unique id for this instance of Syncbase.
+	name     string // name derived from the global id.
+	sv       interfaces.Service
+	nameLock sync.Mutex // lock needed to serialize adding and removing of Syncbase names.
 
 	// High-level lock to serialize the watcher and the initiator. This lock is
 	// needed to handle the following cases: (a) When the initiator is
@@ -185,12 +188,44 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngin
 	return s, nil
 }
 
-// Close cleans up sync state.
-// TODO(hpucha): Hook it up to server shutdown of syncbased.
-func (s *syncService) Close() {
-	s.bst.Close()
+// AddNames publishes all the names for this Syncbase instance gathered from all
+// the SyncGroups it is currently participating in. This is needed when
+// syncbased is restarted so that it can republish itself at the names being
+// used in the SyncGroups.
+func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) error {
+	vlog.VI(2).Infof("sync: AddNames:: begin")
+	defer vlog.VI(2).Infof("sync: AddNames:: end")
+
+	s := ss.(*syncService)
+	s.nameLock.Lock()
+	defer s.nameLock.Unlock()
+
+	mInfo := s.copyMemberInfo(ctx, s.name)
+	if mInfo == nil {
+		vlog.VI(2).Infof("sync: GetNames:: end returning no names")
+		return nil
+	}
+
+	for mt := range mInfo.mtTables {
+		name := naming.Join(mt, s.name)
+		if err := svr.AddName(name); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Close waits for spawned sync threads (watcher and initiator) to shut down,
+// and closes the local blob store handle.
+func Close(ss interfaces.SyncServerMethods) {
+	vlog.VI(2).Infof("sync: Close:: begin")
+	defer vlog.VI(2).Infof("sync: Close:: end")
+
+	s := ss.(*syncService)
 	close(s.closed)
 	s.pending.Wait()
+	s.bst.Close()
 }
 
 func syncbaseIdToName(id uint64) string {

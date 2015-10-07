@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"v.io/x/ref/services/syncbase/clock"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -165,7 +166,8 @@ func TestOpLogConsistency(t *testing.T) {
 			return err
 		}
 		sgPrefixes := []string{"sga", "sgb"}
-		if err := AddSyncGroupOp(nil, tx, sgPrefixes, false); err != nil {
+		gid := interfaces.GroupId(1234)
+		if err := AddSyncGroupOp(nil, tx, gid, sgPrefixes, false); err != nil {
 			return err
 		}
 		snKey, snVersion := []byte("aa"), []byte("123")
@@ -209,6 +211,7 @@ func TestOpLogConsistency(t *testing.T) {
 		case OpDelete:
 			eq(t, string(op.Value.Key), "foo")
 		case OpSyncGroup:
+			eq(t, op.Value.SgId, interfaces.GroupId(1234))
 			eq(t, op.Value.Prefixes, []string{"sga", "sgb"})
 		case OpSyncSnapshot:
 			eq(t, string(op.Value.Key), "aa")

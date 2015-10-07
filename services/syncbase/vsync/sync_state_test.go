@@ -69,14 +69,9 @@ func TestPutGetDbSyncState(t *testing.T) {
 			100: 200, 300: 400, 500: 600,
 		},
 	}
-	localsgs := make(map[string]localGenInfo)
-	localsgs["8888"] = localGenInfo{Gen: 56, CheckptGen: 2000}
-	localsgs["1008888"] = localGenInfo{Gen: 25890, CheckptGen: 100}
 
 	tx := st.NewTransaction()
 	wantSt := &dbSyncState{
-		Data:     localGenInfo{Gen: 40},
-		Sgs:      localsgs,
 		GenVec:   gv,
 		SgGenVec: sggv,
 	}
@@ -135,33 +130,6 @@ func TestPutGetDelLogRec(t *testing.T) {
 	}
 
 	checkLogRec(t, st, id, gen, false, nil)
-}
-
-func TestLogRecKeyUtils(t *testing.T) {
-	invalid := []string{"$sync:100:bb", "log:100:bb", "$sync:log:data:100:xx", "$sync:log:data:aa:bb", "$sync:log:xx:100:bb"}
-
-	for _, k := range invalid {
-		if _, _, _, err := splitLogRecKey(nil, k); err == nil {
-			t.Fatalf("splitting log rec key didn't fail %q", k)
-		}
-	}
-
-	valid := []struct {
-		pfx string
-		id  uint64
-		gen uint64
-	}{
-		{logDataPrefix, 10, 20},
-		{"2500", 190, 540},
-		{"4200", 9999, 999999},
-	}
-
-	for _, v := range valid {
-		gotPfx, gotId, gotGen, err := splitLogRecKey(nil, logRecKey(v.pfx, v.id, v.gen))
-		if gotPfx != v.pfx || gotId != v.id || gotGen != v.gen || err != nil {
-			t.Fatalf("failed key conversion pfx got %v want %v, id got %v want %v, gen got %v want %v, err %v", gotPfx, v.pfx, gotId, v.id, gotGen, v.gen, err)
-		}
-	}
 }
 
 //////////////////////////////

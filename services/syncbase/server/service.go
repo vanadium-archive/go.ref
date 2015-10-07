@@ -140,6 +140,38 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 	return s, nil
 }
 
+// AddNames adds all the names for this Syncbase instance gathered from all the
+// SyncGroups it is currently participating in. This method is exported so that
+// when syncbased is launched, it can publish these names.
+//
+// Note: This method is exported here and syncbased in main.go calls it since
+// publishing needs the server handle which is available during init in
+// syncbased. Alternately, one can step through server creation in main.go and
+// create the server handle first and pass it to NewService so that sync can use
+// that handle to publish the names it needs. Server creation can then proceed
+// with hooking up the dispatcher etc. In the current approach, we favor not
+// breaking up the server init into pieces but using the available wrapper, and
+// adding the names when ready. Finally, we could have also exported a SetServer
+// method instead of the AddNames at the service layer. However, that approach
+// will also need further synchronization between when the service starts
+// accepting incoming RPC requests and when the restart is complete. We can
+// control when the server starts accepting incoming requests by using a fake
+// dispatcher until we are ready and then switching to the real one after
+// restart. However, we will still need synchronization between
+// Add/RemoveName. So we decided to add synchronization from the get go and
+// avoid the fake dispatcher.
+func (s *service) AddNames(ctx *context.T, svr rpc.Server) error {
+	return vsync.AddNames(ctx, s.sync, svr)
+}
+
+// Close shuts down this Syncbase instance.
+//
+// TODO(hpucha): Close or cleanup Syncbase app/db data structures, and clock
+// goroutines.
+func (s *service) Close() {
+	vsync.Close(s.sync)
+}
+
 ////////////////////////////////////////
 // RPC methods
 

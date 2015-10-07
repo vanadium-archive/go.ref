@@ -108,6 +108,8 @@ func TestAddSyncGroup(t *testing.T) {
 	}
 
 	// Verify membership data.
+	// Force a rescan of membership data.
+	s.allMembers = nil
 
 	expMembers := map[string]uint32{"phone": 1, "tablet": 1, "cloud": 1}
 

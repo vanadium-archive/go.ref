@@ -38,7 +38,7 @@ func defaultPerms(blessingPatterns []security.BlessingPattern) access.Permission
 
 // TODO(sadovsky): We return rpc.Server and rpc.Dispatcher as a quick hack to
 // support Mojo.
-func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher) {
+func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 	perms, err := securityflag.PermissionsFromFlag()
 	if err != nil {
 		vlog.Fatal("securityflag.PermissionsFromFlag() failed: ", err)
@@ -69,5 +69,14 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher) {
 		vlog.Info("Mounted at: ", *name)
 	}
 
-	return s, d
+	if err := service.AddNames(ctx, s); err != nil {
+		vlog.Fatal("AddNames failed: ", err)
+	}
+
+	cleanup := func() {
+		s.Stop()
+		service.Close()
+	}
+
+	return s, d, cleanup
 }
