@@ -132,10 +132,11 @@ func appFunc(env *modules.Env, args ...string) error {
 	}
 	publishName := args[0]
 
-	ctx, _, err := v23.WithNewServer(ctx, publishName, new(appService), nil)
+	ctx, server, err := v23.WithNewServer(ctx, publishName, new(appService), nil)
 	if err != nil {
 		ctx.Fatalf("NewServer(%v) failed: %v", publishName, err)
 	}
+	WaitForMount(ctx, ctx, publishName, server)
 	// Some of our tests look for log files, so make sure they are flushed
 	// to ensure that at least the files exist.
 	ctx.FlushLog()
@@ -171,6 +172,7 @@ func SetupPingServer(t *testing.T, ctx *context.T) (PingServer, func()) {
 	if err != nil {
 		t.Fatalf("NewServer(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
+	WaitForMount(t, ctx, "pingserver", server)
 	return PingServer{pingCh}, func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)

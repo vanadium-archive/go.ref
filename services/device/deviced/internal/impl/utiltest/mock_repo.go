@@ -48,6 +48,7 @@ func StartApplicationRepository(ctx *context.T) (*application.Envelope, func()) 
 	if err != nil {
 		ctx.Fatalf("NewServer(%v) failed: %v", name, err)
 	}
+	WaitForMount(ctx, ctx, name, server)
 	return &invoker.envelope, func() {
 		if err := server.Stop(); err != nil {
 			ctx.Fatalf("Stop() failed: %v", err)
@@ -95,6 +96,7 @@ func StartBinaryRepository(ctx *context.T) func() {
 	if err != nil {
 		ctx.Fatalf("Serve(%q) failed: %v", name, err)
 	}
+	WaitForMount(ctx, ctx, name, server)
 	return func() {
 		if err := server.Stop(); err != nil {
 			ctx.Fatalf("Stop() failed: %v", err)
