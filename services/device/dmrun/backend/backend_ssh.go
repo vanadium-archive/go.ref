@@ -19,6 +19,7 @@ type SSHVM struct {
 	ip            string
 	workingDir    string
 	isDeleted     bool
+	dbg           DebugPrinter
 }
 
 type SSHVMOptions struct {
@@ -26,10 +27,11 @@ type SSHVMOptions struct {
 	SSHUser    string   // username to use
 	SSHOptions []string // flags to ssh command. Use this to indicate the key file, for example
 	SSHBinary  string   // path to the "ssh" command
-	ScpBinary  string   // path to the "scp" command
+	SCPBinary  string   // path to the "scp" command
+	Dbg        DebugPrinter
 }
 
-func newSSHVM(instanceName string, opt SSHVMOptions) (vm *SSHVM, err error) {
+func newSSHVM(instanceName string, opt SSHVMOptions) (vm CloudVM, err error) {
 	// Make sure we got a valid ip
 	tmpIP := strings.TrimSpace(opt.SSHHostIP)
 	if net.ParseIP(tmpIP) == nil {
@@ -43,13 +45,14 @@ func newSSHVM(instanceName string, opt SSHVMOptions) (vm *SSHVM, err error) {
 		ip:            tmpIP,
 		sshUserAtHost: tmpIP,
 		isDeleted:     false,
+		dbg:           opt.Dbg,
 	}
 
 	if opt.SSHBinary != "" {
 		g.ssh = opt.SSHBinary
 	}
-	if opt.ScpBinary != "" {
-		g.scp = opt.ScpBinary
+	if opt.SCPBinary != "" {
+		g.scp = opt.SCPBinary
 	}
 	if opt.SSHUser != "" {
 		g.sshUserAtHost = fmt.Sprint(opt.SSHUser, "@", g.ip)
@@ -95,6 +98,8 @@ func (g *SSHVM) RunCommand(args ...string) ([]byte, error) {
 	}
 
 	cmd := g.generateExecCmdForRun(args...)
+
+	g.dbg.Printf("SSHVM: %s %v\n", cmd.Path, cmd.Args[1:])
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

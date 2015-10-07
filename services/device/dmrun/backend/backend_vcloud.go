@@ -25,7 +25,7 @@ type VcloudVMOptions struct {
 	VcloudBinary string // path to the "vcloud" command
 }
 
-func newVcloudVM(instanceName string, opt VcloudVMOptions) (vm *VcloudVM, err error) {
+func newVcloudVM(instanceName string, opt VcloudVMOptions) (vm CloudVM, err error) {
 	// TODO: Make sshUser, zone, and project configurable
 	g := &VcloudVM{
 		vcloud:     opt.VcloudBinary,
