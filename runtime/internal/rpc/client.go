@@ -677,12 +677,8 @@ func (fc *flowClient) prepareBlessingsAndDischarges(ctx *context.T, method, suff
 	}
 
 	// Fetch blessings from the client's blessing store that are to be
-	// shared with the server.
-	if fc.blessings = fc.flow.LocalPrincipal().BlessingStore().ForPeer(fc.server...); fc.blessings.IsZero() {
-		// TODO(ataly, ashankar): We need not error out here and instead can just send the <nil> blessings
-		// to the server.
-		return verror.New(errNoBlessingsForPeer, fc.ctx, fc.server, rejectedServerBlessings)
-	}
+	// shared with the server, if any.
+	fc.blessings = fc.flow.LocalPrincipal().BlessingStore().ForPeer(fc.server...)
 
 	// Fetch any discharges for third-party caveats on the client's blessings.
 	if !fc.blessings.IsZero() && fc.dc != nil {

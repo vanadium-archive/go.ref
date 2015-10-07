@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -25,6 +26,7 @@ import (
 
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
+	lsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
@@ -974,4 +976,46 @@ func TestReservedMethodErrors(t *testing.T) {
 		t.Fatalf("wrong error: %s", verr)
 	}
 	logErr("unknown method", verr)
+}
+
+type publicKeyAuth struct {
+	pkey security.PublicKey
+}
+
+func (a *publicKeyAuth) Authorize(ctx *context.T, call security.Call) error {
+	pkey := call.RemoteBlessings().PublicKey()
+	if !reflect.DeepEqual(a.pkey, pkey) {
+		return fmt.Errorf("public key mismatch: %v != %v", a.pkey, pkey)
+	}
+	return nil
+}
+
+func TestAllowEmptyBlessings(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	p, err := lsecurity.NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientCtx, err := v23.WithPrincipal(ctx, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clt := v23.GetClient(clientCtx)
+
+	_, server, err := v23.WithNewServer(ctx, "", &simple{}, &publicKeyAuth{p.PublicKey()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := server.Status().Endpoints[0].Name()
+
+	call, err := clt.StartCall(clientCtx, name, "Ping", []interface{}{}, options.SkipServerEndpointAuthorization{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pong string
+	if err := call.Finish(&pong); err != nil {
+		t.Fatal(err)
+	}
 }
