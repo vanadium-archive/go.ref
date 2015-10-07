@@ -115,7 +115,7 @@ func SignedEnvelopeFromShell(ctx *context.T, sh *modules.Shell, env []string, pr
 }
 
 // ResolveExpectNotFound verifies that the given name is not in the mounttable.
-func ResolveExpectNotFound(t *testing.T, ctx *context.T, name string, retry bool) {
+func ResolveExpectNotFound(f Fatalist, ctx *context.T, name string, retry bool) {
 	expectErr := naming.ErrNoSuchName.ID
 	for {
 		me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
@@ -125,9 +125,9 @@ func ResolveExpectNotFound(t *testing.T, ctx *context.T, name string, retry bool
 				continue
 			}
 			if err == nil {
-				t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names()))
+				f.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names()))
 			} else {
-				t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
+				f.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
 			}
 		} else {
 			return
@@ -136,7 +136,7 @@ func ResolveExpectNotFound(t *testing.T, ctx *context.T, name string, retry bool
 }
 
 // Resolve looks up the given name in the mounttable.
-func Resolve(t *testing.T, ctx *context.T, name string, replicas int, retry bool) []string {
+func Resolve(f Fatalist, ctx *context.T, name string, expectReplicas int, retry bool) []string {
 	for {
 		me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
 		if err != nil {
@@ -144,19 +144,22 @@ func Resolve(t *testing.T, ctx *context.T, name string, replicas int, retry bool
 				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
-				t.Fatalf("Resolve(%v) failed: %v", name, err)
+				f.Fatalf("Resolve(%v) failed: %v", name, err)
 			}
 		}
 
+		// We are going to get a websocket and a tcp endpoint for each
+		// replica.  Filter out non-tcp endpoints.
 		filteredResults := []string{}
 		for _, r := range me.Names() {
 			if strings.Index(r, "@tcp") != -1 {
 				filteredResults = append(filteredResults, r)
 			}
 		}
-		// We are going to get a websocket and a tcp endpoint for each replica.
-		if want, got := replicas, len(filteredResults); want != got {
-			t.Fatalf("Resolve(%v) expected %d result(s), got %d instead", name, want, got)
+		if expectReplicas >= 0 {
+			if want, got := expectReplicas, len(filteredResults); want != got {
+				f.Fatalf("Resolve(%v) expected %d result(s), got %d instead", name, want, got)
+			}
 		}
 		return filteredResults
 	}
@@ -766,6 +769,7 @@ func StartRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 	if err != nil {
 		t.Fatalf("server.ServeDispatcher failed: %v", err)
 	}
+	WaitForMount(t, ctx, von, server)
 	return func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("server.Stop failed: %v", err)
@@ -798,5 +802,41 @@ func PollingWait(t *testing.T, pid int) {
 		case <-time.After(time.Millisecond):
 			// Try again.
 		}
+	}
+}
+
+type Fatalist interface {
+	Fatalf(format string, args ...interface{})
+}
+
+// WaitForMount waits (with a reasonable timeout) for the given server's
+// endpoint to be mounted under the given name.  Since ctx.WithNewServer and
+// ctx.WithNewDispatchingServer publish the names asynchronously, use
+// WaitForMount if you need a guarantee that the publish has happened.
+func WaitForMount(f Fatalist, ctx *context.T, name string, server rpc.Server) {
+	var serverEPName string
+	if serverEPS := server.Status().Endpoints; len(serverEPS) != 1 {
+		f.Fatalf("Expected 1 server endpoint, found: %v", serverEPS)
+	} else {
+		serverEPName = naming.JoinAddressName(serverEPS[0].String(), "")
+	}
+	timeout := time.After(time.Minute)
+	for {
+		// NOTE(caprita): We could have also used server.Status().Mounts
+		// to save the trouble of resolving the mounttable, but given
+		// the churn in the server logic, it's safer to just look for
+		// the 'ground truth' in the mounttable.
+		eps := Resolve(f, ctx, name, -1, false)
+		for _, ep := range eps {
+			if ep == serverEPName {
+				return
+			}
+		}
+		select {
+		case <-timeout:
+			f.Fatalf("Timed out waiting for %v to appear in mounttable under %v; found: %v", serverEPName, name, eps)
+		default:
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
