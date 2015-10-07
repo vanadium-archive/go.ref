@@ -16,6 +16,22 @@
 //   dmrun [ENV=VAL ...] path/to/binary [--flag=val ...]
 //
 // All flags and environment variable settings are passed to the app.
+//
+// Usage examples:
+//   vcloud backend -- vcloud must be properly set up to talk to GCE:
+//       dmrun ${JIRI_ROOT}/release/go/bin/principal dump
+//
+//   aws backend -- "aws" command must be installed and access+secret keys configured:
+//       dmrun --aws ${JIRI_ROOT}/release/go/bin/principal dump
+//
+//       (For help setting up aws, see
+//          https://docs.google.com/document/d/1hRo6if4IF4EMKJNFu8HB1kbnk-D7UMe47iJuPH0CRAg/view )
+//
+//   ssh backend can also be invoked directly to talk to an existing VM:
+//        (e.g. AWS ubuntu VM set up so you can ssh with "ssh -i /tmp/key" w/o typing a password.)
+//        dmrun --ssh "ubuntu@54.152.51.129" --sshoptions "-i /tmp/key" ${JIRI_ROOT}/release/go/bin/principal dump
+//
+
 package main
 
 import (
@@ -284,15 +300,41 @@ func startApp(installationName, extension string) string {
 
 // check flags and produce the options used to build the backend VM
 func handleFlags() (vmOpts interface{}) {
+	var keyDir string
+	flag.StringVar(&keyDir, "keydir", "/tmp", "where (on the local filesystem) to store ssh keys")
+	var debug bool
+	flag.BoolVar(&debug, "debug", false, "print debug messages")
+
+	// flags for ssh backend
 	var sshTarget, sshOptions string
 	flag.StringVar(&sshTarget, "ssh", "", "specify [user@]ip target for ssh")
 	flag.StringVar(&sshOptions, "sshoptions", "", "flags to pass to ssh, e.g. \"-i <keyfile>\"")
+	// flags for AWS backend
+	var aws bool
+	var awsRegion, awsImageID string
+	flag.BoolVar(&aws, "aws", false, "use AWS backend")
+	flag.StringVar(&awsRegion, "aws-region", "", "AWS region -- When specified, you also need to specify aws-image-id")
+	flag.StringVar(&awsImageID, "aws-image-id", "", "ID of AWS vm image to use")
+
 	flag.Parse()
 
+	var dbg backend.DebugPrinter = backend.NoopDebugPrinter{}
+	if debug {
+		dbg = backend.StderrDebugPrinter{}
+	}
+
 	// Pick backend based on flags
-	if sshTarget != "" {
+	switch {
+	default:
+		// Vcloud backend
+		vcloud = buildV23Binary(vcloudBin)
+		vmOpts = backend.VcloudVMOptions{VcloudBinary: vcloud}
+
+	case sshTarget != "":
 		// Ssh backend
-		opts := backend.SSHVMOptions{}
+		opts := backend.SSHVMOptions{
+			Dbg: dbg,
+		}
 		targetComponents := strings.Split(sshTarget, "@")
 		switch len(targetComponents) {
 		case 1:
@@ -307,10 +349,15 @@ func handleFlags() (vmOpts interface{}) {
 			opts.SSHOptions = strings.Split(sshOptions, " ")
 		}
 		vmOpts = opts
-	} else {
-		// Vcloud backend
-		vcloud = buildV23Binary(vcloudBin)
-		vmOpts = backend.VcloudVMOptions{VcloudBinary: vcloud}
+
+	case aws:
+		vmOpts = backend.AWSVMOptions{
+			AWSBinary: "", // Assume "aws" command is on the path
+			Region:    awsRegion,
+			ImageID:   awsImageID,
+			KeyDir:    keyDir,
+			Dbg:       dbg,
+		}
 	}
 
 	if len(flag.Args()) == 0 {

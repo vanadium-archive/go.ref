@@ -4,7 +4,10 @@
 
 package backend
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 type CloudVM interface {
 	// Name of the VM instance that the object talks to
@@ -40,5 +43,27 @@ func CreateCloudVM(instanceName string, options interface{}) (CloudVM, error) {
 		return newVcloudVM(instanceName, t)
 	case SSHVMOptions:
 		return newSSHVM(instanceName, t)
+	case AWSVMOptions:
+		return newAWSVM(instanceName, t)
 	}
+}
+
+// DebugPrinters are used by the backends to log debugging output.
+type DebugPrinter interface {
+	Print(args ...interface{})
+	Printf(fmtString string, args ...interface{})
+}
+
+type NoopDebugPrinter struct{}   // discards output
+type StderrDebugPrinter struct{} // log to stderr
+
+func (n NoopDebugPrinter) Print(args ...interface{})                    {}
+func (n NoopDebugPrinter) Printf(fmtString string, args ...interface{}) {}
+
+func (s StderrDebugPrinter) Print(args ...interface{}) {
+	fmt.Fprintln(os.Stderr, args...)
+}
+
+func (s StderrDebugPrinter) Printf(fmtString string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, fmtString, args...)
 }
