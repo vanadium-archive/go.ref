@@ -15,6 +15,7 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
 )
@@ -176,7 +177,7 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) error {
 		}
 
 		for _, p := range sg.Spec.Prefixes {
-			allowedPfxs[p] = struct{}{}
+			allowedPfxs[toTableRowPrefixStr(p)] = struct{}{}
 		}
 	}
 
@@ -477,10 +478,11 @@ func getNextLogRec(ctx *context.T, st store.Store, pfx string, dev uint64, r *ge
 
 // Note: initPfxs is sorted.
 func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []string) bool {
-	// The key starts with one of the store's reserved prefixes for managed
-	// namespaces (e.g. $row, $perms).  Remove that prefix before comparing
-	// it with the SyncGroup prefixes which are defined by the application.
-	key := extractAppKey(rec.Metadata.ObjId)
+	// The key (objid) starts with one of the store's reserved prefixes for
+	// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
+	// comparing it with the SyncGroup prefixes which are defined by the
+	// application.
+	key := util.StripFirstPartOrDie(rec.Metadata.ObjId)
 
 	filter := true
 	var maxGen uint64

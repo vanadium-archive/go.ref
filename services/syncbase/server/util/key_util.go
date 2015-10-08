@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23/syncbase/util"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
 )
 
 // JoinKeyParts builds keys for accessing data in the storage engine.
@@ -20,6 +21,17 @@ func JoinKeyParts(parts ...string) string {
 // SplitKeyParts is the inverse of JoinKeyParts.
 func SplitKeyParts(key string) []string {
 	return strings.Split(key, KeyPartSep)
+}
+
+// StripFirstPartOrDie strips off the first part of the given key. Typically
+// used to strip off the key prefixes defined in constants.go. Panics if the
+// input string has fewer than two parts.
+func StripFirstPartOrDie(key string) string {
+	parts := strings.SplitN(key, KeyPartSep, 2)
+	if len(parts) < 2 {
+		vlog.Fatalf("StripFirstPart: invalid key %q", key)
+	}
+	return parts[1]
 }
 
 // ScanPrefixArgs returns args for sn.Scan() for the specified prefix.

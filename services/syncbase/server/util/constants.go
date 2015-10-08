@@ -41,12 +41,12 @@ const (
 	*/
 
 	// Separator for parts of storage engine keys.
-	// TODO(sadovsky): Allow ":" in names and use a different separator here,
-	// perhaps "%%".
+	// TODO(sadovsky): Switch to \xff or \x00, both of which are disallowed in
+	// client-specified names and keys.
 	KeyPartSep = ":"
 
 	// PrefixRangeLimitSuffix is a key suffix that indicates the end of a prefix
-	// range. Must be greater than any character allowed in client-provided keys.
+	// range. Must be greater than any character allowed in client-specified keys.
 	PrefixRangeLimitSuffix = "\xff"
 )
 

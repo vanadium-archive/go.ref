@@ -271,10 +271,11 @@ func (iSt *initiationState) peerSgInfo(ctx *context.T) {
 		iSt.config.sgIds[id] = struct{}{}
 
 		for _, p := range sg.Spec.Prefixes {
-			sgs, ok := iSt.config.sgPfxs[p]
+			pfxStr := toTableRowPrefixStr(p)
+			sgs, ok := iSt.config.sgPfxs[pfxStr]
 			if !ok {
 				sgs = make(sgSet)
-				iSt.config.sgPfxs[p] = sgs
+				iSt.config.sgPfxs[pfxStr] = sgs
 			}
 			sgs[id] = struct{}{}
 		}
@@ -634,7 +635,11 @@ func (iSt *initiationState) processBlobRefs(ctx *context.T, m *interfaces.LogRec
 	sgIds := make(sgSet)
 	for br := range brs {
 		for p, sgs := range iSt.config.sgPfxs {
-			if strings.HasPrefix(extractAppKey(objid), p) {
+			// The key (objid) starts with one of the store's reserved prefixes for
+			// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
+			// comparing it with the SyncGroup prefixes which are defined by the
+			// application.
+			if strings.HasPrefix(util.StripFirstPartOrDie(objid), p) {
 				for sg := range sgs {
 					sgIds[sg] = struct{}{}
 				}

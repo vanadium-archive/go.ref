@@ -25,6 +25,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -122,8 +123,14 @@ func verifySyncGroupSpec(ctx *context.T, spec *wire.SyncGroupSpec) error {
 
 	// Duplicate prefixes are not allowed.
 	prefixes := make(map[string]bool, len(spec.Prefixes))
-	for _, pfx := range spec.Prefixes {
-		prefixes[pfx] = true
+	for _, p := range spec.Prefixes {
+		if !pubutil.ValidTableName(p.TableName) {
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a SyncGroupPrefix with invalid table name %q", p.TableName))
+		}
+		if p.RowPrefix != "" && !pubutil.ValidRowKey(p.RowPrefix) {
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a SyncGroupPrefix with invalid row prefix %q", p.RowPrefix))
+		}
+		prefixes[toTableRowPrefixStr(p)] = true
 	}
 	if len(prefixes) != len(spec.Prefixes) {
 		return verror.New(verror.ErrBadArg, ctx, "group has duplicate prefixes specified")
@@ -132,13 +139,13 @@ func verifySyncGroupSpec(ctx *context.T, spec *wire.SyncGroupSpec) error {
 }
 
 // samePrefixes returns true if the two sets of prefixes are the same.
-func samePrefixes(pfx1, pfx2 []string) bool {
+func samePrefixes(pfx1, pfx2 []wire.SyncGroupPrefix) bool {
 	pfxMap := make(map[string]uint8)
 	for _, p := range pfx1 {
-		pfxMap[p] |= 0x01
+		pfxMap[toTableRowPrefixStr(p)] |= 0x01
 	}
 	for _, p := range pfx2 {
-		pfxMap[p] |= 0x02
+		pfxMap[toTableRowPrefixStr(p)] |= 0x02
 	}
 	for _, mask := range pfxMap {
 		if mask != 0x03 {
@@ -925,7 +932,7 @@ func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return verror.NewErrBadVersion(ctx)
 		}
 
-		// Must not change the SyncGroup prefixes.
+		// Client must not modify the set of prefixes for this SyncGroup.
 		if !samePrefixes(spec.Prefixes, sg.Spec.Prefixes) {
 			return verror.New(verror.ErrBadArg, ctx, "cannot modify prefixes")
 		}
@@ -1068,7 +1075,7 @@ func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sg
 // be time consuming.  Consider doing it asynchronously and letting the server
 // reply to the client earlier.  However it must happen within the scope of this
 // transaction (and its snapshot view).
-func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction, sgId interfaces.GroupId, prefixes []string) error {
+func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction, sgId interfaces.GroupId, prefixes []wire.SyncGroupPrefix) error {
 	if len(prefixes) == 0 {
 		return verror.New(verror.ErrInternal, ctx, "no prefixes specified")
 	}
@@ -1082,8 +1089,12 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction,
 		return verror.New(verror.ErrInternal, ctx, "store has no managed prefixes")
 	}
 
+	prefixStrs := make([]string, len(prefixes))
+	for i, p := range prefixes {
+		prefixStrs[i] = toTableRowPrefixStr(p)
+	}
 	// Notify the watcher of the SyncGroup prefixes to start accepting.
-	if err := watchable.AddSyncGroupOp(ctx, tx, sgId, prefixes, false); err != nil {
+	if err := watchable.AddSyncGroupOp(ctx, tx, sgId, prefixStrs, false); err != nil {
 		return err
 	}
 
@@ -1093,11 +1104,8 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction,
 	// is done over the version entries to retrieve the matching keys and
 	// their version numbers (the key values).  Remove the version prefix
 	// from the key used in the snapshot operation.
-	// TODO(rdaoud): for SyncGroup prefixes, there should be a separation
-	// between their representation at the client (a list of (db, prefix)
-	// tuples) and internally as strings that match the store's key format.
 	for _, mp := range opts.ManagedPrefixes {
-		for _, p := range prefixes {
+		for _, p := range prefixStrs {
 			start, limit := util.ScanPrefixArgs(util.JoinKeyParts(util.VersionPrefix, mp), p)
 			stream := tx.Scan(start, limit)
 			for stream.Advance() {

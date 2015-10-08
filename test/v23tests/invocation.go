@@ -98,7 +98,6 @@ func (i *Invocation) Wait(stdout, stderr io.Writer) error {
 // the embedded modules.Handle.
 func (i *Invocation) Shutdown(stdout, stderr io.Writer) error {
 	return i.Wait(stdout, stderr)
-
 }
 
 // WaitOrDie waits for this invocation to finish. If either stdout or stderr

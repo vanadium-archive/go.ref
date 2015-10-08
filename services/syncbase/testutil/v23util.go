@@ -34,6 +34,8 @@ func StartSyncbased(t *v23tests.T, creds *modules.CustomCredentials, name, rootD
 
 	// Start syncbased.
 	invocation := syncbased.WithStartOpts(syncbased.StartOpts().WithCustomCredentials(creds)).Start(
+		//"--vpath=vsync*=5",
+		//"--alsologtostderr=true",
 		"--v23.tcp.address=127.0.0.1:0",
 		"--v23.permissions.literal", permsLiteral,
 		"--name="+name,
@@ -47,6 +49,10 @@ func StartSyncbased(t *v23tests.T, creds *modules.CustomCredentials, name, rootD
 		stdout, stderr := bytes.NewBuffer(nil), bytes.NewBuffer(nil)
 		if err := invocation.Shutdown(stdout, stderr); err != nil {
 			log.Printf("syncbased terminated with an error: %v\nstdout: %v\nstderr: %v\n", err, stdout, stderr)
+		} else {
+			// To debug sync (for example), uncomment this line as well as the --vpath
+			// and --alsologtostderr lines above.
+			//log.Printf("syncbased terminated cleanly\nstdout: %v\nstderr: %v\n", stdout, stderr)
 		}
 		if rmRootDir {
 			if err := os.RemoveAll(rootDir); err != nil {

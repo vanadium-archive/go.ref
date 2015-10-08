@@ -40,8 +40,9 @@ type DeleteOp struct {
 	PermVersion []byte
 }
 
-// SyncGroupOp represents a change in SyncGroup tracking, adding or removing
-// key prefixes to sync.  SyncGroup prefixes cannot be changed, this is used
+// SyncGroupOp represents a change in the set of prefixes that should be tracked
+// by sync, i.e. the union of prefix sets across all SyncGroups. Note that an
+// individual SyncGroup's prefixes cannot be changed; this record type is used
 // to track changes due to SyncGroup create/join/leave/destroy.
 type SyncGroupOp struct {
 	SgId     interfaces.GroupId

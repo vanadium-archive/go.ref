@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	"v.io/x/lib/set"
@@ -31,7 +31,7 @@ import (
 
 func TestExtractBlobRefs(t *testing.T) {
 	var tests [][]byte
-	br := nosql.BlobRef("123")
+	br := wire.BlobRef("123")
 
 	// BlobRef is the value.
 	buf0, err := vom.Encode(br)
@@ -44,7 +44,7 @@ func TestExtractBlobRefs(t *testing.T) {
 	type test1Struct struct {
 		A int64
 		B string
-		C nosql.BlobRef
+		C wire.BlobRef
 	}
 	v1 := test1Struct{A: 10, B: "foo", C: br}
 	buf1, err := vom.Encode(v1)
@@ -72,11 +72,11 @@ func TestExtractBlobRefs(t *testing.T) {
 			t.Fatalf("Decode failed (test %d), err %v", i, err)
 		}
 
-		gotbrs := make(map[nosql.BlobRef]struct{})
+		gotbrs := make(map[wire.BlobRef]struct{})
 		if err := extractBlobRefs(val, gotbrs); err != nil {
 			t.Fatalf("extractBlobRefs failed (test %d), err %v", i, err)
 		}
-		wantbrs := map[nosql.BlobRef]struct{}{br: struct{}{}}
+		wantbrs := map[wire.BlobRef]struct{}{br: struct{}{}}
 		if !reflect.DeepEqual(gotbrs, wantbrs) {
 			t.Fatalf("Data mismatch in blobrefs (test %d), got %v, want %v", i, gotbrs, wantbrs)
 		}
@@ -87,7 +87,7 @@ func TestExtractBlobRefs(t *testing.T) {
 // in file testdata/remote-init-00.log.sync.
 func TestLogStreamRemoteOnly(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "", "remote-init-00.log.sync", false)
-	defer cleanup(t, svc)
+	defer cleanup()
 
 	// Check all log records.
 	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
@@ -177,7 +177,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 // testdata/<local-init-00.log.sync,remote-noconf-00.log.sync>.
 func TestLogStreamNoConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-noconf-00.log.sync", false)
-	defer cleanup(t, svc)
+	defer cleanup()
 
 	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
 
@@ -274,7 +274,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 // testdata/<local-init-00.log.sync,remote-conf-00.log.sync>.
 func TestLogStreamConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-00.log.sync", false)
-	defer cleanup(t, svc)
+	defer cleanup()
 
 	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
 
@@ -321,7 +321,7 @@ func TestLogStreamConflict(t *testing.T) {
 // testdata/<local-init-00.log.sync,remote-conf-03.log.sync>.
 func TestLogStreamConflictNoAncestor(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-03.log.sync", false)
-	defer cleanup(t, svc)
+	defer cleanup()
 
 	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
 
@@ -365,18 +365,20 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 //////////////////////////////
 // Helpers.
 
-func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initiationState, func(*testing.T, *mockService)) {
+func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initiationState, func()) {
 	// Set a large value to prevent the initiator from running.
 	peerSyncInterval = 1 * time.Hour
 	conflictResolutionPolicy = useTime
 	svc := createService(t)
-	cleanup := destroyService
+	cleanup := func() {
+		destroyService(t, svc)
+	}
 	s := svc.sync
 	s.id = 10 // initiator
 
 	sgId1 := interfaces.GroupId(1234)
 	gdb := appDbName("mockapp", "mockdb")
-	nullInfo := nosql.SyncGroupMemberInfo{}
+	nullInfo := wire.SyncGroupMemberInfo{}
 	sgInfo := sgMemberInfo{
 		sgId1: nullInfo,
 	}
@@ -397,11 +399,11 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		DbName:      "mockdb",
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
-		Spec: nosql.SyncGroupSpec{
-			Prefixes:    []string{"foo", "bar"},
+		Spec: wire.SyncGroupSpec{
+			Prefixes:    []wire.SyncGroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
-		Joiners: map[string]nosql.SyncGroupMemberInfo{
+		Joiners: map[string]wire.SyncGroupMemberInfo{
 			"a": nullInfo,
 			"b": nullInfo,
 		},
@@ -432,13 +434,14 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 
 	if !sg {
 		iSt.peerSgInfo(nil)
-		testIfSgPfxsEqual(t, iSt.config.sgPfxs, sg1.Spec.Prefixes)
+		// sg1.Spec.Prefixes
+		testIfSgPfxsEqual(t, iSt.config.sgPfxs, []string{"foo:", "bar:"})
 	}
 
 	sort.Strings(iSt.config.mtTables)
 	sort.Strings(sg1.Spec.MountTables)
 	if !reflect.DeepEqual(iSt.config.mtTables, sg1.Spec.MountTables) {
-		t.Fatalf("Mount tables are not equal config %v, spec %v", iSt.config.mtTables, sg1.Spec.MountTables)
+		t.Fatalf("Mount tables are not equal: config %v, spec %v", iSt.config.mtTables, sg1.Spec.MountTables)
 	}
 
 	s.initSyncStateInMem(nil, "mockapp", "mockdb", sgOID(sgId1))
@@ -460,13 +463,13 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		}
 
 		wantVec = interfaces.GenVector{
-			"foo": interfaces.PrefixGenVector{10: 0},
-			"bar": interfaces.PrefixGenVector{10: 0},
+			"foo:": interfaces.PrefixGenVector{10: 0},
+			"bar:": interfaces.PrefixGenVector{10: 0},
 		}
 	}
 
 	if !reflect.DeepEqual(iSt.local, wantVec) {
-		t.Fatalf("createLocalGenVec failed got %v, want %v", iSt.local, wantVec)
+		t.Fatalf("createLocalGenVec failed: got %v, want %v", iSt.local, wantVec)
 	}
 
 	if err := iSt.recvAndProcessDeltas(nil); err != nil {
@@ -483,12 +486,12 @@ func testIfSgPfxsEqual(t *testing.T, m map[string]sgSet, a []string) {
 	aMap := arrToMap(a)
 
 	if len(aMap) != len(m) {
-		t.Fatalf("testIfSgPfxsEqual diff lengths, got %v want %v", aMap, m)
+		t.Fatalf("testIfSgPfxsEqual diff lengths: got %v, want %v", aMap, m)
 	}
 
 	for p := range aMap {
 		if _, ok := m[p]; !ok {
-			t.Fatalf("testIfSgPfxsEqual want %v", p)
+			t.Fatalf("testIfSgPfxsEqual: want %v", p)
 		}
 	}
 }

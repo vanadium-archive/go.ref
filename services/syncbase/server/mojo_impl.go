@@ -19,6 +19,7 @@ import (
 	"mojo/public/go/bindings"
 
 	mojom "mojom/syncbase"
+
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
@@ -100,10 +101,15 @@ func toV23SyncGroupSpec(mSpec mojom.SyncGroupSpec) (nosqlwire.SyncGroupSpec, err
 	if err != nil {
 		return nosqlwire.SyncGroupSpec{}, err
 	}
+	prefixes := make([]nosqlwire.SyncGroupPrefix, len(mSpec.Prefixes))
+	for i, v := range mSpec.Prefixes {
+		prefixes[i].TableName = v.TableName
+		prefixes[i].RowPrefix = v.RowPrefix
+	}
 	return nosqlwire.SyncGroupSpec{
 		Description: mSpec.Description,
 		Perms:       v23Perms,
-		Prefixes:    mSpec.Prefixes,
+		Prefixes:    prefixes,
 		MountTables: mSpec.MountTables,
 		IsPrivate:   mSpec.IsPrivate,
 	}, nil
@@ -114,10 +120,15 @@ func toMojoSyncGroupSpec(vSpec nosqlwire.SyncGroupSpec) (mojom.SyncGroupSpec, er
 	if err != nil {
 		return mojom.SyncGroupSpec{}, err
 	}
+	prefixes := make([]mojom.SyncGroupPrefix, len(vSpec.Prefixes))
+	for i, v := range vSpec.Prefixes {
+		prefixes[i].TableName = v.TableName
+		prefixes[i].RowPrefix = v.RowPrefix
+	}
 	return mojom.SyncGroupSpec{
 		Description: vSpec.Description,
 		Perms:       mPerms,
-		Prefixes:    vSpec.Prefixes,
+		Prefixes:    prefixes,
 		MountTables: vSpec.MountTables,
 		IsPrivate:   vSpec.IsPrivate,
 	}, nil
@@ -401,7 +412,7 @@ func (s *watchGlobStreamImpl) Send(item interface{}) error {
 	vc := nosql.ToWatchChange(c)
 	mc := mojom.WatchChange{
 		TableName:    vc.Table,
-		RowName:      vc.Row,
+		RowKey:       vc.Row,
 		ChangeType:   uint32(vc.ChangeType),
 		ValueBytes:   vc.ValueBytes,
 		ResumeMarker: vc.ResumeMarker,
@@ -409,7 +420,7 @@ func (s *watchGlobStreamImpl) Send(item interface{}) error {
 		Continued:    vc.Continued,
 	}
 
-	// proxy.OnChange() blocks until the client acks the previous invocation, 
+	// proxy.OnChange() blocks until the client acks the previous invocation,
 	// thus providing flow control.
 	return s.proxy.OnChange(mc)
 }

@@ -178,7 +178,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 			}
 			if state.Watched {
 				for _, prefix := range sg.Spec.Prefixes {
-					incrWatchPrefix(appName, dbName, prefix)
+					incrWatchPrefix(appName, dbName, toTableRowPrefixStr(prefix))
 				}
 			}
 

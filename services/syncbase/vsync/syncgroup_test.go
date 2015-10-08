@@ -8,10 +8,11 @@ package vsync
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
-	"v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase/nosql"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store"
@@ -67,13 +68,13 @@ func TestAddSyncGroup(t *testing.T) {
 		DbName:      "mockDB",
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
-		Spec: nosql.SyncGroupSpec{
-			Prefixes: []string{"foo", "bar"},
+		Spec: wire.SyncGroupSpec{
+			Prefixes: []wire.SyncGroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
 		},
-		Joiners: map[string]nosql.SyncGroupMemberInfo{
-			"phone":  nosql.SyncGroupMemberInfo{SyncPriority: 10},
-			"tablet": nosql.SyncGroupMemberInfo{SyncPriority: 25},
-			"cloud":  nosql.SyncGroupMemberInfo{SyncPriority: 1},
+		Joiners: map[string]wire.SyncGroupMemberInfo{
+			"phone":  wire.SyncGroupMemberInfo{SyncPriority: 10},
+			"tablet": wire.SyncGroupMemberInfo{SyncPriority: 25},
+			"cloud":  wire.SyncGroupMemberInfo{SyncPriority: 1},
 		},
 	}
 
@@ -200,34 +201,68 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 
 	checkBadAddSyncGroup(t, st, nil, "nil SG")
 
-	sg := &interfaces.SyncGroup{}
+	mkSg := func() *interfaces.SyncGroup {
+		return &interfaces.SyncGroup{
+			Name:        "foobar",
+			Id:          interfaces.GroupId(1234),
+			AppName:     "mockApp",
+			DbName:      "mockDB",
+			Creator:     "mockCreator",
+			SpecVersion: "etag-0",
+			Spec: wire.SyncGroupSpec{
+				Prefixes: []wire.SyncGroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
+			},
+			Joiners: map[string]wire.SyncGroupMemberInfo{
+				"phone":  wire.SyncGroupMemberInfo{SyncPriority: 10},
+				"tablet": wire.SyncGroupMemberInfo{SyncPriority: 25},
+				"cloud":  wire.SyncGroupMemberInfo{SyncPriority: 1},
+			},
+		}
+	}
+
+	sg := mkSg()
+	sg.Name = ""
 	checkBadAddSyncGroup(t, st, sg, "SG w/o name")
 
-	sg.Name = "foobar"
+	sg = mkSg()
+	sg.AppName = ""
 	checkBadAddSyncGroup(t, st, sg, "SG w/o AppName")
 
-	sg.AppName = "mockApp"
+	sg = mkSg()
+	sg.DbName = ""
 	checkBadAddSyncGroup(t, st, sg, "SG w/o DbName")
 
-	sg.DbName = "mockDb"
+	sg = mkSg()
+	sg.Creator = ""
 	checkBadAddSyncGroup(t, st, sg, "SG w/o creator")
 
-	sg.Creator = "haha"
+	sg = mkSg()
+	sg.Id = interfaces.GroupId(0)
 	checkBadAddSyncGroup(t, st, sg, "SG w/o ID")
 
-	sg.Id = newSyncGroupId()
+	sg = mkSg()
+	sg.SpecVersion = ""
 	checkBadAddSyncGroup(t, st, sg, "SG w/o Version")
 
-	sg.SpecVersion = "v1"
+	sg = mkSg()
+	sg.Joiners = nil
 	checkBadAddSyncGroup(t, st, sg, "SG w/o Joiners")
 
-	sg.Joiners = map[string]nosql.SyncGroupMemberInfo{
-		"phone": nosql.SyncGroupMemberInfo{SyncPriority: 10},
-	}
+	sg = mkSg()
+	sg.Spec.Prefixes = nil
 	checkBadAddSyncGroup(t, st, sg, "SG w/o Prefixes")
 
-	sg.Spec.Prefixes = []string{"foo", "bar", "foo"}
+	sg = mkSg()
+	sg.Spec.Prefixes = []wire.SyncGroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}, {TableName: "foo", RowPrefix: ""}}
 	checkBadAddSyncGroup(t, st, sg, "SG with duplicate Prefixes")
+
+	sg = mkSg()
+	sg.Spec.Prefixes = []wire.SyncGroupPrefix{{TableName: "", RowPrefix: ""}}
+	checkBadAddSyncGroup(t, st, sg, "SG with invalid (empty) table name")
+
+	sg = mkSg()
+	sg.Spec.Prefixes = []wire.SyncGroupPrefix{{TableName: "a", RowPrefix: "\xff"}}
+	checkBadAddSyncGroup(t, st, sg, "SG with invalid row prefix")
 }
 
 // TestDeleteSyncGroup tests deleting a SyncGroup.
@@ -264,13 +299,13 @@ func TestDeleteSyncGroup(t *testing.T) {
 		DbName:      "mockDB",
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
-		Spec: nosql.SyncGroupSpec{
-			Prefixes: []string{"foo", "bar"},
+		Spec: wire.SyncGroupSpec{
+			Prefixes: []wire.SyncGroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
 		},
-		Joiners: map[string]nosql.SyncGroupMemberInfo{
-			"phone":  nosql.SyncGroupMemberInfo{SyncPriority: 10},
-			"tablet": nosql.SyncGroupMemberInfo{SyncPriority: 25},
-			"cloud":  nosql.SyncGroupMemberInfo{SyncPriority: 1},
+		Joiners: map[string]wire.SyncGroupMemberInfo{
+			"phone":  wire.SyncGroupMemberInfo{SyncPriority: 10},
+			"tablet": wire.SyncGroupMemberInfo{SyncPriority: 25},
+			"cloud":  wire.SyncGroupMemberInfo{SyncPriority: 1},
 		},
 	}
 
@@ -348,14 +383,14 @@ func TestMultiSyncGroups(t *testing.T) {
 		DbName:      "mockDB",
 		Creator:     "mockCreator",
 		SpecVersion: "etag-1",
-		Spec: nosql.SyncGroupSpec{
+		Spec: wire.SyncGroupSpec{
 			MountTables: []string{"mt1"},
-			Prefixes:    []string{"foo"},
+			Prefixes:    []wire.SyncGroupPrefix{{TableName: "foo", RowPrefix: ""}},
 		},
-		Joiners: map[string]nosql.SyncGroupMemberInfo{
-			"phone":  nosql.SyncGroupMemberInfo{SyncPriority: 10},
-			"tablet": nosql.SyncGroupMemberInfo{SyncPriority: 25},
-			"cloud":  nosql.SyncGroupMemberInfo{SyncPriority: 1},
+		Joiners: map[string]wire.SyncGroupMemberInfo{
+			"phone":  wire.SyncGroupMemberInfo{SyncPriority: 10},
+			"tablet": wire.SyncGroupMemberInfo{SyncPriority: 25},
+			"cloud":  wire.SyncGroupMemberInfo{SyncPriority: 1},
 		},
 	}
 	sg2 := &interfaces.SyncGroup{
@@ -365,14 +400,14 @@ func TestMultiSyncGroups(t *testing.T) {
 		DbName:      "mockDB",
 		Creator:     "mockCreator",
 		SpecVersion: "etag-2",
-		Spec: nosql.SyncGroupSpec{
+		Spec: wire.SyncGroupSpec{
 			MountTables: []string{"mt2", "mt3"},
-			Prefixes:    []string{"bar"},
+			Prefixes:    []wire.SyncGroupPrefix{{TableName: "bar", RowPrefix: ""}},
 		},
-		Joiners: map[string]nosql.SyncGroupMemberInfo{
-			"tablet": nosql.SyncGroupMemberInfo{SyncPriority: 111},
-			"door":   nosql.SyncGroupMemberInfo{SyncPriority: 33},
-			"lamp":   nosql.SyncGroupMemberInfo{SyncPriority: 9},
+		Joiners: map[string]wire.SyncGroupMemberInfo{
+			"tablet": wire.SyncGroupMemberInfo{SyncPriority: 111},
+			"door":   wire.SyncGroupMemberInfo{SyncPriority: 33},
+			"lamp":   wire.SyncGroupMemberInfo{SyncPriority: 9},
 		},
 	}
 
@@ -533,18 +568,32 @@ func TestMultiSyncGroups(t *testing.T) {
 
 // TestPrefixCompare tests the prefix comparison utility.
 func TestPrefixCompare(t *testing.T) {
-	check := func(t *testing.T, pfx1, pfx2 []string, want bool, msg string) {
-		if got := samePrefixes(pfx1, pfx2); got != want {
+	mksgps := func(strs []string) []wire.SyncGroupPrefix {
+		res := make([]wire.SyncGroupPrefix, len(strs))
+		for i, v := range strs {
+			parts := strings.SplitN(v, ":", 2)
+			if len(parts) != 2 {
+				t.Fatalf("invalid SyncGroupPrefix string: %s", v)
+			}
+			res[i] = wire.SyncGroupPrefix{TableName: parts[0], RowPrefix: parts[1]}
+		}
+		return res
+	}
+
+	check := func(t *testing.T, strs1, strs2 []string, want bool, msg string) {
+		if got := samePrefixes(mksgps(strs1), mksgps(strs2)); got != want {
 			t.Errorf("samePrefixes: %s: got %t instead of %t", msg, got, want)
 		}
 	}
 
 	check(t, nil, nil, true, "both nil")
 	check(t, []string{}, nil, true, "empty vs nil")
-	check(t, []string{"a", "b"}, []string{"b", "a"}, true, "different ordering")
-	check(t, []string{"a", "b", "c"}, []string{"b", "a"}, false, "p1 superset of p2")
-	check(t, []string{"a", "b"}, []string{"b", "a", "c"}, false, "p2 superset of p1")
-	check(t, []string{"a", "b", "c"}, []string{"b", "d", "a"}, false, "overlap")
-	check(t, []string{"a", "b", "c"}, []string{"x", "y"}, false, "no overlap")
-	check(t, []string{"a", "b"}, []string{"B", "a"}, false, "upper/lowercases")
+	check(t, []string{"a:", "b:"}, []string{"b:", "a:"}, true, "different ordering")
+	check(t, []string{"a:", "b:", "c:"}, []string{"b:", "a:"}, false, "p1 superset of p2")
+	check(t, []string{"a:", "b:"}, []string{"b:", "a:", "c:"}, false, "p2 superset of p1")
+	check(t, []string{"a:", "b:", "c:"}, []string{"b:", "d:", "a:"}, false, "overlap")
+	check(t, []string{"a:", "b:", "c:"}, []string{"x:", "y:"}, false, "no overlap")
+	check(t, []string{"a:", "b:"}, []string{"B:", "a:"}, false, "upper/lowercases")
+	check(t, []string{"a:b", "b:c"}, []string{"b:c", "a:b"}, true, "different ordering, with non-empty row prefixes")
+	check(t, []string{"a:b"}, []string{"a:b", "a:c"}, false, "p2 superset, with non-empty row prefixes")
 }
