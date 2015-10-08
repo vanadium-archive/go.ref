@@ -19,7 +19,8 @@ type plugin struct {
 	mu       sync.Mutex
 	services map[string][]discovery.Advertisement // GUARDED_BY(mu)
 
-	updated *sync.Cond
+	updated   *sync.Cond
+	updateSeq int
 }
 
 func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func()) error {
@@ -27,6 +28,7 @@ func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func
 	key := string(ad.ServiceUuid)
 	ads := p.services[key]
 	p.services[key] = append(ads, ad)
+	p.updateSeq++
 	p.mu.Unlock()
 	p.updated.Broadcast()
 
@@ -47,6 +49,7 @@ func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func
 		} else {
 			delete(p.services, key)
 		}
+		p.updateSeq++
 		p.mu.Unlock()
 		p.updated.Broadcast()
 	}()
@@ -56,9 +59,13 @@ func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func
 func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- discovery.Advertisement, done func()) error {
 	rescan := make(chan struct{})
 	go func() {
+		var updateSeqSeen int
 		for {
 			p.updated.L.Lock()
-			p.updated.Wait()
+			for updateSeqSeen == p.updateSeq {
+				p.updated.Wait()
+			}
+			updateSeqSeen = p.updateSeq
 			p.updated.L.Unlock()
 			select {
 			case rescan <- struct{}{}:
