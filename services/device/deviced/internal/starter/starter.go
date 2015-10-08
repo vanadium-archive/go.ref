@@ -234,7 +234,7 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 	ctx.Infof("Starting claimed device services...")
 	permStore := pathperms.NewPathStore(ctx)
 	permsDir := impl.PermsDir(args.Device.ConfigState)
-	debugAuth, err := pathperms.NewHierarchicalAuthorizer(permsDir, permsDir, permStore, nil)
+	debugAuth, err := pathperms.NewHierarchicalAuthorizer(permsDir, permsDir, permStore)
 	if err != nil {
 		return nil, err
 	}

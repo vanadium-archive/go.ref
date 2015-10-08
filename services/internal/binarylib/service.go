@@ -73,6 +73,7 @@ var (
 	ErrInvalidPart     = verror.Register(pkgPath+".errInvalidPart", verror.NoRetry, "{1:}{2:} invalid binary part number{:_}")
 	ErrOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 	ErrNotAuthorized   = verror.Register(pkgPath+".errNotAuthorized", verror.NoRetry, "{1:}{2:} none of the client's blessings are valid {:_}")
+	ErrInvalidSuffix   = verror.Register(pkgPath+".errInvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
 )
 
 // TODO(jsimsa): When VDL supports composite literal constants, remove
@@ -134,58 +135,78 @@ func (i *binaryService) createFileTree(ctx *context.T, nparts int32, mediaInfo r
 	return tmpDir, nil
 }
 
-func (i *binaryService) setInitialPermissions(ctx *context.T, call rpc.ServerCall) error {
-	rb, _ := security.RemoteBlessingNames(ctx, call.Security())
-	if len(rb) == 0 {
-		// None of the client's blessings are valid.
-		return verror.New(ErrNotAuthorized, ctx)
+func (i *binaryService) deleteACLs(ctx *context.T) error {
+	permsDir := permsPath(i.state.rootDir, i.suffix)
+	if err := i.permsStore.Delete(permsDir); err != nil {
+		return err
 	}
-	if err := i.permsStore.Set(permsPath(i.state.rootDir, i.suffix), pathperms.PermissionsForBlessings(rb), ""); err != nil {
-		ctx.Errorf("insertPermissions(%v) failed: %v", rb, err)
-		return verror.New(ErrOperationFailed, ctx)
+	// HACK: we need to also clean up the parent directory (corresponding to
+	// the suffix) that holds the "acls" directory for regular binary
+	// objects.  See the implementation of permsPath.
+	if base := filepath.Base(permsDir); base == "acls" {
+		if err := os.Remove(filepath.Dir(permsDir)); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+// setInitialPermissions sets the acls for the binary if they don't exist (if
+// they do, it's a sign that the binary already exists, and then an error is
+// returned).  Upon success, it returns a function that removes the permissions
+// just set here (to be called if something fails downstream and we need to undo
+// setting the initial permissions).
+func (i *binaryService) setInitialPermissions(ctx *context.T, call rpc.ServerCall) (func(), error) {
+	rb, _ := security.RemoteBlessingNames(ctx, call.Security())
+	if len(rb) == 0 {
+		// None of the client's blessings are valid.
+		return nil, verror.New(ErrNotAuthorized, ctx)
+	}
+	permsDir := permsPath(i.state.rootDir, i.suffix)
+	created, err := i.permsStore.SetIfAbsent(permsDir, pathperms.PermissionsForBlessings(rb))
+	if err != nil {
+		ctx.Errorf("permsStore.SetIfAbsent(%v, %v) failed: %v", permsDir, rb, err)
+		return nil, verror.New(ErrOperationFailed, ctx)
+	}
+	if !created {
+		return nil, verror.New(verror.ErrExist, ctx, i.suffix)
+	}
+	return func() {
+		if err := i.deleteACLs(ctx); err != nil {
+			ctx.Errorf("deleteACLs() failed: %v", err)
+		}
+	}, nil
+}
+
 func (i *binaryService) Create(ctx *context.T, call rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
 	ctx.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
+	// Disallow creating binaries on the root of the server.  The
+	// permissions on the root have special meaning (see
+	// hierarchical_authorizer).
+	if i.suffix == "" {
+		return verror.New(ErrInvalidSuffix, ctx, "")
+	}
 	if nparts < 1 {
 		return verror.New(ErrInvalidParts, ctx)
 	}
+	removePerms, err := i.setInitialPermissions(ctx, call)
+	if err != nil {
+		return err
+	}
 	tmpDir, err := i.createFileTree(ctx, nparts, mediaInfo)
 	if err != nil {
+		removePerms()
 		return err
 	}
 	// Use os.Rename() to atomically create the binary directory
 	// structure.
 	if err := os.Rename(tmpDir, i.path); err != nil {
-		defer func() {
-			if err := os.RemoveAll(tmpDir); err != nil {
-				ctx.Errorf("RemoveAll(%v) failed: %v", tmpDir, err)
-			}
-		}()
-		if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err == syscall.ENOTEMPTY {
-			return verror.New(verror.ErrExist, ctx, i.path)
-		}
 		ctx.Errorf("Rename(%v, %v) failed: %v", tmpDir, i.path, err)
-		return verror.New(ErrOperationFailed, ctx, i.path)
-	}
-	// We only set the permissions for the binary after we ensure that it
-	// did not already exist.  This allows for brief time period during
-	// which the new binary's directory has been created but no permissions
-	// have been set yet.  To prevent unauthorized access during this
-	// interval, the authorizer is configured to reject RPCs other than
-	// Create when there are no permissions set on a binary (we also allow
-	// Glob in order to permit globbing inner nodes that don't have
-	// permissions set).
-	//
-	// TODO(caprita): consider making the setting of permissions atomic
-	// w.r.t. creating the binary.
-	if err := i.setInitialPermissions(ctx, call); err != nil {
-		if err := os.RemoveAll(i.path); err != nil {
-			ctx.Errorf("RemoveAll(%v) failed: %v", i.path, err)
+		if err := os.RemoveAll(tmpDir); err != nil {
+			ctx.Errorf("RemoveAll(%v) failed: %v", tmpDir, err)
 		}
-		return err
+		removePerms()
+		return verror.New(ErrOperationFailed, ctx, i.path)
 	}
 	return nil
 }
@@ -224,6 +245,10 @@ func (i *binaryService) Delete(ctx *context.T, _ rpc.ServerCall) error {
 			ctx.Errorf("Remove(%v) failed: %v", path, err)
 			return verror.New(ErrOperationFailed, ctx)
 		}
+	}
+	if err := i.deleteACLs(ctx); err != nil {
+		ctx.Errorf("deleteACLs() failed: %v", err)
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	return nil
 }

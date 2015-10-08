@@ -233,7 +233,7 @@ func TestErrors(t *testing.T) {
 	defer shutdown()
 	rg := testutil.NewRandGenerator(t.Logf)
 
-	binary, _, _, cleanup := startServer(t, ctx, 2)
+	binary, endpoint, _, cleanup := startServer(t, ctx, 2)
 	defer cleanup()
 	const length = 2
 	data := make([][]byte, length)
@@ -243,10 +243,14 @@ func TestErrors(t *testing.T) {
 			data[i][j] = byte(rg.RandomInt())
 		}
 	}
-	if err := binary.Create(ctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
+	if err := repository.BinaryClient(naming.JoinAddressName(endpoint, "")).Create(ctx, int32(length), mediaInfo); err == nil {
+		t.Fatalf("Create() did not fail on empty suffix when it should have")
+	}
+	if err := binary.Create(ctx, int32(length), mediaInfo); err != nil {
 		t.Fatalf("Create() failed: %v", err)
 	}
-	if err := binary.Create(ctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err == nil {
+	if err := binary.Create(ctx, int32(length), mediaInfo); err == nil {
 		t.Fatalf("Create() did not fail when it should have")
 	} else if want := verror.ErrExist.ID; verror.ErrorID(err) != want {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)

@@ -51,8 +51,7 @@ func newAuthorizer(rootDir, suffix string, permsStore *pathperms.PathStore) (sec
 	return pathperms.NewHierarchicalAuthorizer(
 		permsPath(rootDir, ""),
 		permsPath(rootDir, suffix),
-		permsStore,
-		[]string{"Create", "__Glob"})
+		permsStore)
 }
 
 func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
