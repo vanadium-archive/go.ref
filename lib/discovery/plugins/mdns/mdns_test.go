@@ -6,8 +6,10 @@ package mdns
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -18,21 +20,40 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 
-	ldiscovery "v.io/x/ref/lib/discovery"
+	idiscovery "v.io/x/ref/lib/discovery"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
 
-func encryptionKeys(key []byte) []ldiscovery.EncryptionKey {
-	return []ldiscovery.EncryptionKey{ldiscovery.EncryptionKey(fmt.Sprintf("key:%x", key))}
+var (
+	testPort          int
+	unusedTCPListener *net.TCPListener
+)
+
+func init() {
+	// Test with an unused UDP port to avoid interference from others.
+	//
+	// We try to find an available TCP port since we cannot open multicast UDP
+	// connection with an opened UDP port.
+	unusedTCPListener, _ = net.ListenTCP("tcp", &net.TCPAddr{})
+	_, port, _ := net.SplitHostPort(unusedTCPListener.Addr().String())
+	testPort, _ = strconv.Atoi(port)
 }
 
-func advertise(ctx *context.T, p ldiscovery.Plugin, service discovery.Service) (func(), error) {
+func newMDNS(host string) (idiscovery.Plugin, error) {
+	return newWithLoopback(host, testPort, true)
+}
+
+func encryptionKeys(key []byte) []idiscovery.EncryptionKey {
+	return []idiscovery.EncryptionKey{idiscovery.EncryptionKey(fmt.Sprintf("key:%x", key))}
+}
+
+func advertise(ctx *context.T, p idiscovery.Plugin, service discovery.Service) (func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
-	ad := ldiscovery.Advertisement{
-		ServiceUuid:         ldiscovery.NewServiceUUID(service.InterfaceName),
+	ad := idiscovery.Advertisement{
+		ServiceUuid:         idiscovery.NewServiceUUID(service.InterfaceName),
 		Service:             service,
-		EncryptionAlgorithm: ldiscovery.TestEncryption,
+		EncryptionAlgorithm: idiscovery.TestEncryption,
 		EncryptionKeys:      encryptionKeys(service.InstanceUuid),
 	}
 	var wg sync.WaitGroup
@@ -47,12 +68,12 @@ func advertise(ctx *context.T, p ldiscovery.Plugin, service discovery.Service) (
 	return stop, nil
 }
 
-func startScan(ctx *context.T, p ldiscovery.Plugin, interfaceName string) (<-chan ldiscovery.Advertisement, func(), error) {
+func startScan(ctx *context.T, p idiscovery.Plugin, interfaceName string) (<-chan idiscovery.Advertisement, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
-	scan := make(chan ldiscovery.Advertisement)
+	scan := make(chan idiscovery.Advertisement)
 	var serviceUuid uuid.UUID
 	if len(interfaceName) > 0 {
-		serviceUuid = ldiscovery.NewServiceUUID(interfaceName)
+		serviceUuid = idiscovery.NewServiceUUID(interfaceName)
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -66,14 +87,14 @@ func startScan(ctx *context.T, p ldiscovery.Plugin, interfaceName string) (<-cha
 	return scan, stop, nil
 }
 
-func scan(ctx *context.T, p ldiscovery.Plugin, interfaceName string) ([]ldiscovery.Advertisement, error) {
+func scan(ctx *context.T, p idiscovery.Plugin, interfaceName string) ([]idiscovery.Advertisement, error) {
 	scan, stop, err := startScan(ctx, p, interfaceName)
 	if err != nil {
 		return nil, err
 	}
 	defer stop()
 
-	var ads []ldiscovery.Advertisement
+	var ads []idiscovery.Advertisement
 	for {
 		select {
 		case ad := <-scan:
@@ -84,7 +105,7 @@ func scan(ctx *context.T, p ldiscovery.Plugin, interfaceName string) ([]ldiscove
 	}
 }
 
-func match(ads []ldiscovery.Advertisement, lost bool, wants ...discovery.Service) bool {
+func match(ads []idiscovery.Advertisement, lost bool, wants ...discovery.Service) bool {
 	for _, want := range wants {
 		matched := false
 		for i, ad := range ads {
@@ -94,7 +115,7 @@ func match(ads []ldiscovery.Advertisement, lost bool, wants ...discovery.Service
 			if lost {
 				matched = ad.Lost
 			} else {
-				matched = !ad.Lost && reflect.DeepEqual(ad.Service, want) && ad.EncryptionAlgorithm == ldiscovery.TestEncryption && reflect.DeepEqual(ad.EncryptionKeys, encryptionKeys(want.InstanceUuid))
+				matched = !ad.Lost && reflect.DeepEqual(ad.Service, want) && ad.EncryptionAlgorithm == idiscovery.TestEncryption && reflect.DeepEqual(ad.EncryptionKeys, encryptionKeys(want.InstanceUuid))
 			}
 			if matched {
 				ads = append(ads[:i], ads[i+1:]...)
@@ -108,18 +129,18 @@ func match(ads []ldiscovery.Advertisement, lost bool, wants ...discovery.Service
 	return len(ads) == 0
 }
 
-func matchFound(ads []ldiscovery.Advertisement, wants ...discovery.Service) bool {
+func matchFound(ads []idiscovery.Advertisement, wants ...discovery.Service) bool {
 	return match(ads, false, wants...)
 }
 
-func matchLost(ads []ldiscovery.Advertisement, wants ...discovery.Service) bool {
+func matchLost(ads []idiscovery.Advertisement, wants ...discovery.Service) bool {
 	return match(ads, true, wants...)
 }
 
-func scanAndMatch(ctx *context.T, p ldiscovery.Plugin, interfaceName string, wants ...discovery.Service) error {
+func scanAndMatch(ctx *context.T, p idiscovery.Plugin, interfaceName string, wants ...discovery.Service) error {
 	const timeout = 3 * time.Second
 
-	var ads []ldiscovery.Advertisement
+	var ads []idiscovery.Advertisement
 	for now := time.Now(); time.Since(now) < timeout; {
 		runtime.Gosched()
 
@@ -141,7 +162,7 @@ func TestBasic(t *testing.T) {
 
 	services := []discovery.Service{
 		{
-			InstanceUuid:  ldiscovery.NewInstanceUUID(),
+			InstanceUuid:  idiscovery.NewInstanceUUID(),
 			InstanceName:  "service1",
 			InterfaceName: "v.io/x",
 			Attrs: discovery.Attributes{
@@ -153,7 +174,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 		{
-			InstanceUuid:  ldiscovery.NewInstanceUUID(),
+			InstanceUuid:  idiscovery.NewInstanceUUID(),
 			InstanceName:  "service2",
 			InterfaceName: "v.io/x",
 			Attrs: discovery.Attributes{
@@ -165,7 +186,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 		{
-			InstanceUuid:  ldiscovery.NewInstanceUUID(),
+			InstanceUuid:  idiscovery.NewInstanceUUID(),
 			InstanceName:  "service3",
 			InterfaceName: "v.io/y",
 			Attrs: discovery.Attributes{
@@ -179,7 +200,7 @@ func TestBasic(t *testing.T) {
 		},
 	}
 
-	p1, err := newWithLoopback("m1", true)
+	p1, err := newMDNS("m1")
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -193,7 +214,7 @@ func TestBasic(t *testing.T) {
 		stops = append(stops, stop)
 	}
 
-	p2, err := newWithLoopback("m2", true)
+	p2, err := newMDNS("m2")
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -228,7 +249,7 @@ func TestBasic(t *testing.T) {
 	}
 	defer scanStop()
 	ad := <-scan
-	if !matchFound([]ldiscovery.Advertisement{ad}, services[2]) {
+	if !matchFound([]idiscovery.Advertisement{ad}, services[2]) {
 		t.Errorf("Unexpected scan: %v, but want %v", ad, services[2])
 	}
 
@@ -236,7 +257,7 @@ func TestBasic(t *testing.T) {
 	stops[2]()
 
 	ad = <-scan
-	if !matchLost([]ldiscovery.Advertisement{ad}, services[2]) {
+	if !matchLost([]idiscovery.Advertisement{ad}, services[2]) {
 		t.Errorf("Unexpected scan: %v, but want %v as lost", ad, services[2])
 	}
 
@@ -252,7 +273,7 @@ func TestLargeTxt(t *testing.T) {
 	defer shutdown()
 
 	service := discovery.Service{
-		InstanceUuid:  ldiscovery.NewInstanceUUID(),
+		InstanceUuid:  idiscovery.NewInstanceUUID(),
 		InstanceName:  "service2",
 		InterfaceName: strings.Repeat("i", 280),
 		Attrs: discovery.Attributes{
@@ -264,7 +285,7 @@ func TestLargeTxt(t *testing.T) {
 		},
 	}
 
-	p1, err := newWithLoopback("m1", true)
+	p1, err := newMDNS("m1")
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -274,7 +295,7 @@ func TestLargeTxt(t *testing.T) {
 	}
 	defer stop()
 
-	p2, err := newWithLoopback("m2", true)
+	p2, err := newMDNS("m2")
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}

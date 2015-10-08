@@ -25,7 +25,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 
-	ldiscovery "v.io/x/ref/lib/discovery"
+	idiscovery "v.io/x/ref/lib/discovery"
 
 	"github.com/pborman/uuid"
 	mdns "github.com/presotto/go-mdns-sd"
@@ -58,7 +58,7 @@ var (
 
 type plugin struct {
 	mdns      *mdns.MDNS
-	adStopper *ldiscovery.Trigger
+	adStopper *idiscovery.Trigger
 
 	subscriptionRefreshTime time.Duration
 	subscriptionWaitTime    time.Duration
@@ -71,7 +71,7 @@ type subscription struct {
 	lastSubscription time.Time
 }
 
-func (p *plugin) Advertise(ctx *context.T, ad ldiscovery.Advertisement, done func()) (err error) {
+func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done func()) (err error) {
 	serviceName := ad.ServiceUuid.String() + serviceNameSuffix
 	// We use the instance uuid as the host name so that we can get the instance uuid
 	// from the lost service instance, which has no txt records at all.
@@ -104,7 +104,7 @@ func (p *plugin) Advertise(ctx *context.T, ad ldiscovery.Advertisement, done fun
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- ldiscovery.Advertisement, done func()) error {
+func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- idiscovery.Advertisement, done func()) error {
 	var serviceName string
 	if len(serviceUuid) == 0 {
 		serviceName = v23ServiceName
@@ -166,18 +166,18 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- ldiscover
 	return nil
 }
 
-func createTxtRecords(ad *ldiscovery.Advertisement) ([]string, error) {
+func createTxtRecords(ad *idiscovery.Advertisement) ([]string, error) {
 	// Prepare a txt record with attributes and addresses to announce.
 	txt := appendTxtRecord(nil, attrInterface, ad.InterfaceName)
 	if len(ad.InstanceName) > 0 {
 		txt = appendTxtRecord(txt, attrName, ad.InstanceName)
 	}
 	if len(ad.Addrs) > 0 {
-		addrs := ldiscovery.PackAddresses(ad.Addrs)
+		addrs := idiscovery.PackAddresses(ad.Addrs)
 		txt = appendTxtRecord(txt, attrAddrs, string(addrs))
 	}
-	if ad.EncryptionAlgorithm != ldiscovery.NoEncryption {
-		enc := ldiscovery.PackEncryptionKeys(ad.EncryptionAlgorithm, ad.EncryptionKeys)
+	if ad.EncryptionAlgorithm != idiscovery.NoEncryption {
+		enc := idiscovery.PackEncryptionKeys(ad.EncryptionAlgorithm, ad.EncryptionKeys)
 		txt = appendTxtRecord(txt, attrEncryption, string(enc))
 	}
 	for k, v := range ad.Attrs {
@@ -207,18 +207,18 @@ func appendTxtRecord(txt []string, k, v string) []string {
 	return txt
 }
 
-func createAdvertisement(service mdns.ServiceInstance) (ldiscovery.Advertisement, error) {
+func createAdvertisement(service mdns.ServiceInstance) (idiscovery.Advertisement, error) {
 	// Note that service.Name starts with a host name, which is the instance uuid.
 	p := strings.SplitN(service.Name, ".", 2)
 	if len(p) < 1 {
-		return ldiscovery.Advertisement{}, fmt.Errorf("invalid service name: %s", service.Name)
+		return idiscovery.Advertisement{}, fmt.Errorf("invalid service name: %s", service.Name)
 	}
 	instanceUuid, err := decodeInstanceUuid(p[0])
 	if err != nil {
-		return ldiscovery.Advertisement{}, fmt.Errorf("invalid host name: %v", err)
+		return idiscovery.Advertisement{}, fmt.Errorf("invalid host name: %v", err)
 	}
 
-	ad := ldiscovery.Advertisement{Service: discovery.Service{InstanceUuid: instanceUuid}}
+	ad := idiscovery.Advertisement{Service: discovery.Service{InstanceUuid: instanceUuid}}
 	if len(service.SrvRRs) == 0 && len(service.TxtRRs) == 0 {
 		ad.Lost = true
 		return ad, nil
@@ -228,13 +228,13 @@ func createAdvertisement(service mdns.ServiceInstance) (ldiscovery.Advertisement
 	for _, rr := range service.TxtRRs {
 		txt, err := maybeJoinLargeTXT(rr.Txt)
 		if err != nil {
-			return ldiscovery.Advertisement{}, err
+			return idiscovery.Advertisement{}, err
 		}
 
 		for _, kv := range txt {
 			p := strings.SplitN(kv, "=", 2)
 			if len(p) != 2 {
-				return ldiscovery.Advertisement{}, fmt.Errorf("invalid txt record: %s", txt)
+				return idiscovery.Advertisement{}, fmt.Errorf("invalid txt record: %s", txt)
 			}
 			switch k, v := p[0], p[1]; k {
 			case attrName:
@@ -242,12 +242,12 @@ func createAdvertisement(service mdns.ServiceInstance) (ldiscovery.Advertisement
 			case attrInterface:
 				ad.InterfaceName = v
 			case attrAddrs:
-				if ad.Addrs, err = ldiscovery.UnpackAddresses([]byte(v)); err != nil {
-					return ldiscovery.Advertisement{}, err
+				if ad.Addrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
+					return idiscovery.Advertisement{}, err
 				}
 			case attrEncryption:
-				if ad.EncryptionAlgorithm, ad.EncryptionKeys, err = ldiscovery.UnpackEncryptionKeys([]byte(v)); err != nil {
-					return ldiscovery.Advertisement{}, err
+				if ad.EncryptionAlgorithm, ad.EncryptionKeys, err = idiscovery.UnpackEncryptionKeys([]byte(v)); err != nil {
+					return idiscovery.Advertisement{}, err
 				}
 			default:
 				ad.Attrs[k] = v
@@ -257,21 +257,20 @@ func createAdvertisement(service mdns.ServiceInstance) (ldiscovery.Advertisement
 	return ad, nil
 }
 
-func New(host string) (ldiscovery.Plugin, error) {
-	return newWithLoopback(host, false)
+func New(host string) (idiscovery.Plugin, error) {
+	return newWithLoopback(host, 0, false)
 }
 
-func newWithLoopback(host string, loopback bool) (ldiscovery.Plugin, error) {
+func newWithLoopback(host string, port int, loopback bool) (idiscovery.Plugin, error) {
 	if len(host) == 0 {
 		// go-mdns-sd doesn't answer when the host name is not set.
 		// Assign a default one if not given.
 		host = "v23()"
 	}
 	var v4addr, v6addr string
-	if loopback {
-		// To avoid interference from other mDNS server in unit tests.
-		v4addr = "224.0.0.251:9999"
-		v6addr = "[FF02::FB]:9999"
+	if port > 0 {
+		v4addr = fmt.Sprintf("224.0.0.251:%d", port)
+		v6addr = fmt.Sprintf("[FF02::FB]:%d", port)
 	}
 	m, err := mdns.NewMDNS(host, v4addr, v6addr, loopback, false)
 	if err != nil {
@@ -286,7 +285,7 @@ func newWithLoopback(host string, loopback bool) (ldiscovery.Plugin, error) {
 	}
 	p := plugin{
 		mdns:      m,
-		adStopper: ldiscovery.NewTrigger(),
+		adStopper: idiscovery.NewTrigger(),
 		// TODO(jhahn): Figure out a good subscription refresh time.
 		subscriptionRefreshTime: 10 * time.Second,
 		subscription:            make(map[string]subscription),
