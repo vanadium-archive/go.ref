@@ -120,7 +120,7 @@ func TestNoWaiters(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	h.Expect("ready")
-	want := fmt.Sprintf("exit status %d", v23.UnhandledStopExitCode)
+	want := fmt.Sprintf("exit status %d", testUnhandledStopExitCode)
 	if err = h.Shutdown(os.Stderr, os.Stderr); err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
@@ -153,7 +153,7 @@ func TestForceStop(t *testing.T) {
 	}
 	h.Expect("ready")
 	err = h.Shutdown(os.Stderr, os.Stderr)
-	want := fmt.Sprintf("exit status %d", v23.UnhandledStopExitCode)
+	want := fmt.Sprintf("exit status %d", testForceStopExitCode)
 	if err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
@@ -249,6 +249,7 @@ var app = modules.Register(func(env *modules.Env, args ...string) error {
 	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ctx, ch)
+	fmt.Fprintln(env.Stdout, "ready")
 	fmt.Fprintf(env.Stdout, "Got %s\n", <-ch)
 	m.AdvanceGoal(10)
 	fmt.Fprintf(env.Stdout, "Doing some work\n")
@@ -313,13 +314,14 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 func TestRemoteForceStop(t *testing.T) {
 	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	s.Expect("ready")
 	if err := appCycle.ForceStop(ctx); err == nil || !strings.Contains(err.Error(), "EOF") {
 		t.Fatalf("Expected EOF error, got %v instead", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	s.ExpectEOF()
 	err := h.Shutdown(os.Stderr, os.Stderr)
-	want := fmt.Sprintf("exit status %d", v23.ForceStopExitCode)
+	want := fmt.Sprintf("exit status %d", testForceStopExitCode)
 	if err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
@@ -328,9 +330,10 @@ func TestRemoteForceStop(t *testing.T) {
 // TestRemoteStop verifies that the child shuts down cleanly when sending it
 // a remote Stop rpc.
 func TestRemoteStop(t *testing.T) {
-	t.Skip("This test is flaky, enable it once it is fixed.")
 	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	s.Expect("ready")
 	stream, err := appCycle.Stop(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
@@ -354,7 +357,6 @@ func TestRemoteStop(t *testing.T) {
 	if err := stream.Finish(); err != nil {
 		t.Errorf("Got error %v", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	s.Expect(fmt.Sprintf("Got %s", v23.RemoteStop))
 	s.Expect("Doing some work")
 	s.Expect("Doing some more work")
