@@ -19,6 +19,9 @@ type Database interface {
 	// App returns the app handle for this database.
 	App() App
 
+	// Table returns the Table with the specified name.
+	Table(ctx *context.T, tableName string) Table
+
 	// CheckPermsInternal checks whether the given RPC (ctx, call) is allowed per
 	// the database perms.
 	// Designed for use from within App.DestroyNoSQLDatabase.

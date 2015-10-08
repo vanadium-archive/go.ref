@@ -385,6 +385,13 @@ func (d *database) App() interfaces.App {
 	return d.a
 }
 
+func (d *database) Table(ctx *context.T, tableName string) interfaces.Table {
+	return &tableReq{
+		name: tableName,
+		d:    &databaseReq{database: d},
+	}
+}
+
 func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
 	if !d.exists {
 		vlog.Fatalf("database %q does not exist", d.name)

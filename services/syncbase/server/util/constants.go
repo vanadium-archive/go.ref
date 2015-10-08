@@ -10,17 +10,18 @@ import (
 
 // Constants related to storage engine keys.
 const (
-	AppPrefix      = "$app"
-	ClockPrefix    = "$clock"
-	DatabasePrefix = "$database"
-	DbInfoPrefix   = "$dbInfo"
-	LogPrefix      = "$log"
-	PermsPrefix    = "$perms"
-	RowPrefix      = "$row"
-	ServicePrefix  = "$service"
-	SyncPrefix     = "$sync"
-	TablePrefix    = "$table"
-	VersionPrefix  = "$version"
+	AppPrefix        = "$app"
+	ClockPrefix      = "$clock"
+	DatabasePrefix   = "$database"
+	DbInfoPrefix     = "$dbInfo"
+	LogPrefix        = "$log"
+	PermsPrefix      = "$perms"
+	PermsIndexPrefix = "$iperms"
+	RowPrefix        = "$row"
+	ServicePrefix    = "$service"
+	SyncPrefix       = "$sync"
+	TablePrefix      = "$table"
+	VersionPrefix    = "$version"
 
 	// Note, these are persisted and therefore must not be modified.
 	// Below, they are ordered lexicographically by value.

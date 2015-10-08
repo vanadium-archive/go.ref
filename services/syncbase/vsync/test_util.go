@@ -110,6 +110,10 @@ func (d *mockDatabase) App() interfaces.App {
 	return nil
 }
 
+func (d *mockDatabase) Table(ctx *context.T, tableName string) interfaces.Table {
+	return nil
+}
+
 // createService creates a mock Syncbase service used for testing sync functionality.
 func createService(t *testing.T) *mockService {
 	ctx, shutdown := test.V23Init()
