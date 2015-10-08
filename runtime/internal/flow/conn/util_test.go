@@ -30,15 +30,23 @@ func (fh fh) HandleFlow(f flow.Flow) error {
 
 func setupConns(t *testing.T,
 	dctx, actx *context.T,
-	dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn, _ *flowtest.Wire) {
-	return setupConnsWithEvents(t, dctx, actx, dflows, aflows, nil)
+	dflows, aflows chan<- flow.Flow,
+	noencrypt bool) (dialed, accepted *Conn, _ *flowtest.Wire) {
+	return setupConnsWithEvents(t, dctx, actx, dflows, aflows, nil, noencrypt)
 }
 
 func setupConnsWithEvents(t *testing.T,
 	dctx, actx *context.T,
 	dflows, aflows chan<- flow.Flow,
-	events chan<- StatusUpdate) (dialed, accepted *Conn, _ *flowtest.Wire) {
-	dmrw, amrw, w := flowtest.NewMRWPair(dctx)
+	events chan<- StatusUpdate,
+	noencrypt bool) (dialed, accepted *Conn, _ *flowtest.Wire) {
+	var dmrw, amrw *flowtest.MRW
+	var w *flowtest.Wire
+	if noencrypt {
+		dmrw, amrw, w = flowtest.NewUnencryptedMRWPair(dctx)
+	} else {
+		dmrw, amrw, w = flowtest.NewMRWPair(dctx)
+	}
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
 	ep, err := v23.NewEndpoint("localhost:80")
 	if err != nil {
@@ -72,18 +80,26 @@ func setupConnsWithEvents(t *testing.T,
 }
 
 func setupFlow(t *testing.T, dctx, actx *context.T, dialFromDialer bool) (dialed flow.Flow, accepted <-chan flow.Flow, close func()) {
-	dflows, aflows := make(chan flow.Flow, 1), make(chan flow.Flow, 1)
-	d, a, _ := setupConns(t, dctx, actx, dflows, aflows)
+	dfs, accepted, ac, dc := setupFlows(t, dctx, actx, dialFromDialer, 1, false)
+	return dfs[0], accepted, func() { dc.Close(dctx, nil); ac.Close(dctx, nil) }
+}
+
+func setupFlows(t *testing.T, dctx, actx *context.T, dialFromDialer bool, n int, noencrypt bool) (dialed []flow.Flow, accepted <-chan flow.Flow, dc, ac *Conn) {
+	dialed = make([]flow.Flow, n)
+	dflows, aflows := make(chan flow.Flow, n), make(chan flow.Flow, n)
+	d, a, _ := setupConns(t, dctx, actx, dflows, aflows, noencrypt)
 	if !dialFromDialer {
 		d, a = a, d
 		dctx, actx = actx, dctx
 		aflows, dflows = dflows, aflows
 	}
-	df, err := d.Dial(dctx, flowtest.AllowAllPeersAuthorizer{})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+	for i := 0; i < n; i++ {
+		var err error
+		if dialed[i], err = d.Dial(dctx, flowtest.AllowAllPeersAuthorizer{}); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 	}
-	return df, aflows, func() { d.Close(dctx, nil); a.Close(actx, nil) }
+	return dialed, aflows, d, a
 }
 
 type peerAuthorizer struct {

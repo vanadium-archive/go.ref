@@ -17,7 +17,6 @@ import (
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/ref/runtime/internal/flow/flowcontrol"
 )
 
 // flowID is a number assigned to identify a flow.
@@ -35,6 +34,9 @@ const (
 	expressPriority = iota
 	flowPriority
 	tearDownPriority
+
+	// Must be last.
+	numPriorities
 )
 
 // FlowHandlers process accepted flows.
@@ -45,7 +47,8 @@ type FlowHandler interface {
 
 // Status describes the current state of the Conn.
 type Status struct {
-	Closed bool
+	Closing bool
+	Closed  bool
 	// LocalLameDuck signifies that we have received acknowledgment from the
 	// remote host of our lame duck mode and therefore should not expect new
 	// flows to arrive on this Conn.
@@ -63,7 +66,8 @@ type StatusUpdate struct {
 
 // Conns are a multiplexing encrypted channels that can host Flows.
 type Conn struct {
-	fc                     *flowcontrol.FlowController
+	// All the variables here are set before the constructor returns
+	// and never changed after that.
 	mp                     *messagePipe
 	version                version.RPCVersion
 	lBlessings, rBlessings security.Blessings
@@ -76,15 +80,44 @@ type Conn struct {
 	events                 chan<- StatusUpdate
 	isProxy                bool
 
-	mu             sync.Mutex
+	mu sync.Mutex // All the variables below here are protected by mu.
+
+	status         Status
 	handler        FlowHandler
 	nextFid        uint64
-	flows          map[uint64]*flw
 	dischargeTimer *time.Timer
 	lastUsedTime   time.Time
-	toRelease      map[uint64]uint64
-	borrowing      map[uint64]bool
-	status         Status
+	flows          map[uint64]*flw
+
+	// TODO(mattr): Integrate these maps back into the flows themselves as
+	// has been done with the sending counts.
+	// toRelease is a map from flowID to a number of tokens which are pending
+	// to be released.  We only send release messages when some flow has
+	// used up at least half it's buffer, and then we send the counters for
+	// every flow.  This reduces the number of release messages that are sent.
+	toRelease map[uint64]uint64
+	// borrowing is a map from flowID to a boolean indicating whether the remote
+	// dialer of the flow is using shared counters for his sends because we've not
+	// yet sent a release for this flow.
+	borrowing map[uint64]bool
+
+	// In our protocol new flows are opened by the dialer by immediately
+	// starting to write data for that flow (in an OpenFlow message).
+	// Since the other side doesn't yet know of the existence of this new
+	// flow, it couldn't have allocated us any counters via a Release message.
+	// In order to deal with this the conn maintains a pool of shared tokens
+	// which are used by dialers of new flows.
+	// lshared is the number of shared tokens available for new flows dialed
+	// locally.
+	lshared uint64
+
+	// activeWriters keeps track of all the flows that are currently
+	// trying to write, indexed by priority.  activeWriters[0] is a list
+	// (note that writers form a linked list for this purpose)
+	// of all the highest priority flows.  activeWriters[len-1] is a list
+	// of all the lowest priority writing flows.
+	activeWriters []writer
+	writing       writer
 }
 
 // Ensure that *Conn implements flow.ManagedConn.
@@ -101,7 +134,6 @@ func NewDialed(
 	handler FlowHandler,
 	events chan<- StatusUpdate) (*Conn, error) {
 	c := &Conn{
-		fc:           flowcontrol.New(DefaultBytesBufferedPerFlow, mtu),
 		mp:           newMessagePipe(conn),
 		handler:      handler,
 		lBlessings:   v23.GetPrincipal(ctx).BlessingStore().Default(),
@@ -114,6 +146,10 @@ func NewDialed(
 		toRelease:    map[uint64]uint64{},
 		borrowing:    map[uint64]bool{},
 		events:       events,
+		// TODO(mattr): We should negotiate the shared counter pool size with the
+		// other end.
+		lshared:       DefaultBytesBufferedPerFlow,
+		activeWriters: make([]writer, numPriorities),
 	}
 	// TODO(mattr): This scheme for deadlines is nice, but it doesn't
 	// provide for cancellation when ctx is canceled.
@@ -141,18 +177,19 @@ func NewAccepted(
 	handler FlowHandler,
 	events chan<- StatusUpdate) (*Conn, error) {
 	c := &Conn{
-		fc:           flowcontrol.New(DefaultBytesBufferedPerFlow, mtu),
-		mp:           newMessagePipe(conn),
-		handler:      handler,
-		lBlessings:   v23.GetPrincipal(ctx).BlessingStore().Default(),
-		local:        local,
-		closed:       make(chan struct{}),
-		nextFid:      reservedFlows + 1,
-		flows:        map[uint64]*flw{},
-		lastUsedTime: time.Now(),
-		toRelease:    map[uint64]uint64{},
-		borrowing:    map[uint64]bool{},
-		events:       events,
+		mp:            newMessagePipe(conn),
+		handler:       handler,
+		lBlessings:    v23.GetPrincipal(ctx).BlessingStore().Default(),
+		local:         local,
+		closed:        make(chan struct{}),
+		nextFid:       reservedFlows + 1,
+		flows:         map[uint64]*flw{},
+		lastUsedTime:  time.Now(),
+		toRelease:     map[uint64]uint64{},
+		borrowing:     map[uint64]bool{},
+		events:        events,
+		lshared:       DefaultBytesBufferedPerFlow,
+		activeWriters: make([]writer, numPriorities),
 	}
 	// FIXME(mattr): This scheme for deadlines is nice, but it doesn't
 	// provide for cancellation when ctx is canceled.
@@ -172,9 +209,9 @@ func NewAccepted(
 
 // Enter LameDuck mode.
 func (c *Conn) EnterLameDuck(ctx *context.T) {
-	err := c.fc.Run(ctx, "enterlameduck", expressPriority, func(_ int) (int, bool, error) {
-		return 0, true, c.mp.writeMsg(ctx, &message.EnterLameDuck{})
-	})
+	c.mu.Lock()
+	err := c.sendMessageLocked(ctx, true, expressPriority, &message.EnterLameDuck{})
+	c.mu.Unlock()
 	if err != nil {
 		c.Close(ctx, NewErrSend(ctx, "release", c.remote.String(), err))
 	}
@@ -207,7 +244,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error)
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.status.RemoteLameDuck || c.flows == nil {
+	if c.status.RemoteLameDuck || c.status.Closing {
 		return nil, NewErrConnectionClosed(ctx)
 	}
 	id := c.nextFid
@@ -260,35 +297,31 @@ func (c *Conn) Close(ctx *context.T, err error) {
 func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 	ctx.VI(2).Infof("Closing connection: %v", err)
 
-	var flows map[uint64]*flw
-	flows, c.flows = c.flows, nil
+	flows := c.flows
 	if c.dischargeTimer != nil {
 		c.dischargeTimer.Stop()
 		c.dischargeTimer = nil
 	}
-	if flows == nil {
+	if c.status.Closing {
 		// This conn is already being torn down.
 		return
 	}
+	c.status.Closing = true
+
 	go func() {
 		if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
 			msg := ""
 			if err != nil {
 				msg = err.Error()
 			}
-			// We use a root context here to ensure that the message get's sent even if
-			// the context is canceled.
-			// TODO(mattr): Consider other options like a special mode in the flow controller
-			// that doesn't care about the context.  Or perhaps 'stop' the flow controller
-			// and then just write the message directly.
-			rootctx, cancel := context.WithRootCancel(ctx)
-			cerr := c.fc.Run(rootctx, "close", expressPriority, func(_ int) (int, bool, error) {
-				return 0, true, c.mp.writeMsg(ctx, &message.TearDown{Message: msg})
+			c.mu.Lock()
+			cerr := c.sendMessageLocked(ctx, false, tearDownPriority, &message.TearDown{
+				Message: msg,
 			})
+			c.mu.Unlock()
 			if cerr != nil {
 				ctx.Errorf("Error sending tearDown on connection to %s: %v", c.remote, cerr)
 			}
-			cancel()
 		}
 		flowErr := NewErrConnectionClosed(ctx)
 		for _, f := range flows {
@@ -328,19 +361,14 @@ func (c *Conn) release(ctx *context.T, fid, count uint64) {
 		c.toRelease = make(map[uint64]uint64, len(c.toRelease))
 		c.borrowing = make(map[uint64]bool, len(c.borrowing))
 	}
-	c.mu.Unlock()
-
-	if toRelease == nil {
-		return
-	}
-	delete(toRelease, invalidFlowID)
-
-	err := c.fc.Run(ctx, "release", expressPriority, func(_ int) (int, bool, error) {
-		err := c.mp.writeMsg(ctx, &message.Release{
+	var err error
+	if toRelease != nil {
+		delete(toRelease, invalidFlowID)
+		err = c.sendMessageLocked(ctx, true, expressPriority, &message.Release{
 			Counters: toRelease,
 		})
-		return 0, true, err
-	})
+	}
+	c.mu.Unlock()
 	if err != nil {
 		c.Close(ctx, NewErrSend(ctx, "release", c.remote.String(), err))
 	}
@@ -366,9 +394,9 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			// We only want to send the lame duck acknowledgment after all outstanding
 			// OpenFlows are sent.
 			c.unopenedFlows.Wait()
-			err := c.fc.Run(ctx, "lameduck", expressPriority, func(_ int) (int, bool, error) {
-				return 0, true, c.mp.writeMsg(ctx, &message.AckLameDuck{})
-			})
+			c.mu.Lock()
+			err := c.sendMessageLocked(ctx, true, expressPriority, &message.AckLameDuck{})
+			c.mu.Unlock()
 			if err != nil {
 				c.Close(ctx, NewErrSend(ctx, "release", c.remote.String(), err))
 			}
@@ -392,13 +420,13 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		if c.handler == nil {
 			c.mu.Unlock()
 			return NewErrUnexpectedMsg(ctx, "openFlow")
-		} else if c.flows == nil {
+		} else if c.status.Closing {
 			c.mu.Unlock()
 			return nil // Conn is already being closed.
 		}
 		handler := c.handler
 		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, false, true)
-		f.worker.Release(ctx, int(msg.InitialCounters))
+		f.releaseLocked(msg.InitialCounters)
 		c.toRelease[msg.ID] = DefaultBytesBufferedPerFlow
 		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
@@ -412,24 +440,17 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		}
 
 	case *message.Release:
-		release := make([]flowcontrol.Release, 0, len(msg.Counters))
 		c.mu.Lock()
 		for fid, val := range msg.Counters {
 			if f := c.flows[fid]; f != nil {
-				release = append(release, flowcontrol.Release{
-					Worker: f.worker,
-					Tokens: int(val),
-				})
+				f.releaseLocked(val)
 			}
 		}
 		c.mu.Unlock()
-		if err := c.fc.Release(ctx, release); err != nil {
-			return err
-		}
 
 	case *message.Data:
 		c.mu.Lock()
-		if c.flows == nil {
+		if c.status.Closing {
 			c.mu.Unlock()
 			return nil // Conn is already being shut down.
 		}
@@ -473,8 +494,12 @@ func (c *Conn) readLoop(ctx *context.T) {
 
 func (c *Conn) markUsed() {
 	c.mu.Lock()
-	c.lastUsedTime = time.Now()
+	c.markUsedLocked()
 	c.mu.Unlock()
+}
+
+func (c *Conn) markUsedLocked() {
+	c.lastUsedTime = time.Now()
 }
 
 func (c *Conn) IsEncapsulated() bool {
@@ -490,4 +515,134 @@ func (c *Conn) UpdateFlowHandler(ctx *context.T, handler FlowHandler) error {
 	}
 	c.handler = handler
 	return nil
+}
+
+type writer interface {
+	notify()
+	priority() int
+	neighbors() (prev, next writer)
+	setNeighbors(prev, next writer)
+}
+
+// activateWriterLocked adds a given writer to the list of active writers.
+// The writer will be given a turn when the channel becomes available.
+// You should try to only have writers with actual work to do in the
+// list of activeWriters because we will switch to that thread to allow it
+// to do work, and it will be wasteful if it turns out there is no work to do.
+// After calling this you should typically call notifyNextWriterLocked.
+func (c *Conn) activateWriterLocked(w writer) {
+	priority := w.priority()
+	_, wn := w.neighbors()
+	head := c.activeWriters[priority]
+	if head == w || wn != w {
+		// We're already active.
+		return
+	}
+	if head == nil { // We're the head of the list.
+		c.activeWriters[priority] = w
+	} else { // Insert us before head, which is the end of the list.
+		hp, _ := head.neighbors()
+		w.setNeighbors(hp, head)
+		hp.setNeighbors(nil, w)
+		head.setNeighbors(w, nil)
+	}
+}
+
+// deactivateWriterLocked removes a writer from the active writer list.  After
+// this function is called it is certain that the writer will not be given any
+// new turns.  If the writer is already in the middle of a turn, that turn is
+// not terminated, workers must end their turn explicitly by calling
+// notifyNextWriterLocked.
+func (c *Conn) deactivateWriterLocked(w writer) {
+	priority := w.priority()
+	p, n := w.neighbors()
+	if head := c.activeWriters[priority]; head == w {
+		if w == n { // We're the only one in the list.
+			c.activeWriters[priority] = nil
+		} else {
+			c.activeWriters[priority] = n
+		}
+	}
+	n.setNeighbors(p, nil)
+	p.setNeighbors(nil, n)
+	w.setNeighbors(w, w)
+}
+
+// notifyNextWriterLocked notifies the highest priority activeWriter to take
+// a turn writing.  If w is the active writer give up w's claim and choose
+// the next writer.  If there is already an active writer != w, this function does
+// nothing.
+func (c *Conn) notifyNextWriterLocked(w writer) {
+	if c.writing == w {
+		c.writing = nil
+	}
+	if c.writing == nil {
+		for p, head := range c.activeWriters {
+			if head != nil {
+				_, c.activeWriters[p] = head.neighbors()
+				c.writing = head
+				head.notify()
+				return
+			}
+		}
+	}
+}
+
+type writerList struct {
+	// next and prev are protected by c.mu
+	next, prev writer
+}
+
+func (s *writerList) neighbors() (prev, next writer) { return s.prev, s.next }
+func (s *writerList) setNeighbors(prev, next writer) {
+	if prev != nil {
+		s.prev = prev
+	}
+	if next != nil {
+		s.next = next
+	}
+}
+
+// singleMessageWriter is used to send a single message with a given priority.
+type singleMessageWriter struct {
+	writeCh chan struct{}
+	p       int
+	writerList
+}
+
+func (s *singleMessageWriter) notify()       { close(s.writeCh) }
+func (s *singleMessageWriter) priority() int { return s.p }
+
+// sendMessageLocked sends a single message on the conn with the given priority.
+// if cancelWithContext is true, then this write attempt will fail when the context
+// is canceled.  Otherwise context cancellation will have no effect and this call
+// will block until the message is sent.
+func (c *Conn) sendMessageLocked(
+	ctx *context.T,
+	cancelWithContext bool,
+	priority int,
+	m message.Message) (err error) {
+	s := &singleMessageWriter{writeCh: make(chan struct{}), p: priority}
+	s.next, s.prev = s, s
+	c.activateWriterLocked(s)
+	c.notifyNextWriterLocked(s)
+	c.mu.Unlock()
+	// wait for my turn.
+	if cancelWithContext {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case <-s.writeCh:
+		}
+	} else {
+		<-s.writeCh
+	}
+	// send the actual message.
+	if err == nil {
+		err = c.mp.writeMsg(ctx, m)
+	}
+	c.mu.Lock()
+	c.deactivateWriterLocked(s)
+	c.notifyNextWriterLocked(s)
+	return err
 }

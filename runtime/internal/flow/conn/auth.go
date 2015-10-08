@@ -35,7 +35,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	}
 
 	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true)
-	bflow.worker.Release(ctx, DefaultBytesBufferedPerFlow)
+	bflow.releaseLocked(DefaultBytesBufferedPerFlow)
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG, bflow, true)
 
 	rDischarges, err := c.readRemoteAuth(ctx, authAcceptorTag, binding)

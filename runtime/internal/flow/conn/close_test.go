@@ -11,6 +11,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
 	"v.io/x/ref/test/goroutines"
@@ -21,7 +22,7 @@ func TestRemoteDialerClose(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, ctx, nil, nil)
+	d, a, w := setupConns(t, ctx, ctx, nil, nil, false)
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
@@ -35,7 +36,7 @@ func TestRemoteAcceptorClose(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, ctx, nil, nil)
+	d, a, w := setupConns(t, ctx, ctx, nil, nil, false)
 	a.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-a.Closed()
 	<-d.Closed()
@@ -49,7 +50,7 @@ func TestUnderlyingConnectionClosed(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, ctx, nil, nil)
+	d, a, w := setupConns(t, ctx, ctx, nil, nil, false)
 	w.Close()
 	<-a.Closed()
 	<-d.Closed()
@@ -60,7 +61,7 @@ func TestDialAfterConnClose(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, _ := setupConns(t, ctx, ctx, nil, nil)
+	d, a, _ := setupConns(t, ctx, ctx, nil, nil, false)
 
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
@@ -114,9 +115,17 @@ func TestFlowCancelOnWrite(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
+	accept := make(chan flow.Flow, 1)
+	dc, ac, _ := setupConns(t, ctx, ctx, nil, accept, false)
+	defer func() {
+		dc.Close(ctx, nil)
+		ac.Close(ctx, nil)
+	}()
 	dctx, cancel := context.WithCancel(ctx)
-	df, accept, cl := setupFlow(t, dctx, ctx, true)
-	defer cl()
+	df, err := dc.Dial(dctx, flowtest.AllowAllPeersAuthorizer{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	done := make(chan struct{})
 	go func() {
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {
@@ -142,9 +151,17 @@ func TestFlowCancelOnRead(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
+	accept := make(chan flow.Flow, 1)
+	dc, ac, _ := setupConns(t, ctx, ctx, nil, accept, false)
+	defer func() {
+		dc.Close(ctx, nil)
+		ac.Close(ctx, nil)
+	}()
 	dctx, cancel := context.WithCancel(ctx)
-	df, accept, cl := setupFlow(t, dctx, ctx, true)
-	defer cl()
+	df, err := dc.Dial(dctx, flowtest.AllowAllPeersAuthorizer{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	done := make(chan struct{})
 	go func() {
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {

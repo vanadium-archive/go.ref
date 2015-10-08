@@ -11,6 +11,14 @@ import (
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 )
 
+// unsafeUnencrypted allows protocol implementors to provide unencrypted
+// protocols.  If the underlying connection implements this method, and
+// the method returns true, we do not encrypt.
+// This is mostly only used for testing.
+type unsafeUnencrypted interface {
+	UnsafeDisableEncryption() bool
+}
+
 // TODO(mattr): Consider cleaning up the ControlCipher library to
 // eliminate extraneous functionality and reduce copying.
 type messagePipe struct {
@@ -28,6 +36,9 @@ func newMessagePipe(rw flow.MsgReadWriteCloser) *messagePipe {
 }
 
 func (p *messagePipe) setupEncryption(ctx *context.T, pk, sk, opk *[32]byte) []byte {
+	if uu, ok := p.rw.(unsafeUnencrypted); ok && uu.UnsafeDisableEncryption() {
+		return p.cipher.ChannelBinding()
+	}
 	p.cipher = crypto.NewControlCipherRPC11(
 		(*crypto.BoxKey)(pk),
 		(*crypto.BoxKey)(sk),
