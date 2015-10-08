@@ -17,7 +17,7 @@ import (
 	"v.io/v23/discovery"
 	"v.io/v23/security"
 
-	ldiscovery "v.io/x/ref/lib/discovery"
+	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/plugins/mock"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
@@ -114,18 +114,18 @@ func TestBasic(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ds := ldiscovery.New([]ldiscovery.Plugin{mock.New()})
+	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
 	defer ds.Close()
 
 	services := []discovery.Service{
 		{
-			InstanceUuid:  ldiscovery.NewInstanceUUID(),
+			InstanceUuid:  idiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/v23/a",
 			Attrs:         discovery.Attributes{"a1": "v1"},
 			Addrs:         []string{"/h1:123/x", "/h2:123/y"},
 		},
 		{
-			InstanceUuid:  ldiscovery.NewInstanceUUID(),
+			InstanceUuid:  idiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/v23/b",
 			Attrs:         discovery.Attributes{"b1": "v1"},
 			Addrs:         []string{"/h1:123/x", "/h2:123/z"},
@@ -191,11 +191,11 @@ func TestPermission(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ds := ldiscovery.New([]ldiscovery.Plugin{mock.New()})
+	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
 	defer ds.Close()
 
 	service := discovery.Service{
-		InstanceUuid:  ldiscovery.NewInstanceUUID(),
+		InstanceUuid:  idiscovery.NewInstanceUUID(),
 		InterfaceName: "v.io/v23/a",
 		Attrs:         discovery.Attributes{"a1": "v1", "a2": "v2"},
 		Addrs:         []string{"/h1:123/x", "/h2:123/y"},
@@ -241,9 +241,9 @@ func TestClose(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ds := ldiscovery.New([]ldiscovery.Plugin{mock.New()})
+	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
 	service := discovery.Service{
-		InstanceUuid:  ldiscovery.NewInstanceUUID(),
+		InstanceUuid:  idiscovery.NewInstanceUUID(),
 		InterfaceName: "v.io/v23/a",
 		Addrs:         []string{"/h1:123/x"},
 	}

@@ -47,6 +47,7 @@ func setupRuntime() {
 	runtime, ctx, sd, err := grt.Init(ctx,
 		ac,
 		nil,
+		nil,
 		&listenSpec,
 		nil,
 		"",

@@ -62,7 +62,7 @@ func decrypt(ad *Advertisement, names []string) error {
 	}
 
 	if ad.EncryptionAlgorithm != TestEncryption {
-		return fmt.Errorf("not supported encryption algorithm %v\n", ad.EncryptionAlgorithm)
+		return fmt.Errorf("unsupported encryption algorithm: %v", ad.EncryptionAlgorithm)
 	}
 	sharedKey, err := decryptSharedKey(ad.EncryptionKeys, names)
 	if err != nil {

@@ -17,6 +17,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/discovery"
 	"v.io/v23/flow"
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
@@ -61,6 +62,7 @@ const (
 
 type initData struct {
 	appCycle          v23.AppCycle
+	discovery         discovery.T
 	protocols         []string
 	settingsPublisher *pubsub.Publisher
 	settingsName      string
@@ -79,6 +81,7 @@ type Runtime struct {
 func Init(
 	ctx *context.T,
 	appCycle v23.AppCycle,
+	discovery discovery.T,
 	protocols []string,
 	listenSpec *rpc.ListenSpec,
 	settingsPublisher *pubsub.Publisher,
@@ -88,8 +91,9 @@ func Init(
 	r := &Runtime{deps: dependency.NewGraph()}
 
 	ctx = context.WithValue(ctx, initKey, &initData{
-		protocols:         protocols,
 		appCycle:          appCycle,
+		discovery:         discovery,
+		protocols:         protocols,
 		settingsPublisher: settingsPublisher,
 		settingsName:      settingsName,
 	})
@@ -459,6 +463,12 @@ func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 func (*Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return context.WithValue(ctx, listenKey, ls.Copy())
+}
+
+func (*Runtime) GetDiscovery(ctx *context.T) discovery.T {
+	// nologcall
+	id, _ := ctx.Value(initKey).(*initData)
+	return id.discovery
 }
 
 func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {

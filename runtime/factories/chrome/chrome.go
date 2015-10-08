@@ -43,9 +43,9 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	protocols := []string{"wsh", "ws"}
 	listenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "ws", Address: ""}}}
-	runtime, ctx, shutdown, err := grt.Init(ctx, nil, protocols, &listenSpec, nil, "", commonFlags.RuntimeFlags(), nil)
+	runtime, ctx, shutdown, err := grt.Init(ctx, nil, nil, protocols, &listenSpec, nil, "", commonFlags.RuntimeFlags(), nil)
 	if err != nil {
-		return nil, nil, shutdown, err
+		return nil, nil, nil, err
 	}
 	ctx.VI(1).Infof("Initializing chrome RuntimeFactory.")
 	return runtime, ctx, shutdown, nil

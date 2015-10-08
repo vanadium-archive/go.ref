@@ -15,6 +15,7 @@ import (
 	"v.io/v23/rpc"
 
 	"v.io/x/ref/internal/logger"
+	dfactory "v.io/x/ref/lib/discovery/factory"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/runtime/internal"
@@ -48,6 +49,13 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, nil, err
 	}
 
+	ac := appcycle.New()
+	discovery, err := dfactory.New()
+	if err != nil {
+		ac.Shutdown()
+		return nil, nil, nil, err
+	}
+
 	lf := commonFlags.ListenFlags()
 	listenSpec := rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs(lf.Addrs),
@@ -55,7 +63,10 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 	reservedDispatcher := debuglib.NewDispatcher(securityflag.NewAuthorizerOrDie())
 
-	ac := appcycle.New()
+	ishutdown := func() {
+		ac.Shutdown()
+		discovery.Close()
+	}
 
 	// Our address is private, so we test for running on GCE and for its 1:1 NAT
 	// configuration. GCEPublicAddress returns a non-nil addr if we are
@@ -65,12 +76,13 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 			listenSpec.AddressChooser = rpc.AddressChooserFunc(func(string, []net.Addr) ([]net.Addr, error) {
 				return []net.Addr{addr}, nil
 			})
-			runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
+			runtime, ctx, shutdown, err := rt.Init(ctx, ac, discovery, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {
+				ishutdown()
 				return nil, nil, nil, err
 			}
 			runtimeFactoryShutdown := func() {
-				ac.Shutdown()
+				ishutdown()
 				shutdown()
 			}
 			return runtime, ctx, runtimeFactoryShutdown, nil
@@ -78,13 +90,14 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser{}
 
-	runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
+	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discovery, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
-		return nil, nil, shutdown, err
+		ishutdown()
+		return nil, nil, nil, err
 	}
 
 	runtimeFactoryShutdown := func() {
-		ac.Shutdown()
+		ishutdown()
 		shutdown()
 	}
 	return runtime, ctx, runtimeFactoryShutdown, nil

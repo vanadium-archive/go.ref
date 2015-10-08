@@ -21,7 +21,6 @@ import (
 	"v.io/v23/discovery"
 
 	idiscovery "v.io/x/ref/lib/discovery"
-	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
 
@@ -157,7 +156,7 @@ func scanAndMatch(ctx *context.T, p idiscovery.Plugin, interfaceName string, wan
 }
 
 func TestBasic(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.TestContext()
 	defer shutdown()
 
 	services := []discovery.Service{
@@ -269,7 +268,7 @@ func TestBasic(t *testing.T) {
 }
 
 func TestLargeTxt(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.TestContext()
 	defer shutdown()
 
 	service := discovery.Service{

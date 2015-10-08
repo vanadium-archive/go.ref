@@ -7,6 +7,7 @@ package fake
 import (
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/discovery"
 	"v.io/v23/namespace"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -55,6 +56,11 @@ func (r *Runtime) GetPrincipal(ctx *context.T) security.Principal {
 }
 
 func (r *Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
+	// nologcall
+	panic("unimplemented")
+}
+
+func (r *Runtime) GetDiscovery(ctx *context.T) discovery.T {
 	// nologcall
 	panic("unimplemented")
 }

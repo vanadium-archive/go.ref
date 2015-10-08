@@ -96,8 +96,10 @@ func (ds *ds) removeTask(ctx *context.T) {
 	}
 }
 
-// TODO(jhahn): Need a better API.
-func New(plugins []Plugin) discovery.T {
+// New returns a new Discovery instance initialized with the given plugins.
+//
+// Mostly for internal use. Consider to use factory.New.
+func NewWithPlugins(plugins []Plugin) discovery.T {
 	ds := &ds{
 		plugins: make([]Plugin, len(plugins)),
 		tasks:   make(map[*context.T]func()),

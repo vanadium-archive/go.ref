@@ -14,6 +14,7 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/rpc"
 
+	dfactory "v.io/x/ref/lib/discovery/factory"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal"
 	_ "v.io/x/ref/runtime/internal/flow/protocols/tcp"
@@ -46,6 +47,11 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	ac := appcycle.New()
+	discovery, err := dfactory.New()
+	if err != nil {
+		ac.Shutdown()
+		return nil, nil, nil, err
+	}
 
 	lf := commonFlags.ListenFlags()
 	listenSpec := rpc.ListenSpec{
@@ -54,8 +60,14 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		Proxy:          lf.Proxy,
 	}
 
+	ishutdown := func() {
+		ac.Shutdown()
+		discovery.Close()
+	}
+
 	runtime, ctx, shutdown, err := grt.Init(ctx,
 		ac,
+		discovery,
 		nil,
 		&listenSpec,
 		nil,
@@ -63,12 +75,13 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		commonFlags.RuntimeFlags(),
 		nil)
 	if err != nil {
+		ishutdown()
 		return nil, nil, nil, err
 	}
 	ctx.VI(1).Infof("Initializing generic RuntimeFactory.")
 
 	runtimeFactoryShutdown := func() {
-		ac.Shutdown()
+		ishutdown()
 		shutdown()
 	}
 	return runtime, ctx, runtimeFactoryShutdown, nil

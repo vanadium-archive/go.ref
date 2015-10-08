@@ -63,6 +63,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	if ip, err := gce.ExternalIPAddress(); err != nil {
+		ac.Shutdown()
 		return nil, nil, nil, err
 	} else {
 		listenSpec.AddressChooser = netstate.AddressChooserFunc(func(network string, addrs []net.Addr) ([]net.Addr, error) {
@@ -70,9 +71,10 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		})
 	}
 
-	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), nil)
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), nil)
 	if err != nil {
-		return nil, nil, shutdown, err
+		ac.Shutdown()
+		return nil, nil, nil, err
 	}
 
 	ctx.VI(1).Infof("Initializing GCE RuntimeFactory.")
@@ -81,6 +83,5 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		ac.Shutdown()
 		shutdown()
 	}
-
 	return runtime, ctx, runtimeFactoryShutdown, nil
 }
