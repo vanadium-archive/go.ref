@@ -13,6 +13,8 @@ import (
 	"v.io/x/ref/lib/vdl/compile"
 )
 
+const javaMaxStringLen = 2 << 16 // 64k
+
 // javaConstVal returns the value string for the provided constant value.
 func javaConstVal(v *vdl.Value, env *compile.Env) (ret string) {
 	if v == nil {
@@ -88,7 +90,18 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 		}
 		return fmt.Sprintf("new %s(%s, %s)", javaType(v.Type(), true, env), r, i)
 	case vdl.String:
-		return strconv.Quote(v.RawString())
+		in := v.RawString()
+		if len(in) < javaMaxStringLen {
+			return strconv.Quote(in)
+		}
+
+		// Java is unable to handle constant strings larger than 64k so split them into multiple strings.
+		out := "String.join(\"\", new java.util.ArrayList<CharSequence>("
+		for len(in) > javaMaxStringLen {
+			out += strconv.Quote(in[:javaMaxStringLen]) + ","
+			in = in[javaMaxStringLen:]
+		}
+		return out + strconv.Quote(in) + "))"
 	case vdl.Any:
 		if v.Elem() == nil {
 			return fmt.Sprintf("new %s()", javaType(v.Type(), false, env))
