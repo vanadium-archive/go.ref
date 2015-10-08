@@ -29,7 +29,7 @@ func SplitKeyParts(key string) []string {
 func StripFirstPartOrDie(key string) string {
 	parts := strings.SplitN(key, KeyPartSep, 2)
 	if len(parts) < 2 {
-		vlog.Fatalf("StripFirstPart: invalid key %q", key)
+		vlog.Fatalf("StripFirstPartOrDie: invalid key: %q", key)
 	}
 	return parts[1]
 }
