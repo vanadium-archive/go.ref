@@ -10,6 +10,9 @@
 // but in most cases, other Profiles will use the utility routines provided
 // by it to test to ensure that they are running on GCE and to obtain
 // metadata directly from its service APIs.
+//
+// TODO -- rename the package to "CloudVM" rather than gce, as it handles both gce
+// and AWS, and perhaps, in future, other cases of NAT'ed VMs.
 package gce
 
 import (
@@ -27,7 +30,8 @@ import (
 // header, it is also not a GCE instance. The body of the document contains the
 // external IP address, if present. Otherwise, the body is empty.
 // See https://developers.google.com/compute/docs/metadata for details.
-const url = "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip"
+const gceUrl = "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip"
+const awsUrl = "http://169.254.169.254/latest/meta-data/public-ipv4"
 
 // How long to wait for the HTTP request to return.
 const timeout = time.Second
@@ -42,7 +46,11 @@ var (
 // on a Google Compute Engine instance.
 func RunningOnGCE() bool {
 	once.Do(func() {
-		externalIP, isGCEErr = gceTest(url)
+		externalIP, isGCEErr = gceTest(gceUrl)
+		if isGCEErr != nil {
+			// try AWS instead
+			externalIP, isGCEErr = awsTest(awsUrl)
+		}
 	})
 	return isGCEErr == nil
 }
@@ -71,6 +79,30 @@ func gceTest(url string) (net.IP, error) {
 	}
 	if flavor := resp.Header["Metadata-Flavor"]; len(flavor) != 1 || flavor[0] != "Google" {
 		return nil, fmt.Errorf("unexpected http header: %q", flavor)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return net.ParseIP(string(body)), nil
+}
+
+func awsTest(url string) (net.IP, error) {
+	client := &http.Client{Timeout: timeout}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("http error: %d", resp.StatusCode)
+	}
+	if server := resp.Header["Server"]; len(server) != 1 || server[0] != "EC2ws" {
+		return nil, fmt.Errorf("unexpected http Server header: %q", server)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
