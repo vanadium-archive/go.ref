@@ -91,7 +91,7 @@ func maybeExtractBuiltinVdlroot() (func() error, *vdlutil.Errors) {
 		errs.Errorf("Could not extract builtin VDL types: %v", err)
 		return removeAllCleanup, errs
 	}
-	if err := os.Setenv("VDLROOT", dir); err != nil {
+	if err := os.Setenv("VDLROOT", filepath.Join(dir, "v.io", "v23", "vdlroot")); err != nil {
 		errs.Errorf("Setenv(VDLROOT, %q) failed: %v", dir, err)
 		return removeAllCleanup, errs
 	}
