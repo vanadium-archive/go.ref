@@ -106,7 +106,8 @@ removes the application envelope for the given profile.
 Usage:
    application remove <application> <profile>
 
-<application> is the full name of the application. <profile> is a profile.
+<application> is the full name of the application. <profile> is a profile.  If
+specified as '*', all profiles are removed.
 
 Application edit
 

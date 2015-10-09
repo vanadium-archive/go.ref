@@ -214,7 +214,7 @@ var cmdRemove = &cmdline.Command{
 	ArgsName: "<application> <profile>",
 	ArgsLong: `
 <application> is the full name of the application.
-<profile> is a profile.`,
+<profile> is a profile.  If specified as '*', all profiles are removed.`,
 }
 
 func runRemove(ctx *context.T, env *cmdline.Env, args []string) error {
