@@ -329,7 +329,7 @@ func findAllTheInstances(ctx *context.T, root string) (map[string]int, []string,
 	wg.Wait()
 	close(pidchan)
 
-	restartCandidates := make([]string, len(paths))
+	restartCandidates := make([]string, 0, len(paths))
 	for p := range pidchan {
 		if p.err != nil {
 			ctx.Errorf("instance at %s had an error: %v", p.ipath, p.err)
