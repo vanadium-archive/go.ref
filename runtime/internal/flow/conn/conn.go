@@ -45,24 +45,19 @@ type FlowHandler interface {
 	HandleFlow(flow.Flow) error
 }
 
-// Status describes the current state of the Conn.
-type Status struct {
-	Closing bool
-	Closed  bool
-	// LocalLameDuck signifies that we have received acknowledgment from the
-	// remote host of our lame duck mode and therefore should not expect new
-	// flows to arrive on this Conn.
-	LocalLameDuck bool
-	// RemoteLameDuck signifies that we have received a lameduck notification
-	// from the remote host and therefore should not open new flows on this Conn.
-	RemoteLameDuck bool
-}
+type Status int
 
-// Events that can be emitted through the events channel.
-type StatusUpdate struct {
-	Conn   *Conn
-	Status Status
-}
+const (
+	// Note that this is a progression of states that can only
+	// go in one direction.  We use inequality operators to see
+	// how far along in the progression we are, so the order of
+	// these is important.
+	Active Status = iota
+	EnteringLameDuck
+	LameDuckAcknowledged
+	Closing
+	Closed
+)
 
 // Conns are a multiplexing encrypted channels that can host Flows.
 type Conn struct {
@@ -74,15 +69,16 @@ type Conn struct {
 	rPublicKey             security.PublicKey
 	local, remote          naming.Endpoint
 	closed                 chan struct{}
+	lameDucked             chan struct{}
 	blessingsFlow          *blessingsFlow
 	loopWG                 sync.WaitGroup
 	unopenedFlows          sync.WaitGroup
-	events                 chan<- StatusUpdate
 	isProxy                bool
 
 	mu sync.Mutex // All the variables below here are protected by mu.
 
 	status         Status
+	remoteLameDuck bool
 	handler        FlowHandler
 	nextFid        uint64
 	dischargeTimer *time.Timer
@@ -131,8 +127,7 @@ func NewDialed(
 	versions version.RPCVersionRange,
 	auth flow.PeerAuthorizer,
 	handshakeTimeout time.Duration,
-	handler FlowHandler,
-	events chan<- StatusUpdate) (*Conn, error) {
+	handler FlowHandler) (*Conn, error) {
 	c := &Conn{
 		mp:           newMessagePipe(conn),
 		handler:      handler,
@@ -140,12 +135,12 @@ func NewDialed(
 		local:        local,
 		remote:       remote,
 		closed:       make(chan struct{}),
+		lameDucked:   make(chan struct{}),
 		nextFid:      reservedFlows,
 		flows:        map[uint64]*flw{},
 		lastUsedTime: time.Now(),
 		toRelease:    map[uint64]uint64{},
 		borrowing:    map[uint64]bool{},
-		events:       events,
 		// TODO(mattr): We should negotiate the shared counter pool size with the
 		// other end.
 		lshared:       DefaultBytesBufferedPerFlow,
@@ -174,20 +169,19 @@ func NewAccepted(
 	local naming.Endpoint,
 	versions version.RPCVersionRange,
 	handshakeTimeout time.Duration,
-	handler FlowHandler,
-	events chan<- StatusUpdate) (*Conn, error) {
+	handler FlowHandler) (*Conn, error) {
 	c := &Conn{
 		mp:            newMessagePipe(conn),
 		handler:       handler,
 		lBlessings:    v23.GetPrincipal(ctx).BlessingStore().Default(),
 		local:         local,
 		closed:        make(chan struct{}),
+		lameDucked:    make(chan struct{}),
 		nextFid:       reservedFlows + 1,
 		flows:         map[uint64]*flw{},
 		lastUsedTime:  time.Now(),
 		toRelease:     map[uint64]uint64{},
 		borrowing:     map[uint64]bool{},
-		events:        events,
 		lshared:       DefaultBytesBufferedPerFlow,
 		activeWriters: make([]writer, numPriorities),
 	}
@@ -207,14 +201,16 @@ func NewAccepted(
 	return c, nil
 }
 
-// Enter LameDuck mode.
-func (c *Conn) EnterLameDuck(ctx *context.T) {
+// Enter LameDuck mode, the returned channel will be closed when the remote
+// end has ack'd or the Conn is closed.
+func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 	c.mu.Lock()
 	err := c.sendMessageLocked(ctx, true, expressPriority, &message.EnterLameDuck{})
 	c.mu.Unlock()
 	if err != nil {
 		c.Close(ctx, NewErrSend(ctx, "release", c.remote.String(), err))
 	}
+	return c.lameDucked
 }
 
 // Dial dials a new flow on the Conn.
@@ -244,7 +240,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error)
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.status.RemoteLameDuck || c.status.Closing {
+	if c.remoteLameDuck || c.status >= Closing {
 		return nil, NewErrConnectionClosed(ctx)
 	}
 	id := c.nextFid
@@ -272,6 +268,15 @@ func (c *Conn) LastUsedTime() time.Time {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	return c.lastUsedTime
+}
+
+// RemoteLameDuck returns true if the other end of the connection has announced that
+// it is in lame duck mode indicating that new flows should not be dialed on this
+// conn.
+func (c *Conn) RemoteLameDuck() bool {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return c.remoteLameDuck
 }
 
 // Closed returns a channel that will be closed after the Conn is shutdown.
@@ -302,11 +307,11 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 		c.dischargeTimer.Stop()
 		c.dischargeTimer = nil
 	}
-	if c.status.Closing {
+	if c.status >= Closing {
 		// This conn is already being torn down.
 		return
 	}
-	c.status.Closing = true
+	c.status = Closing
 
 	go func() {
 		if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
@@ -335,13 +340,12 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 		}
 		c.loopWG.Wait()
 		c.mu.Lock()
-		c.status.Closed = true
-		status := c.status
-		c.mu.Unlock()
-		if c.events != nil {
-			c.events <- StatusUpdate{c, status}
+		if c.status < LameDuckAcknowledged {
+			close(c.lameDucked)
 		}
+		c.status = Closed
 		close(c.closed)
+		c.mu.Unlock()
 	}()
 }
 
@@ -384,12 +388,8 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 
 	case *message.EnterLameDuck:
 		c.mu.Lock()
-		c.status.RemoteLameDuck = true
-		status := c.status
+		c.remoteLameDuck = true
 		c.mu.Unlock()
-		if c.events != nil {
-			c.events <- StatusUpdate{c, status}
-		}
 		go func() {
 			// We only want to send the lame duck acknowledgment after all outstanding
 			// OpenFlows are sent.
@@ -404,12 +404,11 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 
 	case *message.AckLameDuck:
 		c.mu.Lock()
-		c.status.LocalLameDuck = true
-		status := c.status
-		c.mu.Unlock()
-		if c.events != nil {
-			c.events <- StatusUpdate{c, status}
+		if c.status < LameDuckAcknowledged {
+			c.status = LameDuckAcknowledged
+			close(c.lameDucked)
 		}
+		c.mu.Unlock()
 
 	case *message.OpenFlow:
 		c.mu.Lock()
@@ -420,7 +419,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		if c.handler == nil {
 			c.mu.Unlock()
 			return NewErrUnexpectedMsg(ctx, "openFlow")
-		} else if c.status.Closing {
+		} else if c.status == Closing {
 			c.mu.Unlock()
 			return nil // Conn is already being closed.
 		}
@@ -450,7 +449,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 
 	case *message.Data:
 		c.mu.Lock()
-		if c.status.Closing {
+		if c.status == Closing {
 			c.mu.Unlock()
 			return nil // Conn is already being shut down.
 		}

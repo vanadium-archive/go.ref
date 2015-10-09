@@ -160,7 +160,7 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 		pq = append(pq, e)
 	}
 	for d := range c.unmappedConns {
-		if status := d.conn.Status(); status.Closed {
+		if status := d.conn.Status(); status == conn.Closed {
 			delete(c.unmappedConns, d)
 			continue
 		}
@@ -181,11 +181,15 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 }
 
 func (c *ConnCache) EnterLameDuckMode(ctx *context.T) {
+	waitfor := make([]chan struct{}, 0, len(c.ridCache)+len(c.unmappedConns))
 	for _, e := range c.ridCache {
-		e.conn.EnterLameDuck(ctx)
+		waitfor = append(waitfor, e.conn.EnterLameDuck(ctx))
 	}
 	for d := range c.unmappedConns {
-		d.conn.EnterLameDuck(ctx)
+		waitfor = append(waitfor, d.conn.EnterLameDuck(ctx))
+	}
+	for _, w := range waitfor {
+		<-w
 	}
 }
 
@@ -225,10 +229,10 @@ func (c *ConnCache) removeUndialable(e *connEntry) *conn.Conn {
 	if e == nil {
 		return nil
 	}
-	if status := e.conn.Status(); status.Closed || status.LocalLameDuck {
+	if status := e.conn.Status(); status >= conn.Closing || e.conn.RemoteLameDuck() {
 		delete(c.addrCache, e.addrKey)
 		delete(c.ridCache, e.rid)
-		if !status.Closed {
+		if status < conn.Closing {
 			c.unmappedConns[e] = true
 		}
 		return nil

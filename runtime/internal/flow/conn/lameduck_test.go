@@ -22,9 +22,8 @@ func TestLameDuck(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	events := make(chan StatusUpdate, 2)
 	dflows, aflows := make(chan flow.Flow, 3), make(chan flow.Flow, 3)
-	dc, ac, _ := setupConnsWithEvents(t, ctx, ctx, dflows, aflows, events, false)
+	dc, ac, _ := setupConns(t, ctx, ctx, dflows, aflows, false)
 
 	go func() {
 		for {
@@ -59,11 +58,10 @@ func TestLameDuck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Now put the accepted conn into lame duck mode.
-	ac.EnterLameDuck(ctx)
-	if e := <-events; e.Conn != dc || e.Status != (Status{false, false, false, true}) {
-		t.Errorf("Expected RemoteLameDuck on dialer, got %#v (a %p, d %p)", e, ac, dc)
-	}
+	// Now put the accepted conn into lame duck mode and wait for the dialed
+	// conn to get the message.
+	ldch := ac.EnterLameDuck(ctx)
+	waitFor(dc.RemoteLameDuck)
 
 	// Now we shouldn't be able to dial from dc because it's in lame duck mode.
 	if _, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err == nil {
@@ -73,10 +71,9 @@ func TestLameDuck(t *testing.T) {
 	// I can't think of a non-flaky way to test for it, but it should
 	// be the case that we don't send the AckLameDuck message until
 	// we write to or close the other flows.  This should catch it sometimes.
-	select {
-	case e := <-events:
-		t.Errorf("Didn't expect any additional events yet, got %#v", e)
-	case <-time.After(time.Millisecond * 100):
+	time.Sleep(time.Millisecond * 100)
+	if ac.Status() == LameDuckAcknowledged {
+		t.Errorf("Didn't expect the acceptor to see a lame duck ack yet.")
 	}
 
 	// Now write or close the other flows.
@@ -85,27 +82,28 @@ func TestLameDuck(t *testing.T) {
 	}
 	f3.Close()
 
-	if e := <-events; e.Conn != ac || e.Status != (Status{false, false, true, false}) {
-		t.Errorf("Expected LocalLameDuck on acceptor, got %#v (a %p, d %p)", e, ac, dc)
+	// Now the acceptor should enter LameDuckAcknowledged.
+	<-ldch
+	if status := ac.Status(); status != LameDuckAcknowledged {
+		t.Errorf("Got %d, wanted %d.", status, LameDuckAcknowledged)
 	}
 
 	// Now put the dialer side into lame duck.
-	dc.EnterLameDuck(ctx)
-	if e := <-events; e.Conn != ac || e.Status != (Status{false, false, true, true}) {
-		t.Errorf("Expected RemoteLameDuck on acceptor, got %#v (a %p, d %p)", e, ac, dc)
-	}
-	if e := <-events; e.Conn != dc || e.Status != (Status{false, false, true, true}) {
-		t.Errorf("Expected LocalLameDuck on dialer, got %#v (a %p, d %p)", e, ac, dc)
+	ldch = dc.EnterLameDuck(ctx)
+	waitFor(ac.RemoteLameDuck)
+	<-ldch
+	if status := dc.Status(); status != LameDuckAcknowledged {
+		t.Errorf("Got %d, wanted %d.", status, LameDuckAcknowledged)
 	}
 
 	// Now close the accept side.
 	ac.Close(ctx, nil)
-	if e := <-events; e.Status != (Status{true, true, true, true}) {
-		t.Errorf("Expected Closed got %#v (a %p, d %p)", e, ac, dc)
-	}
-	if e := <-events; e.Status != (Status{true, true, true, true}) {
-		t.Errorf("Expected Closed got %#v (a %p, d %p)", e, ac, dc)
-	}
 	<-dc.Closed()
 	<-ac.Closed()
+	if status := dc.Status(); status != Closed {
+		t.Errorf("got %d, want %d", status, Closed)
+	}
+	if status := ac.Status(); status != Closed {
+		t.Errorf("got %d, want %d", status, Closed)
+	}
 }

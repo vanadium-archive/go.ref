@@ -47,17 +47,12 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 		cache:  NewConnCache(),
 		ctx:    ctx,
 	}
-	var events chan conn.StatusUpdate
 	if rid != naming.NullRoutingID {
 		m.ls = &listenState{
 			q:         upcqueue.New(),
 			listeners: []flow.Listener{},
-			// TODO(mattr): This channel is sized somewhat arbitrarily right now.
-			// I should measure the impact of the size.
-			events:    make(chan conn.StatusUpdate, 16),
 			stopProxy: make(chan struct{}),
 		}
-		events = m.ls.events
 	}
 	go func() {
 		ticker := time.NewTicker(reapCacheInterval)
@@ -72,11 +67,6 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 			case <-ticker.C:
 				// Periodically kill closed connections.
 				m.cache.KillConnections(ctx, 0)
-			case e := <-events:
-				if e.Status.Closed && !e.Status.LocalLameDuck ||
-					!e.Status.Closed && e.Status.LocalLameDuck {
-					m.ls.activeConns.Done()
-				}
 			}
 		}
 	}()
@@ -85,9 +75,7 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 
 type listenState struct {
 	q           *upcqueue.T
-	events      chan conn.StatusUpdate
 	listenLoops sync.WaitGroup
-	activeConns sync.WaitGroup
 
 	mu        sync.Mutex
 	stopProxy chan struct{}
@@ -122,15 +110,6 @@ func (m *manager) StopListening(ctx *context.T) {
 	// Now no more connections can start.  We should lame duck all the conns
 	// and wait for all of them to ack.
 	m.cache.EnterLameDuckMode(ctx)
-	done := make(chan struct{})
-	go func() {
-		m.ls.activeConns.Wait()
-		close(done)
-	}()
-	select {
-	case <-m.closed:
-	case <-done:
-	}
 	// Now nobody should send any more flows, so close the queue.
 	m.ls.q.Close()
 }
@@ -294,7 +273,6 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			m.ls.mu.Unlock()
 			return
 		}
-		m.ls.activeConns.Add(1)
 		m.ls.mu.Unlock()
 		fh := &flowHandler{m, make(chan struct{})}
 		c, err := conn.NewAccepted(
@@ -303,8 +281,7 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			local,
 			version.Supported,
 			handshakeTimeout,
-			fh,
-			m.ls.events)
+			fh)
 		if err != nil {
 			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
 			flowConn.Close()
@@ -344,7 +321,6 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 			f.Close()
 			return
 		}
-		h.m.ls.activeConns.Add(1)
 		h.m.ls.mu.Unlock()
 		c, err := conn.NewAccepted(
 			h.ctx,
@@ -352,8 +328,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 			f.Conn().LocalEndpoint(),
 			version.Supported,
 			handshakeTimeout,
-			fh,
-			h.m.ls.events)
+			fh)
 		if err != nil {
 			h.ctx.Errorf("failed to create accepted conn: %v", err)
 		} else if err = h.m.cache.InsertWithRoutingID(c); err != nil {
@@ -457,13 +432,10 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			return nil, nil, flow.NewErrDialFailed(ctx, err)
 		}
 		var fh conn.FlowHandler
-		var events chan conn.StatusUpdate
 		if m.ls != nil {
 			m.ls.mu.Lock()
 			if stoppedListening := m.ls.listeners == nil; !stoppedListening {
 				fh = &flowHandler{m: m}
-				events = m.ls.events
-				m.ls.activeConns.Add(1)
 			}
 			m.ls.mu.Unlock()
 		}
@@ -476,7 +448,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			auth,
 			handshakeTimeout,
 			fh,
-			events,
 		)
 		if err != nil {
 			flowConn.Close()
@@ -501,13 +472,10 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 	// return a flow on that corresponding conn.
 	if proxyConn := c; remote.RoutingID() != proxyConn.RemoteEndpoint().RoutingID() {
 		var fh conn.FlowHandler
-		var events chan conn.StatusUpdate
 		if m.ls != nil {
 			m.ls.mu.Lock()
 			if stoppedListening := m.ls.listeners == nil; !stoppedListening {
 				fh = &flowHandler{m: m}
-				events = m.ls.events
-				m.ls.activeConns.Add(1)
 			}
 			m.ls.mu.Unlock()
 		}
@@ -519,8 +487,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			version.Supported,
 			auth,
 			handshakeTimeout,
-			fh,
-			events)
+			fh)
 		if err != nil {
 			proxyConn.Close(ctx, err)
 			if id := verror.ErrorID(err); id == message.ErrWrongProtocol.ID || id == verror.ErrNotTrusted.ID {

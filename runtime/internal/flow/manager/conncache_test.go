@@ -122,13 +122,13 @@ func TestCache(t *testing.T) {
 
 	// Closing the cache should close all the connections in the cache.
 	// Ensure that the conns are not closed yet.
-	if status := conn.Status(); status.Closed {
+	if status := conn.Status(); status == connpackage.Closed {
 		t.Fatal("wanted conn to not be closed")
 	}
-	if status := dupConn.Status(); status.Closed {
+	if status := dupConn.Status(); status == connpackage.Closed {
 		t.Fatal("wanted dupConn to not be closed")
 	}
-	if status := otherConn.Status(); status.Closed {
+	if status := otherConn.Status(); status == connpackage.Closed {
 		t.Fatal("wanted otherConn to not be closed")
 	}
 	c.Close(ctx)
@@ -159,7 +159,7 @@ func TestLRU(t *testing.T) {
 	// conns[3:] should not be closed and still in the cache.
 	// conns[:3] should be closed and removed from the cache.
 	for _, conn := range conns[3:] {
-		if status := conn.c.Status(); status.Closed {
+		if status := conn.c.Status(); status == connpackage.Closed {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
 		if !isInCache(t, c, conn.c) {
@@ -193,7 +193,7 @@ func TestLRU(t *testing.T) {
 	// conns[:7] should not be closed and still in the cache.
 	// conns[7:] should be closed and removed from the cache.
 	for _, conn := range conns[:7] {
-		if status := conn.c.Status(); status.Closed {
+		if status := conn.c.Status(); status == connpackage.Closed {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
 		if !isInCache(t, c, conn.c) {
@@ -227,7 +227,7 @@ func TestLRU(t *testing.T) {
 	// conns[:7] should not be closed and still in the cache.
 	// conns[7:] should be closed and removed from the cache.
 	for _, conn := range conns[:7] {
-		if status := conn.c.Status(); status.Closed {
+		if status := conn.c.Status(); status == connpackage.Closed {
 			t.Errorf("conn %v should not have been closed", conn)
 		}
 		if !isInCache(t, c, conn.c) {
@@ -296,7 +296,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	ach := make(chan *connpackage.Conn)
 	go func() {
 		d, err := connpackage.NewDialed(ctx, dmrw, ep, ep,
-			version.RPCVersionRange{Min: 1, Max: 5}, flowtest.AllowAllPeersAuthorizer{}, time.Minute, nil, nil)
+			version.RPCVersionRange{Min: 1, Max: 5}, flowtest.AllowAllPeersAuthorizer{}, time.Minute, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -305,7 +305,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	fh := fh{t, make(chan struct{})}
 	go func() {
 		a, err := connpackage.NewAccepted(ctx, amrw, ep,
-			version.RPCVersionRange{Min: 1, Max: 5}, time.Minute, fh, nil)
+			version.RPCVersionRange{Min: 1, Max: 5}, time.Minute, fh)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

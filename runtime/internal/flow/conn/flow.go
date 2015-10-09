@@ -392,7 +392,7 @@ func (f *flw) close(ctx *context.T, err error) {
 		// message.
 		f.conn.mu.Lock()
 		delete(f.conn.flows, f.id)
-		connClosing := f.conn.status.Closing
+		connClosing := f.conn.status == Closing
 		var serr error
 		if !f.opened {
 			// Closing a flow that was never opened.

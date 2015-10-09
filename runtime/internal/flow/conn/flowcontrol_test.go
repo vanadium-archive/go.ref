@@ -44,10 +44,18 @@ func forkForRead(conn *Conn) *flowtest.MRW {
 	return conn.mp.rw.(*flowtest.MRW).ForkForRead()
 }
 
-func waitForWriters(ctx *context.T, conn *Conn, num int) {
+func waitFor(f func() bool) {
 	t := time.NewTicker(10 * time.Millisecond)
 	defer t.Stop()
 	for _ = range t.C {
+		if f() {
+			return
+		}
+	}
+}
+
+func waitForWriters(ctx *context.T, conn *Conn, num int) {
+	waitFor(func() bool {
 		conn.mu.Lock()
 		count := 0
 		for _, w := range conn.activeWriters {
@@ -59,10 +67,8 @@ func waitForWriters(ctx *context.T, conn *Conn, num int) {
 			}
 		}
 		conn.mu.Unlock()
-		if count >= num {
-			return
-		}
-	}
+		return count >= num
+	})
 }
 
 func TestOrdering(t *testing.T) {

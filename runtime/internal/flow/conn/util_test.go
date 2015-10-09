@@ -32,14 +32,6 @@ func setupConns(t *testing.T,
 	dctx, actx *context.T,
 	dflows, aflows chan<- flow.Flow,
 	noencrypt bool) (dialed, accepted *Conn, _ *flowtest.Wire) {
-	return setupConnsWithEvents(t, dctx, actx, dflows, aflows, nil, noencrypt)
-}
-
-func setupConnsWithEvents(t *testing.T,
-	dctx, actx *context.T,
-	dflows, aflows chan<- flow.Flow,
-	events chan<- StatusUpdate,
-	noencrypt bool) (dialed, accepted *Conn, _ *flowtest.Wire) {
 	var dmrw, amrw *flowtest.MRW
 	var w *flowtest.Wire
 	if noencrypt {
@@ -59,7 +51,7 @@ func setupConnsWithEvents(t *testing.T,
 		if dflows != nil {
 			handler = fh(dflows)
 		}
-		d, err := NewDialed(dctx, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, handler, events)
+		d, err := NewDialed(dctx, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, handler)
 		if err != nil {
 			panic(err)
 		}
@@ -70,7 +62,7 @@ func setupConnsWithEvents(t *testing.T,
 		if aflows != nil {
 			handler = fh(aflows)
 		}
-		a, err := NewAccepted(actx, amrw, ep, versions, time.Minute, handler, events)
+		a, err := NewAccepted(actx, amrw, ep, versions, time.Minute, handler)
 		if err != nil {
 			panic(err)
 		}
