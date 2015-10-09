@@ -40,27 +40,7 @@ func (tableData) __VDLReflect(struct {
 }) {
 }
 
-// stPrefixPerms describes internal representation of prefix permissions
-// in the store.
-//
-// Each pair of (key, perms) is stored as two key-value pairs:
-// "$perms:%table:key"  - stPrefixPerms{parent, perms}
-// "$perms:%table:key~" - stPrefixPerms{parent, perms}
-// where "~" represents a reserved char that's lexicographically greater than
-// all chars allowed by clients, %table is the name of the table and parent is
-// the longest proper prefix of the key that has associated permissions object.
-type stPrefixPerms struct {
-	Parent string
-	Perms  access.Permissions
-}
-
-func (stPrefixPerms) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server/nosql.stPrefixPerms"`
-}) {
-}
-
 func init() {
 	vdl.Register((*databaseData)(nil))
 	vdl.Register((*tableData)(nil))
-	vdl.Register((*stPrefixPerms)(nil))
 }
