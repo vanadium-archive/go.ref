@@ -17,6 +17,7 @@ import (
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	iflow "v.io/x/ref/runtime/internal/flow"
 )
 
 // flowID is a number assigned to identify a flow.
@@ -227,7 +228,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error)
 		// TODO(suharshs): On the first flow dial, find a way to not call this twice.
 		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges)
 		if err != nil {
-			return nil, verror.New(verror.ErrNotTrusted, ctx, err)
+			return nil, iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
 		}
 		blessings, discharges, err := auth.BlessingsForPeer(ctx, rbnames)
 		if err != nil {
