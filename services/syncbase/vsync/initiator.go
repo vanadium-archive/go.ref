@@ -4,7 +4,7 @@
 
 package vsync
 
-// Initiator requests deltas from a chosen peer for all the SyncGroups in common
+// Initiator requests deltas from a chosen peer for all the syncgroups in common
 // across all apps/databases. It then modifies the sync metadata (DAG and local
 // log records) based on the deltas, detects and resolves conflicts if any, and
 // suitably updates the local Databases.
@@ -30,7 +30,7 @@ import (
 
 // getDeltas performs an initiation round to the specified peer. An
 // initiation round consists of two sync rounds:
-// * Sync SyncGroup metadata.
+// * Sync syncgroup metadata.
 // * Sync data.
 // Each sync round involves:
 // * Contacting the peer to receive all the deltas based on the local genvector.
@@ -40,7 +40,7 @@ import (
 // * Updating local genvector to catch up to the received remote genvector.
 //
 // The processing of the deltas is done one Database at a time, encompassing all
-// the SyncGroups common to the initiator and the responder. If a local error is
+// the syncgroups common to the initiator and the responder. If a local error is
 // encountered during the processing of a Database, that Database is skipped and
 // the initiator continues on to the next one. If the connection to the peer
 // encounters an error, this initiation round is aborted. Note that until the
@@ -60,7 +60,7 @@ func (s *syncService) getDeltas(ctx *context.T, peer string) {
 	// Preferred mount tables for this peer.
 	prfMtTbls := set.String.ToSlice(info.mtTables)
 
-	// Sync each Database that may have SyncGroups common with this peer,
+	// Sync each Database that may have syncgroups common with this peer,
 	// one at a time.
 	for gdbName := range info.db2sg {
 		vlog.VI(4).Infof("sync: getDeltas: started for peer %s db %s", peer, gdbName)
@@ -81,8 +81,8 @@ func (s *syncService) getDeltas(ctx *context.T, peer string) {
 				vlog.Errorf("sync: getDeltas: failed for data sync, err %v", err)
 			}
 		} else {
-			// If SyncGroup sync fails, abort data sync as well.
-			vlog.Errorf("sync: getDeltas: failed for SyncGroup sync, err %v", err)
+			// If syncgroup sync fails, abort data sync as well.
+			vlog.Errorf("sync: getDeltas: failed for syncgroup sync, err %v", err)
 		}
 
 		// Cache the pruned mount table list for the next Database.
@@ -93,7 +93,7 @@ func (s *syncService) getDeltas(ctx *context.T, peer string) {
 }
 
 // getDBDeltas gets the deltas from the chosen peer. If sg flag is set to true,
-// it will sync SyncGroup metadata. If sg flag is false, it will sync data.
+// it will sync syncgroup metadata. If sg flag is false, it will sync data.
 func (s *syncService) getDBDeltas(ctxIn *context.T, peer string, c *initiationConfig, sg bool) error {
 	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer sg %v %s", sg, peer)
 	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer sg %v %s", sg, peer)
@@ -105,17 +105,17 @@ func (s *syncService) getDBDeltas(ctxIn *context.T, peer string, c *initiationCo
 	// Initialize initiation state for syncing this Database.
 	iSt := newInitiationState(ctx, c, sg)
 
-	// Initialize SyncGroup prefixes for data syncing.
+	// Initialize syncgroup prefixes for data syncing.
 	if !sg {
 		iSt.peerSgInfo(ctx)
 		if len(iSt.config.sgPfxs) == 0 {
-			return verror.New(verror.ErrInternal, ctx, "no SyncGroup prefixes found", peer, iSt.config.appName, iSt.config.dbName)
+			return verror.New(verror.ErrInternal, ctx, "no syncgroup prefixes found", peer, iSt.config.appName, iSt.config.dbName)
 		}
 	}
 
 	if sg {
 		// Create local genvec so that it contains knowledge about
-		// common SyncGroups and then send the SyncGroup metadata sync
+		// common syncgroups and then send the syncgroup metadata sync
 		// request.
 		if err := iSt.prepareSGDeltaReq(ctx); err != nil {
 			return err
@@ -163,8 +163,8 @@ type initiationConfig struct {
 	// reached the last time.
 	mtTables []string
 
-	sgIds   sgSet            // SyncGroups being requested in the initiation round.
-	sgPfxs  map[string]sgSet // SyncGroup prefixes and their ids being requested in the initiation round.
+	sgIds   sgSet            // Syncgroups being requested in the initiation round.
+	sgPfxs  map[string]sgSet // Syncgroup prefixes and their ids being requested in the initiation round.
 	sync    *syncService
 	appName string
 	dbName  string
@@ -188,7 +188,7 @@ type initiationState struct {
 	req    interfaces.DeltaReq                // GetDeltas RPC request.
 	stream interfaces.SyncGetDeltasClientCall // stream handle for the GetDeltas RPC.
 
-	// Flag to indicate if this is SyncGroup metadata sync.
+	// Flag to indicate if this is syncgroup metadata sync.
 	sg bool
 
 	// Transaction handle for the sync round. Used during the update
@@ -217,7 +217,7 @@ func newInitiationConfig(ctx *context.T, s *syncService, peer string, name strin
 		c.sgIds[id] = struct{}{}
 	}
 	if len(c.sgIds) == 0 {
-		return nil, verror.New(verror.ErrInternal, ctx, "no SyncGroups found", peer, name)
+		return nil, verror.New(verror.ErrInternal, ctx, "no syncgroups found", peer, name)
 	}
 	// Note: sgPfxs will be inited when needed by the data sync.
 
@@ -252,21 +252,21 @@ func newInitiationState(ctx *context.T, c *initiationConfig, sg bool) *initiatio
 	return iSt
 }
 
-// peerSgInfo computes the SyncGroup Ids and prefixes common with a remote peer
-// in a particular Database by consulting the SyncGroups in the specified
+// peerSgInfo computes the syncgroup Ids and prefixes common with a remote peer
+// in a particular Database by consulting the syncgroups in the specified
 // Database.
 func (iSt *initiationState) peerSgInfo(ctx *context.T) {
 	sgs := iSt.config.sgIds
-	iSt.config.sgIds = make(sgSet) // regenerate the sgids since we are going through the SyncGroups in any case.
+	iSt.config.sgIds = make(sgSet) // regenerate the sgids since we are going through the syncgroups in any case.
 	iSt.config.sgPfxs = make(map[string]sgSet)
 
 	for id := range sgs {
-		sg, err := getSyncGroupById(ctx, iSt.config.st, id)
+		sg, err := getSyncgroupById(ctx, iSt.config.st, id)
 		if err != nil {
 			continue
 		}
 		if _, ok := sg.Joiners[iSt.config.peer]; !ok {
-			// Peer is no longer part of the SyncGroup.
+			// Peer is no longer part of the syncgroup.
 			continue
 		}
 
@@ -377,9 +377,9 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 	return nil
 }
 
-// prepareSGDeltaReq creates the SyncGroup generation vector with local knowledge
-// for the initiator to send to the responder, and prepares the request to start
-// the SyncGroup sync.
+// prepareSGDeltaReq creates the syncgroup generation vector with local
+// knowledge for the initiator to send to the responder, and prepares the
+// request to start the syncgroup sync.
 func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
 	iSt.config.sync.thLock.Lock()
 	defer iSt.config.sync.thLock.Unlock()
@@ -409,7 +409,7 @@ func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
 }
 
 // connectToPeer attempts to connect to the remote peer using the mount tables
-// obtained from all the common SyncGroups.
+// obtained from all the common syncgroups.
 func (iSt *initiationState) connectToPeer(ctxIn *context.T) bool {
 	vlog.VI(4).Infof("sync: connectToPeer: begin")
 
@@ -487,7 +487,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 		case interfaces.DeltaRespRec:
 			// Insert log record in Database.
 			// TODO(hpucha): Should we reserve more positions in a batch?
-			// TODO(hpucha): Handle if SyncGroup is left/destroyed while sync is in progress.
+			// TODO(hpucha): Handle if syncgroup is left/destroyed while sync is in progress.
 			var pos uint64
 			if iSt.sg {
 				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, v.Value.Metadata.ObjId, 1)
@@ -514,7 +514,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 			}
 
 			if iSt.sg {
-				// Add the SyncGroup value to the Database.
+				// Add the syncgroup value to the Database.
 				if err := iSt.insertSgRecInDb(ctx, rec, v.Value.Value, tx); err != nil {
 					return err
 				}
@@ -588,10 +588,10 @@ func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *localLogRe
 	return err
 }
 
-// insertSgRecInDb inserts the versioned value of a SyncGroup in the Database.
+// insertSgRecInDb inserts the versioned value of a syncgroup in the Database.
 func (iSt *initiationState) insertSgRecInDb(ctx *context.T, rec *localLogRec, valbuf []byte, tx store.Transaction) error {
 	m := rec.Metadata
-	var sg interfaces.SyncGroup
+	var sg interfaces.Syncgroup
 	if err := vom.Decode(valbuf, &sg); err != nil {
 		return err
 	}
@@ -639,7 +639,7 @@ func (iSt *initiationState) processBlobRefs(ctx *context.T, m *interfaces.LogRec
 		for p, sgs := range iSt.config.sgPfxs {
 			// The key (objid) starts with one of the store's reserved prefixes for
 			// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
-			// comparing it with the SyncGroup prefixes which are defined by the
+			// comparing it with the syncgroup prefixes which are defined by the
 			// application.
 			if strings.HasPrefix(util.StripFirstPartOrDie(objid), p) {
 				for sg := range sgs {
@@ -1019,7 +1019,7 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 		}
 
 		if iSt.sg {
-			// Flip sync pending if needed in case of SyncGroup
+			// Flip sync pending if needed in case of syncgroup
 			// syncing. See explanation for SyncPending flag in
 			// types.vdl.
 			gid, err := sgID(rpfx)

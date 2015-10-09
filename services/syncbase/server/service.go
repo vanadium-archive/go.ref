@@ -141,7 +141,7 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 }
 
 // AddNames adds all the names for this Syncbase instance gathered from all the
-// SyncGroups it is currently participating in. This method is exported so that
+// syncgroups it is currently participating in. This method is exported so that
 // when syncbased is launched, it can publish these names.
 //
 // Note: This method is exported here and syncbased in main.go calls it since

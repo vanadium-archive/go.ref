@@ -36,16 +36,16 @@ var (
 	// notifications instead of using a polling solution.
 	watchPollInterval = 100 * time.Millisecond
 
-	// watchPrefixes is an in-memory cache of SyncGroup prefixes for each
-	// app database.  It is filled at startup from persisted SyncGroup data
-	// and updated at runtime when SyncGroups are joined or left.  It is
+	// watchPrefixes is an in-memory cache of syncgroup prefixes for each
+	// app database.  It is filled at startup from persisted syncgroup data
+	// and updated at runtime when syncgroups are joined or left.  It is
 	// not guarded by a mutex because only the watcher goroutine uses it
 	// beyond the startup phase (before any sync goroutines are started).
 	// The map keys are the appdb names (globally unique).
 	watchPrefixes = make(map[string]sgPrefixes)
 )
 
-// sgPrefixes tracks SyncGroup prefixes being synced in a database and their
+// sgPrefixes tracks syncgroup prefixes being synced in a database and their
 // counts.
 type sgPrefixes map[string]uint32
 
@@ -143,7 +143,7 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 }
 
 // processWatchLogBatch parses the given batch of watch log records, updates the
-// watchable SyncGroup prefixes, uses the prefixes to filter the batch to the
+// watchable syncgroup prefixes, uses the prefixes to filter the batch to the
 // subset of syncable records, and transactionally applies these updates to the
 // sync metadata (DAG & log records) and updates the watch resume marker.
 func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, logs []*watchable.LogEntry, resMark watch.ResumeMarker) {
@@ -151,19 +151,19 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 		return
 	}
 
-	// If the first log entry is a SyncGroup prefix operation, then this is
-	// a SyncGroup snapshot and not an application batch.  In this case,
-	// handle the SyncGroup prefix changes by updating the watch prefixes
+	// If the first log entry is a syncgroup prefix operation, then this is
+	// a syncgroup snapshot and not an application batch.  In this case,
+	// handle the syncgroup prefix changes by updating the watch prefixes
 	// and exclude the first entry from the batch.  Also inform the batch
 	// processing below to not assign it a batch ID in the DAG.
 	appBatch := true
-	found, sgop := processSyncGroupLogRecord(appName, dbName, logs[0])
+	found, sgop := processSyncgroupLogRecord(appName, dbName, logs[0])
 	if found {
 		appBatch = false
 		logs = logs[1:]
 	}
 
-	// Filter out the log entries for keys not part of any SyncGroup.
+	// Filter out the log entries for keys not part of any syncgroup.
 	// Ignore as well log entries made by sync (echo suppression).
 	totalCount := uint64(len(logs))
 	appdb := appDbName(appName, dbName)
@@ -197,7 +197,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 		}
 
 		if !appBatch {
-			if err := setSyncGroupWatchable(ctx, tx, sgop); err != nil {
+			if err := setSyncgroupWatchable(ctx, tx, sgop); err != nil {
 				return err
 			}
 		}
@@ -283,7 +283,7 @@ func (s *syncService) processLocalLogRec(ctx *context.T, tx store.Transaction, r
 	return moveHead(ctx, tx, m.ObjId, m.CurVers)
 }
 
-// incrWatchPrefix increments (or sets) a SyncGroup prefix for an app database
+// incrWatchPrefix increments (or sets) a syncgroup prefix for an app database
 // in the watch prefix cache.
 func incrWatchPrefix(appName, dbName, prefix string) {
 	name := appDbName(appName, dbName)
@@ -294,7 +294,7 @@ func incrWatchPrefix(appName, dbName, prefix string) {
 	}
 }
 
-// decrWatchPrefix decrements (or unsets) a SyncGroup prefix for an app database
+// decrWatchPrefix decrements (or unsets) a syncgroup prefix for an app database
 // in the watch prefix cache.
 func decrWatchPrefix(appName, dbName, prefix string) {
 	name := appDbName(appName, dbName)
@@ -309,8 +309,8 @@ func decrWatchPrefix(appName, dbName, prefix string) {
 	}
 }
 
-// setSyncGroupWatchable sets the local watchable state of the SyncGroup.
-func setSyncGroupWatchable(ctx *context.T, tx store.Transaction, sgop watchable.SyncGroupOp) error {
+// setSyncgroupWatchable sets the local watchable state of the syncgroup.
+func setSyncgroupWatchable(ctx *context.T, tx store.Transaction, sgop watchable.SyncgroupOp) error {
 	state, err := getSGIdEntry(ctx, tx, sgop.SgId)
 	if err != nil {
 		return err
@@ -344,8 +344,8 @@ func convertLogRecord(ctx *context.T, tx store.Transaction, logEnt *watchable.Lo
 
 	case watchable.OpSyncSnapshot:
 		// Create records for object versions not already in the DAG.
-		// Duplicates can appear here in cases of nested SyncGroups or
-		// peer SyncGroups.
+		// Duplicates can appear here in cases of nested syncgroups or
+		// peer syncgroups.
 		if ok, err := hasNode(ctx, tx, string(op.Value.Key), string(op.Value.Version)); err != nil {
 			return nil, err
 		} else if !ok {
@@ -355,9 +355,9 @@ func convertLogRecord(ctx *context.T, tx store.Transaction, logEnt *watchable.Lo
 	case watchable.OpDelete:
 		rec = newLocalLogRec(ctx, tx, op.Value.Key, watchable.NewVersion(), true, timestamp)
 
-	case watchable.OpSyncGroup:
-		vlog.Errorf("sync: convertLogRecord: watch LogEntry for SyncGroup should not be converted: %v", logEnt)
-		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert a watch log OpSyncGroup entry")
+	case watchable.OpSyncgroup:
+		vlog.Errorf("sync: convertLogRecord: watch LogEntry for syncgroup should not be converted: %v", logEnt)
+		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert a watch log OpSyncgroup entry")
 
 	default:
 		vlog.Errorf("sync: convertLogRecord: invalid watch LogEntry: %v", logEnt)
@@ -386,12 +386,12 @@ func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, d
 	return &rec
 }
 
-// processSyncGroupLogRecord checks if the log entry is a SyncGroup update and,
+// processSyncgroupLogRecord checks if the log entry is a syncgroup update and,
 // if it is, updates the watch prefixes for the app database and returns true.
 // Otherwise it returns false with no other changes.
-func processSyncGroupLogRecord(appName, dbName string, logEnt *watchable.LogEntry) (bool, watchable.SyncGroupOp) {
+func processSyncgroupLogRecord(appName, dbName string, logEnt *watchable.LogEntry) (bool, watchable.SyncgroupOp) {
 	switch op := logEnt.Op.(type) {
-	case watchable.OpSyncGroup:
+	case watchable.OpSyncgroup:
 		remove := op.Value.Remove
 		for _, prefix := range op.Value.Prefixes {
 			if remove {
@@ -400,17 +400,17 @@ func processSyncGroupLogRecord(appName, dbName string, logEnt *watchable.LogEntr
 				incrWatchPrefix(appName, dbName, prefix)
 			}
 		}
-		vlog.VI(3).Infof("sync: processSyncGroupLogRecord: %s, %s: remove %t, prefixes: %q",
+		vlog.VI(3).Infof("sync: processSyncgroupLogRecord: %s, %s: remove %t, prefixes: %q",
 			appName, dbName, remove, op.Value.Prefixes)
 		return true, op.Value
 
 	default:
-		return false, watchable.SyncGroupOp{}
+		return false, watchable.SyncgroupOp{}
 	}
 }
 
 // syncable returns true if the given log entry falls within the scope of a
-// SyncGroup prefix for the given app database, and thus should be synced.
+// syncgroup prefix for the given app database, and thus should be synced.
 // It is used to pre-filter the batch of log entries before sync processing.
 func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 	var key string
@@ -427,7 +427,7 @@ func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 
 	// The key starts with one of the store's reserved prefixes for managed
 	// namespaced (e.g. $row or $perm).  Remove that prefix before comparing
-	// it with the SyncGroup prefixes which are defined by the application.
+	// it with the syncgroup prefixes which are defined by the application.
 	parts := util.SplitKeyParts(key)
 	if len(parts) < 2 {
 		vlog.Fatalf("sync: syncable: %s: invalid entry key %s: %v", appdb, key, logEnt)

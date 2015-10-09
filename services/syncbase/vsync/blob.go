@@ -27,7 +27,7 @@ const (
 type blobLocInfo struct {
 	peer   string                          // Syncbase from which the presence of this BlobRef was first learned.
 	source string                          // Syncbase that originated this blob.
-	sgIds  map[interfaces.GroupId]struct{} // SyncGroups through which the BlobRef was learned.
+	sgIds  map[interfaces.GroupId]struct{} // Syncgroups through which the BlobRef was learned.
 }
 
 ////////////////////////////////////////////////////////////

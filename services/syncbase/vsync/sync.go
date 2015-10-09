@@ -64,8 +64,8 @@ type syncService struct {
 	// TODO(hpucha): Other global names to advertise to enable Syncbase
 	// discovery. For example, every Syncbase must be reachable under
 	// <mttable>/<syncbaseid> for p2p sync. This is the name advertised
-	// during SyncGroup join. In addition, a Syncbase might also be
-	// accepting "publish SyncGroup requests", and might use a more
+	// during syncgroup join. In addition, a Syncbase might also be
+	// accepting "publish syncgroup requests", and might use a more
 	// human-readable name such as <mttable>/<idp>/<sgserver>. All these
 	// names must be advertised in the appropriate mount tables.
 
@@ -78,8 +78,8 @@ type syncService struct {
 	syncState     map[string]*dbSyncStateInMem
 	syncStateLock sync.Mutex // lock to protect access to the sync state.
 
-	// In-memory queue of SyncGroups to be published.  It is reconstructed
-	// at startup from SyncGroup info so it does not need to be persisted.
+	// In-memory queue of syncgroups to be published.  It is reconstructed
+	// at startup from syncgroup info so it does not need to be persisted.
 	sgPublishQueue     *list.List
 	sgPublishQueueLock sync.Mutex
 
@@ -100,7 +100,7 @@ type syncService struct {
 }
 
 // syncDatabase contains the metadata for syncing a database. This struct is
-// used as a receiver to hand off the app-initiated SyncGroup calls that arrive
+// used as a receiver to hand off the app-initiated syncgroup calls that arrive
 // against a nosql.Database to the sync module.
 type syncDatabase struct {
 	db   interfaces.Database
@@ -189,9 +189,9 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngin
 }
 
 // AddNames publishes all the names for this Syncbase instance gathered from all
-// the SyncGroups it is currently participating in. This is needed when
+// the syncgroups it is currently participating in. This is needed when
 // syncbased is restarted so that it can republish itself at the names being
-// used in the SyncGroups.
+// used in the syncgroups.
 func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) error {
 	vlog.VI(2).Infof("sync: AddNames:: begin")
 	defer vlog.VI(2).Infof("sync: AddNames:: end")

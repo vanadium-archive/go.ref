@@ -4,11 +4,11 @@
 
 package vsync
 
-// SyncGroup management and storage in Syncbase.  Handles the lifecycle
-// of SyncGroups (create, join, leave, etc.) and their persistence as
+// Syncgroup management and storage in Syncbase.  Handles the lifecycle
+// of syncgroups (create, join, leave, etc.) and their persistence as
 // sync metadata in the application databases.  Provides helper functions
 // to the higher levels of sync (Initiator, Watcher) to get membership
-// information and map key/value changes to their matching SyncGroups.
+// information and map key/value changes to their matching syncgroups.
 
 // TODO(hpucha): Add high level commentary about the logic behind create/join
 // etc.
@@ -36,18 +36,18 @@ import (
 )
 
 var (
-	// memberViewTTL is the shelf-life of the aggregate view of SyncGroup members.
+	// memberViewTTL is the shelf-life of the aggregate view of syncgroup members.
 	memberViewTTL = 2 * time.Second
 )
 
 ////////////////////////////////////////////////////////////
-// SyncGroup management internal to Syncbase.
+// Syncgroup management internal to Syncbase.
 
-// memberView holds an aggregated view of all SyncGroup members across
+// memberView holds an aggregated view of all syncgroup members across
 // databases. The view is not coherent, it gets refreshed according to a
-// configured TTL and not (coherently) when SyncGroup membership is updated in
+// configured TTL and not (coherently) when syncgroup membership is updated in
 // the various databases. It is needed by the sync Initiator, which must select
-// a peer to contact from a global view of all SyncGroup members gathered from
+// a peer to contact from a global view of all syncgroup members gathered from
 // all databases. This is why a slightly stale view is acceptable.
 // The members are identified by their Vanadium names (map keys).
 type memberView struct {
@@ -55,26 +55,26 @@ type memberView struct {
 	members    map[string]*memberInfo
 }
 
-// memberInfo holds the member metadata for each SyncGroup this member belongs
+// memberInfo holds the member metadata for each syncgroup this member belongs
 // to within each App/Database (i.e. global database name). It's a mapping of
-// global DB names to sets of SyncGroup member information. It also maintains
+// global DB names to sets of syncgroup member information. It also maintains
 // all the mount table candidates that could be used to reach this peer, learned
-// from the SyncGroup metadata.
+// from the syncgroup metadata.
 type memberInfo struct {
 	db2sg    map[string]sgMemberInfo
 	mtTables map[string]struct{}
 }
 
-// sgMemberInfo maps SyncGroups to their member metadata.
-type sgMemberInfo map[interfaces.GroupId]wire.SyncGroupMemberInfo
+// sgMemberInfo maps syncgroups to their member metadata.
+type sgMemberInfo map[interfaces.GroupId]wire.SyncgroupMemberInfo
 
-// newSyncGroupVersion generates a random SyncGroup version ("etag").
-func newSyncGroupVersion() string {
+// newSyncgroupVersion generates a random syncgroup version ("etag").
+func newSyncgroupVersion() string {
 	return fmt.Sprintf("%x", rand64())
 }
 
-// newSyncGroupId generates a random SyncGroup ID.
-func newSyncGroupId() interfaces.GroupId {
+// newSyncgroupId generates a random syncgroup ID.
+func newSyncgroupId() interfaces.GroupId {
 	id := interfaces.NoGroupId
 	for id == interfaces.NoGroupId {
 		id = interfaces.GroupId(rand64())
@@ -82,9 +82,9 @@ func newSyncGroupId() interfaces.GroupId {
 	return id
 }
 
-// verifySyncGroup verifies if a SyncGroup struct is well-formed.
+// verifySyncgroup verifies if a Syncgroup struct is well-formed.
 // TODO(rdaoud): define verrors for all ErrBadArg cases.
-func verifySyncGroup(ctx *context.T, sg *interfaces.SyncGroup) error {
+func verifySyncgroup(ctx *context.T, sg *interfaces.Syncgroup) error {
 	if sg == nil {
 		return verror.New(verror.ErrBadArg, ctx, "group information not specified")
 	}
@@ -109,11 +109,11 @@ func verifySyncGroup(ctx *context.T, sg *interfaces.SyncGroup) error {
 	if len(sg.Joiners) == 0 {
 		return verror.New(verror.ErrBadArg, ctx, "group has no joiners")
 	}
-	return verifySyncGroupSpec(ctx, &sg.Spec)
+	return verifySyncgroupSpec(ctx, &sg.Spec)
 }
 
-// verifySyncGroupSpec verifies if a SyncGroupSpec is well-formed.
-func verifySyncGroupSpec(ctx *context.T, spec *wire.SyncGroupSpec) error {
+// verifySyncgroupSpec verifies if a SyncgroupSpec is well-formed.
+func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 	if spec == nil {
 		return verror.New(verror.ErrBadArg, ctx, "group spec not specified")
 	}
@@ -125,10 +125,10 @@ func verifySyncGroupSpec(ctx *context.T, spec *wire.SyncGroupSpec) error {
 	prefixes := make(map[string]bool, len(spec.Prefixes))
 	for _, p := range spec.Prefixes {
 		if !pubutil.ValidTableName(p.TableName) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a SyncGroupPrefix with invalid table name %q", p.TableName))
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a SyncgroupPrefix with invalid table name %q", p.TableName))
 		}
 		if p.RowPrefix != "" && !pubutil.ValidRowKey(p.RowPrefix) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a SyncGroupPrefix with invalid row prefix %q", p.RowPrefix))
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a SyncgroupPrefix with invalid row prefix %q", p.RowPrefix))
 		}
 		prefixes[toTableRowPrefixStr(p)] = true
 	}
@@ -139,7 +139,7 @@ func verifySyncGroupSpec(ctx *context.T, spec *wire.SyncGroupSpec) error {
 }
 
 // samePrefixes returns true if the two sets of prefixes are the same.
-func samePrefixes(pfx1, pfx2 []wire.SyncGroupPrefix) bool {
+func samePrefixes(pfx1, pfx2 []wire.SyncgroupPrefix) bool {
 	pfxMap := make(map[string]uint8)
 	for _, p := range pfx1 {
 		pfxMap[toTableRowPrefixStr(p)] |= 0x01
@@ -155,17 +155,17 @@ func samePrefixes(pfx1, pfx2 []wire.SyncGroupPrefix) bool {
 	return true
 }
 
-// addSyncGroup adds a new SyncGroup given its version and information.  This
+// addSyncgroup adds a new syncgroup given its version and information.  This
 // also includes creating a DAG node entry and updating the DAG head.  If the
-// caller is the creator of the SyncGroup, a local log record is also created
+// caller is the creator of the syncgroup, a local log record is also created
 // using the given server ID and gen and pos counters to index the log record.
-// Otherwise, it's a joiner case and the SyncGroup is put in a pending state
+// Otherwise, it's a joiner case and the syncgroup is put in a pending state
 // (waiting for its full metadata to be synchronized) and the log record is
 // skipped, delaying its creation till the Initiator does p2p sync.
-func (s *syncService) addSyncGroup(ctx *context.T, tx store.Transaction, version string, creator bool, remotePublisher string, genvec interfaces.PrefixGenVector, servId, gen, pos uint64, sg *interfaces.SyncGroup) error {
-	// Verify the SyncGroup information before storing it since it may have
+func (s *syncService) addSyncgroup(ctx *context.T, tx store.Transaction, version string, creator bool, remotePublisher string, genvec interfaces.PrefixGenVector, servId, gen, pos uint64, sg *interfaces.Syncgroup) error {
+	// Verify the syncgroup information before storing it since it may have
 	// been received from a remote peer.
-	if err := verifySyncGroup(ctx, sg); err != nil {
+	if err := verifySyncgroup(ctx, sg); err != nil {
 		return err
 	}
 
@@ -197,32 +197,32 @@ func (s *syncService) addSyncGroup(ctx *context.T, tx store.Transaction, version
 		return err
 	}
 
-	// Add the SyncGroup versioned data entry.
+	// Add the syncgroup versioned data entry.
 	if ok, err := hasSGDataEntry(tx, sg.Id, version); err != nil {
 		return err
 	} else if ok {
 		return verror.New(verror.ErrExist, ctx, "group id version already exists")
 	}
 
-	return s.updateSyncGroupVersioning(ctx, tx, version, creator, servId, gen, pos, sg)
+	return s.updateSyncgroupVersioning(ctx, tx, version, creator, servId, gen, pos, sg)
 }
 
-// updateSyncGroupVersioning updates the per-version information of a SyncGroup.
-// It writes a new versioned copy of the SyncGroup data entry, a new DAG node,
+// updateSyncgroupVersioning updates the per-version information of a syncgroup.
+// It writes a new versioned copy of the syncgroup data entry, a new DAG node,
 // and updates the DAG head.  Optionally, it also writes a new local log record
 // using the given server ID and gen and pos counters to index it.  The caller
 // can provide the version number to use otherwise, if NoVersion is given, a new
 // version is generated by the function.
-// TODO(rdaoud): hook SyncGroup mutations (and deletions) to the watch log so
+// TODO(rdaoud): hook syncgroup mutations (and deletions) to the watch log so
 // apps can monitor SG changes as well.
-func (s *syncService) updateSyncGroupVersioning(ctx *context.T, tx store.Transaction, version string, withLog bool, servId, gen, pos uint64, sg *interfaces.SyncGroup) error {
+func (s *syncService) updateSyncgroupVersioning(ctx *context.T, tx store.Transaction, version string, withLog bool, servId, gen, pos uint64, sg *interfaces.Syncgroup) error {
 	if version == NoVersion {
-		version = newSyncGroupVersion()
+		version = newSyncgroupVersion()
 	}
 
 	oid := sgOID(sg.Id)
 
-	// Add the SyncGroup versioned data entry.
+	// Add the syncgroup versioned data entry.
 	if err := setSGDataEntryByOID(ctx, tx, oid, version, sg); err != nil {
 		return err
 	}
@@ -234,24 +234,24 @@ func (s *syncService) updateSyncGroupVersioning(ctx *context.T, tx store.Transac
 		return err
 	}
 
-	// Add a sync log record for the SyncGroup if needed.
+	// Add a sync log record for the syncgroup if needed.
 	logKey := ""
 	if withLog {
-		if err := addSyncGroupLogRec(ctx, tx, oid, version, parents, servId, gen, pos); err != nil {
+		if err := addSyncgroupLogRec(ctx, tx, oid, version, parents, servId, gen, pos); err != nil {
 			return err
 		}
 		logKey = logRecKey(oid, servId, gen)
 	}
 
-	// Add the SyncGroup to the DAG.
+	// Add the syncgroup to the DAG.
 	if err := s.addNode(ctx, tx, oid, version, logKey, false, parents, NoBatchId, nil); err != nil {
 		return err
 	}
 	return setHead(ctx, tx, oid, version)
 }
 
-// addSyncGroupLogRec adds a new local log record for a SyncGroup.
-func addSyncGroupLogRec(ctx *context.T, tx store.Transaction, oid, version string, parents []string, servId, gen, pos uint64) error {
+// addSyncgroupLogRec adds a new local log record for a syncgroup.
+func addSyncgroupLogRec(ctx *context.T, tx store.Transaction, oid, version string, parents []string, servId, gen, pos uint64) error {
 	rec := &localLogRec{
 		Metadata: interfaces.LogRecMetadata{
 			ObjId:   oid,
@@ -270,51 +270,51 @@ func addSyncGroupLogRec(ctx *context.T, tx store.Transaction, oid, version strin
 	return putLogRec(ctx, tx, oid, rec)
 }
 
-// getSyncGroupId retrieves the SyncGroup ID given its name.
-func getSyncGroupId(ctx *context.T, st store.StoreReader, name string) (interfaces.GroupId, error) {
+// getSyncgroupId retrieves the syncgroup ID given its name.
+func getSyncgroupId(ctx *context.T, st store.StoreReader, name string) (interfaces.GroupId, error) {
 	return getSGNameEntry(ctx, st, name)
 }
 
-// getSyncGroupVersion retrieves the current version of the SyncGroup.
-func getSyncGroupVersion(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (string, error) {
+// getSyncgroupVersion retrieves the current version of the syncgroup.
+func getSyncgroupVersion(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (string, error) {
 	return getHead(ctx, st, sgOID(gid))
 }
 
-// getSyncGroupById retrieves the SyncGroup given its ID.
-func getSyncGroupById(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (*interfaces.SyncGroup, error) {
-	version, err := getSyncGroupVersion(ctx, st, gid)
+// getSyncgroupById retrieves the syncgroup given its ID.
+func getSyncgroupById(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (*interfaces.Syncgroup, error) {
+	version, err := getSyncgroupVersion(ctx, st, gid)
 	if err != nil {
 		return nil, err
 	}
 	return getSGDataEntry(ctx, st, gid, version)
 }
 
-// getSyncGroupByName retrieves the SyncGroup given its name.
-func getSyncGroupByName(ctx *context.T, st store.StoreReader, name string) (*interfaces.SyncGroup, error) {
-	gid, err := getSyncGroupId(ctx, st, name)
+// getSyncgroupByName retrieves the syncgroup given its name.
+func getSyncgroupByName(ctx *context.T, st store.StoreReader, name string) (*interfaces.Syncgroup, error) {
+	gid, err := getSyncgroupId(ctx, st, name)
 	if err != nil {
 		return nil, err
 	}
-	return getSyncGroupById(ctx, st, gid)
+	return getSyncgroupById(ctx, st, gid)
 }
 
-// delSyncGroupById deletes the SyncGroup given its ID.
-func delSyncGroupById(ctx *context.T, tx store.Transaction, gid interfaces.GroupId) error {
-	sg, err := getSyncGroupById(ctx, tx, gid)
+// delSyncgroupById deletes the syncgroup given its ID.
+func delSyncgroupById(ctx *context.T, tx store.Transaction, gid interfaces.GroupId) error {
+	sg, err := getSyncgroupById(ctx, tx, gid)
 	if err != nil {
 		return err
 	}
-	return delSyncGroupByName(ctx, tx, sg.Name)
+	return delSyncgroupByName(ctx, tx, sg.Name)
 }
 
-// delSyncGroupByName deletes the SyncGroup given its name.
-func delSyncGroupByName(ctx *context.T, tx store.Transaction, name string) error {
-	// Get the SyncGroup ID and current version.
-	gid, err := getSyncGroupId(ctx, tx, name)
+// delSyncgroupByName deletes the syncgroup given its name.
+func delSyncgroupByName(ctx *context.T, tx store.Transaction, name string) error {
+	// Get the syncgroup ID and current version.
+	gid, err := getSyncgroupId(ctx, tx, name)
 	if err != nil {
 		return err
 	}
-	version, err := getSyncGroupVersion(ctx, tx, gid)
+	version, err := getSyncgroupVersion(ctx, tx, gid)
 	if err != nil {
 		return err
 	}
@@ -327,10 +327,10 @@ func delSyncGroupByName(ctx *context.T, tx store.Transaction, name string) error
 		return err
 	}
 
-	// Delete all versioned SyncGroup data entries (same versions as DAG
+	// Delete all versioned syncgroup data entries (same versions as DAG
 	// nodes).  This is done separately from pruning the DAG nodes because
-	// some nodes may have no log record pointing back to the SyncGroup data
-	// entries (loose coupling to support the pending SyncGroup state).
+	// some nodes may have no log record pointing back to the syncgroup data
+	// entries (loose coupling to support the pending syncgroup state).
 	oid := sgOID(gid)
 	err = forEachAncestor(ctx, tx, oid, []string{version}, func(v string, nd *dagNode) error {
 		return delSGDataEntry(ctx, tx, gid, v)
@@ -353,7 +353,7 @@ func delSyncGroupByName(ctx *context.T, tx store.Transaction, name string) error
 	return pruneDone(ctx, tx, bset)
 }
 
-// refreshMembersIfExpired updates the aggregate view of SyncGroup members
+// refreshMembersIfExpired updates the aggregate view of syncgroup members
 // across databases if the view has expired.
 // TODO(rdaoud): track dirty apps/dbs since the last refresh and incrementally
 // update the membership view for them instead of always scanning all of them.
@@ -370,20 +370,20 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 		return
 	}
 
-	// Create a new aggregate view of SyncGroup members across all app databases.
+	// Create a new aggregate view of syncgroup members across all app databases.
 	newMembers := make(map[string]*memberInfo)
 
 	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
-		// For each database, fetch its SyncGroup data entries by scanning their
+		// For each database, fetch its syncgroup data entries by scanning their
 		// prefix range.  Use a database snapshot for the scan.
 		sn := st.NewSnapshot()
 		defer sn.Abort()
 		name := appDbName(appName, dbName)
 
-		forEachSyncGroup(sn, func(sg *interfaces.SyncGroup) bool {
-			// Add all members of this SyncGroup to the membership view.
-			// A member's info is different across SyncGroups, so gather all of them.
-			refreshSyncGroupMembers(sg, name, newMembers)
+		forEachSyncgroup(sn, func(sg *interfaces.Syncgroup) bool {
+			// Add all members of this syncgroup to the membership view.
+			// A member's info is different across syncgroups, so gather all of them.
+			refreshSyncgroupMembers(sg, name, newMembers)
 
 			return false
 		})
@@ -394,7 +394,7 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 	view.expiration = time.Now().Add(memberViewTTL)
 }
 
-func refreshSyncGroupMembers(sg *interfaces.SyncGroup, name string, newMembers map[string]*memberInfo) {
+func refreshSyncgroupMembers(sg *interfaces.Syncgroup, name string, newMembers map[string]*memberInfo) {
 	for member, info := range sg.Joiners {
 		if _, ok := newMembers[member]; !ok {
 			newMembers[member] = &memberInfo{
@@ -414,24 +414,24 @@ func refreshSyncGroupMembers(sg *interfaces.SyncGroup, name string, newMembers m
 	}
 }
 
-// forEachSyncGroup iterates over all SyncGroups in the Database and invokes
+// forEachSyncgroup iterates over all Syncgroups in the Database and invokes
 // the callback function on each one.  The callback returns a "done" flag to
-// make forEachSyncGroup() stop the iteration earlier; otherwise the function
-// loops across all SyncGroups in the Database.
-func forEachSyncGroup(st store.StoreReader, callback func(*interfaces.SyncGroup) bool) {
+// make forEachSyncgroup() stop the iteration earlier; otherwise the function
+// loops across all Syncgroups in the Database.
+func forEachSyncgroup(st store.StoreReader, callback func(*interfaces.Syncgroup) bool) {
 	stream := st.Scan(util.ScanPrefixArgs(sgNameKeyPrefix, ""))
 	defer stream.Cancel()
 
 	for stream.Advance() {
 		var gid interfaces.GroupId
 		if vom.Decode(stream.Value(nil), &gid) != nil {
-			vlog.Errorf("sync: forEachSyncGroup: invalid SyncGroup ID for key %s", string(stream.Key(nil)))
+			vlog.Errorf("sync: forEachSyncgroup: invalid syncgroup ID for key %s", string(stream.Key(nil)))
 			continue
 		}
 
-		sg, err := getSyncGroupById(nil, st, gid)
+		sg, err := getSyncgroupById(nil, st, gid)
 		if err != nil {
-			vlog.Errorf("sync: forEachSyncGroup: cannot get SyncGroup %d: %v", gid, err)
+			vlog.Errorf("sync: forEachSyncgroup: cannot get syncgroup %d: %v", gid, err)
 			continue
 		}
 
@@ -441,11 +441,11 @@ func forEachSyncGroup(st store.StoreReader, callback func(*interfaces.SyncGroup)
 	}
 
 	if err := stream.Err(); err != nil {
-		vlog.Errorf("sync: forEachSyncGroup: scan stream error: %v", err)
+		vlog.Errorf("sync: forEachSyncgroup: scan stream error: %v", err)
 	}
 }
 
-// getMembers returns all SyncGroup members and the count of SyncGroups each one
+// getMembers returns all syncgroup members and the count of syncgroups each one
 // joined.
 func (s *syncService) getMembers(ctx *context.T) map[string]uint32 {
 	s.allMembersLock.Lock()
@@ -495,28 +495,28 @@ func (s *syncService) copyMemberInfo(ctx *context.T, member string) *memberInfo 
 
 // Low-level utility functions to access DB entries without tracking their
 // relationships.
-// Use the functions above to manipulate SyncGroups.
+// Use the functions above to manipulate syncgroups.
 
 var (
-	// Prefixes used to store the different mappings of a SyncGroup:
+	// Prefixes used to store the different mappings of a syncgroup:
 	// sgNameKeyPrefix: name --> ID
-	// sgIdKeyPrefix: ID --> SyncGroup local state
-	// sgDataKeyPrefix: (ID, version) --> SyncGroup data (synchronized)
+	// sgIdKeyPrefix: ID --> syncgroup local state
+	// sgDataKeyPrefix: (ID, version) --> syncgroup data (synchronized)
 	//
 	// Note: as with other syncable objects, the DAG "heads" table contains
-	// a reference to the current SyncGroup version, and the DAG "nodes"
+	// a reference to the current syncgroup version, and the DAG "nodes"
 	// table tracks its history of mutations.
 	sgNameKeyPrefix = util.JoinKeyParts(util.SyncPrefix, sgPrefix, "n")
 	sgIdKeyPrefix   = util.JoinKeyParts(util.SyncPrefix, sgPrefix, "i")
 	sgDataKeyPrefix = util.JoinKeyParts(util.SyncPrefix, sgDataPrefix)
 )
 
-// sgNameKey returns the key used to access the SyncGroup name entry.
+// sgNameKey returns the key used to access the syncgroup name entry.
 func sgNameKey(name string) string {
 	return util.JoinKeyParts(sgNameKeyPrefix, name)
 }
 
-// sgIdKey returns the key used to access the SyncGroup ID entry.
+// sgIdKey returns the key used to access the syncgroup ID entry.
 func sgIdKey(gid interfaces.GroupId) string {
 	return util.JoinKeyParts(sgIdKeyPrefix, fmt.Sprintf("%d", gid))
 }
@@ -540,19 +540,19 @@ func sgID(oid string) (interfaces.GroupId, error) {
 	return interfaces.GroupId(id), nil
 }
 
-// sgDataKey returns the key used to access a version of the SyncGroup data.
+// sgDataKey returns the key used to access a version of the syncgroup data.
 func sgDataKey(gid interfaces.GroupId, version string) string {
 	return util.JoinKeyParts(sgDataKeyPrefix, fmt.Sprintf("%d", gid), version)
 }
 
-// sgDataKeyByOID returns the key used to access a version of the SyncGroup data.
+// sgDataKeyByOID returns the key used to access a version of the syncgroup data.
 func sgDataKeyByOID(oid, version string) string {
 	return util.JoinKeyParts(oid, version)
 }
 
-// splitSgNameKey is the inverse of sgNameKey and returns the SyncGroup name.
+// splitSgNameKey is the inverse of sgNameKey and returns the syncgroup name.
 func splitSgNameKey(ctx *context.T, key string) (string, error) {
-	// Note that the actual SyncGroup name may contain ":" as a separator.
+	// Note that the actual syncgroup name may contain ":" as a separator.
 	// So don't split the key on the separator, instead trim its prefix.
 	prefix := util.JoinKeyParts(sgNameKeyPrefix, "")
 	name := strings.TrimPrefix(key, prefix)
@@ -562,37 +562,37 @@ func splitSgNameKey(ctx *context.T, key string) (string, error) {
 	return name, nil
 }
 
-// hasSGNameEntry returns true if the SyncGroup name entry exists.
+// hasSGNameEntry returns true if the syncgroup name entry exists.
 func hasSGNameEntry(sntx store.SnapshotOrTransaction, name string) (bool, error) {
 	return util.Exists(nil, sntx, sgNameKey(name))
 }
 
-// hasSGIdEntry returns true if the SyncGroup ID entry exists.
+// hasSGIdEntry returns true if the syncgroup ID entry exists.
 func hasSGIdEntry(sntx store.SnapshotOrTransaction, gid interfaces.GroupId) (bool, error) {
 	return util.Exists(nil, sntx, sgIdKey(gid))
 }
 
-// hasSGDataEntry returns true if the SyncGroup versioned data entry exists.
+// hasSGDataEntry returns true if the syncgroup versioned data entry exists.
 func hasSGDataEntry(sntx store.SnapshotOrTransaction, gid interfaces.GroupId, version string) (bool, error) {
 	return util.Exists(nil, sntx, sgDataKey(gid, version))
 }
 
-// setSGNameEntry stores the SyncGroup name entry.
+// setSGNameEntry stores the syncgroup name entry.
 func setSGNameEntry(ctx *context.T, tx store.Transaction, name string, gid interfaces.GroupId) error {
 	return util.Put(ctx, tx, sgNameKey(name), gid)
 }
 
-// setSGIdEntry stores the SyncGroup ID entry.
+// setSGIdEntry stores the syncgroup ID entry.
 func setSGIdEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId, state *sgLocalState) error {
 	return util.Put(ctx, tx, sgIdKey(gid), state)
 }
 
-// setSGDataEntryByOID stores the SyncGroup versioned data entry.
-func setSGDataEntryByOID(ctx *context.T, tx store.Transaction, sgoid, version string, sg *interfaces.SyncGroup) error {
+// setSGDataEntryByOID stores the syncgroup versioned data entry.
+func setSGDataEntryByOID(ctx *context.T, tx store.Transaction, sgoid, version string, sg *interfaces.Syncgroup) error {
 	return util.Put(ctx, tx, sgDataKeyByOID(sgoid, version), sg)
 }
 
-// getSGNameEntry retrieves the SyncGroup ID for a given name.
+// getSGNameEntry retrieves the syncgroup ID for a given name.
 func getSGNameEntry(ctx *context.T, st store.StoreReader, name string) (interfaces.GroupId, error) {
 	var gid interfaces.GroupId
 	if err := util.Get(ctx, st, sgNameKey(name), &gid); err != nil {
@@ -601,7 +601,7 @@ func getSGNameEntry(ctx *context.T, st store.StoreReader, name string) (interfac
 	return gid, nil
 }
 
-// getSGIdEntry retrieves the SyncGroup local state for a given group ID.
+// getSGIdEntry retrieves the syncgroup local state for a given group ID.
 func getSGIdEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (*sgLocalState, error) {
 	var state sgLocalState
 	if err := util.Get(ctx, st, sgIdKey(gid), &state); err != nil {
@@ -610,53 +610,54 @@ func getSGIdEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) 
 	return &state, nil
 }
 
-// getSGDataEntry retrieves the SyncGroup data for a given group ID and version.
-func getSGDataEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId, version string) (*interfaces.SyncGroup, error) {
-	var sg interfaces.SyncGroup
+// getSGDataEntry retrieves the syncgroup data for a given group ID and version.
+func getSGDataEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId, version string) (*interfaces.Syncgroup, error) {
+	var sg interfaces.Syncgroup
 	if err := util.Get(ctx, st, sgDataKey(gid, version), &sg); err != nil {
 		return nil, err
 	}
 	return &sg, nil
 }
 
-// getSGDataEntryByOID retrieves the SyncGroup data for a given group OID and version.
-func getSGDataEntryByOID(ctx *context.T, st store.StoreReader, sgoid string, version string) (*interfaces.SyncGroup, error) {
-	var sg interfaces.SyncGroup
+// getSGDataEntryByOID retrieves the syncgroup data for a given group OID and
+// version.
+func getSGDataEntryByOID(ctx *context.T, st store.StoreReader, sgoid string, version string) (*interfaces.Syncgroup, error) {
+	var sg interfaces.Syncgroup
 	if err := util.Get(ctx, st, sgDataKeyByOID(sgoid, version), &sg); err != nil {
 		return nil, err
 	}
 	return &sg, nil
 }
 
-// delSGNameEntry deletes the SyncGroup name entry.
+// delSGNameEntry deletes the syncgroup name entry.
 func delSGNameEntry(ctx *context.T, tx store.Transaction, name string) error {
 	return util.Delete(ctx, tx, sgNameKey(name))
 }
 
-// delSGIdEntry deletes the SyncGroup ID entry.
+// delSGIdEntry deletes the syncgroup ID entry.
 func delSGIdEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId) error {
 	return util.Delete(ctx, tx, sgIdKey(gid))
 }
 
-// delSGDataEntry deletes the SyncGroup versioned data entry.
+// delSGDataEntry deletes the syncgroup versioned data entry.
 func delSGDataEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId, version string) error {
 	return util.Delete(ctx, tx, sgDataKey(gid, version))
 }
 
 ////////////////////////////////////////////////////////////
-// SyncGroup methods between Client and Syncbase.
+// Syncgroup methods between Client and Syncbase.
 
 // TODO(hpucha): Pass blessings along.
-func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, myInfo wire.SyncGroupMemberInfo) error {
-	vlog.VI(2).Infof("sync: CreateSyncGroup: begin: %s", sgName)
-	defer vlog.VI(2).Infof("sync: CreateSyncGroup: end: %s", sgName)
+func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
+	vlog.VI(2).Infof("sync: CreateSyncgroup: begin: %s", sgName)
+	defer vlog.VI(2).Infof("sync: CreateSyncgroup: end: %s", sgName)
 
 	ss := sd.sync.(*syncService)
 	appName, dbName := sd.db.App().Name(), sd.db.Name()
 
 	// Instantiate sg. Add self as joiner.
-	gid, version := newSyncGroupId(), newSyncGroupVersion()
-	sg := &interfaces.SyncGroup{
+	gid, version := newSyncgroupId(), newSyncgroupVersion()
+	sg := &interfaces.Syncgroup{
 		Id:          gid,
 		Name:        sgName,
 		SpecVersion: version,
@@ -664,8 +665,8 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 		Creator:     ss.name,
 		AppName:     appName,
 		DbName:      dbName,
-		Status:      interfaces.SyncGroupStatusPublishPending,
-		Joiners:     map[string]wire.SyncGroupMemberInfo{ss.name: myInfo},
+		Status:      interfaces.SyncgroupStatusPublishPending,
+		Joiners:     map[string]wire.SyncgroupMemberInfo{ss.name: myInfo},
 	}
 
 	err := store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
@@ -679,15 +680,15 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 		// TODO(hpucha): Do some SG ACL checking. Check creator
 		// has Admin privilege.
 
-		// Reserve a log generation and position counts for the new SyncGroup.
+		// Reserve a log generation and position counts for the new syncgroup.
 		gen, pos := ss.reserveGenAndPosInDbLog(ctx, appName, dbName, sgOID(gid), 1)
 
-		if err := ss.addSyncGroup(ctx, tx, version, true, "", nil, ss.id, gen, pos, sg); err != nil {
+		if err := ss.addSyncgroup(ctx, tx, version, true, "", nil, ss.id, gen, pos, sg); err != nil {
 			return err
 		}
 
-		// Take a snapshot of the data to bootstrap the SyncGroup.
-		return sd.bootstrapSyncGroup(ctx, tx, gid, spec.Prefixes)
+		// Take a snapshot of the data to bootstrap the syncgroup.
+		return sd.bootstrapSyncgroup(ctx, tx, gid, spec.Prefixes)
 	})
 
 	if err != nil {
@@ -698,8 +699,8 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 
 	// Local SG create succeeded. Publish the SG at the chosen server, or if
 	// that fails, enqueue it for later publish retries.
-	if err := sd.publishSyncGroup(ctx, call, sgName); err != nil {
-		ss.enqueuePublishSyncGroup(sgName, appName, dbName, true)
+	if err := sd.publishSyncgroup(ctx, call, sgName); err != nil {
+		ss.enqueuePublishSyncgroup(sgName, appName, dbName, true)
 	}
 
 	// Publish at the chosen mount table and in the neighborhood.
@@ -709,13 +710,13 @@ func (sd *syncDatabase) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgN
 }
 
 // TODO(hpucha): Pass blessings along.
-func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncGroupMemberInfo) (wire.SyncGroupSpec, error) {
-	vlog.VI(2).Infof("sync: JoinSyncGroup: begin: %s", sgName)
-	defer vlog.VI(2).Infof("sync: JoinSyncGroup: end: %s", sgName)
+func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
+	vlog.VI(2).Infof("sync: JoinSyncgroup: begin: %s", sgName)
+	defer vlog.VI(2).Infof("sync: JoinSyncgroup: end: %s", sgName)
 
 	var sgErr error
-	var sg *interfaces.SyncGroup
-	nullSpec := wire.SyncGroupSpec{}
+	var sg *interfaces.Syncgroup
+	nullSpec := wire.SyncgroupSpec{}
 
 	err := store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
 		// Check permissions on Database.
@@ -723,14 +724,14 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 			return err
 		}
 
-		// Check if SyncGroup already exists and get its info.
+		// Check if syncgroup already exists and get its info.
 		var gid interfaces.GroupId
-		gid, sgErr = getSyncGroupId(ctx, tx, sgName)
+		gid, sgErr = getSyncgroupId(ctx, tx, sgName)
 		if sgErr != nil {
 			return sgErr
 		}
 
-		sg, sgErr = getSyncGroupById(ctx, tx, gid)
+		sg, sgErr = getSyncgroupById(ctx, tx, gid)
 		if sgErr != nil {
 			return sgErr
 		}
@@ -740,24 +741,24 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 			return err
 		}
 
-		// SyncGroup already exists, increment the number of local
+		// Syncgroup already exists, increment the number of local
 		// joiners in its local state information.  This presents
 		// different scenarios:
 		// 1- An additional local joiner: the current number of local
-		//    joiners is > 0 and the SyncGroup was already bootstrapped
+		//    joiners is > 0 and the syncgroup was already bootstrapped
 		//    to the Watcher, so there is nothing else to do.
 		// 2- A new local joiner after all previous local joiners had
 		//    left: the number of local joiners is 0, the Watcher must
-		//    be re-notified via a SyncGroup bootstrap because the last
+		//    be re-notified via a syncgroup bootstrap because the last
 		//    previous joiner to leave had un-notified the Watcher.  In
-		//    this scenario the SyncGroup was not destroyed after the
-		//    last joiner left because the SyncGroup was also published
+		//    this scenario the syncgroup was not destroyed after the
+		//    last joiner left because the syncgroup was also published
 		//    here by a remote peer and thus cannot be destroyed only
 		//    based on the local joiners.
-		// 3- A first local joiner for a SyncGroup that was published
+		// 3- A first local joiner for a syncgroup that was published
 		//    here from a remote Syncbase: the number of local joiners
 		//    is also 0 (and the remote publish flag is set), and the
-		//    Watcher must be notified via a SyncGroup bootstrap.
+		//    Watcher must be notified via a syncgroup bootstrap.
 		// Conclusion: bootstrap if the number of local joiners is 0.
 		sgState, err := getSGIdEntry(ctx, tx, gid)
 		if err != nil {
@@ -765,7 +766,7 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 		}
 
 		if sgState.NumLocalJoiners == 0 {
-			if err := sd.bootstrapSyncGroup(ctx, tx, gid, sg.Spec.Prefixes); err != nil {
+			if err := sd.bootstrapSyncgroup(ctx, tx, gid, sg.Spec.Prefixes); err != nil {
 				return err
 			}
 		}
@@ -774,8 +775,8 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 	})
 
 	// The presented blessing is allowed to make this Syncbase instance join
-	// the specified SyncGroup, but this Syncbase instance has in fact
-	// already joined the SyncGroup. Join is idempotent, so we simply return
+	// the specified syncgroup, but this Syncbase instance has in fact
+	// already joined the syncgroup. Join is idempotent, so we simply return
 	// the spec to indicate success.
 	if err == nil {
 		return sg.Spec, nil
@@ -792,25 +793,25 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 	// Get this Syncbase's sync module handle.
 	ss := sd.sync.(*syncService)
 
-	// Contact a SyncGroup Admin to join the SyncGroup.
-	sg2, version, genvec, err := sd.joinSyncGroupAtAdmin(ctx, call, sgName, ss.name, myInfo)
+	// Contact a syncgroup Admin to join the syncgroup.
+	sg2, version, genvec, err := sd.joinSyncgroupAtAdmin(ctx, call, sgName, ss.name, myInfo)
 	if err != nil {
 		return nullSpec, err
 	}
 
-	// Verify that the app/db combination is valid for this SyncGroup.
+	// Verify that the app/db combination is valid for this syncgroup.
 	appName, dbName := sd.db.App().Name(), sd.db.Name()
 	if sg2.AppName != appName || sg2.DbName != dbName {
 		return nullSpec, verror.New(verror.ErrBadArg, ctx, "bad app/db with syncgroup")
 	}
 
 	err = store.RunInTransaction(sd.db.St(), func(tx store.Transaction) error {
-		if err := ss.addSyncGroup(ctx, tx, version, false, "", genvec, 0, 0, 0, &sg2); err != nil {
+		if err := ss.addSyncgroup(ctx, tx, version, false, "", genvec, 0, 0, 0, &sg2); err != nil {
 			return err
 		}
 
-		// Take a snapshot of the data to bootstrap the SyncGroup.
-		return sd.bootstrapSyncGroup(ctx, tx, sg2.Id, sg2.Spec.Prefixes)
+		// Take a snapshot of the data to bootstrap the syncgroup.
+		return sd.bootstrapSyncgroup(ctx, tx, sg2.Id, sg2.Spec.Prefixes)
 	})
 
 	if err != nil {
@@ -825,9 +826,9 @@ func (sd *syncDatabase) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgNam
 	return sg2.Spec, nil
 }
 
-func (sd *syncDatabase) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
-	vlog.VI(2).Infof("sync: GetSyncGroupNames: begin")
-	defer vlog.VI(2).Infof("sync: GetSyncGroupNames: end")
+func (sd *syncDatabase) GetSyncgroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	vlog.VI(2).Infof("sync: GetSyncgroupNames: begin")
+	defer vlog.VI(2).Infof("sync: GetSyncgroupNames: end")
 
 	sn := sd.db.St().NewSnapshot()
 	defer sn.Abort()
@@ -837,7 +838,7 @@ func (sd *syncDatabase) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) (
 		return nil, err
 	}
 
-	// Scan all the SyncGroup names found in the Database.
+	// Scan all the syncgroup names found in the Database.
 	stream := sn.Scan(util.ScanPrefixArgs(sgNameKeyPrefix, ""))
 	var sgNames []string
 	var key []byte
@@ -853,38 +854,38 @@ func (sd *syncDatabase) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) (
 		return nil, err
 	}
 
-	vlog.VI(2).Infof("sync: GetSyncGroupNames: %v", sgNames)
+	vlog.VI(2).Infof("sync: GetSyncgroupNames: %v", sgNames)
 	return sgNames, nil
 }
 
-func (sd *syncDatabase) GetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncGroupSpec, string, error) {
-	vlog.VI(2).Infof("sync: GetSyncGroupSpec: begin %s", sgName)
-	defer vlog.VI(2).Infof("sync: GetSyncGroupSpec: end: %s", sgName)
+func (sd *syncDatabase) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncgroupSpec, string, error) {
+	vlog.VI(2).Infof("sync: GetSyncgroupSpec: begin %s", sgName)
+	defer vlog.VI(2).Infof("sync: GetSyncgroupSpec: end: %s", sgName)
 
 	sn := sd.db.St().NewSnapshot()
 	defer sn.Abort()
 
-	var spec wire.SyncGroupSpec
+	var spec wire.SyncgroupSpec
 
 	// Check permissions on Database.
 	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
 		return spec, "", err
 	}
 
-	// Get the SyncGroup information.
-	sg, err := getSyncGroupByName(ctx, sn, sgName)
+	// Get the syncgroup information.
+	sg, err := getSyncgroupByName(ctx, sn, sgName)
 	if err != nil {
 		return spec, "", err
 	}
-	// TODO(hpucha): Check SyncGroup ACL.
+	// TODO(hpucha): Check syncgroup ACL.
 
-	vlog.VI(2).Infof("sync: GetSyncGroupSpec: %s spec %v", sgName, sg.Spec)
+	vlog.VI(2).Infof("sync: GetSyncgroupSpec: %s spec %v", sgName, sg.Spec)
 	return sg.Spec, sg.SpecVersion, nil
 }
 
-func (sd *syncDatabase) GetSyncGroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncGroupMemberInfo, error) {
-	vlog.VI(2).Infof("sync: GetSyncGroupMembers: begin %s", sgName)
-	defer vlog.VI(2).Infof("sync: GetSyncGroupMembers: end: %s", sgName)
+func (sd *syncDatabase) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncgroupMemberInfo, error) {
+	vlog.VI(2).Infof("sync: GetSyncgroupMembers: begin %s", sgName)
+	defer vlog.VI(2).Infof("sync: GetSyncgroupMembers: end: %s", sgName)
 
 	sn := sd.db.St().NewSnapshot()
 	defer sn.Abort()
@@ -894,23 +895,23 @@ func (sd *syncDatabase) GetSyncGroupMembers(ctx *context.T, call rpc.ServerCall,
 		return nil, err
 	}
 
-	// Get the SyncGroup information.
-	sg, err := getSyncGroupByName(ctx, sn, sgName)
+	// Get the syncgroup information.
+	sg, err := getSyncgroupByName(ctx, sn, sgName)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO(hpucha): Check SyncGroup ACL.
+	// TODO(hpucha): Check syncgroup ACL.
 
-	vlog.VI(2).Infof("sync: GetSyncGroupMembers: %s members %v", sgName, sg.Joiners)
+	vlog.VI(2).Infof("sync: GetSyncgroupMembers: %s members %v", sgName, sg.Joiners)
 	return sg.Joiners, nil
 }
 
-func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, version string) error {
-	vlog.VI(2).Infof("sync: SetSyncGroupSpec: begin %s %v %s", sgName, spec, version)
-	defer vlog.VI(2).Infof("sync: SetSyncGroupSpec: end: %s", sgName)
+func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, version string) error {
+	vlog.VI(2).Infof("sync: SetSyncgroupSpec: begin %s %v %s", sgName, spec, version)
+	defer vlog.VI(2).Infof("sync: SetSyncgroupSpec: end: %s", sgName)
 
-	if err := verifySyncGroupSpec(ctx, &spec); err != nil {
+	if err := verifySyncgroupSpec(ctx, &spec); err != nil {
 		return err
 	}
 
@@ -923,7 +924,7 @@ func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return err
 		}
 
-		sg, err := getSyncGroupByName(ctx, tx, sgName)
+		sg, err := getSyncgroupByName(ctx, tx, sgName)
 		if err != nil {
 			return err
 		}
@@ -932,7 +933,7 @@ func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return verror.NewErrBadVersion(ctx)
 		}
 
-		// Client must not modify the set of prefixes for this SyncGroup.
+		// Client must not modify the set of prefixes for this syncgroup.
 		if !samePrefixes(spec.Prefixes, sg.Spec.Prefixes) {
 			return verror.New(verror.ErrBadArg, ctx, "cannot modify prefixes")
 		}
@@ -945,15 +946,15 @@ func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return verror.NewErrBadState(ctx)
 		}
 
-		// Reserve a log generation and position counts for the new SyncGroup.
+		// Reserve a log generation and position counts for the new syncgroup.
 		gen, pos := ss.reserveGenAndPosInDbLog(ctx, appName, dbName, sgOID(sg.Id), 1)
 
-		// TODO(hpucha): Check SyncGroup ACL.
+		// TODO(hpucha): Check syncgroup ACL.
 
-		newVersion := newSyncGroupVersion()
+		newVersion := newSyncgroupVersion()
 		sg.Spec = spec
 		sg.SpecVersion = newVersion
-		return ss.updateSyncGroupVersioning(ctx, tx, newVersion, true, ss.id, gen, pos, sg)
+		return ss.updateSyncgroupVersioning(ctx, tx, newVersion, true, ss.id, gen, pos, sg)
 	})
 	return err
 }
@@ -961,23 +962,23 @@ func (sd *syncDatabase) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sg
 //////////////////////////////
 // Helper functions
 
-// publishSyncGroup publishes the SyncGroup at the remote peer and update its
+// publishSyncgroup publishes the syncgroup at the remote peer and update its
 // status.  If the publish operation is either successful or rejected by the
 // peer, the status is updated to "running" or "rejected" respectively and the
 // function returns "nil" to indicate to the caller there is no need to make
 // further attempts.  Otherwise an error (typically RPC error, but could also
 // be a store error) is returned to the caller.
 // TODO(rdaoud): make all SG admins try to publish after they join.
-func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
 	st := sd.db.St()
 	ss := sd.sync.(*syncService)
 	appName, dbName := sd.db.App().Name(), sd.db.Name()
 
-	gid, err := getSyncGroupId(ctx, st, sgName)
+	gid, err := getSyncgroupId(ctx, st, sgName)
 	if err != nil {
 		return err
 	}
-	version, err := getSyncGroupVersion(ctx, st, gid)
+	version, err := getSyncgroupVersion(ctx, st, gid)
 	if err != nil {
 		return err
 	}
@@ -986,16 +987,16 @@ func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sg
 		return err
 	}
 
-	if sg.Status != interfaces.SyncGroupStatusPublishPending {
+	if sg.Status != interfaces.SyncgroupStatusPublishPending {
 		return nil
 	}
 
-	// Note: the remote peer is given the SyncGroup version and genvec at
+	// Note: the remote peer is given the syncgroup version and genvec at
 	// the point before the post-publish update, at which time the status
-	// and joiner list of the SyncGroup get updated.  This is functionally
+	// and joiner list of the syncgroup get updated.  This is functionally
 	// correct, just not symmetrical with what happens at joiner, which
-	// receives the SyncGroup state post-join.
-	status := interfaces.SyncGroupStatusPublishRejected
+	// receives the syncgroup state post-join.
+	status := interfaces.SyncgroupStatusPublishRejected
 
 	sgs := sgSet{gid: struct{}{}}
 	gv, _, err := ss.copyDbGenInfo(ctx, appName, dbName, sgs)
@@ -1006,23 +1007,23 @@ func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sg
 	// the local gen of the sg? It appears that it shouldn't matter.
 
 	c := interfaces.SyncClient(sgName)
-	peer, err := c.PublishSyncGroup(ctx, ss.name, *sg, version, gv[sgOID(gid)])
+	peer, err := c.PublishSyncgroup(ctx, ss.name, *sg, version, gv[sgOID(gid)])
 
 	if err == nil {
-		status = interfaces.SyncGroupStatusRunning
+		status = interfaces.SyncgroupStatusRunning
 	} else {
 		errId := verror.ErrorID(err)
-		if errId == interfaces.ErrDupSyncGroupPublish.ID {
+		if errId == interfaces.ErrDupSyncgroupPublish.ID {
 			// Duplicate publish: another admin already published
-			// the SyncGroup, nothing else needs to happen because
-			// that other admin would have updated the SyncGroup
+			// the syncgroup, nothing else needs to happen because
+			// that other admin would have updated the syncgroup
 			// status and p2p SG sync will propagate the change.
 			// TODO(rdaoud): what if that other admin crashes and
-			// never updates the SyncGroup status (dies permanently
+			// never updates the syncgroup status (dies permanently
 			// or is ejected before the status update)?  Eventually
 			// some admin must decide to update the SG status anyway
 			// even if that causes extra SG mutations and conflicts.
-			vlog.VI(3).Infof("sync: publishSyncGroup: %s: duplicate publish", sgName)
+			vlog.VI(3).Infof("sync: publishSyncgroup: %s: duplicate publish", sgName)
 			return nil
 		}
 
@@ -1030,52 +1031,52 @@ func (sd *syncDatabase) publishSyncGroup(ctx *context.T, call rpc.ServerCall, sg
 			// The publish operation failed with an error other
 			// than ErrExist then it must be retried later on.
 			// TODO(hpucha): Is there an RPC error that we can check here?
-			vlog.VI(3).Infof("sync: publishSyncGroup: %s: failed, retry later: %v", sgName, err)
+			vlog.VI(3).Infof("sync: publishSyncgroup: %s: failed, retry later: %v", sgName, err)
 			return err
 		}
 	}
 
 	// The publish operation is done because either it succeeded or it
-	// failed with the ErrExist error.  Update the SyncGroup status and, if
-	// the publish was successful, add the remote peer to the SyncGroup.
-	vlog.VI(3).Infof("sync: publishSyncGroup: %s: peer %s: done: status %s: %v",
+	// failed with the ErrExist error.  Update the syncgroup status and, if
+	// the publish was successful, add the remote peer to the syncgroup.
+	vlog.VI(3).Infof("sync: publishSyncgroup: %s: peer %s: done: status %s: %v",
 		sgName, peer, status.String(), err)
 
 	err = store.RunInTransaction(st, func(tx store.Transaction) error {
 		// Ensure SG still exists.
-		sg, err := getSyncGroupById(ctx, tx, gid)
+		sg, err := getSyncgroupById(ctx, tx, gid)
 		if err != nil {
 			return err
 		}
 
 		// Reserve a log generation and position counts for the new
-		// SyncGroup version.
+		// syncgroup version.
 		gen, pos := ss.reserveGenAndPosInDbLog(ctx, appName, dbName, sgOID(gid), 1)
 
 		sg.Status = status
-		if status == interfaces.SyncGroupStatusRunning {
+		if status == interfaces.SyncgroupStatusRunning {
 			// TODO(hpucha): Default priority?
-			sg.Joiners[peer] = wire.SyncGroupMemberInfo{}
+			sg.Joiners[peer] = wire.SyncgroupMemberInfo{}
 		}
 
-		return ss.updateSyncGroupVersioning(ctx, tx, NoVersion, true, ss.id, gen, pos, sg)
+		return ss.updateSyncgroupVersioning(ctx, tx, NoVersion, true, ss.id, gen, pos, sg)
 	})
 	if err != nil {
-		vlog.Errorf("sync: publishSyncGroup: cannot update SyncGroup %s status to %s: %v",
+		vlog.Errorf("sync: publishSyncgroup: cannot update syncgroup %s status to %s: %v",
 			sgName, status.String(), err)
 	}
 	return err
 }
 
-// bootstrapSyncGroup inserts into the transaction log a SyncGroup operation and
-// a set of Snapshot operations to notify the sync watcher about the SyncGroup
+// bootstrapSyncgroup inserts into the transaction log a syncgroup operation and
+// a set of Snapshot operations to notify the sync watcher about the syncgroup
 // prefixes to start accepting and the initial state of existing store keys that
 // match these prefixes (both data and permission keys).
 // TODO(rdaoud): this operation scans the managed keys of the database and can
 // be time consuming.  Consider doing it asynchronously and letting the server
 // reply to the client earlier.  However it must happen within the scope of this
 // transaction (and its snapshot view).
-func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction, sgId interfaces.GroupId, prefixes []wire.SyncGroupPrefix) error {
+func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx store.Transaction, sgId interfaces.GroupId, prefixes []wire.SyncgroupPrefix) error {
 	if len(prefixes) == 0 {
 		return verror.New(verror.ErrInternal, ctx, "no prefixes specified")
 	}
@@ -1093,13 +1094,13 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction,
 	for i, p := range prefixes {
 		prefixStrs[i] = toTableRowPrefixStr(p)
 	}
-	// Notify the watcher of the SyncGroup prefixes to start accepting.
-	if err := watchable.AddSyncGroupOp(ctx, tx, sgId, prefixStrs, false); err != nil {
+	// Notify the watcher of the syncgroup prefixes to start accepting.
+	if err := watchable.AddSyncgroupOp(ctx, tx, sgId, prefixStrs, false); err != nil {
 		return err
 	}
 
 	// Loop over the store managed key prefixes (e.g. data and permissions).
-	// For each one, scan the ranges of the given SyncGroup prefixes.  For
+	// For each one, scan the ranges of the given syncgroup prefixes.  For
 	// each matching key, insert a snapshot operation in the log.  Scanning
 	// is done over the version entries to retrieve the matching keys and
 	// their version numbers (the key values).  Remove the version prefix
@@ -1112,7 +1113,7 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction,
 				k, v := stream.Key(nil), stream.Value(nil)
 				parts := util.SplitKeyParts(string(k))
 				if len(parts) < 2 {
-					vlog.Fatalf("sync: bootstrapSyncGroup: invalid version key %s", string(k))
+					vlog.Fatalf("sync: bootstrapSyncgroup: invalid version key %s", string(k))
 
 				}
 				key := []byte(util.JoinKeyParts(parts[1:]...))
@@ -1129,7 +1130,7 @@ func (sd *syncDatabase) bootstrapSyncGroup(ctx *context.T, tx store.Transaction,
 	return nil
 }
 
-func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall, spec wire.SyncGroupSpec) error {
+func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall, spec wire.SyncgroupSpec) error {
 	// Get this Syncbase's sync module handle.
 	ss := sd.sync.(*syncService)
 	ss.nameLock.Lock()
@@ -1148,14 +1149,14 @@ func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall
 	return nil
 }
 
-func (sd *syncDatabase) joinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncGroupMemberInfo) (interfaces.SyncGroup, string, interfaces.PrefixGenVector, error) {
+func (sd *syncDatabase) joinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.PrefixGenVector, error) {
 	c := interfaces.SyncClient(sgName)
-	return c.JoinSyncGroupAtAdmin(ctx, sgName, name, myInfo)
+	return c.JoinSyncgroupAtAdmin(ctx, sgName, name, myInfo)
 
 	// TODO(hpucha): Try to join using an Admin on neighborhood if the publisher is not reachable.
 }
 
-func authorize(ctx *context.T, call security.Call, sg *interfaces.SyncGroup) error {
+func authorize(ctx *context.T, call security.Call, sg *interfaces.Syncgroup) error {
 	auth := access.TypicalTagTypePermissionsAuthorizer(sg.Spec.Perms)
 	if err := auth.Authorize(ctx, call); err != nil {
 		return verror.New(verror.ErrNoAccess, ctx, err)
@@ -1164,16 +1165,16 @@ func authorize(ctx *context.T, call security.Call, sg *interfaces.SyncGroup) err
 }
 
 ////////////////////////////////////////////////////////////
-// Methods for SyncGroup create/join between Syncbases.
+// Methods for syncgroup create/join between Syncbases.
 
-func (s *syncService) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, publisher string, sg interfaces.SyncGroup, version string, genvec interfaces.PrefixGenVector) (string, error) {
+func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publisher string, sg interfaces.Syncgroup, version string, genvec interfaces.PrefixGenVector) (string, error) {
 	st, err := s.getDbStore(ctx, call, sg.AppName, sg.DbName)
 	if err != nil {
 		return s.name, err
 	}
 
 	err = store.RunInTransaction(st, func(tx store.Transaction) error {
-		gid, err := getSyncGroupId(ctx, tx, sg.Name)
+		gid, err := getSyncgroupId(ctx, tx, sg.Name)
 		if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
 			return err
 		}
@@ -1198,7 +1199,7 @@ func (s *syncService) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, publ
 				return err
 			}
 			if state.RemotePublisher == "" {
-				// Locally created/joined SyncGroup: update its
+				// Locally created/joined syncgroup: update its
 				// state to include the publisher.
 				state.RemotePublisher = publisher
 				return setSGIdEntry(ctx, tx, gid, state)
@@ -1208,15 +1209,15 @@ func (s *syncService) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, publ
 				// the old genvec and version info is valid.
 				return nil
 			}
-			return interfaces.NewErrDupSyncGroupPublish(ctx, sg.Name)
+			return interfaces.NewErrDupSyncgroupPublish(ctx, sg.Name)
 		}
 
-		// Publish the SyncGroup.
+		// Publish the syncgroup.
 
 		// TODO(hpucha): Use some ACL check to allow/deny publishing.
 		// TODO(hpucha): Ensure node is on Admin ACL.
 
-		return s.addSyncGroup(ctx, tx, version, false, publisher, genvec, 0, 0, 0, &sg)
+		return s.addSyncgroup(ctx, tx, version, false, publisher, genvec, 0, 0, 0, &sg)
 	})
 
 	if err == nil {
@@ -1225,26 +1226,26 @@ func (s *syncService) PublishSyncGroup(ctx *context.T, call rpc.ServerCall, publ
 	return s.name, err
 }
 
-func (s *syncService) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, joinerName string, joinerInfo wire.SyncGroupMemberInfo) (interfaces.SyncGroup, string, interfaces.PrefixGenVector, error) {
-	vlog.VI(2).Infof("sync: JoinSyncGroupAtAdmin: begin: %s from peer %s", sgName, joinerName)
-	defer vlog.VI(2).Infof("sync: JoinSyncGroupAtAdmin: end: %s from peer %s", sgName, joinerName)
+func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, joinerName string, joinerInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.PrefixGenVector, error) {
+	vlog.VI(2).Infof("sync: JoinSyncgroupAtAdmin: begin: %s from peer %s", sgName, joinerName)
+	defer vlog.VI(2).Infof("sync: JoinSyncgroupAtAdmin: end: %s from peer %s", sgName, joinerName)
 
 	var dbSt store.Store
 	var gid interfaces.GroupId
 	var err error
 	var stAppName, stDbName string
-	nullSG, nullGV := interfaces.SyncGroup{}, interfaces.PrefixGenVector{}
+	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.PrefixGenVector{}
 
-	// Find the database store for this SyncGroup.
+	// Find the database store for this syncgroup.
 	//
 	// TODO(hpucha): At a high level, we have yet to decide if the SG name
 	// is stand-alone or is derived from the app/db namespace, based on the
-	// feedback from app developers (see discussion in SyncGroup API
+	// feedback from app developers (see discussion in syncgroup API
 	// doc). If we decide to keep the SG name as stand-alone, this scan can
 	// be optimized by a lazy cache of sgname to <app, db> info.
 	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
-		if gid, err = getSyncGroupId(ctx, st, sgName); err == nil {
-			// Found the SyncGroup being looked for.
+		if gid, err = getSyncgroupId(ctx, st, sgName); err == nil {
+			// Found the syncgroup being looked for.
 			dbSt = st
 			stAppName, stDbName = appName, dbName
 			return true
@@ -1252,18 +1253,18 @@ func (s *syncService) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 		return false
 	})
 
-	// SyncGroup not found.
+	// Syncgroup not found.
 	if err != nil {
-		return nullSG, "", nullGV, verror.New(verror.ErrNoExist, ctx, "SyncGroup not found", sgName)
+		return nullSG, "", nullGV, verror.New(verror.ErrNoExist, ctx, "Syncgroup not found", sgName)
 	}
 
-	version := newSyncGroupVersion()
-	var sg *interfaces.SyncGroup
+	version := newSyncgroupVersion()
+	var sg *interfaces.Syncgroup
 	var gen, pos uint64
 
 	err = store.RunInTransaction(dbSt, func(tx store.Transaction) error {
 		var err error
-		sg, err = getSyncGroupById(ctx, tx, gid)
+		sg, err = getSyncgroupById(ctx, tx, gid)
 		if err != nil {
 			return err
 		}
@@ -1282,12 +1283,12 @@ func (s *syncService) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 			return verror.NewErrBadState(ctx)
 		}
 
-		// Reserve a log generation and position counts for the new SyncGroup.
+		// Reserve a log generation and position counts for the new syncgroup.
 		gen, pos = s.reserveGenAndPosInDbLog(ctx, stAppName, stDbName, sgOID(gid), 1)
 
 		// Add to joiner list.
 		sg.Joiners[joinerName] = joinerInfo
-		return s.updateSyncGroupVersioning(ctx, tx, version, true, s.id, gen, pos, sg)
+		return s.updateSyncgroupVersioning(ctx, tx, version, true, s.id, gen, pos, sg)
 	})
 
 	if err != nil {
@@ -1304,6 +1305,6 @@ func (s *syncService) JoinSyncGroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	// generations. Add that generation to this genvector.
 	gv[sgOID(gid)][s.id] = gen
 
-	vlog.VI(2).Infof("sync: JoinSyncGroupAtAdmin: returning: sg %v, vers %v, genvec %v", sg, version, gv[sgOID(gid)])
+	vlog.VI(2).Infof("sync: JoinSyncgroupAtAdmin: returning: sg %v, vers %v, genvec %v", sg, version, gv[sgOID(gid)])
 	return *sg, version, gv[sgOID(gid)], nil
 }

@@ -28,7 +28,7 @@ func (syncData) __VDLReflect(struct {
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
 	GenVec   interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for data in Database.
-	SgGenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for SyncGroups in Database.
+	SgGenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for syncgroups in Database.
 }
 
 func (dbSyncState) __VDLReflect(struct {
@@ -48,39 +48,39 @@ func (localLogRec) __VDLReflect(struct {
 }) {
 }
 
-// sgLocalState holds the SyncGroup local state, only relevant to this member
+// sgLocalState holds the syncgroup local state, only relevant to this member
 // (i.e. the local Syncbase).  This is needed for crash recovery of the internal
-// state transitions of the SyncGroup.
+// state transitions of the syncgroup.
 type sgLocalState struct {
-	// The count of local joiners to the same SyncGroup.
+	// The count of local joiners to the same syncgroup.
 	NumLocalJoiners uint32
-	// The SyncGroup is watched when the sync Watcher starts processing the
-	// SyncGroup data.  When a SyncGroup is created or joined, an entry is
+	// The syncgroup is watched when the sync Watcher starts processing the
+	// syncgroup data.  When a syncgroup is created or joined, an entry is
 	// added to the Watcher queue (log) to inform it from which point to
 	// start accepting store mutations, an asynchronous notification similar
 	// to regular store mutations.  When the Watcher processes that queue
 	// entry, it sets this bit to true.  When Syncbase restarts, the value
 	// of this bit allows the new sync Watcher to recreate its in-memory
-	// state by resuming to watch only the prefixes of SyncGroups that were
+	// state by resuming to watch only the prefixes of syncgroups that were
 	// previously being watched.
 	Watched bool
-	// The SyncGroup was published here by this remote peer (if non-empty
-	// string), typically the SyncGroup creator.  In this case the SyncGroup
+	// The syncgroup was published here by this remote peer (if non-empty
+	// string), typically the syncgroup creator.  In this case the syncgroup
 	// cannot be GCed locally even if it has no local joiners.
 	RemotePublisher string
-	// The SyncGroup is in pending state on a device that learns the current
-	// state of the SyncGroup from another device but has not yet received
+	// The syncgroup is in pending state on a device that learns the current
+	// state of the syncgroup from another device but has not yet received
 	// through peer-to-peer sync the history of the changes (DAG and logs).
 	// This happens in two cases:
-	// 1- A joiner was accepted into a SyncGroup by a SyncGroup admin and
-	//    only given the current SyncGroup info synchronously and will
+	// 1- A joiner was accepted into a syncgroup by a syncgroup admin and
+	//    only given the current syncgroup info synchronously and will
 	//    receive the full history later via p2p sync.
-	// 2- A remote server where the SyncGroup is published was told by the
-	//    SyncGroup publisher the current SyncGroup info synchronously and
+	// 2- A remote server where the syncgroup is published was told by the
+	//    syncgroup publisher the current syncgroup info synchronously and
 	//    will receive the full history later via p2p sync.
 	// The pending state is over when the device reaches or exceeds the
 	// knowledge level indicated in the pending genvec.  While SyncPending
-	// is true, no local SyncGroup mutations are allowed (i.e. no join or
+	// is true, no local syncgroup mutations are allowed (i.e. no join or
 	// set-spec requests).
 	SyncPending   bool
 	PendingGenVec interfaces.PrefixGenVector

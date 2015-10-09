@@ -167,7 +167,7 @@ func TestOpLogConsistency(t *testing.T) {
 		}
 		sgPrefixes := []string{"sga", "sgb"}
 		gid := interfaces.GroupId(1234)
-		if err := AddSyncGroupOp(nil, tx, gid, sgPrefixes, false); err != nil {
+		if err := AddSyncgroupOp(nil, tx, gid, sgPrefixes, false); err != nil {
 			return err
 		}
 		snKey, snVersion := []byte("aa"), []byte("123")
@@ -210,7 +210,7 @@ func TestOpLogConsistency(t *testing.T) {
 			}
 		case OpDelete:
 			eq(t, string(op.Value.Key), "foo")
-		case OpSyncGroup:
+		case OpSyncgroup:
 			eq(t, op.Value.SgId, interfaces.GroupId(1234))
 			eq(t, op.Value.Prefixes, []string{"sga", "sgb"})
 		case OpSyncSnapshot:

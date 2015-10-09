@@ -12,8 +12,8 @@ package vsync
 // Note: the sync code uses the words "object" and "object ID" (oid) as a
 // generic way to refer to syncable entities, whether they are actual user data
 // (table row and its row key), prefix-ACLs (permission entry and its prefix),
-// or other metadata such as SyncGroups (SyncGroup value and its internal key
-// based on the SyncGroup ID).
+// or other metadata such as syncgroups (syncgroup value and its internal key
+// based on the syncgroup ID).
 //
 // * Object IDs are globally unique across all devices.
 // * Syncable objects have version numbers associated with their mutations.
@@ -78,7 +78,7 @@ package vsync
 // The DAG does not grow indefinitely.  During a sync operation each device
 // learns what the other device already knows -- where it's at in the version
 // history for the objects.  When a device determines that all devices that
-// sync an object (members of matching SyncGroups) have moved past some version
+// sync an object (members of matching syncgroups) have moved past some version
 // for that object, the DAG for that object can be pruned up to that common
 // version, deleting all prior (ancestor) nodes.
 //
@@ -615,7 +615,7 @@ func newBatchPruning() batchSet {
 // Note: this function is typically used when sync determines that all devices
 // that know about this object have gotten past this version, as part of its
 // GC operations.  It can also be used when an object history is obliterated,
-// for example when destroying a SyncGroup, which is also versioned and tracked
+// for example when destroying a syncgroup, which is also versioned and tracked
 // in the DAG.
 //
 // The batch set passed is used to track batches affected by the deletion of DAG

@@ -141,11 +141,11 @@ func newLog(key, version string, delete bool) *watchable.LogEntry {
 	return log
 }
 
-// newSGLog creates a SyncGroup watch log entry.
+// newSGLog creates a syncgroup watch log entry.
 func newSGLog(gid interfaces.GroupId, prefixes []string, remove bool) *watchable.LogEntry {
 	return &watchable.LogEntry{
-		Op: watchable.OpSyncGroup{
-			Value: watchable.SyncGroupOp{SgId: gid, Prefixes: prefixes, Remove: remove},
+		Op: watchable.OpSyncgroup{
+			Value: watchable.SyncgroupOp{SgId: gid, Prefixes: prefixes, Remove: remove},
 		},
 	}
 }
@@ -302,9 +302,9 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	// Scan the batch records and verify that there is only 1 DAG batch
 	// stored, with a total count of 3 and a map of 2 syncable entries.
 	// This is because the 1st batch, while containing syncable keys, is a
-	// SyncGroup snapshot that does not get assigned a batch ID.  The 2nd
+	// syncgroup snapshot that does not get assigned a batch ID.  The 2nd
 	// batch is an application batch with 3 keys of which 2 are syncable.
-	// The 3rd batch is also a SyncGroup snapshot.
+	// The 3rd batch is also a syncgroup snapshot.
 	count := 0
 	start, limit := util.ScanPrefixArgs(util.JoinKeyParts(util.SyncPrefix, "dag", "b"), "")
 	stream := st.Scan(start, limit)

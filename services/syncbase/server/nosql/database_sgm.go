@@ -13,73 +13,73 @@ import (
 )
 
 ////////////////////////////////////////
-// SyncGroup RPC methods
+// Syncgroup RPC methods
 
-func (d *databaseReq) GetSyncGroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (d *databaseReq) GetSyncgroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	if d.batchId != nil {
 		return nil, wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.GetSyncGroupNames(ctx, call)
+	return sd.GetSyncgroupNames(ctx, call)
 }
 
-func (d *databaseReq) CreateSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, myInfo wire.SyncGroupMemberInfo) error {
+func (d *databaseReq) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.CreateSyncGroup(ctx, call, sgName, spec, myInfo)
+	return sd.CreateSyncgroup(ctx, call, sgName, spec, myInfo)
 }
 
-func (d *databaseReq) JoinSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncGroupMemberInfo) (wire.SyncGroupSpec, error) {
+func (d *databaseReq) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
 	if d.batchId != nil {
-		return wire.SyncGroupSpec{}, wire.NewErrBoundToBatch(ctx)
+		return wire.SyncgroupSpec{}, wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.JoinSyncGroup(ctx, call, sgName, myInfo)
+	return sd.JoinSyncgroup(ctx, call, sgName, myInfo)
 }
 
-func (d *databaseReq) LeaveSyncGroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (d *databaseReq) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *databaseReq) DestroySyncGroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (d *databaseReq) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *databaseReq) EjectFromSyncGroup(ctx *context.T, call rpc.ServerCall, sgName, member string) error {
+func (d *databaseReq) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sgName, member string) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *databaseReq) GetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncGroupSpec, string, error) {
+func (d *databaseReq) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncgroupSpec, string, error) {
 	if d.batchId != nil {
-		return wire.SyncGroupSpec{}, "", wire.NewErrBoundToBatch(ctx)
+		return wire.SyncgroupSpec{}, "", wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.GetSyncGroupSpec(ctx, call, sgName)
+	return sd.GetSyncgroupSpec(ctx, call, sgName)
 }
 
-func (d *databaseReq) SetSyncGroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncGroupSpec, version string) error {
+func (d *databaseReq) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, version string) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.SetSyncGroupSpec(ctx, call, sgName, spec, version)
+	return sd.SetSyncgroupSpec(ctx, call, sgName, spec, version)
 }
 
-func (d *databaseReq) GetSyncGroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncGroupMemberInfo, error) {
+func (d *databaseReq) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncgroupMemberInfo, error) {
 	if d.batchId != nil {
 		return nil, wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.GetSyncGroupMembers(ctx, call, sgName)
+	return sd.GetSyncgroupMembers(ctx, call, sgName)
 }

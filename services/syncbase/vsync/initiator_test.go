@@ -378,7 +378,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 
 	sgId1 := interfaces.GroupId(1234)
 	gdb := appDbName("mockapp", "mockdb")
-	nullInfo := wire.SyncGroupMemberInfo{}
+	nullInfo := wire.SyncgroupMemberInfo{}
 	sgInfo := sgMemberInfo{
 		sgId1: nullInfo,
 	}
@@ -392,29 +392,29 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		},
 	}
 
-	sg1 := &interfaces.SyncGroup{
+	sg1 := &interfaces.Syncgroup{
 		Name:        "sg1",
 		Id:          sgId1,
 		AppName:     "mockapp",
 		DbName:      "mockdb",
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
-		Spec: wire.SyncGroupSpec{
-			Prefixes:    []wire.SyncGroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
+		Spec: wire.SyncgroupSpec{
+			Prefixes:    []wire.SyncgroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
-		Joiners: map[string]wire.SyncGroupMemberInfo{
+		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"a": nullInfo,
 			"b": nullInfo,
 		},
 	}
 
 	tx := svc.St().NewTransaction()
-	if err := s.addSyncGroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
-		t.Fatalf("cannot add SyncGroup ID %d, err %v", sg1.Id, err)
+	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
+		t.Fatalf("cannot add syncgroup ID %d, err %v", sg1.Id, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Fatalf("cannot commit adding SyncGroup ID %d, err %v", sg1.Id, err)
+		t.Fatalf("cannot commit adding syncgroup ID %d, err %v", sg1.Id, err)
 	}
 
 	if lfile != "" {

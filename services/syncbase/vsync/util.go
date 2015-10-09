@@ -90,9 +90,9 @@ func unixNanoToTime(timestamp int64) time.Time {
 	return time.Unix(timestamp/nanoPerSec, timestamp%nanoPerSec)
 }
 
-// toTableRowPrefixStr converts a SyncGroupPrefix (tableName-rowPrefix pair) to
+// toTableRowPrefixStr converts a SyncgroupPrefix (tableName-rowPrefix pair) to
 // a string of the form used for storing perms and row data in the underlying
 // storage engine.
-func toTableRowPrefixStr(p wire.SyncGroupPrefix) string {
+func toTableRowPrefixStr(p wire.SyncgroupPrefix) string {
 	return util.JoinKeyParts(p.TableName, p.RowPrefix)
 }

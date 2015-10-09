@@ -67,25 +67,25 @@ func (DeleteOp) __VDLReflect(struct {
 }) {
 }
 
-// SyncGroupOp represents a change in the set of prefixes that should be tracked
-// by sync, i.e. the union of prefix sets across all SyncGroups. Note that an
-// individual SyncGroup's prefixes cannot be changed; this record type is used
-// to track changes due to SyncGroup create/join/leave/destroy.
-type SyncGroupOp struct {
+// SyncgroupOp represents a change in the set of prefixes that should be tracked
+// by sync, i.e. the union of prefix sets across all syncgroups. Note that an
+// individual syncgroup's prefixes cannot be changed; this record type is used
+// to track changes due to syncgroup create/join/leave/destroy.
+type SyncgroupOp struct {
 	SgId     interfaces.GroupId
 	Prefixes []string
 	Remove   bool
 }
 
-func (SyncGroupOp) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.SyncGroupOp"`
+func (SyncgroupOp) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.SyncgroupOp"`
 }) {
 }
 
 // SyncSnapshotOp represents a snapshot operation when creating and joining a
-// SyncGroup.  The sync watcher needs to get a snapshot of the Database at the
-// point of creating/joining a SyncGroup.  A SyncSnapshotOp entry is written to
-// the log for each Database key that falls within the SyncGroup prefixes.  This
+// syncgroup.  The sync watcher needs to get a snapshot of the Database at the
+// point of creating/joining a syncgroup.  A SyncSnapshotOp entry is written to
+// the log for each Database key that falls within the syncgroup prefixes.  This
 // allows sync to initialize its metadata at the correct versions of the objects
 // when they become syncable.  These log entries should be filtered by the
 // client-facing Watch interface because the user data did not actually change.
@@ -125,8 +125,8 @@ type (
 	OpPut struct{ Value PutOp }
 	// OpDelete represents field Delete of the Op union type.
 	OpDelete struct{ Value DeleteOp }
-	// OpSyncGroup represents field SyncGroup of the Op union type.
-	OpSyncGroup struct{ Value SyncGroupOp }
+	// OpSyncgroup represents field Syncgroup of the Op union type.
+	OpSyncgroup struct{ Value SyncgroupOp }
 	// OpSyncSnapshot represents field SyncSnapshot of the Op union type.
 	OpSyncSnapshot struct{ Value SyncSnapshotOp }
 	// __OpReflect describes the Op union type.
@@ -138,7 +138,7 @@ type (
 			Scan         OpScan
 			Put          OpPut
 			Delete       OpDelete
-			SyncGroup    OpSyncGroup
+			Syncgroup    OpSyncgroup
 			SyncSnapshot OpSyncSnapshot
 		}
 	}
@@ -164,10 +164,10 @@ func (x OpDelete) Interface() interface{}   { return x.Value }
 func (x OpDelete) Name() string             { return "Delete" }
 func (x OpDelete) __VDLReflect(__OpReflect) {}
 
-func (x OpSyncGroup) Index() int               { return 4 }
-func (x OpSyncGroup) Interface() interface{}   { return x.Value }
-func (x OpSyncGroup) Name() string             { return "SyncGroup" }
-func (x OpSyncGroup) __VDLReflect(__OpReflect) {}
+func (x OpSyncgroup) Index() int               { return 4 }
+func (x OpSyncgroup) Interface() interface{}   { return x.Value }
+func (x OpSyncgroup) Name() string             { return "Syncgroup" }
+func (x OpSyncgroup) __VDLReflect(__OpReflect) {}
 
 func (x OpSyncSnapshot) Index() int               { return 5 }
 func (x OpSyncSnapshot) Interface() interface{}   { return x.Value }
@@ -199,7 +199,7 @@ func init() {
 	vdl.Register((*ScanOp)(nil))
 	vdl.Register((*PutOp)(nil))
 	vdl.Register((*DeleteOp)(nil))
-	vdl.Register((*SyncGroupOp)(nil))
+	vdl.Register((*SyncgroupOp)(nil))
 	vdl.Register((*SyncSnapshotOp)(nil))
 	vdl.Register((*Op)(nil))
 	vdl.Register((*LogEntry)(nil))

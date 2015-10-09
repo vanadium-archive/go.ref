@@ -84,29 +84,29 @@ func toMojoPerms(vPerms access.Permissions) (mojom.Perms, error) {
 	return mojom.Perms{Json: b.String()}, nil
 }
 
-func toV23SyncGroupMemberInfo(mInfo mojom.SyncGroupMemberInfo) nosqlwire.SyncGroupMemberInfo {
-	return nosqlwire.SyncGroupMemberInfo{
+func toV23SyncgroupMemberInfo(mInfo mojom.SyncgroupMemberInfo) nosqlwire.SyncgroupMemberInfo {
+	return nosqlwire.SyncgroupMemberInfo{
 		SyncPriority: mInfo.SyncPriority,
 	}
 }
 
-func toMojoSyncGroupMemberInfo(vInfo nosqlwire.SyncGroupMemberInfo) mojom.SyncGroupMemberInfo {
-	return mojom.SyncGroupMemberInfo{
+func toMojoSyncgroupMemberInfo(vInfo nosqlwire.SyncgroupMemberInfo) mojom.SyncgroupMemberInfo {
+	return mojom.SyncgroupMemberInfo{
 		SyncPriority: vInfo.SyncPriority,
 	}
 }
 
-func toV23SyncGroupSpec(mSpec mojom.SyncGroupSpec) (nosqlwire.SyncGroupSpec, error) {
+func toV23SyncgroupSpec(mSpec mojom.SyncgroupSpec) (nosqlwire.SyncgroupSpec, error) {
 	v23Perms, err := toV23Perms(mSpec.Perms)
 	if err != nil {
-		return nosqlwire.SyncGroupSpec{}, err
+		return nosqlwire.SyncgroupSpec{}, err
 	}
-	prefixes := make([]nosqlwire.SyncGroupPrefix, len(mSpec.Prefixes))
+	prefixes := make([]nosqlwire.SyncgroupPrefix, len(mSpec.Prefixes))
 	for i, v := range mSpec.Prefixes {
 		prefixes[i].TableName = v.TableName
 		prefixes[i].RowPrefix = v.RowPrefix
 	}
-	return nosqlwire.SyncGroupSpec{
+	return nosqlwire.SyncgroupSpec{
 		Description: mSpec.Description,
 		Perms:       v23Perms,
 		Prefixes:    prefixes,
@@ -115,17 +115,17 @@ func toV23SyncGroupSpec(mSpec mojom.SyncGroupSpec) (nosqlwire.SyncGroupSpec, err
 	}, nil
 }
 
-func toMojoSyncGroupSpec(vSpec nosqlwire.SyncGroupSpec) (mojom.SyncGroupSpec, error) {
+func toMojoSyncgroupSpec(vSpec nosqlwire.SyncgroupSpec) (mojom.SyncgroupSpec, error) {
 	mPerms, err := toMojoPerms(vSpec.Perms)
 	if err != nil {
-		return mojom.SyncGroupSpec{}, err
+		return mojom.SyncgroupSpec{}, err
 	}
-	prefixes := make([]mojom.SyncGroupPrefix, len(vSpec.Prefixes))
+	prefixes := make([]mojom.SyncgroupPrefix, len(vSpec.Prefixes))
 	for i, v := range vSpec.Prefixes {
 		prefixes[i].TableName = v.TableName
 		prefixes[i].RowPrefix = v.RowPrefix
 	}
-	return mojom.SyncGroupSpec{
+	return mojom.SyncgroupSpec{
 		Description: vSpec.Description,
 		Perms:       mPerms,
 		Prefixes:    prefixes,
@@ -534,115 +534,115 @@ func (m *mojoImpl) DbGetResumeMarker(name string) (mojom.Error, []byte, error) {
 }
 
 ////////////////////////////////////////
-// nosql.Database:SyncGroupManager
+// nosql.Database:SyncgroupManager
 
-func (m *mojoImpl) DbGetSyncGroupNames(name string) (mojom.Error, []string, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "GetSyncGroupNames"))
+func (m *mojoImpl) DbGetSyncgroupNames(name string) (mojom.Error, []string, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "GetSyncgroupNames"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	names, err := stub.GetSyncGroupNames(ctx, call)
+	names, err := stub.GetSyncgroupNames(ctx, call)
 	return toMojoError(err), names, nil
 }
 
-func (m *mojoImpl) DbCreateSyncGroup(name, sgName string, spec mojom.SyncGroupSpec, myInfo mojom.SyncGroupMemberInfo) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "CreateSyncGroup"))
+func (m *mojoImpl) DbCreateSyncgroup(name, sgName string, spec mojom.SyncgroupSpec, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "CreateSyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	v23Spec, err := toV23SyncGroupSpec(spec)
+	v23Spec, err := toV23SyncgroupSpec(spec)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.CreateSyncGroup(ctx, call, sgName, v23Spec, toV23SyncGroupMemberInfo(myInfo))), nil
+	return toMojoError(stub.CreateSyncgroup(ctx, call, sgName, v23Spec, toV23SyncgroupMemberInfo(myInfo))), nil
 }
 
-func (m *mojoImpl) DbJoinSyncGroup(name, sgName string, myInfo mojom.SyncGroupMemberInfo) (mojom.Error, mojom.SyncGroupSpec, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "JoinSyncGroup"))
+func (m *mojoImpl) DbJoinSyncgroup(name, sgName string, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, mojom.SyncgroupSpec, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "JoinSyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), mojom.SyncGroupSpec{}, nil
+		return toMojoError(err), mojom.SyncgroupSpec{}, nil
 	}
-	spec, err := stub.JoinSyncGroup(ctx, call, sgName, toV23SyncGroupMemberInfo(myInfo))
+	spec, err := stub.JoinSyncgroup(ctx, call, sgName, toV23SyncgroupMemberInfo(myInfo))
 	if err != nil {
-		return toMojoError(err), mojom.SyncGroupSpec{}, nil
+		return toMojoError(err), mojom.SyncgroupSpec{}, nil
 	}
-	mojoSpec, err := toMojoSyncGroupSpec(spec)
+	mojoSpec, err := toMojoSyncgroupSpec(spec)
 	if err != nil {
-		return toMojoError(err), mojom.SyncGroupSpec{}, nil
+		return toMojoError(err), mojom.SyncgroupSpec{}, nil
 	}
 	return toMojoError(err), mojoSpec, nil
 }
 
-func (m *mojoImpl) DbLeaveSyncGroup(name, sgName string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "LeaveSyncGroup"))
+func (m *mojoImpl) DbLeaveSyncgroup(name, sgName string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "LeaveSyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.LeaveSyncGroup(ctx, call, sgName)), nil
+	return toMojoError(stub.LeaveSyncgroup(ctx, call, sgName)), nil
 }
 
-func (m *mojoImpl) DbDestroySyncGroup(name, sgName string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "DestroySyncGroup"))
+func (m *mojoImpl) DbDestroySyncgroup(name, sgName string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "DestroySyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.DestroySyncGroup(ctx, call, sgName)), nil
+	return toMojoError(stub.DestroySyncgroup(ctx, call, sgName)), nil
 }
 
-func (m *mojoImpl) DbEjectFromSyncGroup(name, sgName string, member string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "EjectFromSyncGroup"))
+func (m *mojoImpl) DbEjectFromSyncgroup(name, sgName string, member string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "EjectFromSyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.EjectFromSyncGroup(ctx, call, sgName, member)), nil
+	return toMojoError(stub.EjectFromSyncgroup(ctx, call, sgName, member)), nil
 }
 
-func (m *mojoImpl) DbGetSyncGroupSpec(name, sgName string) (mojom.Error, mojom.SyncGroupSpec, string, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "GetSyncGroupSpec"))
+func (m *mojoImpl) DbGetSyncgroupSpec(name, sgName string) (mojom.Error, mojom.SyncgroupSpec, string, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), mojom.SyncGroupSpec{}, "", nil
+		return toMojoError(err), mojom.SyncgroupSpec{}, "", nil
 	}
-	spec, version, err := stub.GetSyncGroupSpec(ctx, call, sgName)
-	mojoSpec, err := toMojoSyncGroupSpec(spec)
+	spec, version, err := stub.GetSyncgroupSpec(ctx, call, sgName)
+	mojoSpec, err := toMojoSyncgroupSpec(spec)
 	if err != nil {
-		return toMojoError(err), mojom.SyncGroupSpec{}, "", nil
+		return toMojoError(err), mojom.SyncgroupSpec{}, "", nil
 	}
 	return toMojoError(err), mojoSpec, version, nil
 }
 
-func (m *mojoImpl) DbSetSyncGroupSpec(name, sgName string, spec mojom.SyncGroupSpec, version string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "SetSyncGroupSpec"))
+func (m *mojoImpl) DbSetSyncgroupSpec(name, sgName string, spec mojom.SyncgroupSpec, version string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "SetSyncgroupSpec"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	v23Spec, err := toV23SyncGroupSpec(spec)
+	v23Spec, err := toV23SyncgroupSpec(spec)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.SetSyncGroupSpec(ctx, call, sgName, v23Spec, version)), nil
+	return toMojoError(stub.SetSyncgroupSpec(ctx, call, sgName, v23Spec, version)), nil
 }
 
-func (m *mojoImpl) DbGetSyncGroupMembers(name, sgName string) (mojom.Error, map[string]mojom.SyncGroupMemberInfo, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncGroupManagerDesc, "GetSyncGroupMembers"))
+func (m *mojoImpl) DbGetSyncgroupMembers(name, sgName string) (mojom.Error, map[string]mojom.SyncgroupMemberInfo, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	members, err := stub.GetSyncGroupMembers(ctx, call, sgName)
+	members, err := stub.GetSyncgroupMembers(ctx, call, sgName)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	mojoMembers := make(map[string]mojom.SyncGroupMemberInfo, len(members))
+	mojoMembers := make(map[string]mojom.SyncgroupMemberInfo, len(members))
 	for name, member := range members {
-		mojoMembers[name] = toMojoSyncGroupMemberInfo(member)
+		mojoMembers[name] = toMojoSyncgroupMemberInfo(member)
 	}
 	return toMojoError(err), mojoMembers, nil
 }

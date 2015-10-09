@@ -85,9 +85,9 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 // summarizing the knowledge transferred from the responder to the
 // initiator. This happens in three phases:
 //
-// In the first phase, the initiator is checked against the SyncGroup ACLs of
-// all the SyncGroups it is requesting, and only those prefixes that belong to
-// allowed SyncGroups are carried forward.
+// In the first phase, the initiator is checked against the syncgroup ACLs of
+// all the syncgroups it is requesting, and only those prefixes that belong to
+// allowed syncgroups are carried forward.
 //
 // In the second phase, for a given set of nested prefixes from the initiator,
 // the shortest prefix in that set is extracted. The initiator's prefix
@@ -123,8 +123,8 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVec, rSt.sg)
 
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
-	// caller only for the SyncGroups that allow access.
-	err := rSt.authorizeAndFilterSyncGroups(ctx)
+	// caller only for the syncgroups that allow access.
+	err := rSt.authorizeAndFilterSyncgroups(ctx)
 
 	// Check error from phase 1.
 	if err != nil {
@@ -146,10 +146,10 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 	return err
 }
 
-// authorizeAndFilterSyncGroups authorizes the initiator against the requested
-// SyncGroups and filters the initiator's prefixes to only include those from
-// allowed SyncGroups (phase 1 of sendDeltas).
-func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) error {
+// authorizeAndFilterSyncgroups authorizes the initiator against the requested
+// syncgroups and filters the initiator's prefixes to only include those from
+// allowed syncgroups (phase 1 of sendDeltas).
+func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 	var err error
 	rSt.st, err = rSt.sync.getDbStore(ctx, nil, rSt.appName, rSt.dbName)
 	if err != nil {
@@ -158,11 +158,11 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) error {
 
 	allowedPfxs := make(map[string]struct{})
 	for sgid := range rSt.sgIds {
-		// Check permissions for the SyncGroup.
-		var sg *interfaces.SyncGroup
-		sg, err = getSyncGroupById(ctx, rSt.st, sgid)
+		// Check permissions for the syncgroup.
+		var sg *interfaces.Syncgroup
+		sg, err = getSyncgroupById(ctx, rSt.st, sgid)
 		if err != nil {
-			vlog.Errorf("sync: authorizeAndFilterSyncGroups: accessing SyncGroup information failed %v, err %v", sgid, err)
+			vlog.Errorf("sync: authorizeAndFilterSyncgroups: accessing syncgroup information failed %v, err %v", sgid, err)
 			continue
 		}
 		err = authorize(ctx, rSt.call.Security(), sg)
@@ -209,7 +209,7 @@ func (rSt *responderState) authorizeAndFilterSyncGroups(ctx *context.T) error {
 }
 
 // sendSgDeltas computes the bound on missing generations, and sends the missing
-// log records across all requested SyncGroups (phases 2 and 3 of sendDeltas).
+// log records across all requested syncgroups (phases 2 and 3 of sendDeltas).
 func (rSt *responderState) sendSgDeltas(ctx *context.T) error {
 	respVec, _, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, rSt.sgIds)
 	if err != nil {
@@ -480,7 +480,7 @@ func getNextLogRec(ctx *context.T, st store.Store, pfx string, dev uint64, r *ge
 func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []string) bool {
 	// The key (objid) starts with one of the store's reserved prefixes for
 	// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
-	// comparing it with the SyncGroup prefixes which are defined by the
+	// comparing it with the syncgroup prefixes which are defined by the
 	// application.
 	key := util.StripFirstPartOrDie(rec.Metadata.ObjId)
 

@@ -31,24 +31,24 @@ package vsync
 // device.
 //
 // Sync also tracks the current generation number and the current local log
-// position for each mutation of a SyncGroup, created on a Database. Similar to
-// the data log records, these log records are used to sync SyncGroup metadata.
+// position for each mutation of a syncgroup, created on a Database. Similar to
+// the data log records, these log records are used to sync syncgroup metadata.
 //
-// The generations for the data mutations and mutations for each SyncGroup are
+// The generations for the data mutations and mutations for each syncgroup are
 // in separate spaces. Data mutations in a Database start at gen 1, and
-// grow. Mutations for each SyncGroup start at gen 1, and grow. Thus, for the
+// grow. Mutations for each syncgroup start at gen 1, and grow. Thus, for the
 // local data log records, the keys are of the form
-// $sync:log:data:<devid>:<gen>, and the keys for local SyncGroup log record are
+// $sync:log:data:<devid>:<gen>, and the keys for local syncgroup log record are
 // of the form $sync:log:<sgid>:<devid>:<gen>.
 
 // TODO(hpucha): Should this space be separate from the data or not? If it is
-// not, it can provide consistency between data and SyncGroup metadata. For
-// example, lets say we mutate the data in a SyncGroup and soon after change the
-// SyncGroup ACL to prevent syncing with a device. This device may not get the
+// not, it can provide consistency between data and syncgroup metadata. For
+// example, lets say we mutate the data in a syncgroup and soon after change the
+// syncgroup ACL to prevent syncing with a device. This device may not get the
 // last batch of updates since the next time it will try to sync, it will be
 // rejected. However implementing consistency is not straightforward. Even if we
-// had SyncGroup updates in the same space as the data, we need to switch to the
-// right SyncGroup ACL at the responder based on the requested generations.
+// had syncgroup updates in the same space as the data, we need to switch to the
+// right syncgroup ACL at the responder based on the requested generations.
 
 import (
 	"fmt"
@@ -80,11 +80,11 @@ func (in *localGenInfoInMem) deepCopy() *localGenInfoInMem {
 }
 
 // dbSyncStateInMem represents the in-memory sync state of a Database and all
-// its SyncGroups.
+// its syncgroups.
 type dbSyncStateInMem struct {
 	data *localGenInfoInMem // info for data.
 
-	// Info for SyncGroups. The key here is the SyncGroup oid of the form
+	// Info for syncgroups. The key here is the syncgroup oid of the form
 	// $sync:sgd:<group id>. More details in syncgroup.go.
 	sgs map[string]*localGenInfoInMem
 
@@ -108,8 +108,8 @@ func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
 	return out
 }
 
-// sgPublishInfo holds information on a SyncGroup waiting to be published to a
-// remote peer.  It is an in-memory entry in a queue of pending SyncGroups.
+// sgPublishInfo holds information on a syncgroup waiting to be published to a
+// remote peer.  It is an in-memory entry in a queue of pending syncgroups.
 type sgPublishInfo struct {
 	sgName  string
 	appName string
@@ -120,11 +120,11 @@ type sgPublishInfo struct {
 
 // initSync initializes the sync module during startup. It scans all the
 // databases across all apps to initialize the following:
-// a) in-memory sync state of a Database and all its SyncGroups consisting of
+// a) in-memory sync state of a Database and all its syncgroups consisting of
 // the current generation number, log position and generation vector.
 // b) watcher map of prefixes currently being synced.
 // c) republish names in mount tables for all syncgroups.
-// d) in-memory queue of SyncGroups to be published.
+// d) in-memory queue of syncgroups to be published.
 func (s *syncService) initSync(ctx *context.T) error {
 	vlog.VI(2).Infof("sync: initSync:: begin")
 	defer vlog.VI(2).Infof("sync: initSync:: end")
@@ -136,7 +136,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 	newMembers := make(map[string]*memberInfo)
 
 	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
-		// Fetch the sync state for data and SyncGroups.
+		// Fetch the sync state for data and syncgroups.
 		ds, err := getDbSyncState(ctx, st)
 		if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
 			errFinal = err
@@ -159,16 +159,16 @@ func (s *syncService) initSync(ctx *context.T) error {
 		sgCount := 0
 		name := appDbName(appName, dbName)
 
-		// Scan the SyncGroups and init relevant metadata.
-		forEachSyncGroup(st, func(sg *interfaces.SyncGroup) bool {
+		// Scan the syncgroups and init relevant metadata.
+		forEachSyncgroup(st, func(sg *interfaces.Syncgroup) bool {
 			sgCount++
 
-			// Only use SyncGroups that have been marked as
+			// Only use syncgroups that have been marked as
 			// "watchable" by the sync watcher thread. This is to
-			// handle the case of a SyncGroup being created but
+			// handle the case of a syncgroup being created but
 			// Syncbase restarting before the watcher processed the
-			// SyncGroupOp entry in the watch queue. It should not
-			// be syncing that SyncGroup's data after restart, but
+			// SyncgroupOp entry in the watch queue. It should not
+			// be syncing that syncgroup's data after restart, but
 			// wait until the watcher processes the entry as would
 			// have happened without a restart.
 			state, err := getSGIdEntry(ctx, st, sg.Id)
@@ -182,12 +182,12 @@ func (s *syncService) initSync(ctx *context.T) error {
 				}
 			}
 
-			if sg.Status == interfaces.SyncGroupStatusPublishPending {
-				s.enqueuePublishSyncGroup(sg.Name, appName, dbName, false)
+			if sg.Status == interfaces.SyncgroupStatusPublishPending {
+				s.enqueuePublishSyncgroup(sg.Name, appName, dbName, false)
 			}
 
 			// Refresh membership view.
-			refreshSyncGroupMembers(sg, name, newMembers)
+			refreshSyncgroupMembers(sg, name, newMembers)
 
 			sgoid := sgOID(sg.Id)
 			info := &localGenInfoInMem{}
@@ -244,7 +244,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 }
 
 // computeCurGenAndPos computes the current local generation count and local log
-// position for data or a specified SyncGroup.
+// position for data or a specified syncgroup.
 func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx string, genvec interfaces.PrefixGenVector) (uint64, uint64, error) {
 	found := false
 
@@ -291,8 +291,8 @@ func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx st
 	return maxgen + 1, maxpos, nil
 }
 
-// enqueuePublishSyncGroup appends the given SyncGroup to the publish queue.
-func (s *syncService) enqueuePublishSyncGroup(sgName, appName, dbName string, attempted bool) {
+// enqueuePublishSyncgroup appends the given syncgroup to the publish queue.
+func (s *syncService) enqueuePublishSyncgroup(sgName, appName, dbName string, attempted bool) {
 	s.sgPublishQueueLock.Lock()
 	defer s.sgPublishQueueLock.Unlock()
 
@@ -309,7 +309,7 @@ func (s *syncService) enqueuePublishSyncGroup(sgName, appName, dbName string, at
 }
 
 // Note: For all the utilities below, if the sgid parameter is non-nil, the
-// operation is performed in the SyncGroup space. If nil, it is performed in the
+// operation is performed in the syncgroup space. If nil, it is performed in the
 // data space for the Database.
 
 // reserveGenAndPosInDbLog reserves a chunk of generation numbers and log
@@ -374,7 +374,7 @@ func (s *syncService) checkptLocalGen(ctx *context.T, appName, dbName string, sg
 	// The frozen generation is the last generation number used, i.e. one
 	// below the next available one to use.
 	if len(sgs) > 0 {
-		// Checkpoint requested SyncGroups.
+		// Checkpoint requested syncgroups.
 		for id := range sgs {
 			info, ok := ds.sgs[sgOID(id)]
 			if !ok {
@@ -388,7 +388,8 @@ func (s *syncService) checkptLocalGen(ctx *context.T, appName, dbName string, sg
 	return nil
 }
 
-// initSyncStateInMem initializes the in memory sync state of the Database/SyncGroup if needed.
+// initSyncStateInMem initializes the in memory sync state of the
+// database/syncgroup if needed.
 func (s *syncService) initSyncStateInMem(ctx *context.T, appName, dbName string, sgoid string) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()

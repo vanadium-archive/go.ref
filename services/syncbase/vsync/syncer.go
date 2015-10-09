@@ -42,12 +42,12 @@ var (
 
 // syncer wakes up every peerSyncInterval to do work: (1) Refresh memberView if
 // needed and pick a peer from all the known remote peers to sync with. (2) Act
-// as an initiator and sync Syncgroup metadata for all common SyncGroups with
+// as an initiator and sync syncgroup metadata for all common syncgroups with
 // the chosen peer (getting updates from the remote peer, detecting and
 // resolving conflicts) (3) Act as an initiator and sync data corresponding to
-// all common SyncGroups across all Apps/Databases with the chosen peer; (4)
+// all common syncgroups across all Apps/Databases with the chosen peer; (4)
 // Fetch any queued blobs. (5) Transfer ownership of blobs if needed. (6) Act as
-// a SyncGroup publisher to publish pending SyncGroups; (6) Garbage collect
+// a syncgroup publisher to publish pending syncgroups; (6) Garbage collect
 // older generations.
 //
 // TODO(hpucha): Currently only does initiation. Add rest.
@@ -86,7 +86,7 @@ func (s *syncService) syncer(ctx *context.T) {
 
 		s.syncClock(ctx, peer)
 
-		// Sync Syncgroup metadata and data.
+		// Sync syncgroup metadata and data.
 		s.getDeltas(ctx, peer)
 	}
 }
