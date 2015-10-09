@@ -24,7 +24,7 @@ func TestLameDuck(t *testing.T) {
 
 	events := make(chan StatusUpdate, 2)
 	dflows, aflows := make(chan flow.Flow, 3), make(chan flow.Flow, 3)
-	dc, ac, _ := setupConnsWithEvents(t, ctx, ctx, dflows, aflows, events)
+	dc, ac, _ := setupConnsWithEvents(t, ctx, ctx, dflows, aflows, events, false)
 
 	go func() {
 		for {
@@ -61,7 +61,7 @@ func TestLameDuck(t *testing.T) {
 
 	// Now put the accepted conn into lame duck mode.
 	ac.EnterLameDuck(ctx)
-	if e := <-events; e.Conn != dc || e.Status != (Status{false, false, true}) {
+	if e := <-events; e.Conn != dc || e.Status != (Status{false, false, false, true}) {
 		t.Errorf("Expected RemoteLameDuck on dialer, got %#v (a %p, d %p)", e, ac, dc)
 	}
 
@@ -85,25 +85,25 @@ func TestLameDuck(t *testing.T) {
 	}
 	f3.Close()
 
-	if e := <-events; e.Conn != ac || e.Status != (Status{false, true, false}) {
+	if e := <-events; e.Conn != ac || e.Status != (Status{false, false, true, false}) {
 		t.Errorf("Expected LocalLameDuck on acceptor, got %#v (a %p, d %p)", e, ac, dc)
 	}
 
 	// Now put the dialer side into lame duck.
 	dc.EnterLameDuck(ctx)
-	if e := <-events; e.Conn != ac || e.Status != (Status{false, true, true}) {
+	if e := <-events; e.Conn != ac || e.Status != (Status{false, false, true, true}) {
 		t.Errorf("Expected RemoteLameDuck on acceptor, got %#v (a %p, d %p)", e, ac, dc)
 	}
-	if e := <-events; e.Conn != dc || e.Status != (Status{false, true, true}) {
+	if e := <-events; e.Conn != dc || e.Status != (Status{false, false, true, true}) {
 		t.Errorf("Expected LocalLameDuck on dialer, got %#v (a %p, d %p)", e, ac, dc)
 	}
 
 	// Now close the accept side.
 	ac.Close(ctx, nil)
-	if e := <-events; e.Status != (Status{true, true, true}) {
+	if e := <-events; e.Status != (Status{true, true, true, true}) {
 		t.Errorf("Expected Closed got %#v (a %p, d %p)", e, ac, dc)
 	}
-	if e := <-events; e.Status != (Status{true, true, true}) {
+	if e := <-events; e.Status != (Status{true, true, true, true}) {
 		t.Errorf("Expected Closed got %#v (a %p, d %p)", e, ac, dc)
 	}
 	<-dc.Closed()
