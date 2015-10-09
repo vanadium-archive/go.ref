@@ -351,7 +351,61 @@ func (m *mojoImpl) DbExists(name string) (mojom.Error, bool, error) {
 	return toMojoError(err), exists, nil
 }
 
-func (m *mojoImpl) DbExec(name string, query string, stream mojom.ExecStream_Pointer) (mojom.Error, error) {
+type execStreamImpl struct {
+	ctx   *context.T
+	proxy *mojom.ExecStream_Proxy
+}
+
+func (s *execStreamImpl) Send(item interface{}) error {
+	v, ok := item.([][]byte)
+	if !ok {
+		return verror.NewErrInternal(s.ctx)
+	}
+
+	r := mojom.Result{
+		Values: v,
+	}
+
+	// proxy.OnResult() blocks until the client acks the previous invocation,
+	// thus providing flow control.
+	return s.proxy.OnResult(r)
+}
+
+func (s *execStreamImpl) Recv(_ interface{}) error {
+	// This should never be called.
+	return verror.NewErrInternal(s.ctx)
+}
+
+var _ rpc.Stream = (*execStreamImpl)(nil)
+
+func (m *mojoImpl) DbExec(name string, query string, ptr mojom.ExecStream_Pointer) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Exec"))
+	stub, err := m.getDb(ctx, call, name)
+	if err != nil {
+		return toMojoError(err), nil
+	}
+
+	proxy := mojom.NewExecStreamProxy(ptr, bindings.GetAsyncWaiter())
+
+	execServerCallStub := &nosqlwire.DatabaseExecServerCallStub{struct {
+		rpc.Stream
+		rpc.ServerCall
+	}{
+		&execStreamImpl{
+			ctx:   ctx,
+			proxy: proxy,
+		},
+		call,
+	}}
+
+	go func() {
+		var err = stub.Exec(ctx, execServerCallStub, NoSchema, query)
+		// NOTE(nlacasse): Since we are already streaming, we send any error back
+		// to the client on the stream.  The Exec function itself should not
+		// return an error at this point.
+		proxy.OnDone(toMojoError(err))
+	}()
+
 	return mojom.Error{}, nil
 }
 
@@ -700,7 +754,7 @@ func (m *mojoImpl) TableScan(name string, start, limit []byte, ptr mojom.ScanStr
 		// NOTE(nlacasse): Since we are already streaming, we send any error back
 		// to the client on the stream.  The TableScan function itself should not
 		// return an error at this point.
-		proxy.OnReturn(toMojoError(err))
+		proxy.OnDone(toMojoError(err))
 	}()
 
 	return mojom.Error{}, nil
