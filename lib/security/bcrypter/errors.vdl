@@ -1,0 +1,20 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package bcrypter
+
+error (
+      Internal(err error) {
+              "en": "internal error: {err}",
+      }
+      InvalidArg(err error) {
+      	      "en": "invalid argument: {err}",
+      }
+      InvalidScheme(gotScheme int32, supportedSchemes []int32) {
+      	      "en": "invalid cryptographic scheme: {gotScheme}, supported schemes: {supportedSchemes}",
+      }
+      PrivateKeyNotFound() {
+              "en": "no private key found for decrypting ciphertext",
+      }
+)
