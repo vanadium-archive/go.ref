@@ -145,7 +145,7 @@ func harvestExitcode(process *os.Process, ioerr error) (int32, error) {
 
 // findShell returns the path to the first usable shell binary.
 func findShell() (string, error) {
-	shells := []string{"/bin/bash", "/bin/sh"}
+	shells := []string{"/bin/bash", "/bin/sh", "/system/bin/sh"}
 	for _, s := range shells {
 		if _, err := os.Stat(s); err == nil {
 			return s, nil
