@@ -8,14 +8,14 @@ import (
 	"fmt"
 	"strings"
 
+	"v.io/v23/context"
+	"v.io/v23/conventions"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/x/ref/services/groups/internal/server"
 	"v.io/x/ref/services/groups/internal/store/leveldb"
 	"v.io/x/ref/services/groups/internal/store/mem"
-	"v.io/v23/context"
-	"v.io/v23/security"
-	"v.io/v23/conventions"
-	"v.io/v23/verror"
 )
 
 var (

@@ -23,6 +23,7 @@ func TestConst(t *testing.T) {
 		{"String", vdl.StringValue("abc"), `"abc"`},
 		{"Bytes", vdl.BytesValue([]byte("abc")), `[]byte("abc")`},
 		{"Byte", vdl.ByteValue(111), `byte(111)`},
+		{"EmptyBytes", vdl.BytesValue(nil), `[]byte(nil)`},
 		{"Uint16", vdl.Uint16Value(222), `uint16(222)`},
 		{"Uint32", vdl.Uint32Value(333), `uint32(333)`},
 		{"Uint64", vdl.Uint64Value(444), `uint64(444)`},
@@ -48,6 +49,10 @@ func TestConst(t *testing.T) {
 "A",
 "B",
 "C",
+}`},
+		{"List of ByteList", vListOfByteList, `[][]byte{
+[]byte("abc"),
+nil,
 }`},
 		{"Set", vSet, `map[string]struct{}{
 "A": struct{}{},
@@ -97,15 +102,16 @@ var (
 	vEmptyMap    = vdl.ZeroValue(tMap)
 	vEmptyStruct = vdl.ZeroValue(tStruct)
 
-	vArray    = vdl.ZeroValue(tArray)
-	vList     = vdl.ZeroValue(tList)
-	vSet      = vdl.ZeroValue(tSet)
-	vMap      = vdl.ZeroValue(tMap)
-	vStruct   = vdl.ZeroValue(tStruct)
-	vUnionABC = vdl.ZeroValue(tUnion)
-	vUnion123 = vdl.ZeroValue(tUnion)
-	vAnyABC   = vdl.ZeroValue(vdl.AnyType)
-	vAny123   = vdl.ZeroValue(vdl.AnyType)
+	vArray          = vdl.ZeroValue(tArray)
+	vList           = vdl.ZeroValue(tList)
+	vListOfByteList = vdl.ZeroValue(tListOfByteList)
+	vSet            = vdl.ZeroValue(tSet)
+	vMap            = vdl.ZeroValue(tMap)
+	vStruct         = vdl.ZeroValue(tStruct)
+	vUnionABC       = vdl.ZeroValue(tUnion)
+	vUnion123       = vdl.ZeroValue(tUnion)
+	vAnyABC         = vdl.ZeroValue(vdl.AnyType)
+	vAny123         = vdl.ZeroValue(vdl.AnyType)
 )
 
 func init() {
@@ -116,6 +122,9 @@ func init() {
 	vList.Index(0).AssignString("A")
 	vList.Index(1).AssignString("B")
 	vList.Index(2).AssignString("C")
+	vListOfByteList.AssignLen(2)
+	vListOfByteList.Index(0).Assign(vdl.BytesValue([]byte("abc")))
+	vListOfByteList.Index(1).Assign(vdl.BytesValue(nil))
 	// TODO(toddw): Assign more items once the ordering is fixed.
 	vSet.AssignSetKey(vdl.StringValue("A"))
 	vMap.AssignMapIndex(vdl.StringValue("A"), vdl.Int64Value(1))
