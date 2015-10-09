@@ -52,7 +52,7 @@ func StartSyncbased(t *v23tests.T, creds *modules.CustomCredentials, name, rootD
 		} else {
 			// To debug sync (for example), uncomment this line as well as the --vpath
 			// and --alsologtostderr lines above.
-			//log.Printf("syncbased terminated cleanly\nstdout: %v\nstderr: %v\n", stdout, stderr)
+			// log.Printf("syncbased terminated cleanly\nstdout: %v\nstderr: %v\n", stdout, stderr)
 		}
 		if rmRootDir {
 			if err := os.RemoveAll(rootDir); err != nil {

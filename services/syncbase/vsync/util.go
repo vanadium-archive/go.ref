@@ -13,6 +13,7 @@ import (
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 )
@@ -63,13 +64,18 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string,
 	}
 }
 
-// getDbStore gets the store handle to the database.
-func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, appName, dbName string) (store.Store, error) {
+// getDb gets the database handle.
+func (s *syncService) getDb(ctx *context.T, call rpc.ServerCall, appName, dbName string) (interfaces.Database, error) {
 	app, err := s.sv.App(ctx, call, appName)
 	if err != nil {
 		return nil, err
 	}
-	db, err := app.NoSQLDatabase(ctx, call, dbName)
+	return app.NoSQLDatabase(ctx, call, dbName)
+}
+
+// getDbStore gets the store handle to the database.
+func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, appName, dbName string) (store.Store, error) {
+	db, err := s.getDb(ctx, call, appName, dbName)
 	if err != nil {
 		return nil, err
 	}

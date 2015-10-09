@@ -131,7 +131,16 @@ func syncWithPeer(ctx *context.T, vclock *clock.VClock, absPeerName string, myNa
 		return nil
 	}
 
-	timeResp, reqErr := c.GetTime(ctx, makeTimeReq(vclock, localData), myName)
+	tctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// We start a timer to bound the amount of time we wait to
+	// initiate a connection.
+	t := time.AfterFunc(connectionTimeOut, cancel)
+
+	timeResp, reqErr := c.GetTime(tctx, makeTimeReq(vclock, localData), myName)
+	t.Stop()
+
 	if reqErr == nil {
 		recvTs := vclock.NowNoLookup(*localData)
 
@@ -148,7 +157,7 @@ func syncWithPeer(ctx *context.T, vclock *clock.VClock, absPeerName string, myNa
 			vlog.Errorf("sync: syncClock: error while commiting tx: %v", commitErr)
 		}
 	} else {
-		vlog.Errorf("sync: syncClock: received error from peer: %v", reqErr)
+		vlog.Errorf("sync: syncClock: received error: %v", reqErr)
 	}
 	// Return error received while making request if any to the caller.
 	return reqErr

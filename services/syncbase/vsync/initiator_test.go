@@ -90,7 +90,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 	defer cleanup()
 
 	// Check all log records.
-	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
+	objid := util.JoinKeyParts(util.RowPrefix, "tb", "foo1")
 	var gen uint64
 	var parents []string
 	for gen = 1; gen < 4; gen++ {
@@ -143,8 +143,8 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 
 	// Verify genvec state.
 	wantVec := interfaces.GenVector{
-		"foo1": interfaces.PrefixGenVector{11: 3},
-		"bar":  interfaces.PrefixGenVector{11: 0},
+		"tb:foo1": interfaces.PrefixGenVector{11: 3},
+		"tb:bar":  interfaces.PrefixGenVector{11: 0},
 	}
 	if !reflect.DeepEqual(iSt.updLocal, wantVec) {
 		t.Fatalf("Final local gen vec mismatch got %v, want %v", iSt.updLocal, wantVec)
@@ -179,7 +179,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-noconf-00.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
+	objid := util.JoinKeyParts(util.RowPrefix, "tb:foo1")
 
 	// Check all log records.
 	var version uint64 = 1
@@ -240,8 +240,8 @@ func TestLogStreamNoConflict(t *testing.T) {
 
 	// Verify genvec state.
 	wantVec := interfaces.GenVector{
-		"foo1": interfaces.PrefixGenVector{11: 3},
-		"bar":  interfaces.PrefixGenVector{11: 0},
+		"tb:foo1": interfaces.PrefixGenVector{11: 3},
+		"tb:bar":  interfaces.PrefixGenVector{11: 0},
 	}
 	if !reflect.DeepEqual(iSt.updLocal, wantVec) {
 		t.Fatalf("Final local gen vec failed got %v, want %v", iSt.updLocal, wantVec)
@@ -276,7 +276,7 @@ func TestLogStreamConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-00.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
+	objid := util.JoinKeyParts(util.RowPrefix, "tb:foo1")
 
 	// Verify conflict state.
 	if len(iSt.updObjects) != 1 {
@@ -323,7 +323,7 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-03.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "foo1")
+	objid := util.JoinKeyParts(util.RowPrefix, "tb:foo1")
 
 	// Verify conflict state.
 	if len(iSt.updObjects) != 1 {

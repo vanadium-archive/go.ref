@@ -168,7 +168,8 @@ type initiationConfig struct {
 	sync    *syncService
 	appName string
 	dbName  string
-	st      store.Store // Store handle to the Database.
+	db      interfaces.Database // handle to the Database.
+	st      store.Store         // Store handle to the Database.
 }
 
 // initiationState is accumulated for a Database in each sync round in an
@@ -232,10 +233,11 @@ func newInitiationConfig(ctx *context.T, s *syncService, peer string, name strin
 	}
 
 	// TODO(hpucha): nil rpc.ServerCall ok?
-	c.st, err = s.getDbStore(ctx, nil, c.appName, c.dbName)
+	c.db, err = s.getDb(ctx, nil, c.appName, c.dbName)
 	if err != nil {
 		return nil, err
 	}
+	c.st = c.db.St()
 
 	return c, nil
 }
@@ -867,6 +869,24 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 			} else {
 				vlog.VI(4).Infof("sync: updateDbAndSyncSt: Deleting obj %s", objid)
 				if err := iSt.tx.Delete([]byte(objid)); err != nil {
+					return err
+				}
+			}
+
+			// If this is a perms key, update the local store index.
+			parts := util.SplitKeyParts(objid)
+			if len(parts) < 3 {
+				vlog.Fatalf("sync: updateDbAndSyncSt: bad key %s", objid)
+			}
+			if parts[0] == util.PermsPrefix {
+				tb := iSt.config.db.Table(ctx, parts[1])
+				var err error
+				if !newVersDeleted {
+					err = tb.UpdatePrefixPermsIndexForSet(ctx, iSt.tx, parts[2])
+				} else {
+					err = tb.UpdatePrefixPermsIndexForDelete(ctx, iSt.tx, parts[2])
+				}
+				if err != nil {
 					return err
 				}
 			}

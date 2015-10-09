@@ -108,7 +108,7 @@ func TestAddParent(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid, version := "foo1", "7"
+	oid, version := "tb:foo1", "7"
 
 	tx := st.NewTransaction()
 	if err := s.addParent(nil, tx, oid, version, "haha", nil); err == nil {
@@ -236,7 +236,7 @@ func TestLocalUpdates(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -258,21 +258,21 @@ func TestLocalUpdates(t *testing.T) {
 	tx := st.NewTransaction()
 
 	// Make sure a new node cannot have more than 2 parents.
-	if err := s.addNode(nil, tx, oid, "4", "foo", false, []string{"1", "2", "3"}, NoBatchId, nil); err == nil {
+	if err := s.addNode(nil, tx, oid, "4", "tb:foo", false, []string{"1", "2", "3"}, NoBatchId, nil); err == nil {
 		t.Errorf("addNode() did not fail when given 3 parents")
 	}
 
 	// Make sure a new node cannot have an invalid parent.
-	if err := s.addNode(nil, tx, oid, "4", "foo", false, []string{"1", "555"}, NoBatchId, nil); err == nil {
+	if err := s.addNode(nil, tx, oid, "4", "tb:foo", false, []string{"1", "555"}, NoBatchId, nil); err == nil {
 		t.Errorf("addNode() did not fail when using an invalid parent")
 	}
 
 	// Make sure a new root node (no parents) can be added once a root exists.
 	// For the parents array, check both the "nil" and the empty array as input.
-	if err := s.addNode(nil, tx, oid, "6789", "foo", false, nil, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid, "6789", "tb:foo", false, nil, NoBatchId, nil); err != nil {
 		t.Errorf("cannot add another root node (nil parents) for object %s: %v", oid, err)
 	}
-	if err := s.addNode(nil, tx, oid, "9999", "foo", false, []string{}, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid, "9999", "tb:foo", false, []string{}, NoBatchId, nil); err != nil {
 		t.Errorf("cannot add another root node (empty parents) for object %s: %v", oid, err)
 	}
 
@@ -289,7 +289,7 @@ func TestRemoteUpdates(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	graft, err := s.dagReplayCommands(nil, "remote-init-00.log.sync")
 	if err != nil {
@@ -363,7 +363,7 @@ func TestRemoteNoConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -446,7 +446,7 @@ func TestRemoteConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -539,7 +539,7 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -626,7 +626,7 @@ func TestRemoteConflictNoAncestor(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -931,7 +931,7 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -1001,7 +1001,7 @@ func TestRemoteLinkedConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -1061,7 +1061,7 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -1123,7 +1123,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "foo1"
+	oid := "tb:foo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
