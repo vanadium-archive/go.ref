@@ -61,6 +61,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	// and we are not talking through a proxy.
 	// Otherwise, we only send our public key.
 	if c.handler != nil && !c.isProxy {
+		c.loopWG.Add(1)
 		if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx); err != nil {
 			return err
 		}
@@ -84,6 +85,7 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 	lAuth := &message.Auth{
 		ChannelBinding: signedBinding,
 	}
+	c.loopWG.Add(1)
 	if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx); err != nil {
 		return err
 	}
@@ -190,19 +192,20 @@ func (c *Conn) readRemoteAuth(ctx *context.T, tag, binding []byte) (map[string]s
 }
 
 func (c *Conn) refreshDischarges(ctx *context.T) (bkey, dkey uint64, err error) {
+	defer c.loopWG.Done()
 	dis := slib.PrepareDischarges(ctx, c.lBlessings,
 		security.DischargeImpetus{}, time.Minute)
 	// Schedule the next update.
-	var timer *time.Timer
-	if dur, expires := minExpiryTime(c.lBlessings, dis); expires {
-		timer = time.AfterFunc(dur, func() {
+	dur, expires := minExpiryTime(c.lBlessings, dis)
+	c.mu.Lock()
+	if expires && c.status < Closing {
+		c.loopWG.Add(1)
+		c.dischargeTimer = time.AfterFunc(dur, func() {
 			c.refreshDischarges(ctx)
 		})
 	}
-	bkey, dkey, err = c.blessingsFlow.put(ctx, c.lBlessings, dis)
-	c.mu.Lock()
-	c.dischargeTimer = timer
 	c.mu.Unlock()
+	bkey, dkey, err = c.blessingsFlow.put(ctx, c.lBlessings, dis)
 	return
 }
 

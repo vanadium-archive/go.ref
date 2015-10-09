@@ -18,6 +18,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
@@ -163,6 +164,9 @@ func TestClientServerBlessings(t *testing.T) {
 }
 
 func TestServerEndpointBlessingNames(t *testing.T) {
+	if ref.RPCTransitionState() >= ref.XServers {
+		t.Skip("The new rpc system doesn't use the ServerBlessings opt.")
+	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("default"))
@@ -336,10 +340,16 @@ func TestServerDischarges(t *testing.T) {
 	if err := pserver.BlessingStore().SetDefault(rootServerInvalidTPCaveat); err != nil {
 		t.Fatal(err)
 	}
-	call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil)
-	if verror.ErrorID(err) == verror.ErrNoAccess.ID {
-		remoteBlessings, _ := call.RemoteBlessings()
-		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remoteBlessings)
+	serverCtx, server, err = v23.WithNewServer(serverCtx, "", testService{}, security.AllowEveryone())
+	if err != nil {
+		t.Fatal(err)
 	}
-	call.Finish() // make sure the rpc finishes before shutting down the test+runtime.
+	serverName = server.Status().Endpoints[0].Name()
+
+	call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil)
+	if err == nil {
+		remote, _ := call.RemoteBlessings()
+		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remote)
+		call.Finish()
+	}
 }

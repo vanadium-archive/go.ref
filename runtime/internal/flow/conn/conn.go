@@ -304,7 +304,9 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 
 	flows := c.flows
 	if c.dischargeTimer != nil {
-		c.dischargeTimer.Stop()
+		if c.dischargeTimer.Stop() {
+			c.loopWG.Done()
+		}
 		c.dischargeTimer = nil
 	}
 	if c.status >= Closing {
