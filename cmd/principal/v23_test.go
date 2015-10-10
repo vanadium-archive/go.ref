@@ -84,3 +84,7 @@ func TestV23AddBlessingsToRoots(t *testing.T) {
 func TestV23AddKeyToRoots(t *testing.T) {
 	v23tests.RunTest(t, V23TestAddKeyToRoots)
 }
+
+func TestV23DumpRoots(t *testing.T) {
+	v23tests.RunTest(t, V23TestDumpRoots)
+}
