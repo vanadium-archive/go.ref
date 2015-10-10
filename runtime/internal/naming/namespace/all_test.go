@@ -694,8 +694,8 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 		if e, err := clientNs.Resolve(clientCtx, name); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 			t.Errorf("resolve(%q) returned (%v, errorid=%v %v), wanted errorid=%v", name, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
 		}
-		// But not fail if the skip-authorization option is provided
-		if e, err := clientNs.Resolve(clientCtx, name, options.SkipServerEndpointAuthorization{}); err != nil {
+		// But not fail if the server authorization is skipped.
+		if e, err := clientNs.Resolve(clientCtx, name, options.NameResolutionAuthorizer{security.AllowEveryone()}); err != nil {
 			t.Errorf("resolve(%q): Got (%v, %v), expected resolution to succeed", name, e, err)
 		}
 
@@ -704,7 +704,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 		if e, err := ns.Resolve(ctx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 			t.Errorf("resolve with root=%q returned (%v, errorid=%v %v), wanted errorid=%v: %s", root, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID, verror.DebugString(err))
 		}
-		if _, err := ns.Resolve(ctx, "mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
+		if _, err := ns.Resolve(ctx, "mt/server", options.NameResolutionAuthorizer{security.AllowEveryone()}); err != nil {
 			t.Errorf("resolve with root=%q should have succeeded when authorization checks are skipped. Got %v: %s", root, err, verror.DebugString(err))
 		}
 	}
@@ -719,7 +719,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 		t.Error(err)
 	}
 
-	if e, err := clientNs.Resolve(serverCtx, "mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
+	if e, err := clientNs.Resolve(serverCtx, "mt/server", options.NameResolutionAuthorizer{security.AllowEveryone()}); err != nil {
 		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v) %s", e, err, verror.DebugString(err))
 	} else if e, err := clientNs.Resolve(serverCtx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)

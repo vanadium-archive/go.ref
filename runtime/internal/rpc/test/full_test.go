@@ -24,6 +24,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
@@ -510,7 +511,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 	defer shutdown()
 
 	const (
-		publicKeyErr        = "not matched by server key"
+		publicKeyErr        = "not the authorized public key"
 		missingDischargeErr = "missing discharge"
 		expiryErr           = "is after expiry"
 		allowedErr          = "do not match any allowed server patterns"
@@ -540,6 +541,14 @@ func TestRPCServerAuthorization(t *testing.T) {
 		bOther           = bless(t, ctx, sctx, "other")
 		bTwoBlessings, _ = security.UnionOfBlessings(bServer, bOther)
 
+		ACL = func(patterns ...string) security.Authorizer {
+			var acl access.AccessList
+			for _, p := range patterns {
+				acl.In = append(acl.In, security.BlessingPattern(p))
+			}
+			return acl
+		}
+
 		tests = []struct {
 			server security.Blessings // blessings presented by the server to the client.
 			name   string             // name provided by the client to StartCall
@@ -558,23 +567,14 @@ func TestRPCServerAuthorization(t *testing.T) {
 			{bServerExpired, "mountpoint/server", nil, verror.ErrNotTrusted, expiryErr},
 			{bServerTPExpired, "mountpoint/server", nil, verror.ErrNotTrusted, missingDischargeErr},
 
-			// Testing the AllowedServersPolicy option.
-			{bServer, "mountpoint/server", O{options.AllowedServersPolicy{"otherroot"}}, verror.ErrNotTrusted, allowedErr},
-			{bServer, "mountpoint/server", O{options.AllowedServersPolicy{"test-blessing"}}, noErrID, ""},
-			{bTwoBlessings, "mountpoint/server", O{options.AllowedServersPolicy{"test-blessing/other"}}, noErrID, ""},
-
-			// Test the ServerPublicKey option.
-			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
-				PublicKey: bOther.PublicKey(),
-			}}, noErrID, ""},
-			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
-				PublicKey: testutil.NewPrincipal("irrelevant").PublicKey(),
-			}}, verror.ErrNotTrusted, publicKeyErr},
+			// Test the ServerAuthorizer option.
+			{bOther, "mountpoint/server", O{options.ServerAuthorizer{security.PublicKeyAuthorizer(bOther.PublicKey())}}, noErrID, ""},
+			{bOther, "mountpoint/server", O{options.ServerAuthorizer{security.PublicKeyAuthorizer(testutil.NewPrincipal("irrelevant").PublicKey())}}, verror.ErrNotTrusted, publicKeyErr},
 
 			// Test the "paranoid" names, where the pattern is provided in the name.
 			{bServer, "__(test-blessing/server)/mountpoint/server", nil, noErrID, ""},
 			{bServer, "__(test-blessing/other)/mountpoint/server", nil, verror.ErrNotTrusted, allowedErr},
-			{bTwoBlessings, "__(test-blessing/server)/mountpoint/server", O{options.AllowedServersPolicy{"test-blessing/other"}}, noErrID, ""},
+			{bTwoBlessings, "__(test-blessing/server)/mountpoint/server", O{options.ServerAuthorizer{ACL("test-blessing/other")}}, noErrID, ""},
 		}
 	)
 	// Start the discharge server.
@@ -648,7 +648,7 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 	}
 	// But the RPC should succeed if the client explicitly
 	// decided to skip server authorization.
-	if err := v23.GetClient(cctx).Call(cctx, "mountpoint/server", "Closure", nil, nil, options.SkipServerEndpointAuthorization{}); err != nil {
+	if err := v23.GetClient(cctx).Call(cctx, "mountpoint/server", "Closure", nil, nil, options.ServerAuthorizer{security.AllowEveryone()}); err != nil {
 		t.Errorf("Unexpected error(%v) when skipping server authorization", err)
 	}
 }
@@ -864,34 +864,6 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	// from cache and refreshed
 	if err := call(); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestServerPublicKeyOpt(t *testing.T) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-
-	sctx := withPrincipal(t, ctx, "server")
-	cctx := withPrincipal(t, ctx, "client")
-	octx := withPrincipal(t, ctx, "other")
-
-	mountName := "mountpoint/default"
-	_, _, err := v23.WithNewDispatchingServer(sctx, mountName, testServerDisp{&testServer{}})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// The call should succeed when the server presents the same public as the opt...
-	if _, err = v23.GetClient(cctx).StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
-		PublicKey: v23.GetPrincipal(sctx).PublicKey(),
-	}); err != nil {
-		t.Errorf("Expected call to succeed but got %v", err)
-	}
-	// ...but fail if they differ.
-	if _, err = v23.GetClient(cctx).StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
-		PublicKey: v23.GetPrincipal(octx).PublicKey(),
-	}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
-		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.ErrNotTrusted.ID)
 	}
 }
 

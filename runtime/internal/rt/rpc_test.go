@@ -17,6 +17,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -294,7 +295,7 @@ func TestServerDischarges(t *testing.T) {
 	wantServer := []string{"root/server"}
 	var gotClient []string
 	// This opt ensures that if the Blessings do not match the pattern, StartCall will fail.
-	allowedServers := options.AllowedServersPolicy{"root/server"}
+	allowedServers := options.ServerAuthorizer{access.AccessList{In: []security.BlessingPattern{"root/server"}}}
 
 	// Create a new client.
 	clientCtx, client, err := v23.WithNewClient(clientCtx)

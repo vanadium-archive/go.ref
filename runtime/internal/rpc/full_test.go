@@ -804,7 +804,7 @@ var fakeTimeCaveat = security.CaveatDescriptor{
 	ParamType: vdl.TypeOf(int64(0)),
 }
 
-func TestServerPublicKeyOpt(t *testing.T) {
+func TestServerAuthorizerOpt(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 	var (
@@ -826,17 +826,16 @@ func TestServerPublicKeyOpt(t *testing.T) {
 	defer smc.Shutdown()
 	defer client.Close()
 
+	authopt := func(k security.PublicKey) options.ServerAuthorizer {
+		return options.ServerAuthorizer{security.PublicKeyAuthorizer(k)}
+	}
 	// The call should succeed when the server presents the same public as the opt...
 	var err error
-	if _, err = client.StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
-		PublicKey: pserver.PublicKey(),
-	}); err != nil {
+	if _, err = client.StartCall(cctx, mountName, "Closure", nil, authopt(pserver.PublicKey())); err != nil {
 		t.Errorf("Expected call to succeed but got %v", err)
 	}
 	// ...but fail if they differ.
-	if _, err = client.StartCall(cctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{
-		PublicKey: pother.PublicKey(),
-	}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+	if _, err = client.StartCall(cctx, mountName, "Closure", nil, authopt(pother.PublicKey())); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.ErrNotTrusted.ID)
 	}
 }

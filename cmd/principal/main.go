@@ -1278,9 +1278,18 @@ func blessOverNetwork(ctx *context.T, object string, granter *granter, remoteTok
 	// At worst, there is a privacy leak of the senders intent to send some
 	// blessings.  That could be addressed by making the full public key of
 	// the recipeint available to the sender and using
-	// options.ServerPublicKey instead of providing a "hash" of the
-	// recipients public key and verifying in the Granter implementation.
-	if err := client.Call(ctx, object, "Grant", []interface{}{remoteToken}, nil, granter, options.SkipServerEndpointAuthorization{}); err != nil {
+	// options.SecurityAuthorizer{security.PublicKeyAuthorizer()} instead
+	// of providing a "hash" of the recipients public key and verifying in
+	// the Granter implementation.
+	if err := client.Call(
+		ctx,
+		object,
+		"Grant",
+		[]interface{}{remoteToken},
+		nil,
+		granter,
+		options.ServerAuthorizer{security.AllowEveryone()},
+		options.NameResolutionAuthorizer{security.AllowEveryone()}); err != nil {
 		return fmt.Errorf("failed to make RPC to %q: %v", object, err)
 	}
 	return nil

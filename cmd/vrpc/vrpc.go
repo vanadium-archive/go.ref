@@ -20,6 +20,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/rpc/reserved"
+	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/x/lib/cmdline"
@@ -34,6 +35,10 @@ import (
 var (
 	flagInsecure     bool
 	flagShowReserved bool
+	insecureOpts     = []rpc.CallOpt{
+		options.ServerAuthorizer{security.AllowEveryone()},
+		options.NameResolutionAuthorizer{security.AllowEveryone()},
+	}
 )
 
 func main() {
@@ -150,7 +155,7 @@ func runSignature(ctx *context.T, env *cmdline.Env, args []string) error {
 	var types vdlgen.NamedTypes
 	var opts []rpc.CallOpt
 	if flagInsecure {
-		opts = append(opts, options.SkipServerEndpointAuthorization{})
+		opts = append(opts, insecureOpts...)
 	}
 	if method != "" {
 		methodSig, err := reserved.MethodSignature(ctx, server, method, opts...)
@@ -281,7 +286,7 @@ func runIdentify(ctx *context.T, env *cmdline.Env, args []string) error {
 	defer cancel()
 	var opts []rpc.CallOpt
 	if flagInsecure {
-		opts = append(opts, options.SkipServerEndpointAuthorization{})
+		opts = append(opts, insecureOpts...)
 	}
 	// The method name does not matter - only interested in authentication,
 	// not in actually making an RPC.

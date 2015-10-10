@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	vdltime "v.io/v23/vdlroot/time"
@@ -222,6 +223,13 @@ func getCallOpts(opts []naming.NamespaceOpt) []rpc.CallOpt {
 	var out []rpc.CallOpt
 	for _, o := range opts {
 		if co, ok := o.(rpc.CallOpt); ok {
+			if auth, ok := co.(options.NameResolutionAuthorizer); ok {
+				// This function is being called to determine
+				// the options for the "Resolve" RPC. The end server of
+				// this particular RPC is to be authorized by the policy
+				// in NameResolutionAuthorizer.
+				co = options.ServerAuthorizer{auth.Authorizer}
+			}
 			out = append(out, co)
 		}
 	}

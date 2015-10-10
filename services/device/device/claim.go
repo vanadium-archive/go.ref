@@ -10,7 +10,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/options"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/device"
 	"v.io/x/lib/cmdline"
@@ -45,7 +44,7 @@ func runClaim(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) > 2 {
 		pairingToken = args[2]
 	}
-	var serverKeyOpts rpc.CallOpt
+	var serverAuth security.Authorizer
 	if len(args) > 3 {
 		marshalledPublicKey, err := base64.URLEncoding.DecodeString(args[3])
 		if err != nil {
@@ -54,12 +53,14 @@ func runClaim(ctx *context.T, env *cmdline.Env, args []string) error {
 		if deviceKey, err := security.UnmarshalPublicKey(marshalledPublicKey); err != nil {
 			return fmt.Errorf("Failed to unmarshal device public key:%v", err)
 		} else {
-			serverKeyOpts = options.ServerPublicKey{PublicKey: deviceKey}
+			serverAuth = security.PublicKeyAuthorizer(deviceKey)
 		}
+	} else {
+		// Skip server endpoint authorization since an unclaimed device might
+		// have roots that will not be recognized by the claimer.
+		serverAuth = security.AllowEveryone()
 	}
-	// Skip server endpoint authorization since an unclaimed device might have
-	// roots that will not be recognized by the claimer.
-	if err := device.ClaimableClient(deviceName).Claim(ctx, pairingToken, &granter{extension: grant}, serverKeyOpts, options.SkipServerEndpointAuthorization{}); err != nil {
+	if err := device.ClaimableClient(deviceName).Claim(ctx, pairingToken, &granter{extension: grant}, options.ServerAuthorizer{serverAuth}, options.NameResolutionAuthorizer{security.AllowEveryone()}); err != nil {
 		return err
 	}
 	fmt.Fprintln(env.Stdout, "Successfully claimed.")

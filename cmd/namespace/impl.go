@@ -22,6 +22,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 
@@ -210,7 +211,7 @@ func runResolve(ctx *context.T, env *cmdline.Env, args []string) error {
 
 	var opts []naming.NamespaceOpt
 	if flagInsecureResolve {
-		opts = append(opts, options.SkipServerEndpointAuthorization{})
+		opts = append(opts, options.NameResolutionAuthorizer{security.AllowEveryone()})
 	}
 	me, err := ns.Resolve(ctx, name, opts...)
 	if err != nil {
@@ -244,7 +245,7 @@ func runResolveToMT(ctx *context.T, env *cmdline.Env, args []string) error {
 	ns := v23.GetNamespace(ctx)
 	var opts []naming.NamespaceOpt
 	if flagInsecureResolveToMT {
-		opts = append(opts, options.SkipServerEndpointAuthorization{})
+		opts = append(opts, options.NameResolutionAuthorizer{security.AllowEveryone()})
 	}
 	e, err := ns.ResolveToMountTable(ctx, name, opts...)
 	if err != nil {

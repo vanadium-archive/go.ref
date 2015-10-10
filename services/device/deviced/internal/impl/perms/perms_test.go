@@ -71,8 +71,8 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// Unclaimed devices cannot do anything but be claimed.
 	// TODO(ashankar,caprita): The line below will currently fail with
 	// ErrUnclaimedDevice != NotTrusted. NotTrusted can be avoided by
-	// passing options.SkipServerEndpointAuthorization{} to the "Install" RPC.
-	// Refactor the helper function to make this possible.
+	// passing options.ServerAuthorizer{security.AllowEveryone()} to the
+	// "Install" RPC.  Refactor the helper function to make this possible.
 	//installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
 
 	// Claim the device with an incorrect pairing token should fail.

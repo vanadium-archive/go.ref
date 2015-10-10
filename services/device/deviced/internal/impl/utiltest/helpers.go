@@ -176,7 +176,7 @@ func DeviceStub(name string) device.DeviceClientMethods {
 func ClaimDevice(t *testing.T, ctx *context.T, claimableName, deviceName, extension, pairingToken string) {
 	// Setup blessings to be granted to the claimed device
 	g := &granter{extension: extension}
-	s := options.SkipServerEndpointAuthorization{}
+	s := options.ServerAuthorizer{security.AllowEveryone()}
 	// Call the Claim RPC: Skip server authorization because the unclaimed
 	// device presents nothing that can be used to recognize it.
 	if err := device.ClaimableClient(claimableName).Claim(ctx, pairingToken, g, s); err != nil {
@@ -201,7 +201,7 @@ func ClaimDevice(t *testing.T, ctx *context.T, claimableName, deviceName, extens
 func ClaimDeviceExpectError(t *testing.T, ctx *context.T, name, extension, pairingToken string, errID verror.ID) {
 	// Setup blessings to be granted to the claimed device
 	g := &granter{extension: extension}
-	s := options.SkipServerEndpointAuthorization{}
+	s := options.ServerAuthorizer{security.AllowEveryone()}
 	// Call the Claim RPC
 	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g, s); verror.ErrorID(err) != errID {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Claim(%q) expected to fail with %v, got %v [%v]", name, pairingToken, errID, verror.ErrorID(err), err))

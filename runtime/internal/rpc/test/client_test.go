@@ -285,9 +285,9 @@ func TestStartCallErrors(t *testing.T) {
 
 	// TODO(mattr): This test doesn't pass because xclient doesn't look for this
 	// error.
-	// p1 := options.ServerPublicKey{PublicKey: testutil.NewPrincipal().PublicKey()}
-	// p2 := options.ServerPublicKey{PublicKey: testutil.NewPrincipal().PublicKey()}
-	// _, err = client.StartCall(ctx, "noname", "nomethod", nil, p1, p2)
+	// p1 := security.PublicKeyAuthorizer(testutil.NewPrincipal().PublicKey())
+	// p2 := security.PublicKeyAuthorizer(testutil.NewPrincipal().PublicKey())
+	// _, err = client.StartCall(ctx, "noname", "nomethod", nil, options.ServerAuthorizer{p1}, options.ServerAuthorizer{p2})
 	// if verror.ErrorID(err) != verror.ErrBadArg.ID {
 	// 	t.Fatalf("wrong error: %s", err)
 	// }
@@ -1010,7 +1010,7 @@ func TestAllowEmptyBlessings(t *testing.T) {
 	}
 	name := server.Status().Endpoints[0].Name()
 
-	call, err := clt.StartCall(clientCtx, name, "Ping", []interface{}{}, options.SkipServerEndpointAuthorization{})
+	call, err := clt.StartCall(clientCtx, name, "Ping", []interface{}{}, options.ServerAuthorizer{security.AllowEveryone()})
 	if err != nil {
 		t.Fatal(err)
 	}

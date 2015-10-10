@@ -5,8 +5,6 @@
 package rpc
 
 import (
-	"reflect"
-
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -16,123 +14,73 @@ import (
 	"v.io/x/ref/lib/apilog"
 )
 
-// TODO(ribrdb): Flip this to true once everything is updated and also update
-// the server authorizer tests.
-const enableSecureServerAuth = false
-
 var (
 	// These errors are intended to be used as arguments to higher
 	// level errors and hence {1}{2} is omitted from their format
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
-	errNoBlessingsFromServer      = reg(".errNoBlessingsFromServer", "server has not presented any blessings")
-	errAuthNoServerBlessingsMatch = reg(".errAuthNoServerBlessingsMatch",
-		"server blessings {3} do not match client expectations {4}, (rejected blessings: {5})")
 	errAuthServerNotAllowed = reg(".errAuthServerNotAllowed",
 		"server blessings {3} do not match any allowed server patterns {4}{:5}")
-	errAuthServerKeyNotAllowed = reg(".errAuthServerKeyNotAllowed",
-		"remote public key {3} not matched by server key {4}")
-	errMultiplePublicKeys = reg(".errMultiplePublicKeyOptions", "at most one ServerPublicKey options can be provided")
+	errMultipleAuthorizationPolicies = reg(".errMultipleAuthorizationPolicies", "at most one ServerAuthorizer option can be provided")
 )
 
-// serverAuthorizer implements security.Authorizer.
 type serverAuthorizer struct {
-	allowedServerPolicies     [][]security.BlessingPattern
-	serverPublicKey           security.PublicKey
-	ignoreBlessingsInEndpoint bool
+	auth         security.Authorizer
+	extraPattern security.BlessingPattern
 }
 
 // newServerAuthorizer returns a security.Authorizer for authorizing the server
 // during a flow. The authorization policy is based on options supplied to the
-// call that initiated the flow. Additionally, if pattern is non-empty then
-// the server will be authorized only if it presents at least one blessing
-// that matches pattern.
+// call that initiated the flow.
+//
+// TODO(ashankar): Trace why we have the behavior in the following comment and
+// consider removing it. It might be a relic from the early iterations of
+// server authorization, but I suspect we can get rid of
+// security.SplitPatternName and security.JoinPatternName? If we do, then this pattern argument
+// goes away.
+// If pattern is non-empty, then in addition, the server's blessing must satisfy the pattern.
 //
 // This method assumes that canCreateServerAuthorizer(opts) is nil.
 func newServerAuthorizer(pattern security.BlessingPattern, opts ...rpc.CallOpt) security.Authorizer {
-	auth := &serverAuthorizer{}
+	if len(pattern) == 0 {
+		return authorizerFromOpts(opts...)
+	}
+	return &serverAuthorizer{
+		auth:         authorizerFromOpts(opts...),
+		extraPattern: pattern,
+	}
+}
+
+func authorizerFromOpts(opts ...rpc.CallOpt) security.Authorizer {
 	for _, o := range opts {
-		switch v := o.(type) {
-		case options.ServerPublicKey:
-			auth.serverPublicKey = v.PublicKey
-		case options.AllowedServersPolicy:
-			auth.allowedServerPolicies = append(auth.allowedServerPolicies, v)
-		case options.SkipServerEndpointAuthorization:
-			auth.ignoreBlessingsInEndpoint = true
+		if v, ok := o.(options.ServerAuthorizer); ok {
+			return v
 		}
 	}
-	if len(pattern) > 0 {
-		auth.allowedServerPolicies = append(auth.allowedServerPolicies, []security.BlessingPattern{pattern})
-	}
-	return auth
+	return security.EndpointAuthorizer()
 }
 
 func (a *serverAuthorizer) Authorize(ctx *context.T, call security.Call) error {
 	defer apilog.LogCallf(ctx, "call=")(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	if call.RemoteBlessings().IsZero() {
-		return verror.New(errNoBlessingsFromServer, ctx)
+	if err := a.auth.Authorize(ctx, call); err != nil {
+		return err
 	}
-	serverBlessings, rejectedBlessings := security.RemoteBlessingNames(ctx, call)
-
-	if epb := call.RemoteEndpoint().BlessingNames(); len(epb) > 0 && !a.ignoreBlessingsInEndpoint {
-		matched := false
-		for _, b := range epb {
-			// TODO(ashankar,ataly): Should this be
-			// security.BlessingPattern(b).MakeNonExtendable().MatchedBy()?
-			// Because, without that, a delegate of the real server
-			// can be a man-in-the-middle without failing
-			// authorization. Is that a desirable property?
-			if security.BlessingPattern(b).MatchedBy(serverBlessings...) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return verror.New(errAuthNoServerBlessingsMatch, ctx, serverBlessings, epb, rejectedBlessings)
-		}
-	} else if enableSecureServerAuth && len(epb) == 0 {
-		// No blessings in the endpoint to set expectations on the
-		// "identity" of the server.  Use the default authorization
-		// policy.
-		if err := security.DefaultAuthorizer().Authorize(ctx, call); err != nil {
-			return err
-		}
+	names, rejected := security.RemoteBlessingNames(ctx, call)
+	if !a.extraPattern.MatchedBy(names...) {
+		return verror.New(errAuthServerNotAllowed, ctx, names, a.extraPattern, rejected)
 	}
-
-	for _, patterns := range a.allowedServerPolicies {
-		if !matchedBy(patterns, serverBlessings) {
-			return verror.New(errAuthServerNotAllowed, ctx, serverBlessings, patterns, rejectedBlessings)
-		}
-	}
-
-	if remoteKey, key := call.RemoteBlessings().PublicKey(), a.serverPublicKey; key != nil && !reflect.DeepEqual(remoteKey, key) {
-		return verror.New(errAuthServerKeyNotAllowed, ctx, remoteKey, key)
-	}
-
 	return nil
 }
 
-func matchedBy(patterns []security.BlessingPattern, blessings []string) bool {
-	if patterns == nil {
-		return true
-	}
-	for _, p := range patterns {
-		if p.MatchedBy(blessings...) {
-			return true
-		}
-	}
-	return false
-}
-
 func canCreateServerAuthorizer(ctx *context.T, opts []rpc.CallOpt) error {
-	var pkey security.PublicKey
+	policy := false
 	for _, o := range opts {
-		switch v := o.(type) {
-		case options.ServerPublicKey:
-			if pkey != nil && !reflect.DeepEqual(pkey, v.PublicKey) {
-				return verror.New(errMultiplePublicKeys, ctx)
+		switch o.(type) {
+		case options.ServerAuthorizer:
+			if policy {
+				return verror.New(errMultipleAuthorizationPolicies, ctx)
 			}
-			pkey = v.PublicKey
+			policy = true
 		}
 	}
 	return nil

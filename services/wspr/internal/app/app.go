@@ -22,6 +22,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
@@ -229,7 +230,7 @@ func (c *Controller) callOpts(opts []RpcCallOption) ([]rpc.CallOpt, error) {
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case RpcCallOptionAllowedServersPolicy:
-			callOpts = append(callOpts, options.AllowedServersPolicy(v.Value))
+			callOpts = append(callOpts, options.ServerAuthorizer{access.AccessList{In: v.Value}})
 		case RpcCallOptionRetryTimeout:
 			callOpts = append(callOpts, options.RetryTimeout(v.Value))
 		case RpcCallOptionGranter:
