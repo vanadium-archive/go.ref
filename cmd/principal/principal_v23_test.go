@@ -722,6 +722,29 @@ func V23TestAddKeyToRoots(t *v23tests.T) {
 	t.Errorf("Could not find line:\n%v\nin output:\n%v\n", want, output)
 }
 
+func V23TestDumpRoots(t *v23tests.T) {
+	var (
+		bin             = t.BuildGoPkg("v.io/x/ref/cmd/principal")
+		outputDir       = t.NewTempDir("")
+		aliceDir        = filepath.Join(outputDir, "alice")
+		bobDir          = filepath.Join(outputDir, "bob")
+		aliceFriend     = filepath.Join(outputDir, "alicefriend")
+		aliceFriendRoot = filepath.Join(outputDir, "alicefriendroot")
+		aliceDefault    = filepath.Join(outputDir, "alicedefault")
+	)
+	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
+	redirect(t, bin.Start("--v23.credentials="+aliceDir, "bless", "--require-caveats=false", bobDir, "friend"), aliceFriend)
+	redirect(t, bin.Start("dumproots", aliceFriend), aliceFriendRoot)
+	redirect(t, bin.Start("--v23.credentials="+aliceDir, "get", "default"), aliceDefault)
+
+	want := bin.Start("dumpblessings", aliceDefault).Output()
+	got := bin.Start("dumpblessings", aliceFriendRoot).Output()
+	if got != want {
+		t.Errorf("Got:\n%s\nWant:\n%s\n", got, want)
+	}
+}
+
 func credEnv(dir string) string {
 	return fmt.Sprintf("%s=%s", ref.EnvCredentials, dir)
 }

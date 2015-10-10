@@ -30,7 +30,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func TestBlessingRoot(t *testing.T) {
+func TestBlessingRootJSON(t *testing.T) {
 	// TODO(ashankar,ataly): Handle multiple root names?
 	blessingNames := []string{"test-root"}
 	p := testutil.NewPrincipal(blessingNames...)
@@ -65,6 +65,29 @@ func TestBlessingRoot(t *testing.T) {
 	}
 	if want := p.PublicKey(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Response has incorrect public key.  Got %v, want %v", got, want)
+	}
+}
+
+func TestBlessingRootBase64VOM(t *testing.T) {
+	blessingNames := []string{"alpha"}
+	p := testutil.NewPrincipal(blessingNames...)
+
+	ts := httptest.NewServer(BlessingRoot{p})
+	defer ts.Close()
+	response, err := http.Get(ts.URL + "?output=base64vom")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var root security.Blessings
+	if body, err := ioutil.ReadAll(response.Body); err != nil {
+		t.Fatal(err)
+	} else if v, err := base64.URLEncoding.DecodeString(string(body)); err != nil {
+		t.Fatal(err)
+	} else if err = vom.Decode(v, &root); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := root, p.BlessingStore().Default(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
 	}
 }
 

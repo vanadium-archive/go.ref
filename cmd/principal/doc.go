@@ -22,6 +22,7 @@ The principal commands are:
                  default
    dump          Dump out information about the principal
    dumpblessings Dump out information about the provided blessings
+   dumproots     Dump out blessings of the identity providers of blessings
    blessself     Generate a self-signed blessing
    bless         Bless another principal
    set           Mutate the principal's blessings.
@@ -241,6 +242,18 @@ Usage:
 
 <file> is the path to a file containing blessings typically obtained from this
 tool. - is used for STDIN.
+
+Principal dumproots - Dump out blessings of the identity providers of blessings
+
+Prints out the blessings of the identity providers of the input blessings. One
+line per identity provider, each line is a base64-encoded vom-encoded Blessings
+object.
+
+Usage:
+   principal dumproots <file>
+
+<file> is the path to a file containing blessings (base64-encoded vom-encoded).
+- is used for STDIN.
 
 Principal blessself - Generate a self-signed blessing
 

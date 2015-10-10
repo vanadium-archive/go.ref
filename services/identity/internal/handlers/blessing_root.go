@@ -8,8 +8,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strings"
+	"sync"
 
 	"v.io/v23/security"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/identity/internal/util"
 )
 
@@ -21,13 +24,53 @@ type BlessingRoot struct {
 
 // Cached response so we don't have to bless and encode every time somebody
 // hits this route.
-var cachedResponseJson []byte
+var (
+	cacheMu                 sync.RWMutex
+	cachedResponseJson      []byte
+	cachedResponseBase64VOM []byte
+)
 
 func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if cachedResponseJson != nil {
-		respondJson(w, cachedResponseJson)
+	switch format := r.FormValue("output"); format {
+	case "base64vom":
+		b.base64vomResponse(w, r)
+	default:
+		b.jsonResponse(w, r)
+	}
+}
+
+func (b BlessingRoot) base64vomResponse(w http.ResponseWriter, r *http.Request) {
+	cacheMu.RLock()
+	if cachedResponseBase64VOM != nil {
+		respondString(w, "text/plain", cachedResponseBase64VOM)
+		cacheMu.RUnlock()
 		return
 	}
+	cacheMu.RUnlock()
+	roots := security.RootBlessings(b.P.BlessingStore().Default())
+	strs := make([]string, len(roots))
+	for i, r := range roots {
+		v, err := vom.Encode(r)
+		if err != nil {
+			util.HTTPServerError(w, err)
+		}
+		strs[i] = base64.URLEncoding.EncodeToString(v)
+	}
+	ret := []byte(strings.Join(strs, "\n"))
+	cacheMu.Lock()
+	cachedResponseBase64VOM = ret
+	cacheMu.Unlock()
+	respondString(w, "text/plain", cachedResponseBase64VOM)
+}
+
+func (b BlessingRoot) jsonResponse(w http.ResponseWriter, r *http.Request) {
+	cacheMu.RLock()
+	if cachedResponseJson != nil {
+		respondString(w, "application/json", cachedResponseJson)
+		cacheMu.RUnlock()
+		return
+	}
+	cacheMu.RUnlock()
 
 	// The identity service itself is blessed by a more protected key.
 	// Use the root certificate as the identity provider.
@@ -59,11 +102,13 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cacheMu.Lock()
 	cachedResponseJson = res
-	respondJson(w, res)
+	cacheMu.Unlock()
+	respondString(w, "application/json", res)
 }
 
-func respondJson(w http.ResponseWriter, res []byte) {
-	w.Header().Set("Content-Type", "application/json")
+func respondString(w http.ResponseWriter, contentType string, res []byte) {
+	w.Header().Set("Content-Type", contentType)
 	w.Write(res)
 }

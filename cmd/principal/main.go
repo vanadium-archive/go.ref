@@ -159,6 +159,35 @@ this tool. - is used for STDIN.
 		}),
 	}
 
+	cmdDumpRoots = &cmdline.Command{
+		Name:  "dumproots",
+		Short: "Dump out blessings of the identity providers of blessings",
+		Long: `
+Prints out the blessings of the identity providers of the input blessings.
+One line per identity provider, each line is a base64-encoded vom-encoded Blessings object.
+`,
+		ArgsName: "<file>",
+		ArgsLong: `
+<file> is the path to a file containing blessings (base64-encoded vom-encoded).
+- is used for STDIN.
+`,
+		Runner: cmdline.RunnerFunc(func(env *cmdline.Env, args []string) error {
+			if len(args) != 1 {
+				return fmt.Errorf("requires exactly one argument, <file>, provided %d", len(args))
+			}
+			blessings, err := decodeBlessings(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to decode provided blesseings: %v", err)
+			}
+			for _, root := range security.RootBlessings(blessings) {
+				if err := dumpBlessings(root); err != nil {
+					return err
+				}
+			}
+			return nil
+		}),
+	}
+
 	cmdBlessSelf = &cmdline.Command{
 		Name:  "blessself",
 		Short: "Generate a self-signed blessing",
@@ -990,7 +1019,7 @@ Command principal creates and manages Vanadium principals and blessings.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdRecognize},
+		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdDumpRoots, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdRecognize},
 	}
 	cmdline.Main(root)
 }
