@@ -18,8 +18,8 @@ import (
 	"v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/security"
-	"v.io/v23/verror"
 
+	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
@@ -122,7 +122,7 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	}
 	ln, err := listen(ctx, protocol, address)
 	if err != nil {
-		return flow.NewErrNetwork(ctx, err)
+		return iflow.MaybeWrapError(flow.ErrNetwork, ctx, err)
 	}
 	local := &inaming.Endpoint{
 		Protocol:  protocol,
@@ -211,11 +211,11 @@ func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func
 func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpoint, error) {
 	b, err := f.ReadMsg()
 	if err != nil {
-		return nil, flow.NewErrNetwork(ctx, err)
+		return nil, iflow.MaybeWrapError(flow.ErrNetwork, ctx, err)
 	}
 	msg, err := message.Read(ctx, b)
 	if err != nil {
-		return nil, flow.NewErrBadArg(ctx, err)
+		return nil, iflow.MaybeWrapError(flow.ErrBadArg, ctx, err)
 	}
 	res, ok := msg.(*message.ProxyResponse)
 	if !ok {
@@ -400,7 +400,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 	// Look up the connection based on RoutingID first.
 	c, err := m.cache.FindWithRoutingID(remote.RoutingID())
 	if err != nil {
-		return nil, nil, flow.NewErrBadState(ctx, err)
+		return nil, nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 	}
 	var (
 		protocol         flow.Protocol
@@ -418,18 +418,18 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		// Thus we look for Conns with the resolved address.
 		network, address, err = resolve(ctx, protocol, addr.Network(), addr.String())
 		if err != nil {
-			return nil, nil, flow.NewErrResolveFailed(ctx, err)
+			return nil, nil, iflow.MaybeWrapError(flow.ErrResolveFailed, ctx, err)
 		}
 		c, err = m.cache.ReservedFind(network, address, remote.BlessingNames())
 		if err != nil {
-			return nil, nil, flow.NewErrBadState(ctx, err)
+			return nil, nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
 		defer m.cache.Unreserve(network, address, remote.BlessingNames())
 	}
 	if c == nil {
 		flowConn, err := dial(ctx, protocol, network, address)
 		if err != nil {
-			return nil, nil, flow.NewErrDialFailed(ctx, err)
+			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 		var fh conn.FlowHandler
 		if m.ls != nil {
@@ -451,10 +451,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		)
 		if err != nil {
 			flowConn.Close()
-			if id := verror.ErrorID(err); id == message.ErrWrongProtocol.ID || id == verror.ErrNotTrusted.ID {
-				return nil, nil, err
-			}
-			return nil, nil, flow.NewErrDialFailed(ctx, err)
+			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 		if err := m.cache.Insert(c); err != nil {
 			return nil, nil, flow.NewErrBadState(ctx, err)
@@ -462,10 +459,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 	}
 	f, err := c.Dial(ctx, auth)
 	if err != nil {
-		if id := verror.ErrorID(err); id == verror.ErrNotTrusted.ID {
-			return nil, nil, err
-		}
-		return nil, nil, flow.NewErrDialFailed(ctx, err)
+		return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 	}
 
 	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
@@ -490,21 +484,15 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			fh)
 		if err != nil {
 			proxyConn.Close(ctx, err)
-			if id := verror.ErrorID(err); id == message.ErrWrongProtocol.ID || id == verror.ErrNotTrusted.ID {
-				return nil, nil, err
-			}
-			return nil, nil, flow.NewErrDialFailed(ctx, err)
+			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 		if err := m.cache.InsertWithRoutingID(c); err != nil {
-			return nil, nil, flow.NewErrBadState(ctx, err)
+			return nil, nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
 		f, err = c.Dial(ctx, auth)
 		if err != nil {
 			proxyConn.Close(ctx, err)
-			if id := verror.ErrorID(err); id == verror.ErrNotTrusted.ID {
-				return nil, nil, err
-			}
-			return nil, nil, flow.NewErrDialFailed(ctx, err)
+			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 	}
 	return f, c, nil

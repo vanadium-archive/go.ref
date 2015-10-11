@@ -21,6 +21,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	slib "v.io/x/ref/lib/security"
+	iflow "v.io/x/ref/runtime/internal/flow"
 )
 
 var (
@@ -47,7 +48,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	}
 	if !c.isProxy {
 		if _, _, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges); err != nil {
-			return verror.New(verror.ErrNotTrusted, ctx, err)
+			return iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
 		}
 	}
 	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authDialerTag, binding...))
