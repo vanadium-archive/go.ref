@@ -73,7 +73,7 @@ func (r *readq) put(ctx *context.T, bufs [][]byte) error {
 
 func (r *readq) read(ctx *context.T, data []byte) (n int, err error) {
 	r.mu.Lock()
-	if err = r.waitLocked(ctx); err == nil || (err == io.EOF && r.nbufs > 0) {
+	if err = r.waitLocked(ctx); err == nil {
 		err = nil
 		buf := r.bufs[r.b]
 		n = copy(data, buf)
@@ -95,7 +95,7 @@ func (r *readq) read(ctx *context.T, data []byte) (n int, err error) {
 
 func (r *readq) get(ctx *context.T) (out []byte, err error) {
 	r.mu.Lock()
-	if err = r.waitLocked(ctx); err == nil || (err == io.EOF && r.nbufs > 0) {
+	if err = r.waitLocked(ctx); err == nil {
 		err = nil
 		out = r.bufs[r.b]
 		r.b = (r.b + 1) % len(r.bufs)
@@ -118,13 +118,16 @@ func (r *readq) waitLocked(ctx *context.T) (err error) {
 				err = io.EOF
 			}
 		case <-ctx.Done():
-			if r.size == 0 {
-				err = ctx.Err()
-			}
+			err = io.EOF
 		}
 		r.mu.Lock()
 	}
-	return
+	// Even if the flow is closed, if we have data already queued
+	// we'll let it be read.
+	if err == io.EOF && r.nbufs > 0 {
+		err = nil
+	}
+	return err
 }
 
 func (r *readq) close(ctx *context.T) bool {
