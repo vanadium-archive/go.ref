@@ -15,6 +15,7 @@ import (
 type typeCacheEntry struct {
 	enc    *vom.TypeEncoder
 	dec    *vom.TypeDecoder
+	cancel context.CancelFunc
 	writer bool
 	ready  chan struct{}
 }
@@ -31,7 +32,7 @@ func newTypeCache() *typeCache {
 	return &typeCache{flows: make(map[flow.ManagedConn]*typeCacheEntry)}
 }
 
-func (tc *typeCache) writer(c flow.ManagedConn) (write func(flow.Flow)) {
+func (tc *typeCache) writer(c flow.ManagedConn) (write func(flow.Flow, context.CancelFunc)) {
 	tc.mu.Lock()
 	tce := tc.flows[c]
 	if tce == nil {
@@ -45,7 +46,8 @@ func (tc *typeCache) writer(c flow.ManagedConn) (write func(flow.Flow)) {
 			go tc.collect()
 		}
 		tce.writer = true
-		write = func(f flow.Flow) {
+		write = func(f flow.Flow, c context.CancelFunc) {
+			tce.cancel = c
 			tce.enc = vom.NewTypeEncoder(f)
 			tce.dec = vom.NewTypeDecoder(f)
 			close(tce.ready)
@@ -96,7 +98,14 @@ func (tc *typeCache) collect() {
 	if last > 0 {
 		tc.mu.Lock()
 		for idx := 0; idx < last; idx++ {
-			delete(tc.flows, conns[idx])
+			conn := conns[idx]
+			tce := tc.flows[conn]
+			if tce != nil {
+				if tce.cancel != nil {
+					tce.cancel()
+				}
+				delete(tc.flows, conn)
+			}
 		}
 		tc.mu.Unlock()
 	}

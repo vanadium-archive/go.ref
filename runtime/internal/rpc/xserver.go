@@ -155,7 +155,7 @@ func WithNewDispatchingServer(ctx *context.T,
 
 	go func() {
 		<-ctx.Done()
-		serverDebug := fmt.Sprintf("Dispatcher: %T, Status:[%v]", s.disp, s.Status())
+		serverDebug := fmt.Sprintf("Dispatcher: %T, Status:[%v], Calls:\n%s", s.disp, s.Status())
 		s.ctx.VI(1).Infof("Stop: %s", serverDebug)
 		defer s.ctx.VI(1).Infof("Stop done: %s", serverDebug)
 
@@ -199,7 +199,8 @@ func WithNewDispatchingServer(ctx *context.T,
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second): // TODO(mattr): This should be configurable.
-			s.ctx.Errorf("%s: Timed out waiting for active requests to complete", serverDebug)
+			s.ctx.Errorf("%s: Timed out waiting for active requests to complete",
+				serverDebug)
 		}
 		// Now we cancel the root context which closes all the connections
 		// in the flow manager and cancels all the contexts used by
@@ -448,7 +449,7 @@ func (s *xserver) acceptLoop(ctx *context.T) error {
 				}
 			case typeFlow:
 				if write := s.typeCache.writer(fl.Conn()); write != nil {
-					write(fl)
+					write(fl, nil)
 				}
 			}
 		}(fl)

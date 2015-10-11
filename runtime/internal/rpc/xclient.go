@@ -199,12 +199,13 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		return
 	}
 	if write := c.typeCache.writer(flow.Conn()); write != nil {
-		// Create a type flow, note that we use c.ctx instead of ctx.
-		// This is because type flows have a longer lifetime than the
-		// main flow being constructed.
-		tflow, err := c.flowMgr.Dial(c.ctx, ep, peerAuth)
+		// Create the type flow with a root-cancellable context.
+		// This flow must outlive the flow we're currently creating.
+		// It lives as long as the connection to which it is bound.
+		tctx, tcancel := context.WithRootCancel(ctx)
+		tflow, err := c.flowMgr.Dial(tctx, ep, peerAuth)
 		if err != nil {
-			status.serverErr = suberr(newErrTypeFlowFailure(ctx, err))
+			status.serverErr = suberr(newErrTypeFlowFailure(tctx, err))
 			flow.Close()
 			return
 		}
@@ -215,12 +216,12 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 			return
 		}
 		if _, err = tflow.Write([]byte{typeFlow}); err != nil {
-			status.serverErr = suberr(newErrTypeFlowFailure(ctx, nil))
+			status.serverErr = suberr(newErrTypeFlowFailure(tctx, nil))
 			flow.Close()
 			tflow.Close()
 			return
 		}
-		write(tflow)
+		write(tflow, tcancel)
 	}
 	status.typeEnc, status.typeDec, err = c.typeCache.get(ctx, flow.Conn())
 	if err != nil {

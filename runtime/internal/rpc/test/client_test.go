@@ -406,6 +406,9 @@ func simpleResolver(ctx *context.T, network, address string) (string, string, er
 }
 
 func TestStartCallBadProtocol(t *testing.T) {
+	if ref.RPCTransitionState() >= ref.XServers {
+		t.Skip("This test needs to be fixed under the new protocol")
+	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -415,34 +418,31 @@ func TestStartCallBadProtocol(t *testing.T) {
 		logErrors(t, msg, true, false, false, err)
 	}
 
-	// TODO(mattr): This test is temporarily disabled.  Mocknet doesn't understand the
-	// new protocol yet, and the new protocol doesn't have a SecurityNone option.
-	// We will need to remedy both issues.
-	// ns := v23.GetNamespace(ctx)
-	// simpleListen := func(ctx *context.T, protocol, address string) (net.Listener, error) {
-	// 	return net.Listen(protocol, address)
-	// }
-	// rpc.RegisterProtocol("dropData", dropDataDialer, simpleResolver, simpleListen)
-	// // The following test will fail due to a broken connection.
-	// // We need to run mount table and servers with no security to use
-	// // the V23CloseAtMessage net.Conn mock.
-	// _, shutdown = runMountTable(t, ctx, "nosec")
-	// defer shutdown()
-	// roots := ns.Roots()
-	// brkRoot, err := mocknet.RewriteEndpointProtocol(roots[0], "dropData")
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// ns.SetRoots(brkRoot.Name())
-	// nctx, _ := context.WithTimeout(ctx, 5*time.Second)
-	// call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{}, options.SecurityNone)
-	// if verror.ErrorID(err) != verror.ErrNoServers.ID {
-	// 	t.Errorf("wrong error: %s", verror.DebugString(err))
-	// }
-	// if call != nil {
-	// 	t.Errorf("expected call to be nil")
-	// }
-	// logErr("broken connection", err)
+	ns := v23.GetNamespace(ctx)
+	simpleListen := func(ctx *context.T, protocol, address string) (net.Listener, error) {
+		return net.Listen(protocol, address)
+	}
+	rpc.RegisterProtocol("dropData", dropDataDialer, simpleResolver, simpleListen)
+	// The following test will fail due to a broken connection.
+	// We need to run mount table and servers with no security to use
+	// the V23CloseAtMessage net.Conn mock.
+	_, shutdown = runMountTable(t, ctx, "nosec")
+	defer shutdown()
+	roots := ns.Roots()
+	brkRoot, err := mocknet.RewriteEndpointProtocol(roots[0], "dropData")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ns.SetRoots(brkRoot.Name())
+	nctx, _ := context.WithTimeout(ctx, 5*time.Second)
+	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{}, options.SecurityNone)
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+		t.Errorf("wrong error: %s", verror.DebugString(err))
+	}
+	if call != nil {
+		t.Errorf("expected call to be nil")
+	}
+	logErr("broken connection", err)
 
 	// The following test will fail with because the client will set up
 	// a secure connection to a server that isn't expecting one.
@@ -450,7 +450,7 @@ func TestStartCallBadProtocol(t *testing.T) {
 	defer cancel()
 	name, fn := initServer(t, ctx, options.SecurityNone)
 	defer fn()
-	call, err := client.StartCall(nctx, name, "noname", nil, options.NoRetry{})
+	call, err = client.StartCall(nctx, name, "noname", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
 		t.Errorf("wrong error: %s", err)
 	}

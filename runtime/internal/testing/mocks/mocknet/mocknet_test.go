@@ -21,6 +21,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
+	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
 	"v.io/x/ref/runtime/internal/rpc/stream/message"
@@ -341,6 +342,10 @@ func initServer(t *testing.T, ctx *context.T) (string, func()) {
 }
 
 func TestV23Control(t *testing.T) {
+	if ref.RPCTransitionState() >= ref.XServers {
+		t.Skip("This test is not compatible with the new rpc system." +
+			"  We will replace mocknet with an alternative package.")
+	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
