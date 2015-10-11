@@ -275,7 +275,7 @@ func (f *flw) WriteMsgAndClose(parts ...[]byte) (int, error) {
 func (f *flw) checkBlessings() error {
 	var err error
 	if !f.dialed && f.bkey != 0 {
-		_, _, err = f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+		_, _, err = f.conn.blessingsFlow.getRemote(f.ctx, f.bkey, f.dkey)
 	}
 	return err
 }
@@ -307,10 +307,7 @@ func (f *flw) SetDeadlineContext(ctx *context.T, deadline time.Time) *context.T 
 // during authentication.
 func (f *flw) LocalBlessings() security.Blessings {
 	if f.dialed {
-		blessings, _, err := f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
-		if err != nil {
-			f.conn.Close(f.ctx, err)
-		}
+		blessings, _ := f.conn.blessingsFlow.getLocal(f.ctx, f.bkey, 0)
 		return blessings
 	}
 	return f.conn.lBlessings
@@ -319,14 +316,17 @@ func (f *flw) LocalBlessings() security.Blessings {
 // RemoteBlessings returns the blessings presented by the remote end of the
 // flow during authentication.
 func (f *flw) RemoteBlessings() security.Blessings {
+	var blessings security.Blessings
+	var err error
 	if !f.dialed {
-		blessings, _, err := f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
-		if err != nil {
-			f.conn.Close(f.ctx, err)
-		}
-		return blessings
+		blessings, _, err = f.conn.blessingsFlow.getRemote(f.ctx, f.bkey, 0)
+	} else {
+		blessings, _, err = f.conn.blessingsFlow.getLatestRemote(f.ctx, f.conn.rBKey)
 	}
-	return f.conn.rBlessings
+	if err != nil {
+		f.conn.Close(f.ctx, err)
+	}
+	return blessings
 }
 
 // LocalDischarges returns the discharges presented by the local end of the
@@ -334,17 +334,11 @@ func (f *flw) RemoteBlessings() security.Blessings {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) LocalDischarges() map[string]security.Discharge {
-	var discharges map[string]security.Discharge
-	var err error
 	if f.dialed {
-		_, discharges, err = f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
-	} else {
-		discharges, err = f.conn.blessingsFlow.getLatestDischarges(f.ctx, f.conn.lBlessings, true)
+		_, discharges := f.conn.blessingsFlow.getLocal(f.ctx, f.bkey, f.dkey)
+		return discharges
 	}
-	if err != nil {
-		f.conn.Close(f.ctx, err)
-	}
-	return discharges
+	return f.conn.blessingsFlow.getLatestLocal(f.ctx, f.conn.lBlessings)
 }
 
 // RemoteDischarges returns the discharges presented by the remote end of the
@@ -355,9 +349,9 @@ func (f *flw) RemoteDischarges() map[string]security.Discharge {
 	var discharges map[string]security.Discharge
 	var err error
 	if !f.dialed {
-		_, discharges, err = f.conn.blessingsFlow.get(f.ctx, f.bkey, f.dkey)
+		_, discharges, err = f.conn.blessingsFlow.getRemote(f.ctx, f.bkey, f.dkey)
 	} else {
-		discharges, err = f.conn.blessingsFlow.getLatestDischarges(f.ctx, f.conn.rBlessings, false)
+		_, discharges, err = f.conn.blessingsFlow.getLatestRemote(f.ctx, f.conn.rBKey)
 	}
 	if err != nil {
 		f.conn.Close(f.ctx, err)

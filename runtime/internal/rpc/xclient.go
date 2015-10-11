@@ -120,6 +120,7 @@ func (c *xclient) startCall(ctx *context.T, name, method string, args []interfac
 			return nil, err
 		default:
 			span.Annotatef("Retrying due to error: %s", err)
+			ctx.VI(2).Infof("Retrying due to error: %s", err)
 		}
 	}
 }

@@ -6,13 +6,29 @@ package conn
 
 import "v.io/v23/security"
 
-// Blessings is used to transport blessings and their discharges
-// between the two ends of a Conn.  Since these objects can be large
-// we try not to send them more than once, therefore whenever we send
-// new blessings or discharges we associate them with an integer
-// key (BKey and DKey).  Thereafter we refer to them by their key.
+// Blessings is used to transport blessings between the two ends of a Conn.
+// Since blessings can be large, we try not to send them more than once by
+// associating them with an integer key (BKey). Thereafter we refer to them
+// by their key.
 type Blessings struct {
-     Blessings  security.WireBlessings
-     Discharges []security.WireDischarge
-     BKey, DKey uint64
+	Blessings security.WireBlessings
+	BKey uint64
+}
+
+// Discharges is used to transport discharges between the two ends of a Conn.
+// Since discharges can be large, we try not to send them more than once by
+// associating them with an integer key (DKey). Thereafter we refer to them
+// by their key.
+// Discharges also contains the BKey of the blessings with which the discharges
+// are associated with.
+type Discharges struct {
+	Discharges []security.WireDischarge
+	DKey, BKey uint64
+}
+
+// BlessingsFlowMessage is used to send either a Blessings or Discharges object
+// over the wire.
+type BlessingsFlowMessage union {
+	Blessings Blessings
+	Discharges Discharges
 }

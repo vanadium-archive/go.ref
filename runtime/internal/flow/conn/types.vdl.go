@@ -15,16 +15,13 @@ import (
 	"v.io/v23/security"
 )
 
-// Blessings is used to transport blessings and their discharges
-// between the two ends of a Conn.  Since these objects can be large
-// we try not to send them more than once, therefore whenever we send
-// new blessings or discharges we associate them with an integer
-// key (BKey and DKey).  Thereafter we refer to them by their key.
+// Blessings is used to transport blessings between the two ends of a Conn.
+// Since blessings can be large, we try not to send them more than once by
+// associating them with an integer key (BKey). Thereafter we refer to them
+// by their key.
 type Blessings struct {
-	Blessings  security.Blessings
-	Discharges []security.Discharge
-	BKey       uint64
-	DKey       uint64
+	Blessings security.Blessings
+	BKey      uint64
 }
 
 func (Blessings) __VDLReflect(struct {
@@ -32,6 +29,65 @@ func (Blessings) __VDLReflect(struct {
 }) {
 }
 
+// Discharges is used to transport discharges between the two ends of a Conn.
+// Since discharges can be large, we try not to send them more than once by
+// associating them with an integer key (DKey). Thereafter we refer to them
+// by their key.
+// Discharges also contains the BKey of the blessings with which the discharges
+// are associated with.
+type Discharges struct {
+	Discharges []security.Discharge
+	DKey       uint64
+	BKey       uint64
+}
+
+func (Discharges) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/runtime/internal/flow/conn.Discharges"`
+}) {
+}
+
+type (
+	// BlessingsFlowMessage represents any single field of the BlessingsFlowMessage union type.
+	//
+	// BlessingsFlowMessage is used to send either a Blessings or Discharges object
+	// over the wire.
+	BlessingsFlowMessage interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the BlessingsFlowMessage union type.
+		__VDLReflect(__BlessingsFlowMessageReflect)
+	}
+	// BlessingsFlowMessageBlessings represents field Blessings of the BlessingsFlowMessage union type.
+	BlessingsFlowMessageBlessings struct{ Value Blessings }
+	// BlessingsFlowMessageDischarges represents field Discharges of the BlessingsFlowMessage union type.
+	BlessingsFlowMessageDischarges struct{ Value Discharges }
+	// __BlessingsFlowMessageReflect describes the BlessingsFlowMessage union type.
+	__BlessingsFlowMessageReflect struct {
+		Name  string `vdl:"v.io/x/ref/runtime/internal/flow/conn.BlessingsFlowMessage"`
+		Type  BlessingsFlowMessage
+		Union struct {
+			Blessings  BlessingsFlowMessageBlessings
+			Discharges BlessingsFlowMessageDischarges
+		}
+	}
+)
+
+func (x BlessingsFlowMessageBlessings) Index() int                                 { return 0 }
+func (x BlessingsFlowMessageBlessings) Interface() interface{}                     { return x.Value }
+func (x BlessingsFlowMessageBlessings) Name() string                               { return "Blessings" }
+func (x BlessingsFlowMessageBlessings) __VDLReflect(__BlessingsFlowMessageReflect) {}
+
+func (x BlessingsFlowMessageDischarges) Index() int                                 { return 1 }
+func (x BlessingsFlowMessageDischarges) Interface() interface{}                     { return x.Value }
+func (x BlessingsFlowMessageDischarges) Name() string                               { return "Discharges" }
+func (x BlessingsFlowMessageDischarges) __VDLReflect(__BlessingsFlowMessageReflect) {}
+
 func init() {
 	vdl.Register((*Blessings)(nil))
+	vdl.Register((*Discharges)(nil))
+	vdl.Register((*BlessingsFlowMessage)(nil))
 }

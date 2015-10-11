@@ -275,20 +275,22 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 		}
 		m.ls.mu.Unlock()
 		fh := &flowHandler{m, make(chan struct{})}
-		c, err := conn.NewAccepted(
-			m.ctx,
-			flowConn,
-			local,
-			version.Supported,
-			handshakeTimeout,
-			fh)
-		if err != nil {
-			ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
-			flowConn.Close()
-		} else if err = m.cache.InsertWithRoutingID(c); err != nil {
-			ctx.Errorf("failed to cache conn %v: %v", c, err)
-		}
-		close(fh.cached)
+		go func() {
+			c, err := conn.NewAccepted(
+				m.ctx,
+				flowConn,
+				local,
+				version.Supported,
+				handshakeTimeout,
+				fh)
+			if err != nil {
+				ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
+				flowConn.Close()
+			} else if err = m.cache.InsertWithRoutingID(c); err != nil {
+				ctx.Errorf("failed to cache conn %v: %v", c, err)
+			}
+			close(fh.cached)
+		}()
 	}
 }
 
@@ -440,7 +442,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			m.ls.mu.Unlock()
 		}
 		c, err = conn.NewDialed(
-			m.ctx,
+			ctx,
 			flowConn,
 			localEndpoint(flowConn, m.rid),
 			remote,
@@ -456,6 +458,8 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		if err := m.cache.Insert(c); err != nil {
 			return nil, nil, flow.NewErrBadState(ctx, err)
 		}
+		// Now that c is in the cache we can explicitly unreserve.
+		m.cache.Unreserve(network, address, remote.BlessingNames())
 	}
 	f, err := c.Dial(ctx, auth)
 	if err != nil {
@@ -474,7 +478,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			m.ls.mu.Unlock()
 		}
 		c, err = conn.NewDialed(
-			m.ctx,
+			ctx,
 			f,
 			proxyConn.LocalEndpoint(),
 			remote,

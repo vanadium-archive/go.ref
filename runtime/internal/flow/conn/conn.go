@@ -30,6 +30,7 @@ const (
 
 const mtu = 1 << 16
 const DefaultBytesBufferedPerFlow = 1 << 20
+const noExist = 0
 
 const (
 	expressPriority = iota
@@ -64,20 +65,22 @@ const (
 type Conn struct {
 	// All the variables here are set before the constructor returns
 	// and never changed after that.
-	mp                     *messagePipe
-	version                version.RPCVersion
-	lBlessings, rBlessings security.Blessings
-	rPublicKey             security.PublicKey
-	local, remote          naming.Endpoint
-	closed                 chan struct{}
-	lameDucked             chan struct{}
-	blessingsFlow          *blessingsFlow
-	loopWG                 sync.WaitGroup
-	unopenedFlows          sync.WaitGroup
-	isProxy                bool
+	mp            *messagePipe
+	version       version.RPCVersion
+	lBlessings    security.Blessings
+	rBKey         uint64
+	local, remote naming.Endpoint
+	closed        chan struct{}
+	lameDucked    chan struct{}
+	blessingsFlow *blessingsFlow
+	loopWG        sync.WaitGroup
+	unopenedFlows sync.WaitGroup
+	isProxy       bool
+	cancel        context.CancelFunc
 
 	mu sync.Mutex // All the variables below here are protected by mu.
 
+	rPublicKey     security.PublicKey
 	status         Status
 	remoteLameDuck bool
 	handler        FlowHandler
@@ -129,6 +132,7 @@ func NewDialed(
 	auth flow.PeerAuthorizer,
 	handshakeTimeout time.Duration,
 	handler FlowHandler) (*Conn, error) {
+	ctx, cancel := context.WithRootCancel(ctx)
 	c := &Conn{
 		mp:           newMessagePipe(conn),
 		handler:      handler,
@@ -142,6 +146,7 @@ func NewDialed(
 		lastUsedTime: time.Now(),
 		toRelease:    map[uint64]uint64{},
 		borrowing:    map[uint64]bool{},
+		cancel:       cancel,
 		// TODO(mattr): We should negotiate the shared counter pool size with the
 		// other end.
 		lshared:       DefaultBytesBufferedPerFlow,
@@ -216,17 +221,17 @@ func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 
 // Dial dials a new flow on the Conn.
 func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error) {
-	if c.rBlessings.IsZero() {
+	if c.rBKey == noExist {
 		return nil, NewErrDialingNonServer(ctx)
 	}
-	rDischarges, err := c.blessingsFlow.getLatestDischarges(ctx, c.rBlessings, false)
+	rBlessings, rDischarges, err := c.blessingsFlow.getLatestRemote(ctx, c.rBKey)
 	if err != nil {
 		return nil, err
 	}
 	var bkey, dkey uint64
 	if !c.isProxy {
 		// TODO(suharshs): On the first flow dial, find a way to not call this twice.
-		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, c.remote, c.rBlessings, rDischarges)
+		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, c.remote, rBlessings, rDischarges)
 		if err != nil {
 			return nil, iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
 		}
@@ -234,7 +239,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error)
 		if err != nil {
 			return nil, NewErrNoBlessingsForPeer(ctx, rbnames, rejected, err)
 		}
-		bkey, dkey, err = c.blessingsFlow.put(ctx, blessings, discharges)
+		bkey, dkey, err = c.blessingsFlow.send(ctx, blessings, discharges)
 		if err != nil {
 			return nil, err
 		}
@@ -259,7 +264,11 @@ func (c *Conn) RemoteEndpoint() naming.Endpoint { return c.remote }
 func (c *Conn) LocalBlessings() security.Blessings { return c.lBlessings }
 
 // RemoteBlessings returns the remote blessings.
-func (c *Conn) RemoteBlessings() security.Blessings { return c.rBlessings }
+func (c *Conn) RemoteBlessings() security.Blessings {
+	// Its safe to ignore this error. It means that this conn is closed.
+	blessings, _, _ := c.blessingsFlow.getLatestRemote(nil, c.rBKey)
+	return blessings
+}
 
 // CommonVersion returns the RPCVersion negotiated between the local and remote endpoints.
 func (c *Conn) CommonVersion() version.RPCVersion { return c.version }
@@ -345,6 +354,9 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 		c.mu.Lock()
 		if c.status < LameDuckAcknowledged {
 			close(c.lameDucked)
+		}
+		if c.cancel != nil {
+			c.cancel()
 		}
 		c.status = Closed
 		close(c.closed)

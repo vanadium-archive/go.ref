@@ -23,7 +23,7 @@ import (
 
 func checkBlessings(t *testing.T, got, want security.Blessings, gotd map[string]security.Discharge) {
 	if !got.Equivalent(want) {
-		t.Errorf("got: %#v wanted %#v", got, want)
+		t.Errorf("got: %v wanted %v", got, want)
 	}
 	tpid := got.ThirdPartyCaveats()[0].ThirdPartyDetails().ID()
 	if _, has := gotd[tpid]; !has {
