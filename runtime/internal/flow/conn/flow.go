@@ -164,6 +164,7 @@ func (f *flw) releaseLocked(tokens uint64) {
 	f.released += tokens
 	if f.writing {
 		f.conn.activateWriterLocked(f)
+		f.conn.notifyNextWriterLocked(nil)
 	}
 }
 
