@@ -7,6 +7,7 @@ package conn
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"testing"
 
 	"v.io/v23"
@@ -132,7 +133,7 @@ func TestFlowCancelOnWrite(t *testing.T) {
 			panic("could not write flow: " + err.Error())
 		}
 		for {
-			if _, err := df.WriteMsg([]byte("hello")); err == context.Canceled {
+			if _, err := df.WriteMsg([]byte("hello")); err == io.EOF {
 				break
 			} else if err != nil {
 				panic("unexpected error waiting for cancel: " + err.Error())
@@ -167,7 +168,7 @@ func TestFlowCancelOnRead(t *testing.T) {
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {
 			t.Fatalf("could not write flow: %v", err)
 		}
-		if _, err := df.ReadMsg(); err != context.Canceled {
+		if _, err := df.ReadMsg(); err != io.EOF {
 			t.Fatalf("unexpected error waiting for cancel: %v", err)
 		}
 		close(done)

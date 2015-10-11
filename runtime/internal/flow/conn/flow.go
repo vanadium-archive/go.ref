@@ -5,6 +5,7 @@
 package conn
 
 import (
+	"io"
 	"time"
 
 	"v.io/v23/context"
@@ -178,7 +179,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 	// notifying ourselves.
 	case <-f.ctx.Done():
 		f.close(f.ctx, f.ctx.Err())
-		return 0, f.ctx.Err()
+		return 0, io.EOF
 	default:
 	}
 	size, sent, tosend := 0, 0, make([][]byte, len(parts))
@@ -193,7 +194,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		f.conn.mu.Unlock()
 		select {
 		case <-f.ctx.Done():
-			err = f.ctx.Err()
+			err = io.EOF
 		case <-f.writeCh:
 		}
 
