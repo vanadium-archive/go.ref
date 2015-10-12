@@ -21,6 +21,7 @@ import (
 
 	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
+	"v.io/x/ref/runtime/internal/flow/protocols/bidi"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/version"
@@ -356,7 +357,7 @@ func (m *manager) ListeningEndpoints() (out []naming.Endpoint) {
 	copy(out, m.ls.endpoints)
 	m.ls.mu.Unlock()
 	if len(out) == 0 {
-		out = append(out, &inaming.Endpoint{RID: m.rid})
+		out = append(out, &inaming.Endpoint{Protocol: bidi.Name, RID: m.rid})
 	}
 	return out
 }

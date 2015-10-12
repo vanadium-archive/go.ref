@@ -113,7 +113,7 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 		ep  naming.Endpoint
 		err error
 	)
-	if ep, err = removeNetworkAddress(m.PeerRemoteEndpoint); err != nil {
+	if ep, err = setBidiProtocol(m.PeerRemoteEndpoint); err != nil {
 		return nil, err
 	}
 	if routes := ep.Routes(); len(routes) > 0 {
