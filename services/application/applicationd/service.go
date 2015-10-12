@@ -114,7 +114,7 @@ func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []s
 			return empty, err
 		}
 		if len(versions) < 1 {
-			return empty, verror.New(ErrInvalidSuffix, ctx)
+			return empty, verror.New(verror.ErrNoExist, ctx)
 		}
 		sort.Strings(versions)
 		version = versions[len(versions)-1]
@@ -226,6 +226,12 @@ func (i *appRepoService) Remove(ctx *context.T, call rpc.ServerCall, profile str
 
 func (i *appRepoService) allApplications() ([]string, error) {
 	apps, err := i.store.BindObject("/applications").Children()
+	// There is no actual object corresponding to "/applications" in the
+	// store, so Children() returns ErrNoExist when there are no actual app
+	// objects under /applications.
+	if verror.ErrorID(err) == verror.ErrNoExist.ID {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
