@@ -33,9 +33,9 @@ func init() {
 }
 
 func main() {
-  env := cmdline.EnvFromOS()
-  err := runMain(env)
-  os.Exit(cmdline.ExitCode(err, env.Stderr))
+	env := cmdline.EnvFromOS()
+	err := runMain(env)
+	os.Exit(cmdline.ExitCode(err, env.Stderr))
 }
 
 func runMain(env *cmdline.Env) (e error) {

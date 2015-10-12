@@ -174,12 +174,13 @@ func (x TestUnionB) __VDLReflect(__TestUnionReflect) {}`},
 }
 
 var (
-	tEnum   = vdl.NamedType("TestEnum", vdl.EnumType("A", "B", "C"))
-	tArray  = vdl.ArrayType(3, vdl.StringType)
-	tList   = vdl.ListType(vdl.StringType)
-	tSet    = vdl.SetType(vdl.StringType)
-	tMap    = vdl.MapType(vdl.StringType, vdl.Int64Type)
-	tStruct = vdl.NamedType("TestStruct", vdl.StructType(
+	tEnum           = vdl.NamedType("TestEnum", vdl.EnumType("A", "B", "C"))
+	tArray          = vdl.ArrayType(3, vdl.StringType)
+	tList           = vdl.ListType(vdl.StringType)
+	tListOfByteList = vdl.ListType(vdl.ListType(vdl.ByteType))
+	tSet            = vdl.SetType(vdl.StringType)
+	tMap            = vdl.MapType(vdl.StringType, vdl.Int64Type)
+	tStruct         = vdl.NamedType("TestStruct", vdl.StructType(
 		vdl.Field{
 			Name: "A",
 			Type: vdl.StringType,

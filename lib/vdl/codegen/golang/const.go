@@ -51,9 +51,9 @@ func typedConst(data goData, v *vdl.Value) string {
 		return "(" + typeGo(data, t) + ")(nil)" // results in (*Foo)(nil)
 	}
 	valstr := untypedConst(data, v)
-	// Enum, TypeObject and Any already include the type in their values.
+	// Enum, TypeObject, Any and byte list already include the type in their values.
 	// Built-in bool and string are implicitly convertible from literals.
-	if k == vdl.Enum || k == vdl.TypeObject || k == vdl.Any || t == vdl.BoolType || t == vdl.StringType {
+	if k == vdl.Enum || k == vdl.TypeObject || k == vdl.Any || t == vdl.BoolType || t == vdl.StringType || (isByteList(t) && !v.IsZero()) {
 		return valstr
 	}
 	// Everything else requires an explicit type.
@@ -63,10 +63,9 @@ func typedConst(data goData, v *vdl.Value) string {
 	case vdl.Array, vdl.Struct:
 		return typestr + valstr
 	case vdl.List, vdl.Set, vdl.Map:
-		// Special-case []byte, which we generate as a type conversion from string,
-		// and empty variable-length collections, which we generate as a type
-		// conversion from nil.
-		if !isByteList(t) && !v.IsZero() {
+		// Special-case empty variable-length collections, which we generate as a type
+		// conversion from nil
+		if !v.IsZero() {
 			return typestr + valstr
 		}
 	}
@@ -79,7 +78,7 @@ func untypedConst(data goData, v *vdl.Value) string {
 		if v.IsZero() {
 			return "nil"
 		}
-		return strconv.Quote(string(v.Bytes()))
+		return typeGo(data, t) + "(" + strconv.Quote(string(v.Bytes())) + ")"
 	}
 	switch k {
 	case vdl.Any:
