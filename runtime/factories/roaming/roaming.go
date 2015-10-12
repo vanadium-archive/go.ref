@@ -195,9 +195,9 @@ done:
 				ch <- irpc.NewRmAddrsSetting(removed.AsNetAddrs())
 			}
 			// We will always send the best currently available address
-			if chosen, err := listenSpec.AddressChooser.ChooseAddress(listenSpec.Addrs[0].Protocol, cur.AsNetAddrs()); err == nil && chosen != nil {
+			if chosen, err := listenSpec.AddressChooser.ChooseAddresses(listenSpec.Addrs[0].Protocol, cur.AsNetAddrs()); err == nil && chosen != nil {
 				ctx.VI(2).Infof("Sending added and chosen: %s", chosen)
-				ch <- irpc.NewAddAddrsSetting(chosen)
+				ch <- irpc.NewNewAddrsSetting(chosen)
 			} else {
 				ctx.VI(2).Infof("Ignoring added %s", added)
 			}

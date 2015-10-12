@@ -10,9 +10,9 @@ import (
 	"v.io/x/ref/lib/pubsub"
 )
 
-// NewAddAddrsSetting creates the Setting to be sent to Listen to inform
-// it of new addresses that have become available since the last change.
-func NewAddAddrsSetting(a []net.Addr) pubsub.Setting {
+// NewNewAddrsSetting creates the Setting to be sent to Listen to inform
+// it of all addresses that habe become available since the last change.
+func NewNewAddrsSetting(a []net.Addr) pubsub.Setting {
 	return pubsub.NewAny(NewAddrsSetting, NewAddrsSettingDesc, a)
 }
 
@@ -24,7 +24,7 @@ func NewRmAddrsSetting(a []net.Addr) pubsub.Setting {
 
 const (
 	NewAddrsSetting     = "NewAddrs"
-	NewAddrsSettingDesc = "New Addresses discovered since last change"
+	NewAddrsSettingDesc = "Addresses that have been available since last change"
 	RmAddrsSetting      = "RmAddrs"
 	RmAddrsSettingDesc  = "Addresses that have been removed since last change"
 )

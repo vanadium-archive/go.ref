@@ -96,7 +96,7 @@ func TestRoaming(t *testing.T) {
 	server.WatchNetwork(watcher)
 	defer close(watcher)
 
-	roaming <- NewAddAddrsSetting([]net.Addr{n1, n2})
+	roaming <- NewNewAddrsSetting([]net.Addr{n1, n2})
 
 	waitForChange := func() *rpc.NetworkChange {
 		ctx.Infof("Waiting on %p", watcher)
@@ -169,7 +169,7 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %d, want %d: %v", got, want, status.Mounts)
 	}
 
-	roaming <- NewAddAddrsSetting([]net.Addr{n1})
+	roaming <- NewNewAddrsSetting([]net.Addr{n1})
 	// We expect 2 changes, one for each usable listen spec addr.
 	change = waitForChange()
 	if got, want := len(change.Changed), 2; got != want {
@@ -227,7 +227,7 @@ func TestWatcherDeadlock(t *testing.T) {
 	// Add in two new addresses
 	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
 	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
-	roaming <- NewAddAddrsSetting([]net.Addr{n1, n2})
+	roaming <- NewNewAddrsSetting([]net.Addr{n1, n2})
 
 	neps := make([]naming.Endpoint, 0, len(eps))
 	for _, p := range getUniqPorts(eps) {
