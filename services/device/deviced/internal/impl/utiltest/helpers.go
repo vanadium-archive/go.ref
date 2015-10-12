@@ -156,10 +156,8 @@ func Resolve(f Fatalist, ctx *context.T, name string, expectReplicas int, retry 
 				filteredResults = append(filteredResults, r)
 			}
 		}
-		if expectReplicas >= 0 {
-			if want, got := expectReplicas, len(filteredResults); want != got {
-				f.Fatalf("Resolve(%v) expected %d result(s), got %d instead", name, want, got)
-			}
+		if want, got := expectReplicas, len(filteredResults); want != got {
+			f.Fatalf("Resolve(%v) expected %d result(s), got %d instead", name, want, got)
 		}
 		return filteredResults
 	}
@@ -826,15 +824,17 @@ func WaitForMount(f Fatalist, ctx *context.T, name string, server rpc.Server) {
 		// to save the trouble of resolving the mounttable, but given
 		// the churn in the server logic, it's safer to just look for
 		// the 'ground truth' in the mounttable.
-		eps := Resolve(f, ctx, name, -1, false)
-		for _, ep := range eps {
-			if ep == serverEPName {
-				return
+		eps, err := v23.GetNamespace(ctx).Resolve(ctx, name)
+		if err == nil {
+			for _, ep := range eps.Names() {
+				if ep == serverEPName {
+					return
+				}
 			}
 		}
 		select {
 		case <-timeout:
-			f.Fatalf("Timed out waiting for %v to appear in mounttable under %v; found: %v", serverEPName, name, eps)
+			f.Fatalf("Timed out waiting for %v to appear in mounttable under %v; found: %v (error: %v)", serverEPName, name, eps, err)
 		default:
 		}
 		time.Sleep(10 * time.Millisecond)
