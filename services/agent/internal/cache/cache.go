@@ -422,7 +422,7 @@ func NewCachedPrincipalX(impl agent.Principal) (p agent.Principal, flush func(),
 		cachedRoots.flush()
 		cachedStore.flush()
 	}
-	sp, err := security.CreatePrincipal(dummySigner{impl.PublicKey()}, cachedStore, cachedRoots)
+	sp, err := security.CreatePrincipal(dummySigner{impl.PublicKey()}, cachedStore, cachedRoots, impl.Encrypter(), impl.Decrypter())
 	if err != nil {
 		return
 	}

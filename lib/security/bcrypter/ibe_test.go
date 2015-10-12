@@ -17,8 +17,8 @@ import (
 
 func TestIBECrypter(t *testing.T) {
 	blessing := "google/bob/tablet"
-	newPlaintext := func() Plaintext {
-		var m Plaintext
+	newPlaintext := func() [32]byte {
+		var m [32]byte
 		if n := copy(m[:], []byte("AThirtyTwoBytePieceOfTextThisIs!")); n != len(m) {
 			t.Fatalf("plaintext string must be %d bytes, not %d", len(m), n)
 		}
@@ -63,8 +63,8 @@ func TestIBECrypter(t *testing.T) {
 		},
 	}
 	var (
-		ciphertext *Ciphertext
-		plaintext  *Plaintext
+		ciphertext *security.Ciphertext
+		plaintext  *[32]byte
 	)
 	for _, patterns := range test.valid {
 		if ciphertext, err = encrypter.Encrypt(ctx, patterns, &msg); err != nil {

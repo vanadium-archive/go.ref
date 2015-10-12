@@ -16,38 +16,25 @@ import (
 	"v.io/x/lib/ibe"
 )
 
-const (
-	// IBE is an identity-based encryption (IBE) scheme with blessing patterns
-	// used as identities.
-	//
-	// Encrypting a message under a blessing pattern involves using an IBE
-	// scheme with the pattern as the identity. A blessing is associated with
-	// set of identity private keys -- one for each pattern matched by the blessing.
-	// Decrypting a message involves choosing the appropriate private key
-	// associated with a blessing matching the pattern used in the ciphertext.
-	//
-	// For space-efficiency, the ciphertext only mentions a truncated hash of the
-	// pattern. This scheme uses 16-bytes as the truncation length for the hash.
-	IBE            Scheme = 1
-	hashTruncation        = 16
-)
+const hashTruncation = 16
 
-// ibeEncrypter implements an Encrypter.
+// ibeEncrypter implements an security.BlessingsBasedEncrypter that
+// uses the security.IBE cryptographic scheme.
 type ibeEncrypter struct {
 	params ibe.Params
 }
 
-func (b *ibeEncrypter) Encrypt(ctx *context.T, forPatterns []security.BlessingPattern, plaintext *Plaintext) (*Ciphertext, error) {
-	ciphertext := &Ciphertext{
-		Scheme:      IBE,
-		Ciphertexts: make(map[string]*ibe.Ciphertext),
+func (b *ibeEncrypter) Encrypt(ctx *context.T, forPatterns []security.BlessingPattern, plaintext *[32]byte) (*security.Ciphertext, error) {
+	ciphertext := &security.Ciphertext{
+		Scheme:      security.IBE,
+		Ciphertexts: make(map[string][]byte),
 	}
 	if len(forPatterns) == 0 {
 		return ciphertext, nil
 	}
 	for _, p := range forPatterns {
-		var ctxt ibe.Ciphertext
-		if err := b.params.Encrypt(string(p), (*ibe.Plaintext)(plaintext), &ctxt); err != nil {
+		ctxt := make([]byte, ibe.CiphertextSize)
+		if err := b.params.Encrypt(string(p), (*plaintext)[:], ctxt); err != nil {
 			return nil, NewErrInternal(ctx, err)
 		}
 		h := hash(p)
@@ -56,32 +43,33 @@ func (b *ibeEncrypter) Encrypt(ctx *context.T, forPatterns []security.BlessingPa
 		if _, ok := ciphertext.Ciphertexts[h]; ok {
 			return nil, NewErrInternal(ctx, fmt.Errorf("cannot encrypt as the hash of the pattern %v collides with one of the other patterns", p))
 		}
-		ciphertext.Ciphertexts[hash(p)] = &ctxt
+		ciphertext.Ciphertexts[h] = ctxt
 	}
 	return ciphertext, nil
 }
 
-// ibeDecrypter implements a Decrypter.
+// ibeDecrypter implements a security.BlessingsBasedDecrypter that
+// uses the security.IBE cryptographic scheme.
 type ibeDecrypter struct {
 	keys map[string]ibe.PrivateKey
 }
 
-func (b *ibeDecrypter) Decrypt(ctx *context.T, ciphertext *Ciphertext) (*Plaintext, error) {
-	if ciphertext.Scheme != IBE {
-		return nil, NewErrInvalidScheme(ctx, int32(ciphertext.Scheme), []int32{int32(IBE)})
+func (b *ibeDecrypter) Decrypt(ctx *context.T, ciphertext *security.Ciphertext) (*[32]byte, error) {
+	if ciphertext.Scheme != security.IBE {
+		return nil, NewErrInvalidScheme(ctx, int32(ciphertext.Scheme), []int32{int32(security.IBE)})
 	}
 	var (
 		key       ibe.PrivateKey
 		keyFound  bool
 		err       error
-		plaintext Plaintext
+		plaintext [32]byte
 	)
 	for p, ctxt := range ciphertext.Ciphertexts {
 		key, keyFound = b.keys[p]
 		if !keyFound {
 			continue
 		}
-		if err = key.Decrypt(ctxt, (*ibe.Plaintext)(&plaintext)); err == nil {
+		if err = key.Decrypt(ctxt, plaintext[:]); err == nil {
 			break
 		}
 	}
@@ -94,15 +82,16 @@ func (b *ibeDecrypter) Decrypt(ctx *context.T, ciphertext *Ciphertext) (*Plainte
 	return &plaintext, nil
 }
 
-// NewIBEEncrypter constucts a new Encrypter using the provided ibe.Params.
-func NewIBEEncrypter(params ibe.Params) Encrypter {
+// NewIBEEncrypter constucts a new encrypter using the provided ibe.Params
+// that uses the security.IBE cryptographic scheme.
+func NewIBEEncrypter(params ibe.Params) security.BlessingsBasedEncrypter {
 	return &ibeEncrypter{params: params}
 }
 
-// NewIBEDecrypter constructs a new Decrypter for the provided blessing using
-// provided slice of IBE private keys corresponding to the blessing.
-// See Also: ExtractPrivateKeys.
-func NewIBEDecrypter(blessing string, privateKeys []ibe.PrivateKey) (Decrypter, error) {
+// NewIBEDecrypter constructs a new decrypter for the provided blessing using
+// provided slice of IBE private keys corresponding to the blessing. The
+// decrypter uses the security.IBE cryptographic scheme. See Also: ExtractPrivateKeys.
+func NewIBEDecrypter(blessing string, privateKeys []ibe.PrivateKey) (security.BlessingsBasedDecrypter, error) {
 	if len(blessing) == 0 {
 		return nil, errors.New("blessing cannot be empty")
 	}
