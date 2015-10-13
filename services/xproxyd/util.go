@@ -15,13 +15,13 @@ import (
 	"v.io/v23/security"
 )
 
-func removeNetworkAddress(ep naming.Endpoint) (naming.Endpoint, error) {
+func setBidiProtocol(ep naming.Endpoint) (naming.Endpoint, error) {
 	_, _, routes, rid, bnames, mountable := getEndpointParts(ep)
 	opts := routes
 	opts = append(opts, bnames...)
 	opts = append(opts, rid)
 	opts = append(opts, mountable)
-	epString := naming.FormatEndpoint("", "", opts...)
+	epString := naming.FormatEndpoint("bidi", "", opts...)
 	return v23.NewEndpoint(epString)
 }
 
