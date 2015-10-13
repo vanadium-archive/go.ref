@@ -15,6 +15,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -24,12 +25,14 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
+	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/lib/testwriter"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
+	"v.io/x/ref/services/xproxyd"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -328,7 +331,20 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	proxySpec := rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}},
 	}
-	proxyShutdown, proxyEndpoint, err := generic.NewProxy(ctx, proxySpec, security.AllowEveryone())
+	var proxyShutdown func()
+	var proxyEndpoint naming.Endpoint
+	if ref.RPCTransitionState() >= ref.XServers {
+		pctx, cancel := context.WithCancel(ctx)
+		proxy, _, perr := xproxyd.New(v23.WithListenSpec(pctx, proxySpec))
+		proxyEndpoint = proxy.ListeningEndpoints()[0]
+		if protocol := proxyEndpoint.Addr().Network(); protocol != "tcp" {
+			return nil, fmt.Errorf("Got %s want tcp", protocol)
+		}
+		proxyShutdown = cancel
+		err = perr
+	} else {
+		proxyShutdown, proxyEndpoint, err = generic.NewProxy(ctx, proxySpec, security.AllowEveryone())
+	}
 	if err != nil {
 		return nil, fmt.Errorf("unable to start proxy: %v", err)
 	}
@@ -470,7 +486,6 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 
 	var result *vdl.Value
 	err = call.Finish(&result)
-
 	if verror.ErrorID(err) != verror.ErrorID(testCase.err) {
 		t.Errorf("unexpected err: got %#v, expected %#v", err, testCase.err)
 	}
