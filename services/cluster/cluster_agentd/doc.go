@@ -6,21 +6,18 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Claimable is a server that implements the Claimable interface from
-v.io/v23/services/device. It exits immediately if the device is already claimed.
-Otherwise, it keeps running until a successful Claim() request is received.
-
-It uses -v23.permissions.* to authorize the Claim request.
+The Cluster Agent keeps a list of Secret Keys and Blessings associated with
+them. It issues new Blessings when presented with a valid Secret Key. The new
+Blessings are extensions of the Blessings associated with the Secret Key.
 
 Usage:
-   claimable [flags]
+   cluster_agentd [flags]
 
-The claimable flags are:
- -perms-dir=
-   The directory where permissions will be stored.
- -root-blessings=
-   A comma-separated list of the root blessings to trust, base64-encoded
-   VOM-encoded.
+The cluster_agentd flags are:
+ -name=
+   The vanadium object name under which to publish the cluster agent.
+ -root-dir=
+   The directory where blessings are stored.
 
 The global flags are:
  -alsologtostderr=true

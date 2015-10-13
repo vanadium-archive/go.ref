@@ -9,30 +9,30 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/internal/claim"
-	"v.io/x/ref/services/identity"
 )
 
 var (
-	permsDir     string
-	blessingRoot string
+	permsDir      string
+	rootBlessings string
 )
 
 func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {
-	if blessingRoot != "" {
-		addRoot(ctx, blessingRoot)
+	if rootBlessings != "" {
+		addRoot(ctx, rootBlessings)
 	}
 
 	auth := securityflag.NewAuthorizerOrDie()
@@ -59,19 +59,21 @@ func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {
 	}
 }
 
-func addRoot(ctx *context.T, jRoot string) {
-	var bRoot identity.BlessingRootResponse
-	if err := json.Unmarshal([]byte(jRoot), &bRoot); err != nil {
-		ctx.Fatalf("unable to unmarshal the json blessing root: %v", err)
-	}
-	key, err := base64.URLEncoding.DecodeString(bRoot.PublicKey)
-	if err != nil {
-		ctx.Fatalf("unable to decode public key: %v", err)
-	}
-	roots := v23.GetPrincipal(ctx).Roots()
-	for _, name := range bRoot.Names {
-		if err := roots.Add(key, security.BlessingPattern(name)); err != nil {
-			ctx.Fatalf("unable to add root: %v", err)
+func addRoot(ctx *context.T, flagRoots string) {
+	p := v23.GetPrincipal(ctx)
+	for _, b64 := range strings.Split(flagRoots, ",") {
+		// We use URLEncoding to be compatible with the principal
+		// command.
+		vomBlessings, err := base64.URLEncoding.DecodeString(b64)
+		if err != nil {
+			ctx.Fatalf("unable to decode the base64 blessing roots: %v", err)
+		}
+		var blessings security.Blessings
+		if err := vom.Decode(vomBlessings, &blessings); err != nil {
+			ctx.Fatalf("unable to decode the vom blessing roots: %v", err)
+		}
+		if err := p.AddToRoots(blessings); err != nil {
+			ctx.Fatalf("unable to add blessing roots: %v", err)
 		}
 	}
 }
@@ -91,6 +93,6 @@ It uses -v23.permissions.* to authorize the Claim request.
 		Runner: v23cmd.RunnerFunc(runServer),
 	}
 	rootCmd.Flags.StringVar(&permsDir, "perms-dir", "", "The directory where permissions will be stored.")
-	rootCmd.Flags.StringVar(&blessingRoot, "blessing-root", "", "The blessing root to trust, JSON-encoded, e.g. from https://v.io/auth/blessing-root")
+	rootCmd.Flags.StringVar(&rootBlessings, "root-blessings", "", "A comma-separated list of the root blessings to trust, base64-encoded VOM-encoded.")
 	cmdline.Main(rootCmd)
 }

@@ -5,13 +5,12 @@
 package main_test
 
 import (
-	"encoding/base64"
-	"encoding/json"
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"v.io/v23/security"
 	lsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
@@ -51,7 +50,7 @@ func V23TestClaimableServer(t *v23tests.T) {
 	server := serverBin.Start(
 		"--v23.tcp.address=127.0.0.1:0",
 		"--perms-dir="+permsDir,
-		"--blessing-root="+blessingRoots(t, legitClientCreds.Principal()),
+		"--root-blessings="+rootBlessings(t, legitClientCreds),
 		"--v23.permissions.literal={\"Admin\":{\"In\":[\"root/legit\"]}}",
 	)
 	addr := server.ExpectVar("NAME")
@@ -92,25 +91,16 @@ func detachedCredentials(t *v23tests.T, name string) (*modules.CustomCredentials
 	return creds, lsecurity.InitDefaultBlessings(creds.Principal(), name)
 }
 
-func blessingRoots(t *v23tests.T, p security.Principal) string {
-	pk, ok := p.Roots().Dump()["root"]
-	if !ok || len(pk) == 0 {
-		t.Fatalf("Failed to find root blessing")
-	}
-	der, err := pk[0].MarshalBinary()
-	if err != nil {
-		t.Fatalf("MarshalPublicKey failed: %v", err)
-	}
-	rootInfo := struct {
-		Names     []string `json:"names"`
-		PublicKey string   `json:"publicKey"`
-	}{
-		Names:     []string{"root"},
-		PublicKey: base64.URLEncoding.EncodeToString(der),
-	}
-	out, err := json.Marshal(rootInfo)
-	if err != nil {
-		t.Fatalf("json.Marshal failed: %v", err)
-	}
-	return string(out)
+func rootBlessings(t *v23tests.T, creds *modules.CustomCredentials) string {
+	principalBin := t.BuildV23Pkg("v.io/x/ref/cmd/principal")
+	opts := principalBin.StartOpts().WithCustomCredentials(creds)
+	principalBin = principalBin.WithStartOpts(opts)
+	blessings := strings.TrimSpace(principalBin.Start("get", "default").Output())
+
+	opts.Stdin = bytes.NewBufferString(blessings)
+	opts.ExecProtocol = false
+	opts.Credentials = nil
+	principalBin = principalBin.WithStartOpts(opts)
+	out := strings.TrimSpace(principalBin.Start("dumproots", "-").Output())
+	return strings.Replace(out, "\n", ",", -1)
 }
