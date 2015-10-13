@@ -59,6 +59,7 @@ type xserver struct {
 	chosenEndpoints map[string]*inaming.Endpoint            // endpoints chosen by the addressChooser for publishing.
 	protoEndpoints  map[string]*inaming.Endpoint            // endpoints that act as "template" endpoints.
 	proxyEndpoints  map[string]map[string]*inaming.Endpoint // keyed by ep.String()
+	lnErrors        map[string]error                        // erros from listening, keyed by ep.String()
 
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       rpc.Dispatcher // dispatcher for reserved methods
@@ -219,15 +220,18 @@ func WithNewDispatchingServer(ctx *context.T,
 }
 
 func (s *xserver) Status() rpc.ServerStatus {
-	ret := rpc.ServerStatus{}
-	ret.ServesMountTable = s.servesMountTable
-	ret.Mounts = s.publisher.Status()
+	status := rpc.ServerStatus{}
+	status.ServesMountTable = s.servesMountTable
+	status.Mounts = s.publisher.Status()
 	s.mu.Lock()
 	for _, e := range s.chosenEndpoints {
-		ret.Endpoints = append(ret.Endpoints, e)
+		status.Endpoints = append(status.Endpoints, e)
+	}
+	for _, err := range s.lnErrors {
+		status.Errors = append(status.Errors, err)
 	}
 	s.mu.Unlock()
-	return ret
+	return status
 }
 
 func (s *xserver) WatchNetwork(ch chan<- rpc.NetworkChange) {
@@ -390,6 +394,7 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	roaming := false
 	chosenEps := make(map[string]*inaming.Endpoint)
 	protoEps := make(map[string]*inaming.Endpoint)
+	lnErrs := make(map[string]error)
 	for _, ep := range leps {
 		eps, _, eproaming, eperr := s.createEndpoints(ep, listenSpec.AddressChooser)
 		for _, cep := range eps {
@@ -399,10 +404,14 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 			protoEps[ep.String()] = ep.(*inaming.Endpoint)
 			roaming = true
 		}
+		if eperr != nil {
+			lnErrs[ep.String()] = eperr
+		}
 	}
 	s.mu.Lock()
 	s.chosenEndpoints = chosenEps
 	s.protoEndpoints = protoEps
+	s.lnErrors = lnErrs
 	s.mu.Unlock()
 
 	if roaming && s.dhcpState == nil && s.settingsPublisher != nil {
