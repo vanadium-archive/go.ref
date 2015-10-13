@@ -10,6 +10,7 @@ import (
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -96,14 +97,16 @@ func (r *rowReq) stKeyPart() string {
 
 // checkAccess checks that this row's table exists in the database, and performs
 // an authorization check.
-func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) error {
+// checkAccess returns the longest prefix of the given key that has associated
+// permissions if the access is granted.
+func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (string, error) {
 	return r.t.checkAccess(ctx, call, sntx, r.key)
 }
 
 // get reads data from the storage engine.
 // Performs authorization check.
 func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) ([]byte, error) {
-	if err := r.checkAccess(ctx, call, sntx); err != nil {
+	if _, err := r.checkAccess(ctx, call, sntx); err != nil {
 		return nil, err
 	}
 	value, err := sntx.Get([]byte(r.stKey()), nil)
@@ -119,10 +122,12 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrT
 // put writes data to the storage engine.
 // Performs authorization check.
 func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx store.Transaction, value []byte) error {
-	if err := r.checkAccess(ctx, call, tx); err != nil {
+	permsPrefix, err := r.checkAccess(ctx, call, tx)
+	if err != nil {
 		return err
 	}
-	if err := tx.Put([]byte(r.stKey()), value); err != nil {
+	permsKey := r.t.prefixPermsKey(permsPrefix)
+	if err := watchable.PutWithPerms(tx, []byte(r.stKey()), value, permsKey); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
@@ -131,10 +136,12 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx store.Transaction, 
 // delete deletes data from the storage engine.
 // Performs authorization check.
 func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx store.Transaction) error {
-	if err := r.checkAccess(ctx, call, tx); err != nil {
+	permsPrefix, err := r.checkAccess(ctx, call, tx)
+	if err != nil {
 		return err
 	}
-	if err := tx.Delete([]byte(r.stKey())); err != nil {
+	permsKey := r.t.prefixPermsKey(permsPrefix)
+	if err := watchable.DeleteWithPerms(tx, []byte(r.stKey()), permsKey); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
