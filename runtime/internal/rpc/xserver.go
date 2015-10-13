@@ -27,10 +27,10 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/netstate"
-
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/runtime/internal/flow/manager"
 	"v.io/x/ref/runtime/internal/lib/publisher"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
@@ -95,15 +95,17 @@ func WithNewDispatchingServer(ctx *context.T,
 		return ctx, nil, verror.New(verror.ErrBadArg, ctx, "nil dispatcher")
 	}
 
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		return ctx, nil, err
+	}
+
 	ctx, stop := context.WithCancel(ctx)
 	rootCtx, cancel := context.WithRootCancel(ctx)
-	fm, err := v23.NewFlowManager(rootCtx)
-
-	statsPrefix := naming.Join("rpc", "server", "routing-id", fm.RoutingID().String())
+	statsPrefix := naming.Join("rpc", "server", "routing-id", rid.String())
 	s := &xserver{
 		stop:              stop,
 		cancel:            cancel,
-		flowMgr:           fm,
 		blessings:         v23.GetPrincipal(rootCtx).BlessingStore().Default(),
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
@@ -122,10 +124,13 @@ func WithNewDispatchingServer(ctx *context.T,
 			s.dispReserved = opt.Dispatcher
 		case PreferredServerResolveProtocols:
 			s.preferredProtocols = []string(opt)
+		case options.ServerBlessings:
+			s.blessings = opt.Blessings
 		}
 	}
+	s.flowMgr = manager.NewWithBlessings(rootCtx, s.blessings, rid)
 	rootCtx, _, err = v23.WithNewClient(rootCtx,
-		clientFlowManagerOpt{fm},
+		clientFlowManagerOpt{s.flowMgr},
 		PreferredProtocols(s.preferredProtocols))
 	if err != nil {
 		cancel()

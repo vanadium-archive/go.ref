@@ -33,25 +33,31 @@ const (
 )
 
 type manager struct {
-	rid    naming.RoutingID
-	closed chan struct{}
-	cache  *ConnCache
-	ls     *listenState
-	ctx    *context.T
+	rid             naming.RoutingID
+	closed          chan struct{}
+	cache           *ConnCache
+	ls              *listenState
+	ctx             *context.T
+	serverBlessings security.Blessings
+	serverNames     []string
 }
 
-func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
+func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID) flow.Manager {
 	m := &manager{
-		rid:    rid,
-		closed: make(chan struct{}),
-		cache:  NewConnCache(),
-		ctx:    ctx,
+		rid:             rid,
+		closed:          make(chan struct{}),
+		cache:           NewConnCache(),
+		ctx:             ctx,
+		serverBlessings: serverBlessings,
 	}
 	if rid != naming.NullRoutingID {
 		m.ls = &listenState{
 			q:         upcqueue.New(),
 			listeners: []flow.Listener{},
 			stopProxy: make(chan struct{}),
+		}
+		for b, _ := range v23.GetPrincipal(ctx).BlessingsInfo(m.serverBlessings) {
+			m.serverNames = append(m.serverNames, b)
 		}
 	}
 	go func() {
@@ -71,6 +77,14 @@ func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
 		}
 	}()
 	return m
+}
+
+func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
+	var serverBlessings security.Blessings
+	if rid != naming.NullRoutingID {
+		serverBlessings = v23.GetPrincipal(ctx).BlessingStore().Default()
+	}
+	return NewWithBlessings(ctx, serverBlessings, rid)
 }
 
 type listenState struct {
@@ -128,7 +142,7 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 		Protocol:  protocol,
 		Address:   ln.Addr().String(),
 		RID:       m.rid,
-		Blessings: m.blessingNames(),
+		Blessings: m.serverNames,
 	}
 	m.ls.mu.Lock()
 	if m.ls.listeners == nil {
@@ -191,9 +205,8 @@ func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func
 			ctx.Error(err)
 			continue
 		}
-		bnames := m.blessingNames()
 		for i := range eps {
-			eps[i].(*inaming.Endpoint).Blessings = bnames
+			eps[i].(*inaming.Endpoint).Blessings = m.serverNames
 		}
 		update(eps)
 		select {
@@ -278,6 +291,7 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 		go func() {
 			c, err := conn.NewAccepted(
 				m.ctx,
+				m.serverBlessings,
 				flowConn,
 				local,
 				version.Supported,
@@ -326,6 +340,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 		h.m.ls.mu.Unlock()
 		c, err := conn.NewAccepted(
 			h.ctx,
+			h.m.serverBlessings,
 			f,
 			f.Conn().LocalEndpoint(),
 			version.Supported,
@@ -443,6 +458,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		}
 		c, err = conn.NewDialed(
 			ctx,
+			m.serverBlessings,
 			flowConn,
 			localEndpoint(flowConn, m.rid),
 			remote,
@@ -479,6 +495,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		}
 		c, err = conn.NewDialed(
 			ctx,
+			m.serverBlessings,
 			f,
 			proxyConn.LocalEndpoint(),
 			remote,
@@ -565,16 +582,4 @@ func isTemporaryError(err error) bool {
 func isTooManyOpenFiles(err error) bool {
 	oErr, ok := err.(*net.OpError)
 	return ok && strings.Contains(oErr.Err.Error(), syscall.EMFILE.Error())
-}
-
-// TODO(suharshs): Make this not recompute over and over again.
-func (m *manager) blessingNames() []string {
-	p := v23.GetPrincipal(m.ctx)
-	def := p.BlessingStore().Default()
-	var ret []string
-	// TODO(suharshs): Shoudl we be filtering names with unreasonable caveats?
-	for b, _ := range p.BlessingsInfo(def) {
-		ret = append(ret, b)
-	}
-	return ret
 }

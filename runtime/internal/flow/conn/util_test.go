@@ -51,7 +51,8 @@ func setupConns(t *testing.T,
 		if dflows != nil {
 			handler = fh(dflows)
 		}
-		d, err := NewDialed(dctx, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, handler)
+		dBlessings := v23.GetPrincipal(dctx).BlessingStore().Default()
+		d, err := NewDialed(dctx, dBlessings, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, handler)
 		if err != nil {
 			panic(err)
 		}
@@ -62,7 +63,8 @@ func setupConns(t *testing.T,
 		if aflows != nil {
 			handler = fh(aflows)
 		}
-		a, err := NewAccepted(actx, amrw, ep, versions, time.Minute, handler)
+		aBlessings := v23.GetPrincipal(actx).BlessingStore().Default()
+		a, err := NewAccepted(actx, aBlessings, amrw, ep, versions, time.Minute, handler)
 		if err != nil {
 			panic(err)
 		}
