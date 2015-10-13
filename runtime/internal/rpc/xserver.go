@@ -308,6 +308,7 @@ func (s *xserver) createEndpoints(lep naming.Endpoint, chooser netstate.AddressC
 			return nil, port, false, err
 		}
 		n.IsMountTable = s.servesMountTable
+		n.IsLeaf = s.isLeaf
 		n.Address = net.JoinHostPort(addr.String(), port)
 		ieps = append(ieps, n)
 	}
