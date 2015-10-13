@@ -327,6 +327,9 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 		// This conn is already being torn down.
 		return
 	}
+	if c.status < LameDuckAcknowledged {
+		close(c.lameDucked)
+	}
 	c.status = Closing
 
 	go func() {
@@ -356,9 +359,6 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 		}
 		c.loopWG.Wait()
 		c.mu.Lock()
-		if c.status < LameDuckAcknowledged {
-			close(c.lameDucked)
-		}
 		if c.cancel != nil {
 			c.cancel()
 		}
