@@ -220,6 +220,8 @@ func WithNewDispatchingServer(ctx *context.T,
 
 func (s *xserver) Status() rpc.ServerStatus {
 	ret := rpc.ServerStatus{}
+	ret.ServesMountTable = s.servesMountTable
+	ret.Mounts = s.publisher.Status()
 	s.mu.Lock()
 	for _, e := range s.chosenEndpoints {
 		ret.Endpoints = append(ret.Endpoints, e)
