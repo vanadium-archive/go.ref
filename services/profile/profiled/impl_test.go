@@ -108,7 +108,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	_, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	ctx, server, err = v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	_, server, err = v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
