@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
@@ -126,6 +125,7 @@ var _ flow.ManagedConn = &Conn{}
 // NewDialed dials a new Conn on the given conn.
 func NewDialed(
 	ctx *context.T,
+	lBlessings security.Blessings,
 	conn flow.MsgReadWriteCloser,
 	local, remote naming.Endpoint,
 	versions version.RPCVersionRange,
@@ -136,7 +136,7 @@ func NewDialed(
 	c := &Conn{
 		mp:           newMessagePipe(conn),
 		handler:      handler,
-		lBlessings:   v23.GetPrincipal(ctx).BlessingStore().Default(),
+		lBlessings:   lBlessings,
 		local:        local,
 		remote:       remote,
 		closed:       make(chan struct{}),
@@ -171,6 +171,7 @@ func NewDialed(
 // NewAccepted accepts a new Conn on the given conn.
 func NewAccepted(
 	ctx *context.T,
+	lBlessings security.Blessings,
 	conn flow.MsgReadWriteCloser,
 	local naming.Endpoint,
 	versions version.RPCVersionRange,
@@ -179,7 +180,7 @@ func NewAccepted(
 	c := &Conn{
 		mp:            newMessagePipe(conn),
 		handler:       handler,
-		lBlessings:    v23.GetPrincipal(ctx).BlessingStore().Default(),
+		lBlessings:    lBlessings,
 		local:         local,
 		closed:        make(chan struct{}),
 		lameDucked:    make(chan struct{}),

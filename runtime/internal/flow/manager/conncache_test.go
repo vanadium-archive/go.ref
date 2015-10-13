@@ -294,8 +294,9 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	dmrw, amrw, _ := flowtest.NewMRWPair(ctx)
 	dch := make(chan *connpackage.Conn)
 	ach := make(chan *connpackage.Conn)
+	lBlessings := v23.GetPrincipal(ctx).BlessingStore().Default()
 	go func() {
-		d, err := connpackage.NewDialed(ctx, dmrw, ep, ep,
+		d, err := connpackage.NewDialed(ctx, lBlessings, dmrw, ep, ep,
 			version.RPCVersionRange{Min: 1, Max: 5}, flowtest.AllowAllPeersAuthorizer{}, time.Minute, nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
@@ -304,7 +305,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	}()
 	fh := fh{t, make(chan struct{})}
 	go func() {
-		a, err := connpackage.NewAccepted(ctx, amrw, ep,
+		a, err := connpackage.NewAccepted(ctx, lBlessings, amrw, ep,
 			version.RPCVersionRange{Min: 1, Max: 5}, time.Minute, fh)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)

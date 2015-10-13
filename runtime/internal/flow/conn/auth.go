@@ -76,7 +76,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 		// the same mounttable.
 		defer func() { go c.refreshDischarges(ctx) }()
 	}
-	lAuth.PublicKey = c.lBlessings.PublicKey()
+	lAuth.PublicKey = v23.GetPrincipal(ctx).PublicKey()
 	return c.mp.writeMsg(ctx, lAuth)
 }
 

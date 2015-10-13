@@ -99,15 +99,16 @@ func TestUpdateFlowHandler(t *testing.T) {
 	dch, ach := make(chan *Conn), make(chan *Conn)
 	q1, q2 := make(chan flow.Flow, 1), make(chan flow.Flow, 1)
 	fh1, fh2 := fh(q1), fh(q2)
+	lBlessings := v23.GetPrincipal(ctx).BlessingStore().Default()
 	go func() {
-		d, err := NewDialed(ctx, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, nil)
+		d, err := NewDialed(ctx, lBlessings, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, nil)
 		if err != nil {
 			panic(err)
 		}
 		dch <- d
 	}()
 	go func() {
-		a, err := NewAccepted(ctx, amrw, ep, versions, time.Minute, fh1)
+		a, err := NewAccepted(ctx, lBlessings, amrw, ep, versions, time.Minute, fh1)
 		if err != nil {
 			panic(err)
 		}
