@@ -71,7 +71,7 @@ func ConfigureGlobalLoggerFromFlags() error {
 // IPv6 address and finally any non-loopback/link-local IPv6
 type IPAddressChooser struct{}
 
-func (IPAddressChooser) ChooseAddress(network string, addrs []net.Addr) ([]net.Addr, error) {
+func (IPAddressChooser) ChooseAddresses(network string, addrs []net.Addr) ([]net.Addr, error) {
 	if !netstate.IsIPProtocol(network) {
 		return nil, fmt.Errorf("can't support network protocol %q", network)
 	}
