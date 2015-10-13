@@ -181,7 +181,7 @@ func (t *tableReq) processLogBatch(ctx *context.T, call rpc.ServerCall, prefix s
 		if table != t.name || !strings.HasPrefix(row, prefix) {
 			continue
 		}
-		if err := t.checkAccess(ctx, call, sn, row); err != nil {
+		if _, err := t.checkAccess(ctx, call, sn, row); err != nil {
 			if verror.ErrorID(err) != verror.ErrNoAccess.ID {
 				return nil, err
 			}

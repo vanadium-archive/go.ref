@@ -16,6 +16,7 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -67,7 +68,7 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int
 		if err := t.updatePermsIndexForKey(ctx, tx, "", ""); err != nil {
 			return err
 		}
-		return t.setPrefixPerms(ctx, tx, "", perms)
+		return util.Put(ctx, tx, t.prefixPermsKey(""), perms)
 	})
 }
 
@@ -87,7 +88,13 @@ func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion in
 			return err
 		}
 		// TODO(sadovsky): Delete all rows in this table.
-		if err := t.deletePrefixPerms(ctx, tx, ""); err != nil {
+		if err := t.UpdatePrefixPermsIndexForDelete(ctx, tx, ""); err != nil {
+			return err
+		}
+		// TODO(rogulenko): In the current implementation Destroy() is protected
+		// by the Table ACL only, so there is no prefix ACL protecting this
+		// operation. Consider doing DeleteWithPerms() instead of Delete().
+		if err := util.Delete(ctx, tx, t.prefixPermsKey("")); err != nil {
 			return err
 		}
 		return util.Delete(ctx, tx, t.stKey())
@@ -146,7 +153,7 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersion int32, start, limit []byte) error {
 	impl := func(tx store.Transaction) error {
 		// Check for table-level access before doing a scan.
-		if err := t.checkAccess(ctx, call, tx, ""); err != nil {
+		if _, err := t.checkAccess(ctx, call, tx, ""); err != nil {
 			return err
 		}
 		// Check if the db schema version and the version provided by client
@@ -161,14 +168,15 @@ func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersio
 			// Check perms.
 			parts := util.SplitKeyParts(string(key))
 			externalKey := parts[len(parts)-1]
-			if err := t.checkAccess(ctx, call, tx, externalKey); err != nil {
+			permsPrefix, err := t.checkAccess(ctx, call, tx, externalKey)
+			if err != nil {
 				// TODO(rogulenko): Revisit this behavior. Probably we should
 				// delete all rows that we have access to.
 				it.Cancel()
 				return err
 			}
 			// Delete the key-value pair.
-			if err := tx.Delete(key); err != nil {
+			if err := watchable.DeleteWithPerms(tx, key, t.prefixPermsKey(permsPrefix)); err != nil {
 				return verror.New(verror.ErrInternal, ctx, err)
 			}
 		}
@@ -191,7 +199,7 @@ func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersio
 func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, schemaVersion int32, start, limit []byte) error {
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check for table-level access before doing a scan.
-		if err := t.checkAccess(ctx, call, sntx, ""); err != nil {
+		if _, err := t.checkAccess(ctx, call, sntx, ""); err != nil {
 			return err
 		}
 		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
@@ -205,7 +213,7 @@ func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, schemaVer
 			// Check perms.
 			parts := util.SplitKeyParts(string(key))
 			externalKey := parts[len(parts)-1]
-			if err := t.checkAccess(ctx, call, sntx, externalKey); err != nil {
+			if _, err := t.checkAccess(ctx, call, sntx, externalKey); err != nil {
 				it.Cancel()
 				return err
 			}
@@ -231,7 +239,7 @@ func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, schemaVer
 func (t *tableReq) GetPrefixPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, key string) ([]wire.PrefixPermissions, error) {
 	impl := func(sntx store.SnapshotOrTransaction) ([]wire.PrefixPermissions, error) {
 		// Check permissions only at table level.
-		if err := t.checkAccess(ctx, call, sntx, ""); err != nil {
+		if _, err := t.checkAccess(ctx, call, sntx, ""); err != nil {
 			return nil, err
 		}
 		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
@@ -267,13 +275,14 @@ func (t *tableReq) GetPrefixPermissions(ctx *context.T, call rpc.ServerCall, sch
 
 func (t *tableReq) SetPrefixPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, prefix string, perms access.Permissions) error {
 	impl := func(tx store.Transaction) error {
-		if err := t.checkAccess(ctx, call, tx, prefix); err != nil {
+		parent, err := t.checkAccess(ctx, call, tx, prefix)
+		if err != nil {
 			return err
 		}
 		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
-		return t.setPrefixPerms(ctx, tx, prefix, perms)
+		return t.setPrefixPerms(ctx, tx, prefix, parent, perms)
 	}
 	if t.d.batchId != nil {
 		if tx, err := t.d.batchTransaction(); err != nil {
@@ -292,11 +301,17 @@ func (t *tableReq) DeletePrefixPermissions(ctx *context.T, call rpc.ServerCall, 
 		return verror.New(verror.ErrBadArg, ctx, prefix)
 	}
 	impl := func(tx store.Transaction) error {
-		if err := t.checkAccess(ctx, call, tx, prefix); err != nil {
+		parent, err := t.checkAccess(ctx, call, tx, prefix)
+		if err != nil {
 			return err
 		}
 		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
+		}
+		if parent != prefix {
+			// This can happen only if there is no permissions object for the
+			// given prefix. Since DeletePermissions is idempotent, return nil.
+			return nil
 		}
 		return t.deletePrefixPerms(ctx, tx, prefix)
 	}
@@ -314,7 +329,7 @@ func (t *tableReq) DeletePrefixPermissions(ctx *context.T, call rpc.ServerCall, 
 func (t *tableReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
-		if err := t.checkAccess(ctx, call, sntx, ""); err != nil {
+		if _, err := t.checkAccess(ctx, call, sntx, ""); err != nil {
 			return err
 		}
 		return util.GlobChildren(ctx, call, matcher, sntx, util.JoinKeyParts(util.RowPrefix, t.name))
@@ -394,18 +409,18 @@ func (t *tableReq) UpdatePrefixPermsIndexForDelete(ctx *context.T, tx store.Tran
 ////////////////////////////////////////
 // Internal helpers
 
-func (t *tableReq) setPrefixPerms(ctx *context.T, tx store.Transaction, key string, perms access.Permissions) error {
+func (t *tableReq) setPrefixPerms(ctx *context.T, tx store.Transaction, key, parent string, perms access.Permissions) error {
 	if err := t.UpdatePrefixPermsIndexForSet(ctx, tx, key); err != nil {
 		return err
 	}
-	return util.Put(ctx, tx, t.prefixPermsKey(key), perms)
+	return watchable.PutVOMWithPerms(ctx, tx, t.prefixPermsKey(key), perms, t.prefixPermsKey(parent))
 }
 
 func (t *tableReq) deletePrefixPerms(ctx *context.T, tx store.Transaction, key string) error {
 	if err := t.UpdatePrefixPermsIndexForDelete(ctx, tx, key); err != nil {
 		return err
 	}
-	return tx.Delete([]byte(t.prefixPermsKey(key)))
+	return watchable.DeleteWithPerms(tx, []byte(t.prefixPermsKey(key)), t.prefixPermsKey(key))
 }
 
 func (t *tableReq) stKey() string {
@@ -469,22 +484,24 @@ func (t *tableReq) lock(ctx *context.T, tx store.Transaction) error {
 // checkAccess checks that this table exists in the database, and performs
 // an authorization check. The access is checked at table level and at the
 // level of the most specific prefix for the given key.
+// checkAccess returns the longest prefix of the given key that has associated
+// permissions if the access is granted.
 // TODO(rogulenko): Revisit this behavior. Eventually we'll want the table-level
 // access check to be a check for "Resolve", i.e. also check access to
 // service, app and database.
-func (t *tableReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction, key string) error {
+func (t *tableReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction, key string) (string, error) {
 	if err := util.GetWithAuth(ctx, call, sntx, t.stKey(), &tableData{}); err != nil {
-		return err
+		return "", err
 	}
 	prefix, _, perms, err := t.prefixPermsForKey(ctx, sntx, key)
 	if err != nil {
-		return err
+		return "", err
 	}
 	auth, _ := access.PermissionsAuthorizer(perms, access.TypicalTagType())
 	if err := auth.Authorize(ctx, call.Security()); err != nil {
-		return verror.New(verror.ErrNoAccess, ctx, prefix)
+		return "", verror.New(verror.ErrNoAccess, ctx, prefix)
 	}
-	return nil
+	return prefix, nil
 }
 
 // permsPrefixForKey returns the longest prefix of the given key that has

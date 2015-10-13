@@ -49,8 +49,8 @@ func makeAtVersionKey(key, version []byte) []byte {
 	return []byte(join(string(key), string(version)))
 }
 
-func getVersion(sntx store.SnapshotOrTransaction, key []byte) ([]byte, error) {
-	return sntx.Get(makeVersionKey(key), nil)
+func getVersion(st store.StoreReader, key []byte) ([]byte, error) {
+	return st.Get(makeVersionKey(key), nil)
 }
 
 func getAtVersion(st store.StoreReader, key, valbuf, version []byte) ([]byte, error) {

@@ -12,6 +12,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
@@ -236,10 +237,12 @@ func SetTransactionFromSync(tx store.Transaction) {
 // GetVersion returns the current version of a managed key. This method is used
 // by the Sync module when the initiator is attempting to add new versions of
 // objects. Reading the version key is used for optimistic concurrency
-// control. At minimum, an object implementing the Transaction interface is
+// control. At minimum, an object implementing the StoreReader interface is
 // required since this is a Get operation.
-func GetVersion(ctx *context.T, tx store.Transaction, key []byte) ([]byte, error) {
-	switch w := tx.(type) {
+func GetVersion(ctx *context.T, st store.StoreReader, key []byte) ([]byte, error) {
+	switch w := st.(type) {
+	case *snapshot:
+		return getVersion(w.isn, key)
 	case *transaction:
 		w.mu.Lock()
 		defer w.mu.Unlock()
@@ -247,6 +250,8 @@ func GetVersion(ctx *context.T, tx store.Transaction, key []byte) ([]byte, error
 			return nil, convertError(w.err)
 		}
 		return getVersion(w.itx, key)
+	case *wstore:
+		return getVersion(w.ist, key)
 	}
 	return nil, verror.New(verror.ErrInternal, ctx, "unsupported store type")
 }
@@ -308,5 +313,83 @@ func PutVersion(ctx *context.T, tx store.Transaction, key, version []byte) error
 		return err
 	}
 	wtx.ops = append(wtx.ops, &OpPut{PutOp{Key: cp(key), Version: cp(version)}})
+	return nil
+}
+
+// PutWithPerms puts a value for the managed key, recording the key and version
+// of the prefix permissions object that granted access to this put operation.
+func PutWithPerms(tx store.Transaction, key, value []byte, permsKey string) error {
+	wtx := tx.(*transaction)
+	wtx.mu.Lock()
+	defer wtx.mu.Unlock()
+	if wtx.err != nil {
+		return convertError(wtx.err)
+	}
+	if !wtx.st.managesKey(key) {
+		panic(fmt.Sprintf("cannot do PutWithPerms on unmanaged key: %s", string(key)))
+	}
+	permsKeyBytes := []byte(permsKey)
+	// NOTE: We must get the version before modifying the data because
+	// the key and the permsKey might be the same. This might happen when
+	// we are putting a perms object.
+	permsVersion, err := getVersion(wtx.itx, permsKeyBytes)
+	if err != nil {
+		return err
+	}
+	version, err := putVersioned(wtx.itx, key, value)
+	if err != nil {
+		return err
+	}
+	wtx.ops = append(wtx.ops, &OpPut{PutOp{
+		Key:         cp(key),
+		Version:     version,
+		PermKey:     permsKeyBytes,
+		PermVersion: permsVersion,
+	}})
+	return nil
+}
+
+// PutWithPerms puts a VOM-encoded value for the managed key, recording the key
+// and version of the prefix permissions object that granted access to this put
+// operation.
+func PutVOMWithPerms(ctx *context.T, tx store.Transaction, k string, v interface{}, permsKey string) error {
+	bytes, err := vom.Encode(v)
+	if err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	if err = PutWithPerms(tx, []byte(k), bytes, permsKey); err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
+}
+
+// DeleteWithPerms deletes a value for the managed key, recording the key and version
+// of the prefix permissions object that granted access to this delete operation.
+func DeleteWithPerms(tx store.Transaction, key []byte, permsKey string) error {
+	wtx := tx.(*transaction)
+	wtx.mu.Lock()
+	defer wtx.mu.Unlock()
+	if wtx.err != nil {
+		return convertError(wtx.err)
+	}
+	if !wtx.st.managesKey(key) {
+		panic(fmt.Sprintf("cannot do DeleteWithPerms on unmanaged key: %s", string(key)))
+	}
+	permsKeyBytes := []byte(permsKey)
+	// NOTE: We must get the version before modifying the data because
+	// the key and the permsKey might be the same. This might happen when
+	// we are deleting a perms object.
+	permsVersion, err := getVersion(wtx.itx, permsKeyBytes)
+	if err != nil {
+		return err
+	}
+	if err := deleteVersioned(wtx.itx, key); err != nil {
+		return err
+	}
+	wtx.ops = append(wtx.ops, &OpDelete{DeleteOp{
+		Key:         cp(key),
+		PermKey:     permsKeyBytes,
+		PermVersion: permsVersion,
+	}})
 	return nil
 }
