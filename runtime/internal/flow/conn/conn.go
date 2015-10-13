@@ -210,8 +210,12 @@ func NewAccepted(
 // Enter LameDuck mode, the returned channel will be closed when the remote
 // end has ack'd or the Conn is closed.
 func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
+	var err error
 	c.mu.Lock()
-	err := c.sendMessageLocked(ctx, true, expressPriority, &message.EnterLameDuck{})
+	if c.status < EnteringLameDuck {
+		c.status = EnteringLameDuck
+		err = c.sendMessageLocked(ctx, false, expressPriority, &message.EnterLameDuck{})
+	}
 	c.mu.Unlock()
 	if err != nil {
 		c.Close(ctx, NewErrSend(ctx, "release", c.remote.String(), err))
@@ -631,6 +635,9 @@ func (s *singleMessageWriter) priority() int { return s.p }
 // if cancelWithContext is true, then this write attempt will fail when the context
 // is canceled.  Otherwise context cancellation will have no effect and this call
 // will block until the message is sent.
+// NOTE: The mutex is not held for the entirety of this call,
+// therefore this call will interrupt your critical section. This
+// should be called only at the end of a mutex protected region.
 func (c *Conn) sendMessageLocked(
 	ctx *context.T,
 	cancelWithContext bool,
