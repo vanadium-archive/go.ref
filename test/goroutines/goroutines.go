@@ -21,6 +21,7 @@ var stackFileRE = regexp.MustCompile(`^\s+([^:]+):(\d+)(?: \+0x([0-9A-Fa-f]+))?$
 
 var ignoredGoroutines = []string{
 	"runtime.ensureSigM",
+	"sync.(*WaitGroup).Done",
 }
 
 type Goroutine struct {
