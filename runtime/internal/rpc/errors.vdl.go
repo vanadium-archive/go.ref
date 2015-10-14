@@ -16,14 +16,15 @@ import (
 
 var (
 	// Internal errors.
-	errBadRequest        = verror.Register("v.io/x/ref/runtime/internal/rpc.badRequest", verror.NoRetry, "{1:}{2:} failed to decode request: {3}")
-	errBadNumInputArgs   = verror.Register("v.io/x/ref/runtime/internal/rpc.badNumInputArgs", verror.NoRetry, "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
-	errBadInputArg       = verror.Register("v.io/x/ref/runtime/internal/rpc.badInputArg", verror.NoRetry, "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
-	errBadBlessings      = verror.Register("v.io/x/ref/runtime/internal/rpc.badBlessings", verror.NoRetry, "{1:}{2:} failed to decode blessings: {3}")
-	errBadBlessingsCache = verror.Register("v.io/x/ref/runtime/internal/rpc.badBlessingsCache", verror.NoRetry, "{1:}{2:} failed to find blessings in cache: {3}")
-	errBadDischarge      = verror.Register("v.io/x/ref/runtime/internal/rpc.badDischarge", verror.NoRetry, "{1:}{2:} failed to decode discharge #{3}: {4}")
-	errBadAuth           = verror.Register("v.io/x/ref/runtime/internal/rpc.badAuth", verror.NoRetry, "{1:}{2:} not authorized to call {3}.{4}: {5}")
-	errTypeFlowFailure   = verror.Register("v.io/x/ref/runtime/internal/rpc.typeFlowFailure", verror.NoRetry, "{1:}{2:} type flow could not be constructed{:3}")
+	errBadRequest                    = verror.Register("v.io/x/ref/runtime/internal/rpc.badRequest", verror.NoRetry, "{1:}{2:} failed to decode request: {3}")
+	errBadNumInputArgs               = verror.Register("v.io/x/ref/runtime/internal/rpc.badNumInputArgs", verror.NoRetry, "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
+	errBadInputArg                   = verror.Register("v.io/x/ref/runtime/internal/rpc.badInputArg", verror.NoRetry, "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
+	errBadBlessings                  = verror.Register("v.io/x/ref/runtime/internal/rpc.badBlessings", verror.NoRetry, "{1:}{2:} failed to decode blessings: {3}")
+	errBadBlessingsCache             = verror.Register("v.io/x/ref/runtime/internal/rpc.badBlessingsCache", verror.NoRetry, "{1:}{2:} failed to find blessings in cache: {3}")
+	errBadDischarge                  = verror.Register("v.io/x/ref/runtime/internal/rpc.badDischarge", verror.NoRetry, "{1:}{2:} failed to decode discharge #{3}: {4}")
+	errBadAuth                       = verror.Register("v.io/x/ref/runtime/internal/rpc.badAuth", verror.NoRetry, "{1:}{2:} not authorized to call {3}.{4}: {5}")
+	errTypeFlowFailure               = verror.Register("v.io/x/ref/runtime/internal/rpc.typeFlowFailure", verror.NoRetry, "{1:}{2:} type flow could not be constructed{:3}")
+	errServerBlessingsWrongPublicKey = verror.Register("v.io/x/ref/runtime/internal/rpc.serverBlessingsWrongPublicKey", verror.NoRetry, "{1:}{2:} server blessings do not match the principals public key")
 )
 
 func init() {
@@ -35,6 +36,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischarge.ID), "{1:}{2:} failed to decode discharge #{3}: {4}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadAuth.ID), "{1:}{2:} not authorized to call {3}.{4}: {5}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errTypeFlowFailure.ID), "{1:}{2:} type flow could not be constructed{:3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerBlessingsWrongPublicKey.ID), "{1:}{2:} server blessings do not match the principals public key")
 }
 
 // newErrBadRequest returns an error with the errBadRequest ID.
@@ -75,4 +77,9 @@ func newErrBadAuth(ctx *context.T, suffix string, method string, err error) erro
 // newErrTypeFlowFailure returns an error with the errTypeFlowFailure ID.
 func newErrTypeFlowFailure(ctx *context.T, err error) error {
 	return verror.New(errTypeFlowFailure, ctx, err)
+}
+
+// newErrServerBlessingsWrongPublicKey returns an error with the errServerBlessingsWrongPublicKey ID.
+func newErrServerBlessingsWrongPublicKey(ctx *context.T) error {
+	return verror.New(errServerBlessingsWrongPublicKey, ctx)
 }
