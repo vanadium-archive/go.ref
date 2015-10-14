@@ -26,6 +26,10 @@ import (
 	"v.io/x/ref/test"
 )
 
+var (
+	mockCRStream *conflictResolverStream
+)
+
 // mockService emulates a Syncbase service that includes store and sync.
 // It is used to access a mock application.
 type mockService struct {
@@ -114,6 +118,18 @@ func (d *mockDatabase) Table(ctx *context.T, tableName string) interfaces.Table 
 	return nil
 }
 
+func (d *mockDatabase) GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetadata, error) {
+	return nil, verror.NewErrNoExist(ctx)
+}
+
+func (d *mockDatabase) CrConnectionStream() wire.ConflictManagerStartConflictResolverServerStream {
+	return mockCRStream
+}
+
+func (d *mockDatabase) ResetCrConnectionStream() {
+	mockCRStream = nil
+}
+
 // createService creates a mock Syncbase service used for testing sync functionality.
 func createService(t *testing.T) *mockService {
 	ctx, shutdown := test.V23Init()
@@ -143,6 +159,10 @@ func createService(t *testing.T) *mockService {
 	return s
 }
 
+func setMockCRStream(crs *conflictResolverStream) {
+	mockCRStream = crs
+}
+
 // destroyService cleans up the mock Syncbase service.
 func destroyService(t *testing.T, s *mockService) {
 	defer s.shutdown()
@@ -155,4 +175,64 @@ func destroyService(t *testing.T, s *mockService) {
 // makeRowKey returns the database row key for a given application key.
 func makeRowKey(key string) string {
 	return util.JoinKeyParts(util.RowPrefix, key)
+}
+
+func makeRowKeyFromParts(table, row string) string {
+	return util.JoinKeyParts(util.RowPrefix, table, row)
+}
+
+func makePermsKeyFromParts(table, row string) string {
+	return util.JoinKeyParts(util.PermsPrefix, table, row)
+}
+
+// conflictResolverStream mock for testing.
+type conflictResolverStream struct {
+	sendQ   []wire.ConflictInfo
+	recvQ   []wire.ResolutionInfo
+	sendErr error
+	recvErr error
+}
+
+func (crs *conflictResolverStream) RecvStream() interface {
+	Advance() bool
+	Value() wire.ResolutionInfo
+	Err() error
+} {
+	return &recvStream{index: -1, cr: crs}
+}
+
+func (crs *conflictResolverStream) SendStream() interface {
+	Send(item wire.ConflictInfo) error
+} {
+	return &sendStream{cr: crs}
+}
+
+type sendStream struct {
+	cr *conflictResolverStream
+}
+
+func (ss *sendStream) Send(item wire.ConflictInfo) error {
+	if ss.cr.sendErr != nil {
+		return ss.cr.sendErr
+	}
+	ss.cr.sendQ = append(ss.cr.sendQ, item)
+	return nil
+}
+
+type recvStream struct {
+	index int
+	cr    *conflictResolverStream
+}
+
+func (rs *recvStream) Advance() bool {
+	rs.index++
+	return rs.index < len(rs.cr.recvQ)
+}
+
+func (rs *recvStream) Value() wire.ResolutionInfo {
+	return rs.cr.recvQ[rs.index]
+}
+
+func (rs *recvStream) Err() error {
+	return rs.cr.recvErr
 }

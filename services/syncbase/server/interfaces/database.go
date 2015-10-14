@@ -8,6 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -33,4 +34,19 @@ type Database interface {
 
 	// Name returns the name of this database.
 	Name() string
+
+	// GetSchemaMetadataInternal returns SchemaMetadata stored for this db
+	// without checking any credentials.
+	GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetadata, error)
+
+	// CrConnectionStream returns the current conflict resolution stream
+	// established between an app and this database.
+	CrConnectionStream() wire.ConflictManagerStartConflictResolverServerStream
+
+	// ResetCrConnectionStream resets the current conflict resolution stream.
+	// This can be used to either close an active stream or to remove a dead
+	// stream.
+	// Note: Resetting a stream does not reconnect the stream. Its upto the
+	// client to reconnect.
+	ResetCrConnectionStream()
 }

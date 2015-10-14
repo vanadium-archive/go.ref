@@ -24,15 +24,22 @@ import (
 
 var (
 	ErrDupSyncgroupPublish = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DupSyncgroupPublish", verror.NoRetry, "{1:}{2:} duplicate publish on syncgroup: {3}")
+	ErrBrokenCrConnection  = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.BrokenCrConnection", verror.NoRetry, "{1:}{2:} CrConnection stream to application does not exist or is broken.")
 )
 
 func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDupSyncgroupPublish.ID), "{1:}{2:} duplicate publish on syncgroup: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBrokenCrConnection.ID), "{1:}{2:} CrConnection stream to application does not exist or is broken.")
 }
 
 // NewErrDupSyncgroupPublish returns an error with the ErrDupSyncgroupPublish ID.
 func NewErrDupSyncgroupPublish(ctx *context.T, name string) error {
 	return verror.New(ErrDupSyncgroupPublish, ctx, name)
+}
+
+// NewErrBrokenCrConnection returns an error with the ErrBrokenCrConnection ID.
+func NewErrBrokenCrConnection(ctx *context.T) error {
+	return verror.New(ErrBrokenCrConnection, ctx)
 }
 
 // SyncClientMethods is the client interface

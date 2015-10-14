@@ -6,24 +6,9 @@ package vsync
 
 import (
 	"v.io/v23/context"
+	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-)
-
-// Policies for conflict resolution.
-// TODO(hpucha): Move relevant parts to client-facing vdl.
-const (
-	// Resolves conflicts by picking the update with the most recent timestamp.
-	useTime = iota
-
-	// TODO(hpucha): implement other policies.
-	// Resolves conflicts by using the app conflict resolver callbacks via store.
-	useCallback
-)
-
-var (
-	// conflictResolutionPolicy is the policy used to resolve conflicts.
-	conflictResolutionPolicy = useTime
 )
 
 // resolutionType represents how a conflict is resolved.
@@ -37,85 +22,45 @@ const (
 
 // conflictResolution represents the state of a conflict resolution.
 type conflictResolution struct {
-	ty  resolutionType
-	rec *localLogRec // Valid only if ty == createNew.
-	val []byte       // Valid only if ty == createNew.
+	batchId uint64
+	ty      resolutionType
+	rec     *localLogRec // Valid only if ty == createNew.
+	val     []byte       // Valid only if ty == createNew.
 }
 
 // resolveConflicts resolves conflicts for updated objects. Conflicts may be
 // resolved by adding new versions or picking either the local or the remote
 // version.
 func (iSt *initiationState) resolveConflicts(ctx *context.T) error {
-	for obj, st := range iSt.updObjects {
-		if !st.isConflict {
-			continue
-		}
-
-		// TODO(hpucha): Look up policy from the schema. Currently,
-		// hardcoded to time.
-		var err error
-		st.res, err = iSt.resolveObjConflict(ctx, obj, st.oldHead, st.newHead, st.ancestor)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// resolveObjConflict resolves a conflict for an object given its ID and the 3
-// versions that express the conflict: the object's local version, its remote
-// version (from the device contacted), and the closest common ancestor (see
-// dag.go on how the ancestor is chosen). The function returns the new object
-// value according to the conflict resolution policy.
-func (iSt *initiationState) resolveObjConflict(ctx *context.T, oid, local, remote, ancestor string) (*conflictResolution, error) {
-	// Fetch the log records of the 3 object versions.
-	versions := []string{local, remote, ancestor}
-	lrecs, err := iSt.getLogRecsBatch(ctx, oid, versions)
+	vlog.VI(2).Infof("cr: resolveConflicts: start")
+	defer vlog.VI(2).Infof("cr: resolveConflicts: end")
+	// Lookup schema for the database to figure out the CR policy set by the
+	// application.
+	schema, err := iSt.getDbSchema(ctx)
 	if err != nil {
-		return nil, err
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			vlog.VI(2).Infof("cr: resolveConflicts: no schema found, resolving based on timestamp")
+			return iSt.resolveViaTimestamp(ctx, iSt.updObjects)
+		}
+		vlog.Errorf("sync: resolveConflicts: error while fetching schema: %v", err)
+		return err
 	}
 
-	// The local and remote records must exist, however it is valid for the
-	// common ancestor to not exist.  This happens when two Syncbases create
-	// separately their first versions for the same object (key).
-	locRec, remRec, ancRec := lrecs[0], lrecs[1], lrecs[2]
-	if locRec == nil || remRec == nil {
-		vlog.Fatalf("sync: resolveObjConflict: oid %s: invalid local (%s: %v) or remote recs (%s: %v)",
-			oid, local, locRec, remote, remRec)
+	vlog.VI(2).Infof("cr: resolveConflicts: schema found.")
+	// Categorize conflicts based on CR policy in schema.
+	conflictsByType := iSt.groupConflictsByType(schema)
+
+	// Handle type AppResolves.
+	conflictsForApp := conflictsByType[wire.ResolverTypeAppResolves]
+	groupedConflicts := iSt.groupConflicts(ctx, conflictsForApp)
+	if err := iSt.resolveViaApp(ctx, groupedConflicts); err != nil {
+		return err
 	}
 
-	// Resolve the conflict according to the resolution policy.
-	switch conflictResolutionPolicy {
-	case useTime:
-		return iSt.resolveObjConflictByTime(ctx, oid, locRec, remRec, ancRec)
-	default:
-		return nil, verror.New(verror.ErrInternal, ctx, "unknown conflict resolution policy", conflictResolutionPolicy)
-	}
-}
+	// Handle rest of the conflicts of type LastWins.
+	return iSt.resolveViaTimestamp(ctx, conflictsByType[wire.ResolverTypeLastWins])
 
-// resolveObjConflictByTime resolves conflicts using the timestamps of the
-// conflicting mutations.  It picks a mutation with the larger timestamp,
-// i.e. the most recent update.  If the timestamps are equal, it uses the
-// mutation version numbers as a tie-breaker, picking the mutation with the
-// larger version.  Instead of creating a new version that resolves the
-// conflict, we pick an existing version as the conflict resolution.
-func (iSt *initiationState) resolveObjConflictByTime(ctx *context.T, oid string, local, remote, ancestor *localLogRec) (*conflictResolution, error) {
-	var res conflictResolution
-	switch {
-	case local.Metadata.UpdTime.After(remote.Metadata.UpdTime):
-		res.ty = pickLocal
-	case local.Metadata.UpdTime.Before(remote.Metadata.UpdTime):
-		res.ty = pickRemote
-	case local.Metadata.CurVers > remote.Metadata.CurVers:
-		res.ty = pickLocal
-	case local.Metadata.CurVers < remote.Metadata.CurVers:
-		res.ty = pickRemote
-	default:
-		vlog.Fatalf("sync: resolveObjConflictByTime: local and remote update times and versions are the same, local %v remote %v", local, remote)
-	}
-
-	return &res, nil
+	// TODO(jlodhia): special handling for conflicts of type 'Defer'
 }
 
 // getLogRecsBatch gets the log records for an array of versions for a given object.

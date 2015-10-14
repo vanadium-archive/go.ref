@@ -1285,7 +1285,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_1)
 	}
 
-	expInfo := &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, 0}
+	expInfo := &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_1, info, expInfo)
 	}
@@ -1295,7 +1295,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_2)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_c: "2"}, 0}
+	expInfo = &batchInfo{map[string]string{oid_c: "2"}, nil, 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}
@@ -1328,7 +1328,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_1, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, 2}
+	expInfo = &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v",
 			btid_1, info, expInfo)
@@ -1339,7 +1339,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_2)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_c: "2"}, 0}
+	expInfo = &batchInfo{map[string]string{oid_c: "2"}, nil, 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}
@@ -1360,7 +1360,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_2, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_c: "2"}, 1}
+	expInfo = &batchInfo{map[string]string{oid_c: "2"}, nil, 1}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}
@@ -1406,7 +1406,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_3, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_a: "4"}, 2}
+	expInfo = &batchInfo{map[string]string{oid_a: "4"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v",
 			btid_3, info, expInfo)
@@ -1445,7 +1445,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_3, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_a: "4", oid_b: "4"}, 2}
+	expInfo = &batchInfo{map[string]string{oid_a: "4", oid_b: "4"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch state from DAG storage for ID %v: %v instead of %v",
 			btid_3, info, expInfo)
@@ -1560,7 +1560,7 @@ func TestPruningBatches(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_1, err)
 	}
 
-	expInfo := &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, 2}
+	expInfo := &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v",
 			btid_1, info, expInfo)
@@ -1571,7 +1571,7 @@ func TestPruningBatches(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_2, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_b: "4", oid_c: "2"}, 2}
+	expInfo = &batchInfo{map[string]string{oid_b: "4", oid_c: "2"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v",
 			btid_2, info, expInfo)
@@ -1610,7 +1610,7 @@ func TestPruningBatches(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_2, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_c: "2"}, 2}
+	expInfo = &batchInfo{map[string]string{oid_c: "2"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}

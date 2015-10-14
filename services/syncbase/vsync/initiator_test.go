@@ -368,7 +368,6 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initiationState, func()) {
 	// Set a large value to prevent the initiator from running.
 	peerSyncInterval = 1 * time.Hour
-	conflictResolutionPolicy = useTime
 	svc := createService(t)
 	cleanup := func() {
 		destroyService(t, svc)

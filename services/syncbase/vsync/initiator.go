@@ -199,11 +199,15 @@ type initiationState struct {
 // objConflictState contains the conflict state for an object that is updated
 // during an initiator round.
 type objConflictState struct {
-	isConflict bool
-	newHead    string
-	oldHead    string
-	ancestor   string
-	res        *conflictResolution
+	// In practice, isConflict and isAddedByCr cannot both be true.
+	isAddedByCr bool
+	isConflict  bool
+	newHead     string
+	oldHead     string
+	ancestor    string
+	res         *conflictResolution
+	
+	// TODO(jlodhia): Add perms object and version for the row keys for pickNew
 }
 
 // newInitiatonConfig creates new initiation config. This will be shared between
@@ -237,6 +241,7 @@ func newInitiationConfig(ctx *context.T, s *syncService, peer string, name strin
 	if err != nil {
 		return nil, err
 	}
+
 	c.st = c.db.St()
 
 	return c, nil
