@@ -387,6 +387,9 @@ func (b *blessingsFlow) getLatestRemote(ctx *context.T, bkey uint64) (security.B
 }
 
 func (b *blessingsFlow) send(ctx *context.T, blessings security.Blessings, discharges map[string]security.Discharge) (bkey, dkey uint64, err error) {
+	if blessings.IsZero() {
+		return 0, 0, nil
+	}
 	defer b.mu.Unlock()
 	b.mu.Lock()
 	buid := string(blessings.UniqueID())
