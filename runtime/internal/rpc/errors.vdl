@@ -30,4 +30,7 @@ error (
 	typeFlowFailure(err error) {
 		"en": "type flow could not be constructed{:err}",
 	}
+	serverBlessingsWrongPublicKey() {
+		"en": "server blessings do not match the principals public key",
+	}
 )
