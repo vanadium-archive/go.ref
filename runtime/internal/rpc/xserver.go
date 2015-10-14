@@ -54,8 +54,8 @@ type xserver struct {
 	blessings         security.Blessings
 	typeCache         *typeCache
 	addressChooser    rpc.AddressChooser
+	state             rpc.ServerState // the current state of the server.
 
-	mu              sync.Mutex
 	chosenEndpoints map[string]*inaming.Endpoint            // endpoints chosen by the addressChooser for publishing.
 	protoEndpoints  map[string]*inaming.Endpoint            // endpoints that act as "template" endpoints.
 	proxyEndpoints  map[string]map[string]*inaming.Endpoint // keyed by ep.String()
@@ -114,6 +114,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		disp:              dispatcher,
 		typeCache:         newTypeCache(),
 		proxyEndpoints:    make(map[string]map[string]*inaming.Endpoint),
+		state:             rpc.ServerActive,
 	}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -149,17 +150,20 @@ func WithNewDispatchingServer(ctx *context.T,
 	if len(name) > 0 {
 		// TODO(mattr): We only call AddServer here, but if someone calls AddName
 		// later there will be no servers?
-		s.mu.Lock()
+		s.Lock()
 		for k, _ := range s.chosenEndpoints {
 			s.publisher.AddServer(k)
 		}
-		s.mu.Unlock()
+		s.Unlock()
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 		vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	}
 
 	go func() {
 		<-ctx.Done()
+		s.Lock()
+		s.state = rpc.ServerStopping
+		s.Unlock()
 		serverDebug := fmt.Sprintf("Dispatcher: %T, Status:[%v]", s.disp, s.Status())
 		s.ctx.VI(1).Infof("Stop: %s", serverDebug)
 		defer s.ctx.VI(1).Infof("Stop done: %s", serverDebug)
@@ -215,6 +219,9 @@ func WithNewDispatchingServer(ctx *context.T,
 		// Now we really will wait forever.  If this doesn't exit, there's something
 		// wrong with the users code.
 		<-done
+		s.Lock()
+		s.state = rpc.ServerStopped
+		s.Unlock()
 	}()
 	return rootCtx, s, nil
 }
@@ -223,14 +230,15 @@ func (s *xserver) Status() rpc.ServerStatus {
 	status := rpc.ServerStatus{}
 	status.ServesMountTable = s.servesMountTable
 	status.Mounts = s.publisher.Status()
-	s.mu.Lock()
+	s.Lock()
+	status.State = s.state
 	for _, e := range s.chosenEndpoints {
 		status.Endpoints = append(status.Endpoints, e)
 	}
 	for _, err := range s.lnErrors {
 		status.Errors = append(status.Errors, err)
 	}
-	s.mu.Unlock()
+	s.Unlock()
 	return status
 }
 
@@ -332,7 +340,7 @@ func (s *xserver) update(pep naming.Endpoint) func([]naming.Endpoint) {
 		}
 
 		// Endpoints to add and remove.
-		s.mu.Lock()
+		s.Lock()
 		oldEps := s.proxyEndpoints[pkey]
 		s.proxyEndpoints[pkey] = chosenEps
 		rmEps := setDiff(oldEps, chosenEps)
@@ -343,7 +351,7 @@ func (s *xserver) update(pep naming.Endpoint) func([]naming.Endpoint) {
 		for k, ep := range addEps {
 			s.chosenEndpoints[k] = ep
 		}
-		s.mu.Unlock()
+		s.Unlock()
 
 		for k := range rmEps {
 			s.publisher.RemoveServer(k)
@@ -409,11 +417,9 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 			lnErrs[ep.String()] = eperr
 		}
 	}
-	s.mu.Lock()
 	s.chosenEndpoints = chosenEps
 	s.protoEndpoints = protoEps
 	s.lnErrors = lnErrs
-	s.mu.Unlock()
 
 	if roaming && s.dhcpState == nil && s.settingsPublisher != nil {
 		// TODO(mattr): Support roaming.
