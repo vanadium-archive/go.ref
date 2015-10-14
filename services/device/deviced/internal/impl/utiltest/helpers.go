@@ -308,13 +308,13 @@ func LaunchAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, e
 }
 
 func NewInstanceImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
-	ctx, delete := context.WithCancel(ctx)
-	defer delete()
-
 	call, err := AppStub(appID).Instantiate(ctx)
 	if err != nil {
 		return "", err
 	}
+	// We should finish the rpc call, even if we exit early due to an error.
+	defer call.Finish()
+
 	for call.RecvStream().Advance() {
 		switch msg := call.RecvStream().Value().(type) {
 		case device.BlessServerMessageInstancePublicKey:
