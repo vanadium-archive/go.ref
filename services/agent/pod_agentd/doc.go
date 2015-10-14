@@ -6,21 +6,22 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Claimable is a server that implements the Claimable interface from
-v.io/v23/services/device. It exits immediately if the device is already claimed.
-Otherwise, it keeps running until a successful Claim() request is received.
-
-It uses -v23.permissions.* to authorize the Claim request.
+Command pod_agentd runs a security agent daemon, which holds a private key in
+memory and makes it available to the kubernetes pod in which it is running.
 
 Usage:
-   claimable [flags]
+   pod_agentd [flags]
 
-The claimable flags are:
- -perms-dir=
-   The directory where permissions will be stored.
+The pod_agentd flags are:
+ -agent=
+   The address of the cluster agent.
  -root-blessings=
    A comma-separated list of the root blessings to trust, base64-encoded
    VOM-encoded.
+ -secret-key-file=
+   The name of the file that contains the secret key.
+ -socket-path=
+   The path of the unix socket to listen on.
 
 The global flags are:
  -alsologtostderr=true
