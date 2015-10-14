@@ -108,7 +108,7 @@ func TestServerArgs(t *testing.T) {
 
 type statusServer struct{ ch chan struct{} }
 
-func (s *statusServer) Hang(*context.T, rpc.ServerCall) error {
+func (s *statusServer) Hang(ctx *context.T, _ rpc.ServerCall) error {
 	s.ch <- struct{}{} // Notify the server has received a call.
 	<-s.ch             // Wait for the server to be ready to go.
 	return nil
@@ -119,7 +119,8 @@ func TestServerStatus(t *testing.T) {
 	defer shutdown()
 
 	serverChan := make(chan struct{})
-	_, server, err := v23.WithNewServer(ctx, "test", &statusServer{serverChan}, nil)
+	sctx, cancel := context.WithCancel(ctx)
+	_, server, err := v23.WithNewServer(sctx, "test", &statusServer{serverChan}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,9 +145,8 @@ func TestServerStatus(t *testing.T) {
 
 	// Stop server asynchronously
 	go func() {
-		if err = server.Stop(); err != nil {
-			t.Fatal(err)
-		}
+		cancel()
+		<-server.Closed()
 	}()
 
 	waitForStatus := func(want rpc.ServerState) {
