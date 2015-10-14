@@ -134,7 +134,7 @@ func TestBinaryClient(t *testing.T) {
 	if err := v23cmd.ParseAndRunForTest(cmdRoot, ctx, env, []string{"download", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
 		t.Fatalf("%v failed: %v\n%v", "download", err, out.String())
 	}
-	if expected, got := "Binary downloaded to file "+file, strings.TrimSpace(out.String()); got != expected {
+	if expected, got := "Binary installed as "+file, strings.TrimSpace(out.String()); got != expected {
 		t.Errorf("Got %q, expected %q", got, expected)
 	}
 	buf, err := ioutil.ReadFile(file)

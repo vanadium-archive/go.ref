@@ -41,7 +41,7 @@ func TestInstall(t *testing.T) {
 
 	binfile := filepath.Join(workdir, "binfile")
 	ioutil.WriteFile(binfile, []byte("This is a binary file"), os.FileMode(0644))
-	ioutil.WriteFile(binfile+".__info", []byte(`{"type":"application/octet-stream"}`), os.FileMode(0644))
+	ioutil.WriteFile(packages.MediaInfoFile(binfile), []byte(`{"type":"application/octet-stream"}`), os.FileMode(0644))
 
 	expected := []string{
 		"a perm:700",
@@ -160,7 +160,7 @@ func makeTar(t *testing.T, tarfile, dir string) {
 	if err := tw.Close(); err != nil {
 		t.Fatalf("tw.Close failed: %v", err)
 	}
-	if err := ioutil.WriteFile(tarfile+".__info", []byte(`{"type":"application/x-tar"}`), os.FileMode(0644)); err != nil {
+	if err := ioutil.WriteFile(packages.MediaInfoFile(tarfile), []byte(`{"type":"application/x-tar"}`), os.FileMode(0644)); err != nil {
 		t.Fatalf("ioutil.WriteFile() failed: %v", err)
 	}
 }
