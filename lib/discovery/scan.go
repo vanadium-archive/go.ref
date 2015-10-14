@@ -74,16 +74,22 @@ func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discove
 				}
 				continue
 			}
-			id := string(ad.InstanceUuid)
 			// TODO(jhahn): Merge scanData based on InstanceUuid.
+			var update discovery.Update
+			id := string(ad.InstanceUuid)
 			if ad.Lost {
 				if _, ok := found[id]; ok {
 					delete(found, id)
-					updateCh <- discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.InstanceUuid}}
+					update = discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.InstanceUuid}}
 				}
 			} else {
 				found[id] = struct{}{}
-				updateCh <- discovery.UpdateFound{discovery.Found{Service: ad.Service}}
+				update = discovery.UpdateFound{discovery.Found{Service: ad.Service}}
+			}
+			select {
+			case updateCh <- update:
+			case <-ctx.Done():
+				return
 			}
 		case <-ctx.Done():
 			return
