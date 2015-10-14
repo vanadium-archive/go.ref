@@ -48,6 +48,13 @@ var (
 	errBadEncoding     = verror.Register(pkgPath+".errBadEncoding", verror.NoRetry, "{1:}{2:} unsupported encoding{:_}")
 )
 
+// MediaInfoFile returns the name of the file where the media info is stored for
+// the given package file.
+func MediaInfoFile(pkgFile string) string {
+	const mediaInfoFileSuffix = ".__info"
+	return pkgFile + mediaInfoFileSuffix
+}
+
 // MediaInfoForFileName returns the MediaInfo based on the file's extension.
 func MediaInfoForFileName(fileName string) repository.MediaInfo {
 	fileName = strings.ToLower(fileName)
@@ -78,8 +85,8 @@ func copyFile(src, dst string) error {
 
 // Install installs a package in the given destination. If the package is a TAR
 // or ZIP archive, the destination becomes a directory where the archive content
-// is extracted.  Otherwise, the package file itself is copied to the
-// destination.
+// is extracted.  Otherwise, the destination is hard-linked to the package (or
+// copied if hard link is not possible).
 func Install(pkgFile, destination string) error {
 	mediaInfo, err := LoadMediaInfo(pkgFile)
 	if err != nil {
@@ -90,16 +97,23 @@ func Install(pkgFile, destination string) error {
 		return extractTar(pkgFile, mediaInfo.Encoding, destination)
 	case "application/zip":
 		return extractZip(pkgFile, destination)
-	case defaultType:
-		return copyFile(pkgFile, destination)
+	case defaultType, "text/plain":
+		if err := os.Link(pkgFile, destination); err != nil {
+			// Can't create hard link (e.g., different filesystem).
+			return copyFile(pkgFile, destination)
+		}
+		return nil
 	default:
+		// TODO(caprita): Instead of throwing an error, why not just
+		// handle things with os.Link(pkgFile, destination) as the two
+		// cases above?
 		return verror.New(errBadMediaType, nil, mediaInfo.Type)
 	}
 }
 
 // LoadMediaInfo returns the MediaInfo for the given package file.
 func LoadMediaInfo(pkgFile string) (repository.MediaInfo, error) {
-	jInfo, err := ioutil.ReadFile(pkgFile + ".__info")
+	jInfo, err := ioutil.ReadFile(MediaInfoFile(pkgFile))
 	if err != nil {
 		return repository.MediaInfo{}, err
 	}
@@ -116,7 +130,7 @@ func SaveMediaInfo(pkgFile string, mediaInfo repository.MediaInfo) error {
 	if err != nil {
 		return err
 	}
-	infoFile := pkgFile + ".__info"
+	infoFile := MediaInfoFile(pkgFile)
 	if err := ioutil.WriteFile(infoFile, jInfo, os.FileMode(0600)); err != nil {
 		return err
 	}
@@ -257,6 +271,10 @@ func extractTar(pkgFile string, encoding string, installDir string) error {
 		}
 		// Regular file
 		if hdr.Typeflag == tar.TypeReg {
+			parentName := filepath.Dir(name)
+			if err := os.MkdirAll(parentName, os.FileMode(createDirMode)); err != nil {
+				return err
+			}
 			out, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, os.FileMode(createFileMode))
 			if err != nil {
 				return err
@@ -273,7 +291,7 @@ func extractTar(pkgFile string, encoding string, installDir string) error {
 		}
 		// Directory
 		if hdr.Typeflag == tar.TypeDir {
-			if err := os.Mkdir(name, os.FileMode(createDirMode)); err != nil && !os.IsExist(err) {
+			if err := os.MkdirAll(name, os.FileMode(createDirMode)); err != nil && !os.IsExist(err) {
 				return err
 			}
 			continue

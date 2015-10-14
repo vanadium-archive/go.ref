@@ -17,6 +17,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/repository"
+	"v.io/x/ref/services/internal/packages"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -164,9 +165,9 @@ func TestFileAPI(t *testing.T) {
 	if bytes.Compare(data, output) != 0 {
 		t.Errorf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
 	}
-	jMediaInfo, err := ioutil.ReadFile(dst.Name() + ".__info")
+	jMediaInfo, err := ioutil.ReadFile(packages.MediaInfoFile(dst.Name()))
 	if err != nil {
-		t.Errorf("ReadFile(%v) failed: %v", dst.Name()+".__info", err)
+		t.Errorf("ReadFile(%v) failed: %v", packages.MediaInfoFile(dst.Name()), err)
 	}
 	if expected := `{"Type":"application/octet-stream","Encoding":""}`; string(jMediaInfo) != expected {
 		t.Errorf("unexpected media info: expected %q, got %q", expected, string(jMediaInfo))

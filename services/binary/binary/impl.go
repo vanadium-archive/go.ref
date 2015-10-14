@@ -9,13 +9,16 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/internal/binarylib"
+	"v.io/x/ref/services/internal/packages"
 )
 
 func main() {
@@ -44,30 +47,57 @@ func runDelete(ctx *context.T, env *cmdline.Env, args []string) error {
 	return nil
 }
 
+var install bool
+
 var cmdDownload = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runDownload),
 	Name:   "download",
 	Short:  "Download a binary",
 	Long: `
 Download connects to the binary repository, downloads the specified binary, and
-writes it to a file.
+installs it to the specified location.
 `,
-	ArgsName: "<von> <filename>",
+	ArgsName: "<von> <location>",
 	ArgsLong: `
 <von> is the vanadium object name of the binary to download
-<filename> is the name of the file where the binary will be written
+<location> is the path where the downloaded binary should be installed
 `,
+}
+
+func init() {
+	cmdDownload.Flags.BoolVar(&install, "install", true, "Install the binary.  If false, it just downloads the binary and the media info file.")
 }
 
 func runDownload(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return env.UsageErrorf("download: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	von, filename := args[0], args[1]
-	if err := binarylib.DownloadToFile(ctx, von, filename); err != nil {
+	von, destination, rawDestination := args[0], args[1], args[1]
+	if install {
+		rawDestinationFile, err := ioutil.TempFile(filepath.Dir(destination), filepath.Base(destination))
+		if err != nil {
+			return err
+		}
+		rawDestination = rawDestinationFile.Name()
+		rawDestinationFile.Close()
+	}
+	if err := binarylib.DownloadToFile(ctx, von, rawDestination); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "Binary downloaded to file %s\n", filename)
+	if !install {
+		fmt.Fprintf(env.Stdout, "Binary downloaded to %s (media info %s)\n", rawDestination, packages.MediaInfoFile(rawDestination))
+		return nil
+	}
+	if err := packages.Install(rawDestination, destination); err != nil {
+		return err
+	}
+	if err := os.Remove(rawDestination); err != nil {
+		return err
+	}
+	if err := os.Remove(packages.MediaInfoFile(rawDestination)); err != nil {
+		return err
+	}
+	fmt.Fprintf(env.Stdout, "Binary installed as %s\n", destination)
 	return nil
 }
 

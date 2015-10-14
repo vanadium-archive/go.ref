@@ -7,10 +7,13 @@ package main_test
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"v.io/v23/naming"
@@ -20,9 +23,9 @@ import (
 
 //go:generate jiri test generate
 
-func checkFileType(i *v23tests.T, file, typeString string) {
+func checkFileType(i *v23tests.T, infoFile, typeString string) {
 	var catOut bytes.Buffer
-	catCmd := exec.Command("cat", file+".__info")
+	catCmd := exec.Command("cat", infoFile)
 	catCmd.Stdout = &catOut
 	catCmd.Stderr = &catOut
 	if err := catCmd.Run(); err != nil {
@@ -51,14 +54,31 @@ func deleteFile(i *v23tests.T, clientBin *v23tests.Binary, name, suffix string) 
 	clientBin.Start("delete", naming.Join(name, suffix)).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func downloadFile(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, name, path, suffix string) {
+func downloadAndInstall(i *v23tests.T, clientBin *v23tests.Binary, name, path, suffix string) {
 	args := []string{"download", naming.Join(name, suffix), path}
-	err := clientBin.Start(args...).Wait(os.Stdout, os.Stderr)
-	if expectError && err == nil {
-		i.Fatalf("%s %v: did not fail when it should", clientBin.Path(), args)
-	}
-	if !expectError && err != nil {
+	if err := clientBin.Start(args...).Wait(os.Stdout, os.Stderr); err != nil {
 		i.Fatalf("%s %v: failed: %v", clientBin.Path(), args, err)
+	}
+}
+
+func downloadFile(i *v23tests.T, clientBin *v23tests.Binary, name, path, suffix string) (string, string) {
+	args := []string{"download", "--install=false", naming.Join(name, suffix), path}
+	var stdout bytes.Buffer
+	if err := clientBin.Start(args...).Wait(io.MultiWriter(os.Stdout, &stdout), os.Stderr); err != nil {
+		i.Fatalf("%s %v: failed: %v", clientBin.Path(), args, err)
+	}
+	stdoutStr := stdout.String()
+	match := regexp.MustCompile(`Binary downloaded to (.+) \(media info (.+)\)`).FindStringSubmatch(stdoutStr)
+	if len(match) != 3 {
+		i.Fatalf("Failed to match download stdout: %s", stdoutStr)
+	}
+	return match[1], match[2]
+}
+
+func downloadFileExpectError(i *v23tests.T, clientBin *v23tests.Binary, name, path, suffix string) {
+	args := []string{"download", naming.Join(name, suffix), path}
+	if clientBin.Start(args...).Wait(os.Stdout, os.Stderr) == nil {
+		i.Fatalf("%s %v: did not fail when it should", clientBin.Path(), args)
 	}
 }
 
@@ -137,20 +157,40 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 
 	// Download the binary file and check that it matches the
 	// original one and that it has the right file type.
-	downloadedBinFile := binFile.Name() + "-downloaded"
-	defer os.Remove(downloadedBinFile)
-	downloadFile(i, clientBin, false, binaryRepoName, downloadedBinFile, binSuffix)
-	compareFiles(i, binFile.Name(), downloadedBinFile)
-	checkFileType(i, downloadedBinFile, `{"Type":"application/octet-stream","Encoding":""}`)
+	downloadName := binFile.Name() + "-downloaded"
+	downloadedFile, infoFile := downloadFile(i, clientBin, binaryRepoName, downloadName, binSuffix)
+	defer os.Remove(downloadedFile)
+	defer os.Remove(infoFile)
+	if downloadedFile != downloadName {
+		i.Fatalf("expected %s, got %s", downloadName, downloadedFile)
+	}
+	compareFiles(i, binFile.Name(), downloadedFile)
+	checkFileType(i, infoFile, `{"Type":"application/octet-stream","Encoding":""}`)
+
+	// Download and install and make sure the file is as expected.
+	installName := binFile.Name() + "-installed"
+	downloadAndInstall(i, clientBin, binaryRepoName, installName, binSuffix)
+	defer os.Remove(installName)
+	compareFiles(i, binFile.Name(), installName)
 
 	// Download the compressed version of the binary file and
 	// check that it matches the original one and that it has the
 	// right file type.
-	downloadedTarFile := binFile.Name() + "-downloaded.tar.gz"
+	downloadTarName := binFile.Name() + "-compressed-downloaded"
+	downloadedTarFile, infoFile := downloadFile(i, clientBin, binaryRepoName, downloadTarName, tarSuffix)
 	defer os.Remove(downloadedTarFile)
-	downloadFile(i, clientBin, false, binaryRepoName, downloadedTarFile, tarSuffix)
+	defer os.Remove(infoFile)
+	if downloadedTarFile != downloadTarName {
+		i.Fatalf("expected %s, got %s", downloadTarName, downloadedTarFile)
+	}
 	compareFiles(i, tarFile, downloadedTarFile)
-	checkFileType(i, downloadedTarFile, `{"Type":"application/x-tar","Encoding":"gzip"}`)
+	checkFileType(i, infoFile, `{"Type":"application/x-tar","Encoding":"gzip"}`)
+
+	// Download and install and make sure the un-archived file is as expected.
+	installTarName := binFile.Name() + "-compressed-installed"
+	downloadAndInstall(i, clientBin, binaryRepoName, installTarName, tarSuffix)
+	defer os.Remove(installTarName)
+	compareFiles(i, binFile.Name(), filepath.Join(installTarName, binFile.Name()))
 
 	// Fetch the root URL of the HTTP server used by the binary
 	// repository to serve URLs.
@@ -161,7 +201,7 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	downloadedBinFileURL := binFile.Name() + "-downloaded-url"
 	defer os.Remove(downloadedBinFileURL)
 	downloadURL(i, downloadedBinFileURL, root, binSuffix)
-	compareFiles(i, downloadedBinFile, downloadedBinFileURL)
+	compareFiles(i, downloadName, downloadedBinFileURL)
 
 	// Download the compressed version of the binary file using
 	// the HTTP protocol and check that it matches the original
@@ -176,6 +216,6 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	deleteFile(i, clientBin, binaryRepoName, tarSuffix)
 
 	// Check the files no longer exist.
-	downloadFile(i, clientBin, true, binaryRepoName, downloadedBinFile, binSuffix)
-	downloadFile(i, clientBin, true, binaryRepoName, downloadedTarFile, tarSuffix)
+	downloadFileExpectError(i, clientBin, binaryRepoName, downloadName, binSuffix)
+	downloadFileExpectError(i, clientBin, binaryRepoName, downloadTarName, tarSuffix)
 }

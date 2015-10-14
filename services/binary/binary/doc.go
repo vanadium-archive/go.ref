@@ -74,13 +74,18 @@ Usage:
 Binary download - Download a binary
 
 Download connects to the binary repository, downloads the specified binary, and
-writes it to a file.
+installs it to the specified location.
 
 Usage:
-   binary download <von> <filename>
+   binary download [flags] <von> <location>
 
-<von> is the vanadium object name of the binary to download <filename> is the
-name of the file where the binary will be written
+<von> is the vanadium object name of the binary to download <location> is the
+path where the downloaded binary should be installed
+
+The binary download flags are:
+ -install=true
+   Install the binary.  If false, it just downloads the binary and the media
+   info file.
 
 Binary upload - Upload a binary or directory archive
 

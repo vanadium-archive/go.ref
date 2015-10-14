@@ -24,7 +24,6 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/services/internal/packages"
 )
 
