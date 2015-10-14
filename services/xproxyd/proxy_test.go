@@ -30,6 +30,7 @@ import (
 const (
 	leakWaitTime = 250 * time.Millisecond
 	pollTime     = 50 * time.Millisecond
+	bidiProtocol = "bidi"
 )
 
 type testService struct{}
@@ -57,7 +58,7 @@ func TestProxyRPC(t *testing.T) {
 	}
 	// Wait for the server to finish listening through the proxy.
 	eps := s.Status().Endpoints
-	for ; len(eps) < 2 || eps[1].Addr().Network() == ""; eps = s.Status().Endpoints {
+	for ; len(eps) < 2 || eps[1].Addr().Network() == bidiProtocol; eps = s.Status().Endpoints {
 		time.Sleep(pollTime)
 	}
 
@@ -92,7 +93,7 @@ func TestMultipleProxyRPC(t *testing.T) {
 	}
 	// Wait for the server to finish listening through the proxy.
 	eps := s.Status().Endpoints
-	for ; len(eps) == 0 || eps[0].Addr().Network() == ""; eps = s.Status().Endpoints {
+	for ; len(eps) == 0 || eps[0].Addr().Network() == bidiProtocol; eps = s.Status().Endpoints {
 		time.Sleep(pollTime)
 	}
 
@@ -146,10 +147,9 @@ func TestProxyNotAuthorized(t *testing.T) {
 	}
 	// Wait for the server to finish listening through the proxy.
 	eps := s.Status().Endpoints
-	for ; len(eps) < 2 || eps[1].Addr().Network() == ""; eps = s.Status().Endpoints {
+	for ; len(eps) < 2 || eps[1].Addr().Network() == bidiProtocol; eps = s.Status().Endpoints {
 		time.Sleep(pollTime)
 	}
-
 	// The call should succeed which means that the client did not try to authorize
 	// the proxy's blessings.
 	var got string
