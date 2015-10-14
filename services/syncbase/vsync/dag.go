@@ -729,7 +729,7 @@ func nodeKey(oid, version string) string {
 // setNode stores the DAG node entry.
 func setNode(ctx *context.T, tx store.Transaction, oid, version string, node *dagNode) error {
 	if version == NoVersion {
-		vlog.Fatalf("sync: setNode: invalid version: %s", version)
+		vlog.Fatalf("sync: setNode: invalid version: %s for oid: %s", version, oid)
 	}
 
 	return util.Put(ctx, tx, nodeKey(oid, version), node)

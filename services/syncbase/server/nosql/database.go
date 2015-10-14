@@ -52,7 +52,9 @@ type database struct {
 	// Active ConflictResolver connection from the app to this database.
 	// NOTE: For now, we assume there's only one open conflict resolution stream
 	// per database (typically, from the app that owns the database).
-	resolver wire.ConflictManagerStartConflictResolverServerCall
+	crStream wire.ConflictManagerStartConflictResolverServerCall
+	// Mutex lock to protect concurrent read/write of crStream pointer
+	crMu sync.Mutex
 }
 
 // databaseReq is a per-request object that handles Database RPCs.
@@ -420,6 +422,20 @@ func (d *database) Name() string {
 	return d.name
 }
 
+func (d *database) CrConnectionStream() wire.ConflictManagerStartConflictResolverServerStream {
+	d.crMu.Lock()
+	defer d.crMu.Unlock()
+	return d.crStream
+}
+
+func (d *database) ResetCrConnectionStream() {
+	d.crMu.Lock()
+	defer d.crMu.Unlock()
+	// TODO(jlodhia): figure out a way for the connection to gracefully shutdown
+	// so that the client can get an appropriate error msg.
+	d.crStream = nil
+}
+
 ////////////////////////////////////////
 // query interface implementations
 
@@ -582,11 +598,14 @@ func (d *databaseReq) checkSchemaVersion(ctx *context.T, schemaVersion int32) er
 		// This can happen if delete is called twice on the same database.
 		return nil
 	}
-	schemaMetadata, err := d.getSchemaMetadataWithoutAuth(ctx)
+	schemaMetadata, err := d.GetSchemaMetadataInternal(ctx)
 	if err != nil {
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			return nil
+		}
 		return err
 	}
-	if (schemaMetadata == nil) || (schemaMetadata.Version == schemaVersion) {
+	if schemaMetadata.Version == schemaVersion {
 		return nil
 	}
 	return wire.NewErrSchemaVersionMismatch(ctx)

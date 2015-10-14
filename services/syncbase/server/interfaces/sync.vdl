@@ -78,4 +78,5 @@ type Sync interface {
 
 error (
 	DupSyncgroupPublish(name string) {"en": "duplicate publish on syncgroup: {name}"}
+	BrokenCrConnection() {"en": "CrConnection stream to application does not exist or is broken."}
 )

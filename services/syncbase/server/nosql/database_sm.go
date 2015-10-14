@@ -23,7 +23,7 @@ func (d *databaseReq) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wi
 		return metadata, verror.New(verror.ErrNoExist, ctx, d.Name())
 	}
 
-	// Check permissions on Database and retreve schema metadata.
+	// Check permissions on Database and retrieve schema metadata.
 	dbData := databaseData{}
 	if err := util.GetWithAuth(ctx, call, d.st, d.stKey(), &dbData); err != nil {
 		return metadata, err
@@ -52,13 +52,16 @@ func (d *databaseReq) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, met
 	})
 }
 
-func (d *databaseReq) getSchemaMetadataWithoutAuth(ctx *context.T) (*wire.SchemaMetadata, error) {
+func (d *database) GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetadata, error) {
 	if !d.exists {
-		return nil, verror.New(verror.ErrInternal, ctx, "field store in database cannot be nil")
+		return nil, verror.New(verror.ErrNoExist, ctx, d.Name())
 	}
 	dbData := databaseData{}
 	if err := util.Get(ctx, d.st, d.stKey(), &dbData); err != nil {
 		return nil, err
+	}
+	if dbData.SchemaMetadata == nil {
+		return nil, verror.NewErrNoExist(ctx)
 	}
 	return dbData.SchemaMetadata, nil
 }
