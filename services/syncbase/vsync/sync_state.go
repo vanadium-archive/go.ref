@@ -274,6 +274,9 @@ func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx st
 	}
 
 	for id, gen := range genvec {
+		if gen == 0 {
+			continue
+		}
 		lrec, err := getLogRec(ctx, st, pfx, id, gen)
 		if err != nil {
 			return 0, 0, err
