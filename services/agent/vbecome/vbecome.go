@@ -158,7 +158,7 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 		ctx.Errorf("Couldn't set default client blessing")
 		return err
 	}
-	if err = p.AddToRoots(blessing); err != nil {
+	if err = security.AddToRoots(p, blessing); err != nil {
 		ctx.Errorf("Couldn't set trusted roots")
 		return err
 	}

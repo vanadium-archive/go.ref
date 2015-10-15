@@ -353,7 +353,7 @@ func (sh *Shell) AddToChildCredentials(creds *CustomCredentials, extension strin
 	if _, err := child.BlessingStore().Set(union, security.AllPrincipals); err != nil {
 		return nil, err
 	}
-	if err := child.AddToRoots(blessings); err != nil {
+	if err := security.AddToRoots(child, blessings); err != nil {
 		return nil, err
 	}
 

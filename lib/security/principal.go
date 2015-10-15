@@ -142,7 +142,7 @@ func SetDefaultBlessings(p security.Principal, blessings security.Blessings) err
 	if _, err := p.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
 		return err
 	}
-	if err := p.AddToRoots(blessings); err != nil {
+	if err := security.AddToRoots(p, blessings); err != nil {
 		return err
 	}
 	return nil

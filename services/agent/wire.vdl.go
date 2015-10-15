@@ -132,7 +132,6 @@ type AgentClientMethods interface {
 	MintDischarge(ctx *context.T, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat, opts ...rpc.CallOpt) (security.Discharge, error)
 	PublicKey(*context.T, ...rpc.CallOpt) ([]byte, error)
 	BlessingsInfo(ctx *context.T, blessings security.Blessings, opts ...rpc.CallOpt) (map[string][]security.Caveat, error)
-	AddToRoots(ctx *context.T, blessing security.Blessings, opts ...rpc.CallOpt) error
 	BlessingStoreSet(ctx *context.T, blessings security.Blessings, forPeers security.BlessingPattern, opts ...rpc.CallOpt) (security.Blessings, error)
 	BlessingStoreForPeer(ctx *context.T, peerBlessings []string, opts ...rpc.CallOpt) (security.Blessings, error)
 	BlessingStoreSetDefault(ctx *context.T, blessings security.Blessings, opts ...rpc.CallOpt) error
@@ -195,11 +194,6 @@ func (c implAgentClientStub) PublicKey(ctx *context.T, opts ...rpc.CallOpt) (o0 
 
 func (c implAgentClientStub) BlessingsInfo(ctx *context.T, i0 security.Blessings, opts ...rpc.CallOpt) (o0 map[string][]security.Caveat, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingsInfo", []interface{}{i0}, []interface{}{&o0}, opts...)
-	return
-}
-
-func (c implAgentClientStub) AddToRoots(ctx *context.T, i0 security.Blessings, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "AddToRoots", []interface{}{i0}, nil, opts...)
 	return
 }
 
@@ -354,7 +348,6 @@ type AgentServerMethods interface {
 	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
 	BlessingsInfo(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
-	AddToRoots(ctx *context.T, call rpc.ServerCall, blessing security.Blessings) error
 	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
 	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
 	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
@@ -386,7 +379,6 @@ type AgentServerStubMethods interface {
 	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
 	BlessingsInfo(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
-	AddToRoots(ctx *context.T, call rpc.ServerCall, blessing security.Blessings) error
 	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
 	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
 	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
@@ -458,10 +450,6 @@ func (s implAgentServerStub) PublicKey(ctx *context.T, call rpc.ServerCall) ([]b
 
 func (s implAgentServerStub) BlessingsInfo(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) (map[string][]security.Caveat, error) {
 	return s.impl.BlessingsInfo(ctx, call, i0)
-}
-
-func (s implAgentServerStub) AddToRoots(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) error {
-	return s.impl.AddToRoots(ctx, call, i0)
 }
 
 func (s implAgentServerStub) BlessingStoreSet(ctx *context.T, call rpc.ServerCall, i0 security.Blessings, i1 security.BlessingPattern) (security.Blessings, error) {
@@ -592,12 +580,6 @@ var descAgent = rpc.InterfaceDesc{
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // map[string][]security.Caveat
-			},
-		},
-		{
-			Name: "AddToRoots",
-			InArgs: []rpc.ArgDesc{
-				{"blessing", ``}, // security.Blessings
 			},
 		},
 		{

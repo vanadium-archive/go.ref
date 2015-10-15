@@ -478,7 +478,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 
 	// The server should recognize the client principal as an authority
 	// on "random" blessings.
-	v23.GetPrincipal(sctx).AddToRoots(bRandom)
+	security.AddToRoots(v23.GetPrincipal(sctx), bRandom)
 
 	// Set a blessing on the client's blessing store to be presented to
 	// the discharge server.

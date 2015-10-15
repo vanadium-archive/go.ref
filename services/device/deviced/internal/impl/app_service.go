@@ -659,7 +659,7 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 	if _, err := p.BlessingStore().Set(appBlessings, security.AllPrincipals); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
-	if err := p.AddToRoots(appBlessings); err != nil {
+	if err := security.AddToRoots(p, appBlessings); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	// In addition, we give the app separate blessings for the purpose of
@@ -693,7 +693,7 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
 	info.DeviceManagerPeerPattern = randomPattern
-	if err := p.AddToRoots(dmBlessings); err != nil {
+	if err := security.AddToRoots(p, dmBlessings); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	return nil

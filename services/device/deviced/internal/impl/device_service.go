@@ -335,7 +335,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	if _, err := p.BlessingStore().Set(dmBlessings, security.AllPrincipals); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
-	if err := p.AddToRoots(dmBlessings); err != nil {
+	if err := security.AddToRoots(p, dmBlessings); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 

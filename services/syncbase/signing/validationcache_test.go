@@ -63,7 +63,7 @@ func TestValidationCache(t *testing.T) {
 	pdList := []*principalVDesc{author, validator, checker}
 	for i := 0; i != len(pdList); i++ {
 		for j := 0; j != len(pdList); j++ {
-			pdList[j].principal.AddToRoots(pdList[i].blessings)
+			security.AddToRoots(pdList[j].principal, pdList[i].blessings)
 		}
 	}
 

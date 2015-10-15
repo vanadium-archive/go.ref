@@ -61,7 +61,7 @@ func TestMacaroonBlesser(t *testing.T) {
 	}
 	// But once it recognizes the provider, it should see exactly the name
 	// "provider/bugsbunny" for the caveat cOnlyMethodFoo.
-	user.AddToRoots(b)
+	security.AddToRoots(user, b)
 	binfo := user.BlessingsInfo(b)
 	if num := len(binfo); num != 1 {
 		t.Errorf("Got blessings with %d names, want exactly one name", num)

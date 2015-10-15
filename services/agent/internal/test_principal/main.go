@@ -106,7 +106,7 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err := p.Roots().Recognized(keybytes, "batman"); err == nil {
 		errorf("Roots().Recognized returned nil")
 	}
-	if err := p.AddToRoots(b); err != nil {
+	if err := security.AddToRoots(p, b); err != nil {
 		errorf("AddToRoots: %v", err)
 	}
 	if err := p.Roots().Recognized(keybytes, "batman"); err != nil {

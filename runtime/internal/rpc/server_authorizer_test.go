@@ -49,7 +49,7 @@ func TestServerAuthorizer(t *testing.T) {
 	ctx, _ = v23.WithPrincipal(ctx, pclient)
 	// Make client recognize ali, bob and otherAli blessings
 	for _, b := range []security.Blessings{ali, bob, otherAli} {
-		if err := pclient.AddToRoots(b); err != nil {
+		if err := security.AddToRoots(pclient, b); err != nil {
 			t.Fatal(err)
 		}
 	}

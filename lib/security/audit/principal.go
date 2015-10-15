@@ -78,7 +78,6 @@ func (p *auditingPrincipal) BlessingsInfo(b security.Blessings) map[string][]sec
 func (p *auditingPrincipal) PublicKey() security.PublicKey         { return p.principal.PublicKey() }
 func (p *auditingPrincipal) Roots() security.BlessingRoots         { return p.principal.Roots() }
 func (p *auditingPrincipal) BlessingStore() security.BlessingStore { return p.principal.BlessingStore() }
-func (p *auditingPrincipal) AddToRoots(b security.Blessings) error { return p.principal.AddToRoots(b) }
 
 func (p *auditingPrincipal) Encrypter() security.BlessingsBasedEncrypter {
 	return p.principal.Encrypter()
