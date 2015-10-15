@@ -557,6 +557,16 @@ func (m *mojoImpl) DbGetResumeMarker(name string) (mojom.Error, []byte, error) {
 	return toMojoError(err), marker, nil
 }
 
+func (m *mojoImpl) DbListTables(name string) (mojom.Error, []string, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "ListTables"))
+	stub, err := m.getDb(ctx, call, name)
+	if err != nil {
+		return toMojoError(err), nil, nil
+	}
+	tables, err := stub.ListTables(ctx, call)
+	return toMojoError(err), tables, nil
+}
+
 ////////////////////////////////////////
 // nosql.Database:SyncgroupManager
 
