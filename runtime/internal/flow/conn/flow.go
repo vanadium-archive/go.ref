@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
+	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 )
@@ -24,6 +25,7 @@ type flw struct {
 	bkey, dkey uint64
 	noEncrypt  bool
 	writeCh    chan struct{}
+	remote     naming.Endpoint
 
 	// These variables can only be modified by SetDeadlineContext which cannot
 	// be called concurrently with other methods on the flow.  Therefore they
@@ -56,7 +58,7 @@ type flw struct {
 // Ensure that *flw implements flow.Flow.
 var _ flow.Flow = &flw{}
 
-func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, dialed, preopen bool) *flw {
+func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remote naming.Endpoint, dialed, preopen bool) *flw {
 	f := &flw{
 		id:        id,
 		dialed:    dialed,
@@ -70,6 +72,7 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, diale
 		// flow will be notifying itself, so if there's no buffer a deadlock will
 		// occur.
 		writeCh: make(chan struct{}, 1),
+		remote:  remote,
 	}
 	f.next, f.prev = f, f
 	f.ctx, f.cancel = context.WithCancel(ctx)
@@ -303,6 +306,19 @@ func (f *flw) SetDeadlineContext(ctx *context.T, deadline time.Time) *context.T 
 		f.ctx, f.cancel = context.WithCancel(ctx)
 	}
 	return f.ctx
+}
+
+// LocalEndpoint returns the local vanadium endpoint.
+func (f *flw) LocalEndpoint() naming.Endpoint {
+	return f.conn.local
+}
+
+// RemoteEndpoint returns the remote vanadium endpoint.
+func (f *flw) RemoteEndpoint() naming.Endpoint {
+	if f.remote != nil {
+		return f.remote
+	}
+	return f.conn.remote
 }
 
 // LocalBlessings returns the blessings presented by the local end of the flow

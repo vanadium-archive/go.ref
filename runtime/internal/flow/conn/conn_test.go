@@ -116,7 +116,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 	}()
 	d, a := <-dch, <-ach
 	var f flow.Flow
-	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err != nil {
+	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	// Write a byte to send the openFlow message.
@@ -127,7 +127,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 	<-q1
 	// After updating to fh2 the flow should be accepted in fh2.
 	a.UpdateFlowHandler(ctx, fh2)
-	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err != nil {
+	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	// Write a byte to send the openFlow message.

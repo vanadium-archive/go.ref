@@ -142,7 +142,7 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 }
 
 func (p *proxy) replyToServer(ctx *context.T, f flow.Flow) error {
-	rid := f.Conn().RemoteEndpoint().RoutingID()
+	rid := f.RemoteEndpoint().RoutingID()
 	eps, err := p.returnEndpoints(ctx, rid, "")
 	if err != nil {
 		return err
@@ -155,7 +155,7 @@ func (p *proxy) replyToProxy(ctx *context.T, f flow.Flow) error {
 	// returned endpoint doesn't matter because it will eventually be replaced
 	// by a server's rid by some later proxy.
 	// TODO(suharshs): Use a local route instead of this global routingID.
-	rid := f.Conn().RemoteEndpoint().RoutingID()
+	rid := f.RemoteEndpoint().RoutingID()
 	eps, err := p.returnEndpoints(ctx, naming.NullRoutingID, rid.String())
 	if err != nil {
 		return err

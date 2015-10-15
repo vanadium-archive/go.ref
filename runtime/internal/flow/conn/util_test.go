@@ -89,7 +89,7 @@ func setupFlows(t *testing.T, dctx, actx *context.T, dialFromDialer bool, n int,
 	}
 	for i := 0; i < n; i++ {
 		var err error
-		if dialed[i], err = d.Dial(dctx, flowtest.AllowAllPeersAuthorizer{}); err != nil {
+		if dialed[i], err = d.Dial(dctx, flowtest.AllowAllPeersAuthorizer{}, nil); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 	}

@@ -42,7 +42,7 @@ func checkFlowBlessings(t *testing.T, df, af flow.Flow, db, ab security.Blessing
 }
 
 func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings) flow.Flow {
-	df, err := dc.Dial(ctx, peerAuthorizer{b})
+	df, err := dc.Dial(ctx, peerAuthorizer{b}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestUnidirectional(t *testing.T) {
 
 	// We should not be able to dial in the other direction, because that flow
 	// manager is not willing to accept flows.
-	_, err := ac.Dial(actx, flowtest.AllowAllPeersAuthorizer{})
+	_, err := ac.Dial(actx, flowtest.AllowAllPeersAuthorizer{}, nil)
 	if verror.ErrorID(err) != ErrDialingNonServer.ID {
 		t.Errorf("got %v, wanted ErrDialingNonServer", err)
 	}

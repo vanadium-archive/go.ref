@@ -314,7 +314,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	}()
 	conn := <-dch
 	<-ach
-	f, err := conn.Dial(ctx, flowtest.AllowAllPeersAuthorizer{})
+	f, err := conn.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

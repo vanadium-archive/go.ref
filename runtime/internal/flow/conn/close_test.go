@@ -67,10 +67,10 @@ func TestDialAfterConnClose(t *testing.T) {
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
-	if _, err := d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err == nil {
+	if _, err := d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil); err == nil {
 		t.Errorf("Nil error dialing on dialer")
 	}
-	if _, err := a.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}); err == nil {
+	if _, err := a.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil); err == nil {
 		t.Errorf("Nil error dialing on acceptor")
 	}
 }
@@ -123,7 +123,7 @@ func TestFlowCancelOnWrite(t *testing.T) {
 		ac.Close(ctx, nil)
 	}()
 	dctx, cancel := context.WithCancel(ctx)
-	df, err := dc.Dial(dctx, flowtest.AllowAllPeersAuthorizer{})
+	df, err := dc.Dial(dctx, flowtest.AllowAllPeersAuthorizer{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestFlowCancelOnRead(t *testing.T) {
 		ac.Close(ctx, nil)
 	}()
 	dctx, cancel := context.WithCancel(ctx)
-	df, err := dc.Dial(dctx, flowtest.AllowAllPeersAuthorizer{})
+	df, err := dc.Dial(dctx, flowtest.AllowAllPeersAuthorizer{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
