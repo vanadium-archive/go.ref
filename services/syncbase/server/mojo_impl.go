@@ -28,7 +28,9 @@ import (
 	nosqlwire "v.io/v23/services/syncbase/nosql"
 	watchwire "v.io/v23/services/watch"
 	"v.io/v23/syncbase/nosql"
+	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 )
 
@@ -357,13 +359,29 @@ type execStreamImpl struct {
 }
 
 func (s *execStreamImpl) Send(item interface{}) error {
-	v, ok := item.([][]byte)
+	v, ok := item.([]*vdl.Value)
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
 
+	// TODO(aghassemi): Switch everything to 'any' from '[]byte'.
+	// For now, ResultStream is the only place using 'any' instead of '[]byte', so
+	// VOM bytes are already decoded.
+	// https://github.com/vanadium/issues/issues/766
+	var values [][]byte
+	for _, vdlValue := range v {
+		var bytes []byte
+		// The value can either be a string (column headers) or bytes (value).
+		if vdlValue.Kind() == vdl.String {
+			bytes = []byte(vdlValue.String())
+		} else {
+			bytes = vdlValue.Bytes()
+		}
+		values = append(values, bytes)
+	}
+
 	r := mojom.Result{
-		Values: v,
+		Values: values,
 	}
 
 	// proxy.OnResult() blocks until the client acks the previous invocation,
@@ -462,13 +480,19 @@ func (s *watchGlobStreamImpl) Send(item interface{}) error {
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
-
 	vc := nosql.ToWatchChange(c)
+
+	var value []byte
+	if vc.ValueBytes != nil {
+		if err := vom.Decode(vc.ValueBytes, &value); err != nil {
+			return err
+		}
+	}
 	mc := mojom.WatchChange{
 		TableName:    vc.Table,
 		RowKey:       vc.Row,
 		ChangeType:   uint32(vc.ChangeType),
-		ValueBytes:   vc.ValueBytes,
+		ValueBytes:   value,
 		ResumeMarker: vc.ResumeMarker,
 		FromSync:     vc.FromSync,
 		Continued:    vc.Continued,
@@ -712,11 +736,16 @@ func (s *scanStreamImpl) Send(item interface{}) error {
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
+
+	var value []byte
+	if err := vom.Decode(kv.Value, &value); err != nil {
+		return err
+	}
 	// proxy.OnKeyValue() blocks until the client acks the previous invocation,
 	// thus providing flow control.
 	return s.proxy.OnKeyValue(mojom.KeyValue{
 		Key:   kv.Key,
-		Value: kv.Value,
+		Value: value,
 	})
 }
 
@@ -791,7 +820,12 @@ func (m *mojoImpl) RowGet(name string) (mojom.Error, []byte, error) {
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	value, err := stub.Get(ctx, call, NoSchema)
+	vomBytes, err := stub.Get(ctx, call, NoSchema)
+
+	var value []byte
+	if err := vom.Decode(vomBytes, &value); err != nil {
+		return toMojoError(err), nil, nil
+	}
 	return toMojoError(err), value, nil
 }
 
@@ -801,7 +835,14 @@ func (m *mojoImpl) RowPut(name string, value []byte) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Put(ctx, call, NoSchema, value)
+	// TODO(aghassemi): Encode from []byte to VOM encoded []byte until we have
+	// support for types other than byte.
+	// https://github.com/vanadium/issues/issues/766
+	vomBytes, err := vom.Encode(value)
+	if err != nil {
+		return toMojoError(err), nil
+	}
+	err = stub.Put(ctx, call, NoSchema, vomBytes)
 	return toMojoError(err), nil
 }
 
