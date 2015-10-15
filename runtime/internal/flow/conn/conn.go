@@ -225,7 +225,7 @@ func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 }
 
 // Dial dials a new flow on the Conn.
-func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error) {
+func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endpoint) (flow.Flow, error) {
 	if c.rBKey == noExist {
 		return nil, NewErrDialingNonServer(ctx)
 	}
@@ -236,7 +236,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error)
 	var bkey, dkey uint64
 	if !c.isProxy {
 		// TODO(suharshs): On the first flow dial, find a way to not call this twice.
-		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, c.remote, rBlessings, rDischarges)
+		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, remote, rBlessings, rDischarges)
 		if err != nil {
 			return nil, iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
 		}
@@ -256,7 +256,8 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer) (flow.Flow, error)
 	}
 	id := c.nextFid
 	c.nextFid += 2
-	return c.newFlowLocked(ctx, id, bkey, dkey, true, false), nil
+	// TODO(suharshs): endpoint fix below
+	return c.newFlowLocked(ctx, id, bkey, dkey, remote, true, false), nil
 }
 
 // LocalEndpoint returns the local vanadium Endpoint
@@ -444,7 +445,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			return nil // Conn is already being closed.
 		}
 		handler := c.handler
-		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, false, true)
+		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, nil, false, true)
 		f.releaseLocked(msg.InitialCounters)
 		c.toRelease[msg.ID] = DefaultBytesBufferedPerFlow
 		c.borrowing[msg.ID] = true

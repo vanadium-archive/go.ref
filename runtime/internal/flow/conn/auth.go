@@ -35,7 +35,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 		return err
 	}
 
-	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true)
+	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true)
 	bflow.releaseLocked(DefaultBytesBufferedPerFlow)
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG, bflow)
 
@@ -86,7 +86,7 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 		return err
 	}
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG,
-		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, true, true))
+		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true))
 	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authAcceptorTag, binding...))
 	if err != nil {
 		return err

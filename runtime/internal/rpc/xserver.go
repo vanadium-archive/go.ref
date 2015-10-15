@@ -861,9 +861,9 @@ func (fs *xflowServer) GrantedBlessings() security.Blessings {
 }
 func (fs *xflowServer) LocalEndpoint() naming.Endpoint {
 	//nologcall
-	return fs.flow.Conn().LocalEndpoint()
+	return fs.flow.LocalEndpoint()
 }
 func (fs *xflowServer) RemoteEndpoint() naming.Endpoint {
 	//nologcall
-	return fs.flow.Conn().RemoteEndpoint()
+	return fs.flow.RemoteEndpoint()
 }

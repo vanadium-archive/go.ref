@@ -343,7 +343,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 			h.ctx,
 			h.m.serverBlessings,
 			f,
-			f.Conn().LocalEndpoint(),
+			f.LocalEndpoint(),
 			version.Supported,
 			handshakeTimeout,
 			fh)
@@ -478,7 +478,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		// Now that c is in the cache we can explicitly unreserve.
 		m.cache.Unreserve(network, address, remote.BlessingNames())
 	}
-	f, err := c.Dial(ctx, auth)
+	f, err := c.Dial(ctx, auth, remote)
 	if err != nil {
 		return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 	}
@@ -511,7 +511,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		if err := m.cache.InsertWithRoutingID(c); err != nil {
 			return nil, nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
-		f, err = c.Dial(ctx, auth)
+		f, err = c.Dial(ctx, auth, remote)
 		if err != nil {
 			proxyConn.Close(ctx, err)
 			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)

@@ -554,7 +554,7 @@ func newFlowXClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, ty
 // network connection being shutdown abruptly.
 func (fc *flowXClient) close(err error) error {
 	subErr := verror.SubErr{Err: err, Options: verror.Print}
-	subErr.Name = "remote=" + fc.flow.Conn().RemoteEndpoint().String()
+	subErr.Name = "remote=" + fc.flow.RemoteEndpoint().String()
 	// TODO(toddw): cancel context instead?
 	if _, cerr := fc.flow.WriteMsgAndClose(); cerr != nil && err == nil {
 		// TODO(mattr): The context is often already canceled here, in
@@ -625,8 +625,8 @@ func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts 
 		LocalPrincipal:   v23.GetPrincipal(ctx),
 		LocalBlessings:   fc.flow.LocalBlessings(),
 		RemoteBlessings:  fc.flow.RemoteBlessings(),
-		LocalEndpoint:    fc.flow.Conn().LocalEndpoint(),
-		RemoteEndpoint:   fc.flow.Conn().RemoteEndpoint(),
+		LocalEndpoint:    fc.flow.LocalEndpoint(),
+		RemoteEndpoint:   fc.flow.RemoteEndpoint(),
 		LocalDischarges:  fc.flow.LocalDischarges(),
 		RemoteDischarges: fc.flow.RemoteDischarges(),
 		Method:           method,
