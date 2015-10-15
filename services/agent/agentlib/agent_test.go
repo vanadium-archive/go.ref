@@ -240,8 +240,7 @@ func runRecognizedBenchmark(b *testing.B, p security.Principal) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	err = p.AddToRoots(blessing)
-	if err != nil {
+	if err = security.AddToRoots(p, blessing); err != nil {
 		b.Fatal(err)
 	}
 	b.ResetTimer()

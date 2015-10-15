@@ -114,9 +114,9 @@ func TestProxyAuthorization(t *testing.T) {
 		dave  = testutil.NewPrincipal("dave")
 	)
 	// Make the proxy recognize "alice", "bob" and "carol", but not "dave"
-	v23.GetPrincipal(ctx).AddToRoots(alice.BlessingStore().Default())
-	v23.GetPrincipal(ctx).AddToRoots(bob.BlessingStore().Default())
-	v23.GetPrincipal(ctx).AddToRoots(carol.BlessingStore().Default())
+	security.AddToRoots(v23.GetPrincipal(ctx), alice.BlessingStore().Default())
+	security.AddToRoots(v23.GetPrincipal(ctx), bob.BlessingStore().Default())
+	security.AddToRoots(v23.GetPrincipal(ctx), carol.BlessingStore().Default())
 
 	testcases := []struct {
 		p  security.Principal

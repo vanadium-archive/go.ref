@@ -137,17 +137,12 @@ func TestUnauditedMethodsOnPrincipal(t *testing.T) {
 	)
 	ctx, _ = v23.WithPrincipal(ctx, p)
 	auditedP := audit.NewPrincipal(ctx, auditor)
-	blessing, err := p.BlessSelf("self")
-	if err != nil {
-		t.Fatal(err)
-	}
 	tests := []struct {
 		Method string
 		Args   V
 	}{
 		{"PublicKey", V{}},
 		{"Roots", V{}},
-		{"AddToRoots", V{blessing}},
 		{"BlessingStore", V{}},
 	}
 
@@ -211,7 +206,6 @@ func (p *mockPrincipal) BlessingsInfo(b security.Blessings) map[string][]securit
 func (p *mockPrincipal) PublicKey() security.PublicKey               { return p.NextResult.(security.PublicKey) }
 func (p *mockPrincipal) Roots() security.BlessingRoots               { return nil }
 func (p *mockPrincipal) BlessingStore() security.BlessingStore       { return nil }
-func (p *mockPrincipal) AddToRoots(b security.Blessings) error       { return nil }
 func (p *mockPrincipal) Encrypter() security.BlessingsBasedEncrypter { return nil }
 func (p *mockPrincipal) Decrypter() security.BlessingsBasedDecrypter { return nil }
 

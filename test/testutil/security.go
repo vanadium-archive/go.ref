@@ -89,7 +89,7 @@ func IDProviderFromPrincipal(p security.Principal) *IDProvider {
 //    b, _ := idp.NewBlessings(who, extension, caveats...)
 //    who.BlessingStore().SetDefault(b)
 //    who.BlessingStore().Set(b, security.AllPrincipals)
-//    who.AddToRoots(b)
+//    security.AddToRoots(who, b)
 func (idp *IDProvider) Bless(who security.Principal, extension string, caveats ...security.Caveat) error {
 	b, err := idp.NewBlessings(who, extension, caveats...)
 	if err != nil {

@@ -236,12 +236,6 @@ func (a *agentd) BlessingsInfo(blessings security.Blessings) (map[string][]secur
 	return a.principal.BlessingsInfo(blessings), nil
 }
 
-func (a *agentd) AddToRoots(blessings security.Blessings) error {
-	defer a.unlock()
-	a.mu.Lock()
-	return a.principal.AddToRoots(blessings)
-}
-
 func (a *agentd) BlessingStoreSet(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
 	defer a.unlock()
 	a.mu.Lock()

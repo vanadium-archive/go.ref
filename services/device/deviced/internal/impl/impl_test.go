@@ -18,6 +18,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
 	"v.io/x/ref"
@@ -518,7 +519,7 @@ func TestAccountAssociation(t *testing.T) {
 	// Both the "external" processes must recognize the root mounttable's
 	// blessings, otherwise they will not talk to it.
 	for _, c := range []*context.T{selfCtx, otherCtx} {
-		v23.GetPrincipal(c).AddToRoots(v23.GetPrincipal(ctx).BlessingStore().Default())
+		security.AddToRoots(v23.GetPrincipal(c), v23.GetPrincipal(ctx).BlessingStore().Default())
 	}
 
 	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")

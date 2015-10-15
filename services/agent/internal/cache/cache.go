@@ -357,10 +357,6 @@ func (p *cachedPrincipal) Roots() security.BlessingRoots {
 	return p.cache.Roots()
 }
 
-func (p *cachedPrincipal) AddToRoots(blessings security.Blessings) error {
-	return p.cache.AddToRoots(blessings)
-}
-
 func (p *cachedPrincipal) Close() error {
 	return p.Principal.Close()
 }

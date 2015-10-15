@@ -127,7 +127,7 @@ func TestClientServerBlessings(t *testing.T) {
 	for _, ctx := range []*context.T{clientCtx, serverCtx} {
 		for _, b := range []security.Blessings{alphaClient, betaClient} {
 			p := v23.GetPrincipal(ctx)
-			if err := p.AddToRoots(b); err != nil {
+			if err := security.AddToRoots(p, b); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -186,7 +186,7 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 			{[]rpc.ServerOpt{bopt}, []string{"dev.v.io/users/foo@bar.com/devices/phone/applications/app", "otherblessing"}},
 		}
 	)
-	if err := p.AddToRoots(bopt.Blessings); err != nil {
+	if err := security.AddToRoots(p, bopt.Blessings); err != nil {
 		t.Fatal(err)
 	}
 	for idx, test := range tests {
@@ -285,7 +285,7 @@ func TestServerDischarges(t *testing.T) {
 	if _, err := pclient.BlessingStore().Set(rootClient, "root/server"); err != nil {
 		t.Fatal(err)
 	}
-	if err := pclient.AddToRoots(rootClient); err != nil {
+	if err := security.AddToRoots(pclient, rootClient); err != nil {
 		t.Fatal(err)
 	}
 

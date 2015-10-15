@@ -299,7 +299,7 @@ func (i *PrincipalManager) createPrincipal(origin string, withBlessings security
 	if _, err := ret.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
 		return nil, verror.New(errFailedToSetAllPrincipalBlessings, nil, err)
 	}
-	if err := ret.AddToRoots(blessings); err != nil {
+	if err := security.AddToRoots(ret, blessings); err != nil {
 		return nil, verror.New(errFailedToAddRoots, nil, err)
 	}
 	return ret, nil

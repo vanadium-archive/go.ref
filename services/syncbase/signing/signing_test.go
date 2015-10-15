@@ -87,7 +87,7 @@ func makePrincipals(t testing.TB, names ...string) (principals []*principalDesc)
 	}
 	for i := range principals {
 		for j := range principals {
-			principals[j].principal.AddToRoots(principals[i].blessings)
+			security.AddToRoots(principals[j].principal, principals[i].blessings)
 		}
 	}
 	return principals
@@ -304,7 +304,7 @@ func TestSignData(t *testing.T) {
 	pdList := []*principalDesc{author, validator, checker}
 	for i := 0; i != len(pdList); i++ {
 		for j := 0; j != len(pdList); j++ {
-			pdList[j].principal.AddToRoots(pdList[i].blessings)
+			security.AddToRoots(pdList[j].principal, pdList[i].blessings)
 		}
 	}
 

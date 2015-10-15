@@ -171,7 +171,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 
 	// The client must recognize the server's blessings, otherwise it won't
 	// communicate with it.
-	pclient.AddToRoots(pserver.BlessingStore().Default())
+	security.AddToRoots(pclient, pserver.BlessingStore().Default())
 
 	// If no address is specified then we'll only 'listen' via
 	// the proxy.

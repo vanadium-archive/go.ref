@@ -146,8 +146,8 @@ func TestBinaryRootAccessList(t *testing.T) {
 	prepDirectory(t, storedir)
 
 	otherPrincipal := testutil.NewPrincipal("other")
-	if err := otherPrincipal.AddToRoots(selfPrincipal.BlessingStore().Default()); err != nil {
-		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
+	if err := security.AddToRoots(otherPrincipal, selfPrincipal.BlessingStore().Default()); err != nil {
+		t.Fatalf("AddToRoots() failed: %v", err)
 	}
 	otherCtx, err := v23.WithPrincipal(selfCtx, otherPrincipal)
 	if err != nil {
@@ -429,8 +429,8 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	prepDirectory(t, storedir)
 
 	otherPrincipal := testutil.NewPrincipal("other")
-	if err := otherPrincipal.AddToRoots(selfPrincipal.BlessingStore().Default()); err != nil {
-		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
+	if err := security.AddToRoots(otherPrincipal, selfPrincipal.BlessingStore().Default()); err != nil {
+		t.Fatalf("AddToRoots() failed: %v", err)
 	}
 
 	nmh := servicetest.RunCommand(t, sh, nil, binaryd, "bini", storedir)

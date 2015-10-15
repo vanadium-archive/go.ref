@@ -817,8 +817,7 @@ func (c *Controller) BlessingStoreDebugString(*context.T, rpc.ServerCall) (strin
 
 // AddToRoots adds the provided blessing as a root.
 func (c *Controller) AddToRoots(_ *context.T, _ rpc.ServerCall, inputBlessings security.Blessings) error {
-	p := v23.GetPrincipal(c.ctx)
-	return p.AddToRoots(inputBlessings)
+	return security.AddToRoots(v23.GetPrincipal(c.ctx), inputBlessings)
 }
 
 // HandleGranterResponse handles the result of a Granter request.

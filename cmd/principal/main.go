@@ -477,7 +477,7 @@ blessing can be shared with.
 				return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
 			}
 			if flagAddToRoots {
-				if err := p.AddToRoots(blessings); err != nil {
+				if err := security.AddToRoots(p, blessings); err != nil {
 					return fmt.Errorf("AddToRoots failed: %v", err)
 				}
 			}
@@ -523,7 +523,7 @@ this tool. - is used for STDIN.
 				if err != nil {
 					return fmt.Errorf("failed to decode provided blessings: %v", err)
 				}
-				if err := p.AddToRoots(blessings); err != nil {
+				if err := security.AddToRoots(p, blessings); err != nil {
 					return fmt.Errorf("AddToRoots failed: %v", err)
 				}
 				return nil
@@ -566,7 +566,7 @@ this tool. - is used for STDIN.
 				return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
 			}
 			if flagAddToRoots {
-				if err := p.AddToRoots(blessings); err != nil {
+				if err := security.AddToRoots(p, blessings); err != nil {
 					return fmt.Errorf("AddToRoots failed: %v", err)
 				}
 			}
@@ -730,7 +730,7 @@ specific peer pattern is provided using the --for-peer flag.
 				}
 			}
 			if flagAddToRoots {
-				if err := p.AddToRoots(blessings); err != nil {
+				if err := security.AddToRoots(p, blessings); err != nil {
 					return fmt.Errorf("AddToRoots failed: %v", err)
 				}
 			}
@@ -1239,7 +1239,7 @@ func (r *recvBlessingsService) Grant(_ *context.T, call rpc.ServerCall, token st
 		}
 	}
 	if flagAddToRoots {
-		if err := r.principal.AddToRoots(b); err != nil {
+		if err := security.AddToRoots(r.principal, b); err != nil {
 			return fmt.Errorf("failed to add blessings to recognized roots: %v", err)
 		}
 	}

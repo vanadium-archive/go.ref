@@ -555,10 +555,10 @@ func TestServerBlessingsOpt(t *testing.T) {
 
 	// Client and server recognize the servers blessings
 	for _, p := range []security.Principal{pserver, pclient} {
-		if err := p.AddToRoots(pserver.BlessingStore().Default()); err != nil {
+		if err := security.AddToRoots(p, pserver.BlessingStore().Default()); err != nil {
 			t.Fatal(err)
 		}
-		if err := p.AddToRoots(batman); err != nil {
+		if err := security.AddToRoots(p, batman); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -607,10 +607,10 @@ func TestNoDischargesOpt(t *testing.T) {
 	)
 
 	// Make the client recognize all server blessings
-	if err := pclient.AddToRoots(pserver.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(pclient, pserver.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
-	if err := pclient.AddToRoots(pdischarger.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(pclient, pdischarger.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -683,8 +683,8 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 		t.Fatalf("failed to set blessings: %v", err)
 	}
 	// The client will only talk to the discharge services if it recognizes them.
-	pdischargeClient.AddToRoots(pdischarger1.BlessingStore().Default())
-	pdischargeClient.AddToRoots(pdischarger2.BlessingStore().Default())
+	security.AddToRoots(pdischargeClient, pdischarger1.BlessingStore().Default())
+	security.AddToRoots(pdischargeClient, pdischarger2.BlessingStore().Default())
 
 	ns := tnaming.NewSimpleNamespace()
 
@@ -730,7 +730,7 @@ func TestBlessingsCache(t *testing.T) {
 	)
 
 	// Make the client recognize all server blessings
-	if err := pclient.AddToRoots(pserver.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(pclient, pserver.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -925,8 +925,8 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 func newClientServerPrincipals() (client, server security.Principal) {
 	client = testutil.NewPrincipal("client")
 	server = testutil.NewPrincipal("server")
-	client.AddToRoots(server.BlessingStore().Default())
-	server.AddToRoots(client.BlessingStore().Default())
+	security.AddToRoots(client, server.BlessingStore().Default())
+	security.AddToRoots(server, client.BlessingStore().Default())
 	return
 }
 

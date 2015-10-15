@@ -267,10 +267,6 @@ func (c *client) Roots() security.BlessingRoots {
 	return &blessingRoots{c.caller}
 }
 
-func (c *client) AddToRoots(blessings security.Blessings) error {
-	return c.caller.call("AddToRoots", results(), blessings)
-}
-
 // TODO(ataly): Implement this method.
 func (c *client) Encrypter() security.BlessingsBasedEncrypter {
 	return nil

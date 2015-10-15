@@ -76,7 +76,7 @@ func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken stri
 	}
 	// TODO(ashankar): If the claim fails, would make sense
 	// to remove from roots as well.
-	if err := principal.AddToRoots(granted); err != nil {
+	if err := security.AddToRoots(principal, granted); err != nil {
 		return verror.New(errors.ErrInvalidBlessing, ctx)
 	}
 	if _, err := store.Set(granted, security.AllPrincipals); err != nil {

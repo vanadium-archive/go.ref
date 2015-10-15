@@ -572,7 +572,7 @@ func TestAccessDenied(t *testing.T) {
 
 	ctx1, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("test-blessing"))
 	// Client must recognize the server, otherwise it won't even send the request.
-	v23.GetPrincipal(ctx1).AddToRoots(v23.GetPrincipal(ctx).BlessingStore().Default())
+	security.AddToRoots(v23.GetPrincipal(ctx1), v23.GetPrincipal(ctx).BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}

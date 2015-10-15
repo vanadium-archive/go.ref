@@ -255,10 +255,10 @@ func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary
 		i.Fatal(err)
 	}
 	// The client and server must both recognize bserver and its delegates.
-	if err := pserver.AddToRoots(bserver); err != nil {
+	if err := security.AddToRoots(pserver, bserver); err != nil {
 		i.Fatal(err)
 	}
-	if err := pclient.AddToRoots(bserver); err != nil {
+	if err := security.AddToRoots(pclient, bserver); err != nil {
 		i.Fatal(err)
 	}
 	return agentd.WithEnv(ref.EnvCredentials + "=" + clientDir), agentd.WithEnv(ref.EnvCredentials + "=" + serverDir)

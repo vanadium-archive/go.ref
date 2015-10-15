@@ -165,7 +165,7 @@ func TestBless(t *testing.T) {
 	}
 
 	// Make the blessee trust the blesser's roots
-	if err := blesseePrin.AddToRoots(blesserPrin.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(blesseePrin, blesserPrin.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
 

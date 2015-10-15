@@ -49,10 +49,10 @@ func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
 		pc  = testutil.NewPrincipal("c")
 	)
 	// Setup the principals so that they recognize each other.
-	if err := psc.AddToRoots(pc.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(psc, pc.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
-	if err := pc.AddToRoots(psc.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(pc, psc.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
 	if sc, err = v23.WithPrincipal(ctx, psc); err != nil {

@@ -42,7 +42,7 @@ func newPrincipal(selfblessings ...string) (security.Principal, security.Blessin
 			panic(err)
 		}
 	}
-	if err := p.AddToRoots(def); err != nil {
+	if err := security.AddToRoots(p, def); err != nil {
 		panic(err)
 	}
 	if err := p.BlessingStore().SetDefault(def); err != nil {

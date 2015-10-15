@@ -929,7 +929,7 @@ func TestBlessingNamesInEndpoint(t *testing.T) {
 	)
 
 	// p must recognize its own blessings!
-	p.AddToRoots(b)
+	security.AddToRoots(p, b)
 	for idx, test := range tests {
 		sctx, _ := v23.WithPrincipal(ctx, test.principal)
 		ln, ep, err := server.Listen(sctx, "tcp", "127.0.0.1:0", test.blessings)

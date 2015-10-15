@@ -72,7 +72,7 @@ func addRoot(ctx *context.T, flagRoots string) {
 		if err := vom.Decode(vomBlessings, &blessings); err != nil {
 			ctx.Fatalf("unable to decode the vom blessing roots: %v", err)
 		}
-		if err := p.AddToRoots(blessings); err != nil {
+		if err := security.AddToRoots(p, blessings); err != nil {
 			ctx.Fatalf("unable to add blessing roots: %v", err)
 		}
 	}

@@ -281,8 +281,8 @@ func NewCtx(ctx *context.T, rootp security.Principal, suffix string) *context.T 
 
 	// Have users of the prepared context treat root's public key as an authority
 	// on all blessings rooted at "root".
-	if err := p.AddToRoots(blessings); err != nil {
-		vlog.Fatal("p.AddToRoots() failed: ", err)
+	if err := security.AddToRoots(p, blessings); err != nil {
+		vlog.Fatal("AddToRoots() failed: ", err)
 	}
 
 	resCtx, err := v23.WithPrincipal(ctx, p)
