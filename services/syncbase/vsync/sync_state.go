@@ -277,11 +277,14 @@ func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx st
 		if gen == 0 {
 			continue
 		}
-		lrec, err := getLogRec(ctx, st, pfx, id, gen)
+		// Since log records may be filtered, we search for the last
+		// available log record going backwards from the generation up
+		// to which a device is caught up.
+		lrec, err := getPrevLogRec(ctx, st, pfx, id, gen)
 		if err != nil {
 			return 0, 0, err
 		}
-		if lrec.Pos > maxpos {
+		if lrec != nil && lrec.Pos > maxpos {
 			found = true
 			maxpos = lrec.Pos
 		}
@@ -292,6 +295,21 @@ func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx st
 	}
 
 	return maxgen + 1, maxpos, nil
+}
+
+// TODO(hpucha): This can be optimized using a backwards scan or a better
+// search.
+func getPrevLogRec(ctx *context.T, st store.Store, pfx string, dev, gen uint64) (*localLogRec, error) {
+	for i := gen; i > 0; i-- {
+		rec, err := getLogRec(ctx, st, pfx, dev, i)
+		if err == nil {
+			return rec, nil
+		}
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
+			return nil, err
+		}
+	}
+	return nil, nil
 }
 
 // enqueuePublishSyncgroup appends the given syncgroup to the publish queue.
