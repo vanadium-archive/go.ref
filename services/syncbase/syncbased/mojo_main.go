@@ -7,8 +7,8 @@
 package main
 
 // To build:
-// cd $JIRI_ROOT/experimental/projects/ether
-// make gen/mojo/syncbased.mojo
+// cd $JIRI_ROOT/release/projects/mojo/syncbase
+// make build
 
 import (
 	"log"
