@@ -204,7 +204,7 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		// This flow must outlive the flow we're currently creating.
 		// It lives as long as the connection to which it is bound.
 		tctx, tcancel := context.WithRootCancel(ctx)
-		tflow, err := c.flowMgr.Dial(tctx, ep, peerAuth)
+		tflow, err := c.flowMgr.Dial(tctx, ep, typeFlowAuthorizer{})
 		if err != nil {
 			status.serverErr = suberr(newErrTypeFlowFailure(tctx, err))
 			flow.Close()
@@ -217,7 +217,7 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 			return
 		}
 		if _, err = tflow.Write([]byte{typeFlow}); err != nil {
-			status.serverErr = suberr(newErrTypeFlowFailure(tctx, nil))
+			status.serverErr = suberr(newErrTypeFlowFailure(tctx, err))
 			flow.Close()
 			tflow.Close()
 			return
@@ -231,6 +231,21 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		return
 	}
 	status.flow = flow
+}
+
+type typeFlowAuthorizer struct{}
+
+func (a typeFlowAuthorizer) AuthorizePeer(
+	ctx *context.T,
+	localEP, remoteEP naming.Endpoint,
+	remoteBlessings security.Blessings,
+	remoteDischarges map[string]security.Discharge) ([]string, []security.RejectedBlessing, error) {
+	return nil, nil, nil
+}
+
+func (a typeFlowAuthorizer) BlessingsForPeer(ctx *context.T, peerNames []string) (
+	security.Blessings, map[string]security.Discharge, error) {
+	return security.Blessings{}, nil, nil
 }
 
 type peerAuthorizer struct {
