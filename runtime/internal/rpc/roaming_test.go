@@ -89,14 +89,9 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %d, want %d", got, want)
 	}
 
-	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
-	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
-
 	watcher := make(chan rpc.NetworkChange, 10)
 	server.WatchNetwork(watcher)
 	defer close(watcher)
-
-	roaming <- NewNewAddrsSetting([]net.Addr{n1, n2})
 
 	waitForChange := func() *rpc.NetworkChange {
 		ctx.Infof("Waiting on %p", watcher)
@@ -109,8 +104,17 @@ func TestRoaming(t *testing.T) {
 		return nil
 	}
 
-	// We expect 4 changes, one for each IP per usable listen spec addr.
+	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
+	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
+	n3 := netstate.NewNetAddr("ip", "3.3.3.3")
+
+	roaming <- NewNewAddrsSetting([]net.Addr{n1, n2})
+
+	// We expect 2 added addrs and 4 changes, one for each IP per usable listen spec addr.
 	change := waitForChange()
+	if got, want := len(change.AddedAddrs), 2; got != want {
+		t.Fatalf("got %d, want %d", got, want)
+	}
 	if got, want := len(change.Changed), 4; got != want {
 		t.Fatalf("got %d, want %d", got, want)
 	}
@@ -135,10 +139,16 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %d, want %d", got, want)
 	}
 
-	roaming <- NewRmAddrsSetting([]net.Addr{n1})
+	// Mimic that n2 has been changed to n3. The network monitor will publish
+	// two AddrsSettings - RmAddrsSetting(n2) and NewNewAddrsSetting(n1, n3).
 
-	// We expect 2 changes, one for each usable listen spec addr.
+	roaming <- NewRmAddrsSetting([]net.Addr{n2})
+
+	// We expect 1 removed addr and 2 changes, one for each usable listen spec addr.
 	change = waitForChange()
+	if got, want := len(change.RemovedAddrs), 1; got != want {
+		t.Fatalf("got %d, want %d", got, want)
+	}
 	if got, want := len(change.Changed), 2; got != want {
 		t.Fatalf("got %d, want %d", got, want)
 	}
@@ -146,7 +156,7 @@ func TestRoaming(t *testing.T) {
 	nepsR := make([]naming.Endpoint, len(eps))
 	copy(nepsR, eps)
 	for _, p := range getUniqPorts(eps) {
-		nep2 := updateHost(eps[0], net.JoinHostPort("2.2.2.2", p))
+		nep2 := updateHost(eps[0], net.JoinHostPort("1.1.1.1", p))
 		nepsR = append(nepsR, nep2)
 	}
 
@@ -155,12 +165,43 @@ func TestRoaming(t *testing.T) {
 		t.Fatalf("got %v, want %v [%d, %d]", got, want, len(got), len(want))
 	}
 
+	roaming <- NewNewAddrsSetting([]net.Addr{n1, n3})
+
+	// We expect 1 added addr and 2 changes, one for the new IP per usable listen spec addr.
+	change = waitForChange()
+	if got, want := len(change.AddedAddrs), 1; got != want {
+		t.Fatalf("got %d, want %d", got, want)
+	}
+	if got, want := len(change.Changed), 2; got != want {
+		t.Fatalf("got %d, want %d", got, want)
+	}
+
+	nepsC := make([]naming.Endpoint, len(eps))
+	copy(nepsC, eps)
+	for _, p := range getUniqPorts(eps) {
+		nep1 := updateHost(eps[0], net.JoinHostPort("1.1.1.1", p))
+		nep2 := updateHost(eps[0], net.JoinHostPort("3.3.3.3", p))
+		nepsC = append(nepsC, nep1, nep2)
+	}
+
+	status = server.Status()
+	if got, want := status.Endpoints, nepsC; !cmpEndpoints(got, want) {
+		t.Fatalf("got %v, want %v [%d, %d]", got, want, len(got), len(want))
+	}
+
+	if got, want := len(status.Mounts), len(nepsC)*2; got != want {
+		t.Fatalf("got %d, want %d", got, want)
+	}
+	if got, want := len(status.Mounts.Servers()), len(nepsC); got != want {
+		t.Fatalf("got %d, want %d", got, want)
+	}
+
 	// Remove all addresses to mimic losing all connectivity.
-	roaming <- NewRmAddrsSetting(getIPAddrs(nepsR))
+	roaming <- NewRmAddrsSetting(getIPAddrs(nepsC))
 
 	// We expect changes for all of the current endpoints
 	change = waitForChange()
-	if got, want := len(change.Changed), len(nepsR); got != want {
+	if got, want := len(change.Changed), len(nepsC); got != want {
 		t.Fatalf("got %d, want %d", got, want)
 	}
 
@@ -175,7 +216,6 @@ func TestRoaming(t *testing.T) {
 	if got, want := len(change.Changed), 2; got != want {
 		t.Fatalf("got %d, want %d", got, want)
 	}
-
 }
 
 func TestWatcherDeadlock(t *testing.T) {

@@ -731,11 +731,9 @@ func (s *server) dhcpLoop(ch chan pubsub.Setting) {
 			}
 			switch setting.Name() {
 			case NewAddrsSetting:
-				change.Changed = s.addAddresses(v)
-				change.AddedAddrs = v
+				change.AddedAddrs, change.Changed = s.updateAddresses(v)
 			case RmAddrsSetting:
-				change.Changed, change.Error = s.removeAddresses(v)
-				change.RemovedAddrs = v
+				change.RemovedAddrs, change.Changed = s.removeAddresses(v)
 			}
 			s.ctx.VI(2).Infof("rpc: dhcp: change %v", change)
 			for ch, _ := range s.dhcpState.watchers {
@@ -760,66 +758,86 @@ func getHost(address net.Addr) string {
 
 }
 
-// Remove all endpoints that have the same host address as the supplied
-// address parameter.
-func (s *server) removeAddresses(addrs []net.Addr) ([]naming.Endpoint, error) {
-	var removed []naming.Endpoint
-	for _, address := range addrs {
-		host := getHost(address)
-		for ls, _ := range s.listenState {
-			if ls != nil && ls.roaming && len(ls.ieps) > 0 {
-				remaining := make([]*inaming.Endpoint, 0, len(ls.ieps))
-				for _, iep := range ls.ieps {
-					lnHost, _, err := net.SplitHostPort(iep.Address)
-					if err != nil {
-						lnHost = iep.Address
-					}
-					if lnHost == host {
-						s.ctx.VI(2).Infof("rpc: dhcp removing: %s", iep)
-						removed = append(removed, iep)
-						s.publisher.RemoveServer(iep.String())
-						continue
-					}
-					remaining = append(remaining, iep)
-				}
-				ls.ieps = remaining
-			}
+// findEndpoint returns the index of the first endpoint in ieps with the given network address.
+func findEndpoint(ieps []*inaming.Endpoint, host string) int {
+	for i, iep := range ieps {
+		if getHost(iep.Addr()) == host {
+			return i
 		}
 	}
-	return removed, nil
+	return -1
 }
 
-// Add new endpoints for the new address. There is no way to know with
-// 100% confidence which new endpoints to publish without shutting down
-// all network connections and reinitializing everything from scratch.
-// Instead, we find all roaming listeners with at least one endpoint
-// and create a new endpoint with the same port as the existing ones
-// but with the new address supplied to us to by the dhcp code. As
-// an additional safeguard we reject the new address if it is not
-// externally accessible.
-// This places the onus on the dhcp/roaming code that sends us addresses
-// to ensure that those addresses are externally reachable.
-func (s *server) addAddresses(addrs []net.Addr) []naming.Endpoint {
-	var added []naming.Endpoint
-	for _, address := range netstate.ConvertToAddresses(addrs) {
-		if !netstate.IsAccessibleIP(address) {
-			return added
-		}
-		host := getHost(address)
+// removeAddresses removes all endpoints that have the same host address as
+// the supplied address parameter.
+func (s *server) removeAddresses(addrs []net.Addr) ([]net.Addr, []naming.Endpoint) {
+	var removedAddrs []net.Addr
+	var removedEps []naming.Endpoint
+	for _, addr := range addrs {
+		host := getHost(addr)
+		removed := false
 		for ls, _ := range s.listenState {
-			if ls != nil && ls.roaming {
+			if ls == nil || !ls.roaming {
+				continue
+			}
+			if i := findEndpoint(ls.ieps, host); i >= 0 {
+				oiep := ls.ieps[i]
+				s.ctx.VI(2).Infof("rpc: dhcp removing: %s", oiep)
+				n := len(ls.ieps) - 1
+				ls.ieps[i], ls.ieps[n] = ls.ieps[n], nil
+				ls.ieps = ls.ieps[:n]
+				s.publisher.RemoveServer(oiep.String())
+				removedEps = append(removedEps, oiep)
+				removed = true
+			}
+		}
+		if removed {
+			removedAddrs = append(removedAddrs, addr)
+		}
+	}
+	return removedAddrs, removedEps
+}
+
+// updateAddresses updates endpoints with the given addresses. There is no way to
+// know with 100% confidence which new endpoints to publish without shutting down
+// all network connections and reinitializing everything from scratch. Instead, we
+// find all roaming listeners with at least one endpoint and create a new endpoint
+// with the same port as the existing ones but with the new address supplied to us
+// to by the dhcp code. As an additional safeguard we reject the new address if it
+// is not externally accessible.
+//
+// This places the onus on the dhcp/roaming code that sends us addresses to ensure
+// that those addresses are externally reachable.
+func (s *server) updateAddresses(addrs []net.Addr) ([]net.Addr, []naming.Endpoint) {
+	var addedAddrs []net.Addr
+	var addedEPs []naming.Endpoint
+	for _, addr := range netstate.ConvertToAddresses(addrs) {
+		if !netstate.IsAccessibleIP(addr) {
+			continue
+		}
+		host := getHost(addr)
+		added := false
+		for ls, _ := range s.listenState {
+			if ls == nil || !ls.roaming {
+				continue
+			}
+			if i := findEndpoint(ls.ieps, host); i < 0 {
 				niep := ls.protoIEP
 				niep.Address = net.JoinHostPort(host, ls.port)
 				niep.IsMountTable = s.servesMountTable
 				niep.IsLeaf = s.isLeaf
-				ls.ieps = append(ls.ieps, &niep)
 				s.ctx.VI(2).Infof("rpc: dhcp adding: %s", niep)
+				ls.ieps = append(ls.ieps, &niep)
 				s.publisher.AddServer(niep.String())
-				added = append(added, &niep)
+				addedEPs = append(addedEPs, &niep)
+				added = true
 			}
 		}
+		if added {
+			addedAddrs = append(addedAddrs, addr)
+		}
 	}
-	return added
+	return addedAddrs, addedEPs
 }
 
 type leafDispatcher struct {
