@@ -345,10 +345,6 @@ type cachedPrincipal struct {
 	/* impl */ agent.Principal
 }
 
-func (p *cachedPrincipal) BlessingsByName(pattern security.BlessingPattern) []security.Blessings {
-	return p.cache.BlessingsByName(pattern)
-}
-
 func (p *cachedPrincipal) BlessingsInfo(blessings security.Blessings) map[string][]security.Caveat {
 	return p.cache.BlessingsInfo(blessings)
 }

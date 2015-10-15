@@ -11,10 +11,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
 	"testing"
 
-	"v.io/v23/security"
 	"v.io/v23/verror"
 )
 
@@ -111,98 +109,4 @@ func generatePEMFile(passphrase []byte) (dir string) {
 		panic(err)
 	}
 	return dir
-}
-
-func TestPrincipalBlessingsByName(t *testing.T) {
-	var p1, p2, p3 security.Principal
-	var err error
-
-	if p1, err = NewPrincipal(); err != nil {
-		t.Fatal(err)
-	}
-	if p2, err = NewPrincipal(); err != nil {
-		t.Fatal(err)
-	}
-	alice, err := p1.BlessSelf("alice")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p2.AddToRoots(alice)
-	var aliceworkfriend, alicegymfriend, aliceworkboss security.Blessings
-
-	if aliceworkfriend, err = p1.Bless(p2.PublicKey(), alice, "work/friend", security.UnconstrainedUse()); err != nil {
-		t.Errorf("Bless(work/friend) failed: %v", err)
-	}
-	p2.BlessingStore().Set(aliceworkfriend, "alice/work/friend")
-	if alicegymfriend, err = p1.Bless(p2.PublicKey(), alice, "gym/friend", security.UnconstrainedUse()); err != nil {
-		t.Errorf("Bless(gym/friend) failed: %v", err)
-	}
-	p2.BlessingStore().Set(alicegymfriend, "alice/gym/friend")
-	if aliceworkboss, err = p1.Bless(p2.PublicKey(), alice, "work/boss", security.UnconstrainedUse()); err != nil {
-		t.Errorf("Bless(work/friend) failed: %v", err)
-	}
-	p2.BlessingStore().Set(aliceworkboss, "alice/work/boss")
-
-	// Blessing from an untrusted principal that should never be returned
-	if p3, err = NewPrincipal(); err != nil {
-		t.Fatal(err)
-	}
-	fake, err := p3.BlessSelf("alice")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fakefriend, err := p3.Bless(p2.PublicKey(), fake, "work/friend", security.UnconstrainedUse())
-	if err != nil {
-		t.Errorf("Bless(work/friend) failed: %v", err)
-	}
-	_, err = p2.BlessingStore().Set(fakefriend, "fake/work/friend")
-
-	tests := []struct {
-		matched []security.Blessings
-		pattern security.BlessingPattern
-	}{
-		{
-			matched: []security.Blessings{aliceworkfriend, aliceworkboss},
-			pattern: "alice/work",
-		},
-		{
-			matched: []security.Blessings{aliceworkfriend},
-			pattern: "alice/work/friend",
-		},
-		{
-			matched: []security.Blessings{alicegymfriend},
-			pattern: "alice/gym/friend",
-		},
-		{
-			matched: []security.Blessings{aliceworkfriend, alicegymfriend, aliceworkboss},
-			pattern: "alice",
-		},
-		{
-			matched: []security.Blessings{aliceworkfriend, alicegymfriend, aliceworkboss},
-			pattern: security.AllPrincipals,
-		},
-		{
-			matched: nil,
-			pattern: "alice/school",
-		},
-	}
-
-	for _, test := range tests {
-		matched := p2.BlessingsByName(test.pattern)
-		if len(matched) != len(test.matched) {
-			t.Errorf("BlessingsByName(%s) did not return expected number of matches wanted:%d got:%d", test.pattern, len(test.matched), len(matched))
-		}
-		for _, m := range matched {
-			found := false
-			for _, tm := range test.matched {
-				if reflect.DeepEqual(m, tm) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Errorf("Invalid blessing was returned as a match:%v for pattern:%s", m, test.pattern)
-			}
-		}
-	}
 }

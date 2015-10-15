@@ -204,10 +204,6 @@ func (p *mockPrincipal) MintDischarge(security.Caveat, security.Caveat, ...secur
 	return d, p.NextError
 }
 
-func (p *mockPrincipal) BlessingsByName(name security.BlessingPattern) []security.Blessings {
-	return nil
-}
-
 func (p *mockPrincipal) BlessingsInfo(b security.Blessings) map[string][]security.Caveat {
 	return nil
 }

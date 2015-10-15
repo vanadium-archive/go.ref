@@ -131,7 +131,6 @@ type AgentClientMethods interface {
 	Sign(ctx *context.T, message []byte, opts ...rpc.CallOpt) (security.Signature, error)
 	MintDischarge(ctx *context.T, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat, opts ...rpc.CallOpt) (security.Discharge, error)
 	PublicKey(*context.T, ...rpc.CallOpt) ([]byte, error)
-	BlessingsByName(ctx *context.T, name security.BlessingPattern, opts ...rpc.CallOpt) ([]security.Blessings, error)
 	BlessingsInfo(ctx *context.T, blessings security.Blessings, opts ...rpc.CallOpt) (map[string][]security.Caveat, error)
 	AddToRoots(ctx *context.T, blessing security.Blessings, opts ...rpc.CallOpt) error
 	BlessingStoreSet(ctx *context.T, blessings security.Blessings, forPeers security.BlessingPattern, opts ...rpc.CallOpt) (security.Blessings, error)
@@ -191,11 +190,6 @@ func (c implAgentClientStub) MintDischarge(ctx *context.T, i0 security.Caveat, i
 
 func (c implAgentClientStub) PublicKey(ctx *context.T, opts ...rpc.CallOpt) (o0 []byte, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "PublicKey", nil, []interface{}{&o0}, opts...)
-	return
-}
-
-func (c implAgentClientStub) BlessingsByName(ctx *context.T, i0 security.BlessingPattern, opts ...rpc.CallOpt) (o0 []security.Blessings, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingsByName", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -359,7 +353,6 @@ type AgentServerMethods interface {
 	Sign(ctx *context.T, call rpc.ServerCall, message []byte) (security.Signature, error)
 	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
-	BlessingsByName(ctx *context.T, call rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error)
 	BlessingsInfo(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
 	AddToRoots(ctx *context.T, call rpc.ServerCall, blessing security.Blessings) error
 	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
@@ -392,7 +385,6 @@ type AgentServerStubMethods interface {
 	Sign(ctx *context.T, call rpc.ServerCall, message []byte) (security.Signature, error)
 	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
-	BlessingsByName(ctx *context.T, call rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error)
 	BlessingsInfo(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
 	AddToRoots(ctx *context.T, call rpc.ServerCall, blessing security.Blessings) error
 	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
@@ -462,10 +454,6 @@ func (s implAgentServerStub) MintDischarge(ctx *context.T, call rpc.ServerCall, 
 
 func (s implAgentServerStub) PublicKey(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
 	return s.impl.PublicKey(ctx, call)
-}
-
-func (s implAgentServerStub) BlessingsByName(ctx *context.T, call rpc.ServerCall, i0 security.BlessingPattern) ([]security.Blessings, error) {
-	return s.impl.BlessingsByName(ctx, call, i0)
 }
 
 func (s implAgentServerStub) BlessingsInfo(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) (map[string][]security.Caveat, error) {
@@ -595,15 +583,6 @@ var descAgent = rpc.InterfaceDesc{
 			Name: "PublicKey",
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []byte
-			},
-		},
-		{
-			Name: "BlessingsByName",
-			InArgs: []rpc.ArgDesc{
-				{"name", ``}, // security.BlessingPattern
-			},
-			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // []security.Blessings
 			},
 		},
 		{

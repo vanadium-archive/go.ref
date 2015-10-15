@@ -231,12 +231,6 @@ func (a *agentd) PublicKey() ([]byte, error) {
 	return a.principal.PublicKey().MarshalBinary()
 }
 
-func (a *agentd) BlessingsByName(name security.BlessingPattern) ([]security.Blessings, error) {
-	defer a.mu.RUnlock()
-	a.mu.RLock()
-	return a.principal.BlessingsByName(name), nil
-}
-
 func (a *agentd) BlessingsInfo(blessings security.Blessings) (map[string][]security.Caveat, error) {
 	a.mu.RLock()
 	return a.principal.BlessingsInfo(blessings), nil

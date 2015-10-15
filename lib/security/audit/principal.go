@@ -71,10 +71,6 @@ func (p *auditingPrincipal) MintDischarge(forCaveat, caveatOnDischarge security.
 	return d, nil
 }
 
-func (p *auditingPrincipal) BlessingsByName(name security.BlessingPattern) []security.Blessings {
-	return p.principal.BlessingsByName(name)
-}
-
 func (p *auditingPrincipal) BlessingsInfo(b security.Blessings) map[string][]security.Caveat {
 	return p.principal.BlessingsInfo(b)
 }
