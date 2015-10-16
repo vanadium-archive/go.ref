@@ -64,24 +64,20 @@ func (s *syncService) watchStore(ctx *context.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	for {
+	for !s.Closed() {
 		select {
-		case <-s.closed:
-			vlog.VI(1).Info("sync: watchStore: channel closed, stop watching and exit")
-			return
-
 		case <-ticker.C:
+			if s.Closed() {
+				break
+			}
+			s.processStoreUpdates(ctx)
 
-		}
-		select {
 		case <-s.closed:
-			vlog.VI(1).Info("sync: watchStore: channel closed, stop watching and exit")
-			return
-
-		default:
+			break
 		}
-		s.processStoreUpdates(ctx)
 	}
+
+	vlog.VI(1).Info("sync: watchStore: channel closed, stop watching and exit")
 }
 
 // processStoreUpdates fetches updates from all databases and processes them.

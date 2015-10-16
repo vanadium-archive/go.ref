@@ -33,7 +33,7 @@ import (
 
 var (
 	updObjects map[string]*objConflictState
-	zVer = string(watchable.NewVersion())
+	zVer       = string(watchable.NewVersion())
 
 	batchxzbId = rand64()
 	batchxzb   = createBatch(true /*local*/, x, z, b)
@@ -99,7 +99,7 @@ func createAndSaveNodeAndBatchData(iSt *initiationState) {
 func TestGroupFor(t *testing.T) {
 	service := createService(t)
 	defer destroyService(t, service)
-	
+
 	updObjects = createUpdObjectsMap()
 	iSt := &initiationState{updObjects: updObjects, tx: service.St().NewTransaction()}
 	createAndSaveNodeAndBatchData(iSt)
@@ -190,7 +190,7 @@ func verifyGroup1(t *testing.T, group *crGroup) {
 	verifyBatchesByOid(t, group, b, batchxzbId, batchbcId)
 	verifyBatchesByOid(t, group, y, batchxyId)
 	verifyBatchesByOid(t, group, c, batchbcId)
-	
+
 	objSt := updObjects[z]
 	if (objSt == nil) || (objSt.oldHead != zVer) || objSt.isConflict || !objSt.isAddedByCr {
 		t.Errorf("Unexpected value of objConflictState for z: %#v", objSt)

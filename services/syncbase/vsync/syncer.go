@@ -57,38 +57,35 @@ func (s *syncService) syncer(ctx *context.T) {
 	ticker := time.NewTicker(peerSyncInterval)
 	defer ticker.Stop()
 
-	for {
-		// Give priority to close event if both ticker and closed are
-		// simultaneously triggered.
+	for !s.Closed() {
 		select {
-		case <-s.closed:
-			vlog.VI(1).Info("sync: syncer: channel closed, stop work and exit")
-			return
-
 		case <-ticker.C:
-		}
-		select {
+			if s.Closed() {
+				break
+			}
+			s.syncerWork(ctx)
+
 		case <-s.closed:
-			vlog.VI(1).Info("sync: syncer: channel closed, stop work and exit")
-			return
-
-		default:
+			break
 		}
-
-		// TODO(hpucha): Cut a gen for the responder even if there is no
-		// one to initiate to?
-
-		// Do work.
-		peer, err := s.pickPeer(ctx)
-		if err != nil {
-			continue
-		}
-
-		s.syncClock(ctx, peer)
-
-		// Sync syncgroup metadata and data.
-		s.getDeltas(ctx, peer)
 	}
+
+	vlog.VI(1).Info("sync: syncer: channel closed, stop work and exit")
+}
+
+func (s *syncService) syncerWork(ctx *context.T) {
+	// TODO(hpucha): Cut a gen for the responder even if there is no
+	// one to initiate to?
+
+	peer, err := s.pickPeer(ctx)
+	if err != nil {
+		return
+	}
+
+	s.syncClock(ctx, peer)
+
+	// Sync syncgroup metadata and data.
+	s.getDeltas(ctx, peer)
 }
 
 ////////////////////////////////////////

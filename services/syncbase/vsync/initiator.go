@@ -206,7 +206,7 @@ type objConflictState struct {
 	oldHead     string
 	ancestor    string
 	res         *conflictResolution
-	
+
 	// TODO(jlodhia): Add perms object and version for the row keys for pickNew
 }
 

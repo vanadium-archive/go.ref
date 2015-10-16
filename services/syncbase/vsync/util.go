@@ -98,7 +98,6 @@ func toTableRowPrefixStr(p wire.SyncgroupPrefix) string {
 	return util.JoinKeyParts(p.TableName, p.RowPrefix)
 }
 
-
 // TODO(jlodhia): extractAppKey() method is temporary for conflict resolution.
 // Will be removed once SyncgroupPrefix is refactored into a generic
 // TableRow struct.

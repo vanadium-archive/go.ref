@@ -19,7 +19,9 @@ import (
 	"sync"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/discovery"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/services/syncbase/nosql"
@@ -72,6 +74,11 @@ type syncService struct {
 	// In-memory sync membership info aggregated across databases.
 	allMembers     *memberView
 	allMembersLock sync.RWMutex
+
+	// In-memory map of sync peers found in the neighborhood through the
+	// discovery service.  The map key is the discovery service UUID.
+	discoveryPeers     map[string]*discovery.Service
+	discoveryPeersLock sync.RWMutex
 
 	// In-memory sync state per Database. This state is populated at
 	// startup, and periodically persisted by the initiator.
@@ -177,7 +184,7 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngin
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})
-	s.pending.Add(2)
+	s.pending.Add(3)
 
 	// Start watcher thread to watch for updates to local store.
 	go s.watchStore(ctx)
@@ -185,7 +192,80 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngin
 	// Start initiator thread to periodically get deltas from peers.
 	go s.syncer(ctx)
 
+	// Start the discovery service thread to listen to neighborhood updates.
+	go s.discoverPeers(ctx)
+
 	return s, nil
+}
+
+// Closed returns true if the sync service channel is closed indicating that the
+// service is shutting down.
+func (s *syncService) Closed() bool {
+	select {
+	case <-s.closed:
+		return true
+	default:
+		return false
+	}
+}
+
+// discoverPeers listens to updates from the discovery service to learn about
+// sync peers as they enter and leave the neighborhood.
+func (s *syncService) discoverPeers(ctx *context.T) {
+	defer s.pending.Done()
+
+	scanner := v23.GetDiscovery(ctx)
+	if scanner == nil {
+		vlog.Fatal("sync: discoverPeers: discovery service not initialized")
+	}
+
+	// TODO(rdaoud): refactor this interface name query string.
+	query := interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name
+	ch, err := scanner.Scan(ctx, query)
+	if err != nil {
+		vlog.Errorf("sync: discoverPeers: cannot start discovery service: %v", err)
+		return
+	}
+
+	for !s.Closed() {
+		select {
+		case update := <-ch:
+			switch u := update.(type) {
+			case discovery.UpdateFound:
+				svc := &u.Value.Service
+				s.updateDiscoveryPeer(string(svc.InstanceUuid), svc)
+			case discovery.UpdateLost:
+				s.updateDiscoveryPeer(string(u.Value.InstanceUuid), nil)
+			default:
+				vlog.Errorf("sync: discoverPeers: ignoring invalid update: %v", update)
+			}
+
+		case <-s.closed:
+			break
+		}
+	}
+
+	vlog.VI(1).Info("sync: discoverPeers: channel closed, stop listening and exit")
+}
+
+// updateDiscoveryPeer adds or removes information about a sync peer found in
+// the neighborhood through the discovery service.  If the service entry is nil
+// the peer is removed from the discovery map.
+func (s *syncService) updateDiscoveryPeer(peerInstance string, service *discovery.Service) {
+	s.discoveryPeersLock.Lock()
+	defer s.discoveryPeersLock.Unlock()
+
+	if s.discoveryPeers == nil {
+		s.discoveryPeers = make(map[string]*discovery.Service)
+	}
+
+	if service != nil {
+		vlog.VI(3).Infof("sync: updateDiscoveryPeer: adding peer %s: %v", peerInstance, service)
+		s.discoveryPeers[peerInstance] = service
+	} else {
+		vlog.VI(3).Infof("sync: updateDiscoveryPeer: removing peer %s", peerInstance)
+		delete(s.discoveryPeers, peerInstance)
+	}
 }
 
 // AddNames publishes all the names for this Syncbase instance gathered from all
