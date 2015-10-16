@@ -35,14 +35,31 @@ func (tn typeNames) LookupConstructor(t *vdl.Type) string {
 		return tn.constructorFromTypeName(name)
 	}
 
-	pkgPath, name := vdl.SplitIdent(t.Name())
-	pkgParts := strings.Split(pkgPath, "/")
-	pkgName := pkgParts[len(pkgParts)-1]
-	return fmt.Sprintf("%s.%s", pkgName, name)
+	return qualifiedName(t)
 }
 
 func (tn typeNames) constructorFromTypeName(name string) string {
 	return "(vdl.registry.lookupOrCreateConstructor(" + name + "))"
+}
+
+// Is this type defined in a different package?
+func (tn typeNames) IsDefinedInExternalPkg(t *vdl.Type) bool {
+	if _, ok := builtinJSType(t); ok {
+		return false
+	}
+	if _, ok := tn[t]; ok {
+		return false
+	}
+	return true
+}
+
+// qualifiedName returns a name representing the type prefixed by
+// its package name (e.g. "a.X")
+func qualifiedName(t *vdl.Type) string {
+	pkgPath, name := vdl.SplitIdent(t.Name())
+	pkgParts := strings.Split(pkgPath, "/")
+	pkgName := pkgParts[len(pkgParts)-1]
+	return fmt.Sprintf("%s.%s", pkgName, name)
 }
 
 // LookupType returns a string representing the type.

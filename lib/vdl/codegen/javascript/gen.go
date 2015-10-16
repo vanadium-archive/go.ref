@@ -203,28 +203,22 @@ func untypedConst(names typeNames, v *vdl.Value) string {
 	}
 }
 
-func primitiveWithOptionalName(primitive, name string) string {
-	if name == "" {
-		return "types." + primitive
-	}
-	return "new vdl.Type({kind: vdl.kind." + primitive + ", name: '" + name + "'})"
-}
-
 // typedConst returns a javascript string representing a const that is always
 // wrapped with type information
 func typedConst(names typeNames, v *vdl.Value) string {
-	switch v.Kind() {
-	case vdl.Any, vdl.TypeObject:
+	if v.Kind() == vdl.TypeObject || v.Kind() == vdl.Any {
 		return untypedConst(names, v)
-	default:
-		// We call canonicalize.reduce so that we convert to native types
-		// The constructor would have done the reduction of the field values
-		// but it doesn't convert to native types.
-		return fmt.Sprintf("canonicalize.reduce(new %s(%s, true), %s)",
-			names.LookupConstructor(v.Type()),
-			untypedConst(names, v),
-			names.LookupType(v.Type()))
 	}
+	if v.Kind() == vdl.Enum && names.IsDefinedInExternalPkg(v.Type()) {
+		return fmt.Sprintf("%s.%s", qualifiedName(v.Type()), vdlutil.ToConstCase(v.EnumLabel()))
+	}
+	// We call canonicalize.reduce so that we convert to native types
+	// The constructor would have done the reduction of the field values
+	// but it doesn't convert to native types.
+	return fmt.Sprintf("canonicalize.reduce(new %s(%s, true), %s)",
+		names.LookupConstructor(v.Type()),
+		untypedConst(names, v),
+		names.LookupType(v.Type()))
 }
 
 // Returns a Not Implemented stub for the method

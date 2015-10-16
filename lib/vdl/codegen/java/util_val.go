@@ -59,7 +59,7 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 			return "false"
 		}
 	case vdl.Byte:
-		return "(byte)" + strconv.FormatUint(uint64(v.Byte()), 10)
+		return "(byte)0x" + strconv.FormatUint(uint64(v.Byte()), 16)
 	case vdl.Uint16:
 		return fmt.Sprintf("new %s((short) %s)", javaType(v.Type(), true, env), strconv.FormatUint(v.Uint(), 10))
 	case vdl.Int16:

@@ -344,6 +344,8 @@ func (c *Controller) Cleanup(ctx *context.T) {
 
 	c.typeReader.Close()
 	c.cancel()
+
+	c.typeDecoder.Stop()
 }
 
 func (c *Controller) setup() {
@@ -353,6 +355,7 @@ func (c *Controller) setup() {
 	c.servers = make(map[uint32]*server.Server)
 	c.typeReader = lib.NewTypeReader()
 	c.typeDecoder = vom.NewTypeDecoder(c.typeReader)
+	c.typeDecoder.Start()
 	c.typeEncoder = vom.NewTypeEncoder(lib.NewTypeWriter(c.writerCreator(typeFlow)))
 	c.lastGeneratedId += 2
 }
