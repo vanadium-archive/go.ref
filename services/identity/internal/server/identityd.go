@@ -123,9 +123,11 @@ func (s *IdentityServer) Serve(ctx *context.T, externalHttpAddr, httpAddr, tlsCo
 		fmt.Printf("NAME=%s\n", s.rootedObjectAddrs[0].Name())
 	}
 	<-signals.ShutdownOnSignals(ctx)
+	ctx.Infof("Received shutdown request.")
 	if err := rpcServer.Stop(); err != nil {
 		ctx.Errorf("Failed to stop rpc server: %v", err)
 	}
+	ctx.Infof("Successfully stopped the rpc server.")
 }
 
 func (s *IdentityServer) Listen(ctx *context.T, externalHttpAddr, httpAddr, tlsConfig string) (rpc.Server, []string, string) {
