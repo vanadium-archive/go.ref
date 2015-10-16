@@ -56,19 +56,33 @@ func TestMacaroonBlesser(t *testing.T) {
 
 	// When the user does not recognize the provider, it should not see any strings for
 	// the client's blessings.
-	if got := user.BlessingsInfo(b); got != nil {
-		t.Errorf("Got blessing with info %v, want nil", got)
+	if got := security.BlessingNames(user, b); len(got) != 0 {
+		t.Errorf("Got %v, want nil", got)
 	}
 	// But once it recognizes the provider, it should see exactly the name
 	// "provider/bugsbunny" for the caveat cOnlyMethodFoo.
 	security.AddToRoots(user, b)
-	binfo := user.BlessingsInfo(b)
-	if num := len(binfo); num != 1 {
-		t.Errorf("Got blessings with %d names, want exactly one name", num)
+	if got, want := security.BlessingNames(user, b), []string{"provider/bugsbunny"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
 	}
-	wantName := "provider/bugsbunny"
-	if got, want := binfo[wantName], []security.Caveat{cOnlyMethodFoo}; !reflect.DeepEqual(got, want) {
-		t.Errorf("binfo[%q]: Got %v, want %v", wantName, got, want)
+	// RemoteBlessingNames should see "provider/bugsbunny" only when caveats are met.
+	for idx, test := range []struct {
+		params security.CallParams
+		names  []string
+	}{
+		{
+			params: security.CallParams{LocalPrincipal: user, RemoteBlessings: b, Method: "Foo"},
+			names:  []string{"provider/bugsbunny"},
+		},
+		{
+			params: security.CallParams{LocalPrincipal: user, RemoteBlessings: b, Method: "Bar"},
+			names:  nil,
+		},
+	} {
+		got, _ := security.RemoteBlessingNames(ctx, security.NewCall(&test.params))
+		if !reflect.DeepEqual(got, test.names) {
+			t.Errorf("#%d) Got %v, want %v", idx, got, test.names)
+		}
 	}
 }
 

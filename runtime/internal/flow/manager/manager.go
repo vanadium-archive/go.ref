@@ -50,15 +50,13 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 		cache:           NewConnCache(),
 		ctx:             ctx,
 		serverBlessings: serverBlessings,
+		serverNames:     security.BlessingNames(v23.GetPrincipal(ctx), serverBlessings),
 	}
 	if rid != naming.NullRoutingID {
 		m.ls = &listenState{
 			q:         upcqueue.New(),
 			listeners: []flow.Listener{},
 			stopProxy: make(chan struct{}),
-		}
-		for b, _ := range v23.GetPrincipal(ctx).BlessingsInfo(m.serverBlessings) {
-			m.serverNames = append(m.serverNames, b)
 		}
 	}
 	go func() {

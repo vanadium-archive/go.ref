@@ -249,16 +249,6 @@ func (c *client) PublicKey() security.PublicKey {
 	return c.key
 }
 
-func (c *client) BlessingsInfo(blessings security.Blessings) map[string][]security.Caveat {
-	var bInfo map[string][]security.Caveat
-	err := c.caller.call("BlessingsInfo", results(&bInfo), blessings)
-	if err != nil {
-		logger.Global().Infof("error calling BlessingsInfo: %v", err)
-		return nil
-	}
-	return bInfo
-}
-
 func (c *client) BlessingStore() security.BlessingStore {
 	return &blessingStore{caller: c.caller, key: c.key}
 }

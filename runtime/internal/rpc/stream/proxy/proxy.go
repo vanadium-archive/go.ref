@@ -448,9 +448,7 @@ func (p *Proxy) endpoint() *inaming.Endpoint {
 		RID:      p.rid,
 	}
 	if prncpl := p.principal; prncpl != nil {
-		for b, _ := range prncpl.BlessingsInfo(prncpl.BlessingStore().Default()) {
-			ep.Blessings = append(ep.Blessings, b)
-		}
+		ep.Blessings = security.BlessingNames(prncpl, prncpl.BlessingStore().Default())
 	}
 	return ep
 }

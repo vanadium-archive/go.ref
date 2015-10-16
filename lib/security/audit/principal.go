@@ -71,10 +71,6 @@ func (p *auditingPrincipal) MintDischarge(forCaveat, caveatOnDischarge security.
 	return d, nil
 }
 
-func (p *auditingPrincipal) BlessingsInfo(b security.Blessings) map[string][]security.Caveat {
-	return p.principal.BlessingsInfo(b)
-}
-
 func (p *auditingPrincipal) PublicKey() security.PublicKey         { return p.principal.PublicKey() }
 func (p *auditingPrincipal) Roots() security.BlessingRoots         { return p.principal.Roots() }
 func (p *auditingPrincipal) BlessingStore() security.BlessingStore { return p.principal.BlessingStore() }

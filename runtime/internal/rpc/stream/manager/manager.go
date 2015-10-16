@@ -15,7 +15,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
@@ -370,10 +369,7 @@ func extractBlessingNames(p security.Principal, b security.Blessings) ([]string,
 	if p == nil {
 		return nil, nil
 	}
-	var ret []string
-	for b, _ := range p.BlessingsInfo(b) {
-		ret = append(ret, b)
-	}
+	ret := security.BlessingNames(p, b)
 	if len(ret) == 0 {
 		return nil, verror.New(stream.ErrBadArg, nil, verror.New(errNoBlessingNames, nil))
 	}

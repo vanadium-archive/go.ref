@@ -6,7 +6,6 @@ package blesser
 
 import (
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -56,18 +55,14 @@ func TestOAuthBlesser(t *testing.T) {
 
 	// When the user does not recognize the provider, it should not see any strings for
 	// the client's blessings.
-	if got := user.BlessingsInfo(b); got != nil {
-		t.Errorf("Got blessing with info %v, want nil", got)
+	if got := security.BlessingNames(user, b); len(got) != 0 {
+		t.Errorf("Got %v, want nil")
 	}
 	// But once it recognizes the provider, it should see exactly the name
 	// "provider/testemail@example.com/test-client".
 	security.AddToRoots(user, b)
-	binfo := user.BlessingsInfo(b)
-	if num := len(binfo); num != 1 {
-		t.Errorf("Got blessings with %d names, want exactly one name", num)
-	}
-	if _, ok := binfo[join("provider", wantExtension)]; !ok {
-		t.Errorf("BlessingsInfo %v does not have name %s", binfo, wantExtension)
+	if got, want := security.BlessingNames(user, b), []string{join("provider", wantExtension)}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
 	}
 }
 
@@ -75,6 +70,8 @@ func TestOAuthBlesserWithCaveats(t *testing.T) {
 	var (
 		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
 		ctx, call      = fakeContextAndCall(provider, user)
+		now            = time.Now()
+		expires        = now.Add(time.Minute)
 	)
 	mockEmail := "testemail@example.com"
 	mockClientID := "test-client-id"
@@ -90,7 +87,7 @@ func TestOAuthBlesserWithCaveats(t *testing.T) {
 		},
 	})
 
-	expiryCav, err := security.NewExpiryCaveat(time.Now().Add(time.Minute))
+	expiryCav, err := security.NewExpiryCaveat(expires)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,36 +113,37 @@ func TestOAuthBlesserWithCaveats(t *testing.T) {
 
 	// When the user does not recognize the provider, it should not see any strings for
 	// the client's blessings.
-	if got := user.BlessingsInfo(b); got != nil {
-		t.Errorf("Got blessing with info %v, want nil", got)
+	if got := security.BlessingNames(user, b); len(got) != 0 {
+		t.Errorf("Got %v, want nil", got)
 	}
 	// But once it recognizes the provider, it should see exactly the name
 	// "provider/testemail@example.com/test-client".
 	security.AddToRoots(user, b)
-	binfo := user.BlessingsInfo(b)
-	if num := len(binfo); num != 1 {
-		t.Errorf("Got blessings with %d names, want exactly one name", num)
+	allnames := []string{join("provider", wantExtension)}
+	if got, want := security.BlessingNames(user, b), allnames; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
 	}
-	cavs, ok := binfo[join("provider", wantExtension)]
-	if !ok {
-		t.Errorf("BlessingsInfo %v does not have name %s", binfo, wantExtension)
+	// The presence of caveats will be tested by RemoteBlessingNames
+	for _, test := range []struct {
+		Time   time.Time
+		Method string
+		Names  []string
+	}{
+		{now, "foo", allnames},
+		{now, "bar", allnames},
+		{now, "baz", nil},
+		{expires.Add(time.Nanosecond), "foo", nil},
+		{expires.Add(time.Nanosecond), "bar", nil},
+		{expires.Add(time.Nanosecond), "baz", nil},
+	} {
+		call := security.NewCall(&security.CallParams{
+			LocalPrincipal:  user,
+			RemoteBlessings: b,
+			Timestamp:       test.Time,
+			Method:          test.Method,
+		})
+		if got, _ := security.RemoteBlessingNames(ctx, call); !reflect.DeepEqual(got, test.Names) {
+			t.Errorf("%#v: Got %v, want %v", test, got, test.Names)
+		}
 	}
-	if !caveatsMatch(cavs, caveats) {
-		t.Errorf("got %v, want %v", cavs, caveats)
-	}
-}
-
-func caveatsMatch(got, want []security.Caveat) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	gotStrings := make([]string, len(got))
-	wantStrings := make([]string, len(want))
-	for i := 0; i < len(got); i++ {
-		gotStrings[i] = got[i].String()
-		wantStrings[i] = want[i].String()
-	}
-	sort.Strings(gotStrings)
-	sort.Strings(wantStrings)
-	return reflect.DeepEqual(gotStrings, wantStrings)
 }

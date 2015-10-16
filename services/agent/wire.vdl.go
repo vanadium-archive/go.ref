@@ -131,7 +131,6 @@ type AgentClientMethods interface {
 	Sign(ctx *context.T, message []byte, opts ...rpc.CallOpt) (security.Signature, error)
 	MintDischarge(ctx *context.T, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat, opts ...rpc.CallOpt) (security.Discharge, error)
 	PublicKey(*context.T, ...rpc.CallOpt) ([]byte, error)
-	BlessingsInfo(ctx *context.T, blessings security.Blessings, opts ...rpc.CallOpt) (map[string][]security.Caveat, error)
 	BlessingStoreSet(ctx *context.T, blessings security.Blessings, forPeers security.BlessingPattern, opts ...rpc.CallOpt) (security.Blessings, error)
 	BlessingStoreForPeer(ctx *context.T, peerBlessings []string, opts ...rpc.CallOpt) (security.Blessings, error)
 	BlessingStoreSetDefault(ctx *context.T, blessings security.Blessings, opts ...rpc.CallOpt) error
@@ -189,11 +188,6 @@ func (c implAgentClientStub) MintDischarge(ctx *context.T, i0 security.Caveat, i
 
 func (c implAgentClientStub) PublicKey(ctx *context.T, opts ...rpc.CallOpt) (o0 []byte, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "PublicKey", nil, []interface{}{&o0}, opts...)
-	return
-}
-
-func (c implAgentClientStub) BlessingsInfo(ctx *context.T, i0 security.Blessings, opts ...rpc.CallOpt) (o0 map[string][]security.Caveat, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessingsInfo", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -347,7 +341,6 @@ type AgentServerMethods interface {
 	Sign(ctx *context.T, call rpc.ServerCall, message []byte) (security.Signature, error)
 	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
-	BlessingsInfo(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
 	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
 	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
 	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
@@ -378,7 +371,6 @@ type AgentServerStubMethods interface {
 	Sign(ctx *context.T, call rpc.ServerCall, message []byte) (security.Signature, error)
 	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
-	BlessingsInfo(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
 	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
 	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
 	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
@@ -446,10 +438,6 @@ func (s implAgentServerStub) MintDischarge(ctx *context.T, call rpc.ServerCall, 
 
 func (s implAgentServerStub) PublicKey(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
 	return s.impl.PublicKey(ctx, call)
-}
-
-func (s implAgentServerStub) BlessingsInfo(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) (map[string][]security.Caveat, error) {
-	return s.impl.BlessingsInfo(ctx, call, i0)
 }
 
 func (s implAgentServerStub) BlessingStoreSet(ctx *context.T, call rpc.ServerCall, i0 security.Blessings, i1 security.BlessingPattern) (security.Blessings, error) {
@@ -571,15 +559,6 @@ var descAgent = rpc.InterfaceDesc{
 			Name: "PublicKey",
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []byte
-			},
-		},
-		{
-			Name: "BlessingsInfo",
-			InArgs: []rpc.ArgDesc{
-				{"blessings", ``}, // security.Blessings
-			},
-			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // map[string][]security.Caveat
 			},
 		},
 		{

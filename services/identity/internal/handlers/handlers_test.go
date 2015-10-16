@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -221,16 +222,16 @@ func TestBless(t *testing.T) {
 			}
 
 			// Verify the name and caveats on the blessings.
-			binfo := blesseePrin.BlessingsInfo(blessings)
-			if len(binfo) != 1 {
-				t.Errorf("got blessings with %d names, want blessings with 1 name", len(binfo))
+			if got, want := security.BlessingNames(blesseePrin, blessings), []string{
+				"blesser" + security.ChainSeparator + testClientID + security.ChainSeparator + testEmail,
+			}; !reflect.DeepEqual(got, want) {
+				t.Errorf("Got %v, want %v", got, want)
 			}
-			wantName := "blesser" + security.ChainSeparator + testClientID + security.ChainSeparator + testEmail
-			caveats, ok := binfo[wantName]
-			if !ok {
-				t.Errorf("expected blessing with name %v, got none", wantName)
+			caveats, err := extractCaveats(blessings)
+			if err != nil {
+				t.Error(err)
+				continue
 			}
-
 			if len(testcase.caveats) > 0 {
 				// The blessing must have exactly those caveats that were provided in the request.
 				if !caveatsMatch(t, caveats, testcase.caveats) {
@@ -247,6 +248,28 @@ func TestBless(t *testing.T) {
 			}
 		}
 	}
+}
+
+func extractCaveats(b security.Blessings) ([]security.Caveat, error) {
+	// Extract the wire encoding of the blessings and fish them out.
+	bytes, err := vom.Encode(b)
+	if err != nil {
+		return nil, err
+	}
+	var wire security.WireBlessings
+	if err := vom.Decode(bytes, &wire); err != nil {
+		return nil, err
+	}
+	if got, want := len(wire.CertificateChains), 1; got != want {
+		return nil, fmt.Errorf("Got %d blessings, want %d", got, want)
+	}
+	var ret []security.Caveat
+	for _, chain := range wire.CertificateChains {
+		for _, cert := range chain {
+			ret = append(ret, cert.Caveats...)
+		}
+	}
+	return ret, nil
 }
 
 type caveatsSorter struct {
