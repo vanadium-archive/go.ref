@@ -59,7 +59,6 @@ var (
 	errResultDecoding            = reg(".errResultDecoding", "failed to decode result #{3}{:4}")
 	errResponseDecoding          = reg(".errResponseDecoding", "failed to decode response{:3}")
 	errRemainingStreamResults    = reg(".errRemaingStreamResults", "stream closed with remaining stream results")
-	errNoBlessingsForPeer        = reg(".errNoBlessingsForPeer", "no blessings tagged for peer {3}{:4}")
 	errBlessingGrant             = reg(".errBlessingGrant", "failed to grant blessing to server with blessings{:3}")
 	errBlessingAdd               = reg(".errBlessingAdd", "failed to add blessing granted to server{:3}")
 	errPeerAuthorizeFailed       = reg(".errPeerAuthorizedFailed", "failed to authorize flow with remote blessings{:3} {:4}")

@@ -17,6 +17,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	iflow "v.io/x/ref/runtime/internal/flow"
+	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 // flowID is a number assigned to identify a flow.
@@ -29,7 +30,6 @@ const (
 
 const mtu = 1 << 16
 const DefaultBytesBufferedPerFlow = 1 << 20
-const noExist = 0
 
 const (
 	expressPriority = iota
@@ -137,8 +137,8 @@ func NewDialed(
 		mp:           newMessagePipe(conn),
 		handler:      handler,
 		lBlessings:   lBlessings,
-		local:        local,
-		remote:       remote,
+		local:        endpointCopy(local),
+		remote:       endpointCopy(remote),
 		closed:       make(chan struct{}),
 		lameDucked:   make(chan struct{}),
 		nextFid:      reservedFlows,
@@ -181,7 +181,7 @@ func NewAccepted(
 		mp:            newMessagePipe(conn),
 		handler:       handler,
 		lBlessings:    lBlessings,
-		local:         local,
+		local:         endpointCopy(local),
 		closed:        make(chan struct{}),
 		lameDucked:    make(chan struct{}),
 		nextFid:       reservedFlows + 1,
@@ -226,7 +226,7 @@ func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 
 // Dial dials a new flow on the Conn.
 func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endpoint) (flow.Flow, error) {
-	if c.rBKey == noExist {
+	if c.remote.RoutingID() == naming.NullRoutingID {
 		return nil, NewErrDialingNonServer(ctx)
 	}
 	rBlessings, rDischarges, err := c.blessingsFlow.getLatestRemote(ctx, c.rBKey)
@@ -244,8 +244,12 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endp
 		if err != nil {
 			return nil, NewErrNoBlessingsForPeer(ctx, rbnames, rejected, err)
 		}
-		bkey, dkey, err = c.blessingsFlow.send(ctx, blessings, discharges)
-		if err != nil {
+		if blessings.IsZero() {
+			// its safe to ignore this error since c.lBlessings must be valid, so the
+			// encoding of the publicKey can never error out.
+			blessings, _ = security.NamelessBlessing(c.lBlessings.PublicKey())
+		}
+		if bkey, dkey, err = c.blessingsFlow.send(ctx, blessings, discharges); err != nil {
 			return nil, err
 		}
 	}
@@ -668,4 +672,9 @@ func (c *Conn) sendMessageLocked(
 	c.deactivateWriterLocked(s)
 	c.notifyNextWriterLocked(s)
 	return err
+}
+
+func endpointCopy(ep naming.Endpoint) naming.Endpoint {
+	var cp inaming.Endpoint = *(ep.(*inaming.Endpoint))
+	return &cp
 }

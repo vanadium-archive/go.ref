@@ -92,7 +92,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 
 	dmrw, amrw, _ := flowtest.NewMRWPair(ctx)
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
-	ep, err := v23.NewEndpoint("localhost:80")
+	ep, err := v23.NewEndpoint("@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@")
 	if err != nil {
 		t.Fatal(err)
 	}

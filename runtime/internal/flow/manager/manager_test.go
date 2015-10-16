@@ -98,7 +98,7 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 	<-dm.Closed()
 }
 
-func TestNullClientBlessings(t *testing.T) {
+func TestPublicKeyOnlyClientBlessings(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 
@@ -108,16 +108,17 @@ func TestNullClientBlessings(t *testing.T) {
 	}
 	nulldm := New(ctx, naming.NullRoutingID)
 	_, af := testFlows(t, ctx, nulldm, am, flowtest.AllowAllPeersAuthorizer{})
-	// Ensure that the remote blessings of the underlying conn of the accepted flow are zero.
-	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); !rBlessings.IsZero() {
-		t.Errorf("got %v, want zero-value blessings", rBlessings)
+	// Ensure that the remote blessings of the underlying conn of the accepted blessings
+	// only has the public key of the client and no certificates.
+	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); len(rBlessings.String()) > 0 || rBlessings.PublicKey() == nil {
+		t.Errorf("got %v, want no-cert blessings", rBlessings)
 	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111))
 	_, af = testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Ensure that the remote blessings of the underlying conn of the accepted flow are
 	// non-zero if we did specify a RoutingID.
-	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); rBlessings.IsZero() {
-		t.Errorf("got %v, want non-zero blessings", rBlessings)
+	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); len(rBlessings.String()) == 0 {
+		t.Errorf("got %v, want full blessings", rBlessings)
 	}
 
 	shutdown()

@@ -86,6 +86,7 @@ func TestCache(t *testing.T) {
 	otherEP := &inaming.Endpoint{
 		Protocol:  "other",
 		Address:   "other",
+		RID:       naming.FixedRoutingID(0x2222),
 		Blessings: []string{"other"},
 	}
 	otherConn := makeConnAndFlow(t, ctx, otherEP).c
@@ -284,7 +285,7 @@ func nConnAndFlows(t *testing.T, ctx *context.T, n int) []connAndFlow {
 	for i := 0; i < n; i++ {
 		cfs[i] = makeConnAndFlow(t, ctx, &inaming.Endpoint{
 			Protocol: strconv.Itoa(i),
-			RID:      naming.FixedRoutingID(uint64(i)),
+			RID:      naming.FixedRoutingID(uint64(i + 1)), // We need to have a nonzero rid for bidi.
 		})
 	}
 	return cfs

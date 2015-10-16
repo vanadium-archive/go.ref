@@ -40,6 +40,10 @@ func setupConns(t *testing.T,
 		dmrw, amrw, w = flowtest.NewMRWPair(dctx)
 	}
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
+	ridep, err := v23.NewEndpoint("@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	ep, err := v23.NewEndpoint("localhost:80")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -48,11 +52,13 @@ func setupConns(t *testing.T,
 	ach := make(chan *Conn)
 	go func() {
 		var handler FlowHandler
+		dep := ep
 		if dflows != nil {
 			handler = fh(dflows)
+			dep = ridep
 		}
 		dBlessings := v23.GetPrincipal(dctx).BlessingStore().Default()
-		d, err := NewDialed(dctx, dBlessings, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, handler)
+		d, err := NewDialed(dctx, dBlessings, dmrw, dep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, handler)
 		if err != nil {
 			panic(err)
 		}
@@ -64,7 +70,7 @@ func setupConns(t *testing.T,
 			handler = fh(aflows)
 		}
 		aBlessings := v23.GetPrincipal(actx).BlessingStore().Default()
-		a, err := NewAccepted(actx, aBlessings, amrw, ep, versions, time.Minute, handler)
+		a, err := NewAccepted(actx, aBlessings, amrw, ridep, versions, time.Minute, handler)
 		if err != nil {
 			panic(err)
 		}

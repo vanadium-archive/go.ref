@@ -282,13 +282,6 @@ func (x peerAuthorizer) BlessingsForPeer(ctx *context.T, peerNames []string) (
 	security.Blessings, map[string]security.Discharge, error) {
 	localPrincipal := v23.GetPrincipal(ctx)
 	clientB := localPrincipal.BlessingStore().ForPeer(peerNames...)
-	if clientB.IsZero() {
-		// TODO(ataly, ashankar): We need not error out here and instead can just
-		// send the <nil> blessings to the server.
-		// TODO(suharshs): Make this a different error when we are making all the vdl errors
-		// in a errors.vdl file.
-		return security.Blessings{}, nil, verror.New(errNoBlessingsForPeer, ctx, nil, nil)
-	}
 	impetus, err := mkDischargeImpetus(peerNames, x.method, x.args)
 	if err != nil {
 		return security.Blessings{}, nil, err
