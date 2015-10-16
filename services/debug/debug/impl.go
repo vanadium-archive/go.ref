@@ -71,7 +71,7 @@ func init() {
 	cmdStatsWatch.Flags.BoolVar(&showType, "type", false, "When true, the type of the values will be displayed.")
 
 	// pprof flags
-	cmdPProfRun.Flags.StringVar(&pprofCmd, "pprofcmd", "v23 go tool pprof", "The pprof command to use.")
+	cmdPProfRun.Flags.StringVar(&pprofCmd, "pprofcmd", "jiri go tool pprof", "The pprof command to use.")
 }
 
 var cmdVtrace = &cmdline.Command{
