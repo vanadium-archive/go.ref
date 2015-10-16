@@ -45,16 +45,18 @@ const (
 )
 
 var (
-	errClosed = verror.Register(pkgPath+".errClosed", verror.NoRetry, "{1:}{2:} closed")
+	errClosed                 = verror.Register(pkgPath+".errClosed", verror.NoRetry, "{1:}{2:} closed")
+	errAlreadyBeingAdvertised = verror.Register(pkgPath+".errAlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised")
 )
 
 // ds is an implementation of discovery.T.
 type ds struct {
 	plugins []Plugin
 
-	mu     sync.Mutex
-	closed bool                  // GUARDED_BY(mu)
-	tasks  map[*context.T]func() // GUARDED_BY(mu)
+	mu          sync.Mutex
+	closed      bool                  // GUARDED_BY(mu)
+	tasks       map[*context.T]func() // GUARDED_BY(mu)
+	advertising map[string]struct{}   // GUARDED_BY(mu)
 
 	wg sync.WaitGroup
 }
@@ -73,11 +75,18 @@ func (ds *ds) Close() {
 	ds.wg.Wait()
 }
 
-func (ds *ds) addTask(ctx *context.T) (*context.T, func(), error) {
+func (ds *ds) addTask(ctx *context.T, adId string) (*context.T, func(), error) {
 	ds.mu.Lock()
 	if ds.closed {
 		ds.mu.Unlock()
 		return nil, nil, verror.New(errClosed, ctx)
+	}
+	if len(adId) > 0 {
+		if _, exist := ds.advertising[adId]; exist {
+			ds.mu.Unlock()
+			return nil, nil, verror.New(errAlreadyBeingAdvertised, ctx)
+		}
+		ds.advertising[adId] = struct{}{}
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	ds.tasks[ctx] = cancel
@@ -86,8 +95,11 @@ func (ds *ds) addTask(ctx *context.T) (*context.T, func(), error) {
 	return ctx, cancel, nil
 }
 
-func (ds *ds) removeTask(ctx *context.T) {
+func (ds *ds) removeTask(ctx *context.T, adId string) {
 	ds.mu.Lock()
+	if len(adId) > 0 {
+		delete(ds.advertising, adId)
+	}
 	_, exist := ds.tasks[ctx]
 	delete(ds.tasks, ctx)
 	ds.mu.Unlock()
@@ -101,8 +113,9 @@ func (ds *ds) removeTask(ctx *context.T) {
 // Mostly for internal use. Consider to use factory.New.
 func NewWithPlugins(plugins []Plugin) discovery.T {
 	ds := &ds{
-		plugins: make([]Plugin, len(plugins)),
-		tasks:   make(map[*context.T]func()),
+		plugins:     make([]Plugin, len(plugins)),
+		tasks:       make(map[*context.T]func()),
+		advertising: make(map[string]struct{}),
 	}
 	copy(ds.plugins, plugins)
 	return ds

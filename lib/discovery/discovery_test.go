@@ -237,11 +237,33 @@ func TestPermission(t *testing.T) {
 	}
 }
 
+func TestDuplicates(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
+	defer ds.Close()
+
+	service := discovery.Service{
+		InstanceUuid:  idiscovery.NewInstanceUUID(),
+		InterfaceName: "v.io/v23/a",
+		Addrs:         []string{"/h1:123/x"},
+	}
+
+	if _, err := advertise(ctx, ds, nil, service); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := advertise(ctx, ds, nil, service); err == nil {
+		t.Error("expect an error; but got none")
+	}
+}
+
 func TestClose(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
+
 	service := discovery.Service{
 		InstanceUuid:  idiscovery.NewInstanceUUID(),
 		InterfaceName: "v.io/v23/a",

@@ -42,12 +42,13 @@ func (ds *ds) Advertise(ctx *context.T, service discovery.Service, visibility []
 		return err
 	}
 
-	ctx, cancel, err := ds.addTask(ctx)
+	adId := string(ad.InstanceUuid)
+	ctx, cancel, err := ds.addTask(ctx, adId)
 	if err != nil {
 		return err
 	}
 
-	barrier := NewBarrier(func() { ds.removeTask(ctx) })
+	barrier := NewBarrier(func() { ds.removeTask(ctx, adId) })
 	for _, plugin := range ds.plugins {
 		if err := plugin.Advertise(ctx, ad, barrier.Add()); err != nil {
 			cancel()
