@@ -8,25 +8,26 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 
-	"v.io/x/lib/cmdline"
-
-	"v.io/v23/context"
-
 	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
+	"v.io/v23/security/access"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref/examples/tunnel"
-	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
-var name string
+var name, aclLiteral, aclFile string
 
 func main() {
 	cmdRoot.Flags.StringVar(&name, "name", "", "Name to publish the server as.")
+	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
+	cmdRoot.Flags.StringVar(&aclLiteral, "acl", "", "JSON-encoded Permissions.  Takes precedence over --acl-file.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -41,7 +42,22 @@ Command tunneld runs the tunneld daemon, which implements the Tunnel interface.
 }
 
 func runTunnelD(ctx *context.T, env *cmdline.Env, args []string) error {
-	auth := securityflag.NewAuthorizerOrDie()
+	var (
+		auth security.Authorizer
+		err  error
+	)
+	switch {
+	case aclLiteral != "":
+		var perms access.Permissions
+		if perms, err = access.ReadPermissions(bytes.NewBufferString(aclLiteral)); err != nil {
+			return fmt.Errorf("ReadPermissions(%v) failed: %v", aclLiteral, err)
+		}
+		auth = access.TypicalTagTypePermissionsAuthorizer(perms)
+	case aclFile != "":
+		if auth, err = access.PermissionsAuthorizerFromFile(aclFile, access.TypicalTagType()); err != nil {
+			return fmt.Errorf("PermissionsAuthorizerFromFile(%v) failed: %v", aclFile, err)
+		}
+	}
 	ctx, server, err := v23.WithNewServer(ctx, name, tunnel.TunnelServer(&T{}), auth)
 	if err != nil {
 		return fmt.Errorf("NewServer failed: %v", err)

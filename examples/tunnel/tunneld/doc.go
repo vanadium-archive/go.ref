@@ -12,6 +12,10 @@ Usage:
    tunneld [flags]
 
 The tunneld flags are:
+ -acl=
+   JSON-encoded Permissions.  Takes precedence over --acl-file.
+ -acl-file=
+   File containing JSON-encoded Permissions.
  -name=
    Name to publish the server as.
 
