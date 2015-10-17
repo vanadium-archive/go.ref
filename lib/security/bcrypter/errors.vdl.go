@@ -12,20 +12,23 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/verror"
+
+	// VDL user imports
+	"v.io/v23/security"
 )
 
 var (
 	ErrInternal           = verror.Register("v.io/x/ref/lib/security/bcrypter.Internal", verror.NoRetry, "{1:}{2:} internal error: {3}")
-	ErrInvalidArg         = verror.Register("v.io/x/ref/lib/security/bcrypter.InvalidArg", verror.NoRetry, "{1:}{2:} invalid argument: {3}")
-	ErrInvalidScheme      = verror.Register("v.io/x/ref/lib/security/bcrypter.InvalidScheme", verror.NoRetry, "{1:}{2:} invalid cryptographic scheme: {3}, supported schemes: {4}")
+	ErrNoParams           = verror.Register("v.io/x/ref/lib/security/bcrypter.NoParams", verror.NoRetry, "{1:}{2:} no public parameters available for encrypting for pattern: {3}")
 	ErrPrivateKeyNotFound = verror.Register("v.io/x/ref/lib/security/bcrypter.PrivateKeyNotFound", verror.NoRetry, "{1:}{2:} no private key found for decrypting ciphertext")
+	ErrInvalidPrivateKey  = verror.Register("v.io/x/ref/lib/security/bcrypter.InvalidPrivateKey", verror.NoRetry, "{1:}{2:} private key is invalid: {3}")
 )
 
 func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInternal.ID), "{1:}{2:} internal error: {3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidArg.ID), "{1:}{2:} invalid argument: {3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidScheme.ID), "{1:}{2:} invalid cryptographic scheme: {3}, supported schemes: {4}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoParams.ID), "{1:}{2:} no public parameters available for encrypting for pattern: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrPrivateKeyNotFound.ID), "{1:}{2:} no private key found for decrypting ciphertext")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidPrivateKey.ID), "{1:}{2:} private key is invalid: {3}")
 }
 
 // NewErrInternal returns an error with the ErrInternal ID.
@@ -33,17 +36,17 @@ func NewErrInternal(ctx *context.T, err error) error {
 	return verror.New(ErrInternal, ctx, err)
 }
 
-// NewErrInvalidArg returns an error with the ErrInvalidArg ID.
-func NewErrInvalidArg(ctx *context.T, err error) error {
-	return verror.New(ErrInvalidArg, ctx, err)
-}
-
-// NewErrInvalidScheme returns an error with the ErrInvalidScheme ID.
-func NewErrInvalidScheme(ctx *context.T, gotScheme int32, supportedSchemes []int32) error {
-	return verror.New(ErrInvalidScheme, ctx, gotScheme, supportedSchemes)
+// NewErrNoParams returns an error with the ErrNoParams ID.
+func NewErrNoParams(ctx *context.T, pattern security.BlessingPattern) error {
+	return verror.New(ErrNoParams, ctx, pattern)
 }
 
 // NewErrPrivateKeyNotFound returns an error with the ErrPrivateKeyNotFound ID.
 func NewErrPrivateKeyNotFound(ctx *context.T) error {
 	return verror.New(ErrPrivateKeyNotFound, ctx)
+}
+
+// NewErrInvalidPrivateKey returns an error with the ErrInvalidPrivateKey ID.
+func NewErrInvalidPrivateKey(ctx *context.T, err error) error {
+	return verror.New(ErrInvalidPrivateKey, ctx, err)
 }

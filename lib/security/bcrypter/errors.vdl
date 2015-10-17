@@ -4,17 +4,19 @@
 
 package bcrypter
 
+import "v.io/v23/security"
+
 error (
       Internal(err error) {
               "en": "internal error: {err}",
       }
-      InvalidArg(err error) {
-      	      "en": "invalid argument: {err}",
-      }
-      InvalidScheme(gotScheme int32, supportedSchemes []int32) {
-      	      "en": "invalid cryptographic scheme: {gotScheme}, supported schemes: {supportedSchemes}",
+      NoParams(pattern security.BlessingPattern) {
+              "en": "no public parameters available for encrypting for pattern: {pattern}",
       }
       PrivateKeyNotFound() {
               "en": "no private key found for decrypting ciphertext",
+      }
+      InvalidPrivateKey(err error) {
+              "en": "private key is invalid: {err}",
       }
 )
