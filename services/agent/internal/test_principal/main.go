@@ -62,10 +62,8 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 		errorf("%v environment variable is not set", ref.EnvAgentPath)
 	}
 	// A pristine agent has a single blessing "agent_principal" (from agentd/main.go).
-	if blessings := p.BlessingsInfo(p.BlessingStore().Default()); len(blessings) != 1 {
-		errorf("Got %d blessings, expected 1: %v", len(blessings), blessings)
-	} else if _, ok := blessings["agent_principal"]; !ok {
-		errorf("No agent_principal blessins, got %v", blessings)
+	if got, want := security.BlessingNames(p, p.BlessingStore().Default()), []string{"agent_principal"}; !reflect.DeepEqual(got, want) {
+		errorf("Got %v want %v", got, want)
 	}
 
 	// BlessSelf

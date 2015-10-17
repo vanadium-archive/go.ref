@@ -10,6 +10,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
+	"v.io/v23/security"
 )
 
 // Scan implements discovery.Scanner.
@@ -54,10 +55,7 @@ func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discove
 	principal := v23.GetPrincipal(ctx)
 	var names []string
 	if principal != nil {
-		blessings := principal.BlessingStore().Default()
-		for n, _ := range principal.BlessingsInfo(blessings) {
-			names = append(names, n)
-		}
+		names = security.BlessingNames(principal, principal.BlessingStore().Default())
 	}
 
 	// A plugin may returns a Lost event with clearing all attributes including encryption

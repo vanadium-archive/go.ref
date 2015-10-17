@@ -42,7 +42,6 @@ type Agent interface {
 	Sign(message []byte) (security.Signature | error)
 	MintDischarge(forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.WireDischarge | error)
 	PublicKey() ([]byte | error)
-	BlessingsInfo(blessings security.WireBlessings) (map[string][]security.Caveat | error)
 
 	BlessingStoreSet(blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings | error)
 	BlessingStoreForPeer(peerBlessings []string) (security.WireBlessings | error)

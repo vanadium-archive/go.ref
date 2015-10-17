@@ -676,8 +676,8 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 	// Put the names of the device manager's default blessings as patterns
 	// for the child, so that the child uses the right blessing when talking
 	// back to the device manager.
-	for n, _ := range dmPrincipal.BlessingsInfo(dmPrincipal.BlessingStore().Default()) {
-		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(n)); err != nil {
+	for _, pattern := range security.DefaultBlessingPatterns(dmPrincipal) {
+		if _, err := p.BlessingStore().Set(dmBlessings, pattern); err != nil {
 			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 		}
 	}
