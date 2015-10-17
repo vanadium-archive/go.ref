@@ -472,7 +472,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			flowConn.Close()
 			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
-		if err := m.cache.Insert(c); err != nil {
+		if err := m.cache.Insert(c, network, address); err != nil {
 			return nil, nil, flow.NewErrBadState(ctx, err)
 		}
 		// Now that c is in the cache we can explicitly unreserve.
@@ -485,7 +485,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 
 	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
 	// return a flow on that corresponding conn.
-	if proxyConn := c; remote.RoutingID() != proxyConn.RemoteEndpoint().RoutingID() {
+	if proxyConn := c; remote.RoutingID() != naming.NullRoutingID && remote.RoutingID() != proxyConn.RemoteEndpoint().RoutingID() {
 		var fh conn.FlowHandler
 		if m.ls != nil {
 			m.ls.mu.Lock()

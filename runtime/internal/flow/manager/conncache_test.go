@@ -31,7 +31,7 @@ func TestCache(t *testing.T) {
 		Blessings: []string{"A", "B", "C"},
 	}
 	conn := makeConnAndFlow(t, ctx, remote).c
-	if err := c.Insert(conn); err != nil {
+	if err := c.Insert(conn, remote.Protocol, remote.Address); err != nil {
 		t.Fatal(err)
 	}
 	// We should be able to find the conn in the cache.
@@ -106,7 +106,7 @@ func TestCache(t *testing.T) {
 	}(ch)
 
 	// We insert the other conn into the cache.
-	if err := c.Insert(otherConn); err != nil {
+	if err := c.Insert(otherConn, otherEP.Protocol, otherEP.Address); err != nil {
 		t.Fatal(err)
 	}
 	c.Unreserve(otherEP.Protocol, otherEP.Address, otherEP.Blessings)
@@ -117,7 +117,7 @@ func TestCache(t *testing.T) {
 
 	// Insert a duplicate conn to ensure that replaced conns still get closed.
 	dupConn := makeConnAndFlow(t, ctx, remote).c
-	if err := c.Insert(dupConn); err != nil {
+	if err := c.Insert(dupConn, remote.Protocol, remote.Address); err != nil {
 		t.Fatal(err)
 	}
 
@@ -147,7 +147,8 @@ func TestLRU(t *testing.T) {
 	c := NewConnCache()
 	conns := nConnAndFlows(t, ctx, 10)
 	for _, conn := range conns {
-		if err := c.Insert(conn.c); err != nil {
+		addr := conn.c.RemoteEndpoint().Addr()
+		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -178,7 +179,8 @@ func TestLRU(t *testing.T) {
 	c = NewConnCache()
 	conns = nConnAndFlows(t, ctx, 10)
 	for _, conn := range conns {
-		if err := c.Insert(conn.c); err != nil {
+		addr := conn.c.RemoteEndpoint().Addr()
+		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -212,7 +214,8 @@ func TestLRU(t *testing.T) {
 	c = NewConnCache()
 	conns = nConnAndFlows(t, ctx, 10)
 	for _, conn := range conns {
-		if err := c.Insert(conn.c); err != nil {
+		addr := conn.c.RemoteEndpoint().Addr()
+		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
 			t.Fatal(err)
 		}
 	}
