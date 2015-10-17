@@ -50,6 +50,7 @@ func (tc *typeCache) writer(c flow.ManagedConn) (write func(flow.Flow, context.C
 			tce.cancel = c
 			tce.enc = vom.NewTypeEncoder(f)
 			tce.dec = vom.NewTypeDecoder(f)
+			tce.dec.Start() // Stopped in collect()
 			close(tce.ready)
 		}
 	}
@@ -104,6 +105,7 @@ func (tc *typeCache) collect() {
 				if tce.cancel != nil {
 					tce.cancel()
 				}
+				tce.dec.Stop()
 				delete(tc.flows, conn)
 			}
 		}

@@ -28,9 +28,12 @@ import (
 
 const (
 	testpkg          = "v.io/v23/vom/testdata"
+	typespkg         = testpkg + "/types"
 	vomdataCanonical = testpkg + "/" + vomdataConfig
 	vomdataConfig    = "vomdata.vdl.config"
 )
+
+var versions = []vom.Version{vom.Version80, vom.Version81}
 
 var cmdGenerate = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runGenerate),
@@ -97,25 +100,28 @@ func runGenerate(env *cmdline.Env, args []string) error {
 	if !strings.HasSuffix(inName, ".vdl.config") {
 		return env.UsageErrorf(`vomdata file doesn't end in ".vdl.config": %s`, inName)
 	}
-	outName := inName[:len(inName)-len(".config")]
-	// Remove the generated file, so that it doesn't interfere with compiling the
-	// config.  Ignore errors since it might not exist yet.
-	if err := os.Remove(outName); err == nil {
-		fmt.Fprintf(debug, "Removed output file %v\n", outName)
-	}
 	config, err := compileConfig(debug, inName, compileEnv)
 	if err != nil {
 		return err
 	}
-	data, err := generate(config)
-	if err != nil {
-		return err
+	for _, version := range versions {
+		baseName := filepath.Base(inName)
+		outName := fmt.Sprintf("%s/data%x/%s", filepath.Dir(inName), version, baseName[:len(baseName)-len(".config")])
+		// Remove the generated file, so that it doesn't interfere with compiling the
+		// config.  Ignore errors since it might not exist yet.
+		if err := os.Remove(outName); err == nil {
+			fmt.Fprintf(debug, "Removed output file %v\n", outName)
+		}
+		data, err := generate(config, version)
+		if err != nil {
+			return err
+		}
+		if err := writeFile(data, outName); err != nil {
+			return err
+		}
+		debug.Reset() // Don't dump debugging information on success
+		fmt.Fprintf(env.Stdout, "Wrote output file %v\n", outName)
 	}
-	if err := writeFile(data, outName); err != nil {
-		return err
-	}
-	debug.Reset() // Don't dump debugging information on success
-	fmt.Fprintf(env.Stdout, "Wrote output file %v\n", outName)
 	return nil
 }
 
@@ -177,7 +183,7 @@ func compileConfig(debug io.Writer, inName string, env *compile.Env) (*vdl.Value
 	return config, err
 }
 
-func generate(config *vdl.Value) ([]byte, error) {
+func generate(config *vdl.Value, version vom.Version) ([]byte, error) {
 	// This config needs to have a specific struct format. See @testdata/vomtype.vdl.
 	// TODO(alexfandrianto): Instead of this, we should have separate generator
 	// functions that switch off of the vomdata config filename. That way, we can
@@ -190,26 +196,17 @@ func generate(config *vdl.Value) ([]byte, error) {
 // This file was auto-generated via "vomtest generate".
 // DO NOT UPDATE MANUALLY; read the comments in `+vomdataConfig+`.
 
-package testdata
-`)
+package data%x
+`, version)
 	imports := codegen.ImportsForValue(config, testpkg)
 	if len(imports) > 0 {
 		fmt.Fprintf(buf, "\n%s\n", vdlgen.Imports(imports))
 	}
+	typesPkgName := imports.LookupLocal(typespkg)
 	fmt.Fprintf(buf, `
-// TestCase represents an individual testcase for vom encoding and decoding.
-type TestCase struct {
-	Name       string // Name of the testcase
-	Value      any    // Value to test
-	TypeString string // The string representation of the Type
-	Hex        string // Hex pattern representing vom encoding
-	HexVersion string // Hex pattern representing vom encoding of Version
-	HexType    string // Hex pattern representing vom encoding of Type
-	HexValue   string // Hex pattern representing vom encoding of Value
-}
 
 // Tests contains the testcases to use to test vom encoding and decoding.
-const Tests = []TestCase {`)
+const Tests = []%s.TestCase {`, typesPkgName)
 	// The vom encode-decode test cases need to be of type []any.
 	encodeDecodeTests := config.StructField(0)
 	if got, want := encodeDecodeTests.Type(), vdl.ListType(vdl.AnyType); got != want {
@@ -224,7 +221,7 @@ const Tests = []TestCase {`)
 			value = value.Elem()
 		}
 		valstr := vdlgen.TypedConst(value, testpkg, imports)
-		hexversion, hextype, hexvalue, vomdump, err := toVomHex(value)
+		hexversion, hextype, hexvalue, vomdump, err := toVomHex(version, value)
 		if err != nil {
 			return nil, err
 		}
@@ -277,7 +274,7 @@ const CompatTests = map[string][]typeobject{`)
 // The values within a ConvertGroup can convert between themselves w/o error.
 // However, values in higher-indexed ConvertGroups will error when converting up
 // to the primary type of the lower-indexed ConvertGroups.
-const ConvertTests = map[string][]ConvertGroup{`)
+const ConvertTests = map[string][]%s.ConvertGroup{`, typesPkgName)
 	for _, testName := range vdl.SortValuesAsString(convertTests.Keys()) {
 		fmt.Fprintf(buf, `
 	%[1]q: {`, testName.RawString())
@@ -318,24 +315,27 @@ const ConvertTests = map[string][]ConvertGroup{`)
 	return buf.Bytes(), nil
 }
 
-func toVomHex(value *vdl.Value) (string, string, string, string, error) {
+func toVomHex(version vom.Version, value *vdl.Value) (string, string, string, string, error) {
 	var buf, typebuf bytes.Buffer
-	encoder := vom.NewEncoderWithTypeEncoder(&buf, vom.NewTypeEncoder(&typebuf))
+	encoder := vom.NewVersionedEncoderWithTypeEncoder(version, &buf, vom.NewVersionedTypeEncoder(version, &typebuf))
 	if err := encoder.Encode(value); err != nil {
 		return "", "", "", "", fmt.Errorf("vom.Encode(%v) failed: %v", value, err)
 	}
-	version, _ := buf.ReadByte() // Read the version byte.
+	versionByte, _ := buf.ReadByte() // Read the version byte.
 	if typebuf.Len() > 0 {
 		typebuf.ReadByte() // Remove the version byte.
 	}
-	vombytes := append(append([]byte{version}, typebuf.Bytes()...), buf.Bytes()...)
+	vombytes := append(append([]byte{versionByte}, typebuf.Bytes()...), buf.Bytes()...)
 	const pre = "\t// "
-	vomdump := pre + strings.Replace(vom.Dump(vombytes), "\n", "\n"+pre, -1)
+	var vomdump string
+	if version == 0x80 {
+		vomdump = pre + strings.Replace(vom.Dump(vombytes), "\n", "\n"+pre, -1)
+	}
 	if strings.HasSuffix(vomdump, "\n"+pre) {
 		vomdump = vomdump[:len(vomdump)-len("\n"+pre)]
 	}
 	// TODO(toddw): Add hex pattern bracketing for map and set.
-	return fmt.Sprintf("%x", version), fmt.Sprintf("%x", typebuf.Bytes()), fmt.Sprintf("%x", buf.Bytes()), vomdump, nil
+	return fmt.Sprintf("%x", versionByte), fmt.Sprintf("%x", typebuf.Bytes()), fmt.Sprintf("%x", buf.Bytes()), vomdump, nil
 }
 
 func writeFile(data []byte, outName string) error {

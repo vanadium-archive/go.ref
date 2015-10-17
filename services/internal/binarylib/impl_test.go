@@ -57,7 +57,7 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 		t.Fatalf("NewDispatcher failed: %v", err)
 	}
 	dontPublishName := ""
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, dontPublishName, dispatcher)
+	_, server, err := v23.WithNewDispatchingServer(ctx, dontPublishName, dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%q) failed: %v", dontPublishName, err)
 	}

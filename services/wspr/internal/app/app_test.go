@@ -431,6 +431,8 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 		ctx:                  ctx,
 	}
 	mock.typeDecoder = vom.NewTypeDecoder(mock.typeReader)
+	mock.typeDecoder.Start()
+	defer mock.typeDecoder.Stop()
 	rt, err := serveServer(ctx, mock, func(controller *Controller) {
 		mock.controller = controller
 	})

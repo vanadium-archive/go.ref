@@ -434,6 +434,14 @@ func (vc *VC) Close(reason error) error {
 	}
 
 	vc.loopWG.Wait()
+
+	// TODO(bprosnitz) Stop the type decoder
+	// We can't stop the type decoder here, because the VC is closed
+	// before all of the type are read.
+	// The type decoder goroutine should still stop, however, because it will get
+	// an EOF at the end of the stream.
+	// typeDec.(*vom.TypeDecoder).Stop()
+
 	return nil
 }
 
@@ -885,7 +893,9 @@ func (vc *VC) connectSystemFlows() error {
 		return verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForWireType, nil, err))
 	}
 	vc.dataCache.Insert(TypeEncoderKey{}, vom.NewTypeEncoder(conn))
-	vc.dataCache.Insert(TypeDecoderKey{}, vom.NewTypeDecoder(conn))
+	td := vom.NewTypeDecoder(conn)
+	td.Start()
+	vc.dataCache.Insert(TypeDecoderKey{}, td)
 
 	vc.mu.Lock()
 	rBlessings := vc.remoteBlessings
@@ -912,7 +922,9 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener, dischargeClient DischargeCli
 		return verror.New(errFailedToCreateFlowForWireType, nil, err)
 	}
 	vc.dataCache.Insert(TypeEncoderKey{}, vom.NewTypeEncoder(conn))
-	vc.dataCache.Insert(TypeDecoderKey{}, vom.NewTypeDecoder(conn))
+	td := vom.NewTypeDecoder(conn)
+	td.Start()
+	vc.dataCache.Insert(TypeDecoderKey{}, td)
 
 	vc.mu.Lock()
 	lBlessings := vc.localBlessings

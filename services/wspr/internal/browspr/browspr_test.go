@@ -251,8 +251,10 @@ found:
 	if err != nil {
 		t.Errorf("Failed to hex decode from %v: %v", data, err)
 	}
-
-	decoder := vom.NewDecoderWithTypeDecoder(bytes.NewBuffer(dataBytes), vom.NewTypeDecoder(typeReader))
+	td := vom.NewTypeDecoder(typeReader)
+	td.Start()
+	defer td.Stop()
+	decoder := vom.NewDecoderWithTypeDecoder(bytes.NewBuffer(dataBytes), td)
 	if err := decoder.Decode(&result); err != nil {
 		t.Errorf("Failed to vom decode args from %v: %v", data, err)
 	}

@@ -8,6 +8,8 @@ package vdlgen
 // TODO(toddw): Add tests
 
 import (
+	"strconv"
+
 	"v.io/x/ref/lib/vdl/codegen"
 )
 
@@ -22,7 +24,7 @@ func Imports(imports codegen.Imports) string {
 			if imp.Name != "" {
 				s += imp.Name + " "
 			}
-			s += imp.Path
+			s += strconv.Quote(imp.Path)
 		}
 		s += "\n)"
 	}
