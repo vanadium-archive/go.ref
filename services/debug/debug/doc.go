@@ -193,7 +193,7 @@ All the [passthru args] are passed to the pprof tool directly, e.g.
 $ debug pprof run a/b/c heap --text $ debug pprof run a/b/c profile -gv
 
 The debug pprof run flags are:
- -pprofcmd=v23 go tool pprof
+ -pprofcmd=jiri go tool pprof
    The pprof command to use.
 
 Debug pprof proxy
