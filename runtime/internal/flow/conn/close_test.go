@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
 
 	"v.io/v23"
@@ -15,20 +16,66 @@ import (
 	"v.io/v23/flow"
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
+	"v.io/x/ref/runtime/internal/flow/protocols/debug"
 	"v.io/x/ref/test/goroutines"
 )
+
+type conn struct {
+	flow.Conn
+	set *set
+}
+
+func (c *conn) Close() error {
+	c.set.remove(c.Conn)
+	return c.Conn.Close()
+}
+
+type set struct {
+	mu    sync.Mutex
+	conns map[flow.Conn]bool
+}
+
+func (w *set) add(c flow.Conn) flow.Conn {
+	w.mu.Lock()
+	w.conns[c] = true
+	w.mu.Unlock()
+	return &conn{c, w}
+}
+
+func (s *set) remove(c flow.Conn) {
+	s.mu.Lock()
+	delete(s.conns, c)
+	s.mu.Unlock()
+}
+
+func (s *set) closeAll() {
+	s.mu.Lock()
+	for c := range s.conns {
+		c.Close()
+	}
+	s.mu.Unlock()
+}
+
+func (s *set) open() int {
+	s.mu.Lock()
+	o := len(s.conns)
+	s.mu.Unlock()
+	return o
+}
 
 func TestRemoteDialerClose(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, ctx, nil, nil, false)
+	s := set{conns: map[flow.Conn]bool{}}
+	ctx = debug.WithFilter(ctx, s.add)
+	d, a := setupConns(t, "debug", "local/", ctx, ctx, nil, nil)
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
-	if !w.IsClosed() {
-		t.Errorf("The connection should be closed")
+	if s.open() != 0 {
+		t.Errorf("The connections should be closed")
 	}
 }
 
@@ -37,12 +84,14 @@ func TestRemoteAcceptorClose(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, ctx, nil, nil, false)
+	s := set{conns: map[flow.Conn]bool{}}
+	ctx = debug.WithFilter(ctx, s.add)
+	d, a := setupConns(t, "debug", "local/", ctx, ctx, nil, nil)
 	a.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-a.Closed()
 	<-d.Closed()
-	if !w.IsClosed() {
-		t.Errorf("The connection should be closed")
+	if s.open() != 0 {
+		t.Errorf("The connections should be closed")
 	}
 }
 
@@ -51,8 +100,10 @@ func TestUnderlyingConnectionClosed(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, w := setupConns(t, ctx, ctx, nil, nil, false)
-	w.Close()
+	s := set{conns: map[flow.Conn]bool{}}
+	ctx = debug.WithFilter(ctx, s.add)
+	d, a := setupConns(t, "debug", "local/", ctx, ctx, nil, nil)
+	s.closeAll()
 	<-a.Closed()
 	<-d.Closed()
 }
@@ -62,7 +113,7 @@ func TestDialAfterConnClose(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a, _ := setupConns(t, ctx, ctx, nil, nil, false)
+	d, a := setupConns(t, "local", "", ctx, ctx, nil, nil)
 
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
@@ -81,7 +132,7 @@ func TestReadWriteAfterConnClose(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	for _, dialerDials := range []bool{true, false} {
-		df, flows, cl := setupFlow(t, ctx, ctx, dialerDials)
+		df, flows, cl := setupFlow(t, "local", "", ctx, ctx, dialerDials)
 		if _, err := df.WriteMsg([]byte("hello")); err != nil {
 			t.Fatalf("write failed: %v", err)
 		}
@@ -117,7 +168,7 @@ func TestFlowCancelOnWrite(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	accept := make(chan flow.Flow, 1)
-	dc, ac, _ := setupConns(t, ctx, ctx, nil, accept, false)
+	dc, ac := setupConns(t, "local", "", ctx, ctx, nil, accept)
 	defer func() {
 		dc.Close(ctx, nil)
 		ac.Close(ctx, nil)
@@ -153,7 +204,7 @@ func TestFlowCancelOnRead(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	accept := make(chan flow.Flow, 1)
-	dc, ac, _ := setupConns(t, ctx, ctx, nil, accept, false)
+	dc, ac := setupConns(t, "local", "", ctx, ctx, nil, accept)
 	defer func() {
 		dc.Close(ctx, nil)
 		ac.Close(ctx, nil)

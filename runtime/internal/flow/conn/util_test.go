@@ -29,16 +29,10 @@ func (fh fh) HandleFlow(f flow.Flow) error {
 }
 
 func setupConns(t *testing.T,
+	network, address string,
 	dctx, actx *context.T,
-	dflows, aflows chan<- flow.Flow,
-	noencrypt bool) (dialed, accepted *Conn, _ *flowtest.Wire) {
-	var dmrw, amrw *flowtest.MRW
-	var w *flowtest.Wire
-	if noencrypt {
-		dmrw, amrw, w = flowtest.NewUnencryptedMRWPair(dctx)
-	} else {
-		dmrw, amrw, w = flowtest.NewMRWPair(dctx)
-	}
+	dflows, aflows chan<- flow.Flow) (dialed, accepted *Conn) {
+	dmrw, amrw := flowtest.Pipe(t, actx, network, address)
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
 	ridep, err := v23.NewEndpoint("@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@")
 	if err != nil {
@@ -76,18 +70,18 @@ func setupConns(t *testing.T,
 		}
 		ach <- a
 	}()
-	return <-dch, <-ach, w
+	return <-dch, <-ach
 }
 
-func setupFlow(t *testing.T, dctx, actx *context.T, dialFromDialer bool) (dialed flow.Flow, accepted <-chan flow.Flow, close func()) {
-	dfs, accepted, ac, dc := setupFlows(t, dctx, actx, dialFromDialer, 1, false)
+func setupFlow(t *testing.T, network, address string, dctx, actx *context.T, dialFromDialer bool) (dialed flow.Flow, accepted <-chan flow.Flow, close func()) {
+	dfs, accepted, ac, dc := setupFlows(t, network, address, dctx, actx, dialFromDialer, 1)
 	return dfs[0], accepted, func() { dc.Close(dctx, nil); ac.Close(dctx, nil) }
 }
 
-func setupFlows(t *testing.T, dctx, actx *context.T, dialFromDialer bool, n int, noencrypt bool) (dialed []flow.Flow, accepted <-chan flow.Flow, dc, ac *Conn) {
+func setupFlows(t *testing.T, network, address string, dctx, actx *context.T, dialFromDialer bool, n int) (dialed []flow.Flow, accepted <-chan flow.Flow, dc, ac *Conn) {
 	dialed = make([]flow.Flow, n)
 	dflows, aflows := make(chan flow.Flow, n), make(chan flow.Flow, n)
-	d, a, _ := setupConns(t, dctx, actx, dflows, aflows, noencrypt)
+	d, a := setupConns(t, network, address, dctx, actx, dflows, aflows)
 	if !dialFromDialer {
 		d, a = a, d
 		dctx, actx = actx, dctx

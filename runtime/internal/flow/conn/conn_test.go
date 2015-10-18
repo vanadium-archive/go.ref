@@ -71,7 +71,7 @@ func TestLargeWrite(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
 	ctx, shutdown := v23.Init()
-	df, flows, cl := setupFlow(t, ctx, ctx, true)
+	df, flows, cl := setupFlow(t, "local", "", ctx, ctx, true)
 	defer cl()
 	defer shutdown()
 
@@ -89,8 +89,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
 	ctx, shutdown := v23.Init()
-
-	dmrw, amrw, _ := flowtest.NewMRWPair(ctx)
+	dmrw, amrw := flowtest.Pipe(t, ctx, "local", "")
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
 	ep, err := v23.NewEndpoint("@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@")
 	if err != nil {

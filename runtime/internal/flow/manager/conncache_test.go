@@ -16,6 +16,7 @@ import (
 	"v.io/v23/rpc/version"
 	connpackage "v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
+	_ "v.io/x/ref/runtime/internal/flow/protocols/local"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
@@ -292,7 +293,7 @@ func nConnAndFlows(t *testing.T, ctx *context.T, n int) []connAndFlow {
 }
 
 func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFlow {
-	dmrw, amrw, _ := flowtest.NewMRWPair(ctx)
+	dmrw, amrw := flowtest.Pipe(t, ctx, "local", "")
 	dch := make(chan *connpackage.Conn)
 	ach := make(chan *connpackage.Conn)
 	lBlessings := v23.GetPrincipal(ctx).BlessingStore().Default()

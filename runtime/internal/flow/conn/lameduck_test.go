@@ -23,7 +23,7 @@ func TestLameDuck(t *testing.T) {
 	defer shutdown()
 
 	dflows, aflows := make(chan flow.Flow, 3), make(chan flow.Flow, 3)
-	dc, ac, _ := setupConns(t, ctx, ctx, dflows, aflows, false)
+	dc, ac := setupConns(t, "local", "", ctx, ctx, dflows, aflows)
 
 	go func() {
 		for {

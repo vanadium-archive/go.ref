@@ -16,7 +16,7 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	_ "v.io/x/ref/runtime/factories/fake"
-	"v.io/x/ref/runtime/internal/flow/flowtest"
+	"v.io/x/ref/runtime/internal/flow/protocols/debug"
 )
 
 func block(c *Conn, p int) chan struct{} {
@@ -38,10 +38,6 @@ func block(c *Conn, p int) chan struct{} {
 	}()
 	<-ready
 	return unblock
-}
-
-func forkForRead(conn *Conn) *flowtest.MRW {
-	return conn.mp.rw.(*flowtest.MRW).ForkForRead()
 }
 
 func waitFor(f func() bool) {
@@ -71,6 +67,30 @@ func waitForWriters(ctx *context.T, conn *Conn, num int) {
 	})
 }
 
+type readConn struct {
+	flow.Conn
+	ch  chan message.Message
+	ctx *context.T
+}
+
+func (r *readConn) ReadMsg() ([]byte, error) {
+	b, err := r.Conn.ReadMsg()
+	if len(b) > 0 {
+		m, _ := message.Read(r.ctx, b)
+		switch msg := m.(type) {
+		case *message.OpenFlow:
+			if msg.ID > 1 { // Ignore the blessings flow.
+				r.ch <- m
+			}
+		case *message.Data:
+			if msg.ID > 1 { // Ignore the blessings flow.
+				r.ch <- m
+			}
+		}
+	}
+	return b, err
+}
+
 func TestOrdering(t *testing.T) {
 	const nflows = 5
 	const nmessages = 5
@@ -78,10 +98,13 @@ func TestOrdering(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	flows, accept, dc, ac := setupFlows(t, ctx, ctx, true, nflows, true)
+	ch := make(chan message.Message, 100)
+	fctx := debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
+		return &readConn{c, ch, ctx}
+	})
+	flows, accept, dc, ac := setupFlows(t, "debug", "local/", ctx, fctx, true, nflows)
 
 	unblock := block(dc, 0)
-	fork := forkForRead(ac)
 	var wg sync.WaitGroup
 	wg.Add(2 * nflows)
 	defer wg.Wait()
@@ -116,37 +139,16 @@ func TestOrdering(t *testing.T) {
 	for i := 0; i < nmessages; i++ {
 		found := map[uint64]bool{}
 		for j := 0; j < nflows; j++ {
-			s, err := fork.ReadMsg()
-			if err != nil {
-				t.Fatal(err)
-			}
-			m, err := message.Read(ctx, s)
-			if err != nil {
-				t.Fatal(err)
-			}
+			m := <-ch
 			switch msg := m.(type) {
 			case *message.OpenFlow:
 				found[msg.ID] = true
 			case *message.Data:
 				found[msg.ID] = true
-			default:
-				t.Fatalf("Unexpected message %#v", m)
 			}
 		}
 		if len(found) != nflows {
 			t.Fatalf("Did not recieve a message from each flow in round %d: %v", i, found)
 		}
-	}
-	// expect the teardown message last
-	s, err := fork.ReadMsg()
-	if err != nil {
-		t.Fatal(err)
-	}
-	m, err := message.Read(ctx, s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := m.(*message.TearDown); !ok {
-		t.Errorf("expected teardown got %#v", m)
 	}
 }

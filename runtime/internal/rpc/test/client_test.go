@@ -6,6 +6,7 @@ package test
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -17,6 +18,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
+	fmessage "v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -28,6 +31,7 @@ import (
 	"v.io/x/ref/internal/logger"
 	lsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/runtime/internal/flow/protocols/debug"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	"v.io/x/ref/runtime/internal/rpc/stream/message"
@@ -52,6 +56,14 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
+	if seclevel == options.SecurityNone && ref.RPCTransitionState() >= ref.XServers {
+		ls := v23.GetListenSpec(ctx)
+		for i := range ls.Addrs {
+			ls.Addrs[i].Protocol, ls.Addrs[i].Address = debug.WrapAddress(
+				ls.Addrs[i].Protocol, ls.Addrs[i].Address)
+		}
+		ctx = v23.WithListenSpec(ctx, ls)
+	}
 	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
@@ -407,7 +419,7 @@ func simpleResolver(ctx *context.T, network, address string) (string, string, er
 
 func TestStartCallBadProtocol(t *testing.T) {
 	if ref.RPCTransitionState() >= ref.XServers {
-		t.Skip("This test needs to be fixed under the new protocol")
+		t.Skip("This version of the test only runs under the old rpc system.")
 	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
@@ -470,6 +482,64 @@ func TestStartCallBadProtocol(t *testing.T) {
 		t.Errorf("expected call to be nil")
 	}
 	logErr("insecure client", err)
+}
+
+type closeConn struct {
+	ctx *context.T
+	flow.Conn
+	closed chan struct{}
+}
+
+func (c *closeConn) ReadMsg() ([]byte, error) {
+	buf, err := c.Conn.ReadMsg()
+	if err == nil {
+		if m, err := fmessage.Read(c.ctx, buf); err == nil {
+			if _, ok := m.(*fmessage.Data); ok {
+				close(c.closed)
+				c.Conn.Close()
+				return nil, io.EOF
+			}
+		}
+	}
+	return buf, err
+}
+
+func TestStartCallBadProtocol_NewRPC(t *testing.T) {
+	if ref.RPCTransitionState() < ref.XServers {
+		t.Skip("This version of the test only runs under the new RPC system")
+	}
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	client := v23.GetClient(ctx)
+
+	logErr := func(msg string, err error) {
+		logErrors(t, msg, true, false, false, err)
+	}
+
+	ns := v23.GetNamespace(ctx)
+	// The following test will fail due to a broken connection.
+	// We need to run mount table and servers with no security to use
+	// the V23CloseAtMessage net.Conn mock.
+	_, shutdown = runMountTable(t, ctx, "nosec")
+	defer shutdown()
+	ns.SetRoots(debug.WrapName(ns.Roots()[0]))
+	ch := make(chan struct{})
+	nctx := debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
+		return &closeConn{ctx, c, ch}
+	})
+	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{})
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+		t.Errorf("wrong error: %s", verror.DebugString(err))
+	}
+	if call != nil {
+		t.Errorf("expected call to be nil")
+	}
+	logErr("broken connection", err)
+
+	// Make sure we failed because we really did close the connection
+	// with our filter
+	<-ch
 }
 
 func TestStartCallSecurity(t *testing.T) {

@@ -24,6 +24,7 @@ import (
 	"v.io/x/ref/runtime/internal/lib/xwebsocket"
 
 	// TODO(suharshs): Remove these once we switch to the flow protocols.
+	_ "v.io/x/ref/runtime/internal/flow/protocols/local"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/tcp"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/ws"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/wsh"

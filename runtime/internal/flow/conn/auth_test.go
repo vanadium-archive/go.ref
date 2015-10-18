@@ -112,7 +112,7 @@ func TestUnidirectional(t *testing.T) {
 	dctx := NewPrincipalWithTPCaveat(t, ctx, "dialer")
 	actx := NewPrincipalWithTPCaveat(t, ctx, "acceptor")
 	aflows := make(chan flow.Flow, 2)
-	dc, ac, _ := setupConns(t, dctx, actx, nil, aflows, false)
+	dc, ac := setupConns(t, "local", "", dctx, actx, nil, aflows)
 	defer dc.Close(dctx, nil)
 	defer ac.Close(actx, nil)
 
@@ -150,7 +150,7 @@ func TestBidirectional(t *testing.T) {
 	actx := NewPrincipalWithTPCaveat(t, ctx, "acceptor")
 	dflows := make(chan flow.Flow, 2)
 	aflows := make(chan flow.Flow, 2)
-	dc, ac, _ := setupConns(t, dctx, actx, dflows, aflows, false)
+	dc, ac := setupConns(t, "local", "", dctx, actx, dflows, aflows)
 	defer dc.Close(dctx, nil)
 	defer ac.Close(actx, nil)
 
