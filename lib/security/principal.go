@@ -44,7 +44,7 @@ func NewPrincipal() (security.Principal, error) {
 	if err != nil {
 		return nil, err
 	}
-	return security.CreatePrincipal(security.NewInMemoryECDSASigner(priv), newInMemoryBlessingStore(pub), newInMemoryBlessingRoots(), nil, nil)
+	return security.CreatePrincipal(security.NewInMemoryECDSASigner(priv), newInMemoryBlessingStore(pub), newInMemoryBlessingRoots())
 }
 
 // PrincipalStateSerializer is used to persist BlessingRoots/BlessingStore state for
@@ -73,9 +73,9 @@ func NewPrincipalStateSerializer(dir string) (*PrincipalStateSerializer, error) 
 // same serializers. Otherwise, the state (ie: BlessingStore, BlessingRoots) is kept in memory.
 func NewPrincipalFromSigner(signer security.Signer, state *PrincipalStateSerializer) (security.Principal, error) {
 	if state == nil {
-		return security.CreatePrincipal(signer, newInMemoryBlessingStore(signer.PublicKey()), newInMemoryBlessingRoots(), nil, nil)
+		return security.CreatePrincipal(signer, newInMemoryBlessingStore(signer.PublicKey()), newInMemoryBlessingRoots())
 	}
-	serializationSigner, err := security.CreatePrincipal(signer, nil, nil, nil, nil)
+	serializationSigner, err := security.CreatePrincipal(signer, nil, nil)
 	if err != nil {
 		return nil, verror.New(errCantCreateSigner, nil, err)
 	}
@@ -87,7 +87,7 @@ func NewPrincipalFromSigner(signer security.Signer, state *PrincipalStateSeriali
 	if err != nil {
 		return nil, verror.New(errCantLoadBlessingStore, nil, err)
 	}
-	return security.CreatePrincipal(signer, blessingStore, blessingRoots, nil, nil)
+	return security.CreatePrincipal(signer, blessingStore, blessingRoots)
 }
 
 // LoadPersistentPrincipal reads state for a principal (private key, BlessingRoots, BlessingStore)

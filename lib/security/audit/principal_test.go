@@ -202,8 +202,6 @@ func (p *mockPrincipal) MintDischarge(security.Caveat, security.Caveat, ...secur
 func (p *mockPrincipal) PublicKey() security.PublicKey               { return p.NextResult.(security.PublicKey) }
 func (p *mockPrincipal) Roots() security.BlessingRoots               { return nil }
 func (p *mockPrincipal) BlessingStore() security.BlessingStore       { return nil }
-func (p *mockPrincipal) Encrypter() security.BlessingsBasedEncrypter { return nil }
-func (p *mockPrincipal) Decrypter() security.BlessingsBasedDecrypter { return nil }
 
 type mockAuditor struct {
 	LastEntry audit.Entry
@@ -257,7 +255,7 @@ func newPrincipal(t *testing.T) security.Principal {
 		t.Fatal(err)
 	}
 	signer := security.NewInMemoryECDSASigner(key)
-	p, err := security.CreatePrincipal(signer, nil, nil, nil, nil)
+	p, err := security.CreatePrincipal(signer, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

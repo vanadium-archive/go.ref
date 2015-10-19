@@ -68,7 +68,7 @@ func newSigner() serialization.Signer {
 	if err != nil {
 		panic(err)
 	}
-	p, err := security.CreatePrincipal(security.NewInMemoryECDSASigner(key), nil, nil, nil, nil)
+	p, err := security.CreatePrincipal(security.NewInMemoryECDSASigner(key), nil, nil)
 	if err != nil {
 		panic(err)
 	}

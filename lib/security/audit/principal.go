@@ -75,15 +75,6 @@ func (p *auditingPrincipal) PublicKey() security.PublicKey         { return p.pr
 func (p *auditingPrincipal) Roots() security.BlessingRoots         { return p.principal.Roots() }
 func (p *auditingPrincipal) BlessingStore() security.BlessingStore { return p.principal.BlessingStore() }
 
-func (p *auditingPrincipal) Encrypter() security.BlessingsBasedEncrypter {
-	return p.principal.Encrypter()
-}
-
-// TODO(ataly): Return an auditing decrypter instead.
-func (p *auditingPrincipal) Decrypter() security.BlessingsBasedDecrypter {
-	return p.principal.Decrypter()
-}
-
 func (p *auditingPrincipal) audit(err error, method string, args args, result interface{}) error {
 	if err != nil {
 		return err

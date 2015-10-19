@@ -89,7 +89,7 @@ func TestBlessingsCache(t *testing.T) {
 	bc := NewBlessingsCache(notifier, onDemandGCPolicy)
 
 	// Blessings for the tests.
-	p, err := security.CreatePrincipal(newSigner(), nil, nil, nil, nil)
+	p, err := security.CreatePrincipal(newSigner(), nil, nil)
 	if err != nil {
 		t.Fatal("Failed to create principal: ", err)
 	}
