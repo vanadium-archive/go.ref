@@ -45,14 +45,14 @@ type manager struct {
 
 func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID) flow.Manager {
 	m := &manager{
-		rid:             rid,
-		closed:          make(chan struct{}),
-		cache:           NewConnCache(),
-		ctx:             ctx,
-		serverBlessings: serverBlessings,
-		serverNames:     security.BlessingNames(v23.GetPrincipal(ctx), serverBlessings),
+		rid:    rid,
+		closed: make(chan struct{}),
+		cache:  NewConnCache(),
+		ctx:    ctx,
 	}
 	if rid != naming.NullRoutingID {
+		m.serverBlessings = serverBlessings
+		m.serverNames = security.BlessingNames(v23.GetPrincipal(ctx), serverBlessings)
 		m.ls = &listenState{
 			q:         upcqueue.New(),
 			listeners: []flow.Listener{},
