@@ -62,6 +62,8 @@ The global flags are:
    write an execution trace to the named file after execution
  -test.v=false
    verbose: print additional output
+ -time=false
+   Dump timing information to stderr before exiting the program.
  -v=0
    log level for V logs
  -v23.credentials=

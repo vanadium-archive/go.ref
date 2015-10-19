@@ -53,6 +53,8 @@ The global flags are:
    Displays metadata for the program and exits.
  -stderrthreshold=2
    logs at or above this threshold go to stderr
+ -time=false
+   Dump timing information to stderr before exiting the program.
  -v=0
    log level for V logs
  -v23.credentials=

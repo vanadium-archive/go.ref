@@ -74,6 +74,8 @@ The global flags are:
    Path to the application to exec.
  -stderrthreshold=2
    logs at or above this threshold go to stderr
+ -time=false
+   Dump timing information to stderr before exiting the program.
  -username=
    The UNIX user name used for the other functions of this tool.
  -v=0
