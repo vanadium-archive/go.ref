@@ -229,7 +229,14 @@ func (s *syncService) discoverPeers(ctx *context.T) {
 
 	for !s.Closed() {
 		select {
-		case update := <-ch:
+		case update, ok := <-ch:
+			if s.Closed() {
+				break
+			}
+			if !ok {
+				vlog.VI(1).Info("sync: discoverPeers: scan cancelled, stop listening and exit")
+				return
+			}
 			switch u := update.(type) {
 			case discovery.UpdateFound:
 				svc := &u.Value.Service
