@@ -82,14 +82,14 @@ func (c *ConnCache) Unreserve(protocol, address string, blessingNames []string) 
 
 // Insert adds conn to the cache.
 // An error will be returned iff the cache has been closed.
-func (c *ConnCache) Insert(conn *conn.Conn) error {
+func (c *ConnCache) Insert(conn *conn.Conn, protocol, address string) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
 		return NewErrCacheClosed(nil)
 	}
 	ep := conn.RemoteEndpoint()
-	k := key(ep.Addr().Network(), ep.Addr().String(), ep.BlessingNames())
+	k := key(protocol, address, ep.BlessingNames())
 	entry := &connEntry{
 		conn:    conn,
 		rid:     ep.RoutingID(),
