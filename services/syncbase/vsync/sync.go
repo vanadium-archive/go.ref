@@ -37,10 +37,23 @@ import (
 
 // syncService contains the metadata for the sync module.
 type syncService struct {
-	// TODO(hpucha): see if "v.io/v23/uniqueid" is a better fit. It is 128 bits.
-	id       uint64 // globally unique id for this instance of Syncbase.
-	name     string // name derived from the global id.
-	sv       interfaces.Service
+	// TODO(hpucha): see if "v.io/v23/uniqueid" is a better fit. It is 128
+	// bits. Another alternative is to derive this from the blessing of
+	// Syncbase. Syncbase can append a uuid to the blessing it is given upon
+	// launch and use its hash as id. Note we cannot use public key since we
+	// want to support key rollover.
+	id   uint64 // globally unique id for this instance of Syncbase.
+	name string // name derived from the global id.
+	sv   interfaces.Service
+
+	// Root context to be used to create a context for advertising over
+	// neighborhood.
+	ctx *context.T
+
+	// Cancel function for a context derived from the root context when
+	// advertising over neighborhood. This is needed to stop advertising.
+	advCancel context.CancelFunc
+
 	nameLock sync.Mutex // lock needed to serialize adding and removing of Syncbase names.
 
 	// High-level lock to serialize the watcher and the initiator. This lock is
@@ -104,6 +117,9 @@ type syncService struct {
 
 	// Syncbase clock related variables.
 	vclock *clock.VClock
+
+	// Peer selector for picking a peer to sync with.
+	ps peerSelector
 }
 
 // syncDatabase contains the metadata for syncing a database. This struct is
@@ -147,6 +163,7 @@ func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngin
 		batches:        make(batchSet),
 		sgPublishQueue: list.New(),
 		vclock:         vclock,
+		ctx:            ctx,
 	}
 
 	data := &syncData{}
@@ -280,34 +297,73 @@ func (s *syncService) updateDiscoveryPeer(peerInstance string, service *discover
 // syncbased is restarted so that it can republish itself at the names being
 // used in the syncgroups.
 func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) error {
-	vlog.VI(2).Infof("sync: AddNames:: begin")
-	defer vlog.VI(2).Infof("sync: AddNames:: end")
+	vlog.VI(2).Infof("sync: AddNames: begin")
+	defer vlog.VI(2).Infof("sync: AddNames: end")
 
 	s := ss.(*syncService)
 	s.nameLock.Lock()
 	defer s.nameLock.Unlock()
 
 	mInfo := s.copyMemberInfo(ctx, s.name)
-	if mInfo == nil {
-		vlog.VI(2).Infof("sync: GetNames:: end returning no names")
+	if mInfo == nil || len(mInfo.mtTables) == 0 {
+		vlog.VI(2).Infof("sync: AddNames: end returning no names")
 		return nil
 	}
 
 	for mt := range mInfo.mtTables {
 		name := naming.Join(mt, s.name)
 		if err := svr.AddName(name); err != nil {
+			vlog.VI(2).Infof("sync: AddNames: end returning err %v", err)
 			return err
 		}
 	}
 
-	return nil
+	return s.publishInNeighborhood(svr)
+}
+
+// publishInNeighborhood checks if the Syncbase service is already being
+// advertised over the neighborhood. If not, it begins advertising. The caller
+// of the function is holding nameLock.
+func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
+	// Syncbase is already being advertised.
+	if s.advCancel != nil {
+		return nil
+	}
+
+	ctx, stop := context.WithCancel(s.ctx)
+
+	advertiser := v23.GetDiscovery(ctx)
+	if advertiser == nil {
+		vlog.Fatal("sync: publishInNeighborhood: discovery not initialized.")
+	}
+
+	// TODO(hpucha): For now we grab the current address of the server. This
+	// will be replaced by library support that will take care of roaming.
+	var eps []string
+	for _, ep := range svr.Status().Endpoints {
+		eps = append(eps, ep.Name())
+	}
+
+	sbService := discovery.Service{
+		InstanceUuid:  []byte(s.name),
+		InstanceName:  s.name,
+		InterfaceName: interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name,
+		Addrs:         eps,
+	}
+
+	// Duplicate calls to advertise will return an error.
+	err := advertiser.Advertise(ctx, sbService, nil)
+	if err == nil {
+		s.advCancel = stop
+	}
+	return err
 }
 
 // Close waits for spawned sync threads (watcher and initiator) to shut down,
 // and closes the local blob store handle.
 func Close(ss interfaces.SyncServerMethods) {
-	vlog.VI(2).Infof("sync: Close:: begin")
-	defer vlog.VI(2).Infof("sync: Close:: end")
+	vlog.VI(2).Infof("sync: Close: begin")
+	defer vlog.VI(2).Infof("sync: Close: end")
 
 	s := ss.(*syncService)
 	close(s.closed)

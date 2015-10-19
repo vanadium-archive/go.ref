@@ -1144,9 +1144,7 @@ func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall
 		}
 	}
 
-	// TODO(hpucha): Do we have to publish in neighborhood explicitly?
-
-	return nil
+	return ss.publishInNeighborhood(call.Server())
 }
 
 func (sd *syncDatabase) joinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.PrefixGenVector, error) {

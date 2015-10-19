@@ -72,31 +72,36 @@ func (s *syncService) GetTime(ctx *context.T, call rpc.ServerCall, req interface
 // syncClock syncs the syncbase clock with peer's syncbase clock.
 // TODO(jlodhia): Refactor the mount table entry search code based on the
 // unified solution for looking up peer once it exists.
-func (s *syncService) syncClock(ctx *context.T, peer string) {
-	vlog.VI(2).Infof("sync: syncClock: begin: contacting peer %s", peer)
-	defer vlog.VI(2).Infof("sync: syncClock: end: contacting peer %s", peer)
+func (s *syncService) syncClock(ctx *context.T, peer connInfo) error {
+	vlog.VI(2).Infof("sync: syncClock: begin: contacting peer %v", peer)
+	defer vlog.VI(2).Infof("sync: syncClock: end: contacting peer %v", peer)
 
-	info := s.copyMemberInfo(ctx, peer)
+	info := s.copyMemberInfo(ctx, peer.relName)
 	if info == nil {
-		vlog.Fatalf("sync: syncClock: missing information in member view for %q", peer)
+		vlog.Fatalf("sync: syncClock: missing information in member view for %v", peer)
 	}
 
-	// Preferred mount tables for this peer.
-	if len(info.mtTables) < 1 {
-		vlog.Errorf("sync: syncClock: no mount tables found to connect to peer %s", peer)
-		return
+	if len(info.mtTables) < 1 && peer.addr == "" {
+		vlog.Errorf("sync: syncClock: no mount tables or endpoint found to connect to peer %v", peer)
+		return verror.New(verror.ErrInternal, ctx, peer.relName, peer.addr, "no mount tables or endpoint found")
 	}
+
+	if peer.addr != "" {
+		vlog.VI(4).Infof("sync: syncClock: trying neighborhood addr for peer %v", peer)
+
+		absName := naming.Join(peer.addr, util.SyncbaseSuffix)
+		return syncWithPeer(ctx, s.vclock, absName, s.name)
+	}
+
 	for mt, _ := range info.mtTables {
-		absName := naming.Join(mt, peer, util.SyncbaseSuffix)
-		if err := syncWithPeer(ctx, s.vclock, absName, s.name); err == nil {
-			return
-		} else if (verror.ErrorID(err) == verror.ErrNoExist.ID) || (verror.ErrorID(err) == verror.ErrInternal.ID) {
-			vlog.Errorf("sync: syncClock: error returned by peer %s: %v", peer, err)
-			return
+		absName := naming.Join(mt, peer.relName, util.SyncbaseSuffix)
+		if err := syncWithPeer(ctx, s.vclock, absName, s.name); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+			return err
 		}
 	}
-	vlog.Errorf("sync: syncClock: couldn't connect to peer %s", peer)
-	return
+
+	vlog.Errorf("sync: syncClock: couldn't connect to peer %v", peer)
+	return verror.New(interfaces.ErrConnFail, ctx, peer.relName, peer.addr, "all mount tables failed")
 }
 
 // syncWithPeer tries to sync local clock with peer syncbase clock.
@@ -156,8 +161,11 @@ func syncWithPeer(ctx *context.T, vclock *clock.VClock, absPeerName string, myNa
 		if commitErr := tx.Commit(); commitErr != nil {
 			vlog.Errorf("sync: syncClock: error while commiting tx: %v", commitErr)
 		}
+	} else if (verror.ErrorID(reqErr) == verror.ErrNoExist.ID) || (verror.ErrorID(reqErr) == verror.ErrInternal.ID) {
+		vlog.Errorf("sync: syncClock: error returned by peer %s: %v", absPeerName, err)
 	} else {
-		vlog.Errorf("sync: syncClock: received error: %v", reqErr)
+		reqErr = verror.New(interfaces.ErrConnFail, ctx, myName)
+		vlog.Errorf("sync: syncClock: received network error: %v", reqErr)
 	}
 	// Return error received while making request if any to the caller.
 	return reqErr
