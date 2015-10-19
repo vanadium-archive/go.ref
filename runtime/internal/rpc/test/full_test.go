@@ -932,8 +932,7 @@ func TestReplayAttack(t *testing.T) {
 		(*crypto.BoxKey)(rpk))
 
 	// Read the auth message from the server.
-	var rAuth *message.Auth
-	for {
+	for auth := false; !auth; {
 		b, err = conn.ReadMsg()
 		if err != nil {
 			t.Fatal(err)
@@ -945,23 +944,26 @@ func TestReplayAttack(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if rAuth, ok = m.(*message.Auth); ok {
-			break
+		switch m.(type) {
+		case *message.Auth:
+			auth = true
+		case *message.Data:
+		default:
+			continue
 		}
-	}
+		if b, err = message.Append(ctx, m, nil); err != nil {
+			t.Fatal(err)
+		}
+		tmp := make([]byte, len(b)+cipher.MACSize())
+		copy(tmp, b)
+		b = tmp
+		if err = cipher.Seal(b); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = conn.WriteMsg(b); err != nil {
+			t.Fatal(err)
+		}
 
-	// Send the auth message back to the server.
-	if b, err = message.Append(ctx, rAuth, nil); err != nil {
-		t.Fatal(err)
-	}
-	tmp := make([]byte, len(b)+cipher.MACSize())
-	copy(tmp, b)
-	b = tmp
-	if err = cipher.Seal(b); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = conn.WriteMsg(b); err != nil {
-		t.Fatal(err)
 	}
 
 	// The server should send a tearDown message complaining about the channel binding.
