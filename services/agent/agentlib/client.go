@@ -9,24 +9,14 @@ package agentlib
 import (
 	"fmt"
 	"io"
-	"net"
-	"os"
-	"strconv"
 	"sync"
-	"syscall"
 
-	"v.io/v23/context"
-	"v.io/v23/naming"
-	"v.io/v23/options"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/v23/vtrace"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/cache"
 	"v.io/x/ref/services/agent/internal/ipc"
-	"v.io/x/ref/services/agent/internal/unixfd"
 )
 
 const pkgPath = "v.io/x/ref/services/agent/agentlib"
@@ -73,35 +63,6 @@ func (i *ipcCaller) FlushAllCaches() error {
 	return nil
 }
 
-type vrpcCaller struct {
-	ctx    *context.T
-	client rpc.Client
-	name   string
-	cancel func()
-}
-
-func (c *vrpcCaller) Close() error {
-	c.cancel()
-	return nil
-}
-
-func (c *vrpcCaller) call(name string, results []interface{}, args ...interface{}) error {
-	call, err := c.startCall(name, args...)
-	if err != nil {
-		return err
-	}
-	if err := call.Finish(results...); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *vrpcCaller) startCall(name string, args ...interface{}) (rpc.ClientCall, error) {
-	ctx, _ := vtrace.WithNewTrace(c.ctx)
-	// SecurityNone is safe here since we're using anonymous unix sockets.
-	return c.client.StartCall(ctx, c.name, name, args, options.SecurityNone, options.Preresolved{})
-}
-
 func results(inputs ...interface{}) []interface{} {
 	return inputs
 }
@@ -139,68 +100,6 @@ func NewAgentPrincipalX(path string) (agent.Principal, error) {
 	caller.flush = flush
 	caller.mu.Unlock()
 	return cached, nil
-}
-
-// NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.
-// 'endpoint' is the endpoint for connecting to the agent, typically obtained from
-// os.GetEnv(envvar.AgentEndpoint).
-// 'ctx' should not have a deadline, and should never be cancelled while the
-// principal is in use.
-func NewAgentPrincipal(ctx *context.T, endpoint naming.Endpoint, insecureClient rpc.Client) (security.Principal, error) {
-	p, err := newUncachedPrincipal(ctx, endpoint, insecureClient)
-	if err != nil {
-		return p, err
-	}
-	caller := p.caller.(*vrpcCaller)
-	call, callErr := caller.startCall("NotifyWhenChanged")
-	if callErr != nil {
-		return nil, callErr
-	}
-	return cache.NewCachedPrincipal(caller.ctx, p, call)
-}
-func newUncachedPrincipal(ctx *context.T, ep naming.Endpoint, insecureClient rpc.Client) (*client, error) {
-	// This isn't a real vanadium endpoint. It contains the vanadium version
-	// info, but the address is serving the agent protocol.
-	if ep.Addr().Network() != "" {
-		return nil, verror.New(errInvalidProtocol, ctx, ep.Addr().Network())
-	}
-	fd, err := strconv.Atoi(ep.Addr().String())
-	if err != nil {
-		return nil, err
-	}
-	syscall.ForkLock.Lock()
-	fd, err = syscall.Dup(fd)
-	if err == nil {
-		syscall.CloseOnExec(fd)
-	}
-	syscall.ForkLock.Unlock()
-	if err != nil {
-		return nil, err
-	}
-	f := os.NewFile(uintptr(fd), "agent_client")
-	defer f.Close()
-	conn, err := net.FileConn(f)
-	if err != nil {
-		return nil, err
-	}
-	// This is just an arbitrary 1 byte string. The value is ignored.
-	data := make([]byte, 1)
-	addr, err := unixfd.SendConnection(conn.(*net.UnixConn), data)
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	caller := &vrpcCaller{
-		client: insecureClient,
-		name:   naming.JoinAddressName(agentEndpoint("unixfd", addr.String()), ""),
-		ctx:    ctx,
-		cancel: cancel,
-	}
-	agent := &client{caller: caller}
-	if err := agent.fetchPublicKey(); err != nil {
-		return nil, err
-	}
-	return agent, nil
 }
 
 func (c *client) Close() error {
@@ -376,13 +275,3 @@ func (b *blessingRoots) DebugString() (s string) {
 	return
 }
 
-func agentEndpoint(proto, addr string) string {
-	// TODO: use naming.FormatEndpoint when it supports version 6.
-	return fmt.Sprintf("@6@%s@%s@@@s@@@", proto, addr)
-}
-
-func AgentEndpoint(fd int) string {
-	// We use an empty protocol here because this isn't really speaking
-	// veyron rpc.
-	return agentEndpoint("", fmt.Sprintf("%d", fd))
-}

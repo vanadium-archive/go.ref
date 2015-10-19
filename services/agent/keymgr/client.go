@@ -7,17 +7,10 @@
 package keymgr
 
 import (
-	"net"
-	"os"
-	"strconv"
-	"sync"
-
-	"v.io/v23/context"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/ipc"
 	"v.io/x/ref/services/agent/internal/server"
-	"v.io/x/ref/services/agent/internal/unixfd"
 )
 
 const pkgPath = "v.io/x/ref/services/agent/keymgr"
@@ -30,20 +23,8 @@ var (
 		verror.NoRetry, "{1:}{2:} Invalid key handle")
 )
 
-const defaultManagerSocket = 4
-
 type keyManager struct {
 	conn *ipc.IPCConn
-}
-
-type Agent struct {
-	conn *net.UnixConn // Guarded by mu
-	mu   sync.Mutex
-}
-
-// NewAgent returns a client connected to the agent on the default file descriptors.
-func NewAgent() (*Agent, error) {
-	return newAgent(defaultManagerSocket)
 }
 
 // NewKeyManager returns a client connected to the specified KeyManager.
@@ -61,76 +42,12 @@ func NewLocalAgent(path string, passphrase []byte) (agent.KeyManager, error) {
 	return server.NewLocalKeyManager(path, passphrase)
 }
 
-func newAgent(fd int) (a *Agent, err error) {
-	file := os.NewFile(uintptr(fd), "fd")
-	defer file.Close()
-	conn, err := net.FileConn(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Agent{conn: conn.(*net.UnixConn)}, nil
-}
-
-// TODO(caprita): Get rid of *context.T arg.  Doesn't seem to be used.
-
-// NewPrincipal creates a new principal and returns the handle and a socket serving
-// the principal.
-// Typically the socket will be passed to a child process using cmd.ExtraFiles.
-func (a *Agent) NewPrincipal(ctx *context.T, inMemory bool) (handle []byte, conn *os.File, err error) {
-	req := make([]byte, 1)
-	if inMemory {
-		req[0] = 1
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	conn, err = a.connect(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	buf := make([]byte, agent.PrincipalHandleByteSize)
-	n, err := a.conn.Read(buf)
-	if err != nil {
-		conn.Close()
-		return nil, nil, err
-	}
-	if n != agent.PrincipalHandleByteSize {
-		conn.Close()
-		return nil, nil, verror.New(errInvalidResponse, ctx, agent.PrincipalHandleByteSize, n)
-	}
-	return buf, conn, nil
-}
-
 // NewPrincipal creates a new principal and returns a handle.
 // The handle may be passed to ServePrincipal to start an agent serving the principal.
 func (m *keyManager) NewPrincipal(inMemory bool) (handle [agent.PrincipalHandleByteSize]byte, err error) {
 	args := []interface{}{inMemory}
 	err = m.conn.Call("NewPrincipal", args, &handle)
 	return
-}
-
-func (a *Agent) connect(req []byte) (*os.File, error) {
-	addr, err := unixfd.SendConnection(a.conn, req)
-	if err != nil {
-		return nil, err
-	}
-	fd, err := strconv.ParseInt(addr.String(), 10, 32)
-	if err != nil {
-		return nil, err
-	}
-	return os.NewFile(uintptr(fd), "client"), nil
-}
-
-// NewConnection creates a connection to an agent which exports a principal
-// previously created with NewPrincipal.
-// Typically this will be passed to a child process using cmd.ExtraFiles.
-func (a *Agent) NewConnection(handle []byte) (*os.File, error) {
-	if len(handle) != agent.PrincipalHandleByteSize {
-		return nil, verror.New(errInvalidKeyHandle, nil)
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.connect(handle)
 }
 
 // ServePrincipal creates a socket at socketPath and serves a principal

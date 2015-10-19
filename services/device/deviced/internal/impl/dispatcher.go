@@ -136,16 +136,6 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 				keyMgr: km,
 			}
 		}
-	} else if len(os.Getenv(ref.EnvAgentEndpoint)) > 0 {
-		// This code path is deprecated in favor of socket agent
-		// connection.
-		if keyMgrAgent, err := keymgr.NewAgent(); err != nil {
-			return nil, nil, verror.New(errNewAgentFailed, ctx, err)
-		} else {
-			d.internal.securityAgent = &securityAgentState{
-				keyMgrAgent: keyMgrAgent,
-			}
-		}
 	}
 	runner := &appRunner{
 		callback:       d.internal.callback,

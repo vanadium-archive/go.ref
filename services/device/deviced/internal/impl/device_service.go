@@ -277,7 +277,6 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 
 	var p security.Principal
-	var agentHandle []byte
 
 	switch sa := s.securityAgent; {
 	case sa != nil && sa.keyMgr != nil:
@@ -306,19 +305,6 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		if p, err = agentlib.NewAgentPrincipalX(sockPath); err != nil {
 			return verror.New(errors.ErrOperationFailed, ctx, "NewAgentPrincipalX failed", err)
 		}
-	case sa != nil && sa.keyMgrAgent != nil:
-		// This code path is deprecated in favor of the socket agent
-		// connection.
-		handle, conn, err := sa.keyMgrAgent.NewPrincipal(ctx, true)
-		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("NewPrincipal() failed %v", err))
-		}
-		agentHandle = handle
-		var cancel func()
-		if p, cancel, err = agentPrincipal(ctx, conn); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("agentPrincipal failed: %v", err))
-		}
-		defer cancel()
 	default:
 		credentialsDir := filepath.Join(workspace, "credentials")
 		var err error
@@ -337,23 +323,6 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	}
 	if err := security.AddToRoots(p, dmBlessings); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
-	}
-
-	if s.securityAgent != nil && s.securityAgent.keyMgrAgent != nil {
-		// This code path is deprecated in favor of the socket agent
-		// connection.
-		file, err := s.securityAgent.keyMgrAgent.NewConnection(agentHandle)
-		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("NewConnection(%v) failed: %v", agentHandle, err))
-		}
-		defer file.Close()
-
-		fd := len(cmd.ExtraFiles) + vexec.FileOffset
-		cmd.ExtraFiles = append(cmd.ExtraFiles, file)
-		// TODO: This should use the same network as the agent we're using,
-		// not whatever this process was compiled with.
-		ep := agentlib.AgentEndpoint(fd)
-		cfg.Set(mgmt.SecurityAgentEndpointConfigKey, ep)
 	}
 
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: cfg})
