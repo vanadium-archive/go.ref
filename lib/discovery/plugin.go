@@ -5,8 +5,6 @@
 package discovery
 
 import (
-	"github.com/pborman/uuid"
-
 	"v.io/v23/context"
 )
 
@@ -24,5 +22,5 @@ type Plugin interface {
 	// deadline. done should be called once when scanning is done or canceled.
 	//
 	// TODO(jhahn): Pass a filter on service attributes.
-	Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- Advertisement, done func()) error
+	Scan(ctx *context.T, serviceUuid Uuid, ch chan<- Advertisement, done func()) error
 }

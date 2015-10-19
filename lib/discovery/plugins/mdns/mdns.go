@@ -72,10 +72,10 @@ type subscription struct {
 }
 
 func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done func()) (err error) {
-	serviceName := ad.ServiceUuid.String() + serviceNameSuffix
+	serviceName := uuid.UUID(ad.ServiceUuid).String() + serviceNameSuffix
 	// We use the instance uuid as the host name so that we can get the instance uuid
 	// from the lost service instance, which has no txt records at all.
-	hostName := encodeInstanceUuid(ad.InstanceUuid)
+	hostName := encodeInstanceUuid(ad.Service.InstanceUuid)
 	txt, err := createTxtRecords(&ad)
 	if err != nil {
 		done()
@@ -104,12 +104,12 @@ func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done fun
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- idiscovery.Advertisement, done func()) error {
+func (p *plugin) Scan(ctx *context.T, serviceUuid idiscovery.Uuid, ch chan<- idiscovery.Advertisement, done func()) error {
 	var serviceName string
 	if len(serviceUuid) == 0 {
 		serviceName = v23ServiceName
 	} else {
-		serviceName = serviceUuid.String() + serviceNameSuffix
+		serviceName = uuid.UUID(serviceUuid).String() + serviceNameSuffix
 	}
 
 	go func() {
@@ -189,19 +189,19 @@ func (p *plugin) refreshSubscription(serviceName string) {
 
 func createTxtRecords(ad *idiscovery.Advertisement) ([]string, error) {
 	// Prepare a txt record with attributes and addresses to announce.
-	txt := appendTxtRecord(nil, attrInterface, ad.InterfaceName)
-	if len(ad.InstanceName) > 0 {
-		txt = appendTxtRecord(txt, attrName, ad.InstanceName)
+	txt := appendTxtRecord(nil, attrInterface, ad.Service.InterfaceName)
+	if len(ad.Service.InstanceName) > 0 {
+		txt = appendTxtRecord(txt, attrName, ad.Service.InstanceName)
 	}
-	if len(ad.Addrs) > 0 {
-		addrs := idiscovery.PackAddresses(ad.Addrs)
+	if len(ad.Service.Addrs) > 0 {
+		addrs := idiscovery.PackAddresses(ad.Service.Addrs)
 		txt = appendTxtRecord(txt, attrAddrs, string(addrs))
 	}
 	if ad.EncryptionAlgorithm != idiscovery.NoEncryption {
 		enc := idiscovery.PackEncryptionKeys(ad.EncryptionAlgorithm, ad.EncryptionKeys)
 		txt = appendTxtRecord(txt, attrEncryption, string(enc))
 	}
-	for k, v := range ad.Attrs {
+	for k, v := range ad.Service.Attrs {
 		txt = appendTxtRecord(txt, k, v)
 	}
 	txt, err := maybeSplitLargeTXT(txt)
@@ -245,7 +245,7 @@ func createAdvertisement(service mdns.ServiceInstance) (idiscovery.Advertisement
 		return ad, nil
 	}
 
-	ad.Attrs = make(discovery.Attributes)
+	ad.Service.Attrs = make(discovery.Attributes)
 	for _, rr := range service.TxtRRs {
 		txt, err := maybeJoinLargeTXT(rr.Txt)
 		if err != nil {
@@ -259,11 +259,11 @@ func createAdvertisement(service mdns.ServiceInstance) (idiscovery.Advertisement
 			}
 			switch k, v := p[0], p[1]; k {
 			case attrName:
-				ad.InstanceName = v
+				ad.Service.InstanceName = v
 			case attrInterface:
-				ad.InterfaceName = v
+				ad.Service.InterfaceName = v
 			case attrAddrs:
-				if ad.Addrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
+				if ad.Service.Addrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
 					return idiscovery.Advertisement{}, err
 				}
 			case attrEncryption:
@@ -271,7 +271,7 @@ func createAdvertisement(service mdns.ServiceInstance) (idiscovery.Advertisement
 					return idiscovery.Advertisement{}, err
 				}
 			default:
-				ad.Attrs[k] = v
+				ad.Service.Attrs[k] = v
 			}
 		}
 	}

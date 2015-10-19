@@ -8,36 +8,23 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/pborman/uuid"
-
-	vdiscovery "v.io/v23/discovery"
-
-	"v.io/x/ref/lib/discovery"
+	"v.io/x/ref/lib/discovery/plugins/ble/testdata"
 )
 
 func TestConvertingBackAndForth(t *testing.T) {
-	v23Adv := discovery.Advertisement{
-		Service: vdiscovery.Service{
-			InstanceUuid: []byte(discovery.NewInstanceUUID()),
-			InstanceName: "service",
-			Attrs: vdiscovery.Attributes{
-				"key1": "value1",
-				"key2": "value2",
-			},
-			Addrs: []string{"localhost:1000", "example.com:540"},
-		},
-		ServiceUuid:         uuid.NewUUID(),
-		EncryptionAlgorithm: discovery.TestEncryption,
-		EncryptionKeys:      []discovery.EncryptionKey{discovery.EncryptionKey("k")},
-	}
+	for _, test := range testdata.ConversionTestData {
+		v23Adv := test.VAdvertisement
+		adv := newAdvertisment(v23Adv)
+		if !reflect.DeepEqual(adv.attrs, test.BleAdvertisement) {
+			t.Errorf("wanted: %v, got %v", test.BleAdvertisement, adv.attrs)
+		}
+		out, err := adv.toDiscoveryAdvertisement()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
 
-	adv := newAdvertisment(v23Adv)
-	out, err := adv.toDiscoveryAdvertisement()
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	if !reflect.DeepEqual(&v23Adv, out) {
-		t.Errorf("input does not equal output: %v, %v", v23Adv, out)
+		if !reflect.DeepEqual(&v23Adv, out) {
+			t.Errorf("input does not equal output: %v, %v", v23Adv, out)
+		}
 	}
 }

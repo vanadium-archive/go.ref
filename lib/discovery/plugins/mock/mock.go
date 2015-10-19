@@ -39,7 +39,7 @@ func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func
 		p.mu.Lock()
 		ads := p.services[key]
 		for i, a := range ads {
-			if uuid.Equal(a.InstanceUuid, ad.InstanceUuid) {
+			if uuid.Equal(uuid.UUID(a.Service.InstanceUuid), uuid.UUID(ad.Service.InstanceUuid)) {
 				ads = append(ads[:i], ads[i+1:]...)
 				break
 			}
@@ -56,7 +56,7 @@ func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- discovery.Advertisement, done func()) error {
+func (p *plugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, ch chan<- discovery.Advertisement, done func()) error {
 	rescan := make(chan struct{})
 	go func() {
 		var updateSeqSeen int
@@ -87,7 +87,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid uuid.UUID, ch chan<- discovery
 					continue
 				}
 				for _, ad := range ads {
-					current[string(ad.InstanceUuid)] = ad
+					current[string(ad.Service.InstanceUuid)] = ad
 				}
 			}
 			p.mu.Unlock()

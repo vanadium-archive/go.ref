@@ -42,7 +42,7 @@ func (ds *ds) Advertise(ctx *context.T, service discovery.Service, visibility []
 		return err
 	}
 
-	adId := string(ad.InstanceUuid)
+	adId := string(ad.Service.InstanceUuid)
 	ctx, cancel, err := ds.addTask(ctx, adId)
 	if err != nil {
 		return err

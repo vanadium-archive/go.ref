@@ -160,17 +160,17 @@ func (b *bleNeighborhood) removeService(id []byte) {
 	b.device.SetServices(v)
 }
 
-func (b *bleNeighborhood) addScanner(uuid uuid.UUID) (chan *discovery.Advertisement, int64) {
+func (b *bleNeighborhood) addScanner(uid discovery.Uuid) (chan *discovery.Advertisement, int64) {
 	ch := make(chan *discovery.Advertisement)
 	s := &scanner{
-		uuid: uuid,
+		uuid: uuid.UUID(uid),
 		ch:   ch,
 	}
 	b.mu.Lock()
 	id := b.nextScanId
 	b.nextScanId++
 	b.scannersById[id] = s
-	key := uuid.String()
+	key := uuid.UUID(uid).String()
 	m, found := b.scannersByService[key]
 	if !found {
 		m = map[int64]*scanner{}
@@ -206,9 +206,15 @@ func (b *bleNeighborhood) advertiseAndScan() {
 		return
 	default:
 	}
+
 	b.device.Advertise(b.computeAdvertisement())
+	b.mu.Lock()
+	hasScanner := len(b.scannersById) > 0
+	b.mu.Unlock()
 	// TODO(bjornick): Don't scan unless there is a scanner running.
-	b.device.Scan([]gatt.UUID{}, true)
+	if hasScanner {
+		b.device.Scan([]gatt.UUID{}, true)
+	}
 }
 
 // seenHash returns whether or not we have seen the hash <h> before.
@@ -333,7 +339,7 @@ func (b *bleNeighborhood) getAllServices(p gatt.Peripheral) {
 		services[uid.String()] = &bleAdv{
 			serviceUUID: uid,
 			attrs:       charMap,
-			instanceID:  charMap[strings.Replace(instanceUUID, "-", "", -1)],
+			instanceID:  charMap[strings.Replace(InstanceUUID, "-", "", -1)],
 		}
 	}
 	b.saveDevice(h, p.ID(), services)
@@ -466,6 +472,7 @@ func (b *bleNeighborhood) computeAdvertisement() *gatt.AdvPacket {
 		w(k)
 	}
 	adv := &gatt.AdvPacket{}
+	adv.AppendFlags(0x06)
 	adv.AppendManufacturerData(manufacturerId, hasher.Sum(nil))
 	adv.AppendName(b.name)
 	return adv

@@ -7,8 +7,6 @@ package discovery
 import (
 	"sync"
 
-	"github.com/pborman/uuid"
-
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 	"v.io/v23/verror"
@@ -16,33 +14,6 @@ import (
 
 const pkgPath = "v.io/x/ref/runtime/internal/discovery"
 
-// Advertisement holds a set of service properties to advertise.
-type Advertisement struct {
-	discovery.Service
-
-	// The service UUID to advertise.
-	ServiceUuid uuid.UUID
-
-	// Type of encryption applied to the advertisement so that it can
-	// only be decoded by authorized principals.
-	EncryptionAlgorithm EncryptionAlgorithm
-	// If the advertisement is encrypted, then the data required to
-	// decrypt it. The format of this data is a function of the algorithm.
-	EncryptionKeys []EncryptionKey
-
-	// TODO(jhahn): Add proximity.
-	// TODO(jhahn): Use proximity for Lost.
-	Lost bool
-}
-
-type EncryptionAlgorithm int
-type EncryptionKey []byte
-
-const (
-	NoEncryption   EncryptionAlgorithm = 0
-	TestEncryption EncryptionAlgorithm = 1
-	IbeEncryption  EncryptionAlgorithm = 2
-)
 
 var (
 	errClosed                 = verror.Register(pkgPath+".errClosed", verror.NoRetry, "{1:}{2:} closed")
