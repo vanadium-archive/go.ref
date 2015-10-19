@@ -424,7 +424,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		return svc, nil, cleanup
 	}
 
-	c, err := newInitiationConfig(nil, s, "b", gdb, info, set.String.ToSlice(info.mtTables))
+	c, err := newInitiationConfig(nil, s, connInfo{relName: "b"}, gdb, info, set.String.ToSlice(info.mtTables))
 	if err != nil {
 		t.Fatalf("newInitiationConfig failed with err %v", err)
 	}
