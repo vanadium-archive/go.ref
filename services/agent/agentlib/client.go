@@ -257,16 +257,6 @@ func (c *client) Roots() security.BlessingRoots {
 	return &blessingRoots{c.caller}
 }
 
-// TODO(ataly): Implement this method.
-func (c *client) Encrypter() security.BlessingsBasedEncrypter {
-	return nil
-}
-
-// TODO(ataly): Implement this method.
-func (c *client) Decrypter() security.BlessingsBasedDecrypter {
-	return nil
-}
-
 type blessingStore struct {
 	caller caller
 	key    security.PublicKey
