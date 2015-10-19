@@ -5,8 +5,6 @@
 package discovery
 
 import (
-	"github.com/pborman/uuid"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
@@ -16,7 +14,7 @@ import (
 // Scan implements discovery.Scanner.
 func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error) {
 	// TODO(jhann): Implement a simple query processor.
-	var serviceUuid uuid.UUID
+	var serviceUuid Uuid
 	if len(query) > 0 {
 		serviceUuid = NewServiceUUID(query)
 	}
@@ -74,11 +72,11 @@ func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discove
 			}
 			// TODO(jhahn): Merge scanData based on InstanceUuid.
 			var update discovery.Update
-			id := string(ad.InstanceUuid)
+			id := string(ad.Service.InstanceUuid)
 			if ad.Lost {
 				if _, ok := found[id]; ok {
 					delete(found, id)
-					update = discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.InstanceUuid}}
+					update = discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.Service.InstanceUuid}}
 				}
 			} else {
 				found[id] = struct{}{}

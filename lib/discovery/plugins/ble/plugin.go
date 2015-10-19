@@ -10,8 +10,6 @@ package ble
 import (
 	"v.io/v23/context"
 	"v.io/x/ref/lib/discovery"
-
-	"github.com/pborman/uuid"
 )
 
 type blePlugin struct {
@@ -22,14 +20,14 @@ type blePlugin struct {
 func (b *blePlugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func()) error {
 	b.b.addAdvertisement(newAdvertisment(ad))
 	stop := func() {
-		b.b.removeService(ad.InstanceUuid)
+		b.b.removeService(ad.Service.InstanceUuid)
 		done()
 	}
 	b.trigger.Add(stop, ctx.Done())
 	return nil
 }
 
-func (b *blePlugin) Scan(ctx *context.T, serviceUuid uuid.UUID, scan chan<- discovery.Advertisement, done func()) error {
+func (b *blePlugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, scan chan<- discovery.Advertisement, done func()) error {
 	ch, id := b.b.addScanner(serviceUuid)
 	drain := func() {
 		for range ch {

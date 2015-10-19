@@ -18,14 +18,14 @@ var (
 )
 
 // NewServiceUUID returns a version 5 UUID for the given interface name.
-func NewServiceUUID(interfaceName string) uuid.UUID {
-	return uuid.NewSHA1(v23UUID, []byte(interfaceName))
+func NewServiceUUID(interfaceName string) Uuid {
+	return Uuid(uuid.NewSHA1(v23UUID, []byte(interfaceName)))
 }
 
 // NewInstanceUUID returns a version 4 (random) UUID. Mostly used for
 // uniquely identifying the discovery service instance.
-func NewInstanceUUID() uuid.UUID {
-	return uuid.NewRandom()
+func NewInstanceUUID() Uuid {
+	return Uuid(uuid.NewRandom())
 }
 
 // NewAttributeUUID returns a version 5 UUID for the given key.

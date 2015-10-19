@@ -1,0 +1,66 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This files contains testdata for v.io/x/ref/lib/discovery/encoding_test.go.  The
+// testdata is in a vdl file so that we can make sure the encoding implementations in
+// all the languages produce the same byte output.
+
+package testdata
+
+import (
+	"v.io/x/ref/lib/discovery"
+)
+
+// PackAddressTest represents a test case for PackAddress.
+type PackAddressTest struct {
+	// In is the addresses to pack.
+	In []string
+	// Packed is the expected packed output.
+	Packed []byte
+}
+
+const PackAddressTestData = []PackAddressTest{
+	PackAddressTest{
+		In:     []string{"a12345"},
+		Packed: []byte{6, 97, 49, 50, 51, 52, 53},
+	},
+	PackAddressTest{
+		In:     []string{"a1234", "b5678", "c9012"},
+		Packed: []byte{5, 97, 49, 50, 51, 52, 5, 98, 53, 54, 55, 56, 5, 99, 57, 48, 49, 50},
+	},
+	// An empty input should create an empty output.
+	PackAddressTest{},
+}
+
+// PackEncryptionKeysTest represents a test case for PackEncryptionKeys
+type PackEncryptionKeysTest struct {
+	// Algo is the algorithm that's in use.
+	// but that isn't defined in vdl yet.
+	Algo discovery.EncryptionAlgorithm
+	// Keys are the encryption keys.
+	// but that isn't defined in vdl yet.
+	Keys []discovery.EncryptionKey
+	// Packed is the expected output bytes.
+	Packed []byte
+}
+
+const PackEncryptionKeysTestData = []PackEncryptionKeysTest{
+	PackEncryptionKeysTest{
+		Algo:   1,
+		Keys:   []discovery.EncryptionKey{discovery.EncryptionKey("0123456789")},
+		Packed: []byte{1, 10, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57},
+	},
+	PackEncryptionKeysTest{
+		Algo:   2,
+		Keys:   []discovery.EncryptionKey{
+			discovery.EncryptionKey("012345"),
+			discovery.EncryptionKey("123456"),
+			discovery.EncryptionKey("234567"),
+		},
+		Packed: []byte{2, 6, 48, 49, 50, 51, 52, 53, 6, 49, 50, 51, 52, 53, 54, 6, 50, 51, 52, 53, 54, 55},
+	},
+	PackEncryptionKeysTest{
+		Packed: []byte{0},
+	},
+}

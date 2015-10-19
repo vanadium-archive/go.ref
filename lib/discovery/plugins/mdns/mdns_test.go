@@ -70,7 +70,7 @@ func advertise(ctx *context.T, p idiscovery.Plugin, service discovery.Service) (
 func startScan(ctx *context.T, p idiscovery.Plugin, interfaceName string) (<-chan idiscovery.Advertisement, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
 	scan := make(chan idiscovery.Advertisement)
-	var serviceUuid uuid.UUID
+	var serviceUuid idiscovery.Uuid
 	if len(interfaceName) > 0 {
 		serviceUuid = idiscovery.NewServiceUUID(interfaceName)
 	}
@@ -108,7 +108,7 @@ func match(ads []idiscovery.Advertisement, lost bool, wants ...discovery.Service
 	for _, want := range wants {
 		matched := false
 		for i, ad := range ads {
-			if !uuid.Equal(ad.InstanceUuid, want.InstanceUuid) {
+			if !uuid.Equal(ad.Service.InstanceUuid, want.InstanceUuid) {
 				continue
 			}
 			if lost {

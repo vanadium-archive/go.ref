@@ -9,31 +9,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"strings"
-
-	"v.io/v23/discovery"
 )
-
-// validateAttributes returns an error if the attributes are not suitable for advertising.
-func validateAttributes(attrs discovery.Attributes) error {
-	for k, _ := range attrs {
-		if len(k) == 0 {
-			return errors.New("empty key")
-		}
-		if strings.HasPrefix(k, "_") {
-			return errors.New("key starts with '_'")
-		}
-		for _, c := range k {
-			if c < 0x20 || c > 0x7e {
-				return errors.New("key is not printable US-ASCII")
-			}
-			if c == '=' {
-				return errors.New("key includes '='")
-			}
-		}
-	}
-	return nil
-}
 
 // PackAddresses packs addresses into a byte slice.
 func PackAddresses(addrs []string) []byte {

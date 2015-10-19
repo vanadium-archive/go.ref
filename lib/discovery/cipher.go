@@ -40,13 +40,13 @@ func encrypt(ad *Advertisement, patterns []security.BlessingPattern) error {
 	// We only encrypt addresses for now.
 	//
 	// TODO(jhahn): Revisit the scope of encryption.
-	encrypted := make([]string, len(ad.Addrs))
-	for i, addr := range ad.Addrs {
+	encrypted := make([]string, len(ad.Service.Addrs))
+	for i, addr := range ad.Service.Addrs {
 		var n [24]byte
 		binary.LittleEndian.PutUint64(n[:], uint64(i))
 		encrypted[i] = string(secretbox.Seal(nil, []byte(addr), &n, sharedKey))
 	}
-	ad.Addrs = encrypted
+	ad.Service.Addrs = encrypted
 	return nil
 }
 
@@ -77,8 +77,8 @@ func decrypt(ad *Advertisement, names []string) error {
 	// Note that we should not modify the slice element directly here since the
 	// underlying plugins may cache services and the next plugin.Scan() may return
 	// the already decrypted addresses.
-	decrypted := make([]string, len(ad.Addrs))
-	for i, encrypted := range ad.Addrs {
+	decrypted := make([]string, len(ad.Service.Addrs))
+	for i, encrypted := range ad.Service.Addrs {
 		var n [24]byte
 		binary.LittleEndian.PutUint64(n[:], uint64(i))
 		addr, ok := secretbox.Open(nil, []byte(encrypted), &n, sharedKey)
@@ -87,7 +87,7 @@ func decrypt(ad *Advertisement, names []string) error {
 		}
 		decrypted[i] = string(addr)
 	}
-	ad.Addrs = decrypted
+	ad.Service.Addrs = decrypted
 	return nil
 }
 
