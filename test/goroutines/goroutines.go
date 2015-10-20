@@ -45,11 +45,11 @@ func Get() ([]*Goroutine, error) {
 		bufsize *= 2
 		buf = make([]byte, bufsize)
 	}
-	return Parse(buf)
+	return Parse(buf, true)
 }
 
 // Parse parses a stack trace into a structure representation.
-func Parse(buf []byte) ([]*Goroutine, error) {
+func Parse(buf []byte, ignore bool) ([]*Goroutine, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(buf))
 	var out []*Goroutine
 	for scanner.Scan() {
@@ -60,7 +60,7 @@ func Parse(buf []byte) ([]*Goroutine, error) {
 		if err != nil {
 			return out, fmt.Errorf("Error %v parsing trace:\n%s", err, string(buf))
 		}
-		if !shouldIgnore(g) {
+		if !ignore || !shouldIgnore(g) {
 			out = append(out, g)
 		}
 	}

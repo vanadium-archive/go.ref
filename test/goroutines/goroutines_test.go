@@ -107,7 +107,7 @@ func TestFormat(t *testing.T) {
 	buf = buf[:runtime.Stack(buf, true)]
 	close(wait)
 
-	gs, err := Parse(buf)
+	gs, err := Parse(buf, false)
 	if err != nil {
 		t.Fatal(err)
 	}
