@@ -154,7 +154,6 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
-	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/packages"
@@ -211,9 +210,6 @@ func loadInstanceInfo(ctx *context.T, dir string) (*instanceInfo, error) {
 type securityAgentState struct {
 	// Security agent key manager client.
 	keyMgr agent.KeyManager
-	// Deprecated: security agent key manager client based on pipe
-	// connections.
-	keyMgrAgent *keymgr.Agent
 }
 
 // appRunner is the subset of the appService object needed to
@@ -540,35 +536,6 @@ func installationDirCore(components []string, root string) (string, error) {
 	return installationDir, nil
 }
 
-// agentPrincipal creates a Principal backed by the given agent connection,
-// taking ownership of the connection.  The returned cancel function is to be
-// called when the Principal is no longer in use.
-func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), error) {
-	agentctx, cancel := context.WithCancel(ctx)
-	var err error
-	if agentctx, err = v23.WithNewStreamManager(agentctx); err != nil {
-		cancel()
-		conn.Close()
-		return nil, nil, err
-	}
-	// TODO: This should use the same network as the agent we're using,
-	// not whatever this process was compiled with.
-	ep, err := v23.NewEndpoint(agentlib.AgentEndpoint(int(conn.Fd())))
-	if err != nil {
-		cancel()
-		conn.Close()
-		return nil, nil, err
-	}
-	p, err := agentlib.NewAgentPrincipal(agentctx, ep, v23.GetClient(agentctx))
-	if err != nil {
-		cancel()
-		conn.Close()
-		return nil, nil, err
-	}
-	conn.Close()
-	return p, cancel, nil
-}
-
 // setupPrincipal sets up the instance's principal, with the right blessings.
 func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationInstantiateServerCall, securityAgent *securityAgentState, info *instanceInfo, rootDir string) error {
 	var p security.Principal
@@ -602,25 +569,6 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 		if p, err = agentlib.NewAgentPrincipalX(sockPath); err != nil {
 			return verror.New(errors.ErrOperationFailed, ctx, "NewAgentPrincipalX failed", err)
 		}
-	case securityAgent != nil && securityAgent.keyMgrAgent != nil:
-		// This code path is deprecated in favor of the socket agent
-		// connection.
-
-		// TODO(caprita): Part of the cleanup upon destroying an
-		// instance, we should tell the agent to drop the principal.
-		handle, conn, err := securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
-		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("NewPrincipal() failed %v", err))
-		}
-		var cancel func()
-		if p, cancel, err = agentPrincipal(ctx, conn); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("agentPrincipal failed: %v", err))
-		}
-		defer cancel()
-		info.SecurityAgentHandle = handle
-		// conn will be closed when the connection to the agent is shut
-		// down, as a result of cancel() shutting down the stream
-		// manager.  No need to call conn.Close().
 	default:
 		credentialsDir := filepath.Join(instanceDir, "credentials")
 		// TODO(caprita): The app's system user id needs access to this dir.
@@ -993,26 +941,6 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 				ctx.Errorf("StopServing failed: %v", err)
 			}
 		}()
-	case sa != nil && sa.keyMgrAgent != nil:
-		// This code path is deprecated in favor of the socket agent
-		// connection.
-		file, err := sa.keyMgrAgent.NewConnection(info.SecurityAgentHandle)
-		if err != nil {
-			ctx.Errorf("NewConnection(%v) failed: %v", info.SecurityAgentHandle, err)
-			return 0, err
-		}
-		agentCleaner = func() {
-			file.Close()
-		}
-		// We need to account for the file descriptors corresponding to
-		// std{err|out|in} as well as the implementation-specific pipes
-		// that the vexec library adds to ExtraFiles during
-		// handle.Start.  vexec.FileOffset properly offsets fd
-		// accordingly.
-		fd := len(cmd.ExtraFiles) + vexec.FileOffset
-		cmd.ExtraFiles = append(cmd.ExtraFiles, file)
-		ep := agentlib.AgentEndpoint(fd)
-		cfg.Set(mgmt.SecurityAgentEndpointConfigKey, ep)
 	default:
 		cmd.Env = append(cmd.Env, ref.EnvCredentials+"="+filepath.Join(instanceDir, "credentials"))
 	}
@@ -1785,18 +1713,6 @@ Roots: {{.Principal.Roots.DebugString}}
 			}()
 		}
 		debugInfo.PrincipalType = "Agent-based"
-	case sa != nil && sa.keyMgrAgent != nil:
-		file, err := sa.keyMgrAgent.NewConnection(debugInfo.Info.SecurityAgentHandle)
-		if err != nil {
-			ctx.Errorf("NewConnection(%v) failed: %v", debugInfo.Info.SecurityAgentHandle, err)
-			return "", err
-		}
-		var cancel func()
-		if debugInfo.Principal, cancel, err = agentPrincipal(ctx, file); err != nil {
-			return "", err
-		}
-		defer cancel()
-		debugInfo.PrincipalType = "Agent-based-deprecated"
 	default:
 		credentialsDir := filepath.Join(instanceDir, "credentials")
 		var err error
