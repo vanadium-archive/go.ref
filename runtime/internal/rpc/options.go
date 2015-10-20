@@ -13,6 +13,7 @@ import (
 
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/runtime/internal/rpc/stream"
+	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 )
 
 // PreferredProtocols instructs the Runtime implementation to select
@@ -79,11 +80,13 @@ func noRetry(opts []rpc.CallOpt) bool {
 	return false
 }
 
-func translateVCOpts(opts []rpc.CallOpt) (vcOpts []stream.VCOpt) {
+func translateStreamOpts(opts []rpc.CallOpt) (vcOpts []stream.VCOpt, flowOpts []stream.FlowOpt) {
 	for _, o := range opts {
 		switch v := o.(type) {
 		case stream.VCOpt:
 			vcOpts = append(vcOpts, v)
+		case options.ChannelTimeout:
+			flowOpts = append(flowOpts, vc.ChannelTimeout(time.Duration(v)))
 		case options.SecurityLevel:
 			switch v {
 			case options.SecurityNone:

@@ -294,7 +294,9 @@ func DeprecatedNewServer(
 			s.preferredProtocols = []string(opt)
 		case options.SecurityLevel:
 			securityLevel = opt
-
+		case options.ChannelTimeout:
+			s.listenerOpts = append(s.listenerOpts,
+				vc.ChannelTimeout(time.Duration(opt)))
 		}
 	}
 

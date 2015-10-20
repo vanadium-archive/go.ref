@@ -90,6 +90,17 @@ type SetupStream struct {
 	Data []byte
 }
 
+// HealthCheckRequest is used to periodically check to see if the remote end
+// is still available.
+type HealthCheckRequest struct {
+	VCI id.VC
+}
+
+// HealthCheckResponse is sent in response to a health check request.
+type HealthCheckResponse struct {
+	VCI id.VC
+}
+
 // Command enum.
 type command uint8
 
@@ -100,6 +111,8 @@ const (
 	setupCommand             command = 4
 	setupStreamCommand       command = 5
 	setupVCCommand           command = 6
+	healthCheckReqCommand    command = 7
+	healthCheckRespCommand   command = 8
 )
 
 // SetupOption is the base interface for optional Setup options.
@@ -160,6 +173,10 @@ func writeControl(w io.Writer, m Control) error {
 		command = setupStreamCommand
 	case *SetupVC:
 		command = setupVCCommand
+	case *HealthCheckRequest:
+		command = healthCheckReqCommand
+	case *HealthCheckResponse:
+		command = healthCheckRespCommand
 	default:
 		return verror.New(errUnrecognizedVCControlMessageType, nil, fmt.Sprintf("%T", m))
 	}
@@ -195,6 +212,10 @@ func readControl(r *bytes.Buffer) (Control, error) {
 		m = new(SetupStream)
 	case setupVCCommand:
 		m = new(SetupVC)
+	case healthCheckReqCommand:
+		m = new(HealthCheckRequest)
+	case healthCheckRespCommand:
+		m = new(HealthCheckResponse)
 	default:
 		return nil, verror.New(errUnrecognizedVCControlMessageCommand, nil, command)
 	}
@@ -218,6 +239,22 @@ func (m *CloseVC) readFrom(r *bytes.Buffer) (err error) {
 	}
 	m.Error, err = readString(r)
 	return
+}
+
+func (m *HealthCheckRequest) writeTo(w io.Writer) (err error) {
+	return writeInt(w, m.VCI)
+}
+
+func (m *HealthCheckRequest) readFrom(r *bytes.Buffer) (err error) {
+	return readInt(r, &m.VCI)
+}
+
+func (m *HealthCheckResponse) writeTo(w io.Writer) (err error) {
+	return writeInt(w, m.VCI)
+}
+
+func (m *HealthCheckResponse) readFrom(r *bytes.Buffer) (err error) {
+	return readInt(r, &m.VCI)
 }
 
 func (m *SetupVC) writeTo(w io.Writer) (err error) {

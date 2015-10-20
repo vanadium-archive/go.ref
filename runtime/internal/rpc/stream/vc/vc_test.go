@@ -682,6 +682,8 @@ func (h *helper) NotifyOfNewFlow(vci id.VC, fid id.Flow, bytes uint) {
 	}
 }
 
+func (h *helper) SendHealthCheck(vci id.VC) {}
+
 func (h *helper) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

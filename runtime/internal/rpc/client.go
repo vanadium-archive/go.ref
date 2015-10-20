@@ -105,7 +105,7 @@ func DeprecatedNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.C
 	return c
 }
 
-func (c *client) createFlow(ctx *context.T, principal security.Principal, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, *verror.SubErr) {
+func (c *client) createFlow(ctx *context.T, principal security.Principal, ep naming.Endpoint, vcOpts []stream.VCOpt, flowOpts []stream.FlowOpt) (stream.Flow, *verror.SubErr) {
 	suberr := func(err error) *verror.SubErr {
 		return &verror.SubErr{Err: err, Options: verror.Print}
 	}
@@ -119,7 +119,7 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 		// We are serializing the creation of all flows per VC. This is okay
 		// because if one flow creation is to block, it is likely that all others
 		// for that VC would block as well.
-		if flow, err := found.Connect(); err == nil {
+		if flow, err := found.Connect(flowOpts...); err == nil {
 			return flow, nil
 		}
 		// If the vc fails to establish a new flow, we assume it's
@@ -144,7 +144,7 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 		return nil, suberr(err)
 	}
 
-	flow, err := v.Connect()
+	flow, err := v.Connect(flowOpts...)
 	if err != nil {
 		return nil, suberr(err)
 	}
@@ -335,7 +335,7 @@ func suberrName(server, name, method string) string {
 // authorizer, both during creation of the VC underlying the flow and the
 // flow itself.
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, index int, name, server, method string, auth security.Authorizer, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
+func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, index int, name, server, method string, auth security.Authorizer, ch chan<- *serverStatus, vcOpts []stream.VCOpt, flowOpts []stream.FlowOpt) {
 	defer c.wg.Done()
 	status := &serverStatus{index: index, server: server}
 	var span vtrace.Span
@@ -365,7 +365,7 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		status.serverErr = suberr(verror.New(errInvalidEndpoint, ctx))
 		return
 	}
-	if status.flow, status.serverErr = c.createFlow(ctx, principal, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.serverErr != nil {
+	if status.flow, status.serverErr = c.createFlow(ctx, principal, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth}), flowOpts); status.serverErr != nil {
 		status.serverErr.Name = suberrName(server, name, method)
 		ctx.VI(2).Infof("rpc: Failed to create Flow with %v: %v", server, status.serverErr.Err)
 		return
@@ -470,7 +470,9 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 
 	responses := make([]*serverStatus, attempts)
 	ch := make(chan *serverStatus, attempts)
-	vcOpts := append(translateVCOpts(opts), c.vcOpts...)
+	vcOpts, flowOpts := translateStreamOpts(opts)
+	vcOpts = append(vcOpts, c.vcOpts...)
+
 	authorizer := newServerAuthorizer(blessingPattern, opts...)
 	for i, server := range resolved.Names() {
 		// Create a copy of vcOpts for each call to tryCreateFlow
@@ -486,7 +488,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		c.wg.Add(1)
 		c.mu.Unlock()
 
-		go c.tryCreateFlow(ctx, principal, i, name, server, method, authorizer, ch, vcOptsCopy)
+		go c.tryCreateFlow(ctx, principal, i, name, server, method, authorizer, ch, vcOptsCopy, flowOpts)
 	}
 
 	var timeoutChan <-chan time.Time

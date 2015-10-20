@@ -598,6 +598,21 @@ func (p *process) readLoop() {
 			p.RemoveRoute(srcVCI)
 		case *message.AddReceiveBuffers:
 			p.proxy.routeCounters(p, m.Counters)
+		case *message.HealthCheckRequest:
+			if svc := p.ServerVC(m.VCI); svc != nil {
+				// If the request is for the proxy, simply respond to it.
+				p.queue.Put(&message.HealthCheckResponse{VCI: m.VCI})
+			} else if dst := p.Route(m.VCI); dst != nil {
+				m.VCI = dst.VCI
+				dst.Process.queue.Put(m)
+			}
+		case *message.HealthCheckResponse:
+			// Note that the proxy never sends health check requests, so responses
+			// should always be forwarded.
+			if dst := p.Route(m.VCI); dst != nil {
+				m.VCI = dst.VCI
+				dst.Process.queue.Put(m)
+			}
 		case *message.SetupVC:
 			// First let's ensure that we can speak a common protocol verison.
 			intersection, err := iversion.SupportedRange.Intersect(&m.Setup.Versions)
@@ -801,6 +816,10 @@ func (p *process) NotifyOfNewFlow(vci id.VC, fid id.Flow, bytes uint) {
 	if err := p.queue.Put(msg); err != nil {
 		processLog(p.ctx, "Failed to send OpenFlow(%+v) on process %v: %v", msg, p, err)
 	}
+}
+
+func (p *process) SendHealthCheck(vci id.VC) {
+	p.queue.Put(&message.HealthCheckRequest{VCI: vci})
 }
 
 func (p *process) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {

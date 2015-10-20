@@ -332,7 +332,7 @@ func (vif *VIF) Dial(ctx *context.T, remoteEP naming.Endpoint, opts ...stream.VC
 		}
 	}
 	principal := stream.GetPrincipalVCOpts(ctx, opts...)
-	vc, err := vif.newVC(ctx, vif.allocVCI(), vif.localEP, remoteEP, idleTimeout, true)
+	vc, err := vif.newVC(ctx, vif.allocVCI(), vif.localEP, remoteEP, idleTimeout, 0, true)
 	if err != nil {
 		return nil, err
 	}
@@ -436,14 +436,16 @@ func (vif *VIF) acceptVC(ctx *context.T, m *message.SetupVC) error {
 		ctx.VI(2).Infof("Ignoring SetupVC message %+v as VIF %s does not accept VCs", m, vif)
 		return errors.New("VCs not accepted")
 	}
-	var idleTimeout time.Duration
+	var channelTimeout, idleTimeout time.Duration
 	for _, o := range lopts {
 		switch v := o.(type) {
 		case vc.IdleTimeout:
 			idleTimeout = v.Duration
+		case vc.ChannelTimeout:
+			channelTimeout = time.Duration(v)
 		}
 	}
-	vcobj, err := vif.newVC(ctx, m.VCI, m.RemoteEndpoint, m.LocalEndpoint, idleTimeout, false)
+	vcobj, err := vif.newVC(ctx, m.VCI, m.RemoteEndpoint, m.LocalEndpoint, idleTimeout, channelTimeout, false)
 	if err != nil {
 		return err
 	}
@@ -737,6 +739,14 @@ func (vif *VIF) handleMessage(msg message.T) error {
 		}
 		vif.ctx.VI(2).Infof("Ignoring CloseVC(%+v) for unrecognized VCI on VIF %s", m, vif)
 
+	case *message.HealthCheckRequest:
+		vif.sendOnExpressQ(&message.HealthCheckResponse{VCI: m.VCI})
+
+	case *message.HealthCheckResponse:
+		if vc, _, _ := vif.vcMap.Find(m.VCI); vc != nil {
+			vc.HandleHealthCheckResponse()
+		}
+
 	case *message.Setup:
 		vif.ctx.Infof("Ignoring redundant Setup message %T on VIF %s", m, vif)
 
@@ -1024,7 +1034,7 @@ func (vif *VIF) allocVCI() id.VC {
 	return ret
 }
 
-func (vif *VIF) newVC(ctx *context.T, vci id.VC, localEP, remoteEP naming.Endpoint, idleTimeout time.Duration, side vifSide) (*vc.VC, error) {
+func (vif *VIF) newVC(ctx *context.T, vci id.VC, localEP, remoteEP naming.Endpoint, idleTimeout, channelTimeout time.Duration, side vifSide) (*vc.VC, error) {
 	vif.muStartTimer.Lock()
 	if vif.startTimer != nil {
 		vif.startTimer.Stop()
@@ -1032,13 +1042,14 @@ func (vif *VIF) newVC(ctx *context.T, vci id.VC, localEP, remoteEP naming.Endpoi
 	}
 	vif.muStartTimer.Unlock()
 	vc := vc.InternalNew(ctx, vc.Params{
-		VCI:          vci,
-		Dialed:       side == dialedVIF,
-		LocalEP:      localEP,
-		RemoteEP:     remoteEP,
-		Pool:         vif.pool,
-		ReserveBytes: uint(message.HeaderSizeBytes + vif.ctrlCipher.MACSize()),
-		Helper:       vcHelper{vif},
+		VCI:            vci,
+		Dialed:         side == dialedVIF,
+		LocalEP:        localEP,
+		RemoteEP:       remoteEP,
+		Pool:           vif.pool,
+		ReserveBytes:   uint(message.HeaderSizeBytes + vif.ctrlCipher.MACSize()),
+		ChannelTimeout: channelTimeout,
+		Helper:         vcHelper{vif},
 	})
 	added, rq, wq := vif.vcMap.Insert(vc)
 	if added {
@@ -1180,6 +1191,10 @@ type vcHelper struct{ vif *VIF }
 
 func (h vcHelper) NotifyOfNewFlow(vci id.VC, fid id.Flow, bytes uint) {
 	h.vif.sendOnExpressQ(&message.OpenFlow{VCI: vci, Flow: fid, InitialCounters: uint32(bytes)})
+}
+
+func (h vcHelper) SendHealthCheck(vci id.VC) {
+	h.vif.sendOnExpressQ(&message.HealthCheckRequest{VCI: vci})
 }
 
 func (h vcHelper) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {

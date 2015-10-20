@@ -38,6 +38,8 @@ func reg(id, msg string) verror.IDAction {
 	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
 }
 
+const defaultChannelTimeout = 30 * time.Minute
+
 var (
 	// These errors are intended to be used as arguments to higher
 	// level errors and hence {1}{2} is omitted from their format
@@ -64,6 +66,7 @@ var (
 	errFailedToCreateWriterForNewFlow = reg(".errFailedToCreateWriterForNewFlow", "failed to create writer for new flow({3}){:4}")
 	errFailedToEnqueueFlow            = reg(".errFailedToEnqueueFlow", "failed to enqueue flow at listener{:3}")
 	errFailedToAcceptSystemFlows      = reg(".errFailedToAcceptSystemFlows", "failed to accept system flows{:3}")
+	errHealthCheckFailed              = reg(".errHealthCheckFailed", "the healthcheck deadline expired.")
 )
 
 // DischargeExpiryBuffer specifies how much before discharge expiration we should
@@ -75,6 +78,11 @@ func (DischargeExpiryBuffer) RPCStreamListenerOpt() {}
 func (DischargeExpiryBuffer) RPCServerOpt() {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
+
+type ChannelTimeout time.Duration
+
+func (ChannelTimeout) RPCStreamFlowOpt()     {}
+func (ChannelTimeout) RPCStreamListenerOpt() {}
 
 const DefaultServerDischargeExpiryBuffer = 20 * time.Second
 
@@ -112,6 +120,10 @@ type VC struct {
 	closed              bool
 	version             version.RPCVersion
 	remotePubKeyChan    chan *crypto.BoxKey // channel which will receive the remote public key during setup.
+
+	healthCheckNewFlow    chan time.Duration
+	healthCheckResponse   chan struct{}
+	defaultChannelTimeout time.Duration
 
 	helper    Helper
 	dataCache *dataCache // dataCache contains information that can shared between Flows from this VC.
@@ -176,6 +188,8 @@ type Helper interface {
 	// NewWriter creates a buffer queue for Write operations on the
 	// stream.Flow implementation.
 	NewWriter(vci id.VC, fid id.Flow, priority bqueue.Priority) (bqueue.Writer, error)
+
+	SendHealthCheck(vci id.VC)
 }
 
 // Priorities of flows.
@@ -200,13 +214,14 @@ type DischargeClient interface {
 
 // Params encapsulates the set of parameters needed to create a new VC.
 type Params struct {
-	VCI          id.VC           // Identifier of the VC
-	Dialed       bool            // True if the VC was initiated by the local process.
-	LocalEP      naming.Endpoint // Endpoint of the local end of the VC.
-	RemoteEP     naming.Endpoint // Endpoint of the remote end of the VC.
-	Pool         *iobuf.Pool     // Byte pool used for read and write buffer allocations.
-	ReserveBytes uint            // Number of padding bytes to reserve for headers.
-	Helper       Helper
+	VCI            id.VC           // Identifier of the VC
+	Dialed         bool            // True if the VC was initiated by the local process.
+	LocalEP        naming.Endpoint // Endpoint of the local end of the VC.
+	RemoteEP       naming.Endpoint // Endpoint of the remote end of the VC.
+	Pool           *iobuf.Pool     // Byte pool used for read and write buffer allocations.
+	ReserveBytes   uint            // Number of padding bytes to reserve for headers.
+	ChannelTimeout time.Duration   // How long to wait before closing an unresponsive channel.
+	Helper         Helper
 }
 
 // InternalNew creates a new VC, which implements the stream.VC interface.
@@ -218,6 +233,10 @@ func InternalNew(ctx *context.T, p Params) *VC {
 	fidOffset := 1
 	if p.Dialed {
 		fidOffset = 0
+	}
+	channelTimeout := defaultChannelTimeout
+	if p.ChannelTimeout != 0 {
+		channelTimeout = p.ChannelTimeout
 	}
 	return &VC{
 		ctx:            ctx,
@@ -234,11 +253,14 @@ func InternalNew(ctx *context.T, p Params) *VC {
 		// id if the VC was initiated by the local process,
 		// and have an odd id if the VC was initiated by the
 		// remote process.
-		nextConnectFID: id.Flow(NumReservedFlows + fidOffset),
-		crypter:        crypto.NewNullCrypter(),
-		closeCh:        make(chan struct{}),
-		helper:         p.Helper,
-		dataCache:      newDataCache(),
+		nextConnectFID:        id.Flow(NumReservedFlows + fidOffset),
+		crypter:               crypto.NewNullCrypter(),
+		closeCh:               make(chan struct{}),
+		helper:                p.Helper,
+		dataCache:             newDataCache(),
+		healthCheckNewFlow:    make(chan time.Duration, 1),
+		healthCheckResponse:   make(chan struct{}, 1),
+		defaultChannelTimeout: channelTimeout,
 	}
 }
 
@@ -263,6 +285,12 @@ func (vc *VC) connectFID(fid id.Flow, priority bqueue.Priority, opts ...stream.F
 		reader:    newReader(readHandlerImpl{vc, fid}),
 		writer:    writer,
 	}
+	for _, opt := range opts {
+		switch o := opt.(type) {
+		case ChannelTimeout:
+			f.channelTimeout = time.Duration(o)
+		}
+	}
 	vc.mu.Lock()
 	if vc.flowMap == nil {
 		vc.mu.Unlock()
@@ -270,6 +298,9 @@ func (vc *VC) connectFID(fid id.Flow, priority bqueue.Priority, opts ...stream.F
 		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errConnectOnClosedVC, nil, vc.closeReason))
 	}
 	vc.flowMap[fid] = f
+	if f.channelTimeout != 0 && vc.version >= version.RPCVersion12 {
+		vc.healthCheckNewFlow <- f.channelTimeout
+	}
 	vc.mu.Unlock()
 	// New flow created, inform remote end that data can be received on it.
 	vc.helper.NotifyOfNewFlow(vc.vci, fid, DefaultBytesBufferedPerFlow)
@@ -532,6 +563,14 @@ func (vc *VC) HandshakeDialedVCWithAuthentication(principal security.Principal, 
 	if err = vc.connectSystemFlows(); err != nil {
 		return vc.appendCloseReason(err)
 	}
+
+	vc.mu.Lock()
+	if !vc.closed {
+		vc.loopWG.Add(1)
+		go vc.healthCheckLoop()
+	}
+	vc.mu.Unlock()
+
 	vc.ctx.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
 	return nil
 }
@@ -577,6 +616,14 @@ func (vc *VC) HandshakeDialedVCPreAuthenticated(ver version.RPCVersion, params s
 	if err := vc.connectSystemFlows(); err != nil {
 		return vc.appendCloseReason(err)
 	}
+
+	vc.mu.Lock()
+	if !vc.closed {
+		vc.loopWG.Add(1)
+		go vc.healthCheckLoop()
+	}
+	vc.mu.Unlock()
+
 	vc.ctx.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, params.RemoteBlessings, params.LocalBlessings)
 	return nil
 }
@@ -612,6 +659,12 @@ func (vc *VC) HandshakeDialedVCNoAuthentication(sendSetupVC func() error, opts .
 			return vc.appendCloseReason(err)
 		}
 	}
+	vc.mu.Lock()
+	if !vc.closed {
+		vc.loopWG.Add(1)
+		go vc.healthCheckLoop()
+	}
+	vc.mu.Unlock()
 	vc.ctx.VI(1).Infof("Client VC %v handshaked with no authentication.", vc)
 	return nil
 }
@@ -686,6 +739,14 @@ func (vc *VC) HandshakeAcceptedVCWithAuthentication(ver version.RPCVersion, prin
 			return
 		}
 		vc.ctx.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
+
+		vc.mu.Lock()
+		if !vc.closed {
+			vc.loopWG.Add(1)
+			go vc.healthCheckLoop()
+		}
+		vc.mu.Unlock()
+
 		result <- HandshakeResult{ln, nil}
 	}()
 	return result
@@ -728,6 +789,14 @@ func (vc *VC) HandshakeAcceptedVCPreAuthenticated(ver version.RPCVersion, params
 			return
 		}
 		vc.ctx.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, params.RemoteBlessings, params.LocalBlessings)
+
+		vc.mu.Lock()
+		if !vc.closed {
+			vc.loopWG.Add(1)
+			go vc.healthCheckLoop()
+		}
+		vc.mu.Unlock()
+
 		result <- HandshakeResult{ln, nil}
 	}()
 	return result
@@ -965,6 +1034,23 @@ func (vc *VC) allocFID() id.Flow {
 	return ret
 }
 
+// channelTimeout returns the minimum failure detection delay of all active flows on this VC.
+// A return value of zero means that we are not doing health checks.
+func (vc *VC) channelTimeout() time.Duration {
+	// This is not a great implementation, but it is simple, and in current programs
+	// the number of active flows on a VC is almost always very small.
+	// In the new RPC system we should consider a more efficient implementation.
+	vc.mu.Lock()
+	min := vc.defaultChannelTimeout
+	for _, f := range vc.flowMap {
+		if f.channelTimeout != 0 && f.channelTimeout < min {
+			min = f.channelTimeout
+		}
+	}
+	vc.mu.Unlock()
+	return min
+}
+
 // findFlow finds the flow id for the provided flow.
 // Returns 0 if there is none.
 func (vc *VC) findFlow(flow interface{}) id.Flow {
@@ -1100,6 +1186,12 @@ func (vc *VC) newWriter(fid id.Flow, priority bqueue.Priority) (*writer, error) 
 	return newWriter(MaxPayloadSizeBytes, bq, alloc, vc.sharedCounters), nil
 }
 
+func (vc *VC) HandleHealthCheckResponse() {
+	if vc.Version() >= version.RPCVersion12 {
+		vc.healthCheckResponse <- struct{}{}
+	}
+}
+
 // readHandlerImpl is an adapter for the readHandler interface required by
 // the reader type.
 type readHandlerImpl struct {
@@ -1143,4 +1235,53 @@ func dischargeOptions(opts []stream.ListenerOpt) (DischargeClient, time.Duration
 		}
 	}
 	return dischargeClient, dischargeExpiryBuffer
+}
+
+// healthCheckLoop runs a state machine that manages health checks for the VC.
+func (vc *VC) healthCheckLoop() {
+	defer vc.loopWG.Done()
+	if vc.Version() < version.RPCVersion12 {
+		return
+	}
+
+	// By default we health check the channel every 30 minutes.
+	channelTimeout, now := vc.channelTimeout(), time.Now()
+	sendTimer, closeTimer := time.NewTimer(channelTimeout/2), time.NewTimer(channelTimeout)
+	sendTime, closeTime := now.Add(channelTimeout/2), now.Add(channelTimeout)
+	outstandingRequest := false
+	defer sendTimer.Stop()
+	defer closeTimer.Stop()
+	for {
+		select {
+		case <-vc.closeCh:
+			// The VC is closing, no need for health checks.
+			return
+		case <-vc.healthCheckResponse:
+			outstandingRequest = false
+			channelTimeout, now = vc.channelTimeout(), time.Now()
+			sendTimer.Reset(channelTimeout / 2)
+			closeTimer.Reset(channelTimeout)
+			sendTime, closeTime = now.Add(channelTimeout/2), now.Add(channelTimeout)
+		case <-closeTimer.C:
+			vc.Close(verror.New(stream.ErrAborted, nil, verror.New(errHealthCheckFailed, nil)))
+			return
+		case <-sendTimer.C:
+			if !outstandingRequest {
+				vc.helper.SendHealthCheck(vc.vci)
+				outstandingRequest = true
+			}
+		case newChannelTimeout := <-vc.healthCheckNewFlow:
+			// New flows might have tighter requirements.
+			now = time.Now()
+			newSendTime, newCloseTime := now.Add(newChannelTimeout/2), now.Add(newChannelTimeout)
+			if newSendTime.Before(sendTime) {
+				sendTime = newSendTime
+				sendTimer.Reset(newChannelTimeout / 2)
+			}
+			if newCloseTime.Before(closeTime) {
+				closeTime = newCloseTime
+				closeTimer.Reset(newChannelTimeout)
+			}
+		}
+	}
 }

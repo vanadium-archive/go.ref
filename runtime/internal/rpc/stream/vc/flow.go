@@ -5,6 +5,8 @@
 package vc
 
 import (
+	"time"
+
 	"v.io/v23/naming"
 	"v.io/v23/security"
 
@@ -15,6 +17,7 @@ type flow struct {
 	backingVC
 	*reader
 	*writer
+	channelTimeout time.Duration
 }
 
 type backingVC interface {
