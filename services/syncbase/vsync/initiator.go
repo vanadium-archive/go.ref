@@ -16,6 +16,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/services/syncbase/nosql"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
@@ -463,7 +464,8 @@ func (iSt *initiationState) connectToPeerInternal(ctxIn *context.T, absName stri
 	vlog.VI(4).Infof("sync: connectToPeer: trying %v", absName)
 
 	var err error
-	iSt.stream, err = c.GetDeltas(ctx, iSt.req, iSt.config.sync.name)
+	iSt.stream, err = c.GetDeltas(ctx, iSt.req, iSt.config.sync.name,
+		options.ChannelTimeout(connectionTimeOut))
 	t.Stop()
 
 	if err == nil {
