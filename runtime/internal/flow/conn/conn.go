@@ -234,24 +234,26 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endp
 		return nil, err
 	}
 	var bkey, dkey uint64
+	var blessings security.Blessings
+	var discharges map[string]security.Discharge
 	if !c.isProxy {
 		// TODO(suharshs): On the first flow dial, find a way to not call this twice.
 		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, remote, rBlessings, rDischarges)
 		if err != nil {
 			return nil, iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
 		}
-		blessings, discharges, err := auth.BlessingsForPeer(ctx, rbnames)
+		blessings, discharges, err = auth.BlessingsForPeer(ctx, rbnames)
 		if err != nil {
 			return nil, NewErrNoBlessingsForPeer(ctx, rbnames, rejected, err)
 		}
-		if blessings.IsZero() {
-			// its safe to ignore this error since c.lBlessings must be valid, so the
-			// encoding of the publicKey can never error out.
-			blessings, _ = security.NamelessBlessing(c.lBlessings.PublicKey())
-		}
-		if bkey, dkey, err = c.blessingsFlow.send(ctx, blessings, discharges); err != nil {
-			return nil, err
-		}
+	}
+	if blessings.IsZero() {
+		// its safe to ignore this error since c.lBlessings must be valid, so the
+		// encoding of the publicKey can never error out.
+		blessings, _ = security.NamelessBlessing(c.lBlessings.PublicKey())
+	}
+	if bkey, dkey, err = c.blessingsFlow.send(ctx, blessings, discharges); err != nil {
+		return nil, err
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
