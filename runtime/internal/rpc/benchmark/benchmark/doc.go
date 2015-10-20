@@ -76,6 +76,8 @@ The global flags are:
    write an execution trace to the named file after execution
  -test.v=false
    verbose: print additional output
+ -time=false
+   Dump timing information to stderr before exiting the program.
  -v23.credentials=
    directory to use for storing security credentials
  -v23.i18n-catalogue=
