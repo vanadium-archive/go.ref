@@ -37,7 +37,8 @@ type impl struct {
 
 func (s *impl) RegisterService(ctx *context.T, call rpc.ServerCall, service discovery.Service, visibility []security.BlessingPattern) (sdiscovery.ServiceHandle, error) {
 	ctx, cancel := context.WithCancel(s.ctx)
-	if err := s.d.Advertise(ctx, service, visibility); err != nil {
+	done, err := s.d.Advertise(ctx, service, visibility)
+	if err != nil {
 		cancel()
 		return 0, err
 	}
@@ -57,7 +58,10 @@ func (s *impl) RegisterService(ctx *context.T, call rpc.ServerCall, service disc
 			break
 		}
 	}
-	s.handles[handle] = cancel
+	s.handles[handle] = func() {
+		cancel()
+		<-done
+	}
 	s.lastHandle = handle
 	s.mu.Unlock()
 	return handle, nil
@@ -65,11 +69,11 @@ func (s *impl) RegisterService(ctx *context.T, call rpc.ServerCall, service disc
 
 func (s *impl) UnregisterService(ctx *context.T, call rpc.ServerCall, handle sdiscovery.ServiceHandle) error {
 	s.mu.Lock()
-	cancel := s.handles[handle]
+	stop := s.handles[handle]
 	delete(s.handles, handle)
 	s.mu.Unlock()
-	if cancel != nil {
-		cancel()
+	if stop != nil {
+		stop()
 	}
 	return nil
 }

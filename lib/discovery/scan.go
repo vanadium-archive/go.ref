@@ -19,7 +19,7 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 		serviceUuid = NewServiceUUID(query)
 	}
 
-	ctx, cancel, err := ds.addTask(ctx, "")
+	ctx, cancel, err := ds.addTask(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 	scanCh := make(chan Advertisement, 10)
 	barrier := NewBarrier(func() {
 		close(scanCh)
-		ds.removeTask(ctx, "")
+		ds.removeTask(ctx)
 	})
 	for _, plugin := range ds.plugins {
 		if err := plugin.Scan(ctx, serviceUuid, scanCh, barrier.Add()); err != nil {

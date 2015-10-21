@@ -42,4 +42,11 @@ func TestTrigger(t *testing.T) {
 	if got, want := <-done, 0; got != want {
 		t.Errorf("Trigger failed; got %v, but wanted %v", got, want)
 	}
+
+	// Make sure the callback is triggered even when it is added with a closed channel.
+	close(c0)
+	tr.Add(f0, c0)
+	if got, want := <-done, 0; got != want {
+		t.Errorf("Trigger failed; got %v, but wanted %v", got, want)
+	}
 }

@@ -27,10 +27,10 @@ type lazyFactory struct {
 	derr error
 }
 
-func (l *lazyFactory) Advertise(ctx *context.T, service discovery.Service, visibility []security.BlessingPattern) error {
+func (l *lazyFactory) Advertise(ctx *context.T, service discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
 	l.once.Do(l.init)
 	if l.derr != nil {
-		return l.derr
+		return nil, l.derr
 	}
 	return l.d.Advertise(ctx, service, visibility)
 }

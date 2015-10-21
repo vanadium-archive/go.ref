@@ -27,9 +27,9 @@ func (m *mock) init() (discovery.T, error) {
 	return m, nil
 }
 
-func (m *mock) Advertise(_ *context.T, _ discovery.Service, _ []security.BlessingPattern) error {
+func (m *mock) Advertise(_ *context.T, _ discovery.Service, _ []security.BlessingPattern) (<-chan struct{}, error) {
 	m.numAdvertises++
-	return nil
+	return nil, nil
 }
 
 func (m *mock) Scan(_ *context.T, _ string) (<-chan discovery.Update, error) {
@@ -91,7 +91,7 @@ func TestLazyFactoryClosed(t *testing.T) {
 	}
 
 	// Closed already; Shouldn't initialize it again.
-	if err := d.Advertise(nil, discovery.Service{}, nil); err != errClosed {
+	if _, err := d.Advertise(nil, discovery.Service{}, nil); err != errClosed {
 		t.Errorf("expected an error %v, but got %v", errClosed, err)
 	}
 	if err := m.check(0, 0, 0, 0); err != nil {
@@ -111,7 +111,7 @@ func TestLazyFactoryInitError(t *testing.T) {
 	m := mock{initErr: errInit}
 	d := newLazyFactory(m.init)
 
-	if err := d.Advertise(nil, discovery.Service{}, nil); err != errInit {
+	if _, err := d.Advertise(nil, discovery.Service{}, nil); err != errInit {
 		t.Errorf("expected an error %v, but got %v", errInit, err)
 	}
 	if err := m.check(1, 0, 0, 0); err != nil {
