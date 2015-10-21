@@ -83,6 +83,8 @@ var (
 	errCantCreateAccountStore = verror.Register(pkgPath+".errCantCreateAccountStore", verror.NoRetry, "{1:}{2:} cannot create persistent store for identity to system account associations{:_}")
 	errCantCreateAppWatcher   = verror.Register(pkgPath+".errCantCreateAppWatcher", verror.NoRetry, "{1:}{2:} cannot create app status watcher{:_}")
 	errNewAgentFailed         = verror.Register(pkgPath+".errNewAgentFailed", verror.NoRetry, "{1:}{2:} NewAgent() failed{:_}")
+	errStoppedWithErrors      = verror.Register(pkgPath+".errStoppedWithErrors", verror.NoRetry, "{1:}{2:} instance killed uncleanly{:_}")
+	errStopFailed             = verror.Register(pkgPath+".errStopFailed", verror.NoRetry, "{1:}{2:} instance couldn't be killed{:_}")
 )
 
 // NewDispatcher is the device manager dispatcher factory.  It returns a new
