@@ -11,8 +11,6 @@ import (
 	"v.io/v23/discovery"
 
 	idiscovery "v.io/x/ref/lib/discovery"
-	"v.io/x/ref/lib/discovery/plugins/ble"
-	"v.io/x/ref/lib/discovery/plugins/mdns"
 )
 
 // New returns a new Discovery instance with the given protocols.
@@ -37,10 +35,8 @@ func New(protocols ...string) (discovery.T, error) {
 
 	// Verify protocols.
 	for _, p := range protocols {
-		switch p {
-		case "mdns", "ble":
-		default:
-			return nil, fmt.Errorf("not supported discovery protocol: %s\n", p)
+		if _, exists := pluginFactories[p]; !exists {
+			return nil, fmt.Errorf("discovery protocol %q is not supported", p)
 		}
 	}
 
@@ -50,20 +46,11 @@ func New(protocols ...string) (discovery.T, error) {
 func newInstance(host string, protocols []string) (discovery.T, error) {
 	plugins := make([]idiscovery.Plugin, 0, len(protocols))
 	for _, p := range protocols {
-		switch p {
-		case "mdns":
-			mdns, err := mdns.New(host)
-			if err != nil {
-				return nil, err
-			}
-			plugins = append(plugins, mdns)
-		case "ble":
-			ble, err := ble.NewPlugin(host)
-			if err != nil {
-				return nil, err
-			}
-			plugins = append(plugins, ble)
+		plugin, err := pluginFactories[p](host)
+		if err != nil {
+			return nil, err
 		}
+		plugins = append(plugins, plugin)
 	}
 	return idiscovery.NewWithPlugins(plugins), nil
 }
