@@ -157,9 +157,13 @@ func syncWithPeer(ctx *context.T, vclock *clock.VClock, absPeerName string, myNa
 		}
 
 		vlog.VI(4).Infof("sync: syncClock: connection established on %s", absPeerName)
-		vclock.ProcessPeerClockData(tx, toPeerSyncData(&timeResp, recvTs), localData)
-		if commitErr := tx.Commit(); commitErr != nil {
-			vlog.Errorf("sync: syncClock: error while commiting tx: %v", commitErr)
+		updated := vclock.ProcessPeerClockData(tx, toPeerSyncData(&timeResp, recvTs), localData)
+		if updated {
+			if commitErr := tx.Commit(); commitErr != nil {
+				vlog.VI(2).Infof("sync: syncClock: error while commiting tx: %v", commitErr)
+			}
+		} else {
+			tx.Abort()
 		}
 	} else if (verror.ErrorID(reqErr) == verror.ErrNoExist.ID) || (verror.ErrorID(reqErr) == verror.ErrInternal.ID) {
 		vlog.Errorf("sync: syncClock: error returned by peer %s: %v", absPeerName, err)

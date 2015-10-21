@@ -22,40 +22,43 @@ import (
 //    the difference btw the two clocks is < 1 minute.
 // 4) num hops for peer's NTP sync data is < 2, i.e. either the peer has
 //    synced with NTP itself or it synced with another peer that did NTP.
-func (c *VClock) ProcessPeerClockData(tx store.Transaction, resp *PeerSyncData, localData *ClockData) error {
+// Retruns true if the local clock was updated.
+func (c *VClock) ProcessPeerClockData(tx store.Transaction, resp *PeerSyncData, localData *ClockData) bool {
 	offset := (resp.RecvTs.Sub(resp.MySendTs) + resp.SendTs.Sub(resp.MyRecvTs)) / 2
 	vlog.VI(2).Infof("clock: ProcessPeerClockData: offset between two clocks: %v", offset)
 	if math.Abs(float64(offset.Nanoseconds())) <= util.PeerSyncDiffThreshold {
 		vlog.VI(2).Info("clock: ProcessPeerClockData: the two clocks are synced within PeerSyncDiffThreshold.")
-		return nil
+		return false
 	}
 	if resp.LastNtpTs == nil {
 		vlog.VI(2).Info("clock: ProcessPeerClockData: peer clock has not synced to NTP. Ignoring peer's clock.")
-		return nil
+		return false
 	}
 	if (localData != nil) && !isPeerNtpSyncMoreRecent(localData.LastNtpTs, resp.LastNtpTs) {
 		vlog.VI(2).Info("clock: ProcessPeerClockData: peer NTP sync is less recent than local.")
-		return nil
+		return false
 	}
 	if isOverRebootTolerance(offset, resp.NumReboots) {
 		vlog.VI(2).Info("clock: ProcessPeerClockData: peer clock is over reboot tolerance.")
-		return nil
+		return false
 	}
 	if resp.NumHops >= util.HopTolerance {
 		vlog.VI(2).Info("clock: ProcessPeerClockData: peer clock is over hop tolerance.")
-		return nil
+		return false
 	}
 	vlog.VI(2).Info("clock: ProcessPeerClockData: peer's clock is more accurate than local clock. Syncing to peer's clock.")
-	c.updateClockData(tx, resp, offset, localData)
-	return nil
+	return c.updateClockData(tx, resp, offset, localData)
 }
 
-func (c *VClock) updateClockData(tx store.Transaction, peerResp *PeerSyncData, offset time.Duration, localData *ClockData) {
+// updateClockData updates the clock data for the local clock based on peer
+// clock's data.
+// Returs true if update succeeds.
+func (c *VClock) updateClockData(tx store.Transaction, peerResp *PeerSyncData, offset time.Duration, localData *ClockData) bool {
 	systemTime := c.SysClock.Now()
 	elapsedTime, err := c.SysClock.ElapsedTime()
 	if err != nil {
 		vlog.Errorf("clock: ProcessPeerClockData: error while fetching elapsed time: %v", err)
-		return
+		return false
 	}
 	systemTimeAtBoot := systemTime.Add(-elapsedTime)
 	var skew time.Duration
@@ -78,7 +81,9 @@ func (c *VClock) updateClockData(tx store.Transaction, peerResp *PeerSyncData, o
 	}
 	if err := c.SetClockData(tx, newClockData); err != nil {
 		vlog.Errorf("clock: ProcessPeerClockData: error while setting new clock data: %v", err)
+		return false
 	}
+	return true
 }
 
 func isPeerNtpSyncMoreRecent(localNtpTs, peerNtpTs *time.Time) bool {
