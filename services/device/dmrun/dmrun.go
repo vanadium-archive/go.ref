@@ -119,7 +119,7 @@ func setupWorkDir() {
 	workDir, err = ioutil.TempDir("", filepath.Base(os.Args[0]))
 	dieIfErr(err, "Couldn't set up work dir")
 	dieIfErr(os.Chmod(workDir, 0777), "Couldn't chmod work dir")
-	fmt.Println("Working dir: %s", workDir)
+	fmt.Printf("Working dir: %s\n", workDir)
 }
 
 // buildV23Binary builds the specified binary and returns the path to the
@@ -405,6 +405,7 @@ func main() {
 	fmt.Printf("\t${JIRI_ROOT}/release/go/bin/debug logs read %s/logs/app.INFO\n", instanceName)
 
 	fmt.Println("Clean up the VM instance:")
+	fmt.Printf("\t${JIRI_ROOT}/release/go/bin/device kill %s\n", instanceName)
 	fmt.Printf("\t%s\n", vm.RunCommandForUser("sudo", "killall", "-9", "agentd", "deviced"))
 	fmt.Printf("\t%s\n", vm.DeleteCommandForUser())
 }
