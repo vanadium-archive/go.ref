@@ -317,6 +317,9 @@ func handleFlags() (vmOpts interface{}) {
 	flag.StringVar(&awsImageID, "aws-image-id", "", "ID of AWS vm image to use")
 
 	flag.Parse()
+	if len(flag.Args()) == 0 {
+		die("Usage: %s [--ssh [user@]ip] [--sshoptions \"<options>\"]  <app> <arguments ... >\n", os.Args[0])
+	}
 
 	var dbg backend.DebugPrinter = backend.NoopDebugPrinter{}
 	if debug {
@@ -360,20 +363,16 @@ func handleFlags() (vmOpts interface{}) {
 		}
 	}
 
-	if len(flag.Args()) == 0 {
-		die("Usage: %s [--ssh [user@]ip] [--sshoptions \"<options>\"]  <app> <arguments ... >\n", os.Args[0])
-	}
-
 	return vmOpts
 }
 
 func main() {
-	vmOpts := handleFlags()
 	setupWorkDir()
 	cleanupOnDeath = func() {
 		os.RemoveAll(workDir)
 	}
 	defer os.RemoveAll(workDir)
+	vmOpts := handleFlags()
 	device = buildV23Binary(deviceBin)
 	dmBins := buildDMBinaries()
 	archive := createArchive(append(dmBins, getPath(devicexRepo, devicex)))
