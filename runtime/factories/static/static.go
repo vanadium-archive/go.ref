@@ -7,7 +7,6 @@ package static
 
 import (
 	"flag"
-	"net"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -58,44 +57,20 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	lf := commonFlags.ListenFlags()
 	listenSpec := rpc.ListenSpec{
-		Addrs: rpc.ListenAddrs(lf.Addrs),
-		Proxy: lf.Proxy,
+		Addrs:          rpc.ListenAddrs(lf.Addrs),
+		Proxy:          lf.Proxy,
+		AddressChooser: internal.NewAddressChooser(logger.Global()),
 	}
 	reservedDispatcher := debuglib.NewDispatcher(securityflag.NewAuthorizerOrDie())
-
 	ishutdown := func() {
 		ac.Shutdown()
 		discovery.Close()
 	}
-
-	// Our address is private, so we test for running on GCE and for its 1:1 NAT
-	// configuration. GCEPublicAddress returns a non-nil addr if we are
-	// running on GCE.
-	if !internal.HasPublicIP(logger.Global()) {
-		if addr := internal.GCEPublicAddress(logger.Global()); addr != nil {
-			listenSpec.AddressChooser = rpc.AddressChooserFunc(func(string, []net.Addr) ([]net.Addr, error) {
-				return []net.Addr{addr}, nil
-			})
-			runtime, ctx, shutdown, err := rt.Init(ctx, ac, discovery, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
-			if err != nil {
-				ishutdown()
-				return nil, nil, nil, err
-			}
-			runtimeFactoryShutdown := func() {
-				ishutdown()
-				shutdown()
-			}
-			return runtime, ctx, runtimeFactoryShutdown, nil
-		}
-	}
-	listenSpec.AddressChooser = internal.IPAddressChooser{}
-
 	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discovery, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
 		ishutdown()
 		return nil, nil, nil, err
 	}
-
 	runtimeFactoryShutdown := func() {
 		ishutdown()
 		shutdown()

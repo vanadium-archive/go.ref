@@ -15,7 +15,6 @@ package roaming
 
 import (
 	"flag"
-	"net"
 
 	"v.io/x/lib/netconfig"
 	"v.io/x/lib/netstate"
@@ -75,37 +74,15 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	lf := commonFlags.ListenFlags()
 	listenSpec := rpc.ListenSpec{
-		Addrs: rpc.ListenAddrs(lf.Addrs),
-		Proxy: lf.Proxy,
+		Addrs:          rpc.ListenAddrs(lf.Addrs),
+		Proxy:          lf.Proxy,
+		AddressChooser: internal.NewAddressChooser(logger.Global()),
 	}
 	reservedDispatcher := debuglib.NewDispatcher(securityflag.NewAuthorizerOrDie())
 
 	ishutdown := func() {
 		ac.Shutdown()
 		discovery.Close()
-	}
-
-	// Our address is private, so we test for running on GCE and for its
-	// 1:1 NAT configuration.
-	if !internal.HasPublicIP(logger.Global()) {
-		if addr := internal.GCEPublicAddress(logger.Global()); addr != nil {
-			listenSpec.AddressChooser = netstate.AddressChooserFunc(func(string, []net.Addr) ([]net.Addr, error) {
-				// TODO(cnicolaou): the protocol at least should
-				// be configurable, or maybe there's a RuntimeFactory specific
-				// flag to configure both the protocol and address.
-				return []net.Addr{netstate.NewNetAddr("wsh", addr.String())}, nil
-			})
-			runtime, ctx, shutdown, err := rt.Init(ctx, ac, discovery, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), reservedDispatcher)
-			if err != nil {
-				ishutdown()
-				return nil, nil, nil, err
-			}
-			runtimeFactoryShutdown := func() {
-				ishutdown()
-				shutdown()
-			}
-			return runtime, ctx, runtimeFactoryShutdown, nil
-		}
 	}
 
 	publisher := pubsub.NewPublisher()
@@ -135,8 +112,6 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	cleanupCh := make(chan struct{})
 	watcherCh := make(chan struct{})
-
-	listenSpec.AddressChooser = internal.IPAddressChooser{}
 
 	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discovery, nil, &listenSpec, publisher, SettingsStreamName, commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
