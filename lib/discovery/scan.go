@@ -5,6 +5,8 @@
 package discovery
 
 import (
+	"reflect"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
@@ -56,10 +58,7 @@ func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discove
 		names = security.BlessingNames(principal, principal.BlessingStore().Default())
 	}
 
-	// A plugin may returns a Lost event with clearing all attributes including encryption
-	// keys. Thus, we have to keep what we've found so far so that we can ignore the Lost
-	// events for instances that we ignored due to permission.
-	found := make(map[string]struct{})
+	found := make(map[string]*Advertisement)
 	for {
 		select {
 		case ad := <-scanCh:
@@ -70,25 +69,44 @@ func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discove
 				}
 				continue
 			}
-			// TODO(jhahn): Merge scanData based on InstanceUuid.
-			var update discovery.Update
-			id := string(ad.Service.InstanceUuid)
-			if ad.Lost {
-				if _, ok := found[id]; ok {
-					delete(found, id)
-					update = discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.Service.InstanceUuid}}
+			for _, update := range mergeAdvertisement(found, &ad) {
+				select {
+				case updateCh <- update:
+				case <-ctx.Done():
+					return
 				}
-			} else {
-				found[id] = struct{}{}
-				update = discovery.UpdateFound{discovery.Found{Service: ad.Service}}
-			}
-			select {
-			case updateCh <- update:
-			case <-ctx.Done():
-				return
 			}
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (updates []discovery.Update) {
+	// The multiple plugins may return the same advertisements. We ignores the update
+	// if it has been already sent through the update channel.
+	id := string(ad.Service.InstanceUuid)
+	prev := found[id]
+	if ad.Lost {
+		// TODO(jhahn): If some plugins return 'Lost' events for an advertisement update, we may
+		// generates multiple 'Lost' and 'Found' events for the same update. In order to minimize
+		// this flakiness, we may need to delay the handling of 'Lost'.
+		if prev != nil {
+			delete(found, id)
+			updates = []discovery.Update{discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.Service.InstanceUuid}}}
+		}
+	} else {
+		// TODO(jhahn): Need to compare the proximity as well.
+		switch {
+		case prev == nil:
+			updates = []discovery.Update{discovery.UpdateFound{discovery.Found{Service: ad.Service}}}
+		case !reflect.DeepEqual(prev.Service, ad.Service):
+			updates = []discovery.Update{
+				discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.Service.InstanceUuid}},
+				discovery.UpdateFound{discovery.Found{Service: ad.Service}},
+			}
+		}
+		found[id] = ad
+	}
+	return
 }

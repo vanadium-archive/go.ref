@@ -5,10 +5,9 @@
 package mock
 
 import (
+	"bytes"
 	"reflect"
 	"sync"
-
-	"github.com/pborman/uuid"
 
 	"v.io/v23/context"
 
@@ -24,34 +23,12 @@ type plugin struct {
 }
 
 func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func()) error {
-	p.mu.Lock()
-	key := string(ad.ServiceUuid)
-	ads := p.services[key]
-	p.services[key] = append(ads, ad)
-	p.updateSeq++
-	p.mu.Unlock()
-	p.updated.Broadcast()
+	p.RegisterAdvertisement(ad)
 
 	go func() {
 		defer done()
 		<-ctx.Done()
-
-		p.mu.Lock()
-		ads := p.services[key]
-		for i, a := range ads {
-			if uuid.Equal(uuid.UUID(a.Service.InstanceUuid), uuid.UUID(ad.Service.InstanceUuid)) {
-				ads = append(ads[:i], ads[i+1:]...)
-				break
-			}
-		}
-		if len(ads) > 0 {
-			p.services[key] = ads
-		} else {
-			delete(p.services, key)
-		}
-		p.updateSeq++
-		p.mu.Unlock()
-		p.updated.Broadcast()
+		p.UnregisterAdvertisement(ad)
 	}()
 	return nil
 }
@@ -128,7 +105,52 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, ch chan<- disc
 	return nil
 }
 
-func New() discovery.Plugin {
+// RegisterService registers an advertisement service to the plugin. If there is
+// an advertisement with the same instance uuid, it will be updated with the
+// given advertisement.
+func (p *plugin) RegisterAdvertisement(ad discovery.Advertisement) {
+	p.mu.Lock()
+	key := string(ad.ServiceUuid)
+	ads := p.services[key]
+	if i := findAd(ads, ad.Service.InstanceUuid); i >= 0 {
+		ads[i] = ad
+	} else {
+		ads = append(ads, ad)
+	}
+	p.services[key] = ads
+	p.updateSeq++
+	p.mu.Unlock()
+	p.updated.Broadcast()
+}
+
+// UnregisterAdvertisement unregisters a registered service from the plugin.
+func (p *plugin) UnregisterAdvertisement(ad discovery.Advertisement) {
+	p.mu.Lock()
+	key := string(ad.ServiceUuid)
+	ads := p.services[key]
+	if i := findAd(ads, ad.Service.InstanceUuid); i >= 0 {
+		ads = append(ads[:i], ads[i+1:]...)
+		if len(ads) > 0 {
+			p.services[key] = ads
+		} else {
+			delete(p.services, key)
+		}
+		p.updateSeq++
+	}
+	p.mu.Unlock()
+	p.updated.Broadcast()
+}
+
+func findAd(ads []discovery.Advertisement, instanceUuid []byte) int {
+	for i, ad := range ads {
+		if bytes.Equal(ad.Service.InstanceUuid, instanceUuid) {
+			return i
+		}
+	}
+	return -1
+}
+
+func New() *plugin {
 	return &plugin{
 		services: make(map[string][]discovery.Advertisement),
 		updated:  sync.NewCond(&sync.Mutex{}),

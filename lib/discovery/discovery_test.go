@@ -168,12 +168,12 @@ func TestBasic(t *testing.T) {
 	// Open a new scan channel and consume expected advertisements first.
 	scan, scanStop, err := startScan(ctx, ds, "v.io/v23/a")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	defer scanStop()
 	update := <-scan
 	if !matchFound([]discovery.Update{update}, services[0]) {
-		t.Errorf("Unexpected scan: %v", update)
+		t.Errorf("unexpected scan: %v", update)
 	}
 
 	// Make sure scan returns the lost advertisement when advertising is stopped.
@@ -181,7 +181,7 @@ func TestBasic(t *testing.T) {
 
 	update = <-scan
 	if !matchLost([]discovery.Update{update}, services[0]) {
-		t.Errorf("Unexpected scan: %v", update)
+		t.Errorf("unexpected scan: %v", update)
 	}
 
 	// Also it shouldn't affect the other.
@@ -266,6 +266,68 @@ func TestDuplicates(t *testing.T) {
 	}
 	if _, err := advertise(ctx, ds, nil, service); err == nil {
 		t.Error("expect an error; but got none")
+	}
+}
+
+func TestMerge(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	p1, p2 := mock.New(), mock.New()
+	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{p1, p2})
+	defer ds.Close()
+
+	service := discovery.Service{
+		InstanceUuid:  idiscovery.NewInstanceUUID(),
+		InterfaceName: "v.io/v23/a",
+		Addrs:         []string{"/h1:123/x"},
+	}
+	ad := idiscovery.Advertisement{
+		ServiceUuid: idiscovery.NewServiceUUID(service.InterfaceName),
+		Service:     service,
+	}
+
+	scan, scanStop, err := startScan(ctx, ds, "v.io/v23/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer scanStop()
+
+	// A plugin returns an advertisement and we should see it.
+	p1.RegisterAdvertisement(ad)
+	update := <-scan
+	if !matchFound([]discovery.Update{update}, service) {
+		t.Errorf("unexpected scan: %v", update)
+	}
+
+	// The other plugin returns the same advertisement, but we should not see it.
+	p2.RegisterAdvertisement(ad)
+	select {
+	case update = <-scan:
+		t.Errorf("unexpected scan: %v", update)
+	case <-time.After(5 * time.Millisecond):
+	}
+
+	// Two plugins update the service, but we should see the update only once.
+	service.Addrs = []string{"/h2:123/x"}
+	ad.Service = service
+
+	go func() { p1.RegisterAdvertisement(ad) }()
+	go func() { p2.RegisterAdvertisement(ad) }()
+
+	// Should see 'Lost' first.
+	update = <-scan
+	if !matchLost([]discovery.Update{update}, service) {
+		t.Errorf("unexpected scan: %v", update)
+	}
+	update = <-scan
+	if !matchFound([]discovery.Update{update}, service) {
+		t.Errorf("unexpected scan: %v", update)
+	}
+	select {
+	case update = <-scan:
+		t.Errorf("unexpected scan: %v", update)
+	case <-time.After(5 * time.Millisecond):
 	}
 }
 
