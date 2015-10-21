@@ -126,7 +126,7 @@ func (b *bleNeighborhood) checkTTL() {
 					delete(b.knownNeighbors, entry.id)
 					for id, adv := range entry.advertisements {
 						for _, scanner := range b.scannersById {
-							scanner.handleChange(uuid.Parse(id), adv, nil)
+							scanner.handleLost(uuid.Parse(id), adv)
 						}
 					}
 				}
@@ -425,11 +425,11 @@ func (b *bleNeighborhood) saveDevice(hash string, id string, services map[string
 			hash)
 		return
 	}
-	oldAdvs := map[string]*bleAdv{}
+
+	var oldAdvs map[string]*bleAdv
 	if oldEntry, ok := b.knownNeighbors[id]; ok {
 		oldAdvs = oldEntry.advertisements
 	}
-
 	newEntry := &bleCacheEntry{
 		id:             id,
 		hash:           hash,
@@ -438,21 +438,21 @@ func (b *bleNeighborhood) saveDevice(hash string, id string, services map[string
 	}
 	b.neighborsHashCache[hash] = newEntry
 	b.knownNeighbors[id] = newEntry
-	for id, oldAdv := range oldAdvs {
-		newValue := services[id]
-		if !reflect.DeepEqual(oldAdv, newValue) {
+
+	for id, newAdv := range services {
+		oldAdv := oldAdvs[id]
+		if !reflect.DeepEqual(oldAdv, newAdv) {
 			uid := uuid.Parse(id)
 			for _, s := range b.scannersByService[id] {
-				s.handleChange(uid, oldAdv, newValue)
+				s.handleUpdate(uid, oldAdv, newAdv)
 			}
 		}
 	}
-
-	for id, newAdv := range newEntry.advertisements {
-		if _, ok := oldAdvs[id]; !ok {
+	for id, oldAdv := range oldAdvs {
+		if _, exist := services[id]; !exist {
 			uid := uuid.Parse(id)
 			for _, s := range b.scannersByService[id] {
-				s.handleChange(uid, nil, newAdv)
+				s.handleLost(uid, oldAdv)
 			}
 		}
 	}

@@ -21,31 +21,34 @@ type scanner struct {
 	done bool
 }
 
-func (s *scanner) handleChange(id uuid.UUID, oldAdv *bleAdv, newAdv *bleAdv) error {
+func (s *scanner) handleLost(id uuid.UUID, oldAdv *bleAdv) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.done {
 		return nil
 	}
 
-	// TODO(bjornick,jhahn): Revisit this strategy to provide the consistent behavior
-	// for updated advertisements across all plugins.
-	if oldAdv != nil {
-		s.ch <- &discovery.Advertisement{
-			Service: vdiscovery.Service{
-				InstanceUuid: oldAdv.instanceID,
-			},
-			Lost: true,
-		}
+	s.ch <- &discovery.Advertisement{
+		Service: vdiscovery.Service{
+			InstanceUuid: oldAdv.instanceID,
+		},
+		Lost: true,
+	}
+	return nil
+}
+
+func (s *scanner) handleUpdate(id uuid.UUID, oldAdv *bleAdv, newAdv *bleAdv) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.done {
+		return nil
 	}
 
-	if newAdv != nil {
-		a, err := newAdv.toDiscoveryAdvertisement()
-		if err != nil {
-			return err
-		}
-		s.ch <- a
+	a, err := newAdv.toDiscoveryAdvertisement()
+	if err != nil {
+		return err
 	}
+	s.ch <- a
 	return nil
 }
 
