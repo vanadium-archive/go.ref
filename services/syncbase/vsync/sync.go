@@ -352,7 +352,7 @@ func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
 	}
 
 	// Duplicate calls to advertise will return an error.
-	err := advertiser.Advertise(ctx, sbService, nil)
+	_, err := advertiser.Advertise(ctx, sbService, nil)
 	if err == nil {
 		s.advCancel = stop
 	}

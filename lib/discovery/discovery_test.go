@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,11 +26,21 @@ import (
 )
 
 func advertise(ctx *context.T, ds discovery.Advertiser, perms []security.BlessingPattern, services ...discovery.Service) (func(), error) {
-	ctx, stop := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	tr := idiscovery.NewTrigger()
+	ctx, cancel := context.WithCancel(ctx)
 	for _, service := range services {
-		if err := ds.Advertise(ctx, service, perms); err != nil {
+		wg.Add(1)
+		done, err := ds.Advertise(ctx, service, perms)
+		if err != nil {
+			cancel()
 			return nil, fmt.Errorf("Advertise failed: %v", err)
 		}
+		tr.Add(wg.Done, done)
+	}
+	stop := func() {
+		cancel()
+		wg.Wait()
 	}
 	return stop, nil
 }
