@@ -30,7 +30,7 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service d
 	watcher := make(chan rpc.NetworkChange, 3)
 	server.WatchNetwork(watcher)
 
-	stop, err := advertise(ctx, service, server.Status().Endpoints, suffix, visibility)
+	stop, err := advertise(ctx, service, getEndpoints(server), suffix, visibility)
 	if err != nil {
 		server.UnwatchNetwork(watcher)
 		close(watcher)
@@ -45,7 +45,7 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service d
 				if stop != nil {
 					stop() // Stop the previous advertisement.
 				}
-				stop, err = advertise(ctx, service, server.Status().Endpoints, suffix, visibility)
+				stop, err = advertise(ctx, service, getEndpoints(server), suffix, visibility)
 				if err != nil {
 					ctx.Error(err)
 				}
@@ -78,4 +78,14 @@ func advertise(ctx *context.T, service discovery.Service, eps []naming.Endpoint,
 		<-done
 	}
 	return stop, nil
+}
+
+// TODO(suharshs): Use server.Status().Endpoints only when migrating to a new server.
+func getEndpoints(server rpc.Server) []naming.Endpoint {
+	status := server.Status()
+	eps := status.Endpoints
+	for _, p := range status.Proxies {
+		eps = append(eps, p.Endpoint)
+	}
+	return eps
 }
