@@ -19,7 +19,7 @@ type plugin struct {
 	services map[string][]discovery.Advertisement // GUARDED_BY(mu)
 
 	updated   *sync.Cond
-	updateSeq int
+	updateSeq int // GUARDED_BY(mu)
 }
 
 func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func()) error {
@@ -38,12 +38,12 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, ch chan<- disc
 	go func() {
 		var updateSeqSeen int
 		for {
-			p.updated.L.Lock()
+			p.mu.Lock()
 			for updateSeqSeen == p.updateSeq {
 				p.updated.Wait()
 			}
 			updateSeqSeen = p.updateSeq
-			p.updated.L.Unlock()
+			p.mu.Unlock()
 			select {
 			case rescan <- struct{}{}:
 			case <-ctx.Done():
@@ -151,8 +151,7 @@ func findAd(ads []discovery.Advertisement, instanceUuid []byte) int {
 }
 
 func New() *plugin {
-	return &plugin{
-		services: make(map[string][]discovery.Advertisement),
-		updated:  sync.NewCond(&sync.Mutex{}),
-	}
+	p := &plugin{services: make(map[string][]discovery.Advertisement)}
+	p.updated = sync.NewCond(&p.mu)
+	return p
 }

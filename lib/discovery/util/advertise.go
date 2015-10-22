@@ -27,16 +27,18 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service d
 		service.InstanceUuid = idiscovery.NewInstanceUUID()
 	}
 
+	watcher := make(chan rpc.NetworkChange, 3)
+	server.WatchNetwork(watcher)
+
 	stop, err := advertise(ctx, service, server.Status().Endpoints, suffix, visibility)
 	if err != nil {
+		server.UnwatchNetwork(watcher)
+		close(watcher)
 		return nil, err
 	}
 
 	done := make(chan struct{})
 	go func() {
-		watcher := make(chan rpc.NetworkChange, 3)
-		server.WatchNetwork(watcher)
-
 		for {
 			select {
 			case <-watcher:
@@ -52,7 +54,6 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service d
 				close(watcher)
 				close(done)
 				return
-
 			}
 		}
 	}()
