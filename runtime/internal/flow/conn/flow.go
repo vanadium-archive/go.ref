@@ -6,6 +6,7 @@ package conn
 
 import (
 	"io"
+	"sync"
 	"time"
 
 	"v.io/v23/context"
@@ -47,6 +48,9 @@ type flw struct {
 	// borrowed indicates the number of tokens we have borrowed from the shared pool for
 	// sending on newly dialed flows.
 	borrowed uint64
+	// borrowCond is a condition variable that we can use to wait for shared
+	// counters to be released.
+	borrowCond *sync.Cond
 	// borrowing indicates whether this flow is using borrowed counters for a newly
 	// dialed flow.  This will be set to false after we first receive a
 	// release from the remote end.  This is always false for accepted flows.
@@ -60,14 +64,15 @@ var _ flow.Flow = &flw{}
 
 func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remote naming.Endpoint, dialed, preopen bool) *flw {
 	f := &flw{
-		id:        id,
-		dialed:    dialed,
-		conn:      c,
-		q:         newReadQ(c, id),
-		bkey:      bkey,
-		dkey:      dkey,
-		opened:    preopen,
-		borrowing: dialed,
+		id:         id,
+		dialed:     dialed,
+		conn:       c,
+		q:          newReadQ(c, id),
+		bkey:       bkey,
+		dkey:       dkey,
+		opened:     preopen,
+		borrowing:  dialed,
+		borrowCond: sync.NewCond(&c.mu),
 		// It's important that this channel has a non-zero buffer.  Sometimes this
 		// flow will be notifying itself, so if there's no buffer a deadlock will
 		// occur.
@@ -144,12 +149,16 @@ func (f *flw) tokensLocked() (int, func(int)) {
 		return int(max), func(used int) {
 			f.conn.lshared -= uint64(used)
 			f.borrowed += uint64(used)
+			f.ctx.VI(2).Infof("deducting %d borrowed tokens on flow %d(%p), total: %d", used, f.id, f, f.borrowed)
 		}
 	}
 	if f.released < max {
 		max = f.released
 	}
-	return int(max), func(used int) { f.released -= uint64(used) }
+	return int(max), func(used int) {
+		f.released -= uint64(used)
+		f.ctx.VI(2).Infof("flow %d(%p) deducting %d tokens, %d left", f.id, f, used, f.released)
+	}
 }
 
 // releaseLocked releases some counters from a remote reader to the local
@@ -161,12 +170,16 @@ func (f *flw) releaseLocked(tokens uint64) {
 		if f.borrowed < tokens {
 			n = f.borrowed
 		}
+		f.ctx.VI(2).Infof("Returning %d tokens borrowed by %d(%p)", f.borrowed, f.id, f)
 		tokens -= n
 		f.borrowed -= n
 		f.conn.lshared += n
+		f.borrowCond.Broadcast()
 	}
 	f.released += tokens
+	f.ctx.VI(2).Infof("Tokens release to %d(%p): %d => %d", f.id, f, tokens, f.released)
 	if f.writing {
+		f.ctx.VI(2).Infof("Activating writing flow %d(%p) now that we have tokens.", f.id, f)
 		f.conn.activateWriterLocked(f)
 		f.conn.notifyNextWriterLocked(nil)
 	}
@@ -176,6 +189,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 	if err = f.checkBlessings(); err != nil {
 		return 0, err
 	}
+	f.ctx.VI(2).Infof("starting write on flow %d(%p)", f.id, f)
 	select {
 	// Catch cancellations early.  If we caught a cancel when waiting
 	// our turn below its possible that we were notified simultaneously.
@@ -212,6 +226,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		if tokens == 0 {
 			// Oops, we really don't have data to send, probably because we've exhausted
 			// the remote buffer.  deactivate ourselves but keep trying.
+			f.ctx.VI(2).Infof("Deactivating write on flow %d(%p) due to lack of tokens", f.id, f)
 			f.conn.deactivateWriterLocked(f)
 			continue
 		}
@@ -250,6 +265,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		f.opened = true
 	}
 	f.writing = false
+	f.ctx.VI(2).Infof("finishing write on %d(%p): %v", f.id, f, err)
 	f.conn.deactivateWriterLocked(f)
 	f.conn.notifyNextWriterLocked(f)
 	f.conn.mu.Unlock()
@@ -394,8 +410,19 @@ func (f *flw) Closed() <-chan struct{} {
 }
 
 func (f *flw) close(ctx *context.T, err error) {
+	closedRemotely := verror.ErrorID(err) == ErrFlowClosedRemotely.ID
+	f.conn.mu.Lock()
+	if closedRemotely {
+		// When the other side closes a flow, it implicitly releases all the
+		// counters used by that flow.  That means we should release the shared
+		// counter to be used on other new flows.
+		f.conn.lshared += f.borrowed
+		f.borrowed = 0
+	}
+	f.borrowCond.Broadcast()
+	f.conn.mu.Unlock()
 	if f.q.close(ctx) {
-		eid := verror.ErrorID(err)
+		f.ctx.VI(2).Infof("closing %d(%p): %v", f.id, f, err)
 		f.cancel()
 		// After cancel has been called no new writes will begin for this
 		// flow.  There may be a write in progress, but it must finish
@@ -403,13 +430,12 @@ func (f *flw) close(ctx *context.T, err error) {
 		// can simply use sendMessageLocked to send the close flow
 		// message.
 		f.conn.mu.Lock()
-		delete(f.conn.flows, f.id)
 		connClosing := f.conn.status == Closing
 		var serr error
 		if !f.opened {
 			// Closing a flow that was never opened.
 			f.conn.unopenedFlows.Done()
-		} else if eid != ErrFlowClosedRemotely.ID && !connClosing {
+		} else if !closedRemotely && !connClosing {
 			// Note: If the conn is closing there is no point in trying to
 			// send the flow close message as it will fail.  This is racy
 			// with the connection closing, but there are no ill-effects
@@ -418,6 +444,18 @@ func (f *flw) close(ctx *context.T, err error) {
 				ID:    f.id,
 				Flags: message.CloseFlag,
 			})
+		}
+		if f.borrowed > 0 && f.conn.status < Closing {
+			f.conn.loopWG.Add(1)
+			go func() {
+				defer f.conn.loopWG.Done()
+				f.conn.mu.Lock()
+				for f.borrowed > 0 && f.conn.status < Closing {
+					f.borrowCond.Wait()
+				}
+				delete(f.conn.flows, f.id)
+				f.conn.mu.Unlock()
+			}()
 		}
 		f.conn.mu.Unlock()
 		if serr != nil {

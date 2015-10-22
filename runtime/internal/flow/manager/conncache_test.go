@@ -18,9 +18,11 @@ import (
 	"v.io/x/ref/runtime/internal/flow/flowtest"
 	_ "v.io/x/ref/runtime/internal/flow/protocols/local"
 	inaming "v.io/x/ref/runtime/internal/naming"
+	"v.io/x/ref/test/goroutines"
 )
 
 func TestCache(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -31,7 +33,9 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x5555),
 		Blessings: []string{"A", "B", "C"},
 	}
-	conn := makeConnAndFlow(t, ctx, remote).c
+	caf := makeConnAndFlow(t, ctx, remote)
+	defer caf.stop(ctx)
+	conn := caf.c
 	if err := c.Insert(conn, remote.Protocol, remote.Address); err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +76,9 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x1111),
 		Blessings: []string{"ridonly"},
 	}
-	ridConn := makeConnAndFlow(t, ctx, ridEP).c
+	caf = makeConnAndFlow(t, ctx, ridEP)
+	defer caf.stop(ctx)
+	ridConn := caf.c
 	if err := c.InsertWithRoutingID(ridConn); err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +96,9 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x2222),
 		Blessings: []string{"other"},
 	}
-	otherConn := makeConnAndFlow(t, ctx, otherEP).c
+	caf = makeConnAndFlow(t, ctx, otherEP)
+	defer caf.stop(ctx)
+	otherConn := caf.c
 
 	// Looking up a not yet inserted endpoint should fail.
 	if got, err := c.ReservedFind(otherEP.Protocol, otherEP.Address, otherEP.Blessings); err != nil || got != nil {
@@ -117,7 +125,9 @@ func TestCache(t *testing.T) {
 	}
 
 	// Insert a duplicate conn to ensure that replaced conns still get closed.
-	dupConn := makeConnAndFlow(t, ctx, remote).c
+	caf = makeConnAndFlow(t, ctx, remote)
+	defer caf.stop(ctx)
+	dupConn := caf.c
 	if err := c.Insert(dupConn, remote.Protocol, remote.Address); err != nil {
 		t.Fatal(err)
 	}
@@ -136,17 +146,20 @@ func TestCache(t *testing.T) {
 	c.Close(ctx)
 	// Now the connections should be closed.
 	<-conn.Closed()
+	<-ridConn.Closed()
 	<-dupConn.Closed()
 	<-otherConn.Closed()
 }
 
 func TestLRU(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	// Ensure that the least recently created conns are killed by KillConnections.
 	c := NewConnCache()
-	conns := nConnAndFlows(t, ctx, 10)
+	conns, stop := nConnAndFlows(t, ctx, 10)
+	defer stop()
 	for _, conn := range conns {
 		addr := conn.c.RemoteEndpoint().Addr()
 		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
@@ -178,7 +191,8 @@ func TestLRU(t *testing.T) {
 
 	// Ensure that writing to conns marks conns as more recently used.
 	c = NewConnCache()
-	conns = nConnAndFlows(t, ctx, 10)
+	conns, stop = nConnAndFlows(t, ctx, 10)
+	defer stop()
 	for _, conn := range conns {
 		addr := conn.c.RemoteEndpoint().Addr()
 		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
@@ -213,7 +227,8 @@ func TestLRU(t *testing.T) {
 
 	// Ensure that reading from conns marks conns as more recently used.
 	c = NewConnCache()
-	conns = nConnAndFlows(t, ctx, 10)
+	conns, stop = nConnAndFlows(t, ctx, 10)
+	defer stop()
 	for _, conn := range conns {
 		addr := conn.c.RemoteEndpoint().Addr()
 		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
@@ -267,6 +282,7 @@ func cacheSizeMatches(c *ConnCache) bool {
 
 type connAndFlow struct {
 	c *connpackage.Conn
+	a *connpackage.Conn
 	f flow.Flow
 }
 
@@ -284,7 +300,12 @@ func (c connAndFlow) read() {
 	}
 }
 
-func nConnAndFlows(t *testing.T, ctx *context.T, n int) []connAndFlow {
+func (c connAndFlow) stop(ctx *context.T) {
+	c.c.Close(ctx, nil)
+	c.a.Close(ctx, nil)
+}
+
+func nConnAndFlows(t *testing.T, ctx *context.T, n int) ([]connAndFlow, func()) {
 	cfs := make([]connAndFlow, n)
 	for i := 0; i < n; i++ {
 		cfs[i] = makeConnAndFlow(t, ctx, &inaming.Endpoint{
@@ -292,7 +313,11 @@ func nConnAndFlows(t *testing.T, ctx *context.T, n int) []connAndFlow {
 			RID:      naming.FixedRoutingID(uint64(i + 1)), // We need to have a nonzero rid for bidi.
 		})
 	}
-	return cfs
+	return cfs, func() {
+		for _, conn := range cfs {
+			conn.stop(ctx)
+		}
+	}
 }
 
 func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFlow {
@@ -318,7 +343,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 		ach <- a
 	}()
 	conn := <-dch
-	<-ach
+	aconn := <-ach
 	f, err := conn.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -328,7 +353,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 		t.Fatal(err)
 	}
 	<-fh.ch
-	return connAndFlow{conn, f}
+	return connAndFlow{conn, aconn, f}
 }
 
 type fh struct {

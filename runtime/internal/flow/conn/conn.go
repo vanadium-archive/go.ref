@@ -340,7 +340,7 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 	}
 	c.status = Closing
 
-	go func() {
+	go func(c *Conn) {
 		if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
 			msg := ""
 			if err != nil {
@@ -373,7 +373,7 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 		c.status = Closed
 		close(c.closed)
 		c.mu.Unlock()
-	}()
+	}(c)
 }
 
 func (c *Conn) release(ctx *context.T, fid, count uint64) {
