@@ -174,6 +174,13 @@ func setupInstance(vmOptions interface{}) (backend.CloudVM, string, string) {
 	instanceName := fmt.Sprintf("%s-%s", currUser.Username, time.Now().UTC().Format("20060102-150405"))
 	vm, err = backend.CreateCloudVM(instanceName, vmOptions)
 	dieIfErr(err, "VM Instance Creation Failed: %v", err)
+
+	// Make sure nothing is using the ports we plan to give to deviced.
+	// TODO(caprita): Don't hardcode the ports and all that.
+	if output, err := vm.RunCommand("!", "netstat", "-tulpn", "2>/dev/null", "|", "grep", "'LISTEN'", "|", "grep", "-E", "':8150 |:8160 |:8151 '"); err != nil {
+		die("device manager ports are already in use:\n" + string(output))
+	}
+
 	instanceIP := vm.IP()
 	// Install unzip so we can unpack the archive.
 	// TODO(caprita): Use tar instead.
@@ -185,7 +192,7 @@ func setupInstance(vmOptions interface{}) (backend.CloudVM, string, string) {
 
 // installArchive ships the archive to the VM instance and unpacks it.
 func installArchive(archive, instance string) {
-	err := vm.CopyFile(archive, "/")
+	err := vm.CopyFile(archive, "")
 	dieIfErr(err, "Copying archive failed: %v", err)
 	output, err := vm.RunCommand("unzip", path.Join("./", filepath.Base(archive)), "-d", "./unpacked")
 	dieIfErr(err, "Extracting archive failed. Output:\n%v", string(output))
@@ -195,7 +202,7 @@ func installArchive(archive, instance string) {
 // and pairing token needed for claiming.
 func installDevice(instance string) (string, string) {
 	fmt.Println("Installing device manager...")
-	defer fmt.Println("Done installing device manager...")
+	defer fmt.Println("Done installing device manager.")
 	output, err := vm.RunCommand("V23_DEVICE_DIR=`pwd`/dm", "./unpacked/devicex", "install", "./unpacked", "--single_user", "--", "--v23.tcp.address=:8151", "--deviced-port=8150", "--proxy-port=8160", "--use-pairing-token")
 	dieIfErr(err, "Installing device manager failed. Output:\n%v", string(output))
 	output, err = vm.RunCommand("V23_DEVICE_DIR=`pwd`/dm", "./unpacked/devicex", "start")
@@ -319,6 +326,12 @@ func handleFlags() (vmOpts interface{}) {
 	flag.Parse()
 	if len(flag.Args()) == 0 {
 		die("Usage: %s [--ssh [user@]ip] [--sshoptions \"<options>\"]  <app> <arguments ... >\n", os.Args[0])
+	}
+	binPath := flag.Args()[0]
+	if fi, err := os.Stat(binPath); err != nil {
+		die("failed to stat %v: %v", binPath, err)
+	} else if fi.IsDir() {
+		die("%v is a directory", binPath)
 	}
 
 	var dbg backend.DebugPrinter = backend.NoopDebugPrinter{}
