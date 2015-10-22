@@ -122,7 +122,7 @@ func (g *VcloudVM) CopyFile(infile, destination string) error {
 		return fmt.Errorf("CopyFile called on deleted VcloudVM")
 	}
 
-	cmd := exec.Command("gcloud", "compute", g.projectArg, "copy-files", infile, fmt.Sprintf("%s@%s:/%s", g.sshUser, g.Name(), path.Join(g.workingDir, destination)), g.zoneArg)
+	cmd := exec.Command("gcloud", "compute", g.projectArg, "copy-files", infile, fmt.Sprintf("%s@%s:%s", g.sshUser, g.Name(), path.Join(g.workingDir, destination)), g.zoneArg)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("failed copying %s to %s:%s - %v\nOutput:\n%v", infile, g.name, destination, err, string(output))
