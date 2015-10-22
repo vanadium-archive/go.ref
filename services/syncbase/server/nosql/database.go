@@ -15,8 +15,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
-	"v.io/v23/syncbase/nosql/query"
-	"v.io/v23/syncbase/nosql/query/exec"
+	"v.io/v23/query/engine"
+	ds "v.io/v23/query/engine/datasource"
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
@@ -265,7 +265,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 			req:  d,
 			sntx: sntx,
 		}
-		headers, rs, err := exec.Exec(db, q)
+		headers, rs, err := engine.Exec(db, q)
 		if err != nil {
 			return err
 		}
@@ -439,7 +439,7 @@ func (d *database) ResetCrConnectionStream() {
 ////////////////////////////////////////
 // query interface implementations
 
-// queryDb implements query.Database.
+// queryDb implements ds.Database.
 type queryDb struct {
 	ctx  *context.T
 	call wire.DatabaseExecServerCall
@@ -451,7 +451,7 @@ func (db *queryDb) GetContext() *context.T {
 	return db.ctx
 }
 
-func (db *queryDb) GetTable(name string) (query.Table, error) {
+func (db *queryDb) GetTable(name string) (ds.Table, error) {
 	tDb := &tableDb{
 		qdb: db,
 		req: &tableReq{
@@ -466,13 +466,13 @@ func (db *queryDb) GetTable(name string) (query.Table, error) {
 	return tDb, nil
 }
 
-// tableDb implements query.Table.
+// tableDb implements ds.Table.
 type tableDb struct {
 	qdb *queryDb
 	req *tableReq
 }
 
-func (t *tableDb) Scan(keyRanges query.KeyRanges) (query.KeyValueStream, error) {
+func (t *tableDb) Scan(keyRanges ds.KeyRanges) (ds.KeyValueStream, error) {
 	streams := []store.Stream{}
 	for _, keyRange := range keyRanges {
 		// TODO(jkline): For now, acquire all of the streams at once to minimize the
@@ -489,7 +489,7 @@ func (t *tableDb) Scan(keyRanges query.KeyRanges) (query.KeyValueStream, error) 
 	}, nil
 }
 
-// kvs implements query.KeyValueStream.
+// kvs implements ds.KeyValueStream.
 type kvs struct {
 	t         *tableDb
 	curr      int
