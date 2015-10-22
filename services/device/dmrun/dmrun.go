@@ -122,24 +122,21 @@ func setupWorkDir() {
 	fmt.Printf("Working dir: %s\n", workDir)
 }
 
-// buildV23Binary builds the specified binary and returns the path to the
-// executable.
-func buildV23Binary(pkg string) string {
-	fmt.Println("Building", pkg)
-	dest := filepath.Join(workDir, path.Base(pkg))
-	cmd := exec.Command("jiri", "go", "build", "-x", "-o", dest, pkg)
+// buildV23Binaries builds the specified binaries and returns the paths to the
+// executables.
+func buildV23Binaries(pkg ...string) []string {
+	fmt.Print("Building ", pkg, " ...")
+	defer fmt.Println("Done.")
+	args := append([]string{"go", "install", "-x"}, pkg...)
+	cmd := exec.Command("jiri", args...)
+	cmd.Env = append(os.Environ(), "GOBIN="+workDir)
 	output, err := cmd.CombinedOutput()
 	dieIfErr(err, "Running build command %v failed. Output:\n%v", strings.Join(cmd.Args, " "), string(output))
-	return dest
-}
-
-// buildDMBinaries builds the binaries required for a device manager
-// installation and returns the paths to the executables.
-func buildDMBinaries() (ret []string) {
-	for _, b := range dmBins {
-		ret = append(ret, buildV23Binary(b))
+	dest := make([]string, len(pkg))
+	for i, p := range pkg {
+		dest[i] = filepath.Join(workDir, path.Base(p))
 	}
-	return
+	return dest
 }
 
 // createArchive creates a zip archive from the given files.
@@ -169,6 +166,7 @@ func createArchive(files []string) string {
 
 // setupInstance creates a new VM instance and returns its name and IP address.
 func setupInstance(vmOptions interface{}) (backend.CloudVM, string, string) {
+	fmt.Println("Setting up instance ...")
 	currUser, err := user.Current()
 	dieIfErr(err, "Couldn't obtain current user")
 	instanceName := fmt.Sprintf("%s-%s", currUser.Username, time.Now().UTC().Format("20060102-150405"))
@@ -343,7 +341,7 @@ func handleFlags() (vmOpts interface{}) {
 	switch {
 	default:
 		// Vcloud backend
-		vcloud = buildV23Binary(vcloudBin)
+		vcloud = buildV23Binaries(vcloudBin)[0]
 		vmOpts = backend.VcloudVMOptions{VcloudBinary: vcloud}
 
 	case sshTarget != "":
@@ -386,9 +384,9 @@ func main() {
 	}
 	defer os.RemoveAll(workDir)
 	vmOpts := handleFlags()
-	device = buildV23Binary(deviceBin)
-	dmBins := buildDMBinaries()
-	archive := createArchive(append(dmBins, getPath(devicexRepo, devicex)))
+	dmBinaries := buildV23Binaries(append([]string{deviceBin}, dmBins[:]...)...)
+	device, dmBinaries = dmBinaries[0], dmBinaries[1:]
+	archive := createArchive(append(dmBinaries, getPath(devicexRepo, devicex)))
 
 	vm, vmInstanceName, vmInstanceIP := setupInstance(vmOpts)
 	cleanupOnDeath = func() {
