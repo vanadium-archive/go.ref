@@ -21,7 +21,9 @@ type addressChooser struct {
 
 func (c *addressChooser) setGCEPublicAddress() {
 	c.gcePublicAddressOnce.Do(func() {
-		c.gcePublicAddress = GCEPublicAddress(c.logger)
+		if ipaddr := GCEPublicAddress(c.logger); ipaddr != nil {
+			c.gcePublicAddress = ipaddr
+		}
 	})
 }
 
