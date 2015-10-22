@@ -72,7 +72,17 @@ func newReaper(ctx *context.T, root string, appRunner *appRunner) (*reaper, erro
 	return r, nil
 }
 
-func markNotRunning(ctx *context.T, idir string) {
+func markNotRunning(ctx *context.T, runner *appRunner, idir string) {
+	if sa := runner.securityAgent; sa != nil && sa.keyMgr != nil {
+		info, err := loadInstanceInfo(ctx, idir)
+		if err != nil {
+			ctx.Errorf("Failed to load instance info: %v", err)
+		}
+		if err := sa.keyMgr.StopServing(info.handle()); err != nil {
+			ctx.Errorf("StopServing failed: %v", err)
+		}
+	}
+
 	if err := transitionInstance(idir, device.InstanceStateRunning, device.InstanceStateNotRunning); err != nil {
 		// This may fail under two circumstances.
 		// 1. The app has crashed between where startCmd invokes
@@ -84,6 +94,22 @@ func markNotRunning(ctx *context.T, idir string) {
 	}
 }
 
+func isAlive(ctx *context.T, pid int) bool {
+	switch err := syscall.Kill(pid, 0); err {
+	case syscall.ESRCH:
+		// No such PID.
+		return false
+	case nil, syscall.EPERM:
+		return true
+	default:
+		// The kill system call manpage says that this can only happen
+		// if the kernel claims that 0 is an invalid signal.  Only a
+		// deeply confused kernel would say this so just give up.
+		ctx.Panicf("processStatusPolling: unanticipated result from sys.Kill: %v", err)
+		return true
+	}
+}
+
 // processStatusPolling polls for the continued existence of a set of
 // tracked pids. TODO(rjkroege): There are nicer ways to provide this
 // functionality. For example, use the kevent facility in darwin or
@@ -92,14 +118,12 @@ func markNotRunning(ctx *context.T, idir string) {
 func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int, appRunner *appRunner) {
 	poll := func(ctx *context.T) {
 		for idir, pid := range trackedPids {
-			switch err := syscall.Kill(pid, 0); err {
-			case syscall.ESRCH:
-				// No such PID.
+			if !isAlive(ctx, pid) {
 				ctx.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
-				markNotRunning(ctx, idir)
+				markNotRunning(ctx, appRunner, idir)
 				go appRunner.restartAppIfNecessary(ctx, idir)
 				delete(trackedPids, idir)
-			case nil, syscall.EPERM:
+			} else {
 				ctx.VI(2).Infof("processStatusPolling saw live pid: %d", pid)
 				// The task exists and is running under the same uid as
 				// the device manager or the task exists and is running
@@ -117,12 +141,6 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 				// the appcycle manager, the app was probably started under
 				// a different agent and cannot be managed. Perhaps we should
 				// then kill the app and restart it?
-			default:
-				// The kill system call manpage says that this can only happen
-				// if the kernel claims that 0 is an invalid signal.
-				// Only a deeply confused kernel would say this so just give
-				// up.
-				ctx.Panicf("processStatusPolling: unanticpated result from sys.Kill: %v", err)
 			}
 		}
 	}
@@ -137,10 +155,17 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 				delete(trackedPids, p.instanceDir)
 				poll(ctx)
 			case p.pid == -2: // kill the process
-				if pid, ok := trackedPids[p.instanceDir]; ok {
-					if err := suidHelper.terminatePid(ctx, pid, nil, nil); err != nil {
-						ctx.Errorf("Failure to kill: %v", err)
-					}
+				info, err := loadInstanceInfo(ctx, p.instanceDir)
+				if err != nil {
+					ctx.Errorf("loadInstanceInfo(%v) failed: %v", p.instanceDir, err)
+					continue
+				}
+				if info.Pid <= 0 {
+					ctx.Errorf("invalid pid in %v: %v", p.instanceDir, info.Pid)
+					continue
+				}
+				if err := suidHelper.terminatePid(ctx, info.Pid, nil, nil); err != nil {
+					ctx.Errorf("Failure to kill pid %d: %v", info.Pid, err)
 				}
 			case p.pid < 0:
 				ctx.Panicf("invalid pid %v", p.pid)

@@ -1050,24 +1050,6 @@ func (i *appRunner) restartAppIfNecessary(ctx *context.T, instanceDir string) {
 		ctx.Error(err)
 		return
 	}
-	// TODO(caprita): Putting the StopServing call here means that the
-	// socket is still serving after the app instance has been transitioned
-	// in state 'not running'.  This creates the possibility of a Run()
-	// happening after the app state has changed to 'not running' in the
-	// reaper, but before restartAppIfNecessary has a chance to execute
-	// (resulting int he ServePrincipal call failing).  We should either
-	// move the StopServing call before we transition the instance to 'not
-	// running', or make the ServePrincipal robust w.r.t. already serving
-	// state.
-	if sa := i.securityAgent; sa != nil && sa.keyMgr != nil {
-		info, err := loadInstanceInfo(ctx, instanceDir)
-		if err != nil {
-			ctx.Errorf("Failed to load instance info: %v", err)
-		}
-		if err := sa.keyMgr.StopServing(info.handle()); err != nil {
-			ctx.Errorf("StopServing failed: %v", err)
-		}
-	}
 	shouldRestart := synchronizedShouldRestart(ctx, instanceDir)
 
 	if err := transitionInstance(instanceDir, device.InstanceStateLaunching, device.InstanceStateNotRunning); err != nil {
@@ -1182,22 +1164,54 @@ func stopAppRemotely(ctx *context.T, appVON string, deadline time.Duration) erro
 	return nil
 }
 
-func (i *appService) stop(ctx *context.T, instanceDir string, reap *reaper, deadline time.Duration) error {
-	info, err := loadInstanceInfo(ctx, instanceDir)
-	if err != nil {
-		return err
-	}
-	err = stopAppRemotely(ctx, info.AppCycleMgrName, deadline)
-	reap.forciblySuspend(instanceDir)
-	if err == nil {
-		reap.stopWatching(instanceDir)
-		if sa := i.runner.securityAgent; sa != nil && sa.keyMgr != nil {
-			if err := sa.keyMgr.StopServing(info.handle()); err != nil {
-				ctx.Errorf("StopServing failed: %v", err)
+// stop attempts to stop the instance's process; returns true if successful, or
+// false if the process is still running.
+func (i *appService) stop(ctx *context.T, instanceDir string, info *instanceInfo, reap *reaper, deadline time.Duration) (bool, error) {
+	pid := info.Pid
+	// The reaper should stop tracking this instance, and, in particular,
+	// not attempt to restart it.
+	reap.stopWatching(instanceDir)
+	processExited, stopGoroutine := make(chan struct{}), make(chan struct{})
+	defer close(stopGoroutine)
+	go func() {
+		for {
+			if !isAlive(ctx, pid) {
+				close(processExited)
+				return
 			}
+			select {
+			case <-stopGoroutine:
+				return
+			default:
+			}
+			time.Sleep(time.Millisecond)
 		}
+	}()
+	deadlineExpired := time.After(deadline)
+	err := stopAppRemotely(ctx, info.AppCycleMgrName, deadline)
+	select {
+	case <-processExited:
+		if err != nil {
+			err = verror.New(errStoppedWithErrors, ctx, fmt.Sprintf("process exited uncleanly upon remote stop: %v"), err)
+		}
+		return true, err
+	case <-deadlineExpired:
 	}
-	return err
+	reap.forciblySuspend(instanceDir)
+	// Give it an extra 500 ms of grace period for the process to die after
+	// forceful shutdown.
+	deadlineExpired = time.After(500 * time.Millisecond)
+	select {
+	case <-processExited:
+		return true, verror.New(errStoppedWithErrors, ctx, fmt.Sprintf("process failed to exit cleanly upon remote stop (%v) and was forcefully terminated"), err)
+	case <-deadlineExpired:
+		// The process just won't die.  We'll declare the stop operation
+		// unsuccessful and switch the instance back to running
+		// state. We let the reaper deal with it going forward
+		// (including restarting it if restarts are enabled).
+		reap.startWatching(instanceDir, pid)
+		return false, verror.New(errStopFailed, ctx, "process failed to exit after force stop")
+	}
 }
 
 func (i *appService) Delete(ctx *context.T, _ rpc.ServerCall) error {
@@ -1216,9 +1230,27 @@ func (i *appService) Kill(ctx *context.T, _ rpc.ServerCall, deadline time.Durati
 	if err := transitionInstance(instanceDir, device.InstanceStateRunning, device.InstanceStateDying); err != nil {
 		return err
 	}
-	if err := i.stop(ctx, instanceDir, i.runner.reap, deadline); err != nil {
-		transitionInstance(instanceDir, device.InstanceStateDying, device.InstanceStateRunning)
+	info, err := loadInstanceInfo(ctx, instanceDir)
+	if err != nil {
 		return err
+	}
+	if exited, err := i.stop(ctx, instanceDir, info, i.runner.reap, deadline); !exited {
+		// If the process failed to terminate, it's going back in state
+		// running (as if the Kill never happened).  The client may try
+		// again.
+		if err := transitionInstance(instanceDir, device.InstanceStateDying, device.InstanceStateRunning); err != nil {
+			ctx.Errorf("transitionInstance(%v, %v, %v): %v", instanceDir, device.InstanceStateDying, device.InstanceStateRunning, err)
+		}
+		// Return the stop error.
+		return err
+	} else if err != nil {
+		ctx.Errorf("stop %v ultimately succeeded, but had encountered an error: %v", instanceDir, err)
+	}
+	// The app exited, so we can stop serving the principal.
+	if sa := i.runner.securityAgent; sa != nil && sa.keyMgr != nil {
+		if err := sa.keyMgr.StopServing(info.handle()); err != nil {
+			ctx.Errorf("StopServing failed: %v", err)
+		}
 	}
 	return transitionInstance(instanceDir, device.InstanceStateDying, device.InstanceStateNotRunning)
 }
