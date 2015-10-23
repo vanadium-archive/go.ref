@@ -23,7 +23,7 @@ const (
 )
 
 func initRuntime(t *testing.T) (*context.T, clientWithTimesCalled, v23.Shutdown) {
-	ctx, shutdown := test.V23InitAnon()
+	ctx, shutdown := test.V23InitSimple()
 	initialSig := []signature.Interface{
 		{
 			Methods: []signature.Method{
