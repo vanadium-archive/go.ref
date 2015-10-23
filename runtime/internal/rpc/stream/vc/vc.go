@@ -38,7 +38,7 @@ func reg(id, msg string) verror.IDAction {
 	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
 }
 
-const defaultChannelTimeout = 30 * time.Minute
+const defaultChannelTimeout = 3 * 24 * time.Hour
 
 var (
 	// These errors are intended to be used as arguments to higher
