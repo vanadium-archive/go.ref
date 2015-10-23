@@ -7,6 +7,7 @@ package vc
 import (
 	"testing"
 
+	"v.io/v23/naming"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/test/testutil"
 )
@@ -100,6 +101,24 @@ func TestReservedFind(t *testing.T) {
 	// Now the cache.BlcokingFind should have returned the correct otherVC.
 	if cachedVC := <-ch; cachedVC != otherVC {
 		t.Errorf("got %v, want %v", cachedVC, otherVC)
+	}
+
+	// If we add an endpoint with a non-zero routingId and search for another
+	// endpoint with the same routingID, we should get the first routingID.
+	ridep, err := inaming.NewEndpoint("oink:8888")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ridep.RID = naming.FixedRoutingID(0x1111)
+	vc = &VC{remoteEP: ridep, localPrincipal: p}
+	cache.Insert(vc)
+	otherEP, err = inaming.NewEndpoint("moo:7777")
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherEP.RID = ridep.RID
+	if got, err := cache.ReservedFind(otherEP, p); err != nil || got != vc {
+		t.Errorf("got %v, want %v, err: %v", got, vc, err)
 	}
 }
 
