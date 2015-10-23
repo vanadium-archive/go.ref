@@ -119,11 +119,15 @@ func TestNetworkChangeInstanceUuid(t *testing.T) {
 	defer shutdown()
 
 	mock := newMockServer(newEndpoints("addr1:123"))
-
 	util.AdvertiseServer(ctx, mock, "", discovery.Service{InterfaceName: "v.io/v23/a"}, nil)
-	service, err := scan(ctx)
+
+	// Scan the advertised service.
+	service, err := scan(ctx, 3*time.Second)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(service.InstanceUuid) == 0 {
+		t.Fatal("couldn't scan")
 	}
 
 	// Make sure the instance uuid has not been changed.
@@ -145,7 +149,7 @@ func scanAndMatch(ctx *context.T, want discovery.Service, eps []naming.Endpoint,
 	var found discovery.Service
 	for now := time.Now(); time.Since(now) < timeout; {
 		var err error
-		found, err = scan(ctx)
+		found, err = scan(ctx, 5*time.Millisecond)
 		if err != nil {
 			return err
 		}
@@ -156,7 +160,7 @@ func scanAndMatch(ctx *context.T, want discovery.Service, eps []naming.Endpoint,
 	return fmt.Errorf("match failed; got %v, but wanted %v", found, want)
 }
 
-func scan(ctx *context.T) (discovery.Service, error) {
+func scan(ctx *context.T, timeout time.Duration) (discovery.Service, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -169,7 +173,7 @@ func scan(ctx *context.T) (discovery.Service, error) {
 	select {
 	case update := <-scan:
 		return update.Interface().(discovery.Found).Service, nil
-	case <-time.After(5 * time.Millisecond):
+	case <-time.After(timeout):
 		return discovery.Service{}, nil
 	}
 }
