@@ -66,8 +66,7 @@ func (g *VcloudVM) Delete() error {
 	if g.isDeleted {
 		return fmt.Errorf("trying to delete a deleted VcloudVM")
 	}
-
-	cmd := exec.Command(g.vcloud, "node", "delete", g.projectArg, g.zoneArg, g.name)
+	cmd := g.generateDeleteCmd(false)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("failed deleting GCE instance (%s): %v\nOutput:%v\n", strings.Join(cmd.Args, " "), err, string(output))
@@ -77,6 +76,10 @@ func (g *VcloudVM) Delete() error {
 		g.ip = ""
 	}
 	return err
+}
+
+func (g *VcloudVM) generateDeleteCmd(forUser bool) *exec.Cmd {
+	return exec.Command(g.vcloudCmd(forUser), "node", "delete", g.projectArg, g.zoneArg, g.name)
 }
 
 func (g *VcloudVM) Name() string {
@@ -92,7 +95,7 @@ func (g *VcloudVM) RunCommand(args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("RunCommand called on deleted VcloudVM")
 	}
 
-	cmd := g.generateExecCmdForRun(args...)
+	cmd := g.generateExecCmdForRun(false, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("failed running [%s] on VM %s", strings.Join(args, " "), g.name)
@@ -104,17 +107,29 @@ func (g *VcloudVM) RunCommandForUser(args ...string) string {
 	if g.isDeleted {
 		return ""
 	}
-	cmd := g.generateExecCmdForRun(args...)
+	return cmdLine(g.generateExecCmdForRun(true, args...))
+}
 
+func cmdLine(cmd *exec.Cmd) string {
 	result := cmd.Path
-	for i := 1; i < len(cmd.Args); i++ {
-		result = fmt.Sprintf("%s %q", result, cmd.Args[i])
+	for _, arg := range cmd.Args[1:] {
+		result = fmt.Sprintf("%s %q", result, arg)
 	}
 	return result
 }
 
-func (g *VcloudVM) generateExecCmdForRun(args ...string) *exec.Cmd {
-	return exec.Command(g.vcloud, append([]string{"sh", g.projectArg, g.name, "cd", g.workingDir, "&&"}, args...)...)
+func (g *VcloudVM) vcloudCmd(forUser bool) string {
+	if forUser {
+		// We can't return the vcloud binary that we ran for the steps
+		// above, as that one is deleted after use. For now, we assume
+		// the user will have a vcloud binary on his path to use.
+		return "vcloud"
+	}
+	return g.vcloud
+}
+
+func (g *VcloudVM) generateExecCmdForRun(forUser bool, args ...string) *exec.Cmd {
+	return exec.Command(g.vcloudCmd(forUser), append([]string{"sh", g.projectArg, g.name, "cd", g.workingDir, "&&"}, args...)...)
 }
 
 func (g *VcloudVM) CopyFile(infile, destination string) error {
@@ -134,8 +149,5 @@ func (g *VcloudVM) DeleteCommandForUser() string {
 	if g.isDeleted {
 		return ""
 	}
-
-	// We can't return the vcloud binary that we ran for the steps above, as that one is deleted
-	// after use. For now, we assume the user will have a vcloud binary on his path to use.
-	return strings.Join([]string{"vcloud", "node", "delete", g.projectArg, g.zoneArg, g.name}, " ")
+	return cmdLine(g.generateDeleteCmd(true))
 }
