@@ -143,8 +143,8 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 
 	// Verify genvec state.
 	wantVec := interfaces.GenVector{
-		"tb:foo1": interfaces.PrefixGenVector{11: 3},
-		"tb:bar":  interfaces.PrefixGenVector{11: 0},
+		"tb\xfefoo1": interfaces.PrefixGenVector{11: 3},
+		"tb\xfebar":  interfaces.PrefixGenVector{11: 0},
 	}
 	if !reflect.DeepEqual(iSt.updLocal, wantVec) {
 		t.Fatalf("Final local gen vec mismatch got %v, want %v", iSt.updLocal, wantVec)
@@ -179,7 +179,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-noconf-00.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "tb:foo1")
+	objid := util.JoinKeyParts(util.RowPrefix, "tb\xfefoo1")
 
 	// Check all log records.
 	var version uint64 = 1
@@ -240,8 +240,8 @@ func TestLogStreamNoConflict(t *testing.T) {
 
 	// Verify genvec state.
 	wantVec := interfaces.GenVector{
-		"tb:foo1": interfaces.PrefixGenVector{11: 3},
-		"tb:bar":  interfaces.PrefixGenVector{11: 0},
+		"tb\xfefoo1": interfaces.PrefixGenVector{11: 3},
+		"tb\xfebar":  interfaces.PrefixGenVector{11: 0},
 	}
 	if !reflect.DeepEqual(iSt.updLocal, wantVec) {
 		t.Fatalf("Final local gen vec failed got %v, want %v", iSt.updLocal, wantVec)
@@ -276,7 +276,7 @@ func TestLogStreamConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-00.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "tb:foo1")
+	objid := util.JoinKeyParts(util.RowPrefix, "tb\xfefoo1")
 
 	// Verify conflict state.
 	if len(iSt.updObjects) != 1 {
@@ -323,7 +323,7 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-03.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "tb:foo1")
+	objid := util.JoinKeyParts(util.RowPrefix, "tb\xfefoo1")
 
 	// Verify conflict state.
 	if len(iSt.updObjects) != 1 {
@@ -365,6 +365,9 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 //////////////////////////////
 // Helpers.
 
+// TODO(sadovsky): If any of the various t.Fatalf()'s below get triggered,
+// cleanup() is not run, and subsequent tests panic with "A runtime has already
+// been initialized".
 func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initiationState, func()) {
 	// Set a large value to prevent the initiator from running.
 	peerSyncInterval = 1 * time.Hour
@@ -434,7 +437,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	if !sg {
 		iSt.peerSgInfo(nil)
 		// sg1.Spec.Prefixes
-		testIfSgPfxsEqual(t, iSt.config.sgPfxs, []string{"foo:", "bar:"})
+		testIfSgPfxsEqual(t, iSt.config.sgPfxs, []string{"foo\xfe", "bar\xfe"})
 	}
 
 	sort.Strings(iSt.config.mtTables)
@@ -462,8 +465,8 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		}
 
 		wantVec = interfaces.GenVector{
-			"foo:": interfaces.PrefixGenVector{10: 0},
-			"bar:": interfaces.PrefixGenVector{10: 0},
+			"foo\xfe": interfaces.PrefixGenVector{10: 0},
+			"bar\xfe": interfaces.PrefixGenVector{10: 0},
 		}
 	}
 

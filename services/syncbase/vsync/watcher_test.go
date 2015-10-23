@@ -86,9 +86,9 @@ func TestWatchPrefixes(t *testing.T) {
 	}
 
 	expPrefixes := map[string]sgPrefixes{
-		"app1:db1": sgPrefixes{"foo": 2, "bar": 1},
-		"app2:db1": sgPrefixes{"xyz": 1},
-		"app3:db1": sgPrefixes{"haha": 1},
+		"app1\xfedb1": sgPrefixes{"foo": 2, "bar": 1},
+		"app2\xfedb1": sgPrefixes{"xyz": 1},
+		"app3\xfedb1": sgPrefixes{"haha": 1},
 	}
 	if !reflect.DeepEqual(watchPrefixes, expPrefixes) {
 		t.Errorf("invalid watch prefixes: got %v instead of %v", watchPrefixes, expPrefixes)

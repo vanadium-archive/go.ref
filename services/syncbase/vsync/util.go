@@ -7,7 +7,6 @@ package vsync
 // Sync utility functions
 
 import (
-	"strings"
 	"time"
 
 	"v.io/v23/context"
@@ -98,41 +97,10 @@ func toTableRowPrefixStr(p wire.SyncgroupPrefix) string {
 	return util.JoinKeyParts(p.TableName, p.RowPrefix)
 }
 
-// TODO(jlodhia): extractAppKey() method is temporary for conflict resolution.
-// Will be removed once SyncgroupPrefix is refactored into a generic
-// TableRow struct.
-// extractAppKey extracts the app key from the key sent over the wire between
-// two Syncbases. The on-wire key starts with one of the store's reserved
-// prefixes for managed namespaces (e.g. $row, $perms). This function removes
-// that prefix and returns the application component of the key. This is done
-// typically before comparing keys with the SyncGroup prefixes which are defined
-// by the application.
-func extractAppKey(key string) string {
-	parts := splitKeyIntoParts(key, 2)
-	return util.JoinKeyParts(parts[1:]...)
-}
-
-// isRowKey checks if the given key belongs to a data row.
-func isRowKey(key string) bool {
-	return strings.HasPrefix(key, util.RowPrefix)
-}
-
-// makeRowKey takes an app key, whose structure is <table>:<row>, and converts
-// it into store's representation of row key with structure $row:<table>:<row>
-func toRowKey(appKey string) string {
-	return util.JoinKeyParts(util.RowPrefix, appKey)
-}
-
-// Returns the table name and key within the table from the given row key.
-func extractComponentsFromKey(key string) (table string, row string) {
-	parts := splitKeyIntoParts(key, 3)
-	return parts[1], parts[2]
-}
-
-func splitKeyIntoParts(key string, minCount int) []string {
-	parts := util.SplitKeyParts(key)
-	if len(parts) < minCount {
-		vlog.Fatalf("sync: extractKeyParts: invalid entry key %s (expected %d parts)", key, minCount)
-	}
-	return parts
+// toRowKey prepends RowPrefix to what is presumably a "<table>:<row>" string,
+// yielding a storage engine key for a row.
+// TODO(sadovsky): Only used by CR code. Should go away once CR stores table
+// name and row key as separate fields in a "TableAndRow" struct.
+func toRowKey(tableRow string) string {
+	return util.JoinKeyParts(util.RowPrefix, tableRow)
 }

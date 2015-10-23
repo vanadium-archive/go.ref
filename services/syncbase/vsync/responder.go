@@ -72,7 +72,7 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 		for oid := range rSt.initVec {
 			gid, err := sgID(oid)
 			if err != nil {
-				vlog.Fatalf("sync: newResponderState: invalid syncgroup key", oid)
+				vlog.Fatalf("sync: newResponderState: invalid syncgroup key %s", oid)
 			}
 			rSt.sgIds[interfaces.GroupId(gid)] = struct{}{}
 		}
@@ -482,7 +482,7 @@ func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []str
 	// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
 	// comparing it with the syncgroup prefixes which are defined by the
 	// application.
-	key := util.StripFirstPartOrDie(rec.Metadata.ObjId)
+	key := util.StripFirstKeyPartOrDie(rec.Metadata.ObjId)
 
 	filter := true
 	var maxGen uint64

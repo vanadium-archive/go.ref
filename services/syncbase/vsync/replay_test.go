@@ -69,6 +69,16 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 			continue
 		}
 
+		// The current line encodes a command, i.e. it is not a comment line.
+		// Use strconv.Unquote to convert \xfe to the desired byte (for example).
+		// Note, we must wrap the original line in quotes before passing it to
+		// strconv.Unquote since strconv.Unquote expects the input string to look
+		// like a Go string literal (quoted).
+		qline := "\"" + line + "\""
+		if line, err = strconv.Unquote(qline); err != nil {
+			return nil, fmt.Errorf("%s: %s", err, qline)
+		}
+
 		args := strings.Split(line, "|")
 		nargs := len(args)
 
@@ -422,7 +432,15 @@ func splitLogRecKey(ctx *context.T, key string) (string, uint64, uint64, error) 
 }
 
 func TestSplitLogRecKey(t *testing.T) {
-	invalid := []string{"$sync:100:bb", "log:100:bb", "$sync:log:data:100:xx", "$sync:log:data:aa:bb", "$sync:log:xx:100:bb", "$sync:log:data:aa:100:bb", "$sync:log:$sync:sgd:xx:100:bb"}
+	invalid := []string{
+		"$sync\xfe100\xfebb",
+		"log\xfe100\xfebb",
+		"$sync\xfelog\xfedata\xfe100\xfexx",
+		"$sync\xfelog\xfedata\xfeaa\xfebb",
+		"$sync\xfelog\xfexx\xfe100\xfebb",
+		"$sync\xfelog\xfedata\xfeaa\xfe100\xfebb",
+		"$sync\xfelog\xfe$sync\xfesgd\xfexx\xfe100\xfebb",
+	}
 
 	for _, k := range invalid {
 		if _, _, _, err := splitLogRecKey(nil, k); err == nil {
@@ -436,8 +454,8 @@ func TestSplitLogRecKey(t *testing.T) {
 		gen uint64
 	}{
 		{logDataPrefix, 10, 20},
-		{"$sync:sgd:2500", 190, 540},
-		{"$sync:sgd:4200", 9999, 999999},
+		{"$sync\xfesgd\xfe2500", 190, 540},
+		{"$sync\xfesgd\xfe4200", 9999, 999999},
 	}
 
 	for _, v := range valid {

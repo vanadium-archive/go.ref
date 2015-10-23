@@ -14,7 +14,7 @@ func TestStKey(t *testing.T) {
 		dbName  string
 		stKey   string
 	}{
-		{"app1", "db1", "$dbInfo:app1:db1"},
+		{"app1", "db1", "$dbInfo\xfeapp1\xfedb1"},
 	}
 	for _, test := range tests {
 		got, want := dbInfoStKey(&app{name: test.appName}, test.dbName), test.stKey

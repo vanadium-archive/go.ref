@@ -7,7 +7,13 @@ package testutil
 var invalidIdentifiers []string = []string{
 	"/",
 	"a/b",
+	":",
+	"a:b",
 	"*",
+	"\x00",
+	"\x01",
+	"\xfa",
+	"\xfb",
 	"@@",
 	"dev.v.io/a/admin@myapp.com",
 	"안녕하세요",
@@ -27,11 +33,13 @@ var OkDbTableNames []string = []string{
 
 var NotOkAppRowNames []string = []string{
 	"",
-	":",
-	"\x00",
+	"\xfc",
+	"\xfd",
+	"\xfe",
 	"\xff",
-	"a:b",
-	"a\x00b",
+	"a\xfcb",
+	"a\xfdb",
+	"a\xfeb",
 	"a\xffb",
 }
 

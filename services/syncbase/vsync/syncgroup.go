@@ -526,7 +526,12 @@ func sgOID(gid interfaces.GroupId) string {
 	return util.JoinKeyParts(sgDataKeyPrefix, fmt.Sprintf("%d", gid))
 }
 
-// sgID is the inverse of sgOID and converts an oid string into a group id.
+// sgID is approximately the inverse of sgOID: it converts an oid string into a
+// group id, but assumes that oid is prefixed with util.SyncPrefix (whereas
+// sgOID does not prepend util.SyncPrefix).
+// TODO(hpucha): Add unittests that cover sgOID/sgID (and other such helpers).
+// In CL v.io/c/16919, an incorrect change to the implementation of sgID was
+// only caught by integration tests.
 func sgID(oid string) (interfaces.GroupId, error) {
 	parts := util.SplitKeyParts(oid)
 	if len(parts) != 3 {
@@ -545,7 +550,8 @@ func sgDataKey(gid interfaces.GroupId, version string) string {
 	return util.JoinKeyParts(sgDataKeyPrefix, fmt.Sprintf("%d", gid), version)
 }
 
-// sgDataKeyByOID returns the key used to access a version of the syncgroup data.
+// sgDataKeyByOID returns the key used to access a version of the syncgroup
+// data.
 func sgDataKeyByOID(oid, version string) string {
 	return util.JoinKeyParts(oid, version)
 }
@@ -1111,12 +1117,8 @@ func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx store.Transaction,
 			stream := tx.Scan(start, limit)
 			for stream.Advance() {
 				k, v := stream.Key(nil), stream.Value(nil)
-				parts := util.SplitKeyParts(string(k))
-				if len(parts) < 2 {
-					vlog.Fatalf("sync: bootstrapSyncgroup: invalid version key %s", string(k))
-
-				}
-				key := []byte(util.JoinKeyParts(parts[1:]...))
+				// Remove version prefix.
+				key := []byte(util.StripFirstKeyPartOrDie(string(k)))
 				if err := watchable.AddSyncSnapshotOp(ctx, tx, key, v); err != nil {
 					return err
 				}

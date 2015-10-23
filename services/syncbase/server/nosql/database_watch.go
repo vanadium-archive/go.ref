@@ -170,13 +170,12 @@ func (t *tableReq) processLogBatch(ctx *context.T, call rpc.ServerCall, prefix s
 		default:
 			continue
 		}
-		parts := util.SplitKeyParts(opKey)
 		// TODO(rogulenko): Currently we only process rows, i.e. keys of the form
-		// <rowPrefix>:xxx:yyy. Consider processing other keys.
-		if len(parts) != 3 || parts[0] != util.RowPrefix {
+		// <RowPrefix>:xxx:yyy. Consider processing other keys.
+		if !util.IsRowKey(opKey) {
 			continue
 		}
-		table, row := parts[1], parts[2]
+		table, row := util.ParseTableAndRowOrDie(opKey)
 		// Filter out unnecessary rows and rows that we can't access.
 		if table != t.name || !strings.HasPrefix(row, prefix) {
 			continue

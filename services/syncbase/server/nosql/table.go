@@ -166,8 +166,9 @@ func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersio
 		for it.Advance() {
 			key = it.Key(key)
 			// Check perms.
-			parts := util.SplitKeyParts(string(key))
-			externalKey := parts[len(parts)-1]
+			// See comment in util/constants.go for why we use SplitNKeyParts.
+			parts := util.SplitNKeyParts(string(key), 3)
+			externalKey := parts[2]
 			permsPrefix, err := t.checkAccess(ctx, call, tx, externalKey)
 			if err != nil {
 				// TODO(rogulenko): Revisit this behavior. Probably we should
@@ -211,8 +212,9 @@ func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, schemaVer
 		for it.Advance() {
 			key, value = it.Key(key), it.Value(value)
 			// Check perms.
-			parts := util.SplitKeyParts(string(key))
-			externalKey := parts[len(parts)-1]
+			// See comment in util/constants.go for why we use SplitNKeyParts.
+			parts := util.SplitNKeyParts(string(key), 3)
+			externalKey := parts[2]
 			if _, err := t.checkAccess(ctx, call, sntx, externalKey); err != nil {
 				it.Cancel()
 				return err
@@ -534,8 +536,10 @@ func (t *tableReq) permsPrefixForKey(ctx *context.T, sntx store.SnapshotOrTransa
 		return "", "", nil
 	}
 	defer it.Cancel()
-	parts := util.SplitKeyParts(string(it.Key(nil)))
-	prefix = strings.TrimSuffix(parts[len(parts)-1], util.PrefixRangeLimitSuffix)
+	// See comment in util/constants.go for why we use SplitNKeyParts.
+	parts := util.SplitNKeyParts(string(it.Key(nil)), 3)
+	externalKey := parts[2]
+	prefix = strings.TrimSuffix(externalKey, util.PrefixRangeLimitSuffix)
 	value := it.Value(nil)
 	if err = vom.Decode(value, &parent); err != nil {
 		return "", "", verror.New(verror.ErrInternal, ctx, err)

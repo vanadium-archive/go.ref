@@ -13,6 +13,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
 )
@@ -295,7 +296,7 @@ func createBatchConflictInfo(batchId uint64, source wire.BatchSource) *wire.Conf
 
 func createRowConflictInfo(ctx *context.T, iSt *initiationState, oid string, batches []uint64, contd bool) *wire.ConflictInfo {
 	op := wire.RowOp{}
-	op.Key = extractAppKey(oid)
+	op.Key = util.StripFirstKeyPartOrDie(oid)
 	objSt := iSt.updObjects[oid]
 	ancestorVer := objSt.ancestor
 	if ancestorVer != NoVersion {

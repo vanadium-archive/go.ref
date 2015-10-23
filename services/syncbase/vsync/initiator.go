@@ -670,7 +670,7 @@ func (iSt *initiationState) processBlobRefs(ctx *context.T, m *interfaces.LogRec
 			// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
 			// comparing it with the syncgroup prefixes which are defined by the
 			// application.
-			if strings.HasPrefix(util.StripFirstPartOrDie(objid), p) {
+			if strings.HasPrefix(util.StripFirstKeyPartOrDie(objid), p) {
 				for sg := range sgs {
 					sgIds[sg] = struct{}{}
 				}
@@ -903,17 +903,14 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 			}
 
 			// If this is a perms key, update the local store index.
-			parts := util.SplitKeyParts(objid)
-			if len(parts) < 3 {
-				vlog.Fatalf("sync: updateDbAndSyncSt: bad key %s", objid)
-			}
-			if parts[0] == util.PermsPrefix {
-				tb := iSt.config.db.Table(ctx, parts[1])
+			if util.IsPermsKey(objid) {
+				table, row := util.ParseTableAndRowOrDie(objid)
+				tb := iSt.config.db.Table(ctx, table)
 				var err error
 				if !newVersDeleted {
-					err = tb.UpdatePrefixPermsIndexForSet(ctx, iSt.tx, parts[2])
+					err = tb.UpdatePrefixPermsIndexForSet(ctx, iSt.tx, row)
 				} else {
-					err = tb.UpdatePrefixPermsIndexForDelete(ctx, iSt.tx, parts[2])
+					err = tb.UpdatePrefixPermsIndexForDelete(ctx, iSt.tx, row)
 				}
 				if err != nil {
 					return err

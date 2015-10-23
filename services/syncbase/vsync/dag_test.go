@@ -108,7 +108,7 @@ func TestAddParent(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid, version := "tb:foo1", "7"
+	oid, version := "tb\xfefoo1", "7"
 
 	tx := st.NewTransaction()
 	if err := s.addParent(nil, tx, oid, version, "haha", nil); err == nil {
@@ -236,7 +236,7 @@ func TestLocalUpdates(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -258,21 +258,21 @@ func TestLocalUpdates(t *testing.T) {
 	tx := st.NewTransaction()
 
 	// Make sure a new node cannot have more than 2 parents.
-	if err := s.addNode(nil, tx, oid, "4", "tb:foo", false, []string{"1", "2", "3"}, NoBatchId, nil); err == nil {
+	if err := s.addNode(nil, tx, oid, "4", "tb\xfefoo", false, []string{"1", "2", "3"}, NoBatchId, nil); err == nil {
 		t.Errorf("addNode() did not fail when given 3 parents")
 	}
 
 	// Make sure a new node cannot have an invalid parent.
-	if err := s.addNode(nil, tx, oid, "4", "tb:foo", false, []string{"1", "555"}, NoBatchId, nil); err == nil {
+	if err := s.addNode(nil, tx, oid, "4", "tb\xfefoo", false, []string{"1", "555"}, NoBatchId, nil); err == nil {
 		t.Errorf("addNode() did not fail when using an invalid parent")
 	}
 
 	// Make sure a new root node (no parents) can be added once a root exists.
 	// For the parents array, check both the "nil" and the empty array as input.
-	if err := s.addNode(nil, tx, oid, "6789", "tb:foo", false, nil, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid, "6789", "tb\xfefoo", false, nil, NoBatchId, nil); err != nil {
 		t.Errorf("cannot add another root node (nil parents) for object %s: %v", oid, err)
 	}
-	if err := s.addNode(nil, tx, oid, "9999", "tb:foo", false, []string{}, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid, "9999", "tb\xfefoo", false, []string{}, NoBatchId, nil); err != nil {
 		t.Errorf("cannot add another root node (empty parents) for object %s: %v", oid, err)
 	}
 
@@ -289,7 +289,7 @@ func TestRemoteUpdates(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	graft, err := s.dagReplayCommands(nil, "remote-init-00.log.sync")
 	if err != nil {
@@ -331,7 +331,7 @@ func TestRemoteUpdates(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %v", oid, newHead, logrec)
 	}
 
@@ -363,7 +363,7 @@ func TestRemoteNoConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -407,10 +407,10 @@ func TestRemoteNoConflict(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:data:10:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %v", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %v", oid, newHead, logrec)
 	}
 
@@ -446,7 +446,7 @@ func TestRemoteConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -490,13 +490,13 @@ func TestRemoteConflict(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:data:10:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync:log:data:10:2" {
+	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe2" {
 		t.Errorf("invalid logrec for ancestor object %s:%s: %s", oid, ancestor, logrec)
 	}
 
@@ -539,7 +539,7 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -583,13 +583,13 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:data:10:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:2" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe2" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync:log:data:10:2" {
+	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe2" {
 		t.Errorf("invalid logrec for ancestor object %s:%s: %s", oid, ancestor, logrec)
 	}
 
@@ -626,7 +626,7 @@ func TestRemoteConflictNoAncestor(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -670,10 +670,10 @@ func TestRemoteConflictNoAncestor(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync:log:data:10:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync:log:data:11:3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
 
@@ -931,7 +931,7 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -1001,7 +1001,7 @@ func TestRemoteLinkedConflict(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -1061,7 +1061,7 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
@@ -1123,7 +1123,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	st := svc.St()
 	s := svc.sync
 
-	oid := "tb:foo1"
+	oid := "tb\xfefoo1"
 
 	if _, err := s.dagReplayCommands(nil, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
