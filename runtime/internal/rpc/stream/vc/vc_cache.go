@@ -5,6 +5,7 @@
 package vc
 
 import (
+	"strings"
 	"sync"
 
 	"v.io/v23/naming"
@@ -17,17 +18,19 @@ var errVCCacheClosed = reg(".errVCCacheClosed", "vc cache has been closed")
 // VCCache implements a set of VIFs keyed by the endpoint of the remote end and the
 // local principal. Multiple goroutines can invoke methods on the VCCache simultaneously.
 type VCCache struct {
-	mu      sync.Mutex
-	cache   map[vcKey]*VC  // GUARDED_BY(mu)
-	started map[vcKey]bool // GUARDED_BY(mu)
-	cond    *sync.Cond
+	mu       sync.Mutex
+	cache    map[vcKey]*VC  // GUARDED_BY(mu)
+	ridCache map[ridKey]*VC // GUARDED_BY(mu)
+	started  map[vcKey]bool // GUARDED_BY(mu)
+	cond     *sync.Cond
 }
 
 // NewVCCache returns a new cache for VCs.
 func NewVCCache() *VCCache {
 	c := &VCCache{
-		cache:   make(map[vcKey]*VC),
-		started: make(map[vcKey]bool),
+		cache:    make(map[vcKey]*VC),
+		ridCache: make(map[ridKey]*VC),
+		started:  make(map[vcKey]bool),
 	}
 	c.cond = sync.NewCond(&c.mu)
 	return c
@@ -53,6 +56,9 @@ func (c *VCCache) ReservedFind(ep naming.Endpoint, p security.Principal) (*VC, e
 		return nil, verror.New(errVCCacheClosed, nil)
 	}
 	c.started[k] = true
+	if vc, ok := c.ridCache[c.ridkey(ep, p)]; ok {
+		return vc, nil
+	}
 	return c.cache[k], nil
 }
 
@@ -72,7 +78,11 @@ func (c *VCCache) Insert(vc *VC) error {
 	if c.cache == nil {
 		return verror.New(errVCCacheClosed, nil)
 	}
-	c.cache[c.key(vc.RemoteEndpoint(), vc.LocalPrincipal())] = vc
+	ep, principal := vc.RemoteEndpoint(), vc.LocalPrincipal()
+	c.cache[c.key(ep, principal)] = vc
+	if ep.RoutingID() != naming.NullRoutingID {
+		c.ridCache[c.ridkey(ep, principal)] = vc
+	}
 	return nil
 }
 
@@ -85,6 +95,7 @@ func (c *VCCache) Close() []*VC {
 	}
 	c.cache = nil
 	c.started = nil
+	c.ridCache = nil
 	c.mu.Unlock()
 	return vcs
 }
@@ -96,8 +107,16 @@ func (c *VCCache) Delete(vc *VC) error {
 	if c.cache == nil {
 		return verror.New(errVCCacheClosed, nil)
 	}
-	delete(c.cache, c.key(vc.RemoteEndpoint(), vc.LocalPrincipal()))
+	ep, principal := vc.RemoteEndpoint(), vc.LocalPrincipal()
+	delete(c.cache, c.key(ep, principal))
+	delete(c.ridCache, c.ridkey(ep, principal))
 	return nil
+}
+
+type ridKey struct {
+	rid            naming.RoutingID
+	localPublicKey string
+	blessingNames  string
 }
 
 type vcKey struct {
@@ -109,6 +128,15 @@ func (c *VCCache) key(ep naming.Endpoint, p security.Principal) vcKey {
 	k := vcKey{remoteEP: ep.String()}
 	if p != nil {
 		k.localPublicKey = p.PublicKey().String()
+	}
+	return k
+}
+
+func (c *VCCache) ridkey(ep naming.Endpoint, p security.Principal) ridKey {
+	k := ridKey{rid: ep.RoutingID()}
+	if p != nil {
+		k.localPublicKey = p.PublicKey().String()
+		k.blessingNames = strings.Join(ep.BlessingNames(), ",")
 	}
 	return k
 }
