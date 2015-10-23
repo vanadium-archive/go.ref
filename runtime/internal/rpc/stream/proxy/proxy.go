@@ -607,9 +607,10 @@ func (p *process) readLoop() {
 				dst.Process.queue.Put(m)
 			}
 		case *message.HealthCheckResponse:
-			// Note that the proxy never sends health check requests, so responses
-			// should always be forwarded.
-			if dst := p.Route(m.VCI); dst != nil {
+			if svc := p.ServerVC(m.VCI); svc != nil {
+				// If the request is for the proxy, pass it to the VC.
+				svc.HandleHealthCheckResponse()
+			} else if dst := p.Route(m.VCI); dst != nil {
 				m.VCI = dst.VCI
 				dst.Process.queue.Put(m)
 			}
