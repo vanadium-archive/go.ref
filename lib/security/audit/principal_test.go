@@ -25,7 +25,7 @@ import (
 )
 
 func TestAuditingPrincipal(t *testing.T) {
-	ctx, shutdown := test.V23InitAnon()
+	ctx, shutdown := test.V23InitSimple()
 	defer shutdown()
 	var (
 		thirdPartyCaveat, discharge = newThirdPartyCaveatAndDischarge(t)
@@ -129,7 +129,7 @@ func equalResults(got, want []interface{}) error {
 }
 
 func TestUnauditedMethodsOnPrincipal(t *testing.T) {
-	ctx, shutdown := test.V23InitAnon()
+	ctx, shutdown := test.V23InitSimple()
 	defer shutdown()
 	var (
 		auditor = new(mockAuditor)
@@ -199,9 +199,9 @@ func (p *mockPrincipal) MintDischarge(security.Caveat, security.Caveat, ...secur
 	return d, p.NextError
 }
 
-func (p *mockPrincipal) PublicKey() security.PublicKey               { return p.NextResult.(security.PublicKey) }
-func (p *mockPrincipal) Roots() security.BlessingRoots               { return nil }
-func (p *mockPrincipal) BlessingStore() security.BlessingStore       { return nil }
+func (p *mockPrincipal) PublicKey() security.PublicKey         { return p.NextResult.(security.PublicKey) }
+func (p *mockPrincipal) Roots() security.BlessingRoots         { return nil }
+func (p *mockPrincipal) BlessingStore() security.BlessingStore { return nil }
 
 type mockAuditor struct {
 	LastEntry audit.Entry

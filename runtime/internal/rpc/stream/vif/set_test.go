@@ -111,7 +111,7 @@ func find(set *vif.Set, n, a string) *vif.VIF {
 }
 
 func TestSetBasic(t *testing.T) {
-	ctx, shutdown := test.V23InitAnon()
+	ctx, shutdown := test.V23InitSimple()
 	defer shutdown()
 	sockdir, err := ioutil.TempDir("", "TestSetBasic")
 	if err != nil {
@@ -184,7 +184,7 @@ func TestSetBasic(t *testing.T) {
 }
 
 func TestSetWithPipes(t *testing.T) {
-	ctx, shutdown := test.V23InitAnon()
+	ctx, shutdown := test.V23InitSimple()
 	defer shutdown()
 	c1, s1 := net.Pipe()
 	c2, s2 := net.Pipe()
@@ -233,7 +233,7 @@ func TestSetWithPipes(t *testing.T) {
 }
 
 func TestSetWithUnixSocket(t *testing.T) {
-	ctx, shutdown := test.V23InitAnon()
+	ctx, shutdown := test.V23InitSimple()
 	defer shutdown()
 	dir, err := ioutil.TempDir("", "TestSetWithUnixSocket")
 	if err != nil {
@@ -296,7 +296,7 @@ func TestSetWithUnixSocket(t *testing.T) {
 }
 
 func TestSetInsertDelete(t *testing.T) {
-	ctx, shutdown := test.V23InitAnon()
+	ctx, shutdown := test.V23InitSimple()
 	defer shutdown()
 	c1, s1 := net.Pipe()
 	vf1, _, err := newVIF(ctx, c1, s1)
@@ -319,7 +319,7 @@ func TestSetInsertDelete(t *testing.T) {
 }
 
 func TestBlockingFind(t *testing.T) {
-	ctx, shutdown := test.V23InitAnon()
+	ctx, shutdown := test.V23InitSimple()
 	defer shutdown()
 	network, address := "tcp", "127.0.0.1:1234"
 	set := vif.NewSet()

@@ -117,10 +117,11 @@ func TestContext() (*context.T, context.CancelFunc) {
 	return context.WithLogger(ctx, logger.Global()), cancel
 }
 
-// V23InitEmpty initializes a runtime but with no principal.
-func V23InitAnon() (*context.T, v23.Shutdown) {
+// V23InitSimple is like V23Init, except that it does not setup a
+// mounttable.
+func V23InitSimple() (*context.T, v23.Shutdown) {
 	return initWithParams(initParams{
-		CreatePrincipal:  false,
+		CreatePrincipal:  true,
 		CreateMounttable: false,
 	})
 }
