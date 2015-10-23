@@ -261,7 +261,7 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty) table name")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.SyncgroupPrefix{{TableName: "a", RowPrefix: "\xff"}}
+	sg.Spec.Prefixes = []wire.SyncgroupPrefix{{TableName: "a", RowPrefix: "\xfe"}}
 	checkBadAddSyncgroup(t, st, sg, "SG with invalid row prefix")
 }
 
@@ -448,7 +448,7 @@ func TestMultiSyncgroups(t *testing.T) {
 	expMemberInfo := map[string]*memberInfo{
 		"phone": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
-				"mockapp:mockdb": sgMemberInfo{
+				"mockapp\xfemockdb": sgMemberInfo{
 					sgId1: sg1.Joiners["phone"],
 				},
 			},
@@ -456,7 +456,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		},
 		"tablet": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
-				"mockapp:mockdb": sgMemberInfo{
+				"mockapp\xfemockdb": sgMemberInfo{
 					sgId1: sg1.Joiners["tablet"],
 					sgId2: sg2.Joiners["tablet"],
 				},
@@ -469,7 +469,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		},
 		"cloud": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
-				"mockapp:mockdb": sgMemberInfo{
+				"mockapp\xfemockdb": sgMemberInfo{
 					sgId1: sg1.Joiners["cloud"],
 				},
 			},
@@ -477,7 +477,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		},
 		"door": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
-				"mockapp:mockdb": sgMemberInfo{
+				"mockapp\xfemockdb": sgMemberInfo{
 					sgId2: sg2.Joiners["door"],
 				},
 			},
@@ -485,7 +485,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		},
 		"lamp": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
-				"mockapp:mockdb": sgMemberInfo{
+				"mockapp\xfemockdb": sgMemberInfo{
 					sgId2: sg2.Joiners["lamp"],
 				},
 			},
@@ -529,7 +529,7 @@ func TestMultiSyncgroups(t *testing.T) {
 	expMemberInfo = map[string]*memberInfo{
 		"tablet": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
-				"mockapp:mockdb": sgMemberInfo{
+				"mockapp\xfemockdb": sgMemberInfo{
 					sgId2: sg2.Joiners["tablet"],
 				},
 			},
@@ -537,7 +537,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		},
 		"door": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
-				"mockapp:mockdb": sgMemberInfo{
+				"mockapp\xfemockdb": sgMemberInfo{
 					sgId2: sg2.Joiners["door"],
 				},
 			},
@@ -545,7 +545,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		},
 		"lamp": &memberInfo{
 			db2sg: map[string]sgMemberInfo{
-				"mockapp:mockdb": sgMemberInfo{
+				"mockapp\xfemockdb": sgMemberInfo{
 					sgId2: sg2.Joiners["lamp"],
 				},
 			},

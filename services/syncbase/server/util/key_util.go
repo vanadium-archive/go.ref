@@ -5,6 +5,7 @@
 package util
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -18,20 +19,63 @@ func JoinKeyParts(parts ...string) string {
 	return strings.Join(parts, KeyPartSep)
 }
 
-// SplitKeyParts is the inverse of JoinKeyParts.
+// SplitKeyParts is the inverse of JoinKeyParts. Clients are generally
+// encouraged to use SplitNKeyParts.
 func SplitKeyParts(key string) []string {
 	return strings.Split(key, KeyPartSep)
 }
 
-// StripFirstPartOrDie strips off the first part of the given key. Typically
+// SplitNKeyParts is to SplitKeyParts as strings.SplitN is to strings.Split.
+func SplitNKeyParts(key string, n int) []string {
+	return strings.SplitN(key, KeyPartSep, n)
+}
+
+// StripFirstKeyPartOrDie strips off the first part of the given key. Typically
 // used to strip off the key prefixes defined in constants.go. Panics if the
 // input string has fewer than two parts.
-func StripFirstPartOrDie(key string) string {
-	parts := strings.SplitN(key, KeyPartSep, 2)
+func StripFirstKeyPartOrDie(key string) string {
+	parts := SplitNKeyParts(key, 2)
 	if len(parts) < 2 {
-		vlog.Fatalf("StripFirstPartOrDie: invalid key: %q", key)
+		vlog.Fatalf("StripFirstKeyPartOrDie: invalid key %q", key)
 	}
 	return parts[1]
+}
+
+// FirstKeyPart returns the first part of 'key', typically a key prefix defined
+// in constants.go.
+func FirstKeyPart(key string) string {
+	return SplitNKeyParts(key, 2)[0]
+}
+
+// IsRowKey returns true iff 'key' is a storage engine key for a row.
+func IsRowKey(key string) bool {
+	return FirstKeyPart(key) == RowPrefix
+}
+
+// IsPermsKey returns true iff 'key' is a storage engine key for perms.
+func IsPermsKey(key string) bool {
+	return FirstKeyPart(key) == PermsPrefix
+}
+
+// ParseTableAndRow extracts table and row parts from the given storage engine
+// key for a row or perms. Returns an error if the given key is not a storage
+// engine key for a row or perms.
+func ParseTableAndRow(key string) (table string, row string, err error) {
+	parts := SplitNKeyParts(key, 3)
+	pfx := parts[0]
+	if len(parts) < 3 || (pfx != RowPrefix && pfx != PermsPrefix) {
+		return "", "", fmt.Errorf("ParseTableAndRow: invalid key %q", key)
+	}
+	return parts[1], parts[2], nil
+}
+
+// ParseTableAndRowOrDie calls ParseTableAndRow and panics on error.
+func ParseTableAndRowOrDie(key string) (table string, row string) {
+	table, row, err := ParseTableAndRow(key)
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	return table, row
 }
 
 // ScanPrefixArgs returns args for sn.Scan() for the specified prefix.

@@ -1,6 +1,6 @@
 # Create the same object remotely from scratch and update it twice (linked-list).
 # The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
 
-addr|tb:foo1|4|||$sync:log:data:11:1|0|1|false
-addr|tb:foo1|5|4||$sync:log:data:11:2|0|1|false
-addr|tb:foo1|6|5||$sync:log:data:11:3|0|1|false
+addr|tb\xfefoo1|4|||$sync\xfelog\xfedata\xfe11\xfe1|0|1|false
+addr|tb\xfefoo1|5|4||$sync\xfelog\xfedata\xfe11\xfe2|0|1|false
+addr|tb\xfefoo1|6|5||$sync\xfelog\xfedata\xfe11\xfe3|0|1|false

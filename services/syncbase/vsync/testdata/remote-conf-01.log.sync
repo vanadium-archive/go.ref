@@ -5,6 +5,6 @@
 # sees 2 graft points: v1-v4 and v2-v5.
 # The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
 
-addr|tb:foo1|4|1||$sync:log:data:12:1|0|1|false
-addr|tb:foo1|5|2|4|$sync:log:data:11:1|0|1|false
-addr|tb:foo1|6|5||$sync:log:data:11:2|0|1|false
+addr|tb\xfefoo1|4|1||$sync\xfelog\xfedata\xfe12\xfe1|0|1|false
+addr|tb\xfefoo1|5|2|4|$sync\xfelog\xfedata\xfe11\xfe1|0|1|false
+addr|tb\xfefoo1|6|5||$sync\xfelog\xfedata\xfe11\xfe2|0|1|false

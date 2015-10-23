@@ -1,4 +1,4 @@
 # Resolve the same conflict on two different devices.
 # The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
 
-linkr|tb:foo1|3|4||$sync:log:12:1
+linkr|tb\xfefoo1|3|4||$sync\xfelog\xfe12\xfe1

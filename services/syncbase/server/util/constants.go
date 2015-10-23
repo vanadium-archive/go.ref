@@ -9,6 +9,9 @@ import (
 )
 
 // Constants related to storage engine keys.
+// Note, these are persisted and therefore must not be modified.
+// TODO(sadovsky): Use one-byte strings. Changing these prefixes breaks various
+// tests. Tests generally shouldn't depend on the values of these constants.
 const (
 	AppPrefix        = "$app"
 	ClockPrefix      = "$clock"
@@ -23,28 +26,9 @@ const (
 	TablePrefix      = "$table"
 	VersionPrefix    = "$version"
 
-	// Note, these are persisted and therefore must not be modified.
-	// Below, they are ordered lexicographically by value.
-	// TODO(sadovsky): Changing these prefixes breaks various tests. Tests
-	// generally shouldn't depend on the values of these constants.
-	/*
-		AppPrefix      = "a"
-		ClockPrefix    = "c"
-		DatabasePrefix = "d"
-		DbInfoPrefix   = "i"
-		LogPrefix      = "l"
-		PermsPrefix    = "p"
-		RowPrefix      = "r"
-		ServicePrefix  = "s"
-		TablePrefix    = "t"
-		VersionPrefix  = "v"
-		SyncPrefix     = "y"
-	*/
-
-	// Separator for parts of storage engine keys.
-	// TODO(sadovsky): Switch to \xff or \x00, both of which are disallowed in
-	// client-specified names and keys.
-	KeyPartSep = ":"
+	// KeyPartSep is a separator for parts of storage engine keys, e.g. separating
+	// table name from row key.
+	KeyPartSep = "\xfe"
 
 	// PrefixRangeLimitSuffix is a key suffix that indicates the end of a prefix
 	// range. Must be greater than any character allowed in client-specified keys.

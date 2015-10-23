@@ -84,10 +84,6 @@ func join(parts ...string) string {
 	return util.JoinKeyParts(parts...)
 }
 
-func split(key string) []string {
-	return util.SplitKeyParts(key)
-}
-
 func convertError(err error) error {
 	return verror.Convert(verror.IDAction{}, nil, err)
 }

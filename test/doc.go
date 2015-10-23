@@ -28,20 +28,20 @@
 // --v23.tests.shell-on-fail - drop into a debug shell if the test fails.
 //
 // Typical usage is:
-// $ v23 go test . --v23.tests
+// $ jiri go test . --v23.tests
 //
 // Note that, like all flags not recognised by the go testing package, the
 // v23.tests flags must follow the package spec.
 //
 // The sub-directories of this package provide either functionality that
 // can be used within traditional go tests, or support for the v23 integration
-// test framework. The v23 command is able to generate boilerplate code
-// to support these tests. In summary, v23 test generate will generate
+// test framework. The jiri command is able to generate boilerplate code
+// to support these tests. In summary, 'jiri test generate' will generate
 // go files to be checked in that include appropriate TestMain functions,
 // registration calls for modules commands and wrapper functions for v23test
 // tests. More detailed documentation is available via:
 //
-// $ v23 test generate --help
+// $ jiri test generate --help
 //
 // Vanadium tests often need to run subprocesses to provide either common
 // services that they depend (e.g. a mount table) and/or services that are

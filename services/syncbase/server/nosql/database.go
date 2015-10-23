@@ -351,13 +351,13 @@ func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string,
 			return nil, err
 		}
 		it := sntx.Scan(util.ScanPrefixArgs(util.TablePrefix, ""))
-		key := []byte{}
+		keyBytes := []byte{}
 		res := []string{}
 		for it.Advance() {
-			key = it.Key(key)
-			parts := util.SplitKeyParts(string(key))
+			keyBytes = it.Key(keyBytes)
+			parts := util.SplitNKeyParts(string(keyBytes), 2)
 			// For explanation of Escape(), see comment in server/nosql/dispatcher.go.
-			res = append(res, pubutil.Escape(parts[len(parts)-1]))
+			res = append(res, pubutil.Escape(parts[1]))
 		}
 		if err := it.Err(); err != nil {
 			return nil, err
@@ -508,9 +508,9 @@ func (s *kvs) Advance() bool {
 		if s.it[s.curr].Advance() {
 			// key
 			keyBytes := s.it[s.curr].Key(nil)
-			parts := util.SplitKeyParts(string(keyBytes))
+			parts := util.SplitNKeyParts(string(keyBytes), 3)
 			// TODO(rogulenko): Check access for the key.
-			s.currKey = parts[len(parts)-1]
+			s.currKey = parts[2]
 			// value
 			valueBytes := s.it[s.curr].Value(nil)
 			var currValue *vdl.Value

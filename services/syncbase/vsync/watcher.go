@@ -422,13 +422,9 @@ func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 	}
 
 	// The key starts with one of the store's reserved prefixes for managed
-	// namespaced (e.g. $row or $perm).  Remove that prefix before comparing
-	// it with the syncgroup prefixes which are defined by the application.
-	parts := util.SplitKeyParts(key)
-	if len(parts) < 2 {
-		vlog.Fatalf("sync: syncable: %s: invalid entry key %s: %v", appdb, key, logEnt)
-	}
-	key = util.JoinKeyParts(parts[1:]...)
+	// namespaces (e.g. "$row", "$perms"). Remove that prefix before comparing it
+	// with the syncgroup prefixes which are defined by the application.
+	key = util.StripFirstKeyPartOrDie(key)
 
 	for prefix := range watchPrefixes[appdb] {
 		if strings.HasPrefix(key, prefix) {

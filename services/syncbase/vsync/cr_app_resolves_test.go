@@ -11,6 +11,7 @@ import (
 
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
 )
@@ -379,7 +380,7 @@ func addResInfo(crs *conflictResolverStream, oid string, sel wire.ValueSelection
 		}
 	}
 	rInfo := wire.ResolutionInfo{
-		Key:       extractAppKey(oid),
+		Key:       util.StripFirstKeyPartOrDie(oid),
 		Selection: sel,
 		Result:    valRes,
 		Continued: cntd,

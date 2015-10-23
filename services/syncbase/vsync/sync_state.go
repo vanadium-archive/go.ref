@@ -507,7 +507,7 @@ func appDbName(appName, dbName string) string {
 // splitAppDbName is the inverse of appDbName and returns app and db name from a
 // globally unique name for a Database.
 func splitAppDbName(ctx *context.T, name string) (string, string, error) {
-	parts := util.SplitKeyParts(name)
+	parts := util.SplitNKeyParts(name, 2)
 	if len(parts) != 2 {
 		return "", "", verror.New(verror.ErrInternal, ctx, "invalid appDbName", name)
 	}
