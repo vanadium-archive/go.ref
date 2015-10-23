@@ -85,7 +85,10 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	// Resolve of the discharge server name.  The two resolve calls may be to
 	// the same mounttable.
 	c.loopWG.Add(1)
-	go c.refreshDischarges(ctx)
+	go func() {
+		c.refreshDischarges(ctx)
+		c.loopWG.Done()
+	}()
 	return nil
 }
 
@@ -105,7 +108,6 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange)
 	lAuth := &message.Auth{
 		ChannelBinding: signedBinding,
 	}
-	c.loopWG.Add(1)
 	if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx); err != nil {
 		return err
 	}
@@ -211,7 +213,6 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 }
 
 func (c *Conn) refreshDischarges(ctx *context.T) (bkey, dkey uint64, err error) {
-	defer c.loopWG.Done()
 	dis := slib.PrepareDischarges(ctx, c.lBlessings,
 		security.DischargeImpetus{}, time.Minute)
 	// Schedule the next update.
@@ -221,6 +222,7 @@ func (c *Conn) refreshDischarges(ctx *context.T) (bkey, dkey uint64, err error) 
 		c.loopWG.Add(1)
 		c.dischargeTimer = time.AfterFunc(dur, func() {
 			c.refreshDischarges(ctx)
+			c.loopWG.Done()
 		})
 	}
 	c.mu.Unlock()
