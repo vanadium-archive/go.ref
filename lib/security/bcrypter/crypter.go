@@ -88,15 +88,15 @@ type PrivateKey struct {
 	keys []ibe.PrivateKey
 }
 
-// Encrypt encrypts the provided fixed-length 'plaintext' so that it can
-// only be decrypted by a crypter possessing a private key for a blessing
-// matching the provided blessing pattern.
+// Encrypt encrypts the provided 'plaintext' so that it can only be decrypted
+// by a crypter possessing a private key for a blessing matching the provided
+// blessing pattern.
 //
 // Encryption makes use of the public parameters of the identity provider
 // that is authoritative on the set of blessings that match the provided
 // blessing pattern. These paramaters must have been previously added to
 // this crypter via AddParams.
-func (c *Crypter) Encrypt(ctx *context.T, forPattern security.BlessingPattern, plaintext *[32]byte) (*Ciphertext, error) {
+func (c *Crypter) Encrypt(ctx *context.T, forPattern security.BlessingPattern, plaintext []byte) (*Ciphertext, error) {
 	if !forPattern.IsValid() {
 		return nil, fmt.Errorf("provided blessing pattern %v is invalid", forPattern)
 	}
@@ -109,8 +109,8 @@ func (c *Crypter) Encrypt(ctx *context.T, forPattern security.BlessingPattern, p
 			continue
 		}
 		for _, ibeParams := range ibeParamsList {
-			ctxt := make([]byte, ibe.CiphertextSize)
-			if err := ibeParams.Encrypt(string(forPattern), (*plaintext)[:], ctxt); err != nil {
+			ctxt := make([]byte, len(plaintext)+ibeParams.CiphertextOverhead())
+			if err := ibeParams.Encrypt(string(forPattern), plaintext, ctxt); err != nil {
 				return nil, NewErrInternal(ctx, err)
 			}
 			paramsId, err := idParams(ibeParams)
@@ -127,16 +127,24 @@ func (c *Crypter) Encrypt(ctx *context.T, forPattern security.BlessingPattern, p
 	return ciphertext, nil
 }
 
+func decrypt(key ibe.PrivateKey, ciphertext []byte) ([]byte, error) {
+	overhead := key.Params().CiphertextOverhead()
+	if got := len(ciphertext); got < overhead {
+		return nil, fmt.Errorf("ciphertext is of size %v bytes, want at least %v bytes", got, overhead)
+	}
+	plaintext := make([]byte, len(ciphertext)-overhead)
+	if err := key.Decrypt(ciphertext, plaintext); err != nil {
+		return nil, err
+	}
+	return plaintext, nil
+}
+
 // Decrypt decrypts the provided 'ciphertext' and returns the corresponding
 // plaintext.
 //
 // Decryption succeeds only if this crypter possesses a private key for a
 // blessing that matches the blessing pattern corresponding to the ciphertext.
-func (c *Crypter) Decrypt(ctx *context.T, ciphertext *Ciphertext) (*[32]byte, error) {
-	var (
-		plaintext [32]byte
-		keyFound  bool
-	)
+func (c *Crypter) Decrypt(ctx *context.T, ciphertext *Ciphertext) ([]byte, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	for paramsId, cbytes := range ciphertext.wire.Bytes {
@@ -144,16 +152,13 @@ func (c *Crypter) Decrypt(ctx *context.T, ciphertext *Ciphertext) (*[32]byte, er
 			continue
 		} else if key, found := keys[ciphertext.wire.PatternId]; !found {
 			continue
-		} else if err := key.Decrypt(cbytes, plaintext[:]); err != nil {
-			return nil, NewErrInternal(ctx, err)
+		} else if ptxt, err := decrypt(key, cbytes); err != nil {
+			return nil, err
+		} else {
+			return ptxt, nil
 		}
-		keyFound = true
-		break
 	}
-	if !keyFound {
-		return nil, NewErrPrivateKeyNotFound(ctx)
-	}
-	return &plaintext, nil
+	return nil, NewErrPrivateKeyNotFound(ctx)
 }
 
 // AddKey adds the provided private key 'key' and the associated public

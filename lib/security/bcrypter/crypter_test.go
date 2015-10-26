@@ -25,12 +25,8 @@ func newRoot(name string) *Root {
 	return NewRoot(name, master)
 }
 
-func newPlaintext() [32]byte {
-	var m [32]byte
-	if n := copy(m[:], []byte("AThirtyTwoBytePieceOfTextThisIs!")); n != len(m) {
-		panic(fmt.Errorf("plaintext string must be %d bytes, not %d", len(m), n))
-	}
-	return m
+func newPlaintext() []byte {
+	return []byte("AThirtyTwoBytePieceOfTextThisIs!")
 }
 
 func TextExtract(t *testing.T) {
@@ -79,7 +75,7 @@ func TestEncrypt(t *testing.T) {
 	)
 
 	// empty encrypter should not be able to encrypt for any pattern.
-	if _, err := encrypter.Encrypt(ctx, "google/youtube/alice", &ptxt); verror.ErrorID(err) != ErrNoParams.ID {
+	if _, err := encrypter.Encrypt(ctx, "google/youtube/alice", ptxt); verror.ErrorID(err) != ErrNoParams.ID {
 		t.Fatalf("Got error %v, wanted error with ID %v", err, ErrNoParams.ID)
 	}
 
@@ -88,7 +84,7 @@ func TestEncrypt(t *testing.T) {
 		t.Fatal(err)
 	}
 	// encrypting for "google/youtube/alice" should now succeed.
-	if _, err := encrypter.Encrypt(ctx, "google/youtube/alice", &ptxt); err != nil {
+	if _, err := encrypter.Encrypt(ctx, "google/youtube/alice", ptxt); err != nil {
 		t.Fatal(err)
 	}
 
@@ -96,7 +92,7 @@ func TestEncrypt(t *testing.T) {
 	// does not have params that are authoritative on all blessings matching
 	// the pattern "google" (the googleYoutube params are authoritative on
 	// blessings matching "google/youtube").
-	if _, err := encrypter.Encrypt(ctx, "google", &ptxt); verror.ErrorID(err) != ErrNoParams.ID {
+	if _, err := encrypter.Encrypt(ctx, "google", ptxt); verror.ErrorID(err) != ErrNoParams.ID {
 		t.Fatalf("Got error %v, wanted error with ID %v", err, ErrNoParams.ID)
 	}
 	// add google's params to the encrypter.
@@ -104,21 +100,21 @@ func TestEncrypt(t *testing.T) {
 		t.Fatal(err)
 	}
 	// encrypting for "google" should now succeed.
-	if _, err := encrypter.Encrypt(ctx, "google", &ptxt); err != nil {
+	if _, err := encrypter.Encrypt(ctx, "google", ptxt); err != nil {
 		t.Fatal(err)
 	}
 
 	// Encryption should succeed for all of the following patterns
 	patterns := []security.BlessingPattern{"google", "google/$", "google/alice", "google/bob", "google/bob/phone"}
 	for _, p := range patterns {
-		if _, err := encrypter.Encrypt(ctx, p, &ptxt); err != nil {
+		if _, err := encrypter.Encrypt(ctx, p, ptxt); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	// Every ciphertext should be unique.
-	ctxt1, _ := encrypter.Encrypt(ctx, "google", &ptxt)
-	ctxt2, _ := encrypter.Encrypt(ctx, "google", &ptxt)
+	ctxt1, _ := encrypter.Encrypt(ctx, "google", ptxt)
+	ctxt2, _ := encrypter.Encrypt(ctx, "google", ptxt)
 	if reflect.DeepEqual(ctxt1, ctxt2) {
 		t.Fatal("Two Encrypt operations yielded the same Ciphertext")
 	}
@@ -156,7 +152,7 @@ func TestDecrypt(t *testing.T) {
 	addParams(encrypter, google1.Params())
 	addParams(encrypter, google2.Params())
 	// encrypt for the pattern "google/alice"
-	ctxt, err := encrypter.Encrypt(ctx, "google/alice", &ptxt)
+	ctxt, err := encrypter.Encrypt(ctx, "google/alice", ptxt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,8 +171,8 @@ func TestDecrypt(t *testing.T) {
 	// Decryption should now succeed.
 	if got, err := decrypter.Decrypt(ctx, ctxt); err != nil {
 		t.Fatal(err)
-	} else if !bytes.Equal((*got)[:], ptxt[:]) {
-		t.Fatalf("Got plaintext %v, want %v", *got, ptxt)
+	} else if !bytes.Equal(got, ptxt) {
+		t.Fatalf("Got plaintext %v, want %v", got, ptxt)
 	}
 
 	// Decryption should have succeeded had the decrypter only contained
@@ -187,8 +183,8 @@ func TestDecrypt(t *testing.T) {
 	}
 	if got, err := decrypter.Decrypt(ctx, ctxt); err != nil {
 		t.Fatal(err)
-	} else if !bytes.Equal((*got)[:], ptxt[:]) {
-		t.Fatalf("Got plaintext %v, want %v", *got, ptxt)
+	} else if !bytes.Equal(got, ptxt) {
+		t.Fatalf("Got plaintext %v, want %v", got, ptxt)
 	}
 
 	// Decryption should fail for ciphertexts encrypted for the following
@@ -196,7 +192,7 @@ func TestDecrypt(t *testing.T) {
 	// "google/alice/tablet/app" from the root google2).
 	patterns := []security.BlessingPattern{"google/alice/$", "google/bob", "google/alice/tablet/$", "google/bob/tablet"}
 	for _, p := range patterns {
-		ctxt, err := encrypter.Encrypt(ctx, p, &ptxt)
+		ctxt, err := encrypter.Encrypt(ctx, p, ptxt)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -210,14 +206,14 @@ func TestDecrypt(t *testing.T) {
 	// patterns should succeed.
 	patterns = []security.BlessingPattern{"google", "google/$", "google/alice", "google/bob", "google/bob/phone"}
 	for _, p := range patterns {
-		if _, err := decrypter.Encrypt(ctx, p, &ptxt); err != nil {
+		if _, err := decrypter.Encrypt(ctx, p, ptxt); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// But encrypting for the following patterns should fail.
 	patterns = []security.BlessingPattern{"youtube", "youtube/$", "youtube/alice"}
 	for _, p := range patterns {
-		if _, err := decrypter.Encrypt(ctx, p, &ptxt); verror.ErrorID(err) != ErrNoParams.ID {
+		if _, err := decrypter.Encrypt(ctx, p, ptxt); verror.ErrorID(err) != ErrNoParams.ID {
 			t.Fatalf("Got error %v, wanted error with ID %v", err, ErrNoParams.ID)
 		}
 	}
@@ -233,7 +229,7 @@ func TestWireCiphertext(t *testing.T) {
 		if err := enc.AddParams(ctx, params); err != nil {
 			t.Fatal(err)
 		}
-		ctxt, err := enc.Encrypt(ctx, pattern, &ptxt)
+		ctxt, err := enc.Encrypt(ctx, pattern, ptxt)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -246,8 +242,8 @@ func TestWireCiphertext(t *testing.T) {
 		}
 		if got, err := dec.Decrypt(ctx, ctxt); err != nil {
 			return err
-		} else if !bytes.Equal((*got)[:], ptxt[:]) {
-			return fmt.Errorf("got plaintext %v, want %v", *got, ptxt)
+		} else if !bytes.Equal(got, ptxt) {
+			return fmt.Errorf("got plaintext %v, want %v", got, ptxt)
 		}
 		return nil
 	}
