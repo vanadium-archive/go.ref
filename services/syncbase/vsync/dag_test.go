@@ -331,7 +331,7 @@ func TestRemoteUpdates(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "y\xfel\xfed\xfe11\xfe3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %v", oid, newHead, logrec)
 	}
 
@@ -407,10 +407,10 @@ func TestRemoteNoConflict(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "y\xfel\xfed\xfe10\xfe3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %v", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "y\xfel\xfed\xfe11\xfe3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %v", oid, newHead, logrec)
 	}
 
@@ -490,13 +490,13 @@ func TestRemoteConflict(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "y\xfel\xfed\xfe10\xfe3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "y\xfel\xfed\xfe11\xfe3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe2" {
+	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "y\xfel\xfed\xfe10\xfe2" {
 		t.Errorf("invalid logrec for ancestor object %s:%s: %s", oid, ancestor, logrec)
 	}
 
@@ -583,13 +583,13 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "y\xfel\xfed\xfe10\xfe3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe2" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "y\xfel\xfed\xfe11\xfe2" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe2" {
+	if logrec, err := getLogRecKey(nil, st, oid, ancestor); err != nil || logrec != "y\xfel\xfed\xfe10\xfe2" {
 		t.Errorf("invalid logrec for ancestor object %s:%s: %s", oid, ancestor, logrec)
 	}
 
@@ -670,10 +670,10 @@ func TestRemoteConflictNoAncestor(t *testing.T) {
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
 
-	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe10\xfe3" {
+	if logrec, err := getLogRecKey(nil, st, oid, oldHead); err != nil || logrec != "y\xfel\xfed\xfe10\xfe3" {
 		t.Errorf("invalid logrec for oldhead object %s:%s: %s", oid, oldHead, logrec)
 	}
-	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "$sync\xfelog\xfedata\xfe11\xfe3" {
+	if logrec, err := getLogRecKey(nil, st, oid, newHead); err != nil || logrec != "y\xfel\xfed\xfe11\xfe3" {
 		t.Errorf("invalid logrec for newhead object %s:%s: %s", oid, newHead, logrec)
 	}
 
@@ -989,11 +989,11 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 }
 
 // TestRemoteLinkedConflict tests sync of remote updates that contain linked
-// nodes (conflict resolution by selecting an existing version) on top of a local
-// initial state triggering a local conflict.  An object is created locally and
-// updated twice (v1 -> v2 -> v3).  Another device has along the way learned
+// nodes (conflict resolution by selecting an existing version) on top of a
+// local initial state triggering a local conflict. An object is created locally
+// and updated twice (v1 -> v2 -> v3). Another device has along the way learned
 // about v1, created (v1 -> v4), then learned about (v1 -> v2) and resolved that
-// conflict by selecting v4 over v2.  Now it sends that new info (v4 and the
+// conflict by selecting v4 over v2. Now it sends that new info (v4 and the
 // v4/v2 link) back to the original (local) device which sees a v3/v4 conflict.
 func TestRemoteLinkedConflict(t *testing.T) {
 	svc := createService(t)

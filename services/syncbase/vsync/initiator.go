@@ -1059,7 +1059,7 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 			if state.SyncPending {
 				curgv := genvec[rpfx]
 				res := curgv.Compare(state.PendingGenVec)
-				vlog.VI(4).Infof("sync: updateSyncSt:: checking join pending %v, curgv %v, res %v", state.PendingGenVec, curgv, res)
+				vlog.VI(4).Infof("sync: updateSyncSt: checking join pending %v, curgv %v, res %v", state.PendingGenVec, curgv, res)
 				if res >= 0 {
 					state.SyncPending = false
 					if err := setSGIdEntry(ctx, iSt.tx, gid, state); err != nil {

@@ -203,7 +203,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 
 	if err != nil {
 		// TODO(rdaoud): don't crash, quarantine this app database.
-		vlog.Fatalf("sync: processWatchLogBatch:: %s, %s: watcher cannot process batch: %v", appName, dbName, err)
+		vlog.Fatalf("sync: processWatchLogBatch: %s, %s: watcher cannot process batch: %v", appName, dbName, err)
 	}
 }
 

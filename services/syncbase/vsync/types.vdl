@@ -8,17 +8,6 @@ import (
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 
-// Key prefixes for sync data structures. All these prefixes are prepended with
-// util.SyncPrefix.
-const (
-	logPrefix     = "log"  // log state.
-	logDataPrefix = "data" // data log state.
-	dbssPrefix    = "dbss" // database sync state.
-	dagPrefix     = "dag"  // dag state.
-	sgPrefix      = "sg"   // local syncgroup state.
-	sgDataPrefix  = "sgd"  // synced syncgroup state.
-)
-
 // syncData represents the persistent state of the sync module.
 type syncData struct {
 	Id uint64
@@ -105,7 +94,7 @@ type dagNode struct {
 // - The total count of batch objects, including non-syncable ones.
 // TODO(rdaoud): add support to track the read and scan sets.
 type batchInfo struct {
-	Objects map[string]string
+	Objects       map[string]string
 	LinkedObjects map[string]string
-	Count   uint64
+	Count         uint64
 }

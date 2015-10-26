@@ -146,6 +146,7 @@ func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEn
 }
 
 func parseResumeMarker(resumeMarker string) (uint64, error) {
+	// See logEntryKey() for the structure of a resume marker key.
 	parts := util.SplitNKeyParts(resumeMarker, 2)
 	if len(parts) != 2 {
 		return 0, verror.New(watch.ErrUnknownResumeMarker, nil, resumeMarker)

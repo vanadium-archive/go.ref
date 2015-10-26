@@ -2,7 +2,7 @@
 # The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
 # TODO(rdaoud): The above comment is incorrect for the 'genvec' line.
 
-addr|tb\xfefoo1|1|||$sync\xfelog\xfedata\xfe11\xfe1|0|1|false
-addr|tb\xfefoo1|2|1||$sync\xfelog\xfedata\xfe11\xfe2|0|1|false
-addr|tb\xfefoo1|3|2||$sync\xfelog\xfedata\xfe11\xfe3|0|1|false
+addr|tb\xfefoo1|1|||y\xfel\xfed\xfe11\xfe1|0|1|false
+addr|tb\xfefoo1|2|1||y\xfel\xfed\xfe11\xfe2|0|1|false
+addr|tb\xfefoo1|3|2||y\xfel\xfed\xfe11\xfe3|0|1|false
 genvec|tb\xfefoo1|10:0,11:3|tb\xfebar|11:0

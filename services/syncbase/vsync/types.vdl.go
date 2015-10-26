@@ -141,15 +141,3 @@ func init() {
 	vdl.Register((*dagNode)(nil))
 	vdl.Register((*batchInfo)(nil))
 }
-
-const logPrefix = "log" // log state.
-
-const logDataPrefix = "data" // data log state.
-
-const dbssPrefix = "dbss" // database sync state.
-
-const dagPrefix = "dag" // dag state.
-
-const sgPrefix = "sg" // local syncgroup state.
-
-const sgDataPrefix = "sgd" // synced syncgroup state.

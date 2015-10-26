@@ -419,7 +419,7 @@ func refreshSyncgroupMembers(sg *interfaces.Syncgroup, name string, newMembers m
 // make forEachSyncgroup() stop the iteration earlier; otherwise the function
 // loops across all Syncgroups in the Database.
 func forEachSyncgroup(st store.StoreReader, callback func(*interfaces.Syncgroup) bool) {
-	stream := st.Scan(util.ScanPrefixArgs(sgNameKeyPrefix, ""))
+	stream := st.Scan(util.ScanPrefixArgs(sgNamePrefix, ""))
 	defer stream.Cancel()
 
 	for stream.Advance() {
@@ -497,47 +497,34 @@ func (s *syncService) copyMemberInfo(ctx *context.T, member string) *memberInfo 
 // relationships.
 // Use the functions above to manipulate syncgroups.
 
-var (
-	// Prefixes used to store the different mappings of a syncgroup:
-	// sgNameKeyPrefix: name --> ID
-	// sgIdKeyPrefix: ID --> syncgroup local state
-	// sgDataKeyPrefix: (ID, version) --> syncgroup data (synchronized)
-	//
-	// Note: as with other syncable objects, the DAG "heads" table contains
-	// a reference to the current syncgroup version, and the DAG "nodes"
-	// table tracks its history of mutations.
-	sgNameKeyPrefix = util.JoinKeyParts(util.SyncPrefix, sgPrefix, "n")
-	sgIdKeyPrefix   = util.JoinKeyParts(util.SyncPrefix, sgPrefix, "i")
-	sgDataKeyPrefix = util.JoinKeyParts(util.SyncPrefix, sgDataPrefix)
-)
+// Note: as with other syncable objects, the DAG "heads" table contains a
+// reference to the current syncgroup version, and the DAG "nodes" table tracks
+// its history of mutations.
 
 // sgNameKey returns the key used to access the syncgroup name entry.
 func sgNameKey(name string) string {
-	return util.JoinKeyParts(sgNameKeyPrefix, name)
+	return util.JoinKeyParts(sgNamePrefix, name)
 }
 
 // sgIdKey returns the key used to access the syncgroup ID entry.
 func sgIdKey(gid interfaces.GroupId) string {
-	return util.JoinKeyParts(sgIdKeyPrefix, fmt.Sprintf("%d", gid))
+	return util.JoinKeyParts(sgIdPrefix, fmt.Sprintf("%d", gid))
 }
 
 // sgOID converts a group id into an oid string.
 func sgOID(gid interfaces.GroupId) string {
-	return util.JoinKeyParts(sgDataKeyPrefix, fmt.Sprintf("%d", gid))
+	return util.JoinKeyParts(sgDataPrefix, fmt.Sprintf("%d", gid))
 }
 
-// sgID is approximately the inverse of sgOID: it converts an oid string into a
-// group id, but assumes that oid is prefixed with util.SyncPrefix (whereas
-// sgOID does not prepend util.SyncPrefix).
-// TODO(hpucha): Add unittests that cover sgOID/sgID (and other such helpers).
-// In CL v.io/c/16919, an incorrect change to the implementation of sgID was
-// only caught by integration tests.
+// sgID is the inverse of sgOID.
+// TODO(hpucha): Add unittests for sgOID/sgID and other such helpers. In CLs
+// v.io/c/16919 and v.io/c/17043, bugs in sgID were only caught by integration
+// tests.
 func sgID(oid string) (interfaces.GroupId, error) {
-	parts := util.SplitKeyParts(oid)
+	parts := util.SplitNKeyParts(oid, 3)
 	if len(parts) != 3 {
 		return 0, fmt.Errorf("invalid sgoid %s", oid)
 	}
-
 	id, err := strconv.ParseUint(parts[2], 10, 64)
 	if err != nil {
 		return 0, err
@@ -547,7 +534,7 @@ func sgID(oid string) (interfaces.GroupId, error) {
 
 // sgDataKey returns the key used to access a version of the syncgroup data.
 func sgDataKey(gid interfaces.GroupId, version string) string {
-	return util.JoinKeyParts(sgDataKeyPrefix, fmt.Sprintf("%d", gid), version)
+	return sgDataKeyByOID(sgOID(gid), version)
 }
 
 // sgDataKeyByOID returns the key used to access a version of the syncgroup
@@ -560,7 +547,7 @@ func sgDataKeyByOID(oid, version string) string {
 func splitSgNameKey(ctx *context.T, key string) (string, error) {
 	// Note that the actual syncgroup name may contain ":" as a separator.
 	// So don't split the key on the separator, instead trim its prefix.
-	prefix := util.JoinKeyParts(sgNameKeyPrefix, "")
+	prefix := util.JoinKeyParts(sgNamePrefix, "")
 	name := strings.TrimPrefix(key, prefix)
 	if name == key {
 		return "", verror.New(verror.ErrInternal, ctx, "invalid sgNamekey", key)
@@ -618,11 +605,7 @@ func getSGIdEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) 
 
 // getSGDataEntry retrieves the syncgroup data for a given group ID and version.
 func getSGDataEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId, version string) (*interfaces.Syncgroup, error) {
-	var sg interfaces.Syncgroup
-	if err := util.Get(ctx, st, sgDataKey(gid, version), &sg); err != nil {
-		return nil, err
-	}
-	return &sg, nil
+	return getSGDataEntryByOID(ctx, st, sgOID(gid), version)
 }
 
 // getSGDataEntryByOID retrieves the syncgroup data for a given group OID and
@@ -845,7 +828,7 @@ func (sd *syncDatabase) GetSyncgroupNames(ctx *context.T, call rpc.ServerCall) (
 	}
 
 	// Scan all the syncgroup names found in the Database.
-	stream := sn.Scan(util.ScanPrefixArgs(sgNameKeyPrefix, ""))
+	stream := sn.Scan(util.ScanPrefixArgs(sgNamePrefix, ""))
 	var sgNames []string
 	var key []byte
 	for stream.Advance() {
