@@ -294,7 +294,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	adminDeviceBin.Run("acl", "set", mtName+"/devmgr/device", "root/u/alice", "Read,Resolve,Write")
 
 	if withSuid {
-		adminDeviceBin.Start("associate", "add", mtName+"/devmgr/device", appUser, "root/u/alice")
+		adminDeviceBin.Run("associate", "add", mtName+"/devmgr/device", appUser, "root/u/alice")
 
 		aai := adminDeviceBin.Start("associate", "list", mtName+"/devmgr/device")
 		if got, expected := strings.Trim(aai.Output(), "\n "), "root/u/alice "+appUser; got != expected {
