@@ -415,7 +415,7 @@ func (t *tableReq) setPrefixPerms(ctx *context.T, tx store.Transaction, key, par
 	if err := t.UpdatePrefixPermsIndexForSet(ctx, tx, key); err != nil {
 		return err
 	}
-	return watchable.PutVOMWithPerms(ctx, tx, t.prefixPermsKey(key), perms, t.prefixPermsKey(parent))
+	return watchable.PutVomWithPerms(ctx, tx, t.prefixPermsKey(key), perms, t.prefixPermsKey(parent))
 }
 
 func (t *tableReq) deletePrefixPerms(ctx *context.T, tx store.Transaction, key string) error {

@@ -126,6 +126,8 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx store.Transaction, 
 	if err != nil {
 		return err
 	}
+	// TODO(rogulenko): Avoid the redundant lookups since in theory we have all
+	// we need from the checkAccess.
 	permsKey := r.t.prefixPermsKey(permsPrefix)
 	if err := watchable.PutWithPerms(tx, []byte(r.stKey()), value, permsKey); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
@@ -140,6 +142,8 @@ func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx store.Transactio
 	if err != nil {
 		return err
 	}
+	// TODO(rogulenko): Avoid the redundant lookups since in theory we have all
+	// we need from the checkAccess.
 	permsKey := r.t.prefixPermsKey(permsPrefix)
 	if err := watchable.DeleteWithPerms(tx, []byte(r.stKey()), permsKey); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)

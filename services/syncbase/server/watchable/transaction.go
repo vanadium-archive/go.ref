@@ -349,10 +349,10 @@ func PutWithPerms(tx store.Transaction, key, value []byte, permsKey string) erro
 	return nil
 }
 
-// PutWithPerms puts a VOM-encoded value for the managed key, recording the key
-// and version of the prefix permissions object that granted access to this put
-// operation.
-func PutVOMWithPerms(ctx *context.T, tx store.Transaction, k string, v interface{}, permsKey string) error {
+// PutVomWithPerms puts a VOM-encoded value for the managed key, recording
+// the key and the version of the prefix permissions object that granted access
+// to this put operation.
+func PutVomWithPerms(ctx *context.T, tx store.Transaction, k string, v interface{}, permsKey string) error {
 	bytes, err := vom.Encode(v)
 	if err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
