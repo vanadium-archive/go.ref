@@ -80,7 +80,7 @@ func NewXClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Clien
 		}
 	}
 	if c.flowMgr == nil {
-		c.flowMgr = manager.New(ctx, naming.NullRoutingID)
+		c.flowMgr = manager.New(ctx, naming.NullRoutingID, nil)
 	}
 
 	go func() {

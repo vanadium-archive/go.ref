@@ -34,6 +34,7 @@ import (
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/runtime/internal/lib/publisher"
+	"v.io/x/ref/runtime/internal/lib/roaming"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
@@ -151,7 +152,17 @@ type dhcpState struct {
 	stream    *pubsub.Stream
 	ch        chan pubsub.Setting // channel to receive dhcp settings over
 	err       error               // error status.
-	watchers  map[chan<- rpc.NetworkChange]struct{}
+	watchers  map[chan<- NetworkChange]struct{}
+	change    chan struct{}
+}
+
+type NetworkChange struct {
+	Time         time.Time         // Time of last change.
+	State        rpc.ServerState   // The current state of the server.
+	AddedAddrs   []net.Addr        // Addresses added sinced the last change.
+	RemovedAddrs []net.Addr        // Addresses removed since the last change.
+	Changed      []naming.Endpoint // The set of endpoints added/removed as a result of this change.
+	Error        error             // Any error that encountered.
 }
 
 type server struct {
@@ -340,6 +351,9 @@ func (s *server) Status() rpc.ServerStatus {
 	status.ServesMountTable = s.servesMountTable
 	status.Mounts = s.publisher.Status()
 	status.Endpoints = []naming.Endpoint{}
+	if s.dhcpState != nil {
+		status.Valid = s.dhcpState.change
+	}
 	for ls, _ := range s.listenState {
 		if ls.eperr != nil {
 			status.Errors = append(status.Errors, ls.eperr)
@@ -362,7 +376,7 @@ func (s *server) Status() rpc.ServerStatus {
 	return status
 }
 
-func (s *server) WatchNetwork(ch chan<- rpc.NetworkChange) {
+func (s *server) WatchNetwork(ch chan<- NetworkChange) {
 	defer apilog.LogCallf(nil, "ch=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.Lock()
 	defer s.Unlock()
@@ -371,7 +385,7 @@ func (s *server) WatchNetwork(ch chan<- rpc.NetworkChange) {
 	}
 }
 
-func (s *server) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
+func (s *server) UnwatchNetwork(ch chan<- NetworkChange) {
 	defer apilog.LogCallf(nil, "ch=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.Lock()
 	defer s.Unlock()
@@ -519,7 +533,8 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 		dhcp := &dhcpState{
 			name:      s.settingsName,
 			publisher: s.settingsPublisher,
-			watchers:  make(map[chan<- rpc.NetworkChange]struct{}),
+			watchers:  make(map[chan<- NetworkChange]struct{}),
+			change:    make(chan struct{}),
 		}
 		s.dhcpState = dhcp
 		dhcp.ch = make(chan pubsub.Setting, 10)
@@ -727,14 +742,14 @@ func (s *server) dhcpLoop(ch chan pubsub.Setting) {
 				s.Unlock()
 				return
 			}
-			change := rpc.NetworkChange{
+			change := NetworkChange{
 				Time:  time.Now(),
 				State: externalStates[s.state],
 			}
 			switch setting.Name() {
-			case NewAddrsSetting:
+			case roaming.UpdateAddrsSetting:
 				change.AddedAddrs, change.Changed = s.updateAddresses(v)
-			case RmAddrsSetting:
+			case roaming.RmAddrsSetting:
 				change.RemovedAddrs, change.Changed = s.removeAddresses(v)
 			}
 			s.ctx.VI(2).Infof("rpc: dhcp: change %v", change)
@@ -743,6 +758,10 @@ func (s *server) dhcpLoop(ch chan pubsub.Setting) {
 				case ch <- change:
 				default:
 				}
+			}
+			if s.dhcpState.change != nil {
+				close(s.dhcpState.change)
+				s.dhcpState.change = make(chan struct{})
 			}
 			s.Unlock()
 		default:
@@ -757,7 +776,6 @@ func getHost(address net.Addr) string {
 		return host
 	}
 	return address.String()
-
 }
 
 // findEndpoint returns the index of the first endpoint in ieps with the given network address.
@@ -993,6 +1011,10 @@ func (s *server) Stop() error {
 		// and from the publisher's Shutdown method.
 		if err := dhcp.publisher.CloseFork(dhcp.name, dhcp.ch); err == nil {
 			drain(dhcp.ch)
+		}
+		if dhcp.change != nil {
+			close(dhcp.change)
+			dhcp.change = nil
 		}
 	}
 

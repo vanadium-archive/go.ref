@@ -49,7 +49,9 @@ func New(ctx *context.T) (*proxy, *context.T, error) {
 }
 
 func (p *proxy) ListeningEndpoints() []naming.Endpoint {
-	return p.m.ListeningEndpoints()
+	// TODO(suharshs): Return changed channel here as well.
+	eps, _ := p.m.ListeningEndpoints()
+	return eps
 }
 
 func (p *proxy) MultipleProxyEndpoints() []naming.Endpoint {
@@ -165,7 +167,7 @@ func (p *proxy) replyToProxy(ctx *context.T, f flow.Flow) error {
 
 func (p *proxy) returnEndpoints(ctx *context.T, rid naming.RoutingID, route string) ([]naming.Endpoint, error) {
 	p.mu.Lock()
-	eps := p.m.ListeningEndpoints()
+	eps, _ := p.m.ListeningEndpoints()
 	for _, peps := range p.proxyEndpoints {
 		eps = append(eps, peps...)
 	}

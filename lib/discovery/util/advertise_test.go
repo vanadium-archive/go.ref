@@ -7,6 +7,7 @@ package util_test
 import (
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,40 +26,37 @@ import (
 )
 
 type mockServer struct {
-	eps             []naming.Endpoint
-	watcher         chan<- rpc.NetworkChange
-	watcherClosedCh chan struct{}
+	mu    sync.Mutex
+	eps   []naming.Endpoint
+	valid chan struct{}
 }
 
-func (s *mockServer) AddName(string) error     { return nil }
-func (s *mockServer) RemoveName(string)        {}
-func (s *mockServer) Stop() error              { return nil }
-func (s *mockServer) Closed() <-chan struct{}  { return nil }
-func (s *mockServer) Status() rpc.ServerStatus { return rpc.ServerStatus{Endpoints: s.eps} }
-
-func (s *mockServer) WatchNetwork(ch chan<- rpc.NetworkChange) {
-	s.watcher = ch
-	s.watcherClosedCh = make(chan struct{})
-}
-
-func (s *mockServer) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
-	s.watcher = nil
-	close(s.watcherClosedCh)
-}
-
-func (s *mockServer) updateNetwork(eps []naming.Endpoint) {
-	s.eps = eps
-	if s.watcher != nil {
-		s.watcher <- rpc.NetworkChange{Changed: eps}
+func (s *mockServer) AddName(string) error    { return nil }
+func (s *mockServer) RemoveName(string)       {}
+func (s *mockServer) Stop() error             { return nil }
+func (s *mockServer) Closed() <-chan struct{} { return nil }
+func (s *mockServer) Status() rpc.ServerStatus {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+	return rpc.ServerStatus{
+		Endpoints: s.eps,
+		Valid:     s.valid,
 	}
 }
 
-func (s *mockServer) watcherClosed() <-chan struct{} {
-	return s.watcherClosedCh
+func (s *mockServer) updateNetwork(eps []naming.Endpoint) {
+	defer s.mu.Unlock()
+	s.mu.Lock()
+	s.eps = eps
+	close(s.valid)
+	s.valid = make(chan struct{})
 }
 
 func newMockServer(eps []naming.Endpoint) *mockServer {
-	return &mockServer{eps: eps}
+	return &mockServer{
+		eps:   eps,
+		valid: make(chan struct{}),
+	}
 }
 
 func newEndpoints(addrs ...string) []naming.Endpoint {
@@ -84,7 +82,6 @@ func TestNetworkChange(t *testing.T) {
 	eps := newEndpoints("addr1:123")
 	mock := newMockServer(eps)
 
-	ctx, cancel := context.WithCancel(ctx)
 	util.AdvertiseServer(ctx, mock, suffix, service, nil)
 	if err := scanAndMatch(ctx, service, eps, suffix); err != nil {
 		t.Error(err)
@@ -100,16 +97,6 @@ func TestNetworkChange(t *testing.T) {
 		if err := scanAndMatch(ctx, service, eps, suffix); err != nil {
 			t.Error(err)
 		}
-	}
-
-	// Make sure that the network watcher is unregistered when the context
-	// is canceled.
-	cancel()
-
-	select {
-	case <-mock.watcherClosed():
-	case <-time.After(3 * time.Second):
-		t.Error("watcher not closed")
 	}
 }
 
