@@ -30,7 +30,7 @@ func TestXClientServer(t *testing.T) {
 	var i uint64 = 1
 	ctx = fake.SetFlowManagerFactory(ctx, func(ctx *context.T) flow.Manager {
 		i++
-		return manager.New(ctx, naming.FixedRoutingID(i))
+		return manager.New(ctx, naming.FixedRoutingID(i), nil)
 	})
 	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, o ...rpc.ClientOpt) rpc.Client {
 		return NewXClient(ctx, v23.GetNamespace(ctx), o...)
@@ -39,7 +39,7 @@ func TestXClientServer(t *testing.T) {
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}},
 	})
-	_, _, err := WithNewServer(ctx, "server", &testService{}, nil, nil, "")
+	_, _, err := WithNewServer(ctx, "server", &testService{}, nil, nil)
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}
@@ -64,7 +64,7 @@ func TestXClientDispatchingServer(t *testing.T) {
 	var i uint64 = 1
 	ctx = fake.SetFlowManagerFactory(ctx, func(ctx *context.T) flow.Manager {
 		i++
-		return manager.New(ctx, naming.FixedRoutingID(i))
+		return manager.New(ctx, naming.FixedRoutingID(i), nil)
 	})
 	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, o ...rpc.ClientOpt) rpc.Client {
 		return NewXClient(ctx, v23.GetNamespace(ctx), o...)
@@ -73,7 +73,7 @@ func TestXClientDispatchingServer(t *testing.T) {
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}},
 	})
-	_, _, err := WithNewDispatchingServer(ctx, "server", &testDispatcher{}, nil, "")
+	_, _, err := WithNewDispatchingServer(ctx, "server", &testDispatcher{}, nil)
 	if err != nil {
 		t.Fatal(verror.DebugString(err))
 	}

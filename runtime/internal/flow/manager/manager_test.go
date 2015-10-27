@@ -31,11 +31,11 @@ func TestDirectConnection(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555))
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
-	dm := New(ctx, naming.FixedRoutingID(0x1111))
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil)
 
 	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 
@@ -48,12 +48,12 @@ func TestDialCachedConn(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555))
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 
-	dm := New(ctx, naming.FixedRoutingID(0x1111))
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil)
 	// At first the cache should be empty.
 	if got, want := len(dm.(*manager).cache.addrCache), 0; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
@@ -83,12 +83,12 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555))
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 
-	dm := New(ctx, naming.FixedRoutingID(0x1111))
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil)
 	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Now am should be able to make a flow to dm even though dm is not listening.
 	testFlows(t, ctx, am, dm, flowtest.AllowAllPeersAuthorizer{})
@@ -102,18 +102,18 @@ func TestPublicKeyOnlyClientBlessings(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555))
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
-	nulldm := New(ctx, naming.NullRoutingID)
+	nulldm := New(ctx, naming.NullRoutingID, nil)
 	_, af := testFlows(t, ctx, nulldm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Ensure that the remote blessings of the underlying conn of the accepted blessings
 	// only has the public key of the client and no certificates.
 	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); len(rBlessings.String()) > 0 || rBlessings.PublicKey() == nil {
 		t.Errorf("got %v, want no-cert blessings", rBlessings)
 	}
-	dm := New(ctx, naming.FixedRoutingID(0x1111))
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil)
 	_, af = testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Ensure that the remote blessings of the underlying conn of the accepted flow are
 	// non-zero if we did specify a RoutingID.
@@ -131,16 +131,18 @@ func TestStopListening(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := v23.Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555))
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
-	dm := New(ctx, naming.FixedRoutingID(0x1111))
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil)
 	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 
+	leps, _ := am.ListeningEndpoints()
+	lameEP := leps[0]
 	am.StopListening(ctx)
 
-	if f, err := dm.Dial(ctx, am.ListeningEndpoints()[0], flowtest.AllowAllPeersAuthorizer{}); err == nil {
+	if f, err := dm.Dial(ctx, lameEP, flowtest.AllowAllPeersAuthorizer{}); err == nil {
 		t.Errorf("dialing a lame duck should fail, but didn't %#v.", f)
 	}
 
@@ -150,7 +152,8 @@ func TestStopListening(t *testing.T) {
 }
 
 func testFlows(t *testing.T, ctx *context.T, dm, am flow.Manager, auth flow.PeerAuthorizer) (df, af flow.Flow) {
-	ep := am.ListeningEndpoints()[0]
+	eps, _ := am.ListeningEndpoints()
+	ep := eps[0]
 	var err error
 	df, err = dm.Dial(ctx, ep, auth)
 	if err != nil {

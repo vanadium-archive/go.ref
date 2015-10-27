@@ -56,7 +56,7 @@ func benchmarkRPCConnection(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if ref.RPCTransitionState() >= ref.XServers {
-			m := fmanager.New(nctx, naming.FixedRoutingID(0xc))
+			m := fmanager.New(nctx, naming.FixedRoutingID(0xc), nil)
 			b.StartTimer()
 			_, err := m.Dial(nctx, serverEP, flowtest.AllowAllPeersAuthorizer{})
 			if err != nil {

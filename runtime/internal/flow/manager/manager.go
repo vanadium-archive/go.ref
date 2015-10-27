@@ -19,9 +19,12 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 
+	"v.io/x/lib/netstate"
+	"v.io/x/ref/lib/pubsub"
 	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/protocols/bidi"
+	"v.io/x/ref/runtime/internal/lib/roaming"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/version"
@@ -43,7 +46,27 @@ type manager struct {
 	serverNames     []string
 }
 
-func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID) flow.Manager {
+type listenState struct {
+	q             *upcqueue.T
+	listenLoops   sync.WaitGroup
+	dhcpPublisher *pubsub.Publisher
+
+	mu             sync.Mutex
+	stopProxy      chan struct{}
+	listeners      []flow.Listener
+	endpoints      []*endpointState
+	proxyEndpoints []naming.Endpoint
+	notifyWatchers chan struct{}
+	roaming        bool
+}
+
+type endpointState struct {
+	leps         []*inaming.Endpoint // the list of currently active endpoints.
+	tmplEndpoint *inaming.Endpoint   // endpoint used as a template for creating new endpoints from the network interfaces provided from roaming.
+	roaming      bool
+}
+
+func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID, dhcpPublisher *pubsub.Publisher) flow.Manager {
 	m := &manager{
 		rid:    rid,
 		closed: make(chan struct{}),
@@ -54,9 +77,11 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 		m.serverBlessings = serverBlessings
 		m.serverNames = security.BlessingNames(v23.GetPrincipal(ctx), serverBlessings)
 		m.ls = &listenState{
-			q:         upcqueue.New(),
-			listeners: []flow.Listener{},
-			stopProxy: make(chan struct{}),
+			q:              upcqueue.New(),
+			listeners:      []flow.Listener{},
+			stopProxy:      make(chan struct{}),
+			notifyWatchers: make(chan struct{}),
+			dhcpPublisher:  dhcpPublisher,
 		}
 	}
 	go func() {
@@ -78,22 +103,12 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 	return m
 }
 
-func New(ctx *context.T, rid naming.RoutingID) flow.Manager {
+func New(ctx *context.T, rid naming.RoutingID, dhcpPublisher *pubsub.Publisher) flow.Manager {
 	var serverBlessings security.Blessings
 	if rid != naming.NullRoutingID {
 		serverBlessings = v23.GetPrincipal(ctx).BlessingStore().Default()
 	}
-	return NewWithBlessings(ctx, serverBlessings, rid)
-}
-
-type listenState struct {
-	q           *upcqueue.T
-	listenLoops sync.WaitGroup
-
-	mu        sync.Mutex
-	stopProxy chan struct{}
-	listeners []flow.Listener
-	endpoints []naming.Endpoint
+	return NewWithBlessings(ctx, serverBlessings, rid, dhcpPublisher)
 }
 
 func (m *manager) stopListening() {
@@ -107,6 +122,10 @@ func (m *manager) stopListening() {
 	if m.ls.stopProxy != nil {
 		close(m.ls.stopProxy)
 		m.ls.stopProxy = nil
+	}
+	if m.ls.notifyWatchers != nil {
+		close(m.ls.notifyWatchers)
+		m.ls.notifyWatchers = nil
 	}
 	m.ls.mu.Unlock()
 	for _, ln := range listeners {
@@ -143,6 +162,7 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 		RID:       m.rid,
 		Blessings: m.serverNames,
 	}
+	defer m.ls.mu.Unlock()
 	m.ls.mu.Lock()
 	if m.ls.listeners == nil {
 		m.ls.mu.Unlock()
@@ -150,12 +170,126 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 		return flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
 	}
 	m.ls.listeners = append(m.ls.listeners, ln)
-	m.ls.endpoints = append(m.ls.endpoints, local)
-	m.ls.mu.Unlock()
+	leps, roam, err := m.createEndpoints(ctx, local)
+	if err != nil {
+		return iflow.MaybeWrapError(flow.ErrBadArg, ctx, err)
+	}
+	m.ls.endpoints = append(m.ls.endpoints, &endpointState{
+		leps:         leps,
+		tmplEndpoint: local,
+		roaming:      roam,
+	})
+	if !m.ls.roaming && m.ls.dhcpPublisher != nil && roam {
+		m.ls.roaming = true
+		m.ls.listenLoops.Add(1)
+		go func() {
+			roaming.ReadRoamingStream(ctx, m.ls.dhcpPublisher, m.rmAddrs, m.addAddrs)
+			m.ls.listenLoops.Done()
+		}()
+	}
 
 	m.ls.listenLoops.Add(1)
 	go m.lnAcceptLoop(ctx, ln, local)
 	return nil
+}
+
+func (m *manager) createEndpoints(ctx *context.T, lep naming.Endpoint) ([]*inaming.Endpoint, bool, error) {
+	iep := lep.(*inaming.Endpoint)
+	if !strings.HasPrefix(iep.Protocol, "tcp") &&
+		!strings.HasPrefix(iep.Protocol, "ws") {
+		// If not tcp, ws, or wsh, just return the endpoint we were given.
+		return []*inaming.Endpoint{iep}, false, nil
+	}
+	host, port, err := net.SplitHostPort(iep.Address)
+	if err != nil {
+		return nil, false, err
+	}
+	chooser := v23.GetListenSpec(ctx).AddressChooser
+	addrs, unspecified, err := netstate.PossibleAddresses(iep.Protocol, host, chooser)
+	if err != nil {
+		return nil, false, err
+	}
+	ieps := make([]*inaming.Endpoint, 0, len(addrs))
+	for _, addr := range addrs {
+		n, err := inaming.NewEndpoint(lep.String())
+		if err != nil {
+			return nil, false, err
+		}
+		n.Address = net.JoinHostPort(addr.String(), port)
+		ieps = append(ieps, n)
+	}
+	return ieps, unspecified, nil
+}
+
+func (m *manager) addAddrs(addrs []net.Addr) {
+	defer m.ls.mu.Unlock()
+	m.ls.mu.Lock()
+	changed := false
+	for _, addr := range netstate.ConvertToAddresses(addrs) {
+		if !netstate.IsAccessibleIP(addr) {
+			continue
+		}
+		host, _ := getHostPort(addr)
+		for _, epState := range m.ls.endpoints {
+			if !epState.roaming {
+				continue
+			}
+			tmplEndpoint := epState.tmplEndpoint
+			_, port := getHostPort(tmplEndpoint.Addr())
+			if i := findEndpoint(epState, host); i < 0 {
+				nep := *tmplEndpoint
+				nep.Address = net.JoinHostPort(host, port)
+				epState.leps = append(epState.leps, &nep)
+				changed = true
+			}
+		}
+	}
+	if changed && m.ls.notifyWatchers != nil {
+		close(m.ls.notifyWatchers)
+		m.ls.notifyWatchers = make(chan struct{})
+	}
+}
+
+func findEndpoint(epState *endpointState, host string) int {
+	for i, ep := range epState.leps {
+		epHost, _ := getHostPort(ep.Addr())
+		if epHost == host {
+			return i
+		}
+	}
+	return -1
+}
+
+func (m *manager) rmAddrs(addrs []net.Addr) {
+	defer m.ls.mu.Unlock()
+	m.ls.mu.Lock()
+	changed := false
+	for _, addr := range netstate.ConvertToAddresses(addrs) {
+		host, _ := getHostPort(addr)
+		for _, epState := range m.ls.endpoints {
+			if !epState.roaming {
+				continue
+			}
+			if i := findEndpoint(epState, host); i >= 0 {
+				n := len(epState.leps) - 1
+				epState.leps[i], epState.leps[n] = epState.leps[n], nil
+				epState.leps = epState.leps[:n]
+				changed = true
+			}
+		}
+	}
+	if changed && m.ls.notifyWatchers != nil {
+		close(m.ls.notifyWatchers)
+		m.ls.notifyWatchers = make(chan struct{})
+	}
+}
+
+func getHostPort(address net.Addr) (string, string) {
+	host, port, err := net.SplitHostPort(address.String())
+	if err == nil {
+		return host, port
+	}
+	return address.String(), ""
 }
 
 // ProxyListen causes the Manager to accept flows from the specified endpoint.
@@ -163,16 +297,16 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 //
 // update gets passed the complete set of endpoints for the proxy every time it
 // is called.
-func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint, update func([]naming.Endpoint)) error {
+func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) error {
 	if m.ls == nil {
 		return NewErrListeningWithNullRid(ctx)
 	}
 	m.ls.listenLoops.Add(1)
-	go m.connectToProxy(ctx, ep, update)
+	go m.connectToProxy(ctx, ep)
 	return nil
 }
 
-func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func([]naming.Endpoint)) {
+func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint) {
 	defer m.ls.listenLoops.Done()
 	var eps []naming.Endpoint
 	for delay := reconnectDelay; ; delay *= 2 {
@@ -207,17 +341,50 @@ func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint, update func
 		for i := range eps {
 			eps[i].(*inaming.Endpoint).Blessings = m.serverNames
 		}
-		update(eps)
+		m.updateProxyEndpoints(eps)
 		select {
 		case <-ctx.Done():
 			return
 		case <-m.ls.stopProxy:
 			return
 		case <-f.Closed():
-			update(nil)
+			m.updateProxyEndpoints(nil)
 			delay = reconnectDelay
 		}
 	}
+}
+
+func (m *manager) updateProxyEndpoints(eps []naming.Endpoint) {
+	defer m.ls.mu.Unlock()
+	m.ls.mu.Lock()
+	if endpointsEqual(m.ls.proxyEndpoints, eps) {
+		return
+	}
+	m.ls.proxyEndpoints = eps
+	// The proxy endpoints have changed so we need to notify any watchers to
+	// requery ListeningEndpoints.
+	if m.ls.notifyWatchers != nil {
+		close(m.ls.notifyWatchers)
+		m.ls.notifyWatchers = make(chan struct{})
+	}
+}
+
+func endpointsEqual(a, b []naming.Endpoint) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	m := make(map[string]struct{})
+	for _, ep := range a {
+		m[ep.String()] = struct{}{}
+	}
+	for _, ep := range b {
+		key := ep.String()
+		if _, ok := m[key]; !ok {
+			return false
+		}
+		delete(m, key)
+	}
+	return len(m) == 0
 }
 
 func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpoint, error) {
@@ -361,18 +528,24 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 // If the Manager is not listening on any endpoints, an endpoint with the
 // Manager's RoutingID will be returned for use in bidirectional RPC.
 // Returned endpoints all have the Manager's unique RoutingID.
-func (m *manager) ListeningEndpoints() (out []naming.Endpoint) {
+func (m *manager) ListeningEndpoints() (out []naming.Endpoint, changed <-chan struct{}) {
 	if m.ls == nil {
-		return nil
+		return nil, nil
 	}
 	m.ls.mu.Lock()
-	out = make([]naming.Endpoint, len(m.ls.endpoints))
-	copy(out, m.ls.endpoints)
+	out = make([]naming.Endpoint, len(m.ls.proxyEndpoints))
+	copy(out, m.ls.proxyEndpoints)
+	for _, epState := range m.ls.endpoints {
+		for _, ep := range epState.leps {
+			out = append(out, ep)
+		}
+	}
+	changed = m.ls.notifyWatchers
 	m.ls.mu.Unlock()
 	if len(out) == 0 {
 		out = append(out, &inaming.Endpoint{Protocol: bidi.Name, RID: m.rid})
 	}
-	return out
+	return out, changed
 }
 
 // Accept blocks until a new Flow has been initiated by a remote process.

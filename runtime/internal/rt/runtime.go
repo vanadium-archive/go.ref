@@ -512,10 +512,11 @@ func (r *Runtime) NewFlowManager(ctx *context.T) (flow.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return manager.New(ctx, rid), nil
+	id, _ := ctx.Value(initKey).(*initData)
+	return manager.New(ctx, rid, id.settingsPublisher), nil
 }
 
-func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubsub.Publisher, string, []rpc.ServerOpt, error) {
+func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubsub.Publisher, []rpc.ServerOpt, error) {
 	otherOpts := append([]rpc.ServerOpt{}, opts...)
 	if reservedDispatcher := r.GetReservedNameDispatcher(ctx); reservedDispatcher != nil {
 		otherOpts = append(otherOpts, irpc.ReservedNameDispatcher{
@@ -526,17 +527,17 @@ func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubs
 	if id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(id.protocols))
 	}
-	return id.settingsPublisher, id.settingsName, otherOpts, nil
+	return id.settingsPublisher, otherOpts, nil
 }
 
 func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if ref.RPCTransitionState() >= ref.XServers {
-		spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+		spub, opts, err := r.commonServerInit(ctx, opts...)
 		if err != nil {
 			return ctx, nil, err
 		}
-		newctx, s, err := irpc.WithNewServer(ctx, name, object, auth, spub, sname, opts...)
+		newctx, s, err := irpc.WithNewServer(ctx, name, object, auth, spub, opts...)
 		if err != nil {
 			return ctx, nil, err
 		}
@@ -563,11 +564,11 @@ func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{},
 func (r *Runtime) WithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if ref.RPCTransitionState() >= ref.XServers {
-		spub, sname, opts, err := r.commonServerInit(ctx, opts...)
+		spub, opts, err := r.commonServerInit(ctx, opts...)
 		if err != nil {
 			return ctx, nil, err
 		}
-		newctx, s, err := irpc.WithNewDispatchingServer(ctx, name, disp, spub, sname, opts...)
+		newctx, s, err := irpc.WithNewDispatchingServer(ctx, name, disp, spub, opts...)
 		if err != nil {
 			return ctx, nil, err
 		}

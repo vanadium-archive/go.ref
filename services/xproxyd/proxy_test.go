@@ -58,12 +58,12 @@ func TestProxyRPC(t *testing.T) {
 	}
 	// Wait for the server to finish listening through the proxy.
 	eps := s.Status().Endpoints
-	for ; len(eps) < 2 || eps[1].Addr().Network() == bidiProtocol; eps = s.Status().Endpoints {
+	for ; len(eps) == 0 || eps[0].Addr().Network() == bidiProtocol; eps = s.Status().Endpoints {
 		time.Sleep(pollTime)
 	}
 
 	var got string
-	if err := v23.GetClient(ctx).Call(ctx, eps[1].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
+	if err := v23.GetClient(ctx).Call(ctx, eps[0].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
 		t.Fatal(err)
 	}
 	if want := "response:hello"; got != want {
@@ -147,13 +147,13 @@ func TestProxyNotAuthorized(t *testing.T) {
 	}
 	// Wait for the server to finish listening through the proxy.
 	eps := s.Status().Endpoints
-	for ; len(eps) < 2 || eps[1].Addr().Network() == bidiProtocol; eps = s.Status().Endpoints {
+	for ; len(eps) == 0 || eps[0].Addr().Network() == bidiProtocol; eps = s.Status().Endpoints {
 		time.Sleep(pollTime)
 	}
 	// The call should succeed which means that the client did not try to authorize
 	// the proxy's blessings.
 	var got string
-	if err := v23.GetClient(ctx).Call(ctx, eps[1].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
+	if err := v23.GetClient(ctx).Call(ctx, eps[0].Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
 		t.Fatal(err)
 	}
 	if want := "response:hello"; got != want {
@@ -179,19 +179,19 @@ func TestSingleProxy(t *testing.T) {
 
 	pep := startProxy(t, ctx, address{"kill", "127.0.0.1:0"})
 
-	done := make(chan struct{})
-	update := func(eps []naming.Endpoint) {
-		if len(eps) > 0 {
+	if err := am.ProxyListen(ctx, pep); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		eps, changed := am.ListeningEndpoints()
+		if eps[0].Addr().Network() != bidiProtocol {
 			if err := testEndToEndConnection(t, ctx, dm, am, eps[0]); err != nil {
 				t.Error(err)
 			}
-			close(done)
+			return
 		}
+		<-changed
 	}
-	if err := am.ProxyListen(ctx, pep, update); err != nil {
-		t.Fatal(err)
-	}
-	<-done
 }
 
 func TestMultipleProxies(t *testing.T) {
@@ -215,27 +215,26 @@ func TestMultipleProxies(t *testing.T) {
 
 	p3ep := startProxy(t, ctx, address{"v23", p2ep.String()}, address{"kill", "127.0.0.1:0"})
 
-	done := make(chan struct{})
-	update := func(eps []naming.Endpoint) {
+	if err := am.ProxyListen(ctx, p3ep); err != nil {
+		t.Fatal(err)
+	}
+
+	for {
+		eps, changed := am.ListeningEndpoints()
 		// TODO(suharshs): Fix this test once we have the proxy send update messages to the
 		// server when it reconnects to a proxy. This test only really tests the first connection
 		// currently because the connections are cached. So we need to kill connections and
 		// wait for them to reestablish but we need proxies to update communicate their new endpoints
 		// to each other and to the server. For now we at least check a random endpoint so the
 		// test will at least fail over many runs if something is wrong.
-		if len(eps) > 0 {
+		if eps[0].Addr().Network() != bidiProtocol {
 			if err := testEndToEndConnection(t, ctx, dm, am, eps[rand.Int()%3]); err != nil {
 				t.Error(err)
 			}
-			close(done)
+			return
 		}
+		<-changed
 	}
-
-	if err := am.ProxyListen(ctx, p3ep, update); err != nil {
-		t.Fatal(err)
-	}
-
-	<-done
 }
 
 func testEndToEndConnection(t *testing.T, ctx *context.T, dm, am flow.Manager, aep naming.Endpoint) error {

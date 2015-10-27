@@ -7,7 +7,6 @@ package rpc
 import (
 	"fmt"
 	"io"
-	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -26,7 +25,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
@@ -36,7 +34,6 @@ import (
 )
 
 // TODO(mattr): add/removeAddresses
-// TODO(mattr): dhcpLoop
 
 type xserver struct {
 	sync.Mutex
@@ -49,17 +46,13 @@ type xserver struct {
 	flowMgr           flow.Manager
 	publisher         publisher.Publisher // publisher to publish mounttable mounts.
 	settingsPublisher *pubsub.Publisher   // pubsub publisher for dhcp
-	settingsName      string              // pubwsub stream name for dhcp
-	dhcpState         *dhcpState          // dhcpState, nil if not using dhcp
+	valid             chan struct{}
 	blessings         security.Blessings
 	typeCache         *typeCache
-	addressChooser    rpc.AddressChooser
 	state             rpc.ServerState // the current state of the server.
 
-	chosenEndpoints map[string]*inaming.Endpoint            // endpoints chosen by the addressChooser for publishing.
-	protoEndpoints  map[string]*inaming.Endpoint            // endpoints that act as "template" endpoints.
-	proxyEndpoints  map[string]map[string]*inaming.Endpoint // keyed by ep.String()
-	lnErrors        map[string]error                        // erros from listening, keyed by ep.String()
+	endpoints map[string]*inaming.Endpoint // endpoints that the server is listening on.
+	lnErrors  []error                      // errors from listening
 
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       rpc.Dispatcher // dispatcher for reserved methods
@@ -68,13 +61,12 @@ type xserver struct {
 	servesMountTable   bool
 	isLeaf             bool
 
-	// TODO(cnicolaou): add roaming stats to rpcStats
 	stats *rpcStats // stats for this server.
 }
 
 func WithNewServer(ctx *context.T,
 	name string, object interface{}, authorizer security.Authorizer,
-	settingsPublisher *pubsub.Publisher, settingsName string,
+	settingsPublisher *pubsub.Publisher,
 	opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	if object == nil {
 		return ctx, nil, verror.New(verror.ErrBadArg, ctx, "nil object")
@@ -85,12 +77,12 @@ func WithNewServer(ctx *context.T,
 	}
 	d := &leafDispatcher{invoker, authorizer}
 	opts = append([]rpc.ServerOpt{options.IsLeaf(true)}, opts...)
-	return WithNewDispatchingServer(ctx, name, d, settingsPublisher, settingsName, opts...)
+	return WithNewDispatchingServer(ctx, name, d, settingsPublisher, opts...)
 }
 
 func WithNewDispatchingServer(ctx *context.T,
 	name string, dispatcher rpc.Dispatcher,
-	settingsPublisher *pubsub.Publisher, settingsName string,
+	settingsPublisher *pubsub.Publisher,
 	opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	if dispatcher == nil {
 		return ctx, nil, verror.New(verror.ErrBadArg, ctx, "nil dispatcher")
@@ -110,11 +102,11 @@ func WithNewDispatchingServer(ctx *context.T,
 		blessings:         v23.GetPrincipal(rootCtx).BlessingStore().Default(),
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
-		settingsName:      settingsName,
+		valid:             make(chan struct{}),
 		disp:              dispatcher,
 		typeCache:         newTypeCache(),
-		proxyEndpoints:    make(map[string]map[string]*inaming.Endpoint),
 		state:             rpc.ServerActive,
+		endpoints:         make(map[string]*inaming.Endpoint),
 	}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -136,7 +128,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		}
 	}
 
-	s.flowMgr = manager.NewWithBlessings(rootCtx, s.blessings, rid)
+	s.flowMgr = manager.NewWithBlessings(rootCtx, s.blessings, rid, settingsPublisher)
 	rootCtx, _, err = v23.WithNewClient(rootCtx,
 		clientFlowManagerOpt{s.flowMgr},
 		PreferredProtocols(s.preferredProtocols))
@@ -157,7 +149,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		// TODO(mattr): We only call AddServer here, but if someone calls AddName
 		// later there will be no servers?
 		s.Lock()
-		for k, _ := range s.chosenEndpoints {
+		for k, _ := range s.endpoints {
 			s.publisher.AddServer(k)
 		}
 		s.Unlock()
@@ -187,30 +179,6 @@ func WithNewDispatchingServer(ctx *context.T,
 			close(done)
 		}()
 
-		s.Lock()
-		// TODO(mattr): I don't understand what this is.
-		if dhcp := s.dhcpState; dhcp != nil {
-			// TODO(cnicolaou,caprita): investigate not having to close and drain
-			// the channel here. It's a little awkward right now since we have to
-			// be careful to not close the channel in two places, i.e. here and
-			// and from the publisher's Shutdown method.
-			if err := dhcp.publisher.CloseFork(dhcp.name, dhcp.ch); err == nil {
-			drain:
-				for {
-					select {
-					case v := <-dhcp.ch:
-						if v == nil {
-							break drain
-						}
-					default:
-						close(dhcp.ch)
-						break drain
-					}
-				}
-			}
-		}
-		s.Unlock()
-
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second): // TODO(mattr): This should be configurable.
@@ -222,6 +190,8 @@ func WithNewDispatchingServer(ctx *context.T,
 		// operations to a close.
 		s.cancel()
 		<-s.flowMgr.Closed()
+		close(s.valid)
+		s.valid = nil
 		// Now we really will wait forever.  If this doesn't exit, there's something
 		// wrong with the users code.
 		<-done
@@ -237,33 +207,14 @@ func (s *xserver) Status() rpc.ServerStatus {
 	status.ServesMountTable = s.servesMountTable
 	status.Mounts = s.publisher.Status()
 	s.Lock()
+	status.Valid = s.valid
 	status.State = s.state
-	for _, e := range s.chosenEndpoints {
+	for _, e := range s.endpoints {
 		status.Endpoints = append(status.Endpoints, e)
 	}
-	for _, err := range s.lnErrors {
-		status.Errors = append(status.Errors, err)
-	}
+	status.Errors = s.lnErrors
 	s.Unlock()
 	return status
-}
-
-func (s *xserver) WatchNetwork(ch chan<- rpc.NetworkChange) {
-	defer apilog.LogCallf(nil, "ch=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	s.Lock()
-	defer s.Unlock()
-	if s.dhcpState != nil {
-		s.dhcpState.watchers[ch] = struct{}{}
-	}
-}
-
-func (s *xserver) UnwatchNetwork(ch chan<- rpc.NetworkChange) {
-	defer apilog.LogCallf(nil, "ch=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	s.Lock()
-	defer s.Unlock()
-	if s.dhcpState != nil {
-		delete(s.dhcpState.watchers, ch)
-	}
 }
 
 // resolveToEndpoint resolves an object name or address to an endpoint.
@@ -297,75 +248,89 @@ func (s *xserver) resolveToEndpoint(ctx *context.T, address string) (naming.Endp
 	return nil, verror.New(errFailedToResolveToEndpoint, s.ctx, address)
 }
 
-// createEndpoints creates appropriate inaming.Endpoint instances for
-// all of the externally accessible network addresses that can be used
-// to reach this server.
-func (s *xserver) createEndpoints(lep naming.Endpoint, chooser netstate.AddressChooser) ([]*inaming.Endpoint, string, bool, error) {
-	iep, ok := lep.(*inaming.Endpoint)
-	if !ok {
-		return nil, "", false, verror.New(errInternalTypeConversion, nil, fmt.Sprintf("%T", lep))
-	}
-	if !strings.HasPrefix(iep.Protocol, "tcp") &&
-		!strings.HasPrefix(iep.Protocol, "ws") {
-		// If not tcp, ws, or wsh, just return the endpoint we were given.
-		return []*inaming.Endpoint{iep}, "", false, nil
-	}
-	host, port, err := net.SplitHostPort(iep.Address)
-	if err != nil {
-		return nil, "", false, err
-	}
-	addrs, unspecified, err := netstate.PossibleAddresses(iep.Protocol, host, chooser)
-	if err != nil {
-		return nil, port, false, err
-	}
-
-	ieps := make([]*inaming.Endpoint, 0, len(addrs))
-	for _, addr := range addrs {
-		n, err := inaming.NewEndpoint(lep.String())
-		if err != nil {
-			return nil, port, false, err
-		}
-		n.IsMountTable = s.servesMountTable
-		n.IsLeaf = s.isLeaf
-		n.Address = net.JoinHostPort(addr.String(), port)
-		ieps = append(ieps, n)
-	}
-	return ieps, port, unspecified, nil
+// createEndpoint adds server publishing information to the ep from the manager.
+func (s *xserver) createEndpoint(lep naming.Endpoint) *inaming.Endpoint {
+	n := *(lep.(*inaming.Endpoint))
+	n.IsMountTable = s.servesMountTable
+	n.IsLeaf = s.isLeaf
+	return &n
 }
 
-func (s *xserver) update(pep naming.Endpoint) func([]naming.Endpoint) {
-	return func(leps []naming.Endpoint) {
-		chosenEps := make(map[string]*inaming.Endpoint)
-		pkey := pep.String()
-		for _, ep := range leps {
-			eps, _, _, _ := s.createEndpoints(ep, s.addressChooser)
-			for _, cep := range eps {
-				chosenEps[cep.String()] = cep
+func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
+	s.Lock()
+	defer s.Unlock()
+	if len(listenSpec.Proxy) > 0 {
+		ep, err := s.resolveToEndpoint(ctx, listenSpec.Proxy)
+		if err != nil {
+			s.ctx.VI(2).Infof("resolveToEndpoint(%q) failed: %v", listenSpec.Proxy, err)
+		} else {
+			err = s.flowMgr.ProxyListen(ctx, ep)
+			if err != nil {
+				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", inaming.Network, ep, err)
 			}
-			// TODO(suharshs): do protoEndpoints need to be handled here?
 		}
-
-		// Endpoints to add and remove.
-		s.Lock()
-		oldEps := s.proxyEndpoints[pkey]
-		s.proxyEndpoints[pkey] = chosenEps
-		rmEps := setDiff(oldEps, chosenEps)
-		addEps := setDiff(chosenEps, oldEps)
-		for k := range rmEps {
-			delete(s.chosenEndpoints, k)
-		}
-		for k, ep := range addEps {
-			s.chosenEndpoints[k] = ep
-		}
-		s.Unlock()
-
-		for k := range rmEps {
-			s.publisher.RemoveServer(k)
-		}
-		for k := range addEps {
-			s.publisher.AddServer(k)
+		if err != nil {
+			s.lnErrors = append(s.lnErrors, err)
 		}
 	}
+	for _, addr := range listenSpec.Addrs {
+		if len(addr.Address) > 0 {
+			err := s.flowMgr.Listen(ctx, addr.Protocol, addr.Address)
+			if err != nil {
+				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, err)
+				s.lnErrors = append(s.lnErrors, err)
+			}
+		}
+	}
+
+	// We call updateEndpointsLocked in serial once to populate our endpoints for
+	// server status with at least one endpoint.
+	leps, _ := s.flowMgr.ListeningEndpoints()
+	s.updateEndpointsLocked(leps)
+	s.active.Add(2)
+	go s.updateEndpointsLoop()
+	go s.acceptLoop(ctx)
+}
+
+func (s *xserver) updateEndpointsLoop() {
+	defer s.active.Done()
+	for leps, changed := s.flowMgr.ListeningEndpoints(); changed != nil; {
+		s.Lock()
+		s.updateEndpointsLocked(leps)
+		if s.valid != nil {
+			close(s.valid)
+			s.valid = make(chan struct{})
+		}
+		s.Unlock()
+		<-changed
+		leps, changed = s.flowMgr.ListeningEndpoints()
+	}
+}
+
+func (s *xserver) updateEndpointsLocked(leps []naming.Endpoint) {
+	endpoints := make(map[string]*inaming.Endpoint)
+	for _, ep := range leps {
+		sep := s.createEndpoint(ep)
+		endpoints[sep.String()] = sep
+	}
+	// Endpoints to add and remaove.
+	rmEps := setDiff(s.endpoints, endpoints)
+	addEps := setDiff(endpoints, s.endpoints)
+	for k := range rmEps {
+		delete(s.endpoints, k)
+	}
+	for k, ep := range addEps {
+		s.endpoints[k] = ep
+	}
+
+	s.Unlock()
+	for k := range rmEps {
+		s.publisher.RemoveServer(k)
+	}
+	for k := range addEps {
+		s.publisher.AddServer(k)
+	}
+	s.Lock()
 }
 
 // setDiff returns the endpoints in a that are not in b.
@@ -377,62 +342,6 @@ func setDiff(a, b map[string]*inaming.Endpoint) map[string]*inaming.Endpoint {
 		}
 	}
 	return ret
-}
-
-func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
-	s.Lock()
-	defer s.Unlock()
-	var lastErr error
-	var ep naming.Endpoint
-	if len(listenSpec.Proxy) > 0 {
-		ep, lastErr = s.resolveToEndpoint(ctx, listenSpec.Proxy)
-		if lastErr != nil {
-			s.ctx.VI(2).Infof("resolveToEndpoint(%q) failed: %v", listenSpec.Proxy, lastErr)
-		} else {
-			lastErr = s.flowMgr.ProxyListen(ctx, ep, s.update(ep))
-			if lastErr != nil {
-				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", inaming.Network, ep, lastErr)
-			}
-		}
-	}
-	for _, addr := range listenSpec.Addrs {
-		if len(addr.Address) > 0 {
-			lastErr = s.flowMgr.Listen(ctx, addr.Protocol, addr.Address)
-			if lastErr != nil {
-				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, lastErr)
-			}
-		}
-	}
-
-	leps := s.flowMgr.ListeningEndpoints()
-	s.addressChooser = listenSpec.AddressChooser
-	roaming := false
-	chosenEps := make(map[string]*inaming.Endpoint)
-	protoEps := make(map[string]*inaming.Endpoint)
-	lnErrs := make(map[string]error)
-	for _, ep := range leps {
-		eps, _, eproaming, eperr := s.createEndpoints(ep, listenSpec.AddressChooser)
-		for _, cep := range eps {
-			chosenEps[cep.String()] = cep
-		}
-		if eproaming && eperr == nil {
-			protoEps[ep.String()] = ep.(*inaming.Endpoint)
-			roaming = true
-		}
-		if eperr != nil {
-			lnErrs[ep.String()] = eperr
-		}
-	}
-	s.chosenEndpoints = chosenEps
-	s.protoEndpoints = protoEps
-	s.lnErrors = lnErrs
-
-	if roaming && s.dhcpState == nil && s.settingsPublisher != nil {
-		// TODO(mattr): Support roaming.
-	}
-
-	s.active.Add(1)
-	go s.acceptLoop(ctx)
 }
 
 func (s *xserver) acceptLoop(ctx *context.T) error {

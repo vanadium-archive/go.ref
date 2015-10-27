@@ -27,13 +27,9 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service d
 		service.InstanceUuid = idiscovery.NewInstanceUUID()
 	}
 
-	watcher := make(chan rpc.NetworkChange, 3)
-	server.WatchNetwork(watcher)
-
-	stop, err := advertise(ctx, service, getEndpoints(server), suffix, visibility)
+	eps, valid := getEndpoints(server)
+	stop, err := advertise(ctx, service, eps, suffix, visibility)
 	if err != nil {
-		server.UnwatchNetwork(watcher)
-		close(watcher)
 		return nil, err
 	}
 
@@ -41,17 +37,16 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service d
 	go func() {
 		for {
 			select {
-			case <-watcher:
+			case <-valid:
 				if stop != nil {
 					stop() // Stop the previous advertisement.
 				}
-				stop, err = advertise(ctx, service, getEndpoints(server), suffix, visibility)
+				eps, valid = getEndpoints(server)
+				stop, err = advertise(ctx, service, eps, suffix, visibility)
 				if err != nil {
 					ctx.Error(err)
 				}
 			case <-ctx.Done():
-				server.UnwatchNetwork(watcher)
-				close(watcher)
 				close(done)
 				return
 			}
@@ -81,11 +76,11 @@ func advertise(ctx *context.T, service discovery.Service, eps []naming.Endpoint,
 }
 
 // TODO(suharshs): Use server.Status().Endpoints only when migrating to a new server.
-func getEndpoints(server rpc.Server) []naming.Endpoint {
+func getEndpoints(server rpc.Server) ([]naming.Endpoint, <-chan struct{}) {
 	status := server.Status()
 	eps := status.Endpoints
 	for _, p := range status.Proxies {
 		eps = append(eps, p.Endpoint)
 	}
-	return eps
+	return eps, status.Valid
 }
