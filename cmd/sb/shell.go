@@ -169,7 +169,18 @@ func openAppDB(ctx *context.T, sbs syncbase.Service, appName, dbName string, cre
 	return d, nil
 }
 
-func dumpDB(ctx *context.T, w io.Writer, d nosql.Database) error {
+func mergeErrors(errs []error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+	err := errs[0]
+	for _, e := range errs[1:] {
+		err = fmt.Errorf("%v\n%v", err, e)
+	}
+	return err
+}
+
+func dumpTables(ctx *context.T, w io.Writer, d nosql.Database) error {
 	tables, err := d.ListTables(ctx)
 	if err != nil {
 		return fmt.Errorf("failed listing tables: %v", err)
@@ -182,13 +193,41 @@ func dumpDB(ctx *context.T, w io.Writer, d nosql.Database) error {
 		}
 	}
 	if len(errs) > 0 {
-		err := fmt.Errorf("failed dumping %d of %d tables:", len(errs), len(tables))
-		for _, e := range errs {
-			err = fmt.Errorf("%v\n%v", err, e)
-		}
-		return err
+		return fmt.Errorf("failed dumping %d of %d tables:\n%v", len(errs), len(tables), mergeErrors(errs))
 	}
 	return nil
+}
+
+func dumpSyncgroups(ctx *context.T, w io.Writer, d nosql.Database) error {
+	sgNames, err := d.GetSyncgroupNames(ctx)
+	if err != nil {
+		return fmt.Errorf("failed listing syncgroups: %v", err)
+	}
+	var errs []error
+	for _, sgName := range sgNames {
+		fmt.Fprintf(w, "syncgroup: %s\n", sgName)
+		sg := d.Syncgroup(sgName)
+		if spec, version, err := sg.GetSpec(ctx); err != nil {
+			errs = append(errs, err)
+		} else {
+			fmt.Fprintf(w, "%+v (version: \"%s\")\n", spec, version)
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("failed dumping %d of %d syncgroups:\n%v", len(errs), len(sgNames), mergeErrors(errs))
+	}
+	return nil
+}
+
+func dumpDB(ctx *context.T, w io.Writer, d nosql.Database) error {
+	var errors []error
+	if err := dumpTables(ctx, w, d); err != nil {
+		errors = append(errors, fmt.Errorf("failed dumping tables: %v", err))
+	}
+	if err := dumpSyncgroups(ctx, w, d); err != nil {
+		errors = append(errors, fmt.Errorf("failed dumping syncgroups: %v", err))
+	}
+	return mergeErrors(errors)
 }
 
 func makeDemoDB(ctx *context.T, w io.Writer, d nosql.Database) error {
