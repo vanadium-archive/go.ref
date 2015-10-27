@@ -93,6 +93,9 @@ func (i *builderService) Build(ctx *context.T, call build.BuilderBuildServerCall
 	if i.goroot != "" {
 		cmd.Env = append(cmd.Env, "GOROOT="+i.goroot)
 	}
+	if tmpdir, ok := os.LookupEnv("TMPDIR"); ok {
+		cmd.Env = append(cmd.Env, "TMPDIR="+tmpdir)
+	}
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
