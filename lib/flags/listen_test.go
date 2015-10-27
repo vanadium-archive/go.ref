@@ -84,12 +84,10 @@ func TestIPHostPortFlag(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	for _, s := range []string{
-		":", ":59999999", "nohost.invalid", "nohost.invalid:"} {
+	for _, s := range []string{":", ":59999999", "nohost.invalid", "nohost.invalid:"} {
 		f := &flags.IPHostPortFlag{}
 		if err := f.Set(s); err == nil {
-			t.Errorf("expected an error for %q", s)
+			t.Errorf("expected an error for %q, %#v", s, f)
 		}
 	}
-
 }
