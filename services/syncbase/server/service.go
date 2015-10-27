@@ -9,16 +9,22 @@ package server
 // preserve privacy.
 
 import (
+	"bytes"
+	"fmt"
 	"path"
+	"reflect"
 	"sync"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/nosql"
@@ -46,7 +52,7 @@ var (
 
 // ServiceOptions configures a service.
 type ServiceOptions struct {
-	// Service-level permissions.
+	// Service-level permissions.  Used only when creating a brand-new storage instance.
 	Perms access.Permissions
 	// Root dir for data storage.
 	RootDir string
@@ -54,12 +60,31 @@ type ServiceOptions struct {
 	Engine string
 }
 
+// defaultPerms returns a permissions object that grants all permissions to the
+// provided blessing patterns.
+func defaultPerms(blessingPatterns []security.BlessingPattern) access.Permissions {
+	perms := access.Permissions{}
+	for _, tag := range access.AllTypicalTags() {
+		for _, bp := range blessingPatterns {
+			perms.Add(bp, string(tag))
+		}
+	}
+	return perms
+}
+
+// PermsString returns a JSON-based string representation of the permissions.
+func PermsString(perms access.Permissions) string {
+	var buf bytes.Buffer
+	if err := access.WritePermissions(&buf, perms); err != nil {
+		vlog.Errorf("Failed to serialize permissions %+v: %v", perms, err)
+		return fmt.Sprintf("[unserializable] %+v", perms)
+	}
+	return buf.String()
+}
+
 // NewService creates a new service instance and returns it.
 // TODO(sadovsky): If possible, close all stores when the server is stopped.
 func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*service, error) {
-	if opts.Perms == nil {
-		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
-	}
 	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		return nil, err
@@ -69,13 +94,18 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 		opts: opts,
 		apps: map[string]*app{},
 	}
-	data := &serviceData{
-		Perms: opts.Perms,
-	}
-	if err := util.Get(ctx, st, s.stKey(), &serviceData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+	var sd serviceData
+	if err := util.Get(ctx, st, s.stKey(), &sd); verror.ErrorID(err) != verror.ErrNoExist.ID {
 		if err != nil {
 			return nil, err
 		}
+		readPerms := sd.Perms.Normalize()
+		if opts.Perms != nil {
+			if givenPerms := opts.Perms.Copy().Normalize(); !reflect.DeepEqual(givenPerms, readPerms) {
+				vlog.Infof("Warning: configured permissions will be ignored: %v", PermsString(givenPerms))
+			}
+		}
+		vlog.Infof("Using persisted permissions: %v", PermsString(readPerms))
 		// Service exists. Initialize in-memory data structures.
 		// Read all apps, populate apps map.
 		aIt := st.Scan(util.ScanPrefixArgs(util.AppPrefix, ""))
@@ -122,7 +152,16 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 			return nil, verror.New(verror.ErrInternal, ctx, err)
 		}
 	} else {
+		perms := opts.Perms
 		// Service does not exist.
+		if perms == nil {
+			vlog.Info("Permissions flag not set. Giving local principal all permissions.")
+			perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
+		}
+		vlog.Infof("Using permissions: %v", PermsString(perms))
+		data := &serviceData{
+			Perms: perms,
+		}
 		if err := util.Put(ctx, st, s.stKey(), data); err != nil {
 			return nil, err
 		}
