@@ -80,7 +80,13 @@ func defaultBlessingName() string {
 	} else {
 		name = "anonymous"
 	}
-	if host, _ := os.Hostname(); len(host) > 0 {
+	host, _ := os.Hostname()
+	if host == "(none)" {
+		// (none) is a common default hostname and contains parentheses,
+		// which are invalid blessings characters.
+		host = "anonymous"
+	}
+	if len(host) > 0 {
 		name = name + "@" + host
 	}
 	return fmt.Sprintf("%s-%d", name, os.Getpid())
