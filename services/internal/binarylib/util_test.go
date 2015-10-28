@@ -83,7 +83,7 @@ func invokeDownload(t *testing.T, ctx *context.T, binary repository.BinaryClient
 func prepDirectory(t *testing.T, rootDir string) {
 	path, perm := filepath.Join(rootDir, binarylib.VersionFile), os.FileMode(0600)
 	if err := ioutil.WriteFile(path, []byte(binarylib.Version), perm); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "WriteFile(%v, %v, %v) failed: %v", path, binarylib.Version, perm, err))
+		t.Fatal(testutil.FormatLogLine(2, "WriteFile(%v, %v, %v) failed: %v", path, binarylib.Version, perm, err))
 	}
 }
 

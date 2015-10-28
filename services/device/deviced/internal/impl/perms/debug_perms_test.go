@@ -25,17 +25,17 @@ func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name
 	accessStub := permissions.ObjectClient(naming.Join(name...))
 	perms, version, err := accessStub.GetPermissions(ctx)
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "GetPermissions(%v) failed %v", name, err))
+		t.Fatal(testutil.FormatLogLine(2, "GetPermissions(%v) failed %v", name, err))
 	}
 	perms.Add(security.BlessingPattern(blessing), right)
 	if err = accessStub.SetPermissions(ctx, perms, version); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "SetPermissions(%v, %v, %v) failed: %v", name, blessing, right, err))
+		t.Fatal(testutil.FormatLogLine(2, "SetPermissions(%v, %v, %v) failed: %v", name, blessing, right, err))
 	}
 }
 
 func testAccessFail(t *testing.T, expected verror.ID, ctx *context.T, who string, name ...string) {
 	if _, err := utiltest.StatsStub(name...).Value(ctx); verror.ErrorID(err) != expected {
-		t.Fatalf(testutil.FormatLogLine(2, "%s got error %v but expected %v", who, err, expected))
+		t.Fatal(testutil.FormatLogLine(2, "%s got error %v but expected %v", who, err, expected))
 	}
 }
 

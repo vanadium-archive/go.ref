@@ -39,29 +39,29 @@ func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.B
 
 func checkEnvelope(t *testing.T, ctx *context.T, expected application.Envelope, stub repository.ApplicationClientStub, profiles ...string) {
 	if output, err := stub.Match(ctx, profiles); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Match() failed: %v", err))
+		t.Fatal(testutil.FormatLogLine(2, "Match() failed: %v", err))
 	} else if !reflect.DeepEqual(expected, output) {
-		t.Fatalf(testutil.FormatLogLine(2, "Incorrect Match output: expected %#v, got %#v", expected, output))
+		t.Fatal(testutil.FormatLogLine(2, "Incorrect Match output: expected %#v, got %#v", expected, output))
 	}
 }
 
 func checkNoEnvelope(t *testing.T, ctx *context.T, stub repository.ApplicationClientStub, profiles ...string) {
 	if _, err := stub.Match(ctx, profiles); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
-		t.Fatalf(testutil.FormatLogLine(2, "Unexpected error: expected %v, got %v", verror.ErrNoExist, err))
+		t.Fatal(testutil.FormatLogLine(2, "Unexpected error: expected %v, got %v", verror.ErrNoExist, err))
 	}
 }
 
 func checkProfiles(t *testing.T, ctx *context.T, stub repository.ApplicationClientStub, expected ...string) {
 	if output, err := stub.Profiles(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Profiles() failed: %v", err))
+		t.Fatal(testutil.FormatLogLine(2, "Profiles() failed: %v", err))
 	} else if !reflect.DeepEqual(expected, output) {
-		t.Fatalf(testutil.FormatLogLine(2, "Incorrect Profiles output: expected %v, got %v", expected, output))
+		t.Fatal(testutil.FormatLogLine(2, "Incorrect Profiles output: expected %v, got %v", expected, output))
 	}
 }
 
 func checkNoProfile(t *testing.T, ctx *context.T, stub repository.ApplicationClientStub) {
 	if _, err := stub.Profiles(ctx); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
-		t.Fatalf(testutil.FormatLogLine(2, "Unexpected error: expected %v, got %v", verror.ErrNoExist, err))
+		t.Fatal(testutil.FormatLogLine(2, "Unexpected error: expected %v, got %v", verror.ErrNoExist, err))
 	}
 }
 

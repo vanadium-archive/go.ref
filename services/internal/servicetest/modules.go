@@ -69,7 +69,7 @@ func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 func setNSRoots(t *testing.T, ctx *context.T, roots ...string) {
 	ns := v23.GetNamespace(ctx)
 	if err := ns.SetRoots(roots...); err != nil {
-		t.Fatalf(testutil.FormatLogLine(3, "SetRoots(%v) failed with %v", roots, err))
+		t.Fatal(testutil.FormatLogLine(3, "SetRoots(%v) failed with %v", roots, err))
 	}
 }
 
@@ -98,7 +98,7 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 		ctx.VI(1).Info("---------------------------------")
 		ctx.VI(1).Info("--(cleaning up shell)------------")
 		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
-			t.Errorf(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
+			t.Error(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
 		}
 		ctx.VI(1).Info("--(done cleaning up shell)-------")
 		setNSRoots(t, ctx, oldNamespaceRoots...)
@@ -125,7 +125,7 @@ func CreateShell(t *testing.T, ctx *context.T, p security.Principal) (*modules.S
 		ctx.VI(1).Info("---------------------------------")
 		ctx.VI(1).Info("--(cleaning up shell)------------")
 		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
-			t.Errorf(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
+			t.Error(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
 		}
 		ctx.VI(1).Info("--(done cleaning up shell)-------")
 	}
@@ -141,7 +141,7 @@ func CreateShell(t *testing.T, ctx *context.T, p security.Principal) (*modules.S
 func RunCommand(t *testing.T, sh *modules.Shell, env []string, prog modules.Program, args ...string) modules.Handle {
 	h, err := sh.StartWithOpts(sh.DefaultStartOpts(), env, prog, args...)
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "failed to start %q: %s", prog, err))
+		t.Fatal(testutil.FormatLogLine(2, "failed to start %q: %s", prog, err))
 		return nil
 	}
 	h.SetVerbosity(testing.Verbose())
@@ -155,11 +155,11 @@ func ReadPID(t *testing.T, h modules.ExpectSession) int {
 	if len(m) == 1 && len(m[0]) == 2 {
 		pid, err := strconv.Atoi(m[0][1])
 		if err != nil {
-			t.Fatalf(testutil.FormatLogLine(2, "Atoi(%q) failed: %v", m[0][1], err))
+			t.Fatal(testutil.FormatLogLine(2, "Atoi(%q) failed: %v", m[0][1], err))
 		}
 		return pid
 	}
-	t.Fatalf(testutil.FormatLogLine(2, "failed to extract pid: %v", m))
+	t.Fatal(testutil.FormatLogLine(2, "failed to extract pid: %v", m))
 	return 0
 }
 

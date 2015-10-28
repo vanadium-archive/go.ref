@@ -185,7 +185,7 @@ func (p PingServer) WaitForPingArgs(t *testing.T) PingArgs {
 	select {
 	case args = <-p.ing:
 	case <-time.After(pingTimeout):
-		t.Fatalf(testutil.FormatLogLine(2, "failed to get ping"))
+		t.Fatal(testutil.FormatLogLine(2, "failed to get ping"))
 	}
 	return args
 }
@@ -193,7 +193,7 @@ func (p PingServer) WaitForPingArgs(t *testing.T) PingArgs {
 func (p PingServer) VerifyPingArgs(t *testing.T, username, flagValue, envValue string) PingArgs {
 	args := p.WaitForPingArgs(t)
 	if args.Username != username || args.FlagValue != flagValue || args.EnvValue != envValue {
-		t.Fatalf(testutil.FormatLogLine(2, "got ping args %q, expected [username = %v, flag value = %v, env value = %v]", args, username, flagValue, envValue))
+		t.Fatal(testutil.FormatLogLine(2, "got ping args %q, expected [username = %v, flag value = %v, env value = %v]", args, username, flagValue, envValue))
 	}
 	return args // Useful for tests that want to check other values in the PingArgs result
 }
