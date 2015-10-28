@@ -57,6 +57,8 @@ func V23TestProxyd(t *v23tests.T) {
 var runServer = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
+	// Set the listen spec to listen only via the proxy.
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: proxyName})
 	if _, _, err := v23.WithNewServer(ctx, serverName, service{}, security.AllowEveryone()); err != nil {
 		return err
 	}

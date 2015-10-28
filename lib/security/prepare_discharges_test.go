@@ -19,10 +19,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func init() {
-	test.Init()
-}
-
 type expiryDischarger struct {
 	called bool
 }

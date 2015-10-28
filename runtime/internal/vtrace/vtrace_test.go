@@ -26,10 +26,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func init() {
-	test.Init()
-}
-
 // initForTest initializes the vtrace runtime and starts a mounttable.
 func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) {
 	ctx, shutdown := test.V23Init()

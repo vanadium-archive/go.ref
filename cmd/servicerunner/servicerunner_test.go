@@ -21,13 +21,11 @@ import (
 	"testing"
 
 	"v.io/x/ref"
-	"v.io/x/ref/test"
 )
 
 // We provide our own TestMain, rather than allowing jiri test generate to
 // create one for us, to ensure all files require the "wspr" build tag.
 func TestMain(m *testing.M) {
-	test.Init()
 	os.Exit(m.Run())
 }
 

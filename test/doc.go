@@ -4,17 +4,9 @@
 
 // Package test implements initalization for unit and integration tests.
 //
-// Init configures logging, random number generators and other global state.
-// Typical usage in _test.go files:
-//
-// import "v.io/x/ref/test"
-//
-// func TestMain(m *testing.M) {
-//     test.Init()
-//     os.Exit(m.Run())
-// }
-//
 // V23Init can be used within test functions as a safe alternative to v23.Init.
+// It sets up the context so that only localhost ports are used for
+// communication.
 //
 // func TestFoo(t *testing.T) {
 //    ctx, shutdown := test.V23Init()

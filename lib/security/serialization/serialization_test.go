@@ -20,14 +20,12 @@ import (
 
 	"v.io/v23/security"
 	"v.io/x/ref/lib/security/serialization"
-	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
 // We call our own TestMain here because jiri test generate causes an import cycle
 // in this package.
 func TestMain(m *testing.M) {
-	test.Init()
 	os.Exit(m.Run())
 }
 

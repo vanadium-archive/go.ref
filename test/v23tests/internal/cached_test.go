@@ -14,7 +14,6 @@ import (
 	"time"
 
 	_ "v.io/x/ref/runtime/factories/generic"
-	"v.io/x/ref/test"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -90,7 +89,6 @@ func V23TestFour(i *v23tests.T) {
 }
 
 func TestMain(m *testing.M) {
-	test.Init()
 	r := m.Run()
 	if len(tmpDir) > 0 {
 		os.RemoveAll(tmpDir)

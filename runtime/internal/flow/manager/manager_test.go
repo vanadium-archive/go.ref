@@ -17,13 +17,8 @@ import (
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
-	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
 )
-
-func init() {
-	test.Init()
-}
 
 const leakWaitTime = 250 * time.Millisecond
 

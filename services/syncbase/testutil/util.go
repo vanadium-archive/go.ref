@@ -71,11 +71,7 @@ func SetupOrDie(perms access.Permissions) (clientCtx *context.T, serverName stri
 }
 
 func SetupOrDieCustom(clientSuffix, serverSuffix string, perms access.Permissions) (ctx, clientCtx *context.T, serverName string, rootp security.Principal, cleanup func()) {
-	// TODO(mattr): Instead of SetDefaultHostPort the arguably more correct thing
-	// would be to call v.io/x/ref/test.Init() from the test packages that import
-	// the profile.  Note you should only call that from the package that imports
-	// the profile, not from libraries like this.  Also, it would be better if
-	// v23.Init was test.V23Init().
+	// TODO(mattr): It would be better if v23.Init was test.V23Init().
 	flags.SetDefaultHostPort("127.0.0.1:0")
 	ctx, shutdown := v23.Init()
 

@@ -7,15 +7,14 @@ package test
 import (
 	"flag"
 	"os"
-	"runtime"
 	"sync"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/x/ref/internal/logger"
-	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/testutil"
 )
@@ -36,31 +35,10 @@ func init() {
 	flag.BoolVar(&IntegrationTestsDebugShellOnError, IntegrationTestsDebugShellOnErrorFlag, false, "Drop into a debug shell if an integration test fails.")
 }
 
-// Init sets up state for running tests: Adjusting GOMAXPROCS,
-// configuring the logging library, setting up the random number generator
-// etc.
-//
-// Doing so requires flags to be parsed, so this function explicitly parses
-// flags. Thus, it is NOT a good idea to call this from the init() function
-// of any module except "main" or _test.go files.
+// Init does nothing.
+// TODO(ashankar): Remove this after updating "jiri-test generate" so that it
+// doesn't add a call to test.Init in generated v23_test.go files.
 func Init() {
-	init := func() {
-		if os.Getenv("GOMAXPROCS") == "" {
-			// Set the number of logical processors to the number of CPUs,
-			// if GOMAXPROCS is not set in the environment.
-			runtime.GOMAXPROCS(runtime.NumCPU())
-		}
-		flags.SetDefaultProtocol("tcp")
-		flags.SetDefaultHostPort("127.0.0.1:0")
-		flags.SetDefaultNamespaceRoot("/127.0.0.1:8101")
-		// At this point all of the flags that we're going to use for
-		// tests must be defined.
-		// This will be the case if this is called from the init()
-		// function of a _test.go file.
-		flag.Parse()
-		logger.Manager(logger.Global()).ConfigureFromFlags()
-	}
-	once.Do(init)
 }
 
 // V23Init initializes the runtime and sets up some convenient infrastructure for tests:
@@ -87,6 +65,7 @@ type initParams struct {
 // Specific aspects of initialization can be controlled via the params struct.
 func initWithParams(params initParams) (*context.T, v23.Shutdown) {
 	ctx, shutdown := v23.Init()
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
 	if params.CreatePrincipal {
 		var err error
 		if ctx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal(TestBlessing)); err != nil {

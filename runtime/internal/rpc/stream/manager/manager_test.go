@@ -41,10 +41,7 @@ import (
 // We write our own TestMain here instead of relying on jiri test generate because
 // we need to set runtime.GOMAXPROCS.
 func TestMain(m *testing.M) {
-	test.Init()
-
-	// testutil.Init sets GOMAXPROCS to NumCPU.  We want to force
-	// GOMAXPFDROCS to remain at 1, in order to trigger a particular race
+	// For GOMAXPROCS to remain at 1 in order to trigger a particular race
 	// condition that occurs when closing the server; also, using 1 cpu
 	// introduces less variance in the behavior of the test.
 	runtime.GOMAXPROCS(1)

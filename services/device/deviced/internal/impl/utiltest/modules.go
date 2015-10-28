@@ -144,7 +144,6 @@ var DeviceManagerV10 = modules.Register(func(env *modules.Env, args ...string) e
 }, "DeviceManagerV10")
 
 func TestMainImpl(m *testing.M) {
-	test.Init()
 	isSuidHelper := len(os.Getenv("V23_SUIDHELPER_TEST")) > 0
 	if modules.IsChildProcess() && !isSuidHelper {
 		if err := modules.Dispatch(); err != nil {
