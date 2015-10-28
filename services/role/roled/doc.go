@@ -16,6 +16,9 @@ The roled flags are:
    The directory where the role configuration files are stored.
  -name=
    The name to publish for this service.
+ -remote-signer-blessing-dir=
+   Path to the blessings to use with the remote signer. Use the empty string to
+   disable the remote signer.
 
 The global flags are:
  -alsologtostderr=true

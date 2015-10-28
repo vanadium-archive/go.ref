@@ -25,6 +25,7 @@ import (
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/server"
+	"v.io/x/ref/services/internal/restsigner"
 )
 
 var (
@@ -90,7 +91,7 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 
 	if remoteSignerBlessings != "" {
-		signer, err := server.NewRestSigner()
+		signer, err := restsigner.NewRestSigner()
 		if err != nil {
 			return fmt.Errorf("Failed to create remote signer: %v", err)
 		}

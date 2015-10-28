@@ -13,17 +13,24 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/static"
+	"v.io/x/ref/services/internal/restsigner"
 	irole "v.io/x/ref/services/role/roled/internal"
 )
 
-var configDir, name string
+var (
+	configDir             string
+	name                  string
+	remoteSignerBlessings string
+)
 
 func main() {
 	cmdRoleD.Flags.StringVar(&configDir, "config-dir", "", "The directory where the role configuration files are stored.")
 	cmdRoleD.Flags.StringVar(&name, "name", "", "The name to publish for this service.")
+	cmdRoleD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoleD)
@@ -42,6 +49,23 @@ func runRoleD(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	if len(name) == 0 {
 		return env.UsageErrorf("-name must be specified")
+	}
+	if remoteSignerBlessings != "" {
+		signer, err := restsigner.NewRestSigner()
+		if err != nil {
+			return fmt.Errorf("Failed to create remote signer: %v", err)
+		}
+		state, err := security.NewPrincipalStateSerializer(remoteSignerBlessings)
+		if err != nil {
+			return fmt.Errorf("Failed to create blessing serializer: %v", err)
+		}
+		p, err := security.NewPrincipalFromSigner(signer, state)
+		if err != nil {
+			return fmt.Errorf("Failed to create principal: %v", err)
+		}
+		if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
+			return fmt.Errorf("Failed to set principal: %v", err)
+		}
 	}
 	ctx, _, err := v23.WithNewDispatchingServer(ctx, name, irole.NewDispatcher(configDir, name))
 	if err != nil {

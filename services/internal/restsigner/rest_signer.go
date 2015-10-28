@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package server
+package restsigner
 
 import (
 	"crypto/ecdsa"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"v.io/v23/security"
-	"v.io/x/ref/services/identity/internal/signer/v1"
+	signer "v.io/x/ref/services/internal/restsigner/v1"
 )
 
 func DecodePublicKey(k *signer.PublicKey) (*ecdsa.PublicKey, error) {
