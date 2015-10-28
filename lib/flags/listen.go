@@ -88,7 +88,7 @@ func (ip *IPHostPortFlag) Set(s string) error {
 		if addr := net.ParseIP(host); addr == nil {
 			// Could be a hostname.
 			addrs, err := net.LookupIP(host)
-			if err != nil {
+			if err != nil || len(addrs) == 0 {
 				return verror.New(errNeedIPOrHostName, nil, host, err)
 			}
 			for _, a := range addrs {
