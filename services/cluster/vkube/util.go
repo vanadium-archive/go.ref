@@ -97,6 +97,13 @@ func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName str
 			"--socket-path=/agent/socket/agent.sock",
 			"--log_dir=/logs",
 		},
+		"livenessProbe": object{
+			"exec": object{"command": []string{
+				"env", "V23_AGENT_PATH=/agent/socket/agent.sock", "principal", "dump",
+			}},
+			"initialDelaySeconds": 5,
+			"timeoutSeconds":      1,
+		},
 		"volumeMounts": []object{
 			object{"name": "agent-logs", "mountPath": "/logs"},
 			object{"name": "agent-secret", "mountPath": "/agent/secret", "readOnly": true},

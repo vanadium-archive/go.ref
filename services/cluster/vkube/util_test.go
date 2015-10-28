@@ -114,6 +114,18 @@ func TestAddPodAgent(t *testing.T) {
               "--log_dir=/logs"
             ],
             "image": "",
+            "livenessProbe": {
+              "exec": {
+                "command": [
+                  "env",
+                  "V23_AGENT_PATH=/agent/socket/agent.sock",
+                  "principal",
+                  "dump"
+                ]
+              },
+              "initialDelaySeconds": 5,
+              "timeoutSeconds": 1
+            },
             "name": "pod-agent",
             "volumeMounts": [
               {

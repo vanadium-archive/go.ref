@@ -58,6 +58,15 @@ func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
 									"containerPort": clusterAgentServicePort,
 								},
 							},
+							"livenessProbe": object{
+								"exec": object{
+									"command": []string{
+										"vrpc", "identify", fmt.Sprintf("/localhost:%d", clusterAgentServicePort),
+									},
+								},
+								"initialDelaySeconds": 5,
+								"timeoutSeconds":      1,
+							},
 							"resources": object{
 								"limits": object{
 									"cpu":    config.ClusterAgent.CPU,
