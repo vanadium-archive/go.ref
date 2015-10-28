@@ -55,9 +55,10 @@ type xclient struct {
 	// typeCache maintains a cache of type encoders and decoders.
 	typeCache *typeCache
 
-	wg     sync.WaitGroup
-	mu     sync.Mutex
-	closed bool
+	wg      sync.WaitGroup
+	mu      sync.Mutex
+	closing bool
+	closed  chan struct{}
 }
 
 var _ rpc.Client = (*xclient)(nil)
@@ -69,6 +70,7 @@ func NewXClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Clien
 		ns:        ns,
 		typeCache: newTypeCache(),
 		stop:      cancel,
+		closed:    make(chan struct{}),
 	}
 
 	for _, opt := range opts {
@@ -86,12 +88,12 @@ func NewXClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Clien
 	go func() {
 		<-ctx.Done()
 		c.mu.Lock()
-		// TODO(mattr): Do we really need c.closed?
-		c.closed = true
+		c.closing = true
 		c.mu.Unlock()
 
 		<-c.flowMgr.Closed()
 		c.wg.Wait()
+		close(c.closed)
 	}()
 
 	return c
@@ -334,7 +336,7 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 	authorizer := newServerAuthorizer(blessingPattern, opts...)
 	for i, server := range resolved.Names() {
 		c.mu.Lock()
-		if c.closed {
+		if c.closing {
 			c.mu.Unlock()
 			return nil, verror.NoRetry, false, verror.New(errClientCloseAlreadyCalled, ctx)
 		}
@@ -504,7 +506,7 @@ func (c *xclient) Close() {
 }
 
 func (c *xclient) Closed() <-chan struct{} {
-	return c.flowMgr.Closed()
+	return c.closed
 }
 
 // flowXClient implements the RPC client-side protocol for a single RPC, over a
