@@ -909,12 +909,12 @@ func (s *server) ServeDispatcher(name string, disp rpc.Dispatcher) error {
 	}
 	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	s.disp = disp
-	if len(name) > 0 {
-		for ls, _ := range s.listenState {
-			for _, iep := range ls.ieps {
-				s.publisher.AddServer(iep.String())
-			}
+	for ls, _ := range s.listenState {
+		for _, iep := range ls.ieps {
+			s.publisher.AddServer(iep.String())
 		}
+	}
+	if len(name) > 0 {
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 	}
 	return nil

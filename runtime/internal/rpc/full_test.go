@@ -510,6 +510,36 @@ func TestSecurityNone(t *testing.T) {
 	}
 }
 
+func TestAddNameLater(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
+	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x66666666))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
+	server, err := testInternalNewServer(ctx, sm, ns, nil, options.SecurityNone)
+	if err != nil {
+		t.Fatalf("InternalNewServer failed: %v", err)
+	}
+	if _, err = server.Listen(listenSpec); err != nil {
+		t.Fatalf("server.Listen failed: %v", err)
+	}
+	disp := &testServerDisp{&testServer{}}
+	if err := server.ServeDispatcher("", disp); err != nil {
+		t.Fatalf("server.Serve failed: %v", err)
+	}
+	if err := server.AddName("mp/server"); err != nil {
+		t.Fatalf("server.AddName failed: %v", err)
+	}
+	client := DeprecatedNewClient(sm, ns)
+	var got string
+	if err := client.Call(ctx, "mp/server", "Unauthorized", nil, []interface{}{&got}, options.SecurityNone); err != nil {
+		t.Fatalf("client.Call failed: %v", err)
+	}
+	if want := "UnauthorizedResult"; got != want {
+		t.Errorf("got (%v), want (%v)", got, want)
+	}
+}
+
 func TestNoPrincipal(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
