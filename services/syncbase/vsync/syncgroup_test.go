@@ -69,7 +69,7 @@ func TestAddSyncgroup(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes: []wire.SyncgroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
+			Prefixes: []wire.TableRow{{TableName: "foo", Row: ""}, {TableName: "bar", Row: ""}},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -210,7 +210,7 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 			Creator:     "mockCreator",
 			SpecVersion: "etag-0",
 			Spec: wire.SyncgroupSpec{
-				Prefixes: []wire.SyncgroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
+				Prefixes: []wire.TableRow{{TableName: "foo", Row: ""}, {TableName: "bar", Row: ""}},
 			},
 			Joiners: map[string]wire.SyncgroupMemberInfo{
 				"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -253,15 +253,15 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 	checkBadAddSyncgroup(t, st, sg, "SG w/o Prefixes")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.SyncgroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}, {TableName: "foo", RowPrefix: ""}}
+	sg.Spec.Prefixes = []wire.TableRow{{TableName: "foo", Row: ""}, {TableName: "bar", Row: ""}, {TableName: "foo", Row: ""}}
 	checkBadAddSyncgroup(t, st, sg, "SG with duplicate Prefixes")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.SyncgroupPrefix{{TableName: "", RowPrefix: ""}}
+	sg.Spec.Prefixes = []wire.TableRow{{TableName: "", Row: ""}}
 	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty) table name")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.SyncgroupPrefix{{TableName: "a", RowPrefix: "\xfe"}}
+	sg.Spec.Prefixes = []wire.TableRow{{TableName: "a", Row: "\xfe"}}
 	checkBadAddSyncgroup(t, st, sg, "SG with invalid row prefix")
 }
 
@@ -300,7 +300,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes: []wire.SyncgroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
+			Prefixes: []wire.TableRow{{TableName: "foo", Row: ""}, {TableName: "bar", Row: ""}},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -385,7 +385,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		SpecVersion: "etag-1",
 		Spec: wire.SyncgroupSpec{
 			MountTables: []string{"mt1"},
-			Prefixes:    []wire.SyncgroupPrefix{{TableName: "foo", RowPrefix: ""}},
+			Prefixes:    []wire.TableRow{{TableName: "foo", Row: ""}},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -402,7 +402,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		SpecVersion: "etag-2",
 		Spec: wire.SyncgroupSpec{
 			MountTables: []string{"mt2", "mt3"},
-			Prefixes:    []wire.SyncgroupPrefix{{TableName: "bar", RowPrefix: ""}},
+			Prefixes:    []wire.TableRow{{TableName: "bar", Row: ""}},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"tablet": wire.SyncgroupMemberInfo{SyncPriority: 111},
@@ -568,14 +568,14 @@ func TestMultiSyncgroups(t *testing.T) {
 
 // TestPrefixCompare tests the prefix comparison utility.
 func TestPrefixCompare(t *testing.T) {
-	mksgps := func(strs []string) []wire.SyncgroupPrefix {
-		res := make([]wire.SyncgroupPrefix, len(strs))
+	mksgps := func(strs []string) []wire.TableRow {
+		res := make([]wire.TableRow, len(strs))
 		for i, v := range strs {
 			parts := strings.SplitN(v, ":", 2)
 			if len(parts) != 2 {
-				t.Fatalf("invalid SyncgroupPrefix string: %s", v)
+				t.Fatalf("invalid TableRow string: %s", v)
 			}
-			res[i] = wire.SyncgroupPrefix{TableName: parts[0], RowPrefix: parts[1]}
+			res[i] = wire.TableRow{TableName: parts[0], Row: parts[1]}
 		}
 		return res
 	}
