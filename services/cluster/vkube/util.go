@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"strings"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -21,18 +22,6 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/ref/services/cluster"
 )
-
-// getCredentials uses the gcloud command to get the credentials required to
-// access the kubernetes cluster.
-func getCredentials(cluster, project, zone string) error {
-	if out, err := exec.Command(flagGcloudBin, "config", "set", "container/cluster", cluster).CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to set container/cluster: %v: %s", err, out)
-	}
-	if out, err := exec.Command(flagGcloudBin, "container", "clusters", "get-credentials", cluster, "--project", project, "--zone", zone).CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to set get credentials for %q: %v: %s", cluster, err, out)
-	}
-	return nil
-}
 
 // localAgentAddress returns the address of the cluster agent to use from within
 // the cluster.
@@ -209,11 +198,15 @@ func createReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 // updateReplicationController takes a ReplicationController object, adds a
 // pod-agent, and then performs a rolling update.
 func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object) error {
-	oldName, err := findReplicationControllerNameForApp(rc.getString("spec.template.metadata.labels.application"), rc.getString("metadata.namespace"))
+	namespace := rc.getString("metadata.namespace")
+	oldNames, err := findReplicationControllerNamesForApp(rc.getString("spec.template.metadata.labels.application"), namespace)
 	if err != nil {
 		return err
 	}
-	secretName, err := findSecretName(oldName, rc.getString("metadata.namespace"))
+	if len(oldNames) != 1 {
+		return fmt.Errorf("found %d replication controllers for this application: %q", len(oldNames), oldNames)
+	}
+	secretName, err := findSecretName(oldNames[0], namespace)
 	if err != nil {
 		return err
 	}
@@ -224,10 +217,10 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object)
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(flagKubectlBin, "rolling-update", oldName, "-f", "-")
+	cmd := exec.Command(flagKubectlBin, "rolling-update", oldNames[0], "-f", "-", "--namespace="+namespace)
 	cmd.Stdin = bytes.NewBuffer(json)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to update replication controller %q: %v\n%s\n", oldName, err, string(out))
+		return fmt.Errorf("failed to update replication controller %q: %v\n%s\n", oldNames[0], err, string(out))
 	}
 	return nil
 }
@@ -258,26 +251,22 @@ func makeSecretName() (string, error) {
 	return fmt.Sprintf("secret-%s", hex.EncodeToString(b)), nil
 }
 
-// findReplicationControllerNameForApp returns the name of the
-// ReplicationController that is currently used to run the given application.
-func findReplicationControllerNameForApp(app, namespace string) (string, error) {
+// findReplicationControllerNamesForApp returns the names of the
+// ReplicationController that are currently used to run the given application.
+func findReplicationControllerNamesForApp(app, namespace string) ([]string, error) {
 	data, err := kubectl("--namespace="+namespace, "get", "rc", "-l", "application="+app, "-o", "json")
 	if err != nil {
-		return "", fmt.Errorf("failed to get replication controller for application %q: %v\n%s\n", app, err, string(data))
+		return nil, fmt.Errorf("failed to get replication controller for application %q: %v\n%s\n", app, err, string(data))
 	}
 	var list object
 	if err := list.importJSON(data); err != nil {
-		return "", fmt.Errorf("failed to parse kubectl output: %v", err)
+		return nil, fmt.Errorf("failed to parse kubectl output: %v", err)
 	}
-	items := list.getObjectArray("items")
-	if c := len(items); c != 1 {
-		return "", fmt.Errorf("found %d replication controllers for application %q", c, app)
+	names := []string{}
+	for _, item := range list.getObjectArray("items") {
+		names = append(names, item.getString("metadata.name"))
 	}
-	name := items[0].getString("metadata.name")
-	if name == "" {
-		return "", fmt.Errorf("missing metadata.name")
-	}
-	return name, nil
+	return names, nil
 }
 
 // findSecretName finds the name of the Secret Object associated the given
@@ -297,6 +286,46 @@ func findSecretName(rcName, namespace string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("failed to find secretName in replication controller %q", rcName)
+}
+
+func readyPods(appName, namespace string) ([]string, error) {
+	data, err := kubectl("--namespace="+namespace, "get", "pod", "-l", "application="+appName, "-o", "json")
+	if err != nil {
+		return nil, err
+	}
+	var list object
+	if err := list.importJSON(data); err != nil {
+		return nil, fmt.Errorf("failed to parse kubectl output: %v", err)
+	}
+	names := []string{}
+	for _, item := range list.getObjectArray("items") {
+		if item.get("status.phase") != "Running" {
+			continue
+		}
+		for _, cond := range item.getObjectArray("status.conditions") {
+			if cond.get("type") == "Ready" && cond.get("status") == "True" {
+				names = append(names, item.getString("metadata.name"))
+				break
+			}
+		}
+		for _, status := range item.getObjectArray("status.containerStatuses") {
+			if status.get("ready") == false && status.getInt("restartCount") >= 5 {
+				return nil, fmt.Errorf("application is failing: %#v", item)
+			}
+		}
+	}
+	return names, nil
+}
+
+func waitForReadyPods(appName, namespace string) error {
+	for {
+		if n, err := readyPods(appName, namespace); err != nil {
+			return err
+		} else if len(n) > 0 {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
 }
 
 // kubectlCreate runs 'kubectl create -f' on the given object and returns the

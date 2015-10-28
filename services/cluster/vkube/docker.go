@@ -17,7 +17,7 @@ import (
 
 const (
 	clusterAgentDockerfile = `
-FROM debian:stable
+FROM google/debian:wheezy
 
 # gcloud
 RUN apt-get update && apt-get install -y -qq --no-install-recommends wget unzip python php5-mysql php5-cli php5-cgi openjdk-7-jre-headless openssh-client python-openssl && apt-get clean
@@ -33,8 +33,6 @@ ENV PATH /google-cloud-sdk/bin:$PATH
 #RUN apt-get install --no-install-recommends -y -q libssl1.0.0
 ADD claimable cluster_agent cluster_agentd init.sh /usr/local/bin/
 RUN chmod 755 /usr/local/bin/*
-
-EXPOSE 8193
 CMD ["/usr/local/bin/init.sh"]
 `
 	clusterAgentInitSh = `#!/bin/sh
@@ -62,8 +60,8 @@ exec /usr/local/bin/cluster_agentd \
 `
 
 	podAgentDockerfile = `
-FROM debian:stable
-RUN apt-get update && apt-get install --no-install-recommends -y -q libssl1.0.0
+FROM google/debian:wheezy
+RUN apt-get update && apt-get install --no-install-recommends -y -q libssl1.0.0 && apt-get clean
 ADD pod_agentd /usr/local/bin/
 RUN chmod 755 /usr/local/bin/pod_agentd
 `
@@ -79,11 +77,13 @@ type dockerCmd struct {
 	args []string
 }
 
-func buildDockerImages(config *vkubeConfig, verbose bool, stdout io.Writer) error {
-	ts := time.Now().Format("20060102150405")
+func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.Writer) error {
+	if tag == "" {
+		tag = time.Now().Format("20060102150405")
+	}
 	// Cluster agent image.
 	imageName := removeTag(config.ClusterAgent.Image)
-	imageNameTag := fmt.Sprintf("%s:%s", imageName, ts)
+	imageNameTag := fmt.Sprintf("%s:%s", imageName, tag)
 
 	var out io.Writer
 	if verbose {
@@ -107,7 +107,7 @@ func buildDockerImages(config *vkubeConfig, verbose bool, stdout io.Writer) erro
 
 	// Pod agent image.
 	imageName = removeTag(config.PodAgent.Image)
-	imageNameTag = fmt.Sprintf("%s:%s", imageName, ts)
+	imageNameTag = fmt.Sprintf("%s:%s", imageName, tag)
 
 	if err := buildDockerImage([]dockerFile{
 		{"Dockerfile", []byte(podAgentDockerfile)},

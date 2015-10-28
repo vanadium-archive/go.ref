@@ -12,7 +12,6 @@ Usage:
    vkube [flags] <command>
 
 The vkube commands are:
-   get-credentials     Gets the kubernetes credentials from Google Cloud.
    start               Starts an application.
    update              Updates an application.
    stop                Stops an application.
@@ -20,6 +19,7 @@ The vkube commands are:
    stop-cluster-agent  Stops the cluster agent.
    claim-cluster-agent Claims the cluster agent.
    build-docker-images Builds the docker images for the cluster and pod agents.
+   ctl                 Runs kubectl on the cluster defined in vkube.cfg.
    help                Display help for commands or topics
 
 The vkube flags are:
@@ -76,13 +76,6 @@ The global flags are:
  -vpath=
    comma-separated list of pattern=N settings for file pathname-filtered logging
 
-Vkube get-credentials
-
-Gets the kubernetes credentials from Google Cloud.
-
-Usage:
-   vkube get-credentials
-
 Vkube start
 
 Starts an application.
@@ -95,6 +88,8 @@ Usage:
 The vkube start flags are:
  -f=
    Filename to use to create the kubernetes resource.
+ -wait=false
+   Wait for at least one replica to be ready.
 
 Vkube update
 
@@ -107,6 +102,8 @@ Usage:
 The vkube update flags are:
  -f=
    Filename to use to update the kubernetes resource.
+ -wait=false
+   Wait for at least one replica to be ready after the update.
 
 Vkube stop
 
@@ -124,7 +121,11 @@ Vkube start-cluster-agent
 Starts the cluster agent.
 
 Usage:
-   vkube start-cluster-agent
+   vkube start-cluster-agent [flags]
+
+The vkube start-cluster-agent flags are:
+ -wait=false
+   Wait for the cluster agent to be ready.
 
 Vkube stop-cluster-agent
 
@@ -148,8 +149,19 @@ Usage:
    vkube build-docker-images [flags]
 
 The vkube build-docker-images flags are:
+ -tag=
+   The tag to add to the docker images. If empty, the current timestamp is used.
  -v=false
    When true, the output is more verbose.
+
+Vkube ctl
+
+Runs kubectl on the cluster defined in vkube.cfg.
+
+Usage:
+   vkube ctl -- <kubectl args>
+
+<kubectl args> are passed directly to the kubectl command.
 
 Vkube help - Display help for commands or topics
 

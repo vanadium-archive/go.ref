@@ -10,6 +10,7 @@ package main
 import (
 	"encoding/base64"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"v.io/v23"
@@ -92,6 +93,9 @@ func runPodAgentD(ctx *context.T, env *cmdline.Env, args []string) error {
 	defer i.Close()
 	if err = server.ServeAgent(i, lsecurity.NewImmutablePrincipal(p)); err != nil {
 		return err
+	}
+	if _, err := os.Stat(socketPath); err == nil {
+		os.Remove(socketPath)
 	}
 	if err = i.Listen(socketPath); err != nil {
 		return err
