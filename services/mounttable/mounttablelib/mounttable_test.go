@@ -34,10 +34,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func init() {
-	test.Init()
-}
-
 // Simulate different processes with different runtimes.
 // rootCtx is the one running the mounttable service.
 const ttlSecs = 60 * 60
@@ -889,7 +885,6 @@ func TestIntermediateNodesCreatedFromConfig(t *testing.T) {
 }
 
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
-	test.Init()
 	ctx, shutdown := test.V23Init()
 	var err error
 	if rootCtx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal("root")); err != nil {

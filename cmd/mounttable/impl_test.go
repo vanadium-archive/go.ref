@@ -28,10 +28,6 @@ import (
 
 var now = time.Now()
 
-func init() {
-	test.Init()
-}
-
 func deadline(minutes int) vdltime.Deadline {
 	return vdltime.Deadline{
 		Time: now.Add(time.Minute * time.Duration(minutes)),

@@ -17,7 +17,6 @@ import (
 	"v.io/v23/rpc/version"
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
-	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
 )
 
@@ -26,7 +25,6 @@ const leakWaitTime = 250 * time.Millisecond
 var randData []byte
 
 func init() {
-	test.Init()
 	randData = make([]byte, 2*DefaultBytesBufferedPerFlow)
 	if _, err := rand.Read(randData); err != nil {
 		panic("Could not read random data.")

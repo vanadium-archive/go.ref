@@ -23,6 +23,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/set"
 	"v.io/x/ref/services/groups/groupsd/testdata/kvstore"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
 )
@@ -160,7 +161,7 @@ const (
 )
 
 var runServer = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	// Use a shorter timeout to reduce the test overall runtime as the
 	// permission authorizer will attempt to connect to a non-existing
@@ -188,7 +189,7 @@ var runClient = modules.Register(func(env *modules.Env, args ...string) error {
 		return fmt.Errorf("unexpected number of arguments: got %v, want at least %v", got, want)
 	}
 	command := args[0]
-	client := kvstore.StoreClient("key-value-store")
+	client := kvstore.StoreClient(kvServerName)
 	switch command {
 	case "get":
 		if got, want := len(args), 2; got != want {

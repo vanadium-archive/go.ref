@@ -129,7 +129,6 @@ func runBenchmarks() {
 func main() {
 	// Set the default benchmark time.
 	flag.Set("test.benchtime", defaultBenchTime.String())
-	test.Init()
 
 	var shutdown v23.Shutdown
 	ctx, shutdown = test.V23Init()

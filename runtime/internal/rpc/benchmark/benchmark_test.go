@@ -106,7 +106,6 @@ func Benchmark___1KB_mux___1K_chunks__10KB(b *testing.B) { runMux(b, 1000, 1000,
 func TestNoOp(t *testing.T) {}
 
 func TestMain(m *testing.M) {
-	test.Init()
 	// We do not use defer here since this program will exit at the end of
 	// this function through os.Exit().
 	var shutdown v23.Shutdown

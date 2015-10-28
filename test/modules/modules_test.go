@@ -35,7 +35,6 @@ import (
 // We must call TestMain ourselves because using jiri test generate
 // creates an import cycle for this package.
 func TestMain(m *testing.M) {
-	test.Init()
 	modules.DispatchAndExitIfChild()
 	os.Exit(m.Run())
 }

@@ -21,10 +21,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func init() {
-	test.Init()
-}
-
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
 	ctx, shutdown := test.V23Init()
 	var err error
