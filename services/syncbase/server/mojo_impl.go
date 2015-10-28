@@ -103,10 +103,10 @@ func toV23SyncgroupSpec(mSpec mojom.SyncgroupSpec) (nosqlwire.SyncgroupSpec, err
 	if err != nil {
 		return nosqlwire.SyncgroupSpec{}, err
 	}
-	prefixes := make([]nosqlwire.SyncgroupPrefix, len(mSpec.Prefixes))
+	prefixes := make([]nosqlwire.TableRow, len(mSpec.Prefixes))
 	for i, v := range mSpec.Prefixes {
 		prefixes[i].TableName = v.TableName
-		prefixes[i].RowPrefix = v.RowPrefix
+		prefixes[i].Row = v.Row
 	}
 	return nosqlwire.SyncgroupSpec{
 		Description: mSpec.Description,
@@ -122,10 +122,10 @@ func toMojoSyncgroupSpec(vSpec nosqlwire.SyncgroupSpec) (mojom.SyncgroupSpec, er
 	if err != nil {
 		return mojom.SyncgroupSpec{}, err
 	}
-	prefixes := make([]mojom.SyncgroupPrefix, len(vSpec.Prefixes))
+	prefixes := make([]mojom.TableRow, len(vSpec.Prefixes))
 	for i, v := range vSpec.Prefixes {
 		prefixes[i].TableName = v.TableName
-		prefixes[i].RowPrefix = v.RowPrefix
+		prefixes[i].Row = v.Row
 	}
 	return mojom.SyncgroupSpec{
 		Description: vSpec.Description,

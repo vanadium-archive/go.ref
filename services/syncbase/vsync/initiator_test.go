@@ -402,7 +402,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes:    []wire.SyncgroupPrefix{{TableName: "foo", RowPrefix: ""}, {TableName: "bar", RowPrefix: ""}},
+			Prefixes:    []wire.TableRow{{TableName: "foo", Row: ""}, {TableName: "bar", Row: ""}},
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{

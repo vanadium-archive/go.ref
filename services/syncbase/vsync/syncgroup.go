@@ -125,10 +125,10 @@ func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 	prefixes := make(map[string]bool, len(spec.Prefixes))
 	for _, p := range spec.Prefixes {
 		if !pubutil.ValidTableName(p.TableName) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a SyncgroupPrefix with invalid table name %q", p.TableName))
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a TableRow with invalid table name %q", p.TableName))
 		}
-		if p.RowPrefix != "" && !pubutil.ValidRowKey(p.RowPrefix) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a SyncgroupPrefix with invalid row prefix %q", p.RowPrefix))
+		if p.Row != "" && !pubutil.ValidRowKey(p.Row) {
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a TableRow with invalid row prefix %q", p.Row))
 		}
 		prefixes[toTableRowPrefixStr(p)] = true
 	}
@@ -139,7 +139,7 @@ func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 }
 
 // samePrefixes returns true if the two sets of prefixes are the same.
-func samePrefixes(pfx1, pfx2 []wire.SyncgroupPrefix) bool {
+func samePrefixes(pfx1, pfx2 []wire.TableRow) bool {
 	pfxMap := make(map[string]uint8)
 	for _, p := range pfx1 {
 		pfxMap[toTableRowPrefixStr(p)] |= 0x01
@@ -1065,7 +1065,7 @@ func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 // be time consuming.  Consider doing it asynchronously and letting the server
 // reply to the client earlier.  However it must happen within the scope of this
 // transaction (and its snapshot view).
-func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx store.Transaction, sgId interfaces.GroupId, prefixes []wire.SyncgroupPrefix) error {
+func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx store.Transaction, sgId interfaces.GroupId, prefixes []wire.TableRow) error {
 	if len(prefixes) == 0 {
 		return verror.New(verror.ErrInternal, ctx, "no prefixes specified")
 	}
