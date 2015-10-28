@@ -40,6 +40,7 @@ var (
 	errTooManyNodes       = verror.Register(pkgPath+".errTooManyNodes", verror.NoRetry, "{1:}{2:} User has exceeded his node limit {:_}")
 	errNoSharedRoot       = verror.Register(pkgPath+".errNoSharedRoot", verror.NoRetry, "{1:}{2:} Server and User share no blessing root {:_}")
 	errNameElementTooLong = verror.Register(pkgPath+".errNameElementTooLong", verror.NoRetry, "{1:}{2:} path element {3}: too long {:_}")
+	errInvalidPermsFile   = verror.Register(pkgPath+".errInvalidPermsFile", verror.NoRetry, "{1:}{2:} perms file {3} invalid {:_}")
 )
 
 var (
@@ -144,7 +145,8 @@ func NewMountTableDispatcher(ctx *context.T, permsFile, persistDir, statsPrefix 
 		mt.persisting = mt.persist != nil
 	}
 	if err := mt.parsePermFile(ctx, permsFile); err != nil && !os.IsNotExist(err) {
-		return nil, err
+		return nil, verror.New(errInvalidPermsFile, ctx, permsFile, err)
+
 	}
 	return mt, nil
 }
