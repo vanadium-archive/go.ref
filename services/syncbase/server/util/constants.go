@@ -10,21 +10,19 @@ import (
 
 // Constants related to storage engine keys.
 // Note, these are persisted and therefore must not be modified.
-// TODO(sadovsky): Use one-byte strings. Changing these prefixes breaks various
-// tests. Tests generally shouldn't depend on the values of these constants.
 const (
-	AppPrefix        = "$app"
-	ClockPrefix      = "$clock"
-	DatabasePrefix   = "$database"
-	DbInfoPrefix     = "$dbInfo"
-	LogPrefix        = "$log"
-	PermsPrefix      = "$perms"
-	PermsIndexPrefix = "$iperms"
-	RowPrefix        = "$row"
-	ServicePrefix    = "$service"
-	SyncPrefix       = "$sync"
-	TablePrefix      = "$table"
-	VersionPrefix    = "$version"
+	AppPrefix        = "a"
+	ClockPrefix      = "c"
+	DatabasePrefix   = "d"
+	DbInfoPrefix     = "i"
+	LogPrefix        = "l"
+	PermsPrefix      = "p"
+	RowPrefix        = "r"
+	ServicePrefix    = "s"
+	TablePrefix      = "t"
+	VersionPrefix    = "v"
+	PermsIndexPrefix = "x"
+	SyncPrefix       = "y"
 
 	// KeyPartSep is a separator for parts of storage engine keys, e.g. separating
 	// table name from row key.

@@ -17,14 +17,14 @@ const (
 // TODO(hpucha): These are not final yet. This is an intermediate step.
 
 const (
-        // NodeRec type log record adds a new node in the dag.
-        NodeRec = byte(0)
+	// NodeRec type log record adds a new node in the dag.
+	NodeRec = byte(0)
 
-        // LinkRec type log record adds a new link in the dag. Link records are
-        // added when a conflict is resolved by picking the local or the remote
-        // version as the resolution of a conflict, instead of creating a new
-        // version.
-        LinkRec = byte(1)
+	// LinkRec type log record adds a new link in the dag. Link records are
+	// added when a conflict is resolved by picking the local or the remote
+	// version as the resolution of a conflict, instead of creating a new
+	// version.
+	LinkRec = byte(1)
 )
 
 // PrefixGenVector is the generation vector for a data prefix, which maps each
@@ -44,26 +44,26 @@ type GenVector map[string]PrefixGenVector
 // TODO(hpucha): Add readset/scanset. Look into sending tx metadata only once
 // per transaction.
 type LogRecMetadata struct {
-        // Log related information.
-        Id        uint64 // device id that created the log record.
-	Gen       uint64 // generation number for the log record.
-	RecType   byte   // type of log record.
+	// Log related information.
+	Id      uint64 // device id that created the log record.
+	Gen     uint64 // generation number for the log record.
+	RecType byte   // type of log record.
 
-        // Object related information.
+	// Object related information.
 
 	// Id of the object that was updated. This id is relative to Application
 	// and Database names and is the store key for a particular row in a
 	// table.
-        ObjId       string
-        CurVers     string      // current version number of the object.
-        Parents     []string    // 0, 1 or 2 parent versions that the current version is derived from.
-	UpdTime     time.Time   // timestamp when the update is generated.
-	PermId      string      // id of the permissions object controlling this version.
-	PermVers    string      // current version of the permissions object.
-	Shell       bool        // true when the mutation data is hidden due to permissions.
-	Delete      bool        // indicates whether the update resulted in object being deleted from the store.
-	BatchId     uint64      // unique id of the Batch this update belongs to.
-	BatchCount  uint64      // number of objects in the Batch.
+	ObjId      string
+	CurVers    string    // current version number of the object.
+	Parents    []string  // 0, 1 or 2 parent versions that the current version is derived from.
+	UpdTime    time.Time // timestamp when the update is generated.
+	PermId     string    // id of the permissions object controlling this version.
+	PermVers   string    // current version of the permissions object.
+	Shell      bool      // true when the mutation data is hidden due to permissions.
+	Delete     bool      // indicates whether the update resulted in object being deleted from the store.
+	BatchId    uint64    // unique id of the Batch this update belongs to.
+	BatchCount uint64    // number of objects in the Batch.
 }
 
 // LogRec represents the on-wire representation of an entire log record: its
@@ -107,7 +107,7 @@ type Syncgroup struct {
 // DeltaReq contains a request to sync either data or syncgroup metadata for a
 // Database.
 type DeltaReq union {
-	Sgs SgDeltaReq
+	Sgs  SgDeltaReq
 	Data DataDeltaReq
 }
 
@@ -116,7 +116,7 @@ type DeltaReq union {
 // requesting deltas for that Database.
 type DataDeltaReq struct {
 	AppName string
-	DbName string
+	DbName  string
 	SgIds   set[GroupId]
 	InitVec GenVector
 }
@@ -126,7 +126,7 @@ type DataDeltaReq struct {
 // requesting deltas for those syncgroups.
 type SgDeltaReq struct {
 	AppName string
-	DbName string
+	DbName  string
 	InitVec GenVector // Contains a genvector per syncgroup.
 }
 

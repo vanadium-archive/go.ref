@@ -35,11 +35,10 @@ package vsync
 // the data log records, these log records are used to sync syncgroup metadata.
 //
 // The generations for the data mutations and mutations for each syncgroup are
-// in separate spaces. Data mutations in a Database start at gen 1, and
-// grow. Mutations for each syncgroup start at gen 1, and grow. Thus, for the
-// local data log records, the keys are of the form
-// $sync:log:data:<devid>:<gen>, and the keys for local syncgroup log record are
-// of the form $sync:log:<sgid>:<devid>:<gen>.
+// in separate spaces. Data mutations in a Database start at gen 1, and grow.
+// Mutations for each syncgroup start at gen 1, and grow. Thus, for the local
+// data log records, the keys are of the form y:l:d:<devid>:<gen>, and the keys
+// for local syncgroup log record are of the form y:l:<sgoid>:<devid>:<gen>.
 
 // TODO(hpucha): Should this space be separate from the data or not? If it is
 // not, it can provide consistency between data and syncgroup metadata. For
@@ -85,7 +84,7 @@ type dbSyncStateInMem struct {
 	data *localGenInfoInMem // info for data.
 
 	// Info for syncgroups. The key here is the syncgroup oid of the form
-	// $sync:sgd:<group id>. More details in syncgroup.go.
+	// y:s:<groupId>. More details in syncgroup.go.
 	sgs map[string]*localGenInfoInMem
 
 	// Note: Generation vector contains state from remote devices only.
@@ -126,8 +125,8 @@ type sgPublishInfo struct {
 // c) republish names in mount tables for all syncgroups.
 // d) in-memory queue of syncgroups to be published.
 func (s *syncService) initSync(ctx *context.T) error {
-	vlog.VI(2).Infof("sync: initSync:: begin")
-	defer vlog.VI(2).Infof("sync: initSync:: end")
+	vlog.VI(2).Infof("sync: initSync: begin")
+	defer vlog.VI(2).Infof("sync: initSync: end")
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
@@ -154,7 +153,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 			dsInMem.sggenvec = ds.SgGenVec
 		}
 
-		vlog.VI(2).Infof("sync: initSync:: initing app %v db %v, dsInMem %v", appName, dbName, dsInMem)
+		vlog.VI(2).Infof("sync: initSync: initing app %v db %v, dsInMem %v", appName, dbName, dsInMem)
 
 		sgCount := 0
 		name := appDbName(appName, dbName)
@@ -201,13 +200,13 @@ func (s *syncService) initSync(ctx *context.T) error {
 			}
 			info.checkptGen = info.gen - 1
 
-			vlog.VI(4).Infof("sync: initSync:: initing app %v db %v sg %v info %v", appName, dbName, sgoid, info)
+			vlog.VI(4).Infof("sync: initSync: initing app %v db %v sg %v info %v", appName, dbName, sgoid, info)
 
 			return false
 		})
 
 		if sgCount == 0 {
-			vlog.VI(2).Infof("sync: initSync:: initing app %v db %v done (no sgs found)", appName, dbName)
+			vlog.VI(2).Infof("sync: initSync: initing app %v db %v done (no sgs found)", appName, dbName)
 			return false
 		}
 
@@ -231,7 +230,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 
 		s.syncState[name] = dsInMem
 
-		vlog.VI(2).Infof("sync: initSync:: initing app %v db %v done dsInMem %v (data %v)", appName, dbName, dsInMem, dsInMem.data)
+		vlog.VI(2).Infof("sync: initSync: initing app %v db %v done dsInMem %v (data %v)", appName, dbName, dsInMem, dsInMem.data)
 
 		return false
 	})
@@ -517,20 +516,15 @@ func splitAppDbName(ctx *context.T, name string) (string, string, error) {
 ////////////////////////////////////////////////////////////
 // Low-level utility functions to access sync state.
 
-// dbSyncStateKey returns the key used to access the sync state of a Database.
-func dbSyncStateKey() string {
-	return util.JoinKeyParts(util.SyncPrefix, dbssPrefix)
-}
-
 // putDbSyncState persists the sync state object for a given Database.
 func putDbSyncState(ctx *context.T, tx store.Transaction, ds *dbSyncState) error {
-	return util.Put(ctx, tx, dbSyncStateKey(), ds)
+	return util.Put(ctx, tx, dbssKey, ds)
 }
 
 // getDbSyncState retrieves the sync state object for a given Database.
 func getDbSyncState(ctx *context.T, st store.StoreReader) (*dbSyncState, error) {
 	var ds dbSyncState
-	if err := util.Get(ctx, st, dbSyncStateKey(), &ds); err != nil {
+	if err := util.Get(ctx, st, dbssKey, &ds); err != nil {
 		return nil, err
 	}
 	return &ds, nil
@@ -541,12 +535,12 @@ func getDbSyncState(ctx *context.T, st store.StoreReader) (*dbSyncState, error) 
 
 // logRecsPerDeviceScanPrefix returns the prefix used to scan log records for a particular device.
 func logRecsPerDeviceScanPrefix(pfx string, id uint64) string {
-	return util.JoinKeyParts(util.SyncPrefix, logPrefix, pfx, fmt.Sprintf("%d", id))
+	return util.JoinKeyParts(logPrefix, pfx, fmt.Sprintf("%d", id))
 }
 
 // logRecKey returns the key used to access a specific log record.
 func logRecKey(pfx string, id, gen uint64) string {
-	return util.JoinKeyParts(util.SyncPrefix, logPrefix, pfx, fmt.Sprintf("%d", id), fmt.Sprintf("%016x", gen))
+	return util.JoinKeyParts(logPrefix, pfx, fmt.Sprintf("%d", id), fmt.Sprintf("%016x", gen))
 }
 
 // hasLogRec returns true if the log record for (devid, gen) exists.

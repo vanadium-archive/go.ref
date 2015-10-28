@@ -306,7 +306,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	// batch is an application batch with 3 keys of which 2 are syncable.
 	// The 3rd batch is also a syncgroup snapshot.
 	count := 0
-	start, limit := util.ScanPrefixArgs(util.JoinKeyParts(util.SyncPrefix, "dag", "b"), "")
+	start, limit := util.ScanPrefixArgs(dagBatchPrefix, "")
 	stream := st.Scan(start, limit)
 	for stream.Advance() {
 		count++
@@ -323,6 +323,6 @@ func TestProcessWatchLogBatch(t *testing.T) {
 		}
 	}
 	if count != 1 {
-		t.Errorf("wrong count of batches: got %d instead of 2", count)
+		t.Errorf("wrong count of batches: got %d instead of 1", count)
 	}
 }

@@ -397,28 +397,21 @@ func splitLogRecKey(ctx *context.T, key string) (string, uint64, uint64, error) 
 	if len(parts) != 5 && len(parts) != 7 {
 		return "", 0, 0, verr
 	}
-	if parts[0] != util.SyncPrefix || parts[1] != logPrefix {
+	if util.JoinKeyParts(parts[:2]...) != logPrefix {
 		return "", 0, 0, verr
 	}
 
 	var idStr, genStr, prefix string
-	if parts[2] == logDataPrefix {
-		if len(parts) != 5 {
+	if len(parts) == 5 {
+		if parts[2] != logDataPrefix {
 			return "", 0, 0, verr
 		}
-		prefix = parts[2]
-		idStr = parts[3]
-		genStr = parts[4]
-	} else {
-		if len(parts) != 7 {
+		prefix, idStr, genStr = parts[2], parts[3], parts[4]
+	} else { // len(parts) == 7
+		if _, err := strconv.ParseUint(parts[4], 10, 64); err != nil { // GroupId
 			return "", 0, 0, verr
 		}
-		prefix = util.JoinKeyParts(parts[2:5]...)
-		if _, err := strconv.ParseUint(parts[4], 10, 64); err != nil {
-			return "", 0, 0, verr
-		}
-		idStr = parts[5]
-		genStr = parts[6]
+		prefix, idStr, genStr = util.JoinKeyParts(parts[2:5]...), parts[5], parts[6]
 	}
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -433,13 +426,14 @@ func splitLogRecKey(ctx *context.T, key string) (string, uint64, uint64, error) 
 
 func TestSplitLogRecKey(t *testing.T) {
 	invalid := []string{
-		"$sync\xfe100\xfebb",
-		"log\xfe100\xfebb",
-		"$sync\xfelog\xfedata\xfe100\xfexx",
-		"$sync\xfelog\xfedata\xfeaa\xfebb",
-		"$sync\xfelog\xfexx\xfe100\xfebb",
-		"$sync\xfelog\xfedata\xfeaa\xfe100\xfebb",
-		"$sync\xfelog\xfe$sync\xfesgd\xfexx\xfe100\xfebb",
+		"y\xfe100\xfebb",
+		"l\xfe100\xfebb",
+		"y\xfel\xfed\xfe100\xfexx",
+		"y\xfel\xfed\xfeaa\xfe100",
+		"y\xfel\xfex\xfe100\xfe100",
+		"y\xfel\xfed\xfe100",
+		"y\xfel\xfed\xfe100\xfe100\xfebb",
+		"y\xfel\xfey\xfes\xfexx\xfe100\xfe100",
 	}
 
 	for _, k := range invalid {
@@ -454,14 +448,14 @@ func TestSplitLogRecKey(t *testing.T) {
 		gen uint64
 	}{
 		{logDataPrefix, 10, 20},
-		{"$sync\xfesgd\xfe2500", 190, 540},
-		{"$sync\xfesgd\xfe4200", 9999, 999999},
+		{"y\xfes\xfe2500", 190, 540},
+		{"y\xfes\xfe4200", 9999, 999999},
 	}
 
 	for _, v := range valid {
 		gotPfx, gotId, gotGen, err := splitLogRecKey(nil, logRecKey(v.pfx, v.id, v.gen))
 		if gotPfx != v.pfx || gotId != v.id || gotGen != v.gen || err != nil {
-			t.Fatalf("failed key conversion pfx got %v want %v, id got %v want %v, gen got %v want %v, err %v", gotPfx, v.pfx, gotId, v.id, gotGen, v.gen, err)
+			t.Fatalf("failed key conversion: pfx got %v want %v, id got %v want %v, gen got %v want %v, err %v", gotPfx, v.pfx, gotId, v.id, gotGen, v.gen, err)
 		}
 	}
 }

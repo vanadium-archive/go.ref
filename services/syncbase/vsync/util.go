@@ -100,7 +100,7 @@ func toTableRowPrefixStr(p wire.SyncgroupPrefix) string {
 // toRowKey prepends RowPrefix to what is presumably a "<table>:<row>" string,
 // yielding a storage engine key for a row.
 // TODO(sadovsky): Only used by CR code. Should go away once CR stores table
-// name and row key as separate fields in a "TableAndRow" struct.
+// name and row key as separate fields in a "TableRow" struct.
 func toRowKey(tableRow string) string {
 	return util.JoinKeyParts(util.RowPrefix, tableRow)
 }

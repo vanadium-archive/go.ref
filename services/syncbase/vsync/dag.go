@@ -723,7 +723,7 @@ func getLogRecKey(ctx *context.T, st store.StoreReader, oid, version string) (st
 
 // nodeKey returns the key used to access a DAG node (oid, version).
 func nodeKey(oid, version string) string {
-	return util.JoinKeyParts(util.SyncPrefix, dagPrefix, "n", oid, version)
+	return util.JoinKeyParts(dagNodePrefix, oid, version)
 }
 
 // setNode stores the DAG node entry.
@@ -769,7 +769,7 @@ func hasNode(ctx *context.T, st store.StoreReader, oid, version string) (bool, e
 
 // headKey returns the key used to access the DAG object head.
 func headKey(oid string) string {
-	return util.JoinKeyParts(util.SyncPrefix, dagPrefix, "h", oid)
+	return util.JoinKeyParts(dagHeadPrefix, oid)
 }
 
 // setHead stores version as the DAG object head.
@@ -798,7 +798,7 @@ func delHead(ctx *context.T, tx store.Transaction, oid string) error {
 
 // batchKey returns the key used to access the DAG batch info.
 func batchKey(btid uint64) string {
-	return util.JoinKeyParts(util.SyncPrefix, dagPrefix, "b", fmt.Sprintf("%d", btid))
+	return util.JoinKeyParts(dagBatchPrefix, fmt.Sprintf("%d", btid))
 }
 
 // setBatch stores the DAG batch entry.
