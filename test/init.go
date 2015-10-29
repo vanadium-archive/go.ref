@@ -35,9 +35,8 @@ func init() {
 	flag.BoolVar(&IntegrationTestsDebugShellOnError, IntegrationTestsDebugShellOnErrorFlag, false, "Drop into a debug shell if an integration test fails.")
 }
 
-// Init does nothing.
-// TODO(ashankar): Remove this after updating "jiri-test generate" so that it
-// doesn't add a call to test.Init in generated v23_test.go files.
+// Init is a no-op.
+// TODO(ashankar): Remove after https://vanadium-review.googlesource.com/#/c/17148 is merged.
 func Init() {
 }
 

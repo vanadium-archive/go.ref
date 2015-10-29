@@ -10,11 +10,8 @@ package sync
 import (
 	"os"
 	"testing"
-
-	"v.io/x/ref/test"
 )
 
 func TestMain(m *testing.M) {
-	test.Init()
 	os.Exit(m.Run())
 }
