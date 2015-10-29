@@ -12,6 +12,14 @@ import (
 	"v.io/v23/verror"
 )
 
+// Note: The specific user chosen has no consequence other than it has the same
+// ids across the set of systems we are testing.
+const (
+	testUserName = "daemon"
+	testUid      = 1
+	testGid      = 1
+)
+
 func TestParseArguments(t *testing.T) {
 	cases := []struct {
 		cmdline  []string
