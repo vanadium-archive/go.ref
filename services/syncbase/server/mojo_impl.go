@@ -21,6 +21,8 @@ import (
 	mojom "mojom/syncbase"
 
 	"v.io/v23/context"
+	"v.io/v23/glob"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/services/permissions"
@@ -28,6 +30,7 @@ import (
 	nosqlwire "v.io/v23/services/syncbase/nosql"
 	watchwire "v.io/v23/services/watch"
 	"v.io/v23/syncbase/nosql"
+	"v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -186,6 +189,20 @@ func (m *mojoImpl) getDb(ctx *context.T, call rpc.ServerCall, name string) (nosq
 	}
 }
 
+func (m *mojoImpl) getGlobber(ctx *context.T, call rpc.ServerCall, name string) (rpc.ChildrenGlobber, error) {
+	resInt, err := m.lookupAndAuthorize(ctx, call, name)
+	if err != nil {
+		return nil, err
+	}
+	if res, ok := resInt.(rpc.Globber); !ok {
+		return nil, verror.NewErrInternal(ctx)
+	} else if res.Globber() == nil || res.Globber().ChildrenGlobber == nil {
+		return nil, verror.NewErrInternal(ctx)
+	} else {
+		return res.Globber().ChildrenGlobber, nil
+	}
+}
+
 func (m *mojoImpl) getTable(ctx *context.T, call rpc.ServerCall, name string) (nosqlwire.TableServerStubMethods, error) {
 	resInt, err := m.lookupAndAuthorize(ctx, call, name)
 	if err != nil {
@@ -208,6 +225,54 @@ func (m *mojoImpl) getRow(ctx *context.T, call rpc.ServerCall, name string) (nos
 	} else {
 		return res, nil
 	}
+}
+
+////////////////////////////////////////
+// Glob utils
+
+func (m *mojoImpl) listChildren(name string) (mojom.Error, []string, error) {
+
+	ctx, call := m.newCtxCall(name, rpc.MethodDesc{
+		Name: "GlobChildren__",
+	})
+	stub, err := m.getGlobber(ctx, call, name)
+	if err != nil {
+		return toMojoError(err), nil, nil
+	}
+	gcsCall := &globChildrenServerCall{call, ctx, make([]string, 0)}
+	g, err := glob.Parse("*")
+	if err != nil {
+		return toMojoError(err), nil, nil
+	}
+	err = stub.GlobChildren__(ctx, gcsCall, g.Head())
+	return toMojoError(err), gcsCall.Results, nil
+}
+
+type globChildrenServerCall struct {
+	rpc.ServerCall
+	ctx     *context.T
+	Results []string
+}
+
+func (g *globChildrenServerCall) SendStream() interface {
+	Send(naming.GlobChildrenReply) error
+} {
+	return g
+}
+
+func (g *globChildrenServerCall) Send(reply naming.GlobChildrenReply) error {
+	if v, ok := reply.(naming.GlobChildrenReplyName); ok {
+		escName := v.Value[strings.LastIndex(v.Value, "/")+1:]
+		// Component names within object names are always escaped. See comment in
+		// server/nosql/dispatcher.go for explanation.
+		name, ok := util.Unescape(escName)
+		if !ok {
+			return verror.New(verror.ErrInternal, g.ctx, escName)
+		}
+		g.Results = append(g.Results, name)
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////
@@ -246,6 +311,10 @@ func (m *mojoImpl) ServiceSetPermissions(mPerms mojom.Perms, version string) (mo
 	}
 	err = stub.SetPermissions(ctx, call, vPerms, version)
 	return toMojoError(err), nil
+}
+
+func (m *mojoImpl) ServiceListApps() (mojom.Error, []string, error) {
+	return m.listChildren("")
 }
 
 ////////////////////////////////////////
@@ -300,6 +369,10 @@ func (m *mojoImpl) AppGetPermissions(name string) (mojom.Error, mojom.Perms, str
 		return toMojoError(err), mojom.Perms{}, "", nil
 	}
 	return toMojoError(err), mPerms, version, nil
+}
+
+func (m *mojoImpl) AppListDatabases(name string) (mojom.Error, []string, error) {
+	return m.listChildren(name)
 }
 
 func (m *mojoImpl) AppSetPermissions(name string, mPerms mojom.Perms, version string) (mojom.Error, error) {
