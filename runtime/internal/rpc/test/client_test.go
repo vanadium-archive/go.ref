@@ -539,7 +539,11 @@ func TestStartCallBadProtocol_NewRPC(t *testing.T) {
 
 	// Make sure we failed because we really did close the connection
 	// with our filter
-	<-ch
+	select {
+	case <-ch:
+	case <-time.After(10 * time.Second):
+		t.Errorf("timeout waiting for chan")
+	}
 }
 
 func TestStartCallSecurity(t *testing.T) {
