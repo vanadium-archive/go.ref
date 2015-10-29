@@ -50,10 +50,6 @@ type syncService struct {
 	// neighborhood.
 	ctx *context.T
 
-	// Cancel function for a context derived from the root context when
-	// advertising over neighborhood. This is needed to stop advertising.
-	advCancel context.CancelFunc
-
 	nameLock sync.Mutex // lock needed to serialize adding and removing of Syncbase names.
 
 	// High-level lock to serialize the watcher and the initiator. This lock is
@@ -92,6 +88,13 @@ type syncService struct {
 	// discovery service.  The map key is the discovery service UUID.
 	discoveryPeers     map[string]*discovery.Service
 	discoveryPeersLock sync.RWMutex
+
+	// Cancel function for a context derived from the root context when
+	// advertising over neighborhood. This is needed to stop advertising.
+	advCancel context.CancelFunc
+
+	// Whether to enable neighborhood advertising.
+	publishInNH bool
 
 	// In-memory sync state per Database. This state is populated at
 	// startup, and periodically persisted by the initiator.
@@ -157,13 +160,14 @@ func randIntn(n int) int {
 // changes to its objects. The "initiator" thread is responsible for
 // periodically contacting peers to fetch changes from them. In addition, the
 // sync module responds to incoming RPCs from remote sync modules.
-func New(ctx *context.T, call rpc.ServerCall, sv interfaces.Service, blobStEngine, blobRootDir string, vclock *clock.VClock) (*syncService, error) {
+func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, vclock *clock.VClock, publishInNH bool) (*syncService, error) {
 	s := &syncService{
 		sv:             sv,
 		batches:        make(batchSet),
 		sgPublishQueue: list.New(),
 		vclock:         vclock,
 		ctx:            ctx,
+		publishInNH:    publishInNH,
 	}
 
 	data := &syncData{}
@@ -317,7 +321,6 @@ func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) e
 			return err
 		}
 	}
-
 	return s.publishInNeighborhood(svr)
 }
 
@@ -325,6 +328,9 @@ func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) e
 // advertised over the neighborhood. If not, it begins advertising. The caller
 // of the function is holding nameLock.
 func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
+	if !s.publishInNH {
+		return nil
+	}
 	// Syncbase is already being advertised.
 	if s.advCancel != nil {
 		return nil

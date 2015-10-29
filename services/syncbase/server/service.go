@@ -58,6 +58,8 @@ type ServiceOptions struct {
 	RootDir string
 	// Storage engine to use (for service and per-database engines).
 	Engine string
+	// Whether to publish in the neighborhood.
+	PublishInNeighborhood bool
 }
 
 // defaultPerms returns a permissions object that grants all permissions to the
@@ -84,7 +86,7 @@ func PermsString(perms access.Permissions) string {
 
 // NewService creates a new service instance and returns it.
 // TODO(sadovsky): If possible, close all stores when the server is stopped.
-func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*service, error) {
+func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		return nil, err
@@ -169,7 +171,7 @@ func NewService(ctx *context.T, call rpc.ServerCall, opts ServiceOptions) (*serv
 	vclock := clock.NewVClock(st)
 	// Note, vsync.New internally handles both first-time and subsequent
 	// invocations.
-	if s.sync, err = vsync.New(ctx, call, s, opts.Engine, opts.RootDir, vclock); err != nil {
+	if s.sync, err = vsync.New(ctx, s, opts.Engine, opts.RootDir, vclock, opts.PublishInNeighborhood); err != nil {
 		return nil, err
 	}
 
