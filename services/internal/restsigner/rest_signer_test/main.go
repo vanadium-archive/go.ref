@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"v.io/x/ref/services/identity/internal/server"
+	"v.io/x/ref/services/internal/restsigner"
 )
 
 func main() {
-	signer, err := server.NewRestSigner()
+	signer, err := restsigner.NewRestSigner()
 	if err != nil {
 		fmt.Printf("NewRestSigner error: %v\n", err)
 		return
