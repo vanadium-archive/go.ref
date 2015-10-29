@@ -5,6 +5,6 @@
 package globsuid_test
 
 const (
-	testUserName        = "uucp"
-	anotherTestUserName = "lp"
+	testUserName        = "daemon"
+	anotherTestUserName = "nobody"
 )
