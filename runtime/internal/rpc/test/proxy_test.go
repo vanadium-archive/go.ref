@@ -139,7 +139,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 		// which the new system does not support.
 		t.SkipNow()
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	var (

@@ -27,7 +27,7 @@ import (
 )
 
 func TestSeekBlessings(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")
@@ -126,7 +126,7 @@ func TestSeekBlessings(t *testing.T) {
 }
 
 func TestPeerBlessingCaveats(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")
@@ -200,7 +200,7 @@ func TestPeerBlessingCaveats(t *testing.T) {
 }
 
 func TestGlob(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "test-role-server-")

@@ -30,7 +30,7 @@ func TestTransitionToNew(t *testing.T) {
 }
 
 func TestTransitionToOld(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sm := manager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))

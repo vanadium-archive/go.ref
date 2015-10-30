@@ -35,40 +35,46 @@ func init() {
 	flag.BoolVar(&IntegrationTestsDebugShellOnError, IntegrationTestsDebugShellOnErrorFlag, false, "Drop into a debug shell if an integration test fails.")
 }
 
-// V23Init initializes the runtime and sets up some convenient infrastructure for tests:
-// - Sets a freshly created principal (with a single self-signed blessing) on it.
-// - Creates a mounttable and sets the namespace roots appropriately
-// Both steps are skipped if this function is invoked from a process run
-// using the modules package.
+// V23Init initializes the runtime and sets up the principal with the
+// self-signed TestBlessing. The blessing setup step is skipped if this function
+// is invoked from a subprocess run using the modules package; in that case, the
+// blessings of the principal are created by the parent process.
+// NOTE: For tests involving Vanadium RPCs, developers are encouraged to use
+// V23InitWithMounttable, and have their services access each other via the
+// mount table (rather than using endpoint strings).
 func V23Init() (*context.T, v23.Shutdown) {
-	moduleProcess := os.Getenv("V23_SHELL_HELPER_PROCESS_ENTRY_POINT") != ""
-	return initWithParams(initParams{
-		CreatePrincipal:  !moduleProcess,
-		CreateMounttable: !moduleProcess,
-	})
+	return initImpl(false)
 }
 
-// initParams contains parameters for tests that need to control what happens during
-// init carefully.
-type initParams struct {
-	CreateMounttable bool // CreateMounttable creates a new mounttable.
-	CreatePrincipal  bool // CreatePrincipal creates a new principal with self-signed blessing.
+// V23InitWithMounttable initializes the runtime and:
+// - Sets up the principal with the self-signed TestBlessing
+// - Starts a mounttable and sets the namespace roots appropriately
+// Both these steps are skipped if this function is invoked from a subprocess
+// run using the modules package; in that case, the mounttable to use and the
+// blessings of the principal are created by the parent process.
+func V23InitWithMounttable() (*context.T, v23.Shutdown) {
+	return initImpl(true)
 }
 
-// initWithParams initializes the runtime and returns a new context and shutdown function.
-// Specific aspects of initialization can be controlled via the params struct.
-func initWithParams(params initParams) (*context.T, v23.Shutdown) {
+// initImpl initializes the runtime and returns a new context and shutdown
+// function.
+func initImpl(createMounttable bool) (*context.T, v23.Shutdown) {
 	ctx, shutdown := v23.Init()
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
-	if params.CreatePrincipal {
+
+	modulesProcess := os.Getenv("V23_SHELL_HELPER_PROCESS_ENTRY_POINT") != ""
+
+	if !modulesProcess {
 		var err error
 		if ctx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal(TestBlessing)); err != nil {
 			panic(err)
 		}
 	}
+
 	ns := v23.GetNamespace(ctx)
 	ns.CacheCtl(naming.DisableCache(true))
-	if params.CreateMounttable {
+
+	if !modulesProcess && createMounttable {
 		disp, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 		if err != nil {
 			panic(err)
@@ -79,22 +85,14 @@ func initWithParams(params initParams) (*context.T, v23.Shutdown) {
 		}
 		ns.SetRoots(s.Status().Endpoints[0].Name())
 	}
+
 	return ctx, shutdown
 }
 
-// TestContext returns a *contect.T suitable for use in tests with logging
-// configured to use loggler.Global(), but nothing else. In particular it does
-// not call v23.Init and hence any of the v23 functions that
+// TestContext returns a *context.T suitable for use in tests. It sets the
+// context's logger to logger.Global(), and that's it. In particular, it does
+// not call v23.Init().
 func TestContext() (*context.T, context.CancelFunc) {
 	ctx, cancel := context.RootContext()
 	return context.WithLogger(ctx, logger.Global()), cancel
-}
-
-// V23InitSimple is like V23Init, except that it does not setup a
-// mounttable.
-func V23InitSimple() (*context.T, v23.Shutdown) {
-	return initWithParams(initParams{
-		CreatePrincipal:  true,
-		CreateMounttable: false,
-	})
 }

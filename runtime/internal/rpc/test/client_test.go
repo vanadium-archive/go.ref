@@ -194,7 +194,7 @@ func numServers(t *testing.T, ctx *context.T, name string, expected int) int {
 // TODO(cnicolaou): figure out how to test and see what the internals
 // of tryCall are doing - e.g. using stats counters.
 func TestMultipleEndpoints(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sh, fn := runMountTable(t, ctx)
@@ -248,7 +248,7 @@ func TestMultipleEndpoints(t *testing.T) {
 func TestTimeout(t *testing.T) {
 	t.Skip("https://github.com/vanadium/issues/issues/650")
 
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	client := v23.GetClient(ctx)
 	ctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
@@ -277,7 +277,7 @@ func logErrors(t *testing.T, msg string, logerr, logstack, debugString bool, err
 func TestStartCallErrors(t *testing.T) {
 	// TODO(suharshs,mattr): This test will be enables once the new client is written and solves the flakiness.
 	t.Skip("TODO(suharshs,mattr): This test is very flaky and is temporarily disabled.")
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	client := v23.GetClient(ctx)
 
@@ -421,7 +421,7 @@ func TestStartCallBadProtocol(t *testing.T) {
 	if ref.RPCTransitionState() >= ref.XServers {
 		t.Skip("This version of the test only runs under the old rpc system.")
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	client := v23.GetClient(ctx)
@@ -508,7 +508,7 @@ func TestStartCallBadProtocol_NewRPC(t *testing.T) {
 	if ref.RPCTransitionState() < ref.XServers {
 		t.Skip("This version of the test only runs under the new RPC system")
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	client := v23.GetClient(ctx)
@@ -547,7 +547,7 @@ func TestStartCallBadProtocol_NewRPC(t *testing.T) {
 }
 
 func TestStartCallSecurity(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	client := v23.GetClient(ctx)
 
@@ -575,7 +575,7 @@ func TestStartCallSecurity(t *testing.T) {
 }
 
 var childPing = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	name := args[0]
@@ -597,7 +597,7 @@ func initServer(t *testing.T, ctx *context.T, opts ...rpc.ServerOpt) (string, fu
 }
 
 func TestTimeoutResponse(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
@@ -611,7 +611,7 @@ func TestTimeoutResponse(t *testing.T) {
 }
 
 func TestArgsAndResponses(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
@@ -638,7 +638,7 @@ func TestArgsAndResponses(t *testing.T) {
 }
 
 func TestAccessDenied(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	name, fn := initServer(t, ctx)
@@ -661,7 +661,7 @@ func TestAccessDenied(t *testing.T) {
 }
 
 func TestCanceledBeforeFinish(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
@@ -680,7 +680,7 @@ func TestCanceledBeforeFinish(t *testing.T) {
 }
 
 func TestCanceledDuringFinish(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
@@ -702,7 +702,7 @@ func TestCanceledDuringFinish(t *testing.T) {
 }
 
 func TestRendezvous(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	sh, fn := runMountTable(t, ctx)
 	defer fn()
@@ -738,7 +738,7 @@ func TestRendezvous(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	sh, fn := runMountTable(t, ctx)
 	defer fn()
@@ -757,7 +757,7 @@ func TestCallback(t *testing.T) {
 }
 
 func TestStreamTimeout(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
@@ -795,7 +795,7 @@ func TestStreamTimeout(t *testing.T) {
 }
 
 func TestStreamAbort(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
@@ -828,7 +828,7 @@ func TestStreamAbort(t *testing.T) {
 }
 
 func TestNoServersAvailable(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	_, fn := runMountTable(t, ctx)
 	defer fn()
@@ -848,7 +848,7 @@ func TestNoServersAvailable(t *testing.T) {
 }
 
 func TestNoMountTable(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	v23.GetNamespace(ctx).SetRoots()
 	name := "a_mount_table_entry"
@@ -866,7 +866,7 @@ func TestNoMountTable(t *testing.T) {
 // endpoint).
 func TestReconnect(t *testing.T) {
 	t.Skip()
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)
@@ -924,7 +924,7 @@ func TestReconnect(t *testing.T) {
 }
 
 func TestMethodErrors(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	clt := v23.GetClient(ctx)
 
@@ -1015,7 +1015,7 @@ func TestMethodErrors(t *testing.T) {
 }
 
 func TestReservedMethodErrors(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	clt := v23.GetClient(ctx)
 
@@ -1065,7 +1065,7 @@ func (a *publicKeyAuth) Authorize(ctx *context.T, call security.Call) error {
 }
 
 func TestAllowEmptyBlessings(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	p, err := lsecurity.NewPrincipal()

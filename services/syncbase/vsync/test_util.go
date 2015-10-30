@@ -89,7 +89,8 @@ func (a *mockApp) Name() string {
 	return "mockapp"
 }
 
-// mockDatabase emulates a Syncbase Database.  It is used to test sync functionality.
+// mockDatabase emulates a Syncbase Database. It is used to test sync
+// functionality.
 type mockDatabase struct {
 	st store.Store
 }
@@ -130,7 +131,8 @@ func (d *mockDatabase) ResetCrConnectionStream() {
 	mockCRStream = nil
 }
 
-// createService creates a mock Syncbase service used for testing sync functionality.
+// createService creates a mock Syncbase service used for testing sync
+// functionality.
 func createService(t *testing.T) *mockService {
 	ctx, shutdown := test.V23Init()
 	engine := store.EngineForTest

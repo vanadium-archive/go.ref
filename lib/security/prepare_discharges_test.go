@@ -49,7 +49,7 @@ func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall,
 }
 
 func TestPrepareDischarges(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	pclient := testutil.NewPrincipal("client")

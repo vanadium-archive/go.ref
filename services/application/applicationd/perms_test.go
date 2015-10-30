@@ -28,7 +28,7 @@ import (
 //go:generate jiri test generate
 
 var appRepository = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	if len(args) < 2 {
@@ -57,11 +57,11 @@ var appRepository = modules.Register(func(env *modules.Env, args ...string) erro
 }, "appRepository")
 
 func TestApplicationUpdatePermissions(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	// V23Init sets the context up with a self-signed principal, whose
-	// blessing (test-blessing) will act as the root blessing for the test.
+	// V23InitWithMounttable sets the context up with a self-signed principal,
+	// whose blessing (test-blessing) will act as the root blessing for the test.
 	const rootBlessing = test.TestBlessing
 	idp := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 	// Call ourselves test-blessing/self, distinct from test-blessing/other
@@ -204,7 +204,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 }
 
 func TestPerAppPermissions(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	// By default, all principals in this test will have blessings generated based
 	// on the username/machine running this process. Give them recognizable names

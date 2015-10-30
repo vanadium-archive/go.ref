@@ -79,7 +79,7 @@ func bless(blesser, blessed security.Principal, extension string, caveats ...sec
 }
 
 func initForTest() (*context.T, v23.Shutdown) {
-	ctx, shutdown := test.V23InitSimple()
+	ctx, shutdown := test.V23Init()
 	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{})
 	if err != nil {
 		panic(err)

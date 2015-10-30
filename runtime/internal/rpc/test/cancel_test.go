@@ -69,7 +69,7 @@ func makeCanceld(ctx *context.T, name, child string) (*canceld, error) {
 // TestCancellationPropagation tests that cancellation propogates along an
 // RPC call chain without user intervention.
 func TestCancellationPropagation(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	c1, err := makeCanceld(ctx, "c1", "c2")
@@ -139,7 +139,7 @@ func waitForCancel(t *testing.T, ts *cancelTestServer, cancel context.CancelFunc
 
 // TestCancel tests cancellation while the server is reading from a stream.
 func TestCancel(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	var (
 		sctx = withPrincipal(t, ctx, "server")
@@ -163,7 +163,7 @@ func TestCancel(t *testing.T) {
 // TestCancelWithFullBuffers tests that even if the writer has filled the buffers and
 // the server is not reading that the cancel message gets through.
 func TestCancelWithFullBuffers(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	var (
 		sctx = withPrincipal(t, ctx, "server")
@@ -311,7 +311,7 @@ func TestChannelTimeout(t *testing.T) {
 	if ref.RPCTransitionState() >= ref.XServers {
 		t.Skip("The new RPC system does not yet support channel timeouts")
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	testChannelTimeout(t, ctx)
 }
@@ -320,7 +320,7 @@ func TestChannelTimeout_Proxy(t *testing.T) {
 	if ref.RPCTransitionState() >= ref.XServers {
 		t.Skip("The new RPC system does not yet support channel timeouts")
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	ls := v23.GetListenSpec(ctx)
@@ -377,7 +377,7 @@ func TestChannelTimeout_Server(t *testing.T) {
 	if ref.RPCTransitionState() >= ref.XServers {
 		t.Skip("The new RPC system does not yet support channel timeouts")
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	testChannelTimeOut_Server(t, ctx)
 }
@@ -386,7 +386,7 @@ func TestChannelTimeout_ServerProxy(t *testing.T) {
 	if ref.RPCTransitionState() >= ref.XServers {
 		t.Skip("The new RPC system does not yet support channel timeouts")
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ls := v23.GetListenSpec(ctx)
 	pshutdown, pendpoint, err := generic.NewProxy(ctx, ls, security.AllowEveryone(), "")

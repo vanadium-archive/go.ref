@@ -76,7 +76,7 @@ func (s *simple) Inc(_ *context.T, call rpc.StreamServerCall, inc int) (int, err
 }
 
 func TestSimpleRPC(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
@@ -96,7 +96,7 @@ func TestSimpleRPC(t *testing.T) {
 }
 
 func TestSimpleStreaming(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()

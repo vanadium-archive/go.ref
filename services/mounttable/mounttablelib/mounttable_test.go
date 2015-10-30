@@ -389,7 +389,7 @@ func checkExists(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed 
 }
 
 func TestGlob(t *testing.T) {
-	rootCtx, shutdown := test.V23Init()
+	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	stop, estr := newMT(t, "", "", "testGlob", rootCtx)
@@ -456,7 +456,7 @@ func (c *fakeServerCall) Send(reply naming.GlobReply) error {
 }
 
 func TestGlobAborts(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "")
@@ -610,7 +610,7 @@ func TestGlobAccessLists(t *testing.T) {
 }
 
 func TestCleanup(t *testing.T) {
-	rootCtx, shutdown := test.V23Init()
+	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	stop, estr := newMT(t, "", "", "testCleanup", rootCtx)
@@ -671,7 +671,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestServerFormat(t *testing.T) {
-	rootCtx, shutdown := test.V23Init()
+	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	stop, estr := newMT(t, "", "", "testerverFormat", rootCtx)
@@ -685,7 +685,7 @@ func TestServerFormat(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
-	rootCtx, shutdown := test.V23Init()
+	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	stop, estr := newMT(t, "", "", "testExpiry", rootCtx)
@@ -752,7 +752,7 @@ func serverCount(t *testing.T, ctx *context.T, addr string) int64 {
 }
 
 func TestStatsCounters(t *testing.T) {
-	rootCtx, shutdown := test.V23Init()
+	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	ft := mounttablelib.NewFakeTimeClock()
@@ -885,7 +885,7 @@ func TestIntermediateNodesCreatedFromConfig(t *testing.T) {
 }
 
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	var err error
 	if rootCtx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal("root")); err != nil {
 		panic("failed to set root principal")

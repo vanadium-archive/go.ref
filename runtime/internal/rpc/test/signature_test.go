@@ -42,7 +42,7 @@ func (*streamStringBool) SendStream() interface {
 }
 
 func TestMethodSignature(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	_, server, err := v23.WithNewServer(ctx, "", sigImpl{}, nil)
 	if err != nil {
@@ -87,7 +87,7 @@ func TestMethodSignature(t *testing.T) {
 }
 
 func TestSignature(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	_, server, err := v23.WithNewServer(ctx, "", sigImpl{}, nil)
 	if err != nil {

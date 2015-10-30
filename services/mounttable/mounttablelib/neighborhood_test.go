@@ -32,7 +32,7 @@ type stopper interface {
 }
 
 func TestNeighborhood(t *testing.T) {
-	rootCtx, shutdown := test.V23Init()
+	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	rootCtx.Infof("TestNeighborhood")

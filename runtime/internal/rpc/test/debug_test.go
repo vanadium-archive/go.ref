@@ -22,7 +22,7 @@ import (
 )
 
 func TestDebugServer(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	// Setup the client and server principals, with the client willing to share its

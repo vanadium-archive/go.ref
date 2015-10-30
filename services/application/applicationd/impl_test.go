@@ -68,7 +68,7 @@ func checkNoProfile(t *testing.T, ctx *context.T, stub repository.ApplicationCli
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
 func TestInterface(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	dir, prefix := "", ""
@@ -276,7 +276,7 @@ func TestInterface(t *testing.T) {
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	dir, prefix := "", ""
@@ -341,7 +341,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 
 // TestTidyNow tests that TidyNow operates correctly.
 func TestTidyNow(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	dir, prefix := "", ""

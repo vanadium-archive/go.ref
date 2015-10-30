@@ -25,7 +25,7 @@ import (
 )
 
 func TestAuditingPrincipal(t *testing.T) {
-	ctx, shutdown := test.V23InitSimple()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	var (
 		thirdPartyCaveat, discharge = newThirdPartyCaveatAndDischarge(t)
@@ -129,7 +129,7 @@ func equalResults(got, want []interface{}) error {
 }
 
 func TestUnauditedMethodsOnPrincipal(t *testing.T) {
-	ctx, shutdown := test.V23InitSimple()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	var (
 		auditor = new(mockAuditor)

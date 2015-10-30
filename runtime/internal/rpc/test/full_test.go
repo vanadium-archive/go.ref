@@ -40,7 +40,7 @@ import (
 )
 
 func TestAddRemoveName(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	_, s, err := v23.WithNewServer(ctx, "one", &testServer{}, nil)
@@ -59,7 +59,7 @@ func TestAddRemoveName(t *testing.T) {
 }
 
 func TestCallWithNilContext(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	call, err := v23.GetClient(ctx).StartCall(nil, "foo", "bar", []interface{}{}, options.SecurityNone)
 	if call != nil {
@@ -71,7 +71,7 @@ func TestCallWithNilContext(t *testing.T) {
 }
 
 func TestRPC(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
@@ -80,7 +80,7 @@ func TestRPC(t *testing.T) {
 }
 
 func TestRPCWithWebsocket(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{"ws", "127.0.0.1:0"}},
@@ -91,7 +91,7 @@ func TestRPCWithWebsocket(t *testing.T) {
 // TestCloseSendOnFinish tests that Finish informs the server that no more
 // inputs will be sent by the client if CloseSend has not already done so.
 func TestRPCCloseSendOnFinish(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
@@ -100,7 +100,7 @@ func TestRPCCloseSendOnFinish(t *testing.T) {
 }
 
 func TestRPCCloseSendOnFinishWithWebsocket(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{"ws", "127.0.0.1:0"}},
@@ -209,7 +209,7 @@ func TestStreamReadTerminatedByServer(t *testing.T) {
 		// that io.EOF is returned when q.close is called before the context is cancelled.
 		t.Skip(`There is a race in flow.close that causes this test to flake.`)
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	cctx := withPrincipal(t, ctx, "client")
 	sctx := withPrincipal(t, ctx, "server")
@@ -248,7 +248,7 @@ func TestStreamReadTerminatedByServer(t *testing.T) {
 }
 
 func TestPreferredAddress(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sctx := withPrincipal(t, ctx, "server")
@@ -274,7 +274,7 @@ func TestPreferredAddress(t *testing.T) {
 }
 
 func TestPreferredAddressErrors(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sctx := withPrincipal(t, ctx, "server")
@@ -308,7 +308,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 }
 
 func TestGranter(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	cctx := withPrincipal(t, ctx, "client")
 	sctx := withPrincipal(t, ctx, "server")
@@ -364,7 +364,7 @@ func TestGranter(t *testing.T) {
 }
 
 func TestRPCClientAuthorization(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	type v []interface{}
@@ -514,7 +514,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 }
 
 func TestRPCServerAuthorization(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	const (
@@ -624,7 +624,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 }
 
 func TestServerManInTheMiddleAttack(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	// Test scenario: A server mounts itself, but then some other service
 	// somehow "takes over" the network endpoint (a naughty router
@@ -661,7 +661,7 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 }
 
 func TestDischargeImpetusAndContextPropagation(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	sctx := withPrincipal(t, ctx, "server")
 	cctx := withPrincipal(t, ctx, "client")
@@ -753,7 +753,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 }
 
 func TestRPCClientBlessingsPublicKey(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sctx := withPrincipal(t, ctx, "server")
@@ -797,7 +797,7 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 }
 
 func TestServerLocalBlessings(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	tpCav := mkThirdPartyCaveat(
 		v23.GetPrincipal(ctx).PublicKey(),
@@ -825,7 +825,7 @@ func TestServerLocalBlessings(t *testing.T) {
 }
 
 func TestDischargePurgeFromCache(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sctx := withPrincipal(t, ctx, "server")
@@ -878,7 +878,7 @@ func TestReplayAttack(t *testing.T) {
 	if ref.RPCTransitionState() != ref.XServers {
 		t.SkipNow()
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sctx := withPrincipal(t, ctx, "server")

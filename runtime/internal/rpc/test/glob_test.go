@@ -26,7 +26,7 @@ import (
 )
 
 func TestGlob(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	namespace := []string{
@@ -191,7 +191,7 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobDeny(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	tree := newNode()

@@ -40,7 +40,7 @@ func (badObjectDispatcher) Lookup(_ *context.T, suffix string) (interface{}, sec
 // TestBadObject ensures that Serve handles bad receiver objects gracefully (in
 // particular, it doesn't panic).
 func TestBadObject(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sctx := withPrincipal(t, ctx, "server")
@@ -76,7 +76,7 @@ func TestServerArgs(t *testing.T) {
 		// this test once the transition is complete.
 		t.SkipNow()
 	}
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	sctx := withPrincipal(t, ctx, "server")
 
@@ -115,7 +115,7 @@ func (s *statusServer) Hang(ctx *context.T, _ rpc.ServerCall) error {
 }
 
 func TestServerStatus(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	serverChan := make(chan struct{})
@@ -177,7 +177,7 @@ func TestServerStatus(t *testing.T) {
 }
 
 func TestMountStatus(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	sctx := withPrincipal(t, ctx, "server")
@@ -242,7 +242,7 @@ func TestMountStatus(t *testing.T) {
 }
 
 func TestIsLeafServerOption(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	_, _, err := v23.WithNewDispatchingServer(ctx, "leafserver",

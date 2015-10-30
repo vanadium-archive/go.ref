@@ -23,9 +23,9 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/services/syncbase/server"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/test"
 	tsecurity "v.io/x/ref/test/testutil"
 )
 
@@ -71,10 +71,7 @@ func SetupOrDie(perms access.Permissions) (clientCtx *context.T, serverName stri
 }
 
 func SetupOrDieCustom(clientSuffix, serverSuffix string, perms access.Permissions) (ctx, clientCtx *context.T, serverName string, rootp security.Principal, cleanup func()) {
-	// TODO(mattr): It would be better if v23.Init was test.V23Init().
-	flags.SetDefaultHostPort("127.0.0.1:0")
-	ctx, shutdown := v23.Init()
-
+	ctx, shutdown := test.V23Init()
 	rootp = tsecurity.NewPrincipal("root")
 	clientCtx, serverCtx := NewCtx(ctx, rootp, clientSuffix), NewCtx(ctx, rootp, serverSuffix)
 
