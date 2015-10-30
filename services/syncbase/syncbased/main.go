@@ -17,9 +17,10 @@ import (
 )
 
 var (
-	name    = flag.String("name", "", "Name to mount at.")
-	rootDir = flag.String("root-dir", "/var/lib/syncbase", "Root dir for storage engines and other data")
-	engine  = flag.String("engine", "leveldb", "Storage engine to use. Currently supported: memstore and leveldb.")
+	name                  = flag.String("name", "", "Name to mount at.")
+	rootDir               = flag.String("root-dir", "/var/lib/syncbase", "Root dir for storage engines and other data")
+	engine                = flag.String("engine", "leveldb", "Storage engine to use. Currently supported: memstore and leveldb.")
+	publishInNeighborhood = flag.Bool("publish-nh", true, "Whether to publish in the neighborhood.")
 )
 
 // TODO(sadovsky): We return rpc.Server and rpc.Dispatcher as a quick hack to
@@ -32,10 +33,11 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 	if perms != nil {
 		vlog.Infof("Read permissions from command line flag: %v", server.PermsString(perms))
 	}
-	service, err := server.NewService(ctx, nil, server.ServiceOptions{
-		Perms:   perms,
-		RootDir: *rootDir,
-		Engine:  *engine,
+	service, err := server.NewService(ctx, server.ServiceOptions{
+		Perms:                 perms,
+		RootDir:               *rootDir,
+		Engine:                *engine,
+		PublishInNeighborhood: *publishInNeighborhood,
 	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)

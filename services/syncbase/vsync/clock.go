@@ -168,8 +168,8 @@ func syncWithPeer(ctx *context.T, vclock *clock.VClock, absPeerName string, myNa
 	} else if (verror.ErrorID(reqErr) == verror.ErrNoExist.ID) || (verror.ErrorID(reqErr) == verror.ErrInternal.ID) {
 		vlog.Errorf("sync: syncClock: error returned by peer %s: %v", absPeerName, err)
 	} else {
-		reqErr = verror.New(interfaces.ErrConnFail, ctx, myName)
 		vlog.Errorf("sync: syncClock: received network error: %v", reqErr)
+		reqErr = verror.New(interfaces.ErrConnFail, ctx, myName)
 	}
 	// Return error received while making request if any to the caller.
 	return reqErr

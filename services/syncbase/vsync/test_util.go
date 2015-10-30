@@ -152,7 +152,7 @@ func createService(t *testing.T) *mockService {
 		dir:      dir,
 		shutdown: shutdown,
 	}
-	if s.sync, err = New(ctx, nil, s, engine, dir, vclock); err != nil {
+	if s.sync, err = New(ctx, s, engine, dir, vclock, true); err != nil {
 		util.DestroyStore(engine, dir)
 		t.Fatalf("cannot create sync service: %v", err)
 	}
