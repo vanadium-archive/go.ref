@@ -355,12 +355,14 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 				ctx.Errorf("Error sending tearDown on connection to %s: %v", c.remote, cerr)
 			}
 		}
-		flowErr := NewErrConnectionClosed(ctx)
+		if err == nil {
+			err = NewErrConnectionClosed(ctx)
+		}
 		for _, f := range flows {
-			f.close(ctx, flowErr)
+			f.close(ctx, err)
 		}
 		if c.blessingsFlow != nil {
-			c.blessingsFlow.close(ctx, flowErr)
+			c.blessingsFlow.close(ctx, err)
 		}
 		if cerr := c.mp.rw.Close(); cerr != nil {
 			ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)

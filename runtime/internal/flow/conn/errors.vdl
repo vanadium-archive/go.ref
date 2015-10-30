@@ -21,7 +21,7 @@ error (
   Send(typ, dest string, err error) {"en": "failure sending {typ} message to {dest}{:err}."}
   Recv(src string, err error) {"en": "error reading from {src}{:err}"}
   CounterOverflow() {"en": "A remote process has sent more data than allowed."}
-  BlessingsFlowClosed() {"en": "The blessings flow was closed."}
+  BlessingsFlowClosed(err error) {"en": "The blessings flow was closed with error{:err}."}
   InvalidChannelBinding() {"en": "The channel binding was invalid."}
   NoPublicKey() {"en": "No public key was received by the remote end."}
   DialingNonServer() {"en": "You are attempting to dial on a connection with no remote server."}

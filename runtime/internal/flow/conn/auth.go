@@ -283,7 +283,7 @@ type blessingsFlow struct {
 
 	mu       sync.Mutex
 	cond     *sync.Cond
-	closed   bool
+	closeErr error
 	nextKey  uint64
 	incoming *inCache
 	outgoing *outCache
@@ -345,14 +345,14 @@ func (b *blessingsFlow) getRemote(ctx *context.T, bkey, dkey uint64) (security.B
 				return blessings, dischargeMap(discharges), nil
 			}
 		}
-		// We check closed after we check the map to allow gets to succeed even after
+		// We check closeErr after we check the map to allow gets to succeed even after
 		// the blessings flow is closed.
-		if b.closed {
+		if b.closeErr != nil {
 			break
 		}
 		b.cond.Wait()
 	}
-	return security.Blessings{}, nil, NewErrBlessingsFlowClosed(ctx)
+	return security.Blessings{}, nil, b.closeErr
 }
 
 func (b *blessingsFlow) getLatestRemote(ctx *context.T, bkey uint64) (security.Blessings, map[string]security.Discharge, error) {
@@ -365,14 +365,14 @@ func (b *blessingsFlow) getLatestRemote(ctx *context.T, bkey uint64) (security.B
 			discharges := b.incoming.discharges[dkey]
 			return blessings, dischargeMap(discharges), nil
 		}
-		// We check closed after we check the map to allow gets to succeed even after
+		// We check closeErr after we check the map to allow gets to succeed even after
 		// the blessings flow is closed.
-		if b.closed {
+		if b.closeErr != nil {
 			break
 		}
 		b.cond.Wait()
 	}
-	return security.Blessings{}, nil, NewErrBlessingsFlowClosed(ctx)
+	return security.Blessings{}, nil, b.closeErr
 }
 
 func (b *blessingsFlow) send(ctx *context.T, blessings security.Blessings, discharges map[string]security.Discharge) (bkey, dkey uint64, err error) {
@@ -444,7 +444,7 @@ func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {
 				ctx.VI(3).Infof("Blessings flow closed: %v", err)
 			}
 			b.mu.Lock()
-			b.closed = true
+			b.closeErr = NewErrBlessingsFlowClosed(ctx, err)
 			b.mu.Unlock()
 			return
 		}
@@ -460,8 +460,9 @@ func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {
 func (b *blessingsFlow) close(ctx *context.T, err error) {
 	defer b.mu.Unlock()
 	b.mu.Lock()
+	err = NewErrBlessingsFlowClosed(ctx, err)
 	b.f.close(ctx, err)
-	b.closed = true
+	b.closeErr = err
 	b.cond.Broadcast()
 }
 
