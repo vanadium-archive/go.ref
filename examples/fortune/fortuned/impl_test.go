@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/ref/examples/fortune"
+	"v.io/x/ref/test"
 )
 
 func TestGet(t *testing.T) {
@@ -48,7 +49,7 @@ func TestAdd(t *testing.T) {
 }
 
 func setup(t *testing.T) (*context.T, fortune.FortuneClientStub, v23.Shutdown) {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 
 	authorizer := security.DefaultAuthorizer()
 	impl := newImpl()
