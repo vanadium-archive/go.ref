@@ -642,7 +642,7 @@ func bless(blesser, delegate security.Principal, extension string) {
 }
 
 func TestAuthorizationDuringResolve(t *testing.T) {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	var (

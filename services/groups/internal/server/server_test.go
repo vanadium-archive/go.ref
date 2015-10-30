@@ -25,6 +25,7 @@ import (
 	"v.io/x/ref/services/groups/internal/store"
 	"v.io/x/ref/services/groups/internal/store/leveldb"
 	"v.io/x/ref/services/groups/internal/store/mem"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -147,7 +148,7 @@ func newServer(ctx *context.T, be backend) (string, func()) {
 }
 
 func setupOrDie(be backend) (clientCtx *context.T, serverName string, cleanup func()) {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	serverCtx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
 		ctx.Fatal(err)
