@@ -29,6 +29,6 @@ func NewInstanceUUID() Uuid {
 }
 
 // NewAttributeUUID returns a version 5 UUID for the given key.
-func NewAttributeUUID(key string) uuid.UUID {
-	return uuid.NewSHA1(v23AttrUUID, []byte(key))
+func NewAttributeUUID(key string) Uuid {
+	return Uuid(uuid.NewSHA1(v23AttrUUID, []byte(key)))
 }

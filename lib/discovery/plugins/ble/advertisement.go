@@ -37,7 +37,7 @@ func newAdvertisment(adv discovery.Advertisement) bleAdv {
 	}
 
 	for k, v := range adv.Service.Attrs {
-		hexUUID := discovery.NewAttributeUUID(k).String()
+		hexUUID := uuid.UUID(discovery.NewAttributeUUID(k)).String()
 		attrs[hexUUID] = []byte(k + "=" + v)
 	}
 	return bleAdv{
