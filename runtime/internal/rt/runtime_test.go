@@ -5,13 +5,16 @@
 package rt_test
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 
+	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/test"
@@ -45,6 +48,41 @@ func TestPrincipal(t *testing.T) {
 	}
 	if p2 != v23.GetPrincipal(c2) {
 		t.Fatal("The new principal should be attached to the context, but it isn't")
+	}
+
+	// Stats should die with the context.
+	c3, cancel := context.WithCancel(ctx)
+	c3, err = v23.WithPrincipal(c3, testutil.NewPrincipal())
+	if err != nil {
+		t.Fatal(err)
+	}
+	hasStats := func() error {
+		prefix := fmt.Sprintf("security/principal/%v", v23.GetPrincipal(c3).PublicKey())
+		// A counter is used to generate the variable name, so try a few times.
+		for i := 0; i < 100; i++ {
+			store := fmt.Sprintf("%v/blessingstore/%d", prefix, i)
+			roots := fmt.Sprintf("%v/blessingroots/%d", prefix, i)
+			_, e1 := stats.Value(store)
+			_, e2 := stats.Value(roots)
+			if (e1 == nil) && (e2 == nil) {
+				return nil
+			}
+		}
+		return fmt.Errorf("did not find stats for blessing store and roots")
+	}
+	if err := hasStats(); err != nil {
+		t.Error(err)
+	}
+	cancel()
+	// Eventually, the stats should go away.
+	for i := 0; i < 10; i++ {
+		if err := hasStats(); err != nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if err := hasStats(); err == nil {
+		t.Errorf("Found blessing store and blessing roots stats even after context was killed, stats are likely holding on to a dead principal")
 	}
 }
 
