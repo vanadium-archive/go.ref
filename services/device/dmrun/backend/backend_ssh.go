@@ -59,6 +59,9 @@ func newSSHVM(instanceName string, opt SSHVMOptions) (vm CloudVM, err error) {
 	}
 
 	const workingDir = "/tmp/dmrun"
+	if output, err := g.RunCommand("exit"); err != nil {
+		return nil, fmt.Errorf("SSH failed: %v", string(output))
+	}
 	if _, err := g.RunCommand("test", "!", "-e", workingDir); err != nil {
 		return nil, fmt.Errorf("working dir %v already exists on target. Please clean up any previous dmrun instance.", workingDir)
 	}
