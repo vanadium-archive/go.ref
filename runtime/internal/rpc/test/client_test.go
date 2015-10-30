@@ -54,7 +54,7 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 }, "rootMT")
 
 func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string) error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	if seclevel == options.SecurityNone && ref.RPCTransitionState() >= ref.XServers {
 		ls := v23.GetListenSpec(ctx)
