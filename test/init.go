@@ -35,11 +35,6 @@ func init() {
 	flag.BoolVar(&IntegrationTestsDebugShellOnError, IntegrationTestsDebugShellOnErrorFlag, false, "Drop into a debug shell if an integration test fails.")
 }
 
-// Init is a no-op.
-// TODO(ashankar): Remove after https://vanadium-review.googlesource.com/#/c/17148 is merged.
-func Init() {
-}
-
 // V23Init initializes the runtime and sets up some convenient infrastructure for tests:
 // - Sets a freshly created principal (with a single self-signed blessing) on it.
 // - Creates a mounttable and sets the namespace roots appropriately
