@@ -31,6 +31,8 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
+const waitTime = 10 * time.Second
+
 func TestRoamingNew(t *testing.T) {
 	if ref.RPCTransitionState() < ref.XServers {
 		t.Skip("This test only runs under the new rpc system.")
@@ -80,7 +82,11 @@ func TestRoamingNew(t *testing.T) {
 
 	ch <- roaming.NewUpdateAddrsSetting([]net.Addr{n1, n2})
 	// We should be notified of a network change.
-	<-change
+	select {
+	case <-change:
+	case <-time.After(waitTime):
+		t.Fatalf("timed out waiting for change")
+	}
 	status = server.Status()
 	eps := status.Endpoints
 	change = status.Valid

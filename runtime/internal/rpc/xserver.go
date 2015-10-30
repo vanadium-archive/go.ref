@@ -304,6 +304,7 @@ func (s *xserver) updateEndpointsLoop() {
 		s.Unlock()
 		<-changed
 		leps, changed = s.flowMgr.ListeningEndpoints()
+		s.ctx.Infof("got network change leps = %v", leps)
 	}
 }
 

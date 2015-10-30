@@ -227,6 +227,7 @@ func (m *manager) addAddrs(addrs []net.Addr) {
 	changed := false
 	for _, addr := range netstate.ConvertToAddresses(addrs) {
 		if !netstate.IsAccessibleIP(addr) {
+			m.ctx.Infof("addr %v is not accessible ip", addr)
 			continue
 		}
 		host, _ := getHostPort(addr)
@@ -238,13 +239,16 @@ func (m *manager) addAddrs(addrs []net.Addr) {
 			_, port := getHostPort(tmplEndpoint.Addr())
 			if i := findEndpoint(epState, host); i < 0 {
 				nep := *tmplEndpoint
+				m.ctx.Infof("updating nep = %v to addr = %v", nep, addr)
 				nep.Address = net.JoinHostPort(host, port)
 				epState.leps = append(epState.leps, &nep)
 				changed = true
 			}
 		}
 	}
+	m.ctx.Infof("addrs = %v, changed = %v, notifiyWatchers = %v", addrs, changed, m.ls.notifyWatchers)
 	if changed && m.ls.notifyWatchers != nil {
+		m.ctx.Infof("notifying network change addrs = %v", addrs)
 		close(m.ls.notifyWatchers)
 		m.ls.notifyWatchers = make(chan struct{})
 	}
