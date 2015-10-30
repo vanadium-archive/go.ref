@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -59,6 +60,8 @@ const (
 	// initKey is used to store values that are only set at init time.
 	initKey
 )
+
+var setPrincipalCounter int32 = -1
 
 type initData struct {
 	appCycle          v23.AppCycle
@@ -331,14 +334,29 @@ func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
 }
 
 func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shutdown func(), deps ...interface{}) (*context.T, error) {
+	stop := shutdown
 	if principal != nil {
-		// We uniquely identify a principal with "security/principal/<publicKey>"
-		principalName := "security/principal/" + principal.PublicKey().String()
-		stats.NewStringFunc(principalName+"/blessingstore", principal.BlessingStore().DebugString)
-		stats.NewStringFunc(principalName+"/blessingroots", principal.Roots().DebugString)
+		// Uniquely identify blessingstore and blessingroots with
+		// security/principal/<publicKey>/(blessingstore|blessingroots)/<counter>.
+		// Make sure to stop exporting the stats when the context dies.
+		var (
+			counter = atomic.AddInt32(&setPrincipalCounter, 1)
+			prefix  = "security/principal/" + principal.PublicKey().String()
+			store   = fmt.Sprintf("%s/blessingstore/%d", prefix, counter)
+			roots   = fmt.Sprintf("%s/blessingroots/%d", prefix, counter)
+		)
+		stats.NewStringFunc(store, principal.BlessingStore().DebugString)
+		stats.NewStringFunc(roots, principal.Roots().DebugString)
+		stop = func() {
+			if shutdown != nil {
+				shutdown()
+			}
+			stats.Delete(store)
+			stats.Delete(roots)
+		}
 	}
 	ctx = context.WithValue(ctx, principalKey, principal)
-	return ctx, r.addChild(ctx, principal, shutdown, deps...)
+	return ctx, r.addChild(ctx, principal, stop, deps...)
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
