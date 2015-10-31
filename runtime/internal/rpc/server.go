@@ -293,8 +293,6 @@ func DeprecatedNewServer(
 			case vc.DischargeExpiryBuffer:
 				dischargeExpiryBuffer = time.Duration(opt)
 			}
-		case options.ServerBlessings:
-			s.blessings = opt.Blessings
 		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
 		case options.IsLeaf:
@@ -320,7 +318,7 @@ func DeprecatedNewServer(
 	}
 	if authenticateVC {
 		s.principal = v23.GetPrincipal(ctx)
-		if s.blessings.IsZero() && s.principal != nil {
+		if s.principal != nil {
 			s.blessings = s.principal.BlessingStore().Default()
 		}
 	}

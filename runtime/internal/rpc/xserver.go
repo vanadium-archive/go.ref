@@ -118,13 +118,6 @@ func WithNewDispatchingServer(ctx *context.T,
 			s.dispReserved = opt.Dispatcher
 		case PreferredServerResolveProtocols:
 			s.preferredProtocols = []string(opt)
-		case options.ServerBlessings:
-			s.blessings = opt.Blessings
-			if !reflect.DeepEqual(s.blessings.PublicKey(), v23.GetPrincipal(rootCtx).PublicKey()) {
-				cancel()
-				return ctx, nil, verror.New(verror.ErrBadArg, ctx,
-					newErrServerBlessingsWrongPublicKey(ctx))
-			}
 		}
 	}
 

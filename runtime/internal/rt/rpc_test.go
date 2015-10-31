@@ -170,50 +170,47 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("default"))
-
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal())
 	var (
-		p    = v23.GetPrincipal(ctx)
-		b1   = mkBlessings(p.BlessSelf("dev.v.io/users/foo@bar.com/devices/phone/applications/app"))
-		b2   = mkBlessings(p.BlessSelf("otherblessing"))
-		bopt = options.ServerBlessings{Blessings: union(b1, b2)}
-
-		tests = []struct {
-			opts      []rpc.ServerOpt
-			blessings []string
-		}{
-			{nil, []string{"default"}},
-			{[]rpc.ServerOpt{bopt}, []string{"dev.v.io/users/foo@bar.com/devices/phone/applications/app", "otherblessing"}},
+		p         = v23.GetPrincipal(ctx)
+		blessings = union(
+			mkBlessings(p.BlessSelf("dev.v.io/users/foo@bar.com/devices/phone/applications/app")),
+			mkBlessings(p.BlessSelf("otherblessing")))
+		want = []string{
+			"dev.v.io/users/foo@bar.com/devices/phone/applications/app",
+			"otherblessing",
 		}
 	)
-	if err := security.AddToRoots(p, bopt.Blessings); err != nil {
+	if err := p.BlessingStore().SetDefault(blessings); err != nil {
 		t.Fatal(err)
 	}
-	for idx, test := range tests {
-		_, server, err := v23.WithNewServer(ctx, "", testService{}, nil, test.opts...)
-		if err != nil {
-			t.Errorf("test #%d: %v", idx, err)
-			continue
+	if err := security.AddToRoots(p, blessings); err != nil {
+		t.Fatal(err)
+	}
+	_, server, err := v23.WithNewServer(ctx, "", testService{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := server.Status()
+	if len(status.Endpoints) == 0 {
+		t.Fatalf("No point in this test if there are no endpoints! Status: %+v", server.Status())
+	}
+	for idx, ep := range status.Endpoints {
+		got := ep.BlessingNames()
+		sort.Strings(got)
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Got %v want %v for endpoint #%d/%d: %v", got, want, idx, len(status.Endpoints), ep)
 		}
-		status := server.Status()
-		want := test.blessings
-		sort.Strings(want)
-		for _, ep := range status.Endpoints {
-			got := ep.BlessingNames()
-			sort.Strings(got)
-			if !reflect.DeepEqual(got, want) {
-				t.Errorf("test #%d: endpoint=%q: Got blessings %v, want %v", idx, ep, got, want)
-			}
-		}
-		// The tests below are dubious: status.Proxies[i].Endpoints is
-		// empty for all i because at the time this test was written,
-		// no proxies were started. Anyway, just to express the
-		// intent...
-		for _, proxy := range status.Proxies {
-			ep := proxy.Endpoint
-			if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
-				t.Errorf("test #%d: proxy=%q endpoint=%q: Got blessings %v, want %v", idx, proxy.Proxy, ep, got, want)
-			}
+	}
+
+	// The tests below are dubious: status.Proxies[i].Endpoints is
+	// empty for all i because at the time this test was written,
+	// no proxies were started. Anyway, just to express the
+	// intent...
+	for _, proxy := range status.Proxies {
+		ep := proxy.Endpoint
+		if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
+			t.Errorf("Got %v want %v for proxy %+v", got, want, proxy.Proxy)
 		}
 	}
 }

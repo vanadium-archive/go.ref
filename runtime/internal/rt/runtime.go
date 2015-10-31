@@ -23,7 +23,6 @@ import (
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -263,11 +262,6 @@ func (r *Runtime) newServer(ctx *context.T, opts ...rpc.ServerOpt) (irpc.Depreca
 	if id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(id.protocols))
 	}
-	if !hasServerBlessingsOpt(opts) && principal != nil {
-		otherOpts = append(otherOpts, options.ServerBlessings{
-			Blessings: principal.BlessingStore().Default(),
-		})
-	}
 	server, err := irpc.DeprecatedNewServer(ctx, sm, ns, id.settingsPublisher, id.settingsName, r.GetClient(ctx), otherOpts...)
 	if err != nil {
 		return nil, err
@@ -286,15 +280,6 @@ func (r *Runtime) newServer(ctx *context.T, opts ...rpc.ServerOpt) (irpc.Depreca
 		return nil, err
 	}
 	return server, nil
-}
-
-func hasServerBlessingsOpt(opts []rpc.ServerOpt) bool {
-	for _, o := range opts {
-		if _, ok := o.(options.ServerBlessings); ok {
-			return true
-		}
-	}
-	return false
 }
 
 func newStreamManager(ctx *context.T) (stream.Manager, error) {
