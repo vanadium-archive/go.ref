@@ -11,10 +11,14 @@ const (
 	AppCycleManagerConfigKey       = "MGMT_APP_CYCLE_MANAGER_NAME"
 	AddressConfigKey               = "MGMT_CHILD_PROCESS_ADDRESS"
 	ProtocolConfigKey              = "MGMT_CHILD_PROCESS_PROTOCOL"
-	ParentBlessingConfigKey        = "MGMT_PARENT_BLESSING_PEER_PATTERN"
 	SecurityAgentEndpointConfigKey = "MGMT_SECURITY_AGENT_EP"
 	SecurityAgentPathConfigKey     = "MGMT_SECURITY_AGENT_PATH"
 	AppOriginConfigKey             = "MGMT_APP_ORIGIN"
 	PublisherBlessingPrefixesKey   = "MGMT_PUBLISHER_BLESSING_PREFIXES"
 	InstanceNameKey                = "MGMT_INSTANCE_NAME"
+	AppCycleBlessingsKey           = "MGMT_APP_CYCLE_BLESSINGS"
+
+	// TODO(ashankar): Remove by November 14, 2015
+	UseDeprecatedParentBlessingConfig = false // DO NOT SUBMIT: Switch to true before submitting
+	ParentBlessingConfigKey           = "MGMT_PARENT_BLESSING_PEER_PATTERN"
 )
