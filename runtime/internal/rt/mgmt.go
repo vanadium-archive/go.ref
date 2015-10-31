@@ -5,16 +5,19 @@
 package rt
 
 import (
+	"encoding/base64"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
+	vsecurity "v.io/x/ref/lib/security"
 )
 
 const pkgPath = "v.io/x/ref/option/internal/rt"
@@ -47,20 +50,56 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	if ctx, err = setListenSpec(ctx, rt, handle); err != nil {
 		return err
 	}
-	var serverOpts []rpc.ServerOpt
-	parentPeerPattern, err := handle.Config.Get(mgmt.ParentBlessingConfigKey)
-	if err == nil && parentPeerPattern != "" {
-		// Grab the blessing from our blessing store that the parent
-		// told us to use so they can talk to us.
-		serverBlessing := rt.GetPrincipal(ctx).BlessingStore().ForPeer(parentPeerPattern)
-		serverOpts = append(serverOpts, options.ServerBlessings{Blessings: serverBlessing})
+	var blessings security.Blessings
+	if b64blessings, err := handle.Config.Get(mgmt.AppCycleBlessingsKey); err == nil {
+		vombytes, err := base64.URLEncoding.DecodeString(b64blessings)
+		if err == nil {
+			err = vom.Decode(vombytes, &blessings)
+		}
+		if err != nil {
+			return err
+		}
+	} else {
+		// AppCycleBlessingsKey is not set: The device manager was
+		// compiled before the change that introduced
+		// UseDeprecatedParentBlessingConfig was introduced.
+		pattern, _ := handle.Config.Get(mgmt.ParentBlessingConfigKey)
+		blessings = rt.GetPrincipal(ctx).BlessingStore().ForPeer(pattern)
 	}
-	_, server, err := rt.WithNewServer(ctx, "", v23.GetAppCycle(ctx).Remote(), nil, serverOpts...)
+	// Arguably could use the same principal with a different blessing store
+	// and blessing roots. However, at the time of this writing there wasn't
+	// a particularly convenient way to do so, and this alternative scheme
+	// works just as well.
+	//
+	// Instantiate a principal that will be used by the AppCycleManager
+	// which will communicate with (both as a client and a server) only the
+	// device manager.
+	principal, err := vsecurity.NewPrincipal()
 	if err != nil {
 		return err
 	}
-	err = rt.callbackToParent(ctx, parentName, server.Status().Endpoints[0].Name())
+	blessings, err = rt.GetPrincipal(ctx).Bless(principal.PublicKey(), blessings, "instance", security.UnconstrainedUse())
 	if err != nil {
+		return err
+	}
+	if err := security.AddToRoots(principal, blessings); err != nil {
+		return err
+	}
+	if err := principal.BlessingStore().SetDefault(blessings); err != nil {
+		return err
+	}
+	if _, err := principal.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
+		return err
+	}
+	if ctx, err = rt.setPrincipal(ctx, principal, nil); err != nil {
+		return err
+	}
+	// Fire up the server to receive calls from the parent and also ping the parent.
+	_, server, err := rt.WithNewServer(ctx, "", v23.GetAppCycle(ctx).Remote(), nil)
+	if err != nil {
+		return err
+	}
+	if err = rt.callbackToParent(ctx, parentName, server.Status().Endpoints[0].Name()); err != nil {
 		server.Stop()
 		return err
 	}

@@ -148,6 +148,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/ref"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
@@ -162,8 +163,13 @@ import (
 
 // instanceInfo holds state about an instance.
 type instanceInfo struct {
-	AppCycleMgrName          string
-	Pid                      int
+	AppCycleMgrName string
+	Pid             int
+
+	// Blessings to provide the AppCycleManager in the app with so that it can talk
+	// to the device manager.
+	AppCycleBlessings string
+	// TODO(ashankar): Remove this along with UseDeprecatedParentBlessingConfig
 	DeviceManagerPeerPattern string
 	// TODO(caprita): Change to [agent.PrincipalHandleByteSize]byte and
 	// remove handle() and setHandle() converters.
@@ -621,28 +627,40 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 	// that the device manger produces solely to talk to the app).
 	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
-	// Put the names of the device manager's default blessings as patterns
-	// for the child, so that the child uses the right blessing when talking
-	// back to the device manager.
-	for _, pattern := range security.DefaultBlessingPatterns(dmPrincipal) {
-		if _, err := p.BlessingStore().Set(dmBlessings, pattern); err != nil {
+	if err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, err)
+	}
+	if !dmBlessings.IsZero() {
+		bytes, err := vom.Encode(dmBlessings)
+		if err != nil {
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to encode app cycle blessings: %v", err))
+		}
+		info.AppCycleBlessings = base64.URLEncoding.EncodeToString(bytes)
+	}
+	if mgmt.UseDeprecatedParentBlessingConfig {
+		// Put the names of the device manager's default blessings as patterns
+		// for the child, so that the child uses the right blessing when talking
+		// back to the device manager.
+		for _, pattern := range security.DefaultBlessingPatterns(dmPrincipal) {
+			if _, err := p.BlessingStore().Set(dmBlessings, pattern); err != nil {
+				return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
+			}
+		}
+		// We also want to override the app cycle manager's server blessing in
+		// the child (so that the device manager can send RPCs to it).  We
+		// signal to the child's app manager to use a randomly generated pattern
+		// to extract the right blessing to use from its store for this purpose.
+		randomPattern, err := generateRandomString()
+		if err != nil {
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("generateRandomString() failed: %v", err))
+		}
+		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(randomPattern)); err != nil {
 			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 		}
-	}
-	// We also want to override the app cycle manager's server blessing in
-	// the child (so that the device manager can send RPCs to it).  We
-	// signal to the child's app manager to use a randomly generated pattern
-	// to extract the right blessing to use from its store for this purpose.
-	randomPattern, err := generateRandomString()
-	if err != nil {
-		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("generateRandomString() failed: %v", err))
-	}
-	if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(randomPattern)); err != nil {
-		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
-	}
-	info.DeviceManagerPeerPattern = randomPattern
-	if err := security.AddToRoots(p, dmBlessings); err != nil {
-		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
+		info.DeviceManagerPeerPattern = randomPattern
+		if err := security.AddToRoots(p, dmBlessings); err != nil {
+			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
+		}
 	}
 	return nil
 }
@@ -894,9 +912,12 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	cfg.Set(mgmt.ParentNameConfigKey, listener.name())
 	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
-	cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
 	cfg.Set(mgmt.PublisherBlessingPrefixesKey,
 		v23.GetPrincipal(ctx).BlessingStore().Default().String())
+	cfg.Set(mgmt.AppCycleBlessingsKey, info.AppCycleBlessings)
+	if mgmt.UseDeprecatedParentBlessingConfig {
+		cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
+	}
 
 	if instanceName, err := instanceNameFromDir(ctx, instanceDir); err != nil {
 		return 0, err
