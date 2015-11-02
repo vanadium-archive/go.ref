@@ -19,6 +19,6 @@ const (
 	AppCycleBlessingsKey           = "MGMT_APP_CYCLE_BLESSINGS"
 
 	// TODO(ashankar): Remove by November 14, 2015
-	UseDeprecatedParentBlessingConfig = false // DO NOT SUBMIT: Switch to true before submitting
+	UseDeprecatedParentBlessingConfig = true
 	ParentBlessingConfigKey           = "MGMT_PARENT_BLESSING_PEER_PATTERN"
 )
