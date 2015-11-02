@@ -88,37 +88,42 @@ func CreateRoamingStream(ctx *context.T, publisher *pubsub.Publisher, listenSpec
 // passed as the argument to 'update'.
 // 'remove' gets passed the net.Addrs that are no longer being listened on.
 // 'add' gets passed the net.Addrs that are newly being listened on.
-func ReadRoamingStream(ctx *context.T, pub *pubsub.Publisher, remove, add func([]net.Addr)) {
+func ReadRoamingStream(ctx *context.T, pub *pubsub.Publisher, remove, add func([]net.Addr)) (closed chan struct{}) {
 	ch := make(chan pubsub.Setting, 10)
 	_, err := pub.ForkStream(RoamingSetting, ch)
 	if err != nil {
 		ctx.Errorf("error forking stream:", err)
-		return
+		return nil
 	}
-	for {
-		select {
-		case <-ctx.Done():
-			if err := pub.CloseFork(RoamingSetting, ch); err == nil {
-				drain(ch)
-			}
-			return
-		case setting := <-ch:
-			if setting == nil {
-				continue
-			}
-			addrs, ok := setting.Value().([]net.Addr)
-			if !ok {
-				ctx.Errorf("unhandled setting type %T", addrs)
-				continue
-			}
-			switch setting.Name() {
-			case UpdateAddrsSetting:
-				add(addrs)
-			case RmAddrsSetting:
-				remove(addrs)
+	closed = make(chan struct{})
+	go func() {
+		defer close(closed)
+		for {
+			select {
+			case <-ctx.Done():
+				if err := pub.CloseFork(RoamingSetting, ch); err == nil {
+					drain(ch)
+				}
+				return
+			case setting := <-ch:
+				if setting == nil {
+					continue
+				}
+				addrs, ok := setting.Value().([]net.Addr)
+				if !ok {
+					ctx.Errorf("unhandled setting type %T", addrs)
+					continue
+				}
+				switch setting.Name() {
+				case UpdateAddrsSetting:
+					add(addrs)
+				case RmAddrsSetting:
+					remove(addrs)
+				}
 			}
 		}
-	}
+	}()
+	return closed
 }
 
 func drain(ch chan pubsub.Setting) {
