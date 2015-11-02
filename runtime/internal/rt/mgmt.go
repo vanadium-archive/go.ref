@@ -91,7 +91,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	if _, err := principal.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
 		return err
 	}
-	if ctx, err = rt.setPrincipal(ctx, principal, nil); err != nil {
+	if ctx, err = rt.WithPrincipal(ctx, principal); err != nil {
 		return err
 	}
 	// Fire up the server to receive calls from the parent and also ping the parent.
