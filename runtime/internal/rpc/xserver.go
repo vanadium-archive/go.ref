@@ -257,8 +257,8 @@ func (s *xserver) createEndpoint(lep naming.Endpoint) *inaming.Endpoint {
 }
 
 func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
-	s.Lock()
 	defer s.Unlock()
+	s.Lock()
 	if len(listenSpec.Proxy) > 0 {
 		ep, err := s.resolveToEndpoint(ctx, listenSpec.Proxy)
 		if err != nil {
@@ -285,25 +285,22 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 
 	// We call updateEndpointsLocked in serial once to populate our endpoints for
 	// server status with at least one endpoint.
-	leps, _ := s.flowMgr.ListeningEndpoints()
+	leps, changed := s.flowMgr.ListeningEndpoints()
 	s.updateEndpointsLocked(leps)
 	s.active.Add(2)
-	go s.updateEndpointsLoop()
+	go s.updateEndpointsLoop(changed)
 	go s.acceptLoop(ctx)
 }
 
-func (s *xserver) updateEndpointsLoop() {
+func (s *xserver) updateEndpointsLoop(changed <-chan struct{}) {
 	defer s.active.Done()
-	for leps, changed := s.flowMgr.ListeningEndpoints(); changed != nil; {
-		s.Lock()
-		s.updateEndpointsLocked(leps)
-		if s.valid != nil {
-			close(s.valid)
-			s.valid = make(chan struct{})
-		}
-		s.Unlock()
+	var leps []naming.Endpoint
+	for changed != nil {
 		<-changed
 		leps, changed = s.flowMgr.ListeningEndpoints()
+		s.Lock()
+		s.updateEndpointsLocked(leps)
+		s.Unlock()
 	}
 }
 
@@ -321,6 +318,10 @@ func (s *xserver) updateEndpointsLocked(leps []naming.Endpoint) {
 	}
 	for k, ep := range addEps {
 		s.endpoints[k] = ep
+	}
+	if s.valid != nil {
+		close(s.valid)
+		s.valid = make(chan struct{})
 	}
 
 	s.Unlock()
