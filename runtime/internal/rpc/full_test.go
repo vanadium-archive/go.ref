@@ -571,59 +571,6 @@ func TestNoPrincipal(t *testing.T) {
 	}
 }
 
-func TestServerBlessingsOpt(t *testing.T) {
-	ctx, shutdown := initForTest()
-	defer shutdown()
-
-	var (
-		pserver   = testutil.NewPrincipal("server")
-		pclient   = testutil.NewPrincipal("client")
-		batman, _ = pserver.BlessSelf("batman")
-		cctx, _   = v23.WithPrincipal(ctx, pclient)
-		sctx, _   = v23.WithPrincipal(ctx, pserver)
-	)
-
-	// Client and server recognize the servers blessings
-	for _, p := range []security.Principal{pserver, pclient} {
-		if err := security.AddToRoots(p, pserver.BlessingStore().Default()); err != nil {
-			t.Fatal(err)
-		}
-		if err := security.AddToRoots(p, batman); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// Start a server that uses the ServerBlessings option to configure itself
-	// to act as batman (as opposed to using the default blessing).
-	ns := tnaming.NewSimpleNamespace()
-
-	defer runServer(t, sctx, ns, "mountpoint/batman", &testServer{}, options.ServerBlessings{Blessings: batman}).Shutdown()
-	defer runServer(t, sctx, ns, "mountpoint/default", &testServer{}).Shutdown()
-
-	// And finally, make an RPC and see that the client sees "batman"
-	runClient := func(server string) ([]string, error) {
-		smc := imanager.InternalNew(ctx, naming.FixedRoutingID(0xc))
-		defer smc.Shutdown()
-		client := DeprecatedNewClient(smc, ns)
-		defer client.Close()
-		ctx, _ = v23.WithPrincipal(cctx, pclient)
-		call, err := client.StartCall(cctx, server, "Closure", nil)
-		if err != nil {
-			return nil, err
-		}
-		blessings, _ := call.RemoteBlessings()
-		return blessings, nil
-	}
-
-	// When talking to mountpoint/batman, should see "batman"
-	// When talking to mountpoint/default, should see "server"
-	if got, err := runClient("mountpoint/batman"); err != nil || len(got) != 1 || got[0] != "batman" {
-		t.Errorf("Got (%v, %v) wanted 'batman'", got, err)
-	}
-	if got, err := runClient("mountpoint/default"); err != nil || len(got) != 1 || got[0] != "server" {
-		t.Errorf("Got (%v, %v) wanted 'server'", got, err)
-	}
-}
-
 func TestNoDischargesOpt(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
