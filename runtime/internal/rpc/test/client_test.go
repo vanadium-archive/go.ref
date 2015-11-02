@@ -605,7 +605,7 @@ func TestTimeoutResponse(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, time.Millisecond)
 	err := v23.GetClient(ctx).Call(ctx, name, "Sleep", nil, nil)
 	if got, want := verror.ErrorID(err), verror.ErrTimeout.ID; got != want {
-		t.Fatalf("got %v, want %v", got, want)
+		t.Fatalf("got %v, want %v", verror.DebugString(err), want)
 	}
 	cancel()
 }

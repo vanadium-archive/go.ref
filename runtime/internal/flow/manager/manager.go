@@ -18,6 +18,7 @@ import (
 	"v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/pubsub"
@@ -619,6 +620,12 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 	if c == nil {
 		flowConn, err := dial(ctx, protocol, network, address)
 		if err != nil {
+			switch err := err.(type) {
+			case *net.OpError:
+				if err, ok := err.Err.(net.Error); ok && err.Timeout() {
+					return nil, nil, iflow.MaybeWrapError(verror.ErrTimeout, ctx, err)
+				}
+			}
 			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 		var fh conn.FlowHandler
