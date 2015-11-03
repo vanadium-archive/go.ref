@@ -31,7 +31,7 @@ ENV PATH /google-cloud-sdk/bin:$PATH
 
 # vanadium
 #RUN apt-get install --no-install-recommends -y -q libssl1.0.0
-ADD claimable cluster_agent cluster_agentd init.sh /usr/local/bin/
+ADD claimable cluster_agent cluster_agentd vrpc init.sh /usr/local/bin/
 RUN chmod 755 /usr/local/bin/*
 CMD ["/usr/local/bin/init.sh"]
 `
@@ -62,8 +62,7 @@ exec /usr/local/bin/cluster_agentd \
 	podAgentDockerfile = `
 FROM google/debian:wheezy
 RUN apt-get update && apt-get install --no-install-recommends -y -q libssl1.0.0 && apt-get clean
-ADD pod_agentd /usr/local/bin/
-RUN chmod 755 /usr/local/bin/pod_agentd
+ADD pod_agentd principal /usr/local/bin/
 `
 )
 
@@ -97,6 +96,7 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 		{"jiri", []string{"go", "build", "-o", "claimable", "v.io/x/ref/services/device/claimable"}},
 		{"jiri", []string{"go", "build", "-o", "cluster_agent", "v.io/x/ref/services/cluster/cluster_agent"}},
 		{"jiri", []string{"go", "build", "-o", "cluster_agentd", "v.io/x/ref/services/cluster/cluster_agentd"}},
+		{"jiri", []string{"go", "build", "-o", "vrpc", "v.io/x/ref/cmd/vrpc"}},
 		{"docker", []string{"build", "-t", imageName, "."}},
 		{"docker", []string{"tag", imageName, imageNameTag}},
 		{flagGcloudBin, []string{"--project=" + config.Project, "docker", "push", imageName}},
@@ -113,6 +113,7 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 		{"Dockerfile", []byte(podAgentDockerfile)},
 	}, []dockerCmd{
 		{"jiri", []string{"go", "build", "-o", "pod_agentd", "v.io/x/ref/services/agent/pod_agentd"}},
+		{"jiri", []string{"go", "build", "-o", "principal", "v.io/x/ref/cmd/principal"}},
 		{"docker", []string{"build", "-t", imageName, "."}},
 		{"docker", []string{"tag", imageName, imageNameTag}},
 		{flagGcloudBin, []string{"--project=" + config.Project, "docker", "push", imageName}},
