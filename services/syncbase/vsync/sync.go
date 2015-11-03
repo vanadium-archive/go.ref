@@ -241,7 +241,7 @@ func (s *syncService) discoverPeers(ctx *context.T) {
 	}
 
 	// TODO(rdaoud): refactor this interface name query string.
-	query := interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name
+	query := `v.InterfaceName="` + interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name + `"`
 	ch, err := scanner.Scan(ctx, query)
 	if err != nil {
 		vlog.Errorf("sync: discoverPeers: cannot start discovery service: %v", err)
