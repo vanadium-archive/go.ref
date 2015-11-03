@@ -25,15 +25,15 @@ const (
 )
 
 func V23TestProxyd(t *v23tests.T) {
-	if ref.RPCTransitionState() >= ref.XServers {
-		t.Skip("This test only runs under the old rpc system.")
+	if ref.RPCTransitionState() < ref.XServers {
+		t.Skip("This test only runs under the new rpc system.")
 	}
 	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
 	var (
 		proxydCreds, _ = t.Shell().NewChildCredentials("proxyd")
 		serverCreds, _ = t.Shell().NewChildCredentials("server")
 		clientCreds, _ = t.Shell().NewChildCredentials("client")
-		proxyd         = t.BuildV23Pkg("v.io/x/ref/services/proxy/proxyd")
+		proxyd         = t.BuildV23Pkg("v.io/x/ref/services/xproxy/xproxyd")
 	)
 	// Start proxyd
 	proxyd.WithStartOpts(proxyd.StartOpts().WithCustomCredentials(proxydCreds)).

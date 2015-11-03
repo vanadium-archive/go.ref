@@ -10,9 +10,13 @@ Command proxyd is a daemon that listens for connections from Vanadium services
 (typically behind NATs) and proxies these services to the outside world.
 
 Usage:
-   proxyd [flags]
+   xproxyd [flags]
 
-The proxyd flags are:
+The xproxyd flags are:
+ -access-list=
+   Blessings that are authorized to listen via the proxy.  JSON-encoded
+   representation of access.AccessList.  An empty string implies the default
+   authorization policy.
  -healthz-address=
    Network address on which the HTTP healthz server runs.  It is intended to be
    used with a load balancer.  The load balancer must be able to reach this

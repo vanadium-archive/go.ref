@@ -8,6 +8,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -16,24 +18,23 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
 
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
-
 	"v.io/x/ref/services/xproxy/xproxy"
 )
 
-// TODO(suharshs): add authorization of server listening through proxy.
-
-var healthzAddr, name string
+var healthzAddr, name, acl string
 
 const healthTimeout = 10 * time.Second
 
 func main() {
 	cmdProxyD.Flags.StringVar(&healthzAddr, "healthz-address", "", "Network address on which the HTTP healthz server runs.  It is intended to be used with a load balancer.  The load balancer must be able to reach this address in order to verify that the proxy server is running.")
 	cmdProxyD.Flags.StringVar(&name, "name", "", "Name to mount the proxy as.")
+	cmdProxyD.Flags.StringVar(&acl, "access-list", "", "Blessings that are authorized to listen via the proxy.  JSON-encoded representation of access.AccessList.  An empty string implies the default authorization policy.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdProxyD)
@@ -41,7 +42,7 @@ func main() {
 
 var cmdProxyD = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runProxyD),
-	Name:   "proxyd",
+	Name:   "xproxyd",
 	Short:  "Proxies services to the outside world",
 	Long: `
 Command proxyd is a daemon that listens for connections from Vanadium services
@@ -51,7 +52,11 @@ Command proxyd is a daemon that listens for connections from Vanadium services
 
 func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 	// TODO(suharshs): Add ability to specify multiple proxies through this tool.
-	proxy, err := xproxy.New(ctx, name)
+	auth, err := authorizer(ctx)
+	if err != nil {
+		return err
+	}
+	proxy, err := xproxy.New(ctx, name, auth)
 	if err != nil {
 		return err
 	}
@@ -110,4 +115,19 @@ func startHealthzServer(ctx *context.T, addr string) {
 	if err := s.ListenAndServe(); err != nil {
 		ctx.Fatal(err)
 	}
+}
+
+func authorizer(ctx *context.T) (security.Authorizer, error) {
+	if len(acl) > 0 {
+		var list access.AccessList
+		if err := json.NewDecoder(bytes.NewBufferString(acl)).Decode(&list); err != nil {
+			return nil, err
+		}
+		// Always add ourselves, for the the reserved methods server
+		// started below.
+		list.In = append(list.In, security.DefaultBlessingPatterns(v23.GetPrincipal(ctx))...)
+		ctx.Infof("Using access list to control proxy use: %v", list)
+		return list, nil
+	}
+	return nil, nil
 }

@@ -50,7 +50,7 @@ func TestProxyRPC(t *testing.T) {
 	defer shutdown()
 
 	// Start the proxy.
-	pname, stop := startProxy(t, ctx, "proxy", "", address{"tcp", "127.0.0.1:0"})
+	pname, stop := startProxy(t, ctx, "proxy", security.AllowEveryone(), "", address{"tcp", "127.0.0.1:0"})
 	defer stop()
 
 	// Start the server listening through the proxy.
@@ -81,9 +81,9 @@ func TestMultipleProxyRPC(t *testing.T) {
 	defer shutdown()
 
 	// Start the proxies.
-	p1name, stop := startProxy(t, ctx, "p1", "", address{"kill", "127.0.0.1:0"})
+	p1name, stop := startProxy(t, ctx, "p1", security.AllowEveryone(), "", address{"kill", "127.0.0.1:0"})
 	defer stop()
-	p2name, stop := startProxy(t, ctx, "p2", p1name, address{"kill", "127.0.0.1:0"})
+	p2name, stop := startProxy(t, ctx, "p2", security.AllowEveryone(), p1name, address{"kill", "127.0.0.1:0"})
 	defer stop()
 
 	// Start the server listening through the proxy.
@@ -139,7 +139,7 @@ func TestProxyNotAuthorized(t *testing.T) {
 
 	// Now the proxy's blessings would fail authorization from the client using the
 	// default authorizer.
-	pname, stop := startProxy(t, pctx, "proxy", "", address{"tcp", "127.0.0.1:0"})
+	pname, stop := startProxy(t, pctx, "proxy", security.AllowEveryone(), "", address{"tcp", "127.0.0.1:0"})
 	defer stop()
 
 	// Start the server listening through the proxy.
@@ -158,6 +158,63 @@ func TestProxyNotAuthorized(t *testing.T) {
 	}
 	if want := "response:hello"; got != want {
 		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestProxyAuthorizesServer(t *testing.T) {
+	if ref.RPCTransitionState() != ref.XServers {
+		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
+	}
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	// Make principals for the proxy and server.
+	pctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("proxy"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Have the root bless the proxy and server.
+	root := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
+	if err := root.Bless(v23.GetPrincipal(pctx), "proxy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Bless(v23.GetPrincipal(sctx), "server"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Start a proxy that accepts connections from everyone and ensure that it does.
+	pname, stop := startProxy(t, pctx, "acceptproxy", security.AllowEveryone(), "", address{"tcp", "127.0.0.1:0"})
+	defer stop()
+
+	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Proxy: pname})
+	sctx, cancel := context.WithCancel(sctx)
+	defer cancel()
+	_, server, err := v23.WithNewServer(sctx, "", &testService{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for server.Status().Endpoints[0].Addr().Network() == bidiProtocol {
+		time.Sleep(pollTime)
+	}
+
+	// A proxy using the default authorizer should not authorize the server.
+	pname, stop = startProxy(t, pctx, "acceptproxy", nil, "", address{"tcp", "127.0.0.1:0"})
+	defer stop()
+
+	_, server, err = v23.WithNewServer(sctx, "", &testService{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// TODO(suharshs): Find a way to test this without having to have this time.Sleep.
+	// Perhaps the manager can return errors about why connecting to the proxy failed.
+	time.Sleep(time.Second)
+	if server.Status().Endpoints[0].Addr().Network() != bidiProtocol {
+		t.Errorf("proxy should have rejected the server's request to listen through it")
 	}
 }
 
@@ -189,7 +246,7 @@ func TestSingleProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pname, stop := startProxy(t, ctx, "", "", address{"kill", "127.0.0.1:0"})
+	pname, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"kill", "127.0.0.1:0"})
 	defer stop()
 	address, _ := naming.SplitAddressName(pname)
 	pep, err := v23.NewEndpoint(address)
@@ -227,12 +284,12 @@ func TestMultipleProxies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p1name, stop := startProxy(t, ctx, "", "", address{"kill", "127.0.0.1:0"})
+	p1name, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"kill", "127.0.0.1:0"})
 	defer stop()
-	p2name, stop := startProxy(t, ctx, "", p1name, address{"kill", "127.0.0.1:0"})
+	p2name, stop := startProxy(t, ctx, "", security.AllowEveryone(), p1name, address{"kill", "127.0.0.1:0"})
 	defer stop()
 
-	p3name, stop := startProxy(t, ctx, "", p2name, address{"kill", "127.0.0.1:0"})
+	p3name, stop := startProxy(t, ctx, "", security.AllowEveryone(), p2name, address{"kill", "127.0.0.1:0"})
 	defer stop()
 	address, _ := naming.SplitAddressName(p3name)
 	p3ep, err := v23.NewEndpoint(address)
@@ -333,7 +390,7 @@ type address struct {
 	Protocol, Address string
 }
 
-func startProxy(t *testing.T, ctx *context.T, name string, listenOnProxy string, addrs ...address) (string, func()) {
+func startProxy(t *testing.T, ctx *context.T, name string, auth security.Authorizer, listenOnProxy string, addrs ...address) (string, func()) {
 	var ls rpc.ListenSpec
 	hasProxies := len(listenOnProxy) > 0
 	for _, addr := range addrs {
@@ -342,7 +399,7 @@ func startProxy(t *testing.T, ctx *context.T, name string, listenOnProxy string,
 	ls.Proxy = listenOnProxy
 	ctx = v23.WithListenSpec(ctx, ls)
 	ctx, cancel := context.WithCancel(ctx)
-	proxy, err := xproxy.New(ctx, name)
+	proxy, err := xproxy.New(ctx, name, auth)
 	if err != nil {
 		t.Fatal(err)
 	}
