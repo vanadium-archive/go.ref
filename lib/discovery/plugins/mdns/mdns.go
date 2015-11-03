@@ -293,12 +293,12 @@ func newWithLoopback(host string, port int, loopback bool) (idiscovery.Plugin, e
 		v4addr = fmt.Sprintf("224.0.0.251:%d", port)
 		v6addr = fmt.Sprintf("[FF02::FB]:%d", port)
 	}
-	m, err := mdns.NewMDNS(host, v4addr, v6addr, loopback, false)
+	m, err := mdns.NewMDNS(host, v4addr, v6addr, loopback, 0)
 	if err != nil {
 		// The name may not have been unique. Try one more time with a unique
 		// name. NewMDNS will replace the "()" with "(hardware mac address)".
 		if len(host) > 0 && !strings.HasSuffix(host, "()") {
-			m, err = mdns.NewMDNS(host+"()", "", "", loopback, false)
+			m, err = mdns.NewMDNS(host+"()", "", "", loopback, 0)
 		}
 		if err != nil {
 			return nil, err
