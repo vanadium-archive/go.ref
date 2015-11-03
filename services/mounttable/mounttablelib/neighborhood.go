@@ -104,12 +104,12 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 	}
 
 	// Start up MDNS, subscribe to the vanadium service, and add us as a vanadium service provider.
-	m, err := mdns.NewMDNS(host, "", "", loopback, false)
+	m, err := mdns.NewMDNS(host, "", "", loopback, 0)
 	if err != nil {
 		// The name may not have been unique.  Try one more time with a unique
 		// name.  NewMDNS will replace the "()" with "(hardware mac address)".
 		if len(host) > 0 {
-			m, err = mdns.NewMDNS(host+"()", "", "", loopback, false)
+			m, err = mdns.NewMDNS(host+"()", "", "", loopback, 0)
 		}
 		if err != nil {
 			logger.Global().Errorf("mdns startup failed: %s", err)
