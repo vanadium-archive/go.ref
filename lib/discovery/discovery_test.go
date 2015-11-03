@@ -45,7 +45,12 @@ func advertise(ctx *context.T, ds discovery.Advertiser, perms []security.Blessin
 	return stop, nil
 }
 
-func startScan(ctx *context.T, ds discovery.Scanner, query string) (<-chan discovery.Update, func(), error) {
+func startScan(ctx *context.T, ds discovery.Scanner, interfaceName string) (<-chan discovery.Update, func(), error) {
+	var query string
+	if len(interfaceName) > 0 {
+		query = `v.InterfaceName="` + interfaceName + `"`
+	}
+
 	ctx, stop := context.WithCancel(ctx)
 	scan, err := ds.Scan(ctx, query)
 	if err != nil {
@@ -54,8 +59,8 @@ func startScan(ctx *context.T, ds discovery.Scanner, query string) (<-chan disco
 	return scan, stop, err
 }
 
-func scan(ctx *context.T, ds discovery.Scanner, query string) ([]discovery.Update, error) {
-	scan, stop, err := startScan(ctx, ds, query)
+func scan(ctx *context.T, ds discovery.Scanner, interfaceName string) ([]discovery.Update, error) {
+	scan, stop, err := startScan(ctx, ds, interfaceName)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +77,7 @@ func scan(ctx *context.T, ds discovery.Scanner, query string) ([]discovery.Updat
 	}
 }
 
-func scanAndMatch(ctx *context.T, ds discovery.Scanner, query string, wants ...discovery.Service) error {
+func scanAndMatch(ctx *context.T, ds discovery.Scanner, interfaceName string, wants ...discovery.Service) error {
 	const timeout = 3 * time.Second
 
 	var updates []discovery.Update
@@ -80,7 +85,7 @@ func scanAndMatch(ctx *context.T, ds discovery.Scanner, query string, wants ...d
 		runtime.Gosched()
 
 		var err error
-		updates, err = scan(ctx, ds, query)
+		updates, err = scan(ctx, ds, interfaceName)
 		if err != nil {
 			return err
 		}

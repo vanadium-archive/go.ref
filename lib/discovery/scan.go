@@ -15,10 +15,9 @@ import (
 
 // Scan implements discovery.Scanner.
 func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error) {
-	// TODO(jhann): Implement a simple query processor.
-	var serviceUuid Uuid
-	if len(query) > 0 {
-		serviceUuid = NewServiceUUID(query)
+	matcher, err := newMatcher(query)
+	if err != nil {
+		return nil, err
 	}
 
 	ctx, cancel, err := ds.addTask(ctx)
@@ -33,18 +32,18 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 		ds.removeTask(ctx)
 	})
 	for _, plugin := range ds.plugins {
-		if err := plugin.Scan(ctx, serviceUuid, scanCh, barrier.Add()); err != nil {
+		if err := plugin.Scan(ctx, matcher.targetServiceUuid(), scanCh, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
 		}
 	}
 	// TODO(jhahn): Revisit the buffer size.
 	updateCh := make(chan discovery.Update, 10)
-	go doScan(ctx, scanCh, updateCh)
+	go doScan(ctx, matcher, scanCh, updateCh)
 	return updateCh, nil
 }
 
-func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discovery.Update) {
+func doScan(ctx *context.T, matcher matcher, scanCh <-chan Advertisement, updateCh chan<- discovery.Update) {
 	defer close(updateCh)
 
 	// Get the blessing names belong to the principal.
@@ -68,6 +67,14 @@ func doScan(ctx *context.T, scanCh <-chan Advertisement, updateCh chan<- discove
 					ctx.Error(err)
 				}
 				continue
+			}
+			// Note that 'Lost' advertisement may not have full service information.
+			// Thus we do not match the query against it. mergeAdvertisement() will
+			// ignore it if it has not been scanned.
+			if !ad.Lost {
+				if !matcher.match(ctx, &ad) {
+					continue
+				}
 			}
 			for _, update := range mergeAdvertisement(found, &ad) {
 				select {
