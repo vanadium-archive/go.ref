@@ -32,7 +32,7 @@ import (
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/lib/testwriter"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
-	"v.io/x/ref/services/xproxyd"
+	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -335,7 +335,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	var proxyEndpoint naming.Endpoint
 	if ref.RPCTransitionState() >= ref.XServers {
 		pctx, cancel := context.WithCancel(ctx)
-		proxy, _, perr := xproxyd.New(v23.WithListenSpec(pctx, proxySpec))
+		proxy, perr := xproxy.New(v23.WithListenSpec(pctx, proxySpec), "")
 		proxyEndpoint = proxy.ListeningEndpoints()[0]
 		if protocol := proxyEndpoint.Addr().Network(); protocol != "tcp" {
 			return nil, fmt.Errorf("Got %s want tcp", protocol)

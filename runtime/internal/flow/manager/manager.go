@@ -311,12 +311,13 @@ func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) error {
 func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint) {
 	defer m.ls.listenLoops.Done()
 	var eps []naming.Endpoint
+	stopProxy := m.ls.stopProxy
 	for delay := reconnectDelay; ; delay *= 2 {
 		time.Sleep(delay - reconnectDelay)
 		select {
 		case <-ctx.Done():
 			return
-		case <-m.ls.stopProxy:
+		case <-stopProxy:
 			return
 		default:
 		}
@@ -347,7 +348,7 @@ func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-m.ls.stopProxy:
+		case <-stopProxy:
 			return
 		case <-f.Closed():
 			m.updateProxyEndpoints(nil)

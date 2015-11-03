@@ -31,9 +31,9 @@ import (
 	"v.io/v23/vtrace"
 
 	"v.io/x/ref/lib/apilog"
+	"v.io/x/ref/lib/publisher"
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
-	"v.io/x/ref/runtime/internal/lib/publisher"
 	"v.io/x/ref/runtime/internal/lib/roaming"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream"

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package xproxyd
+package xproxy
 
 import (
 	"io"
@@ -14,38 +14,111 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/naming"
+
+	"v.io/x/ref/lib/publisher"
 )
+
+// TODO(suharshs): Make sure we don't leave any goroutines behind.
 
 const reconnectDelay = 50 * time.Millisecond
 
 type proxy struct {
-	m              flow.Manager
-	mu             sync.Mutex
-	proxyEndpoints map[string][]naming.Endpoint // keyed by proxy address
+	m      flow.Manager
+	pub    publisher.Publisher
+	closed chan struct{}
+
+	mu                 sync.Mutex
+	listeningEndpoints map[string]naming.Endpoint   // keyed by endpoint string
+	proxyEndpoints     map[string][]naming.Endpoint // keyed by proxy address
 }
 
-func New(ctx *context.T) (*proxy, *context.T, error) {
+func New(ctx *context.T, name string) (*proxy, error) {
 	mgr, err := v23.NewFlowManager(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	p := &proxy{
-		m:              mgr,
-		proxyEndpoints: make(map[string][]naming.Endpoint),
+		m:                  mgr,
+		proxyEndpoints:     make(map[string][]naming.Endpoint),
+		listeningEndpoints: make(map[string]naming.Endpoint),
+		pub:                publisher.New(ctx, v23.GetNamespace(ctx), time.Minute),
+		closed:             make(chan struct{}),
 	}
-	for _, addr := range v23.GetListenSpec(ctx).Addrs {
-		if addr.Protocol == "v23" {
-			ep, err := v23.NewEndpoint(addr.Address)
-			if err != nil {
-				return nil, nil, err
-			}
-			go p.connectToProxy(ctx, addr.Address, ep)
-		} else if err := p.m.Listen(ctx, addr.Protocol, addr.Address); err != nil {
-			return nil, nil, err
+	if len(name) > 0 {
+		p.pub.AddName(name, false, false)
+	}
+	lspec := v23.GetListenSpec(ctx)
+	if len(lspec.Proxy) > 0 {
+		address, ep, err := resolveToEndpoint(ctx, lspec.Proxy)
+		if err != nil {
+			return nil, err
+		}
+		go p.connectToProxy(ctx, address, ep)
+	}
+	for _, addr := range lspec.Addrs {
+		if err := p.m.Listen(ctx, addr.Protocol, addr.Address); err != nil {
+			return nil, err
 		}
 	}
+	leps, changed := p.m.ListeningEndpoints()
+	p.updateEndpoints(leps)
+	go p.updateEndpointsLoop(changed)
 	go p.listenLoop(ctx)
-	return p, ctx, nil
+	go func() {
+		<-ctx.Done()
+		p.pub.Stop()
+		p.pub.WaitForStop()
+		close(p.closed)
+	}()
+	return p, nil
+}
+
+func (p *proxy) Closed() <-chan struct{} {
+	return p.closed
+}
+
+func (p *proxy) updateEndpointsLoop(changed <-chan struct{}) {
+	var leps []naming.Endpoint
+	for changed != nil {
+		<-changed
+		leps, changed = p.m.ListeningEndpoints()
+		p.updateEndpoints(leps)
+	}
+}
+
+func (p *proxy) updateEndpoints(leps []naming.Endpoint) {
+	p.mu.Lock()
+	endpoints := make(map[string]naming.Endpoint)
+	for _, ep := range leps {
+		endpoints[ep.String()] = ep
+	}
+	rmEps := setDiff(p.listeningEndpoints, endpoints)
+	addEps := setDiff(endpoints, p.listeningEndpoints)
+	for k := range rmEps {
+		delete(p.listeningEndpoints, k)
+	}
+	for k, ep := range addEps {
+		p.listeningEndpoints[k] = ep
+	}
+	p.mu.Unlock()
+
+	for k := range rmEps {
+		p.pub.RemoveServer(k)
+	}
+	for k := range addEps {
+		p.pub.AddServer(k)
+	}
+}
+
+// setDiff returns the endpoints in a that are not in b.
+func setDiff(a, b map[string]naming.Endpoint) map[string]naming.Endpoint {
+	ret := make(map[string]naming.Endpoint)
+	for k, ep := range a {
+		if _, ok := b[k]; !ok {
+			ret[k] = ep
+		}
+	}
+	return ret
 }
 
 func (p *proxy) ListeningEndpoints() []naming.Endpoint {
@@ -233,4 +306,21 @@ func (p *proxy) connectToProxy(ctx *context.T, address string, ep naming.Endpoin
 			delay = reconnectDelay
 		}
 	}
+}
+
+func resolveToEndpoint(ctx *context.T, name string) (string, naming.Endpoint, error) {
+	resolved, err := v23.GetNamespace(ctx).Resolve(ctx, name)
+	if err != nil {
+		return "", nil, err
+	}
+	for _, n := range resolved.Names() {
+		address, suffix := naming.SplitAddressName(n)
+		if len(suffix) > 0 {
+			continue
+		}
+		if ep, err := v23.NewEndpoint(address); err == nil {
+			return address, ep, nil
+		}
+	}
+	return "", nil, NewErrFailedToResolveToEndpoint(ctx, name)
 }

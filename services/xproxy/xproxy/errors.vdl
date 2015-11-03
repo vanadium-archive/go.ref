@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package xproxyd
+package xproxy
 
 error (
   NotListening() {"en": "Proxy is not listening on any endpoints."}
   UnexpectedMessage(msgType string) {"en": "Unexpected message of type{:msgType}"}
+  FailedToResolveToEndpoint(name string) {"en": "Failed to resolve '{name}' to endpoint"}
 )

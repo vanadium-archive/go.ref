@@ -26,10 +26,10 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/lib/apilog"
+	"v.io/x/ref/lib/publisher"
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/runtime/internal/flow/manager"
-	"v.io/x/ref/runtime/internal/lib/publisher"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
@@ -139,13 +139,6 @@ func WithNewDispatchingServer(ctx *context.T,
 
 	s.listen(rootCtx, v23.GetListenSpec(rootCtx))
 	if len(name) > 0 {
-		// TODO(mattr): We only call AddServer here, but if someone calls AddName
-		// later there will be no servers?
-		s.Lock()
-		for k, _ := range s.endpoints {
-			s.publisher.AddServer(k)
-		}
-		s.Unlock()
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 		vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	}

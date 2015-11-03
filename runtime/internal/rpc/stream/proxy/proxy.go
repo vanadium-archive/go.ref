@@ -21,10 +21,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 
+	"v.io/x/ref/lib/publisher"
 	"v.io/x/ref/runtime/internal/lib/bqueue"
 	"v.io/x/ref/runtime/internal/lib/bqueue/drrqueue"
 	"v.io/x/ref/runtime/internal/lib/iobuf"
-	"v.io/x/ref/runtime/internal/lib/publisher"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream"
