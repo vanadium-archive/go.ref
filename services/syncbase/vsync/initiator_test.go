@@ -365,9 +365,6 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 //////////////////////////////
 // Helpers.
 
-// TODO(sadovsky): If any of the various t.Fatalf()'s below get triggered,
-// cleanup() is not run, and subsequent tests panic with "A runtime has already
-// been initialized".
 func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initiationState, func()) {
 	// Set a large value to prevent the initiator from running.
 	peerSyncInterval = 1 * time.Hour
@@ -375,6 +372,16 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	cleanup := func() {
 		destroyService(t, svc)
 	}
+
+	// If there's an error during testInit, we bail out and should clean up after
+	// ourselves.
+	var err error
+	defer func() {
+		if err != nil {
+			cleanup()
+		}
+	}()
+
 	s := svc.sync
 	s.id = 10 // initiator
 
@@ -412,10 +419,10 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	}
 
 	tx := svc.St().NewTransaction()
-	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
+	if err = s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
 		t.Fatalf("cannot add syncgroup ID %d, err %v", sg1.Id, err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
 		t.Fatalf("cannot commit adding syncgroup ID %d, err %v", sg1.Id, err)
 	}
 
@@ -427,8 +434,8 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		return svc, nil, cleanup
 	}
 
-	c, err := newInitiationConfig(nil, s, connInfo{relName: "b"}, gdb, info, set.String.ToSlice(info.mtTables))
-	if err != nil {
+	var c *initiationConfig
+	if c, err = newInitiationConfig(nil, s, connInfo{relName: "b"}, gdb, info, set.String.ToSlice(info.mtTables)); err != nil {
 		t.Fatalf("newInitiationConfig failed with err %v", err)
 	}
 
@@ -443,7 +450,9 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	sort.Strings(iSt.config.mtTables)
 	sort.Strings(sg1.Spec.MountTables)
 	if !reflect.DeepEqual(iSt.config.mtTables, sg1.Spec.MountTables) {
-		t.Fatalf("Mount tables are not equal: config %v, spec %v", iSt.config.mtTables, sg1.Spec.MountTables)
+		// Set err so that the deferred cleanup func runs.
+		err = fmt.Errorf("Mount tables are not equal: config %v, spec %v", iSt.config.mtTables, sg1.Spec.MountTables)
+		t.Fatal(err)
 	}
 
 	s.initSyncStateInMem(nil, "mockapp", "mockdb", sgOID(sgId1))
@@ -452,7 +461,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 
 	var wantVec interfaces.GenVector
 	if sg {
-		if err := iSt.prepareSGDeltaReq(nil); err != nil {
+		if err = iSt.prepareSGDeltaReq(nil); err != nil {
 			t.Fatalf("prepareSGDeltaReq failed with err %v", err)
 		}
 		sg := fmt.Sprintf("%d", sgId1)
@@ -460,7 +469,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 			sg: interfaces.PrefixGenVector{10: 0},
 		}
 	} else {
-		if err := iSt.prepareDataDeltaReq(nil); err != nil {
+		if err = iSt.prepareDataDeltaReq(nil); err != nil {
 			t.Fatalf("prepareDataDeltaReq failed with err %v", err)
 		}
 
@@ -471,14 +480,16 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	}
 
 	if !reflect.DeepEqual(iSt.local, wantVec) {
-		t.Fatalf("createLocalGenVec failed: got %v, want %v", iSt.local, wantVec)
+		// Set err so that the deferred cleanup func runs.
+		err = fmt.Errorf("createLocalGenVec failed: got %v, want %v", iSt.local, wantVec)
+		t.Fatal(err)
 	}
 
-	if err := iSt.recvAndProcessDeltas(nil); err != nil {
+	if err = iSt.recvAndProcessDeltas(nil); err != nil {
 		t.Fatalf("recvAndProcessDeltas failed with err %v", err)
 	}
 
-	if err := iSt.processUpdatedObjects(nil); err != nil {
+	if err = iSt.processUpdatedObjects(nil); err != nil {
 		t.Fatalf("processUpdatedObjects failed with err %v", err)
 	}
 	return svc, iSt, cleanup
