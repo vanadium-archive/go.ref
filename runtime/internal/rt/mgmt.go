@@ -60,11 +60,12 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 			return err
 		}
 	} else {
-		// AppCycleBlessingsKey is not set: The device manager was
-		// compiled before the change that introduced
-		// UseDeprecatedParentBlessingConfig was introduced.
-		pattern, _ := handle.Config.Get(mgmt.ParentBlessingConfigKey)
-		blessings = rt.GetPrincipal(ctx).BlessingStore().ForPeer(pattern)
+		// TODO(caprita,ashankar): This case should only happen when
+		// the device manager starts itself up as a child process for
+		// testing (see services/device/deviced/internal/impl/device_service.go,
+		// specifically testDeviceManager function).
+		// FIx that up so it is no longer the case?
+		blessings = rt.GetPrincipal(ctx).BlessingStore().Default()
 	}
 	// Arguably could use the same principal with a different blessing store
 	// and blessing roots. However, at the time of this writing there wasn't

@@ -169,8 +169,6 @@ type instanceInfo struct {
 	// Blessings to provide the AppCycleManager in the app with so that it can talk
 	// to the device manager.
 	AppCycleBlessings string
-	// TODO(ashankar): Remove this along with UseDeprecatedParentBlessingConfig
-	DeviceManagerPeerPattern string
 	// TODO(caprita): Change to [agent.PrincipalHandleByteSize]byte and
 	// remove handle() and setHandle() converters.
 	SecurityAgentHandle []byte
@@ -618,39 +616,8 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationI
 	}
 	// In addition, we give the app separate blessings for the purpose of
 	// communicating with the device manager.
-	//
-	dmPrincipal := v23.GetPrincipal(ctx)
-	dmBlessings, b64DMBlessings, err := createCallbackBlessings(ctx, p.PublicKey())
-	if err != nil {
-		return err
-	}
-	info.AppCycleBlessings = b64DMBlessings
-	if mgmt.UseDeprecatedParentBlessingConfig {
-		// Put the names of the device manager's default blessings as patterns
-		// for the child, so that the child uses the right blessing when talking
-		// back to the device manager.
-		for _, pattern := range security.DefaultBlessingPatterns(dmPrincipal) {
-			if _, err := p.BlessingStore().Set(dmBlessings, pattern); err != nil {
-				return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
-			}
-		}
-		// We also want to override the app cycle manager's server blessing in
-		// the child (so that the device manager can send RPCs to it).  We
-		// signal to the child's app manager to use a randomly generated pattern
-		// to extract the right blessing to use from its store for this purpose.
-		randomPattern, err := generateRandomString()
-		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("generateRandomString() failed: %v", err))
-		}
-		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(randomPattern)); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
-		}
-		info.DeviceManagerPeerPattern = randomPattern
-		if err := security.AddToRoots(p, dmBlessings); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
-		}
-	}
-	return nil
+	info.AppCycleBlessings, err = createCallbackBlessings(ctx, p.PublicKey())
+	return err
 }
 
 func addPublisherBlessings(ctx *context.T, instanceDir string, p security.Principal, b security.Blessings) (security.Blessings, error) {
@@ -902,10 +869,10 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 	cfg.Set(mgmt.PublisherBlessingPrefixesKey,
 		v23.GetPrincipal(ctx).BlessingStore().Default().String())
-	cfg.Set(mgmt.AppCycleBlessingsKey, info.AppCycleBlessings)
-	if mgmt.UseDeprecatedParentBlessingConfig {
-		cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
+	if len(info.AppCycleBlessings) == 0 {
+		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("info.AppCycleBessings is missing"))
 	}
+	cfg.Set(mgmt.AppCycleBlessingsKey, info.AppCycleBlessings)
 
 	if instanceName, err := instanceNameFromDir(ctx, instanceDir); err != nil {
 		return 0, err
@@ -940,29 +907,6 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 			// cases, but at lest we'd not prevent the app from
 			// running.
 			return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ServePrincipal failed: %v", err))
-		}
-		if len(info.AppCycleBlessings) == 0 {
-			if mgmt.UseDeprecatedParentBlessingConfig {
-				// For transition, regenerate the AppCycleBlessings.
-				ctx.Infof("Regenerating info.AppCycleBlessings since UseDeprecatedParentBlessingConfig is true and it wasn't set")
-				p, err := agentlib.NewAgentPrincipalX(sockPath)
-				if err != nil {
-					return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to load principal for app for transition from UseDeprecatedParentBlessingConfig: %v", err))
-				}
-				key := p.PublicKey()
-				p.Close()
-				if _, info.AppCycleBlessings, err = createCallbackBlessings(ctx, key); err != nil {
-					return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to create callback blessings: %v", err))
-				}
-				if err := saveInstanceInfo(ctx, instanceDir, info); err != nil {
-					return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to save updated instance info: %v", err))
-				}
-				cfg.Set(mgmt.AppCycleBlessingsKey, info.AppCycleBlessings)
-				ctx.Infof("Successfully rewrote instanceInfo")
-			} else {
-				return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("info.AppCycleBessings is missing"))
-			}
-
 		}
 		cfg.Set(mgmt.SecurityAgentPathConfigKey, sockPath)
 		defer func() {
@@ -1845,8 +1789,7 @@ func (i *appService) instanceStatus(ctx *context.T) (device.InstanceStatus, erro
 	}, nil
 }
 
-// TODO(ashankar): Remove the first return argument when UseDeprecatedParentBlessingConfig is removed.
-func createCallbackBlessings(ctx *context.T, app security.PublicKey) (security.Blessings, string, error) {
+func createCallbackBlessings(ctx *context.T, app security.PublicKey) (string, error) {
 	dm := v23.GetPrincipal(ctx) // device manager principal
 	// NOTE(caprita/ataly): Giving the app an unconstrained blessing from
 	// the device manager's default presents the app with a blessing that's
@@ -1856,11 +1799,11 @@ func createCallbackBlessings(ctx *context.T, app security.PublicKey) (security.B
 	// that the device manger produces solely to talk to the app).
 	b, err := dm.Bless(app, dm.BlessingStore().Default(), "callback", security.UnconstrainedUse())
 	if err != nil {
-		return b, "", verror.New(errors.ErrOperationFailed, ctx, err)
+		return "", verror.New(errors.ErrOperationFailed, ctx, err)
 	}
 	bytes, err := vom.Encode(b)
 	if err != nil {
-		return b, "", verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to encode app cycle blessings: %v", err))
+		return "", verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to encode app cycle blessings: %v", err))
 	}
-	return b, base64.URLEncoding.EncodeToString(bytes), nil
+	return base64.URLEncoding.EncodeToString(bytes), nil
 }
