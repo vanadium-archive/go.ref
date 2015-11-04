@@ -336,23 +336,24 @@ func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint) {
 			ctx.Error(err)
 			continue
 		}
-		eps, err = m.readProxyResponse(ctx, f)
-		if err != nil {
-			ctx.Error(err)
-			continue
+		for {
+			// we keep reading updates until we encounter an error, usually because the
+			// flow has been closed.
+			eps, err = m.readProxyResponse(ctx, f)
+			if err != nil {
+				ctx.Error(err)
+				break
+			}
+			for i := range eps {
+				eps[i].(*inaming.Endpoint).Blessings = m.serverNames
+			}
+			m.updateProxyEndpoints(eps)
 		}
-		for i := range eps {
-			eps[i].(*inaming.Endpoint).Blessings = m.serverNames
-		}
-		m.updateProxyEndpoints(eps)
 		select {
-		case <-ctx.Done():
-			return
-		case <-stopProxy:
-			return
 		case <-f.Closed():
 			m.updateProxyEndpoints(nil)
 			delay = reconnectDelay
+		default:
 		}
 	}
 }

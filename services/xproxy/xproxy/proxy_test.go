@@ -7,7 +7,6 @@ package xproxy_test
 import (
 	"bufio"
 	"fmt"
-	"math/rand"
 	"strings"
 	"sync"
 	"testing"
@@ -91,12 +90,22 @@ func TestMultipleProxyRPC(t *testing.T) {
 	sctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	if _, _, err := v23.WithNewServer(sctx, "server", &testService{}, nil); err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	var got string
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	}
+	if want := "response:hello"; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	kp.KillConnections()
+	// Killing the connections and trying again should work.
+	for {
+		if err := v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&got}); err == nil {
+			break
+		}
 	}
 	if want := "response:hello"; got != want {
 		t.Errorf("got %v, want %v", got, want)
@@ -273,7 +282,7 @@ func TestMultipleProxies(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	kp := newKillProtocol()
 	flow.RegisterProtocol("kill", kp)
-	ctx, shutdown := test.V23InitWithMounttable()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	am, err := v23.NewFlowManager(ctx)
 	if err != nil {
@@ -301,19 +310,18 @@ func TestMultipleProxies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for {
+	for i := 0; i < 3; {
 		eps, changed := am.ListeningEndpoints()
-		// TODO(suharshs): Fix this test once we have the proxy send update messages to the
-		// server when it reconnects to a proxy. This test only really tests the first connection
-		// currently because the connections are cached. So we need to kill connections and
-		// wait for them to reestablish but we need proxies to update communicate their new endpoints
-		// to each other and to the server. For now we at least check a random endpoint so the
-		// test will at least fail over many runs if something is wrong.
-		if eps[0].Addr().Network() != bidiProtocol {
-			if err := testEndToEndConnection(t, ctx, dm, am, eps[rand.Int()%3]); err != nil {
-				t.Error(err)
+		if eps[0].Addr().Network() != bidiProtocol && len(eps) > i {
+			if err := testEndToEndConnection(t, ctx, dm, am, eps[i]); err != nil {
+				// TODO(suharshs): We sometimes begin dialing the connection before the
+				// conn has been closed. In that case, we will get an error when
+				// writing on the connection. For that reason, we don't error out if we
+				// get an error here, and instead keep trying until we succeed.
+				continue
 			}
-			return
+			i++
+			kp.KillConnections()
 		}
 		<-changed
 	}
@@ -392,7 +400,6 @@ type address struct {
 
 func startProxy(t *testing.T, ctx *context.T, name string, auth security.Authorizer, listenOnProxy string, addrs ...address) (string, func()) {
 	var ls rpc.ListenSpec
-	hasProxies := len(listenOnProxy) > 0
 	for _, addr := range addrs {
 		ls.Addrs = append(ls.Addrs, addr)
 	}
@@ -406,12 +413,6 @@ func startProxy(t *testing.T, ctx *context.T, name string, auth security.Authori
 	stop := func() {
 		cancel()
 		<-proxy.Closed()
-	}
-	// Wait for the proxy to connect to its proxies.
-	if hasProxies {
-		for len(proxy.MultipleProxyEndpoints()) == 0 {
-			time.Sleep(pollTime)
-		}
 	}
 	if len(name) > 0 {
 		waitForPublish(ctx, name)

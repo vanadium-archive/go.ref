@@ -32,6 +32,8 @@ type proxy struct {
 	mu                 sync.Mutex
 	listeningEndpoints map[string]naming.Endpoint   // keyed by endpoint string
 	proxyEndpoints     map[string][]naming.Endpoint // keyed by proxy address
+	proxiedProxies     []flow.Flow                  // flows of proxies that are listening through us.
+	proxiedServers     []flow.Flow                  // flows of servers that are listening through us.
 }
 
 func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) {
@@ -67,8 +69,8 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 		}
 	}
 	leps, changed := p.m.ListeningEndpoints()
-	p.updateEndpoints(leps)
-	go p.updateEndpointsLoop(changed)
+	p.updateListeningEndpoints(ctx, leps)
+	go p.updateEndpointsLoop(ctx, changed)
 	go p.listenLoop(ctx)
 	go func() {
 		<-ctx.Done()
@@ -83,16 +85,16 @@ func (p *proxy) Closed() <-chan struct{} {
 	return p.closed
 }
 
-func (p *proxy) updateEndpointsLoop(changed <-chan struct{}) {
+func (p *proxy) updateEndpointsLoop(ctx *context.T, changed <-chan struct{}) {
 	var leps []naming.Endpoint
 	for changed != nil {
 		<-changed
 		leps, changed = p.m.ListeningEndpoints()
-		p.updateEndpoints(leps)
+		p.updateListeningEndpoints(ctx, leps)
 	}
 }
 
-func (p *proxy) updateEndpoints(leps []naming.Endpoint) {
+func (p *proxy) updateListeningEndpoints(ctx *context.T, leps []naming.Endpoint) {
 	p.mu.Lock()
 	endpoints := make(map[string]naming.Endpoint)
 	for _, ep := range leps {
@@ -106,6 +108,8 @@ func (p *proxy) updateEndpoints(leps []naming.Endpoint) {
 	for k, ep := range addEps {
 		p.listeningEndpoints[k] = ep
 	}
+
+	p.sendUpdatesLocked(ctx)
 	p.mu.Unlock()
 
 	for k := range rmEps {
@@ -114,6 +118,44 @@ func (p *proxy) updateEndpoints(leps []naming.Endpoint) {
 	for k := range addEps {
 		p.pub.AddServer(k)
 	}
+}
+
+func (p *proxy) sendUpdatesLocked(ctx *context.T) {
+	// Send updates to the proxies and servers that are listening through us.
+	// TODO(suharshs): Should we send these in parallel?
+	i := 0
+	for _, f := range p.proxiedProxies {
+		if !isClosed(f) {
+			if err := p.replyToProxyLocked(ctx, f); err != nil {
+				ctx.Error(err)
+				continue
+			}
+			p.proxiedProxies[i] = f
+			i++
+		}
+	}
+	p.proxiedProxies = p.proxiedProxies[:i]
+	i = 0
+	for _, f := range p.proxiedServers {
+		if !isClosed(f) {
+			if err := p.replyToServerLocked(ctx, f); err != nil {
+				ctx.Error(err)
+				continue
+			}
+			p.proxiedServers[i] = f
+			i++
+		}
+	}
+	p.proxiedServers = p.proxiedServers[:i]
+}
+
+func isClosed(f flow.Flow) bool {
+	select {
+	case <-f.Closed():
+		return true
+	default:
+	}
+	return false
 }
 
 // setDiff returns the endpoints in a that are not in b.
@@ -158,9 +200,19 @@ func (p *proxy) listenLoop(ctx *context.T) {
 		case *message.Setup:
 			err = p.startRouting(ctx, f, m)
 		case *message.MultiProxyRequest:
-			err = p.replyToProxy(ctx, f)
+			p.mu.Lock()
+			err = p.replyToProxyLocked(ctx, f)
+			if err == nil {
+				p.proxiedProxies = append(p.proxiedProxies, f)
+			}
+			p.mu.Unlock()
 		case *message.ProxyServerRequest:
-			err = p.replyToServer(ctx, f)
+			p.mu.Lock()
+			err = p.replyToServerLocked(ctx, f)
+			if err == nil {
+				p.proxiedServers = append(p.proxiedServers, f)
+			}
+			p.mu.Unlock()
 		default:
 			continue
 		}
@@ -222,7 +274,7 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 	return fout, writeMessage(ctx, m, fout)
 }
 
-func (p *proxy) replyToServer(ctx *context.T, f flow.Flow) error {
+func (p *proxy) replyToServerLocked(ctx *context.T, f flow.Flow) error {
 	call := security.NewCall(&security.CallParams{
 		LocalPrincipal:   v23.GetPrincipal(ctx),
 		LocalBlessings:   f.LocalBlessings(),
@@ -237,33 +289,31 @@ func (p *proxy) replyToServer(ctx *context.T, f flow.Flow) error {
 		return err
 	}
 	rid := f.RemoteEndpoint().RoutingID()
-	eps, err := p.returnEndpoints(ctx, rid, "")
+	eps, err := p.returnEndpointsLocked(ctx, rid, "")
 	if err != nil {
 		return err
 	}
 	return writeMessage(ctx, &message.ProxyResponse{Endpoints: eps}, f)
 }
 
-func (p *proxy) replyToProxy(ctx *context.T, f flow.Flow) error {
+func (p *proxy) replyToProxyLocked(ctx *context.T, f flow.Flow) error {
 	// Add the routing id of the incoming proxy to the routes. The routing id of the
 	// returned endpoint doesn't matter because it will eventually be replaced
 	// by a server's rid by some later proxy.
 	// TODO(suharshs): Use a local route instead of this global routingID.
 	rid := f.RemoteEndpoint().RoutingID()
-	eps, err := p.returnEndpoints(ctx, naming.NullRoutingID, rid.String())
+	eps, err := p.returnEndpointsLocked(ctx, naming.NullRoutingID, rid.String())
 	if err != nil {
 		return err
 	}
 	return writeMessage(ctx, &message.ProxyResponse{Endpoints: eps}, f)
 }
 
-func (p *proxy) returnEndpoints(ctx *context.T, rid naming.RoutingID, route string) ([]naming.Endpoint, error) {
-	p.mu.Lock()
+func (p *proxy) returnEndpointsLocked(ctx *context.T, rid naming.RoutingID, route string) ([]naming.Endpoint, error) {
 	eps, _ := p.m.ListeningEndpoints()
 	for _, peps := range p.proxyEndpoints {
 		eps = append(eps, peps...)
 	}
-	p.mu.Unlock()
 	if len(eps) == 0 {
 		return nil, NewErrNotListening(ctx)
 	}
@@ -307,24 +357,38 @@ func (p *proxy) connectToProxy(ctx *context.T, address string, ep naming.Endpoin
 			ctx.Error(err)
 			continue
 		}
-		eps, err := readProxyResponse(ctx, f)
-		if err != nil {
-			ctx.Error(err)
-			continue
+		for {
+			// we keep reading updates until we encounter an error, usually because the
+			// flow has been closed.
+			eps, err := readProxyResponse(ctx, f)
+			if err != nil {
+				select {
+				case <-ctx.Done():
+				default:
+					ctx.Error(err)
+				}
+				break
+			}
+			p.updateProxyEndpoints(ctx, address, eps)
 		}
-		p.mu.Lock()
-		p.proxyEndpoints[address] = eps
-		p.mu.Unlock()
 		select {
-		case <-ctx.Done():
-			return
 		case <-f.Closed():
-			p.mu.Lock()
-			delete(p.proxyEndpoints, address)
-			p.mu.Unlock()
+			p.updateProxyEndpoints(ctx, address, nil)
 			delay = reconnectDelay
+		default:
 		}
 	}
+}
+
+func (p *proxy) updateProxyEndpoints(ctx *context.T, address string, eps []naming.Endpoint) {
+	p.mu.Lock()
+	if len(eps) > 0 {
+		p.proxyEndpoints[address] = eps
+	} else {
+		delete(p.proxyEndpoints, address)
+	}
+	p.sendUpdatesLocked(ctx)
+	p.mu.Unlock()
 }
 
 func resolveToEndpoint(ctx *context.T, name string) (string, naming.Endpoint, error) {
