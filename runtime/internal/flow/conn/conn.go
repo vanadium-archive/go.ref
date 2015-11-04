@@ -262,7 +262,6 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endp
 	}
 	id := c.nextFid
 	c.nextFid += 2
-	// TODO(suharshs): endpoint fix below
 	return c.newFlowLocked(ctx, id, bkey, dkey, remote, true, false), nil
 }
 
