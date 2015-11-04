@@ -17,8 +17,4 @@ const (
 	PublisherBlessingPrefixesKey   = "MGMT_PUBLISHER_BLESSING_PREFIXES"
 	InstanceNameKey                = "MGMT_INSTANCE_NAME"
 	AppCycleBlessingsKey           = "MGMT_APP_CYCLE_BLESSINGS"
-
-	// TODO(ashankar): Remove by November 14, 2015
-	UseDeprecatedParentBlessingConfig = true
-	ParentBlessingConfigKey           = "MGMT_PARENT_BLESSING_PEER_PATTERN"
 )
