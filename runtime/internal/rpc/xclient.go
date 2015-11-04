@@ -477,6 +477,9 @@ func (c *xclient) failedTryCall(ctx *context.T, name, method string, responses [
 				onlyErrNetwork = false
 			/*case stream.ErrAborted.ID, stream.ErrNetwork.ID:*/
 			// do nothing
+			case verror.ErrTimeout.ID:
+				topLevelError = verror.ErrTimeout
+				onlyErrNetwork = false
 			default:
 				onlyErrNetwork = false
 			}
