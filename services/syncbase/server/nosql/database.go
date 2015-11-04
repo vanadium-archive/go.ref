@@ -265,7 +265,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 			req:  d,
 			sntx: sntx,
 		}
-		headers, rs, err := engine.Exec(db, q)
+		headers, rs, err := engine.Create(db).Exec(q)
 		if err != nil {
 			return err
 		}

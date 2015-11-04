@@ -91,7 +91,7 @@ func (m *queryMatcher) match(ctx *context.T, ad *Advertisement) bool {
 		return false
 	}
 
-	_, r, err := engine.Exec(ds, m.query)
+	_, r, err := engine.Create(ds).Exec(m.query)
 	if err != nil {
 		ctx.Error(err)
 		return false
@@ -119,7 +119,7 @@ func newMatcher(query string) (matcher, error) {
 	// Validate the query.
 	//
 	// TODO(jhahn): Pre-compile the query when it's ready.
-	_, r, err := engine.Exec(&dDS{}, query)
+	_, r, err := engine.Create(&dDS{}).Exec(query)
 	if err != nil {
 		return nil, err
 	}
