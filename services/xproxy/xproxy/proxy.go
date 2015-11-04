@@ -14,6 +14,7 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/naming"
+	"v.io/v23/security"
 
 	"v.io/x/ref/lib/publisher"
 )
@@ -26,23 +27,28 @@ type proxy struct {
 	m      flow.Manager
 	pub    publisher.Publisher
 	closed chan struct{}
+	auth   security.Authorizer
 
 	mu                 sync.Mutex
 	listeningEndpoints map[string]naming.Endpoint   // keyed by endpoint string
 	proxyEndpoints     map[string][]naming.Endpoint // keyed by proxy address
 }
 
-func New(ctx *context.T, name string) (*proxy, error) {
+func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) {
 	mgr, err := v23.NewFlowManager(ctx)
 	if err != nil {
 		return nil, err
 	}
 	p := &proxy{
 		m:                  mgr,
+		auth:               auth,
 		proxyEndpoints:     make(map[string][]naming.Endpoint),
 		listeningEndpoints: make(map[string]naming.Endpoint),
 		pub:                publisher.New(ctx, v23.GetNamespace(ctx), time.Minute),
 		closed:             make(chan struct{}),
+	}
+	if p.auth == nil {
+		p.auth = security.DefaultAuthorizer()
 	}
 	if len(name) > 0 {
 		p.pub.AddName(name, false, false)
@@ -217,6 +223,19 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 }
 
 func (p *proxy) replyToServer(ctx *context.T, f flow.Flow) error {
+	call := security.NewCall(&security.CallParams{
+		LocalPrincipal:   v23.GetPrincipal(ctx),
+		LocalBlessings:   f.LocalBlessings(),
+		RemoteBlessings:  f.RemoteBlessings(),
+		LocalEndpoint:    f.LocalEndpoint(),
+		RemoteEndpoint:   f.RemoteEndpoint(),
+		RemoteDischarges: f.RemoteDischarges(),
+	})
+	if err := p.auth.Authorize(ctx, call); err != nil {
+		// TODO(suharshs): should we return the err to the server in the ProxyResponse message?
+		f.Close()
+		return err
+	}
 	rid := f.RemoteEndpoint().RoutingID()
 	eps, err := p.returnEndpoints(ctx, rid, "")
 	if err != nil {

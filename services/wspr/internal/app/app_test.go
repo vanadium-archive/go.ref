@@ -335,7 +335,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 	var proxyEndpoint naming.Endpoint
 	if ref.RPCTransitionState() >= ref.XServers {
 		pctx, cancel := context.WithCancel(ctx)
-		proxy, perr := xproxy.New(v23.WithListenSpec(pctx, proxySpec), "")
+		proxy, perr := xproxy.New(v23.WithListenSpec(pctx, proxySpec), "", security.AllowEveryone())
 		proxyEndpoint = proxy.ListeningEndpoints()[0]
 		if protocol := proxyEndpoint.Addr().Network(); protocol != "tcp" {
 			return nil, fmt.Errorf("Got %s want tcp", protocol)
