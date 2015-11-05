@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"v.io/x/ref"
 )
 
 // action is a var so we can override it for testing.
@@ -31,7 +32,7 @@ var action = func(command, action, service string) error {
 	}
 	// Clear env.  In particular, initctl doesn't like USER being set to
 	// something other than root.
-	cmd.Env = []string{}
+	cmd.Env = []string{ref.RPCTransitionStateVar + "=" + os.Getenv(ref.RPCTransitionStateVar)}
 	output, err := cmd.CombinedOutput()
 	fmt.Fprintf(os.Stderr, "%s output: for %s %s: %s\n", command, action, service, output)
 	return err

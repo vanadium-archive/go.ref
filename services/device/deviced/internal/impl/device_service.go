@@ -241,6 +241,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	path := filepath.Join(workspace, "deviced.sh")
 	cmd := exec.Command(path)
 	cmd.Env = []string{"DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR=1"}
+	cmd.Env = append(cmd.Env, ref.RPCTransitionStateVar+"="+os.Getenv(ref.RPCTransitionStateVar))
 
 	for k, v := range map[string]*io.Writer{
 		"stdout": &cmd.Stdout,

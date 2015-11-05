@@ -30,6 +30,7 @@ import (
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/mounttable/mounttablelib"
+	"v.io/x/ref/services/xproxy/xproxy"
 )
 
 const pkgPath = "v.io/x/ref/services/device/deviced/internal/starter"
@@ -176,14 +177,19 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 	if args.Device.ListenSpec.Proxy != "" {
 		if ref.RPCTransitionState() == ref.XServers {
 			for {
-				eps := server.Status().Endpoints
-				if len(eps) > 0 && len(eps[0].Addr().Network()) > 0 {
-					epName = eps[0].Name()
+				status := server.Status()
+				// TODO(suharshs): This works because we put proxied endpoints first on
+				// the returned list from manager.ListeningEndpoints. We are listening on
+				// both a network address and a proxy so once we have two endpoints, we
+				// know that the first one must be the proxies. This is a hack and will
+				// be replaced by bidi rpc once the transition is complete.
+				if len(status.Endpoints) > 1 {
+					epName = status.Endpoints[0].Name()
 					ctx.Infof("Proxied address: %s", epName)
 					break
 				}
 				ctx.Infof("Waiting for proxy address to appear...")
-				time.Sleep(time.Second)
+				<-status.Valid
 			}
 		} else {
 			// TODO(suharshs): Remove this else block once the transition is complete.
@@ -307,9 +313,27 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 	ls.Addrs = rpc.ListenAddrs{{protocol, addr}}
 	// TODO(ashankar): Revisit this choice of security.AllowEveryone
 	// See: https://v.io/i/387
-	shutdown, ep, err := roaming.NewProxy(ctx, ls, security.AllowEveryone())
-	if err != nil {
-		return nil, verror.New(errCantCreateProxy, ctx, err)
+	var (
+		shutdown func()
+		ep       naming.Endpoint
+	)
+	if ref.RPCTransitionState() >= ref.XServers {
+		ctx, cancel := context.WithCancel(ctx)
+		p, err := xproxy.New(ctx, "", security.AllowEveryone())
+		if err != nil {
+			return nil, verror.New(errCantCreateProxy, ctx, err)
+		}
+		ep = p.ListeningEndpoints()[0]
+		shutdown = func() {
+			cancel()
+			<-p.Closed()
+		}
+	} else {
+		var err error
+		shutdown, ep, err = roaming.NewProxy(ctx, ls, security.AllowEveryone())
+		if err != nil {
+			return nil, verror.New(errCantCreateProxy, ctx, err)
+		}
 	}
 	ctx.Infof("Local proxy (%v)", ep.Name())
 	return func() {

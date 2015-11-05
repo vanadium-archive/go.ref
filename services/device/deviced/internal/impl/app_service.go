@@ -798,6 +798,7 @@ func genCmd(ctx *context.T, instanceDir, nsRoot string, usingSocketAgent bool) (
 
 	// Set the app's default namespace root to the local namespace.
 	saArgs.env = []string{ref.EnvNamespacePrefix + "=" + nsRoot}
+	saArgs.env = append(saArgs.env, ref.RPCTransitionStateVar+"="+os.Getenv(ref.RPCTransitionStateVar))
 	saArgs.env = append(saArgs.env, envelope.Env...)
 	rootDir := filepath.Join(instanceDir, "root")
 	saArgs.dir = rootDir

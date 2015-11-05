@@ -20,6 +20,7 @@ import (
 	"v.io/v23/services/build"
 	"v.io/v23/verror"
 	"v.io/x/lib/host"
+	"v.io/x/ref"
 )
 
 const pkgPath = "v.io/x/ref/services/build/buildd"
@@ -96,6 +97,7 @@ func (i *builderService) Build(ctx *context.T, call build.BuilderBuildServerCall
 	if tmpdir, ok := os.LookupEnv("TMPDIR"); ok {
 		cmd.Env = append(cmd.Env, "TMPDIR="+tmpdir)
 	}
+	cmd.Env = append(cmd.Env, ref.RPCTransitionStateVar+"="+os.Getenv(ref.RPCTransitionStateVar))
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
