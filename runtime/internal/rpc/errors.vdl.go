@@ -25,6 +25,8 @@ var (
 	errBadAuth                       = verror.Register("v.io/x/ref/runtime/internal/rpc.badAuth", verror.NoRetry, "{1:}{2:} not authorized to call {3}.{4}: {5}")
 	errTypeFlowFailure               = verror.Register("v.io/x/ref/runtime/internal/rpc.typeFlowFailure", verror.NoRetry, "{1:}{2:} type flow could not be constructed{:3}")
 	errServerBlessingsWrongPublicKey = verror.Register("v.io/x/ref/runtime/internal/rpc.serverBlessingsWrongPublicKey", verror.NoRetry, "{1:}{2:} server blessings do not match the principals public key")
+	errServerPeersEmpty              = verror.Register("v.io/x/ref/runtime/internal/rpc.serverPeersEmpty", verror.NoRetry, "{1:}{2:} no peers are authorized to communicate with the server")
+	errServerPeersWithPublishing     = verror.Register("v.io/x/ref/runtime/internal/rpc.serverPeersWithPublishing", verror.NoRetry, "{1:}{2:} ServerPeers option is not supported for servers that publish their endpoint at a mounttable")
 )
 
 func init() {
@@ -37,6 +39,8 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadAuth.ID), "{1:}{2:} not authorized to call {3}.{4}: {5}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errTypeFlowFailure.ID), "{1:}{2:} type flow could not be constructed{:3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerBlessingsWrongPublicKey.ID), "{1:}{2:} server blessings do not match the principals public key")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerPeersEmpty.ID), "{1:}{2:} no peers are authorized to communicate with the server")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerPeersWithPublishing.ID), "{1:}{2:} ServerPeers option is not supported for servers that publish their endpoint at a mounttable")
 }
 
 // newErrBadRequest returns an error with the errBadRequest ID.
@@ -82,4 +86,14 @@ func newErrTypeFlowFailure(ctx *context.T, err error) error {
 // newErrServerBlessingsWrongPublicKey returns an error with the errServerBlessingsWrongPublicKey ID.
 func newErrServerBlessingsWrongPublicKey(ctx *context.T) error {
 	return verror.New(errServerBlessingsWrongPublicKey, ctx)
+}
+
+// newErrServerPeersEmpty returns an error with the errServerPeersEmpty ID.
+func newErrServerPeersEmpty(ctx *context.T) error {
+	return verror.New(errServerPeersEmpty, ctx)
+}
+
+// newErrServerPeersWithPublishing returns an error with the errServerPeersWithPublishing ID.
+func newErrServerPeersWithPublishing(ctx *context.T) error {
+	return verror.New(errServerPeersWithPublishing, ctx)
 }

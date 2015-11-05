@@ -70,7 +70,10 @@ func TestRemoteDialerClose(t *testing.T) {
 	defer shutdown()
 	s := set{conns: map[flow.Conn]bool{}}
 	ctx = debug.WithFilter(ctx, s.add)
-	d, a := setupConns(t, "debug", "local/", ctx, ctx, nil, nil)
+	d, a, derr, aerr := setupConns(t, "debug", "local/", ctx, ctx, nil, nil, nil, nil)
+	if derr != nil || aerr != nil {
+		t.Fatal(derr, aerr)
+	}
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
@@ -86,7 +89,10 @@ func TestRemoteAcceptorClose(t *testing.T) {
 	defer shutdown()
 	s := set{conns: map[flow.Conn]bool{}}
 	ctx = debug.WithFilter(ctx, s.add)
-	d, a := setupConns(t, "debug", "local/", ctx, ctx, nil, nil)
+	d, a, derr, aerr := setupConns(t, "debug", "local/", ctx, ctx, nil, nil, nil, nil)
+	if derr != nil || aerr != nil {
+		t.Fatal(derr, aerr)
+	}
 	a.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-a.Closed()
 	<-d.Closed()
@@ -102,7 +108,10 @@ func TestUnderlyingConnectionClosed(t *testing.T) {
 	defer shutdown()
 	s := set{conns: map[flow.Conn]bool{}}
 	ctx = debug.WithFilter(ctx, s.add)
-	d, a := setupConns(t, "debug", "local/", ctx, ctx, nil, nil)
+	d, a, derr, aerr := setupConns(t, "debug", "local/", ctx, ctx, nil, nil, nil, nil)
+	if derr != nil || aerr != nil {
+		t.Fatal(derr, aerr)
+	}
 	s.closeAll()
 	<-a.Closed()
 	<-d.Closed()
@@ -113,7 +122,10 @@ func TestDialAfterConnClose(t *testing.T) {
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-	d, a := setupConns(t, "local", "", ctx, ctx, nil, nil)
+	d, a, derr, aerr := setupConns(t, "local", "", ctx, ctx, nil, nil, nil, nil)
+	if derr != nil || aerr != nil {
+		t.Fatal(derr, aerr)
+	}
 
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
@@ -168,7 +180,10 @@ func TestFlowCancelOnWrite(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	accept := make(chan flow.Flow, 1)
-	dc, ac := setupConns(t, "local", "", ctx, ctx, nil, accept)
+	dc, ac, derr, aerr := setupConns(t, "local", "", ctx, ctx, nil, accept, nil, nil)
+	if derr != nil || aerr != nil {
+		t.Fatal(derr, aerr)
+	}
 	defer func() {
 		dc.Close(ctx, nil)
 		ac.Close(ctx, nil)
@@ -204,7 +219,10 @@ func TestFlowCancelOnRead(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	accept := make(chan flow.Flow, 1)
-	dc, ac := setupConns(t, "local", "", ctx, ctx, nil, accept)
+	dc, ac, derr, aerr := setupConns(t, "local", "", ctx, ctx, nil, accept, nil, nil)
+	if derr != nil || aerr != nil {
+		t.Fatal(derr, aerr)
+	}
 	defer func() {
 		dc.Close(ctx, nil)
 		ac.Close(ctx, nil)

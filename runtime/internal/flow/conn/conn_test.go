@@ -105,7 +105,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 		dch <- d
 	}()
 	go func() {
-		a, err := NewAccepted(ctx, lBlessings, amrw, ep, versions, time.Minute, fh1)
+		a, err := NewAccepted(ctx, lBlessings, nil, amrw, ep, versions, time.Minute, fh1)
 		if err != nil {
 			panic(err)
 		}

@@ -194,7 +194,7 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		status.serverErr = suberr(verror.New(errInvalidEndpoint, ctx))
 		return
 	}
-	peerAuth := peerAuthorizer{auth, method, suffix, args}
+	peerAuth := peerAuthorizer{auth, method, args}
 	flow, err := c.flowMgr.Dial(ctx, ep, peerAuth)
 	if err != nil {
 		ctx.VI(2).Infof("rpc: failed to create Flow with %v: %v", server, err)
@@ -253,7 +253,6 @@ func (a typeFlowAuthorizer) BlessingsForPeer(ctx *context.T, peerNames []string)
 type peerAuthorizer struct {
 	auth   security.Authorizer
 	method string
-	suffix string
 	args   []interface{}
 }
 
@@ -263,10 +262,10 @@ func (x peerAuthorizer) AuthorizePeer(
 	remoteBlessings security.Blessings,
 	remoteDischarges map[string]security.Discharge) ([]string, []security.RejectedBlessing, error) {
 	localPrincipal := v23.GetPrincipal(ctx)
+	// The "Method" and "Suffix" fields of the call are not populated
+	// as they are considered irrelevant for authorizing server blessings.
 	call := security.NewCall(&security.CallParams{
 		Timestamp:        time.Now(),
-		Method:           x.method,
-		Suffix:           x.suffix,
 		LocalPrincipal:   localPrincipal,
 		LocalEndpoint:    localEP,
 		RemoteBlessings:  remoteBlessings,
@@ -619,6 +618,8 @@ func (fc *flowXClient) start(suffix, method string, args []interface{}, deadline
 }
 
 func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts []rpc.CallOpt) (security.Blessings, error) {
+	// The "Method" and "Suffix" fields of the call are not populated
+	// as they are considered irrelevant for authorizing server blessings.
 	call := security.NewCall(&security.CallParams{
 		LocalPrincipal:   v23.GetPrincipal(ctx),
 		LocalBlessings:   fc.flow.LocalBlessings(),
@@ -627,8 +628,6 @@ func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts 
 		RemoteEndpoint:   fc.flow.RemoteEndpoint(),
 		LocalDischarges:  fc.flow.LocalDischarges(),
 		RemoteDischarges: fc.flow.RemoteDischarges(),
-		Method:           method,
-		Suffix:           suffix,
 	})
 	// TODO(suharshs): Its unfortunate that we compute these here and also in the
 	// peerAuthorizer struct. Find a way to only do this once.

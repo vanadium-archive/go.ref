@@ -172,6 +172,7 @@ func NewDialed(
 func NewAccepted(
 	ctx *context.T,
 	lBlessings security.Blessings,
+	lAuthorizedPeers []security.BlessingPattern,
 	conn flow.MsgReadWriteCloser,
 	local naming.Endpoint,
 	versions version.RPCVersionRange,
@@ -195,7 +196,7 @@ func NewAccepted(
 	// FIXME(mattr): This scheme for deadlines is nice, but it doesn't
 	// provide for cancellation when ctx is canceled.
 	t := time.AfterFunc(handshakeTimeout, func() { conn.Close() })
-	err := c.acceptHandshake(ctx, versions)
+	err := c.acceptHandshake(ctx, versions, lAuthorizedPeers)
 	if stopped := t.Stop(); !stopped {
 		err = verror.NewErrTimeout(ctx)
 	}
@@ -252,7 +253,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endp
 		// encoding of the publicKey can never error out.
 		blessings, _ = security.NamelessBlessing(c.lBlessings.PublicKey())
 	}
-	if bkey, dkey, err = c.blessingsFlow.send(ctx, blessings, discharges); err != nil {
+	if bkey, dkey, err = c.blessingsFlow.send(ctx, blessings, discharges, nil); err != nil {
 		return nil, err
 	}
 	defer c.mu.Unlock()

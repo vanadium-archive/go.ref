@@ -18,6 +18,7 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -107,6 +108,14 @@ type singleBlessingPrincipal struct {
 
 func (p *singleBlessingPrincipal) BlessingStore() security.BlessingStore {
 	return &p.b
+}
+
+func extractKey(t *testing.T, rootCtx *context.T, root *bcrypter.Root, blessing string) *bcrypter.PrivateKey {
+	key, err := root.Extract(rootCtx, blessing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return key
 }
 
 func withPrincipal(t *testing.T, ctx *context.T, name string, caveats ...security.Caveat) *context.T {

@@ -14,7 +14,7 @@ type WireCiphertext struct {
         // Bytes is a map from an identifier of the public IBE params to
 	// the ciphertext bytes that were generated using those params.
 	//
-	// The params identitifier is a 16 byte truncated SHA256 hash
+	// The params identifier is a 16 byte truncated SHA256 hash
 	// of the marshaled form of the IBE params.
 	Bytes map[string][]byte
 }

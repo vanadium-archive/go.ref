@@ -38,13 +38,14 @@ const (
 )
 
 type manager struct {
-	rid             naming.RoutingID
-	closed          chan struct{}
-	cache           *ConnCache
-	ls              *listenState
-	ctx             *context.T
-	serverBlessings security.Blessings
-	serverNames     []string
+	rid                   naming.RoutingID
+	closed                chan struct{}
+	cache                 *ConnCache
+	ls                    *listenState
+	ctx                   *context.T
+	serverBlessings       security.Blessings
+	serverAuthorizedPeers []security.BlessingPattern // empty list implies all peers are authorized to see the server's blessings.
+	serverNames           []string
 }
 
 type listenState struct {
@@ -68,7 +69,7 @@ type endpointState struct {
 	roaming      bool
 }
 
-func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID, dhcpPublisher *pubsub.Publisher) flow.Manager {
+func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID, serverAuthorizedPeers []security.BlessingPattern, dhcpPublisher *pubsub.Publisher) flow.Manager {
 	m := &manager{
 		rid:    rid,
 		closed: make(chan struct{}),
@@ -77,6 +78,7 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 	}
 	if rid != naming.NullRoutingID {
 		m.serverBlessings = serverBlessings
+		m.serverAuthorizedPeers = serverAuthorizedPeers
 		m.serverNames = security.BlessingNames(v23.GetPrincipal(ctx), serverBlessings)
 		m.ls = &listenState{
 			q:              upcqueue.New(),
@@ -110,7 +112,7 @@ func New(ctx *context.T, rid naming.RoutingID, dhcpPublisher *pubsub.Publisher) 
 	if rid != naming.NullRoutingID {
 		serverBlessings = v23.GetPrincipal(ctx).BlessingStore().Default()
 	}
-	return NewWithBlessings(ctx, serverBlessings, rid, dhcpPublisher)
+	return NewWithBlessings(ctx, serverBlessings, rid, nil, dhcpPublisher)
 }
 
 func (m *manager) stopListening() {
@@ -462,6 +464,7 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			c, err := conn.NewAccepted(
 				m.ctx,
 				m.serverBlessings,
+				m.serverAuthorizedPeers,
 				flowConn,
 				local,
 				version.Supported,
@@ -511,6 +514,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 		c, err := conn.NewAccepted(
 			h.ctx,
 			h.m.serverBlessings,
+			h.m.serverAuthorizedPeers,
 			f,
 			f.LocalEndpoint(),
 			version.Supported,
@@ -599,6 +603,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		protocol         flow.Protocol
 		network, address string
 	)
+	auth = &peerAuthorizer{auth, m.serverAuthorizedPeers}
 	if c == nil {
 		addr := remote.Addr()
 		protocol, _ = flow.RegisteredProtocol(addr.Network())
@@ -764,4 +769,48 @@ func isTemporaryError(err error) bool {
 func isTooManyOpenFiles(err error) bool {
 	oErr, ok := err.(*net.OpError)
 	return ok && strings.Contains(oErr.Err.Error(), syscall.EMFILE.Error())
+}
+
+// peerAuthorizer implements flow.PeerAuthorizer. It is meant to be used
+// when a server operating in private mode (i.e., with a non-empty set
+// of authorized peers) acts as a client. It wraps around the PeerAuthorizer
+// specified by the call opts and addiitonally ensures that any peers that
+// the client communicates with belong to the set of authorized peers.
+type peerAuthorizer struct {
+	auth            flow.PeerAuthorizer
+	authorizedPeers []security.BlessingPattern
+}
+
+func (x *peerAuthorizer) AuthorizePeer(
+	ctx *context.T,
+	localEP, remoteEP naming.Endpoint,
+	remoteBlessings security.Blessings,
+	remoteDischarges map[string]security.Discharge) ([]string, []security.RejectedBlessing, error) {
+	if len(x.authorizedPeers) == 0 {
+		return x.auth.AuthorizePeer(ctx, localEP, remoteEP, remoteBlessings, remoteDischarges)
+	}
+	localPrincipal := v23.GetPrincipal(ctx)
+	// The "Method" and "Suffix" fields of the call are not populated
+	// as they are considered irrelevant for authorizing server blessings.
+	call := security.NewCall(&security.CallParams{
+		Timestamp:        time.Now(),
+		LocalPrincipal:   localPrincipal,
+		LocalEndpoint:    localEP,
+		RemoteBlessings:  remoteBlessings,
+		RemoteDischarges: remoteDischarges,
+		RemoteEndpoint:   remoteEP,
+	})
+
+	peerNames, rejectedPeerNames := security.RemoteBlessingNames(ctx, call)
+	for _, p := range x.authorizedPeers {
+		if p.MatchedBy(peerNames...) {
+			return x.auth.AuthorizePeer(ctx, localEP, remoteEP, remoteBlessings, remoteDischarges)
+		}
+	}
+	return nil, nil, fmt.Errorf("peer names: %v (rejected: %v) do not match one of the authorized patterns: %v", peerNames, rejectedPeerNames, x.authorizedPeers)
+}
+
+func (x *peerAuthorizer) BlessingsForPeer(ctx *context.T, peerNames []string) (
+	security.Blessings, map[string]security.Discharge, error) {
+	return x.auth.BlessingsForPeer(ctx, peerNames)
 }

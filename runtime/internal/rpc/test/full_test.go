@@ -29,9 +29,11 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/ibe"
 	"v.io/x/lib/netstate"
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/runtime/internal/lib/tcputil"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
@@ -987,5 +989,101 @@ func TestReplayAttack(t *testing.T) {
 	}
 	if _, ok = m.(*message.TearDown); !ok {
 		t.Fatalf("got %#v, want *message.TearDown", m)
+	}
+}
+
+func TestPrivateServer(t *testing.T) {
+	if ref.RPCTransitionState() != ref.XServers {
+		t.SkipNow()
+	}
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	// The following is so that we have a known default blessing name
+	// for the root context.
+	ctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("root"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	master, err := ibe.SetupBB1()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := bcrypter.NewRoot("root", master)
+
+	// Derive the client and server contexts
+	cctx := withPrincipal(t, ctx, "client")
+	cctx = bcrypter.WithCrypter(cctx, bcrypter.NewCrypter())
+
+	sctx := withPrincipal(t, ctx, "server")
+	sctx = bcrypter.WithCrypter(sctx, bcrypter.NewCrypter())
+
+	// Add the root params to the server's crypter so that the
+	// server can use IBE to keep its blessings private.
+	if err := bcrypter.GetCrypter(sctx).AddParams(sctx, root.Params()); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that creating a server with an empty set of server peers
+	// fails
+	_, _, err = v23.WithNewDispatchingServer(sctx, "", &testServerDisp{&testServer{}}, options.ServerPeers([]security.BlessingPattern{}))
+	if err == nil {
+		t.Fatal("WithNewDispatchingServer unexpectedly passed with empty set of server peers")
+	}
+
+	// Test that creating a server with a non-empty set of server peers and
+	// a non-empty name fails.
+	_, _, err = v23.WithNewDispatchingServer(sctx, "foo", &testServerDisp{&testServer{}}, options.ServerPeers([]security.BlessingPattern{}))
+	if err == nil {
+		t.Fatal("WithNewDispatchingServer unexpectedly passed with a non-empty set of server peers and a non-empty name")
+	}
+
+	// Create a server that only reveals its blesings to peers with blessings
+	// matching the pattern "root/client".
+	//
+	// Since a mounttable server always learns a server's blessings, this also
+	// restricts the set of mounttable servers that the server can talk to. In
+	// particular the mounttable server must have a blessing matching the pattern
+	// "root/client".
+	//
+	// Having said that, the common case for private mutual authentication would
+	// be when there are no mounttables involved and the server's endpoint is
+	// discovered using a peer-to-peer discovery mechanism (e.g., mdns).
+	_, server, err := v23.WithNewDispatchingServer(sctx, "", &testServerDisp{&testServer{}}, options.ServerPeers([]security.BlessingPattern{"root/client"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverEPName := server.Status().Endpoints[0].Name()
+	client := v23.GetClient(cctx)
+
+	// Test that an RPC to the server fails as the client has no blessing private keys.
+	call, err := client.StartCall(cctx, serverEPName, "Closure", nil)
+	if err == nil {
+		t.Error("RPC by client with no blessing private key unexpectedly succeeded")
+	}
+
+	// Add a private key for a blessing that does not match the server's policy
+	// (pattern: "root/client") and test that the RPC still fails.
+	if err := bcrypter.GetCrypter(cctx).AddKey(cctx, extractKey(t, ctx, root, "root/otherclient")); err != nil {
+		t.Fatal(err)
+	}
+	call, err = client.StartCall(cctx, serverEPName, "Closure", nil)
+	if err == nil {
+		t.Error("RPC by client with no matching blessing private key unexpectedly succeeded")
+	}
+
+	// Add a private key for a blessing matching the server's policy and test that
+	// the RPC succceeds and that the client learns the server's blessing ("root/server").
+	if err := bcrypter.GetCrypter(cctx).AddKey(cctx, extractKey(t, ctx, root, "root/client")); err != nil {
+		t.Fatal(err)
+	}
+	call, err = client.StartCall(cctx, serverEPName, "Closure", nil, options.ServerAuthorizer{access.AccessList{In: []security.BlessingPattern{"root/server/$"}}})
+	if err != nil {
+		t.Error(verror.DebugString(err))
+	} else {
+		results := makeResultPtrs(nil)
+		if err := call.Finish(results...); err != nil {
+			t.Error("RPC by client with a matching blessing private key failed: %v", err)
+		}
 	}
 }

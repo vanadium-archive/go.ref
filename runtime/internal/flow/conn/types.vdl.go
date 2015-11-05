@@ -13,6 +13,7 @@ import (
 
 	// VDL user imports
 	"v.io/v23/security"
+	"v.io/x/ref/lib/security/bcrypter"
 )
 
 // Blessings is used to transport blessings between the two ends of a Conn.
@@ -26,6 +27,22 @@ type Blessings struct {
 
 func (Blessings) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/runtime/internal/flow/conn.Blessings"`
+}) {
+}
+
+// EncryptedBlessings is used to transport encrypted blessings between the
+// two ends of a Conn. The encryption is with respect to a set of blessing
+// patterns that define the set of peers that are allowed to see the blessings.
+// Since encrypted blessings can be large, we try not to send them more than
+// once by associating them with an integer key (BKey). Thereafter we refer to
+// them by their key.
+type EncryptedBlessings struct {
+	Ciphertexts []bcrypter.WireCiphertext
+	BKey        uint64
+}
+
+func (EncryptedBlessings) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/runtime/internal/flow/conn.EncryptedBlessings"`
 }) {
 }
 
@@ -46,11 +63,30 @@ func (Discharges) __VDLReflect(struct {
 }) {
 }
 
+// EncryptedDischarges is used to transport encrypted discharges between the
+// two ends of a Conn. The encryption is with respect to a set of blessing
+// patterns that define the set of peers that are allowed to see the discharges.
+// Since discharges can be large, we try not to send them more than once by
+// associating them with an integer key (DKey). Thereafter we refer to them
+// by their key.
+// EncryptedDischarges also contains the BKey of the blessings with which the
+// plaintext discharges are associated with.
+type EncryptedDischarges struct {
+	Ciphertexts []bcrypter.WireCiphertext
+	DKey        uint64
+	BKey        uint64
+}
+
+func (EncryptedDischarges) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/runtime/internal/flow/conn.EncryptedDischarges"`
+}) {
+}
+
 type (
 	// BlessingsFlowMessage represents any single field of the BlessingsFlowMessage union type.
 	//
-	// BlessingsFlowMessage is used to send either a Blessings or Discharges object
-	// over the wire.
+	// BlessingsFlowMessage is used to send either a Blessings, Discharges, EncryptedBlessings
+	// or EncryptedDischarges object over the wire.
 	BlessingsFlowMessage interface {
 		// Index returns the field index.
 		Index() int
@@ -65,13 +101,19 @@ type (
 	BlessingsFlowMessageBlessings struct{ Value Blessings }
 	// BlessingsFlowMessageDischarges represents field Discharges of the BlessingsFlowMessage union type.
 	BlessingsFlowMessageDischarges struct{ Value Discharges }
+	// BlessingsFlowMessageEncryptedBlessings represents field EncryptedBlessings of the BlessingsFlowMessage union type.
+	BlessingsFlowMessageEncryptedBlessings struct{ Value EncryptedBlessings }
+	// BlessingsFlowMessageEncryptedDischarges represents field EncryptedDischarges of the BlessingsFlowMessage union type.
+	BlessingsFlowMessageEncryptedDischarges struct{ Value EncryptedDischarges }
 	// __BlessingsFlowMessageReflect describes the BlessingsFlowMessage union type.
 	__BlessingsFlowMessageReflect struct {
 		Name  string `vdl:"v.io/x/ref/runtime/internal/flow/conn.BlessingsFlowMessage"`
 		Type  BlessingsFlowMessage
 		Union struct {
-			Blessings  BlessingsFlowMessageBlessings
-			Discharges BlessingsFlowMessageDischarges
+			Blessings           BlessingsFlowMessageBlessings
+			Discharges          BlessingsFlowMessageDischarges
+			EncryptedBlessings  BlessingsFlowMessageEncryptedBlessings
+			EncryptedDischarges BlessingsFlowMessageEncryptedDischarges
 		}
 	}
 )
@@ -86,8 +128,20 @@ func (x BlessingsFlowMessageDischarges) Interface() interface{}                 
 func (x BlessingsFlowMessageDischarges) Name() string                               { return "Discharges" }
 func (x BlessingsFlowMessageDischarges) __VDLReflect(__BlessingsFlowMessageReflect) {}
 
+func (x BlessingsFlowMessageEncryptedBlessings) Index() int                                 { return 2 }
+func (x BlessingsFlowMessageEncryptedBlessings) Interface() interface{}                     { return x.Value }
+func (x BlessingsFlowMessageEncryptedBlessings) Name() string                               { return "EncryptedBlessings" }
+func (x BlessingsFlowMessageEncryptedBlessings) __VDLReflect(__BlessingsFlowMessageReflect) {}
+
+func (x BlessingsFlowMessageEncryptedDischarges) Index() int                                 { return 3 }
+func (x BlessingsFlowMessageEncryptedDischarges) Interface() interface{}                     { return x.Value }
+func (x BlessingsFlowMessageEncryptedDischarges) Name() string                               { return "EncryptedDischarges" }
+func (x BlessingsFlowMessageEncryptedDischarges) __VDLReflect(__BlessingsFlowMessageReflect) {}
+
 func init() {
 	vdl.Register((*Blessings)(nil))
+	vdl.Register((*EncryptedBlessings)(nil))
 	vdl.Register((*Discharges)(nil))
+	vdl.Register((*EncryptedDischarges)(nil))
 	vdl.Register((*BlessingsFlowMessage)(nil))
 }

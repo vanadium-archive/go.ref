@@ -108,6 +108,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		state:             rpc.ServerActive,
 		endpoints:         make(map[string]*inaming.Endpoint),
 	}
+	var authorizedPeers []security.BlessingPattern
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case options.ServesMountTable:
@@ -118,10 +119,24 @@ func WithNewDispatchingServer(ctx *context.T,
 			s.dispReserved = opt.Dispatcher
 		case PreferredServerResolveProtocols:
 			s.preferredProtocols = []string(opt)
+		case options.ServerPeers:
+			authorizedPeers = []security.BlessingPattern(opt)
+			if len(authorizedPeers) == 0 {
+				return ctx, nil, verror.New(verror.ErrBadArg, ctx, newErrServerPeersEmpty(ctx))
+			}
+			if len(name) != 0 {
+				// TODO(ataly, ashankar): Since the server's blessing names are revealed to the
+				// mounttable via the server's endpoint, we forbid servers created with the
+				// ServerPeers option from publishing themselves. We should relax this restriction
+				// and instead check: (1) the mounttable is in the set of peers authorized by the
+				// server, and (2) the mounttable reveals the server's endpoint to only the set
+				// of authorized peers. (2) can be enforced using Resolve ACLs.
+				return ctx, nil, verror.New(verror.ErrBadArg, ctx, newErrServerPeersWithPublishing(ctx))
+			}
 		}
 	}
 
-	s.flowMgr = manager.NewWithBlessings(rootCtx, s.blessings, rid, settingsPublisher)
+	s.flowMgr = manager.NewWithBlessings(rootCtx, s.blessings, rid, authorizedPeers, settingsPublisher)
 	rootCtx, _, err = v23.WithNewClient(rootCtx,
 		clientFlowManagerOpt{s.flowMgr},
 		PreferredProtocols(s.preferredProtocols))
