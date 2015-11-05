@@ -48,11 +48,8 @@ func runHelloServer(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return fmt.Errorf("NewServer: %v", err)
 	}
-	eps := server.Status().Endpoints
-	if len(eps) > 0 {
+	if eps := server.Status().Endpoints; len(eps) > 0 {
 		fmt.Printf("SERVER_NAME=%s\n", eps[0].Name())
-	} else {
-		fmt.Println("SERVER_NAME=proxy")
 	}
 	<-signals.ShutdownOnSignals(ctx)
 	return nil

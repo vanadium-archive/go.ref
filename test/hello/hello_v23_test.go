@@ -111,10 +111,6 @@ func V23TestHelloMounttabled(i *v23tests.T) {
 }
 
 func V23TestHelloProxy(i *v23tests.T) {
-	// Skipping this test for older binaries because of incompatibility in
-	// the proxyd commandline flags.
-	i.SkipInRegressionBefore("2015-04-25")
-
 	creds, err := setupCredentials(i, "helloclient", "helloserver",
 		"mounttabled", "proxyd")
 	if err != nil {
@@ -122,7 +118,12 @@ func V23TestHelloProxy(i *v23tests.T) {
 	}
 	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
 	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
-	proxydbin := i.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
+	var proxydbin *v23tests.Binary
+	if ref.RPCTransitionState() >= ref.XServers {
+		proxydbin = i.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
+	} else {
+		proxydbin = i.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
+	}
 	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
 	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
 	proxyname := "proxy"
@@ -138,13 +139,9 @@ func V23TestHelloProxy(i *v23tests.T) {
 		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
 		"--v23.namespace.root", mtname,
 		"--access-list", "{\"In\":[\"root\"]}")
-	server := agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path(),
+	agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path(),
 		"--name", name, "--v23.proxy", proxyname, "--v23.tcp.address", "",
 		"--v23.namespace.root", mtname)
-	// Prove that we're listening on a proxy.
-	if sn := server.ExpectVar("SERVER_NAME"); sn != "proxy" {
-		i.Fatalf("helloserver not listening through proxy: %s.", sn)
-	}
 	agentdbin.WithEnv(creds["helloclient"]).Run(clientbin.Path(), "--name", name,
 		"--v23.namespace.root", mtname)
 }
