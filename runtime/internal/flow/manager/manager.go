@@ -6,6 +6,7 @@ package manager
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -32,7 +33,6 @@ import (
 )
 
 const (
-	reconnectDelay    = 50 * time.Millisecond
 	reapCacheInterval = 5 * time.Minute
 	handshakeTimeout  = time.Minute
 )
@@ -296,66 +296,44 @@ func getHostPort(address net.Addr) (string, string) {
 
 // ProxyListen causes the Manager to accept flows from the specified endpoint.
 // The endpoint must correspond to a vanadium proxy.
-//
-// update gets passed the complete set of endpoints for the proxy every time it
-// is called.
+// The call will block until the connection to the proxy endpoint fails. The
+// caller may then choose to retry the connection.
 func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) error {
 	if m.ls == nil {
 		return NewErrListeningWithNullRid(ctx)
 	}
-	m.ls.listenLoops.Add(1)
-	go m.connectToProxy(ctx, ep)
-	return nil
-}
-
-func (m *manager) connectToProxy(ctx *context.T, ep naming.Endpoint) {
-	defer m.ls.listenLoops.Done()
-	var eps []naming.Endpoint
-	stopProxy := m.ls.stopProxy
-	for delay := reconnectDelay; ; delay *= 2 {
-		time.Sleep(delay - reconnectDelay)
-		select {
-		case <-ctx.Done():
-			return
-		case <-stopProxy:
-			return
-		default:
-		}
-		f, c, err := m.internalDial(ctx, ep, proxyAuthorizer{})
-		if err != nil {
-			ctx.Error(err)
-			continue
-		}
-		c.UpdateFlowHandler(ctx, &proxyFlowHandler{ctx: ctx, m: m})
-		w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
-		if err != nil {
-			ctx.Error(err)
-			continue
-		}
-		if _, err = f.WriteMsg(w); err != nil {
-			ctx.Error(err)
-			continue
-		}
-		for {
-			// we keep reading updates until we encounter an error, usually because the
-			// flow has been closed.
-			eps, err = m.readProxyResponse(ctx, f)
-			if err != nil {
-				ctx.Error(err)
-				break
-			}
-			for i := range eps {
-				eps[i].(*inaming.Endpoint).Blessings = m.serverNames
-			}
-			m.updateProxyEndpoints(eps)
-		}
-		select {
-		case <-f.Closed():
-			m.updateProxyEndpoints(nil)
-			delay = reconnectDelay
-		default:
-		}
+	defer m.updateProxyEndpoints(nil)
+	f, c, err := m.internalDial(ctx, ep, proxyAuthorizer{})
+	if err != nil {
+		return err
 	}
+	c.UpdateFlowHandler(ctx, &proxyFlowHandler{ctx: ctx, m: m})
+	w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
+	if err != nil {
+		return err
+	}
+	if _, err = f.WriteMsg(w); err != nil {
+		return err
+	}
+	// We do exponential backoff unless the proxy closes the flow cleanly, in which
+	// case we redial immediately.
+	for {
+		// we keep reading updates until we encounter an error, usually because the
+		// flow has been closed.
+		eps, err := m.readProxyResponse(ctx, f)
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+		for i := range eps {
+			eps[i].(*inaming.Endpoint).Blessings = m.serverNames
+		}
+		m.updateProxyEndpoints(eps)
+	}
+	// We should not reach this line.
+	return nil
 }
 
 func (m *manager) updateProxyEndpoints(eps []naming.Endpoint) {
@@ -394,7 +372,8 @@ func endpointsEqual(a, b []naming.Endpoint) bool {
 func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpoint, error) {
 	b, err := f.ReadMsg()
 	if err != nil {
-		return nil, iflow.MaybeWrapError(flow.ErrNetwork, ctx, err)
+		// Its important that we return the error as-is from f.ReadMsg since ProxyListen uses it.
+		return nil, err
 	}
 	msg, err := message.Read(ctx, b)
 	if err != nil {
