@@ -30,7 +30,6 @@ import (
 
 const (
 	leakWaitTime = 250 * time.Millisecond
-	pollTime     = 50 * time.Millisecond
 	bidiProtocol = "bidi"
 )
 
@@ -59,7 +58,6 @@ func TestProxyRPC(t *testing.T) {
 	if _, _, err := v23.WithNewServer(sctx, "server", &testService{}, nil); err != nil {
 		t.Fatal(err)
 	}
-
 	var got string
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
 		t.Fatal(err)
@@ -207,8 +205,12 @@ func TestProxyAuthorizesServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for server.Status().Endpoints[0].Addr().Network() == bidiProtocol {
-		time.Sleep(pollTime)
+	for {
+		status := server.Status()
+		if status.Endpoints[0].Addr().Network() != bidiProtocol {
+			break
+		}
+		<-status.Valid
 	}
 
 	// A proxy using the default authorizer should not authorize the server.
@@ -263,9 +265,8 @@ func TestSingleProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := am.ProxyListen(ctx, pep); err != nil {
-		t.Fatal(err)
-	}
+	go am.ProxyListen(ctx, pep)
+
 	for {
 		eps, changed := am.ListeningEndpoints()
 		if eps[0].Addr().Network() != bidiProtocol {
@@ -306,9 +307,12 @@ func TestMultipleProxies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := am.ProxyListen(ctx, p3ep); err != nil {
-		t.Fatal(err)
-	}
+	go func() {
+		// We are going to kill connections 3 times so we need to reconnect to the proxy.
+		for i := 0; i < 3; i++ {
+			am.ProxyListen(ctx, p3ep)
+		}
+	}()
 
 	for i := 0; i < 3; {
 		eps, changed := am.ListeningEndpoints()
@@ -415,7 +419,6 @@ func startProxy(t *testing.T, ctx *context.T, name string, auth security.Authori
 		<-proxy.Closed()
 	}
 	if len(name) > 0 {
-		waitForPublish(ctx, name)
 		return name, stop
 	}
 	peps := proxy.ListeningEndpoints()
@@ -426,16 +429,6 @@ func startProxy(t *testing.T, ctx *context.T, name string, auth security.Authori
 	}
 	t.Fatal("Proxy not listening on network address.")
 	return "", nil
-}
-
-func waitForPublish(ctx *context.T, name string) {
-	ns := v23.GetNamespace(ctx)
-	for {
-		if entry, err := ns.Resolve(ctx, name); err == nil && len(entry.Names()) > 0 {
-			return
-		}
-		time.Sleep(pollTime)
-	}
 }
 
 type killProtocol struct {

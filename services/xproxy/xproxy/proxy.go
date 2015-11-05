@@ -21,7 +21,10 @@ import (
 
 // TODO(suharshs): Make sure we don't leave any goroutines behind.
 
-const reconnectDelay = 50 * time.Millisecond
+const (
+	reconnectDelay = 50 * time.Millisecond
+	maxBackoff     = time.Minute
+)
 
 type proxy struct {
 	m      flow.Manager
@@ -57,11 +60,7 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 	}
 	lspec := v23.GetListenSpec(ctx)
 	if len(lspec.Proxy) > 0 {
-		address, ep, err := resolveToEndpoint(ctx, lspec.Proxy)
-		if err != nil {
-			return nil, err
-		}
-		go p.connectToProxy(ctx, address, ep)
+		go p.connectToProxy(ctx, lspec.Proxy)
 	}
 	for _, addr := range lspec.Addrs {
 		if err := p.m.Listen(ctx, addr.Protocol, addr.Address); err != nil {
@@ -339,13 +338,18 @@ func (p *proxy) returnEndpointsLocked(ctx *context.T, rid naming.RoutingID, rout
 	return eps, nil
 }
 
-func (p *proxy) connectToProxy(ctx *context.T, address string, ep naming.Endpoint) {
-	for delay := reconnectDelay; ; delay *= 2 {
+func (p *proxy) connectToProxy(ctx *context.T, name string) {
+	for delay := reconnectDelay; ; delay = nextDelay(delay) {
 		time.Sleep(delay - reconnectDelay)
 		select {
 		case <-ctx.Done():
 			return
 		default:
+		}
+		address, ep, err := resolveToEndpoint(ctx, name)
+		if err != nil {
+			ctx.Error(err)
+			continue
 		}
 		f, err := p.m.Dial(ctx, ep, proxyAuthorizer{})
 		if err != nil {
@@ -378,6 +382,14 @@ func (p *proxy) connectToProxy(ctx *context.T, address string, ep naming.Endpoin
 		default:
 		}
 	}
+}
+
+func nextDelay(delay time.Duration) time.Duration {
+	delay *= 2
+	if delay > maxBackoff {
+		delay = maxBackoff
+	}
+	return delay
 }
 
 func (p *proxy) updateProxyEndpoints(ctx *context.T, address string, eps []naming.Endpoint) {
