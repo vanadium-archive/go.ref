@@ -10,13 +10,17 @@ package vsync
 // suitably updates the local Databases.
 
 import (
+	"reflect"
 	"sort"
 	"strings"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/security/access"
 	"v.io/v23/services/syncbase/nosql"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
@@ -29,10 +33,26 @@ import (
 	"v.io/x/ref/services/syncbase/store"
 )
 
-// getDeltas performs an initiation round to the specified peer. An
-// initiation round consists of two sync rounds:
+// getDeltasFromPeer performs an initiation round once per database to the specified
+// peer. An initiation round consists of an identification and filtering step
+// and two sync rounds:
 // * Sync syncgroup metadata.
 // * Sync data.
+//
+// In the identification step, the initiator connects to the peer to identify it
+// and obtain its list of blessings. It then uses these blessings to filter the
+// list of syncgroups that are in common with the peer (learned based on the
+// joiner list) to only include those syncgroups whose acl is satisfied by the
+// peer's blessings. These syncgroups are included in the next two sync
+// rounds. In the next two sync rounds, the initiator ensures that the peer
+// identification (blessings) used in the first step has not changed.
+//
+// Note that alternately we could have used the blessings a peer uses to join
+// the syncgroup to identify and validate it during sync rounds. However, this
+// tight coupling prevents a peer who receives another valid blessing that
+// satisfies the syncgroup acl after joining but loses the one used during join,
+// from syncing.
+//
 // Each sync round involves:
 // * Contacting the peer to receive all the deltas based on the local genvector.
 // * Processing those deltas to discover objects which have been updated.
@@ -49,64 +69,185 @@ import (
 // initiation round), the work done by the initiator is idempotent.
 //
 // TODO(hpucha): Check the idempotence, esp in addNode in DAG.
-func (s *syncService) getDeltas(ctx *context.T, peer connInfo) error {
-	vlog.VI(2).Infof("sync: getDeltas: begin: contacting peer %v", peer)
-	defer vlog.VI(2).Infof("sync: getDeltas: end: contacting peer %v", peer)
+func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
+	vlog.VI(2).Infof("sync: getDeltasFromPeer: begin: contacting peer %v", peer)
+	defer vlog.VI(2).Infof("sync: getDeltasFromPeer: end: contacting peer %v", peer)
 
 	info := s.copyMemberInfo(ctx, peer.relName)
 	if info == nil {
-		vlog.Fatalf("sync: getDeltas: missing information in member view for %v", peer)
+		vlog.Fatalf("sync: getDeltasFromPeer: missing information in member view for %v", peer)
 	}
 
 	// Preferred mount tables for this peer.
 	prfMtTbls := set.String.ToSlice(info.mtTables)
 
+	var errFinal error // the last non-nil error encountered is returned to the caller.
+
 	// Sync each Database that may have syncgroups common with this peer,
 	// one at a time.
-	var errFinal error // Any error encountered is returned to the caller.
-	for gdbName := range info.db2sg {
-		vlog.VI(4).Infof("sync: getDeltas: started for peer %v db %s", peer, gdbName)
-
+	for gdbName, dbInfo := range info.db2sg {
 		if len(prfMtTbls) < 1 {
-			vlog.Errorf("sync: getDeltas: no mount tables found to connect to peer %v", peer)
+			vlog.Errorf("sync: getDeltasFromPeer: no mount tables found to connect to peer %v", peer)
 			return verror.New(verror.ErrInternal, ctx, peer.relName, peer.addr, "all mount tables failed")
 		}
 
-		c, err := newInitiationConfig(ctx, s, peer, gdbName, info, prfMtTbls)
-		if err != nil {
-			vlog.Errorf("sync: getDeltas: couldn't initialize initiator config for peer %v, gdb %s, err %v", peer, gdbName, err)
-			errFinal = err
-			continue
-		}
-
-		if err = s.getDBDeltas(ctx, c, true); err == nil {
-			if err = s.getDBDeltas(ctx, c, false); err != nil {
-				vlog.Errorf("sync: getDeltas: failed for data sync, err %v", err)
-			}
-		} else {
-			// If syncgroup sync fails, abort data sync as well.
-			vlog.Errorf("sync: getDeltas: failed for syncgroup sync, err %v", err)
-		}
+		var err error
+		prfMtTbls, err = s.getDBDeltas(ctx, gdbName, dbInfo, peer, prfMtTbls)
 
 		if verror.ErrorID(err) == interfaces.ErrConnFail.ID {
 			return err
-		} else if err != nil {
-			errFinal = err
 		}
 
-		// Cache the pruned mount table list for the next Database.
-		prfMtTbls = c.mtTables
-
-		vlog.VI(4).Infof("sync: getDeltas: done for peer %v db %s", peer, gdbName)
+		if err != nil {
+			errFinal = err
+		}
 	}
 	return errFinal
 }
 
-// getDBDeltas gets the deltas from the chosen peer. If sg flag is set to true,
-// it will sync syncgroup metadata. If sg flag is false, it will sync data.
-func (s *syncService) getDBDeltas(ctxIn *context.T, c *initiationConfig, sg bool) error {
-	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer sg %v %v", sg, c.peer)
-	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer sg %v %v", sg, c.peer)
+// getDBDeltas performs an initiation round for the specified database.
+func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberInfo, peer connInfo, mtTbls []string) ([]string, error) {
+	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer %v for db %s", peer, gdbName)
+	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer %v for db %s", peer, gdbName)
+
+	// Note that the "identify" step is done once per database for privacy
+	// reasons. When the app blesses Syncbase during syncgroup create/join,
+	// these blessings would be associated with that database, and should
+	// not be revealed when that database is not being synced.
+	//
+	// TODO(hpucha): Revisit which blessings are sent.
+	blessingNames, prfMtTbls, err := s.identifyPeer(ctx, peer, mtTbls)
+	if err != nil {
+		return prfMtTbls, err
+	}
+
+	// The initiation config is shared across the sync rounds in an
+	// initiation. The mount tables in the config are pruned to eliminate
+	// the ones that failed to reach the peer during each RPC call. This
+	// helps the next RPC call to use the currently successful or the
+	// not-yet tried mount tables to reach a peer, instead of retrying the
+	// already failed ones.
+	//
+	// TODO(hpucha): Clean up sharing of the initiationConfig.
+	c, err := newInitiationConfig(ctx, s, gdbName, info, peer, prfMtTbls)
+	if err != nil {
+		return prfMtTbls, err
+	}
+
+	// Filter the syncgroups using the peer blessings, and populate the
+	// syncgroup ids, the syncgroup prefixes and the remote peer blessings
+	// to be used in the next two rounds of sync.
+	if err := s.filterSyncgroups(ctx, c, blessingNames); err != nil {
+		return c.mtTbls, err
+	}
+
+	// Sync syncgroup metadata.
+	if err = s.getDeltas(ctx, c, true); err != nil {
+		// If syncgroup sync fails, abort data sync as well.
+		return c.mtTbls, err
+	}
+
+	// Sync data.
+	err = s.getDeltas(ctx, c, false)
+	return c.mtTbls, err
+}
+
+// identifyPeer obtains the blessings from the remote peer.
+func (s *syncService) identifyPeer(ctxIn *context.T, peer connInfo, mtTbls []string) ([]string, []string, error) {
+	vlog.VI(2).Infof("sync: identifyPeer: begin for peer %v", peer)
+	defer vlog.VI(2).Infof("sync: identifyPeer: end for peer %v", peer)
+
+	ctx, cancel := context.WithCancel(ctxIn)
+	defer cancel()
+
+	var blessingNames []string
+	op := func(ctx *context.T, peer string) error {
+		call, err := v23.GetClient(ctx).StartCall(ctx, peer, "GetDeltas", nil)
+		if err != nil {
+			return err
+		}
+		blessingNames, _ = call.RemoteBlessings()
+		call.Finish()
+		return nil
+	}
+	prfMtTbls, err := runAtPeer(ctx, peer, mtTbls, op)
+	return blessingNames, prfMtTbls, err
+}
+
+// filterSyncgroups uses the remote peer's blessings to obtain the set of
+// syncgroups that are allowed to be synced with it based on its current
+// syncgroup acls.
+func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, blessingNames []string) error {
+	vlog.VI(2).Infof("sync: filterSyncGroups: begin")
+	defer vlog.VI(2).Infof("sync: filterSyncGroups: end")
+
+	// Perform authorization.
+	if len(blessingNames) == 0 {
+		return verror.New(verror.ErrNoAccess, ctx)
+	}
+
+	vlog.VI(4).Infof("sync: filterSyncGroups: got peer names %v", blessingNames)
+
+	remSgIds := make(sgSet)
+
+	// Prepare the syncgroup prefixes since we are going through each
+	// syncgroup. This is an optimization done to avoid looping and reading
+	// syncgroup data another time.
+	c.sgPfxs = make(map[string]sgSet)
+
+	for gid := range c.sgIds {
+		var sg *interfaces.Syncgroup
+		sg, err := getSyncgroupById(ctx, c.st, gid)
+		if err != nil {
+			continue
+		}
+
+		if _, ok := sg.Joiners[c.peer.relName]; !ok {
+			// Peer is no longer part of the syncgroup.
+			continue
+		}
+
+		// TODO(hpucha): Is using the Read tag to authorize the remote
+		// peer ok? The thinking here is that the peer uses the read tag
+		// on the GetDeltas RPC to authorize the initiator and this
+		// makes it symmetric.
+		if acl, exists := sg.Spec.Perms[string(access.Read)]; !exists || !acl.Includes(blessingNames...) {
+			vlog.VI(4).Infof("sync: filterSyncGroups: skipping sg %v", gid)
+			continue
+		}
+
+		remSgIds[gid] = struct{}{}
+		for _, p := range sg.Spec.Prefixes {
+			pfxStr := toTableRowPrefixStr(p)
+			sgs, ok := c.sgPfxs[pfxStr]
+			if !ok {
+				sgs = make(sgSet)
+				c.sgPfxs[pfxStr] = sgs
+			}
+			sgs[gid] = struct{}{}
+		}
+	}
+
+	c.sgIds = remSgIds
+
+	if len(c.sgIds) == 0 {
+		return verror.New(verror.ErrInternal, ctx, "no syncgroups found after filtering", c.peer.relName, c.appName, c.dbName)
+	}
+
+	if len(c.sgPfxs) == 0 {
+		return verror.New(verror.ErrInternal, ctx, "no syncgroup prefixes found", c.peer.relName, c.appName, c.dbName)
+	}
+
+	sort.Strings(blessingNames)
+	c.auth = &namesAuthorizer{blessingNames}
+	return nil
+}
+
+// getDeltas gets the deltas from the chosen peer. If sg flag is set to true, it
+// will sync syncgroup metadata. If sg flag is false, it will sync data.
+func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) error {
+	vlog.VI(2).Infof("sync: getDeltas: begin: contacting peer sg %v %v", sg, c.peer)
+	defer vlog.VI(2).Infof("sync: getDeltas: end: contacting peer sg %v %v", sg, c.peer)
 
 	ctx, cancel := context.WithCancel(ctxIn)
 	// cancel() is idempotent.
@@ -114,14 +255,6 @@ func (s *syncService) getDBDeltas(ctxIn *context.T, c *initiationConfig, sg bool
 
 	// Initialize initiation state for syncing this Database.
 	iSt := newInitiationState(ctx, c, sg)
-
-	// Initialize syncgroup prefixes for data syncing.
-	if !sg {
-		iSt.peerSgInfo(ctx)
-		if len(iSt.config.sgPfxs) == 0 {
-			return verror.New(verror.ErrInternal, ctx, "no syncgroup prefixes found", c.peer.relName, iSt.config.appName, iSt.config.dbName)
-		}
-	}
 
 	if sg {
 		// Create local genvec so that it contains knowledge about
@@ -138,9 +271,22 @@ func (s *syncService) getDBDeltas(ctxIn *context.T, c *initiationConfig, sg bool
 		}
 	}
 
-	// Make contact with the peer.
-	if !iSt.connectToPeer(ctx) {
-		return verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", c.peer.relName, c.peer.addr)
+	op := func(ctx *context.T, peer string) error {
+		c := interfaces.SyncClient(peer)
+		var err error
+		// The authorizer passed to the RPC ensures that the remote
+		// peer's blessing names are the same as obtained in the
+		// identification step done previously.
+		iSt.stream, err = c.GetDeltas(ctx, iSt.req, iSt.config.sync.name,
+			options.ServerAuthorizer{iSt.config.auth}, options.ChannelTimeout(connectionTimeOut))
+		return err
+	}
+
+	// Make contact with the peer to start getting the deltas.
+	var err error
+	c.mtTbls, err = runAtPeer(ctx, c.peer, c.mtTbls, op)
+	if err != nil {
+		return err
 	}
 
 	// Obtain deltas from the peer over the network.
@@ -155,11 +301,14 @@ func (s *syncService) getDBDeltas(ctxIn *context.T, c *initiationConfig, sg bool
 		return err
 	}
 
-	vlog.VI(4).Infof("sync: getDBDeltas: got reply: %v", iSt.remote)
+	vlog.VI(4).Infof("sync: getDeltas: got reply: %v", iSt.remote)
 
 	// Process deltas locally.
 	return iSt.processUpdatedObjects(ctx)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Internal helpers for initiation config.
 
 type sgSet map[interfaces.GroupId]struct{}
 
@@ -171,7 +320,7 @@ type initiationConfig struct {
 	// Mount tables that this peer may have registered with. The first entry
 	// in this array is the mount table where the peer was successfully
 	// reached the last time.
-	mtTables []string
+	mtTbls []string
 
 	sgIds   sgSet            // Syncgroups being requested in the initiation round.
 	sgPfxs  map[string]sgSet // Syncgroup prefixes and their ids being requested in the initiation round.
@@ -180,7 +329,77 @@ type initiationConfig struct {
 	dbName  string
 	db      interfaces.Database // handle to the Database.
 	st      store.Store         // Store handle to the Database.
+
+	// Authorizer created during the filtering of syncgroups phase. This is
+	// to be used during getDeltas to authorize the peer being synced with.
+	auth *namesAuthorizer
 }
+
+// newInitiatonConfig creates new initiation config. This will be shared between
+// the two sync rounds in the initiation round of a Database.
+func newInitiationConfig(ctx *context.T, s *syncService, name string, info sgMemberInfo, peer connInfo, mtTbls []string) (*initiationConfig, error) {
+	c := &initiationConfig{}
+	c.peer = peer
+	c.mtTbls = mtTbls
+	c.sgIds = make(sgSet)
+	for id := range info {
+		c.sgIds[id] = struct{}{}
+	}
+	if len(c.sgIds) == 0 {
+		return nil, verror.New(verror.ErrInternal, ctx, "no syncgroups found", peer.relName, name)
+	}
+	// Note: sgPfxs will be inited during syncgroup filtering.
+	c.sync = s
+
+	// TODO(hpucha): Would be nice to standardize on the combined "app:db"
+	// name across sync (not syncbase) so we only join split/join them at
+	// the boundary with the store part.
+	var err error
+	c.appName, c.dbName, err = splitAppDbName(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(hpucha): nil rpc.ServerCall ok?
+	c.db, err = s.getDb(ctx, nil, c.appName, c.dbName)
+	if err != nil {
+		return nil, err
+	}
+
+	c.st = c.db.St()
+
+	return c, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Internal helpers for authorization during the two sync rounds.
+
+// namesAuthorizer authorizes the remote peer only if it presents all the names
+// in the expNames set. namesAuthorizer is created during authorizeDeltas and
+// used during getDeltas.
+type namesAuthorizer struct {
+	expNames []string
+}
+
+func (a *namesAuthorizer) Authorize(ctx *context.T, call security.Call) error {
+	names, _ := security.RemoteBlessingNames(ctx, call)
+	vlog.VI(4).Infof("sync: Authorize: names %v", names)
+	if len(names) == 0 {
+		return verror.New(verror.ErrNoAccess, ctx)
+	}
+	sort.Strings(names)
+
+	if !reflect.DeepEqual(a.expNames, names) {
+		return verror.New(verror.ErrNoAccess, ctx)
+	}
+
+	vlog.VI(4).Infof("sync: Authorize: remote peer allowed")
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Internal helpers for receiving and for preliminary processing of all the log
+// records over the network.
 
 // initiationState is accumulated for a Database in each sync round in an
 // initiation round.
@@ -219,43 +438,6 @@ type objConflictState struct {
 	// TODO(jlodhia): Add perms object and version for the row keys for pickNew
 }
 
-// newInitiatonConfig creates new initiation config. This will be shared between
-// the two sync rounds in the initiation round of a Database.
-func newInitiationConfig(ctx *context.T, s *syncService, peer connInfo, name string, info *memberInfo, mtTables []string) (*initiationConfig, error) {
-	c := &initiationConfig{}
-	c.peer = peer
-	c.mtTables = mtTables
-	c.sgIds = make(sgSet)
-	for id := range info.db2sg[name] {
-		c.sgIds[id] = struct{}{}
-	}
-	if len(c.sgIds) == 0 {
-		return nil, verror.New(verror.ErrInternal, ctx, "no syncgroups found", peer.relName, name)
-	}
-	// Note: sgPfxs will be inited when needed by the data sync.
-
-	c.sync = s
-
-	// TODO(hpucha): Would be nice to standardize on the combined "app:db"
-	// name across sync (not syncbase) so we only join split/join them at
-	// the boundary with the store part.
-	var err error
-	c.appName, c.dbName, err = splitAppDbName(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO(hpucha): nil rpc.ServerCall ok?
-	c.db, err = s.getDb(ctx, nil, c.appName, c.dbName)
-	if err != nil {
-		return nil, err
-	}
-
-	c.st = c.db.St()
-
-	return c, nil
-}
-
 // newInitiationState creates new initiation state.
 func newInitiationState(ctx *context.T, c *initiationConfig, sg bool) *initiationState {
 	iSt := &initiationState{}
@@ -266,41 +448,9 @@ func newInitiationState(ctx *context.T, c *initiationConfig, sg bool) *initiatio
 	return iSt
 }
 
-// peerSgInfo computes the syncgroup Ids and prefixes common with a remote peer
-// in a particular Database by consulting the syncgroups in the specified
-// Database.
-func (iSt *initiationState) peerSgInfo(ctx *context.T) {
-	sgs := iSt.config.sgIds
-	iSt.config.sgIds = make(sgSet) // regenerate the sgids since we are going through the syncgroups in any case.
-	iSt.config.sgPfxs = make(map[string]sgSet)
-
-	for id := range sgs {
-		sg, err := getSyncgroupById(ctx, iSt.config.st, id)
-		if err != nil {
-			continue
-		}
-		if _, ok := sg.Joiners[iSt.config.peer.relName]; !ok {
-			// Peer is no longer part of the syncgroup.
-			continue
-		}
-
-		iSt.config.sgIds[id] = struct{}{}
-
-		for _, p := range sg.Spec.Prefixes {
-			pfxStr := toTableRowPrefixStr(p)
-			sgs, ok := iSt.config.sgPfxs[pfxStr]
-			if !ok {
-				sgs = make(sgSet)
-				iSt.config.sgPfxs[pfxStr] = sgs
-			}
-			sgs[id] = struct{}{}
-		}
-	}
-}
-
-// prepareDataDeltaReq creates the generation vector with local knowledge for the
-// initiator to send to the responder, and creates the request to start the data
-// sync.
+// prepareDataDeltaReq creates the generation vector with local knowledge for
+// the initiator to send to the responder, and creates the request to start the
+// data sync.
 //
 // TODO(hpucha): Refactor this code with computeDelta code in sync_state.go.
 func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
@@ -420,63 +570,6 @@ func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
 	vlog.VI(4).Infof("sync: prepareSGDeltaReq: request: %v", req)
 
 	return nil
-}
-
-// connectToPeer attempts to connect to the remote peer using the neighborhood
-// address when specified or the mount tables obtained from all the common
-// syncgroups.
-func (iSt *initiationState) connectToPeer(ctx *context.T) bool {
-	vlog.VI(4).Infof("sync: connectToPeer: begin")
-
-	if len(iSt.config.mtTables) < 1 && iSt.config.peer.addr == "" {
-		vlog.Errorf("sync: connectToPeer: no mount tables or endpoint found to connect to peer %s, app %s db %s", iSt.config.peer, iSt.config.appName, iSt.config.dbName)
-		return false
-	}
-
-	if iSt.config.peer.addr != "" {
-		absName := naming.Join(iSt.config.peer.addr, util.SyncbaseSuffix)
-		return iSt.connectToPeerInternal(ctx, absName)
-	}
-
-	for i, mt := range iSt.config.mtTables {
-		absName := naming.Join(mt, iSt.config.peer.relName, util.SyncbaseSuffix)
-		if iSt.connectToPeerInternal(ctx, absName) {
-			return true
-		}
-		// Prune out the unsuccessful mount tables.
-		iSt.config.mtTables = iSt.config.mtTables[i:]
-	}
-	iSt.config.mtTables = nil
-
-	vlog.Errorf("sync: connectToPeer: couldn't connect to peer %v", iSt.config.peer)
-	return false
-}
-
-func (iSt *initiationState) connectToPeerInternal(ctxIn *context.T, absName string) bool {
-	ctx, cancel := context.WithCancel(ctxIn)
-
-	// We start a timer to bound the amount of time we wait to
-	// initiate a connection.
-	t := time.AfterFunc(connectionTimeOut, cancel)
-
-	c := interfaces.SyncClient(absName)
-
-	vlog.VI(4).Infof("sync: connectToPeer: trying %v", absName)
-
-	var err error
-	iSt.stream, err = c.GetDeltas(ctx, iSt.req, iSt.config.sync.name,
-		options.ChannelTimeout(connectionTimeOut))
-	t.Stop()
-
-	if err == nil {
-		vlog.VI(4).Infof("sync: connectToPeer: established on %s", absName)
-		return true
-	}
-
-	// When the RPC is successful, cancelling the parent context
-	// will take care of cancelling the child context.
-	cancel()
-	return false
 }
 
 // recvAndProcessDeltas first receives the log records and generation vector
@@ -708,6 +801,10 @@ func extractBlobRefs(val *vdl.Value, brs map[nosql.BlobRef]struct{}) error {
 	}
 	return nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Internal helpers for finishing the local processing of all the log records
+// received over the network.
 
 // processUpdatedObjects processes all the updates received by the initiator,
 // one object at a time. Conflict detection and resolution is carried out after
@@ -1090,4 +1187,65 @@ func mergePrefixGenVectors(lpgv, respgv interfaces.PrefixGenVector) {
 			lpgv[devid] = rgen
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Internal helpers to make different RPCs needed for syncing.
+
+// remoteOp encapsulates an RPC operation run against "peer".
+type remoteOp func(ctx *context.T, peer string) error
+
+// runAtPeer attempts to connect to the remote peer using the neighborhood
+// address when specified or the mount tables obtained from all the common
+// syncgroups, and runs the specified op.
+func runAtPeer(ctx *context.T, peer connInfo, mtTbls []string, op remoteOp) ([]string, error) {
+	if len(mtTbls) < 1 && peer.addr == "" {
+		return mtTbls, verror.New(verror.ErrInternal, ctx, "no mount tables/endpoint found", peer)
+	}
+
+	if peer.addr != "" {
+		absName := naming.Join(peer.addr, util.SyncbaseSuffix)
+		return mtTbls, runRemoteOp(ctx, absName, op)
+	}
+
+	for i, mt := range mtTbls {
+		absName := naming.Join(mt, peer.relName, util.SyncbaseSuffix)
+		err := runRemoteOp(ctx, absName, op)
+		if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+			return mtTbls[i:], err
+		}
+	}
+
+	return nil, verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", peer.relName, peer.addr)
+}
+
+func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) error {
+	vlog.VI(4).Infof("sync: runRemoteOp: begin for %v", absName)
+
+	ctx, cancel := context.WithCancel(ctxIn)
+
+	// We start a timer to bound the amount of time we wait to
+	// initiate a connection.
+	t := time.AfterFunc(connectionTimeOut, cancel)
+	err := op(ctx, absName)
+	t.Stop()
+
+	if err == nil {
+		vlog.VI(4).Infof("sync: runRemoteOp: end op established for %s", absName)
+		return nil
+	}
+
+	vlog.VI(4).Infof("sync: runRemoteOp: end for %s, err %v", absName, err)
+
+	// TODO(hpucha): Fix error handling so that we do not assume that any
+	// error that is not "access denied" is a connection error.
+	if verror.ErrorID(err) != verror.ErrNoAccess.ID {
+		err = verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", absName)
+	}
+
+	// When the RPC is successful, cancelling the parent context will take
+	// care of cancelling the child context. When the err is non-nil, we
+	// cancel the context here.
+	cancel()
+	return err
 }

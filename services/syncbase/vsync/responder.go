@@ -25,7 +25,10 @@ func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasSer
 	vlog.VI(2).Infof("sync: GetDeltas: begin: from initiator %s", initiator)
 	defer vlog.VI(2).Infof("sync: GetDeltas: end: from initiator %s", initiator)
 
-	rSt := newResponderState(ctx, call, s, req, initiator)
+	rSt, err := newResponderState(ctx, call, s, req, initiator)
+	if err != nil {
+		return err
+	}
 	return rSt.sendDeltasPerDatabase(ctx)
 }
 
@@ -48,7 +51,7 @@ type responderState struct {
 	outVec interfaces.GenVector
 }
 
-func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, sync *syncService, req interfaces.DeltaReq, initiator string) *responderState {
+func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, sync *syncService, req interfaces.DeltaReq, initiator string) (*responderState, error) {
 	rSt := &responderState{
 		call:      call,
 		sync:      sync,
@@ -76,8 +79,10 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 			}
 			rSt.sgIds[interfaces.GroupId(gid)] = struct{}{}
 		}
+	default:
+		return nil, verror.New(verror.ErrInternal, ctx, "nil req")
 	}
-	return rSt
+	return rSt, nil
 }
 
 // sendDeltasPerDatabase sends to an initiator all the missing generations
@@ -128,6 +133,7 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 
 	// Check error from phase 1.
 	if err != nil {
+		vlog.VI(4).Infof("sync: sendDeltasPerDatabase: failed authorization, err %v", err)
 		return err
 	}
 
