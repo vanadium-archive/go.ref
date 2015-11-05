@@ -15,7 +15,7 @@ import (
 
 // Scan implements discovery.Scanner.
 func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error) {
-	matcher, err := newMatcher(query)
+	matcher, err := newMatcher(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func doScan(ctx *context.T, matcher matcher, scanCh <-chan Advertisement, update
 			// Thus we do not match the query against it. mergeAdvertisement() will
 			// ignore it if it has not been scanned.
 			if !ad.Lost {
-				if !matcher.match(ctx, &ad) {
+				if !matcher.match(&ad) {
 					continue
 				}
 			}

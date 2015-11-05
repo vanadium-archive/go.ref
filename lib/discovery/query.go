@@ -25,14 +25,14 @@ type matcher interface {
 	targetServiceUuid() Uuid
 
 	// match returns true if the matcher matches the advertisement.
-	match(ctx *context.T, ad *Advertisement) bool
+	match(ad *Advertisement) bool
 }
 
 // trueMatcher matches any advertisement.
 type trueMatcher struct{}
 
-func (m trueMatcher) targetServiceUuid() Uuid               { return nil }
-func (m trueMatcher) match(*context.T, *Advertisement) bool { return true }
+func (m trueMatcher) targetServiceUuid() Uuid   { return nil }
+func (m trueMatcher) match(*Advertisement) bool { return true }
 
 // dDS implements a datasource for syncQL, which represents one advertisement.
 type dDS struct {
@@ -62,8 +62,16 @@ func (ds *dDS) KeyValue() (string, *vdl.Value) { return ds.k, ds.v }
 func (ds *dDS) Err() error                     { return nil }
 func (ds *dDS) Cancel()                        { ds.done = true }
 
+func (ds *dDS) addKeyValue(k string, v *vdl.Value) {
+	ds.k, ds.v = k, v
+	ds.done = false
+}
+
 // queryMatcher matches advertisements against the given query.
 type queryMatcher struct {
+	ds    *dDS
+	pstmt datasource.PreparedStatement
+
 	// TODO(jhahn): Use the pre-compiled query when it's ready.
 	query string
 }
@@ -82,18 +90,17 @@ func (m *queryMatcher) targetServiceUuid() Uuid {
 	return nil
 }
 
-func (m *queryMatcher) match(ctx *context.T, ad *Advertisement) bool {
-	ds := &dDS{ctx: ctx, k: string(ad.Service.InstanceUuid)}
-	var err error
-	ds.v, err = vdl.ValueFromReflect(reflect.ValueOf(ad.Service))
+func (m *queryMatcher) match(ad *Advertisement) bool {
+	v, err := vdl.ValueFromReflect(reflect.ValueOf(ad.Service))
 	if err != nil {
-		ctx.Error(err)
+		m.ds.ctx.Error(err)
 		return false
 	}
 
-	_, r, err := engine.Create(ds).Exec(m.query)
+	m.ds.addKeyValue(string(ad.Service.InstanceUuid), v)
+	_, r, err := m.pstmt.Exec()
 	if err != nil {
-		ctx.Error(err)
+		m.ds.ctx.Error(err)
 		return false
 	}
 
@@ -104,26 +111,29 @@ func (m *queryMatcher) match(ctx *context.T, ad *Advertisement) bool {
 		return true
 	}
 	if err = r.Err(); err != nil {
-		ctx.Error(err)
+		m.ds.ctx.Error(err)
 	}
 	return false
 }
 
-func newMatcher(query string) (matcher, error) {
+func newMatcher(ctx *context.T, query string) (matcher, error) {
 	if len(query) == 0 {
 		return trueMatcher{}, nil
 	}
 
+	// Prepare the query engine.
 	query = "SELECT v FROM d WHERE " + query
 
-	// Validate the query.
-	//
-	// TODO(jhahn): Pre-compile the query when it's ready.
-	_, r, err := engine.Create(&dDS{}).Exec(query)
+	ds := &dDS{ctx: ctx}
+	pstmt, err := engine.Create(ds).PrepareStatement(query)
 	if err != nil {
 		return nil, err
 	}
-	r.Cancel()
+	// Check any semantic error such as errors from pre-executing functions
+	// or evaluating some literal function arguments.
+	if _, _, err = pstmt.Exec(); err != nil {
+		return nil, err
+	}
 
-	return &queryMatcher{query: query}, nil
+	return &queryMatcher{ds: ds, pstmt: pstmt, query: query}, nil
 }

@@ -61,7 +61,7 @@ func TestQuery(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		m, err := newMatcher(test.query)
+		m, err := newMatcher(ctx, test.query)
 		if err != nil {
 			t.Errorf("query[%d]: newMatcher failed: %v", i, err)
 			continue
@@ -72,7 +72,7 @@ func TestQuery(t *testing.T) {
 		}
 
 		for j, service := range services {
-			if matched := m.match(ctx, &Advertisement{Service: service}); matched != test.matches[j] {
+			if matched := m.match(&Advertisement{Service: service}); matched != test.matches[j] {
 				t.Errorf("query[%d]: match returned %t for service[%d]; but wanted %t", i, matched, j, test.matches[j])
 			}
 		}
@@ -80,6 +80,9 @@ func TestQuery(t *testing.T) {
 }
 
 func TestQueryError(t *testing.T) {
+	ctx, shutdown := test.TestContext()
+	defer shutdown()
+
 	tests := []string{
 		`v..InterfaceName="v.io/v23/a"`,
 		`v.InterfaceName="v.io/v23/a" AND AND v.Attrs["a1"]="v1"`,
@@ -87,7 +90,7 @@ func TestQueryError(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		if _, err := newMatcher(test); err == nil {
+		if _, err := newMatcher(ctx, test); err == nil {
 			t.Errorf("query[%d]: newMatcher not failed", i)
 		}
 	}
