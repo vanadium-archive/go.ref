@@ -177,6 +177,7 @@ func NewAccepted(
 	versions version.RPCVersionRange,
 	handshakeTimeout time.Duration,
 	handler FlowHandler) (*Conn, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	c := &Conn{
 		mp:            newMessagePipe(conn),
 		handler:       handler,
@@ -189,6 +190,7 @@ func NewAccepted(
 		lastUsedTime:  time.Now(),
 		toRelease:     map[uint64]uint64{},
 		borrowing:     map[uint64]bool{},
+		cancel:        cancel,
 		lshared:       DefaultBytesBufferedPerFlow,
 		activeWriters: make([]writer, numPriorities),
 	}
