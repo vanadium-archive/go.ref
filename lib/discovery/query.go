@@ -12,6 +12,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/query/engine"
 	"v.io/v23/query/engine/datasource"
+	"v.io/v23/query/engine/public"
 	"v.io/v23/vdl"
 )
 
@@ -70,7 +71,7 @@ func (ds *dDS) addKeyValue(k string, v *vdl.Value) {
 // queryMatcher matches advertisements against the given query.
 type queryMatcher struct {
 	ds    *dDS
-	pstmt datasource.PreparedStatement
+	pstmt public.PreparedStatement
 
 	// TODO(jhahn): Use the pre-compiled query when it's ready.
 	query string
