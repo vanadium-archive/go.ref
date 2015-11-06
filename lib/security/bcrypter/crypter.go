@@ -18,6 +18,8 @@ import (
 	"v.io/x/lib/ibe"
 )
 
+type crypterKey struct {}
+
 const hashTruncation = 16
 
 // Crypter provides operations for encrypting and decrypting messages for
@@ -250,6 +252,19 @@ func (p *Params) Blessing() string {
 // and identity provider parameters.
 func NewCrypter() *Crypter {
 	return &Crypter{params: make(map[string][]ibe.Params), keys: make(map[string]map[string]ibe.PrivateKey)}
+}
+
+// WithCrypter derives a new context from the provided one by attaching
+// the provided crypter to it.
+func WithCrypter(ctx *context.T, crypter *Crypter) *context.T {
+	return context.WithValue(ctx, crypterKey{}, crypter)
+}
+
+// GetCrypter returns the crypter attached to the context, or nil if no
+// crypter is attached.
+func GetCrypter(ctx *context.T) *Crypter {
+	crypter, _ := ctx.Value(crypterKey{}).(*Crypter)
+	return crypter
 }
 
 // NewRoot returns a new root identity provider that has the provided

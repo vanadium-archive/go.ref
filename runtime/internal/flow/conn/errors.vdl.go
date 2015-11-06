@@ -35,6 +35,12 @@ var (
 	ErrBlessingsNotBound        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.BlessingsNotBound", verror.NoRetry, "{1:}{2:} blessings not bound to connection remote public key")
 	ErrNoBlessingsForPeer       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoBlessingsForPeer", verror.NoRetry, "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 	ErrInvalidPeerFlow          = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidPeerFlow", verror.NoRetry, "{1:}{2:} peer has chosen flow id from local domain.")
+	ErrCannotDecryptBlessings   = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotDecryptBlessings", verror.NoRetry, "{1:}{2:} cannot decrypt the encrypted blessings sent by peer{:3}")
+	ErrCannotDecryptDischarges  = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotDecryptDischarges", verror.NoRetry, "{1:}{2:} cannot decrypt the encrypted discharges sent by peer{:3}")
+	ErrCannotEncryptBlessings   = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotEncryptBlessings", verror.NoRetry, "{1:}{2:} cannot encyrpt blessings for peer {3}{:4}")
+	ErrCannotEncryptDischarges  = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotEncryptDischarges", verror.NoRetry, "{1:}{2:} cannot encrypt discharges for peers {3}{:4}")
+	ErrNoCrypter                = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoCrypter", verror.NoRetry, "{1:}{2:} no blessings-based crypter available")
+	ErrNoPrivateKey             = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoPrivateKey", verror.NoRetry, "{1:}{2:} no blessings private key available for decryption")
 )
 
 func init() {
@@ -55,6 +61,12 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBlessingsNotBound.ID), "{1:}{2:} blessings not bound to connection remote public key")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoBlessingsForPeer.ID), "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidPeerFlow.ID), "{1:}{2:} peer has chosen flow id from local domain.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotDecryptBlessings.ID), "{1:}{2:} cannot decrypt the encrypted blessings sent by peer{:3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotDecryptDischarges.ID), "{1:}{2:} cannot decrypt the encrypted discharges sent by peer{:3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotEncryptBlessings.ID), "{1:}{2:} cannot encyrpt blessings for peer {3}{:4}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotEncryptDischarges.ID), "{1:}{2:} cannot encrypt discharges for peers {3}{:4}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoCrypter.ID), "{1:}{2:} no blessings-based crypter available")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoPrivateKey.ID), "{1:}{2:} no blessings private key available for decryption")
 }
 
 // NewErrMissingSetupOption returns an error with the ErrMissingSetupOption ID.
@@ -140,4 +152,34 @@ func NewErrNoBlessingsForPeer(ctx *context.T, peerNames []string, rejected []sec
 // NewErrInvalidPeerFlow returns an error with the ErrInvalidPeerFlow ID.
 func NewErrInvalidPeerFlow(ctx *context.T) error {
 	return verror.New(ErrInvalidPeerFlow, ctx)
+}
+
+// NewErrCannotDecryptBlessings returns an error with the ErrCannotDecryptBlessings ID.
+func NewErrCannotDecryptBlessings(ctx *context.T, err error) error {
+	return verror.New(ErrCannotDecryptBlessings, ctx, err)
+}
+
+// NewErrCannotDecryptDischarges returns an error with the ErrCannotDecryptDischarges ID.
+func NewErrCannotDecryptDischarges(ctx *context.T, err error) error {
+	return verror.New(ErrCannotDecryptDischarges, ctx, err)
+}
+
+// NewErrCannotEncryptBlessings returns an error with the ErrCannotEncryptBlessings ID.
+func NewErrCannotEncryptBlessings(ctx *context.T, peers []security.BlessingPattern, err error) error {
+	return verror.New(ErrCannotEncryptBlessings, ctx, peers, err)
+}
+
+// NewErrCannotEncryptDischarges returns an error with the ErrCannotEncryptDischarges ID.
+func NewErrCannotEncryptDischarges(ctx *context.T, peers []security.BlessingPattern, err error) error {
+	return verror.New(ErrCannotEncryptDischarges, ctx, peers, err)
+}
+
+// NewErrNoCrypter returns an error with the ErrNoCrypter ID.
+func NewErrNoCrypter(ctx *context.T) error {
+	return verror.New(ErrNoCrypter, ctx)
+}
+
+// NewErrNoPrivateKey returns an error with the ErrNoPrivateKey ID.
+func NewErrNoPrivateKey(ctx *context.T) error {
+	return verror.New(ErrNoPrivateKey, ctx)
 }

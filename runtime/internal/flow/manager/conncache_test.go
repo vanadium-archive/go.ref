@@ -335,7 +335,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	}()
 	fh := fh{t, make(chan struct{})}
 	go func() {
-		a, err := connpackage.NewAccepted(ctx, lBlessings, amrw, ep,
+		a, err := connpackage.NewAccepted(ctx, lBlessings, nil, amrw, ep,
 			version.RPCVersionRange{Min: 1, Max: 5}, time.Minute, fh)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)

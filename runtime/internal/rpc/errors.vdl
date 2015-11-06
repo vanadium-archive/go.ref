@@ -33,4 +33,10 @@ error (
 	serverBlessingsWrongPublicKey() {
 		"en": "server blessings do not match the principals public key",
 	}
+	serverPeersEmpty() {
+		"en": "no peers are authorized to communicate with the server",
+	}
+	serverPeersWithPublishing() {
+		"en": "ServerPeers option is not supported for servers that publish their endpoint at a mounttable",
+	}
 )
