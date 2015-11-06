@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -33,6 +35,7 @@ import (
 	"v.io/x/ref/services/identity/identitylib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/wsprlib"
+	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 )
@@ -145,7 +148,28 @@ func run(env *cmdline.Env, args []string) error {
 
 	lspec := v23.GetListenSpec(ctx)
 	lspec.Addrs = rpc.ListenAddrs{{"ws", "127.0.0.1:0"}}
-	proxyShutdown, proxyEndpoint, err := generic.NewProxy(ctx, lspec, security.AllowEveryone(), "test/proxy")
+	ctx = v23.WithListenSpec(ctx, lspec)
+	var (
+		proxyShutdown func()
+		proxyEndpoint naming.Endpoint
+	)
+	if ref.RPCTransitionState() == ref.XServers {
+		ctx, cancel := context.WithCancel(ctx)
+		proxy, err := xproxy.New(ctx, "test/proxy", security.AllowEveryone())
+		if err != nil {
+			return err
+		}
+		proxyEndpoint = proxy.ListeningEndpoints()[0]
+		proxyShutdown = func() {
+			cancel()
+			<-proxy.Closed()
+		}
+	} else {
+		proxyShutdown, proxyEndpoint, err = generic.NewProxy(ctx, lspec, security.AllowEveryone(), "test/proxy")
+		if err != nil {
+			return err
+		}
+	}
 	defer proxyShutdown()
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 
