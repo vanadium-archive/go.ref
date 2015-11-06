@@ -342,7 +342,7 @@ func initServer(t *testing.T, ctx *context.T) (string, func()) {
 }
 
 func TestV23Control(t *testing.T) {
-	if ref.RPCTransitionState() >= ref.XServers {
+	if ref.RPCTransitionState() >= ref.XClients {
 		t.Skip("This test is not compatible with the new rpc system." +
 			"  We will replace mocknet with an alternative package.")
 	}
