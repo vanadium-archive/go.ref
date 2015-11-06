@@ -111,7 +111,10 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 	for _, test := range tests {
 		want := test.genDiffWant
 		got := test.genDiffIn
-		rSt := newResponderState(nil, nil, s, interfaces.DeltaReqData{}, "fakeInitiator")
+		rSt, err := newResponderState(nil, nil, s, interfaces.DeltaReqData{}, "fakeInitiator")
+		if err != nil {
+			t.Fatalf("newResponderState failed with err %v", err)
+		}
 		rSt.diff = got
 		rSt.diffPrefixGenVectors(test.respPVec, test.initPVec)
 		checkEqualDevRanges(t, got, want)
@@ -407,10 +410,12 @@ func TestSendDataDeltas(t *testing.T) {
 			InitVec: test.initVec,
 		}
 
-		rSt := newResponderState(nil, nil, s, interfaces.DeltaReqData{req}, "fakeInitiator")
+		rSt, err := newResponderState(nil, nil, s, interfaces.DeltaReqData{req}, "fakeInitiator")
+		if err != nil {
+			t.Fatalf("newResponderState failed with err %v", err)
+		}
 		d := &dummyResponder{}
 		rSt.call = d
-		var err error
 		rSt.st, err = rSt.sync.getDbStore(nil, nil, rSt.appName, rSt.dbName)
 		if err != nil {
 			t.Fatalf("getDbStore failed to get store handle for app/db %v %v", rSt.appName, rSt.dbName)

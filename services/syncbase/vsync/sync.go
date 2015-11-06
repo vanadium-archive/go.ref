@@ -27,6 +27,7 @@ import (
 	"v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	discutil "v.io/x/ref/lib/discovery/util"
 	"v.io/x/ref/services/syncbase/clock"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
 	fsblob "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
@@ -336,29 +337,16 @@ func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
 		return nil
 	}
 
-	ctx, stop := context.WithCancel(s.ctx)
-
-	advertiser := v23.GetDiscovery(ctx)
-	if advertiser == nil {
-		vlog.Fatal("sync: publishInNeighborhood: discovery not initialized.")
-	}
-
-	// TODO(hpucha): For now we grab the current address of the server. This
-	// will be replaced by library support that will take care of roaming.
-	var eps []string
-	for _, ep := range svr.Status().Endpoints {
-		eps = append(eps, ep.Name())
-	}
-
 	sbService := discovery.Service{
 		InstanceUuid:  []byte(s.name),
 		InstanceName:  s.name,
 		InterfaceName: interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name,
-		Addrs:         eps,
 	}
+	ctx, stop := context.WithCancel(s.ctx)
 
 	// Duplicate calls to advertise will return an error.
-	_, err := advertiser.Advertise(ctx, sbService, nil)
+	_, err := discutil.AdvertiseServer(ctx, svr, "", sbService, nil)
+
 	if err == nil {
 		s.advCancel = stop
 	}

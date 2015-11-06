@@ -121,7 +121,7 @@ func (s *syncService) syncerWork(ctx *context.T) {
 	err = s.syncClock(ctx, peer)
 	// Abort syncing if there is a connection error with peer.
 	if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
-		err = s.getDeltas(ctx, peer)
+		err = s.getDeltasFromPeer(ctx, peer)
 	}
 
 	s.ps.updatePeerFromSyncer(ctx, peer, attemptTs, verror.ErrorID(err) == interfaces.ErrConnFail.ID)
