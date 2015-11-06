@@ -57,8 +57,12 @@ The global flags are:
  -v23.vtrace.sample-rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
  -vmodule=
-   comma-separated list of pattern=N settings for filename-filtered logging
+   comma-separated list of globpattern=N settings for filename-filtered logging
+   (without the .go suffix).  E.g. foo/bar/baz.go is matched by patterns baz or
+   *az or b* but not by bar/baz or baz.go or az or b.*
  -vpath=
-   comma-separated list of pattern=N settings for file pathname-filtered logging
+   comma-separated list of regexppattern=N settings for file pathname-filtered
+   logging (without the .go suffix).  E.g. foo/bar/baz.go is matched by patterns
+   foo/bar/baz or fo.*az or oo/ba or b.z but not by foo/bar/baz.go or fo*az
 */
 package main
