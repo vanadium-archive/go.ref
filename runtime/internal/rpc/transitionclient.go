@@ -14,23 +14,27 @@ import (
 )
 
 type transitionClient struct {
-	c, xc   rpc.Client
-	closech chan struct{}
+	c, xc  rpc.Client
+	ctx    *context.T
+	cancel context.CancelFunc
 }
 
 var _ = rpc.Client((*transitionClient)(nil))
 
 func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
+	// The transition client behaves like the old RPC client.  It
+	// doesn't die until Close is called.  This is important because
+	// unlike the new RPC server, the old one doesn't control the
+	// lifetime of the client it uses.  If the client closes when the
+	// context closes, then the server will not be able to unmount
+	// cleanly.
+	rootCtx, rootCancel := context.WithRootCancel(ctx)
 	tc := &transitionClient{
-		xc:      NewXClient(ctx, ns, opts...),
-		c:       DeprecatedNewClient(streamMgr, ns, opts...),
-		closech: make(chan struct{}),
+		xc:     NewXClient(rootCtx, ns, opts...),
+		c:      DeprecatedNewClient(streamMgr, ns, opts...),
+		ctx:    rootCtx,
+		cancel: rootCancel,
 	}
-	go func() {
-		<-tc.xc.Closed()
-		<-tc.c.Closed()
-		close(tc.closech)
-	}()
 	return tc
 }
 
@@ -53,8 +57,9 @@ func (t *transitionClient) Call(ctx *context.T, name, method string, in, out []i
 func (t *transitionClient) Close() {
 	t.c.Close()
 	t.xc.Close()
+	t.cancel()
 }
 
 func (t *transitionClient) Closed() <-chan struct{} {
-	return t.closech
+	return t.ctx.Done()
 }
