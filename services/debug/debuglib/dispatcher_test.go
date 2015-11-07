@@ -71,9 +71,7 @@ func TestDebugServer(t *testing.T) {
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
 		}
-		if len(results) != 1 || results[0] != "test.INFO" {
-			t.Errorf("unexpected result. Got %v, want 'test.INFO'", results)
-		}
+		check(t, []string{"test.INFO"}, results)
 	}
 
 	// Access a logs directory that doesn't exist.
@@ -172,14 +170,11 @@ func TestDebugServer(t *testing.T) {
 				results = append(results, v.Value.Name)
 			}
 		}
-		sort.Strings(results)
 		expected := []string{
 			"logs",
 			"logs/test.INFO",
 		}
-		if !reflect.DeepEqual(expected, results) {
-			t.Errorf("unexpected result. Got %v, want %v", results, expected)
-		}
+		check(t, expected, results)
 
 		c, err = ns.Glob(ctx, "stats/testing/*")
 		if err != nil {
@@ -238,7 +233,6 @@ func TestDebugServer(t *testing.T) {
 				results = append(results, v.Value.Name)
 			}
 		}
-		sort.Strings(results)
 		expected = []string{
 			"",
 			"logs",
@@ -248,8 +242,22 @@ func TestDebugServer(t *testing.T) {
 			"stats/testing/foo",
 			"vtrace",
 		}
-		if !reflect.DeepEqual(expected, results) {
-			t.Errorf("unexpected result. Got %v, want %v", results, expected)
+		check(t, expected, results)
+	}
+}
+
+func check(t *testing.T, expected, results []string) {
+	resultSet := map[string]bool{}
+	for _, result := range results {
+		resultSet[result] = true
+	}
+	var missing []string
+	for _, expected := range expected {
+		if !resultSet[expected] {
+			missing = append(missing, expected)
 		}
+	}
+	if len(missing) > 0 {
+		t.Errorf("Result %v missing expected results %v", results, missing)
 	}
 }
