@@ -20,16 +20,11 @@ import (
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
-// flowID is a number assigned to identify a flow.
-// Each flow on a given conn will have a unique number.
 const (
 	invalidFlowID = iota
 	blessingsFlowID
 	reservedFlows = 10
 )
-
-const mtu = 1 << 16
-const DefaultBytesBufferedPerFlow = 1 << 20
 
 const (
 	expressPriority = iota
@@ -39,6 +34,10 @@ const (
 	// Must be last.
 	numPriorities
 )
+
+const mtu = 1 << 16
+const defaultChannelTimeout = 30 * time.Minute
+const DefaultBytesBufferedPerFlow = 1 << 20
 
 // FlowHandlers process accepted flows.
 type FlowHandler interface {
@@ -60,6 +59,14 @@ const (
 	Closed
 )
 
+type healthCheckState struct {
+	requestTimer    *time.Timer
+	requestDeadline time.Time
+
+	closeTimer    *time.Timer
+	closeDeadline time.Time
+}
+
 // Conns are a multiplexing encrypted channels that can host Flows.
 type Conn struct {
 	// All the variables here are set before the constructor returns
@@ -79,14 +86,16 @@ type Conn struct {
 
 	mu sync.Mutex // All the variables below here are protected by mu.
 
-	rPublicKey     security.PublicKey
-	status         Status
-	remoteLameDuck bool
-	handler        FlowHandler
-	nextFid        uint64
-	dischargeTimer *time.Timer
-	lastUsedTime   time.Time
-	flows          map[uint64]*flw
+	rPublicKey           security.PublicKey
+	status               Status
+	remoteLameDuck       bool
+	handler              FlowHandler
+	nextFid              uint64
+	dischargeTimer       *time.Timer
+	lastUsedTime         time.Time
+	flows                map[uint64]*flw
+	hcstate              *healthCheckState
+	acceptChannelTimeout time.Duration
 
 	// TODO(mattr): Integrate these maps back into the flows themselves as
 	// has been done with the sending counts.
@@ -131,8 +140,12 @@ func NewDialed(
 	versions version.RPCVersionRange,
 	auth flow.PeerAuthorizer,
 	handshakeTimeout time.Duration,
+	channelTimeout time.Duration,
 	handler FlowHandler) (*Conn, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
+	if channelTimeout == 0 {
+		channelTimeout = defaultChannelTimeout
+	}
 	c := &Conn{
 		mp:           newMessagePipe(conn),
 		handler:      handler,
@@ -149,8 +162,9 @@ func NewDialed(
 		cancel:       cancel,
 		// TODO(mattr): We should negotiate the shared counter pool size with the
 		// other end.
-		lshared:       DefaultBytesBufferedPerFlow,
-		activeWriters: make([]writer, numPriorities),
+		lshared:              DefaultBytesBufferedPerFlow,
+		activeWriters:        make([]writer, numPriorities),
+		acceptChannelTimeout: channelTimeout,
 	}
 	// TODO(mattr): This scheme for deadlines is nice, but it doesn't
 	// provide for cancellation when ctx is canceled.
@@ -163,6 +177,7 @@ func NewDialed(
 		c.Close(ctx, err)
 		return nil, err
 	}
+	c.initializeHealthChecks(ctx)
 	c.loopWG.Add(1)
 	go c.readLoop(ctx)
 	return c, nil
@@ -177,23 +192,28 @@ func NewAccepted(
 	local naming.Endpoint,
 	versions version.RPCVersionRange,
 	handshakeTimeout time.Duration,
+	channelTimeout time.Duration,
 	handler FlowHandler) (*Conn, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	if channelTimeout == 0 {
+		channelTimeout = defaultChannelTimeout
+	}
 	c := &Conn{
-		mp:            newMessagePipe(conn),
-		handler:       handler,
-		lBlessings:    lBlessings,
-		local:         endpointCopy(local),
-		closed:        make(chan struct{}),
-		lameDucked:    make(chan struct{}),
-		nextFid:       reservedFlows + 1,
-		flows:         map[uint64]*flw{},
-		lastUsedTime:  time.Now(),
-		toRelease:     map[uint64]uint64{},
-		borrowing:     map[uint64]bool{},
-		cancel:        cancel,
-		lshared:       DefaultBytesBufferedPerFlow,
-		activeWriters: make([]writer, numPriorities),
+		mp:                   newMessagePipe(conn),
+		handler:              handler,
+		lBlessings:           lBlessings,
+		local:                endpointCopy(local),
+		closed:               make(chan struct{}),
+		lameDucked:           make(chan struct{}),
+		nextFid:              reservedFlows + 1,
+		flows:                map[uint64]*flw{},
+		lastUsedTime:         time.Now(),
+		toRelease:            map[uint64]uint64{},
+		borrowing:            map[uint64]bool{},
+		cancel:               cancel,
+		lshared:              DefaultBytesBufferedPerFlow,
+		activeWriters:        make([]writer, numPriorities),
+		acceptChannelTimeout: channelTimeout,
 	}
 	// FIXME(mattr): This scheme for deadlines is nice, but it doesn't
 	// provide for cancellation when ctx is canceled.
@@ -206,9 +226,61 @@ func NewAccepted(
 		c.Close(ctx, err)
 		return nil, err
 	}
+	c.initializeHealthChecks(ctx)
 	c.loopWG.Add(1)
 	go c.readLoop(ctx)
 	return c, nil
+}
+
+func (c *Conn) initializeHealthChecks(ctx *context.T) {
+	now := time.Now()
+	h := &healthCheckState{
+		requestTimer: time.AfterFunc(c.acceptChannelTimeout/2, func() {
+			c.mu.Lock()
+			c.sendMessageLocked(ctx, true, expressPriority, &message.HealthCheckRequest{})
+			c.mu.Unlock()
+		}),
+		requestDeadline: now.Add(c.acceptChannelTimeout / 2),
+
+		closeTimer: time.AfterFunc(c.acceptChannelTimeout, func() {
+			c.internalClose(ctx, NewErrChannelTimeout(ctx))
+		}),
+		closeDeadline: now.Add(c.acceptChannelTimeout),
+	}
+	c.mu.Lock()
+	c.hcstate = h
+	c.mu.Unlock()
+}
+
+func (c *Conn) handleHealthCheckResponse(ctx *context.T) {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.status < Closing {
+		timeout := c.acceptChannelTimeout
+		for _, f := range c.flows {
+			if f.channelTimeout > 0 && f.channelTimeout < timeout {
+				timeout = f.channelTimeout
+			}
+		}
+		c.hcstate.closeTimer.Reset(timeout)
+		c.hcstate.closeDeadline = time.Now().Add(timeout)
+		c.hcstate.requestTimer.Reset(timeout / 2)
+		c.hcstate.requestDeadline = time.Now().Add(timeout / 2)
+	}
+}
+
+func (c *Conn) healthCheckNewFlowLocked(ctx *context.T, timeout time.Duration) {
+	if timeout != 0 {
+		now := time.Now()
+		if rd := now.Add(timeout / 2); rd.Before(c.hcstate.requestDeadline) {
+			c.hcstate.requestDeadline = rd
+			c.hcstate.requestTimer.Reset(timeout / 2)
+		}
+		if cd := now.Add(timeout); cd.Before(c.hcstate.closeDeadline) {
+			c.hcstate.closeDeadline = cd
+			c.hcstate.closeTimer.Reset(timeout)
+		}
+	}
 }
 
 // Enter LameDuck mode, the returned channel will be closed when the remote
@@ -228,7 +300,7 @@ func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 }
 
 // Dial dials a new flow on the Conn.
-func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endpoint) (flow.Flow, error) {
+func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endpoint, channelTimeout time.Duration) (flow.Flow, error) {
 	if c.remote.RoutingID() == naming.NullRoutingID {
 		return nil, NewErrDialingNonServer(ctx)
 	}
@@ -265,7 +337,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endp
 	}
 	id := c.nextFid
 	c.nextFid += 2
-	return c.newFlowLocked(ctx, id, bkey, dkey, remote, true, false), nil
+	return c.newFlowLocked(ctx, id, bkey, dkey, remote, true, false, channelTimeout), nil
 }
 
 // LocalEndpoint returns the local vanadium Endpoint
@@ -317,13 +389,13 @@ func (c *Conn) Status() Status {
 
 // Close shuts down a conn.
 func (c *Conn) Close(ctx *context.T, err error) {
-	c.mu.Lock()
-	c.internalCloseLocked(ctx, err)
-	c.mu.Unlock()
+	c.internalClose(ctx, err)
 	<-c.closed
 }
 
-func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
+func (c *Conn) internalClose(ctx *context.T, err error) {
+	defer c.mu.Unlock()
+	c.mu.Lock()
 	ctx.VI(2).Infof("Closing connection: %v", err)
 
 	flows := c.flows
@@ -343,6 +415,10 @@ func (c *Conn) internalCloseLocked(ctx *context.T, err error) {
 	c.status = Closing
 
 	go func(c *Conn) {
+		if c.hcstate != nil {
+			c.hcstate.requestTimer.Stop()
+			c.hcstate.closeTimer.Stop()
+		}
 		if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
 			msg := ""
 			if err != nil {
@@ -412,9 +488,7 @@ func (c *Conn) release(ctx *context.T, fid, count uint64) {
 func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 	switch msg := m.(type) {
 	case *message.TearDown:
-		c.mu.Lock()
-		c.internalCloseLocked(ctx, NewErrConnClosedRemotely(ctx, msg.Message))
-		c.mu.Unlock()
+		c.internalClose(ctx, NewErrConnClosedRemotely(ctx, msg.Message))
 		return nil
 
 	case *message.EnterLameDuck:
@@ -441,6 +515,14 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		}
 		c.mu.Unlock()
 
+	case *message.HealthCheckRequest:
+		c.mu.Lock()
+		c.sendMessageLocked(ctx, true, expressPriority, &message.HealthCheckResponse{})
+		c.mu.Unlock()
+
+	case *message.HealthCheckResponse:
+		c.handleHealthCheckResponse(ctx)
+
 	case *message.OpenFlow:
 		c.mu.Lock()
 		if c.nextFid%2 == msg.ID%2 {
@@ -455,7 +537,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			return nil // Conn is already being closed.
 		}
 		handler := c.handler
-		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, nil, false, true)
+		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, nil, false, true, c.acceptChannelTimeout)
 		f.releaseLocked(msg.InitialCounters)
 		c.toRelease[msg.ID] = DefaultBytesBufferedPerFlow
 		c.borrowing[msg.ID] = true
@@ -517,9 +599,7 @@ func (c *Conn) readLoop(ctx *context.T) {
 			break
 		}
 	}
-	c.mu.Lock()
-	c.internalCloseLocked(ctx, err)
-	c.mu.Unlock()
+	c.internalClose(ctx, err)
 }
 
 func (c *Conn) markUsed() {

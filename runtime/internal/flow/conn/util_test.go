@@ -56,7 +56,7 @@ func setupConns(t *testing.T,
 			dep = ridep
 		}
 		dBlessings := v23.GetPrincipal(dctx).BlessingStore().Default()
-		d, err := NewDialed(dctx, dBlessings, dmrw, dep, ep, versions, peerAuthorizer{dBlessings, dAuth}, time.Minute, handler)
+		d, err := NewDialed(dctx, dBlessings, dmrw, dep, ep, versions, peerAuthorizer{dBlessings, dAuth}, time.Minute, 0, handler)
 		dch <- d
 		derrch <- err
 	}()
@@ -66,7 +66,7 @@ func setupConns(t *testing.T,
 			handler = fh(aflows)
 		}
 		aBlessings := v23.GetPrincipal(actx).BlessingStore().Default()
-		a, err := NewAccepted(actx, aBlessings, aAuth, amrw, ridep, versions, time.Minute, handler)
+		a, err := NewAccepted(actx, aBlessings, aAuth, amrw, ridep, versions, time.Minute, 0, handler)
 		ach <- a
 		aerrch <- err
 	}()
@@ -92,7 +92,7 @@ func setupFlows(t *testing.T, network, address string, dctx, actx *context.T, di
 	}
 	for i := 0; i < n; i++ {
 		var err error
-		if dialed[i], err = d.Dial(dctx, flowtest.AllowAllPeersAuthorizer{}, nil); err != nil {
+		if dialed[i], err = d.Dial(dctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 	}

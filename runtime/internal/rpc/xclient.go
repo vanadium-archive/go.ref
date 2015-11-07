@@ -17,13 +17,13 @@ import (
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	vtime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-
 	"v.io/x/ref/lib/apilog"
 	slib "v.io/x/ref/lib/security"
 	"v.io/x/ref/runtime/internal/flow/manager"
@@ -82,7 +82,7 @@ func NewXClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Clien
 		}
 	}
 	if c.flowMgr == nil {
-		c.flowMgr = manager.New(ctx, naming.NullRoutingID, nil)
+		c.flowMgr = manager.New(ctx, naming.NullRoutingID, nil, 0)
 	}
 
 	go func() {
@@ -165,7 +165,14 @@ type xserverStatus struct {
 // authorizer, both during creation of the VC underlying the flow and the
 // flow itself.
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method string, args []interface{}, auth security.Authorizer, ch chan<- *xserverStatus) {
+func (c *xclient) tryCreateFlow(
+	ctx *context.T,
+	index int,
+	name, server, method string,
+	args []interface{},
+	auth security.Authorizer,
+	channelTimeout time.Duration,
+	ch chan<- *xserverStatus) {
 	defer c.wg.Done()
 	status := &xserverStatus{index: index, server: server}
 	var span vtrace.Span
@@ -195,7 +202,7 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		return
 	}
 	peerAuth := peerAuthorizer{auth, method, args}
-	flow, err := c.flowMgr.Dial(ctx, ep, peerAuth)
+	flow, err := c.flowMgr.Dial(ctx, ep, peerAuth, channelTimeout)
 	if err != nil {
 		ctx.VI(2).Infof("rpc: failed to create Flow with %v: %v", server, err)
 		status.serverErr = suberr(err)
@@ -206,7 +213,7 @@ func (c *xclient) tryCreateFlow(ctx *context.T, index int, name, server, method 
 		// This flow must outlive the flow we're currently creating.
 		// It lives as long as the connection to which it is bound.
 		tctx, tcancel := context.WithRootCancel(ctx)
-		tflow, err := c.flowMgr.Dial(tctx, ep, typeFlowAuthorizer{})
+		tflow, err := c.flowMgr.Dial(tctx, ep, typeFlowAuthorizer{}, channelTimeout)
 		if err != nil {
 			status.serverErr = suberr(newErrTypeFlowFailure(tctx, err))
 			flow.Close()
@@ -333,6 +340,12 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 	responses := make([]*xserverStatus, len(resolved.Servers))
 	ch := make(chan *xserverStatus, len(resolved.Servers))
 	authorizer := newServerAuthorizer(blessingPattern, opts...)
+	channelTimeout := time.Duration(0)
+	for _, opt := range opts {
+		if t, ok := opt.(options.ChannelTimeout); ok {
+			channelTimeout = time.Duration(t)
+		}
+	}
 	for i, server := range resolved.Names() {
 		c.mu.Lock()
 		if c.closing {
@@ -342,7 +355,7 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 		c.wg.Add(1)
 		c.mu.Unlock()
 
-		go c.tryCreateFlow(ctx, i, name, server, method, args, authorizer, ch)
+		go c.tryCreateFlow(ctx, i, name, server, method, args, authorizer, channelTimeout, ch)
 	}
 
 	for {

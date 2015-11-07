@@ -42,7 +42,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	// This means that the manager will need to dial a subsequent conn on this conn
 	// to the end server.
 	c.remote.(*inaming.Endpoint).RID = remoteEndpoint.RoutingID()
-	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true)
+	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true, 0)
 	bflow.releaseLocked(DefaultBytesBufferedPerFlow)
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG, bflow)
 
@@ -103,7 +103,7 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange,
 	c.isProxy = false
 	c.remote = remoteEndpoint
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG,
-		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true))
+		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true, 0))
 	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authAcceptorTag, binding...))
 	if err != nil {
 		return err
@@ -515,9 +515,7 @@ func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {
 			return
 		}
 		if err := b.receive(ctx, received); err != nil {
-			b.f.conn.mu.Lock()
-			b.f.conn.internalCloseLocked(ctx, err)
-			b.f.conn.mu.Unlock()
+			b.f.conn.internalClose(ctx, err)
 			return
 		}
 	}

@@ -509,14 +509,14 @@ func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
 	return nil
 }
 
-func (r *Runtime) NewFlowManager(ctx *context.T) (flow.Manager, error) {
+func (r *Runtime) NewFlowManager(ctx *context.T, channelTimeout time.Duration) (flow.Manager, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		return nil, err
 	}
 	id, _ := ctx.Value(initKey).(*initData)
-	return manager.New(ctx, rid, id.settingsPublisher), nil
+	return manager.New(ctx, rid, id.settingsPublisher, channelTimeout), nil
 }
 
 func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubsub.Publisher, []rpc.ServerOpt, error) {

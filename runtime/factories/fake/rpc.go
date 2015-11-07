@@ -5,6 +5,8 @@
 package fake
 
 import (
+	"time"
+
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/rpc"
@@ -55,18 +57,18 @@ func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
 // SetFlowManagerFactory can be used to inject a mock FlowManager
 // implementation into the context.  When v23.NewFlowManager is called
 // passed function will be invoked.
-func SetFlowManagerFactory(ctx *context.T, factory func(ctx *context.T) flow.Manager) *context.T {
+func SetFlowManagerFactory(ctx *context.T, factory func(ctx *context.T, channelTimeout time.Duration) flow.Manager) *context.T {
 	return context.WithValue(ctx, flowFactoryKey, factory)
 }
 
-func (r *Runtime) NewFlowManager(ctx *context.T) (flow.Manager, error) {
+func (r *Runtime) NewFlowManager(ctx *context.T, channelTimeout time.Duration) (flow.Manager, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 
-	factory, ok := ctx.Value(flowFactoryKey).(func(ctx *context.T) flow.Manager)
+	factory, ok := ctx.Value(flowFactoryKey).(func(ctx *context.T, channelTimeout time.Duration) flow.Manager)
 	if !ok {
 		panic("Calling NewFlowManager on the fake runtime, but no factory has been set.")
 	}
-	return factory(ctx), nil
+	return factory(ctx, channelTimeout), nil
 }
 
 func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {

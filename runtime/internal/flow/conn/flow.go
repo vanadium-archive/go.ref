@@ -19,14 +19,15 @@ import (
 
 type flw struct {
 	// These variables are all set during flow construction.
-	id         uint64
-	dialed     bool
-	conn       *Conn
-	q          *readq
-	bkey, dkey uint64
-	noEncrypt  bool
-	writeCh    chan struct{}
-	remote     naming.Endpoint
+	id             uint64
+	dialed         bool
+	conn           *Conn
+	q              *readq
+	bkey, dkey     uint64
+	noEncrypt      bool
+	writeCh        chan struct{}
+	remote         naming.Endpoint
+	channelTimeout time.Duration
 
 	// These variables can only be modified by SetDeadlineContext which cannot
 	// be called concurrently with other methods on the flow.  Therefore they
@@ -62,7 +63,7 @@ type flw struct {
 // Ensure that *flw implements flow.Flow.
 var _ flow.Flow = &flw{}
 
-func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remote naming.Endpoint, dialed, preopen bool) *flw {
+func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remote naming.Endpoint, dialed, preopen bool, channelTimeout time.Duration) *flw {
 	f := &flw{
 		id:         id,
 		dialed:     dialed,
@@ -76,8 +77,9 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remot
 		// It's important that this channel has a non-zero buffer.  Sometimes this
 		// flow will be notifying itself, so if there's no buffer a deadlock will
 		// occur.
-		writeCh: make(chan struct{}, 1),
-		remote:  remote,
+		writeCh:        make(chan struct{}, 1),
+		remote:         remote,
+		channelTimeout: channelTimeout,
 	}
 	f.next, f.prev = f, f
 	f.ctx, f.cancel = context.WithCancel(ctx)
@@ -85,6 +87,7 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remot
 		c.unopenedFlows.Add(1)
 	}
 	c.flows[id] = f
+	c.healthCheckNewFlowLocked(ctx, channelTimeout)
 	return f
 }
 

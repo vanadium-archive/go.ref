@@ -40,7 +40,7 @@ type proxy struct {
 }
 
 func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) {
-	mgr, err := v23.NewFlowManager(ctx)
+	mgr, err := v23.NewFlowManager(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 			return nil, err
 		}
 	}
-	fout, err := p.m.Dial(ctx, ep, proxyAuthorizer{})
+	fout, err := p.m.Dial(ctx, ep, proxyAuthorizer{}, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +351,7 @@ func (p *proxy) connectToProxy(ctx *context.T, name string) {
 			ctx.Error(err)
 			continue
 		}
-		f, err := p.m.Dial(ctx, ep, proxyAuthorizer{})
+		f, err := p.m.Dial(ctx, ep, proxyAuthorizer{}, 0)
 		if err != nil {
 			ctx.Error(err)
 			continue

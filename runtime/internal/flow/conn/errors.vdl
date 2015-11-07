@@ -30,6 +30,7 @@ error (
   BlessingsNotBound() {"en": "blessings not bound to connection remote public key"}
   NoBlessingsForPeer(peerNames []string, rejected []security.RejectedBlessing, err error) {"en": "no blessings tagged for peer {peerNames}, rejected:{rejected}{:err}"}
   InvalidPeerFlow() {"en": "peer has chosen flow id from local domain."}
+  ChannelTimeout() {"en": "the channel has become unresponsive."}
   CannotDecryptBlessings(err error) {"en": "cannot decrypt the encrypted blessings sent by peer{:err}"}
   CannotDecryptDischarges(err error) {"en": "cannot decrypt the encrypted discharges sent by peer{:err}"}
   CannotEncryptBlessings(peers []security.BlessingPattern, err error) {"en": "cannot encyrpt blessings for peer {peers}{:err}"}

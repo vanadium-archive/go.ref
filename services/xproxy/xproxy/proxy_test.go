@@ -248,11 +248,11 @@ func TestSingleProxy(t *testing.T) {
 	flow.RegisterProtocol("kill", kp)
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
-	am, err := v23.NewFlowManager(ctx)
+	am, err := v23.NewFlowManager(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dm, err := v23.NewFlowManager(ctx)
+	dm, err := v23.NewFlowManager(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,11 +285,11 @@ func TestMultipleProxies(t *testing.T) {
 	flow.RegisterProtocol("kill", kp)
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	am, err := v23.NewFlowManager(ctx)
+	am, err := v23.NewFlowManager(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dm, err := v23.NewFlowManager(ctx)
+	dm, err := v23.NewFlowManager(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,7 @@ func TestMultipleProxies(t *testing.T) {
 func testEndToEndConnection(t *testing.T, ctx *context.T, dm, am flow.Manager, aep naming.Endpoint) error {
 	// The dialing flow.Manager dials a flow to the accepting flow.Manager.
 	want := "Do you read me?"
-	df, err := dm.Dial(ctx, aep, allowAllPeersAuthorizer{})
+	df, err := dm.Dial(ctx, aep, allowAllPeersAuthorizer{}, 0)
 	if err != nil {
 		return err
 	}

@@ -35,6 +35,7 @@ var (
 	ErrBlessingsNotBound        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.BlessingsNotBound", verror.NoRetry, "{1:}{2:} blessings not bound to connection remote public key")
 	ErrNoBlessingsForPeer       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoBlessingsForPeer", verror.NoRetry, "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 	ErrInvalidPeerFlow          = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidPeerFlow", verror.NoRetry, "{1:}{2:} peer has chosen flow id from local domain.")
+	ErrChannelTimeout           = verror.Register("v.io/x/ref/runtime/internal/flow/conn.ChannelTimeout", verror.NoRetry, "{1:}{2:} the channel has become unresponsive.")
 	ErrCannotDecryptBlessings   = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotDecryptBlessings", verror.NoRetry, "{1:}{2:} cannot decrypt the encrypted blessings sent by peer{:3}")
 	ErrCannotDecryptDischarges  = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotDecryptDischarges", verror.NoRetry, "{1:}{2:} cannot decrypt the encrypted discharges sent by peer{:3}")
 	ErrCannotEncryptBlessings   = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotEncryptBlessings", verror.NoRetry, "{1:}{2:} cannot encyrpt blessings for peer {3}{:4}")
@@ -61,6 +62,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBlessingsNotBound.ID), "{1:}{2:} blessings not bound to connection remote public key")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoBlessingsForPeer.ID), "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidPeerFlow.ID), "{1:}{2:} peer has chosen flow id from local domain.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrChannelTimeout.ID), "{1:}{2:} the channel has become unresponsive.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotDecryptBlessings.ID), "{1:}{2:} cannot decrypt the encrypted blessings sent by peer{:3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotDecryptDischarges.ID), "{1:}{2:} cannot decrypt the encrypted discharges sent by peer{:3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotEncryptBlessings.ID), "{1:}{2:} cannot encyrpt blessings for peer {3}{:4}")
@@ -152,6 +154,11 @@ func NewErrNoBlessingsForPeer(ctx *context.T, peerNames []string, rejected []sec
 // NewErrInvalidPeerFlow returns an error with the ErrInvalidPeerFlow ID.
 func NewErrInvalidPeerFlow(ctx *context.T) error {
 	return verror.New(ErrInvalidPeerFlow, ctx)
+}
+
+// NewErrChannelTimeout returns an error with the ErrChannelTimeout ID.
+func NewErrChannelTimeout(ctx *context.T) error {
+	return verror.New(ErrChannelTimeout, ctx)
 }
 
 // NewErrCannotDecryptBlessings returns an error with the ErrCannotDecryptBlessings ID.

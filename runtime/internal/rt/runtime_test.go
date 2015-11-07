@@ -179,11 +179,11 @@ func TestFlowManager(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	oldman, err := v23.NewFlowManager(ctx)
+	oldman, err := v23.NewFlowManager(ctx, 0)
 	if err != nil || oldman == nil {
 		t.Error("NewFlowManager failed: %v, %v", oldman, err)
 	}
-	newman, err := v23.NewFlowManager(ctx)
+	newman, err := v23.NewFlowManager(ctx, 0)
 	if err != nil || newman == nil || newman == oldman {
 		t.Fatalf("NewFlowManager failed: %v, %v", newman, err)
 	}

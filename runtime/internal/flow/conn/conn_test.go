@@ -98,14 +98,14 @@ func TestUpdateFlowHandler(t *testing.T) {
 	fh1, fh2 := fh(q1), fh(q2)
 	lBlessings := v23.GetPrincipal(ctx).BlessingStore().Default()
 	go func() {
-		d, err := NewDialed(ctx, lBlessings, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, nil)
+		d, err := NewDialed(ctx, lBlessings, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, 0, nil)
 		if err != nil {
 			panic(err)
 		}
 		dch <- d
 	}()
 	go func() {
-		a, err := NewAccepted(ctx, lBlessings, nil, amrw, ep, versions, time.Minute, fh1)
+		a, err := NewAccepted(ctx, lBlessings, nil, amrw, ep, versions, time.Minute, 0, fh1)
 		if err != nil {
 			panic(err)
 		}
@@ -113,7 +113,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 	}()
 	d, a := <-dch, <-ach
 	var f flow.Flow
-	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil); err != nil {
+	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0); err != nil {
 		t.Fatal(err)
 	}
 	// Write a byte to send the openFlow message.
@@ -124,7 +124,7 @@ func TestUpdateFlowHandler(t *testing.T) {
 	<-q1
 	// After updating to fh2 the flow should be accepted in fh2.
 	a.UpdateFlowHandler(ctx, fh2)
-	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil); err != nil {
+	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0); err != nil {
 		t.Fatal(err)
 	}
 	// Write a byte to send the openFlow message.

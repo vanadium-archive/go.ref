@@ -129,7 +129,6 @@ func (d *dischargeClient) Invalidate(ctx *context.T, discharges ...security.Disc
 // REQUIRES: caveats[i].ThirdPartyDetails() != nil for 0 <= i < len(caveats)
 func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Caveat, impetuses []security.DischargeImpetus, out []security.Discharge) {
 	bstore := v23.GetPrincipal(ctx).BlessingStore()
-	var wg sync.WaitGroup
 	for {
 		type fetched struct {
 			idx       int
@@ -139,6 +138,7 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 		}
 		discharges := make(chan fetched, len(caveats))
 		want := 0
+		var wg sync.WaitGroup
 		for i := range caveats {
 			if !d.shouldFetchDischarge(out[i]) {
 				continue

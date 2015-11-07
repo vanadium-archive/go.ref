@@ -44,7 +44,7 @@ func TestLameDuck(t *testing.T) {
 	}()
 
 	// Dial a flow and write it (which causes it to open).
-	f1, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil)
+	f1, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,11 +52,11 @@ func TestLameDuck(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Dial more flows, but don't write to them yet.
-	f2, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil)
+	f2, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f3, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil)
+	f3, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestLameDuck(t *testing.T) {
 	waitFor(dc.RemoteLameDuck)
 
 	// Now we shouldn't be able to dial from dc because it's in lame duck mode.
-	if _, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil); err == nil {
+	if _, err := dc.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0); err == nil {
 		t.Fatalf("expected an error, got nil")
 	}
 

@@ -69,9 +69,9 @@ func benchmarkRPCConnection(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if ref.RPCTransitionState() >= ref.XServers {
 			mctx, cancel := context.WithCancel(nctx)
-			m := fmanager.New(mctx, naming.FixedRoutingID(0xc), nil)
+			m := fmanager.New(mctx, naming.FixedRoutingID(0xc), nil, 0)
 			b.StartTimer()
-			_, err := m.Dial(mctx, serverEP, flowtest.AllowAllPeersAuthorizer{})
+			_, err := m.Dial(mctx, serverEP, flowtest.AllowAllPeersAuthorizer{}, 0)
 			if err != nil {
 				ctx.Fatalf("Dial failed: %v", err)
 			}
@@ -109,9 +109,9 @@ func benchmarkPrivateRPCConnection(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if ref.RPCTransitionState() >= ref.XServers {
 			mctx, cancel := context.WithCancel(nctx)
-			m := fmanager.New(mctx, naming.FixedRoutingID(0xc), nil)
+			m := fmanager.New(mctx, naming.FixedRoutingID(0xc), nil, 0)
 			b.StartTimer()
-			_, err := m.Dial(nctx, privateServerEP, flowtest.AllowAllPeersAuthorizer{})
+			_, err := m.Dial(nctx, privateServerEP, flowtest.AllowAllPeersAuthorizer{}, 0)
 			if err != nil {
 				ctx.Fatalf("Dial failed: %v", err)
 			}

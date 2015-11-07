@@ -110,6 +110,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		endpoints:         make(map[string]*inaming.Endpoint),
 		stopProxy:         make(chan struct{}),
 	}
+	channelTimeout := time.Duration(0)
 	var authorizedPeers []security.BlessingPattern
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -121,6 +122,8 @@ func WithNewDispatchingServer(ctx *context.T,
 			s.dispReserved = opt.Dispatcher
 		case PreferredServerResolveProtocols:
 			s.preferredProtocols = []string(opt)
+		case options.ChannelTimeout:
+			channelTimeout = time.Duration(opt)
 		case options.ServerPeers:
 			authorizedPeers = []security.BlessingPattern(opt)
 			if len(authorizedPeers) == 0 {
@@ -138,7 +141,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		}
 	}
 
-	s.flowMgr = manager.NewWithBlessings(rootCtx, s.blessings, rid, authorizedPeers, settingsPublisher)
+	s.flowMgr = manager.NewWithBlessings(rootCtx, s.blessings, rid, authorizedPeers, settingsPublisher, channelTimeout)
 	rootCtx, _, err = v23.WithNewClient(rootCtx,
 		clientFlowManagerOpt{s.flowMgr},
 		PreferredProtocols(s.preferredProtocols))

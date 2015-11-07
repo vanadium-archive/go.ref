@@ -13,6 +13,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -21,8 +22,10 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/flow/conn"
+	"v.io/x/ref/runtime/internal/flow/protocols/debug"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
+	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
 )
 
@@ -215,6 +218,10 @@ func (s *channelTestServer) WaitForCancel(ctx *context.T, call rpc.ServerCall) e
 	return nil
 }
 
+type disconnect interface {
+	stop(read, write bool)
+}
+
 type disConn struct {
 	net.Conn
 	mu                  sync.Mutex
@@ -248,7 +255,58 @@ func (p *disConn) Read(b []byte) (int, error) {
 	}
 }
 
-func registerDisProtocol(wrap string, conns chan *disConn) {
+type flowDisConn struct {
+	flow.Conn
+	mu                  sync.Mutex
+	stopread, stopwrite bool
+}
+
+func (p *flowDisConn) stop(read, write bool) {
+	p.mu.Lock()
+	p.stopread = read
+	p.stopwrite = write
+	p.mu.Unlock()
+}
+func (p *flowDisConn) WriteMsg(data ...[]byte) (int, error) {
+	p.mu.Lock()
+	stopwrite := p.stopwrite
+	p.mu.Unlock()
+	if stopwrite {
+		l := 0
+		for _, d := range data {
+			l += len(d)
+		}
+		return l, nil
+	}
+	return p.Conn.WriteMsg(data...)
+}
+func (p *flowDisConn) ReadMsg() ([]byte, error) {
+	for {
+		msg, err := p.Conn.ReadMsg()
+		p.mu.Lock()
+		stopread := p.stopread
+		p.mu.Unlock()
+		if err != nil || !stopread {
+			return msg, err
+		}
+	}
+}
+
+type flowdis struct {
+	base flow.Protocol
+}
+
+func (f *flowdis) Dial(ctx *context.T, protocol, address string, timeout time.Duration) (flow.Conn, error) {
+	return f.base.Dial(ctx, "tcp", address, timeout)
+}
+func (f *flowdis) Resolve(ctx *context.T, proctocol, address string) (string, string, error) {
+	return f.base.Resolve(ctx, "tcp", address)
+}
+func (f *flowdis) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
+	return f.base.Listen(ctx, "tcp", address)
+}
+
+func registerDisProtocol(wrap string, conns chan disconnect) {
 	dial, resolve, listen, protonames := rpc.RegisteredProtocol(wrap)
 	rpc.RegisterProtocol("dis", func(ctx *context.T, p, a string, t time.Duration) (net.Conn, error) {
 		conn, err := dial(ctx, protonames[0], a, t)
@@ -264,9 +322,21 @@ func registerDisProtocol(wrap string, conns chan *disConn) {
 	}, func(ctx *context.T, protocol, address string) (net.Listener, error) {
 		return listen(ctx, protonames[0], address)
 	})
+	// We only register this flow protocol to make the test work in xclients mode.
+	protocol, _ := flow.RegisteredProtocol("tcp")
+	flow.RegisterProtocol("dis", &flowdis{base: protocol})
 }
 
 func findEndpoint(ctx *context.T, s rpc.Server) naming.Endpoint {
+	if ref.RPCTransitionState() >= ref.XServers {
+		for {
+			status := s.Status()
+			if status.Endpoints[0].Addr().Network() != "bidi" {
+				return status.Endpoints[0]
+			}
+			<-status.Valid
+		}
+	}
 	if status := s.Status(); len(status.Endpoints) > 0 {
 		return status.Endpoints[0]
 	} else {
@@ -282,25 +352,36 @@ func findEndpoint(ctx *context.T, s rpc.Server) naming.Endpoint {
 }
 
 func testChannelTimeout(t *testing.T, ctx *context.T) {
-	_, s, err := v23.WithNewServer(ctx, "", &channelTestServer{}, security.AllowEveryone())
+	conns := make(chan disconnect, 1)
+	sctx := ctx
+	if ref.RPCTransitionState() >= ref.XServers {
+		sctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+			Addrs: rpc.ListenAddrs{{Protocol: "debug", Address: "tcp/127.0.0.1:0"}},
+		})
+		ctx = debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
+			dc := &flowDisConn{Conn: c}
+			conns <- dc
+			return dc
+		})
+	}
+	_, s, err := v23.WithNewServer(sctx, "", &channelTestServer{}, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
 	ep := findEndpoint(ctx, s)
-	conns := make(chan *disConn, 1)
 	registerDisProtocol(ep.Addr().Network(), conns)
-
-	iep := ep.(*inaming.Endpoint)
-	iep.Protocol = "dis"
+	if ref.RPCTransitionState() < ref.XServers {
+		ep.(*inaming.Endpoint).Protocol = "dis"
+	}
 
 	// Long calls don't cause the timeout, the control stream is still operating.
-	err = v23.GetClient(ctx).Call(ctx, iep.Name(), "Run", []interface{}{2 * time.Second},
+	err = v23.GetClient(ctx).Call(ctx, ep.Name(), "Run", []interface{}{2 * time.Second},
 		nil, options.ChannelTimeout(500*time.Millisecond))
 	if err != nil {
 		t.Errorf("got %v want nil", err)
 	}
 	(<-conns).stop(true, true)
-	err = v23.GetClient(ctx).Call(ctx, iep.Name(), "Run", []interface{}{time.Duration(0)},
+	err = v23.GetClient(ctx).Call(ctx, ep.Name(), "Run", []interface{}{time.Duration(0)},
 		nil, options.ChannelTimeout(100*time.Millisecond))
 	if err == nil {
 		t.Errorf("wanted non-nil error", err)
@@ -308,51 +389,71 @@ func testChannelTimeout(t *testing.T, ctx *context.T) {
 }
 
 func TestChannelTimeout(t *testing.T) {
-	if ref.RPCTransitionState() >= ref.XServers {
-		t.Skip("The new RPC system does not yet support channel timeouts")
-	}
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	testChannelTimeout(t, ctx)
 }
 
 func TestChannelTimeout_Proxy(t *testing.T) {
-	if ref.RPCTransitionState() >= ref.XServers {
-		t.Skip("The new RPC system does not yet support channel timeouts")
-	}
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	ls := v23.GetListenSpec(ctx)
-	pshutdown, pendpoint, err := generic.NewProxy(ctx, ls, security.AllowEveryone(), "")
-	if err != nil {
-		t.Fatal(err)
+	if ref.RPCTransitionState() >= ref.XServers {
+		ctx, cancel := context.WithCancel(ctx)
+		p, err := xproxy.New(ctx, "", security.AllowEveryone())
+		if err != nil {
+			t.Fatal(err)
+		}
+		ls.Addrs = nil
+		ls.Proxy = p.ListeningEndpoints()[0].Name()
+		defer func() {
+			cancel()
+			<-p.Closed()
+		}()
+	} else {
+		pshutdown, pendpoint, err := generic.NewProxy(ctx, ls, security.AllowEveryone(), "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer pshutdown()
+		ls.Addrs = nil
+		ls.Proxy = pendpoint.Name()
 	}
-	defer pshutdown()
-	ls.Addrs = nil
-	ls.Proxy = pendpoint.Name()
 	testChannelTimeout(t, v23.WithListenSpec(ctx, ls))
 }
 
 func testChannelTimeOut_Server(t *testing.T, ctx *context.T) {
+	conns := make(chan disconnect, 1)
+	sctx := ctx
+	if ref.RPCTransitionState() >= ref.XServers {
+		sctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+			Addrs: rpc.ListenAddrs{{Protocol: "debug", Address: "tcp/127.0.0.1:0"}},
+		})
+		ctx = debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
+			dc := &flowDisConn{Conn: c}
+			conns <- dc
+			return dc
+		})
+	}
 	cts := &channelTestServer{
 		canceled: make(chan struct{}),
 		waiting:  make(chan struct{}),
 	}
-	_, s, err := v23.WithNewServer(ctx, "", cts, security.AllowEveryone(),
+	_, s, err := v23.WithNewServer(sctx, "", cts, security.AllowEveryone(),
 		options.ChannelTimeout(500*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}
 	ep := findEndpoint(ctx, s)
-	conns := make(chan *disConn, 1)
 	registerDisProtocol(ep.Addr().Network(), conns)
 
-	iep := ep.(*inaming.Endpoint)
-	iep.Protocol = "dis"
+	if ref.RPCTransitionState() < ref.XServers {
+		ep.(*inaming.Endpoint).Protocol = "dis"
+	}
 
 	// Long calls don't cause the timeout, the control stream is still operating.
-	err = v23.GetClient(ctx).Call(ctx, iep.Name(), "Run", []interface{}{2 * time.Second},
+	err = v23.GetClient(ctx).Call(ctx, ep.Name(), "Run", []interface{}{2 * time.Second},
 		nil)
 	if err != nil {
 		t.Errorf("got %v want nil", err)
@@ -363,7 +464,7 @@ func testChannelTimeOut_Server(t *testing.T, ctx *context.T) {
 	cctx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() {
-		v23.GetClient(cctx).Call(cctx, iep.Name(), "WaitForCancel", nil, nil)
+		v23.GetClient(cctx).Call(cctx, ep.Name(), "WaitForCancel", nil, nil)
 		close(done)
 	}()
 	<-cts.waiting
@@ -374,27 +475,35 @@ func testChannelTimeOut_Server(t *testing.T, ctx *context.T) {
 }
 
 func TestChannelTimeout_Server(t *testing.T) {
-	if ref.RPCTransitionState() >= ref.XServers {
-		t.Skip("The new RPC system does not yet support channel timeouts")
-	}
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	testChannelTimeOut_Server(t, ctx)
 }
 
 func TestChannelTimeout_ServerProxy(t *testing.T) {
-	if ref.RPCTransitionState() >= ref.XServers {
-		t.Skip("The new RPC system does not yet support channel timeouts")
-	}
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ls := v23.GetListenSpec(ctx)
-	pshutdown, pendpoint, err := generic.NewProxy(ctx, ls, security.AllowEveryone(), "")
-	if err != nil {
-		t.Fatal(err)
+	if ref.RPCTransitionState() >= ref.XServers {
+		ctx, cancel := context.WithCancel(ctx)
+		p, err := xproxy.New(ctx, "", security.AllowEveryone())
+		if err != nil {
+			t.Fatal(err)
+		}
+		ls.Addrs = nil
+		ls.Proxy = p.ListeningEndpoints()[0].Name()
+		defer func() {
+			cancel()
+			<-p.Closed()
+		}()
+	} else {
+		pshutdown, pendpoint, err := generic.NewProxy(ctx, ls, security.AllowEveryone(), "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer pshutdown()
+		ls.Addrs = nil
+		ls.Proxy = pendpoint.Name()
 	}
-	defer pshutdown()
-	ls.Addrs = nil
-	ls.Proxy = pendpoint.Name()
 	testChannelTimeOut_Server(t, v23.WithListenSpec(ctx, ls))
 }

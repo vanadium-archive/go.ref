@@ -6,6 +6,7 @@ package rpc
 
 import (
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -28,9 +29,9 @@ func TestXClientServer(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	var i uint64 = 1
-	ctx = fake.SetFlowManagerFactory(ctx, func(ctx *context.T) flow.Manager {
+	ctx = fake.SetFlowManagerFactory(ctx, func(ctx *context.T, channelTimeout time.Duration) flow.Manager {
 		i++
-		return manager.New(ctx, naming.FixedRoutingID(i), nil)
+		return manager.New(ctx, naming.FixedRoutingID(i), nil, channelTimeout)
 	})
 	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, o ...rpc.ClientOpt) rpc.Client {
 		return NewXClient(ctx, v23.GetNamespace(ctx), o...)
@@ -62,9 +63,9 @@ func TestXClientDispatchingServer(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	var i uint64 = 1
-	ctx = fake.SetFlowManagerFactory(ctx, func(ctx *context.T) flow.Manager {
+	ctx = fake.SetFlowManagerFactory(ctx, func(ctx *context.T, channelTimeout time.Duration) flow.Manager {
 		i++
-		return manager.New(ctx, naming.FixedRoutingID(i), nil)
+		return manager.New(ctx, naming.FixedRoutingID(i), nil, channelTimeout)
 	})
 	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, o ...rpc.ClientOpt) rpc.Client {
 		return NewXClient(ctx, v23.GetNamespace(ctx), o...)
