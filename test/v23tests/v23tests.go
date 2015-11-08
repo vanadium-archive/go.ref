@@ -454,7 +454,7 @@ func (t *T) BuildV23Pkg(pkg string, flags ...string) *Binary {
 
 func (t *T) buildPkg(pkg string, flags ...string) *Binary {
 	then := time.Now()
-	loc := Caller(1)
+	loc := Caller(2)
 	cached, built_path, err := buildPkg(t, t.BinDir(), pkg, flags)
 	if err != nil {
 		t.Fatalf("%s: buildPkg(%s, %v) failed: %v", loc, pkg, flags, err)
