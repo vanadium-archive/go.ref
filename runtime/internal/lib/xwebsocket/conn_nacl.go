@@ -8,12 +8,9 @@ package xwebsocket
 
 import (
 	"net"
-	"net/url"
 	"runtime/ppapi"
 	"sync"
-	"time"
 
-	"v.io/v23/context"
 	"v.io/v23/flow"
 )
 
@@ -32,24 +29,6 @@ type wrappedConn struct {
 	ws        *ppapi.WebsocketConn
 	readLock  sync.Mutex
 	writeLock sync.Mutex
-}
-
-func Dial(ctx *context.T, protocol, address string, timeout time.Duration) (flow.Conn, error) {
-	inst := PpapiInstance
-	u, err := url.Parse("ws://" + address)
-	if err != nil {
-		return nil, err
-	}
-
-	ws, err := inst.DialWebsocket(u.String())
-	if err != nil {
-		return nil, err
-	}
-	return WebsocketConn(address, ws), nil
-}
-
-func Resolve(ctx *context.T, protocol, address string) (string, string, error) {
-	return "ws", address, nil
 }
 
 func (c *wrappedConn) ReadMsg() ([]byte, error) {
