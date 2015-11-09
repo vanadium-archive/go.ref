@@ -398,7 +398,10 @@ func (c *Conn) internalClose(ctx *context.T, err error) {
 	c.mu.Lock()
 	ctx.VI(2).Infof("Closing connection: %v", err)
 
-	flows := c.flows
+	flows := make([]*flw, 0, len(c.flows))
+	for _, f := range c.flows {
+		flows = append(flows, f)
+	}
 	if c.dischargeTimer != nil {
 		if c.dischargeTimer.Stop() {
 			c.loopWG.Done()
