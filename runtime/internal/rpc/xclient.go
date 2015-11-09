@@ -375,10 +375,10 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 			}
 		case <-ctx.Done():
 			_, _, _, err := c.failedTryCall(ctx, name, method, responses, ch)
-			if verror.ErrorID(err) != verror.ErrTimeout.ID {
-				return nil, verror.NoRetry, false, verror.New(verror.ErrTimeout, ctx, err)
+			if ctx.Err() == context.Canceled {
+				return nil, verror.NoRetry, false, verror.New(verror.ErrCanceled, ctx, err)
 			}
-			return nil, verror.NoRetry, false, err
+			return nil, verror.NoRetry, false, verror.New(verror.ErrTimeout, ctx, err)
 		}
 
 		// Process new responses, in priority order.
