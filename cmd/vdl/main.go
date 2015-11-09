@@ -314,6 +314,7 @@ func (x *xlateRules) String() (ret string) {
 }
 
 func (x *xlateRules) Set(value string) error {
+	*x = nil
 	for _, rule := range strings.Split(value, ",") {
 		srcdst := strings.Split(rule, "->")
 		if len(srcdst) != 2 {
@@ -325,10 +326,14 @@ func (x *xlateRules) Set(value string) error {
 }
 
 func (x *genOutDir) String() string {
-	if x.dir != "" {
+	switch {
+	case x.dir != "":
 		return x.dir
+	case len(x.rules) > 0:
+		return x.rules.String()
+	default:
+		return ""
 	}
-	return x.rules.String()
 }
 
 func (x *genOutDir) Set(value string) error {
@@ -337,6 +342,7 @@ func (x *genOutDir) Set(value string) error {
 		return x.rules.Set(value)
 	}
 	x.dir = value
+	x.rules = nil
 	return nil
 }
 
