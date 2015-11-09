@@ -41,7 +41,7 @@ var _ = context.Background
 const apiId = "signer:v1"
 const apiName = "signer"
 const apiVersion = "v1"
-const basePath = "https://vanadium-production.appspot.com/_ah/api/signer/v1/"
+const basePath = "https://vanadium-keystore.appspot.com/_ah/api/signer/v1/"
 
 // OAuth2 scopes used by this API.
 const (

@@ -11,9 +11,9 @@
   "x32": "http://www.google.com/images/icons/product/search-32.gif"
  },
  "protocol": "rest",
- "baseUrl": "https://vanadium-production.appspot.com/_ah/api/signer/v1/",
+ "baseUrl": "https://vanadium-keystore.appspot.com/_ah/api/signer/v1/",
  "basePath": "/_ah/api/signer/v1/",
- "rootUrl": "https://vanadium-production.appspot.com/_ah/api/",
+ "rootUrl": "https://vanadium-keystore.appspot.com/_ah/api/",
  "servicePath": "signer/v1/",
  "batchPath": "batch",
  "parameters": {
