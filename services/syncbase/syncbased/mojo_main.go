@@ -47,6 +47,10 @@ func (d *delegate) Initialize(actx application.Context) {
 	// Note that os.Args must be set before calling v23.Init().
 	os.Args = actx.Args()
 	d.ctx, d.shutdown = v23.Init()
+	if err := setBlessings(d.ctx, actx); err != nil {
+		// TODO(ashankar): Really?  // DO NOT SUBMIT
+		panic(err)
+	}
 	d.srv, d.disp, d.cleanup = Serve(d.ctx)
 }
 
