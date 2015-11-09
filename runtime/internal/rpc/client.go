@@ -401,6 +401,42 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 	return
 }
 
+func (c *client) Connected(ctx *context.T, name string, opts ...rpc.CallOpt) bool {
+	if ctx == nil {
+		return false
+	}
+	var principal security.Principal
+	if callEncrypted(opts) {
+		if principal = v23.GetPrincipal(ctx); principal == nil {
+			return false
+		}
+	}
+	_, name = security.SplitPatternName(name)
+	resolved, err := c.ns.Resolve(ctx, name, getNamespaceOpts(opts)...)
+	if err != nil || len(resolved.Servers) == 0 {
+		return false
+	}
+	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols); err != nil {
+		return false
+	}
+	for _, server := range resolved.Servers {
+		address, _ := naming.SplitAddressName(server.Server)
+		if len(address) == 0 {
+			continue
+		}
+		ep, err := inaming.NewEndpoint(address)
+		if err != nil {
+			continue
+		}
+		vc, err := c.vcCache.ReservedFind(ep, principal)
+		c.vcCache.Unreserve(ep, principal)
+		if err == nil && vc != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // tryCall makes a single attempt at a call. It may connect to multiple servers
 // (all that serve "name"), but will invoke the method on at most one of them
 // (the server running on the most preferred protcol and network amongst all

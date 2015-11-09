@@ -19,6 +19,10 @@ type transitionClient struct {
 	cancel context.CancelFunc
 }
 
+type connTest interface {
+	Connected(ctx *context.T, name string, opts ...rpc.CallOpt) bool
+}
+
 var _ = rpc.Client((*transitionClient)(nil))
 
 func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
@@ -39,6 +43,9 @@ func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, ns namespace.
 }
 
 func (t *transitionClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
+	if t.c.(connTest).Connected(ctx, name, opts...) {
+		return t.c.StartCall(ctx, name, method, args, opts...)
+	}
 	call, err := t.xc.StartCall(ctx, name, method, args, opts...)
 	if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
 		call, err = t.c.StartCall(ctx, name, method, args, opts...)
@@ -47,6 +54,9 @@ func (t *transitionClient) StartCall(ctx *context.T, name, method string, args [
 }
 
 func (t *transitionClient) Call(ctx *context.T, name, method string, in, out []interface{}, opts ...rpc.CallOpt) error {
+	if t.c.(connTest).Connected(ctx, name, opts...) {
+		return t.c.Call(ctx, name, method, in, out, opts...)
+	}
 	err := t.xc.Call(ctx, name, method, in, out, opts...)
 	if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
 		err = t.c.Call(ctx, name, method, in, out, opts...)

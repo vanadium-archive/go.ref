@@ -51,7 +51,11 @@ func (c *wrappedConn) WriteMsg(bufs ...[]byte) (int, error) {
 }
 
 func (c *wrappedConn) Close() error {
-	return c.ws.Close()
+	// TODO(mattr): Sometimes it seems that calling close on a websocket from
+	// browsper can hang for up to a minute.  I don't understand why this happens.
+	// This is a hack and should be replaced with a real fix at some point.
+	go c.ws.Close()
+	return nil
 }
 
 func (c *wrappedConn) LocalAddr() net.Addr {
