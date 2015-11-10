@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -487,7 +488,7 @@ func TestStartCallBadProtocol(t *testing.T) {
 type closeConn struct {
 	ctx *context.T
 	flow.Conn
-	closed chan struct{}
+	wg *sync.WaitGroup
 }
 
 func (c *closeConn) ReadMsg() ([]byte, error) {
@@ -495,8 +496,8 @@ func (c *closeConn) ReadMsg() ([]byte, error) {
 	if err == nil {
 		if m, err := fmessage.Read(c.ctx, buf); err == nil {
 			if _, ok := m.(*fmessage.Data); ok {
-				close(c.closed)
 				c.Conn.Close()
+				c.wg.Done()
 				return nil, io.EOF
 			}
 		}
@@ -508,7 +509,7 @@ func TestStartCallBadProtocol_NewRPC(t *testing.T) {
 	if ref.RPCTransitionState() < ref.XServers {
 		t.Skip("This version of the test only runs under the new RPC system")
 	}
-	ctx, shutdown := test.V23InitWithMounttable()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	client := v23.GetClient(ctx)
@@ -517,16 +518,12 @@ func TestStartCallBadProtocol_NewRPC(t *testing.T) {
 		logErrors(t, msg, true, false, false, err)
 	}
 
-	ns := v23.GetNamespace(ctx)
-	// The following test will fail due to a broken connection.
-	// We need to run mount table and servers with no security to use
-	// the V23CloseAtMessage net.Conn mock.
 	_, shutdown = runMountTable(t, ctx, "nosec")
 	defer shutdown()
-	ns.SetRoots(debug.WrapName(ns.Roots()[0]))
-	ch := make(chan struct{})
+	wg := &sync.WaitGroup{}
 	nctx := debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
-		return &closeConn{ctx, c, ch}
+		wg.Add(1)
+		return &closeConn{ctx: ctx, Conn: c, wg: wg}
 	})
 	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
@@ -539,11 +536,7 @@ func TestStartCallBadProtocol_NewRPC(t *testing.T) {
 
 	// Make sure we failed because we really did close the connection
 	// with our filter
-	select {
-	case <-ch:
-	case <-time.After(10 * time.Second):
-		t.Errorf("timeout waiting for chan")
-	}
+	wg.Wait()
 }
 
 func TestStartCallSecurity(t *testing.T) {
