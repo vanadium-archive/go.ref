@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux darwin
+// +build android
 
 // Package android implements a RuntimeFactory suitable for android.  It is
 // based on the roaming package.
@@ -57,7 +57,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	ac := appcycle.New()
-	discovery, err := dfactory.New()
+	discovery, err := dfactory.New("mdns", "ble")
 	if err != nil {
 		ac.Shutdown()
 		return nil, nil, nil, err
