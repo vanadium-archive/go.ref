@@ -225,11 +225,12 @@ func (s *xserver) Status() rpc.ServerStatus {
 }
 
 // resolveToEndpoint resolves an object name or address to an endpoint.
-func (s *xserver) resolveToEndpoint(ctx *context.T, address string) (naming.Endpoint, error) {
+func (s *xserver) resolveToEndpoint(ctx *context.T, address string) ([]naming.Endpoint, error) {
 	var resolved *naming.MountEntry
 	var err error
 	// TODO(mattr): Why should ns be nil?
 	if ns := v23.GetNamespace(ctx); ns != nil {
+		ns.FlushCacheEntry(ctx, address)
 		if resolved, err = ns.Resolve(ctx, address); err != nil {
 			return nil, err
 		}
@@ -243,14 +244,18 @@ func (s *xserver) resolveToEndpoint(ctx *context.T, address string) (naming.Endp
 	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols); err != nil {
 		return nil, err
 	}
+	var eps []naming.Endpoint
 	for _, n := range resolved.Names() {
 		address, suffix := naming.SplitAddressName(n)
 		if suffix != "" {
 			continue
 		}
 		if ep, err := inaming.NewEndpoint(address); err == nil {
-			return ep, nil
+			eps = append(eps, ep)
 		}
+	}
+	if len(eps) > 0 {
+		return eps, nil
 	}
 	return nil, verror.New(errFailedToResolveToEndpoint, s.ctx, address)
 }
@@ -298,17 +303,27 @@ func (s *xserver) connectToProxy(ctx *context.T, name string) {
 			return
 		default:
 		}
-		ep, err := s.resolveToEndpoint(ctx, name)
+		eps, err := s.resolveToEndpoint(ctx, name)
 		if err != nil {
 			s.ctx.VI(2).Infof("resolveToEndpoint(%q) failed: %v", name, err)
 			continue
 		}
-		if err = s.flowMgr.ProxyListen(ctx, ep); err != nil {
-			s.ctx.VI(2).Infof("ProxyListen(%q) failed: %v. Reconnecting...", ep, err)
+		if err = s.tryProxyEndpoints(ctx, eps); err != nil {
+			s.ctx.VI(2).Infof("ProxyListen(%q) failed: %v. Reconnecting...", eps, err)
 		} else {
 			delay = reconnectDelay / 2
 		}
 	}
+}
+
+func (s *xserver) tryProxyEndpoints(ctx *context.T, eps []naming.Endpoint) error {
+	var lastErr error
+	for _, ep := range eps {
+		if lastErr = s.flowMgr.ProxyListen(ctx, ep); lastErr == nil {
+			break
+		}
+	}
+	return lastErr
 }
 
 func nextDelay(delay time.Duration) time.Duration {

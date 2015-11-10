@@ -337,8 +337,6 @@ func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) error {
 		}
 		m.updateProxyEndpoints(eps)
 	}
-	// We should not reach this line.
-	return nil
 }
 
 func (m *manager) updateProxyEndpoints(eps []naming.Endpoint) {

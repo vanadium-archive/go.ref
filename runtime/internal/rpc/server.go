@@ -392,13 +392,15 @@ func (s *server) UnwatchNetwork(ch chan<- NetworkChange) {
 	}
 }
 
-// resolveToEndpoint resolves an object name or address to an endpoint.
-func (s *server) resolveToEndpoint(address string) (string, error) {
+// resolveToEndpoint resolves an object name or address to a list of endpoints
+// mounted at that name.
+func (s *server) resolveToEndpoint(address string) ([]string, error) {
 	var resolved *naming.MountEntry
 	var err error
 	if s.ns != nil {
+		s.ns.FlushCacheEntry(s.ctx, address)
 		if resolved, err = s.ns.Resolve(s.ctx, address); err != nil {
-			return "", err
+			return nil, err
 		}
 	} else {
 		// Fake a namespace resolution
@@ -408,18 +410,22 @@ func (s *server) resolveToEndpoint(address string) (string, error) {
 	}
 	// An empty set of protocols means all protocols...
 	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols); err != nil {
-		return "", err
+		return nil, err
 	}
+	var eps []string
 	for _, n := range resolved.Names() {
 		address, suffix := naming.SplitAddressName(n)
 		if suffix != "" {
 			continue
 		}
 		if ep, err := inaming.NewEndpoint(address); err == nil {
-			return ep.String(), nil
+			eps = append(eps, ep.String())
 		}
 	}
-	return "", verror.New(errFailedToResolveToEndpoint, s.ctx, address)
+	if len(eps) > 0 {
+		return eps, nil
+	}
+	return nil, verror.New(errFailedToResolveToEndpoint, s.ctx, address)
 }
 
 // createEndpoints creates appropriate inaming.Endpoint instances for
@@ -569,27 +575,33 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 }
 
 func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stream.Listener, error) {
-	resolved, err := s.resolveToEndpoint(proxy)
+	resolvedList, err := s.resolveToEndpoint(proxy)
 	if err != nil {
 		return nil, nil, verror.New(errFailedToResolveProxy, s.ctx, proxy, err)
 	}
 	opts := append([]stream.ListenerOpt{proxyAuth{s}}, s.listenerOpts...)
-	ln, ep, err := s.streamMgr.Listen(s.ctx, inaming.Network, resolved, s.blessings, opts...)
-	if err != nil {
-		return nil, nil, verror.New(errFailedToListenForProxy, s.ctx, resolved, err)
+	var lastErr error
+	for _, resolved := range resolvedList {
+		ln, ep, err := s.streamMgr.Listen(s.ctx, inaming.Network, resolved, s.blessings, opts...)
+		if err != nil {
+			lastErr = verror.New(errFailedToListenForProxy, s.ctx, resolved, err)
+			continue
+		}
+		iep, ok := ep.(*inaming.Endpoint)
+		if !ok {
+			ln.Close()
+			lastErr = verror.New(errInternalTypeConversion, s.ctx, fmt.Sprintf("%T", ep))
+			continue
+		}
+		s.Lock()
+		s.proxies[proxy] = proxyState{iep, nil}
+		s.Unlock()
+		iep.IsMountTable = s.servesMountTable
+		iep.IsLeaf = s.isLeaf
+		s.publisher.AddServer(iep.String())
+		return iep, ln, nil
 	}
-	iep, ok := ep.(*inaming.Endpoint)
-	if !ok {
-		ln.Close()
-		return nil, nil, verror.New(errInternalTypeConversion, s.ctx, fmt.Sprintf("%T", ep))
-	}
-	s.Lock()
-	s.proxies[proxy] = proxyState{iep, nil}
-	s.Unlock()
-	iep.IsMountTable = s.servesMountTable
-	iep.IsLeaf = s.isLeaf
-	s.publisher.AddServer(iep.String())
-	return iep, ln, nil
+	return nil, nil, lastErr
 }
 
 func (s *server) proxyListenLoop(proxy string) {
