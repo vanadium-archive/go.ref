@@ -181,12 +181,20 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 }
 
 func (c *ConnCache) EnterLameDuckMode(ctx *context.T) {
-	waitfor := make([]chan struct{}, 0, len(c.ridCache)+len(c.unmappedConns))
+	c.mu.Lock()
+	n := len(c.ridCache) + len(c.unmappedConns)
+	conns := make([]*conn.Conn, 0, n)
 	for _, e := range c.ridCache {
-		waitfor = append(waitfor, e.conn.EnterLameDuck(ctx))
+		conns = append(conns, e.conn)
 	}
 	for d := range c.unmappedConns {
-		waitfor = append(waitfor, d.conn.EnterLameDuck(ctx))
+		conns = append(conns, d.conn)
+	}
+	c.mu.Unlock()
+
+	waitfor := make([]chan struct{}, 0, n)
+	for _, c := range conns {
+		waitfor = append(waitfor, c.EnterLameDuck(ctx))
 	}
 	for _, w := range waitfor {
 		<-w
