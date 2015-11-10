@@ -437,16 +437,16 @@ func (s *execStreamImpl) Send(item interface{}) error {
 		return verror.NewErrInternal(s.ctx)
 	}
 
-	// TODO(aghassemi): Switch everything to 'any' from '[]byte'.
-	// For now, ResultStream is the only place using 'any' instead of '[]byte', so
-	// VOM bytes are already decoded.
+	// TODO(aghassemi): Switch generic values on the wire from '[]byte' to 'any'.
+	// Currently, exec is the only method that uses 'any' rather than '[]byte'.
 	// https://github.com/vanadium/issues/issues/766
 	var values [][]byte
 	for _, vdlValue := range v {
 		var bytes []byte
-		// The value can either be a string (column headers) or bytes (value).
+		// The value type can be either string (for column headers and row keys) or
+		// []byte (for values).
 		if vdlValue.Kind() == vdl.String {
-			bytes = []byte(vdlValue.String())
+			bytes = []byte(vdlValue.RawString())
 		} else {
 			bytes = vdlValue.Bytes()
 		}
