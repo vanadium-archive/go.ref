@@ -12,11 +12,15 @@ import (
 
 func InternalServerResolveToEndpoint(ctx *context.T, s rpc.Server, name string) (string, error) {
 	if ref.RPCTransitionState() == ref.XServers {
-		ep, err := s.(*xserver).resolveToEndpoint(ctx, name)
+		eps, err := s.(*xserver).resolveToEndpoint(ctx, name)
 		if err != nil {
 			return "", err
 		}
-		return ep.String(), nil
+		return eps[0].String(), nil
 	}
-	return s.(*server).resolveToEndpoint(name)
+	eps, err := s.(*server).resolveToEndpoint(name)
+	if err != nil {
+		return "", err
+	}
+	return eps[0], nil
 }

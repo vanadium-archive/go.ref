@@ -56,7 +56,7 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 		p.auth = security.DefaultAuthorizer()
 	}
 	if len(name) > 0 {
-		p.pub.AddName(name, false, false)
+		p.pub.AddName(name, false, true)
 	}
 	lspec := v23.GetListenSpec(ctx)
 	if len(lspec.Proxy) > 0 {
@@ -346,41 +346,50 @@ func (p *proxy) connectToProxy(ctx *context.T, name string) {
 			return
 		default:
 		}
-		address, ep, err := resolveToEndpoint(ctx, name)
+		eps, err := resolveToEndpoint(ctx, name)
 		if err != nil {
 			ctx.Error(err)
 			continue
 		}
-		f, err := p.m.Dial(ctx, ep, proxyAuthorizer{}, 0)
+		if err = p.tryProxyEndpoints(ctx, name, eps); err != nil {
+			ctx.Error(err)
+		} else {
+			delay = reconnectDelay / 2
+		}
+	}
+}
+
+func (p *proxy) tryProxyEndpoints(ctx *context.T, name string, eps []naming.Endpoint) error {
+	var lastErr error
+	for _, ep := range eps {
+		if lastErr = p.proxyListen(ctx, name, ep); lastErr == nil {
+			break
+		}
+	}
+	return lastErr
+}
+
+func (p *proxy) proxyListen(ctx *context.T, name string, ep naming.Endpoint) error {
+	defer p.updateProxyEndpoints(ctx, name, nil)
+	f, err := p.m.Dial(ctx, ep, proxyAuthorizer{}, 0)
+	if err != nil {
+		return err
+	}
+	// Send a byte telling the acceptor that we are a proxy.
+	if err := writeMessage(ctx, &message.MultiProxyRequest{}, f); err != nil {
+		return err
+	}
+	for {
+		// we keep reading updates until we encounter an error, usually because the
+		// flow has been closed.
+		eps, err := readProxyResponse(ctx, f)
 		if err != nil {
-			ctx.Error(err)
-			continue
-		}
-		// Send a byte telling the acceptor that we are a proxy.
-		if err := writeMessage(ctx, &message.MultiProxyRequest{}, f); err != nil {
-			ctx.Error(err)
-			continue
-		}
-		for {
-			// we keep reading updates until we encounter an error, usually because the
-			// flow has been closed.
-			eps, err := readProxyResponse(ctx, f)
-			if err != nil {
-				select {
-				case <-ctx.Done():
-				default:
-					ctx.Error(err)
-				}
-				break
+			if err == io.EOF {
+				return nil
 			}
-			p.updateProxyEndpoints(ctx, address, eps)
+			return err
 		}
-		select {
-		case <-f.Closed():
-			p.updateProxyEndpoints(ctx, address, nil)
-			delay = reconnectDelay
-		default:
-		}
+		p.updateProxyEndpoints(ctx, name, eps)
 	}
 }
 
@@ -403,19 +412,26 @@ func (p *proxy) updateProxyEndpoints(ctx *context.T, address string, eps []namin
 	p.mu.Unlock()
 }
 
-func resolveToEndpoint(ctx *context.T, name string) (string, naming.Endpoint, error) {
-	resolved, err := v23.GetNamespace(ctx).Resolve(ctx, name)
+func resolveToEndpoint(ctx *context.T, name string) ([]naming.Endpoint, error) {
+	ns := v23.GetNamespace(ctx)
+	ns.FlushCacheEntry(ctx, name)
+	resolved, err := ns.Resolve(ctx, name)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
+	var eps []naming.Endpoint
 	for _, n := range resolved.Names() {
 		address, suffix := naming.SplitAddressName(n)
 		if len(suffix) > 0 {
 			continue
 		}
 		if ep, err := v23.NewEndpoint(address); err == nil {
-			return address, ep, nil
+			eps = append(eps, ep)
+			continue
 		}
 	}
-	return "", nil, NewErrFailedToResolveToEndpoint(ctx, name)
+	if len(eps) > 0 {
+		return eps, nil
+	}
+	return nil, NewErrFailedToResolveToEndpoint(ctx, name)
 }
