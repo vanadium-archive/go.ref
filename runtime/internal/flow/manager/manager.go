@@ -708,7 +708,21 @@ func dial(ctx *context.T, p flow.Protocol, protocol, address string) (flow.Conn,
 		if dl, ok := ctx.Deadline(); ok {
 			timeout = dl.Sub(time.Now())
 		}
-		return p.Dial(ctx, protocol, address, timeout)
+		type connAndErr struct {
+			c flow.Conn
+			e error
+		}
+		ch := make(chan connAndErr)
+		go func() {
+			conn, err := p.Dial(ctx, protocol, address, timeout)
+			ch <- connAndErr{conn, err}
+		}()
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case cae := <-ch:
+			return cae.c, cae.e
+		}
 	}
 	return nil, NewErrUnknownProtocol(ctx, protocol)
 }
