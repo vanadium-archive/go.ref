@@ -80,18 +80,6 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
 		return err
 	}
-	// We send discharges asynchronously to prevent making a second RPC while
-	// trying to build up the connection for another. If the two RPCs happen to
-	// go to the same server a deadlock will result.
-	// This commonly happens when we make a Resolve call.  During the Resolve we
-	// will try to fetch discharges to send to the mounttable, leading to a
-	// Resolve of the discharge server name.  The two resolve calls may be to
-	// the same mounttable.
-	c.loopWG.Add(1)
-	go func() {
-		c.refreshDischarges(ctx, nil)
-		c.loopWG.Done()
-	}()
 	return nil
 }
 
@@ -111,7 +99,7 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange,
 	lAuth := &message.Auth{
 		ChannelBinding: signedBinding,
 	}
-	if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx, authorizedPeers); err != nil {
+	if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx, false, authorizedPeers); err != nil {
 		return err
 	}
 	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
@@ -215,16 +203,16 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 	return rBlessings, rDischarges, nil
 }
 
-func (c *Conn) refreshDischarges(ctx *context.T, peers []security.BlessingPattern) (bkey, dkey uint64, err error) {
+func (c *Conn) refreshDischarges(ctx *context.T, loop bool, peers []security.BlessingPattern) (bkey, dkey uint64, err error) {
 	dis := slib.PrepareDischarges(ctx, c.lBlessings,
 		security.DischargeImpetus{}, time.Minute)
 	// Schedule the next update.
 	dur, expires := minExpiryTime(c.lBlessings, dis)
 	c.mu.Lock()
-	if expires && c.status < Closing {
+	if loop && expires && c.status < Closing {
 		c.loopWG.Add(1)
 		c.dischargeTimer = time.AfterFunc(dur, func() {
-			c.refreshDischarges(ctx, peers)
+			c.refreshDischarges(ctx, true, peers)
 			c.loopWG.Done()
 		})
 	}
