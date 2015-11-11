@@ -92,8 +92,14 @@ func (r *readConn) ReadMsg() ([]byte, error) {
 }
 
 func TestOrdering(t *testing.T) {
-	const nflows = 5
-	const nmessages = 5
+	// We will send nmessages*mtu bytes on each flow.
+	// For the test to work properly we should send < defaultBufferSize(2^20) bytes.
+	// If we don't then it's possible for the teardown message to be sent before some
+	// flows finish writing because the flows' writes will become blocked from
+	// counter exhaustion.
+	// 4*4*2^16 == 2^20 so it's the perfect number.
+	const nflows = 4
+	const nmessages = 4
 
 	ctx, shutdown := v23.Init()
 	defer shutdown()
@@ -128,7 +134,7 @@ func TestOrdering(t *testing.T) {
 		}()
 	}
 	waitForWriters(ctx, dc, nflows+1)
-	// Now close the flow which will send a teardown message, but only after
+	// Now close the conn which will send a teardown message, but only after
 	// the other flows finish their current write.
 	go dc.Close(ctx, nil)
 	defer func() { <-dc.Closed(); <-ac.Closed() }()
