@@ -1087,3 +1087,69 @@ func TestPrivateServer(t *testing.T) {
 		}
 	}
 }
+
+type publicKeyAuth struct {
+	pkey security.PublicKey
+}
+
+func (a *publicKeyAuth) Authorize(ctx *context.T, call security.Call) error {
+	pkey := call.RemoteBlessings().PublicKey()
+	if !reflect.DeepEqual(a.pkey, pkey) {
+		return fmt.Errorf("public key mismatch: %v != %v", a.pkey, pkey)
+	}
+	return nil
+}
+
+func TestNamelessClientBlessings(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientCtx, err := v23.WithPrincipal(ctx, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clt := v23.GetClient(clientCtx)
+
+	_, server, err := v23.WithNewServer(ctx, "", &testServer{}, &publicKeyAuth{p.PublicKey()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := server.Status().Endpoints[0].Name()
+
+	if err := clt.Call(clientCtx, name, "Closure", nil, nil, options.ServerAuthorizer{security.AllowEveryone()}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNamelessServerBlessings(t *testing.T) {
+	if ref.RPCTransitionState() < ref.XServers {
+		t.Skip()
+	}
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	client := v23.GetClient(ctx)
+
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, err := v23.WithPrincipal(ctx, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, server, err := v23.WithNewDispatchingServer(sctx, "", &testServerDisp{&testServer{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := server.Status().Endpoints[0].Name()
+
+	if err := client.Call(ctx, name, "Closure", nil, nil, options.ServerAuthorizer{&publicKeyAuth{p.PublicKey()}}); err != nil {
+		t.Fatal(err)
+	}
+}

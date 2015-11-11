@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
@@ -197,6 +198,13 @@ func NewAccepted(
 	ctx, cancel := context.WithCancel(ctx)
 	if channelTimeout == 0 {
 		channelTimeout = defaultChannelTimeout
+	}
+	if lBlessings.IsZero() {
+		lb, err := security.NamelessBlessing(v23.GetPrincipal(ctx).PublicKey())
+		if err != nil {
+			return nil, err
+		}
+		lBlessings = lb
 	}
 	c := &Conn{
 		mp:                   newMessagePipe(conn),
