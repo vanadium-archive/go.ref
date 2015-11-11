@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !mojo
+// +build mojo
 
 package test
 
 import (
+	"mojo/public/go/application"
+
 	"v.io/v23"
 	"v.io/v23/context"
 )
@@ -18,8 +20,8 @@ import (
 // NOTE: For tests involving Vanadium RPCs, developers are encouraged to use
 // V23InitWithMounttable, and have their services access each other via the
 // mount table (rather than using endpoint strings).
-func V23Init() (*context.T, v23.Shutdown) {
-	ctx, shutdown := v23.Init()
+func V23Init(mctx application.Context) (*context.T, v23.Shutdown) {
+	ctx, shutdown := v23.Init(mctx)
 	ctx = internalInit(ctx, false)
 	return ctx, shutdown
 }
@@ -30,8 +32,8 @@ func V23Init() (*context.T, v23.Shutdown) {
 // Both these steps are skipped if this function is invoked from a subprocess
 // run using the modules package; in that case, the mounttable to use and the
 // blessings of the principal are created by the parent process.
-func V23InitWithMounttable() (*context.T, v23.Shutdown) {
-	ctx, shutdown := v23.Init()
+func V23InitWithMounttable(mctx application.Context) (*context.T, v23.Shutdown) {
+	ctx, shutdown := v23.Init(mctx)
 	ctx = internalInit(ctx, true)
 	return ctx, shutdown
 }

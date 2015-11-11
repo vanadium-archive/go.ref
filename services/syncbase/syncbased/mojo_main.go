@@ -12,7 +12,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"mojo/public/go/application"
 	"mojo/public/go/bindings"
@@ -39,14 +38,7 @@ type delegate struct {
 }
 
 func (d *delegate) Initialize(actx application.Context) {
-	// actx.Args() is a slice that contains the url of this mojo service
-	// followed by all arguments passed to the mojo service via the
-	// "--args-for" flag.
-	// Since the v23 runtime factories parse arguments from os.Args, we must
-	// overwrite os.Args with actx.Args().
-	// Note that os.Args must be set before calling v23.Init().
-	os.Args = actx.Args()
-	d.ctx, d.shutdown = v23.Init()
+	d.ctx, d.shutdown = v23.Init(actx)
 	if err := setBlessings(d.ctx, actx); err != nil {
 		panic(err)
 	}
