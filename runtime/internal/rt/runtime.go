@@ -225,7 +225,7 @@ func (r *Runtime) initSignalHandling(ctx *context.T) {
 			if !ok {
 				break
 			}
-			r.ctx.Infof("Received signal %v", sig)
+			ctx.Infof("Received signal %v", sig)
 		}
 	}()
 	r.addChild(ctx, signals, func() {
