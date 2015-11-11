@@ -151,7 +151,7 @@ func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...
 
 	ctx.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
 
-	ch := make(chan *dialResult)
+	ch := make(chan *dialResult, 1)
 	go func() {
 		conn, err := dial(ctx, d, network, address, timeout)
 		ch <- &dialResult{conn, err}
@@ -175,7 +175,21 @@ func (m *manager) FindOrDialVIF(ctx *context.T, remote naming.Endpoint, opts ...
 	}
 
 	opts = append([]stream.VCOpt{vc.StartTimeout{Duration: defaultStartTimeout}}, opts...)
-	vf, err = vif.InternalNewDialedVIF(ctx, conn, m.rid, nil, m.deleteVIF, opts...)
+	type vfAndErr struct {
+		vf  *vif.VIF
+		err error
+	}
+	vch := make(chan vfAndErr, 1)
+	go func() {
+		vf, err := vif.InternalNewDialedVIF(ctx, conn, m.rid, nil, m.deleteVIF, opts...)
+		vch <- vfAndErr{vf, err}
+	}()
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	case vae := <-vch:
+		vf, err = vae.vf, vae.err
+	}
 	if err != nil {
 		conn.Close()
 		return nil, err
