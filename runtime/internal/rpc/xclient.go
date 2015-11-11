@@ -374,11 +374,7 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 				}
 			}
 		case <-ctx.Done():
-			_, _, _, err := c.failedTryCall(ctx, name, method, responses, ch)
-			if ctx.Err() == context.Canceled {
-				return nil, verror.NoRetry, false, verror.New(verror.ErrCanceled, ctx, err)
-			}
-			return nil, verror.NoRetry, false, verror.New(verror.ErrTimeout, ctx, err)
+			return c.failedTryCall(ctx, name, method, responses, ch)
 		}
 
 		// Process new responses, in priority order.
@@ -502,6 +498,16 @@ func (c *xclient) failedTryCall(ctx *context.T, name, method string, responses [
 	if onlyErrNetwork {
 		// If we only encountered network errors, then report ErrBadProtocol.
 		topLevelError = verror.ErrBadProtocol
+	}
+
+	switch ctx.Err() {
+	case context.Canceled:
+		topLevelError = verror.ErrCanceled
+		topLevelAction = verror.NoRetry
+	case context.DeadlineExceeded:
+		topLevelError = verror.ErrTimeout
+		topLevelAction = verror.NoRetry
+	default:
 	}
 
 	// TODO(cnicolaou): we get system errors for things like dialing using
