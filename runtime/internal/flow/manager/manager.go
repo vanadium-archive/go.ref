@@ -712,7 +712,7 @@ func dial(ctx *context.T, p flow.Protocol, protocol, address string) (flow.Conn,
 			c flow.Conn
 			e error
 		}
-		ch := make(chan connAndErr)
+		ch := make(chan connAndErr, 1)
 		go func() {
 			conn, err := p.Dial(ctx, protocol, address, timeout)
 			ch <- connAndErr{conn, err}
