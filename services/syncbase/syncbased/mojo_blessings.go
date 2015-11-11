@@ -169,7 +169,7 @@ func token2blessingURL(token string, key security.PublicKey) (string, error) {
 		return "", fmt.Errorf("invalid public key: %v", err)
 	}
 
-	var params url.Values
+	params := url.Values{}
 	params.Add("public_key", base64.URLEncoding.EncodeToString(pub))
 	params.Add("token", token)
 	params.Add("output_format", "base64vom")
