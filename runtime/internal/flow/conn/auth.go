@@ -77,10 +77,9 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	if lAuth.BlessingsKey, _, err = c.blessingsFlow.send(ctx, c.lBlessings, nil, nil); err != nil {
 		return err
 	}
-	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
-		return err
-	}
-	return nil
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return c.sendMessageLocked(ctx, true, expressPriority, lAuth)
 }
 
 func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange, authorizedPeers []security.BlessingPattern) error {
@@ -102,7 +101,10 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange,
 	if lAuth.BlessingsKey, lAuth.DischargeKey, err = c.refreshDischarges(ctx, false, authorizedPeers); err != nil {
 		return err
 	}
-	if err = c.mp.writeMsg(ctx, lAuth); err != nil {
+	c.mu.Lock()
+	err = c.sendMessageLocked(ctx, true, expressPriority, lAuth)
+	c.mu.Unlock()
+	if err != nil {
 		return err
 	}
 	_, _, err = c.readRemoteAuth(ctx, binding, false)
