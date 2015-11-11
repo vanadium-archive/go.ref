@@ -246,8 +246,7 @@ func TestSingleProxy(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	kp := newKillProtocol()
 	flow.RegisterProtocol("kill", kp)
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
+	ctx, shutdown := test.V23Init()
 	am, err := v23.NewFlowManager(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -256,6 +255,11 @@ func TestSingleProxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		<-am.Closed()
+		<-dm.Closed()
+	}()
+	defer shutdown()
 
 	pname, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"kill", "127.0.0.1:0"})
 	defer stop()
@@ -284,7 +288,6 @@ func TestMultipleProxies(t *testing.T) {
 	kp := newKillProtocol()
 	flow.RegisterProtocol("kill", kp)
 	ctx, shutdown := test.V23Init()
-	defer shutdown()
 	am, err := v23.NewFlowManager(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -293,6 +296,10 @@ func TestMultipleProxies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		<-dm.Closed()
+		<-am.Closed()
+	}()
 
 	p1name, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"kill", "127.0.0.1:0"})
 	defer stop()
@@ -329,6 +336,7 @@ func TestMultipleProxies(t *testing.T) {
 		}
 		<-changed
 	}
+	shutdown()
 }
 
 func testEndToEndConnection(t *testing.T, ctx *context.T, dm, am flow.Manager, aep naming.Endpoint) error {
@@ -437,6 +445,22 @@ type killProtocol struct {
 	conns    []flow.Conn
 }
 
+type kpListener struct {
+	kp *killProtocol
+	flow.Listener
+}
+
+func (l *kpListener) Accept(ctx *context.T) (flow.Conn, error) {
+	c, err := l.Listener.Accept(ctx)
+	if err != nil {
+		return nil, err
+	}
+	l.kp.mu.Lock()
+	l.kp.conns = append(l.kp.conns, c)
+	l.kp.mu.Unlock()
+	return c, err
+}
+
 func newKillProtocol() *killProtocol {
 	p, _ := flow.RegisteredProtocol("tcp")
 	return &killProtocol{protocol: p}
@@ -463,7 +487,11 @@ func (p *killProtocol) Dial(ctx *context.T, protocol, address string, timeout ti
 }
 
 func (p *killProtocol) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
-	return p.protocol.Listen(ctx, "tcp", address)
+	l, err := p.protocol.Listen(ctx, "tcp", address)
+	if err != nil {
+		return nil, err
+	}
+	return &kpListener{kp: p, Listener: l}, nil
 }
 
 func (p *killProtocol) Resolve(ctx *context.T, protocol, address string) (string, string, error) {

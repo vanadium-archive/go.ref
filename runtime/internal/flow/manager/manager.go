@@ -438,9 +438,11 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			m.ls.mu.Unlock()
 			return
 		}
+		m.ls.listenLoops.Add(1)
 		m.ls.mu.Unlock()
 		fh := &flowHandler{m, make(chan struct{})}
 		go func() {
+			defer m.ls.listenLoops.Done()
 			c, err := conn.NewAccepted(
 				m.ctx,
 				m.serverBlessings,
@@ -456,6 +458,7 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 				flowConn.Close()
 			} else if err = m.cache.InsertWithRoutingID(c); err != nil {
 				ctx.Errorf("failed to cache conn %v: %v", c, err)
+				c.Close(ctx, err)
 			}
 			close(fh.cached)
 		}()

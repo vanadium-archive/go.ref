@@ -19,8 +19,6 @@ import (
 	"v.io/x/ref/lib/publisher"
 )
 
-// TODO(suharshs): Make sure we don't leave any goroutines behind.
-
 const (
 	reconnectDelay = 50 * time.Millisecond
 	maxBackoff     = time.Minute
@@ -31,12 +29,14 @@ type proxy struct {
 	pub    publisher.Publisher
 	closed chan struct{}
 	auth   security.Authorizer
+	wg     sync.WaitGroup
 
 	mu                 sync.Mutex
 	listeningEndpoints map[string]naming.Endpoint   // keyed by endpoint string
 	proxyEndpoints     map[string][]naming.Endpoint // keyed by proxy address
 	proxiedProxies     []flow.Flow                  // flows of proxies that are listening through us.
 	proxiedServers     []flow.Flow                  // flows of servers that are listening through us.
+	closing            bool
 }
 
 func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) {
@@ -60,6 +60,7 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 	}
 	lspec := v23.GetListenSpec(ctx)
 	if len(lspec.Proxy) > 0 {
+		p.wg.Add(1)
 		go p.connectToProxy(ctx, lspec.Proxy)
 	}
 	for _, addr := range lspec.Addrs {
@@ -69,12 +70,18 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 	}
 	leps, changed := p.m.ListeningEndpoints()
 	p.updateListeningEndpoints(ctx, leps)
+	p.wg.Add(2)
 	go p.updateEndpointsLoop(ctx, changed)
 	go p.listenLoop(ctx)
 	go func() {
 		<-ctx.Done()
+		p.mu.Lock()
+		p.closing = true
+		p.mu.Unlock()
 		p.pub.Stop()
 		p.pub.WaitForStop()
+		p.wg.Wait()
+		<-p.m.Closed()
 		close(p.closed)
 	}()
 	return p, nil
@@ -85,6 +92,7 @@ func (p *proxy) Closed() <-chan struct{} {
 }
 
 func (p *proxy) updateEndpointsLoop(ctx *context.T, changed <-chan struct{}) {
+	defer p.wg.Done()
 	var leps []naming.Endpoint
 	for changed != nil {
 		<-changed
@@ -185,6 +193,7 @@ func (p *proxy) MultipleProxyEndpoints() []naming.Endpoint {
 }
 
 func (p *proxy) listenLoop(ctx *context.T) {
+	defer p.wg.Done()
 	for {
 		f, err := p.m.Accept(ctx)
 		if err != nil {
@@ -227,12 +236,20 @@ func (p *proxy) startRouting(ctx *context.T, f flow.Flow, m *message.Setup) erro
 		f.Close()
 		return err
 	}
+	p.mu.Lock()
+	if p.closing {
+		p.mu.Unlock()
+		return NewErrProxyAlreadyClosed(ctx)
+	}
+	p.wg.Add(2)
+	p.mu.Unlock()
 	go p.forwardLoop(ctx, f, fout)
 	go p.forwardLoop(ctx, fout, f)
 	return nil
 }
 
 func (p *proxy) forwardLoop(ctx *context.T, fin, fout flow.Flow) {
+	defer p.wg.Done()
 	_, err := io.Copy(fin, fout)
 	fin.Close()
 	fout.Close()
@@ -339,6 +356,7 @@ func (p *proxy) returnEndpointsLocked(ctx *context.T, rid naming.RoutingID, rout
 }
 
 func (p *proxy) connectToProxy(ctx *context.T, name string) {
+	defer p.wg.Done()
 	for delay := reconnectDelay; ; delay = nextDelay(delay) {
 		time.Sleep(delay - reconnectDelay)
 		select {
