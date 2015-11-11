@@ -179,7 +179,18 @@ func NewDialed(
 		return nil, err
 	}
 	c.initializeHealthChecks(ctx)
-	c.loopWG.Add(1)
+	// We send discharges asynchronously to prevent making a second RPC while
+	// trying to build up the connection for another. If the two RPCs happen to
+	// go to the same server a deadlock will result.
+	// This commonly happens when we make a Resolve call.  During the Resolve we
+	// will try to fetch discharges to send to the mounttable, leading to a
+	// Resolve of the discharge server name.  The two resolve calls may be to
+	// the same mounttable.
+	c.loopWG.Add(2)
+	go func() {
+		c.refreshDischarges(ctx, true, nil)
+		c.loopWG.Done()
+	}()
 	go c.readLoop(ctx)
 	return c, nil
 }
@@ -235,6 +246,7 @@ func NewAccepted(
 		return nil, err
 	}
 	c.initializeHealthChecks(ctx)
+	c.refreshDischarges(ctx, true, lAuthorizedPeers)
 	c.loopWG.Add(1)
 	go c.readLoop(ctx)
 	return c, nil
