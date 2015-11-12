@@ -9,7 +9,7 @@
 Command debug supports debugging Vanadium servers.
 
 Usage:
-   debug <command>
+   debug [flags] <command>
 
 The debug commands are:
    glob        Returns all matching entries from the namespace.
@@ -18,6 +18,10 @@ The debug commands are:
    stats       Accesses stats
    pprof       Accesses profiling data
    help        Display help for commands or topics
+
+The debug flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
 
 The global flags are:
  -alsologtostderr=true

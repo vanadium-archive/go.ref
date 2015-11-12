@@ -50,10 +50,13 @@ var (
 	rawJson    bool
 	showType   bool
 	pprofCmd   string
+	timeout    time.Duration
 )
 
 func init() {
 	cmdline.HideGlobalFlagsExcept()
+
+	cmdRoot.Flags.DurationVar(&timeout, "timeout", time.Minute, "Time to wait for various RPCs")
 
 	// logs read flags
 	cmdLogsRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")
@@ -207,7 +210,7 @@ func doGlobs(ctx *context.T, patterns []string, results chan<- naming.GlobReply,
 
 func doGlob(ctx *context.T, pattern string, results chan<- naming.GlobReply, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	c, err := v23.GetNamespace(ctx).Glob(ctx, pattern)
 	if err != nil {
@@ -235,6 +238,11 @@ func runLogsRead(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("read: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
+	if !follow {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
 	lf := logreader.LogFileClient(name)
 	stream, err := lf.ReadLog(ctx, startPos, int32(numEntries), follow)
 	if err != nil {
@@ -278,6 +286,8 @@ func runLogsSize(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("size: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	lf := logreader.LogFileClient(name)
 	size, err := lf.Size(ctx)
 	if err != nil {
@@ -346,7 +356,7 @@ func runStatsRead(ctx *context.T, env *cmdline.Env, args []string) error {
 
 func doValue(ctx *context.T, name string, output chan<- string, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	v, err := stats.StatsClient(name).Value(ctx)
 	if err != nil {
