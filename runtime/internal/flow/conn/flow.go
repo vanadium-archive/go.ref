@@ -6,7 +6,6 @@ package conn
 
 import (
 	"io"
-	"sync"
 	"time"
 
 	"v.io/v23/context"
@@ -49,9 +48,6 @@ type flw struct {
 	// borrowed indicates the number of tokens we have borrowed from the shared pool for
 	// sending on newly dialed flows.
 	borrowed uint64
-	// borrowCond is a condition variable that we can use to wait for shared
-	// counters to be released.
-	borrowCond *sync.Cond
 	// borrowing indicates whether this flow is using borrowed counters for a newly
 	// dialed flow.  This will be set to false after we first receive a
 	// release from the remote end.  This is always false for accepted flows.
@@ -65,15 +61,14 @@ var _ flow.Flow = &flw{}
 
 func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remote naming.Endpoint, dialed, preopen bool, channelTimeout time.Duration) *flw {
 	f := &flw{
-		id:         id,
-		dialed:     dialed,
-		conn:       c,
-		q:          newReadQ(c, id),
-		bkey:       bkey,
-		dkey:       dkey,
-		opened:     preopen,
-		borrowing:  dialed,
-		borrowCond: sync.NewCond(&c.mu),
+		id:        id,
+		dialed:    dialed,
+		conn:      c,
+		q:         newReadQ(c, id),
+		bkey:      bkey,
+		dkey:      dkey,
+		opened:    preopen,
+		borrowing: dialed,
 		// It's important that this channel has a non-zero buffer.  Sometimes this
 		// flow will be notifying itself, so if there's no buffer a deadlock will
 		// occur.
@@ -177,7 +172,6 @@ func (f *flw) releaseLocked(tokens uint64) {
 		tokens -= n
 		f.borrowed -= n
 		f.conn.lshared += n
-		f.borrowCond.Broadcast()
 	}
 	f.released += tokens
 	f.ctx.VI(2).Infof("Tokens release to %d(%p): %d => %d", f.id, f, tokens, f.released)
@@ -427,7 +421,6 @@ func (f *flw) close(ctx *context.T, err error) {
 		f.conn.lshared += f.borrowed
 		f.borrowed = 0
 	}
-	f.borrowCond.Broadcast()
 	f.conn.mu.Unlock()
 	if f.q.close(ctx) {
 		f.ctx.VI(2).Infof("closing %d(%p): %v", f.id, f, err)
@@ -457,17 +450,9 @@ func (f *flw) close(ctx *context.T, err error) {
 			})
 		}
 		if f.borrowed > 0 && f.conn.status < Closing {
-			f.conn.loopWG.Add(1)
-			go func() {
-				defer f.conn.loopWG.Done()
-				f.conn.mu.Lock()
-				for f.borrowed > 0 && f.conn.status < Closing {
-					f.borrowCond.Wait()
-				}
-				delete(f.conn.flows, f.id)
-				f.conn.mu.Unlock()
-			}()
+			f.conn.outstandingBorrowed[f.id] = f.borrowed
 		}
+		delete(f.conn.flows, f.id)
 		f.conn.mu.Unlock()
 		if serr != nil {
 			ctx.Errorf("Could not send close flow message: %v", err)

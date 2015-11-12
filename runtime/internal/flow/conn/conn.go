@@ -5,6 +5,7 @@
 package conn
 
 import (
+	"math"
 	"reflect"
 	"sync"
 	"time"
@@ -119,6 +120,12 @@ type Conn struct {
 	// lshared is the number of shared tokens available for new flows dialed
 	// locally.
 	lshared uint64
+	// outstandingBorrowed is a map from flowID to a number of borrowed tokens.
+	// This map is populated when a flow closes locally before it receives a remote close
+	// or a release message.  In this case we need to remember that we have already
+	// used these counters and return them to the shared pool when we get
+	// a close or release.
+	outstandingBorrowed map[uint64]uint64
 
 	// activeWriters keeps track of all the flows that are currently
 	// trying to write, indexed by priority.  activeWriters[0] is a list
@@ -164,6 +171,7 @@ func NewDialed(
 		// TODO(mattr): We should negotiate the shared counter pool size with the
 		// other end.
 		lshared:              DefaultBytesBufferedPerFlow,
+		outstandingBorrowed:  make(map[uint64]uint64),
 		activeWriters:        make([]writer, numPriorities),
 		acceptChannelTimeout: channelTimeout,
 	}
@@ -231,6 +239,7 @@ func NewAccepted(
 		borrowing:            map[uint64]bool{},
 		cancel:               cancel,
 		lshared:              DefaultBytesBufferedPerFlow,
+		outstandingBorrowed:  make(map[uint64]uint64),
 		activeWriters:        make([]writer, numPriorities),
 		acceptChannelTimeout: channelTimeout,
 	}
@@ -508,6 +517,22 @@ func (c *Conn) release(ctx *context.T, fid, count uint64) {
 	}
 }
 
+func (c *Conn) relaseOutstandingBorrowedLocked(fid, val uint64) {
+	borrowed := c.outstandingBorrowed[fid]
+	released := val
+	if borrowed == 0 {
+		return
+	} else if borrowed < released {
+		released = borrowed
+	}
+	c.lshared += released
+	if released == borrowed {
+		delete(c.outstandingBorrowed, fid)
+	} else {
+		c.outstandingBorrowed[fid] = borrowed - released
+	}
+}
+
 func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 	switch msg := m.(type) {
 	case *message.TearDown:
@@ -579,6 +604,8 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		for fid, val := range msg.Counters {
 			if f := c.flows[fid]; f != nil {
 				f.releaseLocked(val)
+			} else {
+				c.relaseOutstandingBorrowedLocked(fid, val)
 			}
 		}
 		c.mu.Unlock()
@@ -592,6 +619,9 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		f := c.flows[msg.ID]
 		c.mu.Unlock()
 		if f == nil {
+			// If the flow is closing then we assume the remote side releases
+			// all borrowed counters for that flow.
+			c.relaseOutstandingBorrowedLocked(msg.ID, math.MaxUint64)
 			ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d",
 				c.remote, msg.ID)
 			return nil
