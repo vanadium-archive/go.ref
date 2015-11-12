@@ -9,11 +9,14 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/static"
 	"v.io/x/ref/services/identity/internal/auditor"
@@ -23,12 +26,18 @@ import (
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/server"
 	"v.io/x/ref/services/identity/internal/util"
+	"v.io/x/ref/services/internal/restsigner"
 )
 
 var (
-	externalHttpAddr, httpAddr, tlsConfig, assetsPrefix, mountPrefix string
-	browser                                                          bool
-	oauthEmail                                                       string
+	externalHttpAddr      string
+	httpAddr              string
+	tlsConfig             string
+	assetsPrefix          string
+	mountPrefix           string
+	browser               bool
+	oauthEmail            string
+	remoteSignerBlessings string
 )
 
 func init() {
@@ -40,6 +49,8 @@ func init() {
 	cmdTest.Flags.StringVar(&mountPrefix, "mount-prefix", "identity", "Mount name prefix to use.  May be rooted.")
 	cmdTest.Flags.BoolVar(&browser, "browser", false, "Whether to open a browser caveat selector.")
 	cmdTest.Flags.StringVar(&oauthEmail, "oauth-email", "testemail@example.com", "Username for the mock oauth to put in the returned blessings.")
+	cmdTest.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
+
 }
 
 func main() {
@@ -64,6 +75,24 @@ To generate TLS certificates so the HTTP server can use SSL:
 }
 
 func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
+	if remoteSignerBlessings != "" {
+		signer, err := restsigner.NewRestSigner()
+		if err != nil {
+			return fmt.Errorf("failed to create remote signer: %v", err)
+		}
+		state, err := security.NewPrincipalStateSerializer(remoteSignerBlessings)
+		if err != nil {
+			return fmt.Errorf("failed to create blessing serializer: %v", err)
+		}
+		p, err := security.NewPrincipalFromSigner(signer, state)
+		if err != nil {
+			return fmt.Errorf("failed to create principal: %v", err)
+		}
+		if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
+			return fmt.Errorf("failed to set principal: %v", err)
+		}
+	}
+
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
 

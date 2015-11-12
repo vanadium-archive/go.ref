@@ -32,6 +32,9 @@ The identityd_test flags are:
    Mount name prefix to use.  May be rooted.
  -oauth-email=testemail@example.com
    Username for the mock oauth to put in the returned blessings.
+ -remote-signer-blessing-dir=
+   Path to the blessings to use with the remote signer. Use the empty string to
+   disable the remote signer.
  -tls-config=
    Comma-separated list of TLS certificate and private key files, in that order.
    This must be provided.
