@@ -112,18 +112,14 @@ func V23TestHelloMounttabled(i *v23tests.T) {
 
 func V23TestHelloProxy(i *v23tests.T) {
 	creds, err := setupCredentials(i, "helloclient", "helloserver",
-		"mounttabled", "proxyd")
+		"mounttabled", "proxyd", "xproxyd")
 	if err != nil {
 		i.Fatalf("Could not create credentials: %v", err)
 	}
 	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
 	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
-	var proxydbin *v23tests.Binary
-	if ref.RPCTransitionState() >= ref.XServers {
-		proxydbin = i.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
-	} else {
-		proxydbin = i.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
-	}
+	xproxydbin := i.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
+	proxydbin := i.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
 	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
 	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
 	proxyname := "proxy"
@@ -136,6 +132,10 @@ func V23TestHelloProxy(i *v23tests.T) {
 		i.Fatalf("Could not get NAME: %v", mounttabled.Error())
 	}
 	agentdbin.WithEnv(creds["proxyd"]).Start(proxydbin.Path(),
+		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
+		"--v23.namespace.root", mtname,
+		"--access-list", "{\"In\":[\"root\"]}")
+	agentdbin.WithEnv(creds["xproxyd"]).Start(xproxydbin.Path(),
 		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
 		"--v23.namespace.root", mtname,
 		"--access-list", "{\"In\":[\"root\"]}")
