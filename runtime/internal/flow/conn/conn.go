@@ -536,7 +536,7 @@ func (c *Conn) release(ctx *context.T, fid, count uint64) {
 	}
 }
 
-func (c *Conn) relaseOutstandingBorrowedLocked(fid, val uint64) {
+func (c *Conn) releaseOutstandingBorrowedLocked(fid, val uint64) {
 	borrowed := c.outstandingBorrowed[fid]
 	released := val
 	if borrowed == 0 {
@@ -624,7 +624,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			if f := c.flows[fid]; f != nil {
 				f.releaseLocked(val)
 			} else {
-				c.relaseOutstandingBorrowedLocked(fid, val)
+				c.releaseOutstandingBorrowedLocked(fid, val)
 			}
 		}
 		c.mu.Unlock()
@@ -640,7 +640,9 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		if f == nil {
 			// If the flow is closing then we assume the remote side releases
 			// all borrowed counters for that flow.
-			c.relaseOutstandingBorrowedLocked(msg.ID, math.MaxUint64)
+			c.mu.Lock()
+			c.releaseOutstandingBorrowedLocked(msg.ID, math.MaxUint64)
+			c.mu.Unlock()
 			ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d",
 				c.remote, msg.ID)
 			return nil
