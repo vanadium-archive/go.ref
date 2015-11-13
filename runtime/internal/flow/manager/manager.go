@@ -55,7 +55,6 @@ type listenState struct {
 	dhcpPublisher *pubsub.Publisher
 
 	mu             sync.Mutex
-	stopProxy      chan struct{}
 	listeners      []flow.Listener
 	endpoints      []*endpointState
 	proxyEndpoints []naming.Endpoint
@@ -71,7 +70,6 @@ type endpointState struct {
 }
 
 func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID, serverAuthorizedPeers []security.BlessingPattern, dhcpPublisher *pubsub.Publisher, channelTimeout time.Duration) flow.Manager {
-
 	m := &manager{
 		rid:                  rid,
 		closed:               make(chan struct{}),
@@ -86,7 +84,6 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 		m.ls = &listenState{
 			q:              upcqueue.New(),
 			listeners:      []flow.Listener{},
-			stopProxy:      make(chan struct{}),
 			notifyWatchers: make(chan struct{}),
 			dhcpPublisher:  dhcpPublisher,
 		}
@@ -126,10 +123,6 @@ func (m *manager) stopListening() {
 	listeners := m.ls.listeners
 	m.ls.listeners = nil
 	m.ls.endpoints = nil
-	if m.ls.stopProxy != nil {
-		close(m.ls.stopProxy)
-		m.ls.stopProxy = nil
-	}
 	if m.ls.notifyWatchers != nil {
 		close(m.ls.notifyWatchers)
 		m.ls.notifyWatchers = nil
@@ -645,6 +638,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 		if err := m.cache.Insert(c, network, address); err != nil {
+			c.Close(ctx, err)
 			return nil, nil, flow.NewErrBadState(ctx, err)
 		}
 		// Now that c is in the cache we can explicitly unreserve.
@@ -682,6 +676,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 		if err := m.cache.InsertWithRoutingID(c); err != nil {
+			c.Close(ctx, err)
 			return nil, nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
 		f, err = c.Dial(ctx, auth, remote, channelTimeout)

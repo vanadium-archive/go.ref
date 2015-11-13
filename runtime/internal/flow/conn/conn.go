@@ -150,6 +150,7 @@ func NewDialed(
 	handshakeTimeout time.Duration,
 	channelTimeout time.Duration,
 	handler FlowHandler) (*Conn, error) {
+	dctx := ctx
 	ctx, cancel := context.WithRootCancel(ctx)
 	if channelTimeout == 0 {
 		channelTimeout = defaultChannelTimeout
@@ -175,13 +176,22 @@ func NewDialed(
 		activeWriters:        make([]writer, numPriorities),
 		acceptChannelTimeout: channelTimeout,
 	}
-	// TODO(mattr): This scheme for deadlines is nice, but it doesn't
-	// provide for cancellation when ctx is canceled.
-	t := time.AfterFunc(handshakeTimeout, func() { conn.Close() })
-	err := c.dialHandshake(ctx, versions, auth)
-	if stopped := t.Stop(); !stopped {
+	errCh := make(chan error, 1)
+	c.loopWG.Add(1)
+	go func() {
+		errCh <- c.dialHandshake(ctx, versions, auth)
+		c.loopWG.Done()
+	}()
+	timer := time.NewTimer(handshakeTimeout)
+	var err error
+	select {
+	case err = <-errCh:
+	case <-timer.C:
 		err = verror.NewErrTimeout(ctx)
+	case <-dctx.Done():
+		err = verror.NewErrCanceled(ctx)
 	}
+	timer.Stop()
 	if err != nil {
 		c.Close(ctx, err)
 		return nil, err
@@ -243,13 +253,22 @@ func NewAccepted(
 		activeWriters:        make([]writer, numPriorities),
 		acceptChannelTimeout: channelTimeout,
 	}
-	// FIXME(mattr): This scheme for deadlines is nice, but it doesn't
-	// provide for cancellation when ctx is canceled.
-	t := time.AfterFunc(handshakeTimeout, func() { conn.Close() })
-	err := c.acceptHandshake(ctx, versions, lAuthorizedPeers)
-	if stopped := t.Stop(); !stopped {
+	errCh := make(chan error, 1)
+	c.loopWG.Add(1)
+	go func() {
+		c.loopWG.Done()
+		errCh <- c.acceptHandshake(ctx, versions, lAuthorizedPeers)
+	}()
+	var err error
+	timer := time.NewTimer(handshakeTimeout)
+	select {
+	case err = <-errCh:
+	case <-timer.C:
 		err = verror.NewErrTimeout(ctx)
+	case <-ctx.Done():
+		err = verror.NewErrCanceled(ctx)
 	}
+	timer.Stop()
 	if err != nil {
 		c.Close(ctx, err)
 		return nil, err
@@ -477,11 +496,11 @@ func (c *Conn) internalClose(ctx *context.T, err error) {
 		if cerr := c.mp.rw.Close(); cerr != nil {
 			ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)
 		}
-		c.loopWG.Wait()
-		c.mu.Lock()
 		if c.cancel != nil {
 			c.cancel()
 		}
+		c.loopWG.Wait()
+		c.mu.Lock()
 		c.status = Closed
 		close(c.closed)
 		c.mu.Unlock()
