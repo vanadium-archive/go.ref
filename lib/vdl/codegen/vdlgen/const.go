@@ -65,11 +65,9 @@ func UntypedConst(v *vdl.Value, pkgPath string, imports codegen.Imports) string 
 		return "nil"
 	case vdl.Bool:
 		return strconv.FormatBool(v.Bool())
-	case vdl.Byte:
-		return strconv.FormatUint(uint64(v.Byte()), 10)
-	case vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return strconv.FormatUint(v.Uint(), 10)
-	case vdl.Int16, vdl.Int32, vdl.Int64:
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 		return strconv.FormatInt(v.Int(), 10)
 	case vdl.Float32, vdl.Float64:
 		return formatFloat(v.Float(), k)

@@ -26,7 +26,7 @@ func javaConstVal(v *vdl.Value, env *compile.Env) (ret string) {
 
 	ret = javaVal(v, env)
 	switch v.Type().Kind() {
-	case vdl.Complex64, vdl.Complex128, vdl.Enum, vdl.Union, vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Complex64, vdl.Complex128, vdl.Enum, vdl.Union, vdl.Int8, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return
 	}
 	if def := env.FindTypeDef(v.Type()); def != nil && def.File != compile.BuiltInFile { // User-defined type.
@@ -59,7 +59,9 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 			return "false"
 		}
 	case vdl.Byte:
-		return "(byte)0x" + strconv.FormatUint(uint64(v.Byte()), 16)
+		return "(byte)0x" + strconv.FormatUint(v.Uint(), 16)
+	case vdl.Int8:
+		return fmt.Sprintf("new %s((byte) %s)", javaType(v.Type(), true, env), strconv.FormatInt(v.Int(), 10))
 	case vdl.Uint16:
 		return fmt.Sprintf("new %s((short) %s)", javaType(v.Type(), true, env), strconv.FormatUint(v.Uint(), 10))
 	case vdl.Int16:
@@ -69,6 +71,8 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 	case vdl.Int32:
 		return strconv.FormatInt(v.Int(), 10)
 	case vdl.Uint64:
+		// Note: this is formatting the number as an int because Java will error on unsigned contants that use the
+		// full 64-bits.
 		return fmt.Sprintf("new %s(%s)", javaType(v.Type(), true, env), strconv.FormatInt(int64(v.Uint()), 10)+longSuffix)
 	case vdl.Int64:
 		return strconv.FormatInt(v.Int(), 10) + longSuffix
@@ -115,7 +119,7 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 		elemTypeStr := javaType(v.Type().Elem(), true, env)
 		ret := fmt.Sprintf("new com.google.common.collect.ImmutableList.Builder<%s>()", elemTypeStr)
 		for i := 0; i < v.Len(); i++ {
-			ret = fmt.Sprintf("%s.add(%s)", ret, javaConstVal(v.Index(i), env))
+			ret = fmt.Sprintf("%s\n.add(%s)", ret, javaConstVal(v.Index(i), env))
 		}
 		return ret + ".build()"
 	case vdl.Map:
@@ -125,7 +129,7 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 		for _, key := range vdl.SortValuesAsString(v.Keys()) {
 			keyStr := javaConstVal(key, env)
 			elemStr := javaConstVal(v.MapIndex(key), env)
-			ret = fmt.Sprintf("%s.put(%s, %s)", ret, keyStr, elemStr)
+			ret = fmt.Sprintf("%s\n.put(%s, %s)", ret, keyStr, elemStr)
 		}
 		return ret + ".build()"
 	case vdl.Union:
@@ -137,7 +141,7 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 		keyTypeStr := javaType(v.Type().Key(), true, env)
 		ret := fmt.Sprintf("new com.google.common.collect.ImmutableSet.Builder<%s>()", keyTypeStr)
 		for _, key := range vdl.SortValuesAsString(v.Keys()) {
-			ret = fmt.Sprintf("%s.add(%s)", ret, javaConstVal(key, env))
+			ret = fmt.Sprintf("%s\n.add(%s)", ret, javaConstVal(key, env))
 		}
 		return ret + ".build()"
 	case vdl.Struct:
@@ -198,7 +202,7 @@ func javaZeroValue(t *vdl.Type, env *compile.Env) string {
 		return "0.0f"
 	case vdl.Float64:
 		return "0.0"
-	case vdl.Any, vdl.Complex64, vdl.Complex128, vdl.TypeObject, vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Any, vdl.Complex64, vdl.Complex128, vdl.TypeObject, vdl.Int8, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return fmt.Sprintf("new %s()", javaType(t, false, env))
 	case vdl.String:
 		return "\"\""

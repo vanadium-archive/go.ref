@@ -55,6 +55,13 @@ func (NamedUint64) __VDLReflect(struct {
 }) {
 }
 
+type NamedInt8 int8
+
+func (NamedInt8) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedInt8"`
+}) {
+}
+
 type NamedInt16 int16
 
 func (NamedInt16) __VDLReflect(struct {
@@ -254,32 +261,34 @@ type Scalars struct {
 	A2  uint16
 	A3  uint32
 	A4  uint64
-	A5  int16
-	A6  int32
-	A7  int64
-	A8  float32
-	A9  float64
-	A10 complex64
-	A11 complex128
-	A12 string
-	A13 error
-	A14 *vdl.Value
-	A15 *vdl.Type
+	A5  int8
+	A6  int16
+	A7  int32
+	A8  int64
+	A9  float32
+	A10 float64
+	A11 complex64
+	A12 complex128
+	A13 string
+	A14 error
+	A15 *vdl.Value
+	A16 *vdl.Type
 	B0  NamedBool
 	B1  NamedByte
 	B2  NamedUint16
 	B3  NamedUint32
 	B4  NamedUint64
-	B5  NamedInt16
-	B6  NamedInt32
-	B7  NamedInt64
-	B8  NamedFloat32
-	B9  NamedFloat64
-	B10 NamedComplex64
-	B11 NamedComplex128
-	B12 NamedString
-	B13 NamedEnum
-	B14 NamedUnion
+	B5  NamedInt8
+	B6  NamedInt16
+	B7  NamedInt32
+	B8  NamedInt64
+	B9  NamedFloat32
+	B10 NamedFloat64
+	B11 NamedComplex64
+	B12 NamedComplex128
+	B13 NamedString
+	B14 NamedEnum
+	B15 NamedUnion
 }
 
 func (Scalars) __VDLReflect(struct {
@@ -294,27 +303,29 @@ type KeyScalars struct {
 	A2  uint16
 	A3  uint32
 	A4  uint64
-	A5  int16
-	A6  int32
-	A7  int64
-	A8  float32
-	A9  float64
-	A10 complex64
-	A11 complex128
-	A12 string
+	A5  int8
+	A6  int16
+	A7  int32
+	A8  int64
+	A9  float32
+	A10 float64
+	A11 complex64
+	A12 complex128
+	A13 string
 	B0  NamedBool
 	B1  NamedByte
 	B2  NamedUint16
 	B3  NamedUint32
 	B4  NamedUint64
-	B5  NamedInt16
-	B6  NamedInt32
-	B7  NamedInt64
-	B8  NamedFloat32
-	B9  NamedFloat64
-	B10 NamedComplex64
-	B11 NamedComplex128
-	B12 NamedString
+	B5  NamedInt8
+	B6  NamedInt16
+	B7  NamedInt32
+	B8  NamedInt64
+	B9  NamedFloat32
+	B10 NamedFloat64
+	B11 NamedComplex64
+	B12 NamedComplex128
+	B13 NamedString
 }
 
 func (KeyScalars) __VDLReflect(struct {
@@ -392,6 +403,7 @@ func init() {
 	vdl.Register((*NamedUint16)(nil))
 	vdl.Register((*NamedUint32)(nil))
 	vdl.Register((*NamedUint64)(nil))
+	vdl.Register((*NamedInt8)(nil))
 	vdl.Register((*NamedInt16)(nil))
 	vdl.Register((*NamedInt32)(nil))
 	vdl.Register((*NamedInt64)(nil))
@@ -491,9 +503,10 @@ var CScalars = Scalars{
 	A9:  9,
 	A10: 10,
 	A11: 11,
-	A12: "abc",
-	A14: vdl.ValueOf(false),
-	A15: vdl.TypeOf(false),
+	A12: 12,
+	A13: "abc",
+	A15: vdl.ValueOf(false),
+	A16: vdl.TypeOf(false),
 	B0:  true,
 	B1:  1,
 	B2:  2,
@@ -506,9 +519,10 @@ var CScalars = Scalars{
 	B9:  9,
 	B10: 10,
 	B11: 11,
-	B12: "abc",
-	B13: NamedEnumB,
-	B14: NamedUnionC{int32(123)},
+	B12: 12,
+	B13: "abc",
+	B14: NamedEnumB,
+	B15: NamedUnionC{int32(123)},
 }
 
 const True = true
@@ -533,6 +547,8 @@ var CTypeObject_byte = vdl.TypeOf(byte(0))
 
 var CTypeObject_uint16 = vdl.TypeOf(uint16(0))
 
+var CTypeObject_int8 = vdl.TypeOf(int8(0))
+
 var CTypeObject_int16 = vdl.TypeOf(int16(0))
 
 var CTypeObject_float32 = vdl.TypeOf(float32(0))
@@ -550,8 +566,8 @@ var CTypeObject_Set = vdl.TypeOf(map[string]struct{}(nil))
 var CTypeObject_Map = vdl.TypeOf(map[string]int64(nil))
 
 var CTypeObject_Struct = vdl.TypeOf(Scalars{
-	A15: vdl.AnyType,
-	B14: NamedUnionA{false},
+	A16: vdl.AnyType,
+	B15: NamedUnionA{false},
 })
 
 var CTypeObject_Union = vdl.TypeOf(NamedUnion(NamedUnionA{false}))

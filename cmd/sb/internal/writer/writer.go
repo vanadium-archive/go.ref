@@ -93,7 +93,7 @@ func writeBorder(out io.Writer, columnWidths []int) {
 func getJustification(val *vdl.Value) Justification {
 	switch val.Kind() {
 	// TODO(kash): Floating point numbers should have the decimal point line up.
-	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int16, vdl.Int32, vdl.Int64,
+	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64,
 		vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128:
 		return Right
 	// TODO(kash): Leave nil values as unknown.
@@ -186,11 +186,9 @@ func toString(val *vdl.Value, nested bool) string {
 	switch val.Kind() {
 	case vdl.Bool:
 		return fmt.Sprint(val.Bool())
-	case vdl.Byte:
-		return fmt.Sprint(val.Byte())
-	case vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return fmt.Sprint(val.Uint())
-	case vdl.Int16, vdl.Int32, vdl.Int64:
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 		return fmt.Sprint(val.Int())
 	case vdl.Float32, vdl.Float64:
 		return fmt.Sprint(val.Float())
@@ -302,11 +300,9 @@ func toJsonFriendly(val *vdl.Value) interface{} {
 	switch val.Kind() {
 	case vdl.Bool:
 		return val.Bool()
-	case vdl.Byte:
-		return val.Byte()
-	case vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return val.Uint()
-	case vdl.Int16, vdl.Int32, vdl.Int64:
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 		return val.Int()
 	case vdl.Float32, vdl.Float64:
 		return val.Float()

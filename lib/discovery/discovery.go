@@ -14,7 +14,6 @@ import (
 
 const pkgPath = "v.io/x/ref/runtime/internal/discovery"
 
-
 var (
 	errDiscoveryClosed = verror.Register(pkgPath+".errDiscoveryClosed", verror.NoRetry, "{1:}{2:} discovery closed")
 )

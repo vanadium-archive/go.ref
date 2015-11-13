@@ -12,11 +12,11 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/glob"
+	"v.io/v23/query/engine"
+	ds "v.io/v23/query/engine/datasource"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
-	"v.io/v23/query/engine"
-	ds "v.io/v23/query/engine/datasource"
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"

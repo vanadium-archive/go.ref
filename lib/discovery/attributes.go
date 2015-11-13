@@ -31,4 +31,3 @@ func validateAttributes(attrs discovery.Attributes) error {
 	}
 	return nil
 }
-
