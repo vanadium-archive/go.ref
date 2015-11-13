@@ -215,23 +215,16 @@ func (c *xclient) tryCreateFlow(
 		tctx, tcancel := context.WithRootCancel(ctx)
 		tflow, err := c.flowMgr.Dial(tctx, ep, typeFlowAuthorizer{}, channelTimeout)
 		if err != nil {
-			status.serverErr = suberr(newErrTypeFlowFailure(tctx, err))
-			flow.Close()
-			return
-		}
-		if tflow.Conn() != flow.Conn() {
-			status.serverErr = suberr(newErrTypeFlowFailure(ctx, nil))
-			flow.Close()
+			write(nil, tcancel)
+		} else if tflow.Conn() != flow.Conn() {
 			tflow.Close()
-			return
-		}
-		if _, err = tflow.Write([]byte{typeFlow}); err != nil {
-			status.serverErr = suberr(newErrTypeFlowFailure(tctx, err))
-			flow.Close()
+			write(nil, tcancel)
+		} else if _, err = tflow.Write([]byte{typeFlow}); err != nil {
 			tflow.Close()
-			return
+			write(nil, tcancel)
+		} else {
+			write(tflow, tcancel)
 		}
-		write(tflow, tcancel)
 	}
 	status.typeEnc, status.typeDec, err = c.typeCache.get(ctx, flow.Conn())
 	if err != nil {

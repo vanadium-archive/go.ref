@@ -47,10 +47,12 @@ func (tc *typeCache) writer(c flow.ManagedConn) (write func(flow.Flow, context.C
 		}
 		tce.writer = true
 		write = func(f flow.Flow, c context.CancelFunc) {
-			tce.cancel = c
-			tce.enc = vom.NewTypeEncoder(f)
-			tce.dec = vom.NewTypeDecoder(f)
-			tce.dec.Start() // Stopped in collect()
+			if f != nil {
+				tce.cancel = c
+				tce.enc = vom.NewTypeEncoder(f)
+				tce.dec = vom.NewTypeDecoder(f)
+				tce.dec.Start() // Stopped in collect()
+			}
 			close(tce.ready)
 		}
 	}
@@ -72,6 +74,9 @@ func (tc *typeCache) get(ctx *context.T, c flow.ManagedConn) (*vom.TypeEncoder, 
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
 	case <-tce.ready:
+		if tce.enc == nil || tce.dec == nil {
+			return nil, nil, newErrTypeFlowFailure(ctx, nil)
+		}
 	}
 	return tce.enc, tce.dec, nil
 }
