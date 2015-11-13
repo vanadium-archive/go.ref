@@ -142,7 +142,11 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 		return nil, nil, NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())
 	}
 	if err := <-ch; err != nil {
-		return nil, nil, NewErrSend(ctx, "setup", c.remote.String(), err)
+		remoteStr := ""
+		if c.remote != nil {
+			remoteStr = c.remote.String()
+		}
+		return nil, nil, NewErrSend(ctx, "setup", remoteStr, err)
 	}
 	if c.version, err = version.CommonVersion(ctx, lSetup.Versions, rSetup.Versions); err != nil {
 		return nil, nil, err

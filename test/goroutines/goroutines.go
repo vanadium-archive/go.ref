@@ -23,6 +23,7 @@ var ignoredGoroutines = []string{
 	"runtime.ensureSigM",
 	"sync.(*WaitGroup).Done",
 	"security.newOpenSSLSigner.func",
+	"security.unmarshalPublicKeyImpl.func",
 }
 
 type Goroutine struct {
