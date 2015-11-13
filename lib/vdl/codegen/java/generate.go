@@ -59,10 +59,6 @@ func Generate(pkg *compile.Package, env *compile.Env) (ret []JavaFileInfo) {
 	if g := genJavaConstFile(pkg, env); g != nil {
 		ret = append(ret, *g)
 	}
-	// Single file for all errors' definitions.
-	if g := genJavaErrorFile(pkg, env); g != nil {
-		ret = append(ret, *g)
-	}
 	for _, file := range pkg.Files {
 		// Separate file for all typedefs.
 		for _, tdef := range file.TypeDefs {
@@ -94,6 +90,10 @@ func Generate(pkg *compile.Package, env *compile.Env) (ret []JavaFileInfo) {
 			ret = append(ret, genJavaClientImplFile(iface, env))
 			ret = append(ret, genJavaServerInterfaceFile(iface, env)) // server interface
 			ret = append(ret, genJavaServerWrapperFile(iface, env))
+		}
+		for _, err := range file.ErrorDefs {
+			// Separate file for all error defs.
+			ret = append(ret, genJavaErrorFile(file, err, env))
 		}
 	}
 	return

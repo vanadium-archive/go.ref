@@ -50,6 +50,9 @@ func compileErrorDefs(pkg *Package, pfiles []*parse.File, env *Env) {
 				env.prefixErrorf(file, ped.Pos, err, "error %s name conflict", name)
 				continue
 			}
+			// NOTE(spetrovic): Java depends on error id being package path
+			// followed by name, so don't change this before talking to
+			// spetrovic@google.com.
 			id := pkg.Path + "." + name
 			ed := &ErrorDef{NamePos: NamePos(ped.NamePos), Exported: export, ID: id}
 			defineErrorActions(ed, name, ped.Actions, file, env)
