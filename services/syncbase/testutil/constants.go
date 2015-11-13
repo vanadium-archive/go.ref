@@ -16,10 +16,13 @@ var invalidIdentifiers []string = []string{
 	"\xfb",
 	"@@",
 	"dev.v.io/a/admin@myapp.com",
+	"dev.v.io:a:admin@myapp.com",
 	"안녕하세요",
+	// 16 4-byte runes => 64 bytes
+	"𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎",
 }
 
-var OkDbTableNames []string = []string{
+var validIdentifiers []string = []string{
 	"a",
 	"B",
 	"a_",
@@ -29,9 +32,11 @@ var OkDbTableNames []string = []string{
 	"a_0",
 	"foobar",
 	"BARBAZ",
+	// 64 bytes
+	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcd",
 }
 
-var NotOkAppRowNames []string = []string{
+var universallyInvalidNames []string = []string{
 	"",
 	"\xfc",
 	"\xfd",
@@ -43,6 +48,18 @@ var NotOkAppRowNames []string = []string{
 	"a\xffb",
 }
 
-var OkAppRowNames []string = append(OkDbTableNames, invalidIdentifiers...)
+var longNames []string = []string{
+	// 65 bytes
+	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde",
+	// 16 4-byte runes + 1 more byte => 65 bytes
+	"𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎a",
+}
 
-var NotOkDbTableNames []string = append(NotOkAppRowNames, invalidIdentifiers...)
+var OkAppNames []string = append(validIdentifiers, invalidIdentifiers...)
+var OkRowNames []string = append(OkAppNames, longNames...)
+
+var NotOkRowNames []string = universallyInvalidNames
+var NotOkAppNames []string = append(NotOkRowNames, longNames...)
+
+var OkDbTableNames []string = validIdentifiers
+var NotOkDbTableNames []string = append(NotOkAppNames, invalidIdentifiers...)

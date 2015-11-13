@@ -5,6 +5,7 @@
 package server
 
 import (
+	"encoding/hex"
 	"path"
 	"sync"
 
@@ -288,5 +289,24 @@ func (a *app) stKeyPart() string {
 }
 
 func (a *app) rootDirForDb(dbName string) string {
-	return path.Join(a.s.opts.RootDir, "apps", a.name, dbName)
+	// Note: Common Linux filesystems such as ext4 allow almost any character to
+	// appear in a filename, but other filesystems are more restrictive. For
+	// example, by default the OS X filesystem uses case-insensitive filenames. To
+	// play it safe, we hex-encode app and database names, yielding filenames that
+	// match "^[0-9a-f]+$".
+	appHex := hex.EncodeToString([]byte(a.name))
+	dbHex := hex.EncodeToString([]byte(dbName))
+	// ValidAppName and ValidDatabaseName require len([]byte(name)) <= 64, so even
+	// after the 2x blowup from hex-encoding, the lengths of these names should be
+	// well below the filesystem limit of 255 bytes.
+	// TODO(sadovsky): Currently, our client-side app/db creation tests verify
+	// that the server does not crash when too-long names are specified; we rely
+	// on the server-side dispatcher logic to return errors for too-long names.
+	// However, we ought to add server-side tests for this behavior, so that we
+	// don't accidentally remove the server-side name validation after adding
+	// client-side name validation.
+	if len(appHex) > 255 || len(dbHex) > 255 {
+		vlog.Fatalf("appHex %s or dbHex %s is too long", appHex, dbHex)
+	}
+	return path.Join(a.s.opts.RootDir, "apps", hex.EncodeToString([]byte(a.name)), "dbs", hex.EncodeToString([]byte(dbName)))
 }
