@@ -117,8 +117,11 @@ func (c *xclient) startCall(ctx *context.T, name, method string, args []interfac
 			return call, nil
 		case !shouldRetry(action, requireResolve, deadline, opts):
 			span.Annotatef("Cannot retry after error: %s", err)
+			span.Finish()
 			return nil, err
 		case !backoff(retries, deadline):
+			span.Annotatef("Retries exhausted")
+			span.Finish()
 			return nil, err
 		default:
 			span.Annotatef("Retrying due to error: %s", err)
