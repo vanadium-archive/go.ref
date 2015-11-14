@@ -274,4 +274,3 @@ func (b *blessingRoots) DebugString() (s string) {
 	}
 	return
 }
-

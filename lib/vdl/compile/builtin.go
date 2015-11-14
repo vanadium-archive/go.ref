@@ -26,6 +26,7 @@ func init() {
 	builtInType("uint16", vdl.Uint16Type)
 	builtInType("uint32", vdl.Uint32Type)
 	builtInType("uint64", vdl.Uint64Type)
+	builtInType("int8", vdl.Int8Type)
 	builtInType("int16", vdl.Int16Type)
 	builtInType("int32", vdl.Int32Type)
 	builtInType("int64", vdl.Int64Type)

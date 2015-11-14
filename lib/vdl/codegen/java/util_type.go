@@ -33,6 +33,19 @@ func javaReflectType(t *vdl.Type, env *compile.Env) string {
 // definition, forcing the use of a java class (e.g., java.lang.Integer) if so
 // desired.  This method also returns a boolean value indicating whether the
 // returned type is a class.
+//
+// All java integers (byte, short, int, long) are signed.  We
+// translate signed vdl integers int{16,32,64} into their
+// java equivalents.  We translate unsigned vdl integers
+// uint{16,32,64} into our class-based representation
+// VdlUint{16,32,64}.
+//
+// According to this rule, we should translate signed
+// vdl int8 into java byte, and unsigned vdl byte into
+// java VdlUint8.  However we flip the rule, and
+// actually translate vdl int8 into java VdlInt8, and
+// vdl byte into java byte.  We do this because we want the
+// common usage of vdl []byte to translate into java byte[].
 func javaBuiltInType(typ *vdl.Type, forceClass bool) (string, bool) {
 	if typ == nil {
 		if forceClass {
@@ -54,6 +67,8 @@ func javaBuiltInType(typ *vdl.Type, forceClass bool) (string, bool) {
 		} else {
 			return "byte", false
 		}
+	case vdl.Int8:
+		return "io.v.v23.vdl.VdlInt8", true
 	case vdl.Uint16:
 		return "io.v.v23.vdl.VdlUint16", true
 	case vdl.Int16:
@@ -162,7 +177,7 @@ func javaType(t *vdl.Type, forceClass bool, env *compile.Env) string {
 
 func javaVdlPrimitiveType(kind vdl.Kind) string {
 	switch kind {
-	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex128, vdl.Complex64, vdl.String:
+	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex128, vdl.Complex64, vdl.String:
 		return "io.v.v23.vdl.Vdl" + vdlutil.FirstRuneToUpper(kind.String())
 	}
 	log.Fatalf("val: unhandled kind: %v", kind)

@@ -107,11 +107,9 @@ func FromValue(v *vdl.Value) Const {
 			return String(v.RawString())
 		}
 		return Const{v.RawString(), v.Type()}
-	case vdl.Byte:
-		return Const{new(big.Int).SetUint64(uint64(v.Byte())), v.Type()}
-	case vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return Const{new(big.Int).SetUint64(v.Uint()), v.Type()}
-	case vdl.Int16, vdl.Int32, vdl.Int64:
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 		return Const{new(big.Int).SetInt64(v.Int()), v.Type()}
 	case vdl.Float32, vdl.Float64:
 		return Const{new(big.Rat).SetFloat64(v.Float()), v.Type()}
@@ -269,11 +267,9 @@ func (c Const) ToValue() (*vdl.Value, error) {
 		}
 	case *big.Int:
 		switch vx.Kind() {
-		case vdl.Byte:
-			return vx.AssignByte(byte(trep.Uint64())), nil
-		case vdl.Uint16, vdl.Uint32, vdl.Uint64:
+		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 			return vx.AssignUint(trep.Uint64()), nil
-		case vdl.Int16, vdl.Int32, vdl.Int64:
+		case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 			return vx.AssignInt(trep.Int64()), nil
 		}
 	case *big.Rat:
@@ -562,7 +558,7 @@ func makeConst(rep interface{}, totype *vdl.Type) (Const, error) {
 		}
 	case *big.Int:
 		switch totype.Kind() {
-		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int16, vdl.Int32, vdl.Int64:
+		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 			if err := checkOverflowInt(trep, totype.Kind()); err != nil {
 				return Const{}, err
 			}
@@ -572,7 +568,7 @@ func makeConst(rep interface{}, totype *vdl.Type) (Const, error) {
 		}
 	case *big.Rat:
 		switch totype.Kind() {
-		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int16, vdl.Int32, vdl.Int64:
+		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 			// The only way we reach this conversion from big.Rat to a typed integer
 			// is for explicit type conversions.  We pass a nil Type to bigRatToInt
 			// indicating trep is untyped, to allow all conversions from float to int
@@ -597,7 +593,7 @@ func makeConst(rep interface{}, totype *vdl.Type) (Const, error) {
 		}
 	case *bigComplex:
 		switch totype.Kind() {
-		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64:
+		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64:
 			v, err := bigComplexToRat(trep)
 			if err != nil {
 				return Const{}, err
@@ -616,7 +612,7 @@ func makeConst(rep interface{}, totype *vdl.Type) (Const, error) {
 
 func bitLenInt(kind vdl.Kind) int {
 	switch kind {
-	case vdl.Byte:
+	case vdl.Byte, vdl.Int8:
 		return 8
 	case vdl.Uint16, vdl.Int16:
 		return 16
@@ -637,7 +633,7 @@ func checkOverflowInt(b *big.Int, kind vdl.Kind) error {
 		if b.Sign() < 0 || b.BitLen() > bitlen {
 			return fmt.Errorf("const %v overflows uint%d", cRepString(b), bitlen)
 		}
-	case vdl.Int16, vdl.Int32, vdl.Int64:
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 		// Account for two's complement, where e.g. int8 ranges from -128 to 127
 		if b.Sign() >= 0 {
 			// Positives and 0 - just check bitlen, accounting for the sign bit.

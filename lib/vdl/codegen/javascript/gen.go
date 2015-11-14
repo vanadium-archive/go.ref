@@ -123,11 +123,9 @@ func untypedConst(names typeNames, v *vdl.Value) string {
 		} else {
 			return "false"
 		}
-	case vdl.Byte:
-		return strconv.FormatUint(uint64(v.Byte()), 10)
-	case vdl.Uint16, vdl.Uint32:
+	case vdl.Byte, vdl.Uint16, vdl.Uint32:
 		return strconv.FormatUint(v.Uint(), 10)
-	case vdl.Int16, vdl.Int32:
+	case vdl.Int8, vdl.Int16, vdl.Int32:
 		return strconv.FormatInt(v.Int(), 10)
 	case vdl.Uint64:
 		return formatUint64BigInt(v.Uint())

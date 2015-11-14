@@ -20,7 +20,7 @@ func constDefGo(data goData, def *compile.ConstDef) string {
 
 func constOrVar(k vdl.Kind) string {
 	switch k {
-	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128, vdl.String, vdl.Enum:
+	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128, vdl.String, vdl.Enum:
 		return "const"
 	}
 	return "var"
@@ -116,11 +116,9 @@ func untypedConst(data goData, v *vdl.Value) string {
 		return data.Pkg("v.io/v23/vdl") + "TypeOf(" + typedConst(data, zero) + ")"
 	case vdl.Bool:
 		return strconv.FormatBool(v.Bool())
-	case vdl.Byte:
-		return strconv.FormatUint(uint64(v.Byte()), 10)
-	case vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return strconv.FormatUint(v.Uint(), 10)
-	case vdl.Int16, vdl.Int32, vdl.Int64:
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 		return strconv.FormatInt(v.Int(), 10)
 	case vdl.Float32, vdl.Float64:
 		return formatFloat(v.Float(), k)

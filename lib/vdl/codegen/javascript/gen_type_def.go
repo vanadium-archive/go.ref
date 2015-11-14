@@ -157,6 +157,8 @@ func jsKind(k vdl.Kind) string {
 		return "vdl.kind.UINT32"
 	case vdl.Uint64:
 		return "vdl.kind.UINT64"
+	case vdl.Int8:
+		return "vdl.kind.INT8"
 	case vdl.Int16:
 		return "vdl.kind.INT16"
 	case vdl.Int32:
@@ -220,6 +222,8 @@ func builtinJSType(t *vdl.Type) (string, bool) {
 		return "vdl.types.UINT32", true
 	case vdl.Uint64:
 		return "vdl.types.UINT64", true
+	case vdl.Int8:
+		return "vdl.types.INT8", true
 	case vdl.Int16:
 		return "vdl.types.INT16", true
 	case vdl.Int32:

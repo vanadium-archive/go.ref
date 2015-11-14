@@ -49,11 +49,13 @@ package {{ .PackagePath }};
 // type for a VDL primitive.
 func javaConstructorType(t *vdl.Type) string {
 	switch t.Kind() {
-	case vdl.Uint16:
+	case vdl.Byte, vdl.Int8:
+		return "byte"
+	case vdl.Uint16, vdl.Int16:
 		return "short"
-	case vdl.Uint32:
+	case vdl.Uint32, vdl.Int32:
 		return "int"
-	case vdl.Uint64:
+	case vdl.Uint64, vdl.Int64:
 		return "long"
 	default:
 		constructorType, _ := javaBuiltInType(t, false)
@@ -65,11 +67,13 @@ func javaConstructorType(t *vdl.Type) string {
 // argument for a VDL primitive.
 func javaTypeAdapterDelegateClass(t *vdl.Type) string {
 	switch t.Kind() {
-	case vdl.Uint16:
+	case vdl.Byte, vdl.Int8:
+		return "java.lang.Byte"
+	case vdl.Uint16, vdl.Int16:
 		return "java.lang.Short"
-	case vdl.Uint32:
+	case vdl.Uint32, vdl.Int32:
 		return "java.lang.Integer"
-	case vdl.Uint64:
+	case vdl.Uint64, vdl.Int64:
 		return "java.lang.Long"
 	default:
 		typeAdapterDelegateClass, _ := javaBuiltInType(t, true)

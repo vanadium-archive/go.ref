@@ -208,24 +208,30 @@ package data%x
 // Tests contains the testcases to use to test vom encoding and decoding.
 const Tests = []%s.TestCase {`, typesPkgName)
 	// The vom encode-decode test cases need to be of type []any.
-	encodeDecodeTests := config.StructField(0)
-	if got, want := encodeDecodeTests.Type(), vdl.ListType(vdl.AnyType); got != want {
+	allEncodeDecodeTests := config.StructField(0)
+	expectedType := vdl.MapType(vdl.ByteType, vdl.ListType(vdl.AnyType))
+	if got, want := allEncodeDecodeTests.Type(), expectedType; got != want {
 		return nil, fmt.Errorf("got encodeDecodeTests type %v, want %v", got, want)
 	}
 
-	for ix := 0; ix < encodeDecodeTests.Len(); ix++ {
-		value := encodeDecodeTests.Index(ix)
-		if !value.IsNil() {
-			// The encodeDecodeTests has type []any, and there's no need for our values to
-			// include the "any" type explicitly, so we descend into the elem value.
-			value = value.Elem()
+	for _, minVersion := range allEncodeDecodeTests.Keys() {
+		if version < vom.Version(minVersion.Uint()) {
+			continue
 		}
-		valstr := vdlgen.TypedConst(value, testpkg, imports)
-		hexversion, hextype, hexvalue, vomdump, err := toVomHex(version, value)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Fprintf(buf, `
+		encodeDecodeTests := allEncodeDecodeTests.MapIndex(minVersion)
+		for ix := 0; ix < encodeDecodeTests.Len(); ix++ {
+			value := encodeDecodeTests.Index(ix)
+			if !value.IsNil() {
+				// The encodeDecodeTests has type []any, and there's no need for our values to
+				// include the "any" type explicitly, so we descend into the elem value.
+				value = value.Elem()
+			}
+			valstr := vdlgen.TypedConst(value, testpkg, imports)
+			hexversion, hextype, hexvalue, vomdump, err := toVomHex(version, value)
+			if err != nil {
+				return nil, err
+			}
+			fmt.Fprintf(buf, `
 %[7]s
 	{
 		%#[1]q,
@@ -234,6 +240,7 @@ const Tests = []%s.TestCase {`, typesPkgName)
 		%[3]q,
 		%[4]q, %[5]q, %[6]q,
 	},`, valstr, value.Type().String(), hexversion+hextype+hexvalue, hexversion, hextype, hexvalue, vomdump)
+		}
 	}
 	fmt.Fprintf(buf, `
 }

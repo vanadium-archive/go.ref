@@ -357,7 +357,6 @@ var (
 
 func anyValue(x *vdl.Value) *vdl.Value                  { return vdl.ZeroValue(vdl.AnyType).Assign(x) }
 func boolValue(t *vdl.Type, x bool) *vdl.Value          { return vdl.ZeroValue(t).AssignBool(x) }
-func byteValue(t *vdl.Type, x byte) *vdl.Value          { return vdl.ZeroValue(t).AssignByte(x) }
 func uintValue(t *vdl.Type, x uint64) *vdl.Value        { return vdl.ZeroValue(t).AssignUint(x) }
 func intValue(t *vdl.Type, x int64) *vdl.Value          { return vdl.ZeroValue(t).AssignInt(x) }
 func floatValue(t *vdl.Type, x float64) *vdl.Value      { return vdl.ZeroValue(t).AssignFloat(x) }
@@ -411,11 +410,9 @@ func structBoolValue(t *vdl.Type, x ...sb) *vdl.Value {
 
 func assignNum(v *vdl.Value, num float64) *vdl.Value {
 	switch v.Kind() {
-	case vdl.Byte:
-		v.AssignByte(byte(num))
-	case vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		v.AssignUint(uint64(num))
-	case vdl.Int16, vdl.Int32, vdl.Int64:
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
 		v.AssignInt(int64(num))
 	case vdl.Float32, vdl.Float64:
 		v.AssignFloat(num)

@@ -7,9 +7,9 @@ package discovery_test
 import (
 	"testing"
 
+	"github.com/pborman/uuid"
 	"v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/testdata"
-	"github.com/pborman/uuid"
 )
 
 func TestServiceUUID(t *testing.T) {

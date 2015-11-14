@@ -33,4 +33,3 @@ func TestValidateAttributes(t *testing.T) {
 		}
 	}
 }
-

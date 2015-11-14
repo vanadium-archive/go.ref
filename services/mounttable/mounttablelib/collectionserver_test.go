@@ -45,11 +45,11 @@ func (collectionDispatcher) Authorize(*context.T, security.Call) error {
 }
 
 // Export implements CollectionServerMethods.Export.
-func (c *rpcContext) Export(ctx *context.T, _ rpc.ServerCall, val []byte, overwrite bool) error {
+func (c *rpcContext) Export(ctx *context.T, _ rpc.ServerCall, val string, overwrite bool) error {
 	c.Lock()
 	defer c.Unlock()
 	if b := c.contents[c.name]; overwrite || b == nil {
-		c.contents[c.name] = val
+		c.contents[c.name] = []byte(val)
 		return nil
 	}
 	return verror.New(naming.ErrNameExists, ctx, c.name)

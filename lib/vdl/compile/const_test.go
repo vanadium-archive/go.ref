@@ -118,7 +118,7 @@ func makeIntArray(name string, vals ...int64) *vdl.Value {
 func makeByteList(vals ...byte) *vdl.Value {
 	arrayv := vdl.ZeroValue(vdl.ListType(vdl.ByteType)).AssignLen(len(vals))
 	for index, v := range vals {
-		arrayv.Index(index).AssignByte(v)
+		arrayv.Index(index).AssignUint(uint64(v))
 	}
 	return arrayv
 }
@@ -126,7 +126,7 @@ func makeByteList(vals ...byte) *vdl.Value {
 func makeByteArray(name string, vals ...byte) *vdl.Value {
 	arrayv := vdl.ZeroValue(vdl.NamedType(name, vdl.ArrayType(len(vals), vdl.ByteType)))
 	for index, v := range vals {
-		arrayv.Index(index).AssignByte(v)
+		arrayv.Index(index).AssignUint(uint64(v))
 	}
 	return arrayv
 }

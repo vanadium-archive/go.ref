@@ -18,7 +18,7 @@ import (
 	"v.io/x/lib/ibe"
 )
 
-type crypterKey struct {}
+type crypterKey struct{}
 
 const hashTruncation = 16
 
