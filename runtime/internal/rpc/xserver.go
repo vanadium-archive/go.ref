@@ -33,7 +33,10 @@ import (
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
-const reconnectDelay = 50 * time.Millisecond
+const (
+	reconnectDelay = 50 * time.Millisecond
+	bidiProtocol   = "bidi"
+)
 
 type xserver struct {
 	sync.Mutex
@@ -367,11 +370,15 @@ func (s *xserver) updateEndpointsLocked(leps []naming.Endpoint) {
 	}
 
 	s.Unlock()
-	for k := range rmEps {
-		s.publisher.RemoveServer(k)
+	for k, ep := range rmEps {
+		if ep.Addr().Network() != bidiProtocol {
+			s.publisher.RemoveServer(k)
+		}
 	}
-	for k := range addEps {
-		s.publisher.AddServer(k)
+	for k, ep := range addEps {
+		if ep.Addr().Network() != bidiProtocol {
+			s.publisher.AddServer(k)
+		}
 	}
 	s.Lock()
 }

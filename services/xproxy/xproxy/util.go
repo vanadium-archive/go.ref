@@ -21,7 +21,7 @@ func setBidiProtocol(ep naming.Endpoint) (naming.Endpoint, error) {
 	opts = append(opts, bnames...)
 	opts = append(opts, rid)
 	opts = append(opts, mountable)
-	epString := naming.FormatEndpoint("bidi", "", opts...)
+	epString := naming.FormatEndpoint(bidiProtocol, "", opts...)
 	return v23.NewEndpoint(epString)
 }
 

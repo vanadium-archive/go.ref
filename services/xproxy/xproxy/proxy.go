@@ -22,6 +22,7 @@ import (
 const (
 	reconnectDelay = 50 * time.Millisecond
 	maxBackoff     = time.Minute
+	bidiProtocol   = "bidi"
 )
 
 type proxy struct {
@@ -119,11 +120,15 @@ func (p *proxy) updateListeningEndpoints(ctx *context.T, leps []naming.Endpoint)
 	p.sendUpdatesLocked(ctx)
 	p.mu.Unlock()
 
-	for k := range rmEps {
-		p.pub.RemoveServer(k)
+	for k, ep := range rmEps {
+		if ep.Addr().Network() != bidiProtocol {
+			p.pub.RemoveServer(k)
+		}
 	}
-	for k := range addEps {
-		p.pub.AddServer(k)
+	for k, ep := range addEps {
+		if ep.Addr().Network() != bidiProtocol {
+			p.pub.AddServer(k)
+		}
 	}
 }
 
