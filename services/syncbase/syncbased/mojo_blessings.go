@@ -63,12 +63,17 @@ import (
 	"mojo/services/network/interfaces/url_loader"
 	"net/url"
 	"runtime"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	seclib "v.io/x/ref/lib/security"
 )
+
+type selectAccountFailed struct {
+	error
+}
 
 func setBlessings(v23ctx *context.T, appctx application.Context) error {
 	// Get an OAuth2 token from the mojo authentication service.
@@ -88,6 +93,12 @@ func setBlessings(v23ctx *context.T, appctx application.Context) error {
 	// syncbase should use the principal service?
 	token, err := oauthToken(appctx)
 	if err != nil {
+		if _, ok := err.(selectAccountFailed); ok {
+			// TODO(sadovsky): This behavior is convenient for development, but
+			// probably ought to be disabled in production.
+			v23ctx.Infof("SelectAccount failed; using default blessings")
+			return nil
+		}
 		return err
 	}
 	v23ctx.Infof("Obtained OAuth2 token, will exchange for blessings")
@@ -109,7 +120,7 @@ func oauthToken(ctx application.Context) (string, error) {
 	proxy := authentication.NewAuthenticationServiceProxy(ptr, bindings.GetAsyncWaiter())
 	name, errstr, _ := proxy.SelectAccount(true /*return last selected*/)
 	if name == nil || errstr != nil {
-		return "", fmt.Errorf("failed to select an account for user: %v", errstr)
+		return "", selectAccountFailed{error: fmt.Errorf("failed to select an account for user: %v", errstr)}
 	}
 	token, errstr, _ := proxy.GetOAuth2Token(*name, []string{"email"})
 	if token == nil || errstr != nil {
