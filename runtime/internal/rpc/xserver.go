@@ -200,8 +200,10 @@ func WithNewDispatchingServer(ctx *context.T,
 		// operations to a close.
 		s.cancel()
 		<-s.flowMgr.Closed()
+		s.Lock()
 		close(s.valid)
 		s.valid = nil
+		s.Unlock()
 		// Now we really will wait forever.  If this doesn't exit, there's something
 		// wrong with the users code.
 		<-done

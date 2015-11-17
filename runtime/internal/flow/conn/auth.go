@@ -124,9 +124,11 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	if c.remote != nil {
 		lSetup.PeerRemoteEndpoint = c.remote
 	}
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() {
-		ch <- c.mp.writeMsg(ctx, lSetup)
+		c.mu.Lock()
+		ch <- c.sendMessageLocked(ctx, true, expressPriority, lSetup)
+		c.mu.Unlock()
 	}()
 	msg, err := c.mp.readMsg(ctx)
 	if err != nil {
