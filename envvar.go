@@ -103,9 +103,9 @@ const (
 
 func RPCTransitionState() TransitionState {
 	switch ts := os.Getenv(RPCTransitionStateVar); ts {
-	case "xclients", "":
+	case "xclients":
 		return XClients
-	case "xservers":
+	case "xservers", "":
 		return XServers
 	case "none":
 		return None
