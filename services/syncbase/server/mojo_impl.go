@@ -37,7 +37,7 @@ import (
 	"v.io/v23/vtrace"
 )
 
-const NoSchema int32 = -1
+const noSchema int32 = -1
 
 type mojoImpl struct {
 	ctx  *context.T
@@ -231,7 +231,6 @@ func (m *mojoImpl) getRow(ctx *context.T, call rpc.ServerCall, name string) (nos
 // Glob utils
 
 func (m *mojoImpl) listChildren(name string) (mojom.Error, []string, error) {
-
 	ctx, call := m.newCtxCall(name, rpc.MethodDesc{
 		Name: "GlobChildren__",
 	})
@@ -412,7 +411,7 @@ func (m *mojoImpl) DbDestroy(name string) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Destroy(ctx, call, NoSchema)
+	err = stub.Destroy(ctx, call, noSchema)
 	return toMojoError(err), nil
 }
 
@@ -422,7 +421,7 @@ func (m *mojoImpl) DbExists(name string) (mojom.Error, bool, error) {
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
-	exists, err := stub.Exists(ctx, call, NoSchema)
+	exists, err := stub.Exists(ctx, call, noSchema)
 	return toMojoError(err), exists, nil
 }
 
@@ -490,7 +489,7 @@ func (m *mojoImpl) DbExec(name string, query string, ptr mojom.ExecStream_Pointe
 	}}
 
 	go func() {
-		var err = stub.Exec(ctx, execServerCallStub, NoSchema, query)
+		var err = stub.Exec(ctx, execServerCallStub, noSchema, query)
 		// NOTE(nlacasse): Since we are already streaming, we send any error back
 		// to the client on the stream.  The Exec function itself should not
 		// return an error at this point.
@@ -501,15 +500,38 @@ func (m *mojoImpl) DbExec(name string, query string, ptr mojom.ExecStream_Pointe
 }
 
 func (m *mojoImpl) DbBeginBatch(name string, bo *mojom.BatchOptions) (mojom.Error, string, error) {
-	return mojom.Error{}, "", nil
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "BeginBatch"))
+	stub, err := m.getDb(ctx, call, name)
+	if err != nil {
+		return toMojoError(err), "", nil
+	}
+	vbo := nosqlwire.BatchOptions{}
+	if bo != nil {
+		vbo.Hint = bo.Hint
+		vbo.ReadOnly = bo.ReadOnly
+	}
+	batchSuffix, err := stub.BeginBatch(ctx, call, noSchema, vbo)
+	return toMojoError(err), batchSuffix, nil
 }
 
 func (m *mojoImpl) DbCommit(name string) (mojom.Error, error) {
-	return mojom.Error{}, nil
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Commit"))
+	stub, err := m.getDb(ctx, call, name)
+	if err != nil {
+		return toMojoError(err), nil
+	}
+	err = stub.Commit(ctx, call, noSchema)
+	return toMojoError(err), nil
 }
 
 func (m *mojoImpl) DbAbort(name string) (mojom.Error, error) {
-	return mojom.Error{}, nil
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Abort"))
+	stub, err := m.getDb(ctx, call, name)
+	if err != nil {
+		return toMojoError(err), nil
+	}
+	err = stub.Abort(ctx, call, noSchema)
+	return toMojoError(err), nil
 }
 
 func (m *mojoImpl) DbGetPermissions(name string) (mojom.Error, mojom.Perms, string, error) {
@@ -612,8 +634,7 @@ func (m *mojoImpl) DbWatchGlob(name string, mReq mojom.GlobRequest, ptr mojom.Wa
 		// NOTE(nlacasse): Since we are already streaming, we send any error back
 		// to the client on the stream.  The WatchGlob function itself should not
 		// return an error at this point.
-		// NOTE(aghassemi): WatchGlob call is long-running and does not return
-		// unless there is an error.
+		// NOTE(aghassemi): WatchGlob does not terminate unless there is an error.
 		proxy.OnError(toMojoError(err))
 	}()
 
@@ -767,7 +788,7 @@ func (m *mojoImpl) TableCreate(name string, mPerms mojom.Perms) (mojom.Error, er
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Create(ctx, call, NoSchema, vPerms)
+	err = stub.Create(ctx, call, noSchema, vPerms)
 	return toMojoError(err), nil
 }
 
@@ -777,7 +798,7 @@ func (m *mojoImpl) TableDestroy(name string) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Destroy(ctx, call, NoSchema)
+	err = stub.Destroy(ctx, call, noSchema)
 	return toMojoError(err), nil
 }
 
@@ -787,7 +808,7 @@ func (m *mojoImpl) TableExists(name string) (mojom.Error, bool, error) {
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
-	exists, err := stub.Exists(ctx, call, NoSchema)
+	exists, err := stub.Exists(ctx, call, noSchema)
 	return toMojoError(err), exists, nil
 }
 
@@ -805,7 +826,7 @@ func (m *mojoImpl) TableDeleteRange(name string, start, limit []byte) (mojom.Err
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.DeleteRange(ctx, call, NoSchema, start, limit)
+	err = stub.DeleteRange(ctx, call, noSchema, start, limit)
 	return toMojoError(err), nil
 }
 
@@ -861,7 +882,7 @@ func (m *mojoImpl) TableScan(name string, start, limit []byte, ptr mojom.ScanStr
 	}}
 
 	go func() {
-		var err = stub.Scan(ctx, tableScanServerCallStub, NoSchema, start, limit)
+		var err = stub.Scan(ctx, tableScanServerCallStub, noSchema, start, limit)
 
 		// NOTE(nlacasse): Since we are already streaming, we send any error back
 		// to the client on the stream.  The TableScan function itself should not
@@ -893,7 +914,7 @@ func (m *mojoImpl) RowExists(name string) (mojom.Error, bool, error) {
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
-	exists, err := stub.Exists(ctx, call, NoSchema)
+	exists, err := stub.Exists(ctx, call, noSchema)
 	return toMojoError(err), exists, nil
 }
 
@@ -903,7 +924,7 @@ func (m *mojoImpl) RowGet(name string) (mojom.Error, []byte, error) {
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	vomBytes, err := stub.Get(ctx, call, NoSchema)
+	vomBytes, err := stub.Get(ctx, call, noSchema)
 
 	var value []byte
 	if err := vom.Decode(vomBytes, &value); err != nil {
@@ -918,14 +939,15 @@ func (m *mojoImpl) RowPut(name string, value []byte) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	// TODO(aghassemi): Encode from []byte to VOM encoded []byte until we have
-	// support for types other than byte.
+	// TODO(aghassemi): For now, Dart always gives us []byte, and here we convert
+	// []byte to VOM-encoded []byte so that all values stored in Syncbase are
+	// VOM-encoded. This will need to change once we support VDL/VOM in Dart.
 	// https://github.com/vanadium/issues/issues/766
 	vomBytes, err := vom.Encode(value)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Put(ctx, call, NoSchema, vomBytes)
+	err = stub.Put(ctx, call, noSchema, vomBytes)
 	return toMojoError(err), nil
 }
 
@@ -935,6 +957,6 @@ func (m *mojoImpl) RowDelete(name string) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Delete(ctx, call, NoSchema)
+	err = stub.Delete(ctx, call, noSchema)
 	return toMojoError(err), nil
 }
