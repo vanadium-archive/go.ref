@@ -31,7 +31,7 @@ import (
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
-	_ "v.io/x/ref/runtime/factories/static"
+	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var (

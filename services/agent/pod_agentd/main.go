@@ -25,7 +25,7 @@ import (
 	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/services/cluster"
 
-	_ "v.io/x/ref/runtime/factories/static"
+	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var (

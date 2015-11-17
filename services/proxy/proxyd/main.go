@@ -23,7 +23,7 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/runtime/factories/static"
+	"v.io/x/ref/runtime/factories/roaming"
 )
 
 var pubAddress, healthzAddr, name, acl string
@@ -69,7 +69,7 @@ func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 		authorizer = list
 	}
 
-	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec, authorizer, name)
+	proxyShutdown, proxyEndpoint, err := roaming.NewProxy(ctx, listenSpec, authorizer, name)
 	if err != nil {
 		return err
 	}

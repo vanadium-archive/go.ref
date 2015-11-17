@@ -11,7 +11,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/ref/lib/security/securityflag"
-	_ "v.io/x/ref/runtime/factories/static"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/benchmark"

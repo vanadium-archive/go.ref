@@ -21,7 +21,7 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/lib/security/securityflag"
-	_ "v.io/x/ref/runtime/factories/static"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
 	fmanager "v.io/x/ref/runtime/internal/flow/manager"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"

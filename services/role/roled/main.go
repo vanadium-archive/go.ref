@@ -16,7 +16,7 @@ import (
 	"v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
-	_ "v.io/x/ref/runtime/factories/static"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/internal/restsigner"
 	irole "v.io/x/ref/services/role/roled/internal"
 )
