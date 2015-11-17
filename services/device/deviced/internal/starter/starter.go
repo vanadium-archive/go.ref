@@ -319,7 +319,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 	)
 	if ref.RPCTransitionState() >= ref.XServers {
 		ctx, cancel := context.WithCancel(ctx)
-		p, err := xproxy.New(ctx, "", security.AllowEveryone())
+		p, err := xproxy.New(v23.WithListenSpec(ctx, ls), "", security.AllowEveryone())
 		if err != nil {
 			return nil, verror.New(errCantCreateProxy, ctx, err)
 		}
