@@ -16,60 +16,54 @@ import (
 )
 
 type bleAdv struct {
-	serviceUUID uuid.UUID
-	instanceID  []byte
+	serviceUuid uuid.UUID
 	attrs       map[string][]byte
 }
 
 func newAdvertisment(adv discovery.Advertisement) bleAdv {
 	attrs := map[string][]byte{
-		InstanceUUID:      adv.Service.InstanceUuid,
-		InterfaceNameUUID: []byte(adv.Service.InterfaceName),
+		InstanceIdUuid:    []byte(adv.Service.InstanceId),
+		InterfaceNameUuid: []byte(adv.Service.InterfaceName),
 	}
 	if len(adv.Service.InstanceName) > 0 {
-		attrs[InstanceNameUUID] = []byte(adv.Service.InstanceName)
+		attrs[InstanceNameUuid] = []byte(adv.Service.InstanceName)
 	}
 	if len(adv.Service.Addrs) > 0 {
-		attrs[AddrsUUID] = discovery.PackAddresses(adv.Service.Addrs)
+		attrs[AddrsUuid] = discovery.PackAddresses(adv.Service.Addrs)
 	}
 	if adv.EncryptionAlgorithm != discovery.NoEncryption {
-		attrs[EncryptionUUID] = discovery.PackEncryptionKeys(adv.EncryptionAlgorithm, adv.EncryptionKeys)
+		attrs[EncryptionUuid] = discovery.PackEncryptionKeys(adv.EncryptionAlgorithm, adv.EncryptionKeys)
 	}
-
 	for k, v := range adv.Service.Attrs {
-		hexUUID := uuid.UUID(discovery.NewAttributeUUID(k)).String()
-		attrs[hexUUID] = []byte(k + "=" + v)
+		uuid := uuid.UUID(discovery.NewAttributeUUID(k)).String()
+		attrs[uuid] = []byte(k + "=" + v)
 	}
 	return bleAdv{
-		instanceID:  adv.Service.InstanceUuid,
-		serviceUUID: uuid.UUID(adv.ServiceUuid),
+		serviceUuid: uuid.UUID(adv.ServiceUuid),
 		attrs:       attrs,
 	}
 }
 
 func (a *bleAdv) toDiscoveryAdvertisement() (*discovery.Advertisement, error) {
 	adv := &discovery.Advertisement{
-		Service: vdiscovery.Service{
-			InstanceUuid: a.instanceID,
-			Attrs:        make(vdiscovery.Attributes),
-		},
-		ServiceUuid: discovery.Uuid(a.serviceUUID),
+		Service:     vdiscovery.Service{Attrs: make(vdiscovery.Attributes)},
+		ServiceUuid: discovery.Uuid(a.serviceUuid),
 	}
 
 	var err error
 	for k, v := range a.attrs {
 		switch k {
-		case InstanceUUID:
-			adv.Service.InstanceUuid = v
-		case InstanceNameUUID:
+		case InstanceIdUuid:
+			adv.Service.InstanceId = string(v)
+		case InstanceNameUuid:
 			adv.Service.InstanceName = string(v)
-		case InterfaceNameUUID:
+		case InterfaceNameUuid:
 			adv.Service.InterfaceName = string(v)
-		case AddrsUUID:
+		case AddrsUuid:
 			if adv.Service.Addrs, err = discovery.UnpackAddresses(v); err != nil {
 				return nil, err
 			}
-		case EncryptionUUID:
+		case EncryptionUuid:
 			if adv.EncryptionAlgorithm, adv.EncryptionKeys, err = discovery.UnpackEncryptionKeys(v); err != nil {
 				return nil, err
 			}

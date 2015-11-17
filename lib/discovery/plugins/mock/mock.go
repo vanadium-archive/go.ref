@@ -5,7 +5,6 @@
 package mock
 
 import (
-	"bytes"
 	"reflect"
 	"sync"
 
@@ -64,7 +63,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, ch chan<- disc
 					continue
 				}
 				for _, ad := range ads {
-					current[string(ad.Service.InstanceUuid)] = ad
+					current[ad.Service.InstanceId] = ad
 				}
 			}
 			p.mu.Unlock()
@@ -112,7 +111,7 @@ func (p *plugin) RegisterAdvertisement(ad discovery.Advertisement) {
 	p.mu.Lock()
 	key := string(ad.ServiceUuid)
 	ads := p.services[key]
-	if i := findAd(ads, ad.Service.InstanceUuid); i >= 0 {
+	if i := findAd(ads, ad.Service.InstanceId); i >= 0 {
 		ads[i] = ad
 	} else {
 		ads = append(ads, ad)
@@ -128,7 +127,7 @@ func (p *plugin) UnregisterAdvertisement(ad discovery.Advertisement) {
 	p.mu.Lock()
 	key := string(ad.ServiceUuid)
 	ads := p.services[key]
-	if i := findAd(ads, ad.Service.InstanceUuid); i >= 0 {
+	if i := findAd(ads, ad.Service.InstanceId); i >= 0 {
 		ads = append(ads[:i], ads[i+1:]...)
 		if len(ads) > 0 {
 			p.services[key] = ads
@@ -141,9 +140,9 @@ func (p *plugin) UnregisterAdvertisement(ad discovery.Advertisement) {
 	p.updated.Broadcast()
 }
 
-func findAd(ads []discovery.Advertisement, instanceUuid []byte) int {
+func findAd(ads []discovery.Advertisement, instanceId string) int {
 	for i, ad := range ads {
-		if bytes.Equal(ad.Service.InstanceUuid, instanceUuid) {
+		if ad.Service.InstanceId == instanceId {
 			return i
 		}
 	}

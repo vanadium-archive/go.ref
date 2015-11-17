@@ -12,34 +12,34 @@ import (
 	"testing"
 )
 
-func TestEncodeInstanceUuid(t *testing.T) {
-	tests := [][]byte{
-		randInstanceUuid(1),
-		randInstanceUuid(10),
-		randInstanceUuid(16),
-		randInstanceUuid(32),
+func TestEncodeInstanceId(t *testing.T) {
+	tests := []string{
+		randInstanceId(1),
+		randInstanceId(10),
+		randInstanceId(16),
+		randInstanceId(32),
 	}
 
 	for i, test := range tests {
-		encoded := encodeInstanceUuid(test)
-		instanceUuid, err := decodeInstanceUuid(encoded)
+		encoded := encodeInstanceId(test)
+		instanceId, err := decodeInstanceId(encoded)
 		if err != nil {
-			t.Errorf("[%d]: decodeInstanceUuid failed: %v", i, err)
+			t.Errorf("[%d]: decodeInstanceId failed: %v", i, err)
 			continue
 		}
-		if !reflect.DeepEqual(instanceUuid, test) {
-			t.Errorf("[%d]: decoded to %v, but want %v", i, instanceUuid, test)
+		if !reflect.DeepEqual(instanceId, test) {
+			t.Errorf("[%d]: decoded to %v, but want %v", i, instanceId, test)
 		}
 	}
 }
 
-func randInstanceUuid(n int) []byte {
+func randInstanceId(n int) string {
 	b := make([]byte, n)
 	_, err := rand.Read(b)
 	if err != nil {
 		panic(err)
 	}
-	return b
+	return string(b)
 }
 
 func TestSplitLargeTxt(t *testing.T) {

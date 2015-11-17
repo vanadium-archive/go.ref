@@ -27,7 +27,7 @@ import (
 	"v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	discutil "v.io/x/ref/lib/discovery/util"
+	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/services/syncbase/clock"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
 	fsblob "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
@@ -262,9 +262,9 @@ func (s *syncService) discoverPeers(ctx *context.T) {
 			switch u := update.(type) {
 			case discovery.UpdateFound:
 				svc := &u.Value.Service
-				s.updateDiscoveryPeer(string(svc.InstanceUuid), svc)
+				s.updateDiscoveryPeer(svc.InstanceId, svc)
 			case discovery.UpdateLost:
-				s.updateDiscoveryPeer(string(u.Value.InstanceUuid), nil)
+				s.updateDiscoveryPeer(u.Value.InstanceId, nil)
 			default:
 				vlog.Errorf("sync: discoverPeers: ignoring invalid update: %v", update)
 			}
@@ -338,14 +338,14 @@ func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
 	}
 
 	sbService := discovery.Service{
-		InstanceUuid:  []byte(s.name),
+		InstanceId:    s.name,
 		InstanceName:  s.name,
 		InterfaceName: interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name,
 	}
 	ctx, stop := context.WithCancel(s.ctx)
 
 	// Duplicate calls to advertise will return an error.
-	_, err := discutil.AdvertiseServer(ctx, svr, "", sbService, nil)
+	_, err := idiscovery.AdvertiseServer(ctx, svr, "", &sbService, nil)
 
 	if err == nil {
 		s.advCancel = stop

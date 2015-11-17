@@ -23,7 +23,7 @@ const ConversionTestData = []AdvertisementConversionTestCase{
 	AdvertisementConversionTestCase{
 		VAdvertisement: idiscovery.Advertisement{
 			Service: discovery.Service{
-				InstanceUuid:  []byte{5, 146, 235, 25, 108, 124, 65, 162, 165, 230, 1, 162, 179, 150, 87, 30},
+				InstanceId:    "instance",
 				InstanceName:  "service",
 				InterfaceName: "v.io/x/ref",
 				Attrs: discovery.Attributes{
@@ -40,7 +40,7 @@ const ConversionTestData = []AdvertisementConversionTestCase{
 			"6286d80a-adaa-519a-8a06-281a4645a607": []byte{1, 1, 107},
 			"4ce68e8b-173b-597e-9f93-ca453e7bb790": []byte{107, 101, 121, 49, 61, 118, 97, 108, 117, 101, 49},
 			"777f349c-d01f-5543-aa31-528e48bb53bd": []byte{107, 101, 121, 50, 61, 118, 97, 108, 117, 101, 50},
-			"12db9a9c-1c7c-5560-bc6b-73a115c93413": []byte{5, 146, 235, 25, 108, 124, 65, 162, 165, 230, 1, 162, 179, 150, 87, 30},
+			"02ce37dd-7449-5a0a-b1a0-d1bc91ff16cb": []byte{105, 110, 115, 116, 97, 110, 99, 101},
 			"b2cadfd4-d003-576c-acad-58b8e3a9cbc8": []byte{118, 46, 105, 111, 47, 120, 47, 114, 101, 102},
 			"ffbdcff3-e56f-58f0-8c1a-e416c39aac0d": []byte{115, 101, 114, 118, 105, 99, 101},
 			"ad2566b7-59d8-50ae-8885-222f43f65fdc": []byte{14, 108, 111, 99, 97, 108, 104, 111, 115, 116, 58, 49, 48, 48, 48, 15, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 58, 53, 52, 48},

@@ -5,16 +5,10 @@
 package discovery_test
 
 import (
-	"bytes"
-	"fmt"
-	"reflect"
-	"runtime"
-	"sync"
 	"testing"
 	"time"
 
 	"v.io/v23"
-	"v.io/v23/context"
 	"v.io/v23/discovery"
 	"v.io/v23/security"
 
@@ -25,107 +19,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func advertise(ctx *context.T, ds discovery.Advertiser, perms []security.BlessingPattern, services ...discovery.Service) (func(), error) {
-	var wg sync.WaitGroup
-	tr := idiscovery.NewTrigger()
-	ctx, cancel := context.WithCancel(ctx)
-	for _, service := range services {
-		wg.Add(1)
-		done, err := ds.Advertise(ctx, service, perms)
-		if err != nil {
-			cancel()
-			return nil, fmt.Errorf("Advertise failed: %v", err)
-		}
-		tr.Add(wg.Done, done)
-	}
-	stop := func() {
-		cancel()
-		wg.Wait()
-	}
-	return stop, nil
-}
-
-func startScan(ctx *context.T, ds discovery.Scanner, interfaceName string) (<-chan discovery.Update, func(), error) {
-	var query string
-	if len(interfaceName) > 0 {
-		query = `v.InterfaceName="` + interfaceName + `"`
-	}
-
-	ctx, stop := context.WithCancel(ctx)
-	scan, err := ds.Scan(ctx, query)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Scan failed: %v", err)
-	}
-	return scan, stop, err
-}
-
-func scan(ctx *context.T, ds discovery.Scanner, interfaceName string) ([]discovery.Update, error) {
-	scan, stop, err := startScan(ctx, ds, interfaceName)
-	if err != nil {
-		return nil, err
-	}
-	defer stop()
-
-	var updates []discovery.Update
-	for {
-		select {
-		case update := <-scan:
-			updates = append(updates, update)
-		case <-time.After(5 * time.Millisecond):
-			return updates, nil
-		}
-	}
-}
-
-func scanAndMatch(ctx *context.T, ds discovery.Scanner, interfaceName string, wants ...discovery.Service) error {
-	const timeout = 3 * time.Second
-
-	var updates []discovery.Update
-	for now := time.Now(); time.Since(now) < timeout; {
-		runtime.Gosched()
-
-		var err error
-		updates, err = scan(ctx, ds, interfaceName)
-		if err != nil {
-			return err
-		}
-		if matchFound(updates, wants...) {
-			return nil
-		}
-	}
-	return fmt.Errorf("Match failed; got %v, but wanted %v", updates, wants)
-}
-
-func match(updates []discovery.Update, lost bool, wants ...discovery.Service) bool {
-	for _, want := range wants {
-		matched := false
-		for i, update := range updates {
-			switch u := update.(type) {
-			case discovery.UpdateFound:
-				matched = !lost && reflect.DeepEqual(u.Value.Service, want)
-			case discovery.UpdateLost:
-				matched = lost && bytes.Equal(u.Value.InstanceUuid, want.InstanceUuid)
-			}
-			if matched {
-				updates = append(updates[:i], updates[i+1:]...)
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-	return len(updates) == 0
-}
-
-func matchFound(updates []discovery.Update, wants ...discovery.Service) bool {
-	return match(updates, false, wants...)
-}
-
-func matchLost(updates []discovery.Update, wants ...discovery.Service) bool {
-	return match(updates, true, wants...)
-}
-
 func TestBasic(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
@@ -135,21 +28,20 @@ func TestBasic(t *testing.T) {
 
 	services := []discovery.Service{
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceId:    "123",
 			InterfaceName: "v.io/v23/a",
 			Attrs:         discovery.Attributes{"a1": "v1"},
 			Addrs:         []string{"/h1:123/x", "/h2:123/y"},
 		},
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/v23/b",
 			Attrs:         discovery.Attributes{"b1": "v1"},
 			Addrs:         []string{"/h1:123/x", "/h2:123/z"},
 		},
 	}
 	var stops []func()
-	for _, service := range services {
-		stop, err := advertise(ctx, ds, nil, service)
+	for i, _ := range services {
+		stop, err := advertise(ctx, ds, nil, &services[i])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -203,7 +95,7 @@ func TestBasic(t *testing.T) {
 
 // TODO(jhahn): Add a low level test that ensures the advertisement is unusable
 // by the listener, if encrypted rather than replying on a higher level API.
-func TestPermission(t *testing.T) {
+func TestVisibility(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -211,16 +103,15 @@ func TestPermission(t *testing.T) {
 	defer ds.Close()
 
 	service := discovery.Service{
-		InstanceUuid:  idiscovery.NewInstanceUUID(),
 		InterfaceName: "v.io/v23/a",
 		Attrs:         discovery.Attributes{"a1": "v1", "a2": "v2"},
 		Addrs:         []string{"/h1:123/x", "/h2:123/y"},
 	}
-	perms := []security.BlessingPattern{
+	visibility := []security.BlessingPattern{
 		security.BlessingPattern("v.io/bob"),
 		security.BlessingPattern("v.io/alice").MakeNonExtendable(),
 	}
-	stop, err := advertise(ctx, ds, perms, service)
+	stop, err := advertise(ctx, ds, visibility, &service)
 	defer stop()
 	if err != nil {
 		t.Fatal(err)
@@ -261,15 +152,15 @@ func TestDuplicates(t *testing.T) {
 	defer ds.Close()
 
 	service := discovery.Service{
-		InstanceUuid:  idiscovery.NewInstanceUUID(),
+		InstanceId:    "123",
 		InterfaceName: "v.io/v23/a",
 		Addrs:         []string{"/h1:123/x"},
 	}
 
-	if _, err := advertise(ctx, ds, nil, service); err != nil {
+	if _, err := advertise(ctx, ds, nil, &service); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := advertise(ctx, ds, nil, service); err == nil {
+	if _, err := advertise(ctx, ds, nil, &service); err == nil {
 		t.Error("expect an error; but got none")
 	}
 }
@@ -283,7 +174,7 @@ func TestMerge(t *testing.T) {
 	defer ds.Close()
 
 	service := discovery.Service{
-		InstanceUuid:  idiscovery.NewInstanceUUID(),
+		InstanceId:    "123",
 		InterfaceName: "v.io/v23/a",
 		Addrs:         []string{"/h1:123/x"},
 	}
@@ -343,12 +234,11 @@ func TestClose(t *testing.T) {
 	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
 
 	service := discovery.Service{
-		InstanceUuid:  idiscovery.NewInstanceUUID(),
 		InterfaceName: "v.io/v23/a",
 		Addrs:         []string{"/h1:123/x"},
 	}
 
-	if _, err := advertise(ctx, ds, nil, service); err != nil {
+	if _, err := advertise(ctx, ds, nil, &service); err != nil {
 		t.Error(err)
 	}
 	if err := scanAndMatch(ctx, ds, "", service); err != nil {
@@ -360,7 +250,8 @@ func TestClose(t *testing.T) {
 	ds.Close()
 
 	// Make sure advertise and scan do not work after closed.
-	if _, err := advertise(ctx, ds, nil, service); err == nil {
+	service.InstanceId = "" // To avoid dup error.
+	if _, err := advertise(ctx, ds, nil, &service); err == nil {
 		t.Error("expect an error; but got none")
 	}
 	if err := scanAndMatch(ctx, ds, "", service); err == nil {

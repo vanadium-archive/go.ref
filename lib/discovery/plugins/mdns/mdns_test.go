@@ -15,8 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pborman/uuid"
-
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 
@@ -43,7 +41,7 @@ func newMDNS(host string) (idiscovery.Plugin, error) {
 	return newWithLoopback(host, testPort, true)
 }
 
-func encryptionKeys(key []byte) []idiscovery.EncryptionKey {
+func encryptionKeys(key string) []idiscovery.EncryptionKey {
 	return []idiscovery.EncryptionKey{idiscovery.EncryptionKey(fmt.Sprintf("key:%x", key))}
 }
 
@@ -53,7 +51,7 @@ func advertise(ctx *context.T, p idiscovery.Plugin, service discovery.Service) (
 		ServiceUuid:         idiscovery.NewServiceUUID(service.InterfaceName),
 		Service:             service,
 		EncryptionAlgorithm: idiscovery.TestEncryption,
-		EncryptionKeys:      encryptionKeys(service.InstanceUuid),
+		EncryptionKeys:      encryptionKeys(service.InstanceId),
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -108,13 +106,13 @@ func match(ads []idiscovery.Advertisement, lost bool, wants ...discovery.Service
 	for _, want := range wants {
 		matched := false
 		for i, ad := range ads {
-			if !uuid.Equal(ad.Service.InstanceUuid, want.InstanceUuid) {
+			if ad.Service.InstanceId != want.InstanceId {
 				continue
 			}
 			if lost {
 				matched = ad.Lost
 			} else {
-				matched = !ad.Lost && reflect.DeepEqual(ad.Service, want) && ad.EncryptionAlgorithm == idiscovery.TestEncryption && reflect.DeepEqual(ad.EncryptionKeys, encryptionKeys(want.InstanceUuid))
+				matched = !ad.Lost && reflect.DeepEqual(ad.Service, want) && ad.EncryptionAlgorithm == idiscovery.TestEncryption && reflect.DeepEqual(ad.EncryptionKeys, encryptionKeys(want.InstanceId))
 			}
 			if matched {
 				ads = append(ads[:i], ads[i+1:]...)
@@ -161,7 +159,7 @@ func TestBasic(t *testing.T) {
 
 	services := []discovery.Service{
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceId:    "123",
 			InstanceName:  "service1",
 			InterfaceName: "v.io/x",
 			Attrs: discovery.Attributes{
@@ -173,7 +171,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceId:    "456",
 			InstanceName:  "service2",
 			InterfaceName: "v.io/x",
 			Attrs: discovery.Attributes{
@@ -185,7 +183,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceId:    "789",
 			InstanceName:  "service3",
 			InterfaceName: "v.io/y",
 			Attrs: discovery.Attributes{
@@ -272,7 +270,7 @@ func TestLargeTxt(t *testing.T) {
 	defer shutdown()
 
 	service := discovery.Service{
-		InstanceUuid:  idiscovery.NewInstanceUUID(),
+		InstanceId:    "123",
 		InstanceName:  "service2",
 		InterfaceName: strings.Repeat("i", 280),
 		Attrs: discovery.Attributes{

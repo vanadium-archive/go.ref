@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package util
+package discovery
 
 import (
 	"v.io/v23"
@@ -11,8 +11,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
-	idiscovery "v.io/x/ref/lib/discovery"
 )
 
 // AdvertiseServer advertises the server with the given service. It uses the
@@ -20,18 +18,18 @@ import (
 // addresses will be updated automatically when the underlying network are
 // changed. Advertising will continue until the context is canceled or exceeds
 // its deadline and the returned channel will be closed when it stops.
-func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
-	// Assign the instance UUID if not set in order to keep the same instance UUID
-	// when the advertisement is updated.
-	if len(service.InstanceUuid) == 0 {
-		service.InstanceUuid = idiscovery.NewInstanceUUID()
-	}
+func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+	// Take a copy of the service to avoid any interference from changes in user side.
+	copiedService := copyService(service)
 
 	eps, valid := getEndpoints(server)
-	stop, err := advertise(ctx, service, eps, suffix, visibility)
+	stop, err := advertiseServer(ctx, &copiedService, eps, suffix, visibility)
 	if err != nil {
 		return nil, err
 	}
+
+	// Copy back the instance id.
+	service.InstanceId = copiedService.InstanceId
 
 	done := make(chan struct{})
 	go func() {
@@ -42,7 +40,7 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service d
 					stop() // Stop the previous advertisement.
 				}
 				eps, valid = getEndpoints(server)
-				stop, err = advertise(ctx, service, eps, suffix, visibility)
+				stop, err = advertiseServer(ctx, &copiedService, eps, suffix, visibility)
 				if err != nil {
 					ctx.Error(err)
 				}
@@ -56,7 +54,7 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service d
 	return done, nil
 }
 
-func advertise(ctx *context.T, service discovery.Service, eps []naming.Endpoint, suffix string, visibility []security.BlessingPattern) (func(), error) {
+func advertiseServer(ctx *context.T, service *discovery.Service, eps []naming.Endpoint, suffix string, visibility []security.BlessingPattern) (func(), error) {
 	service.Addrs = make([]string, len(eps))
 	for i, ep := range eps {
 		service.Addrs[i] = naming.JoinAddressName(ep.Name(), suffix)

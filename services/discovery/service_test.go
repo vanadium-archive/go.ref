@@ -37,13 +37,12 @@ func TestBasic(t *testing.T) {
 
 	services := []discovery.Service{
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
+			InstanceId:    "123",
 			InterfaceName: "v.io/v23/a",
 			Attrs:         discovery.Attributes{"a1": "v1"},
 			Addrs:         []string{"/h1:123/x"},
 		},
 		{
-			InstanceUuid:  idiscovery.NewInstanceUUID(),
 			InterfaceName: "v.io/v23/b",
 			Attrs:         discovery.Attributes{"b1": "v1"},
 			Addrs:         []string{"/h1:123/y"},
@@ -52,10 +51,21 @@ func TestBasic(t *testing.T) {
 
 	var handles []sdiscovery.ServiceHandle
 	advertiser := sdiscovery.AdvertiserClient(addr)
-	for _, service := range services {
-		handle, err := advertiser.RegisterService(ctx, service, nil)
+	for i, service := range services {
+		handle, instanceId, err := advertiser.RegisterService(ctx, service, nil)
 		if err != nil {
 			t.Fatalf("RegisterService() failed: %v", err)
+		}
+		switch {
+		case len(service.InstanceId) == 0:
+			if len(instanceId) == 0 {
+				t.Errorf("test[%d]: got empty instance id", i)
+			}
+			services[i].InstanceId = instanceId
+		default:
+			if instanceId != service.InstanceId {
+				t.Errorf("test[%d]: got instance id %v, but wanted %v", i, instanceId, service.InstanceId)
+			}
 		}
 		handles = append(handles, handle)
 	}

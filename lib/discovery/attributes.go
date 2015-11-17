@@ -7,13 +7,14 @@ package discovery
 import (
 	"errors"
 	"strings"
+	"unicode/utf8"
 
 	"v.io/v23/discovery"
 )
 
 // validateAttributes returns an error if the attributes are not suitable for advertising.
 func validateAttributes(attrs discovery.Attributes) error {
-	for k, _ := range attrs {
+	for k, v := range attrs {
 		if len(k) == 0 {
 			return errors.New("empty key")
 		}
@@ -27,6 +28,10 @@ func validateAttributes(attrs discovery.Attributes) error {
 			if c == '=' {
 				return errors.New("key includes '='")
 			}
+		}
+
+		if !utf8.ValidString(v) {
+			return errors.New("value is not valid UTF-8 string")
 		}
 	}
 	return nil
