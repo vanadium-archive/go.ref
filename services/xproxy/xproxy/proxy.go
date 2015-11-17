@@ -255,10 +255,11 @@ func (p *proxy) startRouting(ctx *context.T, f flow.Flow, m *message.Setup) erro
 
 func (p *proxy) forwardLoop(ctx *context.T, fin, fout flow.Flow) {
 	defer p.wg.Done()
-	_, err := io.Copy(fin, fout)
+	if _, err := io.Copy(fin, fout); err != nil {
+		ctx.Errorf("Error forwarding: %v", err)
+	}
 	fin.Close()
 	fout.Close()
-	ctx.Errorf("f.Read failed: %v", err)
 }
 
 func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow.Flow, error) {
