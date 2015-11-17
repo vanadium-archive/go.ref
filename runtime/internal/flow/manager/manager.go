@@ -23,6 +23,7 @@ import (
 
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/pubsub"
+	slib "v.io/x/ref/lib/security"
 	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/protocols/bidi"
@@ -409,9 +410,18 @@ func (proxyAuthorizer) AuthorizePeer(
 	return nil, nil, nil
 }
 
-func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
+func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, serverBlessings []string) (
 	security.Blessings, map[string]security.Discharge, error) {
-	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
+	blessings := v23.GetPrincipal(ctx).BlessingStore().Default()
+	var impetus security.DischargeImpetus
+	if len(serverBlessings) > 0 {
+		impetus.Server = make([]security.BlessingPattern, len(serverBlessings))
+		for i, b := range serverBlessings {
+			impetus.Server[i] = security.BlessingPattern(b)
+		}
+	}
+	discharges := slib.PrepareDischarges(ctx, blessings, impetus, time.Minute)
+	return blessings, discharges, nil
 }
 
 func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.Endpoint) {
