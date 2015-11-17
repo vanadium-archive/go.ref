@@ -60,7 +60,7 @@ type listenState struct {
 	proxyEndpoints []naming.Endpoint
 	notifyWatchers chan struct{}
 	roaming        bool
-	roamingClosed  <-chan struct{}
+	stopRoaming    func()
 }
 
 type endpointState struct {
@@ -127,10 +127,11 @@ func (m *manager) stopListening() {
 		close(m.ls.notifyWatchers)
 		m.ls.notifyWatchers = nil
 	}
-	roamingClosed := m.ls.roamingClosed
+	stopRoaming := m.ls.stopRoaming
+	m.ls.stopRoaming = nil
 	m.ls.mu.Unlock()
-	if roamingClosed != nil {
-		<-roamingClosed
+	if stopRoaming != nil {
+		stopRoaming()
 	}
 	for _, ln := range listeners {
 		ln.Close()
@@ -185,7 +186,7 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	})
 	if !m.ls.roaming && m.ls.dhcpPublisher != nil && roam {
 		m.ls.roaming = true
-		m.ls.roamingClosed = roaming.ReadRoamingStream(ctx, m.ls.dhcpPublisher, m.rmAddrs, m.addAddrs)
+		m.ls.stopRoaming = roaming.ReadRoamingStream(ctx, m.ls.dhcpPublisher, m.rmAddrs, m.addAddrs)
 	}
 
 	m.ls.listenLoops.Add(1)

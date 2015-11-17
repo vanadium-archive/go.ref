@@ -88,19 +88,19 @@ func CreateRoamingStream(ctx *context.T, publisher *pubsub.Publisher, listenSpec
 // passed as the argument to 'update'.
 // 'remove' gets passed the net.Addrs that are no longer being listened on.
 // 'add' gets passed the net.Addrs that are newly being listened on.
-func ReadRoamingStream(ctx *context.T, pub *pubsub.Publisher, remove, add func([]net.Addr)) (closed chan struct{}) {
+func ReadRoamingStream(ctx *context.T, pub *pubsub.Publisher, remove, add func([]net.Addr)) (stop func()) {
 	ch := make(chan pubsub.Setting, 10)
 	_, err := pub.ForkStream(RoamingSetting, ch)
 	if err != nil {
 		ctx.Errorf("error forking stream:", err)
 		return nil
 	}
-	closed = make(chan struct{})
+	done, closed := make(chan struct{}), make(chan struct{})
 	go func() {
 		defer close(closed)
 		for {
 			select {
-			case <-ctx.Done():
+			case <-done:
 				if err := pub.CloseFork(RoamingSetting, ch); err == nil {
 					drain(ch)
 				}
@@ -123,7 +123,7 @@ func ReadRoamingStream(ctx *context.T, pub *pubsub.Publisher, remove, add func([
 			}
 		}
 	}()
-	return closed
+	return func() { close(done); <-closed }
 }
 
 func drain(ch chan pubsub.Setting) {
