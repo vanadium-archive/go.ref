@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"v.io/v23"
-	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -154,16 +153,12 @@ func run(env *cmdline.Env, args []string) error {
 		proxyEndpoint naming.Endpoint
 	)
 	if ref.RPCTransitionState() == ref.XServers {
-		ctx, cancel := context.WithCancel(ctx)
 		proxy, err := xproxy.New(ctx, "test/proxy", security.AllowEveryone())
 		if err != nil {
 			return err
 		}
 		proxyEndpoint = proxy.ListeningEndpoints()[0]
-		proxyShutdown = func() {
-			cancel()
-			<-proxy.Closed()
-		}
+		proxyShutdown = func() {}
 	} else {
 		proxyShutdown, proxyEndpoint, err = generic.NewProxy(ctx, lspec, security.AllowEveryone(), "test/proxy")
 		if err != nil {

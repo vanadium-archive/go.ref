@@ -61,6 +61,7 @@ type listenState struct {
 	notifyWatchers chan struct{}
 	roaming        bool
 	stopRoaming    func()
+	proxyFlows     map[string]flow.Flow // keyed by ep.String()
 }
 
 type endpointState struct {
@@ -86,6 +87,7 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 			listeners:      []flow.Listener{},
 			notifyWatchers: make(chan struct{}),
 			dhcpPublisher:  dhcpPublisher,
+			proxyFlows:     make(map[string]flow.Flow),
 		}
 	}
 	go func() {
@@ -129,6 +131,9 @@ func (m *manager) stopListening() {
 	}
 	stopRoaming := m.ls.stopRoaming
 	m.ls.stopRoaming = nil
+	for _, f := range m.ls.proxyFlows {
+		f.Close()
+	}
 	m.ls.mu.Unlock()
 	if stopRoaming != nil {
 		stopRoaming()
@@ -306,6 +311,15 @@ func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) error {
 	if err != nil {
 		return err
 	}
+	k := ep.String()
+	m.ls.mu.Lock()
+	m.ls.proxyFlows[k] = f
+	m.ls.mu.Unlock()
+	defer func() {
+		m.ls.mu.Lock()
+		delete(m.ls.proxyFlows, k)
+		m.ls.mu.Unlock()
+	}()
 	c.UpdateFlowHandler(ctx, &proxyFlowHandler{ctx: ctx, m: m})
 	w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
 	if err != nil {
