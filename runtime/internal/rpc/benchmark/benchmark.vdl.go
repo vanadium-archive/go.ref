@@ -25,7 +25,7 @@ import (
 // containing Benchmark methods.
 type BenchmarkClientMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx *context.T, Payload []byte, opts ...rpc.CallOpt) ([]byte, error)
+	Echo(_ *context.T, Payload []byte, _ ...rpc.CallOpt) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
 	EchoStream(*context.T, ...rpc.CallOpt) (BenchmarkEchoStreamClientCall, error)
 }
@@ -165,7 +165,7 @@ func (c *implBenchmarkEchoStreamClientCall) Finish() (err error) {
 // implements for Benchmark.
 type BenchmarkServerMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx *context.T, call rpc.ServerCall, Payload []byte) ([]byte, error)
+	Echo(_ *context.T, _ rpc.ServerCall, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
 	EchoStream(*context.T, BenchmarkEchoStreamServerCall) error
 }
@@ -176,7 +176,7 @@ type BenchmarkServerMethods interface {
 // is the streaming methods.
 type BenchmarkServerStubMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx *context.T, call rpc.ServerCall, Payload []byte) ([]byte, error)
+	Echo(_ *context.T, _ rpc.ServerCall, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
 	EchoStream(*context.T, *BenchmarkEchoStreamServerCallStub) error
 }

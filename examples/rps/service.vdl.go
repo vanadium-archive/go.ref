@@ -255,9 +255,9 @@ const Player2 = WinnerTag(2)
 type JudgeClientMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx *context.T, Opts GameOptions, opts ...rpc.CallOpt) (GameId, error)
+	CreateGame(_ *context.T, Opts GameOptions, _ ...rpc.CallOpt) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx *context.T, Id GameId, opts ...rpc.CallOpt) (JudgePlayClientCall, error)
+	Play(_ *context.T, Id GameId, _ ...rpc.CallOpt) (JudgePlayClientCall, error)
 }
 
 // JudgeClientStub adds universal methods to JudgeClientMethods.
@@ -396,9 +396,9 @@ func (c *implJudgePlayClientCall) Finish() (o0 PlayResult, err error) {
 type JudgeServerMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx *context.T, call rpc.ServerCall, Opts GameOptions) (GameId, error)
+	CreateGame(_ *context.T, _ rpc.ServerCall, Opts GameOptions) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx *context.T, call JudgePlayServerCall, Id GameId) (PlayResult, error)
+	Play(_ *context.T, _ JudgePlayServerCall, Id GameId) (PlayResult, error)
 }
 
 // JudgeServerStubMethods is the server interface containing
@@ -408,9 +408,9 @@ type JudgeServerMethods interface {
 type JudgeServerStubMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx *context.T, call rpc.ServerCall, Opts GameOptions) (GameId, error)
+	CreateGame(_ *context.T, _ rpc.ServerCall, Opts GameOptions) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx *context.T, call *JudgePlayServerCallStub, Id GameId) (PlayResult, error)
+	Play(_ *context.T, _ *JudgePlayServerCallStub, Id GameId) (PlayResult, error)
 }
 
 // JudgeServerStub adds universal methods to JudgeServerStubMethods.
@@ -582,7 +582,7 @@ func (s implJudgePlayServerCallSend) Send(item JudgeAction) error {
 type PlayerClientMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(ctx *context.T, Address string, Id GameId, Opts GameOptions, opts ...rpc.CallOpt) error
+	Challenge(_ *context.T, Address string, Id GameId, Opts GameOptions, _ ...rpc.CallOpt) error
 }
 
 // PlayerClientStub adds universal methods to PlayerClientMethods.
@@ -612,7 +612,7 @@ func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameId, i2
 type PlayerServerMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(ctx *context.T, call rpc.ServerCall, Address string, Id GameId, Opts GameOptions) error
+	Challenge(_ *context.T, _ rpc.ServerCall, Address string, Id GameId, Opts GameOptions) error
 }
 
 // PlayerServerStubMethods is the server interface containing
@@ -689,7 +689,7 @@ var descPlayer = rpc.InterfaceDesc{
 //
 // ScoreKeeper receives the outcome of games from Judges.
 type ScoreKeeperClientMethods interface {
-	Record(ctx *context.T, Score ScoreCard, opts ...rpc.CallOpt) error
+	Record(_ *context.T, Score ScoreCard, _ ...rpc.CallOpt) error
 }
 
 // ScoreKeeperClientStub adds universal methods to ScoreKeeperClientMethods.
@@ -717,7 +717,7 @@ func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...
 //
 // ScoreKeeper receives the outcome of games from Judges.
 type ScoreKeeperServerMethods interface {
-	Record(ctx *context.T, call rpc.ServerCall, Score ScoreCard) error
+	Record(_ *context.T, _ rpc.ServerCall, Score ScoreCard) error
 }
 
 // ScoreKeeperServerStubMethods is the server interface containing

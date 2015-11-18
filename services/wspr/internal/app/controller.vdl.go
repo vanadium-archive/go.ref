@@ -24,27 +24,27 @@ import (
 type ControllerClientMethods interface {
 	// NewServer instructs WSPR to create a server and start listening for calls on
 	// behalf of a JavaScript server.
-	NewServer(ctx *context.T, name string, serverId uint32, serverOpts []RpcServerOption, opts ...rpc.CallOpt) error
+	NewServer(_ *context.T, name string, serverId uint32, serverOpts []RpcServerOption, _ ...rpc.CallOpt) error
 	// Stop instructs WSPR to stop listening for calls for the
 	// given javascript server.
-	Stop(ctx *context.T, serverId uint32, opts ...rpc.CallOpt) error
+	Stop(_ *context.T, serverId uint32, _ ...rpc.CallOpt) error
 	// AddName adds a published name to an existing server.
-	AddName(ctx *context.T, serverId uint32, name string, opts ...rpc.CallOpt) error
+	AddName(_ *context.T, serverId uint32, name string, _ ...rpc.CallOpt) error
 	// RemoveName removes a published name from an existing server.
-	RemoveName(ctx *context.T, serverId uint32, name string, opts ...rpc.CallOpt) error
+	RemoveName(_ *context.T, serverId uint32, name string, _ ...rpc.CallOpt) error
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
-	Bless(ctx *context.T, publicKey []byte, blessings security.Blessings, extension string, caveat []security.Caveat, opts ...rpc.CallOpt) (principal.BlessingsId, error)
+	Bless(_ *context.T, publicKey []byte, blessings security.Blessings, extension string, caveat []security.Caveat, _ ...rpc.CallOpt) (principal.BlessingsId, error)
 	// BlessSelf creates a blessing with the provided name for this principal.
-	BlessSelf(ctx *context.T, name string, caveats []security.Caveat, opts ...rpc.CallOpt) (principal.BlessingsId, error)
+	BlessSelf(_ *context.T, name string, caveats []security.Caveat, _ ...rpc.CallOpt) (principal.BlessingsId, error)
 	// AddToRoots adds the provided blessing as a root.
-	AddToRoots(ctx *context.T, blessings security.Blessings, opts ...rpc.CallOpt) error
+	AddToRoots(_ *context.T, blessings security.Blessings, _ ...rpc.CallOpt) error
 	// BlessingStoreSet puts the specified blessing in the blessing store under the provided pattern.
-	BlessingStoreSet(ctx *context.T, blessingsblessings security.Blessings, pattern security.BlessingPattern, opts ...rpc.CallOpt) (principal.BlessingsId, error)
+	BlessingStoreSet(_ *context.T, blessingsblessings security.Blessings, pattern security.BlessingPattern, _ ...rpc.CallOpt) (principal.BlessingsId, error)
 	// BlessingStoreForPeer retrieves the blessings marked for the given peers.
-	BlessingStoreForPeer(ctx *context.T, peerBlessings []string, opts ...rpc.CallOpt) (principal.BlessingsId, error)
+	BlessingStoreForPeer(_ *context.T, peerBlessings []string, _ ...rpc.CallOpt) (principal.BlessingsId, error)
 	// BlessingStoreSetDefault sets the default blessings.
-	BlessingStoreSetDefault(ctx *context.T, blessingsblessings security.Blessings, opts ...rpc.CallOpt) error
+	BlessingStoreSetDefault(_ *context.T, blessingsblessings security.Blessings, _ ...rpc.CallOpt) error
 	// BlessingStoreDefault fetches the default blessings for the principal of the controller.
 	BlessingStoreDefault(*context.T, ...rpc.CallOpt) (principal.BlessingsId, error)
 	// BlessingStorePublicKey fetches the public key of the principal for which this store hosts blessings.
@@ -54,9 +54,9 @@ type ControllerClientMethods interface {
 	// BlessingStoreDebugString retrieves a debug string describing the state of the blessing store
 	BlessingStoreDebugString(*context.T, ...rpc.CallOpt) (string, error)
 	// RemoteBlessings fetches the remote blessings for a given name and method.
-	RemoteBlessings(ctx *context.T, name string, method string, opts ...rpc.CallOpt) ([]string, error)
+	RemoteBlessings(_ *context.T, name string, method string, _ ...rpc.CallOpt) ([]string, error)
 	// Signature fetches the signature for a given name.
-	Signature(ctx *context.T, name string, opts ...rpc.CallOpt) ([]signature.Interface, error)
+	Signature(_ *context.T, name string, _ ...rpc.CallOpt) ([]signature.Interface, error)
 }
 
 // ControllerClientStub adds universal methods to ControllerClientMethods.
@@ -159,27 +159,27 @@ func (c implControllerClientStub) Signature(ctx *context.T, i0 string, opts ...r
 type ControllerServerMethods interface {
 	// NewServer instructs WSPR to create a server and start listening for calls on
 	// behalf of a JavaScript server.
-	NewServer(ctx *context.T, call rpc.ServerCall, name string, serverId uint32, serverOpts []RpcServerOption) error
+	NewServer(_ *context.T, _ rpc.ServerCall, name string, serverId uint32, serverOpts []RpcServerOption) error
 	// Stop instructs WSPR to stop listening for calls for the
 	// given javascript server.
-	Stop(ctx *context.T, call rpc.ServerCall, serverId uint32) error
+	Stop(_ *context.T, _ rpc.ServerCall, serverId uint32) error
 	// AddName adds a published name to an existing server.
-	AddName(ctx *context.T, call rpc.ServerCall, serverId uint32, name string) error
+	AddName(_ *context.T, _ rpc.ServerCall, serverId uint32, name string) error
 	// RemoveName removes a published name from an existing server.
-	RemoveName(ctx *context.T, call rpc.ServerCall, serverId uint32, name string) error
+	RemoveName(_ *context.T, _ rpc.ServerCall, serverId uint32, name string) error
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
-	Bless(ctx *context.T, call rpc.ServerCall, publicKey []byte, blessings security.Blessings, extension string, caveat []security.Caveat) (principal.BlessingsId, error)
+	Bless(_ *context.T, _ rpc.ServerCall, publicKey []byte, blessings security.Blessings, extension string, caveat []security.Caveat) (principal.BlessingsId, error)
 	// BlessSelf creates a blessing with the provided name for this principal.
-	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (principal.BlessingsId, error)
+	BlessSelf(_ *context.T, _ rpc.ServerCall, name string, caveats []security.Caveat) (principal.BlessingsId, error)
 	// AddToRoots adds the provided blessing as a root.
-	AddToRoots(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
+	AddToRoots(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) error
 	// BlessingStoreSet puts the specified blessing in the blessing store under the provided pattern.
-	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessingsblessings security.Blessings, pattern security.BlessingPattern) (principal.BlessingsId, error)
+	BlessingStoreSet(_ *context.T, _ rpc.ServerCall, blessingsblessings security.Blessings, pattern security.BlessingPattern) (principal.BlessingsId, error)
 	// BlessingStoreForPeer retrieves the blessings marked for the given peers.
-	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (principal.BlessingsId, error)
+	BlessingStoreForPeer(_ *context.T, _ rpc.ServerCall, peerBlessings []string) (principal.BlessingsId, error)
 	// BlessingStoreSetDefault sets the default blessings.
-	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessingsblessings security.Blessings) error
+	BlessingStoreSetDefault(_ *context.T, _ rpc.ServerCall, blessingsblessings security.Blessings) error
 	// BlessingStoreDefault fetches the default blessings for the principal of the controller.
 	BlessingStoreDefault(*context.T, rpc.ServerCall) (principal.BlessingsId, error)
 	// BlessingStorePublicKey fetches the public key of the principal for which this store hosts blessings.
@@ -189,9 +189,9 @@ type ControllerServerMethods interface {
 	// BlessingStoreDebugString retrieves a debug string describing the state of the blessing store
 	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
 	// RemoteBlessings fetches the remote blessings for a given name and method.
-	RemoteBlessings(ctx *context.T, call rpc.ServerCall, name string, method string) ([]string, error)
+	RemoteBlessings(_ *context.T, _ rpc.ServerCall, name string, method string) ([]string, error)
 	// Signature fetches the signature for a given name.
-	Signature(ctx *context.T, call rpc.ServerCall, name string) ([]signature.Interface, error)
+	Signature(_ *context.T, _ rpc.ServerCall, name string) ([]signature.Interface, error)
 }
 
 // ControllerServerStubMethods is the server interface containing

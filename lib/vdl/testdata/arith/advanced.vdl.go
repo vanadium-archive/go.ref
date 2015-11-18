@@ -22,8 +22,8 @@ import (
 //
 // Trigonometry is an interface that specifies a couple trigonometric functions.
 type TrigonometryClientMethods interface {
-	Sine(ctx *context.T, angle float64, opts ...rpc.CallOpt) (float64, error)
-	Cosine(ctx *context.T, angle float64, opts ...rpc.CallOpt) (float64, error)
+	Sine(_ *context.T, angle float64, _ ...rpc.CallOpt) (float64, error)
+	Cosine(_ *context.T, angle float64, _ ...rpc.CallOpt) (float64, error)
 }
 
 // TrigonometryClientStub adds universal methods to TrigonometryClientMethods.
@@ -56,8 +56,8 @@ func (c implTrigonometryClientStub) Cosine(ctx *context.T, i0 float64, opts ...r
 //
 // Trigonometry is an interface that specifies a couple trigonometric functions.
 type TrigonometryServerMethods interface {
-	Sine(ctx *context.T, call rpc.ServerCall, angle float64) (float64, error)
-	Cosine(ctx *context.T, call rpc.ServerCall, angle float64) (float64, error)
+	Sine(_ *context.T, _ rpc.ServerCall, angle float64) (float64, error)
+	Cosine(_ *context.T, _ rpc.ServerCall, angle float64) (float64, error)
 }
 
 // TrigonometryServerStubMethods is the server interface containing

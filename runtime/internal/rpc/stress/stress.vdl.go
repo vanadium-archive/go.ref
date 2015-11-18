@@ -51,9 +51,9 @@ func init() {
 // containing Stress methods.
 type StressClientMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx *context.T, Payload []byte, opts ...rpc.CallOpt) ([]byte, error)
+	Echo(_ *context.T, Payload []byte, _ ...rpc.CallOpt) ([]byte, error)
 	// Do returns the checksum of the payload that it receives.
-	Sum(ctx *context.T, arg SumArg, opts ...rpc.CallOpt) ([]byte, error)
+	Sum(_ *context.T, arg SumArg, _ ...rpc.CallOpt) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
 	SumStream(*context.T, ...rpc.CallOpt) (StressSumStreamClientCall, error)
 	// GetSumStats returns the stats on the Sum calls that the server received.
@@ -212,9 +212,9 @@ func (c *implStressSumStreamClientCall) Finish() (err error) {
 // implements for Stress.
 type StressServerMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx *context.T, call rpc.ServerCall, Payload []byte) ([]byte, error)
+	Echo(_ *context.T, _ rpc.ServerCall, Payload []byte) ([]byte, error)
 	// Do returns the checksum of the payload that it receives.
-	Sum(ctx *context.T, call rpc.ServerCall, arg SumArg) ([]byte, error)
+	Sum(_ *context.T, _ rpc.ServerCall, arg SumArg) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
 	SumStream(*context.T, StressSumStreamServerCall) error
 	// GetSumStats returns the stats on the Sum calls that the server received.
@@ -229,9 +229,9 @@ type StressServerMethods interface {
 // is the streaming methods.
 type StressServerStubMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx *context.T, call rpc.ServerCall, Payload []byte) ([]byte, error)
+	Echo(_ *context.T, _ rpc.ServerCall, Payload []byte) ([]byte, error)
 	// Do returns the checksum of the payload that it receives.
-	Sum(ctx *context.T, call rpc.ServerCall, arg SumArg) ([]byte, error)
+	Sum(_ *context.T, _ rpc.ServerCall, arg SumArg) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
 	SumStream(*context.T, *StressSumStreamServerCallStub) error
 	// GetSumStats returns the stats on the Sum calls that the server received.

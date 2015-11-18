@@ -49,7 +49,7 @@ type ApplicationClientMethods interface {
 	//
 	// An error is returned if an envelope already exists, unless the
 	// overwrite option is set.
-	Put(ctx *context.T, Profile string, Envelope application.Envelope, Overwrite bool, opts ...rpc.CallOpt) error
+	Put(_ *context.T, Profile string, Envelope application.Envelope, Overwrite bool, _ ...rpc.CallOpt) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix).
@@ -59,7 +59,7 @@ type ApplicationClientMethods interface {
 	//
 	// If the profile is the string "*", all profiles are removed for the
 	// given version (or for all versions if the version is not specified).
-	Remove(ctx *context.T, Profile string, opts ...rpc.CallOpt) error
+	Remove(_ *context.T, Profile string, _ ...rpc.CallOpt) error
 	// Profiles returns the supported profiles for the application version
 	// specified through the object name suffix.  If the version is not
 	// specified, Profiles returns the union of profiles across all
@@ -123,7 +123,7 @@ type ApplicationServerMethods interface {
 	//
 	// An error is returned if an envelope already exists, unless the
 	// overwrite option is set.
-	Put(ctx *context.T, call rpc.ServerCall, Profile string, Envelope application.Envelope, Overwrite bool) error
+	Put(_ *context.T, _ rpc.ServerCall, Profile string, Envelope application.Envelope, Overwrite bool) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix).
@@ -133,7 +133,7 @@ type ApplicationServerMethods interface {
 	//
 	// If the profile is the string "*", all profiles are removed for the
 	// given version (or for all versions if the version is not specified).
-	Remove(ctx *context.T, call rpc.ServerCall, Profile string) error
+	Remove(_ *context.T, _ rpc.ServerCall, Profile string) error
 	// Profiles returns the supported profiles for the application version
 	// specified through the object name suffix.  If the version is not
 	// specified, Profiles returns the union of profiles across all
@@ -255,7 +255,7 @@ type ProfileClientMethods interface {
 	Specification(*context.T, ...rpc.CallOpt) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(ctx *context.T, Specification profile.Specification, opts ...rpc.CallOpt) error
+	Put(_ *context.T, Specification profile.Specification, _ ...rpc.CallOpt) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
 	Remove(*context.T, ...rpc.CallOpt) error
@@ -309,7 +309,7 @@ type ProfileServerMethods interface {
 	Specification(*context.T, rpc.ServerCall) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(ctx *context.T, call rpc.ServerCall, Specification profile.Specification) error
+	Put(_ *context.T, _ rpc.ServerCall, Specification profile.Specification) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
 	Remove(*context.T, rpc.ServerCall) error

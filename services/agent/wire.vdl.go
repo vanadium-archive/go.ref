@@ -126,22 +126,22 @@ func init() {
 // AgentClientMethods is the client interface
 // containing Agent methods.
 type AgentClientMethods interface {
-	Bless(ctx *context.T, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...rpc.CallOpt) (security.Blessings, error)
-	BlessSelf(ctx *context.T, name string, caveats []security.Caveat, opts ...rpc.CallOpt) (security.Blessings, error)
-	Sign(ctx *context.T, message []byte, opts ...rpc.CallOpt) (security.Signature, error)
-	MintDischarge(ctx *context.T, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat, opts ...rpc.CallOpt) (security.Discharge, error)
+	Bless(_ *context.T, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, _ ...rpc.CallOpt) (security.Blessings, error)
+	BlessSelf(_ *context.T, name string, caveats []security.Caveat, _ ...rpc.CallOpt) (security.Blessings, error)
+	Sign(_ *context.T, message []byte, _ ...rpc.CallOpt) (security.Signature, error)
+	MintDischarge(_ *context.T, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat, _ ...rpc.CallOpt) (security.Discharge, error)
 	PublicKey(*context.T, ...rpc.CallOpt) ([]byte, error)
-	BlessingStoreSet(ctx *context.T, blessings security.Blessings, forPeers security.BlessingPattern, opts ...rpc.CallOpt) (security.Blessings, error)
-	BlessingStoreForPeer(ctx *context.T, peerBlessings []string, opts ...rpc.CallOpt) (security.Blessings, error)
-	BlessingStoreSetDefault(ctx *context.T, blessings security.Blessings, opts ...rpc.CallOpt) error
+	BlessingStoreSet(_ *context.T, blessings security.Blessings, forPeers security.BlessingPattern, _ ...rpc.CallOpt) (security.Blessings, error)
+	BlessingStoreForPeer(_ *context.T, peerBlessings []string, _ ...rpc.CallOpt) (security.Blessings, error)
+	BlessingStoreSetDefault(_ *context.T, blessings security.Blessings, _ ...rpc.CallOpt) error
 	BlessingStoreDefault(*context.T, ...rpc.CallOpt) (security.Blessings, error)
 	BlessingStorePeerBlessings(*context.T, ...rpc.CallOpt) (map[security.BlessingPattern]security.Blessings, error)
 	BlessingStoreDebugString(*context.T, ...rpc.CallOpt) (string, error)
-	BlessingStoreCacheDischarge(ctx *context.T, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus, opts ...rpc.CallOpt) error
-	BlessingStoreClearDischarges(ctx *context.T, discharges []security.Discharge, opts ...rpc.CallOpt) error
-	BlessingStoreDischarge(ctx *context.T, caveat security.Caveat, impetus security.DischargeImpetus, opts ...rpc.CallOpt) (wd security.Discharge, err error)
-	BlessingRootsAdd(ctx *context.T, root []byte, pattern security.BlessingPattern, opts ...rpc.CallOpt) error
-	BlessingRootsRecognized(ctx *context.T, root []byte, blessing string, opts ...rpc.CallOpt) error
+	BlessingStoreCacheDischarge(_ *context.T, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus, _ ...rpc.CallOpt) error
+	BlessingStoreClearDischarges(_ *context.T, discharges []security.Discharge, _ ...rpc.CallOpt) error
+	BlessingStoreDischarge(_ *context.T, caveat security.Caveat, impetus security.DischargeImpetus, _ ...rpc.CallOpt) (wd security.Discharge, _ error)
+	BlessingRootsAdd(_ *context.T, root []byte, pattern security.BlessingPattern, _ ...rpc.CallOpt) error
+	BlessingRootsRecognized(_ *context.T, root []byte, blessing string, _ ...rpc.CallOpt) error
 	BlessingRootsDump(*context.T, ...rpc.CallOpt) (map[security.BlessingPattern][][]byte, error)
 	BlessingRootsDebugString(*context.T, ...rpc.CallOpt) (string, error)
 	// Clients using caching should call NotifyWhenChanged upon connecting to
@@ -336,22 +336,22 @@ func (c *implAgentNotifyWhenChangedClientCall) Finish() (err error) {
 // AgentServerMethods is the interface a server writer
 // implements for Agent.
 type AgentServerMethods interface {
-	Bless(ctx *context.T, call rpc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
-	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
-	Sign(ctx *context.T, call rpc.ServerCall, message []byte) (security.Signature, error)
-	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
+	Bless(_ *context.T, _ rpc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
+	BlessSelf(_ *context.T, _ rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
+	Sign(_ *context.T, _ rpc.ServerCall, message []byte) (security.Signature, error)
+	MintDischarge(_ *context.T, _ rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
-	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
-	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
-	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
+	BlessingStoreSet(_ *context.T, _ rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
+	BlessingStoreForPeer(_ *context.T, _ rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
+	BlessingStoreSetDefault(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) error
 	BlessingStoreDefault(*context.T, rpc.ServerCall) (security.Blessings, error)
 	BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error)
 	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
-	BlessingStoreCacheDischarge(ctx *context.T, call rpc.ServerCall, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error
-	BlessingStoreClearDischarges(ctx *context.T, call rpc.ServerCall, discharges []security.Discharge) error
-	BlessingStoreDischarge(ctx *context.T, call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (wd security.Discharge, err error)
-	BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
-	BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, root []byte, blessing string) error
+	BlessingStoreCacheDischarge(_ *context.T, _ rpc.ServerCall, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error
+	BlessingStoreClearDischarges(_ *context.T, _ rpc.ServerCall, discharges []security.Discharge) error
+	BlessingStoreDischarge(_ *context.T, _ rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (wd security.Discharge, _ error)
+	BlessingRootsAdd(_ *context.T, _ rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
+	BlessingRootsRecognized(_ *context.T, _ rpc.ServerCall, root []byte, blessing string) error
 	BlessingRootsDump(*context.T, rpc.ServerCall) (map[security.BlessingPattern][][]byte, error)
 	BlessingRootsDebugString(*context.T, rpc.ServerCall) (string, error)
 	// Clients using caching should call NotifyWhenChanged upon connecting to
@@ -366,22 +366,22 @@ type AgentServerMethods interface {
 // The only difference between this interface and AgentServerMethods
 // is the streaming methods.
 type AgentServerStubMethods interface {
-	Bless(ctx *context.T, call rpc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
-	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
-	Sign(ctx *context.T, call rpc.ServerCall, message []byte) (security.Signature, error)
-	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
+	Bless(_ *context.T, _ rpc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
+	BlessSelf(_ *context.T, _ rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
+	Sign(_ *context.T, _ rpc.ServerCall, message []byte) (security.Signature, error)
+	MintDischarge(_ *context.T, _ rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
-	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
-	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
-	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
+	BlessingStoreSet(_ *context.T, _ rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
+	BlessingStoreForPeer(_ *context.T, _ rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
+	BlessingStoreSetDefault(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) error
 	BlessingStoreDefault(*context.T, rpc.ServerCall) (security.Blessings, error)
 	BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error)
 	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
-	BlessingStoreCacheDischarge(ctx *context.T, call rpc.ServerCall, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error
-	BlessingStoreClearDischarges(ctx *context.T, call rpc.ServerCall, discharges []security.Discharge) error
-	BlessingStoreDischarge(ctx *context.T, call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (wd security.Discharge, err error)
-	BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
-	BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, root []byte, blessing string) error
+	BlessingStoreCacheDischarge(_ *context.T, _ rpc.ServerCall, discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error
+	BlessingStoreClearDischarges(_ *context.T, _ rpc.ServerCall, discharges []security.Discharge) error
+	BlessingStoreDischarge(_ *context.T, _ rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (wd security.Discharge, _ error)
+	BlessingRootsAdd(_ *context.T, _ rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
+	BlessingRootsRecognized(_ *context.T, _ rpc.ServerCall, root []byte, blessing string) error
 	BlessingRootsDump(*context.T, rpc.ServerCall) (map[security.BlessingPattern][][]byte, error)
 	BlessingRootsDebugString(*context.T, rpc.ServerCall) (string, error)
 	// Clients using caching should call NotifyWhenChanged upon connecting to

@@ -45,26 +45,26 @@ func init() {
 // test Signature output, which sorts methods alphabetically.
 type TypeTesterClientMethods interface {
 	// Methods to test support for primitive types.
-	EchoBool(ctx *context.T, I1 bool, opts ...rpc.CallOpt) (O1 bool, err error)
-	EchoFloat32(ctx *context.T, I1 float32, opts ...rpc.CallOpt) (O1 float32, err error)
-	EchoFloat64(ctx *context.T, I1 float64, opts ...rpc.CallOpt) (O1 float64, err error)
-	EchoInt32(ctx *context.T, I1 int32, opts ...rpc.CallOpt) (O1 int32, err error)
-	EchoInt64(ctx *context.T, I1 int64, opts ...rpc.CallOpt) (O1 int64, err error)
-	EchoString(ctx *context.T, I1 string, opts ...rpc.CallOpt) (O1 string, err error)
-	EchoByte(ctx *context.T, I1 byte, opts ...rpc.CallOpt) (O1 byte, err error)
-	EchoUint32(ctx *context.T, I1 uint32, opts ...rpc.CallOpt) (O1 uint32, err error)
-	EchoUint64(ctx *context.T, I1 uint64, opts ...rpc.CallOpt) (O1 uint64, err error)
+	EchoBool(_ *context.T, I1 bool, _ ...rpc.CallOpt) (O1 bool, _ error)
+	EchoFloat32(_ *context.T, I1 float32, _ ...rpc.CallOpt) (O1 float32, _ error)
+	EchoFloat64(_ *context.T, I1 float64, _ ...rpc.CallOpt) (O1 float64, _ error)
+	EchoInt32(_ *context.T, I1 int32, _ ...rpc.CallOpt) (O1 int32, _ error)
+	EchoInt64(_ *context.T, I1 int64, _ ...rpc.CallOpt) (O1 int64, _ error)
+	EchoString(_ *context.T, I1 string, _ ...rpc.CallOpt) (O1 string, _ error)
+	EchoByte(_ *context.T, I1 byte, _ ...rpc.CallOpt) (O1 byte, _ error)
+	EchoUint32(_ *context.T, I1 uint32, _ ...rpc.CallOpt) (O1 uint32, _ error)
+	EchoUint64(_ *context.T, I1 uint64, _ ...rpc.CallOpt) (O1 uint64, _ error)
 	// Methods to test support for composite types.
-	XEchoArray(ctx *context.T, I1 Array2Int, opts ...rpc.CallOpt) (O1 Array2Int, err error)
-	XEchoMap(ctx *context.T, I1 map[int32]string, opts ...rpc.CallOpt) (O1 map[int32]string, err error)
-	XEchoSet(ctx *context.T, I1 map[int32]struct{}, opts ...rpc.CallOpt) (O1 map[int32]struct{}, err error)
-	XEchoSlice(ctx *context.T, I1 []int32, opts ...rpc.CallOpt) (O1 []int32, err error)
-	XEchoStruct(ctx *context.T, I1 Struct, opts ...rpc.CallOpt) (O1 Struct, err error)
+	XEchoArray(_ *context.T, I1 Array2Int, _ ...rpc.CallOpt) (O1 Array2Int, _ error)
+	XEchoMap(_ *context.T, I1 map[int32]string, _ ...rpc.CallOpt) (O1 map[int32]string, _ error)
+	XEchoSet(_ *context.T, I1 map[int32]struct{}, _ ...rpc.CallOpt) (O1 map[int32]struct{}, _ error)
+	XEchoSlice(_ *context.T, I1 []int32, _ ...rpc.CallOpt) (O1 []int32, _ error)
+	XEchoStruct(_ *context.T, I1 Struct, _ ...rpc.CallOpt) (O1 Struct, _ error)
 	// Methods to test support for different number of arguments.
-	YMultiArg(ctx *context.T, I1 int32, I2 int32, opts ...rpc.CallOpt) (O1 int32, O2 int32, err error)
+	YMultiArg(_ *context.T, I1 int32, I2 int32, _ ...rpc.CallOpt) (O1 int32, O2 int32, _ error)
 	YNoArgs(*context.T, ...rpc.CallOpt) error
 	// Methods to test support for streaming.
-	ZStream(ctx *context.T, NumStreamItems int32, StreamItem bool, opts ...rpc.CallOpt) (TypeTesterZStreamClientCall, error)
+	ZStream(_ *context.T, NumStreamItems int32, StreamItem bool, _ ...rpc.CallOpt) (TypeTesterZStreamClientCall, error)
 }
 
 // TypeTesterClientStub adds universal methods to TypeTesterClientMethods.
@@ -246,26 +246,26 @@ func (c *implTypeTesterZStreamClientCall) Finish() (err error) {
 // test Signature output, which sorts methods alphabetically.
 type TypeTesterServerMethods interface {
 	// Methods to test support for primitive types.
-	EchoBool(ctx *context.T, call rpc.ServerCall, I1 bool) (O1 bool, err error)
-	EchoFloat32(ctx *context.T, call rpc.ServerCall, I1 float32) (O1 float32, err error)
-	EchoFloat64(ctx *context.T, call rpc.ServerCall, I1 float64) (O1 float64, err error)
-	EchoInt32(ctx *context.T, call rpc.ServerCall, I1 int32) (O1 int32, err error)
-	EchoInt64(ctx *context.T, call rpc.ServerCall, I1 int64) (O1 int64, err error)
-	EchoString(ctx *context.T, call rpc.ServerCall, I1 string) (O1 string, err error)
-	EchoByte(ctx *context.T, call rpc.ServerCall, I1 byte) (O1 byte, err error)
-	EchoUint32(ctx *context.T, call rpc.ServerCall, I1 uint32) (O1 uint32, err error)
-	EchoUint64(ctx *context.T, call rpc.ServerCall, I1 uint64) (O1 uint64, err error)
+	EchoBool(_ *context.T, _ rpc.ServerCall, I1 bool) (O1 bool, _ error)
+	EchoFloat32(_ *context.T, _ rpc.ServerCall, I1 float32) (O1 float32, _ error)
+	EchoFloat64(_ *context.T, _ rpc.ServerCall, I1 float64) (O1 float64, _ error)
+	EchoInt32(_ *context.T, _ rpc.ServerCall, I1 int32) (O1 int32, _ error)
+	EchoInt64(_ *context.T, _ rpc.ServerCall, I1 int64) (O1 int64, _ error)
+	EchoString(_ *context.T, _ rpc.ServerCall, I1 string) (O1 string, _ error)
+	EchoByte(_ *context.T, _ rpc.ServerCall, I1 byte) (O1 byte, _ error)
+	EchoUint32(_ *context.T, _ rpc.ServerCall, I1 uint32) (O1 uint32, _ error)
+	EchoUint64(_ *context.T, _ rpc.ServerCall, I1 uint64) (O1 uint64, _ error)
 	// Methods to test support for composite types.
-	XEchoArray(ctx *context.T, call rpc.ServerCall, I1 Array2Int) (O1 Array2Int, err error)
-	XEchoMap(ctx *context.T, call rpc.ServerCall, I1 map[int32]string) (O1 map[int32]string, err error)
-	XEchoSet(ctx *context.T, call rpc.ServerCall, I1 map[int32]struct{}) (O1 map[int32]struct{}, err error)
-	XEchoSlice(ctx *context.T, call rpc.ServerCall, I1 []int32) (O1 []int32, err error)
-	XEchoStruct(ctx *context.T, call rpc.ServerCall, I1 Struct) (O1 Struct, err error)
+	XEchoArray(_ *context.T, _ rpc.ServerCall, I1 Array2Int) (O1 Array2Int, _ error)
+	XEchoMap(_ *context.T, _ rpc.ServerCall, I1 map[int32]string) (O1 map[int32]string, _ error)
+	XEchoSet(_ *context.T, _ rpc.ServerCall, I1 map[int32]struct{}) (O1 map[int32]struct{}, _ error)
+	XEchoSlice(_ *context.T, _ rpc.ServerCall, I1 []int32) (O1 []int32, _ error)
+	XEchoStruct(_ *context.T, _ rpc.ServerCall, I1 Struct) (O1 Struct, _ error)
 	// Methods to test support for different number of arguments.
-	YMultiArg(ctx *context.T, call rpc.ServerCall, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
+	YMultiArg(_ *context.T, _ rpc.ServerCall, I1 int32, I2 int32) (O1 int32, O2 int32, _ error)
 	YNoArgs(*context.T, rpc.ServerCall) error
 	// Methods to test support for streaming.
-	ZStream(ctx *context.T, call TypeTesterZStreamServerCall, NumStreamItems int32, StreamItem bool) error
+	ZStream(_ *context.T, _ TypeTesterZStreamServerCall, NumStreamItems int32, StreamItem bool) error
 }
 
 // TypeTesterServerStubMethods is the server interface containing
@@ -274,26 +274,26 @@ type TypeTesterServerMethods interface {
 // is the streaming methods.
 type TypeTesterServerStubMethods interface {
 	// Methods to test support for primitive types.
-	EchoBool(ctx *context.T, call rpc.ServerCall, I1 bool) (O1 bool, err error)
-	EchoFloat32(ctx *context.T, call rpc.ServerCall, I1 float32) (O1 float32, err error)
-	EchoFloat64(ctx *context.T, call rpc.ServerCall, I1 float64) (O1 float64, err error)
-	EchoInt32(ctx *context.T, call rpc.ServerCall, I1 int32) (O1 int32, err error)
-	EchoInt64(ctx *context.T, call rpc.ServerCall, I1 int64) (O1 int64, err error)
-	EchoString(ctx *context.T, call rpc.ServerCall, I1 string) (O1 string, err error)
-	EchoByte(ctx *context.T, call rpc.ServerCall, I1 byte) (O1 byte, err error)
-	EchoUint32(ctx *context.T, call rpc.ServerCall, I1 uint32) (O1 uint32, err error)
-	EchoUint64(ctx *context.T, call rpc.ServerCall, I1 uint64) (O1 uint64, err error)
+	EchoBool(_ *context.T, _ rpc.ServerCall, I1 bool) (O1 bool, _ error)
+	EchoFloat32(_ *context.T, _ rpc.ServerCall, I1 float32) (O1 float32, _ error)
+	EchoFloat64(_ *context.T, _ rpc.ServerCall, I1 float64) (O1 float64, _ error)
+	EchoInt32(_ *context.T, _ rpc.ServerCall, I1 int32) (O1 int32, _ error)
+	EchoInt64(_ *context.T, _ rpc.ServerCall, I1 int64) (O1 int64, _ error)
+	EchoString(_ *context.T, _ rpc.ServerCall, I1 string) (O1 string, _ error)
+	EchoByte(_ *context.T, _ rpc.ServerCall, I1 byte) (O1 byte, _ error)
+	EchoUint32(_ *context.T, _ rpc.ServerCall, I1 uint32) (O1 uint32, _ error)
+	EchoUint64(_ *context.T, _ rpc.ServerCall, I1 uint64) (O1 uint64, _ error)
 	// Methods to test support for composite types.
-	XEchoArray(ctx *context.T, call rpc.ServerCall, I1 Array2Int) (O1 Array2Int, err error)
-	XEchoMap(ctx *context.T, call rpc.ServerCall, I1 map[int32]string) (O1 map[int32]string, err error)
-	XEchoSet(ctx *context.T, call rpc.ServerCall, I1 map[int32]struct{}) (O1 map[int32]struct{}, err error)
-	XEchoSlice(ctx *context.T, call rpc.ServerCall, I1 []int32) (O1 []int32, err error)
-	XEchoStruct(ctx *context.T, call rpc.ServerCall, I1 Struct) (O1 Struct, err error)
+	XEchoArray(_ *context.T, _ rpc.ServerCall, I1 Array2Int) (O1 Array2Int, _ error)
+	XEchoMap(_ *context.T, _ rpc.ServerCall, I1 map[int32]string) (O1 map[int32]string, _ error)
+	XEchoSet(_ *context.T, _ rpc.ServerCall, I1 map[int32]struct{}) (O1 map[int32]struct{}, _ error)
+	XEchoSlice(_ *context.T, _ rpc.ServerCall, I1 []int32) (O1 []int32, _ error)
+	XEchoStruct(_ *context.T, _ rpc.ServerCall, I1 Struct) (O1 Struct, _ error)
 	// Methods to test support for different number of arguments.
-	YMultiArg(ctx *context.T, call rpc.ServerCall, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
+	YMultiArg(_ *context.T, _ rpc.ServerCall, I1 int32, I2 int32) (O1 int32, O2 int32, _ error)
 	YNoArgs(*context.T, rpc.ServerCall) error
 	// Methods to test support for streaming.
-	ZStream(ctx *context.T, call *TypeTesterZStreamServerCallStub, NumStreamItems int32, StreamItem bool) error
+	ZStream(_ *context.T, _ *TypeTesterZStreamServerCallStub, NumStreamItems int32, StreamItem bool) error
 }
 
 // TypeTesterServerStub adds universal methods to TypeTesterServerStubMethods.

@@ -19,7 +19,7 @@ import (
 // ExpClientMethods is the client interface
 // containing Exp methods.
 type ExpClientMethods interface {
-	Exp(ctx *context.T, x float64, opts ...rpc.CallOpt) (float64, error)
+	Exp(_ *context.T, x float64, _ ...rpc.CallOpt) (float64, error)
 }
 
 // ExpClientStub adds universal methods to ExpClientMethods.
@@ -45,7 +45,7 @@ func (c implExpClientStub) Exp(ctx *context.T, i0 float64, opts ...rpc.CallOpt) 
 // ExpServerMethods is the interface a server writer
 // implements for Exp.
 type ExpServerMethods interface {
-	Exp(ctx *context.T, call rpc.ServerCall, x float64) (float64, error)
+	Exp(_ *context.T, _ rpc.ServerCall, x float64) (float64, error)
 }
 
 // ExpServerStubMethods is the server interface containing

@@ -43,7 +43,7 @@ type DischargerClientMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
-	Discharge(ctx *context.T, Caveat security.Caveat, Impetus security.DischargeImpetus, opts ...rpc.CallOpt) (Discharge security.Discharge, err error)
+	Discharge(_ *context.T, Caveat security.Caveat, Impetus security.DischargeImpetus, _ ...rpc.CallOpt) (Discharge security.Discharge, _ error)
 }
 
 // DischargerClientStub adds universal methods to DischargerClientMethods.
@@ -74,7 +74,7 @@ type DischargerServerMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
-	Discharge(ctx *context.T, call rpc.ServerCall, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.Discharge, err error)
+	Discharge(_ *context.T, _ rpc.ServerCall, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.Discharge, _ error)
 }
 
 // DischargerServerStubMethods is the server interface containing

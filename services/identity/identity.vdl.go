@@ -59,8 +59,8 @@ func init() {
 type OAuthBlesserClientMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx *context.T, token string, opts ...rpc.CallOpt) (blessing security.Blessings, email string, err error)
-	BlessUsingAccessTokenWithCaveats(ctx *context.T, token string, caveats []security.Caveat, opts ...rpc.CallOpt) (blessing security.Blessings, email string, err error)
+	BlessUsingAccessToken(_ *context.T, token string, _ ...rpc.CallOpt) (blessing security.Blessings, email string, _ error)
+	BlessUsingAccessTokenWithCaveats(_ *context.T, token string, caveats []security.Caveat, _ ...rpc.CallOpt) (blessing security.Blessings, email string, _ error)
 }
 
 // OAuthBlesserClientStub adds universal methods to OAuthBlesserClientMethods.
@@ -110,8 +110,8 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessTokenWithCaveats(ctx *contex
 type OAuthBlesserServerMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall, token string) (blessing security.Blessings, email string, err error)
-	BlessUsingAccessTokenWithCaveats(ctx *context.T, call rpc.ServerCall, token string, caveats []security.Caveat) (blessing security.Blessings, email string, err error)
+	BlessUsingAccessToken(_ *context.T, _ rpc.ServerCall, token string) (blessing security.Blessings, email string, _ error)
+	BlessUsingAccessTokenWithCaveats(_ *context.T, _ rpc.ServerCall, token string, caveats []security.Caveat) (blessing security.Blessings, email string, _ error)
 }
 
 // OAuthBlesserServerStubMethods is the server interface containing
@@ -206,7 +206,7 @@ var descOAuthBlesser = rpc.InterfaceDesc{
 type MacaroonBlesserClientMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx *context.T, macaroon string, opts ...rpc.CallOpt) (blessing security.Blessings, err error)
+	Bless(_ *context.T, macaroon string, _ ...rpc.CallOpt) (blessing security.Blessings, _ error)
 }
 
 // MacaroonBlesserClientStub adds universal methods to MacaroonBlesserClientMethods.
@@ -236,7 +236,7 @@ func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...
 type MacaroonBlesserServerMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx *context.T, call rpc.ServerCall, macaroon string) (blessing security.Blessings, err error)
+	Bless(_ *context.T, _ rpc.ServerCall, macaroon string) (blessing security.Blessings, _ error)
 }
 
 // MacaroonBlesserServerStubMethods is the server interface containing

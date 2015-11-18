@@ -57,11 +57,11 @@ func NewErrBrokenCrConnection(ctx *context.T) error {
 type SyncClientMethods interface {
 	// GetTime returns metadata related to syncbase clock like syncbase clock
 	// timestamps, last NTP timestamp, num reboots, etc.
-	GetTime(ctx *context.T, req TimeReq, initiator string, opts ...rpc.CallOpt) (TimeResp, error)
+	GetTime(_ *context.T, req TimeReq, initiator string, _ ...rpc.CallOpt) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either syncgroup metadata or data.
-	GetDeltas(ctx *context.T, req DeltaReq, initiator string, opts ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
+	GetDeltas(_ *context.T, req DeltaReq, initiator string, _ ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
 	// Syncbase doing the publishing (the publisher) and returns the name
@@ -78,7 +78,7 @@ type SyncClientMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
-	PublishSyncgroup(ctx *context.T, publisher string, sg Syncgroup, version string, genvec PrefixGenVector, opts ...rpc.CallOpt) (string, error)
+	PublishSyncgroup(_ *context.T, publisher string, sg Syncgroup, version string, genvec PrefixGenVector, _ ...rpc.CallOpt) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
 	// allowed to join the named syncgroup, and if so, adds the requestor to
@@ -90,12 +90,12 @@ type SyncClientMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(ctx *context.T, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo, opts ...rpc.CallOpt) (sg Syncgroup, version string, genvec PrefixGenVector, err error)
+	JoinSyncgroupAtAdmin(_ *context.T, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo, _ ...rpc.CallOpt) (sg Syncgroup, version string, genvec PrefixGenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
-	HaveBlob(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) (int64, error)
+	HaveBlob(_ *context.T, br nosql.BlobRef, _ ...rpc.CallOpt) (int64, error)
 	// FetchBlob fetches the requested blob.
-	FetchBlob(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) (SyncFetchBlobClientCall, error)
+	FetchBlob(_ *context.T, br nosql.BlobRef, _ ...rpc.CallOpt) (SyncFetchBlobClientCall, error)
 	// Methods for incremental blob transfer. The transfer starts with the
 	// receiver making a FetchBlobRecipe call to the sender for a given
 	// BlobRef. The sender, in turn, sends the chunk hashes of all the
@@ -105,7 +105,7 @@ type SyncClientMethods interface {
 	// FetchChunks call from the sender. Finally, the receiver finishes the
 	// blob fetch by combining the chunks obtained over the network with the
 	// already available local chunks as per the blob recipe.
-	FetchBlobRecipe(ctx *context.T, br nosql.BlobRef, opts ...rpc.CallOpt) (SyncFetchBlobRecipeClientCall, error)
+	FetchBlobRecipe(_ *context.T, br nosql.BlobRef, _ ...rpc.CallOpt) (SyncFetchBlobRecipeClientCall, error)
 	FetchChunks(*context.T, ...rpc.CallOpt) (SyncFetchChunksClientCall, error)
 }
 
@@ -496,11 +496,11 @@ func (c *implSyncFetchChunksClientCall) Finish() (err error) {
 type SyncServerMethods interface {
 	// GetTime returns metadata related to syncbase clock like syncbase clock
 	// timestamps, last NTP timestamp, num reboots, etc.
-	GetTime(ctx *context.T, call rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
+	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either syncgroup metadata or data.
-	GetDeltas(ctx *context.T, call SyncGetDeltasServerCall, req DeltaReq, initiator string) error
+	GetDeltas(_ *context.T, _ SyncGetDeltasServerCall, req DeltaReq, initiator string) error
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
 	// Syncbase doing the publishing (the publisher) and returns the name
@@ -517,7 +517,7 @@ type SyncServerMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
-	PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec PrefixGenVector) (string, error)
+	PublishSyncgroup(_ *context.T, _ rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec PrefixGenVector) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
 	// allowed to join the named syncgroup, and if so, adds the requestor to
@@ -529,12 +529,12 @@ type SyncServerMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec PrefixGenVector, err error)
+	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec PrefixGenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
-	HaveBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) (int64, error)
+	HaveBlob(_ *context.T, _ rpc.ServerCall, br nosql.BlobRef) (int64, error)
 	// FetchBlob fetches the requested blob.
-	FetchBlob(ctx *context.T, call SyncFetchBlobServerCall, br nosql.BlobRef) error
+	FetchBlob(_ *context.T, _ SyncFetchBlobServerCall, br nosql.BlobRef) error
 	// Methods for incremental blob transfer. The transfer starts with the
 	// receiver making a FetchBlobRecipe call to the sender for a given
 	// BlobRef. The sender, in turn, sends the chunk hashes of all the
@@ -544,7 +544,7 @@ type SyncServerMethods interface {
 	// FetchChunks call from the sender. Finally, the receiver finishes the
 	// blob fetch by combining the chunks obtained over the network with the
 	// already available local chunks as per the blob recipe.
-	FetchBlobRecipe(ctx *context.T, call SyncFetchBlobRecipeServerCall, br nosql.BlobRef) error
+	FetchBlobRecipe(_ *context.T, _ SyncFetchBlobRecipeServerCall, br nosql.BlobRef) error
 	FetchChunks(*context.T, SyncFetchChunksServerCall) error
 }
 
@@ -555,11 +555,11 @@ type SyncServerMethods interface {
 type SyncServerStubMethods interface {
 	// GetTime returns metadata related to syncbase clock like syncbase clock
 	// timestamps, last NTP timestamp, num reboots, etc.
-	GetTime(ctx *context.T, call rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
+	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vector and all
 	// the missing log records when compared to the initiator's generation
 	// vector for one Database for either syncgroup metadata or data.
-	GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, req DeltaReq, initiator string) error
+	GetDeltas(_ *context.T, _ *SyncGetDeltasServerCallStub, req DeltaReq, initiator string) error
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
 	// Syncbase doing the publishing (the publisher) and returns the name
@@ -576,7 +576,7 @@ type SyncServerStubMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
-	PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec PrefixGenVector) (string, error)
+	PublishSyncgroup(_ *context.T, _ rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec PrefixGenVector) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
 	// allowed to join the named syncgroup, and if so, adds the requestor to
@@ -588,12 +588,12 @@ type SyncServerStubMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec PrefixGenVector, err error)
+	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec PrefixGenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
-	HaveBlob(ctx *context.T, call rpc.ServerCall, br nosql.BlobRef) (int64, error)
+	HaveBlob(_ *context.T, _ rpc.ServerCall, br nosql.BlobRef) (int64, error)
 	// FetchBlob fetches the requested blob.
-	FetchBlob(ctx *context.T, call *SyncFetchBlobServerCallStub, br nosql.BlobRef) error
+	FetchBlob(_ *context.T, _ *SyncFetchBlobServerCallStub, br nosql.BlobRef) error
 	// Methods for incremental blob transfer. The transfer starts with the
 	// receiver making a FetchBlobRecipe call to the sender for a given
 	// BlobRef. The sender, in turn, sends the chunk hashes of all the
@@ -603,7 +603,7 @@ type SyncServerStubMethods interface {
 	// FetchChunks call from the sender. Finally, the receiver finishes the
 	// blob fetch by combining the chunks obtained over the network with the
 	// already available local chunks as per the blob recipe.
-	FetchBlobRecipe(ctx *context.T, call *SyncFetchBlobRecipeServerCallStub, br nosql.BlobRef) error
+	FetchBlobRecipe(_ *context.T, _ *SyncFetchBlobRecipeServerCallStub, br nosql.BlobRef) error
 	FetchChunks(*context.T, *SyncFetchChunksServerCallStub) error
 }
 

@@ -20,7 +20,7 @@ import (
 // Config is an RPC API to the config service.
 type ConfigClientMethods interface {
 	// Set sets the value for key.
-	Set(ctx *context.T, key string, value string, opts ...rpc.CallOpt) error
+	Set(_ *context.T, key string, value string, _ ...rpc.CallOpt) error
 }
 
 // ConfigClientStub adds universal methods to ConfigClientMethods.
@@ -49,7 +49,7 @@ func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...
 // Config is an RPC API to the config service.
 type ConfigServerMethods interface {
 	// Set sets the value for key.
-	Set(ctx *context.T, call rpc.ServerCall, key string, value string) error
+	Set(_ *context.T, _ rpc.ServerCall, key string, value string) error
 }
 
 // ConfigServerStubMethods is the server interface containing

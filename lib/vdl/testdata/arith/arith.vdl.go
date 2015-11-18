@@ -50,25 +50,25 @@ const Mask = uint64(256)
 //   * There must be at least 1 out-arg, and the last out-arg must be error.
 type ArithClientMethods interface {
 	// Add is a typical method with multiple input and output arguments.
-	Add(ctx *context.T, a int32, b int32, opts ...rpc.CallOpt) (int32, error)
+	Add(_ *context.T, a int32, b int32, _ ...rpc.CallOpt) (int32, error)
 	// DivMod shows that runs of args with the same type can use the short form,
 	// just like Go.
-	DivMod(ctx *context.T, a int32, b int32, opts ...rpc.CallOpt) (quot int32, rem int32, err error)
+	DivMod(_ *context.T, a int32, b int32, _ ...rpc.CallOpt) (quot int32, rem int32, _ error)
 	// Sub shows that you can use data types defined in other packages.
-	Sub(ctx *context.T, args base.Args, opts ...rpc.CallOpt) (int32, error)
+	Sub(_ *context.T, args base.Args, _ ...rpc.CallOpt) (int32, error)
 	// Mul tries another data type defined in another package.
-	Mul(ctx *context.T, nested base.NestedArgs, opts ...rpc.CallOpt) (int32, error)
+	Mul(_ *context.T, nested base.NestedArgs, _ ...rpc.CallOpt) (int32, error)
 	// GenError shows that it's fine to have no in args, and no out args other
 	// than "error".  In addition GenError shows the usage of tags.  Tags are a
 	// sequence of constants.  There's no requirement on uniqueness of types or
 	// values, and regular const expressions may also be used.
 	GenError(*context.T, ...rpc.CallOpt) error
 	// Count shows using only an int32 out-stream type, with no in-stream type.
-	Count(ctx *context.T, start int32, opts ...rpc.CallOpt) (ArithCountClientCall, error)
+	Count(_ *context.T, start int32, _ ...rpc.CallOpt) (ArithCountClientCall, error)
 	// StreamingAdd shows a bidirectional stream.
 	StreamingAdd(*context.T, ...rpc.CallOpt) (ArithStreamingAddClientCall, error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(ctx *context.T, a *vdl.Value, opts ...rpc.CallOpt) (*vdl.Value, error)
+	QuoteAny(_ *context.T, a *vdl.Value, _ ...rpc.CallOpt) (*vdl.Value, error)
 }
 
 // ArithClientStub adds universal methods to ArithClientMethods.
@@ -248,7 +248,7 @@ type ArithStreamingAddClientCall interface {
 	// Calling Finish is mandatory for releasing stream resources, unless the call
 	// has been canceled or any of the other methods return an error.  Finish should
 	// be called at most once.
-	Finish() (total int32, err error)
+	Finish() (total int32, _ error)
 }
 
 type implArithStreamingAddClientCall struct {
@@ -312,25 +312,25 @@ func (c *implArithStreamingAddClientCall) Finish() (o0 int32, err error) {
 //   * There must be at least 1 out-arg, and the last out-arg must be error.
 type ArithServerMethods interface {
 	// Add is a typical method with multiple input and output arguments.
-	Add(ctx *context.T, call rpc.ServerCall, a int32, b int32) (int32, error)
+	Add(_ *context.T, _ rpc.ServerCall, a int32, b int32) (int32, error)
 	// DivMod shows that runs of args with the same type can use the short form,
 	// just like Go.
-	DivMod(ctx *context.T, call rpc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
+	DivMod(_ *context.T, _ rpc.ServerCall, a int32, b int32) (quot int32, rem int32, _ error)
 	// Sub shows that you can use data types defined in other packages.
-	Sub(ctx *context.T, call rpc.ServerCall, args base.Args) (int32, error)
+	Sub(_ *context.T, _ rpc.ServerCall, args base.Args) (int32, error)
 	// Mul tries another data type defined in another package.
-	Mul(ctx *context.T, call rpc.ServerCall, nested base.NestedArgs) (int32, error)
+	Mul(_ *context.T, _ rpc.ServerCall, nested base.NestedArgs) (int32, error)
 	// GenError shows that it's fine to have no in args, and no out args other
 	// than "error".  In addition GenError shows the usage of tags.  Tags are a
 	// sequence of constants.  There's no requirement on uniqueness of types or
 	// values, and regular const expressions may also be used.
 	GenError(*context.T, rpc.ServerCall) error
 	// Count shows using only an int32 out-stream type, with no in-stream type.
-	Count(ctx *context.T, call ArithCountServerCall, start int32) error
+	Count(_ *context.T, _ ArithCountServerCall, start int32) error
 	// StreamingAdd shows a bidirectional stream.
-	StreamingAdd(*context.T, ArithStreamingAddServerCall) (total int32, err error)
+	StreamingAdd(*context.T, ArithStreamingAddServerCall) (total int32, _ error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(ctx *context.T, call rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
+	QuoteAny(_ *context.T, _ rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
 }
 
 // ArithServerStubMethods is the server interface containing
@@ -339,25 +339,25 @@ type ArithServerMethods interface {
 // is the streaming methods.
 type ArithServerStubMethods interface {
 	// Add is a typical method with multiple input and output arguments.
-	Add(ctx *context.T, call rpc.ServerCall, a int32, b int32) (int32, error)
+	Add(_ *context.T, _ rpc.ServerCall, a int32, b int32) (int32, error)
 	// DivMod shows that runs of args with the same type can use the short form,
 	// just like Go.
-	DivMod(ctx *context.T, call rpc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
+	DivMod(_ *context.T, _ rpc.ServerCall, a int32, b int32) (quot int32, rem int32, _ error)
 	// Sub shows that you can use data types defined in other packages.
-	Sub(ctx *context.T, call rpc.ServerCall, args base.Args) (int32, error)
+	Sub(_ *context.T, _ rpc.ServerCall, args base.Args) (int32, error)
 	// Mul tries another data type defined in another package.
-	Mul(ctx *context.T, call rpc.ServerCall, nested base.NestedArgs) (int32, error)
+	Mul(_ *context.T, _ rpc.ServerCall, nested base.NestedArgs) (int32, error)
 	// GenError shows that it's fine to have no in args, and no out args other
 	// than "error".  In addition GenError shows the usage of tags.  Tags are a
 	// sequence of constants.  There's no requirement on uniqueness of types or
 	// values, and regular const expressions may also be used.
 	GenError(*context.T, rpc.ServerCall) error
 	// Count shows using only an int32 out-stream type, with no in-stream type.
-	Count(ctx *context.T, call *ArithCountServerCallStub, start int32) error
+	Count(_ *context.T, _ *ArithCountServerCallStub, start int32) error
 	// StreamingAdd shows a bidirectional stream.
-	StreamingAdd(*context.T, *ArithStreamingAddServerCallStub) (total int32, err error)
+	StreamingAdd(*context.T, *ArithStreamingAddServerCallStub) (total int32, _ error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(ctx *context.T, call rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
+	QuoteAny(_ *context.T, _ rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
 }
 
 // ArithServerStub adds universal methods to ArithServerStubMethods.
