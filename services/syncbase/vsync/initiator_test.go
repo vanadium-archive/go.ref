@@ -20,7 +20,6 @@ import (
 	"time"
 
 	wire "v.io/v23/services/syncbase/nosql"
-	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	"v.io/x/lib/set"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -28,60 +27,6 @@ import (
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
 )
-
-func TestExtractBlobRefs(t *testing.T) {
-	var tests [][]byte
-	br := wire.BlobRef("123")
-
-	// BlobRef is the value.
-	buf0, err := vom.Encode(br)
-	if err != nil {
-		t.Fatalf("Encode(BlobRef) failed, err %v", err)
-	}
-	tests = append(tests, buf0)
-
-	// Struct contains BlobRef.
-	type test1Struct struct {
-		A int64
-		B string
-		C wire.BlobRef
-	}
-	v1 := test1Struct{A: 10, B: "foo", C: br}
-	buf1, err := vom.Encode(v1)
-	if err != nil {
-		t.Fatalf("Encode(test1Struct) failed, err %v", err)
-	}
-	tests = append(tests, buf1)
-
-	// Nested struct contains BlobRef.
-	type test2Struct struct {
-		A int64
-		B string
-		C test1Struct
-	}
-	v2 := test2Struct{A: 10, B: "foo", C: v1}
-	buf2, err := vom.Encode(v2)
-	if err != nil {
-		t.Fatalf("Encode(test2Struct) failed, err %v", err)
-	}
-	tests = append(tests, buf2)
-
-	for i, buf := range tests {
-		var val *vdl.Value
-		if err := vom.Decode(buf, &val); err != nil {
-			t.Fatalf("Decode failed (test %d), err %v", i, err)
-		}
-
-		gotbrs := make(map[wire.BlobRef]struct{})
-		if err := extractBlobRefs(val, gotbrs); err != nil {
-			t.Fatalf("extractBlobRefs failed (test %d), err %v", i, err)
-		}
-		wantbrs := map[wire.BlobRef]struct{}{br: struct{}{}}
-		if !reflect.DeepEqual(gotbrs, wantbrs) {
-			t.Fatalf("Data mismatch in blobrefs (test %d), got %v, want %v", i, gotbrs, wantbrs)
-		}
-	}
-}
 
 // TestLogStreamRemoteOnly tests processing of a remote log stream. Commands are
 // in file testdata/remote-init-00.log.sync.

@@ -6,12 +6,15 @@ package vsync
 
 import (
 	"io"
+	"strings"
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase/nosql"
+	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -25,9 +28,9 @@ const (
 // blobLocInfo contains the location information about a BlobRef. This location
 // information is merely a hint used to search for the blob.
 type blobLocInfo struct {
-	peer   string                          // Syncbase from which the presence of this BlobRef was first learned.
-	source string                          // Syncbase that originated this blob.
-	sgIds  map[interfaces.GroupId]struct{} // Syncgroups through which the BlobRef was learned.
+	peer   string // Syncbase from which the presence of this BlobRef was first learned.
+	source string // Syncbase that originated this blob.
+	sgIds  sgSet  // Syncgroups through which the BlobRef was learned.
 }
 
 ////////////////////////////////////////////////////////////
@@ -388,7 +391,19 @@ func (s *syncService) addBlobLocInfo(ctx *context.T, br wire.BlobRef, info *blob
 	s.blobDirLock.Lock()
 	defer s.blobDirLock.Unlock()
 
-	s.blobDirectory[br] = info
+	if curInfo := s.blobDirectory[br]; curInfo != nil {
+		// Update the set of syncgroups but do not overwrite the peer
+		// and source, the prior data is most likely higher quality.
+		// For example, the same blob ref could appear in multiple
+		// versions of an object learned from multiple peers, but the
+		// first time it was injected into the object is more relevant.
+		for id := range info.sgIds {
+			curInfo.sgIds[id] = struct{}{}
+		}
+	} else {
+		s.blobDirectory[br] = info
+	}
+
 	return nil
 }
 
@@ -400,4 +415,156 @@ func (s *syncService) getBlobLocInfo(ctx *context.T, br wire.BlobRef) (*blobLocI
 		return info, nil
 	}
 	return nil, verror.New(verror.ErrInternal, ctx, "blob state not found", br)
+}
+
+// processBlobRefs decodes the VOM-encoded value in the buffer and extracts from
+// it all blob refs.  For each of these blob refs, it updates the blob metadata
+// to associate to it the sync peer, the source, and the matching syncgroups.
+func (s *syncService) processBlobRefs(ctx *context.T, peer string, sgPrefixes map[string]sgSet, m *interfaces.LogRecMetadata, valbuf []byte) error {
+	objid := m.ObjId
+	srcPeer := syncbaseIdToName(m.Id)
+
+	vlog.VI(4).Infof("sync: processBlobRefs: begin: objid %s, peer %s, src %s", objid, peer, srcPeer)
+	defer vlog.VI(4).Infof("sync: processBlobRefs: end: objid %s, peer %s, src %s", objid, peer, srcPeer)
+
+	if valbuf == nil {
+		return nil
+	}
+
+	var val *vdl.Value
+	if err := vom.Decode(valbuf, &val); err != nil {
+		// If we cannot decode the value, ignore blob processing and
+		// continue. This is fine since all stored values need not be
+		// vom encoded.
+		return nil
+	}
+
+	brs := extractBlobRefs(val)
+
+	// The key (objid) starts with one of the store's reserved prefixes for
+	// managed namespaces.  Remove that prefix to be able to compare it with
+	// the syncgroup prefixes which are defined by the application.
+	appKey := util.StripFirstKeyPartOrDie(objid)
+
+	// Determine the set of syncgroups that cover this application key.
+	sgIds := make(sgSet)
+	for p, sgs := range sgPrefixes {
+		if strings.HasPrefix(appKey, p) {
+			for sg := range sgs {
+				sgIds[sg] = struct{}{}
+			}
+		}
+	}
+
+	// Associate the blob metadata with each blob ref.  Create a separate
+	// copy of the syncgroup set for each blob ref.
+	for br := range brs {
+		vlog.VI(4).Infof("sync: processBlobRefs: found blobref %v, sgs %v", br, sgIds)
+		info := &blobLocInfo{peer: peer, source: srcPeer, sgIds: make(sgSet)}
+		for gid := range sgIds {
+			info.sgIds[gid] = struct{}{}
+		}
+		if err := s.addBlobLocInfo(ctx, br, info); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// extractBlobRefs traverses a VDL value and extracts blob refs from it.
+func extractBlobRefs(val *vdl.Value) map[wire.BlobRef]struct{} {
+	brs := make(map[wire.BlobRef]struct{})
+	_, _ = extractBlobRefsInternal(val, brs)
+	return brs
+}
+
+// extractBlobRefsInternal traverses a VDL value recursively and extracts blob
+// refs from it.  The blob refs are accumulated in the given map of blob refs.
+// The function returns two flags (as integers), one to indicate that blob refs
+// were found and another to indicate that dynamic data types were seen (VDL
+// union or VDL any).
+func extractBlobRefsInternal(val *vdl.Value, brs map[wire.BlobRef]struct{}) (bool, bool) {
+	brFound, dynSeen := false, false
+
+	if val != nil {
+		switch val.Kind() {
+		case vdl.String:
+			// Could be a BlobRef.
+			var br wire.BlobRef
+			if val.Type() == vdl.TypeOf(br) {
+				brFound = true
+				if b := wire.BlobRef(val.RawString()); b != wire.NullBlobRef {
+					brs[b] = struct{}{}
+				}
+			}
+
+		case vdl.Struct:
+			for i := 0; i < val.Type().NumField(); i++ {
+				found, dyn := extractBlobRefsInternal(val.StructField(i), brs)
+				brFound = brFound || found
+				dynSeen = dynSeen || dyn
+			}
+
+		case vdl.Array, vdl.List:
+			for i := 0; i < val.Len(); i++ {
+				found, dyn := extractBlobRefsInternal(val.Index(i), brs)
+				brFound = brFound || found
+				dynSeen = dynSeen || dyn
+				if !found && !dyn {
+					// Look no further, no blob refs in the rest.
+					break
+				}
+			}
+
+		case vdl.Map:
+			lookInKey, lookInVal := true, true
+			for _, v := range val.Keys() {
+				if lookInKey {
+					found, dyn := extractBlobRefsInternal(v, brs)
+					brFound = brFound || found
+					dynSeen = dynSeen || dyn
+					if !found && !dyn {
+						// No need to look in the keys anymore.
+						lookInKey = false
+					}
+				}
+				if lookInVal {
+					found, dyn := extractBlobRefsInternal(val.MapIndex(v), brs)
+					brFound = brFound || found
+					dynSeen = dynSeen || dyn
+					if !found && !dyn {
+						// No need to look in values anymore.
+						lookInVal = false
+					}
+				}
+				if !lookInKey && !lookInVal {
+					// Look no further, no blob refs in the rest.
+					break
+				}
+			}
+
+		case vdl.Set:
+			for _, v := range val.Keys() {
+				found, dyn := extractBlobRefsInternal(v, brs)
+				brFound = brFound || found
+				dynSeen = dynSeen || dyn
+				if !found && !dyn {
+					// Look no further, no blob refs in the rest.
+					break
+				}
+			}
+
+		case vdl.Union:
+			_, val = val.UnionField()
+			brFound, _ = extractBlobRefsInternal(val, brs)
+			dynSeen = true
+
+		case vdl.Any, vdl.Optional:
+			brFound, _ = extractBlobRefsInternal(val.Elem(), brs)
+			dynSeen = true
+		}
+	}
+
+	return brFound, dynSeen
 }

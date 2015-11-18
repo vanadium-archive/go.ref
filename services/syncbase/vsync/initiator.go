@@ -21,8 +21,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/v23/services/syncbase/nosql"
-	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/set"
@@ -645,7 +643,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 					return err
 				}
 				// Check for BlobRefs, and process them.
-				if err := iSt.processBlobRefs(ctx, &rec.Metadata, v.Value.Value); err != nil {
+				if err := iSt.config.sync.processBlobRefs(ctx, iSt.config.peer.relName, iSt.config.sgPfxs, &rec.Metadata, v.Value.Value); err != nil {
 					return err
 				}
 			}
@@ -729,75 +727,6 @@ func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *localLogRec, valb
 	// value in the Database.
 	if !rec.Metadata.Delete && rec.Metadata.RecType == interfaces.NodeRec {
 		return watchable.PutAtVersion(ctx, tx, []byte(m.ObjId), valbuf, []byte(m.CurVers))
-	}
-	return nil
-}
-
-func (iSt *initiationState) processBlobRefs(ctx *context.T, m *interfaces.LogRecMetadata, valbuf []byte) error {
-	objid := m.ObjId
-	srcPeer := syncbaseIdToName(m.Id)
-
-	vlog.VI(4).Infof("sync: processBlobRefs: begin processing blob refs for objid %s", objid)
-	defer vlog.VI(4).Infof("sync: processBlobRefs: end processing blob refs for objid %s", objid)
-
-	if valbuf == nil {
-		return nil
-	}
-
-	var val *vdl.Value
-	if err := vom.Decode(valbuf, &val); err != nil {
-		// If we cannot decode the value, ignore blob processing and
-		// continue. This is fine since all stored values need not be
-		// vom encoded.
-		return nil
-	}
-
-	brs := make(map[nosql.BlobRef]struct{})
-	if err := extractBlobRefs(val, brs); err != nil {
-		return err
-	}
-	sgIds := make(sgSet)
-	for br := range brs {
-		for p, sgs := range iSt.config.sgPfxs {
-			// The key (objid) starts with one of the store's reserved prefixes for
-			// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
-			// comparing it with the syncgroup prefixes which are defined by the
-			// application.
-			if strings.HasPrefix(util.StripFirstKeyPartOrDie(objid), p) {
-				for sg := range sgs {
-					sgIds[sg] = struct{}{}
-				}
-			}
-		}
-		vlog.VI(4).Infof("sync: processBlobRefs: Found blobref %v peer %v, source %v, sgs %v", br, iSt.config.peer, srcPeer, sgIds)
-		info := &blobLocInfo{peer: iSt.config.peer.relName, source: srcPeer, sgIds: sgIds}
-		if err := iSt.config.sync.addBlobLocInfo(ctx, br, info); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// TODO(hpucha): Handle blobrefs part of list, map, any.
-func extractBlobRefs(val *vdl.Value, brs map[nosql.BlobRef]struct{}) error {
-	if val == nil {
-		return nil
-	}
-	switch val.Kind() {
-	case vdl.String:
-		// Could be a BlobRef.
-		var br nosql.BlobRef
-		if val.Type() == vdl.TypeOf(br) {
-			brs[nosql.BlobRef(val.RawString())] = struct{}{}
-		}
-	case vdl.Struct:
-		for i := 0; i < val.Type().NumField(); i++ {
-			v := val.StructField(i)
-			if err := extractBlobRefs(v, brs); err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }
