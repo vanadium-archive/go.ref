@@ -394,7 +394,7 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 		client = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
 		deps = append(deps, sm)
 	} else {
-		client = irpc.DeprecatedNewClient(sm, ns, otherOpts...)
+		client = irpc.DeprecatedNewClient(ctx, sm, ns, otherOpts...)
 		deps = append(deps, sm)
 	}
 	newctx := context.WithValue(ctx, clientKey, client)

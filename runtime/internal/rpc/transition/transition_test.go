@@ -5,6 +5,8 @@
 package transition
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"v.io/v23"
@@ -26,9 +28,80 @@ func (e *example) Echo(ctx *context.T, call rpc.ServerCall, arg string) (string,
 	return arg, nil
 }
 
-func TestTransitionToNew(t *testing.T) {
-	// TODO(mattr): Make a test showing the transition client
-	// connecting to a new server once the new server is available.
+type dischargeService struct {
+	called int
+	mu     sync.Mutex
+}
+
+func (ds *dischargeService) Discharge(ctx *context.T, call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+	tp := cav.ThirdPartyDetails()
+	if tp == nil {
+		return security.Discharge{}, fmt.Errorf("discharger: not a third party caveat (%v)", cav)
+	}
+	if err := tp.Dischargeable(ctx, call.Security()); err != nil {
+		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
+	}
+	caveat := security.UnconstrainedUse()
+	return call.Security().LocalPrincipal().MintDischarge(cav, caveat)
+}
+
+func mkThirdPartyCaveat(discharger security.PublicKey, location string, caveats ...security.Caveat) security.Caveat {
+	if len(caveats) == 0 {
+		caveats = []security.Caveat{security.UnconstrainedUse()}
+	}
+	tpc, err := security.NewPublicKeyCaveat(discharger, location, security.ThirdPartyRequirements{}, caveats[0], caveats[1:]...)
+	if err != nil {
+		panic(err)
+	}
+	return tpc
+}
+
+func TestTransitionToOldNewDischarger(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	sm := manager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+
+	idp := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
+	sp := testutil.NewPrincipal()
+	idp.Bless(sp, "server")
+	server, err := irpc.DeprecatedNewServer(ctx, sm, v23.GetNamespace(ctx),
+		nil, "", v23.GetClient(ctx))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = server.Listen(v23.GetListenSpec(ctx)); err != nil {
+		t.Fatal(err)
+	}
+	if err = server.Serve("echo", &example{}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	dp := testutil.NewPrincipal()
+	idp.Bless(dp, "discharger")
+	dctx, err := v23.WithPrincipal(ctx, dp)
+	if err != nil {
+		panic(err)
+	}
+	_, _, err = v23.WithNewServer(dctx, "discharge", &dischargeService{}, security.AllowEveryone())
+	if err != nil {
+		panic(err)
+	}
+
+	if err := idp.Bless(v23.GetPrincipal(ctx), "caveats", mkThirdPartyCaveat(dp.PublicKey(), "discharge")); err != nil {
+		panic(err)
+	}
+
+	var result string
+	err = v23.GetClient(ctx).Call(ctx, "echo", "Echo",
+		[]interface{}{"hello"}, []interface{}{&result})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != "hello" {
+		t.Errorf("got %s, wanted hello", result)
+	}
 }
 
 func TestTransitionToOld(t *testing.T) {
@@ -38,8 +111,9 @@ func TestTransitionToOld(t *testing.T) {
 	sm := manager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 
+	idp := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 	sp := testutil.NewPrincipal()
-	testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx)).Bless(sp, "server")
+	idp.Bless(sp, "server")
 	server, err := irpc.DeprecatedNewServer(ctx, sm, v23.GetNamespace(ctx),
 		nil, "", v23.GetClient(ctx))
 	if err != nil {
