@@ -53,7 +53,7 @@ type xserver struct {
 	blessings         security.Blessings
 	typeCache         *typeCache
 	state             rpc.ServerState // the current state of the server.
-	stopProxy         chan struct{}
+	stopProxy         context.CancelFunc
 
 	endpoints map[string]*inaming.Endpoint // endpoints that the server is listening on.
 	lnErrors  []error                      // errors from listening
@@ -111,7 +111,6 @@ func WithNewDispatchingServer(ctx *context.T,
 		typeCache:         newTypeCache(),
 		state:             rpc.ServerActive,
 		endpoints:         make(map[string]*inaming.Endpoint),
-		stopProxy:         make(chan struct{}),
 	}
 	channelTimeout := time.Duration(0)
 	var authorizedPeers []security.BlessingPattern
@@ -177,7 +176,7 @@ func WithNewDispatchingServer(ctx *context.T,
 
 		s.stats.stop()
 		s.publisher.Stop()
-		close(s.stopProxy)
+		s.stopProxy()
 
 		done := make(chan struct{})
 		go func() {
@@ -276,9 +275,11 @@ func (s *xserver) createEndpoint(lep naming.Endpoint) *inaming.Endpoint {
 func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	defer s.Unlock()
 	s.Lock()
+	var pctx *context.T
+	pctx, s.stopProxy = context.WithCancel(ctx)
 	if len(listenSpec.Proxy) > 0 {
 		s.active.Add(1)
-		go s.connectToProxy(ctx, listenSpec.Proxy)
+		go s.connectToProxy(pctx, listenSpec.Proxy)
 	}
 	for _, addr := range listenSpec.Addrs {
 		if len(addr.Address) > 0 {
@@ -302,12 +303,12 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 func (s *xserver) connectToProxy(ctx *context.T, name string) {
 	defer s.active.Done()
 	for delay := reconnectDelay; ; delay = nextDelay(delay) {
-		time.Sleep(delay - reconnectDelay)
 		select {
-		case <-s.stopProxy:
+		case <-ctx.Done():
 			return
 		default:
 		}
+		time.Sleep(delay - reconnectDelay)
 		eps, err := s.resolveToEndpoint(ctx, name)
 		if err != nil {
 			s.ctx.VI(2).Infof("resolveToEndpoint(%q) failed: %v", name, err)
