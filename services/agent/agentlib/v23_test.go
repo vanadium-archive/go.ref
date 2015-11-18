@@ -23,8 +23,8 @@ func TestMain(m *testing.M) {
 	os.Exit(r)
 }
 
-func TestV23TestPassPhraseUse(t *testing.T) {
-	v23tests.RunTest(t, V23TestTestPassPhraseUse)
+func TestV23PassPhraseUse(t *testing.T) {
+	v23tests.RunTest(t, V23TestPassPhraseUse)
 }
 
 func TestV23AllPrincipalMethods(t *testing.T) {
@@ -37,4 +37,8 @@ func TestV23AgentProcesses(t *testing.T) {
 
 func TestV23AgentRestartExitCode(t *testing.T) {
 	v23tests.RunTest(t, V23TestAgentRestartExitCode)
+}
+
+func TestV23KeyManager(t *testing.T) {
+	v23tests.RunTest(t, V23TestKeyManager)
 }

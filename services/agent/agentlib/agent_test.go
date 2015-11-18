@@ -25,21 +25,22 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-// As of April 28, 2015, the benchmarks for serving a principal with and
+// As of November 17, 2015, the benchmarks for serving a principal with and
 // without the agent are as follows:
+// (on an 3.1 GHz Intel Core i7)
 //
-// BenchmarkSignNoAgent                    :  889608 ns/op
-// BenchmarkSignCachedAgent                : 6961410 ns/op
-// BenchmarkSignUncachedAgent	           : 7403763 ns/op
-// BenchmarkDefaultNoAgent	           :     139 ns/op
-// BenchmarkDefaultCachedAgent	           :      41 ns/op
-// BenchmarkDefaultUncachedAgent	   : 9732978 ns/op
-// BenchmarkRecognizedNegativeNoAgent	   :   34859 ns/op
-// BenchmarkRecognizedNegativeCachedAgent  :   31043 ns/op
-// BenchmarkRecognizedNegativeUncachedAgent: 5110308 ns/op
-// BenchmarkRecognizedNoAgent	           :   13457 ns/op
-// BenchmarkRecognizedCachedAgent	   :   12609 ns/op
-// BenchmarkRecognizedUncachedAgent	   : 4232959 ns/op
+// BenchmarkSignNoAgent-4                    	    2000	    625858 ns/op
+// BenchmarkSignCachedAgent-4                	    2000	    805983 ns/op
+// BenchmarkSignUncachedAgent-4              	    2000	    789841 ns/op
+// BenchmarkDefaultNoAgent-4                 	20000000	       109 ns/op
+// BenchmarkDefaultCachedAgent-4             	30000000	        44.9 ns/op
+// BenchmarkDefaultUncachedAgent-4           	   10000	    155312 ns/op
+// BenchmarkRecognizedNegativeNoAgent-4      	  100000	     20091 ns/op
+// BenchmarkRecognizedNegativeCachedAgent-4  	  100000	     21940 ns/op
+// BenchmarkRecognizedNegativeUncachedAgent-4	   10000	    209605 ns/op
+// BenchmarkRecognizedNoAgent-4              	 2000000	       748 ns/op
+// BenchmarkRecognizedCachedAgent-4          	 3000000	       774 ns/op
+// BenchmarkRecognizedUncachedAgent-4        	   20000	     99022 ns/op
 
 //go:generate jiri test generate
 
@@ -111,7 +112,6 @@ func setupAgent(caching bool) (security.Principal, func()) {
 }
 
 func TestAgent(t *testing.T) {
-
 	var (
 		p                       = testutil.NewPrincipal("agentTest")
 		agent1, agent2, cleanup = setupAgentPair(t, p)

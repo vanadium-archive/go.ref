@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package lockfile provides methods to associate process ids (PIDs) with a file.
 package lockfile
 
 import (
@@ -18,12 +19,22 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-const lockfileName = "agent.lock"
-const tempLockfileName = "agent.templock"
-const agentSocketName = "agent.sock" // Keep in sync with agentd/main.go
+const (
+	lockSuffix = "lock"
+	tempSuffix = "templock"
+)
 
-func CreateLockfile(dir string) error {
-	f, err := ioutil.TempFile(dir, tempLockfileName)
+// CreateLockfile associates the provided file with the process ID of the
+// caller.
+//
+// file should not contain any useful content because CreateLockfile may
+// delete and recreate it.
+//
+// Only one active process can be associated with a file at a time. Thus, if
+// another active process is currently associated with file, then
+// CreateLockfile will return an error.
+func CreateLockfile(file string) error {
+	f, err := ioutil.TempFile(filepath.Dir(file), filepath.Base(file)+"-"+tempSuffix)
 	if err != nil {
 		return err
 	}
@@ -35,7 +46,7 @@ func CreateLockfile(dir string) error {
 	if err = cmd.Run(); err != nil {
 		return err
 	}
-	lockfile := filepath.Join(dir, lockfileName)
+	lockfile := file + "-" + lockSuffix
 	err = os.Link(f.Name(), lockfile)
 	if err == nil {
 		return nil
@@ -46,14 +57,14 @@ func CreateLockfile(dir string) error {
 	if err != nil {
 		return err
 	}
-	if err, running := StillRunning(lockProcessInfo); running {
-		return fmt.Errorf("agentd is already running:\n%s", lockProcessInfo)
+	if err, running := stillRunning(lockProcessInfo); running {
+		return fmt.Errorf("process is already running:\n%s", lockProcessInfo)
 	} else if err != nil {
 		return err
 	}
 
-	// Delete the socket if the old agent left one behind.
-	if err = os.RemoveAll(filepath.Join(dir, agentSocketName)); err != nil {
+	// Delete the file if the old process left one behind.
+	if err = os.Remove(file); !os.IsNotExist(err) {
 		return err
 	}
 
@@ -65,7 +76,7 @@ func CreateLockfile(dir string) error {
 
 var pidRegex = regexp.MustCompile("\n\\s*(\\d+)")
 
-func StillRunning(expected []byte) (error, bool) {
+func stillRunning(expected []byte) (error, bool) {
 	match := pidRegex.FindSubmatch(expected)
 	if match == nil {
 		// Corrupt lockfile. Just delete it.
@@ -90,14 +101,14 @@ func StillRunning(expected []byte) (error, bool) {
 	return nil, bytes.Equal(expected, out)
 }
 
-func RemoveLockfile(dir string) {
-	path := filepath.Join(dir, lockfileName)
+// RemoveLockfile removes file and the corresponding lock on it.
+func RemoveLockfile(file string) {
+	path := file + "-" + lockSuffix
 	if err := os.Remove(path); err != nil {
 		vlog.Infof("Unable to remove lockfile %q: %v", path, err)
 	}
-	path = filepath.Join(dir, agentSocketName)
-	if err := os.RemoveAll(path); err != nil {
-		vlog.Infof("Unable to remove socket %q: %v", path, err)
+	if err := os.Remove(file); err != nil {
+		vlog.Infof("Unable to remove %q: %v", path, err)
 	}
 }
 
