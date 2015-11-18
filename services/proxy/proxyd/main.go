@@ -17,7 +17,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/logging"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/x/lib/cmdline"
@@ -87,18 +86,6 @@ func runProxyD(ctx *context.T, env *cmdline.Env, args []string) error {
 		go startHealthzServer(ctx, healthzAddr)
 	}
 
-	// Start an RPC Server that listens through the proxy itself. This
-	// server will serve reserved methods only.
-	var monitoringName string
-	if len(name) > 0 {
-		monitoringName = name + "-mon"
-	}
-	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: proxyEndpoint.Name()})
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, monitoringName, &nilDispatcher{})
-	if err != nil {
-		return fmt.Errorf("NewServer failed: %v", err)
-	}
-	defer server.Stop()
 	<-signals.ShutdownOnSignals(ctx)
 	return nil
 }
