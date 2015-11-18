@@ -11,7 +11,7 @@ import (
 	"regexp"
 
 	"v.io/x/lib/cmdline"
-	_ "v.io/x/ref/runtime/factories/static"
+	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var CmdRoot = &cmdline.Command{

@@ -13,7 +13,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 
-	_ "v.io/x/ref/runtime/factories/static"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/runtime/internal/rpc/stream/manager"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
