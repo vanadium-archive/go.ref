@@ -35,19 +35,19 @@ type impl struct {
 	lastHandle sdiscovery.ServiceHandle            // GUARDED_BY(mu)
 }
 
-func (s *impl) RegisterService(ctx *context.T, call rpc.ServerCall, service discovery.Service, visibility []security.BlessingPattern) (sdiscovery.ServiceHandle, error) {
+func (s *impl) RegisterService(ctx *context.T, call rpc.ServerCall, service discovery.Service, visibility []security.BlessingPattern) (sdiscovery.ServiceHandle, string, error) {
 	ctx, cancel := context.WithCancel(s.ctx)
-	done, err := s.d.Advertise(ctx, service, visibility)
+	done, err := s.d.Advertise(ctx, &service, visibility)
 	if err != nil {
 		cancel()
-		return 0, err
+		return 0, "", err
 	}
 
 	s.mu.Lock()
 	if len(s.handles) >= maxActiveHandles {
 		s.mu.Unlock()
 		cancel()
-		return 0, verror.New(errTooManyServices, ctx)
+		return 0, "", verror.New(errTooManyServices, ctx)
 	}
 	handle := s.lastHandle + 1
 	for {
@@ -64,7 +64,7 @@ func (s *impl) RegisterService(ctx *context.T, call rpc.ServerCall, service disc
 	}
 	s.lastHandle = handle
 	s.mu.Unlock()
-	return handle, nil
+	return handle, service.InstanceId, nil
 }
 
 func (s *impl) UnregisterService(ctx *context.T, call rpc.ServerCall, handle sdiscovery.ServiceHandle) error {

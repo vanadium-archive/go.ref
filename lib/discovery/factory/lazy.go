@@ -27,7 +27,7 @@ type lazyFactory struct {
 	derr error
 }
 
-func (l *lazyFactory) Advertise(ctx *context.T, service discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+func (l *lazyFactory) Advertise(ctx *context.T, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
 	l.once.Do(l.init)
 	if l.derr != nil {
 		return nil, l.derr

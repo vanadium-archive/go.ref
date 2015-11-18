@@ -22,12 +22,6 @@ func NewServiceUUID(interfaceName string) Uuid {
 	return Uuid(uuid.NewSHA1(v23UUID, []byte(interfaceName)))
 }
 
-// NewInstanceUUID returns a version 4 (random) UUID. Mostly used for
-// uniquely identifying the discovery service instance.
-func NewInstanceUUID() Uuid {
-	return Uuid(uuid.NewRandom())
-}
-
 // NewAttributeUUID returns a version 5 UUID for the given key.
 func NewAttributeUUID(key string) Uuid {
 	return Uuid(uuid.NewSHA1(v23AttrUUID, []byte(key)))

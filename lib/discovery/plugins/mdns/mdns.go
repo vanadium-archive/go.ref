@@ -75,7 +75,7 @@ func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done fun
 	serviceName := uuid.UUID(ad.ServiceUuid).String() + serviceNameSuffix
 	// We use the instance uuid as the host name so that we can get the instance uuid
 	// from the lost service instance, which has no txt records at all.
-	hostName := encodeInstanceUuid(ad.Service.InstanceUuid)
+	hostName := encodeInstanceId(ad.Service.InstanceId)
 	txt, err := createTxtRecords(&ad)
 	if err != nil {
 		done()
@@ -234,12 +234,12 @@ func createAdvertisement(service mdns.ServiceInstance) (idiscovery.Advertisement
 	if len(p) < 1 {
 		return idiscovery.Advertisement{}, fmt.Errorf("invalid service name: %s", service.Name)
 	}
-	instanceUuid, err := decodeInstanceUuid(p[0])
+	instanceId, err := decodeInstanceId(p[0])
 	if err != nil {
 		return idiscovery.Advertisement{}, fmt.Errorf("invalid host name: %v", err)
 	}
 
-	ad := idiscovery.Advertisement{Service: discovery.Service{InstanceUuid: instanceUuid}}
+	ad := idiscovery.Advertisement{Service: discovery.Service{InstanceId: instanceId}}
 	if len(service.SrvRRs) == 0 && len(service.TxtRRs) == 0 {
 		ad.Lost = true
 		return ad, nil

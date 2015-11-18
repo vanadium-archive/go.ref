@@ -98,7 +98,7 @@ func (m *queryMatcher) match(ad *Advertisement) bool {
 		return false
 	}
 
-	m.ds.addKeyValue(string(ad.Service.InstanceUuid), v)
+	m.ds.addKeyValue(ad.Service.InstanceId, v)
 	_, r, err := m.pstmt.Exec()
 	if err != nil {
 		m.ds.ctx.Error(err)

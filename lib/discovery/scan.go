@@ -92,15 +92,14 @@ func doScan(ctx *context.T, matcher matcher, scanCh <-chan Advertisement, update
 func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (updates []discovery.Update) {
 	// The multiple plugins may return the same advertisements. We ignores the update
 	// if it has been already sent through the update channel.
-	id := string(ad.Service.InstanceUuid)
-	prev := found[id]
+	prev := found[ad.Service.InstanceId]
 	if ad.Lost {
 		// TODO(jhahn): If some plugins return 'Lost' events for an advertisement update, we may
 		// generates multiple 'Lost' and 'Found' events for the same update. In order to minimize
 		// this flakiness, we may need to delay the handling of 'Lost'.
 		if prev != nil {
-			delete(found, id)
-			updates = []discovery.Update{discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.Service.InstanceUuid}}}
+			delete(found, ad.Service.InstanceId)
+			updates = []discovery.Update{discovery.UpdateLost{discovery.Lost{InstanceId: ad.Service.InstanceId}}}
 		}
 	} else {
 		// TODO(jhahn): Need to compare the proximity as well.
@@ -109,11 +108,11 @@ func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (upd
 			updates = []discovery.Update{discovery.UpdateFound{discovery.Found{Service: ad.Service}}}
 		case !reflect.DeepEqual(prev.Service, ad.Service):
 			updates = []discovery.Update{
-				discovery.UpdateLost{discovery.Lost{InstanceUuid: ad.Service.InstanceUuid}},
-				discovery.UpdateFound{discovery.Found{Service: ad.Service}},
+				discovery.UpdateLost{discovery.Lost{InstanceId: ad.Service.InstanceId}},
+				discovery.UpdateFound{discovery.Found{Service: copyService(&ad.Service)}},
 			}
 		}
-		found[id] = ad
+		found[ad.Service.InstanceId] = ad
 	}
 	return
 }

@@ -18,25 +18,25 @@ func TestQuery(t *testing.T) {
 
 	services := []discovery.Service{
 		{
-			InstanceUuid:  []byte("1"),
+			InstanceId:    "1",
 			InterfaceName: "v.io/v23/a",
 			Attrs:         discovery.Attributes{"a1": "v1", "a2": "v2"},
 			Addrs:         []string{"/h1:123/x"},
 		},
 		{
-			InstanceUuid:  []byte("2"),
+			InstanceId:    "2",
 			InterfaceName: "v.io/v23/a",
 			Attrs:         discovery.Attributes{"a1": "v2"},
 			Addrs:         []string{"/h2:123/x"},
 		},
 		{
-			InstanceUuid:  []byte("3"),
+			InstanceId:    "3",
 			InterfaceName: "v.io/v23/b",
 			Attrs:         discovery.Attributes{"a1": "v1"},
 			Addrs:         []string{"/h3:123/y"},
 		},
 		{
-			InstanceUuid:  []byte("4"),
+			InstanceId:    "4",
 			InterfaceName: "v.io/v23/b/c",
 			Addrs:         []string{"/h4:123/y"},
 		},

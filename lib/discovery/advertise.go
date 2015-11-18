@@ -5,6 +5,8 @@
 package discovery
 
 import (
+	"unicode/utf8"
+
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 	"v.io/v23/security"
@@ -13,6 +15,7 @@ import (
 
 var (
 	errAlreadyBeingAdvertised = verror.Register(pkgPath+".errAlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised")
+	errInvalidInstanceId      = verror.Register(pkgPath+".errInvalidInstanceId", verror.NoRetry, "{1:}{2:} instance id not valid")
 	errNoInterfaceName        = verror.Register(pkgPath+".errNoInterfaceName", verror.NoRetry, "{1:}{2:} interface name not provided")
 	errNotPackableAttributes  = verror.Register(pkgPath+".errNotPackableAttributes", verror.NoRetry, "{1:}{2:} attribute not packable")
 	errNoAddresses            = verror.Register(pkgPath+".errNoAddress", verror.NoRetry, "{1:}{2:} address not provided")
@@ -20,7 +23,7 @@ var (
 )
 
 // Advertise implements discovery.Advertiser.
-func (ds *ds) Advertise(ctx *context.T, service discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+func (ds *ds) Advertise(ctx *context.T, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
 	if len(service.InterfaceName) == 0 {
 		return nil, verror.New(errNoInterfaceName, ctx)
 	}
@@ -31,13 +34,19 @@ func (ds *ds) Advertise(ctx *context.T, service discovery.Service, visibility []
 		return nil, err
 	}
 
-	if len(service.InstanceUuid) == 0 {
-		service.InstanceUuid = NewInstanceUUID()
+	if len(service.InstanceId) == 0 {
+		var err error
+		if service.InstanceId, err = newInstanceId(); err != nil {
+			return nil, err
+		}
+	}
+	if !utf8.ValidString(service.InstanceId) {
+		return nil, verror.New(errInvalidInstanceId, ctx)
 	}
 
 	ad := Advertisement{
 		ServiceUuid: NewServiceUUID(service.InterfaceName),
-		Service:     service,
+		Service:     copyService(service),
 	}
 	if err := encrypt(&ad, visibility); err != nil {
 		return nil, err
@@ -48,8 +57,7 @@ func (ds *ds) Advertise(ctx *context.T, service discovery.Service, visibility []
 		return nil, err
 	}
 
-	id := string(ad.Service.InstanceUuid)
-	if !ds.addAd(id) {
+	if !ds.addAd(ad.Service.InstanceId) {
 		cancel()
 		ds.removeTask(ctx)
 		return nil, verror.New(errAlreadyBeingAdvertised, ctx)
@@ -57,7 +65,7 @@ func (ds *ds) Advertise(ctx *context.T, service discovery.Service, visibility []
 
 	done := make(chan struct{})
 	barrier := NewBarrier(func() {
-		ds.removeAd(id)
+		ds.removeAd(ad.Service.InstanceId)
 		ds.removeTask(ctx)
 		close(done)
 	})

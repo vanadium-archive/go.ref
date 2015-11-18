@@ -38,7 +38,7 @@ var ConversionTestData = []AdvertisementConversionTestCase{
 	{
 		VAdvertisement: discovery_2.Advertisement{
 			Service: discovery.Service{
-				InstanceUuid:  []byte("\x05\x92\xeb\x19l|A\xa2\xa5\xe6\x01\xa2\xb3\x96W\x1e"),
+				InstanceId:    "instance",
 				InstanceName:  "service",
 				InterfaceName: "v.io/x/ref",
 				Attrs: discovery.Attributes{
@@ -57,7 +57,7 @@ var ConversionTestData = []AdvertisementConversionTestCase{
 			},
 		},
 		BleAdvertisement: map[string][]byte{
-			"12db9a9c-1c7c-5560-bc6b-73a115c93413": []byte("\x05\x92\xeb\x19l|A\xa2\xa5\xe6\x01\xa2\xb3\x96W\x1e"),
+			"02ce37dd-7449-5a0a-b1a0-d1bc91ff16cb": []byte("instance"),
 			"4ce68e8b-173b-597e-9f93-ca453e7bb790": []byte("key1=value1"),
 			"6286d80a-adaa-519a-8a06-281a4645a607": []byte("\x01\x01k"),
 			"777f349c-d01f-5543-aa31-528e48bb53bd": []byte("key2=value2"),

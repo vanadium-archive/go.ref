@@ -20,7 +20,7 @@ type blePlugin struct {
 func (b *blePlugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func()) error {
 	b.b.addAdvertisement(newAdvertisment(ad))
 	stop := func() {
-		b.b.removeService(ad.Service.InstanceUuid)
+		b.b.removeService(ad.Service.InstanceId)
 		done()
 	}
 	b.trigger.Add(stop, ctx.Done())

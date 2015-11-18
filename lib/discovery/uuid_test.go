@@ -19,14 +19,3 @@ func TestServiceUUID(t *testing.T) {
 		}
 	}
 }
-
-func TestInstanceUUID(t *testing.T) {
-	uuids := make(map[string]struct{})
-	for x := 0; x < 100; x++ {
-		uuid := uuid.UUID(discovery.NewInstanceUUID()).String()
-		if _, ok := uuids[uuid]; ok {
-			t.Errorf("InstanceUUID returned duplicated UUID %q", uuid)
-		}
-		uuids[uuid] = struct{}{}
-	}
-}

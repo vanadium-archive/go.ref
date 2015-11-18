@@ -15,7 +15,6 @@ import (
 	"hash/fnv"
 	"log"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -33,17 +32,9 @@ const (
 var (
 	// These constants are taken from:
 	// https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicsHome.aspx
-	attrGAPUUID  = gatt.UUID16(0x1800)
-	attrGATTUUID = gatt.UUID16(0x1801)
+	attrGapUuid  = gatt.UUID16(0x1800)
+	attrGattUuid = gatt.UUID16(0x1801)
 )
-
-func newV23Service(uuid uuid.UUID, attrs map[string][]byte) *gatt.Service {
-	s := gatt.NewService(gatt.MustParseUUID(uuid.String()))
-	for k, v := range attrs {
-		s.AddCharacteristic(gatt.MustParseUUID(k)).SetValue(v)
-	}
-	return s
-}
 
 type bleCacheEntry struct {
 	id             string
@@ -59,7 +50,7 @@ type bleNeighborhood struct {
 	neighborsHashCache map[string]*bleCacheEntry
 	// key is the hex encoded ID of the device.
 	knownNeighbors map[string]*bleCacheEntry
-	// key is the hex-encoded instance id
+	// key is the instance id
 	services map[string]*gatt.Service
 	// Scanners out standing calls to Scan that need be serviced.  Each time a
 	// new device appears or disappears, the scanner is notified of the event.
@@ -137,8 +128,12 @@ func (b *bleNeighborhood) checkTTL() {
 }
 
 func (b *bleNeighborhood) addAdvertisement(adv bleAdv) {
+	gattService := gatt.NewService(gatt.MustParseUUID(adv.serviceUuid.String()))
+	for k, v := range adv.attrs {
+		gattService.AddCharacteristic(gatt.MustParseUUID(k)).SetValue(v)
+	}
 	b.mu.Lock()
-	b.services[hex.EncodeToString(adv.instanceID)] = newV23Service(adv.serviceUUID, adv.attrs)
+	b.services[string(adv.attrs[InstanceIdUuid])] = gattService
 	v := make([]*gatt.Service, len(b.services))
 	i := 0
 	for _, s := range b.services {
@@ -149,9 +144,9 @@ func (b *bleNeighborhood) addAdvertisement(adv bleAdv) {
 	b.device.SetServices(v)
 }
 
-func (b *bleNeighborhood) removeService(id []byte) {
+func (b *bleNeighborhood) removeService(id string) {
 	b.mu.Lock()
-	delete(b.services, hex.EncodeToString(id))
+	delete(b.services, id)
 	v := make([]*gatt.Service, 0, len(b.services))
 	for _, s := range b.services {
 		v = append(v, s)
@@ -302,7 +297,7 @@ func (b *bleNeighborhood) getAllServices(p gatt.Peripheral) {
 
 	services := map[string]*bleAdv{}
 	for _, s := range ss {
-		if s.UUID().Equal(attrGAPUUID) {
+		if s.UUID().Equal(attrGapUuid) {
 			continue
 		}
 
@@ -312,9 +307,15 @@ func (b *bleNeighborhood) getAllServices(p gatt.Peripheral) {
 			continue
 		}
 
-		charMap := map[string][]byte{}
+		serviceUuid, err := gattUUIDtoUUID(s.UUID())
+		if err != nil {
+			log.Printf("Failed to decode uuid: %v\n", err)
+			continue
+		}
+
+		attrs := map[string][]byte{}
 		for _, c := range cs {
-			if s.UUID().Equal(attrGATTUUID) {
+			if s.UUID().Equal(attrGattUuid) {
 				continue
 			}
 			u, err := gattUUIDtoUUID(c.UUID())
@@ -322,26 +323,16 @@ func (b *bleNeighborhood) getAllServices(p gatt.Peripheral) {
 				log.Printf("malformed uuid:%v\n", c.UUID().String())
 				continue
 			}
-			key := u.String()
 			v, err := p.ReadLongCharacteristic(c)
 			if err != nil {
-				log.Printf("Failed to read the characteristc (%s): %v\n", key, err)
+				log.Printf("Failed to read the characteristc %s: %v\n", u, err)
 				continue
-
 			}
-
-			charMap[key] = v
+			attrs[u.String()] = v
 		}
-		uid, err := gattUUIDtoUUID(s.UUID())
-		if err != nil {
-			log.Printf("Failed to decode string: %v\n", err)
-		}
-		services[uid.String()] = &bleAdv{
-			serviceUUID: uid,
-			attrs:       charMap,
-			instanceID:  charMap[strings.Replace(InstanceUUID, "-", "", -1)],
-		}
+		services[serviceUuid.String()] = &bleAdv{serviceUuid: serviceUuid, attrs: attrs}
 	}
+
 	b.saveDevice(h, p.ID(), services)
 }
 

@@ -25,19 +25,20 @@ var (
 	errInvalidLargeTxtRecord = errors.New("invalid large txt record")
 )
 
-// encodeInstanceUuid encodes the given instance uuid to a valid host name by using
+// encodeInstanceId encodes the given instance id to a valid host name by using
 // "Extended Hex Alphabet" defined in RFC 4648. This removes any padding characters.
-func encodeInstanceUuid(instanceUuid []byte) string {
-	return strings.TrimRight(base32.HexEncoding.EncodeToString(instanceUuid), "=")
+func encodeInstanceId(instanceId string) string {
+	return strings.TrimRight(base32.HexEncoding.EncodeToString([]byte(instanceId)), "=")
 }
 
-// decodeInstanceUuid decodes the given host name to an instance uuid.
-func decodeInstanceUuid(hostname string) ([]byte, error) {
+// decodeInstanceId decodes the given host name to an instance id.
+func decodeInstanceId(hostname string) (string, error) {
 	// Add padding characters if needed.
 	if p := len(hostname) % 8; p > 0 {
 		hostname += strings.Repeat("=", 8-p)
 	}
-	return base32.HexEncoding.DecodeString(hostname)
+	instanceId, err := base32.HexEncoding.DecodeString(hostname)
+	return string(instanceId), err
 }
 
 // maybeSplitLargeTXT slices txt records larger than 255 bytes into multiple txt records.

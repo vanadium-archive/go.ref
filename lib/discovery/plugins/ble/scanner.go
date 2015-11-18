@@ -30,7 +30,7 @@ func (s *scanner) handleLost(id uuid.UUID, oldAdv *bleAdv) error {
 
 	s.ch <- &discovery.Advertisement{
 		Service: vdiscovery.Service{
-			InstanceUuid: oldAdv.instanceID,
+			InstanceId: string(oldAdv.attrs[InstanceIdUuid]),
 		},
 		Lost: true,
 	}
