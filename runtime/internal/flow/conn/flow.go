@@ -204,6 +204,10 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		return 0, io.EOF
 	default:
 	}
+	totalSize := 0
+	for _, p := range parts {
+		totalSize += len(p)
+	}
 	size, sent, tosend := 0, 0, make([][]byte, len(parts))
 	f.conn.mu.Lock()
 	f.markUsedLocked()
@@ -227,9 +231,12 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		}
 		opened := f.opened
 		tokens, deduct := f.tokensLocked()
-		if tokens == 0 {
+		if tokens == 0 || f.noEncrypt && tokens < totalSize {
 			// Oops, we really don't have data to send, probably because we've exhausted
 			// the remote buffer.  deactivate ourselves but keep trying.
+			// Note that if f.noEncrypt is set we're actually acting as a conn
+			// for higher level flows.  In this case we don't want to fragment the writes
+			// of the higher level flows, we want to transmit their messages whole.
 			f.ctx.VI(2).Infof("Deactivating write on flow %d(%p) due to lack of tokens", f.id, f)
 			f.conn.deactivateWriterLocked(f)
 			continue
