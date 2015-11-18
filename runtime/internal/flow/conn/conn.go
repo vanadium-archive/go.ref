@@ -646,7 +646,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			c.mu.Lock()
 			c.releaseOutstandingBorrowedLocked(msg.ID, math.MaxUint64)
 			c.mu.Unlock()
-			ctx.Infof("Ignoring data message for unknown flow on connection to %s: %d",
+			ctx.VI(2).Infof("Ignoring data message for unknown flow on connection to %s: %d",
 				c.remote, msg.ID)
 			return nil
 		}
