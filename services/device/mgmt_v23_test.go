@@ -271,7 +271,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		break
 	}
 	// Claim the device as "root/u/alice/myworkstation".
-	claimDeviceBin.Start("claim", claimableEP, "myworkstation")
+	claimDeviceBin.Start("claim", claimableEP, "myworkstation").WaitOrDie(os.Stdout, os.Stderr)
 
 	resolve := func(name string) string {
 		resolver := func() (interface{}, error) {
@@ -296,8 +296,8 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	if withSuid {
 		adminDeviceBin.Run("associate", "add", mtName+"/devmgr/device", appUser, "root/u/alice")
 
-		aai := adminDeviceBin.Start("associate", "list", mtName+"/devmgr/device")
-		if got, expected := strings.Trim(aai.Output(), "\n "), "root/u/alice "+appUser; got != expected {
+		associations := adminDeviceBin.Run("associate", "list", mtName+"/devmgr/device")
+		if got, expected := strings.Trim(associations, "\n "), "root/u/alice "+appUser; got != expected {
 			i.Fatalf("association test, got %v, expected %v", got, expected)
 		}
 	}
@@ -307,11 +307,12 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	ownerBlessing := "root/r/admin/myworkstation"
 	inv := debugBin.Start("stats", "read", mtName+"/devmgr/__debug/stats/security/principal/*/blessingstore/*")
 	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+" + mfrBlessing + "," + ownerBlessing)
+	inv.WaitOrDie(nil, os.Stderr)
 
 	// Get the device's profile, which should be set to non-empty string
 	inv = adminDeviceBin.Start("describe", mtName+"/devmgr/device")
-
 	parts := inv.ExpectRE(`{Profiles:map\[(.*):{}\]}`, 1)
+	inv.WaitOrDie(nil, os.Stderr)
 	expectOneMatch := func(parts [][]string) string {
 		if len(parts) != 1 || len(parts[0]) != 2 {
 			loc := v23tests.Caller(1)
@@ -365,6 +366,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	// Verify that the envelope we uploaded shows up with glob.
 	inv = applicationBin.Start("match", sampleAppName, deviceProfile)
 	parts = inv.ExpectSetEventuallyRE(`"Title": "(.*)",`, `"File": "(.*)",`)
+	inv.WaitOrDie(os.Stdout, os.Stderr)
 	if got, want := len(parts), 2; got != want {
 		i.Fatalf("got %d, want %d", got, want)
 	}
@@ -383,6 +385,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	// Install the app on the device.
 	inv = deviceBin.Start("install", mtName+"/devmgr/apps", sampleAppName)
 	installationName := inv.ReadLine()
+	inv.WaitOrDie(os.Stdout, os.Stderr)
 	if installationName == "" {
 		i.Fatalf("got empty installation name from install")
 	}
@@ -396,10 +399,11 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	// Start an instance of the app, granting it blessing extension myapp.
 	inv = deviceBin.Start("instantiate", installationName, "myapp")
 	instanceName := inv.ReadLine()
+	inv.WaitOrDie(os.Stdout, os.Stderr)
 	if instanceName == "" {
 		i.Fatalf("got empty instance name from new")
 	}
-	deviceBin.Start("run", instanceName)
+	deviceBin.Start("run", instanceName).WaitOrDie(os.Stdout, os.Stderr)
 
 	resolve(mtName + "/" + appPubName)
 
@@ -411,6 +415,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	inv = debugBin.Start("stats", "read", instanceName+"/stats/system/pid")
 	pid := inv.ExpectRE("[0-9]+$", 1)[0][0]
+	inv.WaitOrDie(nil, os.Stderr)
 	uname, err := getUserForPid(i, pid)
 	if err != nil {
 		i.Errorf("getUserForPid could not determine the user running pid %v", pid)
@@ -425,6 +430,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	appBlessing := mfrBlessing + "/a/" + pubBlessing + "," + ownerBlessing + "/a/" + pubBlessing
 	inv = debugBin.Start("stats", "read", instanceName+"/stats/security/principal/*/blessingstore/*")
 	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+"+userBlessing+"$", "[.][.][.][ ]+"+userBlessing+","+appBlessing)
+	inv.WaitOrDie(nil, os.Stderr)
 
 	// Kill and delete the instance.
 	deviceBin.Run("kill", instanceName)
@@ -569,7 +575,7 @@ var re = regexp.MustCompile("[ \t]+")
 
 // getUserForPid determines the username running process pid.
 func getUserForPid(i *v23tests.T, pid string) (string, error) {
-	pidString := i.BinaryFromPath("/bin/ps").Start(psFlags).Output()
+	pidString := i.BinaryFromPath("/bin/ps").Run(psFlags)
 	for _, line := range strings.Split(pidString, "\n") {
 		fields := re.Split(line, -1)
 		if len(fields) > 1 && pid == fields[1] {
