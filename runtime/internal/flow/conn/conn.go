@@ -37,9 +37,12 @@ const (
 	numPriorities
 )
 
-const mtu = 1 << 16
-const defaultChannelTimeout = 30 * time.Minute
-const DefaultBytesBufferedPerFlow = 1 << 20
+const (
+	mtu                         = 1 << 16
+	defaultChannelTimeout       = 30 * time.Minute
+	DefaultBytesBufferedPerFlow = 1 << 20
+	proxyOverhead               = 32
+)
 
 // FlowHandlers process accepted flows.
 type FlowHandler interface {

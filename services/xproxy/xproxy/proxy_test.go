@@ -6,6 +6,7 @@ package xproxy_test
 
 import (
 	"bufio"
+	"crypto/rand"
 	"fmt"
 	"strings"
 	"sync"
@@ -33,10 +34,56 @@ const (
 	bidiProtocol = "bidi"
 )
 
+var randData []byte
+
+func init() {
+	randData = make([]byte, 1<<17)
+	if _, err := rand.Read(randData); err != nil {
+		panic("Could not read random data.")
+	}
+}
+
 type testService struct{}
 
 func (t *testService) Echo(ctx *context.T, call rpc.ServerCall, arg string) (string, error) {
 	return "response:" + arg, nil
+}
+
+func TestBigProxyRPC(t *testing.T) {
+	if ref.RPCTransitionState() != ref.XServers {
+		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
+	}
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	// Start the proxy.
+	pname, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"tcp", "127.0.0.1:0"})
+	defer stop()
+	// Start the server listening through the proxy.
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: pname})
+	sctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	_, server, err := v23.WithNewServer(sctx, "", &testService{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var name string
+	for {
+		status := server.Status()
+		if status.Endpoints[0].Addr().Network() != bidiProtocol {
+			name = status.Endpoints[0].Name()
+			break
+		}
+		<-status.Valid
+	}
+	var got string
+	if err := v23.GetClient(ctx).Call(ctx, name, "Echo", []interface{}{string(randData)}, []interface{}{&got}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "response:" + string(randData); got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
 }
 
 func TestProxyRPC(t *testing.T) {

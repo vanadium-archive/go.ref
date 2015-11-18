@@ -54,3 +54,13 @@ func TestFramer(t *testing.T) {
 		t.Errorf("got %v, %v, want %v, nil", got, err, want)
 	}
 }
+
+func Test3ByteUint(t *testing.T) {
+	b := make([]byte, 3)
+	if err := write3ByteUint(b, 65555); err != nil {
+		t.Error(err)
+	}
+	if got := read3ByteUint(b); got != 65555 {
+		t.Errorf("got %v, want %v", got, 65555)
+	}
+}
