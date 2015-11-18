@@ -23,8 +23,8 @@ import (
 // StoreClientMethods is the client interface
 // containing Store methods.
 type StoreClientMethods interface {
-	Get(ctx *context.T, key string, opts ...rpc.CallOpt) (string, error)
-	Set(ctx *context.T, key string, value string, opts ...rpc.CallOpt) error
+	Get(_ *context.T, key string, _ ...rpc.CallOpt) (string, error)
+	Set(_ *context.T, key string, value string, _ ...rpc.CallOpt) error
 }
 
 // StoreClientStub adds universal methods to StoreClientMethods.
@@ -55,8 +55,8 @@ func (c implStoreClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...r
 // StoreServerMethods is the interface a server writer
 // implements for Store.
 type StoreServerMethods interface {
-	Get(ctx *context.T, call rpc.ServerCall, key string) (string, error)
-	Set(ctx *context.T, call rpc.ServerCall, key string, value string) error
+	Get(_ *context.T, _ rpc.ServerCall, key string) (string, error)
+	Set(_ *context.T, _ rpc.ServerCall, key string, value string) error
 }
 
 // StoreServerStubMethods is the server interface containing

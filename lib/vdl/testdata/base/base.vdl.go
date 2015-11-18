@@ -623,9 +623,9 @@ func newErrNotExported(ctx *context.T, x string, y int32) error {
 // containing ServiceA methods.
 type ServiceAClientMethods interface {
 	MethodA1(*context.T, ...rpc.CallOpt) error
-	MethodA2(ctx *context.T, a int32, b string, opts ...rpc.CallOpt) (s string, err error)
-	MethodA3(ctx *context.T, a int32, opts ...rpc.CallOpt) (ServiceAMethodA3ClientCall, error)
-	MethodA4(ctx *context.T, a int32, opts ...rpc.CallOpt) (ServiceAMethodA4ClientCall, error)
+	MethodA2(_ *context.T, a int32, b string, _ ...rpc.CallOpt) (s string, _ error)
+	MethodA3(_ *context.T, a int32, _ ...rpc.CallOpt) (ServiceAMethodA3ClientCall, error)
+	MethodA4(_ *context.T, a int32, _ ...rpc.CallOpt) (ServiceAMethodA4ClientCall, error)
 }
 
 // ServiceAClientStub adds universal methods to ServiceAClientMethods.
@@ -700,7 +700,7 @@ type ServiceAMethodA3ClientCall interface {
 	// Calling Finish is mandatory for releasing stream resources, unless the call
 	// has been canceled or any of the other methods return an error.  Finish should
 	// be called at most once.
-	Finish() (s string, err error)
+	Finish() (s string, _ error)
 }
 
 type implServiceAMethodA3ClientCall struct {
@@ -846,9 +846,9 @@ func (c *implServiceAMethodA4ClientCall) Finish() (err error) {
 // implements for ServiceA.
 type ServiceAServerMethods interface {
 	MethodA1(*context.T, rpc.ServerCall) error
-	MethodA2(ctx *context.T, call rpc.ServerCall, a int32, b string) (s string, err error)
-	MethodA3(ctx *context.T, call ServiceAMethodA3ServerCall, a int32) (s string, err error)
-	MethodA4(ctx *context.T, call ServiceAMethodA4ServerCall, a int32) error
+	MethodA2(_ *context.T, _ rpc.ServerCall, a int32, b string) (s string, _ error)
+	MethodA3(_ *context.T, _ ServiceAMethodA3ServerCall, a int32) (s string, _ error)
+	MethodA4(_ *context.T, _ ServiceAMethodA4ServerCall, a int32) error
 }
 
 // ServiceAServerStubMethods is the server interface containing
@@ -857,9 +857,9 @@ type ServiceAServerMethods interface {
 // is the streaming methods.
 type ServiceAServerStubMethods interface {
 	MethodA1(*context.T, rpc.ServerCall) error
-	MethodA2(ctx *context.T, call rpc.ServerCall, a int32, b string) (s string, err error)
-	MethodA3(ctx *context.T, call *ServiceAMethodA3ServerCallStub, a int32) (s string, err error)
-	MethodA4(ctx *context.T, call *ServiceAMethodA4ServerCallStub, a int32) error
+	MethodA2(_ *context.T, _ rpc.ServerCall, a int32, b string) (s string, _ error)
+	MethodA3(_ *context.T, _ *ServiceAMethodA3ServerCallStub, a int32) (s string, _ error)
+	MethodA4(_ *context.T, _ *ServiceAMethodA4ServerCallStub, a int32) error
 }
 
 // ServiceAServerStub adds universal methods to ServiceAServerStubMethods.
@@ -1086,7 +1086,7 @@ func (s implServiceAMethodA4ServerCallSend) Send(item string) error {
 // containing ServiceB methods.
 type ServiceBClientMethods interface {
 	ServiceAClientMethods
-	MethodB1(ctx *context.T, a Scalars, b Composites, opts ...rpc.CallOpt) (c CompComp, err error)
+	MethodB1(_ *context.T, a Scalars, b Composites, _ ...rpc.CallOpt) (c CompComp, _ error)
 }
 
 // ServiceBClientStub adds universal methods to ServiceBClientMethods.
@@ -1115,7 +1115,7 @@ func (c implServiceBClientStub) MethodB1(ctx *context.T, i0 Scalars, i1 Composit
 // implements for ServiceB.
 type ServiceBServerMethods interface {
 	ServiceAServerMethods
-	MethodB1(ctx *context.T, call rpc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
+	MethodB1(_ *context.T, _ rpc.ServerCall, a Scalars, b Composites) (c CompComp, _ error)
 }
 
 // ServiceBServerStubMethods is the server interface containing
@@ -1124,7 +1124,7 @@ type ServiceBServerMethods interface {
 // is the streaming methods.
 type ServiceBServerStubMethods interface {
 	ServiceAServerStubMethods
-	MethodB1(ctx *context.T, call rpc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
+	MethodB1(_ *context.T, _ rpc.ServerCall, a Scalars, b Composites) (c CompComp, _ error)
 }
 
 // ServiceBServerStub adds universal methods to ServiceBServerStubMethods.

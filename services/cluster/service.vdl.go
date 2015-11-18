@@ -28,7 +28,7 @@ type ClusterAgentClientMethods interface {
 	// TODO(rthellend): Consider adding other side-channel authorization
 	// mechanisms, e.g. verify that the IP address of the client belongs to
 	// an authorized user.
-	SeekBlessings(ctx *context.T, secret string, opts ...rpc.CallOpt) (security.Blessings, error)
+	SeekBlessings(_ *context.T, secret string, _ ...rpc.CallOpt) (security.Blessings, error)
 }
 
 // ClusterAgentClientStub adds universal methods to ClusterAgentClientMethods.
@@ -60,7 +60,7 @@ type ClusterAgentServerMethods interface {
 	// TODO(rthellend): Consider adding other side-channel authorization
 	// mechanisms, e.g. verify that the IP address of the client belongs to
 	// an authorized user.
-	SeekBlessings(ctx *context.T, call rpc.ServerCall, secret string) (security.Blessings, error)
+	SeekBlessings(_ *context.T, _ rpc.ServerCall, secret string) (security.Blessings, error)
 }
 
 // ClusterAgentServerStubMethods is the server interface containing
@@ -138,9 +138,9 @@ type ClusterAgentAdminClientMethods interface {
 	// Creates a new "secret" that can be used to retrieve extensions
 	// of the blessings granted on this RPC, e.g. with the rpc.Granter
 	// ClientCallOpt in Go.
-	NewSecret(*context.T, ...rpc.CallOpt) (secret string, err error)
+	NewSecret(*context.T, ...rpc.CallOpt) (secret string, _ error)
 	// Forgets a secret and its associated blessings.
-	ForgetSecret(ctx *context.T, secret string, opts ...rpc.CallOpt) error
+	ForgetSecret(_ *context.T, secret string, _ ...rpc.CallOpt) error
 }
 
 // ClusterAgentAdminClientStub adds universal methods to ClusterAgentAdminClientMethods.
@@ -177,9 +177,9 @@ type ClusterAgentAdminServerMethods interface {
 	// Creates a new "secret" that can be used to retrieve extensions
 	// of the blessings granted on this RPC, e.g. with the rpc.Granter
 	// ClientCallOpt in Go.
-	NewSecret(*context.T, rpc.ServerCall) (secret string, err error)
+	NewSecret(*context.T, rpc.ServerCall) (secret string, _ error)
 	// Forgets a secret and its associated blessings.
-	ForgetSecret(ctx *context.T, call rpc.ServerCall, secret string) error
+	ForgetSecret(_ *context.T, _ rpc.ServerCall, secret string) error
 }
 
 // ClusterAgentAdminServerStubMethods is the server interface containing

@@ -21,7 +21,7 @@ type CollectionClientMethods interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(ctx *context.T, Val string, Overwrite bool, opts ...rpc.CallOpt) error
+	Export(_ *context.T, Val string, Overwrite bool, _ ...rpc.CallOpt) error
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
 	Lookup(*context.T, ...rpc.CallOpt) ([]byte, error)
@@ -59,7 +59,7 @@ type CollectionServerMethods interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(ctx *context.T, call rpc.ServerCall, Val string, Overwrite bool) error
+	Export(_ *context.T, _ rpc.ServerCall, Val string, Overwrite bool) error
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
 	Lookup(*context.T, rpc.ServerCall) ([]byte, error)

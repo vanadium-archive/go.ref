@@ -21,11 +21,11 @@ import (
 // Fortune is the interface to a fortune-telling service.
 type FortuneClientMethods interface {
 	// Returns a random fortune.
-	Get(*context.T, ...rpc.CallOpt) (fortune string, err error)
+	Get(*context.T, ...rpc.CallOpt) (fortune string, _ error)
 	// Adds a fortune to the set used by Get().
-	Add(ctx *context.T, fortune string, opts ...rpc.CallOpt) error
+	Add(_ *context.T, fortune string, _ ...rpc.CallOpt) error
 	// Returns whether or not a fortune exists.
-	Has(ctx *context.T, fortune string, opts ...rpc.CallOpt) (bool, error)
+	Has(_ *context.T, fortune string, _ ...rpc.CallOpt) (bool, error)
 }
 
 // FortuneClientStub adds universal methods to FortuneClientMethods.
@@ -64,11 +64,11 @@ func (c implFortuneClientStub) Has(ctx *context.T, i0 string, opts ...rpc.CallOp
 // Fortune is the interface to a fortune-telling service.
 type FortuneServerMethods interface {
 	// Returns a random fortune.
-	Get(*context.T, rpc.ServerCall) (fortune string, err error)
+	Get(*context.T, rpc.ServerCall) (fortune string, _ error)
 	// Adds a fortune to the set used by Get().
-	Add(ctx *context.T, call rpc.ServerCall, fortune string) error
+	Add(_ *context.T, _ rpc.ServerCall, fortune string) error
 	// Returns whether or not a fortune exists.
-	Has(ctx *context.T, call rpc.ServerCall, fortune string) (bool, error)
+	Has(_ *context.T, _ rpc.ServerCall, fortune string) (bool, error)
 }
 
 // FortuneServerStubMethods is the server interface containing

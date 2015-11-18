@@ -19,7 +19,7 @@ import (
 //
 // Simple service used in the agent tests.
 type PingPongClientMethods interface {
-	Ping(ctx *context.T, message string, opts ...rpc.CallOpt) (string, error)
+	Ping(_ *context.T, message string, _ ...rpc.CallOpt) (string, error)
 }
 
 // PingPongClientStub adds universal methods to PingPongClientMethods.
@@ -47,7 +47,7 @@ func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...rpc.Call
 //
 // Simple service used in the agent tests.
 type PingPongServerMethods interface {
-	Ping(ctx *context.T, call rpc.ServerCall, message string) (string, error)
+	Ping(_ *context.T, _ rpc.ServerCall, message string) (string, error)
 }
 
 // PingPongServerStubMethods is the server interface containing

@@ -158,13 +158,13 @@ type TunnelClientMethods interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(ctx *context.T, network string, address string, opts ...rpc.CallOpt) (TunnelForwardClientCall, error)
+	Forward(_ *context.T, network string, address string, _ ...rpc.CallOpt) (TunnelForwardClientCall, error)
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(ctx *context.T, command string, shellOpts ShellOpts, opts ...rpc.CallOpt) (TunnelShellClientCall, error)
+	Shell(_ *context.T, command string, shellOpts ShellOpts, _ ...rpc.CallOpt) (TunnelShellClientCall, error)
 }
 
 // TunnelClientStub adds universal methods to TunnelClientMethods.
@@ -411,13 +411,13 @@ type TunnelServerMethods interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(ctx *context.T, call TunnelForwardServerCall, network string, address string) error
+	Forward(_ *context.T, _ TunnelForwardServerCall, network string, address string) error
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(ctx *context.T, call TunnelShellServerCall, command string, shellOpts ShellOpts) (int32, error)
+	Shell(_ *context.T, _ TunnelShellServerCall, command string, shellOpts ShellOpts) (int32, error)
 }
 
 // TunnelServerStubMethods is the server interface containing
@@ -429,13 +429,13 @@ type TunnelServerStubMethods interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(ctx *context.T, call *TunnelForwardServerCallStub, network string, address string) error
+	Forward(_ *context.T, _ *TunnelForwardServerCallStub, network string, address string) error
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(ctx *context.T, call *TunnelShellServerCallStub, command string, shellOpts ShellOpts) (int32, error)
+	Shell(_ *context.T, _ *TunnelShellServerCallStub, command string, shellOpts ShellOpts) (int32, error)
 }
 
 // TunnelServerStub adds universal methods to TunnelServerStubMethods.
