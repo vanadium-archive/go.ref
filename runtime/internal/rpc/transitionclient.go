@@ -35,7 +35,7 @@ func NewTransitionClient(ctx *context.T, streamMgr stream.Manager, ns namespace.
 	rootCtx, rootCancel := context.WithRootCancel(ctx)
 	tc := &transitionClient{
 		xc:     NewXClient(rootCtx, ns, opts...),
-		c:      DeprecatedNewClient(streamMgr, ns, opts...),
+		c:      DeprecatedNewClient(rootCtx, streamMgr, ns, opts...),
 		ctx:    rootCtx,
 		cancel: rootCancel,
 	}
@@ -67,7 +67,9 @@ func (t *transitionClient) Call(ctx *context.T, name, method string, in, out []i
 func (t *transitionClient) Close() {
 	t.c.Close()
 	t.xc.Close()
-	t.cancel()
+	if t.cancel != nil {
+		t.cancel()
+	}
 }
 
 func (t *transitionClient) Closed() <-chan struct{} {

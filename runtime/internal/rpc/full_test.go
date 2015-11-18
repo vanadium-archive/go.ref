@@ -72,7 +72,7 @@ func (c *fakeClock) Advance(steps uint) {
 }
 
 func testInternalNewServerWithPubsub(ctx *context.T, streamMgr stream.Manager, ns namespace.T, settingsPublisher *pubsub.Publisher, settingsStreamName string, opts ...rpc.ServerOpt) (DeprecatedServer, error) {
-	client := DeprecatedNewClient(streamMgr, ns)
+	client := DeprecatedNewClient(ctx, streamMgr, ns)
 	return DeprecatedNewServer(ctx, streamMgr, ns, settingsPublisher, settingsStreamName, client, opts...)
 }
 
@@ -365,7 +365,7 @@ func createBundleWS(t *testing.T, ctx *context.T, server security.Principal, ts 
 	if server != nil {
 		b.ep, b.server = startServerWS(t, ctx, server, b.sm, b.ns, b.name, testServerDisp{ts}, shouldUseWebsocket)
 	}
-	b.client = DeprecatedNewClient(b.sm, b.ns)
+	b.client = DeprecatedNewClient(ctx, b.sm, b.ns)
 	return
 }
 
@@ -498,7 +498,7 @@ func TestSecurityNone(t *testing.T) {
 	if err := server.ServeDispatcher("mp/server", disp); err != nil {
 		t.Fatalf("server.Serve failed: %v", err)
 	}
-	client := DeprecatedNewClient(sm, ns)
+	client := DeprecatedNewClient(ctx, sm, ns)
 	// When using SecurityNone, all authorization checks should be skipped, so
 	// unauthorized methods should be callable.
 	var got string
@@ -530,7 +530,7 @@ func TestAddNameLater(t *testing.T) {
 	if err := server.AddName("mp/server"); err != nil {
 		t.Fatalf("server.AddName failed: %v", err)
 	}
-	client := DeprecatedNewClient(sm, ns)
+	client := DeprecatedNewClient(ctx, sm, ns)
 	var got string
 	if err := client.Call(ctx, "mp/server", "Unauthorized", nil, []interface{}{&got}, options.SecurityNone); err != nil {
 		t.Fatalf("client.Call failed: %v", err)
@@ -558,7 +558,7 @@ func TestNoPrincipal(t *testing.T) {
 	if err := server.ServeDispatcher("mp/server", disp); err != nil {
 		t.Fatalf("server.Serve failed: %v", err)
 	}
-	client := DeprecatedNewClient(sm, ns)
+	client := DeprecatedNewClient(ctx, sm, ns)
 
 	// A call should fail if the principal in the ctx is nil and SecurityNone is not specified.
 	ctx, err = v23.WithPrincipal(ctx, nil)
@@ -615,7 +615,7 @@ func TestNoDischargesOpt(t *testing.T) {
 		}
 		smc := imanager.InternalNew(ctx, rid)
 		defer smc.Shutdown()
-		client := DeprecatedNewClient(smc, ns)
+		client := DeprecatedNewClient(ctx, smc, ns)
 		defer client.Close()
 		var opts []rpc.CallOpt
 		if noDischarges {
@@ -677,7 +677,7 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	}
 	sm := imanager.InternalNew(ctx, rid)
 
-	c := DeprecatedNewClient(sm, ns)
+	c := DeprecatedNewClient(ctx, sm, ns)
 	dc := c.(*client).dc
 	tpcav2, err := security.NewPublicKeyCaveat(pdischarger2.PublicKey(), "mountpoint/discharger2", security.ThirdPartyRequirements{}, mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
 	if err != nil {
@@ -724,7 +724,7 @@ func TestBlessingsCache(t *testing.T) {
 		}
 		smc := imanager.InternalNew(sctx, rid)
 		defer smc.Shutdown()
-		return DeprecatedNewClient(smc, ns)
+		return DeprecatedNewClient(ctx, smc, ns)
 	}
 
 	runClient := func(client rpc.Client) {
@@ -799,7 +799,7 @@ func TestServerAuthorizerOpt(t *testing.T) {
 	defer runServer(t, sctx, ns, mountName, &testServer{}).Shutdown()
 
 	smc := imanager.InternalNew(sctx, naming.FixedRoutingID(0xc))
-	client := DeprecatedNewClient(smc, ns)
+	client := DeprecatedNewClient(ctx, smc, ns)
 	defer smc.Shutdown()
 	defer client.Close()
 
@@ -867,7 +867,7 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 	}
 	smc := imanager.InternalNew(ctx, rid)
 	defer smc.Shutdown()
-	client := DeprecatedNewClient(smc, ns)
+	client := DeprecatedNewClient(ctx, smc, ns)
 	defer client.Close()
 
 	dc := InternalNewDischargeClient(ctx, client, 0)
