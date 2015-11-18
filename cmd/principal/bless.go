@@ -18,14 +18,21 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/identity"
 )
 
-func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (security.Blessings, error) {
-	service, macaroon, serviceKey, err := prepareBlessArgs(ctx, macaroonChan)
+type formResult struct {
+	macaroon    string
+	objectNames []string
+	rootKey     string
+}
+
+func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan formResult) (security.Blessings, error) {
+	objectNames, macaroon, serviceKey, err := prepareBlessArgs(ctx, macaroonChan)
 	if err != nil {
 		return security.Blessings{}, err
 	}
@@ -33,38 +40,60 @@ func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (se
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
+	me := &naming.MountEntry{}
+	for _, n := range objectNames {
+		var server string
+		// me.Name is the suffix part of the address and should be the
+		// same for all object names.
+		server, me.Name = naming.SplitAddressName(n)
+		me.Servers = append(me.Servers, naming.MountedServer{Server: server})
+	}
+
 	// Authorize the server by its public key (obtained from macaroonChan).
-	// Must skip authorization during name resolution because the blessings
-	// of the nameservers or of the end identity server are not rooted at
-	// recognized keys yet.
-	blessings, err := identity.MacaroonBlesserClient(service).Bless(
+	//
+	// objectNames is either:
+	// - a list of pre-resolved names, or
+	// - a single unresolved object name. (DEPRECATED)
+	//
+	// First we try the pre-resolved names. If the call fails, we try the
+	// unresolved name, in which case, we must skip authorization during
+	// name resolution because the blessings of the nameservers are not
+	// rooted at recognized keys yet.
+	blessings, err := identity.MacaroonBlesserClient("").Bless(
 		ctx,
 		macaroon,
 		options.ServerAuthorizer{security.PublicKeyAuthorizer(serviceKey)},
-		options.NameResolutionAuthorizer{security.AllowEveryone()})
+		options.Preresolved{me})
+	if err != nil && len(objectNames) == 1 {
+		// For backward compatibility, try to resolve the service name.
+		blessings, err = identity.MacaroonBlesserClient(objectNames[0]).Bless(
+			ctx,
+			macaroon,
+			options.ServerAuthorizer{security.PublicKeyAuthorizer(serviceKey)},
+			options.NameResolutionAuthorizer{security.AllowEveryone()})
+	}
 	if err != nil {
-		return security.Blessings{}, fmt.Errorf("failed to get blessing from %q: %v", service, err)
+		return blessings, fmt.Errorf("failed to get blessing from %q: %v", objectNames, err)
 	}
 	return blessings, nil
 }
 
-func prepareBlessArgs(ctx *context.T, macaroonChan <-chan string) (service, macaroon string, root security.PublicKey, err error) {
-	macaroon = <-macaroonChan
-	service = <-macaroonChan
+func prepareBlessArgs(ctx *context.T, macaroonChan <-chan formResult) (service []string, macaroon string, root security.PublicKey, err error) {
+	result := <-macaroonChan
 
-	marshalKey, err := base64.URLEncoding.DecodeString(<-macaroonChan)
+	marshalKey, err := base64.URLEncoding.DecodeString(result.rootKey)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to decode root key: %v", err)
+		return nil, "", nil, fmt.Errorf("failed to decode root key: %v", err)
 	}
 	root, err = security.UnmarshalPublicKey(marshalKey)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to unmarshal root key: %v", err)
+		return nil, "", nil, fmt.Errorf("failed to unmarshal root key: %v", err)
 	}
 
-	return service, macaroon, root, nil
+	return result.objectNames, result.macaroon, root, nil
 }
 
-func getMacaroonForBlessRPC(key security.PublicKey, blessServerURL string, blessedChan <-chan string, browser bool) (<-chan string, error) {
+func getMacaroonForBlessRPC(key security.PublicKey, blessServerURL string, blessedChan <-chan string, browser bool) (<-chan formResult, error) {
 	// Setup a HTTP server to recieve a blessing macaroon from the identity server.
 	// Steps:
 	// 1. Generate a state token to be included in the HTTP request
@@ -84,7 +113,7 @@ func getMacaroonForBlessRPC(key security.PublicKey, blessServerURL string, bless
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup authorization code interception server: %v", err)
 	}
-	result := make(chan string)
+	result := make(chan formResult)
 
 	redirectURL := fmt.Sprintf("http://%s/macaroon", ln.Addr())
 	http.HandleFunc("/macaroon", func(w http.ResponseWriter, r *http.Request) {
@@ -122,9 +151,12 @@ func getMacaroonForBlessRPC(key security.PublicKey, blessServerURL string, bless
 			}
 			return
 		}
-		result <- r.FormValue("macaroon")
-		result <- r.FormValue("object_name")
-		result <- r.FormValue("root_key")
+		result <- formResult{
+			macaroon:    r.FormValue("macaroon"),
+			objectNames: r.Form["object_name"],
+			rootKey:     r.FormValue("root_key"),
+		}
+
 		blessed, ok := <-blessedChan
 		if !ok {
 			tmplArgs.ErrShort = "No blessings received"

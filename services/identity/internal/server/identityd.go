@@ -153,16 +153,23 @@ func (s *IdentityServer) Listen(ctx *context.T, externalHttpAddr, httpAddr, tlsC
 
 	n := "/auth/google/"
 	args := oauth.HandlerArgs{
-		Principal:               principal,
-		MacaroonKey:             macaroonKey,
-		Addr:                    fmt.Sprintf("%s%s", externalHttpAddr, n),
-		BlessingLogReader:       s.blessingLogReader,
-		RevocationManager:       s.revocationManager,
-		DischargerLocation:      naming.JoinAddressName(published[0], dischargerService),
-		MacaroonBlessingService: naming.JoinAddressName(published[0], macaroonService),
-		OAuthProvider:           s.oauthProvider,
-		CaveatSelector:          s.caveatSelector,
-		AssetsPrefix:            s.assetsPrefix,
+		Principal:          principal,
+		MacaroonKey:        macaroonKey,
+		Addr:               fmt.Sprintf("%s%s", externalHttpAddr, n),
+		BlessingLogReader:  s.blessingLogReader,
+		RevocationManager:  s.revocationManager,
+		DischargerLocation: naming.JoinAddressName(published[0], dischargerService),
+		MacaroonBlessingService: func() []string {
+			status := rpcServer.Status()
+			names := make([]string, len(status.Endpoints))
+			for i, e := range status.Endpoints {
+				names[i] = naming.JoinAddressName(e.Name(), macaroonService)
+			}
+			return names
+		},
+		OAuthProvider:  s.oauthProvider,
+		CaveatSelector: s.caveatSelector,
+		AssetsPrefix:   s.assetsPrefix,
 	}
 	if s.revocationManager != nil {
 		args.DischargeServers = appendSuffixTo(published, dischargerService)

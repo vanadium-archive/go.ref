@@ -72,9 +72,9 @@ type HandlerArgs struct {
 	RevocationManager revocation.RevocationManager
 	// The object name of the discharger service.
 	DischargerLocation string
-	// MacaroonBlessingService is the object name to which macaroons create by this HTTP
-	// handler can be exchanged for a blessing.
-	MacaroonBlessingService string
+	// MacaroonBlessingService is a function that returns the object names to which macaroons
+	// created by this HTTP handler can be exchanged for a blessing.
+	MacaroonBlessingService func() []string
 	// OAuthProvider is used to authenticate and get a blessee email.
 	OAuthProvider OAuthProvider
 	// CaveatSelector is used to obtain caveats from the user when seeking a blessing.
@@ -455,10 +455,17 @@ func (h *handler) sendMacaroon(ctx *context.T, w http.ResponseWriter, r *http.Re
 		return
 	}
 	encKey := base64.URLEncoding.EncodeToString(marshalKey)
+	objectNames := h.args.MacaroonBlessingService()
+	if len(objectNames) == 0 {
+		h.sendErrorToTool(ctx, w, r, inputMacaroon.ToolState, baseURL, fmt.Errorf("failed to get local server endpoints"))
+		return
+	}
 	params := url.Values{}
 	params.Add("macaroon", string(util.NewMacaroon(h.args.MacaroonKey, macBytes)))
 	params.Add("state", inputMacaroon.ToolState)
-	params.Add("object_name", h.args.MacaroonBlessingService)
+	for _, s := range objectNames {
+		params.Add("object_name", s)
+	}
 	params.Add("root_key", encKey)
 	baseURL.RawQuery = params.Encode()
 	http.Redirect(w, r, baseURL.String(), http.StatusFound)
