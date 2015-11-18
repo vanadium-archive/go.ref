@@ -140,6 +140,13 @@ func (f *flw) Write(p []byte) (n int, err error) {
 // dialed flow.
 func (f *flw) tokensLocked() (int, func(int)) {
 	max := uint64(mtu)
+	// When	our flow is proxied (i.e. encapsulated), the proxy has added overhead
+	// when forwarding the message. This means we must reduce our mtu to ensure
+	// that dialer framing reaches the acceptor without being truncated by the
+	// proxy.
+	if f.conn.IsEncapsulated() {
+		max -= proxyOverhead
+	}
 	if f.borrowing {
 		if f.conn.lshared < max {
 			max = f.conn.lshared
