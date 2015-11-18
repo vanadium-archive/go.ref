@@ -92,7 +92,7 @@ func (f *flw) priority() int { return flowPriority }
 
 // disableEncrytion should not be called concurrently with Write* methods.
 func (f *flw) disableEncryption() {
-	f.noEncrypt = false
+	f.noEncrypt = true
 }
 
 // Implement io.Reader.
