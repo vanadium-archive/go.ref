@@ -242,8 +242,6 @@ func setCredentialsEnv(cmd *exec.Cmd) {
 	// TODO(caprita): This doesn't work with --v23.credentials.
 	if creds := os.Getenv(ref.EnvCredentials); len(creds) > 0 {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", ref.EnvCredentials, creds))
-	} else if agentCreds := os.Getenv(ref.EnvAgentEndpoint); len(agentCreds) > 0 {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", ref.EnvAgentEndpoint, agentCreds))
 	} else if agentCreds := os.Getenv(ref.EnvAgentPath); len(agentCreds) > 0 {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", ref.EnvAgentPath, agentCreds))
 	} else {

@@ -723,7 +723,6 @@ func (sh *Shell) setupProgramEnv(env []string) []string {
 	// want the child to directly use the directory specified
 	// by the shell's VeyronCredentials.
 	delete(m1, ref.EnvCredentials)
-	delete(m1, ref.EnvAgentEndpoint)
 	delete(m1, ref.EnvAgentPath)
 
 	m2 := envvar.MergeMaps(m1, evmap)
