@@ -97,6 +97,22 @@ func (p *messagePipe) readMsg(ctx *context.T) (message.Message, error) {
 		return nil, message.NewErrInvalidMsg(ctx, 0, uint64(len(msg)), 0, nil)
 	}
 	m, err := message.Read(ctx, msg[:len(msg)-p.cipher.MACSize()])
+	var payload []byte
+	switch msg := m.(type) {
+	case *message.Data:
+		if msg.Flags&message.DisableEncryptionFlag != 0 {
+			payload, err = p.rw.ReadMsg()
+			msg.Payload = [][]byte{payload}
+		}
+	case *message.OpenFlow:
+		if msg.Flags&message.DisableEncryptionFlag != 0 {
+			payload, err = p.rw.ReadMsg()
+			msg.Payload = [][]byte{payload}
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
 	ctx.VI(2).Infof("Read low-level message: %#v", m)
 	return m, err
 }
