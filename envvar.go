@@ -16,7 +16,7 @@ const (
 	// directory containing all the credentials of a principal (the blessing
 	// store, the blessing roots, possibly the private key etc.).
 	//
-	// Typically only one of EnvCredentials or EnvAgentEndpoint will be set in a
+	// Typically only one of EnvCredentials or EnvAgentPath will be set in a
 	// process. If both are set, then EnvCredentials takes preference.
 	//
 	// See v.io/x/ref/lib/security.CreatePersistentPrincipal.
@@ -29,14 +29,6 @@ const (
 	// Typically only one of EnvCredentials or EnvAgentPath will be set in a
 	// process. If both are set, then EnvCredentials takes preference.
 	EnvAgentPath = "V23_AGENT_PATH"
-
-	// EnvAgentEndpoint is the name of the environment variable pointing to an
-	// agentd process containing all the credentials a principal (the blessing
-	// store, the blessing roots, possibly the private key etc.).
-	//
-	// EnvAgentEndpoint is deprecated. New agentd processes should use EnvAgentPath.
-	// If both are set, EnvAgentPath takes preference.
-	EnvAgentEndpoint = "V23_AGENT_ENDPOINT"
 
 	// EnvNamespacePrefix is the prefix of all environment variables that define a
 	// namespace root.
@@ -84,7 +76,6 @@ func EnvNamespaceRoots() (map[string]string, []string) {
 func EnvClearCredentials() error {
 	for _, v := range []string{
 		EnvCredentials,
-		EnvAgentEndpoint,
 	} {
 		if err := os.Unsetenv(v); err != nil {
 			return err
