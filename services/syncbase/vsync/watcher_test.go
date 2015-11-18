@@ -12,11 +12,13 @@ import (
 	"testing"
 	"time"
 
+	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 // TestSetResmark tests setting and getting a resume marker.
@@ -56,39 +58,42 @@ func TestWatchPrefixes(t *testing.T) {
 		t.Errorf("watch prefixes not empty: %v", watchPrefixes)
 	}
 
+	gid1 := interfaces.GroupId(1234)
+	gid2 := interfaces.GroupId(5678)
+
 	watchPrefixOps := []struct {
 		appName, dbName, key string
-		incr                 bool
+		add                  bool
+		gid                  interfaces.GroupId
 	}{
-		{"app1", "db1", "foo", true},
-		{"app1", "db1", "bar", true},
-		{"app2", "db1", "xyz", true},
-		{"app3", "db1", "haha", true},
-		{"app1", "db1", "foo", true},
-		{"app1", "db1", "foo", true},
-		{"app1", "db1", "foo", false},
-		{"app2", "db1", "ttt", true},
-		{"app2", "db1", "ttt", true},
-		{"app2", "db1", "ttt", false},
-		{"app2", "db1", "ttt", false},
-		{"app2", "db2", "qwerty", true},
-		{"app3", "db1", "haha", true},
-		{"app2", "db2", "qwerty", false},
-		{"app3", "db1", "haha", false},
+		{"app1", "db1", "foo", true, gid1},
+		{"app1", "db1", "bar", true, gid1},
+		{"app2", "db1", "xyz", true, gid1},
+		{"app3", "db1", "haha", true, gid2},
+		{"app1", "db1", "foo", true, gid2},
+		{"app1", "db1", "foo", false, gid1},
+		{"app2", "db1", "ttt", true, gid2},
+		{"app2", "db1", "ttt", true, gid1},
+		{"app2", "db1", "ttt", false, gid2},
+		{"app2", "db1", "ttt", false, gid1},
+		{"app2", "db2", "qwerty", true, gid1},
+		{"app3", "db1", "haha", true, gid1},
+		{"app2", "db2", "qwerty", false, gid1},
+		{"app3", "db1", "haha", false, gid2},
 	}
 
 	for _, op := range watchPrefixOps {
-		if op.incr {
-			incrWatchPrefix(op.appName, op.dbName, op.key)
+		if op.add {
+			addWatchPrefixSyncgroup(op.appName, op.dbName, op.key, op.gid)
 		} else {
-			decrWatchPrefix(op.appName, op.dbName, op.key)
+			rmWatchPrefixSyncgroup(op.appName, op.dbName, op.key, op.gid)
 		}
 	}
 
 	expPrefixes := map[string]sgPrefixes{
-		"app1\xfedb1": sgPrefixes{"foo": 2, "bar": 1},
-		"app2\xfedb1": sgPrefixes{"xyz": 1},
-		"app3\xfedb1": sgPrefixes{"haha": 1},
+		"app1\xfedb1": sgPrefixes{"foo": sgSet{gid2: struct{}{}}, "bar": sgSet{gid1: struct{}{}}},
+		"app2\xfedb1": sgPrefixes{"xyz": sgSet{gid1: struct{}{}}},
+		"app3\xfedb1": sgPrefixes{"haha": sgSet{gid1: struct{}{}}},
 	}
 	if !reflect.DeepEqual(watchPrefixes, expPrefixes) {
 		t.Errorf("invalid watch prefixes: got %v instead of %v", watchPrefixes, expPrefixes)
@@ -150,6 +155,25 @@ func newSGLog(gid interfaces.GroupId, prefixes []string, remove bool) *watchable
 	}
 }
 
+// putBlobRefData inserts data containing blob refs for a key at a version.
+func putBlobRefData(t *testing.T, tx store.Transaction, key, version string) {
+	data := struct {
+		Msg  string
+		Blob wire.BlobRef
+	}{
+		"hello world",
+		wire.BlobRef("br_" + key + "_" + version),
+	}
+
+	buf, err := vom.Encode(&data)
+	if err != nil {
+		t.Errorf("putBlobRefData: cannot vom-encode data: key %s, version %s: %v", key, version, err)
+	}
+	if err := watchable.PutAtVersion(nil, tx, []byte(key), buf, []byte(version)); err != nil {
+		t.Errorf("putBlobRefData: cannot PutAtVersion: key %s, version %s: %v", key, version, err)
+	}
+}
+
 // TestProcessWatchLogBatch tests the processing of a batch of log records.
 func TestProcessWatchLogBatch(t *testing.T) {
 	svc := createService(t)
@@ -191,8 +215,10 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	if err := setSGIdEntry(nil, tx, gid, state); err != nil {
 		t.Fatal("setSGIdEntry() failed for gid %v", gid)
 	}
+	putBlobRefData(t, tx, fooKey, "333")
+	putBlobRefData(t, tx, fooxyzKey, "444")
 	if err := tx.Commit(); err != nil {
-		t.Fatalf("cannot commit putting sg local state, err %v", err)
+		t.Fatalf("cannot commit putting sg local state and some blob refs, err %v", err)
 	}
 
 	batch = []*watchable.LogEntry{
@@ -227,6 +253,12 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 	if ok, err := hasNode(nil, st, barKey, "222"); err != nil || ok {
 		t.Error("hasNode() found DAG entry for non-syncable log on bar")
+	}
+
+	tx = st.NewTransaction()
+	putBlobRefData(t, tx, fooKey, "1")
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("cannot commit putting more blob refs, err %v", err)
 	}
 
 	// More partially syncable logs updating existing ones.
@@ -298,6 +330,23 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	if ok, err := hasNode(nil, st, barKey, "007"); err != nil || ok {
 		t.Error("hasNode() found DAG entry for non-syncable log on bar")
 	}
+
+	// Verify the blob ref metadata.
+	expBlobDir := make(map[wire.BlobRef]*blobLocInfo)
+	info := &blobLocInfo{
+		peer:   s.name,
+		source: s.name,
+		sgIds:  sgSet{gid: struct{}{}},
+	}
+	expBlobDir[wire.BlobRef("br_"+fooKey+"_333")] = info
+	expBlobDir[wire.BlobRef("br_"+fooxyzKey+"_444")] = info
+	expBlobDir[wire.BlobRef("br_"+fooKey+"_1")] = info
+
+	s.blobDirLock.Lock()
+	if !reflect.DeepEqual(s.blobDirectory, expBlobDir) {
+		t.Errorf("invalid blob dir: got %v instead of %v", s.blobDirectory, expBlobDir)
+	}
+	s.blobDirLock.Unlock()
 
 	// Scan the batch records and verify that there is only 1 DAG batch
 	// stored, with a total count of 3 and a map of 2 syncable entries.
