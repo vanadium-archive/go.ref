@@ -5,7 +5,7 @@
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
 
-package lockfile
+package lockfile_test
 
 import (
 	"os"

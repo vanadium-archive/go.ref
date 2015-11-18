@@ -32,9 +32,8 @@ import (
 	"v.io/x/ref/services/agent/internal/server"
 )
 
-const childAgentFd = 3
 const pkgPath = "v.io/x/ref/services/agent/agentd"
-const agentSocketName = "agent.sock" // Keep in sync with internal/lockfile/lockfile.go
+const agentSocketName = "agent.sock"
 
 var (
 	errCantReadPassphrase       = verror.Register(pkgPath+".errCantReadPassphrase", verror.NoRetry, "{1:}{2:} failed to read passphrase{:_}")
@@ -102,7 +101,15 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create new principal from dir(%s): %v", credentials, err)
 	}
-	defer lockfile.RemoveLockfile(credentials)
+	socketPath := filepath.Join(credentials, agentSocketName)
+	if socketPath, err = filepath.Abs(socketPath); err != nil {
+		return fmt.Errorf("abs: %v", err)
+	}
+	socketPath = filepath.Clean(socketPath)
+	if err = lockfile.CreateLockfile(socketPath); err != nil {
+		return fmt.Errorf("failed to lock %q: %v", socketPath, err)
+	}
+	defer lockfile.RemoveLockfile(socketPath)
 
 	if keypath == "" && passphrase != nil {
 		// If we're done with the passphrase, zero it out so it doesn't stay in memory
@@ -123,15 +130,10 @@ func runAgentD(env *cmdline.Env, args []string) error {
 			return fmt.Errorf("ServeKeyManager: %v", err)
 		}
 	}
-	path, err := filepath.Abs(filepath.Join(credentials, agentSocketName))
-	if err != nil {
-		return fmt.Errorf("abs: %v", err)
-	}
-	path = filepath.Clean(path)
-	if err = os.Setenv(ref.EnvAgentPath, path); err != nil {
+	if err = os.Setenv(ref.EnvAgentPath, socketPath); err != nil {
 		return fmt.Errorf("setenv: %v", err)
 	}
-	if err = i.Listen(path); err != nil {
+	if err = i.Listen(socketPath); err != nil {
 		return err
 	}
 
@@ -180,11 +182,6 @@ func runAgentD(env *cmdline.Env, args []string) error {
 }
 
 func newPrincipalFromDir(dir string) (p security.Principal, pass []byte, err error) {
-	defer func() {
-		if err == nil {
-			err = lockfile.CreateLockfile(dir)
-		}
-	}()
 	p, err = vsecurity.LoadPersistentPrincipal(dir, nil)
 	if os.IsNotExist(err) {
 		return handleDoesNotExist(dir)

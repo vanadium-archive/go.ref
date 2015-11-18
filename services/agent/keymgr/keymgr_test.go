@@ -43,11 +43,11 @@ func createAgent(path string) (agent.KeyManager, func(), error) {
 	return m, cleanup, err
 }
 
-func TestNoDeviceManager(t *testing.T) {
+func TestNoKeyPath(t *testing.T) {
 	agent, cleanup, err := createAgent("")
 	defer cleanup()
 	if err == nil {
-		t.Fatal(err)
+		t.Fatal("An error should be returned when the key path is empty")
 	}
 	if agent != nil {
 		t.Fatal("No agent should be created when key path is empty")

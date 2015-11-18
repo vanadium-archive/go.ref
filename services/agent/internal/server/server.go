@@ -21,6 +21,7 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/ipc"
+	"v.io/x/ref/services/agent/internal/lockfile"
 )
 
 const pkgPath = "v.io/x/ref/services/agent/internal/server"
@@ -42,6 +43,7 @@ type agentd struct {
 type keyData struct {
 	p     security.Principal
 	agent *ipc.IPC
+	path  string
 }
 
 type keymgr struct {
@@ -341,10 +343,14 @@ func (m *keymgr) ServePrincipal(handle [agent.PrincipalHandleByteSize]byte, path
 	if err := ServeAgent(ipc, data.p); err != nil {
 		return err
 	}
+	if err := lockfile.CreateLockfile(path); err != nil {
+		return err
+	}
 	if err := ipc.Listen(path); err != nil {
 		return err
 	}
 	data.agent = ipc
+	data.path = path
 	m.cache[handle] = data
 	return nil
 }
@@ -362,8 +368,12 @@ func (m *keymgr) StopServing(handle [agent.PrincipalHandleByteSize]byte) error {
 	if data.agent == nil {
 		return verror.NewErrNoExist(nil)
 	}
+	if len(data.path) > 0 {
+		lockfile.RemoveLockfile(data.path)
+	}
 	data.agent.Close()
 	data.agent = nil
+	data.path = ""
 	m.cache[handle] = data
 	return nil
 }

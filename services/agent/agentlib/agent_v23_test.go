@@ -16,12 +16,14 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/services/agent/agentlib"
+	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/test/v23tests"
 )
 
 //go:generate jiri test generate
 
-func V23TestTestPassPhraseUse(i *v23tests.T) {
+func V23TestPassPhraseUse(i *v23tests.T) {
 	bin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithEnv(ref.EnvCredentials + "=" + i.NewTempDir(""))
 
 	// Create the passphrase
@@ -201,6 +203,100 @@ echo -n $COUNT >{{.Counter}}
 		} else if got, want := string(buf), test.WantCounter; got != want {
 			i.Errorf("%+v: Got %q, want %q", test, got, want)
 		}
+	}
+}
+
+func V23TestKeyManager(i *v23tests.T) {
+	// Start up an agent that serves additional principals.
+	// Since the agent needs to run some long-lived program to stay up,
+	// use a script that waits for user input.
+	var (
+		agentDir   = i.NewTempDir("")
+		otherDir   = i.NewTempDir("")
+		agentSock  = filepath.Join(agentDir, "agent.sock") // "agent.sock" comes from agentd/main.go
+		agentBin   = i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithEnv(ref.EnvCredentials + "=" + agentDir)
+		clientSock = filepath.Join(i.NewTempDir(""), "client.sock")
+		script     = filepath.Join(i.NewTempDir(""), "test.sh")
+
+		startAgent = func() *v23tests.Invocation {
+			agent := agentBin.Start(
+				"--additional-principals="+otherDir,
+				"--no-passphrase",
+				script)
+			for lineno := 0; lineno < 10; lineno++ {
+				line := agent.ReadLine()
+				if line == "STARTED" {
+					return agent
+				}
+				i.Logf("Ignoring line from agent process: %q", line)
+			}
+			i.Fatal("Agent did not start correctly?")
+			return nil
+		}
+
+		testClient = func() error {
+			p, err := agentlib.NewAgentPrincipalX(clientSock)
+			if err != nil {
+				return err
+			}
+			defer p.Close()
+			_, err = p.BlessSelf("foo")
+			return err
+		}
+	)
+	if err := writeScript(
+		script,
+		`#!/bin/bash
+echo STARTED
+read
+`,
+		nil); err != nil {
+		i.Fatal(err)
+	}
+	agent := startAgent()
+	// Setup the principal for the other key
+	kmgr, err := keymgr.NewKeyManager(agentSock)
+	if err != nil {
+		i.Fatal(err)
+	}
+	handle, err := kmgr.NewPrincipal(false)
+	if err != nil {
+		i.Fatal(err)
+	}
+	if err := kmgr.ServePrincipal(handle, clientSock); err != nil {
+		i.Fatal(err)
+	}
+	// clientSock should be functional.
+	if err := testClient(); err != nil {
+		i.Fatal(err)
+	}
+	// If we restart the agent, and have it serve the client principal on the same socket,
+	// the client should function again.
+	agent.Shutdown(os.Stdout, os.Stderr)
+	i.Logf("Killed the agent, restarting it")
+	agent = startAgent()
+	defer agent.Shutdown(os.Stdout, os.Stderr)
+	// The bug that this test is trying to fix is one where the clientSock
+	// file is left hanging around. At the time this test was written,
+	// the author couldn't figure out a nice way to "uncleanly" kill the agent
+	// and thus cause this problem. Anyway, ensure that this test is testing
+	// the issue it was intended to by checking that clientSock is still lying
+	// around.
+	if _, err := os.Stat(clientSock); err != nil {
+		i.Fatal(err)
+	}
+	// TODO(ashankar,ribrdb): To make clients resilient to the server
+	// listening on the unix socket restarting, should ipc.IPCConn or the
+	// KeyManager transparently retry when the connection has died instead
+	// of failing?
+	if kmgr, err = keymgr.NewKeyManager(agentSock); err != nil {
+		i.Fatal(err)
+	}
+	if err := kmgr.ServePrincipal(handle, clientSock); err != nil {
+		i.Fatal(err)
+	}
+	if err := testClient(); err != nil {
+		i.Fatal(err)
 	}
 }
 

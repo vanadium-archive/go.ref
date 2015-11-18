@@ -23,9 +23,9 @@ import (
 )
 
 func main() {
+	flags.SetDefaultHostPort("127.0.0.1:0")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdPingPong)
-	flags.SetDefaultHostPort("127.0.0.1:0")
 }
 
 var cmdPingPong = &cmdline.Command{

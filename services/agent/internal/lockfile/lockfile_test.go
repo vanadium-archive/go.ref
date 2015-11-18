@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package lockfile
+// Package lockfile_test contains an integration test for the lockfile package.
+//
+// Unfortunately, has to be in its own package to avoid an import cycle with
+// the test/modules framework, which includes an agent implementation.
+package lockfile_test
 
 import (
 	"fmt"
@@ -14,13 +18,14 @@ import (
 	"v.io/x/ref/test/modules"
 
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/agent/internal/lockfile"
 )
 
 //go:generate jiri test generate
 
 var createLockfile = modules.Register(func(env *modules.Env, args ...string) error {
-	dir := args[0]
-	err := CreateLockfile(dir)
+	file := args[0]
+	err := lockfile.CreateLockfile(file)
 	if err == nil {
 		fmt.Println("Grabbed lock")
 	} else {
@@ -35,15 +40,16 @@ func TestLockFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	if err = CreateLockfile(dir); err != nil {
+	file := filepath.Join(dir, "myfile")
+	if err = lockfile.CreateLockfile(file); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(dir, lockfileName)
-	bytes, err := ioutil.ReadFile(path)
+	lockpath := file + "-lock"
+	bytes, err := ioutil.ReadFile(lockpath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err, running := StillRunning(bytes)
+	err, running := lockfile.StillRunning(bytes)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,14 +57,13 @@ func TestLockFile(t *testing.T) {
 		t.Fatal("expected StillRunning() = true")
 	}
 
-	if err = CreateLockfile(dir); err == nil {
+	if err = lockfile.CreateLockfile(file); err == nil {
 		t.Fatal("Creating 2nd lockfile should fail")
 	}
 
-	RemoveLockfile(dir)
-	_, err = os.Lstat(path)
-	if !os.IsNotExist(err) {
-		t.Fatalf("%s: expected NotExist, got %v", path, err)
+	lockfile.RemoveLockfile(file)
+	if _, err = os.Lstat(lockpath); !os.IsNotExist(err) {
+		t.Fatalf("%s: expected NotExist, got %v", lockpath, err)
 	}
 }
 
@@ -68,6 +73,7 @@ func TestOtherProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
+	file := filepath.Join(dir, "myfile")
 
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
@@ -75,7 +81,7 @@ func TestOtherProcess(t *testing.T) {
 	}
 
 	// Start a new child which creates a lockfile and exits.
-	h, err := sh.Start(nil, createLockfile, dir)
+	h, err := sh.Start(nil, createLockfile, file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,13 +92,13 @@ func TestOtherProcess(t *testing.T) {
 	}
 
 	// Verify it created a lockfile.
-	path := filepath.Join(dir, lockfileName)
-	bytes, err := ioutil.ReadFile(path)
+	lockpath := file + "-lock"
+	bytes, err := ioutil.ReadFile(lockpath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// And that we know the lockfile is invalid.
-	err, running := StillRunning(bytes)
+	err, running := lockfile.StillRunning(bytes)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,12 +107,12 @@ func TestOtherProcess(t *testing.T) {
 	}
 
 	// Now create a lockfile for the process.
-	if err = CreateLockfile(dir); err != nil {
+	if err = lockfile.CreateLockfile(file); err != nil {
 		t.Fatal(err)
 	}
 
 	// Now the child should fail to create one.
-	h, err = sh.Start(nil, createLockfile, dir)
+	h, err = sh.Start(nil, createLockfile, file)
 	if err != nil {
 		t.Fatal(err)
 	}
