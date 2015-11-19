@@ -60,19 +60,19 @@ func TestMacaroonBlesser(t *testing.T) {
 		t.Errorf("Got %v, want nil", got)
 	}
 	// But once it recognizes the provider, it should see exactly the name
-	// "provider/bugsbunny" for the caveat cOnlyMethodFoo.
+	// "provider:bugsbunny" for the caveat cOnlyMethodFoo.
 	security.AddToRoots(user, b)
-	if got, want := security.BlessingNames(user, b), []string{"provider/bugsbunny"}; !reflect.DeepEqual(got, want) {
+	if got, want := security.BlessingNames(user, b), []string{"provider:bugsbunny"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)
 	}
-	// RemoteBlessingNames should see "provider/bugsbunny" only when caveats are met.
+	// RemoteBlessingNames should see "provider:bugsbunny" only when caveats are met.
 	for idx, test := range []struct {
 		params security.CallParams
 		names  []string
 	}{
 		{
 			params: security.CallParams{LocalPrincipal: user, RemoteBlessings: b, Method: "Foo"},
-			names:  []string{"provider/bugsbunny"},
+			names:  []string{"provider:bugsbunny"},
 		},
 		{
 			params: security.CallParams{LocalPrincipal: user, RemoteBlessings: b, Method: "Bar"},

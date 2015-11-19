@@ -51,7 +51,7 @@ const (
 )
 
 var (
-	defaultNamespaceRoot = "/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101" // GUARDED_BY namespaceMu
+	defaultNamespaceRoot = "/(dev.v.io:role:vprod:service:mounttabled)@ns.dev.v.io:8101" // GUARDED_BY namespaceMu
 	namespaceMu          sync.Mutex
 
 	defaultProtocol = "wsh" // GUARDED_BY listenMu

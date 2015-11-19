@@ -62,12 +62,12 @@ type WirePrivateKey struct {
 	// name. The keys are enumerated in increasing order of the lengths of the
 	// corresponding patterns.
 	//
-	// For example, if the blessing is "google/u/alice/phone" and the identity
-	// provider's name is "google/u" then the keys are extracted for the patterns
-	// - "google/u"
-	// - "google/u/alice"
-	// - "google/u/alice/phone"
-	// - "google/u/alice/phone/$"
+	// For example, if the blessing is "google:u:alice:phone" and the identity
+	// provider's name is "google:u" then the keys are extracted for the patterns
+	// - "google:u"
+	// - "google:u:alice"
+	// - "google:u:alice:phone"
+	// - "google:u:alice:phone:$"
 	//
 	// The private keys are listed in increasing order of the lengths of the
 	// corresponding patterns.

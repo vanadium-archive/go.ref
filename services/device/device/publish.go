@@ -161,7 +161,7 @@ func publishOne(ctx *context.T, env *cmdline.Env, binPath, binary string) error 
 
 	envelope.Binary.File = binaryVON
 	if addPublisher {
-		publisher, err := getPublisherBlessing(ctx, "apps/published/"+title)
+		publisher, err := getPublisherBlessing(ctx, strings.Join([]string{"apps", "published", title}, security.ChainSeparator))
 		if err != nil {
 			return err
 		}

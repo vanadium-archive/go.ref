@@ -24,7 +24,7 @@ func TestIDProvider(t *testing.T) {
 	if err := p.Roots().Recognized(idpkey, "foo"); err != nil {
 		t.Error(err)
 	}
-	if err := p.Roots().Recognized(idpkey, "foo/bar"); err != nil {
+	if err := p.Roots().Recognized(idpkey, "foo:bar"); err != nil {
 		t.Error(err)
 	}
 	def := p.BlessingStore().Default()

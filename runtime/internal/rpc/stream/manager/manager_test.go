@@ -894,7 +894,7 @@ func TestBlessingNamesInEndpoint(t *testing.T) {
 	defer shutdown()
 	var (
 		p    = testutil.NewPrincipal("default")
-		b, _ = p.BlessSelf("dev.v.io/users/foo@bar.com/devices/desktop/app/myapp")
+		b, _ = p.BlessSelf("dev.v.io:users:foo@bar.com:devices:desktop:app:myapp")
 
 		server = InternalNew(ctx, naming.FixedRoutingID(0x1))
 
@@ -908,7 +908,7 @@ func TestBlessingNamesInEndpoint(t *testing.T) {
 				// provided blessings should match returned output.
 				principal:     p,
 				blessings:     b,
-				blessingNames: []string{"dev.v.io/users/foo@bar.com/devices/desktop/app/myapp"},
+				blessingNames: []string{"dev.v.io:users:foo@bar.com:devices:desktop:app:myapp"},
 			},
 			{
 				// It is an error to provide a principal without providing blessings.

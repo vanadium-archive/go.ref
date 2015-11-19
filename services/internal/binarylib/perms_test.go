@@ -116,11 +116,11 @@ func TestBinaryCreateAccessList(t *testing.T) {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
 	expected := access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}},
+		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
+		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
+		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
+		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
 	}
 	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
@@ -221,7 +221,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	ctx.VI(2).Infof("Self modifies the AccessList file on bini/private.")
 	for _, tag := range access.AllTypicalTags() {
 		perms.Clear("self", string(tag))
-		perms.Add("self/$", string(tag))
+		perms.Add("self:$", string(tag))
 	}
 	if err := b("bini/private").SetPermissions(selfCtx, perms, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
@@ -229,11 +229,11 @@ func TestBinaryRootAccessList(t *testing.T) {
 
 	ctx.VI(2).Infof(" Verify that bini/private's perms are updated.")
 	updated := access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self/$"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$"}},
+		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$"}},
+		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$"}},
+		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$"}},
+		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$"}},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$"}},
 	}
 	perms, _, err = b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
@@ -254,7 +254,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	ctx.VI(2).Infof("Self sets a root AccessList.")
 	newRootAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		newRootAccessList.Add("self/$", string(tag))
+		newRootAccessList.Add("self:$", string(tag))
 	}
 	if err := b("bini").SetPermissions(selfCtx, newRootAccessList, ""); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
@@ -275,19 +275,19 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	// More than one AccessList change will result in the same functional result in
-	// this test: that self/other acquires the right to invoke Create at the
+	// this test: that self:other acquires the right to invoke Create at the
 	// root. In particular:
 	//
 	// a. perms.Add("self", "Write ")
-	// b. perms.Add("self/other", "Write")
-	// c. perms.Add("self/other/$", "Write")
+	// b. perms.Add("self:other", "Write")
+	// c. perms.Add("self:other:$", "Write")
 	//
-	// will all give self/other the right to invoke Create but in the case of
+	// will all give self:other the right to invoke Create but in the case of
 	// (a) it will also extend this right to self's delegates (because of the
 	// absence of the $) including other and in (b) will also extend the
 	// Create right to all of other's delegates. Since (c) is the minimum
 	// case, use that.
-	perms.Add("self/other/$", string("Write"))
+	perms.Add("self:other:$", string("Write"))
 	err = b("bini").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
@@ -304,11 +304,11 @@ func TestBinaryRootAccessList(t *testing.T) {
 
 	ctx.VI(2).Infof("Other can read perms for bini/otherbinary.")
 	updated = access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
+		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
+		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
+		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
+		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
 	}
 	perms, _, err = b("bini/otherbinary").GetPermissions(otherCtx)
 	if err != nil {
@@ -323,7 +323,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
-	perms.Clear("self/$")
+	perms.Clear("self:$")
 	err = b("bini/otherbinary").SetPermissions(otherCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
@@ -331,11 +331,11 @@ func TestBinaryRootAccessList(t *testing.T) {
 
 	ctx.VI(2).Infof("Verify that other can make this change.")
 	updated = access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/other"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self/other"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self/other"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/other"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/other"}},
+		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:other"}},
+		"Read":    access.AccessList{In: []security.BlessingPattern{"self:other"}},
+		"Write":   access.AccessList{In: []security.BlessingPattern{"self:other"}},
+		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:other"}},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:other"}},
 	}
 	perms, _, err = b("bini/otherbinary").GetPermissions(otherCtx)
 	if err != nil {
@@ -356,7 +356,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
 	for _, tag := range access.AllTypicalTags() {
-		perms.Blacklist("self/other", string(tag))
+		perms.Blacklist("self:other", string(tag))
 	}
 	err = b("bini").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
@@ -379,7 +379,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
 	for _, tag := range access.AllTypicalTags() {
-		perms.Blacklist("self/other", string(tag))
+		perms.Blacklist("self:other", string(tag))
 	}
 	err = b("bini/shared").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
@@ -399,7 +399,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
-	perms.Clear("self/$", "Admin")
+	perms.Clear("self:$", "Admin")
 	err = b("bini").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
@@ -442,11 +442,11 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 		t.Fatalf("GetPermissions failed: %#v", err)
 	}
 	expected := access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
 	}
 	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
@@ -463,11 +463,11 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 		t.Fatalf("GetPermissions failed: %#v", err)
 	}
 	expected = access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{"self"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{"self"}},
+		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
 	}
 	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)

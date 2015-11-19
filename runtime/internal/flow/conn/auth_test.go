@@ -254,10 +254,10 @@ func TestPrivateMutualAuth(t *testing.T) {
 		dAuth, aAuth []security.BlessingPattern
 	}{
 		{[]security.BlessingPattern{"root"}, []security.BlessingPattern{"root"}},
-		{[]security.BlessingPattern{"root"}, []security.BlessingPattern{"root/dialer"}},
-		{[]security.BlessingPattern{"root/acceptor"}, []security.BlessingPattern{"root"}},
-		{[]security.BlessingPattern{"root/acceptor"}, []security.BlessingPattern{"root/dialer"}},
-		{[]security.BlessingPattern{"root/$", "root/acceptor/$"}, []security.BlessingPattern{"root/dialer/$"}},
+		{[]security.BlessingPattern{"root"}, []security.BlessingPattern{"root:dialer"}},
+		{[]security.BlessingPattern{"root:acceptor"}, []security.BlessingPattern{"root"}},
+		{[]security.BlessingPattern{"root:acceptor"}, []security.BlessingPattern{"root:dialer"}},
+		{[]security.BlessingPattern{"root:$", "root:acceptor:$"}, []security.BlessingPattern{"root:dialer:$"}},
 	}
 	for _, test := range successTests {
 		dc, ac, derr, aerr := setupConns(t, "local", "", dctx, actx, nil, nil, test.dAuth, test.aAuth)
@@ -275,10 +275,10 @@ func TestPrivateMutualAuth(t *testing.T) {
 	failureTests := []struct {
 		dAuth, aAuth []security.BlessingPattern
 	}{
-		{[]security.BlessingPattern{"root/other"}, []security.BlessingPattern{"root"}},      // dialer does not authorize acceptor
-		{[]security.BlessingPattern{"root/$"}, []security.BlessingPattern{"root/dialer"}},   // dialer does not authorize acceptor
-		{[]security.BlessingPattern{"root"}, []security.BlessingPattern{"root/other"}},      // acceptor does not authorize dialier
-		{[]security.BlessingPattern{"root/acceptor"}, []security.BlessingPattern{"root/$"}}, // acceptor does not authorize dialier
+		{[]security.BlessingPattern{"root:other"}, []security.BlessingPattern{"root"}},      // dialer does not authorize acceptor
+		{[]security.BlessingPattern{"root:$"}, []security.BlessingPattern{"root:dialer"}},   // dialer does not authorize acceptor
+		{[]security.BlessingPattern{"root"}, []security.BlessingPattern{"root:other"}},      // acceptor does not authorize dialier
+		{[]security.BlessingPattern{"root:acceptor"}, []security.BlessingPattern{"root:$"}}, // acceptor does not authorize dialier
 	}
 	for _, test := range failureTests {
 		dc, ac, derr, _ := setupConns(t, "local", "", dctx, actx, nil, nil, test.dAuth, test.aAuth)

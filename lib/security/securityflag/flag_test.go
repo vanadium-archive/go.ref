@@ -24,10 +24,10 @@ var (
 	perms1 = access.Permissions{}
 	perms2 = access.Permissions{
 		string(access.Read): access.AccessList{
-			In: []security.BlessingPattern{"v23/alice/$", "v23/bob"},
+			In: []security.BlessingPattern{"v23:alice:$", "v23:bob"},
 		},
 		string(access.Write): access.AccessList{
-			In: []security.BlessingPattern{"v23/alice/$"},
+			In: []security.BlessingPattern{"v23:alice:$"},
 		},
 	}
 
@@ -96,7 +96,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		},
 		{
 			prog:  permFromFlag,
-			flags: []string{"--v23.permissions.literal", `{"Read": {"In":["v23/alice/$", "v23/bob"]}, "Write": {"In":["v23/alice/$"]}}`},
+			flags: []string{"--v23.permissions.literal", `{"Read": {"In":["v23:alice:$", "v23:bob"]}, "Write": {"In":["v23:alice:$"]}}`},
 			auth:  "perms2",
 		},
 	}

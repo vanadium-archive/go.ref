@@ -30,15 +30,15 @@ func V23TestAgentd(t *v23tests.T) {
 		}{
 			{
 				[]string{pingpong, serverName}, // No vrun
-				"pingpongd/client",
+				"pingpongd:client",
 			},
 			{
 				[]string{vrun, pingpong, serverName},
-				"pingpongd/client/pingpong",
+				"pingpongd:client:pingpong",
 			},
 			{
 				[]string{vrun, "--name=bugsy", pingpong, serverName},
-				"pingpongd/client/bugsy",
+				"pingpongd:client:bugsy",
 			},
 		}
 	)
@@ -58,7 +58,7 @@ func V23TestAgentd(t *v23tests.T) {
 // blessings and returns the agent binaries that will use the created credentials.
 //
 // The server will have a single blessing "pingpongd".
-// The client will have a single blessing "pingpongd/client", blessed by the server.
+// The client will have a single blessing "pingpongd:client", blessed by the server.
 func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary) {
 	var (
 		agentd    = i.BuildGoPkg("v.io/x/ref/services/agent/agentd")

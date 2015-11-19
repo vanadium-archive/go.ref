@@ -249,8 +249,8 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	if proxiedEP.Network() != proxyEP.Network() ||
 		proxiedEP.Addr().String() != proxyEP.Addr().String() ||
 		proxiedEP.ServesMountTable() || proxiedEP.ServesLeaf() ||
-		proxiedEP.BlessingNames()[0] != "test-blessing/server" {
-		t.Fatalf("got %q, want (tcp, %s, s, test-blessing/server)",
+		proxiedEP.BlessingNames()[0] != "test-blessing:server" {
+		t.Fatalf("got %q, want (tcp, %s, s, test-blessing:server)",
 			proxiedEP, proxyEP.Addr().String())
 	}
 	expectedNames := []string{naming.JoinAddressName(proxiedEP.String(), "suffix")}

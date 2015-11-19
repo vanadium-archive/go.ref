@@ -121,8 +121,8 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 }
 
 func newTester(root security.Principal) *tester {
-	googleAccount := "google/alice@gmail.com"
-	facebookAccount := "facebook/alice@facebook.com"
+	googleAccount := "google:alice@gmail.com"
+	facebookAccount := "facebook:alice@facebook.com"
 	return &tester{
 		googleAccount:     googleAccount,
 		facebookAccount:   facebookAccount,
@@ -179,7 +179,7 @@ func TestOriginHasAccount(t *testing.T) {
 		t.Fatalf("NewPrincipalManager failed: %v", err)
 	}
 
-	googleAccount := "fred/jim@gmail.com"
+	googleAccount := "fred:jim@gmail.com"
 	googleBlessings := accountBlessing(root, googleAccount)
 
 	if err := m.AddAccount(googleAccount, googleBlessings); err != nil {

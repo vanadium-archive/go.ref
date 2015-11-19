@@ -197,7 +197,7 @@ func testCreateHelper(t *testing.T, be backend) {
 	// Verify perms of created group.
 	perms := access.Permissions{}
 	for _, tag := range access.AllTypicalTags() {
-		perms.Add(security.BlessingPattern("idp/client"), string(tag))
+		perms.Add(security.BlessingPattern("idp:client"), string(tag))
 	}
 	gotPermissions, wantPermissions := getPermsOrDie(t, ctx, g), perms
 	if !reflect.DeepEqual(gotPermissions, wantPermissions) {
@@ -220,7 +220,7 @@ func testCreateHelper(t *testing.T, be backend) {
 	perms = access.Permissions{}
 	// Allow Admin and Read so that we can call GetPermissions and Get.
 	for _, tag := range []access.Tag{access.Admin, access.Read} {
-		perms.Add(security.BlessingPattern("idp/client"), string(tag))
+		perms.Add(security.BlessingPattern("idp:client"), string(tag))
 	}
 	if err := g.Create(ctx, perms, bpcSlice("foo", "bar", "foo")); err != nil {
 		t.Fatalf("Create failed: %v", err)
@@ -291,7 +291,7 @@ func testDeleteHelper(t *testing.T, be backend) {
 	// fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpC"))
 	perms := access.Permissions{}
-	perms.Add(security.BlessingPattern("idp/client"), string(access.Admin))
+	perms.Add(security.BlessingPattern("idp:client"), string(access.Admin))
 	if err := g.Create(ctx, perms, nil); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -322,7 +322,7 @@ func testPermsHelper(t *testing.T, be backend) {
 
 	// Mirrors syncbase/v23/syncbase/testutil/layer.go.
 	myperms := access.Permissions{}
-	myperms.Add(security.BlessingPattern("idp/client"), string(access.Admin))
+	myperms.Add(security.BlessingPattern("idp:client"), string(access.Admin))
 	// Demonstrate that myperms differs from the current perms.
 	if reflect.DeepEqual(myperms, getPermsOrDie(t, ctx, ac)) {
 		t.Fatalf("Permissions should not match: %v", myperms)
@@ -370,7 +370,7 @@ func testPermsHelper(t *testing.T, be backend) {
 
 	// SetPermissions with empty version should succeed.
 	permsBefore, versionBefore = permsAfter, versionAfter
-	myperms.Add(security.BlessingPattern("idp/client"), string(access.Read))
+	myperms.Add(security.BlessingPattern("idp:client"), string(access.Read))
 	if err := ac.SetPermissions(ctx, myperms, ""); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
@@ -489,7 +489,7 @@ func testAddHelper(t *testing.T, be backend) {
 	// Create a group with perms that disallow Add(), check that Add() fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
 	perms := access.Permissions{}
-	perms.Add(security.BlessingPattern("idp/client"), string(access.Admin))
+	perms.Add(security.BlessingPattern("idp:client"), string(access.Admin))
 	if err := g.Create(ctx, perms, nil); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -578,7 +578,7 @@ func testRemoveHelper(t *testing.T, be backend) {
 	// fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
 	perms := access.Permissions{}
-	perms.Add(security.BlessingPattern("idp/client"), string(access.Admin))
+	perms.Add(security.BlessingPattern("idp:client"), string(access.Admin))
 	if err := g.Create(ctx, perms, bpcSlice("foo", "bar")); err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}

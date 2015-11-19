@@ -81,9 +81,9 @@ type PrivateKey struct {
 	// keys contain private keys extracted for each blessing pattern that is
 	// matched by the blessing and is an extension of root.blessing.
 	//
-	// For example, if the blessing is "google/u/alice/phone" and root.blessing
-	// is "google/u" then the keys are extracted for patterns "google/u",
-	// "google/u/alice", "google/u/alice/phone", and "google/u/alice/phone/$".
+	// For example, if the blessing is "google:u:alice:phone" and root.blessing
+	// is "google:u" then the keys are extracted for patterns "google:u",
+	// "google:u:alice", "google:u:alice:phone", and "google:u:alice:phone:$".
 	//
 	// The private keys are listed in increasing order of the lengths of the
 	// corresponding patterns.

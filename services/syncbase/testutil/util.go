@@ -76,7 +76,7 @@ func SetupOrDieCustom(clientSuffix, serverSuffix string, perms access.Permission
 	clientCtx, serverCtx := NewCtx(ctx, rootp, clientSuffix), NewCtx(ctx, rootp, serverSuffix)
 
 	if perms == nil {
-		perms = DefaultPerms(fmt.Sprintf("%s/%s", "root", clientSuffix))
+		perms = DefaultPerms(fmt.Sprintf("%s%s%s", "root", security.ChainSeparator, clientSuffix))
 	}
 	serverName, stopServer := newServer(serverCtx, perms)
 	cleanup = func() {
@@ -248,27 +248,27 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	}
 }
 
-// Creates a new context object with blessing "root/<suffix>", configured to
+// Creates a new context object with blessing "root:<suffix>", configured to
 // present this blessing when acting as a server as well as when acting as a
 // client and talking to a server that presents a blessing rooted at "root".
 func NewCtx(ctx *context.T, rootp security.Principal, suffix string) *context.T {
 	// Principal for the new context.
 	p := tsecurity.NewPrincipal(suffix)
 
-	// Bless the new principal as "root/<suffix>".
+	// Bless the new principal as "root:<suffix>".
 	blessings, err := rootp.Bless(p.PublicKey(), rootp.BlessingStore().Default(), suffix, security.UnconstrainedUse())
 	if err != nil {
 		vlog.Fatal("rootp.Bless() failed: ", err)
 	}
 
-	// Make it so users of the new context present their "root/<suffix>" blessing
+	// Make it so users of the new context present their "root:<suffix>" blessing
 	// when talking to servers with blessings rooted at "root".
 	if _, err := p.BlessingStore().Set(blessings, security.BlessingPattern("root")); err != nil {
 		vlog.Fatal("p.BlessingStore().Set() failed: ", err)
 	}
 
 	// Make it so that when users of the new context act as a server, they present
-	// their "root/<suffix>" blessing.
+	// their "root:<suffix>" blessing.
 	if err := p.BlessingStore().SetDefault(blessings); err != nil {
 		vlog.Fatal("p.BlessingStore().SetDefault() failed: ", err)
 	}

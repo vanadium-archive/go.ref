@@ -51,7 +51,7 @@ func V23TestClaimableServer(t *v23tests.T) {
 		"--v23.tcp.address=127.0.0.1:0",
 		"--perms-dir="+permsDir,
 		"--root-blessings="+rootBlessings(t, legitClientCreds),
-		"--v23.permissions.literal={\"Admin\":{\"In\":[\"root/legit\"]}}",
+		"--v23.permissions.literal={\"Admin\":{\"In\":[\"root:legit\"]}}",
 	)
 	addr := server.ExpectVar("NAME")
 

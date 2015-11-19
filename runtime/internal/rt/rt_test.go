@@ -201,7 +201,7 @@ func TestPrincipalInheritance(t *testing.T) {
 	h.Shutdown(os.Stdout, os.Stderr)
 
 	wantRunnerBlessing := "test"
-	wantPrincipalBlessing := "test/child"
+	wantPrincipalBlessing := "test:child"
 	if runnerBlessing != wantRunnerBlessing || principalBlessing != wantPrincipalBlessing {
 		t.Fatalf("unexpected default blessing: got runner %s, principal %s, want runner %s, principal %s", runnerBlessing, principalBlessing, wantRunnerBlessing, wantPrincipalBlessing)
 	}

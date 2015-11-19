@@ -54,7 +54,7 @@ The global flags are:
    directory to use for storing security credentials
  -v23.i18n-catalogue=
    18n catalogue files to load, comma separated
- -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
+ -v23.namespace.root=[/(dev.v.io:role:vprod:service:mounttabled)@ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
  -v23.permissions.file=map[]
    specify a perms file as <name>:<permsfile>
@@ -291,7 +291,7 @@ the --with flag. Expiration on the blessing are controlled via the --for flag.
 Additional caveats are controlled with the --caveat flag.
 
 For example, let's say a principal "alice" wants to bless another principal
-"bob" as "alice/friend", the invocation would be:
+"bob" as "alice:friend", the invocation would be:
     V23_CREDENTIALS=<path to alice> principal bless <path to bob> friend
 and this will dump the blessing to STDOUT.
 

@@ -64,7 +64,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	// whose blessing (test-blessing) will act as the root blessing for the test.
 	const rootBlessing = test.TestBlessing
 	idp := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
-	// Call ourselves test-blessing/self, distinct from test-blessing/other
+	// Call ourselves test-blessing:self, distinct from test-blessing:other
 	// which we'll give to the 'other' context.
 	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
@@ -119,19 +119,19 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	}
 	expected := access.Permissions{
 		"Admin": access.AccessList{
-			In:    []security.BlessingPattern{test.TestBlessing + "/$", rootBlessing + "/self/$", rootBlessing + "/self/child"},
+			In:    []security.BlessingPattern{test.TestBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
 			NotIn: []string(nil)},
 		"Read": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + "/$", rootBlessing + "/self/$", rootBlessing + "/self/child"},
+			In:    []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
 			NotIn: []string(nil)},
 		"Write": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + "/$", rootBlessing + "/self/$", rootBlessing + "/self/child"},
+			In:    []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
 			NotIn: []string(nil)},
 		"Debug": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + "/$", rootBlessing + "/self/$", rootBlessing + "/self/child"},
+			In:    []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
 			NotIn: []string(nil)},
 		"Resolve": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + "/$", rootBlessing + "/self/$", rootBlessing + "/self/child"},
+			In:    []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
 			NotIn: []string(nil)}}
 	if got := perms; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
 		t.Errorf("got %#v, expected %#v ", got, expected)
@@ -140,8 +140,8 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	ctx.VI(2).Infof("self attempting to give other permission to update application")
 	newPerms := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		newPerms.Add(rootBlessing+"/self", string(tag))
-		newPerms.Add(rootBlessing+"/other", string(tag))
+		newPerms.Add(rootBlessing+":self", string(tag))
+		newPerms.Add(rootBlessing+":other", string(tag))
 	}
 	if err := repostub.SetPermissions(ctx, newPerms, ""); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
@@ -167,7 +167,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 		t.Fatalf("GetPermissions 2 should not have failed: %v", err)
 	}
 	perms["Admin"] = access.AccessList{
-		In:    []security.BlessingPattern{rootBlessing + "/other"},
+		In:    []security.BlessingPattern{rootBlessing + ":other"},
 		NotIn: []string{}}
 	if err = repostub.SetPermissions(otherCtx, perms, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
@@ -183,19 +183,19 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	}
 	expected = access.Permissions{
 		"Admin": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + "/other"},
+			In:    []security.BlessingPattern{rootBlessing + ":other"},
 			NotIn: []string{}},
-		"Read": access.AccessList{In: []security.BlessingPattern{rootBlessing + "/other",
-			rootBlessing + "/self"},
+		"Read": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other",
+			rootBlessing + ":self"},
 			NotIn: []string{}},
-		"Write": access.AccessList{In: []security.BlessingPattern{rootBlessing + "/other",
-			rootBlessing + "/self"},
+		"Write": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other",
+			rootBlessing + ":self"},
 			NotIn: []string{}},
-		"Debug": access.AccessList{In: []security.BlessingPattern{rootBlessing + "/other",
-			rootBlessing + "/self"},
+		"Debug": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other",
+			rootBlessing + ":self"},
 			NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{rootBlessing + "/other",
-			rootBlessing + "/self"},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other",
+			rootBlessing + ":self"},
 			NotIn: []string{}}}
 
 	if got := perms; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
@@ -208,7 +208,7 @@ func TestPerAppPermissions(t *testing.T) {
 	defer shutdown()
 	// By default, all principals in this test will have blessings generated based
 	// on the username/machine running this process. Give them recognizable names
-	// ("root/self" etc.), so the Permissions can be set deterministically.
+	// ("root:self" etc.), so the Permissions can be set deterministically.
 	idp := testutil.NewIDProvider("root")
 	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
@@ -257,15 +257,15 @@ func TestPerAppPermissions(t *testing.T) {
 	ctx.VI(2).Info("Self can access Permissions but other can't.")
 	expectedSelfPermissions := access.Permissions{
 		"Admin": access.AccessList{
-			In:    []security.BlessingPattern{"root/$", "root/self"},
+			In:    []security.BlessingPattern{"root:$", "root:self"},
 			NotIn: []string{}},
-		"Read": access.AccessList{In: []security.BlessingPattern{"root/$", "root/self"},
+		"Read": access.AccessList{In: []security.BlessingPattern{"root:$", "root:self"},
 			NotIn: []string{}},
-		"Write": access.AccessList{In: []security.BlessingPattern{"root/$", "root/self"},
+		"Write": access.AccessList{In: []security.BlessingPattern{"root:$", "root:self"},
 			NotIn: []string{}},
-		"Debug": access.AccessList{In: []security.BlessingPattern{"root/$", "root/self"},
+		"Debug": access.AccessList{In: []security.BlessingPattern{"root:$", "root:self"},
 			NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"root/$", "root/self"},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{"root:$", "root:self"},
 			NotIn: []string{}}}
 
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2", "repo/naps", "repo/naps/v1"} {
@@ -289,7 +289,7 @@ func TestPerAppPermissions(t *testing.T) {
 	repostub := repository.ApplicationClient("repo")
 	newPerms := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		newPerms.Add("root/self", string(tag))
+		newPerms.Add("root:self", string(tag))
 	}
 	if err := repostub.SetPermissions(ctx, newPerms, ""); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
@@ -306,7 +306,7 @@ func TestPerAppPermissions(t *testing.T) {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
 	for _, tag := range access.AllTypicalTags() {
-		newPerms.Add("root/other", string(tag))
+		newPerms.Add("root:other", string(tag))
 	}
 	if err := v1stub.SetPermissions(ctx, newPerms, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
@@ -314,28 +314,28 @@ func TestPerAppPermissions(t *testing.T) {
 
 	expected := access.Permissions{
 		"Resolve": access.AccessList{In: []security.BlessingPattern{
-			"root/$",
-			"root/other",
-			"root/self"},
+			"root:$",
+			"root:other",
+			"root:self"},
 			NotIn: []string(nil)},
 		"Admin": access.AccessList{In: []security.BlessingPattern{
-			"root/$",
-			"root/other",
-			"root/self"},
+			"root:$",
+			"root:other",
+			"root:self"},
 			NotIn: []string(nil)},
 		"Read": access.AccessList{In: []security.BlessingPattern{
-			"root/$",
-			"root/other",
-			"root/self"},
+			"root:$",
+			"root:other",
+			"root:self"},
 			NotIn: []string(nil)},
 		"Write": access.AccessList{In: []security.BlessingPattern{
-			"root/$",
-			"root/other",
-			"root/self"},
+			"root:$",
+			"root:other",
+			"root:self"},
 			NotIn: []string(nil)},
 		"Debug": access.AccessList{In: []security.BlessingPattern{
-			"root/$",
-			"root/other", "root/self"},
+			"root:$",
+			"root:other", "root:self"},
 			NotIn: []string(nil)},
 	}
 
@@ -369,7 +369,7 @@ func TestPerAppPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
-	newPerms["Write"] = access.AccessList{In: []security.BlessingPattern{"root/other", "root/self"}}
+	newPerms["Write"] = access.AccessList{In: []security.BlessingPattern{"root:other", "root:self"}}
 	if err := repostub.SetPermissions(ctx, newPerms, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}

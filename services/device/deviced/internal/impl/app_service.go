@@ -633,7 +633,10 @@ func addPublisherBlessings(ctx *context.T, instanceDir string, p security.Princi
 	blessings, _ := publisherBlessingNames(ctx, *envelope)
 	for _, s := range blessings {
 		ctx.VI(2).Infof("adding publisher blessing %v for app %v", s, envelope.Title)
-		tmpBlessing, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "a/"+s, security.UnconstrainedUse())
+		tmpBlessing, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "a"+security.ChainSeparator+s, security.UnconstrainedUse())
+		if err != nil {
+			return b, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Bless failed: %v", err))
+		}
 		if b, err = security.UnionOfBlessings(b, tmpBlessing); err != nil {
 			return b, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("UnionOfBlessings failed: %v %v", b, tmpBlessing))
 		}

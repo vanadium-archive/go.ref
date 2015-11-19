@@ -129,7 +129,7 @@ func (t testServerDisp) Lookup(_ *context.T, suffix string) (interface{}, securi
 		authorizer = nil
 	case "aclAuth":
 		authorizer = &access.AccessList{
-			In: []security.BlessingPattern{"test-blessing/client", "test-blessing/server"},
+			In: []security.BlessingPattern{"test-blessing:client", "test-blessing:server"},
 		}
 	default:
 		authorizer = testServerAuthorizer{}

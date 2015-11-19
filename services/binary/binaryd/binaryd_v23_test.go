@@ -124,7 +124,7 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	// the default authorization checks on the server.
 	var (
 		binaryRepoBin = binaryWithCredentials(i, "binaryd", "v.io/x/ref/services/binary/binaryd")
-		clientBin     = binaryWithCredentials(i, "binaryd/client", "v.io/x/ref/services/binary/binary")
+		clientBin     = binaryWithCredentials(i, "binaryd:client", "v.io/x/ref/services/binary/binary")
 	)
 
 	// Start the build server.

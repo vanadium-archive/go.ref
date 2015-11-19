@@ -88,7 +88,7 @@ func V23TestAgentProcesses(i *v23tests.T) {
 	// Run the client via an agent once.
 	client := clientAgent.Start(pingpong, serverName)
 	client.Expect("Pinging...")
-	client.Expect("pong (client:[pingpongd/client] server:[pingpongd])")
+	client.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
 	client.WaitOrDie(os.Stdout, os.Stderr)
 	if err := client.Error(); err != nil { // Check expectations
 		i.Fatal(err)
@@ -115,10 +115,10 @@ echo "Running client again"
 	client = clientAgent.Start("bash", script)
 	client.Expect("Running client")
 	client.Expect("Pinging...")
-	client.Expect("pong (client:[pingpongd/client] server:[pingpongd])")
+	client.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
 	client.Expect("Running client again")
 	client.Expect("Pinging...")
-	client.Expect("pong (client:[pingpongd/client] server:[pingpongd])")
+	client.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
 	client.WaitOrDie(os.Stdout, os.Stderr)
 	if err := client.Error(); err != nil { // Check expectations
 		i.Fatal(err)

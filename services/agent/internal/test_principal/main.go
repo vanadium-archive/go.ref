@@ -128,13 +128,13 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if _, err := p.BlessingStore().Set(security.Blessings{}, security.AllPrincipals); err != nil {
 		errorf("BlessingStore().Set(nil, %q): %v", security.AllPrincipals, err)
 	}
-	if forpeer := p.BlessingStore().ForPeer("superman/friend"); !forpeer.IsZero() {
+	if forpeer := p.BlessingStore().ForPeer("superman:friend"); !forpeer.IsZero() {
 		errorf("BlessingStore().ForPeer unexpectedly returned %v", forpeer)
 	}
 	if old, err := p.BlessingStore().Set(b, "superman"); err != nil {
 		errorf("BlessingStore().Set returned (%v, %v)", old, err)
 	}
-	if forpeer := p.BlessingStore().ForPeer("superman/friend"); !reflect.DeepEqual(forpeer, b) {
+	if forpeer := p.BlessingStore().ForPeer("superman:friend"); !reflect.DeepEqual(forpeer, b) {
 		errorf("BlessingStore().ForPeer returned %v and not %v", forpeer, b)
 	}
 	p.BlessingStore().CacheDischarge(dis, tpcav, security.DischargeImpetus{})

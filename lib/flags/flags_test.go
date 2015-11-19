@@ -206,7 +206,7 @@ func TestDefaults(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	rtf := fl.RuntimeFlags()
-	if got, want := rtf.NamespaceRoots, []string{"/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101"}; !reflect.DeepEqual(got, want) {
+	if got, want := rtf.NamespaceRoots, []string{"/(dev.v.io:role:vprod:service:mounttabled)@ns.dev.v.io:8101"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	permsf := fl.PermissionsFlags()

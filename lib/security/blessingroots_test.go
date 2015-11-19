@@ -43,9 +43,9 @@ func (t *rootsTester) add(br security.BlessingRoots) error {
 		pattern security.BlessingPattern
 	}{
 		{t[0], "vanadium"},
-		{t[1], "google/foo"},
-		{t[2], "google/foo"},
-		{t[0], "google/$"},
+		{t[1], "google:foo"},
+		{t[2], "google:foo"},
+		{t[0], "google:$"},
 	}
 	for _, d := range testdata {
 		if err := br.Add(d.root, d.pattern); err != nil {
@@ -63,23 +63,23 @@ func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 	}{
 		{
 			root:          t[0],
-			recognized:    []string{"vanadium", "vanadium/foo", "vanadium/foo/bar", "google"},
-			notRecognized: []string{"google/foo", "foo", "foo/bar"},
+			recognized:    []string{"vanadium", "vanadium:foo", "vanadium:foo:bar", "google"},
+			notRecognized: []string{"google:foo", "foo", "foo:bar"},
 		},
 		{
 			root:          t[1],
-			recognized:    []string{"google/foo", "google/foo/bar"},
-			notRecognized: []string{"google", "google/bar", "vanadium", "vanadium/foo", "foo", "foo/bar"},
+			recognized:    []string{"google:foo", "google:foo:bar"},
+			notRecognized: []string{"google", "google:bar", "vanadium", "vanadium:foo", "foo", "foo:bar"},
 		},
 		{
 			root:          t[2],
-			recognized:    []string{"google/foo", "google/foo/bar"},
-			notRecognized: []string{"google", "google/bar", "vanadium", "vanadium/foo", "foo", "foo/bar"},
+			recognized:    []string{"google:foo", "google:foo:bar"},
+			notRecognized: []string{"google", "google:bar", "vanadium", "vanadium:foo", "foo", "foo:bar"},
 		},
 		{
 			root:          t[3],
 			recognized:    []string{},
-			notRecognized: []string{"vanadium", "vanadium/foo", "vanadium/bar", "google", "google/foo", "google/bar", "foo", "foo/bar"},
+			notRecognized: []string{"vanadium", "vanadium:foo", "vanadium:bar", "google", "google:foo", "google:bar", "foo", "foo:bar"},
 		},
 	}
 	for _, d := range testdata {
@@ -112,13 +112,13 @@ func (t *rootsTester) testDump(br security.BlessingRoots) error {
 		return ret
 	}
 	want := map[security.BlessingPattern][]security.PublicKey{
-		"google/foo": []security.PublicKey{object(t[1]), object(t[2])},
-		"google/$":   []security.PublicKey{object(t[0])},
+		"google:foo": []security.PublicKey{object(t[1]), object(t[2])},
+		"google:$":   []security.PublicKey{object(t[0])},
 		"vanadium":   []security.PublicKey{object(t[0])},
 	}
 	got := br.Dump()
-	sort.Sort(pubKeySorter(want["google/foo"]))
-	sort.Sort(pubKeySorter(got["google/foo"]))
+	sort.Sort(pubKeySorter(want["google:foo"]))
+	sort.Sort(pubKeySorter(got["google:foo"]))
 	if !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("Dump(): got %v, want %v", got, want)
 	}

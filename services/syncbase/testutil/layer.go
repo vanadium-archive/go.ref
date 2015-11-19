@@ -42,7 +42,7 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	if err := self.Create(ctx, nil); err != nil {
 		t.Fatalf("self.Create() failed: %v", err)
 	}
-	if gotPerms, wantPerms := getPermsOrDie(t, ctx, self), DefaultPerms("root/client"); !reflect.DeepEqual(gotPerms, wantPerms) {
+	if gotPerms, wantPerms := getPermsOrDie(t, ctx, self), DefaultPerms("root:client"); !reflect.DeepEqual(gotPerms, wantPerms) {
 		t.Errorf("Perms do not match: got %v, want %v", gotPerms, wantPerms)
 	}
 
@@ -66,7 +66,7 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	// Test create with non-default perms.
 	self2 := parent.Child("self2")
 	perms := access.Permissions{}
-	perms.Add(security.BlessingPattern("root/client"), string(access.Admin))
+	perms.Add(security.BlessingPattern("root:client"), string(access.Admin))
 	if err := self2.Create(ctx, perms); err != nil {
 		t.Fatalf("self2.Create() failed: %v", err)
 	}
@@ -79,8 +79,8 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self2, "self2", false)
 
 	// Test that create fails if the parent perms disallow access.
-	perms = DefaultPerms("root/client")
-	perms.Blacklist("root/client", string(access.Write))
+	perms = DefaultPerms("root:client")
+	perms.Blacklist("root:client", string(access.Write))
 	if err := parent.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("parent.SetPermissions() failed: %v", err)
 	}
@@ -166,8 +166,8 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	if err := self2.Create(ctx, nil); err != nil {
 		t.Fatalf("self2.Create() failed: %v", err)
 	}
-	perms := DefaultPerms("root/client")
-	perms.Blacklist("root/client", string(access.Write))
+	perms := DefaultPerms("root:client")
+	perms.Blacklist("root:client", string(access.Write))
 	if err := self2.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("self2.SetPermissions() failed: %v", err)
 	}
@@ -178,8 +178,8 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self2, "self2", true)
 
 	// Test that destroy succeeds even if the parent perms disallow access.
-	perms = DefaultPerms("root/client")
-	perms.Blacklist("root/client", string(access.Write))
+	perms = DefaultPerms("root:client")
+	perms.Blacklist("root:client", string(access.Write))
 	if err := parent.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("parent.SetPermissions() failed: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestListChildren(t *testing.T, ctx *context.T, i interface{}, names []strin
 // Mirrors v.io/groups/x/ref/services/groups/internal/server/server_test.go.
 func TestPerms(t *testing.T, ctx *context.T, ac util.AccessController) {
 	myperms := access.Permissions{}
-	myperms.Add(security.BlessingPattern("root/client"), string(access.Admin))
+	myperms.Add(security.BlessingPattern("root:client"), string(access.Admin))
 	// Demonstrate that myperms differs from the current perms.
 	if reflect.DeepEqual(myperms, getPermsOrDie(t, ctx, ac)) {
 		t.Fatalf("Permissions should not match: %v", myperms)
@@ -284,7 +284,7 @@ func TestPerms(t *testing.T, ctx *context.T, ac util.AccessController) {
 
 	// SetPermissions with empty version should succeed.
 	permsBefore, versionBefore = permsAfter, versionAfter
-	myperms.Add(security.BlessingPattern("root/client"), string(access.Read))
+	myperms.Add(security.BlessingPattern("root:client"), string(access.Read))
 	if err := ac.SetPermissions(ctx, myperms, ""); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}

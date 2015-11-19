@@ -123,11 +123,11 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		dmInstallDir  = filepath.Join(workDir, "dm")
 
 		// Most vanadium command-line utilities will be run by a
-		// principal that has "root/u/alice" as its blessing.
+		// principal that has "root:u:alice" as its blessing.
 		// (Where "root" comes from i.Principal().BlessingStore().Default()).
 		// Create those credentials and options to use to setup the
 		// binaries with them.
-		aliceCreds, _ = i.Shell().NewChildCredentials("u/alice")
+		aliceCreds, _ = i.Shell().NewChildCredentials("u:alice")
 		aliceOpts     = i.Shell().DefaultStartOpts().ExternalProgram().WithCustomCredentials(aliceCreds)
 
 		// Build all the command-line tools and set them up to run as alice.
@@ -155,7 +155,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	// Administration tasks will be performed with a blessing that represents a corporate
 	// adminstrator (which is usually a role account)
-	adminCreds, err := i.Shell().NewChildCredentials("r/admin")
+	adminCreds, err := i.Shell().NewChildCredentials("r:admin")
 	if err != nil {
 		i.Fatalf("generating admin creds: %v", err)
 	}
@@ -169,7 +169,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	// there's a way to separately supply a manufacturer blessing. Eventually, the claim
 	// would really be done by the administator, and the adminstrator's blessing would get
 	// added to the manufacturer's blessing, which would already be present.)
-	claimCreds, err := i.Shell().AddToChildCredentials(adminCreds, "m/orange/zphone5/ime-i007")
+	claimCreds, err := i.Shell().AddToChildCredentials(adminCreds, "m:orange:zphone5:ime-i007")
 	if err != nil {
 		i.Fatalf("adding the mfr blessing to admin creds: %v", err)
 	}
@@ -178,7 +178,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	// Another set of credentials be used to represent the application publisher, who
 	// signs and pushes binaries
-	pubCreds, err := i.Shell().NewChildCredentials("a/rovio")
+	pubCreds, err := i.Shell().NewChildCredentials("a:rovio")
 	if err != nil {
 		i.Fatalf("generating publisher creds: %v", err)
 	}
@@ -270,7 +270,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		claimableEP = string(matches[1])
 		break
 	}
-	// Claim the device as "root/u/alice/myworkstation".
+	// Claim the device as "root:u:alice:myworkstation".
 	claimDeviceBin.Start("claim", claimableEP, "myworkstation").WaitOrDie(os.Stdout, os.Stderr)
 
 	resolve := func(name string) string {
@@ -291,20 +291,19 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	// Wait for the device manager to publish its mount table entry.
 	mtEP := resolve(mtName)
-	adminDeviceBin.Run("acl", "set", mtName+"/devmgr/device", "root/u/alice", "Read,Resolve,Write")
+	adminDeviceBin.Run("acl", "set", mtName+"/devmgr/device", "root:u:alice", "Read,Resolve,Write")
 
 	if withSuid {
-		adminDeviceBin.Run("associate", "add", mtName+"/devmgr/device", appUser, "root/u/alice")
-
+		adminDeviceBin.Run("associate", "add", mtName+"/devmgr/device", appUser, "root:u:alice")
 		associations := adminDeviceBin.Run("associate", "list", mtName+"/devmgr/device")
-		if got, expected := strings.Trim(associations, "\n "), "root/u/alice "+appUser; got != expected {
+		if got, expected := strings.Trim(associations, "\n "), "root:u:alice "+appUser; got != expected {
 			i.Fatalf("association test, got %v, expected %v", got, expected)
 		}
 	}
 
 	// Verify the device's default blessing is as expected.
-	mfrBlessing := "root/m/orange/zphone5/ime-i007/myworkstation"
-	ownerBlessing := "root/r/admin/myworkstation"
+	mfrBlessing := "root:m:orange:zphone5:ime-i007:myworkstation"
+	ownerBlessing := "root:r:admin:myworkstation"
 	inv := debugBin.Start("stats", "read", mtName+"/devmgr/__debug/stats/security/principal/*/blessingstore/*")
 	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+" + mfrBlessing + "," + ownerBlessing)
 	inv.WaitOrDie(nil, os.Stderr)
@@ -334,7 +333,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		"--v23.tcp.address=127.0.0.1:0",
 		"--http=127.0.0.1:0")
 	// Allow publishers to update binaries
-	deviceBin.Run("acl", "set", binarydName, "root/a", "Write")
+	deviceBin.Run("acl", "set", binarydName, "root:a", "Write")
 
 	// We are also going to use the binaryd binary as our test app binary. Once our test app
 	// binary is published to the binaryd server started above, this (augmented with a
@@ -349,7 +348,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		"--v23.tcp.address=127.0.0.1:0",
 	)
 	// Allow publishers to create and update envelopes
-	deviceBin.Run("acl", "set", appDName, "root/a", "Read,Write,Resolve")
+	deviceBin.Run("acl", "set", appDName, "root:a", "Read,Write,Resolve")
 
 	sampleAppName := appDName + "/testapp"
 	appPubName := "testbinaryd"
@@ -377,7 +376,7 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	}
 
 	// Publish the app (This uses the binarydBin binary and the testapp envelope from above)
-	pubDeviceBin.Start("publish", "-from", filepath.Dir(binarydBin.Path()), "-readers", "root/r/admin", filepath.Base(binarydBin.Path())+":testapp").WaitOrDie(os.Stdout, os.Stderr)
+	pubDeviceBin.Start("publish", "-from", filepath.Dir(binarydBin.Path()), "-readers", "root:r:admin", filepath.Base(binarydBin.Path())+":testapp").WaitOrDie(os.Stdout, os.Stderr)
 	if got := namespaceBin.Run("glob", sampleAppBinName); len(got) == 0 {
 		i.Fatalf("glob failed for %q", sampleAppBinName)
 	}
@@ -425,9 +424,9 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	// Verify the app's blessings. We check the default blessing, as well as the
 	// "..." blessing, which should be the default blessing plus a publisher blessing.
-	userBlessing := "root/u/alice/myapp"
-	pubBlessing := "root/a/rovio/apps/published/binaryd"
-	appBlessing := mfrBlessing + "/a/" + pubBlessing + "," + ownerBlessing + "/a/" + pubBlessing
+	userBlessing := "root:u:alice:myapp"
+	pubBlessing := "root:a:rovio:apps:published:binaryd"
+	appBlessing := mfrBlessing + ":a:" + pubBlessing + "," + ownerBlessing + ":a:" + pubBlessing
 	inv = debugBin.Start("stats", "read", instanceName+"/stats/security/principal/*/blessingstore/*")
 	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+"+userBlessing+"$", "[.][.][.][ ]+"+userBlessing+","+appBlessing)
 	inv.WaitOrDie(nil, os.Stderr)
@@ -452,8 +451,8 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	// Upload a deviced binary
 	devicedAppBinName := binarydName + "/deviced"
 	binaryBin.Run("upload", devicedAppBinName, i.BuildGoPkg("v.io/x/ref/services/device/deviced").Path())
-	// Allow root/r/admin and its devices to read the binary
-	deviceBin.Run("acl", "set", devicedAppBinName, "root/r/admin", "Read")
+	// Allow root:r:admin and its devices to read the binary
+	deviceBin.Run("acl", "set", devicedAppBinName, "root:r:admin", "Read")
 
 	// Upload a device manager envelope.
 	devicedEnvelopeFilename := filepath.Join(workDir, "deviced.envelope")
@@ -461,8 +460,8 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	ioutil.WriteFile(devicedEnvelopeFilename, []byte(devicedEnvelope), 0666)
 	defer os.Remove(devicedEnvelopeFilename)
 	applicationBin.Run("put", devicedAppName, deviceProfile, devicedEnvelopeFilename)
-	// Allow root/r/admin and its devices to read the envelope
-	deviceBin.Run("acl", "set", devicedAppName, "root/r/admin", "Read")
+	// Allow root:r:admin and its devices to read the envelope
+	deviceBin.Run("acl", "set", devicedAppName, "root:r:admin", "Read")
 
 	// Update the device manager.
 	adminDeviceBin.Run("update", mtName+"/devmgr/device")

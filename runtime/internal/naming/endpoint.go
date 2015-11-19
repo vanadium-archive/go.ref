@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/x/lib/metadata"
 )
 
@@ -77,6 +78,9 @@ func NewEndpoint(input string) (*Endpoint, error) {
 		err = ep.parseV5(parts)
 	default:
 		err = errInvalidEndpointString
+	}
+	for i := range ep.Blessings {
+		ep.Blessings[i] = security.Bug739Slash2Colon(ep.Blessings[i])
 	}
 	return ep, err
 }
@@ -212,6 +216,13 @@ var defaultVersion = 6
 
 func (ep *Endpoint) VersionedString(version int) string {
 	// nologcall
+	var blessings []string
+	if len(ep.Blessings) > 0 {
+		blessings = make([]string, len(ep.Blessings))
+		for i, b := range ep.Blessings {
+			blessings[i] = security.Bug739Colon2Slash(b)
+		}
+	}
 	switch version {
 	case 5:
 		mt := "s"
@@ -221,7 +232,7 @@ func (ep *Endpoint) VersionedString(version int) string {
 		case ep.IsMountTable:
 			mt = "m"
 		}
-		blessings := strings.Join(ep.Blessings, blessingsSeparator)
+		blessings := strings.Join(blessings, blessingsSeparator)
 		return fmt.Sprintf("@5@%s@%s@%s@%s@%s@@",
 			ep.Protocol, naming.Escape(ep.Address, "@"), ep.RID, mt, blessings)
 	case 6:
@@ -232,7 +243,7 @@ func (ep *Endpoint) VersionedString(version int) string {
 		case ep.IsMountTable:
 			mt = "m"
 		}
-		blessings := strings.Join(ep.Blessings, blessingsSeparator)
+		blessings := strings.Join(blessings, blessingsSeparator)
 		escaped := make([]string, len(ep.RouteList))
 		for i := range ep.RouteList {
 			escaped[i] = naming.Escape(ep.RouteList[i], routeSeparator)
