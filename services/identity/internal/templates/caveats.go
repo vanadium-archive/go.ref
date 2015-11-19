@@ -59,7 +59,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
 
       <label for="blessingExtension">Blessing name</label>
       <div class="value">
-        {{.BlessingName}}/
+        {{.BlessingName}}:
         <input name="blessingExtension" type="text" placeholder="extension">
         <input type="hidden" id="timezoneOffset" name="timezoneOffset">
       </div>
