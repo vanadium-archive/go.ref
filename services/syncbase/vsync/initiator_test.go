@@ -87,12 +87,12 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 	}
 
 	// Verify genvec state.
-	wantVec := interfaces.GenVector{
-		"tb\xfefoo1": interfaces.PrefixGenVector{11: 3},
-		"tb\xfebar":  interfaces.PrefixGenVector{11: 0},
+	wantVecs := interfaces.Knowledge{
+		"tb\xfefoo1": interfaces.GenVector{11: 3},
+		"tb\xfebar":  interfaces.GenVector{11: 0},
 	}
-	if !reflect.DeepEqual(iSt.updLocal, wantVec) {
-		t.Fatalf("Final local gen vec mismatch got %v, want %v", iSt.updLocal, wantVec)
+	if !reflect.DeepEqual(iSt.updLocal, wantVecs) {
+		t.Fatalf("Final local gen vec mismatch got %v, want %v", iSt.updLocal, wantVecs)
 	}
 
 	// Verify DAG state.
@@ -184,12 +184,12 @@ func TestLogStreamNoConflict(t *testing.T) {
 	}
 
 	// Verify genvec state.
-	wantVec := interfaces.GenVector{
-		"tb\xfefoo1": interfaces.PrefixGenVector{11: 3},
-		"tb\xfebar":  interfaces.PrefixGenVector{11: 0},
+	wantVecs := interfaces.Knowledge{
+		"tb\xfefoo1": interfaces.GenVector{11: 3},
+		"tb\xfebar":  interfaces.GenVector{11: 0},
 	}
-	if !reflect.DeepEqual(iSt.updLocal, wantVec) {
-		t.Fatalf("Final local gen vec failed got %v, want %v", iSt.updLocal, wantVec)
+	if !reflect.DeepEqual(iSt.updLocal, wantVecs) {
+		t.Fatalf("Final local gen vec failed got %v, want %v", iSt.updLocal, wantVecs)
 	}
 
 	// Verify DAG state.
@@ -406,29 +406,29 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 
 	iSt.stream = createReplayStream(t, rfile)
 
-	var wantVec interfaces.GenVector
+	var wantVecs interfaces.Knowledge
 	if sg {
 		if err = iSt.prepareSGDeltaReq(nil); err != nil {
 			t.Fatalf("prepareSGDeltaReq failed with err %v", err)
 		}
 		sg := fmt.Sprintf("%d", sgId1)
-		wantVec = interfaces.GenVector{
-			sg: interfaces.PrefixGenVector{10: 0},
+		wantVecs = interfaces.Knowledge{
+			sg: interfaces.GenVector{10: 0},
 		}
 	} else {
 		if err = iSt.prepareDataDeltaReq(nil); err != nil {
 			t.Fatalf("prepareDataDeltaReq failed with err %v", err)
 		}
 
-		wantVec = interfaces.GenVector{
-			"foo\xfe": interfaces.PrefixGenVector{10: 0},
-			"bar\xfe": interfaces.PrefixGenVector{10: 0},
+		wantVecs = interfaces.Knowledge{
+			"foo\xfe": interfaces.GenVector{10: 0},
+			"bar\xfe": interfaces.GenVector{10: 0},
 		}
 	}
 
-	if !reflect.DeepEqual(iSt.local, wantVec) {
+	if !reflect.DeepEqual(iSt.local, wantVecs) {
 		// Set err so that the deferred cleanup func runs.
-		err = fmt.Errorf("createLocalGenVec failed: got %v, want %v", iSt.local, wantVec)
+		err = fmt.Errorf("createLocalGenVec failed: got %v, want %v", iSt.local, wantVecs)
 		t.Fatal(err)
 	}
 

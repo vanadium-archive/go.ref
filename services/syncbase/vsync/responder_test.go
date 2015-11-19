@@ -19,7 +19,7 @@ import (
 	"v.io/x/ref/services/syncbase/server/watchable"
 )
 
-// TestDiffPrefixGenVectors tests diffing prefix gen vectors.
+// TestDiffGenVectors tests diffing gen vectors.
 func TestDiffPrefixGenVectors(t *testing.T) {
 	svc := createService(t)
 	defer destroyService(t, svc)
@@ -27,44 +27,44 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 	s.id = 10 //responder. Initiator is id 11.
 
 	tests := []struct {
-		respPVec, initPVec interfaces.PrefixGenVector
-		genDiffIn          genRangeVector
-		genDiffWant        genRangeVector
+		respVec, initVec interfaces.GenVector
+		genDiffIn        genRangeVector
+		genDiffWant      genRangeVector
 	}{
 		{ // responder and initiator are at identical vectors.
-			respPVec:  interfaces.PrefixGenVector{10: 1, 11: 10, 12: 20, 13: 2},
-			initPVec:  interfaces.PrefixGenVector{10: 1, 11: 10, 12: 20, 13: 2},
+			respVec:   interfaces.GenVector{10: 1, 11: 10, 12: 20, 13: 2},
+			initVec:   interfaces.GenVector{10: 1, 11: 10, 12: 20, 13: 2},
 			genDiffIn: make(genRangeVector),
 		},
 		{ // responder and initiator are at identical vectors.
-			respPVec:  interfaces.PrefixGenVector{10: 0},
-			initPVec:  interfaces.PrefixGenVector{10: 0},
+			respVec:   interfaces.GenVector{10: 0},
+			initVec:   interfaces.GenVector{10: 0},
 			genDiffIn: make(genRangeVector),
 		},
 		{ // responder has no updates.
-			respPVec:  interfaces.PrefixGenVector{10: 0},
-			initPVec:  interfaces.PrefixGenVector{10: 5, 11: 10, 12: 20, 13: 8},
+			respVec:   interfaces.GenVector{10: 0},
+			initVec:   interfaces.GenVector{10: 5, 11: 10, 12: 20, 13: 8},
 			genDiffIn: make(genRangeVector),
 		},
 		{ // responder and initiator have no updates.
-			respPVec:  interfaces.PrefixGenVector{10: 0},
-			initPVec:  interfaces.PrefixGenVector{11: 0},
+			respVec:   interfaces.GenVector{10: 0},
+			initVec:   interfaces.GenVector{11: 0},
 			genDiffIn: make(genRangeVector),
 		},
 		{ // responder is staler than initiator.
-			respPVec:  interfaces.PrefixGenVector{10: 1, 11: 10, 12: 20, 13: 2},
-			initPVec:  interfaces.PrefixGenVector{10: 1, 11: 10, 12: 20, 13: 8, 14: 5},
+			respVec:   interfaces.GenVector{10: 1, 11: 10, 12: 20, 13: 2},
+			initVec:   interfaces.GenVector{10: 1, 11: 10, 12: 20, 13: 8, 14: 5},
 			genDiffIn: make(genRangeVector),
 		},
 		{ // responder is more up-to-date than initiator for local updates.
-			respPVec:    interfaces.PrefixGenVector{10: 5, 11: 10, 12: 20, 13: 2},
-			initPVec:    interfaces.PrefixGenVector{10: 1, 11: 10, 12: 20, 13: 2},
+			respVec:     interfaces.GenVector{10: 5, 11: 10, 12: 20, 13: 2},
+			initVec:     interfaces.GenVector{10: 1, 11: 10, 12: 20, 13: 2},
 			genDiffIn:   make(genRangeVector),
 			genDiffWant: genRangeVector{10: &genRange{min: 2, max: 5}},
 		},
 		{ // responder is fresher than initiator for local updates and one device.
-			respPVec:  interfaces.PrefixGenVector{10: 5, 11: 10, 12: 22, 13: 2},
-			initPVec:  interfaces.PrefixGenVector{10: 1, 11: 10, 12: 20, 13: 2, 14: 40},
+			respVec:   interfaces.GenVector{10: 5, 11: 10, 12: 22, 13: 2},
+			initVec:   interfaces.GenVector{10: 1, 11: 10, 12: 20, 13: 2, 14: 40},
 			genDiffIn: make(genRangeVector),
 			genDiffWant: genRangeVector{
 				10: &genRange{min: 2, max: 5},
@@ -72,8 +72,8 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 			},
 		},
 		{ // responder is fresher than initiator in all but one device.
-			respPVec:  interfaces.PrefixGenVector{10: 1, 11: 2, 12: 3, 13: 4},
-			initPVec:  interfaces.PrefixGenVector{10: 0, 11: 2, 12: 0},
+			respVec:   interfaces.GenVector{10: 1, 11: 2, 12: 3, 13: 4},
+			initVec:   interfaces.GenVector{10: 0, 11: 2, 12: 0},
 			genDiffIn: make(genRangeVector),
 			genDiffWant: genRangeVector{
 				10: &genRange{min: 1, max: 1},
@@ -82,8 +82,8 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 			},
 		},
 		{ // initiator has no updates.
-			respPVec:  interfaces.PrefixGenVector{10: 1, 11: 2, 12: 3, 13: 4},
-			initPVec:  interfaces.PrefixGenVector{},
+			respVec:   interfaces.GenVector{10: 1, 11: 2, 12: 3, 13: 4},
+			initVec:   interfaces.GenVector{},
 			genDiffIn: make(genRangeVector),
 			genDiffWant: genRangeVector{
 				10: &genRange{min: 1, max: 1},
@@ -93,8 +93,8 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 			},
 		},
 		{ // initiator has no updates, pre-existing diff.
-			respPVec: interfaces.PrefixGenVector{10: 1, 11: 2, 12: 3, 13: 4},
-			initPVec: interfaces.PrefixGenVector{13: 1},
+			respVec: interfaces.GenVector{10: 1, 11: 2, 12: 3, 13: 4},
+			initVec: interfaces.GenVector{13: 1},
 			genDiffIn: genRangeVector{
 				10: &genRange{min: 5, max: 20},
 				13: &genRange{min: 1, max: 3},
@@ -116,7 +116,7 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 			t.Fatalf("newResponderState failed with err %v", err)
 		}
 		rSt.diff = got
-		rSt.diffPrefixGenVectors(test.respPVec, test.initPVec)
+		rSt.diffGenVectors(test.respVec, test.initVec)
 		checkEqualDevRanges(t, got, want)
 	}
 }
@@ -129,24 +129,24 @@ func TestSendDataDeltas(t *testing.T) {
 	dbName := "mockdb"
 
 	tests := []struct {
-		respVec, initVec, outVec interfaces.GenVector
-		respGen                  uint64
-		genDiff                  genRangeVector
-		keyPfxs                  []string
+		respVecs, initVecs, outVecs interfaces.Knowledge
+		respGen                     uint64
+		genDiff                     genRangeVector
+		keyPfxs                     []string
 	}{
 		{ // Identical prefixes, local and remote updates.
-			respVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{12: 8},
-				"foobar": interfaces.PrefixGenVector{12: 10},
+			respVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{12: 8},
+				"foobar": interfaces.GenVector{12: 10},
 			},
-			initVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{11: 5},
-				"foobar": interfaces.PrefixGenVector{11: 5},
+			initVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{11: 5},
+				"foobar": interfaces.GenVector{11: 5},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{10: 5, 12: 8},
-				"foobar": interfaces.PrefixGenVector{10: 5, 12: 10},
+			outVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{10: 5, 12: 8},
+				"foobar": interfaces.GenVector{10: 5, 12: 10},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -155,21 +155,21 @@ func TestSendDataDeltas(t *testing.T) {
 			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", ""},
 		},
 		{ // Identical prefixes, local and remote updates.
-			respVec: interfaces.GenVector{
-				"bar":    interfaces.PrefixGenVector{12: 20},
-				"foo":    interfaces.PrefixGenVector{12: 8},
-				"foobar": interfaces.PrefixGenVector{12: 10},
+			respVecs: interfaces.Knowledge{
+				"bar":    interfaces.GenVector{12: 20},
+				"foo":    interfaces.GenVector{12: 8},
+				"foobar": interfaces.GenVector{12: 10},
 			},
-			initVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{11: 5},
-				"foobar": interfaces.PrefixGenVector{11: 5, 12: 10},
-				"bar":    interfaces.PrefixGenVector{10: 5, 11: 5, 12: 5},
+			initVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{11: 5},
+				"foobar": interfaces.GenVector{11: 5, 12: 10},
+				"bar":    interfaces.GenVector{10: 5, 11: 5, 12: 5},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{10: 5, 12: 8},
-				"foobar": interfaces.PrefixGenVector{10: 5, 12: 10},
-				"bar":    interfaces.PrefixGenVector{10: 5, 12: 20},
+			outVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{10: 5, 12: 8},
+				"foobar": interfaces.GenVector{10: 5, 12: 10},
+				"bar":    interfaces.GenVector{10: 5, 12: 20},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -178,13 +178,13 @@ func TestSendDataDeltas(t *testing.T) {
 			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "bar", "barbaz", ""},
 		},
 		{ // Non-identical prefixes, local only updates.
-			initVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{11: 5},
-				"foobar": interfaces.PrefixGenVector{11: 5},
+			initVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{11: 5},
+				"foobar": interfaces.GenVector{11: 5},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"foo": interfaces.PrefixGenVector{10: 5},
+			outVecs: interfaces.Knowledge{
+				"foo": interfaces.GenVector{10: 5},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -192,37 +192,18 @@ func TestSendDataDeltas(t *testing.T) {
 			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "", "fo", "fooxyz"},
 		},
 		{ // Non-identical prefixes, local and remote updates.
-			respVec: interfaces.GenVector{
-				"f":      interfaces.PrefixGenVector{12: 5, 13: 5},
-				"foo":    interfaces.PrefixGenVector{12: 10, 13: 10},
-				"foobar": interfaces.PrefixGenVector{12: 20, 13: 20},
+			respVecs: interfaces.Knowledge{
+				"f":      interfaces.GenVector{12: 5, 13: 5},
+				"foo":    interfaces.GenVector{12: 10, 13: 10},
+				"foobar": interfaces.GenVector{12: 20, 13: 20},
 			},
-			initVec: interfaces.GenVector{
-				"foo": interfaces.PrefixGenVector{11: 5, 12: 1},
-			},
-			respGen: 5,
-			outVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{10: 5, 12: 10, 13: 10},
-				"foobar": interfaces.PrefixGenVector{10: 5, 12: 20, 13: 20},
-			},
-			genDiff: genRangeVector{
-				10: &genRange{min: 1, max: 5},
-				12: &genRange{min: 2, max: 20},
-				13: &genRange{min: 1, max: 20},
-			},
-			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "", "fo", "fooxyz"},
-		},
-		{ // Non-identical prefixes, local and remote updates.
-			respVec: interfaces.GenVector{
-				"foobar": interfaces.PrefixGenVector{12: 20, 13: 20},
-			},
-			initVec: interfaces.GenVector{
-				"foo": interfaces.PrefixGenVector{11: 5, 12: 1},
+			initVecs: interfaces.Knowledge{
+				"foo": interfaces.GenVector{11: 5, 12: 1},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{10: 5},
-				"foobar": interfaces.PrefixGenVector{10: 5, 12: 20, 13: 20},
+			outVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{10: 5, 12: 10, 13: 10},
+				"foobar": interfaces.GenVector{10: 5, 12: 20, 13: 20},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -232,15 +213,34 @@ func TestSendDataDeltas(t *testing.T) {
 			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "", "fo", "fooxyz"},
 		},
 		{ // Non-identical prefixes, local and remote updates.
-			respVec: interfaces.GenVector{
-				"f": interfaces.PrefixGenVector{12: 20, 13: 20},
+			respVecs: interfaces.Knowledge{
+				"foobar": interfaces.GenVector{12: 20, 13: 20},
 			},
-			initVec: interfaces.GenVector{
-				"foo": interfaces.PrefixGenVector{11: 5, 12: 1},
+			initVecs: interfaces.Knowledge{
+				"foo": interfaces.GenVector{11: 5, 12: 1},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"foo": interfaces.PrefixGenVector{10: 5, 12: 20, 13: 20},
+			outVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{10: 5},
+				"foobar": interfaces.GenVector{10: 5, 12: 20, 13: 20},
+			},
+			genDiff: genRangeVector{
+				10: &genRange{min: 1, max: 5},
+				12: &genRange{min: 2, max: 20},
+				13: &genRange{min: 1, max: 20},
+			},
+			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "", "fo", "fooxyz"},
+		},
+		{ // Non-identical prefixes, local and remote updates.
+			respVecs: interfaces.Knowledge{
+				"f": interfaces.GenVector{12: 20, 13: 20},
+			},
+			initVecs: interfaces.Knowledge{
+				"foo": interfaces.GenVector{11: 5, 12: 1},
+			},
+			respGen: 5,
+			outVecs: interfaces.Knowledge{
+				"foo": interfaces.GenVector{10: 5, 12: 20, 13: 20},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -250,21 +250,21 @@ func TestSendDataDeltas(t *testing.T) {
 			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "", "fo", "fooxyz"},
 		},
 		{ // Non-identical interleaving prefixes.
-			respVec: interfaces.GenVector{
-				"f":      interfaces.PrefixGenVector{12: 20, 13: 10},
-				"foo":    interfaces.PrefixGenVector{12: 30, 13: 20},
-				"foobar": interfaces.PrefixGenVector{12: 40, 13: 30},
+			respVecs: interfaces.Knowledge{
+				"f":      interfaces.GenVector{12: 20, 13: 10},
+				"foo":    interfaces.GenVector{12: 30, 13: 20},
+				"foobar": interfaces.GenVector{12: 40, 13: 30},
 			},
-			initVec: interfaces.GenVector{
-				"fo":        interfaces.PrefixGenVector{11: 5, 12: 1},
-				"foob":      interfaces.PrefixGenVector{11: 5, 12: 10},
-				"foobarxyz": interfaces.PrefixGenVector{11: 5, 12: 20},
+			initVecs: interfaces.Knowledge{
+				"fo":        interfaces.GenVector{11: 5, 12: 1},
+				"foob":      interfaces.GenVector{11: 5, 12: 10},
+				"foobarxyz": interfaces.GenVector{11: 5, 12: 20},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"fo":     interfaces.PrefixGenVector{10: 5, 12: 20, 13: 10},
-				"foo":    interfaces.PrefixGenVector{10: 5, 12: 30, 13: 20},
-				"foobar": interfaces.PrefixGenVector{10: 5, 12: 40, 13: 30},
+			outVecs: interfaces.Knowledge{
+				"fo":     interfaces.GenVector{10: 5, 12: 20, 13: 10},
+				"foo":    interfaces.GenVector{10: 5, 12: 30, 13: 20},
+				"foobar": interfaces.GenVector{10: 5, 12: 40, 13: 30},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -274,22 +274,22 @@ func TestSendDataDeltas(t *testing.T) {
 			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "", "fo", "foob", "foobarxyz", "fooxyz"},
 		},
 		{ // Non-identical interleaving prefixes.
-			respVec: interfaces.GenVector{
-				"fo":        interfaces.PrefixGenVector{12: 20, 13: 10},
-				"foob":      interfaces.PrefixGenVector{12: 30, 13: 20},
-				"foobarxyz": interfaces.PrefixGenVector{12: 40, 13: 30},
+			respVecs: interfaces.Knowledge{
+				"fo":        interfaces.GenVector{12: 20, 13: 10},
+				"foob":      interfaces.GenVector{12: 30, 13: 20},
+				"foobarxyz": interfaces.GenVector{12: 40, 13: 30},
 			},
-			initVec: interfaces.GenVector{
-				"f":      interfaces.PrefixGenVector{11: 5, 12: 1},
-				"foo":    interfaces.PrefixGenVector{11: 5, 12: 10},
-				"foobar": interfaces.PrefixGenVector{11: 5, 12: 20},
+			initVecs: interfaces.Knowledge{
+				"f":      interfaces.GenVector{11: 5, 12: 1},
+				"foo":    interfaces.GenVector{11: 5, 12: 10},
+				"foobar": interfaces.GenVector{11: 5, 12: 20},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"f":         interfaces.PrefixGenVector{10: 5},
-				"fo":        interfaces.PrefixGenVector{10: 5, 12: 20, 13: 10},
-				"foob":      interfaces.PrefixGenVector{10: 5, 12: 30, 13: 20},
-				"foobarxyz": interfaces.PrefixGenVector{10: 5, 12: 40, 13: 30},
+			outVecs: interfaces.Knowledge{
+				"f":         interfaces.GenVector{10: 5},
+				"fo":        interfaces.GenVector{10: 5, 12: 20, 13: 10},
+				"foob":      interfaces.GenVector{10: 5, 12: 30, 13: 20},
+				"foobarxyz": interfaces.GenVector{10: 5, 12: 40, 13: 30},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -299,19 +299,19 @@ func TestSendDataDeltas(t *testing.T) {
 			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "", "fo", "foob", "foobarxyz", "fooxyz"},
 		},
 		{ // Non-identical sibling prefixes.
-			respVec: interfaces.GenVector{
-				"foo":       interfaces.PrefixGenVector{12: 20, 13: 10},
-				"foobarabc": interfaces.PrefixGenVector{12: 40, 13: 30},
-				"foobarxyz": interfaces.PrefixGenVector{12: 30, 13: 20},
+			respVecs: interfaces.Knowledge{
+				"foo":       interfaces.GenVector{12: 20, 13: 10},
+				"foobarabc": interfaces.GenVector{12: 40, 13: 30},
+				"foobarxyz": interfaces.GenVector{12: 30, 13: 20},
 			},
-			initVec: interfaces.GenVector{
-				"foo": interfaces.PrefixGenVector{11: 5, 12: 1},
+			initVecs: interfaces.Knowledge{
+				"foo": interfaces.GenVector{11: 5, 12: 1},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"foo":       interfaces.PrefixGenVector{10: 5, 12: 20, 13: 10},
-				"foobarabc": interfaces.PrefixGenVector{10: 5, 12: 40, 13: 30},
-				"foobarxyz": interfaces.PrefixGenVector{10: 5, 12: 30, 13: 20},
+			outVecs: interfaces.Knowledge{
+				"foo":       interfaces.GenVector{10: 5, 12: 20, 13: 10},
+				"foobarabc": interfaces.GenVector{10: 5, 12: 40, 13: 30},
+				"foobarxyz": interfaces.GenVector{10: 5, 12: 30, 13: 20},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -321,22 +321,22 @@ func TestSendDataDeltas(t *testing.T) {
 			keyPfxs: []string{"baz", "wombat", "f", "foo", "foobar", "", "foobarabc", "foobarxyz", "foobar123", "fooxyz"},
 		},
 		{ // Non-identical prefixes, local and remote updates.
-			respVec: interfaces.GenVector{
-				"barbaz": interfaces.PrefixGenVector{12: 18},
-				"f":      interfaces.PrefixGenVector{12: 30, 13: 5},
-				"foobar": interfaces.PrefixGenVector{12: 30, 13: 8},
+			respVecs: interfaces.Knowledge{
+				"barbaz": interfaces.GenVector{12: 18},
+				"f":      interfaces.GenVector{12: 30, 13: 5},
+				"foobar": interfaces.GenVector{12: 30, 13: 8},
 			},
-			initVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{11: 5, 12: 5},
-				"foobar": interfaces.PrefixGenVector{11: 5, 12: 5},
-				"bar":    interfaces.PrefixGenVector{10: 5, 11: 5, 12: 5},
+			initVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{11: 5, 12: 5},
+				"foobar": interfaces.GenVector{11: 5, 12: 5},
+				"bar":    interfaces.GenVector{10: 5, 11: 5, 12: 5},
 			},
 			respGen: 5,
-			outVec: interfaces.GenVector{
-				"foo":    interfaces.PrefixGenVector{10: 5, 12: 30, 13: 5},
-				"foobar": interfaces.PrefixGenVector{10: 5, 12: 30, 13: 8},
-				"bar":    interfaces.PrefixGenVector{10: 5},
-				"barbaz": interfaces.PrefixGenVector{10: 5, 12: 18},
+			outVecs: interfaces.Knowledge{
+				"foo":    interfaces.GenVector{10: 5, 12: 30, 13: 5},
+				"foobar": interfaces.GenVector{10: 5, 12: 30, 13: 8},
+				"bar":    interfaces.GenVector{10: 5},
+				"barbaz": interfaces.GenVector{10: 5, 12: 18},
 			},
 			genDiff: genRangeVector{
 				10: &genRange{min: 1, max: 5},
@@ -352,13 +352,13 @@ func TestSendDataDeltas(t *testing.T) {
 		s := svc.sync
 		s.id = 10 //responder.
 
-		wantDiff, wantVec := test.genDiff, test.outVec
+		wantDiff, wantVecs := test.genDiff, test.outVecs
 		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{
 			data: &localGenInfoInMem{
 				gen:        test.respGen,
 				checkptGen: test.respGen,
 			},
-			genvec: test.respVec,
+			genvecs: test.respVecs,
 		}
 
 		////////////////////////////////////////
@@ -393,8 +393,8 @@ func TestSendDataDeltas(t *testing.T) {
 					t.Fatalf("PutAtVersion(%d:%d) failed rec %v value %s: err %v", id, k, rec, value, err)
 				}
 
-				initPfxs := extractAndSortPrefixes(test.initVec)
-				if !filterLogRec(rec, test.initVec, initPfxs) {
+				initPfxs := extractAndSortPrefixes(test.initVecs)
+				if !filterLogRec(rec, test.initVecs, initPfxs) {
 					wantRecs = append(wantRecs, rec)
 				}
 			}
@@ -407,7 +407,7 @@ func TestSendDataDeltas(t *testing.T) {
 		req := interfaces.DataDeltaReq{
 			AppName: appName,
 			DbName:  dbName,
-			InitVec: test.initVec,
+			Gvs:     test.initVecs,
 		}
 
 		rSt, err := newResponderState(nil, nil, s, interfaces.DeltaReqData{req}, "fakeInitiator")
@@ -422,8 +422,8 @@ func TestSendDataDeltas(t *testing.T) {
 		}
 
 		err = rSt.computeDataDeltas(nil)
-		if err != nil || !reflect.DeepEqual(rSt.outVec, wantVec) {
-			t.Fatalf("computeDataDeltas failed (I: %v), (R: %v, %v), got %v, want %v err %v", test.initVec, test.respGen, test.respVec, rSt.outVec, wantVec, err)
+		if err != nil || !reflect.DeepEqual(rSt.outVecs, wantVecs) {
+			t.Fatalf("computeDataDeltas failed (I: %v), (R: %v, %v), got %v, want %v err %v", test.initVecs, test.respGen, test.respVecs, rSt.outVecs, wantVecs, err)
 		}
 		checkEqualDevRanges(t, rSt.diff, wantDiff)
 
@@ -431,7 +431,7 @@ func TestSendDataDeltas(t *testing.T) {
 			t.Fatalf("sendDataDeltas failed, err %v", err)
 		}
 
-		d.diffLogRecs(t, wantRecs, wantVec)
+		d.diffLogRecs(t, wantRecs, wantVecs)
 
 		destroyService(t, svc)
 	}
@@ -442,7 +442,7 @@ func TestSendDataDeltas(t *testing.T) {
 
 type dummyResponder struct {
 	gotRecs []*localLogRec
-	outVec  interfaces.GenVector
+	outVecs interfaces.Knowledge
 }
 
 func (d *dummyResponder) SendStream() interface {
@@ -453,8 +453,8 @@ func (d *dummyResponder) SendStream() interface {
 
 func (d *dummyResponder) Send(item interfaces.DeltaResp) error {
 	switch v := item.(type) {
-	case interfaces.DeltaRespRespVec:
-		d.outVec = v.Value
+	case interfaces.DeltaRespGvs:
+		d.outVecs = v.Value
 	case interfaces.DeltaRespRec:
 		d.gotRecs = append(d.gotRecs, &localLogRec{Metadata: v.Value.Metadata})
 	}
@@ -485,7 +485,7 @@ func (d *dummyResponder) Server() rpc.Server {
 	return nil
 }
 
-func (d *dummyResponder) diffLogRecs(t *testing.T, wantRecs []*localLogRec, wantVec interfaces.GenVector) {
+func (d *dummyResponder) diffLogRecs(t *testing.T, wantRecs []*localLogRec, wantVecs interfaces.Knowledge) {
 	if len(d.gotRecs) != len(wantRecs) {
 		t.Fatalf("diffLogRecs failed, gotLen %v, wantLen %v\n", len(d.gotRecs), len(wantRecs))
 	}
@@ -494,8 +494,8 @@ func (d *dummyResponder) diffLogRecs(t *testing.T, wantRecs []*localLogRec, want
 			t.Fatalf("diffLogRecs failed, i %v, got %v, want %v\n", i, rec.Metadata, wantRecs[i].Metadata)
 		}
 	}
-	if !reflect.DeepEqual(d.outVec, wantVec) {
-		t.Fatalf("diffLogRecs failed genvector, got %v, want %v\n", d.outVec, wantVec)
+	if !reflect.DeepEqual(d.outVecs, wantVecs) {
+		t.Fatalf("diffLogRecs failed genvector, got %v, want %v\n", d.outVecs, wantVecs)
 	}
 }
 

@@ -47,7 +47,7 @@ type syncCommand struct {
 	deleted    bool
 	batchId    uint64
 	batchCount uint64
-	genVec     interfaces.GenVector
+	genVecs    interfaces.Knowledge
 }
 
 // parseSyncCommands parses a sync test file and returns its commands.
@@ -154,12 +154,12 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 
 		case "genvec":
 			cmd := syncCommand{
-				cmd:    genvec,
-				genVec: make(interfaces.GenVector),
+				cmd:     genvec,
+				genVecs: make(interfaces.Knowledge),
 			}
 			for i := 1; i < len(args); i = i + 2 {
 				pfx := args[i]
-				genVec := make(interfaces.PrefixGenVector)
+				genVec := make(interfaces.GenVector)
 				for _, elem := range strings.Split(args[i+1], ",") {
 					kv := strings.Split(elem, ":")
 					if len(kv) != 2 {
@@ -175,7 +175,7 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 					}
 					genVec[dev] = gen
 				}
-				cmd.genVec[pfx] = genVec
+				cmd.genVecs[pfx] = genVec
 			}
 			cmds = append(cmds, cmd)
 
@@ -342,8 +342,8 @@ func createReplayStream(t *testing.T, syncfile string) *dummyStream {
 		var ty byte
 		switch cmd.cmd {
 		case genvec:
-			gv := interfaces.DeltaRespRespVec{cmd.genVec}
-			stream.add(gv)
+			gvs := interfaces.DeltaRespGvs{cmd.genVecs}
+			stream.add(gvs)
 			continue
 		case addRemote:
 			ty = interfaces.NodeRec

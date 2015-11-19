@@ -27,15 +27,14 @@ const (
 	LinkRec = byte(1)
 )
 
-// PrefixGenVector is the generation vector for a data prefix, which maps each
-// device id to its last locally known generation in the scope of that prefix.
-// TODO(hpucha): Rename this type.
-type PrefixGenVector map[uint64]uint64
+// GenVector is the generation vector for any syncable entity, which maps each
+// device id to its last locally known generation in the scope of that entity.
+type GenVector map[uint64]uint64
 
-// GenVector is the generation vector for a Database, and maps prefixes to their
-// generation vectors. Note that the prefixes in a GenVector are relative to the
-// the Application and Database name.
-type GenVector map[string]PrefixGenVector
+// Knowledge is a mapping of syncable entities to their generation
+// vectors. These syncable entities could be data prefixes relative to an
+// Application and Database name, or syncgroup oids.
+type Knowledge map[string]GenVector
 
 // LogRecMetadata represents the metadata of a single log record that is
 // exchanged between two peers. Each log record represents a change made to an
@@ -111,30 +110,30 @@ type DeltaReq union {
 	Data DataDeltaReq
 }
 
-// DataDeltaReq contains the initiator's genvector and the set of syncgroups it
+// DataDeltaReq contains the initiator's genvectors and the set of syncgroups it
 // is interested in within a Database (specified by the AppName/DbName) when
 // requesting deltas for that Database.
 type DataDeltaReq struct {
 	AppName string
 	DbName  string
 	SgIds   set[GroupId]
-	InitVec GenVector
+	Gvs     Knowledge
 }
 
-// SgDeltaReq contains the initiator's genvector for the syncgroups it is
+// SgDeltaReq contains the initiator's genvectors for the syncgroups it is
 // interested in within a Database (specified by the AppName/DbName) when
 // requesting deltas for those syncgroups.
 type SgDeltaReq struct {
 	AppName string
 	DbName  string
-	InitVec GenVector // Contains a genvector per syncgroup.
+	Gvs     Knowledge // Contains a genvector per syncgroup.
 }
 
-// DeltaResp contains the responder's genvector or the missing log records
+// DeltaResp contains the responder's genvectors or the missing log records
 // returned in response to an initiator's request for deltas for a Database.
 type DeltaResp union {
 	Rec     LogRec
-	RespVec GenVector
+	Gvs     Knowledge
 }
 
 // ChunkHash contains the hash of a chunk that is part of a blob's recipe.

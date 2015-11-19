@@ -56,24 +56,24 @@ func TestPutGetDbSyncState(t *testing.T) {
 
 	checkDbSyncState(t, st, false, nil)
 
-	gv := interfaces.GenVector{
-		"mocktbl/foo": interfaces.PrefixGenVector{
+	gv := interfaces.Knowledge{
+		"mocktbl/foo": interfaces.GenVector{
 			1: 2, 3: 4, 5: 6,
 		},
 	}
-	sggv := interfaces.GenVector{
-		"mocksg1": interfaces.PrefixGenVector{
+	sggv := interfaces.Knowledge{
+		"mocksg1": interfaces.GenVector{
 			10: 20, 30: 40, 50: 60,
 		},
-		"mocksg2": interfaces.PrefixGenVector{
+		"mocksg2": interfaces.GenVector{
 			100: 200, 300: 400, 500: 600,
 		},
 	}
 
 	tx := st.NewTransaction()
 	wantSt := &dbSyncState{
-		GenVec:   gv,
-		SgGenVec: sggv,
+		GenVecs:   gv,
+		SgGenVecs: sggv,
 	}
 	if err := putDbSyncState(nil, tx, wantSt); err != nil {
 		t.Fatalf("putDbSyncState failed, err %v", err)

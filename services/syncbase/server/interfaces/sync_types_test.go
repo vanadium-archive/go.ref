@@ -6,87 +6,87 @@ package interfaces
 
 import "testing"
 
-func TestPrefixGenVectorCompare(t *testing.T) {
+func TestGenVectorCompare(t *testing.T) {
 	tests := []struct {
-		a, b  PrefixGenVector
+		a, b  GenVector
 		resAB int
 		resBA int
 	}{
 		{ // a = b.
-			a:     PrefixGenVector{10: 1, 11: 10, 12: 20, 13: 2},
-			b:     PrefixGenVector{10: 1, 11: 10, 12: 20, 13: 2},
+			a:     GenVector{10: 1, 11: 10, 12: 20, 13: 2},
+			b:     GenVector{10: 1, 11: 10, 12: 20, 13: 2},
 			resAB: 0,
 			resBA: 0,
 		},
 		{ // a = b.
-			a:     PrefixGenVector{},
-			b:     PrefixGenVector{},
+			a:     GenVector{},
+			b:     GenVector{},
 			resAB: 0,
 			resBA: 0,
 		},
 		{ // a > b.
-			a:     PrefixGenVector{10: 10, 11: 11, 12: 12, 13: 13},
-			b:     PrefixGenVector{10: 1, 11: 2, 12: 3, 13: 4},
+			a:     GenVector{10: 10, 11: 11, 12: 12, 13: 13},
+			b:     GenVector{10: 1, 11: 2, 12: 3, 13: 4},
 			resAB: 1,
 			resBA: -1,
 		},
 		{ // a > b.
-			a:     PrefixGenVector{10: 38, 11: 5, 12: 56, 13: 13},
-			b:     PrefixGenVector{},
+			a:     GenVector{10: 38, 11: 5, 12: 56, 13: 13},
+			b:     GenVector{},
 			resAB: 1,
 			resBA: -1,
 		},
 		{ // a > b.
-			a:     PrefixGenVector{10: 10, 11: 11, 12: 12, 13: 13},
-			b:     PrefixGenVector{11: 2, 12: 3, 13: 4},
+			a:     GenVector{10: 10, 11: 11, 12: 12, 13: 13},
+			b:     GenVector{11: 2, 12: 3, 13: 4},
 			resAB: 1,
 			resBA: -1,
 		},
 		{ // a > b.
-			a:     PrefixGenVector{10: 10, 11: 11, 12: 12, 13: 13},
-			b:     PrefixGenVector{11: 11, 12: 2, 13: 4},
+			a:     GenVector{10: 10, 11: 11, 12: 12, 13: 13},
+			b:     GenVector{11: 11, 12: 2, 13: 4},
 			resAB: 1,
 			resBA: -1,
 		},
 		{ // a > b.
-			a:     PrefixGenVector{10: 10, 11: 11, 12: 12, 13: 13},
-			b:     PrefixGenVector{11: 11, 12: 12, 13: 13},
+			a:     GenVector{10: 10, 11: 11, 12: 12, 13: 13},
+			b:     GenVector{11: 11, 12: 12, 13: 13},
 			resAB: 1,
 			resBA: -1,
 		},
 		{ // a > b.
-			a:     PrefixGenVector{10: 1, 11: 11, 12: 12, 13: 13},
-			b:     PrefixGenVector{10: 1, 11: 2, 12: 3, 13: 4},
+			a:     GenVector{10: 1, 11: 11, 12: 12, 13: 13},
+			b:     GenVector{10: 1, 11: 2, 12: 3, 13: 4},
 			resAB: 1,
 			resBA: -1,
 		},
 		{ // a > b.
-			a:     PrefixGenVector{10: 38, 11: 5, 12: 56, 13: 13},
-			b:     PrefixGenVector{10: 1, 11: 5, 12: 23, 13: 4},
+			a:     GenVector{10: 38, 11: 5, 12: 56, 13: 13},
+			b:     GenVector{10: 1, 11: 5, 12: 23, 13: 4},
 			resAB: 1,
 			resBA: -1,
 		},
 		{ // a > b.
-			a:     PrefixGenVector{10: 0, 11: 5, 12: 56, 13: 13},
-			b:     PrefixGenVector{11: 5, 12: 23, 13: 4},
+			a:     GenVector{10: 0, 11: 5, 12: 56, 13: 13},
+			b:     GenVector{11: 5, 12: 23, 13: 4},
 			resAB: 1,
 			resBA: -1,
 		},
 		{ // a != b.
-			a:     PrefixGenVector{10: 38, 11: 5, 12: 56, 13: 13},
-			b:     PrefixGenVector{10: 56, 11: 5, 12: 23, 13: 4},
+			a:     GenVector{10: 38, 11: 5, 12: 56, 13: 13},
+			b:     GenVector{10: 56, 11: 5, 12: 23, 13: 4},
 			resAB: 2,
 			resBA: 2,
 		},
 		{ // a != b.
-			a:     PrefixGenVector{10: 38, 11: 5, 12: 56, 13: 13},
-			b:     PrefixGenVector{10: 1, 11: 50, 12: 23, 13: 4},
+			a:     GenVector{10: 38, 11: 5, 12: 56, 13: 13},
+			b:     GenVector{10: 1, 11: 50, 12: 23, 13: 4},
 			resAB: 2,
 			resBA: 2,
 		},
 		{ // a != b.
-			a:     PrefixGenVector{10: 10, 11: 11, 12: 12, 13: 13},
-			b:     PrefixGenVector{11: 11, 12: 2, 13: 4, 15: 40},
+			a:     GenVector{10: 10, 11: 11, 12: 12, 13: 13},
+			b:     GenVector{11: 11, 12: 2, 13: 4, 15: 40},
 			resAB: 2,
 			resBA: 2,
 		},

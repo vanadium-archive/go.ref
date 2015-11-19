@@ -52,18 +52,18 @@ import (
 // from syncing.
 //
 // Each sync round involves:
-// * Contacting the peer to receive all the deltas based on the local genvector.
+// * Contacting the peer to receive all the deltas based on the local genvectors.
 // * Processing those deltas to discover objects which have been updated.
 // * Processing updated objects to detect and resolve any conflicts if needed.
 // * Communicating relevant object updates to the Database in case of data.
-// * Updating local genvector to catch up to the received remote genvector.
+// * Updating local genvectors to catch up to the received remote genvectors.
 //
 // The processing of the deltas is done one Database at a time, encompassing all
 // the syncgroups common to the initiator and the responder. If a local error is
 // encountered during the processing of a Database, that Database is skipped and
 // the initiator continues on to the next one. If the connection to the peer
 // encounters an error, this initiation round is aborted. Note that until the
-// local genvector is updated based on the received deltas (the last step in an
+// local genvectors are updated based on the received deltas (the last step in an
 // initiation round), the work done by the initiator is idempotent.
 //
 // TODO(hpucha): Check the idempotence, esp in addNode in DAG.
@@ -258,14 +258,14 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 	iSt := newInitiationState(ctx, c, sg)
 
 	if sg {
-		// Create local genvec so that it contains knowledge about
+		// Create local genvecs so that they contain knowledge about
 		// common syncgroups and then send the syncgroup metadata sync
 		// request.
 		if err := iSt.prepareSGDeltaReq(ctx); err != nil {
 			return err
 		}
 	} else {
-		// Create local genvec so that it contains knowledge only about common
+		// Create local genvecs so that they contain knowledge only about common
 		// prefixes and then send the data sync request.
 		if err := iSt.prepareDataDeltaReq(ctx); err != nil {
 			return err
@@ -408,9 +408,9 @@ type initiationState struct {
 	config *initiationConfig
 
 	// Accumulated sync state.
-	local      interfaces.GenVector         // local generation vector.
-	remote     interfaces.GenVector         // generation vector from the remote peer.
-	updLocal   interfaces.GenVector         // updated local generation vector at the end of sync round.
+	local      interfaces.Knowledge         // local generation vectors.
+	remote     interfaces.Knowledge         // generation vectors from the remote peer.
+	updLocal   interfaces.Knowledge         // updated local generation vectors at the end of sync round.
 	updObjects map[string]*objConflictState // tracks updated objects during a log replay.
 	dagGraft   *graftMap                    // DAG state that tracks conflicts and common ancestors.
 
@@ -448,7 +448,7 @@ func newInitiationState(ctx *context.T, c *initiationConfig, sg bool) *initiatio
 	return iSt
 }
 
-// prepareDataDeltaReq creates the generation vector with local knowledge for
+// prepareDataDeltaReq creates the generation vectors with local knowledge for
 // the initiator to send to the responder, and creates the request to start the
 // data sync.
 //
@@ -489,7 +489,7 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 	}
 	sort.Strings(sgPfxs)
 
-	iSt.local = make(interfaces.GenVector)
+	iSt.local = make(interfaces.Knowledge)
 
 	if len(sgPfxs) == 0 {
 		return verror.New(verror.ErrInternal, ctx, "no syncgroups for syncing")
@@ -519,7 +519,7 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 		// Deal with the starting point.
 		if lpStart == "" {
 			// No matching prefixes for pfx were found.
-			iSt.local[pfx] = make(interfaces.PrefixGenVector)
+			iSt.local[pfx] = make(interfaces.GenVector)
 			iSt.local[pfx][iSt.config.sync.id] = lgen
 		} else {
 			iSt.local[pfx] = local[lpStart]
@@ -531,7 +531,7 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 		AppName: iSt.config.appName,
 		DbName:  iSt.config.dbName,
 		SgIds:   iSt.config.sgIds,
-		InitVec: iSt.local,
+		Gvs:     iSt.local,
 	}
 
 	iSt.req = interfaces.DeltaReqData{req}
@@ -541,7 +541,7 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 	return nil
 }
 
-// prepareSGDeltaReq creates the syncgroup generation vector with local
+// prepareSGDeltaReq creates the syncgroup generation vectors with local
 // knowledge for the initiator to send to the responder, and prepares the
 // request to start the syncgroup sync.
 func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
@@ -562,7 +562,7 @@ func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
 	req := interfaces.SgDeltaReq{
 		AppName: iSt.config.appName,
 		DbName:  iSt.config.dbName,
-		InitVec: iSt.local,
+		Gvs:     iSt.local,
 	}
 
 	iSt.req = interfaces.DeltaReqSgs{req}
@@ -572,7 +572,7 @@ func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
 	return nil
 }
 
-// recvAndProcessDeltas first receives the log records and generation vector
+// recvAndProcessDeltas first receives the log records and generation vectors
 // from the GetDeltas RPC and puts them in the Database. It also replays the
 // entire log stream as the log records arrive. These records span multiple
 // generations from different devices. It does not perform any conflict
@@ -603,7 +603,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 	for rcvr.Advance() {
 		resp := rcvr.Value()
 		switch v := resp.(type) {
-		case interfaces.DeltaRespRespVec:
+		case interfaces.DeltaRespGvs:
 			iSt.remote = v.Value
 
 		case interfaces.DeltaRespRec:
@@ -807,7 +807,7 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 		}
 		if err == nil {
 			committed = true
-			// Update in-memory genvector since commit is successful.
+			// Update in-memory genvectors since commit is successful.
 			if err := iSt.config.sync.putDbGenInfoRemote(ctx, iSt.config.appName, iSt.config.dbName, iSt.sg, iSt.updLocal); err != nil {
 				vlog.Fatalf("sync: processUpdatedObjects: putting geninfo in memory failed for app %s db %s, err %v", iSt.config.appName, iSt.config.dbName, err)
 			}
@@ -856,7 +856,7 @@ func (iSt *initiationState) detectConflicts(ctx *context.T) (int, error) {
 }
 
 // updateDbAndSync updates the Database, and if that is successful, updates log,
-// dag and genvector data structures as needed.
+// dag and genvectors data structures as needed.
 func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 	for objid, confSt := range iSt.updObjects {
 		// If the local version is picked, no further updates to the
@@ -1053,23 +1053,23 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 	}
 	// Create the state to be persisted.
 	ds := &dbSyncState{
-		GenVec:   dsInMem.genvec,
-		SgGenVec: dsInMem.sggenvec,
+		GenVecs:   dsInMem.genvecs,
+		SgGenVecs: dsInMem.sggenvecs,
 	}
 
-	genvec := ds.GenVec
+	genvecs := ds.GenVecs
 	if iSt.sg {
-		genvec = ds.SgGenVec
+		genvecs = ds.SgGenVecs
 	}
 	// remote can be a subset of local.
 	for rpfx, respgv := range iSt.remote {
-		for lpfx, lpgv := range genvec {
+		for lpfx, lpgv := range genvecs {
 			if strings.HasPrefix(lpfx, rpfx) {
-				mergePrefixGenVectors(lpgv, respgv)
+				mergeGenVectors(lpgv, respgv)
 			}
 		}
-		if _, ok := genvec[rpfx]; !ok {
-			genvec[rpfx] = respgv
+		if _, ok := genvecs[rpfx]; !ok {
+			genvecs[rpfx] = respgv
 		}
 
 		if iSt.sg {
@@ -1085,7 +1085,7 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 				return err
 			}
 			if state.SyncPending {
-				curgv := genvec[rpfx]
+				curgv := genvecs[rpfx]
 				res := curgv.Compare(state.PendingGenVec)
 				vlog.VI(4).Infof("sync: updateSyncSt: checking join pending %v, curgv %v, res %v", state.PendingGenVec, curgv, res)
 				if res >= 0 {
@@ -1098,11 +1098,11 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 		}
 	}
 
-	iSt.updLocal = genvec
+	iSt.updLocal = genvecs
 	// Clean the genvector of any local state. Note that local state is held
 	// in gen/ckPtGen in sync state struct.
-	for _, pgv := range iSt.updLocal {
-		delete(pgv, iSt.config.sync.id)
+	for _, gv := range iSt.updLocal {
+		delete(gv, iSt.config.sync.id)
 	}
 
 	// TODO(hpucha): Add knowledge compaction.
@@ -1110,8 +1110,8 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 	return putDbSyncState(ctx, iSt.tx, ds)
 }
 
-// mergePrefixGenVectors merges responder prefix genvector into local genvector.
-func mergePrefixGenVectors(lpgv, respgv interfaces.PrefixGenVector) {
+// mergeGenVectors merges responder genvector into local genvector.
+func mergeGenVectors(lpgv, respgv interfaces.GenVector) {
 	for devid, rgen := range respgv {
 		gen, ok := lpgv[devid]
 		if !ok || gen < rgen {

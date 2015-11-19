@@ -36,19 +36,19 @@ func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasSer
 // initiation round.
 type responderState struct {
 	// Parameters from the request.
-	appName string
-	dbName  string
-	sgIds   sgSet
-	initVec interfaces.GenVector
-	sg      bool
+	appName  string
+	dbName   string
+	sgIds    sgSet
+	initVecs interfaces.Knowledge
+	sg       bool
 
 	call      interfaces.SyncGetDeltasServerCall // Stream handle for the GetDeltas RPC.
 	initiator string
 	sync      *syncService
 	st        store.Store // Store handle to the Database.
 
-	diff   genRangeVector
-	outVec interfaces.GenVector
+	diff    genRangeVector
+	outVecs interfaces.Knowledge
 }
 
 func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, sync *syncService, req interfaces.DeltaReq, initiator string) (*responderState, error) {
@@ -63,16 +63,16 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 		rSt.appName = v.Value.AppName
 		rSt.dbName = v.Value.DbName
 		rSt.sgIds = v.Value.SgIds
-		rSt.initVec = v.Value.InitVec
+		rSt.initVecs = v.Value.Gvs
 
 	case interfaces.DeltaReqSgs:
 		rSt.sg = true
 		rSt.appName = v.Value.AppName
 		rSt.dbName = v.Value.DbName
-		rSt.initVec = v.Value.InitVec
+		rSt.initVecs = v.Value.Gvs
 		rSt.sgIds = make(sgSet)
 		// Populate the sgids from the initvec.
-		for oid := range rSt.initVec {
+		for oid := range rSt.initVecs {
 			gid, err := sgID(oid)
 			if err != nil {
 				vlog.Fatalf("sync: newResponderState: invalid syncgroup key %s", oid)
@@ -86,7 +86,7 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 }
 
 // sendDeltasPerDatabase sends to an initiator all the missing generations
-// corresponding to the prefixes requested for this Database, and a genvector
+// corresponding to the prefixes requested for this Database, and genvectors
 // summarizing the knowledge transferred from the responder to the
 // initiator. This happens in three phases:
 //
@@ -95,22 +95,21 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 // allowed syncgroups are carried forward.
 //
 // In the second phase, for a given set of nested prefixes from the initiator,
-// the shortest prefix in that set is extracted. The initiator's prefix
-// genvector for this shortest prefix represents the lower bound on its
-// knowledge for the entire set of nested prefixes. This prefix genvector
-// (representing the lower bound) is diffed with all the responder prefix
-// genvectors corresponding to same or deeper prefixes compared to the initiator
-// prefix. This diff produces a bound on the missing knowledge. For example, say
-// the initiator is interested in prefixes {foo, foobar}, where each prefix is
-// associated with a prefix genvector. Since the initiator strictly has as much
-// or more knowledge for prefix "foobar" as it has for prefix "foo", "foo"'s
-// prefix genvector is chosen as the lower bound for the initiator's
-// knowledge. Similarly, say the responder has knowledge on prefixes {f,
-// foobarX, foobarY, bar}. The responder diffs the prefix genvectors for
-// prefixes f, foobarX and foobarY with the initiator's prefix genvector to
-// compute a bound on missing generations (all responder's prefixes that match
-// "foo". Note that since the responder doesn't have a prefix genvector at
-// "foo", its knowledge at "f" is applicable to "foo").
+// the shortest prefix in that set is extracted. The initiator's genvector for
+// this shortest prefix represents the lower bound on its knowledge for the
+// entire set of nested prefixes. This genvector (representing the lower bound)
+// is diffed with all the responder genvectors corresponding to same or deeper
+// prefixes compared to the initiator prefix. This diff produces a bound on the
+// missing knowledge. For example, say the initiator is interested in prefixes
+// {foo, foobar}, where each prefix is associated with a genvector. Since the
+// initiator strictly has as much or more knowledge for prefix "foobar" as it
+// has for prefix "foo", "foo"'s genvector is chosen as the lower bound for the
+// initiator's knowledge. Similarly, say the responder has knowledge on prefixes
+// {f, foobarX, foobarY, bar}. The responder diffs the genvectors for prefixes
+// f, foobarX and foobarY with the initiator's genvector to compute a bound on
+// missing generations (all responder's prefixes that match "foo". Note that
+// since the responder doesn't have a genvector at "foo", its knowledge at "f"
+// is applicable to "foo").
 //
 // Since the second phase outputs an aggressive calculation of missing
 // generations containing more generation entries than strictly needed by the
@@ -124,8 +123,8 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 	// embedded, consider using a helper function to auto-fill it instead
 	// (see http://goo.gl/mEa4L0) but only incur that overhead when the
 	// logging level specified is enabled.
-	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: recvd %s, %s: sgids %v, genvec %v, sg %v",
-		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVec, rSt.sg)
+	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: recvd %s, %s: sgids %v, genvecs %v, sg %v",
+		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVecs, rSt.sg)
 
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
 	// caller only for the syncgroups that allow access.
@@ -137,8 +136,8 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 		return err
 	}
 
-	if len(rSt.initVec) == 0 {
-		return verror.New(verror.ErrInternal, ctx, "empty initiator generation vector")
+	if len(rSt.initVecs) == 0 {
+		return verror.New(verror.ErrInternal, ctx, "empty initiator generation vectors")
 	}
 
 	// Phase 2 and 3 of sendDeltas: diff contains the bound on the
@@ -175,7 +174,7 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 		if verror.ErrorID(err) == verror.ErrNoAccess.ID {
 			if rSt.sg {
 				id := fmt.Sprintf("%d", sgid)
-				delete(rSt.initVec, id)
+				delete(rSt.initVecs, id)
 			}
 			continue
 		} else if err != nil {
@@ -196,7 +195,7 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 	}
 
 	// Filter the initiator's prefixes to what is allowed.
-	for pfx := range rSt.initVec {
+	for pfx := range rSt.initVecs {
 		if _, ok := allowedPfxs[pfx]; ok {
 			continue
 		}
@@ -208,7 +207,7 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 		}
 
 		if !allowed {
-			delete(rSt.initVec, pfx)
+			delete(rSt.initVecs, pfx)
 		}
 	}
 	return nil
@@ -217,27 +216,27 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 // sendSgDeltas computes the bound on missing generations, and sends the missing
 // log records across all requested syncgroups (phases 2 and 3 of sendDeltas).
 func (rSt *responderState) sendSgDeltas(ctx *context.T) error {
-	respVec, _, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, rSt.sgIds)
+	respVecs, _, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, rSt.sgIds)
 	if err != nil {
 		return err
 	}
 
-	rSt.outVec = make(interfaces.GenVector)
+	rSt.outVecs = make(interfaces.Knowledge)
 
-	for sg, initpgv := range rSt.initVec {
-		respgv, ok := respVec[sg]
+	for sg, initgv := range rSt.initVecs {
+		respgv, ok := respVecs[sg]
 		if !ok {
 			continue
 		}
 		rSt.diff = make(genRangeVector)
-		rSt.diffPrefixGenVectors(respgv, initpgv)
-		rSt.outVec[sg] = respgv
+		rSt.diffGenVectors(respgv, initgv)
+		rSt.outVecs[sg] = respgv
 
 		if err := rSt.filterAndSendDeltas(ctx, sg); err != nil {
 			return err
 		}
 	}
-	return rSt.sendGenVec(ctx)
+	return rSt.sendGenVecs(ctx)
 }
 
 // sendDataDeltas computes the bound on missing generations across all requested
@@ -253,18 +252,18 @@ func (rSt *responderState) sendDataDeltas(ctx *context.T) error {
 	if err := rSt.filterAndSendDeltas(ctx, logDataPrefix); err != nil {
 		return err
 	}
-	return rSt.sendGenVec(ctx)
+	return rSt.sendGenVecs(ctx)
 }
 
 func (rSt *responderState) computeDataDeltas(ctx *context.T) error {
-	respVec, respGen, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, nil)
+	respVecs, respGen, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, nil)
 	if err != nil {
 		return err
 	}
-	respPfxs := extractAndSortPrefixes(respVec)
-	initPfxs := extractAndSortPrefixes(rSt.initVec)
+	respPfxs := extractAndSortPrefixes(respVecs)
+	initPfxs := extractAndSortPrefixes(rSt.initVecs)
 
-	rSt.outVec = make(interfaces.GenVector)
+	rSt.outVecs = make(interfaces.Knowledge)
 	rSt.diff = make(genRangeVector)
 	pfx := initPfxs[0]
 
@@ -278,10 +277,10 @@ func (rSt *responderState) computeDataDeltas(ctx *context.T) error {
 		pfx = p
 
 		// Lower bound on initiator's knowledge for this prefix set.
-		initpgv := rSt.initVec[pfx]
+		initgv := rSt.initVecs[pfx]
 
 		// Find the relevant responder prefixes and add the corresponding knowledge.
-		var respgv interfaces.PrefixGenVector
+		var respgv interfaces.GenVector
 		var rpStart string
 		for _, rp := range respPfxs {
 			if !strings.HasPrefix(rp, pfx) && !strings.HasPrefix(pfx, rp) {
@@ -309,26 +308,26 @@ func (rSt *responderState) computeDataDeltas(ctx *context.T) error {
 				// be definitely sent to the initiator. Diff the
 				// prefix genvectors to adjust the delta bound and
 				// include in outVec.
-				respgv = respVec[rp]
-				rSt.diffPrefixGenVectors(respgv, initpgv)
-				rSt.outVec[rp] = respgv
+				respgv = respVecs[rp]
+				rSt.diffGenVectors(respgv, initgv)
+				rSt.outVecs[rp] = respgv
 			}
 		}
 
 		// Deal with the starting point.
 		if rpStart == "" {
 			// No matching prefixes for pfx were found.
-			respgv = make(interfaces.PrefixGenVector)
+			respgv = make(interfaces.GenVector)
 			respgv[rSt.sync.id] = respGen
 		} else {
-			respgv = respVec[rpStart]
+			respgv = respVecs[rpStart]
 		}
-		rSt.diffPrefixGenVectors(respgv, initpgv)
-		rSt.outVec[pfx] = respgv
+		rSt.diffGenVectors(respgv, initgv)
+		rSt.outVecs[pfx] = respgv
 	}
 
-	vlog.VI(3).Infof("sync: computeDataDeltas: %s, %s: diff %v, outvec %v",
-		rSt.appName, rSt.dbName, rSt.diff, rSt.outVec)
+	vlog.VI(3).Infof("sync: computeDataDeltas: %s, %s: diff %v, outvecs %v",
+		rSt.appName, rSt.dbName, rSt.diff, rSt.outVecs)
 	return nil
 }
 
@@ -364,12 +363,12 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T, pfx string) error
 	// Process the log records in order.
 	var initPfxs []string
 	if !rSt.sg {
-		initPfxs = extractAndSortPrefixes(rSt.initVec)
+		initPfxs = extractAndSortPrefixes(rSt.initVecs)
 	}
 	for mh.Len() > 0 {
 		rec := heap.Pop(&mh).(*localLogRec)
 
-		if rSt.sg || !filterLogRec(rec, rSt.initVec, initPfxs) {
+		if rSt.sg || !filterLogRec(rec, rSt.initVecs, initPfxs) {
 			// Send on the wire.
 			wireRec, err := makeWireLogRec(ctx, rSt.sg, rSt.st, rec)
 			if err != nil {
@@ -393,11 +392,11 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T, pfx string) error
 	return nil
 }
 
-func (rSt *responderState) sendGenVec(ctx *context.T) error {
-	vlog.VI(3).Infof("sync: sendGenVec: sending genvec %v", rSt.outVec)
+func (rSt *responderState) sendGenVecs(ctx *context.T) error {
+	vlog.VI(3).Infof("sync: sendGenVecs: sending genvecs %v", rSt.outVecs)
 
 	sender := rSt.call.SendStream()
-	sender.Send(interfaces.DeltaRespRespVec{rSt.outVec})
+	sender.Send(interfaces.DeltaRespGvs{rSt.outVecs})
 	return nil
 }
 
@@ -410,30 +409,32 @@ type genRange struct {
 
 type genRangeVector map[uint64]*genRange
 
-// diffPrefixGenVectors diffs two generation vectors, belonging to the responder
-// and the initiator, and updates the range of generations per device known to
-// the responder but not known to the initiator. "gens" (generation range) is
-// passed in as an input argument so that it can be incrementally updated as the
-// range of missing generations grows when different responder prefix genvectors
-// are used to compute the diff.
+// diffGenVectors diffs two generation vectors, belonging to the responder and
+// the initiator, and updates the range of generations per device known to the
+// responder but not known to the initiator. "gens" (generation range) is passed
+// in as an input argument so that it can be incrementally updated as the range
+// of missing generations grows when different responder prefix genvectors are
+// used to compute the diff.
 //
 // For example: Generation vector for responder is say RVec = {A:10, B:5, C:1},
 // Generation vector for initiator is say IVec = {A:5, B:10, D:2}. Diffing these
 // two vectors returns: {A:[6-10], C:[1-1]}.
 //
 // TODO(hpucha): Add reclaimVec for GCing.
-func (rSt *responderState) diffPrefixGenVectors(respPVec, initPVec interfaces.PrefixGenVector) {
-	// Compute missing generations for devices that are in both initiator's and responder's vectors.
-	for devid, gen := range initPVec {
-		rgen, ok := respPVec[devid]
+func (rSt *responderState) diffGenVectors(respVec, initVec interfaces.GenVector) {
+	// Compute missing generations for devices that are in both initiator's
+	// and responder's vectors.
+	for devid, gen := range initVec {
+		rgen, ok := respVec[devid]
 		if ok {
 			updateDevRange(devid, rgen, gen, rSt.diff)
 		}
 	}
 
-	// Compute missing generations for devices not in initiator's vector but in responder's vector.
-	for devid, rgen := range respPVec {
-		if _, ok := initPVec[devid]; !ok {
+	// Compute missing generations for devices not in initiator's vector but
+	// in responder's vector.
+	for devid, rgen := range respVec {
+		if _, ok := initVec[devid]; !ok {
 			updateDevRange(devid, rgen, 0, rSt.diff)
 		}
 	}
@@ -455,7 +456,7 @@ func updateDevRange(devid, rgen, gen uint64, gens genRangeVector) {
 	}
 }
 
-func extractAndSortPrefixes(vec interfaces.GenVector) []string {
+func extractAndSortPrefixes(vec interfaces.Knowledge) []string {
 	pfxs := make([]string, len(vec))
 	i := 0
 	for p := range vec {
@@ -483,7 +484,7 @@ func getNextLogRec(ctx *context.T, st store.Store, pfx string, dev uint64, r *ge
 }
 
 // Note: initPfxs is sorted.
-func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []string) bool {
+func filterLogRec(rec *localLogRec, initVecs interfaces.Knowledge, initPfxs []string) bool {
 	// The key (objid) starts with one of the store's reserved prefixes for
 	// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
 	// comparing it with the syncgroup prefixes which are defined by the
@@ -499,7 +500,7 @@ func filterLogRec(rec *localLogRec, initVec interfaces.GenVector, initPfxs []str
 			filter = false
 
 			// Track if the initiator knows of this record.
-			gen := initVec[p][rec.Metadata.Id]
+			gen := initVecs[p][rec.Metadata.Id]
 			if maxGen < gen {
 				maxGen = gen
 			}

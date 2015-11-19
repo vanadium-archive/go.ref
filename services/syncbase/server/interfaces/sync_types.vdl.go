@@ -18,23 +18,22 @@ import (
 	_ "v.io/v23/vdlroot/time"
 )
 
-// PrefixGenVector is the generation vector for a data prefix, which maps each
-// device id to its last locally known generation in the scope of that prefix.
-// TODO(hpucha): Rename this type.
-type PrefixGenVector map[uint64]uint64
-
-func (PrefixGenVector) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.PrefixGenVector"`
-}) {
-}
-
-// GenVector is the generation vector for a Database, and maps prefixes to their
-// generation vectors. Note that the prefixes in a GenVector are relative to the
-// the Application and Database name.
-type GenVector map[string]PrefixGenVector
+// GenVector is the generation vector for any syncable entity, which maps each
+// device id to its last locally known generation in the scope of that entity.
+type GenVector map[uint64]uint64
 
 func (GenVector) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.GenVector"`
+}) {
+}
+
+// Knowledge is a mapping of syncable entities to their generation
+// vectors. These syncable entities could be data prefixes relative to an
+// Application and Database name, or syncgroup oids.
+type Knowledge map[string]GenVector
+
+func (Knowledge) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.Knowledge"`
 }) {
 }
 
@@ -202,14 +201,14 @@ func (x DeltaReqData) Interface() interface{}         { return x.Value }
 func (x DeltaReqData) Name() string                   { return "Data" }
 func (x DeltaReqData) __VDLReflect(__DeltaReqReflect) {}
 
-// DataDeltaReq contains the initiator's genvector and the set of syncgroups it
+// DataDeltaReq contains the initiator's genvectors and the set of syncgroups it
 // is interested in within a Database (specified by the AppName/DbName) when
 // requesting deltas for that Database.
 type DataDeltaReq struct {
 	AppName string
 	DbName  string
 	SgIds   map[GroupId]struct{}
-	InitVec GenVector
+	Gvs     Knowledge
 }
 
 func (DataDeltaReq) __VDLReflect(struct {
@@ -217,13 +216,13 @@ func (DataDeltaReq) __VDLReflect(struct {
 }) {
 }
 
-// SgDeltaReq contains the initiator's genvector for the syncgroups it is
+// SgDeltaReq contains the initiator's genvectors for the syncgroups it is
 // interested in within a Database (specified by the AppName/DbName) when
 // requesting deltas for those syncgroups.
 type SgDeltaReq struct {
 	AppName string
 	DbName  string
-	InitVec GenVector // Contains a genvector per syncgroup.
+	Gvs     Knowledge // Contains a genvector per syncgroup.
 }
 
 func (SgDeltaReq) __VDLReflect(struct {
@@ -234,7 +233,7 @@ func (SgDeltaReq) __VDLReflect(struct {
 type (
 	// DeltaResp represents any single field of the DeltaResp union type.
 	//
-	// DeltaResp contains the responder's genvector or the missing log records
+	// DeltaResp contains the responder's genvectors or the missing log records
 	// returned in response to an initiator's request for deltas for a Database.
 	DeltaResp interface {
 		// Index returns the field index.
@@ -248,15 +247,15 @@ type (
 	}
 	// DeltaRespRec represents field Rec of the DeltaResp union type.
 	DeltaRespRec struct{ Value LogRec }
-	// DeltaRespRespVec represents field RespVec of the DeltaResp union type.
-	DeltaRespRespVec struct{ Value GenVector }
+	// DeltaRespGvs represents field Gvs of the DeltaResp union type.
+	DeltaRespGvs struct{ Value Knowledge }
 	// __DeltaRespReflect describes the DeltaResp union type.
 	__DeltaRespReflect struct {
 		Name  string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaResp"`
 		Type  DeltaResp
 		Union struct {
-			Rec     DeltaRespRec
-			RespVec DeltaRespRespVec
+			Rec DeltaRespRec
+			Gvs DeltaRespGvs
 		}
 	}
 )
@@ -266,10 +265,10 @@ func (x DeltaRespRec) Interface() interface{}          { return x.Value }
 func (x DeltaRespRec) Name() string                    { return "Rec" }
 func (x DeltaRespRec) __VDLReflect(__DeltaRespReflect) {}
 
-func (x DeltaRespRespVec) Index() int                      { return 1 }
-func (x DeltaRespRespVec) Interface() interface{}          { return x.Value }
-func (x DeltaRespRespVec) Name() string                    { return "RespVec" }
-func (x DeltaRespRespVec) __VDLReflect(__DeltaRespReflect) {}
+func (x DeltaRespGvs) Index() int                      { return 1 }
+func (x DeltaRespGvs) Interface() interface{}          { return x.Value }
+func (x DeltaRespGvs) Name() string                    { return "Gvs" }
+func (x DeltaRespGvs) __VDLReflect(__DeltaRespReflect) {}
 
 // ChunkHash contains the hash of a chunk that is part of a blob's recipe.
 type ChunkHash struct {
@@ -328,8 +327,8 @@ func (TimeResp) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register((*PrefixGenVector)(nil))
 	vdl.Register((*GenVector)(nil))
+	vdl.Register((*Knowledge)(nil))
 	vdl.Register((*LogRecMetadata)(nil))
 	vdl.Register((*LogRec)(nil))
 	vdl.Register((*GroupId)(nil))

@@ -27,8 +27,8 @@ func (syncData) __VDLReflect(struct {
 
 // dbSyncState represents the persistent sync state of a Database.
 type dbSyncState struct {
-	GenVec   interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for data in Database.
-	SgGenVec interfaces.GenVector // generation vector capturing the locally-known generations of remote peers for syncgroups in Database.
+	GenVecs   interfaces.Knowledge // knowledge capturing the locally-known generations of remote peers for data in Database.
+	SgGenVecs interfaces.Knowledge // knowledge capturing the locally-known generations of remote peers for syncgroups in Database.
 }
 
 func (dbSyncState) __VDLReflect(struct {
@@ -83,7 +83,7 @@ type sgLocalState struct {
 	// is true, no local syncgroup mutations are allowed (i.e. no join or
 	// set-spec requests).
 	SyncPending   bool
-	PendingGenVec interfaces.PrefixGenVector
+	PendingGenVec interfaces.GenVector
 }
 
 func (sgLocalState) __VDLReflect(struct {

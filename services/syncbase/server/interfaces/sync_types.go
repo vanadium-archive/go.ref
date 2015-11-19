@@ -4,26 +4,25 @@
 
 package interfaces
 
-func (in GenVector) DeepCopy() GenVector {
-	out := make(GenVector)
+func (in Knowledge) DeepCopy() Knowledge {
+	out := make(Knowledge)
 	for p, inpgv := range in {
 		out[p] = inpgv.DeepCopy()
 	}
 	return out
 }
 
-func (in PrefixGenVector) DeepCopy() PrefixGenVector {
-	out := make(PrefixGenVector)
+func (in GenVector) DeepCopy() GenVector {
+	out := make(GenVector)
 	for id, gen := range in {
 		out[id] = gen
 	}
 	return out
 }
 
-// Compare returns an integer comparing two prefix generation vectors. The
-// result will be 0 if a==b, -1 if a < b, +1 if a > b and +2 if a and b are
-// uncomparable.
-func (a PrefixGenVector) Compare(b PrefixGenVector) int {
+// Compare returns an integer comparing two generation vectors. The result will
+// be 0 if a==b, -1 if a < b, +1 if a > b and +2 if a and b are uncomparable.
+func (a GenVector) Compare(b GenVector) int {
 	res := -2
 
 	if len(a) == 0 && len(b) == 0 {

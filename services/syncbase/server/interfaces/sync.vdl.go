@@ -58,9 +58,9 @@ type SyncClientMethods interface {
 	// GetTime returns metadata related to syncbase clock like syncbase clock
 	// timestamps, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, req TimeReq, initiator string, _ ...rpc.CallOpt) (TimeResp, error)
-	// GetDeltas returns the responder's current generation vector and all
+	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
-	// vector for one Database for either syncgroup metadata or data.
+	// vectors for one Database for either syncgroup metadata or data.
 	GetDeltas(_ *context.T, req DeltaReq, initiator string, _ ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
@@ -78,7 +78,7 @@ type SyncClientMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
-	PublishSyncgroup(_ *context.T, publisher string, sg Syncgroup, version string, genvec PrefixGenVector, _ ...rpc.CallOpt) (string, error)
+	PublishSyncgroup(_ *context.T, publisher string, sg Syncgroup, version string, genvec GenVector, _ ...rpc.CallOpt) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
 	// allowed to join the named syncgroup, and if so, adds the requestor to
@@ -90,7 +90,7 @@ type SyncClientMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(_ *context.T, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo, _ ...rpc.CallOpt) (sg Syncgroup, version string, genvec PrefixGenVector, _ error)
+	JoinSyncgroupAtAdmin(_ *context.T, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo, _ ...rpc.CallOpt) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
 	HaveBlob(_ *context.T, br nosql.BlobRef, _ ...rpc.CallOpt) (int64, error)
@@ -138,12 +138,12 @@ func (c implSyncClientStub) GetDeltas(ctx *context.T, i0 DeltaReq, i1 string, op
 	return
 }
 
-func (c implSyncClientStub) PublishSyncgroup(ctx *context.T, i0 string, i1 Syncgroup, i2 string, i3 PrefixGenVector, opts ...rpc.CallOpt) (o0 string, err error) {
+func (c implSyncClientStub) PublishSyncgroup(ctx *context.T, i0 string, i1 Syncgroup, i2 string, i3 GenVector, opts ...rpc.CallOpt) (o0 string, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "PublishSyncgroup", []interface{}{i0, i1, i2, i3}, []interface{}{&o0}, opts...)
 	return
 }
 
-func (c implSyncClientStub) JoinSyncgroupAtAdmin(ctx *context.T, i0 string, i1 string, i2 nosql.SyncgroupMemberInfo, opts ...rpc.CallOpt) (o0 Syncgroup, o1 string, o2 PrefixGenVector, err error) {
+func (c implSyncClientStub) JoinSyncgroupAtAdmin(ctx *context.T, i0 string, i1 string, i2 nosql.SyncgroupMemberInfo, opts ...rpc.CallOpt) (o0 Syncgroup, o1 string, o2 GenVector, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "JoinSyncgroupAtAdmin", []interface{}{i0, i1, i2}, []interface{}{&o0, &o1, &o2}, opts...)
 	return
 }
@@ -497,9 +497,9 @@ type SyncServerMethods interface {
 	// GetTime returns metadata related to syncbase clock like syncbase clock
 	// timestamps, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
-	// GetDeltas returns the responder's current generation vector and all
+	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
-	// vector for one Database for either syncgroup metadata or data.
+	// vectors for one Database for either syncgroup metadata or data.
 	GetDeltas(_ *context.T, _ SyncGetDeltasServerCall, req DeltaReq, initiator string) error
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
@@ -517,7 +517,7 @@ type SyncServerMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
-	PublishSyncgroup(_ *context.T, _ rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec PrefixGenVector) (string, error)
+	PublishSyncgroup(_ *context.T, _ rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec GenVector) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
 	// allowed to join the named syncgroup, and if so, adds the requestor to
@@ -529,7 +529,7 @@ type SyncServerMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec PrefixGenVector, _ error)
+	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
 	HaveBlob(_ *context.T, _ rpc.ServerCall, br nosql.BlobRef) (int64, error)
@@ -556,9 +556,9 @@ type SyncServerStubMethods interface {
 	// GetTime returns metadata related to syncbase clock like syncbase clock
 	// timestamps, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
-	// GetDeltas returns the responder's current generation vector and all
+	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
-	// vector for one Database for either syncgroup metadata or data.
+	// vectors for one Database for either syncgroup metadata or data.
 	GetDeltas(_ *context.T, _ *SyncGetDeltasServerCallStub, req DeltaReq, initiator string) error
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
@@ -576,7 +576,7 @@ type SyncServerStubMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
-	PublishSyncgroup(_ *context.T, _ rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec PrefixGenVector) (string, error)
+	PublishSyncgroup(_ *context.T, _ rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec GenVector) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
 	// allowed to join the named syncgroup, and if so, adds the requestor to
@@ -588,7 +588,7 @@ type SyncServerStubMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec PrefixGenVector, _ error)
+	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo nosql.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.
 	HaveBlob(_ *context.T, _ rpc.ServerCall, br nosql.BlobRef) (int64, error)
@@ -644,11 +644,11 @@ func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerC
 	return s.impl.GetDeltas(ctx, call, i0, i1)
 }
 
-func (s implSyncServerStub) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, i0 string, i1 Syncgroup, i2 string, i3 PrefixGenVector) (string, error) {
+func (s implSyncServerStub) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, i0 string, i1 Syncgroup, i2 string, i3 GenVector) (string, error) {
 	return s.impl.PublishSyncgroup(ctx, call, i0, i1, i2, i3)
 }
 
-func (s implSyncServerStub) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, i0 string, i1 string, i2 nosql.SyncgroupMemberInfo) (Syncgroup, string, PrefixGenVector, error) {
+func (s implSyncServerStub) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, i0 string, i1 string, i2 nosql.SyncgroupMemberInfo) (Syncgroup, string, GenVector, error) {
 	return s.impl.JoinSyncgroupAtAdmin(ctx, call, i0, i1, i2)
 }
 
@@ -698,7 +698,7 @@ var descSync = rpc.InterfaceDesc{
 		},
 		{
 			Name: "GetDeltas",
-			Doc:  "// GetDeltas returns the responder's current generation vector and all\n// the missing log records when compared to the initiator's generation\n// vector for one Database for either syncgroup metadata or data.",
+			Doc:  "// GetDeltas returns the responder's current generation vectors and all\n// the missing log records when compared to the initiator's generation\n// vectors for one Database for either syncgroup metadata or data.",
 			InArgs: []rpc.ArgDesc{
 				{"req", ``},       // DeltaReq
 				{"initiator", ``}, // string
@@ -712,7 +712,7 @@ var descSync = rpc.InterfaceDesc{
 				{"publisher", ``}, // string
 				{"sg", ``},        // Syncgroup
 				{"version", ``},   // string
-				{"genvec", ``},    // PrefixGenVector
+				{"genvec", ``},    // GenVector
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // string
@@ -730,7 +730,7 @@ var descSync = rpc.InterfaceDesc{
 			OutArgs: []rpc.ArgDesc{
 				{"sg", ``},      // Syncgroup
 				{"version", ``}, // string
-				{"genvec", ``},  // PrefixGenVector
+				{"genvec", ``},  // GenVector
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},

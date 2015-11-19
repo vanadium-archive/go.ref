@@ -75,7 +75,7 @@ type peerSelector interface {
 
 	// updatePeerFromResponder updates information for a peer that the
 	// responder responds to.
-	updatePeerFromResponder(ctx *context.T, peer string, connTs time.Time, gv interfaces.GenVector) error
+	updatePeerFromResponder(ctx *context.T, peer string, connTs time.Time, gvs interfaces.Knowledge) error
 }
 
 // syncer wakes up every peerSyncInterval to do work: (1) Refresh memberView if
@@ -189,7 +189,7 @@ func (ps *randomPeerSelector) updatePeerFromSyncer(ctx *context.T, peer connInfo
 	return nil
 }
 
-func (ps *randomPeerSelector) updatePeerFromResponder(ctx *context.T, peer string, connTs time.Time, gv interfaces.GenVector) error {
+func (ps *randomPeerSelector) updatePeerFromResponder(ctx *context.T, peer string, connTs time.Time, gvs interfaces.Knowledge) error {
 	// Random selector does not care about this information.
 	return nil
 }
@@ -215,7 +215,7 @@ type peerSyncInfo struct {
 	fromTs time.Time
 	// Map of database names and their corresponding generation vectors for
 	// data and syncgroups.
-	gvs map[string]interfaces.GenVector
+	gvs map[string]interfaces.Knowledge
 }
 
 type neighborhoodAwarePeerSelector struct {
@@ -341,6 +341,6 @@ func roundsToBackoff(failures uint64) uint64 {
 	return 1 << failures
 }
 
-func (ps *neighborhoodAwarePeerSelector) updatePeerFromResponder(ctx *context.T, peer string, connTs time.Time, gv interfaces.GenVector) error {
+func (ps *neighborhoodAwarePeerSelector) updatePeerFromResponder(ctx *context.T, peer string, connTs time.Time, gv interfaces.Knowledge) error {
 	return nil
 }

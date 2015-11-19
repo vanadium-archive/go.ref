@@ -162,7 +162,7 @@ func samePrefixes(pfx1, pfx2 []wire.TableRow) bool {
 // Otherwise, it's a joiner case and the syncgroup is put in a pending state
 // (waiting for its full metadata to be synchronized) and the log record is
 // skipped, delaying its creation till the Initiator does p2p sync.
-func (s *syncService) addSyncgroup(ctx *context.T, tx store.Transaction, version string, creator bool, remotePublisher string, genvec interfaces.PrefixGenVector, servId, gen, pos uint64, sg *interfaces.Syncgroup) error {
+func (s *syncService) addSyncgroup(ctx *context.T, tx store.Transaction, version string, creator bool, remotePublisher string, genvec interfaces.GenVector, servId, gen, pos uint64, sg *interfaces.Syncgroup) error {
 	// Verify the syncgroup information before storing it since it may have
 	// been received from a remote peer.
 	if err := verifySyncgroup(ctx, sg); err != nil {
@@ -1132,7 +1132,7 @@ func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall
 	return ss.publishInNeighborhood(call.Server())
 }
 
-func (sd *syncDatabase) joinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.PrefixGenVector, error) {
+func (sd *syncDatabase) joinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
 	c := interfaces.SyncClient(sgName)
 	return c.JoinSyncgroupAtAdmin(ctx, sgName, name, myInfo)
 
@@ -1150,7 +1150,7 @@ func authorize(ctx *context.T, call security.Call, sg *interfaces.Syncgroup) err
 ////////////////////////////////////////////////////////////
 // Methods for syncgroup create/join between Syncbases.
 
-func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publisher string, sg interfaces.Syncgroup, version string, genvec interfaces.PrefixGenVector) (string, error) {
+func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publisher string, sg interfaces.Syncgroup, version string, genvec interfaces.GenVector) (string, error) {
 	st, err := s.getDbStore(ctx, call, sg.AppName, sg.DbName)
 	if err != nil {
 		return s.name, err
@@ -1209,7 +1209,7 @@ func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publ
 	return s.name, err
 }
 
-func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, joinerName string, joinerInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.PrefixGenVector, error) {
+func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, joinerName string, joinerInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
 	vlog.VI(2).Infof("sync: JoinSyncgroupAtAdmin: begin: %s from peer %s", sgName, joinerName)
 	defer vlog.VI(2).Infof("sync: JoinSyncgroupAtAdmin: end: %s from peer %s", sgName, joinerName)
 
@@ -1217,7 +1217,7 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	var gid interfaces.GroupId
 	var err error
 	var stAppName, stDbName string
-	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.PrefixGenVector{}
+	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.GenVector{}
 
 	// Find the database store for this syncgroup.
 	//

@@ -26,7 +26,7 @@ package vsync
 //
 // Sync module tracks the current generation number and the current local log
 // position for each Database. In addition, it also tracks the current
-// generation vector for a Database. Log records are indexed such that they can
+// generation vectors for a Database. Log records are indexed such that they can
 // be selectively retrieved from the store for any missing generation from any
 // device.
 //
@@ -87,9 +87,9 @@ type dbSyncStateInMem struct {
 	// y:s:<groupId>. More details in syncgroup.go.
 	sgs map[string]*localGenInfoInMem
 
-	// Note: Generation vector contains state from remote devices only.
-	genvec   interfaces.GenVector
-	sggenvec interfaces.GenVector
+	// Note: Generation vectors contain state from remote devices only.
+	genvecs   interfaces.Knowledge
+	sggenvecs interfaces.Knowledge
 }
 
 func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
@@ -101,8 +101,8 @@ func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
 		out.sgs[oid] = info.deepCopy()
 	}
 
-	out.genvec = in.genvec.DeepCopy()
-	out.sggenvec = in.sggenvec.DeepCopy()
+	out.genvecs = in.genvecs.DeepCopy()
+	out.sggenvecs = in.sggenvecs.DeepCopy()
 
 	return out
 }
@@ -120,7 +120,7 @@ type sgPublishInfo struct {
 // initSync initializes the sync module during startup. It scans all the
 // databases across all apps to initialize the following:
 // a) in-memory sync state of a Database and all its syncgroups consisting of
-// the current generation number, log position and generation vector.
+// the current generation number, log position and generation vectors.
 // b) watcher map of prefixes currently being synced.
 // c) republish names in mount tables for all syncgroups.
 // d) in-memory queue of syncgroups to be published.
@@ -149,8 +149,8 @@ func (s *syncService) initSync(ctx *context.T) error {
 
 		if err == nil {
 			// Initialize in memory state from the persistent state.
-			dsInMem.genvec = ds.GenVec
-			dsInMem.sggenvec = ds.SgGenVec
+			dsInMem.genvecs = ds.GenVecs
+			dsInMem.sggenvecs = ds.SgGenVecs
 		}
 
 		vlog.VI(2).Infof("sync: initSync: initing app %v db %v, dsInMem %v", appName, dbName, dsInMem)
@@ -193,7 +193,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 			dsInMem.sgs[sgoid] = info
 
 			// Adjust the gen and pos for the sgoid.
-			info.gen, info.pos, err = s.computeCurGenAndPos(ctx, st, sgoid, dsInMem.sggenvec[sgoid])
+			info.gen, info.pos, err = s.computeCurGenAndPos(ctx, st, sgoid, dsInMem.sggenvecs[sgoid])
 			if err != nil {
 				errFinal = err
 				return false
@@ -211,9 +211,9 @@ func (s *syncService) initSync(ctx *context.T) error {
 		}
 
 		// Compute the max known data generation for each known device.
-		maxgenvec := interfaces.PrefixGenVector{}
-		for _, pgv := range dsInMem.genvec {
-			for dev, gen := range pgv {
+		maxgenvec := interfaces.GenVector{}
+		for _, gv := range dsInMem.genvecs {
+			for dev, gen := range gv {
 				if gen > maxgenvec[dev] {
 					maxgenvec[dev] = gen
 				}
@@ -244,7 +244,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 
 // computeCurGenAndPos computes the current local generation count and local log
 // position for data or a specified syncgroup.
-func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx string, genvec interfaces.PrefixGenVector) (uint64, uint64, error) {
+func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx string, genvec interfaces.GenVector) (uint64, uint64, error) {
 	found := false
 
 	// Scan the local log records to determine latest gen and its pos.
@@ -444,7 +444,7 @@ func (s *syncService) copyDbSyncStateInMem(ctx *context.T, appName, dbName strin
 }
 
 // copyDbGenInfo returns a copy of the current generation information of the Database.
-func (s *syncService) copyDbGenInfo(ctx *context.T, appName, dbName string, sgs sgSet) (interfaces.GenVector, uint64, error) {
+func (s *syncService) copyDbGenInfo(ctx *context.T, appName, dbName string, sgs sgSet) (interfaces.Knowledge, uint64, error) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
@@ -454,30 +454,30 @@ func (s *syncService) copyDbGenInfo(ctx *context.T, appName, dbName string, sgs 
 		return nil, 0, verror.New(verror.ErrInternal, ctx, "db state not found", name)
 	}
 
-	var genvec interfaces.GenVector
+	var genvecs interfaces.Knowledge
 	var gen uint64
 	if len(sgs) > 0 {
-		genvec = make(interfaces.GenVector)
+		genvecs = make(interfaces.Knowledge)
 		for id := range sgs {
 			sgoid := sgOID(id)
-			gv := ds.sggenvec[sgoid]
-			genvec[sgoid] = gv.DeepCopy()
-			genvec[sgoid][s.id] = ds.sgs[sgoid].checkptGen
+			gv := ds.sggenvecs[sgoid]
+			genvecs[sgoid] = gv.DeepCopy()
+			genvecs[sgoid][s.id] = ds.sgs[sgoid].checkptGen
 		}
 	} else {
-		genvec = ds.genvec.DeepCopy()
+		genvecs = ds.genvecs.DeepCopy()
 
 		// Add local generation information to the genvec.
-		for _, gv := range genvec {
+		for _, gv := range genvecs {
 			gv[s.id] = ds.data.checkptGen
 		}
 		gen = ds.data.checkptGen
 	}
-	return genvec, gen, nil
+	return genvecs, gen, nil
 }
 
 // putDbGenInfoRemote puts the current remote generation information of the Database.
-func (s *syncService) putDbGenInfoRemote(ctx *context.T, appName, dbName string, sg bool, genvec interfaces.GenVector) error {
+func (s *syncService) putDbGenInfoRemote(ctx *context.T, appName, dbName string, sg bool, genvecs interfaces.Knowledge) error {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
@@ -488,9 +488,9 @@ func (s *syncService) putDbGenInfoRemote(ctx *context.T, appName, dbName string,
 	}
 
 	if sg {
-		ds.sggenvec = genvec.DeepCopy()
+		ds.sggenvecs = genvecs.DeepCopy()
 	} else {
-		ds.genvec = genvec.DeepCopy()
+		ds.genvecs = genvecs.DeepCopy()
 	}
 
 	return nil

@@ -16,9 +16,9 @@ type Sync interface {
 	// timestamps, last NTP timestamp, num reboots, etc.
 	GetTime(req TimeReq, initiator string) (TimeResp | error)
 
-	// GetDeltas returns the responder's current generation vector and all
+	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
-	// vector for one Database for either syncgroup metadata or data.
+	// vectors for one Database for either syncgroup metadata or data.
 	GetDeltas(req DeltaReq, initiator string) stream<_, DeltaResp> error {access.Read}
 
 	// Syncgroup-related methods.
@@ -39,7 +39,7 @@ type Sync interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
-	PublishSyncgroup(publisher string, sg Syncgroup, version string, genvec PrefixGenVector) (string | error) {access.Write}
+	PublishSyncgroup(publisher string, sg Syncgroup, version string, genvec GenVector) (string | error) {access.Write}
 
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
@@ -52,7 +52,7 @@ type Sync interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(sgName, joinerName string, myInfo wire.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec PrefixGenVector | error) {access.Read}
+	JoinSyncgroupAtAdmin(sgName, joinerName string, myInfo wire.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector | error) {access.Read}
 
 	// BlobSync methods.
 
