@@ -21,7 +21,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/security"
 
 	"v.io/x/ref"
 	"v.io/x/ref/test"
@@ -60,9 +59,6 @@ type T struct {
 
 	// The shell to use to start commands.
 	shell *modules.Shell
-
-	// The environment's root security principal.
-	principal security.Principal
 
 	// Maps path to Binary.
 	builtBinaries map[string]*Binary
@@ -221,9 +217,9 @@ func (t *T) Caller(skip int) string {
 	return Caller(skip + 1)
 }
 
-// Principal returns the security principal of this environment.
-func (t *T) Principal() security.Principal {
-	return t.principal
+// Context returns the root context of this environment.
+func (t *T) Context() *context.T {
+	return t.ctx
 }
 
 // Cleanup cleans up the environment, deletes all its artifacts and
@@ -510,7 +506,7 @@ func (t *T) appendInvocation(inv *Invocation) {
 }
 
 // Creates a new local testing environment. A local testing environment has a
-// a security principle available via Principal().
+// a security principal available via v23.GetPrincipal(t.Context()).
 //
 // You should clean up the returned environment using the env.Cleanup() method.
 // A typical end-to-end test will begin like:
@@ -550,7 +546,6 @@ func New(t TB) *T {
 	e := &T{
 		TB:            t,
 		ctx:           ctx,
-		principal:     principal,
 		builtBinaries: make(map[string]*Binary),
 		shell:         shell,
 		tempFiles:     []*os.File{},
@@ -633,13 +628,15 @@ func RunTest(t *testing.T, fn func(i *T)) {
 
 // RunRootMT builds and runs a root mount table instance. It populates the
 // ref.EnvNamespacePrefix variable in the test environment so that all
-// subsequent invocations will access this root mount table.
+// subsequent invocations will access this root mount table.  It also
+// modifies i's context to use this mount table as a namespace root.
 func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
 	b := i.BuildV23Pkg("v.io/x/ref/services/mounttable/mounttabled")
 	inv := b.start(1, args...)
 	name := inv.ExpectVar("NAME")
 	inv.Environment().SetVar(ref.EnvNamespacePrefix, name)
 	i.ctx.Infof("Running root mount table: %q", name)
+	v23.GetNamespace(i.ctx).SetRoots(name)
 	return b, inv
 }
 
