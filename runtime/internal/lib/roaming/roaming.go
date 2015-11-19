@@ -102,7 +102,7 @@ func ReadRoamingStream(ctx *context.T, pub *pubsub.Publisher, remove, add func([
 			select {
 			case <-done:
 				if err := pub.CloseFork(RoamingSetting, ch); err == nil {
-					drain(ch)
+					drain(ctx, ch)
 				}
 				return
 			case setting := <-ch:
@@ -126,12 +126,14 @@ func ReadRoamingStream(ctx *context.T, pub *pubsub.Publisher, remove, add func([
 	return func() { close(done); <-closed }
 }
 
-func drain(ch chan pubsub.Setting) {
+func drain(ctx *context.T, ch chan pubsub.Setting) {
 	for {
 		select {
-		case <-ch:
+		case _, ok := <-ch:
+			if !ok {
+				return
+			}
 		default:
-			close(ch)
 			return
 		}
 	}
