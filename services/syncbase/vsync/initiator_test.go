@@ -380,7 +380,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	}
 
 	var c *initiationConfig
-	if c, err = newInitiationConfig(nil, s, gdb, info.db2sg[gdb], connInfo{relName: "b"}, set.String.ToSlice(info.mtTables)); err != nil {
+	if c, err = newInitiationConfig(nil, s, gdb, info.db2sg[gdb], connInfo{relName: "b", mtTbls: set.String.ToSlice(info.mtTables)}); err != nil {
 		t.Fatalf("newInitiationConfig failed with err %v", err)
 	}
 
@@ -393,12 +393,12 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		toTableRowPrefixStr(sg1.Spec.Prefixes[1]): sgs,
 	}
 
-	sort.Strings(iSt.config.mtTbls)
+	sort.Strings(iSt.config.peer.mtTbls)
 	sort.Strings(sg1.Spec.MountTables)
 
-	if !reflect.DeepEqual(iSt.config.mtTbls, sg1.Spec.MountTables) {
+	if !reflect.DeepEqual(iSt.config.peer.mtTbls, sg1.Spec.MountTables) {
 		// Set err so that the deferred cleanup func runs.
-		err = fmt.Errorf("Mount tables are not equal: config %v, spec %v", iSt.config.mtTbls, sg1.Spec.MountTables)
+		err = fmt.Errorf("Mount tables are not equal: config %v, spec %v", iSt.config.peer.mtTbls, sg1.Spec.MountTables)
 		t.Fatal(err)
 	}
 

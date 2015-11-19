@@ -81,27 +81,33 @@ func (s *syncService) syncClock(ctx *context.T, peer connInfo) error {
 		vlog.Fatalf("sync: syncClock: missing information in member view for %v", peer)
 	}
 
-	if len(info.mtTables) < 1 && peer.addr == "" {
-		vlog.Errorf("sync: syncClock: no mount tables or endpoint found to connect to peer %v", peer)
-		return verror.New(verror.ErrInternal, ctx, peer.relName, peer.addr, "no mount tables or endpoint found")
+	if len(info.mtTables) < 1 && peer.addrs == nil {
+		vlog.Errorf("sync: syncClock: no mount tables or endpoints found to connect to peer %v", peer)
+		return verror.New(verror.ErrInternal, ctx, peer.relName, peer.addrs, "no mount tables or endpoints found")
 	}
 
-	if peer.addr != "" {
-		vlog.VI(4).Infof("sync: syncClock: trying neighborhood addr for peer %v", peer)
+	if peer.addrs != nil {
+		vlog.VI(4).Infof("sync: syncClock: trying neighborhood addrs for peer %v", peer)
 
-		absName := naming.Join(peer.addr, util.SyncbaseSuffix)
-		return syncWithPeer(ctx, s.vclock, absName, s.name)
-	}
+		for _, addr := range peer.addrs {
+			absName := naming.Join(addr, util.SyncbaseSuffix)
+			if err := syncWithPeer(ctx, s.vclock, absName, s.name); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+				return err
+			}
+		}
+	} else {
+		vlog.VI(4).Infof("sync: syncClock: trying mount tables for peer %v", peer)
 
-	for mt, _ := range info.mtTables {
-		absName := naming.Join(mt, peer.relName, util.SyncbaseSuffix)
-		if err := syncWithPeer(ctx, s.vclock, absName, s.name); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
-			return err
+		for mt, _ := range info.mtTables {
+			absName := naming.Join(mt, peer.relName, util.SyncbaseSuffix)
+			if err := syncWithPeer(ctx, s.vclock, absName, s.name); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+				return err
+			}
 		}
 	}
 
 	vlog.Errorf("sync: syncClock: couldn't connect to peer %v", peer)
-	return verror.New(interfaces.ErrConnFail, ctx, peer.relName, peer.addr, "all mount tables failed")
+	return verror.New(interfaces.ErrConnFail, ctx, peer.relName, peer.addrs, "all mount tables and endpoints failed")
 }
 
 // syncWithPeer tries to sync local clock with peer syncbase clock.

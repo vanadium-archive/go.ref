@@ -191,6 +191,8 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	s.id = data.Id
 	s.name = syncbaseIdToName(s.id)
 
+	vlog.VI(1).Infof("sync: New: Syncbase ID is %v", s.id)
+
 	// Initialize in-memory state for the sync module before starting any threads.
 	if err := s.initSync(ctx); err != nil {
 		return nil, verror.New(verror.ErrInternal, ctx, err)
@@ -295,6 +297,27 @@ func (s *syncService) updateDiscoveryPeer(peerInstance string, service *discover
 		vlog.VI(3).Infof("sync: updateDiscoveryPeer: removing peer %s", peerInstance)
 		delete(s.discoveryPeers, peerInstance)
 	}
+}
+
+// filterDiscoveryPeers returns only those peers discovered via neighborhood
+// that are also found in sgMembers (passed as input argument).
+func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[string]*discovery.Service {
+	s.discoveryPeersLock.Lock()
+	defer s.discoveryPeersLock.Unlock()
+
+	if s.discoveryPeers == nil {
+		return nil
+	}
+
+	sgNeighbors := make(map[string]*discovery.Service)
+
+	for peer, svc := range s.discoveryPeers {
+		if _, ok := sgMembers[peer]; ok {
+			sgNeighbors[peer] = svc
+		}
+	}
+
+	return sgNeighbors
 }
 
 // AddNames publishes all the names for this Syncbase instance gathered from all

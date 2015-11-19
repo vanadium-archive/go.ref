@@ -77,20 +77,23 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
 	}
 
 	// Preferred mount tables for this peer.
-	prfMtTbls := set.String.ToSlice(info.mtTables)
+	//
+	// TODO(hpucha): For now the mount tables are populated here. This may
+	// move to higher layer based on peer management functionality.
+	peer.mtTbls = set.String.ToSlice(info.mtTables)
 
 	var errFinal error // the last non-nil error encountered is returned to the caller.
 
 	// Sync each Database that may have syncgroups common with this peer,
 	// one at a time.
 	for gdbName, dbInfo := range info.db2sg {
-		if len(prfMtTbls) < 1 {
+		if len(peer.mtTbls) < 1 {
 			vlog.Errorf("sync: getDeltasFromPeer: no mount tables found to connect to peer %v", peer)
-			return verror.New(verror.ErrInternal, ctx, peer.relName, peer.addr, "all mount tables failed")
+			return verror.New(verror.ErrInternal, ctx, peer.relName, peer.addrs, "all mount tables failed")
 		}
 
 		var err error
-		prfMtTbls, err = s.getDBDeltas(ctx, gdbName, dbInfo, peer, prfMtTbls)
+		peer, err = s.getDBDeltas(ctx, gdbName, dbInfo, peer)
 
 		if verror.ErrorID(err) == interfaces.ErrConnFail.ID {
 			return err
@@ -104,7 +107,7 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
 }
 
 // getDBDeltas performs an initiation round for the specified database.
-func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberInfo, peer connInfo, mtTbls []string) ([]string, error) {
+func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberInfo, peer connInfo) (connInfo, error) {
 	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer %v for db %s", peer, gdbName)
 	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer %v for db %s", peer, gdbName)
 
@@ -114,9 +117,9 @@ func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberI
 	// not be revealed when that database is not being synced.
 	//
 	// TODO(hpucha): Revisit which blessings are sent.
-	blessingNames, prfMtTbls, err := s.identifyPeer(ctx, peer, mtTbls)
+	blessingNames, updPeer, err := s.identifyPeer(ctx, peer)
 	if err != nil {
-		return prfMtTbls, err
+		return updPeer, err
 	}
 
 	// The initiation config is shared across the sync rounds in an
@@ -127,31 +130,31 @@ func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberI
 	// already failed ones.
 	//
 	// TODO(hpucha): Clean up sharing of the initiationConfig.
-	c, err := newInitiationConfig(ctx, s, gdbName, info, peer, prfMtTbls)
+	c, err := newInitiationConfig(ctx, s, gdbName, info, updPeer)
 	if err != nil {
-		return prfMtTbls, err
+		return updPeer, err
 	}
 
 	// Filter the syncgroups using the peer blessings, and populate the
 	// syncgroup ids, the syncgroup prefixes and the remote peer blessings
 	// to be used in the next two rounds of sync.
 	if err := s.filterSyncgroups(ctx, c, blessingNames); err != nil {
-		return c.mtTbls, err
+		return c.peer, err
 	}
 
 	// Sync syncgroup metadata.
 	if err = s.getDeltas(ctx, c, true); err != nil {
 		// If syncgroup sync fails, abort data sync as well.
-		return c.mtTbls, err
+		return c.peer, err
 	}
 
 	// Sync data.
 	err = s.getDeltas(ctx, c, false)
-	return c.mtTbls, err
+	return c.peer, err
 }
 
 // identifyPeer obtains the blessings from the remote peer.
-func (s *syncService) identifyPeer(ctxIn *context.T, peer connInfo, mtTbls []string) ([]string, []string, error) {
+func (s *syncService) identifyPeer(ctxIn *context.T, peer connInfo) ([]string, connInfo, error) {
 	vlog.VI(2).Infof("sync: identifyPeer: begin for peer %v", peer)
 	defer vlog.VI(2).Infof("sync: identifyPeer: end for peer %v", peer)
 
@@ -168,8 +171,8 @@ func (s *syncService) identifyPeer(ctxIn *context.T, peer connInfo, mtTbls []str
 		call.Finish()
 		return nil
 	}
-	prfMtTbls, err := runAtPeer(ctx, peer, mtTbls, op)
-	return blessingNames, prfMtTbls, err
+	updPeer, err := runAtPeer(ctx, peer, op)
+	return blessingNames, updPeer, err
 }
 
 // filterSyncgroups uses the remote peer's blessings to obtain the set of
@@ -282,7 +285,7 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 
 	// Make contact with the peer to start getting the deltas.
 	var err error
-	c.mtTbls, err = runAtPeer(ctx, c.peer, c.mtTbls, op)
+	c.peer, err = runAtPeer(ctx, c.peer, op)
 	if err != nil {
 		return err
 	}
@@ -313,12 +316,12 @@ type sgSet map[interfaces.GroupId]struct{}
 // initiationConfig is the configuration information for a Database in an
 // initiation round.
 type initiationConfig struct {
-	peer connInfo // connection info of the peer to sync with.
-
-	// Mount tables that this peer may have registered with. The first entry
-	// in this array is the mount table where the peer was successfully
-	// reached the last time.
-	mtTbls []string
+	// Connection info of the peer to sync with. Contains mount tables that
+	// this peer may have registered with. The first entry in this array is
+	// the mount table where the peer was successfully reached the last
+	// time. Similarly, the first entry in the neighborhood addrs is the one
+	// where the peer was successfully reached the last time.
+	peer connInfo
 
 	sgIds   sgSet            // Syncgroups being requested in the initiation round.
 	sgPfxs  map[string]sgSet // Syncgroup prefixes and their ids being requested in the initiation round.
@@ -335,10 +338,9 @@ type initiationConfig struct {
 
 // newInitiatonConfig creates new initiation config. This will be shared between
 // the two sync rounds in the initiation round of a Database.
-func newInitiationConfig(ctx *context.T, s *syncService, name string, info sgMemberInfo, peer connInfo, mtTbls []string) (*initiationConfig, error) {
+func newInitiationConfig(ctx *context.T, s *syncService, name string, info sgMemberInfo, peer connInfo) (*initiationConfig, error) {
 	c := &initiationConfig{}
 	c.peer = peer
-	c.mtTbls = mtTbls
 	c.sgIds = make(sgSet)
 	for id := range info {
 		c.sgIds[id] = struct{}{}
@@ -1127,25 +1129,35 @@ type remoteOp func(ctx *context.T, peer string) error
 // runAtPeer attempts to connect to the remote peer using the neighborhood
 // address when specified or the mount tables obtained from all the common
 // syncgroups, and runs the specified op.
-func runAtPeer(ctx *context.T, peer connInfo, mtTbls []string, op remoteOp) ([]string, error) {
-	if len(mtTbls) < 1 && peer.addr == "" {
-		return mtTbls, verror.New(verror.ErrInternal, ctx, "no mount tables/endpoint found", peer)
+func runAtPeer(ctx *context.T, peer connInfo, op remoteOp) (connInfo, error) {
+	if len(peer.mtTbls) < 1 && len(peer.addrs) < 1 {
+		return peer, verror.New(verror.ErrInternal, ctx, "no mount tables/endpoint found", peer)
 	}
 
-	if peer.addr != "" {
-		absName := naming.Join(peer.addr, util.SyncbaseSuffix)
-		return mtTbls, runRemoteOp(ctx, absName, op)
-	}
-
-	for i, mt := range mtTbls {
-		absName := naming.Join(mt, peer.relName, util.SyncbaseSuffix)
-		err := runRemoteOp(ctx, absName, op)
-		if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
-			return mtTbls[i:], err
+	updPeer := peer
+	if peer.addrs != nil {
+		for i, addr := range peer.addrs {
+			absName := naming.Join(addr, util.SyncbaseSuffix)
+			err := runRemoteOp(ctx, absName, op)
+			if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+				updPeer.addrs = updPeer.addrs[i:]
+				return updPeer, err
+			}
 		}
+		updPeer.addrs = nil
+	} else {
+		for i, mt := range peer.mtTbls {
+			absName := naming.Join(mt, peer.relName, util.SyncbaseSuffix)
+			err := runRemoteOp(ctx, absName, op)
+			if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+				updPeer.mtTbls = updPeer.mtTbls[i:]
+				return updPeer, err
+			}
+		}
+		updPeer.mtTbls = nil
 	}
 
-	return nil, verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", peer.relName, peer.addr)
+	return updPeer, verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", updPeer.relName, updPeer.addrs)
 }
 
 func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) error {

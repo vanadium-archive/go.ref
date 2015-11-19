@@ -37,26 +37,30 @@ var (
 	// pending updates from that peer.
 	peerSyncInterval = 50 * time.Millisecond
 
-	// peerSelectionPolicy is the policy used to select a peer when
-	// the initiator gets a chance to sync.
-	peerSelectionPolicy = selectRandom
-
 	// We wait for connectionTimeOut duration for a connection to be
 	// established with a peer reachable via a chosen mount table.
 	connectionTimeOut = 2 * time.Second
+
+	// Number of failures to cap off at when computing how many sync rounds
+	// to wait before retrying to contact a peer via the mount table.
+	maxFailuresForBackoff uint64 = 6
 )
 
 // connInfo holds the information needed to connect to a peer.
 //
 // TODO(hpucha): Add hints to decide if both neighborhood and mount table must
-// be tried. Currently, if the addr is set, only the addr is tried.
+// be tried. Currently, if addrs are set, only addrs are tried.
 type connInfo struct {
 	// Name of the peer relative to the mount table chosen by the syncgroup
 	// creator.
 	relName string
+
+	// Mount tables via which this peer might be reachable.
+	mtTbls []string
+
 	// Network address of the peer if available. For example, this can be
 	// obtained from neighborhood discovery.
-	addr string
+	addrs []string
 }
 
 // peerSelector defines the interface that a peer selection algorithm must
@@ -88,7 +92,7 @@ type peerSelector interface {
 func (s *syncService) syncer(ctx *context.T) {
 	defer s.pending.Done()
 
-	s.newPeerSelector(ctx)
+	s.newPeerSelector(ctx, selectNeighborhoodAware)
 	ticker := time.NewTicker(peerSyncInterval)
 	defer ticker.Stop()
 
@@ -130,13 +134,16 @@ func (s *syncService) syncerWork(ctx *context.T) {
 ////////////////////////////////////////
 // Peer selection policies.
 
-func (s *syncService) newPeerSelector(ctx *context.T) error {
+func (s *syncService) newPeerSelector(ctx *context.T, peerSelectionPolicy int) error {
 	switch peerSelectionPolicy {
 	case selectRandom:
 		s.ps = &randomPeerSelector{s: s}
 		return nil
 	case selectNeighborhoodAware:
-		s.ps = &neighborhoodAwarePeerSelector{s: s}
+		s.ps = &neighborhoodAwarePeerSelector{
+			s:       s,
+			peerTbl: make(map[string]*peerSyncInfo),
+		}
 		return nil
 	default:
 		return verror.New(verror.ErrInternal, ctx, "unknown peer selection policy")
@@ -151,11 +158,15 @@ type randomPeerSelector struct {
 }
 
 func (ps *randomPeerSelector) pickPeer(ctx *context.T) (connInfo, error) {
+	return ps.s.pickPeerRandom(ctx)
+}
+
+func (s *syncService) pickPeerRandom(ctx *context.T) (connInfo, error) {
 	var peer connInfo
 
-	members := ps.s.getMembers(ctx)
+	members := s.getMembers(ctx)
 	// Remove myself from the set.
-	delete(members, ps.s.name)
+	delete(members, s.name)
 	if len(members) == 0 {
 		return peer, verror.New(verror.ErrInternal, ctx, "no useful peer")
 	}
@@ -169,6 +180,7 @@ func (ps *randomPeerSelector) pickPeer(ctx *context.T) (connInfo, error) {
 		}
 		ind--
 	}
+	vlog.Fatalf("random selection didn't succeed")
 	return peer, verror.New(verror.ErrInternal, ctx, "random selection didn't succeed")
 }
 
@@ -189,7 +201,7 @@ func (ps *randomPeerSelector) updatePeerFromResponder(ctx *context.T, peer strin
 // syncs with this node or with which this node syncs with.
 type peerSyncInfo struct {
 	// Number of continuous failures noticed when attempting to connect with
-	// this peer, either via its advertised mount table or via
+	// this peer, either via any of its advertised mount tables or via
 	// neighborhood. These counters are reset when the connection to the
 	// peer succeeds.
 	numFailuresMountTable   uint64
@@ -207,21 +219,87 @@ type peerSyncInfo struct {
 }
 
 type neighborhoodAwarePeerSelector struct {
+	sync.RWMutex
 	s *syncService
 	// In-memory cache of information relevant to syncing with a peer. This
 	// information could potentially be used in peer selection.
-	peerTbl     map[string]*peerSyncInfo
-	peerTblLock sync.RWMutex
+	numFailuresMountTable uint64 // total number of mount table failures across peers.
+	curCount              uint64 // remaining number of sync rounds before a mount table will be retried.
+	peerTbl               map[string]*peerSyncInfo
 }
 
+// pickPeer selects a peer to sync with by incorporating the neighborhood
+// information. The heuristic bootstraps by picking a random peer for each
+// iteration and syncing with it via one of the syncgroup mount tables. This
+// continues until a peer is unreachable via the mount table (ErrConnFail). Upon
+// a connection error, the heuristic switches to pick a random peer from the
+// neighborhood while still probing to see if peers are reachable via the
+// syncgroup mount table using an exponential backoff. For example, when the
+// connection fails for the first time, the heuristic waits for two sync rounds
+// before contacting a peer via a mount table again. If this attempt also fails,
+// it then backs off to wait four sync rounds before trying the mount table, and
+// so on. Upon success, these counters are reset, and the heuristic goes back to
+// randomly selecting a peer and communicating via the syncgroup mount tables.
+//
+// This is a simple heuristic to begin incorporating neighborhood information
+// into peer selection. Its drawbacks include: (a) A single peer being
+// unreachable assumes connectivity issues, and switches to
+// neighborhood. However, this may be an isolated issue with just the one
+// peer. (b) When there are no connectivity issues, the heuristic does not use
+// the neighborhood information for the peers. We may wish to reconsider this
+// after we have sufficient confidence that going over the neighborhood is
+// faster than connecting via the mount table. (c) The heuristic is stateless
+// across invocations. The same peer may be selected back-to-back to sync via
+// neighborhood and via the mount table. (d) Peers are still randomly selected
+// in each mode of operation.
 func (ps *neighborhoodAwarePeerSelector) pickPeer(ctx *context.T) (connInfo, error) {
+	ps.Lock()
+	defer ps.Unlock()
+
+	if ps.curCount == 0 {
+		vlog.VI(4).Infof("sync: pickPeer: picking from all sgmembers")
+
+		// Pick a peer at random.
+		return ps.s.pickPeerRandom(ctx)
+	}
+
+	ps.curCount--
+
 	var peer connInfo
-	return peer, nil
+	members := ps.s.getMembers(ctx)
+
+	// Remove myself from the set.
+	delete(members, ps.s.name)
+	if len(members) == 0 {
+		return peer, verror.New(verror.ErrInternal, ctx, "no useful peer")
+	}
+
+	// Pick a peer from the neighborhood if available.
+	neighbors := ps.s.filterDiscoveryPeers(members)
+	if len(neighbors) == 0 {
+		vlog.VI(4).Infof("sync: pickPeer: no sgneighbors found")
+		return peer, verror.New(verror.ErrInternal, ctx, "no useful peer")
+	}
+
+	vlog.VI(4).Infof("sync: pickPeer: picking from sgneighbors")
+
+	// Pick a peer at random.
+	ind := randIntn(len(neighbors))
+	for n, svc := range neighbors {
+		if ind == 0 {
+			peer.relName = n
+			peer.addrs = svc.Addrs
+			return peer, nil
+		}
+		ind--
+	}
+	vlog.Fatalf("random selection didn't succeed")
+	return peer, verror.New(verror.ErrInternal, ctx, "peer selection didn't succeed")
 }
 
 func (ps *neighborhoodAwarePeerSelector) updatePeerFromSyncer(ctx *context.T, peer connInfo, attemptTs time.Time, failed bool) error {
-	ps.peerTblLock.Lock()
-	defer ps.peerTblLock.Unlock()
+	ps.Lock()
+	defer ps.Unlock()
 
 	info, ok := ps.peerTbl[peer.relName]
 	if !ok {
@@ -231,19 +309,36 @@ func (ps *neighborhoodAwarePeerSelector) updatePeerFromSyncer(ctx *context.T, pe
 
 	info.attemptTs = attemptTs
 	if !failed {
-		info.numFailuresMountTable = 0
-		info.numFailuresNeighborhood = 0
+		if peer.addrs != nil {
+			info.numFailuresNeighborhood = 0
+		} else {
+			info.numFailuresMountTable = 0
+			ps.numFailuresMountTable = 0
+		}
+
 		info.successTs = time.Now()
 		return nil
 	}
 
-	if peer.addr != "" {
+	if peer.addrs != nil {
 		info.numFailuresNeighborhood++
 	} else {
+		ps.numFailuresMountTable++
+		ps.curCount = roundsToBackoff(ps.numFailuresMountTable)
+
 		info.numFailuresMountTable++
 	}
 
 	return nil
+}
+
+// roundsToBackoff computes the exponential backoff with a cap on the backoff.
+func roundsToBackoff(failures uint64) uint64 {
+	if failures >= maxFailuresForBackoff {
+		failures = maxFailuresForBackoff
+	}
+
+	return 1 << failures
 }
 
 func (ps *neighborhoodAwarePeerSelector) updatePeerFromResponder(ctx *context.T, peer string, connTs time.Time, gv interfaces.GenVector) error {
