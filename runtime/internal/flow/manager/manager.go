@@ -625,7 +625,11 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		if err != nil {
 			return nil, nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
-		defer m.cache.Unreserve(network, address, remote.BlessingNames())
+		if c != nil {
+			m.cache.Unreserve(network, address, remote.BlessingNames())
+		} else {
+			defer m.cache.Unreserve(network, address, remote.BlessingNames())
+		}
 	}
 	if c == nil {
 		flowConn, err := dial(ctx, protocol, network, address)
