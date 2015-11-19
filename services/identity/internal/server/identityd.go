@@ -219,11 +219,24 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 // All Vanadium services are started on the same port.
 func (s *IdentityServer) setupBlessingServices(ctx *context.T, macaroonKey []byte) (rpc.Server, []string, error) {
 	disp := newDispatcher(macaroonKey, s.oauthBlesserParams)
-	principal := v23.GetPrincipal(ctx)
-	objectAddr := naming.Join(s.mountNamePrefix, fmt.Sprintf("%v", principal.BlessingStore().Default()))
+	blessingNames := security.BlessingNames(v23.GetPrincipal(ctx), v23.GetPrincipal(ctx).BlessingStore().Default())
+	if len(blessingNames) == 0 {
+		return nil, nil, verror.New(verror.ErrInternal, ctx, fmt.Sprintf("identity server has no blessings?"))
+	}
+	if len(blessingNames) > 1 {
+		return nil, nil, verror.New(verror.ErrInternal, ctx, fmt.Sprintf("cannot configure identity server with >1 (%d = %v) blessings - not quite sure what names to select for the discharger service etc.", len(blessingNames), blessingNames))
+	}
+	objectAddr := naming.Join(s.mountNamePrefix, naming.EncodeAsNameElement(blessingNames[0]))
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, objectAddr, disp)
 	if err != nil {
 		return nil, nil, err
+	}
+	// TODO(ashankar): Remove when https://github.com/vanadium/issues/issues/739
+	// is resolved - at that point don't need to export the old style names
+	// (with /s instead of :s)
+	bug739BlessingName := strings.Replace(blessingNames[0], security.ChainSeparator, "/", -1)
+	if err := server.AddName(bug739BlessingName); err != nil {
+		return nil, nil, verror.New(verror.ErrInternal, ctx, fmt.Sprintf("failed to publish name %q: %v", bug739BlessingName, err))
 	}
 	s.rootedObjectAddrs = server.Status().Endpoints
 	var rootedObjectAddr string
@@ -259,12 +272,12 @@ type dispatcher struct {
 	blesserParams blesser.OAuthBlesserParams
 }
 
-func (d *dispatcher) Lookup(_ *context.T, suffix string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
 	d.wg.Wait() // Wait until activate is called.
 	if invoker := d.m[suffix]; invoker != nil {
 		return invoker, security.AllowEveryone(), nil
 	}
-	return nil, nil, verror.New(verror.ErrNoExist, nil, suffix)
+	return nil, nil, verror.New(verror.ErrNoExist, ctx, suffix)
 }
 
 func (d *dispatcher) activate(serverName string) {
