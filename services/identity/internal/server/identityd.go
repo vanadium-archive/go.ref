@@ -234,10 +234,11 @@ func (s *IdentityServer) setupBlessingServices(ctx *context.T, macaroonKey []byt
 	// TODO(ashankar): Remove when https://github.com/vanadium/issues/issues/739
 	// is resolved - at that point don't need to export the old style names
 	// (with /s instead of :s)
-	bug739BlessingName := strings.Replace(blessingNames[0], security.ChainSeparator, "/", -1)
+	bug739BlessingName := naming.Join(s.mountNamePrefix, strings.Replace(blessingNames[0], security.ChainSeparator, "/", -1))
 	if err := server.AddName(bug739BlessingName); err != nil {
 		return nil, nil, verror.New(verror.ErrInternal, ctx, fmt.Sprintf("failed to publish name %q: %v", bug739BlessingName, err))
 	}
+	ctx.Infof("Also publishing under %q", bug739BlessingName)
 	s.rootedObjectAddrs = server.Status().Endpoints
 	var rootedObjectAddr string
 	if naming.Rooted(objectAddr) {
