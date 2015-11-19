@@ -96,7 +96,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		opts: opts,
 		apps: map[string]*app{},
 	}
-	var sd serviceData
+	var sd ServiceData
 	if err := util.Get(ctx, st, s.stKey(), &sd); verror.ErrorID(err) != verror.ErrNoExist.ID {
 		if err != nil {
 			return nil, err
@@ -114,7 +114,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		aBytes := []byte{}
 		for aIt.Advance() {
 			aBytes = aIt.Value(aBytes)
-			aData := &appData{}
+			aData := &AppData{}
 			if err := vom.Decode(aBytes, aData); err != nil {
 				return nil, verror.New(verror.ErrInternal, ctx, err)
 			}
@@ -130,7 +130,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 			dBytes := []byte{}
 			for dIt.Advance() {
 				dBytes = dIt.Value(dBytes)
-				info := &dbInfo{}
+				info := &DbInfo{}
 				if err := vom.Decode(dBytes, info); err != nil {
 					return nil, verror.New(verror.ErrInternal, ctx, err)
 				}
@@ -161,7 +161,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 			perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 		}
 		vlog.Infof("Using permissions: %v", PermsString(perms))
-		data := &serviceData{
+		data := &ServiceData{
 			Perms: perms,
 		}
 		if err := util.Put(ctx, st, s.stKey(), data); err != nil {
@@ -218,7 +218,7 @@ func (s *service) Close() {
 
 func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	return store.RunInTransaction(s.st, func(tx store.Transaction) error {
-		data := &serviceData{}
+		data := &ServiceData{}
 		return util.UpdateWithAuth(ctx, call, tx, s.stKey(), data, func() error {
 			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
 				return err
@@ -231,7 +231,7 @@ func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms acce
 }
 
 func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
-	data := &serviceData{}
+	data := &ServiceData{}
 	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), data); err != nil {
 		return nil, "", err
 	}
@@ -242,7 +242,7 @@ func (s *service) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall
 	// Check perms.
 	sn := s.st.NewSnapshot()
 	defer sn.Abort()
-	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &serviceData{}); err != nil {
+	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &ServiceData{}); err != nil {
 		return err
 	}
 	return util.GlobChildren(ctx, call, matcher, sn, util.AppPrefix)
@@ -302,12 +302,12 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 
 	if err := store.RunInTransaction(s.st, func(tx store.Transaction) error {
 		// Check serviceData perms.
-		sData := &serviceData{}
+		sData := &ServiceData{}
 		if err := util.GetWithAuth(ctx, call, tx, s.stKey(), sData); err != nil {
 			return err
 		}
 		// Check for "app already exists".
-		if err := util.Get(ctx, tx, a.stKey(), &appData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err := util.Get(ctx, tx, a.stKey(), &AppData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -317,7 +317,7 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 		if perms == nil {
 			perms = sData.Perms
 		}
-		data := &appData{
+		data := &AppData{
 			Name:  appName,
 			Perms: perms,
 		}
@@ -340,7 +340,7 @@ func (s *service) destroyApp(ctx *context.T, call rpc.ServerCall, appName string
 
 	if err := store.RunInTransaction(s.st, func(tx store.Transaction) error {
 		// Read-check-delete appData.
-		if err := util.GetWithAuth(ctx, call, tx, a.stKey(), &appData{}); err != nil {
+		if err := util.GetWithAuth(ctx, call, tx, a.stKey(), &AppData{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
 				return nil // destroy is idempotent
 			}
@@ -364,7 +364,7 @@ func (s *service) setAppPerms(ctx *context.T, call rpc.ServerCall, appName strin
 		return verror.New(verror.ErrNoExist, ctx, appName)
 	}
 	return store.RunInTransaction(s.st, func(tx store.Transaction) error {
-		data := &appData{}
+		data := &AppData{}
 		return util.UpdateWithAuth(ctx, call, tx, a.stKey(), data, func() error {
 			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
 				return err

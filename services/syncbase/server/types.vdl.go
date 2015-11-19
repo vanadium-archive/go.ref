@@ -15,32 +15,32 @@ import (
 	"v.io/v23/security/access"
 )
 
-// serviceData represents the persistent state of a Service.
-type serviceData struct {
+// ServiceData represents the persistent state of a Service.
+type ServiceData struct {
 	Version uint64 // covers the fields below
 	Perms   access.Permissions
 }
 
-func (serviceData) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server.serviceData"`
+func (ServiceData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.ServiceData"`
 }) {
 }
 
-// appData represents the persistent state of an App.
-type appData struct {
+// AppData represents the persistent state of an App.
+type AppData struct {
 	Name    string
 	Version uint64 // covers the fields below
 	Perms   access.Permissions
 }
 
-func (appData) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server.appData"`
+func (AppData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.AppData"`
 }) {
 }
 
-// dbInfo contains information about one database for an App.
+// DbInfo contains information about one database for an App.
 // TODO(sadovsky): Track NoSQL vs. SQL.
-type dbInfo struct {
+type DbInfo struct {
 	Name        string
 	Initialized bool
 	Deleted     bool
@@ -50,13 +50,13 @@ type dbInfo struct {
 	Engine  string // name of storage engine, e.g. "leveldb"
 }
 
-func (dbInfo) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server.dbInfo"`
+func (DbInfo) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.DbInfo"`
 }) {
 }
 
 func init() {
-	vdl.Register((*serviceData)(nil))
-	vdl.Register((*appData)(nil))
-	vdl.Register((*dbInfo)(nil))
+	vdl.Register((*ServiceData)(nil))
+	vdl.Register((*AppData)(nil))
+	vdl.Register((*DbInfo)(nil))
 }

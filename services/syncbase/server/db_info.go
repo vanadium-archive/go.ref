@@ -24,8 +24,8 @@ func dbInfoStKey(a *app, dbName string) string {
 }
 
 // getDbInfo reads data from the storage engine.
-func (a *app) getDbInfo(ctx *context.T, sntx store.SnapshotOrTransaction, dbName string) (*dbInfo, error) {
-	info := &dbInfo{}
+func (a *app) getDbInfo(ctx *context.T, sntx store.SnapshotOrTransaction, dbName string) (*DbInfo, error) {
+	info := &DbInfo{}
 	if err := util.Get(ctx, sntx, dbInfoStKey(a, dbName), info); err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (a *app) getDbInfo(ctx *context.T, sntx store.SnapshotOrTransaction, dbName
 }
 
 // putDbInfo writes data to the storage engine.
-func (a *app) putDbInfo(ctx *context.T, tx store.Transaction, dbName string, info *dbInfo) error {
+func (a *app) putDbInfo(ctx *context.T, tx store.Transaction, dbName string, info *DbInfo) error {
 	return util.Put(ctx, tx, dbInfoStKey(a, dbName), info)
 }
 
@@ -43,7 +43,7 @@ func (a *app) delDbInfo(ctx *context.T, stw store.StoreWriter, dbName string) er
 }
 
 // updateDbInfo performs a read-modify-write. fn should "modify" v.
-func (a *app) updateDbInfo(ctx *context.T, tx store.Transaction, dbName string, fn func(info *dbInfo) error) error {
+func (a *app) updateDbInfo(ctx *context.T, tx store.Transaction, dbName string, fn func(info *DbInfo) error) error {
 	info, err := a.getDbInfo(ctx, tx, dbName)
 	if err != nil {
 		return err

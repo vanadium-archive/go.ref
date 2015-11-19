@@ -10,14 +10,14 @@ import (
 )
 
 var (
-	_ util.Permser = (*serviceData)(nil)
-	_ util.Permser = (*appData)(nil)
+	_ util.Permser = (*ServiceData)(nil)
+	_ util.Permser = (*AppData)(nil)
 )
 
-func (data *serviceData) GetPerms() access.Permissions {
+func (data *ServiceData) GetPerms() access.Permissions {
 	return data.Perms
 }
 
-func (data *appData) GetPerms() access.Permissions {
+func (data *AppData) GetPerms() access.Permissions {
 	return data.Perms
 }

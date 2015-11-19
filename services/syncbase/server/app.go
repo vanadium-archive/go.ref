@@ -63,7 +63,7 @@ func (a *app) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
 	if !a.exists {
 		return false, nil
 	}
-	return util.ErrorToExists(util.GetWithAuth(ctx, call, a.s.st, a.stKey(), &appData{}))
+	return util.ErrorToExists(util.GetWithAuth(ctx, call, a.s.st, a.stKey(), &AppData{}))
 }
 
 func (a *app) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
@@ -77,7 +77,7 @@ func (a *app) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.
 	if !a.exists {
 		return nil, "", verror.New(verror.ErrNoExist, ctx, a.name)
 	}
-	data := &appData{}
+	data := &AppData{}
 	if err := util.GetWithAuth(ctx, call, a.s.st, a.stKey(), data); err != nil {
 		return nil, "", err
 	}
@@ -91,7 +91,7 @@ func (a *app) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, ma
 	// Check perms.
 	sn := a.s.st.NewSnapshot()
 	defer sn.Abort()
-	if err := util.GetWithAuth(ctx, call, sn, a.stKey(), &appData{}); err != nil {
+	if err := util.GetWithAuth(ctx, call, sn, a.stKey(), &AppData{}); err != nil {
 		return err
 	}
 	return util.GlobChildren(ctx, call, matcher, sn, util.JoinKeyParts(util.DbInfoPrefix, a.name))
@@ -153,7 +153,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 
 	// 1. Check appData perms, create dbInfo record.
 	rootDir, engine := a.rootDirForDb(dbName), a.s.opts.Engine
-	aData := &appData{}
+	aData := &AppData{}
 	if err := store.RunInTransaction(a.s.st, func(tx store.Transaction) error {
 		// Check appData perms.
 		if err := util.GetWithAuth(ctx, call, tx, a.stKey(), aData); err != nil {
@@ -168,7 +168,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 			return verror.New(verror.ErrExist, ctx, dbName)
 		}
 		// Write new dbInfo.
-		info := &dbInfo{
+		info := &DbInfo{
 			Name:    dbName,
 			RootDir: rootDir,
 			Engine:  engine,
@@ -193,7 +193,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 
 	// 3. Flip dbInfo.Initialized to true.
 	if err := store.RunInTransaction(a.s.st, func(tx store.Transaction) error {
-		return a.updateDbInfo(ctx, tx, dbName, func(info *dbInfo) error {
+		return a.updateDbInfo(ctx, tx, dbName, func(info *DbInfo) error {
 			info.Initialized = true
 			return nil
 		})
@@ -235,7 +235,7 @@ func (a *app) DestroyNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName s
 
 	// 2. Flip dbInfo.Deleted to true.
 	if err := store.RunInTransaction(a.s.st, func(tx store.Transaction) error {
-		return a.updateDbInfo(ctx, tx, dbName, func(info *dbInfo) error {
+		return a.updateDbInfo(ctx, tx, dbName, func(info *DbInfo) error {
 			info.Deleted = true
 			return nil
 		})
