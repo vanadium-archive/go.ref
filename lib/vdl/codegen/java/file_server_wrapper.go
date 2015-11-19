@@ -112,27 +112,26 @@ public final class {{ .ServiceName }}ServerWrapper {
      {{/* Iterate over methods defined directly in the body of this server */}}
     {{ range $method := .Methods }}
     {{ $method.JavaDoc }}
-    public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext _ctx, final io.v.v23.rpc.StreamServerCall _call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{ if $method.IsStreaming }}
-        io.v.v23.vdl.TypedStream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.TypedStream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
+        final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable(_call,new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType());
+        io.v.v23.vdl.ServerStream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.ServerStream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
             @Override
             public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
                 java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.SendType }} >() {}.getType();
-                call.send(item, type);
+                _call.send(item, type);
             }
             @Override
-            public {{ $method.RecvType }} recv() throws java.io.EOFException, io.v.v23.verror.VException {
-                java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.RecvType }} >() {}.getType();
-                java.lang.Object result = call.recv(type);
-                try {
-                    return ({{ $method.RecvType }})result;
-                } catch (java.lang.ClassCastException e) {
-                    throw new io.v.v23.verror.VException("Unexpected result type: " + result.getClass().getCanonicalName());
-                }
+            public java.util.Iterator<{{ $method.RecvType }}> iterator() {
+                return _it.iterator();
+            }
+            @Override
+            public io.v.v23.verror.VException error() {
+                return _it.error();
             }
         };
         {{ end }} {{/* end if $method.IsStreaming */}}
-        {{ if $method.Returns }} return {{ end }} this.server.{{ $method.Name }}(ctx, call {{ $method.CallingArgs }} {{ if $method.IsStreaming }} ,_stream {{ end }} );
+        {{ if $method.Returns }} return {{ end }} this.server.{{ $method.Name }}(_ctx, _call {{ $method.CallingArgs }} {{ if $method.IsStreaming }} ,_stream {{ end }} );
     }
 {{end}}
 

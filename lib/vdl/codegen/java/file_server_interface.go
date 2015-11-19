@@ -55,6 +55,20 @@ func serverInterfaceOutArg(iface *compile.Interface, method *compile.Method, env
 	}
 }
 
+func serverInterfaceStreamingArgType(method *compile.Method, env *compile.Env) string {
+	sendType := javaType(method.OutStream, true, env)
+	recvType := javaType(method.InStream, true, env)
+	if method.OutStream != nil && method.InStream != nil {
+		return fmt.Sprintf("io.v.v23.vdl.ServerStream<%s, %s>", sendType, recvType)
+	} else if method.OutStream != nil {
+		return fmt.Sprintf("io.v.v23.vdl.ServerSendStream<%s>", sendType)
+	} else if method.InStream != nil {
+		return fmt.Sprintf("io.v.v23.VIterable<%s>", recvType)
+	} else {
+		panic(fmt.Errorf("Streaming method without stream sender and receiver: %v", method))
+	}
+}
+
 type serverInterfaceArg struct {
 	Type string
 	Name string
@@ -73,7 +87,7 @@ type serverInterfaceMethod struct {
 func processServerInterfaceMethod(method *compile.Method, iface *compile.Interface, env *compile.Env) serverInterfaceMethod {
 	args := javaDeclarationArgStr(method.InArgs, env, true)
 	if isStreamingMethod(method) {
-		args += fmt.Sprintf(", io.v.v23.vdl.TypedStream<%s, %s> stream", javaType(method.OutStream, true, env), javaType(method.InStream, true, env))
+		args += ", " + serverInterfaceStreamingArgType(method, env) + " stream"
 	}
 	retArgs := make([]serverInterfaceArg, len(method.OutArgs))
 	for i := 0; i < len(method.OutArgs); i++ {
@@ -84,7 +98,6 @@ func processServerInterfaceMethod(method *compile.Method, iface *compile.Interfa
 		}
 		retArgs[i].Type = javaType(method.OutArgs[i].Type, false, env)
 	}
-
 	return serverInterfaceMethod{
 		Args:                args,
 		Doc:                 javaDoc(method.Doc, method.DocSuffix),
