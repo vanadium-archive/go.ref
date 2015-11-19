@@ -68,14 +68,14 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	appID := utiltest.InstallApp(t, ctx)
 
 	// Give bob rights to start an app.
-	updateAccessList(t, selfCtx, "root/bob/$", string(access.Read), "dm/apps", appID)
+	updateAccessList(t, selfCtx, "root:bob:$", string(access.Read), "dm/apps", appID)
 
 	// Bob starts an instance of the app.
 	bobApp := utiltest.LaunchApp(t, bobCtx, appID)
 	pingCh.VerifyPingArgs(t, utiltest.UserName(t), "default", "")
 
 	// Bob permits Alice to read from his app.
-	updateAccessList(t, bobCtx, "root/alice/$", string(access.Read), "dm/apps", appID, bobApp)
+	updateAccessList(t, bobCtx, "root:alice:$", string(access.Read), "dm/apps", appID, bobApp)
 
 	// Create some globbing test vectors.
 	globtests := []utiltest.GlobTestVector{
@@ -142,7 +142,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	utiltest.VerifyStatsValues(t, bobCtx, "appV1", "__debug", "stats/system/start-time*")
 
 	// But Bob can't figure it out and hopes that hackerjoe can debug it.
-	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), "dm/apps", appID, bobApp)
+	updateAccessList(t, bobCtx, "root:hackerjoe:$", string(access.Debug), "dm/apps", appID, bobApp)
 
 	// Fortunately the device manager permits hackerjoe to access the stats.
 	// But hackerjoe can't solve Bob's problem.
@@ -167,7 +167,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	utiltest.VerifyStatsValues(t, bobCtx, "dm", "apps", appID, bobApp, "stats/system/start-time*")
 
 	// So Bob changes the permissions so that Alice can help debug too.
-	updateAccessList(t, bobCtx, "root/alice/$", string(access.Debug), "dm/apps", appID, bobApp)
+	updateAccessList(t, bobCtx, "root:alice:$", string(access.Debug), "dm/apps", appID, bobApp)
 
 	// Alice can access __debug content.
 	utiltest.VerifyGlob(t, aliceCtx, "app", globtestminus, res)
@@ -243,7 +243,7 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 
 	// Bob gives system administrator Alice admin access to the dm and hence Alice
 	// can access the __debug space.
-	updateAccessList(t, bobCtx, "root/alice/$", string(access.Admin), "dm", "device")
+	updateAccessList(t, bobCtx, "root:alice:$", string(access.Admin), "dm", "device")
 
 	// Alice is an adminstrator and so can can access device manager __debug
 	// values.
@@ -251,7 +251,7 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	utiltest.VerifyStatsValues(t, aliceCtx, "dm", "__debug", "stats/system/start-time*")
 
 	// Bob gives debug access to the device manager to hackerjoe
-	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), "dm", "device")
+	updateAccessList(t, bobCtx, "root:hackerjoe:$", string(access.Debug), "dm", "device")
 
 	// hackerjoe can now access the device manager
 	utiltest.VerifyGlob(t, hjCtx, "perms.test", dmGlobtests, res)

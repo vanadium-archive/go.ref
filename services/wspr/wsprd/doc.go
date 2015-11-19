@@ -40,7 +40,7 @@ The global flags are:
    18n catalogue files to load, comma separated
  -v23.metadata=<just specify -v23.metadata to activate>
    Displays metadata for the program and exits.
- -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
+ -v23.namespace.root=[/(dev.v.io:role:vprod:service:mounttabled)@ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
  -v23.permissions.file=map[]
    specify a perms file as <name>:<permsfile>

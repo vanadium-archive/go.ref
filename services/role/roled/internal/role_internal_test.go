@@ -40,12 +40,12 @@ func TestImportMembers(t *testing.T) {
 		role    string
 		members []security.BlessingPattern
 	}{
-		{"role1", []security.BlessingPattern{"A/_role", "B/_role", "C/_role"}},
-		{"role2", []security.BlessingPattern{"C/_role", "D/_role", "E/_role"}},
-		{"sub/role3", []security.BlessingPattern{"C/_role", "D/_role", "E/_role"}},
-		{"sub/role4", []security.BlessingPattern{"A/_role", "B/_role", "C/_role", "D/_role", "E/_role"}},
-		{"sub/role5", []security.BlessingPattern{"A/_role", "B/_role", "C/_role", "F/_role"}},
-		{"role6", []security.BlessingPattern{"A/_role", "B/_role", "C/_role", "F/_role"}},
+		{"role1", []security.BlessingPattern{"A:_role", "B:_role", "C:_role"}},
+		{"role2", []security.BlessingPattern{"C:_role", "D:_role", "E:_role"}},
+		{"sub/role3", []security.BlessingPattern{"C:_role", "D:_role", "E:_role"}},
+		{"sub/role4", []security.BlessingPattern{"A:_role", "B:_role", "C:_role", "D:_role", "E:_role"}},
+		{"sub/role5", []security.BlessingPattern{"A:_role", "B:_role", "C:_role", "F:_role"}},
+		{"role6", []security.BlessingPattern{"A:_role", "B:_role", "C:_role", "F:_role"}},
 	}
 	for _, tc := range testcases {
 		c, err := loadExpandedConfig(filepath.Join(workdir, tc.role+".conf"), nil)

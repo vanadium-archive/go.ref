@@ -134,7 +134,7 @@ func testRPC(t *testing.T, ctx *context.T, shouldCloseSend bool) {
 			{"mountpoint/server/suffix/abc", "EchoUser", v{"baz", userType("bla")}, nil, nil, v{`method:"EchoUser",suffix:"suffix/abc",arg:"baz"`, userType("bla")}, nil},
 			{"mountpoint/server/suffix", "Stream", v{"foo"}, v{userType("bar"), userType("baz")}, nil, v{`method:"Stream",suffix:"suffix",arg:"foo" bar baz`}, nil},
 			{"mountpoint/server/suffix/abc", "Stream", v{"123"}, v{userType("456"), userType("789")}, nil, v{`method:"Stream",suffix:"suffix/abc",arg:"123" 456 789`}, nil},
-			{"mountpoint/server/suffix", "EchoBlessings", nil, nil, nil, v{"[test-blessing/server]", "[test-blessing/client]"}, nil},
+			{"mountpoint/server/suffix", "EchoBlessings", nil, nil, nil, v{"[test-blessing:server]", "[test-blessing:client]"}, nil},
 			{"mountpoint/server/suffix", "EchoAndError", v{"bugs bunny"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"bugs bunny"`}, nil},
 			{"mountpoint/server/suffix", "EchoAndError", v{"error"}, nil, nil, nil, errMethod},
 			{"mountpoint/server/suffix", "EchoLang", nil, nil, nil, v{"foolang"}, nil},
@@ -324,10 +324,10 @@ func TestGranter(t *testing.T) {
 		blessing, starterr, finisherr string
 	}{
 		{blessing: ""},
-		{granter: granter{}, blessing: "test-blessing/client/blessed"},
+		{granter: granter{}, blessing: "test-blessing:client:blessed"},
 		{
 			granter:  granter{b: bless(t, cctx, sctx, "blessed")},
-			blessing: "test-blessing/client/blessed",
+			blessing: "test-blessing:client:blessed",
 		},
 		{
 			granter:    granter{err: errors.New("hell no")},
@@ -433,17 +433,17 @@ func TestRPCClientAuthorization(t *testing.T) {
 			{bServerClientTPExpired, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
 			{bServerClientTPExpired, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, false},
 
-			// The "server/client" blessing (with MethodCaveat("Echo"))
+			// The "server:client" blessing (with MethodCaveat("Echo"))
 			// should satisfy all authorization policies when "Echo" is
 			// called.
 			{bServerClientOnlyEcho, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, true},
 			{bServerClientOnlyEcho, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, true},
 			{bServerClientOnlyEcho, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
 
-			// The "server/client" blessing (with MethodCaveat("Echo"))
+			// The "server:client" blessing (with MethodCaveat("Echo"))
 			// should satisfy no authorization policy when any other method
 			// is invoked, except for the testServerAuthorizer policy (which
-			// will not recognize the blessing "server/onlyecho", but it
+			// will not recognize the blessing "server:onlyecho", but it
 			// would authorize anyone anyway).
 			{bServerClientOnlyEcho, "mountpoint/server/nilAuth", "Closure", nil, nil, false},
 			{bServerClientOnlyEcho, "mountpoint/server/aclAuth", "Closure", nil, nil, false},
@@ -465,7 +465,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 			{bRandom, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
 			{bRandom, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, false},
 
-			// The "server/dischargeable_third_party_caveat" blessing satisfies all policies.
+			// The "server:dischargeable_third_party_caveat" blessing satisfies all policies.
 			// (the discharges should be fetched).
 			{bServerClientTPValid, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, true},
 			{bServerClientTPValid, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, true},
@@ -492,7 +492,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 	// Set a blessing on the client's blessing store to be presented to
 	// the discharge server.
 	v23.GetPrincipal(cctx).BlessingStore().Set(
-		v23.GetPrincipal(cctx).BlessingStore().Default(), "test-blessing/$")
+		v23.GetPrincipal(cctx).BlessingStore().Default(), "test-blessing:$")
 
 	// testutil.NewPrincipal sets up a principal that shares blessings
 	// with all servers, undo that.
@@ -503,7 +503,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 		name := fmt.Sprintf("#%d: %q.%s(%v) by %v", i, test.name, test.method, test.args, test.blessings)
 		client := v23.GetClient(cctx)
 
-		v23.GetPrincipal(cctx).BlessingStore().Set(test.blessings, "test-blessing/server")
+		v23.GetPrincipal(cctx).BlessingStore().Set(test.blessings, "test-blessing:server")
 		err = client.Call(cctx, test.name, test.method, test.args, makeResultPtrs(test.results))
 		if err != nil && test.authorized {
 			t.Errorf(`%s client.Call got error: "%v", wanted the RPC to succeed`, name, err)
@@ -581,9 +581,9 @@ func TestRPCServerAuthorization(t *testing.T) {
 			{bOther, "mountpoint/server", O{options.ServerAuthorizer{security.PublicKeyAuthorizer(testutil.NewPrincipal("irrelevant").PublicKey())}}, verror.ErrNotTrusted, publicKeyErr},
 
 			// Test the "paranoid" names, where the pattern is provided in the name.
-			{bServer, "__(test-blessing/server)/mountpoint/server", nil, noErrID, ""},
-			{bServer, "__(test-blessing/other)/mountpoint/server", nil, verror.ErrNotTrusted, allowedErr},
-			{bTwoBlessings, "__(test-blessing/server)/mountpoint/server", O{options.ServerAuthorizer{ACL("test-blessing/other")}}, noErrID, ""},
+			{bServer, "__(test-blessing:server)/mountpoint/server", nil, noErrID, ""},
+			{bServer, "__(test-blessing:other)/mountpoint/server", nil, verror.ErrNotTrusted, allowedErr},
+			{bTwoBlessings, "__(test-blessing:server)/mountpoint/server", O{options.ServerAuthorizer{ACL("test-blessing:other")}}, noErrID, ""},
 		}
 	)
 	// Start the discharge server.
@@ -682,7 +682,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BlessSelf failed: %v", err)
 		}
-		v23.GetPrincipal(cctx).BlessingStore().Set(b, "test-blessing/server")
+		v23.GetPrincipal(cctx).BlessingStore().Set(b, "test-blessing:server")
 	}
 
 	// Setup the discharge server.
@@ -712,7 +712,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		},
 		{ // Require everything
 			Requirements: security.ThirdPartyRequirements{ReportServer: true, ReportMethod: true, ReportArguments: true},
-			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"test-blessing/server"}, Method: "Method", Arguments: []*vdl.Value{vdl.StringValue("argument")}},
+			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"test-blessing:server"}, Method: "Method", Arguments: []*vdl.Value{vdl.StringValue("argument")}},
 		},
 		{ // Require only the method name
 			Requirements: security.ThirdPartyRequirements{ReportMethod: true},
@@ -821,7 +821,7 @@ func TestServerLocalBlessings(t *testing.T) {
 	if err := v23.GetClient(cctx).Call(cctx, "mountpoint/server/suffix", "EchoBlessings", nil, []interface{}{&gotServer, &gotClient}); err != nil {
 		t.Fatalf("Finish failed: %v", err)
 	}
-	if wantServer, wantClient := "[test-blessing/server]", "[test-blessing/client]"; gotServer != wantServer || gotClient != wantClient {
+	if wantServer, wantClient := "[test-blessing:server]", "[test-blessing:client]"; gotServer != wantServer || gotClient != wantClient {
 		t.Fatalf("EchoBlessings: got %v, %v want %v, %v", gotServer, gotClient, wantServer, wantClient)
 	}
 }
@@ -1039,17 +1039,17 @@ func TestPrivateServer(t *testing.T) {
 	}
 
 	// Create a server that only reveals its blesings to peers with blessings
-	// matching the pattern "root/client".
+	// matching the pattern "root:client".
 	//
 	// Since a mounttable server always learns a server's blessings, this also
 	// restricts the set of mounttable servers that the server can talk to. In
 	// particular the mounttable server must have a blessing matching the pattern
-	// "root/client".
+	// "root:client".
 	//
 	// Having said that, the common case for private mutual authentication would
 	// be when there are no mounttables involved and the server's endpoint is
 	// discovered using a peer-to-peer discovery mechanism (e.g., mdns).
-	_, server, err := v23.WithNewDispatchingServer(sctx, "", &testServerDisp{&testServer{}}, options.ServerPeers([]security.BlessingPattern{"root/client"}))
+	_, server, err := v23.WithNewDispatchingServer(sctx, "", &testServerDisp{&testServer{}}, options.ServerPeers([]security.BlessingPattern{"root:client"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1063,8 +1063,8 @@ func TestPrivateServer(t *testing.T) {
 	}
 
 	// Add a private key for a blessing that does not match the server's policy
-	// (pattern: "root/client") and test that the RPC still fails.
-	if err := bcrypter.GetCrypter(cctx).AddKey(cctx, extractKey(t, ctx, root, "root/otherclient")); err != nil {
+	// (pattern: "root:client") and test that the RPC still fails.
+	if err := bcrypter.GetCrypter(cctx).AddKey(cctx, extractKey(t, ctx, root, "root:otherclient")); err != nil {
 		t.Fatal(err)
 	}
 	call, err = client.StartCall(cctx, serverEPName, "Closure", nil)
@@ -1073,11 +1073,11 @@ func TestPrivateServer(t *testing.T) {
 	}
 
 	// Add a private key for a blessing matching the server's policy and test that
-	// the RPC succceeds and that the client learns the server's blessing ("root/server").
-	if err := bcrypter.GetCrypter(cctx).AddKey(cctx, extractKey(t, ctx, root, "root/client")); err != nil {
+	// the RPC succceeds and that the client learns the server's blessing ("root:server").
+	if err := bcrypter.GetCrypter(cctx).AddKey(cctx, extractKey(t, ctx, root, "root:client")); err != nil {
 		t.Fatal(err)
 	}
-	call, err = client.StartCall(cctx, serverEPName, "Closure", nil, options.ServerAuthorizer{access.AccessList{In: []security.BlessingPattern{"root/server/$"}}})
+	call, err = client.StartCall(cctx, serverEPName, "Closure", nil, options.ServerAuthorizer{access.AccessList{In: []security.BlessingPattern{"root:server:$"}}})
 	if err != nil {
 		t.Error(verror.DebugString(err))
 	} else {

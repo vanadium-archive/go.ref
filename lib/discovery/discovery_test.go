@@ -108,8 +108,8 @@ func TestVisibility(t *testing.T) {
 		Addrs:         []string{"/h1:123/x", "/h2:123/y"},
 	}
 	visibility := []security.BlessingPattern{
-		security.BlessingPattern("v.io/bob"),
-		security.BlessingPattern("v.io/alice").MakeNonExtendable(),
+		security.BlessingPattern("v.io:bob"),
+		security.BlessingPattern("v.io:alice").MakeNonExtendable(),
 	}
 	stop, err := advertise(ctx, ds, visibility, &service)
 	defer stop()
@@ -118,27 +118,27 @@ func TestVisibility(t *testing.T) {
 	}
 
 	// Bob and his friend should discover the advertisement.
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io/bob"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:bob"))
 	if err := scanAndMatch(ctx, ds, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io/bob/friend"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:bob:friend"))
 	if err := scanAndMatch(ctx, ds, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
 
 	// Alice should discover the advertisement, but her friend shouldn't.
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io/alice"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:alice"))
 	if err := scanAndMatch(ctx, ds, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io/alice/friend"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:alice:friend"))
 	if err := scanAndMatch(ctx, ds, "v.io/v23/a"); err != nil {
 		t.Error(err)
 	}
 
 	// Other people shouldn't discover the advertisement.
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io/carol"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:carol"))
 	if err := scanAndMatch(ctx, ds, "v.io/v23/a"); err != nil {
 		t.Error(err)
 	}

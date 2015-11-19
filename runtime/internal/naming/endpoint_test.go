@@ -47,7 +47,7 @@ func TestEndpoint(t *testing.T) {
 		RID:          naming.FixedRoutingID(0xba77),
 		RouteList:    []string{"1"},
 		IsMountTable: true,
-		Blessings:    []string{"dev.v.io/foo@bar.com", "dev.v.io/bar@bar.com/delegate"},
+		Blessings:    []string{"dev.v.io:foo@bar.com", "dev.v.io:bar@bar.com:delegate"},
 	}
 	v6f := &Endpoint{
 		Protocol:     "tcp",
@@ -147,8 +147,8 @@ func TestHostPortEndpoint(t *testing.T) {
 		{"localhost:10", "@6@@localhost:10@@00000000000000000000000000000000@m@@@", nil},
 		{"localhost:", "@6@@localhost:@@00000000000000000000000000000000@m@@@", nil},
 		{"localhost", "", errInvalidEndpointString},
-		{"(dev.v.io/service/mounttabled)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io/service/mounttabled@@", nil},
-		{"(dev.v.io/users/foo@bar.com)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io/users/foo@bar.com@@", nil},
+		{"(dev.v.io:service:mounttabled)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io/service/mounttabled@@", nil},
+		{"(dev.v.io:users:foo@bar.com)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io/users/foo@bar.com@@", nil},
 		{"(@1@tcp)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@@1@tcp@@", nil},
 	}
 	runEndpointTests(t, testcases)

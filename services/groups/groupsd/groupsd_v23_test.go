@@ -55,12 +55,12 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 
 	// Create a couple of groups.
 	clientBin.Start("create", groupA).WaitOrDie(os.Stdout, os.Stderr)
-	clientBin.Start("create", groupB, "a", "a/b").WaitOrDie(os.Stdout, os.Stderr)
+	clientBin.Start("create", groupB, "a", "a:b").WaitOrDie(os.Stdout, os.Stderr)
 
 	// Add a couple of blessing patterns.
 	clientBin.Start("add", groupA, "<grp:groups-server/groupB>").WaitOrDie(os.Stdout, os.Stderr)
 	clientBin.Start("add", groupA, "a").WaitOrDie(os.Stdout, os.Stderr)
-	clientBin.Start("add", groupB, "a/b/c").WaitOrDie(os.Stdout, os.Stderr)
+	clientBin.Start("add", groupB, "a:b:c").WaitOrDie(os.Stdout, os.Stderr)
 
 	// Remove a blessing pattern.
 	clientBin.Start("remove", groupB, "a").WaitOrDie(os.Stdout, os.Stderr)
@@ -68,13 +68,13 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 	// Test simple group resolution.
 	{
 		var buffer, stderrBuf bytes.Buffer
-		clientBin.Start("relate", groupB, "a/b/c/d").WaitOrDie(&buffer, &stderrBuf)
+		clientBin.Start("relate", groupB, "a:b:c:d").WaitOrDie(&buffer, &stderrBuf)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
 			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
 		}
 		want := relateResult{
-			Remainder:      set.String.FromSlice([]string{"c/d", "d"}),
+			Remainder:      set.String.FromSlice([]string{"c:d", "d"}),
 			Approximations: nil,
 			Version:        "2",
 		}
@@ -89,13 +89,13 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 	// Test recursive group resolution.
 	{
 		var buffer, stderrBuf bytes.Buffer
-		clientBin.Start("relate", groupA, "a/b/c/d").WaitOrDie(&buffer, &stderrBuf)
+		clientBin.Start("relate", groupA, "a:b:c:d").WaitOrDie(&buffer, &stderrBuf)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
 			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
 		}
 		want := relateResult{
-			Remainder:      set.String.FromSlice([]string{"b/c/d", "c/d", "d"}),
+			Remainder:      set.String.FromSlice([]string{"b:c:d", "c:d", "d"}),
 			Approximations: nil,
 			Version:        "2",
 		}
@@ -112,13 +112,13 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 	{
 		clientBin.Start("add", groupB, "<grp:groups-server/groupC>").WaitOrDie(os.Stdout, os.Stderr)
 		var buffer, stderrBuf bytes.Buffer
-		clientBin.Start("relate", groupB, "a/b/c/d").WaitOrDie(&buffer, &stderrBuf)
+		clientBin.Start("relate", groupB, "a:b:c:d").WaitOrDie(&buffer, &stderrBuf)
 		var got relateResult
 		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
 			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
 		}
 		want := relateResult{
-			Remainder: set.String.FromSlice([]string{"c/d", "d"}),
+			Remainder: set.String.FromSlice([]string{"c:d", "d"}),
 			Approximations: []groups.Approximation{
 				groups.Approximation{
 					Reason:  "v.io/v23/verror.NoExist",
@@ -254,8 +254,8 @@ func V23TestGroupServerAuthorization(t *v23tests.T) {
 	// Create a couple of groups. The <readers> and <writers> groups
 	// identify blessings that can be used to read from and write to the
 	// key value store server respectively.
-	clientBin.Start("create", readers, "root/alice", "root/bob").WaitOrDie(os.Stdout, os.Stderr)
-	clientBin.Start("create", writers, "root/alice").WaitOrDie(os.Stdout, os.Stderr)
+	clientBin.Start("create", readers, "root:alice", "root:bob").WaitOrDie(os.Stdout, os.Stderr)
+	clientBin.Start("create", writers, "root:alice").WaitOrDie(os.Stdout, os.Stderr)
 
 	// Start an instance of the key value store server.
 	if _, err := t.Shell().Start(nil, runServer); err != nil {

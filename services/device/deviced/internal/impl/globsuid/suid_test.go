@@ -71,7 +71,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 	defer utiltest.VerifyNoRunningProcesses(t)
-	// Claim the devicemanager with selfCtx as root/self/alice
+	// Claim the devicemanager with selfCtx as root:self:alice
 	utiltest.ClaimDevice(t, selfCtx, "claimable", "dm", "alice", utiltest.NoPairingToken)
 
 	deviceStub := device.DeviceClient("dm/device")
@@ -84,7 +84,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Create an envelope for a first version of the app.
 	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-var"}, utiltest.App, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
 
-	// Install and start the app as root/self.
+	// Install and start the app as root:self.
 	appID := utiltest.InstallApp(t, selfCtx)
 
 	ctx.VI(2).Infof("Validate that the created app has the right permission lists.")
@@ -94,7 +94,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 	expected := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/self/$"}}
+		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root:self:$"}}
 	}
 	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v", got, want)
@@ -105,7 +105,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	utiltest.LaunchAppExpectError(t, selfCtx, appID, verror.ErrNoAccess.ID)
 
 	// Create an association for selfCtx
-	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self"}, testUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root:self"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
@@ -117,15 +117,15 @@ func TestAppWithSuidHelper(t *testing.T) {
 	utiltest.LaunchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// Self will now let other also install apps.
-	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, testUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root:other"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
-	// Add Start to the AccessList list for root/other.
+	// Add Start to the AccessList list for root:other.
 	newAccessList, _, err := deviceStub.GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed %v", err)
 	}
-	newAccessList.Add("root/other", string(access.Write))
+	newAccessList.Add("root:other", string(access.Write))
 	if err := deviceStub.SetPermissions(selfCtx, newAccessList, ""); err != nil {
 		t.Fatalf("SetPermissions failed %v", err)
 	}
@@ -143,7 +143,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions on appID: %v failed %v", appID, err)
 	}
-	newAccessList.Add("root/other", string(access.Read))
+	newAccessList.Add("root:other", string(access.Read))
 	if err = utiltest.AppStub(appID).SetPermissions(selfCtx, newAccessList, ""); err != nil {
 		t.Fatalf("SetPermissions on appID: %v failed: %v", appID, err)
 	}
@@ -155,7 +155,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	ctx.VI(2).Infof("Validate that created instance has the right permissions.")
 	expected = make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/other/$"}}
+		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root:other:$"}}
 	}
 	perms, _, err = utiltest.AppStub(appID, instance2ID).GetPermissions(selfCtx)
 	if err != nil {
@@ -184,7 +184,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	utiltest.TerminateApp(t, otherCtx, otherAppID, instance4ID)
 
 	// Change the associated system name.
-	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, anotherTestUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root:other"}, anotherTestUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 

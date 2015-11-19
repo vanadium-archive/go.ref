@@ -29,10 +29,10 @@ func (t *storeTester) testSet(s security.BlessingStore) error {
 		{t.forAll, security.AllPrincipals, ""},
 		{t.forAll, "$", ""},
 		{t.forFoo, "foo", ""},
-		{t.forBar, "bar/$", ""},
+		{t.forBar, "bar:$", ""},
 		{t.other, security.AllPrincipals, "public key does not match"},
 		{t.forAll, "", "invalid BlessingPattern"},
-		{t.forAll, "foo/$/bar", "invalid BlessingPattern"},
+		{t.forAll, "foo:$:bar", "invalid BlessingPattern"},
 	}
 	added := make(map[security.BlessingPattern]security.Blessings)
 	for _, d := range testdata {
@@ -83,10 +83,10 @@ func (t *storeTester) testForPeer(s security.BlessingStore) error {
 		{[]string{"baz"}, t.forAll},
 		{[]string{"foo"}, unionOfBlessings(t.forAll, t.forFoo)},
 		{[]string{"bar"}, unionOfBlessings(t.forAll, t.forBar)},
-		{[]string{"foo/foo"}, unionOfBlessings(t.forAll, t.forFoo)},
-		{[]string{"bar/baz"}, t.forAll},
-		{[]string{"foo/foo/bar"}, unionOfBlessings(t.forAll, t.forFoo)},
-		{[]string{"bar/foo", "foo"}, unionOfBlessings(t.forAll, t.forFoo)},
+		{[]string{"foo:foo"}, unionOfBlessings(t.forAll, t.forFoo)},
+		{[]string{"bar:baz"}, t.forAll},
+		{[]string{"foo:foo:bar"}, unionOfBlessings(t.forAll, t.forFoo)},
+		{[]string{"bar:foo", "foo"}, unionOfBlessings(t.forAll, t.forFoo)},
 		{[]string{"bar", "foo"}, unionOfBlessings(t.forAll, t.forFoo, t.forBar)},
 	}
 	for _, d := range testdata {
@@ -193,8 +193,8 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 		s     = p.BlessingStore()
 		empty security.Blessings
 	)
-	// {alice, bob} is shared with "alice", whilst {bob} is shared with "alice/tv"
-	if _, err := s.Set(alice, "alice/$"); err != nil {
+	// {alice, bob} is shared with "alice", whilst {bob} is shared with "alice:tv"
+	if _, err := s.Set(alice, "alice:$"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Set(bob, "alice"); err != nil {
@@ -203,30 +203,30 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	if got, want := s.ForPeer("alice"), unionOfBlessings(alice, bob); !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)
 	}
-	if got, want := s.ForPeer("alice/friend"), bob; !reflect.DeepEqual(got, want) {
+	if got, want := s.ForPeer("alice:friend"), bob; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)
 	}
 
 	// Clear out the blessing associated with "alice".
-	// Now, bob should be shared with both alice and alice/friend.
-	if _, err := s.Set(empty, "alice/$"); err != nil {
+	// Now, bob should be shared with both alice and alice:friend.
+	if _, err := s.Set(empty, "alice:$"); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := s.ForPeer("alice"), bob; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)
 	}
-	if got, want := s.ForPeer("alice/friend"), bob; !reflect.DeepEqual(got, want) {
+	if got, want := s.ForPeer("alice:friend"), bob; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)
 	}
 
 	// Clearing out an association that doesn't exist should have no effect.
-	if _, err := s.Set(empty, "alice/enemy/$"); err != nil {
+	if _, err := s.Set(empty, "alice:enemy:$"); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := s.ForPeer("alice"), bob; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)
 	}
-	if got, want := s.ForPeer("alice/friend"), bob; !reflect.DeepEqual(got, want) {
+	if got, want := s.ForPeer("alice:friend"), bob; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)
 	}
 
@@ -237,7 +237,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	if got := s.ForPeer("alice"); !got.IsZero() {
 		t.Errorf("Got %v, want empty", got)
 	}
-	if got := s.ForPeer("alice/friend"); !got.IsZero() {
+	if got := s.ForPeer("alice:friend"); !got.IsZero() {
 		t.Errorf("Got %v, want empty", got)
 	}
 }

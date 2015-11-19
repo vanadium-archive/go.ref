@@ -39,9 +39,9 @@ func TestSeekBlessings(t *testing.T) {
 	// Role A is a restricted role, i.e. it can be used in sensitive Permissions.
 	roleAConf := irole.Config{
 		Members: []security.BlessingPattern{
-			"test-blessing/users/user1/_role",
-			"test-blessing/users/user2/_role",
-			"test-blessing/users/user3", // _role implied
+			"test-blessing:users:user1:_role",
+			"test-blessing:users:user2:_role",
+			"test-blessing:users:user3", // _role implied
 		},
 		Extend: true,
 	}
@@ -50,8 +50,8 @@ func TestSeekBlessings(t *testing.T) {
 	// Role B is an unrestricted role.
 	roleBConf := irole.Config{
 		Members: []security.BlessingPattern{
-			"test-blessing/users/user1/_role",
-			"test-blessing/users/user3/_role",
+			"test-blessing:users:user1:_role",
+			"test-blessing:users:user3:_role",
 		},
 		Audit:  true,
 		Extend: false,
@@ -61,12 +61,12 @@ func TestSeekBlessings(t *testing.T) {
 	root := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 
 	var (
-		user1  = newPrincipalContext(t, ctx, root, "users/user1")
-		user1R = newPrincipalContext(t, ctx, root, "users/user1/_role")
-		user2  = newPrincipalContext(t, ctx, root, "users/user2")
-		user2R = newPrincipalContext(t, ctx, root, "users/user2/_role")
-		user3  = newPrincipalContext(t, ctx, root, "users/user3")
-		user3R = newPrincipalContext(t, ctx, root, "users/user3", "users/user3/_role/foo", "users/user3/_role/bar")
+		user1  = newPrincipalContext(t, ctx, root, "users:user1")
+		user1R = newPrincipalContext(t, ctx, root, "users:user1:_role")
+		user2  = newPrincipalContext(t, ctx, root, "users:user2")
+		user2R = newPrincipalContext(t, ctx, root, "users:user2:_role")
+		user3  = newPrincipalContext(t, ctx, root, "users:user3")
+		user3R = newPrincipalContext(t, ctx, root, "users:user3", "users:user3:_role:foo", "users:user3:_role:bar")
 	)
 
 	testServerCtx := newPrincipalContext(t, ctx, root, "testserver")
@@ -89,18 +89,18 @@ func TestSeekBlessings(t *testing.T) {
 		{user3, "unknown", verror.ErrNoAccess.ID, nil},
 
 		{user1, "A", verror.ErrNoAccess.ID, nil},
-		{user1R, "A", noErr, []string{"test-blessing/roles/A/test-blessing/users/user1"}},
+		{user1R, "A", noErr, []string{"test-blessing:roles:A:test-blessing:users:user1"}},
 		{user2, "A", verror.ErrNoAccess.ID, nil},
-		{user2R, "A", noErr, []string{"test-blessing/roles/A/test-blessing/users/user2"}},
+		{user2R, "A", noErr, []string{"test-blessing:roles:A:test-blessing:users:user2"}},
 		{user3, "A", verror.ErrNoAccess.ID, nil},
-		{user3R, "A", noErr, []string{"test-blessing/roles/A/test-blessing/users/user3/_role/bar", "test-blessing/roles/A/test-blessing/users/user3/_role/foo"}},
+		{user3R, "A", noErr, []string{"test-blessing:roles:A:test-blessing:users:user3:_role:bar", "test-blessing:roles:A:test-blessing:users:user3:_role:foo"}},
 
 		{user1, "B", verror.ErrNoAccess.ID, nil},
-		{user1R, "B", noErr, []string{"test-blessing/roles/B"}},
+		{user1R, "B", noErr, []string{"test-blessing:roles:B"}},
 		{user2, "B", verror.ErrNoAccess.ID, nil},
 		{user2R, "B", verror.ErrNoAccess.ID, nil},
 		{user3, "B", verror.ErrNoAccess.ID, nil},
-		{user3R, "B", noErr, []string{"test-blessing/roles/B"}},
+		{user3R, "B", noErr, []string{"test-blessing:roles:B"}},
 	}
 	addr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
 	for _, tc := range testcases {
@@ -136,17 +136,17 @@ func TestPeerBlessingCaveats(t *testing.T) {
 	defer os.RemoveAll(workdir)
 
 	roleConf := irole.Config{
-		Members: []security.BlessingPattern{"test-blessing/users/user/_role"},
+		Members: []security.BlessingPattern{"test-blessing:users:user:_role"},
 		Peers: []security.BlessingPattern{
-			security.BlessingPattern("test-blessing/peer1"),
-			security.BlessingPattern("test-blessing/peer3"),
+			security.BlessingPattern("test-blessing:peer1"),
+			security.BlessingPattern("test-blessing:peer3"),
 		},
 	}
 	irole.WriteConfig(t, roleConf, filepath.Join(workdir, "role.conf"))
 
 	var (
 		root  = testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
-		user  = newPrincipalContext(t, ctx, root, "users/user/_role")
+		user  = newPrincipalContext(t, ctx, root, "users:user:_role")
 		peer1 = newPrincipalContext(t, ctx, root, "peer1")
 		peer2 = newPrincipalContext(t, ctx, root, "peer2")
 		peer3 = newPrincipalContext(t, ctx, root, "peer3")
@@ -180,9 +180,9 @@ func TestPeerBlessingCaveats(t *testing.T) {
 		blessingNames []string
 		rejectedNames []string
 	}{
-		{"peer1", []string{"test-blessing/roles/role"}, nil},
-		{"peer2", nil, []string{"test-blessing/roles/role"}},
-		{"peer3", []string{"test-blessing/roles/role"}, nil},
+		{"peer1", []string{"test-blessing:roles:role"}, nil},
+		{"peer2", nil, []string{"test-blessing:roles:role"}},
+		{"peer3", []string{"test-blessing:roles:role"}, nil},
 	}
 	for i, tc := range testcases {
 		blessingNames, rejected := callTest(t, user, tc.peer)
@@ -213,20 +213,20 @@ func TestGlob(t *testing.T) {
 	os.Mkdir(filepath.Join(workdir, "sub3"), 0700)
 
 	// Role that user1 has access to.
-	roleAConf := irole.Config{Members: []security.BlessingPattern{"test-blessing/user1"}}
+	roleAConf := irole.Config{Members: []security.BlessingPattern{"test-blessing:user1"}}
 	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "A.conf"))
 	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/B.conf"))
 	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/C.conf"))
 	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/sub2/D.conf"))
 
 	// Role that user2 has access to.
-	roleBConf := irole.Config{Members: []security.BlessingPattern{"test-blessing/user2"}}
+	roleBConf := irole.Config{Members: []security.BlessingPattern{"test-blessing:user2"}}
 	irole.WriteConfig(t, roleBConf, filepath.Join(workdir, "sub1/sub2/X.conf"))
 
 	root := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
-	user1 := newPrincipalContext(t, ctx, root, "user1/_role")
-	user2 := newPrincipalContext(t, ctx, root, "user2/_role")
-	user3 := newPrincipalContext(t, ctx, root, "user3/_role")
+	user1 := newPrincipalContext(t, ctx, root, "user1:_role")
+	user2 := newPrincipalContext(t, ctx, root, "user2:_role")
+	user3 := newPrincipalContext(t, ctx, root, "user3:_role")
 	addr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
 
 	testcases := []struct {

@@ -33,7 +33,7 @@ func TextExtract(t *testing.T) {
 	ctx, shutdown := context.RootContext()
 	defer shutdown()
 
-	googleYoutube := newRoot("google/youtube")
+	googleYoutube := newRoot("google:youtube")
 
 	// googleYoutube shoud not be able to extract a key for the blessing "google".
 	if _, err := googleYoutube.Extract(ctx, "google"); err == nil {
@@ -41,7 +41,7 @@ func TextExtract(t *testing.T) {
 	}
 
 	// googleYoutube should be able to extract keys for the following blessings.
-	blessings := []string{"google/youtube", "google/youtube/alice", "google/youtube/bob", "google/youtube/alice/phone"}
+	blessings := []string{"google:youtube", "google:youtube:alice", "google:youtube:bob", "google:youtube:alice:phone"}
 	for _, b := range blessings {
 		key, err := googleYoutube.Extract(ctx, b)
 		if err != nil {
@@ -55,8 +55,8 @@ func TextExtract(t *testing.T) {
 		}
 	}
 	// Every key should be unique.
-	key1, _ := googleYoutube.Extract(ctx, "google/youtube/alice")
-	key2, _ := googleYoutube.Extract(ctx, "google/youtube/alice")
+	key1, _ := googleYoutube.Extract(ctx, "google:youtube:alice")
+	key2, _ := googleYoutube.Extract(ctx, "google:youtube:alice")
 	if reflect.DeepEqual(key1, key2) {
 		t.Fatal("Two Extract operations yielded the same PrivateKey")
 	}
@@ -67,7 +67,7 @@ func TestEncrypt(t *testing.T) {
 	defer shutdown()
 
 	var (
-		googleYoutube = newRoot("google/youtube")
+		googleYoutube = newRoot("google:youtube")
 		google        = newRoot("google")
 
 		encrypter = NewCrypter()
@@ -75,7 +75,7 @@ func TestEncrypt(t *testing.T) {
 	)
 
 	// empty encrypter should not be able to encrypt for any pattern.
-	if _, err := encrypter.Encrypt(ctx, "google/youtube/alice", ptxt); verror.ErrorID(err) != ErrNoParams.ID {
+	if _, err := encrypter.Encrypt(ctx, "google:youtube:alice", ptxt); verror.ErrorID(err) != ErrNoParams.ID {
 		t.Fatalf("Got error %v, wanted error with ID %v", err, ErrNoParams.ID)
 	}
 
@@ -83,15 +83,15 @@ func TestEncrypt(t *testing.T) {
 	if err := encrypter.AddParams(ctx, googleYoutube.Params()); err != nil {
 		t.Fatal(err)
 	}
-	// encrypting for "google/youtube/alice" should now succeed.
-	if _, err := encrypter.Encrypt(ctx, "google/youtube/alice", ptxt); err != nil {
+	// encrypting for "google:youtube:alice" should now succeed.
+	if _, err := encrypter.Encrypt(ctx, "google:youtube:alice", ptxt); err != nil {
 		t.Fatal(err)
 	}
 
 	// encrypting for pattern "google" should still fail as the encrypter
 	// does not have params that are authoritative on all blessings matching
 	// the pattern "google" (the googleYoutube params are authoritative on
-	// blessings matching "google/youtube").
+	// blessings matching "google:youtube").
 	if _, err := encrypter.Encrypt(ctx, "google", ptxt); verror.ErrorID(err) != ErrNoParams.ID {
 		t.Fatalf("Got error %v, wanted error with ID %v", err, ErrNoParams.ID)
 	}
@@ -105,7 +105,7 @@ func TestEncrypt(t *testing.T) {
 	}
 
 	// Encryption should succeed for all of the following patterns
-	patterns := []security.BlessingPattern{"google", "google/$", "google/alice", "google/bob", "google/bob/phone"}
+	patterns := []security.BlessingPattern{"google", "google:$", "google:alice", "google:bob", "google:bob:phone"}
 	for _, p := range patterns {
 		if _, err := encrypter.Encrypt(ctx, p, ptxt); err != nil {
 			t.Fatal(err)
@@ -144,15 +144,15 @@ func TestDecrypt(t *testing.T) {
 		encrypter = NewCrypter()
 		ptxt      = newPlaintext()
 
-		googleAlice1 = extract(google1, "google/alice/phone")
-		googleAlice2 = extract(google2, "google/alice/tablet/app")
+		googleAlice1 = extract(google1, "google:alice:phone")
+		googleAlice2 = extract(google2, "google:alice:tablet:app")
 	)
 
 	// Add roots google1 and google2 to the encrypter.
 	addParams(encrypter, google1.Params())
 	addParams(encrypter, google2.Params())
-	// encrypt for the pattern "google/alice"
-	ctxt, err := encrypter.Encrypt(ctx, "google/alice", ptxt)
+	// encrypt for the pattern "google:alice"
+	ctxt, err := encrypter.Encrypt(ctx, "google:alice", ptxt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,8 +189,8 @@ func TestDecrypt(t *testing.T) {
 
 	// Decryption should fail for ciphertexts encrypted for the following
 	// patterns (At this point the decrypter only has a key for the blessing
-	// "google/alice/tablet/app" from the root google2).
-	patterns := []security.BlessingPattern{"google/alice/$", "google/bob", "google/alice/tablet/$", "google/bob/tablet"}
+	// "google:alice:tablet:app" from the root google2).
+	patterns := []security.BlessingPattern{"google:alice:$", "google:bob", "google:alice:tablet:$", "google:bob:tablet"}
 	for _, p := range patterns {
 		ctxt, err := encrypter.Encrypt(ctx, p, ptxt)
 		if err != nil {
@@ -204,14 +204,14 @@ func TestDecrypt(t *testing.T) {
 	// Adding the private key googleAlice2 should have also added
 	// google's public params. Thus encrypting for the following
 	// patterns should succeed.
-	patterns = []security.BlessingPattern{"google", "google/$", "google/alice", "google/bob", "google/bob/phone"}
+	patterns = []security.BlessingPattern{"google", "google:$", "google:alice", "google:bob", "google:bob:phone"}
 	for _, p := range patterns {
 		if _, err := decrypter.Encrypt(ctx, p, ptxt); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// But encrypting for the following patterns should fail.
-	patterns = []security.BlessingPattern{"youtube", "youtube/$", "youtube/alice"}
+	patterns = []security.BlessingPattern{"youtube", "youtube:$", "youtube:alice"}
 	for _, p := range patterns {
 		if _, err := decrypter.Encrypt(ctx, p, ptxt); verror.ErrorID(err) != ErrNoParams.ID {
 			t.Fatalf("Got error %v, wanted error with ID %v", err, ErrNoParams.ID)
@@ -252,7 +252,7 @@ func TestWireCiphertext(t *testing.T) {
 		google = newRoot("google")
 		params = google.Params()
 		key, _ = google.Extract(ctx, "google")
-		ctxt   = encrypt(params, "google/$")
+		ctxt   = encrypt(params, "google:$")
 	)
 	// Verify that the ciphertext 'ctxt' can be decrypted using
 	// private key 'key' into the desired plaintext.
@@ -299,7 +299,7 @@ func TestWireCiphertext(t *testing.T) {
 	} else if err = newParams.FromWire(wireParams); err != nil {
 		t.Fatal(err)
 	}
-	ctxt = encrypt(newParams, "google/$")
+	ctxt = encrypt(newParams, "google:$")
 	if err := decryptAndVerify(ctxt, key); err != nil {
 		t.Fatal(err)
 	}

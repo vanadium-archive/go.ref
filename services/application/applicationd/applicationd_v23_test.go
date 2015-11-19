@@ -65,7 +65,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 
 	// Build the client binary (must be a delegate of the server to pass
 	// the default authorization policy).
-	clientBin := binaryWithCredentials(i, "applicationd/client", "v.io/x/ref/services/application/application")
+	clientBin := binaryWithCredentials(i, "applicationd:client", "v.io/x/ref/services/application/application")
 
 	// Generate publisher blessings
 	publisher, err := i.Shell().NewChildCredentials("publisher")

@@ -43,7 +43,7 @@ func TestAuditingPrincipal(t *testing.T) {
 		AuditResult bool        // If true, Result should appear in the audit log. If false, it should not.
 	}{
 		{"BlessSelf", V{"self"}, newBlessing(t, "blessing"), true},
-		{"Bless", V{newPrincipal(t).PublicKey(), newBlessing(t, "root"), "extension", security.UnconstrainedUse()}, newBlessing(t, "root/extension"), true},
+		{"Bless", V{newPrincipal(t).PublicKey(), newBlessing(t, "root"), "extension", security.UnconstrainedUse()}, newBlessing(t, "root:extension"), true},
 		{"MintDischarge", V{thirdPartyCaveat, security.UnconstrainedUse()}, discharge, false},
 		{"Sign", V{make([]byte, 10)}, security.Signature{R: []byte{1}, S: []byte{1}}, false},
 	}

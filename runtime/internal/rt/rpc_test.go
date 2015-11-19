@@ -101,7 +101,7 @@ func TestClientServerBlessings(t *testing.T) {
 		betaServer  = mkBlessings(rootBeta.NewBlessings(pserver, "server"))
 	)
 	// Setup the client's blessing store
-	pclient.BlessingStore().Set(alphaClient, "alpha/server")
+	pclient.BlessingStore().Set(alphaClient, "alpha:server")
 	pclient.BlessingStore().Set(betaClient, "beta")
 
 	tests := []struct {
@@ -113,13 +113,13 @@ func TestClientServerBlessings(t *testing.T) {
 	}{
 		{
 			server:     alphaServer,
-			wantServer: []string{"alpha/server"},
-			wantClient: []string{"alpha/client"},
+			wantServer: []string{"alpha:server"},
+			wantClient: []string{"alpha:client"},
 		},
 		{
 			server:     union(alphaServer, betaServer),
-			wantServer: []string{"alpha/server", "beta/server"},
-			wantClient: []string{"alpha/client", "beta/client"},
+			wantServer: []string{"alpha:server", "beta:server"},
+			wantClient: []string{"alpha:client", "beta:client"},
 		},
 	}
 
@@ -174,10 +174,10 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 	var (
 		p         = v23.GetPrincipal(ctx)
 		blessings = union(
-			mkBlessings(p.BlessSelf("dev.v.io/users/foo@bar.com/devices/phone/applications/app")),
+			mkBlessings(p.BlessSelf("dev.v.io:users:foo@bar.com:devices:phone:applications:app")),
 			mkBlessings(p.BlessSelf("otherblessing")))
 		want = []string{
-			"dev.v.io/users/foo@bar.com/devices/phone/applications/app",
+			"dev.v.io:users:foo@bar.com:devices:phone:applications:app",
 			"otherblessing",
 		}
 	)
@@ -279,7 +279,7 @@ func TestServerDischarges(t *testing.T) {
 	if _, err := pclient.BlessingStore().Set(security.Blessings{}, security.AllPrincipals); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pclient.BlessingStore().Set(rootClient, "root/server"); err != nil {
+	if _, err := pclient.BlessingStore().Set(rootClient, "root:server"); err != nil {
 		t.Fatal(err)
 	}
 	if err := security.AddToRoots(pclient, rootClient); err != nil {
@@ -288,11 +288,11 @@ func TestServerDischarges(t *testing.T) {
 
 	// Test that the client and server can communicate with the expected set of blessings
 	// when server provides appropriate discharges.
-	wantClient := []string{"root/client"}
-	wantServer := []string{"root/server"}
+	wantClient := []string{"root:client"}
+	wantServer := []string{"root:server"}
 	var gotClient []string
 	// This opt ensures that if the Blessings do not match the pattern, StartCall will fail.
-	allowedServers := options.ServerAuthorizer{access.AccessList{In: []security.BlessingPattern{"root/server"}}}
+	allowedServers := options.ServerAuthorizer{access.AccessList{In: []security.BlessingPattern{"root:server"}}}
 
 	// Create a new client.
 	clientCtx, client, err := v23.WithNewClient(clientCtx)

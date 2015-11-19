@@ -113,7 +113,7 @@ func makeChainedTestServers(ctx *context.T, idp *testutil.IDProvider, force ...b
 	for i, f := range force {
 		name := fmt.Sprintf("c%d", i+1)
 		principal := testutil.NewPrincipal()
-		ext += "/" + name
+		ext += security.ChainSeparator + name
 		if err := idp.Bless(principal, ext); err != nil {
 			return nil, err
 		}

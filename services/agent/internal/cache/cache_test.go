@@ -66,7 +66,7 @@ func TestAddRoots(t *testing.T) {
 		t.Error(s)
 	}
 
-	if err := cache.Add(key, "alice/$"); err != nil {
+	if err := cache.Add(key, "alice:$"); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 	if err := cache.Add(key, "bob"); err != nil {
@@ -78,10 +78,10 @@ func TestAddRoots(t *testing.T) {
 	if s := expectRecognized(impl, key, "bob"); s != "" {
 		t.Error(s)
 	}
-	if s := expectNotRecognized(impl, key, "alice/friend"); s != "" {
+	if s := expectNotRecognized(impl, key, "alice:friend"); s != "" {
 		t.Error(s)
 	}
-	if s := expectRecognized(impl, key, "bob/friend"); s != "" {
+	if s := expectRecognized(impl, key, "bob:friend"); s != "" {
 		t.Error(s)
 	}
 	if s := expectRecognized(cache, key, "alice"); s != "" {
@@ -90,10 +90,10 @@ func TestAddRoots(t *testing.T) {
 	if s := expectRecognized(cache, key, "bob"); s != "" {
 		t.Error(s)
 	}
-	if s := expectNotRecognized(cache, key, "alice/friend"); s != "" {
+	if s := expectNotRecognized(cache, key, "alice:friend"); s != "" {
 		t.Error(s)
 	}
-	if s := expectRecognized(cache, key, "bob/friend"); s != "" {
+	if s := expectRecognized(cache, key, "bob:friend"); s != "" {
 		t.Error(s)
 	}
 
@@ -131,7 +131,7 @@ func TestNegativeCache(t *testing.T) {
 func TestRootsDebugString(t *testing.T) {
 	key, impl, cache := createRoots()
 
-	if err := impl.Add(key, "alice/friend"); err != nil {
+	if err := impl.Add(key, "alice:friend"); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 
@@ -143,7 +143,7 @@ func TestRootsDebugString(t *testing.T) {
 func TestRootsDump(t *testing.T) {
 	key, impl, cache := createRoots()
 
-	if err := cache.Add(key, "alice/friend"); err != nil {
+	if err := cache.Add(key, "alice:friend"); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 
@@ -239,8 +239,8 @@ func TestSet(t *testing.T) {
 		t.Errorf("Set() failed: %v", err)
 	}
 
-	if got := cache.ForPeer("bob/server"); !reflect.DeepEqual(bob, got) {
-		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, bob)
+	if got := cache.ForPeer("bob:server"); !reflect.DeepEqual(bob, got) {
+		t.Errorf("ForPeer(bob:server) got: %v, want: %v", got, bob)
 	}
 
 	blessings, err := cache.Set(noBlessings, "bob")
@@ -250,16 +250,16 @@ func TestSet(t *testing.T) {
 	if !reflect.DeepEqual(bob, blessings) {
 		t.Errorf("Previous blessings %v, wanted %v", blessings, bob)
 	}
-	if got, want := cache.ForPeer("bob/server"), (security.Blessings{}); !reflect.DeepEqual(want, got) {
-		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, want)
+	if got, want := cache.ForPeer("bob:server"), (security.Blessings{}); !reflect.DeepEqual(want, got) {
+		t.Errorf("ForPeer(bob:server) got: %v, want: %v", got, want)
 	}
 
 	blessings, err = cache.Set(john, "john")
 	if err == nil {
 		t.Errorf("No error from set")
 	}
-	if got := cache.ForPeer("john/server"); got.PublicKey() != nil {
-		t.Errorf("ForPeer(john/server) got: %v, want: %v", got, nil)
+	if got := cache.ForPeer("john:server"); got.PublicKey() != nil {
+		t.Errorf("ForPeer(john:server) got: %v, want: %v", got, nil)
 	}
 
 	blessings, err = cache.Set(bob, "...")
@@ -275,8 +275,8 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Errorf("UnionOfBlessings failed: %v", err)
 	}
-	if got := cache.ForPeer("bob/server"); !reflect.DeepEqual(expected, got) {
-		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, expected)
+	if got := cache.ForPeer("bob:server"); !reflect.DeepEqual(expected, got) {
+		t.Errorf("ForPeer(bob:server) got: %v, want: %v", got, expected)
 	}
 }
 
@@ -293,18 +293,18 @@ func TestForPeerCaching(t *testing.T) {
 	store.Set(security.Blessings{}, "...")
 	store.Set(bob, "bob")
 
-	if got := cache.ForPeer("bob/server"); !reflect.DeepEqual(bob, got) {
-		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, bob)
+	if got := cache.ForPeer("bob:server"); !reflect.DeepEqual(bob, got) {
+		t.Errorf("ForPeer(bob:server) got: %v, want: %v", got, bob)
 	}
 
 	store.Set(alice, "bob")
-	if got := cache.ForPeer("bob/server"); !reflect.DeepEqual(bob, got) {
-		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, bob)
+	if got := cache.ForPeer("bob:server"); !reflect.DeepEqual(bob, got) {
+		t.Errorf("ForPeer(bob:server) got: %v, want: %v", got, bob)
 	}
 
 	cache.flush()
-	if got := cache.ForPeer("bob/server"); !reflect.DeepEqual(alice, got) {
-		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, alice)
+	if got := cache.ForPeer("bob:server"); !reflect.DeepEqual(alice, got) {
+		t.Errorf("ForPeer(bob:server) got: %v, want: %v", got, alice)
 	}
 }
 
@@ -338,7 +338,7 @@ func TestPeerBlessings(t *testing.T) {
 }
 
 func TestStoreDebugString(t *testing.T) {
-	impl, cache := createStore(testutil.NewPrincipal("bob/friend/alice"))
+	impl, cache := createStore(testutil.NewPrincipal("bob:friend:alice"))
 
 	if a, b := impl.DebugString(), cache.DebugString(); a != b {
 		t.Errorf("DebugString doesn't match. Expected:\n%s\nGot:\n%s", a, b)

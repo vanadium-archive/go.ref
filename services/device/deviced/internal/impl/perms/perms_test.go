@@ -150,11 +150,11 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 		t.Fatalf("GetPermissions should have failed but didn't.")
 	}
 
-	// Claim the devicemanager as "root/self/mydevice"
+	// Claim the devicemanager as "root:self:mydevice"
 	utiltest.ClaimDevice(t, selfCtx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 	expectedAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		expectedAccessList[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
+		expectedAccessList[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root:$", "root:self:$", "root:self:mydevice:$"}}
 	}
 	var b bytes.Buffer
 	if err := access.WritePermissions(&b, expectedAccessList); err != nil {
@@ -177,7 +177,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 
 	newAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		newAccessList.Add("root/other", string(tag))
+		newAccessList.Add("root:other", string(tag))
 	}
 	if err := deviceStub.SetPermissions(selfCtx, newAccessList, "invalid"); err == nil {
 		t.Fatalf("SetPermissions should have failed with invalid version")

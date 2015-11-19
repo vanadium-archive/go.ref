@@ -85,10 +85,10 @@ func V23TestStore(t *v23tests.T) {
 
 	// Run store forpeer on bob.
 	bin.Start("--v23.credentials="+bobDir, "set", "forpeer", aliceFriend, "alice").WaitOrDie(os.Stdout, os.Stderr)
-	redirect(t, bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "alice/server"), bobForPeer)
+	redirect(t, bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "alice:server"), bobForPeer)
 
 	got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", bobForPeer).Output()))
-	want := `Blessings          : bob,alice/friend
+	want := `Blessings          : bob,alice:friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 2
 Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -103,23 +103,23 @@ Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 	}
 
 	// Test the names flag.
-	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--names", "alice/server").Output()
+	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--names", "alice:server").Output()
 	want = `bob
-alice/friend
+alice:friend
 `
 	if got != want {
 		t.Errorf("unexpected output, got %s, want %s", got, want)
 	}
 
-	// Test the rootkey flag. In particular alice/friend's rootkey should be equal to alice's publickey.
-	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--rootkey", "alice/friend", "alice/server").Output()
+	// Test the rootkey flag. In particular alice:friend's rootkey should be equal to alice's publickey.
+	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--rootkey", "alice:friend", "alice:server").Output()
 	want = bin.WithEnv(blessEnv).Start("get", "publickey", "--pretty").Output()
 	if got != want {
 		t.Errorf("unexpected output, got %s, want %s", got, want)
 	}
 
 	// Test the caveats flag.
-	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--caveats", "alice/friend", "alice/server").Output()
+	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--caveats", "alice:friend", "alice:server").Output()
 	want = "Expires at"
 	if !strings.HasPrefix(got, want) {
 		t.Errorf("unexpected output, got %s, want %s", got, want)
@@ -162,11 +162,11 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 	blessEnv = credEnv(aliceExpiredDir)
 	got = removePublicKeys(bin.WithEnv(blessEnv).Start("dump").Output())
 	want = `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-Default Blessings : alice/expired [EXPIRED]
+Default Blessings : alice:expired [EXPIRED]
 ---------------- BlessingStore ----------------
-Default Blessings                alice/expired
+Default Blessings                alice:expired
 Peer pattern                     Blessings
-...                              alice/expired
+...                              alice:expired
 ---------------- BlessingRoots ----------------
 Public key                                        Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
@@ -176,7 +176,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 	}
 
 	got = bin.WithEnv(blessEnv).Start("dump", "-s").Output()
-	want = "alice/expired [EXPIRED]\n"
+	want = "alice:expired [EXPIRED]\n"
 	if want != got {
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 	}
@@ -259,31 +259,31 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	{
 		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings")
 		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
-		// Use the "friend/carol" extension
-		args = append(args, "friend/carol")
+		// Use the "friend:carol" extension
+		args = append(args, "friend:carol")
 	}
 	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
 	// Run recvblessings on carol, and have alice send blessings over
-	// (blessings received must be set as shareable with peers matching 'alice/...'.)
+	// (blessings received must be set as shareable with peers matching 'alice:...'.)
 	{
 		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice", "--set-default=false")
-		// recvblessings suggests a random extension, find the extension and replace it with friend/carol/foralice.
+		// recvblessings suggests a random extension, find the extension and replace it with friend:carol:foralice.
 		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
-		args = append(args, "friend/carol/foralice")
+		args = append(args, "friend:carol:foralice")
 	}
 	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
 	// Run recvblessings on carol with the --remote-arg-file flag, and have bob send blessings over with the --remote-arg-file flag.
 	{
 		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=bob", "--set-default=false", "--remote-arg-file="+bobBlessFile)
-		// recvblessings suggests a random extension, use friend/carol/forbob instead.
+		// recvblessings suggests a random extension, use friend:carol:forbob instead.
 		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
-		args = append(args, "friend/carol/forbob")
+		args = append(args, "friend:carol:forbob")
 	}
 	bin.WithEnv(credEnv(bobDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
-	listenerInv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice/...", "--set-default=false", "--vmodule=*=2", "--logtostderr")
+	listenerInv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice:...", "--set-default=false", "--vmodule=*=2", "--logtostderr")
 
 	args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(listenerInv)...)
 	args = append(args, "willfail")
@@ -315,16 +315,16 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	}
 
 	// Dump carol out, the only blessing that survives should be from the
-	// first "bless" command. (alice/friend/carol).
+	// first "bless" command. (alice:friend:carol).
 	got := removePublicKeys(bin.Start("--v23.credentials="+carolDir, "dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-Default Blessings : alice/friend/carol
+Default Blessings : alice:friend:carol
 ---------------- BlessingStore ----------------
-Default Blessings                alice/friend/carol
+Default Blessings                alice:friend:carol
 Peer pattern                     Blessings
-...                              alice/friend/carol
-alice                            alice/friend/carol/foralice
-bob                              bob/friend/carol/forbob
+...                              alice:friend:carol
+alice                            alice:friend:carol:foralice
+bob                              bob:friend:carol:forbob
 ---------------- BlessingRoots ----------------
 Public key                                        Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
@@ -378,18 +378,18 @@ func V23TestRecvBlessingsInteractive(t *v23tests.T) {
 	{
 		inv := aliceBin.Start(append([]string{"bless"}, args...)...)
 		fmt.Fprintln(inv.Stdin(), "YES")
-		fmt.Fprintln(inv.Stdin(), "friend/bobby")
+		fmt.Fprintln(inv.Stdin(), "friend:bobby")
 		if err := inv.Wait(os.Stdout, os.Stderr); err != nil {
 			t.Fatal(err)
 		}
 	}
 	got := removePublicKeys(bin.Start("--v23.credentials="+bobDir, "dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-Default Blessings : alice/friend/bobby
+Default Blessings : alice:friend:bobby
 ---------------- BlessingStore ----------------
-Default Blessings                alice/friend/bobby
+Default Blessings                alice:friend:bobby
 Peer pattern                     Blessings
-...                              alice/friend/bobby
+...                              alice:friend:bobby
 ---------------- BlessingRoots ----------------
 Public key                                        Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
@@ -413,19 +413,19 @@ func V23TestFork(t *v23tests.T) {
 	// Generate principals for alice.
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 
-	// Run fork to setup up credentials for alice/phone that are
+	// Run fork to setup up credentials for alice:phone that are
 	// blessed by alice under the extension "phone".
 	bin.Start("--v23.credentials="+aliceDir, "fork", "--for", "1h", alicePhoneDir, "phone").WaitOrDie(os.Stdout, os.Stderr)
 
-	// Dump alice-phone out, the only blessings it has must be from alice (alice/phone).
+	// Dump alice-phone out, the only blessings it has must be from alice (alice:phone).
 	{
 		got := removePublicKeys(bin.Start("--v23.credentials="+alicePhoneDir, "dump").Output())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-Default Blessings : alice/phone
+Default Blessings : alice:phone
 ---------------- BlessingStore ----------------
-Default Blessings                alice/phone
+Default Blessings                alice:phone
 Peer pattern                     Blessings
-...                              alice/phone
+...                              alice:phone
 ---------------- BlessingRoots ----------------
 Public key                                        Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
@@ -438,7 +438,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 	{
 		redirect(t, bin.Start("--v23.credentials", alicePhoneDir, "get", "default"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
-		want := `Blessings          : alice/phone
+		want := `Blessings          : alice:phone
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
 Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -451,17 +451,17 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 		}
 	}
 
-	// Run fork to setup up credentials for alice/phone/calendar that are
-	// blessed by alice/phone under the extension "calendar".
+	// Run fork to setup up credentials for alice:phone:calendar that are
+	// blessed by alice:phone under the extension "calendar".
 	bin.Start("--v23.credentials="+alicePhoneDir, "fork", "--for", "1h", alicePhoneCalendarDir, "calendar").WaitOrDie(os.Stdout, os.Stderr)
 	{
 		got := removePublicKeys(bin.Start("--v23.credentials="+alicePhoneCalendarDir, "dump").Output())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-Default Blessings : alice/phone/calendar
+Default Blessings : alice:phone:calendar
 ---------------- BlessingStore ----------------
-Default Blessings                alice/phone/calendar
+Default Blessings                alice:phone:calendar
 Peer pattern                     Blessings
-...                              alice/phone/calendar
+...                              alice:phone:calendar
 ---------------- BlessingRoots ----------------
 Public key                                        Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
@@ -473,7 +473,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 	{
 		redirect(t, bin.Start("--v23.credentials", alicePhoneCalendarDir, "get", "default"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
-		want := `Blessings          : alice/phone/calendar
+		want := `Blessings          : alice:phone:calendar
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
 Chain #0 (3 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -606,7 +606,7 @@ func V23TestBless(t *v23tests.T) {
 		// But succeed if --require-caveats=false is specified
 		redirect(t, bin.Start("bless", "--require-caveats=false", bobDir, "friend"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
-		want := `Blessings          : alice/friend
+		want := `Blessings          : alice:friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
 Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -622,7 +622,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 		// And succeed if --for is specified
 		redirect(t, bin.Start("bless", "--for=1m", bobDir, "friend"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
-		want := `Blessings          : alice/friend
+		want := `Blessings          : alice:friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
 Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -638,7 +638,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 		// If the Blessings are expired, dumpBlessings should print so.
 		redirect(t, bin.Start("bless", "--for=-1s", bobDir, "friend"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
-		want := `Blessings          : alice/friend [EXPIRED]
+		want := `Blessings          : alice:friend [EXPIRED]
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
 Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX

@@ -23,7 +23,7 @@ func writeRoledConfig() (path string, shutdown func(), err error) {
 	}
 	err = ioutil.WriteFile(filepath.Join(dir, "therole.conf"), []byte(`
 {
-  "Members": ["root/child"],
+  "Members": ["root:child"],
   "Extend": true
 }
 `), 0644)
@@ -48,7 +48,7 @@ func V23TestBecomeRole(t *v23tests.T) {
 	roled.Start("--v23.tcp.address=127.0.0.1:0", "--config-dir", dir, "--name", "roled")
 
 	output := vbecome.Run("--role=roled/therole", principal.Path(), "dump")
-	want := regexp.MustCompile(`Default Blessings\s+root/master/therole/root/child`)
+	want := regexp.MustCompile(`Default Blessings\s+root:master:therole:root:child`)
 	if !want.MatchString(output) {
 		t.Errorf("Principal didn't have the role blessing:\n %s", output)
 	}
@@ -60,7 +60,7 @@ func V23TestBecomeName(t *v23tests.T) {
 
 	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
 	output := vbecome.Run("--name=bob", principal.Path(), "dump")
-	want := regexp.MustCompile(`Default Blessings\s+root/child/bob`)
+	want := regexp.MustCompile(`Default Blessings\s+root:child:bob`)
 	if !want.MatchString(output) {
 		t.Errorf("Principal didn't have the expected blessing:\n %s", output)
 	}

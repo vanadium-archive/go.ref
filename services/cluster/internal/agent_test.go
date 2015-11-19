@@ -44,7 +44,7 @@ func TestClusterAgent(t *testing.T) {
 	if blessings2.PublicKey() != instanceP.PublicKey() {
 		t.Errorf("unexpected PublicKey mismatch. Got %v, expected %v", blessings2.PublicKey(), instanceP.PublicKey())
 	}
-	if expected := "service/foo/bar"; blessings2.String() != expected {
+	if expected := "service:foo:bar"; blessings2.String() != expected {
 		t.Errorf("unexpected blessings. Got %q, expected %q", blessings2, expected)
 	}
 

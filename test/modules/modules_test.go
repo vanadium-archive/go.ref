@@ -242,7 +242,7 @@ func TestCustomPrincipal(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stdout, os.Stderr)
-	if got, want := getBlessing(t, sh), "myshell/child"; got != want {
+	if got, want := getBlessing(t, sh), "myshell:child"; got != want {
 		t.Errorf("Bad blessing. Got %q, want %q", got, want)
 	}
 	newDebug := p.BlessingStore().DebugString()
@@ -281,20 +281,20 @@ func TestCustomCredentials(t *testing.T) {
 	cleanDebug := a.Principal().BlessingStore().DebugString()
 
 	blessing := getCustomBlessing(t, sh, a)
-	if blessing != "myshell/a" {
-		t.Errorf("Bad blessing. Expected myshell/a, go %q", blessing)
+	if blessing != "myshell:a" {
+		t.Errorf("Bad blessing. Expected myshell:a, got %q", blessing)
 	}
 
 	b := newCreds("bar")
 	blessing = getCustomBlessing(t, sh, b)
-	if blessing != "myshell/bar" {
-		t.Errorf("Bad blessing. Expected myshell/bar, go %q", blessing)
+	if blessing != "myshell:bar" {
+		t.Errorf("Bad blessing. Expected myshell:bar, got %q", blessing)
 	}
 
 	// Make sure we can re-use credentials
 	blessing = getCustomBlessing(t, sh, a)
-	if blessing != "myshell/a" {
-		t.Errorf("Bad blessing. Expected myshell/a, go %q", blessing)
+	if blessing != "myshell:a" {
+		t.Errorf("Bad blessing. Expected myshell:a, got %q", blessing)
 	}
 
 	newDebug := a.Principal().BlessingStore().DebugString()

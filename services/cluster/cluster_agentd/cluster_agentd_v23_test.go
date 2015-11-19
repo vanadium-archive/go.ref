@@ -35,13 +35,13 @@ func V23TestClusterAgentD(t *v23tests.T) {
 	if err != nil {
 		t.Fatalf("Failed to create alice credentials: %v", err)
 	}
-	// Create a blessing (root/alice/prod) that alice will use to talk to
+	// Create a blessing (root:alice:prod) that alice will use to talk to
 	// the cluster agent.
 	alicePrincipal := aliceCreds.Principal()
 	if prodBlessing, err := alicePrincipal.Bless(alicePrincipal.PublicKey(), alicePrincipal.BlessingStore().Default(), "prod", security.UnconstrainedUse()); err != nil {
-		t.Fatalf("Failed to create alice/prod blessing: %v", err)
-	} else if _, err := alicePrincipal.BlessingStore().Set(prodBlessing, security.BlessingPattern("root/agent")); err != nil {
-		t.Fatalf("Failed to set alice/prod for root/agent: %v", err)
+		t.Fatalf("Failed to create alice:prod blessing: %v", err)
+	} else if _, err := alicePrincipal.BlessingStore().Set(prodBlessing, security.BlessingPattern("root:agent")); err != nil {
+		t.Fatalf("Failed to set alice:prod for root:agent: %v", err)
 	}
 
 	var (
@@ -54,7 +54,7 @@ func V23TestClusterAgentD(t *v23tests.T) {
 	// Start the cluster agent.
 	addr := agentBin.WithStartOpts(agentBin.StartOpts().WithCustomCredentials(agentCreds)).Start(
 		"--v23.tcp.address=127.0.0.1:0",
-		"--v23.permissions.literal={\"Admin\":{\"In\":[\"root/alice/prod\"]}}",
+		"--v23.permissions.literal={\"Admin\":{\"In\":[\"root:alice:prod\"]}}",
 		"--root-dir="+workdir,
 	).ExpectVar("NAME")
 
@@ -99,8 +99,8 @@ func V23TestClusterAgentD(t *v23tests.T) {
 	principalBin = principalBin.WithStartOpts(opts)
 
 	// The principal served by the pod agent should have a blessing name
-	// that starts with root/alice/foo/.
-	if got, expected := principalBin.Start("dump", "-s").Output(), "root/alice/foo/"; !strings.HasPrefix(got, expected) {
+	// that starts with root:alice:foo:.
+	if got, expected := principalBin.Start("dump", "-s").Output(), "root:alice:foo:"; !strings.HasPrefix(got, expected) {
 		t.Errorf("Unexpected output. Got %q, expected %q", got, expected)
 	}
 
@@ -124,7 +124,7 @@ func V23TestClusterAgentD(t *v23tests.T) {
 	}
 
 	// The pod agent should be unaffected.
-	if got, expected := principalBin.Start("dump", "-s").Output(), "root/alice/foo/"; !strings.HasPrefix(got, expected) {
+	if got, expected := principalBin.Start("dump", "-s").Output(), "root:alice:foo:"; !strings.HasPrefix(got, expected) {
 		t.Errorf("Unexpected output. Got %q, expected %q", got, expected)
 	}
 }

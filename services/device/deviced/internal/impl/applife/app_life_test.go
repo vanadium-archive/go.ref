@@ -153,7 +153,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	instanceDebug := utiltest.Debug(t, ctx, appID, instance1ID)
 
 	// Verify the app's default blessings.
-	if !strings.Contains(instanceDebug, fmt.Sprintf("Default Blessings                %s/forapp", v23.GetPrincipal(ctx).BlessingStore().Default().String())) {
+	if !strings.Contains(instanceDebug, fmt.Sprintf("Default Blessings                %s:forapp", v23.GetPrincipal(ctx).BlessingStore().Default().String())) {
 		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
 	}
 
@@ -171,13 +171,13 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	// There should be at least one publisher blessing prefix, and all prefixes should
-	// end in "/mydevice" because they are just the device manager's blessings
+	// end in ":mydevice" because they are just the device manager's blessings
 	prefixes := strings.Split(pingResult.PubBlessingPrefixes, ",")
 	if len(prefixes) == 0 {
 		t.Fatalf("No publisher blessing prefixes found: %v", pingResult)
 	}
 	for _, p := range prefixes {
-		if !strings.HasSuffix(p, "/mydevice") {
+		if !strings.HasSuffix(p, ":mydevice") {
 			t.Fatalf("publisher Blessing prefixes don't look right: %v", pingResult.PubBlessingPrefixes)
 		}
 	}
@@ -577,14 +577,14 @@ func setupPublishingCredentials(ctx *context.T) (*context.T, error) {
 	if c, err = security.NewExpiryCaveat(time.Now().Add(time.Hour * 24 * 30)); err != nil {
 		return nil, err
 	}
-	if b, err = IDPPrincipal.Bless(UserPrincipal.PublicKey(), IDPBlessing, "u/alice", c); err != nil {
+	if b, err = IDPPrincipal.Bless(UserPrincipal.PublicKey(), IDPBlessing, "u:alice", c); err != nil {
 		return nil, err
 	}
 	if err := vsecurity.SetDefaultBlessings(UserPrincipal, b); err != nil {
 		return nil, err
 	}
 
-	if b, err = IDPPrincipal.Bless(PubPrincipal.PublicKey(), IDPBlessing, "m/publisher", security.UnconstrainedUse()); err != nil {
+	if b, err = IDPPrincipal.Bless(PubPrincipal.PublicKey(), IDPBlessing, "m:publisher", security.UnconstrainedUse()); err != nil {
 		return nil, err
 	}
 	if err := vsecurity.SetDefaultBlessings(PubPrincipal, b); err != nil {
@@ -619,7 +619,7 @@ func hasPrefixMatches(prefixList, stringList string) bool {
 // the expected blessings for peer "..." (i.e. security.AllPrincipals) .
 //
 // The app should have one blessing that came from the user, of the form
-// <base_blessing>/forapp. It should also have one or more publisher blessings, that are the
+// <base_blessing>:forapp. It should also have one or more publisher blessings, that are the
 // cross product of the device manager blessings and the publisher blessings in the app
 // envelope.
 func verifyAppPeerBlessings(t *testing.T, ctx, pubCtx *context.T, instanceDebug string, e *application.Envelope) {
@@ -637,7 +637,7 @@ func verifyAppPeerBlessings(t *testing.T, ctx, pubCtx *context.T, instanceDebug 
 	// Compute a map of the blessings we expect to find
 	expBlessings := make(map[string]bool)
 	baseBlessing := v23.GetPrincipal(ctx).BlessingStore().Default().String()
-	expBlessings[baseBlessing+"/forapp"] = false
+	expBlessings[baseBlessing+":forapp"] = false
 
 	// App blessings should be the cross product of device manager and publisher blessings
 
@@ -645,11 +645,11 @@ func verifyAppPeerBlessings(t *testing.T, ctx, pubCtx *context.T, instanceDebug 
 	// want it to have more than one in future. (Today, a device manager typically has a
 	// blessing from its claimer, but in many cases there might be other blessings too, such
 	// as one from the manufacturer, or one from the organization that owns the device.)
-	dmBlessings := []string{baseBlessing + "/mydevice"}
+	dmBlessings := []string{baseBlessing + ":mydevice"}
 	pubBlessings := strings.Split(e.Publisher.String(), ",")
 	for _, dmb := range dmBlessings {
 		for _, pb := range pubBlessings {
-			expBlessings[dmb+"/a/"+pb] = false
+			expBlessings[dmb+":a:"+pb] = false
 		}
 	}
 

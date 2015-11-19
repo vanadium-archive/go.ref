@@ -216,8 +216,8 @@ func createVkubeConfig(path, id string) error {
   "clusterAgent": {
     "namespace": "{{.ID}}",
     "image": "b.gcr.io/{{.ID}}/cluster-agent:latest",
-    "blessing": "root/alice/cluster-agent",
-    "admin": "root/alice",
+    "blessing": "root:alice:cluster-agent",
+    "admin": "root:alice",
     "cpu": "0.1",
     "memory": "100M"
   },
@@ -280,7 +280,7 @@ func createAppConfig(path, id, image, version string) error {
             "command": [
               "tunneld",
               "--v23.tcp.address=:8193",
-              "--v23.permissions.literal={\"Admin\":{\"In\":[\"root/alice\"]}}",
+              "--v23.permissions.literal={\"Admin\":{\"In\":[\"root:alice\"]}}",
 	      "--alsologtostderr=false"
             ],
             "ports": [
