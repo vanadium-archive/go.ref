@@ -99,21 +99,12 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         {{ end }} {{/* end if $method.IsVoid */}}
 
         {{else }} {{/* else $method.NotStreaming */}}
-        return new io.v.v23.vdl.TypedClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
+        final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable(_call,new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType());
+        return new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
             @Override
             public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
                 java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.SendType }}>() {}.getType();
                 _call.send(item, type);
-            }
-            @Override
-            public {{ $method.RecvType }} recv() throws java.io.EOFException, io.v.v23.verror.VException {
-                java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType();
-                java.lang.Object result = _call.recv(type);
-                try {
-                    return ({{ $method.RecvType }})result;
-                } catch (java.lang.ClassCastException e) {
-                    throw new io.v.v23.verror.VException("Unexpected result type: " + result.getClass().getCanonicalName());
-                }
             }
             @Override
             public {{ $method.DeclaredObjectRetType }} finish() throws io.v.v23.verror.VException {
@@ -127,6 +118,18 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                 };
                 return ({{ $method.DeclaredObjectRetType }})_call.finish(resultTypes)[0];
                 {{ end }} {{/* end if $method.IsVoid */}}
+            }
+            @Override
+            public void close() throws io.v.v23.verror.VException {
+                _call.closeSend();
+            }
+            @Override
+            public java.util.Iterator<{{ $method.RecvType }}> iterator() {
+                return _it.iterator();
+            }
+            @Override
+            public io.v.v23.verror.VException error() {
+                return _it.error();
             }
         };
         {{ end }}{{/* end if $method.NotStreaming */}}
@@ -181,21 +184,12 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                 _call.finish(_resultTypes, finishCallback);
 
                 {{else }} {{/* else $method.NotStreaming */}}
-                callback.onSuccess(new io.v.v23.vdl.TypedClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
+                final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable(_call,new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType());
+                callback.onSuccess(new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
                     @Override
                     public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
                         java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.SendType }}>() {}.getType();
                         _call.send(item, type);
-                    }
-                    @Override
-                    public {{ $method.RecvType }} recv() throws java.io.EOFException, io.v.v23.verror.VException {
-                        java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType();
-                        java.lang.Object result = _call.recv(type);
-                        try {
-                            return ({{ $method.RecvType }})result;
-                        } catch (java.lang.ClassCastException e) {
-                            throw new io.v.v23.verror.VException("Unexpected result type: " + result.getClass().getCanonicalName());
-                        }
                     }
                     @Override
                     public {{ $method.DeclaredObjectRetType }} finish() throws io.v.v23.verror.VException {
@@ -210,9 +204,20 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                         return ({{ $method.DeclaredObjectRetType }})_call.finish(resultTypes)[0];
                         {{ end }} {{/* end if $method.IsVoid */}}
                     }
+                    @Override
+                    public void close() throws io.v.v23.verror.VException {
+                        _call.closeSend();
+                    }
+                    @Override
+                    public java.util.Iterator<{{ $method.RecvType }}> iterator() {
+                        return _it.iterator();
+                    }
+                    @Override
+                    public io.v.v23.verror.VException error() {
+                        return _it.error();
+                    }
                 });
                 {{ end }}{{/* end if $method.NotStreaming */}}
-
             }
             @Override
             public void onFailure(io.v.v23.verror.VException error) {
