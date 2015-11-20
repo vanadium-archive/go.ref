@@ -317,10 +317,10 @@ func TestPerms(t *testing.T, ctx *context.T, ac util.AccessController) {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 	if _, _, err := ac.GetPermissions(ctx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
-		t.Fatal("GetPermissions should have failed with access error. Instead got error: %v", err)
+		t.Fatalf("GetPermissions should have failed with access error. Instead got error: %v", err)
 	}
 	if err := ac.SetPermissions(ctx, myperms, ""); verror.ErrorID(err) != verror.ErrNoAccess.ID {
-		t.Fatal("SetPermissions should have failed with access error. Instead got error: %v", err)
+		t.Fatalf("SetPermissions should have failed with access error. Instead got error: %v", err)
 	}
 }
 

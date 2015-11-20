@@ -22,7 +22,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
@@ -89,8 +88,7 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 	if err != nil {
 		return nil, err
 	}
-	vclock := clock.NewVClock(a.Service().St())
-	st, err = watchable.Wrap(st, vclock, &watchable.Options{
+	st, err = watchable.Wrap(st, a.Service().VClock(), &watchable.Options{
 		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
 	})
 	if err != nil {

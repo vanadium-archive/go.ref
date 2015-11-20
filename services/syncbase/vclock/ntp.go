@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package clock
+package vclock
+
+// This file contains interfaces and functions for talking to an NTP server.
 
 import (
 	"fmt"
@@ -10,59 +12,78 @@ import (
 	"time"
 
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/syncbase/server/util"
 )
 
-const (
-	udp  = "udp"
-	port = "123"
-)
+type NtpData struct {
+	// NTP time minus system clock time. True UTC time can be estimated as system
+	// time plus skew.
+	// Note: NTP documentation typically refers to this value as "offset".
+	skew time.Duration
 
-var _ NtpSource = (*ntpSourceImpl)(nil)
+	// Round-trip network delay experienced when talking to NTP server. The
+	// smaller the delay, the more accurate the skew.
+	delay time.Duration
 
-func NewNtpSource(clock SystemClock) NtpSource {
-	return &ntpSourceImpl{util.NtpServerPool, clock}
+	// Transmission timestamp from NTP server. Note, this value does not reflect
+	// round-trip time.
+	ntpTs time.Time
+}
+
+type NtpSource interface {
+	// NtpSync obtains 'sampleCount' samples of NtpData from an NTP server and
+	// returns the one with the smallest 'delay' value.
+	NtpSync(sampleCount int) (*NtpData, error)
+}
+
+// NewNtpSource returns a new NtpSource implementation that talks to the
+// specified ntpHost, or to NtpDefaultHost if ntpHost is "".
+func NewNtpSource(ntpHost string, sysClock SystemClock) NtpSource {
+	if ntpHost == "" {
+		ntpHost = NtpDefaultHost
+	}
+	return &ntpSourceImpl{ntpHost, sysClock}
 }
 
 type ntpSourceImpl struct {
-	ntpHost string
-	sc      SystemClock
+	ntpHost  string
+	sysClock SystemClock
 }
 
-// NtpSync samples data from NTP server and returns the one which has the lowest
-// network delay. The sample with lowest network delay will have the least error
-// in computation of the offset.
-// Param sampleCount is the number of samples this method will fetch.
+var _ NtpSource = (*ntpSourceImpl)(nil)
+
 func (ns *ntpSourceImpl) NtpSync(sampleCount int) (*NtpData, error) {
-	var canonicalSample *NtpData = nil
+	var res *NtpData
 	for i := 0; i < sampleCount; i++ {
 		if sample, err := ns.sample(); err == nil {
-			if (canonicalSample == nil) || (sample.delay < canonicalSample.delay) {
-				canonicalSample = sample
+			if (res == nil) || (sample.delay < res.delay) {
+				res = sample
 			}
 		}
 	}
-	if canonicalSample == nil {
-		err := fmt.Errorf("clock: NtpSync: Failed to get any sample from NTP server: %s", ns.ntpHost)
+	if res == nil {
+		err := fmt.Errorf("vclock: NtpSync: failed to get sample from NTP server: %s", ns.ntpHost)
 		return nil, err
 	}
-	return canonicalSample, nil
+	return res, nil
 }
 
-// Sample connects to an NTP server and returns NtpData containing the clock
-// offset and the network delay experienced while talking to the server.
+////////////////////////////////////////////////////////////////////////////////
+// Implementation of NtpSync
+
+// sample sends a single request to the NTP server and returns the resulting
+// NtpData.
 //
-// NTP protocol involves sending a request of size 48 bytes with the first
-// byte containing protocol version and mode and the last 8 bytes containing
+// The NTP protocol involves sending a request of size 48 bytes, with the first
+// byte containing protocol version and mode, and the last 8 bytes containing
 // transmit timestamp. The current NTP version is 4. A response from NTP server
 // contains original timestamp (client's transmit timestamp from request) from
 // bytes 24 to 31, server's receive timestamp from byte 32 to 39 and server's
 // transmit time from byte 40 to 47. Client can register the response receive
 // time as soon it receives a response from server.
-// Based on the 4 timestamps the client can compute the offset between the
-// two clocks and the roundtrip network delay for the request.
+// Based on the 4 timestamps the client can compute the skew between the
+// two vclocks and the roundtrip network delay for the request.
 func (ns *ntpSourceImpl) sample() (*NtpData, error) {
-	raddr, err := net.ResolveUDPAddr(udp, ns.ntpHost+":"+port)
+	raddr, err := net.ResolveUDPAddr("udp", ns.ntpHost+":123")
 	if err != nil {
 		return nil, err
 	}
@@ -77,11 +98,11 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 	// send and receive timestamps, we get the elapsed time since
 	// boot (which is immutable) before registering the send timestamp and
 	// after registering the receive timestamp and call HasSysClockChanged()
-	// to verify if the clock changed in between or not. If it did, we return
+	// to verify if the vclock changed in between or not. If it did, we return
 	// ErrInternal as response.
-	elapsedOrig, err := ns.sc.ElapsedTime()
+	elapsedOrig, err := ns.sysClock.ElapsedTime()
 	if err != nil {
-		vlog.Errorf("clock: NtpSync: error while fetching elapsed time: %v", err)
+		vlog.Errorf("vclock: NtpSync: error while fetching elapsed time: %v", err)
 		return nil, err
 	}
 
@@ -97,10 +118,10 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 		return nil, err
 	}
 
-	clientReceiveTs := ns.sc.Now()
-	elapsedEnd, err := ns.sc.ElapsedTime()
+	clientReceiveTs := ns.sysClock.Now()
+	elapsedEnd, err := ns.sysClock.ElapsedTime()
 	if err != nil {
-		vlog.Errorf("clock: NtpSync: error while fetching elapsed time: %v", err)
+		vlog.Errorf("vclock: NtpSync: error while fetching elapsed time: %v", err)
 		return nil, err
 	}
 
@@ -109,16 +130,16 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 	serverTransmitTs := extractTime(msg[40:48])
 
 	if HasSysClockChanged(clientTransmitTs, clientReceiveTs, elapsedOrig, elapsedEnd) {
-		err := fmt.Errorf("clock: NtpSync: system clock changed midway through syncing wih NTP.")
+		err := fmt.Errorf("vclock: NtpSync: system clock changed midway through syncing wih NTP.")
 		vlog.Errorf("%v", err)
 		return nil, err
 	}
 
-	// Following code extracts the clock offset and network delay based on the
+	// Following code extracts the vclock skew and network delay based on the
 	// transmit and receive timestamps on the client and the server as per
 	// the formula explained at http://www.eecis.udel.edu/~mills/time.html
 	data := NtpData{}
-	data.offset = (serverReceiveTs.Sub(clientTransmitTs) + serverTransmitTs.Sub(clientReceiveTs)) / 2
+	data.skew = (serverReceiveTs.Sub(clientTransmitTs) + serverTransmitTs.Sub(clientReceiveTs)) / 2
 	data.delay = clientReceiveTs.Sub(clientTransmitTs) - serverTransmitTs.Sub(serverReceiveTs)
 	data.ntpTs = serverTransmitTs
 	return &data, nil
@@ -130,7 +151,7 @@ func (ns *ntpSourceImpl) createRequest() []byte {
 
 	// For NTP the prime epoch, or base date of era 0, is 0 h 1 January 1900 UTC
 	t0 := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
-	tnow := ns.sc.Now()
+	tnow := ns.sysClock.Now()
 	d := tnow.Sub(t0)
 	nsec := d.Nanoseconds()
 
@@ -152,7 +173,7 @@ func (ns *ntpSourceImpl) createRequest() []byte {
 	return data
 }
 
-// ExtractTime takes a byte array which contains encoded timestamp from NTP
+// extractTime takes a byte array which contains encoded timestamp from NTP
 // server starting at the 0th byte and is 8 bytes long. The encoded timestamp is
 // in seconds since 1900. The first 4 bytes contain the integer part of of the
 // seconds while the last 4 bytes contain the fractional part of the seconds
@@ -167,7 +188,7 @@ func extractTime(data []byte) time.Time {
 	nsec := sec * 1e9
 	// multiply frac part with 2^(-32) to get the correct value in seconds and
 	// then multiply with 1Billion to convert to nanoseconds. The multiply by
-	// Billion is done first to make sure that we dont loose precision.
+	// Billion is done first to make sure that we dont lose precision.
 	nsec += (frac * 1e9) >> 32
 
 	t := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(nsec)).Local()

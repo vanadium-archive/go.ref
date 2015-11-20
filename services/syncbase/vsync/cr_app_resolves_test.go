@@ -356,13 +356,13 @@ func checkConflictRow(t *testing.T, oid string, ci wire.ConflictInfo, batchIds [
 		t.Errorf("Oid: %v, Ancestor value expected: %v, actual: %v", oid, string(makeValue(oid, st.ancestor)), string(writeOp.AncestorValue.Bytes))
 	}
 	if remoteDeleted && writeOp.RemoteValue == nil {
-		t.Errorf("Oid: %v, for remote deleted remote value is expected to have an instance with no bytes")
+		t.Errorf("Oid: %v, for remote deleted remote value is expected to have an instance with no bytes", oid)
 	}
 	if !remoteDeleted && (st.newHead != NoVersion) && !bytes.Equal(makeValue(oid, st.newHead), writeOp.RemoteValue.Bytes) {
 		t.Errorf("Oid: %v, Remote value expected: %v, actual: %v", oid, string(makeValue(oid, st.newHead)), string(writeOp.RemoteValue.Bytes))
 	}
 	if localDeleted && writeOp.LocalValue == nil {
-		t.Errorf("Oid: %v, for local deleted local value is expected to have an instance with no bytes")
+		t.Errorf("Oid: %v, for local deleted local value is expected to have an instance with no bytes", oid)
 	}
 	if !localDeleted && (st.oldHead != NoVersion) && !bytes.Equal(makeValue(oid, st.oldHead), writeOp.LocalValue.Bytes) {
 		t.Errorf("Oid: %v, Local value expected: %v, actual: %v", oid, string(makeValue(oid, st.oldHead)), string(writeOp.LocalValue.Bytes))

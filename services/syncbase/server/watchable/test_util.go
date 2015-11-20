@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"v.io/v23/vom"
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/vclock"
 )
 
 // This file provides utility methods for tests related to watchable store.
@@ -21,8 +21,8 @@ import (
 ////////////////////////////////////////////////////////////
 // Functions for store creation/cleanup
 
-// createStore returns a store along with a function to destroy the store
-// once it is no longer needed.
+// createStore returns a store along with a function to destroy the store once
+// it is no longer needed.
 func createStore() (store.Store, func()) {
 	var st store.Store
 	path := getPath()
@@ -88,28 +88,22 @@ func (ler *logEntryReader) GetEntry() (string, LogEntry) {
 }
 
 ////////////////////////////////////////////////////////////
-// Clock related utility code
+// VClock related utility code
 
 type mockSystemClock struct {
-	time      time.Time     // current time returned by call to Now()
-	increment time.Duration // how much to increment the clock by for subsequent calls to Now()
+	ncalls int64         // number of times Now() has been called
+	time   time.Time     // time to return in Now()
+	inc    time.Duration // amount by which to increment 'time' on each call to Now()
 }
 
-func newMockSystemClock(firstTimestamp time.Time, increment time.Duration) *mockSystemClock {
-	return &mockSystemClock{
-		time:      firstTimestamp,
-		increment: increment,
-	}
-}
+var _ vclock.SystemClock = (*mockSystemClock)(nil)
 
 func (sc *mockSystemClock) Now() time.Time {
-	now := sc.time
-	sc.time = sc.time.Add(sc.increment)
+	now := sc.time.Add(time.Duration(sc.ncalls * int64(sc.inc)))
+	sc.ncalls++
 	return now
 }
 
 func (sc *mockSystemClock) ElapsedTime() (time.Duration, error) {
-	return sc.increment, nil
+	return time.Duration(sc.ncalls * int64(sc.inc)), nil
 }
-
-var _ clock.SystemClock = (*mockSystemClock)(nil)

@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package clock
+// Darwin-specific bits of the system clock implementation.
+
+package vclock
 
 import (
 	"bytes"
@@ -12,19 +14,14 @@ import (
 	"unsafe"
 )
 
-// This file contains darwin specific implementations of functions for clock
-// package.
-
-// ElapsedTime returns the time elapsed since last boot.
-// Darwin provides a system call "kern.boottime" which returns a Timeval32
-// object containing the boot time for the system. Darwin calculates this
-// boottime based on the current clock and the internal tracking of elapsed
-// time since boot. Hence if the clock is changed, the boot time changes along
-// with it. So the difference between the current time and boot time will always
-// give us the correct elapsed time since boot.
-func (sc *systemClockImpl) ElapsedTime() (time.Duration, error) {
+// Darwin provides a "kern.boottime" syscall that returns a Timeval32 object
+// with the system's boot time, computed as current time minus the system's
+// elapsed time since boot. Thus, subtracting the returned boot time from the
+// current time yields the system's elapsed time since boot.
+// TODO(sadovsky): Technically, we should make sure the system clock doesn't
+// change before vs. after our syscall.
+func (*realSystemClock) ElapsedTime() (time.Duration, error) {
 	tv := syscall.Timeval32{}
-
 	if err := sysctlbyname("kern.boottime", &tv); err != nil {
 		return 0, err
 	}

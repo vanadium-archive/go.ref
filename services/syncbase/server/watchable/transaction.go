@@ -134,21 +134,29 @@ func (tx *transaction) Commit() error {
 	if tx.err != nil {
 		return convertError(tx.err)
 	}
+	// Note: ErrMsgCommittedTxn is used to prevent clients from calling Commit
+	// more than once on a given transaction.
 	tx.err = verror.New(verror.ErrBadState, nil, store.ErrMsgCommittedTxn)
 	tx.st.mu.Lock()
 	defer tx.st.mu.Unlock()
+	// NOTE(sadovsky): It's not clear whether we should call Now() under the
+	// tx.st.mu lock (there are pros and cons). However, we plan to add a caching
+	// layer to VClock, at which point Now() will be near-instant.
+	now, err := tx.st.vclock.Now()
+	if err != nil {
+		return convertError(err)
+	}
 	// Check if there is enough space left in the sequence number.
 	if (math.MaxUint64 - tx.st.seq) < uint64(len(tx.ops)) {
 		return verror.New(verror.ErrInternal, nil, "seq maxed out")
 	}
 	// Write LogEntry records.
-	timestamp := tx.st.clock.Now().UnixNano()
 	seq := tx.st.seq
 	for i, op := range tx.ops {
 		key := logEntryKey(seq)
 		value := &LogEntry{
 			Op:              op,
-			CommitTimestamp: timestamp,
+			CommitTimestamp: now.UnixNano(),
 			FromSync:        tx.fromSync,
 			Continued:       i < len(tx.ops)-1,
 		}
@@ -177,9 +185,9 @@ func (tx *transaction) Abort() error {
 }
 
 // GetStoreTime returns the current time from the given transaction store.
-func GetStoreTime(ctx *context.T, tx store.Transaction) time.Time {
+func GetStoreTime(ctx *context.T, tx store.Transaction) (time.Time, error) {
 	wtx := tx.(*transaction)
-	return wtx.st.clock.Now()
+	return wtx.st.vclock.Now()
 }
 
 // AddSyncgroupOp injects a syncgroup operation notification in the log entries

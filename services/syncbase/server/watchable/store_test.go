@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"testing"
 
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/test"
+	"v.io/x/ref/services/syncbase/vclock"
 )
 
 func init() {
@@ -65,8 +65,7 @@ func TestTransactionsWithGet(t *testing.T) {
 func runTest(t *testing.T, mp []string, f func(t *testing.T, st store.Store)) {
 	st, destroy := createStore()
 	defer destroy()
-	vClock := clock.NewVClockWithMockServices(st, nil, nil)
-	st, err := Wrap(st, vClock, &Options{ManagedPrefixes: mp})
+	st, err := Wrap(st, vclock.NewVClockForTests(nil), &Options{ManagedPrefixes: mp})
 	if err != nil {
 		t.Fatal(err)
 	}

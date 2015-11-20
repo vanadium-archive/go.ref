@@ -12,14 +12,25 @@ type SnapshotSpecImpl struct{}
 
 func (s *SnapshotSpecImpl) __snapshotSpec() {}
 
+// TODO(sadovsky): Move this to model.go and make it an argument to
+// Store.NewTransaction.
+type TransactionOptions struct {
+	NumAttempts int // number of attempts; only used by RunInTransaction
+}
+
 // RunInTransaction runs the given fn in a transaction, managing retries and
 // commit/abort.
 func RunInTransaction(st Store, fn func(tx Transaction) error) error {
-	// TODO(rogulenko): Make the number of attempts configurable.
 	// TODO(rogulenko): Change the default number of attempts to 3. Currently,
 	// some storage engine tests fail when the number of attempts is that low.
+	return RunInTransactionWithOpts(st, &TransactionOptions{NumAttempts: 100}, fn)
+}
+
+// RunInTransactionWithOpts runs the given fn in a transaction, managing retries
+// and commit/abort.
+func RunInTransactionWithOpts(st Store, opts *TransactionOptions, fn func(tx Transaction) error) error {
 	var err error
-	for i := 0; i < 100; i++ {
+	for i := 0; i < opts.NumAttempts; i++ {
 		// TODO(sadovsky): Should NewTransaction return an error? If not, how will
 		// we deal with RPC errors when talking to remote storage engines? (Note,
 		// client-side BeginBatch returns an error.)

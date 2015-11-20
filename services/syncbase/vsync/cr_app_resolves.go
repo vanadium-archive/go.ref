@@ -343,7 +343,7 @@ func getLocalLogRec(ctx *context.T, iSt *initiationState, oid, version string) *
 		vlog.Fatalf("sync: resolveViaApp: error while fetching LocalLogRec: %v", err)
 	}
 	if lrecs == nil || lrecs[0] == nil {
-		vlog.Fatalf("sync: resolveViaApp: LocalLogRec found nil for oid,version: %v", oid, version)
+		vlog.Fatalf("sync: resolveViaApp: LocalLogRec found nil for oid %v, version: %v", oid, version)
 	}
 	return lrecs[0]
 }
