@@ -6,6 +6,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -50,7 +51,9 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 		vlog.Fatal("v23.WithNewDispatchingServer() failed: ", err)
 	}
 	if eps := s.Status().Endpoints; len(eps) > 0 {
-		vlog.Info("Serving as: ", eps[0].Name())
+		// Our v23tests will wait for this to be printed before trying to access
+		// the service.
+		fmt.Printf("ENDPOINT=%s\n", eps[0].Name())
 	}
 	if *name != "" {
 		vlog.Info("Mounted at: ", *name)

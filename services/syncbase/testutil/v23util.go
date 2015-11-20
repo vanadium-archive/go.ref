@@ -12,9 +12,6 @@ import (
 	"runtime/debug"
 	"syscall"
 
-	"v.io/v23"
-	"v.io/v23/syncbase"
-
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
 )
@@ -56,12 +53,8 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 		"--v23.permissions.literal", permsLiteral,
 		"--name="+name,
 		"--root-dir="+rootDir)
-	RunClient(t, creds, runWaitForService, name)
-	return func(signal syscall.Signal) {
-		// TODO(sadovsky): Something's broken here. If the syncbased invocation
-		// fails (e.g. if NewService returns an error), currently it's possible for
-		// the test to fail without the crash error getting logged. This makes
-		// debugging a challenge.
+
+	cleanup = func(signal syscall.Signal) {
 		go invocation.Kill(signal)
 		stdout, stderr := bytes.NewBuffer(nil), bytes.NewBuffer(nil)
 		if err := invocation.Shutdown(stdout, stderr); err != nil {
@@ -77,26 +70,16 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 			}
 		}
 	}
-}
 
-// runWaitForService issues a noop rpc to force this process to wait until the
-// server is ready to accept requests.  Without this, calls to glob will
-// silently return no results if the service is not responding (i.e. ListApps,
-// ListDatabases return the empty set).
-// TODO(kash): sadovsky says that there is some other mechanism in the modules
-// framework that doesn't involve RPCs, involving instrumenting the server to
-// print some indication that it's ready (and detecting that from the parent
-// process).
-var runWaitForService = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-	s := syncbase.NewService(args[0])
-	a := s.App("dummyApp")
-	if _, err := a.Exists(ctx); err != nil {
-		return err
+	// Wait for syncbased to start.  If syncbased fails to start, this will time
+	// out and return "".
+	endpoint := invocation.ExpectVar("ENDPOINT")
+	if endpoint == "" {
+		cleanup(syscall.SIGKILL)
+		t.Fatalf("syncbased failed to start")
 	}
-	return nil
-}, "runWaitForService")
+	return cleanup
+}
 
 // RunClient runs the given program and waits until it terminates.
 func RunClient(t *v23tests.T, creds *modules.CustomCredentials, program modules.Program, args ...string) {
