@@ -617,7 +617,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, "", 1)
 			}
 
-			rec := &localLogRec{Metadata: v.Value.Metadata, Pos: pos}
+			rec := &LocalLogRec{Metadata: v.Value.Metadata, Pos: pos}
 			batchId := rec.Metadata.BatchId
 			if batchId != NoBatchId {
 				if cnt, ok := batchMap[batchId]; !ok {
@@ -682,7 +682,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 }
 
 // insertRecInLogAndDag adds a new log record to log and dag data structures.
-func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *localLogRec, batchId uint64, tx store.Transaction) error {
+func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *LocalLogRec, batchId uint64, tx store.Transaction) error {
 	var pfx string
 	m := rec.Metadata
 
@@ -711,7 +711,7 @@ func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *localLogRe
 }
 
 // insertSgRecInDb inserts the versioned value of a syncgroup in the Database.
-func (iSt *initiationState) insertSgRecInDb(ctx *context.T, rec *localLogRec, valbuf []byte, tx store.Transaction) error {
+func (iSt *initiationState) insertSgRecInDb(ctx *context.T, rec *LocalLogRec, valbuf []byte, tx store.Transaction) error {
 	m := rec.Metadata
 	var sg interfaces.Syncgroup
 	if err := vom.Decode(valbuf, &sg); err != nil {
@@ -721,7 +721,7 @@ func (iSt *initiationState) insertSgRecInDb(ctx *context.T, rec *localLogRec, va
 }
 
 // insertRecInDb inserts the versioned value in the Database.
-func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *localLogRec, valbuf []byte, tx store.Transaction) error {
+func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *LocalLogRec, valbuf []byte, tx store.Transaction) error {
 	m := rec.Metadata
 	// TODO(hpucha): Hack right now. Need to change Database's handling of
 	// deleted objects. Currently, the initiator needs to treat deletions
@@ -967,7 +967,7 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string) error 
 		newVersion = confSt.newHead
 	} else {
 		// Object had a conflict. Create a log record to reflect resolution.
-		var rec *localLogRec
+		var rec *LocalLogRec
 
 		switch {
 		case confSt.res.ty == pickLocal:
@@ -1015,7 +1015,7 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string) error 
 	return moveHead(ctx, iSt.tx, objid, newVersion)
 }
 
-func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, par string) *localLogRec {
+func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, par string) *LocalLogRec {
 	vlog.VI(4).Infof("sync: createLocalLinkLogRec: obj %s vers %s par %s", objid, vers, par)
 
 	var gen, pos uint64
@@ -1025,7 +1025,7 @@ func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, p
 		gen, pos = iSt.config.sync.reserveGenAndPosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, "", 1)
 	}
 
-	rec := &localLogRec{
+	rec := &LocalLogRec{
 		Metadata: interfaces.LogRecMetadata{
 			Id:      iSt.config.sync.id,
 			Gen:     gen,
@@ -1052,7 +1052,7 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 		return err
 	}
 	// Create the state to be persisted.
-	ds := &dbSyncState{
+	ds := &DbSyncState{
 		GenVecs:   dsInMem.genvecs,
 		SgGenVecs: dsInMem.sggenvecs,
 	}

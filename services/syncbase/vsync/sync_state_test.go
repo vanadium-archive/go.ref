@@ -71,7 +71,7 @@ func TestPutGetDbSyncState(t *testing.T) {
 	}
 
 	tx := st.NewTransaction()
-	wantSt := &dbSyncState{
+	wantSt := &DbSyncState{
 		GenVecs:   gv,
 		SgGenVecs: sggv,
 	}
@@ -97,7 +97,7 @@ func TestPutGetDelLogRec(t *testing.T) {
 	checkLogRec(t, st, id, gen, false, nil)
 
 	tx := st.NewTransaction()
-	wantRec := &localLogRec{
+	wantRec := &LocalLogRec{
 		Metadata: interfaces.LogRecMetadata{
 			Id:         id,
 			Gen:        gen,
@@ -139,7 +139,7 @@ func TestPutGetDelLogRec(t *testing.T) {
 // for getting the stack trace. Right now cannot import the package due to a
 // cycle.
 
-func checkDbSyncState(t *testing.T, st store.StoreReader, exists bool, wantSt *dbSyncState) {
+func checkDbSyncState(t *testing.T, st store.StoreReader, exists bool, wantSt *DbSyncState) {
 	gotSt, err := getDbSyncState(nil, st)
 
 	if (!exists && err == nil) || (exists && err != nil) {
@@ -151,7 +151,7 @@ func checkDbSyncState(t *testing.T, st store.StoreReader, exists bool, wantSt *d
 	}
 }
 
-func checkLogRec(t *testing.T, st store.StoreReader, id, gen uint64, exists bool, wantRec *localLogRec) {
+func checkLogRec(t *testing.T, st store.StoreReader, id, gen uint64, exists bool, wantRec *LocalLogRec) {
 	gotRec, err := getLogRec(nil, st, logDataPrefix, id, gen)
 
 	if (!exists && err == nil) || (exists && err != nil) {

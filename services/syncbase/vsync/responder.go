@@ -366,7 +366,7 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T, pfx string) error
 		initPfxs = extractAndSortPrefixes(rSt.initVecs)
 	}
 	for mh.Len() > 0 {
-		rec := heap.Pop(&mh).(*localLogRec)
+		rec := heap.Pop(&mh).(*LocalLogRec)
 
 		if rSt.sg || !filterLogRec(rec, rSt.initVecs, initPfxs) {
 			// Send on the wire.
@@ -469,7 +469,7 @@ func extractAndSortPrefixes(vec interfaces.Knowledge) []string {
 
 // TODO(hpucha): This can be optimized using a scan instead of "gets" in a for
 // loop.
-func getNextLogRec(ctx *context.T, st store.Store, pfx string, dev uint64, r *genRange) (*localLogRec, error) {
+func getNextLogRec(ctx *context.T, st store.Store, pfx string, dev uint64, r *genRange) (*LocalLogRec, error) {
 	for i := r.cur; i <= r.max; i++ {
 		rec, err := getLogRec(ctx, st, pfx, dev, i)
 		if err == nil {
@@ -484,7 +484,7 @@ func getNextLogRec(ctx *context.T, st store.Store, pfx string, dev uint64, r *ge
 }
 
 // Note: initPfxs is sorted.
-func filterLogRec(rec *localLogRec, initVecs interfaces.Knowledge, initPfxs []string) bool {
+func filterLogRec(rec *LocalLogRec, initVecs interfaces.Knowledge, initPfxs []string) bool {
 	// The key (objid) starts with one of the store's reserved prefixes for
 	// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
 	// comparing it with the syncgroup prefixes which are defined by the
@@ -517,7 +517,7 @@ func filterLogRec(rec *localLogRec, initVecs interfaces.Knowledge, initPfxs []st
 
 // makeWireLogRec creates a sync log record to send on the wire from a given
 // local sync record.
-func makeWireLogRec(ctx *context.T, sg bool, st store.Store, rec *localLogRec) (*interfaces.LogRec, error) {
+func makeWireLogRec(ctx *context.T, sg bool, st store.Store, rec *LocalLogRec) (*interfaces.LogRec, error) {
 	// Get the object value at the required version.
 	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
 	var value []byte
@@ -543,7 +543,7 @@ func makeWireLogRec(ctx *context.T, sg bool, st store.Store, rec *localLogRec) (
 }
 
 // A minHeap implements heap.Interface and holds local log records.
-type minHeap []*localLogRec
+type minHeap []*LocalLogRec
 
 func (mh minHeap) Len() int { return len(mh) }
 
@@ -556,7 +556,7 @@ func (mh minHeap) Swap(i, j int) {
 }
 
 func (mh *minHeap) Push(x interface{}) {
-	item := x.(*localLogRec)
+	item := x.(*LocalLogRec)
 	*mh = append(*mh, item)
 }
 

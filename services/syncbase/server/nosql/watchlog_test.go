@@ -62,7 +62,7 @@ func TestWatchLogPerms(t *testing.T) {
 	for _, tag := range access.AllTypicalTags() {
 		perms.Add(security.BlessingPattern("root"), string(tag))
 	}
-	util.Put(ctx, st, tb.stKey(), &tableData{
+	util.Put(ctx, st, tb.stKey(), &TableData{
 		Name:  tb.name,
 		Perms: perms,
 	})

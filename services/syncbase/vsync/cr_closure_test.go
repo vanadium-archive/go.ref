@@ -234,8 +234,8 @@ func verifyBatchesByOid(t *testing.T, group *crGroup, oid string, batchIds ...ui
 	}
 }
 
-func createBatch(isLocal bool, oids ...string) *batchInfo {
-	batch := &batchInfo{
+func createBatch(isLocal bool, oids ...string) *BatchInfo {
+	batch := &BatchInfo{
 		Count:   uint64(len(oids)),
 		Objects: map[string]string{},
 	}
@@ -254,7 +254,7 @@ func createBatch(isLocal bool, oids ...string) *batchInfo {
 }
 
 func createAndSaveNode(tx store.Transaction, batchId uint64, oid, version string) {
-	node := &dagNode{
+	node := &DagNode{
 		BatchId: batchId,
 	}
 	setNode(nil, tx, oid, version, node)

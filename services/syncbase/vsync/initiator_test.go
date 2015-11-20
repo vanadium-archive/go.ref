@@ -44,7 +44,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 			t.Fatalf("getLogRec can not find object %s 11 %d, err %v", logDataPrefix, gen, err)
 		}
 		vers := fmt.Sprintf("%d", gen)
-		wantRec := &localLogRec{
+		wantRec := &LocalLogRec{
 			Metadata: interfaces.LogRecMetadata{
 				Id:         11,
 				Gen:        gen,
@@ -138,7 +138,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 					logDataPrefix, devid, gen, err)
 			}
 			vers := fmt.Sprintf("%d", version)
-			wantRec := &localLogRec{
+			wantRec := &LocalLogRec{
 				Metadata: interfaces.LogRecMetadata{
 					Id:         devid,
 					Gen:        gen,

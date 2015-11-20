@@ -181,7 +181,7 @@ func (s *syncService) addSyncgroup(ctx *context.T, tx store.Transaction, version
 		return verror.New(verror.ErrExist, ctx, "group id already exists")
 	}
 
-	state := sgLocalState{
+	state := SgLocalState{
 		RemotePublisher: remotePublisher,
 		SyncPending:     !creator,
 		PendingGenVec:   genvec,
@@ -252,7 +252,7 @@ func (s *syncService) updateSyncgroupVersioning(ctx *context.T, tx store.Transac
 
 // addSyncgroupLogRec adds a new local log record for a syncgroup.
 func addSyncgroupLogRec(ctx *context.T, tx store.Transaction, oid, version string, parents []string, servId, gen, pos uint64) error {
-	rec := &localLogRec{
+	rec := &LocalLogRec{
 		Metadata: interfaces.LogRecMetadata{
 			ObjId:   oid,
 			CurVers: version,
@@ -332,7 +332,7 @@ func delSyncgroupByName(ctx *context.T, tx store.Transaction, name string) error
 	// some nodes may have no log record pointing back to the syncgroup data
 	// entries (loose coupling to support the pending syncgroup state).
 	oid := sgOID(gid)
-	err = forEachAncestor(ctx, tx, oid, []string{version}, func(v string, nd *dagNode) error {
+	err = forEachAncestor(ctx, tx, oid, []string{version}, func(v string, nd *DagNode) error {
 		return delSGDataEntry(ctx, tx, gid, v)
 	})
 	if err != nil {
@@ -576,7 +576,7 @@ func setSGNameEntry(ctx *context.T, tx store.Transaction, name string, gid inter
 }
 
 // setSGIdEntry stores the syncgroup ID entry.
-func setSGIdEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId, state *sgLocalState) error {
+func setSGIdEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId, state *SgLocalState) error {
 	return util.Put(ctx, tx, sgIdKey(gid), state)
 }
 
@@ -595,8 +595,8 @@ func getSGNameEntry(ctx *context.T, st store.StoreReader, name string) (interfac
 }
 
 // getSGIdEntry retrieves the syncgroup local state for a given group ID.
-func getSGIdEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (*sgLocalState, error) {
-	var state sgLocalState
+func getSGIdEntry(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (*SgLocalState, error) {
+	var state SgLocalState
 	if err := util.Get(ctx, st, sgIdKey(gid), &state); err != nil {
 		return nil, err
 	}

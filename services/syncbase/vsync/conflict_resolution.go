@@ -24,7 +24,7 @@ const (
 type conflictResolution struct {
 	batchId uint64
 	ty      resolutionType
-	rec     *localLogRec // Valid only if ty == createNew.
+	rec     *LocalLogRec // Valid only if ty == createNew.
 	val     []byte       // Valid only if ty == createNew.
 }
 
@@ -64,8 +64,8 @@ func (iSt *initiationState) resolveConflicts(ctx *context.T) error {
 }
 
 // getLogRecsBatch gets the log records for an array of versions for a given object.
-func (iSt *initiationState) getLogRecsBatch(ctx *context.T, obj string, versions []string) ([]*localLogRec, error) {
-	lrecs := make([]*localLogRec, len(versions))
+func (iSt *initiationState) getLogRecsBatch(ctx *context.T, obj string, versions []string) ([]*LocalLogRec, error) {
+	lrecs := make([]*LocalLogRec, len(versions))
 	for p, v := range versions {
 		if v == NoVersion {
 			lrecs[p] = nil

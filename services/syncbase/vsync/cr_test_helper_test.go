@@ -99,13 +99,13 @@ func verifyCreateNew(t *testing.T, updMap map[string]*objConflictState, oid stri
 
 func saveNodeAndLogRec(tx store.Transaction, oid, version string, ts int64, isDeleted bool) {
 	devId, gen := rand64(), rand64()
-	node := &dagNode{
+	node := &DagNode{
 		Deleted: isDeleted,
 		Logrec:  logRecKey(logDataPrefix, devId, gen),
 	}
 	setNode(nil, tx, oid, version, node)
 
-	logRec := &localLogRec{
+	logRec := &LocalLogRec{
 		Metadata: interfaces.LogRecMetadata{
 			Id:      devId,
 			Gen:     gen,

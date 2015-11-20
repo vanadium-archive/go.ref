@@ -210,7 +210,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 
 	// Partially syncable logs.
 	gid := interfaces.GroupId(1234)
-	state := &sgLocalState{}
+	state := &SgLocalState{}
 	tx := st.NewTransaction()
 	if err := setSGIdEntry(nil, tx, gid, state); err != nil {
 		t.Fatal("setSGIdEntry() failed for gid %v", gid)
@@ -360,7 +360,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	for stream.Advance() {
 		count++
 		key := string(stream.Key(nil))
-		var info batchInfo
+		var info BatchInfo
 		if err := vom.Decode(stream.Value(nil), &info); err != nil {
 			t.Errorf("cannot decode batch %s: %v", key, err)
 		}

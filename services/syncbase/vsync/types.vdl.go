@@ -15,43 +15,43 @@ import (
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 
-// syncData represents the persistent state of the sync module.
-type syncData struct {
+// SyncData represents the persistent state of the sync module.
+type SyncData struct {
 	Id uint64
 }
 
-func (syncData) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.syncData"`
+func (SyncData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.SyncData"`
 }) {
 }
 
-// dbSyncState represents the persistent sync state of a Database.
-type dbSyncState struct {
+// DbSyncState represents the persistent sync state of a Database.
+type DbSyncState struct {
 	GenVecs   interfaces.Knowledge // knowledge capturing the locally-known generations of remote peers for data in Database.
 	SgGenVecs interfaces.Knowledge // knowledge capturing the locally-known generations of remote peers for syncgroups in Database.
 }
 
-func (dbSyncState) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.dbSyncState"`
+func (DbSyncState) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.DbSyncState"`
 }) {
 }
 
-// localLogRec represents the persistent local state of a log record. Metadata
+// LocalLogRec represents the persistent local state of a log record. Metadata
 // is synced across peers, while pos is local-only.
-type localLogRec struct {
+type LocalLogRec struct {
 	Metadata interfaces.LogRecMetadata
 	Pos      uint64 // position in the Database log.
 }
 
-func (localLogRec) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.localLogRec"`
+func (LocalLogRec) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.LocalLogRec"`
 }) {
 }
 
-// sgLocalState holds the syncgroup local state, only relevant to this member
+// SgLocalState holds the syncgroup local state, only relevant to this member
 // (i.e. the local Syncbase).  This is needed for crash recovery of the internal
 // state transitions of the syncgroup.
-type sgLocalState struct {
+type SgLocalState struct {
 	// The count of local joiners to the same syncgroup.
 	NumLocalJoiners uint32
 	// The syncgroup is watched when the sync Watcher starts processing the
@@ -86,16 +86,16 @@ type sgLocalState struct {
 	PendingGenVec interfaces.GenVector
 }
 
-func (sgLocalState) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.sgLocalState"`
+func (SgLocalState) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.SgLocalState"`
 }) {
 }
 
-// dagNode holds the information on an object mutation in the DAG.  The node
+// DagNode holds the information on an object mutation in the DAG.  The node
 // information is extracted from the log records exchanged between Syncbases.
 // They are also stored in the DAG node to improve DAG traversal for conflict
 // resolution and pruning without having to fetch the full log record.
-type dagNode struct {
+type DagNode struct {
 	Level    uint64   // node distance from root
 	Parents  []string // references to parent versions
 	Logrec   string   // reference to log record
@@ -106,12 +106,12 @@ type dagNode struct {
 	PermVers string   // current version of the permissions object
 }
 
-func (dagNode) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.dagNode"`
+func (DagNode) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.DagNode"`
 }) {
 }
 
-// batchInfo holds the information on a write batch:
+// BatchInfo holds the information on a write batch:
 // - The map of syncable (versioned) objects: {oid: version}
 // - The map of linked objects {oid: version} that were not explicitly written
 //   as part of the batch but were reaffirmed during conflict resolution along
@@ -122,22 +122,22 @@ func (dagNode) __VDLReflect(struct {
 //   to the batches that there were originally created in.
 // - The total count of batch objects, including non-syncable ones.
 // TODO(rdaoud): add support to track the read and scan sets.
-type batchInfo struct {
+type BatchInfo struct {
 	Objects       map[string]string
 	LinkedObjects map[string]string
 	Count         uint64
 }
 
-func (batchInfo) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.batchInfo"`
+func (BatchInfo) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.BatchInfo"`
 }) {
 }
 
 func init() {
-	vdl.Register((*syncData)(nil))
-	vdl.Register((*dbSyncState)(nil))
-	vdl.Register((*localLogRec)(nil))
-	vdl.Register((*sgLocalState)(nil))
-	vdl.Register((*dagNode)(nil))
-	vdl.Register((*batchInfo)(nil))
+	vdl.Register((*SyncData)(nil))
+	vdl.Register((*DbSyncState)(nil))
+	vdl.Register((*LocalLogRec)(nil))
+	vdl.Register((*SgLocalState)(nil))
+	vdl.Register((*DagNode)(nil))
+	vdl.Register((*BatchInfo)(nil))
 }

@@ -227,7 +227,7 @@ func processResInfos(ctx *context.T, iSt *initiationState, results map[string]*w
 	}
 }
 
-func getNodeOrFail(ctx *context.T, st store.StoreReader, oid, version string) *dagNode {
+func getNodeOrFail(ctx *context.T, st store.StoreReader, oid, version string) *DagNode {
 	dagNode, err := getNode(ctx, st, oid, version)
 	if err != nil {
 		vlog.Fatalf("sync: resolveViaApp: error while fetching dag node: %v", err)
@@ -337,13 +337,13 @@ func createValueObj(ctx *context.T, iSt *initiationState, oid, ver string) *wire
 	}
 }
 
-func getLocalLogRec(ctx *context.T, iSt *initiationState, oid, version string) *localLogRec {
+func getLocalLogRec(ctx *context.T, iSt *initiationState, oid, version string) *LocalLogRec {
 	lrecs, err := iSt.getLogRecsBatch(ctx, oid, []string{version})
 	if err != nil {
-		vlog.Fatalf("sync: resolveViaApp: error while fetching localLogRec: %v", err)
+		vlog.Fatalf("sync: resolveViaApp: error while fetching LocalLogRec: %v", err)
 	}
 	if lrecs == nil || lrecs[0] == nil {
-		vlog.Fatalf("sync: resolveViaApp: localLogRec found nil for oid,version: %v", oid, version)
+		vlog.Fatalf("sync: resolveViaApp: LocalLogRec found nil for oid,version: %v", oid, version)
 	}
 	return lrecs[0]
 }
@@ -357,11 +357,11 @@ func getObjectAtVer(ctx *context.T, iSt *initiationState, oid, ver string) []byt
 }
 
 // createLocalLogRec creates a local sync log record given its information.
-func createLocalLogRec(ctx *context.T, oid string, parents []string, deleted bool, timestamp time.Time, sId, gen, pos, batchId, count uint64) *localLogRec {
+func createLocalLogRec(ctx *context.T, oid string, parents []string, deleted bool, timestamp time.Time, sId, gen, pos, batchId, count uint64) *LocalLogRec {
 	if len(parents) == 0 {
 		vlog.Fatalf("sync: resolveViaApp: there must be atleast one parent")
 	}
-	rec := localLogRec{}
+	rec := LocalLogRec{}
 	rec.Metadata.ObjId = oid
 	rec.Metadata.CurVers = string(watchable.NewVersion())
 	rec.Metadata.Delete = deleted

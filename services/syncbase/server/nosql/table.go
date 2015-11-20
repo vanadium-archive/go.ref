@@ -41,13 +41,13 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int
 		return err
 	}
 	return store.RunInTransaction(t.d.st, func(tx store.Transaction) error {
-		// Check databaseData perms.
-		dData := &databaseData{}
+		// Check DatabaseData perms.
+		dData := &DatabaseData{}
 		if err := util.GetWithAuth(ctx, call, tx, t.d.stKey(), dData); err != nil {
 			return err
 		}
 		// Check for "table already exists".
-		if err := util.Get(ctx, tx, t.stKey(), &tableData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err := util.Get(ctx, tx, t.stKey(), &TableData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -56,8 +56,8 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int
 		if perms == nil {
 			perms = dData.Perms
 		}
-		// Write new tableData.
-		data := &tableData{
+		// Write new TableData.
+		data := &TableData{
 			Name:  t.name,
 			Perms: perms,
 		}
@@ -80,8 +80,8 @@ func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion in
 		return err
 	}
 	return store.RunInTransaction(t.d.st, func(tx store.Transaction) error {
-		// Read-check-delete tableData.
-		if err := util.GetWithAuth(ctx, call, tx, t.stKey(), &tableData{}); err != nil {
+		// Read-check-delete TableData.
+		if err := util.GetWithAuth(ctx, call, tx, t.stKey(), &TableData{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
 				return nil // delete is idempotent
 			}
@@ -105,7 +105,7 @@ func (t *tableReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int
 	if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 		return false, err
 	}
-	return util.ErrorToExists(util.GetWithAuth(ctx, call, t.d.st, t.stKey(), &tableData{}))
+	return util.ErrorToExists(util.GetWithAuth(ctx, call, t.d.st, t.stKey(), &TableData{}))
 }
 
 func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (perms access.Permissions, err error) {
@@ -113,7 +113,7 @@ func (t *tableReq) GetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return nil, err
 		}
-		data := &tableData{}
+		data := &TableData{}
 		if err := util.GetWithAuth(ctx, call, sntx, t.stKey(), data); err != nil {
 			return nil, err
 		}
@@ -133,7 +133,7 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
-		data := &tableData{}
+		data := &TableData{}
 		return util.UpdateWithAuth(ctx, call, tx, t.stKey(), data, func() error {
 			data.Perms = perms
 			return nil
@@ -476,7 +476,7 @@ func (t *tableReq) updateParentRefs(ctx *context.T, tx store.Transaction, prefix
 // One option is to add a prefix and its parent to the write set of the current
 // transaction when the permissions object for that prefix is updated.
 func (t *tableReq) lock(ctx *context.T, tx store.Transaction) error {
-	var data tableData
+	var data TableData
 	if err := util.Get(ctx, tx, t.stKey(), &data); err != nil {
 		return err
 	}
@@ -492,7 +492,7 @@ func (t *tableReq) lock(ctx *context.T, tx store.Transaction) error {
 // access check to be a check for "Resolve", i.e. also check access to
 // service, app and database.
 func (t *tableReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction, key string) (string, error) {
-	if err := util.GetWithAuth(ctx, call, sntx, t.stKey(), &tableData{}); err != nil {
+	if err := util.GetWithAuth(ctx, call, sntx, t.stKey(), &TableData{}); err != nil {
 		return "", err
 	}
 	prefix, _, perms, err := t.prefixPermsForKey(ctx, sntx, key)

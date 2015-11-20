@@ -111,7 +111,7 @@ const (
 )
 
 // batchSet holds information on a set of write batches.
-type batchSet map[uint64]*batchInfo
+type batchSet map[uint64]*BatchInfo
 
 // graftMap holds the state of DAG node grafting (attaching) per object.  It
 // holds a store handle to use when reading the object heads during grafting
@@ -150,8 +150,8 @@ type graftInfo struct {
 }
 
 // newBatchInfo allocates and initializes a batch info entry.
-func newBatchInfo() *batchInfo {
-	return &batchInfo{Objects: make(map[string]string), Count: 0}
+func newBatchInfo() *BatchInfo {
+	return &BatchInfo{Objects: make(map[string]string), Count: 0}
 }
 
 // startBatch marks the start of a batch.  It generates a batch ID and returns
@@ -286,7 +286,7 @@ func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version
 	}
 
 	// Add the node entry to the DAG.
-	node := &dagNode{
+	node := &DagNode{
 		Level:   level,
 		Parents: parents,
 		Logrec:  logrec,
@@ -381,7 +381,7 @@ func (s *syncService) addParent(ctx *context.T, tx store.Transaction, oid, versi
 		// Make sure that adding the link does not create a DAG cycle.
 		// Verify that the node is not an ancestor of the parent that
 		// it is being linked to.
-		err = forEachAncestor(ctx, tx, oid, pnode.Parents, func(v string, nd *dagNode) error {
+		err = forEachAncestor(ctx, tx, oid, pnode.Parents, func(v string, nd *DagNode) error {
 			if v == version {
 				return verror.New(verror.ErrInternal, ctx, "cycle on object",
 					oid, ": node", version, "is ancestor of parent", parent)
@@ -573,7 +573,7 @@ func getObjectGraftInfo(ctx *context.T, sntx store.SnapshotOrTransaction, graft 
 // forEachAncestor loops over the DAG ancestor nodes of an object in a breadth-
 // first traversal starting from given version nodes.  It calls the given
 // callback function once for each ancestor node.
-func forEachAncestor(ctx *context.T, st store.StoreReader, oid string, startVersions []string, callback func(version string, node *dagNode) error) error {
+func forEachAncestor(ctx *context.T, st store.StoreReader, oid string, startVersions []string, callback func(version string, node *DagNode) error) error {
 	visited := make(map[string]bool)
 	queue := list.New()
 	for _, version := range startVersions {
@@ -659,7 +659,7 @@ func prune(ctx *context.T, tx store.Transaction, oid, version string, batches ba
 	// possible and track the error counts.  Update the batch set to track
 	// their pruning.
 	nodeErrs, logErrs := 0, 0
-	forEachAncestor(ctx, tx, oid, parents, func(v string, nd *dagNode) error {
+	forEachAncestor(ctx, tx, oid, parents, func(v string, nd *DagNode) error {
 		if btid := nd.BatchId; btid != NoBatchId {
 			if batches[btid] == nil {
 				batches[btid] = newBatchInfo()
@@ -727,7 +727,7 @@ func nodeKey(oid, version string) string {
 }
 
 // setNode stores the DAG node entry.
-func setNode(ctx *context.T, tx store.Transaction, oid, version string, node *dagNode) error {
+func setNode(ctx *context.T, tx store.Transaction, oid, version string, node *DagNode) error {
 	if version == NoVersion {
 		vlog.Fatalf("sync: setNode: invalid version: %s for oid: %s", version, oid)
 	}
@@ -736,12 +736,12 @@ func setNode(ctx *context.T, tx store.Transaction, oid, version string, node *da
 }
 
 // getNode retrieves the DAG node entry for the given (oid, version).
-func getNode(ctx *context.T, st store.StoreReader, oid, version string) (*dagNode, error) {
+func getNode(ctx *context.T, st store.StoreReader, oid, version string) (*DagNode, error) {
 	if version == NoVersion {
 		vlog.Fatalf("sync: getNode: invalid version: %s", version)
 	}
 
-	var node dagNode
+	var node DagNode
 	key := nodeKey(oid, version)
 	if err := util.Get(ctx, st, key, &node); err != nil {
 		return nil, err
@@ -802,7 +802,7 @@ func batchKey(btid uint64) string {
 }
 
 // setBatch stores the DAG batch entry.
-func setBatch(ctx *context.T, tx store.Transaction, btid uint64, info *batchInfo) error {
+func setBatch(ctx *context.T, tx store.Transaction, btid uint64, info *BatchInfo) error {
 	if btid == NoBatchId {
 		return verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
 	}
@@ -811,12 +811,12 @@ func setBatch(ctx *context.T, tx store.Transaction, btid uint64, info *batchInfo
 }
 
 // getBatch retrieves the DAG batch entry.
-func getBatch(ctx *context.T, st store.StoreReader, btid uint64) (*batchInfo, error) {
+func getBatch(ctx *context.T, st store.StoreReader, btid uint64) (*BatchInfo, error) {
 	if btid == NoBatchId {
 		return nil, verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
 	}
 
-	var info batchInfo
+	var info BatchInfo
 	key := batchKey(btid)
 	if err := util.Get(ctx, st, key, &info); err != nil {
 		return nil, err
@@ -849,7 +849,7 @@ func getParentMap(ctx *context.T, st store.StoreReader, oid string, graft *graft
 		}
 	}
 
-	forEachAncestor(ctx, st, oid, start, func(v string, nd *dagNode) error {
+	forEachAncestor(ctx, st, oid, start, func(v string, nd *DagNode) error {
 		parentMap[v] = nd.Parents
 		return nil
 	})

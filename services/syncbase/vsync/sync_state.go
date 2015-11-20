@@ -264,7 +264,7 @@ func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx st
 
 	var maxpos, maxgen uint64
 	if found {
-		var lrec localLogRec
+		var lrec LocalLogRec
 		if err := vom.Decode(val, &lrec); err != nil {
 			return 0, 0, err
 		}
@@ -298,7 +298,7 @@ func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx st
 
 // TODO(hpucha): This can be optimized using a backwards scan or a better
 // search.
-func getPrevLogRec(ctx *context.T, st store.Store, pfx string, dev, gen uint64) (*localLogRec, error) {
+func getPrevLogRec(ctx *context.T, st store.Store, pfx string, dev, gen uint64) (*LocalLogRec, error) {
 	for i := gen; i > 0; i-- {
 		rec, err := getLogRec(ctx, st, pfx, dev, i)
 		if err == nil {
@@ -517,13 +517,13 @@ func splitAppDbName(ctx *context.T, name string) (string, string, error) {
 // Low-level utility functions to access sync state.
 
 // putDbSyncState persists the sync state object for a given Database.
-func putDbSyncState(ctx *context.T, tx store.Transaction, ds *dbSyncState) error {
+func putDbSyncState(ctx *context.T, tx store.Transaction, ds *DbSyncState) error {
 	return util.Put(ctx, tx, dbssKey, ds)
 }
 
 // getDbSyncState retrieves the sync state object for a given Database.
-func getDbSyncState(ctx *context.T, st store.StoreReader) (*dbSyncState, error) {
-	var ds dbSyncState
+func getDbSyncState(ctx *context.T, st store.StoreReader) (*DbSyncState, error) {
+	var ds DbSyncState
 	if err := util.Get(ctx, st, dbssKey, &ds); err != nil {
 		return nil, err
 	}
@@ -549,18 +549,18 @@ func hasLogRec(st store.StoreReader, pfx string, id, gen uint64) (bool, error) {
 }
 
 // putLogRec stores the log record.
-func putLogRec(ctx *context.T, tx store.Transaction, pfx string, rec *localLogRec) error {
+func putLogRec(ctx *context.T, tx store.Transaction, pfx string, rec *LocalLogRec) error {
 	return util.Put(ctx, tx, logRecKey(pfx, rec.Metadata.Id, rec.Metadata.Gen), rec)
 }
 
 // getLogRec retrieves the log record for a given (devid, gen).
-func getLogRec(ctx *context.T, st store.StoreReader, pfx string, id, gen uint64) (*localLogRec, error) {
+func getLogRec(ctx *context.T, st store.StoreReader, pfx string, id, gen uint64) (*LocalLogRec, error) {
 	return getLogRecByKey(ctx, st, logRecKey(pfx, id, gen))
 }
 
 // getLogRecByKey retrieves the log record for a given log record key.
-func getLogRecByKey(ctx *context.T, st store.StoreReader, key string) (*localLogRec, error) {
-	var rec localLogRec
+func getLogRecByKey(ctx *context.T, st store.StoreReader, key string) (*LocalLogRec, error) {
+	var rec LocalLogRec
 	if err := util.Get(ctx, st, key, &rec); err != nil {
 		return nil, err
 	}

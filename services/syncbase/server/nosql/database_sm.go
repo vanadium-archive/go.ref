@@ -24,7 +24,7 @@ func (d *databaseReq) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wi
 	}
 
 	// Check permissions on Database and retrieve schema metadata.
-	dbData := databaseData{}
+	dbData := DatabaseData{}
 	if err := util.GetWithAuth(ctx, call, d.st, d.stKey(), &dbData); err != nil {
 		return metadata, err
 	}
@@ -42,7 +42,7 @@ func (d *databaseReq) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, met
 
 	// Check permissions on Database and store schema metadata.
 	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
-		dbData := databaseData{}
+		dbData := DatabaseData{}
 		return util.UpdateWithAuth(ctx, call, tx, d.stKey(), &dbData, func() error {
 			// NOTE: For now we expect the client to not issue multiple
 			// concurrent SetSchemaMetadata calls.
@@ -56,7 +56,7 @@ func (d *database) GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetada
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.Name())
 	}
-	dbData := databaseData{}
+	dbData := DatabaseData{}
 	if err := util.Get(ctx, d.st, d.stKey(), &dbData); err != nil {
 		return nil, err
 	}
