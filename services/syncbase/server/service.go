@@ -14,6 +14,7 @@ import (
 	"path"
 	"reflect"
 	"sync"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -215,6 +216,14 @@ func (s *service) Close() {
 
 ////////////////////////////////////////
 // RPC methods
+
+func (s *service) DebugUpdateClock(ctx *context.T, call rpc.ServerCall, uco wire.DebugUpdateClockOpts) error {
+	return verror.NewErrNotImplemented(ctx)
+}
+
+func (s *service) DebugNow(ctx *context.T, call rpc.ServerCall) (time.Time, error) {
+	return time.Time{}, verror.NewErrNotImplemented(ctx)
+}
 
 func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	return store.RunInTransaction(s.st, func(tx store.Transaction) error {
