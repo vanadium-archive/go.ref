@@ -10,14 +10,14 @@ import (
 )
 
 var (
-	_ util.Permser = (*databaseData)(nil)
-	_ util.Permser = (*tableData)(nil)
+	_ util.Permser = (*DatabaseData)(nil)
+	_ util.Permser = (*TableData)(nil)
 )
 
-func (data *databaseData) GetPerms() access.Permissions {
+func (data *DatabaseData) GetPerms() access.Permissions {
 	return data.Perms
 }
 
-func (data *tableData) GetPerms() access.Permissions {
+func (data *TableData) GetPerms() access.Permissions {
 	return data.Perms
 }

@@ -178,7 +178,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	// Transactional processing of the batch: convert these syncable log
 	// records to a batch of sync log records, filling their parent versions
 	// from the DAG head nodes.
-	batch := make([]*localLogRec, len(logs))
+	batch := make([]*LocalLogRec, len(logs))
 	err := store.RunInTransaction(st, func(tx store.Transaction) error {
 		i := 0
 		for _, entry := range logs {
@@ -228,7 +228,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 
 // processBatch applies a single batch of changes (object mutations) received
 // from watching a particular Database.
-func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch []*localLogRec, appBatch bool, totalCount uint64, tx store.Transaction) error {
+func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch []*LocalLogRec, appBatch bool, totalCount uint64, tx store.Transaction) error {
 	count := uint64(len(batch))
 	if count == 0 {
 		return nil
@@ -280,7 +280,7 @@ func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch
 
 // processLocalLogRec processes a local log record by adding to the Database and
 // suitably updating the DAG metadata.
-func (s *syncService) processLocalLogRec(ctx *context.T, tx store.Transaction, rec *localLogRec) error {
+func (s *syncService) processLocalLogRec(ctx *context.T, tx store.Transaction, rec *LocalLogRec) error {
 	// Insert the new log record into the log.
 	if err := putLogRec(ctx, tx, logDataPrefix, rec); err != nil {
 		return err
@@ -300,7 +300,7 @@ func (s *syncService) processLocalLogRec(ctx *context.T, tx store.Transaction, r
 
 // processWatchBlobRefs extracts blob refs from the data values of the updates
 // received in the watch batch and updates the blob-to-syncgroup metadata.
-func (s *syncService) processWatchBlobRefs(ctx *context.T, appdb string, st store.Store, batch []*localLogRec) error {
+func (s *syncService) processWatchBlobRefs(ctx *context.T, appdb string, st store.Store, batch []*LocalLogRec) error {
 	if len(batch) == 0 {
 		return nil
 	}
@@ -379,8 +379,8 @@ func setSyncgroupWatchable(ctx *context.T, tx store.Transaction, sgop *watchable
 // simplify the store-to-sync interaction.  A deleted key would still have a
 // version and its value entry would encode the "deleted" flag, either in the
 // key or probably in a value wrapper that would contain other metadata.
-func convertLogRecord(ctx *context.T, tx store.Transaction, logEnt *watchable.LogEntry) (*localLogRec, error) {
-	var rec *localLogRec
+func convertLogRecord(ctx *context.T, tx store.Transaction, logEnt *watchable.LogEntry) (*LocalLogRec, error) {
+	var rec *LocalLogRec
 	timestamp := logEnt.CommitTimestamp
 
 	switch op := logEnt.Op.(type) {
@@ -421,8 +421,8 @@ func convertLogRecord(ctx *context.T, tx store.Transaction, logEnt *watchable.Lo
 // newLocalLogRec creates a local sync log record given its information: key,
 // version, deletion flag, and timestamp.  It retrieves the current DAG head
 // for the key (if one exists) to use as its parent (previous) version.
-func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, deleted bool, timestamp int64) *localLogRec {
-	rec := localLogRec{}
+func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, deleted bool, timestamp int64) *LocalLogRec {
+	rec := LocalLogRec{}
 	oid := string(key)
 
 	rec.Metadata.ObjId = oid

@@ -171,7 +171,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 		publishInNH:    publishInNH,
 	}
 
-	data := &syncData{}
+	data := &SyncData{}
 	if err := store.RunInTransaction(sv.St(), func(tx store.Transaction) error {
 		if err := util.Get(ctx, sv.St(), s.stKey(), data); err != nil {
 			if verror.ErrorID(err) != verror.ErrNoExist.ID {

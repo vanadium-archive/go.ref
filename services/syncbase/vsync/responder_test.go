@@ -366,7 +366,7 @@ func TestSendDataDeltas(t *testing.T) {
 
 		// Insert some log records to bootstrap testing below.
 		tRng := rand.New(rand.NewSource(int64(i)))
-		var wantRecs []*localLogRec
+		var wantRecs []*LocalLogRec
 		st := svc.St()
 		tx := st.NewTransaction()
 		objKeyPfxs := test.keyPfxs
@@ -381,7 +381,7 @@ func TestSendDataDeltas(t *testing.T) {
 				}
 				okey := makeRowKey(fmt.Sprintf("%s~%x", opfx, tRng.Int()))
 				vers := fmt.Sprintf("%x", tRng.Int())
-				rec := &localLogRec{
+				rec := &LocalLogRec{
 					Metadata: interfaces.LogRecMetadata{Id: id, Gen: k, ObjId: okey, CurVers: vers, UpdTime: time.Now().UTC()},
 					Pos:      pos + k,
 				}
@@ -441,7 +441,7 @@ func TestSendDataDeltas(t *testing.T) {
 // Helpers
 
 type dummyResponder struct {
-	gotRecs []*localLogRec
+	gotRecs []*LocalLogRec
 	outVecs interfaces.Knowledge
 }
 
@@ -456,7 +456,7 @@ func (d *dummyResponder) Send(item interfaces.DeltaResp) error {
 	case interfaces.DeltaRespGvs:
 		d.outVecs = v.Value
 	case interfaces.DeltaRespRec:
-		d.gotRecs = append(d.gotRecs, &localLogRec{Metadata: v.Value.Metadata})
+		d.gotRecs = append(d.gotRecs, &LocalLogRec{Metadata: v.Value.Metadata})
 	}
 	return nil
 }
@@ -485,7 +485,7 @@ func (d *dummyResponder) Server() rpc.Server {
 	return nil
 }
 
-func (d *dummyResponder) diffLogRecs(t *testing.T, wantRecs []*localLogRec, wantVecs interfaces.Knowledge) {
+func (d *dummyResponder) diffLogRecs(t *testing.T, wantRecs []*LocalLogRec, wantVecs interfaces.Knowledge) {
 	if len(d.gotRecs) != len(wantRecs) {
 		t.Fatalf("diffLogRecs failed, gotLen %v, wantLen %v\n", len(d.gotRecs), len(wantRecs))
 	}

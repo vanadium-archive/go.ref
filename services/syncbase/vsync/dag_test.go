@@ -39,7 +39,7 @@ func TestSetNode(t *testing.T) {
 		t.Errorf("non-existent object %s:%s has a logrec: %v", oid, version, logrec)
 	}
 
-	node = &dagNode{Level: 15, Parents: []string{"444", "555"}, Logrec: "logrec-23"}
+	node = &DagNode{Level: 15, Parents: []string{"444", "555"}, Logrec: "logrec-23"}
 
 	tx := st.NewTransaction()
 	if err = setNode(nil, tx, oid, version, node); err != nil {
@@ -73,7 +73,7 @@ func TestDelNode(t *testing.T) {
 
 	oid, version := "2222", "2"
 
-	node := &dagNode{Level: 123, Parents: []string{"333"}, Logrec: "logrec-789"}
+	node := &DagNode{Level: 123, Parents: []string{"333"}, Logrec: "logrec-789"}
 
 	tx := st.NewTransaction()
 	if err := setNode(nil, tx, oid, version, node); err != nil {
@@ -120,7 +120,7 @@ func TestAddParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	node := &dagNode{Level: 15, Logrec: "logrec-22"}
+	node := &DagNode{Level: 15, Logrec: "logrec-22"}
 
 	tx = st.NewTransaction()
 	if err := setNode(nil, tx, oid, version, node); err != nil {
@@ -146,7 +146,7 @@ func TestAddParent(t *testing.T) {
 		}
 		tx.Abort()
 
-		pnode := &dagNode{Level: 11, Logrec: fmt.Sprintf("logrec-%s", parent), Parents: []string{"3"}}
+		pnode := &DagNode{Level: 11, Logrec: fmt.Sprintf("logrec-%s", parent), Parents: []string{"3"}}
 
 		tx = st.NewTransaction()
 		if err := setNode(nil, tx, oid, parent, pnode); err != nil {
@@ -721,7 +721,7 @@ func TestAncestorIterator(t *testing.T) {
 	for _, start := range []int{1, 3, 6, 9} {
 		visitCount := make(map[string]int)
 		vstart := fmt.Sprintf("%d", start)
-		forEachAncestor(nil, st, oid, []string{vstart}, func(v string, nd *dagNode) error {
+		forEachAncestor(nil, st, oid, []string{vstart}, func(v string, nd *DagNode) error {
 			visitCount[v]++
 			return nil
 		})
@@ -738,7 +738,7 @@ func TestAncestorIterator(t *testing.T) {
 
 	// Make sure an error in the callback is returned.
 	cbErr := errors.New("callback error")
-	err := forEachAncestor(nil, st, oid, []string{"9"}, func(v string, nd *dagNode) error {
+	err := forEachAncestor(nil, st, oid, []string{"9"}, func(v string, nd *DagNode) error {
 		if v == "1" {
 			return cbErr
 		}
@@ -1285,7 +1285,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_1)
 	}
 
-	expInfo := &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 0}
+	expInfo := &BatchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_1, info, expInfo)
 	}
@@ -1295,7 +1295,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_2)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_c: "2"}, nil, 0}
+	expInfo = &BatchInfo{map[string]string{oid_c: "2"}, nil, 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}
@@ -1328,7 +1328,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_1, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 2}
+	expInfo = &BatchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v",
 			btid_1, info, expInfo)
@@ -1339,7 +1339,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_2)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_c: "2"}, nil, 0}
+	expInfo = &BatchInfo{map[string]string{oid_c: "2"}, nil, 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}
@@ -1360,7 +1360,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_2, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_c: "2"}, nil, 1}
+	expInfo = &BatchInfo{map[string]string{oid_c: "2"}, nil, 1}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}
@@ -1406,7 +1406,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_3, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_a: "4"}, nil, 2}
+	expInfo = &BatchInfo{map[string]string{oid_a: "4"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v",
 			btid_3, info, expInfo)
@@ -1445,7 +1445,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_3, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_a: "4", oid_b: "4"}, nil, 2}
+	expInfo = &BatchInfo{map[string]string{oid_a: "4", oid_b: "4"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch state from DAG storage for ID %v: %v instead of %v",
 			btid_3, info, expInfo)
@@ -1560,7 +1560,7 @@ func TestPruningBatches(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_1, err)
 	}
 
-	expInfo := &batchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 2}
+	expInfo := &BatchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v",
 			btid_1, info, expInfo)
@@ -1571,7 +1571,7 @@ func TestPruningBatches(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_2, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_b: "4", oid_c: "2"}, nil, 2}
+	expInfo = &BatchInfo{map[string]string{oid_b: "4", oid_c: "2"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info from DAG storage for ID %v: %v instead of %v",
 			btid_2, info, expInfo)
@@ -1610,7 +1610,7 @@ func TestPruningBatches(t *testing.T) {
 		t.Errorf("cannot getBatch() for ID %v: %v", btid_2, err)
 	}
 
-	expInfo = &batchInfo{map[string]string{oid_c: "2"}, nil, 2}
+	expInfo = &BatchInfo{map[string]string{oid_c: "2"}, nil, 2}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}

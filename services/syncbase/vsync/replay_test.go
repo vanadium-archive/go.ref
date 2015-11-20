@@ -301,7 +301,7 @@ func replayLocalCommands(t *testing.T, s *mockService, syncfile string) {
 	for _, cmd := range cmds {
 		switch cmd.cmd {
 		case addLocal:
-			rec := &localLogRec{
+			rec := &LocalLogRec{
 				Metadata: createMetadata(t, interfaces.NodeRec, cmd),
 				Pos:      pos,
 			}

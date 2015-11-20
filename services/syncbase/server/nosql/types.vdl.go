@@ -16,31 +16,31 @@ import (
 	"v.io/v23/services/syncbase/nosql"
 )
 
-// databaseData represents the persistent state of a Database.
-type databaseData struct {
+// DatabaseData represents the persistent state of a Database.
+type DatabaseData struct {
 	Name           string
 	Version        uint64 // covers the Perms field below
 	Perms          access.Permissions
 	SchemaMetadata *nosql.SchemaMetadata
 }
 
-func (databaseData) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server/nosql.databaseData"`
+func (DatabaseData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/nosql.DatabaseData"`
 }) {
 }
 
-// tableData represents the persistent state of a Table.
-type tableData struct {
+// TableData represents the persistent state of a Table.
+type TableData struct {
 	Name  string
 	Perms access.Permissions
 }
 
-func (tableData) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server/nosql.tableData"`
+func (TableData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/nosql.TableData"`
 }) {
 }
 
 func init() {
-	vdl.Register((*databaseData)(nil))
-	vdl.Register((*tableData)(nil))
+	vdl.Register((*DatabaseData)(nil))
+	vdl.Register((*TableData)(nil))
 }

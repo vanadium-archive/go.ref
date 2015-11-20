@@ -116,7 +116,7 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.S
 	if err != nil {
 		return nil, err
 	}
-	data := &databaseData{
+	data := &DatabaseData{
 		Name:           d.name,
 		Perms:          opts.Perms,
 		SchemaMetadata: metadata,
@@ -160,7 +160,7 @@ func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion 
 	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 		return false, err
 	}
-	return util.ErrorToExists(util.GetWithAuth(ctx, call, d.st, d.stKey(), &databaseData{}))
+	return util.ErrorToExists(util.GetWithAuth(ctx, call, d.st, d.stKey(), &DatabaseData{}))
 }
 
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
@@ -312,7 +312,7 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 	if d.batchId != nil {
 		return nil, "", wire.NewErrBoundToBatch(ctx)
 	}
-	data := &databaseData{}
+	data := &DatabaseData{}
 	if err := util.GetWithAuth(ctx, call, d.st, d.stKey(), data); err != nil {
 		return nil, "", err
 	}
@@ -325,7 +325,7 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 	}
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
-		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &databaseData{}); err != nil {
+		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
 			return err
 		}
 		return util.GlobChildren(ctx, call, matcher, sntx, util.TablePrefix)
@@ -347,7 +347,7 @@ func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string,
 	}
 	impl := func(sntx store.SnapshotOrTransaction) ([]string, error) {
 		// Check perms.
-		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &databaseData{}); err != nil {
+		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
 			return nil, err
 		}
 		it := sntx.Scan(util.ScanPrefixArgs(util.TablePrefix, ""))
@@ -398,7 +398,7 @@ func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st st
 	if !d.exists {
 		vlog.Fatalf("database %q does not exist", d.name)
 	}
-	return util.GetWithAuth(ctx, call, st, d.stKey(), &databaseData{})
+	return util.GetWithAuth(ctx, call, st, d.stKey(), &DatabaseData{})
 }
 
 func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
@@ -406,7 +406,7 @@ func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms a
 		vlog.Fatalf("database %q does not exist", d.name)
 	}
 	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
-		data := &databaseData{}
+		data := &DatabaseData{}
 		return util.UpdateWithAuth(ctx, call, tx, d.stKey(), data, func() error {
 			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
 				return err
@@ -460,7 +460,7 @@ func (db *queryDb) GetTable(name string) (ds.Table, error) {
 		},
 	}
 	// Now that we have a table, we need to check permissions.
-	if err := util.GetWithAuth(db.ctx, db.call, db.sntx, tDb.req.stKey(), &tableData{}); err != nil {
+	if err := util.GetWithAuth(db.ctx, db.call, db.sntx, tDb.req.stKey(), &TableData{}); err != nil {
 		return nil, err
 	}
 	return tDb, nil
