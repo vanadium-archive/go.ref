@@ -22,8 +22,8 @@ import (
 	"sync"
 
 	pubutil "v.io/v23/syncbase/util"
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/vclock"
 )
 
 // Store is a store.Store that provides versioned storage and a watchable oplog.
@@ -39,7 +39,7 @@ type Options struct {
 }
 
 // Wrap returns a watchable.Store that wraps the given store.Store.
-func Wrap(st store.Store, vclock *clock.VClock, opts *Options) (Store, error) {
+func Wrap(st store.Store, vclock *vclock.VClock, opts *Options) (Store, error) {
 	seq, err := getNextLogSeq(st)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func Wrap(st store.Store, vclock *clock.VClock, opts *Options) (Store, error) {
 		watcher: newWatcher(),
 		opts:    opts,
 		seq:     seq,
-		clock:   vclock,
+		vclock:  vclock,
 	}, nil
 }
 
@@ -57,9 +57,9 @@ type wstore struct {
 	ist     store.Store
 	watcher *watcher
 	opts    *Options
-	mu      sync.Mutex    // held during transaction commits; protects seq
-	seq     uint64        // the next sequence number to be used for a new commit
-	clock   *clock.VClock // used to provide write timestamps
+	mu      sync.Mutex     // held during transaction commits; protects seq
+	seq     uint64         // the next sequence number to be used for a new commit
+	vclock  *vclock.VClock // used to provide write timestamps
 }
 
 var _ Store = (*wstore)(nil)

@@ -213,7 +213,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	state := &SgLocalState{}
 	tx := st.NewTransaction()
 	if err := setSGIdEntry(nil, tx, gid, state); err != nil {
-		t.Fatal("setSGIdEntry() failed for gid %v", gid)
+		t.Fatalf("setSGIdEntry() failed for gid %v", gid)
 	}
 	putBlobRefData(t, tx, fooKey, "333")
 	putBlobRefData(t, tx, fooxyzKey, "444")

@@ -25,13 +25,15 @@ import (
 var (
 	ErrDupSyncgroupPublish = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DupSyncgroupPublish", verror.NoRetry, "{1:}{2:} duplicate publish on syncgroup: {3}")
 	ErrConnFail            = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.ConnFail", verror.NoRetry, "{1:}{2:} connection to peer failed{:_}")
-	ErrBrokenCrConnection  = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.BrokenCrConnection", verror.NoRetry, "{1:}{2:} CrConnection stream to application does not exist or is broken.")
+	ErrBrokenCrConnection  = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.BrokenCrConnection", verror.NoRetry, "{1:}{2:} CrConnection stream to client does not exist or is broken")
+	ErrGetTimeFailed       = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.GetTimeFailed", verror.NoRetry, "{1:}{2:} GetTime failed{:_}")
 )
 
 func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDupSyncgroupPublish.ID), "{1:}{2:} duplicate publish on syncgroup: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnFail.ID), "{1:}{2:} connection to peer failed{:_}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBrokenCrConnection.ID), "{1:}{2:} CrConnection stream to application does not exist or is broken.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBrokenCrConnection.ID), "{1:}{2:} CrConnection stream to client does not exist or is broken")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrGetTimeFailed.ID), "{1:}{2:} GetTime failed{:_}")
 }
 
 // NewErrDupSyncgroupPublish returns an error with the ErrDupSyncgroupPublish ID.
@@ -49,14 +51,19 @@ func NewErrBrokenCrConnection(ctx *context.T) error {
 	return verror.New(ErrBrokenCrConnection, ctx)
 }
 
+// NewErrGetTimeFailed returns an error with the ErrGetTimeFailed ID.
+func NewErrGetTimeFailed(ctx *context.T) error {
+	return verror.New(ErrGetTimeFailed, ctx)
+}
+
 // SyncClientMethods is the client interface
 // containing Sync methods.
 //
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type SyncClientMethods interface {
-	// GetTime returns metadata related to syncbase clock like syncbase clock
-	// timestamps, last NTP timestamp, num reboots, etc.
+	// GetTime returns metadata related to the Syncbase virtual clock, including
+	// system clock values, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, req TimeReq, initiator string, _ ...rpc.CallOpt) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
@@ -494,8 +501,8 @@ func (c *implSyncFetchChunksClientCall) Finish() (err error) {
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type SyncServerMethods interface {
-	// GetTime returns metadata related to syncbase clock like syncbase clock
-	// timestamps, last NTP timestamp, num reboots, etc.
+	// GetTime returns metadata related to the Syncbase virtual clock, including
+	// system clock values, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
@@ -553,8 +560,8 @@ type SyncServerMethods interface {
 // The only difference between this interface and SyncServerMethods
 // is the streaming methods.
 type SyncServerStubMethods interface {
-	// GetTime returns metadata related to syncbase clock like syncbase clock
-	// timestamps, last NTP timestamp, num reboots, etc.
+	// GetTime returns metadata related to the Syncbase virtual clock, including
+	// system clock values, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
@@ -687,7 +694,7 @@ var descSync = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "GetTime",
-			Doc:  "// GetTime returns metadata related to syncbase clock like syncbase clock\n// timestamps, last NTP timestamp, num reboots, etc.",
+			Doc:  "// GetTime returns metadata related to the Syncbase virtual clock, including\n// system clock values, last NTP timestamp, num reboots, etc.",
 			InArgs: []rpc.ArgDesc{
 				{"req", ``},       // TimeReq
 				{"initiator", ``}, // string

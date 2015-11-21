@@ -26,20 +26,21 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/nosql"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/vclock"
 	"v.io/x/ref/services/syncbase/vsync"
 )
 
 // service is a singleton (i.e. not per-request) that handles Service RPCs.
 type service struct {
-	st     store.Store // keeps track of which apps and databases exist, etc.
-	sync   interfaces.SyncServerMethods
-	clockD *clock.ClockD
-	opts   ServiceOptions
+	st      store.Store // keeps track of which apps and databases exist, etc.
+	sync    interfaces.SyncServerMethods
+	vclock  *vclock.VClock
+	vclockD *vclock.VClockD
+	opts    ServiceOptions
 	// Guards the fields below. Held during app Create, Delete, and
 	// SetPermissions.
 	mu   sync.Mutex
@@ -53,7 +54,8 @@ var (
 
 // ServiceOptions configures a service.
 type ServiceOptions struct {
-	// Service-level permissions.  Used only when creating a brand-new storage instance.
+	// Service-level permissions. Used only when creating a brand-new storage
+	// instance.
 	Perms access.Permissions
 	// Root dir for data storage.
 	RootDir string
@@ -93,10 +95,19 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		return nil, err
 	}
 	s := &service{
-		st:   st,
-		opts: opts,
-		apps: map[string]*app{},
+		st:     st,
+		vclock: vclock.NewVClock(st),
+		opts:   opts,
+		apps:   map[string]*app{},
 	}
+
+	// Make sure the vclock is initialized before opening any databases (which
+	// pass vclock to watchable.Wrap) and before starting sync or vclock daemon
+	// goroutines.
+	if err := s.vclock.InitVClockData(); err != nil {
+		return nil, err
+	}
+
 	var sd ServiceData
 	if err := util.Get(ctx, st, s.stKey(), &sd); verror.ErrorID(err) != verror.ErrNoExist.ID {
 		if err != nil {
@@ -169,20 +180,20 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 			return nil, err
 		}
 	}
-	vclock := clock.NewVClock(st)
+
 	// Note, vsync.New internally handles both first-time and subsequent
 	// invocations.
-	if s.sync, err = vsync.New(ctx, s, opts.Engine, opts.RootDir, vclock, opts.PublishInNeighborhood); err != nil {
+	if s.sync, err = vsync.New(ctx, s, opts.Engine, opts.RootDir, s.vclock, opts.PublishInNeighborhood); err != nil {
 		return nil, err
 	}
 
-	// Create a new clock deamon and run clock check and ntp check in a
-	// scheduled loop.
-	s.clockD = clock.StartClockD(ctx, vclock)
+	// Start the vclock daemon.
+	s.vclockD = vclock.NewVClockD(s.vclock)
+	s.vclockD.Start()
 	return s, nil
 }
 
-// AddNames adds all the names for this Syncbase instance gathered from all the
+// AddNames adds all the names for this Syncbase instance, gathered from all the
 // syncgroups it is currently participating in. This method is exported so that
 // when syncbased is launched, it can publish these names.
 //
@@ -191,7 +202,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 // syncbased. Alternately, one can step through server creation in main.go and
 // create the server handle first and pass it to NewService so that sync can use
 // that handle to publish the names it needs. Server creation can then proceed
-// with hooking up the dispatcher etc. In the current approach, we favor not
+// with hooking up the dispatcher, etc. In the current approach, we favor not
 // breaking up the server init into pieces but using the available wrapper, and
 // adding the names when ready. Finally, we could have also exported a SetServer
 // method instead of the AddNames at the service layer. However, that approach
@@ -208,8 +219,8 @@ func (s *service) AddNames(ctx *context.T, svr rpc.Server) error {
 
 // Close shuts down this Syncbase instance.
 //
-// TODO(hpucha): Close or cleanup Syncbase app/db data structures, and clock
-// goroutines.
+// TODO(hpucha): Close or cleanup Syncbase app/db data structures and call
+// s.vclockD.Close().
 func (s *service) Close() {
 	vsync.Close(s.sync)
 }
@@ -268,11 +279,15 @@ func (s *service) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
+func (s *service) VClock() *vclock.VClock {
+	return s.vclock
+}
+
 func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Note, currently the service's apps map as well as per-app dbs maps are
-	// populated at startup.
+	// Note, currently the service's 'apps' map as well as the per-app 'dbs' maps
+	// are populated at startup.
 	a, ok := s.apps[appName]
 	if !ok {
 		return nil, verror.New(verror.ErrNoExist, ctx, appName)

@@ -8,37 +8,35 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/vclock"
 )
 
-func TestClockGetTime(t *testing.T) {
+func TestVClockGetTime(t *testing.T) {
 	service := createService(t)
 	defer destroyService(t, service)
 
-	ntpTs := time.Now().Add(-10 * time.Minute)
-	skew := 3 * time.Second
-
-	clockData := newClockData(skew.Nanoseconds(), &ntpTs, 0, 0)
-	vclock := clock.NewVClock(service.St())
-	tx := vclock.St().NewTransaction()
-	if err := vclock.SetClockData(tx, clockData); err != nil {
-		t.Errorf("Failed to store clock data with error: %v", err)
+	wantSkew := 3 * time.Second
+	if err := util.Put(nil, service.St(), util.VClockPrefix, &vclock.VClockData{
+		SystemTimeAtBoot:     time.Time{},
+		Skew:                 wantSkew,
+		ElapsedTimeSinceBoot: 0,
+		LastNtpTs:            time.Now().Add(-10 * time.Minute),
+		NumReboots:           0,
+		NumHops:              0,
+	}); err != nil {
+		t.Errorf("Failed to write VClockData: %v", err)
 	}
-	if err := tx.Commit(); err != nil {
-		t.Errorf("Error while commiting tx: %v", err)
-	}
 
-	req := createReq(time.Now())
-	resp, err := service.Sync().GetTime(nil, nil, req, "test")
+	resp, err := service.Sync().GetTime(nil, nil, interfaces.TimeReq{SendTs: time.Now()}, "test")
 	if err != nil {
-		t.Errorf("GetTime rpc returned error: %v", err)
-		t.FailNow()
+		t.Fatalf("GetTime RPC failed: %v", err)
 	}
-	offset := getOffset(resp)
 
-	if abs(offset-skew) > time.Millisecond {
-		t.Errorf("GetTime returned a skew beyond error margin. expected: %v, actual: %v", skew, offset)
+	gotSkew := getSkew(resp)
+	if abs(gotSkew-wantSkew) > time.Millisecond {
+		t.Errorf("GetTime returned skew outside of error bounds; want: %v, got: %v", wantSkew, gotSkew)
 	}
 }
 
@@ -49,27 +47,10 @@ func abs(d time.Duration) time.Duration {
 	return d
 }
 
-func createReq(ts time.Time) interfaces.TimeReq {
-	return interfaces.TimeReq{
-		SendTs: ts,
-	}
-}
-
-func newClockData(skew int64, ntp *time.Time, reboots, hops uint16) *clock.ClockData {
-	return &clock.ClockData{
-		SystemTimeAtBoot:     0,
-		Skew:                 skew,
-		ElapsedTimeSinceBoot: 0,
-		LastNtpTs:            ntp,
-		NumReboots:           reboots,
-		NumHops:              hops,
-	}
-}
-
-func getOffset(resp interfaces.TimeResp) time.Duration {
-	clientReceiveTs := time.Now()
-	clientTransmitTs := resp.OrigTs
-	serverReceiveTs := resp.RecvTs
-	serverTransmitTs := resp.SendTs
-	return (serverReceiveTs.Sub(clientTransmitTs) + serverTransmitTs.Sub(clientReceiveTs)) / 2
+func getSkew(resp interfaces.TimeResp) time.Duration {
+	clientRecvTs := time.Now()
+	clientSendTs := resp.OrigTs
+	serverRecvTs := resp.RecvTs
+	serverSendTs := resp.SendTs
+	return (serverRecvTs.Sub(clientSendTs) + serverSendTs.Sub(clientRecvTs)) / 2
 }

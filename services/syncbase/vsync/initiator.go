@@ -162,16 +162,16 @@ func (s *syncService) identifyPeer(ctxIn *context.T, peer connInfo) ([]string, c
 	defer cancel()
 
 	var blessingNames []string
-	op := func(ctx *context.T, peer string) error {
+	op := func(ctx *context.T, peer string) (interface{}, error) {
 		call, err := v23.GetClient(ctx).StartCall(ctx, peer, "GetDeltas", nil)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		blessingNames, _ = call.RemoteBlessings()
 		call.Finish()
-		return nil
+		return nil, nil
 	}
-	updPeer, err := runAtPeer(ctx, peer, op)
+	updPeer, _, err := runAtPeer(ctx, peer, op)
 	return blessingNames, updPeer, err
 }
 
@@ -272,7 +272,7 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 		}
 	}
 
-	op := func(ctx *context.T, peer string) error {
+	op := func(ctx *context.T, peer string) (interface{}, error) {
 		c := interfaces.SyncClient(peer)
 		var err error
 		// The authorizer passed to the RPC ensures that the remote
@@ -280,12 +280,12 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 		// identification step done previously.
 		iSt.stream, err = c.GetDeltas(ctx, iSt.req, iSt.config.sync.name,
 			options.ServerAuthorizer{iSt.config.auth}, options.ChannelTimeout(connectionTimeOut))
-		return err
+		return nil, err
 	}
 
 	// Make contact with the peer to start getting the deltas.
 	var err error
-	c.peer, err = runAtPeer(ctx, c.peer, op)
+	c.peer, _, err = runAtPeer(ctx, c.peer, op)
 	if err != nil {
 		return err
 	}
@@ -1123,44 +1123,44 @@ func mergeGenVectors(lpgv, respgv interfaces.GenVector) {
 ////////////////////////////////////////////////////////////////////////////////
 // Internal helpers to make different RPCs needed for syncing.
 
-// remoteOp encapsulates an RPC operation run against "peer".
-type remoteOp func(ctx *context.T, peer string) error
+// remoteOp encapsulates an RPC operation run against "peer". The returned
+// interface can contain a response message (e.g. TimeResp, for GetTime) or can
+// be nil (e.g. for GetDeltas stream connections).
+type remoteOp func(ctx *context.T, peer string) (interface{}, error)
 
 // runAtPeer attempts to connect to the remote peer using the neighborhood
 // address when specified or the mount tables obtained from all the common
 // syncgroups, and runs the specified op.
-func runAtPeer(ctx *context.T, peer connInfo, op remoteOp) (connInfo, error) {
+func runAtPeer(ctx *context.T, peer connInfo, op remoteOp) (connInfo, interface{}, error) {
 	if len(peer.mtTbls) < 1 && len(peer.addrs) < 1 {
-		return peer, verror.New(verror.ErrInternal, ctx, "no mount tables/endpoint found", peer)
+		return peer, nil, verror.New(verror.ErrInternal, ctx, "no mount tables or endpoints found", peer)
 	}
 
 	updPeer := peer
 	if peer.addrs != nil {
 		for i, addr := range peer.addrs {
 			absName := naming.Join(addr, util.SyncbaseSuffix)
-			err := runRemoteOp(ctx, absName, op)
-			if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+			if resp, err := runRemoteOp(ctx, absName, op); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
 				updPeer.addrs = updPeer.addrs[i:]
-				return updPeer, err
+				return updPeer, resp, err
 			}
 		}
 		updPeer.addrs = nil
 	} else {
 		for i, mt := range peer.mtTbls {
 			absName := naming.Join(mt, peer.relName, util.SyncbaseSuffix)
-			err := runRemoteOp(ctx, absName, op)
-			if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+			if resp, err := runRemoteOp(ctx, absName, op); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
 				updPeer.mtTbls = updPeer.mtTbls[i:]
-				return updPeer, err
+				return updPeer, resp, err
 			}
 		}
 		updPeer.mtTbls = nil
 	}
 
-	return updPeer, verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", updPeer.relName, updPeer.addrs)
+	return updPeer, nil, verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", updPeer.relName, updPeer.addrs)
 }
 
-func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) error {
+func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, error) {
 	vlog.VI(4).Infof("sync: runRemoteOp: begin for %v", absName)
 
 	ctx, cancel := context.WithCancel(ctxIn)
@@ -1168,19 +1168,21 @@ func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) error {
 	// We start a timer to bound the amount of time we wait to
 	// initiate a connection.
 	t := time.AfterFunc(connectionTimeOut, cancel)
-	err := op(ctx, absName)
+	resp, err := op(ctx, absName)
 	t.Stop()
 
 	if err == nil {
 		vlog.VI(4).Infof("sync: runRemoteOp: end op established for %s", absName)
-		return nil
+		return resp, nil
 	}
 
 	vlog.VI(4).Infof("sync: runRemoteOp: end for %s, err %v", absName, err)
 
-	// TODO(hpucha): Fix error handling so that we do not assume that any
-	// error that is not "access denied" is a connection error.
-	if verror.ErrorID(err) != verror.ErrNoAccess.ID {
+	// TODO(hpucha): Fix error handling so that we do not assume that any error
+	// that is not ErrNoAccess or ErrGetTimeFailed is a connection error. Need to
+	// chat with m3b, mattr, et al to figure out how applications should
+	// distinguish RPC errors from application errors in general.
+	if verror.ErrorID(err) != verror.ErrNoAccess.ID && verror.ErrorID(err) != interfaces.ErrGetTimeFailed.ID {
 		err = verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", absName)
 	}
 
@@ -1188,5 +1190,5 @@ func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) error {
 	// care of cancelling the child context. When the err is non-nil, we
 	// cancel the context here.
 	cancel()
-	return err
+	return nil, err
 }

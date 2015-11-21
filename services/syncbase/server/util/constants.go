@@ -4,15 +4,11 @@
 
 package util
 
-import (
-	"time"
-)
-
 // Constants related to storage engine keys.
 // Note, these are persisted and therefore must not be modified.
 const (
 	AppPrefix        = "a"
-	ClockPrefix      = "c"
+	VClockPrefix     = "c"
 	DatabasePrefix   = "d"
 	DbInfoPrefix     = "i"
 	LogPrefix        = "l"
@@ -43,18 +39,4 @@ const (
 	// Batch object names have the form:
 	//     <syncbase>/<app>/<database>%%<batchInfo>/...
 	BatchSep = "%%"
-)
-
-// Constants related to syncbase clock.
-const (
-	// The pool.ntp.org project is a big virtual cluster of timeservers,
-	// providing reliable, easy-to-use NTP service for millions of clients.
-	// See more at http://www.pool.ntp.org/en/
-	NtpServerPool            = "pool.ntp.org"
-	NtpSampleCount           = 15
-	LocalClockDriftThreshold = float64(time.Second)
-	NtpDiffThreshold         = float64(2 * time.Second)
-	PeerSyncDiffThreshold    = NtpDiffThreshold
-	RebootTolerance          = float64(time.Minute)
-	HopTolerance             = 2
 )

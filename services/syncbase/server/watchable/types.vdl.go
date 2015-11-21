@@ -180,7 +180,9 @@ func (x OpSyncSnapshot) __VDLReflect(__OpReflect) {}
 type LogEntry struct {
 	// The store operation that was performed.
 	Op Op
-	// Time when the operation was committed.
+	// Time when the operation was committed in nanoseconds since the epoch.
+	// Note: We don't use time.Time here because VDL's time.Time consists of
+	// {Seconds int64, Nanos int32}, which is more expensive than a single int64.
 	CommitTimestamp int64
 	// Operation came from sync (used for echo suppression).
 	FromSync bool

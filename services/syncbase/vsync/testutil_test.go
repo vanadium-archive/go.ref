@@ -18,11 +18,11 @@ import (
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/vclock"
 	"v.io/x/ref/test"
 )
 
@@ -36,6 +36,7 @@ type mockService struct {
 	engine   string
 	dir      string
 	st       store.Store
+	vclock   *vclock.VClock
 	sync     *syncService
 	shutdown func()
 }
@@ -46,6 +47,10 @@ func (s *mockService) St() store.Store {
 
 func (s *mockService) Sync() interfaces.SyncServerMethods {
 	return s.sync
+}
+
+func (s *mockService) VClock() *vclock.VClock {
+	return s.vclock
 }
 
 func (s *mockService) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
@@ -143,18 +148,24 @@ func createService(t *testing.T) *mockService {
 	if err != nil {
 		t.Fatalf("cannot create store %s (%s): %v", engine, dir, err)
 	}
-	vclock := clock.NewVClock(st)
-	st, err = watchable.Wrap(st, vclock, &watchable.Options{
+
+	cl := vclock.NewVClock(st)
+	if err := cl.InitVClockData(); err != nil {
+		t.Fatalf("InitVClockData failed: %v", err)
+	}
+
+	st, err = watchable.Wrap(st, cl, &watchable.Options{
 		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
 	})
 
 	s := &mockService{
-		st:       st,
 		engine:   engine,
 		dir:      dir,
+		st:       st,
+		vclock:   cl,
 		shutdown: shutdown,
 	}
-	if s.sync, err = New(ctx, s, engine, dir, vclock, true); err != nil {
+	if s.sync, err = New(ctx, s, engine, dir, cl, true); err != nil {
 		util.DestroyStore(engine, dir)
 		t.Fatalf("cannot create sync service: %v", err)
 	}

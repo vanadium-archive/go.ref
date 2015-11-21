@@ -151,28 +151,22 @@ type TimeReq struct {
 	SendTs time.Time
 }
 
-// TimeResp contains timestamps needed by the requester to correctly estimate
-// the difference between the two clocks along with clock metadata required
-// by the requester to decide which clock is more accurate.
+// TimeResp contains information needed by the requester to estimate the
+// difference between the two vclocks and to decide whether to incorporate the
+// peer's vclock data.
 type TimeResp struct {
-	// The send timestamp received in TimeReq from the originator.
-	OrigTs time.Time
+	OrigTs time.Time // when we sent request
+	RecvTs time.Time // when peer received request
+	SendTs time.Time // when peer sent response
 
-	// Time when the request was received.
-	RecvTs time.Time
+	// NTP server timestamp from the most recent NTP sync, or zero value if none.
+	// Note, the NTP sync may have been performed by some peer device.
+	LastNtpTs time.Time
 
-	// Time when the response was sent.
-	SendTs time.Time
-
-	// Timestamp received from NTP during last NTP sync. The last NTP sync could
-	// be done either by this device or some other device that this device
-	// synced its clock with.
-	LastNtpTs ?time.Time
-
-	// Number of reboots since last NTP sync.
+	// Number of reboots since last NTP sync, accumulated across all hops of p2p
+	// clock sync.
 	NumReboots uint16
 
-	// Number of hops between this device and the device that did the last
-	// NTP sync.
+	// Number of sync hops between peer's device and its source of LastNtpTs.
 	NumHops uint16
 }

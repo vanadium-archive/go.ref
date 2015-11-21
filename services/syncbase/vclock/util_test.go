@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package clock
+package vclock
 
 import (
 	"math/rand"
@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-func TestHasSysClockChangedWithRealClock(t *testing.T) {
+func TestHasSysClockChangedWithRealVClock(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		sysClock := newSystemClock()
+		sysClock := newRealSystemClock()
 		e1, err := sysClock.ElapsedTime()
 		t1 := sysClock.Now()
 		if err != nil {
@@ -30,52 +30,52 @@ func TestHasSysClockChangedWithRealClock(t *testing.T) {
 		}
 
 		if HasSysClockChanged(t1, t2, e1, e2) {
-			t.Errorf("Clock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
+			t.Errorf("VClock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 		}
 	}
 }
 
-func TestHasSysClockChangedFakeClock(t *testing.T) {
+func TestHasSysClockChangedFakeVClock(t *testing.T) {
 	e1 := 2000 * time.Millisecond
 	t1 := time.Now()
 
-	// elapsed time diff slightly greater than clock diff.
+	// elapsed time diff slightly greater than vclock diff.
 	t2 := t1.Add(200 * time.Millisecond)
 	e2 := e1 + 300*time.Millisecond
 
 	if HasSysClockChanged(t1, t2, e1, e2) {
-		t.Errorf("Clock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
+		t.Errorf("VClock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 
-	// elapsed time diff slightly smaller than clock diff.
+	// elapsed time diff slightly smaller than vclock diff.
 	t2 = t1.Add(300 * time.Millisecond)
 	e2 = e1 + 200*time.Millisecond
 
 	if HasSysClockChanged(t1, t2, e1, e2) {
-		t.Errorf("Clock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
+		t.Errorf("VClock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 
-	// elapsed time diff much greater than clock diff.
+	// elapsed time diff much greater than vclock diff.
 	t2 = t1.Add(200 * time.Millisecond)
 	e2 = e1 + 3000*time.Millisecond
 
 	if !HasSysClockChanged(t1, t2, e1, e2) {
-		t.Errorf("Clock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
+		t.Errorf("VClock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 
-	// elapsed time diff much smaller than clock diff.
+	// elapsed time diff much smaller than vclock diff.
 	t2 = t1.Add(4000 * time.Millisecond)
 	e2 = e1 + 300*time.Millisecond
 
 	if !HasSysClockChanged(t1, t2, e1, e2) {
-		t.Errorf("Clock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
+		t.Errorf("VClock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 
-	// clock diff is negative
+	// vclock diff is negative
 	t2 = t1.Add(-200 * time.Millisecond)
 	e2 = e1 + 300*time.Millisecond
 
 	if !HasSysClockChanged(t1, t2, e1, e2) {
-		t.Errorf("Clock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
+		t.Errorf("VClock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 }

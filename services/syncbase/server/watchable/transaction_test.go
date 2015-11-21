@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/vclock"
 )
 
 type testData struct {
@@ -70,22 +70,19 @@ func TestLogEntryTimestamps(t *testing.T) {
 	ist, destroy := createStore()
 	defer destroy()
 	t1 := time.Now()
-	inc := time.Duration(1) * time.Second
-	mockClock := newMockSystemClock(t1, inc)
-	vclock := clock.NewVClockWithMockServices(ist, mockClock, nil)
-	wst1, err := Wrap(ist, vclock, &Options{ManagedPrefixes: nil})
+	inc := time.Second
+	cl := vclock.NewVClockForTests(&mockSystemClock{time: t1, inc: inc})
+	wst1, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
 	seqForCreate := getSeq(wst1)
 
-	// Create data in store
+	// Write data1 and data2 to store.
 	if err := store.RunInTransaction(wst1, func(tx store.Transaction) error {
-		// add data1
 		if err := tx.Put([]byte(data1.key), []byte(data1.createVal)); err != nil {
 			return fmt.Errorf("can't put {%q: %v}: %v", data1.key, data1.createVal, err)
 		}
-		// add data2
 		if err := tx.Put([]byte(data2.key), []byte(data2.createVal)); err != nil {
 			return fmt.Errorf("can't put {%q: %v}: %v", data2.key, data2.createVal, err)
 		}
@@ -94,13 +91,13 @@ func TestLogEntryTimestamps(t *testing.T) {
 		panic(fmt.Errorf("can't commit transaction: %v", err))
 	}
 
-	// read and verify LogEntries written as part of above transaction
-	// We expect 2 entries in the log for the two puts.
-	// Timestamp from mockclock for the commit should be t1
-	verifyCommitLog(t, ist, seqForCreate, 2, t1)
+	// Read and verify LogEntries written as part of the above transaction.
+	// We expect 2 entries in the log for the 2 puts.
+	// Commit timestamp from mock vclock should be t1 + inc.
+	verifyCommitLog(t, ist, seqForCreate, 2, t1.Add(inc))
 
 	// Update data already present in store with a new watchable store
-	wst2, err := Wrap(ist, vclock, &Options{ManagedPrefixes: nil})
+	wst2, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
@@ -122,11 +119,10 @@ func TestLogEntryTimestamps(t *testing.T) {
 		panic(fmt.Errorf("can't commit transaction: %v", err))
 	}
 
-	// read and verify LogEntries written as part of above transaction
-	// We expect 4 entries in the log for the two gets and two puts.
-	// Timestamp from mockclock for the commit should be t1 + 1 sec
-	t2 := t1.Add(inc)
-	verifyCommitLog(t, ist, seqForUpdate, 4, t2)
+	// Read and verify LogEntries written as part of the above transaction.
+	// We expect 4 entries in the log for the 2 gets and 2 puts.
+	// Commit timestamp from mock vclock should be t1 + 2*inc.
+	verifyCommitLog(t, ist, seqForUpdate, 4, t1.Add(2*inc))
 }
 
 func eq(t *testing.T, got, want interface{}) {
@@ -140,10 +136,11 @@ func TestOpLogConsistency(t *testing.T) {
 	ist, destroy := createStore()
 	defer destroy()
 	t1 := time.Now()
-	inc := time.Duration(1) * time.Second
-	mockClock := newMockSystemClock(t1, inc)
-	vclock := clock.NewVClockWithMockServices(ist, mockClock, nil)
-	wst, err := Wrap(ist, vclock, &Options{ManagedPrefixes: nil})
+	inc := time.Second
+	// Note: NewVClockForTests calls cl.SysClock.Now() once to write the initial
+	// VClockData to the store.
+	cl := vclock.NewVClockForTests(&mockSystemClock{time: t1, inc: inc})
+	wst, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}

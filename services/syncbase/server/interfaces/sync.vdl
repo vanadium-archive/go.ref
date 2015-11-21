@@ -12,8 +12,8 @@ import (
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type Sync interface {
-	// GetTime returns metadata related to syncbase clock like syncbase clock
-	// timestamps, last NTP timestamp, num reboots, etc.
+	// GetTime returns metadata related to the Syncbase virtual clock, including
+	// system clock values, last NTP timestamp, num reboots, etc.
 	GetTime(req TimeReq, initiator string) (TimeResp | error)
 
 	// GetDeltas returns the responder's current generation vectors and all
@@ -79,5 +79,6 @@ type Sync interface {
 error (
 	DupSyncgroupPublish(name string) {"en": "duplicate publish on syncgroup: {name}"}
 	ConnFail() {"en": "connection to peer failed{:_}"}
-	BrokenCrConnection() {"en": "CrConnection stream to application does not exist or is broken."}
+	BrokenCrConnection() {"en": "CrConnection stream to client does not exist or is broken"}
+	GetTimeFailed() {"en": "GetTime failed{:_}"}
 )

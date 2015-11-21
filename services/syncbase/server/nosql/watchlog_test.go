@@ -13,11 +13,11 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	_ "v.io/x/ref/runtime/factories/generic"
-	"v.io/x/ref/services/syncbase/clock"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/memstore"
+	"v.io/x/ref/services/syncbase/vclock"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -51,8 +51,8 @@ func TestWatchLogPerms(t *testing.T) {
 	defer shutdown()
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("root"))
 	// Mock the service, store, db, table.
-	vClock := clock.NewVClockWithMockServices(memstore.New(), nil, nil)
-	st, _ := watchable.Wrap(memstore.New(), vClock, &watchable.Options{
+	c := vclock.NewVClockForTests(nil)
+	st, _ := watchable.Wrap(memstore.New(), c, &watchable.Options{
 		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
 	})
 	db := &databaseReq{database: &database{name: "d", st: st}}

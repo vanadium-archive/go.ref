@@ -167,7 +167,7 @@ func TestGroupConflicts(t *testing.T) {
 		}
 	}
 	if len(crGroups.oids) != 8 {
-		t.Errorf("Size of groupedCrData.oids expected: %s actual: %s", 8, len(crGroups.oids))
+		t.Errorf("Size of groupedCrData.oids expected: %d actual: %d", 8, len(crGroups.oids))
 	}
 	verifyOidList(t, crGroups, x, y, z, a, b, c, p, q)
 }
@@ -199,11 +199,11 @@ func verifyGroup1(t *testing.T, group *crGroup) {
 
 func verifyGroup2(t *testing.T, group *crGroup) {
 	if len(group.batchSource) != 0 {
-		t.Errorf("Non empty batchSource map found for Group2: %s", group.batchSource)
+		t.Errorf("Non empty batchSource map found for Group2: %v", group.batchSource)
 	}
 	_, present := group.batchesByOid[a]
 	if len(group.batchesByOid) != 1 || !present {
-		t.Errorf("Unexpected batchesByOid map found for Group2: %s", group.batchesByOid)
+		t.Errorf("Unexpected batchesByOid map found for Group2: %v", group.batchesByOid)
 	}
 }
 

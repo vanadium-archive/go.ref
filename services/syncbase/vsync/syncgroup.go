@@ -252,13 +252,17 @@ func (s *syncService) updateSyncgroupVersioning(ctx *context.T, tx store.Transac
 
 // addSyncgroupLogRec adds a new local log record for a syncgroup.
 func addSyncgroupLogRec(ctx *context.T, tx store.Transaction, oid, version string, parents []string, servId, gen, pos uint64) error {
+	now, err := watchable.GetStoreTime(ctx, tx)
+	if err != nil {
+		return err
+	}
 	rec := &LocalLogRec{
 		Metadata: interfaces.LogRecMetadata{
 			ObjId:   oid,
 			CurVers: version,
 			Parents: parents,
 			Delete:  false,
-			UpdTime: watchable.GetStoreTime(ctx, tx),
+			UpdTime: now,
 			Id:      servId,
 			Gen:     gen,
 			RecType: interfaces.NodeRec,
