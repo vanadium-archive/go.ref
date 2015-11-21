@@ -176,7 +176,7 @@ func run(env *cmdline.Env, args []string) error {
 		return err
 	}
 
-	h, err = sh.Start(nil, identitylib.TestIdentityd, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--http-addr=localhost:0")
+	h, err = sh.Start(nil, identitylib.TestIdentityd, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--http-addr=localhost:0")
 	if err != nil {
 		return err
 	}

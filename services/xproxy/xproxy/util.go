@@ -6,6 +6,7 @@ package xproxy
 
 import (
 	"fmt"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -13,6 +14,7 @@ import (
 	"v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	slib "v.io/x/ref/lib/security"
 )
 
 func setBidiProtocol(ep naming.Endpoint) (naming.Endpoint, error) {
@@ -87,9 +89,18 @@ func (proxyAuthorizer) AuthorizePeer(
 	return nil, nil, nil
 }
 
-func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
+func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, serverBlessings []string) (
 	security.Blessings, map[string]security.Discharge, error) {
-	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
+	blessings := v23.GetPrincipal(ctx).BlessingStore().Default()
+	var impetus security.DischargeImpetus
+	if len(serverBlessings) > 0 {
+		impetus.Server = make([]security.BlessingPattern, len(serverBlessings))
+		for i, b := range serverBlessings {
+			impetus.Server[i] = security.BlessingPattern(b)
+		}
+	}
+	discharges := slib.PrepareDischarges(ctx, blessings, impetus, time.Minute)
+	return blessings, discharges, nil
 }
 
 func writeMessage(ctx *context.T, m message.Message, f flow.Flow) error {

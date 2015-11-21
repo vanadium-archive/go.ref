@@ -65,10 +65,10 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	lAuth := &message.Auth{
 		ChannelBinding: signedBinding,
 	}
-	// We only send our real blessings if we are a server in addition to being a client,
-	// and we are not talking through a proxy.
+	// We only send our real blessings if we are a server in addition to being a client.
 	// Otherwise, we only send our public key through a nameless blessings object.
-	if c.lBlessings.IsZero() || c.handler == nil || c.isProxy {
+	// TODO(suharshs): Should we reveal server blessings if we are connecting to proxy here.
+	if c.lBlessings.IsZero() || c.handler == nil {
 		c.lBlessings, _ = security.NamelessBlessing(v23.GetPrincipal(ctx).PublicKey())
 	}
 	// The client sends its blessings without any blessing-pattern encryption to the
