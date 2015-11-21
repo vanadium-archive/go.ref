@@ -52,7 +52,6 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
 
     private io.v.v23.rpc.Client getClient(io.v.v23.context.VContext context) {
         return this.client != null ? client : io.v.v23.V.getClient(context);
-
     }
 
     // Methods from interface {{ .ServiceName }}Client.
@@ -70,7 +69,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         // Start the call.
         java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
         java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
-        final io.v.v23.rpc.ClientCall _call = getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts);
+        final io.v.v23.rpc.ClientCall _call = io.v.v23.VFutures.sync(getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts));
 
         // Finish the call.
         {{/* Now handle returning from the function. */}}
@@ -78,14 +77,14 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
 
         {{ if $method.IsVoid }}
         java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{};
-        _call.finish(_resultTypes);
+        io.v.v23.VFutures.sync(_call.finish(_resultTypes));
         {{ else }} {{/* else $method.IsVoid */}}
         java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
             {{ range $outArg := $method.OutArgs }}
             new com.google.common.reflect.TypeToken<{{ $outArg.Type }}>() {}.getType(),
             {{ end }}
         };
-        java.lang.Object[] _results = _call.finish(_resultTypes);
+        java.lang.Object[] _results = io.v.v23.VFutures.sync(_call.finish(_resultTypes));
         {{ if $method.MultipleReturn }}
         {{ $method.DeclaredObjectRetType }} _ret = new {{ $method.DeclaredObjectRetType }}();
             {{ range $i, $outArg := $method.OutArgs }}
@@ -110,13 +109,13 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
             public {{ $method.DeclaredObjectRetType }} finish() throws io.v.v23.verror.VException {
                 {{ if $method.IsVoid }}
                 java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{};
-                _call.finish(resultTypes);
+                io.v.v23.VFutures.sync(_call.finish(resultTypes));
                 return null;
                 {{ else }} {{/* else $method.IsVoid */}}
                 java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{
                     new com.google.common.reflect.TypeToken<{{ $method.DeclaredObjectRetType }}>() {}.getType()
                 };
-                return ({{ $method.DeclaredObjectRetType }})_call.finish(resultTypes)[0];
+                return ({{ $method.DeclaredObjectRetType }})io.v.v23.VFutures.sync(_call.finish(resultTypes))[0];
                 {{ end }} {{/* end if $method.IsVoid */}}
             }
             @Override
@@ -144,13 +143,13 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         // Start the call.
         java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
         java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
-        io.v.v23.rpc.Callback<io.v.v23.rpc.ClientCall> clientCallback = new io.v.v23.rpc.Callback<io.v.v23.rpc.ClientCall>() {
+        final io.v.v23.rpc.Callback<io.v.v23.rpc.ClientCall> clientCallback = new io.v.v23.rpc.Callback<io.v.v23.rpc.ClientCall>() {
             @Override
             public void onSuccess(final io.v.v23.rpc.ClientCall _call) {
                 // Finish the call.
                 {{ if $method.NotStreaming }}
 
-                io.v.v23.rpc.Callback<Object[]> finishCallback = new io.v.v23.rpc.Callback<Object[]>() {
+                final io.v.v23.rpc.Callback<Object[]> finishCallback = new io.v.v23.rpc.Callback<Object[]>() {
                     @Override
                     public void onSuccess(Object[] _results) {
                         {{ if $method.IsVoid }}
@@ -181,7 +180,26 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                     {{ end }}
                 };
                 {{ end }} {{/* end if $method.IsVoid */}}
-                _call.finish(_resultTypes, finishCallback);
+                try {
+                    com.google.common.util.concurrent.Futures.addCallback(_call.finish(_resultTypes),
+                        new com.google.common.util.concurrent.FutureCallback<Object[]>() {
+                            @Override
+                            public void onSuccess(Object[] result) {
+                                finishCallback.onSuccess(result);
+                            }
+    
+                            @Override
+                            public void onFailure(Throwable t) {
+                                if (t instanceof io.v.v23.verror.VException) {
+                                    finishCallback.onFailure((io.v.v23.verror.VException) t);
+                                } else {
+                                    finishCallback.onFailure(new io.v.v23.verror.VException("TODO"));
+                                }
+                            }
+                        });
+                } catch (io.v.v23.verror.VException e) {
+                    callback.onFailure(e);
+                }
 
                 {{else }} {{/* else $method.NotStreaming */}}
                 final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable(_call,new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType());
@@ -195,13 +213,13 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                     public {{ $method.DeclaredObjectRetType }} finish() throws io.v.v23.verror.VException {
                         {{ if $method.IsVoid }}
                         java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{};
-                        _call.finish(resultTypes);
+                        io.v.v23.VFutures.sync(_call.finish(resultTypes));
                         return null;
                         {{ else }} {{/* else $method.IsVoid */}}
                         java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{
                             new com.google.common.reflect.TypeToken<{{ $method.DeclaredObjectRetType }}>() {}.getType()
                         };
-                        return ({{ $method.DeclaredObjectRetType }})_call.finish(resultTypes)[0];
+                        return ({{ $method.DeclaredObjectRetType }})io.v.v23.VFutures.sync(_call.finish(resultTypes))[0];
                         {{ end }} {{/* end if $method.IsVoid */}}
                     }
                     @Override
@@ -225,7 +243,23 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
             }
         };
 
-        getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts, clientCallback);
+        com.google.common.util.concurrent.Futures.addCallback(
+            getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts),
+            new com.google.common.util.concurrent.FutureCallback<io.v.v23.rpc.ClientCall>() {
+                @Override
+                public void onSuccess(io.v.v23.rpc.ClientCall result) {
+                    clientCallback.onSuccess(result);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    if (t instanceof io.v.v23.verror.VException) {
+                        clientCallback.onFailure((io.v.v23.verror.VException) t);
+                    } else {
+                        clientCallback.onFailure(new io.v.v23.verror.VException("TODO"));
+                    }
+                }
+            });
     }
 {{ end }}{{/* end range over methods */}}
 
