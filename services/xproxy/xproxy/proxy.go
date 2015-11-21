@@ -307,20 +307,15 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 	if err != nil {
 		return nil, err
 	}
+	if err := p.authorizeFlow(ctx, fout); err != nil {
+		return nil, err
+	}
 	// Write the setup message back onto the flow for the next hop to read.
 	return fout, writeMessage(ctx, m, fout)
 }
 
 func (p *proxy) replyToServerLocked(ctx *context.T, f flow.Flow) error {
-	call := security.NewCall(&security.CallParams{
-		LocalPrincipal:   v23.GetPrincipal(ctx),
-		LocalBlessings:   f.LocalBlessings(),
-		RemoteBlessings:  f.RemoteBlessings(),
-		LocalEndpoint:    f.LocalEndpoint(),
-		RemoteEndpoint:   f.RemoteEndpoint(),
-		RemoteDischarges: f.RemoteDischarges(),
-	})
-	if err := p.auth.Authorize(ctx, call); err != nil {
+	if err := p.authorizeFlow(ctx, f); err != nil {
 		// TODO(suharshs): should we return the err to the server in the ProxyResponse message?
 		f.Close()
 		return err
@@ -331,6 +326,18 @@ func (p *proxy) replyToServerLocked(ctx *context.T, f flow.Flow) error {
 		return err
 	}
 	return writeMessage(ctx, &message.ProxyResponse{Endpoints: eps}, f)
+}
+
+func (p *proxy) authorizeFlow(ctx *context.T, f flow.Flow) error {
+	call := security.NewCall(&security.CallParams{
+		LocalPrincipal:   v23.GetPrincipal(ctx),
+		LocalBlessings:   f.LocalBlessings(),
+		RemoteBlessings:  f.RemoteBlessings(),
+		LocalEndpoint:    f.LocalEndpoint(),
+		RemoteEndpoint:   f.RemoteEndpoint(),
+		RemoteDischarges: f.RemoteDischarges(),
+	})
+	return p.auth.Authorize(ctx, call)
 }
 
 func (p *proxy) replyToProxyLocked(ctx *context.T, f flow.Flow) error {

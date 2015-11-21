@@ -252,9 +252,11 @@ func TestProxyAuthorizesServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var proxyEP naming.Endpoint
 	for {
 		status := server.Status()
 		if status.Endpoints[0].Addr().Network() != bidiProtocol {
+			proxyEP = status.Endpoints[0]
 			break
 		}
 		<-status.Valid
@@ -273,6 +275,18 @@ func TestProxyAuthorizesServer(t *testing.T) {
 	time.Sleep(time.Second)
 	if server.Status().Endpoints[0].Addr().Network() != bidiProtocol {
 		t.Errorf("proxy should have rejected the server's request to listen through it")
+	}
+
+	// Artificially constructing the proxied endpoint to the server should
+	// not work. (i.e. a client cannot "trick" a proxy into connecting to a server
+	// that the proxy doesn't want to talk to).
+	ep, err := setEndpointRoutingID(proxyEP, server.Status().Endpoints[0].RoutingID())
+	if err != nil {
+		t.Error(err)
+	}
+	var got string
+	if err := v23.GetClient(ctx).Call(ctx, ep.Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}, options.NoRetry{}); err == nil {
+		t.Error("proxy should not have authorized server.")
 	}
 }
 
@@ -543,4 +557,22 @@ func (p *killProtocol) Listen(ctx *context.T, protocol, address string) (flow.Li
 
 func (p *killProtocol) Resolve(ctx *context.T, protocol, address string) (string, string, error) {
 	return p.protocol.Resolve(ctx, "tcp", address)
+}
+
+func setEndpointRoutingID(ep naming.Endpoint, rid naming.RoutingID) (naming.Endpoint, error) {
+	network, address, _, mountable := getEndpointParts(ep)
+	var opts []naming.EndpointOpt
+	opts = append(opts, rid)
+	opts = append(opts, mountable)
+	epString := naming.FormatEndpoint(network, address, opts...)
+	return v23.NewEndpoint(epString)
+}
+
+// getEndpointParts returns all the fields of ep.
+func getEndpointParts(ep naming.Endpoint) (network string, address string,
+	rid naming.RoutingID, mountable naming.EndpointOpt) {
+	network, address = ep.Addr().Network(), ep.Addr().String()
+	rid = ep.RoutingID()
+	mountable = naming.ServesMountTable(ep.ServesMountTable())
+	return
 }
