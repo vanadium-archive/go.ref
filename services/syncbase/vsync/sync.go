@@ -198,6 +198,9 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 		return nil, verror.New(verror.ErrInternal, ctx, err)
 	}
 
+	// Initialize the peer selection policy.
+	s.newPeerSelector(ctx, selectNeighborhoodAware)
+
 	// Open a blob store.
 	var err error
 	s.bst, err = fsblob.Create(ctx, blobStEngine, path.Join(blobRootDir, "blobs"))

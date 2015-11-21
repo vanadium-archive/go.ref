@@ -92,7 +92,6 @@ type peerSelector interface {
 func (s *syncService) syncer(ctx *context.T) {
 	defer s.pending.Done()
 
-	s.newPeerSelector(ctx, selectNeighborhoodAware)
 	ticker := time.NewTicker(peerSyncInterval)
 	defer ticker.Stop()
 

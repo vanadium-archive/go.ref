@@ -475,17 +475,18 @@ func (s *syncService) processBlobRefs(ctx *context.T, peer string, sgPrefixes ma
 // extractBlobRefs traverses a VDL value and extracts blob refs from it.
 func extractBlobRefs(val *vdl.Value) map[wire.BlobRef]struct{} {
 	brs := make(map[wire.BlobRef]struct{})
-	_, _ = extractBlobRefsInternal(val, brs)
+	extractBlobRefsInternal(val, brs)
 	return brs
 }
 
 // extractBlobRefsInternal traverses a VDL value recursively and extracts blob
 // refs from it.  The blob refs are accumulated in the given map of blob refs.
-// The function returns two flags (as integers), one to indicate that blob refs
-// were found and another to indicate that dynamic data types were seen (VDL
-// union or VDL any).
-func extractBlobRefsInternal(val *vdl.Value, brs map[wire.BlobRef]struct{}) (bool, bool) {
-	brFound, dynSeen := false, false
+// The function returns true if the data may contain blob refs, which means it
+// either contains blob refs or contains dynamic data types (VDL union or any)
+// which may in some instances contain blob refs.  Otherwise the function
+// returns false to indicate that the data definitely cannot contain blob refs.
+func extractBlobRefsInternal(val *vdl.Value, brs map[wire.BlobRef]struct{}) bool {
+	mayContain := false
 
 	if val != nil {
 		switch val.Kind() {
@@ -493,7 +494,7 @@ func extractBlobRefsInternal(val *vdl.Value, brs map[wire.BlobRef]struct{}) (boo
 			// Could be a BlobRef.
 			var br wire.BlobRef
 			if val.Type() == vdl.TypeOf(br) {
-				brFound = true
+				mayContain = true
 				if b := wire.BlobRef(val.RawString()); b != wire.NullBlobRef {
 					brs[b] = struct{}{}
 				}
@@ -501,17 +502,16 @@ func extractBlobRefsInternal(val *vdl.Value, brs map[wire.BlobRef]struct{}) (boo
 
 		case vdl.Struct:
 			for i := 0; i < val.Type().NumField(); i++ {
-				found, dyn := extractBlobRefsInternal(val.StructField(i), brs)
-				brFound = brFound || found
-				dynSeen = dynSeen || dyn
+				if extractBlobRefsInternal(val.StructField(i), brs) {
+					mayContain = true
+				}
 			}
 
 		case vdl.Array, vdl.List:
 			for i := 0; i < val.Len(); i++ {
-				found, dyn := extractBlobRefsInternal(val.Index(i), brs)
-				brFound = brFound || found
-				dynSeen = dynSeen || dyn
-				if !found && !dyn {
+				if extractBlobRefsInternal(val.Index(i), brs) {
+					mayContain = true
+				} else {
 					// Look no further, no blob refs in the rest.
 					break
 				}
@@ -521,19 +521,17 @@ func extractBlobRefsInternal(val *vdl.Value, brs map[wire.BlobRef]struct{}) (boo
 			lookInKey, lookInVal := true, true
 			for _, v := range val.Keys() {
 				if lookInKey {
-					found, dyn := extractBlobRefsInternal(v, brs)
-					brFound = brFound || found
-					dynSeen = dynSeen || dyn
-					if !found && !dyn {
+					if extractBlobRefsInternal(v, brs) {
+						mayContain = true
+					} else {
 						// No need to look in the keys anymore.
 						lookInKey = false
 					}
 				}
 				if lookInVal {
-					found, dyn := extractBlobRefsInternal(val.MapIndex(v), brs)
-					brFound = brFound || found
-					dynSeen = dynSeen || dyn
-					if !found && !dyn {
+					if extractBlobRefsInternal(val.MapIndex(v), brs) {
+						mayContain = true
+					} else {
 						// No need to look in values anymore.
 						lookInVal = false
 					}
@@ -546,10 +544,9 @@ func extractBlobRefsInternal(val *vdl.Value, brs map[wire.BlobRef]struct{}) (boo
 
 		case vdl.Set:
 			for _, v := range val.Keys() {
-				found, dyn := extractBlobRefsInternal(v, brs)
-				brFound = brFound || found
-				dynSeen = dynSeen || dyn
-				if !found && !dyn {
+				if extractBlobRefsInternal(v, brs) {
+					mayContain = true
+				} else {
 					// Look no further, no blob refs in the rest.
 					break
 				}
@@ -557,14 +554,14 @@ func extractBlobRefsInternal(val *vdl.Value, brs map[wire.BlobRef]struct{}) (boo
 
 		case vdl.Union:
 			_, val = val.UnionField()
-			brFound, _ = extractBlobRefsInternal(val, brs)
-			dynSeen = true
+			extractBlobRefsInternal(val, brs)
+			mayContain = true
 
 		case vdl.Any, vdl.Optional:
-			brFound, _ = extractBlobRefsInternal(val.Elem(), brs)
-			dynSeen = true
+			extractBlobRefsInternal(val.Elem(), brs)
+			mayContain = true
 		}
 	}
 
-	return brFound, dynSeen
+	return mayContain
 }
