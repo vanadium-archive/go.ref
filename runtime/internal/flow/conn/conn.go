@@ -88,13 +88,13 @@ type Conn struct {
 	unopenedFlows sync.WaitGroup
 	isProxy       bool
 	cancel        context.CancelFunc
+	handler       FlowHandler
 
 	mu sync.Mutex // All the variables below here are protected by mu.
 
 	rPublicKey           security.PublicKey
 	status               Status
 	remoteLameDuck       bool
-	handler              FlowHandler
 	nextFid              uint64
 	dischargeTimer       *time.Timer
 	lastUsedTime         time.Time
@@ -606,14 +606,13 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			c.mu.Unlock()
 			return nil // Conn is already being closed.
 		}
-		handler := c.handler
 		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, nil, false, true, c.acceptChannelTimeout)
 		f.releaseLocked(msg.InitialCounters)
 		c.toRelease[msg.ID] = DefaultBytesBufferedPerFlow
 		c.borrowing[msg.ID] = true
 		c.mu.Unlock()
 
-		handler.HandleFlow(f)
+		c.handler.HandleFlow(f)
 		if err := f.q.put(ctx, msg.Payload); err != nil {
 			return err
 		}
@@ -692,16 +691,6 @@ func (c *Conn) markUsedLocked() {
 func (c *Conn) IsEncapsulated() bool {
 	_, ok := c.mp.rw.(*flw)
 	return ok
-}
-
-func (c *Conn) UpdateFlowHandler(ctx *context.T, handler FlowHandler) error {
-	defer c.mu.Unlock()
-	c.mu.Lock()
-	if c.handler == nil && handler != nil {
-		return NewErrUpdatingNilFlowHandler(ctx)
-	}
-	c.handler = handler
-	return nil
 }
 
 type writer interface {

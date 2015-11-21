@@ -14,9 +14,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/flow"
-	"v.io/v23/rpc/version"
 	_ "v.io/x/ref/runtime/factories/fake"
-	"v.io/x/ref/runtime/internal/flow/flowtest"
 	"v.io/x/ref/test/goroutines"
 )
 
@@ -81,58 +79,4 @@ func TestLargeWrite(t *testing.T) {
 	go doRead(t, af, randData, &wg)
 	go doWrite(t, af, randData)
 	wg.Wait()
-}
-
-func TestUpdateFlowHandler(t *testing.T) {
-	defer goroutines.NoLeaks(t, leakWaitTime)()
-
-	ctx, shutdown := v23.Init()
-	dmrw, amrw := flowtest.Pipe(t, ctx, "local", "")
-	versions := version.RPCVersionRange{Min: 3, Max: 5}
-	ep, err := v23.NewEndpoint("@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dch, ach := make(chan *Conn), make(chan *Conn)
-	q1, q2 := make(chan flow.Flow, 1), make(chan flow.Flow, 1)
-	fh1, fh2 := fh(q1), fh(q2)
-	lBlessings := v23.GetPrincipal(ctx).BlessingStore().Default()
-	go func() {
-		d, err := NewDialed(ctx, lBlessings, dmrw, ep, ep, versions, flowtest.AllowAllPeersAuthorizer{}, time.Minute, 0, nil)
-		if err != nil {
-			panic(err)
-		}
-		dch <- d
-	}()
-	go func() {
-		a, err := NewAccepted(ctx, lBlessings, nil, amrw, ep, versions, time.Minute, 0, fh1)
-		if err != nil {
-			panic(err)
-		}
-		ach <- a
-	}()
-	d, a := <-dch, <-ach
-	var f flow.Flow
-	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0); err != nil {
-		t.Fatal(err)
-	}
-	// Write a byte to send the openFlow message.
-	if _, err := f.Write([]byte{'a'}); err != nil {
-		t.Fatal(err)
-	}
-	// The flow should be accepted in fh1.
-	<-q1
-	// After updating to fh2 the flow should be accepted in fh2.
-	a.UpdateFlowHandler(ctx, fh2)
-	if f, err = d.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0); err != nil {
-		t.Fatal(err)
-	}
-	// Write a byte to send the openFlow message.
-	if _, err := f.Write([]byte{'a'}); err != nil {
-		t.Fatal(err)
-	}
-	<-q2
-	shutdown()
-	d.Close(ctx, nil)
-	a.Close(ctx, nil)
 }

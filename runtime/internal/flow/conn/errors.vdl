@@ -26,7 +26,6 @@ error (
   NoPublicKey() {"en": "No public key was received by the remote end."}
   DialingNonServer() {"en": "You are attempting to dial on a connection with no remote server."}
   AcceptorBlessingsMissing() {"en": "The acceptor did not send blessings."}
-  UpdatingNilFlowHandler() {"en": "nil flowHandler cannot be updated to non-nil value."}
   BlessingsNotBound() {"en": "blessings not bound to connection remote public key"}
   NoBlessingsForPeer(peerNames []string, rejected []security.RejectedBlessing, err error) {"en": "no blessings tagged for peer {peerNames}, rejected:{rejected}{:err}"}
   InvalidPeerFlow() {"en": "peer has chosen flow id from local domain."}
