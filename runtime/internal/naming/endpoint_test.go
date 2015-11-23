@@ -92,7 +92,7 @@ func TestEndpoint(t *testing.T) {
 		{v6b, "@6@@batman.com:2345@@000000000000000000000000dabbad00@s@@@", 6},
 		{v6c, "@6@tcp@batman.com:2345@@00000000000000000000000000000000@s@@@", 6},
 		{v6d, "@6@ws6@batman.com:2345@@00000000000000000000000000000000@s@@@", 6},
-		{v6e, "@6@tcp@batman.com:2345@1@0000000000000000000000000000ba77@m@dev.v.io/foo@bar.com,dev.v.io/bar@bar.com/delegate@@", 6},
+		{v6e, "@6@tcp@batman.com:2345@1@0000000000000000000000000000ba77@m@dev.v.io:foo@bar.com,dev.v.io:bar@bar.com:delegate@@", 6},
 		{v6f, "@6@tcp@batman.com:2345@1,2,3@0000000000000000000000000000ba77@m@@@,@s,@m@@", 6},
 		{v6g, "@6@tcp@batman.com:2345@a%2Cb,%2Cab,ab%2C@0000000000000000000000000000ba77@m@@@", 6},
 	}
@@ -147,8 +147,8 @@ func TestHostPortEndpoint(t *testing.T) {
 		{"localhost:10", "@6@@localhost:10@@00000000000000000000000000000000@m@@@", nil},
 		{"localhost:", "@6@@localhost:@@00000000000000000000000000000000@m@@@", nil},
 		{"localhost", "", errInvalidEndpointString},
-		{"(dev.v.io:service:mounttabled)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io/service/mounttabled@@", nil},
-		{"(dev.v.io:users:foo@bar.com)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io/users/foo@bar.com@@", nil},
+		{"(dev.v.io:service:mounttabled)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io:service:mounttabled@@", nil},
+		{"(dev.v.io:users:foo@bar.com)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io:users:foo@bar.com@@", nil},
 		{"(@1@tcp)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@@1@tcp@@", nil},
 	}
 	runEndpointTests(t, testcases)
