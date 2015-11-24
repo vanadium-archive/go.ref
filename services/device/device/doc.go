@@ -9,7 +9,7 @@
 Command device facilitates interaction with the Vanadium device manager.
 
 Usage:
-   device <command>
+   device [flags] <command>
 
 The device commands are:
    install       Install the given application.
@@ -137,7 +137,7 @@ Device uninstall
 Uninstall the given application installation.
 
 Usage:
-   device uninstall <installation>
+   device uninstall [flags] <installation>
 
 <installation> is the vanadium object name of the application installation to
 uninstall.
@@ -147,7 +147,7 @@ Device associate - Tool for creating associations between Vanadium blessings and
 The associate tool facilitates managing blessing to system account associations.
 
 Usage:
-   device associate <command>
+   device associate [flags] <command>
 
 The device associate commands are:
    list        Lists the account associations.
@@ -159,7 +159,7 @@ Device associate list
 Lists all account associations.
 
 Usage:
-   device associate list <devicemanager>.
+   device associate list [flags] <devicemanager>.
 
 <devicemanager> is the name of the device manager to connect to.
 
@@ -168,7 +168,7 @@ Device associate add
 Add the listed blessings with the specified system account.
 
 Usage:
-   device associate add <devicemanager> <systemName> <blessing>...
+   device associate add [flags] <devicemanager> <systemName> <blessing>...
 
 <devicemanager> is the name of the device manager to connect to. <systemName> is
 the name of an account holder on the local system. <blessing>.. are the
@@ -179,7 +179,7 @@ Device associate remove
 Removes system accounts associated with the listed blessings.
 
 Usage:
-   device associate remove <devicemanager>  <blessing>...
+   device associate remove [flags] <devicemanager>  <blessing>...
 
 <devicemanager> is the name of the device manager to connect to. <blessing>...
 is a list of blessings.
@@ -189,7 +189,7 @@ Device describe
 Describe the device.
 
 Usage:
-   device describe <device>
+   device describe [flags] <device>
 
 <device> is the vanadium object name of the device manager's device service.
 
@@ -198,7 +198,7 @@ Device claim
 Claim the device.
 
 Usage:
-   device claim <device> <grant extension> <pairing token> <device publickey>
+   device claim [flags] <device> <grant extension> <pairing token> <device publickey>
 
 <device> is the vanadium object name of the device manager's device service.
 
@@ -217,7 +217,7 @@ Create an instance of the given application, provide it with a blessing, and
 print the name of the new instance.
 
 Usage:
-   device instantiate <application installation> <grant extension>
+   device instantiate [flags] <application installation> <grant extension>
 
 <application installation> is the vanadium object name of the application
 installation from which to create an instance.
@@ -230,7 +230,7 @@ Device delete
 Delete the given application instance.
 
 Usage:
-   device delete <app instance>
+   device delete [flags] <app instance>
 
 <app instance> is the vanadium object name of the application instance to
 delete.
@@ -240,7 +240,7 @@ Device run
 Run the given application instance.
 
 Usage:
-   device run <app instance>
+   device run [flags] <app instance>
 
 <app instance> is the vanadium object name of the application instance to run.
 
@@ -249,7 +249,7 @@ Device kill
 Kill the given application instance.
 
 Usage:
-   device kill <app instance>
+   device kill [flags] <app instance>
 
 <app instance> is the vanadium object name of the application instance to kill.
 
@@ -380,7 +380,7 @@ The acl tool manages Permissions on the device manger, installations and
 instances.
 
 Usage:
-   device acl <command>
+   device acl [flags] <command>
 
 The device acl commands are:
    get         Get Permissions for the given target.
@@ -391,7 +391,7 @@ Device acl get
 Get Permissions for the given target.
 
 Usage:
-   device acl get <device manager name>
+   device acl get [flags] <device manager name>
 
 <device manager name> can be a Vanadium name for a device manager, application
 installation or instance.
@@ -508,9 +508,10 @@ Usage:
 The device help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

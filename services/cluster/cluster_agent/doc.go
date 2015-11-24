@@ -85,14 +85,21 @@ The cluster_agent new flags are:
  -base64=false
    If true, the secret is base64-encoded
 
+ -agent=
+   The name or address of the cluster agent server.
+
 Cluster_agent forget
 
 Forgets an existing secret and its associated blessings.
 
 Usage:
-   cluster_agent forget <secret>
+   cluster_agent forget [flags] <secret>
 
 <secret> is the secret to forget.
+
+The cluster_agent forget flags are:
+ -agent=
+   The name or address of the cluster agent server.
 
 Cluster_agent seekblessings
 
@@ -102,9 +109,13 @@ The output is base64-encoded-vom-encoded blessings that are compatible with the
 "principal set" command.
 
 Usage:
-   cluster_agent seekblessings <secret>
+   cluster_agent seekblessings [flags] <secret>
 
 <secret> is the secret to use.
+
+The cluster_agent seekblessings flags are:
+ -agent=
+   The name or address of the cluster agent server.
 
 Cluster_agent help
 
@@ -122,9 +133,10 @@ Usage:
 The cluster_agent help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

@@ -9,7 +9,7 @@
 Command test_principal runs tests against a principal.
 
 Usage:
-   test_principal
+   test_principal [flags]
 
 The global flags are:
  -alsologtostderr=true

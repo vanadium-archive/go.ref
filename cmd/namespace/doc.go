@@ -14,7 +14,7 @@ V23_NAMESPACE, e.g.  V23_NAMESPACE, V23_NAMESPACE_2, V23_NAMESPACE_GOOGLE, etc.
 The command line options override the environment.
 
 Usage:
-   namespace <command>
+   namespace [flags] <command>
 
 The namespace commands are:
    glob        Returns all matching entries from the namespace
@@ -96,7 +96,7 @@ Namespace mount - Adds a server to the namespace
 Adds server <server> to the namespace with name <name>.
 
 Usage:
-   namespace mount <name> <server> <ttl>
+   namespace mount [flags] <name> <server> <ttl>
 
 <name> is the name to add to the namespace. <server> is the object address of
 the server to add. <ttl> is the TTL of the new entry. It is a decimal number
@@ -108,7 +108,7 @@ Namespace unmount - Removes a server from the namespace
 Removes server <server> with name <name> from the namespace.
 
 Usage:
-   namespace unmount <name> <server>
+   namespace unmount [flags] <name> <server>
 
 <name> is the name to remove from the namespace. <server> is the object address
 of the server to remove.
@@ -150,7 +150,7 @@ The permissions are provided as an JSON-encoded version of the Permissions type
 defined in v.io/v23/security/access/types.vdl.
 
 Usage:
-   namespace permissions <command>
+   namespace permissions [flags] <command>
 
 The namespace permissions commands are:
    get         Gets permissions on a mount name
@@ -164,7 +164,7 @@ The output is a JSON-encoded Permissions object (defined in
 v.io/v23/security/access/types.vdl).
 
 Usage:
-   namespace permissions get <name>
+   namespace permissions get [flags] <name>
 
 <name> is a name in the namespace.
 
@@ -173,7 +173,7 @@ Namespace permissions set - Sets permissions on a mount name
 Set replaces the permissions controlling usage of a mount name.
 
 Usage:
-   namespace permissions set <name> <permissions>
+   namespace permissions set [flags] <name> <permissions>
 
 <name> is the name on which permissions are to be set.
 
@@ -209,9 +209,10 @@ Usage:
 The namespace help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

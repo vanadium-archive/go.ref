@@ -9,7 +9,7 @@
 Command groups creates and manages Vanadium groups of blessing patterns.
 
 Usage:
-   groups <command>
+   groups [flags] <command>
 
 The groups commands are:
    create      Creates a blessing pattern group
@@ -155,7 +155,7 @@ Groups get - Returns entries of a group
 Returns entries of a group.
 
 Usage:
-   groups get <von>
+   groups get [flags] <von>
 
 <von> is the vanadium object name of the group
 
@@ -175,9 +175,10 @@ Usage:
 The groups help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

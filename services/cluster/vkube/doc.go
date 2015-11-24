@@ -95,6 +95,13 @@ The vkube start flags are:
  -wait=false
    Wait for at least one replica to be ready.
 
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
+
 Vkube update
 
 Updates an application to a new version with a rolling update, preserving the
@@ -109,6 +116,13 @@ The vkube update flags are:
  -wait=false
    Wait for at least one replica to be ready after the update.
 
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
+
 Vkube stop
 
 Stops an application.
@@ -119,6 +133,13 @@ Usage:
 The vkube stop flags are:
  -f=
    Filename to use to stop the kubernetes resource.
+
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
 
 Vkube start-cluster-agent
 
@@ -131,19 +152,42 @@ The vkube start-cluster-agent flags are:
  -wait=false
    Wait for the cluster agent to be ready.
 
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
+
 Vkube stop-cluster-agent
 
 Stops the cluster agent.
 
 Usage:
-   vkube stop-cluster-agent
+   vkube stop-cluster-agent [flags]
+
+The vkube stop-cluster-agent flags are:
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
 
 Vkube claim-cluster-agent
 
 Claims the cluster agent.
 
 Usage:
-   vkube claim-cluster-agent
+   vkube claim-cluster-agent [flags]
+
+The vkube claim-cluster-agent flags are:
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
 
 Vkube build-docker-images
 
@@ -158,14 +202,29 @@ The vkube build-docker-images flags are:
  -v=false
    When true, the output is more verbose.
 
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
+
 Vkube ctl
 
 Runs kubectl on the cluster defined in vkube.cfg.
 
 Usage:
-   vkube ctl -- <kubectl args>
+   vkube ctl [flags] -- <kubectl args>
 
 <kubectl args> are passed directly to the kubectl command.
+
+The vkube ctl flags are:
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
 
 Vkube help - Display help for commands or topics
 
@@ -183,9 +242,10 @@ Usage:
 The vkube help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

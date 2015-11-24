@@ -10,7 +10,7 @@ Command uniqueid generates unique identifiers. It also has an option of
 automatically substituting unique ids with placeholders in files.
 
 Usage:
-   uniqueid <command>
+   uniqueid [flags] <command>
 
 The uniqueid commands are:
    generate    Generates UniqueIds
@@ -28,7 +28,7 @@ Uniqueid generate - Generates UniqueIds
 Generates unique ids and outputs them to standard out.
 
 Usage:
-   uniqueid generate
+   uniqueid generate [flags]
 
 Uniqueid inject - Injects UniqueIds into existing files
 
@@ -36,7 +36,7 @@ Injects UniqueIds into existing files. Strings of the form "$UNIQUEID$" will be
 replaced with generated ids.
 
 Usage:
-   uniqueid inject <filenames>
+   uniqueid inject [flags] <filenames>
 
 <filenames> List of files to inject unique ids into
 
@@ -56,9 +56,10 @@ Usage:
 The uniqueid help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

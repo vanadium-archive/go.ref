@@ -10,7 +10,7 @@ Command stress is a tool to stress/load test RPC by issuing randomly generated
 requests.
 
 Usage:
-   stress <command>
+   stress [flags] <command>
 
 The stress commands are:
    stress      Run stress test
@@ -132,7 +132,7 @@ Stress stop - Stop servers
 Stop servers
 
 Usage:
-   stress stop <server> ...
+   stress stop [flags] <server> ...
 
 <server> ... A list of servers to stop.
 
@@ -152,9 +152,10 @@ Usage:
 The stress help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

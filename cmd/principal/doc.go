@@ -11,7 +11,7 @@ Command principal creates and manages Vanadium principals and blessings.
 All objects are printed using base64-VOM-encoding.
 
 Usage:
-   principal <command>
+   principal [flags] <command>
 
 The principal commands are:
    create        Create a new principal and persist it into a directory
@@ -244,7 +244,7 @@ Prints out information about the blessings (typically obtained from this tool)
 encoded in the provided file.
 
 Usage:
-   principal dumpblessings <file>
+   principal dumpblessings [flags] <file>
 
 <file> is the path to a file containing blessings typically obtained from this
 tool. - is used for STDIN.
@@ -256,7 +256,7 @@ line per identity provider, each line is a base64-encoded vom-encoded Blessings
 object.
 
 Usage:
-   principal dumproots <file>
+   principal dumproots [flags] <file>
 
 <file> is the path to a file containing blessings (base64-encoded vom-encoded).
 - is used for STDIN.
@@ -349,7 +349,7 @@ All input blessings are expected to be serialized using base64-VOM-encoding. See
 'principal get'.
 
 Usage:
-   principal set <command>
+   principal set [flags] <command>
 
 The principal set commands are:
    default     Set provided blessings as default
@@ -409,7 +409,7 @@ Commands to inspect the blessings of the principal.
 All blessings are printed to stdout using base64-VOM-encoding.
 
 Usage:
-   principal get <command>
+   principal get [flags] <command>
 
 The principal get commands are:
    default         Return blessings marked as default
@@ -491,7 +491,7 @@ appear on this list. If the principal is operating as a server, clients must
 present blessings derived from this list.
 
 Usage:
-   principal get recognizedroots
+   principal get recognizedroots [flags]
 
 Principal get peermap
 
@@ -501,7 +501,7 @@ If the principal operates as a client, it presents the map value associated with
 the peer it contacts.
 
 Usage:
-   principal get peermap
+   principal get peermap [flags]
 
 Principal recognize - Add to the set of identity providers recognized by this principal
 
@@ -522,7 +522,7 @@ public key KEY for blessing pattern P:
   principal -v23.credentials=A recognize P KEY
 
 Usage:
-   principal recognize <key|blessing> [<blessing pattern>]
+   principal recognize [flags] <key|blessing> [<blessing pattern>]
 
 <blessing> is the path to a file containing a blessing typically obtained from
 this tool. - is used for STDIN.
@@ -547,9 +547,10 @@ Usage:
 The principal help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

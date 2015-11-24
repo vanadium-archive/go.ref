@@ -100,6 +100,20 @@ The vdl generate flags are:
  -status=true
    Show package names as they are updated
 
+ -builtin_vdlroot=false
+   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
+   types
+ -exts=.vdl
+   Comma-separated list of valid VDL file name extensions.
+ -ignore_unknown=false
+   Ignore unknown packages provided on the command line.
+ -max-errors=-1
+   Stop processing after this many errors, or -1 for unlimited.
+ -v=false
+   Turn on verbose logging.
+ -vdl.config=vdl.config
+   Basename of the optional per-package config file.
+
 Vdl compile
 
 Compile compiles packages and their transitive dependencies, but does not
@@ -114,6 +128,20 @@ For more information, run "vdl help packages".
 The vdl compile flags are:
  -status=true
    Show package names while we compile
+
+ -builtin_vdlroot=false
+   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
+   types
+ -exts=.vdl
+   Comma-separated list of valid VDL file name extensions.
+ -ignore_unknown=false
+   Ignore unknown packages provided on the command line.
+ -max-errors=-1
+   Stop processing after this many errors, or -1 for unlimited.
+ -v=false
+   Turn on verbose logging.
+ -vdl.config=vdl.config
+   Basename of the optional per-package config file.
 
 Vdl audit - Check if any packages are stale and need generation
 
@@ -170,6 +198,20 @@ The vdl audit flags are:
  -status=true
    Show package names as they are updated
 
+ -builtin_vdlroot=false
+   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
+   types
+ -exts=.vdl
+   Comma-separated list of valid VDL file name extensions.
+ -ignore_unknown=false
+   Ignore unknown packages provided on the command line.
+ -max-errors=-1
+   Stop processing after this many errors, or -1 for unlimited.
+ -v=false
+   Turn on verbose logging.
+ -vdl.config=vdl.config
+   Basename of the optional per-package config file.
+
 Vdl list - List package and dependency info in transitive order
 
 List returns information about packages and their transitive dependencies, in
@@ -184,10 +226,25 @@ This is more strict than regular Go; it makes it easier to generate code for
 other languages like C++.
 
 Usage:
-   vdl list <packages>
+   vdl list [flags] <packages>
 
 <packages> are a list of packages to process, similar to the standard go tool.
 For more information, run "vdl help packages".
+
+The vdl list flags are:
+ -builtin_vdlroot=false
+   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
+   types
+ -exts=.vdl
+   Comma-separated list of valid VDL file name extensions.
+ -ignore_unknown=false
+   Ignore unknown packages provided on the command line.
+ -max-errors=-1
+   Stop processing after this many errors, or -1 for unlimited.
+ -v=false
+   Turn on verbose logging.
+ -vdl.config=vdl.config
+   Basename of the optional per-package config file.
 
 Vdl help - Display help for commands or topics
 
@@ -205,9 +262,10 @@ Usage:
 The vdl help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

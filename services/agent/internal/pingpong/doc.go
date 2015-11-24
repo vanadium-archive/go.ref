@@ -10,7 +10,7 @@ Command pingpong runs a pingpong client or server.  If no args are given the
 server is run, otherwise the client is run.
 
 Usage:
-   pingpong [server]
+   pingpong [flags] [server]
 
 If [server] is specified, pingpong is run in client mode, and connects to the
 named server.

@@ -9,7 +9,7 @@
 Command mounttable sends commands to Vanadium mounttable services.
 
 Usage:
-   mounttable <command>
+   mounttable [flags] <command>
 
 The mounttable commands are:
    glob        returns all matching entries in the mount table
@@ -74,7 +74,7 @@ Mounttable glob - returns all matching entries in the mount table
 returns all matching entries in the mount table
 
 Usage:
-   mounttable glob [<mount name>] <pattern>
+   mounttable glob [flags] [<mount name>] <pattern>
 
 <mount name> is a mount name on a mount table.  Defaults to namespace root.
 <pattern> is a glob pattern that is matched against all the entries below the
@@ -85,7 +85,7 @@ Mounttable mount
 Mounts a server <name> onto a mount table
 
 Usage:
-   mounttable mount <mount name> <name> <ttl> [M|R]
+   mounttable mount [flags] <mount name> <name> <ttl> [M|R]
 
 <mount name> is a mount name on a mount table.
 
@@ -102,7 +102,7 @@ Mounttable unmount
 removes server <name> from the mount table
 
 Usage:
-   mounttable unmount <mount name> <name>
+   mounttable unmount [flags] <mount name> <name>
 
 <mount name> is a mount name on a mount table. <name> is the rooted object name
 of the server.
@@ -112,7 +112,7 @@ Mounttable resolvestep
 takes the next step in resolving a name.
 
 Usage:
-   mounttable resolvestep <mount name>
+   mounttable resolvestep [flags] <mount name>
 
 <mount name> is a mount name on a mount table.
 
@@ -132,9 +132,10 @@ Usage:
 The mounttable help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

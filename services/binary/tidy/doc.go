@@ -9,7 +9,7 @@
 Tidy tidies the Vanadium repository by removing unused envelopes and binaries.
 
 Usage:
-   tidy <command>
+   tidy [flags] <command>
 
 The tidy commands are:
    binary      Binary sub-command tidies a specified binaryd
@@ -72,7 +72,7 @@ Binary sub-command removes all binaries from a specified binaryd that are not
 referenced by an applicationd envelope stored in the specified applicationd.
 
 Usage:
-   tidy binary <applicationd> <binaryd>
+   tidy binary [flags] <applicationd> <binaryd>
 
 <applicationd> is the name or endpoint of the applicationd instance sourcing the
 envelopes. <binaryd> is the name or endpoint of a binaryd instance to clean up.
@@ -84,7 +84,7 @@ the specified appilcationd. Call this before tidying a binaryd instance for
 maximum tidiness.
 
 Usage:
-   tidy application <applicationd>
+   tidy application [flags] <applicationd>
 
 <applicationd> is the name or endpoint of the applicationd instance to tidy.
 
@@ -104,9 +104,10 @@ Usage:
 The tidy help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

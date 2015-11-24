@@ -9,7 +9,7 @@
 Command profile manages the Vanadium profile repository.
 
 Usage:
-   profile <command>
+   profile [flags] <command>
 
 The profile commands are:
    label         Shows a human-readable profile key for the profile.
@@ -74,7 +74,7 @@ Profile label
 Shows a human-readable profile key for the profile.
 
 Usage:
-   profile label <profile>
+   profile label [flags] <profile>
 
 <profile> is the full name of the profile.
 
@@ -83,7 +83,7 @@ Profile description
 Shows a human-readable profile description for the profile.
 
 Usage:
-   profile description <profile>
+   profile description [flags] <profile>
 
 <profile> is the full name of the profile.
 
@@ -92,7 +92,7 @@ Profile specification
 Shows the specification of the profile.
 
 Usage:
-   profile specification <profile>
+   profile specification [flags] <profile>
 
 <profile> is the full name of the profile.
 
@@ -101,7 +101,7 @@ Profile put
 Sets a placeholder specification for the profile.
 
 Usage:
-   profile put <profile>
+   profile put [flags] <profile>
 
 <profile> is the full name of the profile.
 
@@ -110,7 +110,7 @@ Profile remove
 removes the profile specification for the profile.
 
 Usage:
-   profile remove <profile>
+   profile remove [flags] <profile>
 
 <profile> is the full name of the profile.
 
@@ -130,9 +130,10 @@ Usage:
 The profile help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

@@ -78,29 +78,41 @@ Debug glob
 Returns all matching entries from the namespace.
 
 Usage:
-   debug glob <pattern> ...
+   debug glob [flags] <pattern> ...
 
 <pattern> is a glob pattern to match.
+
+The debug glob flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
 
 Debug vtrace
 
 Returns matching vtrace traces (or all stored traces if no ids are given).
 
 Usage:
-   debug vtrace <name> [id ...]
+   debug vtrace [flags] <name> [id ...]
 
 <name> is the name of a vtrace object. [id] is a vtrace trace id.
+
+The debug vtrace flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
 
 Debug logs - Accesses log files
 
 Accesses log files
 
 Usage:
-   debug logs <command>
+   debug logs [flags] <command>
 
 The debug logs commands are:
    read        Reads the content of a log file object.
    size        Returns the size of a log file object.
+
+The debug logs flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
 
 Debug logs read
 
@@ -122,26 +134,37 @@ The debug logs read flags are:
  -v=false
    When true, read will be more verbose.
 
+ -timeout=1m0s
+   Time to wait for various RPCs
+
 Debug logs size
 
 Returns the size of a log file object.
 
 Usage:
-   debug logs size <name>
+   debug logs size [flags] <name>
 
 <name> is the name of the log file object.
+
+The debug logs size flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
 
 Debug stats - Accesses stats
 
 Accesses stats
 
 Usage:
-   debug stats <command>
+   debug stats [flags] <command>
 
 The debug stats commands are:
    read        Returns the value of stats objects.
    watch       Returns a stream of all matching entries and their values as they
                change.
+
+The debug stats flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
 
 Debug stats read
 
@@ -162,6 +185,9 @@ The debug stats read flags are:
  -type=false
    When true, the type of the values will be displayed.
 
+ -timeout=1m0s
+   Time to wait for various RPCs
+
 Debug stats watch
 
 Returns a stream of all matching entries and their values as they change.
@@ -177,16 +203,23 @@ The debug stats watch flags are:
  -type=false
    When true, the type of the values will be displayed.
 
+ -timeout=1m0s
+   Time to wait for various RPCs
+
 Debug pprof - Accesses profiling data
 
 Accesses profiling data
 
 Usage:
-   debug pprof <command>
+   debug pprof [flags] <command>
 
 The debug pprof commands are:
    run         Runs the pprof tool.
    proxy       Runs an http proxy to a pprof object.
+
+The debug pprof flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
 
 Debug pprof run
 
@@ -206,14 +239,21 @@ The debug pprof run flags are:
  -pprofcmd=jiri go tool pprof
    The pprof command to use.
 
+ -timeout=1m0s
+   Time to wait for various RPCs
+
 Debug pprof proxy
 
 Runs an http proxy to a pprof object.
 
 Usage:
-   debug pprof proxy <name>
+   debug pprof proxy [flags] <name>
 
 <name> is the name of the pprof object.
+
+The debug pprof proxy flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
 
 Debug help - Display help for commands or topics
 
@@ -231,9 +271,10 @@ Usage:
 The debug help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

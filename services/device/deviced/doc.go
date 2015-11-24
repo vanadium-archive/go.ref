@@ -10,8 +10,8 @@ Command deviced is used to launch, configure and manage the deviced daemon,
 which implements the v.io/v23/services/device interfaces.
 
 Usage:
-   deviced
-   deviced <command>
+   deviced [flags]
+   deviced [flags] <command>
 
 The deviced commands are:
    install     Install the device manager.
@@ -169,7 +169,7 @@ Starts the device manager installed under from V23_DEVICE_DIR (if the env var
 set), or the current dir otherwise
 
 Usage:
-   deviced start
+   deviced start [flags]
 
 Deviced stop
 
@@ -177,14 +177,14 @@ Stops the device manager installed under from V23_DEVICE_DIR (if the env var
 set), or the current dir otherwise
 
 Usage:
-   deviced stop
+   deviced stop [flags]
 
 Deviced profile
 
 Prints the internal profile description for the device manager.
 
 Usage:
-   deviced profile
+   deviced profile [flags]
 
 Deviced help - Display help for commands or topics
 
@@ -202,9 +202,10 @@ Usage:
 The deviced help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

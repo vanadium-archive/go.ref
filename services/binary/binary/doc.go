@@ -9,7 +9,7 @@
 Command binary manages the Vanadium binary repository.
 
 Usage:
-   binary <command>
+   binary [flags] <command>
 
 The binary commands are:
    delete      Delete a binary
@@ -73,7 +73,7 @@ Binary delete - Delete a binary
 Delete connects to the binary repository and deletes the specified binary
 
 Usage:
-   binary delete <von>
+   binary delete [flags] <von>
 
 <von> is the vanadium object name of the binary to delete
 
@@ -100,7 +100,7 @@ file or archive of the specified directory. When successful, it writes the name
 of the new binary to stdout.
 
 Usage:
-   binary upload <von> <filename>
+   binary upload [flags] <von> <filename>
 
 <von> is the vanadium object name of the binary to upload <filename> is the name
 of the file or directory to upload
@@ -111,7 +111,7 @@ Connect to the binary repository and fetch the download URL for the given
 vanadium object name.
 
 Usage:
-   binary url <von>
+   binary url [flags] <von>
 
 <von> is the vanadium object name of the binary repository
 
@@ -131,9 +131,10 @@ Usage:
 The binary help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

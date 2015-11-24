@@ -9,7 +9,7 @@
 Command vom helps debug the Vanadium Object Marshaling wire protocol.
 
 Usage:
-   vom <command>
+   vom [flags] <command>
 
 The vom commands are:
    decode      Decode data encoded in the vom format
@@ -86,9 +86,10 @@ Usage:
 The vom help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

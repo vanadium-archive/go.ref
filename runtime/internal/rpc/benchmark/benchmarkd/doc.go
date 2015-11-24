@@ -9,7 +9,7 @@
 Command benchmarkd runs the benchmark server.
 
 Usage:
-   benchmarkd
+   benchmarkd [flags]
 
 The global flags are:
  -alsologtostderr=true

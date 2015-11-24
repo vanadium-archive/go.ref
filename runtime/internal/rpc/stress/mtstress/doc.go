@@ -7,7 +7,7 @@
 
 /*
 Usage:
-   mtstress <command>
+   mtstress [flags] <command>
 
 The mtstress commands are:
    mount       Measure latency of the Mount RPC at a fixed request rate
@@ -77,7 +77,7 @@ Mtstress mount - Measure latency of the Mount RPC at a fixed request rate
 Repeatedly issues a Mount request (at --rate) and measures latency
 
 Usage:
-   mtstress mount <mountpoint> <ttl>
+   mtstress mount [flags] <mountpoint> <ttl>
 
 <mountpoint> defines the name to be mounted
 
@@ -89,7 +89,7 @@ Mtstress resolve - Measure latency of the Resolve RPC at a fixed request rate
 Repeatedly issues a Resolve request (at --rate) to a name and measures latency
 
 Usage:
-   mtstress resolve <name>
+   mtstress resolve [flags] <name>
 
 <name> the object name to resolve
 
@@ -109,9 +109,10 @@ Usage:
 The mtstress help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

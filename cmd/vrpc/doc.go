@@ -10,7 +10,7 @@ Command vrpc sends and receives Vanadium remote procedure calls.  It is used as
 a generic client to interact with any Vanadium server.
 
 Usage:
-   vrpc <command>
+   vrpc [flags] <command>
 
 The vrpc commands are:
    signature   Describe the interfaces of a Vanadium server
@@ -113,7 +113,7 @@ makes it easier to input complex typed arguments, since the top-level type for
 each argument is implicit and doesn't need to be specified.
 
 Usage:
-   vrpc call <server> <method> [args...]
+   vrpc call [flags] <server> <method> [args...]
 
 <server> identifies a Vanadium server.  It can either be the object address of
 the server, or an object name that will be resolved to an end-point.
@@ -155,9 +155,10 @@ Usage:
 The vrpc help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

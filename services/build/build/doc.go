@@ -9,7 +9,7 @@
 Command build sends commands to a Vanadium build server.
 
 Usage:
-   build <command>
+   build [flags] <command>
 
 The build commands are:
    build       Build vanadium Go packages
@@ -103,9 +103,10 @@ Usage:
 The build help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.

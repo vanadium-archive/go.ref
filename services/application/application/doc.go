@@ -9,7 +9,7 @@
 Command application manages the Vanadium application repository.
 
 Usage:
-   application <command>
+   application [flags] <command>
 
 The application commands are:
    match       Shows the first matching envelope that matches the given
@@ -75,7 +75,7 @@ Application match
 Shows the first matching envelope that matches the given profiles.
 
 Usage:
-   application match <application> <profiles>
+   application match [flags] <application> <profiles>
 
 <application> is the full name of the application. <profiles> is a non-empty
 comma-separated list of profiles.
@@ -85,7 +85,7 @@ Application profiles
 Returns a comma-separated list of profiles supported by the given application.
 
 Usage:
-   application profiles <application>
+   application profiles [flags] <application>
 
 <application> is the full name of the application.
 
@@ -110,7 +110,7 @@ Application remove
 removes the application envelope for the given profile.
 
 Usage:
-   application remove <application> <profile>
+   application remove [flags] <application> <profile>
 
 <application> is the full name of the application. <profile> is a profile.  If
 specified as '*', all profiles are removed.
@@ -120,7 +120,7 @@ Application edit
 edits the application envelope for the given profile.
 
 Usage:
-   application edit <application> <profile>
+   application edit [flags] <application> <profile>
 
 <application> is the full name of the application. <profile> is a profile.
 
@@ -140,9 +140,10 @@ Usage:
 The application help flags are:
  -style=compact
    The formatting style for help output:
-      compact - Good for compact cmdline output.
-      full    - Good for cmdline output, shows all global flags.
-      godoc   - Good for godoc processing.
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
    Override the default by setting the CMDLINE_STYLE environment variable.
  -width=<terminal width>
    Format output to this target width in runes, or unlimited if width < 0.
