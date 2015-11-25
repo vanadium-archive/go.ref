@@ -292,6 +292,8 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 
 	// Obtain deltas from the peer over the network.
 	if err := iSt.recvAndProcessDeltas(ctx); err != nil {
+		// Note, it's important to call cancel before calling Finish so that we
+		// don't block waiting for the rest of the stream.
 		cancel()
 		// Call Finish to clean up local state even on failure.
 		iSt.stream.Finish()
