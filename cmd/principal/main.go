@@ -697,8 +697,8 @@ run the command to see what happens.
 The blessings are sought for the principal specified by the environment that
 this tool is running in.
 
-The blessings obtained are set as default, unless the --set-default flag is
-set to true, and are also set for sharing with all peers, unless a more
+The blessings obtained are set as default unless the --set-default flag is
+set to false, and are also set for sharing with all peers unless a more
 specific peer pattern is provided using the --for-peer flag.
 `,
 		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
@@ -749,8 +749,8 @@ This command sets up the invoker (this process) to wait for a blessing
 from another invocation of this tool (remote process) and prints out the
 command to be run as the remote principal.
 
-The received blessings are set as default, unless the --set-default flag is
-set to true, and are also set for sharing with all peers, unless a more
+The received blessings are set as default unless the --set-default flag is
+set to false, and are also set for sharing with all peers unless a more
 specific peer pattern is provided using the --for-peer flag.
 
 TODO(ashankar,cnicolaou): Make this next paragraph possible! Requires
