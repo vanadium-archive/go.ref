@@ -255,7 +255,7 @@ func (p *proxy) startRouting(ctx *context.T, f flow.Flow, m *message.Setup) erro
 
 func (p *proxy) forwardLoop(ctx *context.T, fin, fout flow.Flow) {
 	defer p.wg.Done()
-	if err := framedCopy(fin, fout); err != nil {
+	if err := framedCopy(fin, fout); err != nil && err != io.EOF {
 		ctx.Errorf("Error forwarding: %v", err)
 	}
 	fin.Close()
@@ -272,9 +272,7 @@ func framedCopy(fin, fout flow.Flow) error {
 			return err
 		}
 		if _, err = fout.WriteMsg(msg); err != nil {
-			if err == io.EOF {
-				return nil
-			}
+			return err
 		}
 	}
 }
