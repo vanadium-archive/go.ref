@@ -59,69 +59,20 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
 {{ range $method := .Methods }}
     {{/* The optionless overload simply calls the overload with options */}}
     @Override
-    public com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.DeclarationArgs }}) {
-        return {{ $method.Name }}(context{{ $method.CallingArgsLeadingComma }}, (io.v.v23.Options) null);
+    public com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> {{ $method.Name }}(io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}) {
+        return {{ $method.Name }}(_context{{ $method.CallingArgsLeadingComma }}, (io.v.v23.Options) null);
     }
-    // TODO(spetrovic): modify this function to call Client/ClientCall futures methods directly.
     @Override
-    public com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.Options opts) {
-        final com.google.common.util.concurrent.SettableFuture<{{ $method.GenericRetType }}> future =
-            com.google.common.util.concurrent.SettableFuture.create();
-        try {
-            {{ $method.Name }}(context{{ $method.CallingArgsLeadingComma }}, opts, new io.v.v23.rpc.Callback<{{ $method.GenericRetType }}>() {
-                @Override
-                public void onSuccess({{ $method.GenericRetType }} result) {
-                    future.set(result);
-                }
-                @Override
-                public void onFailure(io.v.v23.verror.VException error) {
-                    future.setException(error);
-                }
-            });
-        } catch (io.v.v23.verror.VException e) {
-            future.setException(e);
-        }
-        return future;
-    }
-    @Deprecated
-    @Override
-    public void {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.rpc.Callback<{{ $method.GenericRetType }}> callback) throws io.v.v23.verror.VException {
-        {{ $method.Name }}(context{{ $method.CallingArgsLeadingComma }}, null, callback);
-    }
-    @Deprecated
-    @Override
-    public void {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.Options vOpts, final io.v.v23.rpc.Callback<{{ $method.GenericRetType }}> callback) throws io.v.v23.verror.VException {
+    public com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> {{ $method.Name }}(io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}, io.v.v23.Options _opts) {
         {{/* Start the vanadium call */}}
         // Start the call.
         java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
         java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
-        final io.v.v23.rpc.Callback<io.v.v23.rpc.ClientCall> clientCallback = new io.v.v23.rpc.Callback<io.v.v23.rpc.ClientCall>() {
+        com.google.common.util.concurrent.ListenableFuture<io.v.v23.rpc.ClientCall> _callFuture = getClient(_context).startCall(_context, this.vName, "{{ $method.Name }}", _args, _argTypes, _opts);
+        return com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, {{ $method.GenericRetType }}>() {
             @Override
-            public void onSuccess(final io.v.v23.rpc.ClientCall _call) {
-                // Finish the call.
+            public com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> apply(final io.v.v23.rpc.ClientCall _call) throws Exception{
                 {{ if $method.NotStreaming }}
-
-                final io.v.v23.rpc.Callback<Object[]> finishCallback = new io.v.v23.rpc.Callback<Object[]>() {
-                    @Override
-                    public void onSuccess(Object[] _results) {
-                        {{ if $method.IsVoid }}
-                            callback.onSuccess(null);
-                        {{ else if $method.MultipleReturn }}
-                        {{ $method.DeclaredObjectRetType }} _ret = new {{ $method.DeclaredObjectRetType }}();
-                            {{ range $i, $outArg := $method.OutArgs }}
-                        _ret.{{ $outArg.FieldName }} = ({{ $outArg.Type }})_results[{{ $i }}];
-                            {{ end }} {{/* end range over outargs */}}
-                        callback.onSuccess(_ret);
-                        {{ else }} {{/* else if $method.MultipleReturn */}}
-                        callback.onSuccess(({{ $method.DeclaredObjectRetType }})_results[0]);
-                        {{ end }} {{/* end if $method.IsVoid */}}
-                    }
-                    @Override
-                    public void onFailure(io.v.v23.verror.VException error) {
-                        callback.onFailure(error);
-                    }
-                };
-
                 {{ if $method.IsVoid }}
                 java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{};
 
@@ -132,30 +83,27 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                     {{ end }}
                 };
                 {{ end }} {{/* end if $method.IsVoid */}}
-                try {
-                    com.google.common.util.concurrent.Futures.addCallback(_call.finish(_resultTypes),
-                        new com.google.common.util.concurrent.FutureCallback<Object[]>() {
-                            @Override
-                            public void onSuccess(Object[] result) {
-                                finishCallback.onSuccess(result);
-                            }
-    
-                            @Override
-                            public void onFailure(Throwable t) {
-                                if (t instanceof io.v.v23.verror.VException) {
-                                    finishCallback.onFailure((io.v.v23.verror.VException) t);
-                                } else {
-                                    finishCallback.onFailure(new io.v.v23.verror.VException("TODO"));
-                                }
-                            }
-                        });
-                } catch (io.v.v23.verror.VException e) {
-                    callback.onFailure(e);
-                }
+                // Finish the call.
+                return com.google.common.util.concurrent.Futures.transform(_call.finish(_resultTypes), new com.google.common.base.Function<Object[], {{ $method.GenericRetType }}>() {
+                    @Override
+                    public {{ $method.GenericRetType }} apply(Object[] _results) {
+                        {{ if $method.IsVoid }}
+                            return null;
+                        {{ else if $method.MultipleReturn }}
+                        {{ $method.DeclaredObjectRetType }} _ret = new {{ $method.DeclaredObjectRetType }}();
+                            {{ range $i, $outArg := $method.OutArgs }}
+                        _ret.{{ $outArg.FieldName }} = ({{ $outArg.Type }})_results[{{ $i }}];
+                            {{ end }} {{/* end range over outargs */}}
+                        return _ret;
+                        {{ else }} {{/* else if $method.MultipleReturn */}}
+                        return ({{ $method.DeclaredObjectRetType }})_results[0];
+                        {{ end }} {{/* end if $method.IsVoid */}}
+                    }
+                });
 
                 {{else }} {{/* else $method.NotStreaming */}}
-                final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable(_call,new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType());
-                callback.onSuccess(new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
+                final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable<>(_call,new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType());
+                {{ $method.GenericRetType }} _stream = new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
                     @Override
                     public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
                         java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.SendType }}>() {}.getType();
@@ -186,56 +134,25 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                     public io.v.v23.verror.VException error() {
                         return _it.error();
                     }
-                });
+                };
+                return com.google.common.util.concurrent.Futures.immediateFuture(_stream);
                 {{ end }}{{/* end if $method.NotStreaming */}}
             }
-            @Override
-            public void onFailure(io.v.v23.verror.VException error) {
-                callback.onFailure(error);
-            }
-        };
-
-        com.google.common.util.concurrent.Futures.addCallback(
-            getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts),
-            new com.google.common.util.concurrent.FutureCallback<io.v.v23.rpc.ClientCall>() {
-                @Override
-                public void onSuccess(io.v.v23.rpc.ClientCall result) {
-                    clientCallback.onSuccess(result);
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    if (t instanceof io.v.v23.verror.VException) {
-                        clientCallback.onFailure((io.v.v23.verror.VException) t);
-                    } else {
-                        clientCallback.onFailure(new io.v.v23.verror.VException("TODO"));
-                    }
-                }
-            });
+        });
     }
 {{ end }}{{/* end range over methods */}}
 
 {{/* Iterate over methods from embeded services and generate code to delegate the work */}}
 {{ range $eMethod := .EmbedMethods }}
     @Override
-    public com.google.common.util.concurrent.ListenableFuture<{{ $eMethod.GenericRetType }}> {{ $eMethod.Name }}(io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}) {
+    public com.google.common.util.concurrent.ListenableFuture<{{ $eMethod.GenericRetType }}> {{ $eMethod.Name }}(io.v.v23.context.VContext _context{{ $eMethod.DeclarationArgs }}) {
         {{/* e.g. return this.implArith.cosine(context, [args]) */}}
-        return this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }});
+        return this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(_context{{ $eMethod.CallingArgsLeadingComma }});
     }
     @Override
-    public com.google.common.util.concurrent.ListenableFuture<{{ $eMethod.GenericRetType }}> {{ $eMethod.Name }}(io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options vOpts) {
-        {{/* e.g. return this.implArith.cosine(context, [args], options) */}}
-        return this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }}, vOpts);
-    }
-    @Override
-    @Deprecated
-    public void {{ $eMethod.Name }}(io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.rpc.Callback<{{ $eMethod.GenericRetType }}> callback) throws io.v.v23.verror.VException {
-        this.impl{{ $eMethod.IfaceName}}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }}, null, callback);
-    }
-    @Override
-    @Deprecated
-    public void {{ $eMethod.Name }}(io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options vOpts, io.v.v23.rpc.Callback<{{ $eMethod.GenericRetType }}> callback) throws io.v.v23.verror.VException {
-        this.impl{{ $eMethod.IfaceName}}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }}, vOpts, callback);
+    public com.google.common.util.concurrent.ListenableFuture<{{ $eMethod.GenericRetType }}> {{ $eMethod.Name }}(io.v.v23.context.VContext _context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options _opts) {
+        {{/* e.g. return this.implArith.cosine(_context, [args], options) */}}
+        return this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(_context{{ $eMethod.CallingArgsLeadingComma }}, _opts);
     }
 {{ end }}
 }

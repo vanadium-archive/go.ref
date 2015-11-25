@@ -38,10 +38,6 @@ public interface {{ .ServiceName }}Client {{ .Extends }} {
     {{ $method.Doc }}
     com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }});
     com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.Options opts);
-    @Deprecated
-    void {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.rpc.Callback<{{ $method.GenericRetType }}> callback) throws io.v.v23.verror.VException;
-    @Deprecated
-    void {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.Options opts, io.v.v23.rpc.Callback<{{ $method.GenericRetType }}> callback) throws io.v.v23.verror.VException;
 {{ end }}
 }
 `
