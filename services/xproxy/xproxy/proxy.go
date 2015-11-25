@@ -272,7 +272,9 @@ func framedCopy(fin, fout flow.Flow) error {
 			return err
 		}
 		if _, err = fout.WriteMsg(msg); err != nil {
-			return err
+			if err == io.EOF {
+				return nil
+			}
 		}
 	}
 }
