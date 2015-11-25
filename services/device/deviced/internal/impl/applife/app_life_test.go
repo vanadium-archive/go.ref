@@ -378,7 +378,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	// cleanly Do this by installing, instantiating, running, and killing
 	// hangingApp, which sleeps (rather than exits) after being asked to
 	// Stop()
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.HangingApp, "hanging ap", 0, 0, "hAppV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.HangingApp, "hanging app", 0, 0, "hAppV1")
 	hAppID := utiltest.InstallApp(t, ctx)
 	hInstanceID := utiltest.LaunchApp(t, ctx, hAppID)
 	hangingPid := pingCh.WaitForPingArgs(t).Pid
