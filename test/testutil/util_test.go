@@ -5,7 +5,10 @@
 package testutil_test
 
 import (
+	"bytes"
+	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -62,4 +65,60 @@ func V23TestRandSeed(i *v23tests.T) {
 	inv.ExpectRE("FAIL: TestRandSeed.*", 1)
 	inv.ExpectRE("Seeded pseudo-random number generator with "+seed, -1)
 	inv.ExpectRE("rand: "+randInt, 1)
+}
+
+func TestFileTreeEqual(t *testing.T) {
+	tests := []struct {
+		A, B, Err, Debug         string
+		FileA, DirA, FileB, DirB *regexp.Regexp
+	}{
+		{"./testdata/NOEXIST", "./testdata/A", "no such file", "", nil, nil, nil, nil},
+		{"./testdata/A", "./testdata/NOEXIST", "no such file", "", nil, nil, nil, nil},
+
+		{"./testdata/A", "./testdata/A", "", "", nil, nil, nil, nil},
+		{"./testdata/A/subdir", "./testdata/A/subdir", "", "", nil, nil, nil, nil},
+
+		{"./testdata/A/subdir", "./testdata/SameSubdir/subdir", "", "", nil, nil, nil, nil},
+		{"./testdata/SameSubdir/subdir", "./testdata/A/subdir", "", "", nil, nil, nil, nil},
+
+		{"./testdata/A/subdir", "./testdata/DiffSubdirFileName/subdir", "", "relative path doesn't match", nil, nil, nil, nil},
+		{"./testdata/DiffSubdirFileName/subdir", "./testdata/A/subdir", "", "relative path doesn't match", nil, nil, nil, nil},
+
+		{"./testdata/A/subdir", "./testdata/DiffSubdirFileBytes/subdir", "", "bytes don't match", nil, nil, nil, nil},
+		{"./testdata/DiffSubdirFileBytes/subdir", "./testdata/A/subdir", "", "bytes don't match", nil, nil, nil, nil},
+
+		{"./testdata/A/subdir", "./testdata/ExtraFile/subdir", "", "node count mismatch", nil, nil, nil, nil},
+		{"./testdata/ExtraFile/subdir", "./testdata/A/subdir", "", "node count mismatch", nil, nil, nil, nil},
+
+		{"./testdata/A/subdir", "./testdata/ExtraFile/subdir", "", "", nil, nil, regexp.MustCompile(`file3`), nil},
+		{"./testdata/ExtraFile/subdir", "./testdata/A/subdir", "", "", regexp.MustCompile(`file3`), nil, nil, nil},
+
+		{"./testdata/A/subdir", "./testdata/ExtraSubdir/subdir", "", "node count mismatch", nil, nil, nil, nil},
+		{"./testdata/ExtraSubdir/subdir", "./testdata/A/subdir", "", "node count mismatch", nil, nil, nil, nil},
+
+		{"./testdata/A/subdir", "./testdata/ExtraSubdir/subdir", "", "", nil, nil, regexp.MustCompile(`file3`), regexp.MustCompile(`subdir$`)},
+		{"./testdata/ExtraSubdir/subdir", "./testdata/A/subdir", "", "", regexp.MustCompile(`file3`), regexp.MustCompile(`subdir$`), nil, nil},
+	}
+	for _, test := range tests {
+		name := fmt.Sprintf("(%v,%v)", test.A, test.B)
+		var debug bytes.Buffer
+		opts := testutil.FileTreeOpts{
+			Debug: &debug,
+			FileA: test.FileA, DirA: test.DirA,
+			FileB: test.FileB, DirB: test.DirB,
+		}
+		equal, err := testutil.FileTreeEqual(test.A, test.B, opts)
+		if got, want := err == nil, test.Err == ""; got != want {
+			t.Errorf("%v got success %v, want %v", name, got, want)
+		}
+		if got, want := fmt.Sprint(err), test.Err; err != nil && !strings.Contains(got, want) {
+			t.Errorf("%v got error str %v, want substr %v", name, got, want)
+		}
+		if got, want := equal, test.Err == "" && test.Debug == ""; got != want {
+			t.Errorf("%v got %v, want %v", name, got, want)
+		}
+		if got, want := debug.String(), test.Debug; !strings.Contains(got, want) || got != "" && want == "" {
+			t.Errorf("%v got debug %v, want substr %v", name, got, want)
+		}
+	}
 }

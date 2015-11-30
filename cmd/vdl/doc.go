@@ -26,9 +26,6 @@ The vdl additional help topics are:
    vdl.config  Description of vdl.config files
 
 The vdl flags are:
- -builtin_vdlroot=false
-   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
-   types
  -exts=.vdl
    Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
@@ -100,9 +97,6 @@ The vdl generate flags are:
  -status=true
    Show package names as they are updated
 
- -builtin_vdlroot=false
-   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
-   types
  -exts=.vdl
    Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
@@ -129,9 +123,6 @@ The vdl compile flags are:
  -status=true
    Show package names while we compile
 
- -builtin_vdlroot=false
-   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
-   types
  -exts=.vdl
    Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
@@ -198,9 +189,6 @@ The vdl audit flags are:
  -status=true
    Show package names as they are updated
 
- -builtin_vdlroot=false
-   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
-   types
  -exts=.vdl
    Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
@@ -232,9 +220,6 @@ Usage:
 For more information, run "vdl help packages".
 
 The vdl list flags are:
- -builtin_vdlroot=false
-   If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core
-   types
  -exts=.vdl
    Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
@@ -337,8 +322,9 @@ containing the standard vdl packages.
 
 Setting VDLROOT is optional.
 
-If VDLROOT is empty, we try to construct it out of the JIRI_ROOT environment
-variable.  It is an error if both VDLROOT and JIRI_ROOT are empty.
+If VDLROOT is empty, we try to find the standard packages under
+JIRI_ROOT/release/go/src/v.io/v23/vdlroot.  If both VDLROOT and JIRI_ROOT are
+empty, we use the standard packages built-in to the vdl binary.
 
 Vdl vdl.config
 

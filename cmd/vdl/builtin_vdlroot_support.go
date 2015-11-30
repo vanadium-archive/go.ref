@@ -7,16 +7,11 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
-	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"v.io/x/ref/lib/vdl/build"
-	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 func extractTarFile(basePath string, reader *tar.Reader) error {
@@ -49,52 +44,12 @@ func extractTarFile(basePath string, reader *tar.Reader) error {
 	}
 }
 
-func extractBuiltinVdlroot(destDir string) error {
-	decoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(builtinVdlrootData))
-	gzipReader, err := gzip.NewReader(decoder)
+func extractVDLRootData(destDir string) error {
+	r := strings.NewReader(builtinVDLRootData)
+	gzipReader, err := gzip.NewReader(r)
 	if err != nil {
 		return err
 	}
 	tarReader := tar.NewReader(gzipReader)
 	return extractTarFile(destDir, tarReader)
-}
-
-// maybeExtractBuiltinVdlroot checks to see if VDLROOT is set or can be
-// determined from JIRI_ROOT. If not, the builtin root VDL definitions are
-// extracted to a new temporary directory and the VDLROOT environment variable
-// is set. cleanupFunc should be called unconditionally (even if there is
-// a non-empty set of errors returned).
-func maybeExtractBuiltinVdlroot() (func() error, *vdlutil.Errors) {
-	noopCleanup := func() error { return nil }
-	if !flagBuiltinVdlroot {
-		return noopCleanup, vdlutil.NewErrors(-1)
-	}
-	errs := vdlutil.NewErrors(-1)
-	build.VdlRootDir(errs)
-	if errs.IsEmpty() {
-		// No errors? We have a vdlroot already and we don't need to do
-		// anything.
-		return noopCleanup, errs
-	}
-	errs.Reset()
-	// Otherwise, we don't have a VDL rootdir.
-	dir, err := ioutil.TempDir("", "vdlroot-")
-	if err != nil {
-		errs.Errorf("TempDir failed, couldn't create temporary VDLROOT: %v", err)
-		return noopCleanup, errs
-	}
-	removeAllCleanup := func() error {
-		return os.RemoveAll(dir)
-	}
-	// Extract the files to the new VDLROOT
-	if err := extractBuiltinVdlroot(dir); err != nil {
-		errs.Errorf("Could not extract builtin VDL types: %v", err)
-		return removeAllCleanup, errs
-	}
-	if err := os.Setenv("VDLROOT", filepath.Join(dir, "v.io", "v23", "vdlroot")); err != nil {
-		errs.Errorf("Setenv(VDLROOT, %q) failed: %v", dir, err)
-		return removeAllCleanup, errs
-	}
-	vdlutil.Vlog.Printf("set VDLROOT to newly-extracted root at %s pid = %d", dir, os.Getpid())
-	return removeAllCleanup, errs
 }

@@ -68,11 +68,13 @@ type Package struct {
 	// Name is the name of the package, specified in the vdl files.
 	// E.g. "bar"
 	Name string
+	// IsRoot is true iff this package is a vdlroot standard package.
+	IsRoot bool
 	// Path is the package path; the path used in VDL import clauses.
 	// E.g. "foo/bar".
 	Path string
-	// GenPath is the package path to use for code generation.  It is typically
-	// the same as Path, except for vdlroot standard packages.
+	// GenPath is the package path to use for code generation.  It is the same as
+	// Path, except for vdlroot standard packages.
 	// E.g. "v.io/v23/vdlroot/time"
 	GenPath string
 	// Dir is the absolute directory containing the package files.
@@ -146,7 +148,13 @@ func validPackagePath(path string) bool {
 // New packages always start with an empty Name, which is filled in when we call
 // ds.addPackageAndDeps.
 func newPackage(path, genPath, dir string, mode UnknownPathMode, opts Opts, vdlenv *compile.Env) *Package {
-	pkg := &Package{Path: path, GenPath: genPath, Dir: dir, OpenFilesFunc: openFiles}
+	pkg := &Package{
+		IsRoot:        path != genPath,
+		Path:          path,
+		GenPath:       genPath,
+		Dir:           dir,
+		OpenFilesFunc: openFiles,
+	}
 	if err := pkg.initBaseFileNames(opts.exts()); err != nil {
 		mode.logOrErrorf(vdlenv.Errors, "%s: bad package dir (%v)", pkg.Dir, err)
 		return nil
@@ -270,20 +278,20 @@ func (p *Package) CloseFiles() error {
 // neither VDLROOT nor JIRI_ROOT is specified.
 func SrcDirs(errs *vdlutil.Errors) []string {
 	var srcDirs []string
-	if root := VdlRootDir(errs); root != "" {
+	if root := VDLRootDir(errs); root != "" {
 		srcDirs = append(srcDirs, root)
 	}
 	return append(srcDirs, vdlPathSrcDirs(errs)...)
 }
 
-// VdlRootDir returns the VDL root directory, based on the VDLPATH, VDLROOT and
+// VDLRootDir returns the VDL root directory, based on the VDLPATH, VDLROOT and
 // JIRI_ROOT environment variables.
 //
 // VDLROOT is a single directory specifying the location of the standard vdl
 // packages.  It has the same requirements as VDLPATH components.  If VDLROOT is
 // empty, we use JIRI_ROOT to construct the VDLROOT.  An error is reported if
 // neither VDLROOT nor JIRI_ROOT is specified.
-func VdlRootDir(errs *vdlutil.Errors) string {
+func VDLRootDir(errs *vdlutil.Errors) string {
 	vdlroot := os.Getenv("VDLROOT")
 	if vdlroot == "" {
 		// Try to construct VDLROOT out of JIRI_ROOT.

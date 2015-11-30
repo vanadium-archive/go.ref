@@ -14,14 +14,12 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -37,10 +35,10 @@ package main
 //go:generate jiri go run make_builtin_vdlroot.go
 
 const (
-	// builtinVdlrootData contains a base64-encoded gzip'd tar file. This file
-	// contains all of the VDL files required to run the VDL tool.
-	builtinVdlrootData = ` + "`"
-	outputFooter = "`" + `
+	// builtinVDLRootData contains the raw bytes for a gzip'd tarball, containing
+	// the vdlroot standard packages required to run the vdl tool.
+	builtinVDLRootData = "`
+	outputFooter = `"
 )
 `
 )
@@ -56,64 +54,34 @@ func writeBytes(out io.Writer, content []byte) error {
 	return err
 }
 
-// writeString writes the given string to the given writer, returning an error
-// if the underlying Write fails or if the number of bytes written is not equal
-// to len(content).
-func writeString(out io.Writer, content string) error {
-	return writeBytes(out, []byte(content))
+// hexWriter writes data as a sequence of \xAB constants.
+type hexWriter struct {
+	w io.Writer
 }
 
-type wrapWriter struct {
-	writer       io.Writer
-	totalWritten int
-}
-
-// Writes b to the underlying writer but inserts a \n every 78 characters. The
-// returned bytes-written count includes the \n characters.
-func (w *wrapWriter) Write(b []byte) (int, error) {
-	const max = 78
-	n := 0
-	for len(b) > 0 {
-		newline := true
-		chunk := max - w.totalWritten%max
-		if len(b) < chunk {
-			chunk = len(b)
-			newline = false
-		}
-		if err := writeBytes(w.writer, b[:chunk]); err != nil {
-			return n, err
-		}
-		n += chunk
-		w.totalWritten += chunk
-		b = b[chunk:]
-		if newline {
-			if err := writeString(w.writer, "\n"); err != nil {
-				return n, err
-			}
-			n++
+func (w hexWriter) Write(data []byte) (int, error) {
+	for index, b := range data {
+		if _, err := fmt.Fprintf(w.w, `\x%02X`, b); err != nil {
+			return index, err
 		}
 	}
-	return n, nil
+	return len(data), nil
 }
 
-// writeVdlrootData creates a gzip'd tar file containing all of the VDL files
+// writeVDLRootData creates a gzip'd tar file containing all of the VDL files
 // in vdlroot. The data is encoded as base64. Does not close out.
-func writeVdlrootData(out io.Writer) error {
+func writeVDLRootData(out io.Writer) error {
 	jiriRoot := os.Getenv("JIRI_ROOT")
 	if jiriRoot == "" {
 		return fmt.Errorf("JIRI_ROOT is not set")
 	}
 	srcDir := filepath.Join(jiriRoot, "release", "go", "src")
 	vdlroot := filepath.Join(srcDir, "v.io", "v23", "vdlroot")
-	wrapWriter := &wrapWriter{
-		writer:       out,
-		totalWritten: 0,
-	}
-	base64writer := base64.NewEncoder(base64.StdEncoding, wrapWriter)
-	gzipWriter := gzip.NewWriter(base64writer)
+	hexWriter := hexWriter{out}
+	gzipWriter := gzip.NewWriter(hexWriter)
 	tarWriter := tar.NewWriter(gzipWriter)
 	walkFn := func(path string, info os.FileInfo, err error) error {
-		if strings.HasSuffix(path, ".vdl") {
+		if filepath.Ext(path) == ".vdl" || filepath.Base(path) == "vdl.config" {
 			content, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
@@ -145,10 +113,6 @@ func writeVdlrootData(out io.Writer) error {
 		log.Printf("Close() of gzip file failed: %v", err)
 		return err
 	}
-	if err := base64writer.Close(); err != nil {
-		log.Printf("Close() of base64 file failed: %v", err)
-		return err
-	}
 	return nil
 }
 
@@ -160,13 +124,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer f.Close()
-	if err := writeString(f, outputPreamble); err != nil {
+	if err := writeBytes(f, []byte(outputPreamble)); err != nil {
 		os.Exit(1)
 	}
-	if err := writeVdlrootData(f); err != nil {
+	if err := writeVDLRootData(f); err != nil {
 		os.Exit(1)
 	}
-	if err := writeString(f, outputFooter); err != nil {
+	if err := writeBytes(f, []byte(outputFooter)); err != nil {
 		os.Exit(1)
 	}
 }

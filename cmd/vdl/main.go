@@ -14,9 +14,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
-	"v.io/jiri/collect"
 	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/textutil"
@@ -33,26 +33,7 @@ func init() {
 }
 
 func main() {
-	env := cmdline.EnvFromOS()
-	err := runMain(env)
-	os.Exit(cmdline.ExitCode(err, env.Stderr))
-}
-
-func runMain(env *cmdline.Env) (e error) {
-	args := os.Args[1:]
-	runner, args, err := cmdline.Parse(cmdVDL, env, args)
-	if err != nil {
-		return err
-	}
-	cleanup, errs := maybeExtractBuiltinVdlroot()
-	defer collect.Error(cleanup, &err)
-	if err := checkErrors(errs); err != nil {
-		return err
-	}
-	if err := runner.Run(env, args); err != nil {
-		return err
-	}
-	return nil
+	cmdline.Main(cmdVDL)
 }
 
 func checkErrors(errs *vdlutil.Errors) error {
@@ -63,33 +44,61 @@ func checkErrors(errs *vdlutil.Errors) error {
 %s   (run with "vdl -v" for verbose logging or "vdl help" for help)`, errs)
 }
 
-// runHelper returns a function that generates a sorted list of transitive
-// targets, and calls the supplied run function.
-func runHelper(run func(targets []*build.Package, env *compile.Env)) cmdline.Runner {
-	return cmdline.RunnerFunc(func(_ *cmdline.Env, args []string) error {
-		if flagVerbose {
-			vdlutil.SetVerbose()
+// tmpVDLRoot is set to the location of the temporary vdlroot directory where
+// standard packages are located.  It's empty if a temporary vdlroot wasn't
+// extracted.
+var tmpVDLRoot string
+
+// runnerFunc is an adapter that implements cmdline.Runner.  It generates a
+// sorted list of transitive targets, and calls the underlying function.
+type runnerFunc func([]*build.Package, *compile.Env)
+
+func (f runnerFunc) Run(_ *cmdline.Env, args []string) (e error) {
+	if flagVerbose {
+		vdlutil.SetVerbose()
+	}
+	ignoredErrors := vdlutil.NewErrors(-1)
+	if vdlroot := build.VDLRootDir(ignoredErrors); vdlroot != "" {
+		vdlutil.Vlog.Printf("Using VDLROOT %s", vdlroot)
+	} else {
+		// Extract built-in vdlroot to a temporary directory.
+		dir, err := ioutil.TempDir("", "vdlroot-")
+		if err != nil {
+			return fmt.Errorf("Couldn't create temporary VDLROOT: %v", err)
 		}
-		if len(args) == 0 {
-			// If the user doesn't specify any targets, the cwd is implied.
-			args = append(args, ".")
+		defer func() {
+			if errCleanup := os.RemoveAll(dir); e == nil {
+				e = errCleanup
+			}
+		}()
+		if err := extractVDLRootData(dir); err != nil {
+			return fmt.Errorf("Couldn't extract temporary VDLROOT: %v", err)
 		}
-		env := compile.NewEnv(flagMaxErrors)
-		env.DisallowPathQualifiers()
-		mode := build.UnknownPathIsError
-		if flagIgnoreUnknown {
-			mode = build.UnknownPathIsIgnored
+		tmpVDLRoot = filepath.Join(dir, "v.io", "v23", "vdlroot")
+		if err := os.Setenv("VDLROOT", tmpVDLRoot); err != nil {
+			return fmt.Errorf("Setenv(VDLROOT, %q) failed: %v", tmpVDLRoot, err)
 		}
-		var opts build.Opts
-		opts.Extensions = strings.Split(flagExts, ",")
-		opts.VDLConfigName = flagVDLConfig
-		targets := build.TransitivePackages(args, mode, opts, env.Errors)
-		if err := checkErrors(env.Errors); err != nil {
-			return err
-		}
-		run(targets, env)
-		return checkErrors(env.Errors)
-	})
+		vdlutil.Vlog.Printf("Extracted temporary VDLROOT to %s", tmpVDLRoot)
+	}
+	env := compile.NewEnv(flagMaxErrors)
+	env.DisallowPathQualifiers()
+	if len(args) == 0 {
+		// If the user doesn't specify any targets, the cwd is implied.
+		args = append(args, ".")
+	}
+	mode := build.UnknownPathIsError
+	if flagIgnoreUnknown {
+		mode = build.UnknownPathIsIgnored
+	}
+	var opts build.Opts
+	opts.Extensions = strings.Split(flagExts, ",")
+	opts.VDLConfigName = flagVDLConfig
+	targets := build.TransitivePackages(args, mode, opts, env.Errors)
+	if err := checkErrors(env.Errors); err != nil {
+		return err
+	}
+	f(targets, env)
+	return checkErrors(env.Errors)
 }
 
 var topicPackages = cmdline.Topic{
@@ -129,7 +138,7 @@ appear directly under the VDLPATH directories.
 `,
 }
 
-var topicVdlPath = cmdline.Topic{
+var topicVDLPath = cmdline.Topic{
 	Name:  "vdlpath",
 	Short: "Description of VDLPATH environment variable",
 	Long: `
@@ -137,10 +146,10 @@ The VDLPATH environment variable is used to resolve import statements.
 It must be set to compile and generate vdl packages.
 
 The format is a colon-separated list of directories containing vdl source code.
-These directories are searched recursively for VDL source files.  The path
-below the directory determines the import path.  If VDLPATH specifies multiple
-directories, imports are resolved by picking the first directory with a
-matching import name.
+These directories are searched recursively for VDL source files.  The path below
+the directory determines the import path.  If VDLPATH specifies multiple
+directories, imports are resolved by picking the first directory with a matching
+import name.
 
 An example:
 
@@ -158,7 +167,7 @@ An example:
 `,
 }
 
-var topicVdlRoot = cmdline.Topic{
+var topicVDLRoot = cmdline.Topic{
 	Name:  "vdlroot",
 	Short: "Description of VDLROOT environment variable",
 	Long: `
@@ -168,12 +177,13 @@ containing the standard vdl packages.
 
 Setting VDLROOT is optional.
 
-If VDLROOT is empty, we try to construct it out of the JIRI_ROOT environment
-variable.  It is an error if both VDLROOT and JIRI_ROOT are empty.
+If VDLROOT is empty, we try to find the standard packages under
+JIRI_ROOT/release/go/src/v.io/v23/vdlroot.  If both VDLROOT and JIRI_ROOT are
+empty, we use the standard packages built-in to the vdl binary.
 `,
 }
 
-var topicVdlConfig = cmdline.Topic{
+var topicVDLConfig = cmdline.Topic{
 	Name:  "vdl.config",
 	Short: "Description of vdl.config files",
 	Long: `
@@ -194,7 +204,7 @@ For more information, run "vdl help packages".
 `
 
 var cmdCompile = &cmdline.Command{
-	Runner: runHelper(runCompile),
+	Runner: runnerFunc(runCompile),
 	Name:   "compile",
 	Short:  "Compile packages and dependencies, but don't generate code",
 	Long: `
@@ -206,7 +216,7 @@ generate code.  This is useful to sanity-check that your VDL files are valid.
 }
 
 var cmdGenerate = &cmdline.Command{
-	Runner: runHelper(runGenerate),
+	Runner: runnerFunc(runGenerate),
 	Name:   "generate",
 	Short:  "Compile packages and dependencies, and generate code",
 	Long: `
@@ -218,7 +228,7 @@ in the specified languages.
 }
 
 var cmdAudit = &cmdline.Command{
-	Runner: runHelper(runAudit),
+	Runner: runnerFunc(runAudit),
 	Name:   "audit",
 	Short:  "Check if any packages are stale and need generation",
 	Long: `
@@ -231,7 +241,7 @@ non-0 exit code indicating some packages need generation.
 }
 
 var cmdList = &cmdline.Command{
-	Runner: runHelper(runList),
+	Runner: runnerFunc(runList),
 	Name:   "list",
 	Short:  "List package and dependency info in transitive order",
 	Long: `
@@ -348,12 +358,11 @@ func (x *genOutDir) Set(value string) error {
 
 var (
 	// Common flags for the tool itself, applicable to all commands.
-	flagVerbose        bool
-	flagMaxErrors      int
-	flagExts           string
-	flagVDLConfig      string
-	flagIgnoreUnknown  bool
-	flagBuiltinVdlroot bool
+	flagVerbose       bool
+	flagMaxErrors     int
+	flagExts          string
+	flagVDLConfig     string
+	flagIgnoreUnknown bool
 
 	// Options for each command.
 	optCompileStatus bool
@@ -392,7 +401,7 @@ Command vdl manages Vanadium Definition Language source code.  It's similar to
 the go tool used for managing Go source code.
 `,
 	Children: []*cmdline.Command{cmdGenerate, cmdCompile, cmdAudit, cmdList},
-	Topics:   []cmdline.Topic{topicPackages, topicVdlPath, topicVdlRoot, topicVdlConfig},
+	Topics:   []cmdline.Topic{topicPackages, topicVDLPath, topicVDLRoot, topicVDLConfig},
 }
 
 func init() {
@@ -402,7 +411,6 @@ func init() {
 	cmdVDL.Flags.StringVar(&flagExts, "exts", ".vdl", "Comma-separated list of valid VDL file name extensions.")
 	cmdVDL.Flags.StringVar(&flagVDLConfig, "vdl.config", "vdl.config", "Basename of the optional per-package config file.")
 	cmdVDL.Flags.BoolVar(&flagIgnoreUnknown, "ignore_unknown", false, "Ignore unknown packages provided on the command line.")
-	cmdVDL.Flags.BoolVar(&flagBuiltinVdlroot, "builtin_vdlroot", false, "If JIRI_ROOT and VDLROOT are not set, use built-in VDL definitions for core types")
 
 	// Options for compile.
 	cmdCompile.Flags.BoolVar(&optCompileStatus, "status", true, "Show package names while we compile")
@@ -469,7 +477,7 @@ func runGenerate(targets []*build.Package, env *compile.Env) {
 func runAudit(targets []*build.Package, env *compile.Env) {
 	if gen(true, targets, env) && env.Errors.IsEmpty() {
 		// Some packages are stale, and there were no errors; return an arbitrary
-		// non-0 exit code.  Errors are handled in runHelper, as usual.
+		// non-0 exit code.  Errors are handled in runnerFunc, as usual.
 		os.Exit(10)
 	}
 }
@@ -579,6 +587,12 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 // already exist with the given data.
 func writeFile(audit bool, data []byte, dirName, baseName string, env *compile.Env) bool {
 	dstName := filepath.Join(dirName, baseName)
+	// Don't write any files under tmpVDLRoot, and pretend that everything's
+	// up-to-date.  There's no point in writing files under tmpVDLRoot since the
+	// whole directory will be deleted.
+	if tmpVDLRoot != "" && strings.HasPrefix(dstName, tmpVDLRoot) {
+		return false
+	}
 	// Don't change anything if old and new are the same.
 	if oldData, err := ioutil.ReadFile(dstName); err == nil && bytes.Equal(oldData, data) {
 		return false
@@ -657,10 +671,13 @@ func runList(targets []*build.Package, env *compile.Env) {
 		num := fmt.Sprintf("%d", tx)
 		fmt.Printf("%s %s\n", num, strings.Repeat("=", termWidth()-len(num)-1))
 		fmt.Printf("Name:    %v\n", target.Name)
-		fmt.Printf("Config:  %+v\n", target.Config)
+		fmt.Printf("IsRoot:  %v\n", target.IsRoot)
 		fmt.Printf("Path:    %v\n", target.Path)
 		fmt.Printf("GenPath: %v\n", target.GenPath)
 		fmt.Printf("Dir:     %v\n", target.Dir)
+		if !reflect.DeepEqual(target.Config, vdltool.Config{}) {
+			fmt.Printf("Config:  %+v\n", target.Config)
+		}
 		if len(target.BaseFileNames) > 0 {
 			fmt.Print("Files:\n")
 			for _, file := range target.BaseFileNames {
