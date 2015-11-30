@@ -16,7 +16,6 @@ import (
 	"mojo/public/go/application"
 	"mojo/public/go/bindings"
 	"mojo/public/go/system"
-
 	"mojom/syncbase"
 
 	"v.io/v23"
@@ -45,21 +44,29 @@ func (d *delegate) Initialize(actx application.Context) {
 	d.srv, d.disp, d.cleanup = Serve(d.ctx)
 }
 
+const numGoroutines = 100
+
 func (d *delegate) Create(req syncbase.Syncbase_Request) {
 	impl := server.NewMojoImpl(d.ctx, d.srv, d.disp)
 	stub := syncbase.NewSyncbaseStub(req, impl, bindings.GetAsyncWaiter())
 	d.stubs = append(d.stubs, stub)
-	go func() {
-		for {
-			if err := stub.ServeRequest(); err != nil {
-				connErr, ok := err.(*bindings.ConnectionError)
-				if !ok || !connErr.Closed() {
-					log.Println(err)
+	// Spawn a bunch of goroutines to handle incoming requests concurrently.
+	// Note: It would be better to spawn a goroutine per request as requests
+	// arrive, but Mojo's Go interfaces make this difficult at best. Discussions
+	// with Mojo team ongoing (as of Nov 25, 2015).
+	for i := 0; i < numGoroutines; i++ {
+		go func(i int) {
+			for {
+				if err := stub.ServeRequest(); err != nil {
+					connErr, ok := err.(*bindings.ConnectionError)
+					if !ok || !connErr.Closed() {
+						log.Println(i, err)
+					}
+					break
 				}
-				break
 			}
-		}
-	}()
+		}(i)
+	}
 }
 
 func (d *delegate) AcceptConnection(conn *application.Connection) {
