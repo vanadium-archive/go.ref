@@ -60,7 +60,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
     {{/* The optionless overload simply calls the overload with options */}}
     @Override
     public com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> {{ $method.Name }}(io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}) {
-        return {{ $method.Name }}(_context{{ $method.CallingArgsLeadingComma }}, (io.v.v23.Options) null);
+        return {{ $method.Name }}(_context{{ $method.CallingArgsLeadingComma }}, null);
     }
     @Override
     public com.google.common.util.concurrent.ListenableFuture<{{ $method.GenericRetType }}> {{ $method.Name }}(io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}, io.v.v23.Options _opts) {
@@ -102,37 +102,53 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                 });
 
                 {{else }} {{/* else $method.NotStreaming */}}
-                final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable<>(_call,new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType());
                 {{ $method.GenericRetType }} _stream = new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
                     @Override
-                    public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
+                    public com.google.common.util.concurrent.ListenableFuture<Void> send({{ $method.SendType }} item) {
                         java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.SendType }}>() {}.getType();
-                        _call.send(item, type);
+                        return _call.send(item, type);
                     }
                     @Override
-                    public {{ $method.DeclaredObjectRetType }} finish() throws io.v.v23.verror.VException {
+                    public com.google.common.util.concurrent.ListenableFuture<Void> close() {
+                        return _call.closeSend();
+                    }
+                    @Override
+                    public com.google.common.util.concurrent.ListenableFuture<{{ $method.RecvType }}> recv() {
+                        java.lang.reflect.Type recvType = new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType();
+                        return com.google.common.util.concurrent.Futures.transform(_call.recv(recvType), new com.google.common.base.Function<Object, {{ $method.RecvType }}>() {
+                            @Override
+                            public {{ $method.RecvType }} apply(Object result) {
+                                return ({{ $method.RecvType }}) result;
+                            }
+                        });
+                    }
+                    @Override
+                    public com.google.common.util.concurrent.ListenableFuture<{{ $method.DeclaredObjectRetType }}> finish() {
                         {{ if $method.IsVoid }}
                         java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{};
-                        io.v.v23.VFutures.sync(_call.finish(resultTypes));
-                        return null;
                         {{ else }} {{/* else $method.IsVoid */}}
                         java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{
-                            new com.google.common.reflect.TypeToken<{{ $method.DeclaredObjectRetType }}>() {}.getType()
+                            {{ range $outArg := $method.OutArgs }}
+                            new com.google.common.reflect.TypeToken<{{ $outArg.Type }}>() {}.getType(),
+                            {{ end }}
                         };
-                        return ({{ $method.DeclaredObjectRetType }})io.v.v23.VFutures.sync(_call.finish(resultTypes))[0];
                         {{ end }} {{/* end if $method.IsVoid */}}
-                    }
-                    @Override
-                    public void close() throws io.v.v23.verror.VException {
-                        _call.closeSend();
-                    }
-                    @Override
-                    public java.util.Iterator<{{ $method.RecvType }}> iterator() {
-                        return _it.iterator();
-                    }
-                    @Override
-                    public io.v.v23.verror.VException error() {
-                        return _it.error();
+                        return com.google.common.util.concurrent.Futures.transform(_call.finish(resultTypes), new com.google.common.base.Function<Object[], {{ $method.DeclaredObjectRetType }}>() {
+                            @Override
+                            public {{ $method.DeclaredObjectRetType }} apply(Object[] _results) {
+                                {{ if $method.IsVoid }}
+                                return null;
+                                {{ else if $method.MultipleReturn }}
+                                {{ $method.DeclaredObjectRetType }} _ret = new {{ $method.DeclaredObjectRetType }}();
+                                {{ range $i, $outArg := $method.OutArgs }}
+                                    _ret.{{ $outArg.FieldName }} = ({{ $outArg.Type }})_results[{{ $i }}];
+                                {{ end }} {{/* end range over outargs */}}
+                                return _ret;
+                                {{ else }} {{/* else if $method.MultipleReturn */}}
+                                return ({{ $method.DeclaredObjectRetType }})_results[0];
+                                {{ end }} {{/* end if $method.IsVoid */}}
+                            }
+                        });
                     }
                 };
                 return com.google.common.util.concurrent.Futures.immediateFuture(_stream);
