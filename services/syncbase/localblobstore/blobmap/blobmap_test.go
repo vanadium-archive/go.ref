@@ -15,14 +15,13 @@ import "testing"
 import "v.io/x/ref/services/syncbase/localblobstore/blobmap"
 import "v.io/x/ref/services/syncbase/store"
 import "v.io/v23/context"
-
 import "v.io/x/ref/test"
 import _ "v.io/x/ref/runtime/factories/generic"
 
 // id() returns a new random 16-byte byte vector.
 func id() []byte {
 	v := make([]byte, 16)
-	for i := 0; i != len(v); i++ {
+	for i := range v {
 		v[i] = byte(rand.Int31n(256))
 	}
 	return v
@@ -150,10 +149,10 @@ func verifyChunksInBlob(t *testing.T, ctx *context.T, bm *blobmap.BlobMap, blobi
 	}
 }
 
-// TestAddRetrieveAndDelete() tests insertion, retrieval, and deletion of blobs
-// from a BlobMap.  It's all done in one test case, because one cannot retrieve
-// or delete blobs that have not been inserted.
-func TestAddRetrieveAndDelete(t *testing.T) {
+// TestAddRetrieveAndDeleteChunks() tests insertion, retrieval, and deletion of
+// blobs and chunks from a BlobMap.  It's all done in one test case, because
+// one cannot retrieve or delete blobs that have not been inserted.
+func TestAddRetrieveAndDeleteChunks(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 

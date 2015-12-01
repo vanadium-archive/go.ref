@@ -270,6 +270,16 @@ func (x DeltaRespGvs) Interface() interface{}          { return x.Value }
 func (x DeltaRespGvs) Name() string                    { return "Gvs" }
 func (x DeltaRespGvs) __VDLReflect(__DeltaRespReflect) {}
 
+// DeltaFinalResp contains the data returned at the end of a GetDeltas call.
+type DeltaFinalResp struct {
+	SgPriorities SgPriorities
+}
+
+func (DeltaFinalResp) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaFinalResp"`
+}) {
+}
+
 // ChunkHash contains the hash of a chunk that is part of a blob's recipe.
 type ChunkHash struct {
 	Hash []byte
@@ -322,6 +332,51 @@ func (TimeResp) __VDLReflect(struct {
 }) {
 }
 
+// A SgPriority represents data used to decide whether to transfer blob ownership
+// between two devices.
+type SgPriority struct {
+	Distance   int32     // number of hops from a server-quality member of the syncgroup
+	ServerTime time.Time // when data from a server-quality member reached this device
+}
+
+func (SgPriority) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SgPriority"`
+}) {
+}
+
+// A SgPriorities maps syncgroup IDs to SgPriority structures.  It is sent and
+// received in GetDeltas calls to allow the participants to assess who has
+// higher priorities for keeping blobs.
+type SgPriorities map[GroupId]SgPriority
+
+func (SgPriorities) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SgPriorities"`
+}) {
+}
+
+// A BlobSharesBySyncgroup maps syncgroup IDs to integer share numbers that a
+// syncbase instance may have for a blob.
+type BlobSharesBySyncgroup map[GroupId]int32
+
+func (BlobSharesBySyncgroup) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.BlobSharesBySyncgroup"`
+}) {
+}
+
+// A Signpost is a hint to syncbase of the device on which a blob may be found.
+// It represents the data known about a blob even when the blob itself is not
+// present on the device.
+type Signpost struct {
+	Peer   string               // Syncbase from which the presence of this BlobRef was first learned.
+	Source string               // Syncbase that originated this blob.
+	SgIds  map[GroupId]struct{} // SyncGroups through which the BlobRef was learned.
+}
+
+func (Signpost) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.Signpost"`
+}) {
+}
+
 func init() {
 	vdl.Register((*GenVector)(nil))
 	vdl.Register((*Knowledge)(nil))
@@ -334,10 +389,15 @@ func init() {
 	vdl.Register((*DataDeltaReq)(nil))
 	vdl.Register((*SgDeltaReq)(nil))
 	vdl.Register((*DeltaResp)(nil))
+	vdl.Register((*DeltaFinalResp)(nil))
 	vdl.Register((*ChunkHash)(nil))
 	vdl.Register((*ChunkData)(nil))
 	vdl.Register((*TimeReq)(nil))
 	vdl.Register((*TimeResp)(nil))
+	vdl.Register((*SgPriority)(nil))
+	vdl.Register((*SgPriorities)(nil))
+	vdl.Register((*BlobSharesBySyncgroup)(nil))
+	vdl.Register((*Signpost)(nil))
 }
 
 const NoGroupId = GroupId(0)

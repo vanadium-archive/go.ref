@@ -51,6 +51,8 @@
 package localblobstore
 
 import "v.io/v23/context"
+import "v.io/v23/services/syncbase/nosql"
+import "v.io/x/ref/services/syncbase/server/interfaces"
 
 // A BlobStore represents a simple, content-addressable store.
 type BlobStore interface {
@@ -135,6 +137,56 @@ type BlobStore interface {
 
 	// Root() returns the name of the root directory where the BlobStore is stored.
 	Root() string
+
+	// ------------------------------------------------
+
+	// SetBlobMetadata() sets the BlobMetadata associated with a blob to *bmd.
+	SetBlobMetadata(ctx *context.T, blobID nosql.BlobRef, bmd *BlobMetadata) error
+
+	// GetBlobMetadata() yields in *bmd the BlobMetadata associated with a blob.
+	GetBlobMetadata(ctx *context.T, blobID nosql.BlobRef, bmd *BlobMetadata) error
+
+	// DeleteBlobMetadata() deletes the BlobMetadata for the specified blob.
+	DeleteBlobMetadata(ctx *context.T, blobID nosql.BlobRef) error
+
+	// NewBlobMetadataStream() returns a pointer to a BlobMetadataStream
+	// that allows the client to iterate over each blob for which BlobMetadata
+	// has been specified.
+	NewBlobMetadataStream(ctx *context.T) BlobMetadataStream
+
+	// ------------------------------------------------
+
+	// SetSignpost() sets the Signpost associated with a blob to *sp.
+	SetSignpost(ctx *context.T, blobID nosql.BlobRef, sp *interfaces.Signpost) error
+
+	// GetSignpost() yields in *sp the Signpost associated with a blob.
+	GetSignpost(ctx *context.T, blobID nosql.BlobRef, sp *interfaces.Signpost) error
+
+	// DeleteSignpost() deletes the Signpost for the specified blob.
+	DeleteSignpost(ctx *context.T, blobID nosql.BlobRef) error
+
+	// NewSignpostStream() returns a pointer to a SignpostStream
+	// that allows the client to iterate over each blob for which a Signpost
+	// has been specified.
+	NewSignpostStream(ctx *context.T) SignpostStream
+
+	// ------------------------------------------------
+
+	// SetPerSyncgroup() sets the PerSyncgroup associated with a syncgroup to *psg.
+	SetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg *PerSyncgroup) error
+
+	// GetPerSyncgroup() yields in *psg the PerSyncgroup associated with a syncgroup.
+	GetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg *PerSyncgroup) error
+
+	// DeletePerSyncgroup() deletes the PerSyncgroup for the specified syncgroup.
+	DeletePerSyncgroup(ctx *context.T, sgId interfaces.GroupId) error
+
+	// NewPerSyncgroupStream() returns a pointer to a PerSyncgroupStream
+	// that allows the client to iterate over each syncgroup for which PerSyncgroup
+	// has been specified.
+	NewPerSyncgroupStream(ctx *context.T) PerSyncgroupStream
+
+	// ------------------------------------------------
 
 	// Close() closes the BlobStore.
 	Close() error
@@ -297,6 +349,69 @@ type RecipeStream interface {
 	// Value() returns the RecipeStep that was staged by Advance().  May panic if
 	// Advance() returned false or was not called.  Never blocks.
 	Value() RecipeStep
+
+	Err() error
+	Cancel()
+}
+
+// -----------------------------------------------------
+
+// A BlobMetadataStream represents an iterator that allows the client to obtain
+// the BlobMetadata that has been associated with each blob ID.  See the
+// comments for Stream for usage.
+type BlobMetadataStream interface {
+	Advance() bool
+
+	// BlobId() returns the blob ID that was staged by Advance().  May
+	// panic if Advance() returned false or was not called.  Never blocks.
+	BlobId() nosql.BlobRef
+
+	// BlobMetaData() returns the BlobMetedata that was staged by
+	// Advance().  May panic if Advance() returned false or was not called.
+	// Never blocks.
+	BlobMetadata() BlobMetadata
+
+	Err() error
+	Cancel()
+}
+
+// -----------------------------------------------------
+
+// A SignpostStream represents an iterator that allows the client to obtain the
+// Signpost information that has been associated with each blob ID.  See the
+// comments for Stream for usage.
+type SignpostStream interface {
+	Advance() bool
+
+	// BlobId() returns the blob ID that was staged by Advance().  May
+	// panic if Advance() returned false or was not called.  Never blocks.
+	BlobId() nosql.BlobRef
+
+	// BlobMetaData() returns the BlobMetedata that was staged by
+	// Advance().  May panic if Advance() returned false or was not called.
+	// Never blocks.
+	Signpost() interfaces.Signpost
+
+	Err() error
+	Cancel()
+}
+
+// -----------------------------------------------------
+
+// A PerSyncgroupStream represents an iterator that allows the client to obtain
+// the PerSyncgroup that has been associated with each blob.  See the comments
+// for Stream for usage.
+type PerSyncgroupStream interface {
+	Advance() bool
+
+	// SyncgroupId() returns the blob ID that was staged by Advance().  May
+	// panic if Advance() returned false or was not called.  Never blocks.
+	SyncgroupId() interfaces.GroupId
+
+	// PerSyncgroup() returns the PerSyncgroupt was staged by
+	// Advance().  May panic if Advance() returned false or was not called.
+	// Never blocks.
+	PerSyncgroup() PerSyncgroup
 
 	Err() error
 	Cancel()

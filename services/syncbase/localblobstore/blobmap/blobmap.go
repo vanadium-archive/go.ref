@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package blobmap implements a map from chunk checksums to chunk locations
-// and vice versa, using a store.Store (currently, one implemented with
-// leveldb).
+// Package blobmap implements a persistent map from blob identifiers to blob
+// meta-data and vice versa.  Meta-data includes locations of chunks within
+// blobs, used for incremental blob transfer over the network, hints for which
+// device might have blobs (called signposts), and metadata about blob
+// ownership and usage.  blobmap is implemented using a store.Store (currently,
+// one implemented with leveldb).
 package blobmap
 
 import "encoding/binary"
@@ -15,19 +18,31 @@ import "v.io/x/ref/services/syncbase/store"
 import "v.io/v23/context"
 import "v.io/v23/verror"
 
-const pkgPath = "v.io/x/ref/services/syncbase/localblobstore/blobmap"
+const pkgPath = "v.io/syncbase/x/ref/services/syncbase/localblobstore/blobmap"
 
 var (
-	errBadBlobIDLen        = verror.Register(pkgPath+".errBadBlobIDLen", verror.NoRetry, "{1:}{2:} blobmap {3}: bad blob length {4} should be {5}{:_}")
-	errBadChunkHashLen     = verror.Register(pkgPath+".errBadChunkHashLen", verror.NoRetry, "{1:}{2:} blobmap {3}: bad chunk hash length {4} should be {5}{:_}")
-	errNoSuchBlob          = verror.Register(pkgPath+".errNoSuchBlob", verror.NoRetry, "{1:}{2:} blobmap {3}: no such blob{:_}")
-	errMalformedChunkEntry = verror.Register(pkgPath+".errMalformedChunkEntry", verror.NoRetry, "{1:}{2:} blobmap {3}: malfored chunk entry{:_}")
-	errNoSuchChunk         = verror.Register(pkgPath+".errNoSuchChunk", verror.NoRetry, "{1:}{2:} blobmap {3}: no such chunk{:_}")
-	errMalformedBlobEntry  = verror.Register(pkgPath+".errMalformedBlobEntry", verror.NoRetry, "{1:}{2:} blobmap {3}: malfored blob entry{:_}")
+	errBadBlobIDLen               = verror.Register(pkgPath+".errBadBlobIDLen", verror.NoRetry, "{1:}{2:} blobmap {3}: bad blob length {4} should be {5}{:_}")
+	errBadChunkHashLen            = verror.Register(pkgPath+".errBadChunkHashLen", verror.NoRetry, "{1:}{2:} blobmap {3}: bad chunk hash length {4} should be {5}{:_}")
+	errNoSuchBlob                 = verror.Register(pkgPath+".errNoSuchBlob", verror.NoRetry, "{1:}{2:} blobmap {3}: no such blob{:_}")
+	errMalformedChunkEntry        = verror.Register(pkgPath+".errMalformedChunkEntry", verror.NoRetry, "{1:}{2:} blobmap {3}: malformed chunk entry{:_}")
+	errNoSuchChunk                = verror.Register(pkgPath+".errNoSuchChunk", verror.NoRetry, "{1:}{2:} blobmap {3}: no such chunk{:_}")
+	errMalformedBlobEntry         = verror.Register(pkgPath+".errMalformedBlobEntry", verror.NoRetry, "{1:}{2:} blobmap {3}: malformed blob entry{:_}")
+	errMalformedSignpostEntry     = verror.Register(pkgPath+".errMalformedSignpostEntry", verror.NoRetry, "{1:}{2:} blobmap {3}: malformed Signpost entry{:_}")
+	errMalformedBlobMetadataEntry = verror.Register(pkgPath+".errMalformedBlobMetadataEntry", verror.NoRetry, "{1:}{2:} blobmap {3}: malformed BlobMetadata entry{:_}")
+	errMalformedPerSyncgroupEntry = verror.Register(pkgPath+".errMalformedPerSyncgroupEntry", verror.NoRetry, "{1:}{2:} key {3}: malformed PerSyncgroup entry{:_}")
 )
 
-// There are two tables: chunk-to-location, and blob-to-chunk.
-// Each chunk is represented by one entry in each table.
+// There are five tables:
+//   0) chunk-to-location
+//   1) blob-to-chunk
+//   2) blob-to-signpost
+//   3) blob-to-metadata
+//   4) syncgroup-to-per-syncgroup
+//
+// Chunks represent sequences of bytes that occur in blobs.  Chunks are the
+// unit of network transfer; chunks that the recipient already has are not
+// transferred---they are instead copied from a related blob.
+// Each chunk is represented by one entry in each of tables (0) and (1).
 // On deletion, the latter is used to find the former, so the latter is added
 // first, and deleted last.
 //
@@ -41,6 +56,18 @@ var (
 //    Key:    1-byte containing blobPrefix, 16-byte blob ID, 8-byte bigendian offset
 //    Value:  16-byte chunk hash, Varint length.
 //
+// blob-to-signpost:  (even if the blob is not stored locally)
+//    Key:   1-byte containing signpostPrefix, 16-byte blob ID
+//    Value: vom-encoded BlobSignpost
+//
+// blob-to-metadata:
+//    Key:   1-byte containing metadataPrefix, 16-byte blob ID
+//    Value: vom-encoded BlobMetaData
+//
+// syncgroup-to-per-syncgroup
+//    Key:   1-byte containing perSyncgroupPrefix, 8-byte syncgroup id (GroupId)
+//    Value: vom-encoded PerSyncgroup
+//
 // The varint encoded fields are written/read with
 // encoding/binary.{Put,Read}Varint.  The blob-to-chunk keys encode the offset
 // as raw big-endian (encoding/binary.{Put,}Uint64) so that it will sort in
@@ -50,11 +77,17 @@ const chunkHashLen = 16 // length of chunk hash
 const blobIDLen = 16    // length of blob ID
 const offsetLen = 8     // length of offset in blob-to-chunk key
 
-const maxKeyLen = 64 // conservative maximum key length
-const maxValLen = 64 // conservative maximum value length
+const maxKeyLen = 64            // conservative maximum key length
+const maxValLen = 64            // conservative maximum value length
+const maxSignpostLen = 1024     // conservative maximum Signpost length
+const maxBlobMetadataLen = 1024 // conservative maximum BlobMetadata length
+const maxPerSyncgroupLen = 1024 // conservative maximum PerSyncgroup length
 
-var chunkPrefix []byte = []byte{0} // key prefix for chunk-to-location
-var blobPrefix []byte = []byte{1}  // key prefix for blob-to-chunk
+var chunkPrefix []byte = []byte{0}        // key prefix for chunk-to-location
+var blobPrefix []byte = []byte{1}         // key prefix for blob-to-chunk
+var signpostPrefix string = "\u0002"      // key prefix for blob-to-signpost
+var metadataPrefix string = "\u0003"      // key prefix for blob-to-metadata
+var perSyncgroupPrefix []byte = []byte{4} // key prefix for per-syncgroup
 
 // offsetLimit is an offset that's greater than, and one byte longer than, any
 // real offset.
@@ -375,14 +408,45 @@ type BlobStream struct {
 	more   bool            // whether stream may be consulted again
 }
 
-// keyLimit is the key for limit in store.Scan() calls within a BlobStream.
-var keyLimit []byte
+// blobStreamKeyLimit is the key for limit in store.Scan() calls within a BlobStream.
+var blobStreamKeyLimit []byte
+
+// signpostStreamKeyLimit is the key for limit in store.Scan() calls within a
+// SignpostStream.
+var signpostStreamKeyLimit []byte
+
+// metadataStreamKeyLimit is the key for limit in store.Scan() calls within a
+// MetadataStream.
+var metadataStreamKeyLimit []byte
+
+// perSyncgroupStreamKeyLimit is the key for limit in store.Scan() calls within a
+// PerSyncgroupStream.
+var perSyncgroupStreamKeyLimit []byte
 
 func init() {
-	// The limit key is the maximum length key, all ones after the blobPrefix.
-	keyLimit = make([]byte, maxKeyLen)
-	for i := copy(keyLimit, blobPrefix); i != len(keyLimit); i++ {
-		keyLimit[i] = 0xff
+	// The blobStreamKeyLimit key is the maximum length key, all ones after the blobPrefix.
+	blobStreamKeyLimit = make([]byte, maxKeyLen)
+	for i := copy(blobStreamKeyLimit, blobPrefix); i != len(blobStreamKeyLimit); i++ {
+		blobStreamKeyLimit[i] = 0xff
+	}
+
+	// The signpostStreamKeyLimit key is the maximum length key, all ones after the signpostPrefix.
+	signpostStreamKeyLimit = make([]byte, maxKeyLen)
+	for i := copy(signpostStreamKeyLimit, signpostPrefix); i != len(signpostStreamKeyLimit); i++ {
+		signpostStreamKeyLimit[i] = 0xff
+	}
+
+	// The metadataStreamKeyLimit key is the maximum length key, all ones after the metadataPrefix.
+	metadataStreamKeyLimit = make([]byte, maxKeyLen)
+	for i := copy(metadataStreamKeyLimit, metadataPrefix); i != len(metadataStreamKeyLimit); i++ {
+		metadataStreamKeyLimit[i] = 0xff
+	}
+
+	// The perSyncgroupStreamKeyLimit key is the maximum length key, all
+	// ones after the perSyncgroupPrefix.
+	perSyncgroupStreamKeyLimit = make([]byte, maxKeyLen)
+	for i := copy(perSyncgroupStreamKeyLimit, perSyncgroupPrefix); i != len(perSyncgroupStreamKeyLimit); i++ {
+		perSyncgroupStreamKeyLimit[i] = 0xff
 	}
 }
 
@@ -426,7 +490,7 @@ func (bs *BlobStream) Advance() (ok bool) {
 			bs.key = bs.keyBuf[:prefixAndKeyLen]
 		}
 		if ok {
-			stream := bs.bm.st.Scan(bs.key, keyLimit)
+			stream := bs.bm.st.Scan(bs.key, blobStreamKeyLimit)
 			if !stream.Advance() {
 				bs.err = stream.Err()
 				ok = false // no more stream, even if no error

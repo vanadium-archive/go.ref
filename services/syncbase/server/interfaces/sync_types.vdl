@@ -136,6 +136,11 @@ type DeltaResp union {
 	Gvs     Knowledge
 }
 
+// DeltaFinalResp contains the data returned at the end of a GetDeltas call.
+type DeltaFinalResp struct {
+	SgPriorities SgPriorities
+}
+
 // ChunkHash contains the hash of a chunk that is part of a blob's recipe.
 type ChunkHash struct {
 	Hash []byte
@@ -169,4 +174,29 @@ type TimeResp struct {
 
 	// Number of sync hops between peer's device and its source of LastNtpTs.
 	NumHops uint16
+}
+
+// A SgPriority represents data used to decide whether to transfer blob ownership
+// between two devices.
+type SgPriority struct {
+	Distance   int32     // number of hops from a server-quality member of the syncgroup
+	ServerTime time.Time // when data from a server-quality member reached this device
+}
+
+// A SgPriorities maps syncgroup IDs to SgPriority structures.  It is sent and
+// received in GetDeltas calls to allow the participants to assess who has
+// higher priorities for keeping blobs.
+type SgPriorities map[GroupId]SgPriority
+
+// A BlobSharesBySyncgroup maps syncgroup IDs to integer share numbers that a
+// syncbase instance may have for a blob.
+type BlobSharesBySyncgroup map[GroupId]int32
+
+// A Signpost is a hint to syncbase of the device on which a blob may be found.
+// It represents the data known about a blob even when the blob itself is not
+// present on the device.
+type Signpost struct {
+        Peer         string       // Syncbase from which the presence of this BlobRef was first learned.
+        Source       string       // Syncbase that originated this blob.
+        SgIds        set[GroupId] // SyncGroups through which the BlobRef was learned.
 }
