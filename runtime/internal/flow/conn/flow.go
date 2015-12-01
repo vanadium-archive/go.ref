@@ -28,13 +28,10 @@ type flw struct {
 	remote         naming.Endpoint
 	channelTimeout time.Duration
 
-	// These variables can only be modified by SetDeadlineContext which cannot
-	// be called concurrently with other methods on the flow.  Therefore they
-	// are not mutex protected.
+	// NOTE: The remaining variables are actually protected by conn.mu.
+
 	ctx    *context.T
 	cancel context.CancelFunc
-
-	// NOTE: The remaining variables are actually protected by conn.mu.
 
 	// opened indicates whether the flow has already been opened.  If false
 	// we need to send an open flow on the next write.  For accepted flows
@@ -99,12 +96,15 @@ func (f *flw) disableEncryption() {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) Read(p []byte) (n int, err error) {
-	if err = f.checkBlessings(); err != nil {
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
+	if err = f.checkBlessings(ctx); err != nil {
 		return
 	}
 	f.markUsed()
-	if n, err = f.q.read(f.ctx, p); err != nil {
-		f.close(f.ctx, err)
+	if n, err = f.q.read(ctx, p); err != nil {
+		f.close(ctx, err)
 	}
 	return
 }
@@ -114,15 +114,18 @@ func (f *flw) Read(p []byte) (n int, err error) {
 // Read and ReadMsg should not be called concurrently with themselves
 // or each other.
 func (f *flw) ReadMsg() (buf []byte, err error) {
-	if err = f.checkBlessings(); err != nil {
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
+	if err = f.checkBlessings(ctx); err != nil {
 		return
 	}
 	f.markUsed()
 	// TODO(mattr): Currently we only ever release counters when some flow
 	// reads.  We may need to do it more or less often.  Currently
 	// we'll send counters whenever a new flow is opened.
-	if buf, err = f.q.get(f.ctx); err != nil {
-		f.close(f.ctx, err)
+	if buf, err = f.q.get(ctx); err != nil {
+		f.close(ctx, err)
 	}
 	return
 }
@@ -190,17 +193,20 @@ func (f *flw) releaseLocked(tokens uint64) {
 }
 
 func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
-	if err = f.checkBlessings(); err != nil {
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
+	if err = f.checkBlessings(ctx); err != nil {
 		return 0, err
 	}
-	f.ctx.VI(2).Infof("starting write on flow %d(%p)", f.id, f)
+	ctx.VI(2).Infof("starting write on flow %d(%p)", f.id, f)
 	select {
 	// Catch cancellations early.  If we caught a cancel when waiting
 	// our turn below its possible that we were notified simultaneously.
 	// Then the notify channel will be full and we would deadlock
 	// notifying ourselves.
-	case <-f.ctx.Done():
-		f.close(f.ctx, f.ctx.Err())
+	case <-ctx.Done():
+		f.close(ctx, ctx.Err())
 		return 0, io.EOF
 	default:
 	}
@@ -219,7 +225,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		// Wait for our turn.
 		f.conn.mu.Unlock()
 		select {
-		case <-f.ctx.Done():
+		case <-ctx.Done():
 			err = io.EOF
 		case <-f.writeCh:
 		}
@@ -237,7 +243,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 			// Note that if f.noEncrypt is set we're actually acting as a conn
 			// for higher level flows.  In this case we don't want to fragment the writes
 			// of the higher level flows, we want to transmit their messages whole.
-			f.ctx.VI(2).Infof("Deactivating write on flow %d(%p) due to lack of tokens", f.id, f)
+			ctx.VI(2).Infof("Deactivating write on flow %d(%p) due to lack of tokens", f.id, f)
 			f.conn.deactivateWriterLocked(f)
 			continue
 		}
@@ -255,9 +261,9 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 			d.Flags |= message.DisableEncryptionFlag
 		}
 		if opened {
-			err = f.conn.mp.writeMsg(f.ctx, d)
+			err = f.conn.mp.writeMsg(ctx, d)
 		} else {
-			err = f.conn.mp.writeMsg(f.ctx, &message.OpenFlow{
+			err = f.conn.mp.writeMsg(ctx, &message.OpenFlow{
 				ID:              f.id,
 				InitialCounters: DefaultBytesBufferedPerFlow,
 				BlessingsKey:    f.bkey,
@@ -281,13 +287,13 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		f.opened = true
 	}
 	f.writing = false
-	f.ctx.VI(2).Infof("finishing write on %d(%p): %v", f.id, f, err)
+	ctx.VI(2).Infof("finishing write on %d(%p): %v", f.id, f, err)
 	f.conn.deactivateWriterLocked(f)
 	f.conn.notifyNextWriterLocked(f)
 	f.conn.mu.Unlock()
 
 	if alsoClose || err != nil {
-		f.close(f.ctx, err)
+		f.close(ctx, err)
 	}
 	return sent, err
 }
@@ -309,10 +315,10 @@ func (f *flw) WriteMsgAndClose(parts ...[]byte) (int, error) {
 	return f.writeMsg(true, parts...)
 }
 
-func (f *flw) checkBlessings() error {
+func (f *flw) checkBlessings(ctx *context.T) error {
 	var err error
 	if !f.dialed && f.bkey != 0 {
-		_, _, err = f.conn.blessingsFlow.getRemote(f.ctx, f.bkey, f.dkey)
+		_, _, err = f.conn.blessingsFlow.getRemote(ctx, f.bkey, f.dkey)
 	}
 	return err
 }
@@ -329,6 +335,9 @@ func (f *flw) checkBlessings() error {
 // TODO(mattr): update v23/flow documentation.
 // SetContext may not be called concurrently with other methods.
 func (f *flw) SetDeadlineContext(ctx *context.T, deadline time.Time) *context.T {
+	defer f.conn.mu.Unlock()
+	f.conn.mu.Lock()
+
 	if f.cancel != nil {
 		f.cancel()
 	}
@@ -356,8 +365,11 @@ func (f *flw) RemoteEndpoint() naming.Endpoint {
 // LocalBlessings returns the blessings presented by the local end of the flow
 // during authentication.
 func (f *flw) LocalBlessings() security.Blessings {
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
 	if f.dialed {
-		blessings, _ := f.conn.blessingsFlow.getLocal(f.ctx, f.bkey, 0)
+		blessings, _ := f.conn.blessingsFlow.getLocal(ctx, f.bkey, 0)
 		return blessings
 	}
 	return f.conn.lBlessings
@@ -366,15 +378,18 @@ func (f *flw) LocalBlessings() security.Blessings {
 // RemoteBlessings returns the blessings presented by the remote end of the
 // flow during authentication.
 func (f *flw) RemoteBlessings() security.Blessings {
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
 	var blessings security.Blessings
 	var err error
 	if !f.dialed {
-		blessings, _, err = f.conn.blessingsFlow.getRemote(f.ctx, f.bkey, 0)
+		blessings, _, err = f.conn.blessingsFlow.getRemote(ctx, f.bkey, 0)
 	} else {
-		blessings, _, err = f.conn.blessingsFlow.getLatestRemote(f.ctx, f.conn.rBKey)
+		blessings, _, err = f.conn.blessingsFlow.getLatestRemote(ctx, f.conn.rBKey)
 	}
 	if err != nil {
-		f.conn.Close(f.ctx, err)
+		f.conn.Close(ctx, err)
 	}
 	return blessings
 }
@@ -384,11 +399,14 @@ func (f *flw) RemoteBlessings() security.Blessings {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) LocalDischarges() map[string]security.Discharge {
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
 	if f.dialed {
-		_, discharges := f.conn.blessingsFlow.getLocal(f.ctx, f.bkey, f.dkey)
+		_, discharges := f.conn.blessingsFlow.getLocal(ctx, f.bkey, f.dkey)
 		return discharges
 	}
-	return f.conn.blessingsFlow.getLatestLocal(f.ctx, f.conn.lBlessings)
+	return f.conn.blessingsFlow.getLatestLocal(ctx, f.conn.lBlessings)
 }
 
 // RemoteDischarges returns the discharges presented by the remote end of the
@@ -396,15 +414,18 @@ func (f *flw) LocalDischarges() map[string]security.Discharge {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) RemoteDischarges() map[string]security.Discharge {
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
 	var discharges map[string]security.Discharge
 	var err error
 	if !f.dialed {
-		_, discharges, err = f.conn.blessingsFlow.getRemote(f.ctx, f.bkey, f.dkey)
+		_, discharges, err = f.conn.blessingsFlow.getRemote(ctx, f.bkey, f.dkey)
 	} else {
-		_, discharges, err = f.conn.blessingsFlow.getLatestRemote(f.ctx, f.conn.rBKey)
+		_, discharges, err = f.conn.blessingsFlow.getLatestRemote(ctx, f.conn.rBKey)
 	}
 	if err != nil {
-		f.conn.Close(f.ctx, err)
+		f.conn.Close(ctx, err)
 	}
 	return discharges
 }
@@ -422,7 +443,10 @@ func (f *flw) Conn() flow.ManagedConn {
 // new data will be queued.
 // TODO(mattr): update v23/flow docs.
 func (f *flw) Closed() <-chan struct{} {
-	return f.ctx.Done()
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
+	return ctx.Done()
 }
 
 func (f *flw) close(ctx *context.T, err error) {
@@ -435,10 +459,11 @@ func (f *flw) close(ctx *context.T, err error) {
 		f.conn.lshared += f.borrowed
 		f.borrowed = 0
 	}
+	cancel := f.cancel
 	f.conn.mu.Unlock()
 	if f.q.close(ctx) {
-		f.ctx.VI(2).Infof("closing %d(%p): %v", f.id, f, err)
-		f.cancel()
+		ctx.VI(2).Infof("closing %d(%p): %v", f.id, f, err)
+		cancel()
 		// After cancel has been called no new writes will begin for this
 		// flow.  There may be a write in progress, but it must finish
 		// before another writer gets to use the channel.  Therefore we
@@ -477,7 +502,10 @@ func (f *flw) close(ctx *context.T, err error) {
 // Close marks the flow as closed. After Close is called, new data cannot be
 // written on the flow. Reads of already queued data are still possible.
 func (f *flw) Close() error {
-	f.close(f.ctx, nil)
+	f.conn.mu.Lock()
+	ctx := f.ctx
+	f.conn.mu.Unlock()
+	f.close(ctx, nil)
 	return nil
 }
 
