@@ -33,7 +33,7 @@ func newVClockDForTests(vclock *VClock, ntpSource NtpSource) *VClockD {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Tests for doLocalUpdate
+// Tests for DoLocalUpdate
 
 // No reboot, no drift.
 func TestLocalNormal(t *testing.T) {
@@ -46,8 +46,8 @@ func TestLocalNormal(t *testing.T) {
 	sysClock.SetNow(sysTs.Add(elapsedTime))
 	sysClock.SetElapsedTime(elapsedTime)
 
-	if err := d.doLocalUpdate(); err != nil {
-		t.Errorf("doLocalUpdate failed: %v", err)
+	if err := d.DoLocalUpdate(); err != nil {
+		t.Errorf("DoLocalUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs, 0, elapsedTime, time.Time{}, 0, 0))
 }
@@ -67,8 +67,8 @@ func TestLocalNormalWithOtherValues(t *testing.T) {
 	sysClock.SetNow(sysTs.Add(elapsedTime))
 	sysClock.SetElapsedTime(elapsedTime)
 
-	if err := d.doLocalUpdate(); err != nil {
-		t.Errorf("doLocalUpdate failed: %v", err)
+	if err := d.DoLocalUpdate(); err != nil {
+		t.Errorf("DoLocalUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs, time.Minute, elapsedTime, sysTs.Add(-time.Hour), 2, 4))
 }
@@ -85,8 +85,8 @@ func TestLocalReboot(t *testing.T) {
 	sysClock.SetNow(sysTs.Add(2 * time.Hour))
 	sysClock.SetElapsedTime(elapsedTime)
 
-	if err := d.doLocalUpdate(); err != nil {
-		t.Errorf("doLocalUpdate failed: %v", err)
+	if err := d.DoLocalUpdate(); err != nil {
+		t.Errorf("DoLocalUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysClock.Now().Add(-elapsedTime), 0, elapsedTime, time.Time{}, 1, 0)) // NumReboots=1
 }
@@ -102,8 +102,8 @@ func TestLocalDriftBelowThreshold(t *testing.T) {
 	sysClock.SetNow(sysTs.Add(59 * time.Second))
 	sysClock.SetElapsedTime(elapsedTime)
 
-	if err := d.doLocalUpdate(); err != nil {
-		t.Errorf("doLocalUpdate failed: %v", err)
+	if err := d.DoLocalUpdate(); err != nil {
+		t.Errorf("DoLocalUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs.Add(-1*time.Second), 0, elapsedTime, time.Time{}, 0, 0))
 }
@@ -119,18 +119,18 @@ func TestLocalDriftAboveThreshold(t *testing.T) {
 	sysClock.SetNow(sysTs.Add(55 * time.Second))
 	sysClock.SetElapsedTime(elapsedTime)
 
-	if err := d.doLocalUpdate(); err != nil {
-		t.Errorf("doLocalUpdate failed: %v", err)
+	if err := d.DoLocalUpdate(); err != nil {
+		t.Errorf("DoLocalUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs.Add(-5*time.Second), 5*time.Second, elapsedTime, time.Time{}, 0, 0))
 }
 
-// Runs doLocalUpdate with a real system clock and verifies that the behavior is
+// Runs DoLocalUpdate with a real system clock and verifies that the behavior is
 // as expected.
 func TestLocalWithRealSysClock(t *testing.T) {
 	d := newVClockDForTests(NewVClockForTests(nil), nil)
-	if err := d.doLocalUpdate(); err != nil {
-		t.Errorf("doLocalUpdate failed: %v", err)
+	if err := d.DoLocalUpdate(); err != nil {
+		t.Errorf("DoLocalUpdate failed: %v", err)
 	}
 
 	// Get initial VClockData, written by NewVClockForTests.
@@ -143,8 +143,8 @@ func TestLocalWithRealSysClock(t *testing.T) {
 	// samples, which is one second.
 	time.Sleep(2 * time.Second)
 
-	if err := d.doLocalUpdate(); err != nil {
-		t.Errorf("doLocalUpdate failed: %v", err)
+	if err := d.DoLocalUpdate(); err != nil {
+		t.Errorf("DoLocalUpdate failed: %v", err)
 	}
 
 	// Check that the new VClockData has approximately the same SystemTimeAtBoot,
@@ -166,7 +166,7 @@ func TestLocalWithRealSysClock(t *testing.T) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Tests for doNtpUpdate
+// Tests for DoNtpUpdate
 
 func TestNtpError(t *testing.T) {
 	sysTs := time.Now()
@@ -177,8 +177,8 @@ func TestNtpError(t *testing.T) {
 
 	d := newVClockDForTests(NewVClockForTests(sysClock), ntpSource)
 
-	if err := d.doNtpUpdate(); err == nil {
-		t.Errorf("expected error from doNtpUpdate")
+	if err := d.DoNtpUpdate(); err == nil {
+		t.Errorf("expected error from DoNtpUpdate")
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs, 0, 0, time.Time{}, 0, 0))
 }
@@ -195,8 +195,8 @@ func TestNtpErrorDoesNotTouchOtherFields(t *testing.T) {
 	origData := newVClockData(sysTs, time.Minute, 2*time.Minute, sysTs.Add(-time.Hour), 2, 4)
 	putVClockData(t, d.vclock.st, origData)
 
-	if err := d.doNtpUpdate(); err == nil {
-		t.Errorf("expected error from doNtpUpdate")
+	if err := d.DoNtpUpdate(); err == nil {
+		t.Errorf("expected error from DoNtpUpdate")
 	}
 	verifyVClockData(t, d.vclock, origData)
 }
@@ -216,8 +216,8 @@ func TestNtpSkewBelowThreshold(t *testing.T) {
 
 	d := newVClockDForTests(NewVClockForTests(sysClock), ntpSource)
 
-	if err := d.doNtpUpdate(); err != nil {
-		t.Errorf("doNtpUpdate failed: %v", err)
+	if err := d.DoNtpUpdate(); err != nil {
+		t.Errorf("DoNtpUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs.Add(-elapsedTime), 0, elapsedTime, ntpSource.Data.ntpTs, 0, 0))
 }
@@ -240,8 +240,8 @@ func TestNtpSkewBelowThresholdOtherFields(t *testing.T) {
 	origData := newVClockData(sysTs.Add(-elapsedTime), time.Second, 2*time.Minute, sysTs.Add(-time.Hour), 2, 4)
 	putVClockData(t, d.vclock.st, origData)
 
-	if err := d.doNtpUpdate(); err != nil {
-		t.Errorf("doNtpUpdate failed: %v", err)
+	if err := d.DoNtpUpdate(); err != nil {
+		t.Errorf("DoNtpUpdate failed: %v", err)
 	}
 	// Skew shouldn't change, but NumReboots and NumHops should be set to 0.
 	verifyVClockData(t, d.vclock, newVClockData(sysTs.Add(-elapsedTime), time.Second, elapsedTime, ntpSource.Data.ntpTs, 0, 0))
@@ -262,8 +262,8 @@ func TestNtpSkewAboveThreshold(t *testing.T) {
 
 	d := newVClockDForTests(NewVClockForTests(sysClock), ntpSource)
 
-	if err := d.doNtpUpdate(); err != nil {
-		t.Errorf("doNtpUpdate failed: %v", err)
+	if err := d.DoNtpUpdate(); err != nil {
+		t.Errorf("DoNtpUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs.Add(-elapsedTime), skew, elapsedTime, ntpSource.Data.ntpTs, 0, 0))
 }
@@ -283,13 +283,13 @@ func TestNtpSkewBelowThresholdAndExistingLargeSkew(t *testing.T) {
 
 	d := newVClockDForTests(NewVClockForTests(sysClock), ntpSource)
 
-	// Note, this test also verifies that doNtpUpdate updates SystemTimeAtBoot and
+	// Note, this test also verifies that DoNtpUpdate updates SystemTimeAtBoot and
 	// ElapsedTimeSinceBoot.
 	origData := &VClockData{Skew: 2300 * time.Millisecond} // large skew
 	putVClockData(t, d.vclock.st, origData)
 
-	if err := d.doNtpUpdate(); err != nil {
-		t.Errorf("doNtpUpdate failed: %v", err)
+	if err := d.DoNtpUpdate(); err != nil {
+		t.Errorf("DoNtpUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs.Add(-elapsedTime), skew, elapsedTime, ntpSource.Data.ntpTs, 0, 0))
 }
@@ -303,8 +303,8 @@ func TestWithRealNtp(t *testing.T) {
 
 	d := NewVClockD(NewVClockForTests(nil))
 
-	if err := d.doNtpUpdate(); err != nil {
-		t.Errorf("doNtpUpdate failed: %v", err)
+	if err := d.DoNtpUpdate(); err != nil {
+		t.Errorf("DoNtpUpdate failed: %v", err)
 	}
 
 	data := &VClockData{}

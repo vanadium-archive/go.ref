@@ -76,8 +76,8 @@ func NewVClockForTests(sc SystemClock) *VClock {
 		sc = newRealSystemClock()
 	}
 	c := &VClock{
-		SysClock: sc,
 		st:       memstore.New(),
+		sysClock: sc,
 	}
 	if err := c.InitVClockData(); err != nil {
 		panic(err)

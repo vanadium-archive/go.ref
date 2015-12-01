@@ -29,7 +29,7 @@ func TestHasSysClockChangedWithRealVClock(t *testing.T) {
 			t.Errorf("Found error while fetching e2: %v", err)
 		}
 
-		if HasSysClockChanged(t1, t2, e1, e2) {
+		if hasSysClockChanged(t1, t2, e1, e2) {
 			t.Errorf("VClock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 		}
 	}
@@ -43,7 +43,7 @@ func TestHasSysClockChangedFakeVClock(t *testing.T) {
 	t2 := t1.Add(200 * time.Millisecond)
 	e2 := e1 + 300*time.Millisecond
 
-	if HasSysClockChanged(t1, t2, e1, e2) {
+	if hasSysClockChanged(t1, t2, e1, e2) {
 		t.Errorf("VClock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 
@@ -51,7 +51,7 @@ func TestHasSysClockChangedFakeVClock(t *testing.T) {
 	t2 = t1.Add(300 * time.Millisecond)
 	e2 = e1 + 200*time.Millisecond
 
-	if HasSysClockChanged(t1, t2, e1, e2) {
+	if hasSysClockChanged(t1, t2, e1, e2) {
 		t.Errorf("VClock found changed incorrectly. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 
@@ -59,7 +59,7 @@ func TestHasSysClockChangedFakeVClock(t *testing.T) {
 	t2 = t1.Add(200 * time.Millisecond)
 	e2 = e1 + 3000*time.Millisecond
 
-	if !HasSysClockChanged(t1, t2, e1, e2) {
+	if !hasSysClockChanged(t1, t2, e1, e2) {
 		t.Errorf("VClock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 
@@ -67,7 +67,7 @@ func TestHasSysClockChangedFakeVClock(t *testing.T) {
 	t2 = t1.Add(4000 * time.Millisecond)
 	e2 = e1 + 300*time.Millisecond
 
-	if !HasSysClockChanged(t1, t2, e1, e2) {
+	if !hasSysClockChanged(t1, t2, e1, e2) {
 		t.Errorf("VClock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 
@@ -75,7 +75,7 @@ func TestHasSysClockChangedFakeVClock(t *testing.T) {
 	t2 = t1.Add(-200 * time.Millisecond)
 	e2 = e1 + 300*time.Millisecond
 
-	if !HasSysClockChanged(t1, t2, e1, e2) {
+	if !hasSysClockChanged(t1, t2, e1, e2) {
 		t.Errorf("VClock changed but not caught. e1: %v, t1: %v, t2: %v, e2: %v", e1, t1, t2, e2)
 	}
 }

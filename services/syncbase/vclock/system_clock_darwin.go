@@ -19,7 +19,8 @@ import (
 // elapsed time since boot. Thus, subtracting the returned boot time from the
 // current time yields the system's elapsed time since boot.
 // TODO(sadovsky): Technically, we should make sure the system clock doesn't
-// change before vs. after our syscall.
+// change between the syscall and time.Since(), since both consult the system
+// clock.
 func (*realSystemClock) ElapsedTime() (time.Duration, error) {
 	tv := syscall.Timeval32{}
 	if err := sysctlbyname("kern.boottime", &tv); err != nil {

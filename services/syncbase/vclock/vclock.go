@@ -7,6 +7,7 @@ package vclock
 // This file defines the VClock struct and methods.
 
 import (
+	"sync"
 	"time"
 
 	"v.io/v23/verror"
@@ -17,17 +18,20 @@ import (
 
 // VClock holds everything needed to provide UTC time estimates.
 type VClock struct {
-	SysClock SystemClock
-	st       store.Store // Syncbase top-level store (not database-specific)
+	// Syncbase top-level store (i.e. not a database-specific store).
+	st store.Store
+	// Protects sysClock. We use RWMutex because writes can never happen in
+	// production: they only happen on calls to InjectFakeSysClock, which can only
+	// be called in development mode.
+	mu       sync.RWMutex
+	sysClock SystemClock
 }
 
 // NewVClock creates a new VClock.
-// TODO(sadovsky): Add an option to use (or inject) a fake system clock, and
-// hook up the DebugUpdateClock RPC to manipulate this fake clock.
 func NewVClock(st store.Store) *VClock {
 	return &VClock{
-		SysClock: newRealSystemClock(),
 		st:       st,
+		sysClock: newRealSystemClock(),
 	}
 }
 
@@ -35,9 +39,8 @@ func NewVClock(st store.Store) *VClock {
 // Methods for determining the time
 
 // TODO(sadovsky): Cache VClockData in memory, protected by a lock to ensure
-// cache consistency. That way, "Now" won't need to return an error, we won't
-// need a separate "NowNoLookup" method, and "ApplySkew" can stop taking
-// VClockData as input.
+// cache consistency. That way, "Now" won't need to return an error and
+// "ApplySkew" can stop taking VClockData as input.
 
 // Now returns our estimate of current UTC time based on SystemClock time and
 // our estimate of its skew relative to NTP time.
@@ -47,17 +50,12 @@ func (c *VClock) Now() (time.Time, error) {
 		vlog.Errorf("vclock: error fetching VClockData: %v", err)
 		return time.Time{}, err
 	}
-	return c.NowNoLookup(data), nil
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.ApplySkew(c.sysClock.Now(), data), nil
 }
 
-// NowNoLookup is like Now, but uses the given VClockData instead of fetching
-// VClockData from the store.
-func (c *VClock) NowNoLookup(data *VClockData) time.Time {
-	return c.ApplySkew(c.SysClock.Now(), data)
-}
-
-// ApplySkew is like NowNoLookup, but applies skew correction to the given
-// SystemClock time instead of using c.SysClock.Now().
+// ApplySkew applies skew correction to the given system clock time.
 func (c *VClock) ApplySkew(sysTime time.Time, data *VClockData) time.Time {
 	return sysTime.Add(time.Duration(data.Skew))
 }
@@ -81,8 +79,7 @@ func (c *VClock) InitVClockData() error {
 			return err
 		}
 		// No existing VClockData; write fresh VClockData.
-		now := c.SysClock.Now()
-		elapsedTime, err := c.SysClock.ElapsedTime()
+		now, elapsedTime, err := c.SysClockVals()
 		if err != nil {
 			return err
 		}
@@ -109,4 +106,46 @@ func (c *VClock) UpdateVClockData(fn func(*VClockData) (*VClockData, error)) err
 			return util.Put(nil, tx, vclockDataKey, newVClockData)
 		}
 	})
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Methods for accessing system clock time
+
+// SysClockVals returns the system clock's Now and ElapsedTime values.
+func (c *VClock) SysClockVals() (time.Time, time.Duration, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if elapsedTime, err := c.sysClock.ElapsedTime(); err != nil {
+		return time.Time{}, 0, err
+	} else {
+		return c.sysClock.Now(), elapsedTime, nil
+	}
+}
+
+// SysClockValsIfNotChanged returns the system clock's Now and ElapsedTime
+// values, but returns an error if it detects that the system clock has changed
+// based on the given origNow and origElapsedTime.
+// IMPORTANT: origNow and origElapsedTime must have come from a call to
+// SysClockVals, not SysClockValsIfNotChanged, to avoid a race condition in
+// system clock change detection.
+func (c *VClock) SysClockValsIfNotChanged(origNow time.Time, origElapsedTime time.Duration) (time.Time, time.Duration, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	now := c.sysClock.Now()
+	if elapsedTime, err := c.sysClock.ElapsedTime(); err != nil {
+		return time.Time{}, 0, err
+	} else if hasSysClockChanged(origNow, now, origElapsedTime, elapsedTime) {
+		return time.Time{}, 0, err
+	} else {
+		return now, elapsedTime, nil
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Development mode methods
+
+func (c *VClock) InjectFakeSysClock(now time.Time, elapsedTime time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.sysClock = newFakeSystemClock(now, elapsedTime)
 }

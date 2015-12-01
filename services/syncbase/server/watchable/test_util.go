@@ -92,7 +92,7 @@ func (ler *logEntryReader) GetEntry() (string, LogEntry) {
 
 type mockSystemClock struct {
 	ncalls int64         // number of times Now() has been called
-	time   time.Time     // time to return in Now()
+	time   time.Time     // initial time for Now()
 	inc    time.Duration // amount by which to increment 'time' on each call to Now()
 }
 

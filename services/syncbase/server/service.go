@@ -63,6 +63,10 @@ type ServiceOptions struct {
 	Engine string
 	// Whether to publish in the neighborhood.
 	PublishInNeighborhood bool
+	// Whether to run in "development" mode.
+	// Certain RPCs (e.g. DevModeUpdateClock and DevModeGetTime) will fail unless
+	// we are running in development mode.
+	DevMode bool
 }
 
 // defaultPerms returns a permissions object that grants all permissions to the
@@ -228,12 +232,45 @@ func (s *service) Close() {
 ////////////////////////////////////////
 // RPC methods
 
-func (s *service) DebugUpdateClock(ctx *context.T, call rpc.ServerCall, uco wire.DebugUpdateClockOpts) error {
-	return verror.NewErrNotImplemented(ctx)
+// TODO(sadovsky): Add test to demonstrate that these don't work unless Syncbase
+// was started in dev mode.
+func (s *service) DevModeUpdateClock(ctx *context.T, call rpc.ServerCall, opts wire.DevModeUpdateClockOpts) error {
+	if !s.opts.DevMode {
+		return wire.NewErrNotInDevMode(ctx)
+	}
+	// Check perms.
+	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), &ServiceData{}); err != nil {
+		return err
+	}
+	if opts.NtpHost != "" {
+		// TODO(sadovsky): Add support for injecting NtpHost.
+		return verror.New(verror.ErrNotImplemented, ctx, "NtpHost support not yet implemented")
+	}
+	if !opts.Now.Equal(time.Time{}) {
+		s.vclock.InjectFakeSysClock(opts.Now, opts.ElapsedTime)
+	}
+	if opts.DoNtpUpdate {
+		if err := s.vclockD.DoNtpUpdate(); err != nil {
+			return err
+		}
+	}
+	if opts.DoLocalUpdate {
+		if err := s.vclockD.DoLocalUpdate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (s *service) DebugNow(ctx *context.T, call rpc.ServerCall) (time.Time, error) {
-	return time.Time{}, verror.NewErrNotImplemented(ctx)
+func (s *service) DevModeGetTime(ctx *context.T, call rpc.ServerCall) (time.Time, error) {
+	if !s.opts.DevMode {
+		return time.Time{}, wire.NewErrNotInDevMode(ctx)
+	}
+	// Check perms.
+	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), &ServiceData{}); err != nil {
+		return time.Time{}, err
+	}
+	return s.vclock.Now()
 }
 
 func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {

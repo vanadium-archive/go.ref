@@ -22,10 +22,11 @@ var (
 	rootDir               = flag.String("root-dir", "/var/lib/syncbase", "Root dir for storage engines and other data")
 	engine                = flag.String("engine", "leveldb", "Storage engine to use. Currently supported: memstore and leveldb.")
 	publishInNeighborhood = flag.Bool("publish-nh", true, "Whether to publish in the neighborhood.")
+	devMode               = flag.Bool("dev", false, "Whether to run in development mode, required for RPCs such as Service.DevModeUpdateClock.")
 )
 
-// TODO(sadovsky): We return rpc.Server and rpc.Dispatcher as a quick hack to
-// support Mojo.
+// Note: We return rpc.Server and rpc.Dispatcher as a quick hack to support
+// Mojo.
 func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 	perms, err := securityflag.PermissionsFromFlag()
 	if err != nil {
@@ -39,6 +40,7 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 		RootDir:               *rootDir,
 		Engine:                *engine,
 		PublishInNeighborhood: *publishInNeighborhood,
+		DevMode:               *devMode,
 	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)
@@ -50,17 +52,24 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 	if err != nil {
 		vlog.Fatal("v23.WithNewDispatchingServer() failed: ", err)
 	}
+
+	// Publish syncgroups and such in the various places that they should be
+	// published.
+	// TODO(sadovsky): Improve comments (and perhaps method name) for AddNames.
+	// It's not just publishing more names in the default mount table, and under
+	// certain configurations it also publishes to the neighborhood.
+	if err := service.AddNames(ctx, s); err != nil {
+		vlog.Fatal("AddNames failed: ", err)
+	}
+
+	// Print mount name and endpoint.
+	if *name != "" {
+		vlog.Info("Mounted at: ", *name)
+	}
 	if eps := s.Status().Endpoints; len(eps) > 0 {
 		// Our v23tests will wait for this to be printed before trying to access
 		// the service.
 		fmt.Printf("ENDPOINT=%s\n", eps[0].Name())
-	}
-	if *name != "" {
-		vlog.Info("Mounted at: ", *name)
-	}
-
-	if err := service.AddNames(ctx, s); err != nil {
-		vlog.Fatal("AddNames failed: ", err)
 	}
 
 	cleanup := func() {

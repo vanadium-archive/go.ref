@@ -4,7 +4,7 @@
 
 package vclock
 
-// VClock utility functions.
+// This file defines utility functions for the vclock package.
 
 import (
 	"time"
@@ -17,11 +17,11 @@ import (
 // second.
 var errorThreshold = 2 * time.Second
 
-// HasSysClockChanged returns true if the system clock has changed between two
+// hasSysClockChanged returns true if the system clock has changed between two
 // system clock samples of {Now, ElapsedTime}. {t1, e1} is the first sample;
 // {t2, e2} is the second. To avoid races, e1 must be sampled before t1, and e2
 // must be sampled after t2.
-func HasSysClockChanged(t1, t2 time.Time, e1, e2 time.Duration) bool {
+func hasSysClockChanged(t1, t2 time.Time, e1, e2 time.Duration) bool {
 	if t2.Before(t1) {
 		vlog.VI(2).Infof("vclock: HasSysClockChanged: t2 < t1, returning true")
 		return true

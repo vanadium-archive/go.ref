@@ -45,14 +45,16 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 		rmRootDir = true
 	}
 
-	// Start syncbased.
+	// Start syncbased. Run with --dev to enable development mode methods such as
+	// DevModeUpdateClock.
 	invocation := syncbased.WithStartOpts(syncbased.StartOpts().WithCustomCredentials(creds)).Start(
 		//"--vpath=vsync*=5",
 		//"--alsologtostderr=true",
 		"--v23.tcp.address=127.0.0.1:0",
 		"--v23.permissions.literal", permsLiteral,
 		"--name="+name,
-		"--root-dir="+rootDir)
+		"--root-dir="+rootDir,
+		"--dev")
 
 	cleanup = func(signal syscall.Signal) {
 		go invocation.Kill(signal)
@@ -62,7 +64,7 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 		} else {
 			// To debug sync (for example), uncomment this line as well as the --vpath
 			// and --alsologtostderr lines above.
-			// log.Printf("syncbased terminated cleanly\nstdout: %v\nstderr: %v\n", stdout, stderr)
+			//log.Printf("syncbased terminated cleanly\nstdout: %v\nstderr: %v\n", stdout, stderr)
 		}
 		if rmRootDir {
 			if err := os.RemoveAll(rootDir); err != nil {
@@ -73,6 +75,8 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 
 	// Wait for syncbased to start.  If syncbased fails to start, this will time
 	// out and return "".
+	// TODO(sadovsky): If syncbased fails, this takes a whole minute to find out.
+	// Unfortunately, the complexity of v23tests makes this hard to fix. :(
 	endpoint := invocation.ExpectVar("ENDPOINT")
 	if endpoint == "" {
 		cleanup(syscall.SIGKILL)

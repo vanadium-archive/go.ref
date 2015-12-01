@@ -231,6 +231,7 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 		Perms:   perms,
 		RootDir: rootDir,
 		Engine:  store.EngineForTest,
+		DevMode: true,
 	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)
