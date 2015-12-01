@@ -180,7 +180,7 @@ func TestVClockCheckLocalVClock9(t *testing.T) {
 // Helper functions
 
 func maybeUpdateFromPeerData(data *VClockData, psd *PeerSyncData) (*VClockData, error) {
-	return MaybeUpdateFromPeerData(newRealSystemClock(), data, psd)
+	return MaybeUpdateFromPeerData(NewVClockForTests(nil), data, psd)
 }
 
 func toRemoteTime(t time.Time, remoteDelta time.Duration) time.Time {

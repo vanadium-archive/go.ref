@@ -23,7 +23,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
-	"v.io/x/lib/set"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
@@ -67,20 +66,9 @@ import (
 // initiation round), the work done by the initiator is idempotent.
 //
 // TODO(hpucha): Check the idempotence, esp in addNode in DAG.
-func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
+func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo, info *memberInfo) error {
 	vlog.VI(2).Infof("sync: getDeltasFromPeer: begin: contacting peer %v", peer)
 	defer vlog.VI(2).Infof("sync: getDeltasFromPeer: end: contacting peer %v", peer)
-
-	info := s.copyMemberInfo(ctx, peer.relName)
-	if info == nil {
-		vlog.Fatalf("sync: getDeltasFromPeer: missing information in member view for %v", peer)
-	}
-
-	// Preferred mount tables for this peer.
-	//
-	// TODO(hpucha): For now the mount tables are populated here. This may
-	// move to higher layer based on peer management functionality.
-	peer.mtTbls = set.String.ToSlice(info.mtTables)
 
 	var errFinal error // the last non-nil error encountered is returned to the caller.
 

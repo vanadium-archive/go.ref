@@ -37,16 +37,21 @@ type NtpSource interface {
 
 // NewNtpSource returns a new NtpSource implementation that talks to the
 // specified ntpHost, or to NtpDefaultHost if ntpHost is "".
-func NewNtpSource(ntpHost string, sysClock SystemClock) NtpSource {
+func NewNtpSource(ntpHost string, vclock *VClock) NtpSource {
 	if ntpHost == "" {
 		ntpHost = NtpDefaultHost
 	}
-	return &ntpSourceImpl{ntpHost, sysClock}
+	return &ntpSourceImpl{ntpHost, vclock}
 }
 
+// Note: ntpSourceImpl only uses a few methods from *VClock, namely
+// SysClockVals{,IfNotChanged}. However, we want ntpSourceImpl to see the
+// effects of calls to VClock.InjectFakeSysClock. The current approach is not
+// particularly elegant, but it works, and the mess is fully contained within
+// the vclock package. Shimming doesn't seem worthwhile.
 type ntpSourceImpl struct {
-	ntpHost  string
-	sysClock SystemClock
+	ntpHost string
+	vclock  *VClock
 }
 
 var _ NtpSource = (*ntpSourceImpl)(nil)
@@ -94,19 +99,18 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 	}
 	defer con.Close()
 
-	// To make sure that the system clock does not change between fetching
-	// send and receive timestamps, we get the elapsed time since
-	// boot (which is immutable) before registering the send timestamp and
-	// after registering the receive timestamp and call HasSysClockChanged()
-	// to verify if the vclock changed in between or not. If it did, we return
-	// ErrInternal as response.
-	elapsedOrig, err := ns.sysClock.ElapsedTime()
+	// For detecting sysclock changes that would break the NTP send/recv time
+	// calculations. The system clock's elapsed time cannot be modified by users,
+	// so to detect sysclock changes we compare the change in elapsed time to the
+	// change in sysclock time. If we detect a sysclock change, our send and recv
+	// timestamps are not comparable, so we return an error.
+	origNow, origElapsedTime, err := ns.vclock.SysClockVals()
 	if err != nil {
-		vlog.Errorf("vclock: NtpSync: error while fetching elapsed time: %v", err)
+		vlog.Errorf("vclock: NtpSync: SysClockVals failed: %v", err)
 		return nil, err
 	}
 
-	msg := ns.createRequest()
+	msg := ns.createRequest(origNow)
 	_, err = con.Write(msg)
 	if err != nil {
 		return nil, err
@@ -118,22 +122,17 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 		return nil, err
 	}
 
-	clientReceiveTs := ns.sysClock.Now()
-	elapsedEnd, err := ns.sysClock.ElapsedTime()
+	// Check for sysclock changes.
+	recvNow, _, err := ns.vclock.SysClockValsIfNotChanged(origNow, origElapsedTime)
 	if err != nil {
-		vlog.Errorf("vclock: NtpSync: error while fetching elapsed time: %v", err)
+		vlog.Errorf("vclock: NtpSync: SysClockValsIfNotChanged failed: %v", err)
 		return nil, err
 	}
 
 	clientTransmitTs := extractTime(msg[24:32])
 	serverReceiveTs := extractTime(msg[32:40])
 	serverTransmitTs := extractTime(msg[40:48])
-
-	if HasSysClockChanged(clientTransmitTs, clientReceiveTs, elapsedOrig, elapsedEnd) {
-		err := fmt.Errorf("vclock: NtpSync: system clock changed midway through syncing wih NTP.")
-		vlog.Errorf("%v", err)
-		return nil, err
-	}
+	clientReceiveTs := recvNow
 
 	// Following code extracts the vclock skew and network delay based on the
 	// transmit and receive timestamps on the client and the server as per
@@ -145,14 +144,13 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 	return &data, nil
 }
 
-func (ns *ntpSourceImpl) createRequest() []byte {
+func (ns *ntpSourceImpl) createRequest(now time.Time) []byte {
 	data := make([]byte, 48)
 	data[0] = 0x23 // protocol version = 4, mode = 3 (Client)
 
 	// For NTP the prime epoch, or base date of era 0, is 0 h 1 January 1900 UTC
 	t0 := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
-	tnow := ns.sysClock.Now()
-	d := tnow.Sub(t0)
+	d := now.Sub(t0)
 	nsec := d.Nanoseconds()
 
 	// The encoding of timestamp below is an exact opposite of the decoding

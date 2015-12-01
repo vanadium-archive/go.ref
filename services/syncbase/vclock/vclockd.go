@@ -13,8 +13,8 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-// VClockD is a daemon (a goroutine) that periodically runs doLocalUpdate and
-// doNtpUpdate to update various fields in persisted VClockData based on values
+// VClockD is a daemon (a goroutine) that periodically runs DoLocalUpdate and
+// DoNtpUpdate to update various fields in persisted VClockData based on values
 // reported by the system clock and NTP.
 type VClockD struct {
 	vclock    *VClock
@@ -28,7 +28,7 @@ type VClockD struct {
 func NewVClockD(vclock *VClock) *VClockD {
 	return &VClockD{
 		vclock:    vclock,
-		ntpSource: NewNtpSource(NtpDefaultHost, vclock.SysClock),
+		ntpSource: NewNtpSource(NtpDefaultHost, vclock),
 		closed:    make(chan struct{}),
 	}
 }
@@ -48,14 +48,20 @@ func (d *VClockD) Close() {
 ////////////////////////////////////////////////////////////////////////////////
 // Internal implementation of VClockD
 
+// Note, DoLocalUpdate and DoNtpUpdate are public so that
+// Service.DevModeUpdateClock can call them directly. We considered having
+// DevModeUpdateClock schedule updates to happen within runLoop, but this would
+// require a Mutex and would force clients to sleep to allow time for the
+// requested update to happen.
+
 const (
 	localInterval = time.Second
 	ntpInterval   = time.Hour
 )
 
-// runLoop's ticker ticks on every localInterval, and we run doLocalUpdate on
-// every tick. On every ntpMod'th tick, we also run doNtpUpdate.
-var ntpMod = (ntpInterval / localInterval).Nanoseconds()
+// runLoop's ticker ticks on every localInterval, and we run DoLocalUpdate on
+// every tick. On every ntpMod'th tick, we also run DoNtpUpdate.
+var ntpMod = int64(ntpInterval) / int64(localInterval)
 
 func (d *VClockD) runLoop() {
 	vlog.VI(1).Infof("vclockd: runLoop: start")
@@ -67,9 +73,9 @@ func (d *VClockD) runLoop() {
 
 	var count int64 = 0
 	for {
-		d.doLocalUpdate()
+		d.DoLocalUpdate()
 		if count == 0 {
-			d.doNtpUpdate()
+			d.DoNtpUpdate()
 		}
 		count = (count + 1) % ntpMod
 		vlog.VI(5).Infof("vclockd: runLoop: iteration complete")
@@ -81,7 +87,7 @@ func (d *VClockD) runLoop() {
 		case <-ticker.C:
 		}
 
-		// Prioritize closed in case both ticker and closed have been triggered.
+		// Prioritize closed in case both ticker and closed have fired.
 		select {
 		case <-d.closed:
 			vlog.VI(1).Infof("vclockd: runLoop: channel closed, exiting")
@@ -92,29 +98,28 @@ func (d *VClockD) runLoop() {
 }
 
 ////////////////////////////////////////
-// doLocalUpdate
+// DoLocalUpdate
 
-// doLocalUpdate checks for reboots and drift by comparing our persisted
+// DoLocalUpdate checks for reboots and drift by comparing our persisted
 // VClockData with the current time and elapsed time reported by the system
 // clock. It always updates {SystemTimeAtBoot, ElapsedTimeSinceBoot}, and may
 // also update either Skew or NumReboots. It does not touch LastNtpTs or
 // NumHops.
-func (d *VClockD) doLocalUpdate() error {
-	vlog.VI(2).Info("vclock: doLocalUpdate: start")
-	defer vlog.VI(2).Info("vclock: doLocalUpdate: end")
+func (d *VClockD) DoLocalUpdate() error {
+	vlog.VI(2).Info("vclock: DoLocalUpdate: start")
+	defer vlog.VI(2).Info("vclock: DoLocalUpdate: end")
 
 	err := d.vclock.UpdateVClockData(func(data *VClockData) (*VClockData, error) {
-		now := d.vclock.SysClock.Now()
-		elapsedTime, err := d.vclock.SysClock.ElapsedTime()
+		now, elapsedTime, err := d.vclock.SysClockVals()
 		if err != nil {
-			vlog.Errorf("vclock: doLocalUpdate: error fetching elapsed time: %v", err)
+			vlog.Errorf("vclock: DoLocalUpdate: SysClockVals failed: %v", err)
 			return nil, err
 		}
 
 		// Check for a reboot: elapsed time is monotonic, so if the current elapsed
 		// time is less than data.ElapsedTimeSinceBoot, a reboot has taken place.
 		if elapsedTime < data.ElapsedTimeSinceBoot {
-			vlog.VI(2).Info("vclock: doLocalUpdate: detected reboot")
+			vlog.VI(2).Info("vclock: DoLocalUpdate: detected reboot")
 			data.NumReboots += 1
 		} else {
 			// No reboot detected. Check whether the system clock has drifted
@@ -123,7 +128,7 @@ func (d *VClockD) doLocalUpdate() error {
 			expectedNow := data.SystemTimeAtBoot.Add(elapsedTime)
 			delta := expectedNow.Sub(now)
 			if abs(delta) > SystemClockDriftThreshold {
-				vlog.VI(2).Infof("vclock: doLocalUpdate: detected clock drift of %v; updating SystemTimeAtBoot", delta)
+				vlog.VI(2).Infof("vclock: DoLocalUpdate: detected clock drift of %v; updating SystemTimeAtBoot", delta)
 				data.Skew = data.Skew + delta
 			}
 		}
@@ -135,31 +140,30 @@ func (d *VClockD) doLocalUpdate() error {
 	})
 
 	if err != nil {
-		vlog.Errorf("vclock: doLocalUpdate: update failed: %v", err)
+		vlog.Errorf("vclock: DoLocalUpdate: update failed: %v", err)
 	}
 	return err
 }
 
 ////////////////////////////////////////
-// doNtpUpdate
+// DoNtpUpdate
 
-// doNtpUpdate talks to an NTP server and updates VClockData.
-func (d *VClockD) doNtpUpdate() error {
-	vlog.VI(2).Info("vclock: doNtpUpdate: start")
-	defer vlog.VI(2).Info("vclock: doNtpUpdate: end")
+// DoNtpUpdate talks to an NTP server and updates VClockData.
+func (d *VClockD) DoNtpUpdate() error {
+	vlog.VI(2).Info("vclock: DoNtpUpdate: start")
+	defer vlog.VI(2).Info("vclock: DoNtpUpdate: end")
 
 	ntpData, err := d.ntpSource.NtpSync(NtpSampleCount)
 	if err != nil {
-		vlog.Errorf("vclock: doNtpUpdate: failed to fetch NTP time: %v", err)
+		vlog.Errorf("vclock: DoNtpUpdate: failed to fetch NTP time: %v", err)
 		return err
 	}
-	vlog.VI(2).Infof("vclock: doNtpUpdate: NTP skew is %v", ntpData.skew)
+	vlog.VI(2).Infof("vclock: DoNtpUpdate: NTP skew is %v", ntpData.skew)
 
 	err = d.vclock.UpdateVClockData(func(data *VClockData) (*VClockData, error) {
-		now := d.vclock.SysClock.Now()
-		elapsedTime, err := d.vclock.SysClock.ElapsedTime()
+		now, elapsedTime, err := d.vclock.SysClockVals()
 		if err != nil {
-			vlog.Errorf("vclock: doNtpUpdate: error fetching elapsed time: %v", err)
+			vlog.Errorf("vclock: DoNtpUpdate: SysClockVals failed: %v", err)
 			return nil, err
 		}
 
@@ -167,7 +171,7 @@ func (d *VClockD) doNtpUpdate() error {
 		// avoid constant tweaking of the clock.
 		delta := ntpData.skew - data.Skew
 		if abs(delta) > NtpSkewDeltaThreshold {
-			vlog.VI(2).Infof("vclock: doNtpUpdate: NTP time minus Syncbase vclock time is %v; updating Skew", delta)
+			vlog.VI(2).Infof("vclock: DoNtpUpdate: NTP time minus Syncbase vclock time is %v; updating Skew", delta)
 			data.Skew = ntpData.skew
 		}
 
@@ -180,7 +184,7 @@ func (d *VClockD) doNtpUpdate() error {
 	})
 
 	if err != nil {
-		vlog.Errorf("vclock: doNtpUpdate: update failed: %v", err)
+		vlog.Errorf("vclock: DoNtpUpdate: update failed: %v", err)
 	}
 	return err
 }

@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/lib/set"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
@@ -121,10 +122,14 @@ func (s *syncService) syncerWork(ctx *context.T) {
 		return
 	}
 
+	// Get the preferred mount tables for this peer.
+	info := s.copyMemberInfo(ctx, peer.relName)
+	peer.mtTbls = set.String.ToSlice(info.mtTables)
+
 	err = s.syncVClock(ctx, peer)
 	// Abort syncing if there is a connection error with peer.
 	if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
-		err = s.getDeltasFromPeer(ctx, peer)
+		err = s.getDeltasFromPeer(ctx, peer, info)
 	}
 
 	s.ps.updatePeerFromSyncer(ctx, peer, attemptTs, verror.ErrorID(err) == interfaces.ErrConnFail.ID)

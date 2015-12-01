@@ -12,10 +12,10 @@ import (
 
 // PeerSyncData contains data collected during a GetTime RPC to a peer.
 type PeerSyncData struct {
-	MySendTs time.Time // when we sent request
-	RecvTs   time.Time // when peer received request
-	SendTs   time.Time // when peer sent response
-	MyRecvTs time.Time // when we received response
+	MySendTs time.Time // when we sent request (our vclock time)
+	RecvTs   time.Time // when peer received request (their vclock time)
+	SendTs   time.Time // when peer sent response (their vclock time)
+	MyRecvTs time.Time // when we received response (our vclock time)
 	// Select fields from peer's VClockData.
 	LastNtpTs  time.Time
 	NumReboots uint16
@@ -40,7 +40,8 @@ func nue(msg string) error {
 // MaybeUpdateFromPeerData updates data (the local VClockData) based on the
 // given PeerSyncData. Returns nil if data has been updated; otherwise, the
 // returned error specifies why the data was not updated.
-func MaybeUpdateFromPeerData(sc SystemClock, data *VClockData, psd *PeerSyncData) (*VClockData, error) {
+func MaybeUpdateFromPeerData(c *VClock, data *VClockData, psd *PeerSyncData) (*VClockData, error) {
+	// Same skew calculation as in NTP.
 	skew := (psd.RecvTs.Sub(psd.MySendTs) + psd.SendTs.Sub(psd.MyRecvTs)) / 2
 	vlog.VI(2).Infof("vclock: MaybeUpdateFromPeerData: skew: %v", skew)
 	if abs(skew) < PeerSyncSkewThreshold {
@@ -61,10 +62,9 @@ func MaybeUpdateFromPeerData(sc SystemClock, data *VClockData, psd *PeerSyncData
 	}
 
 	// All checks have passed. Update VClockData based on PeerSyncData.
-	now := sc.Now()
-	elapsedTime, err := sc.ElapsedTime()
+	now, elapsedTime, err := c.SysClockVals()
 	if err != nil {
-		vlog.Errorf("vclock: MaybeUpdateFromPeerData: error fetching elapsed time: %v", err)
+		vlog.Errorf("vclock: MaybeUpdateFromPeerData: SysClockVals failed: %v", err)
 		return nil, err
 	}
 

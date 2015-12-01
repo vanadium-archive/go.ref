@@ -13,7 +13,7 @@ import (
 	"v.io/x/ref/services/syncbase/vclock"
 )
 
-func TestVClockGetTime(t *testing.T) {
+func TestGetTime(t *testing.T) {
 	service := createService(t)
 	defer destroyService(t, service)
 

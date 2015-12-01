@@ -71,6 +71,8 @@ func TestLogEntryTimestamps(t *testing.T) {
 	defer destroy()
 	t1 := time.Now()
 	inc := time.Second
+	// Note: NewVClockForTests calls cl.SysClock.Now() once to write the initial
+	// VClockData to the store.
 	cl := vclock.NewVClockForTests(&mockSystemClock{time: t1, inc: inc})
 	wst1, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
 	if err != nil {
