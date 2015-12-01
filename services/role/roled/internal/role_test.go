@@ -58,6 +58,16 @@ func TestSeekBlessings(t *testing.T) {
 	}
 	irole.WriteConfig(t, roleBConf, filepath.Join(workdir, "B.conf"))
 
+	// Role C/D for testing out nesting.
+	roleCConf := irole.Config{
+		Members: []security.BlessingPattern{"test-blessing:users:user1:_role"},
+		Extend:  true,
+	}
+	if err := os.Mkdir(filepath.Join(workdir, "C"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	irole.WriteConfig(t, roleCConf, filepath.Join(workdir, "C", "D.conf"))
+
 	root := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 
 	var (
@@ -101,6 +111,8 @@ func TestSeekBlessings(t *testing.T) {
 		{user2R, "B", verror.ErrNoAccess.ID, nil},
 		{user3, "B", verror.ErrNoAccess.ID, nil},
 		{user3R, "B", noErr, []string{"test-blessing:roles:B"}},
+
+		{user1R, "C/D", noErr, []string{"test-blessing:roles:C:D:test-blessing:users:user1"}},
 	}
 	addr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
 	for _, tc := range testcases {
