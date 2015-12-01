@@ -697,7 +697,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 	}
 
 	// Publish at the chosen mount table and in the neighborhood.
-	sd.publishInMountTables(ctx, call, spec)
+	ss.publishInMountTables(ctx, call, spec)
 
 	return nil
 }
@@ -814,7 +814,7 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 	ss.initSyncStateInMem(ctx, sg2.AppName, sg2.DbName, sgOID(sg2.Id))
 
 	// Publish at the chosen mount table and in the neighborhood.
-	sd.publishInMountTables(ctx, call, sg2.Spec)
+	ss.publishInMountTables(ctx, call, sg2.Spec)
 
 	return sg2.Spec, nil
 }
@@ -896,7 +896,7 @@ func (sd *syncDatabase) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall,
 
 	// TODO(hpucha): Check syncgroup ACL.
 
-	vlog.VI(2).Infof("sync: GetSyncgroupMembers: %s members %v", sgName, sg.Joiners)
+	vlog.VI(2).Infof("sync: GetSyncgroupMembers: %s members %v, len %v", sgName, sg.Joiners, len(sg.Joiners))
 	return sg.Joiners, nil
 }
 
@@ -1119,21 +1119,19 @@ func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx store.Transaction,
 	return nil
 }
 
-func (sd *syncDatabase) publishInMountTables(ctx *context.T, call rpc.ServerCall, spec wire.SyncgroupSpec) error {
-	// Get this Syncbase's sync module handle.
-	ss := sd.sync.(*syncService)
-	ss.nameLock.Lock()
-	defer ss.nameLock.Unlock()
+func (s *syncService) publishInMountTables(ctx *context.T, call rpc.ServerCall, spec wire.SyncgroupSpec) error {
+	s.nameLock.Lock()
+	defer s.nameLock.Unlock()
 
 	for _, mt := range spec.MountTables {
-		name := naming.Join(mt, ss.name)
+		name := naming.Join(mt, s.name)
 		// AddName is idempotent.
 		if err := call.Server().AddName(name); err != nil {
 			return err
 		}
 	}
 
-	return ss.publishInNeighborhood(call.Server())
+	return s.publishInNeighborhood(call.Server())
 }
 
 func (sd *syncDatabase) joinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
@@ -1155,6 +1153,9 @@ func authorize(ctx *context.T, call security.Call, sg *interfaces.Syncgroup) err
 // Methods for syncgroup create/join between Syncbases.
 
 func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publisher string, sg interfaces.Syncgroup, version string, genvec interfaces.GenVector) (string, error) {
+	vlog.VI(2).Infof("sync: PublishSyncgroup: begin: %s from peer %s", sg.Name, publisher)
+	defer vlog.VI(2).Infof("sync: PublishSyncgroup: end: %s from peer %s", sg.Name, publisher)
+
 	st, err := s.getDbStore(ctx, call, sg.AppName, sg.DbName)
 	if err != nil {
 		return s.name, err
@@ -1209,7 +1210,11 @@ func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publ
 
 	if err == nil {
 		s.initSyncStateInMem(ctx, sg.AppName, sg.DbName, sgOID(sg.Id))
+
+		// Publish at the chosen mount table and in the neighborhood.
+		s.publishInMountTables(ctx, call, sg.Spec)
 	}
+
 	return s.name, err
 }
 
@@ -1219,9 +1224,12 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 
 	var dbSt store.Store
 	var gid interfaces.GroupId
-	var err error
 	var stAppName, stDbName string
 	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.GenVector{}
+
+	// Bootstrap error so that when there are no apps/dbs on this device,
+	// the err doesn't stay nil.
+	var err error = verror.New(verror.ErrNoExist, ctx, "Syncgroup not found", sgName)
 
 	// Find the database store for this syncgroup.
 	//
@@ -1242,6 +1250,7 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 
 	// Syncgroup not found.
 	if err != nil {
+		vlog.VI(4).Infof("sync: JoinSyncgroupAtAdmin: end: %s from peer %s, err in sg search %v", sgName, joinerName, err)
 		return nullSG, "", nullGV, verror.New(verror.ErrNoExist, ctx, "Syncgroup not found", sgName)
 	}
 
@@ -1279,12 +1288,14 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	})
 
 	if err != nil {
+		vlog.VI(4).Infof("sync: JoinSyncgroupAtAdmin: end: %s from peer %s, err in tx %v", sgName, joinerName, err)
 		return nullSG, "", nullGV, err
 	}
 
 	sgs := sgSet{gid: struct{}{}}
 	gv, _, err := s.copyDbGenInfo(ctx, stAppName, stDbName, sgs)
 	if err != nil {
+		vlog.VI(4).Infof("sync: JoinSyncgroupAtAdmin: end: %s from peer %s, err in copy %v", sgName, joinerName, err)
 		return nullSG, "", nullGV, err
 	}
 	// The retrieved genvector does not contain the mutation that adds the
