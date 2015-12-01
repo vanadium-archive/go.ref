@@ -8,10 +8,8 @@ package starter
 
 import (
 	"encoding/base64"
-	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"v.io/v23"
@@ -20,9 +18,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/ref"
 	displib "v.io/x/ref/lib/dispatcher"
-	"v.io/x/ref/runtime/factories/roaming"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
@@ -30,16 +27,12 @@ import (
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/mounttable/mounttablelib"
-	"v.io/x/ref/services/xproxy/xproxy"
 )
 
 const pkgPath = "v.io/x/ref/services/device/deviced/internal/starter"
 
 var (
-	errCantSaveInfo      = verror.Register(pkgPath+".errCantSaveInfo", verror.NoRetry, "{1:}{2:} failed to save info{:_}")
-	errBadPort           = verror.Register(pkgPath+".errBadPort", verror.NoRetry, "{1:}{2:} invalid port{:_}")
-	errCantCreateProxy   = verror.Register(pkgPath+".errCantCreateProxy", verror.NoRetry, "{1:}{2:} Failed to create proxy{:_}")
-	errNoEndpointToClaim = verror.Register(pkgPath+".errNoEndpointToClaim", verror.NoRetry, "{1:}{2:} failed to find an endpoint for claiming{:_}")
+	errCantSaveInfo = verror.Register(pkgPath+".errCantSaveInfo", verror.NoRetry, "{1:}{2:} failed to save info{:_}")
 )
 
 type NamespaceArgs struct {
@@ -69,14 +62,9 @@ func (d *DeviceArgs) name(mt string) string {
 	return naming.Join(mt, "devmgr")
 }
 
-type ProxyArgs struct {
-	Port int
-}
-
 type Args struct {
 	Namespace NamespaceArgs
 	Device    DeviceArgs
-	Proxy     ProxyArgs
 
 	// If true, the global namespace will be made available on the
 	// mounttable server under "global/".
@@ -167,50 +155,12 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		ctx.Infof("Stopped claimable server.")
 		cancel()
 	}
-	endpoints := server.Status().Endpoints
 	publicKey, err := v23.GetPrincipal(ctx).PublicKey().MarshalBinary()
 	if err != nil {
 		shutdown()
 		return "", nil, err
 	}
-	var epName string
-	if args.Device.ListenSpec.Proxy != "" {
-		if ref.RPCTransitionState() == ref.XServers {
-			for {
-				status := server.Status()
-				// TODO(suharshs): This works because we put proxied endpoints first on
-				// the returned list from manager.ListeningEndpoints. We are listening on
-				// both a network address and a proxy so once we have two endpoints, we
-				// know that the first one must be the proxies. This is a hack and will
-				// be replaced by bidi rpc once the transition is complete.
-				if len(status.Endpoints) > 1 {
-					epName = status.Endpoints[0].Name()
-					ctx.Infof("Proxied address: %s", epName)
-					break
-				}
-				ctx.Infof("Waiting for proxy address to appear...")
-				<-status.Valid
-			}
-		} else {
-			// TODO(suharshs): Remove this else block once the transition is complete.
-			for {
-				p := server.Status().Proxies
-				if len(p) == 0 {
-					ctx.Infof("Waiting for proxy address to appear...")
-					time.Sleep(time.Second)
-					continue
-				}
-				epName = p[0].Endpoint.Name()
-				ctx.Infof("Proxied address: %s", epName)
-				break
-			}
-		}
-	} else {
-		if len(endpoints) == 0 {
-			return "", nil, verror.New(errNoEndpointToClaim, ctx, err)
-		}
-		epName = endpoints[0].Name()
-	}
+	epName := server.Status().Endpoints[0].Name()
 	ctx.Infof("Unclaimed device manager (%v) with public_key: %s", epName, base64.URLEncoding.EncodeToString(publicKey))
 	ctx.FlushLog()
 	return epName, shutdown, nil
@@ -257,26 +207,10 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 	} else {
 		ctx.Infof("Started mount table.")
 	}
-	// TODO(caprita): We link in a proxy server into the device manager so that we
-	// can bootstrap with install-local before we can install an actual proxy app.
-	// Once support is added to the RPC layer to allow install-local to serve on
-	// the same connection it established to the device manager (see TODO in
-	// v.io/x/ref/services/device/device/local_install.go), we can get rid of this
-	// local proxy altogether.
-	ctx.Infof("Starting proxy service...")
-	stopProxy, err := startProxyServer(ctx, args.Proxy, mtName)
-	if err != nil {
-		ctx.Errorf("Failed to start proxy service: %v", err)
-		stopMT()
-		return nil, err
-	} else {
-		ctx.Infof("Started proxy service.")
-	}
 	ctx.Infof("Starting device service...")
 	stopDevice, err := startDeviceServer(ctx, args.Device, mtName, permStore)
 	if err != nil {
 		ctx.Errorf("Failed to start device service: %v", err)
-		stopProxy()
 		stopMT()
 		return nil, err
 	} else {
@@ -293,53 +227,7 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 	ctx.Infof("Started claimed device services.")
 	return func() {
 		stopDevice()
-		stopProxy()
 		stopMT()
-	}, nil
-}
-
-func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), error) {
-	switch port := p.Port; {
-	case port == 0:
-		return func() {}, nil
-	case port < 0:
-		return nil, verror.New(errBadPort, ctx, port)
-	}
-	port := strconv.Itoa(p.Port)
-	protocol, addr := "tcp", net.JoinHostPort("", port)
-	// Attempt to get a publicly accessible address for the proxy to publish
-	// under.
-	ls := v23.GetListenSpec(ctx)
-	ls.Addrs = rpc.ListenAddrs{{protocol, addr}}
-	// TODO(ashankar): Revisit this choice of security.AllowEveryone
-	// See: https://v.io/i/387
-	var (
-		shutdown func()
-		ep       naming.Endpoint
-	)
-	if ref.RPCTransitionState() >= ref.XServers {
-		ctx, cancel := context.WithCancel(ctx)
-		p, err := xproxy.New(v23.WithListenSpec(ctx, ls), "", security.AllowEveryone())
-		if err != nil {
-			return nil, verror.New(errCantCreateProxy, ctx, err)
-		}
-		ep = p.ListeningEndpoints()[0]
-		shutdown = func() {
-			cancel()
-			<-p.Closed()
-		}
-	} else {
-		var err error
-		shutdown, ep, err = roaming.NewProxy(ctx, ls, security.AllowEveryone())
-		if err != nil {
-			return nil, verror.New(errCantCreateProxy, ctx, err)
-		}
-	}
-	ctx.Infof("Local proxy (%v)", ep.Name())
-	return func() {
-		ctx.Infof("Stopping proxy...")
-		shutdown()
-		ctx.Infof("Stopped proxy.")
 	}, nil
 }
 
