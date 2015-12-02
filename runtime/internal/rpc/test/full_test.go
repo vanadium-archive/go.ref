@@ -31,7 +31,6 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/ibe"
 	"v.io/x/lib/netstate"
-	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/runtime/internal/lib/tcputil"
@@ -206,11 +205,9 @@ func testRPC(t *testing.T, ctx *context.T, shouldCloseSend bool) {
 }
 
 func TestStreamReadTerminatedByServer(t *testing.T) {
-	if ref.RPCTransitionState() == ref.XServers {
-		// TODO(suharshs): Fix conn/readq to block for outstanding reads to ensure
-		// that io.EOF is returned when q.close is called before the context is cancelled.
-		t.Skip(`There is a race in flow.close that causes this test to flake.`)
-	}
+	// TODO(suharshs): Fix conn/readq to block for outstanding reads to ensure
+	// that io.EOF is returned when q.close is called before the context is cancelled.
+	t.Skip(`There is a race in flow.close that causes this test to flake.`)
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	cctx := withPrincipal(t, ctx, "client")
@@ -292,14 +289,8 @@ func TestPreferredAddressErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	status := server.Status()
-	if ref.RPCTransitionState() >= ref.XServers {
-		if got, want := len(status.Endpoints), 1; got != want {
-			t.Errorf("got %d, want %d", got, want)
-		}
-	} else {
-		if got, want := len(status.Endpoints), 0; got != want {
-			t.Errorf("got %d, want %d", got, want)
-		}
+	if got, want := len(status.Endpoints), 1; got != want {
+		t.Errorf("got %d, want %d", got, want)
 	}
 	if got, want := len(status.Errors), 1; got != want {
 		t.Errorf("got %d, want %d", got, want)
@@ -877,9 +868,6 @@ func TestDischargePurgeFromCache(t *testing.T) {
 }
 
 func TestReplayAttack(t *testing.T) {
-	if ref.RPCTransitionState() != ref.XServers {
-		t.SkipNow()
-	}
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
@@ -993,9 +981,6 @@ func TestReplayAttack(t *testing.T) {
 }
 
 func TestPrivateServer(t *testing.T) {
-	if ref.RPCTransitionState() != ref.XServers {
-		t.SkipNow()
-	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -1126,9 +1111,6 @@ func TestNamelessClientBlessings(t *testing.T) {
 }
 
 func TestNamelessServerBlessings(t *testing.T) {
-	if ref.RPCTransitionState() < ref.XServers {
-		t.Skip()
-	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 

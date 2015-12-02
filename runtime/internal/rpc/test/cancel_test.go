@@ -19,12 +19,9 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/x/ref"
-	"v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/protocols/debug"
-	inaming "v.io/x/ref/runtime/internal/naming"
-	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
 )
@@ -185,12 +182,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 
 	// Fill up all the write buffers to ensure that cancelling works even when the stream
 	// is blocked.
-	if ref.RPCTransitionState() >= ref.XServers {
-		call.Send(make([]byte, conn.DefaultBytesBufferedPerFlow-2048))
-	} else {
-		call.Send(make([]byte, vc.MaxSharedBytes))
-		call.Send(make([]byte, vc.DefaultBytesBufferedPerFlow))
-	}
+	call.Send(make([]byte, conn.DefaultBytesBufferedPerFlow-2048))
 	done := make(chan struct{})
 	go func() {
 		call.Finish()
@@ -328,51 +320,31 @@ func registerDisProtocol(wrap string, conns chan disconnect) {
 }
 
 func findEndpoint(ctx *context.T, s rpc.Server) naming.Endpoint {
-	if ref.RPCTransitionState() >= ref.XServers {
-		for {
-			status := s.Status()
-			if status.Endpoints[0].Addr().Network() != "bidi" {
-				return status.Endpoints[0]
-			}
-			<-status.Valid
+	for {
+		status := s.Status()
+		if status.Endpoints[0].Addr().Network() != "bidi" {
+			return status.Endpoints[0]
 		}
+		<-status.Valid
 	}
-	if status := s.Status(); len(status.Endpoints) > 0 {
-		return status.Endpoints[0]
-	} else {
-		timer := time.NewTicker(10 * time.Millisecond)
-		defer timer.Stop()
-		for _ = range timer.C {
-			if status = s.Status(); len(status.Proxies) > 0 {
-				return status.Proxies[0].Endpoint
-			}
-		}
-	}
-	return nil // Unreachable
 }
 
 func testChannelTimeout(t *testing.T, ctx *context.T) {
 	conns := make(chan disconnect, 1)
-	sctx := ctx
-	if ref.RPCTransitionState() >= ref.XServers {
-		sctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
-			Addrs: rpc.ListenAddrs{{Protocol: "debug", Address: "tcp/127.0.0.1:0"}},
-		})
-		ctx = debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
-			dc := &flowDisConn{Conn: c}
-			conns <- dc
-			return dc
-		})
-	}
+	sctx := v23.WithListenSpec(ctx, rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{Protocol: "debug", Address: "tcp/127.0.0.1:0"}},
+	})
+	ctx = debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
+		dc := &flowDisConn{Conn: c}
+		conns <- dc
+		return dc
+	})
 	_, s, err := v23.WithNewServer(sctx, "", &channelTestServer{}, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
 	ep := findEndpoint(ctx, s)
 	registerDisProtocol(ep.Addr().Network(), conns)
-	if ref.RPCTransitionState() < ref.XServers {
-		ep.(*inaming.Endpoint).Protocol = "dis"
-	}
 
 	// Long calls don't cause the timeout, the control stream is still operating.
 	err = v23.GetClient(ctx).Call(ctx, ep.Name(), "Run", []interface{}{2 * time.Second},
@@ -399,43 +371,30 @@ func TestChannelTimeout_Proxy(t *testing.T) {
 	defer shutdown()
 
 	ls := v23.GetListenSpec(ctx)
-	if ref.RPCTransitionState() >= ref.XServers {
-		ctx, cancel := context.WithCancel(ctx)
-		p, err := xproxy.New(ctx, "", security.AllowEveryone())
-		if err != nil {
-			t.Fatal(err)
-		}
-		ls.Addrs = nil
-		ls.Proxy = p.ListeningEndpoints()[0].Name()
-		defer func() {
-			cancel()
-			<-p.Closed()
-		}()
-	} else {
-		pshutdown, pendpoint, err := generic.NewProxy(ctx, ls, security.AllowEveryone(), "")
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer pshutdown()
-		ls.Addrs = nil
-		ls.Proxy = pendpoint.Name()
+	ctx, cancel := context.WithCancel(ctx)
+	p, err := xproxy.New(ctx, "", security.AllowEveryone())
+	if err != nil {
+		t.Fatal(err)
 	}
+	ls.Addrs = nil
+	ls.Proxy = p.ListeningEndpoints()[0].Name()
+	defer func() {
+		cancel()
+		<-p.Closed()
+	}()
 	testChannelTimeout(t, v23.WithListenSpec(ctx, ls))
 }
 
 func testChannelTimeOut_Server(t *testing.T, ctx *context.T) {
 	conns := make(chan disconnect, 1)
-	sctx := ctx
-	if ref.RPCTransitionState() >= ref.XServers {
-		sctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
-			Addrs: rpc.ListenAddrs{{Protocol: "debug", Address: "tcp/127.0.0.1:0"}},
-		})
-		ctx = debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
-			dc := &flowDisConn{Conn: c}
-			conns <- dc
-			return dc
-		})
-	}
+	sctx := v23.WithListenSpec(ctx, rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{Protocol: "debug", Address: "tcp/127.0.0.1:0"}},
+	})
+	ctx = debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
+		dc := &flowDisConn{Conn: c}
+		conns <- dc
+		return dc
+	})
 	cts := &channelTestServer{
 		canceled: make(chan struct{}),
 		waiting:  make(chan struct{}),
@@ -447,10 +406,6 @@ func testChannelTimeOut_Server(t *testing.T, ctx *context.T) {
 	}
 	ep := findEndpoint(ctx, s)
 	registerDisProtocol(ep.Addr().Network(), conns)
-
-	if ref.RPCTransitionState() < ref.XServers {
-		ep.(*inaming.Endpoint).Protocol = "dis"
-	}
 
 	// Long calls don't cause the timeout, the control stream is still operating.
 	err = v23.GetClient(ctx).Call(ctx, ep.Name(), "Run", []interface{}{2 * time.Second},
@@ -484,26 +439,16 @@ func TestChannelTimeout_ServerProxy(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ls := v23.GetListenSpec(ctx)
-	if ref.RPCTransitionState() >= ref.XServers {
-		ctx, cancel := context.WithCancel(ctx)
-		p, err := xproxy.New(ctx, "", security.AllowEveryone())
-		if err != nil {
-			t.Fatal(err)
-		}
-		ls.Addrs = nil
-		ls.Proxy = p.ListeningEndpoints()[0].Name()
-		defer func() {
-			cancel()
-			<-p.Closed()
-		}()
-	} else {
-		pshutdown, pendpoint, err := generic.NewProxy(ctx, ls, security.AllowEveryone(), "")
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer pshutdown()
-		ls.Addrs = nil
-		ls.Proxy = pendpoint.Name()
+	ctx, cancel := context.WithCancel(ctx)
+	p, err := xproxy.New(ctx, "", security.AllowEveryone())
+	if err != nil {
+		t.Fatal(err)
 	}
+	ls.Addrs = nil
+	ls.Proxy = p.ListeningEndpoints()[0].Name()
+	defer func() {
+		cancel()
+		<-p.Closed()
+	}()
 	testChannelTimeOut_Server(t, v23.WithListenSpec(ctx, ls))
 }

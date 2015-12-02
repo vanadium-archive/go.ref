@@ -7,7 +7,6 @@ package test
 import (
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,7 +18,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
-	fmessage "v.io/v23/flow/message"
+	"v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -33,8 +32,6 @@ import (
 	"v.io/x/ref/runtime/internal/flow/protocols/debug"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
-	"v.io/x/ref/runtime/internal/rpc/stream/message"
-	"v.io/x/ref/runtime/internal/testing/mocks/mocknet"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -55,7 +52,7 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string) error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	if seclevel == options.SecurityNone && ref.RPCTransitionState() >= ref.XServers {
+	if seclevel == options.SecurityNone {
 		ls := v23.GetListenSpec(ctx)
 		for i := range ls.Addrs {
 			ls.Addrs[i].Protocol, ls.Addrs[i].Address = debug.WrapAddress(
@@ -397,90 +394,8 @@ func TestStartCallErrors(t *testing.T) {
 	// logErr("timeout to server", err)
 }
 
-func dropDataDialer(ctx *context.T, network, address string, timeout time.Duration) (net.Conn, error) {
-	matcher := func(read bool, msg message.T) bool {
-		// Drop and close the connection when reading the first data message.
-		if _, ok := msg.(*message.Data); ok && read {
-			return true
-		}
-		return false
-	}
-	opts := mocknet.Opts{
-		Mode:              mocknet.V23CloseAtMessage,
-		V23MessageMatcher: matcher,
-	}
-	return mocknet.DialerWithOpts(opts, network, address, timeout)
-}
-
 func simpleResolver(ctx *context.T, network, address string) (string, string, error) {
 	return network, address, nil
-}
-
-func TestStartCallBadProtocol(t *testing.T) {
-	if ref.RPCTransitionState() >= ref.XServers {
-		t.Skip("This version of the test only runs under the old rpc system.")
-	}
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-
-	client := v23.GetClient(ctx)
-
-	logErr := func(msg string, err error) {
-		logErrors(t, msg, true, false, false, err)
-	}
-
-	ns := v23.GetNamespace(ctx)
-	simpleListen := func(ctx *context.T, protocol, address string) (net.Listener, error) {
-		return net.Listen(protocol, address)
-	}
-	rpc.RegisterProtocol("dropData", dropDataDialer, simpleResolver, simpleListen)
-	// The following test will fail due to a broken connection.
-	// We need to run mount table and servers with no security to use
-	// the V23CloseAtMessage net.Conn mock.
-	_, shutdown = runMountTable(t, ctx, "nosec")
-	defer shutdown()
-	roots := ns.Roots()
-	brkRoot, err := mocknet.RewriteEndpointProtocol(roots[0], "dropData")
-	if err != nil {
-		t.Fatal(err)
-	}
-	ns.SetRoots(brkRoot.Name())
-	nctx, _ := context.WithTimeout(ctx, 5*time.Second)
-	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{}, options.SecurityNone)
-	if verror.ErrorID(err) != verror.ErrNoServers.ID {
-		t.Errorf("wrong error: %s", verror.DebugString(err))
-	}
-	if call != nil {
-		t.Errorf("expected call to be nil")
-	}
-	logErr("broken connection", err)
-
-	// The following test will fail with because the client will set up
-	// a secure connection to a server that isn't expecting one.
-	nctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	name, fn := initServer(t, ctx, options.SecurityNone)
-	defer fn()
-	call, err = client.StartCall(nctx, name, "noname", nil, options.NoRetry{})
-	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
-		t.Errorf("wrong error: %s", err)
-	}
-	if call != nil {
-		t.Errorf("expected call to be nil")
-	}
-	logErr("insecure server", err)
-
-	// This is the inverse, secure server, insecure client
-	name, fn = initServer(t, ctx)
-	defer fn()
-	call, err = client.StartCall(nctx, name, "noname", nil, options.NoRetry{}, options.SecurityNone)
-	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
-		t.Errorf("wrong error: %s", err)
-	}
-	if call != nil {
-		t.Errorf("expected call to be nil")
-	}
-	logErr("insecure client", err)
 }
 
 type closeConn struct {
@@ -492,8 +407,8 @@ type closeConn struct {
 func (c *closeConn) ReadMsg() ([]byte, error) {
 	buf, err := c.Conn.ReadMsg()
 	if err == nil {
-		if m, err := fmessage.Read(c.ctx, buf); err == nil {
-			if _, ok := m.(*fmessage.Data); ok {
+		if m, err := message.Read(c.ctx, buf); err == nil {
+			if _, ok := m.(*message.Data); ok {
 				c.Conn.Close()
 				c.wg.Done()
 				return nil, io.EOF
@@ -503,10 +418,7 @@ func (c *closeConn) ReadMsg() ([]byte, error) {
 	return buf, err
 }
 
-func TestStartCallBadProtocol_NewRPC(t *testing.T) {
-	if ref.RPCTransitionState() < ref.XServers {
-		t.Skip("This version of the test only runs under the new RPC system")
-	}
+func TestStartCallBadProtocol(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
