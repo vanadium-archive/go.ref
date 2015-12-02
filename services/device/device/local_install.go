@@ -24,7 +24,6 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/device"
 	"v.io/v23/services/repository"
-	"v.io/v23/uniqueid"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/services/internal/packages"
@@ -75,50 +74,21 @@ func (ms *mapServer) serve(name string, object interface{}) (string, error) {
 	return naming.Join(ms.name, name), nil
 }
 
-func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) {
+func createServer(ctx *context.T, stderr io.Writer) (*context.T, *mapServer, func(), error) {
 	dispatcher := make(mapDispatcher)
 
-	var name string
-	if spec := v23.GetListenSpec(ctx); spec.Proxy != "" {
-		id, err := uniqueid.Random()
-		if err != nil {
-			return nil, nil, err
-		}
-		name = id.String()
-		// Disable listening on local addresses to avoid publishing
-		// local endpoints to the mount table.  The only thing published
-		// should be the proxied endpoint.
-		spec.Addrs = nil
-		ctx = v23.WithListenSpec(ctx, spec)
-	}
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, name, dispatcher)
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{})
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	endpoints := server.Status().Endpoints
-	ctx.VI(1).Infof("Server listening on %v (%v)", endpoints, name)
+	name := server.Status().Endpoints[0].Name()
 	cleanup := func() {
 		if err := server.Stop(); err != nil {
 			fmt.Fprintf(stderr, "server.Stop failed: %v", err)
 		}
 	}
-	if name != "" {
-		// Send a name rooted in our namespace root rather than the
-		// relative name (in case the device manager uses a different
-		// namespace root).
-		//
-		// TODO(caprita): Avoid relying on a mounttable altogether, and
-		// instead pull out the proxied address and just send that.
-		nsRoots := v23.GetNamespace(ctx).Roots()
-		if len(nsRoots) > 0 {
-			name = naming.Join(nsRoots[0], name)
-		}
-	} else if len(endpoints) > 0 {
-		name = endpoints[0].Name()
-	} else {
-		return nil, nil, fmt.Errorf("no endpoints")
-	}
-	return &mapServer{name: name, dispatcher: dispatcher}, cleanup, nil
+	return ctx, &mapServer{name: name, dispatcher: dispatcher}, cleanup, nil
 }
 
 var errNotImplemented = fmt.Errorf("method not implemented")
@@ -241,13 +211,7 @@ func servePackage(p string, ms *mapServer, tmpZipDir string) (string, string, er
 // the app envelope and binary.
 //
 // It sets up an app and binary server that only lives for the duration of the
-// command, and listens on the profile's listen spec.  The caller should set the
-// --v23.proxy if the machine running the command is not accessible from the
-// device manager.
-//
-// TODO(caprita/ashankar): We should use bi-directional streams to get this
-// working over the same connection that the command makes to the device
-// manager.
+// command, and listens on the profile's listen spec.
 func runInstallLocal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expectedMin, got := 2, len(args); got < expectedMin {
 		return env.UsageErrorf("install-local: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
@@ -283,7 +247,7 @@ func runInstallLocal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if _, err := os.Stat(binary); err != nil {
 		return fmt.Errorf("binary %v not found: %v", binary, err)
 	}
-	server, cancel, err := createServer(ctx, env.Stderr)
+	ctx, server, cancel, err := createServer(ctx, env.Stderr)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %v", err)
 	}

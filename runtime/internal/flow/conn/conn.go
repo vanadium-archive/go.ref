@@ -529,7 +529,7 @@ func (c *Conn) release(ctx *context.T, fid, count uint64) {
 	var err error
 	if toRelease != nil {
 		delete(toRelease, invalidFlowID)
-		err = c.sendMessageLocked(ctx, true, expressPriority, &message.Release{
+		err = c.sendMessageLocked(ctx, false, expressPriority, &message.Release{
 			Counters: toRelease,
 		})
 	}

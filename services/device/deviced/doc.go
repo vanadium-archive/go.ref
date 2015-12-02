@@ -34,7 +34,7 @@ The global flags are:
    neighboorhood and everything in the neighborhood will be visible on the local
    mounttable.
  -proxy-port=0
-   the port number to assign to the proxy service. 0 means no proxy service.
+   DEPRECATED
  -restart-exit-code=0
    exit code to return when device manager should be restarted
  -use-pairing-token=false
