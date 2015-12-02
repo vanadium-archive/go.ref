@@ -99,8 +99,8 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 
 	dReq := &databaseReq{database: d}
 	if len(dbParts) == 2 {
-		if !setBatchFields(dReq, dbParts[1]) {
-			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
+		if err := setBatchFields(ctx, dReq, dbParts[1]); err != nil {
+			return nil, nil, err
 		}
 	}
 	if len(parts) == 1 {
@@ -137,14 +137,14 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 }
 
 // setBatchFields sets the batch-related fields in databaseReq based on the
-// value of batchInfo (suffix of the database name component). It returns false
-// if batchInfo is malformed.
-func setBatchFields(d *databaseReq, batchInfo string) bool {
+// value of batchInfo (suffix of the database name component). It returns an error
+// if batchInfo is malformed or the batch does not exist.
+func setBatchFields(ctx *context.T, d *databaseReq, batchInfo string) error {
 	// TODO(sadovsky): Maybe share a common keyspace between sns and txs so that
 	// we can avoid including the batch type in the batchInfo string.
 	batchType, batchId, err := util.SplitBatchInfo(batchInfo)
 	if err != nil {
-		return false
+		return err
 	}
 	d.batchId = &batchId
 	d.mu.Lock()
@@ -156,5 +156,8 @@ func setBatchFields(d *databaseReq, batchInfo string) bool {
 	case util.BatchTypeTx:
 		d.tx, ok = d.txs[batchId]
 	}
-	return ok
+	if !ok {
+		return wire.NewErrUnknownBatch(ctx)
+	}
+	return nil
 }
