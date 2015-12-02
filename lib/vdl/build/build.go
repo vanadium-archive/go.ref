@@ -304,7 +304,11 @@ func VDLRootDir(errs *vdlutil.Errors) string {
 	}
 	abs, err := filepath.Abs(vdlroot)
 	if err != nil {
-		errs.Errorf("VDLROOT %q can't be made absolute (%v)", vdlroot, err)
+		errs.Errorf("VDLROOT %q can't be made absolute: %v", vdlroot, err)
+		return ""
+	}
+	if _, err := os.Stat(abs); err != nil {
+		errs.Errorf("VDLROOT %q doesn't exist: %v", vdlroot, err)
 		return ""
 	}
 	return abs

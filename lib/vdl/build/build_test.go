@@ -6,6 +6,7 @@ package build_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -40,61 +41,73 @@ const (
 	defaultVDLPath = "../../../../../.."
 )
 
-func setEnvironment(t *testing.T, vdlroot, vdlpath string) bool {
-	errRoot := os.Setenv("VDLROOT", vdlroot)
-	errPath := os.Setenv("VDLPATH", vdlpath)
-	if errRoot != nil {
-		t.Errorf("Setenv(VDLROOT, %q) failed: %v", vdlroot, errRoot)
+func setEnvironment(t *testing.T, vdlroot, vdlpath string) {
+	if err := os.Setenv("VDLROOT", vdlroot); err != nil {
+		t.Fatalf("Setenv(VDLROOT, %q) failed: %v", vdlroot, err)
 	}
-	if errPath != nil {
-		t.Errorf("Setenv(VDLPATH, %q) failed: %v", vdlpath, errPath)
+	if err := os.Setenv("VDLPATH", vdlpath); err != nil {
+		t.Fatalf("Setenv(VDLPATH, %q) failed: %v", vdlpath, err)
 	}
-	return errRoot == nil && errPath == nil
 }
 
-func setVanadiumRoot(t *testing.T, root string) bool {
+func setJiriRoot(t *testing.T, root string) {
 	if err := os.Setenv("JIRI_ROOT", root); err != nil {
-		t.Errorf("Setenv(JIRI_ROOT, %q) failed: %v", root, err)
-		return false
+		t.Fatalf("Setenv(JIRI_ROOT, %q) failed: %v", root, err)
 	}
-	return true
 }
 
 // Tests the VDLROOT part of SrcDirs().
-func TestSrcDirsVdlRoot(t *testing.T) {
+func TestSrcDirsVDLRoot(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Getwd() failed: %v", err)
 	}
-	abs := func(relative string) string {
-		return filepath.Join(cwd, relative)
-	}
 	tests := []struct {
-		VDLRoot      string
-		VanadiumRoot string
-		Want         []string
-		ErrRE        string
+		VDLRoot  string
+		JiriRoot string
+		Want     string
+		ErrRE    string
 	}{
-		{"", "", nil, "Either VDLROOT or JIRI_ROOT must be set"},
-		{"/a", "", []string{"/a"}, ""},
-		{"/a/b/c", "", []string{"/a/b/c"}, ""},
-		{"", "/v23", []string{"/v23/release/go/src/v.io/v23/vdlroot"}, ""},
-		{"", "/a/b/c", []string{"/a/b/c/release/go/src/v.io/v23/vdlroot"}, ""},
+		{"", "", "", "Either VDLROOT or JIRI_ROOT must be set"},
+		{"/noexist", "", "", "doesn't exist"},
+		{"", "/noexist", "", "doesn't exist"},
+		{"/a", "", "/a", ""},
+		{"/a/b/c", "", "/a/b/c", ""},
+		{"", "/v23", "/v23/release/go/src/v.io/v23/vdlroot", ""},
+		{"", "/a/b/c", "/a/b/c/release/go/src/v.io/v23/vdlroot", ""},
 		// If both VDLROOT and JIRI_ROOT are specified, VDLROOT takes precedence.
-		{"/a", "/v23", []string{"/a"}, ""},
-		{"/a/b/c", "/x/y/z", []string{"/a/b/c"}, ""},
+		{"/a", "/v23", "/a", ""},
+		{"/a/b/c", "/x/y/z", "/a/b/c", ""},
 	}
+	tmpDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("TempDir() failed: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
 	for _, test := range tests {
-		if !setEnvironment(t, test.VDLRoot, defaultVDLPath) || !setVanadiumRoot(t, test.VanadiumRoot) {
-			continue
+		// The directory must exist in order to succeed.  Ignore mkdir errors, to
+		// allow the same dir to be re-used.
+		vdlRoot, jiriRoot := test.VDLRoot, test.JiriRoot
+		if vdlRoot != "" && vdlRoot != "/noexist" {
+			vdlRoot = filepath.Join(tmpDir, vdlRoot)
+			os.MkdirAll(vdlRoot, os.ModePerm)
 		}
+		if jiriRoot != "" && jiriRoot != "/noexist" {
+			jiriRoot = filepath.Join(tmpDir, jiriRoot)
+			os.MkdirAll(filepath.Join(jiriRoot, "release", "go", "src", "v.io", "v23", "vdlroot"), os.ModePerm)
+		}
+		setEnvironment(t, vdlRoot, defaultVDLPath)
+		setJiriRoot(t, jiriRoot)
 		name := fmt.Sprintf("%+v", test)
 		errs := vdlutil.NewErrors(-1)
 		got := build.SrcDirs(errs)
 		vdltest.ExpectResult(t, errs, name, test.ErrRE)
 		// Every result will have our valid VDLPATH srcdir.
-		vdlpath := abs(defaultVDLPath)
-		want := append(test.Want, vdlpath)
+		var want []string
+		if test.Want != "" {
+			want = append(want, filepath.Join(tmpDir, test.Want))
+		}
+		want = append(want, filepath.Join(cwd, defaultVDLPath))
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("SrcDirs(%s) got %v, want %v", name, got, want)
 		}
@@ -102,7 +115,7 @@ func TestSrcDirsVdlRoot(t *testing.T) {
 }
 
 // Tests the VDLPATH part of SrcDirs().
-func TestSrcDirsVdlPath(t *testing.T) {
+func TestSrcDirsVDLPath(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Getwd() failed: %v", err)
@@ -136,9 +149,7 @@ func TestSrcDirsVdlPath(t *testing.T) {
 		{":::/a/1::::b/2::::/c/3:::", []string{"/a/1", abs("b/2"), "/c/3"}},
 	}
 	for _, test := range tests {
-		if !setEnvironment(t, defaultVDLRoot, test.VDLPath) {
-			continue
-		}
+		setEnvironment(t, defaultVDLRoot, test.VDLPath)
 		name := fmt.Sprintf("SrcDirs(%q)", test.VDLPath)
 		errs := vdlutil.NewErrors(-1)
 		got := build.SrcDirs(errs)
@@ -218,9 +229,7 @@ var allModes = []build.UnknownPathMode{
 
 // Tests TransitivePackages success cases.
 func TestTransitivePackages(t *testing.T) {
-	if !setEnvironment(t, defaultVDLRoot, defaultVDLPath) {
-		t.Fatalf("Couldn't setEnvironment")
-	}
+	setEnvironment(t, defaultVDLRoot, defaultVDLPath)
 	tests := []struct {
 		InPaths  []string // Input paths to TransitivePackages call
 		OutPaths []string // Wanted paths from build.Package.Path.
@@ -409,9 +418,7 @@ func TestTransitivePackages(t *testing.T) {
 
 // Tests TransitivePackages error cases.
 func TestTransitivePackagesUnknownPathError(t *testing.T) {
-	if !setEnvironment(t, defaultVDLRoot, defaultVDLPath) {
-		t.Fatalf("Couldn't setEnvironment")
-	}
+	setEnvironment(t, defaultVDLRoot, defaultVDLPath)
 	tests := []struct {
 		InPaths []string
 		ErrRE   string
@@ -489,9 +496,7 @@ func TestTransitivePackagesUnknownPathError(t *testing.T) {
 
 // Tests vdl.config file support.
 func TestPackageConfig(t *testing.T) {
-	if !setEnvironment(t, defaultVDLRoot, defaultVDLPath) {
-		t.Fatalf("Couldn't setEnvironment")
-	}
+	setEnvironment(t, defaultVDLRoot, defaultVDLPath)
 	tests := []struct {
 		Path   string
 		Config vdltool.Config
@@ -526,9 +531,7 @@ func TestPackageConfig(t *testing.T) {
 
 // Tests BuildConfig, BuildConfigValue and TransitivePackagesForConfig.
 func TestBuildConfig(t *testing.T) {
-	if !setEnvironment(t, defaultVDLRoot, defaultVDLPath) {
-		t.Fatalf("Couldn't setEnvironment")
-	}
+	setEnvironment(t, defaultVDLRoot, defaultVDLPath)
 	tests := []struct {
 		Src   string
 		Value interface{}
