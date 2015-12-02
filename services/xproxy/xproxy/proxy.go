@@ -14,6 +14,7 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/naming"
+	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 
 	"v.io/x/ref/lib/publisher"
@@ -316,13 +317,17 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 
 func (p *proxy) replyToServerLocked(ctx *context.T, f flow.Flow) error {
 	if err := p.authorizeFlow(ctx, f); err != nil {
-		// TODO(suharshs): should we return the err to the server in the ProxyResponse message?
-		f.Close()
+		if f.Conn().CommonVersion() >= version.RPCVersion13 {
+			writeMessage(ctx, &message.ProxyErrorResponse{Error: err.Error()}, f)
+		}
 		return err
 	}
 	rid := f.RemoteEndpoint().RoutingID()
 	eps, err := p.returnEndpointsLocked(ctx, rid, "")
 	if err != nil {
+		if f.Conn().CommonVersion() >= version.RPCVersion13 {
+			writeMessage(ctx, &message.ProxyErrorResponse{Error: err.Error()}, f)
+		}
 		return err
 	}
 	return writeMessage(ctx, &message.ProxyResponse{Endpoints: eps}, f)
@@ -348,6 +353,9 @@ func (p *proxy) replyToProxyLocked(ctx *context.T, f flow.Flow) error {
 	rid := f.RemoteEndpoint().RoutingID()
 	eps, err := p.returnEndpointsLocked(ctx, naming.NullRoutingID, rid.String())
 	if err != nil {
+		if f.Conn().CommonVersion() >= version.RPCVersion13 {
+			writeMessage(ctx, &message.ProxyErrorResponse{Error: err.Error()}, f)
+		}
 		return err
 	}
 	return writeMessage(ctx, &message.ProxyResponse{Endpoints: eps}, f)

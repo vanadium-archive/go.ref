@@ -19,6 +19,7 @@ var (
 	ErrUnexpectedMessage         = verror.Register("v.io/x/ref/services/xproxy/xproxy.UnexpectedMessage", verror.NoRetry, "{1:}{2:} Unexpected message of type{:3}")
 	ErrFailedToResolveToEndpoint = verror.Register("v.io/x/ref/services/xproxy/xproxy.FailedToResolveToEndpoint", verror.NoRetry, "{1:}{2:} Failed to resolve '{3}' to endpoint")
 	ErrProxyAlreadyClosed        = verror.Register("v.io/x/ref/services/xproxy/xproxy.ProxyAlreadyClosed", verror.NoRetry, "{1:}{2:} Proxy has already been closed")
+	ErrProxyResponse             = verror.Register("v.io/x/ref/services/xproxy/xproxy.ProxyResponse", verror.NoRetry, "{1:}{2:} proxy returned{:3}")
 )
 
 func init() {
@@ -26,6 +27,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnexpectedMessage.ID), "{1:}{2:} Unexpected message of type{:3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrFailedToResolveToEndpoint.ID), "{1:}{2:} Failed to resolve '{3}' to endpoint")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrProxyAlreadyClosed.ID), "{1:}{2:} Proxy has already been closed")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrProxyResponse.ID), "{1:}{2:} proxy returned{:3}")
 }
 
 // NewErrNotListening returns an error with the ErrNotListening ID.
@@ -46,4 +48,9 @@ func NewErrFailedToResolveToEndpoint(ctx *context.T, name string) error {
 // NewErrProxyAlreadyClosed returns an error with the ErrProxyAlreadyClosed ID.
 func NewErrProxyAlreadyClosed(ctx *context.T) error {
 	return verror.New(ErrProxyAlreadyClosed, ctx)
+}
+
+// NewErrProxyResponse returns an error with the ErrProxyResponse ID.
+func NewErrProxyResponse(ctx *context.T, msg string) error {
+	return verror.New(ErrProxyResponse, ctx, msg)
 }

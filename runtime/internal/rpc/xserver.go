@@ -55,8 +55,9 @@ type xserver struct {
 	state             rpc.ServerState // the current state of the server.
 	stopProxy         context.CancelFunc
 
-	endpoints map[string]*inaming.Endpoint // endpoints that the server is listening on.
-	lnErrors  []error                      // errors from listening
+	endpoints   map[string]*inaming.Endpoint // endpoints that the server is listening on.
+	lnErrors    []error                      // errors from listening
+	proxyErrors map[string]error             // errors from connecting to proxy.
 
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       rpc.Dispatcher // dispatcher for reserved methods
@@ -111,6 +112,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		typeCache:         newTypeCache(),
 		state:             rpc.ServerActive,
 		endpoints:         make(map[string]*inaming.Endpoint),
+		proxyErrors:       make(map[string]error),
 	}
 	channelTimeout := time.Duration(0)
 	var authorizedPeers []security.BlessingPattern
@@ -224,6 +226,9 @@ func (s *xserver) Status() rpc.ServerStatus {
 		status.Endpoints = append(status.Endpoints, e)
 	}
 	status.Errors = s.lnErrors
+	for p, e := range s.proxyErrors {
+		status.Proxies = append(status.Proxies, rpc.ProxyStatus{Proxy: p, Error: e})
+	}
 	s.Unlock()
 	return status
 }
@@ -285,7 +290,7 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 		if len(addr.Address) > 0 {
 			err := s.flowMgr.Listen(ctx, addr.Protocol, addr.Address)
 			if err != nil {
-				s.ctx.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, err)
+				s.ctx.Errorf("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, err)
 				s.lnErrors = append(s.lnErrors, err)
 			}
 		}
@@ -314,22 +319,41 @@ func (s *xserver) connectToProxy(ctx *context.T, name string) {
 			s.ctx.VI(2).Infof("resolveToEndpoint(%q) failed: %v", name, err)
 			continue
 		}
-		if err = s.tryProxyEndpoints(ctx, eps); err != nil {
+		var ch <-chan struct{}
+		if ch, err = s.tryProxyEndpoints(ctx, eps); err != nil {
 			s.ctx.VI(2).Infof("ProxyListen(%q) failed: %v. Reconnecting...", eps, err)
+			s.Lock()
+			s.proxyErrors[name] = err
+			s.updateValidLocked()
+			s.Unlock()
 		} else {
+			s.Lock()
+			s.proxyErrors[name] = nil
+			s.updateValidLocked()
+			s.Unlock()
+			<-ch
 			delay = reconnectDelay / 2
 		}
 	}
 }
 
-func (s *xserver) tryProxyEndpoints(ctx *context.T, eps []naming.Endpoint) error {
+func (s *xserver) updateValidLocked() {
+	if s.valid != nil {
+		close(s.valid)
+		s.valid = make(chan struct{})
+	}
+}
+
+func (s *xserver) tryProxyEndpoints(ctx *context.T, eps []naming.Endpoint) (<-chan struct{}, error) {
+	var ch <-chan struct{}
 	var lastErr error
 	for _, ep := range eps {
-		if lastErr = s.flowMgr.ProxyListen(ctx, ep); lastErr == nil {
+		if ch, lastErr = s.flowMgr.ProxyListen(ctx, ep); lastErr == nil {
 			break
+		} else {
 		}
 	}
-	return lastErr
+	return ch, lastErr
 }
 
 func nextDelay(delay time.Duration) time.Duration {
@@ -367,10 +391,7 @@ func (s *xserver) updateEndpointsLocked(leps []naming.Endpoint) {
 	for k, ep := range addEps {
 		s.endpoints[k] = ep
 	}
-	if s.valid != nil {
-		close(s.valid)
-		s.valid = make(chan struct{})
-	}
+	s.updateValidLocked()
 
 	s.Unlock()
 	for k, ep := range rmEps {

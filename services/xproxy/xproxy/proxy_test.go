@@ -5,9 +5,7 @@
 package xproxy_test
 
 import (
-	"bufio"
 	"crypto/rand"
-	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -247,18 +245,24 @@ func TestProxyAuthorizesServer(t *testing.T) {
 	}
 
 	// A proxy using the default authorizer should not authorize the server.
-	pname, stop = startProxy(t, pctx, "acceptproxy", nil, "", address{"tcp", "127.0.0.1:0"})
+	pname, stop = startProxy(t, pctx, "denyproxy", nil, "", address{"tcp", "127.0.0.1:0"})
 	defer stop()
 
+	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Proxy: pname})
 	_, server, err = v23.WithNewServer(sctx, "", &testService{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// TODO(suharshs): Find a way to test this without having to have this time.Sleep.
-	// Perhaps the manager can return errors about why connecting to the proxy failed.
-	time.Sleep(time.Second)
-	if server.Status().Endpoints[0].Addr().Network() != bidiProtocol {
-		t.Errorf("proxy should have rejected the server's request to listen through it")
+	for {
+		status := server.Status()
+		if len(status.Proxies) > 0 {
+			if status.Proxies[0].Error == nil {
+				t.Errorf("%v", status.Proxies[0])
+				t.Errorf("proxy should not have authorized server")
+			}
+			break
+		}
+		<-status.Valid
 	}
 
 	// Artificially constructing the proxied endpoint to the server should
@@ -284,171 +288,6 @@ func (rejectProxyAuthorizer) Authorize(ctx *context.T, call security.Call) error
 		}
 	}
 	return nil
-}
-
-// TODO(suharshs): Remove the below tests when the transition is complete.
-func TestSingleProxy(t *testing.T) {
-	defer goroutines.NoLeaks(t, leakWaitTime)()
-	kp := newKillProtocol()
-	flow.RegisterProtocol("kill", kp)
-	ctx, shutdown := test.V23Init()
-	am, err := v23.NewFlowManager(ctx, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dm, err := v23.NewFlowManager(ctx, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		<-am.Closed()
-		<-dm.Closed()
-	}()
-	defer shutdown()
-
-	pname, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"kill", "127.0.0.1:0"})
-	defer stop()
-	address, _ := naming.SplitAddressName(pname)
-	pep, err := v23.NewEndpoint(address)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	go am.ProxyListen(ctx, pep)
-
-	for {
-		eps, changed := am.ListeningEndpoints()
-		if eps[0].Addr().Network() != bidiProtocol {
-			if err := testEndToEndConnection(t, ctx, dm, am, eps[0]); err != nil {
-				t.Error(err)
-			}
-			return
-		}
-		<-changed
-	}
-}
-
-func TestMultipleProxies(t *testing.T) {
-	defer goroutines.NoLeaks(t, leakWaitTime)()
-	kp := newKillProtocol()
-	flow.RegisterProtocol("kill", kp)
-	ctx, shutdown := test.V23Init()
-	am, err := v23.NewFlowManager(ctx, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dm, err := v23.NewFlowManager(ctx, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		<-dm.Closed()
-		<-am.Closed()
-	}()
-
-	p1name, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"kill", "127.0.0.1:0"})
-	defer stop()
-	p2name, stop := startProxy(t, ctx, "", security.AllowEveryone(), p1name, address{"kill", "127.0.0.1:0"})
-	defer stop()
-
-	p3name, stop := startProxy(t, ctx, "", security.AllowEveryone(), p2name, address{"kill", "127.0.0.1:0"})
-	defer stop()
-	address, _ := naming.SplitAddressName(p3name)
-	p3ep, err := v23.NewEndpoint(address)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	go func() {
-		// We are going to kill connections 3 times so we need to reconnect to the proxy.
-		for i := 0; i < 3; i++ {
-			am.ProxyListen(ctx, p3ep)
-		}
-	}()
-
-	for i := 0; i < 3; {
-		eps, changed := am.ListeningEndpoints()
-		if eps[0].Addr().Network() != bidiProtocol && len(eps) > i {
-			if err := testEndToEndConnection(t, ctx, dm, am, eps[i]); err != nil {
-				// TODO(suharshs): We sometimes begin dialing the connection before the
-				// conn has been closed. In that case, we will get an error when
-				// writing on the connection. For that reason, we don't error out if we
-				// get an error here, and instead keep trying until we succeed.
-				continue
-			}
-			i++
-			kp.KillConnections()
-		}
-		<-changed
-	}
-	shutdown()
-}
-
-func testEndToEndConnection(t *testing.T, ctx *context.T, dm, am flow.Manager, aep naming.Endpoint) error {
-	// The dialing flow.Manager dials a flow to the accepting flow.Manager.
-	want := "Do you read me?"
-	df, err := dm.Dial(ctx, aep, allowAllPeersAuthorizer{}, 0)
-	if err != nil {
-		return err
-	}
-	// We write before accepting to ensure that the openFlow message is sent.
-	if err := writeLine(df, want); err != nil {
-		return err
-	}
-	af, err := am.Accept(ctx)
-	if err != nil {
-		return err
-	}
-	got, err := readLine(af)
-	if err != nil {
-		return err
-	}
-	if got != want {
-		return fmt.Errorf("got %v, want %v", got, want)
-	}
-
-	// Writes in the opposite direction should work as well.
-	want = "I read you loud and clear."
-	if err := writeLine(af, want); err != nil {
-		return err
-	}
-	got, err = readLine(df)
-	if err != nil {
-		return err
-	}
-	if got != want {
-		return fmt.Errorf("got %v, want %v", got, want)
-	}
-	return nil
-}
-
-// TODO(suharshs): Add test for bidirectional RPC.
-
-func readLine(f flow.Flow) (string, error) {
-	s, err := bufio.NewReader(f).ReadString('\n')
-	return strings.TrimRight(s, "\n"), err
-}
-
-func writeLine(f flow.Flow, data string) error {
-	data += "\n"
-	_, err := f.Write([]byte(data))
-	return err
-}
-
-type allowAllPeersAuthorizer struct{}
-
-func (allowAllPeersAuthorizer) AuthorizePeer(
-	ctx *context.T,
-	localEndpoint, remoteEndpoint naming.Endpoint,
-	remoteBlessings security.Blessings,
-	remoteDischarges map[string]security.Discharge,
-) ([]string, []security.RejectedBlessing, error) {
-	return nil, nil, nil
-}
-
-func (allowAllPeersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
-	security.Blessings, map[string]security.Discharge, error) {
-	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }
 
 type address struct {

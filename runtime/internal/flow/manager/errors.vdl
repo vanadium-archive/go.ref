@@ -18,4 +18,5 @@ error (
   InvalidProxyResponse(typ string) {"en": "Invalid proxy response{:typ}"}
   ManagerDialingSelf() {"en": "manager cannot be used to dial itself"}
   ListeningWithNullRid() {"en": "manager cannot listen when created with NullRoutingID"}
+  ProxyResponse(msg string) {"en": "proxy returned{:msg}"}
 )

@@ -6,7 +6,6 @@ package manager
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"strings"
 	"sync"
@@ -301,50 +300,70 @@ func getHostPort(address net.Addr) (string, string) {
 
 // ProxyListen causes the Manager to accept flows from the specified endpoint.
 // The endpoint must correspond to a vanadium proxy.
-// The call will block until the connection to the proxy endpoint fails. The
-// caller may then choose to retry the connection.
-func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) error {
+// If error != nil, establishing a connection to the Proxy failed.
+// Otherwise, if error == nil, the returned chan will block until the
+// connection to the proxy endpoint fails. The caller may then choose to retry
+// the connection.
+func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) (<-chan struct{}, error) {
 	if m.ls == nil {
-		return NewErrListeningWithNullRid(ctx)
+		return nil, NewErrListeningWithNullRid(ctx)
 	}
-	defer m.updateProxyEndpoints(nil)
 	f, err := m.internalDial(ctx, ep, proxyAuthorizer{}, m.acceptChannelTimeout, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	k := ep.String()
 	m.ls.mu.Lock()
 	m.ls.proxyFlows[k] = f
 	m.ls.mu.Unlock()
-	defer func() {
+	proxyDone := func() {
+		m.updateProxyEndpoints(nil)
 		m.ls.mu.Lock()
 		delete(m.ls.proxyFlows, k)
 		m.ls.mu.Unlock()
-	}()
+	}
 	w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
 	if err != nil {
-		return err
+		proxyDone()
+		return nil, err
 	}
 	if _, err = f.WriteMsg(w); err != nil {
-		return err
+		proxyDone()
+		return nil, err
+	}
+	// We connect to the proxy once before we loop.
+	if err := m.readAndUpdateProxyEndpoints(ctx, f); err != nil {
+		proxyDone()
+		return nil, err
 	}
 	// We do exponential backoff unless the proxy closes the flow cleanly, in which
 	// case we redial immediately.
-	for {
-		// we keep reading updates until we encounter an error, usually because the
-		// flow has been closed.
-		eps, err := m.readProxyResponse(ctx, f)
-		if err != nil {
-			if err == io.EOF {
-				return nil
+	done := make(chan struct{})
+	go func() {
+		for {
+			// we keep reading updates until we encounter an error, usually because the
+			// flow has been closed.
+			if err := m.readAndUpdateProxyEndpoints(ctx, f); err != nil {
+				ctx.VI(2).Info(err)
+				proxyDone()
+				close(done)
+				return
 			}
-			return err
 		}
-		for i := range eps {
-			eps[i].(*inaming.Endpoint).Blessings = m.serverNames
-		}
-		m.updateProxyEndpoints(eps)
+	}()
+	return done, nil
+}
+
+func (m *manager) readAndUpdateProxyEndpoints(ctx *context.T, f flow.Flow) error {
+	eps, err := m.readProxyResponse(ctx, f)
+	if err != nil {
+		return err
 	}
+	for i := range eps {
+		eps[i].(*inaming.Endpoint).Blessings = m.serverNames
+	}
+	m.updateProxyEndpoints(eps)
+	return nil
 }
 
 func (m *manager) updateProxyEndpoints(eps []naming.Endpoint) {
@@ -383,18 +402,24 @@ func endpointsEqual(a, b []naming.Endpoint) bool {
 func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpoint, error) {
 	b, err := f.ReadMsg()
 	if err != nil {
-		// Its important that we return the error as-is from f.ReadMsg since ProxyListen uses it.
+		f.Close()
 		return nil, err
 	}
 	msg, err := message.Read(ctx, b)
 	if err != nil {
+		f.Close()
 		return nil, iflow.MaybeWrapError(flow.ErrBadArg, ctx, err)
 	}
-	res, ok := msg.(*message.ProxyResponse)
-	if !ok {
-		return nil, flow.NewErrBadArg(ctx, NewErrInvalidProxyResponse(ctx, fmt.Sprintf("%t", res)))
+	switch m := msg.(type) {
+	case *message.ProxyResponse:
+		return m.Endpoints, nil
+	case *message.ProxyErrorResponse:
+		f.Close()
+		return nil, NewErrProxyResponse(ctx, m.Error)
+	default:
+		f.Close()
+		return nil, flow.NewErrBadArg(ctx, NewErrInvalidProxyResponse(ctx, fmt.Sprintf("%t", m)))
 	}
-	return res.Endpoints, nil
 }
 
 // TODO(suharshs): Figure out what blessings to present here. And present discharges.
