@@ -221,14 +221,10 @@ func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Tes
 		sh.logger = logger.Global()
 		return sh, nil
 	}
-	var err error
 	ctx, sh.cancelCtx = context.WithCancel(ctx)
-	if ctx, err = v23.WithNewStreamManager(ctx); err != nil {
-		return nil, err
-	}
 	sh.ctx = ctx
 	sh.logger = ctx
-
+	var err error
 	if sh.tempCredDir, err = ioutil.TempDir("", "sh_creds"); err != nil {
 		return nil, err
 	}

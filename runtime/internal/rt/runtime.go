@@ -39,16 +39,13 @@ import (
 	inaming "v.io/x/ref/runtime/internal/naming"
 	inamespace "v.io/x/ref/runtime/internal/naming/namespace"
 	irpc "v.io/x/ref/runtime/internal/rpc"
-	"v.io/x/ref/runtime/internal/rpc/stream"
-	imanager "v.io/x/ref/runtime/internal/rpc/stream/manager"
 	ivtrace "v.io/x/ref/runtime/internal/vtrace"
 )
 
 type contextKey int
 
 const (
-	streamManagerKey = contextKey(iota)
-	clientKey
+	clientKey = contextKey(iota)
 	namespaceKey
 	principalKey
 	backgroundKey
@@ -167,12 +164,6 @@ func Init(
 		return nil, nil, nil, err
 	}
 
-	// Setup authenticated "networking"
-	ctx, err = r.WithNewStreamManager(ctx)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
 	// Add the Client to the context.
 	ctx, _, err = r.WithNewClient(ctx)
 	if err != nil {
@@ -238,85 +229,6 @@ func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
 	return inaming.NewEndpoint(ep)
 }
 
-func (r *Runtime) newServer(ctx *context.T, opts ...rpc.ServerOpt) (irpc.DeprecatedServer, error) {
-	// Create a new RoutingID (and StreamManager) for each server.
-	sm, err := newStreamManager(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create rpc/stream/Manager: %v", err)
-	}
-
-	ns, _ := ctx.Value(namespaceKey).(namespace.T)
-	principal, _ := ctx.Value(principalKey).(security.Principal)
-	client, _ := ctx.Value(clientKey).(rpc.Client)
-
-	otherOpts := append([]rpc.ServerOpt{}, opts...)
-
-	if reservedDispatcher := r.GetReservedNameDispatcher(ctx); reservedDispatcher != nil {
-		otherOpts = append(otherOpts, irpc.ReservedNameDispatcher{
-			Dispatcher: reservedDispatcher,
-		})
-	}
-
-	id, _ := ctx.Value(initKey).(*initData)
-	if id.protocols != nil {
-		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(id.protocols))
-	}
-	server, err := irpc.DeprecatedNewServer(ctx, sm, ns, id.settingsPublisher, id.settingsName, r.GetClient(ctx), otherOpts...)
-	if err != nil {
-		return nil, err
-	}
-	stop := func() {
-		if err := server.Stop(); err != nil {
-			r.ctx.Errorf("A server could not be stopped: %v", err)
-		}
-		sm.Shutdown()
-	}
-	deps := []interface{}{client, vtraceDependency{}}
-	if principal != nil {
-		deps = append(deps, principal)
-	}
-	if err = r.addChild(ctx, server, stop, deps...); err != nil {
-		return nil, err
-	}
-	return server, nil
-}
-
-func newStreamManager(ctx *context.T) (stream.Manager, error) {
-	rid, err := naming.NewRoutingID()
-	if err != nil {
-		return nil, err
-	}
-	sm := imanager.InternalNew(ctx, rid)
-	return sm, nil
-}
-
-func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
-	sm, err := newStreamManager(ctx)
-	if err != nil {
-		return nil, err
-	}
-	newctx := context.WithValue(ctx, streamManagerKey, sm)
-	if err = r.addChild(ctx, sm, sm.Shutdown); err != nil {
-		return ctx, err
-	}
-	return newctx, err
-}
-
-func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	newctx, err := r.setNewStreamManager(ctx)
-	if err != nil {
-		return ctx, err
-	}
-
-	// Create a new client since it depends on the stream manager.
-	newctx, _, err = r.WithNewClient(newctx)
-	if err != nil {
-		return ctx, err
-	}
-	return newctx, nil
-}
-
 func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shutdown func(), deps ...interface{}) (*context.T, error) {
 	stop := shutdown
 	if principal != nil {
@@ -356,9 +268,6 @@ func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*
 	if newctx, err = r.setPrincipal(ctx, principal, func() {}); err != nil {
 		return ctx, err
 	}
-	if newctx, err = r.setNewStreamManager(newctx); err != nil {
-		return ctx, err
-	}
 	if newctx, _, err = r.setNewNamespace(newctx, r.GetNamespace(ctx).Roots()...); err != nil {
 		return ctx, err
 	}
@@ -380,16 +289,13 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	otherOpts := append([]rpc.ClientOpt{}, opts...)
 
 	p, _ := ctx.Value(principalKey).(security.Principal)
-	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(namespace.T)
-	otherOpts = append(otherOpts, imanager.DialTimeout(5*time.Minute))
 	if id, _ := ctx.Value(initKey).(*initData); id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredProtocols(id.protocols))
 	}
 	var client rpc.Client
 	deps := []interface{}{vtraceDependency{}}
 	client = irpc.NewXClient(ctx, ns, otherOpts...)
-	deps = append(deps, sm)
 	newctx := context.WithValue(ctx, clientKey, client)
 	if p != nil {
 		deps = append(deps, p)
