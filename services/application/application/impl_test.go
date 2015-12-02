@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -77,8 +79,23 @@ var (
   "RestartTimeWindow": 0
 }`
 	profiles  = "a,b,c,d"
-	serverOut bytes.Buffer
+	serverOut = make(chan string, 10)
 )
+
+// drainServerOut collects all the output from the serverOut channel into a
+// slice sorted alphabetically.
+func drainServerOut() []string {
+	ret := make([]string, 0)
+	for {
+		select {
+		case line := <-serverOut:
+			ret = append(ret, line)
+		default:
+			sort.Strings(ret)
+			return ret
+		}
+	}
+}
 
 //go:generate jiri test generate
 
@@ -93,7 +110,7 @@ func (s *server) Match(ctx *context.T, _ rpc.ServerCall, profiles []string) (app
 
 func (s *server) Put(ctx *context.T, _ rpc.ServerCall, profile string, env application.Envelope, overwrite bool) error {
 	ctx.VI(2).Infof("%v.Put(%v, %v, %t) was called", s.suffix, profile, env, overwrite)
-	fmt.Fprintf(&serverOut, "Put(%s, ..., %t)\n", profile, overwrite)
+	serverOut <- fmt.Sprintf("Put(%s, ..., %t)", profile, overwrite)
 	return nil
 }
 
@@ -144,7 +161,6 @@ func TestApplicationClient(t *testing.T) {
 	resetOut := func() {
 		stdout.Reset()
 		stderr.Reset()
-		serverOut.Reset()
 	}
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
 	appName := naming.JoinAddressName(endpoint.String(), "myapp/1")
@@ -179,8 +195,11 @@ func TestApplicationClient(t *testing.T) {
 	if expected, got := "Application envelope added for profile myprofile1.\nApplication envelope added for profile myprofile2.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from put. Got %q, expected %q", got, expected)
 	}
-	if expected1, expected2, got := "Put(myprofile1, ..., false)\nPut(myprofile2, ..., false)", "Put(myprofile2, ..., false)\nPut(myprofile1, ..., false)", strings.TrimSpace(serverOut.String()); got != expected1 && got != expected2 {
-		t.Errorf("Unexpected output from mock server. Got %q, expected %q or %q", got, expected1, expected2)
+	if expected, got := []string{
+		"Put(myprofile1, ..., false)",
+		"Put(myprofile2, ..., false)",
+	}, drainServerOut(); !reflect.DeepEqual(expected, got) {
+		t.Errorf("Unexpected output from mock server. Got %v, expected %v", got, expected)
 	}
 	resetOut()
 
@@ -191,8 +210,8 @@ func TestApplicationClient(t *testing.T) {
 	if expected, got := "Application envelope added for profile myprofile.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from put. Got %q, expected %q", got, expected)
 	}
-	if expected, got := "Put(myprofile, ..., true)", strings.TrimSpace(serverOut.String()); got != expected {
-		t.Errorf("Unexpected output from mock server. Got %q, expected %q", got, expected)
+	if expected, got := []string{"Put(myprofile, ..., true)"}, drainServerOut(); !reflect.DeepEqual(got, expected) {
+		t.Errorf("Unexpected output from mock server. Got %v, expected %v", got, expected)
 	}
 	resetOut()
 
