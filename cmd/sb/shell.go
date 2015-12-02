@@ -125,6 +125,21 @@ stmtLoop:
 					err = makeDemoDB(ctx, env.Stdout, d)
 				case "select":
 					err = queryExec(ctx, env.Stdout, d, q)
+				case "destroy":
+					if len(tq) == 3 {
+						switch tq[1] {
+						case "db":
+							err = destroyDB(ctx, d, tq[2])
+						case "table":
+							err = destroyTable(ctx, d, tq[2])
+						case "syncgroup":
+							err = destroySyncgroup(ctx, d, tq[2])
+						default:
+							err = fmt.Errorf("unknown type: %q", tq[1])
+						}
+					} else {
+						err = fmt.Errorf("destroy requires specifying type ('db', 'table', or 'syncgroup') and name of object")
+					}
 				default:
 					err = fmt.Errorf("unknown statement: '%s'; expected one of: 'select', 'make-demo', 'dump', 'exit', 'quit'", strings.ToLower(tq[0]))
 				}
@@ -141,6 +156,39 @@ stmtLoop:
 	}
 
 	return nil
+}
+
+func destroyDB(ctx *context.T, d nosql.Database, dbName string) error {
+	// For extra safety, we still require the user to explicitly specify the
+	// database name instead of blindly destroying the current database.
+	if d.Name() != dbName {
+		return fmt.Errorf("can only destroy current database %q", d.Name())
+	}
+	return d.Destroy(ctx)
+}
+
+func destroyTable(ctx *context.T, d nosql.Database, tableName string) error {
+	table := d.Table(tableName)
+	if exists, err := table.Exists(ctx); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("couldn't find table %q", tableName)
+	}
+	return table.Destroy(ctx)
+}
+
+func destroySyncgroup(ctx *context.T, d nosql.Database, sgName string) error {
+	sgs, err := d.GetSyncgroupNames(ctx)
+	if err != nil {
+		return err
+	}
+	for _, sg := range sgs {
+		if sg == sgName {
+			syncgroup := d.Syncgroup(sgName)
+			return syncgroup.Destroy(ctx)
+		}
+	}
+	return fmt.Errorf("couldn't find syncgroup %q", sgName)
 }
 
 func openAppDB(ctx *context.T, sbs syncbase.Service, appName, dbName string, createIfNotExists bool) (nosql.Database, error) {
