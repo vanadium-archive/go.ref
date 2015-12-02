@@ -7,20 +7,12 @@ package rpc
 import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/ref"
 )
 
 func InternalServerResolveToEndpoint(ctx *context.T, s rpc.Server, name string) (string, error) {
-	if ref.RPCTransitionState() == ref.XServers {
-		eps, err := s.(*xserver).resolveToEndpoint(ctx, name)
-		if err != nil {
-			return "", err
-		}
-		return eps[0].String(), nil
-	}
-	eps, err := s.(*server).resolveToEndpoint(name)
+	eps, err := s.(*xserver).resolveToEndpoint(ctx, name)
 	if err != nil {
 		return "", err
 	}
-	return eps[0], nil
+	return eps[0].String(), nil
 }

@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
@@ -50,9 +49,6 @@ func (t *testService) Echo(ctx *context.T, call rpc.ServerCall, arg string) (str
 }
 
 func TestBigProxyRPC(t *testing.T) {
-	if ref.RPCTransitionState() != ref.XServers {
-		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
-	}
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
@@ -87,9 +83,6 @@ func TestBigProxyRPC(t *testing.T) {
 }
 
 func TestProxyRPC(t *testing.T) {
-	if ref.RPCTransitionState() != ref.XServers {
-		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
-	}
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
@@ -115,9 +108,6 @@ func TestProxyRPC(t *testing.T) {
 }
 
 func TestMultipleProxyRPC(t *testing.T) {
-	if ref.RPCTransitionState() != ref.XServers {
-		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
-	}
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	kp := newKillProtocol()
 	flow.RegisterProtocol("kill", kp)
@@ -158,9 +148,6 @@ func TestMultipleProxyRPC(t *testing.T) {
 }
 
 func TestProxyNotAuthorized(t *testing.T) {
-	if ref.RPCTransitionState() != ref.XServers {
-		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
-	}
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
@@ -216,9 +203,6 @@ func TestProxyNotAuthorized(t *testing.T) {
 }
 
 func TestProxyAuthorizesServer(t *testing.T) {
-	if ref.RPCTransitionState() != ref.XServers {
-		t.Skip("Test only runs under 'V23_RPC_TRANSITION_STATE==xservers'")
-	}
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 

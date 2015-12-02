@@ -19,7 +19,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
-	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
@@ -165,9 +164,6 @@ func TestClientServerBlessings(t *testing.T) {
 }
 
 func TestServerEndpointBlessingNames(t *testing.T) {
-	if ref.RPCTransitionState() >= ref.XServers {
-		t.Skip("The new rpc system doesn't use the ServerBlessings opt.")
-	}
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal())

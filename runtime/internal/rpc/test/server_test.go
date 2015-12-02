@@ -16,8 +16,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/v23/verror"
-	"v.io/x/ref"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/test"
 )
@@ -66,43 +64,6 @@ func TestBadObject(t *testing.T) {
 		// TODO(caprita): Check the error type rather than
 		// merely ensuring the test doesn't panic.
 		t.Fatalf("Call should have failed")
-	}
-}
-
-func TestServerArgs(t *testing.T) {
-	if ref.RPCTransitionState() == ref.XServers {
-		// TODO(suharshs): This test doesn't make sense in the new RPC system
-		// because servers always have an endpoint with their routingID. Remove
-		// this test once the transition is complete.
-		t.SkipNow()
-	}
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	sctx := withPrincipal(t, ctx, "server")
-
-	esctx := v23.WithListenSpec(sctx, rpc.ListenSpec{})
-	_, _, err := v23.WithNewServer(esctx, "", &testServer{}, nil)
-	if verror.ErrorID(err) != verror.ErrBadArg.ID {
-		t.Fatalf("expected a BadArg error: got %v", err)
-	}
-
-	esctx = v23.WithListenSpec(sctx, rpc.ListenSpec{
-		Addrs: rpc.ListenAddrs{{"tcp", "*:0"}},
-	})
-	_, _, err = v23.WithNewServer(esctx, "", &testServer{}, nil)
-	if verror.ErrorID(err) != verror.ErrBadArg.ID {
-		t.Fatalf("expected a BadArg error: got %v", err)
-	}
-
-	esctx = v23.WithListenSpec(sctx, rpc.ListenSpec{
-		Addrs: rpc.ListenAddrs{
-			{"tcp", "*:0"},
-			{"tcp", "127.0.0.1:0"},
-		},
-	})
-	_, _, err = v23.WithNewServer(esctx, "", &testServer{}, nil)
-	if verror.ErrorID(err) == verror.ErrBadArg.ID {
-		t.Fatalf("expected a BadArg error: got %v", err)
 	}
 }
 

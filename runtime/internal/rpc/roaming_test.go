@@ -18,7 +18,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/x/lib/netstate"
 	"v.io/x/lib/set"
-	"v.io/x/ref"
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal/lib/roaming"
@@ -32,9 +31,6 @@ import (
 )
 
 func TestRoamingNew(t *testing.T) {
-	if ref.RPCTransitionState() < ref.XServers {
-		t.Skip("This test only runs under the new rpc system.")
-	}
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 

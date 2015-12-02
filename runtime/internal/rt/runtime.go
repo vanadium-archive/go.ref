@@ -28,7 +28,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 
-	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/apilog"
 	"v.io/x/ref/lib/flags"
@@ -389,14 +388,8 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	}
 	var client rpc.Client
 	deps := []interface{}{vtraceDependency{}}
-
-	if ref.RPCTransitionState() >= ref.XClients {
-		client = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
-		deps = append(deps, sm)
-	} else {
-		client = irpc.DeprecatedNewClient(ctx, sm, ns, otherOpts...)
-		deps = append(deps, sm)
-	}
+	client = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
+	deps = append(deps, sm)
 	newctx := context.WithValue(ctx, clientKey, client)
 	if p != nil {
 		deps = append(deps, p)
@@ -535,62 +528,32 @@ func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubs
 
 func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	if ref.RPCTransitionState() >= ref.XServers {
-		spub, opts, err := r.commonServerInit(ctx, opts...)
-		if err != nil {
-			return ctx, nil, err
-		}
-		newctx, s, err := irpc.WithNewServer(ctx, name, object, auth, spub, opts...)
-		if err != nil {
-			return ctx, nil, err
-		}
-		if err = r.addChild(ctx, s, func() { <-s.Closed() }); err != nil {
-			return ctx, nil, err
-		}
-		return newctx, s, nil
-	}
-	s, err := r.newServer(ctx, opts...)
+	spub, opts, err := r.commonServerInit(ctx, opts...)
 	if err != nil {
 		return ctx, nil, err
 	}
-	if _, err = s.Listen(r.GetListenSpec(ctx)); err != nil {
-		s.Stop()
+	newctx, s, err := irpc.WithNewServer(ctx, name, object, auth, spub, opts...)
+	if err != nil {
 		return ctx, nil, err
 	}
-	if err = s.Serve(name, object, auth); err != nil {
-		s.Stop()
+	if err = r.addChild(ctx, s, func() { <-s.Closed() }); err != nil {
 		return ctx, nil, err
 	}
-	return ctx, s, nil
+	return newctx, s, nil
 }
 
 func (r *Runtime) WithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	if ref.RPCTransitionState() >= ref.XServers {
-		spub, opts, err := r.commonServerInit(ctx, opts...)
-		if err != nil {
-			return ctx, nil, err
-		}
-		newctx, s, err := irpc.WithNewDispatchingServer(ctx, name, disp, spub, opts...)
-		if err != nil {
-			return ctx, nil, err
-		}
-		if err = r.addChild(ctx, s, func() { <-s.Closed() }); err != nil {
-			return ctx, nil, err
-		}
-		return newctx, s, nil
-	}
-
-	s, err := r.newServer(ctx, opts...)
+	spub, opts, err := r.commonServerInit(ctx, opts...)
 	if err != nil {
 		return ctx, nil, err
 	}
-	if _, err = s.Listen(r.GetListenSpec(ctx)); err != nil {
+	newctx, s, err := irpc.WithNewDispatchingServer(ctx, name, disp, spub, opts...)
+	if err != nil {
 		return ctx, nil, err
 	}
-	if err = s.ServeDispatcher(name, disp); err != nil {
-		s.Stop()
+	if err = r.addChild(ctx, s, func() { <-s.Closed() }); err != nil {
 		return ctx, nil, err
 	}
-	return ctx, s, nil
+	return newctx, s, nil
 }

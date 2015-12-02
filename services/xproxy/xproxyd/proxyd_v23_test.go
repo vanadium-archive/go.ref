@@ -11,7 +11,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/ref"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
 )
@@ -25,9 +24,6 @@ const (
 )
 
 func V23TestProxyd(t *v23tests.T) {
-	if ref.RPCTransitionState() < ref.XServers {
-		t.Skip("This test only runs under the new rpc system.")
-	}
 	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
 	var (
 		proxydCreds, _ = t.Shell().NewChildCredentials("proxyd")
