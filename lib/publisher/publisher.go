@@ -287,7 +287,7 @@ func (ps *pubState) mount(name, server string, status *rpc.MountStatus, attr nam
 	// triggered by a newly added server or name, or by sync.  The next call
 	// to sync will occur within the next period, and refresh all mounts.
 	ttl := ps.period + mountTTLSlack
-	last := status
+	last := *status
 	status.LastMount = time.Now()
 	status.LastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTable(attr.servesMT), naming.IsLeaf(attr.isLeaf))
 	status.TTL = ttl
