@@ -388,7 +388,7 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	}
 	var client rpc.Client
 	deps := []interface{}{vtraceDependency{}}
-	client = irpc.NewTransitionClient(ctx, sm, ns, otherOpts...)
+	client = irpc.NewXClient(ctx, ns, otherOpts...)
 	deps = append(deps, sm)
 	newctx := context.WithValue(ctx, clientKey, client)
 	if p != nil {

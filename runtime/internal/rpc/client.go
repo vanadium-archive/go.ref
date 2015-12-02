@@ -77,7 +77,6 @@ type client struct {
 	vcCache            *vc.VCCache
 	wg                 sync.WaitGroup
 	dc                 vc.DischargeClient
-	tcclose            func()
 
 	mu      sync.Mutex
 	closed  bool
@@ -93,16 +92,7 @@ func DeprecatedNewClient(ctx *context.T, streamMgr stream.Manager, ns namespace.
 		vcCache:   vc.NewVCCache(),
 		closech:   make(chan struct{}),
 	}
-	// We need a transition client to fetch discharges since the identity server
-	// might use a different protocol than the server we are otherwise talking to.
-	tc := &transitionClient{
-		xc:     NewXClient(ctx, ns, opts...),
-		c:      c,
-		ctx:    ctx,
-		cancel: nil,
-	}
-	c.tcclose = tc.xc.Close
-	c.dc = InternalNewDischargeClient(nil, tc, 0)
+	c.dc = InternalNewDischargeClient(nil, c, 0)
 	for _, opt := range opts {
 		// Collect all client opts that are also vc opts.
 		switch v := opt.(type) {
@@ -792,9 +782,6 @@ func (c *client) Close() {
 		c.streamMgr.ShutdownEndpoint(v.RemoteEndpoint())
 	}
 	c.wg.Wait()
-	if c.tcclose != nil {
-		c.tcclose()
-	}
 }
 
 func (c *client) Closed() <-chan struct{} {
