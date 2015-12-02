@@ -49,11 +49,6 @@ func (r *Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
 	return ctx
 }
 
-func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
-	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
-}
-
 // SetFlowManagerFactory can be used to inject a mock FlowManager
 // implementation into the context.  When v23.NewFlowManager is called
 // passed function will be invoked.

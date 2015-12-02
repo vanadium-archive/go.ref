@@ -126,23 +126,7 @@ func Start(ctx *context.T, args Args) (string, func(), error) {
 }
 
 func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) (string, func(), error) {
-	// TODO(caprita,ashankar): We create a context with a new stream manager
-	// that we can cancel once the device has been claimed. This gets around
-	// the following issue: if we publish the claimable server to the local
-	// mounttable, and then (following claim) we restart the mounttable
-	// server on the same port, we fail to publish the device service to the
-	// (new) mounttable server (Mount fails with "VC handshake failed:
-	// remote end closed VC(VCs not accepted)".  Presumably, something to do
-	// with caching connections (following the claim, the mounttable comes
-	// back on the same port as before, and the client-side of the mount
-	// gets confused trying to reuse the old connection and doesn't attempt
-	// to create a new connection).  We should get to the bottom of it.
 	ctx, cancel := context.WithCancel(ctx)
-	var err error
-	if ctx, err = v23.WithNewStreamManager(ctx); err != nil {
-		cancel()
-		return "", nil, err
-	}
 	ctx = v23.WithListenSpec(ctx, args.Device.ListenSpec)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
