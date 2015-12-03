@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime/debug"
 	"syscall"
+	"time"
 
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/v23tests"
@@ -27,9 +28,9 @@ func StartSyncbased(t *v23tests.T, creds *modules.CustomCredentials, name, rootD
 	}
 }
 
-// StartKillableSyncbased starts a syncbased process, intended to be accessed from an
-// integration test (run using --v23.tests). The returned cleanup function
-// should be called once the syncbased process is no longer needed.
+// StartKillableSyncbased starts a syncbased process, intended to be accessed
+// from an integration test (run using --v23.tests). The returned cleanup
+// function should be called once the syncbased process is no longer needed.
 func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 	name, rootDir, permsLiteral string) (cleanup func(signal syscall.Signal)) {
 
@@ -47,7 +48,7 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 
 	// Start syncbased. Run with --dev to enable development mode methods such as
 	// DevModeUpdateClock.
-	invocation := syncbased.WithStartOpts(syncbased.StartOpts().WithCustomCredentials(creds)).Start(
+	invocation := syncbased.WithStartOpts(syncbased.StartOpts().WithCustomCredentials(creds).WithSessions(t, 5*time.Second)).Start(
 		//"--vpath=vsync*=5",
 		//"--alsologtostderr=true",
 		"--v23.tcp.address=127.0.0.1:0",
@@ -68,15 +69,13 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 		}
 		if rmRootDir {
 			if err := os.RemoveAll(rootDir); err != nil {
-				V23Fatalf(t, "can't remove dir %v: %v", rootDir, err)
+				V23Fatalf(t, "failed to remove dir %v: %v", rootDir, err)
 			}
 		}
 	}
 
 	// Wait for syncbased to start.  If syncbased fails to start, this will time
-	// out and return "".
-	// TODO(sadovsky): If syncbased fails, this takes a whole minute to find out.
-	// Unfortunately, the complexity of v23tests makes this hard to fix. :(
+	// out after 5 seconds and return "".
 	endpoint := invocation.ExpectVar("ENDPOINT")
 	if endpoint == "" {
 		cleanup(syscall.SIGKILL)
@@ -85,7 +84,8 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 	return cleanup
 }
 
-// RunClient runs the given program and waits until it terminates.
+// RunClient runs the given program and waits for it to terminate.
+// TODO(sadovsky): This function will soon go away. Do not depend on it.
 func RunClient(t *v23tests.T, creds *modules.CustomCredentials, program modules.Program, args ...string) {
 	client, err := t.Shell().StartWithOpts(
 		t.Shell().DefaultStartOpts().WithCustomCredentials(creds),
