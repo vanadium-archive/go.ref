@@ -64,7 +64,7 @@ type ServiceOptions struct {
 	// Whether to publish in the neighborhood.
 	PublishInNeighborhood bool
 	// Whether to run in "development" mode.
-	// Certain RPCs (e.g. DevModeUpdateClock and DevModeGetTime) will fail unless
+	// Certain RPCs (e.g. DevModeUpdateVClock and DevModeGetTime) will fail unless
 	// we are running in development mode.
 	DevMode bool
 }
@@ -234,7 +234,7 @@ func (s *service) Close() {
 
 // TODO(sadovsky): Add test to demonstrate that these don't work unless Syncbase
 // was started in dev mode.
-func (s *service) DevModeUpdateClock(ctx *context.T, call rpc.ServerCall, opts wire.DevModeUpdateClockOpts) error {
+func (s *service) DevModeUpdateVClock(ctx *context.T, call rpc.ServerCall, opts wire.DevModeUpdateVClockOpts) error {
 	if !s.opts.DevMode {
 		return wire.NewErrNotInDevMode(ctx)
 	}
@@ -243,8 +243,7 @@ func (s *service) DevModeUpdateClock(ctx *context.T, call rpc.ServerCall, opts w
 		return err
 	}
 	if opts.NtpHost != "" {
-		// TODO(sadovsky): Add support for injecting NtpHost.
-		return verror.New(verror.ErrNotImplemented, ctx, "NtpHost support not yet implemented")
+		s.vclockD.InjectNtpHost(opts.NtpHost)
 	}
 	if !opts.Now.Equal(time.Time{}) {
 		s.vclock.InjectFakeSysClock(opts.Now, opts.ElapsedTime)

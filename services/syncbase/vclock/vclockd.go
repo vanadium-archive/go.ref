@@ -16,9 +16,14 @@ import (
 // VClockD is a daemon (a goroutine) that periodically runs DoLocalUpdate and
 // DoNtpUpdate to update various fields in persisted VClockData based on values
 // reported by the system clock and NTP.
+// VClockD is thread-safe.
 type VClockD struct {
-	vclock    *VClock
-	ntpSource NtpSource
+	vclock *VClock
+	// Protects ntpSource. We use RWMutex because writes can never happen in
+	// production: they only happen on calls to InjectNtpHost, which can only be
+	// called in development mode.
+	ntpSourceMu sync.RWMutex
+	ntpSource   NtpSource
 	// State to coordinate shutdown of spawned goroutines.
 	pending sync.WaitGroup
 	closed  chan struct{}
@@ -28,7 +33,7 @@ type VClockD struct {
 func NewVClockD(vclock *VClock) *VClockD {
 	return &VClockD{
 		vclock:    vclock,
-		ntpSource: NewNtpSource(NtpDefaultHost, vclock),
+		ntpSource: newVClockNtpSource(NtpDefaultHost, vclock),
 		closed:    make(chan struct{}),
 	}
 }
@@ -49,8 +54,8 @@ func (d *VClockD) Close() {
 // Internal implementation of VClockD
 
 // Note, DoLocalUpdate and DoNtpUpdate are public so that
-// Service.DevModeUpdateClock can call them directly. We considered having
-// DevModeUpdateClock schedule updates to happen within runLoop, but this would
+// Service.DevModeUpdateVClock can call them directly. We considered having
+// DevModeUpdateVClock schedule updates to happen within runLoop, but this would
 // require a Mutex and would force clients to sleep to allow time for the
 // requested update to happen.
 
@@ -95,6 +100,12 @@ func (d *VClockD) runLoop() {
 		default:
 		}
 	}
+}
+
+func (d *VClockD) InjectNtpHost(ntpHost string) {
+	d.ntpSourceMu.Lock()
+	defer d.ntpSourceMu.Unlock()
+	d.ntpSource = newVClockNtpSource(ntpHost, d.vclock)
 }
 
 ////////////////////////////////////////
@@ -153,7 +164,9 @@ func (d *VClockD) DoNtpUpdate() error {
 	vlog.VI(2).Info("vclock: DoNtpUpdate: start")
 	defer vlog.VI(2).Info("vclock: DoNtpUpdate: end")
 
+	d.ntpSourceMu.RLock()
 	ntpData, err := d.ntpSource.NtpSync(NtpSampleCount)
+	d.ntpSourceMu.RUnlock()
 	if err != nil {
 		vlog.Errorf("vclock: DoNtpUpdate: failed to fetch NTP time: %v", err)
 		return err

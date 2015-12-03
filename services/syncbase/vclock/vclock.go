@@ -17,6 +17,7 @@ import (
 )
 
 // VClock holds everything needed to provide UTC time estimates.
+// VClock is thread-safe.
 type VClock struct {
 	// Syncbase top-level store (i.e. not a database-specific store).
 	st store.Store

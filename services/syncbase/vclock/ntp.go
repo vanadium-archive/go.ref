@@ -35,9 +35,9 @@ type NtpSource interface {
 	NtpSync(sampleCount int) (*NtpData, error)
 }
 
-// NewNtpSource returns a new NtpSource implementation that talks to the
+// newVClockNtpSource returns a new NtpSource implementation that talks to the
 // specified ntpHost, or to NtpDefaultHost if ntpHost is "".
-func NewNtpSource(ntpHost string, vclock *VClock) NtpSource {
+func newVClockNtpSource(ntpHost string, vclock *VClock) NtpSource {
 	if ntpHost == "" {
 		ntpHost = NtpDefaultHost
 	}
