@@ -73,12 +73,7 @@ func advertiseServer(ctx *context.T, service *discovery.Service, eps []naming.En
 	return stop, nil
 }
 
-// TODO(suharshs): Use server.Status().Endpoints only when migrating to a new server.
 func getEndpoints(server rpc.Server) ([]naming.Endpoint, <-chan struct{}) {
 	status := server.Status()
-	eps := status.Endpoints
-	for _, p := range status.Proxies {
-		eps = append(eps, p.Endpoint)
-	}
-	return eps, status.Valid
+	return status.Endpoints, status.Valid
 }
