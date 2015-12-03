@@ -19,11 +19,12 @@ import (
 	"v.io/v23/vdl"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
-	"v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/principal"
+	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
 )
 
@@ -62,11 +63,12 @@ func TestBrowspr(t *testing.T) {
 	proxySpec := rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}},
 	}
-	proxyShutdown, proxyEndpoint, err := generic.NewProxy(ctx, proxySpec, security.AllowEveryone())
+	ctx = v23.WithListenSpec(ctx, proxySpec)
+	proxy, err := xproxy.New(ctx, "", security.AllowEveryone())
 	if err != nil {
 		t.Fatalf("Failed to start proxy: %v", err)
 	}
-	defer proxyShutdown()
+	proxyEndpoint := proxy.ListeningEndpoints()[0]
 
 	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
@@ -123,7 +125,8 @@ found:
 	}
 
 	spec := v23.GetListenSpec(ctx)
-	spec.Proxy = proxyEndpoint.String()
+	spec.Addrs = nil
+	spec.Proxy = proxyEndpoint.Name()
 
 	receivedResponse := make(chan bool, 1)
 	var receivedInstanceId int32
