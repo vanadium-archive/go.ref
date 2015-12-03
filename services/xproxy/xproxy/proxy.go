@@ -213,11 +213,15 @@ func (p *proxy) listenLoop(ctx *context.T) {
 		switch m := msg.(type) {
 		case *message.Setup:
 			err = p.startRouting(ctx, f, m)
+			if err == nil {
+				ctx.Infof("Routing client flow from %v", f.RemoteEndpoint())
+			}
 		case *message.MultiProxyRequest:
 			p.mu.Lock()
 			err = p.replyToProxyLocked(ctx, f)
 			if err == nil {
 				p.proxiedProxies = append(p.proxiedProxies, f)
+				ctx.Infof("Proxying proxy at %v", f.RemoteEndpoint())
 			}
 			p.mu.Unlock()
 		case *message.ProxyServerRequest:
@@ -225,13 +229,14 @@ func (p *proxy) listenLoop(ctx *context.T) {
 			err = p.replyToServerLocked(ctx, f)
 			if err == nil {
 				p.proxiedServers = append(p.proxiedServers, f)
+				ctx.Infof("Proxying server at %v", f.RemoteEndpoint())
 			}
 			p.mu.Unlock()
 		default:
 			continue
 		}
 		if err != nil {
-			ctx.Errorf("failed to handle incoming connection: %v", err)
+			ctx.Errorf("failed to handle incoming connection from %v: %v", f.RemoteEndpoint(), err)
 		}
 	}
 }
