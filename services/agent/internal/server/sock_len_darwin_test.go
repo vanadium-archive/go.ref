@@ -9,7 +9,7 @@ import (
 )
 
 func TestMaxSockPathLen(t *testing.T) {
-	if length := GetMaxSockPathLen(); length != 104 {
-		t.Errorf("Expected max socket path length to be 104 on darwin, got %d instead", length)
+	if length := GetMaxSockPathLen(); length != 103 {
+		t.Errorf("Expected max socket path length to be 103 on darwin, got %d instead", length)
 	}
 }

@@ -9,5 +9,5 @@ import "C"
 
 func GetMaxSockPathLen() int {
 	var t C.struct_sockaddr_un
-	return len(t.sun_path)
+	return len(t.sun_path) - 1 // -1 for the \0 that's part of c strings.
 }
