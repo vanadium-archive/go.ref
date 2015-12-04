@@ -35,7 +35,7 @@ func TestGetTime(t *testing.T) {
 	}
 
 	gotSkew := getSkew(resp)
-	if abs(gotSkew-wantSkew) > time.Millisecond {
+	if abs(gotSkew-wantSkew) > 3*time.Millisecond {
 		t.Errorf("GetTime returned skew outside of error bounds; want: %v, got: %v", wantSkew, gotSkew)
 	}
 }

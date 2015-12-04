@@ -47,7 +47,7 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 	}
 
 	// Start syncbased. Run with --dev to enable development mode methods such as
-	// DevModeUpdateClock.
+	// DevModeUpdateVClock.
 	invocation := syncbased.WithStartOpts(syncbased.StartOpts().WithCustomCredentials(creds).WithSessions(t, 5*time.Second)).Start(
 		//"--vpath=vsync*=5",
 		//"--alsologtostderr=true",
