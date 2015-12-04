@@ -27,6 +27,12 @@ const (
 	// PrefixRangeLimitSuffix is a key suffix that indicates the end of a prefix
 	// range. Must be greater than any character allowed in client-specified keys.
 	PrefixRangeLimitSuffix = "\xff"
+
+	// AppDir is the filesystem directory that holds all app databases.
+	AppDir = "apps"
+
+	// DbDir is the filesystem directory that holds all databases for an app.
+	DbDir = "dbs"
 )
 
 // Constants related to object names.

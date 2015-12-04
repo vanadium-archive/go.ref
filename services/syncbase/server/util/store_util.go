@@ -7,12 +7,16 @@ package util
 import (
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/leveldb"
 	"v.io/x/ref/services/syncbase/store/memstore"
@@ -157,7 +161,14 @@ func OpenStore(engine, path string, opts OpenOptions) (store.Store, error) {
 				return nil, verror.New(verror.ErrInternal, nil, err)
 			}
 		}
-		return leveldb.Open(path, leveldbOpts)
+		st, err := leveldb.Open(path, leveldbOpts)
+		if err != nil {
+			if strings.Contains(err.Error(), "Corruption") {
+				vlog.Errorf("leveldb %s is corrupt.  Moving aside. %v", path, err)
+				return nil, handleCorruptLevelDB(path)
+			}
+		}
+		return st, err
 	default:
 		return nil, verror.New(verror.ErrBadArg, nil, engine)
 	}
@@ -176,4 +187,15 @@ func DestroyStore(engine, path string) error {
 	default:
 		return verror.New(verror.ErrBadArg, nil, engine)
 	}
+}
+
+// Moves a corrupt store aside.  The app will be responsible for creating a new
+// one. Returns an error containing the path of the old store in case the user
+// wants to try to debug it.
+func handleCorruptLevelDB(path string) error {
+	newPath := path + ".corrupt." + time.Now().Format(time.RFC3339)
+	if err := os.Rename(path, newPath); err != nil {
+		return verror.New(verror.ErrInternal, nil, "leveldb corrupt but could not move aside: "+err.Error())
+	}
+	return wire.NewErrCorruptDatabase(nil, newPath)
 }
