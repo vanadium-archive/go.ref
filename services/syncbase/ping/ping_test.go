@@ -4,12 +4,14 @@
 
 // Note: We disable durEq and pingResultsEq when the race detector is enabled;
 // they rely on timings that are thrown off by the race detector, which may
-// increase execution time by 2-20x.
+// increase execution time by 2-20x. We also disable these checks when running
+// in Jenkins, because Jenkins machines are sometimes exceptionally slow.
 
 package ping_test
 
 import (
 	"errors"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -44,6 +46,11 @@ func eq(t *testing.T, got, want interface{}) {
 		fatalf(t, "got %v, want %v", got, want)
 	}
 }
+
+// TODO(jingjin): Detects whether this is Jenkins. Modeled after isCI function
+// in v.io/x/devtools/jiri-test/internal/test/predicates.go. We should put this
+// in some public location.
+var isCI = os.Getenv("USER") == "veyron" || os.Getenv("V23_FORCE_CI") == "yes"
 
 ////////////////////////////////////////////////////////////////////////////////
 // TestPingInParallel
@@ -81,7 +88,7 @@ func abs(d time.Duration) time.Duration {
 
 // durEq checks that the given durations are equal, with a bit of slack.
 func durEq(t *testing.T, got, want time.Duration) {
-	if raceDetectorEnabled {
+	if isCI || raceDetectorEnabled {
 		return // See comment at the top of this file.
 	}
 	// TODO(sadovsky): Reduce the slack once Vanadium implements a fast path for
@@ -95,7 +102,7 @@ func durEq(t *testing.T, got, want time.Duration) {
 // slack around expected durations. Errors are considered equal if their verror
 // IDs are equal.
 func pingResultsEq(t *testing.T, got, want map[string]ping.PingResult) {
-	if raceDetectorEnabled {
+	if isCI || raceDetectorEnabled {
 		return // See comment at the top of this file.
 	}
 	if len(got) != len(want) {
