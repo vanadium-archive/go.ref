@@ -73,13 +73,13 @@ type Args struct {
 
 // Start creates servers for the mounttable and device services and links them together.
 //
-// Returns the object name for the claimable service (empty if already claimed),
+// Returns the endpoints for the claimable service (empty if already claimed),
 // a callback to be invoked to shutdown the services on success, or an error on
 // failure.
-func Start(ctx *context.T, args Args) (string, func(), error) {
+func Start(ctx *context.T, args Args) ([]naming.Endpoint, func(), error) {
 	// Is this binary compatible with the state on disk?
 	if err := versioning.CheckCompatibility(ctx, args.Device.ConfigState.Root); err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 	// In test mode, we skip writing the info file to disk, and we skip
 	// attempting to start the claimable service: the device must have been
@@ -88,7 +88,7 @@ func Start(ctx *context.T, args Args) (string, func(), error) {
 	// verification error to the logs.
 	if args.Device.TestMode {
 		cleanup, err := startClaimedDevice(ctx, args)
-		return "", cleanup, err
+		return nil, cleanup, err
 	}
 
 	// TODO(caprita): use some mechanism (a file lock or presence of entry
@@ -98,7 +98,7 @@ func Start(ctx *context.T, args Args) (string, func(), error) {
 		Pid: os.Getpid(),
 	}
 	if err := impl.SaveManagerInfo(filepath.Join(args.Device.ConfigState.Root, "device-manager"), mi); err != nil {
-		return "", nil, verror.New(errCantSaveInfo, ctx, err)
+		return nil, nil, verror.New(errCantSaveInfo, ctx, err)
 	}
 
 	// If the device has not yet been claimed, start the mounttable and
@@ -110,28 +110,28 @@ func Start(ctx *context.T, args Args) (string, func(), error) {
 		// Device has already been claimed, bypass claimable service
 		// stage.
 		cleanup, err := startClaimedDevice(ctx, args)
-		return "", cleanup, err
+		return nil, cleanup, err
 	}
-	epName, stopClaimable, err := startClaimableDevice(ctx, claimable, args)
+	eps, stopClaimable, err := startClaimableDevice(ctx, claimable, args)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 	stop := make(chan struct{})
 	stopped := make(chan struct{})
 	go waitToBeClaimedAndStartClaimedDevice(ctx, stopClaimable, claimed, stop, stopped, args)
-	return epName, func() {
+	return eps, func() {
 		close(stop)
 		<-stopped
 	}, nil
 }
 
-func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) (string, func(), error) {
+func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) ([]naming.Endpoint, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
 	ctx = v23.WithListenSpec(ctx, args.Device.ListenSpec)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		cancel()
-		return "", nil, err
+		return nil, nil, err
 	}
 	shutdown := func() {
 		ctx.Infof("Stopping claimable server...")
@@ -142,12 +142,28 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 	publicKey, err := v23.GetPrincipal(ctx).PublicKey().MarshalBinary()
 	if err != nil {
 		shutdown()
-		return "", nil, err
+		return nil, nil, err
 	}
-	epName := server.Status().Endpoints[0].Name()
-	ctx.Infof("Unclaimed device manager (%v) with public_key: %s", epName, base64.URLEncoding.EncodeToString(publicKey))
+	var eps []naming.Endpoint
+	if args.Device.ListenSpec.Proxy != "" {
+		for {
+			status := server.Status()
+			if proxies := status.Proxies; len(proxies) > 0 && proxies[0].Error == nil {
+				eps = status.Endpoints
+				break
+			}
+			ctx.Infof("Waiting for proxy address to appear...")
+			<-status.Valid
+		}
+	} else {
+		eps = server.Status().Endpoints
+	}
+	ctx.Infof("Unclaimed device manager with public_key: %s", base64.URLEncoding.EncodeToString(publicKey))
+	for _, ep := range eps {
+		ctx.Infof("Unclaimed device manager endpoint: %v", ep.Name())
+	}
 	ctx.FlushLog()
-	return epName, shutdown, nil
+	return eps, shutdown, nil
 }
 
 func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), claimed, stop <-chan struct{}, stopped chan<- struct{}, args Args) {

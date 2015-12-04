@@ -93,7 +93,7 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 	// will precipitate an immediate process exit.
 	shutdownChan := signals.ShutdownOnSignals(ctx)
 	listenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	claimableName, stop, err := starter.Start(ctx, starter.Args{
+	claimableEps, stop, err := starter.Start(ctx, starter.Args{
 		Namespace: starter.NamespaceArgs{
 			ListenSpec: listenSpec,
 		},
@@ -123,7 +123,9 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 		return err
 	}
 	// Manually mount the claimable service in the 'global' mounttable.
-	v23.GetNamespace(ctx).Mount(ctx, "claimable", claimableName, 0)
+	for _, ep := range claimableEps {
+		v23.GetNamespace(ctx).Mount(ctx, "claimable", ep.Name(), 0)
+	}
 	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
 
 	<-shutdownChan
