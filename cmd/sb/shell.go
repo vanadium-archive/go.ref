@@ -115,6 +115,10 @@ stmtLoop:
 			var err error
 			tq := strings.Fields(q)
 			if len(tq) > 0 {
+				// TODO(caprita): Command handling should be
+				// done similarly to the cmdline library, to
+				// enable automatic help and error message
+				// generation.
 				switch strings.ToLower(tq[0]) {
 				case "exit", "quit":
 					break stmtLoop
@@ -141,7 +145,7 @@ stmtLoop:
 						err = fmt.Errorf("destroy requires specifying type ('db', 'table', or 'syncgroup') and name of object")
 					}
 				default:
-					err = fmt.Errorf("unknown statement: '%s'; expected one of: 'select', 'make-demo', 'dump', 'exit', 'quit'", strings.ToLower(tq[0]))
+					err = fmt.Errorf("unknown statement: '%s'; expected one of: 'select', 'make-demo', 'destroy', 'dump', 'exit', 'quit'", strings.ToLower(tq[0]))
 				}
 			}
 			if err != nil {
