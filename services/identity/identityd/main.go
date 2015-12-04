@@ -16,6 +16,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/dbutil"
 	"v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
@@ -32,6 +33,7 @@ var (
 	googleConfigWeb, googleConfigChrome, googleConfigAndroid         string
 	externalHttpAddr, httpAddr, tlsConfig, assetsPrefix, mountPrefix string
 	remoteSignerBlessings                                            string
+	sqlConf                                                          string
 )
 
 func init() {
@@ -49,6 +51,9 @@ func init() {
 	cmdIdentityD.Flags.StringVar(&tlsConfig, "tls-config", "", "Comma-separated list of TLS certificate and private key files, in that order.  This must be provided.")
 	cmdIdentityD.Flags.StringVar(&assetsPrefix, "assets-prefix", "", "Host serving the web assets for the identity server.")
 	cmdIdentityD.Flags.StringVar(&mountPrefix, "mount-prefix", "identity", "Mount name prefix to use.  May be rooted.")
+
+	// Flag controlling auditing and revocation of Blessing operations
+	cmdIdentityD.Flags.StringVar(&sqlConf, "sql-config", "", dbutil.SqlConfigFileDescription)
 }
 
 func main() {
@@ -85,7 +90,7 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 	var sqlDB *sql.DB
 	var err error
 	if sqlConf != "" {
-		if sqlDB, err = dbFromConfigFile(sqlConf); err != nil {
+		if sqlDB, err = dbutil.NewSqlDBConnFromFile(sqlConf, "SERIALIZABLE"); err != nil {
 			return env.UsageErrorf("Failed to create sqlDB: %v", err)
 		}
 	}
