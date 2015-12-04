@@ -52,14 +52,17 @@ The identityd flags are:
    Path to the blessings to use with the remote signer. Use the empty string to
    disable the remote signer.
  -sql-config=
-   Path to file containing a json object of the following form:
+   File must contain a JSON object of the following form:
       {
-       "dataSourceName": "[username[:password]@][protocol[(address)]]/dbname", (the connection string required by go-sql-driver)
-       "tlsServerName": "serverName", (the domain name of the sql server for ssl)
-       "rootCertPath": "/path/server-ca.pem", (the root certificate of the sql server for ssl)
-       "clientCertPath": "/path/client-cert.pem", (the client certificate for ssl)
-       "clientKeyPath": "/path/client-key.pem" (the client private key for ssl)
+       "dataSourceName": "[username[:password]@][protocol[(address)]]/dbname", (the connection string required by go-sql-driver; database name must be specified, query parameters are not supported)
+       "tlsDisable": "false|true", (defaults to false; if set to true, uses an unencrypted connection; otherwise, the following fields are mandatory)
+       "tlsServerName": "serverName", (the domain name of the SQL server for TLS)
+       "rootCertPath": "[/]path/server-ca.pem", (the root certificate of the SQL server for TLS)
+       "clientCertPath": "[/]path/client-cert.pem", (the client certificate for TLS)
+       "clientKeyPath": "[/]path/client-key.pem" (the client private key for TLS)
       }
+   Paths must be either absolute or relative to the configuration file
+   directory.
  -tls-config=
    Comma-separated list of TLS certificate and private key files, in that order.
    This must be provided.
