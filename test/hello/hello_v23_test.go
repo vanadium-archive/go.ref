@@ -119,7 +119,6 @@ func V23TestHelloProxy(i *v23tests.T) {
 	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
 	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
 	xproxydbin := i.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
-	proxydbin := i.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
 	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
 	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
 	proxyname := "proxy"
@@ -131,10 +130,6 @@ func V23TestHelloProxy(i *v23tests.T) {
 		mounttabled.Wait(os.Stdout, os.Stderr)
 		i.Fatalf("Could not get NAME: %v", mounttabled.Error())
 	}
-	agentdbin.WithEnv(creds["proxyd"]).Start(proxydbin.Path(),
-		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
-		"--v23.namespace.root", mtname,
-		"--access-list", "{\"In\":[\"root\"]}")
 	agentdbin.WithEnv(creds["xproxyd"]).Start(xproxydbin.Path(),
 		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
 		"--v23.namespace.root", mtname,

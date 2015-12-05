@@ -48,7 +48,7 @@ func TestMountTable(t *testing.T) {
 	defer env.Cleanup()
 
 	v23tests.RunRootMT(env, "--v23.tcp.address=127.0.0.1:0")
-	proxyBin := env.BuildV23Pkg("v.io/x/ref/services/proxy/proxyd")
+	proxyBin := env.BuildV23Pkg("v.io/x/ref/services/xproxy/xproxyd")
 	nsBin := env.BuildGoPkg("v.io/x/ref/cmd/namespace")
 
 	mt, ok := env.GetVar(ref.EnvNamespacePrefix)
