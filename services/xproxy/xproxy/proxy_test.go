@@ -12,6 +12,7 @@ import (
 	"time"
 
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
@@ -44,40 +45,6 @@ type testService struct{}
 
 func (t *testService) Echo(ctx *context.T, call rpc.ServerCall, arg string) (string, error) {
 	return "response:" + arg, nil
-}
-
-func TestBigProxyRPC(t *testing.T) {
-	defer goroutines.NoLeaks(t, leakWaitTime)()
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-
-	// Start the proxy.
-	pname, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"tcp", "127.0.0.1:0"})
-	defer stop()
-	// Start the server listening through the proxy.
-	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: pname})
-	sctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	_, server, err := v23.WithNewServer(sctx, "", &testService{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var name string
-	for {
-		status := server.Status()
-		if status.Endpoints[0].Addr().Network() != bidiProtocol {
-			name = status.Endpoints[0].Name()
-			break
-		}
-		<-status.Valid
-	}
-	var got string
-	if err := v23.GetClient(ctx).Call(ctx, name, "Echo", []interface{}{string(randData)}, []interface{}{&got}); err != nil {
-		t.Fatal(err)
-	}
-	if want := "response:" + string(randData); got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
 }
 
 func TestProxyRPC(t *testing.T) {
@@ -275,6 +242,104 @@ func TestProxyAuthorizesServer(t *testing.T) {
 	var got string
 	if err := v23.GetClient(ctx).Call(ctx, ep.Name(), "Echo", []interface{}{"hello"}, []interface{}{&got}, options.NoRetry{}); err == nil {
 		t.Error("proxy should not have authorized server.")
+	}
+}
+
+func TestBigProxyRPC(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	// Start the proxy.
+	pname, stop := startProxy(t, ctx, "", security.AllowEveryone(), "", address{"tcp", "127.0.0.1:0"})
+	defer stop()
+	// Start the server listening through the proxy.
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: pname})
+	sctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	_, server, err := v23.WithNewServer(sctx, "", &testService{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var name string
+	for {
+		status := server.Status()
+		if status.Endpoints[0].Addr().Network() != bidiProtocol {
+			name = status.Endpoints[0].Name()
+			break
+		}
+		<-status.Valid
+	}
+	var got string
+	if err := v23.GetClient(ctx).Call(ctx, name, "Echo", []interface{}{string(randData)}, []interface{}{&got}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "response:" + string(randData); got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestProxiedServerCachedConnection(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	mu := &sync.Mutex{}
+	numConns := 0
+	ctx = debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
+		mu.Lock()
+		numConns++
+		mu.Unlock()
+		return c
+	})
+
+	// Make principals for the proxy and server.
+	pctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("proxy"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Have the root bless the proxy and server.
+	root := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
+	if err := root.Bless(v23.GetPrincipal(pctx), "proxy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Bless(v23.GetPrincipal(sctx), "server"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Start the proxy.
+	pname, stop := startProxy(t, pctx, "proxy", security.AllowEveryone(), "", address{"debug", "tcp/127.0.0.1:0"})
+	defer stop()
+
+	// Start the server listening through the proxy.
+	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Proxy: pname})
+	sctx, cancel := context.WithCancel(sctx)
+	defer cancel()
+	ctx, _, err = v23.WithNewServer(sctx, "server", &testService{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got string
+	// Make the server call itself.
+	if err := v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "response:hello"; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	// Ensure that only 1 connection was made. So we check for 2, 1 accepted, and 1 dialed.
+	// One connection for the server connecting to the proxy, the proxy should reuse
+	// the connection on the second hop back to the server.
+	mu.Lock()
+	n := numConns
+	mu.Unlock()
+	if want := 2; n != want {
+		t.Errorf("got %v, want %v", n, want)
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	_ "v.io/x/ref/runtime/factories/fake"
-	"v.io/x/ref/runtime/internal/flow/protocols/debug"
+	"v.io/x/ref/runtime/protocols/debug"
 )
 
 func block(c *Conn, p int) chan struct{} {

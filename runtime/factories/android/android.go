@@ -26,14 +26,14 @@ import (
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/runtime/internal"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/tcp"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
 	"v.io/x/ref/runtime/internal/lib/roaming"
 	"v.io/x/ref/runtime/internal/lib/websocket"
 	"v.io/x/ref/runtime/internal/lib/xwebsocket"
 	"v.io/x/ref/runtime/internal/rt"
+	_ "v.io/x/ref/runtime/protocols/tcp"
+	_ "v.io/x/ref/runtime/protocols/ws"
+	_ "v.io/x/ref/runtime/protocols/wsh"
 	"v.io/x/ref/services/debug/debuglib"
 
 	// TODO(suharshs): Remove these once we switch to the flow protocols.

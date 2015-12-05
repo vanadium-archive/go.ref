@@ -21,7 +21,7 @@ import (
 	"v.io/v23/verror"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/flow/conn"
-	"v.io/x/ref/runtime/internal/flow/protocols/debug"
+	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
 )

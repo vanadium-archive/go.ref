@@ -86,7 +86,6 @@ type Conn struct {
 	blessingsFlow *blessingsFlow
 	loopWG        sync.WaitGroup
 	unopenedFlows sync.WaitGroup
-	isProxy       bool
 	cancel        context.CancelFunc
 	handler       FlowHandler
 
@@ -362,7 +361,7 @@ func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endp
 	var bkey, dkey uint64
 	var blessings security.Blessings
 	var discharges map[string]security.Discharge
-	if !c.isProxy {
+	if isProxy := remote != nil && remote.RoutingID() != naming.NullRoutingID && remote.RoutingID() != c.remote.RoutingID(); !isProxy {
 		// TODO(suharshs): On the first flow dial, find a way to not call this twice.
 		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, remote, rBlessings, rDischarges)
 		if err != nil {

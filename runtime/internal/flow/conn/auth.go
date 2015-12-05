@@ -36,7 +36,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	if err != nil {
 		return err
 	}
-	c.isProxy = c.remote.RoutingID() != naming.NullRoutingID && c.remote.RoutingID() != remoteEndpoint.RoutingID()
+	isProxy := c.remote.RoutingID() != naming.NullRoutingID && c.remote.RoutingID() != remoteEndpoint.RoutingID()
 	// We use the remote ends local endpoint as our remote endpoint when the routingID's
 	// of the endpoints differ. This is an indicator that we are talking to a proxy.
 	// This means that the manager will need to dial a subsequent conn on this conn
@@ -53,7 +53,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	if rBlessings.IsZero() {
 		return NewErrAcceptorBlessingsMissing(ctx)
 	}
-	if !c.isProxy {
+	if !isProxy {
 		if _, _, err := auth.AuthorizePeer(ctx, c.local, c.remote, rBlessings, rDischarges); err != nil {
 			return iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
 		}
@@ -87,7 +87,6 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange,
 	if err != nil {
 		return err
 	}
-	c.isProxy = false
 	c.remote = remoteEndpoint
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG,
 		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true, 0))

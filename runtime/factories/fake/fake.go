@@ -17,17 +17,17 @@ import (
 	"v.io/v23/rpc"
 
 	"v.io/x/ref/runtime/internal"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/tcp"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh"
 	"v.io/x/ref/runtime/internal/lib/websocket"
 	"v.io/x/ref/runtime/internal/lib/xwebsocket"
+	_ "v.io/x/ref/runtime/protocols/tcp"
+	_ "v.io/x/ref/runtime/protocols/ws"
+	_ "v.io/x/ref/runtime/protocols/wsh"
 
 	// TODO(suharshs): Remove these once we switch to the flow protocols.
-	_ "v.io/x/ref/runtime/internal/flow/protocols/local"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/tcp"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/ws"
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/wsh"
+	_ "v.io/x/ref/runtime/protocols/local"
 )
 
 var (

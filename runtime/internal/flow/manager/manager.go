@@ -25,11 +25,11 @@ import (
 	slib "v.io/x/ref/lib/security"
 	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
-	"v.io/x/ref/runtime/internal/flow/protocols/bidi"
 	"v.io/x/ref/runtime/internal/lib/roaming"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/version"
+	"v.io/x/ref/runtime/protocols/bidi"
 )
 
 const (
@@ -498,7 +498,7 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			if err != nil {
 				ctx.Errorf("failed to accept flow.Conn on localEP %v failed: %v", local, err)
 				flowConn.Close()
-			} else if err = m.cache.InsertWithRoutingID(c); err != nil {
+			} else if err = m.cache.InsertWithRoutingID(c, false); err != nil {
 				ctx.Errorf("failed to cache conn %v: %v", c, err)
 				c.Close(ctx, err)
 			}
@@ -577,7 +577,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 			fh)
 		if err != nil {
 			h.m.ctx.Errorf("failed to create accepted conn: %v", err)
-		} else if err = h.m.cache.InsertWithRoutingID(c); err != nil {
+		} else if err = h.m.cache.InsertWithRoutingID(c, false); err != nil {
 			h.m.ctx.Errorf("failed to create accepted conn: %v", err)
 		}
 		close(fh.cached)
@@ -648,8 +648,9 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAut
 }
 
 func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer, channelTimeout time.Duration, proxy bool) (flow.Flow, error) {
-	// Look up the connection based on RoutingID first.
-	c, err := m.cache.FindWithRoutingID(remote.RoutingID())
+	// Fast path, look for the conn based on unresolved network, address, and routingId first.
+	addr, rid, blessingNames := remote.Addr(), remote.RoutingID(), remote.BlessingNames()
+	c, err := m.cache.Find(addr.Network(), addr.String(), rid, blessingNames)
 	if err != nil {
 		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 	}
@@ -659,7 +660,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 	)
 	auth = &peerAuthorizer{auth, m.serverAuthorizedPeers}
 	if c == nil {
-		addr := remote.Addr()
 		protocol, _ = flow.RegisteredProtocol(addr.Network())
 		// (network, address) in the endpoint might not always match up
 		// with the key used for caching conns. For example:
@@ -672,14 +672,14 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		if err != nil {
 			return nil, iflow.MaybeWrapError(flow.ErrResolveFailed, ctx, err)
 		}
-		c, err = m.cache.ReservedFind(network, address, remote.BlessingNames())
+		c, err = m.cache.ReservedFind(network, address, rid, blessingNames)
 		if err != nil {
 			return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
 		if c != nil {
-			m.cache.Unreserve(network, address, remote.BlessingNames())
+			m.cache.Unreserve(network, address)
 		} else {
-			defer m.cache.Unreserve(network, address, remote.BlessingNames())
+			defer m.cache.Unreserve(network, address)
 		}
 	}
 	if c == nil {
@@ -717,14 +717,13 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			flowConn.Close()
 			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
-		if err := m.cache.Insert(c, network, address); err != nil {
+		proxy = proxy || (remote.RoutingID() != naming.NullRoutingID && remote.RoutingID() != c.RemoteEndpoint().RoutingID())
+		if err := m.cache.Insert(c, network, address, proxy); err != nil {
 			c.Close(ctx, err)
 			return nil, flow.NewErrBadState(ctx, err)
 		}
 		// Now that c is in the cache we can explicitly unreserve.
-		m.cache.Unreserve(network, address, remote.BlessingNames())
-		isProxyConn := remote.RoutingID() != naming.NullRoutingID && remote.RoutingID() != c.RemoteEndpoint().RoutingID()
-		proxy = proxy || isProxyConn
+		m.cache.Unreserve(network, address)
 		m.handlerReady(fh, proxy)
 	}
 	f, err := c.Dial(ctx, auth, remote, channelTimeout)
@@ -758,7 +757,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			proxyConn.Close(ctx, err)
 			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
-		if err := m.cache.InsertWithRoutingID(c); err != nil {
+		if err := m.cache.InsertWithRoutingID(c, false); err != nil {
 			c.Close(ctx, err)
 			return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}

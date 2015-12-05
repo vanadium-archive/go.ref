@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	ErrCannotListenOnBidi     = verror.Register("v.io/x/ref/runtime/internal/flow/protocols/bidi.CannotListenOnBidi", verror.NoRetry, "{1:}{2:} cannot listen on bidi protocol")
-	ErrBidiRoutingIdNotCached = verror.Register("v.io/x/ref/runtime/internal/flow/protocols/bidi.BidiRoutingIdNotCached", verror.NoRetry, "{1:}{2:} bidi routing id not in cache")
+	ErrCannotListenOnBidi     = verror.Register("v.io/x/ref/runtime/protocols/bidi.CannotListenOnBidi", verror.NoRetry, "{1:}{2:} cannot listen on bidi protocol")
+	ErrBidiRoutingIdNotCached = verror.Register("v.io/x/ref/runtime/protocols/bidi.BidiRoutingIdNotCached", verror.NoRetry, "{1:}{2:} bidi routing id not in cache")
 )
 
 func init() {

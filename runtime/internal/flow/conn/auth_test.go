@@ -46,7 +46,7 @@ func checkFlowBlessings(t *testing.T, df, af flow.Flow, db, ab security.Blessing
 }
 
 func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings) flow.Flow {
-	df, err := dc.Dial(ctx, peerAuthorizer{b, nil}, nil, 0)
+	df, err := dc.Dial(ctx, peerAuthorizer{b, nil}, dc.remote, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

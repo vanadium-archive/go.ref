@@ -16,8 +16,8 @@ import (
 	"v.io/v23/rpc/version"
 	connpackage "v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/local"
 	inaming "v.io/x/ref/runtime/internal/naming"
+	_ "v.io/x/ref/runtime/protocols/local"
 	"v.io/x/ref/test/goroutines"
 )
 
@@ -36,38 +36,59 @@ func TestCache(t *testing.T) {
 	caf := makeConnAndFlow(t, ctx, remote)
 	defer caf.stop(ctx)
 	conn := caf.c
-	if err := c.Insert(conn, remote.Protocol, remote.Address); err != nil {
+	if err := c.Insert(conn, remote.Protocol, remote.Address, false); err != nil {
 		t.Fatal(err)
 	}
 	// We should be able to find the conn in the cache.
-	if got, err := c.ReservedFind(remote.Protocol, remote.Address, remote.Blessings); err != nil || got != conn {
+	if got, err := c.ReservedFind(remote.Protocol, remote.Address, naming.NullRoutingID, remote.Blessings); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
-	c.Unreserve(remote.Protocol, remote.Address, remote.Blessings)
+	c.Unreserve(remote.Protocol, remote.Address)
 	// Changing the protocol should fail.
-	if got, err := c.ReservedFind("wrong", remote.Address, remote.Blessings); err != nil || got != nil {
+	if got, err := c.ReservedFind("wrong", remote.Address, naming.NullRoutingID, remote.Blessings); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
-	c.Unreserve("wrong", remote.Address, remote.Blessings)
+	c.Unreserve("wrong", remote.Address)
 	// Changing the address should fail.
-	if got, err := c.ReservedFind(remote.Protocol, "wrong", remote.Blessings); err != nil || got != nil {
+	if got, err := c.ReservedFind(remote.Protocol, "wrong", naming.NullRoutingID, remote.Blessings); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
-	c.Unreserve(remote.Protocol, "wrong", remote.Blessings)
+	c.Unreserve(remote.Protocol, "wrong")
 	// Changing the blessingNames should fail.
-	if got, err := c.ReservedFind(remote.Protocol, remote.Address, []string{"wrong"}); err != nil || got != nil {
+	if got, err := c.ReservedFind(remote.Protocol, remote.Address, naming.NullRoutingID, []string{"wrong"}); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
-	c.Unreserve(remote.Protocol, remote.Address, []string{"wrong"})
-
-	// We should be able to find the conn in the cache by looking up the RoutingID.
-	if got, err := c.FindWithRoutingID(remote.RID); err != nil || got != conn {
+	c.Unreserve(remote.Protocol, remote.Address)
+	// But finding a set of blessings that has at least on blessings in remote.Blessings should succeed.
+	if got, err := c.ReservedFind(remote.Protocol, remote.Address, naming.NullRoutingID, []string{"foo", "A"}); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
-	// Looking up the wrong RID should fail.
-	if got, err := c.FindWithRoutingID(naming.FixedRoutingID(0x1111)); err != nil || got != nil {
-		t.Errorf("got %v, want <nil>, err: %v", got, err)
+	c.Unreserve(remote.Protocol, remote.Address)
+	// Finding by routing ID should work.
+	if got, err := c.ReservedFind("wrong", "wrong", remote.RID, remote.Blessings); err != nil || got != conn {
+		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
+	c.Unreserve("wrong", "wrong")
+
+	// Caching a proxied connection should not care about endpoint blessings, since the
+	// blessings only correspond to the end server.
+	proxyep := &inaming.Endpoint{
+		Protocol:  "tcp",
+		Address:   "127.0.0.1:2222",
+		RID:       naming.FixedRoutingID(0x5555),
+		Blessings: []string{"A", "B", "C"},
+	}
+	caf = makeConnAndFlow(t, ctx, proxyep)
+	defer caf.stop(ctx)
+	proxyConn := caf.c
+	if err := c.Insert(proxyConn, proxyep.Protocol, proxyep.Address, true); err != nil {
+		t.Fatal(err)
+	}
+	// Wrong blessingNames should still work
+	if got, err := c.ReservedFind(proxyep.Protocol, proxyep.Address, naming.NullRoutingID, []string{"wrong"}); err != nil || got != proxyConn {
+		t.Errorf("got %v, want %v, err: %v", got, proxyConn, err)
+	}
+	c.Unreserve(proxyep.Protocol, proxyep.Address)
 
 	// Caching with InsertWithRoutingID should only cache by RoutingID, not with network/address.
 	ridEP := &inaming.Endpoint{
@@ -79,16 +100,18 @@ func TestCache(t *testing.T) {
 	caf = makeConnAndFlow(t, ctx, ridEP)
 	defer caf.stop(ctx)
 	ridConn := caf.c
-	if err := c.InsertWithRoutingID(ridConn); err != nil {
+	if err := c.InsertWithRoutingID(ridConn, false); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := c.ReservedFind(ridEP.Protocol, ridEP.Address, ridEP.Blessings); err != nil || got != nil {
+	if got, err := c.ReservedFind(ridEP.Protocol, ridEP.Address, naming.NullRoutingID, ridEP.Blessings); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
-	c.Unreserve(ridEP.Protocol, ridEP.Address, ridEP.Blessings)
-	if got, err := c.FindWithRoutingID(ridEP.RID); err != nil || got != ridConn {
+	c.Unreserve(ridEP.Protocol, ridEP.Address)
+	// Finding by routing ID should work.
+	if got, err := c.ReservedFind("wrong", "wrong", ridEP.RID, ridEP.Blessings); err != nil || got != ridConn {
 		t.Errorf("got %v, want %v, err: %v", got, ridConn, err)
 	}
+	c.Unreserve("wrong", "wrong")
 
 	otherEP := &inaming.Endpoint{
 		Protocol:  "other",
@@ -101,13 +124,13 @@ func TestCache(t *testing.T) {
 	otherConn := caf.c
 
 	// Looking up a not yet inserted endpoint should fail.
-	if got, err := c.ReservedFind(otherEP.Protocol, otherEP.Address, otherEP.Blessings); err != nil || got != nil {
+	if got, err := c.ReservedFind(otherEP.Protocol, otherEP.Address, naming.NullRoutingID, otherEP.Blessings); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	// Looking it up again should block until a matching Unreserve call is made.
 	ch := make(chan *connpackage.Conn, 1)
 	go func(ch chan *connpackage.Conn) {
-		conn, err := c.ReservedFind(otherEP.Protocol, otherEP.Address, otherEP.Blessings)
+		conn, err := c.ReservedFind(otherEP.Protocol, otherEP.Address, naming.NullRoutingID, otherEP.Blessings)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,10 +138,10 @@ func TestCache(t *testing.T) {
 	}(ch)
 
 	// We insert the other conn into the cache.
-	if err := c.Insert(otherConn, otherEP.Protocol, otherEP.Address); err != nil {
+	if err := c.Insert(otherConn, otherEP.Protocol, otherEP.Address, false); err != nil {
 		t.Fatal(err)
 	}
-	c.Unreserve(otherEP.Protocol, otherEP.Address, otherEP.Blessings)
+	c.Unreserve(otherEP.Protocol, otherEP.Address)
 	// Now the c.ReservedFind should have unblocked and returned the correct Conn.
 	if cachedConn := <-ch; cachedConn != otherConn {
 		t.Errorf("got %v, want %v", cachedConn, otherConn)
@@ -128,7 +151,7 @@ func TestCache(t *testing.T) {
 	caf = makeConnAndFlow(t, ctx, remote)
 	defer caf.stop(ctx)
 	dupConn := caf.c
-	if err := c.Insert(dupConn, remote.Protocol, remote.Address); err != nil {
+	if err := c.Insert(dupConn, remote.Protocol, remote.Address, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -149,6 +172,7 @@ func TestCache(t *testing.T) {
 	<-ridConn.Closed()
 	<-dupConn.Closed()
 	<-otherConn.Closed()
+	<-proxyConn.Closed()
 }
 
 func TestLRU(t *testing.T) {
@@ -162,7 +186,7 @@ func TestLRU(t *testing.T) {
 	defer stop()
 	for _, conn := range conns {
 		addr := conn.c.RemoteEndpoint().Addr()
-		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
+		if err := c.Insert(conn.c, addr.Network(), addr.String(), false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -195,7 +219,7 @@ func TestLRU(t *testing.T) {
 	defer stop()
 	for _, conn := range conns {
 		addr := conn.c.RemoteEndpoint().Addr()
-		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
+		if err := c.Insert(conn.c, addr.Network(), addr.String(), false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -231,7 +255,7 @@ func TestLRU(t *testing.T) {
 	defer stop()
 	for _, conn := range conns {
 		addr := conn.c.RemoteEndpoint().Addr()
-		if err := c.Insert(conn.c, addr.Network(), addr.String()); err != nil {
+		if err := c.Insert(conn.c, addr.Network(), addr.String(), false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -264,16 +288,12 @@ func TestLRU(t *testing.T) {
 
 func isInCache(t *testing.T, c *ConnCache, conn *connpackage.Conn) bool {
 	rep := conn.RemoteEndpoint()
-	rfconn, err := c.ReservedFind(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames())
+	rfconn, err := c.ReservedFind(rep.Addr().Network(), rep.Addr().String(), rep.RoutingID(), rep.BlessingNames())
 	if err != nil {
 		t.Error(err)
 	}
-	c.Unreserve(rep.Addr().Network(), rep.Addr().String(), rep.BlessingNames())
-	ridconn, err := c.FindWithRoutingID(rep.RoutingID())
-	if err != nil {
-		t.Error(err)
-	}
-	return rfconn != nil || ridconn != nil
+	c.Unreserve(rep.Addr().Network(), rep.Addr().String())
+	return rfconn != nil
 }
 
 func cacheSizeMatches(c *ConnCache) bool {
@@ -346,7 +366,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	}()
 	conn := <-dch
 	aconn := <-ach
-	f, err := conn.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, nil, 0)
+	f, err := conn.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, conn.RemoteEndpoint(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

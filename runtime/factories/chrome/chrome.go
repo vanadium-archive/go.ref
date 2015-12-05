@@ -16,11 +16,11 @@ import (
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/ws"
-	_ "v.io/x/ref/runtime/internal/flow/protocols/wsh_nacl"
 	"v.io/x/ref/runtime/internal/lib/websocket"
 	"v.io/x/ref/runtime/internal/lib/xwebsocket"
 	grt "v.io/x/ref/runtime/internal/rt"
+	_ "v.io/x/ref/runtime/protocols/ws"
+	_ "v.io/x/ref/runtime/protocols/wsh_nacl"
 
 	// TODO(suharshs): Remove this after we switch to the flow protocols.
 	_ "v.io/x/ref/runtime/internal/rpc/protocols/ws"
