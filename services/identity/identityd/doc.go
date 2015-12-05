@@ -52,7 +52,9 @@ The identityd flags are:
    Path to the blessings to use with the remote signer. Use the empty string to
    disable the remote signer.
  -sql-config=
-   File must contain a JSON object of the following form:
+   Path to configuration file for MySQL database connection. Database is used to
+   persist blessings for auditing and revocation. File must contain a JSON
+   object of the following form:
       {
        "dataSourceName": "[username[:password]@][protocol[(address)]]/dbname", (the connection string required by go-sql-driver; database name must be specified, query parameters are not supported)
        "tlsDisable": "false|true", (defaults to false; if set to true, uses an unencrypted connection; otherwise, the following fields are mandatory)

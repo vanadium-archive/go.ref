@@ -53,7 +53,7 @@ func init() {
 	cmdIdentityD.Flags.StringVar(&mountPrefix, "mount-prefix", "identity", "Mount name prefix to use.  May be rooted.")
 
 	// Flag controlling auditing and revocation of Blessing operations
-	cmdIdentityD.Flags.StringVar(&sqlConf, "sql-config", "", dbutil.SqlConfigFileDescription)
+	cmdIdentityD.Flags.StringVar(&sqlConf, "sql-config", "", "Path to configuration file for MySQL database connection. Database is used to persist blessings for auditing and revocation. "+dbutil.SqlConfigFileDescription)
 }
 
 func main() {
