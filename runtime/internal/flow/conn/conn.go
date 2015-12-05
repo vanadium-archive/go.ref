@@ -483,7 +483,7 @@ func (c *Conn) internalClose(ctx *context.T, err error) {
 			})
 			c.mu.Unlock()
 			if cerr != nil {
-				ctx.Errorf("Error sending tearDown on connection to %s: %v", c.remote, cerr)
+				ctx.VI(1).Infof("Error sending tearDown on connection to %s: %v", c.remote, cerr)
 			}
 		}
 		if err == nil {
@@ -496,7 +496,7 @@ func (c *Conn) internalClose(ctx *context.T, err error) {
 			c.blessingsFlow.close(ctx, err)
 		}
 		if cerr := c.mp.rw.Close(); cerr != nil {
-			ctx.Errorf("Error closing underlying connection for %s: %v", c.remote, cerr)
+			ctx.VI(1).Infof("Error closing underlying connection for %s: %v", c.remote, cerr)
 		}
 		if c.cancel != nil {
 			c.cancel()
