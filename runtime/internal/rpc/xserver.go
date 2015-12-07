@@ -335,7 +335,7 @@ func (s *xserver) connectToProxy(ctx *context.T, name string) {
 		}
 		var ch <-chan struct{}
 		if ch, err = s.tryProxyEndpoints(ctx, eps); err != nil {
-			s.ctx.VI(2).Infof("ProxyListen(%q) failed: %v. Reconnecting...", eps, err)
+			s.ctx.Errorf("ProxyListen(%q) failed: %v. Reconnecting...", eps, err)
 			s.Lock()
 			s.proxyErrors[name] = err
 			s.updateValidLocked()
