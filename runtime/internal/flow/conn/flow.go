@@ -157,7 +157,7 @@ func (f *flw) tokensLocked() (int, func(int)) {
 		return int(max), func(used int) {
 			f.conn.lshared -= uint64(used)
 			f.borrowed += uint64(used)
-			f.ctx.VI(2).Infof("deducting %d borrowed tokens on flow %d(%p), total: %d", used, f.id, f, f.borrowed)
+			f.ctx.VI(2).Infof("deducting %d borrowed tokens on flow %d(%p), total: %d left: %d", used, f.id, f, f.borrowed, f.conn.lshared)
 		}
 	}
 	if f.released < max {
@@ -178,7 +178,7 @@ func (f *flw) releaseLocked(tokens uint64) {
 		if f.borrowed < tokens {
 			n = f.borrowed
 		}
-		f.ctx.VI(2).Infof("Returning %d tokens borrowed by %d(%p)", f.borrowed, f.id, f)
+		f.ctx.VI(2).Infof("Returning %d/%d tokens borrowed by %d(%p) shared: %d", n, tokens, f.id, f, f.conn.lshared)
 		tokens -= n
 		f.borrowed -= n
 		f.conn.lshared += n
@@ -237,7 +237,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		}
 		opened := f.opened
 		tokens, deduct := f.tokensLocked()
-		if tokens == 0 || f.noEncrypt && tokens < totalSize {
+		if opened && (tokens == 0 || f.noEncrypt && tokens < totalSize) {
 			// Oops, we really don't have data to send, probably because we've exhausted
 			// the remote buffer.  deactivate ourselves but keep trying.
 			// Note that if f.noEncrypt is set we're actually acting as a conn
@@ -452,13 +452,6 @@ func (f *flw) Closed() <-chan struct{} {
 func (f *flw) close(ctx *context.T, err error) {
 	closedRemotely := verror.ErrorID(err) == ErrFlowClosedRemotely.ID
 	f.conn.mu.Lock()
-	if closedRemotely {
-		// When the other side closes a flow, it implicitly releases all the
-		// counters used by that flow.  That means we should release the shared
-		// counter to be used on other new flows.
-		f.conn.lshared += f.borrowed
-		f.borrowed = 0
-	}
 	cancel := f.cancel
 	f.conn.mu.Unlock()
 	if f.q.close(ctx) {
@@ -488,7 +481,13 @@ func (f *flw) close(ctx *context.T, err error) {
 				Flags: message.CloseFlag,
 			})
 		}
-		if f.borrowed > 0 && f.conn.status < Closing {
+		if closedRemotely {
+			// When the other side closes a flow, it implicitly releases all the
+			// counters used by that flow.  That means we should release the shared
+			// counter to be used on other new flows.
+			f.conn.lshared += f.borrowed
+			f.borrowed = 0
+		} else if f.borrowed > 0 && f.conn.status < Closing {
 			f.conn.outstandingBorrowed[f.id] = f.borrowed
 		}
 		delete(f.conn.flows, f.id)
