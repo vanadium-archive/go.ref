@@ -9,7 +9,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"v.io/x/lib/cmdline"
 
@@ -58,11 +57,7 @@ func (i *impl) Record(ctx *context.T, call rpc.ServerCall, score rps.ScoreCard) 
 func runScoreKeeper(ctx *context.T, env *cmdline.Env, args []string) error {
 	ch := make(chan rps.ScoreCard)
 	rpsService := &impl{ch}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("os.Hostname failed: %v", err)
-	}
-	name := fmt.Sprintf("rps/scorekeeper/%s", hostname)
+	name := fmt.Sprintf("rps/scorekeeper/%s", internal.CreateName(ctx))
 	service := rps.ScoreKeeperServer(rpsService)
 	authorizer := internal.NewAuthorizer(aclFile)
 	ctx, server, err := v23.WithNewServer(ctx, name, service, authorizer)
