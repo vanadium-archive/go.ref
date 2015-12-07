@@ -66,17 +66,19 @@ import (
 // initiation round), the work done by the initiator is idempotent.
 //
 // TODO(hpucha): Check the idempotence, esp in addNode in DAG.
-func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo, info *memberInfo) error {
+func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
 	vlog.VI(2).Infof("sync: getDeltasFromPeer: begin: contacting peer %v", peer)
 	defer vlog.VI(2).Infof("sync: getDeltasFromPeer: end: contacting peer %v", peer)
 
 	var errFinal error // the last non-nil error encountered is returned to the caller.
 
+	info := s.copyMemberInfo(ctx, peer.relName)
+
 	// Sync each Database that may have syncgroups common with this peer,
 	// one at a time.
 	for gdbName, dbInfo := range info.db2sg {
-		if len(peer.mtTbls) < 1 {
-			vlog.Errorf("sync: getDeltasFromPeer: no mount tables found to connect to peer %v", peer)
+		if len(peer.mtTbls) < 1 && len(peer.addrs) < 1 {
+			vlog.Errorf("sync: getDeltasFromPeer: no mount tables or endpoints found to connect to peer %v", peer)
 			return verror.New(verror.ErrInternal, ctx, peer.relName, peer.addrs, "all mount tables failed")
 		}
 
@@ -150,8 +152,9 @@ func (s *syncService) identifyPeer(ctxIn *context.T, peer connInfo) ([]string, c
 	defer cancel()
 
 	var blessingNames []string
+	rpcArgs := []interface{}{nil, peer.relName}
 	op := func(ctx *context.T, peer string) (interface{}, error) {
-		call, err := v23.GetClient(ctx).StartCall(ctx, peer, "GetDeltas", nil)
+		call, err := v23.GetClient(ctx).StartCall(ctx, peer, "GetDeltas", rpcArgs)
 		if err != nil {
 			return nil, err
 		}
