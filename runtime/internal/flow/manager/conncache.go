@@ -134,6 +134,9 @@ func (c *ConnCache) ReservedFind(protocol, address string, rid naming.RoutingID,
 	k := key(protocol, address)
 	for c.started[k] {
 		c.cond.Wait()
+		if c.addrCache == nil {
+			return nil, NewErrCacheClosed(nil)
+		}
 	}
 	c.started[k] = true
 	return c.removeUndialable(c.addrCache[k], blessingNames), nil
