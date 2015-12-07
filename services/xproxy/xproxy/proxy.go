@@ -292,6 +292,9 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 	if ep, err = setBidiProtocol(m.PeerRemoteEndpoint); err != nil {
 		return nil, err
 	}
+	if ep, err = removeBlessings(ep); err != nil {
+		return nil, err
+	}
 	if routes := ep.Routes(); len(routes) > 0 {
 		if err := rid.FromString(routes[0]); err != nil {
 			return nil, err
