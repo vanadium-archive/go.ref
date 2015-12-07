@@ -114,7 +114,7 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 	if err != nil {
 		return err
 	}
-	for _, v := range []string{"spec.template.metadata.labels.application", "spec.template.metadata.labels.deployment"} {
+	for _, v := range []string{"spec.template.metadata.labels.application", "spec.template.metadata.labels.version"} {
 		if rc.getString(v) == "" {
 			fmt.Fprintf(env.Stderr, "WARNING: %q is not set. Rolling updates will not work.\n", v)
 		}
@@ -170,7 +170,7 @@ func runCmdUpdate(ctx *context.T, env *cmdline.Env, args []string, config *vkube
 	if err != nil {
 		return err
 	}
-	if err := updateReplicationController(ctx, config, rc); err != nil {
+	if err := updateReplicationController(ctx, config, rc, env.Stdout, env.Stderr); err != nil {
 		return err
 	}
 	fmt.Fprintln(env.Stdout, "Updated replication controller successfully.")

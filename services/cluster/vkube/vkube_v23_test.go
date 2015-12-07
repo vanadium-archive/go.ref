@@ -269,7 +269,7 @@ func createAppConfig(path, id, image, version string) error {
       "metadata": {
         "labels": {
           "application": "tunneld",
-          "deployment": "{{.Version}}"
+          "version": "{{.Version}}"
         }
       },
       "spec": {

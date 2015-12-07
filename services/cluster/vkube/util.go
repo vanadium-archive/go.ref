@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os/exec"
 	"strings"
@@ -204,7 +205,7 @@ func createReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 
 // updateReplicationController takes a ReplicationController object, adds a
 // pod-agent, and then performs a rolling update.
-func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object) error {
+func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object, stdout, stderr io.Writer) error {
 	namespace := rc.getString("metadata.namespace")
 	oldNames, err := findReplicationControllerNamesForApp(rc.getString("spec.template.metadata.labels.application"), namespace)
 	if err != nil {
@@ -226,8 +227,10 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object)
 	}
 	cmd := exec.Command(flagKubectlBin, "rolling-update", oldNames[0], "-f", "-", "--namespace="+namespace)
 	cmd.Stdin = bytes.NewBuffer(json)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to update replication controller %q: %v\n%s\n", oldNames[0], err, string(out))
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to update replication controller %q: %v\n", oldNames[0], err)
 	}
 	return nil
 }
