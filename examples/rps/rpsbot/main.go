@@ -31,7 +31,7 @@ var (
 )
 
 func main() {
-	cmdRoot.Flags.StringVar(&name, "name", "", "Identifier to publish as (defaults to user@hostname).")
+	cmdRoot.Flags.StringVar(&name, "name", "", "Identifier to publish as (defaults to principal's blessing names).")
 	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
 	cmdRoot.Flags.IntVar(&numGames, "num-games", -1, "Number of games to play (-1 means unlimited).")
 	cmdline.HideGlobalFlagsExcept()
@@ -54,7 +54,7 @@ func runBot(ctx *context.T, env *cmdline.Env, args []string) error {
 	rand.Seed(time.Now().UnixNano())
 	rpsService := NewRPS(ctx)
 	if name == "" {
-		name = internal.CreateName()
+		name = internal.CreateName(ctx)
 	}
 	names := []string{
 		fmt.Sprintf("rps/judge/%s", name),

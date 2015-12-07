@@ -32,7 +32,7 @@ import (
 var name, aclFile string
 
 func main() {
-	cmdRoot.Flags.StringVar(&name, "name", "", "Identifier to publish as (defaults to user@hostname).")
+	cmdRoot.Flags.StringVar(&name, "name", "", "Identifier to publish as (defaults to principal's blessing names).")
 	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
@@ -123,7 +123,7 @@ func (i *impl) Challenge(ctx *context.T, call rpc.ServerCall, address string, id
 func recvChallenge(ctx *context.T) gameChallenge {
 	ch := make(chan gameChallenge)
 	if name == "" {
-		name = internal.CreateName()
+		name = internal.CreateName(ctx)
 	}
 	fullname := fmt.Sprintf("rps/player/%s", name)
 	service := rps.PlayerServer(&impl{ch: ch})

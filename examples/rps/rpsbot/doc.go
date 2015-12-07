@@ -17,7 +17,7 @@ The rpsbot flags are:
  -acl-file=
    File containing JSON-encoded Permissions.
  -name=
-   Identifier to publish as (defaults to user@hostname).
+   Identifier to publish as (defaults to principal's blessing names).
  -num-games=-1
    Number of games to play (-1 means unlimited).
 

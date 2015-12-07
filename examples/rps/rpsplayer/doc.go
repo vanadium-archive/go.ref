@@ -16,7 +16,7 @@ The rpsplayer flags are:
  -acl-file=
    File containing JSON-encoded Permissions.
  -name=
-   Identifier to publish as (defaults to user@hostname).
+   Identifier to publish as (defaults to principal's blessing names).
 
 The global flags are:
  -alsologtostderr=true

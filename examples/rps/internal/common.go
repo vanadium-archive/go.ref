@@ -11,29 +11,22 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
-	"os/user"
+	"strings"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/security"
 
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/internal/logger"
 )
 
 // CreateName creates a name using the username and hostname.
-func CreateName() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		logger.Global().Fatalf("os.Hostname failed: %v", err)
-	}
-	u, err := user.Current()
-	if err != nil {
-		logger.Global().Fatalf("user.Current failed: %v", err)
-	}
-	return u.Username + "@" + hostname
+func CreateName(ctx *context.T) string {
+	p := v23.GetPrincipal(ctx)
+	b := p.BlessingStore().Default()
+	return naming.EncodeAsNameElement(strings.Join(security.BlessingNames(p, b), ","))
 }
 
 // FindJudge returns a random rock-paper-scissors judge from the mount table.
