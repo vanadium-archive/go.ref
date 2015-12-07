@@ -72,6 +72,9 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int
 	})
 }
 
+// TODO(ivanpi): Decouple table key prefix from table name to allow table data
+// deletion to be deferred, making deletion faster (reference removal). Same
+// for database deletion.
 func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	if t.d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
@@ -87,16 +90,48 @@ func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion in
 			}
 			return err
 		}
-		// TODO(sadovsky): Delete all rows in this table.
-		if err := t.UpdatePrefixPermsIndexForDelete(ctx, tx, ""); err != nil {
-			return err
+
+		// TODO(ivanpi): Check that no syncgroup includes rows in the table.
+		// Also check that all tables exist when creating/joining syncgroup.
+		// In the current implementation Destroy() is protected only by the
+		// Table ACL, so there is no prefix ACL protecting row and prefix ACL
+		// deletion. This is OK as long as no syncgroup covers the table.
+
+		// Delete all data rows without further ACL checks (note, this is different
+		// from DeleteRange, which does check prefix ACLs).
+		it := tx.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.RowPrefix, t.name), ""))
+		var key []byte
+		for it.Advance() {
+			key = it.Key(key)
+			if err := tx.Delete(key); err != nil {
+				return verror.New(verror.ErrInternal, ctx, err)
+			}
 		}
-		// TODO(rogulenko): In the current implementation Destroy() is protected
-		// by the Table ACL only, so there is no prefix ACL protecting this
-		// operation. Consider doing DeleteWithPerms() instead of Delete().
-		if err := util.Delete(ctx, tx, t.prefixPermsKey("")); err != nil {
-			return err
+		if err := it.Err(); err != nil {
+			return verror.New(verror.ErrInternal, ctx, err)
 		}
+
+		// Delete all prefix permissions without further ACL checks.
+		it = tx.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.PermsPrefix, t.name), ""))
+		for it.Advance() {
+			key = it.Key(key)
+			// See comment in util/constants.go for why we use SplitNKeyParts.
+			parts := util.SplitNKeyParts(string(key), 3)
+			externalKey := parts[2]
+			// TODO(ivanpi): Optimize by deleting whole prefix perms index range
+			// instead of one entry at a time.
+			if err := t.UpdatePrefixPermsIndexForDelete(ctx, tx, externalKey); err != nil {
+				return err
+			}
+			if err := tx.Delete(key); err != nil {
+				return verror.New(verror.ErrInternal, ctx, err)
+			}
+		}
+		if err := it.Err(); err != nil {
+			return verror.New(verror.ErrInternal, ctx, err)
+		}
+
+		// Delete TableData.
 		return util.Delete(ctx, tx, t.stKey())
 	})
 }
