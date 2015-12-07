@@ -27,6 +27,15 @@ func setBidiProtocol(ep naming.Endpoint) (naming.Endpoint, error) {
 	return v23.NewEndpoint(epString)
 }
 
+func removeBlessings(ep naming.Endpoint) (naming.Endpoint, error) {
+	network, address, routes, rid, _, mountable := getEndpointParts(ep)
+	opts := routes
+	opts = append(opts, rid)
+	opts = append(opts, mountable)
+	epString := naming.FormatEndpoint(network, address, opts...)
+	return v23.NewEndpoint(epString)
+}
+
 // setEndpointRoutingID returns a copy of ep with RoutingId changed to rid.
 func setEndpointRoutingID(ep naming.Endpoint, rid naming.RoutingID) (naming.Endpoint, error) {
 	network, address, routes, _, bnames, mountable := getEndpointParts(ep)

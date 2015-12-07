@@ -179,7 +179,7 @@ func (c *ConnCache) removeUndialable(e *connEntry, blessingNames []string) *conn
 		}
 		return nil
 	}
-	if !e.proxy && len(e.blessingNames) > 0 && !matchBlessings(e.blessingNames, blessingNames) {
+	if !e.proxy && len(blessingNames) > 0 && !matchBlessings(e.blessingNames, blessingNames) {
 		return nil
 	}
 	return e.conn
