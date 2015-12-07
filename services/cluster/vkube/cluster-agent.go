@@ -45,7 +45,7 @@ func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
 				"metadata": object{
 					"labels": object{
 						"application": clusterAgentApplicationName,
-						"deployment":  version,
+						"version":     version,
 					},
 				},
 				"spec": object{
