@@ -6,31 +6,27 @@ package rpc
 
 import (
 	"net"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/x/lib/netstate"
-	"v.io/x/lib/set"
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal/lib/roaming"
 	inaming "v.io/x/ref/runtime/internal/naming"
-	_ "v.io/x/ref/runtime/internal/rpc/protocols/tcp"
-	_ "v.io/x/ref/runtime/internal/rpc/protocols/ws"
-	_ "v.io/x/ref/runtime/internal/rpc/protocols/wsh"
-	imanager "v.io/x/ref/runtime/internal/rpc/stream/manager"
-	tnaming "v.io/x/ref/runtime/internal/testing/mocks/naming"
 	"v.io/x/ref/test/testutil"
 )
 
-func TestRoamingNew(t *testing.T) {
+type testServer struct{}
+
+func (t *testServer) Foo(*context.T, rpc.ServerCall) error { return nil }
+
+func TestRoaming(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -135,281 +131,14 @@ func TestRoamingNew(t *testing.T) {
 	}
 }
 
-func TestRoaming(t *testing.T) {
-	ctx, shutdown := initForTest()
-	defer shutdown()
-	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
-
-	publisher := pubsub.NewPublisher()
-	ch := make(chan pubsub.Setting)
-	stop, err := publisher.CreateStream("TestRoaming", "TestRoaming", ch)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { publisher.Shutdown(); <-stop }()
-
-	nctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("test"))
-	s, err := testInternalNewServerWithPubsub(nctx, sm, ns, publisher, "TestRoaming")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Stop()
-
-	ipv4And6 := netstate.AddressChooserFunc(func(network string, addrs []net.Addr) ([]net.Addr, error) {
-		accessible := netstate.ConvertToAddresses(addrs)
-		ipv4 := accessible.Filter(netstate.IsUnicastIPv4)
-		ipv6 := accessible.Filter(netstate.IsUnicastIPv6)
-		return append(ipv4.AsNetAddrs(), ipv6.AsNetAddrs()...), nil
-	})
-	spec := rpc.ListenSpec{
-		Addrs: rpc.ListenAddrs{
-			{"tcp", "*:0"},
-			{"tcp", ":0"},
-			{"tcp", ":0"},
-		},
-		AddressChooser: ipv4And6,
-	}
-
-	eps, err := s.Listen(spec)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(eps) == 0 {
-		t.Fatal("no endpoints listened on.")
-	}
-
-	if err = s.Serve("foo", &testServer{}, nil); err != nil {
-		t.Fatal(err)
-	}
-	setLeafEndpoints(eps)
-	if err = s.AddName("bar"); err != nil {
-		t.Fatal(err)
-	}
-
-	status := s.Status()
-	netChange := status.Valid
-	if got, want := status.Endpoints, eps; !cmpEndpoints(got, want) {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-
-	if got, want := len(status.Mounts), len(eps)*2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-
-	watcher := make(chan NetworkChange, 10)
-	s.(*server).WatchNetwork(watcher)
-	defer close(watcher)
-
-	waitForChange := func() *NetworkChange {
-		ctx.Infof("Waiting on %p", watcher)
-		select {
-		case c := <-watcher:
-			return &c
-		case <-time.After(time.Minute):
-			t.Fatalf("timedout: %s", loc(1))
-		}
-		return nil
-	}
-
-	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
-	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
-	n3 := netstate.NewNetAddr("ip", "3.3.3.3")
-
-	ch <- roaming.NewUpdateAddrsSetting([]net.Addr{n1, n2})
-	<-netChange
-
-	// We expect 2 added addrs and 4 changes, one for each IP per usable listen spec addr.
-	change := waitForChange()
-	if got, want := len(change.AddedAddrs), 2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	if got, want := len(change.Changed), 4; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-
-	nepsA := make([]naming.Endpoint, len(eps))
-	copy(nepsA, eps)
-	for _, p := range getUniqPorts(eps) {
-		nep1 := updateHost(eps[0], net.JoinHostPort("1.1.1.1", p))
-		nep2 := updateHost(eps[0], net.JoinHostPort("2.2.2.2", p))
-		nepsA = append(nepsA, []naming.Endpoint{nep1, nep2}...)
-	}
-
-	status = s.Status()
-	netChange = status.Valid
-	if got, want := status.Endpoints, nepsA; !cmpEndpoints(got, want) {
-		t.Fatalf("got %v, want %v [%d, %d]", got, want, len(got), len(want))
-	}
-
-	if got, want := len(status.Mounts), len(nepsA)*2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	if got, want := len(status.Mounts.Servers()), len(nepsA); got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-
-	// Mimic that n2 has been changed to n3. The network monitor will publish
-	// two AddrsSettings - RmAddrsSetting(n2) and NewUpdateAddrsSetting(n1, n3).
-
-	ch <- roaming.NewRmAddrsSetting([]net.Addr{n2})
-	<-netChange
-
-	// We expect 1 removed addr and 2 changes, one for each usable listen spec addr.
-	change = waitForChange()
-	if got, want := len(change.RemovedAddrs), 1; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	if got, want := len(change.Changed), 2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-
-	nepsR := make([]naming.Endpoint, len(eps))
-	copy(nepsR, eps)
-	for _, p := range getUniqPorts(eps) {
-		nep2 := updateHost(eps[0], net.JoinHostPort("1.1.1.1", p))
-		nepsR = append(nepsR, nep2)
-	}
-
-	status = s.Status()
-	netChange = status.Valid
-	if got, want := status.Endpoints, nepsR; !cmpEndpoints(got, want) {
-		t.Fatalf("got %v, want %v [%d, %d]", got, want, len(got), len(want))
-	}
-
-	ch <- roaming.NewUpdateAddrsSetting([]net.Addr{n1, n3})
-	<-netChange
-
-	// We expect 1 added addr and 2 changes, one for the new IP per usable listen spec addr.
-	change = waitForChange()
-	if got, want := len(change.AddedAddrs), 1; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	if got, want := len(change.Changed), 2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-
-	nepsC := make([]naming.Endpoint, len(eps))
-	copy(nepsC, eps)
-	for _, p := range getUniqPorts(eps) {
-		nep1 := updateHost(eps[0], net.JoinHostPort("1.1.1.1", p))
-		nep2 := updateHost(eps[0], net.JoinHostPort("3.3.3.3", p))
-		nepsC = append(nepsC, nep1, nep2)
-	}
-
-	status = s.Status()
-	netChange = status.Valid
-	if got, want := status.Endpoints, nepsC; !cmpEndpoints(got, want) {
-		t.Fatalf("got %v, want %v [%d, %d]", got, want, len(got), len(want))
-	}
-
-	if got, want := len(status.Mounts), len(nepsC)*2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	if got, want := len(status.Mounts.Servers()), len(nepsC); got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-
-	// Remove all addresses to mimic losing all connectivity.
-	ch <- roaming.NewRmAddrsSetting(getIPAddrs(nepsC))
-	<-netChange
-
-	// We expect changes for all of the current endpoints
-	change = waitForChange()
-	if got, want := len(change.Changed), len(nepsC); got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-
-	status = s.Status()
-	netChange = status.Valid
-	if got, want := len(status.Mounts), 0; got != want {
-		t.Fatalf("got %d, want %d: %v", got, want, status.Mounts)
-	}
-
-	ch <- roaming.NewUpdateAddrsSetting([]net.Addr{n1})
-	<-netChange
-	// We expect 2 changes, one for each usable listen spec addr.
-	change = waitForChange()
-	if got, want := len(change.Changed), 2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-}
-
-func TestWatcherDeadlock(t *testing.T) {
-	ctx, shutdown := initForTest()
-	defer shutdown()
-	sm := imanager.InternalNew(ctx, naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
-
-	publisher := pubsub.NewPublisher()
-	ch := make(chan pubsub.Setting)
-	stop, err := publisher.CreateStream("TestWatcherDeadlock", "TestWatcherDeadlock", ch)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { publisher.Shutdown(); <-stop }()
-
-	nctx, _ := v23.WithPrincipal(ctx, testutil.NewPrincipal("test"))
-	s, err := testInternalNewServerWithPubsub(nctx, sm, ns, publisher, "TestWatcherDeadlock")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Stop()
-
-	spec := rpc.ListenSpec{
-		Addrs: rpc.ListenAddrs{
-			{"tcp", ":0"},
-		},
-	}
-	eps, err := s.Listen(spec)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = s.Serve("foo", &testServer{}, nil); err != nil {
-		t.Fatal(err)
-	}
-	setLeafEndpoints(eps)
-
-	// Set a watcher that we never read from - the intent is to make sure
-	// that the listener still listens to changes even though there is no
-	// goroutine to read from the watcher channel.
-	watcher := make(chan NetworkChange, 0)
-	s.(*server).WatchNetwork(watcher)
-	defer close(watcher)
-
-	// Remove all addresses to mimic losing all connectivity.
-	ch <- roaming.NewRmAddrsSetting(getIPAddrs(eps))
-
-	// Add in two new addresses
-	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
-	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
-	ch <- roaming.NewUpdateAddrsSetting([]net.Addr{n1, n2})
-
-	neps := make([]naming.Endpoint, 0, len(eps))
-	for _, p := range getUniqPorts(eps) {
-		nep1 := updateHost(eps[0], net.JoinHostPort("1.1.1.1", p))
-		nep2 := updateHost(eps[0], net.JoinHostPort("2.2.2.2", p))
-		neps = append(neps, []naming.Endpoint{nep1, nep2}...)
-	}
-	then := time.Now()
-	for {
-		status := s.Status()
-		if got, want := status.Endpoints, neps; cmpEndpoints(got, want) {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-		if time.Now().Sub(then) > time.Minute {
-			t.Fatalf("timed out waiting for changes to take effect")
+func filterEndpointsByHost(eps []naming.Endpoint, host string) []naming.Endpoint {
+	var filtered []naming.Endpoint
+	for _, ep := range eps {
+		if strings.Contains(ep.Addr().String(), host) {
+			filtered = append(filtered, ep)
 		}
 	}
-}
-
-func updateHost(ep naming.Endpoint, address string) naming.Endpoint {
-	niep := *(ep).(*inaming.Endpoint)
-	niep.Address = address
-	return &niep
+	return filtered
 }
 
 func getIPAddrs(eps []naming.Endpoint) []net.Addr {
@@ -428,33 +157,6 @@ func getIPAddrs(eps []naming.Endpoint) []net.Addr {
 	return addrs
 }
 
-func filterEndpointsByHost(eps []naming.Endpoint, host string) []naming.Endpoint {
-	var filtered []naming.Endpoint
-	for _, ep := range eps {
-		if strings.Contains(ep.Addr().String(), host) {
-			filtered = append(filtered, ep)
-		}
-	}
-	return filtered
-}
-
-func cmpEndpoints(got, want []naming.Endpoint) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	return reflect.DeepEqual(endpointToStrings(got), endpointToStrings(want))
-}
-
-func getUniqPorts(eps []naming.Endpoint) []string {
-	ports := map[string]struct{}{}
-	for _, ep := range eps {
-		iep := ep.(*inaming.Endpoint)
-		_, p, _ := net.SplitHostPort(iep.Address)
-		ports[p] = struct{}{}
-	}
-	return set.String.ToSlice(ports)
-}
-
 func endpointToStrings(eps []naming.Endpoint) []string {
 	r := []string{}
 	for _, ep := range eps {
@@ -462,10 +164,4 @@ func endpointToStrings(eps []naming.Endpoint) []string {
 	}
 	sort.Strings(r)
 	return r
-}
-
-func setLeafEndpoints(eps []naming.Endpoint) {
-	for i := range eps {
-		eps[i].(*inaming.Endpoint).IsLeaf = true
-	}
 }

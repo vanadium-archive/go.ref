@@ -33,6 +33,20 @@ import (
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
+var (
+	// TODO(suharshs,mattr): Make these vdl errors.
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errResponseEncoding          = reg(".errResponseEncoding", "failed to encode RPC response {3} <-> {4}{:5}")
+	errResultEncoding            = reg(".errResultEncoding", "failed to encode result #{3} [{4}]{:5}")
+	errFailedToResolveToEndpoint = reg(".errFailedToResolveToEndpoint", "failed to resolve {3} to an endpoint")
+	errUnexpectedSuffix          = reg(".errUnexpectedSuffix", "suffix {3} was not expected because either server has the option IsLeaf set to true or it served an object and not a dispatcher")
+	errBlessingsNotBound         = reg(".errBlessingNotBound", "blessing granted not bound to this server({3} vs {4})")
+	errNilObject                 = reg(".errNilObject", "nil object can't be invoked")
+)
+
 const (
 	reconnectDelay = 50 * time.Millisecond
 	bidiProtocol   = "bidi"
@@ -548,6 +562,21 @@ func (fs *xflowServer) authorizeVtrace(ctx *context.T) error {
 	return authorize(ctx, security.NewCall(params), auth)
 }
 
+func authorize(ctx *context.T, call security.Call, auth security.Authorizer) error {
+	if call.LocalPrincipal() == nil {
+		// LocalPrincipal is nil means that the server wanted to avoid
+		// authentication, and thus wanted to skip authorization as well.
+		return nil
+	}
+	if auth == nil {
+		auth = security.DefaultAuthorizer()
+	}
+	if err := auth.Authorize(ctx, call); err != nil {
+		return verror.New(verror.ErrNoAccess, ctx, newErrBadAuth(ctx, call.Suffix(), call.Method(), err))
+	}
+	return nil
+}
+
 func (fs *xflowServer) serve() error {
 	defer fs.flow.Close()
 
@@ -849,4 +878,27 @@ func (fs *xflowServer) LocalEndpoint() naming.Endpoint {
 func (fs *xflowServer) RemoteEndpoint() naming.Endpoint {
 	//nologcall
 	return fs.flow.RemoteEndpoint()
+}
+
+type leafDispatcher struct {
+	invoker rpc.Invoker
+	auth    security.Authorizer
+}
+
+func (d leafDispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
+	defer apilog.LogCallf(nil, "suffix=%.10s...", suffix)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	if suffix != "" {
+		return nil, nil, verror.New(verror.ErrUnknownSuffix, nil, suffix)
+	}
+	return d.invoker, d.auth, nil
+}
+
+func objectToInvoker(obj interface{}) (rpc.Invoker, error) {
+	if obj == nil {
+		return nil, verror.New(errNilObject, nil)
+	}
+	if invoker, ok := obj.(rpc.Invoker); ok {
+		return invoker, nil
+	}
+	return rpc.ReflectInvoker(obj)
 }
