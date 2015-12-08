@@ -223,7 +223,7 @@ func TestBless(t *testing.T) {
 
 			// Verify the name and caveats on the blessings.
 			if got, want := security.BlessingNames(blesseePrin, blessings), []string{
-				"blesser" + security.ChainSeparator + "o" + security.ChainSeparator + testClientID + security.ChainSeparator + testEmail,
+				"blesser" + security.ChainSeparator + testClientID + security.ChainSeparator + testEmail,
 			}; !reflect.DeepEqual(got, want) {
 				t.Errorf("Got %v, want %v", got, want)
 			}
