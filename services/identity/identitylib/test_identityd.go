@@ -97,7 +97,7 @@ var TestIdentityd = modules.Register(func(env *modules.Env, args ...string) erro
 		"",
 		"identity")
 
-	_, eps, externalHttpAddress := s.Listen(ctx, *externalHttpAddr, *httpAddr, *tlsConfig)
+	_, eps, externalHttpAddress := s.Listen(ctx, ctx, *externalHttpAddr, *httpAddr, *tlsConfig)
 
 	fmt.Fprintf(env.Stdout, "TEST_IDENTITYD_NAME=%s\n", eps[0])
 	fmt.Fprintf(env.Stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpAddress)

@@ -104,8 +104,12 @@ func findUnusedPort() (int, error) {
 	return 0, nil
 }
 
-func (s *IdentityServer) Serve(ctx *context.T, externalHttpAddr, httpAddr, tlsConfig string) {
+func (s *IdentityServer) Serve(ctx, oauthCtx *context.T, externalHttpAddr, httpAddr, tlsConfig string) {
 	ctx, err := v23.WithPrincipal(ctx, audit.NewPrincipal(ctx, s.auditor))
+	if err != nil {
+		ctx.Panic(err)
+	}
+	oauthCtx, err = v23.WithPrincipal(oauthCtx, audit.NewPrincipal(oauthCtx, s.auditor))
 	if err != nil {
 		ctx.Panic(err)
 	}
@@ -117,7 +121,7 @@ func (s *IdentityServer) Serve(ctx *context.T, externalHttpAddr, httpAddr, tlsCo
 		}
 		httpAddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
 	}
-	rpcServer, _, externalAddr := s.Listen(ctx, externalHttpAddr, httpAddr, tlsConfig)
+	rpcServer, _, externalAddr := s.Listen(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
 	if len(s.rootedObjectAddrs) > 0 {
 		fmt.Printf("NAME=%s\n", s.rootedObjectAddrs[0].Name())
@@ -130,7 +134,7 @@ func (s *IdentityServer) Serve(ctx *context.T, externalHttpAddr, httpAddr, tlsCo
 	ctx.Infof("Successfully stopped the rpc server.")
 }
 
-func (s *IdentityServer) Listen(ctx *context.T, externalHttpAddr, httpAddr, tlsConfig string) (rpc.Server, []string, string) {
+func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, httpAddr, tlsConfig string) (rpc.Server, []string, string) {
 	// json-encoded public key and blessing names of this server
 	principal := v23.GetPrincipal(ctx)
 	http.Handle("/auth/blessing-root", handlers.BlessingRoot{principal})
@@ -140,7 +144,7 @@ func (s *IdentityServer) Listen(ctx *context.T, externalHttpAddr, httpAddr, tlsC
 		ctx.Fatalf("macaroonKey generation failed: %v", err)
 	}
 
-	rpcServer, published, err := s.setupBlessingServices(ctx, macaroonKey)
+	rpcServer, published, err := s.setupBlessingServices(ctx, oauthCtx, macaroonKey)
 	if err != nil {
 		ctx.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
@@ -217,7 +221,7 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 
 // Starts the Vanadium and HTTP services for blessing, and the Vanadium service for discharging.
 // All Vanadium services are started on the same port.
-func (s *IdentityServer) setupBlessingServices(ctx *context.T, macaroonKey []byte) (rpc.Server, []string, error) {
+func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T, macaroonKey []byte) (rpc.Server, []string, error) {
 	disp := newDispatcher(macaroonKey, s.oauthBlesserParams)
 	blessingNames := security.BlessingNames(v23.GetPrincipal(ctx), v23.GetPrincipal(ctx).BlessingStore().Default())
 	if len(blessingNames) == 0 {
@@ -252,7 +256,7 @@ func (s *IdentityServer) setupBlessingServices(ctx *context.T, macaroonKey []byt
 	ctx.Infof("Vanadium Blessing and discharger services will be published at %v", rootedObjectAddr)
 	// Start the HTTP Handler for the OAuth2 access token based blesser.
 	s.oauthBlesserParams.DischargerLocation = naming.Join(rootedObjectAddr, dischargerService)
-	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(ctx, s.oauthBlesserParams))
+	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(oauthCtx, s.oauthBlesserParams))
 	return server, []string{rootedObjectAddr}, nil
 }
 

@@ -33,6 +33,7 @@ var (
 	googleConfigWeb, googleConfigChrome, googleConfigAndroid         string
 	externalHttpAddr, httpAddr, tlsConfig, assetsPrefix, mountPrefix string
 	remoteSignerBlessings                                            string
+	oauthRemoteSignerBlessings                                       string
 	sqlConf                                                          string
 )
 
@@ -44,6 +45,7 @@ func init() {
 
 	// Configuration using the remote signer
 	cmdIdentityD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
+	cmdIdentityD.Flags.StringVar(&oauthRemoteSignerBlessings, "remote-signer-o-blessing-dir", "", "Path to the blessings to use with the remote signer for oauth. Use the empty string to disable the remote signer.")
 
 	// Flags controlling the HTTP server
 	cmdIdentityD.Flags.StringVar(&externalHttpAddr, "external-http-addr", "", "External address on which the HTTP server listens on.  If none is provided the server will only listen on -http-addr.")
@@ -113,6 +115,25 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
+	oauthCtx := ctx
+	if oauthRemoteSignerBlessings != "" {
+		signer, err := restsigner.NewRestSigner()
+		if err != nil {
+			return fmt.Errorf("Failed to create remote signer: %v", err)
+		}
+		state, err := security.NewPrincipalStateSerializer(oauthRemoteSignerBlessings)
+		if err != nil {
+			return fmt.Errorf("Failed to create blessing serializer: %v", err)
+		}
+		p, err := security.NewPrincipalFromSigner(signer, state)
+		if err != nil {
+			return fmt.Errorf("Failed to create principal: %v", err)
+		}
+		if oauthCtx, err = v23.WithPrincipal(ctx, p); err != nil {
+			return fmt.Errorf("Failed to set principal: %v", err)
+		}
+	}
+
 	googleoauth, err := oauth.NewGoogleOAuth(ctx, googleConfigWeb)
 	if err != nil {
 		return env.UsageErrorf("Failed to setup GoogleOAuth: %v", err)
@@ -137,7 +158,7 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		caveats.NewBrowserCaveatSelector(assetsPrefix),
 		assetsPrefix,
 		mountPrefix)
-	s.Serve(ctx, externalHttpAddr, httpAddr, tlsConfig)
+	s.Serve(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
 }
 

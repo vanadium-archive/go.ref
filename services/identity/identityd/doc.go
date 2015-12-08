@@ -51,6 +51,9 @@ The identityd flags are:
  -remote-signer-blessing-dir=
    Path to the blessings to use with the remote signer. Use the empty string to
    disable the remote signer.
+ -remote-signer-o-blessing-dir=
+   Path to the blessings to use with the remote signer for oauth. Use the empty
+   string to disable the remote signer.
  -sql-config=
    Path to configuration file for MySQL database connection. Database is used to
    persist blessings for auditing and revocation. File must contain a JSON
