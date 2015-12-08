@@ -35,11 +35,6 @@ import (
 	"v.io/x/ref/services/syncbase/store"
 )
 
-var (
-	// memberViewTTL is the shelf-life of the aggregate view of syncgroup members.
-	memberViewTTL = 2 * time.Second
-)
-
 ////////////////////////////////////////////////////////////
 // Syncgroup management internal to Syncbase.
 

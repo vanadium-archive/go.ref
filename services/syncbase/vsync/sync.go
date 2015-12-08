@@ -122,8 +122,8 @@ type syncService struct {
 	// Syncbase vclock related variables.
 	vclock *vclock.VClock
 
-	// Peer selector for picking a peer to sync with.
-	ps peerSelector
+	// Peer manager for managing peers to sync with.
+	pm peerManager
 }
 
 // syncDatabase contains the metadata for syncing a database. This struct is
@@ -156,11 +156,15 @@ func randIntn(n int) int {
 
 // New creates a new sync module.
 //
-// Concurrency: sync initializes two goroutines at startup: a "watcher" and an
-// "initiator". The "watcher" thread is responsible for watching the store for
-// changes to its objects. The "initiator" thread is responsible for
-// periodically contacting peers to fetch changes from them. In addition, the
-// sync module responds to incoming RPCs from remote sync modules.
+// Concurrency: sync initializes four goroutines at startup: a "watcher", a
+// "syncer", a "neighborhood scanner", and a "peer manager". The "watcher"
+// thread is responsible for watching the store for changes to its objects. The
+// "syncer" thread is responsible for periodically contacting peers to fetch
+// changes from them. The "neighborhood scanner" thread continuously scans the
+// neighborhood to learn of other Syncbases and syncgroups in its
+// neighborhood. The "peer manager" thread continuously maintains viable peers
+// that the syncer can pick from. In addition, the sync module responds to
+// incoming RPCs from remote sync modules and local clients.
 func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, cl *vclock.VClock, publishInNH bool) (*syncService, error) {
 	s := &syncService{
 		sv:             sv,
@@ -198,9 +202,6 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 		return nil, verror.New(verror.ErrInternal, ctx, err)
 	}
 
-	// Initialize the peer selection policy.
-	s.newPeerSelector(ctx, selectNeighborhoodAware)
-
 	// Open a blob store.
 	var err error
 	s.bst, err = fsblob.Create(ctx, blobStEngine, path.Join(blobRootDir, "blobs"))
@@ -211,7 +212,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})
-	s.pending.Add(3)
+	s.pending.Add(4)
 
 	// Start watcher thread to watch for updates to local store.
 	go s.watchStore(ctx)
@@ -222,7 +223,18 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	// Start the discovery service thread to listen to neighborhood updates.
 	go s.discoverPeers(ctx)
 
+	// Initialize a peer manager with the peer selection policy.
+	s.pm = newPeerManager(ctx, s, selectRandom)
+
+	// Start the peer manager thread to maintain peers viable for syncing.
+	go s.pm.managePeers(ctx)
+
 	return s, nil
+}
+
+func (s *syncService) Ping(ctx *context.T, call rpc.ServerCall) error {
+	vlog.VI(2).Infof("sync: ping: received")
+	return nil
 }
 
 // Closed returns true if the sync service channel is closed indicating that the
