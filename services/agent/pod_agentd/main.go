@@ -100,6 +100,14 @@ func runPodAgentD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err = i.Listen(socketPath); err != nil {
 		return err
 	}
+	// Make the socket available to all users so that the application can
+	// run with a non-root UID.
+	// The socket's parent directory is mounted only in the containers that
+	// should have access to it. So, this doesn't change who has access to
+	// the socket.
+	if err = os.Chmod(socketPath, 0666); err != nil {
+		return err
+	}
 	<-signals.ShutdownOnSignals(ctx)
 	return nil
 }
