@@ -470,9 +470,18 @@ type tableDb struct {
 	req *tableReq
 }
 
-func (t *tableDb) Scan(keyRanges ds.KeyRanges) (ds.KeyValueStream, error) {
+func (t *tableDb) GetIndexFields() []ds.Index {
+	// TODO(jkline): If and when secondary indexes are supported, they
+	// would be supplied here.
+	return []ds.Index{}
+}
+
+func (t *tableDb) Scan(indexRanges ...ds.IndexRanges) (ds.KeyValueStream, error) {
 	streams := []store.Stream{}
-	for _, keyRange := range keyRanges {
+	// Syncbase does not currently support secondary indexes.  As such, indexRanges is
+	// guaranteed to be one in size as it will only specify the key ranges;
+	// hence, indexRanges[0] below.
+	for _, keyRange := range *indexRanges[0].StringRanges {
 		// TODO(jkline): For now, acquire all of the streams at once to minimize the
 		// race condition. Need a way to Scan multiple ranges at the same state of
 		// uncommitted changes.

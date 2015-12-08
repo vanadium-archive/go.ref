@@ -48,7 +48,31 @@ func (ds *dDS) GetContext() *context.T                    { return ds.ctx }
 func (ds *dDS) GetTable(string) (datasource.Table, error) { return ds, nil }
 
 // Implements datasource.Table.
-func (ds *dDS) Scan(datasource.KeyRanges) (datasource.KeyValueStream, error) { return ds, nil }
+func (ds *dDS) GetIndexFields() []datasource.Index {
+	return []datasource.Index{datasource.Index{FieldName: "v.InterfaceName", Kind: vdl.String}}
+}
+func (ds *dDS) Scan(idxRanges ...datasource.IndexRanges) (datasource.KeyValueStream, error) {
+	limit, _ /*ifcName*/ := limitToSingleInterface(idxRanges[1])
+	if limit {
+		// TODO(jkline): Limit to single interface name: ifcName
+	} else {
+		// TODO(jkline): Do not limit interface names.
+	}
+	return ds, nil
+}
+
+func limitToSingleInterface(idxRange datasource.IndexRanges) (bool, string) {
+	if idxRange.NilAllowed == false && len(*idxRange.StringRanges) == 1 && len((*idxRange.StringRanges)[0].Start) > 0 {
+		// If limit is equal to start plus a zero byte, a single interface name is
+		// begin queried.
+		targetLimit := []byte((*idxRange.StringRanges)[0].Start)
+		targetLimit = append(targetLimit, 0)
+		if (*idxRange.StringRanges)[0].Limit == string(targetLimit) {
+			return true, (*idxRange.StringRanges)[0].Start
+		}
+	}
+	return false, ""
+}
 
 // Implements datasource.KeyValueStream.
 func (ds *dDS) Advance() bool {
