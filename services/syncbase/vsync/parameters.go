@@ -15,9 +15,10 @@ var (
 	// connectionTimeOut is the time duration we wait for a connection to be
 	// established with a peer.
 	//
-	// TODO(hpucha): Make sync connection timeout dynamic based on ping
-	// latency.
-	connectionTimeOut = 200 * time.Millisecond
+	// TODO(hpucha): Make sync connection timeout dynamic based on ping latency.
+	// E.g. perhaps we should use a 2s ping timeout, and use k*pingLatency (for
+	// some k) as getDeltas timeout.
+	connectionTimeOut = 2 * time.Second
 
 	// memberViewTTL is the shelf-life of the aggregate view of syncgroup members.
 	memberViewTTL = 2 * time.Second
