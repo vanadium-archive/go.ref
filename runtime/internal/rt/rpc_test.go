@@ -20,7 +20,6 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	_ "v.io/x/ref/runtime/factories/generic"
-	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -264,7 +263,7 @@ func TestServerDischarges(t *testing.T) {
 	if err := root.Bless(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName)); err != nil {
 		t.Fatal(err)
 	}
-	serverCtx, server, err = v23.WithNewServer(serverCtx, "", testService{}, security.AllowEveryone(), vc.DischargeExpiryBuffer(10*time.Millisecond))
+	serverCtx, server, err = v23.WithNewServer(serverCtx, "", testService{}, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}

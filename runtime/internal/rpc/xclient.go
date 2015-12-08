@@ -7,6 +7,9 @@ package rpc
 import (
 	"fmt"
 	"io"
+	"math/rand"
+	"net"
+	"reflect"
 	"sync"
 	"time"
 
@@ -20,6 +23,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/vdl"
 	vtime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -28,6 +32,36 @@ import (
 	slib "v.io/x/ref/lib/security"
 	"v.io/x/ref/runtime/internal/flow/manager"
 	inaming "v.io/x/ref/runtime/internal/naming"
+)
+
+const pkgPath = "v.io/x/ref/runtime/internal/rpc"
+
+func reg(id, msg string) verror.IDAction {
+	// Note: the error action is never used and is instead computed
+	// at a higher level. The errors here are purely for informational
+	// purposes.
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
+
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	// TOOD(suharshs,mattr): Make these verrors.
+	errClientCloseAlreadyCalled  = reg(".errCloseAlreadyCalled", "rpc.Client.Close has already been called")
+	errClientFinishAlreadyCalled = reg(".errFinishAlreadyCalled", "rpc.ClientCall.Finish has already been called")
+	errNonRootedName             = reg(".errNonRootedName", "{3} does not appear to contain an address")
+	errInvalidEndpoint           = reg(".errInvalidEndpoint", "failed to parse endpoint")
+	errRequestEncoding           = reg(".errRequestEncoding", "failed to encode request {3}{:4}")
+	errArgEncoding               = reg(".errArgEncoding", "failed to encode arg #{3}{:4:}")
+	errMismatchedResults         = reg(".errMismatchedResults", "got {3} results, but want {4}")
+	errResultDecoding            = reg(".errResultDecoding", "failed to decode result #{3}{:4}")
+	errResponseDecoding          = reg(".errResponseDecoding", "failed to decode response{:3}")
+	errRemainingStreamResults    = reg(".errRemaingStreamResults", "stream closed with remaining stream results")
+	errBlessingGrant             = reg(".errBlessingGrant", "failed to grant blessing to server with blessings{:3}")
+	errBlessingAdd               = reg(".errBlessingAdd", "failed to add blessing granted to server{:3}")
+	errPeerAuthorizeFailed       = reg(".errPeerAuthorizedFailed", "failed to authorize flow with remote blessings{:3} {:4}")
 )
 
 const (
@@ -130,6 +164,28 @@ func (c *xclient) startCall(ctx *context.T, name, method string, args []interfac
 	}
 }
 
+// A randomized exponential backoff. The randomness deters error convoys
+// from forming.  The first time you retry n should be 0, then 1 etc.
+func backoff(n uint, deadline time.Time) bool {
+	// This is ((100 to 200) * 2^n) ms.
+	b := time.Duration((100+rand.Intn(100))<<n) * time.Millisecond
+	if b > maxBackoff {
+		b = maxBackoff
+	}
+	r := deadline.Sub(time.Now())
+	if b > r {
+		// We need to leave a little time for the call to start or
+		// we'll just timeout in startCall before we actually do
+		// anything.  If we just have a millisecond left, give up.
+		if r <= time.Millisecond {
+			return false
+		}
+		b = r - time.Millisecond
+	}
+	time.Sleep(b)
+	return true
+}
+
 func (c *xclient) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, opts ...rpc.CallOpt) error {
 	defer apilog.LogCallf(ctx, "name=%.10s...,method=%.10s...,inArgs=,outArgs=,opts...=%v", name, method, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	deadline := getDeadline(ctx, opts)
@@ -152,6 +208,71 @@ func (c *xclient) Call(ctx *context.T, name, method string, inArgs, outArgs []in
 	}
 }
 
+func getDeadline(ctx *context.T, opts []rpc.CallOpt) time.Time {
+	// Context specified deadline.
+	deadline, hasDeadline := ctx.Deadline()
+	if !hasDeadline {
+		// Default deadline.
+		deadline = time.Now().Add(defaultCallTimeout)
+	}
+	if r, ok := getRetryTimeoutOpt(opts); ok {
+		// Caller specified deadline.
+		deadline = time.Now().Add(r)
+	}
+	return deadline
+}
+
+func shouldRetryBackoff(action verror.ActionCode, deadline time.Time, opts []rpc.CallOpt) bool {
+	switch {
+	case noRetry(opts):
+		return false
+	case action != verror.RetryBackoff:
+		return false
+	case time.Now().After(deadline):
+		return false
+	}
+	return true
+}
+
+func shouldRetry(action verror.ActionCode, requireResolve bool, deadline time.Time, opts []rpc.CallOpt) bool {
+	switch {
+	case noRetry(opts):
+		return false
+	case action != verror.RetryConnection && action != verror.RetryRefetch:
+		return false
+	case time.Now().After(deadline):
+		return false
+	case requireResolve && getNoNamespaceOpt(opts):
+		// If we're skipping resolution and there are no servers for
+		// this call retrying is not going to help, we can't come up
+		// with new servers if there is no resolution.
+		return false
+	}
+	return true
+}
+
+func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) (security.DischargeImpetus, error) {
+	var impetus security.DischargeImpetus
+	if len(serverBlessings) > 0 {
+		impetus.Server = make([]security.BlessingPattern, len(serverBlessings))
+		for i, b := range serverBlessings {
+			impetus.Server[i] = security.BlessingPattern(b)
+		}
+	}
+	impetus.Method = method
+	if len(args) > 0 {
+		impetus.Arguments = make([]*vdl.Value, len(args))
+		for i, a := range args {
+			vArg, err := vdl.ValueFromReflect(reflect.ValueOf(a))
+			if err != nil {
+				return security.DischargeImpetus{}, err
+			}
+			impetus.Arguments[i] = vArg
+		}
+	}
+	return impetus, nil
+}
+
 type xserverStatus struct {
 	index          int
 	server, suffix string
@@ -159,6 +280,15 @@ type xserverStatus struct {
 	serverErr      *verror.SubErr
 	typeEnc        *vom.TypeEncoder
 	typeDec        *vom.TypeDecoder
+}
+
+func suberrName(server, name, method string) string {
+	// In the case the client directly dialed an endpoint we want to avoid printing
+	// the endpoint twice.
+	if server == name {
+		return fmt.Sprintf("%s.%s", server, method)
+	}
+	return fmt.Sprintf("%s:%s.%s", server, name, method)
 }
 
 // tryCreateFlow attempts to establish a Flow to "server" (which must be a
@@ -712,6 +842,32 @@ func (fc *flowXClient) Recv(itemptr interface{}) error {
 		return fc.close(berr)
 	}
 	return nil
+}
+
+// decodeNetError tests for a net.Error from the lower stream code and
+// translates it into an appropriate error to be returned by the higher level
+// RPC api calls. It also tests for the net.Error being a stream.NetError
+// and if so, uses the error it stores rather than the stream.NetError itself
+// as its retrun value. This allows for the stack trace of the original
+// error to be chained to that of any verror created with it as a first parameter.
+func decodeNetError(ctx *context.T, err error) (verror.IDAction, error) {
+	if neterr, ok := err.(net.Error); ok {
+		if neterr.Timeout() || neterr.Temporary() {
+			// If a read is canceled in the lower levels we see
+			// a timeout error - see readLocked in vc/reader.go
+			if ctx.Err() == context.Canceled {
+				return verror.ErrCanceled, err
+			}
+			return verror.ErrTimeout, err
+		}
+	}
+	if id := verror.ErrorID(err); id != verror.ErrUnknown.ID {
+		return verror.IDAction{
+			ID:     id,
+			Action: verror.Action(err),
+		}, err
+	}
+	return verror.ErrBadProtocol, err
 }
 
 func (fc *flowXClient) CloseSend() error {

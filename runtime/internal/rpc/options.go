@@ -12,8 +12,6 @@ import (
 	"v.io/v23/rpc"
 
 	"v.io/x/ref/lib/apilog"
-	"v.io/x/ref/runtime/internal/rpc/stream"
-	"v.io/x/ref/runtime/internal/rpc/stream/vc"
 )
 
 // PreferredProtocols instructs the Runtime implementation to select
@@ -62,15 +60,6 @@ func getNoNamespaceOpt(opts []rpc.CallOpt) bool {
 	return false
 }
 
-func shouldNotFetchDischarges(opts []rpc.CallOpt) bool {
-	for _, o := range opts {
-		if _, ok := o.(NoDischarges); ok {
-			return true
-		}
-	}
-	return false
-}
-
 func noRetry(opts []rpc.CallOpt) bool {
 	for _, o := range opts {
 		if _, ok := o.(options.NoRetry); ok {
@@ -78,25 +67,6 @@ func noRetry(opts []rpc.CallOpt) bool {
 		}
 	}
 	return false
-}
-
-func translateStreamOpts(opts []rpc.CallOpt) (vcOpts []stream.VCOpt, flowOpts []stream.FlowOpt) {
-	for _, o := range opts {
-		switch v := o.(type) {
-		case stream.VCOpt:
-			vcOpts = append(vcOpts, v)
-		case options.ChannelTimeout:
-			flowOpts = append(flowOpts, vc.ChannelTimeout(time.Duration(v)))
-		case options.SecurityLevel:
-			switch v {
-			case options.SecurityNone:
-				vcOpts = append(vcOpts, stream.AuthenticatedVC(false))
-			case options.SecurityConfidential:
-				vcOpts = append(vcOpts, stream.AuthenticatedVC(true))
-			}
-		}
-	}
-	return
 }
 
 func getNamespaceOpts(opts []rpc.CallOpt) (resolveOpts []naming.NamespaceOpt) {
