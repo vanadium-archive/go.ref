@@ -9,12 +9,8 @@ import (
 )
 
 const (
-	// The pool.ntp.org project is a big virtual cluster of timeservers providing
-	// reliable easy to use NTP service for millions of clients.
-	// For more information, see: http://www.pool.ntp.org/en/
-	NtpDefaultHost = "pool.ntp.org"
-	NtpSampleCount = 15
 	// Used by VClockD.doNtpUpdate.
+	NtpSampleCount        = 15
 	NtpSkewDeltaThreshold = 2 * time.Second
 	// Used by VClockD.doLocalUpdate.
 	SystemClockDriftThreshold = time.Second

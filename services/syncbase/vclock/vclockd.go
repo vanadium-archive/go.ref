@@ -30,10 +30,10 @@ type VClockD struct {
 }
 
 // NewVClockD returns a new VClockD instance.
-func NewVClockD(vclock *VClock) *VClockD {
+func NewVClockD(vclock *VClock, ntpHost string) *VClockD {
 	return &VClockD{
 		vclock:    vclock,
-		ntpSource: newVClockNtpSource(NtpDefaultHost, vclock),
+		ntpSource: newVClockNtpSource(ntpHost, vclock),
 		closed:    make(chan struct{}),
 	}
 }

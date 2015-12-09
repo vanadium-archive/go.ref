@@ -5,7 +5,6 @@
 package vclock
 
 import (
-	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -292,24 +291,4 @@ func TestNtpSkewBelowThresholdAndExistingLargeSkew(t *testing.T) {
 		t.Errorf("DoNtpUpdate failed: %v", err)
 	}
 	verifyVClockData(t, d.vclock, newVClockData(sysTs.Add(-elapsedTime), skew, elapsedTime, ntpSource.Data.ntpTs, 0, 0))
-}
-
-// The following test is skipped because it hits real NTP servers and can
-// introduce test flakiness on machines with skewed clocks (such as the Jenkins
-// machines).
-// TODO(sadovsky): Update these tests to use Jatin's fake NTP server.
-func TestWithRealNtp(t *testing.T) {
-	t.Skip()
-
-	d := NewVClockD(NewVClockForTests(nil))
-
-	if err := d.DoNtpUpdate(); err != nil {
-		t.Errorf("DoNtpUpdate failed: %v", err)
-	}
-
-	data := &VClockData{}
-	if err := d.vclock.GetVClockData(data); err != nil {
-		t.Errorf("GetVClockData failed: %v", err)
-	}
-	fmt.Printf("VClockData: %#v\n", *data)
 }

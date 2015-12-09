@@ -49,6 +49,7 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 	// Start syncbased. Run with --dev to enable development mode methods such as
 	// DevModeUpdateVClock.
 	invocation := syncbased.WithStartOpts(syncbased.StartOpts().WithCustomCredentials(creds).WithSessions(t, 5*time.Second)).Start(
+		//"--v=5",
 		//"--vpath=vsync*=5",
 		//"--alsologtostderr=true",
 		"--v23.tcp.address=127.0.0.1:0",
@@ -63,8 +64,8 @@ func StartKillableSyncbased(t *v23tests.T, creds *modules.CustomCredentials,
 		if err := invocation.Shutdown(stdout, stderr); err != nil {
 			log.Printf("syncbased terminated with an error: %v\nstdout: %v\nstderr: %v\n", err, stdout, stderr)
 		} else {
-			// To debug sync (for example), uncomment this line as well as the --vpath
-			// and --alsologtostderr lines above.
+			// To debug sync (for example), uncomment this line as well as the logging
+			// flags in the invocation above.
 			//log.Printf("syncbased terminated cleanly\nstdout: %v\nstderr: %v\n", stdout, stderr)
 		}
 		if rmRootDir {
