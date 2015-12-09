@@ -132,9 +132,6 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	msg, err := c.mp.readMsg(ctx)
 	if err != nil {
 		<-ch
-		if verror.ErrorID(err) == message.ErrWrongProtocol.ID {
-			return nil, nil, err
-		}
 		return nil, nil, NewErrRecv(ctx, "unknown", err)
 	}
 	rSetup, valid := msg.(*message.Setup)

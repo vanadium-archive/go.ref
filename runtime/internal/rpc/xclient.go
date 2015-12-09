@@ -16,7 +16,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
-	"v.io/v23/flow/message"
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
@@ -508,9 +507,6 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 		for _, r := range responses {
 			if r != nil {
 				numResponses++
-				if r.serverErr != nil && verror.ErrorID(r.serverErr.Err) == message.ErrWrongProtocol.ID {
-					return nil, verror.NoRetry, false, r.serverErr.Err
-				}
 			}
 			if r == nil || r.flow == nil {
 				continue
