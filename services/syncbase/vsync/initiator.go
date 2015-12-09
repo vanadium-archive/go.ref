@@ -73,6 +73,10 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
 	var errFinal error // the last non-nil error encountered is returned to the caller.
 
 	info := s.copyMemberInfo(ctx, peer.relName)
+	if info == nil {
+		vlog.VI(4).Infof("sync: getDeltasFromPeer: copyMemberInfo failed %v", peer)
+		return verror.New(verror.ErrInternal, ctx, peer.relName, "no member info found")
+	}
 
 	// Sync each Database that may have syncgroups common with this peer,
 	// one at a time.
@@ -821,6 +825,7 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 		vlog.VI(4).Info("sync: processUpdatedObjects: retry due to local mutations")
 		iSt.tx.Abort()
 		time.Sleep(1 * time.Second)
+		iSt.resetConflictResolutionState(ctx)
 	}
 }
 
@@ -846,6 +851,23 @@ func (iSt *initiationState) detectConflicts(ctx *context.T) (int, error) {
 		}
 	}
 	return count, nil
+}
+
+// resetConflictResolutionState resets the accumulated state from conflict
+// resolution. This is done prior to retrying conflict resolution when the
+// initiator fails to update the store with the received changes due to
+// concurent mutations from the client.
+func (iSt *initiationState) resetConflictResolutionState(ctx *context.T) {
+	for objid, confSt := range iSt.updObjects {
+		// Check if the object was added during resolution. If so,
+		// remove this object from the dirty objects list before
+		// retrying; else reset the conflict resolution state.
+		if confSt.isAddedByCr {
+			delete(iSt.updObjects, objid)
+		} else {
+			iSt.updObjects[objid] = &objConflictState{}
+		}
+	}
 }
 
 // updateDbAndSync updates the Database, and if that is successful, updates log,
