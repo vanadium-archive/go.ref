@@ -22,9 +22,11 @@ import (
 )
 
 var duration time.Duration
+var name string
 
 func main() {
 	cmdRoot.Flags.DurationVar(&duration, "duration", 0, "Duration of the stress test to run; if zero, there is no limit.")
+	cmdRoot.Flags.StringVar(&name, "name", "", "Name to mount the server under.  If emtpy, don't mount.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -40,7 +42,7 @@ func runStressD(ctx *context.T, env *cmdline.Env, args []string) error {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	service, stop := internal.NewService()
-	ctx, server, err := v23.WithNewServer(ctx, "", service, security.AllowEveryone())
+	ctx, server, err := v23.WithNewServer(ctx, name, service, security.AllowEveryone())
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}

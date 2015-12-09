@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"v.io/v23/context"
-
+	"v.io/v23/vtrace"
 	"v.io/x/ref/runtime/internal/rpc/stress"
 )
 
 // CallEcho calls 'Echo' method with the given payload size for the given time
 // duration and returns the number of iterations.
-func CallEcho(ctx *context.T, server string, payloadSize int, duration time.Duration) uint64 {
+func CallEcho(octx *context.T, server string, payloadSize int, duration time.Duration) uint64 {
 	stub := stress.StressClient(server)
 	payload := make([]byte, payloadSize)
 	for i := range payload {
@@ -27,6 +27,7 @@ func CallEcho(ctx *context.T, server string, payloadSize int, duration time.Dura
 	var iterations uint64
 	start := time.Now()
 	for {
+		ctx, _ := vtrace.WithNewTrace(octx)
 		got, err := stub.Echo(ctx, payload)
 		if err != nil {
 			ctx.Fatalf("Echo failed: %v", err)
