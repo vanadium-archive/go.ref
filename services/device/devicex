@@ -92,7 +92,7 @@ run() {
          V23_NAMESPACE="${V23_NAMESPACE}" \
          V23_DEVICE_DIR="${V23_DEVICE_DIR}" \
          "$@"
-  else 
+  else
     # We use sudo/su rather than just sudo -u because the latter is often
     # set up to require a password in common GCE and EC2 images.
     sudo V23_NAMESPACE="${V23_NAMESPACE}"  V23_DEVICE_DIR="${V23_DEVICE_DIR}" \
@@ -100,8 +100,6 @@ run() {
       "$*"
   fi
 }
-
-readonly BIN_NAMES=(deviced suidhelper agentd inithelper)
 
 ###############################################################################
 # Copies one binary from source to destination.
@@ -128,6 +126,22 @@ copy_binary() {
 }
 
 ###############################################################################
+# Guesses if the argument is a url.
+# Arguments:
+#   potential url
+# Returns:
+#   0 if the argument looks like a url, 1 otherwise
+###############################################################################
+urlmatch() {
+  case "$1" in
+    http://*) return 0;;
+    https://*) return 0;;
+    ftp://*) return 0;;
+    file://*) return 0;;
+    *) return 1;;
+  esac
+}
+###############################################################################
 # Fetches binaries needed by device manager installation.
 # Globals:
 #   BIN_NAMES
@@ -143,7 +157,7 @@ get_binaries() {
   local -r BIN_SOURCE="$2"
 
   local bin_names_str=""
-  for bin_name in "${BIN_NAMES[@]}"; do
+  for bin_name in ${BIN_NAMES}; do
     bin_names_str+=" ${bin_name}"
   done
 
@@ -155,7 +169,7 @@ get_binaries() {
     fi
     local -r REPO_BIN_DIR="${JIRI_ROOT}/release/go/bin"
     echo "Fetching binaries:${bin_names_str} from build repository: ${REPO_BIN_DIR} ..."
-    for bin_name in "${BIN_NAMES[@]}"; do
+    for bin_name in ${BIN_NAMES}; do
       copy_binary "${bin_name}" "${REPO_BIN_DIR}" "${BIN_INSTALL}"
     done
     return
@@ -165,17 +179,16 @@ get_binaries() {
   # look for the binaries there.
   if [[ -d "${BIN_SOURCE}" ]]; then
       echo "Fetching binaries:${bin_names_str} locally from: ${BIN_SOURCE} ..."
-      for bin_name in "${BIN_NAMES[@]}"; do
+      for bin_name in ${BIN_NAMES}; do
         copy_binary "${bin_name}" "${BIN_SOURCE}" "${BIN_INSTALL}"
       done
       return
   fi
 
   # If the source looks like a URL, use HTTP to fetch.
-  local -r URL_REGEXP='^(https?|ftp|file)://'
-  if [[ "${BIN_SOURCE}" =~ ${URL_REGEXP} ]]; then
+  if urlmatch "${BIN_SOURCE}"; then
     echo "Fetching binaries:${bin_names_str} remotely from: ${BIN_SOURCE} ..."
-    for bin_name in "${BIN_NAMES[@]}"; do
+    for bin_name in ${BIN_NAMES}; do
       local DEST="${BIN_INSTALL}/${bin_name}"
       curl -f -o "${DEST}" "${BIN_SOURCE}/${bin_name}"
       chmod 700 "${DEST}"
@@ -207,25 +220,13 @@ install() {
   local -r BIN_INSTALL="${V23_DEVICE_DIR}/bin"
   mkdir -m 700 "${BIN_INSTALL}"
 
-  # Fetch the binaries.
   if [[ $# = 0 || "$1" == --* ]]; then
     local -r BIN_SOURCE=""
   else
     local -r BIN_SOURCE="$1"
     shift
   fi
-  get_binaries "${BIN_INSTALL}" "${BIN_SOURCE}"
-  for bin_name in "${BIN_NAMES[@]}"; do
-    local BINARY="${BIN_INSTALL}/${bin_name}"
-    if [[ ! -s "${BINARY}" ]]; then
-      echo "${BINARY} is empty."
-      exit 1
-    fi
-  done
-  echo "Binaries are in ${BIN_INSTALL}."
 
-  # Set up the suidhelper.
-  echo "Configuring helpers ..."
   local SINGLE_USER=false
   local INIT_MODE=false
   local DEVMGR_USER=$(whoami)
@@ -236,10 +237,29 @@ install() {
       SINGLE_USER=true
     elif [[ ${ARG} = "--init_mode" || ${ARG} = "--init_mode=true" ]]; then
       INIT_MODE=true
-    elif [[ ${ARG} =~ --devuser=(.*) ]]; then
-      DEVMGR_USER="${BASH_REMATCH[1]}"
+    elif [[ ${ARG%=*} = "--devuser" ]]; then
+      DEVMGR_USER="${ARG##*=}"
     fi
   done
+
+  BIN_NAMES="deviced suidhelper agentd"
+  if [[ ${INIT_MODE} == true ]]; then
+    BIN_NAMES="${BIN_NAMES} inithelper"
+  fi
+
+  # Fetch the binaries.
+  get_binaries "${BIN_INSTALL}" "${BIN_SOURCE}"
+  for bin_name in ${BIN_NAMES}; do
+    local BINARY="${BIN_INSTALL}/${bin_name}"
+    if [[ ! -s "${BINARY}" ]]; then
+      echo "${BINARY} is empty."
+      exit 1
+    fi
+  done
+  echo "Binaries are in ${BIN_INSTALL}."
+
+  # Set up the suidhelper.
+  echo "Configuring helpers ..."
 
   if [[ ${SINGLE_USER} == false && ${DEVMGR_USER} == $(whoami) ]]; then
     echo "Running in multi-user mode requires a --devuser=<user>"
@@ -291,7 +311,7 @@ getdevowner() {
       ls -dl  "${V23_DEVICE_DIR}" | awk '{print $3}'
       ;;
     "Linux")
-      stat -c "%U" "${V23_DEVICE_DIR}"
+      echo $(stat -c "%U" "${V23_DEVICE_DIR}")
       ;;
   esac
 }
