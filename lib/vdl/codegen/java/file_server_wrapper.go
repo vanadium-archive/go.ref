@@ -119,7 +119,7 @@ public final class {{ .ServiceName }}ServerWrapper {
             @Override
             public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
                 java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.SendType }} >() {}.getType();
-                _call.send(item, type);
+                io.v.v23.VFutures.sync(_call.send(item, type));
             }
             @Override
             public java.util.Iterator<{{ $method.RecvType }}> iterator() {
