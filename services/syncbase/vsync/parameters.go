@@ -42,7 +42,11 @@ var (
 	// obtained via pinging it. This parameter impacts the size of the
 	// healthy peer cache since we add up to 'pingFanout' peers every
 	// 'peerManagementInterval'.
-	healthInfoTimeOut = 200 * time.Millisecond
+	// NOTE(sadovsky): It's important for this parameter to be >= ping's
+	// connection timeout (connectionTimeOut); otherwise, our cache will drain and
+	// sync will repeatedly get blocked on cache re-population, which takes
+	// connectionTimeOut if an unresponsive peer was selected to be pinged.
+	healthInfoTimeOut = connectionTimeOut
 
 	// watchPollInterval is the duration between consecutive watch polling
 	// events across all app databases.  Every watch event loops across all
