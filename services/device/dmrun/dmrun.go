@@ -104,7 +104,7 @@ func getPath(repo, file string) string {
 	output, err := cmd.CombinedOutput()
 	out := string(output)
 	dieIfErr(err, "Running %v failed. Output:\n%v", strings.Join(cmd.Args, " "), out)
-	var projectPathRE = regexp.MustCompile(fmt.Sprintf("project=\"%s\" path=\"(.+)\"", repo))
+	var projectPathRE = regexp.MustCompile(fmt.Sprintf("project-key=\"%s=.*\" path=\"(.+)\"", repo))
 	matches := projectPathRE.FindStringSubmatch(out)
 	if matches == nil {
 		die("Couldn't extract project path from %s", out)
