@@ -183,36 +183,46 @@ func getGoogleCloudBlessings(ctx *context.T) error {
 	if err != nil {
 		return err
 	}
-	resp, err := http.PostForm(
-		oauthBlesserFlag,
-		// This interface is defined in:
-		// https://godoc.org/v.io/x/ref/services/identity/internal/handlers#NewOAuthBlessingHandler
-		url.Values{
-			"public_key":    {base64.URLEncoding.EncodeToString(bytes)},
-			"token":         {token.AccessToken},
-			"caveats":       {caveats},
-			"output_format": {"base64vom"},
-		},
-	)
+	// This interface is defined in:
+	// https://godoc.org/v.io/x/ref/services/identity/internal/handlers#NewOAuthBlessingHandler
+	v := url.Values{
+		"public_key":    {base64.URLEncoding.EncodeToString(bytes)},
+		"token":         {token.AccessToken},
+		"caveats":       {caveats},
+		"output_format": {"base64vom"},
+	}
+	for attempt := 0; attempt < 30; attempt++ {
+		if attempt > 0 {
+			ctx.Infof("retrying")
+			time.Sleep(time.Second)
+		}
+		if body, err := postBlessRequest(v); err == nil {
+			var blessings security.Blessings
+			if err := base64VomDecode(string(body), &blessings); err != nil {
+				return err
+			}
+			return lsecurity.SetDefaultBlessings(principal, blessings)
+		} else {
+			ctx.Infof("error from oauth-blesser: %v", err)
+		}
+	}
+	return fmt.Errorf("too many failures")
+}
+
+func postBlessRequest(values url.Values) ([]byte, error) {
+	resp, err := http.PostForm(oauthBlesserFlag, values)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("got %s", resp.Status)
+		return nil, fmt.Errorf("got %s", resp.Status)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	var blessings security.Blessings
-	if err := base64VomDecode(string(body), &blessings); err != nil {
-		return err
-	}
-	if err := lsecurity.SetDefaultBlessings(principal, blessings); err != nil {
-		return err
-	}
-	return nil
+	return body, nil
 }
 
 func base64VomEncode(i interface{}) (string, error) {
