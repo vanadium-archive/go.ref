@@ -191,8 +191,15 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		return nil, err
 	}
 
-	// Start the vclock daemon.
-	s.vclockD = vclock.NewVClockD(s.vclock)
+	// Start the vclock daemon. For now, we disable NTP when running in dev mode.
+	// If we decide to change this behavior, we'll need to update the tests in
+	// v.io/v23/syncbase/featuretests/vclock_v23_test.go to disable NTP some other
+	// way.
+	ntpHost := ""
+	if !s.opts.DevMode {
+		ntpHost = util.NtpDefaultHost
+	}
+	s.vclockD = vclock.NewVClockD(s.vclock, ntpHost)
 	s.vclockD.Start()
 	return s, nil
 }

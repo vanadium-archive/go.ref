@@ -19,10 +19,10 @@ import (
 
 var (
 	name                  = flag.String("name", "", "Name to mount at.")
-	rootDir               = flag.String("root-dir", "/var/lib/syncbase", "Root dir for storage engines and other data")
+	rootDir               = flag.String("root-dir", "/var/lib/syncbase", "Root dir for storage engines and other data.")
 	engine                = flag.String("engine", "leveldb", "Storage engine to use. Currently supported: memstore and leveldb.")
 	publishInNeighborhood = flag.Bool("publish-nh", true, "Whether to publish in the neighborhood.")
-	devMode               = flag.Bool("dev", false, "Whether to run in development mode, required for RPCs such as Service.DevModeUpdateVClock.")
+	devMode               = flag.Bool("dev", false, "Whether to run in development mode; required for RPCs such as Service.DevModeUpdateVClock.")
 )
 
 // Note: We return rpc.Server and rpc.Dispatcher as a quick hack to support

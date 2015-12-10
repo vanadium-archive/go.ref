@@ -40,3 +40,11 @@ const (
 	//     <syncbase>/<app>/<database>%%<batchInfo>/...
 	BatchSep = "%%"
 )
+
+// Other constants.
+const (
+	// The pool.ntp.org project is a big virtual cluster of timeservers providing
+	// reliable easy to use NTP service for millions of clients.
+	// For more information, see: http://www.pool.ntp.org/en/
+	NtpDefaultHost = "pool.ntp.org:123"
+)

@@ -36,11 +36,8 @@ type NtpSource interface {
 }
 
 // newVClockNtpSource returns a new NtpSource implementation that talks to the
-// specified ntpHost, or to NtpDefaultHost if ntpHost is "".
+// specified ntpHost.
 func newVClockNtpSource(ntpHost string, vclock *VClock) NtpSource {
-	if ntpHost == "" {
-		ntpHost = NtpDefaultHost
-	}
 	return &ntpSourceImpl{ntpHost, vclock}
 }
 
@@ -57,6 +54,9 @@ type ntpSourceImpl struct {
 var _ NtpSource = (*ntpSourceImpl)(nil)
 
 func (ns *ntpSourceImpl) NtpSync(sampleCount int) (*NtpData, error) {
+	if ns.ntpHost == "" {
+		return nil, fmt.Errorf("vclock: NtpSync: no NTP server")
+	}
 	var res *NtpData
 	for i := 0; i < sampleCount; i++ {
 		if sample, err := ns.sample(); err == nil {
@@ -66,8 +66,7 @@ func (ns *ntpSourceImpl) NtpSync(sampleCount int) (*NtpData, error) {
 		}
 	}
 	if res == nil {
-		err := fmt.Errorf("vclock: NtpSync: failed to get sample from NTP server: %s", ns.ntpHost)
-		return nil, err
+		return nil, fmt.Errorf("vclock: NtpSync: failed to get sample from NTP server: %s", ns.ntpHost)
 	}
 	return res, nil
 }
@@ -88,7 +87,7 @@ func (ns *ntpSourceImpl) NtpSync(sampleCount int) (*NtpData, error) {
 // Based on the 4 timestamps the client can compute the skew between the
 // two vclocks and the roundtrip network delay for the request.
 func (ns *ntpSourceImpl) sample() (*NtpData, error) {
-	raddr, err := net.ResolveUDPAddr("udp", ns.ntpHost+":123")
+	raddr, err := net.ResolveUDPAddr("udp", ns.ntpHost)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +188,5 @@ func extractTime(data []byte) time.Time {
 	// Billion is done first to make sure that we dont lose precision.
 	nsec += (frac * 1e9) >> 32
 
-	t := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(nsec)).Local()
-
-	return t
+	return time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(nsec)).Local()
 }
