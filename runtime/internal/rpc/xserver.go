@@ -364,7 +364,6 @@ func (s *xserver) tryProxyEndpoints(ctx *context.T, eps []naming.Endpoint) (<-ch
 	for _, ep := range eps {
 		if ch, lastErr = s.flowMgr.ProxyListen(ctx, ep); lastErr == nil {
 			break
-		} else {
 		}
 	}
 	return ch, lastErr

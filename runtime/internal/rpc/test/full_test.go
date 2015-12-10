@@ -1135,3 +1135,127 @@ func TestNamelessServerBlessings(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestServerRefreshDischarges(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	sctx := withPrincipal(t, ctx, "server", mkThirdPartyCaveat(
+		v23.GetPrincipal(ctx).PublicKey(),
+		"mountpoint/dischargeserver",
+		security.UnconstrainedUse()))
+	cctx := withPrincipal(t, ctx, "client")
+
+	ed := &expiryDischarger{}
+	_, _, err := v23.WithNewServer(ctx, "mountpoint/dischargeserver", ed, security.AllowEveryone())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, cancel := context.WithCancel(sctx)
+	_, server, err := v23.WithNewDispatchingServer(sctx, "mountpoint/server", testServerDisp{&testServer{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { <-server.Closed() }()
+	defer cancel()
+
+	// Make a call to create a connection. We don't care if the call succeeds,
+	// we just want to make sure that we fetch discharges more than once.
+	var got string
+	cctx, cancel = context.WithCancel(cctx)
+	defer cancel()
+	v23.GetClient(cctx).Call(cctx, "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"}, []interface{}{&got}, options.NoRetry{})
+	for {
+		ed.mu.Lock()
+		count := ed.count
+		ed.mu.Unlock()
+		if count > 1 {
+			break
+		}
+		t.Logf("waiting for discharger to be called multiple times")
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func TestClientRefreshDischarges(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	sctx := withPrincipal(t, ctx, "server")
+	cctx := withPrincipal(t, ctx, "client", mkThirdPartyCaveat(
+		v23.GetPrincipal(ctx).PublicKey(),
+		"mountpoint/dischargeserver",
+		security.UnconstrainedUse()))
+
+	ed := &expiryDischarger{}
+	_, _, err := v23.WithNewServer(ctx, "mountpoint/dischargeserver", ed, security.AllowEveryone())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, cancel := context.WithCancel(sctx)
+	_, server, err := v23.WithNewDispatchingServer(sctx, "mountpoint/server", testServerDisp{&testServer{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { <-server.Closed() }()
+	defer cancel()
+
+	// Make a call to create a server connection. We don't care if the call succeeds,
+	// we just want to make sure that we fetch discharges only once when we are a client.
+	var got string
+	cctx, cancel = context.WithCancel(cctx)
+	defer cancel()
+	v23.GetClient(cctx).Call(cctx, "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"}, []interface{}{&got}, options.NoRetry{})
+	ed.mu.Lock()
+	// TODO(suharshs): We currently fetch discharges twice, once for blessings flow
+	// and once for the regular flow.
+	if ed.count != 2 {
+		t.Errorf("discharger should have been called exactly once, got %v", ed.count)
+	}
+	ed.mu.Unlock()
+}
+
+func TestBidirectionalRefreshDischarges(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	sctx := withPrincipal(t, ctx, "server")
+	cctx := withPrincipal(t, ctx, "client", mkThirdPartyCaveat(
+		v23.GetPrincipal(ctx).PublicKey(),
+		"mountpoint/dischargeserver",
+		security.UnconstrainedUse()))
+
+	ed := &expiryDischarger{}
+	_, _, err := v23.WithNewServer(ctx, "mountpoint/dischargeserver", ed, security.AllowEveryone())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, cancel := context.WithCancel(sctx)
+	defer cancel()
+	_, _, err = v23.WithNewDispatchingServer(sctx, "mountpoint/server", testServerDisp{&testServer{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cctx, cancel = context.WithCancel(cctx)
+	cctx, server, err := v23.WithNewDispatchingServer(cctx, "mountpoint/clientserver", testServerDisp{&testServer{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { <-server.Closed() }()
+	defer cancel()
+
+	// Make a call to create a connection. We don't care if the call succeeds,
+	// we just want to make sure that we fetch discharges more than once.	var got string
+	var got string
+	v23.GetClient(cctx).Call(cctx, "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"}, []interface{}{&got}, options.NoRetry{})
+	for {
+		ed.mu.Lock()
+		count := ed.count
+		ed.mu.Unlock()
+		if count > 1 {
+			break
+		}
+		t.Logf("waiting for discharger to be called multiple times")
+		time.Sleep(50 * time.Millisecond)
+	}
+}
