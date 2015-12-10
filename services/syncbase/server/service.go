@@ -11,6 +11,7 @@ package server
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path"
 	"reflect"
 	"sync"
@@ -96,6 +97,17 @@ func PermsString(perms access.Permissions) string {
 func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
+		// If the top-level leveldb is corrupt, we lose the meaning of all of the
+		// app-level databases.  util.OpenStore moved the top-level leveldb
+		// aside, but it didn't do anything about the app-level leveldbs.
+		if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
+			vlog.Errorf("top-level leveldb is corrupt, moving all apps aside")
+			appDir := path.Join(opts.RootDir, util.AppDir)
+			newPath := appDir + ".corrupt." + time.Now().Format(time.RFC3339)
+			if err := os.Rename(appDir, newPath); err != nil {
+				return nil, verror.New(verror.ErrInternal, ctx, "could not move apps aside: "+err.Error())
+			}
+		}
 		return nil, err
 	}
 	s := &service{
@@ -141,28 +153,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 				dbs:    make(map[string]interfaces.Database),
 			}
 			s.apps[a.name] = a
-			// Read all dbs for this app, populate dbs map.
-			dIt := st.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.DbInfoPrefix, aData.Name), ""))
-			dBytes := []byte{}
-			for dIt.Advance() {
-				dBytes = dIt.Value(dBytes)
-				info := &DbInfo{}
-				if err := vom.Decode(dBytes, info); err != nil {
-					return nil, verror.New(verror.ErrInternal, ctx, err)
-				}
-				d, err := nosql.OpenDatabase(ctx, a, info.Name, nosql.DatabaseOptions{
-					RootDir: info.RootDir,
-					Engine:  info.Engine,
-				}, util.OpenOptions{
-					CreateIfMissing: false,
-					ErrorIfExists:   false,
-				})
-				if err != nil {
-					return nil, verror.New(verror.ErrInternal, ctx, err)
-				}
-				a.dbs[info.Name] = d
-			}
-			if err := dIt.Err(); err != nil {
+			if err := openDatabases(ctx, st, a); err != nil {
 				return nil, verror.New(verror.ErrInternal, ctx, err)
 			}
 		}
@@ -202,6 +193,47 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	s.vclockD = vclock.NewVClockD(s.vclock, ntpHost)
 	s.vclockD.Start()
 	return s, nil
+}
+
+func openDatabases(ctx *context.T, st store.Store, a *app) error {
+	// Read all dbs for this app, populate dbs map.
+	dIt := st.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.DbInfoPrefix, a.name), ""))
+	dBytes := []byte{}
+	for dIt.Advance() {
+		dBytes = dIt.Value(dBytes)
+		info := &DbInfo{}
+		if err := vom.Decode(dBytes, info); err != nil {
+			return verror.New(verror.ErrInternal, ctx, err)
+		}
+		d, err := nosql.OpenDatabase(ctx, a, info.Name, nosql.DatabaseOptions{
+			RootDir: info.RootDir,
+			Engine:  info.Engine,
+		}, util.OpenOptions{
+			CreateIfMissing: false,
+			ErrorIfExists:   false,
+		})
+		if err != nil {
+			// If the database is corrupt, nosql.OpenDatabase will have moved it aside.
+			// We need to delete the app's reference to the database so that the client
+			// application can recreate the database the next time it starts.
+			if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
+				vlog.Errorf("app %s, database %s is corrupt, deleting the app's reference to it",
+					a.name, info.Name)
+				if err2 := a.delDbInfo(ctx, a.s.st, info.Name); err2 != nil {
+					vlog.Errorf("failed to delete app %s reference to corrupt database %s: %v",
+						a.name, info.Name, err2)
+					// Return the ErrCorruptDatabase, not err2
+				}
+				return err
+			}
+			return verror.New(verror.ErrInternal, ctx, err)
+		}
+		a.dbs[info.Name] = d
+	}
+	if err := dIt.Err(); err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
 }
 
 // AddNames adds all the names for this Syncbase instance, gathered from all the

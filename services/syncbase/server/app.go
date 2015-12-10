@@ -308,5 +308,6 @@ func (a *app) rootDirForDb(dbName string) string {
 	if len(appHex) > 255 || len(dbHex) > 255 {
 		vlog.Fatalf("appHex %s or dbHex %s is too long", appHex, dbHex)
 	}
-	return path.Join(a.s.opts.RootDir, "apps", hex.EncodeToString([]byte(a.name)), "dbs", hex.EncodeToString([]byte(dbName)))
+	return path.Join(a.s.opts.RootDir, util.AppDir, hex.EncodeToString([]byte(a.name)),
+		util.DbDir, hex.EncodeToString([]byte(dbName)))
 }
