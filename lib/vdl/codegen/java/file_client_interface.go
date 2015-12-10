@@ -36,7 +36,15 @@ public interface {{ .ServiceName }}Client {{ .Extends }} {
 
     {{/* Generate the method signature. */}}
     {{ $method.Doc }}
+    {{ if $method.NonStreaming }}
+    @javax.annotation.CheckReturnValue
+    {{ end }} {{/* end if $method.NonStreaming */}}
     {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }});
+
+    {{ $method.Doc }}
+    {{ if $method.NonStreaming }}
+    @javax.annotation.CheckReturnValue
+    {{ end }} {{/* end if $method.NonStreaming */}}
     {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.Options opts);
 {{ end }}
 }
@@ -51,6 +59,7 @@ type clientInterfaceMethod struct {
 	Args                string
 	Doc                 string
 	Name                string
+	NonStreaming        bool
 	IsMultipleRet       bool
 	RetArgs             []clientInterfaceArg
 	RetType             string
@@ -112,6 +121,7 @@ func processClientInterfaceMethod(iface *compile.Interface, method *compile.Meth
 		Args:                javaDeclarationArgStr(method.InArgs, env, true),
 		Doc:                 javaDoc(method.Doc, method.DocSuffix),
 		Name:                vdlutil.FirstRuneToLower(method.Name),
+		NonStreaming:        !isStreamingMethod(method),
 		IsMultipleRet:       len(retArgs) > 1,
 		RetArgs:             retArgs,
 		RetType:             clientInterfaceRetType(iface, method, env),
