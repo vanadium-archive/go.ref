@@ -17,6 +17,7 @@ import (
 )
 
 type StartMessage struct {
+	CleanupBlessings      bool
 	Identityd             string
 	IdentitydBlessingRoot identity.BlessingRootResponse
 	Proxy                 string
