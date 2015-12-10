@@ -108,10 +108,16 @@ func TestAddPodAgent(t *testing.T) {
             "args": [
               "pod_agentd",
               "--agent=/(root/cluster-agent)@cluster-agent.test:8193",
-              "--root-blessings=ROOT-BLESSINGS",
+              "--root-blessings=$(ROOT_BLESSINGS)",
               "--secret-key-file=/agent/secret/secret",
               "--socket-path=/agent/socket/agent.sock",
               "--log_dir=/logs"
+            ],
+            "env": [
+              {
+                "name": "ROOT_BLESSINGS",
+                "value": "ROOT-BLESSINGS"
+              }
             ],
             "image": "",
             "livenessProbe": {
@@ -181,7 +187,7 @@ func TestAddPodAgent(t *testing.T) {
 			Namespace: "test",
 		},
 	}
-	if err := addPodAgent(ctx, config, myAppObj, "myapp-secret"); err != nil {
+	if err := addPodAgent(ctx, config, myAppObj, "myapp-secret", rootBlessings(ctx)); err != nil {
 		t.Fatalf("addPodAgent failed: %v", err)
 	}
 	outBytes, err := myAppObj.json()
