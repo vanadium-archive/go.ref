@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"math/rand"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -85,10 +86,13 @@ type syncService struct {
 	allMembers     *memberView
 	allMembersLock sync.RWMutex
 
-	// In-memory map of sync peers found in the neighborhood through the
-	// discovery service.  The map key is the discovery service UUID.
-	discoveryPeers     map[string]*discovery.Service
-	discoveryPeersLock sync.RWMutex
+	// In-memory maps of sync peers and syncgroups found in the neighborhood
+	// through the discovery service.  For the sync peers map, the keys are
+	// the Syncbase names.  For the syncgroups map, the outer-map keys are
+	// the syncgroup names, the inner-map keys are the Syncbase names.
+	discoveryPeers      map[string]*discovery.Service
+	discoverySyncgroups map[string]map[string]*discovery.Service
+	discoveryLock       sync.RWMutex
 
 	// Cancel function for a context derived from the root context when
 	// advertising over neighborhood. This is needed to stop advertising.
@@ -135,6 +139,7 @@ type syncDatabase struct {
 }
 
 var (
+	ifName  = interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name
 	rng     = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	rngLock sync.Mutex
 	_       interfaces.SyncServerMethods = (*syncService)(nil)
@@ -221,7 +226,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	go s.syncer(ctx)
 
 	// Start the discovery service thread to listen to neighborhood updates.
-	go s.discoverPeers(ctx)
+	go s.discoverNeighborhood(ctx)
 
 	// Initialize a peer manager with the peer selection policy.
 	s.pm = newPeerManager(ctx, s, selectRandom)
@@ -248,42 +253,39 @@ func (s *syncService) Closed() bool {
 	}
 }
 
-// discoverPeers listens to updates from the discovery service to learn about
-// sync peers as they enter and leave the neighborhood.
-func (s *syncService) discoverPeers(ctx *context.T) {
+// discoverNeighborhood listens to updates from the discovery service to learn
+// about sync peers and syncgroups (if they have admins in the neighborhood) as
+// they enter and leave the neighborhood.
+func (s *syncService) discoverNeighborhood(ctx *context.T) {
 	defer s.pending.Done()
 
 	scanner := v23.GetDiscovery(ctx)
 	if scanner == nil {
-		vlog.Fatal("sync: discoverPeers: discovery service not initialized")
+		vlog.Fatal("sync: discoverNeighborhood: discovery service not initialized")
 	}
 
-	// TODO(rdaoud): refactor this interface name query string.
-	query := `v.InterfaceName="` + interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name + `"`
+	query := `v.InterfaceName="` + ifName + `"`
 	ch, err := scanner.Scan(ctx, query)
 	if err != nil {
-		vlog.Errorf("sync: discoverPeers: cannot start discovery service: %v", err)
+		vlog.Errorf("sync: discoverNeighborhood: cannot start discovery service: %v", err)
 		return
 	}
 
 	for !s.Closed() {
 		select {
 		case update, ok := <-ch:
-			if s.Closed() {
+			if !ok || s.Closed() {
 				break
 			}
-			if !ok {
-				vlog.VI(1).Info("sync: discoverPeers: scan cancelled, stop listening and exit")
-				return
-			}
+
 			switch u := update.(type) {
 			case discovery.UpdateFound:
 				svc := &u.Value.Service
-				s.updateDiscoveryPeer(svc.InstanceId, svc)
+				s.updateDiscoveryInfo(svc.InstanceId, svc)
 			case discovery.UpdateLost:
-				s.updateDiscoveryPeer(u.Value.InstanceId, nil)
+				s.updateDiscoveryInfo(u.Value.InstanceId, nil)
 			default:
-				vlog.Errorf("sync: discoverPeers: ignoring invalid update: %v", update)
+				vlog.Errorf("sync: discoverNeighborhood: ignoring invalid update: %v", update)
 			}
 
 		case <-s.closed:
@@ -291,34 +293,82 @@ func (s *syncService) discoverPeers(ctx *context.T) {
 		}
 	}
 
-	vlog.VI(1).Info("sync: discoverPeers: channel closed, stop listening and exit")
+	vlog.VI(1).Info("sync: discoverNeighborhood: channel closed, stop listening and exit")
 }
 
-// updateDiscoveryPeer adds or removes information about a sync peer found in
-// the neighborhood through the discovery service.  If the service entry is nil
-// the peer is removed from the discovery map.
-func (s *syncService) updateDiscoveryPeer(peerInstance string, service *discovery.Service) {
-	s.discoveryPeersLock.Lock()
-	defer s.discoveryPeersLock.Unlock()
+// discoverySyncgroupInstanceId returns the discovery instance ID for a given
+// syncgroup and peer.
+func discoverySyncgroupInstanceId(sgName, peerName string) string {
+	return strings.Join([]string{discoverySyncgroupPrefix, base64Encode(sgName), peerName}, ":")
+}
+
+// updateDiscoveryInfo adds or removes information about a sync peer or a
+// syncgroup found in the neighborhood through the discovery service.  If the
+// service entry is nil the record is removed from its discovery map.  The
+// instance ID string encodes the type of information received:
+// - "<peerName>" for sync peer info
+// - "sg:<sgName>:<peerName>" for syncgroup admin info
+// Note: the semicolon separator is safe to use here because both the syncgroup
+// name (base64-encoded) and peer name (hex number) do not contain a semicolon.
+// The regular Syncbase separator \xfe cannot be used because the discovery
+// service requires instance IDs to be valid UTF-8 strings.
+func (s *syncService) updateDiscoveryInfo(id string, service *discovery.Service) {
+	s.discoveryLock.Lock()
+	defer s.discoveryLock.Unlock()
+
+	vlog.VI(3).Infof("sync: updateDiscoveryInfo: %s: %v", id, service)
 
 	if s.discoveryPeers == nil {
 		s.discoveryPeers = make(map[string]*discovery.Service)
 	}
+	if s.discoverySyncgroups == nil {
+		s.discoverySyncgroups = make(map[string]map[string]*discovery.Service)
+	}
 
-	if service != nil {
-		vlog.VI(3).Infof("sync: updateDiscoveryPeer: adding peer %s: %v", peerInstance, service)
-		s.discoveryPeers[peerInstance] = service
-	} else {
-		vlog.VI(3).Infof("sync: updateDiscoveryPeer: removing peer %s", peerInstance)
-		delete(s.discoveryPeers, peerInstance)
+	// Parse the instance ID string to determine the type of discovery info.
+	parts := strings.Split(id, ":")
+	switch len(parts) {
+	case 1:
+		// Update the sync peer info.
+		if service != nil {
+			s.discoveryPeers[parts[0]] = service
+		} else {
+			delete(s.discoveryPeers, parts[0])
+		}
+
+	case 3:
+		switch parts[0] {
+		case discoverySyncgroupPrefix:
+			// Update the syncgroup admin info.
+			sgName := base64Decode(parts[1])
+			admins := s.discoverySyncgroups[sgName]
+			if service != nil {
+				if admins == nil {
+					admins = make(map[string]*discovery.Service)
+					s.discoverySyncgroups[sgName] = admins
+				}
+				admins[parts[2]] = service
+			} else if admins != nil {
+				delete(admins, parts[2])
+				if len(admins) == 0 {
+					delete(s.discoverySyncgroups, sgName)
+				}
+			}
+
+		default:
+			vlog.Errorf("sync: updateDiscoveryInfo: invalid instance ID header: %s", id)
+		}
+
+	default:
+		vlog.Errorf("sync: updateDiscoveryInfo: invalid instance ID format: %s", id)
 	}
 }
 
 // filterDiscoveryPeers returns only those peers discovered via neighborhood
 // that are also found in sgMembers (passed as input argument).
 func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[string]*discovery.Service {
-	s.discoveryPeersLock.Lock()
-	defer s.discoveryPeersLock.Unlock()
+	s.discoveryLock.Lock()
+	defer s.discoveryLock.Unlock()
 
 	if s.discoveryPeers == nil {
 		return nil
@@ -333,6 +383,30 @@ func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[stri
 	}
 
 	return sgNeighbors
+}
+
+// discoverySyncgroupAdmins returns syncgroup admins found in the neighborhood
+// via the discovery service.
+func (s *syncService) discoverySyncgroupAdmins(sgName string) map[string]*discovery.Service {
+	s.discoveryLock.Lock()
+	defer s.discoveryLock.Unlock()
+
+	if s.discoverySyncgroups == nil {
+		return nil
+	}
+
+	sgInfo := s.discoverySyncgroups[sgName]
+	if sgInfo == nil {
+		return nil
+	}
+
+	admins := make(map[string]*discovery.Service)
+
+	for peer, svc := range sgInfo {
+		admins[peer] = svc
+	}
+
+	return admins
 }
 
 // AddNames publishes all the names for this Syncbase instance gathered from all
@@ -377,8 +451,7 @@ func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
 
 	sbService := discovery.Service{
 		InstanceId:    s.name,
-		InstanceName:  s.name,
-		InterfaceName: interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name,
+		InterfaceName: ifName,
 	}
 	ctx, stop := context.WithCancel(s.ctx)
 
