@@ -140,7 +140,7 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 	fmt.Fprintln(env.Stdout, "Created secret successfully.")
 
 	if err := createReplicationController(ctx, config, rc, secretName); err != nil {
-		if err := deleteSecret(ctx, config, secretName, namespace); err != nil {
+		if err := deleteSecret(ctx, config, secretName, rootBlessings(ctx), namespace); err != nil {
 			ctx.Error(err)
 		}
 		return err
@@ -205,7 +205,7 @@ func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeCo
 		return fmt.Errorf("metadata.name must be set")
 	}
 	namespace := rc.getString("metadata.namespace")
-	secretName, err := findSecretName(name, namespace)
+	secretName, rootBlessings, err := findPodAttributes(name, namespace)
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeCo
 		return fmt.Errorf("failed to stop replication controller: %v: %s", err, out)
 	}
 	fmt.Fprintln(env.Stdout, "Stopping replication controller.")
-	if err := deleteSecret(ctx, config, secretName, namespace); err != nil {
+	if err := deleteSecret(ctx, config, secretName, rootBlessings, namespace); err != nil {
 		return fmt.Errorf("failed to delete secret: %v", err)
 	}
 	fmt.Fprintln(env.Stdout, "Deleting secret.")

@@ -55,7 +55,7 @@ func readReplicationControllerConfig(fileName string) (object, error) {
 // addPodAgent takes either a ReplicationController or Pod object and adds a
 // pod-agent container to it. The existing containers are updated to use the
 // pod agent.
-func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName string) error {
+func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName, rootBlessings string) error {
 	var base string
 	switch kind := obj.getString("kind"); kind {
 	case "ReplicationController":
@@ -90,10 +90,13 @@ func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName str
 	containers = append(containers, object{
 		"name":  "pod-agent",
 		"image": config.PodAgent.Image,
+		"env": []object{
+			object{"name": "ROOT_BLESSINGS", "value": rootBlessings},
+		},
 		"args": []string{
 			"pod_agentd",
 			"--agent=" + localAgentAddress(config),
-			"--root-blessings=" + rootBlessings(ctx),
+			"--root-blessings=$(ROOT_BLESSINGS)",
 			"--secret-key-file=/agent/secret/secret",
 			"--socket-path=/agent/socket/agent.sock",
 			"--log_dir=/logs",
@@ -153,7 +156,7 @@ func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings,
 // We know the name of the Secret object, but we don't know the secret key. The
 // only way to get it back from Kubernetes is to mount the Secret Object to a
 // Pod, and then use the secret key to delete the secret key.
-func deleteSecret(ctx *context.T, config *vkubeConfig, name, namespace string) error {
+func deleteSecret(ctx *context.T, config *vkubeConfig, name, rootBlessings, namespace string) error {
 	podName := fmt.Sprintf("delete-secret-%s", name)
 	del := object{
 		"apiVersion": "v1",
@@ -181,7 +184,7 @@ func deleteSecret(ctx *context.T, config *vkubeConfig, name, namespace string) e
 			"activeDeadlineSeconds": 300,
 		},
 	}
-	if err := addPodAgent(ctx, config, del, name); err != nil {
+	if err := addPodAgent(ctx, config, del, name, rootBlessings); err != nil {
 		return err
 	}
 	out, err := kubectlCreate(del)
@@ -194,7 +197,7 @@ func deleteSecret(ctx *context.T, config *vkubeConfig, name, namespace string) e
 // createReplicationController takes a ReplicationController object, adds a
 // pod-agent, and then creates it on kubernetes.
 func createReplicationController(ctx *context.T, config *vkubeConfig, rc object, secretName string) error {
-	if err := addPodAgent(ctx, config, rc, secretName); err != nil {
+	if err := addPodAgent(ctx, config, rc, secretName, rootBlessings(ctx)); err != nil {
 		return err
 	}
 	if out, err := kubectlCreate(rc); err != nil {
@@ -214,11 +217,11 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 	if len(oldNames) != 1 {
 		return fmt.Errorf("found %d replication controllers for this application: %q", len(oldNames), oldNames)
 	}
-	secretName, err := findSecretName(oldNames[0], namespace)
+	secretName, rootBlessings, err := findPodAttributes(oldNames[0], namespace)
 	if err != nil {
 		return err
 	}
-	if err := addPodAgent(ctx, config, rc, secretName); err != nil {
+	if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
 		return err
 	}
 	json, err := rc.json()
@@ -279,23 +282,47 @@ func findReplicationControllerNamesForApp(app, namespace string) ([]string, erro
 	return names, nil
 }
 
-// findSecretName finds the name of the Secret Object associated the given
-// Replication Controller.
-func findSecretName(rcName, namespace string) (string, error) {
+// findPodAttributes finds the name of the Secret object and root blessings
+// associated the given Replication Controller.
+func findPodAttributes(rcName, namespace string) (string, string, error) {
 	data, err := kubectl("--namespace="+namespace, "get", "rc", rcName, "-o", "json")
 	if err != nil {
-		return "", fmt.Errorf("failed to get replication controller %q: %v\n%s\n", rcName, err, string(data))
+		return "", "", fmt.Errorf("failed to get replication controller %q: %v\n%s\n", rcName, err, string(data))
 	}
 	var rc object
 	if err := rc.importJSON(data); err != nil {
-		return "", fmt.Errorf("failed to parse kubectl output: %v", err)
+		return "", "", fmt.Errorf("failed to parse kubectl output: %v", err)
 	}
+
+	// Find secret.
+	var secret string
 	for _, v := range rc.getObjectArray("spec.template.spec.volumes") {
 		if v.getString("name") == "agent-secret" {
-			return v.getString("secret.secretName"), nil
+			secret = v.getString("secret.secretName")
+			break
 		}
 	}
-	return "", fmt.Errorf("failed to find secretName in replication controller %q", rcName)
+	if secret == "" {
+		return "", "", fmt.Errorf("failed to find secret name in replication controller %q", rcName)
+	}
+
+	// Find root blessings.
+	var root string
+L:
+	for _, c := range rc.getObjectArray("spec.template.spec.containers") {
+		if c.getString("name") == "pod-agent" {
+			for _, e := range c.getObjectArray("env") {
+				if e.getString("name") == "ROOT_BLESSINGS" {
+					root = e.getString("value")
+					break L
+				}
+			}
+		}
+	}
+	if root == "" {
+		return "", "", fmt.Errorf("failed to find root blessings in replication controller %q", rcName)
+	}
+	return secret, root, nil
 }
 
 func readyPods(appName, namespace string) ([]string, error) {
