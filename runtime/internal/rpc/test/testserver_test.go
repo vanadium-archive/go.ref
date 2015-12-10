@@ -223,7 +223,8 @@ func (s *streamRecvInGoroutineServer) RecvInGoroutine(_ *context.T, call rpc.Str
 }
 
 type expiryDischarger struct {
-	called bool
+	mu    sync.Mutex
+	count int
 }
 
 func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
@@ -235,9 +236,6 @@ func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall,
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	expDur := 10 * time.Millisecond
-	if ed.called {
-		expDur = time.Second
-	}
 	expiry, err := security.NewExpiryCaveat(time.Now().Add(expDur))
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
@@ -246,6 +244,8 @@ func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall,
 	if err != nil {
 		return security.Discharge{}, err
 	}
-	ed.called = true
+	ed.mu.Lock()
+	ed.count++
+	ed.mu.Unlock()
 	return d, nil
 }
