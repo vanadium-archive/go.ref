@@ -142,7 +142,7 @@ this tool. - is used for STDIN.
 			for idx, chain := range wire.CertificateChains {
 				fmt.Printf("Chain #%d (%d certificates). Root certificate public key: %v\n", idx, len(chain), rootkey(chain))
 				for certidx, cert := range chain {
-					fmt.Printf("  Certificate #%d: %v with ", certidx, security.Bug739Slash2Colon(cert.Extension))
+					fmt.Printf("  Certificate #%d: %v with ", certidx, cert.Extension)
 					switch n := len(cert.Caveats); n {
 					case 1:
 						fmt.Printf("1 caveat")
@@ -1179,7 +1179,7 @@ func rootkey(chain []security.Certificate) string {
 func chainName(chain []security.Certificate) string {
 	exts := make([]string, len(chain))
 	for i, cert := range chain {
-		exts[i] = security.Bug739Slash2Colon(cert.Extension)
+		exts[i] = cert.Extension
 	}
 	return strings.Join(exts, security.ChainSeparator)
 }
