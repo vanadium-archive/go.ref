@@ -167,7 +167,7 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 		t.Fatalf("self2.Create() failed: %v", err)
 	}
 	perms := DefaultPerms("root:client")
-	perms.Blacklist("root:client", string(access.Write))
+	perms.Clear("root:client", string(access.Write), string(access.Admin))
 	if err := self2.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("self2.SetPermissions() failed: %v", err)
 	}
@@ -177,17 +177,32 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 
 	assertExists(t, ctx, self2, "self2", true)
 
-	// Test that destroy succeeds even if the parent perms disallow access.
+	// Create child.
+	if err := child.Create(ctx, nil); err != nil {
+		t.Fatalf("child.Create() failed: %v", err)
+	}
+
+	assertExists(t, ctx, self, "self", true)
+	assertExists(t, ctx, child, "child", true)
+
+	// Test that destroy succeeds even if the parent and child perms disallow
+	// access.
 	perms = DefaultPerms("root:client")
-	perms.Blacklist("root:client", string(access.Write))
+	perms.Clear("root:client", string(access.Write), string(access.Admin))
 	if err := parent.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("parent.SetPermissions() failed: %v", err)
+	}
+	if err := child.SetPermissions(ctx, perms, ""); err != nil {
+		t.Fatalf("child.SetPermissions() failed: %v", err)
 	}
 	if err := self.Destroy(ctx); err != nil {
 		t.Fatalf("self.Destroy() failed: %v", err)
 	}
 
 	assertExists(t, ctx, self, "self", false)
+	// TODO(ivanpi): Reenable when Exists() is fixed to treat nonexistent parent
+	// same as nonexistent self.
+	//assertExists(t, ctx, child, "child", false)
 
 	// Test that destroy is idempotent.
 	if err := self.Destroy(ctx); err != nil {
@@ -400,11 +415,12 @@ func (t *table) ListChildren(ctx *context.T) ([]string, error) {
 	panic(notAvailable)
 }
 func (t *table) Child(childName string) layer {
-	return &row{t.Row(childName)}
+	return &row{Row: t.Row(childName), table: t.Table}
 }
 
 type row struct {
 	nosql.Row
+	table nosql.Table
 }
 
 func (r *row) Name() string {
@@ -420,10 +436,14 @@ func (r *row) Destroy(ctx *context.T) error {
 	return r.Delete(ctx)
 }
 func (r *row) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
-	panic(notAvailable)
+	return r.table.SetPrefixPermissions(ctx, nosql.Prefix(r.Key()), perms)
 }
 func (r *row) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
-	panic(notAvailable)
+	prefixPerms, err := r.table.GetPrefixPermissions(ctx, r.Key())
+	if err != nil {
+		return nil, "", err
+	}
+	return prefixPerms[0].Perms, "", nil
 }
 func (r *row) ListChildren(ctx *context.T) ([]string, error) {
 	panic(notAvailable)
