@@ -31,6 +31,15 @@ import (
 	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
 
+const (
+	browsprDir        = "/browspr/data"
+	browsprKeyFile    = browsprDir + "/privateKey.pem."
+	blessingRootsData = browsprDir + "/blessingroots.data"
+	blessingRootsSig  = browsprDir + "/blessingroots.sig"
+	blessingStoreData = browsprDir + "/blessingstore.data"
+	blessingStoreSig  = browsprDir + "/blessingstore.sig"
+)
+
 func main() {
 	security.OverrideCaveatValidation(server.CaveatValidation)
 	ppapi.Init(newBrowsprInstance)
@@ -83,8 +92,6 @@ func (inst *browsprInstance) initFileSystem() {
 	}
 }
 
-const browsprDir = "/browspr/data"
-
 func (inst *browsprInstance) loadKeyFromStorage(browsprKeyFile string) (*ecdsa.PrivateKey, error) {
 	inst.logger.VI(1).Infof("Attempting to read key from file %v", browsprKeyFile)
 
@@ -109,7 +116,6 @@ func (inst *browsprInstance) loadKeyFromStorage(browsprKeyFile string) (*ecdsa.P
 
 // Loads a saved key if one exists, otherwise creates a new one and persists it.
 func (inst *browsprInstance) initKey() (*ecdsa.PrivateKey, error) {
-	browsprKeyFile := browsprDir + "/privateKey.pem."
 	if ecdsaKey, err := inst.loadKeyFromStorage(browsprKeyFile); err == nil {
 		return ecdsaKey, nil
 	} else {
@@ -156,28 +162,34 @@ func (inst *browsprInstance) newPrincipal(ecdsaKey *ecdsa.PrivateKey, blessingRo
 	return vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey), state)
 }
 
-func (inst *browsprInstance) newPersistantPrincipal(peerNames []string) (security.Principal, error) {
+func (inst *browsprInstance) newPersistentPrincipal(peerNames []string) (security.Principal, error) {
 	ecdsaKey, err := inst.initKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize ecdsa key:%s", err)
 	}
-
-	blessingRootsData := browsprDir + "/blessingroots.data"
-	blessingRootsSig := browsprDir + "/blessingroots.sig"
-	blessingStoreData := browsprDir + "/blessingstore.data"
-	blessingStoreSig := browsprDir + "/blessingstore.sig"
 
 	principal, err := inst.newPrincipal(ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
 	if err != nil {
 		inst.logger.VI(1).Infof("inst.newPrincipal(%v, %v, %v, %v, %v) failed: %v", ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
 
 		// Delete the files and try again.
-		for _, file := range []string{blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig} {
-			inst.fs.Remove(file)
+		if err := inst.cleanupBlessings(); err != nil {
+			return nil, err
 		}
 		principal, err = inst.newPrincipal(ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
 	}
 	return principal, err
+}
+
+// cleanupBlessings removes the persisted blessing roots and store.
+func (inst *browsprInstance) cleanupBlessings() error {
+	inst.logger.VI(1).Info("Cleaning up blessing roots and store.")
+	for _, file := range []string{blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig} {
+		if err := inst.fs.Remove(file); err != nil {
+			return fmt.Errorf("fs.Remove(%s) failed: %v", file, err)
+		}
+	}
+	return nil
 }
 
 // Base64-decode and unmarshal a public key.
@@ -196,7 +208,17 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 		return nil, fmt.Errorf("HandleStartMessage did not receive StartMessage, received: %v, %v", val, err)
 	}
 
-	p, err := inst.newPersistantPrincipal(msg.IdentitydBlessingRoot.Names)
+	// The extension starts the nacl plugin with CleanupBlessings=true when it
+	// detects it has been upgraded.  This prevents the plugin from breaking if
+	// non-backwards-compatible changes have been made to the format of
+	// blessings or roots.
+	if msg.CleanupBlessings {
+		if err := inst.cleanupBlessings(); err != nil {
+			return nil, err
+		}
+	}
+
+	p, err := inst.newPersistentPrincipal(msg.IdentitydBlessingRoot.Names)
 	if err != nil {
 		return nil, err
 	}
