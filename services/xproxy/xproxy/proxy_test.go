@@ -222,13 +222,10 @@ func TestProxyAuthorizesServer(t *testing.T) {
 	}
 	for {
 		status := server.Status()
-		if len(status.Proxies) > 0 {
-			if status.Proxies[0].Error == nil {
-				t.Errorf("%v", status.Proxies[0])
-				t.Errorf("proxy should not have authorized server")
-			}
-			break
+		if err, ok := status.ProxyErrors["denyproxy"]; ok && err == nil {
+			t.Errorf("proxy should not have authorized server")
 		}
+		break
 		<-status.Valid
 	}
 

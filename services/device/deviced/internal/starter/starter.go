@@ -145,10 +145,10 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		return nil, nil, err
 	}
 	var eps []naming.Endpoint
-	if args.Device.ListenSpec.Proxy != "" {
+	if proxy := args.Device.ListenSpec.Proxy; proxy != "" {
 		for {
 			status := server.Status()
-			if proxies := status.Proxies; len(proxies) > 0 && proxies[0].Error == nil {
+			if err, ok := status.ProxyErrors[proxy]; ok && err == nil {
 				eps = status.Endpoints
 				break
 			}

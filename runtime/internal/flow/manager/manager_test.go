@@ -133,8 +133,7 @@ func TestStopListening(t *testing.T) {
 	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0)
 	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 
-	leps, _ := am.ListeningEndpoints()
-	lameEP := leps[0]
+	lameEP := am.Status().Endpoints[0]
 	am.StopListening(ctx)
 
 	if f, err := dm.Dial(ctx, lameEP, flowtest.AllowAllPeersAuthorizer{}, 0); err == nil {
@@ -147,8 +146,7 @@ func TestStopListening(t *testing.T) {
 }
 
 func testFlows(t *testing.T, ctx *context.T, dm, am flow.Manager, auth flow.PeerAuthorizer) (df, af flow.Flow) {
-	eps, _ := am.ListeningEndpoints()
-	ep := eps[0]
+	ep := am.Status().Endpoints[0]
 	var err error
 	df, err = dm.Dial(ctx, ep, auth, 0)
 	if err != nil {

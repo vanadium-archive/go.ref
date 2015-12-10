@@ -197,17 +197,6 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 			t.Errorf("Got %v want %v for endpoint #%d/%d: %v", got, want, idx, len(status.Endpoints), ep)
 		}
 	}
-
-	// The tests below are dubious: status.Proxies[i].Endpoints is
-	// empty for all i because at the time this test was written,
-	// no proxies were started. Anyway, just to express the
-	// intent...
-	for _, proxy := range status.Proxies {
-		ep := proxy.Endpoint
-		if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
-			t.Errorf("Got %v want %v for proxy %+v", got, want, proxy.Proxy)
-		}
-	}
 }
 
 type dischargeService struct {

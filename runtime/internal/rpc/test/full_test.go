@@ -292,10 +292,11 @@ func TestPreferredAddressErrors(t *testing.T) {
 	if got, want := len(status.Endpoints), 1; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
-	if got, want := len(status.Errors), 1; got != want {
+	if got, want := len(status.ListenErrors), 1; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
-	if got, want := status.Errors[0].Error(), "oops"; !strings.Contains(got, want) {
+	addr := v23.GetListenSpec(sctx).Addrs[0]
+	if got, want := status.ListenErrors[addr].Error(), "oops"; !strings.Contains(got, want) {
 		t.Errorf("got %d, want %d", got, want)
 	}
 }

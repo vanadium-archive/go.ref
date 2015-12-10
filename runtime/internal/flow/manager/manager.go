@@ -58,6 +58,7 @@ type listenState struct {
 	listeners      []flow.Listener
 	endpoints      []*endpointState
 	proxyEndpoints []naming.Endpoint
+	proxyErrors    map[string]error
 	notifyWatchers chan struct{}
 	roaming        bool
 	stopRoaming    func()
@@ -88,6 +89,7 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 			notifyWatchers: make(chan struct{}),
 			dhcpPublisher:  dhcpPublisher,
 			proxyFlows:     make(map[string]flow.Flow),
+			proxyErrors:    make(map[string]error),
 		}
 	}
 	go func() {
@@ -304,7 +306,9 @@ func getHostPort(address net.Addr) (string, string) {
 // Otherwise, if error == nil, the returned chan will block until the
 // connection to the proxy endpoint fails. The caller may then choose to retry
 // the connection.
-func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) (<-chan struct{}, error) {
+// name is a identifier of the proxy. It can be used to access errors
+// in ListenStatus.ProxyErrors.
+func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (<-chan struct{}, error) {
 	if m.ls == nil {
 		return nil, NewErrListeningWithNullRid(ctx)
 	}
@@ -316,26 +320,30 @@ func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) (<-chan struct
 	m.ls.mu.Lock()
 	m.ls.proxyFlows[k] = f
 	m.ls.mu.Unlock()
-	proxyDone := func() {
+	proxyDone := func(err error) {
 		m.updateProxyEndpoints(nil)
 		m.ls.mu.Lock()
 		delete(m.ls.proxyFlows, k)
+		m.ls.proxyErrors[name] = err
 		m.ls.mu.Unlock()
 	}
 	w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
 	if err != nil {
-		proxyDone()
+		proxyDone(err)
 		return nil, err
 	}
 	if _, err = f.WriteMsg(w); err != nil {
-		proxyDone()
+		proxyDone(err)
 		return nil, err
 	}
 	// We connect to the proxy once before we loop.
 	if err := m.readAndUpdateProxyEndpoints(ctx, f); err != nil {
-		proxyDone()
+		proxyDone(err)
 		return nil, err
 	}
+	m.ls.mu.Lock()
+	m.ls.proxyErrors[name] = nil
+	m.ls.mu.Unlock()
 	// We do exponential backoff unless the proxy closes the flow cleanly, in which
 	// case we redial immediately.
 	done := make(chan struct{})
@@ -345,7 +353,7 @@ func (m *manager) ProxyListen(ctx *context.T, ep naming.Endpoint) (<-chan struct
 			// flow has been closed.
 			if err := m.readAndUpdateProxyEndpoints(ctx, f); err != nil {
 				ctx.VI(2).Info(err)
-				proxyDone()
+				proxyDone(err)
 				close(done)
 				return
 			}
@@ -374,7 +382,7 @@ func (m *manager) updateProxyEndpoints(eps []naming.Endpoint) {
 	}
 	m.ls.proxyEndpoints = eps
 	// The proxy endpoints have changed so we need to notify any watchers to
-	// requery ListeningEndpoints.
+	// requery Status.
 	if m.ls.notifyWatchers != nil {
 		close(m.ls.notifyWatchers)
 		m.ls.notifyWatchers = make(chan struct{})
@@ -585,30 +593,30 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 	return nil
 }
 
-// ListeningEndpoints returns the endpoints that the Manager has explicitly
-// called Listen on. The Manager will accept new flows on these endpoints.
-// Proxied endpoints are not returned.
-// If the Manager is not listening on any endpoints, an endpoint with the
-// Manager's RoutingID will be returned for use in bidirectional RPC.
-// Returned endpoints all have the Manager's unique RoutingID.
-func (m *manager) ListeningEndpoints() (out []naming.Endpoint, changed <-chan struct{}) {
+// Status returns the current flow.ListenStatus of the manager.
+func (m *manager) Status() flow.ListenStatus {
+	var status flow.ListenStatus
 	if m.ls == nil {
-		return nil, nil
+		return status
 	}
 	m.ls.mu.Lock()
-	out = make([]naming.Endpoint, len(m.ls.proxyEndpoints))
-	copy(out, m.ls.proxyEndpoints)
+	status.Endpoints = make([]naming.Endpoint, len(m.ls.proxyEndpoints))
+	copy(status.Endpoints, m.ls.proxyEndpoints)
 	for _, epState := range m.ls.endpoints {
 		for _, ep := range epState.leps {
-			out = append(out, ep)
+			status.Endpoints = append(status.Endpoints, ep)
 		}
 	}
-	changed = m.ls.notifyWatchers
-	m.ls.mu.Unlock()
-	if len(out) == 0 {
-		out = append(out, &inaming.Endpoint{Protocol: bidi.Name, RID: m.rid})
+	status.ProxyErrors = make(map[string]error)
+	for k, v := range m.ls.proxyErrors {
+		status.ProxyErrors[k] = v
 	}
-	return out, changed
+	status.Valid = m.ls.notifyWatchers
+	m.ls.mu.Unlock()
+	if len(status.Endpoints) == 0 {
+		status.Endpoints = append(status.Endpoints, &inaming.Endpoint{Protocol: bidi.Name, RID: m.rid})
+	}
+	return status
 }
 
 // Accept blocks until a new Flow has been initiated by a remote process.
