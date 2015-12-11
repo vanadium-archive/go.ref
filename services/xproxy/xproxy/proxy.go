@@ -70,7 +70,8 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 			return nil, err
 		}
 	}
-	leps, changed := p.m.ListeningEndpoints()
+	mgrStat := p.m.Status()
+	leps, changed := mgrStat.Endpoints, mgrStat.Valid
 	p.updateListeningEndpoints(ctx, leps)
 	p.wg.Add(2)
 	go p.updateEndpointsLoop(ctx, changed)
@@ -95,11 +96,11 @@ func (p *proxy) Closed() <-chan struct{} {
 
 func (p *proxy) updateEndpointsLoop(ctx *context.T, changed <-chan struct{}) {
 	defer p.wg.Done()
-	var leps []naming.Endpoint
 	for changed != nil {
 		<-changed
-		leps, changed = p.m.ListeningEndpoints()
-		p.updateListeningEndpoints(ctx, leps)
+		mgrStat := p.m.Status()
+		changed = mgrStat.Valid
+		p.updateListeningEndpoints(ctx, mgrStat.Endpoints)
 	}
 }
 
@@ -183,9 +184,8 @@ func setDiff(a, b map[string]naming.Endpoint) map[string]naming.Endpoint {
 }
 
 func (p *proxy) ListeningEndpoints() []naming.Endpoint {
-	// TODO(suharshs): Return changed channel here as well.
-	eps, _ := p.m.ListeningEndpoints()
-	return eps
+	// TODO(suharshs): Return other struct information here as well.
+	return p.m.Status().Endpoints
 }
 
 func (p *proxy) MultipleProxyEndpoints() []naming.Endpoint {
@@ -370,7 +370,7 @@ func (p *proxy) replyToProxyLocked(ctx *context.T, f flow.Flow) error {
 }
 
 func (p *proxy) returnEndpointsLocked(ctx *context.T, rid naming.RoutingID, route string) ([]naming.Endpoint, error) {
-	eps, _ := p.m.ListeningEndpoints()
+	eps := p.m.Status().Endpoints
 	for _, peps := range p.proxyEndpoints {
 		eps = append(eps, peps...)
 	}
