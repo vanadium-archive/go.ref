@@ -298,20 +298,11 @@ func createRowConflictInfo(ctx *context.T, iSt *initiationState, oid string, bat
 	op := wire.RowOp{}
 	op.Key = util.StripFirstKeyPartOrDie(oid)
 	objSt := iSt.updObjects[oid]
-	ancestorVer := objSt.ancestor
-	if ancestorVer != NoVersion {
-		op.AncestorValue = createValueObj(ctx, iSt, oid, ancestorVer)
-	}
 
-	localVer := objSt.oldHead
-	if localVer != NoVersion {
-		op.LocalValue = createValueObj(ctx, iSt, oid, localVer)
-	}
+	op.AncestorValue = createValueObj(ctx, iSt, oid, objSt.ancestor, true)
+	op.LocalValue = createValueObj(ctx, iSt, oid, objSt.oldHead, false)
+	op.RemoteValue = createValueObj(ctx, iSt, oid, objSt.newHead, false)
 
-	remoteVer := objSt.newHead
-	if remoteVer != NoVersion {
-		op.RemoteValue = createValueObj(ctx, iSt, oid, remoteVer)
-	}
 	row := wire.RowInfo{
 		Op:       wire.OperationWrite{Value: op},
 		BatchIds: batches,
@@ -322,18 +313,28 @@ func createRowConflictInfo(ctx *context.T, iSt *initiationState, oid string, bat
 	}
 }
 
-func createValueObj(ctx *context.T, iSt *initiationState, oid, ver string) *wire.Value {
+func createValueObj(ctx *context.T, iSt *initiationState, oid, ver string, isAncestor bool) *wire.Value {
+	if ver == NoVersion {
+		if isAncestor {
+			return &wire.Value{State: wire.ValueStateNoExists}
+		}
+		return &wire.Value{State: wire.ValueStateUnknown}
+	}
 	dagNode, err := getNode(ctx, iSt.tx, oid, ver)
 	if err != nil {
 		vlog.Fatalf("sync: resolveViaApp: error while fetching dag node: %v", err)
 	}
 	var bytes []byte = nil
+	valueState := wire.ValueStateDeleted
+
 	if !dagNode.Deleted {
 		bytes = getObjectAtVer(ctx, iSt, oid, ver)
+		valueState = wire.ValueStateExists
 	}
 	return &wire.Value{
+		State:   valueState,
 		Bytes:   bytes,
-		WriteTs: getLocalLogRec(ctx, iSt, oid, ver).Metadata.UpdTime.UnixNano(),
+		WriteTs: getLocalLogRec(ctx, iSt, oid, ver).Metadata.UpdTime,
 	}
 }
 
