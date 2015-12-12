@@ -5,12 +5,11 @@
 package main_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
-	"syscall"
+	"testing"
 	"time"
 
 	"v.io/v23"
@@ -21,14 +20,13 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/groups"
 	"v.io/v23/verror"
+	"v.io/x/lib/gosh"
 	"v.io/x/lib/set"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/services/groups/groupsd/testdata/kvstore"
-	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/v23tests"
+	"v.io/x/ref/test/expect"
 )
-
-//go:generate jiri test generate
 
 type relateResult struct {
 	Remainder      map[string]struct{}
@@ -36,42 +34,44 @@ type relateResult struct {
 	Version        string
 }
 
-// V23TestGroupServerIntegration tests the integration between the
+// TestGroupServerIntegration tests the integration between the
 // "groups" command-line client and the "groupsd" server.
-func V23TestGroupServerIntegration(t *v23tests.T) {
-	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
+func TestGroupServerIntegration(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+	sh.StartRootMountTable()
 
 	// Build binaries for the client and server.
 	var (
-		clientBin  = t.BuildV23Pkg("v.io/x/ref/services/groups/groups")
-		serverBin  = t.BuildV23Pkg("v.io/x/ref/services/groups/groupsd", "-tags=leveldb")
+		clientBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/groups/groups")
+		serverBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/groups/groupsd", "-tags=leveldb")
 		serverName = "groups-server"
 		groupA     = naming.Join(serverName, "groupA")
 		groupB     = naming.Join(serverName, "groupB")
 	)
 
 	// Start the groups server.
-	serverBin.Start("-name="+serverName, "-v23.tcp.address=127.0.0.1:0")
+	sh.Cmd(serverBin, "-name="+serverName, "-v23.tcp.address=127.0.0.1:0").Start()
 
 	// Create a couple of groups.
-	clientBin.Start("create", groupA).WaitOrDie(os.Stdout, os.Stderr)
-	clientBin.Start("create", groupB, "a", "a:b").WaitOrDie(os.Stdout, os.Stderr)
+	sh.Cmd(clientBin, "create", groupA).Run()
+	sh.Cmd(clientBin, "create", groupB, "a", "a:b").Run()
 
 	// Add a couple of blessing patterns.
-	clientBin.Start("add", groupA, "<grp:groups-server/groupB>").WaitOrDie(os.Stdout, os.Stderr)
-	clientBin.Start("add", groupA, "a").WaitOrDie(os.Stdout, os.Stderr)
-	clientBin.Start("add", groupB, "a:b:c").WaitOrDie(os.Stdout, os.Stderr)
+	sh.Cmd(clientBin, "add", groupA, "<grp:groups-server/groupB>").Run()
+	sh.Cmd(clientBin, "add", groupA, "a").Run()
+	sh.Cmd(clientBin, "add", groupB, "a:b:c").Run()
 
 	// Remove a blessing pattern.
-	clientBin.Start("remove", groupB, "a").WaitOrDie(os.Stdout, os.Stderr)
+	sh.Cmd(clientBin, "remove", groupB, "a").Run()
 
 	// Test simple group resolution.
 	{
-		var buffer, stderrBuf bytes.Buffer
-		clientBin.Start("relate", groupB, "a:b:c:d").WaitOrDie(&buffer, &stderrBuf)
+		stdout, stderr := sh.Cmd(clientBin, "relate", groupB, "a:b:c:d").Output()
+
 		var got relateResult
-		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
-			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
+		if err := json.Unmarshal(stdout, &got); err != nil {
+			t.Fatalf("Unmarshal(%v) failed: %v", string(stdout), err)
 		}
 		want := relateResult{
 			Remainder:      set.String.FromSlice([]string{"c:d", "d"}),
@@ -81,18 +81,18 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got %v, want %v", got, want)
 		}
-		if got, want := stderrBuf.Len(), 0; got != want {
+		if got, want := len(stderr), 0; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 
 	// Test recursive group resolution.
 	{
-		var buffer, stderrBuf bytes.Buffer
-		clientBin.Start("relate", groupA, "a:b:c:d").WaitOrDie(&buffer, &stderrBuf)
+		stdout, stderr := sh.Cmd(clientBin, "relate", groupA, "a:b:c:d").Output()
+
 		var got relateResult
-		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
-			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
+		if err := json.Unmarshal(stdout, &got); err != nil {
+			t.Fatalf("Unmarshal(%v) failed: %v", string(stdout), err)
 		}
 		want := relateResult{
 			Remainder:      set.String.FromSlice([]string{"b:c:d", "c:d", "d"}),
@@ -102,7 +102,7 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got %v, want %v", got, want)
 		}
-		if got, want := stderrBuf.Len(), 0; got != want {
+		if got, want := len(stderr), 0; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
 	}
@@ -110,12 +110,13 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 	// Test group resolution failure. Note that under-approximation is
 	// used as the default to handle resolution failures.
 	{
-		clientBin.Start("add", groupB, "<grp:groups-server/groupC>").WaitOrDie(os.Stdout, os.Stderr)
-		var buffer, stderrBuf bytes.Buffer
-		clientBin.Start("relate", groupB, "a:b:c:d").WaitOrDie(&buffer, &stderrBuf)
+		sh.Cmd(clientBin, "add", groupB, "<grp:groups-server/groupC>").Run()
+
+		stdout, stderr := sh.Cmd(clientBin, "relate", groupB, "a:b:c:d").Output()
+
 		var got relateResult
-		if err := json.Unmarshal(buffer.Bytes(), &got); err != nil {
-			t.Fatalf("Unmarshal(%v) failed: %v", buffer.String(), err)
+		if err := json.Unmarshal(stdout, &got); err != nil {
+			t.Fatalf("Unmarshal(%v) failed: %v", string(stdout), err)
 		}
 		want := relateResult{
 			Remainder: set.String.FromSlice([]string{"c:d", "d"}),
@@ -130,14 +131,14 @@ func V23TestGroupServerIntegration(t *v23tests.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got %v, want %v", got, want)
 		}
-		if got, want := stderrBuf.Len(), 0; got != want {
+		if got, want := len(stderr), 0; got != want {
 			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 
 	// Delete the groups.
-	clientBin.Start("delete", groupA).WaitOrDie(os.Stdout, os.Stderr)
-	clientBin.Start("delete", groupB).WaitOrDie(os.Stdout, os.Stderr)
+	sh.Cmd(clientBin, "delete", groupA).Run()
+	sh.Cmd(clientBin, "delete", groupB).Run()
 }
 
 // store implements the kvstore.Store interface.
@@ -160,8 +161,8 @@ const (
 	setOK        = "SET OK"
 )
 
-var runServer = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.V23Init()
+var runServer = gosh.Register("server", func() error {
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 	// Use a shorter timeout to reduce the test overall runtime as the
 	// permission authorizer will attempt to connect to a non-existing
@@ -177,106 +178,93 @@ var runServer = modules.Register(func(env *modules.Env, args ...string) error {
 	if _, _, err := v23.WithNewServer(ctx, kvServerName, kvstore.StoreServer(&store{}), authorizer); err != nil {
 		return err
 	}
-	modules.WaitForEOF(env.Stdin)
+	<-signals.ShutdownOnSignals(nil)
 	return nil
-}, "server")
+})
 
-var runClient = modules.Register(func(env *modules.Env, args ...string) error {
+var runClient = gosh.Register("client", func(command string, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	if got, want := len(args), 1; got < want {
-		return fmt.Errorf("unexpected number of arguments: got %v, want at least %v", got, want)
-	}
-	command := args[0]
 	client := kvstore.StoreClient(kvServerName)
 	switch command {
 	case "get":
+		if got, want := len(args), 1; got != want {
+			return fmt.Errorf("unexpected number of arguments: got %v, want %v", got, want)
+		}
+		key := args[0]
+		value, err := client.Get(ctx, key)
+		if err != nil {
+			fmt.Printf("%v %v\n", getFailed, verror.ErrorID(err))
+		} else {
+			fmt.Printf("%v %v\n", getOK, value)
+		}
+	case "set":
 		if got, want := len(args), 2; got != want {
 			return fmt.Errorf("unexpected number of arguments: got %v, want %v", got, want)
 		}
-		key := args[1]
-		value, err := client.Get(ctx, key)
-		if err != nil {
-			fmt.Fprintf(env.Stdout, "%v %v\n", getFailed, verror.ErrorID(err))
-		} else {
-			fmt.Fprintf(env.Stdout, "%v %v\n", getOK, value)
-		}
-	case "set":
-		if got, want := len(args), 3; got != want {
-			return fmt.Errorf("unexpected number of arguments: got %v, want %v", got, want)
-		}
-		key, value := args[1], args[2]
+		key, value := args[0], args[1]
 		if err := client.Set(ctx, key, value); err != nil {
-			fmt.Fprintf(env.Stdout, "%v %v\n", setFailed, verror.ErrorID(err))
+			fmt.Printf("%v %v\n", setFailed, verror.ErrorID(err))
 		} else {
-			fmt.Fprintf(env.Stdout, "%v\n", setOK)
+			fmt.Printf("%v\n", setOK)
 		}
 	}
 	return nil
-}, "client")
+})
 
-func startClient(t *v23tests.T, name string, args ...string) modules.Handle {
-	creds, err := t.Shell().NewChildCredentials(name)
-	if err != nil {
-		t.Fatalf("NewChildCredentials(%v) failed: %v", name, err)
-	}
-	handle, err := t.Shell().StartWithOpts(
-		t.Shell().DefaultStartOpts().WithCustomCredentials(creds).WithSessions(t, time.Minute),
-		nil,
-		runClient,
-		args...,
-	)
-	if err != nil {
-		t.Fatalf("StartWithOpts() failed: %v", err)
-	}
-	return handle
+func startClient(t *testing.T, sh *v23test.Shell, name string, args ...interface{}) *expect.Session {
+	cmd := sh.Fn(runClient, args...).WithCredentials(sh.ForkCredentials(name))
+	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
+	cmd.Start()
+	return session
 }
 
-// V23TestGroupServerAuthorization uses an instance of the
+// TestGroupServerAuthorization uses an instance of the
 // KeyValueStore server with an groups-based authorizer to test the
 // group server implementation.
-func V23TestGroupServerAuthorization(t *v23tests.T) {
-	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
+func TestGroupServerAuthorization(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+	sh.StartRootMountTable()
 
 	// Build binaries for the groups client and server.
 	var (
-		clientBin  = t.BuildV23Pkg("v.io/x/ref/services/groups/groups")
-		serverBin  = t.BuildV23Pkg("v.io/x/ref/services/groups/groupsd")
+		clientBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/groups/groups")
+		serverBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/groups/groupsd")
 		serverName = "groups-server"
 		readers    = naming.Join(serverName, "readers")
 		writers    = naming.Join(serverName, "writers")
 	)
 
 	// Start the groups server.
-	server := serverBin.Start("-name="+serverName, "-v23.tcp.address=127.0.0.1:0")
+	server := sh.Cmd(serverBin, "-name="+serverName, "-v23.tcp.address=127.0.0.1:0")
+	server.Start()
 
 	// Create a couple of groups. The <readers> and <writers> groups
 	// identify blessings that can be used to read from and write to the
 	// key value store server respectively.
-	clientBin.Start("create", readers, "root:alice", "root:bob").WaitOrDie(os.Stdout, os.Stderr)
-	clientBin.Start("create", writers, "root:alice").WaitOrDie(os.Stdout, os.Stderr)
+	sh.Cmd(clientBin, "create", readers, "root:alice", "root:bob").Run()
+	sh.Cmd(clientBin, "create", writers, "root:alice").Run()
 
 	// Start an instance of the key value store server.
-	if _, err := t.Shell().Start(nil, runServer); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
+	sh.Fn(runServer).Start()
 
 	// Test that alice can write.
-	startClient(t, "alice", "set", "foo", "bar").Expect(setOK)
+	startClient(t, sh, "alice", "set", "foo", "bar").Expect(setOK)
 	// Test that alice can read.
-	startClient(t, "alice", "get", "foo").Expectf("%v %v", getOK, "bar")
+	startClient(t, sh, "alice", "get", "foo").Expectf("%v %v", getOK, "bar")
 	// Test that bob can read.
-	startClient(t, "bob", "get", "foo").Expectf("%v %v", getOK, "bar")
+	startClient(t, sh, "bob", "get", "foo").Expectf("%v %v", getOK, "bar")
 	// Test that bob cannot write.
-	startClient(t, "bob", "set", "foo", "bar").Expectf("%v %v", setFailed, verror.ErrNoAccess.ID)
+	startClient(t, sh, "bob", "set", "foo", "bar").Expectf("%v %v", setFailed, verror.ErrNoAccess.ID)
+
 	// Stop the groups server and check that as a consequence "alice"
 	// cannot read from the key value store server anymore.
-	if err := server.Kill(syscall.SIGTERM); err != nil {
-		t.Fatalf("Kill() failed: %v", err)
-	}
-	if err := server.Wait(os.Stdout, os.Stderr); err != nil {
-		t.Fatalf("Wait() failed: %v", err)
-	}
-	startClient(t, "alice", "get", "foo").Expectf("%v %v", getFailed, verror.ErrNoAccess.ID)
+	server.Shutdown(os.Interrupt)
+	startClient(t, sh, "alice", "get", "foo").Expectf("%v %v", getFailed, verror.ErrNoAccess.ID)
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }
