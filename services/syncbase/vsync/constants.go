@@ -24,6 +24,7 @@ const (
 	// is defined below, and <sgoid> is <sgDataPrefix>:<GroupId>.
 	logDataPrefix = "d"
 
-	// Prefix used in the discovery service instance ID for syncgroups.
-	discoverySyncgroupPrefix = "sg"
+	// Types of discovery service attributes.
+	discoveryAttrPeer      = "p"
+	discoveryAttrSyncgroup = "sg"
 )

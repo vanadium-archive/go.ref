@@ -7,7 +7,6 @@ package vsync
 // Sync utility functions
 
 import (
-	"encoding/base64"
 	"time"
 
 	"v.io/v23/context"
@@ -104,19 +103,4 @@ func toTableRowPrefixStr(p wire.TableRow) string {
 // name and row key as separate fields in a "TableRow" struct.
 func toRowKey(tableRow string) string {
 	return util.JoinKeyParts(util.RowPrefix, tableRow)
-}
-
-// base64Encode returns the base64 encoding of the given string.
-func base64Encode(s string) string {
-	return base64.StdEncoding.EncodeToString([]byte(s))
-}
-
-// base64Decode returns the original string from its base64-encoded form.
-// If the input string is not a valid base64-encoded value, panic.
-func base64Decode(s string) string {
-	out, err := base64.StdEncoding.DecodeString(s)
-	if err != nil {
-		vlog.Fatalf("sync: base64Decode: invalid input string %s: %v", s, err)
-	}
-	return string(out)
 }

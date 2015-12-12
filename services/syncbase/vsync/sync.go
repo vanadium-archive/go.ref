@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"math/rand"
 	"path"
-	"strings"
 	"sync"
 	"time"
 
@@ -86,10 +85,13 @@ type syncService struct {
 	allMembers     *memberView
 	allMembersLock sync.RWMutex
 
-	// In-memory maps of sync peers and syncgroups found in the neighborhood
-	// through the discovery service.  For the sync peers map, the keys are
-	// the Syncbase names.  For the syncgroups map, the outer-map keys are
-	// the syncgroup names, the inner-map keys are the Syncbase names.
+	// In-memory maps of neighborhood information found via the discovery
+	// service.  The IDs map gathers all the neighborhood info using the
+	// instance IDs as keys.  The sync peers map is a secondary index to
+	// access the info using the Syncbase names as keys.  The syncgroups
+	// map is a secondary index to access the info using the syncgroup names
+	// as keys of the outer-map, and instance IDs as keys of the inner-map.
+	discoveryIds        map[string]*discovery.Service
 	discoveryPeers      map[string]*discovery.Service
 	discoverySyncgroups map[string]map[string]*discovery.Service
 	discoveryLock       sync.RWMutex
@@ -296,71 +298,78 @@ func (s *syncService) discoverNeighborhood(ctx *context.T) {
 	vlog.VI(1).Info("sync: discoverNeighborhood: channel closed, stop listening and exit")
 }
 
-// discoverySyncgroupInstanceId returns the discovery instance ID for a given
-// syncgroup and peer.
-func discoverySyncgroupInstanceId(sgName, peerName string) string {
-	return strings.Join([]string{discoverySyncgroupPrefix, base64Encode(sgName), peerName}, ":")
-}
-
 // updateDiscoveryInfo adds or removes information about a sync peer or a
 // syncgroup found in the neighborhood through the discovery service.  If the
-// service entry is nil the record is removed from its discovery map.  The
-// instance ID string encodes the type of information received:
-// - "<peerName>" for sync peer info
-// - "sg:<sgName>:<peerName>" for syncgroup admin info
-// Note: the semicolon separator is safe to use here because both the syncgroup
-// name (base64-encoded) and peer name (hex number) do not contain a semicolon.
-// The regular Syncbase separator \xfe cannot be used because the discovery
-// service requires instance IDs to be valid UTF-8 strings.
+// service entry is nil the record is removed from its discovery map.  The peer
+// and syncgroup information is stored in the service attributes.
 func (s *syncService) updateDiscoveryInfo(id string, service *discovery.Service) {
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
 	vlog.VI(3).Infof("sync: updateDiscoveryInfo: %s: %v", id, service)
 
-	if s.discoveryPeers == nil {
+	// The first time around initialize all discovery maps.
+	if s.discoveryIds == nil {
+		s.discoveryIds = make(map[string]*discovery.Service)
 		s.discoveryPeers = make(map[string]*discovery.Service)
-	}
-	if s.discoverySyncgroups == nil {
 		s.discoverySyncgroups = make(map[string]map[string]*discovery.Service)
 	}
 
-	// Parse the instance ID string to determine the type of discovery info.
-	parts := strings.Split(id, ":")
-	switch len(parts) {
-	case 1:
-		// Update the sync peer info.
+	// Determine the service entry type (sync peer or syncgroup) and its
+	// value either from the given service info or previously stored entry.
+	// Note: each entry only contains a single attribute.
+	var attrs discovery.Attributes
+	if service != nil {
+		attrs = service.Attrs
+	} else if serv := s.discoveryIds[id]; serv != nil {
+		attrs = serv.Attrs
+	}
+
+	if len(attrs) == 0 {
+		return
+	}
+
+	var attrKey, attrValue string
+	for k, v := range attrs {
+		attrKey, attrValue = k, v
+		break
+	}
+
+	switch attrKey {
+	case discoveryAttrPeer:
+		// The attribute value is the Syncbase peer name.
 		if service != nil {
-			s.discoveryPeers[parts[0]] = service
+			s.discoveryPeers[attrValue] = service
 		} else {
-			delete(s.discoveryPeers, parts[0])
+			delete(s.discoveryPeers, attrValue)
 		}
 
-	case 3:
-		switch parts[0] {
-		case discoverySyncgroupPrefix:
-			// Update the syncgroup admin info.
-			sgName := base64Decode(parts[1])
-			admins := s.discoverySyncgroups[sgName]
-			if service != nil {
-				if admins == nil {
-					admins = make(map[string]*discovery.Service)
-					s.discoverySyncgroups[sgName] = admins
-				}
-				admins[parts[2]] = service
-			} else if admins != nil {
-				delete(admins, parts[2])
-				if len(admins) == 0 {
-					delete(s.discoverySyncgroups, sgName)
-				}
+	case discoveryAttrSyncgroup:
+		// The attribute value is the syncgroup name.
+		admins := s.discoverySyncgroups[attrValue]
+		if service != nil {
+			if admins == nil {
+				admins = make(map[string]*discovery.Service)
+				s.discoverySyncgroups[attrValue] = admins
 			}
-
-		default:
-			vlog.Errorf("sync: updateDiscoveryInfo: invalid instance ID header: %s", id)
+			admins[id] = service
+		} else if admins != nil {
+			delete(admins, id)
+			if len(admins) == 0 {
+				delete(s.discoverySyncgroups, attrValue)
+			}
 		}
 
 	default:
-		vlog.Errorf("sync: updateDiscoveryInfo: invalid instance ID format: %s", id)
+		vlog.Errorf("sync: updateDiscoveryInfo: %s has invalid attribute key %q", id, attrKey)
+		return
+	}
+
+	// Add or remove the service entry from the main IDs map.
+	if service != nil {
+		s.discoveryIds[id] = service
+	} else {
+		delete(s.discoveryIds, id)
 	}
 }
 
@@ -387,7 +396,7 @@ func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[stri
 
 // discoverySyncgroupAdmins returns syncgroup admins found in the neighborhood
 // via the discovery service.
-func (s *syncService) discoverySyncgroupAdmins(sgName string) map[string]*discovery.Service {
+func (s *syncService) discoverySyncgroupAdmins(sgName string) []*discovery.Service {
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
@@ -400,10 +409,9 @@ func (s *syncService) discoverySyncgroupAdmins(sgName string) map[string]*discov
 		return nil
 	}
 
-	admins := make(map[string]*discovery.Service)
-
-	for peer, svc := range sgInfo {
-		admins[peer] = svc
+	admins := make([]*discovery.Service, 0, len(sgInfo))
+	for _, svc := range sgInfo {
+		admins = append(admins, svc)
 	}
 
 	return admins
@@ -450,9 +458,12 @@ func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
 	}
 
 	sbService := discovery.Service{
-		InstanceId:    s.name,
 		InterfaceName: ifName,
+		Attrs: discovery.Attributes{
+			discoveryAttrPeer: s.name,
+		},
 	}
+
 	ctx, stop := context.WithCancel(s.ctx)
 
 	// Duplicate calls to advertise will return an error.

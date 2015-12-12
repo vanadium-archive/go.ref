@@ -60,8 +60,14 @@ func TestPeerManager(t *testing.T) {
 	}
 
 	// Add a few peers to simulate neighborhood.
-	s.updateDiscoveryInfo("a", &discovery.Service{Addrs: []string{"aa", "aaa"}})
-	s.updateDiscoveryInfo("b", &discovery.Service{Addrs: []string{"bb", "bbb"}})
+	s.updateDiscoveryInfo("a", &discovery.Service{
+		Attrs: discovery.Attributes{discoveryAttrPeer: "a"},
+		Addrs: []string{"aa", "aaa"},
+	})
+	s.updateDiscoveryInfo("b", &discovery.Service{
+		Attrs: discovery.Attributes{discoveryAttrPeer: "b"},
+		Addrs: []string{"bb", "bbb"},
+	})
 
 	s.allMembers = nil // force a refresh of the members.
 

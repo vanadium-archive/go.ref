@@ -35,8 +35,15 @@ func TestPeerDiscovery(t *testing.T) {
 	checkPeers(peers, nil)
 
 	// Add peer neighbors.
-	svcA := &discovery.Service{Addrs: []string{"aa", "aaa"}}
-	svcB := &discovery.Service{Addrs: []string{"bb", "bbb"}}
+	svcA := &discovery.Service{
+		Attrs: discovery.Attributes{discoveryAttrPeer: "a"},
+		Addrs: []string{"aa", "aaa"},
+	}
+	svcB := &discovery.Service{
+		Attrs: discovery.Attributes{discoveryAttrPeer: "b"},
+		Addrs: []string{"bb", "bbb"},
+	}
+
 	s.updateDiscoveryInfo("a", svcA)
 	s.updateDiscoveryInfo("b", svcB)
 
@@ -64,9 +71,18 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	defer destroyService(t, svc)
 	s := svc.sync
 
-	checkSyncgroupAdmins := func(sgName string, want map[string]*discovery.Service) {
+	checkSyncgroupAdmins := func(sgName string, want []*discovery.Service) {
 		got := s.discoverySyncgroupAdmins(sgName)
-		if !reflect.DeepEqual(got, want) {
+
+		g := make(map[*discovery.Service]bool)
+		for _, e := range got {
+			g[e] = true
+		}
+		w := make(map[*discovery.Service]bool)
+		for _, e := range want {
+			w[e] = true
+		}
+		if !reflect.DeepEqual(g, w) {
 			t.Errorf("discoverySyncgroupAdmins: wrong data: got %v, want %v", got, want)
 		}
 	}
@@ -74,32 +90,41 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	checkSyncgroupAdmins("foo", nil)
 
 	// Add syncgroup admin neighbors.
-	svcA := &discovery.Service{Addrs: []string{"aa", "aaa"}}
-	svcB := &discovery.Service{Addrs: []string{"bb", "bbb"}}
-	svcC := &discovery.Service{Addrs: []string{"cc", "ccc"}}
+	svcA := &discovery.Service{
+		Attrs: discovery.Attributes{discoveryAttrSyncgroup: "foo"},
+		Addrs: []string{"aa", "aaa"},
+	}
+	svcB := &discovery.Service{
+		Attrs: discovery.Attributes{discoveryAttrSyncgroup: "foo"},
+		Addrs: []string{"bb", "bbb"},
+	}
+	svcC := &discovery.Service{
+		Attrs: discovery.Attributes{discoveryAttrSyncgroup: "bar"},
+		Addrs: []string{"cc", "ccc"},
+	}
 
-	s.updateDiscoveryInfo(discoverySyncgroupInstanceId("foo", "a"), svcA)
-	s.updateDiscoveryInfo(discoverySyncgroupInstanceId("foo", "b"), svcB)
-	s.updateDiscoveryInfo(discoverySyncgroupInstanceId("bar", "c"), svcC)
+	s.updateDiscoveryInfo("foo_a", svcA)
+	s.updateDiscoveryInfo("foo_b", svcB)
+	s.updateDiscoveryInfo("bar_c", svcC)
 
-	checkSyncgroupAdmins("foo", map[string]*discovery.Service{"a": svcA, "b": svcB})
-	checkSyncgroupAdmins("bar", map[string]*discovery.Service{"c": svcC})
+	checkSyncgroupAdmins("foo", []*discovery.Service{svcA, svcB})
+	checkSyncgroupAdmins("bar", []*discovery.Service{svcC})
 	checkSyncgroupAdmins("haha", nil)
 
 	// Remove an admin from the "foo" syncgroup.
-	s.updateDiscoveryInfo(discoverySyncgroupInstanceId("foo", "a"), nil)
+	s.updateDiscoveryInfo("foo_a", nil)
 
-	checkSyncgroupAdmins("foo", map[string]*discovery.Service{"b": svcB})
-	checkSyncgroupAdmins("bar", map[string]*discovery.Service{"c": svcC})
+	checkSyncgroupAdmins("foo", []*discovery.Service{svcB})
+	checkSyncgroupAdmins("bar", []*discovery.Service{svcC})
 
 	// Remove the other "foo" admin.
-	s.updateDiscoveryInfo(discoverySyncgroupInstanceId("foo", "b"), nil)
+	s.updateDiscoveryInfo("foo_b", nil)
 
 	checkSyncgroupAdmins("foo", nil)
-	checkSyncgroupAdmins("bar", map[string]*discovery.Service{"c": svcC})
+	checkSyncgroupAdmins("bar", []*discovery.Service{svcC})
 
 	// Remove the other "bar" admin.
-	s.updateDiscoveryInfo(discoverySyncgroupInstanceId("bar", "c"), nil)
+	s.updateDiscoveryInfo("bar_c", nil)
 
 	checkSyncgroupAdmins("bar", nil)
 }
