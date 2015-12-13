@@ -33,11 +33,11 @@ func V23TestAgentd(t *v23tests.T) {
 				"pingpongd:client",
 			},
 			{
-				[]string{vrun, pingpong, serverName},
+				[]string{vrun, "--i-really-need-vrun", pingpong, serverName},
 				"pingpongd:client:pingpong",
 			},
 			{
-				[]string{vrun, "--name=bugsy", pingpong, serverName},
+				[]string{vrun, "--i-really-need-vrun", "--name=bugsy", pingpong, serverName},
 				"pingpongd:client:bugsy",
 			},
 		}

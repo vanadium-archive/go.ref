@@ -8,6 +8,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -34,6 +35,7 @@ var (
 	durationFlag time.Duration
 	nameFlag     string
 	roleFlag     string
+	undeprecate  bool
 )
 
 var cmdVrun = &cmdline.Command{
@@ -52,11 +54,18 @@ func main() {
 	cmdVrun.Flags.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
 	cmdVrun.Flags.StringVar(&nameFlag, "name", "", "Name to use for the blessing. Uses the command name if unset.")
 	cmdVrun.Flags.StringVar(&roleFlag, "role", "", "Role object from which to request the blessing. If set, the blessings from this role server are used and --name is ignored. If not set, the default blessings of the calling principal are extended with --name.")
+	cmdVrun.Flags.BoolVar(&undeprecate, "i-really-need-vrun", false, "If you really need to use vrun because vbecome doesn't work for your use case, set this flag.  If you do, please let {ashankar,caprita}@google.com know about your use case.  Note that this is temporary, as the vrun tool will be removed at some point in the future.")
 
 	cmdline.Main(cmdVrun)
 }
 
 func vrun(ctx *context.T, env *cmdline.Env, args []string) error {
+	if undeprecate {
+		fmt.Fprintf(env.Stderr, "WARNING: vrun will be deprecated soon.  Please let {ashankar,caprita}@google.com know why you still need it.\n")
+	} else {
+		return env.UsageErrorf("the vrun tool is deprecated, please use vbecome instead.  If you really need vrun, see the --i-really-need-vrun flag.")
+	}
+
 	if len(args) == 0 {
 		args = []string{"bash", "--norc"}
 	}
