@@ -14,6 +14,11 @@ Usage:
 The vrun flags are:
  -duration=1h0m0s
    Duration for the blessing.
+ -i-really-need-vrun=false
+   If you really need to use vrun because vbecome doesn't work for your use
+   case, set this flag.  If you do, please let {ashankar,caprita}@google.com
+   know about your use case.  Note that this is temporary, as the vrun tool will
+   be removed at some point in the future.
  -name=
    Name to use for the blessing. Uses the command name if unset.
  -role=
