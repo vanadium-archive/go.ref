@@ -82,6 +82,7 @@ type contextKey int
 const (
 	storeKey = contextKey(iota)
 	spanKey
+	vtraceLevelKey
 )
 
 // Manager allows you to create new traces and spans and access the
@@ -195,6 +196,19 @@ func getSpan(ctx *context.T) *span {
 func getStore(ctx *context.T) *Store {
 	store, _ := ctx.Value(storeKey).(*Store)
 	return store
+}
+
+// WithVTraceLevel returns a child context with the vtrace level set.  This value is used
+// to determine which log messages are sent as part of the vtrace output.
+func WithVTraceLevel(ctx *context.T, level int) *context.T {
+	return context.WithValue(ctx, vtraceLevelKey, level)
+}
+
+// SetVTraceLevel returns the vtrace level This value is used
+// to determine which log messages are sent as part of the vtrace output.
+func GetVTraceLevel(ctx *context.T) int {
+	level, _ := ctx.Value(vtraceLevelKey).(int)
+	return level
 }
 
 // Init initializes vtrace and attaches some state to the context.

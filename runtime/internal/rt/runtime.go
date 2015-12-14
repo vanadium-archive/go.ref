@@ -130,6 +130,8 @@ func Init(
 		vtrace.FormatTraces(os.Stderr, vtrace.GetStore(ctx).TraceRecords(), nil)
 	})
 
+	ctx = context.WithContextLogger(ctx, &ivtrace.VTraceLogger{})
+
 	// Setup i18n.
 	ctx = i18n.WithLangID(ctx, i18n.LangIDFromEnv())
 	if len(flags.I18nCatalogue) != 0 {

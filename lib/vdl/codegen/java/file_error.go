@@ -71,18 +71,18 @@ func genJavaErrorFile(file *compile.File, err *compile.ErrorDef, env *compile.En
 		Source         string
 	}{
 		AccessModifier: accessModifierForName(err.Name),
-		ActionName: vdlutil.ToConstCase(err.RetryCode.String()),
-		ClassName: className,
-		Doc: javaDoc(err.Doc, err.DocSuffix),
-		EnglishFmt: err.English,
-		FileDoc: file.Package.FileDoc,
-		Formats: formats,
-		ID: err.ID,
-		MethodArgs: javaDeclarationArgStr(err.Params, env, true),
-		PackagePath: javaPath(javaGenPkgPath(file.Package.GenPath)),
-		Params: javaCallingArgStr(err.Params, false),
-		ParamTypes: javaCallingArgTypeStr(err.Params, env),
-		Source: file.BaseName,
+		ActionName:     vdlutil.ToConstCase(err.RetryCode.String()),
+		ClassName:      className,
+		Doc:            javaDoc(err.Doc, err.DocSuffix),
+		EnglishFmt:     err.English,
+		FileDoc:        file.Package.FileDoc,
+		Formats:        formats,
+		ID:             err.ID,
+		MethodArgs:     javaDeclarationArgStr(err.Params, env, true),
+		PackagePath:    javaPath(javaGenPkgPath(file.Package.GenPath)),
+		Params:         javaCallingArgStr(err.Params, false),
+		ParamTypes:     javaCallingArgTypeStr(err.Params, env),
+		Source:         file.BaseName,
 	}
 	var buf bytes.Buffer
 	if e := parseTmpl("error", errorTmpl).Execute(&buf, data); e != nil {
