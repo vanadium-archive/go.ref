@@ -13,8 +13,16 @@ import (
 	"v.io/v23/verror"
 )
 
+const (
+	// Limit the maximum length of instance id. Some plugins are using an instance id
+	// as a key (e.g., as a hostname in mDNS) and so its size can be limited by their
+	// protocols.
+	maxInstanceIdLen = 32
+)
+
 var (
 	errAlreadyBeingAdvertised = verror.Register(pkgPath+".errAlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised")
+	errInstanceIdTooLong      = verror.Register(pkgPath+".errInstanceIdTooLong", verror.NoRetry, "{1:}{2:} instance id too long")
 	errInvalidInstanceId      = verror.Register(pkgPath+".errInvalidInstanceId", verror.NoRetry, "{1:}{2:} instance id not valid")
 	errNoInterfaceName        = verror.Register(pkgPath+".errNoInterfaceName", verror.NoRetry, "{1:}{2:} interface name not provided")
 	errNotPackableAttributes  = verror.Register(pkgPath+".errNotPackableAttributes", verror.NoRetry, "{1:}{2:} attribute not packable")
@@ -30,9 +38,6 @@ func (ds *ds) Advertise(ctx *context.T, service *discovery.Service, visibility [
 	if len(service.Addrs) == 0 {
 		return nil, verror.New(errNoAddresses, ctx)
 	}
-	if err := validateAttributes(service.Attrs); err != nil {
-		return nil, err
-	}
 
 	if len(service.InstanceId) == 0 {
 		var err error
@@ -40,8 +45,15 @@ func (ds *ds) Advertise(ctx *context.T, service *discovery.Service, visibility [
 			return nil, err
 		}
 	}
+	if len(service.InstanceId) > maxInstanceIdLen {
+		return nil, verror.New(errInstanceIdTooLong, ctx)
+	}
 	if !utf8.ValidString(service.InstanceId) {
 		return nil, verror.New(errInvalidInstanceId, ctx)
+	}
+
+	if err := validateAttributes(service.Attrs); err != nil {
+		return nil, err
 	}
 
 	ad := Advertisement{

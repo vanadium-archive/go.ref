@@ -258,3 +258,30 @@ func TestClose(t *testing.T) {
 		t.Error("expect an error; but got none")
 	}
 }
+
+func TestInstanceId(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
+	defer ds.Close()
+
+	services := []discovery.Service{
+		{
+			InstanceId:    "\x01\x81", // Invalid UTF-8.
+			InterfaceName: "v.io/v23/a",
+			Addrs:         []string{"/h:123/x"},
+		},
+		{
+			InstanceId:    "123456789012345678901234567890123", // Too long.
+			InterfaceName: "v.io/v23/a",
+			Addrs:         []string{"/h:123/y"},
+		},
+	}
+
+	for i, service := range services {
+		if _, err := advertise(ctx, ds, nil, &service); err == nil {
+			t.Errorf("service[%d]: expect an error; but got none", i)
+		}
+	}
+}
