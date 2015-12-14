@@ -12,10 +12,15 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 
 	"v.io/x/lib/cmdline"
 
+	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/rpc"
+	"v.io/v23/security"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/internal"
@@ -26,17 +31,18 @@ import (
 )
 
 var (
-	disablePty, forcePty, noshell     bool
-	portforward, lprotocol, rprotocol string
+	disablePty, forcePty, noShell                                  bool
+	portForward, reversePortForward, localProtocol, remoteProtocol string
 )
 
 func main() {
 	cmdVsh.Flags.BoolVar(&disablePty, "T", false, "Disable pseudo-terminal allocation.")
 	cmdVsh.Flags.BoolVar(&forcePty, "t", false, "Force allocation of pseudo-terminal.")
-	cmdVsh.Flags.BoolVar(&noshell, "N", false, "Do not execute a shell.  Only do port forwarding.")
-	cmdVsh.Flags.StringVar(&portforward, "L", "", `Forward local to remote, format is "localaddr,remoteaddr".`)
-	cmdVsh.Flags.StringVar(&lprotocol, "local_protocol", "tcp", "Local network protocol for port forwarding.")
-	cmdVsh.Flags.StringVar(&rprotocol, "remote_protocol", "tcp", "Remote network protocol for port forwarding.")
+	cmdVsh.Flags.BoolVar(&noShell, "N", false, "Do not execute a shell.  Only do port forwarding.")
+	cmdVsh.Flags.StringVar(&portForward, "L", "", `Forward local to remote, format is "localAddress,remoteAddress".`)
+	cmdVsh.Flags.StringVar(&reversePortForward, "R", "", `Forward remote to local, format is "remoteAddress,localAddress".`)
+	cmdVsh.Flags.StringVar(&localProtocol, "local-protocol", "tcp", "Local network protocol for port forwarding.")
+	cmdVsh.Flags.StringVar(&remoteProtocol, "remote-protocol", "tcp", "Remote network protocol for port forwarding.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdVsh)
 }
@@ -56,8 +62,12 @@ To run a shell command, use:
   vsh <object name> <command to run>
 
 The -L flag will forward connections from a local port to a remote address
-through the tunneld service. The flag value is localaddr,remoteaddr. E.g.
+through the tunneld service. The flag value is localAddress,remoteAddress. E.g.
   -L :14141,www.google.com:80
+
+The -R flag will forward connections from a remote port on the tunneld service
+to a local address. The flag value is remoteAddress,localAddress. E.g.
+  -R :14141,www.google.com:80
 
 vsh can't be used directly with tools like rsync because vanadium object names
 don't look like traditional hostnames, which rsync doesn't understand. For
@@ -71,32 +81,33 @@ rsync will work as expected.
 `,
 	ArgsName: "<object name> [command]",
 	ArgsLong: `
-<object name> is the Vanadium object name to connect to.
+<object name> is the Vanadium object name of the server to connect to.
 
 [command] is the shell command and args to run, for non-interactive vsh.
 `,
 }
 
 func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
-	oname, cmd, err := objectNameAndCommandLine(env, args)
+	serverName, cmd, err := objectNameAndCommandLine(env, args)
 	if err != nil {
 		return env.UsageErrorf("%v", err)
 	}
 
-	t := tunnel.TunnelClient(oname)
-
-	if len(portforward) > 0 {
-		go runPortForwarding(ctx, t, oname)
+	if len(portForward) > 0 {
+		go runPortForwarding(ctx, serverName)
+	}
+	if len(reversePortForward) > 0 {
+		go runReversePortForwarding(ctx, serverName)
 	}
 
-	if noshell {
+	if noShell {
 		<-signals.ShutdownOnSignals(ctx)
 		return nil
 	}
 
 	opts := shellOptions(env, cmd)
 
-	stream, err := t.Shell(ctx, cmd, opts)
+	stream, err := tunnel.TunnelClient(serverName).Shell(ctx, cmd, opts)
 	if err != nil {
 		return err
 	}
@@ -106,7 +117,7 @@ func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	runIOManager(env.Stdin, env.Stdout, env.Stderr, stream)
 
-	exitMsg := fmt.Sprintf("Connection to %s closed.", oname)
+	exitMsg := fmt.Sprintf("Connection to %s closed.", serverName)
 	exitStatus, err := stream.Finish()
 	if err != nil {
 		exitMsg += fmt.Sprintf(" (%v)", err)
@@ -169,19 +180,17 @@ func objectNameAndCommandLine(env *cmdline.Env, args []string) (string, string, 
 	return name, cmd, nil
 }
 
-func runPortForwarding(ctx *context.T, t tunnel.TunnelClientMethods, oname string) {
-	// portforward is localaddr,remoteaddr
-	parts := strings.Split(portforward, ",")
-	var laddr, raddr string
+func runPortForwarding(ctx *context.T, serverName string) {
+	// portForward is localAddress,remoteAddress
+	parts := strings.Split(portForward, ",")
 	if len(parts) != 2 {
 		ctx.Fatalf("-L flag expects 2 values separated by a comma")
 	}
-	laddr = parts[0]
-	raddr = parts[1]
+	localAddress, remoteAddress := parts[0], parts[1]
 
-	ln, err := net.Listen(lprotocol, laddr)
+	ln, err := net.Listen(localProtocol, localAddress)
 	if err != nil {
-		ctx.Fatalf("net.Listen(%q, %q) failed: %v", lprotocol, laddr, err)
+		ctx.Fatalf("net.Listen(%q, %q) failed: %v", localProtocol, localAddress, err)
 	}
 	defer ln.Close()
 	ctx.VI(1).Infof("Listening on %q", ln.Addr())
@@ -191,13 +200,13 @@ func runPortForwarding(ctx *context.T, t tunnel.TunnelClientMethods, oname strin
 			ctx.Infof("Accept failed: %v", err)
 			continue
 		}
-		stream, err := t.Forward(ctx, rprotocol, raddr)
+		stream, err := tunnel.TunnelClient(serverName).Forward(ctx, remoteProtocol, remoteAddress)
 		if err != nil {
-			ctx.Infof("Tunnel(%q, %q) failed: %v", rprotocol, raddr, err)
+			ctx.Infof("Tunnel(%q, %q) failed: %v", remoteProtocol, remoteAddress, err)
 			conn.Close()
 			continue
 		}
-		name := fmt.Sprintf("%v-->%v-->(%v)-->%v", conn.RemoteAddr(), conn.LocalAddr(), oname, raddr)
+		name := fmt.Sprintf("%v-->%v-->(%v)-->%v", conn.RemoteAddr(), conn.LocalAddr(), serverName, remoteAddress)
 		go func() {
 			ctx.VI(1).Infof("TUNNEL START: %v", name)
 			errf := internal.Forward(conn, stream.SendStream(), stream.RecvStream())
@@ -205,4 +214,66 @@ func runPortForwarding(ctx *context.T, t tunnel.TunnelClientMethods, oname strin
 			ctx.VI(1).Infof("TUNNEL END  : %v (%v, %v)", name, errf, err)
 		}()
 	}
+}
+
+type forwarder struct {
+	network, address string
+}
+
+func (f *forwarder) Forward(ctx *context.T, call tunnel.ForwarderForwardServerCall) error {
+	conn, err := net.Dial(f.network, f.address)
+	if err != nil {
+		return err
+	}
+	b, _ := security.RemoteBlessingNames(ctx, call.Security())
+	name := fmt.Sprintf("RemoteBlessings:%v LocalAddr:%v RemoteAddr:%v", b, conn.LocalAddr(), conn.RemoteAddr())
+	ctx.Infof("TUNNEL START: %v", name)
+	err = internal.Forward(conn, call.SendStream(), call.RecvStream())
+	ctx.Infof("TUNNEL END  : %v (%v)", name, err)
+	return err
+}
+
+// This is a combined Authorizer and Granter. It is used as Authorizer for our
+// local forwarder server, and as a security callback (via the Granter option)
+// for the ReverserForward RPC.
+type authorizerGranterHack struct {
+	mu   sync.Mutex
+	auth security.Authorizer
+	rpc.CallOpt
+}
+
+func (a *authorizerGranterHack) Authorize(ctx *context.T, call security.Call) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.auth == nil {
+		return verror.New(verror.ErrNoAccess, ctx)
+	}
+	return a.auth.Authorize(ctx, call)
+}
+
+func (a *authorizerGranterHack) Grant(_ *context.T, call security.Call) (security.Blessings, error) {
+	a.mu.Lock()
+	a.auth = security.PublicKeyAuthorizer(call.RemoteBlessings().PublicKey())
+	a.mu.Unlock()
+	// Don't actually want to grant anything, just using the Granter as a
+	// callback to obtain the remote end's private key before the request
+	// is sent to it.
+	return security.Blessings{}, nil
+}
+
+func runReversePortForwarding(ctx *context.T, serverName string) {
+	// reversePortForward is remoteAddress,localAddress
+	parts := strings.Split(reversePortForward, ",")
+	if len(parts) != 2 {
+		ctx.Fatalf("-R flag expects 2 values separated by a comma")
+	}
+	remoteAddress, localAddress := parts[0], parts[1]
+
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{})
+	auth := &authorizerGranterHack{}
+	ctx, _, err := v23.WithNewServer(ctx, "", tunnel.ForwarderServer(&forwarder{localProtocol, localAddress}), auth)
+	if err != nil {
+		ctx.Fatalf("Failed to create server: %v", err)
+	}
+	tunnel.TunnelClient(serverName).ReverseForward(ctx, remoteProtocol, remoteAddress, auth)
 }

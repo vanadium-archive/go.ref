@@ -16,8 +16,12 @@ To run a shell command, use:
   vsh <object name> <command to run>
 
 The -L flag will forward connections from a local port to a remote address
-through the tunneld service. The flag value is localaddr,remoteaddr. E.g.
+through the tunneld service. The flag value is localAddress,remoteAddress. E.g.
   -L :14141,www.google.com:80
+
+The -R flag will forward connections from a remote port on the tunneld service
+to a local address. The flag value is remoteAddress,localAddress. E.g.
+  -R :14141,www.google.com:80
 
 vsh can't be used directly with tools like rsync because vanadium object names
 don't look like traditional hostnames, which rsync doesn't understand. For
@@ -32,20 +36,22 @@ rsync will work as expected.
 Usage:
    vsh [flags] <object name> [command]
 
-<object name> is the Vanadium object name to connect to.
+<object name> is the Vanadium object name of the server to connect to.
 
 [command] is the shell command and args to run, for non-interactive vsh.
 
 The vsh flags are:
  -L=
-   Forward local to remote, format is "localaddr,remoteaddr".
+   Forward local to remote, format is "localAddress,remoteAddress".
  -N=false
    Do not execute a shell.  Only do port forwarding.
+ -R=
+   Forward remote to local, format is "remoteAddress,localAddress".
  -T=false
    Disable pseudo-terminal allocation.
- -local_protocol=tcp
+ -local-protocol=tcp
    Local network protocol for port forwarding.
- -remote_protocol=tcp
+ -remote-protocol=tcp
    Remote network protocol for port forwarding.
  -t=false
    Force allocation of pseudo-terminal.

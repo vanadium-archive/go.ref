@@ -18,6 +18,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/logging"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/internal"
@@ -40,6 +41,43 @@ func (t *T) Forward(ctx *context.T, call tunnel.TunnelForwardServerCall, network
 	err = internal.Forward(conn, call.SendStream(), call.RecvStream())
 	ctx.Infof("TUNNEL END  : %v (%v)", name, err)
 	return err
+}
+
+func (t *T) ReverseForward(ctx *context.T, call rpc.ServerCall, network, address string) error {
+	ln, err := net.Listen(network, address)
+	if err != nil {
+		return err
+	}
+	defer ln.Close()
+	ctx.Infof("Listening on %q", ln.Addr())
+	remoteEP := call.RemoteEndpoint().Name()
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				ctx.Infof("Accept failed: %v", err)
+				if oErr, ok := err.(*net.OpError); ok && oErr.Temporary() {
+					continue
+				}
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				stream, err := tunnel.ForwarderClient(remoteEP).Forward(ctx)
+				if err != nil {
+					ctx.Infof("Forward failed: %v", err)
+					return
+				}
+				name := fmt.Sprintf("%v-->%v-->(%v)", c.RemoteAddr(), c.LocalAddr(), remoteEP)
+				ctx.Infof("TUNNEL START: %v", name)
+				errf := internal.Forward(c, stream.SendStream(), stream.RecvStream())
+				err = stream.Finish()
+				ctx.Infof("TUNNEL END  : %v (%v, %v)", name, errf, err)
+			}(conn)
+		}
+	}()
+	<-ctx.Done()
+	return nil
 }
 
 func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command string, shellOpts tunnel.ShellOpts) (int32, error) {

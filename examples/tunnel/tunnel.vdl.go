@@ -156,9 +156,14 @@ func init() {
 type TunnelClientMethods interface {
 	// The Forward method is used for network forwarding. All the data sent over
 	// the byte stream is forwarded to the requested network address and all the
-	// data received from that network connection is sent back in the reply
+	// data received from that network connection is sent back on the reply
 	// stream.
 	Forward(_ *context.T, network string, address string, _ ...rpc.CallOpt) (TunnelForwardClientCall, error)
+	// The ReverseForward method is used for network forwarding from the server
+	// back to the client. The server process listens on the requested network
+	// address, forwarding all connections by calling Forwarder.Forward on the
+	// caller.
+	ReverseForward(_ *context.T, network string, address string, _ ...rpc.CallOpt) error
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
@@ -188,6 +193,11 @@ func (c implTunnelClientStub) Forward(ctx *context.T, i0 string, i1 string, opts
 		return
 	}
 	ocall = &implTunnelForwardClientCall{ClientCall: call}
+	return
+}
+
+func (c implTunnelClientStub) ReverseForward(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "ReverseForward", []interface{}{i0, i1}, nil, opts...)
 	return
 }
 
@@ -409,9 +419,14 @@ func (c *implTunnelShellClientCall) Finish() (o0 int32, err error) {
 type TunnelServerMethods interface {
 	// The Forward method is used for network forwarding. All the data sent over
 	// the byte stream is forwarded to the requested network address and all the
-	// data received from that network connection is sent back in the reply
+	// data received from that network connection is sent back on the reply
 	// stream.
 	Forward(_ *context.T, _ TunnelForwardServerCall, network string, address string) error
+	// The ReverseForward method is used for network forwarding from the server
+	// back to the client. The server process listens on the requested network
+	// address, forwarding all connections by calling Forwarder.Forward on the
+	// caller.
+	ReverseForward(_ *context.T, _ rpc.ServerCall, network string, address string) error
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
@@ -427,9 +442,14 @@ type TunnelServerMethods interface {
 type TunnelServerStubMethods interface {
 	// The Forward method is used for network forwarding. All the data sent over
 	// the byte stream is forwarded to the requested network address and all the
-	// data received from that network connection is sent back in the reply
+	// data received from that network connection is sent back on the reply
 	// stream.
 	Forward(_ *context.T, _ *TunnelForwardServerCallStub, network string, address string) error
+	// The ReverseForward method is used for network forwarding from the server
+	// back to the client. The server process listens on the requested network
+	// address, forwarding all connections by calling Forwarder.Forward on the
+	// caller.
+	ReverseForward(_ *context.T, _ rpc.ServerCall, network string, address string) error
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
@@ -471,6 +491,10 @@ func (s implTunnelServerStub) Forward(ctx *context.T, call *TunnelForwardServerC
 	return s.impl.Forward(ctx, call, i0, i1)
 }
 
+func (s implTunnelServerStub) ReverseForward(ctx *context.T, call rpc.ServerCall, i0 string, i1 string) error {
+	return s.impl.ReverseForward(ctx, call, i0, i1)
+}
+
 func (s implTunnelServerStub) Shell(ctx *context.T, call *TunnelShellServerCallStub, i0 string, i1 ShellOpts) (int32, error) {
 	return s.impl.Shell(ctx, call, i0, i1)
 }
@@ -493,7 +517,16 @@ var descTunnel = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "Forward",
-			Doc:  "// The Forward method is used for network forwarding. All the data sent over\n// the byte stream is forwarded to the requested network address and all the\n// data received from that network connection is sent back in the reply\n// stream.",
+			Doc:  "// The Forward method is used for network forwarding. All the data sent over\n// the byte stream is forwarded to the requested network address and all the\n// data received from that network connection is sent back on the reply\n// stream.",
+			InArgs: []rpc.ArgDesc{
+				{"network", ``}, // string
+				{"address", ``}, // string
+			},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Admin"))},
+		},
+		{
+			Name: "ReverseForward",
+			Doc:  "// The ReverseForward method is used for network forwarding from the server\n// back to the client. The server process listens on the requested network\n// address, forwarding all connections by calling Forwarder.Forward on the\n// caller.",
 			InArgs: []rpc.ArgDesc{
 				{"network", ``}, // string
 				{"address", ``}, // string
@@ -680,5 +713,304 @@ type implTunnelShellServerCallSend struct {
 }
 
 func (s implTunnelShellServerCallSend) Send(item ServerShellPacket) error {
+	return s.s.Send(item)
+}
+
+// ForwarderClientMethods is the client interface
+// containing Forwarder methods.
+type ForwarderClientMethods interface {
+	// The Forward method is used for network forwarding. All the data sent over
+	// the byte stream is forwarded to a predetermined network address and all the
+	// data received from that network connection is sent back on the reply
+	// stream.
+	Forward(*context.T, ...rpc.CallOpt) (ForwarderForwardClientCall, error)
+}
+
+// ForwarderClientStub adds universal methods to ForwarderClientMethods.
+type ForwarderClientStub interface {
+	ForwarderClientMethods
+	rpc.UniversalServiceMethods
+}
+
+// ForwarderClient returns a client stub for Forwarder.
+func ForwarderClient(name string) ForwarderClientStub {
+	return implForwarderClientStub{name}
+}
+
+type implForwarderClientStub struct {
+	name string
+}
+
+func (c implForwarderClientStub) Forward(ctx *context.T, opts ...rpc.CallOpt) (ocall ForwarderForwardClientCall, err error) {
+	var call rpc.ClientCall
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Forward", nil, opts...); err != nil {
+		return
+	}
+	ocall = &implForwarderForwardClientCall{ClientCall: call}
+	return
+}
+
+// ForwarderForwardClientStream is the client stream for Forwarder.Forward.
+type ForwarderForwardClientStream interface {
+	// RecvStream returns the receiver side of the Forwarder.Forward client stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() []byte
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
+	}
+	// SendStream returns the send side of the Forwarder.Forward client stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors
+		// encountered while sending, or if Send is called after Close or
+		// the stream has been canceled.  Blocks if there is no buffer
+		// space; will unblock when buffer space is available or after
+		// the stream has been canceled.
+		Send(item []byte) error
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.
+		// This is an optional call - e.g. a client might call Close if it
+		// needs to continue receiving items from the server after it's
+		// done sending.  Returns errors encountered while closing, or if
+		// Close is called after the stream has been canceled.  Like Send,
+		// blocks if there is no buffer space available.
+		Close() error
+	}
+}
+
+// ForwarderForwardClientCall represents the call returned from Forwarder.Forward.
+type ForwarderForwardClientCall interface {
+	ForwarderForwardClientStream
+	// Finish performs the equivalent of SendStream().Close, then blocks until
+	// the server is done, and returns the positional return values for the call.
+	//
+	// Finish returns immediately if the call has been canceled; depending on the
+	// timing the output could either be an error signaling cancelation, or the
+	// valid positional return values from the server.
+	//
+	// Calling Finish is mandatory for releasing stream resources, unless the call
+	// has been canceled or any of the other methods return an error.  Finish should
+	// be called at most once.
+	Finish() error
+}
+
+type implForwarderForwardClientCall struct {
+	rpc.ClientCall
+	valRecv []byte
+	errRecv error
+}
+
+func (c *implForwarderForwardClientCall) RecvStream() interface {
+	Advance() bool
+	Value() []byte
+	Err() error
+} {
+	return implForwarderForwardClientCallRecv{c}
+}
+
+type implForwarderForwardClientCallRecv struct {
+	c *implForwarderForwardClientCall
+}
+
+func (c implForwarderForwardClientCallRecv) Advance() bool {
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implForwarderForwardClientCallRecv) Value() []byte {
+	return c.c.valRecv
+}
+func (c implForwarderForwardClientCallRecv) Err() error {
+	if c.c.errRecv == io.EOF {
+		return nil
+	}
+	return c.c.errRecv
+}
+func (c *implForwarderForwardClientCall) SendStream() interface {
+	Send(item []byte) error
+	Close() error
+} {
+	return implForwarderForwardClientCallSend{c}
+}
+
+type implForwarderForwardClientCallSend struct {
+	c *implForwarderForwardClientCall
+}
+
+func (c implForwarderForwardClientCallSend) Send(item []byte) error {
+	return c.c.Send(item)
+}
+func (c implForwarderForwardClientCallSend) Close() error {
+	return c.c.CloseSend()
+}
+func (c *implForwarderForwardClientCall) Finish() (err error) {
+	err = c.ClientCall.Finish()
+	return
+}
+
+// ForwarderServerMethods is the interface a server writer
+// implements for Forwarder.
+type ForwarderServerMethods interface {
+	// The Forward method is used for network forwarding. All the data sent over
+	// the byte stream is forwarded to a predetermined network address and all the
+	// data received from that network connection is sent back on the reply
+	// stream.
+	Forward(*context.T, ForwarderForwardServerCall) error
+}
+
+// ForwarderServerStubMethods is the server interface containing
+// Forwarder methods, as expected by rpc.Server.
+// The only difference between this interface and ForwarderServerMethods
+// is the streaming methods.
+type ForwarderServerStubMethods interface {
+	// The Forward method is used for network forwarding. All the data sent over
+	// the byte stream is forwarded to a predetermined network address and all the
+	// data received from that network connection is sent back on the reply
+	// stream.
+	Forward(*context.T, *ForwarderForwardServerCallStub) error
+}
+
+// ForwarderServerStub adds universal methods to ForwarderServerStubMethods.
+type ForwarderServerStub interface {
+	ForwarderServerStubMethods
+	// Describe the Forwarder interfaces.
+	Describe__() []rpc.InterfaceDesc
+}
+
+// ForwarderServer returns a server stub for Forwarder.
+// It converts an implementation of ForwarderServerMethods into
+// an object that may be used by rpc.Server.
+func ForwarderServer(impl ForwarderServerMethods) ForwarderServerStub {
+	stub := implForwarderServerStub{
+		impl: impl,
+	}
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := rpc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
+	}
+	return stub
+}
+
+type implForwarderServerStub struct {
+	impl ForwarderServerMethods
+	gs   *rpc.GlobState
+}
+
+func (s implForwarderServerStub) Forward(ctx *context.T, call *ForwarderForwardServerCallStub) error {
+	return s.impl.Forward(ctx, call)
+}
+
+func (s implForwarderServerStub) Globber() *rpc.GlobState {
+	return s.gs
+}
+
+func (s implForwarderServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{ForwarderDesc}
+}
+
+// ForwarderDesc describes the Forwarder interface.
+var ForwarderDesc rpc.InterfaceDesc = descForwarder
+
+// descForwarder hides the desc to keep godoc clean.
+var descForwarder = rpc.InterfaceDesc{
+	Name:    "Forwarder",
+	PkgPath: "v.io/x/ref/examples/tunnel",
+	Methods: []rpc.MethodDesc{
+		{
+			Name: "Forward",
+			Doc:  "// The Forward method is used for network forwarding. All the data sent over\n// the byte stream is forwarded to a predetermined network address and all the\n// data received from that network connection is sent back on the reply\n// stream.",
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Admin"))},
+		},
+	},
+}
+
+// ForwarderForwardServerStream is the server stream for Forwarder.Forward.
+type ForwarderForwardServerStream interface {
+	// RecvStream returns the receiver side of the Forwarder.Forward server stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() []byte
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
+	}
+	// SendStream returns the send side of the Forwarder.Forward server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item []byte) error
+	}
+}
+
+// ForwarderForwardServerCall represents the context passed to Forwarder.Forward.
+type ForwarderForwardServerCall interface {
+	rpc.ServerCall
+	ForwarderForwardServerStream
+}
+
+// ForwarderForwardServerCallStub is a wrapper that converts rpc.StreamServerCall into
+// a typesafe stub that implements ForwarderForwardServerCall.
+type ForwarderForwardServerCallStub struct {
+	rpc.StreamServerCall
+	valRecv []byte
+	errRecv error
+}
+
+// Init initializes ForwarderForwardServerCallStub from rpc.StreamServerCall.
+func (s *ForwarderForwardServerCallStub) Init(call rpc.StreamServerCall) {
+	s.StreamServerCall = call
+}
+
+// RecvStream returns the receiver side of the Forwarder.Forward server stream.
+func (s *ForwarderForwardServerCallStub) RecvStream() interface {
+	Advance() bool
+	Value() []byte
+	Err() error
+} {
+	return implForwarderForwardServerCallRecv{s}
+}
+
+type implForwarderForwardServerCallRecv struct {
+	s *ForwarderForwardServerCallStub
+}
+
+func (s implForwarderForwardServerCallRecv) Advance() bool {
+	s.s.errRecv = s.s.Recv(&s.s.valRecv)
+	return s.s.errRecv == nil
+}
+func (s implForwarderForwardServerCallRecv) Value() []byte {
+	return s.s.valRecv
+}
+func (s implForwarderForwardServerCallRecv) Err() error {
+	if s.s.errRecv == io.EOF {
+		return nil
+	}
+	return s.s.errRecv
+}
+
+// SendStream returns the send side of the Forwarder.Forward server stream.
+func (s *ForwarderForwardServerCallStub) SendStream() interface {
+	Send(item []byte) error
+} {
+	return implForwarderForwardServerCallSend{s}
+}
+
+type implForwarderForwardServerCallSend struct {
+	s *ForwarderForwardServerCallStub
+}
+
+func (s implForwarderForwardServerCallSend) Send(item []byte) error {
 	return s.s.Send(item)
 }

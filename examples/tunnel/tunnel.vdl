@@ -11,9 +11,15 @@ import "v.io/v23/security/access"
 type Tunnel interface {
   // The Forward method is used for network forwarding. All the data sent over
   // the byte stream is forwarded to the requested network address and all the
-  // data received from that network connection is sent back in the reply
+  // data received from that network connection is sent back on the reply
   // stream.
   Forward(network, address string) stream<[]byte, []byte> error {access.Admin}
+
+  // The ReverseForward method is used for network forwarding from the server
+  // back to the client. The server process listens on the requested network
+  // address, forwarding all connections by calling Forwarder.Forward on the
+  // caller.
+  ReverseForward(network, address string) error {access.Admin}
 
   // The Shell method is used to either run shell commands remotely, or to open
   // an interactive shell. The data received over the byte stream is sent to the
@@ -21,6 +27,14 @@ type Tunnel interface {
   // sent back in the reply stream. It returns the exit status of the shell
   // command.
   Shell(command string, shellOpts ShellOpts) stream<ClientShellPacket, ServerShellPacket> (int32 | error) {access.Admin}
+}
+
+type Forwarder interface {
+  // The Forward method is used for network forwarding. All the data sent over
+  // the byte stream is forwarded to a predetermined network address and all the
+  // data received from that network connection is sent back on the reply
+  // stream.
+  Forward() stream<[]byte, []byte> error {access.Admin}
 }
 
 type ShellOpts struct {
