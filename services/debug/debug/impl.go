@@ -631,5 +631,6 @@ var cmdRoot = &cmdline.Command{
 			Long:     "Accesses profiling data",
 			Children: []*cmdline.Command{cmdPProfRun, cmdPProfRunProxy},
 		},
+		cmdBrowse,
 	},
 }

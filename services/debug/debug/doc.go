@@ -17,6 +17,7 @@ The debug commands are:
    logs        Accesses log files
    stats       Accesses stats
    pprof       Accesses profiling data
+   browse      Starts an interactive interface for debugging
    help        Display help for commands or topics
 
 The debug flags are:
@@ -252,6 +253,60 @@ Usage:
 <name> is the name of the pprof object.
 
 The debug pprof proxy flags are:
+ -timeout=1m0s
+   Time to wait for various RPCs
+
+Debug browse - Starts an interactive interface for debugging
+
+Starts a webserver with a URL that when visited allows for inspection of a
+remote process via a web browser.
+
+This differs from browser.v.io in a few important ways:
+
+  (a) Does not require a chrome extension,
+  (b) Is not tied into the v.io cloud services
+  (c) Can be setup with alternative different credentials,
+  (d) The interface is more geared towards debugging a server than general purpose namespace browsing.
+
+While (d) is easily overcome by sharing code between the two, (a), (b) & (c) are
+not easy to work around.  Of course, the down-side here is that this requires
+explicit command-line invocation instead of being just a URL anyone can visit
+(https://browser.v.io).
+
+A dump of some possible future features: TODO(ashankar):?
+
+  (1) Profiling: Should be able to use the webserver to profile the remote
+  process (via 'go tool pprof' for example).  In the mean time, use the 'pprof'
+  command (instead of the 'browse' command) for this purpose.
+  (2) Trace browsing: Browse traces at the remote server, and possible force
+  the collection of some traces (avoiding the need to restart the remote server
+  with flags like --v23.vtrace.collect-regexp for example). In the mean time,
+  use the 'vtrace' command (instead of the 'browse' command) for this purpose.
+  (3) Log offsets: Log files can be large and currently the logging endpoint
+  of this interface downloads the full log file from the beginning. The ability
+  to start looking at the logs only from a specified offset might be useful
+  for these large files.
+  (4) Delegation: The 'browse' command requires the appropriate credentials to
+  inspect a remote process. Make delegation of these credentials to another
+  instance of the 'browse' command easier so that, for example, Bob can conveniently
+  ask Alice to debug his service without worrying about giving Alice the ability to
+  modify his service.
+  (5) Signature: Display the interfaces, types etc. defined by any suffix in the
+  remote process. in the mean time, use the 'vrpc signature' command for this purpose.
+
+Usage:
+   debug browse [flags] <name>
+
+<name> is the vanadium object name of the remote process to inspec
+
+The debug browse flags are:
+ -addr=
+   Address on which the interactive HTTP server will listen. For example,
+   localhost:14141. If empty, defaults to localhost:<some random port>
+ -log=true
+   If true, log debug data obtained so that if a subsequent refresh from the
+   browser fails, previously obtained information is available from the log file
+
  -timeout=1m0s
    Time to wait for various RPCs
 
