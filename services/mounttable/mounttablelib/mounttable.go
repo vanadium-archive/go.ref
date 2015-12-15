@@ -23,6 +23,7 @@ import (
 	"v.io/v23/services/mounttable"
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/timekeeper"
 )
 
 const pkgPath = "v.io/x/ref/services/mounttable/mounttablelib"
@@ -72,6 +73,7 @@ type mountTable struct {
 	serverCounter      *stats.Integer
 	perUserNodeCounter *stats.Map
 	maxNodesPerUser    int64
+	slm                *serverListManager
 }
 
 var _ rpc.Dispatcher = (*mountTable)(nil)
@@ -132,12 +134,16 @@ const templateVar = "%%"
 //
 // statsPrefix is the prefix for for exported statistics objects.
 func NewMountTableDispatcher(ctx *context.T, permsFile, persistDir, statsPrefix string) (rpc.Dispatcher, error) {
+	return NewMountTableDispatcherWithClock(ctx, permsFile, persistDir, statsPrefix, timekeeper.RealTime())
+}
+func NewMountTableDispatcherWithClock(ctx *context.T, permsFile, persistDir, statsPrefix string, clock timekeeper.TimeKeeper) (rpc.Dispatcher, error) {
 	mt := &mountTable{
 		root:               new(node),
 		nodeCounter:        stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
 		serverCounter:      stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
 		perUserNodeCounter: stats.NewMap(naming.Join(statsPrefix, "num-nodes-per-user")),
 		maxNodesPerUser:    defaultMaxNodesPerUser,
+		slm:                newServerListManager(clock),
 	}
 	mt.root.parent = mt.newNode() // just for its lock
 	if persistDir != "" {
@@ -551,7 +557,7 @@ func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string
 		n.mount = nil
 	}
 	if n.mount == nil {
-		n.mount = &mount{servers: newServerList(), mt: wantMT, leaf: wantLeaf}
+		n.mount = &mount{servers: mt.slm.newServerList(), mt: wantMT, leaf: wantLeaf}
 	}
 	n.mount.servers.add(server, time.Duration(ttlsecs)*time.Second)
 	mt.serverCounter.Incr(numServers(n) - nServersBefore)

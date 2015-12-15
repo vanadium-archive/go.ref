@@ -19,6 +19,8 @@ type TimeKeeper interface {
 	// Sleep pauses the current goroutine for at least the duration d. A
 	// negative or zero duration causes Sleep to return immediately.
 	Sleep(d time.Duration)
+	// Current time.
+	Now() time.Time
 }
 
 // realTime is the default implementation of TimeKeeper, using the time package.
@@ -39,4 +41,9 @@ func (t *realTime) Sleep(d time.Duration) {
 // RealTime returns a default instance of TimeKeeper.
 func RealTime() TimeKeeper {
 	return &rt
+}
+
+// Now implements TimeKeeper.Now.
+func (t *realTime) Now() time.Time {
+	return time.Now()
 }

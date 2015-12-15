@@ -120,3 +120,8 @@ func NewManualTime() ManualTime {
 	heap.Init(&mt.schedule)
 	return mt
 }
+
+// Now implements TimeKeeper.Now.
+func (mt *manualTime) Now() time.Time {
+	return mt.current
+}

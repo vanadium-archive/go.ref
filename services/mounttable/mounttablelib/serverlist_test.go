@@ -11,6 +11,7 @@ import (
 
 	"v.io/v23/naming"
 	vdltime "v.io/v23/vdlroot/time"
+	"v.io/x/ref/test/timekeeper"
 )
 
 func TestServerList(t *testing.T) {
@@ -22,9 +23,9 @@ func TestServerList(t *testing.T) {
 	}
 
 	// Test adding entries.
-	ft := NewFakeTimeClock()
-	SetServerListClock(ft)
-	sl := newServerList()
+	clock := timekeeper.NewManualTime()
+	start := clock.Now()
+	sl := newServerListManager(clock).newServerList()
 	for i, ep := range eps {
 		sl.add(ep, time.Duration(5*i)*time.Second)
 	}
@@ -33,8 +34,8 @@ func TestServerList(t *testing.T) {
 	}
 
 	// Test timing out entries.
-	ft.Advance(6 * time.Second)
-	if numLeft, _ := sl.removeExpired(); numLeft != len(eps)-2 {
+	clock.AdvanceTime(6 * time.Second)
+	if numLeclock, _ := sl.removeExpired(); numLeclock != len(eps)-2 {
 		t.Fatalf("got %d, want %d", sl.len(), len(eps)-2)
 	}
 
@@ -48,7 +49,7 @@ func TestServerList(t *testing.T) {
 	if got, want := sl.copyToSlice(), []naming.MountedServer{
 		{
 			Server:   "endpoint:dfgsfdg@@",
-			Deadline: vdltime.Deadline{Time: now.Add(15 * time.Second)},
+			Deadline: vdltime.Deadline{Time: start.Add(15 * time.Second)},
 		},
 	}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)

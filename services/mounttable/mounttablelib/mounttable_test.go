@@ -32,6 +32,7 @@ import (
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/timekeeper"
 )
 
 // Simulate different processes with different runtimes.
@@ -181,12 +182,13 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 }
 
-func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (func() error, string) {
+func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (func() error, string, timekeeper.ManualTime) {
 	reservedDisp := debuglib.NewDispatcher(nil)
 	ctx := v23.WithReservedNameDispatcher(rootCtx, reservedDisp)
 
 	// Add mount table service.
-	mt, err := mounttablelib.NewMountTableDispatcher(ctx, permsFile, persistDir, statsDir)
+	clock := timekeeper.NewManualTime()
+	mt, err := mounttablelib.NewMountTableDispatcherWithClock(ctx, permsFile, persistDir, statsDir, clock)
 	if err != nil {
 		boom(t, "mounttablelib.NewMountTableDispatcher: %v", err)
 	}
@@ -199,7 +201,7 @@ func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *contex
 
 	estr := server.Status().Endpoints[0].String()
 	t.Logf("endpoint %s", estr)
-	return server.Stop, estr
+	return server.Stop, estr, clock
 }
 
 func newCollection(t *testing.T, rootCtx *context.T) (func() error, string) {
@@ -218,7 +220,7 @@ func TestMountTable(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	stop, mtAddr := newMT(t, "testdata/test.perms", "", "testMountTable", rootCtx)
+	stop, mtAddr, clock := newMT(t, "testdata/test.perms", "", "testMountTable", rootCtx)
 	defer stop()
 	stop, collectionAddr := newCollection(t, rootCtx)
 	defer stop()
@@ -307,11 +309,9 @@ func TestMountTable(t *testing.T) {
 
 	// Try timing out a mount.
 	rootCtx.Info("Try timing out a mount.")
-	ft := mounttablelib.NewFakeTimeClock()
-	mounttablelib.SetServerListClock(ft)
 	doMount(t, rootCtx, mtAddr, "stuffWithTTL", collectionName, true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", true)
-	ft.Advance(time.Duration(ttlSecs+4) * time.Second)
+	clock.AdvanceTime(time.Duration(ttlSecs+4) * time.Second)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", false)
 
 	// Test unauthorized mount.
@@ -392,7 +392,7 @@ func TestGlob(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr := newMT(t, "", "", "testGlob", rootCtx)
+	stop, estr, _ := newMT(t, "", "", "testGlob", rootCtx)
 	defer stop()
 
 	// set up a mount space
@@ -507,7 +507,7 @@ func TestAccessListTemplate(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	stop, estr := newMT(t, "testdata/test.perms", "", "testAccessListTemplate", rootCtx)
+	stop, estr, _ := newMT(t, "testdata/test.perms", "", "testAccessListTemplate", rootCtx)
 	defer stop()
 	fakeServer := naming.JoinAddressName(estr, "quux")
 
@@ -580,7 +580,7 @@ func TestGlobAccessLists(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	stop, estr := newMT(t, "testdata/test.perms", "", "testGlobAccessLists", rootCtx)
+	stop, estr, _ := newMT(t, "testdata/test.perms", "", "testGlobAccessLists", rootCtx)
 	defer stop()
 
 	// set up a mount space
@@ -613,7 +613,7 @@ func TestCleanup(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr := newMT(t, "", "", "testCleanup", rootCtx)
+	stop, estr, _ := newMT(t, "", "", "testCleanup", rootCtx)
 	defer stop()
 
 	// Set up one mount.
@@ -641,7 +641,7 @@ func TestDelete(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	stop, estr := newMT(t, "testdata/test.perms", "", "testDelete", rootCtx)
+	stop, estr, _ := newMT(t, "testdata/test.perms", "", "testDelete", rootCtx)
 	defer stop()
 
 	// set up a mount space
@@ -674,7 +674,7 @@ func TestServerFormat(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr := newMT(t, "", "", "testerverFormat", rootCtx)
+	stop, estr, _ := newMT(t, "", "", "testerverFormat", rootCtx)
 	defer stop()
 
 	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true)
@@ -688,28 +688,26 @@ func TestExpiry(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr := newMT(t, "", "", "testExpiry", rootCtx)
+	stop, estr, clock := newMT(t, "", "", "testExpiry", rootCtx)
 	defer stop()
 	stop, collectionAddr := newCollection(t, rootCtx)
 	defer stop()
 
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
 
-	ft := mounttablelib.NewFakeTimeClock()
-	mounttablelib.SetServerListClock(ft)
 	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
 	doMount(t, rootCtx, estr, "a1/b2", collectionName, true)
 	doMount(t, rootCtx, estr, "a2/b1", collectionName, true)
 	doMount(t, rootCtx, estr, "a2/b2/c", collectionName, true)
 
 	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
-	ft.Advance(time.Duration(ttlSecs/2) * time.Second)
+	clock.AdvanceTime(time.Duration(ttlSecs/2) * time.Second)
 	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
 	checkMatch(t, []string{"c"}, doGlob(t, rootCtx, estr, "a2/b2", "*"))
 	// Refresh only a1/b1.  All the other mounts will expire upon the next
 	// ft advance.
 	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
-	ft.Advance(time.Duration(ttlSecs/2+4) * time.Second)
+	clock.AdvanceTime(time.Duration(ttlSecs/2+4) * time.Second)
 	checkMatch(t, []string{"a1", "a1/b1"}, doGlob(t, rootCtx, estr, "", "*/..."))
 	checkMatch(t, []string{"a1/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
 }
@@ -755,10 +753,7 @@ func TestStatsCounters(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	ft := mounttablelib.NewFakeTimeClock()
-	mounttablelib.SetServerListClock(ft)
-
-	stop, estr := newMT(t, "", "", "mounttable", rootCtx)
+	stop, estr, clock := newMT(t, "", "", "mounttable", rootCtx)
 	defer stop()
 
 	// Test flat tree
@@ -855,7 +850,7 @@ func TestStatsCounters(t *testing.T) {
 
 	// Test expired mounts
 	// "1/2/3/4/5" is still mounted from earlier.
-	ft.Advance(time.Duration(ttlSecs+4) * time.Second)
+	clock.AdvanceTime(time.Duration(ttlSecs+4) * time.Second)
 	if _, err := resolve(rootCtx, naming.JoinAddressName(estr, "1/2/3/4/5")); err == nil {
 		t.Errorf("Expected failure. Got success")
 	}
@@ -868,7 +863,7 @@ func TestIntermediateNodesCreatedFromConfig(t *testing.T) {
 	rootCtx, _, _, shutdown := initTest()
 	defer shutdown()
 
-	stop, estr := newMT(t, "testdata/intermediate.perms", "", "TestIntermediateNodesCreatedFromConfig", rootCtx)
+	stop, estr, _ := newMT(t, "testdata/intermediate.perms", "", "TestIntermediateNodesCreatedFromConfig", rootCtx)
 	defer stop()
 
 	// x and x/y should have the same permissions at the root.
