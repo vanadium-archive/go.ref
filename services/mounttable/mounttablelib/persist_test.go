@@ -25,7 +25,7 @@ func TestPersistence(t *testing.T) {
 	}
 	defer os.RemoveAll(td)
 	fmt.Printf("temp persist dir %s\n", td)
-	stop, mtAddr := newMT(t, "", td, "testPersistence", rootCtx)
+	stop, mtAddr, _ := newMT(t, "", td, "testPersistence", rootCtx)
 
 	perms1 := access.Permissions{
 		"Read":    access.AccessList{In: []security.BlessingPattern{security.AllPrincipals}},
@@ -53,7 +53,7 @@ func TestPersistence(t *testing.T) {
 	stop()
 
 	// Restart with the persisted data.
-	stop, mtAddr = newMT(t, "", td, "testPersistence", rootCtx)
+	stop, mtAddr, _ = newMT(t, "", td, "testPersistence", rootCtx)
 
 	// Add root as Admin to each of the perms since the mounttable itself will.
 	perms1["Admin"] = access.AccessList{In: []security.BlessingPattern{"root"}}

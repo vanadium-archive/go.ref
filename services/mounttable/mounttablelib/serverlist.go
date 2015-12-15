@@ -11,20 +11,13 @@ import (
 
 	"v.io/v23/naming"
 	vdltime "v.io/v23/vdlroot/time"
+
+	"v.io/x/ref/lib/timekeeper"
 )
 
-type serverListClock interface {
-	Now() time.Time
+type serverListManager struct {
+	clock timekeeper.TimeKeeper
 }
-
-type realTime bool
-
-func (t realTime) Now() time.Time {
-	return time.Now()
-}
-
-// TODO(caprita): Replace this with the timekeeper library.
-var slc = serverListClock(realTime(true))
 
 // server maintains the state of a single server.  Unless expires is refreshed before the
 // time is reached, the entry will be removed.
@@ -36,12 +29,23 @@ type server struct {
 // serverList represents an ordered list of servers.
 type serverList struct {
 	sync.Mutex
+	m *serverListManager
 	l *list.List // contains entries of type *server
 }
 
+// newServerListManager starts a serverlist manager with a particular clock.
+func newServerListManager(clock timekeeper.TimeKeeper) *serverListManager {
+	return &serverListManager{clock: clock}
+}
+
+// SetServerListClock does what it says.
+func (slm *serverListManager) setClock(clock timekeeper.TimeKeeper) {
+	slm.clock = clock
+}
+
 // newServerList creates a synchronized list of servers.
-func newServerList() *serverList {
-	return &serverList{l: list.New()}
+func (slm *serverListManager) newServerList() *serverList {
+	return &serverList{l: list.New(), m: slm}
 }
 
 func (sl *serverList) len() int {
@@ -60,7 +64,7 @@ func (sl *serverList) Front() *server {
 // update the expiration time and move to the front of the list.  That
 // way the most recently refreshed is always first.
 func (sl *serverList) add(oa string, ttl time.Duration) {
-	expires := slc.Now().Add(ttl)
+	expires := sl.m.clock.Now().Add(ttl)
 	sl.Lock()
 	defer sl.Unlock()
 	for e := sl.l.Front(); e != nil; e = e.Next() {
@@ -97,7 +101,7 @@ func (sl *serverList) removeExpired() (int, int) {
 	sl.Lock()
 	defer sl.Unlock()
 
-	now := slc.Now()
+	now := sl.m.clock.Now()
 	var next *list.Element
 	removed := 0
 	for e := sl.l.Front(); e != nil; e = next {
