@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -637,7 +638,7 @@ func delSGDataEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId
 
 // TODO(hpucha): Pass blessings along.
 func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
-	vlog.VI(2).Infof("sync: CreateSyncgroup: begin: %s", sgName)
+	vlog.VI(2).Infof("sync: CreateSyncgroup: begin: %s, spec %v", sgName, spec)
 	defer vlog.VI(2).Infof("sync: CreateSyncgroup: end: %s", sgName)
 
 	ss := sd.sync.(*syncService)
@@ -683,6 +684,25 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 		return err
 	}
 
+	// Advertise the Syncbase at the chosen mount table and in the
+	// neighborhood.
+	if err := ss.advertiseSyncbase(ctx, call, sg); err != nil {
+		// The failure in this step is rare. However, if there is a
+		// failure, create must be failed as well.
+		//
+		// TODO(hpucha): Implement failure handling here and in
+		// advertiseSyncbase. Currently, with the transaction above,
+		// failure here means rolling back the create. However, roll
+		// back is not straight forward since by the time we are ready
+		// to roll back, the persistent sg state could be used for
+		// another join or a leave request from the app. To handle this
+		// contention, we might have to serialize all syncgroup related
+		// operations pertaining to a database with a single lock, and
+		// further serialize all syncbase publishing with the another
+		// lock across all databases.
+		return err
+	}
+
 	ss.initSyncStateInMem(ctx, appName, dbName, sgOID(gid))
 
 	// Local SG create succeeded. Publish the SG at the chosen server, or if
@@ -690,9 +710,6 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 	if err := sd.publishSyncgroup(ctx, call, sgName); err != nil {
 		ss.enqueuePublishSyncgroup(sgName, appName, dbName, true)
 	}
-
-	// Publish at the chosen mount table and in the neighborhood.
-	ss.publishInMountTables(ctx, call, spec)
 
 	return nil
 }
@@ -724,7 +741,8 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 			return sgErr
 		}
 
-		// Check SG ACL.
+		// Check SG ACL. Caller must have Read access on the syncgroup
+		// acl to join a syncgroup.
 		if err := authorize(ctx, call.Security(), sg); err != nil {
 			return err
 		}
@@ -806,10 +824,15 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 		return nullSpec, err
 	}
 
-	ss.initSyncStateInMem(ctx, sg2.AppName, sg2.DbName, sgOID(sg2.Id))
+	// Advertise the Syncbase at the chosen mount table and in the
+	// neighborhood.
+	if err := ss.advertiseSyncbase(ctx, call, &sg2); err != nil {
+		// TODO(hpucha): Implement failure handling. See note in
+		// CreateSyncgroup for more details.
+		return nullSpec, err
+	}
 
-	// Publish at the chosen mount table and in the neighborhood.
-	ss.publishInMountTables(ctx, call, sg2.Spec)
+	ss.initSyncStateInMem(ctx, sg2.AppName, sg2.DbName, sgOID(sg2.Id))
 
 	return sg2.Spec, nil
 }
@@ -934,10 +957,21 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return verror.NewErrBadState(ctx)
 		}
 
+		// TODO(hpucha): The code below to be enabled once client blesses syncbase.
+		//
+		// Check if this peer is allowed to change the spec.
+		// blessingNames, _ := security.RemoteBlessingNames(ctx, call.Security())
+		// vlog.VI(4).Infof("sync: SetSyncgroupSpec: authorizing blessings %v against permissions %v", blessingNames, sg.Spec.Perms)
+		// if err := authorizeForTag(ctx, sg.Spec.Perms, access.Admin, blessingNames); err != nil {
+		// return err
+		// }
+
+		// TODO(hpucha): Check syncgroup ACL for sanity checking.
+		// TODO(hpucha): Check if the acl change causes neighborhood
+		// advertising to change.
+
 		// Reserve a log generation and position counts for the new syncgroup.
 		gen, pos := ss.reserveGenAndPosInDbLog(ctx, appName, dbName, sgOID(sg.Id), 1)
-
-		// TODO(hpucha): Check syncgroup ACL.
 
 		newVersion := newSyncgroupVersion()
 		sg.Spec = spec
@@ -1114,26 +1148,71 @@ func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx store.Transaction,
 	return nil
 }
 
-func (s *syncService) publishInMountTables(ctx *context.T, call rpc.ServerCall, spec wire.SyncgroupSpec) error {
+// advertiseSyncbase advertises this Syncbase at the chosen mount tables and
+// over the neighborhood.
+func (s *syncService) advertiseSyncbase(ctx *context.T, call rpc.ServerCall, sg *interfaces.Syncgroup) error {
 	s.nameLock.Lock()
 	defer s.nameLock.Unlock()
 
-	for _, mt := range spec.MountTables {
+	for _, mt := range sg.Spec.MountTables {
 		name := naming.Join(mt, s.name)
-		// AddName is idempotent.
+		// AddName is idempotent. Note that AddName will retry the
+		// publishing if not successful. So if a node is offline, it
+		// will publish the name when possible.
 		if err := call.Server().AddName(name); err != nil {
 			return err
 		}
 	}
 
-	return s.publishInNeighborhood(call.Server())
+	if err := s.advertiseSyncbaseInNeighborhood(); err != nil {
+		return err
+	}
+
+	// TODO(hpucha): In case of a joiner, this can be optimized such that we
+	// don't advertise until the syncgroup is in pending state.
+	return s.advertiseSyncgroupInNeighborhood(sg)
 }
 
-func (sd *syncDatabase) joinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
-	c := interfaces.SyncClient(sgName)
-	return c.JoinSyncgroupAtAdmin(ctx, sgName, name, myInfo)
+func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
+	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: begin %v", sgName)
 
-	// TODO(hpucha): Try to join using an Admin on neighborhood if the publisher is not reachable.
+	ctx, cancel := context.WithTimeout(ctxIn, connectionTimeOut)
+	c := interfaces.SyncClient(sgName)
+	sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, sgName, name, myInfo)
+	cancel()
+
+	if err == nil {
+		vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: end succeeded at %v, returned sg %v vers %v gv %v", sgName, sg, vers, gv)
+		return sg, vers, gv, err
+	}
+
+	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: try neighborhood %v", sgName)
+
+	// TODO(hpucha): Restrict the set of errors when retry happens to
+	// network related errors or other retriable errors.
+
+	// Get this Syncbase's sync module handle.
+	ss := sd.sync.(*syncService)
+
+	// Try to join using an Admin on neighborhood in case this node does not
+	// have connectivity.
+	neighbors := ss.filterSyncgroupAdmins(sgName)
+	for _, svc := range neighbors {
+		for _, addr := range svc.Addrs {
+			ctx, cancel := context.WithTimeout(ctxIn, connectionTimeOut)
+			c := interfaces.SyncClient(naming.Join(addr, util.SyncbaseSuffix))
+			sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, sgName, name, myInfo)
+			cancel()
+
+			if err == nil {
+				vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: end succeeded at addr %v, returned sg %v vers %v gv %v", addr, sg, vers, gv)
+				return sg, vers, gv, err
+			}
+		}
+	}
+
+	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: failed %v", sgName)
+	return interfaces.Syncgroup{}, "", interfaces.GenVector{}, verror.New(wire.ErrSyncgroupJoinFailed, ctx)
 }
 
 func authorize(ctx *context.T, call security.Call, sg *interfaces.Syncgroup) error {
@@ -1142,6 +1221,31 @@ func authorize(ctx *context.T, call security.Call, sg *interfaces.Syncgroup) err
 		return verror.New(verror.ErrNoAccess, ctx, err)
 	}
 	return nil
+}
+
+func authorizeForTag(ctx *context.T, perms access.Permissions, tag access.Tag, blessingNames []string) error {
+	acl, exists := perms[string(tag)]
+	if exists && acl.Includes(blessingNames...) {
+		return nil
+	}
+	return verror.New(verror.ErrNoAccess, ctx)
+}
+
+// Check the acl against all known blessings.
+//
+// TODO(hpucha): Should this be restricted to default or should we use
+// ForPeer?
+func syncgroupAdmin(ctx *context.T, perms access.Permissions) bool {
+	var blessingNames []string
+	p := v23.GetPrincipal(ctx)
+	for _, blessings := range p.BlessingStore().PeerBlessings() {
+		blessingNames = append(blessingNames, security.BlessingNames(p, blessings)...)
+	}
+
+	if err := authorizeForTag(ctx, perms, access.Admin, blessingNames); err != nil {
+		return false
+	}
+	return true
 }
 
 ////////////////////////////////////////////////////////////
@@ -1206,8 +1310,12 @@ func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publ
 	if err == nil {
 		s.initSyncStateInMem(ctx, sg.AppName, sg.DbName, sgOID(sg.Id))
 
-		// Publish at the chosen mount table and in the neighborhood.
-		s.publishInMountTables(ctx, call, sg.Spec)
+		// Advertise the Syncbase at the chosen mount table and in the
+		// neighborhood.
+		//
+		// TODO(hpucha): Implement failure handling. See note in
+		// CreateSyncgroup for more details.
+		err = s.advertiseSyncbase(ctx, call, &sg)
 	}
 
 	return s.name, err
@@ -1260,7 +1368,13 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 			return err
 		}
 
-		// Check SG ACL.
+		// Check SG ACL to see if this node is still a valid admin.
+		if !syncgroupAdmin(s.ctx, sg.Spec.Perms) {
+			return interfaces.NewErrNotAdmin(ctx)
+		}
+
+		// Check SG ACL. Caller must have Read access on the syncgroup
+		// ACL to join a syncgroup.
 		if err := authorize(ctx, call.Security(), sg); err != nil {
 			return err
 		}

@@ -30,10 +30,10 @@ func (s *syncService) syncer(ctx *context.T) {
 	ticker := time.NewTicker(peerSyncInterval)
 	defer ticker.Stop()
 
-	for !s.Closed() {
+	for !s.isClosed() {
 		select {
 		case <-ticker.C:
-			if s.Closed() {
+			if s.isClosed() {
 				break
 			}
 			s.syncerWork(ctx)

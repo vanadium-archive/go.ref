@@ -159,10 +159,10 @@ func (pm *peerManagerImpl) managePeers(ctx *context.T) {
 	ticker := time.NewTicker(peerManagementInterval)
 	defer ticker.Stop()
 
-	for !pm.s.Closed() {
+	for !pm.s.isClosed() {
 		select {
 		case <-ticker.C:
-			if pm.s.Closed() {
+			if pm.s.isClosed() {
 				break
 			}
 			pm.managePeersInternal(ctx)

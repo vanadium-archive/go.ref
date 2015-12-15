@@ -72,7 +72,7 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	s := svc.sync
 
 	checkSyncgroupAdmins := func(sgName string, want []*discovery.Service) {
-		got := s.discoverySyncgroupAdmins(sgName)
+		got := s.filterSyncgroupAdmins(sgName)
 
 		g := make(map[*discovery.Service]bool)
 		for _, e := range got {
