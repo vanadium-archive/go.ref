@@ -134,8 +134,6 @@ type Tracer struct {
 }
 
 func newTracer(ctx *context.T) (*context.T, *Tracer) {
-	// TODO(ashankar): Should we set a timeout on the context, or maybe set a timeout
-	// in the clients - based on what they are doing?
 	ctx, span := vtrace.WithNewTrace(ctx)
 	vtrace.ForceCollect(ctx)
 	return ctx, &Tracer{ctx, span}
@@ -157,13 +155,18 @@ func (t *Tracer) String() string {
 	return buf.String()
 }
 
+func withTimeout(ctx *context.T) *context.T {
+	ctx, _ = context.WithTimeout(ctx, timeout)
+	return ctx
+}
+
 type resolveHandler struct{ ctx *context.T }
 
 func (h *resolveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("n")
 	var suffix string
 	ctx, tracer := newTracer(h.ctx)
-	m, err := v23.GetNamespace(ctx).Resolve(ctx, name)
+	m, err := v23.GetNamespace(ctx).Resolve(withTimeout(ctx), name)
 	if m != nil {
 		suffix = m.Name
 	}
@@ -188,7 +191,7 @@ type blessingsHandler struct{ ctx *context.T }
 func (h *blessingsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("n")
 	ctx, tracer := newTracer(h.ctx)
-	call, err := v23.GetClient(ctx).StartCall(ctx, name, "DoNotReallyCareAboutTheMethod", nil)
+	call, err := v23.GetClient(ctx).StartCall(withTimeout(ctx), name, "DoNotReallyCareAboutTheMethod", nil)
 	args := struct {
 		ServerName        string
 		CommandLine       string
@@ -222,12 +225,12 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name        = naming.Join(prefix, stat)
 		ctx, tracer = newTracer(h.ctx)
 	)
-	v, err := stats.StatsClient(name).Value(ctx)
+	v, err := stats.StatsClient(name).Value(withTimeout(ctx))
 	var children []string
 	var childrenErrors []error
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		// The stat itself isn't readable, maybe it is globable?
-		if glob, globErr := v23.GetNamespace(ctx).Glob(ctx, naming.Join(name, "*")); globErr == nil {
+		if glob, globErr := v23.GetNamespace(ctx).Glob(withTimeout(ctx), naming.Join(name, "*")); globErr == nil {
 			for e := range glob {
 				switch e := e.(type) {
 				case *naming.GlobReplyEntry:
@@ -303,6 +306,8 @@ func (h *logsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// The logs handler streams result to the web browser because there
 	// have been cases where there are ~1 million log files, so doing this
 	// streaming thing will make the UI more responsive.
+	//
+	// For the same reason, avoid setting a timeout.
 	if len(log) == 0 && list {
 		w.Header().Add("Content-Type", "text/event-stream")
 		glob, err := v23.GetNamespace(ctx).Glob(ctx, naming.Join(name, "*"))
@@ -340,9 +345,10 @@ func (h *logsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			CommandLine: fmt.Sprintf("debug glob %q", naming.Join(name, "*")),
 		}
 		executeTemplate(h.ctx, w, r, tmplBrowseLogsList, args)
+		return
 	}
 	w.Header().Add("Content-Type", "text/plain")
-	stream, err := logreader.LogFileClient(name).ReadLog(h.ctx, 0, logreader.AllEntries, true)
+	stream, err := logreader.LogFileClient(name).ReadLog(ctx, 0, logreader.AllEntries, true)
 	if err != nil {
 		w.Write([]byte(fmt.Sprintf("ERROR(%v): %v\n", verror.ErrorID(err), err)))
 		return
@@ -407,7 +413,7 @@ func (h *globHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx, tracer = newTracer(h.ctx)
 		entries     []entry
 	)
-	ch, err := v23.GetNamespace(ctx).Glob(ctx, pattern)
+	ch, err := v23.GetNamespace(ctx).Glob(withTimeout(ctx), pattern)
 	if err != nil {
 		entries = append(entries, entry{Error: err})
 	}

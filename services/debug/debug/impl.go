@@ -56,7 +56,7 @@ var (
 func init() {
 	cmdline.HideGlobalFlagsExcept()
 
-	cmdRoot.Flags.DurationVar(&timeout, "timeout", time.Minute, "Time to wait for various RPCs")
+	cmdRoot.Flags.DurationVar(&timeout, "timeout", 10*time.Second, "Time to wait for various RPCs")
 
 	// logs read flags
 	cmdLogsRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")

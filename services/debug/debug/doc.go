@@ -21,7 +21,7 @@ The debug commands are:
    help        Display help for commands or topics
 
 The debug flags are:
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 The global flags are:
@@ -84,7 +84,7 @@ Usage:
 <pattern> is a glob pattern to match.
 
 The debug glob flags are:
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug vtrace
@@ -97,7 +97,7 @@ Usage:
 <name> is the name of a vtrace object. [id] is a vtrace trace id.
 
 The debug vtrace flags are:
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug logs - Accesses log files
@@ -112,7 +112,7 @@ The debug logs commands are:
    size        Returns the size of a log file object.
 
 The debug logs flags are:
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug logs read
@@ -135,7 +135,7 @@ The debug logs read flags are:
  -v=false
    When true, read will be more verbose.
 
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug logs size
@@ -148,7 +148,7 @@ Usage:
 <name> is the name of the log file object.
 
 The debug logs size flags are:
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug stats - Accesses stats
@@ -164,7 +164,7 @@ The debug stats commands are:
                change.
 
 The debug stats flags are:
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug stats read
@@ -186,7 +186,7 @@ The debug stats read flags are:
  -type=false
    When true, the type of the values will be displayed.
 
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug stats watch
@@ -204,7 +204,7 @@ The debug stats watch flags are:
  -type=false
    When true, the type of the values will be displayed.
 
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug pprof - Accesses profiling data
@@ -219,7 +219,7 @@ The debug pprof commands are:
    proxy       Runs an http proxy to a pprof object.
 
 The debug pprof flags are:
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug pprof run
@@ -240,7 +240,7 @@ The debug pprof run flags are:
  -pprofcmd=jiri go tool pprof
    The pprof command to use.
 
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug pprof proxy
@@ -253,7 +253,7 @@ Usage:
 <name> is the name of the pprof object.
 
 The debug pprof proxy flags are:
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug browse - Starts an interactive interface for debugging
@@ -307,7 +307,7 @@ The debug browse flags are:
    If true, log debug data obtained so that if a subsequent refresh from the
    browser fails, previously obtained information is available from the log file
 
- -timeout=1m0s
+ -timeout=10s
    Time to wait for various RPCs
 
 Debug help - Display help for commands or topics
