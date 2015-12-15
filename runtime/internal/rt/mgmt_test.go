@@ -25,8 +25,6 @@ import (
 	"v.io/x/ref/test/modules"
 )
 
-//go:generate jiri test generate
-
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {

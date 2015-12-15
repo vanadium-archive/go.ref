@@ -15,7 +15,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
@@ -23,8 +22,6 @@ import (
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 )
-
-//go:generate jiri test generate
 
 func TestInit(t *testing.T) {
 	ref.EnvClearCredentials()

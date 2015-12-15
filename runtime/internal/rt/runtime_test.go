@@ -13,7 +13,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/debug/debuglib"

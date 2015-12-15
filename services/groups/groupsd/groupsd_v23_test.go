@@ -4,6 +4,7 @@
 
 package main_test
 
+// FIXME: Why doesn't this need a runtime?
 import (
 	"encoding/json"
 	"fmt"
