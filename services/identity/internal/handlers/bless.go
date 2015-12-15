@@ -142,7 +142,7 @@ func (a *accessTokenBlesser) encodeBlessingsVom(b security.Blessings) (string, e
 func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	remoteKey, err := a.remotePublicKey(r)
 	if err != nil {
-		a.ctx.Info("Failed to decode public key [%v] for request %#v", err, r)
+		a.ctx.Infof("Failed to decode public key [%v] for request %#v", err, r)
 		util.HTTPServerError(w, fmt.Errorf("failed to decode public key: %v", err))
 		return
 	}
@@ -152,21 +152,21 @@ func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	caveats, err := a.blessingCaveats(r, p)
 	if err != nil {
-		a.ctx.Info("Failed to constuct caveats for blessing [%v] for request %#v", err, r)
+		a.ctx.Infof("Failed to constuct caveats for blessing [%v] for request %#v", err, r)
 		util.HTTPServerError(w, fmt.Errorf("failed to construct caveats for blessing: %v", err))
 		return
 	}
 
 	extension, err := a.blessingExtension(r)
 	if err != nil {
-		a.ctx.Info("Failed to process access token [%v] for request %#v", err, r)
+		a.ctx.Infof("Failed to process access token [%v] for request %#v", err, r)
 		util.HTTPServerError(w, fmt.Errorf("failed to process access token: %v", err))
 		return
 	}
 
 	blessings, err := p.Bless(remoteKey, with, extension, caveats[0], caveats[1:]...)
 	if err != nil {
-		a.ctx.Info("Failed to Bless [%v] for request %#v", err, r)
+		a.ctx.Infof("Failed to Bless [%v] for request %#v", err, r)
 		util.HTTPServerError(w, fmt.Errorf("failed to Bless: %v", err))
 		return
 	}
@@ -179,7 +179,7 @@ func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case jsonFormat:
 		encodedBlessings, err := a.encodeBlessingsJson(blessings)
 		if err != nil {
-			a.ctx.Info("Failed to encode blessings [%v] for request %#v", err, r)
+			a.ctx.Infof("Failed to encode blessings [%v] for request %#v", err, r)
 			util.HTTPServerError(w, fmt.Errorf("failed to encode blessings in format %v: %v", outputFormat, err))
 			return
 		}
@@ -188,14 +188,14 @@ func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case base64VomFormat:
 		encodedBlessings, err := a.encodeBlessingsVom(blessings)
 		if err != nil {
-			a.ctx.Info("Failed to encode blessings [%v] for request %#v", err, r)
+			a.ctx.Infof("Failed to encode blessings [%v] for request %#v", err, r)
 			util.HTTPServerError(w, fmt.Errorf("failed to encode blessings in format %v: %v", outputFormat, err))
 			return
 		}
 		w.Header().Set("Content-Type", "application/text")
 		w.Write([]byte(encodedBlessings))
 	default:
-		a.ctx.Info("Unrecognized output format [%v] in request %#v", outputFormat, r)
+		a.ctx.Infof("Unrecognized output format [%v] in request %#v", outputFormat, r)
 		util.HTTPServerError(w, fmt.Errorf("unrecognized output format [%v] in request. Allowed formats are [%v, %v]", outputFormat, base64VomFormat, jsonFormat))
 		return
 	}
