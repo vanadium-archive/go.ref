@@ -13,8 +13,6 @@ import (
 	"v.io/x/ref/internal/logger"
 )
 
-//go:generate jiri test generate
-
 const (
 	queueSize    = 10
 	elementCount = 100

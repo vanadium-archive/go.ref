@@ -28,8 +28,6 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate jiri test generate
-
 type mockServer struct{}
 
 func (s mockServer) BasicCall(_ *context.T, _ rpc.StreamServerCall, txt string) (string, error) {

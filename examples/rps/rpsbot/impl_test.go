@@ -7,7 +7,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,38 +18,11 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/options"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/services/mounttable/mounttablelib"
-	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
+	"v.io/x/ref/lib/v23test"
 )
 
-//go:generate jiri test generate
-
-var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-
-	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
-	if err != nil {
-		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
-	}
-	_, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
-	if err != nil {
-		return fmt.Errorf("root failed: %v", err)
-	}
-	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
-	for _, ep := range server.Status().Endpoints {
-		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
-	}
-	modules.WaitForEOF(env.Stdin)
-	return nil
-}, "rootMT")
-
-func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RPS, func()) {
-	ns := v23.GetNamespace(ctx)
-	ns.SetRoots(mtAddress)
+func startRockPaperScissors(t *testing.T, ctx *context.T) (*RPS, func()) {
 	rpsService := NewRPS(ctx)
 	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
 	_, server, err := v23.WithNewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), nil)
@@ -67,28 +39,15 @@ func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RP
 	}
 }
 
-// TestRockPaperScissorsImpl runs one rock-paper-scissors game and verifies
+// TestV23RockPaperScissorsImpl runs one rock-paper-scissors game and verifies
 // that all the counters are consistent.
-func TestRockPaperScissorsImpl(t *testing.T) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
+func TestV23RockPaperScissorsImpl(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+	sh.StartRootMountTable()
+	ctx := sh.Ctx
 
-	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("Could not create shell: %v", err)
-	}
-	defer sh.Cleanup(os.Stdout, os.Stderr)
-	h, err := sh.Start(nil, rootMT, "--v23.tcp.address=127.0.0.1:0")
-	if err != nil {
-		if h != nil {
-			h.Shutdown(nil, os.Stderr)
-		}
-		t.Fatalf("unexpected error for root mt: %s", err)
-	}
-	h.ExpectVar("PID")
-	mtAddress := h.ExpectVar("MT_NAME")
-
-	rpsService, rpsStop := startRockPaperScissors(t, ctx, mtAddress)
+	rpsService, rpsStop := startRockPaperScissors(t, ctx)
 	defer rpsStop()
 
 	const numGames = 100
@@ -179,4 +138,8 @@ func reportLeakedGoroutines(t *testing.T, threshold int) string {
 		}
 	}
 	return buf.String()
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

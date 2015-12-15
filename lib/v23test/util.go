@@ -49,7 +49,7 @@ func (sh *Shell) StartRootMountTable(args ...string) func(sig os.Signal) {
 	if sh.Err != nil {
 		return nil
 	}
-	session := expect.NewSession(nil, cmd.StdoutPipe(), 5*time.Second)
+	session := expect.NewSession(nil, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
 	name := session.ExpectVar("NAME")
 	if name == "" {
@@ -57,7 +57,10 @@ func (sh *Shell) StartRootMountTable(args ...string) func(sig os.Signal) {
 		return nil
 	}
 	sh.Vars[ref.EnvNamespacePrefix] = name
-	v23.GetNamespace(sh.Ctx).SetRoots(name)
+	if err := v23.GetNamespace(sh.Ctx).SetRoots(name); err != nil {
+		sh.HandleError(err)
+		return nil
+	}
 	sh.Ctx.Infof("Started root mount table: %s", name)
 	return cmd.Shutdown
 }
@@ -87,7 +90,7 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 	if c != nil {
 		cmd = cmd.WithCredentials(c)
 	}
-	session := expect.NewSession(nil, cmd.StdoutPipe(), 5*time.Second)
+	session := expect.NewSession(nil, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
 	endpoint := session.ExpectVar("ENDPOINT")
 	if endpoint == "" {

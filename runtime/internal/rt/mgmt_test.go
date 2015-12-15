@@ -18,12 +18,11 @@ import (
 	"v.io/v23/services/appcycle"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
-
-	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 //go:generate jiri test generate

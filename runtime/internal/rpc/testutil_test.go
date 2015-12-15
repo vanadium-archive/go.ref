@@ -9,17 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23/vtrace"
-	"v.io/x/ref/lib/flags"
-	ivtrace "v.io/x/ref/runtime/internal/vtrace"
-	"v.io/x/ref/test"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vtrace"
+	"v.io/x/ref/lib/flags"
+	ivtrace "v.io/x/ref/runtime/internal/vtrace"
+	"v.io/x/ref/test"
 )
 
 func makeResultPtrs(ins []interface{}) []interface{} {

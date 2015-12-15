@@ -31,8 +31,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate jiri test generate
-
 func TestDebugServer(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()

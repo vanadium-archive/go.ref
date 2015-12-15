@@ -16,8 +16,6 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate jiri test generate
-
 func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager) {
 	dischargerServiceStub := discharger.DischargerServer(dischargerlib.NewDischarger())
 	ctx, dischargerServer, err := v23.WithNewServer(ctx, "", dischargerServiceStub, nil)

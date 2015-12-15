@@ -10,8 +10,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate jiri test generate
-
 // TestClone checks the clone() method of a clock.
 func TestClone(t *testing.T) {
 	testutil.InitRandGenerator(t.Logf)

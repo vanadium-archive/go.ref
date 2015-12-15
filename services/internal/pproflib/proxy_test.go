@@ -18,8 +18,6 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate jiri test generate
-
 type dispatcher struct {
 	server interface{}
 }

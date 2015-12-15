@@ -14,8 +14,6 @@ import (
 	vsync "v.io/x/ref/runtime/internal/lib/sync"
 )
 
-//go:generate jiri test generate
-
 const (
 	elementCount = 100
 	writerCount  = 10

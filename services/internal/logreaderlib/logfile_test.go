@@ -16,13 +16,10 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
 	"v.io/v23/verror"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/internal/logreaderlib"
 	"v.io/x/ref/test"
-
-	_ "v.io/x/ref/runtime/factories/generic"
 )
-
-//go:generate jiri test generate
 
 type logFileDispatcher struct {
 	root string

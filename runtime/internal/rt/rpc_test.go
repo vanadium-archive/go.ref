@@ -24,8 +24,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate jiri test generate
-
 type testService struct{}
 
 func (testService) EchoBlessings(ctx *context.T, call rpc.ServerCall) ([]string, error) {

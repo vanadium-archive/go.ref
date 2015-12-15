@@ -29,8 +29,6 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate jiri test generate
-
 type server struct {
 	suffix string
 }

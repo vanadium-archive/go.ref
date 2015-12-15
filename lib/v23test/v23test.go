@@ -10,13 +10,16 @@ package v23test
 // TODO(sadovsky): Add DebugSystemShell command.
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
+	"strings"
 	"testing"
 
 	"v.io/v23"
@@ -66,46 +69,34 @@ type Opts struct {
 
 var calledRun = false
 
-func fillDefaults(t *testing.T, opts *Opts) {
-	if opts.Errorf == nil {
-		if t != nil {
-			opts.Errorf = func(format string, v ...interface{}) {
-				debug.PrintStack()
-				t.Fatalf(format, v...)
-			}
-		} else {
-			opts.Errorf = func(format string, v ...interface{}) {
-				panic(fmt.Sprintf(format, v...))
-			}
-		}
-	}
-	if opts.Logf == nil {
-		if t != nil {
-			opts.Logf = t.Logf
-		} else {
-			opts.Logf = log.Printf
-		}
-	}
-	if opts.ChildOutputDir == "" {
-		opts.ChildOutputDir = os.Getenv(envChildOutputDir)
-	}
-	if opts.BinDir == "" {
-		opts.BinDir = os.Getenv(envBinDir)
-	}
-}
-
 // NewShell creates a new Shell. 't' may be nil. Use v23.GetPrincipal(sh.Ctx) to
 // get the bound principal, if needed.
 func NewShell(t *testing.T, opts Opts) *Shell {
 	fillDefaults(t, &opts)
 
 	if t != nil {
-		if opts.Large && !test.IntegrationTestsEnabled {
-			t.SkipNow()
-			return nil
-		}
 		if !calledRun {
 			t.Fatal("must call v23test.Run(m.Run) from TestMain")
+			return nil
+		}
+		// The "jiri test run vanadium-integration-test" command looks for test
+		// function names that start with "TestV23", and runs "go test" for only
+		// those Go packages containing at least one such test. That's how it avoids
+		// passing the -v23.tests flag to test packages for which the flag is not
+		// registered.
+		// TODO(sadovsky): Share a common helper function for determining whether a
+		// given test function is an integration test.
+		name, err := callerName()
+		if err != nil {
+			t.Fatal(err)
+		}
+		isIntegrationTest := strings.HasPrefix(name, "TestV23")
+		if opts.Large != isIntegrationTest {
+			t.Fatalf("large test names must start with \"TestV23\": %s", name)
+			return nil
+		}
+		if isIntegrationTest && !test.IntegrationTestsEnabled {
+			t.SkipNow()
 			return nil
 		}
 	}
@@ -121,37 +112,26 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 			BinDir:              opts.BinDir,
 		}),
 	}
-
-	// Create context.
-	// TODO(sadovsky): Similar to gosh.Shell.newShell, we should call sh.cleanup()
-	// without setting sh.calledCleanup to true if any initialization step fails.
-	ctx, shutdown := v23.Init()
-	if sh.AddToCleanup(shutdown); sh.Err != nil {
-		return sh
-	}
-	if t != nil {
-		ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
-		sh.Vars[envShellTestProcess] = "1"
-	}
-
-	// Create principal and update context.
-	dir := sh.MakeTempDir()
 	if sh.Err != nil {
 		return sh
 	}
-	creds, err := newRootCredentials(newFilesystemPrincipalManager(dir))
-	if err != nil {
-		sh.HandleError(err)
-		return sh
-	}
-	ctx, err = v23.WithPrincipal(ctx, creds.Principal)
-	if err != nil {
-		sh.HandleError(err)
-		return sh
-	}
 
-	sh.Ctx = ctx
-	sh.Credentials = creds
+	// Temporarily make Errorf non-fatal so that we can safely call gosh.Shell
+	// functions and clean up on any error.
+	oldErrorf := sh.Opts.Errorf
+	sh.Opts.Errorf = nil
+
+	err := initCtxAndCredentials(t, sh)
+
+	// Restore Errorf, then call Cleanup followed by HandleError if there was an
+	// error.
+	sh.Err = nil
+	sh.Opts.Errorf = oldErrorf
+
+	if err != nil {
+		sh.Cleanup()
+		sh.HandleError(err)
+	}
 	return sh
 }
 
@@ -220,7 +200,9 @@ func (sh *Shell) JiriBuildGoPkg(pkg string, flags ...string) string {
 func Run(run func() int) int {
 	gosh.MaybeRunFnAndExit()
 	calledRun = true
-	// Set up shared bin dir if V23_BIN_DIR is not already set.
+	// Set up shared bin dir if V23_BIN_DIR is not already set. Note, this can't
+	// be done in NewShell because we wouldn't be able to clean up after ourselves
+	// after all tests have run.
 	if dir := os.Getenv(envBinDir); len(dir) == 0 {
 		if dir, err := ioutil.TempDir("", "bin-"); err != nil {
 			panic(err)
@@ -269,4 +251,76 @@ func (sh *Shell) Main(fn *gosh.Fn, args ...string) *Cmd {
 		return nil
 	}
 	return newCmd(sh, c)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Internals
+
+func callerName() (string, error) {
+	pc, _, _, ok := runtime.Caller(2)
+	if !ok {
+		return "", errors.New("runtime.Caller failed")
+	}
+	name := runtime.FuncForPC(pc).Name()
+	// Strip package path.
+	return name[strings.LastIndex(name, ".")+1:], nil
+}
+
+func fillDefaults(t *testing.T, opts *Opts) {
+	if opts.Errorf == nil {
+		if t != nil {
+			opts.Errorf = func(format string, v ...interface{}) {
+				debug.PrintStack()
+				t.Fatalf(format, v...)
+			}
+		} else {
+			opts.Errorf = func(format string, v ...interface{}) {
+				panic(fmt.Sprintf(format, v...))
+			}
+		}
+	}
+	if opts.Logf == nil {
+		if t != nil {
+			opts.Logf = t.Logf
+		} else {
+			opts.Logf = log.Printf
+		}
+	}
+	if opts.ChildOutputDir == "" {
+		opts.ChildOutputDir = os.Getenv(envChildOutputDir)
+	}
+	if opts.BinDir == "" {
+		opts.BinDir = os.Getenv(envBinDir)
+	}
+}
+
+func initCtxAndCredentials(t *testing.T, sh *Shell) error {
+	// Create context.
+	ctx, shutdown := v23.Init()
+	sh.AddToCleanup(shutdown)
+	if err := sh.Err; err != nil {
+		return err
+	}
+	if t != nil {
+		ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
+		sh.Vars[envShellTestProcess] = "1"
+	}
+
+	// Create principal and update context.
+	dir := sh.MakeTempDir()
+	if err := sh.Err; err != nil {
+		return err
+	}
+	creds, err := newRootCredentials(newFilesystemPrincipalManager(dir))
+	if err != nil {
+		return err
+	}
+	ctx, err = v23.WithPrincipal(ctx, creds.Principal)
+	if err != nil {
+		return err
+	}
+
+	sh.Ctx = ctx
+	sh.Credentials = creds
+	return nil
 }

@@ -6,6 +6,9 @@
 //
 // Unfortunately, has to be in its own package to avoid an import cycle with
 // the test/modules framework, which includes an agent implementation.
+//
+// TODO(sadovsky): The above statement is no longer true. Maybe move this test
+// elsewhere?
 package lockfile_test
 
 import (
@@ -15,24 +18,20 @@ import (
 	"path/filepath"
 	"testing"
 
-	"v.io/x/ref/test/modules"
-
+	"v.io/x/lib/gosh"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/internal/lockfile"
 )
 
-//go:generate jiri test generate
-
-var createLockfile = modules.Register(func(env *modules.Env, args ...string) error {
-	file := args[0]
+var createLockfile = gosh.Register("createLockfile", func(file string) {
 	err := lockfile.CreateLockfile(file)
 	if err == nil {
 		fmt.Println("Grabbed lock")
 	} else {
 		fmt.Println("Lock failed")
 	}
-	return err
-}, "createLockfile")
+})
 
 func TestLockFile(t *testing.T) {
 	dir, err := ioutil.TempDir("", "lf")
@@ -75,20 +74,13 @@ func TestOtherProcess(t *testing.T) {
 	defer os.RemoveAll(dir)
 	file := filepath.Join(dir, "myfile")
 
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
 
 	// Start a new child which creates a lockfile and exits.
-	h, err := sh.Start(nil, createLockfile, file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.Expect("Grabbed lock")
-	h.Shutdown(os.Stdout, os.Stderr)
-	if h.Failed() {
-		t.Fatal(h.Error())
+	output := sh.Fn(createLockfile, file).CombinedOutput()
+	if output != "Grabbed lock\n" {
+		t.Fatal("Unexpected output: %s", output)
 	}
 
 	// Verify it created a lockfile.
@@ -112,13 +104,12 @@ func TestOtherProcess(t *testing.T) {
 	}
 
 	// Now the child should fail to create one.
-	h, err = sh.Start(nil, createLockfile, file)
-	if err != nil {
-		t.Fatal(err)
+	output = sh.Fn(createLockfile, file).CombinedOutput()
+	if output != "Lock failed\n" {
+		t.Fatal("Unexpected output: %s", output)
 	}
-	h.Expect("Lock failed")
-	h.Shutdown(os.Stderr, os.Stderr)
-	if h.Failed() {
-		t.Fatal(h.Error())
-	}
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

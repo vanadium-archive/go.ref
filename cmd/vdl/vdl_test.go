@@ -15,16 +15,14 @@ import (
 	"testing"
 
 	"v.io/x/lib/envvar"
+	"v.io/x/lib/gosh"
 	"v.io/x/ref/test/testutil"
-	"v.io/x/ref/test/v23tests"
 )
 
 const (
 	testDir    = "../../lib/vdl/testdata/base"
 	outPkgPath = "v.io/x/ref/lib/vdl/testdata/base"
 )
-
-//go:generate jiri test generate
 
 func verifyOutput(t *testing.T, outDir string) {
 	entries, err := ioutil.ReadDir(testDir)
@@ -58,39 +56,41 @@ func verifyOutput(t *testing.T, outDir string) {
 
 // Compares generated VDL files against the copy in the repo.
 func TestVDLGenerator(t *testing.T) {
-	testEnv := v23tests.New(t)
-	defer testEnv.Cleanup()
-	vdlBin := testEnv.BuildGoPkg("v.io/x/ref/cmd/vdl")
+	sh := gosh.NewShell(gosh.Opts{Errorf: t.Fatalf, Logf: t.Logf})
+	defer sh.Cleanup()
+	vdlBin := sh.BuildGoPkg("v.io/x/ref/cmd/vdl")
 
 	// Use vdl to generate Go code from input, into a temporary directory.
-	outDir := testEnv.NewTempDir("")
+	outDir := sh.MakeTempDir()
 	// TODO(toddw): test the generated java and javascript files too.
 	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
-	vdlBin.Run("generate", "--lang=go", outOpt, testDir)
+	sh.Cmd(vdlBin, "generate", "--lang=go", outOpt, testDir).Run()
 	// Check that each *.vdl.go file in the testDir matches the generated output.
 	verifyOutput(t, outDir)
 }
 
 // Asserts that vdl generation works without VDLROOT or JIRI_ROOT being set.
 func TestVDLGeneratorBuiltInVDLRoot(t *testing.T) {
-	testEnv := v23tests.New(t)
-	defer testEnv.Cleanup()
-	vdlBin := testEnv.BuildGoPkg("v.io/x/ref/cmd/vdl")
+	sh := gosh.NewShell(gosh.Opts{Errorf: t.Fatalf, Logf: t.Logf})
+	defer sh.Cleanup()
+	vdlBin := sh.BuildGoPkg("v.io/x/ref/cmd/vdl")
 
-	outDir := testEnv.NewTempDir("")
+	outDir := sh.MakeTempDir()
 	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)
 	env := envvar.SliceToMap(os.Environ())
 	delete(env, "JIRI_ROOT")
 	delete(env, "VDLROOT")
-	vdlBin.WithEnv(envvar.MapToSlice(env)...).Run("-v", "generate", "--lang=go", outOpt, testDir)
+	cmd := sh.Cmd(vdlBin, "-v", "generate", "--lang=go", outOpt, testDir)
+	cmd.Vars = env
+	cmd.Run()
 	verifyOutput(t, outDir)
 }
 
 // Ensures the vdlroot data built-in to the binary matches the current sources.
 func TestBuiltInVDLRootDataIsUpToDate(t *testing.T) {
-	testEnv := v23tests.New(t)
-	defer testEnv.Cleanup()
-	dir := testEnv.NewTempDir("")
+	sh := gosh.NewShell(gosh.Opts{Errorf: t.Fatalf, Logf: t.Logf})
+	defer sh.Cleanup()
+	dir := sh.MakeTempDir()
 
 	if err := extractVDLRootData(dir); err != nil {
 		t.Fatalf("Couldn't extract vdlroot: %v", err)

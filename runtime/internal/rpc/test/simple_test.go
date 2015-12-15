@@ -75,10 +75,19 @@ func (s *simple) Inc(_ *context.T, call rpc.StreamServerCall, inc int) (int, err
 	}
 }
 
+func startSimpleServer(t *testing.T, ctx *context.T) (string, func()) {
+	done := make(chan struct{})
+	ctx, server, err := v23.WithNewServer(ctx, "", &simple{done}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	return server.Status().Endpoints[0].Name(), func() { close(done) }
+}
+
 func TestSimpleRPC(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
-	name, fn := initServer(t, ctx)
+	name, fn := startSimpleServer(t, ctx)
 	defer fn()
 
 	client := v23.GetClient(ctx)
@@ -98,7 +107,7 @@ func TestSimpleRPC(t *testing.T) {
 func TestSimpleStreaming(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
-	name, fn := initServer(t, ctx)
+	name, fn := startSimpleServer(t, ctx)
 	defer fn()
 
 	inc := 1

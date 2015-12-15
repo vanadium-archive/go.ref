@@ -97,8 +97,6 @@ func drainServerOut() []string {
 	}
 }
 
-//go:generate jiri test generate
-
 type server struct {
 	suffix string
 }

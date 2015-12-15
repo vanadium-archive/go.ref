@@ -15,7 +15,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/test"

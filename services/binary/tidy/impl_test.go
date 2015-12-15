@@ -22,8 +22,6 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate jiri test generate
-
 func TestApplicationTidying(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()

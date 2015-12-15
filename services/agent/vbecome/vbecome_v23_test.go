@@ -9,12 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"testing"
 
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
-	"v.io/x/ref/test/v23tests"
 )
-
-//go:generate jiri test generate .
 
 func writeRoledConfig() (path string, shutdown func(), err error) {
 	dir, err := ioutil.TempDir("", "")
@@ -30,38 +29,47 @@ func writeRoledConfig() (path string, shutdown func(), err error) {
 	return dir, func() { os.RemoveAll(dir) }, err
 }
 
-func V23TestBecomeRole(t *v23tests.T) {
-	vbecome := t.BuildV23Pkg("v.io/x/ref/services/agent/vbecome")
-	principal := t.BuildV23Pkg("v.io/x/ref/cmd/principal")
+func TestV23BecomeRole(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
 
-	roled := t.BuildV23Pkg("v.io/x/ref/services/role/roled")
-	roledCreds, _ := t.Shell().NewChildCredentials("master")
-	roled = roled.WithStartOpts(roled.StartOpts().WithCustomCredentials(roledCreds))
+	vbecome := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/vbecome")
+	principal := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+	roled := sh.JiriBuildGoPkg("v.io/x/ref/services/role/roled")
 
-	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
+	sh.StartRootMountTable()
 
 	dir, shutdown, err := writeRoledConfig()
 	if err != nil {
 		t.Fatalf("Couldn't write roled config: %v", err)
 	}
 	defer shutdown()
-	roled.Start("--v23.tcp.address=127.0.0.1:0", "--config-dir", dir, "--name", "roled")
 
-	output := vbecome.Run("--role=roled/therole", principal.Path(), "dump")
+	sh.Cmd(roled, "--v23.tcp.address=127.0.0.1:0", "--config-dir", dir, "--name", "roled").WithCredentials(sh.ForkCredentials("master")).Start()
+
+	output := sh.Cmd(vbecome, "--role=roled/therole", principal, "dump").CombinedOutput()
 	want := regexp.MustCompile(`Default Blessings\s+root:master:therole:root:child`)
 	if !want.MatchString(output) {
 		t.Errorf("Principal didn't have the role blessing:\n %s", output)
 	}
 }
 
-func V23TestBecomeName(t *v23tests.T) {
-	vbecome := t.BuildV23Pkg("v.io/x/ref/services/agent/vbecome")
-	principal := t.BuildV23Pkg("v.io/x/ref/cmd/principal")
+func TestV23BecomeName(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
 
-	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
-	output := vbecome.Run("--name=bob", principal.Path(), "dump")
+	vbecome := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/vbecome")
+	principal := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+
+	sh.StartRootMountTable()
+
+	output := sh.Cmd(vbecome, "--name=bob", principal, "dump").CombinedOutput()
 	want := regexp.MustCompile(`Default Blessings\s+root:child:bob`)
 	if !want.MatchString(output) {
 		t.Errorf("Principal didn't have the expected blessing:\n %s", output)
 	}
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

@@ -10,8 +10,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate jiri test generate
-
 func TestBasic(t *testing.T) {
 	var q T
 	if q.Size() != 0 {

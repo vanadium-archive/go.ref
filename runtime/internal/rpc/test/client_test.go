@@ -5,6 +5,7 @@
 package test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,33 +26,48 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-
+	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/services/mounttable/mounttablelib"
-	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
-	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate jiri test generate .
+// testInit creates a new v23test.Shell, starts a root mount table, and
+// optionally starts a simple server.
+func testInit(t *testing.T, startServer bool) (sh *v23test.Shell, ctx *context.T, name string, cleanup func()) {
+	sh = v23test.NewShell(t, v23test.Opts{})
+	ctx = sh.Ctx
+	startRootMT(t, sh, false)
+	var cleanupServer func()
+	name, cleanupServer = startSimpleServer(t, ctx)
+	cleanup = func() {
+		cleanupServer()
+		sh.Cleanup()
+	}
+	return
+}
 
-var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
+////////////////////////////////////////
+// Root mount table
+
+var rootMT = gosh.Register("rootMT", func(nosec bool) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
+
 	seclevel := options.SecurityConfidential
-	if len(args) == 1 && args[0] == "nosec" {
+	if nosec {
 		seclevel = options.SecurityNone
 	}
-	return runRootMT(seclevel, env, args...)
-}, "rootMT")
-
-func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string) error {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
 	if seclevel == options.SecurityNone {
 		ls := v23.GetListenSpec(ctx)
 		for i := range ls.Addrs {
@@ -68,13 +84,33 @@ func runRootMT(seclevel options.SecurityLevel, env *modules.Env, args ...string)
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
-	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
+	fmt.Printf("PID=%d\n", os.Getpid())
 	for _, ep := range server.Status().Endpoints {
-		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
+		fmt.Printf("MT_NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(env.Stdin)
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
+})
+
+func startRootMT(t *testing.T, sh *v23test.Shell, nosec bool) {
+	cmd := sh.Fn(rootMT, nosec)
+	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
+	cmd.Start()
+	s.ExpectVar("PID")
+	rootName := s.ExpectVar("MT_NAME")
+	if len(rootName) == 0 {
+		sh.HandleError(errors.New("no MT_NAME"))
+		return
+	}
+	sh.Vars[ref.EnvNamespacePrefix] = rootName
+	if err := v23.GetNamespace(sh.Ctx).SetRoots(rootName); err != nil {
+		sh.HandleError(err)
+		return
+	}
 }
+
+////////////////////////////////////////
+// Echo server
 
 type treeDispatcher struct{ id string }
 
@@ -102,80 +138,66 @@ func (es *echoServerObject) Sleep(_ *context.T, _ rpc.ServerCall, d string) erro
 	return nil
 }
 
-var echoServer = modules.Register(func(env *modules.Env, args ...string) error {
+var echoServer = gosh.Register("echoServer", func(id, mp, addr string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	id, mp := args[0], args[1]
+	if addr == "" {
+		addr = "127.0.0.1:0"
+	}
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: addr}}})
+
 	disp := &treeDispatcher{id: id}
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, mp, disp)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
+	fmt.Printf("PID=%d\n", os.Getpid())
 	for _, ep := range server.Status().Endpoints {
-		fmt.Fprintf(env.Stdout, "NAME=%s\n", ep.Name())
+		fmt.Printf("NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(env.Stdin)
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
-}, "echoServer")
+})
 
-var echoClient = modules.Register(func(env *modules.Env, args ...string) error {
+// Returns server Cmd and name.
+func startEchoServer(t *testing.T, sh *v23test.Shell, id, mp, addr string) (*v23test.Cmd, string) {
+	cmd := sh.Fn(echoServer, id, mp, addr)
+	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
+	cmd.Start()
+	s.ExpectVar("PID")
+	name := s.ExpectVar("NAME")
+	return cmd, name
+}
+
+////////////////////////////////////////
+// Echo client
+
+var echoClient = gosh.Register("echoClient", func(name string, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	name := args[0]
-	args = args[1:]
 	client := v23.GetClient(ctx)
 	for _, a := range args {
 		var r string
 		if err := client.Call(ctx, name, "Echo", []interface{}{a}, []interface{}{&r}); err != nil {
 			return err
 		}
-		fmt.Fprintf(env.Stdout, r)
+		fmt.Printf(r)
 	}
 	return nil
-}, "echoClient")
+})
 
-func runMountTable(t *testing.T, ctx *context.T, args ...string) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	root, err := sh.Start(nil, rootMT, args...)
-	if err != nil {
-		t.Fatalf("unexpected error for root mt: %s", err)
-	}
-	deferFn := func() {
-		sh.Cleanup(os.Stderr, os.Stderr)
-	}
-
-	root.ExpectVar("PID")
-	rootName := root.ExpectVar("MT_NAME")
-	if len(rootName) == 0 {
-		root.Shutdown(nil, os.Stderr)
-	}
-
-	sh.SetVar(ref.EnvNamespacePrefix, rootName)
-	if err = v23.GetNamespace(ctx).SetRoots(rootName); err != nil {
-		t.Fatalf("unexpected error setting namespace roots: %s", err)
-	}
-
-	return sh, deferFn
-}
-
-func runClient(t *testing.T, sh *modules.Shell) error {
-	clt, err := sh.Start(nil, echoClient, "echoServer", "a message")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	s := expect.NewSession(t, clt.Stdout(), 30*time.Second)
+func runEchoClient(t *testing.T, sh *v23test.Shell) {
+	cmd := sh.Fn(echoClient, "echoServer", "a message")
+	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
+	cmd.Start()
 	s.Expect("echoServer: a message")
-	if s.Failed() {
-		return s.Error()
-	}
-	return nil
+	cmd.Wait()
 }
+
+////////////////////////////////////////
+// Misc helpers
 
 func numServers(t *testing.T, ctx *context.T, name string, expected int) int {
 	for {
@@ -187,30 +209,25 @@ func numServers(t *testing.T, ctx *context.T, name string, expected int) int {
 	}
 }
 
+////////////////////////////////////////
+// Tests
+
 // TODO(cnicolaou): figure out how to test and see what the internals
 // of tryCall are doing - e.g. using stats counters.
 func TestMultipleEndpoints(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
+	sh, ctx, _, cleanup := testInit(t, false)
+	defer cleanup()
 
-	sh, fn := runMountTable(t, ctx)
-	defer fn()
-	srv, err := sh.Start(nil, echoServer, "echoServer", "echoServer")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	s := expect.NewSession(t, srv.Stdout(), time.Minute)
-	s.ExpectVar("PID")
-	s.ExpectVar("NAME")
+	cmd, _ := startEchoServer(t, sh, "echoServer", "echoServer", "")
 
-	// Verify that there are 1 entries for echoServer in the mount table.
+	// Verify that there is 1 entry for echoServer in the mount table.
 	if got, want := numServers(t, ctx, "echoServer", 1), 1; got != want {
 		t.Fatalf("got: %d, want: %d", got, want)
 	}
 
-	runClient(t, sh)
+	runEchoClient(t, sh)
 
-	// Create a fake set of 100 entries in the mount table
+	// Create a fake set of 100 entries in the mount table.
 	for i := 0; i < 100; i++ {
 		// 203.0.113.0 is TEST-NET-3 from RFC5737
 		ep := naming.FormatEndpoint("tcp", fmt.Sprintf("203.0.113.%d:443", i))
@@ -228,12 +245,9 @@ func TestMultipleEndpoints(t *testing.T) {
 	// TODO(cnicolaou): ok, so it works, but I'm not sure how
 	// long it should take or if the parallel connection code
 	// really works. Use counters to inspect it for example.
-	if err := runClient(t, sh); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	runEchoClient(t, sh)
 
-	srv.CloseStdin()
-	srv.Shutdown(nil, nil)
+	cmd.Shutdown(os.Interrupt)
 
 	// Verify that there are 100 entries for echoServer in the mount table.
 	if got, want := numServers(t, ctx, "echoServer", 100), 100; got != want {
@@ -244,8 +258,9 @@ func TestMultipleEndpoints(t *testing.T) {
 func TestTimeout(t *testing.T) {
 	t.Skip("https://github.com/vanadium/issues/issues/650")
 
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
+	_, ctx, _, cleanup := testInit(t, false)
+	defer cleanup()
+
 	client := v23.GetClient(ctx)
 	ctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
 	name := naming.JoinAddressName(naming.FormatEndpoint("tcp", "203.0.113.10:443"), "")
@@ -271,12 +286,13 @@ func logErrors(t *testing.T, msg string, logerr, logstack, debugString bool, err
 }
 
 func TestStartCallErrors(t *testing.T) {
-	// TODO(suharshs,mattr): This test will be enables once the new client is written and solves the flakiness.
+	// TODO(suharshs,mattr): This test will be enabled once the new client is written and solves the flakiness.
 	t.Skip("TODO(suharshs,mattr): This test is very flaky and is temporarily disabled.")
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	client := v23.GetClient(ctx)
 
+	sh, ctx, _, cleanup := testInit(t, false)
+	defer cleanup()
+
+	client := v23.GetClient(ctx)
 	ns := v23.GetNamespace(ctx)
 
 	logErr := func(msg string, err error) {
@@ -316,8 +332,7 @@ func TestStartCallErrors(t *testing.T) {
 
 	// This will fail with NoServers, but because there really is no
 	// name registered with the mount table.
-	_, shutdown = runMountTable(t, ctx)
-	defer shutdown()
+	startRootMT(t, sh, false)
 	_, err = client.StartCall(ctx, "noname", "nomethod", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
 		t.Fatalf("wrong error: %s", err)
@@ -419,8 +434,10 @@ func (c *closeConn) ReadMsg() ([]byte, error) {
 }
 
 func TestStartCallBadProtocol(t *testing.T) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
+	sh := v23test.NewShell(t, v23test.Opts{})
+	ctx := sh.Ctx
+	defer sh.Cleanup()
+	startRootMT(t, sh, true)
 
 	client := v23.GetClient(ctx)
 
@@ -428,8 +445,6 @@ func TestStartCallBadProtocol(t *testing.T) {
 		logErrors(t, msg, true, false, false, err)
 	}
 
-	_, shutdown = runMountTable(t, ctx, "nosec")
-	defer shutdown()
 	wg := &sync.WaitGroup{}
 	nctx := debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
 		wg.Add(1)
@@ -450,16 +465,14 @@ func TestStartCallBadProtocol(t *testing.T) {
 }
 
 func TestStartCallSecurity(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
+
 	client := v23.GetClient(ctx)
 
 	logErr := func(msg string, err error) {
 		logErrors(t, msg, true, false, false, err)
 	}
-
-	name, fn := initServer(t, ctx)
-	defer fn()
 
 	// Create a context with a new principal that doesn't match the server,
 	// so that the client will not trust the server.
@@ -477,33 +490,21 @@ func TestStartCallSecurity(t *testing.T) {
 	logErr("client does not trust server", err)
 }
 
-var childPing = modules.Register(func(env *modules.Env, args ...string) error {
-	ctx, shutdown := test.V23InitWithMounttable()
+var childPing = gosh.Register("childPing", func(name string) error {
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	name := args[0]
 	got := ""
 	if err := v23.GetClient(ctx).Call(ctx, name, "Ping", nil, []interface{}{&got}); err != nil {
 		return fmt.Errorf("unexpected error: %s", err)
 	}
-	fmt.Fprintf(env.Stdout, "RESULT=%s\n", got)
+	fmt.Printf("RESULT=%s\n", got)
 	return nil
-}, "childPing")
-
-func initServer(t *testing.T, ctx *context.T, opts ...rpc.ServerOpt) (string, func()) {
-	done := make(chan struct{})
-	ctx, server, err := v23.WithNewServer(ctx, "", &simple{done}, nil, opts...)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	return server.Status().Endpoints[0].Name(), func() { close(done) }
-}
+})
 
 func TestTimeoutResponse(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(ctx, time.Millisecond)
 	err := v23.GetClient(ctx).Call(ctx, name, "Sleep", nil, nil)
@@ -514,10 +515,8 @@ func TestTimeoutResponse(t *testing.T) {
 }
 
 func TestArgsAndResponses(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", []interface{}{"too many args"})
 	if err != nil {
@@ -541,11 +540,8 @@ func TestArgsAndResponses(t *testing.T) {
 }
 
 func TestAccessDenied(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	ctx1, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("test-blessing"))
 	// Client must recognize the server, otherwise it won't even send the request.
@@ -564,10 +560,8 @@ func TestAccessDenied(t *testing.T) {
 }
 
 func TestCanceledBeforeFinish(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	ctx, cancel := context.WithCancel(ctx)
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
@@ -583,10 +577,8 @@ func TestCanceledBeforeFinish(t *testing.T) {
 }
 
 func TestCanceledDuringFinish(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	ctx, cancel := context.WithCancel(ctx)
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
@@ -605,24 +597,17 @@ func TestCanceledDuringFinish(t *testing.T) {
 }
 
 func TestRendezvous(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	sh, fn := runMountTable(t, ctx)
-	defer fn()
-
-	name := "echoServer"
+	sh, ctx, _, cleanup := testInit(t, false)
+	defer cleanup()
 
 	// We start the client before we start the server, StartCall will reresolve
 	// the name until it finds an entry or times out after an exponential
 	// backoff of some minutes.
-	startServer := func() {
+	name := "echoServer"
+	go func() {
 		time.Sleep(100 * time.Millisecond)
-		srv, _ := sh.Start(nil, echoServer, "message", name)
-		s := expect.NewSession(t, srv.Stdout(), time.Minute)
-		s.ExpectVar("PID")
-		s.ExpectVar("NAME")
-	}
-	go startServer()
+		startEchoServer(t, sh, "message", name, "")
+	}()
 
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Echo", []interface{}{"hello"})
 	if err != nil {
@@ -641,29 +626,21 @@ func TestRendezvous(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	sh, fn := runMountTable(t, ctx)
-	defer fn()
+	sh, _, name, cleanup := testInit(t, true)
+	defer cleanup()
 
-	name, fn := initServer(t, ctx)
-	defer fn()
-
-	srv, err := sh.Start(nil, childPing, name)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	s := expect.NewSession(t, srv.Stdout(), time.Minute)
+	cmd := sh.Fn(childPing, name)
+	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
+	cmd.Start()
 	if got, want := s.ExpectVar("RESULT"), "pong"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
+	cmd.Wait()
 }
 
 func TestStreamTimeout(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	want := 10
 	ctx, _ = context.WithTimeout(ctx, 300*time.Millisecond)
@@ -698,10 +675,8 @@ func TestStreamTimeout(t *testing.T) {
 }
 
 func TestStreamAbort(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sink", nil)
 	if err != nil {
@@ -731,10 +706,9 @@ func TestStreamAbort(t *testing.T) {
 }
 
 func TestNoServersAvailable(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	_, fn := runMountTable(t, ctx)
-	defer fn()
+	_, ctx, _, cleanup := testInit(t, false)
+	defer cleanup()
+
 	name := "noservers"
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil, options.NoRetry{})
 	if err != nil {
@@ -751,8 +725,9 @@ func TestNoServersAvailable(t *testing.T) {
 }
 
 func TestNoMountTable(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
+	_, ctx, _, cleanup := testInit(t, false)
+	defer cleanup()
+
 	v23.GetNamespace(ctx).SetRoots()
 	name := "a_mount_table_entry"
 
@@ -769,20 +744,11 @@ func TestNoMountTable(t *testing.T) {
 // endpoint).
 func TestReconnect(t *testing.T) {
 	t.Skip()
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-	server, err := sh.Start(nil, echoServer, "--v23.tcp.address=127.0.0.1:0", "mymessage", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	server.ReadLine()
-	serverName := server.ExpectVar("NAME")
+	sh, ctx, _, cleanup := testInit(t, false)
+	defer cleanup()
+
+	cmd, serverName := startEchoServer(t, sh, "mymessage", "", "")
 	serverEP, _ := naming.SplitAddressName(serverName)
 	ep, _ := inaming.NewEndpoint(serverEP)
 
@@ -803,11 +769,9 @@ func TestReconnect(t *testing.T) {
 	if result, err := makeCall(ctx); err != nil || result != expected {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
 	}
-	// Kill the server, verify client can't talk to it anymore.
-	if err := server.Shutdown(os.Stderr, os.Stderr); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
 
+	// Kill the server, verify client can't talk to it anymore.
+	cmd.Shutdown(os.Interrupt)
 	if _, err := makeCall(ctx, options.NoRetry{}); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
 		t.Fatalf(`Got (%v) want ("START: <err>" or "EOF") as server is down`, err)
 	}
@@ -815,11 +779,8 @@ func TestReconnect(t *testing.T) {
 	// Resurrect the server with the same address, verify client
 	// re-establishes the connection. This is racy if another
 	// process grabs the port.
-	server, err = sh.Start(nil, echoServer, "--v23.tcp.address="+ep.Address, "mymessage again", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer server.Shutdown(os.Stderr, os.Stderr)
+	cmd, _ = startEchoServer(t, sh, "mymessage again", "", ep.Address)
+	defer cmd.Shutdown(os.Interrupt)
 	expected = "mymessage again: bratman\n"
 	if result, err := makeCall(ctx); err != nil || result != expected {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
@@ -827,12 +788,8 @@ func TestReconnect(t *testing.T) {
 }
 
 func TestMethodErrors(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	clt := v23.GetClient(ctx)
-
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	var (
 		i, j int
@@ -901,6 +858,7 @@ func TestMethodErrors(t *testing.T) {
 		},
 	}
 
+	clt := v23.GetClient(ctx)
 	for _, test := range testCases {
 		testPrefix := fmt.Sprintf("test(%s) failed", test.testName)
 		call, err := clt.StartCall(ctx, test.objectName, test.method, test.args)
@@ -918,12 +876,8 @@ func TestMethodErrors(t *testing.T) {
 }
 
 func TestReservedMethodErrors(t *testing.T) {
-	ctx, shutdown := test.V23InitWithMounttable()
-	defer shutdown()
-	clt := v23.GetClient(ctx)
-
-	name, fn := initServer(t, ctx)
-	defer fn()
+	_, ctx, name, cleanup := testInit(t, true)
+	defer cleanup()
 
 	logErr := func(msg string, err error) {
 		logErrors(t, msg, true, false, false, err)
@@ -931,6 +885,7 @@ func TestReservedMethodErrors(t *testing.T) {
 
 	// This call will fail because the __xx suffix is not supported by
 	// the dispatcher implementing Signature.
+	clt := v23.GetClient(ctx)
 	call, err := clt.StartCall(ctx, name+"/__xx", "__Signature", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -953,4 +908,8 @@ func TestReservedMethodErrors(t *testing.T) {
 		t.Fatalf("wrong error: %s", verr)
 	}
 	logErr("unknown method", verr)
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

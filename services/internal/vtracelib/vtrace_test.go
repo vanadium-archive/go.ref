@@ -11,13 +11,10 @@ import (
 	"v.io/v23"
 	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/vtrace"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/internal/vtracelib"
 	"v.io/x/ref/test"
-
-	_ "v.io/x/ref/runtime/factories/generic"
 )
-
-//go:generate jiri test generate
 
 func TestVtraceServer(t *testing.T) {
 	ctx, shutdown := test.V23Init()

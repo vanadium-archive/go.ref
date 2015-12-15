@@ -14,18 +14,15 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/x/ref/lib/flags"
+	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	grt "v.io/x/ref/runtime/internal/rt"
-	"v.io/x/ref/services/mounttable/mounttablelib"
-	"v.io/x/ref/test/expect"
-	"v.io/x/ref/test/modules"
 )
 
 var commonFlags *flags.Flags
@@ -65,55 +62,18 @@ func setupRuntime() {
 	fake.InjectRuntime(runtime, ctx, shutdown)
 }
 
-var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
-	setupRuntime()
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-
-	mp := ""
-	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
-	if err != nil {
-		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
-	}
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, mp, mt, options.ServesMountTable(true))
-	if err != nil {
-		return fmt.Errorf("root failed: %v", err)
-	}
-	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
-	for _, ep := range server.Status().Endpoints {
-		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
-	}
-	modules.WaitForEOF(env.Stdin)
-	return nil
-}, "rootMT")
-
-func startMT(t *testing.T, sh *modules.Shell) string {
-	h, err := sh.Start(nil, rootMT)
-	if err != nil {
-		t.Fatalf("unexpected error for root mt: %s", err)
-	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.ExpectVar("PID")
-	return s.ExpectVar("MT_NAME")
-}
-
 type fakeService struct{}
 
 func (f *fakeService) Foo(ctx *context.T, call rpc.ServerCall) error { return nil }
 
-func TestResolveToEndpoint(t *testing.T) {
+func TestV23ResolveToEndpoint(t *testing.T) {
 	setupRuntime()
-	ctx, shutdown := v23.Init()
-	defer shutdown()
-	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("modules.NewShell failed: %s", err)
-	}
-	defer sh.Cleanup(nil, nil)
-	root := startMT(t, sh)
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+	sh.StartRootMountTable()
 
+	ctx := sh.Ctx
 	ns := v23.GetNamespace(ctx)
-	ns.SetRoots(root)
 
 	proxyEp, _ := inaming.NewEndpoint("proxy.v.io:123")
 	proxyEpStr := proxyEp.String()
@@ -136,7 +96,7 @@ func TestResolveToEndpoint(t *testing.T) {
 		{"/proxy.v.io:123", proxyEpStr, nil},
 		{"proxy.v.io:123", "", notfound},
 		{"proxy", proxyEpStr, nil},
-		{naming.JoinAddressName(root, "proxy"), proxyEpStr, nil},
+		{naming.JoinAddressName(ns.Roots()[0], "proxy"), proxyEpStr, nil},
 		{proxyAddr, proxyEpStr, nil},
 		{proxyEpStr, "", notfound},
 		{"unknown", "", notfound},
@@ -154,4 +114,8 @@ func TestResolveToEndpoint(t *testing.T) {
 		t.Logf("proxyEpStr: %v", proxyEpStr)
 		t.Logf("proxyAddr: %v", proxyAddr)
 	}
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

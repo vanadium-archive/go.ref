@@ -23,8 +23,6 @@ import (
 
 type server struct{}
 
-//go:generate jiri test generate
-
 // TypeTester interface implementation
 
 func (*server) EchoBool(_ *context.T, _ rpc.ServerCall, i1 bool) (bool, error) {

@@ -10,13 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/build"
-
-	"v.io/v23"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -36,8 +35,6 @@ var (
 		Os:          build.OperatingSystemLinux,
 	}
 )
-
-//go:generate jiri test generate
 
 type server struct {
 	suffix string

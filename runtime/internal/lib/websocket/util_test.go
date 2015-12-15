@@ -19,8 +19,6 @@ import (
 	"v.io/v23/rpc"
 )
 
-//go:generate jiri test generate
-
 var crcTable *crc64.Table
 
 func init() {

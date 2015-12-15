@@ -10,8 +10,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate jiri test generate
-
 // TestRandom tests Wait after a random sequence of TryAdd's and Done's that
 // leaves the counter at 0.
 func TestRandom(t *testing.T) {

@@ -10,8 +10,6 @@ import (
 	"testing"
 )
 
-//go:generate jiri test generate
-
 func TestSemaphore(t *testing.T) {
 	s1 := NewSemaphore()
 	s2 := NewSemaphore()

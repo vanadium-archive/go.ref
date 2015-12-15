@@ -12,7 +12,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-
 	"v.io/x/ref/runtime/internal/lib/websocket"
 )
 

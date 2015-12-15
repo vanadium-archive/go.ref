@@ -10,25 +10,21 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/stats"
 	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
-
-	"v.io/v23"
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/histogram"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/internal/statslib"
 	s_stats "v.io/x/ref/services/stats"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
-
-	_ "v.io/x/ref/runtime/factories/generic"
 )
-
-//go:generate jiri test generate
 
 type statsDispatcher struct {
 }

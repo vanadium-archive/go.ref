@@ -20,8 +20,6 @@ import (
 	"v.io/x/ref/test"
 )
 
-//go:generate jiri test generate
-
 func resolveWithRetry(t *testing.T, ns namespace.T, ctx *context.T, name string, expected int) []string {
 	deadline := time.Now().Add(10 * time.Second)
 	for {

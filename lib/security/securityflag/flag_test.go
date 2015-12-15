@@ -5,7 +5,6 @@
 package securityflag
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -15,10 +14,8 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/x/ref/test/modules"
+	"v.io/x/lib/gosh"
 )
-
-//go:generate jiri test generate
 
 var (
 	perms1 = access.Permissions{}
@@ -37,21 +34,21 @@ var (
 	}
 )
 
-var permFromFlag = modules.Register(func(env *modules.Env, args ...string) error {
+var permFromFlag = gosh.Register("permFromFlag", func() {
+	flag.Parse()
 	nfargs := flag.CommandLine.Args()
 	perms, err := PermissionsFromFlag()
 	if err != nil {
-		fmt.Fprintf(env.Stdout, "PermissionsFromFlag() failed: %v", err)
-		return nil
+		fmt.Printf("PermissionsFromFlag() failed: %v", err)
+		return
 	}
 	got := access.TypicalTagTypePermissionsAuthorizer(perms)
 	want := expectedAuthorizer[nfargs[0]]
 	if !reflect.DeepEqual(got, want) {
-		fmt.Fprintf(env.Stdout, "args %#v\n", args)
-		fmt.Fprintf(env.Stdout, "AuthorizerFromFlags() got Authorizer: %v, want: %v", got, want)
+		fmt.Printf("args %#v\n", os.Args)
+		fmt.Printf("AuthorizerFromFlags() got Authorizer: %v, want: %v", got, want)
 	}
-	return nil
-}, "permFromFlag")
+})
 
 func writePermissionsToFile(perms access.Permissions) (string, error) {
 	f, err := ioutil.TempFile("", "permissions")
@@ -66,11 +63,8 @@ func writePermissionsToFile(perms access.Permissions) (string, error) {
 }
 
 func TestNewAuthorizerOrDie(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
+	sh := gosh.NewShell(gosh.Opts{Errorf: t.Fatalf, Logf: t.Logf})
+	defer sh.Cleanup()
 
 	// Create a file.
 	filename, err := writePermissionsToFile(perms2)
@@ -80,36 +74,30 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 	defer os.Remove(filename)
 
 	testdata := []struct {
-		prog  modules.Program
 		flags []string
 		auth  string
 	}{
 		{
-			prog:  permFromFlag,
 			flags: []string{"--v23.permissions.file", "runtime:" + filename},
 			auth:  "perms2",
 		},
 		{
-			prog:  permFromFlag,
 			flags: []string{"--v23.permissions.literal", "{}"},
 			auth:  "empty",
 		},
 		{
-			prog:  permFromFlag,
 			flags: []string{"--v23.permissions.literal", `{"Read": {"In":["v23:alice:$", "v23:bob"]}, "Write": {"In":["v23:alice:$"]}}`},
 			auth:  "perms2",
 		},
 	}
 	for _, td := range testdata {
 		fp := append(td.flags, td.auth)
-		h, err := sh.Start(nil, td.prog, fp...)
-		if err != nil {
-			t.Errorf("unexpected error: %s", err)
-		}
-		b := new(bytes.Buffer)
-		h.Shutdown(b, os.Stderr)
-		if got := b.String(); got != "" {
-			t.Errorf(got)
+		if stdout, _ := sh.Main(permFromFlag, fp...).Output(); stdout != "" {
+			t.Errorf(stdout)
 		}
 	}
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(gosh.Run(m.Run))
 }

@@ -6,10 +6,11 @@ package revocation
 
 import (
 	"encoding/hex"
-	"github.com/DATA-DOG/go-sqlmock"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
 )
 
 func TestSQLDatabase(t *testing.T) {
