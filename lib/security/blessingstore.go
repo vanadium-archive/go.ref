@@ -123,12 +123,10 @@ func (bs *blessingStore) PeerBlessings() map[security.BlessingPattern]security.B
 
 func (bs *blessingStore) CacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) {
 	id := discharge.ID()
-	tp := caveat.ThirdPartyDetails()
-	// Only add to the cache if the caveat did not require arguments.
-	if id == "" || tp == nil || tp.Requirements().ReportArguments {
+	key, cacheable := dcacheKey(caveat.ThirdPartyDetails(), impetus)
+	if id == "" || !cacheable {
 		return
 	}
-	key := dcacheKey(tp, impetus)
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
 	old, hadold := bs.state.DischargeCache[key]
@@ -145,49 +143,39 @@ func (bs *blessingStore) CacheDischarge(discharge security.Discharge, caveat sec
 
 func (bs *blessingStore) ClearDischarges(discharges ...security.Discharge) {
 	bs.mu.Lock()
-	bs.clearDischargesLocked(discharges...)
+	clearDischargesFromCache(bs.state.DischargeCache, discharges...)
 	bs.mu.Unlock()
 	return
 }
 
-func (bs *blessingStore) clearDischargesLocked(discharges ...security.Discharge) {
-	for _, d := range discharges {
-		for k, cached := range bs.state.DischargeCache {
-			if cached.Equivalent(d) {
-				delete(bs.state.DischargeCache, k)
-			}
-		}
+func (bs *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
+	key, cacheable := dcacheKey(caveat.ThirdPartyDetails(), impetus)
+	if !cacheable {
+		return security.Discharge{}
 	}
-}
-
-func (bs *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (out security.Discharge) {
 	defer bs.mu.Unlock()
 	bs.mu.Lock()
-	tp := caveat.ThirdPartyDetails()
+	return dischargeFromCache(bs.state.DischargeCache, key)
+}
+
+func dischargeFromCache(dcache map[dischargeCacheKey]security.Discharge, key dischargeCacheKey) security.Discharge {
+	cached, exists := dcache[key]
+	if !exists {
+		return security.Discharge{}
+	}
+	if expiry := cached.Expiry(); expiry.IsZero() || expiry.After(time.Now()) {
+		return cached
+	}
+	delete(dcache, key)
+	return security.Discharge{}
+}
+
+func dcacheKey(tp security.ThirdPartyCaveat, impetus security.DischargeImpetus) (key dischargeCacheKey, cacheable bool) {
+	// The cache key is based on the method and servers for impetus, it ignores arguments.
+	// So fail if the caveat requires arguments.
 	if tp == nil || tp.Requirements().ReportArguments {
-		return
+		return key, false
 	}
-	key := dcacheKey(tp, impetus)
-	if cached, exists := bs.state.DischargeCache[key]; exists {
-		out = cached
-		// If the discharge has expired, purge it from the cache.
-		if hasDischargeExpired(out) {
-			out = security.Discharge{}
-			bs.clearDischargesLocked(cached)
-		}
-	}
-	return
-}
-
-func hasDischargeExpired(dis security.Discharge) bool {
-	expiry := dis.Expiry()
-	if expiry.IsZero() {
-		return false
-	}
-	return expiry.Before(time.Now())
-}
-
-func dcacheKey(tp security.ThirdPartyCaveat, impetus security.DischargeImpetus) dischargeCacheKey {
 	// If the algorithm for computing dcacheKey changes, cacheKeyFormat must be changed as well.
 	id := tp.ID()
 	r := tp.Requirements()
@@ -210,9 +198,18 @@ func dcacheKey(tp security.ThirdPartyCaveat, impetus security.DischargeImpetus) 
 	h.Write(hashString(id))
 	h.Write(hashString(method))
 	h.Write(hashString(servers))
-	var key [sha256.Size]byte
 	copy(key[:], h.Sum(nil))
-	return key
+	return key, true
+}
+
+func clearDischargesFromCache(dcache map[dischargeCacheKey]security.Discharge, discharges ...security.Discharge) {
+	for _, d := range discharges {
+		for k, cached := range dcache {
+			if cached.Equivalent(d) {
+				delete(dcache, k)
+			}
+		}
+	}
 }
 
 func hashString(d string) []byte {
