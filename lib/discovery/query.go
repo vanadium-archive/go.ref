@@ -13,6 +13,7 @@ import (
 	"v.io/v23/query/engine"
 	"v.io/v23/query/engine/datasource"
 	"v.io/v23/query/engine/public"
+	"v.io/v23/query/syncql"
 	"v.io/v23/vdl"
 )
 
@@ -44,8 +45,13 @@ type dDS struct {
 }
 
 // Implements datasource.Database.
-func (ds *dDS) GetContext() *context.T                    { return ds.ctx }
-func (ds *dDS) GetTable(string) (datasource.Table, error) { return ds, nil }
+func (ds *dDS) GetContext() *context.T { return ds.ctx }
+func (ds *dDS) GetTable(table string, writeAccessReq bool) (datasource.Table, error) {
+	if writeAccessReq {
+		return nil, syncql.NewErrNotWritable(ds.ctx, table)
+	}
+	return ds, nil
+}
 
 // Implements datasource.Table.
 func (ds *dDS) GetIndexFields() []datasource.Index {
@@ -59,6 +65,9 @@ func (ds *dDS) Scan(idxRanges ...datasource.IndexRanges) (datasource.KeyValueStr
 		// TODO(jkline): Do not limit interface names.
 	}
 	return ds, nil
+}
+func (ds *dDS) Delete(k string) (bool, error) {
+	return false, syncql.NewErrOperationNotSupported(ds.ctx, "delete")
 }
 
 func limitToSingleInterface(idxRange datasource.IndexRanges) (bool, string) {

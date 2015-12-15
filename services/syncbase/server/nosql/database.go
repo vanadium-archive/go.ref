@@ -14,6 +14,7 @@ import (
 	"v.io/v23/glob"
 	"v.io/v23/query/engine"
 	ds "v.io/v23/query/engine/datasource"
+	"v.io/v23/query/syncql"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
@@ -449,7 +450,10 @@ func (db *queryDb) GetContext() *context.T {
 	return db.ctx
 }
 
-func (db *queryDb) GetTable(name string) (ds.Table, error) {
+func (db *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error) {
+	if writeAccessReq {
+		return nil, syncql.NewErrNotWritable(db.GetContext(), name)
+	}
 	tDb := &tableDb{
 		qdb: db,
 		req: &tableReq{
@@ -474,6 +478,10 @@ func (t *tableDb) GetIndexFields() []ds.Index {
 	// TODO(jkline): If and when secondary indexes are supported, they
 	// would be supplied here.
 	return []ds.Index{}
+}
+
+func (t *tableDb) Delete(k string) (bool, error) {
+	return false, syncql.NewErrOperationNotSupported(t.qdb.ctx, "delete")
 }
 
 func (t *tableDb) Scan(indexRanges ...ds.IndexRanges) (ds.KeyValueStream, error) {
