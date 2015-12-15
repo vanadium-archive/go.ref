@@ -121,6 +121,7 @@ func (m manager) WithContinuedTrace(ctx *context.T, name string, req vtrace.Requ
 	if err != nil {
 		ctx.Error(err)
 	}
+	ctx = WithVTraceLevel(ctx, int(req.LogLevel))
 	return context.WithValue(ctx, spanKey, newSpan), newSpan
 }
 
@@ -160,6 +161,7 @@ func (m manager) GetRequest(ctx *context.T) vtrace.Request {
 			SpanId:  span.id,
 			TraceId: span.trace,
 			Flags:   span.flags(),
+			LogLevel: int32(GetVTraceLevel(ctx)),
 		}
 	}
 	return vtrace.Request{}

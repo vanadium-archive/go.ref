@@ -61,7 +61,7 @@ func printStack(all bool) string {
 }
 
 func (*VTraceLogger) VDepth(ctx *context.T, depth int, level int) bool {
-	return GetVTraceLevel(ctx) > level
+	return GetVTraceLevel(ctx) >= level
 }
 
 func (v *VTraceLogger) VIDepth(ctx *context.T, depth int, level int) context.ContextLogger {
