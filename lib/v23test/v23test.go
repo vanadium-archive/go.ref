@@ -37,6 +37,8 @@ const (
 )
 
 // Cmd wraps gosh.Cmd and provides Vanadium-specific functionality.
+// TODO(sadovsky): Maybe add a Cmd.Session field (and update existing clients to
+// use it).
 type Cmd struct {
 	*gosh.Cmd
 }
@@ -81,11 +83,11 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 		}
 		// The "jiri test run vanadium-integration-test" command looks for test
 		// function names that start with "TestV23", and runs "go test" for only
-		// those Go packages containing at least one such test. That's how it avoids
-		// passing the -v23.tests flag to test packages for which the flag is not
+		// those packages containing at least one such test. That's how it avoids
+		// passing the -v23.tests flag to packages for which the flag is not
 		// registered.
-		// TODO(sadovsky): Share a common helper function for determining whether a
-		// given test function is an integration test.
+		// TODO(sadovsky): Share a common helper for determining whether a given
+		// test function is an integration test.
 		name, err := callerName()
 		if err != nil {
 			t.Fatal(err)

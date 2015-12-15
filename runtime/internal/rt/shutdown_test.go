@@ -16,8 +16,6 @@ import (
 	"v.io/x/ref/test/modules"
 )
 
-//go:generate jiri test generate
-
 var cstderr io.Writer
 
 func init() {
