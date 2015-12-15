@@ -410,7 +410,7 @@ func (b *blessingsFlow) encodeBlessingsLocked(ctx *context.T, blessings security
 			Blessings: blessings,
 		}})
 	}
-	ciphertexts, err := encrypt(ctx, blessings, peers)
+	ciphertexts, err := encrypt(ctx, peers, blessings)
 	if err != nil {
 		return NewErrCannotEncryptBlessings(ctx, peers, err)
 	}
@@ -429,7 +429,7 @@ func (b *blessingsFlow) encodeDischargesLocked(ctx *context.T, discharges []secu
 			BKey:       bkey,
 		}})
 	}
-	ciphertexts, err := encrypt(ctx, discharges, peers)
+	ciphertexts, err := encrypt(ctx, peers, discharges)
 	if err != nil {
 		return NewErrCannotEncryptDischarges(ctx, peers, err)
 	}
