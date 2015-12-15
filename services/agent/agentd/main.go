@@ -65,15 +65,20 @@ func main() {
 var cmdAgentD = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runAgentD),
 	Name:   "agentd",
-	Short:  "Holds a private key in memory and makes it available to a subprocess",
+	Short:  "Holds a private key in memory and makes it available to other processes",
 	Long: `
 Command agentd runs the security agent daemon, which holds a private key in
-memory and makes it available to a subprocess.
+memory and makes it available to other processes.
 
-Loads the private key specified in privatekey.pem in the specified
-credentials directory into memory, then starts the specified command
-with access to the private key via the agent protocol instead of
-directly reading from disk.
+Loads the credentials from the specified directory into memory. Then optionally
+starts a command with access to these credentials via agent protocol.
+
+Other processes can access the agent credentials when V23_AGENT_PATH is set to
+<credential dir>/agent.sock.
+
+Example:
+$ agentd --v23.credentials=$HOME/.credentials
+$ V23_AGENT_PATH=$HOME/.credentials/agent.sock principal dump
 `,
 	ArgsName: "command [command_args...]",
 	ArgsLong: `
@@ -82,9 +87,6 @@ The command is started as a subprocess with the given [command_args...].
 }
 
 func runAgentD(env *cmdline.Env, args []string) error {
-	if len(args) < 1 {
-		return env.UsageErrorf("Need at least one argument.")
-	}
 	var restartOpts restartOptions
 	if err := restartOpts.parse(); err != nil {
 		return env.UsageErrorf("%v", err)
@@ -135,6 +137,11 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	}
 	if err = i.Listen(socketPath); err != nil {
 		return err
+	}
+
+	if len(args) == 0 {
+		<-vsignals.ShutdownOnSignals(nil)
+		return nil
 	}
 
 	// Clear out the environment variable before starting the child.
