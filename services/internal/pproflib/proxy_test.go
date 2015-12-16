@@ -7,6 +7,7 @@ package pproflib_test
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"testing"
 
@@ -35,37 +36,37 @@ func TestPProfProxy(t *testing.T) {
 		t.Fatalf("failed to start server: %v", err)
 	}
 	endpoints := s.Status().Endpoints
-	l, err := pproflib.StartProxy(ctx, endpoints[0].Name())
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("failed to start proxy: %v", err)
+		t.Fatal(err)
 	}
-	defer l.Close()
-
+	defer ln.Close()
+	go http.Serve(ln, pproflib.PprofProxy(ctx, "/myprefix", endpoints[0].Name()))
 	testcases := []string{
-		"/pprof/",
-		"/pprof/cmdline",
-		"/pprof/profile?seconds=1",
-		"/pprof/heap",
-		"/pprof/goroutine",
+		"/myprefix/pprof/",
+		"/myprefix/pprof/cmdline",
+		"/myprefix/pprof/profile?seconds=1",
+		"/myprefix/pprof/heap",
+		"/myprefix/pprof/goroutine",
 		fmt.Sprintf("/pprof/symbol?%p", TestPProfProxy),
 	}
 	for _, c := range testcases {
-		url := "http://" + l.Addr().String() + c
-		t.Log(url)
+		url := fmt.Sprintf("http://%s%s", ln.Addr(), c)
 		resp, err := http.Get(url)
 		if err != nil {
-			t.Fatalf("http.Get failed: %v", err)
+			t.Fatalf("%v: http.Get failed: %v", url, err)
 		}
 		if resp.StatusCode != 200 {
-			t.Errorf("unexpected status code. Got %d, want 200", resp.StatusCode)
+			t.Errorf("%v: unexpected status code. Got %d, want 200", url, resp.StatusCode)
 		}
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			t.Fatalf("ReadAll failed: %v", err)
+			t.Errorf("%v: ReadAll failed: %v", url, err)
+			continue
 		}
 		resp.Body.Close()
 		if len(body) == 0 {
-			t.Errorf("unexpected empty body")
+			t.Errorf("%v: unexpected empty body", url)
 		}
 	}
 }

@@ -15,46 +15,50 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/services/pprof"
 	"v.io/v23/vtrace"
 )
 
-// StartProxy starts the pprof proxy to a remote pprof object.
-func StartProxy(ctx *context.T, name string) (net.Listener, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return nil, err
+// PprofProxy returns an http.Handler implements to serve profile information
+// of a remote process with the vanadium object name 'name'.
+//
+// The handler assumes that it is serving paths under "pathPrefix".
+func PprofProxy(ctx *context.T, pathPrefix, name string) http.Handler {
+	return &proxy{
+		ctx:        ctx,
+		name:       name,
+		pathPrefix: pathPrefix,
 	}
-	p := &proxy{ctx, name}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Location", "/pprof/")
-		w.WriteHeader(http.StatusFound)
-	})
-	mux.HandleFunc("/pprof/", p.index)
-	mux.HandleFunc("/pprof/cmdline", p.cmdLine)
-	mux.HandleFunc("/pprof/profile", p.profile)
-	mux.HandleFunc("/pprof/symbol", p.symbol)
-
-	server := &http.Server{
-		Handler:      mux,
-		ReadTimeout:  time.Hour,
-		WriteTimeout: time.Hour,
-	}
-	go server.Serve(listener)
-	return listener, nil
 }
 
 type proxy struct {
-	ctx  *context.T
-	name string
+	ctx        *context.T
+	name       string
+	pathPrefix string
+}
+
+func (p *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch path := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, p.pathPrefix), "/"); path {
+	case "":
+		http.Redirect(w, r, r.URL.Path+"/pprof/", http.StatusTemporaryRedirect)
+	case "pprof/cmdline":
+		p.cmdLine(w, r)
+	case "pprof/profile":
+		p.profile(w, r)
+	case "pprof/symbol":
+		p.symbol(w, r)
+	default:
+		if strings.HasPrefix(path, "pprof/") || path == "pprof" {
+			p.index(w, r)
+		} else {
+			http.NotFound(w, r)
+		}
+	}
 }
 
 func replyUnavailable(w http.ResponseWriter, err error) {
