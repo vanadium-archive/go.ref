@@ -207,7 +207,7 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 		// peer ok? The thinking here is that the peer uses the read tag
 		// on the GetDeltas RPC to authorize the initiator and this
 		// makes it symmetric.
-		if acl, exists := sg.Spec.Perms[string(access.Read)]; !exists || !acl.Includes(blessingNames...) {
+		if err := authorizeForTag(ctx, sg.Spec.Perms, access.Read, blessingNames); err != nil {
 			vlog.VI(4).Infof("sync: filterSyncGroups: skipping sg %v", gid)
 			continue
 		}
@@ -808,6 +808,10 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 			if err := iSt.config.sync.putDbGenInfoRemote(ctx, iSt.config.appName, iSt.config.dbName, iSt.sg, iSt.updLocal); err != nil {
 				vlog.Fatalf("sync: processUpdatedObjects: putting geninfo in memory failed for app %s db %s, err %v", iSt.config.appName, iSt.config.dbName, err)
 			}
+
+			// Ignore errors.
+			iSt.advertiseSyncgroups(ctx)
+
 			vlog.VI(4).Info("sync: processUpdatedObjects: end: changes committed")
 			return nil
 		}
@@ -1133,6 +1137,33 @@ func mergeGenVectors(lpgv, respgv interfaces.GenVector) {
 			lpgv[devid] = rgen
 		}
 	}
+}
+
+func (iSt *initiationState) advertiseSyncgroups(ctx *context.T) error {
+	if !iSt.sg {
+		return nil
+	}
+
+	// For all the syncgroup changes we learned, see if the latest acl makes
+	// this node an admin or removes it from its admin role, and if so,
+	// advertise the syncgroup or cancel the existing advertisement over the
+	// neighborhood as applicable.
+	for objid := range iSt.updObjects {
+		gid, err := sgID(objid)
+		if err != nil {
+			return err
+		}
+		var sg *interfaces.Syncgroup
+		sg, err = getSyncgroupById(ctx, iSt.config.st, gid)
+		if err != nil {
+			return err
+		}
+		if err := iSt.config.sync.advertiseSyncgroupInNeighborhood(sg); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

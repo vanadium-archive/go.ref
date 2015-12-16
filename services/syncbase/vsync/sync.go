@@ -47,11 +47,9 @@ type syncService struct {
 	name string // name derived from the global id.
 	sv   interfaces.Service
 
-	// Root context to be used to create a context for advertising over
-	// neighborhood.
+	// Root context. Used for example to create a context for advertising
+	// over neighborhood.
 	ctx *context.T
-
-	nameLock sync.Mutex // lock needed to serialize adding and removing of Syncbase names.
 
 	// High-level lock to serialize the watcher and the initiator. This lock is
 	// needed to handle the following cases: (a) When the initiator is
@@ -96,9 +94,15 @@ type syncService struct {
 	discoverySyncgroups map[string]map[string]*discovery.Service
 	discoveryLock       sync.RWMutex
 
-	// Cancel function for a context derived from the root context when
+	nameLock sync.Mutex // lock needed to serialize adding and removing of Syncbase names.
+
+	// Handle to the server for adding other names in the future.
+	svr rpc.Server
+
+	// Cancel functions for contexts derived from the root context when
 	// advertising over neighborhood. This is needed to stop advertising.
-	advCancel context.CancelFunc
+	cancelAdvSyncbase   context.CancelFunc            // cancels Syncbase advertising.
+	cancelAdvSyncgroups map[string]context.CancelFunc // cancels syncgroup advertising.
 
 	// Whether to enable neighborhood advertising.
 	publishInNH bool
@@ -147,20 +151,6 @@ var (
 	_       interfaces.SyncServerMethods = (*syncService)(nil)
 )
 
-// rand64 generates an unsigned 64-bit pseudo-random number.
-func rand64() uint64 {
-	rngLock.Lock()
-	defer rngLock.Unlock()
-	return (uint64(rng.Int63()) << 1) | uint64(rng.Int63n(2))
-}
-
-// randIntn mimics rand.Intn (generates a non-negative pseudo-random number in [0,n)).
-func randIntn(n int) int {
-	rngLock.Lock()
-	defer rngLock.Unlock()
-	return rng.Intn(n)
-}
-
 // New creates a new sync module.
 //
 // Concurrency: sync initializes four goroutines at startup: a "watcher", a
@@ -174,12 +164,13 @@ func randIntn(n int) int {
 // incoming RPCs from remote sync modules and local clients.
 func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, cl *vclock.VClock, publishInNH bool) (*syncService, error) {
 	s := &syncService{
-		sv:             sv,
-		batches:        make(batchSet),
-		sgPublishQueue: list.New(),
-		vclock:         cl,
-		ctx:            ctx,
-		publishInNH:    publishInNH,
+		sv:                  sv,
+		batches:             make(batchSet),
+		sgPublishQueue:      list.New(),
+		vclock:              cl,
+		ctx:                 ctx,
+		publishInNH:         publishInNH,
+		cancelAdvSyncgroups: make(map[string]context.CancelFunc),
 	}
 
 	data := &SyncData{}
@@ -202,7 +193,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	s.id = data.Id
 	s.name = syncbaseIdToName(s.id)
 
-	vlog.VI(1).Infof("sync: New: Syncbase ID is %v", s.id)
+	vlog.VI(1).Infof("sync: New: Syncbase ID is %x", s.id)
 
 	// Initialize in-memory state for the sync module before starting any threads.
 	if err := s.initSync(ctx); err != nil {
@@ -224,17 +215,19 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	// Start watcher thread to watch for updates to local store.
 	go s.watchStore(ctx)
 
-	// Start initiator thread to periodically get deltas from peers.
-	go s.syncer(ctx)
-
-	// Start the discovery service thread to listen to neighborhood updates.
-	go s.discoverNeighborhood(ctx)
-
 	// Initialize a peer manager with the peer selection policy.
 	s.pm = newPeerManager(ctx, s, selectRandom)
 
 	// Start the peer manager thread to maintain peers viable for syncing.
 	go s.pm.managePeers(ctx)
+
+	// Start initiator thread to periodically get deltas from peers. The
+	// initiator threads consults the peer manager to pick peers to sync
+	// with. So we initialize the peer manager before starting the syncer.
+	go s.syncer(ctx)
+
+	// Start the discovery service thread to listen to neighborhood updates.
+	go s.discoverNeighborhood(ctx)
 
 	return s, nil
 }
@@ -244,16 +237,24 @@ func (s *syncService) Ping(ctx *context.T, call rpc.ServerCall) error {
 	return nil
 }
 
-// Closed returns true if the sync service channel is closed indicating that the
-// service is shutting down.
-func (s *syncService) Closed() bool {
-	select {
-	case <-s.closed:
-		return true
-	default:
-		return false
-	}
+// Close waits for spawned sync threads to shut down, and closes the local blob
+// store handle.
+func Close(ss interfaces.SyncServerMethods) {
+	vlog.VI(2).Infof("sync: Close: begin")
+	defer vlog.VI(2).Infof("sync: Close: end")
+
+	s := ss.(*syncService)
+	close(s.closed)
+	s.pending.Wait()
+	s.bst.Close()
 }
+
+func NewSyncDatabase(db interfaces.Database) *syncDatabase {
+	return &syncDatabase{db: db, sync: db.App().Service().Sync()}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Neighborhood based discovery of syncgroups and Syncbases.
 
 // discoverNeighborhood listens to updates from the discovery service to learn
 // about sync peers and syncgroups (if they have admins in the neighborhood) as
@@ -273,10 +274,10 @@ func (s *syncService) discoverNeighborhood(ctx *context.T) {
 		return
 	}
 
-	for !s.Closed() {
+	for !s.isClosed() {
 		select {
 		case update, ok := <-ch:
-			if !ok || s.Closed() {
+			if !ok || s.isClosed() {
 				break
 			}
 
@@ -394,9 +395,9 @@ func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[stri
 	return sgNeighbors
 }
 
-// discoverySyncgroupAdmins returns syncgroup admins found in the neighborhood
-// via the discovery service.
-func (s *syncService) discoverySyncgroupAdmins(sgName string) []*discovery.Service {
+// filterSyncgroupAdmins returns syncgroup admins for the specified syncgroup
+// found in the neighborhood via the discovery service.
+func (s *syncService) filterSyncgroupAdmins(sgName string) []*discovery.Service {
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
@@ -429,31 +430,66 @@ func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) e
 	s.nameLock.Lock()
 	defer s.nameLock.Unlock()
 
-	mInfo := s.copyMemberInfo(ctx, s.name)
-	if mInfo == nil || len(mInfo.mtTables) == 0 {
+	s.svr = svr
+
+	info := s.copyMemberInfo(ctx, s.name)
+	if info == nil || len(info.mtTables) == 0 {
 		vlog.VI(2).Infof("sync: AddNames: end returning no names")
 		return nil
 	}
 
-	for mt := range mInfo.mtTables {
+	for mt := range info.mtTables {
 		name := naming.Join(mt, s.name)
+		// Note that AddName will retry the publishing if not
+		// successful. So if a node is offline, it will publish the name
+		// when possible.
 		if err := svr.AddName(name); err != nil {
-			vlog.VI(2).Infof("sync: AddNames: end returning err %v", err)
+			vlog.VI(2).Infof("sync: AddNames: end returning AddName err %v", err)
 			return err
 		}
 	}
-	return s.publishInNeighborhood(svr)
+	if err := s.advertiseSyncbaseInNeighborhood(); err != nil {
+		vlog.VI(2).Infof("sync: AddNames: end returning advertiseSyncbaseInNeighborhood err %v", err)
+		return err
+	}
+
+	// Advertise syncgroups.
+	for gdbName, dbInfo := range info.db2sg {
+		appName, dbName, err := splitAppDbName(ctx, gdbName)
+		if err != nil {
+			return err
+		}
+		st, err := s.getDbStore(ctx, nil, appName, dbName)
+		if err != nil {
+			return err
+		}
+		for gid := range dbInfo {
+			sg, err := getSyncgroupById(ctx, st, gid)
+			if err != nil {
+				return err
+			}
+			if err := s.advertiseSyncgroupInNeighborhood(sg); err != nil {
+				vlog.VI(2).Infof("sync: AddNames: end returning advertiseSyncgroupInNeighborhood err %v", err)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
-// publishInNeighborhood checks if the Syncbase service is already being
-// advertised over the neighborhood. If not, it begins advertising. The caller
-// of the function is holding nameLock.
-func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
+// advertiseSyncbaseInNeighborhood checks if the Syncbase service is already
+// being advertised over the neighborhood. If not, it begins advertising. The
+// caller of the function is holding nameLock.
+func (s *syncService) advertiseSyncbaseInNeighborhood() error {
 	if !s.publishInNH {
 		return nil
 	}
+
+	vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: begin")
+	defer vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: end")
+
 	// Syncbase is already being advertised.
-	if s.advCancel != nil {
+	if s.cancelAdvSyncbase != nil {
 		return nil
 	}
 
@@ -466,33 +502,95 @@ func (s *syncService) publishInNeighborhood(svr rpc.Server) error {
 
 	ctx, stop := context.WithCancel(s.ctx)
 
-	// Duplicate calls to advertise will return an error.
-	_, err := idiscovery.AdvertiseServer(ctx, svr, "", &sbService, nil)
+	// Note that duplicate calls to advertise will return an error.
+	_, err := idiscovery.AdvertiseServer(ctx, s.svr, "", &sbService, nil)
 
 	if err == nil {
-		s.advCancel = stop
+		vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: successful")
+		s.cancelAdvSyncbase = stop
+		return nil
 	}
+	stop()
 	return err
 }
 
-// Close waits for spawned sync threads (watcher and initiator) to shut down,
-// and closes the local blob store handle.
-func Close(ss interfaces.SyncServerMethods) {
-	vlog.VI(2).Infof("sync: Close: begin")
-	defer vlog.VI(2).Infof("sync: Close: end")
+// advertiseSyncgroupInNeighborhood checks if this Syncbase is an admin of the
+// syncgroup, and if so advertises the syncgroup over neighborhood. If the
+// Syncbase loses admin access, any previous syncgroup advertisements are
+// cancelled. The caller of the function is holding nameLock.
+func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup) error {
+	if !s.publishInNH {
+		return nil
+	}
 
-	s := ss.(*syncService)
-	close(s.closed)
-	s.pending.Wait()
-	s.bst.Close()
+	vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: begin")
+	defer vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: end")
+
+	if !syncgroupAdmin(s.ctx, sg.Spec.Perms) {
+		if cancel := s.cancelAdvSyncgroups[sg.Name]; cancel != nil {
+			cancel()
+			delete(s.cancelAdvSyncgroups, sg.Name)
+		}
+		return nil
+	}
+
+	// Syncgroup is already being advertised.
+	if s.cancelAdvSyncgroups[sg.Name] != nil {
+		return nil
+	}
+
+	sbService := discovery.Service{
+		InterfaceName: ifName,
+		Attrs: discovery.Attributes{
+			discoveryAttrSyncgroup: sg.Name,
+		},
+	}
+	ctx, stop := context.WithCancel(s.ctx)
+
+	vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: advertising %v", sbService)
+
+	// Note that duplicate calls to advertise will return an error.
+	_, err := idiscovery.AdvertiseServer(ctx, s.svr, "", &sbService, nil)
+
+	if err == nil {
+		vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: successful")
+		s.cancelAdvSyncgroups[sg.Name] = stop
+		return nil
+	}
+	stop()
+	return err
+}
+
+//////////////////////////////
+// Helpers.
+
+// isClosed returns true if the sync service channel is closed indicating that
+// the service is shutting down.
+func (s *syncService) isClosed() bool {
+	select {
+	case <-s.closed:
+		return true
+	default:
+		return false
+	}
+}
+
+// rand64 generates an unsigned 64-bit pseudo-random number.
+func rand64() uint64 {
+	rngLock.Lock()
+	defer rngLock.Unlock()
+	return (uint64(rng.Int63()) << 1) | uint64(rng.Int63n(2))
+}
+
+// randIntn mimics rand.Intn (generates a non-negative pseudo-random number in [0,n)).
+func randIntn(n int) int {
+	rngLock.Lock()
+	defer rngLock.Unlock()
+	return rng.Intn(n)
 }
 
 func syncbaseIdToName(id uint64) string {
 	return fmt.Sprintf("%x", id)
-}
-
-func NewSyncDatabase(db interfaces.Database) *syncDatabase {
-	return &syncDatabase{db: db, sync: db.App().Service().Sync()}
 }
 
 func (s *syncService) stKey() string {

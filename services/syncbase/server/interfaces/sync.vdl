@@ -83,4 +83,5 @@ error (
 	ConnFail() {"en": "connection to peer failed{:_}"}
 	BrokenCrConnection() {"en": "CrConnection stream to client does not exist or is broken"}
 	GetTimeFailed() {"en": "GetTime failed{:_}"}
+	NotAdmin() {"en": "not an admin of the syncgroup"}
 )

@@ -56,10 +56,10 @@ func (s *syncService) watchStore(ctx *context.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	for !s.Closed() {
+	for !s.isClosed() {
 		select {
 		case <-ticker.C:
-			if s.Closed() {
+			if s.isClosed() {
 				break
 			}
 			s.processStoreUpdates(ctx)
