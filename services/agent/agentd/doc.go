@@ -7,11 +7,16 @@
 
 /*
 Command agentd runs the security agent daemon, which holds a private key in
-memory and makes it available to a subprocess.
+memory and makes it available to other processes.
 
-Loads the private key specified in privatekey.pem in the specified credentials
-directory into memory, then starts the specified command with access to the
-private key via the agent protocol instead of directly reading from disk.
+Loads the credentials from the specified directory into memory. Then optionally
+starts a command with access to these credentials via agent protocol.
+
+Other processes can access the agent credentials when V23_AGENT_PATH is set to
+<credential dir>/agent.sock.
+
+Example: $ agentd --v23.credentials=$HOME/.credentials $
+V23_AGENT_PATH=$HOME/.credentials/agent.sock principal dump
 
 Usage:
    agentd [flags] command [command_args...]
