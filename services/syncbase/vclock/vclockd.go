@@ -117,20 +117,20 @@ func (d *VClockD) InjectNtpHost(ntpHost string) {
 // also update either Skew or NumReboots. It does not touch LastNtpTs or
 // NumHops.
 func (d *VClockD) DoLocalUpdate() error {
-	vlog.VI(2).Info("vclock: DoLocalUpdate: start")
-	defer vlog.VI(2).Info("vclock: DoLocalUpdate: end")
+	vlog.VI(2).Info("vclockd: DoLocalUpdate: start")
+	defer vlog.VI(2).Info("vclockd: DoLocalUpdate: end")
 
 	err := d.vclock.UpdateVClockData(func(data *VClockData) (*VClockData, error) {
 		now, elapsedTime, err := d.vclock.SysClockVals()
 		if err != nil {
-			vlog.Errorf("vclock: DoLocalUpdate: SysClockVals failed: %v", err)
+			vlog.Errorf("vclockd: DoLocalUpdate: SysClockVals failed: %v", err)
 			return nil, err
 		}
 
 		// Check for a reboot: elapsed time is monotonic, so if the current elapsed
 		// time is less than data.ElapsedTimeSinceBoot, a reboot has taken place.
 		if elapsedTime < data.ElapsedTimeSinceBoot {
-			vlog.VI(2).Info("vclock: DoLocalUpdate: detected reboot")
+			vlog.VI(2).Info("vclockd: DoLocalUpdate: detected reboot")
 			data.NumReboots += 1
 		} else {
 			// No reboot detected. Check whether the system clock has drifted
@@ -139,7 +139,7 @@ func (d *VClockD) DoLocalUpdate() error {
 			expectedNow := data.SystemTimeAtBoot.Add(elapsedTime)
 			delta := expectedNow.Sub(now)
 			if abs(delta) > SystemClockDriftThreshold {
-				vlog.VI(2).Infof("vclock: DoLocalUpdate: detected clock drift of %v; updating SystemTimeAtBoot", delta)
+				vlog.VI(2).Infof("vclockd: DoLocalUpdate: detected clock drift of %v; updating SystemTimeAtBoot", delta)
 				data.Skew = data.Skew + delta
 			}
 		}
@@ -151,7 +151,7 @@ func (d *VClockD) DoLocalUpdate() error {
 	})
 
 	if err != nil {
-		vlog.Errorf("vclock: DoLocalUpdate: update failed: %v", err)
+		vlog.Errorf("vclockd: DoLocalUpdate: update failed: %v", err)
 	}
 	return err
 }
@@ -161,22 +161,22 @@ func (d *VClockD) DoLocalUpdate() error {
 
 // DoNtpUpdate talks to an NTP server and updates VClockData.
 func (d *VClockD) DoNtpUpdate() error {
-	vlog.VI(2).Info("vclock: DoNtpUpdate: start")
-	defer vlog.VI(2).Info("vclock: DoNtpUpdate: end")
+	vlog.VI(2).Info("vclockd: DoNtpUpdate: start")
+	defer vlog.VI(2).Info("vclockd: DoNtpUpdate: end")
 
 	d.ntpSourceMu.RLock()
 	ntpData, err := d.ntpSource.NtpSync(NtpSampleCount)
 	d.ntpSourceMu.RUnlock()
 	if err != nil {
-		vlog.Errorf("vclock: DoNtpUpdate: failed to fetch NTP time: %v", err)
+		vlog.Errorf("vclockd: DoNtpUpdate: failed to fetch NTP time: %v", err)
 		return err
 	}
-	vlog.VI(2).Infof("vclock: DoNtpUpdate: NTP skew is %v", ntpData.skew)
+	vlog.VI(2).Infof("vclockd: DoNtpUpdate: NTP skew is %v", ntpData.skew)
 
 	err = d.vclock.UpdateVClockData(func(data *VClockData) (*VClockData, error) {
 		now, elapsedTime, err := d.vclock.SysClockVals()
 		if err != nil {
-			vlog.Errorf("vclock: DoNtpUpdate: SysClockVals failed: %v", err)
+			vlog.Errorf("vclockd: DoNtpUpdate: SysClockVals failed: %v", err)
 			return nil, err
 		}
 
@@ -184,7 +184,7 @@ func (d *VClockD) DoNtpUpdate() error {
 		// avoid constant tweaking of the clock.
 		delta := ntpData.skew - data.Skew
 		if abs(delta) > NtpSkewDeltaThreshold {
-			vlog.VI(2).Infof("vclock: DoNtpUpdate: NTP time minus Syncbase vclock time is %v; updating Skew", delta)
+			vlog.VI(2).Infof("vclockd: DoNtpUpdate: NTP time minus Syncbase vclock time is %v; updating Skew", delta)
 			data.Skew = ntpData.skew
 		}
 
@@ -197,7 +197,7 @@ func (d *VClockD) DoNtpUpdate() error {
 	})
 
 	if err != nil {
-		vlog.Errorf("vclock: DoNtpUpdate: update failed: %v", err)
+		vlog.Errorf("vclockd: DoNtpUpdate: update failed: %v", err)
 	}
 	return err
 }

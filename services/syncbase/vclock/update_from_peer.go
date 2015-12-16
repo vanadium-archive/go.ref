@@ -40,6 +40,10 @@ func nue(msg string) error {
 // MaybeUpdateFromPeerData updates data (the local VClockData) based on the
 // given PeerSyncData. Returns nil if data has been updated; otherwise, the
 // returned error specifies why the data was not updated.
+// TODO(sadovsky): This design assumes trust across syncgroups, which is
+// generally not desirable. Eventually we may need to perform
+// MaybeUpdateFromPeerData separately for each app or syncgroup, or something
+// along these lines.
 func MaybeUpdateFromPeerData(c *VClock, data *VClockData, psd *PeerSyncData) (*VClockData, error) {
 	// Same skew calculation as in NTP.
 	skew := (psd.RecvTs.Sub(psd.MySendTs) + psd.SendTs.Sub(psd.MyRecvTs)) / 2
@@ -54,10 +58,11 @@ func MaybeUpdateFromPeerData(c *VClock, data *VClockData, psd *PeerSyncData) (*V
 	if psd.LastNtpTs.Before(data.LastNtpTs) {
 		return nil, nue("peer's NTP is less recent than local")
 	}
+	// TODO(sadovsky): Do we really need the abs(skew) > RebootSkewThreshold part?
 	if psd.NumReboots > 0 && abs(skew) > RebootSkewThreshold {
 		return nil, nue("peer's vclock exceeds reboot tolerance")
 	}
-	if psd.NumHops > MaxNumHops {
+	if psd.NumHops+1 > MaxNumHops {
 		return nil, nue("peer's NTP is from too many hops away")
 	}
 

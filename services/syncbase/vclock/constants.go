@@ -17,5 +17,5 @@ const (
 	// Used by MaybeUpdateFromPeerData.
 	PeerSyncSkewThreshold = NtpSkewDeltaThreshold
 	RebootSkewThreshold   = time.Minute
-	MaxNumHops            = 1
+	MaxNumHops            = 2
 )
