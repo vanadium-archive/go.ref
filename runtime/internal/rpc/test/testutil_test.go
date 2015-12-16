@@ -61,6 +61,7 @@ func (c *fakeClock) Advance(steps uint) {
 // shareable with any peer. It does not care about the public key that
 // blessing being set is bound to.
 type singleBlessingStore struct {
+	pk  security.PublicKey
 	b   security.Blessings
 	def security.Blessings
 }
@@ -79,8 +80,8 @@ func (s *singleBlessingStore) SetDefault(b security.Blessings) error {
 func (s *singleBlessingStore) Default() security.Blessings {
 	return s.def
 }
-func (*singleBlessingStore) PublicKey() security.PublicKey {
-	return nil
+func (s *singleBlessingStore) PublicKey() security.PublicKey {
+	return s.pk // This may be inconsistent with s.b & s.def, by design, for tests.
 }
 func (*singleBlessingStore) DebugString() string {
 	return ""
@@ -96,18 +97,6 @@ func (*singleBlessingStore) ClearDischarges(...security.Discharge) {
 }
 func (*singleBlessingStore) Discharge(security.Caveat, security.DischargeImpetus) security.Discharge {
 	return security.Discharge{}
-}
-
-// singleBlessingPrincipal implements security.Principal. It is a wrapper over
-// a security.Principal that intercepts  all invocations on the
-// principal's BlessingStore and serves them via a singleBlessingStore.
-type singleBlessingPrincipal struct {
-	security.Principal
-	b singleBlessingStore
-}
-
-func (p *singleBlessingPrincipal) BlessingStore() security.BlessingStore {
-	return &p.b
 }
 
 func extractKey(t *testing.T, rootCtx *context.T, root *bcrypter.Root, blessing string) *bcrypter.PrivateKey {

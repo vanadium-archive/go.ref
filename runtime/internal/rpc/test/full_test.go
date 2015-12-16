@@ -755,11 +755,13 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 	cctx := withPrincipal(t, ctx, "client")
 	bclient := v23.GetPrincipal(cctx).BlessingStore().Default()
 	cctx, err := v23.WithPrincipal(cctx,
-		&singleBlessingPrincipal{Principal: v23.GetPrincipal(cctx)})
+		vsecurity.MustForkPrincipal(
+			v23.GetPrincipal(cctx),
+			&singleBlessingStore{pk: v23.GetPrincipal(cctx).PublicKey()},
+			vsecurity.ImmutableBlessingRoots(v23.GetPrincipal(ctx).Roots())))
 	if err != nil {
 		t.Fatal(err)
 	}
-	v23.GetPrincipal(cctx).BlessingStore().SetDefault(bclient)
 
 	bvictim := v23.GetPrincipal(withPrincipal(t, ctx, "victim")).BlessingStore().Default()
 

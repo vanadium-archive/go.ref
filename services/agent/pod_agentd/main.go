@@ -91,7 +91,10 @@ func runPodAgentD(ctx *context.T, env *cmdline.Env, args []string) error {
 	// Run the server.
 	i := ipc.NewIPC()
 	defer i.Close()
-	if err = server.ServeAgent(i, lsecurity.NewImmutablePrincipal(p)); err != nil {
+	if err = server.ServeAgent(i, lsecurity.MustForkPrincipal(
+		p,
+		lsecurity.ImmutableBlessingStore(p.BlessingStore()),
+		lsecurity.ImmutableBlessingRoots(p.Roots()))); err != nil {
 		return err
 	}
 	if _, err := os.Stat(socketPath); err == nil {
