@@ -10,6 +10,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
@@ -517,8 +519,8 @@ var cmdPProfRun = &cmdline.Command{
 
 All the [passthru args] are passed to the pprof tool directly, e.g.
 
-$ debug pprof run a/b/c heap --text
-$ debug pprof run a/b/c profile -gv
+  $ debug pprof run a/b/c/__debug/pprof heap --text
+  $ debug pprof run a/b/c/__debug/pprof profile -gv
 `,
 }
 
@@ -531,19 +533,19 @@ func runPProf(ctx *context.T, env *cmdline.Env, args []string) error {
 		return showPProfProfiles(ctx, env, name)
 	}
 	profile := args[1]
-	listener, err := pproflib.StartProxy(ctx, name)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	addr, err := startPprofProxyHTTPServer(ctx, name)
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
-
 	// Construct the pprof command line:
 	// <pprofCmd> http://<proxyaddr>/pprof/<profile> [pprof flags]
 	pargs := []string{pprofCmd} // pprofCmd is purposely not escaped.
 	for i := 2; i < len(args); i++ {
 		pargs = append(pargs, shellEscape(args[i]))
 	}
-	pargs = append(pargs, shellEscape(fmt.Sprintf("http://%s/pprof/%s", listener.Addr(), profile)))
+	pargs = append(pargs, shellEscape(fmt.Sprintf("http://%s/pprof/%s", addr, profile)))
 	pcmd := strings.Join(pargs, " ")
 	fmt.Fprintf(env.Stdout, "Running: %s\n", pcmd)
 	c := exec.Command("sh", "-c", pcmd)
@@ -590,15 +592,12 @@ func runPProfProxy(ctx *context.T, env *cmdline.Env, args []string) error {
 	if want, got := 1, len(args); got != want {
 		return env.UsageErrorf("proxy: incorrect number of arguments, got %d, want %d", got, want)
 	}
-	name := args[0]
-	listener, err := pproflib.StartProxy(ctx, name)
+	addr, err := startPprofProxyHTTPServer(ctx, args[0])
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
-
 	fmt.Fprintln(env.Stdout)
-	fmt.Fprintf(env.Stdout, "The pprof proxy is listening at http://%s/pprof\n", listener.Addr())
+	fmt.Fprintf(env.Stdout, "The pprof proxy is listening at http://%s/pprof\n", addr)
 	fmt.Fprintln(env.Stdout)
 	fmt.Fprintln(env.Stdout, "Hit CTRL-C to exit")
 
@@ -633,4 +632,18 @@ var cmdRoot = &cmdline.Command{
 		},
 		cmdBrowse,
 	},
+}
+
+func startPprofProxyHTTPServer(ctx *context.T, name string) (string, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", err
+	}
+	http.Handle("/", pproflib.PprofProxy(ctx, "", name))
+	go http.Serve(ln, nil)
+	go func() {
+		<-ctx.Done()
+		ln.Close()
+	}()
+	return ln.Addr().String(), nil
 }

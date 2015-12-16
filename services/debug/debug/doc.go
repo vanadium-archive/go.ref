@@ -234,7 +234,8 @@ use.
 
 All the [passthru args] are passed to the pprof tool directly, e.g.
 
-$ debug pprof run a/b/c heap --text $ debug pprof run a/b/c profile -gv
+  $ debug pprof run a/b/c/__debug/pprof heap --text
+  $ debug pprof run a/b/c/__debug/pprof profile -gv
 
 The debug pprof run flags are:
  -pprofcmd=jiri go tool pprof
