@@ -5,7 +5,9 @@
 package server
 
 import (
+	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"path"
 	"sync"
 
@@ -132,18 +134,16 @@ func (a *app) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string,
 	return dbNames, nil
 }
 
-func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *nosqlwire.SchemaMetadata) error {
+func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *nosqlwire.SchemaMetadata) (reterr error) {
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}
-	// TODO(sadovsky): Crash if any step fails, and use WAL to ensure that if we
-	// crash, upon restart we execute any remaining steps before we start handling
-	// client requests.
-	//
 	// Steps:
-	// 1. Check appData perms, create dbInfo record.
-	// 2. Initialize database.
-	// 3. Flip dbInfo.Initialized to true. <===== CHANGE BECOMES VISIBLE
+	// 1. Check appData perms.
+	// 2. Put dbInfo record into garbage collection log, to clean up database if
+	//    remaining steps fail or syncbased crashes.
+	// 3. Initialize database.
+	// 4. Move dbInfo from GC log into active databases. <===== CHANGE BECOMES VISIBLE
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if _, ok := a.dbs[dbName]; ok {
@@ -151,13 +151,68 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 		return verror.New(verror.ErrExist, ctx, dbName)
 	}
 
-	// 1. Check appData perms, create dbInfo record.
-	rootDir, engine := a.rootDirForDb(dbName), a.s.opts.Engine
+	// 1. Check appData perms.
 	aData := &AppData{}
+	if err := util.GetWithAuth(ctx, call, a.s.st, a.stKey(), aData); err != nil {
+		return err
+	}
+
+	// 2. Put dbInfo record into garbage collection log, to clean up database if
+	//    remaining steps fail or syncbased crashes.
+	rootDir, err := a.rootDirForDb(dbName)
+	if err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	dbInfo := &DbInfo{
+		Name:    dbName,
+		RootDir: rootDir,
+		Engine:  a.s.opts.Engine,
+	}
+	if err := putDbGCEntry(ctx, a.s.st, dbInfo); err != nil {
+		return err
+	}
+	var stRef store.Store
+	defer func() {
+		if reterr != nil {
+			// Best effort database destroy on error. If it fails, it will be retried
+			// on syncbased restart. (It is safe to pass nil stRef if step 3 fails.)
+			// TODO(ivanpi): Consider running asynchronously. However, see TODO in
+			// finalizeDatabaseDestroy.
+			if err := finalizeDatabaseDestroy(ctx, a.s.st, dbInfo, stRef); err != nil {
+				vlog.Error(err)
+			}
+		}
+	}()
+
+	// 3. Initialize database.
+	if perms == nil {
+		perms = aData.Perms
+	}
+	// TODO(ivanpi): NewDatabase doesn't close the store on failure.
+	d, err := nosql.NewDatabase(ctx, a, dbName, metadata, nosql.DatabaseOptions{
+		Perms:   perms,
+		RootDir: dbInfo.RootDir,
+		Engine:  dbInfo.Engine,
+	})
+	if err != nil {
+		return err
+	}
+	// Save reference to Store to allow finalizeDatabaseDestroy to close it in
+	// case of error.
+	stRef = d.St()
+
+	// 4. Move dbInfo from GC log into active databases.
 	if err := store.RunInTransaction(a.s.st, func(tx store.Transaction) error {
-		// Check appData perms.
-		if err := util.GetWithAuth(ctx, call, tx, a.stKey(), aData); err != nil {
+		// Even though perms and database existence are checked in step 1 to fail
+		// early before initializing the database, there are possibly rare corner
+		// cases which make it prudent to repeat the checks in a transaction.
+		// Recheck appData perms. Verify perms version hasn't changed.
+		aDataRepeat := &AppData{}
+		if err := util.GetWithAuth(ctx, call, a.s.st, a.stKey(), aDataRepeat); err != nil {
 			return err
+		}
+		if aData.Version != aDataRepeat.Version {
+			return verror.NewErrBadVersion(ctx)
 		}
 		// Check for "database already exists".
 		if _, err := a.getDbInfo(ctx, tx, dbName); verror.ErrorID(err) != verror.ErrNoExist.ID {
@@ -167,36 +222,12 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 			// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
 			return verror.New(verror.ErrExist, ctx, dbName)
 		}
-		// Write new dbInfo.
-		info := &DbInfo{
-			Name:    dbName,
-			RootDir: rootDir,
-			Engine:  engine,
+		// Write dbInfo into active databases.
+		if err := a.putDbInfo(ctx, tx, dbName, dbInfo); err != nil {
+			return err
 		}
-		return a.putDbInfo(ctx, tx, dbName, info)
-	}); err != nil {
-		return err
-	}
-
-	// 2. Initialize database.
-	if perms == nil {
-		perms = aData.Perms
-	}
-	d, err := nosql.NewDatabase(ctx, a, dbName, metadata, nosql.DatabaseOptions{
-		Perms:   perms,
-		RootDir: rootDir,
-		Engine:  engine,
-	})
-	if err != nil {
-		return err
-	}
-
-	// 3. Flip dbInfo.Initialized to true.
-	if err := store.RunInTransaction(a.s.st, func(tx store.Transaction) error {
-		return a.updateDbInfo(ctx, tx, dbName, func(info *DbInfo) error {
-			info.Initialized = true
-			return nil
-		})
+		// Delete dbInfo from GC log.
+		return delDbGCEntry(ctx, tx, dbInfo)
 	}); err != nil {
 		return err
 	}
@@ -209,15 +240,11 @@ func (a *app) DestroyNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName s
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}
-	// TODO(sadovsky): Crash if any step fails, and use WAL to ensure that if we
-	// crash, upon restart we execute any remaining steps before we start handling
-	// client requests.
-	//
 	// Steps:
 	// 1. Check databaseData perms.
-	// 2. Flip dbInfo.Deleted to true. <===== CHANGE BECOMES VISIBLE
-	// 3. Delete database.
-	// 4. Delete dbInfo record.
+	// 2. Move dbInfo from active databases into GC log. <===== CHANGE BECOMES VISIBLE
+	// 3. Best effort database destroy. If it fails, it will be retried on
+	//    syncbased restart.
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	d, ok := a.dbs[dbName]
@@ -233,30 +260,27 @@ func (a *app) DestroyNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName s
 		return err
 	}
 
-	// 2. Flip dbInfo.Deleted to true.
-	if err := store.RunInTransaction(a.s.st, func(tx store.Transaction) error {
-		return a.updateDbInfo(ctx, tx, dbName, func(info *DbInfo) error {
-			info.Deleted = true
-			return nil
-		})
+	// 2. Move dbInfo from active databases into GC log.
+	var dbInfo *DbInfo
+	if err := store.RunInTransaction(a.s.st, func(tx store.Transaction) (err error) {
+		dbInfo, err = deleteDatabaseEntry(ctx, tx, a, dbName)
+		return
 	}); err != nil {
 		return err
 	}
-
-	// 3. Delete database.
-	if err := d.St().Close(); err != nil {
-		return err
-	}
-	if err := util.DestroyStore(a.s.opts.Engine, a.rootDirForDb(dbName)); err != nil {
-		return err
-	}
-
-	// 4. Delete dbInfo record.
-	if err := a.delDbInfo(ctx, a.s.st, dbName); err != nil {
-		return err
-	}
-
 	delete(a.dbs, dbName)
+
+	// 3. Best effort database destroy. If it fails, it will be retried on
+	//    syncbased restart.
+	// TODO(ivanpi): Consider returning an error on failure here, even though
+	// database was made inaccessible. Note, if Close() failed, ongoing RPCs
+	// might still be using the store.
+	// TODO(ivanpi): Consider running asynchronously. However, see TODO in
+	// finalizeDatabaseDestroy.
+	if err := finalizeDatabaseDestroy(ctx, a.s.st, dbInfo, d.St()); err != nil {
+		vlog.Error(err)
+	}
+
 	return nil
 }
 
@@ -288,25 +312,34 @@ func (a *app) stKeyPart() string {
 	return a.name
 }
 
-func (a *app) rootDirForDb(dbName string) string {
+func (a *app) rootDirForDb(dbName string) (string, error) {
 	// Note: Common Linux filesystems such as ext4 allow almost any character to
 	// appear in a filename, but other filesystems are more restrictive. For
-	// example, by default the OS X filesystem uses case-insensitive filenames. To
-	// play it safe, we hex-encode app and database names, yielding filenames that
-	// match "^[0-9a-f]+$".
+	// example, by default the OS X filesystem uses case-insensitive filenames.
+	// To play it safe, we hex-encode app and database names, yielding filenames
+	// that match "^[0-9a-f]+$". To allow recreating databases independently of
+	// garbage collecting old destroyed versions, a random suffix is appended to
+	// the database name.
 	appHex := hex.EncodeToString([]byte(a.name))
 	dbHex := hex.EncodeToString([]byte(dbName))
+	var suffix [32]byte
+	if _, err := rand.Read(suffix[:]); err != nil {
+		return "", fmt.Errorf("failed to generate suffix: %v", err)
+	}
+	suffixHex := hex.EncodeToString(suffix[:])
+	dbHexWithSuffix := dbHex + "-" + suffixHex
 	// ValidAppName and ValidDatabaseName require len([]byte(name)) <= 64, so even
-	// after the 2x blowup from hex-encoding, the lengths of these names should be
-	// well below the filesystem limit of 255 bytes.
+	// after appending the random suffix and with the 2x blowup from hex-encoding,
+	// the lengths of these names should be well below the filesystem limit of 255
+	// bytes.
 	// TODO(sadovsky): Currently, our client-side app/db creation tests verify
 	// that the server does not crash when too-long names are specified; we rely
 	// on the server-side dispatcher logic to return errors for too-long names.
 	// However, we ought to add server-side tests for this behavior, so that we
 	// don't accidentally remove the server-side name validation after adding
 	// client-side name validation.
-	if len(appHex) > 255 || len(dbHex) > 255 {
-		vlog.Fatalf("appHex %s or dbHex %s is too long", appHex, dbHex)
+	if len(appHex) > 255 || len(dbHexWithSuffix) > 255 {
+		vlog.Fatalf("appHex %s or dbHexWithSuffix %s is too long", appHex, dbHexWithSuffix)
 	}
-	return path.Join(a.s.opts.RootDir, util.AppDir, appHex, util.DbDir, dbHex)
+	return path.Join(a.s.opts.RootDir, util.AppDir, appHex, util.DbDir, dbHexWithSuffix), nil
 }

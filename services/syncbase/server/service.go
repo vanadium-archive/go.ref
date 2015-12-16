@@ -136,7 +136,14 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 			}
 		}
 		vlog.Infof("Using persisted permissions: %v", PermsString(readPerms))
-		// Service exists. Initialize in-memory data structures.
+		// Service exists.
+		// Run garbage collection of inactive databases.
+		// TODO(ivanpi): This is currently unsafe to call concurrently with
+		// database creation/deletion. Add mutex and run asynchronously.
+		if err := runGCInactiveDatabases(ctx, st); err != nil {
+			return nil, err
+		}
+		// Initialize in-memory data structures.
 		// Read all apps, populate apps map.
 		aIt := st.Scan(util.ScanPrefixArgs(util.AppPrefix, ""))
 		aBytes := []byte{}
@@ -152,10 +159,10 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 				exists: true,
 				dbs:    make(map[string]interfaces.Database),
 			}
-			s.apps[a.name] = a
 			if err := openDatabases(ctx, st, a); err != nil {
 				return nil, verror.New(verror.ErrInternal, ctx, err)
 			}
+			s.apps[a.name] = a
 		}
 		if err := aIt.Err(); err != nil {
 			return nil, verror.New(verror.ErrInternal, ctx, err)
@@ -432,26 +439,56 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 func (s *service) destroyApp(ctx *context.T, call rpc.ServerCall, appName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// TODO(ivanpi): Destroying an app is in a possible race with creating a
+	// database in that app. Consider locking app mutex here, possibly other
+	// nested mutexes as well, and cancelling calls on nested objects. Same for
+	// database and table destroy.
 	a, ok := s.apps[appName]
 	if !ok {
 		return nil // destroy is idempotent
 	}
 
+	type dbTombstone struct {
+		store  store.Store
+		dbInfo *DbInfo
+	}
+	var tombstones []dbTombstone
 	if err := store.RunInTransaction(s.st, func(tx store.Transaction) error {
-		// Read-check-delete appData.
+		// Check appData perms.
 		if err := util.GetWithAuth(ctx, call, tx, a.stKey(), &AppData{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
 				return nil // destroy is idempotent
 			}
 			return err
 		}
-		// TODO(sadovsky): Delete all databases in this app.
+		// Mark all databases in this app for destruction.
+		for _, db := range a.dbs {
+			dbInfo, err := deleteDatabaseEntry(ctx, tx, a, db.Name())
+			if err != nil {
+				return err
+			}
+			tombstones = append(tombstones, dbTombstone{
+				store:  db.St(),
+				dbInfo: dbInfo,
+			})
+		}
+		// Delete appData.
 		return util.Delete(ctx, tx, a.stKey())
 	}); err != nil {
 		return err
 	}
-
 	delete(s.apps, appName)
+
+	// Best effort destroy for all databases in this app. If any destroy fails,
+	// it will be attempted again on syncbased restart.
+	// TODO(ivanpi): Consider running asynchronously. However, see TODO in
+	// finalizeDatabaseDestroy.
+	for _, ts := range tombstones {
+		if err := finalizeDatabaseDestroy(ctx, s.st, ts.dbInfo, ts.store); err != nil {
+			vlog.Error(err)
+		}
+	}
+
 	return nil
 }
 
