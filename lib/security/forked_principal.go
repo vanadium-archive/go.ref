@@ -60,8 +60,14 @@ func ImmutableBlessingStore(s security.BlessingStore) security.BlessingStore {
 
 // FixedBlessingsStore returns a BlessingStore implementation that always
 // returns a fixed set of blessings (b) for both Default and ForPeer.
-func FixedBlessingsStore(b security.Blessings) security.BlessingStore {
-	return &fixedBlessingsStore{b: b, dcache: make(map[dischargeCacheKey]security.Discharge)}
+//
+// If dcache is non-nil, then it will be used to cache discharges, otherwise
+// it will create a cache of its own.
+func FixedBlessingsStore(b security.Blessings, dcache DischargeCache) security.BlessingStore {
+	if dcache == nil {
+		dcache = &dischargeCacheImpl{m: make(map[dischargeCacheKey]security.Discharge)}
+	}
+	return &fixedBlessingsStore{b, dcache}
 }
 
 type forkedPrincipal struct {
@@ -115,10 +121,46 @@ func (s *immutableBlessingStore) DebugString() string {
 	return s.impl.DebugString()
 }
 
+// DischargeCache is a subset of the security.BlessingStore interface that deals with caching discharges.
+type DischargeCache interface {
+	CacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus)
+	ClearDischarges(discharges ...security.Discharge)
+	Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge
+}
+
+type dischargeCacheImpl struct {
+	l sync.Mutex
+	m map[dischargeCacheKey]security.Discharge
+}
+
+func (c *dischargeCacheImpl) CacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) {
+	id := discharge.ID()
+	key, cacheable := dcacheKey(caveat.ThirdPartyDetails(), impetus)
+	if id == "" || !cacheable {
+		return
+	}
+	c.l.Lock()
+	c.m[key] = discharge
+	c.l.Unlock()
+}
+func (c *dischargeCacheImpl) ClearDischarges(discharges ...security.Discharge) {
+	c.l.Lock()
+	clearDischargesFromCache(c.m, discharges...)
+	c.l.Unlock()
+}
+func (c *dischargeCacheImpl) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
+	key, cacheable := dcacheKey(caveat.ThirdPartyDetails(), impetus)
+	if !cacheable {
+		return security.Discharge{}
+	}
+	c.l.Lock()
+	defer c.l.Unlock()
+	return dischargeFromCache(c.m, key)
+}
+
 type fixedBlessingsStore struct {
 	b      security.Blessings
-	mu     sync.Mutex
-	dcache map[dischargeCacheKey]security.Discharge
+	dcache DischargeCache
 }
 
 func (s *fixedBlessingsStore) Set(security.Blessings, security.BlessingPattern) (security.Blessings, error) {
@@ -140,28 +182,13 @@ func (s *fixedBlessingsStore) PeerBlessings() map[security.BlessingPattern]secur
 	return map[security.BlessingPattern]security.Blessings{security.AllPrincipals: s.b}
 }
 func (s *fixedBlessingsStore) CacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) {
-	id := discharge.ID()
-	key, cacheable := dcacheKey(caveat.ThirdPartyDetails(), impetus)
-	if id == "" || !cacheable {
-		return
-	}
-	s.mu.Lock()
-	s.dcache[key] = discharge
-	s.mu.Unlock()
+	s.dcache.CacheDischarge(discharge, caveat, impetus)
 }
 func (s *fixedBlessingsStore) ClearDischarges(discharges ...security.Discharge) {
-	s.mu.Lock()
-	clearDischargesFromCache(s.dcache, discharges...)
-	s.mu.Unlock()
+	s.dcache.ClearDischarges(discharges...)
 }
 func (s *fixedBlessingsStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
-	key, cacheable := dcacheKey(caveat.ThirdPartyDetails(), impetus)
-	if !cacheable {
-		return security.Discharge{}
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return dischargeFromCache(s.dcache, key)
+	return s.dcache.Discharge(caveat, impetus)
 }
 func (s *fixedBlessingsStore) DebugString() string {
 	return fmt.Sprintf("FixedBlessingsStore:[%v]", s.b)
