@@ -174,6 +174,7 @@ func OpenStore(engine, path string, opts OpenOptions) (store.Store, error) {
 	}
 }
 
+// DestroyStore destroys the specified store. Idempotent.
 func DestroyStore(engine, path string) error {
 	switch engine {
 	case "memstore":

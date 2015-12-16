@@ -41,15 +41,3 @@ func (a *app) putDbInfo(ctx *context.T, tx store.Transaction, dbName string, inf
 func (a *app) delDbInfo(ctx *context.T, stw store.StoreWriter, dbName string) error {
 	return util.Delete(ctx, stw, dbInfoStKey(a, dbName))
 }
-
-// updateDbInfo performs a read-modify-write. fn should "modify" v.
-func (a *app) updateDbInfo(ctx *context.T, tx store.Transaction, dbName string, fn func(info *DbInfo) error) error {
-	info, err := a.getDbInfo(ctx, tx, dbName)
-	if err != nil {
-		return err
-	}
-	if err := fn(info); err != nil {
-		return err
-	}
-	return a.putDbInfo(ctx, tx, dbName, info)
-}

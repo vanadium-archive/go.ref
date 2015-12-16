@@ -11,6 +11,7 @@ const (
 	VClockPrefix     = "c"
 	DatabasePrefix   = "d"
 	DbInfoPrefix     = "i"
+	DbGCPrefix       = "iw"
 	LogPrefix        = "l"
 	PermsPrefix      = "p"
 	RowPrefix        = "r"
