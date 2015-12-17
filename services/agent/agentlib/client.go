@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -30,6 +31,9 @@ var (
 type client struct {
 	caller caller
 	key    security.PublicKey
+	// TODO(mattr):  At some point we should remove this backward
+	// compatibility mechanism, once all users are updated.
+	noCacheTimes bool
 }
 
 type caller interface {
@@ -79,6 +83,13 @@ func newUncachedPrincipalX(path string) (*client, error) {
 	agent := &client{caller: caller}
 	if err := agent.fetchPublicKey(); err != nil {
 		return nil, err
+	}
+	var dis security.Discharge
+	var cacheTime time.Time
+	if err := caller.call("BlessingStoreDischarge2", results(&dis, &cacheTime), security.Caveat{}, security.DischargeImpetus{}); err != nil {
+		// If we can't fetch a discharge with two results, then we should fall back
+		// to the old one result version.
+		agent.noCacheTimes = true
 	}
 	return agent, nil
 }
@@ -149,7 +160,7 @@ func (c *client) PublicKey() security.PublicKey {
 }
 
 func (c *client) BlessingStore() security.BlessingStore {
-	return &blessingStore{caller: c.caller, key: c.key}
+	return &blessingStore{caller: c.caller, key: c.key, noCacheTimes: c.noCacheTimes}
 }
 
 func (c *client) Roots() security.BlessingRoots {
@@ -157,8 +168,9 @@ func (c *client) Roots() security.BlessingRoots {
 }
 
 type blessingStore struct {
-	caller caller
-	key    security.PublicKey
+	caller       caller
+	key          security.PublicKey
+	noCacheTimes bool
 }
 
 func (b *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
@@ -226,8 +238,14 @@ func (b *blessingStore) ClearDischarges(discharges ...security.Discharge) {
 	}
 }
 
-func (b *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (out security.Discharge) {
-	err := b.caller.call("BlessingStoreDischarge", results(&out), caveat, impetus)
+func (b *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (out security.Discharge, cacheTime time.Time) {
+	res := []interface{}{&out}
+	method := "BlessingStoreDischarge"
+	if !b.noCacheTimes {
+		res = append(res, &cacheTime)
+		method = "BlessingStoreDischarge2"
+	}
+	err := b.caller.call(method, res, caveat, impetus)
 	if err != nil {
 		logger.Global().Infof("error calling BlessingStoreDischarge: %v", err)
 	}

@@ -138,11 +138,11 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 		errorf("BlessingStore().ForPeer returned %v and not %v", forpeer, b)
 	}
 	p.BlessingStore().CacheDischarge(dis, tpcav, security.DischargeImpetus{})
-	if got := p.BlessingStore().Discharge(tpcav, security.DischargeImpetus{}); !dis.Equivalent(got) {
+	if got, _ := p.BlessingStore().Discharge(tpcav, security.DischargeImpetus{}); !dis.Equivalent(got) {
 		errorf("BlessingStore().Discharges returned %#v want %#v", got, dis)
 	}
 	p.BlessingStore().ClearDischarges(dis)
-	if got := p.BlessingStore().Discharge(tpcav, security.DischargeImpetus{}); got.ID() != "" {
+	if got, _ := p.BlessingStore().Discharge(tpcav, security.DischargeImpetus{}); got.ID() != "" {
 		errorf("BlessingStore().Discharges returned %#v want empty", got)
 	}
 

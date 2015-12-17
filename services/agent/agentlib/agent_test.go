@@ -168,6 +168,35 @@ func TestAgent(t *testing.T) {
 	}
 }
 
+func TestAgentDischargeCache(t *testing.T) {
+	agent, cleanup := setupAgent(true)
+	defer cleanup()
+
+	expcav, err := security.NewExpiryCaveat(time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpcav, err := security.NewPublicKeyCaveat(
+		agent.PublicKey(),
+		"discharger",
+		security.ThirdPartyRequirements{},
+		expcav)
+	d, err := agent.MintDischarge(tpcav, expcav)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := time.Now()
+	agent.BlessingStore().CacheDischarge(d, tpcav, security.DischargeImpetus{})
+	after := time.Now()
+	got, cacheTime := agent.BlessingStore().Discharge(tpcav, security.DischargeImpetus{})
+	if d.ID() != got.ID() {
+		t.Errorf("got: %v, wanted %v", got.ID(), d.ID())
+	}
+	if cacheTime.Before(before) || cacheTime.After(after) {
+		t.Errorf("got %v, wanted value in (%v, %v)", cacheTime, before, after)
+	}
+}
+
 func TestAgentShutdown(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 

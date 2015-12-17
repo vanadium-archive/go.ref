@@ -452,7 +452,7 @@ func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, serverBlessings []stri
 			impetus.Server[i] = security.BlessingPattern(b)
 		}
 	}
-	discharges := slib.PrepareDischarges(ctx, blessings, impetus, time.Minute)
+	discharges, _ := slib.PrepareDischarges(ctx, blessings, impetus)
 	return blessings, discharges, nil
 }
 

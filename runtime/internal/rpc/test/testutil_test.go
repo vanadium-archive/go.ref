@@ -95,8 +95,8 @@ func (*singleBlessingStore) CacheDischarge(security.Discharge, security.Caveat, 
 func (*singleBlessingStore) ClearDischarges(...security.Discharge) {
 	return
 }
-func (*singleBlessingStore) Discharge(security.Caveat, security.DischargeImpetus) security.Discharge {
-	return security.Discharge{}
+func (*singleBlessingStore) Discharge(security.Caveat, security.DischargeImpetus) (security.Discharge, time.Time) {
+	return security.Discharge{}, time.Time{}
 }
 
 func extractKey(t *testing.T, rootCtx *context.T, root *bcrypter.Root, blessing string) *bcrypter.PrivateKey {

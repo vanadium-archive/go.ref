@@ -208,14 +208,12 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 }
 
 func (c *Conn) refreshDischarges(ctx *context.T, loop bool, peers []security.BlessingPattern) (bkey, dkey uint64, err error) {
-	dis := slib.PrepareDischarges(ctx, c.lBlessings,
-		security.DischargeImpetus{}, time.Minute)
+	dis, refreshTime := slib.PrepareDischarges(ctx, c.lBlessings, security.DischargeImpetus{})
 	// Schedule the next update.
-	dur, expires := minExpiryTime(c.lBlessings, dis)
 	c.mu.Lock()
-	if loop && expires && c.status < Closing {
+	if loop && !refreshTime.IsZero() && c.status < Closing {
 		c.loopWG.Add(1)
-		c.dischargeTimer = time.AfterFunc(dur, func() {
+		c.dischargeTimer = time.AfterFunc(refreshTime.Sub(time.Now()), func() {
 			c.refreshDischarges(ctx, true, peers)
 			c.loopWG.Done()
 		})
@@ -223,28 +221,6 @@ func (c *Conn) refreshDischarges(ctx *context.T, loop bool, peers []security.Ble
 	c.mu.Unlock()
 	bkey, dkey, err = c.blessingsFlow.send(ctx, c.lBlessings, dis, peers)
 	return
-}
-
-func minExpiryTime(blessings security.Blessings, discharges map[string]security.Discharge) (time.Duration, bool) {
-	var min time.Time
-	cavCount := len(blessings.ThirdPartyCaveats())
-	if cavCount == 0 {
-		return 0, false
-	}
-	for _, d := range discharges {
-		if exp := d.Expiry(); min.IsZero() || (!exp.IsZero() && exp.Before(min)) {
-			min = exp
-		}
-	}
-	if min.IsZero() && cavCount == len(discharges) {
-		return 0, false
-	}
-	now := time.Now()
-	d := min.Sub(now)
-	if d > time.Minute && cavCount > len(discharges) {
-		d = time.Minute
-	}
-	return d, true
 }
 
 func newBlessingsFlow(ctx *context.T, loopWG *sync.WaitGroup, f *flw) *blessingsFlow {

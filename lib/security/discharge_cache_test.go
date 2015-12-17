@@ -37,16 +37,20 @@ func testDischargeCache(t *testing.T, s security.BlessingStore) {
 	// Discharges for different cavs should not be cached.
 	d := mkDischarge(discharger.MintDischarge(argsCav, security.UnconstrainedUse()))
 	s.CacheDischarge(d, argsCav, emptyImp)
-	if d := s.Discharge(methodCav, emptyImp); d.ID() != "" {
+	if d, ct := s.Discharge(methodCav, emptyImp); d.ID() != "" || !ct.IsZero() {
 		t.Errorf("Discharge for different caveat should not have been in cache")
 	}
 	s.ClearDischarges(d)
+
+	beforeCache := time.Now()
 
 	// Add some discharges into the cache.
 	s.CacheDischarge(dArgs, argsCav, argsImp)
 	s.CacheDischarge(dMethod, methodCav, methodImp)
 	s.CacheDischarge(dServer, serverCav, serverImp)
 	s.CacheDischarge(dExpired, expiredCav, emptyImp)
+
+	afterCache := time.Now()
 
 	testCases := []struct {
 		caveat          security.Caveat           // caveat that we are fetching discharges for.
@@ -69,9 +73,12 @@ func testDischargeCache(t *testing.T, s security.BlessingStore) {
 	}
 
 	for i, test := range testCases {
-		out := s.Discharge(test.caveat, test.queryImpetus)
+		out, ct := s.Discharge(test.caveat, test.queryImpetus)
 		if got := out.ID(); got != test.cachedDischarge.ID() {
 			t.Errorf("#%d: got discharge %v, want %v, queried with %v", i, got, test.cachedDischarge.ID(), test.queryImpetus)
+		}
+		if test.cachedDischarge.ID() != "" && (ct.After(afterCache) || ct.Before(beforeCache)) {
+			t.Errorf("#%d: got cachetime %v.  Expected value in (%v, %v)", i, ct, beforeCache, afterCache)
 		}
 	}
 	if t.Failed() {

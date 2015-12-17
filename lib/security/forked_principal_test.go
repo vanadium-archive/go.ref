@@ -18,7 +18,7 @@ func TestFixedBlessingStore(t *testing.T) {
 	tpcav := mkCaveat(security.NewPublicKeyCaveat(p.PublicKey(), "location", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
 	d := mkDischarge(p.MintDischarge(tpcav, security.UnconstrainedUse()))
 	s1 := newInMemoryBlessingStore(p.PublicKey())
-	s2 := FixedBlessingsStore(b1, nil)
+	s2 := FixedBlessingsStore(b1, s1)
 
 	// Set and SetDefault should fail, other than that, s2 should behave
 	// identically to s1 after setting s1 up

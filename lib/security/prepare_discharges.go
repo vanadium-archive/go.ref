@@ -5,138 +5,125 @@
 package security
 
 import (
-	"sync"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-	"v.io/v23/vtrace"
 )
+
+// DischargeRefreshFraction determines how early before their expiration
+// time we refresh discharges.  A value of 0.5 means we refresh when it
+// is only half way to is expiration time.
+const DischargeRefreshFraction = 0.5
 
 // If this is attached to the context, we will not fetch discharges.
 // We use this to prevent ourselves from fetching discharges in the
 // process of fetching discharges, thus creating an infinite loop.
 type skipDischargesKey struct{}
 
+type updateResult struct {
+	refreshTime time.Time
+	discharge   security.Discharge
+	done        bool
+}
+
+type work struct {
+	caveat  security.Caveat
+	impetus security.DischargeImpetus
+}
+
 // PrepareDischarges retrieves the caveat discharges required for using blessings
 // at server. The discharges are either found in the dischargeCache, in the call
 // options, or requested from the discharge issuer indicated on the caveat.
 // Note that requesting a discharge is an rpc call, so one copy of this
 // function must be able to successfully terminate while another is blocked.
+// PrepareDischarges also returns a refreshTime, which is the time at which
+// PrepareDischarges should be called again (or zero if none of the discharges
+// expire).
 func PrepareDischarges(
 	ctx *context.T,
 	blessings security.Blessings,
-	impetus security.DischargeImpetus,
-	expiryBuffer time.Duration) map[string]security.Discharge {
+	impetus security.DischargeImpetus) (map[string]security.Discharge, time.Time) {
 	tpCavs := blessings.ThirdPartyCaveats()
-	if skip, _ := ctx.Value(skipDischargesKey{}).(bool); skip || len(tpCavs) == 0 {
-		return nil
+	if len(tpCavs) == 0 {
+		return nil, time.Time{}
 	}
-	ctx = context.WithValue(ctx, skipDischargesKey{}, true)
-
-	// Make a copy since this copy will be mutated.
-	var caveats []security.Caveat
-	var filteredImpetuses []security.DischargeImpetus
+	// We only want to send the impetus information we really need for each
+	// discharge.
+	todo := make(map[string]work, len(tpCavs))
 	for _, cav := range tpCavs {
-		// It shouldn't happen, but in case there are non-third-party
-		// caveats, drop them.
 		if tp := cav.ThirdPartyDetails(); tp != nil {
-			caveats = append(caveats, cav)
-			filteredImpetuses = append(filteredImpetuses, filteredImpetus(tp.Requirements(), impetus))
+			todo[tp.ID()] = work{cav, filteredImpetus(tp.Requirements(), impetus)}
 		}
 	}
-	bstore := v23.GetPrincipal(ctx).BlessingStore()
-	// Gather discharges from cache.
-	discharges, rem := discharges(bstore, caveats, impetus)
-	if rem > 0 {
-		// Fetch discharges for caveats for which no discharges were
-		// found in the cache.
-		if ctx != nil {
-			var span vtrace.Span
-			ctx, span = vtrace.WithNewSpan(ctx, "Fetching Discharges")
-			defer span.Finish()
-		}
-		fetchDischarges(ctx, caveats, filteredImpetuses, discharges, expiryBuffer)
-	}
-	ret := make(map[string]security.Discharge, len(discharges))
-	for _, d := range discharges {
-		if d.ID() != "" {
-			ret[d.ID()] = d
-		}
-	}
-	return ret
-}
-
-func discharges(bs security.BlessingStore, caveats []security.Caveat, imp security.DischargeImpetus) (out []security.Discharge, rem int) {
-	out = make([]security.Discharge, len(caveats))
-	for i := range caveats {
-		out[i] = bs.Discharge(caveats[i], imp)
-		if out[i].ID() == "" {
-			rem++
-		}
-	}
-	return
-}
-
-// fetchDischarges fills out by fetching discharges for caveats from the
-// appropriate discharge service. Since there may be dependencies in the
-// caveats, fetchDischarges keeps retrying until either all discharges can be
-// fetched or no new discharges are fetched.
-// REQUIRES: len(caveats) == len(out)
-// REQUIRES: caveats[i].ThirdPartyDetails() != nil for 0 <= i < len(caveats)
-func fetchDischarges(
-	ctx *context.T,
-	caveats []security.Caveat,
-	impetuses []security.DischargeImpetus,
-	out []security.Discharge,
-	expiryBuffer time.Duration) {
-	bstore := v23.GetPrincipal(ctx).BlessingStore()
-	var wg sync.WaitGroup
+	//Since there may be dependencies in the caveats, we keep retrying
+	//until either all discharges can be fetched or no new discharges
+	//are fetched.
+	var minRefreshTime time.Time
+	ch := make(chan *updateResult, len(tpCavs))
+	ret := make(map[string]security.Discharge, len(tpCavs))
 	for {
-		type fetched struct {
-			idx       int
-			discharge security.Discharge
-			caveat    security.Caveat
-			impetus   security.DischargeImpetus
+		want := len(todo)
+		now := time.Now()
+		for _, w := range todo {
+			updateDischarge(ctx, now, w.impetus, w.caveat, ch)
 		}
-		discharges := make(chan fetched, len(caveats))
-		want := 0
-		for i := range caveats {
-			if !shouldFetchDischarge(out[i], expiryBuffer) {
-				continue
+		got := 0
+		for i := 0; i < want; i++ {
+			res := <-ch
+			id := res.discharge.ID()
+			ret[id] = res.discharge
+			if res.done {
+				minRefreshTime = minTime(minRefreshTime, res.refreshTime)
+				delete(todo, id)
+				got++
 			}
-			want++
-			wg.Add(1)
-			go func(i int, ctx *context.T, cav security.Caveat) {
-				defer wg.Done()
-				tp := cav.ThirdPartyDetails()
-				var dis security.Discharge
-				ctx.VI(3).Infof("Fetching discharge for %v", tp)
-				if err := v23.GetClient(ctx).Call(ctx, tp.Location(), "Discharge",
-					[]interface{}{cav, impetuses[i]}, []interface{}{&dis}); err != nil {
-					ctx.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
-					return
-				}
-				discharges <- fetched{i, dis, caveats[i], impetuses[i]}
-			}(i, ctx, caveats[i])
 		}
-		wg.Wait()
-		close(discharges)
-		var got int
-		for fetched := range discharges {
-			bstore.CacheDischarge(fetched.discharge, fetched.caveat, fetched.impetus)
-			out[fetched.idx] = fetched.discharge
-			got++
+		if got == want {
+			return ret, minRefreshTime
 		}
-		if want > 0 {
-			ctx.VI(3).Infof("fetchDischarges: got %d of %d discharge(s) (total %d caveats)", got, want, len(caveats))
-		}
-		if got == 0 || got == want {
-			return
+		if got == 0 {
+			return ret, minTime(minRefreshTime, time.Now().Add(time.Minute))
 		}
 	}
+}
+
+func updateDischarge(
+	ctx *context.T,
+	now time.Time,
+	impetus security.DischargeImpetus,
+	caveat security.Caveat,
+	out chan<- *updateResult) {
+	bstore := v23.GetPrincipal(ctx).BlessingStore()
+	dis, ct := bstore.Discharge(caveat, impetus)
+	if skip, _ := ctx.Value(skipDischargesKey{}).(bool); skip {
+		// We can't fetch discharges while making a call to fetch a discharge.
+		// Just go with what we have in the cache.
+		out <- &updateResult{done: true, discharge: dis}
+		return
+	}
+	if rt := refreshTime(dis, ct); dis.ID() != "" && (now.Before(rt) || rt.IsZero()) {
+		// The cached value is still fresh, just return it.
+		out <- &updateResult{done: true, discharge: dis, refreshTime: rt}
+		return
+	}
+	// discharge in blessing store either doesn't exist or may be stale,
+	// refresh via RPC.
+	go func() {
+		tp := caveat.ThirdPartyDetails()
+		ctx = context.WithValue(ctx, skipDischargesKey{}, true)
+		var newDis security.Discharge
+		args, res := []interface{}{caveat, impetus}, []interface{}{&newDis}
+		ctx.VI(3).Infof("Fetching discharge for %v", tp)
+		if err := v23.GetClient(ctx).Call(ctx, tp.Location(), "Discharge", args, res); err != nil {
+			ctx.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
+			out <- &updateResult{discharge: dis}
+		}
+		bstore.CacheDischarge(newDis, caveat, impetus)
+		out <- &updateResult{done: true, discharge: newDis, refreshTime: refreshTime(newDis, time.Now())}
+	}()
 }
 
 // filteredImpetus returns a copy of 'before' after removing any values that are not required as per 'r'.
@@ -159,13 +146,23 @@ func filteredImpetus(r security.ThirdPartyRequirements, before security.Discharg
 	return
 }
 
-func shouldFetchDischarge(dis security.Discharge, expiryBuffer time.Duration) bool {
-	if dis.ID() == "" {
-		return true
-	}
+func refreshTime(dis security.Discharge, cacheTime time.Time) time.Time {
 	expiry := dis.Expiry()
 	if expiry.IsZero() {
-		return false
+		return time.Time{}
 	}
-	return expiry.Before(time.Now().Add(expiryBuffer))
+	if cacheTime.IsZero() {
+		// If we don't know the cache time, just try to refresh within a minute of
+		// the expiry time.
+		return expiry.Add(-time.Minute)
+	}
+	lifetime := expiry.Sub(cacheTime)
+	return expiry.Add(-time.Duration(float64(lifetime) * DischargeRefreshFraction))
+}
+
+func minTime(a, b time.Time) time.Time {
+	if a.IsZero() || (!b.IsZero() && b.Before(a)) {
+		return b
+	}
+	return a
 }

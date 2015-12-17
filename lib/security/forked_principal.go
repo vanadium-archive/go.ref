@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
+	"time"
 
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -65,7 +66,7 @@ func ImmutableBlessingStore(s security.BlessingStore) security.BlessingStore {
 // it will create a cache of its own.
 func FixedBlessingsStore(b security.Blessings, dcache DischargeCache) security.BlessingStore {
 	if dcache == nil {
-		dcache = &dischargeCacheImpl{m: make(map[dischargeCacheKey]security.Discharge)}
+		dcache = &dischargeCacheImpl{m: make(map[dischargeCacheKey]CachedDischarge)}
 	}
 	return &fixedBlessingsStore{b, dcache}
 }
@@ -114,7 +115,7 @@ func (s *immutableBlessingStore) CacheDischarge(discharge security.Discharge, ca
 func (s *immutableBlessingStore) ClearDischarges(discharges ...security.Discharge) {
 	s.impl.ClearDischarges(discharges...)
 }
-func (s *immutableBlessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
+func (s *immutableBlessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, time.Time) {
 	return s.impl.Discharge(caveat, impetus)
 }
 func (s *immutableBlessingStore) DebugString() string {
@@ -125,12 +126,12 @@ func (s *immutableBlessingStore) DebugString() string {
 type DischargeCache interface {
 	CacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus)
 	ClearDischarges(discharges ...security.Discharge)
-	Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge
+	Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, time.Time)
 }
 
 type dischargeCacheImpl struct {
 	l sync.Mutex
-	m map[dischargeCacheKey]security.Discharge
+	m map[dischargeCacheKey]CachedDischarge
 }
 
 func (c *dischargeCacheImpl) CacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) {
@@ -140,7 +141,7 @@ func (c *dischargeCacheImpl) CacheDischarge(discharge security.Discharge, caveat
 		return
 	}
 	c.l.Lock()
-	c.m[key] = discharge
+	c.m[key] = CachedDischarge{discharge, time.Now()}
 	c.l.Unlock()
 }
 func (c *dischargeCacheImpl) ClearDischarges(discharges ...security.Discharge) {
@@ -148,10 +149,10 @@ func (c *dischargeCacheImpl) ClearDischarges(discharges ...security.Discharge) {
 	clearDischargesFromCache(c.m, discharges...)
 	c.l.Unlock()
 }
-func (c *dischargeCacheImpl) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
+func (c *dischargeCacheImpl) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, time.Time) {
 	key, cacheable := dcacheKey(caveat.ThirdPartyDetails(), impetus)
 	if !cacheable {
-		return security.Discharge{}
+		return security.Discharge{}, time.Time{}
 	}
 	c.l.Lock()
 	defer c.l.Unlock()
@@ -187,7 +188,7 @@ func (s *fixedBlessingsStore) CacheDischarge(discharge security.Discharge, cavea
 func (s *fixedBlessingsStore) ClearDischarges(discharges ...security.Discharge) {
 	s.dcache.ClearDischarges(discharges...)
 }
-func (s *fixedBlessingsStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
+func (s *fixedBlessingsStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, time.Time) {
 	return s.dcache.Discharge(caveat, impetus)
 }
 func (s *fixedBlessingsStore) DebugString() string {

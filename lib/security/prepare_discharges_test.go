@@ -20,7 +20,7 @@ import (
 )
 
 type expiryDischarger struct {
-	called bool
+	durations map[string]time.Duration
 }
 
 func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
@@ -31,11 +31,11 @@ func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall,
 	if err := tp.Dischargeable(ctx, call.Security()); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
-	expDur := 10 * time.Millisecond
-	if ed.called {
-		expDur = time.Second
+	duration := ed.durations[tp.ID()]
+	if duration == 0 {
+		duration = time.Minute
 	}
-	expiry, err := security.NewExpiryCaveat(time.Now().Add(expDur))
+	expiry, err := security.NewExpiryCaveat(time.Now().Add(duration))
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
@@ -44,8 +44,14 @@ func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall,
 		return security.Discharge{}, err
 	}
 	ctx.Infof("got discharge on sever %#v", d)
-	ed.called = true
 	return d, nil
+}
+
+func inRange(v, start, end time.Time) error {
+	if v.Before(start) || v.After(end) {
+		return fmt.Errorf("Got %v, wanted value in (%v, %v)", v, start, end)
+	}
+	return nil
 }
 
 func TestPrepareDischarges(t *testing.T) {
@@ -71,6 +77,7 @@ func TestPrepareDischarges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	expiryDur := 100 * time.Millisecond
 	tpcav, err := security.NewPublicKeyCaveat(
 		pdischarger.PublicKey(),
 		"discharger",
@@ -79,54 +86,68 @@ func TestPrepareDischarges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cbless, err := pclient.BlessSelf("clientcaveats", tpcav)
+	tpcavLong, err := security.NewPublicKeyCaveat(
+		pdischarger.PublicKey(),
+		"discharger",
+		security.ThirdPartyRequirements{},
+		expcav)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cbless, err := pclient.BlessSelf("clientcaveats", tpcav, tpcavLong)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tpid := tpcav.ThirdPartyDetails().ID()
 
-	v23.GetPrincipal(dctx)
 	dctx, _, err = v23.WithNewServer(dctx,
 		"discharger",
-		&expiryDischarger{},
+		&expiryDischarger{map[string]time.Duration{
+			tpcav.ThirdPartyDetails().ID(): 100 * time.Millisecond,
+		}},
 		security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Fetch discharges for tpcav.
-	buffer := 100 * time.Millisecond
-	discharges := securitylib.PrepareDischarges(cctx, cbless,
-		security.DischargeImpetus{}, buffer)
-	if len(discharges) != 1 {
-		t.Errorf("Got %d discharges, expected 1.", len(discharges))
+	beforeFetch := time.Now()
+	discharges, refreshTime := securitylib.PrepareDischarges(cctx, cbless,
+		security.DischargeImpetus{})
+	afterFetch := time.Now()
+	if len(discharges) != 2 {
+		t.Errorf("Got %d discharges, expected 2.", len(discharges))
 	}
 	dis, has := discharges[tpid]
 	if !has {
 		t.Errorf("Got %#v, Expected discharge for %s", discharges, tpid)
 	}
-	// Check that the discharges is not yet expired, but is expired after 100 milliseconds.
-	expiry := dis.Expiry()
-	// The discharge should expire.
-	select {
-	case <-time.After(time.Now().Sub(expiry)):
-		break
-	case <-time.After(time.Second):
-		t.Fatalf("discharge didn't expire within a second")
+	// The refreshTime should be expiryDur/2 ms after the fetch, since that's half the
+	// lifetime of the discharge.
+	if err := inRange(refreshTime, beforeFetch.Add(expiryDur/2), afterFetch.Add(expiryDur/2)); err != nil {
+		t.Error(err)
 	}
+	if err := inRange(dis.Expiry(), beforeFetch.Add(expiryDur), afterFetch.Add(expiryDur)); err != nil {
+		t.Error(err)
+	}
+	time.Sleep(dis.Expiry().Sub(time.Now()))
 
 	// Preparing Discharges again to get fresh discharges.
-	discharges = securitylib.PrepareDischarges(cctx, cbless,
-		security.DischargeImpetus{}, buffer)
-	if len(discharges) != 1 {
-		t.Errorf("Got %d discharges, expected 1.", len(discharges))
+	beforeFetch = time.Now()
+	discharges, refreshTime = securitylib.PrepareDischarges(cctx, cbless,
+		security.DischargeImpetus{})
+	afterFetch = time.Now()
+	if len(discharges) != 2 {
+		t.Errorf("Got %d discharges, expected 2.", len(discharges))
 	}
 	dis, has = discharges[tpid]
 	if !has {
 		t.Errorf("Got %#v, Expected discharge for %s", discharges, tpid)
 	}
-	now := time.Now()
-	if expiry = dis.Expiry(); expiry.Before(now) {
-		t.Fatalf("discharge has expired %v, but should be fresh", dis)
+	if err := inRange(refreshTime, beforeFetch.Add(expiryDur/2), afterFetch.Add(expiryDur/2)); err != nil {
+		t.Error(err)
+	}
+	if err := inRange(dis.Expiry(), beforeFetch.Add(expiryDur), afterFetch.Add(expiryDur)); err != nil {
+		t.Error(err)
 	}
 }

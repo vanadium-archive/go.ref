@@ -12,7 +12,9 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
+	"time"
 	"v.io/v23/security"
+	_ "v.io/v23/vdlroot/time"
 )
 
 type blessingRootsState map[string][]security.BlessingPattern
@@ -33,7 +35,10 @@ type blessingStoreState struct {
 	// no other information is available to select blessings.
 	DefaultBlessings security.Blessings
 	// DischargeCache is the cache of discharges.
+	// TODO(mattr): This map is deprecated in favor of the Discharges map below.
 	DischargeCache map[dischargeCacheKey]security.Discharge
+	// DischargeCache is the cache of discharges.
+	Discharges map[dischargeCacheKey]CachedDischarge
 	// CacheKeyFormat is the dischargeCacheKey format version. It should incremented
 	// any time the format of the dischargeCacheKey is changed.
 	CacheKeyFormat uint32
@@ -41,6 +46,17 @@ type blessingStoreState struct {
 
 func (blessingStoreState) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/security.blessingStoreState"`
+}) {
+}
+
+type CachedDischarge struct {
+	Discharge security.Discharge
+	// CacheTime is the time at which the discharge was first cached.
+	CacheTime time.Time
+}
+
+func (CachedDischarge) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/security.CachedDischarge"`
 }) {
 }
 
@@ -54,5 +70,6 @@ func (dischargeCacheKey) __VDLReflect(struct {
 func init() {
 	vdl.Register((*blessingRootsState)(nil))
 	vdl.Register((*blessingStoreState)(nil))
+	vdl.Register((*CachedDischarge)(nil))
 	vdl.Register((*dischargeCacheKey)(nil))
 }

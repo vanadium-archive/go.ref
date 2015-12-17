@@ -66,8 +66,6 @@ var (
 const (
 	dataFlow = 'd'
 	typeFlow = 't'
-
-	dischargeBuffer = time.Minute
 )
 
 type clientFlowManagerOpt struct {
@@ -419,7 +417,8 @@ func (x peerAuthorizer) BlessingsForPeer(ctx *context.T, peerNames []string) (
 	if err != nil {
 		return security.Blessings{}, nil, err
 	}
-	return clientB, slib.PrepareDischarges(ctx, clientB, impetus, dischargeBuffer), nil
+	dis, _ := slib.PrepareDischarges(ctx, clientB, impetus)
+	return clientB, dis, nil
 }
 
 // tryCall makes a single attempt at a call. It may connect to multiple servers

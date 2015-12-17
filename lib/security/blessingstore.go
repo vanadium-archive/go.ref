@@ -129,13 +129,16 @@ func (bs *blessingStore) CacheDischarge(discharge security.Discharge, caveat sec
 	}
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
-	old, hadold := bs.state.DischargeCache[key]
-	bs.state.DischargeCache[key] = discharge
+	old, hadold := bs.state.Discharges[key]
+	bs.state.Discharges[key] = CachedDischarge{
+		Discharge: discharge,
+		CacheTime: time.Now(),
+	}
 	if err := bs.save(); err != nil {
 		if hadold {
-			bs.state.DischargeCache[key] = old
+			bs.state.Discharges[key] = old
 		} else {
-			delete(bs.state.DischargeCache, key)
+			delete(bs.state.Discharges, key)
 		}
 	}
 	return
@@ -143,31 +146,31 @@ func (bs *blessingStore) CacheDischarge(discharge security.Discharge, caveat sec
 
 func (bs *blessingStore) ClearDischarges(discharges ...security.Discharge) {
 	bs.mu.Lock()
-	clearDischargesFromCache(bs.state.DischargeCache, discharges...)
+	clearDischargesFromCache(bs.state.Discharges, discharges...)
 	bs.mu.Unlock()
 	return
 }
 
-func (bs *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
+func (bs *blessingStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, time.Time) {
 	key, cacheable := dcacheKey(caveat.ThirdPartyDetails(), impetus)
 	if !cacheable {
-		return security.Discharge{}
+		return security.Discharge{}, time.Time{}
 	}
 	defer bs.mu.Unlock()
 	bs.mu.Lock()
-	return dischargeFromCache(bs.state.DischargeCache, key)
+	return dischargeFromCache(bs.state.Discharges, key)
 }
 
-func dischargeFromCache(dcache map[dischargeCacheKey]security.Discharge, key dischargeCacheKey) security.Discharge {
+func dischargeFromCache(dcache map[dischargeCacheKey]CachedDischarge, key dischargeCacheKey) (security.Discharge, time.Time) {
 	cached, exists := dcache[key]
 	if !exists {
-		return security.Discharge{}
+		return security.Discharge{}, time.Time{}
 	}
-	if expiry := cached.Expiry(); expiry.IsZero() || expiry.After(time.Now()) {
-		return cached
+	if expiry := cached.Discharge.Expiry(); expiry.IsZero() || expiry.After(time.Now()) {
+		return cached.Discharge, cached.CacheTime
 	}
 	delete(dcache, key)
-	return security.Discharge{}
+	return security.Discharge{}, time.Time{}
 }
 
 func dcacheKey(tp security.ThirdPartyCaveat, impetus security.DischargeImpetus) (key dischargeCacheKey, cacheable bool) {
@@ -202,10 +205,10 @@ func dcacheKey(tp security.ThirdPartyCaveat, impetus security.DischargeImpetus) 
 	return key, true
 }
 
-func clearDischargesFromCache(dcache map[dischargeCacheKey]security.Discharge, discharges ...security.Discharge) {
+func clearDischargesFromCache(dcache map[dischargeCacheKey]CachedDischarge, discharges ...security.Discharge) {
 	for _, d := range discharges {
 		for k, cached := range dcache {
-			if cached.Equivalent(d) {
+			if cached.Discharge.Equivalent(d) {
 				delete(dcache, k)
 			}
 		}
@@ -266,8 +269,8 @@ func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingSto
 	return &blessingStore{
 		publicKey: publicKey,
 		state: blessingStoreState{
-			PeerBlessings:  make(map[security.BlessingPattern]security.Blessings),
-			DischargeCache: make(map[dischargeCacheKey]security.Discharge),
+			PeerBlessings: make(map[security.BlessingPattern]security.Blessings),
+			Discharges:    make(map[dischargeCacheKey]CachedDischarge),
 		},
 	}
 }
@@ -297,7 +300,15 @@ func (bs *blessingStore) deserialize() error {
 	}
 	if bs.state.CacheKeyFormat != cacheKeyFormat {
 		bs.state.CacheKeyFormat = cacheKeyFormat
-		bs.state.DischargeCache = make(map[dischargeCacheKey]security.Discharge)
+		bs.state.Discharges = make(map[dischargeCacheKey]CachedDischarge)
+	} else if len(bs.state.DischargeCache) > 0 {
+		// If the old DischargeCache field is present, upgrade to the new field.
+		for k, v := range bs.state.DischargeCache {
+			bs.state.Discharges[k] = CachedDischarge{
+				Discharge: v,
+			}
+		}
+		bs.state.DischargeCache = nil
 	}
 	return bs.verifyState()
 }
@@ -320,8 +331,8 @@ func newPersistingBlessingStore(serializer SerializerReaderWriter, signer serial
 	if bs.state.PeerBlessings == nil {
 		bs.state.PeerBlessings = make(map[security.BlessingPattern]security.Blessings)
 	}
-	if bs.state.DischargeCache == nil {
-		bs.state.DischargeCache = make(map[dischargeCacheKey]security.Discharge)
+	if bs.state.Discharges == nil {
+		bs.state.Discharges = make(map[dischargeCacheKey]CachedDischarge)
 	}
 	return bs, nil
 }

@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -286,7 +287,15 @@ func (a *agentd) BlessingStoreClearDischarges(discharges []security.Discharge) e
 func (a *agentd) BlessingStoreDischarge(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
 	defer a.mu.Unlock()
 	a.mu.Lock()
-	return a.principal.BlessingStore().Discharge(caveat, impetus), nil
+	discharge, _ := a.principal.BlessingStore().Discharge(caveat, impetus)
+	return discharge, nil
+}
+
+func (a *agentd) BlessingStoreDischarge2(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, time.Time, error) {
+	defer a.mu.Unlock()
+	a.mu.Lock()
+	discharge, cacheTime := a.principal.BlessingStore().Discharge(caveat, impetus)
+	return discharge, cacheTime, nil
 }
 
 func (a *agentd) BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error {

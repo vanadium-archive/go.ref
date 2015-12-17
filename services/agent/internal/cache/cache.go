@@ -7,6 +7,7 @@ package cache
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -326,7 +327,7 @@ func (s *cachedStore) ClearDischarges(discharges ...security.Discharge) {
 	s.mu.Unlock()
 }
 
-func (s *cachedStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) security.Discharge {
+func (s *cachedStore) Discharge(caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, time.Time) {
 	defer s.mu.Unlock()
 	s.mu.Lock()
 	return s.impl.Discharge(caveat, impetus)
