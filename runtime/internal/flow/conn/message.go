@@ -84,7 +84,9 @@ func (p *messagePipe) writeMsg(ctx *context.T, m message.Message) (err error) {
 			return err
 		}
 	}
-	ctx.VI(2).Infof("Wrote low-level message: %T: %v", m, m)
+	if ctx.V(2) {
+		ctx.Infof("Wrote low-level message: %T: %v", m, m)
+	}
 	return nil
 }
 
@@ -113,6 +115,8 @@ func (p *messagePipe) readMsg(ctx *context.T) (message.Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx.VI(2).Infof("Read low-level message: %T: %v", m, m)
+	if ctx.V(2) {
+		ctx.Infof("Read low-level message: %T: %v", m, m)
+	}
 	return m, err
 }
