@@ -62,7 +62,7 @@ func TestAddRemoveName(t *testing.T) {
 func TestCallWithNilContext(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
-	call, err := v23.GetClient(ctx).StartCall(nil, "foo", "bar", []interface{}{}, options.SecurityNone)
+	call, err := v23.GetClient(ctx).StartCall(nil, "foo", "bar", []interface{}{})
 	if call != nil {
 		t.Errorf("Expected nil interface got: %#v", call)
 	}

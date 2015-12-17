@@ -77,16 +77,3 @@ func getNamespaceOpts(opts []rpc.CallOpt) (resolveOpts []naming.NamespaceOpt) {
 	}
 	return
 }
-
-func callEncrypted(opts []rpc.CallOpt) bool {
-	encrypted := true
-	for _, o := range opts {
-		switch o {
-		case options.SecurityNone:
-			encrypted = false
-		case options.SecurityConfidential:
-			encrypted = true
-		}
-	}
-	return encrypted
-}
