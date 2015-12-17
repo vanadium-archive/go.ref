@@ -28,12 +28,15 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
+	"v.io/x/ref/services/internal/pproflib"
 )
 
 func init() {
 	cmdBrowse.Flags.StringVar(&flagBrowseAddr, "addr", "", "Address on which the interactive HTTP server will listen. For example, localhost:14141. If empty, defaults to localhost:<some random port>")
 	cmdBrowse.Flags.BoolVar(&flagBrowseLog, "log", true, "If true, log debug data obtained so that if a subsequent refresh from the browser fails, previously obtained information is available from the log file")
 }
+
+const browseProfilesPath = "/profiles"
 
 var (
 	flagBrowseAddr string
@@ -94,6 +97,8 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 	http.Handle("/blessings", &blessingsHandler{ctx})
 	http.Handle("/logs", &logsHandler{ctx})
 	http.Handle("/glob", &globHandler{ctx})
+	http.Handle(browseProfilesPath, &profilesHandler{ctx})
+	http.Handle(browseProfilesPath+"/", &profilesHandler{ctx})
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	addr := flagBrowseAddr
 	if len(addr) == 0 {
@@ -122,7 +127,7 @@ func executeTemplate(ctx *context.T, w http.ResponseWriter, r *http.Request, tmp
 		ctx.Infof("DEBUG: %q -- %+v", r.URL, args)
 	}
 	if err := tmpl.Execute(w, args); err != nil {
-		w.Write([]byte(fmt.Sprintf("ERROR:%v", err)))
+		fmt.Fprintf(w, "ERROR:%v", err)
 		ctx.Errorf("Error executing template %q: %v", tmpl.Name(), err)
 	}
 }
@@ -350,7 +355,7 @@ func (h *logsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain")
 	stream, err := logreader.LogFileClient(name).ReadLog(ctx, 0, logreader.AllEntries, true)
 	if err != nil {
-		w.Write([]byte(fmt.Sprintf("ERROR(%v): %v\n", verror.ErrorID(err), err)))
+		fmt.Fprintf(w, "ERROR(%v): %v\n", verror.ErrorID(err), err)
 		return
 	}
 	var (
@@ -385,13 +390,12 @@ func (h *logsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case e, more := <-entries:
-			w.Write([]byte(e.Line))
-			w.Write([]byte("\n"))
 			if !more {
 				return
 			}
+			fmt.Fprintln(w, e.Line)
 		case err := <-errch:
-			w.Write([]byte(fmt.Sprintf("ERROR(%v): %v\n", verror.ErrorID(err), err)))
+			fmt.Fprintf(w, "ERROR(%v): %v\n", verror.ErrorID(err), err)
 			return
 		case <-abortHTTP:
 			return
@@ -443,8 +447,38 @@ func (h *globHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	executeTemplate(h.ctx, w, r, tmplBrowseGlob, args)
 }
 
+type profilesHandler struct{ ctx *context.T }
+
+func (h *profilesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		server = r.FormValue("n")
+		name   = naming.Join(server, "__debug", "pprof")
+	)
+	if len(server) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Must specify a server with the URL query parameter 'n'")
+		return
+	}
+	if path := strings.TrimSuffix(r.URL.Path, "/"); path == strings.TrimSuffix(browseProfilesPath, "/") {
+		urlPrefix := fmt.Sprintf("http://%s%s/pprof", r.Host, path)
+		args := struct {
+			ServerName  string
+			CommandLine string
+			Vtrace      *Tracer
+			URLPrefix   string
+		}{
+			ServerName:  server,
+			CommandLine: fmt.Sprintf("debug pprof run %q", name),
+			URLPrefix:   urlPrefix,
+		}
+		executeTemplate(h.ctx, w, r, tmplBrowseProfiles, args)
+		return
+	}
+	pproflib.PprofProxy(h.ctx, browseProfilesPath, name).ServeHTTP(w, r)
+}
+
 func writeEvent(w http.ResponseWriter, data string) {
-	w.Write([]byte(fmt.Sprintf("data: %s\n\n", strings.TrimSpace(data))))
+	fmt.Fprintf(w, "data: %s\n\n", strings.TrimSpace(data))
 }
 
 func writeErrorEvent(w http.ResponseWriter, err error) {
@@ -488,7 +522,6 @@ var (
     {{with .IsLeaf}}<li>This is a leaf server</li>{{end}}
     </ul>
   {{range .Servers}}
-    <section class="section--center mdl-grid">
     <div class="mdl-cell mdl-cell--12-col">
     <table class="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp">
     <tbody>
@@ -528,9 +561,8 @@ var (
     {{end}}
     </tbody>
     </table>
-    {{end}}
     </div>
-    </section>
+    {{end}}
 {{else}}
   Name resolution came up empty
 {{end}}
@@ -719,6 +751,37 @@ var (
 </section>
 `)
 
+	tmplBrowseProfiles = makeTemplate("profiles", `
+<section class="section--center mdl-grid">
+  <h5>Profiling</h5>
+  <div id="parent" class="mdl-cell mdl-cell--12-col">
+  <ul>
+  <li>CPU
+  <div class="fixed-width">go tool pprof {{.URLPrefix}}/profile?n={{urlquery .ServerName}}</div>
+  </li>
+  <li><a href="{{.URLPrefix}}/heap?n={{urlquery .ServerName}}&debug=1">Heap</a>
+  <div class="fixed-width">go tool pprof {{.URLPrefix}}/heap?n={{urlquery .ServerName}}</div>
+  </li>
+  <li><a href="{{.URLPrefix}}/block?n={{urlquery .ServerName}}&debug=1">Block</a>
+  <div class="fixed-width">go tool pprof {{.URLPrefix}}/block?n={{urlquery .ServerName}}</div>
+  </li>
+  <li><a href="{{.URLPrefix}}/threadcreate?n={{urlquery .ServerName}}&debug=1">Threadcreate</a>
+  <div class="fixed-width">go tool pprof {{.URLPrefix}}/threadcreate?n={{urlquery .ServerName}}</div>
+  </li>
+  <li>Goroutines:
+  <a href="{{.URLPrefix}}/goroutine?n={{urlquery .ServerName}}&debug=1">(compact)</a>
+  <a href="{{.URLPrefix}}/goroutine?n={{urlquery .ServerName}}&debug=2">(full)</a>
+  </li>
+  </ul>
+  <div id="parent" class="mdl-cell mdl-cell--12-col">
+    <i class="material-icons">info</i>The commands above may not work if the
+    remote process isn't written in Go. Support for profiling code in other
+    languages is in the wishlist.
+  </div>
+  </div>
+</section>
+`)
+
 	tmplBrowseHeader = template.Must(template.New(".header").Parse(`
 {{define ".header"}}
 <!DOCTYPE html>
@@ -749,6 +812,7 @@ var (
           <a class="mdl-navigation__link" href="/stats?n={{.ServerName}}">Stats</a>
           <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
           <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
+          <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
         </nav>
       </div>
     </header>
@@ -759,6 +823,7 @@ var (
         <a class="mdl-navigation__link" href="/stats?n={{.ServerName}}">Stats</a>
         <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
         <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
+        <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
       </nav>
     </div>
     <main class="mdl-layout__content">

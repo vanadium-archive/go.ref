@@ -43,17 +43,17 @@ type proxy struct {
 }
 
 func (p *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch path := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, p.pathPrefix), "/"); path {
-	case "":
+	switch path := p.canonicalPath(r); path {
+	case "/":
 		http.Redirect(w, r, r.URL.Path+"/pprof/", http.StatusTemporaryRedirect)
-	case "pprof/cmdline":
+	case "/pprof/cmdline":
 		p.cmdLine(w, r)
-	case "pprof/profile":
+	case "/pprof/profile":
 		p.profile(w, r)
-	case "pprof/symbol":
+	case "/pprof/symbol":
 		p.symbol(w, r)
 	default:
-		if strings.HasPrefix(path, "pprof/") || path == "pprof" {
+		if strings.HasPrefix(path, "/pprof/") || path == "/pprof" {
 			p.index(w, r)
 		} else {
 			http.NotFound(w, r)
@@ -61,15 +61,19 @@ func (p *proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (p *proxy) canonicalPath(r *http.Request) string {
+	return strings.TrimPrefix(r.URL.Path, p.pathPrefix)
+}
+
 func replyUnavailable(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusServiceUnavailable)
 	fmt.Fprintf(w, "%v", err)
 }
 
-// index serves an html page for /pprof/ and, indirectly, raw data for /pprof/*
+// index serves an html page for pprof/ and, indirectly, raw data for pprof/*
 func (p *proxy) index(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/pprof/") {
-		name := strings.TrimPrefix(r.URL.Path, "/pprof/")
+	if path := p.canonicalPath(r); strings.HasPrefix(path, "/pprof/") {
+		name := strings.TrimPrefix(path, "/pprof/")
 		if name != "" {
 			p.sendProfile(name, w, r)
 			return
