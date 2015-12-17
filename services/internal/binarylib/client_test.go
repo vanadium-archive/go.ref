@@ -22,8 +22,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate jiri test generate
-
 const (
 	v23Prefix = "vanadium_binary_repository"
 )

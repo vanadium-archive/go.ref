@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate jiri test generate
-
 package main_test
 
 import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -19,10 +18,9 @@ import (
 	"sync"
 	"testing"
 	"text/template"
-	"time"
 
+	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test/testutil"
-	"v.io/x/ref/test/v23tests"
 )
 
 var (
@@ -31,18 +29,22 @@ var (
 	flagCluster = flag.String("cluster", "", "The name of the kubernetes cluster to use.")
 )
 
-// V23TestVkube is an end-to-end test for the vkube command. It operates on a
+// TestV23Vkube is an end-to-end test for the vkube command. It operates on a
 // pre-existing kubernetes cluster running on GCE.
 // This test can easily exceed the default test timeout of 10m. It is
 // recommended to use -test.timeout=20m.
-func V23TestVkube(t *v23tests.T) {
+func TestV23Vkube(t *testing.T) {
 	if *flagProject == "" || *flagZone == "" || *flagCluster == "" {
 		t.Skip("--project, --zone, or --cluster not specified")
 	}
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	workdir := t.NewTempDir("")
+
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+
+	workdir := sh.MakeTempDir()
 
 	id := fmt.Sprintf("vkube-test-%08x", rand.Uint32())
 
@@ -51,36 +53,35 @@ func V23TestVkube(t *v23tests.T) {
 		t.Fatal(err)
 	}
 
-	creds, err := t.Shell().NewChildCredentials("alice")
-	if err != nil {
-		t.Fatalf("Failed to create alice credentials: %v", err)
-	}
+	creds := sh.ForkCredentials("alice")
 
-	vkubeBin := t.BuildV23Pkg("v.io/x/ref/services/cluster/vkube")
-	opts := vkubeBin.StartOpts().WithCustomCredentials(creds)
-	opts.ShutdownTimeout = 10 * time.Minute
-	vkubeBin = vkubeBin.WithStartOpts(opts)
-
-	vshBin := t.BuildV23Pkg("v.io/x/ref/examples/tunnel/vsh")
-	vshBin = vshBin.WithStartOpts(vshBin.StartOpts().WithCustomCredentials(creds))
+	vkubeBin := sh.JiriBuildGoPkg("v.io/x/ref/services/cluster/vkube")
+	vshBin := sh.JiriBuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
 
 	var (
-		cmd = func(bin *v23tests.Binary, expectSuccess bool, baseArgs ...string) func(args ...string) string {
+		cmd = func(name string, expectSuccess bool, baseArgs ...string) func(args ...string) string {
 			return func(args ...string) string {
-				cmd := filepath.Base(bin.Path())
-				w := &writer{name: cmd}
 				args = append(baseArgs, args...)
-				if err := bin.Start(args...).Wait(w, w); expectSuccess && err != nil {
-					t.Error(testutil.FormatLogLine(2, "Unexpected failure: %s %s :%v", cmd, strings.Join(args, " "), err))
-				} else if !expectSuccess && err == nil {
-					t.Error(testutil.FormatLogLine(2, "Unexpected success %d: %s %s", cmd, strings.Join(args, " ")))
+				// Note, creds do not affect non-Vanadium commands.
+				c := sh.Cmd(name, args...).WithCredentials(creds)
+				c.ExitErrorIsOk = true
+				c.SuppressOutput = true
+				// Tee the output to writer.
+				go func() {
+					io.Copy(&writer{name: filepath.Base(name)}, c.StdoutPipe())
+				}()
+				stdout, _ := c.Output()
+				if expectSuccess && c.Err != nil {
+					t.Error(testutil.FormatLogLine(2, "Unexpected failure: %s %s :%v", name, strings.Join(args, " "), c.Err))
+				} else if !expectSuccess && c.Err == nil {
+					t.Error(testutil.FormatLogLine(2, "Unexpected success %d: %s %s", name, strings.Join(args, " ")))
 				}
-				return w.output()
+				return stdout
 			}
 		}
-		gsutil      = cmd(t.BinaryFromPath("gsutil"), true)
-		gcloud      = cmd(t.BinaryFromPath("gcloud"), true, "--project="+*flagProject)
-		docker      = cmd(t.BinaryFromPath("docker"), true)
+		gsutil      = cmd("gsutil", true)
+		gcloud      = cmd("gcloud", true, "--project="+*flagProject)
+		docker      = cmd("docker", true)
 		vkubeOK     = cmd(vkubeBin, true, "--config="+vkubeCfgPath)
 		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath)
 		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, "ctl", "--", "--namespace="+id)
@@ -160,20 +161,18 @@ func V23TestVkube(t *v23tests.T) {
 	kubectlFail("get", "rc", "cluster-agentd-latest")
 }
 
-// An io.Writer that sends everything to stdout, each line prefixed with
-// "name> ", and also captures all the output.
+// writer is an io.Writer that sends everything to stdout, each line prefixed
+// with "name> ".
 type writer struct {
 	sync.Mutex
 	name string
 	line bytes.Buffer
-	out  bytes.Buffer
 }
 
 func (w *writer) Write(p []byte) (n int, err error) {
 	w.Lock()
 	defer w.Unlock()
 	n = len(p)
-	w.out.Write(p)
 	for len(p) > 0 {
 		if w.line.Len() == 0 {
 			fmt.Fprintf(&w.line, "%s> ", w.name)
@@ -189,16 +188,6 @@ func (w *writer) Write(p []byte) (n int, err error) {
 		break
 	}
 	return
-}
-
-func (w *writer) output() string {
-	w.Lock()
-	defer w.Unlock()
-	if w.line.Len() != 0 {
-		w.line.WriteString(" [no \\n at EOL]\n")
-		w.line.WriteTo(os.Stdout)
-	}
-	return w.out.String()
 }
 
 func createVkubeConfig(path, id string) error {
@@ -295,4 +284,8 @@ func createAppConfig(path, id, image, version string) error {
     }
   }
 }`)).Execute(f, params)
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

@@ -36,9 +36,27 @@ const (
 	envShellTestProcess = "V23_SHELL_TEST_PROCESS"
 )
 
+// TODO(sadovsky):
+// - Add a Cmd.Session field, initialized as part of newCmd. (I'm not
+//   particularly fond of the expect.Session API, but it's not terrible, and
+//   it's widely used. My suspicion is that for 'expect' we're best off pursuing
+//   a strategy of incremental simplification rather than a rewrite.)
+// - Make StartRootMountTable and StartSyncbase fast, and change tests that
+//   build no other binaries to be normal (non-integration) tests.
+// - Eliminate test.V23Init() and either add v23test.Init() or have v23.Init()
+//   check for an env var and perform test-specific configuration.
+// - Instead of Opts.Large, have integration tests call v23test.IntegrationTest
+//   or somesuch.
+// - Update "jiri test" to identify integration tests by the presence of a call
+//   to v23test.IntegrationTest as the first line in the test implementation,
+//   rather than by the test name starting with "TestV23".
+// - Maybe eliminate AST-based integration test detection and simply have "jiri
+//   test run vanadium-integration-test" run all tests, including those marked
+//   as integration tests.
+// - Necessary for the previous bullet: switch from -v23.tests flag to an
+//   environment variable for specifying whether to run integration tests.
+
 // Cmd wraps gosh.Cmd and provides Vanadium-specific functionality.
-// TODO(sadovsky): Maybe add a Cmd.Session field (and update existing clients to
-// use it).
 type Cmd struct {
 	*gosh.Cmd
 }

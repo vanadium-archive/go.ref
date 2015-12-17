@@ -4,7 +4,6 @@
 
 package main_test
 
-// FIXME: Why doesn't this need a runtime?
 import (
 	"encoding/json"
 	"fmt"
@@ -26,6 +25,7 @@ import (
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/services/groups/groupsd/testdata/kvstore"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 )
 
@@ -163,11 +163,12 @@ const (
 )
 
 var runServer = gosh.Register("server", func() error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	// Use a shorter timeout to reduce the test overall runtime as the
-	// permission authorizer will attempt to connect to a non-existing
-	// groups server at some point in the test.
+
+	// Use a shorter timeout to reduce the test overall runtime as the permissions
+	// authorizer will attempt to connect to a non-existing groups server at some
+	// point in the test.
 	ctx, _ = context.WithTimeout(ctx, 2*time.Second)
 	authorizer, err := groups.PermissionsAuthorizer(access.Permissions{
 		"Read":  access.AccessList{In: []security.BlessingPattern{"<grp:groups-server/readers>"}},
@@ -184,7 +185,7 @@ var runServer = gosh.Register("server", func() error {
 })
 
 var runClient = gosh.Register("client", func(command string, args ...string) error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	client := kvstore.StoreClient(kvServerName)
@@ -224,9 +225,6 @@ func startClient(t *testing.T, sh *v23test.Shell, name string, args ...interface
 // TestV23GroupServerAuthorization uses an instance of the KeyValueStore server
 // with an groups-based authorizer to test the group server implementation.
 func TestV23GroupServerAuthorization(t *testing.T) {
-	// TODO(sadovsky): Figure out why this test fails on Jenkins.
-	t.Skip("Passes locally but fails on Jenkins, see presubmit for v.io/c/18566")
-
 	sh := v23test.NewShell(t, v23test.Opts{Large: true})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()

@@ -12,14 +12,11 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/services/build"
-
-	"v.io/v23"
 	"v.io/x/ref/test"
 )
-
-//go:generate jiri test generate
 
 // findGoBinary returns the path to the given Go binary and
 // the GOROOT environment variable to use.

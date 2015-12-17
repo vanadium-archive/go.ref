@@ -25,8 +25,6 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate jiri test generate
-
 var appRepository = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()

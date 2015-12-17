@@ -20,16 +20,7 @@ import (
 	"v.io/x/ref/test/expect"
 )
 
-// TODO(sadovsky): Add the following to v23.Init() and eliminate
-// maybeAddTcpAddressFlag.
-// if v := os.Getenv(v23test.EnvSpawnedByShell); v != "" {
-//   gosh.MaybeWatchParent()
-//   if v == v23test.EnvSpawnedByShellForTest {
-//     ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
-//     v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-//   }
-//   os.Unsetenv(v23test.EnvSpawnedByShell)
-// }
+// TODO(sadovsky): Drop this hack once the TODOs in v23test.go are addressed.
 func maybeAddTcpAddressFlag(sh *Shell, args *[]string) {
 	if _, ok := sh.Vars[envShellTestProcess]; ok {
 		*args = append(*args, "-v23.tcp.address=127.0.0.1:0")

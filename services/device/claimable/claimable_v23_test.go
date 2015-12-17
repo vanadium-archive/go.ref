@@ -10,15 +10,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
+	"time"
 
-	lsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/v23tests"
+	libsec "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/expect"
 )
 
-//go:generate jiri test generate
+func TestV23ClaimableServer(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
 
-func V23TestClaimableServer(t *v23tests.T) {
 	workdir, err := ioutil.TempDir("", "claimable-test-")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir failed: %v", err)
@@ -27,38 +30,29 @@ func V23TestClaimableServer(t *v23tests.T) {
 
 	permsDir := filepath.Join(workdir, "perms")
 
-	serverCreds, err := detachedCredentials(t, "server")
-	if err != nil {
+	serverCreds := sh.ForkCredentials("child")
+	if err := libsec.InitDefaultBlessings(serverCreds.Principal, "server"); err != nil {
 		t.Fatalf("Failed to create server credentials: %v", err)
 	}
-	legitClientCreds, err := t.Shell().NewChildCredentials("legit")
-	if err != nil {
-		t.Fatalf("Failed to create legit credentials: %v", err)
-	}
-	badClientCreds1, err := t.Shell().NewCustomCredentials()
-	if err != nil {
-		t.Fatalf("Failed to create bad credentials: %v", err)
-	}
-	badClientCreds2, err := t.Shell().NewChildCredentials("other-guy")
-	if err != nil {
-		t.Fatalf("Failed to create bad credentials: %v", err)
-	}
+	legitClientCreds := sh.ForkCredentials("legit")
+	badClientCreds1 := sh.ForkCredentials("child")
+	badClientCreds2 := sh.ForkCredentials("other-guy")
 
-	serverBin := t.BuildV23Pkg("v.io/x/ref/services/device/claimable")
-	serverBin = serverBin.WithStartOpts(serverBin.StartOpts().WithCustomCredentials(serverCreds))
-
-	server := serverBin.Start(
+	serverBin := sh.JiriBuildGoPkg("v.io/x/ref/services/device/claimable")
+	server := sh.Cmd(serverBin,
 		"--v23.tcp.address=127.0.0.1:0",
 		"--perms-dir="+permsDir,
-		"--root-blessings="+rootBlessings(t, legitClientCreds),
+		"--root-blessings="+rootBlessings(t, sh, legitClientCreds),
 		"--v23.permissions.literal={\"Admin\":{\"In\":[\"root:legit\"]}}",
-	)
-	addr := server.ExpectVar("NAME")
+	).WithCredentials(serverCreds)
+	session := expect.NewSession(t, server.StdoutPipe(), time.Minute)
+	server.Start()
+	addr := session.ExpectVar("NAME")
 
-	clientBin := t.BuildV23Pkg("v.io/x/ref/services/device/device")
+	clientBin := sh.JiriBuildGoPkg("v.io/x/ref/services/device/device")
 
 	testcases := []struct {
-		creds      *modules.CustomCredentials
+		creds      *v23test.Credentials
 		success    bool
 		permsExist bool
 	}{
@@ -68,39 +62,33 @@ func V23TestClaimableServer(t *v23tests.T) {
 	}
 
 	for _, tc := range testcases {
-		clientBin = clientBin.WithStartOpts(clientBin.StartOpts().WithCustomCredentials(tc.creds))
-		client := clientBin.Start("claim", addr, "my-device")
-		if err := client.Wait(nil, nil); (err == nil) != tc.success {
+		client := sh.Cmd(clientBin, "claim", addr, "my-device").WithCredentials(tc.creds)
+		client.ExitErrorIsOk = true
+		if client.Run(); (client.Err == nil) != tc.success {
 			t.Errorf("Unexpected exit value. Expected success=%v, got err=%v", tc.success, err)
 		}
-		if _, err := os.Stat(permsDir); (err == nil) != tc.permsExist {
+		if _, err := os.Stat(permsDir); (client.Err == nil) != tc.permsExist {
 			t.Errorf("Unexpected permsDir state. Got %v, expected %v", err == nil, tc.permsExist)
 		}
 	}
+
 	// Server should exit cleanly after the successful Claim.
-	if err := server.ExpectEOF(); err != nil {
-		t.Errorf("Expected server to exit cleanly, got %v", err)
-	}
+	server.Wait()
 }
 
-func detachedCredentials(t *v23tests.T, name string) (*modules.CustomCredentials, error) {
-	creds, err := t.Shell().NewCustomCredentials()
-	if err != nil {
-		return nil, err
-	}
-	return creds, lsecurity.InitDefaultBlessings(creds.Principal(), name)
+// Note: Identical to rootBlessings in
+// v.io/x/ref/services/cluster/cluster_agentd/cluster_agentd_v23_test.go.
+func rootBlessings(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials) string {
+	principalBin := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+	stdout, _ := sh.Cmd(principalBin, "get", "default").WithCredentials(creds).Output()
+	blessings := strings.TrimSpace(stdout)
+
+	cmd := sh.Cmd(principalBin, "dumproots", "-")
+	cmd.Stdin = bytes.NewBufferString(blessings)
+	stdout, _ = cmd.Output()
+	return strings.Replace(strings.TrimSpace(stdout), "\n", ",", -1)
 }
 
-func rootBlessings(t *v23tests.T, creds *modules.CustomCredentials) string {
-	principalBin := t.BuildV23Pkg("v.io/x/ref/cmd/principal")
-	opts := principalBin.StartOpts().WithCustomCredentials(creds)
-	principalBin = principalBin.WithStartOpts(opts)
-	blessings := strings.TrimSpace(principalBin.Start("get", "default").Output())
-
-	opts.Stdin = bytes.NewBufferString(blessings)
-	opts.ExecProtocol = false
-	opts.Credentials = nil
-	principalBin = principalBin.WithStartOpts(opts)
-	out := strings.TrimSpace(principalBin.Start("dumproots", "-").Output())
-	return strings.Replace(out, "\n", ",", -1)
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

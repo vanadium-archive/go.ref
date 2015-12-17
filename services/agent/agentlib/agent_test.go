@@ -15,14 +15,13 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/security"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/internal/ipc"
 	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
-
-	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 // As of November 17, 2015, the benchmarks for serving a principal with and
@@ -41,8 +40,6 @@ import (
 // BenchmarkRecognizedNoAgent-4              	 2000000	       748 ns/op
 // BenchmarkRecognizedCachedAgent-4          	 3000000	       774 ns/op
 // BenchmarkRecognizedUncachedAgent-4        	   20000	     99022 ns/op
-
-//go:generate jiri test generate
 
 var getPrincipalAndHang = modules.Register(func(env *modules.Env, args ...string) error {
 	ctx, shutdown := test.V23Init()

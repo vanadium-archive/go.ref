@@ -6,93 +6,117 @@ package agentlib_test
 
 import (
 	"bytes"
-	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"text/template"
+	"time"
 
 	"v.io/v23/security"
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/v23test"
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
-	"v.io/x/ref/test/v23tests"
+	"v.io/x/ref/test/expect"
 )
 
-//go:generate jiri test generate
+func start(t *testing.T, c *v23test.Cmd) *expect.Session {
+	s := expect.NewSession(t, c.StdoutPipe(), time.Minute)
+	s.SetVerbosity(true)
+	c.Start()
+	return s
+}
 
-func V23TestPassPhraseUse(i *v23tests.T) {
-	bin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithEnv(ref.EnvCredentials + "=" + i.NewTempDir(""))
+func TestV23PassPhraseUse(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+
+	bin := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+	dir := sh.MakeTempDir()
 
 	// Create the passphrase
-	agent := bin.Start("echo", "Hello")
-	fmt.Fprintln(agent.Stdin(), "PASSWORD")
-	agent.ReadLine() // Skip over ...creating new key... message
-	agent.Expect("Hello")
-	agent.ExpectEOF()
-	if err := agent.Error(); err != nil {
-		i.Fatal(err)
-	}
+	c := sh.Cmd(bin, "echo", "Hello")
+	c.Vars[ref.EnvCredentials] = dir
+	c.Stdin = bytes.NewBufferString("PASSWORD")
+	s := start(t, c)
+	s.ReadLine() // Skip over ...creating new key... message
+	s.Expect("Hello")
+	c.Wait()
+	s.ExpectEOF()
 
 	// Use it successfully
-	agent = bin.Start("echo", "Hello")
-	fmt.Fprintln(agent.Stdin(), "PASSWORD")
-	agent.Expect("Hello")
-	agent.ExpectEOF()
-	if err := agent.Error(); err != nil {
-		i.Fatal(err)
-	}
+	c = sh.Cmd(bin, "echo", "Hello")
+	c.Vars[ref.EnvCredentials] = dir
+	c.Stdin = bytes.NewBufferString("PASSWORD")
+	s = start(t, c)
+	s.Expect("Hello")
+	c.Wait()
+	s.ExpectEOF()
 
 	// Provide a bad password
-	agent = bin.Start("echo", "Hello")
-	fmt.Fprintln(agent.Stdin(), "BADPASSWORD")
-	agent.ExpectEOF()
-	var stdout, stderr bytes.Buffer
-	err := agent.Wait(&stdout, &stderr)
-	if err == nil {
-		i.Fatalf("expected an error.STDOUT:%v\nSTDERR:%v\n", stdout.String(), stderr.String())
+	c = sh.Cmd(bin, "echo", "Hello")
+	c.Vars[ref.EnvCredentials] = dir
+	c.Stdin = bytes.NewBufferString("BADPASSWORD")
+	c.ExitErrorIsOk = true
+	s = expect.NewSession(t, c.StdoutPipe(), time.Minute)
+	stdout, stderr := c.Output()
+	s.ExpectEOF()
+	if c.Err == nil {
+		t.Fatalf("expected an error.STDOUT:%v\nSTDERR:%v\n", stdout, stderr)
 	}
-	if got, want := err.Error(), "exit status 1"; got != want {
-		i.Errorf("Got %q, want %q", got, want)
+	if got, want := c.Err.Error(), "exit status 1"; got != want {
+		t.Errorf("Got %q, want %q", got, want)
 	}
-	if got, want := stderr.String(), "passphrase incorrect for decrypting private key"; !strings.Contains(got, want) {
-		i.Errorf("Got %q, wanted it to contain %q", got, want)
-	}
-	if err := agent.Error(); err != nil {
-		i.Error(err)
+	if got, want := stderr, "passphrase incorrect for decrypting private key"; !strings.Contains(got, want) {
+		t.Errorf("Got %q, wanted it to contain %q", got, want)
 	}
 }
 
-func V23TestAllPrincipalMethods(i *v23tests.T) {
+func TestV23AllPrincipalMethods(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+
 	// Test all methods of the principal interface.
 	// (Errors are printed to STDERR)
-	testbin := i.BuildGoPkg("v.io/x/ref/services/agent/internal/test_principal").Path()
-	i.BuildGoPkg("v.io/x/ref/services/agent/agentd").
-		WithEnv(ref.EnvCredentials+"="+i.NewTempDir("")).
-		Start(testbin).
-		WaitOrDie(nil, os.Stderr)
+	testbin := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/internal/test_principal")
+	agentd := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+
+	c := sh.Cmd(agentd, testbin)
+	c.Vars[ref.EnvCredentials] = sh.MakeTempDir()
+	c.Run()
 }
 
-func V23TestAgentProcesses(i *v23tests.T) {
+func TestV23AgentProcesses(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+
 	// Setup two principals: One for the agent that runs the pingpong
 	// server, one for the client.  Since the server uses the default
 	// authorization policy, the client must have a blessing delegated from
 	// the server.
 	var (
-		clientAgent, serverAgent = createClientAndServerAgents(i)
-		pingpong                 = i.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong").Path()
-		serverName               = serverAgent.Start(pingpong).ExpectVar("NAME")
+		clientDir, serverDir = createClientAndServerCredentials(t, sh)
+		pingpong             = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
+		agentd               = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
 	)
+
+	server := sh.Cmd(agentd, pingpong)
+	server.Vars[ref.EnvCredentials] = serverDir
+	session := start(t, server)
+	serverName := session.ExpectVar("NAME")
+
 	// Run the client via an agent once.
-	client := clientAgent.Start(pingpong, serverName)
-	client.Expect("Pinging...")
-	client.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
-	client.WaitOrDie(os.Stdout, os.Stderr)
-	if err := client.Error(); err != nil { // Check expectations
-		i.Fatal(err)
-	}
+	client := sh.Cmd(agentd, pingpong, serverName)
+	client.Vars[ref.EnvCredentials] = clientDir
+	session = start(t, client)
+	session.Expect("Pinging...")
+	session.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
+	client.Wait()
 
 	// Run it through a shell to test that the agent can pass credentials
 	// to subprocess of a shell (making things like "agentd bash" provide
@@ -100,7 +124,7 @@ func V23TestAgentProcesses(i *v23tests.T) {
 	// This only works with shells that propagate open file descriptors to
 	// children. POSIX-compliant shells do this as to many other commonly
 	// used ones like bash.
-	script := filepath.Join(i.NewTempDir(""), "test.sh")
+	script := filepath.Join(sh.MakeTempDir(), "test.sh")
 	if err := writeScript(
 		script,
 		`#!/bin/bash
@@ -110,31 +134,39 @@ echo "Running client again"
 {{.Bin}} {{.Server}} || exit 102
 `,
 		struct{ Bin, Server string }{pingpong, serverName}); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
-	client = clientAgent.Start("bash", script)
-	client.Expect("Running client")
-	client.Expect("Pinging...")
-	client.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
-	client.Expect("Running client again")
-	client.Expect("Pinging...")
-	client.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
-	client.WaitOrDie(os.Stdout, os.Stderr)
-	if err := client.Error(); err != nil { // Check expectations
-		i.Fatal(err)
-	}
+	client = sh.Cmd(agentd, "bash", script)
+	client.Vars[ref.EnvCredentials] = clientDir
+	session = start(t, client)
+	session.Expect("Running client")
+	session.Expect("Pinging...")
+	session.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
+	session.Expect("Running client again")
+	session.Expect("Pinging...")
+	session.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
+	client.Wait()
 }
 
-func V23TestAgentRestartExitCode(i *v23tests.T) {
-	var (
-		clientAgent, serverAgent = createClientAndServerAgents(i)
-		pingpong                 = i.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong").Path()
-		serverName               = serverAgent.Start(pingpong).ExpectVar("NAME")
+func TestV23AgentRestartExitCode(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
 
-		scriptDir = i.NewTempDir("")
+	var (
+		clientDir, serverDir = createClientAndServerCredentials(t, sh)
+		pingpong             = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
+		agentd               = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+
+		scriptDir = sh.MakeTempDir()
 		counter   = filepath.Join(scriptDir, "counter")
 		script    = filepath.Join(scriptDir, "test.sh")
 	)
+
+	server := sh.Cmd(agentd, pingpong)
+	server.Vars[ref.EnvCredentials] = serverDir
+	session := start(t, server)
+	serverName := session.ExpectVar("NAME")
+
 	if err := writeScript(
 		script,
 		`#!/bin/bash
@@ -151,7 +183,7 @@ echo -n $COUNT >{{.Counter}}
 			Server:  serverName,
 			Counter: counter,
 		}); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 
 	tests := []struct {
@@ -185,53 +217,57 @@ echo -n $COUNT >{{.Counter}}
 	for _, test := range tests {
 		// Clear out the counter file.
 		if err := ioutil.WriteFile(counter, []byte("0"), 0644); err != nil {
-			i.Fatalf("%q: %v", counter, err)
+			t.Fatalf("%q: %v", counter, err)
 		}
 		// Run the script under the agent
+		cmd := sh.Cmd(agentd, "--restart-exit-code="+test.RestartExitCode, "bash", "-c", script)
+		cmd.Vars[ref.EnvCredentials] = clientDir
+		cmd.ExitErrorIsOk = true
+		cmd.Run()
 		var gotError string
-		if err := clientAgent.Start(
-			"--restart-exit-code="+test.RestartExitCode,
-			"bash", "-c", script).
-			Wait(os.Stdout, os.Stderr); err != nil {
-			gotError = err.Error()
+		if cmd.Err != nil {
+			gotError = cmd.Err.Error()
 		}
 		if got, want := gotError, test.WantError; got != want {
-			i.Errorf("%+v: Got %q, want %q", test, got, want)
+			t.Errorf("%+v: Got %q, want %q", test, got, want)
 		}
 		if buf, err := ioutil.ReadFile(counter); err != nil {
-			i.Errorf("ioutil.ReadFile(%q) failed: %v", counter, err)
+			t.Errorf("ioutil.ReadFile(%q) failed: %v", counter, err)
 		} else if got, want := string(buf), test.WantCounter; got != want {
-			i.Errorf("%+v: Got %q, want %q", test, got, want)
+			t.Errorf("%+v: Got %q, want %q", test, got, want)
 		}
 	}
 }
 
-func V23TestKeyManager(i *v23tests.T) {
+func TestV23KeyManager(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+
 	// Start up an agent that serves additional principals.
 	// Since the agent needs to run some long-lived program to stay up,
 	// use a script that waits for user input.
 	var (
-		agentDir   = i.NewTempDir("")
-		otherDir   = i.NewTempDir("")
-		agentSock  = filepath.Join(agentDir, "agent.sock") // "agent.sock" comes from agentd/main.go
-		agentBin   = i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithEnv(ref.EnvCredentials + "=" + agentDir)
-		clientSock = filepath.Join(i.NewTempDir(""), "client.sock")
-		script     = filepath.Join(i.NewTempDir(""), "test.sh")
+		agentDir, otherDir = sh.MakeTempDir(), sh.MakeTempDir()
+		agentSock          = filepath.Join(agentDir, "agent.sock") // "agent.sock" comes from agentd/main.go
+		agentd             = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+		clientSock         = filepath.Join(sh.MakeTempDir(), "client.sock")
+		script             = filepath.Join(sh.MakeTempDir(), "test.sh")
 
-		startAgent = func() *v23tests.Invocation {
-			agent := agentBin.Start(
-				"--additional-principals="+otherDir,
-				"--no-passphrase",
-				script)
+		startAgent = func() (*v23test.Cmd, io.WriteCloser) {
+			agent := sh.Cmd(agentd, "--additional-principals="+otherDir, "--no-passphrase", script)
+			agent.Vars[ref.EnvCredentials] = agentDir
+			pr, pw := io.Pipe()
+			agent.Stdin = pr
+			session := start(t, agent)
 			for lineno := 0; lineno < 10; lineno++ {
-				line := agent.ReadLine()
+				line := session.ReadLine()
 				if line == "STARTED" {
-					return agent
+					return agent, pw
 				}
-				i.Logf("Ignoring line from agent process: %q", line)
+				t.Logf("Ignoring line from agent process: %q", line)
 			}
-			i.Fatal("Agent did not start correctly?")
-			return nil
+			t.Fatal("Agent did not start correctly?")
+			return nil, nil
 		}
 
 		testClient = func() error {
@@ -251,31 +287,35 @@ echo STARTED
 read
 `,
 		nil); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
-	agent := startAgent()
+	agent, stdinPipe := startAgent()
 	// Setup the principal for the other key
 	kmgr, err := keymgr.NewKeyManager(agentSock)
 	if err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	handle, err := kmgr.NewPrincipal(false)
 	if err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	if err := kmgr.ServePrincipal(handle, clientSock); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	// clientSock should be functional.
 	if err := testClient(); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
-	// If we restart the agent, and have it serve the client principal on the same socket,
-	// the client should function again.
-	agent.Shutdown(os.Stdout, os.Stderr)
-	i.Logf("Killed the agent, restarting it")
-	agent = startAgent()
-	defer agent.Shutdown(os.Stdout, os.Stderr)
+	// If we restart the agent, and have it serve the client principal on the same
+	// socket, the client should function again.
+	stdinPipe.Close()
+	agent.Shutdown(os.Interrupt)
+	t.Logf("Killed the agent, restarting it")
+	agent, stdinPipe = startAgent()
+	defer func() {
+		stdinPipe.Close()
+		agent.Shutdown(os.Interrupt)
+	}()
 	// The bug that this test is trying to fix is one where the clientSock
 	// file is left hanging around. At the time this test was written,
 	// the author couldn't figure out a nice way to "uncleanly" kill the agent
@@ -283,20 +323,20 @@ read
 	// the issue it was intended to by checking that clientSock is still lying
 	// around.
 	if _, err := os.Stat(clientSock); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	// TODO(ashankar,ribrdb): To make clients resilient to the server
 	// listening on the unix socket restarting, should ipc.IPCConn or the
 	// KeyManager transparently retry when the connection has died instead
 	// of failing?
 	if kmgr, err = keymgr.NewKeyManager(agentSock); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	if err := kmgr.ServePrincipal(handle, clientSock); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	if err := testClient(); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 }
 
@@ -315,47 +355,51 @@ func writeScript(dstfile, tmpl string, args interface{}) error {
 	return nil
 }
 
-// createClientAndServerAgents creates two principals, sets up their
-// blessings and returns the agent binaries that will use the created credentials.
+// createClientAndServerCredentials creates two principals, sets up their
+// blessings and returns the created credentials directories.
 //
 // The server will have a single blessing "pingpongd".
-// The client will have a single blessing "pingpongd/client", blessed by the server.
-func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary) {
-	var (
-		agentd    = i.BuildGoPkg("v.io/x/ref/services/agent/agentd")
-		clientDir = i.NewTempDir("")
-		serverDir = i.NewTempDir("")
-	)
+// The client will have a single blessing "pingpongd:client", blessed by the
+// server.
+//
+// Nearly identical to createClientAndServerCredentials in
+// v.io/x/ref/cmd/vrun/vrun_v23_test.go.
+func createClientAndServerCredentials(t *testing.T, sh *v23test.Shell) (clientDir, serverDir string) {
+	clientDir = sh.MakeTempDir()
+	serverDir = sh.MakeTempDir()
+
 	pserver, err := vsecurity.CreatePersistentPrincipal(serverDir, nil)
 	if err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	pclient, err := vsecurity.CreatePersistentPrincipal(clientDir, nil)
 	if err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
-	// Server will only serve, not make any client requests, so only needs a default blessing.
+	// Server will only serve, not make any client requests, so only needs a
+	// default blessing.
 	bserver, err := pserver.BlessSelf("pingpongd")
 	if err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	if err := pserver.BlessingStore().SetDefault(bserver); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
-	// Clients need not have a default blessing as they will only make a request to the server.
+	// Clients need not have a default blessing as they will only make a request
+	// to the server.
 	bclient, err := pserver.Bless(pclient.PublicKey(), bserver, "client", security.UnconstrainedUse())
 	if err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	if _, err := pclient.BlessingStore().Set(bclient, "pingpongd"); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	// The client and server must both recognize bserver and its delegates.
 	if err := security.AddToRoots(pserver, bserver); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
 	if err := security.AddToRoots(pclient, bserver); err != nil {
-		i.Fatal(err)
+		t.Fatal(err)
 	}
-	return agentd.WithEnv(ref.EnvCredentials + "=" + clientDir), agentd.WithEnv(ref.EnvCredentials + "=" + serverDir)
+	return
 }

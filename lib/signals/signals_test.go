@@ -103,12 +103,12 @@ func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
 
 func startFn(t *testing.T, sh *v23test.Shell, fn *gosh.Fn, exitErrorIsOk bool) (*v23test.Cmd, *expect.Session, io.WriteCloser) {
 	cmd := sh.Fn(fn)
-	r, w := io.Pipe()
-	cmd.Stdin = r
+	pr, pw := io.Pipe()
+	cmd.Stdin = pr
 	session := expect.NewSession(t, cmd.StdoutPipe(), 5*time.Second)
 	cmd.ExitErrorIsOk = true
 	cmd.Start()
-	return cmd, session, w
+	return cmd, session, pw
 }
 
 func checkEOF(cmd *v23test.Cmd, session *expect.Session, stdinPipe io.WriteCloser) {

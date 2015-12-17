@@ -16,13 +16,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
-	"v.io/x/ref/test"
-
 	cmd_device "v.io/x/ref/services/device/device"
 	"v.io/x/ref/services/internal/servicetest"
+	"v.io/x/ref/test"
 )
-
-//go:generate jiri test generate
 
 var (
 	installationUninstalled = device.StatusInstallation{device.InstallationStatus{
