@@ -8,65 +8,66 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"testing"
+	"time"
 
 	"v.io/x/ref"
-	"v.io/x/ref/test/v23tests"
+	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/expect"
 )
 
-//go:generate jiri test generate
-
-func getHostname(i *v23tests.T) string {
+func getHostname(t *testing.T) string {
 	if hostname, err := os.Hostname(); err != nil {
-		i.Fatalf("Hostname() failed: %v", err)
+		t.Fatalf("Hostname() failed: %v", err)
 		return ""
 	} else {
 		return hostname
 	}
 }
 
-func binaryWithCredentials(i *v23tests.T, extension, pkgpath string) *v23tests.Binary {
-	creds, err := i.Shell().NewChildCredentials(extension)
-	if err != nil {
-		i.Fatalf("NewCustomCredentials (for %q) failed: %v", pkgpath, err)
-	}
-	b := i.BuildV23Pkg(pkgpath)
-	return b.WithStartOpts(b.StartOpts().WithCustomCredentials(creds))
+func start(t *testing.T, c *v23test.Cmd) *expect.Session {
+	s := expect.NewSession(t, c.StdoutPipe(), time.Minute)
+	c.Start()
+	return s
 }
 
-func V23TestMount(i *v23tests.T) {
-	neighborhood := fmt.Sprintf("test-%s-%d", getHostname(i), os.Getpid())
-	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0", "--neighborhood-name="+neighborhood)
+func TestV23Mount(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+	neighborhood := fmt.Sprintf("test-%s-%d", getHostname(t), os.Getpid())
+	sh.StartRootMountTable("--neighborhood-name=" + neighborhood)
 
-	name, _ := i.GetVar(ref.EnvNamespacePrefix)
-	clientBin := binaryWithCredentials(i, "cmd", "v.io/x/ref/cmd/mounttable")
+	name := sh.Vars[ref.EnvNamespacePrefix]
+	clientBin := sh.JiriBuildGoPkg("v.io/x/ref/cmd/mounttable")
+	clientCreds := sh.ForkCredentials("cmd")
 
 	// Get the neighborhood endpoint from the mounttable.
-	neighborhoodEndpoint := clientBin.Start("glob", name, "nh").ExpectSetEventuallyRE(`^nh (.*) \(Deadline .*\)$`)[0][1]
+	neighborhoodEndpoint := start(t, sh.Cmd(clientBin, "glob", name, "nh").WithCredentials(clientCreds)).ExpectSetEventuallyRE(`^nh (.*) \(Deadline .*\)$`)[0][1]
 
-	if err := clientBin.Start("mount", name+"/myself", name, "5m").Wait(os.Stdout, os.Stderr); err != nil {
-		i.Fatalf("failed to mount the mounttable on itself: %v", err)
-	}
-	if err := clientBin.Start("mount", name+"/google", "/www.google.com:80", "5m").Wait(os.Stdout, os.Stderr); err != nil {
-		i.Fatalf("failed to mount www.google.com: %v", err)
-	}
+	sh.Cmd(clientBin, "mount", name+"/myself", name, "5m").WithCredentials(clientCreds).Run()
+	sh.Cmd(clientBin, "mount", name+"/google", "/www.google.com:80", "5m").WithCredentials(clientCreds).Run()
 
 	// Test glob output. We expect three entries (two we mounted plus the
 	// neighborhood). The 'myself' entry should be the IP:port we
 	// specified for the mounttable.
-	glob := clientBin.Start("glob", name, "*")
+	glob := start(t, sh.Cmd(clientBin, "glob", name, "*").WithCredentials(clientCreds))
 	matches := glob.ExpectSetEventuallyRE(
 		`^google /www\.google\.com:80 \(Deadline .*\)$`,
 		`^myself (.*) \(Deadline .*\)$`,
 		`^nh `+regexp.QuoteMeta(neighborhoodEndpoint)+` \(Deadline .*\)$`)
 	if matches[1][1] != name {
-		i.Fatalf("expected 'myself' entry to be %q, but was %q", name, matches[1][1])
+		t.Fatalf("expected 'myself' entry to be %q, but was %q", name, matches[1][1])
 	}
 
 	// Test globbing on the neighborhood name. Its endpoint should be the
 	// endpoint of the mount table.
-	glob = clientBin.Start("glob", "/"+neighborhoodEndpoint, neighborhood)
+	glob = start(t, sh.Cmd(clientBin, "glob", "/"+neighborhoodEndpoint, neighborhood).WithCredentials(clientCreds))
 	matches = glob.ExpectSetEventuallyRE("^" + regexp.QuoteMeta(neighborhood) + ` (.*) \(Deadline .*\)$`)
 	if matches[0][1] != name {
-		i.Fatalf("expected endpoint of mount table for name %s", neighborhood)
+		t.Fatalf("expected endpoint of mount table for name %s", neighborhood)
 	}
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

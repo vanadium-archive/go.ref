@@ -10,7 +10,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-func TestRandSeed(t *testing.T) {
+func TestRandSeedInternal(t *testing.T) {
 	testutil.InitRandGenerator(t.Logf)
 	t.Logf("rand: %d", testutil.RandomInt())
 	t.FailNow()

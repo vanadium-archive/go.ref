@@ -6,16 +6,19 @@ package main_test
 
 import (
 	"fmt"
+	"os"
+	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/v23tests"
+	"v.io/x/lib/gosh"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/expect"
 )
-
-//go:generate jiri test generate
 
 const (
 	proxyName   = "proxy"    // Name which the proxy mounts itself at
@@ -23,38 +26,34 @@ const (
 	responseVar = "RESPONSE" // Name of the variable used by client program to output the response
 )
 
-func V23TestProxyd(t *v23tests.T) {
-	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
+func TestV23Proxyd(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+	sh.StartRootMountTable()
+
 	var (
-		proxydCreds, _ = t.Shell().NewChildCredentials("proxyd")
-		serverCreds, _ = t.Shell().NewChildCredentials("server")
-		clientCreds, _ = t.Shell().NewChildCredentials("client")
-		proxyd         = t.BuildV23Pkg("v.io/x/ref/services/xproxy/xproxyd")
+		proxydCreds = sh.ForkCredentials("proxyd")
+		serverCreds = sh.ForkCredentials("server")
+		clientCreds = sh.ForkCredentials("client")
+		proxyd      = sh.JiriBuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
 	)
-	// Start proxyd
-	proxyd.WithStartOpts(proxyd.StartOpts().WithCustomCredentials(proxydCreds)).
-		Start("--v23.tcp.address=127.0.0.1:0", "--name="+proxyName, "--access-list", "{\"In\":[\"root:server\"]}")
-	// Start the server that only listens via the proxy
-	if _, err := t.Shell().StartWithOpts(
-		t.Shell().DefaultStartOpts().WithCustomCredentials(serverCreds),
-		nil,
-		runServer); err != nil {
-		t.Fatal(err)
-	}
+
+	// Start proxyd.
+	sh.Cmd(proxyd, "--v23.tcp.address=127.0.0.1:0", "--name="+proxyName, "--access-list", "{\"In\":[\"root:server\"]}").WithCredentials(proxydCreds).Start()
+
+	// Start the server that only listens via the proxy.
+	sh.Fn(runServer).WithCredentials(serverCreds).Start()
+
 	// Run the client.
-	client, err := t.Shell().StartWithOpts(
-		t.Shell().DefaultStartOpts().WithCustomCredentials(clientCreds),
-		nil,
-		runClient)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, want := client.ExpectVar(responseVar), "server [root:server] saw client [root:client]"; got != want {
+	cmd := sh.Fn(runClient).WithCredentials(clientCreds)
+	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
+	cmd.Run()
+	if got, want := session.ExpectVar(responseVar), "server [root:server] saw client [root:client]"; got != want {
 		t.Fatalf("Got %q, want %q", got, want)
 	}
 }
 
-var runServer = modules.Register(func(env *modules.Env, args ...string) error {
+var runServer = gosh.Register("runServer", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	// Set the listen spec to listen only via the proxy.
@@ -62,20 +61,20 @@ var runServer = modules.Register(func(env *modules.Env, args ...string) error {
 	if _, _, err := v23.WithNewServer(ctx, serverName, service{}, security.AllowEveryone()); err != nil {
 		return err
 	}
-	modules.WaitForEOF(env.Stdin)
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
-}, "runServer")
+})
 
-var runClient = modules.Register(func(env *modules.Env, args ...string) error {
+var runClient = gosh.Register("runClient", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	var response string
 	if err := v23.GetClient(ctx).Call(ctx, serverName, "Echo", nil, []interface{}{&response}); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "%v=%v\n", responseVar, response)
+	fmt.Printf("%v=%v\n", responseVar, response)
 	return nil
-}, "runClient")
+})
 
 type service struct{}
 
@@ -83,4 +82,8 @@ func (service) Echo(ctx *context.T, call rpc.ServerCall) (string, error) {
 	client, _ := security.RemoteBlessingNames(ctx, call.Security())
 	server := security.LocalBlessingNames(ctx, call.Security())
 	return fmt.Sprintf("server %v saw client %v", server, client), nil
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

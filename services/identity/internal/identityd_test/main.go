@@ -41,6 +41,7 @@ var (
 	remoteSignerBlessings      string
 	oauthRemoteSignerBlessings string
 	oauthAgentPath             string
+	oauthCredentialsDir        string
 )
 
 func init() {
@@ -55,7 +56,7 @@ func init() {
 	cmdTest.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
 	cmdTest.Flags.StringVar(&oauthRemoteSignerBlessings, "remote-signer-o-blessing-dir", "", "Path to the blessings to use with the remote signer for oauth. Use the empty string to disable the remote signer.")
 	cmdTest.Flags.StringVar(&oauthAgentPath, "oauth-agent-path", "", "Path to the agent to use for the oauth http handler.")
-
+	cmdTest.Flags.StringVar(&oauthCredentialsDir, "oauth-credentials-dir", "", "Path to the credentials to use for the oauth http handler.")
 }
 
 func main() {
@@ -120,7 +121,17 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 			return err
 		}
 		if oauthCtx, err = v23.WithPrincipal(ctx, principal); err != nil {
+			return fmt.Errorf("failed to set principal: %v", err)
+		}
+	} else if oauthCredentialsDir != "" {
+		// TODO(sadovsky): Delete this and update identityd_v23_test.go to use
+		// oauthAgentPath once v23test's agentPrincipalManager is implemented.
+		principal, err := security.LoadPersistentPrincipal(oauthCredentialsDir, nil)
+		if err != nil {
 			return err
+		}
+		if oauthCtx, err = v23.WithPrincipal(ctx, principal); err != nil {
+			return fmt.Errorf("failed to set principal: %v", err)
 		}
 	}
 

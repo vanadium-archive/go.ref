@@ -8,88 +8,94 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"testing"
 
 	"v.io/v23/naming"
 	"v.io/v23/services/build"
-	"v.io/x/ref/test/v23tests"
+	"v.io/x/ref/lib/v23test"
 )
 
-//go:generate jiri test generate
-
-func profileCommandOutput(i *v23tests.T, profileBin *v23tests.Binary, expectError bool, command, name, suffix string) string {
+func profileCommandOutput(t *testing.T, sh *v23test.Shell, profileBin string, expectError bool, command, name, suffix string) string {
 	labelArgs := []string{
 		command, naming.Join(name, suffix),
 	}
-	labelCmd := profileBin.Start(labelArgs...)
-	out := labelCmd.Output()
-	err := labelCmd.Wait(os.Stdout, os.Stderr)
-	if err != nil && !expectError {
-		i.Fatalf("%s %q failed: %v\n%v", profileBin.Path(), strings.Join(labelArgs, " "), err, out)
+	cmd := sh.Cmd(profileBin, labelArgs...)
+	cmd.ExitErrorIsOk = true
+	out, _ := cmd.Output()
+	if cmd.Err != nil && !expectError {
+		t.Fatalf("%s %q failed: %v\n%v", profileBin, strings.Join(labelArgs, " "), cmd.Err, out)
 	}
-	if err == nil && expectError {
-		i.Fatalf("%s %q did not fail when it should", profileBin.Path(), strings.Join(labelArgs, " "))
+	if cmd.Err == nil && expectError {
+		t.Fatalf("%s %q did not fail when it should", profileBin, strings.Join(labelArgs, " "))
 	}
 	return strings.TrimSpace(out)
 }
 
-func putProfile(i *v23tests.T, profileBin *v23tests.Binary, name, suffix string) {
+func putProfile(sh *v23test.Shell, profileBin, name, suffix string) {
 	putArgs := []string{
 		"put", naming.Join(name, suffix),
 	}
-	profileBin.Start(putArgs...).WaitOrDie(os.Stdout, os.Stderr)
+	sh.Cmd(profileBin, putArgs...).Run()
 }
 
-func removeProfile(i *v23tests.T, profileBin *v23tests.Binary, name, suffix string) {
+func removeProfile(sh *v23test.Shell, profileBin, name, suffix string) {
 	removeArgs := []string{
 		"remove", naming.Join(name, suffix),
 	}
-	profileBin.Start(removeArgs...).WaitOrDie(os.Stdout, os.Stderr)
+	sh.Cmd(profileBin, removeArgs...).Run()
 }
 
-func V23TestProfileRepository(i *v23tests.T) {
-	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
+func TestV23ProfileRepository(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	defer sh.Cleanup()
+	sh.StartRootMountTable()
 
 	// Start the profile repository.
 	profileRepoName := "test-profile-repo"
-	profileRepoStore := i.NewTempDir("")
+	profileRepoStore := sh.MakeTempDir()
 	args := []string{
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-v23.tcp.address=127.0.0.1:0",
 	}
-	i.BuildV23Pkg("v.io/x/ref/services/profile/profiled").Start(args...)
+	profiledBin := sh.JiriBuildGoPkg("v.io/x/ref/services/profile/profiled")
+	sh.Cmd(profiledBin, args...).Start()
 
-	clientBin := i.BuildV23Pkg("v.io/x/ref/services/profile/profile")
+	clientBin := sh.JiriBuildGoPkg("v.io/x/ref/services/profile/profile")
 
 	// Create a profile.
 	const profile = "test-profile"
-	putProfile(i, clientBin, profileRepoName, profile)
+	putProfile(sh, clientBin, profileRepoName, profile)
 
 	// Retrieve the profile label and check it matches the
 	// expected label.
-	profileLabel := profileCommandOutput(i, clientBin, false, "label", profileRepoName, profile)
+	profileLabel := profileCommandOutput(t, sh, clientBin, false, "label", profileRepoName, profile)
 	if got, want := profileLabel, "example"; got != want {
-		i.Fatalf("unexpected output: got %v, want %v", got, want)
+		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Retrieve the profile description and check it matches the
 	// expected description.
-	profileDesc := profileCommandOutput(i, clientBin, false, "description", profileRepoName, profile)
+	profileDesc := profileCommandOutput(t, sh, clientBin, false, "description", profileRepoName, profile)
 	if got, want := profileDesc, "Example profile to test the profile manager implementation."; got != want {
-		i.Fatalf("unexpected output: got %v, want %v", got, want)
+		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Retrieve the profile specification and check it matches the
 	// expected specification.
-	profileSpec := profileCommandOutput(i, clientBin, false, "specification", profileRepoName, profile)
+	profileSpec := profileCommandOutput(t, sh, clientBin, false, "specification", profileRepoName, profile)
 	if got, want := profileSpec, fmt.Sprintf(`profile.Specification{Label:"example", Description:"Example profile to test the profile manager implementation.", Arch:%d, Os:%d, Format:%d, Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}}`, build.ArchitectureAmd64, build.OperatingSystemLinux, build.FormatElf); got != want {
-		i.Fatalf("unexpected output: got %v, want %v", got, want)
+		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Remove the profile.
-	removeProfile(i, clientBin, profileRepoName, profile)
+	removeProfile(sh, clientBin, profileRepoName, profile)
 
 	// Check that the profile no longer exists.
-	profileCommandOutput(i, clientBin, true, "label", profileRepoName, profile)
-	profileCommandOutput(i, clientBin, true, "description", profileRepoName, profile)
-	profileCommandOutput(i, clientBin, true, "specification", profileRepoName, profile)
+	profileCommandOutput(t, sh, clientBin, true, "label", profileRepoName, profile)
+	profileCommandOutput(t, sh, clientBin, true, "description", profileRepoName, profile)
+	profileCommandOutput(t, sh, clientBin, true, "specification", profileRepoName, profile)
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }
