@@ -56,8 +56,8 @@ func TestFramer(t *testing.T) {
 }
 
 func Test3ByteUint(t *testing.T) {
-	b := make([]byte, 3)
-	if err := write3ByteUint(b, 65555); err != nil {
+	var b [3]byte
+	if err := write3ByteUint(b[:], 65555); err != nil {
 		t.Error(err)
 	}
 	if got := read3ByteUint(b); got != 65555 {

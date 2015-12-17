@@ -14,7 +14,8 @@ import (
 // and implements flow.MsgReadWriteCloser.
 type framer struct {
 	io.ReadWriteCloser
-	buf []byte
+	buf   []byte
+	frame [3]byte
 }
 
 func New(c io.ReadWriteCloser) flow.MsgReadWriteCloser {
@@ -53,11 +54,10 @@ func (f *framer) WriteMsg(data ...[]byte) (int, error) {
 
 func (f *framer) ReadMsg() ([]byte, error) {
 	// Read the message size.
-	frame := make([]byte, 3)
-	if _, err := io.ReadFull(f, frame); err != nil {
+	if _, err := io.ReadFull(f, f.frame[:]); err != nil {
 		return nil, err
 	}
-	msgSize := read3ByteUint(frame)
+	msgSize := read3ByteUint(f.frame)
 
 	// Read the message.
 	msg := make([]byte, msgSize)
@@ -80,6 +80,6 @@ func write3ByteUint(dst []byte, n int) error {
 	return nil
 }
 
-func read3ByteUint(src []byte) int {
+func read3ByteUint(src [3]byte) int {
 	return maxPacketSize - (int(src[0])<<16 | int(src[1])<<8 | int(src[2]))
 }
