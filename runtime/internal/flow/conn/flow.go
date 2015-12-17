@@ -157,7 +157,9 @@ func (f *flw) tokensLocked() (int, func(int)) {
 		return int(max), func(used int) {
 			f.conn.lshared -= uint64(used)
 			f.borrowed += uint64(used)
-			f.ctx.VI(2).Infof("deducting %d borrowed tokens on flow %d(%p), total: %d left: %d", used, f.id, f, f.borrowed, f.conn.lshared)
+			if f.ctx.V(2) {
+				f.ctx.Infof("deducting %d borrowed tokens on flow %d(%p), total: %d left: %d", used, f.id, f, f.borrowed, f.conn.lshared)
+			}
 		}
 	}
 	if f.released < max {
@@ -165,28 +167,37 @@ func (f *flw) tokensLocked() (int, func(int)) {
 	}
 	return int(max), func(used int) {
 		f.released -= uint64(used)
-		f.ctx.VI(2).Infof("flow %d(%p) deducting %d tokens, %d left", f.id, f, used, f.released)
+		if f.ctx.V(2) {
+			f.ctx.Infof("flow %d(%p) deducting %d tokens, %d left", f.id, f, used, f.released)
+		}
 	}
 }
 
 // releaseLocked releases some counters from a remote reader to the local
 // writer.  This allows the writer to then write more data to the wire.
 func (f *flw) releaseLocked(tokens uint64) {
+	debug := f.ctx.V(2)
 	f.borrowing = false
 	if f.borrowed > 0 {
 		n := tokens
 		if f.borrowed < tokens {
 			n = f.borrowed
 		}
-		f.ctx.VI(2).Infof("Returning %d/%d tokens borrowed by %d(%p) shared: %d", n, tokens, f.id, f, f.conn.lshared)
+		if debug {
+			f.ctx.Infof("Returning %d/%d tokens borrowed by %d(%p) shared: %d", n, tokens, f.id, f, f.conn.lshared)
+		}
 		tokens -= n
 		f.borrowed -= n
 		f.conn.lshared += n
 	}
 	f.released += tokens
-	f.ctx.VI(2).Infof("Tokens release to %d(%p): %d => %d", f.id, f, tokens, f.released)
+	if debug {
+		f.ctx.Infof("Tokens release to %d(%p): %d => %d", f.id, f, tokens, f.released)
+	}
 	if f.writing {
-		f.ctx.VI(2).Infof("Activating writing flow %d(%p) now that we have tokens.", f.id, f)
+		if debug {
+			f.ctx.Infof("Activating writing flow %d(%p) now that we have tokens.", f.id, f)
+		}
 		f.conn.activateWriterLocked(f)
 		f.conn.notifyNextWriterLocked(nil)
 	}
@@ -199,7 +210,10 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 	if err = f.checkBlessings(ctx); err != nil {
 		return 0, err
 	}
-	ctx.VI(2).Infof("starting write on flow %d(%p)", f.id, f)
+	debug := f.ctx.V(2)
+	if debug {
+		ctx.Infof("starting write on flow %d(%p)", f.id, f)
+	}
 	select {
 	// Catch cancellations early.  If we caught a cancel when waiting
 	// our turn below its possible that we were notified simultaneously.
@@ -243,7 +257,9 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 			// Note that if f.noEncrypt is set we're actually acting as a conn
 			// for higher level flows.  In this case we don't want to fragment the writes
 			// of the higher level flows, we want to transmit their messages whole.
-			ctx.VI(2).Infof("Deactivating write on flow %d(%p) due to lack of tokens", f.id, f)
+			if debug {
+				ctx.Infof("Deactivating write on flow %d(%p) due to lack of tokens", f.id, f)
+			}
 			f.conn.deactivateWriterLocked(f)
 			continue
 		}
@@ -287,7 +303,9 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 		f.opened = true
 	}
 	f.writing = false
-	ctx.VI(2).Infof("finishing write on %d(%p): %v", f.id, f, err)
+	if debug {
+		ctx.Infof("finishing write on %d(%p): %v", f.id, f, err)
+	}
 	f.conn.deactivateWriterLocked(f)
 	f.conn.notifyNextWriterLocked(f)
 	f.conn.mu.Unlock()
@@ -455,7 +473,9 @@ func (f *flw) close(ctx *context.T, err error) {
 	cancel := f.cancel
 	f.conn.mu.Unlock()
 	if f.q.close(ctx) {
-		ctx.VI(2).Infof("closing %d(%p): %v", f.id, f, err)
+		if f.ctx.V(2) {
+			ctx.Infof("closing %d(%p): %v", f.id, f, err)
+		}
 		cancel()
 		// After cancel has been called no new writes will begin for this
 		// flow.  There may be a write in progress, but it must finish
