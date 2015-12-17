@@ -51,6 +51,9 @@ import (
 	"strings"
 	"time"
 
+	"v.io/jiri/jiri"
+	"v.io/jiri/project"
+	"v.io/x/lib/cmdline"
 	"v.io/x/ref"
 	"v.io/x/ref/services/device/dmrun/backend"
 )
@@ -97,19 +100,28 @@ func dieIfErr(err error, format string, args ...interface{}) {
 	}
 }
 
-// getPath returns the filesystem path to a file specified by a repository and a
-// repository-relative path.
-func getPath(repo, file string) string {
-	cmd := exec.Command("jiri", "project", "list")
-	output, err := cmd.CombinedOutput()
-	out := string(output)
-	dieIfErr(err, "Running %v failed. Output:\n%v", strings.Join(cmd.Args, " "), out)
-	var projectPathRE = regexp.MustCompile(fmt.Sprintf("project-key=\"%s=.*\" path=\"(.+)\"", repo))
-	matches := projectPathRE.FindStringSubmatch(out)
-	if matches == nil {
-		die("Couldn't extract project path from %s", out)
+// getPath returns the filesystem path to a file specified by a remote and a
+// repository-relative path.  If multiple projects have the same remote, the
+// function will die with an error.
+func getPath(remote, file string) string {
+	env := cmdline.EnvFromOS()
+	jirix, err := jiri.NewX(env)
+	dieIfErr(err, "jiri.NewX(%v) failed: %v", env, err)
+	projects, err := project.LocalProjects(jirix, project.FastScan)
+	dieIfErr(err, "project.LocalProjects(%v, %v) failed: %v", jirix, project.FastScan, err)
+	path := ""
+	for _, p := range projects {
+		if p.Remote == remote {
+			if path != "" {
+				die("Projects at paths %q and %q both have remote %s", path, p.Path, remote)
+			}
+			path = p.Path
+		}
 	}
-	return filepath.Join(matches[1], filepath.FromSlash(file))
+	if path == "" {
+		die("Couldn't find project with remote %s", remote)
+	}
+	return filepath.Join(path, filepath.FromSlash(file))
 }
 
 // setupWorkDir creates a directory for all the local files created by this
