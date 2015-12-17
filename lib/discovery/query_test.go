@@ -5,7 +5,6 @@
 package discovery
 
 import (
-	"bytes"
 	"testing"
 
 	"v.io/v23/discovery"
@@ -44,30 +43,30 @@ func TestQuery(t *testing.T) {
 
 	tests := []struct {
 		query   string
-		target  Uuid
+		target  string
 		matches []bool
 	}{
-		{"", nil, []bool{true, true, true, true}},
-		{`v.InterfaceName="v.io/v23/a"`, NewServiceUUID("v.io/v23/a"), []bool{true, true, false, false}},
-		{`v.InterfaceName="v.io/v23/c"`, NewServiceUUID("v.io/v23/c"), []bool{false, false, false, false}},
-		{`v.InterfaceName="v.io/v23/a" AND v.Attrs["a1"]="v1"`, NewServiceUUID("v.io/v23/a"), []bool{true, false, false, false}},
-		{`v.InterfaceName="v.io/v23/a" AND (v.Attrs["a1"]="v2" OR v.Attrs["a2"] = "v2")`, NewServiceUUID("v.io/v23/a"), []bool{true, true, false, false}},
-		{`v.InterfaceName="v.io/v23/a" OR v.InterfaceName="v.io/v23/b"`, nil, []bool{true, true, true, false}},
-		{`v.InterfaceName<>"v.io/v23/a"`, nil, []bool{false, false, true, true}},
-		{`v.InterfaceName LIKE "v.io/v23/b%"`, nil, []bool{false, false, true, true}},
-		{`v.InterfaceName="v.io/v23/a" OR v.InterfaceName LIKE "v.io/v23/b%"`, nil, []bool{true, true, true, true}},
-		{`v.Attrs["a1"]="v1"`, nil, []bool{true, false, true, false}},
-		{`k = "4"`, nil, []bool{false, false, false, true}},
+		{"", "", []bool{true, true, true, true}},
+		{`v.InterfaceName="v.io/v23/a"`, "v.io/v23/a", []bool{true, true, false, false}},
+		{`v.InterfaceName="v.io/v23/c"`, "v.io/v23/c", []bool{false, false, false, false}},
+		{`v.InterfaceName="v.io/v23/a" AND v.Attrs["a1"]="v1"`, "v.io/v23/a", []bool{true, false, false, false}},
+		{`v.InterfaceName="v.io/v23/a" AND (v.Attrs["a1"]="v2" OR v.Attrs["a2"] = "v2")`, "v.io/v23/a", []bool{true, true, false, false}},
+		{`v.InterfaceName="v.io/v23/a" OR v.InterfaceName="v.io/v23/b"`, "", []bool{true, true, true, false}},
+		{`v.InterfaceName<>"v.io/v23/a"`, "", []bool{false, false, true, true}},
+		{`v.InterfaceName LIKE "v.io/v23/b%"`, "", []bool{false, false, true, true}},
+		{`v.InterfaceName="v.io/v23/a" OR v.InterfaceName LIKE "v.io/v23/b%"`, "", []bool{true, true, true, true}},
+		{`v.Attrs["a1"]="v1"`, "", []bool{true, false, true, false}},
+		{`k = "4"`, "", []bool{false, false, false, true}},
 	}
 
 	for i, test := range tests {
-		m, err := newMatcher(ctx, test.query)
+		m, target, err := newMatcher(ctx, test.query)
 		if err != nil {
 			t.Errorf("query[%d]: newMatcher failed: %v", i, err)
 			continue
 		}
 
-		if target := m.targetServiceUuid(); !bytes.Equal(target, test.target) {
+		if target != test.target {
 			t.Errorf("query[%d]: got target %v; but wanted %v", i, target, test.target)
 		}
 
@@ -90,7 +89,7 @@ func TestQueryError(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		if _, err := newMatcher(ctx, test); err == nil {
+		if _, _, err := newMatcher(ctx, test); err == nil {
 			t.Errorf("query[%d]: newMatcher not failed", i)
 		}
 	}

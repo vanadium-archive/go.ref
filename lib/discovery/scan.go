@@ -15,9 +15,15 @@ import (
 
 // Scan implements discovery.Scanner.
 func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error) {
-	matcher, err := newMatcher(ctx, query)
+	// TODO(jhahn): Consider to use multiple target services so that the plugins
+	// can filter advertisements more efficiently if possible.
+	matcher, targetInterfaceName, err := newMatcher(ctx, query)
 	if err != nil {
 		return nil, err
+	}
+	var targetServiceUuid Uuid
+	if len(targetInterfaceName) > 0 {
+		targetServiceUuid = NewServiceUUID(targetInterfaceName)
 	}
 
 	ctx, cancel, err := ds.addTask(ctx)
@@ -32,7 +38,7 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 		ds.removeTask(ctx)
 	})
 	for _, plugin := range ds.plugins {
-		if err := plugin.Scan(ctx, matcher.targetServiceUuid(), scanCh, barrier.Add()); err != nil {
+		if err := plugin.Scan(ctx, targetServiceUuid, scanCh, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
 		}
