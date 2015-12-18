@@ -100,16 +100,9 @@ type mockCall struct {
 	results []interface{}
 }
 
-// Cancel implements rpc.ClientCall
-func (*mockCall) Cancel() {
-}
-
-// CloseSend implements rpc.ClientCall
-func (*mockCall) CloseSend() error {
-	return nil
-}
-
-// Finish implements rpc.ClientCall
+func (*mockCall) Cancel()                 {}
+func (*mockCall) CloseSend() error        { return nil }
+func (*mockCall) Security() security.Call { return nil }
 func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	if got, want := len(resultptrs), len(mc.results); got != want {
 		return errors.New(fmt.Sprintf("wrong number of output results; expected resultptrs of size %d but got %d", want, got))
@@ -123,8 +116,6 @@ func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	}
 	return nil
 }
-
-// RemoteBlessings implements rpc.ClientCall
 func (*mockCall) RemoteBlessings() ([]string, security.Blessings) {
 	return []string{}, security.Blessings{}
 }

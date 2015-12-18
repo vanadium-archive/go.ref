@@ -660,6 +660,7 @@ type flowXClient struct {
 	enc          *vom.Encoder // to encode requests and args to the server
 	response     rpc.Response // each decoded response message is kept here
 	remoteBNames []string
+	secCall      security.Call
 
 	sendClosedMu sync.Mutex
 	sendClosed   bool // is the send side already closed? GUARDED_BY(sendClosedMu)
@@ -760,7 +761,9 @@ func (fc *flowXClient) start(suffix, method string, args []interface{}, deadline
 func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts []rpc.CallOpt) (security.Blessings, error) {
 	// The "Method" and "Suffix" fields of the call are not populated
 	// as they are considered irrelevant for authorizing server blessings.
-	call := security.NewCall(&security.CallParams{
+	// (This makes the call used here consistent with
+	// peerAuthorizer.AuthorizePeer that is used during Conn creation)
+	callparams := &security.CallParams{
 		LocalPrincipal:   v23.GetPrincipal(ctx),
 		LocalBlessings:   fc.flow.LocalBlessings(),
 		RemoteBlessings:  fc.flow.RemoteBlessings(),
@@ -768,10 +771,8 @@ func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts 
 		RemoteEndpoint:   fc.flow.RemoteEndpoint(),
 		LocalDischarges:  fc.flow.LocalDischarges(),
 		RemoteDischarges: fc.flow.RemoteDischarges(),
-	})
-	// TODO(suharshs): Its unfortunate that we compute these here and also in the
-	// peerAuthorizer struct. Find a way to only do this once.
-	fc.remoteBNames, _ = security.RemoteBlessingNames(ctx, call)
+	}
+	call := security.NewCall(callparams)
 	var grantedB security.Blessings
 	for _, o := range opts {
 		switch v := o.(type) {
@@ -783,6 +784,13 @@ func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts 
 			}
 		}
 	}
+	// TODO(suharshs): Its unfortunate that we compute these here and also in the
+	// peerAuthorizer struct. Find a way to only do this once.
+	fc.remoteBNames, _ = security.RemoteBlessingNames(ctx, call)
+	// Going forward though, we can provide the security.Call with Method and Suffix
+	callparams.Method = method
+	callparams.Suffix = suffix
+	fc.secCall = security.NewCall(callparams)
 	return grantedB, nil
 }
 
@@ -975,4 +983,9 @@ func (fc *flowXClient) Finish(resultptrs ...interface{}) error {
 func (fc *flowXClient) RemoteBlessings() ([]string, security.Blessings) {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return fc.remoteBNames, fc.flow.RemoteBlessings()
+}
+
+func (fc *flowXClient) Security() security.Call {
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+	return fc.secCall
 }
