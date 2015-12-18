@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"v.io/x/ref/lib/stats"
 )
 
 // This URL returns the external IP address assigned to the local GCE instance.
@@ -47,7 +49,9 @@ var (
 func RunningOnGCE() bool {
 	once.Do(func() {
 		externalIP, isGCEErr = gceTest(gceUrl)
-		if isGCEErr != nil {
+		if isGCEErr == nil {
+			gceExportVariables()
+		} else {
 			// try AWS instead
 			externalIP, isGCEErr = awsTest(awsUrl)
 		}
@@ -63,28 +67,53 @@ func ExternalIPAddress() (net.IP, error) {
 }
 
 func gceTest(url string) (net.IP, error) {
+	body, err := gceGetMeta(url, timeout)
+	if err != nil {
+		return nil, err
+	}
+	return net.ParseIP(body), nil
+}
+
+func gceExportVariables() {
+	vars := []struct {
+		name, url string
+	}{
+		{"system/gce/project-id", "http://metadata.google.internal/computeMetadata/v1/project/project-id"},
+		{"system/gce/zone", "http://metadata.google.internal/computeMetadata/v1/instance/zone"},
+	}
+	for _, v := range vars {
+		// At this point, we know we're on GCE. So, we might as well use a longer timeout.
+		if body, err := gceGetMeta(v.url, 10*time.Second); err == nil {
+			stats.NewString(v.name).Set(body)
+		} else {
+			stats.NewString(v.name).Set("unknown")
+		}
+	}
+}
+
+func gceGetMeta(url string, timeout time.Duration) (string, error) {
 	client := &http.Client{Timeout: timeout}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	req.Header.Add("Metadata-Flavor", "Google")
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("http error: %d", resp.StatusCode)
+		return "", fmt.Errorf("http error: %d", resp.StatusCode)
 	}
 	if flavor := resp.Header["Metadata-Flavor"]; len(flavor) != 1 || flavor[0] != "Google" {
-		return nil, fmt.Errorf("unexpected http header: %q", flavor)
+		return "", fmt.Errorf("unexpected http header: %q", flavor)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return net.ParseIP(string(body)), nil
+	return string(body), nil
 }
 
 func awsTest(url string) (net.IP, error) {
