@@ -58,29 +58,20 @@ func testInit(t *testing.T, startServer bool) (sh *v23test.Shell, ctx *context.T
 ////////////////////////////////////////
 // Root mount table
 
-var rootMT = gosh.Register("rootMT", func(nosec bool) error {
+var rootMT = gosh.Register("rootMT", func(deb bool) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-
-	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
-
-	seclevel := options.SecurityConfidential
-	if nosec {
-		seclevel = options.SecurityNone
-	}
-	if seclevel == options.SecurityNone {
-		ls := v23.GetListenSpec(ctx)
-		for i := range ls.Addrs {
-			ls.Addrs[i].Protocol, ls.Addrs[i].Address = debug.WrapAddress(
-				ls.Addrs[i].Protocol, ls.Addrs[i].Address)
-		}
-		ctx = v23.WithListenSpec(ctx, ls)
+	if deb {
+		p, a := debug.WrapAddress("tcp", "127.0.0.1:0")
+		ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+			Addrs: rpc.ListenAddrs{{Protocol: p, Address: a}},
+		})
 	}
 	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true), seclevel)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
@@ -92,8 +83,8 @@ var rootMT = gosh.Register("rootMT", func(nosec bool) error {
 	return nil
 })
 
-func startRootMT(t *testing.T, sh *v23test.Shell, nosec bool) {
-	cmd := sh.Fn(rootMT, nosec)
+func startRootMT(t *testing.T, sh *v23test.Shell, deb bool) {
+	cmd := sh.Fn(rootMT, deb)
 	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
 	s.ExpectVar("PID")
