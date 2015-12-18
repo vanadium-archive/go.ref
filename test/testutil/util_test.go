@@ -7,13 +7,16 @@ package testutil_test
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/testutil"
-	"v.io/x/ref/test/v23tests"
 )
 
 func TestFormatLogline(t *testing.T) {
@@ -42,29 +45,36 @@ func TestPanic(t *testing.T) {
 	}
 }
 
-//go:generate jiri test generate .
+func start(t *testing.T, c *v23test.Cmd) *expect.Session {
+	s := expect.NewSession(t, c.StdoutPipe(), time.Minute)
+	c.Start()
+	return s
+}
 
-func V23TestRandSeed(i *v23tests.T) {
-	v23bin := i.BinaryFromPath("jiri")
-	inv := v23bin.Start("go", "test", "./testdata")
-	inv.ExpectRE("FAIL: TestRandSeed.*", 1)
-	parts := inv.ExpectRE(`Seeded pseudo-random number generator with (\d+)`, -1)
+func TestRandSeed(t *testing.T) {
+	sh := v23test.NewShell(t, v23test.Opts{SuppressChildOutput: true})
+	defer sh.Cleanup()
+
+	s := start(t, sh.Cmd("jiri", "go", "test", "./testdata"))
+	s.ExpectRE("FAIL: TestRandSeedInternal.*", 1)
+	parts := s.ExpectRE(`Seeded pseudo-random number generator with (\d+)`, -1)
 	if len(parts) != 1 || len(parts[0]) != 2 {
-		i.Fatalf("failed to match regexp")
+		t.Fatalf("failed to match regexp")
 	}
 	seed := parts[0][1]
-	parts = inv.ExpectRE(`rand: (\d+)`, -1)
+	parts = s.ExpectRE(`rand: (\d+)`, -1)
 	if len(parts) != 1 || len(parts[0]) != 2 {
-		i.Fatalf("failed to match regexp")
+		t.Fatalf("failed to match regexp")
 	}
 	randInt := parts[0][1]
 
 	// Rerun the test, this time with the seed that we want to use.
-	v23bin = v23bin.WithEnv("V23_RNG_SEED=" + seed)
-	inv = v23bin.Start("go", "test", "./testdata")
-	inv.ExpectRE("FAIL: TestRandSeed.*", 1)
-	inv.ExpectRE("Seeded pseudo-random number generator with "+seed, -1)
-	inv.ExpectRE("rand: "+randInt, 1)
+	cmd := sh.Cmd("jiri", "go", "test", "./testdata")
+	cmd.Vars["V23_RNG_SEED"] = seed
+	s = start(t, cmd)
+	s.ExpectRE("FAIL: TestRandSeedInternal.*", 1)
+	s.ExpectRE("Seeded pseudo-random number generator with "+seed, -1)
+	s.ExpectRE("rand: "+randInt, 1)
 }
 
 func TestFileTreeEqual(t *testing.T) {
@@ -121,4 +131,8 @@ func TestFileTreeEqual(t *testing.T) {
 			t.Errorf("%v got debug %v, want substr %v", name, got, want)
 		}
 	}
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

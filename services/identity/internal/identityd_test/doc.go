@@ -32,6 +32,8 @@ The identityd_test flags are:
    Mount name prefix to use.  May be rooted.
  -oauth-agent-path=
    Path to the agent to use for the oauth http handler.
+ -oauth-credentials-dir=
+   Path to the credentials to use for the oauth http handler.
  -oauth-email=testemail@example.com
    Username for the mock oauth to put in the returned blessings.
  -remote-signer-blessing-dir=
