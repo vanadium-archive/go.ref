@@ -60,7 +60,7 @@ type testServer struct {
 
 func (c *testServer) Run(ctx *context.T, call rpc.ServerCall) error {
 	if c.forceCollect {
-		vtrace.ForceCollect(ctx)
+		vtrace.ForceCollect(ctx, 0)
 	}
 	vtrace.GetSpan(ctx).Annotate(c.name + "-begin")
 	if c.child != "" {
@@ -239,7 +239,7 @@ func TestTraceAcrossRPCs(t *testing.T) {
 	ctx, shutdown, idp := initForTest(t)
 	defer shutdown()
 
-	vtrace.ForceCollect(ctx)
+	vtrace.ForceCollect(ctx, 0)
 	record := runCallChain(t, ctx, idp, false, false)
 
 	expectSequence(t, *record, []string{
@@ -280,7 +280,7 @@ func traceWithAuth(t *testing.T, ctx *context.T, principal security.Principal) b
 	}
 
 	ctx, span := vtrace.WithNewTrace(ctx)
-	vtrace.ForceCollect(ctx)
+	vtrace.ForceCollect(ctx, 0)
 
 	call, err := v23.GetClient(ctx).StartCall(ctx, "server", "Run", nil)
 	if err != nil {

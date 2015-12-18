@@ -27,7 +27,7 @@ func TestVtraceServer(t *testing.T) {
 	endpoints := server.Status().Endpoints
 
 	sctx, span := vtrace.WithNewSpan(ctx, "The Span")
-	vtrace.ForceCollect(sctx)
+	vtrace.ForceCollect(sctx, 0)
 	span.Finish()
 	id := span.Trace()
 

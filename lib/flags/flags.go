@@ -155,6 +155,10 @@ type VtraceFlags struct {
 	// some better measurement then just number of traces.
 	CacheSize int
 
+	// LogLevel is the level of vlogs that should be collected as part of
+	// the trace
+	LogLevel int
+
 	// SpanRegexp matches a regular expression against span names and
 	// annotations and forces any trace matching trace to be collected.
 	CollectRegexp string
@@ -280,6 +284,7 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	fs.Float64Var(&f.Vtrace.SampleRate, "v23.vtrace.sample-rate", 0.0, "Rate (from 0.0 to 1.0) to sample vtrace traces.")
 	fs.BoolVar(&f.Vtrace.DumpOnShutdown, "v23.vtrace.dump-on-shutdown", true, "If true, dump all stored traces on runtime shutdown.")
 	fs.IntVar(&f.Vtrace.CacheSize, "v23.vtrace.cache-size", 1024, "The number of vtrace traces to store in memory.")
+	fs.IntVar(&f.Vtrace.LogLevel, "v23.vtrace.v", 0, "The verbosity level of the log messages to be captured in traces")
 	fs.StringVar(&f.Vtrace.CollectRegexp, "v23.vtrace.collect-regexp", "", "Spans and annotations that match this regular expression will trigger trace collection.")
 
 	return f

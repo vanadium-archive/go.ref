@@ -56,6 +56,8 @@ The global flags are:
    If true, dump all stored traces on runtime shutdown.
  -v23.vtrace.sample-rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
+ -v23.vtrace.v=0
+   The verbosity level of the log messages to be captured in traces
  -vmodule=
    comma-separated list of globpattern=N settings for filename-filtered logging
    (without the .go suffix).  E.g. foo/bar/baz.go is matched by patterns baz or

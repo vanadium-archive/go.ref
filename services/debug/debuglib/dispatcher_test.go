@@ -37,7 +37,7 @@ func TestDebugServer(t *testing.T) {
 
 	tracedContext := func(ctx *context.T) *context.T {
 		ctx, _ = vtrace.WithNewTrace(ctx)
-		vtrace.ForceCollect(ctx)
+		vtrace.ForceCollect(ctx, 0)
 		return ctx
 	}
 	rootName = "debug"

@@ -140,7 +140,7 @@ type Tracer struct {
 
 func newTracer(ctx *context.T) (*context.T, *Tracer) {
 	ctx, span := vtrace.WithNewTrace(ctx)
-	vtrace.ForceCollect(ctx)
+	vtrace.ForceCollect(ctx, 0)
 	return ctx, &Tracer{ctx, span}
 }
 

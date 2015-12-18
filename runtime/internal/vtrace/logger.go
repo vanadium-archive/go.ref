@@ -6,10 +6,10 @@ package vtrace
 
 import (
 	"fmt"
-	"runtime"
-	"v.io/v23/context"
 	"log"
 	"path/filepath"
+	"runtime"
+	"v.io/v23/context"
 )
 
 const (

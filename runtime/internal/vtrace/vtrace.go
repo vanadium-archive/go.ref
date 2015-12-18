@@ -115,13 +115,12 @@ func (m manager) WithContinuedTrace(ctx *context.T, name string, req vtrace.Requ
 	// nologcall
 	st := getStore(ctx)
 	if req.Flags&vtrace.CollectInMemory != 0 {
-		st.ForceCollect(req.TraceId)
+		st.ForceCollect(req.TraceId, int(req.LogLevel))
 	}
 	newSpan, err := newSpan(req.SpanId, name, req.TraceId, st)
 	if err != nil {
 		ctx.Error(err)
 	}
-	ctx = WithVTraceLevel(ctx, int(req.LogLevel))
 	return context.WithValue(ctx, spanKey, newSpan), newSpan
 }
 
@@ -158,9 +157,9 @@ func (m manager) GetRequest(ctx *context.T) vtrace.Request {
 	// nologcall
 	if span := getSpan(ctx); span != nil {
 		return vtrace.Request{
-			SpanId:  span.id,
-			TraceId: span.trace,
-			Flags:   span.flags(),
+			SpanId:   span.id,
+			TraceId:  span.trace,
+			Flags:    span.flags(),
 			LogLevel: int32(GetVTraceLevel(ctx)),
 		}
 	}
@@ -200,17 +199,18 @@ func getStore(ctx *context.T) *Store {
 	return store
 }
 
-// WithVTraceLevel returns a child context with the vtrace level set.  This value is used
-// to determine which log messages are sent as part of the vtrace output.
-func WithVTraceLevel(ctx *context.T, level int) *context.T {
-	return context.WithValue(ctx, vtraceLevelKey, level)
-}
-
 // SetVTraceLevel returns the vtrace level This value is used
 // to determine which log messages are sent as part of the vtrace output.
 func GetVTraceLevel(ctx *context.T) int {
-	level, _ := ctx.Value(vtraceLevelKey).(int)
-	return level
+	store := getStore(ctx)
+	if store == nil {
+		return 0
+	}
+	span := getSpan(ctx)
+	if span == nil {
+		return 0
+	}
+	return store.logLevel(span.trace)
 }
 
 // Init initializes vtrace and attaches some state to the context.

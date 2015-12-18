@@ -29,6 +29,7 @@ import (
 type Store struct {
 	opts          flags.VtraceFlags
 	collectRegexp *regexp.Regexp
+	defaultLevel  int
 
 	// traces and head together implement a linked-hash-map.
 	// head points to the head and tail of the doubly-linked-list
@@ -54,23 +55,24 @@ func NewStore(opts flags.VtraceFlags) (*Store, error) {
 
 	return &Store{
 		opts:          opts,
+		defaultLevel:  opts.LogLevel,
 		collectRegexp: collectRegexp,
 		traces:        make(map[uniqueid.Id]*traceStore),
 		head:          head,
 	}, nil
 }
 
-func (s *Store) ForceCollect(id uniqueid.Id) {
+func (s *Store) ForceCollect(id uniqueid.Id, level int) {
 	defer apilog.LogCallf(nil, "id=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.mu.Lock()
-	s.forceCollectLocked(id)
+	s.forceCollectLocked(id, level)
 	s.mu.Unlock()
 }
 
-func (s *Store) forceCollectLocked(id uniqueid.Id) *traceStore {
+func (s *Store) forceCollectLocked(id uniqueid.Id, level int) *traceStore {
 	ts := s.traces[id]
 	if ts == nil {
-		ts = newTraceStore(id)
+		ts = newTraceStore(id, level)
 		s.traces[id] = ts
 		ts.moveAfter(s.head)
 		// Trim elements beyond our size limit.
@@ -91,7 +93,7 @@ func (s *Store) Merge(t vtrace.Response) {
 
 	var ts *traceStore
 	if t.Flags&vtrace.CollectInMemory != 0 {
-		ts = s.forceCollectLocked(t.Trace.Id)
+		ts = s.forceCollectLocked(t.Trace.Id, s.defaultLevel)
 	} else {
 		ts = s.traces[t.Trace.Id]
 	}
@@ -107,7 +109,7 @@ func (s *Store) annotate(span *span, msg string) {
 	ts := s.traces[span.trace]
 	if ts == nil {
 		if s.collectRegexp != nil && s.collectRegexp.MatchString(msg) {
-			ts = s.forceCollectLocked(span.trace)
+			ts = s.forceCollectLocked(span.trace, s.defaultLevel)
 		}
 	}
 
@@ -115,6 +117,16 @@ func (s *Store) annotate(span *span, msg string) {
 		ts.annotate(span, msg)
 		ts.moveAfter(s.head)
 	}
+}
+
+func (s *Store) logLevel(id uniqueid.Id) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ts := s.traces[id]
+	if ts == nil {
+		return 0
+	}
+	return ts.level
 }
 
 // start stores data about a starting span if the trace is being collected.
@@ -127,10 +139,10 @@ func (s *Store) start(span *span) {
 		sr := s.opts.SampleRate
 		if span.trace == span.parent && sr > 0.0 && (sr >= 1.0 || rand.Float64() < sr) {
 			// If this is a root span, we may automatically sample it for collection.
-			ts = s.forceCollectLocked(span.trace)
+			ts = s.forceCollectLocked(span.trace, s.defaultLevel)
 		} else if s.collectRegexp != nil && s.collectRegexp.MatchString(span.name) {
 			// If this span matches collectRegexp, then force collect its trace.
-			ts = s.forceCollectLocked(span.trace)
+			ts = s.forceCollectLocked(span.trace, s.defaultLevel)
 		}
 	}
 	if ts != nil {
@@ -190,13 +202,15 @@ func (s *Store) TraceRecord(id uniqueid.Id) *vtrace.TraceRecord {
 
 type traceStore struct {
 	id         uniqueid.Id
+	level      int
 	spans      map[uniqueid.Id]*vtrace.SpanRecord
 	prev, next *traceStore
 }
 
-func newTraceStore(id uniqueid.Id) *traceStore {
+func newTraceStore(id uniqueid.Id, level int) *traceStore {
 	return &traceStore{
 		id:    id,
+		level: level,
 		spans: make(map[uniqueid.Id]*vtrace.SpanRecord),
 	}
 }
