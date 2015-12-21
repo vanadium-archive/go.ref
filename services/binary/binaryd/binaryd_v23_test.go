@@ -60,7 +60,7 @@ func downloadAndInstall(t *testing.T, sh *v23test.Shell, creds *v23test.Credenti
 
 func downloadFile(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials, bin, name, path, suffix string) (string, string) {
 	args := []string{"download", "--install=false", naming.Join(name, suffix), path}
-	stdout, _ := sh.Cmd(bin, args...).WithCredentials(creds).Output()
+	stdout := sh.Cmd(bin, args...).WithCredentials(creds).Stdout()
 	match := regexp.MustCompile(`Binary downloaded to (.+) \(media info (.+)\)`).FindStringSubmatch(stdout)
 	if len(match) != 3 {
 		t.Fatalf("Failed to match download stdout: %s", stdout)
@@ -95,7 +95,7 @@ func downloadURL(t *testing.T, path, rootURL, suffix string) {
 
 func rootURL(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials, bin, name string) string {
 	args := []string{"url", name}
-	stdout, _ := sh.Cmd(bin, args...).WithCredentials(creds).Output()
+	stdout := sh.Cmd(bin, args...).WithCredentials(creds).Stdout()
 	return strings.TrimSpace(stdout)
 }
 
@@ -105,7 +105,8 @@ func uploadFile(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials, bin
 }
 
 func TestV23BinaryRepositoryIntegration(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -115,8 +116,8 @@ func TestV23BinaryRepositoryIntegration(t *testing.T) {
 	// The client must run as a "delegate" of the server in order to pass
 	// the default authorization checks on the server.
 	var (
-		binaryRepoBin   = sh.JiriBuildGoPkg("v.io/x/ref/services/binary/binaryd")
-		clientBin       = sh.JiriBuildGoPkg("v.io/x/ref/services/binary/binary")
+		binaryRepoBin   = sh.BuildGoPkg("v.io/x/ref/services/binary/binaryd")
+		clientBin       = sh.BuildGoPkg("v.io/x/ref/services/binary/binary")
 		binaryRepoCreds = sh.ForkCredentials("binaryd")
 		clientCreds     = sh.ForkCredentials("binaryd:client")
 	)

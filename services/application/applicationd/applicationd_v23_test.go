@@ -18,7 +18,7 @@ func helper(t *testing.T, sh *v23test.Shell, clientBin string, clientCreds *v23t
 	args = append([]string{cmd}, args...)
 	c := sh.Cmd(clientBin, args...).WithCredentials(clientCreds)
 	c.ExitErrorIsOk = true
-	stdout, _ := c.Output()
+	stdout := c.Stdout()
 	if c.Err != nil && !expectError {
 		t.Fatalf("%s %q failed: %v\n%v", clientBin, strings.Join(args, " "), c.Err, stdout)
 	}
@@ -41,13 +41,14 @@ func removeEnvelope(t *testing.T, sh *v23test.Shell, clientBin string, clientCre
 }
 
 func TestV23ApplicationRepository(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
 	// Start the application repository.
 	appRepoName := "test-app-repo"
-	sh.Cmd(sh.JiriBuildGoPkg("v.io/x/ref/services/application/applicationd"),
+	sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/application/applicationd"),
 		"-name="+appRepoName,
 		"-store="+sh.MakeTempDir(),
 		"-v=2",
@@ -55,7 +56,7 @@ func TestV23ApplicationRepository(t *testing.T) {
 
 	// Build the client binary (must be a delegate of the server to pass
 	// the default authorization policy).
-	clientBin := sh.JiriBuildGoPkg("v.io/x/ref/services/application/application")
+	clientBin := sh.BuildGoPkg("v.io/x/ref/services/application/application")
 	clientCreds := sh.ForkCredentials("applicationd:client")
 
 	// Generate publisher blessings

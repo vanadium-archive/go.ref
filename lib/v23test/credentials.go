@@ -50,7 +50,7 @@ func newRootCredentials(m principalManager) (*Credentials, error) {
 	return res, nil
 }
 
-func bless(self, other security.Principal, extension string) error {
+func addDefaultBlessing(self, other security.Principal, extension string) error {
 	blessings, err := self.Bless(other.PublicKey(), self.BlessingStore().Default(), extension, security.UnconstrainedUse())
 	if err != nil {
 		return err
@@ -63,15 +63,17 @@ func bless(self, other security.Principal, extension string) error {
 }
 
 // Fork creates a new Credentials (with a fresh principal) and blesses it with
-// the given extension and no caveats, using this principal's default blessings.
-// Additionally, it calls SetDefaultBlessings.
-func (c *Credentials) Fork(extension string) (*Credentials, error) {
+// the given extensions and no caveats, using this principal's default
+// blessings. In addition, it calls SetDefaultBlessings.
+func (c *Credentials) Fork(extensions ...string) (*Credentials, error) {
 	res, err := newCredentials(c.m)
 	if err != nil {
 		return nil, err
 	}
-	if err := bless(c.Principal, res.Principal, extension); err != nil {
-		return nil, err
+	for _, extension := range extensions {
+		if err := addDefaultBlessing(c.Principal, res.Principal, extension); err != nil {
+			return nil, err
+		}
 	}
 	return res, nil
 }

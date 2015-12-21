@@ -32,7 +32,8 @@ func TestV23BuildServerIntegration(t *testing.T) {
 	}
 	goRoot := runtime.GOROOT()
 
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -40,8 +41,8 @@ func TestV23BuildServerIntegration(t *testing.T) {
 	// Since Permissions are not setup on the server, the client must pass the
 	// default authorization policy, i.e., must be a "delegate" of the server.
 	var (
-		buildServerBin   = sh.JiriBuildGoPkg("v.io/x/ref/services/build/buildd")
-		buildBin         = sh.JiriBuildGoPkg("v.io/x/ref/services/build/build")
+		buildServerBin   = sh.BuildGoPkg("v.io/x/ref/services/build/buildd")
+		buildBin         = sh.BuildGoPkg("v.io/x/ref/services/build/build")
 		buildServerCreds = sh.ForkCredentials("buildd")
 		buildCreds       = sh.ForkCredentials("buildd:client")
 	)

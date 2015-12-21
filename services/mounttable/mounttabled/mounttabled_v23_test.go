@@ -9,7 +9,6 @@ import (
 	"os"
 	"regexp"
 	"testing"
-	"time"
 
 	"v.io/x/ref"
 	"v.io/x/ref/lib/v23test"
@@ -25,24 +24,24 @@ func getHostname(t *testing.T) string {
 	}
 }
 
-func start(t *testing.T, c *v23test.Cmd) *expect.Session {
-	s := expect.NewSession(t, c.StdoutPipe(), time.Minute)
+func start(c *v23test.Cmd) *expect.Session {
 	c.Start()
-	return s
+	return c.S
 }
 
 func TestV23Mount(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	neighborhood := fmt.Sprintf("test-%s-%d", getHostname(t), os.Getpid())
 	sh.StartRootMountTable("--neighborhood-name=" + neighborhood)
 
 	name := sh.Vars[ref.EnvNamespacePrefix]
-	clientBin := sh.JiriBuildGoPkg("v.io/x/ref/cmd/mounttable")
+	clientBin := sh.BuildGoPkg("v.io/x/ref/cmd/mounttable")
 	clientCreds := sh.ForkCredentials("cmd")
 
 	// Get the neighborhood endpoint from the mounttable.
-	neighborhoodEndpoint := start(t, sh.Cmd(clientBin, "glob", name, "nh").WithCredentials(clientCreds)).ExpectSetEventuallyRE(`^nh (.*) \(Deadline .*\)$`)[0][1]
+	neighborhoodEndpoint := start(sh.Cmd(clientBin, "glob", name, "nh").WithCredentials(clientCreds)).ExpectSetEventuallyRE(`^nh (.*) \(Deadline .*\)$`)[0][1]
 
 	sh.Cmd(clientBin, "mount", name+"/myself", name, "5m").WithCredentials(clientCreds).Run()
 	sh.Cmd(clientBin, "mount", name+"/google", "/www.google.com:80", "5m").WithCredentials(clientCreds).Run()
@@ -50,7 +49,7 @@ func TestV23Mount(t *testing.T) {
 	// Test glob output. We expect three entries (two we mounted plus the
 	// neighborhood). The 'myself' entry should be the IP:port we
 	// specified for the mounttable.
-	glob := start(t, sh.Cmd(clientBin, "glob", name, "*").WithCredentials(clientCreds))
+	glob := start(sh.Cmd(clientBin, "glob", name, "*").WithCredentials(clientCreds))
 	matches := glob.ExpectSetEventuallyRE(
 		`^google /www\.google\.com:80 \(Deadline .*\)$`,
 		`^myself (.*) \(Deadline .*\)$`,
@@ -61,7 +60,7 @@ func TestV23Mount(t *testing.T) {
 
 	// Test globbing on the neighborhood name. Its endpoint should be the
 	// endpoint of the mount table.
-	glob = start(t, sh.Cmd(clientBin, "glob", "/"+neighborhoodEndpoint, neighborhood).WithCredentials(clientCreds))
+	glob = start(sh.Cmd(clientBin, "glob", "/"+neighborhoodEndpoint, neighborhood).WithCredentials(clientCreds))
 	matches = glob.ExpectSetEventuallyRE("^" + regexp.QuoteMeta(neighborhood) + ` (.*) \(Deadline .*\)$`)
 	if matches[0][1] != name {
 		t.Fatalf("expected endpoint of mount table for name %s", neighborhood)

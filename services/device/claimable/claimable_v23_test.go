@@ -5,21 +5,19 @@
 package main_test
 
 import (
-	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	libsec "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23test"
-	"v.io/x/ref/test/expect"
 )
 
 func TestV23ClaimableServer(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	workdir, err := ioutil.TempDir("", "claimable-test-")
@@ -38,18 +36,17 @@ func TestV23ClaimableServer(t *testing.T) {
 	badClientCreds1 := sh.ForkCredentials("child")
 	badClientCreds2 := sh.ForkCredentials("other-guy")
 
-	serverBin := sh.JiriBuildGoPkg("v.io/x/ref/services/device/claimable")
+	serverBin := sh.BuildGoPkg("v.io/x/ref/services/device/claimable")
 	server := sh.Cmd(serverBin,
 		"--v23.tcp.address=127.0.0.1:0",
 		"--perms-dir="+permsDir,
 		"--root-blessings="+rootBlessings(t, sh, legitClientCreds),
 		"--v23.permissions.literal={\"Admin\":{\"In\":[\"root:legit\"]}}",
 	).WithCredentials(serverCreds)
-	session := expect.NewSession(t, server.StdoutPipe(), time.Minute)
 	server.Start()
-	addr := session.ExpectVar("NAME")
+	addr := server.S.ExpectVar("NAME")
 
-	clientBin := sh.JiriBuildGoPkg("v.io/x/ref/services/device/device")
+	clientBin := sh.BuildGoPkg("v.io/x/ref/services/device/device")
 
 	testcases := []struct {
 		creds      *v23test.Credentials
@@ -79,14 +76,11 @@ func TestV23ClaimableServer(t *testing.T) {
 // Note: Identical to rootBlessings in
 // v.io/x/ref/services/cluster/cluster_agentd/cluster_agentd_v23_test.go.
 func rootBlessings(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials) string {
-	principalBin := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
-	stdout, _ := sh.Cmd(principalBin, "get", "default").WithCredentials(creds).Output()
-	blessings := strings.TrimSpace(stdout)
-
+	principalBin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	blessings := strings.TrimSpace(sh.Cmd(principalBin, "get", "default").WithCredentials(creds).Stdout())
 	cmd := sh.Cmd(principalBin, "dumproots", "-")
-	cmd.Stdin = bytes.NewBufferString(blessings)
-	stdout, _ = cmd.Output()
-	return strings.Replace(strings.TrimSpace(stdout), "\n", ",", -1)
+	cmd.Stdin = blessings
+	return strings.Replace(strings.TrimSpace(cmd.Stdout()), "\n", ",", -1)
 }
 
 func TestMain(m *testing.M) {

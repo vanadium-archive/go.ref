@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -17,7 +16,6 @@ import (
 	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23test"
-	"v.io/x/ref/test/expect"
 )
 
 const (
@@ -27,7 +25,8 @@ const (
 )
 
 func TestV23Proxyd(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -35,7 +34,7 @@ func TestV23Proxyd(t *testing.T) {
 		proxydCreds = sh.ForkCredentials("proxyd")
 		serverCreds = sh.ForkCredentials("server")
 		clientCreds = sh.ForkCredentials("client")
-		proxyd      = sh.JiriBuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
+		proxyd      = sh.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
 	)
 
 	// Start proxyd.
@@ -46,9 +45,8 @@ func TestV23Proxyd(t *testing.T) {
 
 	// Run the client.
 	cmd := sh.Fn(runClient).WithCredentials(clientCreds)
-	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Run()
-	if got, want := session.ExpectVar(responseVar), "server [root:server] saw client [root:client]"; got != want {
+	if got, want := cmd.S.ExpectVar(responseVar), "server [root:server] saw client [root:client]"; got != want {
 		t.Fatalf("Got %q, want %q", got, want)
 	}
 }

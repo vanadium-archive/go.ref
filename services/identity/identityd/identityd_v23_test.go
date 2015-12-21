@@ -15,12 +15,10 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/ref/lib/v23test"
-	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -58,9 +56,8 @@ func seekBlessings(t *testing.T, sh *v23test.Shell, principal, httpAddr string) 
 		"-v=3",
 	}
 	cmd := sh.Cmd(principal, args...)
-	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	line := session.ExpectSetEventuallyRE(urlRE)[0][1]
+	line := cmd.S.ExpectSetEventuallyRE(urlRE)[0][1]
 	// Scan the output of "principal seekblessings", looking for the
 	// URL that can be used to retrieve the blessings.
 	output := httpGet(t, line)
@@ -90,7 +87,8 @@ func testOauthHandler(t *testing.T, addr string) {
 }
 
 func TestV23IdentityServer(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -100,7 +98,7 @@ func TestV23IdentityServer(t *testing.T) {
 	// In production, the two share a common root certificate and thus
 	// recognize each other. The same is done here: sh.Credentials.Principal
 	// wields the root key.
-	identityd := sh.JiriBuildGoPkg("v.io/x/ref/services/identity/internal/identityd_test")
+	identityd := sh.BuildGoPkg("v.io/x/ref/services/identity/internal/identityd_test")
 	creds := sh.ForkCredentials("u")
 	oauthCreds := sh.ForkCredentials("o")
 
@@ -110,13 +108,12 @@ func TestV23IdentityServer(t *testing.T) {
 		"-v23.tcp.address=127.0.0.1:0",
 		"-http-addr=127.0.0.1:0",
 		"-oauth-credentials-dir="+oauthCreds.Handle).WithCredentials(creds)
-	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	httpAddr := session.ExpectVar("HTTP_ADDR")
+	httpAddr := cmd.S.ExpectVar("HTTP_ADDR")
 
 	// Use the principal tool to seekblessings.
 	// This tool will not run with any credentials: Its whole purpose is to "seek" them!
-	principal := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+	principal := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 	// Test an initial seekblessings call.
 	seekBlessings(t, sh, principal, httpAddr)
 	// Test that a subsequent call succeeds with the same

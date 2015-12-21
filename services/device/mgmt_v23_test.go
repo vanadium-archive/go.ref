@@ -12,7 +12,7 @@
 // This script can exercise the device manager in two different modes. It
 // can be executed like so:
 //
-// jiri go test -v . --v23.tests
+//   jiri go test -v . --v23.tests
 //
 // This will exercise the device manager's single user mode where all
 // processes run as the same invoking user.
@@ -33,8 +33,6 @@
 
 package device_test
 
-//go:generate jiri test generate .
-
 import (
 	"errors"
 	"flag"
@@ -46,13 +44,16 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"v.io/x/ref"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
-	"v.io/x/ref/test/v23tests"
+	"v.io/x/ref/test/testutil"
 )
 
 var (
@@ -72,54 +73,67 @@ func init() {
 	hostname = name
 }
 
-func V23TestDeviceManager(i *v23tests.T) {
+func TestV23DeviceManagerSingleUser(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
 	u, err := user.Current()
 	if err != nil {
-		i.Fatalf("couldn't get the current user: %v", err)
+		t.Fatalf("couldn't get the current user: %v", err)
 	}
-	testCore(i, u.Username, "", false)
+	testCore(t, sh, u.Username, "", false)
 }
 
-func V23TestDeviceManagerMultiUser(i *v23tests.T) {
+func TestV23DeviceManagerMultiUser(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
 	u, err := user.Current()
 	if err != nil {
-		i.Fatalf("couldn't get the current user: %v", err)
+		t.Fatalf("couldn't get the current user: %v", err)
 	}
 
 	if u.Username == "veyron" && runTestOnThisPlatform {
 		// We are running on the builder so run the multiuser
 		// test with default user names. These will be created as
 		// required.
-		makeTestAccounts(i)
-		testCore(i, "vana", "devicemanager", true)
+		makeTestAccounts(t, sh)
+		testCore(t, sh, "vana", "devicemanager", true)
 		return
 	}
 
 	if len(deviceUserFlag) > 0 && len(appUserFlag) > 0 {
-		testCore(i, appUserFlag, deviceUserFlag, true)
+		testCore(t, sh, appUserFlag, deviceUserFlag, true)
 	} else {
-		i.Logf("Test skipped because running in multiuser mode requires --appuser and --deviceuser flags")
+		t.Logf("Test skipped because running in multiuser mode requires --appuser and --deviceuser flags")
 	}
 }
 
-func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
+func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withSuid bool) {
 	defer fmt.Fprintf(os.Stderr, "--------------- SHUTDOWN ---------------\n")
-	tempDir := ""
 
-	if withSuid {
-		// When running --with_suid, TMPDIR must grant the
-		// invoking user rwx permissions and world x permissions for
-		// all parent directories back to /. Otherwise, the
-		// with_suid user will not be able to use absolute paths.
-		// On Darwin, TMPDIR defaults to a directory hieararchy
-		// in /var that is 0700. This is unworkable so force
-		// TMPDIR to /tmp in this case.
-		tempDir = "/tmp"
-	}
+	// Call sh.StartRootMountTable() first, since it updates sh.Vars, which is
+	// copied by various Cmds at Cmd creation time.
+	sh.StartRootMountTable()
+
+	// When running with --with_suid, TMPDIR must grant the invoking user rwx
+	// permissions and world x permissions for all parent directories back to /.
+	// Otherwise, the with_suid user will not be able to use absolute paths. On
+	// Darwin, TMPDIR defaults to a directory hierararchy in /var that is 0700.
+	// This is unworkable, so force TMPDIR to /tmp in this case.
+	//
+	// In addition, even when running without --with_suid, on Darwin the default
+	// TMPDIR results in "socket path (...) exceeds maximum allowed socket path
+	// length" errors, so we always set TMPDIR to /tmp.
+	oldTmpdir := os.Getenv("TMPDIR")
+	os.Setenv("TMPDIR", "/tmp")
+	defer os.Setenv("TMPDIR", oldTmpdir)
 
 	var (
-		workDir       = i.NewTempDir(tempDir)
-		binStagingDir = mkSubdir(i, workDir, "bin")
+		workDir       = sh.MakeTempDir()
+		binStagingDir = mkSubdir(t, workDir, "bin")
 		dmInstallDir  = filepath.Join(workDir, "dm")
 
 		// Most vanadium command-line utilities will be run by a
@@ -127,17 +141,16 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		// (Where "root" comes from i.Principal().BlessingStore().Default()).
 		// Create those credentials and options to use to setup the
 		// binaries with them.
-		aliceCreds, _ = i.Shell().NewChildCredentials("u:alice")
-		aliceOpts     = i.Shell().DefaultStartOpts().ExternalProgram().WithCustomCredentials(aliceCreds)
+		aliceCreds = sh.ForkCredentials("u:alice")
 
 		// Build all the command-line tools and set them up to run as alice.
 		// applicationd/binaryd servers will be run by alice too.
 		// TODO: applicationd/binaryd should run as a separate "service" role, as
 		// alice is just a user.
-		namespaceBin    = i.BuildV23Pkg("v.io/x/ref/cmd/namespace").WithStartOpts(aliceOpts)
-		deviceBin       = i.BuildV23Pkg("v.io/x/ref/services/device/device").WithStartOpts(aliceOpts)
-		binarydBin      = i.BuildV23Pkg("v.io/x/ref/services/binary/binaryd").WithStartOpts(aliceOpts)
-		applicationdBin = i.BuildV23Pkg("v.io/x/ref/services/application/applicationd").WithStartOpts(aliceOpts)
+		namespaceBin    = sh.Cmd(sh.BuildGoPkg("v.io/x/ref/cmd/namespace")).WithCredentials(aliceCreds)
+		deviceBin       = sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/device/device")).WithCredentials(aliceCreds)
+		binarydBin      = sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/binary/binaryd")).WithCredentials(aliceCreds)
+		applicationdBin = sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/application/applicationd")).WithCredentials(aliceCreds)
 
 		// The devicex script is not provided with any credentials, it
 		// will generate its own.  This means that on "devicex start"
@@ -146,22 +159,20 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		// waiting to be claimed.
 		//
 		// Other binaries, like applicationd and binaryd will be run by alice.
-		deviceScript = i.BinaryFromPath("./devicex").WithEnv("V23_DEVICE_DIR=" + dmInstallDir)
+		deviceScript = sh.Cmd("./devicex")
 
 		mtName = "devices/" + hostname // Name under which the device manager will publish itself.
 	)
+	deviceScript.Vars["V23_DEVICE_DIR"] = dmInstallDir
+	delete(deviceScript.Vars, ref.EnvCredentials)
 
 	// We also need some tools running with different sets of credentials...
 
 	// Administration tasks will be performed with a blessing that represents a corporate
 	// adminstrator (which is usually a role account)
-	adminCreds, err := i.Shell().NewChildCredentials("r:admin")
-	if err != nil {
-		i.Fatalf("generating admin creds: %v", err)
-	}
-	adminOpts := i.Shell().DefaultStartOpts().ExternalProgram().WithCustomCredentials(adminCreds)
-	adminDeviceBin := deviceBin.WithStartOpts(adminOpts)
-	debugBin := i.BuildV23Pkg("v.io/x/ref/services/debug/debug").WithStartOpts(adminOpts)
+	adminCreds := sh.ForkCredentials("r:admin")
+	adminDeviceBin := deviceBin.WithCredentials(adminCreds)
+	debugBin := sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/debug/debug")).WithCredentials(adminCreds)
 
 	// A special set of credentials will be used to give two blessings to the device manager
 	// when claiming it -- one blessing will be from the corporate administrator role who owns
@@ -169,36 +180,26 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	// there's a way to separately supply a manufacturer blessing. Eventually, the claim
 	// would really be done by the administator, and the adminstrator's blessing would get
 	// added to the manufacturer's blessing, which would already be present.)
-	claimCreds, err := i.Shell().AddToChildCredentials(adminCreds, "m:orange:zphone5:ime-i007")
-	if err != nil {
-		i.Fatalf("adding the mfr blessing to admin creds: %v", err)
-	}
-	claimOpts := i.Shell().DefaultStartOpts().ExternalProgram().WithCustomCredentials(claimCreds)
-	claimDeviceBin := deviceBin.WithStartOpts(claimOpts)
+	claimCreds := sh.ForkCredentials("r:admin", "m:orange:zphone5:ime-i007")
+	claimDeviceBin := deviceBin.WithCredentials(claimCreds)
 
 	// Another set of credentials be used to represent the application publisher, who
 	// signs and pushes binaries
-	pubCreds, err := i.Shell().NewChildCredentials("a:rovio")
-	if err != nil {
-		i.Fatalf("generating publisher creds: %v", err)
-	}
-	pubOpts := i.Shell().DefaultStartOpts().ExternalProgram().WithCustomCredentials(pubCreds)
-	pubDeviceBin := deviceBin.WithStartOpts(pubOpts)
-	applicationBin := i.BuildV23Pkg("v.io/x/ref/services/application/application").WithStartOpts(pubOpts)
-	binaryBin := i.BuildV23Pkg("v.io/x/ref/services/binary/binary").WithStartOpts(pubOpts)
+	pubCreds := sh.ForkCredentials("a:rovio")
+	pubDeviceBin := deviceBin.WithCredentials(pubCreds)
+	applicationBin := sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/application/application")).WithCredentials(pubCreds)
+	binaryBin := sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/binary/binary")).WithCredentials(pubCreds)
 
 	if withSuid {
 		// In multiuser mode, deviceUserFlag needs execute access to
 		// tempDir.
 		if err := os.Chmod(workDir, 0711); err != nil {
-			i.Fatalf("os.Chmod() failed: %v", err)
+			t.Fatalf("os.Chmod() failed: %v", err)
 		}
 	}
 
-	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 	buildAndCopyBinaries(
-		i,
-		binStagingDir,
+		t, sh, binStagingDir,
 		"v.io/x/ref/services/device/deviced",
 		"v.io/x/ref/services/agent/agentd",
 		"v.io/x/ref/services/device/suidhelper",
@@ -225,18 +226,18 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 		"--neighborhood-name=" + fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), rand.Int()),
 	}...)
 
-	deviceScript.Start(deviceScriptArguments...).WaitOrDie(os.Stdout, os.Stderr)
-	deviceScript.Start("start").WaitOrDie(os.Stdout, os.Stderr)
+	withArgs(deviceScript, deviceScriptArguments...).Run()
+	withArgs(deviceScript, "start").Run()
 	dmLog := filepath.Join(dmInstallDir, "dmroot/device-manager/logs/deviced.INFO")
 	stopDevMgr := func() {
-		deviceScript.Run("stop")
+		withArgs(deviceScript, "stop").Run()
 		if dmLogF, err := os.Open(dmLog); err != nil {
-			i.Errorf("Failed to read dm log: %v", err)
+			t.Errorf("Failed to read dm log: %v", err)
 		} else {
 			fmt.Fprintf(os.Stderr, "--------------- START DM LOG ---------------\n")
 			defer dmLogF.Close()
 			if _, err := io.Copy(os.Stderr, dmLogF); err != nil {
-				i.Errorf("Error dumping dm log: %v", err)
+				t.Errorf("Error dumping dm log: %v", err)
 			}
 			fmt.Fprintf(os.Stderr, "--------------- END DM LOG ---------------\n")
 		}
@@ -249,91 +250,92 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	expiry := time.Now().Add(30 * time.Second)
 	for {
 		if time.Now().After(expiry) {
-			i.Fatalf("Timed out looking for claimable endpoint in %v", dmLog)
+			t.Fatalf("Timed out looking for claimable endpoint in %v", dmLog)
 		}
 		startLog, err := ioutil.ReadFile(dmLog)
 		if err != nil {
-			i.Logf("Couldn't read log %v: %v", dmLog, err)
+			t.Logf("Couldn't read log %v: %v", dmLog, err)
 			time.Sleep(time.Second)
 			continue
 		}
 		re := regexp.MustCompile(`Unclaimed device manager endpoint: (.*)`)
 		matches := re.FindSubmatch(startLog)
 		if len(matches) == 0 {
-			i.Logf("Couldn't find match in %v [%s]", dmLog, startLog)
+			t.Logf("Couldn't find match in %v [%s]", dmLog, startLog)
 			time.Sleep(time.Second)
 			continue
 		}
 		if len(matches) < 2 {
-			i.Fatalf("Wrong match in %v (%d) %v", dmLog, len(matches), string(matches[0]))
+			t.Fatalf("Wrong match in %v (%d) %v", dmLog, len(matches), string(matches[0]))
 		}
 		claimableEP = string(matches[len(matches)-1])
 		break
 	}
 	// Claim the device as "root:u:alice:myworkstation".
-	claimDeviceBin.Start("claim", claimableEP, "myworkstation").WaitOrDie(os.Stdout, os.Stderr)
+	withArgs(claimDeviceBin, "claim", claimableEP, "myworkstation").Run()
 
 	resolve := func(name string) string {
-		resolver := func() (interface{}, error) {
-			// Use Start, rather than Run, since it's ok for 'namespace resolve'
-			// to fail with 'name doesn't exist'
-			inv := namespaceBin.Start("resolve", name)
-			// Cleanup after ourselves to avoid leaving a ton of invocations
-			// lying around which obscure logging output.
-			defer inv.Wait(nil, os.Stderr)
-			if r := strings.TrimRight(inv.Output(), "\n"); len(r) > 0 {
-				return r, nil
+		res := ""
+		if err := testutil.RetryFor(10*time.Second, func() error {
+			// Set ExitErrorIsOk to true since we expect "namespace resolve" to fail
+			// if the name doesn't exist.
+			c := withArgs(namespaceBin, "resolve", name)
+			c.ExitErrorIsOk = true
+			c.AddStderrWriter(os.Stderr)
+			if res = tr(c.Stdout()); len(res) > 0 {
+				return nil
 			}
-			return nil, nil
+			return testutil.TryAgain(errors.New("resolve returned nothing"))
+		}); err != nil {
+			t.Fatal(err)
 		}
-		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
+		return res
 	}
 
 	// Wait for the device manager to publish its mount table entry.
 	mtEP := resolve(mtName)
-	adminDeviceBin.Run("acl", "set", mtName+"/devmgr/device", "root:u:alice", "Read,Resolve,Write")
+	withArgs(adminDeviceBin, "acl", "set", mtName+"/devmgr/device", "root:u:alice", "Read,Resolve,Write").Run()
 
 	if withSuid {
-		adminDeviceBin.Run("associate", "add", mtName+"/devmgr/device", appUser, "root:u:alice")
-		associations := adminDeviceBin.Run("associate", "list", mtName+"/devmgr/device")
+		withArgs(adminDeviceBin, "associate", "add", mtName+"/devmgr/device", appUser, "root:u:alice").Run()
+		associations := withArgs(adminDeviceBin, "associate", "list", mtName+"/devmgr/device").Stdout()
 		if got, expected := strings.Trim(associations, "\n "), "root:u:alice "+appUser; got != expected {
-			i.Fatalf("association test, got %v, expected %v", got, expected)
+			t.Fatalf("association test, got %v, expected %v", got, expected)
 		}
 	}
 
 	// Verify the device's default blessing is as expected.
 	mfrBlessing := "root:m:orange:zphone5:ime-i007:myworkstation"
 	ownerBlessing := "root:r:admin:myworkstation"
-	inv := debugBin.Start("stats", "read", mtName+"/devmgr/__debug/stats/security/principal/*/blessingstore/*")
-	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+" + mfrBlessing + "," + ownerBlessing)
-	inv.WaitOrDie(nil, os.Stderr)
+	c := withArgs(debugBin, "stats", "read", mtName+"/devmgr/__debug/stats/security/principal/*/blessingstore/*")
+	c.Run()
+	c.S.ExpectSetEventuallyRE(".*Default Blessings[ ]+" + mfrBlessing + "," + ownerBlessing)
 
 	// Get the device's profile, which should be set to non-empty string
-	inv = adminDeviceBin.Start("describe", mtName+"/devmgr/device")
-	parts := inv.ExpectRE(`{Profiles:map\[(.*):{}\]}`, 1)
-	inv.WaitOrDie(nil, os.Stderr)
+	c = withArgs(adminDeviceBin, "describe", mtName+"/devmgr/device")
+	c.Run()
+	parts := c.S.ExpectRE(`{Profiles:map\[(.*):{}\]}`, 1)
 	expectOneMatch := func(parts [][]string) string {
 		if len(parts) != 1 || len(parts[0]) != 2 {
-			loc := v23tests.Caller(1)
-			i.Fatalf("%s: failed to match profile: %#v", loc, parts)
+			t.Fatalf("%s: failed to match profile: %#v", caller(1), parts)
 		}
 		return parts[0][1]
 	}
 	deviceProfile := expectOneMatch(parts)
 	if len(deviceProfile) == 0 {
-		i.Fatalf("failed to get profile")
+		t.Fatalf("failed to get profile")
 	}
 
 	// Start a binaryd server that will serve the binary for the test
 	// application to be installed on the device.
 	binarydName := "binaries"
-	binarydBin.Start(
+	withArgs(binarydBin,
 		"--name="+binarydName,
 		"--root-dir="+filepath.Join(workDir, "binstore"),
 		"--v23.tcp.address=127.0.0.1:0",
-		"--http=127.0.0.1:0")
+		"--http=127.0.0.1:0").Start()
 	// Allow publishers to update binaries
-	deviceBin.Run("acl", "set", binarydName, "root:a", "Write")
+	withArgs(deviceBin, "acl", "set", binarydName, "root:a", "Write").Run()
 
 	// We are also going to use the binaryd binary as our test app binary. Once our test app
 	// binary is published to the binaryd server started above, this (augmented with a
@@ -342,13 +344,12 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	// Start an applicationd server that will serve the application
 	// envelope for the test application to be installed on the device.
-	applicationdBin.Start(
+	withArgs(applicationdBin,
 		"--name="+appDName,
-		"--store="+mkSubdir(i, workDir, "appstore"),
-		"--v23.tcp.address=127.0.0.1:0",
-	)
+		"--store="+mkSubdir(t, workDir, "appstore"),
+		"--v23.tcp.address=127.0.0.1:0").Start()
 	// Allow publishers to create and update envelopes
-	deviceBin.Run("acl", "set", appDName, "root:a", "Read,Write,Resolve")
+	withArgs(deviceBin, "acl", "set", appDName, "root:a", "Read,Write,Resolve").Run()
 
 	sampleAppName := appDName + "/testapp"
 	appPubName := "testbinaryd"
@@ -357,69 +358,69 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	ioutil.WriteFile(appEnvelopeFilename, []byte(appEnvelope), 0666)
 	defer os.Remove(appEnvelopeFilename)
 
-	output := applicationBin.Run("put", sampleAppName+"/0", deviceProfile, appEnvelopeFilename)
-	if got, want := output, fmt.Sprintf("Application envelope added for profile %s.", deviceProfile); got != want {
-		i.Fatalf("got %q, want %q", got, want)
+	output := withArgs(applicationBin, "put", sampleAppName+"/0", deviceProfile, appEnvelopeFilename).Stdout()
+	if got, want := tr(output), fmt.Sprintf("Application envelope added for profile %s.", deviceProfile); got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 
 	// Verify that the envelope we uploaded shows up with glob.
-	inv = applicationBin.Start("match", sampleAppName, deviceProfile)
-	parts = inv.ExpectSetEventuallyRE(`"Title": "(.*)",`, `"File": "(.*)",`)
-	inv.WaitOrDie(os.Stdout, os.Stderr)
+	c = withArgs(applicationBin, "match", sampleAppName, deviceProfile)
+	c.Run()
+	parts = c.S.ExpectSetEventuallyRE(`"Title": "(.*)",`, `"File": "(.*)",`)
 	if got, want := len(parts), 2; got != want {
-		i.Fatalf("got %d, want %d", got, want)
+		t.Fatalf("got %d, want %d", got, want)
 	}
 	for line, want := range []string{"BINARYD", sampleAppBinName} {
 		if got := parts[line][1]; got != want {
-			i.Fatalf("got %q, want %q", got, want)
+			t.Fatalf("got %q, want %q", got, want)
 		}
 	}
 
 	// Publish the app (This uses the binarydBin binary and the testapp envelope from above)
-	pubDeviceBin.Start("publish", "-from", filepath.Dir(binarydBin.Path()), "-readers", "root:r:admin", filepath.Base(binarydBin.Path())+":testapp").WaitOrDie(os.Stdout, os.Stderr)
-	if got := namespaceBin.Run("glob", sampleAppBinName); len(got) == 0 {
-		i.Fatalf("glob failed for %q", sampleAppBinName)
+	withArgs(pubDeviceBin, "publish", "-from", filepath.Dir(binarydBin.Path), "-readers", "root:r:admin", filepath.Base(binarydBin.Path)+":testapp").Run()
+	if got := withArgs(namespaceBin, "glob", sampleAppBinName).Stdout(); len(got) == 0 {
+		t.Fatalf("glob failed for %q", sampleAppBinName)
 	}
 
 	// Install the app on the device.
-	inv = deviceBin.Start("install", mtName+"/devmgr/apps", sampleAppName)
-	installationName := inv.ReadLine()
-	inv.WaitOrDie(os.Stdout, os.Stderr)
+	c = withArgs(deviceBin, "install", mtName+"/devmgr/apps", sampleAppName)
+	c.Run()
+	installationName := c.S.ReadLine()
 	if installationName == "" {
-		i.Fatalf("got empty installation name from install")
+		t.Fatalf("got empty installation name from install")
 	}
 
 	// Verify that the installation shows up when globbing the device manager.
-	output = namespaceBin.Run("glob", mtName+"/devmgr/apps/BINARYD/*")
-	if got, want := output, installationName; got != want {
-		i.Fatalf("got %q, want %q", got, want)
+	output = withArgs(namespaceBin, "glob", mtName+"/devmgr/apps/BINARYD/*").Stdout()
+	if got, want := tr(output), installationName; got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 
 	// Start an instance of the app, granting it blessing extension myapp.
-	inv = deviceBin.Start("instantiate", installationName, "myapp")
-	instanceName := inv.ReadLine()
-	inv.WaitOrDie(os.Stdout, os.Stderr)
+	c = withArgs(deviceBin, "instantiate", installationName, "myapp")
+	c.Run()
+	instanceName := c.S.ReadLine()
 	if instanceName == "" {
-		i.Fatalf("got empty instance name from new")
+		t.Fatalf("got empty instance name from new")
 	}
-	deviceBin.Start("run", instanceName).WaitOrDie(os.Stdout, os.Stderr)
+	withArgs(deviceBin, "run", instanceName).Run()
 
 	resolve(mtName + "/" + appPubName)
 
 	// Verify that the instance shows up when globbing the device manager.
-	output = namespaceBin.Run("glob", mtName+"/devmgr/apps/BINARYD/*/*")
-	if got, want := output, instanceName; got != want {
-		i.Fatalf("got %q, want %q", got, want)
+	output = withArgs(namespaceBin, "glob", mtName+"/devmgr/apps/BINARYD/*/*").Stdout()
+	if got, want := tr(output), instanceName; got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 
-	inv = debugBin.Start("stats", "read", instanceName+"/stats/system/pid")
-	pid := inv.ExpectRE("[0-9]+$", 1)[0][0]
-	inv.WaitOrDie(nil, os.Stderr)
-	uname, err := getUserForPid(i, pid)
+	c = withArgs(debugBin, "stats", "read", instanceName+"/stats/system/pid")
+	c.Run()
+	pid := c.S.ExpectRE("[0-9]+$", 1)[0][0]
+	uname, err := getUserForPid(sh, pid)
 	if err != nil {
-		i.Errorf("getUserForPid could not determine the user running pid %v", pid)
+		t.Errorf("getUserForPid could not determine the user running pid %v", pid)
 	} else if uname != appUser {
-		i.Errorf("app expected to be running as %v but is running as %v", appUser, uname)
+		t.Errorf("app expected to be running as %v but is running as %v", appUser, uname)
 	}
 
 	// Verify the app's blessings. We check the default blessing, as well as the
@@ -427,21 +428,21 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	userBlessing := "root:u:alice:myapp"
 	pubBlessing := "root:a:rovio:apps:published:binaryd"
 	appBlessing := mfrBlessing + ":a:" + pubBlessing + "," + ownerBlessing + ":a:" + pubBlessing
-	inv = debugBin.Start("stats", "read", instanceName+"/stats/security/principal/*/blessingstore/*")
-	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+"+userBlessing+"$", "[.][.][.][ ]+"+userBlessing+","+appBlessing)
-	inv.WaitOrDie(nil, os.Stderr)
+	c = withArgs(debugBin, "stats", "read", instanceName+"/stats/security/principal/*/blessingstore/*")
+	c.Run()
+	c.S.ExpectSetEventuallyRE(".*Default Blessings[ ]+"+userBlessing+"$", "[.][.][.][ ]+"+userBlessing+","+appBlessing)
 
 	// Kill and delete the instance.
-	deviceBin.Run("kill", instanceName)
-	deviceBin.Run("delete", instanceName)
+	withArgs(deviceBin, "kill", instanceName).Run()
+	withArgs(deviceBin, "delete", instanceName).Run()
 
 	// Verify that logs, but not stats, show up when globbing the
 	// not-running instance.
-	if output = namespaceBin.Run("glob", instanceName+"/stats/..."); len(output) > 0 {
-		i.Fatalf("no output expected for glob %s/stats/..., got %q", output, instanceName)
+	if output = withArgs(namespaceBin, "glob", instanceName+"/stats/...").Stdout(); len(output) > 0 {
+		t.Fatalf("no output expected for glob %s/stats/..., got %q", output, instanceName)
 	}
-	if output = namespaceBin.Run("glob", instanceName+"/logs/..."); len(output) == 0 {
-		i.Fatalf("output expected for glob %s/logs/..., but got none", instanceName)
+	if output = withArgs(namespaceBin, "glob", instanceName+"/logs/...").Stdout(); len(output) == 0 {
+		t.Fatalf("output expected for glob %s/logs/..., but got none", instanceName)
 	}
 
 	// TODO: The deviced binary should probably be published by someone other than rovio :-)
@@ -450,51 +451,60 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	// Upload a deviced binary
 	devicedAppBinName := binarydName + "/deviced"
-	binaryBin.Run("upload", devicedAppBinName, i.BuildGoPkg("v.io/x/ref/services/device/deviced").Path())
+	withArgs(binaryBin, "upload", devicedAppBinName, sh.BuildGoPkg("v.io/x/ref/services/device/deviced")).Run()
 	// Allow root:r:admin and its devices to read the binary
-	deviceBin.Run("acl", "set", devicedAppBinName, "root:r:admin", "Read")
+	withArgs(deviceBin, "acl", "set", devicedAppBinName, "root:r:admin", "Read").Run()
 
 	// Upload a device manager envelope.
 	devicedEnvelopeFilename := filepath.Join(workDir, "deviced.envelope")
 	devicedEnvelope := fmt.Sprintf("{\"Title\":\"device manager\", \"Binary\":{\"File\":%q}}", devicedAppBinName)
 	ioutil.WriteFile(devicedEnvelopeFilename, []byte(devicedEnvelope), 0666)
 	defer os.Remove(devicedEnvelopeFilename)
-	applicationBin.Run("put", devicedAppName, deviceProfile, devicedEnvelopeFilename)
+	withArgs(applicationBin, "put", devicedAppName, deviceProfile, devicedEnvelopeFilename).Run()
 	// Allow root:r:admin and its devices to read the envelope
-	deviceBin.Run("acl", "set", devicedAppName, "root:r:admin", "Read")
+	withArgs(deviceBin, "acl", "set", devicedAppName, "root:r:admin", "Read").Run()
 
 	// Update the device manager.
-	adminDeviceBin.Run("update", mtName+"/devmgr/device")
+	withArgs(adminDeviceBin, "update", mtName+"/devmgr/device").Run()
 	resolveChange := func(name, old string) string {
-		resolver := func() (interface{}, error) {
-			inv := namespaceBin.Start("resolve", name)
-			defer inv.Wait(nil, os.Stderr)
-			if r := strings.TrimRight(inv.Output(), "\n"); len(r) > 0 && r != old {
-				return r, nil
+		res := ""
+		if err := testutil.RetryFor(10*time.Second, func() error {
+			// Set ExitErrorIsOk to true since we expect "namespace resolve" to fail
+			// if the name doesn't exist.
+			c := withArgs(namespaceBin, "resolve", name)
+			c.ExitErrorIsOk = true
+			c.AddStderrWriter(os.Stderr)
+			switch res = tr(c.Stdout()); {
+			case res == "":
+				return testutil.TryAgain(errors.New("resolve returned nothing"))
+			case res == old:
+				return testutil.TryAgain(errors.New("no change"))
 			}
-			return nil, nil
+			return nil
+		}); err != nil {
+			t.Fatal(err)
 		}
-		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
+		return res
 	}
 	mtEP = resolveChange(mtName, mtEP)
 
 	// Verify that device manager's mounttable is still published under the
 	// expected name (hostname).
-	if namespaceBin.Run("glob", mtName) == "" {
-		i.Fatalf("failed to glob %s", mtName)
+	if withArgs(namespaceBin, "glob", mtName).Stdout() == "" {
+		t.Fatalf("failed to glob %s", mtName)
 	}
 
 	// Revert the device manager
 	// The argument to "device revert" is a glob pattern. So we need to
 	// wait for devmgr to be mounted before running the command.
 	resolve(mtEP + "/devmgr")
-	adminDeviceBin.Run("revert", mtName+"/devmgr/device")
+	withArgs(adminDeviceBin, "revert", mtName+"/devmgr/device").Run()
 	mtEP = resolveChange(mtName, mtEP)
 
 	// Verify that device manager's mounttable is still published under the
 	// expected name (hostname).
-	if namespaceBin.Run("glob", mtName) == "" {
-		i.Fatalf("failed to glob %s", mtName)
+	if withArgs(namespaceBin, "glob", mtName).Stdout() == "" {
+		t.Fatalf("failed to glob %s", mtName)
 	}
 
 	// Verify that the local mounttable exists, and that the device manager,
@@ -503,14 +513,15 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	resolve(mtEP + "/nh")
 	resolve(mtEP + "/global")
 
-	namespaceRoot, _ := i.GetVar(ref.EnvNamespacePrefix)
-	if got, want := namespaceBin.Run("resolve", mtEP+"/global"), namespaceRoot; got != want {
-		i.Fatalf("got %q, want %q", got, want)
+	namespaceRoot := sh.Vars[ref.EnvNamespacePrefix]
+	output = withArgs(namespaceBin, "resolve", mtEP+"/global").Stdout()
+	if got, want := tr(output), namespaceRoot; got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 
 	// Kill the device manager (which causes it to be restarted), wait for
 	// the endpoint to change.
-	deviceBin.Run("kill", mtName+"/devmgr/device")
+	withArgs(deviceBin, "kill", mtName+"/devmgr/device").Run()
 	mtEP = resolveChange(mtName, mtEP)
 
 	// Shut down the device manager.
@@ -518,15 +529,21 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 
 	// Wait for the mounttable entry to go away.
 	resolveGone := func(name string) string {
-		resolver := func() (interface{}, error) {
-			inv := namespaceBin.Start("resolve", name)
-			defer inv.Wait(nil, os.Stderr)
-			if r := strings.TrimRight(inv.Output(), "\n"); len(r) == 0 {
-				return r, nil
+		res := ""
+		if err := testutil.RetryFor(10*time.Second, func() error {
+			// Set ExitErrorIsOk to true since we expect "namespace resolve" to fail
+			// if the name doesn't exist.
+			c := withArgs(namespaceBin, "resolve", name)
+			c.ExitErrorIsOk = true
+			c.AddStderrWriter(os.Stderr)
+			if res = tr(c.Stdout()); len(res) == 0 {
+				return nil
 			}
-			return nil, nil
+			return testutil.TryAgain(errors.New("mount table entry still exists"))
+		}); err != nil {
+			t.Fatal(err)
 		}
-		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
+		return res
 	}
 	resolveGone(mtName)
 
@@ -538,34 +555,40 @@ func testCore(i *v23tests.T, appUser, deviceUser string, withSuid bool) {
 	if !withSuid {
 		fi, err = ioutil.ReadDir(dmInstallDir)
 		if err != nil {
-			i.Fatalf("failed to readdir for %q: %v", dmInstallDir, err)
+			t.Fatalf("failed to readdir for %q: %v", dmInstallDir, err)
 		}
 	}
 
-	deviceScript.Run("uninstall")
+	withArgs(deviceScript, "uninstall").Run()
 
 	fi, err = ioutil.ReadDir(dmInstallDir)
 	if err == nil || len(fi) > 0 {
-		i.Fatalf("managed to read %d entries from %q", len(fi), dmInstallDir)
+		t.Fatalf("managed to read %d entries from %q", len(fi), dmInstallDir)
 	}
 	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
-		i.Fatalf("wrong error: %v", err)
+		t.Fatalf("wrong error: %v", err)
 	}
 }
 
-func buildAndCopyBinaries(i *v23tests.T, destinationDir string, packages ...string) {
+func withArgs(cmd *v23test.Cmd, args ...string) *v23test.Cmd {
+	res := cmd.Clone()
+	res.Args = append(res.Args, args...)
+	return res
+}
+
+func buildAndCopyBinaries(t *testing.T, sh *v23test.Shell, destinationDir string, packages ...string) {
 	var args []string
 	for _, pkg := range packages {
-		args = append(args, i.BuildGoPkg(pkg).Path())
+		args = append(args, sh.BuildGoPkg(pkg))
 	}
 	args = append(args, destinationDir)
-	i.BinaryFromPath("/bin/cp").Start(args...).WaitOrDie(os.Stdout, os.Stderr)
+	sh.Cmd("/bin/cp", args...).Run()
 }
 
-func mkSubdir(i *v23tests.T, parent, child string) string {
+func mkSubdir(t *testing.T, parent, child string) string {
 	dir := filepath.Join(parent, child)
 	if err := os.Mkdir(dir, 0755); err != nil {
-		i.Fatalf("failed to create %q: %v", dir, err)
+		t.Fatalf("failed to create %q: %v", dir, err)
 	}
 	return dir
 }
@@ -573,8 +596,8 @@ func mkSubdir(i *v23tests.T, parent, child string) string {
 var re = regexp.MustCompile("[ \t]+")
 
 // getUserForPid determines the username running process pid.
-func getUserForPid(i *v23tests.T, pid string) (string, error) {
-	pidString := i.BinaryFromPath("/bin/ps").Run(psFlags)
+func getUserForPid(sh *v23test.Shell, pid string) (string, error) {
+	pidString := sh.Cmd("/bin/ps", psFlags).Stdout()
 	for _, line := range strings.Split(pidString, "\n") {
 		fields := re.Split(line, -1)
 		if len(fields) > 1 && pid == fields[1] {
@@ -582,4 +605,19 @@ func getUserForPid(i *v23tests.T, pid string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("Couldn't determine the user for pid %s", pid)
+}
+
+// tr trims off trailing newline characters.
+func tr(s string) string {
+	return strings.TrimRight(s, "\n")
+}
+
+// caller returns a string of the form <filename>:<lineno>.
+func caller(skip int) string {
+	_, file, line, _ := runtime.Caller(skip + 1)
+	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

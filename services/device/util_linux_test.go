@@ -5,23 +5,23 @@
 package device_test
 
 import (
-	"os"
 	"os/user"
+	"testing"
 
-	"v.io/x/ref/test/v23tests"
+	"v.io/x/ref/lib/v23test"
 )
 
 const psFlags = "-eouser:20,pid"
 
-func makeTestAccounts(i *v23tests.T) {
-	userAddCmd := i.BinaryFromPath("/usr/bin/sudo")
+func makeTestAccounts(t *testing.T, sh *v23test.Shell) {
+	sudo := "/usr/bin/sudo"
 
 	if _, err := user.Lookup("vana"); err != nil {
-		userAddCmd.Start("/usr/sbin/adduser", "--no-create-home", "vana").WaitOrDie(os.Stdout, os.Stderr)
+		sh.Cmd(sudo, "/usr/sbin/adduser", "--no-create-home", "vana").Run()
 	}
 
 	if _, err := user.Lookup("devicemanager"); err != nil {
-		userAddCmd.Start("/usr/sbin/adduser", "--no-create-home", "devicemanager").Wait(os.Stdout, os.Stderr)
+		sh.Cmd(sudo, "/usr/sbin/adduser", "--no-create-home", "devicemanager").Run()
 	}
 }
 

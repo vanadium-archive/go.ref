@@ -38,14 +38,15 @@ type relateResult struct {
 // TestV23GroupServerIntegration tests the integration between the "groups"
 // command-line client and the "groupsd" server.
 func TestV23GroupServerIntegration(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
 	// Build binaries for the client and server.
 	var (
-		clientBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/groups/groups")
-		serverBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/groups/groupsd", "-tags=leveldb")
+		clientBin  = sh.BuildGoPkg("v.io/x/ref/services/groups/groups")
+		serverBin  = sh.BuildGoPkg("v.io/x/ref/services/groups/groupsd", "-tags=leveldb")
 		serverName = "groups-server"
 		groupA     = naming.Join(serverName, "groupA")
 		groupB     = naming.Join(serverName, "groupB")
@@ -68,7 +69,7 @@ func TestV23GroupServerIntegration(t *testing.T) {
 
 	// Test simple group resolution.
 	{
-		stdout, stderr := sh.Cmd(clientBin, "relate", groupB, "a:b:c:d").Output()
+		stdout, stderr := sh.Cmd(clientBin, "relate", groupB, "a:b:c:d").StdoutStderr()
 
 		var got relateResult
 		if err := json.Unmarshal([]byte(stdout), &got); err != nil {
@@ -89,7 +90,7 @@ func TestV23GroupServerIntegration(t *testing.T) {
 
 	// Test recursive group resolution.
 	{
-		stdout, stderr := sh.Cmd(clientBin, "relate", groupA, "a:b:c:d").Output()
+		stdout, stderr := sh.Cmd(clientBin, "relate", groupA, "a:b:c:d").StdoutStderr()
 
 		var got relateResult
 		if err := json.Unmarshal([]byte(stdout), &got); err != nil {
@@ -113,7 +114,7 @@ func TestV23GroupServerIntegration(t *testing.T) {
 	{
 		sh.Cmd(clientBin, "add", groupB, "<grp:groups-server/groupC>").Run()
 
-		stdout, stderr := sh.Cmd(clientBin, "relate", groupB, "a:b:c:d").Output()
+		stdout, stderr := sh.Cmd(clientBin, "relate", groupB, "a:b:c:d").StdoutStderr()
 
 		var got relateResult
 		if err := json.Unmarshal([]byte(stdout), &got); err != nil {
@@ -217,22 +218,22 @@ var runClient = gosh.Register("client", func(command string, args ...string) err
 
 func startClient(t *testing.T, sh *v23test.Shell, name string, args ...interface{}) *expect.Session {
 	cmd := sh.Fn(runClient, args...).WithCredentials(sh.ForkCredentials(name))
-	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	return session
+	return cmd.S
 }
 
 // TestV23GroupServerAuthorization uses an instance of the KeyValueStore server
 // with an groups-based authorizer to test the group server implementation.
 func TestV23GroupServerAuthorization(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
 	// Build binaries for the groups client and server.
 	var (
-		clientBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/groups/groups")
-		serverBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/groups/groupsd")
+		clientBin  = sh.BuildGoPkg("v.io/x/ref/services/groups/groups")
+		serverBin  = sh.BuildGoPkg("v.io/x/ref/services/groups/groupsd")
 		serverName = "groups-server"
 		readers    = naming.Join(serverName, "readers")
 		writers    = naming.Join(serverName, "writers")

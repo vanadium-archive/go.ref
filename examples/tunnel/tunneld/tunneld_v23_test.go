@@ -5,47 +5,44 @@
 package main_test
 
 import (
-	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"v.io/x/ref"
 	"v.io/x/ref/lib/v23test"
-	"v.io/x/ref/test/expect"
 )
 
 func TestV23Tunneld(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	tunneldBin := sh.JiriBuildGoPkg("v.io/x/ref/examples/tunnel/tunneld")
-	vsh := sh.JiriBuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
-	mounttableBin := sh.JiriBuildGoPkg("v.io/x/ref/cmd/mounttable")
+	tunneldBin := sh.BuildGoPkg("v.io/x/ref/examples/tunnel/tunneld")
+	vsh := sh.BuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
+	mounttableBin := sh.BuildGoPkg("v.io/x/ref/cmd/mounttable")
 
 	// Start tunneld with a known endpoint.
 	cmd := sh.Cmd(tunneldBin, "--v23.tcp.address=127.0.0.1:0", "--name=tunnel/test")
-	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	tunnelEndpoint := session.ExpectVar("NAME")
+	tunnelEndpoint := cmd.S.ExpectVar("NAME")
 
 	// Run remote command with the endpoint.
-	if want, got := "HELLO ENDPOINT\n", sh.Cmd(vsh, tunnelEndpoint, "echo", "HELLO", "ENDPOINT").CombinedOutput(); want != got {
+	if want, got := "HELLO ENDPOINT\n", sh.Cmd(vsh, tunnelEndpoint, "echo", "HELLO", "ENDPOINT").Stdout(); want != got {
 		t.Fatalf("unexpected output, got %s, want %s", got, want)
 	}
 
-	if want, got := "HELLO NAME\n", sh.Cmd(vsh, "tunnel/test", "echo", "HELLO", "NAME").CombinedOutput(); want != got {
+	if want, got := "HELLO NAME\n", sh.Cmd(vsh, "tunnel/test", "echo", "HELLO", "NAME").Stdout(); want != got {
 		t.Fatalf("unexpected output, got %s, want %s", got, want)
 	}
 
 	// Send input to remote command.
 	want := "HELLO SERVER"
 	cmd = sh.Cmd(vsh, tunnelEndpoint, "cat")
-	cmd.Stdin = bytes.NewBufferString(want)
-	if got := cmd.CombinedOutput(); want != got {
+	cmd.Stdin = want
+	if got := cmd.Stdout(); want != got {
 		t.Fatalf("unexpected output, got %s, want %s", got, want)
 	}
 
@@ -54,7 +51,7 @@ func TestV23Tunneld(t *testing.T) {
 	outPath := filepath.Join(outDir, "hello.txt")
 
 	cmd = sh.Cmd(vsh, tunnelEndpoint, "cat > "+outPath)
-	cmd.Stdin = bytes.NewBufferString(want)
+	cmd.Stdin = want
 	cmd.Run()
 	if got, err := ioutil.ReadFile(outPath); err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", outPath, err)
@@ -66,11 +63,10 @@ func TestV23Tunneld(t *testing.T) {
 	root := sh.Vars[ref.EnvNamespacePrefix]
 
 	cmd = sh.Cmd(mounttableBin, "glob", root, "tunnel/test")
-	session = expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
 
 	// Expect one entry: the tunnel name.
-	matches := session.ExpectSetEventuallyRE("tunnel/test" + " (.*) \\(Deadline .*\\)")
+	matches := cmd.S.ExpectSetEventuallyRE("tunnel/test" + " (.*) \\(Deadline .*\\)")
 
 	// The full endpoint should be the one we saw originally.
 	if got, want := matches[0][1], tunnelEndpoint; "/"+got != want {

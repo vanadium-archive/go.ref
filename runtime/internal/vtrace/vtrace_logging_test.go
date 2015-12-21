@@ -12,7 +12,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/vtrace"
-
 	"v.io/x/ref/test/testutil"
 )
 
@@ -40,12 +39,12 @@ func TestLogging(t *testing.T) {
 	span.Finish()
 	record := vtrace.GetStore(ctx).TraceRecord(span.Trace())
 	messages := []string{
-		"vtrace_logging_test.go:32] logging from info",
-		"vtrace_logging_test.go:33] logging from infof",
-		"vtrace_logging_test.go:34] logging from info depth",
-		"vtrace_logging_test.go:36] logging from error",
-		"vtrace_logging_test.go:37] logging from errorf",
-		"vtrace_logging_test.go:38] logging from error depth",
+		"vtrace_logging_test.go:31] logging from info",
+		"vtrace_logging_test.go:32] logging from infof",
+		"vtrace_logging_test.go:33] logging from info depth",
+		"vtrace_logging_test.go:35] logging from error",
+		"vtrace_logging_test.go:36] logging from errorf",
+		"vtrace_logging_test.go:37] logging from error depth",
 	}
 	expectSequence(t, *record, []string{
 		"foo: " + strings.Join(messages, ", "),
@@ -115,6 +114,6 @@ func TestVIRPCWithLogging(t *testing.T) {
 		t.Fatalf("logging call failed: %v", err)
 	}
 	expectSequence(t, *record, []string{
-		"\"\".Log: vtrace_logging_test.go:20] logging",
+		"\"\".Log: vtrace_logging_test.go:19] logging",
 	})
 }

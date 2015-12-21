@@ -8,32 +8,30 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"v.io/v23/security"
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23test"
-	"v.io/x/ref/test/expect"
 )
 
 func TestV23Agentd(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		clientDir, serverDir = createClientAndServerCredentials(t, sh)
 		tmpdir               = sh.MakeTempDir()
-		vrun                 = sh.JiriBuildGoPkg("v.io/x/ref/cmd/vrun")
-		pingpong             = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
-		agentd               = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+		vrun                 = sh.BuildGoPkg("v.io/x/ref/cmd/vrun")
+		pingpong             = sh.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
+		agentd               = sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
 	)
 
 	cmd := sh.Cmd(agentd, pingpong)
 	cmd.Vars[ref.EnvCredentials] = serverDir
-	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	serverName := session.ExpectVar("NAME")
+	serverName := cmd.S.ExpectVar("NAME")
 
 	tests := []struct {
 		Command []string
@@ -56,10 +54,9 @@ func TestV23Agentd(t *testing.T) {
 		args := append([]string{"--additional-principals=" + tmpdir}, test.Command...)
 		cmd := sh.Cmd(agentd, args...)
 		cmd.Vars[ref.EnvCredentials] = clientDir
-		session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 		cmd.Run()
-		session.Expect("Pinging...")
-		session.Expect(fmt.Sprintf("pong (client:[%v] server:[pingpongd])", test.Client))
+		cmd.S.Expect("Pinging...")
+		cmd.S.Expect(fmt.Sprintf("pong (client:[%v] server:[pingpongd])", test.Client))
 	}
 }
 

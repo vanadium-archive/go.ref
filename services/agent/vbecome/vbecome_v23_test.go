@@ -30,12 +30,13 @@ func writeRoledConfig() (path string, shutdown func(), err error) {
 }
 
 func TestV23BecomeRole(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	vbecome := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/vbecome")
-	principal := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
-	roled := sh.JiriBuildGoPkg("v.io/x/ref/services/role/roled")
+	vbecome := sh.BuildGoPkg("v.io/x/ref/services/agent/vbecome")
+	principal := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	roled := sh.BuildGoPkg("v.io/x/ref/services/role/roled")
 
 	sh.StartRootMountTable()
 
@@ -47,7 +48,7 @@ func TestV23BecomeRole(t *testing.T) {
 
 	sh.Cmd(roled, "--v23.tcp.address=127.0.0.1:0", "--config-dir", dir, "--name", "roled").WithCredentials(sh.ForkCredentials("master")).Start()
 
-	output := sh.Cmd(vbecome, "--role=roled/therole", principal, "dump").CombinedOutput()
+	output := sh.Cmd(vbecome, "--role=roled/therole", principal, "dump").Stdout()
 	want := regexp.MustCompile(`Default Blessings\s+root:master:therole:root:child`)
 	if !want.MatchString(output) {
 		t.Errorf("Principal didn't have the role blessing:\n %s", output)
@@ -55,15 +56,16 @@ func TestV23BecomeRole(t *testing.T) {
 }
 
 func TestV23BecomeName(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	vbecome := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/vbecome")
-	principal := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+	vbecome := sh.BuildGoPkg("v.io/x/ref/services/agent/vbecome")
+	principal := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 
 	sh.StartRootMountTable()
 
-	output := sh.Cmd(vbecome, "--name=bob", principal, "dump").CombinedOutput()
+	output := sh.Cmd(vbecome, "--name=bob", principal, "dump").Stdout()
 	want := regexp.MustCompile(`Default Blessings\s+root:child:bob`)
 	if !want.MatchString(output) {
 		t.Errorf("Principal didn't have the expected blessing:\n %s", output)

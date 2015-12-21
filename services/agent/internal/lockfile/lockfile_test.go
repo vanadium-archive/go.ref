@@ -78,7 +78,7 @@ func TestOtherProcess(t *testing.T) {
 	defer sh.Cleanup()
 
 	// Start a new child which creates a lockfile and exits.
-	output := sh.Fn(createLockfile, file).CombinedOutput()
+	output := sh.Fn(createLockfile, file).Stdout()
 	if output != "Grabbed lock\n" {
 		t.Fatal("Unexpected output: %s", output)
 	}
@@ -104,7 +104,7 @@ func TestOtherProcess(t *testing.T) {
 	}
 
 	// Now the child should fail to create one.
-	output = sh.Fn(createLockfile, file).CombinedOutput()
+	output = sh.Fn(createLockfile, file).Stdout()
 	if output != "Lock failed\n" {
 		t.Fatal("Unexpected output: %s", output)
 	}

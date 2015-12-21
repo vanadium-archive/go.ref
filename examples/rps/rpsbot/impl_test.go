@@ -42,7 +42,8 @@ func startRockPaperScissors(t *testing.T, ctx *context.T) (*RPS, func()) {
 // TestV23RockPaperScissorsImpl runs one rock-paper-scissors game and verifies
 // that all the counters are consistent.
 func TestV23RockPaperScissorsImpl(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 	ctx := sh.Ctx

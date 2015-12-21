@@ -5,7 +5,6 @@
 package main_test
 
 import (
-	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -20,13 +19,13 @@ import (
 )
 
 func start(t *testing.T, c *v23test.Cmd) *expect.Session {
-	s := expect.NewSession(t, c.StdoutPipe(), time.Minute)
 	c.Start()
-	return s
+	return c.S
 }
 
 func TestV23ClusterAgentD(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	workdir, err := ioutil.TempDir("", "cluster-agentd-test-")
@@ -49,10 +48,10 @@ func TestV23ClusterAgentD(t *testing.T) {
 	}
 
 	var (
-		agentBin     = sh.JiriBuildGoPkg("v.io/x/ref/services/cluster/cluster_agentd")
-		clientBin    = sh.JiriBuildGoPkg("v.io/x/ref/services/cluster/cluster_agent")
-		podAgentBin  = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/pod_agentd")
-		principalBin = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		agentBin     = sh.BuildGoPkg("v.io/x/ref/services/cluster/cluster_agentd")
+		clientBin    = sh.BuildGoPkg("v.io/x/ref/services/cluster/cluster_agent")
+		podAgentBin  = sh.BuildGoPkg("v.io/x/ref/services/agent/pod_agentd")
+		principalBin = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 	)
 
 	// Start the cluster agent.
@@ -63,12 +62,11 @@ func TestV23ClusterAgentD(t *testing.T) {
 	).WithCredentials(agentCreds)).ExpectVar("NAME")
 
 	// Create a new secret.
-	stdout, _ := sh.Cmd(clientBin,
+	secret := strings.TrimSpace(sh.Cmd(clientBin,
 		"--agent="+addr,
 		"new",
 		"foo",
-	).WithCredentials(aliceCreds).Output()
-	secret := strings.TrimSpace(stdout)
+	).WithCredentials(aliceCreds).Stdout())
 	secretPath := filepath.Join(workdir, "secret")
 	if err := ioutil.WriteFile(secretPath, []byte(secret), 0600); err != nil {
 		t.Fatalf("Unexpected WriteFile error: %v", err)
@@ -101,8 +99,7 @@ func TestV23ClusterAgentD(t *testing.T) {
 	cmd := sh.Cmd(principalBin, "dump", "-s")
 	cmd.Vars[ref.EnvAgentPath] = sockPath
 	delete(cmd.Vars, ref.EnvCredentials) // set by v23test.Shell.Cmd
-	stdout, _ = cmd.Output()
-	if got, want := stdout, "root:alice:foo:"; !strings.HasPrefix(got, want) {
+	if got, want := cmd.Stdout(), "root:alice:foo:"; !strings.HasPrefix(got, want) {
 		t.Errorf("Unexpected output. Got %q, wanted prefix %q", got, want)
 	}
 
@@ -125,8 +122,7 @@ func TestV23ClusterAgentD(t *testing.T) {
 	cmd = sh.Cmd(principalBin, "dump", "-s")
 	cmd.Vars[ref.EnvAgentPath] = sockPath
 	delete(cmd.Vars, ref.EnvCredentials) // set by v23test.Shell.Cmd
-	stdout, _ = cmd.Output()
-	if got, want := stdout, "root:alice:foo:"; !strings.HasPrefix(got, want) {
+	if got, want := cmd.Stdout(), "root:alice:foo:"; !strings.HasPrefix(got, want) {
 		t.Errorf("Unexpected output. Got %q, wanted prefix %q", got, want)
 	}
 }
@@ -134,14 +130,11 @@ func TestV23ClusterAgentD(t *testing.T) {
 // Note: This is identical to rootBlessings in
 // v.io/x/ref/services/device/claimable/claimable_v23_test.go.
 func rootBlessings(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials) string {
-	principalBin := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
-	stdout, _ := sh.Cmd(principalBin, "get", "default").WithCredentials(creds).Output()
-	blessings := strings.TrimSpace(stdout)
-
+	principalBin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	blessings := strings.TrimSpace(sh.Cmd(principalBin, "get", "default").WithCredentials(creds).Stdout())
 	cmd := sh.Cmd(principalBin, "dumproots", "-")
-	cmd.Stdin = bytes.NewBufferString(blessings)
-	stdout, _ = cmd.Output()
-	return strings.Replace(strings.TrimSpace(stdout), "\n", ",", -1)
+	cmd.Stdin = blessings
+	return strings.Replace(strings.TrimSpace(cmd.Stdout()), "\n", ",", -1)
 }
 
 func TestMain(m *testing.M) {

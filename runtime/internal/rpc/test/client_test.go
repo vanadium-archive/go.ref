@@ -36,7 +36,6 @@ import (
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/services/mounttable/mounttablelib"
-	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -85,10 +84,9 @@ var rootMT = gosh.Register("rootMT", func(deb bool) error {
 
 func startRootMT(t *testing.T, sh *v23test.Shell, deb bool) {
 	cmd := sh.Fn(rootMT, deb)
-	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	s.ExpectVar("PID")
-	rootName := s.ExpectVar("MT_NAME")
+	cmd.S.ExpectVar("PID")
+	rootName := cmd.S.ExpectVar("MT_NAME")
 	if len(rootName) == 0 {
 		sh.HandleError(errors.New("no MT_NAME"))
 		return
@@ -154,10 +152,9 @@ var echoServer = gosh.Register("echoServer", func(id, mp, addr string) error {
 // Returns server Cmd and name.
 func startEchoServer(t *testing.T, sh *v23test.Shell, id, mp, addr string) (*v23test.Cmd, string) {
 	cmd := sh.Fn(echoServer, id, mp, addr)
-	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	s.ExpectVar("PID")
-	name := s.ExpectVar("NAME")
+	cmd.S.ExpectVar("PID")
+	name := cmd.S.ExpectVar("NAME")
 	return cmd, name
 }
 
@@ -181,9 +178,8 @@ var echoClient = gosh.Register("echoClient", func(name string, args ...string) e
 
 func runEchoClient(t *testing.T, sh *v23test.Shell) {
 	cmd := sh.Fn(echoClient, "echoServer", "a message")
-	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	s.Expect("echoServer: a message")
+	cmd.S.Expect("echoServer: a message")
 	cmd.Wait()
 }
 
@@ -621,9 +617,8 @@ func TestCallback(t *testing.T) {
 	defer cleanup()
 
 	cmd := sh.Fn(childPing, name)
-	s := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	if got, want := s.ExpectVar("RESULT"), "pong"; got != want {
+	if got, want := cmd.S.ExpectVar("RESULT"), "pong"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	cmd.Wait()

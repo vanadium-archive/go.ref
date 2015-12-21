@@ -9,8 +9,9 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"testing"
 
-	"v.io/x/ref/test/v23tests"
+	"v.io/x/ref/lib/v23test"
 )
 
 const runTestOnThisPlatform = true
@@ -31,11 +32,9 @@ func (uids uidMap) findAvailable() (int, error) {
 	return 0, fmt.Errorf("Couldn't find an available UID")
 }
 
-func newUidMap(i *v23tests.T) uidMap {
-	dsclCmd := i.BinaryFromPath("dscl")
-
+func newUidMap(sh *v23test.Shell) uidMap {
 	// `dscl . -list /Users UniqueID` into a datastructure.
-	userstring := dsclCmd.Run(".", "-list", "/Users", "UniqueID")
+	userstring := sh.Cmd("dscl", ".", "-list", "/Users", "UniqueID").Stdout()
 	users := strings.Split(userstring, "\n")
 
 	uids := make(map[int]struct{}, len(users))
@@ -50,19 +49,22 @@ func newUidMap(i *v23tests.T) uidMap {
 	return uids
 }
 
-func makeAccount(i *v23tests.T, uid int, uname, fullname string) {
-	sudoCmd := i.BinaryFromPath("/usr/bin/sudo")
-	dsclCmd := sudoCmd.WithPrefixArgs("dscl", ".", "-create", "/Users/"+uname)
+func makeAccount(sh *v23test.Shell, uid int, uname, fullname string) {
+	sudo := "/usr/bin/sudo"
+	args := []string{"dscl", ".", "-create", "/Users/" + uname}
 
-	dsclCmd.Run()
-	dsclCmd.Run("UserShell", "/bin/bash")
-	dsclCmd.Run("RealName", fullname)
-	dsclCmd.Run("UniqueID", strconv.FormatInt(int64(uid), 10))
-	dsclCmd.Run("PrimaryGroupID", "20")
+	run := func(extraArgs ...string) {
+		sh.Cmd(sudo, append(args, extraArgs...)...).Run()
+	}
 
+	run()
+	run("UserShell", "/bin/bash")
+	run("RealName", fullname)
+	run("UniqueID", strconv.FormatInt(int64(uid), 10))
+	run("PrimaryGroupID", "20")
 }
 
-func makeTestAccounts(i *v23tests.T) {
+func makeTestAccounts(t *testing.T, sh *v23test.Shell) {
 	_, needVanaErr := user.Lookup("vana")
 	_, needDevErr := user.Lookup("devicemanager")
 
@@ -70,19 +72,19 @@ func makeTestAccounts(i *v23tests.T) {
 		return
 	}
 
-	uids := newUidMap(i)
+	uids := newUidMap(sh)
 	if needVanaErr != nil {
 		vanauid, err := uids.findAvailable()
 		if err != nil {
-			i.Fatalf("Can't make test accounts: %v", err)
+			t.Fatalf("Can't make test accounts: %v", err)
 		}
-		makeAccount(i, vanauid, "vana", "Vanadium White")
+		makeAccount(sh, vanauid, "vana", "Vanadium White")
 	}
 	if needDevErr != nil {
 		devmgruid, err := uids.findAvailable()
 		if err != nil {
-			i.Fatalf("Can't make test accounts: %v", err)
+			t.Fatalf("Can't make test accounts: %v", err)
 		}
-		makeAccount(i, devmgruid, "devicemanager", "Devicemanager")
+		makeAccount(sh, devmgruid, "devicemanager", "Devicemanager")
 	}
 }

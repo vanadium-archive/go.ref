@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 	"text/template"
-	"time"
 
 	"v.io/v23/security"
 	"v.io/x/ref"
@@ -22,50 +21,44 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
-	"v.io/x/ref/test/expect"
 )
 
-func start(t *testing.T, c *v23test.Cmd) *expect.Session {
-	s := expect.NewSession(t, c.StdoutPipe(), time.Minute)
-	s.SetVerbosity(true)
+func start(c *v23test.Cmd) {
+	c.S.SetVerbosity(true)
 	c.Start()
-	return s
 }
 
 func TestV23PassPhraseUse(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	bin := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+	bin := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
 	dir := sh.MakeTempDir()
 
 	// Create the passphrase
 	c := sh.Cmd(bin, "echo", "Hello")
 	c.Vars[ref.EnvCredentials] = dir
-	c.Stdin = bytes.NewBufferString("PASSWORD")
-	s := start(t, c)
-	s.ReadLine() // Skip over ...creating new key... message
-	s.Expect("Hello")
+	c.Stdin = "PASSWORD"
+	start(c)
+	c.S.ReadLine() // Skip over ...creating new key... message
+	c.S.Expect("Hello")
 	c.Wait()
-	s.ExpectEOF()
 
 	// Use it successfully
 	c = sh.Cmd(bin, "echo", "Hello")
 	c.Vars[ref.EnvCredentials] = dir
-	c.Stdin = bytes.NewBufferString("PASSWORD")
-	s = start(t, c)
-	s.Expect("Hello")
+	c.Stdin = "PASSWORD"
+	start(c)
+	c.S.Expect("Hello")
 	c.Wait()
-	s.ExpectEOF()
 
 	// Provide a bad password
 	c = sh.Cmd(bin, "echo", "Hello")
 	c.Vars[ref.EnvCredentials] = dir
-	c.Stdin = bytes.NewBufferString("BADPASSWORD")
+	c.Stdin = "BADPASSWORD"
 	c.ExitErrorIsOk = true
-	s = expect.NewSession(t, c.StdoutPipe(), time.Minute)
-	stdout, stderr := c.Output()
-	s.ExpectEOF()
+	stdout, stderr := c.StdoutStderr()
 	if c.Err == nil {
 		t.Fatalf("expected an error.STDOUT:%v\nSTDERR:%v\n", stdout, stderr)
 	}
@@ -78,13 +71,14 @@ func TestV23PassPhraseUse(t *testing.T) {
 }
 
 func TestV23AllPrincipalMethods(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	// Test all methods of the principal interface.
 	// (Errors are printed to STDERR)
-	testbin := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/internal/test_principal")
-	agentd := sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+	testbin := sh.BuildGoPkg("v.io/x/ref/services/agent/internal/test_principal")
+	agentd := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
 
 	c := sh.Cmd(agentd, testbin)
 	c.Vars[ref.EnvCredentials] = sh.MakeTempDir()
@@ -92,7 +86,8 @@ func TestV23AllPrincipalMethods(t *testing.T) {
 }
 
 func TestV23AgentProcesses(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	// Setup two principals: One for the agent that runs the pingpong
@@ -101,21 +96,21 @@ func TestV23AgentProcesses(t *testing.T) {
 	// the server.
 	var (
 		clientDir, serverDir = createClientAndServerCredentials(t, sh)
-		pingpong             = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
-		agentd               = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+		pingpong             = sh.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
+		agentd               = sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
 	)
 
 	server := sh.Cmd(agentd, pingpong)
 	server.Vars[ref.EnvCredentials] = serverDir
-	session := start(t, server)
-	serverName := session.ExpectVar("NAME")
+	start(server)
+	serverName := server.S.ExpectVar("NAME")
 
 	// Run the client via an agent once.
 	client := sh.Cmd(agentd, pingpong, serverName)
 	client.Vars[ref.EnvCredentials] = clientDir
-	session = start(t, client)
-	session.Expect("Pinging...")
-	session.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
+	start(client)
+	client.S.Expect("Pinging...")
+	client.S.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
 	client.Wait()
 
 	// Run it through a shell to test that the agent can pass credentials
@@ -138,24 +133,25 @@ echo "Running client again"
 	}
 	client = sh.Cmd(agentd, "bash", script)
 	client.Vars[ref.EnvCredentials] = clientDir
-	session = start(t, client)
-	session.Expect("Running client")
-	session.Expect("Pinging...")
-	session.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
-	session.Expect("Running client again")
-	session.Expect("Pinging...")
-	session.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
+	start(client)
+	client.S.Expect("Running client")
+	client.S.Expect("Pinging...")
+	client.S.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
+	client.S.Expect("Running client again")
+	client.S.Expect("Pinging...")
+	client.S.Expect("pong (client:[pingpongd:client] server:[pingpongd])")
 	client.Wait()
 }
 
 func TestV23AgentRestartExitCode(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		clientDir, serverDir = createClientAndServerCredentials(t, sh)
-		pingpong             = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
-		agentd               = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+		pingpong             = sh.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
+		agentd               = sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
 
 		scriptDir = sh.MakeTempDir()
 		counter   = filepath.Join(scriptDir, "counter")
@@ -164,8 +160,8 @@ func TestV23AgentRestartExitCode(t *testing.T) {
 
 	server := sh.Cmd(agentd, pingpong)
 	server.Vars[ref.EnvCredentials] = serverDir
-	session := start(t, server)
-	serverName := session.ExpectVar("NAME")
+	start(server)
+	serverName := server.S.ExpectVar("NAME")
 
 	if err := writeScript(
 		script,
@@ -240,7 +236,8 @@ echo -n $COUNT >{{.Counter}}
 }
 
 func TestV23KeyManager(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	// Start up an agent that serves additional principals.
@@ -249,20 +246,19 @@ func TestV23KeyManager(t *testing.T) {
 	var (
 		agentDir, otherDir = sh.MakeTempDir(), sh.MakeTempDir()
 		agentSock          = filepath.Join(agentDir, "agent.sock") // "agent.sock" comes from agentd/main.go
-		agentd             = sh.JiriBuildGoPkg("v.io/x/ref/services/agent/agentd")
+		agentd             = sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
 		clientSock         = filepath.Join(sh.MakeTempDir(), "client.sock")
 		script             = filepath.Join(sh.MakeTempDir(), "test.sh")
 
 		startAgent = func() (*v23test.Cmd, io.WriteCloser) {
 			agent := sh.Cmd(agentd, "--additional-principals="+otherDir, "--no-passphrase", script)
 			agent.Vars[ref.EnvCredentials] = agentDir
-			pr, pw := io.Pipe()
-			agent.Stdin = pr
-			session := start(t, agent)
+			wc := agent.StdinPipe()
+			start(agent)
 			for lineno := 0; lineno < 10; lineno++ {
-				line := session.ReadLine()
+				line := agent.S.ReadLine()
 				if line == "STARTED" {
-					return agent, pw
+					return agent, wc
 				}
 				t.Logf("Ignoring line from agent process: %q", line)
 			}

@@ -5,7 +5,6 @@
 package main_test
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"v.io/x/ref"
 	"v.io/x/ref/lib/v23test"
@@ -28,7 +26,7 @@ func withCreds(dir string, cmd *v23test.Cmd) *v23test.Cmd {
 // redirect redirects the stdout of the given command to the file at the given
 // path.
 func redirect(t *testing.T, cmd *v23test.Cmd, path string) {
-	if err := ioutil.WriteFile(path, []byte(cmd.CombinedOutput()), 0600); err != nil {
+	if err := ioutil.WriteFile(path, []byte(cmd.Stdout()), 0600); err != nil {
 		t.Fatalf("WriteFile(%q) failed: %v\n", path, err)
 	}
 }
@@ -48,7 +46,8 @@ func removeCaveats(input string) string {
 }
 
 func TestV23BlessSelf(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
@@ -57,11 +56,11 @@ func TestV23BlessSelf(t *testing.T) {
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
 
-	bin := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+	bin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
 
 	redirect(t, withCreds(aliceDir, sh.Cmd(bin, "blessself", "alicereborn")), aliceBlessingFile)
-	got := removePublicKeys(withCreds(aliceDir, sh.Cmd(bin, "dumpblessings", aliceBlessingFile)).CombinedOutput())
+	got := removePublicKeys(withCreds(aliceDir, sh.Cmd(bin, "dumpblessings", aliceBlessingFile)).Stdout())
 	want := `Blessings          : alicereborn
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
@@ -74,12 +73,13 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 }
 
 func TestV23Store(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		outputDir   = sh.MakeTempDir()
-		bin         = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin         = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir    = filepath.Join(outputDir, "alice")
 		aliceFriend = filepath.Join(outputDir, "alice.bless")
 		bobDir      = filepath.Join(outputDir, "bob")
@@ -97,7 +97,7 @@ func TestV23Store(t *testing.T) {
 	sh.Cmd(bin, "--v23.credentials="+bobDir, "set", "forpeer", aliceFriend, "alice").Run()
 	redirect(t, withCreds(aliceDir, sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "forpeer", "alice:server")), bobForPeer)
 
-	got := removeCaveats(removePublicKeys(sh.Cmd(bin, "dumpblessings", bobForPeer).CombinedOutput()))
+	got := removeCaveats(removePublicKeys(sh.Cmd(bin, "dumpblessings", bobForPeer).Stdout()))
 	want := `Blessings          : bob,alice:friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 2
@@ -113,7 +113,7 @@ Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 	}
 
 	// Test the names flag.
-	got = withCreds(aliceDir, sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "forpeer", "--names", "alice:server")).CombinedOutput()
+	got = withCreds(aliceDir, sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "forpeer", "--names", "alice:server")).Stdout()
 	want = `bob
 alice:friend
 `
@@ -122,14 +122,14 @@ alice:friend
 	}
 
 	// Test the rootkey flag. In particular alice:friend's rootkey should be equal to alice's publickey.
-	got = withCreds(aliceDir, sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "forpeer", "--rootkey", "alice:friend", "alice:server")).CombinedOutput()
-	want = withCreds(aliceDir, sh.Cmd(bin, "get", "publickey", "--pretty")).CombinedOutput()
+	got = withCreds(aliceDir, sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "forpeer", "--rootkey", "alice:friend", "alice:server")).Stdout()
+	want = withCreds(aliceDir, sh.Cmd(bin, "get", "publickey", "--pretty")).Stdout()
 	if got != want {
 		t.Errorf("unexpected output, got %s, want %s", got, want)
 	}
 
 	// Test the caveats flag.
-	got = withCreds(aliceDir, sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "forpeer", "--caveats", "alice:friend", "alice:server")).CombinedOutput()
+	got = withCreds(aliceDir, sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "forpeer", "--caveats", "alice:friend", "alice:server")).Stdout()
 	want = "Expires at"
 	if !strings.HasPrefix(got, want) {
 		t.Errorf("unexpected output, got %s, want %s", got, want)
@@ -137,19 +137,20 @@ alice:friend
 }
 
 func TestV23Dump(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		outputDir       = sh.MakeTempDir()
-		bin             = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin             = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir        = filepath.Join(outputDir, "alice")
 		aliceExpiredDir = filepath.Join(outputDir, "alice-expired")
 	)
 
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
 
-	got := removePublicKeys(withCreds(aliceDir, sh.Cmd(bin, "dump")).CombinedOutput())
+	got := removePublicKeys(withCreds(aliceDir, sh.Cmd(bin, "dump")).Stdout())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Default Blessings : alice
 ---------------- BlessingStore ----------------
@@ -164,14 +165,14 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 	}
 
-	got = withCreds(aliceDir, sh.Cmd(bin, "dump", "-s")).CombinedOutput()
+	got = withCreds(aliceDir, sh.Cmd(bin, "dump", "-s")).Stdout()
 	want = "alice\n"
 	if want != got {
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 	}
 
 	sh.Cmd(bin, "--v23.credentials="+aliceDir, "fork", "--for", "-1h", aliceExpiredDir, "expired").Run()
-	got = removePublicKeys(withCreds(aliceExpiredDir, sh.Cmd(bin, "dump")).CombinedOutput())
+	got = removePublicKeys(withCreds(aliceExpiredDir, sh.Cmd(bin, "dump")).Stdout())
 	want = `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Default Blessings : alice:expired [EXPIRED]
 ---------------- BlessingStore ----------------
@@ -186,7 +187,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 	}
 
-	got = withCreds(aliceExpiredDir, sh.Cmd(bin, "dump", "-s")).CombinedOutput()
+	got = withCreds(aliceExpiredDir, sh.Cmd(bin, "dump", "-s")).Stdout()
 	want = "alice:expired [EXPIRED]\n"
 	if want != got {
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
@@ -194,18 +195,19 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 }
 
 func TestV23GetRecognizedRoots(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		outputDir = sh.MakeTempDir()
-		bin       = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
 
-	got := removePublicKeys(withCreds(aliceDir, sh.Cmd(bin, "get", "recognizedroots")).CombinedOutput())
+	got := removePublicKeys(withCreds(aliceDir, sh.Cmd(bin, "get", "recognizedroots")).Stdout())
 	want := `Public key                                        Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 `
@@ -215,18 +217,19 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 }
 
 func TestV23GetPeermap(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		outputDir = sh.MakeTempDir()
-		bin       = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
 
-	got := withCreds(aliceDir, sh.Cmd(bin, "get", "peermap")).CombinedOutput()
+	got := withCreds(aliceDir, sh.Cmd(bin, "get", "peermap")).Stdout()
 	want := `Default Blessings                alice
 Peer pattern                     Blessings
 ...                              alice
@@ -254,12 +257,13 @@ func blessArgsFromRecvBlessings(s *expect.Session) []string {
 }
 
 func TestV23RecvBlessings(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		outputDir    = sh.MakeTempDir()
-		bin          = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin          = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir     = filepath.Join(outputDir, "alice")
 		bobDir       = filepath.Join(outputDir, "bob")
 		carolDir     = filepath.Join(outputDir, "carol")
@@ -276,9 +280,8 @@ func TestV23RecvBlessings(t *testing.T) {
 	var args []string
 	{
 		cmd := sh.Cmd(bin, "--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings")
-		session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 		cmd.Start()
-		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(session)...)
+		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
 		// Use the "friend:carol" extension
 		args = append(args, "friend:carol")
 	}
@@ -288,10 +291,9 @@ func TestV23RecvBlessings(t *testing.T) {
 	// (blessings received must be set as shareable with peers matching 'alice:...'.)
 	{
 		cmd := sh.Cmd(bin, "--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice", "--set-default=false")
-		session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 		cmd.Start()
 		// recvblessings suggests a random extension, find the extension and replace it with friend:carol:foralice.
-		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(session)...)
+		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
 		args = append(args, "friend:carol:foralice")
 	}
 	withCreds(aliceDir, sh.Cmd(bin, args...)).Run()
@@ -299,18 +301,16 @@ func TestV23RecvBlessings(t *testing.T) {
 	// Run recvblessings on carol with the --remote-arg-file flag, and have bob send blessings over with the --remote-arg-file flag.
 	{
 		cmd := sh.Cmd(bin, "--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=bob", "--set-default=false", "--remote-arg-file="+bobBlessFile)
-		session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 		cmd.Start()
 		// recvblessings suggests a random extension, use friend:carol:forbob instead.
-		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(session)...)
+		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
 		args = append(args, "friend:carol:forbob")
 	}
 	withCreds(bobDir, sh.Cmd(bin, args...)).Run()
 
 	cmd := sh.Cmd(bin, "--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice:...", "--set-default=false", "--vmodule=*=2", "--logtostderr")
-	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(session)...)
+	args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
 	args = append(args, "willfail")
 
 	{
@@ -318,7 +318,7 @@ func TestV23RecvBlessings(t *testing.T) {
 		cpy := strings.Split(regexp.MustCompile("remote-key=").ReplaceAllString(strings.Join(args, " "), "remote-key=BAD"), " ")
 		cmd := withCreds(aliceDir, sh.Cmd(bin, cpy...))
 		cmd.ExitErrorIsOk = true
-		_, stderr := cmd.Output()
+		_, stderr := cmd.StdoutStderr()
 		if cmd.Err == nil {
 			t.Fatalf("%v should have failed, but did not", cpy)
 		}
@@ -333,7 +333,7 @@ func TestV23RecvBlessings(t *testing.T) {
 		cpy := strings.Split(regexp.MustCompile("remote-token=").ReplaceAllString(strings.Join(args, " "), "remote-token=BAD"), " ")
 		cmd := withCreds(aliceDir, sh.Cmd(bin, cpy...))
 		cmd.ExitErrorIsOk = true
-		_, stderr := cmd.Output()
+		_, stderr := cmd.StdoutStderr()
 		if cmd.Err == nil {
 			t.Fatalf("%v should have failed, but did not", cpy)
 		}
@@ -345,7 +345,7 @@ func TestV23RecvBlessings(t *testing.T) {
 
 	// Dump carol out, the only blessing that survives should be from the
 	// first "bless" command. (alice:friend:carol).
-	got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+carolDir, "dump").CombinedOutput())
+	got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+carolDir, "dump").Stdout())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Default Blessings : alice:friend:carol
 ---------------- BlessingStore ----------------
@@ -366,12 +366,13 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [carol]
 }
 
 func TestV23RecvBlessingsInteractive(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		outputDir = sh.MakeTempDir()
-		bin       = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 		bobDir    = filepath.Join(outputDir, "bob")
 	)
@@ -382,18 +383,16 @@ func TestV23RecvBlessingsInteractive(t *testing.T) {
 
 	// Run recvblessings on bob
 	cmd := sh.Cmd(bin, "--v23.credentials="+bobDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings")
-	session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
 	cmd.Start()
-	args := blessArgsFromRecvBlessings(session)
+	args := blessArgsFromRecvBlessings(cmd.S)
 
 	// When running the exact command, must be prompted about caveats.
 	{
 		cmd := withCreds(aliceDir, sh.Cmd(bin, append([]string{"bless"}, args...)...))
-		session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
-		cmd.Stdin = bytes.NewBufferString("yeah\n")
+		cmd.Stdin = "yeah\n"
 		cmd.ExitErrorIsOk = true
 		cmd.Start()
-		session.Expect("WARNING: No caveats provided")
+		cmd.S.Expect("WARNING: No caveats provided")
 		// Saying something other than "yes" or "YES"
 		// should fail.
 		if cmd.Wait(); cmd.Err == nil {
@@ -403,11 +402,10 @@ func TestV23RecvBlessingsInteractive(t *testing.T) {
 	// When agreeing to have no caveats, must specify an extension
 	{
 		cmd := withCreds(aliceDir, sh.Cmd(bin, append([]string{"bless"}, args...)...))
-		session := expect.NewSession(t, cmd.StdoutPipe(), time.Minute)
-		cmd.Stdin = bytes.NewBufferString("yes\n")
+		cmd.Stdin = "yes\n"
 		cmd.ExitErrorIsOk = true
 		cmd.Start()
-		session.Expect("WARNING: No caveats provided")
+		cmd.S.Expect("WARNING: No caveats provided")
 		if cmd.Wait(); cmd.Err == nil {
 			t.Fatalf("Expected principal bless to fail because the wrong input was provided")
 		}
@@ -415,10 +413,10 @@ func TestV23RecvBlessingsInteractive(t *testing.T) {
 	// When providing both, the bless command should succeed.
 	{
 		cmd := withCreds(aliceDir, sh.Cmd(bin, append([]string{"bless"}, args...)...))
-		cmd.Stdin = bytes.NewBufferString("YES\nfriend:bobby\n")
+		cmd.Stdin = "YES\nfriend:bobby\n"
 		cmd.Run()
 	}
-	got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+bobDir, "dump").CombinedOutput())
+	got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+bobDir, "dump").Stdout())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Default Blessings : alice:friend:bobby
 ---------------- BlessingStore ----------------
@@ -436,12 +434,13 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [bob]
 }
 
 func TestV23Fork(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		outputDir             = sh.MakeTempDir()
-		bin                   = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin                   = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir              = filepath.Join(outputDir, "alice")
 		alicePhoneDir         = filepath.Join(outputDir, "alice-phone")
 		alicePhoneCalendarDir = filepath.Join(outputDir, "alice-phone-calendar")
@@ -457,7 +456,7 @@ func TestV23Fork(t *testing.T) {
 
 	// Dump alice-phone out, the only blessings it has must be from alice (alice:phone).
 	{
-		got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+alicePhoneDir, "dump").CombinedOutput())
+		got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+alicePhoneDir, "dump").Stdout())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Default Blessings : alice:phone
 ---------------- BlessingStore ----------------
@@ -475,7 +474,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 	// And it should have an expiry caveat
 	{
 		redirect(t, sh.Cmd(bin, "--v23.credentials", alicePhoneDir, "get", "default"), tmpfile)
-		got := removeCaveats(removePublicKeys(sh.Cmd(bin, "dumpblessings", tmpfile).CombinedOutput()))
+		got := removeCaveats(removePublicKeys(sh.Cmd(bin, "dumpblessings", tmpfile).Stdout()))
 		want := `Blessings          : alice:phone
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
@@ -493,7 +492,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 	// blessed by alice:phone under the extension "calendar".
 	sh.Cmd(bin, "--v23.credentials="+alicePhoneDir, "fork", "--for", "1h", alicePhoneCalendarDir, "calendar").Run()
 	{
-		got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+alicePhoneCalendarDir, "dump").CombinedOutput())
+		got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+alicePhoneCalendarDir, "dump").Stdout())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Default Blessings : alice:phone:calendar
 ---------------- BlessingStore ----------------
@@ -510,7 +509,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 	}
 	{
 		redirect(t, sh.Cmd(bin, "--v23.credentials", alicePhoneCalendarDir, "get", "default"), tmpfile)
-		got := removeCaveats(removePublicKeys(sh.Cmd(bin, "dumpblessings", tmpfile).CombinedOutput()))
+		got := removeCaveats(removePublicKeys(sh.Cmd(bin, "dumpblessings", tmpfile).Stdout()))
 		want := `Blessings          : alice:phone:calendar
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
@@ -528,12 +527,13 @@ Chain #0 (3 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 }
 
 func TestV23Create(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		outputDir = sh.MakeTempDir()
-		bin       = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
@@ -552,7 +552,8 @@ func TestV23Create(t *testing.T) {
 }
 
 func TestV23Caveats(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
@@ -561,7 +562,7 @@ func TestV23Caveats(t *testing.T) {
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
 
-	bin := sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+	bin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
 
 	args := []string{
@@ -571,7 +572,7 @@ func TestV23Caveats(t *testing.T) {
 		"alicereborn",
 	}
 	redirect(t, withCreds(aliceDir, sh.Cmd(bin, args...)), aliceBlessingFile)
-	got := removeCaveats(removePublicKeys(withCreds(aliceDir, sh.Cmd(bin, "dumpblessings", aliceBlessingFile)).CombinedOutput()))
+	got := removeCaveats(removePublicKeys(withCreds(aliceDir, sh.Cmd(bin, "dumpblessings", aliceBlessingFile)).Stdout()))
 	want := `Blessings          : alicereborn
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
@@ -586,7 +587,8 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 }
 
 func TestV23ForkWithoutVDLPATH(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	delete(sh.Vars, "JIRI_ROOT")
@@ -594,7 +596,7 @@ func TestV23ForkWithoutVDLPATH(t *testing.T) {
 
 	var (
 		parent = sh.MakeTempDir()
-		bin    = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin    = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 	)
 
 	sh.Cmd(bin, "create", parent, "parent").Run()
@@ -602,20 +604,21 @@ func TestV23ForkWithoutVDLPATH(t *testing.T) {
 }
 
 func TestV23ForkWithoutCaveats(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
 		parent = sh.MakeTempDir()
 		child  = sh.MakeTempDir()
-		bin    = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin    = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 	)
 
 	sh.Cmd(bin, "create", parent, "parent").Run()
 
 	cmd := sh.Cmd(bin, "--v23.credentials", parent, "fork", child, "child")
 	cmd.ExitErrorIsOk = true
-	if _, stderr := cmd.Output(); cmd.Err == nil {
+	if _, stderr := cmd.StdoutStderr(); cmd.Err == nil {
 		t.Errorf("fork should have failed without any caveats, but did not")
 	} else if got, want := stderr, "ERROR: no caveats provided"; !strings.Contains(got, want) {
 		t.Errorf("fork returned error: %q, expected error to contain %q", got, want)
@@ -623,7 +626,7 @@ func TestV23ForkWithoutCaveats(t *testing.T) {
 
 	cmd = sh.Cmd(bin, "--v23.credentials", parent, "fork", "--for=0", child, "child")
 	cmd.ExitErrorIsOk = true
-	if _, stderr := cmd.Output(); cmd.Err == nil {
+	if _, stderr := cmd.StdoutStderr(); cmd.Err == nil {
 		t.Errorf("fork should have failed without any caveats, but did not")
 	} else if got, want := stderr, "ERROR: no caveats provided"; !strings.Contains(got, want) {
 		t.Errorf("fork returned error: %q, expected error to contain %q", got, want)
@@ -633,11 +636,12 @@ func TestV23ForkWithoutCaveats(t *testing.T) {
 }
 
 func TestV23Bless(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
-		bin      = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin      = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		dir      = sh.MakeTempDir()
 		aliceDir = filepath.Join(dir, "alice")
 		bobDir   = filepath.Join(dir, "bob")
@@ -656,7 +660,7 @@ func TestV23Bless(t *testing.T) {
 		// "alice" should fail to bless "bob" without any caveats
 		cmd := aliceCmd(bin, "bless", bobDir, "friend")
 		cmd.ExitErrorIsOk = true
-		if _, stderr := cmd.Output(); cmd.Err == nil {
+		if _, stderr := cmd.StdoutStderr(); cmd.Err == nil {
 			t.Errorf("bless should have failed when no caveats are specified")
 		} else if got, want := stderr, "ERROR: no caveats provided"; !strings.Contains(got, want) {
 			t.Errorf("got error %q, expected to match %q", got, want)
@@ -665,7 +669,7 @@ func TestV23Bless(t *testing.T) {
 	{
 		// But succeed if --require-caveats=false is specified
 		redirect(t, aliceCmd(bin, "bless", "--require-caveats=false", bobDir, "friend"), tmpfile)
-		got := removeCaveats(removePublicKeys(aliceCmd(bin, "dumpblessings", tmpfile).CombinedOutput()))
+		got := removeCaveats(removePublicKeys(aliceCmd(bin, "dumpblessings", tmpfile).Stdout()))
 		want := `Blessings          : alice:friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
@@ -681,7 +685,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 	{
 		// And succeed if --for is specified
 		redirect(t, aliceCmd(bin, "bless", "--for=1m", bobDir, "friend"), tmpfile)
-		got := removeCaveats(removePublicKeys(aliceCmd(bin, "dumpblessings", tmpfile).CombinedOutput()))
+		got := removeCaveats(removePublicKeys(aliceCmd(bin, "dumpblessings", tmpfile).Stdout()))
 		want := `Blessings          : alice:friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
@@ -697,7 +701,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 	{
 		// If the Blessings are expired, dumpBlessings should print so.
 		redirect(t, aliceCmd(bin, "bless", "--for=-1s", bobDir, "friend"), tmpfile)
-		got := removeCaveats(removePublicKeys(aliceCmd(bin, "dumpblessings", tmpfile).CombinedOutput()))
+		got := removeCaveats(removePublicKeys(aliceCmd(bin, "dumpblessings", tmpfile).Stdout()))
 		want := `Blessings          : alice:friend [EXPIRED]
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
@@ -714,7 +718,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 		// But not if --for=0
 		cmd := aliceCmd(bin, "bless", "--for=0", bobDir, "friend")
 		cmd.ExitErrorIsOk = true
-		if _, stderr := cmd.Output(); cmd.Err == nil {
+		if _, stderr := cmd.StdoutStderr(); cmd.Err == nil {
 			t.Errorf("bless should have failed when no caveats are specified")
 		} else if got, want := stderr, "ERROR: no caveats provided"; !strings.Contains(got, want) {
 			t.Errorf("got error %q, expected to match %q", got, want)
@@ -723,11 +727,12 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 }
 
 func TestV23AddBlessingsToRoots(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
-		bin          = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin          = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		aliceDir     = sh.MakeTempDir()
 		bobDir       = sh.MakeTempDir()
 		blessingFile = filepath.Join(sh.MakeTempDir(), "bobfile")
@@ -736,7 +741,7 @@ func TestV23AddBlessingsToRoots(t *testing.T) {
 		// "principal dump", which is formatted as:
 		// Public key : <the public key>
 		publicKey = func(dir string) string {
-			output := sh.Cmd(bin, "--v23.credentials="+dir, "dump").CombinedOutput()
+			output := sh.Cmd(bin, "--v23.credentials="+dir, "dump").Stdout()
 			line := strings.SplitN(output, "\n", 2)[0]
 			fields := strings.Split(line, " ")
 			return fields[len(fields)-1]
@@ -755,18 +760,19 @@ func TestV23AddBlessingsToRoots(t *testing.T) {
 `, publicKey(aliceDir), publicKey(bobDir))
 
 	// Finally view alice's recognized roots, it should have lines corresponding to aliceLine and bobLine.
-	got := sh.Cmd(bin, "--v23.credentials="+aliceDir, "get", "recognizedroots").CombinedOutput()
+	got := sh.Cmd(bin, "--v23.credentials="+aliceDir, "get", "recognizedroots").Stdout()
 	if got != want {
 		t.Fatalf("Got:\n%v\n\nWant:\n%v", got, want)
 	}
 }
 
 func TestV23AddKeyToRoots(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
-		bin       = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		outputDir = sh.MakeTempDir()
 		aliceDir  = filepath.Join(outputDir, "alice")
 		bobDir    = filepath.Join(outputDir, "bob")
@@ -774,12 +780,12 @@ func TestV23AddKeyToRoots(t *testing.T) {
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
 	sh.Cmd(bin, "create", bobDir, "bob").Run()
 	// Get bob's public key and add it to roots for alice
-	bobKey := strings.TrimSpace(sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "publickey").CombinedOutput())
-	bobPrettyKey := strings.TrimSpace(sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "publickey", "--pretty").CombinedOutput())
+	bobKey := strings.TrimSpace(sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "publickey").Stdout())
+	bobPrettyKey := strings.TrimSpace(sh.Cmd(bin, "--v23.credentials="+bobDir, "get", "publickey", "--pretty").Stdout())
 	sh.Cmd(bin, "--v23.credentials="+aliceDir, "recognize", "bob", bobKey).Run()
 
 	// Verify that it has been added
-	output := sh.Cmd(bin, "--v23.credentials="+aliceDir, "dump").CombinedOutput()
+	output := sh.Cmd(bin, "--v23.credentials="+aliceDir, "dump").Stdout()
 	want := fmt.Sprintf("%v   [bob]", bobPrettyKey)
 	for _, line := range strings.Split(output, "\n") {
 		if line == want {
@@ -790,11 +796,12 @@ func TestV23AddKeyToRoots(t *testing.T) {
 }
 
 func TestV23DumpRoots(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	var (
-		bin             = sh.JiriBuildGoPkg("v.io/x/ref/cmd/principal")
+		bin             = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 		outputDir       = sh.MakeTempDir()
 		aliceDir        = filepath.Join(outputDir, "alice")
 		bobDir          = filepath.Join(outputDir, "bob")
@@ -808,8 +815,8 @@ func TestV23DumpRoots(t *testing.T) {
 	redirect(t, sh.Cmd(bin, "dumproots", aliceFriend), aliceFriendRoot)
 	redirect(t, sh.Cmd(bin, "--v23.credentials="+aliceDir, "get", "default"), aliceDefault)
 
-	want := sh.Cmd(bin, "dumpblessings", aliceDefault).CombinedOutput()
-	got := sh.Cmd(bin, "dumpblessings", aliceFriendRoot).CombinedOutput()
+	want := sh.Cmd(bin, "dumpblessings", aliceDefault).Stdout()
+	got := sh.Cmd(bin, "dumpblessings", aliceFriendRoot).Stdout()
 	if got != want {
 		t.Errorf("Got:\n%s\nWant:\n%s\n", got, want)
 	}

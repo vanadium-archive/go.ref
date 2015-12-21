@@ -56,7 +56,7 @@ func verifyOutput(t *testing.T, outDir string) {
 
 // Compares generated VDL files against the copy in the repo.
 func TestVDLGenerator(t *testing.T) {
-	sh := gosh.NewShell(gosh.Opts{Errorf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
 	defer sh.Cleanup()
 	vdlBin := sh.BuildGoPkg("v.io/x/ref/cmd/vdl")
 
@@ -71,7 +71,7 @@ func TestVDLGenerator(t *testing.T) {
 
 // Asserts that vdl generation works without VDLROOT or JIRI_ROOT being set.
 func TestVDLGeneratorBuiltInVDLRoot(t *testing.T) {
-	sh := gosh.NewShell(gosh.Opts{Errorf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
 	defer sh.Cleanup()
 	vdlBin := sh.BuildGoPkg("v.io/x/ref/cmd/vdl")
 
@@ -88,7 +88,7 @@ func TestVDLGeneratorBuiltInVDLRoot(t *testing.T) {
 
 // Ensures the vdlroot data built-in to the binary matches the current sources.
 func TestBuiltInVDLRootDataIsUpToDate(t *testing.T) {
-	sh := gosh.NewShell(gosh.Opts{Errorf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
 	defer sh.Cleanup()
 	dir := sh.MakeTempDir()
 

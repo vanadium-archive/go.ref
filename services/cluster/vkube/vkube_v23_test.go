@@ -5,7 +5,6 @@
 package main_test
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -15,10 +14,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"text/template"
 
+	"v.io/x/lib/textutil"
 	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test/testutil"
 )
@@ -41,7 +40,8 @@ func TestV23Vkube(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
 	workdir := sh.MakeTempDir()
@@ -55,8 +55,8 @@ func TestV23Vkube(t *testing.T) {
 
 	creds := sh.ForkCredentials("alice")
 
-	vkubeBin := sh.JiriBuildGoPkg("v.io/x/ref/services/cluster/vkube")
-	vshBin := sh.JiriBuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
+	vkubeBin := sh.BuildGoPkg("v.io/x/ref/services/cluster/vkube")
+	vshBin := sh.BuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
 
 	var (
 		cmd = func(name string, expectSuccess bool, baseArgs ...string) func(args ...string) string {
@@ -65,12 +65,10 @@ func TestV23Vkube(t *testing.T) {
 				// Note, creds do not affect non-Vanadium commands.
 				c := sh.Cmd(name, args...).WithCredentials(creds)
 				c.ExitErrorIsOk = true
-				c.SuppressOutput = true
-				// Tee the output to writer.
-				go func() {
-					io.Copy(&writer{name: filepath.Base(name)}, c.StdoutPipe())
-				}()
-				stdout, _ := c.Output()
+				// Wrap os.Stdout in a MultiWriter so that PrefixLineWriter.Close
+				// doesn't close it.
+				c.AddStdoutWriter(textutil.PrefixLineWriter(io.MultiWriter(os.Stdout), filepath.Base(name)+"> "))
+				stdout := c.Stdout()
 				if expectSuccess && c.Err != nil {
 					t.Error(testutil.FormatLogLine(2, "Unexpected failure: %s %s :%v", name, strings.Join(args, " "), c.Err))
 				} else if !expectSuccess && c.Err == nil {
@@ -159,35 +157,6 @@ func TestV23Vkube(t *testing.T) {
 	vkubeOK("stop-cluster-agent")
 	kubectlFail("get", "service", "cluster-agent")
 	kubectlFail("get", "rc", "cluster-agentd-latest")
-}
-
-// writer is an io.Writer that sends everything to stdout, each line prefixed
-// with "name> ".
-type writer struct {
-	sync.Mutex
-	name string
-	line bytes.Buffer
-}
-
-func (w *writer) Write(p []byte) (n int, err error) {
-	w.Lock()
-	defer w.Unlock()
-	n = len(p)
-	for len(p) > 0 {
-		if w.line.Len() == 0 {
-			fmt.Fprintf(&w.line, "%s> ", w.name)
-		}
-		if off := bytes.IndexByte(p, '\n'); off != -1 {
-			off += 1
-			w.line.Write(p[:off])
-			w.line.WriteTo(os.Stdout)
-			p = p[off:]
-			continue
-		}
-		w.line.Write(p)
-		break
-	}
-	return
 }
 
 func createVkubeConfig(path, id string) error {

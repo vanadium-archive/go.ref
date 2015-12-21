@@ -21,7 +21,7 @@ func profileCommandOutput(t *testing.T, sh *v23test.Shell, profileBin string, ex
 	}
 	cmd := sh.Cmd(profileBin, labelArgs...)
 	cmd.ExitErrorIsOk = true
-	out, _ := cmd.Output()
+	out := cmd.Stdout()
 	if cmd.Err != nil && !expectError {
 		t.Fatalf("%s %q failed: %v\n%v", profileBin, strings.Join(labelArgs, " "), cmd.Err, out)
 	}
@@ -46,7 +46,8 @@ func removeProfile(sh *v23test.Shell, profileBin, name, suffix string) {
 }
 
 func TestV23ProfileRepository(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -57,10 +58,10 @@ func TestV23ProfileRepository(t *testing.T) {
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-v23.tcp.address=127.0.0.1:0",
 	}
-	profiledBin := sh.JiriBuildGoPkg("v.io/x/ref/services/profile/profiled")
+	profiledBin := sh.BuildGoPkg("v.io/x/ref/services/profile/profiled")
 	sh.Cmd(profiledBin, args...).Start()
 
-	clientBin := sh.JiriBuildGoPkg("v.io/x/ref/services/profile/profile")
+	clientBin := sh.BuildGoPkg("v.io/x/ref/services/profile/profile")
 
 	// Create a profile.
 	const profile = "test-profile"

@@ -68,7 +68,8 @@ func (f *fakeService) Foo(ctx *context.T, call rpc.ServerCall) error { return ni
 
 func TestV23ResolveToEndpoint(t *testing.T) {
 	setupRuntime()
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 

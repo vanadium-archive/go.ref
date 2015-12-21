@@ -20,12 +20,13 @@ import (
 )
 
 func TestV23DebugGlob(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.JiriBuildGoPkg("v.io/x/ref/services/debug/debug")
-	stdout, _ := sh.Cmd(binary, "glob", "__debug/*").Output()
+	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	stdout := sh.Cmd(binary, "glob", "__debug/*").Stdout()
 
 	var want string
 	for _, entry := range []string{"logs", "pprof", "stats", "vtrace"} {
@@ -37,14 +38,15 @@ func TestV23DebugGlob(t *testing.T) {
 }
 
 func TestV23DebugGlobLogs(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
 	// Create a temp file before we list the logs.
 	fileName := filepath.Base(sh.MakeTempFile().Name())
-	binary := sh.JiriBuildGoPkg("v.io/x/ref/services/debug/debug")
-	stdout, _ := sh.Cmd(binary, "glob", "__debug/logs/*").Output()
+	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	stdout := sh.Cmd(binary, "glob", "__debug/logs/*").Stdout()
 
 	// The output should contain the filename.
 	want := "/logs/" + fileName
@@ -54,13 +56,14 @@ func TestV23DebugGlobLogs(t *testing.T) {
 }
 
 func TestV23ReadHostname(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
 	path := "__debug/stats/system/hostname"
-	binary := sh.JiriBuildGoPkg("v.io/x/ref/services/debug/debug")
-	stdout, _ := sh.Cmd(binary, "stats", "read", path).Output()
+	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	stdout := sh.Cmd(binary, "stats", "read", path).Stdout()
 	hostname, err := os.Hostname()
 	if err != nil {
 		t.Fatalf("Hostname() failed: %v", err)
@@ -80,17 +83,17 @@ func createTestLogFile(t *testing.T, sh *v23test.Shell, content string) *os.File
 }
 
 func TestV23LogSize(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.JiriBuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
 	testLogData := "This is a test log file"
 	file := createTestLogFile(t, sh, testLogData)
 
 	// Check to ensure the file size is accurate
-	stdout, _ := sh.Cmd(binary, "logs", "size", "__debug/logs/"+filepath.Base(file.Name())).Output()
-	str := strings.TrimSpace(stdout)
+	str := strings.TrimSpace(sh.Cmd(binary, "logs", "size", "__debug/logs/"+filepath.Base(file.Name())).Stdout())
 	got, err := strconv.Atoi(str)
 	if err != nil {
 		t.Fatalf("Atoi(\"%q\") failed", str)
@@ -102,11 +105,12 @@ func TestV23LogSize(t *testing.T) {
 }
 
 func TestV23StatsRead(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.JiriBuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(t, sh, testLogData)
 	logName := filepath.Base(file.Name())
@@ -116,7 +120,7 @@ func TestV23StatsRead(t *testing.T) {
 	}
 
 	readlogStatsEndpoint := "__debug/stats/rpc/server/routing-id/*/methods/ReadLog/latency-ms"
-	got, _ := sh.Cmd(binary, "stats", "read", readlogStatsEndpoint).Output()
+	got := sh.Cmd(binary, "stats", "read", readlogStatsEndpoint).Stdout()
 
 	want := fmt.Sprintf("Count: %d", runCount)
 	if !strings.Contains(got, want) {
@@ -124,7 +128,7 @@ func TestV23StatsRead(t *testing.T) {
 	}
 
 	// Test "-json" format.
-	jsonOutput, _ := sh.Cmd(binary, "stats", "read", "-json", readlogStatsEndpoint).Output()
+	jsonOutput := sh.Cmd(binary, "stats", "read", "-json", readlogStatsEndpoint).Stdout()
 	var stats []struct {
 		Name  string
 		Value struct {
@@ -146,11 +150,12 @@ func TestV23StatsRead(t *testing.T) {
 }
 
 func TestV23StatsWatch(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.JiriBuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(t, sh, testLogData)
 	logName := filepath.Base(file.Name())
@@ -185,16 +190,16 @@ func TestV23StatsWatch(t *testing.T) {
 }
 
 func performTracedRead(sh *v23test.Shell, debugBinary, path string) string {
-	stdout, _ := sh.Cmd(debugBinary, "--v23.vtrace.sample-rate=1", "logs", "read", path).Output()
-	return stdout
+	return sh.Cmd(debugBinary, "--v23.vtrace.sample-rate=1", "logs", "read", path).Stdout()
 }
 
 func TestV23VTrace(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.JiriBuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
 	logContent := "Hello, world!\n"
 	logPath := "__debug/logs/" + filepath.Base(createTestLogFile(t, sh, logContent).Name())
 	// Create a log file with tracing, read it and check that the resulting trace exists.
@@ -204,8 +209,7 @@ func TestV23VTrace(t *testing.T) {
 	}
 
 	// Grab the ID of the first and only trace.
-	traceContent, _ := sh.Cmd(binary, "vtrace", "__debug/vtrace").Output()
-	want := 1
+	traceContent, want := sh.Cmd(binary, "vtrace", "__debug/vtrace").Stdout(), 1
 	if count := strings.Count(traceContent, "Trace -"); count != want {
 		t.Fatalf("unexpected trace count, want %d, got %d: %s", want, count, traceContent)
 	}
@@ -224,16 +228,14 @@ func TestV23VTrace(t *testing.T) {
 	performTracedRead(sh, binary, logPath)
 
 	// Read vtrace, we should have 2 traces now.
-	output, _ := sh.Cmd(binary, "vtrace", "__debug/vtrace").Output()
-	want = 2
+	output, want := sh.Cmd(binary, "vtrace", "__debug/vtrace").Stdout(), 2
 	if count := strings.Count(output, "Trace -"); count != want {
 		t.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, output)
 	}
 
 	// Now ask for a particular trace. The output should contain exactly
 	// one trace whose ID is equal to the one we asked for.
-	got, _ = sh.Cmd(binary, "vtrace", "__debug/vtrace", traceId).Output()
-	want = 1
+	got, want = sh.Cmd(binary, "vtrace", "__debug/vtrace", traceId).Stdout(), 1
 	if count := strings.Count(got, "Trace -"); count != want {
 		t.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, got)
 	}
@@ -248,12 +250,13 @@ func TestV23VTrace(t *testing.T) {
 }
 
 func TestV23Pprof(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{Large: true})
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.JiriBuildGoPkg("v.io/x/ref/services/debug/debug")
-	stdout, _ := sh.Cmd(binary, "pprof", "run", "__debug/pprof", "heap", "--text").Output()
+	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	stdout := sh.Cmd(binary, "pprof", "run", "__debug/pprof", "heap", "--text").Stdout()
 
 	// Assert that a profile indicating the heap size was written out.
 	want, got := "(.*) of (.*) total", stdout

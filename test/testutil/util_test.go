@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -45,17 +44,16 @@ func TestPanic(t *testing.T) {
 	}
 }
 
-func start(t *testing.T, c *v23test.Cmd) *expect.Session {
-	s := expect.NewSession(t, c.StdoutPipe(), time.Minute)
+func start(c *v23test.Cmd) *expect.Session {
 	c.Start()
-	return s
+	return c.S
 }
 
 func TestRandSeed(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{SuppressChildOutput: true})
+	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	s := start(t, sh.Cmd("jiri", "go", "test", "./testdata"))
+	s := start(sh.Cmd("jiri", "go", "test", "./testdata"))
 	s.ExpectRE("FAIL: TestRandSeedInternal.*", 1)
 	parts := s.ExpectRE(`Seeded pseudo-random number generator with (\d+)`, -1)
 	if len(parts) != 1 || len(parts[0]) != 2 {
@@ -71,7 +69,7 @@ func TestRandSeed(t *testing.T) {
 	// Rerun the test, this time with the seed that we want to use.
 	cmd := sh.Cmd("jiri", "go", "test", "./testdata")
 	cmd.Vars["V23_RNG_SEED"] = seed
-	s = start(t, cmd)
+	s = start(cmd)
 	s.ExpectRE("FAIL: TestRandSeedInternal.*", 1)
 	s.ExpectRE("Seeded pseudo-random number generator with "+seed, -1)
 	s.ExpectRE("rand: "+randInt, 1)

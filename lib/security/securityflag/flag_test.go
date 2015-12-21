@@ -63,7 +63,7 @@ func writePermissionsToFile(perms access.Permissions) (string, error) {
 }
 
 func TestNewAuthorizerOrDie(t *testing.T) {
-	sh := gosh.NewShell(gosh.Opts{Errorf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
 	defer sh.Cleanup()
 
 	// Create a file.
@@ -92,7 +92,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 	}
 	for _, td := range testdata {
 		fp := append(td.flags, td.auth)
-		if stdout, _ := sh.Main(permFromFlag, fp...).Output(); stdout != "" {
+		if stdout := sh.Main(permFromFlag, fp...).Stdout(); stdout != "" {
 			t.Errorf(stdout)
 		}
 	}
