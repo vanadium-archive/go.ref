@@ -7,8 +7,6 @@
 // StartRootMountTable, and StartSyncbase.
 package v23test
 
-// TODO(sadovsky): Add DebugSystemShell command.
-
 import (
 	"errors"
 	"fmt"
@@ -18,12 +16,14 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/x/lib/envvar"
 	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	"v.io/x/ref/test"
@@ -42,7 +42,7 @@ const (
 // - Eliminate test.V23Init() and either add v23test.Init() or have v23.Init()
 //   check for an env var and perform test-specific configuration.
 // - Switch to using the testing package's -test.short flag and eliminate
-//   SkipUnlessRunningIntegrationTests, the -v23tests flag, and the "jiri test"
+//   SkipUnlessRunningIntegrationTests, the -v23.tests flag, and the "jiri test"
 //   implementation that parses test code to identify integration tests.
 
 // Cmd wraps gosh.Cmd and provides Vanadium-specific functionality.
@@ -92,12 +92,9 @@ var calledRun = false
 func NewShell(t *testing.T, opts Opts) *Shell {
 	fillDefaults(t, &opts)
 
-	if t != nil {
-		if !calledRun {
-			t.Fatal("must call v23test.Run(m.Run) from TestMain")
-			return nil
-		}
-
+	if t != nil && !calledRun {
+		t.Fatal("must call v23test.Run(m.Run) from TestMain")
+		return nil
 	}
 
 	// Note: On error, NewShell returns a *Shell with Opts.Fatalf initialized to
@@ -155,6 +152,16 @@ func (sh *Shell) ForkContext(extensions ...string) *context.T {
 	ctx, err := v23.WithPrincipal(sh.Ctx, c.Principal)
 	sh.HandleError(err)
 	return ctx
+}
+
+// Cleanup cleans up all resources associated with this Shell.
+// See gosh.Shell.Cleanup for detailed description.
+func (sh *Shell) Cleanup() {
+	// Run sh.Shell.Cleanup even if DebugSystemShell panics.
+	defer sh.Shell.Cleanup()
+	if sh.t != nil && sh.t.Failed() && test.IntegrationTestsDebugShellOnError {
+		sh.DebugSystemShell()
+	}
 }
 
 // Run does some initialization work, then returns run(). Exported so that
@@ -229,16 +236,81 @@ func (sh *Shell) Fn(fn *gosh.Fn, args ...interface{}) *Cmd {
 }
 
 // Main returns a Cmd for an invocation of the given registered main() function.
-// Intended usage: Have your program's main() call RealMain, then write a parent
-// program that uses Shell.Main to run RealMain in a child process. With this
-// approach, RealMain can be compiled into the parent program's binary. Caveat:
-// potential flag collisions.
+// See gosh.Shell.Main for detailed description.
 func (sh *Shell) Main(fn *gosh.Fn, args ...string) *Cmd {
 	c := sh.Shell.Main(fn, args...)
 	if sh.Err != nil {
 		return nil
 	}
 	return newCmd(sh, c)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DebugSystemShell
+
+// DebugSystemShell drops the user into a debug system shell (e.g. bash) that
+// includes all environment variables from sh, and sets V23_BIN_DIR to
+// sh.Opts.BinDir. If there is no controlling TTY, DebugSystemShell does
+// nothing.
+func (sh *Shell) DebugSystemShell() {
+	// Make sure we have non-nil Fatalf and Logf functions.
+	opts := Opts{Fatalf: sh.Opts.Fatalf, Logf: sh.Opts.Logf}
+	fillDefaults(sh.t, &opts)
+	fatalf, logf := opts.Fatalf, opts.Logf
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		fatalf("Getwd() failed: %v\n", err)
+		return
+	}
+
+	// Transfer stdin, stdout, and stderr to the new process, and set target
+	// directory for the system shell to start in.
+	devtty := "/dev/tty"
+	fd, err := syscall.Open(devtty, syscall.O_RDWR, 0)
+	if err != nil {
+		logf("WARNING: Open(%q) failed: %v\n", devtty, err)
+		return
+	}
+
+	file := os.NewFile(uintptr(fd), devtty)
+	attr := os.ProcAttr{
+		Files: []*os.File{file, file, file},
+		Dir:   cwd,
+	}
+	env := envvar.MergeMaps(envvar.SliceToMap(os.Environ()), sh.Vars)
+	env[ref.EnvCredentials] = sh.ForkCredentials("debug").Handle
+	env[envBinDir] = sh.Opts.BinDir
+	attr.Env = envvar.MapToSlice(env)
+
+	write := func(s string) {
+		if _, err := file.WriteString(s); err != nil {
+			fatalf("WriteString(%q) failed: %v\n", s, err)
+			return
+		}
+	}
+
+	write(">> Starting a new interactive shell\n")
+	write(">> Hit CTRL-D to resume the test\n")
+
+	shellPath := "/bin/sh"
+	if shellPathFromEnv := os.Getenv("SHELL"); shellPathFromEnv != "" {
+		shellPath = shellPathFromEnv
+	}
+	proc, err := os.StartProcess(shellPath, []string{}, &attr)
+	if err != nil {
+		fatalf("StartProcess(%q) failed: %v\n", shellPath, err)
+		return
+	}
+
+	// Wait until the user exits the shell.
+	state, err := proc.Wait()
+	if err != nil {
+		fatalf("Wait() failed: %v\n", err)
+		return
+	}
+
+	write(fmt.Sprintf(">> Exited shell: %s\n", state.String()))
 }
 
 ////////////////////////////////////////////////////////////////////////////////

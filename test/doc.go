@@ -14,31 +14,18 @@
 //    ...
 // }
 //
-// This package also defines flags for enabling and controlling
-// the v23 integration tests in package v23tests:
-// --v23.tests - run the integration tests
-// --v23.tests.shell-on-fail - drop into a debug shell if the test fails.
+// This package also defines flags for enabling and controlling the Vanadium
+// integration tests in package v.io/x/ref/lib/v23test:
+//   --v23.tests - run the integration tests
+//   --v23.tests.shell-on-fail - drop into a debug shell if the test fails
 //
 // Typical usage is:
 // $ jiri go test . --v23.tests
 //
-// Note that, like all flags not recognised by the go testing package, the
-// v23.tests flags must follow the package spec.
+// Note that, like all flags not recognized by the go testing package, the
+// --v23.tests flags must follow the package spec.
 //
-// The sub-directories of this package provide either functionality that
-// can be used within traditional go tests, or support for the v23 integration
-// test framework. The jiri command is able to generate boilerplate code
-// to support these tests. In summary, 'jiri test generate' will generate
-// go files to be checked in that include appropriate TestMain functions,
-// registration calls for modules commands and wrapper functions for v23test
-// tests. More detailed documentation is available via:
-//
-// $ jiri test generate --help
-//
-// Vanadium tests often need to run subprocesses to provide either common
-// services that they depend (e.g. a mount table) and/or services that are
-// specific to the tests. The modules and v23tests subdirectories contain
-// packages that simplify this process.
+// Subdirectories provide utilities for unit and integration tests.
 //
 // The subdirectories are:
 // benchmark  - support for writing benchmarks.
@@ -46,10 +33,9 @@
 // security   - security related utility functions used in tests.
 // timekeeper - an implementation of the timekeeper interface for use within
 //              tests.
-// modules    - support for running subprocesses using a single binary
-// v23tests   - support for integration tests, including compiling and running
-//              arbirtrary go code and pre-existing system commands.
-// expect     - support for testing the contents of input streams. The methods
-//              provided are embedded in the types used by modules and v23tests
-//              so this package is generally not used directly.
+// modules    - deprecated, use v.io/x/ref/lib/v23test or v.io/x/lib/gosh to run
+//              and manage subprocesses.
+// expect     - support for testing the contents of of an input stream (an
+//              io.Reader). v23test.Cmd contains an expect.Session, so this
+//              package is generally not used directly.
 package test

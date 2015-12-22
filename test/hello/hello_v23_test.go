@@ -5,43 +5,34 @@
 package hello_test
 
 import (
-	"fmt"
 	"os"
-	"time"
+	"testing"
 
 	"v.io/x/ref"
 	"v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
-	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
-	"v.io/x/ref/test/v23tests"
 )
-
-//go:generate jiri test generate
 
 func init() {
 	ref.EnvClearCredentials()
 }
 
-var opts = modules.StartOpts{
-	StartTimeout:    20 * time.Second,
-	ShutdownTimeout: 20 * time.Second,
-	ExpectTimeout:   20 * time.Second,
-	ExecProtocol:    false,
-	External:        true,
+func withCreds(dir string, c *v23test.Cmd) *v23test.Cmd {
+	c.Vars[ref.EnvCredentials] = dir
+	return c
 }
 
-// setupCredentials makes a bunch of credentials directories.
-// Note that I do this myself instead of allowing the test framework
-// to do it because I really want to use the agentd binary, not
-// the agent that is locally hosted inside v23Tests.T.
-// This is important for regression tests where we want to test against
-// old agent binaries.
-func setupCredentials(i *v23tests.T, names ...string) (map[string]string, error) {
+// setupCreds makes a bunch of credentials directories.
+// We do this ourselves instead of using v23test's credentials APIs because we
+// want to use the actual agentd binary, so that for regression tests we can
+// test against old agents.
+func setupCreds(sh *v23test.Shell, names ...string) (map[string]string, error) {
 	idp := testutil.NewIDProvider("root")
 	out := make(map[string]string, len(names))
 	for _, name := range names {
-		dir := i.NewTempDir("")
+		dir := sh.MakeTempDir()
 		p, err := security.CreatePersistentPrincipal(dir, nil)
 		if err != nil {
 			return nil, err
@@ -49,94 +40,107 @@ func setupCredentials(i *v23tests.T, names ...string) (map[string]string, error)
 		if err := idp.Bless(p, name); err != nil {
 			return nil, err
 		}
-		out[name] = fmt.Sprintf("%s=%s", ref.EnvCredentials, dir)
+		out[name] = dir
 	}
 	return out, nil
 }
 
-func V23TestHelloDirect(i *v23tests.T) {
-	creds, err := setupCredentials(i, "helloclient", "helloserver")
+func TestV23HelloDirect(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
+	creds, err := setupCreds(sh, "helloclient", "helloserver")
 	if err != nil {
-		i.Fatalf("Could not create credentials: %v", err)
+		t.Fatalf("Could not create credentials: %v", err)
 	}
-	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
-	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
-	server := serverbin.WithStartOpts(opts).WithEnv(creds["helloserver"]).Start()
-	name := server.ExpectVar("SERVER_NAME")
-	if server.Failed() {
-		server.Wait(os.Stdout, os.Stderr)
-		i.Fatalf("Could not get SERVER_NAME: %v", server.Error())
+	clientbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+	serverbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
+
+	server := withCreds(creds["helloserver"], sh.Cmd(serverbin))
+	server.Start()
+	name := server.S.ExpectVar("SERVER_NAME")
+	if server.S.Failed() {
+		t.Fatalf("Could not get SERVER_NAME: %v", server.S.Error())
 	}
-	clientbin.WithEnv(creds["helloclient"]).WithStartOpts(opts).Run("--name", name)
+	withCreds(creds["helloclient"], sh.Cmd(clientbin, "--name", name)).Run()
 }
 
-func V23TestHelloAgentd(i *v23tests.T) {
-	creds, err := setupCredentials(i, "helloclient", "helloserver")
+func TestV23HelloAgentd(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
+	creds, err := setupCreds(sh, "helloclient", "helloserver")
 	if err != nil {
-		i.Fatalf("Could not create credentials: %v", err)
+		t.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
-	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
-	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
-	server := agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path())
-	name := server.ExpectVar("SERVER_NAME")
-	if server.Failed() {
-		server.Wait(os.Stdout, os.Stderr)
-		i.Fatalf("Could not get SERVER_NAME: %v", server.Error())
+	agentdbin := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+	serverbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
+	clientbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+
+	server := withCreds(creds["helloserver"], sh.Cmd(serverbin))
+	server.Start()
+	name := server.S.ExpectVar("SERVER_NAME")
+	if server.S.Failed() {
+		t.Fatalf("Could not get SERVER_NAME: %v", server.S.Error())
 	}
-	agentdbin.WithEnv(creds["helloclient"]).Run(clientbin.Path(), "--name", name)
+	withCreds(creds["helloclient"], sh.Cmd(agentdbin, clientbin, "--name", name)).Run()
 }
 
-func V23TestHelloMounttabled(i *v23tests.T) {
-	creds, err := setupCredentials(i, "helloclient", "helloserver", "mounttabled")
+func TestV23HelloMounttabled(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
+	creds, err := setupCreds(sh, "helloclient", "helloserver", "mounttabled")
 	if err != nil {
-		i.Fatalf("Could not create credentials: %v", err)
+		t.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
-	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
-	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
-	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+	agentdbin := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+	mounttabledbin := sh.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
+	serverbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
+	clientbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+
 	name := "hello"
-	mounttabled := agentdbin.WithEnv(creds["mounttabled"]).Start(mounttabledbin.Path(),
-		"--v23.tcp.address", "127.0.0.1:0")
-	mtname := mounttabled.ExpectVar("NAME")
-	if mounttabled.Failed() {
-		mounttabled.Wait(os.Stdout, os.Stderr)
-		i.Fatalf("Could not get NAME: %v", mounttabled.Error())
+	mounttabled := withCreds(creds["mounttabled"], sh.Cmd(agentdbin, mounttabledbin, "--v23.tcp.address", "127.0.0.1:0"))
+	mounttabled.Start()
+	mtname := mounttabled.S.ExpectVar("NAME")
+	if mounttabled.S.Failed() {
+		t.Fatalf("Could not get NAME: %v", mounttabled.S.Error())
 	}
-	agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path(), "--name", name,
-		"--v23.namespace.root", mtname)
-	agentdbin.WithEnv(creds["helloclient"]).Run(clientbin.Path(), "--name", name,
-		"--v23.namespace.root", mtname)
+	withCreds(creds["helloserver"], sh.Cmd(agentdbin, serverbin, "--name", name, "--v23.namespace.root", mtname)).Start()
+	withCreds(creds["helloclient"], sh.Cmd(agentdbin, clientbin, "--name", name, "--v23.namespace.root", mtname)).Run()
 }
 
-func V23TestHelloProxy(i *v23tests.T) {
-	creds, err := setupCredentials(i, "helloclient", "helloserver",
-		"mounttabled", "proxyd", "xproxyd")
+func TestV23HelloProxy(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
+	creds, err := setupCreds(sh, "helloclient", "helloserver", "mounttabled", "proxyd", "xproxyd")
 	if err != nil {
-		i.Fatalf("Could not create credentials: %v", err)
+		t.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := i.BuildGoPkg("v.io/x/ref/services/agent/agentd").WithStartOpts(opts)
-	mounttabledbin := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
-	xproxydbin := i.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
-	serverbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
-	clientbin := i.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+	agentdbin := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+	mounttabledbin := sh.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
+	xproxydbin := sh.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
+	serverbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
+	clientbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+
+	name := "hello"
+	mounttabled := withCreds(creds["mounttabled"], sh.Cmd(agentdbin, mounttabledbin, "--v23.tcp.address", "127.0.0.1:0"))
+	mounttabled.Start()
+	mtname := mounttabled.S.ExpectVar("NAME")
+	if mounttabled.S.Failed() {
+		t.Fatalf("Could not get NAME: %v", mounttabled.S.Error())
+	}
 	proxyname := "proxy"
-	name := "hello"
-	mounttabled := agentdbin.WithEnv(creds["mounttabled"]).Start(mounttabledbin.Path(),
-		"--v23.tcp.address", "127.0.0.1:0")
-	mtname := mounttabled.ExpectVar("NAME")
-	if mounttabled.Failed() {
-		mounttabled.Wait(os.Stdout, os.Stderr)
-		i.Fatalf("Could not get NAME: %v", mounttabled.Error())
-	}
-	agentdbin.WithEnv(creds["xproxyd"]).Start(xproxydbin.Path(),
-		"--name", proxyname, "--v23.tcp.address", "127.0.0.1:0",
-		"--v23.namespace.root", mtname,
-		"--access-list", "{\"In\":[\"root\"]}")
-	agentdbin.WithEnv(creds["helloserver"]).Start(serverbin.Path(),
-		"--name", name, "--v23.proxy", proxyname, "--v23.tcp.address", "",
-		"--v23.namespace.root", mtname)
-	agentdbin.WithEnv(creds["helloclient"]).Run(clientbin.Path(), "--name", name,
-		"--v23.namespace.root", mtname)
+	withCreds(creds["xproxyd"], sh.Cmd(agentdbin, xproxydbin, "--name", proxyname, "--v23.tcp.address", "127.0.0.1:0", "--v23.namespace.root", mtname, "--access-list", "{\"In\":[\"root\"]}")).Start()
+	withCreds(creds["helloserver"], sh.Cmd(agentdbin, serverbin, "--name", name, "--v23.proxy", proxyname, "--v23.tcp.address", "", "--v23.namespace.root", mtname)).Start()
+	withCreds(creds["helloclient"], sh.Cmd(agentdbin, clientbin, "--name", name, "--v23.proxy", proxyname, "--v23.tcp.address", "", "--v23.namespace.root", mtname)).Run()
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(v23test.Run(m.Run))
 }

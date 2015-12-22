@@ -13,7 +13,6 @@ import (
 	"io"
 	"io/ioutil"
 	mrand "math/rand"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -22,12 +21,6 @@ import (
 	"v.io/x/ref/lib/security/serialization"
 	"v.io/x/ref/test/testutil"
 )
-
-// We call our own TestMain here because jiri test generate causes an import cycle
-// in this package.
-func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-}
 
 type bufferCloser struct {
 	bytes.Buffer

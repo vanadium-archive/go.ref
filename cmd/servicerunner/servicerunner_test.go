@@ -23,12 +23,6 @@ import (
 	"v.io/x/ref"
 )
 
-// We provide our own TestMain, rather than allowing jiri test generate to
-// create one for us, to ensure all files require the "wspr" build tag.
-func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-}
-
 func TestServiceRunner(t *testing.T) {
 	ref.EnvClearCredentials()
 	tmpdir, err := ioutil.TempDir("", "servicerunner_test")

@@ -67,8 +67,8 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 		vlog.Info("Mounted at: ", *name)
 	}
 	if eps := s.Status().Endpoints; len(eps) > 0 {
-		// Our v23tests will wait for this to be printed before trying to access
-		// the service.
+		// Integration tests wait for this to be printed before trying to access the
+		// service.
 		fmt.Printf("ENDPOINT=%s\n", eps[0].Name())
 	}
 

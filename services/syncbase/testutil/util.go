@@ -70,6 +70,7 @@ func SetupOrDie(perms access.Permissions) (clientCtx *context.T, serverName stri
 	return
 }
 
+// TODO(sadovsky): Switch unit tests to v23test.Shell, then delete this.
 func SetupOrDieCustom(clientSuffix, serverSuffix string, perms access.Permissions) (ctx, clientCtx *context.T, serverName string, rootp security.Principal, cleanup func()) {
 	ctx, shutdown := test.V23Init()
 	rootp = tsecurity.NewPrincipal("root")
@@ -252,6 +253,7 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 // Creates a new context object with blessing "root:<suffix>", configured to
 // present this blessing when acting as a server as well as when acting as a
 // client and talking to a server that presents a blessing rooted at "root".
+// TODO(sadovsky): Switch unit tests to v23test.Shell, then delete this.
 func NewCtx(ctx *context.T, rootp security.Principal, suffix string) *context.T {
 	// Principal for the new context.
 	p := tsecurity.NewPrincipal(suffix)

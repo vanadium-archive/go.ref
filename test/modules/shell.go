@@ -41,13 +41,6 @@
 //   Dispatch: must be called in the child process to lookup and invoke the
 //     requested function.  Typically called from TestMain.
 //
-// The jiri tool can automate generation of TestMain.  Adding the comment below
-// to a test file will generate the appropriate code.
-//
-//   //go:generate jiri test generate .
-//
-// Use 'jiri test generate --help' to get a complete explanation.
-//
 // In all cases programs are started by invoking the StartWithOpts method on the
 // Shell with the name of the program to run. An instance of the Handle
 // interface is returned which can be used to interact with the function or

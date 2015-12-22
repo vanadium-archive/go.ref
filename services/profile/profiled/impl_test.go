@@ -30,8 +30,6 @@ var (
 	}
 )
 
-//go:generate jiri test generate
-
 // TestInterface tests that the implementation correctly implements
 // the Profile interface.
 func TestInterface(t *testing.T) {
