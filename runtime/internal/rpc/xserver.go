@@ -78,6 +78,7 @@ type xserver struct {
 	preferredProtocols []string       // protocols to use when resolving proxy name to endpoint.
 	servesMountTable   bool
 	isLeaf             bool
+	lameDuckTimeout    time.Duration // the time to wait for inflight operations to finish on shutdown
 
 	stats *rpcStats // stats for this server.
 }
@@ -126,6 +127,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		state:             rpc.ServerActive,
 		endpoints:         make(map[string]*inaming.Endpoint),
 		lnErrors:          make(map[struct{ Protocol, Address string }]error),
+		lameDuckTimeout:   5 * time.Second,
 	}
 	channelTimeout := time.Duration(0)
 	var authorizedPeers []security.BlessingPattern
@@ -141,6 +143,8 @@ func WithNewDispatchingServer(ctx *context.T,
 			s.preferredProtocols = []string(opt)
 		case options.ChannelTimeout:
 			channelTimeout = time.Duration(opt)
+		case options.LameDuckTimeout:
+			s.lameDuckTimeout = time.Duration(opt)
 		case options.ServerPeers:
 			authorizedPeers = []security.BlessingPattern(opt)
 			if len(authorizedPeers) == 0 {
@@ -205,7 +209,7 @@ func WithNewDispatchingServer(ctx *context.T,
 
 		select {
 		case <-done:
-		case <-time.After(5 * time.Second): // TODO(mattr): This should be configurable.
+		case <-time.After(s.lameDuckTimeout):
 			s.ctx.Errorf("%s: Timed out waiting for active requests to complete", serverDebug)
 		}
 		// Now we cancel the root context which closes all the connections
