@@ -23,6 +23,8 @@ func TestRestartPolicy(t *testing.T) {
 		decision bool
 	}
 
+	testNow := time.Now()
+
 	testVectors := []tV{
 		// -1 means always restart.
 		{
@@ -73,11 +75,11 @@ func TestRestartPolicy(t *testing.T) {
 			},
 			&instanceInfo{
 				Restarts:           1,
-				RestartWindowBegan: time.Date(2015, time.December, 25, 12, 0, 0, 0, time.UTC),
+				RestartWindowBegan: testNow,
 			},
 			&instanceInfo{
 				Restarts:           1,
-				RestartWindowBegan: time.Date(2015, time.December, 25, 12, 0, 0, 0, time.UTC),
+				RestartWindowBegan: testNow,
 			},
 			false,
 		},
