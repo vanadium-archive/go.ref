@@ -121,7 +121,12 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 	// Get a batch of watch log entries, if any, after this resume marker.
 	logs, nextResmark, err := watchable.ReadBatchFromLog(st, resMark)
 	if err != nil {
-		vlog.Fatalf("sync: processDatabase: %s, %s: cannot get watch log batch: %v", appName, dbName, verror.DebugString(err))
+		// An error here (scan stream cancelled) is possible when the
+		// watcher is in the middle of processing a database and the
+		// app/db is detroyed. Hence, we just ignore this database and
+		// proceed.
+		vlog.Errorf("sync: processDatabase: %s, %s: cannot get watch log batch: %v", appName, dbName, verror.DebugString(err))
+		return false
 	}
 	if logs != nil {
 		s.processWatchLogBatch(ctx, appName, dbName, st, logs, nextResmark)
