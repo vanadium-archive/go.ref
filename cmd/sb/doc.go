@@ -10,8 +10,9 @@
 // The user can then enter the following at the command line:
 //     1. dump - to get a dump of the database
 //     2. a syncbase select statement - which is executed and results printed to stdout
-//     3. make-demo - to create demo tables in the database to experiment with, equivalent to -make-demo flag
-//     4. exit (or quit) - to exit the program
+//     3. a syncbase delete statement - which is executed to delete k/v pairs from a table
+//     4. make-demo - to create demo tables in the database to experiment with, equivalent to -make-demo flag
+//     5. exit (or quit) - to exit the program
 //
 // When the shell is running non-interactively (stdin not connected to a tty),
 // errors cause the shell to exit with a non-zero status.
@@ -50,6 +51,12 @@
 //     002002,"{CustId: 2, InvoiceNum: 1002, Amount: 243, ShipTo: {Street: ""888 Any St."", City: ""Collins"", State: ""IA"", Zip: ""50055""}}"
 //     002003,"{CustId: 2, InvoiceNum: 1004, Amount: 787, ShipTo: {Street: ""999 Any St."", City: ""Collins"", State: ""IA"", Zip: ""50055""}}"
 //     002004,"{CustId: 2, InvoiceNum: 1006, Amount: 88, ShipTo: {Street: ""101010 Any St."", City: ""Collins"", State: ""IA"", Zip: ""50055""}}"
+//     ? delete from Customers where k = "001002";
+//     +-------+
+//     | Count |
+//     +-------+
+//     |     1 |
+//     +-------+
 //     ? exit;
 //     >
 package main

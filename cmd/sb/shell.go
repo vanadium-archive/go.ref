@@ -127,7 +127,7 @@ stmtLoop:
 				case "make-demo":
 					// TODO(jkline): add an "Are you sure prompt" to give the user a 2nd chance.
 					err = makeDemoDB(ctx, env.Stdout, d)
-				case "select":
+				case "select", "delete":
 					err = queryExec(ctx, env.Stdout, d, q)
 				case "destroy":
 					if len(tq) == 3 {
