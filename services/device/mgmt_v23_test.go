@@ -50,6 +50,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -281,7 +282,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 			// if the name doesn't exist.
 			c := withArgs(namespaceBin, "resolve", name)
 			c.ExitErrorIsOk = true
-			c.AddStderrWriter(os.Stderr)
+			c.AddStderrWriter(gosh.NopWriteCloser(os.Stderr))
 			if res = tr(c.Stdout()); len(res) > 0 {
 				return nil
 			}
@@ -473,7 +474,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 			// if the name doesn't exist.
 			c := withArgs(namespaceBin, "resolve", name)
 			c.ExitErrorIsOk = true
-			c.AddStderrWriter(os.Stderr)
+			c.AddStderrWriter(gosh.NopWriteCloser(os.Stderr))
 			switch res = tr(c.Stdout()); {
 			case res == "":
 				return testutil.TryAgain(errors.New("resolve returned nothing"))
@@ -535,7 +536,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 			// if the name doesn't exist.
 			c := withArgs(namespaceBin, "resolve", name)
 			c.ExitErrorIsOk = true
-			c.AddStderrWriter(os.Stderr)
+			c.AddStderrWriter(gosh.NopWriteCloser(os.Stderr))
 			if res = tr(c.Stdout()); len(res) == 0 {
 				return nil
 			}
