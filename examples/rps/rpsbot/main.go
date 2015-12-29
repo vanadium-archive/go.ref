@@ -14,9 +14,10 @@ import (
 
 	"v.io/x/lib/cmdline"
 
-	"v.io/v23/context"
-
 	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/signals"
@@ -28,12 +29,14 @@ import (
 var (
 	name, aclFile string
 	numGames      int
+	mountPrefix   string
 )
 
 func main() {
 	cmdRoot.Flags.StringVar(&name, "name", "", "Identifier to publish as (defaults to principal's blessing names).")
 	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
 	cmdRoot.Flags.IntVar(&numGames, "num-games", -1, "Number of games to play (-1 means unlimited).")
+	cmdRoot.Flags.StringVar(&mountPrefix, "mount-prefix", "vlab", "The mount prefix to use. The published names will be <mount-prefix>/rps/player/<name>, <mount-prefix>/rps/judge/<name>, and <mount-prefix>/rps/scorekeeper/<name>.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -57,9 +60,9 @@ func runBot(ctx *context.T, env *cmdline.Env, args []string) error {
 		name = internal.CreateName(ctx)
 	}
 	names := []string{
-		fmt.Sprintf("rps/judge/%s", name),
-		fmt.Sprintf("rps/player/%s", name),
-		fmt.Sprintf("rps/scorekeeper/%s", name),
+		naming.Join(mountPrefix, "rps", "judge", name),
+		naming.Join(mountPrefix, "rps", "player", name),
+		naming.Join(mountPrefix, "rps", "scorekeeper", name),
 	}
 	ctx, server, err := v23.WithNewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), auth)
 	if err != nil {

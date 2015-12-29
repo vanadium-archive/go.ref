@@ -29,11 +29,12 @@ import (
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
-var name, aclFile string
+var name, aclFile, mountPrefix string
 
 func main() {
 	cmdRoot.Flags.StringVar(&name, "name", "", "Identifier to publish as (defaults to principal's blessing names).")
 	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
+	cmdRoot.Flags.StringVar(&mountPrefix, "mount-prefix", "vlab", "The mount prefix to use. The published name will be <mount-prefix>/rps/player/<name>.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -125,7 +126,7 @@ func recvChallenge(ctx *context.T) gameChallenge {
 	if name == "" {
 		name = internal.CreateName(ctx)
 	}
-	fullname := fmt.Sprintf("rps/player/%s", name)
+	fullname := naming.Join(mountPrefix, "rps", "player", name)
 	service := rps.PlayerServer(&impl{ch: ch})
 	auth := internal.NewAuthorizer(aclFile)
 	ctx, server, err := v23.WithNewServer(ctx, fullname, service, auth)
@@ -188,22 +189,19 @@ func initiateGame(ctx *context.T) error {
 	return nil
 }
 
-func createGame(ctx *context.T, server string, opts rps.GameOptions) (rps.GameId, error) {
-	j := rps.RockPaperScissorsClient(server)
-	return j.CreateGame(ctx, opts)
+func createGame(ctx *context.T, judge string, opts rps.GameOptions) (rps.GameId, error) {
+	return rps.JudgeClient(naming.Join(mountPrefix, judge)).CreateGame(ctx, opts)
 }
 
 func sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameId, gameOpts rps.GameOptions) error {
-	o := rps.RockPaperScissorsClient(opponent)
-	return o.Challenge(ctx, judge, gameID, gameOpts)
+	return rps.PlayerClient(naming.Join(mountPrefix, opponent)).Challenge(ctx, judge, gameID, gameOpts)
 }
 
 func playGame(outer *context.T, judge string, gameID rps.GameId) (rps.PlayResult, error) {
 	ctx, cancel := context.WithTimeout(outer, 10*time.Minute)
 	defer cancel()
 	fmt.Println()
-	j := rps.RockPaperScissorsClient(judge)
-	game, err := j.Play(ctx, gameID)
+	game, err := rps.JudgeClient(naming.Join(mountPrefix, judge)).Play(ctx, gameID)
 	if err != nil {
 		return rps.PlayResult{}, err
 	}
@@ -294,7 +292,7 @@ func selectOne(choices []string) (choice int) {
 func findAll(ctx *context.T, t string, out chan []string) {
 	ns := v23.GetNamespace(ctx)
 	var result []string
-	c, err := ns.Glob(ctx, "rps/"+t+"/*")
+	c, err := ns.Glob(ctx, naming.Join(mountPrefix, "rps", t, "*"))
 	if err != nil {
 		ctx.Infof("ns.Glob failed: %v", err)
 		out <- result
@@ -306,7 +304,7 @@ func findAll(ctx *context.T, t string, out chan []string) {
 			fmt.Print("E")
 		case *naming.GlobReplyEntry:
 			fmt.Print(".")
-			result = append(result, v.Value.Name)
+			result = append(result, strings.TrimPrefix(v.Value.Name, naming.Clean(mountPrefix)+"/"))
 		}
 	}
 	if len(result) == 0 {

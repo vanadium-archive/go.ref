@@ -16,6 +16,10 @@ Usage:
 The rpsbot flags are:
  -acl-file=
    File containing JSON-encoded Permissions.
+ -mount-prefix=vlab
+   The mount prefix to use. The published names will be
+   <mount-prefix>/rps/player/<name>, <mount-prefix>/rps/judge/<name>, and
+   <mount-prefix>/rps/scorekeeper/<name>.
  -name=
    Identifier to publish as (defaults to principal's blessing names).
  -num-games=-1

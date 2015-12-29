@@ -16,6 +16,9 @@ Usage:
 The rpsscorekeeper flags are:
  -acl-file=
    File containing JSON-encoded Permissions.
+ -mount-prefix=vlab
+   The mount prefix to use. The published name will be
+   <mount-prefix>/rps/scorekeeper/<name>.
 
 The global flags are:
  -alsologtostderr=true

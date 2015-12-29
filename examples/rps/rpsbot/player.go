@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/naming"
 
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
@@ -44,7 +45,7 @@ func (p *Player) WaitUntilIdle() {
 }
 
 func (p *Player) InitiateGame(ctx *context.T) error {
-	judge, err := internal.FindJudge(ctx)
+	judge, err := internal.FindJudge(ctx, mountPrefix)
 	if err != nil {
 		ctx.Infof("FindJudge: %v", err)
 		return err
@@ -57,7 +58,7 @@ func (p *Player) InitiateGame(ctx *context.T) error {
 	ctx.VI(1).Infof("Created gameID %q on %q", gameID, judge)
 
 	for {
-		opponent, err := internal.FindPlayer(ctx)
+		opponent, err := internal.FindPlayer(ctx, mountPrefix)
 		if err != nil {
 			ctx.Infof("FindPlayer: %v", err)
 			return err
@@ -81,21 +82,19 @@ func (p *Player) InitiateGame(ctx *context.T) error {
 	return nil
 }
 
-func (p *Player) createGame(ctx *context.T, server string) (rps.GameId, rps.GameOptions, error) {
-	j := rps.RockPaperScissorsClient(server)
+func (p *Player) createGame(ctx *context.T, judge string) (rps.GameId, rps.GameOptions, error) {
 	numRounds := 3 + rand.Intn(3)
 	gameType := rps.Classic
 	if rand.Intn(2) == 1 {
 		gameType = rps.LizardSpock
 	}
 	gameOpts := rps.GameOptions{NumRounds: int32(numRounds), GameType: gameType}
-	gameId, err := j.CreateGame(ctx, gameOpts)
+	gameId, err := rps.JudgeClient(naming.Join(mountPrefix, judge)).CreateGame(ctx, gameOpts)
 	return gameId, gameOpts, err
 }
 
 func (p *Player) sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameId, gameOpts rps.GameOptions) error {
-	o := rps.RockPaperScissorsClient(opponent)
-	return o.Challenge(ctx, judge, gameID, gameOpts)
+	return rps.PlayerClient(naming.Join(mountPrefix, opponent)).Challenge(ctx, judge, gameID, gameOpts)
 }
 
 // challenge receives an incoming challenge and starts to play a new game.
@@ -113,8 +112,7 @@ func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameId) (rp
 	defer cancel()
 	p.gamesInProgress.Incr(1)
 	defer p.gamesInProgress.Incr(-1)
-	j := rps.RockPaperScissorsClient(judge)
-	game, err := j.Play(ctx, gameID)
+	game, err := rps.JudgeClient(naming.Join(mountPrefix, judge)).Play(ctx, gameID)
 	if err != nil {
 		return rps.PlayResult{}, err
 	}

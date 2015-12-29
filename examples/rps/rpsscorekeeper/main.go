@@ -12,11 +12,12 @@ import (
 
 	"v.io/x/lib/cmdline"
 
+	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 
-	"v.io/v23"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/v23cmd"
@@ -24,10 +25,11 @@ import (
 	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
-var aclFile string
+var aclFile, mountPrefix string
 
 func main() {
 	cmdRoot.Flags.StringVar(&aclFile, "acl-file", "", "File containing JSON-encoded Permissions.")
+	cmdRoot.Flags.StringVar(&mountPrefix, "mount-prefix", "vlab", "The mount prefix to use. The published name will be <mount-prefix>/rps/scorekeeper/<name>.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -57,7 +59,7 @@ func (i *impl) Record(ctx *context.T, call rpc.ServerCall, score rps.ScoreCard) 
 func runScoreKeeper(ctx *context.T, env *cmdline.Env, args []string) error {
 	ch := make(chan rps.ScoreCard)
 	rpsService := &impl{ch}
-	name := fmt.Sprintf("rps/scorekeeper/%s", internal.CreateName(ctx))
+	name := naming.Join(mountPrefix, "rps", "scorekeeper", internal.CreateName(ctx))
 	service := rps.ScoreKeeperServer(rpsService)
 	authorizer := internal.NewAuthorizer(aclFile)
 	ctx, server, err := v23.WithNewServer(ctx, name, service, authorizer)

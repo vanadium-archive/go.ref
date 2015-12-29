@@ -30,8 +30,8 @@ func CreateName(ctx *context.T) string {
 }
 
 // FindJudge returns a random rock-paper-scissors judge from the mount table.
-func FindJudge(ctx *context.T) (string, error) {
-	judges, err := findAll(ctx, "judge")
+func FindJudge(ctx *context.T, prefix string) (string, error) {
+	judges, err := findAll(ctx, prefix, "judge")
 	if err != nil {
 		return "", err
 	}
@@ -42,8 +42,8 @@ func FindJudge(ctx *context.T) (string, error) {
 }
 
 // FindPlayer returns a random rock-paper-scissors player from the mount table.
-func FindPlayer(ctx *context.T) (string, error) {
-	players, err := findAll(ctx, "player")
+func FindPlayer(ctx *context.T, prefix string) (string, error) {
+	players, err := findAll(ctx, prefix, "player")
 	if err != nil {
 		return "", err
 	}
@@ -55,18 +55,18 @@ func FindPlayer(ctx *context.T) (string, error) {
 
 // FindScoreKeepers returns all the rock-paper-scissors score keepers from the
 // mount table.
-func FindScoreKeepers(ctx *context.T) ([]string, error) {
-	sKeepers, err := findAll(ctx, "scorekeeper")
+func FindScoreKeepers(ctx *context.T, prefix string) ([]string, error) {
+	sKeepers, err := findAll(ctx, prefix, "scorekeeper")
 	if err != nil {
 		return nil, err
 	}
 	return sKeepers, nil
 }
 
-func findAll(ctx *context.T, t string) ([]string, error) {
+func findAll(ctx *context.T, prefix, t string) ([]string, error) {
 	start := time.Now()
 	ns := v23.GetNamespace(ctx)
-	c, err := ns.Glob(ctx, "rps/"+t+"/*")
+	c, err := ns.Glob(ctx, naming.Join(prefix, "rps", t, "*"))
 	if err != nil {
 		ctx.Infof("mt.Glob failed: %v", err)
 		return nil, err
@@ -77,7 +77,8 @@ func findAll(ctx *context.T, t string) ([]string, error) {
 		case *naming.GlobReplyError:
 			ctx.VI(1).Infof("findAll(%q) error for %q: %v", t, v.Value.Name, v.Value.Error)
 		case *naming.GlobReplyEntry:
-			servers = append(servers, v.Value.Name)
+
+			servers = append(servers, strings.TrimPrefix(v.Value.Name, naming.Clean(prefix)+"/"))
 		}
 	}
 	ctx.VI(1).Infof("findAll(%q) elapsed: %s", t, time.Now().Sub(start))

@@ -15,6 +15,9 @@ Usage:
 The rpsplayer flags are:
  -acl-file=
    File containing JSON-encoded Permissions.
+ -mount-prefix=vlab
+   The mount prefix to use. The published name will be
+   <mount-prefix>/rps/player/<name>.
  -name=
    Identifier to publish as (defaults to principal's blessing names).
 

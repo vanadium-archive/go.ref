@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/naming"
 
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
@@ -230,7 +231,7 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameId) {
 	// Send the score card to the score keepers.
 	scoreCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	keepers, err := internal.FindScoreKeepers(scoreCtx)
+	keepers, err := internal.FindScoreKeepers(scoreCtx, mountPrefix)
 	if err != nil || len(keepers) == 0 {
 		ctx.Infof("No score keepers: %v", err)
 		return
@@ -310,8 +311,7 @@ func (j *Judge) gameChannels(id rps.GameId) (chan playerInput, []chan rps.JudgeA
 
 func (j *Judge) sendScore(ctx *context.T, address string, score rps.ScoreCard, wg *sync.WaitGroup) error {
 	defer wg.Done()
-	k := rps.RockPaperScissorsClient(address)
-	if err := k.Record(ctx, score); err != nil {
+	if err := rps.ScoreKeeperClient(naming.Join(mountPrefix, address)).Record(ctx, score); err != nil {
 		logger.Global().Infof("Record: %v", err)
 		return err
 	}
