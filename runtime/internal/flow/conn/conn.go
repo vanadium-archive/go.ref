@@ -38,7 +38,7 @@ const (
 )
 
 const (
-	mtu                         = 1 << 16
+	defaultMtu                  = 1 << 16
 	defaultChannelTimeout       = 30 * time.Minute
 	DefaultBytesBufferedPerFlow = 1 << 20
 	proxyOverhead               = 32
@@ -88,6 +88,7 @@ type Conn struct {
 	unopenedFlows sync.WaitGroup
 	cancel        context.CancelFunc
 	handler       FlowHandler
+	mtu           uint64
 
 	mu sync.Mutex // All the variables below here are protected by mu.
 
@@ -158,22 +159,19 @@ func NewDialed(
 		channelTimeout = defaultChannelTimeout
 	}
 	c := &Conn{
-		mp:           newMessagePipe(conn),
-		handler:      handler,
-		lBlessings:   lBlessings,
-		local:        endpointCopy(local),
-		remote:       endpointCopy(remote),
-		closed:       make(chan struct{}),
-		lameDucked:   make(chan struct{}),
-		nextFid:      reservedFlows,
-		flows:        map[uint64]*flw{},
-		lastUsedTime: time.Now(),
-		toRelease:    map[uint64]uint64{},
-		borrowing:    map[uint64]bool{},
-		cancel:       cancel,
-		// TODO(mattr): We should negotiate the shared counter pool size with the
-		// other end.
-		lshared:              DefaultBytesBufferedPerFlow,
+		mp:                   newMessagePipe(conn),
+		handler:              handler,
+		lBlessings:           lBlessings,
+		local:                endpointCopy(local),
+		remote:               endpointCopy(remote),
+		closed:               make(chan struct{}),
+		lameDucked:           make(chan struct{}),
+		nextFid:              reservedFlows,
+		flows:                map[uint64]*flw{},
+		lastUsedTime:         time.Now(),
+		toRelease:            map[uint64]uint64{},
+		borrowing:            map[uint64]bool{},
+		cancel:               cancel,
 		outstandingBorrowed:  make(map[uint64]uint64),
 		activeWriters:        make([]writer, numPriorities),
 		acceptChannelTimeout: channelTimeout,
@@ -250,7 +248,6 @@ func NewAccepted(
 		toRelease:            map[uint64]uint64{},
 		borrowing:            map[uint64]bool{},
 		cancel:               cancel,
-		lshared:              DefaultBytesBufferedPerFlow,
 		outstandingBorrowed:  make(map[uint64]uint64),
 		activeWriters:        make([]writer, numPriorities),
 		acceptChannelTimeout: channelTimeout,

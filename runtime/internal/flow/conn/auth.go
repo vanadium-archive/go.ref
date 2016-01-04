@@ -119,6 +119,8 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 		Versions:          versions,
 		PeerLocalEndpoint: c.local,
 		PeerNaClPublicKey: pk,
+		Mtu:               defaultMtu,
+		SharedTokens:      DefaultBytesBufferedPerFlow,
 	}
 	if c.remote != nil {
 		lSetup.PeerRemoteEndpoint = c.remote
@@ -151,6 +153,15 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 	}
 	if c.local == nil {
 		c.local = rSetup.PeerRemoteEndpoint
+	}
+	if rSetup.Mtu != 0 {
+		c.mtu = rSetup.Mtu
+	} else {
+		c.mtu = defaultMtu
+	}
+	c.lshared = lSetup.SharedTokens
+	if rSetup.SharedTokens != 0 && rSetup.SharedTokens < c.lshared {
+		c.lshared = rSetup.SharedTokens
 	}
 	if rSetup.PeerNaClPublicKey == nil {
 		return nil, nil, NewErrMissingSetupOption(ctx, "peerNaClPublicKey")
