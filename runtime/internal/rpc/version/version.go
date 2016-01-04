@@ -17,7 +17,7 @@ type Range struct {
 	Min, Max version.RPCVersion
 }
 
-// SupportedRange represents the range of protocol verions supported by this
+// Supported represents the range of protocol verions supported by this
 // implementation.
 //
 // Max is incremented whenever we make a protocol change that's not both forward
@@ -25,12 +25,11 @@ type Range struct {
 //
 // Min is incremented whenever we want to remove support for old protocol
 // versions.
-var SupportedRange = &Range{Min: version.RPCVersion10, Max: version.RPCVersion12}
-var Supported = version.RPCVersionRange{Min: version.RPCVersion10, Max: version.RPCVersion13}
+var Supported = version.RPCVersionRange{Min: version.RPCVersion10, Max: version.RPCVersion14}
 
 func init() {
-	metadata.Insert("v23.RPCVersionMax", fmt.Sprint(SupportedRange.Max))
-	metadata.Insert("v23.RPCVersionMin", fmt.Sprint(SupportedRange.Min))
+	metadata.Insert("v23.RPCVersionMax", fmt.Sprint(Supported.Max))
+	metadata.Insert("v23.RPCVersionMin", fmt.Sprint(Supported.Min))
 }
 
 const pkgPath = "v.io/x/ref/runtime/internal/rpc/version"

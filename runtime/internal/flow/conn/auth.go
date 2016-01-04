@@ -32,7 +32,7 @@ var (
 )
 
 func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, auth flow.PeerAuthorizer) error {
-	binding, remoteEndpoint, err := c.setup(ctx, versions)
+	binding, remoteEndpoint, err := c.setup(ctx, versions, true)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 }
 
 func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange, authorizedPeers []security.BlessingPattern) error {
-	binding, remoteEndpoint, err := c.setup(ctx, versions)
+	binding, remoteEndpoint, err := c.setup(ctx, versions, false)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange,
 	return err
 }
 
-func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, naming.Endpoint, error) {
+func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange, dialer bool) ([]byte, naming.Endpoint, error) {
 	pk, sk, err := box.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, err
@@ -156,6 +156,28 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange) ([]byte, 
 		return nil, nil, NewErrMissingSetupOption(ctx, "peerNaClPublicKey")
 	}
 	binding := c.mp.setupEncryption(ctx, pk, sk, rSetup.PeerNaClPublicKey)
+	if c.version >= version.RPCVersion14 {
+		// We include the setup messages in the channel binding to prevent attacks
+		// where a man in the middle changes fields in the Setup message (e.g. a
+		// downgrade attack wherein a MITM attacker changes the Version field of
+		// the Setup message to a lower-security version.)
+		// We always put the dialer first in the binding.
+		if dialer {
+			if binding, err = message.Append(ctx, lSetup, nil); err != nil {
+				return nil, nil, err
+			}
+			if binding, err = message.Append(ctx, rSetup, nil); err != nil {
+				return nil, nil, err
+			}
+		} else {
+			if binding, err = message.Append(ctx, rSetup, nil); err != nil {
+				return nil, nil, err
+			}
+			if binding, err = message.Append(ctx, lSetup, nil); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
 	// if we're encapsulated in another flow, tell that flow to stop
 	// encrypting now that we've started.
 	if f, ok := c.mp.rw.(*flw); ok {
@@ -169,7 +191,10 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 	if dialer {
 		tag = authAcceptorTag
 	}
-	var rauth *message.Auth
+	var (
+		rauth *message.Auth
+		err   error
+	)
 	for {
 		msg, err := c.mp.readMsg(ctx)
 		if err != nil {
@@ -188,7 +213,6 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 	var rBlessings security.Blessings
 	var rDischarges map[string]security.Discharge
 	if rauth.BlessingsKey != 0 {
-		var err error
 		// TODO(mattr): Make sure we cancel out of this at some point.
 		rBlessings, rDischarges, err = c.blessingsFlow.getRemote(ctx, rauth.BlessingsKey, rauth.DischargeKey)
 		if err != nil {

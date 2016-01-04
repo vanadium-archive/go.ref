@@ -19,11 +19,13 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	"v.io/v23/i18n"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/vdl"
@@ -36,6 +38,7 @@ import (
 	"v.io/x/ref/runtime/internal/lib/tcputil"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
+	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -1260,5 +1263,50 @@ func TestBidirectionalRefreshDischarges(t *testing.T) {
 		}
 		t.Logf("waiting for discharger to be called multiple times")
 		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+type manInMiddleConn struct {
+	flow.Conn
+	ctx *context.T
+}
+
+// manInMiddleConn changes the versions in any setup message sent over the wire.
+func (c *manInMiddleConn) ReadMsg() ([]byte, error) {
+	b, err := c.Conn.ReadMsg()
+	if len(b) > 0 {
+		m, _ := message.Read(c.ctx, b)
+		switch msg := m.(type) {
+		case *message.Setup:
+			// The malicious man in the middle changes the max version to a bad version.
+			msg.Versions = version.RPCVersionRange{Min: version.RPCVersion10, Max: 100}
+			b, err = message.Append(c.ctx, msg, nil)
+		}
+	}
+	return b, err
+}
+
+func TestSetupAttack(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	ctx = debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
+		return &manInMiddleConn{c, ctx}
+	})
+
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{Protocol: "debug", Address: "tcp/127.0.0.1:0"}},
+	})
+	ctx, cancel := context.WithCancel(ctx)
+	_, server, err := v23.WithNewServer(ctx, "mountpoint/server", &testServer{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { <-server.Closed() }()
+	defer cancel()
+	// Connection establishment should fail during the RPC because the channel binding
+	// check should fail since the Setup message has been altered.
+	if err := v23.GetClient(ctx).Call(ctx, "mountpoint/server", "Closure", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("expected error but got <nil>")
 	}
 }
