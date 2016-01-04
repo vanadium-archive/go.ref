@@ -406,6 +406,12 @@ func (c *Conn) RemoteBlessings() security.Blessings {
 	return blessings
 }
 
+func (c *Conn) RemoteDischarges() map[string]security.Discharge {
+	// Its safe to ignore this error. It means that this conn is closed.
+	_, discharges, _ := c.blessingsFlow.getLatestRemote(nil, c.rBKey)
+	return discharges
+}
+
 // CommonVersion returns the RPCVersion negotiated between the local and remote endpoints.
 func (c *Conn) CommonVersion() version.RPCVersion { return c.version }
 

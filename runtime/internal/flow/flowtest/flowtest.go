@@ -5,6 +5,7 @@
 package flowtest
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -50,6 +51,45 @@ func (AllowAllPeersAuthorizer) AuthorizePeer(
 }
 
 func (AllowAllPeersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
+	security.Blessings, map[string]security.Discharge, error) {
+	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
+}
+
+type peersAuthorizer []string
+
+func NewPeerAuthorizer(names []string) flow.PeerAuthorizer {
+	if len(names) == 0 {
+		return AllowAllPeersAuthorizer{}
+	}
+	return peersAuthorizer(names)
+}
+
+func (p peersAuthorizer) AuthorizePeer(
+	ctx *context.T,
+	localEndpoint, remoteEndpoint naming.Endpoint,
+	remoteBlessings security.Blessings,
+	remoteDischarges map[string]security.Discharge,
+) ([]string, []security.RejectedBlessing, error) {
+	call := security.NewCall(&security.CallParams{
+		Timestamp:        time.Now(),
+		LocalPrincipal:   v23.GetPrincipal(ctx),
+		LocalEndpoint:    localEndpoint,
+		RemoteBlessings:  remoteBlessings,
+		RemoteDischarges: remoteDischarges,
+		RemoteEndpoint:   remoteEndpoint,
+	})
+	peerNames, rejectedPeerNames := security.RemoteBlessingNames(ctx, call)
+	ctx.Infof("validating against %v", peerNames)
+	for _, pattern := range p {
+		if security.BlessingPattern(pattern).MatchedBy(peerNames...) {
+			return peerNames, rejectedPeerNames, nil
+		}
+		ctx.Infof("no match %v", pattern)
+	}
+	return peerNames, rejectedPeerNames, fmt.Errorf("not authorized")
+}
+
+func (peersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
 	security.Blessings, map[string]security.Discharge, error) {
 	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
 }

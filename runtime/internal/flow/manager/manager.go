@@ -657,8 +657,8 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAut
 
 func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer, channelTimeout time.Duration, proxy bool) (flow.Flow, error) {
 	// Fast path, look for the conn based on unresolved network, address, and routingId first.
-	addr, rid, blessingNames := remote.Addr(), remote.RoutingID(), remote.BlessingNames()
-	c, err := m.cache.Find(addr.Network(), addr.String(), rid, blessingNames)
+	addr, rid := remote.Addr(), remote.RoutingID()
+	c, err := m.cache.Find(ctx, addr.Network(), addr.String(), rid, auth)
 	if err != nil {
 		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 	}
@@ -680,7 +680,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		if err != nil {
 			return nil, iflow.MaybeWrapError(flow.ErrResolveFailed, ctx, err)
 		}
-		c, err = m.cache.ReservedFind(network, address, rid, blessingNames)
+		c, err = m.cache.ReservedFind(ctx, network, address, rid, auth)
 		if err != nil {
 			return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
