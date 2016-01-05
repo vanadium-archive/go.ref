@@ -30,7 +30,7 @@ type messagePipe struct {
 func newMessagePipe(rw flow.MsgReadWriteCloser) *messagePipe {
 	return &messagePipe{
 		rw:       rw,
-		writeBuf: make([]byte, mtu),
+		writeBuf: make([]byte, defaultMtu),
 		cipher:   &crypto.NullControlCipher{},
 	}
 }

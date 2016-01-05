@@ -142,7 +142,7 @@ func (f *flw) Write(p []byte) (n int, err error) {
 // the number of shared counters for the conn if we are sending on a just
 // dialed flow.
 func (f *flw) tokensLocked() (int, func(int)) {
-	max := uint64(mtu)
+	max := f.conn.mtu
 	// When	our flow is proxied (i.e. encapsulated), the proxy has added overhead
 	// when forwarding the message. This means we must reduce our mtu to ensure
 	// that dialer framing reaches the acceptor without being truncated by the
