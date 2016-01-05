@@ -177,14 +177,14 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange, dialer bo
 			if binding, err = message.Append(ctx, lSetup, nil); err != nil {
 				return nil, nil, err
 			}
-			if binding, err = message.Append(ctx, rSetup, nil); err != nil {
+			if binding, err = message.Append(ctx, rSetup, binding); err != nil {
 				return nil, nil, err
 			}
 		} else {
 			if binding, err = message.Append(ctx, rSetup, nil); err != nil {
 				return nil, nil, err
 			}
-			if binding, err = message.Append(ctx, lSetup, nil); err != nil {
+			if binding, err = message.Append(ctx, lSetup, binding); err != nil {
 				return nil, nil, err
 			}
 		}
