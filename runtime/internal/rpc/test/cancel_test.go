@@ -299,21 +299,6 @@ func (f *flowdis) Listen(ctx *context.T, protocol, address string) (flow.Listene
 }
 
 func registerDisProtocol(wrap string, conns chan disconnect) {
-	dial, resolve, listen, protonames := rpc.RegisteredProtocol(wrap)
-	rpc.RegisterProtocol("dis", func(ctx *context.T, p, a string, t time.Duration) (net.Conn, error) {
-		conn, err := dial(ctx, protonames[0], a, t)
-		if err == nil {
-			dc := &disConn{Conn: conn}
-			conns <- dc
-			conn = dc
-		}
-		return conn, err
-	}, func(ctx *context.T, protocol, address string) (string, string, error) {
-		_, a, err := resolve(ctx, protonames[0], address)
-		return "dis", a, err
-	}, func(ctx *context.T, protocol, address string) (net.Listener, error) {
-		return listen(ctx, protonames[0], address)
-	})
 	// We only register this flow protocol to make the test work in xclients mode.
 	protocol, _ := flow.RegisteredProtocol("tcp")
 	flow.RegisterProtocol("dis", &flowdis{base: protocol})
