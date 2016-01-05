@@ -5,6 +5,7 @@
 package main_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -13,11 +14,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 
-	"v.io/x/lib/gosh"
-	"v.io/x/lib/textutil"
 	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test/testutil"
 )
@@ -65,16 +65,16 @@ func TestV23Vkube(t *testing.T) {
 				// Note, creds do not affect non-Vanadium commands.
 				c := sh.Cmd(name, args...).WithCredentials(creds)
 				c.ExitErrorIsOk = true
-				prefix := textutil.PrefixLineWriter(os.Stdout, filepath.Base(name)+"> ")
-				c.AddStdoutWriter(gosh.NopWriteCloser(prefix))
-				stdout := c.Stdout()
-				prefix.Flush()
+				w := &writer{name: filepath.Base(name)}
+				c.AddStdoutWriter(w)
+				c.AddStderrWriter(w)
+				c.Run()
 				if expectSuccess && c.Err != nil {
 					t.Error(testutil.FormatLogLine(2, "Unexpected failure: %s %s :%v", name, strings.Join(args, " "), c.Err))
 				} else if !expectSuccess && c.Err == nil {
 					t.Error(testutil.FormatLogLine(2, "Unexpected success %d: %s %s", name, strings.Join(args, " ")))
 				}
-				return stdout
+				return w.output()
 			}
 		}
 		gsutil      = cmd("gsutil", true)
@@ -145,7 +145,13 @@ func TestV23Vkube(t *testing.T) {
 
 	// Find the pod running tunneld, get the server's addr from its stdout.
 	podName := kubectlOK("get", "pod", "-l", "application=tunneld", "--template={{range .items}}{{.metadata.name}}{{end}}")
-	addr := strings.TrimPrefix(strings.TrimSpace(kubectlOK("logs", podName, "-c", "tunneld")), "NAME=")
+	var addr string
+	for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
+		if strings.HasPrefix(log, "NAME=") {
+			addr = strings.TrimPrefix(log, "NAME=")
+			break
+		}
+	}
 	if got, expected := vshOK(addr, "echo", "hello", "world"), "hello world\n"; got != expected {
 		t.Errorf("Unexpected output. Got %q, expected %q", got, expected)
 	}
@@ -253,6 +259,51 @@ func createAppConfig(path, id, image, version string) error {
     }
   }
 }`)).Execute(f, params)
+}
+
+// writer is an io.Writer that sends everything to stdout, each line prefixed
+// with "name> ".
+type writer struct {
+	sync.Mutex
+	name string
+	line bytes.Buffer
+	out  bytes.Buffer
+}
+
+func (w *writer) Write(p []byte) (n int, err error) {
+	w.Lock()
+	defer w.Unlock()
+	n = len(p)
+	w.out.Write(p)
+	for len(p) > 0 {
+		if w.line.Len() == 0 {
+			fmt.Fprintf(&w.line, "%s> ", w.name)
+		}
+		if off := bytes.IndexByte(p, '\n'); off != -1 {
+			off += 1
+			w.line.Write(p[:off])
+			w.line.WriteTo(os.Stdout)
+			p = p[off:]
+			continue
+		}
+		w.line.Write(p)
+		break
+	}
+	return
+}
+
+func (w *writer) Close() error {
+	return nil
+}
+
+func (w *writer) output() string {
+	w.Lock()
+	defer w.Unlock()
+	if w.line.Len() != 0 {
+		w.line.WriteString(" [no \\n at EOL]\n")
+		w.line.WriteTo(os.Stdout)
+	}
+	return w.out.String()
 }
 
 func TestMain(m *testing.M) {
