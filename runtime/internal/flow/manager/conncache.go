@@ -5,10 +5,13 @@
 package manager
 
 import (
+	"bytes"
+	"fmt"
 	"sort"
 	"sync"
 
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/x/ref/runtime/internal/flow/conn"
 )
@@ -26,11 +29,10 @@ type ConnCache struct {
 }
 
 type connEntry struct {
-	conn          *conn.Conn
-	rid           naming.RoutingID
-	addrKey       string
-	blessingNames []string
-	proxy         bool
+	conn    *conn.Conn
+	rid     naming.RoutingID
+	addrKey string
+	proxy   bool
 }
 
 func NewConnCache() *ConnCache {
@@ -44,6 +46,19 @@ func NewConnCache() *ConnCache {
 		started:       make(map[string]bool),
 		unmappedConns: make(map[*connEntry]bool),
 	}
+}
+
+func (c *ConnCache) String() string {
+	buf := &bytes.Buffer{}
+	fmt.Fprintln(buf, "AddressCache:")
+	for k, v := range c.addrCache {
+		fmt.Fprintf(buf, "%v: %p\n", k, v.conn)
+	}
+	fmt.Fprintln(buf, "RIDCache:")
+	for k, v := range c.ridCache {
+		fmt.Fprintf(buf, "%v: %p\n", k, v.conn)
+	}
+	return buf.String()
 }
 
 // Insert adds conn to the cache, keyed by both (protocol, address) and (routingID)
@@ -61,9 +76,6 @@ func (c *ConnCache) Insert(conn *conn.Conn, protocol, address string, proxy bool
 		rid:     ep.RoutingID(),
 		addrKey: k,
 		proxy:   proxy,
-	}
-	if !entry.proxy {
-		entry.blessingNames = ep.BlessingNames()
 	}
 	if old := c.ridCache[entry.rid]; old != nil {
 		c.unmappedConns[old] = true
@@ -86,9 +98,6 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn, proxy bool) error {
 		rid:   ep.RoutingID(),
 		proxy: proxy,
 	}
-	if !entry.proxy {
-		entry.blessingNames = ep.BlessingNames()
-	}
 	if old := c.ridCache[entry.rid]; old != nil {
 		c.unmappedConns[old] = true
 	}
@@ -96,19 +105,19 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn, proxy bool) error {
 	return nil
 }
 
-func (c *ConnCache) Find(protocol, address string, rid naming.RoutingID, blessingNames []string) (*conn.Conn, error) {
+func (c *ConnCache) Find(ctx *context.T, protocol, address string, rid naming.RoutingID, auth flow.PeerAuthorizer) (*conn.Conn, error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
 		return nil, NewErrCacheClosed(nil)
 	}
 	if rid != naming.NullRoutingID {
-		if entry := c.removeUndialable(c.ridCache[rid], blessingNames); entry != nil {
+		if entry := c.removeUndialable(ctx, c.ridCache[rid], auth); entry != nil {
 			return entry, nil
 		}
 	}
 	k := key(protocol, address)
-	return c.removeUndialable(c.addrCache[k], blessingNames), nil
+	return c.removeUndialable(ctx, c.addrCache[k], auth), nil
 }
 
 // ReservedFind returns a Conn based on the input remoteEndpoint.
@@ -120,14 +129,14 @@ func (c *ConnCache) Find(protocol, address string, rid naming.RoutingID, blessin
 // the arguments provided to ReservedFind.
 // All new ReservedFind calls for the (protocol, address) will Block
 // until the corresponding Unreserve call is made.
-func (c *ConnCache) ReservedFind(protocol, address string, rid naming.RoutingID, blessingNames []string) (*conn.Conn, error) {
+func (c *ConnCache) ReservedFind(ctx *context.T, protocol, address string, rid naming.RoutingID, auth flow.PeerAuthorizer) (*conn.Conn, error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
 		return nil, NewErrCacheClosed(nil)
 	}
 	if rid != naming.NullRoutingID {
-		if entry := c.removeUndialable(c.ridCache[rid], blessingNames); entry != nil {
+		if entry := c.removeUndialable(ctx, c.ridCache[rid], auth); entry != nil {
 			return entry, nil
 		}
 	}
@@ -139,7 +148,7 @@ func (c *ConnCache) ReservedFind(protocol, address string, rid naming.RoutingID,
 		}
 	}
 	c.started[k] = true
-	return c.removeUndialable(c.addrCache[k], blessingNames), nil
+	return c.removeUndialable(ctx, c.addrCache[k], auth), nil
 }
 
 // Unreserve marks the status of the (protocol, address) as no longer started, and
@@ -166,8 +175,8 @@ func (c *ConnCache) Close(ctx *context.T) {
 }
 
 // removeUndialable filters connections that are closed, lameducked, or non-proxied
-// connections whose blessings dont match blessingNames.
-func (c *ConnCache) removeUndialable(e *connEntry, blessingNames []string) *conn.Conn {
+// connections that do not authorize.
+func (c *ConnCache) removeUndialable(ctx *context.T, e *connEntry, auth flow.PeerAuthorizer) *conn.Conn {
 	if e == nil {
 		return nil
 	}
@@ -179,8 +188,15 @@ func (c *ConnCache) removeUndialable(e *connEntry, blessingNames []string) *conn
 		}
 		return nil
 	}
-	if !e.proxy && len(blessingNames) > 0 && !matchBlessings(e.blessingNames, blessingNames) {
-		return nil
+	if !e.proxy && auth != nil {
+		_, _, err := auth.AuthorizePeer(ctx,
+			e.conn.LocalEndpoint(),
+			e.conn.RemoteEndpoint(),
+			e.conn.RemoteBlessings(),
+			e.conn.RemoteDischarges())
+		if err != nil {
+			return nil
+		}
 	}
 	return e.conn
 }
@@ -200,7 +216,7 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 	err := NewErrConnKilledToFreeResources(ctx)
 	pq := make(connEntries, 0, len(c.ridCache))
 	for _, e := range c.ridCache {
-		if c.removeUndialable(e, nil) == nil {
+		if c.removeUndialable(ctx, e, nil) == nil {
 			continue
 		}
 		if e.conn.IsEncapsulated() {
