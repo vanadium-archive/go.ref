@@ -7,7 +7,6 @@ package main_test
 import (
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"testing"
 	"text/template"
 
+	"v.io/x/lib/gosh"
 	"v.io/x/lib/textutil"
 	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test/testutil"
@@ -65,10 +65,10 @@ func TestV23Vkube(t *testing.T) {
 				// Note, creds do not affect non-Vanadium commands.
 				c := sh.Cmd(name, args...).WithCredentials(creds)
 				c.ExitErrorIsOk = true
-				// Wrap os.Stdout in a MultiWriter so that PrefixLineWriter.Close
-				// doesn't close it.
-				c.AddStdoutWriter(textutil.PrefixLineWriter(io.MultiWriter(os.Stdout), filepath.Base(name)+"> "))
+				prefix := textutil.PrefixLineWriter(os.Stdout, filepath.Base(name)+"> ")
+				c.AddStdoutWriter(gosh.NopWriteCloser(prefix))
 				stdout := c.Stdout()
+				prefix.Flush()
 				if expectSuccess && c.Err != nil {
 					t.Error(testutil.FormatLogLine(2, "Unexpected failure: %s %s :%v", name, strings.Join(args, " "), c.Err))
 				} else if !expectSuccess && c.Err == nil {
