@@ -25,11 +25,6 @@ func realComplex(re *big.Rat) *bigComplex {
 	return &bigComplex{re: *re}
 }
 
-// imagComplex returns a bigComplex with real part zero, and imaginary part im.
-func imagComplex(im *big.Rat) *bigComplex {
-	return &bigComplex{im: *im}
-}
-
 func (z *bigComplex) SetComplex128(c complex128) *bigComplex {
 	z.re.SetFloat64(real(c))
 	z.im.SetFloat64(imag(c))

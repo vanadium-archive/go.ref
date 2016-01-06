@@ -441,25 +441,3 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	}
 	return svc, iSt, cleanup
 }
-
-func testIfSgPfxsEqual(t *testing.T, m map[string]sgSet, a []string) {
-	aMap := arrToMap(a)
-
-	if len(aMap) != len(m) {
-		t.Fatalf("testIfSgPfxsEqual diff lengths: got %v, want %v", aMap, m)
-	}
-
-	for p := range aMap {
-		if _, ok := m[p]; !ok {
-			t.Fatalf("testIfSgPfxsEqual: want %v", p)
-		}
-	}
-}
-
-func arrToMap(a []string) map[string]struct{} {
-	m := make(map[string]struct{})
-	for _, s := range a {
-		m[s] = struct{}{}
-	}
-	return m
-}

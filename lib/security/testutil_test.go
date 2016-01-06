@@ -54,14 +54,6 @@ func newPrincipal(selfblessings ...string) (security.Principal, security.Blessin
 	return p, def
 }
 
-func bless(blesser, blessed security.Principal, with security.Blessings, extension string) security.Blessings {
-	b, err := blesser.Bless(blessed.PublicKey(), with, extension, security.UnconstrainedUse())
-	if err != nil {
-		panic(err)
-	}
-	return b
-}
-
 func blessSelf(p security.Principal, name string) security.Blessings {
 	b, err := p.BlessSelf(name)
 	if err != nil {

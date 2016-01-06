@@ -29,7 +29,7 @@ func newPlaintext() []byte {
 	return []byte("AThirtyTwoBytePieceOfTextThisIs!")
 }
 
-func TextExtract(t *testing.T) {
+func TestExtract(t *testing.T) {
 	ctx, shutdown := context.RootContext()
 	defer shutdown()
 
@@ -50,7 +50,7 @@ func TextExtract(t *testing.T) {
 		if got := key.Blessing(); got != b {
 			t.Fatalf("extracted key is for blessing %v, want key for blessing %v", got, b)
 		}
-		if got, want := key.Params, googleYoutube.Params(); !reflect.DeepEqual(got, want) {
+		if got, want := key.Params(), googleYoutube.Params(); !reflect.DeepEqual(got, want) {
 			t.Fatalf("extract key is for params %v, want key for params %v", got, want)
 		}
 	}

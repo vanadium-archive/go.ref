@@ -5,7 +5,6 @@
 package mounttablelib_test
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -117,10 +116,6 @@ func mountentry2names(e *naming.MountEntry) []string {
 		names[idx] = naming.JoinAddressName(s.Server, e.Name)
 	}
 	return names
-}
-
-func strslice(strs ...string) []string {
-	return strs
 }
 
 func resolve(ctx *context.T, name string) (*naming.MountEntry, error) {
@@ -556,24 +551,6 @@ func TestAccessListTemplate(t *testing.T) {
 			t.Errorf("unexpected getting map entry for %s. Got %v, want %v", name, got, tc.expected)
 		}
 	}
-}
-
-func getUserNodeCounts(t *testing.T) (counts map[string]int32) {
-	s, err := libstats.Value("mounttable/num-nodes-per-user")
-	if err != nil {
-		boom(t, "Can't get mounttable statistics")
-	}
-	// This string is a json encoded map.  Decode.
-	switch v := s.(type) {
-	default:
-		boom(t, "Wrong type for mounttable statistics")
-	case string:
-		err = json.Unmarshal([]byte(v), &counts)
-		if err != nil {
-			boom(t, "Can't unmarshal mounttable statistics")
-		}
-	}
-	return
 }
 
 func TestGlobAccessLists(t *testing.T) {

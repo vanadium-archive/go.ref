@@ -396,10 +396,6 @@ func TestStartCallErrors(t *testing.T) {
 	// logErr("timeout to server", err)
 }
 
-func simpleResolver(ctx *context.T, network, address string) (string, string, error) {
-	return network, address, nil
-}
-
 type closeConn struct {
 	ctx *context.T
 	flow.Conn

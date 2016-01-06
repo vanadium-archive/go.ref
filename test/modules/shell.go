@@ -133,7 +133,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 
 	"v.io/x/lib/envvar"
@@ -257,18 +256,6 @@ func (c *CustomCredentials) Principal() security.Principal {
 // Typically you would pass this to a child process in EnvAgentPath.
 func (c *CustomCredentials) Path() string {
 	return c.path
-}
-
-func dup(conn *os.File) (int, error) {
-	syscall.ForkLock.RLock()
-	fd, err := syscall.Dup(int(conn.Fd()))
-	if err != nil {
-		syscall.ForkLock.RUnlock()
-		return -1, err
-	}
-	syscall.CloseOnExec(fd)
-	syscall.ForkLock.RUnlock()
-	return fd, nil
 }
 
 // NewCustomCredentials creates a new Principal for StartWithOpts.

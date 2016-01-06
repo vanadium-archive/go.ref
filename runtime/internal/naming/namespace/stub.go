@@ -12,10 +12,3 @@ func convertServersToStrings(servers []naming.MountedServer, suffix string) (ret
 	}
 	return
 }
-
-func convertStringsToServers(servers []string) (ret []naming.MountedServer) {
-	for _, s := range servers {
-		ret = append(ret, naming.MountedServer{Server: s})
-	}
-	return
-}
