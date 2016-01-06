@@ -158,6 +158,12 @@ func NewDialed(
 	if channelTimeout == 0 {
 		channelTimeout = defaultChannelTimeout
 	}
+	// If the conn is being built on an encapsulated flow, we must update the
+	// cancellation of the flow, to ensure that the conn doesn't get killed
+	// when the context passed in is cancelled.
+	if f, ok := conn.(*flw); ok {
+		ctx = f.SetDeadlineContext(ctx, time.Time{})
+	}
 	c := &Conn{
 		mp:                   newMessagePipe(conn),
 		handler:              handler,

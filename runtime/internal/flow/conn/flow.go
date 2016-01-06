@@ -513,7 +513,7 @@ func (f *flw) close(ctx *context.T, err error) {
 		delete(f.conn.flows, f.id)
 		f.conn.mu.Unlock()
 		if serr != nil {
-			ctx.Errorf("Could not send close flow message: %v", err)
+			ctx.VI(2).Infof("Could not send close flow message: %v", err)
 		}
 	}
 }
