@@ -10,11 +10,12 @@
 package main
 
 import (
+	"time"
+
 	"golang.org/x/mobile/app"
 	"golang.org/x/mobile/event/lifecycle"
 	"golang.org/x/mobile/event/paint"
 	"golang.org/x/mobile/gl"
-	"time"
 )
 
 func main() {

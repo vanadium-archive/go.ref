@@ -20,7 +20,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
-	"v.io/v23/security"
 
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -200,26 +199,4 @@ var cmdRoot = &cmdline.Command{
 Command mounttable sends commands to Vanadium mounttable services.
 `,
 	Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
-}
-
-func blessingPatternsFromServer(ctx *context.T, server string) ([]security.BlessingPattern, error) {
-	ctx.Infof("Contacting %q to determine the blessings presented by it", server)
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	call, err := v23.GetClient(ctx).StartCall(ctx, server, rpc.ReservedSignature, nil)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to extract blessings presented by %q: %v", server, err)
-	}
-	blessings, _ := call.RemoteBlessings()
-	if len(blessings) == 0 {
-		return nil, fmt.Errorf("No recognizable blessings presented by %q, it cannot be securely mounted", server)
-	}
-	// This translation between BlessingPattern and string is silly!
-	// Kill the BlessingPatterns type and make methods on that type
-	// functions instead!
-	patterns := make([]security.BlessingPattern, len(blessings))
-	for i := range blessings {
-		patterns[i] = security.BlessingPattern(blessings[i])
-	}
-	return patterns, nil
 }

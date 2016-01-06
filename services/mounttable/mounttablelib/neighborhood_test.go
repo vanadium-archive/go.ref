@@ -19,14 +19,6 @@ import (
 	"v.io/x/ref/test"
 )
 
-func protocolAndAddress(e naming.Endpoint) (string, string, error) {
-	addr := e.Addr()
-	if addr == nil {
-		return "", "", fmt.Errorf("failed to get address")
-	}
-	return addr.Network(), addr.String(), nil
-}
-
 type stopper interface {
 	Stop()
 }

@@ -71,17 +71,3 @@ func (a *serverAuthorizer) Authorize(ctx *context.T, call security.Call) error {
 	}
 	return nil
 }
-
-func canCreateServerAuthorizer(ctx *context.T, opts []rpc.CallOpt) error {
-	policy := false
-	for _, o := range opts {
-		switch o.(type) {
-		case options.ServerAuthorizer:
-			if policy {
-				return verror.New(errMultipleAuthorizationPolicies, ctx)
-			}
-			policy = true
-		}
-	}
-	return nil
-}

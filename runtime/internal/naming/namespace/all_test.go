@@ -186,16 +186,8 @@ func testResolveToMountTable(t *testing.T, ctx *context.T, ns namespace.T, name 
 	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want)
 }
 
-func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns namespace.T, name string, pattern naming.NamespaceOpt, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want, pattern)
-}
-
 func testResolve(t *testing.T, ctx *context.T, ns namespace.T, name string, want ...string) {
 	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want)
-}
-
-func testResolveWithPattern(t *testing.T, ctx *context.T, ns namespace.T, name string, pattern naming.NamespaceOpt, want ...string) {
-	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want, pattern)
 }
 
 type serverEntry struct {
@@ -629,14 +621,6 @@ func TestBadRoots(t *testing.T) {
 	if _, err := inamespace.New("not a rooted name"); err == nil {
 		t.Errorf("namespace.New should have failed with an unrooted name")
 	}
-}
-
-func bless(blesser, delegate security.Principal, extension string) {
-	b, err := blesser.Bless(delegate.PublicKey(), blesser.BlessingStore().Default(), extension, security.UnconstrainedUse())
-	if err != nil {
-		panic(err)
-	}
-	delegate.BlessingStore().SetDefault(b)
 }
 
 func TestAuthorizationDuringResolve(t *testing.T) {

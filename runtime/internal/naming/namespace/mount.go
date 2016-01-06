@@ -11,7 +11,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-	"v.io/v23/security"
 	"v.io/x/ref/lib/apilog"
 )
 
@@ -79,12 +78,4 @@ func (ns *namespace) Delete(ctx *context.T, name string, deleteSubtree bool, opt
 	}
 	ctx.VI(1).Infof("Remove(%s, %v) -> %v", name, deleteSubtree, err)
 	return err
-}
-
-func str2pattern(strs []string) (ret []security.BlessingPattern) {
-	ret = make([]security.BlessingPattern, len(strs))
-	for i, s := range strs {
-		ret[i] = security.BlessingPattern(s)
-	}
-	return
 }

@@ -11,10 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"v.io/v23/security"
-
 	"v.io/x/ref/internal/logger"
-	vsecurity "v.io/x/ref/lib/security"
 )
 
 func newLogfile(prefix, name string) (*os.File, error) {
@@ -40,22 +37,4 @@ func outputFromFile(f *os.File, out io.Writer) {
 	}
 	io.Copy(out, f)
 	f.Close()
-}
-
-func principalFromDir(dir string) (security.Principal, error) {
-	p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
-	if err == nil {
-		return p, nil
-	}
-	if !os.IsNotExist(err) {
-		return nil, err
-	}
-	p, err = vsecurity.CreatePersistentPrincipal(dir, nil)
-	if err != nil {
-		return nil, err
-	}
-	if err := vsecurity.InitDefaultBlessings(p, shellBlessingExtension); err != nil {
-		return nil, err
-	}
-	return p, nil
 }

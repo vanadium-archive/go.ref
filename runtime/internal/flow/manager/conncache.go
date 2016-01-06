@@ -267,20 +267,6 @@ func (c *ConnCache) EnterLameDuckMode(ctx *context.T) {
 	}
 }
 
-// matchBlessings return true if the intersection of a and b is not empty.
-func matchBlessings(a, b []string) bool {
-	m := make(map[string]bool, len(a))
-	for _, i := range a {
-		m[i] = true
-	}
-	for _, j := range b {
-		if m[j] {
-			return true
-		}
-	}
-	return false
-}
-
 // TODO(suharshs): If sorting the connections becomes too slow, switch to
 // container/heap instead of sorting all the connections.
 type connEntries []*connEntry

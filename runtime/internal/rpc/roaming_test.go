@@ -6,7 +6,6 @@ package rpc
 
 import (
 	"net"
-	"sort"
 	"strings"
 	"testing"
 
@@ -155,13 +154,4 @@ func getIPAddrs(eps []naming.Endpoint) []net.Addr {
 		addrs = append(addrs, netstate.NewNetAddr("ip", h))
 	}
 	return addrs
-}
-
-func endpointToStrings(eps []naming.Endpoint) []string {
-	r := []string{}
-	for _, ep := range eps {
-		r = append(r, ep.String())
-	}
-	sort.Strings(r)
-	return r
 }

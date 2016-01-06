@@ -182,16 +182,6 @@ func withTimeout(ctx *context.T) *context.T {
 	return ctx
 }
 
-// withTimeoutAndCancel returns a new context with a deadline and a cancellation function.
-func withTimeoutAndCancel(ctx *context.T) (nctx *context.T, cancel context.CancelFunc) {
-	if _, ok := ctx.Deadline(); !ok {
-		nctx, cancel = context.WithTimeout(ctx, callTimeout)
-	} else {
-		nctx, cancel = context.WithCancel(ctx)
-	}
-	return
-}
-
 // CacheCtl implements naming.Namespace.CacheCtl
 func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 	defer apilog.LogCallf(nil, "ctls...=%v", ctls)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT

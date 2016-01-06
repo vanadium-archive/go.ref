@@ -96,26 +96,24 @@ func TestSleep(t *testing.T) {
 	<-c
 }
 
-func testBlocking(t *testing.T) {
+func TestBlocking(t *testing.T) {
 	mt := NewManualTime()
 	sync := make(chan bool)
 	go func() {
 		// Simulate blocking on a timer.
 		<-mt.After(10 * time.Second)
-		<-mt.After(11 * time.Second)
-		<-mt.After(3 * time.Second)
+		<-mt.After(2 * time.Second)
 		sync <- true
 		<-mt.After(4 * time.Second)
 		sync <- true
 	}()
-	<-mt.Requests()
-	<-mt.Requests()
-	mt.AdvanceTime(12 * time.Second)
-	<-mt.Requests()
-	mt.AdvanceTime(2 * time.Second)
+	<-mt.Requests() // 10
+	mt.AdvanceTime(11 * time.Second)
+	<-mt.Requests() // 2
+	mt.AdvanceTime(3 * time.Second)
 	mt.AdvanceTime(time.Second)
 	<-sync
-	<-mt.Requests()
+	<-mt.Requests() // 4
 	mt.AdvanceTime(5 * time.Second)
 	<-sync
 }

@@ -8,10 +8,8 @@
 package wsprlib
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"sync"
@@ -42,16 +40,6 @@ type WSPR struct {
 	principalManager *principal.PrincipalManager
 	accountManager   *account.AccountManager
 	pipes            map[*http.Request]*pipe
-}
-
-func readFromRequest(r *http.Request) (*bytes.Buffer, error) {
-	var buf bytes.Buffer
-	if readBytes, err := io.Copy(&buf, r.Body); err != nil {
-		return nil, fmt.Errorf("error copying message out of request: %v", err)
-	} else if wantBytes := r.ContentLength; readBytes != wantBytes {
-		return nil, fmt.Errorf("read %d bytes, wanted %d", readBytes, wantBytes)
-	}
-	return &buf, nil
 }
 
 // Starts listening for requests and returns the network endpoint address.

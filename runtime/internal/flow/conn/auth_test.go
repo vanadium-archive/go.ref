@@ -132,16 +132,6 @@ func (fc *fakeDischargeClient) StartCall(*context.T, string, string, []interface
 func (fc *fakeDischargeClient) Close()                  {}
 func (fc *fakeDischargeClient) Closed() <-chan struct{} { return nil }
 
-func patterns(ctx *context.T) []security.BlessingPattern {
-	p := v23.GetPrincipal(ctx)
-	b := p.BlessingStore().Default()
-	var patterns []security.BlessingPattern
-	for _, n := range security.BlessingNames(p, b) {
-		patterns = append(patterns, security.BlessingPattern(n))
-	}
-	return patterns
-}
-
 func TestUnidirectional(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
