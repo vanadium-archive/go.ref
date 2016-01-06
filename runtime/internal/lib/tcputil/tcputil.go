@@ -13,7 +13,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 
-	"v.io/x/ref/runtime/internal/lib/framer"
+	"v.io/x/ref/runtime/protocols/lib/framer"
 )
 
 const keepAlivePeriod = 30 * time.Second
