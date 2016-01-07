@@ -202,8 +202,11 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	})
 
 	if err != nil {
-		// TODO(rdaoud): don't crash, quarantine this app database.
-		vlog.Fatalf("sync: processWatchLogBatch: %s, %s: watcher cannot process batch: %v", appName, dbName, err)
+		// TODO(rdaoud): quarantine this app database for other errors.
+		// There may be an error here if the database is recently
+		// destroyed. Ignore the error and continue to another database.
+		vlog.Errorf("sync: processWatchLogBatch: %s, %s: watcher cannot process batch: %v", appName, dbName, err)
+		return
 	}
 
 	// Extract blob refs from batch values and update blob metadata.
@@ -219,7 +222,10 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	// outside the transaction (idempotent), then inside the transaction
 	// patch-up the log records in a 2nd phase.
 	if err = s.processWatchBlobRefs(ctx, appdb, st, batch); err != nil {
-		vlog.Fatalf("sync: processWatchLogBatch:: %s, %s: watcher cannot process blob refs: %v", appName, dbName, err)
+		// There may be an error here if the database is recently
+		// destroyed. Ignore the error and continue to another database.
+		vlog.Errorf("sync: processWatchLogBatch:: %s, %s: watcher cannot process blob refs: %v", appName, dbName, err)
+		return
 	}
 }
 
