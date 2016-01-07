@@ -6,7 +6,6 @@ package vtrace
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"runtime"
 	"v.io/v23/context"
@@ -19,7 +18,6 @@ const (
 type VTraceLogger struct{}
 
 func (*VTraceLogger) InfoDepth(ctx *context.T, depth int, args ...interface{}) {
-	log.Println(args)
 	span := getSpan(ctx)
 	if span == nil {
 		return
