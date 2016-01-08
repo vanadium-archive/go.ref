@@ -699,7 +699,7 @@ func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *LocalLogRe
 	case interfaces.NodeRec:
 		err = iSt.config.sync.addNode(ctx, tx, m.ObjId, m.CurVers, logKey, m.Delete, rec.Shell, m.Parents, m.BatchId, iSt.dagGraft)
 	case interfaces.LinkRec:
-		err = iSt.config.sync.addParent(ctx, tx, m.ObjId, m.CurVers, m.Parents[0], iSt.dagGraft)
+		err = iSt.config.sync.addParent(ctx, tx, m.ObjId, m.CurVers, m.Parents[0], m.BatchId, iSt.dagGraft)
 	default:
 		err = verror.New(verror.ErrInternal, ctx, "unknown log record type")
 	}
@@ -877,96 +877,117 @@ func (iSt *initiationState) resetConflictResolutionState(ctx *context.T) {
 // updateDbAndSync updates the Database, and if that is successful, updates log,
 // dag and genvectors data structures as needed.
 func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
+	// Track batches being processed (BatchId --> BatchCount mapping).
+	batchMap := make(map[uint64]uint64)
+
 	for objid, confSt := range iSt.updObjects {
-		// If the local version is picked, no further updates to the
-		// Database are needed. If the remote version is picked or if a
-		// new version is created, we put it in the Database.
-		if confSt.res.ty != pickLocal && !iSt.sg {
-
-			// TODO(hpucha): Hack right now. Need to change Database's
-			// handling of deleted objects.
-			oldVersDeleted := true
-			if confSt.oldHead != NoVersion {
-				oldDagNode, err := getNode(ctx, iSt.tx, objid, confSt.oldHead)
-				if err != nil {
-					return err
-				}
-				oldVersDeleted = oldDagNode.Deleted
-			}
-
-			var newVersion string
-			var newVersDeleted bool
-			switch confSt.res.ty {
-			case pickRemote:
-				newVersion = confSt.newHead
-				newDagNode, err := getNode(ctx, iSt.tx, objid, newVersion)
-				if err != nil {
-					return err
-				}
-				newVersDeleted = newDagNode.Deleted
-			case createNew:
-				newVersion = confSt.res.rec.Metadata.CurVers
-				newVersDeleted = confSt.res.rec.Metadata.Delete
-			}
-
-			// Skip delete followed by a delete.
-			if oldVersDeleted && newVersDeleted {
-				continue
-			}
-
-			if !oldVersDeleted {
-				// Read current version to enter it in the readset of the transaction.
-				version, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid))
-				if err != nil {
-					return err
-				}
-				if string(version) != confSt.oldHead {
-					vlog.VI(4).Infof("sync: updateDbAndSyncSt: concurrent updates %s %s", version, confSt.oldHead)
-					return store.NewErrConcurrentTransaction(ctx)
-				}
-			} else {
-				// Ensure key doesn't exist.
-				if _, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid)); verror.ErrorID(err) != store.ErrUnknownKey.ID {
-					return store.NewErrConcurrentTransaction(ctx)
-				}
-			}
-
-			if !newVersDeleted {
-				if confSt.res.ty == createNew {
-					vlog.VI(4).Infof("sync: updateDbAndSyncSt: PutAtVersion %s %s", objid, newVersion)
-					if err := watchable.PutAtVersion(ctx, iSt.tx, []byte(objid), confSt.res.val, []byte(newVersion)); err != nil {
-						return err
-					}
-				}
-				vlog.VI(4).Infof("sync: updateDbAndSyncSt: PutVersion %s %s", objid, newVersion)
-				if err := watchable.PutVersion(ctx, iSt.tx, []byte(objid), []byte(newVersion)); err != nil {
-					return err
-				}
-			} else {
-				vlog.VI(4).Infof("sync: updateDbAndSyncSt: Deleting obj %s", objid)
-				if err := iSt.tx.Delete([]byte(objid)); err != nil {
-					return err
-				}
-			}
-
-			// If this is a perms key, update the local store index.
-			if util.IsPermsKey(objid) {
-				table, row := util.ParseTableAndRowOrDie(objid)
-				tb := iSt.config.db.Table(ctx, table)
-				var err error
-				if !newVersDeleted {
-					err = tb.UpdatePrefixPermsIndexForSet(ctx, iSt.tx, row)
-				} else {
-					err = tb.UpdatePrefixPermsIndexForDelete(ctx, iSt.tx, row)
-				}
-				if err != nil {
-					return err
-				}
-			}
-		}
 		// Always update sync state irrespective of local/remote/new
 		// versions being picked.
-		if err := iSt.updateLogAndDag(ctx, objid); err != nil {
+		if err := iSt.updateLogAndDag(ctx, objid, batchMap); err != nil {
+			return err
+		}
+
+		// No need to update the store for syncgroup changes.
+		if iSt.sg {
+			continue
+		}
+
+		// If the local version is picked, no further updates to the
+		// Database are needed, but we want to ensure that the local
+		// version has not changed since by entering it into the readset
+		// of the transaction. If the remote version is picked or if a
+		// new version is created, we put it in the Database.
+
+		// TODO(hpucha): Hack right now. Need to change Database's
+		// handling of deleted objects.
+		oldVersDeleted := true
+		if confSt.oldHead != NoVersion {
+			oldDagNode, err := getNode(ctx, iSt.tx, objid, confSt.oldHead)
+			if err != nil {
+				return err
+			}
+			oldVersDeleted = oldDagNode.Deleted
+		}
+
+		if !oldVersDeleted {
+			// Read current version to enter it in the readset of the transaction.
+			version, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid))
+			if err != nil {
+				return err
+			}
+			if string(version) != confSt.oldHead {
+				vlog.VI(4).Infof("sync: updateDbAndSyncSt: concurrent updates %s %s", version, confSt.oldHead)
+				return store.NewErrConcurrentTransaction(ctx)
+			}
+		} else {
+			// Ensure key doesn't exist.
+			if _, err := watchable.GetVersion(ctx, iSt.tx, []byte(objid)); verror.ErrorID(err) != store.ErrUnknownKey.ID {
+				return store.NewErrConcurrentTransaction(ctx)
+			}
+		}
+
+		if confSt.res.ty == pickLocal {
+			// Nothing more to do.
+			continue
+		}
+
+		var newVersion string
+		var newVersDeleted bool
+		switch confSt.res.ty {
+		case pickRemote:
+			newVersion = confSt.newHead
+			newDagNode, err := getNode(ctx, iSt.tx, objid, newVersion)
+			if err != nil {
+				return err
+			}
+			newVersDeleted = newDagNode.Deleted
+		case createNew:
+			newVersion = confSt.res.rec.Metadata.CurVers
+			newVersDeleted = confSt.res.rec.Metadata.Delete
+		}
+
+		// Skip delete followed by a delete.
+		if oldVersDeleted && newVersDeleted {
+			continue
+		}
+
+		if !newVersDeleted {
+			if confSt.res.ty == createNew {
+				vlog.VI(4).Infof("sync: updateDbAndSyncSt: PutAtVersion %s %s", objid, newVersion)
+				if err := watchable.PutAtVersion(ctx, iSt.tx, []byte(objid), confSt.res.val, []byte(newVersion)); err != nil {
+					return err
+				}
+			}
+			vlog.VI(4).Infof("sync: updateDbAndSyncSt: PutVersion %s %s", objid, newVersion)
+			if err := watchable.PutVersion(ctx, iSt.tx, []byte(objid), []byte(newVersion)); err != nil {
+				return err
+			}
+		} else {
+			vlog.VI(4).Infof("sync: updateDbAndSyncSt: Deleting obj %s", objid)
+			if err := iSt.tx.Delete([]byte(objid)); err != nil {
+				return err
+			}
+		}
+
+		// If this is a perms key, update the local store index.
+		if util.IsPermsKey(objid) {
+			table, row := util.ParseTableAndRowOrDie(objid)
+			tb := iSt.config.db.Table(ctx, table)
+			var err error
+			if !newVersDeleted {
+				err = tb.UpdatePrefixPermsIndexForSet(ctx, iSt.tx, row)
+			} else {
+				err = tb.UpdatePrefixPermsIndexForDelete(ctx, iSt.tx, row)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// End the started batches if any.
+	for bid, cnt := range batchMap {
+		if err := iSt.config.sync.endBatch(ctx, iSt.tx, bid, cnt); err != nil {
 			return err
 		}
 	}
@@ -975,34 +996,86 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 }
 
 // updateLogAndDag updates the log and dag data structures.
-func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string) error {
+//
+// Each object in the updated objects list (iSt.updObjects) is present because
+// of one of the following cases:
+//
+// Case 1: The object is under conflict after the replay of the deltas, and was
+// resolved by conflict resolution (isConflict = true, isAddedByCr = false).
+//
+// Case 2: The object is not under conflict after the replay of the deltas
+// (isConflict = false, isAddedByCr = false). Note that even for these objects
+// that are not under conflict, conflict resolution may need to modify its value
+// due to its involvement in a batch.
+//
+// Case 3: The object was not received in the deltas but was added during
+// conflict resolution due to its involvement in a batch (isConflict = false,
+// isAddedByCr = true).
+//
+// For each object in iSt.updObjects, the following states are possible after
+// conflict detection and resolution:
+//
+// pickLocal:
+// ** Case 1: We need to create a link log record to remember the conflict
+// resolution. This happens when conflict resolution picks the local head to be
+// suitable for resolution.
+// ** Case 2: Do nothing. This happens when this object was not involved in the
+// resolution and only link log records are received in the deltas resulting in
+// no updates to the local head.
+// TODO(hpucha): confirm how this case is handled during app resolution.
+// ** Case 3: Do nothing. This happens when conflict resolution picks the local
+// head to be suitable for resolution.
+//
+// pickRemote: Update the dag head in all cases.
+// ** Case 1: We need to create a link log record to remember the conflict
+// resolution. This happens when conflict resolution picks the remote head to be
+// suitable for resolution.
+// ** Case 2: This happens either when this object was not involved in the
+// resolution, or was involved and the remote value was suitable.
+// ** Case 3: This case is not possible since the remote value is unavailable.
+//
+// createNew: Create a node log record and update the dag head in all cases.
+// ** Case 1: This happens when conflict resolution resulted in a new value.
+// ** Case 2: This happens either because resolution overwrote the newly
+// received remote value with a new value, or the local value was chosen but
+// needed to be rewritten with a new version to prevent a cycle in the dag.
+// ** Case 3: This happens when conflict resolution resulted in a new value.
+func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string, batchMap map[uint64]uint64) error {
 	confSt, ok := iSt.updObjects[objid]
 	if !ok {
 		return verror.New(verror.ErrInternal, ctx, "object state not found", objid)
 	}
 	var newVersion string
 
-	if !confSt.isConflict {
-		newVersion = confSt.newHead
-	} else {
-		// Object had a conflict. Create a log record to reflect resolution.
-		var rec *LocalLogRec
+	// Create log records and dag nodes as needed.
+	var rec *LocalLogRec
 
-		switch {
-		case confSt.res.ty == pickLocal:
+	switch {
+	case confSt.res.ty == pickLocal:
+		if confSt.isConflict {
 			// Local version was picked as the conflict resolution.
-			rec = iSt.createLocalLinkLogRec(ctx, objid, confSt.oldHead, confSt.newHead)
-			newVersion = confSt.oldHead
-		case confSt.res.ty == pickRemote:
-			// Remote version was picked as the conflict resolution.
-			rec = iSt.createLocalLinkLogRec(ctx, objid, confSt.newHead, confSt.oldHead)
-			newVersion = confSt.newHead
-		default:
-			// New version was created to resolve the conflict.
-			rec = confSt.res.rec
-			newVersion = confSt.res.rec.Metadata.CurVers
+			rec = iSt.createLocalLinkLogRec(ctx, objid, confSt.oldHead, confSt.newHead, confSt.res.batchId, confSt.res.batchCount)
 		}
+		newVersion = confSt.oldHead
+	case confSt.res.ty == pickRemote:
+		if confSt.isConflict {
+			// Remote version was picked as the conflict resolution.
+			rec = iSt.createLocalLinkLogRec(ctx, objid, confSt.newHead, confSt.oldHead, confSt.res.batchId, confSt.res.batchCount)
+		}
+		if confSt.isAddedByCr {
+			vlog.Fatalf("sync: updateLogAndDag: pickRemote with obj %v added by conflict resolution, st %v, res %v", objid, confSt, confSt.res)
+		}
+		newVersion = confSt.newHead
+	case confSt.res.ty == createNew:
+		// New version was created to resolve the conflict. Node log
+		// records were created during resolution.
+		rec = confSt.res.rec
+		newVersion = confSt.res.rec.Metadata.CurVers
+	default:
+		return verror.New(verror.ErrInternal, ctx, "invalid conflict resolution type", confSt.res.ty)
+	}
 
+	if rec != nil {
 		var pfx string
 		if iSt.sg {
 			pfx = objid
@@ -1013,6 +1086,18 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string) error 
 			return err
 		}
 
+		batchId := rec.Metadata.BatchId
+		if batchId != NoBatchId {
+			if cnt, ok := batchMap[batchId]; !ok {
+				if iSt.config.sync.startBatch(ctx, iSt.tx, batchId) != batchId {
+					return verror.New(verror.ErrInternal, ctx, "failed to create batch info")
+				}
+				batchMap[batchId] = rec.Metadata.BatchCount
+			} else if cnt != rec.Metadata.BatchCount {
+				return verror.New(verror.ErrInternal, ctx, "inconsistent counts for tid", batchId, cnt, rec.Metadata.BatchCount)
+			}
+		}
+
 		// Add a new DAG node.
 		var err error
 		m := rec.Metadata
@@ -1020,7 +1105,7 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string) error 
 		case interfaces.NodeRec:
 			err = iSt.config.sync.addNode(ctx, iSt.tx, objid, m.CurVers, logRecKey(pfx, m.Id, m.Gen), m.Delete, rec.Shell, m.Parents, NoBatchId, nil)
 		case interfaces.LinkRec:
-			err = iSt.config.sync.addParent(ctx, iSt.tx, objid, m.CurVers, m.Parents[0], nil)
+			err = iSt.config.sync.addParent(ctx, iSt.tx, objid, m.CurVers, m.Parents[0], m.BatchId, nil)
 		default:
 			return verror.New(verror.ErrInternal, ctx, "unknown log record type")
 		}
@@ -1034,7 +1119,7 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string) error 
 	return moveHead(ctx, iSt.tx, objid, newVersion)
 }
 
-func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, par string) *LocalLogRec {
+func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, par string, batchId, batchCount uint64) *LocalLogRec {
 	vlog.VI(4).Infof("sync: createLocalLinkLogRec: obj %s vers %s par %s", objid, vers, par)
 
 	var gen, pos uint64
@@ -1054,9 +1139,8 @@ func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, p
 			CurVers:    vers,
 			Parents:    []string{par},
 			UpdTime:    time.Now().UTC(),
-			BatchId:    NoBatchId,
-			BatchCount: 1,
-			// TODO(hpucha): What is its batchid and count?
+			BatchId:    batchId,
+			BatchCount: batchCount,
 		},
 		Pos: pos,
 	}

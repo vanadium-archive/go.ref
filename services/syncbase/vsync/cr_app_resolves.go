@@ -186,6 +186,7 @@ func processResInfos(ctx *context.T, iSt *initiationState, results map[string]*w
 		conflictState := iSt.updObjects[oid]
 		var res conflictResolution
 		res.batchId = resBatchId
+		res.batchCount = batchCount
 		switch {
 		case rInfo.Selection == wire.ValueSelectionLocal:
 			if !conflictState.isConflict && !conflictState.isAddedByCr {

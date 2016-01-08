@@ -111,7 +111,7 @@ func TestAddParent(t *testing.T) {
 	oid, version := "tb\xfefoo1", "7"
 
 	tx := st.NewTransaction()
-	if err := s.addParent(nil, tx, oid, version, "haha", nil); err == nil {
+	if err := s.addParent(nil, tx, oid, version, "haha", NoBatchId, nil); err == nil {
 		t.Errorf("addParent() did not fail for an unknown object %s:%s", oid, version)
 	}
 	tx.Abort()
@@ -130,7 +130,7 @@ func TestAddParent(t *testing.T) {
 
 	graft := newGraft(st)
 	tx = st.NewTransaction()
-	if err := s.addParent(nil, tx, oid, version, version, graft); err == nil {
+	if err := s.addParent(nil, tx, oid, version, version, NoBatchId, graft); err == nil {
 		t.Errorf("addParent() did not fail on a self-parent for object %s:%s", oid, version)
 	}
 	tx.Abort()
@@ -140,7 +140,7 @@ func TestAddParent(t *testing.T) {
 
 	for _, parent := range expParents {
 		tx = st.NewTransaction()
-		if err := s.addParent(nil, tx, oid, version, parent, graft); err == nil {
+		if err := s.addParent(nil, tx, oid, version, parent, NoBatchId, graft); err == nil {
 			t.Errorf("addParent() did not reject invalid parent %s for object %s:%s",
 				parent, oid, version)
 		}
@@ -162,7 +162,7 @@ func TestAddParent(t *testing.T) {
 		// addParent() twice to verify it is idempotent.
 		for i := 0; i < 2; i++ {
 			tx = st.NewTransaction()
-			if err := s.addParent(nil, tx, oid, version, parent, g); err != nil {
+			if err := s.addParent(nil, tx, oid, version, parent, NoBatchId, g); err != nil {
 				t.Errorf("addParent() failed on parent %s, remote %t (i=%d) for %s:%s: %v",
 					parent, remote, i, oid, version, err)
 			}
@@ -186,7 +186,7 @@ func TestAddParent(t *testing.T) {
 	for v := 1; v < 7; v++ {
 		ver := fmt.Sprintf("%d", v)
 		tx = st.NewTransaction()
-		if err = s.addParent(nil, tx, oid, ver, version, nil); err == nil {
+		if err = s.addParent(nil, tx, oid, ver, version, NoBatchId, nil); err == nil {
 			t.Errorf("addParent() failed to reject a cycle for %s: from ancestor %s to node %s",
 				oid, ver, version)
 		}
@@ -1285,7 +1285,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_1)
 	}
 
-	expInfo := &BatchInfo{map[string]string{oid_a: "3", oid_b: "3"}, nil, 0}
+	expInfo := &BatchInfo{map[string]string{oid_a: "3", oid_b: "3"}, make(map[string]string), 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_1, info, expInfo)
 	}
@@ -1295,7 +1295,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_2)
 	}
 
-	expInfo = &BatchInfo{map[string]string{oid_c: "2"}, nil, 0}
+	expInfo = &BatchInfo{map[string]string{oid_c: "2"}, make(map[string]string), 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}
@@ -1339,7 +1339,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batches state for ID %v not found", btid_2)
 	}
 
-	expInfo = &BatchInfo{map[string]string{oid_c: "2"}, nil, 0}
+	expInfo = &BatchInfo{map[string]string{oid_c: "2"}, make(map[string]string), 0}
 	if !reflect.DeepEqual(info, expInfo) {
 		t.Errorf("invalid batch info for ID %v: %v instead of %v", btid_2, info, expInfo)
 	}
