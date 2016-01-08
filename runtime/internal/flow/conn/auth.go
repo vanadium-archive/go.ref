@@ -555,7 +555,8 @@ func equalDischarges(m map[string]security.Discharge, s []security.Discharge) bo
 		return false
 	}
 	for _, d := range s {
-		if !d.Equivalent(m[d.ID()]) {
+		inm, ok := m[d.ID()]
+		if !ok || !d.Equivalent(inm) {
 			return false
 		}
 	}

@@ -23,7 +23,7 @@ type expiryDischarger struct {
 	durations map[string]time.Duration
 }
 
-func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)

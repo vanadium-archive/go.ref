@@ -823,6 +823,38 @@ func TestServerLocalBlessings(t *testing.T) {
 	}
 }
 
+func TestDischargesToMounttable(t *testing.T) {
+	// This test duplicates the underlying problem in
+	// https://github.com/vanadium/issues/issues/1049
+	//
+	// The mounttable is used once to resolve the name of the discharger
+	// and then again to mount. The first time discharges aren't sent (as
+	// they aren't available). The second time they must be sent.
+	ctx, shutdown := test.V23InitWithMounttable()
+	name := "mountpoint/name"
+	defer shutdown()
+
+	_, _, err := v23.WithNewServer(ctx, "mountpoint/dischargeserver", &dischargeServer{}, security.AllowEveryone())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Set an ACL on the mounttable so that only test-blessing:client authorizes a mount.
+	perms := make(access.Permissions)
+	perms.Add("test-blessing:client", string(access.Write))
+	if err := v23.GetNamespace(ctx).SetPermissions(ctx, name, perms, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	tpCav := mkThirdPartyCaveat(
+		v23.GetPrincipal(ctx).PublicKey(),
+		"mountpoint/dischargeserver",
+		mkCaveat(security.NewExpiryCaveat(time.Now().Add(time.Hour))))
+	cctx := withPrincipal(t, ctx, "client", tpCav)
+	if err := v23.GetNamespace(cctx).Mount(cctx, name, "localhost:14141", time.Second); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDischargePurgeFromCache(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()

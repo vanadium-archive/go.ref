@@ -58,9 +58,9 @@ func PrepareDischarges(
 			todo[tp.ID()] = work{cav, filteredImpetus(tp.Requirements(), impetus)}
 		}
 	}
-	//Since there may be dependencies in the caveats, we keep retrying
-	//until either all discharges can be fetched or no new discharges
-	//are fetched.
+	// Since there may be dependencies in the caveats, we keep retrying
+	// until either all discharges can be fetched or no new discharges
+	// are fetched.
 	var minRefreshTime time.Time
 	ch := make(chan *updateResult, len(tpCavs))
 	ret := make(map[string]security.Discharge, len(tpCavs))
@@ -120,6 +120,7 @@ func updateDischarge(
 		if err := v23.GetClient(ctx).Call(ctx, tp.Location(), "Discharge", args, res); err != nil {
 			ctx.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
 			out <- &updateResult{discharge: dis}
+			return
 		}
 		bstore.CacheDischarge(newDis, caveat, impetus)
 		out <- &updateResult{done: true, discharge: newDis, refreshTime: refreshTime(newDis, time.Now())}
