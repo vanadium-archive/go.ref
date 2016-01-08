@@ -14,6 +14,7 @@ import (
 
 	"v.io/x/ref/runtime/internal/rpc/benchmark"
 	tbm "v.io/x/ref/test/benchmark"
+	"v.io/v23/vtrace"
 )
 
 // CallEcho calls 'Echo' method 'iterations' times with the given payload size.
@@ -28,19 +29,20 @@ func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadS
 	b.ResetTimer()                     // Exclude setup time from measurement.
 
 	for i := 0; i < iterations; i++ {
+		ictx, span := vtrace.WithNewTrace(ctx)
 		b.StartTimer()
 		start := time.Now()
 
-		r, err := stub.Echo(ctx, payload)
+		r, err := stub.Echo(ictx, payload)
 
 		elapsed := time.Since(start)
 		b.StopTimer()
-
+		span.Finish()
 		if err != nil {
-			ctx.Fatalf("Echo failed: %v", err)
+			ictx.Fatalf("Echo failed: %v", err)
 		}
 		if !bytes.Equal(r, payload) {
-			ctx.Fatalf("Echo returned %v, but expected %v", r, payload)
+			ictx.Fatalf("Echo returned %v, but expected %v", r, payload)
 		}
 
 		stats.Add(elapsed)
