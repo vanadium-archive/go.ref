@@ -33,7 +33,7 @@ const (
 	vomdataConfig    = "vomdata.vdl.config"
 )
 
-var versions = []vom.Version{vom.Version80, vom.Version81}
+var versions = []vom.Version{vom.Version80, vom.Version81, vom.Version82}
 
 var cmdGenerate = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runGenerate),

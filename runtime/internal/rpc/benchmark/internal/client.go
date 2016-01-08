@@ -12,9 +12,9 @@ import (
 
 	"v.io/v23/context"
 
+	"v.io/v23/vtrace"
 	"v.io/x/ref/runtime/internal/rpc/benchmark"
 	tbm "v.io/x/ref/test/benchmark"
-	"v.io/v23/vtrace"
 )
 
 // CallEcho calls 'Echo' method 'iterations' times with the given payload size.
