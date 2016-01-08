@@ -57,7 +57,6 @@ type LogRecMetadata struct {
 	UpdTime    time.Time // timestamp when the update is generated.
 	PermId     string    // id of the permissions object controlling this version.
 	PermVers   string    // current version of the permissions object.
-	Shell      bool      // true when the mutation data is hidden due to permissions.
 	Delete     bool      // indicates whether the update resulted in object being deleted from the store.
 	BatchId    uint64    // unique id of the Batch this update belongs to.
 	BatchCount uint64    // number of objects in the Batch.
@@ -73,6 +72,7 @@ func (LogRecMetadata) __VDLReflect(struct {
 type LogRec struct {
 	Metadata LogRecMetadata
 	Value    []byte
+	Shell    bool // true when the mutation data is hidden due to permissions.
 }
 
 func (LogRec) __VDLReflect(struct {

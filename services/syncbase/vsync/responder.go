@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"v.io/v23/context"
+	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -370,7 +371,7 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T, pfx string) error
 
 		if rSt.sg || !filterLogRec(rec, rSt.initVecs, initPfxs) {
 			// Send on the wire.
-			wireRec, err := makeWireLogRec(ctx, rSt.sg, rSt.st, rec)
+			wireRec, err := rSt.makeWireLogRec(ctx, rec)
 			if err != nil {
 				return err
 			}
@@ -438,6 +439,39 @@ func (rSt *responderState) diffGenVectors(respVec, initVec interfaces.GenVector)
 			updateDevRange(devid, rgen, 0, rSt.diff)
 		}
 	}
+}
+
+// makeWireLogRec creates a sync log record to send on the wire from a given
+// local sync record.
+func (rSt *responderState) makeWireLogRec(ctx *context.T, rec *LocalLogRec) (*interfaces.LogRec, error) {
+	// Get the object value at the required version.
+	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
+	var value []byte
+	shell := rec.Shell
+
+	if rSt.sg {
+		sg, err := getSGDataEntryByOID(ctx, rSt.st, key, version)
+		if err != nil {
+			return nil, err
+		}
+		value, err = vom.Encode(sg)
+		if err != nil {
+			return nil, err
+		}
+	} else if !rec.Metadata.Delete && !rec.Shell && rec.Metadata.RecType == interfaces.NodeRec {
+		if rSt.sendValue(ctx, rec) {
+			var err error
+			value, err = watchable.GetAtVersion(ctx, rSt.st, []byte(key), nil, []byte(version))
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			shell = true
+		}
+	}
+
+	wireRec := &interfaces.LogRec{Metadata: rec.Metadata, Value: value, Shell: shell}
+	return wireRec, nil
 }
 
 func updateDevRange(devid, rgen, gen uint64, gens genRangeVector) {
@@ -515,31 +549,38 @@ func filterLogRec(rec *LocalLogRec, initVecs interfaces.Knowledge, initPfxs []st
 	return filter
 }
 
-// makeWireLogRec creates a sync log record to send on the wire from a given
-// local sync record.
-func makeWireLogRec(ctx *context.T, sg bool, st store.Store, rec *LocalLogRec) (*interfaces.LogRec, error) {
-	// Get the object value at the required version.
-	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
-	var value []byte
-	if sg {
-		sg, err := getSGDataEntryByOID(ctx, st, key, version)
-		if err != nil {
-			return nil, err
-		}
-		value, err = vom.Encode(sg)
-		if err != nil {
-			return nil, err
-		}
-	} else if !rec.Metadata.Delete {
-		var err error
-		value, err = watchable.GetAtVersion(ctx, st, []byte(key), nil, []byte(version))
-		if err != nil {
-			return nil, err
-		}
+// sendValue decides if the oid's value should be sent to this initiator or
+// should be shelled.
+func (rSt *responderState) sendValue(ctx *context.T, rec *LocalLogRec) bool {
+	key := rec.Metadata.ObjId
+
+	// All permissions objects are always readable by everyone.
+	if util.FirstKeyPart(key) == util.PermsPrefix {
+		return true
 	}
 
-	wireRec := &interfaces.LogRec{Metadata: rec.Metadata, Value: value}
-	return wireRec, nil
+	// TODO(hpucha): Can PermID be empty?
+	if rec.Metadata.PermId == "" {
+		return true
+	}
+
+	value, err := watchable.GetAtVersion(ctx, rSt.st, []byte(rec.Metadata.PermId), nil, []byte(rec.Metadata.PermVers))
+	if err != nil {
+		return false
+	}
+
+	var perms access.Permissions
+	if err := vom.Decode(value, &perms); err != nil {
+		return false
+	}
+
+	// Check that the caller has Read access.
+	auth := access.TypicalTagTypePermissionsAuthorizer(perms)
+	if err := auth.Authorize(ctx, rSt.call.Security()); err != nil {
+		return false
+	}
+
+	return true
 }
 
 // A minHeap implements heap.Interface and holds local log records.

@@ -205,7 +205,7 @@ func (s *syncService) dagReplayCommands(ctx *context.T, syncfile string) (*graft
 		switch cmd.cmd {
 		case addLocal:
 			err = s.addNode(ctx, tx, cmd.oid, cmd.version, cmd.logrec,
-				cmd.deleted, cmd.parents, NoBatchId, nil)
+				cmd.deleted, false, cmd.parents, NoBatchId, nil)
 			if err != nil {
 				return nil, fmt.Errorf("cannot add local node %s:%s: %v",
 					cmd.oid, cmd.version, err)
@@ -218,7 +218,7 @@ func (s *syncService) dagReplayCommands(ctx *context.T, syncfile string) (*graft
 
 		case addRemote:
 			err = s.addNode(ctx, tx, cmd.oid, cmd.version, cmd.logrec,
-				cmd.deleted, cmd.parents, NoBatchId, graft)
+				cmd.deleted, false, cmd.parents, NoBatchId, graft)
 			if err != nil {
 				return nil, fmt.Errorf("cannot add remote node %s:%s: %v",
 					cmd.oid, cmd.version, err)

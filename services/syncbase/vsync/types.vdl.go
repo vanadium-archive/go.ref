@@ -41,6 +41,7 @@ func (DbSyncState) __VDLReflect(struct {
 type LocalLogRec struct {
 	Metadata interfaces.LogRecMetadata
 	Pos      uint64 // position in the Database log.
+	Shell    bool   // indicates if the value was shelled by the sender.
 }
 
 func (LocalLogRec) __VDLReflect(struct {

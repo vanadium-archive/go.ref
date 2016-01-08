@@ -253,7 +253,8 @@ func (s *syncService) endBatch(ctx *context.T, tx store.Transaction, btid, count
 //
 // The grafting structure is not needed when nodes are being added locally by
 // the Watcher, passing a nil grafting structure.
-func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version, logrec string, deleted bool, parents []string, btid uint64, graft *graftMap) error {
+func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version, logrec string,
+	deleted, shell bool, parents []string, btid uint64, graft *graftMap) error {
 	if parents != nil {
 		if len(parents) > 2 {
 			return verror.New(verror.ErrInternal, ctx, "cannot have more than 2 parents")
@@ -291,6 +292,7 @@ func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version
 		Parents: parents,
 		Logrec:  logrec,
 		BatchId: btid,
+		Shell:   shell,
 		Deleted: deleted,
 	}
 	if err := setNode(ctx, tx, oid, version, node); err != nil {

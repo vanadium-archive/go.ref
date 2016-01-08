@@ -240,7 +240,7 @@ func (s *syncService) updateSyncgroupVersioning(ctx *context.T, tx store.Transac
 	}
 
 	// Add the syncgroup to the DAG.
-	if err := s.addNode(ctx, tx, oid, version, logKey, false, parents, NoBatchId, nil); err != nil {
+	if err := s.addNode(ctx, tx, oid, version, logKey, false, false, parents, NoBatchId, nil); err != nil {
 		return err
 	}
 	return setHead(ctx, tx, oid, version)
