@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	lsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/securityflag"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
@@ -18,8 +19,8 @@ import (
 )
 
 var (
-	serverAddr string
-	ctx        *context.T
+	serverAddr, tpcServerAddr string
+	ctx, tpcCtx               *context.T
 )
 
 // Benchmarks for non-streaming RPC.
@@ -33,6 +34,30 @@ func Benchmark__100B(b *testing.B) { runEcho(b, 100) }
 func Benchmark___1KB(b *testing.B) { runEcho(b, 1000) }
 func Benchmark__10KB(b *testing.B) { runEcho(b, 10000) }
 func Benchmark_100KB(b *testing.B) { runEcho(b, 100000) }
+
+// Benchmark for non-streaming RPC with a Client ThirdPartyCaveat.
+func runEchoClientTPC(b *testing.B, payloadSize int) {
+	internal.CallEcho(b, tpcCtx, serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
+}
+
+func Benchmark____1B_ClientTPCav(b *testing.B) { runEchoClientTPC(b, 1) }
+func Benchmark___10B_ClientTPCav(b *testing.B) { runEchoClientTPC(b, 10) }
+func Benchmark__100B_ClientTPCav(b *testing.B) { runEchoClientTPC(b, 100) }
+func Benchmark___1KB_ClientTPCav(b *testing.B) { runEchoClientTPC(b, 1000) }
+func Benchmark__10KB_ClientTPCav(b *testing.B) { runEchoClientTPC(b, 10000) }
+func Benchmark_100KB_ClientTPCav(b *testing.B) { runEchoClientTPC(b, 100000) }
+
+// Benchmark for non-streaming RPC with a Server ThirdPartyCaveat.
+func runEchoServerTPC(b *testing.B, payloadSize int) {
+	internal.CallEcho(b, ctx, tpcServerAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
+}
+
+func Benchmark____1B_ServerTPCav(b *testing.B) { runEchoServerTPC(b, 1) }
+func Benchmark___10B_ServerTPCav(b *testing.B) { runEchoServerTPC(b, 10) }
+func Benchmark__100B_ServerTPCav(b *testing.B) { runEchoServerTPC(b, 100) }
+func Benchmark___1KB_ServerTPCav(b *testing.B) { runEchoServerTPC(b, 1000) }
+func Benchmark__10KB_ServerTPCav(b *testing.B) { runEchoServerTPC(b, 10000) }
+func Benchmark_100KB_ServerTPCav(b *testing.B) { runEchoServerTPC(b, 100000) }
 
 // Benchmarks for streaming RPC.
 func runEchoStream(b *testing.B, chunkCnt, payloadSize int) {
@@ -111,14 +136,41 @@ func TestMain(m *testing.M) {
 	var shutdown v23.Shutdown
 	ctx, shutdown = test.V23Init()
 
+	// Server with no ThirdPartyCaveat.
 	_, server, err := v23.WithNewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}
 	serverAddr = server.Status().Endpoints[0].Name()
 
+	// Create a DischargeServer and a principal with a corresponding ThirdPartyCaveat.
+	tpcav := internal.NewDischargeServer(ctx)
+	p := v23.GetPrincipal(ctx)
+	tpcavb, err := p.Bless(p.PublicKey(), p.BlessingStore().Default(), "tpcav", tpcav)
+	if err != nil {
+		ctx.Fatal(err)
+	}
+	store := lsecurity.FixedBlessingsStore(tpcavb, nil)
+	tpcavp, err := lsecurity.ForkPrincipal(p, store, p.Roots())
+	if err != nil {
+		ctx.Fatal(err)
+	}
+	tpcCtx, err = v23.WithPrincipal(ctx, tpcavp)
+	if err != nil {
+		ctx.Fatal(err)
+	}
+
+	// Create a server with the ThirdPartyCaveat principal.
+	_, tpcServer, err := v23.WithNewServer(tpcCtx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	if err != nil {
+		ctx.Fatalf("NewServer failed: %v", err)
+	}
+	tpcServerAddr = tpcServer.Status().Endpoints[0].Name()
+
 	// Create a VC to exclude the VC setup time from the benchmark.
 	internal.CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))
+	internal.CallEcho(&testing.B{}, tpcCtx, serverAddr, 1, 0, benchmark.NewStats(1))
+	internal.CallEcho(&testing.B{}, ctx, tpcServerAddr, 1, 0, benchmark.NewStats(1))
 
 	r := benchmark.RunTestMain(m)
 	shutdown()
