@@ -29,6 +29,7 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/ref/lib/apilog"
 	slib "v.io/x/ref/lib/security"
+	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/manager"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
@@ -545,7 +546,6 @@ func (c *xclient) tryCall(ctx *context.T, name, method string, args []interface{
 					}()
 				}
 			*/
-
 			deadline, _ := ctx.Deadline()
 			if verr := fc.start(r.suffix, method, args, deadline, opts); verr != nil {
 				return nil, verror.NoRetry, false, verr
@@ -576,13 +576,13 @@ func xcleanupTryCall(skip *xserverStatus, responses []*xserverStatus, ch chan *x
 			//
 			// TODO(toddw): Currently we only notice cancellation when we read or
 			// write the flow.  Decide how to handle this.
-			r.flow.WriteMsgAndClose() // TODO(toddw): cancel context instead?
+			r.flow.Close()
 		}
 	}
 	// Now we just need to wait for the pending responses and close their flows.
 	for i := 0; i < numPending; i++ {
 		if r := <-ch; r.flow != nil {
-			r.flow.WriteMsgAndClose() // TODO(toddw): cancel context instead?
+			r.flow.Close()
 		}
 	}
 }
@@ -654,11 +654,11 @@ func (c *xclient) Closed() <-chan struct{} {
 // flowXClient implements the RPC client-side protocol for a single RPC, over a
 // flow that's already connected to the server.
 type flowXClient struct {
-	ctx          *context.T   // context to annotate with call details
-	flow         flow.Flow    // the underlying flow
-	dec          *vom.Decoder // to decode responses and results from the server
-	enc          *vom.Encoder // to encode requests and args to the server
-	response     rpc.Response // each decoded response message is kept here
+	ctx          *context.T          // context to annotate with call details
+	flow         *conn.BufferingFlow // the underlying flow
+	dec          *vom.Decoder        // to decode responses and results from the server
+	enc          *vom.Encoder        // to encode requests and args to the server
+	response     rpc.Response        // each decoded response message is kept here
 	remoteBNames []string
 	secCall      security.Call
 
@@ -671,15 +671,16 @@ var _ rpc.ClientCall = (*flowXClient)(nil)
 var _ rpc.Stream = (*flowXClient)(nil)
 
 func newFlowXClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, typeDec *vom.TypeDecoder) (*flowXClient, error) {
-	if _, err := flow.Write([]byte{dataFlow}); err != nil {
+	bf := conn.NewBufferingFlow(ctx, flow)
+	if _, err := bf.Write([]byte{dataFlow}); err != nil {
 		flow.Close()
 		return nil, err
 	}
 	fc := &flowXClient{
 		ctx:  ctx,
-		flow: flow,
-		dec:  vom.NewDecoderWithTypeDecoder(flow, typeDec),
-		enc:  vom.NewEncoderWithTypeEncoder(flow, typeEnc),
+		flow: bf,
+		dec:  vom.NewDecoderWithTypeDecoder(bf, typeDec),
+		enc:  vom.NewEncoderWithTypeEncoder(bf, typeEnc),
 	}
 	return fc, nil
 }
@@ -693,14 +694,10 @@ func newFlowXClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, ty
 func (fc *flowXClient) close(err error) error {
 	subErr := verror.SubErr{Err: err, Options: verror.Print}
 	subErr.Name = "remote=" + fc.flow.RemoteEndpoint().String()
-	// TODO(toddw): cancel context instead?
-	if _, cerr := fc.flow.WriteMsgAndClose(); cerr != nil && err == nil {
+	if cerr := fc.flow.Close(); cerr != nil && err == nil {
 		// TODO(mattr): The context is often already canceled here, in
 		// which case we'll get an error.  Not clear what to do.
 		//return verror.New(verror.ErrInternal, fc.ctx, subErr)
-	}
-	if err == nil {
-		return nil
 	}
 	switch verror.ErrorID(err) {
 	case verror.ErrCanceled.ID:
@@ -755,7 +752,7 @@ func (fc *flowXClient) start(suffix, method string, args []interface{}, deadline
 			return fc.close(berr)
 		}
 	}
-	return nil
+	return fc.flow.Flush()
 }
 
 func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts []rpc.CallOpt) (security.Blessings, error) {
@@ -799,17 +796,14 @@ func (fc *flowXClient) Send(item interface{}) error {
 	if fc.sendClosed {
 		return verror.New(verror.ErrAborted, fc.ctx)
 	}
-
 	// The empty request header indicates what follows is a streaming arg.
 	if err := fc.enc.Encode(rpc.Request{}); err != nil {
-		berr := verror.New(errRequestEncoding, fc.ctx, rpc.Request{}, err)
-		return fc.close(berr)
+		return fc.close(verror.New(errRequestEncoding, fc.ctx, rpc.Request{}, err))
 	}
 	if err := fc.enc.Encode(item); err != nil {
-		berr := verror.New(errArgEncoding, fc.ctx, -1, err)
-		return fc.close(berr)
+		return fc.close(verror.New(errArgEncoding, fc.ctx, -1, err))
 	}
-	return nil
+	return fc.flow.Flush()
 }
 
 func (fc *flowXClient) Recv(itemptr interface{}) error {
@@ -900,6 +894,8 @@ func (fc *flowXClient) closeSend() error {
 		//
 		//   return fc.close(verror.ErrBadProtocolf("rpc: end stream args encoding failed: %v", err))
 	}
+	// We ignore the error on this flush for the same reason we ignore the error above.
+	fc.flow.Flush()
 	fc.sendClosed = true
 	return nil
 }
@@ -977,7 +973,7 @@ func (fc *flowXClient) Finish(resultptrs ...interface{}) error {
 			return fc.close(berr)
 		}
 	}
-	return fc.close(nil)
+	return nil
 }
 
 func (fc *flowXClient) RemoteBlessings() ([]string, security.Blessings) {

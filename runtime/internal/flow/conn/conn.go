@@ -285,6 +285,10 @@ func NewAccepted(
 	return c, nil
 }
 
+func (c *Conn) MTU() uint64 {
+	return c.mtu
+}
+
 func (c *Conn) initializeHealthChecks(ctx *context.T) {
 	now := time.Now()
 	h := &healthCheckState{

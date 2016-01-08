@@ -29,6 +29,7 @@ import (
 	"v.io/x/ref/lib/publisher"
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/manager"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
@@ -509,9 +510,9 @@ func (s *xserver) Closed() <-chan struct{} {
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type xflowServer struct {
-	server *xserver       // rpc.Server that this flow server belongs to
-	disp   rpc.Dispatcher // rpc.Dispatcher that will serve RPCs on this flow
-	flow   flow.Flow      // underlying flow
+	server *xserver            // rpc.Server that this flow server belongs to
+	disp   rpc.Dispatcher      // rpc.Dispatcher that will serve RPCs on this flow
+	flow   *conn.BufferingFlow // underlying flow
 
 	// Fields filled in during the server invocation.
 	dec              *vom.Decoder // to decode requests and args from the client
@@ -533,7 +534,7 @@ func newXFlowServer(flow flow.Flow, server *xserver) (*xflowServer, error) {
 	fs := &xflowServer{
 		server:     server,
 		disp:       server.disp,
-		flow:       flow,
+		flow:       conn.NewBufferingFlow(server.ctx, flow),
 		discharges: make(map[string]security.Discharge),
 	}
 	return fs, nil
@@ -799,7 +800,10 @@ func (fs *xflowServer) Send(item interface{}) error {
 	if err := fs.enc.Encode(rpc.Response{}); err != nil {
 		return err
 	}
-	return fs.enc.Encode(item)
+	if err := fs.enc.Encode(item); err != nil {
+		return err
+	}
+	return fs.flow.Flush()
 }
 
 // Recv implements the rpc.Stream method.

@@ -145,7 +145,7 @@ func TestStopListening(t *testing.T) {
 	<-dm.Closed()
 }
 
-func testFlows(t *testing.T, ctx *context.T, dm, am flow.Manager, auth flow.PeerAuthorizer) (df, af flow.Flow) {
+func testFlows(t testing.TB, ctx *context.T, dm, am flow.Manager, auth flow.PeerAuthorizer) (df, af flow.Flow) {
 	ep := am.Status().Endpoints[0]
 	var err error
 	df, err = dm.Dial(ctx, ep, auth, 0)
@@ -190,4 +190,36 @@ func writeLine(f flow.Flow, data string) error {
 	data += "\n"
 	_, err := f.Write([]byte(data))
 	return err
+}
+
+func BenchmarkDialCachedConn(b *testing.B) {
+	defer goroutines.NoLeaks(b, leakWaitTime)()
+	ctx, shutdown := v23.Init()
+
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0)
+	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+		b.Fatal(err)
+	}
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0)
+	// At first the cache should be empty.
+	if got, want := len(dm.(*manager).cache.addrCache), 0; got != want {
+		b.Fatalf("got cache size %v, want %v", got, want)
+	}
+	// After dialing a connection the cache should hold one connection.
+	auth := flowtest.AllowAllPeersAuthorizer{}
+	testFlows(b, ctx, dm, am, auth)
+	if got, want := len(dm.(*manager).cache.addrCache), 1; got != want {
+		b.Fatalf("got cache size %v, want %v", got, want)
+	}
+	ep := am.Status().Endpoints[0]
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := dm.Dial(ctx, ep, auth, 0); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.StopTimer()
+	shutdown()
+	<-am.Closed()
+	<-dm.Closed()
 }
