@@ -120,9 +120,13 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Namespa
 
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
-		ctx.VI(2).Infof("Resolve(%s) loop %v", name, *e)
+		if ctx.V(2) {
+			ctx.Infof("Resolve(%s) loop %v", name, *e)
+		}
 		if !e.ServesMountTable || terminal(e) {
-			ctx.VI(1).Infof("Resolve(%s) -> %v", name, *e)
+			if ctx.V(1) {
+				ctx.Infof("Resolve(%s) -> %v", name, *e)
+			}
 			return e, nil
 		}
 		var err error
