@@ -76,7 +76,7 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -94,8 +94,9 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	servicetest.ReadPID(t, dmh)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -105,7 +106,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Create an envelope for a first version of the app.
-	e, err := utiltest.SignedEnvelopeFromShell(pubCtx, sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, utiltest.App, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
+	e, err := utiltest.SignedEnvelopeFromShell(pubCtx, sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, []string{fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName)}, utiltest.App, "google naps", 0, 0, "appV1")
 	if err != nil {
 		t.Fatalf("Unable to get signed envelope: %v", err)
 	}
@@ -115,7 +116,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	// should override the value specified in the envelope above, and the
 	// config-specified value for origin should override the value in the
 	// Install rpc argument.
-	mtName, ok := sh.GetVar(ref.EnvNamespacePrefix)
+	mtName, ok := sh.Vars[ref.EnvNamespacePrefix]
 	if !ok {
 		t.Fatalf("failed to get namespace root var from shell")
 	}
@@ -232,12 +233,12 @@ func TestLifeOfAnApp(t *testing.T) {
 	utiltest.UpdateAppExpectError(t, ctx, appID, errors.ErrUpdateNoOp.ID)
 
 	// Updating the installation should not work with a mismatched title.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "bogus", 0, 0)
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "bogus", 0, 0, "bogus")
 
 	utiltest.UpdateAppExpectError(t, ctx, appID, errors.ErrAppTitleMismatch.ID)
 
 	// Create a second version of the app and update the app to it.
-	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, utiltest.App, "google naps", 0, 0, "appV2")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-val-envelope"}, nil, utiltest.App, "google naps", 0, 0, "appV2")
 
 	utiltest.UpdateApp(t, ctx, appID)
 
@@ -378,7 +379,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	// cleanly Do this by installing, instantiating, running, and killing
 	// hangingApp, which sleeps (rather than exits) after being asked to
 	// Stop()
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.HangingApp, "hanging app", 0, 0, "hAppV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.HangingApp, "hanging app", 0, 0, "hAppV1")
 	hAppID := utiltest.InstallApp(t, ctx)
 	hInstanceID := utiltest.LaunchApp(t, ctx, hAppID)
 	hangingPid := pingCh.WaitForPingArgs(t).Pid
@@ -429,10 +430,9 @@ func TestLifeOfAnApp(t *testing.T) {
 	verifyTidying(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*", "logs", "*"), shouldKeepLogFiles)
 
 	// Cleanly shut down the device manager.
-	defer utiltest.VerifyNoRunningProcesses(t)
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dmh.Expect("dm terminated")
-	dmh.ExpectEOF()
+	dm.Shutdown(os.Interrupt)
+	dm.S.Expect("dm terminated")
+	utiltest.VerifyNoRunningProcesses(t)
 }
 
 func keepAll(t *testing.T, root, globpath string) map[string]bool {

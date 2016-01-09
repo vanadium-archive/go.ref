@@ -165,7 +165,11 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 		mtName = "devices/" + hostname // Name under which the device manager will publish itself.
 	)
 	deviceScript.Vars["V23_DEVICE_DIR"] = dmInstallDir
+	// Make sure the devicex command is not provided with credentials. Note, this
+	// is analogous to what's done in
+	// v.io/x/ref/services/device/deviced/internal/impl/utiltest.RunDeviceManager.
 	delete(deviceScript.Vars, ref.EnvCredentials)
+	delete(deviceScript.Vars, ref.EnvAgentPath)
 
 	// We also need some tools running with different sets of credentials...
 

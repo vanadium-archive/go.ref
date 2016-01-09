@@ -102,12 +102,10 @@ func TestV23IdentityServer(t *testing.T) {
 	creds := sh.ForkCredentials("u")
 	oauthCreds := sh.ForkCredentials("o")
 
-	// TODO(sadovsky): Switch from -oauth-credentials-dir to -oauth-agent-path
-	// once v23test.Shell is updated to use agentPrincipalManager.
 	cmd := sh.Cmd(identityd,
 		"-v23.tcp.address=127.0.0.1:0",
 		"-http-addr=127.0.0.1:0",
-		"-oauth-credentials-dir="+oauthCreds.Handle).WithCredentials(creds)
+		"-oauth-agent-path="+oauthCreds.Handle).WithCredentials(creds)
 	cmd.Start()
 	httpAddr := cmd.S.ExpectVar("HTTP_ADDR")
 

@@ -11,6 +11,7 @@ import (
 	"net"
 	"reflect"
 	"sync"
+
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/agent"
@@ -305,7 +306,7 @@ func (ipc *IPC) startCall(c *IPCConn, method string, args []interface{}, results
 	c.nextId++
 	vlog.VI(4).Infof("startCall sending %v", header)
 	if err := c.enc.Encode(header); err != nil {
-		// TODO: Close?
+		// TODO(ribrdb): Close?
 		vlog.VI(4).Infof("startCall encode error %v", err)
 		ch <- err
 		return

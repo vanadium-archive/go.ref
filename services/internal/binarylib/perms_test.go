@@ -6,9 +6,7 @@ package binarylib_test
 
 import (
 	"fmt"
-	"os"
 	"reflect"
-	"syscall"
 	"testing"
 
 	"v.io/v23"
@@ -17,25 +15,20 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
+	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
-var binaryd = modules.Register(func(env *modules.Env, args ...string) error {
+var binaryd = gosh.Register("binaryd", func(publishName, storedir string) {
 	ctx, shutdown := test.V23Init()
-	if len(args) < 2 {
-		ctx.Fatalf("binaryd expected at least name and store arguments and optionally AccessList flags per PermissionsFromFlag")
-	}
-	publishName := args[0]
-	storedir := args[1]
-
-	defer fmt.Fprintf(env.Stdout, "%v terminating\n", publishName)
-	defer ctx.VI(1).Infof("%v terminating", publishName)
 	defer shutdown()
+
+	defer fmt.Printf("%v terminating\n", publishName)
+	defer ctx.VI(1).Infof("%v terminating", publishName)
 
 	depth := 2
 	state, err := binarylib.NewState(storedir, "", depth)
@@ -52,11 +45,9 @@ var binaryd = modules.Register(func(env *modules.Env, args ...string) error {
 	}
 	ctx.VI(1).Infof("binaryd name: %v", server.Status().Endpoints[0].Name())
 
-	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
+	fmt.Println("READY")
 	<-signals.ShutdownOnSignals(ctx)
-
-	return nil
-}, "binaryd")
+})
 
 func b(name string) repository.BinaryClientStub {
 	return repository.BinaryClient(name)
@@ -84,7 +75,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 		t.Fatalf("WithPrincipal failed: %v", err)
 	}
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, childCtx, v23.GetPrincipal(childCtx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, childCtx)
 	defer deferFn()
 	// make selfCtx and childCtx have the same Namespace Roots as set by
 	// CreateShellAndMountTable
@@ -95,9 +86,9 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	defer cleanup()
 	prepDirectory(t, storedir)
 
-	nmh := servicetest.RunCommand(t, sh, nil, binaryd, "bini", storedir)
-	pid := servicetest.ReadPID(t, nmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	nmh := sh.Fn(binaryd, "bini", storedir)
+	nmh.Start()
+	nmh.S.Expect("READY")
 
 	ctx.VI(2).Infof("Self uploads a shared and private binary.")
 	if err := b("bini/private").Create(childCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
@@ -113,12 +104,13 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
+	expectedInBps := []security.BlessingPattern{"self:$", "self:child"}
 	expected := access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}},
+		"Admin":   access.AccessList{In: expectedInBps},
+		"Read":    access.AccessList{In: expectedInBps},
+		"Write":   access.AccessList{In: expectedInBps},
+		"Debug":   access.AccessList{In: expectedInBps},
+		"Resolve": access.AccessList{In: expectedInBps},
 	}
 	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
@@ -135,7 +127,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WithPrincipal failed: %v", err)
 	}
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, selfCtx)
 	defer deferFn()
 
 	// setup mock up directory to put state in
@@ -152,9 +144,9 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("WithPrincipal() failed: %v", err)
 	}
 
-	nmh := servicetest.RunCommand(t, sh, nil, binaryd, "bini", storedir)
-	pid := servicetest.ReadPID(t, nmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	nmh := sh.Fn(binaryd, "bini", storedir)
+	nmh.Start()
+	nmh.S.Expect("READY")
 
 	ctx.VI(2).Infof("Self uploads a shared and private binary.")
 	if err := b("bini/private").Create(selfCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
@@ -186,12 +178,13 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
+	expectedInBps := []security.BlessingPattern{"self"}
 	expected := access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self"}},
+		"Admin":   access.AccessList{In: expectedInBps},
+		"Read":    access.AccessList{In: expectedInBps},
+		"Write":   access.AccessList{In: expectedInBps},
+		"Debug":   access.AccessList{In: expectedInBps},
+		"Resolve": access.AccessList{In: expectedInBps},
 	}
 	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
@@ -226,12 +219,13 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	ctx.VI(2).Infof(" Verify that bini/private's perms are updated.")
+	updatedInBps := []security.BlessingPattern{"self:$"}
 	updated := access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$"}},
+		"Admin":   access.AccessList{In: updatedInBps},
+		"Read":    access.AccessList{In: updatedInBps},
+		"Write":   access.AccessList{In: updatedInBps},
+		"Debug":   access.AccessList{In: updatedInBps},
+		"Resolve": access.AccessList{In: updatedInBps},
 	}
 	perms, _, err = b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
@@ -301,12 +295,13 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	ctx.VI(2).Infof("Other can read perms for bini/otherbinary.")
+	updatedInBps = []security.BlessingPattern{"self:$", "self:other"}
 	updated = access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$", "self:other"}},
+		"Admin":   access.AccessList{In: updatedInBps},
+		"Read":    access.AccessList{In: updatedInBps},
+		"Write":   access.AccessList{In: updatedInBps},
+		"Debug":   access.AccessList{In: updatedInBps},
+		"Resolve": access.AccessList{In: updatedInBps},
 	}
 	perms, _, err = b("bini/otherbinary").GetPermissions(otherCtx)
 	if err != nil {
@@ -328,12 +323,13 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	ctx.VI(2).Infof("Verify that other can make this change.")
+	updatedInBps = []security.BlessingPattern{"self:other"}
 	updated = access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:other"}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self:other"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self:other"}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:other"}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:other"}},
+		"Admin":   access.AccessList{In: updatedInBps},
+		"Read":    access.AccessList{In: updatedInBps},
+		"Write":   access.AccessList{In: updatedInBps},
+		"Debug":   access.AccessList{In: updatedInBps},
+		"Resolve": access.AccessList{In: updatedInBps},
 	}
 	perms, _, err = b("bini/otherbinary").GetPermissions(otherCtx)
 	if err != nil {
@@ -418,7 +414,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WithPrincipal failed: %v", err)
 	}
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, selfCtx)
 	defer deferFn()
 
 	// setup mock up directory to put state in
@@ -431,20 +427,21 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 		t.Fatalf("AddToRoots() failed: %v", err)
 	}
 
-	nmh := servicetest.RunCommand(t, sh, nil, binaryd, "bini", storedir)
-	pid := servicetest.ReadPID(t, nmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	nmh := sh.Fn(binaryd, "bini", storedir)
+	nmh.Start()
+	nmh.S.Expect("READY")
 
 	perms, tag, err := b("bini").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %#v", err)
 	}
+	expectedInBps := []security.BlessingPattern{"self:$", "self:shell:$", "self:shell:child"}
 	expected := access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Admin":   access.AccessList{In: expectedInBps, NotIn: []string{}},
+		"Read":    access.AccessList{In: expectedInBps, NotIn: []string{}},
+		"Write":   access.AccessList{In: expectedInBps, NotIn: []string{}},
+		"Debug":   access.AccessList{In: expectedInBps, NotIn: []string{}},
+		"Resolve": access.AccessList{In: expectedInBps, NotIn: []string{}},
 	}
 	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
@@ -460,15 +457,15 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %#v", err)
 	}
+	expectedInBps = []security.BlessingPattern{"self:$", "self:shell:$", "self:shell:child"}
 	expected = access.Permissions{
-		"Admin":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
-		"Read":    access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{"self"}},
-		"Write":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
-		"Debug":   access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"self:$", "self:child"}, NotIn: []string{}},
+		"Admin":   access.AccessList{In: expectedInBps, NotIn: []string{}},
+		"Read":    access.AccessList{In: expectedInBps, NotIn: []string{"self"}},
+		"Write":   access.AccessList{In: expectedInBps, NotIn: []string{}},
+		"Debug":   access.AccessList{In: expectedInBps, NotIn: []string{}},
+		"Resolve": access.AccessList{In: expectedInBps, NotIn: []string{}},
 	}
 	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
-
 }

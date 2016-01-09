@@ -235,7 +235,7 @@ func (s *deviceService) newLogfile(prefix string) (*os.File, error) {
 	return f, nil
 }
 
-// TODO(cnicolaou): would this be better implemented using the modules
+// TODO(cnicolaou): would this be better implemented using the v23test/gosh
 // framework now that it exists?
 func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, envelope *application.Envelope) error {
 	path := filepath.Join(workspace, "deviced.sh")

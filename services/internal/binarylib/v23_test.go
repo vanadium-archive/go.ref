@@ -8,10 +8,9 @@ import (
 	"os"
 	"testing"
 
-	"v.io/x/ref/test/modules"
+	"v.io/x/ref/lib/v23test"
 )
 
 func TestMain(m *testing.M) {
-	modules.DispatchAndExitIfChild()
-	os.Exit(m.Run())
+	os.Exit(v23test.Run(m.Run))
 }

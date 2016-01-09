@@ -6,7 +6,6 @@ package globsuid_test
 
 import (
 	"path"
-	"syscall"
 	"testing"
 
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
@@ -19,7 +18,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -37,16 +36,16 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "google naps", 0, 0, "appV1")
 
 	// Device must be claimed before applications can be installed.
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)

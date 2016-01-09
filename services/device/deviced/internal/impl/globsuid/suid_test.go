@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"syscall"
 	"testing"
 
 	"v.io/v23"
@@ -41,14 +40,14 @@ func TestAppWithSuidHelper(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	// Identity provider used to ensure that all processes recognize each
-	// others' blessings.
+	// Use a common root identity provider so that all principals can talk to one
+	// another.
 	idp := testutil.NewIDProvider("root")
 	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -67,9 +66,10 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := utiltest.GenerateSuidHelperScript(t, root)
 
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Args = append(dm.Args, "-mocksetuid")
+	dm.Start()
+	dm.S.Expect("READY")
 	defer utiltest.VerifyNoRunningProcesses(t)
 	// Claim the devicemanager with selfCtx as root:self:alice
 	utiltest.ClaimDevice(t, selfCtx, "claimable", "dm", "alice", utiltest.NoPairingToken)
@@ -82,7 +82,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	defer cleanup()
 
 	// Create an envelope for a first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-var"}, utiltest.App, "google naps", 0, 0, fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName), "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, []string{utiltest.TestEnvVarName + "=env-var"}, []string{fmt.Sprintf("--%s=flag-val-envelope", utiltest.TestFlagName)}, utiltest.App, "google naps", 0, 0, "appV1")
 
 	// Install and start the app as root:self.
 	appID := utiltest.InstallApp(t, selfCtx)

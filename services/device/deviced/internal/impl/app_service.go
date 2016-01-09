@@ -1171,7 +1171,7 @@ func (i *appService) stop(ctx *context.T, instanceDir string, info *instanceInfo
 	select {
 	case <-processExited:
 		if err != nil {
-			err = verror.New(errStoppedWithErrors, ctx, fmt.Sprintf("process exited uncleanly upon remote stop: %v"), err)
+			err = verror.New(errStoppedWithErrors, ctx, fmt.Sprintf("process exited uncleanly upon remote stop: %v", err))
 		}
 		return true, err
 	case <-deadlineExpired:
@@ -1182,7 +1182,7 @@ func (i *appService) stop(ctx *context.T, instanceDir string, info *instanceInfo
 	deadlineExpired = time.After(500 * time.Millisecond)
 	select {
 	case <-processExited:
-		return true, verror.New(errStoppedWithErrors, ctx, fmt.Sprintf("process failed to exit cleanly upon remote stop (%v) and was forcefully terminated"), err)
+		return true, verror.New(errStoppedWithErrors, ctx, fmt.Sprintf("process failed to exit cleanly upon remote stop (%v) and was forcefully terminated", err))
 	case <-deadlineExpired:
 		// The process just won't die.  We'll declare the stop operation
 		// unsuccessful and switch the instance back to running

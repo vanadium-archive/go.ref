@@ -19,13 +19,13 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/lib/gosh"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -67,10 +67,9 @@ type PingArgs struct {
 	Pid int
 }
 
-// ping makes a RPC from the App back to the invoking device manager
+// ping makes an RPC from the App back to the invoking device manager
 // carrying a PingArgs instance.
 func ping(ctx *context.T, flagValue string) {
-
 	ctx.Errorf("ping flagValue: %s", flagValue)
 
 	helperEnv := os.Getenv(suid.SavedArgs)
@@ -104,7 +103,8 @@ func ping(ctx *context.T, flagValue string) {
 	}
 }
 
-// Cat is an RPC invoked from the test harness process to the application process.
+// Cat is an RPC invoked from the test harness process to the application
+// process.
 func Cat(ctx *context.T, name, file string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
@@ -120,17 +120,13 @@ func Cat(ctx *context.T, name, file string) (string, error) {
 	return content, nil
 }
 
-// App is a test application. It pings the invoking device manager with state information.
-var App = modules.Register(appFunc, "App")
+// App is a test application. It pings the invoking device manager with state
+// information.
+var App = gosh.Register("App", appFunc)
 
-func appFunc(env *modules.Env, args ...string) error {
+func appFunc(publishName string) error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	if expected, got := 1, len(args); expected != got {
-		ctx.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
-	}
-	publishName := args[0]
 
 	ctx, server, err := v23.WithNewServer(ctx, publishName, new(appService), nil)
 	if err != nil {
@@ -156,7 +152,7 @@ type PingServer struct {
 }
 
 // TODO(caprita): Set the timeout in a more principled manner.
-const pingTimeout = 60 * time.Second
+const pingTimeout = time.Minute
 
 func (p PingServer) Ping(_ *context.T, _ rpc.ServerCall, arg PingArgs) error {
 	p.ing <- arg
@@ -195,13 +191,13 @@ func (p PingServer) VerifyPingArgs(t *testing.T, username, flagValue, envValue s
 	if args.Username != username || args.FlagValue != flagValue || args.EnvValue != envValue {
 		t.Fatal(testutil.FormatLogLine(2, "got ping args %q, expected [username = %v, flag value = %v, env value = %v]", args, username, flagValue, envValue))
 	}
-	return args // Useful for tests that want to check other values in the PingArgs result
+	return args // Useful for tests that want to check other values in the PingArgs result.
 }
 
 // HangingApp is the same as App, except that it does not exit properly after
 // being stopped.
-var HangingApp = modules.Register(func(env *modules.Env, args ...string) error {
-	err := appFunc(env, args...)
+var HangingApp = gosh.Register("HangingApp", func(publishName string) error {
+	err := appFunc(publishName)
 	time.Sleep(24 * time.Hour)
 	return err
-}, "HangingApp")
+})

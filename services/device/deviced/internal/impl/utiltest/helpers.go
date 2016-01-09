@@ -31,14 +31,17 @@ import (
 	"v.io/v23/services/pprof"
 	"v.io/v23/services/stats"
 	"v.io/v23/verror"
+	"v.io/x/lib/envvar"
+	"v.io/x/lib/gosh"
+	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -80,22 +83,35 @@ func init() {
 
 }
 
-func EnvelopeFromShell(sh *modules.Shell, env []string, prog modules.Program, title string, retries int, window time.Duration, args ...string) application.Envelope {
-	args, nenv := sh.ProgramEnvelope(env, prog, args...)
+func EnvelopeFromShell(sh *v23test.Shell, vars, flags []string, fn *gosh.Fn, title string, retries int, window time.Duration, args ...interface{}) application.Envelope {
+	c := sh.Fn(fn, args...)
+	// Make sure the command is not provided with credentials from the shell;
+	// device manager is responsible for providing it credentials.
+	delete(c.Vars, ref.EnvCredentials)
+	delete(c.Vars, ref.EnvAgentPath)
+	// Note, vars is allowed to contain credentials env vars that were set
+	// deliberately.
+	c.Vars = envvar.MergeMaps(c.Vars, envvar.SliceToMap(vars))
+	// Configure the command to not exit when its parent exits, since device
+	// manager starts commands using a "suid helper" subprocess that exits
+	// immediately.
+	c.IgnoreParentExit = true
+	c.ExitAfter = time.Minute // make sure the child exits eventually
+	c.Args = append(c.Args, flags...)
 	return application.Envelope{
 		Title: title,
-		Args:  args[1:],
+		Args:  c.Args[1:],
 		// TODO(caprita): revisit how the environment is sanitized for arbirary
 		// apps.
-		Env:               impl.VanadiumEnvironment(nenv),
+		Env:               impl.VanadiumEnvironment(envvar.MapToSlice(c.Vars)),
 		Binary:            application.SignedFile{File: MockBinaryRepoName},
 		Restarts:          int32(retries),
 		RestartTimeWindow: window,
 	}
 }
 
-func SignedEnvelopeFromShell(ctx *context.T, sh *modules.Shell, env []string, prog modules.Program, title string, retries int, window time.Duration, args ...string) (application.Envelope, error) {
-	envelope := EnvelopeFromShell(sh, env, prog, title, retries, window, args...)
+func SignedEnvelopeFromShell(ctx *context.T, sh *v23test.Shell, vars, flags []string, fn *gosh.Fn, title string, retries int, window time.Duration, args ...interface{}) (application.Envelope, error) {
+	envelope := EnvelopeFromShell(sh, vars, flags, fn, title, retries, window, args...)
 	reader, cleanup, err := mockBinaryBytesReader()
 	defer cleanup()
 	sig, err := binarylib.Sign(ctx, reader)
@@ -558,15 +574,15 @@ func CtxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider,
 }
 
 // TODO(rjkroege): This helper is generally useful. Use it to reduce
-// boiler plate across all device manager tests.
-func StartupHelper(t *testing.T) (_ func(), ctx *context.T, _ *modules.Shell, _ *application.Envelope, _ string, _ string, _ *testutil.IDProvider) {
+// boilerplate across all device manager tests.
+func StartupHelper(t *testing.T) (func(), *context.T, *v23test.Shell, *application.Envelope, string, string, *testutil.IDProvider) {
 	ctx, shutdown := test.V23Init()
 
 	// Make a new identity context.
 	idp := testutil.NewIDProvider("root")
 	ctx = CtxWithNewPrincipal(t, ctx, idp, "self")
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 
 	// Set up mock application and binary repositories.
 	envelope, envCleanup := StartMockRepos(t, ctx)

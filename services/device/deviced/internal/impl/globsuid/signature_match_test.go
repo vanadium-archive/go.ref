@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"syscall"
 	"testing"
 
 	"v.io/v23"
@@ -32,7 +31,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	defer shutdown()
 	rg := testutil.NewRandGenerator(t.Logf)
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	binaryVON := "binary"
@@ -76,9 +75,9 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
 	p := v23.GetPrincipal(ctx)

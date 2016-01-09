@@ -17,9 +17,9 @@ import (
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
 )
 
-// TestAssociationPersistance verifies correct operation of association
-// persistance code.
-func TestAssociationPersistance(t *testing.T) {
+// TestAssociationPersistence verifies correct operation of association
+// persistence code.
+func TestAssociationPersistence(t *testing.T) {
 	td, err := ioutil.TempDir("", "device_test")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
@@ -127,7 +127,7 @@ func TestAssociationPersistance(t *testing.T) {
 	}
 }
 
-func TestAssociationPersistanceDetectsBadStartingConditions(t *testing.T) {
+func TestAssociationPersistenceDetectsBadStartingConditions(t *testing.T) {
 	dir := "/i-am-hoping-that-there-is-no-such-directory"
 	nbsa1, err := impl.NewBlessingSystemAssociationStore(dir)
 	if nbsa1 != nil || err == nil {

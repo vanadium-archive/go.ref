@@ -5,14 +5,14 @@
 package v23test
 
 import (
-	"errors"
 	"io/ioutil"
-	"os"
 	"path/filepath"
-	"time"
 
 	"v.io/v23/security"
 	libsec "v.io/x/ref/lib/security"
+	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/agentlib"
+	"v.io/x/ref/services/agent/keymgr"
 )
 
 // Credentials represents a principal with a set of blessings. It is designed to
@@ -94,7 +94,7 @@ type principalManager interface {
 // filesystemPrincipalManager
 
 type filesystemPrincipalManager struct {
-	rootDir string // directory in which to make per-principal dirs
+	rootDir string
 }
 
 func newFilesystemPrincipalManager(rootDir string) principalManager {
@@ -102,7 +102,7 @@ func newFilesystemPrincipalManager(rootDir string) principalManager {
 }
 
 func (m *filesystemPrincipalManager) New() (string, error) {
-	dir, err := ioutil.TempDir(m.rootDir, filepath.Base(os.Args[0])+"."+time.Now().UTC().Format("20060102.150405.000"))
+	dir, err := ioutil.TempDir(m.rootDir, "")
 	if err != nil {
 		return "", err
 	}
@@ -119,22 +119,35 @@ func (m *filesystemPrincipalManager) Principal(handle string) (security.Principa
 ////////////////////////////////////////
 // agentPrincipalManager
 
-// TODO(sadovsky): Implement.
-
-var errNotImplemented = errors.New("not implemented")
-
 type agentPrincipalManager struct {
-	path string // path to the agent's socket
+	rootDir string
+	agent   agent.KeyManager
 }
 
-func newAgentPrincipalManager(path string) principalManager {
-	return &agentPrincipalManager{path: path}
+func newAgentPrincipalManager(rootDir string) (principalManager, error) {
+	agent, err := keymgr.NewLocalAgent(rootDir, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &agentPrincipalManager{rootDir: rootDir, agent: agent}, nil
 }
 
 func (m *agentPrincipalManager) New() (string, error) {
-	return "", errNotImplemented
+	id, err := m.agent.NewPrincipal(true)
+	if err != nil {
+		return "", err
+	}
+	dir, err := ioutil.TempDir(m.rootDir, "")
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, "sock")
+	if err := m.agent.ServePrincipal(id, path); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func (m *agentPrincipalManager) Principal(handle string) (security.Principal, error) {
-	return nil, errNotImplemented
+	return agentlib.NewAgentPrincipalX(handle)
 }

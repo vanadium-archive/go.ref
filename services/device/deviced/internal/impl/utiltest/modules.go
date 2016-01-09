@@ -6,6 +6,8 @@ package utiltest
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	goexec "os/exec"
 	"strings"
@@ -13,14 +15,16 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/rpc"
+	"v.io/x/lib/gosh"
+	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/services/device/deviced/internal/starter"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
 )
 
 const (
@@ -30,41 +34,36 @@ const (
 )
 
 // ExecScript launches the script passed as argument.
-var ExecScript = modules.Register(func(env *modules.Env, args ...string) error {
-	if want, got := 1, len(args); want != got {
-		logger.Global().Fatalf("ExecScript expected %d arguments, got %d instead", want, got)
-	}
-	script := args[0]
+var ExecScript = gosh.Register("ExecScript", func(script string) error {
 	osenv := []string{RedirectEnv + "=1"}
-	if env.Vars["PAUSE_BEFORE_STOP"] == "1" {
+	if os.Getenv("PAUSE_BEFORE_STOP") == "1" {
 		osenv = append(osenv, "PAUSE_BEFORE_STOP=1")
 	}
-
 	cmd := goexec.Cmd{
 		Path:   script,
 		Env:    osenv,
-		Stdin:  env.Stdin,
-		Stderr: env.Stderr,
-		Stdout: env.Stdout,
+		Stdin:  os.Stdin,
+		Stderr: os.Stderr,
+		Stdout: os.Stdout,
 	}
 	return cmd.Run()
-}, "ExecScript")
+})
 
 // DeviceManager sets up a device manager server.  It accepts the name to
 // publish the server under as an argument.  Additional arguments can optionally
 // specify device manager config settings.
-var DeviceManager = modules.Register(deviceManagerFunc, "DeviceManager")
+var DeviceManager = gosh.Register("DeviceManager", deviceManagerFunc)
 
-func deviceManagerFunc(env *modules.Env, args ...string) error {
+func waitForEOF(r io.Reader) {
+	io.Copy(ioutil.Discard, r)
+}
+
+func deviceManagerFunc(publishName string, args ...string) error {
 	ctx, shutdown := test.V23Init()
-	if len(args) == 0 {
-		ctx.Fatalf("deviceManager expected at least an argument")
-	}
-	publishName := args[0]
-	args = args[1:]
-	defer fmt.Fprintf(env.Stdout, "%v terminated\n", publishName)
-	defer ctx.VI(1).Infof("%v terminated", publishName)
 	defer shutdown()
+
+	defer fmt.Printf("%v terminated\n", publishName)
+	defer ctx.VI(1).Infof("%v terminated", publishName)
 
 	// Satisfy the contract described in doc.go by passing the config state
 	// through to the device manager dispatcher constructor.
@@ -126,11 +125,11 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 	for _, ep := range claimableEps {
 		v23.GetNamespace(ctx).Mount(ctx, "claimable", ep.Name(), 0)
 	}
-	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
+	fmt.Println("READY")
 
 	<-shutdownChan
-	if val, present := env.Vars["PAUSE_BEFORE_STOP"]; present && val == "1" {
-		modules.WaitForEOF(env.Stdin)
+	if os.Getenv("PAUSE_BEFORE_STOP") == "1" {
+		waitForEOF(os.Stdin)
 	}
 	// TODO(ashankar): Figure out a way to incorporate this check in the test.
 	// if impl.DispatcherLeaking(dispatcher) {
@@ -139,22 +138,27 @@ func deviceManagerFunc(env *modules.Env, args ...string) error {
 	return nil
 }
 
-// This is the same as DeviceManager above, except that it has a different major version number
-var DeviceManagerV10 = modules.Register(func(env *modules.Env, args ...string) error {
+// This is the same as DeviceManager above, except that it has a different major
+// version number.
+var DeviceManagerV10 = gosh.Register("DeviceManagerV10", func(publishName string, args ...string) error {
 	versioning.CurrentVersion = versioning.Version{10, 0} // Set the version number to 10.0
-	return deviceManagerFunc(env, args...)
-}, "DeviceManagerV10")
+	return deviceManagerFunc(publishName, args...)
+})
+
+func DeviceManagerCmd(sh *v23test.Shell, fn *gosh.Fn, args ...interface{}) *v23test.Cmd {
+	dm := sh.Fn(fn, args...)
+	// Make sure the device manager command is not provided with credentials.
+	delete(dm.Vars, ref.EnvCredentials)
+	delete(dm.Vars, ref.EnvAgentPath)
+	return dm
+}
 
 func TestMainImpl(m *testing.M) {
 	isSuidHelper := len(os.Getenv("V23_SUIDHELPER_TEST")) > 0
-	if modules.IsChildProcess() && !isSuidHelper {
-		if err := modules.Dispatch(); err != nil {
-			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
-			os.Exit(1)
-		}
-		return
+	if isSuidHelper {
+		os.Exit(m.Run())
 	}
-	os.Exit(m.Run())
+	os.Exit(v23test.Run(m.Run))
 }
 
 // TestSuidHelper is testing boilerplate for suidhelper that does not

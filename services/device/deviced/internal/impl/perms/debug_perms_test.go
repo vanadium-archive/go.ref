@@ -6,7 +6,7 @@ package perms_test
 
 import (
 	"io/ioutil"
-	"syscall"
+	"os"
 	"testing"
 
 	"v.io/v23/context"
@@ -17,7 +17,6 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
-	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -44,8 +43,9 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	defer cleanup()
 
 	// Set up the device manager.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	servicetest.ReadPID(t, dmh)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -62,7 +62,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	// TODO(rjkroege): Set AccessLists here that conflict with the one provided by the device
 	// manager and show that the one set here is overridden.
 	// Create the envelope for the first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "google naps", 0, 0, "appV1")
 
 	// Install the app.
 	appID := utiltest.InstallApp(t, ctx)
@@ -185,9 +185,8 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	utiltest.TerminateApp(t, bobCtx, appID, bobApp)
 
 	// Cleanly shut down the device manager.
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dmh.Expect("dm terminated")
-	dmh.ExpectEOF()
+	dm.Shutdown(os.Interrupt)
+	dm.S.Expect("dm terminated")
 }
 
 func TestClaimSetsDebugPermissions(t *testing.T) {
@@ -200,8 +199,10 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	}
 
 	// Set up the device manager.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "--log_dir="+extraLogDir, "dm", root, helperPath, "unused", "unused_curr_link")
-	servicetest.ReadPID(t, dmh)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused", "unused_curr_link")
+	dm.Args = append(dm.Args, "--log_dir="+extraLogDir)
+	dm.Start()
+	dm.S.Expect("READY")
 
 	// Make some users.
 	selfCtx := ctx
@@ -258,7 +259,6 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	utiltest.VerifyStatsValues(t, hjCtx, "dm", "__debug", "stats/system/start-time*")
 
 	// Cleanly shut down the device manager.
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dmh.Expect("dm terminated")
-	dmh.ExpectEOF()
+	dm.Shutdown(os.Interrupt)
+	dm.S.Expect("dm terminated")
 }

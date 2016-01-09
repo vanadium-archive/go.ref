@@ -34,7 +34,18 @@ const (
 	envBinDir           = "V23_BIN_DIR"
 	envChildOutputDir   = "TMPDIR"
 	envShellTestProcess = "V23_SHELL_TEST_PROCESS"
+	useAgent            = true
 )
+
+var envCredentials string
+
+func init() {
+	if useAgent {
+		envCredentials = ref.EnvAgentPath
+	} else {
+		envCredentials = ref.EnvCredentials
+	}
+}
 
 // TODO(sadovsky):
 // - Make StartRootMountTable and StartSyncbase fast, and change tests that
@@ -55,7 +66,7 @@ type Cmd struct {
 // Clone returns a new Cmd with a copy of this Cmd's configuration.
 func (c *Cmd) Clone() *Cmd {
 	res := &Cmd{Cmd: c.Cmd.Clone(), sh: c.sh}
-	res.S = expect.NewSession(c.sh.t, res.StdoutPipe(), time.Minute)
+	initSession(c.sh.t, res)
 	return res
 }
 
@@ -63,7 +74,7 @@ func (c *Cmd) Clone() *Cmd {
 // credentials.
 func (c *Cmd) WithCredentials(cr *Credentials) *Cmd {
 	res := c.Clone()
-	res.Vars[ref.EnvCredentials] = cr.Handle
+	res.Vars[envCredentials] = cr.Handle
 	return res
 }
 
@@ -83,6 +94,9 @@ type Opts struct {
 	PropagateChildOutput bool
 	ChildOutputDir       string
 	BinDir               string
+	// Ctx is the Vanadium context to use. If nil, NewShell will call v23.Init to
+	// create a context.
+	Ctx *context.T
 }
 
 var calledRun = false
@@ -118,15 +132,15 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 	oldFatalf := sh.Opts.Fatalf
 	sh.Opts.Fatalf = nil
 
-	err := initCtxAndCredentials(t, sh)
+	err := initCtxAndCredentials(t, sh, opts.Ctx)
 
-	// Restore Fatalf, then call Cleanup followed by HandleError if there was an
-	// error.
+	// Restore Fatalf, then defer Cleanup and call HandleError if there was an
+	// error. (Note, HandleError panics if Cleanup has been called.)
 	sh.Err = nil
 	sh.Opts.Fatalf = oldFatalf
 
 	if err != nil {
-		sh.Cleanup()
+		defer sh.Cleanup()
 		sh.HandleError(err)
 	}
 	return sh
@@ -167,7 +181,7 @@ func (sh *Shell) Cleanup() {
 // Run does some initialization work, then returns run(). Exported so that
 // TestMain functions can simply call os.Exit(v23test.Run(m.Run)).
 func Run(run func() int) int {
-	gosh.MaybeRunFnAndExit()
+	gosh.InitMain()
 	calledRun = true
 	// Set up shared bin dir if V23_BIN_DIR is not already set. Note, this can't
 	// be done in NewShell because we wouldn't be able to clean up after ourselves
@@ -210,10 +224,15 @@ func SkipUnlessRunningIntegrationTests(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////////////
 // Methods for starting subprocesses
 
+func initSession(t *testing.T, c *Cmd) {
+	c.S = expect.NewSession(t, c.StdoutPipe(), time.Minute)
+	c.S.SetVerbosity(testing.Verbose())
+}
+
 func newCmd(sh *Shell, c *gosh.Cmd) *Cmd {
 	res := &Cmd{Cmd: c, sh: sh}
-	res.S = expect.NewSession(sh.t, res.StdoutPipe(), time.Minute)
-	res.Vars[ref.EnvCredentials] = sh.ForkCredentials("child").Handle
+	initSession(sh.t, res)
+	res.Vars[envCredentials] = sh.ForkCredentials("child").Handle
 	return res
 }
 
@@ -279,7 +298,7 @@ func (sh *Shell) DebugSystemShell() {
 		Dir:   cwd,
 	}
 	env := envvar.MergeMaps(envvar.SliceToMap(os.Environ()), sh.Vars)
-	env[ref.EnvCredentials] = sh.ForkCredentials("debug").Handle
+	env[envCredentials] = sh.ForkCredentials("debug").Handle
 	env[envBinDir] = sh.Opts.BinDir
 	attr.Env = envvar.MapToSlice(env)
 
@@ -354,30 +373,54 @@ func fillDefaults(t *testing.T, opts *Opts) {
 	}
 }
 
-func initCtxAndCredentials(t *testing.T, sh *Shell) error {
-	// Create context.
-	ctx, shutdown := v23.Init()
-	sh.AddToCleanup(shutdown)
-	if err := sh.Err; err != nil {
-		return err
-	}
-	if t != nil {
-		ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
-		sh.Vars[envShellTestProcess] = "1"
+func initCtxAndCredentials(t *testing.T, sh *Shell, ctx *context.T) error {
+	origCtxIsNil := ctx == nil
+
+	// Call v23.Init, if needed.
+	if origCtxIsNil {
+		var shutdown func()
+		ctx, shutdown = v23.Init()
+		if sh.AddToCleanup(shutdown); sh.Err != nil {
+			return sh.Err
+		}
 	}
 
 	// Create principal and update context.
 	dir := sh.MakeTempDir()
-	if err := sh.Err; err != nil {
+	if sh.Err != nil {
+		return sh.Err
+	}
+	var m principalManager
+	if useAgent {
+		var err error
+		if m, err = newAgentPrincipalManager(dir); err != nil {
+			return err
+		}
+	} else {
+		m = newFilesystemPrincipalManager(dir)
+	}
+	var creds *Credentials
+	var err error
+	if origCtxIsNil {
+		if creds, err = newRootCredentials(m); err != nil {
+			return err
+		}
+	} else {
+		if creds, err = newCredentials(m); err != nil {
+			return err
+		}
+		if err := addDefaultBlessing(v23.GetPrincipal(ctx), creds.Principal, "shell"); err != nil {
+			return err
+		}
+	}
+	if ctx, err = v23.WithPrincipal(ctx, creds.Principal); err != nil {
 		return err
 	}
-	creds, err := newRootCredentials(newFilesystemPrincipalManager(dir))
-	if err != nil {
-		return err
-	}
-	ctx, err = v23.WithPrincipal(ctx, creds.Principal)
-	if err != nil {
-		return err
+
+	// Configure context for testing, if needed.
+	if t != nil {
+		ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
+		sh.Vars[envShellTestProcess] = "1"
 	}
 
 	sh.Ctx = ctx

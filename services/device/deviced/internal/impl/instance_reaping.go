@@ -336,7 +336,7 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	processStatusViaKill(ctx, c, instancePath, info, state)
 }
 
-// Digs through the directory hierarchy
+// Digs through the directory hierarchy.
 func findAllTheInstances(ctx *context.T, root string) (map[string]int, []string, error) {
 	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
 	if err != nil {

@@ -9,17 +9,17 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/options"
-	"v.io/v23/security"
+	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/services/mounttable/mounttablelib"
-	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -31,136 +31,91 @@ const (
 	preserveWorkspaceEnv = "V23_TEST_PRESERVE_WORKSPACE"
 )
 
-var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
+var rootMT = gosh.Register("rootMT", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
-
 	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 	if err != nil {
 		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
-		return fmt.Errorf("root failed: %v", err)
+		return fmt.Errorf("rootMT failed: %v", err)
 	}
-	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
-	for _, ep := range server.Status().Endpoints {
-		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
-	}
-	modules.WaitForEOF(env.Stdin)
+	gosh.SendVars(map[string]string{"NAME": server.Status().Endpoints[0].Name()})
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
-}, "rootMT")
+})
 
 // startRootMT sets up a root mount table for tests.
-func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
-	h, err := sh.Start(nil, rootMT, "--v23.tcp.address=127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to start root mount table: %s", err)
-	}
-	h.ExpectVar("PID")
-	rootName := h.ExpectVar("MT_NAME")
-	if t.Failed() {
-		t.Fatalf("failed to read mt name: %s", h.Error())
-	}
-	return rootName, h
+func startRootMT(t *testing.T, sh *v23test.Shell) string {
+	c := sh.Fn(rootMT)
+	c.Args = append(c.Args, "--v23.tcp.address=127.0.0.1:0")
+	c.PropagateOutput = false
+	c.Start()
+	return c.AwaitVars("NAME")["NAME"]
 }
 
 // setNSRoots sets the roots for the local runtime's namespace.
 func setNSRoots(t *testing.T, ctx *context.T, roots ...string) {
 	ns := v23.GetNamespace(ctx)
 	if err := ns.SetRoots(roots...); err != nil {
-		t.Fatal(testutil.FormatLogLine(3, "SetRoots(%v) failed with %v", roots, err))
+		t.Fatal(testutil.FormatLogLine(3, "SetRoots(%v) failed: %v", roots, err))
 	}
 }
 
-// CreateShellAndMountTable builds a new modules shell and its
-// associated mount table.
-func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(ctx, p, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	opts := sh.DefaultStartOpts()
-	opts.ExpectTimeout = ExpectTimeout
-	sh.SetDefaultStartOpts(opts)
-	// The shell, will, by default share credentials with its children.
-	sh.ClearVar(ref.EnvCredentials)
-
-	mtName, _ := startRootMT(t, sh)
-	ctx.VI(1).Infof("Started shell mounttable with name %v", mtName)
-
-	// TODO(caprita): Define a GetNamespaceRootsCommand in modules/core and
-	// use that?
-
+// CreateShellAndMountTable builds a new shell and starts a root mount table.
+// Returns the shell and a cleanup function.
+// TODO(sadovsky): Use v23test.StartRootMountTable.
+func CreateShellAndMountTable(t *testing.T, ctx *context.T) (*v23test.Shell, func()) {
+	sh := v23test.NewShell(t, v23test.Opts{Ctx: ctx, PropagateChildOutput: true})
+	ok := false
+	defer func() {
+		if !ok {
+			sh.Cleanup()
+		}
+	}()
+	mtName := startRootMT(t, sh)
+	ctx.VI(1).Infof("Started root mount table with name %s", mtName)
 	oldNamespaceRoots := v23.GetNamespace(ctx).Roots()
 	fn := func() {
 		ctx.VI(1).Info("------------ CLEANUP ------------")
 		ctx.VI(1).Info("---------------------------------")
 		ctx.VI(1).Info("--(cleaning up shell)------------")
-		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
-			t.Error(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
-		}
+		sh.Cleanup()
 		ctx.VI(1).Info("--(done cleaning up shell)-------")
 		setNSRoots(t, ctx, oldNamespaceRoots...)
 	}
 	setNSRoots(t, ctx, mtName)
-	sh.SetVar(ref.EnvNamespacePrefix, mtName)
+	sh.Vars[ref.EnvNamespacePrefix] = mtName
+	ok = true
 	return sh, fn
 }
 
-// CreateShell builds a new modules shell.
-func CreateShell(t *testing.T, ctx *context.T, p security.Principal) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(ctx, p, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	opts := sh.DefaultStartOpts()
-	opts.ExpectTimeout = ExpectTimeout
-	sh.SetDefaultStartOpts(opts)
-	// The shell, will, by default share credentials with its children.
-	sh.ClearVar(ref.EnvCredentials)
-
+// CreateShell builds a new shell.
+// Returns the shell and a cleanup function.
+func CreateShell(t *testing.T, ctx *context.T) (*v23test.Shell, func()) {
+	sh := v23test.NewShell(t, v23test.Opts{Ctx: ctx, PropagateChildOutput: true})
+	ok := false
+	defer func() {
+		if !ok {
+			sh.Cleanup()
+		}
+	}()
 	fn := func() {
 		ctx.VI(1).Info("------------ CLEANUP ------------")
 		ctx.VI(1).Info("---------------------------------")
 		ctx.VI(1).Info("--(cleaning up shell)------------")
-		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
-			t.Error(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
-		}
+		sh.Cleanup()
 		ctx.VI(1).Info("--(done cleaning up shell)-------")
 	}
 	nsRoots := v23.GetNamespace(ctx).Roots()
 	if len(nsRoots) == 0 {
-		t.Fatalf("shell context has no namespace roots")
+		t.Fatalf("no namespace roots")
 	}
-	sh.SetVar(ref.EnvNamespacePrefix, nsRoots[0])
+	sh.Vars[ref.EnvNamespacePrefix] = nsRoots[0]
+	ok = true
 	return sh, fn
-}
-
-// RunCommand runs a modules command.
-func RunCommand(t *testing.T, sh *modules.Shell, env []string, prog modules.Program, args ...string) modules.Handle {
-	h, err := sh.StartWithOpts(sh.DefaultStartOpts(), env, prog, args...)
-	if err != nil {
-		t.Fatal(testutil.FormatLogLine(2, "failed to start %q: %s", prog, err))
-		return nil
-	}
-	h.SetVerbosity(testing.Verbose())
-	return h
-}
-
-// ReadPID waits for the "ready:<PID>" line from the child and parses out the
-// PID of the child.
-func ReadPID(t *testing.T, h modules.ExpectSession) int {
-	m := h.ExpectRE("ready:([0-9]+)", -1)
-	if len(m) == 1 && len(m[0]) == 2 {
-		pid, err := strconv.Atoi(m[0][1])
-		if err != nil {
-			t.Fatal(testutil.FormatLogLine(2, "Atoi(%q) failed: %v", m[0][1], err))
-		}
-		return pid
-	}
-	t.Fatal(testutil.FormatLogLine(2, "failed to extract pid: %v", m))
-	return 0
 }
 
 // SetupRootDir sets up and returns a directory for the root and returns
@@ -177,7 +132,6 @@ func SetupRootDir(t *testing.T, prefix string) (string, func()) {
 	if err != nil {
 		logger.Global().Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
 	}
-
 	return rootDir, func() {
 		if t.Failed() || os.Getenv(preserveWorkspaceEnv) != "" {
 			t.Logf("You can examine the %s workspace at %v", prefix, rootDir)

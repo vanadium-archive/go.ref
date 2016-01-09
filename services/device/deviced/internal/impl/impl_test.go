@@ -2,25 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rjkroege): Add a more extensive unit test case to exercise AccessList logic.
+// TODO(rjkroege): Add a more extensive unit test case to exercise AccessList
+// logic.
 
 package impl_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/security"
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
+	"v.io/x/lib/envvar"
 	"v.io/x/ref"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
@@ -80,7 +79,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -100,19 +99,20 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Since the device manager will be restarting, use the
 	// VeyronCredentials environment variable to maintain the same set of
 	// credentials across runs.
-	// Without this, authentication/authorizatin state - such as the blessings
-	// of the device manager and the signatures used for AccessList integrity checks
-	// - will not carry over between updates to the binary, which would not
-	// be reflective of intended use.
+	// Without this, authentication/authorization state - such as the blessings of
+	// the device manager and the signatures used for AccessList integrity checks
+	// - will not carry over between updates to the binary, which would not be
+	// reflective of intended use.
 	dmCreds, err := ioutil.TempDir("", "TestDeviceManagerUpdateAndRevert")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dmCreds)
-	dmEnv := []string{fmt.Sprintf("%v=%v", ref.EnvCredentials, dmCreds)}
-	dmArgs := []string{"factoryDM", root, "unused_helper", utiltest.MockApplicationRepoName, currLink}
-	args, env := sh.ProgramEnvelope(dmEnv, utiltest.DeviceManager, dmArgs...)
-	scriptPathFactory := generateDeviceManagerScript(t, root, args, env)
+	dmVars := map[string]string{ref.EnvCredentials: dmCreds}
+	dmArgs := []interface{}{"factoryDM", root, "unused_helper", utiltest.MockApplicationRepoName, currLink}
+	dmCmd := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, dmArgs...)
+	dmCmd.Vars = envvar.MergeMaps(dmCmd.Vars, dmVars)
+	scriptPathFactory := generateDeviceManagerScript(t, root, dmCmd.Args, envvar.MapToSlice(dmCmd.Vars))
 
 	if err := os.Symlink(scriptPathFactory, currLink); err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", scriptPathFactory, currLink, err)
@@ -121,21 +121,24 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// We instruct the initial device manager that we run to pause before
 	// stopping its service, so that we get a chance to verify that
 	// attempting an update while another one is ongoing will fail.
-	dmPauseBeforeStopEnv := append(dmEnv, "PAUSE_BEFORE_STOP=1")
+	dmPauseBeforeStopVars := envvar.MergeMaps(dmVars, map[string]string{"PAUSE_BEFORE_STOP": "1"})
 
 	// Start the initial version of the device manager, the so-called
-	// "factory" version. We use the modules-generated command to start it.
+	// "factory" version. We use the v23test-generated command to start it.
 	// We could have also used the scriptPathFactory to start it, but this
 	// demonstrates that the initial device manager could be running by hand
 	// as long as the right initial configuration is passed into the device
 	// manager implementation.
-	dmh := servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, utiltest.DeviceManager, dmArgs...)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, dmArgs...)
+	dm.Vars = envvar.MergeMaps(dm.Vars, dmPauseBeforeStopVars)
+	dmStdin := dm.StdinPipe()
+	dm.Start()
+	dm.S.Expect("READY")
 	defer func() {
-		syscall.Kill(dmh.Pid(), syscall.SIGINT)
+		dm.Shutdown(os.Interrupt)
 		utiltest.VerifyNoRunningProcesses(t)
 	}()
 
-	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "claimable", 1, true)
 	// Brand new device manager must be claimed first.
 	utiltest.ClaimDevice(t, ctx, "claimable", "factoryDM", "mydevice", utiltest.NoPairingToken)
@@ -145,7 +148,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Simulate an invalid envelope in the application repository.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmPauseBeforeStopEnv, utiltest.DeviceManager, "bogus", 0, 0, dmArgs...)
+	*envelope = utiltest.EnvelopeFromShell(sh, envvar.MapToSlice(dmVars), nil, utiltest.DeviceManager, "bogus", 0, 0, dmArgs...)
 
 	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", errors.ErrAppTitleMismatch.ID)
 	utiltest.RevertDeviceExpectError(t, ctx, "factoryDM", errors.ErrUpdateNoOp.ID)
@@ -153,7 +156,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManager, application.DeviceManagerTitle, 0, 0, "v2DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, envvar.MapToSlice(dmVars), nil, utiltest.DeviceManager, application.DeviceManagerTitle, 0, 0, "v2DM")
 	utiltest.UpdateDevice(t, ctx, "factoryDM")
 
 	// Current link should have been updated to point to v2.
@@ -172,19 +175,19 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	utiltest.UpdateDeviceExpectError(t, ctx, "factoryDM", errors.ErrOperationInProgress.ID)
 
-	dmh.CloseStdin()
-
-	dmh.Expect("restart handler")
-	dmh.Expect("factoryDM terminated")
-	dmh.Shutdown(os.Stderr, os.Stderr)
+	dmStdin.Close()
+	dm.S.Expect("restart handler")
+	dm.S.Expect("factoryDM terminated")
 
 	// A successful update means the device manager has stopped itself.  We
 	// relaunch it from the current link.
 	utiltest.ResolveExpectNotFound(t, ctx, "v2DM", false) // Ensure a clean slate.
 
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
+	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm.Vars = envvar.MergeMaps(dm.Vars, dmVars)
+	dm.Start()
+	dm.S.Expect("READY")
 
-	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "v2DM", 1, true) // Current link should have been launching v2.
 
 	// Try issuing an update without changing the envelope in the
@@ -198,7 +201,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Try issuing an update with a binary that has a different major version
 	// number. It should fail.
 	utiltest.ResolveExpectNotFound(t, ctx, "v2.5DM", false) // Ensure a clean slate.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManagerV10, application.DeviceManagerTitle, 0, 0, "v2.5DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, envvar.MapToSlice(dmVars), nil, utiltest.DeviceManagerV10, application.DeviceManagerTitle, 0, 0, "v2.5DM")
 	utiltest.UpdateDeviceExpectError(t, ctx, "v2DM", errors.ErrOperationFailed.ID)
 
 	if evalLink() != scriptPathV2 {
@@ -206,7 +209,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the device manager and issue an update.
-	*envelope = utiltest.EnvelopeFromShell(sh, dmEnv, utiltest.DeviceManager, application.DeviceManagerTitle, 0, 0, "v3DM")
+	*envelope = utiltest.EnvelopeFromShell(sh, envvar.MapToSlice(dmVars), nil, utiltest.DeviceManager, application.DeviceManagerTitle, 0, 0, "v3DM")
 	utiltest.UpdateDevice(t, ctx, "v2DM")
 
 	scriptPathV3 := evalLink()
@@ -214,19 +217,20 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("current link didn't change")
 	}
 
-	dmh.Expect("restart handler")
-	dmh.Expect("v2DM terminated")
-
-	dmh.Shutdown(os.Stderr, os.Stderr)
+	dm.S.Expect("restart handler")
+	dm.S.Expect("v2DM terminated")
 
 	utiltest.ResolveExpectNotFound(t, ctx, "v3DM", false) // Ensure a clean slate.
 
-	// Re-lanuch the device manager from current link.  We instruct the
+	// Re-launch the device manager from current link.  We instruct the
 	// device manager to pause before stopping its server, so that we can
 	// verify that a second revert fails while a revert is in progress.
-	dmh = servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, utiltest.ExecScript, currLink)
+	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm.Vars = envvar.MergeMaps(dm.Vars, dmPauseBeforeStopVars)
+	dmStdin = dm.StdinPipe()
+	dm.Start()
+	dm.S.Expect("READY")
 
-	servicetest.ReadPID(t, dmh)
 	utiltest.Resolve(t, ctx, "v3DM", 1, true) // Current link should have been launching v3.
 	v3 := utiltest.VerifyDeviceState(t, ctx, device.InstanceStateRunning, "v3DM")
 	if v2 == v3 {
@@ -236,47 +240,55 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Revert the device manager to its previous version (v2).
 	utiltest.RevertDevice(t, ctx, "v3DM")
 	utiltest.RevertDeviceExpectError(t, ctx, "v3DM", errors.ErrOperationInProgress.ID) // Revert already in progress.
-	dmh.CloseStdin()
-	dmh.Expect("restart handler")
-	dmh.Expect("v3DM terminated")
+	dmStdin.Close()
+	dm.S.Expect("restart handler")
+	dm.S.Expect("v3DM terminated")
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("current link was not reverted correctly")
 	}
-	dmh.Shutdown(os.Stderr, os.Stderr)
 
 	utiltest.ResolveExpectNotFound(t, ctx, "v2DM", false) // Ensure a clean slate.
 
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
-	servicetest.ReadPID(t, dmh)
+	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm.Vars = envvar.MergeMaps(dm.Vars, dmVars)
+	dm.Start()
+	dm.S.Expect("READY")
+
 	utiltest.Resolve(t, ctx, "v2DM", 1, true) // Current link should have been launching v2.
 
 	// Revert the device manager to its previous version (factory).
 	utiltest.RevertDevice(t, ctx, "v2DM")
-	dmh.Expect("restart handler")
-	dmh.Expect("v2DM terminated")
+	dm.S.Expect("restart handler")
+	dm.S.Expect("v2DM terminated")
+	dm.S.ExpectEOF()
 	if evalLink() != scriptPathFactory {
 		t.Fatalf("current link was not reverted correctly")
 	}
-	dmh.Shutdown(os.Stderr, os.Stderr)
 
 	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM", false) // Ensure a clean slate.
 
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
-	servicetest.ReadPID(t, dmh)
+	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm.Vars = envvar.MergeMaps(dm.Vars, dmVars)
+	dm.Start()
+	dm.S.Expect("READY")
+
 	utiltest.Resolve(t, ctx, "factoryDM", 1, true) // Current link should have been launching factory version.
 	utiltest.ShutdownDevice(t, ctx, "factoryDM")
-	dmh.Expect("factoryDM terminated")
-	dmh.ExpectEOF()
+	dm.S.Expect("factoryDM terminated")
+	dm.S.ExpectEOF()
 
 	// Re-launch the device manager, to exercise the behavior of Stop.
 	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM", false) // Ensure a clean slate.
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.ExecScript, currLink)
-	servicetest.ReadPID(t, dmh)
+	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm.Vars = envvar.MergeMaps(dm.Vars, dmVars)
+	dm.Start()
+	dm.S.Expect("READY")
+
 	utiltest.Resolve(t, ctx, "factoryDM", 1, true)
 	utiltest.KillDevice(t, ctx, "factoryDM")
-	dmh.Expect("restart handler")
-	dmh.Expect("factoryDM terminated")
-	dmh.ExpectEOF()
+	dm.S.Expect("restart handler")
+	dm.S.Expect("factoryDM terminated")
+	dm.S.ExpectEOF()
 }
 
 type simpleRW chan []byte
@@ -298,7 +310,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 	testDir, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
@@ -313,11 +325,11 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	// Create an 'envelope' for the device manager that we can pass to the
 	// installer, to ensure that the device manager that the installer
 	// configures can run.
-	dmargs, dmenv := sh.ProgramEnvelope(nil, utiltest.DeviceManager, "dm")
+	dmCmd := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm")
 	dmDir := filepath.Join(testDir, "dm")
 	// TODO(caprita): Add test logic when initMode = true.
 	singleUser, sessionMode, initMode := true, true, false
-	if err := installer.SelfInstall(ctx, dmDir, suidHelperPath, agentPath, initHelperPath, "", singleUser, sessionMode, initMode, dmargs[1:], dmenv, os.Stderr, os.Stdout); err != nil {
+	if err := installer.SelfInstall(ctx, dmDir, suidHelperPath, agentPath, initHelperPath, "", singleUser, sessionMode, initMode, dmCmd.Args[1:], envvar.MapToSlice(dmCmd.Vars), os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("SelfInstall failed: %v", err)
 	}
 
@@ -330,7 +342,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 		t.Fatalf("Start failed: %v", err)
 	}
 	dms := expect.NewSession(t, stdout, servicetest.ExpectTimeout)
-	servicetest.ReadPID(t, dms)
+	dms.Expect("READY")
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 	utiltest.RevertDeviceExpectError(t, ctx, "dm", errors.ErrUpdateNoOp.ID) // No previous version available.
 
@@ -360,7 +372,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -407,17 +419,21 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
-	defer utiltest.VerifyNoRunningProcesses(t)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
+	defer func() {
+		dm.Shutdown(os.Interrupt)
+		dm.S.Expect("dm terminated")
+		utiltest.VerifyNoRunningProcesses(t)
+	}()
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := utiltest.SetupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "google naps", 0, 0, "appV1")
 	envelope.Packages = map[string]application.SignedFile{
 		"test": application.SignedFile{
 			File: "realbin/testpkg",
@@ -500,7 +516,14 @@ func TestAccountAssociation(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	// Use a common root identity provider so that all principals can talk to one
+	// another.
+	idp := testutil.NewIDProvider("root")
+	if err := idp.Bless(v23.GetPrincipal(ctx), "ctx"); err != nil {
+		t.Fatal(err)
+	}
+
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
@@ -509,23 +532,20 @@ func TestAccountAssociation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// By default, the two processes (selfCtx and octx) will have blessings
-	// generated based on the username/machine name running this process.
-	// Since these blessings will appear in AccessLists, give them
-	// recognizable names.
-	idp := testutil.NewIDProvider("root")
+	// By default, the two processes (selfCtx and otherCtx) will have blessings
+	// generated based on the username/machine name running this process. Since
+	// these blessings will appear in AccessLists, give them recognizable names.
 	selfCtx := utiltest.CtxWithNewPrincipal(t, ctx, idp, "self")
 	otherCtx := utiltest.CtxWithNewPrincipal(t, selfCtx, idp, "other")
-	// Both the "external" processes must recognize the root mounttable's
-	// blessings, otherwise they will not talk to it.
-	for _, c := range []*context.T{selfCtx, otherCtx} {
-		security.AddToRoots(v23.GetPrincipal(c), v23.GetPrincipal(ctx).BlessingStore().Default())
-	}
 
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
-	defer utiltest.VerifyNoRunningProcesses(t)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
+	defer func() {
+		dm.Shutdown(os.Interrupt)
+		dm.S.Expect("dm terminated")
+		utiltest.VerifyNoRunningProcesses(t)
+	}()
 
 	// Attempt to list associations on the device manager without having
 	// claimed it.

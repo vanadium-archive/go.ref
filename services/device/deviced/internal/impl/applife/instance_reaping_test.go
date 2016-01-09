@@ -5,6 +5,7 @@
 package applife_test
 
 import (
+	"os"
 	"syscall"
 	"testing"
 
@@ -14,7 +15,6 @@ import (
 	"v.io/v23/vdl"
 
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
-	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestReaperNoticesAppDeath(t *testing.T) {
@@ -23,8 +23,9 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	servicetest.ReadPID(t, dmh)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -34,7 +35,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Create an envelope for a first version of the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "google naps", 0, 0, "appV1")
 
 	// Install the app.  The config-specified flag value for testFlagName
 	// should override the value specified in the envelope above.
@@ -73,8 +74,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	// TODO(rjkroege): Exercise the polling loop code.
 
 	// Cleanly shut down the device manager.
+	dm.Shutdown(os.Interrupt)
+	dm.S.Expect("dm terminated")
 	utiltest.VerifyNoRunningProcesses(t)
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dmh.Expect("dm terminated")
-	dmh.ExpectEOF()
 }

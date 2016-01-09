@@ -269,6 +269,8 @@ func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) er
 
 }
 
+// TODO(caprita): Rewrite this test to not use the modules package. It can't use
+// v23test because v23test.Shell doesn't support the exec protocol.
 func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
 	ctx, shutdown := test.V23Init()
 

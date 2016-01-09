@@ -6,9 +6,7 @@ package main_test
 
 import (
 	"fmt"
-	"os"
 	"reflect"
-	"syscall"
 	"testing"
 
 	"v.io/v23"
@@ -16,26 +14,20 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
+	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
 	appd "v.io/x/ref/services/application/applicationd"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
-var appRepository = modules.Register(func(env *modules.Env, args ...string) error {
+var appRepository = gosh.Register("appRepository", func(publishName, storedir string) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	if len(args) < 2 {
-		ctx.Fatalf("repository expected at least name and store arguments and optionally Permissions flags per PermissionsFromFlag")
-	}
-	publishName := args[0]
-	storedir := args[1]
-
-	defer fmt.Fprintf(env.Stdout, "%v terminating\n", publishName)
+	defer fmt.Printf("%v terminating\n", publishName)
 	defer ctx.VI(1).Infof("%v terminating", publishName)
 
 	dispatcher, err := appd.NewDispatcher(storedir)
@@ -48,11 +40,9 @@ var appRepository = modules.Register(func(env *modules.Env, args ...string) erro
 	}
 	ctx.VI(1).Infof("applicationd name: %v", server.Status().Endpoints[0].Name())
 
-	fmt.Fprintf(env.Stdout, "ready:%d\n", os.Getpid())
+	fmt.Println("READY")
 	<-signals.ShutdownOnSignals(ctx)
-
-	return nil
-}, "appRepository")
+})
 
 func TestApplicationUpdatePermissions(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
@@ -68,16 +58,16 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := servicetest.CreateShell(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShell(t, ctx)
 	defer deferFn()
 
 	// setup mock up directory to put state in
 	storedir, cleanup := servicetest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	nmh := servicetest.RunCommand(t, sh, nil, appRepository, "repo", storedir)
-	pid := servicetest.ReadPID(t, nmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	cmd := sh.Fn(appRepository, "repo", storedir)
+	cmd.Start()
+	cmd.S.Expect("READY")
 
 	otherCtx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
@@ -115,22 +105,14 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	if got, want := version, ""; got != want {
 		t.Fatalf("GetPermissions got %v, want %v", got, want)
 	}
+	expectedInBps := []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:shell:$", rootBlessing + ":self:shell:child"}
 	expected := access.Permissions{
-		"Admin": access.AccessList{
-			In:    []security.BlessingPattern{test.TestBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
-			NotIn: []string(nil)},
-		"Read": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
-			NotIn: []string(nil)},
-		"Write": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
-			NotIn: []string(nil)},
-		"Debug": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
-			NotIn: []string(nil)},
-		"Resolve": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"},
-			NotIn: []string(nil)}}
+		"Admin":   access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+		"Read":    access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+		"Write":   access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+		"Debug":   access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+		"Resolve": access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+	}
 	if got := perms; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
 		t.Errorf("got %#v, expected %#v ", got, expected)
 	}
@@ -180,21 +162,11 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
 	expected = access.Permissions{
-		"Admin": access.AccessList{
-			In:    []security.BlessingPattern{rootBlessing + ":other"},
-			NotIn: []string{}},
-		"Read": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other",
-			rootBlessing + ":self"},
-			NotIn: []string{}},
-		"Write": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other",
-			rootBlessing + ":self"},
-			NotIn: []string{}},
-		"Debug": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other",
-			rootBlessing + ":self"},
-			NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other",
-			rootBlessing + ":self"},
-			NotIn: []string{}}}
+		"Admin":   access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other"}, NotIn: []string{}},
+		"Read":    access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other", rootBlessing + ":self"}, NotIn: []string{}},
+		"Write":   access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other", rootBlessing + ":self"}, NotIn: []string{}},
+		"Debug":   access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other", rootBlessing + ":self"}, NotIn: []string{}},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{rootBlessing + ":other", rootBlessing + ":self"}, NotIn: []string{}}}
 
 	if got := perms; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
 		t.Errorf("got %#v, exected %#v ", got, expected)
@@ -212,7 +184,7 @@ func TestPerAppPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	// setup mock up directory to put state in
@@ -227,9 +199,9 @@ func TestPerAppPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nmh := servicetest.RunCommand(t, sh, nil, appRepository, "repo", storedir)
-	pid := servicetest.ReadPID(t, nmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	cmd := sh.Fn(appRepository, "repo", storedir)
+	cmd.Start()
+	cmd.S.Expect("READY")
 
 	// Create example envelope.
 	envelopeV1 := application.Envelope{
@@ -253,18 +225,14 @@ func TestPerAppPermissions(t *testing.T) {
 	}
 
 	ctx.VI(2).Info("Self can access Permissions but other can't.")
+	expectedSelfInBps := []security.BlessingPattern{"root:$", "root:self"}
 	expectedSelfPermissions := access.Permissions{
-		"Admin": access.AccessList{
-			In:    []security.BlessingPattern{"root:$", "root:self"},
-			NotIn: []string{}},
-		"Read": access.AccessList{In: []security.BlessingPattern{"root:$", "root:self"},
-			NotIn: []string{}},
-		"Write": access.AccessList{In: []security.BlessingPattern{"root:$", "root:self"},
-			NotIn: []string{}},
-		"Debug": access.AccessList{In: []security.BlessingPattern{"root:$", "root:self"},
-			NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"root:$", "root:self"},
-			NotIn: []string{}}}
+		"Admin":   access.AccessList{In: expectedSelfInBps, NotIn: []string{}},
+		"Read":    access.AccessList{In: expectedSelfInBps, NotIn: []string{}},
+		"Write":   access.AccessList{In: expectedSelfInBps, NotIn: []string{}},
+		"Debug":   access.AccessList{In: expectedSelfInBps, NotIn: []string{}},
+		"Resolve": access.AccessList{In: expectedSelfInBps, NotIn: []string{}},
+	}
 
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2", "repo/naps", "repo/naps/v1"} {
 		stub := repository.ApplicationClient(path)
@@ -310,31 +278,13 @@ func TestPerAppPermissions(t *testing.T) {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
+	expectedInBps := []security.BlessingPattern{"root:$", "root:other", "root:self"}
 	expected := access.Permissions{
-		"Resolve": access.AccessList{In: []security.BlessingPattern{
-			"root:$",
-			"root:other",
-			"root:self"},
-			NotIn: []string(nil)},
-		"Admin": access.AccessList{In: []security.BlessingPattern{
-			"root:$",
-			"root:other",
-			"root:self"},
-			NotIn: []string(nil)},
-		"Read": access.AccessList{In: []security.BlessingPattern{
-			"root:$",
-			"root:other",
-			"root:self"},
-			NotIn: []string(nil)},
-		"Write": access.AccessList{In: []security.BlessingPattern{
-			"root:$",
-			"root:other",
-			"root:self"},
-			NotIn: []string(nil)},
-		"Debug": access.AccessList{In: []security.BlessingPattern{
-			"root:$",
-			"root:other", "root:self"},
-			NotIn: []string(nil)},
+		"Resolve": access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+		"Admin":   access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+		"Read":    access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+		"Write":   access.AccessList{In: expectedInBps, NotIn: []string(nil)},
+		"Debug":   access.AccessList{In: expectedInBps, NotIn: []string(nil)},
 	}
 
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {

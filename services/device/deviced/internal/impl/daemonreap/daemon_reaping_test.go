@@ -5,14 +5,13 @@
 package daemonreap_test
 
 import (
+	"os"
 	"syscall"
 	"testing"
 	"time"
 
 	"v.io/v23/services/device"
-
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
-	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestDaemonRestart(t *testing.T) {
@@ -24,8 +23,9 @@ func TestDaemonRestart(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	servicetest.ReadPID(t, dmh)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -35,7 +35,7 @@ func TestDaemonRestart(t *testing.T) {
 	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Create an envelope for a first version of the app that will be restarted once.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 1, 10*time.Minute, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "google naps", 1, 10*time.Minute, "appV1")
 	appID := utiltest.InstallApp(t, ctx)
 
 	// Start an instance of the app.
@@ -89,8 +89,7 @@ func TestDaemonRestart(t *testing.T) {
 	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance2ID)
 
 	// Cleanly shut down the device manager.
+	dm.Shutdown(os.Interrupt)
+	dm.S.Expect("dm terminated")
 	utiltest.VerifyNoRunningProcesses(t)
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dmh.Expect("dm terminated")
-	dmh.ExpectEOF()
 }

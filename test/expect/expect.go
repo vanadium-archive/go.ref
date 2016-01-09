@@ -117,10 +117,9 @@ func (s *Session) log(err error, format string, args ...interface{}) {
 	o := strings.TrimRight(fmt.Sprintf(format, args...), "\n\t ")
 	if s.t == nil {
 		logger.Global().Infof("%s: %s%s\n", loc, errstr, o)
-		return
+	} else {
+		s.t.Logf("%s: %s%s", loc, errstr, o)
 	}
-	s.t.Logf("%s: %s%s", loc, errstr, o)
-	s.t.Log(loc, o)
 }
 
 // ReportError calls Testing.Error to report any error currently stored

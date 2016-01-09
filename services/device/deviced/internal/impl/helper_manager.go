@@ -128,8 +128,8 @@ func (s suidHelperState) getAppCmd(ctx *context.T, a *suidAppCmdArgs) (*exec.Cmd
 }
 
 // internalModalOp is a convenience routine containing the common part of all
-// modal operations. Only other routines implementing specific suidhelper operations
-// (like terminatePid and deleteFileTree) should call this directly.
+// modal operations. Only other routines implementing specific suidhelper
+// operations (like terminatePid and deleteFileTree) should call this directly.
 func (s suidHelperState) internalModalOp(ctx *context.T, stdout, stderr io.Writer, arg ...string) error {
 	cmd := exec.Command(s.helperPath)
 	cmd.Args = append(cmd.Args, arg...)
@@ -141,7 +141,7 @@ func (s suidHelperState) internalModalOp(ctx *context.T, stdout, stderr io.Write
 	}
 
 	if err := cmd.Run(); err != nil {
-		ctx.Errorf("failed calling helper with args (%v):%v", arg, err)
+		ctx.Errorf("failed calling helper with args (%v): %v", arg, err)
 		return err
 	}
 	return nil

@@ -15,12 +15,13 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/security"
+	"v.io/x/lib/gosh"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/internal/ipc"
 	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -41,15 +42,13 @@ import (
 // BenchmarkRecognizedCachedAgent-4          	 3000000	       774 ns/op
 // BenchmarkRecognizedUncachedAgent-4        	   20000	     99022 ns/op
 
-var getPrincipalAndHang = modules.Register(func(env *modules.Env, args ...string) error {
+var getPrincipalAndHang = gosh.Register("getPrincipalAndHang", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
 	p := v23.GetPrincipal(ctx)
-	fmt.Fprintf(env.Stdout, "DEFAULT_BLESSING=%s\n", p.BlessingStore().Default())
-	ioutil.ReadAll(env.Stdin)
-	return nil
-}, "getPrincipalAndHang")
+	fmt.Printf("DEFAULT_BLESSING=%s\n", p.BlessingStore().Default())
+	ioutil.ReadAll(os.Stdin)
+})
 
 func newAgent(path string, cached bool) (security.Principal, error) {
 	if cached {
@@ -194,34 +193,28 @@ func TestAgentDischargeCache(t *testing.T) {
 	}
 }
 
+// NOTE(sadovsky): Whether v23test.Shell uses the agent to manage credentials is
+// an internal implementation detail of the Shell. Currently, it happens to use
+// the agent. We could potentially expose an option to allow clients to
+// configure this behavior.
 func TestAgentShutdown(t *testing.T) {
-	ctx, shutdown := test.V23Init()
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer func() {
+		fmt.Fprintf(os.Stderr, "cleanup...\n")
+		sh.Cleanup()
+		fmt.Fprintf(os.Stderr, "cleanup done\n")
+	}()
 
-	// This starts an agent
-	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The child process will connect to the agent
-	h, err := sh.Start(nil, getPrincipalAndHang)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The child process will connect to the agent.
+	c := sh.Fn(getPrincipalAndHang)
+	c.Start()
 
 	fmt.Fprintf(os.Stderr, "reading var...\n")
-	h.ExpectVar("DEFAULT_BLESSING")
+	c.S.ExpectVar("DEFAULT_BLESSING")
 	fmt.Fprintf(os.Stderr, "read\n")
-	if err := h.Error(); err != nil {
+	if err := c.S.Error(); err != nil {
 		t.Fatalf("failed to read input: %s", err)
 	}
-	fmt.Fprintf(os.Stderr, "shutting down...\n")
-	// This should not hang
-	shutdown()
-	fmt.Fprintf(os.Stderr, "shut down\n")
-
-	fmt.Fprintf(os.Stderr, "cleanup...\n")
-	sh.Cleanup(os.Stdout, os.Stderr)
-	fmt.Fprintf(os.Stderr, "cleanup done\n")
 }
 
 var message = []byte("bugs bunny")

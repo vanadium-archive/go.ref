@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
-	"syscall"
+	"os"
 	"testing"
 
 	"v.io/v23"
@@ -24,20 +24,20 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-// TestDeviceManagerClaim claims a devicemanager and tests AccessList permissions on
-// its methods.
+// TestDeviceManagerClaim claims a devicemanager and tests AccessList
+// permissions on its methods.
 func TestDeviceManagerClaim(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	// root blessing provider so that the principals of all the contexts
-	// recognize each other.
+	// Use a common root identity provider so that all principals can talk to one
+	// another.
 	idp := testutil.NewIDProvider("root")
 	if err := idp.Bless(v23.GetPrincipal(ctx), "ctx"); err != nil {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -56,11 +56,11 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
 	pairingToken := "abcxyz"
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link", pairingToken)
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link", pairingToken)
+	dm.Start()
+	dm.S.Expect("READY")
 
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "trapp")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "google naps", 0, 0, "trapp")
 
 	claimantCtx := utiltest.CtxWithNewPrincipal(t, ctx, idp, "claimant")
 	octx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("other"))
@@ -114,12 +114,12 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	// Identity provider to ensure that all processes recognize each
-	// others' blessings.
+	// Use a common root identity provider so that all principals can talk to one
+	// another.
 	idp := testutil.NewIDProvider("root")
 	ctx = utiltest.CtxWithNewPrincipal(t, ctx, idp, "self")
 
-	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -137,13 +137,17 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := servicetest.RunCommand(t, sh, nil, utiltest.DeviceManager, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
-	pid := servicetest.ReadPID(t, dmh)
-	defer syscall.Kill(pid, syscall.SIGINT)
-	defer utiltest.VerifyNoRunningProcesses(t)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	dm.Start()
+	dm.S.Expect("READY")
+	defer func() {
+		dm.Shutdown(os.Interrupt)
+		dm.S.Expect("dm terminated")
+		utiltest.VerifyNoRunningProcesses(t)
+	}()
 
 	// Create an envelope for an app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0)
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "google naps", 0, 0, "app")
 
 	// On an unclaimed device manager, there will be no AccessLists.
 	if _, _, err := device.DeviceClient("claimable").GetPermissions(selfCtx); err == nil {

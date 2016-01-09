@@ -5,7 +5,6 @@
 package daemonreap_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"syscall"
@@ -14,7 +13,6 @@ import (
 	"v.io/v23/services/device"
 	"v.io/x/ref"
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
-	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestReapReconciliationViaKill(t *testing.T) {
@@ -29,10 +27,11 @@ func TestReapReconciliationViaKill(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dmCreds)
-	dmEnv := []string{fmt.Sprintf("%v=%v", ref.EnvCredentials, dmCreds)}
 
-	dmh := servicetest.RunCommand(t, sh, dmEnv, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	servicetest.ReadPID(t, dmh)
+	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Vars[ref.EnvCredentials] = dmCreds
+	dm.Start()
+	dm.S.Expect("READY")
 	utiltest.ClaimDevice(t, ctx, "claimable", "dm", "mydevice", utiltest.NoPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -41,7 +40,7 @@ func TestReapReconciliationViaKill(t *testing.T) {
 	utiltest.Resolve(t, ctx, "pingserver", 1, true)
 
 	// Create an envelope for the app.
-	*envelope = utiltest.EnvelopeFromShell(sh, nil, utiltest.App, "google naps", 0, 0, "appV1")
+	*envelope = utiltest.EnvelopeFromShell(sh, nil, nil, utiltest.App, "google naps", 0, 0, "appV1")
 
 	// Install the app.
 	appID := utiltest.InstallApp(t, ctx)
@@ -57,10 +56,8 @@ func TestReapReconciliationViaKill(t *testing.T) {
 	pid := utiltest.GetPid(t, ctx, appID, instances[0])
 
 	// Shutdown the first device manager.
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dmh.Expect("dm terminated")
-	dmh.ExpectEOF()
-	dmh.Shutdown(os.Stderr, os.Stderr)
+	dm.Shutdown(os.Interrupt)
+	dm.S.Expect("dm terminated")
 	utiltest.ResolveExpectNotFound(t, ctx, "dm", false) // Ensure a clean slate.
 
 	// Kill instance[0] and wait until it exits before proceeding.
@@ -68,8 +65,10 @@ func TestReapReconciliationViaKill(t *testing.T) {
 	utiltest.PollingWait(t, pid)
 
 	// Run another device manager to replace the dead one.
-	dmh = servicetest.RunCommand(t, sh, dmEnv, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	servicetest.ReadPID(t, dmh)
+	dm = utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dm.Vars[ref.EnvCredentials] = dmCreds
+	dm.Start()
+	dm.S.Expect("READY")
 	utiltest.Resolve(t, ctx, "dm", 1, true) // Verify the device manager has published itself.
 
 	// By now, we've reconciled the state of the tree with which processes
@@ -112,10 +111,7 @@ func TestReapReconciliationViaKill(t *testing.T) {
 	}
 	utiltest.TerminateApp(t, ctx, appID, instances[0])
 
-	// TODO(rjkroege): Should be in a defer to ensure that the device
-	// manager is cleaned up even if the test fails in an exceptional way.
+	dm.Shutdown(os.Interrupt)
+	dm.S.Expect("dm terminated")
 	utiltest.VerifyNoRunningProcesses(t)
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dmh.Expect("dm terminated")
-	dmh.ExpectEOF()
 }
