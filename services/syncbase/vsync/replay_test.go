@@ -225,13 +225,13 @@ func (s *syncService) dagReplayCommands(ctx *context.T, syncfile string) (*graft
 			}
 
 		case linkLocal:
-			if err = s.addParent(ctx, tx, cmd.oid, cmd.version, cmd.parents[0], nil); err != nil {
+			if err = s.addParent(ctx, tx, cmd.oid, cmd.version, cmd.parents[0], NoBatchId, nil); err != nil {
 				return nil, fmt.Errorf("cannot add local parent %s to node %s:%s: %v",
 					cmd.parents[0], cmd.oid, cmd.version, err)
 			}
 
 		case linkRemote:
-			if err = s.addParent(ctx, tx, cmd.oid, cmd.version, cmd.parents[0], graft); err != nil {
+			if err = s.addParent(ctx, tx, cmd.oid, cmd.version, cmd.parents[0], NoBatchId, graft); err != nil {
 				return nil, fmt.Errorf("cannot add remote parent %s to node %s:%s: %v",
 					cmd.parents[0], cmd.oid, cmd.version, err)
 			}

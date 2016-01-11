@@ -151,7 +151,11 @@ type graftInfo struct {
 
 // newBatchInfo allocates and initializes a batch info entry.
 func newBatchInfo() *BatchInfo {
-	return &BatchInfo{Objects: make(map[string]string), Count: 0}
+	return &BatchInfo{
+		Objects:       make(map[string]string),
+		LinkedObjects: make(map[string]string),
+		Count:         0,
+	}
 }
 
 // startBatch marks the start of a batch.  It generates a batch ID and returns
@@ -201,6 +205,25 @@ func (s *syncService) addNodeToBatch(ctx *context.T, btid uint64, oid, version s
 	}
 
 	info.Objects[oid] = version
+	return nil
+}
+
+// addLinkToBatch adds the child node (oid, version) in a link to a batch under
+// construction.
+func (s *syncService) addLinkToBatch(ctx *context.T, btid uint64, oid, version string) error {
+	s.batchesLock.Lock()
+	defer s.batchesLock.Unlock()
+
+	if btid == NoBatchId {
+		return verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
+	}
+
+	info := s.batches[btid]
+	if info == nil {
+		return verror.New(verror.ErrInternal, ctx, "unknown batch id", btid)
+	}
+
+	info.LinkedObjects[oid] = version
 	return nil
 }
 
@@ -355,7 +378,7 @@ func (s *syncService) addNode(ctx *context.T, tx store.Transaction, oid, version
 // to track DAG attachements during a sync operation.  It is not needed if the
 // parent linkage is due to a local change (from conflict resolution selecting
 // an existing version).
-func (s *syncService) addParent(ctx *context.T, tx store.Transaction, oid, version, parent string, graft *graftMap) error {
+func (s *syncService) addParent(ctx *context.T, tx store.Transaction, oid, version, parent string, btid uint64, graft *graftMap) error {
 	if version == parent {
 		return verror.New(verror.ErrInternal, ctx, "object", oid, version, "cannot be its own parent")
 	}
@@ -367,6 +390,13 @@ func (s *syncService) addParent(ctx *context.T, tx store.Transaction, oid, versi
 	pnode, err := getNode(ctx, tx, oid, parent)
 	if err != nil {
 		return err
+	}
+
+	// If a batch ID is given, add the child node in the link to that batch.
+	if btid != NoBatchId {
+		if err := s.addLinkToBatch(ctx, btid, oid, version); err != nil {
+			return err
+		}
 	}
 
 	// Check if the parent is already linked to this node.

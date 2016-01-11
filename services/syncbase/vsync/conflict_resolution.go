@@ -22,10 +22,11 @@ const (
 
 // conflictResolution represents the state of a conflict resolution.
 type conflictResolution struct {
-	batchId uint64
-	ty      resolutionType
-	rec     *LocalLogRec // Valid only if ty == createNew.
-	val     []byte       // Valid only if ty == createNew.
+	batchId    uint64
+	batchCount uint64
+	ty         resolutionType
+	rec        *LocalLogRec // Valid only if ty == createNew.
+	val        []byte       // Valid only if ty == createNew.
 }
 
 // resolveConflicts resolves conflicts for updated objects. Conflicts may be
