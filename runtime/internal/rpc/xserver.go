@@ -579,10 +579,10 @@ func (fs *xflowServer) serve() error {
 	ctx, results, err := fs.processRequest()
 	vtrace.GetSpan(ctx).Finish()
 
-	var traceResponse vtrace.Response
+	traceResponse := vtrace.GetResponse(ctx)
 	// Check if the caller is permitted to view vtrace data.
-	if fs.authorizeVtrace(ctx) == nil {
-		traceResponse = vtrace.GetResponse(ctx)
+	if traceResponse.Flags != vtrace.Empty && fs.authorizeVtrace(ctx) != nil {
+		traceResponse = vtrace.Response{}
 	}
 
 	if err != nil && fs.enc == nil {
