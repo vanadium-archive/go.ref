@@ -12,11 +12,16 @@ package v23test
 
 import (
 	"errors"
+	"flag"
+	"io/ioutil"
 	"os"
+	"strings"
 
 	"v.io/v23"
 	"v.io/x/ref"
 )
+
+var syncbaseDebugArgs = flag.String("v23test-syncbase-debug-args", "", "Args to add to syncbase invocations")
 
 // TODO(sadovsky): Drop this hack once the TODOs in v23test.go are addressed.
 func maybeAddTcpAddressFlag(sh *Shell, args *[]string) {
@@ -70,6 +75,18 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 		}
 	}
 	args = append([]string{"-name=" + name, "-root-dir=" + rootDir, "-v23.permissions.literal=" + permsLiteral}, args...)
+
+	if *syncbaseDebugArgs != "" {
+		syncbaseLogDir, err := ioutil.TempDir("", name)
+		if err != nil {
+			sh.HandleError(err)
+			return nil
+		}
+		sh.Ctx.Infof("syncbased log dir for %s: %s", name, syncbaseLogDir)
+		debugArgs := append(strings.Fields(*syncbaseDebugArgs), "-log_dir="+syncbaseLogDir)
+		args = append(args, debugArgs...)
+	}
+
 	maybeAddTcpAddressFlag(sh, &args)
 	cmd := sh.Cmd(path, args...)
 	if sh.Err != nil {
