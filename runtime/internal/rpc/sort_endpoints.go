@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strings"
+	"sync"
 
 	"v.io/v23/naming"
 	"v.io/v23/verror"
@@ -27,6 +29,8 @@ var (
 	errNoCompatibleServers          = reg(".errNoComaptibleServers", "failed to find any compatible servers{:3}")
 )
 
+var defaultPreferredProtocolOrder = mkProtocolRankMap([]string{"unixfd", "wsh", "tcp4", "tcp", "*"})
+
 type serverLocality int
 
 const (
@@ -35,39 +39,20 @@ const (
 	localNetwork
 )
 
-type sortableServer struct {
-	server       naming.MountedServer
-	protocolRank int            // larger values are preferred.
-	locality     serverLocality // larger values are preferred.
+const maxCacheSize = 1 << 11
+
+var (
+	cacheMu         sync.Mutex
+	cacheValid      <-chan struct{}
+	ipNetworksCache []*net.IPNet
+	serversCache    = make(map[string]sortableServer) // keyed by concatenated protocols and server name.
+)
+
+func init() {
+	valid := make(chan struct{})
+	cacheValid = valid
+	close(valid)
 }
-
-func (s *sortableServer) String() string {
-	return fmt.Sprintf("%v", s.server)
-}
-
-type sortableServerList []sortableServer
-
-func (l sortableServerList) Len() int      { return len(l) }
-func (l sortableServerList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
-func (l sortableServerList) Less(i, j int) bool {
-	if l[i].protocolRank == l[j].protocolRank {
-		return l[i].locality > l[j].locality
-	}
-	return l[i].protocolRank > l[j].protocolRank
-}
-
-func mkProtocolRankMap(list []string) map[string]int {
-	if len(list) == 0 {
-		return nil
-	}
-	m := make(map[string]int)
-	for idx, protocol := range list {
-		m[protocol] = len(list) - idx
-	}
-	return m
-}
-
-var defaultPreferredProtocolOrder = mkProtocolRankMap([]string{"unixfd", "wsh", "tcp4", "tcp", "*"})
 
 // filterAndOrderServers returns a set of servers that are compatible with
 // the current client in order of 'preference' specified by the supplied
@@ -84,15 +69,22 @@ var defaultPreferredProtocolOrder = mkProtocolRankMap([]string{"unixfd", "wsh", 
 // preferences.
 func filterAndOrderServers(servers []naming.MountedServer, protocols []string, ipnets ...*net.IPNet) ([]naming.MountedServer, error) {
 	if ipnets == nil {
-		var err error
-		if ipnets, err = ipNetworks(); err != nil {
+		if err := refreshCache(); err != nil {
 			return nil, err
 		}
+		cacheMu.Lock()
+		ipnets = ipNetworksCache
+		cacheMu.Unlock()
 	}
 	var (
 		errs       = verror.SubErrs{}
 		list       = make(sortableServerList, 0, len(servers))
 		protoRanks = mkProtocolRankMap(protocols)
+		// TODO(suharshs): We can sort protocols before concatenating to increase
+		// cache usage.
+		// We prefix cached server information by protocols because different
+		// preferred protocols will have different ranks.
+		protocolsKey = strings.Join(protocols, ",")
 	)
 	if len(protoRanks) == 0 {
 		protoRanks = defaultPreferredProtocolOrder
@@ -100,24 +92,13 @@ func filterAndOrderServers(servers []naming.MountedServer, protocols []string, i
 	adderr := func(name string, err error) {
 		errs = append(errs, verror.SubErr{Name: "server=" + name, Err: err, Options: verror.Print})
 	}
-
 	for _, server := range servers {
-		name := server.Server
-		ep, err := name2endpoint(name)
+		ss, err := mkSortableServer(server, protoRanks, protocolsKey, ipnets)
 		if err != nil {
-			adderr(name, verror.New(errMalformedEndpoint, nil, err))
+			adderr(server.Server, err)
 			continue
 		}
-		rank, err := protocol2rank(ep.Addr().Network(), protoRanks)
-		if err != nil {
-			adderr(name, err)
-			continue
-		}
-		list = append(list, sortableServer{
-			server:       server,
-			protocolRank: rank,
-			locality:     locality(ep, ipnets),
-		})
+		list = append(list, ss)
 	}
 	if len(list) == 0 {
 		return nil, verror.AddSubErrs(verror.New(errNoCompatibleServers, nil), nil, errs...)
@@ -132,6 +113,41 @@ func filterAndOrderServers(servers []naming.MountedServer, protocols []string, i
 		ret[idx] = item.server
 	}
 	return ret, nil
+}
+
+func mkSortableServer(server naming.MountedServer, protoRanks map[string]int, protocolsKey string, ipnets []*net.IPNet) (sortableServer, error) {
+	name := server.Server
+	k := name + "," + protocolsKey
+	cacheMu.Lock()
+	ss, ok := serversCache[k]
+	cacheMu.Unlock()
+	if ok {
+		return ss, nil
+	}
+
+	ep, err := name2endpoint(name)
+	if err != nil {
+		return sortableServer{}, verror.New(errMalformedEndpoint, nil, err)
+	}
+	rank, err := protocol2rank(ep.Addr().Network(), protoRanks)
+	if err != nil {
+		return sortableServer{}, err
+	}
+	defer cacheMu.Unlock()
+	cacheMu.Lock()
+	if len(serversCache) >= maxCacheSize {
+		for k := range serversCache {
+			delete(serversCache, k)
+			break
+		}
+	}
+	ss = sortableServer{
+		server:       server,
+		protocolRank: rank,
+		locality:     locality(ep, ipnets),
+	}
+	serversCache[k] = ss
+	return ss, nil
 }
 
 // name2endpoint returns the naming.Endpoint encoded in a name.
@@ -197,18 +213,66 @@ func locality(ep naming.Endpoint, ipnets []*net.IPNet) serverLocality {
 }
 
 // ipNetworks returns the IP networks on this machine.
-func ipNetworks() ([]*net.IPNet, error) {
-	ifcs, err := netstate.GetAllAddresses()
+// The returned chan is closed when the ipnetworks have changed.
+func ipNetworks() ([]*net.IPNet, <-chan struct{}, error) {
+	ifcs, valid, err := netstate.GetAllAddresses()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ret := make([]*net.IPNet, 0, len(ifcs))
 	for _, a := range ifcs {
 		_, ipnet, err := net.ParseCIDR(a.String())
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		ret = append(ret, ipnet)
 	}
-	return ret, nil
+	return ret, valid, nil
+}
+
+func refreshCache() error {
+	cacheMu.Lock()
+	select {
+	case <-cacheValid:
+		var err error
+		if ipNetworksCache, cacheValid, err = ipNetworks(); err != nil {
+			return err
+		}
+		serversCache = make(map[string]sortableServer)
+	default:
+	}
+	cacheMu.Unlock()
+	return nil
+}
+
+type sortableServer struct {
+	server       naming.MountedServer
+	protocolRank int            // larger values are preferred.
+	locality     serverLocality // larger values are preferred.
+}
+
+func (s *sortableServer) String() string {
+	return fmt.Sprintf("%v", s.server)
+}
+
+type sortableServerList []sortableServer
+
+func (l sortableServerList) Len() int      { return len(l) }
+func (l sortableServerList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l sortableServerList) Less(i, j int) bool {
+	if l[i].protocolRank == l[j].protocolRank {
+		return l[i].locality > l[j].locality
+	}
+	return l[i].protocolRank > l[j].protocolRank
+}
+
+func mkProtocolRankMap(list []string) map[string]int {
+	if len(list) == 0 {
+		return nil
+	}
+	m := make(map[string]int)
+	for idx, protocol := range list {
+		m[protocol] = len(list) - idx
+	}
+	return m
 }
